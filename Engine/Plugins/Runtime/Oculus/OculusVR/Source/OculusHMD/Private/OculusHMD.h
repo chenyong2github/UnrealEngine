@@ -12,6 +12,7 @@
 #include "OculusHMD_StressTester.h"
 #include "OculusHMD_ConsoleCommands.h"
 #include "OculusHMD_SpectatorScreenController.h"
+#include "OculusHMD_DynamicResolutionState.h"
 
 #include "OculusAssetManager.h"
 
@@ -141,7 +142,7 @@ public:
 	//virtual bool DoesAppUseVRFocus() const override;
 	//virtual bool DoesAppHaveVRFocus() const override;
 	virtual float GetPixelDenity() const override;
-	virtual void SetPixelDensity(const float NewDensity) override;
+	virtual void SetPixelDensity(const float NewPixelDensity) override;
 	virtual FIntPoint GetIdealRenderTargetSize() const override;
 
 	// IStereoRendering interface

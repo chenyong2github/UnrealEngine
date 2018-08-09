@@ -103,12 +103,11 @@ FDebugCanvasDrawer::~FDebugCanvasDrawer()
 		RenderThreadCanvas = nullptr;
 	}
 
-	if (LayerID != INVALID_LAYER_ID && GEngine->StereoRenderingDevice && GEngine->StereoRenderingDevice->GetStereoLayers())
+	if (LayerID != INVALID_LAYER_ID && 
+		GEngine->StereoRenderingDevice.IsValid() && 
+		GEngine->StereoRenderingDevice->GetStereoLayers())
 	{
-		if (GEngine->StereoRenderingDevice.IsValid())
-		{
-			GEngine->StereoRenderingDevice->GetStereoLayers()->DestroyLayer(LayerID);
-		}
+		GEngine->StereoRenderingDevice->GetStereoLayers()->DestroyLayer(LayerID);
 		LayerID = INVALID_LAYER_ID;
 	}
 }

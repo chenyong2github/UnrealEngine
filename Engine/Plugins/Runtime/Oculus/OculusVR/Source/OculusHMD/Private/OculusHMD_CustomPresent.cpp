@@ -195,6 +195,14 @@ void FCustomPresent::FinishRendering_RHIThread()
 #endif
 
 	OculusHMD->FinishRHIFrame_RHIThread();
+
+#if PLATFORM_ANDROID
+	float GPUFrameTime = 0.0f;
+	if (OVRP_SUCCESS(ovrp_GetGPUFrameTime(&GPUFrameTime)))
+	{
+		SubmitGPUFrameTime(GPUFrameTime);
+	}
+#endif
 }
 
 
