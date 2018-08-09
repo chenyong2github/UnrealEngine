@@ -129,6 +129,12 @@ static TAutoConsoleVariable<int32> CVarMonoscopicFarFieldMode(
 	TEXT(", 4 mono far field only"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
+	TEXT("vr.RoundRobinOcclusion"),
+	0,
+	TEXT("0 to disable round-robin occlusion queries for stereo rendering (default), 1 to enable."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarUsePreExposure(
 	TEXT("r.UsePreExposure"),
 	0,
