@@ -45,6 +45,12 @@ public:
 	 */
 	struct FLayerDesc
 	{
+		void SetLayerId(uint32 InId) { Id = InId; }
+		uint32 GetLayerId() const { return Id; }
+
+		const static uint32	INVALID_LAYER_ID = UINT_MAX;
+		// The layer's ID
+		uint32				Id			= INVALID_LAYER_ID;
 		// View space transform
 		FTransform			Transform	 = FTransform::Identity;
 		// Size of rendered quad

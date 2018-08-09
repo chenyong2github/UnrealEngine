@@ -9,6 +9,9 @@
 #include "Framework/Application/SlateApplication.h"
 #include "IStereoLayers.h"
 #include "StereoRendering.h"
+#include "IXRTrackingSystem.h"
+#include "ISpectatorScreenController.h"
+#include "IHeadMountedDisplay.h"
 
 /**
  * Simple representation of the backbuffer that the debug canvas renders to
@@ -228,6 +231,20 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 			if (StereoLayers)
 			{
 				StereoLayers->GetAllocatedTexture(LayerID, HMDSwapchain, HMDNull);
+
+				// If drawing to a layer tell the spectator screen controller to copy that layer to the spectator screen.
+				if (LayerID != INVALID_LAYER_ID && GEngine && GEngine->XRSystem)
+				{
+					IHeadMountedDisplay* HMD = GEngine->XRSystem->GetHMDDevice();
+					if (HMD)
+					{
+						ISpectatorScreenController* SpectatorScreenController = HMD->GetSpectatorScreenController();
+						if (SpectatorScreenController)
+						{
+							SpectatorScreenController->QueueDebugCanvasLayerID(LayerID);
+						}
+					}
+				}
 			}
 			RT = reinterpret_cast<FTexture2DRHIRef*>(HMDSwapchain == nullptr ? &LayerTexture->GetRenderTargetItem().ShaderResourceTexture : &HMDSwapchain);
 		}

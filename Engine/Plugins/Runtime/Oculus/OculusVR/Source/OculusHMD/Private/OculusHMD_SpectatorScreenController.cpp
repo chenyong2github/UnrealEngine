@@ -18,7 +18,7 @@ FOculusHMD_SpectatorScreenController::FOculusHMD_SpectatorScreenController(FOcul
 {
 }
 
-void FOculusHMD_SpectatorScreenController::RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FTexture2DRHIRef RenderTexture, FVector2D WindowSize) const
+void FOculusHMD_SpectatorScreenController::RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FTexture2DRHIRef RenderTexture, FVector2D WindowSize)
 {
 	if (OculusHMD->GetCustomPresent_Internal())
 	{
@@ -33,7 +33,7 @@ void FOculusHMD_SpectatorScreenController::RenderSpectatorModeUndistorted(FRHICo
 	FIntRect DestRect(0, 0, TargetTexture->GetSizeX() / 2, TargetTexture->GetSizeY());
 	for (int i = 0; i < 2; ++i)
 	{
-		OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, Settings->EyeRenderViewport[i], TargetTexture, DestRect, false);
+		OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, Settings->EyeRenderViewport[i], TargetTexture, DestRect, false, true);
 		DestRect.Min.X += TargetTexture->GetSizeX() / 2;
 		DestRect.Max.X += TargetTexture->GetSizeX() / 2;
 	}
@@ -48,7 +48,7 @@ void FOculusHMD_SpectatorScreenController::RenderSpectatorModeDistorted(FRHIComm
 	{
 		FIntRect SrcRect(0, 0, MirrorTexture->GetSizeX(), MirrorTexture->GetSizeY());
 		FIntRect DestRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
-		OculusHMD->CopyTexture_RenderThread(RHICmdList, MirrorTexture, SrcRect, TargetTexture, DestRect, false);
+		OculusHMD->CopyTexture_RenderThread(RHICmdList, MirrorTexture, SrcRect, TargetTexture, DestRect, false, true);
 	}
 }
 
@@ -59,7 +59,7 @@ void FOculusHMD_SpectatorScreenController::RenderSpectatorModeSingleEye(FRHIComm
 	const FIntRect SrcRect= Settings->EyeRenderViewport[0];
 	const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 
-	OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, SrcRect, TargetTexture, DstRect, false);
+	OculusHMD->CopyTexture_RenderThread(RHICmdList, EyeTexture, SrcRect, TargetTexture, DstRect, false, true);
 }
 
 } // namespace OculusHMD

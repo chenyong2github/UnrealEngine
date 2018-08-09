@@ -112,6 +112,7 @@ public:
 	//virtual FVector GetAudioListenerOffset() const override;
 	virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override;
 	//virtual void BeginRendering_RenderThread(const FTransform& NewRelativeTransform, FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
+	//virtual bool IsSpectatorScreenActive() const override;
 	//virtual class ISpectatorScreenController* GetSpectatorScreenController() override;
 	//virtual class ISpectatorScreenController const* GetSpectatorScreenController() const override;
 	//virtual float GetDistortionScalingFactor() const override;
@@ -154,7 +155,6 @@ public:
 	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 	virtual void InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas) override;
 	//virtual void GetEyeRenderParams_RenderThread(const struct FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
-	//virtual bool IsSpectatorScreenActive() const override;
 	virtual void RenderTexture_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture2D* BackBuffer, class FRHITexture2D* SrcTexture, FVector2D WindowSize) const override;
 	//virtual void SetClippingPlanes(float NCP, float FCP) override;
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
@@ -165,7 +165,7 @@ public:
 	// FHeadMoundedDisplayBase interface
 	virtual FVector2D GetEyeCenterPoint_RenderThread(EStereoscopicPass StereoPassType) const override;
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
-	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, FIntRect SrcRect, FTexture2DRHIParamRef DstTexture, FIntRect DstRect, bool bClearBlack) const override;
+	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, FIntRect SrcRect, FTexture2DRHIParamRef DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
 	virtual bool PopulateAnalyticsAttributes(TArray<struct FAnalyticsEventAttribute>& EventAttributes) override;
 
 	// FXRRenderTargetManager interface
