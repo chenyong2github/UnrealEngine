@@ -10,6 +10,8 @@
 #include "OvrAvatar.generated.h"
 
 class UPoseableMeshComponent;
+class USkeletalMesh;
+class UMeshComponent;
 
 UCLASS()
 class OCULUSAVATAR_API UOvrAvatar : public UActorComponent

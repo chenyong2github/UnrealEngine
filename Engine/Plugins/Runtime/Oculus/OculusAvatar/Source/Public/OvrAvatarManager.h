@@ -2,11 +2,10 @@
 #include "Containers/Ticker.h"
 #include "OVR_Avatar.h"
 #include "Containers/Map.h"
+#include "Containers/Queue.h"
+#include "Engine/Texture2D.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAvatars, Log, All);
-
-class UTexture2D;
-class UTexture;
 
 class OCULUSAVATAR_API FOvrAvatarManager : public FTickerObjectBase
 {

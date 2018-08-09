@@ -8,7 +8,9 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
-
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/Skeleton.h"
 
 float DebugLineScale = 100.f;
 bool DrawDebug = false;

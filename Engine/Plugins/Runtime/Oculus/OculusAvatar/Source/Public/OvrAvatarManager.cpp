@@ -2,9 +2,9 @@
 #include "OvrAvatarManager.h"
 #include "OvrAvatar.h"
 #include "OVR_Avatar.h"
-#include "Engine/Texture2D.h"
+#include "RenderUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "OculusHMDModule.h"
-
 
 DEFINE_LOG_CATEGORY(LogAvatars);
 
