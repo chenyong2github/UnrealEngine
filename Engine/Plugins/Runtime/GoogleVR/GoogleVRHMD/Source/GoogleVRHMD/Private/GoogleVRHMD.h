@@ -726,11 +726,6 @@ public:
 	 */
 	virtual void EnableHMD(bool bEnable = true) override;
 
-	/**
-	 * Returns the family of HMD device implemented
-	 */
-	virtual FName GetHMDDeviceType() const;
-
     /**
      * Get the name or id of the display to output for this HMD.
      */

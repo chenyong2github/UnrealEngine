@@ -1682,15 +1682,6 @@ void FGoogleVRHMD::EnableHMD(bool bEnable)
 	}
 }
 
-FName FGoogleVRHMD::GetHMDDeviceType() const
-{
-#if GOOGLEVRHMD_SUPPORTED_PLATFORMS
-	return FName(TEXT("ES2GenericStereoMesh"));
-#else
-	return FName(TEXT("GoogleVR"));
-#endif
-}
-
 bool FGoogleVRHMD::GetHMDMonitorInfo(MonitorInfo& OutMonitorInfo)
 {
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
