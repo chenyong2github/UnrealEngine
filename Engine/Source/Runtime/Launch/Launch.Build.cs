@@ -103,6 +103,7 @@ public class Launch : ModuleRules
 					"StreamingFile",
 					"CookedIterativeFile",
 					"AutomationWorker",
+					"FunctionalTesting"
 			});
 		}
 
