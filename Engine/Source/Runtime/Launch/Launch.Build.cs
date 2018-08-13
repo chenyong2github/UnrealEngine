@@ -102,8 +102,7 @@ public class Launch : ModuleRules
 					"NetworkFile",
 					"StreamingFile",
 					"CookedIterativeFile",
-					"AutomationWorker",
-					"FunctionalTesting"
+					"AutomationWorker"
 			});
 		}
 
@@ -141,7 +140,8 @@ public class Launch : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(new string[] {
 				"TaskGraph",
 				"RealtimeProfiler",
-				"ProfilerService"
+				"ProfilerService",
+				"FunctionalTesting"
 			});
 		}
 
