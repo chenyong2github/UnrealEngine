@@ -131,6 +131,13 @@ public class Launch : ModuleRules
 				"ClothingSystemRuntime",
 				"ClothingSystemRuntimeInterface"
 			});
+
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PrivateDependencyModuleNames.AddRange(new string[] {
+					"FunctionalTesting"
+				});
+			}
 		}
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
@@ -140,8 +147,7 @@ public class Launch : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(new string[] {
 				"TaskGraph",
 				"RealtimeProfiler",
-				"ProfilerService",
-				"FunctionalTesting"
+				"ProfilerService"
 			});
 		}
 
