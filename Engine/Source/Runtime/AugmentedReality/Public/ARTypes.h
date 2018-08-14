@@ -18,15 +18,17 @@ class UTexture2D;
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
 enum class EARTrackingState : uint8
 {
-	/** Currently not tracking. */
+	/** Unknown tracking state */
+	Unknown,
+	
+	/** Currently tracking. */
 	Tracking,
 	
 	/** Currently not tracking, but may resume tracking later. */
 	NotTracking,
 	
 	/** Stopped tracking forever. */
-	StoppedTracking,
-	
+	StoppedTracking
 };
 
 
