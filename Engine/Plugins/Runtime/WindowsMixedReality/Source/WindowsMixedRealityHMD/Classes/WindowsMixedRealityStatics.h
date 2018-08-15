@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Windows/WindowsHWrapper.h"
 
 #pragma warning(disable:4668)  
 #include <DirectXMath.h>
