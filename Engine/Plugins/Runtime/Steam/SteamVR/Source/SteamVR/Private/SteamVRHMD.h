@@ -369,6 +369,7 @@ public:
 	bool IsInitialized() const;
 
 	vr::IVRSystem* GetVRSystem() const { return VRSystem; }
+	vr::IVRInput* GetVRInput() const { return VRInput; }
 	vr::IVRRenderModels* GetRenderModelManager() const { return VRRenderModels; }
 
 protected:
@@ -569,6 +570,7 @@ private:
 	vr::IVROverlay* VROverlay;
 	vr::IVRChaperone* VRChaperone;
 	vr::IVRRenderModels* VRRenderModels;
+	vr::IVRInput* VRInput;
 
 	FString DisplayId;
 
