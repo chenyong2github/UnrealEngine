@@ -1021,7 +1021,7 @@ namespace OculusHMD
 	{
 		if (Settings.IsValid())
 		{
-			const int32 ViewIndex = ViewIndexFromStereoPass(StereoPass);
+			const int32 ViewIndex = GetViewIndexForPass(StereoPass);
 			X = Settings->EyeUnscaledRenderViewport[ViewIndex].Min.X;
 			Y = Settings->EyeUnscaledRenderViewport[ViewIndex].Min.Y;
 			SizeX = Settings->EyeUnscaledRenderViewport[ViewIndex].Size().X;
@@ -1041,7 +1041,7 @@ namespace OculusHMD
 	{
 		CheckInRenderThread();
 
-		const int32 ViewIndex = ViewIndexFromStereoPass(StereoPass);
+		const int32 ViewIndex = GetViewIndexForPass(StereoPass);
 
 		if (Settings_RenderThread.IsValid())
 		{
@@ -1085,7 +1085,7 @@ namespace OculusHMD
 
 		check(IsStereoEnabled());
 
-		const int32 ViewIndex = ViewIndexFromStereoPass(StereoPassType);
+		const int32 ViewIndex = GetViewIndexForPass(StereoPassType);
 
 		FMatrix proj = ToFMatrix(Settings->EyeProjectionMatrices[ViewIndex]);
 
@@ -1143,7 +1143,7 @@ namespace OculusHMD
 		check(IsStereoEnabled());
 
 		// Don't use GetStereoProjectionMatrix because it is game thread only on oculus, we also don't need the zplane adjustments for this.
-		const int32 ViewIndex = ViewIndexFromStereoPass(StereoPassType);
+		const int32 ViewIndex = GetViewIndexForPass(StereoPassType);
 		const FMatrix StereoProjectionMatrix = ToFMatrix(Settings_RenderThread->EyeProjectionMatrices[ViewIndex]);
 
 		//0,0,1 is the straight ahead point, wherever it maps to is the center of the projection plane in -1..1 coordinates.  -1,-1 is bottom left.
