@@ -309,6 +309,7 @@ public:
 		VulkanBridge(FSteamVRHMD* plugin);
 
 		virtual void FinishRendering() override;
+		virtual void UpdateViewport(const FViewport& Viewport, FRHIViewport* InViewportRHI) override;
 		virtual void Reset() override;
 
 	protected:
