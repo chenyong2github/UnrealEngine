@@ -4,6 +4,7 @@
 
 #include "GoogleVRControllerEventManager.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "InputCoreTypes.h"
 #include "GoogleVRControllerFunctionLibrary.generated.h"
 
 UENUM(BlueprintType)
