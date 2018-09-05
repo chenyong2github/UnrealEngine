@@ -34,7 +34,8 @@ namespace UnrealBuildTool.Rules
 					"GoogleVRHMD",
 					"UMG",
 					"Slate",
-					"SlateCore"
+					"SlateCore",
+					"AndroidRuntimeSettings"
 				}
 				);
 

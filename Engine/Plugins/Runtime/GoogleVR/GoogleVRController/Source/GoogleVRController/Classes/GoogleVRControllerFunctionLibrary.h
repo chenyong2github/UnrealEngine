@@ -80,7 +80,7 @@ public:
 	 * Get the GoogleVR Controller state
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static EGoogleVRControllerState GetGoogleVRControllerState();
+	static EGoogleVRControllerState GetGoogleVRControllerState(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/**
 	 * Get user's handedness preference from GVRSDK
@@ -93,19 +93,19 @@ public:
 	 * This function return the controller acceleration in gvr controller space.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static FVector GetGoogleVRControllerRawAccel();
+	static FVector GetGoogleVRControllerRawAccel(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/**
 	 * This function return the controller angular velocity about each axis (positive means clockwise when sighting along axis) in gvr controller space.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static FVector GetGoogleVRControllerRawGyro();
+	static FVector GetGoogleVRControllerRawGyro(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/**
 	 * This function return the orientation of the controller in unreal space.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static FRotator GetGoogleVRControllerOrientation();
+	static FRotator GetGoogleVRControllerOrientation(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/**
 	 * Return a pointer to the UGoogleVRControllerEventManager to hook up GoogleVR Controller specific event.
@@ -292,18 +292,18 @@ public:
 	 *  @return true if the battery is charging.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static bool GetBatteryCharging();
+	static bool GetBatteryCharging(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/** Get the bucketed controller battery level.
 	 *  Note this is an approximate level described by enumeration, not a percent.
 	 *  @return the approximate battery level, or unknown if the level can not be determined.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static EGoogleVRControllerBatteryLevel GetBatteryLevel();
+	static EGoogleVRControllerBatteryLevel GetBatteryLevel(EControllerHand Hand = EControllerHand::AnyHand);
 
 	/** Get the timestamp (nanos) when the last battery event was received.
 	 *  @return the timestamp, or zero if unavailable.
 	 */
-	static int64_t GetLastBatteryTimestamp();
+	static int64_t GetLastBatteryTimestamp(EControllerHand Hand = EControllerHand::AnyHand);
 
 };
