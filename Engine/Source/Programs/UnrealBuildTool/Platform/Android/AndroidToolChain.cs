@@ -1450,7 +1450,7 @@ namespace UnrealBuildTool
 							else
 							{
 								CompileAction.CommandPath = "/bin/sh";
-								CompileAction.CommandArguments = String.Format("-c \"{0} {1}\"", ClangPath, ResponseArgument);
+								CompileAction.CommandArguments = String.Format("-c \'{0} {1}\'", ClangPath, ResponseArgument);
 								CompileAction.CommandDescription = "Compile";
 							}
 						}
@@ -1681,7 +1681,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							LinkAction.CommandArguments = String.Format("-c \"{0} {1}\"", LinkAction.CommandPath, LinkAction.CommandArguments);
+							LinkAction.CommandArguments = String.Format("-c \'{0} {1}\'", LinkAction.CommandPath, LinkAction.CommandArguments);
 							LinkAction.CommandPath = "/bin/sh";
 							LinkAction.CommandDescription = "Link";
 						}
