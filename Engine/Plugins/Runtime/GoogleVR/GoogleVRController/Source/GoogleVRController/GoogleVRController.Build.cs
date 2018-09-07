@@ -35,13 +35,18 @@ namespace UnrealBuildTool.Rules
 					"UMG",
 					"Slate",
 					"SlateCore",
-					"AndroidRuntimeSettings"
 				}
 				);
 
 			if (Target.Platform == UnrealTargetPlatform.Android)
 			{
-				PrivateDependencyModuleNames.Add("Launch");
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"Launch",
+						"AndroidRuntimeSettings",
+					}
+					);
 			}
 
 			if (Target.bBuildEditor == true)

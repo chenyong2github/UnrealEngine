@@ -5,7 +5,9 @@
 #include "GoogleVRControllerPrivate.h"
 #include "IInputDevice.h"
 #include "XRMotionControllerBase.h"
+#if GOOGLEVRCONTROLLER_SUPPORTED_ANDROID_PLATFORMS
 #include "AndroidRuntimeSettings.h"
+#endif
 #if GOOGLEVRCONTROLLER_SUPPORTED_PLATFORMS
 #include "gvr_arm_model.h"
 #endif
@@ -198,7 +200,9 @@ private:
 #if GOOGLEVRCONTROLLER_SUPPORTED_PLATFORMS
 	gvr_arm_model::Controller ArmModelController;
 #endif
+#if GOOGLEVRCONTROLLER_SUPPORTED_ANDROID_PLATFORMS
 	EGoogleVRCaps::Type GoogleVRCaps;
+#endif
 	bool bUseArmModel;
 
 	int32 GetControllerStateIndex(const EControllerHand Hand) const;
