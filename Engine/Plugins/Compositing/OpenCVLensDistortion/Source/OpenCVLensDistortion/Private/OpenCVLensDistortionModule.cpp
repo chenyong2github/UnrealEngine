@@ -3,6 +3,9 @@
 #include "IOpenCVLensDistortionModule.h"
 
 #include "Logging/LogMacros.h"
+#include "Misc/Paths.h"
+#include "Interfaces/IPluginManager.h"
+#include "ShaderCore.h"
 
 
 DEFINE_LOG_CATEGORY(LogOpenCVLensDistortion)
@@ -19,3 +22,8 @@ class FOpenCVLensDistortionModule : public IOpenCVLensDistortionModule
 IMPLEMENT_MODULE(FOpenCVLensDistortionModule, OpenCVLensDistortion);
 
 
+void IOpenCVLensDistortionModule::StartupModule()
+{
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("OpenCVLensDistortion"))->GetBaseDir(), TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/Plugin/OpenCVLensDistortion"), PluginShaderDir);
+}
