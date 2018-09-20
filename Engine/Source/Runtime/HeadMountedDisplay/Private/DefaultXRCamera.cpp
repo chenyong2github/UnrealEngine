@@ -196,6 +196,7 @@ void FDefaultXRCamera::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	InViewFamily.EngineShowFlags.MotionBlur = allowMotionBlur;
 	InViewFamily.EngineShowFlags.HMDDistortion = HMD?HMD->GetHMDDistortionEnabled(InViewFamily.Scene->GetShadingPath()):false;
 	InViewFamily.EngineShowFlags.StereoRendering = bCurrentFrameIsStereoRendering;
+	InViewFamily.EngineShowFlags.Rendering = !HMD->IsRenderingPaused();
 }
 
 void FDefaultXRCamera::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
