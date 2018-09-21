@@ -86,6 +86,28 @@ TUniformBufferRef<FMobileDirectionalLightShaderParameters>& GetNullMobileDirecti
 	return NullLightParams;
 }
 
+void FMobileSceneRenderer::PrepareViewVisibilityLists()
+{
+	// Prepare view's visibility lists.
+	// TODO: only do this when CSM + static is required.
+	for (auto& View : Views)
+	{
+		FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo = View.MobileCSMVisibilityInfo;
+		// Init list of primitives that can receive Dynamic CSM.
+		MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap.Init(false, View.PrimitiveVisibilityMap.Num());
+
+		ensure(View.StaticMeshVisibilityMap.Num());
+
+		// Init static mesh visibility info for CSM drawlist
+		MobileCSMVisibilityInfo.MobileCSMStaticMeshVisibilityMap.Init(false, View.StaticMeshVisibilityMap.Num());
+		MobileCSMVisibilityInfo.MobileCSMStaticBatchVisibility.AddZeroed(View.StaticMeshBatchVisibility.Num());
+
+		// Init static mesh visibility info for default drawlist that excludes meshes in CSM only drawlist.
+		MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap = View.StaticMeshVisibilityMap;
+		MobileCSMVisibilityInfo.MobileNonCSMStaticBatchVisibility = View.StaticMeshBatchVisibility;
+	}
+}
+
 /**
  * Initialize scene's views.
  * Check visibility, sort translucent items, etc.
@@ -108,7 +130,12 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);		
+		InitDynamicShadows(RHICmdList);
+	}
+	else
+	{
+		// TODO: only do this when CSM + static is required.
+		PrepareViewVisibilityLists();
 	}
 
 	// if we kicked off ILC update via task, wait and finalize.
