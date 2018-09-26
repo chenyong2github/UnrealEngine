@@ -926,10 +926,12 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmd
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SortStaticDrawLists);
 
+		const FVector ViewLocation = Views[0].ViewMatrices.GetViewOrigin();
+		
 		for (int32 DrawType = 0; DrawType < EBasePass_MAX; DrawType++)
 		{
-			Scene->MobileBasePassUniformLightMapPolicyDrawList[DrawType].SortFrontToBack(Views[0].ViewLocation);
-			Scene->MobileBasePassUniformLightMapPolicyDrawListWithCSM[DrawType].SortFrontToBack(Views[0].ViewLocation);
+			Scene->MobileBasePassUniformLightMapPolicyDrawList[DrawType].SortFrontToBack(ViewLocation);
+			Scene->MobileBasePassUniformLightMapPolicyDrawListWithCSM[DrawType].SortFrontToBack(ViewLocation);
 		}
 	}
 
@@ -983,11 +985,14 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmd
 			{
 				DrawVisible(RHICmdList, Scene, EBasePass_Default, View, DrawRenderState, &View.MobileCSMVisibilityInfo);
 			}
+			FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 			// render dynamic opaque primitives (or all if Wireframe)
 			const bool bWireframe = !!ViewFamily.EngineShowFlags.Wireframe;
 			RenderMobileBasePassDynamicData(RHICmdList, View, DrawRenderState, BLEND_Opaque, bWireframe);
+
+			FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 			RenderMobileEditorPrimitives(RHICmdList, View, DrawRenderState);
@@ -1001,12 +1006,15 @@ void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmd
 			{
 				DrawVisible(RHICmdList, Scene, EBasePass_Masked, View, DrawRenderState, &View.MobileCSMVisibilityInfo);
 			}
+
+			FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 			// render dynamic masked primitives (or none if Wireframe)
 			if (!bWireframe)
 			{
 				RenderMobileBasePassDynamicData(RHICmdList, View, DrawRenderState, BLEND_Masked, false);
+				FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 				FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 			}
 		}
