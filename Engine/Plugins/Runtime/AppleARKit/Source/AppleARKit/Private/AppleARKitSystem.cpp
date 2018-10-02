@@ -1119,76 +1119,14 @@ bool FAppleARKitSystem::HitTestAtScreenPosition(const FVector2D ScreenPosition, 
 	return false;
 }
 
-static TOptional<EScreenOrientation::Type> PickAllowedDeviceOrientation( EScreenOrientation::Type InOrientation )
+void FAppleARKitSystem::SetDeviceOrientationAndDerivedTracking(EScreenOrientation::Type InOrientation)
 {
-#if SUPPORTS_ARKIT_1_0
-	const UIOSRuntimeSettings* IOSSettings = GetDefault<UIOSRuntimeSettings>();
-	
-	const bool bOrientationSupported[] =
-	{
-		true, // Unknown
-		IOSSettings->bSupportsPortraitOrientation != 0, // Portait
-		IOSSettings->bSupportsUpsideDownOrientation != 0, // PortraitUpsideDown
-		IOSSettings->bSupportsLandscapeRightOrientation != 0, // LandscapeLeft; These are flipped vs the enum name?
-		IOSSettings->bSupportsLandscapeLeftOrientation != 0, // LandscapeRight; These are flipped vs the enum name?
-		false, // FaceUp
-		false // FaceDown
-	};
-	
-	if (bOrientationSupported[static_cast<int32>(InOrientation)])
-	{
-		return InOrientation;
-	}
-	else
-	{
-		return TOptional<EScreenOrientation::Type>();
-	}
-#else
-	return TOptional<EScreenOrientation::Type>();
-#endif
+	checkf(InOrientation != EScreenOrientation::Unknown, TEXT("It is not allowed that Orientation is Unknown"));
+
+	// even if this didn't change, we need to call CalcTrackingToWorldRotation because the camera mode may have changed (from Gravity to non-Gravity, etc)
+	DeviceOrientation = InOrientation;
+	CalcTrackingToWorldRotation();
 }
-
-void FAppleARKitSystem::SetDeviceOrientation( EScreenOrientation::Type InOrientation )
-{
-	TOptional<EScreenOrientation::Type> NewOrientation = PickAllowedDeviceOrientation(InOrientation);
-
-	if (!NewOrientation.IsSet() && DeviceOrientation == EScreenOrientation::Unknown)
-	{
-		// We do not currently have a valid orientation, nor did the device provide one.
-		// So pick ANY ALLOWED default.
-		// This only realy happens if the device is face down on something or
-		// in another "useless" state for AR.
-		
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::Portrait);
-		}
-		
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeLeft);
-		}
-		
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::PortraitUpsideDown);
-		}
-		
-		if (!NewOrientation.IsSet())
-		{
-			NewOrientation = PickAllowedDeviceOrientation(EScreenOrientation::LandscapeRight);
-		}
-		
-		check(NewOrientation.IsSet());
-	}
-	
-	if (NewOrientation.IsSet() && DeviceOrientation != NewOrientation.GetValue())
-	{
-		DeviceOrientation = NewOrientation.GetValue();
-		CalcTrackingToWorldRotation();
-	}
-}
-
 
 PRAGMA_DISABLE_OPTIMIZATION
 bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
@@ -1200,11 +1138,8 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		LastReceivedFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 	}
 	
-	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
-	if (DeviceOrientation == EScreenOrientation::Unknown)
-	{
-		SetDeviceOrientation( static_cast<EScreenOrientation::Type>(FPlatformMisc::GetDeviceOrientation()) );
-	}
+	// Make sure this is set at session start, because we could get a camera mode change, without an orientation change
+	SetDeviceOrientationAndDerivedTracking( static_cast<EScreenOrientation::Type>(FPlatformMisc::GetDeviceOrientation()) );
 
 #if SUPPORTS_ARKIT_1_0
 	if (FAppleARKitAvailability::SupportsARKit10())
@@ -1364,7 +1299,7 @@ bool FAppleARKitSystem::Pause()
 void FAppleARKitSystem::OrientationChanged(const int32 NewOrientationRaw)
 {
 	const EScreenOrientation::Type NewOrientation = static_cast<EScreenOrientation::Type>(NewOrientationRaw);
-	SetDeviceOrientation(NewOrientation);
+	SetDeviceOrientationAndDerivedTracking(NewOrientation);
 }
 						
 void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > Frame)

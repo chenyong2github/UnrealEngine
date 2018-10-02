@@ -992,13 +992,15 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 - (void) didRotate:(NSNotification *)notification
 {   
 #if !PLATFORM_TVOS
-	UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
-
+	// get the interfaec orientation
+	NSNumber* OrientationNumber = [notification.userInfo objectForKey:UIApplicationStatusBarOrientationUserInfoKey];
+	UIInterfaceOrientation Orientation = (UIInterfaceOrientation)[OrientationNumber intValue];
+	
     if (bEngineInit)
     {
-		FFunctionGraphTask::CreateAndDispatchWhenReady([orientation]()
+		FFunctionGraphTask::CreateAndDispatchWhenReady([Orientation]()
 		{
-			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)orientation);
+			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)Orientation);
 
 			//we also want to fire off the safe frame event
 			FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
