@@ -17,7 +17,7 @@ USoundEffectPreset::~USoundEffectPreset()
 {
 	for (int32 i = 0; i < Instances.Num(); ++i)
 	{
-		Instances[i]->SetPreset(nullptr);
+		Instances[i]->ClearPreset();
 	}
 }
 
