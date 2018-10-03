@@ -275,16 +275,18 @@ bool FIOSPlatformMisc::IsInLowPowerMode()
 
 
 #if !PLATFORM_TVOS
-EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientation Orientation)
+EDeviceScreenOrientation ConvertFromUIDeviceOrientation(UIDeviceOrientation Orientation)
 {
 	switch(Orientation)
 	{
 		default:
-		case UIInterfaceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
-		case UIInterfaceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
-		case UIInterfaceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
-		case UIInterfaceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
-		case UIInterfaceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
+		case UIDeviceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
+		case UIDeviceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
+		case UIDeviceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
+		case UIDeviceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
+		case UIDeviceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
+		case UIDeviceOrientationFaceUp : return EDeviceScreenOrientation::FaceUp; break;
+		case UIDeviceOrientationFaceDown : return EDeviceScreenOrientation::FaceDown; break;
 	}
 }
 #endif
@@ -292,7 +294,7 @@ EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientatio
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
 #if !PLATFORM_TVOS
-	return ConvertFromUIInterfaceOrientation([[UIApplication sharedApplication] statusBarOrientation]);
+	return ConvertFromUIDeviceOrientation([[UIDevice currentDevice] orientation]);
 #else
 	return EDeviceScreenOrientation::Unknown;
 #endif

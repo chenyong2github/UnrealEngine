@@ -132,7 +132,7 @@ private:
 	
 	bool bIsRunning = false;
 	
-	void SetDeviceOrientationAndDerivedTracking( EScreenOrientation::Type InOrientation );
+	void SetDeviceOrientation( EScreenOrientation::Type InOrientation );
 
 	/** Creates or clears the face ar support object if face ar has been requested */
 	void CheckForFaceARSupport(UARSessionConfig* InSessionConfig);
