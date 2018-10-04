@@ -140,6 +140,7 @@ namespace WindowsMixedReality
 		bool bRequestRestart = false;
 
 		float ScreenScalePercentage = 1.0f;
+		float CachedWorldToMetersScale = 100.0f;
 
 		TRefCountPtr<ID3D11Device> D3D11Device = nullptr;
 
@@ -164,13 +165,12 @@ namespace WindowsMixedReality
 
 		float ipd = 0;
 
-		FHMDViewMesh HiddenAreaMesh[2];
-		FHMDViewMesh VisibleAreaMesh[2];
+		TArray<FHMDViewMesh> HiddenAreaMesh;
+		TArray<FHMDViewMesh> VisibleAreaMesh;
 
 		void StopCustomPresent();
 
 		void SetupHolographicCamera();
-		void SetupHiddenVisibleAreaMesh();
 
 		// Inherited via FXRRenderTargetManager
 		virtual void GetEyeRenderParams_RenderThread(
