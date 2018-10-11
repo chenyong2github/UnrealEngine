@@ -332,14 +332,15 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 		default:
 			return nullptr;
 	}
-	check(SessionConfiguration != nullptr);
-
-	// Copy / convert properties
-	SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
-	SessionConfiguration.providesAudioData = NO;
-	SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
-
-	return SessionConfiguration;
+    if (SessionConfiguration != nullptr)
+    {
+        // Copy / convert properties
+        SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
+        SessionConfiguration.providesAudioData = NO;
+        SessionConfiguration.worldAlignment = FAppleARKitConversion::ToARWorldAlignment(SessionConfig->GetWorldAlignment());
+    }
+    
+    return SessionConfiguration;
 }
 
 #pragma clang diagnostic pop
