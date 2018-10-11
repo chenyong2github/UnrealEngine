@@ -32,17 +32,11 @@ FOvrpLayer::FOvrpLayer(uint32 InOvrpLayerId) :
 
 FOvrpLayer::~FOvrpLayer()
 {
-	if (InRenderThread())
-	{
-		ExecuteOnRHIThread_DoNotWait([this]()
-		{
-			ovrp_DestroyLayer(OvrpLayerId);
-		});
-	}
-	else
+	check(InRenderThread() || InRHIThread());
+	ExecuteOnRHIThread_DoNotWait([this]()
 	{
 		ovrp_DestroyLayer(OvrpLayerId);
-	}
+	});
 }
 
 
