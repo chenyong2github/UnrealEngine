@@ -12,6 +12,7 @@
 #include "IMediaPlayer.h"
 #include "IMediaPlayerFactory.h"
 #include "IMediaSamples.h"
+#include "IMediaAudioSample.h"
 #include "IMediaTextureSample.h"
 #include "IMediaTracks.h"
 #include "IMediaView.h"
@@ -72,7 +73,7 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 	, BlockOnTime(FTimespan::MinValue())
 	, Cache(new FMediaSampleCache)
 	, LastRate(0.0f)
-	, NextVideoSampleTime(FTimespan::MinValue())
+	, LastAudioRenderedSampleTime(FTimespan::MinValue())
 { }
 
 
@@ -616,6 +617,25 @@ bool FMediaPlayerFacade::SupportsRate(float Rate, bool Unthinned) const
 	return Player.IsValid() && Player->GetControls().GetSupportedRates(Thinning).Contains(Rate);
 }
 
+void FMediaPlayerFacade::SetLastAudioRenderedSampleTime(FTimespan SampleTime)
+{
+	LastAudioRenderedSampleTime = SampleTime;
+}
+
+FTimespan FMediaPlayerFacade::GetLastAudioRenderedSampleTime() const
+{
+	return LastAudioRenderedSampleTime.Load();
+}
+
+FTimespan FMediaPlayerFacade::GetLastAudioSampleProcessedTime() const
+{
+	return LastAudioSampleProcessedTime.Load();
+}
+
+FTimespan FMediaPlayerFacade::GetLastVideoSampleProcessedTime() const
+{
+	return LastVideoSampleProcessedTime.Load();
+}
 
 /* FMediaPlayerFacade implementation
 *****************************************************************************/
@@ -677,6 +697,10 @@ void FMediaPlayerFacade::FlushSinks()
 	}
 
 	NextVideoSampleTime = FTimespan::MinValue();
+
+	LastAudioSampleProcessedTime = FTimespan::MinValue();
+	LastVideoSampleProcessedTime = FTimespan::MinValue();
+	LastAudioRenderedSampleTime = FTimespan::MinValue();
 }
 
 
@@ -1071,7 +1095,14 @@ void FMediaPlayerFacade::ProcessAudioSamples(IMediaSamples& Samples, TRange<FTim
 
 	while (Samples.FetchAudio(TimeRange, Sample))
 	{
-		if (Sample.IsValid() && !AudioSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxAudioSinkDepth))
+		if (!Sample.IsValid())
+		{
+			continue;
+		}
+
+		LastAudioSampleProcessedTime = Sample->GetTime();
+
+		if (!AudioSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxAudioSinkDepth))
 		{
 			#if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Audio sample sink overflow"), this);
@@ -1139,6 +1170,8 @@ void FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, TRange<FTim
 		{
 			continue;
 		}
+
+		LastVideoSampleProcessedTime = Sample->GetTime();
 
 		UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Fetched video sample %s"), this, *Sample->GetTime().ToString(TEXT("%h:%m:%s.%t")));
 
