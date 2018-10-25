@@ -266,7 +266,7 @@ namespace UnrealBuildTool
 			base.ValidateTarget(Target);
 
 			// #todo: ICU is crashing on startup, this is a workaround
-			Target.bCompileICU = false;
+			Target.bCompileICU = true;
 		}
 	}
 
