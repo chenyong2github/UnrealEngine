@@ -11,7 +11,7 @@
 class APPLEARKITFACESUPPORT_API IARKitBlendShapePublisher
 {
 public:
-	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& BlendShapes) = 0;
+	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& BlendShapes, FName DeviceID = NAME_None) = 0;
 };
 
 /** Interface that publishes face ar blend shape information via LiveLink */
