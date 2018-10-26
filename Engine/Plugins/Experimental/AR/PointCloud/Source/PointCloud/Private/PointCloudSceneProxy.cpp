@@ -18,9 +18,9 @@
 #include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"
 
-DECLARE_CYCLE_STAT(TEXT("Update Point Cloud GT"), STAT_PointCloud_UpdatePointCloud, STATGROUP_POINTCLOUD);
-DECLARE_CYCLE_STAT(TEXT("Get Mesh Elements"), STAT_PointCloud_GetMeshElements, STATGROUP_POINTCLOUD);
-DECLARE_CYCLE_STAT(TEXT("Create RT Resources"), STAT_PointCloud_CreateRenderThreadResources, STATGROUP_POINTCLOUD);
+DECLARE_CYCLE_STAT(TEXT("Update Point Cloud GT"), STAT_PointCloud_UpdatePointCloud, STATGROUP_PointCloud);
+DECLARE_CYCLE_STAT(TEXT("Get Mesh Elements"), STAT_PointCloud_GetMeshElements, STATGROUP_PointCloud);
+DECLARE_CYCLE_STAT(TEXT("Create RT Resources"), STAT_PointCloud_CreateRenderThreadResources, STATGROUP_PointCloud);
 
 
 FNoFetchPointCloudSceneProxy::FNoFetchPointCloudSceneProxy(UPointCloudComponent* Component)

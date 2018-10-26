@@ -3,9 +3,14 @@
 #include "PointCloudComponent.h"
 #include "PointCloud.h"
 #include "PointCloudSceneProxy.h"
+#include "UObject/ConstructorHelpers.h"
+#include "EngineGlobals.h"
+#include "Engine/Engine.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
 
-DECLARE_CYCLE_STAT(TEXT("Create Point Cloud Proxy"), STAT_PointCloud_CreateSceneProxy, STATGROUP_POINTCLOUD);
-DECLARE_CYCLE_STAT(TEXT("Point Cloud Comp Update"), STAT_PointCloud_ComponentUpdateCost, STATGROUP_POINTCLOUD);
+DECLARE_CYCLE_STAT(TEXT("Create Point Cloud Proxy"), STAT_PointCloud_CreateSceneProxy, STATGROUP_PointCloud);
+DECLARE_CYCLE_STAT(TEXT("Point Cloud Comp Update"), STAT_PointCloud_ComponentUpdateCost, STATGROUP_PointCloud);
 
 UPointCloudComponent::UPointCloudComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
