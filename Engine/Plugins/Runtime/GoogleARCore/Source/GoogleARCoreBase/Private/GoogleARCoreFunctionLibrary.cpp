@@ -191,7 +191,7 @@ UGoogleARCoreEventManager* UGoogleARCoreSessionFunctionLibrary::GetARCoreEventMa
 	auto ARSystem = FGoogleARCoreDevice::GetInstance()->GetARSystem();
 	if (ARSystem.IsValid())
 	{
-		return static_cast<FGoogleARCoreXRTrackingSystem*>(ARSystem.Get())->GetEventManager();
+		return static_cast<FGoogleARCoreXRTrackingSystem*>(ARSystem->GetXRTrackingSystem())->GetEventManager();
 	}
 	else
 	{

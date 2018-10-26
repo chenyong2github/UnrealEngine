@@ -8,7 +8,7 @@
 #include "ARPin.h"
 #include "ARTrackable.h"
 
-TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> UARBlueprintLibrary::RegisteredARSystem = nullptr;
+TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> UARBlueprintLibrary::RegisteredARSystem = nullptr;
 
 EARTrackingQuality UARBlueprintLibrary::GetTrackingQuality()
 {
@@ -235,13 +235,13 @@ void UARBlueprintLibrary::RemovePin( UARPin* PinToRemove )
 
 
 
-void UARBlueprintLibrary::RegisterAsARSystem(const TSharedPtr<FARSystemBase, ESPMode::ThreadSafe>& NewARSystem)
+void UARBlueprintLibrary::RegisterAsARSystem(const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& NewARSystem)
 {
 	RegisteredARSystem = NewARSystem;
 }
 
 
-const TSharedPtr<FARSystemBase, ESPMode::ThreadSafe>& UARBlueprintLibrary::GetARSystem()
+const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& UARBlueprintLibrary::GetARSystem()
 {
 	return RegisteredARSystem;
 }

@@ -1730,6 +1730,7 @@ namespace OculusHMD
 
 	FOculusHMD::FOculusHMD(const FAutoRegister& AutoRegister)
 		: FSceneViewExtensionBase(AutoRegister)
+		, FHeadMountedDisplayBase(nullptr)
 		, ConsoleCommands(this)
 	{
 		Flags.Raw = 0;

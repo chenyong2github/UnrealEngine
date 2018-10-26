@@ -43,6 +43,7 @@ public:
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return AsShared(); }
 	virtual class TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > GetXRCamera(int32 DeviceId) override;
 	virtual FName GetSystemName() const override;
+	virtual FString GetVersionString() const override;
 
 	virtual bool DoesSupportPositionalTracking() const override;
 	virtual bool HasValidTrackingPosition() override;
@@ -136,7 +137,7 @@ public:
 
 public:
 	/** Constructor */
-	FMagicLeapHMD(IMagicLeapPlugin* MagicLeapPlugin, bool bEnableVDZI = false, bool bUseVulkan = false);
+	FMagicLeapHMD(IMagicLeapPlugin* MagicLeapPlugin, IARSystemSupport* ARImplementation, bool bEnableVDZI = false, bool bUseVulkan = false);
 
 	/** Destructor */
 	virtual ~FMagicLeapHMD();

@@ -90,7 +90,7 @@ private:
 	{
 		// @todo arkit : is it safe not to lock here? Theoretically this should only be called on the game thread.
 		ensure(IsInGameThread());
-		const bool bShouldOverrideFOV = ARKitSystem.GetSessionConfig().ShouldRenderCameraOverlay();
+		const bool bShouldOverrideFOV = ARKitSystem.GetARCompositionComponent()->GetSessionConfig().ShouldRenderCameraOverlay();
 		if (bShouldOverrideFOV && ARKitSystem.GameThreadFrame.IsValid())
 		{
 			if (ARKitSystem.DeviceOrientation == EScreenOrientation::Portrait || ARKitSystem.DeviceOrientation == EScreenOrientation::PortraitUpsideDown)
@@ -165,7 +165,7 @@ private:
 		// Most Face AR apps that are driving other meshes using the face capture (animoji style) will disable this.
 		const bool bRenderOverlay =
 			ARKitSystem.OnGetARSessionStatus().Status == EARSessionStatus::Running &&
-			ARKitSystem.GetSessionConfig().ShouldRenderCameraOverlay();
+			ARKitSystem.GetARCompositionComponent()->GetSessionConfig().ShouldRenderCameraOverlay();
 
 #if SUPPORTS_ARKIT_1_0
 		if (FAppleARKitAvailability::SupportsARKit10())
@@ -196,7 +196,7 @@ private:
 //
 
 FAppleARKitSystem::FAppleARKitSystem()
-: FARSystemBase()
+: FXRTrackingSystemBase(this)
 , DeviceOrientation(EScreenOrientation::Unknown)
 , DerivedTrackingToUnrealRotation(FRotator::ZeroRotator)
 , LightEstimate(nullptr)
@@ -266,7 +266,7 @@ bool FAppleARKitSystem::GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FV
 		// Apply alignment transform if there is one.
 		FTransform CurrentTransform(GameThreadFrame->Camera.Orientation, GameThreadFrame->Camera.Translation);
 		CurrentTransform = FTransform(DerivedTrackingToUnrealRotation) * CurrentTransform;
-		CurrentTransform *= GetAlignmentTransform();
+		CurrentTransform *= GetARCompositionComponent()->GetAlignmentTransform();
 		
 		
 		// Apply counter-rotation to compensate for mobile device orientation
@@ -303,7 +303,7 @@ void FAppleARKitSystem::CalcTrackingToWorldRotation()
 	// We rotate the camera to counteract the portrait vs. landscape viewport rotation
 	DerivedTrackingToUnrealRotation = FRotator::ZeroRotator;
 
-	const EARWorldAlignment WorldAlignment = GetSessionConfig().GetWorldAlignment();
+	const EARWorldAlignment WorldAlignment = GetARCompositionComponent()->GetSessionConfig().GetWorldAlignment();
 	if (WorldAlignment == EARWorldAlignment::Gravity || WorldAlignment == EARWorldAlignment::GravityAndHeading)
 	{
 		switch (DeviceOrientation)
@@ -407,7 +407,7 @@ bool FAppleARKitSystem::IsHeadTrackingAllowed() const
 	// For face AR tracking movements of the device most likely won't want to be tracked
 	const bool bEnableCameraTracking =
 		OnGetARSessionStatus().Status == EARSessionStatus::Running &&
-		GetSessionConfig().ShouldEnableCameraTracking();
+		GetARCompositionComponent()->GetSessionConfig().ShouldEnableCameraTracking();
 
 #if SUPPORTS_ARKIT_1_0
 	if (FAppleARKitAvailability::SupportsARKit10())
@@ -550,8 +550,6 @@ void FAppleARKitSystem::OnSetAlignmentTransform(const FTransform& InAlignmentTra
 	{
 		Pin->UpdateAlignmentTransform(NewAlignmentTransform);
 	}
-	
-	SetAlignmentTransform_Internal(InAlignmentTransform);
 }
 
 static bool IsHitInRange( float UnrealHitDistance )
@@ -589,7 +587,7 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 	{
 #if SUPPORTS_ARKIT_1_0
 		
-		TSharedRef<FARSystemBase, ESPMode::ThreadSafe> This = SharedThis(this);
+		TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> This = GetARCompositionComponent();
 		
 		@autoreleasepool
 		{
@@ -634,7 +632,7 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 						{
 							// Hit result has passed and above filtering, add it to the list
 							// Convert to Unreal's Hit Test result format
-							Results.Add( FARTraceResult( This, UnrealHitDistance, EARLineTraceChannels::PlaneUsingExtent, FAppleARKitConversion::ToFTransform( HitTestResult.worldTransform )*GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries) ) );
+							Results.Add(FARTraceResult(This, UnrealHitDistance, EARLineTraceChannels::PlaneUsingExtent, FAppleARKitConversion::ToFTransform(HitTestResult.worldTransform)*GetARCompositionComponent()->GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries)));
 						}
 					}
 				}
@@ -650,7 +648,7 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 						{
 							// Hit result has passed and above filtering, add it to the list
 							// Convert to Unreal's Hit Test result format
-							Results.Add( FARTraceResult( This, UnrealHitDistance, EARLineTraceChannels::GroundPlane, FAppleARKitConversion::ToFTransform( HitTestResult.worldTransform )*GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries) ) );
+							Results.Add(FARTraceResult(This, UnrealHitDistance, EARLineTraceChannels::GroundPlane, FAppleARKitConversion::ToFTransform(HitTestResult.worldTransform)*GetARCompositionComponent()->GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries)));
 						}
 					}
 				}
@@ -668,7 +666,7 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 						{
 							// Hit result has passed and above filtering, add it to the list
 							// Convert to Unreal's Hit Test result format
-							Results.Add( FARTraceResult( This, UnrealHitDistance, EARLineTraceChannels::FeaturePoint, FAppleARKitConversion::ToFTransform( HitTestResult.worldTransform )*GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries) ) );
+							Results.Add( FARTraceResult( This, UnrealHitDistance, EARLineTraceChannels::FeaturePoint, FAppleARKitConversion::ToFTransform( HitTestResult.worldTransform )*GetARCompositionComponent()->GetAlignmentTransform(), FindGeometryFromAnchor(HitTestResult.anchor, TrackedGeometries) ) );
 						}
 					}
 				}
@@ -730,7 +728,7 @@ UARPin* FAppleARKitSystem::OnPinComponent( USceneComponent* ComponentToPin, cons
 		// PinToWorld * AlignedTrackingToWorld(-1) * TrackingToAlignedTracking(-1) = PinToWorld * WorldToAlignedTracking * AlignedTrackingToTracking
 		// The Worlds and AlignedTracking cancel out, and we get PinToTracking
 		// But we must translate this logic into Unreal's transform API
-		const FTransform& TrackingToAlignedTracking = GetAlignmentTransform();
+		const FTransform& TrackingToAlignedTracking = GetARCompositionComponent()->GetAlignmentTransform();
 		const FTransform PinToTrackingTransform = PinToWorldTransform.GetRelativeTransform(GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
 
 		// If the user did not provide a TrackedGeometry, create the simplest TrackedGeometry for this pin.
@@ -740,11 +738,11 @@ UARPin* FAppleARKitSystem::OnPinComponent( USceneComponent* ComponentToPin, cons
 			double UpdateTimestamp = FPlatformTime::Seconds();
 			
 			GeometryToPinTo = NewObject<UARTrackedPoint>();
-			GeometryToPinTo->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, PinToTrackingTransform, GetAlignmentTransform());
+			GeometryToPinTo->UpdateTrackedGeometry(GetARCompositionComponent().ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, PinToTrackingTransform, GetARCompositionComponent()->GetAlignmentTransform());
 		}
 		
 		UARPin* NewPin = NewObject<UARPin>();
-		NewPin->InitARPin(SharedThis(this), ComponentToPin, PinToTrackingTransform, GeometryToPinTo, DebugName);
+		NewPin->InitARPin(GetARCompositionComponent().ToSharedRef(), ComponentToPin, PinToTrackingTransform, GeometryToPinTo, DebugName);
 		
 		Pins.Add(NewPin);
 		
@@ -1107,8 +1105,6 @@ EARWorldMappingState FAppleARKitSystem::OnGetWorldMappingStatus() const
 
 void FAppleARKitSystem::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	FARSystemBase::AddReferencedObjects(Collector);
-
 	Collector.AddReferencedObjects( TrackedGeometries );
 	Collector.AddReferencedObjects( Pins );
 	Collector.AddReferencedObject( CameraImage );
@@ -1310,7 +1306,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	// Set running state
 	bIsRunning = true;
 	
-	OnARSessionStarted.Broadcast();
+	GetARCompositionComponent()->OnARSessionStarted.Broadcast();
 	return true;
 }
 PRAGMA_ENABLE_OPTIMIZATION
@@ -1477,8 +1473,8 @@ void FAppleARKitSystem::SessionDidAddAnchors_DelegateThread( NSArray<ARAnchor*>*
 	if (FaceARSupport != nullptr)
 	{
 		double UpdateTimestamp = FPlatformTime::Seconds();
-		const FRotator& AdjustBy = GetSessionConfig().GetWorldAlignment() == EARWorldAlignment::Camera ? DerivedTrackingToUnrealRotation : FRotator::ZeroRotator;
-		const EARFaceTrackingUpdate UpdateSetting = GetSessionConfig().GetFaceTrackingUpdate();
+		const FRotator& AdjustBy = GetARCompositionComponent()->GetSessionConfig().GetWorldAlignment() == EARWorldAlignment::Camera ? DerivedTrackingToUnrealRotation : FRotator::ZeroRotator;
+		const EARFaceTrackingUpdate UpdateSetting = GetARCompositionComponent()->GetSessionConfig().GetFaceTrackingUpdate();
 
 		const TArray<TSharedPtr<FAppleARKitAnchorData>> AnchorList = FaceARSupport->MakeAnchorData(anchors, UpdateTimestamp, GameThreadFrameNumber, AdjustBy, UpdateSetting);
 		for (TSharedPtr<FAppleARKitAnchorData> NewAnchorData : AnchorList)
@@ -1506,8 +1502,8 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_DelegateThread( NSArray<ARAnchor
 	if (FaceARSupport != nullptr)
 	{
 		double UpdateTimestamp = FPlatformTime::Seconds();
-		const FRotator& AdjustBy = GetSessionConfig().GetWorldAlignment() == EARWorldAlignment::Camera ? DerivedTrackingToUnrealRotation : FRotator::ZeroRotator;
-		const EARFaceTrackingUpdate UpdateSetting = GetSessionConfig().GetFaceTrackingUpdate();
+		const FRotator& AdjustBy = GetARCompositionComponent()->GetSessionConfig().GetWorldAlignment() == EARWorldAlignment::Camera ? DerivedTrackingToUnrealRotation : FRotator::ZeroRotator;
+		const EARFaceTrackingUpdate UpdateSetting = GetARCompositionComponent()->GetSessionConfig().GetFaceTrackingUpdate();
 
 		const TArray<TSharedPtr<FAppleARKitAnchorData>> AnchorList = FaceARSupport->MakeAnchorData(anchors, UpdateTimestamp, GameThreadFrameNumber, AdjustBy, UpdateSetting);
 		for (TSharedPtr<FAppleARKitAnchorData> NewAnchorData : AnchorList)
@@ -1547,8 +1543,10 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 {
 	double UpdateTimestamp = FPlatformTime::Seconds();
 	
+	const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& ARComponent = GetARCompositionComponent();
+
 	// In case we have camera tracking turned off, we still need to update the frame
-	if (!GetSessionConfig().ShouldEnableCameraTracking())
+	if (!ARComponent->GetSessionConfig().ShouldEnableCameraTracking())
 	{
 		UpdateFrame();
 	}
@@ -1567,14 +1565,14 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 		{
 			NewAnchorDebugName = FString::Printf(TEXT("ANCHOR-%02d"), LastTrackedGeometry_DebugId++);
 			NewGeometry = NewObject<UARTrackedGeometry>();
-			NewGeometry->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform());
+			NewGeometry->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform());
 			break;
 		}
 		case EAppleAnchorType::PlaneAnchor:
 		{
 			NewAnchorDebugName = FString::Printf(TEXT("PLN-%02d"), LastTrackedGeometry_DebugId++);
 			UARPlaneGeometry* NewGeo = NewObject<UARPlaneGeometry>();
-			NewGeo->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->Center, AnchorData->Extent);
+			NewGeo->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->Center, AnchorData->Extent);
 			NewGeometry = NewGeo;
 			break;
 		}
@@ -1582,7 +1580,7 @@ void FAppleARKitSystem::SessionDidAddAnchors_Internal( TSharedRef<FAppleARKitAnc
 		{
 			NewAnchorDebugName = FString::Printf(TEXT("FACE-%02d"), LastTrackedGeometry_DebugId++);
 			UARFaceGeometry* NewGeo = NewObject<UARFaceGeometry>();
-			NewGeo->UpdateFaceGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
+			NewGeo->UpdateFaceGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
 			NewGeo->SetTrackingState(EARTrackingState::Tracking);
 			// @todo JoeG -- remove in 4.22
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1597,7 +1595,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UARTrackedImage* NewImage = NewObject<UARTrackedImage>();
 			UARCandidateImage** CandidateImage = CandidateImages.Find(AnchorData->DetectedAnchorName);
 			ensure(CandidateImage != nullptr);
-			NewImage->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), *CandidateImage);
+			NewImage->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), *CandidateImage);
 			NewGeometry = NewImage;
 			break;
 		}
@@ -1605,7 +1603,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			NewAnchorDebugName = FString::Printf(TEXT("ENV-%02d"), LastTrackedGeometry_DebugId++);
 			UAppleARKitEnvironmentCaptureProbe* NewProbe = NewObject<UAppleARKitEnvironmentCaptureProbe>();
-			NewProbe->UpdateEnvironmentCapture(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->Extent, AnchorData->ProbeTexture);
+			NewProbe->UpdateEnvironmentCapture(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->Extent, AnchorData->ProbeTexture);
 			NewGeometry = NewProbe;
 			break;
 		}
@@ -1615,7 +1613,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UARTrackedObject* NewTrackedObject = NewObject<UARTrackedObject>();
 			UARCandidateObject** CandidateObject = CandidateObjects.Find(AnchorData->DetectedAnchorName);
 			ensure(CandidateObject != nullptr);
-			NewTrackedObject->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), *CandidateObject);
+			NewTrackedObject->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), *CandidateObject);
 			NewGeometry = NewTrackedObject;
 			break;
 		}
@@ -1631,8 +1629,10 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 {
 	double UpdateTimestamp = FPlatformTime::Seconds();
 	
+	const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& ARComponent = GetARCompositionComponent();
+
 	// In case we have camera tracking turned off, we still need to update the frame
-	if (!GetSessionConfig().ShouldEnableCameraTracking())
+	if (!ARComponent->GetSessionConfig().ShouldEnableCameraTracking())
 	{
 		UpdateFrame();
 	}
@@ -1661,7 +1661,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 		{
 			case EAppleAnchorType::Anchor:
 			{
-				FoundGeometry->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform());
+				FoundGeometry->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform());
 				for (UARPin* Pin : PinsToUpdate)
 				{
 					const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
@@ -1674,7 +1674,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 			{
 				if (UARPlaneGeometry* PlaneGeo = Cast<UARPlaneGeometry>(FoundGeometry))
 				{
-					PlaneGeo->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->Center, AnchorData->Extent, AnchorData->BoundaryVerts, nullptr);
+					PlaneGeo->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->Center, AnchorData->Extent, AnchorData->BoundaryVerts, nullptr);
 					for (UARPin* Pin : PinsToUpdate)
 					{
 						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
@@ -1687,7 +1687,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKit
 			{
 				if (UARFaceGeometry* FaceGeo = Cast<UARFaceGeometry>(FoundGeometry))
 				{
-					FaceGeo->UpdateFaceGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
+					FaceGeo->UpdateFaceGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->BlendShapes, AnchorData->FaceVerts, AnchorData->FaceIndices, AnchorData->LeftEyeTransform, AnchorData->RightEyeTransform, AnchorData->LookAtTarget);
 					FaceGeo->SetTrackingState(AnchorData->bIsTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
 					// @todo JoeG -- remove this in 4.22
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1708,7 +1708,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					UARCandidateImage** CandidateImage = CandidateImages.Find(AnchorData->DetectedAnchorName);
 					ensure(CandidateImage != nullptr);
 
-					ImageAnchor->UpdateTrackedGeometry(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), *CandidateImage);
+					ImageAnchor->UpdateTrackedGeometry(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), *CandidateImage);
 					ImageAnchor->SetTrackingState(AnchorData->bIsTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
 					// @todo JoeG -- remove this in 4.22
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1727,7 +1727,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				if (UAppleARKitEnvironmentCaptureProbe* ProbeAnchor = Cast<UAppleARKitEnvironmentCaptureProbe>(FoundGeometry))
 				{
 					// NOTE: The metal texture will be a different texture every time the cubemap is updated which requires a render resource flush
-					ProbeAnchor->UpdateEnvironmentCapture(SharedThis(this), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetAlignmentTransform(), AnchorData->Extent, AnchorData->ProbeTexture);
+					ProbeAnchor->UpdateEnvironmentCapture(ARComponent.ToSharedRef(), GameThreadFrameNumber, UpdateTimestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), AnchorData->Extent, AnchorData->ProbeTexture);
 					for (UARPin* Pin : PinsToUpdate)
 					{
 						const FTransform Pin_LocalToTrackingTransform_PostUpdate = Pin->GetLocalToTrackingTransform_NoAlignment() * AnchorDeltaTransform;
@@ -1742,8 +1742,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FAppleARKitSystem::SessionDidRemoveAnchors_Internal( FGuid AnchorGuid )
 {
+	const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& ARComponent = GetARCompositionComponent();
+
 	// In case we have camera tracking turned off, we still need to update the frame
-	if (!GetSessionConfig().ShouldEnableCameraTracking())
+	if (!ARComponent->GetSessionConfig().ShouldEnableCameraTracking())
 	{
 		UpdateFrame();
 	}
@@ -1871,7 +1873,7 @@ namespace AppleARKitSupport
 		// Handle older iOS devices somehow calling this
 		if (FAppleARKitAvailability::SupportsARKit10())
 		{
-            auto NewARKitSystem = NewARSystem<FAppleARKitSystem>();
+			auto NewARKitSystem = MakeShared<FAppleARKitSystem, ESPMode::ThreadSafe>();
             return NewARKitSystem;
 		}
 #endif

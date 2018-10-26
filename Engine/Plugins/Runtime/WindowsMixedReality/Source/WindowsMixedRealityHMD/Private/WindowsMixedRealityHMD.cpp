@@ -966,6 +966,7 @@ namespace WindowsMixedReality
 
 	FWindowsMixedRealityHMD::FWindowsMixedRealityHMD(const FAutoRegister& AutoRegister)
 		: FSceneViewExtensionBase(AutoRegister)
+		, FHeadMountedDisplayBase(nullptr)
 		, mCustomPresent(nullptr)
 		, CurrOrientation(FQuat::Identity)
 		, CurrPosition(FVector::ZeroVector)

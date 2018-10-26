@@ -25,8 +25,7 @@ DECLARE_STATS_GROUP(TEXT("ARKit"), STATGROUP_ARKIT, STATCAT_Advanced);
 struct FAppleARKitFrame;
 struct FAppleARKitAnchorData;
 
-class FAppleARKitSystem :
-	public FARSystemBase
+class FAppleARKitSystem : public IARSystemSupport, public FXRTrackingSystemBase, public FGCObject, public TSharedFromThis<FAppleARKitSystem, ESPMode::ThreadSafe>
 {
 	friend class FAppleARKitXRCamera;
 	

@@ -114,8 +114,8 @@ public:
 	// Function that is used to call from the Android UI thread:
 	void StartSessionWithRequestedConfig();
 
-	TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> GetARSystem();
-	void SetARSystem(TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> InARSystem);
+	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem();
+	void SetARSystem(TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> InARSystem);
 
 	void* GetARSessionRawPointer();
 	void* GetGameThreadARFrameRawPointer();
@@ -175,5 +175,5 @@ private:
 
 	TQueue<TFunction<void()>> RunOnGameThreadQueue;
 
-	TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> ARSystem;
+	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
 };

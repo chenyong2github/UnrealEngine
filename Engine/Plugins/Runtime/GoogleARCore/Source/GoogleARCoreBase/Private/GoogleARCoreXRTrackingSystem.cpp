@@ -10,7 +10,8 @@
 #include "ARSessionConfig.h"
 
 FGoogleARCoreXRTrackingSystem::FGoogleARCoreXRTrackingSystem()
-	: ARCoreDeviceInstance(nullptr)
+	: FXRTrackingSystemBase(this)
+	, ARCoreDeviceInstance(nullptr)
 	, bMatchDeviceCameraFOV(false)
 	, bEnablePassthroughCameraRendering(false)
 	, bHasValidPose(false)
@@ -90,7 +91,7 @@ bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext
 		if (ARCoreDeviceInstance->GetTrackingState() == EGoogleARCoreTrackingState::Tracking)
 		{
 			CurrentPose = ARCoreDeviceInstance->GetLatestPose();
-			CurrentPose *= GetAlignmentTransform();
+			CurrentPose *= GetARCompositionComponent()->GetAlignmentTransform();
 			bHasValidPose = true;
 			CachedTrackingToWorld = ComputeTrackingToWorldTransform(WorldContext);
 		}
@@ -217,19 +218,17 @@ void FGoogleARCoreXRTrackingSystem::OnSetAlignmentTransform(const FTransform& In
 {
 	const FTransform& NewAlignmentTransform = InAlignmentTransform;
 
-	TArray<UARTrackedGeometry*> AllTrackedGeometries = GetAllTrackedGeometries();
+	TArray<UARTrackedGeometry*> AllTrackedGeometries = GetARCompositionComponent()->GetAllTrackedGeometries();
 	for (UARTrackedGeometry* TrackedGeometry : AllTrackedGeometries)
 	{
 		TrackedGeometry->UpdateAlignmentTransform(NewAlignmentTransform);
 	}
 
-	TArray<UARPin*> AllARPins = GetAllPins();
+	TArray<UARPin*> AllARPins = GetARCompositionComponent()->GetAllPins();
 	for (UARPin* SomePin : AllARPins)
 	{
 		SomePin->UpdateAlignmentTransform(NewAlignmentTransform);
 	}
-
-	SetAlignmentTransform_Internal(InAlignmentTransform);
 }
 
 TArray<FARTraceResult> FGoogleARCoreXRTrackingSystem::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
@@ -297,8 +296,6 @@ void FGoogleARCoreXRTrackingSystem::OnRemovePin(UARPin* PinToRemove)
 
 void FGoogleARCoreXRTrackingSystem::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	FARSystemBase::AddReferencedObjects(Collector);
-
 	if (LightEstimate != nullptr)
 	{
 		Collector.AddReferencedObject(LightEstimate);

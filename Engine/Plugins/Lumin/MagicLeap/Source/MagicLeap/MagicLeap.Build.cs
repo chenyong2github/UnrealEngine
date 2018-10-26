@@ -26,7 +26,8 @@ namespace UnrealBuildTool.Rules
 					"HeadMountedDisplay",
 					"ProceduralMeshComponent",
 					"InputDevice",
-                    "LuminRuntimeSettings"
+                    "LuminRuntimeSettings",
+					"AugmentedReality",
                 }
 			);
 

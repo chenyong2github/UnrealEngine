@@ -15,6 +15,7 @@ TSharedPtr<class IXRTrackingSystem, ESPMode::ThreadSafe> FAppleARKitModule::Crea
 {
 #if PLATFORM_IOS
 	auto NewARKitSystem = AppleARKitSupport::CreateAppleARKitSystem();
+	NewARKitSystem->GetARCompositionComponent()->InitializeARSystem();
 	FAppleARKitARKitSystemPtr = NewARKitSystem;
     return NewARKitSystem;
 #else

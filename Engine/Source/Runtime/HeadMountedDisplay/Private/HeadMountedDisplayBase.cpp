@@ -20,6 +20,14 @@
 // functions (default ctors, etc.) get compiled into this module
 #include "IXRSystemAssets.h"
 
+
+FHeadMountedDisplayBase::FHeadMountedDisplayBase(IARSystemSupport* InARImplementation)
+	: FXRTrackingSystemBase(InARImplementation)
+	, bHeadTrackingEnforced(false)
+{
+}
+
+
 void FHeadMountedDisplayBase::RecordAnalytics()
 {
 	TArray<FAnalyticsEventAttribute> EventAttributes;

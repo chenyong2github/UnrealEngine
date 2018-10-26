@@ -6,7 +6,6 @@
 #include "HAL/ThreadSafeBool.h"
 #include "ARTypes.generated.h"
 
-class FARSystemBase;
 class USceneComponent;
 class IXRTrackingSystem;
 class UARPin;

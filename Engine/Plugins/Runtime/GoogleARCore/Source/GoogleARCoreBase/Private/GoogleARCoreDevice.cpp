@@ -424,7 +424,7 @@ void FGoogleARCoreDevice::StartSession()
 	ARSystem->OnARSessionStarted.Broadcast();
 }
 
-void FGoogleARCoreDevice::SetARSystem(TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> InARSystem)
+void FGoogleARCoreDevice::SetARSystem(TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> InARSystem)
 {
 	check(InARSystem.IsValid());
 	ARSystem = InARSystem;
@@ -446,7 +446,7 @@ void* FGoogleARCoreDevice::GetGameThreadARFrameRawPointer()
 	return nullptr;
 }
 
-TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> FGoogleARCoreDevice::GetARSystem()
+TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> FGoogleARCoreDevice::GetARSystem()
 {
 	return ARSystem;
 }
@@ -623,7 +623,7 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::CreateARPin(const FTransform& P
 	}
 
 	const FTransform& TrackingToAlignedTracking = ARSystem->GetAlignmentTransform();
-	const FTransform PinToTrackingTransform = PinToWorldTransform.GetRelativeTransform(ARSystem->GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
+	const FTransform PinToTrackingTransform = PinToWorldTransform.GetRelativeTransform(ARSystem->GetXRTrackingSystem()->GetTrackingToWorldTransform()).GetRelativeTransform(TrackingToAlignedTracking);
 
 	EGoogleARCoreFunctionStatus Status = ToARCoreFunctionStatus(ARCoreSession->CreateARAnchor(PinToTrackingTransform, TrackedGeometry, ComponentToPin, DebugName, OutARAnchorObject));
 

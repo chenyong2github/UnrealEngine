@@ -87,7 +87,7 @@ namespace {
 class FGoogleARCoreCloudARPinManagerAndroid : FGoogleARCoreCloudARPinManager
 {
 public:
-	FGoogleARCoreCloudARPinManagerAndroid(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem)
+	FGoogleARCoreCloudARPinManagerAndroid(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
 		: FGoogleARCoreCloudARPinManager(InArSystem)
 	{
 
@@ -144,7 +144,7 @@ protected:
 class FGoogleARCoreCloudARPinManageriOS : FGoogleARCoreCloudARPinManager
 {
 public:
-	FGoogleARCoreCloudARPinManageriOS(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem)
+	FGoogleARCoreCloudARPinManageriOS(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
 		: FGoogleARCoreCloudARPinManager(InArSystem)
 		, SessionHandle(nullptr)
 		, FrameHandle(nullptr)
@@ -249,7 +249,7 @@ private:
 };
 #endif // PLATFORM_IOS
 
-FGoogleARCoreCloudARPinManager* FGoogleARCoreCloudARPinManager::CreateCloudARPinManager(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem)
+FGoogleARCoreCloudARPinManager* FGoogleARCoreCloudARPinManager::CreateCloudARPinManager(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
 {
 #if PLATFORM_ANDROID
 	return reinterpret_cast<FGoogleARCoreCloudARPinManager*>(new FGoogleARCoreCloudARPinManagerAndroid(InArSystem));
@@ -268,7 +268,7 @@ UCloudARPin* FGoogleARCoreCloudARPinManager::CreateAndHostCloudARPin(UARPin* Pin
 		return nullptr;
 	}
 
-	float WorldToMeterScale = ARSystem->GetWorldToMetersScale();
+	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
 	ArSession* SessionHandle = GetSessionHandle();
 	ArAnchor* NewAnchorHandle = nullptr;
 #if PLATFORM_ANDROID
@@ -317,7 +317,7 @@ UCloudARPin* FGoogleARCoreCloudARPinManager::ResolveAndCreateCloudARPin(FString 
 	ArSession* SessionHandle = GetSessionHandle();
 	ArAnchor* AnchorHandle = nullptr;
 	ArPose *PoseHandle = nullptr;
-	float WorldToMeterScale = ARSystem->GetWorldToMetersScale();
+	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
 	ArPose_create(SessionHandle, nullptr, &PoseHandle);
 
 	OutTaskResult = ToCloudTaskResult(
@@ -389,7 +389,7 @@ void FGoogleARCoreCloudARPinManager::UpdateAllCloudARPins()
 		return;
 	}
 
-	float WorldToMeterScale = ARSystem->GetWorldToMetersScale();
+	float WorldToMeterScale = ARSystem->GetXRTrackingSystem()->GetWorldToMetersScale();
 
 	ArAnchorList* UpdatedAnchorListHandle = nullptr;
 	ArAnchorList_create(SessionHandle, &UpdatedAnchorListHandle);

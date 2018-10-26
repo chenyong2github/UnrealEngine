@@ -544,7 +544,8 @@ bool FOSVRHMD::GetHMDDistortionEnabled(EShadingPath ShadingPath) const
 }
 
 FOSVRHMD::FOSVRHMD(TSharedPtr<class OSVREntryPoint, ESPMode::ThreadSafe> entryPoint) :
-    mOSVREntryPoint(entryPoint)
+	FHeadMountedDisplayBase(nullptr),
+	mOSVREntryPoint(entryPoint)
 {
     static const FName RendererModuleName("Renderer");
     RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);

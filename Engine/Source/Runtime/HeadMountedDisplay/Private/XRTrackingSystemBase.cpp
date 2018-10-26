@@ -10,12 +10,20 @@
 // Tracking system delegates
 FXRTrackingSystemDelegates::FXRTrackingOriginChanged FXRTrackingSystemDelegates::OnXRTrackingOriginChanged;
 
-FXRTrackingSystemBase::FXRTrackingSystemBase()
+
+
+
+FXRTrackingSystemBase::FXRTrackingSystemBase(IARSystemSupport* InARImplementation)
 {
+	ARCompositionComponent = MakeShared<FARSupportInterface , ESPMode::ThreadSafe>(InARImplementation, this);
 }
 
 FXRTrackingSystemBase::~FXRTrackingSystemBase()
 {
+	if (ARCompositionComponent.IsValid())
+	{
+		ARCompositionComponent.Reset();
+	}
 }
 
 uint32 FXRTrackingSystemBase::CountTrackedDevices(EXRTrackedDeviceType Type /*= EXRTrackedDeviceType::Any*/)
@@ -100,6 +108,17 @@ void FXRTrackingSystemBase::UpdateExternalTrackingPosition(const FTransform& Ext
 
 	SetBaseOrientation((DeltaOffset.GetRotation().Inverse() * GetBaseOrientation()).GetNormalized());
 	SetBasePosition(GetBasePosition() - DeltaOffset.GetTranslation());
+}
+
+
+TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> FXRTrackingSystemBase::GetARCompositionComponent()
+{
+	return ARCompositionComponent;
+}
+
+const TSharedPtr<const FARSupportInterface , ESPMode::ThreadSafe> FXRTrackingSystemBase::GetARCompositionComponent() const
+{
+	return ARCompositionComponent;
 }
 
 

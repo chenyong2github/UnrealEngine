@@ -1380,8 +1380,8 @@ void UGoogleARCorePointCloud::GetPoint(int Index, FVector& OutWorldPosition, flo
 
 		Point = Point * Session.Pin()->GetWorldToMeterScale();
 		FTransform PointLocalTransform(Point);
-		TSharedRef<FARSystemBase, ESPMode::ThreadSafe> ARSystem = Session.Pin()->GetARSystem();
-		FTransform PointWorldTransform = PointLocalTransform * ARSystem->GetAlignmentTransform() * ARSystem->GetTrackingToWorldTransform();
+		TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> ARSystem = Session.Pin()->GetARSystem();
+		FTransform PointWorldTransform = PointLocalTransform * ARSystem->GetAlignmentTransform() * ARSystem->GetXRTrackingSystem()->GetTrackingToWorldTransform();
 		Point = PointWorldTransform.GetTranslation();
 		Confidence = PointData[Index * 4 + 3];
 #endif

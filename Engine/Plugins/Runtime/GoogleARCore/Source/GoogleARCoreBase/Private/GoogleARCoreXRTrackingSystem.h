@@ -11,7 +11,7 @@
 #include "ARSystem.h"
 #include "ARLightEstimate.h"
 
-class FGoogleARCoreXRTrackingSystem : public FARSystemBase
+class FGoogleARCoreXRTrackingSystem : public IARSystemSupport, public FXRTrackingSystemBase, public FGCObject, public TSharedFromThis<FGoogleARCoreXRTrackingSystem, ESPMode::ThreadSafe>
 {
 	friend class FGoogleARCoreXRCamera;
 

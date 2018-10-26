@@ -60,7 +60,7 @@ public:
 		float OutlineThickness, float PersistForSeconds = 0.0f) const override;
 
 	void UpdateTrackedGeometry(
-		const TSharedRef<FARSystemBase, ESPMode::ThreadSafe>& InTrackingSystem,
+		const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem,
 		uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform,
 		const FTransform& InAlignmentTransform,
 		const FVector &InCenter, const FVector &InExtent,

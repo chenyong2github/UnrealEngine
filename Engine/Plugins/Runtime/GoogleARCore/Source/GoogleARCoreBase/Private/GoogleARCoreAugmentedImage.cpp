@@ -68,7 +68,7 @@ void UGoogleARCoreAugmentedImage::DebugDraw(
 }
 
 void UGoogleARCoreAugmentedImage::UpdateTrackedGeometry(
-	const TSharedRef<FARSystemBase, ESPMode::ThreadSafe>& InTrackingSystem,
+	const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem,
 	uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform,
 	const FTransform& InAlignmentTransform, const FVector &InCenter, const FVector &InExtent,
 	int32 InImageIndex, const FString& InImageName)

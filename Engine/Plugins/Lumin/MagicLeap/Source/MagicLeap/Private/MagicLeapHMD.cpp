@@ -242,7 +242,10 @@ private:
 #if !PLATFORM_MAC
 		if (!HMD.IsValid())
 		{
-			HMD = MakeShared<FMagicLeapHMD, ESPMode::ThreadSafe>(this, bIsVDZIEnabled, bUseVulkanForZI);
+			//initialize AR system
+			TSharedPtr<IARSystemSupport, ESPMode::ThreadSafe> ARImplementation;
+
+			HMD = MakeShared<FMagicLeapHMD, ESPMode::ThreadSafe>(this, ARImplementation.Get(), bIsVDZIEnabled, bUseVulkanForZI);
 		}
 #endif
 #if WITH_EDITOR
@@ -275,6 +278,14 @@ const FName FMagicLeapHMD::SystemName(TEXT("MagicLeap"));
 FName FMagicLeapHMD::GetSystemName() const
 {
 	return SystemName;
+}
+
+FString FMagicLeapHMD::GetVersionString() const
+{
+	FString s = FString::Printf(TEXT("LuminHMD - %s, built %s, %s"), *FEngineVersion::Current().ToString(),
+		UTF8_TO_TCHAR(__DATE__), UTF8_TO_TCHAR(__TIME__));
+
+	return s;
 }
 
 bool FMagicLeapHMD::OnStartGameFrame(FWorldContext& WorldContext)
@@ -318,6 +329,9 @@ bool FMagicLeapHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	TrackingFrame.WorldContext = &WorldContext;
 
 	RefreshTrackingToWorldTransform(WorldContext);
+
+	//update AR system
+	GetARCompositionComponent()->StartARGameFrame(WorldContext);
 
 #endif //WITH_MLSDK
 
@@ -960,8 +974,9 @@ bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint
 //	return GetActiveCustomPresent();
 //}
 
-FMagicLeapHMD::FMagicLeapHMD(IMagicLeapPlugin* InMagicLeapPlugin, bool bEnableVDZI, bool bUseVulkan) :
+FMagicLeapHMD::FMagicLeapHMD(IMagicLeapPlugin* InMagicLeapPlugin, IARSystemSupport* InARImplementation, bool bEnableVDZI, bool bUseVulkan) :
 	// We don't do any mirroring on Lumin as we render direct to the device only.
+	FHeadMountedDisplayBase(InARImplementation),
 #if PLATFORM_LUMIN
 	WindowMirrorMode(0),
 #else

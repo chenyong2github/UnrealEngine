@@ -22,7 +22,6 @@
 		{
 			"Name" : "MagicLeap",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -33,7 +32,6 @@
 		{
 			"Name" : "MagicLeapAudio",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PreDefault",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -43,7 +41,6 @@
 		{
 			"Name" : "MagicLeapController",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -54,7 +51,6 @@
 		{
 			"Name" : "MagicLeapEyeTracker",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -65,7 +61,6 @@
 		{
 			"Name" : "MagicLeapHandTracking",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -76,7 +71,6 @@
 		{
 			"Name" : "MagicLeapMusicService",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -87,7 +81,6 @@
 		{
 			"Name" : "MagicLeapSecureStorage",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -98,7 +91,6 @@
 		{
 			"Name" : "MagicLeapHelperOpenGL",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -109,7 +101,6 @@
 		{
 			"Name" : "MagicLeapHelperVulkan",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",
@@ -120,7 +111,6 @@
 		{
 			"Name" : "MagicLeapIdentity",
 			"Type" : "Runtime",
-			"LoadingPhase" : "PostConfigInit",
 			"WhitelistPlatforms" :
 			[
 				"Win64",

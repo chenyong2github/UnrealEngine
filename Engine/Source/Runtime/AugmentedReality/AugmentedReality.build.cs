@@ -19,9 +19,17 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
 					"ShaderCore",
 					"RHI",
-                    "HeadMountedDisplay"
+                    //"HeadMountedDisplay"
 				}
 			);
-		}
+
+            PublicIncludePathModuleNames.AddRange(
+                new string[]
+                {
+					"HeadMountedDisplay",
+                }
+           );
+
+        }
 	}
 }

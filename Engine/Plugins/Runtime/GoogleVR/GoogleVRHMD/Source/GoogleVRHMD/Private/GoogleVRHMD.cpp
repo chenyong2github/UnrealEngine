@@ -307,6 +307,7 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FGoogleVRHMDPlugin::C
 /////////////////////////////////////
 FGoogleVRHMD::FGoogleVRHMD(const FAutoRegister& AutoRegister)
 	: FSceneViewExtensionBase(AutoRegister)
+	, FHeadMountedDisplayBase(nullptr)
 #if GOOGLEVRHMD_SUPPORTED_PLATFORMS
 	, CustomPresent(nullptr)
 #endif

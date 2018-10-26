@@ -45,7 +45,6 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"ShaderCore",
-					"HeadMountedDisplay",
 					"Slate",
 					"SlateCore",
 					"ImageWrapper",
@@ -58,8 +57,14 @@ namespace UnrealBuildTool.Rules
 					"ProceduralMeshComponent",
                     "Projects",
                 });
+            PublicDependencyModuleNames.AddRange(
+                new string[]
+                {
+                    "HeadMountedDisplay",
+                });
 
-			if (Target.bBuildEditor == true)
+
+            if (Target.bBuildEditor == true)
 			{
 				PrivateDependencyModuleNames.Add("UnrealEd");
 			}

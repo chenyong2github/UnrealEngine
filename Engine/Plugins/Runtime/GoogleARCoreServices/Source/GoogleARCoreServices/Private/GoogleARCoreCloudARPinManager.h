@@ -13,7 +13,7 @@ class FGoogleARCoreCloudARPinManager : public FGCObject
 {
 
 public:
-	static FGoogleARCoreCloudARPinManager* CreateCloudARPinManager(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem);
+	static FGoogleARCoreCloudARPinManager* CreateCloudARPinManager(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem);
 
 	// public member method:
 	virtual bool IsCloudARPinModeSupported(EARPinCloudMode NewMode) = 0;
@@ -43,7 +43,7 @@ public:
 
 protected:
 	// protected methods:
-	FGoogleARCoreCloudARPinManager(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem)
+	FGoogleARCoreCloudARPinManager(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
 		: ARSystem(InArSystem)
 	{
 		ARSystem->OnAlignmentTransformUpdated.AddRaw(this, &FGoogleARCoreCloudARPinManager::OnAlignmentTransformUpdated);
@@ -68,7 +68,7 @@ protected:
 	}
 
 	// protected properties:
-	TSharedRef<FARSystemBase, ESPMode::ThreadSafe> ARSystem;
+	TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
 	TArray<UCloudARPin*> AllCloudARPins;
 	
 #if	ARCORE_SERVICE_SUPPORTED_PLATFORM

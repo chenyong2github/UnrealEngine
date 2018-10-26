@@ -9,6 +9,7 @@
 #include "ARTraceResult.h"
 #include "ARSessionConfig.h"
 #include "ARTrackable.h"
+#include "ARSupportInterface.h"
 #include "ARBlueprintLibrary.generated.h"
 
 
@@ -194,11 +195,11 @@ public:
 	static TSharedPtr<FARGetCandidateObjectAsyncTask, ESPMode::ThreadSafe> GetCandidateObject(FVector Location, FVector Extent);
 	
 public:
-	static void RegisterAsARSystem(const TSharedPtr<FARSystemBase, ESPMode::ThreadSafe>& NewArSystem);
+	static void RegisterAsARSystem(const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& NewArSystem);
 	
 private:
-	static const TSharedPtr<FARSystemBase, ESPMode::ThreadSafe>& GetARSystem();
-	static TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> RegisteredARSystem;
+	static const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& GetARSystem();
+	static TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> RegisteredARSystem;
 };
 
 

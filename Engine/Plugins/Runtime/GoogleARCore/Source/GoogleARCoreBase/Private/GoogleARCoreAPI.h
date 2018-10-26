@@ -174,8 +174,8 @@ public:
 	EGoogleARCoreAPIStatus GetSessionCreateStatus();
 	UGoogleARCoreUObjectManager* GetUObjectManager();
 	float GetWorldToMeterScale();
-	void SetARSystem(TSharedRef<FARSystemBase, ESPMode::ThreadSafe> InArSystem) { ARSystem = InArSystem; }
-	TSharedRef<FARSystemBase, ESPMode::ThreadSafe> GetARSystem() { return ARSystem.ToSharedRef(); }
+	void SetARSystem(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem) { ARSystem = InArSystem; }
+	TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem() { return ARSystem.ToSharedRef(); }
 #if PLATFORM_ANDROID
 	ArSession* GetHandle();
 #endif
@@ -214,7 +214,7 @@ private:
 	float CachedWorldToMeterScale;
 	uint32 FrameNumber;
 
-	TSharedPtr<FARSystemBase, ESPMode::ThreadSafe> ARSystem;
+	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
 
 #if PLATFORM_ANDROID
 	ArSession* SessionHandle = nullptr;

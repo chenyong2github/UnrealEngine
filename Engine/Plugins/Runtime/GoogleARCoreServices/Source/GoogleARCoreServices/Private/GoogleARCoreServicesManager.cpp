@@ -98,7 +98,7 @@ TArray<UCloudARPin*> FGoogleARCoreServicesManager::GetAllCloudARPin()
 
 bool FGoogleARCoreServicesManager::InitARSystem()
 {
-	ARSystem = StaticCastSharedPtr<FARSystemBase>(GEngine->XRSystem);
+	ARSystem = StaticCastSharedPtr<FXRTrackingSystemBase>(GEngine->XRSystem)->GetARCompositionComponent();
 
 	if (ARSystem.IsValid())
 	{
