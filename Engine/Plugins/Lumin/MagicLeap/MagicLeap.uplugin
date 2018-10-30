@@ -69,16 +69,6 @@
 			]
 		},
 		{
-			"Name" : "MagicLeapMusicService",
-			"Type" : "Runtime",
-			"WhitelistPlatforms" :
-			[
-				"Win64",
-				"Mac",
-				"Lumin"
-			]
-		},
-		{
 			"Name" : "MagicLeapSecureStorage",
 			"Type" : "Runtime",
 			"WhitelistPlatforms" :
