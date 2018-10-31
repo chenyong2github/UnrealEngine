@@ -44,7 +44,10 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealitySpatialInput::SendControllerEvents()
 	{
-		FWindowsMixedRealityStatics::PollInput();
+		if (!FWindowsMixedRealityStatics::PollInput())
+		{
+			return;
+		}
 
 		const uint32 sourceId = 0;
 		SendButtonEvents(sourceId);

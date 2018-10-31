@@ -100,7 +100,7 @@ namespace WindowsMixedReality
 
 		void ShutdownModule() override
 		{
-			hmd.Dispose();
+			hmd.Dispose(true);
 		}
 
 		uint64 GetGraphicsAdapterLuid() override
@@ -130,6 +130,11 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::IsHMDConnected()
 	{
+		if (hmd.IsRemoting())
+		{
+			return true;
+		}
+
 		return hmd.IsAvailable();
 	}
 
@@ -140,6 +145,11 @@ namespace WindowsMixedReality
 
 	EHMDWornState::Type FWindowsMixedRealityHMD::GetHMDWornState()
 	{
+		if (hmd.IsRemoting())
+		{
+			return EHMDWornState::Type::Unknown;
+		}
+
 		MixedRealityInterop::UserPresence currentPresence = hmd.GetCurrentUserPresence();
 
 		EHMDWornState::Type wornState = EHMDWornState::Type::Unknown;
@@ -261,12 +271,17 @@ namespace WindowsMixedReality
 		}
 		else
 		{
-			if (!hmd.IsImmersiveWindowValid())
+			if (!hmd.IsRemoting() && !hmd.IsImmersiveWindowValid())
 			{
 				// This can happen if the PC went to sleep.
 				this->bRequestRestart = true;
 				return true;
 			}
+		}
+
+		if (hmd.IsRemoting() && !bIsStereoDesired)
+		{
+			EnableStereo(true);
 		}
 
 		if (!bIsStereoEnabled && bIsStereoDesired)
@@ -275,7 +290,7 @@ namespace WindowsMixedReality
 			SetupHolographicCamera();
 		}
 
-		if (hmd.HasUserPresenceChanged())
+		if (!hmd.IsRemoting() && hmd.HasUserPresenceChanged())
 		{
 			currentWornState = GetHMDWornState();
 
@@ -287,6 +302,21 @@ namespace WindowsMixedReality
 			else if (currentWornState == EHMDWornState::NotWorn)
 			{
 				FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
+			}
+		}
+
+		if (GEngine
+			&& GEngine->GameViewport
+			&& GEngine->GameViewport->GetWindow().IsValid())
+		{
+			HWND gameHWND = (HWND)GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
+			if (IsWindow(gameHWND))
+			{
+				RECT windowRect;
+				GetWindowRect(gameHWND, &windowRect);
+
+				gameWindowWidth = windowRect.right - windowRect.left;
+				gameWindowHeight = windowRect.bottom - windowRect.top;
 			}
 		}
 
@@ -496,25 +526,26 @@ namespace WindowsMixedReality
 			{
 				if (bIsStereoDesired)
 				{
-					int Width = hmd.GetDisplayWidth();
-					int Height = hmd.GetDisplayHeight();
-
-					SceneVP->SetViewportSize(
-						Width * 2,
-						Height);
-
-					Window->SetViewportSizeDrivenByWindow(false);
-
-					bIsStereoEnabled = hmd.IsStereoEnabled();
-					if (bIsStereoEnabled)
+					int Width, Height;
+					if (hmd.GetDisplayDimensions(Width, Height))
 					{
-						hmd.CreateHiddenVisibleAreaMesh();
+						SceneVP->SetViewportSize(
+							Width * 2,
+							Height);
 
-						FWindowsMixedRealityHMD* Self = this;
-						ENQUEUE_RENDER_COMMAND(SetupHiddenVisibleAreaMeshCmd)([Self](FRHICommandListImmediate& RHICmdList)
+						Window->SetViewportSizeDrivenByWindow(false);
+
+						bIsStereoEnabled = hmd.IsStereoEnabled();
+						if (bIsStereoEnabled)
 						{
-							SetupHiddenVisibleAreaMesh(Self->HiddenAreaMesh, Self->VisibleAreaMesh);
-						});
+							hmd.CreateHiddenVisibleAreaMesh();
+
+							FWindowsMixedRealityHMD* Self = this;
+							ENQUEUE_RENDER_COMMAND(SetupHiddenVisibleAreaMeshCmd)([Self](FRHICommandListImmediate& RHICmdList)
+							{
+								SetupHiddenVisibleAreaMesh(Self->HiddenAreaMesh, Self->VisibleAreaMesh);
+							});
+						}
 					}
 				}
 				else
@@ -546,7 +577,7 @@ namespace WindowsMixedReality
 	{
 		if (stereo)
 		{
-			if (hmd.IsInitialized())
+			if (bIsStereoDesired && hmd.IsInitialized())
 			{
 				return false;
 			}
@@ -673,8 +704,8 @@ namespace WindowsMixedReality
 
 	FIntPoint FWindowsMixedRealityHMD::GetIdealRenderTargetSize() const
 	{
-		int Width = hmd.GetDisplayWidth();
-		int Height = hmd.GetDisplayHeight();
+		int Width, Height;
+		hmd.GetDisplayDimensions(Width, Height);
 
 		return FIntPoint(Width * 2, Height);
 	}
@@ -705,6 +736,9 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture2D* BackBuffer, class FRHITexture2D* SrcTexture, FVector2D WindowSize) const
 	{
+		const uint32 WindowWidth = gameWindowWidth;
+		const uint32 WindowHeight = gameWindowHeight;
+
 		const uint32 ViewportWidth = BackBuffer->GetSizeX();
 		const uint32 ViewportHeight = BackBuffer->GetSizeY();
 
@@ -713,11 +747,30 @@ namespace WindowsMixedReality
 
 		const uint32 SourceWidth = TextureWidth / 2;
 		const uint32 SourceHeight = TextureHeight;
-		const float r1 = (float)ViewportWidth / (float)SourceWidth;
-		const float r2 = (float)ViewportHeight / (float)SourceHeight;
-		const float r = FMath::Min(r1, r2);
-		const uint32 width = (float)SourceWidth * r;
-		const uint32 height = (float)SourceHeight * r;
+
+		const float r = (float)SourceWidth / (float)SourceHeight;
+
+		float width = (float)WindowWidth;
+		float height = (float)WindowHeight;
+
+		if ((float)WindowWidth / r < WindowHeight)
+		{
+			width = ViewportWidth;
+
+			float displayHeight = (float)WindowWidth / r;
+			height = (float)ViewportHeight * (displayHeight / (float)WindowHeight);
+		}
+		else // width > height
+		{
+			height = ViewportHeight;
+
+			float displayWidth = (float)WindowHeight * r;
+			width = (float)ViewportWidth * (displayWidth / (float)WindowWidth);
+		}
+
+		width = FMath::Clamp<int>(width, 10, ViewportWidth);
+		height = FMath::Clamp<int>(height, 10, ViewportHeight);
+
 		const uint32 x = (ViewportWidth - width) * 0.5f;
 		const uint32 y = (ViewportHeight - height) * 0.5f;
 
@@ -1010,6 +1063,23 @@ namespace WindowsMixedReality
 
 		bIsStereoDesired = false;
 		bIsStereoEnabled = false;
+
+		for (int i = 0; i < 2; i++)
+		{
+			HiddenAreaMesh[i].NumVertices = 0;
+			HiddenAreaMesh[i].NumIndices = 0;
+			HiddenAreaMesh[i].NumTriangles = 0;
+
+			HiddenAreaMesh[i].IndexBufferRHI = nullptr;
+			HiddenAreaMesh[i].VertexBufferRHI = nullptr;
+
+			VisibleAreaMesh[i].NumVertices = 0;
+			VisibleAreaMesh[i].NumIndices = 0;
+			VisibleAreaMesh[i].NumTriangles = 0;
+
+			VisibleAreaMesh[i].IndexBufferRHI = nullptr;
+			VisibleAreaMesh[i].VertexBufferRHI = nullptr;
+		}
 	}
 
 	bool FWindowsMixedRealityHMD::IsCurrentlyImmersive()
@@ -1080,6 +1150,11 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::GetControllerOrientationAndPosition(MixedRealityInterop::HMDHand hand, FRotator & OutOrientation, FVector & OutPosition)
 	{
+		if (!bIsStereoEnabled)
+		{
+			return false;
+		}
+
 		DirectX::XMFLOAT4 rot;
 		DirectX::XMFLOAT3 pos;
 		if (hmd.GetControllerOrientationAndPosition(hand, rot, pos))
@@ -1087,15 +1162,29 @@ namespace WindowsMixedReality
 			OutOrientation = FRotator(FWindowsMixedRealityStatics::FromMixedRealityQuaternion(rot));
 			OutPosition = FWindowsMixedRealityStatics::FromMixedRealityVector(pos);
 
+			// HoloLens does not have hand rotations, so default to the player camera rotation.
+			if (hmd.IsRemoting())
+			{
+				OutOrientation = FRotator(CurrOrientation);
+				OutOrientation.Roll = 0;
+				OutOrientation.Pitch = 0;
+			}
+
 			return true;
 		}
 
 		return false;
 	}
 
-	void FWindowsMixedRealityHMD::PollInput()
+	bool FWindowsMixedRealityHMD::PollInput()
 	{
+		if (!bIsStereoEnabled)
+		{
+			return false;
+		}
+
 		hmd.PollInput();
+		return true;
 	}
 
 	MixedRealityInterop::HMDInputPressState WindowsMixedReality::FWindowsMixedRealityHMD::GetPressState(MixedRealityInterop::HMDHand hand, MixedRealityInterop::HMDInputControllerButtons button)
@@ -1103,14 +1192,31 @@ namespace WindowsMixedReality
 		return hmd.GetPressState(hand, button);
 	}
 
-	float WindowsMixedReality::FWindowsMixedRealityHMD::GetAxisPosition(MixedRealityInterop::HMDHand hand, MixedRealityInterop::HMDInputControllerAxes axis)
+	float FWindowsMixedRealityHMD::GetAxisPosition(MixedRealityInterop::HMDHand hand, MixedRealityInterop::HMDInputControllerAxes axis)
 	{
 		return hmd.GetAxisPosition(hand, axis);
 	}
 
-	void WindowsMixedReality::FWindowsMixedRealityHMD::SubmitHapticValue(MixedRealityInterop::HMDHand hand, float value)
+	void FWindowsMixedRealityHMD::SubmitHapticValue(MixedRealityInterop::HMDHand hand, float value)
 	{
 		hmd.SubmitHapticValue(hand, value);
+	}
+
+	// Remoting
+	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate)
+	{
+#if WITH_EDITOR
+		D3D11Device = InternalGetD3D11Device();
+
+		hmd.ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate);
+#endif
+	}
+
+	void FWindowsMixedRealityHMD::DisconnectFromRemoteHoloLens()
+	{
+#if WITH_EDITOR
+		hmd.DisconnectFromRemoteHoloLens();
+#endif
 	}
 }
 

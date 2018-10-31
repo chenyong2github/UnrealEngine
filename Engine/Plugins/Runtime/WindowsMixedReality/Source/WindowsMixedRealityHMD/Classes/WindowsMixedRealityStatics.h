@@ -55,7 +55,7 @@ namespace WindowsMixedReality
 
 		static bool GetControllerOrientationAndPosition(MixedRealityInterop::HMDHand hand, FRotator& OutOrientation, FVector& OutPosition);
 
-		static void PollInput();
+		static bool PollInput();
 
 		static MixedRealityInterop::HMDInputPressState GetPressState(
 			WindowsMixedReality::MixedRealityInterop::HMDHand hand,
@@ -68,5 +68,9 @@ namespace WindowsMixedReality
 		static void SubmitHapticValue(
 			MixedRealityInterop::HMDHand hand,
 			float value);
+
+		// Remoting
+		static void ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate);
+		static void DisconnectFromRemoteHoloLens();
 	};
 }
