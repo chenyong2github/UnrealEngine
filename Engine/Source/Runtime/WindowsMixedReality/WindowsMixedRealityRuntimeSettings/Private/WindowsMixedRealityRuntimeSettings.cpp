@@ -3,7 +3,7 @@
 #include "WindowsMixedRealityRuntimeSettings.h"
 #include "Misc/ConfigCacheIni.h"
 #include "CoreGlobals.h"
-#include "Package.h"
+#include "UObject/Package.h"
 
 UWindowsMixedRealityRuntimeSettings* UWindowsMixedRealityRuntimeSettings::WMRSettingsSingleton = nullptr;
 
