@@ -20,6 +20,15 @@
 	],
 	"Modules": [
 		{
+			"Name": "WindowsMixedRealityRuntimeSettings",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64"
+			]
+		},
+		{
 			"Name": "WindowsMixedRealityHMD",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
@@ -36,6 +45,15 @@
 				"Win32",
 				"Win64"
 			]
-		}
+		},
+		{
+			"Name" : "WindowsMixedRealityPlatformEditor",
+			"Type" : "Editor",
+			"LoadingPhase" : "PostEngineInit",
+			"WhitelistPlatforms": [
+				"Win32",
+				"Win64"
+			]
+		},
 	]
 }
