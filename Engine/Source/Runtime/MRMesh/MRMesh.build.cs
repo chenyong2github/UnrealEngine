@@ -16,10 +16,16 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Engine",
                     "RenderCore",
-                    "ShaderCore",
-                    "RHI"
+					"ShaderCore",
+                    "RHI",
+					"HeadMountedDisplay"
 				}
 			);
+
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
 		}
 	}
 }
