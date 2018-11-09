@@ -24,7 +24,12 @@ namespace UnrealBuildTool.Rules
 
 		private void LoadMixedReality(ReadOnlyTargetRules Target)
         {
-            int releaseId = Convert.ToInt32(Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId", "").ToString());
+            int releaseId = 0;
+            string releaseIdString = Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "ReleaseId", "") as String;
+            if (!String.IsNullOrEmpty(releaseIdString))
+            {
+                releaseId = Convert.ToInt32(releaseIdString);
+            }
             bool bAllowWindowsMixedReality = (Target.WindowsPlatform.Compiler != UnrealBuildTool.WindowsCompiler.VisualStudio2015) && (releaseId >= 1803);
 
             if (bAllowWindowsMixedReality)
