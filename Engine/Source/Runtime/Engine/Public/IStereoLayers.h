@@ -122,6 +122,11 @@ public:
 	 */
 	virtual void UpdateSplashScreen() = 0;
 
+	/**
+	* If true the debug layers are copied to the spectator screen, because they do not naturally end up on the spectator screen as part of the 3d view.
+	*/
+	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const = 0;
+
 public:
 	/**
 	* Set the splash screen attributes
