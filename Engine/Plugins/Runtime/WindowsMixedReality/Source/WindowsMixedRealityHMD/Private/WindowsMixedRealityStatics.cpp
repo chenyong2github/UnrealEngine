@@ -29,6 +29,7 @@ namespace WindowsMixedReality
 		return false;
 	}
 
+#if WITH_WINDOWS_MIXED_REALITY
 	MixedRealityInterop::HMDTrackingStatus FWindowsMixedRealityStatics::GetControllerTrackingStatus(MixedRealityInterop::HMDHand hand)
 	{
 		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -100,6 +101,7 @@ namespace WindowsMixedReality
 			hmd->SubmitHapticValue(hand, value);
 		}
 	}
+#endif
 
 	// Remoting
 	void FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate)

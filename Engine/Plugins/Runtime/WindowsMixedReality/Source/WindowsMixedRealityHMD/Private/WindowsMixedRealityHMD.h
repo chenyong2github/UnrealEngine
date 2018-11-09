@@ -16,7 +16,9 @@
 #include "XRRenderTargetManager.h"
 #include "RendererInterface.h"
 
+#if WITH_WINDOWS_MIXED_REALITY
 #include "MixedRealityInterop.h"
+#endif
 
 namespace WindowsMixedReality
 {
@@ -227,9 +229,11 @@ namespace WindowsMixedReality
 		// Spatial input
 		bool IsAvailable();
 		bool SupportsSpatialInput();
+#if WITH_WINDOWS_MIXED_REALITY
 		static MixedRealityInterop::HMDTrackingStatus GetControllerTrackingStatus(MixedRealityInterop::HMDHand hand);
 		bool GetControllerOrientationAndPosition(MixedRealityInterop::HMDHand hand, FRotator & OutOrientation, FVector & OutPosition);
 		bool PollInput();
+
 		MixedRealityInterop::HMDInputPressState GetPressState(
 			MixedRealityInterop::HMDHand hand,
 			MixedRealityInterop::HMDInputControllerButtons button);
@@ -239,6 +243,7 @@ namespace WindowsMixedReality
 		void SubmitHapticValue(
 			MixedRealityInterop::HMDHand hand,
 			float value);
+#endif
 		void LockMouseToCenter(bool locked)
 		{
 			mouseLockedToCenter = locked;

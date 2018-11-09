@@ -44,16 +44,18 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealitySpatialInput::SendControllerEvents()
 	{
+#if WITH_WINDOWS_MIXED_REALITY
 		if (!FWindowsMixedRealityStatics::PollInput())
 		{
 			return;
 		}
 
 		const uint32 sourceId = 0;
-		SendButtonEvents(sourceId);
 		SendAxisEvents(sourceId);
+#endif
 	}
 
+#if WITH_WINDOWS_MIXED_REALITY
 	void SendControllerButtonEvent(
 		TSharedPtr< FGenericApplicationMessageHandler > messageHandler,
 		uint32 controllerId,
@@ -85,6 +87,7 @@ namespace WindowsMixedReality
 				false);
 		}
 	}
+#endif
 
 	void SendControllerAxisEvent(
 		TSharedPtr< FGenericApplicationMessageHandler > messageHandler,
@@ -100,6 +103,7 @@ namespace WindowsMixedReality
 			static_cast<float>(axisPosition));
 	}
 
+#if WITH_WINDOWS_MIXED_REALITY
 	void FWindowsMixedRealitySpatialInput::SendAxisEvents(uint32 source)
 	{
 		FKey key;
@@ -240,6 +244,7 @@ namespace WindowsMixedReality
 			}
 		}
 	}
+#endif
 
 	void FWindowsMixedRealitySpatialInput::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	{
@@ -300,8 +305,10 @@ namespace WindowsMixedReality
 			return;
 		}
 
+#if WITH_WINDOWS_MIXED_REALITY
 		MixedRealityInterop::HMDHand hand = (MixedRealityInterop::HMDHand)DeviceHand;
 		FWindowsMixedRealityStatics::SubmitHapticValue(hand, (Values.Frequency > 0.0f) ? Values.Amplitude : 0.0f);
+#endif
 	}
 
 	void FWindowsMixedRealitySpatialInput::GetHapticFrequencyRange(float & MinFrequency, float & MaxFrequency) const
@@ -323,20 +330,28 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealitySpatialInput::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator & OutOrientation, FVector & OutPosition, float WorldToMetersScale) const
 	{
+#if WITH_WINDOWS_MIXED_REALITY
 		MixedRealityInterop::HMDHand hand = (MixedRealityInterop::HMDHand)((int)DeviceHand);
 
 		bool success = FWindowsMixedRealityStatics::GetControllerOrientationAndPosition(hand, OutOrientation, OutPosition);
 		OutPosition *= WorldToMetersScale;
 
 		return success;
+#else
+		return false;
+#endif
 	}
 
 	ETrackingStatus FWindowsMixedRealitySpatialInput::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
 	{
+#if WITH_WINDOWS_MIXED_REALITY
 		MixedRealityInterop::HMDHand hand = (MixedRealityInterop::HMDHand)((int)DeviceHand);
 		MixedRealityInterop::HMDTrackingStatus trackingStatus = FWindowsMixedRealityStatics::GetControllerTrackingStatus(hand);
 
 		return (ETrackingStatus)((int)trackingStatus);
+#else
+		return ETrackingStatus::NotTracked;
+#endif
 	}
 
 	void FWindowsMixedRealitySpatialInput::RegisterKeys() noexcept
