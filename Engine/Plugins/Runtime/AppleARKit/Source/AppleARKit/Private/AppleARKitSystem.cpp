@@ -364,25 +364,25 @@ void FAppleARKitSystem::UpdateFrame()
 			GameThreadTimestamp = GameThreadFrame->Timestamp;
 
 #if SUPPORTS_ARKIT_1_0
-			// Only create a new camera image texture if it's set
 			if (GameThreadFrame->CameraImage != nullptr)
 			{
-				if (!bCanReuseCameraImage || CameraImage == nullptr)
+				// Only create a new camera image texture if it's set and we don't already have one
+				if (CameraImage == nullptr)
 				{
 					CameraImage = NewObject<UAppleARKitTextureCameraImage>();
-					bCanReuseCameraImage = true;
 				}
+				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
                 CameraImage->Init(GameThreadTimestamp, GameThreadFrame->CameraImage);
 			}
 
-			// Only create a new camera depth texture if it's set (currently only Face AR)
 			if (GameThreadFrame->CameraDepth != nullptr)
 			{
-				if (!bCanReuseCameraDepth || CameraDepth == nullptr)
+				// Only create a new camera depth texture if it's set and we don't already have one
+				if (CameraDepth == nullptr)
 				{
 					CameraDepth = NewObject<UAppleARKitTextureCameraDepth>();
-					bCanReuseCameraDepth = true;
 				}
+				// Reuse the UObjects because otherwise the time between GCs causes ARKit to be starved of resources
                 CameraDepth->Init(GameThreadTimestamp, GameThreadFrame->CameraDepth);
 			}
 #endif
@@ -700,13 +700,11 @@ TArray<UARPin*> FAppleARKitSystem::OnGetAllPins() const
 
 UARTextureCameraImage* FAppleARKitSystem::OnGetCameraImage()
 {
-	bCanReuseCameraImage = false;
 	return CameraImage;
 }
 
 UARTextureCameraDepth* FAppleARKitSystem::OnGetCameraDepth()
 {
-	bCanReuseCameraDepth = false;
 	return CameraDepth;
 }
 

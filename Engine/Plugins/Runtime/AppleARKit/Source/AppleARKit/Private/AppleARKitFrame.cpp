@@ -72,6 +72,7 @@ FAppleARKitFrame::FAppleARKitFrame( ARFrame* InARFrame, CVMetalTextureCacheRef M
 	{
 		CameraImage = InARFrame.capturedImage;
 		CFRetain(CameraImage);
+
 		// Update SizeX & Y
 		CapturedYImageWidth = CVPixelBufferGetWidthOfPlane( InARFrame.capturedImage, 0 );
 		CapturedYImageHeight = CVPixelBufferGetHeightOfPlane( InARFrame.capturedImage, 0 );
@@ -93,9 +94,8 @@ FAppleARKitFrame::FAppleARKitFrame( ARFrame* InARFrame, CVMetalTextureCacheRef M
 		check( CapturedCbCrImage );
 		check( CFGetRetainCount(CapturedCbCrImage) == 1);
 	}
-	// @todo JoeG -- finsih the depth capture
-//@joeg -- Disabled due to crashing when accessing
-	if (0 && InARFrame.capturedDepthData)
+
+	if (InARFrame.capturedDepthData)
 	{
 		CameraDepth = InARFrame.capturedDepthData;
 		CFRetain(CameraDepth);
@@ -172,7 +172,16 @@ FAppleARKitFrame& FAppleARKitFrame::operator=( const FAppleARKitFrame& Other )
 	{
 		CFRelease( CapturedCbCrImage );
 	}
-
+	if (CameraImage != nullptr)
+	{
+		CFRelease(CameraImage);
+		CameraImage = nullptr;
+	}
+	if (CameraDepth != nullptr)
+	{
+		CFRelease(CameraDepth);
+		CameraDepth = nullptr;
+	}
 	if(NativeFrame != nullptr)
 	{
 		CFRelease((CFTypeRef)NativeFrame);

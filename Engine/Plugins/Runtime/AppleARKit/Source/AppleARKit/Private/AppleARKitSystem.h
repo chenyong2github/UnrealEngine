@@ -175,11 +175,6 @@ private:
 	// PROPERTIES REPORTED TO FGCObject
 	//
 	
-	/** Controls whether we can use the existing wrapper object instead of creating a new one to cut down on UObject churn */
-	bool bCanReuseCameraImage;
-	/** Controls whether we can use the existing wrapper object instead of creating a new one to cut down on UObject churn */
-	bool bCanReuseCameraDepth;
-
 	/** The ar frame number when LastReceivedFrame was last updated */
 	uint32 GameThreadFrameNumber;
 	/** The ar timestamp of when the LastReceivedFrame was last updated */

@@ -9,7 +9,7 @@
 #include "Async/Async.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
-
+#include "Apple/ApplePlatformMisc.h"
 
 #if SUPPORTS_IMAGE_UTILS_1_0
 	#import <CoreImage/CIContext.h>
@@ -99,14 +99,14 @@ static inline NSDictionary* ToQualityDictionary(int32 Quality)
 	Quality = FMath::Clamp(Quality, 0, 100);
 	float QualityF = float(Quality) * 0.01f;
 
-	NSDictionary* Options = [[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithFloat: QualityF], kCGImageDestinationLossyCompressionQuality, nil] autorelease];
+	NSDictionary* Options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithFloat: QualityF], kCGImageDestinationLossyCompressionQuality, nil];
 	return Options;
 }
 
 static inline NSDictionary* ToCpuDictionary(bool bUseGpu)
 {
 	BOOL UseCpu = bUseGpu ? NO : YES;
-	NSDictionary* Options = [[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool: UseCpu], kCIContextUseSoftwareRenderer, nil] autorelease];
+	NSDictionary* Options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool: UseCpu], kCIContextUseSoftwareRenderer, nil];
 	return Options;
 }
 
@@ -133,7 +133,7 @@ static inline CIImage* ToImage(IAppleImageInterface* AppleImageInterface, float 
 			CVPixelBufferRef PixelBuffer = AppleImageInterface->GetPixelBuffer();
 			if (PixelBuffer != nullptr)
 			{
-				Image = [[CIImage imageWithCVPixelBuffer: PixelBuffer] autorelease];
+				Image = [CIImage imageWithCVPixelBuffer: PixelBuffer];
 			}
 			break;
 		}
@@ -143,7 +143,7 @@ static inline CIImage* ToImage(IAppleImageInterface* AppleImageInterface, float 
 			IOSurfaceRef Surface = AppleImageInterface->GetSurface();
 			if (Surface != nullptr)
 			{
-				Image = [[CIImage imageWithIOSurface: Surface] autorelease];
+				Image = [CIImage imageWithIOSurface: Surface];
 			}
 			break;
 		}
@@ -212,10 +212,12 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [ConversionTask, Quality, bWantColor, bUseGpu, Scale, Rotate]()
 	{
+		SCOPED_AUTORELEASE_POOL;
+
 		IAppleImageInterface* AppleImageInterface = Cast<IAppleImageInterface>(ConversionTask->SourceImage);
 
 		// Convert to Apple objects
-		CIContext* ConversionContext = [[[CIContext alloc] initWithOptions: ToCpuDictionary(bUseGpu)] autorelease];
+		CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 		CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 		CIImage* Image = ToImage(AppleImageInterface, Scale, Rotate);
 
@@ -226,12 +228,10 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 			uint32 CompressedSize = ConvertedData.length;
 			ConversionTask->ConvertedBytes.AddUninitialized(CompressedSize);
 			FPlatformMemory::Memcpy(ConversionTask->ConvertedBytes.GetData(), [ConvertedData bytes], CompressedSize);
-
-			[ConvertedData release];
 		}
 
 		CGColorSpaceRelease(ColorSpace);
-
+		
 		// Notify any async listeners that we are done
 		ConversionTask->MarkComplete();
 	});
@@ -263,10 +263,12 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [ConversionTask, Quality, bWantColor, bUseGpu, Scale, Rotate]()
 	{
+		SCOPED_AUTORELEASE_POOL;
+
 		IAppleImageInterface* AppleImageInterface = Cast<IAppleImageInterface>(ConversionTask->SourceImage);
 
 		// Convert to Apple objects
-		CIContext* ConversionContext = [[[CIContext alloc] initWithOptions: ToCpuDictionary(bUseGpu)] autorelease];
+		CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 		CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 		CIImage* Image = ToImage(AppleImageInterface, Scale, Rotate);
 
@@ -277,8 +279,6 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 			uint32 CompressedSize = ConvertedData.length;
 			ConversionTask->ConvertedBytes.AddUninitialized(CompressedSize);
 			FPlatformMemory::Memcpy(ConversionTask->ConvertedBytes.GetData(), [ConvertedData bytes], CompressedSize);
-
-			[ConvertedData release];
 		}
 
 		CGColorSpaceRelease(ColorSpace);
@@ -314,10 +314,12 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [ConversionTask, bWantColor, bUseGpu, Scale, Rotate]()
 	{
+		SCOPED_AUTORELEASE_POOL;
+
 		IAppleImageInterface* AppleImageInterface = Cast<IAppleImageInterface>(ConversionTask->SourceImage);
 
 		// Convert to Apple objects
-		CIContext* ConversionContext = [[[CIContext alloc] initWithOptions: ToCpuDictionary(bUseGpu)] autorelease];
+		CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 		CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 		CIImage* Image = ToImage(AppleImageInterface, Scale, Rotate);
 
@@ -328,8 +330,6 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 			uint32 CompressedSize = ConvertedData.length;
 			ConversionTask->ConvertedBytes.AddUninitialized(CompressedSize);
 			FPlatformMemory::Memcpy(ConversionTask->ConvertedBytes.GetData(), [ConvertedData bytes], CompressedSize);
-
-			[ConvertedData release];
 		}
 
 		CGColorSpaceRelease(ColorSpace);
@@ -365,10 +365,12 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [ConversionTask, bWantColor, bUseGpu, Scale, Rotate]()
 	{
+		SCOPED_AUTORELEASE_POOL;
+
 		IAppleImageInterface* AppleImageInterface = Cast<IAppleImageInterface>(ConversionTask->SourceImage);
 
 		// Convert to Apple objects
-		CIContext* ConversionContext = [[[CIContext alloc] initWithOptions: ToCpuDictionary(bUseGpu)] autorelease];
+		CIContext* ConversionContext = [CIContext contextWithOptions: ToCpuDictionary(bUseGpu)];
 		CGColorSpaceRef ColorSpace = ToColorSpace(bWantColor);
 		CIImage* Image = ToImage(AppleImageInterface, Scale, Rotate);
 
@@ -379,8 +381,6 @@ TSharedPtr<FAppleImageUtilsConversionTaskBase, ESPMode::ThreadSafe> FAppleImageU
 			uint32 CompressedSize = ConvertedData.length;
 			ConversionTask->ConvertedBytes.AddUninitialized(CompressedSize);
 			FPlatformMemory::Memcpy(ConversionTask->ConvertedBytes.GetData(), [ConvertedData bytes], CompressedSize);
-
-			[ConvertedData release];
 		}
 
 		CGColorSpaceRelease(ColorSpace);

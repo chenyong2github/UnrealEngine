@@ -1,6 +1,7 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #include "AppleARKitTextures.h"
+#include "AppleARKitModule.h"
 #include "ExternalTexture.h"
 #include "RenderingThread.h"
 #include "Containers/DynamicRHIResourceArray.h"
@@ -55,6 +56,7 @@ void UAppleARKitTextureCameraImage::Init(float InTimestamp, CVPixelBufferRef InC
 		Size.X = CVPixelBufferGetWidth(CameraImage);
 		Size.Y = CVPixelBufferGetHeight(CameraImage);
 	}
+	//@todo joeg - Update the render resources
 }
 
 #endif
