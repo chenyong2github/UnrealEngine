@@ -9,9 +9,10 @@
 #include "Async/Async.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
-#include "Apple/ApplePlatformMisc.h"
 
 #if SUPPORTS_IMAGE_UTILS_1_0
+	#include "Apple/ApplePlatformMisc.h"
+
 	#import <CoreImage/CIContext.h>
 
 	// For runtime checks so that clang doesn't warn on targets < our SDK version
