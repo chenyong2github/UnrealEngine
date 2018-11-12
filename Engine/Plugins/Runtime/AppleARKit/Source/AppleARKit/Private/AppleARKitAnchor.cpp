@@ -8,7 +8,7 @@
 // UE4
 #include "Misc/ScopeLock.h"
 
-FTransform UAppleARKitAnchor::GetTransform() const
+FTransform UDEPRECATED_AppleARKitAnchor::GetTransform() const
 {
 	FScopeLock ScopeLock( &UpdateLock );
 
@@ -17,7 +17,7 @@ FTransform UAppleARKitAnchor::GetTransform() const
 
 #if SUPPORTS_ARKIT_1_0
 
-void UAppleARKitAnchor::Update_DelegateThread( ARAnchor* Anchor )
+void UDEPRECATED_AppleARKitAnchor::Update_DelegateThread( ARAnchor* Anchor )
 {
 	FScopeLock ScopeLock( &UpdateLock );
 

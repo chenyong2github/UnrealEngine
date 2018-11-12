@@ -17,8 +17,8 @@
 // AppleARKit
 #include "AppleARKitAnchor.generated.h"
 
-UCLASS( BlueprintType )
-class APPLEARKIT_API UAppleARKitAnchor : public UObject
+UCLASS( BlueprintType, Deprecated )
+class APPLEARKIT_API UDEPRECATED_AppleARKitAnchor : public UObject
 {
 	GENERATED_BODY()
 

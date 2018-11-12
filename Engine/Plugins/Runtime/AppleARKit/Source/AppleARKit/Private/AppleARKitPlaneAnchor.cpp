@@ -9,21 +9,21 @@
 #include "Misc/ScopeLock.h"
 #include "Math/UnrealMathUtility.h"
 
-FVector UAppleARKitPlaneAnchor::GetCenter() const
+FVector UDEPRECATED_AppleARKitPlaneAnchor::GetCenter() const
 {
 	FScopeLock ScopeLock( &UpdateLock );
 
 	return Center;
 }
 
-FVector UAppleARKitPlaneAnchor::GetExtent() const
+FVector UDEPRECATED_AppleARKitPlaneAnchor::GetExtent() const
 {
 	FScopeLock ScopeLock( &UpdateLock );
 
 	return Extent;
 }
 
-FTransform UAppleARKitPlaneAnchor::GetTransformToCenter() const
+FTransform UDEPRECATED_AppleARKitPlaneAnchor::GetTransformToCenter() const
 {
 	FScopeLock ScopeLock( &UpdateLock );
 
@@ -32,7 +32,7 @@ FTransform UAppleARKitPlaneAnchor::GetTransformToCenter() const
 
 #if SUPPORTS_ARKIT_1_0
 
-void UAppleARKitPlaneAnchor::Update_DelegateThread( ARAnchor* Anchor )
+void UDEPRECATED_AppleARKitPlaneAnchor::Update_DelegateThread( ARAnchor* Anchor )
 {
 	Super::Update_DelegateThread( Anchor );
 

@@ -23,7 +23,7 @@ public:
 	 * of the game thread update by watching for changes to GFrameNumber to trigger pulling a
 	 * new frame from the session.
 	 */
-	UFUNCTION( BlueprintCallable, Category="AppleARKit", meta = (WorldContext = "WorldContextObject", Keywords = "ar augmentedreality augmented reality frame"))
+	UFUNCTION( BlueprintCallable, Category="AppleARKit", meta = (DeprecatedFunction, WorldContext = "WorldContextObject", Keywords = "ar augmentedreality augmented reality frame"))
 	static bool GetCurrentFrame( UObject* WorldContextObject, FAppleARKitFrame& OutCurrentFrame );
 	
 	/**
@@ -37,6 +37,6 @@ public:
 	 *
 	 * @param ScreenPosition The viewport pixel coordinate of the trace origin.
 	 */
-	UFUNCTION( BlueprintCallable, Category="AppleARKit", meta = (WorldContext = "WorldContextObject", Keywords = "ar augmentedreality augmented reality trace hittest hit line"))
+	UFUNCTION( BlueprintCallable, Category="AppleARKit", meta = (DeprecatedFunction, WorldContext = "WorldContextObject", Keywords = "ar augmentedreality augmented reality trace hittest hit line"))
 	static bool HitTestAtScreenPosition_TrackingSpace( UObject* WorldContextObject, const FVector2D ScreenPosition, EAppleARKitHitTestResultType Types, TArray< FAppleARKitHitTestResult >& OutResults );
 };
