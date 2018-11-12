@@ -20,7 +20,7 @@ UPointCloudComponent::UPointCloudComponent(const FObjectInitializer& ObjectIniti
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PostPhysics;
 
-	// Load our material we use f
+	// Load our material we use for rendering
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultMaterial(TEXT("/PointCloud/DefaultPointCloudMaterial"));
 	PointCloudMaterial = DefaultMaterial.Object;
 	if (PointCloudMaterial == nullptr)
