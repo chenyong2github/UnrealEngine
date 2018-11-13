@@ -9,7 +9,7 @@ public class AppleARKit : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"../../../../Source/Runtime/Renderer/Private",
+				"../../../../../../Source/Runtime/Renderer/Private",
 				// ... add other private include paths required here ...
 			}
 			);
