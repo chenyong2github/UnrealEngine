@@ -24,6 +24,92 @@ enum class EARFaceComponentTransformMixing : uint8
 };
 
 /**
+ * Packs the curve into 2 bytes with the amount being +/- 127
+ */
+USTRUCT()
+struct FNetQuantizeFaceCurve
+{
+	GENERATED_USTRUCT_BODY()
+	
+	FORCEINLINE FNetQuantizeFaceCurve()
+	{
+	}
+	
+	FORCEINLINE FNetQuantizeFaceCurve(EARFaceBlendShape InBlendShape, float InAmount)
+		: BlendShape((uint8)InBlendShape)
+		, Amount(ConvertAmountToInt(InAmount))
+	{
+	}
+	
+	FORCEINLINE FNetQuantizeFaceCurve(const FNetQuantizeFaceCurve& Other)
+		: BlendShape(Other.BlendShape)
+		, Amount(Other.Amount)
+	{
+	}
+	
+	FORCEINLINE float GetAmountAsFloat() const
+	{
+		return ConvertAmountToFloat(Amount);
+	}
+	
+	FORCEINLINE EARFaceBlendShape GetBlendShape() const
+	{
+		check(BlendShape < (uint8)EARFaceBlendShape::MAX);
+		return (EARFaceBlendShape)BlendShape;
+	}
+
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+	{
+		uint16 Value = 0;
+		if (Ar.IsSaving())
+		{
+			Value = ((uint8)Amount | (BlendShape << 8));
+			Ar << Value;
+		}
+		else
+		{
+			Ar << Value;
+			Amount = (int8)(Value & 0xFF);
+			BlendShape = ((Value >> 8) & 0xFF);
+		}
+		bOutSuccess = true;
+		return true;
+	}
+	
+	static bool IsDifferentEnough(float Val1, float Val2)
+	{
+		return ConvertAmountToInt(Val1) != ConvertAmountToInt(Val2);
+	}
+
+private:
+	static constexpr float Scale = 127.f;
+	static constexpr float InvScale = 1.f / Scale;
+	
+	static FORCEINLINE float ConvertAmountToFloat(int8 InAmount)
+	{
+		return ((float)InAmount) * InvScale;
+	}
+	
+	static FORCEINLINE int8 ConvertAmountToInt(float InAmount)
+	{
+		return (int8)FMath::TruncToInt(InAmount * Scale);
+	}
+	
+	uint8 BlendShape;
+	int8 Amount;
+};
+
+template<>
+struct TStructOpsTypeTraits< FNetQuantizeFaceCurve > : public TStructOpsTypeTraitsBase2< FNetQuantizeFaceCurve >
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true,
+	};
+};
+
+/**
  * This component is updated by the ARSystem with face data on devices that have support for it
  */
 UCLASS(hidecategories = (Object, LOD, "Components|ProceduralMesh"), meta = (BlueprintSpawnableComponent), ClassGroup = "AR")
@@ -108,6 +194,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components|ARFaceMesh")
 	FTransform GetTransform() const;
 
+	/**	Indicates whether the face mesh data should be built for rendering or not */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")
+	bool bWantsMeshUpdates;
+
 	/**	Indicates whether collision should be created for this face mesh. This adds significant cost, so only use if you need to trace against the face mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")
 	bool bWantsCollision;
@@ -132,6 +222,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")
 	FName LiveLinkSubjectName;
 
+	/** The set of changed curves to replicate to the other clients */
+	UPROPERTY(ReplicatedUsing=OnRep_RemoteCurves, Transient)
+	TArray<FNetQuantizeFaceCurve> RemoteCurves;
+
 private:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void InitializeComponent() override;
@@ -139,8 +233,27 @@ private:
 	virtual class UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* Material) override;
 
-	UARFaceGeometry* FindFaceGeometry();
+	/** Merges in the face curve deltas and pushes them to LiveLink */
+	UFUNCTION()
+	void OnRep_RemoteCurves();
 
+	/**
+	 * Sends the updated curves from the client to the server so that it can replicate to other clients
+	 *
+	 * @param ClientCurves the client's set of updated curves
+	 */
+	UFUNCTION(Reliable, Server, WithValidation)
+	void ServerUpdateFaceCurves(const TArray<FNetQuantizeFaceCurve>& ClientCurves);
+
+	/**
+	 * Builds the delta set of curves needed for replication
+	 *
+	 * @param NewCurves the updated set of curves from the ar system
+	 */
+	void BuildUpdatedCurves(const FARBlendShapeMap& NewCurves);
+
+	UARFaceGeometry* FindFaceGeometry();
+	
 	/** The current set of blend shapes for this component instance */
 	FARBlendShapeMap BlendShapes;
 	/** Transform of the face mesh */

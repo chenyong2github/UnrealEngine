@@ -13,6 +13,7 @@
 #include "ARSessionConfig.h"
 #include "AppleARKitSettings.h"
 #include "AppleARKitConversion.h"
+#include "Net/UnrealNetwork.h"
 
 DECLARE_CYCLE_STAT(TEXT("Update"), STAT_FaceAR_Component_Update, STATGROUP_FaceAR);
 
@@ -173,18 +174,26 @@ void UAppleARKitFaceMeshComponent::CreateMesh(const TArray<FVector>& Vertices, c
 
 void UAppleARKitFaceMeshComponent::SetBlendShapes(const TMap<EARFaceBlendShape, float>& InBlendShapes)
 {
-	BlendShapes = InBlendShapes;
 	LastUpdateFrameNumber++;
 	LastUpdateTimestamp = FPlatformTime::Seconds();
-	if (LiveLinkSource.IsValid())
-	{
-		LiveLinkSource->PublishBlendShapes(LiveLinkSubjectName, LastUpdateTimestamp, LastUpdateFrameNumber, BlendShapes);
-	}
+	BuildUpdatedCurves(InBlendShapes);
 }
 
 void UAppleARKitFaceMeshComponent::SetBlendShapeAmount(EARFaceBlendShape BlendShape, float Amount)
 {
-	BlendShapes.Add(BlendShape, Amount);
+	RemoteCurves.Reset();
+	float OldVal = BlendShapes[BlendShape];
+	if (FNetQuantizeFaceCurve::IsDifferentEnough(OldVal, Amount))
+	{
+		new(RemoteCurves) FNetQuantizeFaceCurve(BlendShape, Amount);
+	}
+	if (GetNetMode() == NM_Client)
+	{
+		// Send to the server for replication
+		ServerUpdateFaceCurves(RemoteCurves);
+	}
+	// Merge them in using the OnRep
+	OnRep_RemoteCurves();
 }
 
 float UAppleARKitFaceMeshComponent::GetFaceBlendShapeAmount(EARFaceBlendShape BlendShape) const
@@ -337,9 +346,11 @@ void UAppleARKitFaceMeshComponent::TickComponent(float DeltaTime, ELevelTick, FA
 			TrackedRot.Roll = -TrackedRot.Roll;
 			LocalToWorldTransform.SetRotation(FQuat(TrackedRot));
 		}
-		BlendShapes = FaceGeometry->GetBlendShapes();
+
 		LastUpdateFrameNumber = FaceGeometry->GetLastUpdateFrameNumber();
 		LastUpdateTimestamp = FaceGeometry->GetLastUpdateTimestamp();
+		BuildUpdatedCurves(FaceGeometry->GetBlendShapes());
+
 		// Create or update the mesh depending on if we've been created before
 		if (GetNumSections() > 0)
 		{
@@ -364,4 +375,66 @@ void UAppleARKitFaceMeshComponent::PublishViaLiveLink(FName SubjectName)
 FTransform UAppleARKitFaceMeshComponent::GetTransform() const
 {
 	return LocalToWorldTransform;
+}
+
+void UAppleARKitFaceMeshComponent::OnRep_RemoteCurves()
+{
+	if (RemoteCurves.Num() > 0)
+	{
+		// Merge the values into our map
+		for (const FNetQuantizeFaceCurve& Curve : RemoteCurves)
+		{
+			BlendShapes.Add(Curve.GetBlendShape(), Curve.GetAmountAsFloat());
+		}
+		// We have to manage this since the ar system isn't updating this locally for us
+		LastUpdateFrameNumber++;
+		LastUpdateTimestamp = FPlatformTime::Seconds();
+		// If we are publishing to LiveLink, then push the update out
+		if (LiveLinkSource.IsValid())
+		{
+			LiveLinkSource->PublishBlendShapes(LiveLinkSubjectName, LastUpdateTimestamp, LastUpdateFrameNumber, BlendShapes);
+		}
+	}
+}
+
+void UAppleARKitFaceMeshComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(UAppleARKitFaceMeshComponent, RemoteCurves);
+}
+
+bool UAppleARKitFaceMeshComponent::ServerUpdateFaceCurves_Validate(const TArray<FNetQuantizeFaceCurve>& ClientCurves)
+{
+	return ClientCurves.Num() < (int32)EARFaceBlendShape::MAX;
+}
+
+void UAppleARKitFaceMeshComponent::ServerUpdateFaceCurves_Implementation(const TArray<FNetQuantizeFaceCurve>& ClientCurves)
+{
+	RemoteCurves = ClientCurves;
+	// Publish these locally for the server
+	OnRep_RemoteCurves();
+}
+
+void UAppleARKitFaceMeshComponent::BuildUpdatedCurves(const FARBlendShapeMap& NewCurves)
+{
+	RemoteCurves.Reset();
+	// Build the set of deltas
+	for (uint8 Shape = 0; Shape < (uint8)EARFaceBlendShape::MAX; Shape++)
+	{
+		EARFaceBlendShape BlendShape = (EARFaceBlendShape)Shape;
+		float OldVal = BlendShapes[BlendShape];
+		float NewVal = NewCurves[BlendShape];
+		if (FNetQuantizeFaceCurve::IsDifferentEnough(OldVal, NewVal))
+		{
+			new(RemoteCurves) FNetQuantizeFaceCurve(BlendShape, NewVal);
+		}
+	}
+	if (GetNetMode() == NM_Client)
+	{
+		// Send to the server for replication
+		ServerUpdateFaceCurves(RemoteCurves);
+	}
+	// Merge them in using the OnRep
+	OnRep_RemoteCurves();
 }
