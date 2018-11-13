@@ -8,7 +8,7 @@ public class AppleARKitFaceSupport : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"../../../../../../Plugins/Experimental/AR/Apple/AppleARKit/Source/AppleARKit/Private",
+				"../../../../../../Plugins/Runtime/AR/Apple/AppleARKit/Source/AppleARKit/Private",
 				// ... add other private include paths required here ...
 			}
 			);
