@@ -51,6 +51,7 @@ namespace WindowsMixedReality
 		}
 
 		const uint32 sourceId = 0;
+		SendButtonEvents(sourceId);
 		SendAxisEvents(sourceId);
 #endif
 	}
