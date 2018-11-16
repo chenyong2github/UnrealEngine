@@ -1271,7 +1271,7 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::SubmitHapticValue(MixedRealityInterop::HMDHand hand, float value)
 	{
-		hmd.SubmitHapticValue(hand, value);
+		hmd.SubmitHapticValue(hand, FMath::Clamp(value, 0.f, 1.f));
 	}
 #endif
 
