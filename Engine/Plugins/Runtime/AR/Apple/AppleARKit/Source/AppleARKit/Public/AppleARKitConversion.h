@@ -16,6 +16,45 @@
 	#import <ARKit/ARKit.h>
 #endif
 
+/**
+ * This class handles incrementing the frame counter. This is needed in case there
+ * are both new anchors added and existing ones updated in the same "frame". When
+ * this happens, the frame number will remain the same due to the time between
+ * adds and updates being shorter than the arkit update rate.
+ */
+class FARKitFrameCounter
+{
+public:
+	static FARKitFrameCounter& Get()
+	{
+		static FARKitFrameCounter Singleton;
+		return Singleton;
+	}
+
+	uint32 GetFrameNumber()
+	{
+		uint32 FrameNum = FrameNumber;
+		double TimeSecs = FPlatformTime::Seconds();
+		// ARKit runs at 60hz
+		if (TimeSecs - LastFrameSecs > 0.016)
+		{
+			FrameNumber++;
+			LastFrameSecs = TimeSecs;
+		}
+		return FrameNum;
+	}
+
+private:
+	FARKitFrameCounter()
+		: FrameNumber(0)
+		, LastFrameSecs(0.0)
+	{
+	}
+
+	uint32 FrameNumber;
+	double LastFrameSecs;
+};
+
 
 #define AR_SAVE_WORLD_KEY 0x505A474A
 #define AR_SAVE_WORLD_VER 1
@@ -234,7 +273,7 @@ struct FAppleARKitAnchorData
 	{
 	}
 
-	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARBlendShapeMap InBlendShapes, TArray<FVector> InFaceVerts, FTransform InLeftEyeTransform, FTransform InRightEyeTransform, FVector InLookAtTarget)
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARBlendShapeMap InBlendShapes, TArray<FVector> InFaceVerts, FTransform InLeftEyeTransform, FTransform InRightEyeTransform, FVector InLookAtTarget, double InTimestamp, uint32 InFrameNumber)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::FaceAnchor )
 		, AnchorGUID( InAnchorGuid )
@@ -243,6 +282,8 @@ struct FAppleARKitAnchorData
 		, LeftEyeTransform( InLeftEyeTransform )
 		, RightEyeTransform( InRightEyeTransform )
 		, LookAtTarget( InLookAtTarget )
+		, Timestamp( InTimestamp )
+		, FrameNumber( InFrameNumber )
 	{
 	}
 
@@ -282,6 +323,8 @@ struct FAppleARKitAnchorData
 	FTransform LeftEyeTransform;
 	FTransform RightEyeTransform;
 	FVector LookAtTarget;
+	double Timestamp;
+	uint32 FrameNumber;
 
 	/** Only valid for tracked real world objects (face, images) */
 	bool bIsTracked;

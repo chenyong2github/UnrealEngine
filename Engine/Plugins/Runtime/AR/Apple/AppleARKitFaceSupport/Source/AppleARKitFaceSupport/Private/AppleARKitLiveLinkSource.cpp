@@ -134,12 +134,6 @@ void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, double Tim
 	// This code touches UObjects so needs to be run only in the game thread
 	check(IsInGameThread());
 
-	// Generate our device id if it wasn't passed in (local only case)
-	if (DeviceId == NAME_None)
-	{
-		DeviceId = FName(*FPlatformMisc::GetDeviceId());
-	}
-
 	FName* LastSubjectNameForDeviceId = DeviceToLastSubjectNameMap.Find(DeviceId);
 	// Is this a new device and subject pair?
 	if (LastSubjectNameForDeviceId == nullptr)

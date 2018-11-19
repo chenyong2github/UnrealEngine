@@ -175,11 +175,6 @@ private:
 	// PROPERTIES REPORTED TO FGCObject
 	//
 	
-	/** The ar frame number when LastReceivedFrame was last updated */
-	uint32 GameThreadFrameNumber;
-	/** The ar timestamp of when the LastReceivedFrame was last updated */
-	double GameThreadTimestamp;
-
 	// An int counter that provides a human-readable debug number for Tracked Geometries.
 	uint32 LastTrackedGeometry_DebugId;
 
