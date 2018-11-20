@@ -368,7 +368,7 @@ void UAppleARKitFaceMeshComponent::PublishViaLiveLink(FName SubjectName)
 	LiveLinkSubjectName = SubjectName;
 	if (!LiveLinkSource.IsValid())
 	{
-		LiveLinkSource = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource(false);
+		LiveLinkSource = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource();
 	}
 }
 

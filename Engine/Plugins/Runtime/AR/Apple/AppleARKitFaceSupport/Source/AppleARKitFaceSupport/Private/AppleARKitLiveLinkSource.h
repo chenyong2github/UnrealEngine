@@ -751,11 +751,10 @@ private:
 
 /** Publishes face blend shapes to LiveLink for use locally */
 class FAppleARKitLiveLinkSource :
-	public ILiveLinkSourceARKit,
-	public FSelfRegisteringExec
+	public ILiveLinkSourceARKit
 {
 public:
-	FAppleARKitLiveLinkSource(bool bCreateRemotePublisher);
+	FAppleARKitLiveLinkSource();
 	virtual ~FAppleARKitLiveLinkSource() {}
 
 private:
@@ -772,18 +771,11 @@ private:
 	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
-	//~ FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-	//~ FSelfRegisteringExec
-
 	/** The local client to push data updates to */
 	ILiveLinkClient* Client;
 
 	/** Our identifier in LiveLink */
 	FGuid SourceGuid;
-
-	/** Provider to push data to remote listeners */
-	TSharedPtr<IARKitBlendShapePublisher> RemoteLiveLinkPublisher;
 
 	/** The last time we sent the data. Used to not send redundant data */
 	uint32 LastFramePublished;

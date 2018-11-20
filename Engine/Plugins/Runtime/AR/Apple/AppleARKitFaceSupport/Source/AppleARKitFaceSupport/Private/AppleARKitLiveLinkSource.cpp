@@ -33,14 +33,14 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("LiveLink Packets Sent"), STAT_FaceAR_LiveLink_P
 DECLARE_DWORD_COUNTER_STAT(TEXT("LiveLink Bytes Recv"), STAT_FaceAR_LiveLink_BytesRecv, STATGROUP_FaceAR);
 DECLARE_DWORD_COUNTER_STAT(TEXT("LiveLink Packets Recv"), STAT_FaceAR_LiveLink_PacketsRecv, STATGROUP_FaceAR);
 
-TSharedPtr<ILiveLinkSourceARKit> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource(bool bCreateRemotePublisher)
+TSharedPtr<ILiveLinkSourceARKit> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource()
 {
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 
 	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
 		ILiveLinkClient* LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		TSharedPtr <ILiveLinkSourceARKit> Source = MakeShareable(new FAppleARKitLiveLinkSource(bCreateRemotePublisher));
+		TSharedPtr <ILiveLinkSourceARKit> Source = MakeShareable(new FAppleARKitLiveLinkSource());
 		LiveLinkClient->AddSource(Source);
 		return Source;
 	}
@@ -61,27 +61,36 @@ void FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemoteListener()
 	}
 }
 
-FAppleARKitLiveLinkSource::FAppleARKitLiveLinkSource(bool bCreateRemotePublisher) :
+TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemotePublisher(const FString& RemoteAddr)
+{
+	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> RemoteLiveLinkPublisher;
+	// Only send from iOS to desktop
+#if PLATFORM_IOS
+	// This will perform the sending of the data to the remote
+	FAppleARKitLiveLinkRemotePublisher* Publisher = new FAppleARKitLiveLinkRemotePublisher(RemoteAddr);
+	if (Publisher->InitSendSocket())
+	{
+		RemoteLiveLinkPublisher = MakeShareable(Publisher);
+	}
+	else
+	{
+		UE_LOG(LogAppleARKitFace, Warning, TEXT("Failed to create LiveLink remote publisher, so no data will be sent out"));
+		delete Publisher;
+	}
+#endif
+	return RemoteLiveLinkPublisher;
+}
+
+TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkLocalFileWriter()
+{
+	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LocalFileWriter;
+	return LocalFileWriter;
+}
+
+FAppleARKitLiveLinkSource::FAppleARKitLiveLinkSource() :
 	Client(nullptr)
 	, LastFramePublished(0)
 {
-#if PLATFORM_IOS
-	if (bCreateRemotePublisher)
-	{
-		// Only send from iOS to desktop
-		// This will perform the sending of the data to the remote
-		FAppleARKitLiveLinkRemotePublisher* Publisher = new FAppleARKitLiveLinkRemotePublisher();
-		if (Publisher->InitSendSocket())
-		{
-			RemoteLiveLinkPublisher = MakeShareable(Publisher);
-		}
-		else
-		{
-			UE_LOG(LogAppleARKitFace, Warning, TEXT("Failed to create LiveLink remote publisher, so no data will be sent out"));
-			delete Publisher;
-		}
-	}
-#endif
 }
 
 void FAppleARKitLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid)
@@ -176,44 +185,10 @@ void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, double Tim
 
 		// Share the data locally with the LiveLink client
 		Client->PushSubjectData(SourceGuid, SubjectName, LiveLinkFrame);
-		// Send it to the remote editor via the message bus
-		if (RemoteLiveLinkPublisher.IsValid())
-		{
-			RemoteLiveLinkPublisher->PublishBlendShapes(SubjectName, Timestamp, FrameNumber, FaceBlendShapes, DeviceId);
-		}
 	}
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-bool FAppleARKitLiveLinkSource::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
-{
-	if (FParse::Command(&Cmd, TEXT("LiveLinkFaceAR")))
-	{
-		FString RemoteIp;
-		if (FParse::Value(Cmd, TEXT("SendTo="), RemoteIp))
-		{
-			// We need to recreate the LiveLink remote publisher
-			RemoteLiveLinkPublisher = nullptr;
-#if PLATFORM_IOS
-			// Only send from iOS to desktop
-			// This will perform the sending of the data to the remote
-			FAppleARKitLiveLinkRemotePublisher* Publisher = new FAppleARKitLiveLinkRemotePublisher(RemoteIp);
-			if (Publisher->InitSendSocket())
-			{
-				RemoteLiveLinkPublisher = MakeShareable(Publisher);
-			}
-			else
-			{
-				UE_LOG(LogAppleARKitFace, Warning, TEXT("Failed to create LiveLink remote publisher, so no data will be sent out"));
-				delete Publisher;
-			}
-#endif
-			return true;
-		}
-	}
-	return false;
-}
 
 // 1 = Initial version
 // 2 = ARKit 2.0 extra blendshapes
@@ -257,6 +232,7 @@ bool FAppleARKitLiveLinkRemotePublisher::InitSendSocket()
 		SendSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("FAppleARKitLiveLinkRemotePublisher socket"), true);
 		SendSocket->SetReuseAddr();
 		SendSocket->SetNonBlocking();
+		UE_LOG(LogAppleARKitFace, Log, TEXT("Sending LiveLink face AR data to address (%s)"), *Addr->ToString(true));
 	}
 	return SendSocket != nullptr;
 }
@@ -277,7 +253,6 @@ TSharedRef<FInternetAddr> FAppleARKitLiveLinkRemotePublisher::GetSendAddress()
 		SendAddr->SetPort(LiveLinkPort);
 		bool bIsValid = false;
 		SendAddr->SetIp(*RemoteIp, bIsValid);
-		UE_LOG(LogAppleARKitFace, Log, TEXT("Sending LiveLink face AR data to address (%s)"), *SendAddr->ToString(true));
 	}
 	return SendAddr;
 }
@@ -366,7 +341,7 @@ void FAppleARKitLiveLinkRemoteListener::InitLiveLinkSource()
 {
 	if (!Source.IsValid())
 	{
-		Source = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource(false);
+		Source = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource();
 	}
 }
 

@@ -8,6 +8,7 @@
 #include "ARSystem.h"
 #include "Misc/ConfigCacheIni.h"
 #include "AppleARKitFaceSupportModule.h"
+#include "Async/Async.h"
 
 DECLARE_CYCLE_STAT(TEXT("Conversion"), STAT_FaceAR_Conversion, STATGROUP_FaceAR);
 
@@ -80,6 +81,26 @@ void FAppleARKitFaceSupport::Shutdown()
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 }
 
+bool FAppleARKitFaceSupport::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("LiveLinkFaceAR")))
+	{
+		FString RemoteIp;
+		if (FParse::Value(Cmd, TEXT("SendTo="), RemoteIp))
+		{
+			// We need to recreate the LiveLink remote publisher
+			RemoteLiveLinkPublisher = nullptr;
+			// Only send from iOS to desktop
+#if PLATFORM_IOS
+			// This will perform the sending of the data to the remote
+			RemoteLiveLinkPublisher = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemotePublisher(RemoteIp);
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
 #if SUPPORTS_ARKIT_1_0
 
 ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* SessionConfig)
@@ -122,10 +143,34 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 		if (AnchorData.IsValid())
 		{
 			AnchorList.Add(AnchorData);
+			// Process any providers that want real time access to the face curve data
+			ProcessRealTimePublishers(AnchorData);
 		}
 	}
 
 	return AnchorList;
+}
+
+void FAppleARKitFaceSupport::ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData)
+{
+	// Copy the data from the passed in anchor
+	AsyncAnchorCopy = *AnchorData;
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this]()
+	{
+		double Timestamp = AsyncAnchorCopy.Timestamp;
+		uint32 FrameNumber = AsyncAnchorCopy.FrameNumber;
+		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy.BlendShapes;
+
+		if (RemoteLiveLinkPublisher.IsValid())
+		{
+			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timestamp, FrameNumber, BlendShapes, LocalDeviceId);
+		}
+
+		if (LiveLinkFileWriter.IsValid())
+		{
+			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timestamp, FrameNumber, BlendShapes, LocalDeviceId);
+		}
+	});
 }
 
 void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorData> Anchor)
@@ -139,7 +184,7 @@ void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorDat
 		{
 			FaceTrackingLiveLinkSubjectName = GetDefault<UAppleARKitSettings>()->DefaultFaceTrackingLiveLinkSubjectName;
 	#if PLATFORM_IOS
-			LiveLinkSource = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource(true);
+			LiveLinkSource = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource();
 	#else
 			// This should be started already, but just in case
 			FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemoteListener();

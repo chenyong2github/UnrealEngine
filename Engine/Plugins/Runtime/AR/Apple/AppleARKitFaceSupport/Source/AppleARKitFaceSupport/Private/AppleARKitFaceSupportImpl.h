@@ -10,6 +10,7 @@
 
 class APPLEARKITFACESUPPORT_API FAppleARKitFaceSupport :
 	public IAppleARKitFaceSupport,
+	public FSelfRegisteringExec,
 	public TSharedFromThis<FAppleARKitFaceSupport, ESPMode::ThreadSafe>
 {
 public:
@@ -30,7 +31,14 @@ private:
 	virtual TArray<FARVideoFormat> ToARConfiguration() override;
 #endif
 	// ~IAppleARKitFaceSupport
+
+	/** Publishes the remote publisher and the file writer if present */
+	void ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData);
 #endif
+
+	//~ FSelfRegisteringExec
+	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ FSelfRegisteringExec
 
 	/** If requested, publishes face ar updates to LiveLink for the animation system to use */
 	TSharedPtr<ILiveLinkSourceARKit> LiveLinkSource;
@@ -38,5 +46,13 @@ private:
 	FName FaceTrackingLiveLinkSubjectName;
 	/** The id of this device */
 	FName LocalDeviceId;
+	/** A publisher that sends to a remote machine */
+	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> RemoteLiveLinkPublisher;
+	/** A publisher that writes the data to disk */
+	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LiveLinkFileWriter;
+#if SUPPORTS_ARKIT_1_0
+	/** Used to hold a copy of the data to be processed by the background thread */
+	FAppleARKitAnchorData AsyncAnchorCopy;
+#endif
 };
 

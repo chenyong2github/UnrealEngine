@@ -26,8 +26,14 @@ class APPLEARKITFACESUPPORT_API FAppleARKitLiveLinkSourceFactory
 {
 public:
 	/** Creates a face mesh source that will autobind to the tracked face mesh */
-	static TSharedPtr<ILiveLinkSourceARKit> CreateLiveLinkSource(bool bCreateRemotePublisher);
+	static TSharedPtr<ILiveLinkSourceARKit> CreateLiveLinkSource();
 
-	/** Creates the listener that will receive remote events and publish them locally */
+	/** Creates the singleton listener that will receive remote events and publish them locally */
 	static void CreateLiveLinkRemoteListener();
+
+	/** Creates the publisher that will send remote events to a specified IP */
+	static TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> CreateLiveLinkRemotePublisher(const FString& RemoteAddr = FString());
+
+	/** Creates the publisher that will write the curve data to disk */
+	static TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> CreateLiveLinkLocalFileWriter();
 };

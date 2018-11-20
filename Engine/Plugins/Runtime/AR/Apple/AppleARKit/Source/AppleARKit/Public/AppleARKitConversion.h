@@ -256,6 +256,21 @@ enum class EAppleAnchorType : uint8
 
 struct FAppleARKitAnchorData
 {
+	FAppleARKitAnchorData()
+		: AnchorType()
+		, AnchorGUID(FGuid())
+		, ProbeTexture(nullptr)
+		, Timestamp(0.0)
+		, FrameNumber(0)
+		, bIsTracked(false)
+	{
+	}
+
+	FAppleARKitAnchorData(const FAppleARKitAnchorData& Other)
+	{
+		Copy(Other);
+	}
+
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::Anchor )
@@ -302,6 +317,41 @@ struct FAppleARKitAnchorData
 		, Extent(InExtent)
 		, ProbeTexture(InProbeTexture)
 	{
+	}
+
+	FAppleARKitAnchorData& operator=(const FAppleARKitAnchorData& Other)
+	{
+		if (this != &Other)
+		{
+			Copy(Other);
+		}
+
+		return *this;
+	}
+
+	void Copy(const FAppleARKitAnchorData& Other)
+	{
+		Transform = Other.Transform;
+		AnchorType = Other.AnchorType;
+		AnchorGUID = Other.AnchorGUID;
+		Center = Other.Center;
+		Extent = Other.Center;
+		BoundaryVerts = Other.BoundaryVerts;
+
+		BlendShapes = Other.BlendShapes;
+		FaceVerts = Other.FaceVerts;
+
+		DetectedAnchorName = Other.DetectedAnchorName;
+
+		ProbeTexture = Other.ProbeTexture;
+
+		LeftEyeTransform = Other.LeftEyeTransform;
+		RightEyeTransform = Other.RightEyeTransform;
+		LookAtTarget = Other.LookAtTarget;
+		Timestamp = Other.Timestamp;
+		FrameNumber = Other.FrameNumber;
+
+		bIsTracked = Other.bIsTracked;
 	}
 
 	FTransform Transform;
