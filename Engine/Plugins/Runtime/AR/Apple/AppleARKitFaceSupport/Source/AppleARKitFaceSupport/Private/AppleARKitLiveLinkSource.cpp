@@ -85,14 +85,12 @@ TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSo
 TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkLocalFileWriter()
 {
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LocalFileWriter;
-	bool bWantsFaceTrackingFileWriter = false;
-	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bWantsFaceTrackingFileWriter"), bWantsFaceTrackingFileWriter, GEngineIni);
-	if (bWantsFaceTrackingFileWriter)
+	FString FileWriterType(TEXT("None"));
+	GConfig->GetString(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("FaceTrackingFileWriterType"), FileWriterType, GEngineIni);
+	if (FileWriterType != TEXT("None"))
 	{
-		bool bCsvOrJson = true;
-		GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bWantsCsvOrJsonFileWriter"), bCsvOrJson, GEngineIni);
 		FAppleARKitLiveLinkFileWriter* FileWriter = nullptr;
-		if (bCsvOrJson)
+		if (FileWriterType == TEXT("CSV"))
 		{
 			FileWriter = new FAppleARKitLiveLinkFileWriterCsv();
 		}

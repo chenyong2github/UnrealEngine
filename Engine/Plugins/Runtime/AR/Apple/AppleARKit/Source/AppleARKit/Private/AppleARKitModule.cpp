@@ -8,6 +8,13 @@
 #include "CoreGlobals.h"
 #include "Misc/CoreDelegates.h"
 
+#if WITH_EDITOR
+	#include "ISettingsModule.h"
+	#include "ISettingsSection.h"
+	#include "AppleARKitSettings.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "ARKit"
 
 TWeakPtr<class FAppleARKitSystem, ESPMode::ThreadSafe> FAppleARKitARKitSystemPtr;
 
@@ -40,10 +47,17 @@ void FAppleARKitModule::StartupModule()
 	IHeadMountedDisplayModule::StartupModule();
 
 	FCoreDelegates::OnPreExit.AddRaw(this, &FAppleARKitModule::PreExit);
+
+#if WITH_EDITOR
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FAppleARKitModule::PostEngineInit);
+#endif
 }
 
 void FAppleARKitModule::PreExit()
 {
+#if WITH_EDITOR
+	UnregisterSettings();
+#endif
 	if (FAppleARKitARKitSystemPtr.IsValid())
 	{
 		FAppleARKitARKitSystemPtr.Pin()->Shutdown();
@@ -55,6 +69,38 @@ void FAppleARKitModule::ShutdownModule()
 {
 	IHeadMountedDisplayModule::ShutdownModule();
 }
+
+#if WITH_EDITOR
+void FAppleARKitModule::PostEngineInit()
+{
+	RegisterSettings();
+}
+
+void FAppleARKitModule::RegisterSettings()
+{
+	{
+		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+
+		if (SettingsModule != nullptr)
+		{
+			SettingsModule->RegisterSettings("Project", "Plugins", "Apple ARKit",
+				LOCTEXT("ARKitSettingsName", "Apple ARKit"),
+				LOCTEXT("ARKitSettingsDescription", "Configure the Apple ARKit plug-in."),
+				GetMutableDefault<UAppleARKitSettings>()
+			);
+		}
+	}
+}
+
+void FAppleARKitModule::UnregisterSettings()
+{
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "Apple ARKit");
+	}
+}
+#endif
 
 
 IMPLEMENT_MODULE(FAppleARKitModule, AppleARKit);
