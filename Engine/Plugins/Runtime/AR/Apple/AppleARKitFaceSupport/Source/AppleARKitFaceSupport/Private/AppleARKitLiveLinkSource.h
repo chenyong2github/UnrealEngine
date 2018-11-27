@@ -749,6 +749,90 @@ private:
 	FNboSerializeToBuffer SendBuffer;
 };
 
+/** Writes files to disk with the face tracking information */
+class FAppleARKitLiveLinkFileWriter :
+	public FSelfRegisteringExec,
+	public IARKitBlendShapePublisher
+{
+public:
+	virtual ~FAppleARKitLiveLinkFileWriter();
+
+protected:
+	FAppleARKitLiveLinkFileWriter(const TCHAR* InFileExtension);
+
+	struct FFaceTrackingFrame
+	{
+		FFaceTrackingFrame(double InTimestamp, uint32 InFrameNumber, const FARBlendShapeMap& InBlendShapes)
+			: Timestamp(InTimestamp)
+			, FrameNumber(InFrameNumber)
+			, BlendShapes(InBlendShapes)
+		{
+		}
+
+		double Timestamp;
+		uint32 FrameNumber;
+		FARBlendShapeMap BlendShapes;
+	};
+
+	// IARKitBlendShapePublisher interface
+	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	// End IARKitBlendShapePublisher
+
+	//~ FSelfRegisteringExec
+	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	//~ FSelfRegisteringExec
+
+	virtual FString BuildSaveData() = 0;
+
+	void SaveFileData();
+	FString GenerateFilePath();
+
+	/** Needed because Exec commands are on the game thread and updates are on an arbitrary thread */
+	FCriticalSection CriticalSection;
+	/** The file extension to write to */
+	FString FileExtension;
+	/** The list of the last frames seen. Used when rolling up all data in one file */
+	TArray<FFaceTrackingFrame> FrameHistory;
+	/** The name to use when generating the file to save to */
+	FName DeviceName;
+	/** If true, it writes a file each frame. Otherwise, it writes the data upon demand or exit */
+	bool bSavePerFrameOrOnDemand;
+};
+
+class FAppleARKitLiveLinkFileWriterJson :
+	public FAppleARKitLiveLinkFileWriter
+{
+public:
+	FAppleARKitLiveLinkFileWriterJson();
+	virtual ~FAppleARKitLiveLinkFileWriterJson() {}
+
+private:
+	//~ FAppleARKitLiveLinkFileWriter
+	virtual FString BuildSaveData() override;
+	FString BuildJsonRow(const FFaceTrackingFrame& Frame);
+	//~ FAppleARKitLiveLinkFileWriter
+
+	/** A list of the keys to use when generating JSON files, cached because can't access off game thread */
+	TArray<FString> BlendShapeJsonKeyNames;
+};
+
+class FAppleARKitLiveLinkFileWriterCsv :
+	public FAppleARKitLiveLinkFileWriter
+{
+public:
+	FAppleARKitLiveLinkFileWriterCsv();
+	virtual ~FAppleARKitLiveLinkFileWriterCsv() {}
+
+private:
+	//~ FAppleARKitLiveLinkFileWriter
+	virtual FString BuildSaveData() override;
+	FString BuildCsvRow(const FFaceTrackingFrame& Frame);
+	//~ FAppleARKitLiveLinkFileWriter
+
+	/** A pre-made header to use when writing CSV files, cached because can't access off game thread  */
+	FString CsvFrameHeader;
+};
+
 /** Publishes face blend shapes to LiveLink for use locally */
 class FAppleARKitLiveLinkSource :
 	public ILiveLinkSourceARKit

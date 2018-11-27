@@ -83,7 +83,7 @@ static FORCEINLINE FARBlendShapeMap ToBlendShapeMap(NSDictionary<ARBlendShapeLoc
 #define SET_BLEND_SHAPE(AppleShape, UE4Shape) \
 	if (BlendShapes[AppleShape]) \
 	{ \
-		BlendShapeMap.Add(UE4Shape, [BlendShapes[AppleShape] floatValue]); \
+		BlendShapeMap.Add(UE4Shape, FMath::Max([BlendShapes[AppleShape] floatValue], 0.f)); \
 	} \
 	else \
 	{ \

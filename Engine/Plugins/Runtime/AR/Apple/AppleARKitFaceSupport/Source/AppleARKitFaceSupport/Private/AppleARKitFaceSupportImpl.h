@@ -35,6 +35,8 @@ private:
 	/** Publishes the remote publisher and the file writer if present */
 	void ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData);
 #endif
+	/** Inits the real time providers if needed */
+	void InitRealtimeProviders();
 
 	//~ FSelfRegisteringExec
 	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
@@ -50,9 +52,5 @@ private:
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> RemoteLiveLinkPublisher;
 	/** A publisher that writes the data to disk */
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LiveLinkFileWriter;
-#if SUPPORTS_ARKIT_1_0
-	/** Used to hold a copy of the data to be processed by the background thread */
-	FAppleARKitAnchorData AsyncAnchorCopy;
-#endif
 };
 

@@ -101,6 +101,21 @@ bool FAppleARKitFaceSupport::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 	return false;
 }
 
+void FAppleARKitFaceSupport::InitRealtimeProviders()
+{
+	static bool bNeedsInit = true;
+	if (bNeedsInit)
+	{
+		bNeedsInit = false;
+#if PLATFORM_IOS
+		// This will perform the sending of the data to the remote
+		RemoteLiveLinkPublisher = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemotePublisher();
+		// Create the file writer if required. Will return nullptr if not configured
+		LiveLinkFileWriter = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkLocalFileWriter();
+#endif
+	}
+}
+
 #if SUPPORTS_ARKIT_1_0
 
 ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* SessionConfig)
@@ -114,6 +129,9 @@ ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* Ses
 		}
 		SessionConfiguration = [ARFaceTrackingConfiguration new];
 	}
+
+	// Init the remote sender and file loggers if requested
+	InitRealtimeProviders();
 
 	// Copy / convert properties
 	SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
@@ -154,12 +172,12 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 void FAppleARKitFaceSupport::ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData)
 {
 	// Copy the data from the passed in anchor
-	AsyncAnchorCopy = *AnchorData;
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this]()
+    TSharedPtr<FAppleARKitAnchorData> AsyncAnchorCopy = MakeShared<FAppleARKitAnchorData>(*AnchorData);
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AsyncAnchorCopy]()
 	{
-		double Timestamp = AsyncAnchorCopy.Timestamp;
-		uint32 FrameNumber = AsyncAnchorCopy.FrameNumber;
-		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy.BlendShapes;
+		double Timestamp = AsyncAnchorCopy->Timestamp;
+		uint32 FrameNumber = AsyncAnchorCopy->FrameNumber;
+		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy->BlendShapes;
 
 		if (RemoteLiveLinkPublisher.IsValid())
 		{
@@ -183,12 +201,12 @@ void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorDat
 		if (GetDefault<UAppleARKitSettings>()->bEnableLiveLinkForFaceTracking)
 		{
 			FaceTrackingLiveLinkSubjectName = GetDefault<UAppleARKitSettings>()->DefaultFaceTrackingLiveLinkSubjectName;
-	#if PLATFORM_IOS
+#if PLATFORM_IOS
 			LiveLinkSource = FAppleARKitLiveLinkSourceFactory::CreateLiveLinkSource();
-	#else
+#else
 			// This should be started already, but just in case
 			FAppleARKitLiveLinkSourceFactory::CreateLiveLinkRemoteListener();
-	#endif
+#endif
 		}
 	}
 

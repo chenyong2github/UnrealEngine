@@ -9,6 +9,7 @@
 #include "ARBlueprintLibrary.h"
 #include "AppleARKitModule.h"
 #include "Features/IModularFeatures.h"
+#include "Misc/FileHelper.h"
 
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
@@ -84,6 +85,23 @@ TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSo
 TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> FAppleARKitLiveLinkSourceFactory::CreateLiveLinkLocalFileWriter()
 {
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LocalFileWriter;
+	bool bWantsFaceTrackingFileWriter = false;
+	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bWantsFaceTrackingFileWriter"), bWantsFaceTrackingFileWriter, GEngineIni);
+	if (bWantsFaceTrackingFileWriter)
+	{
+		bool bCsvOrJson = true;
+		GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bWantsCsvOrJsonFileWriter"), bCsvOrJson, GEngineIni);
+		FAppleARKitLiveLinkFileWriter* FileWriter = nullptr;
+		if (bCsvOrJson)
+		{
+			FileWriter = new FAppleARKitLiveLinkFileWriterCsv();
+		}
+		else
+		{
+			FileWriter = new FAppleARKitLiveLinkFileWriterJson();
+		}
+		LocalFileWriter = MakeShareable(FileWriter);
+	}
 	return LocalFileWriter;
 }
 
@@ -411,4 +429,174 @@ void FAppleARKitLiveLinkRemoteListener::Tick(float DeltaTime)
 			}
 		}
 	}
+}
+
+FAppleARKitLiveLinkFileWriter::FAppleARKitLiveLinkFileWriter(const TCHAR* InFileExtension)
+	: FileExtension(InFileExtension)
+	, bSavePerFrameOrOnDemand(false)
+{
+	// Read the config values for this
+	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bFaceTrackingWriteEachFrame"), bSavePerFrameOrOnDemand, GEngineIni);
+}
+
+FAppleARKitLiveLinkFileWriter::~FAppleARKitLiveLinkFileWriter()
+{
+	// Save on close if desired
+	if (!bSavePerFrameOrOnDemand)
+	{
+		SaveFileData();
+	}
+}
+
+void FAppleARKitLiveLinkFileWriter::SaveFileData()
+{
+	FString SaveData;
+
+	SaveData = BuildSaveData();
+	// Write the data to the user directory
+	FFileHelper::SaveStringToFile(SaveData, *GenerateFilePath(), FFileHelper::EEncodingOptions::ForceAnsi);
+
+	FrameHistory.Empty();
+}
+
+FString FAppleARKitLiveLinkFileWriter::GenerateFilePath()
+{
+	FDateTime DateTime = FDateTime::UtcNow();
+	const FString UserDir = FPlatformProcess::UserDir();
+	const FString DeviceNameString = DeviceName.ToString();
+	return FString::Printf(TEXT("%sFaceTracking/%s_%d-%d-%d-%d-%d-%d-%d%s"), *UserDir, *DeviceNameString,
+		DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), DateTime.GetHour(), DateTime.GetMinute(), DateTime.GetSecond(), DateTime.GetMillisecond(),
+		*FileExtension);
+}
+
+void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+
+	DeviceName = DeviceId;
+	// Add to the array for long running save
+	new(FrameHistory) FFaceTrackingFrame(Timestamp, FrameNumber, FaceBlendShapes);
+
+	if (bSavePerFrameOrOnDemand)
+	{
+		SaveFileData();
+	}
+}
+
+bool FAppleARKitLiveLinkFileWriter::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("FaceAR")) &&
+		FParse::Command(&Cmd, TEXT("WriteCurveFile")))
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+		SaveFileData();
+		return true;
+	}
+	return false;
+}
+
+FAppleARKitLiveLinkFileWriterCsv::FAppleARKitLiveLinkFileWriterCsv()
+	: FAppleARKitLiveLinkFileWriter(TEXT(".csv"))
+{
+	// Touching UObjects, so needs to be game thread
+	check(IsInGameThread());
+
+	CsvFrameHeader = TEXT("Timestamp, FrameNumber");
+	const UEnum *EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
+	if (EnumPtr != nullptr)
+	{
+		// Iterate through all of the enum values generating strings for them for CSV/JSON generation
+		for (int32 Shape = 0; Shape < (int32) EARFaceBlendShape::MAX; Shape++)
+		{
+			FName EnumName = ParseEnumName(EnumPtr->GetNameByValue(Shape));
+			FString EnumString(EnumName.ToString());
+			CsvFrameHeader += TEXT(", ") + EnumString;
+		}
+	}
+	CsvFrameHeader += TEXT("\r\n");
+}
+
+FString FAppleARKitLiveLinkFileWriterCsv::BuildCsvRow(const FFaceTrackingFrame& Frame)
+{
+	FString SaveData = FString::Printf(TEXT("%f, %d"), Frame.Timestamp, Frame.FrameNumber);
+	// Add all of the blend shapes on
+	for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)
+	{
+		float Value = Frame.BlendShapes.FindChecked((EARFaceBlendShape)Shape);
+		SaveData += FString::Printf(TEXT(", %.3f"), Value);
+	}
+	SaveData += TEXT("\r\n");
+	return SaveData;
+}
+
+FString FAppleARKitLiveLinkFileWriterCsv::BuildSaveData()
+{
+	FString SaveData(CsvFrameHeader);
+
+	// Iterate through the array building our string up
+	for (const FFaceTrackingFrame& Frame : FrameHistory)
+	{
+		SaveData += BuildCsvRow(Frame);
+	}
+
+	return SaveData;
+}
+
+FAppleARKitLiveLinkFileWriterJson::FAppleARKitLiveLinkFileWriterJson()
+	: FAppleARKitLiveLinkFileWriter(TEXT(".json"))
+{
+	// Touching UObjects, so needs to be game thread
+	check(IsInGameThread());
+
+	const UEnum *EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
+	if (EnumPtr != nullptr)
+	{
+		// Iterate through all of the enum values generating strings for them for CSV/JSON generation
+		for (int32 Shape = 0; Shape < (int32) EARFaceBlendShape::MAX; Shape++)
+		{
+			FName EnumName = ParseEnumName(EnumPtr->GetNameByValue(Shape));
+			FString EnumString(EnumName.ToString());
+			BlendShapeJsonKeyNames.Add(EnumString);
+		}
+	}
+}
+
+FString FAppleARKitLiveLinkFileWriterJson::BuildJsonRow(const FFaceTrackingFrame& Frame)
+{
+	FString SaveData = FString::Printf(TEXT("\t{\r\n\t\t\"Timestamp\" : %f,\r\n\t\t\"FrameNumber\" : %d,\r\n"), Frame.Timestamp, Frame.FrameNumber);
+	bool bNeedsComma = false;
+	// Add all of the blend shapes on
+	for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)
+	{
+		if (bNeedsComma)
+		{
+			SaveData += TEXT(",\r\n");
+		}
+		float Value = Frame.BlendShapes.FindChecked((EARFaceBlendShape)Shape);
+		SaveData += FString::Printf(TEXT("\t\t\"%s\" : %.3f"), *BlendShapeJsonKeyNames[Shape], Value);
+		bNeedsComma = true;
+	}
+	SaveData += TEXT("\r\n\t}");
+	return SaveData;
+}
+
+FString FAppleARKitLiveLinkFileWriterJson::BuildSaveData()
+{
+	FString SaveData;
+	SaveData += TEXT("{\r\n");
+	SaveData += TEXT("\t\"Frames\" : [\r\n");
+	bool bNeedsComma = false;
+	// Add each frame
+	for (const FFaceTrackingFrame& Frame : FrameHistory)
+	{
+		if (bNeedsComma)
+		{
+			SaveData += TEXT(",\r\n");
+		}
+		SaveData += BuildJsonRow(Frame);
+		bNeedsComma = true;
+	}
+	SaveData += TEXT("\t]\r\n");
+	SaveData += TEXT("}\r\n");
+	return SaveData;
 }

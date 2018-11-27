@@ -323,6 +323,7 @@ struct FAppleARKitAnchorData
 	{
 		if (this != &Other)
 		{
+			Clear();
 			Copy(Other);
 		}
 
@@ -352,6 +353,14 @@ struct FAppleARKitAnchorData
 		FrameNumber = Other.FrameNumber;
 
 		bIsTracked = Other.bIsTracked;
+	}
+
+	void Clear()
+	{
+		BoundaryVerts.Empty();
+		BlendShapes.Empty();
+		FaceVerts.Empty();
+		ProbeTexture = nullptr;
 	}
 
 	FTransform Transform;
