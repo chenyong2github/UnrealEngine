@@ -51,6 +51,8 @@ DECLARE_CYCLE_STAT(TEXT("MediaUtils MediaPlayerFacade TickOutput"), STAT_MediaUt
 /** Time spent in media player facade high frequency tick. */
 DECLARE_CYCLE_STAT(TEXT("MediaUtils MediaPlayerFacade TickTickable"), STAT_MediaUtils_FacadeTickTickable, STATGROUP_Media);
 
+/** Player time on main thread during last fetch tick. */
+DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaPlayerFacade TickPostEngine Time"), STAT_MediaUtils_FacadeTime, STATGROUP_Media);
 
 
 /* Local helpers
@@ -958,7 +960,9 @@ void FMediaPlayerFacade::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 	TRange<FTimespan> TimeRange;
 
 	const FTimespan CurrentTime = GetTime();
-	
+
+	SET_FLOAT_STAT(STAT_MediaUtils_FacadeTime, CurrentTime.GetTotalMilliseconds());
+
 	if (Rate > 0.0f)
 	{
 		TimeRange = TRange<FTimespan>::AtMost(CurrentTime);

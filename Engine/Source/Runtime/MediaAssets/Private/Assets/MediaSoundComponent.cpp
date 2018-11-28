@@ -122,7 +122,8 @@ void UMediaSoundComponent::SetDefaultMediaPlayer(UMediaPlayer* NewMediaPlayer)
 
 void UMediaSoundComponent::UpdatePlayer()
 {
-	if (!CurrentPlayer.IsValid())
+	UMediaPlayer* CurrentPlayerPtr = CurrentPlayer.Get();
+	if (CurrentPlayerPtr == nullptr)
 	{
 		CachedRate = 0.0f;
 		CachedTime = FTimespan::Zero();
@@ -135,7 +136,7 @@ void UMediaSoundComponent::UpdatePlayer()
 	}
 
 	// create a new sample queue if the player changed
-	TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacade = CurrentPlayer->GetPlayerFacade();
+	TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacade = CurrentPlayerPtr->GetPlayerFacade();
 
 	if (PlayerFacade != CurrentPlayerFacade)
 	{
@@ -357,7 +358,7 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
 				if (JumpFrame != MAX_uint32)
 				{
-					UE_LOG(LogMediaAssets, Verbose, TEXT("Audio ( JUMP ) SyncOffset was: %d"), SyncOffset);
+					UE_LOG(LogMediaAssets, Verbose, TEXT("Audio ( JUMP ) SyncOffset was: %d, OutTime: %s"), SyncOffset, *OutTime.ToString());
 					int32 JumpFramesRequested = FramesRequested - JumpFrame;
 					int32 JumpFramesWritten = FramesWritten - JumpFrame;
 					SyncOffset = JumpFramesRequested - JumpFramesWritten;
