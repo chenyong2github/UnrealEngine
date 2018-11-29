@@ -94,6 +94,14 @@ private:
 	void UpdatePoses();
 	void UpdateFrame();
 	void CalcTrackingToWorldRotation();
+#if SUPPORTS_ARKIT_1_0
+	bool bShouldWriteCameraImagePerFrame;
+	float WrittenCameraImageScale;
+	int32 WrittenCameraImageQuality;
+	ETextureRotationDirection WrittenCameraImageRotation;
+	/** Asynchronously writes a JPEG to disk */
+	void WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer);
+#endif
 
 public:
 	// Session delegate callbacks

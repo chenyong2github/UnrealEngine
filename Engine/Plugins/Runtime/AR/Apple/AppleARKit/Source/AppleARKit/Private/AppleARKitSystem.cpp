@@ -18,7 +18,9 @@
 #include "ARLightEstimate.h"
 #include "ARTraceResult.h"
 #include "ARPin.h"
+#include "Async/Async.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "Misc/FileHelper.h"
 
 // To separate out the face ar library linkage from standard ar apps
 #include "AppleARKitFaceSupport.h"
@@ -1196,7 +1198,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		GameThreadFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 		LastReceivedFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 	}
-	
+
 	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
 	if (DeviceOrientation == EScreenOrientation::Unknown)
 	{
@@ -1204,6 +1206,12 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 
 #if SUPPORTS_ARKIT_1_0
+	// Set this based upon the project settings
+	bShouldWriteCameraImagePerFrame = GetDefault<UAppleARKitSettings>()->bShouldWriteCameraImagePerFrame;
+	WrittenCameraImageScale = GetDefault<UAppleARKitSettings>()->WrittenCameraImageScale;
+	WrittenCameraImageRotation = GetDefault<UAppleARKitSettings>()->WrittenCameraImageRotation;
+	WrittenCameraImageQuality = GetDefault<UAppleARKitSettings>()->WrittenCameraImageQuality;
+
 	if (FAppleARKitAvailability::SupportsARKit10())
 	{
 		ARSessionRunOptions options = 0;
@@ -1372,6 +1380,12 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 	}
 	{
 		UpdateARKitPerfStats();
+#if SUPPORTS_ARKIT_1_0
+		if (bShouldWriteCameraImagePerFrame)
+		{
+			WriteCameraImageToDisk(Frame->CameraImage);
+		}
+#endif
 	}
 }
 			
@@ -1865,6 +1879,29 @@ void FAppleARKitSystem::UpdateARKitPerfStats()
 	SET_DWORD_STAT(STAT_ARKitThreads, ARKitThreadTimes.NewTotal);
 #endif
 }
+
+#if SUPPORTS_ARKIT_1_0
+void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
+{
+	int32 ImageQuality = WrittenCameraImageQuality;
+	float ImageScale = WrittenCameraImageScale;
+	ETextureRotationDirection ImageRotation = WrittenCameraImageRotation;
+	CIImage* SourceImage = [[CIImage alloc] initWithCVPixelBuffer: PixelBuffer];
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [SourceImage, ImageQuality, ImageScale, ImageRotation]()
+	{
+		TArray<uint8> JpegBytes;
+		IAppleImageUtilsPlugin::Get().ConvertToJPEG(SourceImage, JpegBytes, ImageQuality, true, true, ImageScale, ImageRotation);
+		[SourceImage release];
+		// Build a unique file name
+		FDateTime DateTime = FDateTime::UtcNow();
+		static FString UserDir = FPlatformProcess::UserDir();
+		FString FileName = FString::Printf(TEXT("%sCameraImages/Image_%d-%d-%d-%d-%d-%d-%d.jpeg"), *UserDir,
+			DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), DateTime.GetHour(), DateTime.GetMinute(), DateTime.GetSecond(), DateTime.GetMillisecond());
+		// Write the jpeg to disk
+		FFileHelper::SaveArrayToFile(JpegBytes, *FileName);
+	});
+}
+#endif
 
 
 namespace AppleARKitSupport
