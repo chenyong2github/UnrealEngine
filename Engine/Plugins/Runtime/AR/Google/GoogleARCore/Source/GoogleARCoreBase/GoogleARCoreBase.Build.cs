@@ -79,7 +79,7 @@ namespace UnrealBuildTool.Rules
 				
 				if (ExecName.Length > 0)
 				{
-					RuntimeDependencies.Add("$(EngineDir)/Plugins/Runtime/GoogleARCore/Binaries/ThirdParty/Google/ARCoreImg/" + ExecName);
+					RuntimeDependencies.Add("$(EngineDir)/Plugins/Runtime/AR/Google/GoogleARCore/Binaries/ThirdParty/Google/ARCoreImg/" + ExecName);
 				}
 			}
 			
