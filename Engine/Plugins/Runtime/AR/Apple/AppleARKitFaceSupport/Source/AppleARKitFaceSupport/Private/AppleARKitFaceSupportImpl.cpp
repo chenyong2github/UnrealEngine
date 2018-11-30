@@ -14,7 +14,7 @@ DECLARE_CYCLE_STAT(TEXT("Conversion"), STAT_FaceAR_Conversion, STATGROUP_FaceAR)
 
 #if SUPPORTS_ARKIT_1_0
 
-static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(ARAnchor* Anchor, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting)
+static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAnchor* Anchor, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FaceAR_Conversion);
 	
@@ -38,7 +38,7 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(ARAnchor* Anchor, const 
 		NewAnchor = MakeShared<FAppleARKitAnchorData>(
 			FAppleARKitConversion::ToFGuid(FaceAnchor.identifier),
 			FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy),
-			ToBlendShapeMap(FaceAnchor.blendShapes, FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy), LeftEyeTransform, RightEyeTransform),
+			ToBlendShapeMap(bFaceMirrored, FaceAnchor.blendShapes, FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy), LeftEyeTransform, RightEyeTransform),
 			UpdateSetting == EARFaceTrackingUpdate::CurvesAndGeo ? ToVertexBuffer(FaceAnchor.geometry.vertices, FaceAnchor.geometry.vertexCount) : TArray<FVector>(),
 			LeftEyeTransform,
 			RightEyeTransform,
@@ -61,6 +61,7 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(ARAnchor* Anchor, const 
 
 FAppleARKitFaceSupport::FAppleARKitFaceSupport()
 {
+	bFaceMirrored = false;
 	// Generate our device id
 	LocalDeviceId = FName(*FPlatformMisc::GetDeviceId());
 }
@@ -151,6 +152,9 @@ ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* Ses
 		}
 	}
 #endif
+	// Do we want to capture face performance or look at the face as if in a mirror (Apple is mirrored so we mirror the mirror)
+	bFaceMirrored = SessionConfig->GetFaceTrackingDirection() == EARFaceTrackingDirection::FaceMirrored;
+
 	return SessionConfiguration;
 }
 
@@ -160,7 +164,7 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 
 	for (ARAnchor* Anchor in Anchors)
 	{
-		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(Anchor, AdjustBy, UpdateSetting);
+		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(bFaceMirrored, Anchor, AdjustBy, UpdateSetting);
 		if (AnchorData.IsValid())
 		{
 			AnchorList.Add(AnchorData);

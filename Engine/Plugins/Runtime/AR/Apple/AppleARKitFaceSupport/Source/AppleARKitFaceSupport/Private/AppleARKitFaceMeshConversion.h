@@ -35,11 +35,8 @@ static FORCEINLINE TArray<FVector> ToVertexBuffer(const vector_float3* Vertices,
 	return VertexBuffer;
 }
 
-static FORCEINLINE FARBlendShapeMap ToBlendShapeMap(NSDictionary<ARBlendShapeLocation,NSNumber *>* BlendShapes, const FTransform& Transform, const FTransform& LeftEyeTransform, const FTransform& RightEyeTransform)
+static FORCEINLINE FARBlendShapeMap ToBlendShapeMap(bool bFaceMirrored, NSDictionary<ARBlendShapeLocation,NSNumber *>* BlendShapes, const FTransform& Transform, const FTransform& LeftEyeTransform, const FTransform& RightEyeTransform)
 {
-	// Do we want to capture face performance or look at the face as if in a mirror (Apple is mirrored so we mirror the mirror)
-	const bool bFaceMirrored = GetDefault<UAppleARKitSettings>()->DefaultFaceTrackingDirection == EARFaceTrackingDirection::FaceMirrored;
-	
 	FARBlendShapeMap BlendShapeMap;
 	FRotator TrackedRot(Transform.GetRotation());
 	// Map the -180..180 range to -1..1

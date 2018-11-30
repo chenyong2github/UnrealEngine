@@ -42,6 +42,8 @@ private:
 	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ FSelfRegisteringExec
 
+	/** Whether the face data is mirrored or not */
+	bool bFaceMirrored;
 	/** If requested, publishes face ar updates to LiveLink for the animation system to use */
 	TSharedPtr<ILiveLinkSourceARKit> LiveLinkSource;
 	/** Copied from the UARSessionConfig project settings object */
