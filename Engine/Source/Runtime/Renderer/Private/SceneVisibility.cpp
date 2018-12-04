@@ -1825,7 +1825,7 @@ struct FRelevancePacket
 				continue;
 			}
 
-			if (ViewRelevance.bDecal)
+			if (ViewRelevance.bDecal && ViewRelevance.bRenderInMainPass)
 			{
 				MeshDecalPrimSet.AddPrim(FMeshDecalPrimSet::GenerateKey(PrimitiveSceneInfo, PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority()));
 			}
@@ -3379,6 +3379,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
+	check(RHICmdList.IsOutsideRenderPass());
 
 	PreVisibilityFrameSetup(RHICmdList);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);

@@ -28,7 +28,6 @@ public class HeadMountedDisplay : ModuleRules
 				"SlateCore",
                 "RHI",
                 "Renderer",
-                "ShaderCore",
                 "RenderCore",
                 "UtilityShaders",
                 "Analytics",

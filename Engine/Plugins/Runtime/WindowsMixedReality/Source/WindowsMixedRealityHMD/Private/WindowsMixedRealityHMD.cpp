@@ -841,7 +841,7 @@ namespace WindowsMixedReality
 		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = RendererModule->GetFilterVertexDeclaration().VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
@@ -918,7 +918,7 @@ namespace WindowsMixedReality
 		check(Mesh.IsValid());
 
 		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
-		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, PT_TriangleList, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
 	}
 
 	bool FWindowsMixedRealityHMD::HasVisibleAreaMesh() const
@@ -938,7 +938,7 @@ namespace WindowsMixedReality
 		check(Mesh.IsValid());
 
 		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
-		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, PT_TriangleList, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
 	}
 
 	void FWindowsMixedRealityHMD::SetupViewFamily(FSceneViewFamily& InViewFamily)
@@ -982,39 +982,44 @@ namespace WindowsMixedReality
 		}
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		SetRenderTarget(RHICmdList, remappedDepthTexture, FTextureRHIRef());
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		FRHIRenderPassInfo RPInfo(remappedDepthTexture, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("RemapDepth"));
+		{
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		RHICmdList.SetViewport(0, 0, 0, viewportWidth, viewportHeight, 1.0f);
+			RHICmdList.SetViewport(0, 0, 0, viewportWidth, viewportHeight, 1.0f);
 
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
-		const auto featureLevel = GMaxRHIFeatureLevel;
-		auto shaderMap = GetGlobalShaderMap(featureLevel);
+			const auto featureLevel = GMaxRHIFeatureLevel;
+			auto shaderMap = GetGlobalShaderMap(featureLevel);
 
-		TShaderMapRef<FScreenVS> vertexShader(shaderMap);
-		TShaderMapRef<FDepthConversionPS> pixelShader(shaderMap);
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = RendererModule->GetFilterVertexDeclaration().VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*vertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*pixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			TShaderMapRef<FScreenVS> vertexShader(shaderMap);
+			TShaderMapRef<FDepthConversionPS> pixelShader(shaderMap);
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*vertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*pixelShader);
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		pixelShader->SetParameters(RHICmdList, farPlaneDistance / GetWorldToMetersScale(), depthFRHITexture);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		RendererModule->DrawRectangle(
-			RHICmdList,
-			0, 0, // X, Y
-			viewportWidth, viewportHeight, // SizeX, SizeY
-			0.0f, 0.0f, // U, V
-			1.0f, 1.0f, // SizeU, SizeV
-			FIntPoint(viewportWidth, viewportHeight), // TargetSize
-			FIntPoint(1, 1), // TextureSize
-			*vertexShader,
-			EDRF_Default);
+			pixelShader->SetParameters(RHICmdList, farPlaneDistance / GetWorldToMetersScale(), depthFRHITexture);
+
+			RendererModule->DrawRectangle(
+				RHICmdList,
+				0, 0, // X, Y
+				viewportWidth, viewportHeight, // SizeX, SizeY
+				0.0f, 0.0f, // U, V
+				1.0f, 1.0f, // SizeU, SizeV
+				FIntPoint(viewportWidth, viewportHeight), // TargetSize
+				FIntPoint(1, 1), // TextureSize
+				*vertexShader,
+				EDRF_Default);
+		}
+		RHICmdList.EndRenderPass();
 
 		ID3D11Device* device = (ID3D11Device*)RHIGetNativeDevice();
 		if (device == nullptr)
