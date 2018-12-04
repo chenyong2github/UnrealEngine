@@ -8,7 +8,7 @@
 #include "Materials/Material.h"
 #include "ShaderParameterUtils.h"
 
-IMPLEMENT_UNIFORM_BUFFER_STRUCT(FPointCloudVertexFactoryParameters, TEXT("PointCloudVF"));
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPointCloudVertexFactoryParameters, "PointCloudVF");
 
 /**
  * Shader parameters for the vector field visualization vertex factory.

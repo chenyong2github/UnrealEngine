@@ -10,10 +10,10 @@
 /**
  * Uniform buffer to hold parameters for point cloud rendering
  */
-BEGIN_UNIFORM_BUFFER_STRUCT( FPointCloudVertexFactoryParameters, )
-	UNIFORM_MEMBER_SRV(Buffer<float>, VertexFetch_PointLocationBuffer)
-	UNIFORM_MEMBER_SRV(Buffer<float4>, VertexFetch_PointColorBuffer)
-END_UNIFORM_BUFFER_STRUCT( FPointCloudVertexFactoryParameters )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FPointCloudVertexFactoryParameters, )
+	SHADER_PARAMETER_SRV(Buffer<float>, VertexFetch_PointLocationBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_PointColorBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FPointCloudVertexFactoryParameters> FPointCloudVertexFactoryBufferRef;
 
 /**
