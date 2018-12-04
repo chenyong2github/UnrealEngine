@@ -28,7 +28,6 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "Engine",
 					"RenderCore",
-					"ShaderCore",
 					"RHI",
                     "AugmentedReality",
                     // ... add other public dependencies that you statically link with here ...
