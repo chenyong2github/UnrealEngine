@@ -231,7 +231,7 @@ public:
 	 *
 	 * @see TickInput, TickFetch
 	 */
-	virtual void TickAudio()
+	virtual void TickAudio(FTimespan LastAudioSampleTime)
 	{
 		// override in child class if needed
 	}

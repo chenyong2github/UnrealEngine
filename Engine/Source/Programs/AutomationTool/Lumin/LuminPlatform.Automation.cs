@@ -71,7 +71,8 @@ public class LuminPlatform : Platform
 		string Value;
 		Ini.GetString("/Script/LuminRuntimeSettings.LuminRuntimeSettings", ConfigPropertyName, out Value);
 		Value = CleanFilePath(Value);
-		DirectoryReference IconDir = GetFullPathFromEngineRelativePath(Value, SC);
+		// We can have two different kinds of paths in the ini for icons: engine exec relative or project root relative.
+		DirectoryReference IconDir = GetFullPathFromRelativePath(Value, SC);
 		List<FileReference> IconFiles = SC.FindFilesToStage(IconDir, "*", StageFilesSearch.AllDirectories);
 		StringBuilder Builder = new StringBuilder();
 		foreach(FileReference IconFile in IconFiles)
@@ -200,26 +201,34 @@ public class LuminPlatform : Platform
 		}
 	}
 
-	private DirectoryReference GetFullPathFromEngineRelativePath(string RelativeToEnginePath, DeploymentContext SC)
+	private DirectoryReference GetFullPathFromRelativePath(string RelativePath, DeploymentContext SC)
 	{
-		string fullPath = RelativeToEnginePath;
-		if (!string.IsNullOrEmpty(fullPath))
+		string fullPath = RelativePath;
+		if (!string.IsNullOrEmpty(fullPath) && !(Path.IsPathRooted(fullPath)))
 		{
-			if (CleanFilePath(Path.GetFullPath(fullPath)) == CleanFilePath(fullPath))
+			if (Path.IsPathRooted(fullPath))
 			{
-				// Staging a complete folder required backslash on Windows.
+				// We where handed an absolute path. So just use that.
 				fullPath = Path.GetFullPath(fullPath);
 			}
 			else
 			{
-				// Paths used for icon are relative to the engines platform specific binary location, or absolute.
-				string dir = Path.GetFullPath(CombinePaths(SC.LocalRoot.FullName, "Engine/Binaries/Lumin", Path.GetDirectoryName(fullPath)));
-				string file = Path.GetFileName(fullPath);
-				// Update fullPath with corrected directory
-				fullPath = CombinePaths(dir, file);
+				// For relative paths we need to figure out if they are in the engine or project tree.
+				string FromProjectFullPath = Path.GetFullPath(CombinePaths(SC.ProjectRoot.ToString(), CleanFilePath(RelativePath)));
+				string FromEngineFullPath = Path.GetFullPath(CombinePaths(SC.EngineRoot.ToString(), CleanFilePath(RelativePath)));
+				if (Directory.Exists(FromProjectFullPath) || File.Exists(FromProjectFullPath))
+				{
+					// Works as a project relative path.. We'll go with that.
+					fullPath = FromProjectFullPath;
+				}
+				else
+				{
+					// Not in the project tree.. Assume it's in the engine tree.
+					fullPath = FromEngineFullPath;
+				}
 			}
 		}
-		return new DirectoryReference(fullPath);
+		return new DirectoryReference(Path.GetFullPath(fullPath));
 	}
 
 	private void StageNvTegraGfxDebugger(DeploymentContext SC, string Dir)
@@ -347,7 +356,7 @@ public class LuminPlatform : Platform
 				"@if \"%ERRORLEVEL%\" NEQ \"0\" goto OobeError",
 				"goto:eof",
 				":OobeError",
-				"@echo Device is not ready for use. Run \"%MLSDK% ps\" from a command prompt for details.",
+				"@echo Device is not ready for use. Run \"%MLDB% ps\" from a command prompt for details.",
 				"goto Pause",
 				":Error",
 				"@echo.",
@@ -355,7 +364,7 @@ public class LuminPlatform : Platform
 				"@echo.",
 				"@echo Things to try:",
 				"@echo Check that the device (and only the device) is listed with \"%MLDB% devices\" from a command prompt.",
-				"@echo Check if the device is ready for use with \"%MLSDK% ps\" from a command prompt.",
+				"@echo Check if the device is ready for use with \"%MLDB% ps\" from a command prompt.",
 				":Pause",
 				"@pause"
 			};
@@ -379,7 +388,7 @@ public class LuminPlatform : Platform
 					"\techo",
 					"\techo \"Things to try:\"",
 					"\techo \"Check that the device (and only the device) is listed with \"$MLDB devices\" from a command prompt.\"",
-					"\techo \"Check if the device is ready for use with \"%MLSDK% ps\" from a command prompt.\"",
+					"\techo \"Check if the device is ready for use with \"%MLDB% ps\" from a command prompt.\"",
 					"\techo",
 					"\texit 1",
 				"fi",
@@ -387,7 +396,7 @@ public class LuminPlatform : Platform
 				"echo \"Installation successful\"",
 				"$MLDB $DEVICE ps > /dev/null",
 				"if [ $? -ne 0 ]; then",
-					"\techo \"Device is not ready for use. Run \"%MLSDK% ps\" from a command prompt for details.\"",				
+					"\techo \"Device is not ready for use. Run \"%MLDB% ps\" from a command prompt for details.\"",				
 				"fi",
 				"exit 0",
 			};
@@ -1187,12 +1196,12 @@ public class LuminPlatform : Platform
 	{
 		var AppGPUArchitectures = LuminExports.CreateToolChain(Params.RawProjectPath).GetAllGPUArchitectures();
 
-		if (AppGPUArchitectures.Contains("-gl4"))
+		if (AppGPUArchitectures.Contains("-lumingl4"))
 		{
-			return "-gl4";
+			return "-lumingl4";
 		}
 
-		return "-es2";
+		return "-lumin";
 	}
 
 	private List<string> GetConfigurations(DeploymentContext SC)

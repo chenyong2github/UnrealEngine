@@ -4,81 +4,9 @@
 
 #include "Components/ActorComponent.h"
 #include "Engine/Engine.h"
-#include "ScreensComponent.generated.h"
-
-/** 
-  ID for a Screens Watch History Entry.
-
-  Save this off when you add a new watch history and use the same to update or delete that same entry.
- */
-USTRUCT(BlueprintType)
-struct FScreenID
-{
-	GENERATED_BODY()
-
-public:
-	int64 ID;
-};
-
-/** Channel watch history, may be displayed in the Screens Launcher application. */
-USTRUCT(BlueprintType)
-struct FScreensWatchHistoryEntry
-{
-	GENERATED_BODY()
-
-public:
-	/** Entry Identifier. Must be used to update and delete a given entry. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Screens|MagicLeap")
-	FScreenID ID;
-
-	/** Title of the media for which this entry is created. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FString Title;
-
-	/** Subtitle of the media for which this entry is created. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FString Subtitle;
-
-	/** Current media playback position. Can be fed from UMediaPlayer::GetTime(). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FTimespan PlaybackPosition;
-
-	/** Total duration of the media. Can be fed from UMediaPlayer::GetDuration() */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FTimespan PlaybackDuration;
-
-	/** Any data the application might want to save off in the watch history and then receive back from the Screens Launher. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FString CustomData;
-
-	/** Thumbnail to be shown in the Screens Launcher application for this watch history entry. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	UTexture2D* Thumbnail;
-};
-
-/**
-  Information required to place a screen in the world.
-
-  This will be received from the Screens Launcher api, based on the previous screens spawned by user.
- */
-USTRUCT(BlueprintType)
-struct FScreenTransform
-{
-	GENERATED_BODY()
-
-public:
-	/** Position of the screen in Unreal's world space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FVector ScreenPosition;
-
-	/** Orientation of the screen in Unreal's world space. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FRotator ScreenOrientation;
-
-	/** Dimensions of the screen in Unreal Units. The dimensions are axis-aligned with the orientation. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Screens|MagicLeap")
-	FVector ScreenDimensions;
-};
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "MagicLeapScreensTypes.h"
+#include "MagicLeapScreensComponent.generated.h"
 
 /**
 	Component that provides access to screens functionality.
@@ -99,7 +27,7 @@ public:
 		Queues a task on the worker thread to retrieve the watch history. 
 		Subscribe to the GetWatchHistorySuccess & GetWatchHistoryFailure delegates to receive the result.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
 	void GetWatchHistoryAsync();
 
 	/** 
@@ -108,8 +36,8 @@ public:
 	
 		@param[in] WatchHistoryEntry The entry to be added to the history.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
-	void AddWatchHistoryEntryAsync(const FScreensWatchHistoryEntry WatchHistoryEntry);
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
+	void AddWatchHistoryEntryAsync(const FScreensWatchHistoryEntry& WatchHistoryEntry);
 
 	/**
 		Queues a task on the worker thread to update an entry in the watch history.
@@ -118,8 +46,8 @@ public:
 	
 		@param[in] WatchHistoryEntry The entry to be updated.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
-	void UpdateWatchHistoryEntryAsync(const FScreensWatchHistoryEntry WatchHistoryEntry);
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
+	void UpdateWatchHistoryEntryAsync(const FScreensWatchHistoryEntry& WatchHistoryEntry);
 
 	/**
 		Removes a watch history entry.
@@ -127,7 +55,7 @@ public:
 		@param[in] FScreenID The id of the entry to find and remove.
 		@return True if no errors were encountered.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
 	bool RemoveWatchHistoryEntry(const FScreenID& ID);
 
 	/**
@@ -135,7 +63,7 @@ public:
 	
 		@return True if no errors were encountered.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
 	bool ClearWatchHistory();
 
 	/** 
@@ -144,7 +72,7 @@ public:
 		@param[out] ScreensTransforms A list of transforms to be provided by the underlying api.
 		@return True if no errors were encountered.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap")
+	UFUNCTION(BlueprintCallable, Category = "Screens|MagicLeap", meta = (DeprecatedFunction, DeprecationMessage = "Please use the Magic Leap Screens Function Library instead."))
 	bool GetScreensTransforms(TArray<FScreenTransform>& ScreensTransforms);
 
 public:
@@ -175,7 +103,6 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FScreensUpdateWatchHistoryEntryResult, const FScreensWatchHistoryEntry&, Entry, const bool, Success);
 
 private:
-	class FScreensImpl *Impl;
 
 	UPROPERTY(BlueprintAssignable, Category = "Screens|MagicLeap", meta = (AllowPrivateAccess = true))
 	FScreensGetWatchHistorySuccess GetWatchHistorySuccess;
@@ -189,3 +116,4 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "Screens|MagicLeap", meta = (AllowPrivateAccess = true))
 	FScreensUpdateWatchHistoryEntryResult UpdateWatchHistoryEntryResult;
 };
+

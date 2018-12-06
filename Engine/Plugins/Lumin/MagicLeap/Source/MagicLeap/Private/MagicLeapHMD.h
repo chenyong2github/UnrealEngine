@@ -7,6 +7,7 @@
 #include "IMagicLeapPlugin.h"
 #include "IMagicLeapHMD.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/ThreadSafeBool.h"
 
 #include "XRRenderTargetManager.h"
 #include "IStereoLayers.h"
@@ -17,7 +18,6 @@
 #include "MagicLeapHMDFunctionLibrary.h"
 #include "LuminRuntimeSettings.h"
 #include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
-#include "IHeadMountedDisplayVulkanExtensions.h"
 
 #if WITH_MLSDK
 ML_INCLUDES_START
@@ -112,19 +112,6 @@ public:
 		return false;
 	}
 
-	/** Vulkan Extensions */
-	class FMagicLeapVulkanExtensions : public IHeadMountedDisplayVulkanExtensions, public TSharedFromThis<FMagicLeapVulkanExtensions, ESPMode::ThreadSafe>
-	{
-	public:
-		FMagicLeapVulkanExtensions() {}
-		virtual ~FMagicLeapVulkanExtensions() {}
-
-		// IHeadMountedDisplayVulkanExtensions
-		virtual bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out) override;
-		virtual bool GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevice_T *pPhysicalDevice, TArray<const ANSICHAR*>& Out) override;
-	};
-
-
 	IStereoLayers* GetStereoLayers() override;
 
 	// FXRRenderTargetManager interface
@@ -143,8 +130,6 @@ public:
 	virtual ~FMagicLeapHMD();
 
 	/** FMagicLeapHMDBase interface */
-	virtual void RegisterMagicLeapInputDevice(IMagicLeapInputDevice* InputDevice) override;
-	virtual void UnregisterMagicLeapInputDevice(IMagicLeapInputDevice* InputDevice) override;
 	virtual bool IsInitialized() const override;
 	bool IsDeviceInitialized() const { return (bDeviceInitialized != 0) ? true : false; }
 
@@ -200,6 +185,7 @@ public:
 	// HACK: This is a hack in order to use projection matrices from last render frame
 	// This should be removed once unreal can use separate projection matrices for update and render
 	void InitializeOldFrameFromRenderFrame();
+	void InitializeRenderFrameFromRHIFrame();
 
 	const FAppFramework& GetAppFrameworkConst() const;
 	FAppFramework& GetAppFramework();
@@ -214,11 +200,6 @@ public:
 	MLHandle GraphicsClient;
 #endif //WITH_MLSDK
 
-private:
-
-	// The FMagicLeapPlugin class functions as a factory for FMagicLeapHMD.
-	// Therefore, it needs some control over initalization & termination.
-	friend class FMagicLeapPlugin;
 
 	/**
 	* Starts up the SensoryWare API
@@ -230,6 +211,7 @@ private:
 	*/
 	void Shutdown();
 
+private:
 	void EnableDeviceFeatures();
 	void DisableDeviceFeatures();
 
@@ -326,8 +308,8 @@ public:
 	FTrackingFrame OldTrackingFrame;
 
 private:
-	TSet<IMagicLeapInputDevice*> InputDevices;
 	TWeakObjectPtr<const AActor> FocusActor;
+	FThreadSafeBool bQueuedGraphicsCreateCall;
 
 	struct SavedProfileState
 	{

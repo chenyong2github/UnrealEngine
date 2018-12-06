@@ -14,6 +14,27 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class UEPlatformProjectGenerator
 	{
+		public class ScriptArguments 
+		{
+			public ScriptArguments(bool usePrecompiled, bool isForeignProject, bool useFastPDB, string targetName, string platformName, string configurationName, string buildToolOverride)
+			{
+				UsePrecompiled = usePrecompiled;
+				IsForeignProject = isForeignProject;
+				UseFastPDB = useFastPDB;
+				TargetName = targetName;
+				PlatformName = platformName;
+				ConfigurationName = configurationName;
+				BuildToolOverride = buildToolOverride;
+			}
+			public bool UsePrecompiled { get; }
+			public bool IsForeignProject { get; }
+			public bool UseFastPDB { get; }
+			public string TargetName { get; }
+			public string PlatformName { get; }
+			public string ConfigurationName { get; }
+			public string BuildToolOverride { get; }
+		}
+
 		static Dictionary<UnrealTargetPlatform, UEPlatformProjectGenerator> ProjectGeneratorDictionary = new Dictionary<UnrealTargetPlatform, UEPlatformProjectGenerator>();
 
 		/// <summary>
@@ -165,6 +186,79 @@ namespace UnrealBuildTool
 		{
 			// By default, return the platform string
 			return InPlatform.ToString();
+		}
+
+		/// <summary>
+		///  Returns the default build batch script entry and its arguments
+		/// </summary>
+		/// <returns></returns>
+		public virtual string GetBuildCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
+		{
+			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Build.bat"))) + GetBatchFileArguments(FileArguments);
+		}
+
+		/// <summary>
+		///  Returns the default rebuild batch script entry and its arguments
+		/// </summary>
+		/// <returns></returns>
+		public virtual string GetReBuildCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
+		{
+			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Rebuild.bat"))) + GetBatchFileArguments(FileArguments);
+		}
+
+		/// <summary>
+		/// Returns the default clean batch script filename
+		/// </summary>
+		/// <returns></returns>
+		public virtual string GetCleanCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
+		{
+			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Clean.bat"))) + GetBatchFileArguments(FileArguments);
+		}
+
+		/// <summary>
+		/// Builds an argument string passed to build, rebuild and clean batch scripts
+		/// </summary>
+		/// <param name="FileArguments"></param>
+		/// <returns></returns>
+		public virtual string GetBatchFileArguments(ScriptArguments FileArguments)
+		{
+			// This is the standard UE4 based project NMake build line:
+			//	..\..\Build\BatchFiles\Build.bat <TARGETNAME> <PLATFORM> <CONFIGURATION>
+			//	ie ..\..\Build\BatchFiles\Build.bat BlankProgram Win64 Debu
+			string BuildArguments = " " + FileArguments.TargetName + " " + FileArguments.PlatformName + " " + FileArguments.ConfigurationName;
+			if (FileArguments.UsePrecompiled)
+			{
+				BuildArguments += " -UsePrecompiled";
+			}
+			if (FileArguments.IsForeignProject)
+			{
+				BuildArguments += " \"$(SolutionDir)$(ProjectName).uproject\"";
+			}
+
+			// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
+			BuildArguments += " -WaitMutex";
+			// Always include a flag to format log messages for MSBuild
+			BuildArguments += " -FromMsBuild";
+			if (FileArguments.UseFastPDB)
+			{
+				BuildArguments += " -FastPDB";
+			}
+			if (!String.IsNullOrEmpty(FileArguments.BuildToolOverride))
+			{
+				// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
+				BuildArguments += " " + FileArguments.BuildToolOverride;
+			}
+			return BuildArguments;
+		}
+
+		/// <summary>
+		/// Returns the NMake output file for the particular generator.
+		/// </summary>
+		/// <param name="InNMakePath">  The current base nmake output file.</param>
+		/// <returns>FileReference The new NMake output file.</returns>
+		public virtual FileReference GetNMakeOutputPath(FileReference InNMakePath)
+		{
+			return InNMakePath;
 		}
 
 		/// <summary>

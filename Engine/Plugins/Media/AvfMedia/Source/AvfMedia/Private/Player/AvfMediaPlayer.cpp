@@ -508,7 +508,7 @@ bool FAvfMediaPlayer::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& /*Ar
 }
 
 
-void FAvfMediaPlayer::TickAudio()
+void FAvfMediaPlayer::TickAudio(FTimespan LastAudioSampleTime)
 {
 	// NOP
 }

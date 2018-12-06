@@ -1063,7 +1063,7 @@ void FMediaPlayerFacade::TickTickable()
 		return;
 	}
 
-	Player->TickAudio();
+	Player->TickAudio(LastAudioRenderedSampleTime.Load());
 
 	// determine range of valid samples
 	TRange<FTimespan> AudioTimeRange;
@@ -1088,7 +1088,6 @@ void FMediaPlayerFacade::TickTickable()
 	ProcessAudioSamples(Samples, AudioTimeRange);
 	ProcessMetadataSamples(Samples, MetadataTimeRange);	
 }
-
 
 /* FMediaPlayerFacade implementation
 *****************************************************************************/

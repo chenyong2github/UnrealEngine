@@ -72,6 +72,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
 	void Clear() override;
 
+	// UPrimitiveComponent.. public BP function needs to stay public to avoid nativization errors. (RR)
+	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
 protected:
 	virtual void OnActorEnableCollisionChanged() override;
 	virtual void UpdatePhysicsToRBChannels() override;
@@ -90,7 +92,6 @@ private:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
 	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 	virtual class UBodySetup* GetBodySetup();
 	//~ UPrimitiveComponent

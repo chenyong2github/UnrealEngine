@@ -364,14 +364,14 @@ namespace Audio
 			bIsDone = false;
 
 			// Not all wave data types have a non-zero duration
-			if (InWaveInstance->WaveData->Duration > 0)
+			if (!InWaveInstance->WaveData->IsLooping() && !InWaveInstance->WaveData->IsLooping())
 			{
 				if (!InWaveInstance->WaveData->bIsBus)
 				{
 					NumTotalFrames = InWaveInstance->WaveData->Duration * InWaveInstance->WaveData->GetSampleRateForCurrentPlatform();
 					check(NumTotalFrames > 0);
 				}
-				else if (!InWaveInstance->WaveData->IsLooping())
+				else
 				{
 					NumTotalFrames = InWaveInstance->WaveData->Duration * AudioDevice->GetSampleRate();
 					check(NumTotalFrames > 0);

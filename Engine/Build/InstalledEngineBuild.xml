@@ -49,6 +49,8 @@
 	<!-- Whether to force the VS2015 compiler for Windows target platofms. Object files built against the 2015 CRT are compatible with 2017, but not vice-versa. -->
 	<Option Name="ForceVS2015" Restrict="true|false" DefaultValue="false" Description="Whether to force use of the VS2015 compiler for Windows targets. Object files built against the VS2015 CRT are compatible with VS2017 CRT, but not vice versa."/>
 
+	<Option Name="OnPartnerStream" Restrict="true|false" DefaultValue="false" Description="Ignores build features missing from partner streams, like Feature Packs"/>
+
 	<Do If="'$(HostPlatformOnly)' == true">
 		<!-- Activate correct Target Platforms for host -->
 		<Switch>
@@ -96,7 +98,7 @@
 	<Property Name="AndroidArchitectures" Value="armv7+arm64"/>
 
 	<Property Name="AndroidGPUArchitectures" Value="es2"/>
-	<Property Name="LuminGPUArchitectures" Value="es2"/>
+	<Property Name="LuminGPUArchitectures" Value="lumin"/>
 	
 	<!-- Compile flags for Windows Game binaries -->
 	<Property Name="TargetDebugInfoArg" Value="-nodebuginfo"/>
@@ -415,7 +417,6 @@
 
 			<Tag Files="#UE4Game LuminMac" Filter="$(LuminStripFilter)" With="#UE4Game LuminMac Unstripped"/>
 			<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Lumin" Files="#UE4Game LuminMac Unstripped" Tag="#UE4Game LuminMac Stripped"/>
-
 		</Node>
 	</Agent>
 

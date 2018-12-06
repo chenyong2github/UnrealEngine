@@ -1416,43 +1416,15 @@ namespace UnrealBuildTool
 						VCProjectFileContent.Append(PathStrings);
 					}
 
-					// This is the standard UE4 based project NMake build line:
-					//	..\..\Build\BatchFiles\Build.bat <TARGETNAME> <PLATFORM> <CONFIGURATION>
-					//	ie ..\..\Build\BatchFiles\Build.bat BlankProgram Win64 Debug
-
-					string BuildArguments = " " + TargetName + " " + UBTPlatformName + " " + UBTConfigurationName;
-					if (ProjectFileGenerator.bUsePrecompiled)
-					{
-						BuildArguments += " -UsePrecompiled";
-					}
-					if (IsForeignProject)
-					{
-						BuildArguments += " " + UProjectPath;
-					}
-
-					// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
-					BuildArguments += " -WaitMutex";
-
-					// Always include a flag to format log messages for MSBuild
-					BuildArguments += " -FromMsBuild";
-
-					if (bUseFastPDB)
-					{
-						// Pass Fast PDB option to make use of Visual Studio's /DEBUG:FASTLINK option
-						BuildArguments += " -FastPDB";
-					}
+					UEPlatformProjectGenerator.ScriptArguments BatchScriptArguments = new UEPlatformProjectGenerator.ScriptArguments(ProjectFileGenerator.bUsePrecompiled, IsForeignProject, bUseFastPDB, TargetName, UBTPlatformName, UBTConfigurationName, BuildToolOverride);
 
 					DirectoryReference BatchFilesDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "BatchFiles");
 
-					if(BuildToolOverride != null)
-					{
-						BuildArguments += " " + BuildToolOverride;
-					}
-
 					// NMake Build command line
-					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0}{1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Build.bat"))), BuildArguments.ToString());
-					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0}{1}</NMakeReBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Rebuild.bat"))), BuildArguments.ToString());
-					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0}{1}</NMakeCleanCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Clean.bat"))), BuildArguments.ToString());
+					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0}</NMakeBuildCommandLine>", ProjGenerator.GetBuildCommandEntry(this, BatchFilesDirectory, BatchScriptArguments, OnlyGameProject));
+					// NMake Rebuild command line
+					VCProjectFileContent.AppendLine("    <NMakeReBuildCommandLine>{0}</NMakeReBuildCommandLine>", ProjGenerator.GetReBuildCommandEntry(this, BatchFilesDirectory, BatchScriptArguments, OnlyGameProject));
+					VCProjectFileContent.AppendLine("    <NMakeCleanCommandLine>{0}</NMakeCleanCommandLine>", ProjGenerator.GetCleanCommandEntry(this, BatchFilesDirectory, BatchScriptArguments, OnlyGameProject));
 					VCProjectFileContent.AppendLine("    <NMakeOutput>{0}</NMakeOutput>", NormalizeProjectPath(NMakePath.FullName));
 
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)

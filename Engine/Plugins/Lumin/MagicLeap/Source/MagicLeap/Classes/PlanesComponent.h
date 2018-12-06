@@ -62,7 +62,11 @@ public:
 
 	/** The flags which describe this plane. TODO: Should be a TSet but that is misbehaving in the editor.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
-	TArray<EPlaneQueryFlags> PlaneFlags;	
+	TArray<EPlaneQueryFlags> PlaneFlags;
+
+	/** ID of the plane result. This ID is persistent across queries */
+	UPROPERTY(BlueprintReadOnly, Category = "Planes|MagicLeap")
+	FGuid ID;
 };
 
 /** 
@@ -115,10 +119,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap", meta = (ClampMin = 400))
 	float MinPlaneArea;
 
-	/** Ignore bounds when tracking planes. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
-	bool IgnoreBoundingVolume = false;
-
 	/**
 	  Requests planes with the current value of QueryFlags, SearchVolume and MaxResults.
 	  @param UserData User data for this request. The same data will be included in the result for query identification.
@@ -128,11 +128,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MagicLeap|Planes")
 	bool RequestPlanes(int32 UserData, const FPlaneResultDelegate& ResultDelegate);
 
+	/** Creates the planes tracker handle for the component */
+	virtual void BeginPlay() override;
+
 	/** Polls for and handles the results of the plane queries. */
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	/** Destroys the interface object to the planes api*/
 	virtual void FinishDestroy() override;
+
+	UPROPERTY()
+	bool IgnoreBoundingVolume_DEPRECATED;
 
 private:
 	struct FPlanesRequestMetaData
