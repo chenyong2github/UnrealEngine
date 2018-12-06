@@ -49,6 +49,4 @@ private:
 	FCameraLogMessageMulti OnLogMessage;
 };
 
-IMPLEMENT_MODULE(FMagicLeapCameraPlugin, MagicLeapCamera);
-
 #define GET_MAGIC_LEAP_CAMERA_PLUGIN() static_cast<FMagicLeapCameraPlugin*>(FModuleManager::Get().GetModule("MagicLeapCamera"))

@@ -285,3 +285,5 @@ bool FMagicLeapCameraPlugin::TryPushNewCaptureTask(FCameraTask::EType InTaskType
 
 	return false;
 }
+
+IMPLEMENT_MODULE(FMagicLeapCameraPlugin, MagicLeapCamera);

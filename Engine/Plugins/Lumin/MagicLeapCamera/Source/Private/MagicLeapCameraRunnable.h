@@ -52,9 +52,9 @@ protected:
 	void Resume() override;
 
 private:
+	bool ProcessCurrentTask() override;
 #if WITH_MLSDK
 	static void OnPreviewBufferAvailable(MLHandle Output, void *Data);
-	bool ProcessCurrentTask() override;
 	bool TryConnect();
 	bool TryDisconnect();
 	bool CaptureImageToFile();

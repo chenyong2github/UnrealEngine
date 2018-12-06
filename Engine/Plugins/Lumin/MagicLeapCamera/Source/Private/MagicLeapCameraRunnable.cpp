@@ -13,7 +13,7 @@ ML_INCLUDES_START
 ML_INCLUDES_END
 #endif //WITH_MLSDK
 
-FThreadSafeCounter64 FCameraRunnable::PreviewHandle = ML_INVALID_HANDLE;
+FThreadSafeCounter64 FCameraRunnable::PreviewHandle = 0;
 
 FCameraRunnable::FCameraRunnable()
 #if WITH_MLSDK
@@ -32,7 +32,9 @@ FCameraRunnable::FCameraRunnable()
 
 void FCameraRunnable::Exit()
 {
+#if WITH_MLSDK
 	TryDisconnect();
+#endif
 }
 
 void FCameraRunnable::PushNewCaptureTask(FCameraTask::EType InTaskType)
@@ -83,17 +85,11 @@ void FCameraRunnable::Resume()
 	}
 }
 
-#if WITH_MLSDK
-void FCameraRunnable::OnPreviewBufferAvailable(MLHandle Output, void *Data)
-{
-	(void)Data;
-	PreviewHandle.Set(static_cast<int64>(Output));
-}
-
 bool FCameraRunnable::ProcessCurrentTask()
 {
 	bool bSuccess = false;
 
+#if WITH_MLSDK
 	switch (CurrentTask.CaptureType)
 	{
 	case FCameraTask::EType::None: bSuccess = false; checkf(false, TEXT("Invalid camera task encountered!")); break;
@@ -104,8 +100,16 @@ bool FCameraRunnable::ProcessCurrentTask()
 	case FCameraTask::EType::StartVideoToFile: bSuccess = StartRecordingVideo(); break;
 	case FCameraTask::EType::StopVideoToFile: bSuccess = StopRecordingVideo(); break;
 	}
+#endif
 
 	return bSuccess;
+}
+
+#if WITH_MLSDK
+void FCameraRunnable::OnPreviewBufferAvailable(MLHandle Output, void *Data)
+{
+	(void)Data;
+	PreviewHandle.Set(static_cast<int64>(Output));
 }
 
 bool FCameraRunnable::TryConnect()
