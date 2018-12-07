@@ -6,7 +6,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "HAL/IConsoleManager.h"
 #include "BuildSettings.h"
 #include "UObject/DevObjectVersion.h"
 #include "Misc/EngineVersion.h"

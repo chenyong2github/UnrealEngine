@@ -885,11 +885,7 @@ void FSlateApplication::OverridePlatformApplication(TSharedPtr<class GenericAppl
 
 void FSlateApplication::Create()
 {
-	// Force disable GSlateFastWidgetPath in editor
-	if (GIsEditor)
-	{
-		GSlateFastWidgetPath = 0;
-	}
+	GSlateFastWidgetPath = GIsEditor ? 0 : 1;
 
 	Create(MakeShareable(FPlatformApplicationMisc::CreateApplication()));
 }
