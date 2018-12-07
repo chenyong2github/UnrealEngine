@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 
 			if (IsVSLuminSupportInstalled(InProjectFileFormat) && TargetType == TargetType.Game && InPlatform == UnrealTargetPlatform.Lumin)
 			{
-				string MLSDK = Utils.CleanDirectorySeparators(Environment.GetEnvironmentVariable("MLSDK"), '\\');
+				string MLSDK = Environment.GetEnvironmentVariable("MLSDK");
 
 				// TODO: Check if MPK name can be other than the project name.
 				string GameName = TargetRulesPath.GetFileNameWithoutExtension();
@@ -101,9 +101,6 @@ namespace UnrealBuildTool
                 ELFFile = Path.Combine(ELFFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Packaged\\bin\\" + GameName);
 				string DebuggerFlavor = "MLDebugger";
 
-				string SymFile = Utils.MakePathRelativeTo(NMakeOutputPath.Directory.FullName, ProjectFilePath.Directory.FullName);
-				SymFile = Path.Combine(SymFile, "..\\..\\Intermediate\\Lumin\\Mabu\\Binaries", Path.ChangeExtension(NMakeOutputPath.GetFileName(), ".sym"));
-
 				// following are defaults for debugger options
 				string Attach = "false";
 				string EnableAutoStop = "true";
@@ -119,43 +116,9 @@ namespace UnrealBuildTool
 													"<EnableAutoStop>{5}</EnableAutoStop>" + ProjectFileGenerator.NewLine +
 													"<AutoStopAtFunction>{6}</AutoStopAtFunction>" + ProjectFileGenerator.NewLine +
 													"<EnablePrettyPrinting>{7}</EnablePrettyPrinting>" + ProjectFileGenerator.NewLine +
-													"<MLDownloadOnStart>{8}</MLDownloadOnStart>" + ProjectFileGenerator.NewLine +
-													"<SymFile>{9}</SymFile>" + ProjectFileGenerator.NewLine;
-				ProjectFileBuilder.Append(ProjectFileGenerator.NewLine + string.Format(CustomPathEntriesTemplate, MLSDK, PackageFile, ELFFile, DebuggerFlavor, Attach, EnableAutoStop, AutoStopAtFunction, EnablePrettyPrinting, MLDownloadOnStart, SymFile));
+													"<MLDownloadOnStart>{8}</MLDownloadOnStart>" + ProjectFileGenerator.NewLine;
+				ProjectFileBuilder.Append(ProjectFileGenerator.NewLine + string.Format(CustomPathEntriesTemplate, MLSDK, PackageFile, ELFFile, DebuggerFlavor, Attach, EnableAutoStop, AutoStopAtFunction, EnablePrettyPrinting, MLDownloadOnStart));
 			}
-		}
-
-		public override string GetBuildCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
-		{
-			if (OnlyGameProject != null && File.Exists(OnlyGameProject.FullName))
-			{
-				return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "RunUAT.bat"))) + GetBatchFileArguments(FileArguments);
-			}
-			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Build.bat"))) + base.GetBatchFileArguments(FileArguments);
-		}
-
-		public override string GetReBuildCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
-		{
-			if (OnlyGameProject != null && File.Exists(OnlyGameProject.FullName))
-			{
-				return GetBuildCommandEntry(ProjectFile, BatchFileDirectory, FileArguments, OnlyGameProject) + " -clean";
-			}
-			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Rebuild.bat"))) + base.GetBatchFileArguments(FileArguments);
-		}
-
-		public override string GetCleanCommandEntry(ProjectFile ProjectFile, DirectoryReference BatchFileDirectory, ScriptArguments FileArguments, FileReference OnlyGameProject)
-		{
-			return ProjectFile.EscapePath(ProjectFile.NormalizeProjectPath(FileReference.Combine(BatchFileDirectory, "Clean.bat"))) + base.GetBatchFileArguments(FileArguments);
-		}
-
-		public override string GetBatchFileArguments(ScriptArguments FileArguments)
-		{
-			return String.Format(" BuildCookRun -nocompileeditor -nop4 -project=\"$(SolutionDir)$(ProjectName).uproject\" -cook -fastcook -stage -archive -archivedirectory=\"$(SolutionDir)..\\..\\Binaries\\Lumin\" -package -clientconfig={0} -ue4exe=UE4Editor-CMD.exe -SkipCookingEditorContent -pak -prereqs -targetplatform=Lumin -build -utf8output -compile", FileArguments.ConfigurationName);
-		}
-
-		public override FileReference GetNMakeOutputPath(FileReference InNMakePath)
-		{
-			return new FileReference(Path.Combine(InNMakePath.Directory.FullName, InNMakePath.GetFileNameWithoutExtension()+"-arm64-lumin"+InNMakePath.GetExtension()));
 		}
 	}
 }
