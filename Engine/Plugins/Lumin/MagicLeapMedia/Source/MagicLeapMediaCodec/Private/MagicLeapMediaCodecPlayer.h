@@ -82,7 +82,8 @@ public:
 	virtual void SetGuid(const FGuid& Guid) override;
 	virtual void TickFetch(FTimespan DeltaTime, FTimespan Timecode) override;
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
-	virtual void TickAudio(FTimespan LastAudioSampleTime) override;
+	virtual void TickAudio() override;
+	virtual void SetLastAudioRenderedSampleTime(FTimespan SampleTime) override;
 
 public:
 	/** IMediaControls interface */
@@ -227,6 +228,7 @@ protected:
 
 	bool bWasMediaPlayingBeforeAppPause;
 	TAtomic<FTimespan> CurrentPlaybackTime;
+	TAtomic<FTimespan> LastAudioRenderedSampleTime;
 	EMediaSourceType MediaSourceType;
 
 	bool bLoopPlayback;

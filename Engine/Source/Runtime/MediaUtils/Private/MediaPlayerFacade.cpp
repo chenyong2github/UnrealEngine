@@ -1063,7 +1063,9 @@ void FMediaPlayerFacade::TickTickable()
 		return;
 	}
 
-	Player->TickAudio(LastAudioRenderedSampleTime.Load());
+	Player->SetLastAudioRenderedSampleTime(LastAudioRenderedSampleTime.Load());
+
+	Player->TickAudio();
 
 	// determine range of valid samples
 	TRange<FTimespan> AudioTimeRange;

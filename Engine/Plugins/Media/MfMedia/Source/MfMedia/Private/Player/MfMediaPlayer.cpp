@@ -193,7 +193,7 @@ bool FMfMediaPlayer::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archi
 }
 
 
-void FMfMediaPlayer::TickAudio(FTimespan LastAudioSampleTime)
+void FMfMediaPlayer::TickAudio()
 {
 	if (CurrentState == EMediaState::Playing)
 	{

@@ -1002,11 +1002,16 @@ void FMagicLeapMediaCodecPlayer::TickInput(FTimespan DeltaTime, FTimespan Timeco
 	}
 }
 
-void FMagicLeapMediaCodecPlayer::TickAudio(FTimespan LastAudioSampleTime)
+void FMagicLeapMediaCodecPlayer::SetLastAudioRenderedSampleTime(FTimespan SampleTime)
+{
+	LastAudioRenderedSampleTime = SampleTime;
+}
+
+void FMagicLeapMediaCodecPlayer::TickAudio()
 {
 	if (GetSelectedTrack(EMediaTrackType::Audio) != INDEX_NONE)
 	{
-		ProcessAudioOutputSample(AudioCodecHandle, TrackInfo[EMediaTrackType::Audio][SelectedTrack[EMediaTrackType::Audio]], LastAudioSampleTime);
+		ProcessAudioOutputSample(AudioCodecHandle, TrackInfo[EMediaTrackType::Audio][SelectedTrack[EMediaTrackType::Audio]], LastAudioRenderedSampleTime);
 	}
 }
 
