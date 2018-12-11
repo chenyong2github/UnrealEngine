@@ -196,6 +196,7 @@ protected:
 	virtual void Resume() {}
 
 	/** Internal thread this instance is running on */
+	MagicLeap::IAppEventHandler AppEventHandler;
 	FRunnableThread* Thread;
 	FThreadSafeCounter StopTaskCounter;
 	FEvent* Semaphore;
@@ -203,7 +204,6 @@ protected:
 	TQueue<TTaskType, EQueueMode::Spsc> IncomingTasks;
 	TQueue<TTaskType, EQueueMode::Spsc> CompletedTasks;
 	TTaskType CurrentTask;
-	MagicLeap::IAppEventHandler AppEventHandler;
 
 private:
 	bool DoNextTask()
