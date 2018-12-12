@@ -374,6 +374,7 @@ public class LuminPlatform : Platform
 			LogInformation("Writing shell for install");
 			BatchLines = new string[] {
 				"#!/bin/sh",
+				"cd \"`dirname \"$0\"`\"",
 				"MLSDK_ROOT=$MLSDK",
 				"if [ -z \"$MLSDK_ROOT\" ]; then",
 					"\tMLSDK_ROOT=\"" + Environment.GetEnvironmentVariable("MLSDK") + " \"",
