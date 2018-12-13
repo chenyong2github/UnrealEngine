@@ -54,8 +54,8 @@ public:
 
 	/** IMeshBlockSelectorInterface */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap")
-	void SelectMeshBlocks(const FMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh);
-	virtual void SelectMeshBlocks_Implementation(const FMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh) override;
+	void SelectMeshBlocks(const FMLTrackingMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh);
+	virtual void SelectMeshBlocks_Implementation(const FMLTrackingMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh) override;
 
 	/**
 		Delegate used by OnMeshUpdated().

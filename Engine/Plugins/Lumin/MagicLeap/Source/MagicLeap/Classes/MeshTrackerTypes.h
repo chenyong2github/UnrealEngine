@@ -91,7 +91,7 @@ public:
 
 /** Response structure for the mesh block info. */
 USTRUCT(BlueprintType)
-struct FMeshInfo
+struct FMLTrackingMeshInfo
 {
 	GENERATED_BODY()
 

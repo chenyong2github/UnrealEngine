@@ -184,7 +184,7 @@ public:
 
 #endif //WITH_MLSDK
 
-	FMeshInfo LastestMeshInfo;
+	FMLTrackingMeshInfo LastestMeshInfo;
 	TArray<FMeshBlockRequest> UEMeshBlockRequests;
 	TScriptInterface<IMeshBlockSelectorInterface> BlockSelector;
 
@@ -534,7 +534,7 @@ void UMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 #endif //WITH_MLSDK
 }
 
-void UMeshTrackerComponent::SelectMeshBlocks_Implementation(const FMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh)
+void UMeshTrackerComponent::SelectMeshBlocks_Implementation(const FMLTrackingMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh)
 {
 	for (const FMeshBlockInfo& BlockInfo : NewMeshInfo.BlockData)
 	{

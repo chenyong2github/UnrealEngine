@@ -23,5 +23,5 @@ public:
 	 * @param RequestedMesh output array containing details of blocks for whom the mesh should be requested.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap")
-	void SelectMeshBlocks(const FMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh);
+	void SelectMeshBlocks(const FMLTrackingMeshInfo& NewMeshInfo, TArray<FMeshBlockRequest>& RequestedMesh);
 };
