@@ -6,8 +6,34 @@
 #include "SceneViewExtension.h"
 #include "RHI.h"
 #include "RHIDefinitions.h"
+#include "HAL/IConsoleManager.h"
 
 #include "CoreMinimal.h"
+
+static TAutoConsoleVariable<float> CVarDebugCanvasX(TEXT("r.LuminDebugCanvasX"),
+	11.0f,
+	TEXT("Allows the override of the lumin debug canvas 'x' coordinate."),
+	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarDebugCanvasY(TEXT("r.LuminDebugCanvasY"),
+	-18.0f,
+	TEXT("Allows the override of the lumin debug canvas 'y' coordinate."),
+	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarDebugCanvasZ(TEXT("r.LuminDebugCanvasZ"),
+	82.0f,
+	TEXT("Allows the override of the lumin debug canvas 'z' coordinate."),
+	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarDebugCanvasWidth(TEXT("r.LuminDebugCanvasWidth"),
+	75.0f,
+	TEXT("Allows the override of the lumin debug canvas width."),
+	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarDebugCanvasHeight(TEXT("r.LuminDebugCanvasHeight"),
+	40.0f,
+	TEXT("Allows the override of the lumin debug canvas height."),
+	ECVF_Scalability | ECVF_Default);
 
 IStereoLayers* FMagicLeapHMD::GetStereoLayers()
 {
