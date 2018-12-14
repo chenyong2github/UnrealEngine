@@ -1924,6 +1924,27 @@ namespace AppleARKitSupport
 	}
 }
 
+UTimecodeProvider* UAppleARKitSettings::GetTimecodeProvider()
+{
+	const FString& ProviderName = GetDefault<UAppleARKitSettings>()->ARKitTimecodeProvider;
+	UTimecodeProvider* TimecodeProvider = FindObject<UTimecodeProvider>(GEngine, *ProviderName);
+	if (TimecodeProvider == nullptr)
+	{
+		// Try to load the class that was requested
+		UClass* Class = LoadClass<UTimecodeProvider>(nullptr, *ProviderName);
+		if (Class != nullptr)
+		{
+			TimecodeProvider = NewObject<UTimecodeProvider>(GEngine, Class);
+		}
+	}
+	// Create the default one if this failed for some reason
+	if (TimecodeProvider == nullptr)
+	{
+		TimecodeProvider = NewObject<UTimecodeProvider>(GEngine, UAppleARKitTimecodeProvider::StaticClass());
+	}
+	return TimecodeProvider;
+}
+
 #if PLATFORM_IOS
 	#pragma clang diagnostic pop
 #endif
