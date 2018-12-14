@@ -9,12 +9,13 @@
 #include "Misc/ConfigCacheIni.h"
 #include "AppleARKitFaceSupportModule.h"
 #include "Async/Async.h"
+#include "Engine/TimecodeProvider.h"
 
 DECLARE_CYCLE_STAT(TEXT("Conversion"), STAT_FaceAR_Conversion, STATGROUP_FaceAR);
 
 #if SUPPORTS_ARKIT_1_0
 
-static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAnchor* Anchor, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting)
+static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAnchor* Anchor, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting, const FTimecode& Timecode, uint32 FrameRate)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FaceAR_Conversion);
 	
@@ -33,8 +34,6 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAn
 			LookAtTarget = FAppleARKitConversion::ToFVector(FaceAnchor.lookAtPoint);
 		}
 #endif
-		uint32 FrameNumber = FARKitFrameCounter::Get().GetFrameNumber();
-		double Timestamp = FPlatformTime::Seconds();
 		NewAnchor = MakeShared<FAppleARKitAnchorData>(
 			FAppleARKitConversion::ToFGuid(FaceAnchor.identifier),
 			FAppleARKitConversion::ToFTransform(FaceAnchor.transform, AdjustBy),
@@ -43,8 +42,8 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAn
 			LeftEyeTransform,
 			RightEyeTransform,
 			LookAtTarget,
-			Timestamp,
-			FrameNumber++
+			Timecode,
+			FrameRate
 		);
         // Only convert from 16bit to 32bit once
         if (UpdateSetting == EARFaceTrackingUpdate::CurvesAndGeo && FAppleARKitAnchorData::FaceIndices.Num() == 0)
@@ -59,7 +58,8 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData(bool bFaceMirrored, ARAn
 
 #endif
 
-FAppleARKitFaceSupport::FAppleARKitFaceSupport()
+FAppleARKitFaceSupport::FAppleARKitFaceSupport() :
+	TimecodeProvider(nullptr)
 {
 	bFaceMirrored = false;
 	// Generate our device id
@@ -122,8 +122,10 @@ void FAppleARKitFaceSupport::InitRealtimeProviders()
 
 #if SUPPORTS_ARKIT_1_0
 
-ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* SessionConfig)
+ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* SessionConfig, UTimecodeProvider* InProvider)
 {
+	TimecodeProvider = InProvider;
+
 	ARFaceTrackingConfiguration* SessionConfiguration = nullptr;
 	if (SessionConfig->GetSessionType() == EARSessionType::Face)
 	{
@@ -136,6 +138,10 @@ ARConfiguration* FAppleARKitFaceSupport::ToARConfiguration(UARSessionConfig* Ses
 
 	// Init the remote sender and file loggers if requested
 	InitRealtimeProviders();
+	if (LiveLinkFileWriter.IsValid())
+	{
+		LiveLinkFileWriter->SetTimecodeProvider(TimecodeProvider);
+	}
 
 	// Copy / convert properties
 	SessionConfiguration.lightEstimationEnabled = SessionConfig->GetLightEstimationMode() != EARLightEstimationMode::None;
@@ -162,9 +168,12 @@ TArray<TSharedPtr<FAppleARKitAnchorData>> FAppleARKitFaceSupport::MakeAnchorData
 {
 	TArray<TSharedPtr<FAppleARKitAnchorData>> AnchorList;
 
+	const FTimecode& Timecode = TimecodeProvider->GetTimecode();
+	const FFrameRate& FrameRate = TimecodeProvider->GetFrameRate();
+
 	for (ARAnchor* Anchor in Anchors)
 	{
-		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(bFaceMirrored, Anchor, AdjustBy, UpdateSetting);
+		TSharedPtr<FAppleARKitAnchorData> AnchorData = ::MakeAnchorData(bFaceMirrored, Anchor, AdjustBy, UpdateSetting, Timecode, FrameRate.Numerator);
 		if (AnchorData.IsValid())
 		{
 			AnchorList.Add(AnchorData);
@@ -182,18 +191,18 @@ void FAppleARKitFaceSupport::ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnc
     TSharedPtr<FAppleARKitAnchorData> AsyncAnchorCopy = MakeShared<FAppleARKitAnchorData>(*AnchorData);
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, AsyncAnchorCopy]()
 	{
-		double Timestamp = AsyncAnchorCopy->Timestamp;
-		uint32 FrameNumber = AsyncAnchorCopy->FrameNumber;
+		FTimecode Timecode = AsyncAnchorCopy->Timecode;
+		uint32 FrameRate = AsyncAnchorCopy->FrameRate;
 		const FARBlendShapeMap& BlendShapes = AsyncAnchorCopy->BlendShapes;
 
 		if (RemoteLiveLinkPublisher.IsValid())
 		{
-			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timestamp, FrameNumber, BlendShapes, LocalDeviceId);
+			RemoteLiveLinkPublisher->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timecode, FrameRate, BlendShapes, LocalDeviceId);
 		}
 
 		if (LiveLinkFileWriter.IsValid())
 		{
-			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timestamp, FrameNumber, BlendShapes, LocalDeviceId);
+			LiveLinkFileWriter->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Timecode, FrameRate, BlendShapes, LocalDeviceId);
 		}
 	});
 }
@@ -219,7 +228,7 @@ void FAppleARKitFaceSupport::PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorDat
 
 	if (LiveLinkSource.IsValid())
 	{
-        LiveLinkSource->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Anchor->Timestamp, Anchor->FrameNumber, Anchor->BlendShapes, LocalDeviceId);
+        LiveLinkSource->PublishBlendShapes(FaceTrackingLiveLinkSubjectName, Anchor->Timecode, Anchor->FrameRate, Anchor->BlendShapes, LocalDeviceId);
 	}
 }
 
@@ -234,4 +243,3 @@ TArray<FARVideoFormat> FAppleARKitFaceSupport::ToARConfiguration()
 	return FAppleARKitConversion::FromARVideoFormatArray(ARFaceTrackingConfiguration.supportedVideoFormats);
 }
 #endif
-

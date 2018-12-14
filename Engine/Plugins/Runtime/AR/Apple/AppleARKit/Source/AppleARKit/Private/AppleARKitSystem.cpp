@@ -1105,6 +1105,7 @@ void FAppleARKitSystem::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject( CameraDepth );
 	Collector.AddReferencedObjects( CandidateImages );
 	Collector.AddReferencedObjects( CandidateObjects );
+	Collector.AddReferencedObject( TimecodeProvider );
 
 	if(LightEstimate)
 	{
@@ -1192,6 +1193,8 @@ void FAppleARKitSystem::SetDeviceOrientation( EScreenOrientation::Type InOrienta
 PRAGMA_DISABLE_OPTIMIZATION
 bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 {
+	TimecodeProvider = UAppleARKitSettings::GetTimecodeProvider();
+
 	{
 		// Clear out any existing frames since they aren't valid anymore
 		FScopeLock ScopeLock(&FrameLock);
@@ -1224,7 +1227,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		}
 		else
 		{
-			Configuration = FaceARSupport->ToARConfiguration(SessionConfig);
+			Configuration = FaceARSupport->ToARConfiguration(SessionConfig, TimecodeProvider);
 		}
 
 		// Not all session types are supported by all devices
@@ -1495,7 +1498,7 @@ void FAppleARKitSystem::SessionDidAddAnchors_DelegateThread( NSArray<ARAnchor*>*
 
 	// Make sure all anchors get the same timestamp and frame number
 	double Timestamp = FPlatformTime::Seconds();
-	uint32 FrameNumber = FARKitFrameCounter::Get().GetFrameNumber();
+	uint32 FrameNumber = TimecodeProvider->GetTimecode().Frames;
 
 	for (ARAnchor* anchor in anchors)
 	{
@@ -1528,7 +1531,7 @@ void FAppleARKitSystem::SessionDidUpdateAnchors_DelegateThread( NSArray<ARAnchor
 
 	// Make sure all anchors get the same timestamp and frame number
 	double Timestamp = FPlatformTime::Seconds();
-	uint32 FrameNumber = FARKitFrameCounter::Get().GetFrameNumber();
+	uint32 FrameNumber = TimecodeProvider->GetTimecode().Frames;
 
 	for (ARAnchor* anchor in anchors)
 	{
@@ -1887,7 +1890,8 @@ void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
 	float ImageScale = WrittenCameraImageScale;
 	ETextureRotationDirection ImageRotation = WrittenCameraImageRotation;
 	CIImage* SourceImage = [[CIImage alloc] initWithCVPixelBuffer: PixelBuffer];
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [SourceImage, ImageQuality, ImageScale, ImageRotation]()
+	FTimecode Timecode = TimecodeProvider->GetTimecode();
+	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [SourceImage, ImageQuality, ImageScale, ImageRotation, Timecode]()
 	{
 		TArray<uint8> JpegBytes;
 		IAppleImageUtilsPlugin::Get().ConvertToJPEG(SourceImage, JpegBytes, ImageQuality, true, true, ImageScale, ImageRotation);
@@ -1896,7 +1900,7 @@ void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
 		FDateTime DateTime = FDateTime::UtcNow();
 		static FString UserDir = FPlatformProcess::UserDir();
 		FString FileName = FString::Printf(TEXT("%sCameraImages/Image_%d-%d-%d-%d-%d-%d-%d.jpeg"), *UserDir,
-			DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), DateTime.GetHour(), DateTime.GetMinute(), DateTime.GetSecond(), DateTime.GetMillisecond());
+			DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
 		// Write the jpeg to disk
 		FFileHelper::SaveArrayToFile(JpegBytes, *FileName);
 	});

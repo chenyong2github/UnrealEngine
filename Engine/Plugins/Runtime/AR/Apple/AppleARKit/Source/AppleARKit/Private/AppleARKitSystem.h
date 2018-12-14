@@ -197,6 +197,9 @@ private:
 
 	// The object that is handling face support if present
 	IAppleARKitFaceSupport* FaceARSupport;
+
+	/** The time code provider to use when tagging time stamps */
+	UTimecodeProvider* TimecodeProvider;
 };
 
 

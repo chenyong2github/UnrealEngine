@@ -151,7 +151,7 @@ static FName ParseEnumName(FName EnumName)
 // Temporary for 4.20
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
+void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FaceAR_Local_PublishLiveLink);
 
@@ -181,7 +181,8 @@ void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, double Tim
 	{
 		static FLiveLinkFrameData LiveLinkFrame;
 
-		LiveLinkFrame.WorldTime = Timestamp;
+		LiveLinkFrame.WorldTime = FPlatformTime::Seconds();
+		LiveLinkFrame.MetaData.SceneTime = FQualifiedFrameTime(Timecode, FFrameRate(FrameRate, 1));
 		
 		TArray<FLiveLinkCurveElement>& BlendShapes = LiveLinkFrame.CurveElements;
 
@@ -210,10 +211,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 // 2 = ARKit 2.0 extra blendshapes
 // 3 = Removed the timestamp to derive locally
 // 4 = Added the device id to stream so we can tell devices apart
-const uint8 BLEND_SHAPE_PACKET_VER = 4;
+// 5 = Added timecode tracking of the curve data for synchronizing across multiple devices, media source, etc.
+const uint8 BLEND_SHAPE_PACKET_VER = 5;
 
-const uint32 MAX_BLEND_SHAPE_PACKET_SIZE = sizeof(BLEND_SHAPE_PACKET_VER) + sizeof(uint32) + sizeof(uint8) + (sizeof(float) * (uint64)EARFaceBlendShape::MAX) + (sizeof(TCHAR) * 256) + (sizeof(TCHAR) * 256);
-const uint32 MIN_BLEND_SHAPE_PACKET_SIZE = sizeof(BLEND_SHAPE_PACKET_VER) + sizeof(uint32) + sizeof(uint8) + (sizeof(float) * (uint64)EARFaceBlendShape::MAX) + sizeof(TCHAR) + sizeof(TCHAR);
+//																			Timecode			FrameRate		 BlendShapeCount Blendshapes										SubjectName				DeviceID
+const uint32 MAX_BLEND_SHAPE_PACKET_SIZE = sizeof(BLEND_SHAPE_PACKET_VER) + sizeof(FTimecode) + sizeof(uint32) + sizeof(uint8) + (sizeof(float) * (uint64)EARFaceBlendShape::MAX) + (sizeof(TCHAR) * 256) + (sizeof(TCHAR) * 256);
+const uint32 MIN_BLEND_SHAPE_PACKET_SIZE = sizeof(BLEND_SHAPE_PACKET_VER) + sizeof(FTimecode) + sizeof(uint32) + sizeof(uint8) + (sizeof(float) * (uint64)EARFaceBlendShape::MAX) + sizeof(TCHAR) + sizeof(TCHAR);
 
 FAppleARKitLiveLinkRemotePublisher::FAppleARKitLiveLinkRemotePublisher(const FString& InRemoteIp) :
 	RemoteIp(InRemoteIp),
@@ -273,7 +276,7 @@ TSharedRef<FInternetAddr> FAppleARKitLiveLinkRemotePublisher::GetSendAddress()
 	return SendAddr;
 }
 
-void FAppleARKitLiveLinkRemotePublisher::PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
+void FAppleARKitLiveLinkRemotePublisher::PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
 {
 	if (SendSocket != nullptr)
 	{
@@ -283,7 +286,8 @@ void FAppleARKitLiveLinkRemotePublisher::PublishBlendShapes(FName SubjectName, d
 		SendBuffer << BLEND_SHAPE_PACKET_VER;
 		SendBuffer << DeviceId;
 		SendBuffer << SubjectName;
-		SendBuffer << FrameNumber;
+		SendBuffer << Timecode;
+		SendBuffer << FrameRate;
 		uint8 BlendShapeCount = (uint8)EARFaceBlendShape::MAX;
 		check(FaceBlendShapes.Num() == BlendShapeCount);
 		SendBuffer << BlendShapeCount;
@@ -383,9 +387,10 @@ void FAppleARKitLiveLinkRemoteListener::Tick(float DeltaTime)
 
 			uint8 PacketVer = 0;
 			FName SubjectName;
-			uint32 FrameNumber = 0;
 			uint8 BlendShapeCount = (uint8)EARFaceBlendShape::MAX;
 			FName DeviceId;
+			FTimecode Timecode;
+			uint32 FrameRate = 60;
 
 			FNboSerializeFromBuffer FromBuffer(RecvBuffer.GetData(), BytesRead);
 
@@ -397,7 +402,8 @@ void FAppleARKitLiveLinkRemoteListener::Tick(float DeltaTime)
 			}
 			FromBuffer >> DeviceId;
 			FromBuffer >> SubjectName;
-			FromBuffer >> FrameNumber;
+			FromBuffer >> Timecode;
+			FromBuffer >> FrameRate;
 			FromBuffer >> BlendShapeCount;
 			if (FromBuffer.HasOverflow() || BlendShapeCount != (uint8)EARFaceBlendShape::MAX)
 			{
@@ -418,7 +424,7 @@ void FAppleARKitLiveLinkRemoteListener::Tick(float DeltaTime)
 				InitLiveLinkSource();
 				if (Source.IsValid())
 				{
-					Source->PublishBlendShapes(SubjectName, FPlatformTime::Seconds(), FrameNumber, BlendShapes, DeviceId);
+					Source->PublishBlendShapes(SubjectName, Timecode, FrameRate, BlendShapes, DeviceId);
 				}
 			}
 			else
@@ -446,6 +452,11 @@ FAppleARKitLiveLinkFileWriter::~FAppleARKitLiveLinkFileWriter()
 	}
 }
 
+void FAppleARKitLiveLinkFileWriter::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
+{
+	TimecodeProvider = InTimecodeProvider;
+}
+
 void FAppleARKitLiveLinkFileWriter::SaveFileData()
 {
 	FString SaveData;
@@ -459,21 +470,22 @@ void FAppleARKitLiveLinkFileWriter::SaveFileData()
 
 FString FAppleARKitLiveLinkFileWriter::GenerateFilePath()
 {
+	FTimecode Timecode = TimecodeProvider->GetTimecode();
 	FDateTime DateTime = FDateTime::UtcNow();
 	const FString UserDir = FPlatformProcess::UserDir();
 	const FString DeviceNameString = DeviceName.ToString();
 	return FString::Printf(TEXT("%sFaceTracking/%s_%d-%d-%d-%d-%d-%d-%d%s"), *UserDir, *DeviceNameString,
-		DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), DateTime.GetHour(), DateTime.GetMinute(), DateTime.GetSecond(), DateTime.GetMillisecond(),
+		DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames,
 		*FileExtension);
 }
 
-void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
+void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
 	DeviceName = DeviceId;
 	// Add to the array for long running save
-	new(FrameHistory) FFaceTrackingFrame(Timestamp, FrameNumber, FaceBlendShapes);
+	new(FrameHistory) FFaceTrackingFrame(Timecode, FrameRate, FaceBlendShapes);
 
 	if (bSavePerFrameOrOnDemand)
 	{
@@ -499,7 +511,7 @@ FAppleARKitLiveLinkFileWriterCsv::FAppleARKitLiveLinkFileWriterCsv()
 	// Touching UObjects, so needs to be game thread
 	check(IsInGameThread());
 
-	CsvFrameHeader = TEXT("Timestamp, FrameNumber");
+	CsvFrameHeader = TEXT("Timecode, FrameRate");
 	const UEnum *EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
 	if (EnumPtr != nullptr)
 	{
@@ -516,7 +528,9 @@ FAppleARKitLiveLinkFileWriterCsv::FAppleARKitLiveLinkFileWriterCsv()
 
 FString FAppleARKitLiveLinkFileWriterCsv::BuildCsvRow(const FFaceTrackingFrame& Frame)
 {
-	FString SaveData = FString::Printf(TEXT("%f, %d"), Frame.Timestamp, Frame.FrameNumber);
+	FString SaveData = FString::Printf(TEXT("%d:%d:%d:%d, %d"),
+			Frame.Timecode.Hours, Frame.Timecode.Minutes, Frame.Timecode.Seconds, Frame.Timecode.Frames,
+			Frame.FrameRate);
 	// Add all of the blend shapes on
 	for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)
 	{
@@ -561,7 +575,9 @@ FAppleARKitLiveLinkFileWriterJson::FAppleARKitLiveLinkFileWriterJson()
 
 FString FAppleARKitLiveLinkFileWriterJson::BuildJsonRow(const FFaceTrackingFrame& Frame)
 {
-	FString SaveData = FString::Printf(TEXT("\t{\r\n\t\t\"Timestamp\" : %f,\r\n\t\t\"FrameNumber\" : %d,\r\n"), Frame.Timestamp, Frame.FrameNumber);
+	FString SaveData = FString::Printf(TEXT("\t{\r\n\t\t\"TimeCode\" :\r\n\t\t{\r\n\t\t\t\"Hours\" : %d,\r\n\t\t\t\"Minutes\" : %d,\r\n\t\t\t\"Seconds\" : %d,\r\n\t\t\t\"Frames\" : %d\r\n\t\t},\r\n"),
+			Frame.Timecode.Hours, Frame.Timecode.Minutes, Frame.Timecode.Seconds, Frame.Timecode.Frames);
+	SaveData += FString::Printf(TEXT("\t\t\"FrameRate\" : %d,\r\n"), Frame.FrameRate);
 	bool bNeedsComma = false;
 	// Add all of the blend shapes on
 	for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)

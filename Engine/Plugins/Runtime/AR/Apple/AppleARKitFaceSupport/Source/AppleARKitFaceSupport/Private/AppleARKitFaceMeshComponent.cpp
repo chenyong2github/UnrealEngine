@@ -387,12 +387,13 @@ void UAppleARKitFaceMeshComponent::OnRep_RemoteCurves()
 			BlendShapes.Add(Curve.GetBlendShape(), Curve.GetAmountAsFloat());
 		}
 		// We have to manage this since the ar system isn't updating this locally for us
-		LastUpdateFrameNumber++;
 		LastUpdateTimestamp = FPlatformTime::Seconds();
+		FTimecode Timecode = FApp::GetTimecode();
+		FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
 		// If we are publishing to LiveLink, then push the update out
 		if (LiveLinkSource.IsValid())
 		{
-			LiveLinkSource->PublishBlendShapes(LiveLinkSubjectName, LastUpdateTimestamp, LastUpdateFrameNumber, BlendShapes);
+			LiveLinkSource->PublishBlendShapes(LiveLinkSubjectName, Timecode, FrameRate.Numerator, BlendShapes);
 		}
 	}
 }

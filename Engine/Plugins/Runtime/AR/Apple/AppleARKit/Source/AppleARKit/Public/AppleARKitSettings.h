@@ -5,8 +5,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "ARTrackable.h"
+#include "Engine/TimecodeProvider.h"
 
 #include "AppleImageUtilsTypes.h"
+#include "AppleARKitTimecodeProvider.h"
 
 #include "AppleARKitSettings.generated.h"
 
@@ -42,6 +44,7 @@ public:
 		, bAdjustThreadPrioritiesDuringARSession(false)
 		, GameThreadPriorityOverride(47)
 		, RenderThreadPriorityOverride(45)
+		, ARKitTimecodeProvider(TEXT("/Script/AppleARKit.AppleARKitTimecodeProvider"))
 	{
 	}
 
@@ -96,4 +99,32 @@ public:
 	/** The render thread priority to change to when an AR session is running, default is 45 */
 	UPROPERTY(Config, EditAnywhere, Category="AR Settings")
 	int32 RenderThreadPriorityOverride;
+
+	/**
+	 * Used to specify the timecode provider to use when identifying when an update occurred.
+	 * Useful when using external timecode generators to sync multiple devices/machines
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="AR Settings")
+	FString ARKitTimecodeProvider;
+
+	static UTimecodeProvider* GetTimecodeProvider()
+	{
+		const FString& ProviderName = GetDefault<UAppleARKitSettings>()->ARKitTimecodeProvider;
+		UTimecodeProvider* TimecodeProvider = FindObject<UTimecodeProvider>(GEngine, *ProviderName);
+		if (TimecodeProvider == nullptr)
+		{
+			// Try to load the class that was requested
+			UClass* Class = LoadClass<UTimecodeProvider>(nullptr, *ProviderName);
+			if (Class != nullptr)
+			{
+				TimecodeProvider = NewObject<UTimecodeProvider>(GEngine, Class);
+			}
+		}
+		// Create the default one if this failed for some reason
+		if (TimecodeProvider == nullptr)
+		{
+			TimecodeProvider = NewObject<UTimecodeProvider>(GEngine, UAppleARKitTimecodeProvider::StaticClass());
+		}
+		return TimecodeProvider;
+	}
 };

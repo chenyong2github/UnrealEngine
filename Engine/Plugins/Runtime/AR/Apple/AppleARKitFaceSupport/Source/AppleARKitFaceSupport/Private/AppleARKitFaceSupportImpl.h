@@ -24,7 +24,7 @@ private:
 #if SUPPORTS_ARKIT_1_0
 	// ~IAppleARKitFaceSupport
 	virtual TArray<TSharedPtr<FAppleARKitAnchorData>> MakeAnchorData(NSArray<ARAnchor*>* NewAnchors, const FRotator& AdjustBy, EARFaceTrackingUpdate UpdateSetting) override;
-	virtual ARConfiguration* ToARConfiguration(UARSessionConfig* InSessionConfig) override;
+	virtual ARConfiguration* ToARConfiguration(UARSessionConfig* InSessionConfig, UTimecodeProvider* InProvider) override;
 	virtual void PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorData> Anchor) override;
 	virtual bool DoesSupportFaceAR() override;
 #if SUPPORTS_ARKIT_1_5
@@ -54,5 +54,11 @@ private:
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> RemoteLiveLinkPublisher;
 	/** A publisher that writes the data to disk */
 	TSharedPtr<IARKitBlendShapePublisher, ESPMode::ThreadSafe> LiveLinkFileWriter;
+	/**
+	 * The time code provider to use when tagging time stamps
+	 * Note: this requires the FAppleARKitSystem object to mark it in use so GC doesn't destroy it. Normally it would
+	 * implement the FGCObject interface but this gets created before UObjects are init-ed so not possible
+	 * */
+	UTimecodeProvider* TimecodeProvider;
 };
 

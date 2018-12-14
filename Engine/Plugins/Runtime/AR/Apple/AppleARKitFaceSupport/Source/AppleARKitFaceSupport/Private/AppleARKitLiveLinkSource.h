@@ -343,6 +343,20 @@ public:
 	}
 
 	/**
+	 * Adds a FTimecode to the buffer
+	 */
+	friend inline FNboSerializeToBuffer& operator<<(FNboSerializeToBuffer& Ar,const FTimecode& Timecode)
+	{
+		Ar << Timecode.Hours;
+		Ar << Timecode.Minutes;
+		Ar << Timecode.Seconds;
+		Ar << Timecode.Frames;
+		uint8 Drop = Timecode.bDropFrameFormat ? 1 : 0;
+		Ar << Drop;
+		return Ar;
+	}
+
+	/**
 	 * Writes a blob of data to the buffer
 	 *
 	 * @param Buffer the source data to append
@@ -616,6 +630,21 @@ public:
 	}
 
 	/**
+	 * Reads a FTimecode from the buffer
+	 */
+	friend inline FNboSerializeFromBuffer& operator>>(FNboSerializeFromBuffer& Ar,FTimecode& Timecode)
+	{
+		Ar >> Timecode.Hours;
+		Ar >> Timecode.Minutes;
+		Ar >> Timecode.Seconds;
+		Ar >> Timecode.Frames;
+		uint8 Drop = 0;
+		Ar >> Drop;
+		Timecode.bDropFrameFormat = Drop > 0 ? true : false;
+		return Ar;
+	}
+
+	/**
 	 * Reads a blob of data from the buffer
 	 *
 	 * @param OutBuffer the destination buffer
@@ -733,7 +762,7 @@ public:
 	virtual ~FAppleARKitLiveLinkRemotePublisher();
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	bool InitSendSocket();
@@ -756,26 +785,27 @@ class FAppleARKitLiveLinkFileWriter :
 {
 public:
 	virtual ~FAppleARKitLiveLinkFileWriter();
+	virtual void SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider = nullptr) override;
 
 protected:
 	FAppleARKitLiveLinkFileWriter(const TCHAR* InFileExtension);
 
 	struct FFaceTrackingFrame
 	{
-		FFaceTrackingFrame(double InTimestamp, uint32 InFrameNumber, const FARBlendShapeMap& InBlendShapes)
-			: Timestamp(InTimestamp)
-			, FrameNumber(InFrameNumber)
+		FFaceTrackingFrame(const FTimecode& InTimecode, uint32 InFrameRate, const FARBlendShapeMap& InBlendShapes)
+			: Timecode(InTimecode)
+			, FrameRate(InFrameRate)
 			, BlendShapes(InBlendShapes)
 		{
 		}
 
-		double Timestamp;
-		uint32 FrameNumber;
+		FTimecode Timecode;
+		uint32 FrameRate;
 		FARBlendShapeMap BlendShapes;
 	};
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	//~ FSelfRegisteringExec
@@ -797,6 +827,12 @@ protected:
 	FName DeviceName;
 	/** If true, it writes a file each frame. Otherwise, it writes the data upon demand or exit */
 	bool bSavePerFrameOrOnDemand;
+	/**
+	 * The time code provider to use when tagging file time stamps
+	 * Note: this requires the FAppleARKitSystem object to mark it in use so GC doesn't destroy it. Normally it would
+	 * implement the FGCObject interface but this gets created before UObjects are init-ed so not possible
+	 * */
+	UTimecodeProvider* TimecodeProvider;
 };
 
 class FAppleARKitLiveLinkFileWriterJson :
@@ -852,7 +888,7 @@ private:
 	// End ILiveLinkSource
 
 	// IARKitBlendShapePublisher interface
-	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
+	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& FaceBlendShapes, FName DeviceId = NAME_None) override;
 	// End IARKitBlendShapePublisher
 
 	/** The local client to push data updates to */

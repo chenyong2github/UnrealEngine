@@ -6,12 +6,14 @@
 #include "ARTrackable.h"
 #include "ILiveLinkSource.h"
 
+class UTimecodeProvider;
 
 /** Interface that publishes face ar blend shape information */
 class APPLEARKITFACESUPPORT_API IARKitBlendShapePublisher
 {
 public:
-	virtual void PublishBlendShapes(FName SubjectName, double Timestamp, uint32 FrameNumber, const FARBlendShapeMap& BlendShapes, FName DeviceID = NAME_None) = 0;
+	virtual void SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider = nullptr) {}
+	virtual void PublishBlendShapes(FName SubjectName, const FTimecode& Timecode, uint32 FrameRate, const FARBlendShapeMap& BlendShapes, FName DeviceID = NAME_None) = 0;
 };
 
 /** Interface that publishes face ar blend shape information via LiveLink */
