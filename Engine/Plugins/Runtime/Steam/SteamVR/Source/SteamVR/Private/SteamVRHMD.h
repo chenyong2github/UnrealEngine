@@ -312,6 +312,7 @@ public:
 	{
 	public:
 		FVulkanExtensions(vr::IVRCompositor* InVRCompositor);
+		virtual ~FVulkanExtensions() {}
 
 		/** IHeadMountedDisplayVulkanExtensions */
 		virtual bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out) override;

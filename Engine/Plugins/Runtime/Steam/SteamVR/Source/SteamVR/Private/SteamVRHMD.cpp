@@ -1563,11 +1563,11 @@ FSteamVRHMD::FSteamVRHMD(const FAutoRegister& AutoRegister, ISteamVRPlugin* InSt
 	RendererModule(nullptr),
 	SteamVRPlugin(InSteamVRPlugin),
 	VRSystem(vr::VRSystem()),
-	VRInput(vr::VRInput()),
 	VRCompositor(vr::VRCompositor()),
 	VROverlay(vr::VROverlay()),
 	VRChaperone(vr::VRChaperone()),
-	VRRenderModels(vr::VRRenderModels())
+	VRRenderModels(vr::VRRenderModels()),
+	VRInput(vr::VRInput())
 {
 	Startup();
 }
