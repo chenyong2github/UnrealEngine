@@ -382,7 +382,7 @@ public:
 
 	virtual TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() override
 	{
-#if STEAMVR_SUPPORTED_PLATFORMS
+#if STEAMVR_SUPPORTED_PLATFORMS && !PLATFORM_MAC
 		if (Initialize())
 		{
 			if (!VulkanExtensions.IsValid())
@@ -432,6 +432,8 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FSteamVRPlugin::Creat
 //---------------------------------------------------
 
 #if STEAMVR_SUPPORTED_PLATFORMS
+
+#if !PLATFORM_MAC
 
 FSteamVRHMD::FVulkanExtensions::FVulkanExtensions(vr::IVRCompositor* InVRCompositor)
 	: VRCompositor(InVRCompositor)
@@ -503,6 +505,8 @@ bool FSteamVRHMD::FVulkanExtensions::GetVulkanDeviceExtensionsRequired(VkPhysica
 
 	return true;
 }
+
+#endif
 
 bool FSteamVRHMD::IsHMDConnected()
 {
