@@ -549,7 +549,7 @@ void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage&
 	}
 	DecompressionTaskCount.Increment();
 
-	TSharedPtr<FDeompressedImage, ESPMode::ThreadSafe> DecompressedImage = MakeShareable(new FDeompressedImage());
+	TSharedPtr<FDecompressedImage, ESPMode::ThreadSafe> DecompressedImage = MakeShareable(new FDecompressedImage());
 	Message << DecompressedImage->Width;
 	Message << DecompressedImage->Height;
 	Message << DecompressedImage->ImageData;
@@ -577,7 +577,7 @@ void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage&
 
 void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 {
-	TSharedPtr<FDeompressedImage, ESPMode::ThreadSafe> DecompressedImage;
+	TSharedPtr<FDecompressedImage, ESPMode::ThreadSafe> DecompressedImage;
 	{
 		FScopeLock sl(&DecompressionQueueLock);
 		if (DecompressionQueue.Num())
