@@ -5,6 +5,7 @@
 #include "BodyStateBoneComponent.h"
 #include "FBodyStateInputDevice.h"
 #include "BodyStateHMDDevice.h"
+#include "Modules/ModuleManager.h"
 
 #undef LOCTEXT_NAMESPACE
 

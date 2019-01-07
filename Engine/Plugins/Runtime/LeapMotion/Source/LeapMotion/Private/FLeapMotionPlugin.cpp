@@ -6,6 +6,7 @@
 #include "Runtime/InputDevice/Public/IInputDeviceModule.h"
 #include "Runtime/Projects/Public/Interfaces/IPluginManager.h"
 #include "BodyStateDeviceConfig.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LeapPlugin"
 
