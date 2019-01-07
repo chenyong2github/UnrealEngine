@@ -26,8 +26,7 @@ public class LuminPlatform : Platform
 	public LuminPlatform()
 		: base(UnrealTargetPlatform.Lumin)
 	{
-		// @todo Lumin: once we get ini subplatforms, fix this and also TVOS stuff!
-		TargetIniPlatformType = UnrealTargetPlatform.Android;
+		TargetIniPlatformType = UnrealTargetPlatform.Lumin;
 		RuntimeDependenciesForMabu = new List<FileReference>();
 	}
 
@@ -65,8 +64,7 @@ public class LuminPlatform : Platform
 	private string StageIconFileToMabu(string ConfigPropertyName, string IconStagePath, DeploymentContext SC)
 	{
 		// Read in any extra assets required to correctly install the application.
-		// @todo Lumin: subclass ini platforms needs to use Android for now
-		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, SC.RawProjectPath.Directory, UnrealTargetPlatform.Android);
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, SC.RawProjectPath.Directory, UnrealTargetPlatform.Lumin);
 		// ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, SC.RawProjectPath.Directory, SC.StageTargetPlatform.PlatformType);
 		string Value;
 		Ini.GetString("/Script/LuminRuntimeSettings.LuminRuntimeSettings", ConfigPropertyName, out Value);

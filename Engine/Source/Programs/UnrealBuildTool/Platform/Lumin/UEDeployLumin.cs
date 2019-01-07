@@ -32,9 +32,7 @@ namespace UnrealBuildTool
 
 		private ConfigHierarchy GetConfigCacheIni(ConfigHierarchyType Type)
 		{
-			// @todo Lumin: So - this is the problem with subclassing a platform currently - ini files. Lumin will use Android ini files
-			// until I finish and get code over from another branch (key letter Q) that allows for insertion of a subclassed ini platform thing
-			return ConfigCache.ReadHierarchy(Type, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
+			return ConfigCache.ReadHierarchy(Type, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Lumin);
 		}
 
 		private string GetRuntimeSetting(string Key)

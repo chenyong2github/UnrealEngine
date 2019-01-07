@@ -1243,8 +1243,11 @@ void FMagicLeapHMD::EnableDeviceFeatures()
 		EnablePerception();
 		EnableHeadTracking();
 		EnableInputDevices();
+
+		// We also avoid enabling the custom profile when there's no HMD, as otherwise
+		// we get the profile effects on non-vr-preview rendering.
+		EnableLuminProfile();
 	}
-	EnableLuminProfile();
 }
 
 void FMagicLeapHMD::DisableDeviceFeatures()

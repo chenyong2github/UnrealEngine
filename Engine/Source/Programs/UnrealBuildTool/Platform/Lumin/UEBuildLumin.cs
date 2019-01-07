@@ -86,7 +86,6 @@ namespace UnrealBuildTool
 			}
 
 			// look up Android specific settings
-			// @todo Lumin: When we subclass platform ini's, this would be Platform!!
 			if (!DoProjectSettingsMatchDefault(UnrealTargetPlatform.Lumin, ProjectPath, "/Script/LuminRuntimeSettings.LuminRuntimeSettings", ConfigBoolKeys.ToArray(), null, null))
 			{
 				return false;
