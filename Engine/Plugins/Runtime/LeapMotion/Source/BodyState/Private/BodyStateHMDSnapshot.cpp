@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BodyStateHMDSnapshot.h"
+#include "BodyStateUtility.h"
 #include "IXRTrackingSystem.h"
 
 

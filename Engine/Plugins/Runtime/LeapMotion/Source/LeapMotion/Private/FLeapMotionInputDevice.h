@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Runtime/HeadMountedDisplay/Public/IXRTrackingSystem.h"
+#include "IXRTrackingSystem.h"
 #include "LeapUtility.h"
 #include "LeapComponent.h"
 #include "LeapMotionData.h"

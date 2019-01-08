@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BodyStateDevice.h"
+class IBodyStateInputRawInterface;
 
 /**
 * Holds all device/skeleton storage data

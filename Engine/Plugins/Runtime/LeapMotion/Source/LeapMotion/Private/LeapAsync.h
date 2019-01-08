@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Runtime/Core/Public/HAL/ThreadSafeBool.h"
+#include "Async/Async.h"
 
 /*
 *	Convenience wrappers for common thread/task work flow. Run background task on thread, callback via task graph on game thread

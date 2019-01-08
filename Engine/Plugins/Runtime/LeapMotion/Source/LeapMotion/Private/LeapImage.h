@@ -3,8 +3,8 @@
 #pragma once
 
 #include "LeapC.h"
-#include "Runtime/Engine/Classes/Engine/Texture2D.h"
-#include "Runtime/RHI/Public/RHI.h"
+#include "Engine/Texture2D.h"
+#include "RHI.h"
 #include "LeapMotionData.h"
 
 /** Signature with Left/Right Image pair */

@@ -1,8 +1,10 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #include "BodyStateHMDDevice.h"
-#include "Runtime/HeadMountedDisplay/Public/XRMotionControllerBase.h"
+#include "XRMotionControllerBase.h"
 #include "IXRTrackingSystem.h"
+#include "Engine/Engine.h"
+#include "Skeleton/BodyStateSkeleton.h"
 
 FBodyStateHMDDevice::FBodyStateHMDDevice()
 {

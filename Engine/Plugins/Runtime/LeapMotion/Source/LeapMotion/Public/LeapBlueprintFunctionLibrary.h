@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LeapMotionData.h"
-#include "Runtime/Engine/Classes/Kismet/BlueprintFunctionLibrary.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "LeapBlueprintFunctionLibrary.generated.h"
 
 /**

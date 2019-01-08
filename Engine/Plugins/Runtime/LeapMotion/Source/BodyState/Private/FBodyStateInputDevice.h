@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "InputCoreTypes.h"
 #include "IInputDevice.h"
 #include "BodyStateDevice.h"
+
+class UBodyStateBoneComponent;
+class FBodyStateSkeletonStorage;
 
 class FBodyStateInputDevice : public IInputDevice
 {

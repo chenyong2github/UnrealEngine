@@ -3,8 +3,8 @@
 #include "FLeapMotionPlugin.h"
 #include "FLeapMotionInputDevice.h"
 #include "BodyStateBPLibrary.h"
-#include "Runtime/InputDevice/Public/IInputDeviceModule.h"
-#include "Runtime/Projects/Public/Interfaces/IPluginManager.h"
+#include "IInputDeviceModule.h"
+#include "Interfaces/IPluginManager.h"
 #include "BodyStateDeviceConfig.h"
 #include "Modules/ModuleManager.h"
 

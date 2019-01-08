@@ -1,11 +1,12 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #include "FBodyStateInputDevice.h"
-#include "Runtime/Slate/Public/Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateApplication.h"
 #include "BodyStateInputInterface.h"
 #include "BodyStateBoneComponent.h"
 #include "BodyStateHMDSnapshot.h"
 #include "BodyStateDevice.h"
+#include "BodyStateSkeletonStorage.h"
 
 //UE v4.6 IM event wrappers
 bool FBodyStateInputDevice::EmitKeyUpEventForKey(FKey Key, int32 User, bool Repeat)

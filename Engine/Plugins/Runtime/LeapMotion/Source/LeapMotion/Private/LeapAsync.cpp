@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LeapAsync.h"
-#include "Runtime/Core/Public/Async/Async.h"
+#include "Async/Async.h"
 
 TFuture<void> FLeapAsync::RunLambdaOnBackGroundThread(TFunction< void()> InFunction)
 {

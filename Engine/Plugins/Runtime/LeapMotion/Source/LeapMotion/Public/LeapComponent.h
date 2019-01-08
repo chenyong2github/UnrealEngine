@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LeapMotionData.h"
-#include "Runtime/Engine/Classes/Components/ActorComponent.h"
+#include "Components/ActorComponent.h"
 #include "LeapComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FLeapEventSignature);
