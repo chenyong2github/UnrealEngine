@@ -377,7 +377,7 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 
 	if (FAppleARKitAvailability::SupportsARKit10())
 	{
-		if (RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
+		if (VideoTextureY == nullptr || VideoTextureCbCr == nullptr || RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
 		{
 			return;
 		}
