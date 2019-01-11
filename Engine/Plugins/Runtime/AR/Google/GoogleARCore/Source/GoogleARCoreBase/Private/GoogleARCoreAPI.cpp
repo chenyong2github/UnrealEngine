@@ -79,6 +79,32 @@ namespace
 		FVector Result = ARCoreToUnrealTransform.TransformPosition(UnrealPosition / WorldToMeterScale);
 		return Result;
 	}
+
+	EGoogleARCoreAPIStatus DeserializeAugmentedImageDatabase(const ArSession* SessionHandle, const TArray<uint8>& SerializedDatabase, ArAugmentedImageDatabase*& DatabaseNativeHandle)
+	{
+		ArAugmentedImageDatabase* AugmentedImageDb = nullptr;
+
+		if (SerializedDatabase.Num() == 0)
+		{
+			UE_LOG(LogGoogleARCoreAPI, Error, TEXT("AugmentedImageDatabase contains no cooked data! The cooking process for AugmentedImageDatabase may have failed. Check the Unreal Editor build log for details."));
+			return EGoogleARCoreAPIStatus::AR_ERROR_DATA_INVALID_FORMAT;
+		}
+
+		EGoogleARCoreAPIStatus Status = ToARCoreAPIStatus(
+			ArAugmentedImageDatabase_deserialize(
+				SessionHandle, &SerializedDatabase[0],
+				SerializedDatabase.Num(),
+				&AugmentedImageDb));
+
+		if (Status != EGoogleARCoreAPIStatus::AR_SUCCESS)
+		{
+			UE_LOG(LogGoogleARCoreAPI, Error, TEXT("ArAugmentedImageDatabase_deserialize failed!"));
+			return Status;
+		}
+
+		DatabaseNativeHandle = AugmentedImageDb;
+		return Status;
+	}
 #endif
 
 	inline bool CheckIsSessionValid(FString TypeName, const TWeakPtr<FGoogleARCoreSession>& SessionPtr)
@@ -264,51 +290,64 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::ConfigSession(const UARSessionConfi
 	ArConfig_setUpdateMode(SessionHandle, ConfigHandle, static_cast<ArUpdateMode>(Config.GetFrameSyncMode()));
 	ArConfig_setFocusMode(SessionHandle, ConfigHandle, FocusMode);
 
-	if (GoogleConfig && GoogleConfig->AugmentedImageDatabase)
+	static ArAugmentedImageDatabase* EmptyImageDatabaseHandle = nullptr;
+
+	if (EmptyImageDatabaseHandle == nullptr)
 	{
-		if (GoogleConfig->AugmentedImageDatabase->Entries.Num())
+		ArAugmentedImageDatabase_create(SessionHandle, &EmptyImageDatabaseHandle);
+	}
+
+	ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, EmptyImageDatabaseHandle);
+
+	// If the candidate image list is set on the base config object, ignore the AugmentedImageDatabase since it is getting deprecated.
+	if (GoogleConfig && GoogleConfig->AugmentedImageDatabase && Config.GetCandidateImageList().Num() == 0)
+	{
+		if (GoogleConfig->AugmentedImageDatabase->NativeHandle == nullptr && GoogleConfig->AugmentedImageDatabase->Entries.Num() != 0)
 		{
-			ArAugmentedImageDatabase *AugmentedImageDb = nullptr;
-			UGoogleARCoreAugmentedImageDatabase *Database = GoogleConfig->AugmentedImageDatabase;
-
-			if (Database->SerializedDatabase.Num() == 0)
-			{
-				UE_LOG(LogGoogleARCoreAPI, Error, TEXT("AugmentedImageDatabase contains no cooked data! The cooking process for AugmentedImageDatabase may have failed. Check the Unreal Editor build log for details."));
-				return EGoogleARCoreAPIStatus::AR_ERROR_DATA_INVALID_FORMAT;
-			}
-
-			ConfigStatus = ToARCoreAPIStatus(
-				ArAugmentedImageDatabase_deserialize(
-					SessionHandle, &Database->SerializedDatabase[0],
-					Database->SerializedDatabase.Num(),
-					&AugmentedImageDb));
+			ConfigStatus = DeserializeAugmentedImageDatabase(SessionHandle, GoogleConfig->AugmentedImageDatabase->SerializedDatabase,
+				GoogleConfig->AugmentedImageDatabase->NativeHandle);
 
 			if (ConfigStatus != EGoogleARCoreAPIStatus::AR_SUCCESS)
 			{
-				UE_LOG(LogGoogleARCoreAPI, Error, TEXT("ArAugmentedImageDatabase_deserialize failed!"));
+				return ConfigStatus;
+			}
+		}
+
+		if (GoogleConfig->AugmentedImageDatabase->NativeHandle != nullptr)
+		{
+			ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, GoogleConfig->AugmentedImageDatabase->NativeHandle);
+		}
+	}
+	else if(GoogleConfig == nullptr && Config.GetCandidateImageList().Num() != 0)
+	{
+		ArAugmentedImageDatabase* AugmentedImageDb = nullptr;
+
+		if (!ImageDatabaseMap.Contains(&Config))
+		{
+			ConfigStatus = DeserializeAugmentedImageDatabase(SessionHandle, Config.GetSerializedARCandidateImageDatabase(), AugmentedImageDb);
+
+			if (ConfigStatus != EGoogleARCoreAPIStatus::AR_SUCCESS)
+			{
 				return ConfigStatus;
 			}
 
-			ArConfig_setAugmentedImageDatabase(
-				SessionHandle,
-				ConfigHandle,
-				AugmentedImageDb);
-
-			ArAugmentedImageDatabase_destroy(AugmentedImageDb);
+			ImageDatabaseMap.Add(&Config, AugmentedImageDb);
 		}
 		else
 		{
-			ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, nullptr);
+			AugmentedImageDb = ImageDatabaseMap[&Config];
 		}
-	}
-	else
-	{
-		ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, nullptr);
+		ArConfig_setAugmentedImageDatabase(SessionHandle, ConfigHandle, AugmentedImageDb);
 	}
 
 	ConfigStatus = ToARCoreAPIStatus(ArSession_configure(SessionHandle, ConfigHandle));
 #endif
 	return ConfigStatus;
+}
+
+const UARSessionConfig* FGoogleARCoreSession::GetCurrentSessionConfig()
+{
+	return SessionConfig;
 }
 
 TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig()
@@ -366,8 +405,8 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 		if (CameraConfig == SelectedCameraConfig)
 		{
 			Status = ArSession_setCameraConfig(SessionHandle, CameraConfigHandle);
-			UE_LOG(LogGoogleARCoreAPI, Log, TEXT("Configure ARCore session with camera config(Camera Image - %d x %d, Camera Texture - %d x %d) returns %d"), 
-				CameraConfig.CameraImageResolution.X, CameraConfig.CameraImageResolution.Y, 
+			UE_LOG(LogGoogleARCoreAPI, Log, TEXT("Configure ARCore session with camera config(Camera Image - %d x %d, Camera Texture - %d x %d) returns %d"),
+				CameraConfig.CameraImageResolution.X, CameraConfig.CameraImageResolution.Y,
 				CameraConfig.CameraTextureResolution.X, CameraConfig.CameraTextureResolution.Y,
 				(int)Status);
 			bFoundSelectedConfig = true;
@@ -398,6 +437,98 @@ void FGoogleARCoreSession::GetARCameraConfig(FGoogleARCoreCameraConfig& OutCurre
 
 	ArCameraConfig_destroy(CameraConfigHandle);
 #endif
+}
+
+int FGoogleARCoreSession::AddRuntimeAugmentedImage(UGoogleARCoreAugmentedImageDatabase* TargetImageDatabase, const TArray<uint8>& ImageGrayscalePixels,
+	int ImageWidth, int ImageHeight, FString ImageName, float ImageWidthInMeter)
+{
+	int OutIndex = -1;
+	ensure(TargetImageDatabase != nullptr);
+
+#if PLATFORM_ANDROID
+	if (TargetImageDatabase->NativeHandle == nullptr)
+	{
+		if (TargetImageDatabase->Entries.Num() != 0) {
+			if (DeserializeAugmentedImageDatabase(SessionHandle, TargetImageDatabase->SerializedDatabase, TargetImageDatabase->NativeHandle)
+				!= EGoogleARCoreAPIStatus::AR_SUCCESS)
+			{
+				UE_LOG(LogGoogleARCoreAPI, Warning, TEXT("Failed to add runtime augmented image: AugmentedImageDatabase is corrupte."));
+				return -1;
+			}
+		}
+		else
+		{
+			ArAugmentedImageDatabase_create(SessionHandle, &TargetImageDatabase->NativeHandle);
+		}
+	}
+
+	ArStatus Status = AR_SUCCESS;
+	if (ImageWidthInMeter <= 0)
+	{
+		Status = ArAugmentedImageDatabase_addImage(SessionHandle, TargetImageDatabase->NativeHandle, TCHAR_TO_ANSI(*ImageName),
+			ImageGrayscalePixels.GetData(), ImageWidth, ImageHeight, ImageWidth, &OutIndex);
+	}
+	else
+	{
+		Status = ArAugmentedImageDatabase_addImageWithPhysicalSize(SessionHandle, TargetImageDatabase->NativeHandle, TCHAR_TO_ANSI(*ImageName),
+			ImageGrayscalePixels.GetData(), ImageWidth, ImageHeight, ImageWidth, ImageWidthInMeter, &OutIndex);
+	}
+
+	if (Status != AR_SUCCESS)
+	{
+		UE_LOG(LogGoogleARCoreAPI, Warning, TEXT("Failed to add runtime augmented image: image quality is insufficient. %d"), static_cast<int>(Status));
+		return -1;
+	}
+#endif
+	return OutIndex;
+}
+
+bool FGoogleARCoreSession::AddRuntimeCandidateImage(UARSessionConfig* TargetSessionConfig, const TArray<uint8>& ImageGrayscalePixels, int ImageWidth, int ImageHeight, FString FriendlyName, float PhysicsWidth)
+{
+#if PLATFORM_ANDROID
+	ArAugmentedImageDatabase* DatabaseHandle = nullptr;
+	if (!ImageDatabaseMap.Contains(TargetSessionConfig))
+	{
+		if (TargetSessionConfig->GetCandidateImageList().Num() != 0) {
+			if (DeserializeAugmentedImageDatabase(SessionHandle, TargetSessionConfig->GetSerializedARCandidateImageDatabase(), DatabaseHandle) != EGoogleARCoreAPIStatus::AR_SUCCESS)
+			{
+				UE_LOG(LogGoogleARCoreAPI, Warning, TEXT("Failed to add runtime augmented image: AugmentedImageDatabase is corrupte."));
+				return false;
+			}
+		}
+		else
+		{
+			ArAugmentedImageDatabase_create(SessionHandle, &DatabaseHandle);
+		}
+
+		ImageDatabaseMap.Add(TargetSessionConfig, DatabaseHandle);
+	}
+	else
+	{
+		DatabaseHandle = ImageDatabaseMap[TargetSessionConfig];
+	}
+
+	ArStatus Status = AR_SUCCESS;
+	int OutIndex = 0;
+	if (PhysicsWidth <= 0)
+	{
+		Status = ArAugmentedImageDatabase_addImage(SessionHandle, DatabaseHandle, TCHAR_TO_ANSI(*FriendlyName),
+			ImageGrayscalePixels.GetData(), ImageWidth, ImageHeight, ImageWidth, &OutIndex);
+	}
+	else
+	{
+		Status = ArAugmentedImageDatabase_addImageWithPhysicalSize(SessionHandle, DatabaseHandle, TCHAR_TO_ANSI(*FriendlyName),
+			ImageGrayscalePixels.GetData(), ImageWidth, ImageHeight, ImageWidth, PhysicsWidth, &OutIndex);
+	}
+
+	if (Status != AR_SUCCESS)
+	{
+		UE_LOG(LogGoogleARCoreAPI, Warning, TEXT("Failed to add runtime augmented image: image quality is insufficient. %d"), static_cast<int>(Status));
+		return false;
+	}
+	return true;
+#endif
+	return false;
 }
 
 EGoogleARCoreAPIStatus FGoogleARCoreSession::Resume()
@@ -922,10 +1053,10 @@ FGoogleARCoreLightEstimate FGoogleARCoreFrame::GetLightEstimate() const
 	if(LightEstimate.bIsValid)
 	{
 		ArLightEstimate_getPixelIntensity(SessionHandle, LightEstimateHandle, &LightEstimate.PixelIntensity);
-		
+
 		float ColorCorrectionVector[4] ;
 		ArLightEstimate_getColorCorrection(SessionHandle, LightEstimateHandle, ColorCorrectionVector);
-		
+
 		LightEstimate.RGBScaleFactor = FVector(ColorCorrectionVector[0], ColorCorrectionVector[1], ColorCorrectionVector[2]);
 		LightEstimate.PixelIntensity = ColorCorrectionVector[3];
 	}
@@ -1200,8 +1331,8 @@ void FGoogleARCoreTrackedPlaneResource::UpdateGeometryData()
 	ArPlane_getExtentZ(SessionPtr->GetHandle(), GetPlaneHandle(), &ARCorePlaneExtentZ);
 
 	// Convert OpenGL axis to Unreal axis.
-	// Unreal TrackedPlaneGeometry extent is the length from  the plane center to edge.
-	Extent = FVector(-ARCorePlaneExtentZ / 2.0f, ARCorePlaneExtentX / 2.0f, 0) * SessionPtr->GetWorldToMeterScale();
+	// Unreal TrackedPlaneGeometry extent is the length from the plane center to edge.
+	Extent = FVector(FMath::Abs(ARCorePlaneExtentZ / 2.0f), FMath::Abs(ARCorePlaneExtentX / 2.0f), 0) * SessionPtr->GetWorldToMeterScale();
 
 	// Update Boundary Polygon
 	int PolygonSize = 0;
@@ -1277,7 +1408,7 @@ void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
 	TSharedPtr<FGoogleARCoreSession> SessionPtr = Session.Pin();
 
 	FTransform LocalToTrackingTransform;
-	FVector Extent = FVector::ZeroVector;
+	FVector2D EstimatedSize = FVector2D::ZeroVector;
 
 	// Get Center Transform
 	ArPose* ARPoseHandle = nullptr;
@@ -1302,8 +1433,8 @@ void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
 		GetImageHandle(),
 		&ImageIndex);
 
-	// Convert OpenGL axis to Unreal axis.
-	Extent = FVector(-ARCoreAugmentedImageExtentZ, ARCoreAugmentedImageExtentX, 0) * SessionPtr->GetWorldToMeterScale();
+	// Convert extents to estimated size where x is the width and y is the height.
+	EstimatedSize = FVector2D(FMath::Abs(ARCoreAugmentedImageExtentX), FMath::Abs(ARCoreAugmentedImageExtentZ)) * SessionPtr->GetWorldToMeterScale();
 
 	uint32 FrameNum = SessionPtr->GetFrameNum();
 	int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
@@ -1314,17 +1445,25 @@ void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
 		GetImageHandle(),
 		&ImageName);
 
+	UARCandidateImage* TargetCandidateImage = nullptr;
+
+	if (SessionPtr->GetCurrentSessionConfig()->GetCandidateImageList().Num() > 0) {
+		TargetCandidateImage = SessionPtr->GetCurrentSessionConfig()->GetCandidateImageList()[ImageIndex];
+	}
+
 	AugmentedImage->UpdateTrackedGeometry(
 		SessionPtr->GetARSystem(), FrameNum,
 		static_cast<double>(TimeStamp), LocalToTrackingTransform,
 		SessionPtr->GetARSystem()->GetAlignmentTransform(),
-		FVector::ZeroVector, Extent, ImageIndex, ImageName);
+		EstimatedSize, TargetCandidateImage,
+		ImageIndex, ImageName);
 
 	ArString_release(ImageName);
 
 	AugmentedImage->SetDebugName(FName(TEXT("ARCoreAugmentedImage")));
 }
 #endif
+
 
 /****************************************/
 /*       UGoogleARCorePointCloud        */
@@ -1389,6 +1528,21 @@ void UGoogleARCorePointCloud::GetPoint(int Index, FVector& OutWorldPosition, flo
 	OutWorldPosition = Point;
 	OutConfidence = Confidence;
 }
+
+int UGoogleARCorePointCloud::GetPointId(int Index)
+{
+	int Id = 0;
+	if (CheckIsSessionValid("ARCorePointCloud", Session))
+	{
+#if PLATFORM_ANDROID
+		const int32_t* Ids = 0;
+		ArPointCloud_getPointIds(Session.Pin()->GetHandle(), PointCloudHandle, &Ids);
+		Id = Ids[Index];
+#endif
+	}
+	return Id;
+}
+
 void UGoogleARCorePointCloud::GetPointInTrackingSpace(int Index, FVector& OutTrackingSpaceLocation, float& OutConfidence)
 {
 	FVector Point = FVector::ZeroVector;

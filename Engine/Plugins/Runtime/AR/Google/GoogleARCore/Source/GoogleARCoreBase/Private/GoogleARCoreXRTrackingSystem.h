@@ -43,6 +43,9 @@ public:
 
 	UGoogleARCoreEventManager* GetEventManager();
 
+	bool AddRuntimeGrayscaleImage(UARSessionConfig* SessionConfig, const TArray<uint8>& ImageGrayscalePixels, int ImageWidth, int ImageHeight,
+		FString FriendlyName, float PhysicalWidth);
+
 protected:
 	// IARSystemSupport
 	virtual void OnARSystemInitialized() override;
@@ -68,8 +71,10 @@ protected:
 // @todo -- support these properly
 	virtual EARWorldMappingState OnGetWorldMappingStatus() const override { return EARWorldMappingState::StillMappingNotRelocalizable; }
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const override { return TArray<FARVideoFormat>(); }
-	virtual TArray<FVector> OnGetPointCloud() const override { return TArray<FVector>(); }
+	virtual TArray<FVector> OnGetPointCloud() const override;
 	//~IARSystemSupport
+
+	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) override;
 
 private:
 	//~ FGCObject

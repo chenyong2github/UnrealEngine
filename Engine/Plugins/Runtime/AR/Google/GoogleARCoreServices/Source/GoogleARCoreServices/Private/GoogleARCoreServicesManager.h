@@ -38,7 +38,7 @@ private:
 	bool bCloudARPinEnabled;
 	FGoogleARCoreServicesConfig CurrentServicesConfig;
 
-	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
+	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSystem;
 	TUniquePtr<FGoogleARCoreCloudARPinManager> CloudARPinManager;
 };
 

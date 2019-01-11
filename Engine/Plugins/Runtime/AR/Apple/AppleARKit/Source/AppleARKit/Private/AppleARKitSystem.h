@@ -84,6 +84,8 @@ protected:
 	virtual EARWorldMappingState OnGetWorldMappingStatus() const override;
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const override;
 	virtual TArray<FVector> OnGetPointCloud() const override;
+	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) override { return true; };
+
 	//~IARSystemSupport
 
 private:

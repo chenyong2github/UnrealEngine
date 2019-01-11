@@ -2,137 +2,89 @@
 
 #include "GoogleARCoreAugmentedImageDatabase.h"
 
-#include "GoogleARCoreBaseLogCategory.h"
-#include "GoogleARCoreDevice.h"
 #include "GoogleARCoreAPI.h"
+#include "GoogleARCoreBaseLogCategory.h"
+#include "GoogleARCoreCookSupport.h"
+#include "GoogleARCoreDevice.h"
 
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
+#include "Misc/AssertionMacros.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "Containers/StringConv.h"
+#include "RenderUtils.h"
 
 #include "png.h"
 
-#if WITH_EDITORONLY_DATA
-
-// Disable warning "interaction between '_setjmp' and C++ object destruction is non-portable"
-// and 'fopen': This function or variable may be unsafe. 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4611)
-#pragma warning(disable:4996)
-#endif
-
-namespace
+int UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImageFromTexture(UTexture2D* ImageTexture, FName ImageName, float ImageWidthInMeter /*= 0*/)
 {
-	bool GoogleARCoreSaveTextureToPNG(UTexture2D *Tex, const FString &Filename)
+	EPixelFormat PixelFormat = ImageTexture->GetPixelFormat();
+
+	if (PixelFormat == EPixelFormat::PF_B8G8R8A8 || PixelFormat == EPixelFormat::PF_G8)
 	{
-		TArray<uint8> MipData;
-		bool Ret = true;
+		ensure(ImageTexture->GetNumMips() > 0);
+		FTexture2DMipMap* Mip0 = &ImageTexture->PlatformData->Mips[0];
+		FByteBulkData* RawImageData = &Mip0->BulkData;
 
-		if (Tex->Source.GetMipData(MipData, 0))
+		int ImageWidth = ImageTexture->GetSizeX();
+		int ImageHeight = ImageTexture->GetSizeY();
+
+		TArray<uint8> GrayscaleBuffer;
+		int PixelNum = ImageWidth * ImageHeight;
+		uint8* RawBytes = static_cast<uint8*>(RawImageData->Lock(LOCK_READ_ONLY));
+		if (PixelFormat == EPixelFormat::PF_B8G8R8A8)
 		{
-			if (Tex->Source.GetFormat() != TSF_BGRA8 && Tex->Source.GetFormat() != TSF_RGBA8)
+			GrayscaleBuffer.SetNumUninitialized(PixelNum);
+			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight * 4,
+				TEXT("Unsupported texture data in UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImage"));
+
+			for (int i = 0; i < PixelNum; i++)
 			{
-				UE_LOG(
-					LogGoogleARCoreAPI, Error,
-					TEXT("Texture %s is not RGBA8 or BGRA8 and cannot be used as a tracking target."),
-					*Tex->GetName());
-
-				return false;
-			}
-
-			int32 Width = Tex->Source.GetSizeX();
-			int32 Height = Tex->Source.GetSizeY();
-
-			png_structp PngPtr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-			if (PngPtr)
-			{
-				png_infop PngInfoPtr = png_create_info_struct(PngPtr);
-
-				// We're using C file IO here just because of libPNG interop.
-				FILE *OutputFile = fopen(TCHAR_TO_ANSI(*Filename), "wb+");
-
-				if (setjmp(png_jmpbuf(PngPtr)))
-				{
-					UE_LOG(
-						LogGoogleARCoreAPI, Error,
-						TEXT("Error writing PNG for texture %s."),
-						*Tex->GetName());
-					Ret = false;
-				}
-				else
-				{
-					png_init_io(PngPtr, OutputFile);
-					png_set_IHDR(
-						PngPtr, PngInfoPtr, Width, Height,
-						8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-						PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-					png_write_info(PngPtr, PngInfoPtr);
-
-					uint8_t *Row = new uint8_t[Width * 3];
-
-					for (int32 y = 0; y < Height; y++)
-					{
-						for (int32 x = 0; x < Width; x++)
-						{
-							for (int32 c = 0; c < 3; c++)
-							{
-								int32 RealChannel = c;
-								if (Tex->Source.GetFormat() == TSF_BGRA8)
-								{
-									if (RealChannel == 0) {
-										RealChannel = 2;
-									}
-									else if (RealChannel == 2) {
-										RealChannel = 0;
-									}
-								}
-								Row[x * 3 + c] = MipData[(y * Width + x) * 4 + RealChannel];
-							}
-						}
-						png_write_row(PngPtr, Row);
-					}
-
-					png_write_end(PngPtr, NULL);
-
-					delete[] Row;
-				}
-
-				if (OutputFile)
-				{
-					fclose(OutputFile);
-				}
-
-				if (PngInfoPtr)
-				{
-					png_free_data(PngPtr, PngInfoPtr, PNG_FREE_ALL, -1);
-				}
-
-				png_destroy_write_struct(&PngPtr, nullptr);
+				uint8 R = RawBytes[i * 4 + 2];
+				uint8 G = RawBytes[i * 4 + 1];
+				uint8 B = RawBytes[i * 4];
+				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 			}
 		}
-		else
+		else if(PixelFormat == EPixelFormat::PF_G8)
 		{
-			UE_LOG(
-				LogGoogleARCoreAPI, Error,
-				TEXT("Error reading mip data in texture %s."),
-				*Tex->GetName());
-
-			return false;
+			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
+				TEXT("Unsupported texture data in UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImage"));
+			GrayscaleBuffer = TArray<uint8>(RawBytes, PixelNum);
 		}
+		RawImageData->Unlock();
 
-		return Ret;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return AddRuntimeAugmentedImage(GrayscaleBuffer, ImageWidth, ImageHeight, ImageName, ImageWidthInMeter, ImageTexture);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
+	UE_LOG(LogGoogleARCore, Warning, TEXT("Failed to add runtime augmented image: Unsupported texture format: %s. ARCore only support PF_B8G8R8A8 or PF_G8 for now for adding runtime Augmented Image"), GetPixelFormatString(PixelFormat));
+	return -1;
 }
 
-// Renable warning "interaction between '_setjmp' and C++ object destruction is non-portable"
-// and 'fopen': This function or variable may be unsafe. 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+int UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImage(const TArray<uint8>& ImageGrayscalePixels,
+	int ImageWidth, int ImageHeight, FName ImageName, float ImageWidthInMeter /*= 0*/, UTexture2D* ImageTexture /*= nullptr*/)
+{
+	int NewImageIndex = FGoogleARCoreDevice::GetInstance()->AddRuntimeAugmentedImage(this, ImageGrayscalePixels,
+		ImageWidth, ImageHeight, ImageName.ToString(), ImageWidthInMeter);
 
-#endif
+	if (NewImageIndex == -1)
+	{
+		return -1;
+	}
+
+	FGoogleARCoreAugmentedImageDatabaseEntry NewEntry;
+	NewEntry.Name = ImageName;
+	NewEntry.ImageAsset = ImageTexture;
+	NewEntry.Width = ImageWidthInMeter;
+
+	Entries.Add(NewEntry);
+
+	return NewImageIndex;
+}
 
 void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 {
@@ -143,7 +95,6 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 #if !PLATFORM_ANDROID && WITH_EDITORONLY_DATA
 
 	if (!Ar.IsLoading() && Ar.IsCooking()) {
-
 		SerializedDatabase.Empty();
 
 		if (Entries.Num()) {
@@ -152,6 +103,8 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 				FPaths::Combine(
 					*FPaths::EnginePluginsDir(),
 					TEXT("Runtime"),
+					TEXT("AR"),
+					TEXT("Google"),
 					TEXT("GoogleARCore"),
 					TEXT("Binaries"),
 					TEXT("ThirdParty"),
@@ -172,6 +125,8 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 					FPaths::Combine(
 						*FPaths::EnginePluginsDir(),
 						TEXT("Runtime"),
+						TEXT("AR"),
+						TEXT("Google"),
 						TEXT("GoogleARCore"),
 						TEXT("Intermediate"),
 						TEXT("ARCoreImgTemp")));
@@ -194,7 +149,7 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 					FString PNGFilename =
 						FPaths::Combine(TempDir, Tex->GetName() + FString(".png"));
 
-					if (GoogleARCoreSaveTextureToPNG(
+					if (FGoogleARCoreSessionConfigCookSupport::SaveTextureToPNG(
 							Tex,
 							PNGFilename))
 					{
@@ -239,6 +194,10 @@ void UGoogleARCoreAugmentedImageDatabase::Serialize(FArchive& Ar)
 			OutStderr = "";
 			OutStdout = "";
 			OutReturnCode = 0;
+
+#if PLATFORM_LINUX || PLATFORM_MAC
+			FGoogleARCoreSessionConfigCookSupport::PlatformSetExecutable(*PathToDbTool, true);
+#endif
 
 			FPlatformProcess::ExecProcess(
 				*PathToDbTool,

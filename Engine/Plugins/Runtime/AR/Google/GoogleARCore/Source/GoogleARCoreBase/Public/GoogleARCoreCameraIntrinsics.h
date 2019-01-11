@@ -7,17 +7,17 @@
 #include "GoogleARCoreTypes.h"
 #include "GoogleARCoreCameraIntrinsics.generated.h"
 
-#if PLATFORM_ANDROID
-#include "arcore_c_api.h"
-#endif
-
 class FGoogleARCoreSession;
+
+#if PLATFORM_ANDROID
+typedef struct ArCameraIntrinsics_ ArCameraIntrinsics;
+#endif
 
 /**
  * An object wrapping the ArCameraIntrinsics data from the ARCore SDK.
  */
 UCLASS(BlueprintType)
-class UGoogleARCoreCameraIntrinsics : public UObject
+class GOOGLEARCOREBASE_API UGoogleARCoreCameraIntrinsics : public UObject
 {
 	GENERATED_BODY()
 public:

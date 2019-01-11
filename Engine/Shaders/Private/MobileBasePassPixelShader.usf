@@ -312,12 +312,21 @@ half3 FrameBufferBlendOp(half4 Source)
 #endif
 }
 
+
+void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters MaterialParameters, FPixelMaterialInputs PixelMaterialInputs, out float OutDepth)
+{
+    float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
+}
+
 void Main( 
 	FVertexFactoryInterpolantsVSToPS Interpolants
 	, FMobileBasePassInterpolantsVSToPS BasePassInterpolants
 	, in float4 SvPosition : SV_Position
 	OPTIONAL_IsFrontFace
 	, out half4 OutColor	: SV_Target0
+#if OUTPUT_PIXEL_DEPTH_OFFSET
+    , out float OutDepth : SV_Depth
+#endif
 	)
 {
 #if MOBILE_MULTI_VIEW
@@ -357,6 +366,10 @@ void Main(
 		MaterialParameters.ReflectionVector = ReflectionAboutCustomWorldNormal(MaterialParameters, MaterialParameters.WorldNormal, false);
 #endif
 	}
+
+#if OUTPUT_PIXEL_DEPTH_OFFSET
+	ApplyPixelDepthOffsetForMobileBasePass(MaterialParameters, PixelMaterialInputs, OutDepth);
+#endif
 	  
 	//Clip if the blend mode requires it.
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);

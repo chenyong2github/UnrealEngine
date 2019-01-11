@@ -15,7 +15,7 @@ typedef int32_t(*AImage_getPlanePixelStride_ptr)(const AImage* image, int planeI
 typedef int32_t(*AImage_getPlaneRowStride_ptr)(const AImage* image, int planeIdx, /*out*/int32_t* rowStride);
 typedef int32_t(*AImage_getPlaneData_ptr)(const AImage* image, int planeIdx, /*out*/uint8_t** data, /*out*/int* dataLength);
 
-struct NdkImageAPI 
+struct NdkImageAPI
 {
 	AImage_getWidth_ptr AImage_getWidth = nullptr;
 	AImage_getHeight_ptr AImage_getHeight = nullptr;

@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "GoogleARCoreDevice.h"
+#include "GoogleARCoreTypes.h"
 #include "GoogleARCoreXRCamera.h"
 #include "ARSessionConfig.h"
 
@@ -293,6 +294,75 @@ void FGoogleARCoreXRTrackingSystem::OnRemovePin(UARPin* PinToRemove)
 	FGoogleARCoreDevice::GetInstance()->RemoveARPin(PinToRemove);
 }
 
+TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
+{
+	TArray<FVector> PointCloudPoints;
+	UGoogleARCorePointCloud* LatestPointCloud = nullptr;
+	if (!(FGoogleARCoreDevice::GetInstance()->GetLatestPointCloud(LatestPointCloud) == EGoogleARCoreFunctionStatus::Success)) 
+	{
+		return PointCloudPoints;
+	}
+
+	for(int i=0; i<LatestPointCloud->GetPointNum(); i++)
+	{
+		FVector Point = FVector::ZeroVector;
+		float Confident = 0;
+		LatestPointCloud->GetPoint(i, Point, Confident);
+		PointCloudPoints.Add(Point);
+	}
+
+	return PointCloudPoints;
+}
+
+bool FGoogleARCoreXRTrackingSystem::OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth)
+{
+	EPixelFormat PixelFormat = CandidateTexture->GetPixelFormat();
+
+	if (PixelFormat == EPixelFormat::PF_B8G8R8A8 || PixelFormat == EPixelFormat::PF_G8)
+	{
+		ensure(CandidateTexture->GetNumMips() > 0);
+		FTexture2DMipMap* Mip0 = &CandidateTexture->PlatformData->Mips[0];
+		FByteBulkData* RawImageData = &Mip0->BulkData;
+
+		int ImageWidth = CandidateTexture->GetSizeX();
+		int ImageHeight = CandidateTexture->GetSizeY();
+
+		TArray<uint8> GrayscaleBuffer;
+		int PixelNum = ImageWidth * ImageHeight;
+		uint8* RawBytes = static_cast<uint8*>(RawImageData->Lock(LOCK_READ_ONLY));
+		if (PixelFormat == EPixelFormat::PF_B8G8R8A8)
+		{
+			GrayscaleBuffer.SetNumUninitialized(PixelNum);
+			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight * 4,
+				TEXT("Unsupported texture data when adding runtime candidate image."));
+			for (int i = 0; i < PixelNum; i++)
+			{
+				uint8 R = RawBytes[i * 4 + 2];
+				uint8 G = RawBytes[i * 4 + 1];
+				uint8 B = RawBytes[i * 4];
+				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+			}
+		}
+		else if (PixelFormat == EPixelFormat::PF_G8)
+		{
+			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
+				TEXT("Unsupported texture data when adding runtime candidate image."));
+			GrayscaleBuffer = TArray<uint8>(RawBytes, PixelNum);
+		}
+		RawImageData->Unlock();
+		return AddRuntimeGrayscaleImage(SessionConfig, GrayscaleBuffer,
+			ImageWidth, ImageHeight, FriendlyName, PhysicalWidth);
+	}
+
+	UE_LOG(LogGoogleARCoreTrackingSystem, Warning, TEXT("Failed to add runtime candidate image: Unsupported texture format: %s. ARCore only support PF_B8G8R8A8 or PF_G8 for now for adding runtime candidate image in ARCore"), GetPixelFormatString(PixelFormat));
+	return false;
+}
+
+bool FGoogleARCoreXRTrackingSystem::AddRuntimeGrayscaleImage(UARSessionConfig* SessionConfig, const TArray<uint8>& ImageGrayscalePixels, int ImageWidth, int ImageHeight, FString FriendlyName, float PhysicalWidth)
+{
+	return FGoogleARCoreDevice::GetInstance()->AddRuntimeCandidateImage(SessionConfig, ImageGrayscalePixels,
+		ImageWidth, ImageHeight, FriendlyName, PhysicalWidth);
+}
 
 void FGoogleARCoreXRTrackingSystem::AddReferencedObjects(FReferenceCollector& Collector)
 {

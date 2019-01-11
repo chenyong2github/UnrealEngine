@@ -197,7 +197,7 @@ UGoogleARCoreEventManager* UGoogleARCoreSessionFunctionLibrary::GetARCoreEventMa
 	{
 		return nullptr;
 	}
-	
+
 }
 
 struct FARCoreStartSessionAction : public FPendingLatentAction
@@ -302,6 +302,25 @@ void UGoogleARCoreSessionFunctionLibrary::GetAllTrackable(TArray<T*>& OutTrackab
 	FGoogleARCoreDevice::GetInstance()->GetAllTrackables<T>(OutTrackableList);
 }
 
+UARCandidateImage* UGoogleARCoreSessionFunctionLibrary::AddRuntimeCandidateImageFromRawbytes(UARSessionConfig* SessionConfig, const TArray<uint8>& ImageGrayscalePixels,
+	int ImageWidth, int ImageHeight, FString FriendlyName, float PhysicalWidth, UTexture2D* CandidateTexture /*= nullptr*/)
+{
+	auto ARSystem = FGoogleARCoreDevice::GetInstance()->GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		FGoogleARCoreXRTrackingSystem* GoogleARCoreSystem = static_cast<FGoogleARCoreXRTrackingSystem*>(ARSystem->GetXRTrackingSystem());
+		if (GoogleARCoreSystem->AddRuntimeGrayscaleImage(SessionConfig, ImageGrayscalePixels, ImageWidth, ImageHeight, FriendlyName, PhysicalWidth))
+		{
+			float PhysicalHeight = PhysicalWidth / ImageWidth * ImageHeight;
+			UARCandidateImage* NewCandidateImage = UARCandidateImage::CreateNewARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape);
+			SessionConfig->AddCandidateImage(NewCandidateImage);
+			return NewCandidateImage;
+		}
+	}
+
+	return nullptr;
+}
+
 template void UGoogleARCoreSessionFunctionLibrary::GetAllTrackable<UARTrackedGeometry>(TArray<UARTrackedGeometry*>& OutTrackableList);
 template void UGoogleARCoreSessionFunctionLibrary::GetAllTrackable<UARPlaneGeometry>(TArray<UARPlaneGeometry*>& OutTrackableList);
 template void UGoogleARCoreSessionFunctionLibrary::GetAllTrackable<UARTrackedPoint>(TArray<UARTrackedPoint*>& OutTrackableList);
@@ -390,6 +409,10 @@ template void UGoogleARCoreFrameFunctionLibrary::GetUpdatedTrackable<UARTrackedG
 template void UGoogleARCoreFrameFunctionLibrary::GetUpdatedTrackable<UARPlaneGeometry>(TArray<UARPlaneGeometry*>& OutTrackableList);
 template void UGoogleARCoreFrameFunctionLibrary::GetUpdatedTrackable<UARTrackedPoint>(TArray<UARTrackedPoint*>& OutTrackableList);
 
+UTexture* UGoogleARCoreFrameFunctionLibrary::GetCameraTexture()
+{
+	return FGoogleARCoreDevice::GetInstance()->GetCameraTexture();
+}
 
 EGoogleARCoreFunctionStatus UGoogleARCoreFrameFunctionLibrary::AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage)
 {

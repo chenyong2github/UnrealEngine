@@ -21,10 +21,12 @@ public class GoogleARCoreSDK : ModuleRules
 		{
 			string ARCoreSDKArmLibPath = ARCoreSDKBaseLibPath + "armeabi-v7a/";
 			string ARCoreSDKArm64LibPath = ARCoreSDKBaseLibPath + "arm64-v8a/";
+			string ARCoreSDKx86LibPath = ARCoreSDKBaseLibPath + "x86/";
 
 			// toolchain will filter properly
 			PublicLibraryPaths.Add(ARCoreSDKArmLibPath);
 			PublicLibraryPaths.Add(ARCoreSDKArm64LibPath);
+			PublicLibraryPaths.Add(ARCoreSDKx86LibPath);
 
 			PublicAdditionalLibraries.Add("arcore_sdk_c");
 		}
@@ -35,14 +37,16 @@ public class GoogleARCoreSDK : ModuleRules
 			PublicAdditionalLibraries.Add(ARCoreSDKiOSLibPath + "libGoogleToolboxForMac.a");
 			PublicAdditionalLibraries.Add(ARCoreSDKiOSLibPath + "libProtobuf.a");
 
+			PublicAdditionalLibraries.Add("c++");
 			PublicAdditionalLibraries.Add("sqlite3");
 			PublicAdditionalLibraries.Add("z");
 
-			PublicAdditionalFrameworks.Add(new UEBuildFramework("ARKit"));
+			PublicWeakFrameworks.Add("ARKit");
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("AVFoundation"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("CoreGraphics"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("CoreImage"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("CoreMotion"));
+			PublicAdditionalFrameworks.Add(new UEBuildFramework("CoreMedia"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("CoreVideo"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("Foundation"));
 			PublicAdditionalFrameworks.Add(new UEBuildFramework("ImageIO"));

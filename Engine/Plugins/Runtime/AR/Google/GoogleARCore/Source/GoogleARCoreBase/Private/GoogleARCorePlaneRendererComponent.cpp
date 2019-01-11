@@ -39,19 +39,19 @@ void UGoogleARCorePlaneRendererComponent::DrawPlanes()
 			{
 				continue;
 			}
-			
+
 			if (TrackedGeometry->GetTrackingState() != EARTrackingState::Tracking)
 			{
 				continue;
 			}
-			
+
 			UARPlaneGeometry* Plane = Cast<UARPlaneGeometry>(TrackedGeometry);
 			if (bRenderPlane)
 			{
 				FTransform BoundingBoxTransform = Plane->GetLocalToWorldTransform();
 				FVector BoundingBoxLocation = BoundingBoxTransform.GetLocation();
 				FVector BoundingBoxSize = Plane->GetExtent();
-				
+
 				PlaneVertices.Empty();
 				PlaneVertices.Add(BoundingBoxTransform.TransformPosition(FVector(-BoundingBoxSize.X, -BoundingBoxSize.Y, 0)));
 				PlaneVertices.Add(BoundingBoxTransform.TransformPosition(FVector(-BoundingBoxSize.X, BoundingBoxSize.Y, 0)));
@@ -60,7 +60,7 @@ void UGoogleARCorePlaneRendererComponent::DrawPlanes()
 				// plane quad
 				DrawDebugMesh(World, PlaneVertices, PlaneIndices, PlaneColor);
 			}
-			
+
 			if (bRenderBoundaryPolygon)
 			{
 				const TArray<FVector>& BoundaryPolygonData = Plane->GetBoundaryPolygonInLocalSpace();

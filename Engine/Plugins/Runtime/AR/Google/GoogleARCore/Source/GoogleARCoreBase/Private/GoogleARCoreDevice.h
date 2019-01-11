@@ -11,6 +11,7 @@
 #include "GoogleARCoreTypes.h"
 #include "GoogleARCoreAPI.h"
 #include "GoogleARCorePassthroughCameraRenderer.h"
+#include "GoogleARCoreAugmentedImageDatabase.h"
 
 class FGoogleARCoreDevice
 {
@@ -27,7 +28,7 @@ public:
 
 	bool GetIsARCoreSessionRunning();
 
-	EARSessionStatus GetSessionStatus();
+	FARSessionStatus GetSessionStatus();
 
 	// Get Unreal Units per meter, based off of the current map's VR World to Meters setting.
 	float GetWorldToMetersScale();
@@ -38,6 +39,14 @@ public:
 	bool SetARCameraConfig(FGoogleARCoreCameraConfig CameraConfig);
 
 	bool GetARCameraConfig(FGoogleARCoreCameraConfig& OutCurrentCameraConfig);
+
+	// Add image to TargetImageDatabase and return the image index.
+	// Return -1 if the image cannot be processed.
+	int AddRuntimeAugmentedImage(UGoogleARCoreAugmentedImageDatabase* TargetImageDatabase, const TArray<uint8>& ImageGrayscalePixels,
+		int ImageWidth, int ImageHeight, FString ImageName, float ImageWidthInMeter);
+
+	bool AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, const TArray<uint8>& ImageGrayscalePixels, int ImageWidth, int ImageHeight,
+		FString FriendlyName, float PhysicalWidth);
 
 	bool GetStartSessionRequestFinished();
 
@@ -61,6 +70,7 @@ public:
 #if PLATFORM_ANDROID
 	EGoogleARCoreFunctionStatus GetLatestCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const;
 #endif
+	UTexture* GetCameraTexture();
 	EGoogleARCoreFunctionStatus AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage);
 
 	// Hit test
@@ -77,7 +87,7 @@ public:
 	template< class T >
 	void GetUpdatedTrackables(TArray<T*>& OutARCoreTrackableList)
 	{
-		if (!IsARSessionInitialized())
+		if (!ARCoreSession.IsValid() || ARCoreSession->GetLatestFrame() == nullptr)
 		{
 			return;
 		}
@@ -114,18 +124,13 @@ public:
 	// Function that is used to call from the Android UI thread:
 	void StartSessionWithRequestedConfig();
 
-	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem();
-	void SetARSystem(TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> InARSystem);
+	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> GetARSystem();
+	void SetARSystem(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> InARSystem);
 
 	void* GetARSessionRawPointer();
 	void* GetGameThreadARFrameRawPointer();
 
 private:
-	bool IsARSessionInitialized() const
-	{
-		return ARCoreSession.IsValid() && ARCoreSession->GetLatestFrame() != nullptr;
-	}
-
 	// Android lifecycle events.
 	void OnApplicationCreated();
 	void OnApplicationDestroyed();
@@ -168,12 +173,12 @@ private:
 	class UARCoreAndroidPermissionHandler* PermissionHandler;
 	FThreadSafeBool bDisplayOrientationChanged;
 
-	EARSessionStatus CurrentSessionStatus;
+	FARSessionStatus CurrentSessionStatus;
 
 	FGoogleARCoreCameraConfig SessionCameraConfig;
 	FGoogleARCoreDeviceCameraBlitter CameraBlitter;
 
 	TQueue<TFunction<void()>> RunOnGameThreadQueue;
 
-	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
+	TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSystem;
 };

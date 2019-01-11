@@ -16,9 +16,27 @@ class GOOGLEARCOREBASE_API UGoogleARCoreSessionConfig : public UARSessionConfig
 {
 	GENERATED_BODY()
 
-	// We keep the type here so that we could extends ARCore specific session config later.
+	// We keep the type here so that we could extend ARCore specific session config later.
 
 public:
+
+	/**
+	 * Get the augmented image database being used.
+	 */
+	UFUNCTION(BlueprintPure, Category = "google arcore augmentedimages")
+	UGoogleARCoreAugmentedImageDatabase* GetAugmentedImageDatabase()
+	{
+		return AugmentedImageDatabase;
+	}
+
+	/**
+	 * Set the augmented image database to use.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "google arcore augmentedimages")
+	void SetAugmentedImageDatabase(UGoogleARCoreAugmentedImageDatabase* NewImageDatabase)
+	{
+		AugmentedImageDatabase = NewImageDatabase;
+	}
 
 	/**
 	 * A UGoogleARCoreAugmentedImageDatabase asset to use use for
@@ -28,6 +46,19 @@ public:
 	UGoogleARCoreAugmentedImageDatabase *AugmentedImageDatabase;
 
 public:
+
+	/**
+	 * Create a new ARCore session configuration.
+	 *
+	 * @param bHorizontalPlaneDetection			True to enable horizontal plane detection.
+	 * @param bVerticalPlaneDetection			True to enable vertical plane detection.
+	 * @param InLightEstimationMode				The light estimation mode to use.
+	 * @param InFrameSyncMode					The frame synchronization mode to use.
+	 * @param bInEnableAutoFocus				True to enable auto-focus.
+	 * @param bInEnableAutomaticCameraOverlay	True to enable the camera overlay.
+	 * @param bInEnableAutomaticCameraTracking	True to enable automatic camera tracking.
+	 * @return The new configuration object.
+	 */
 	static UGoogleARCoreSessionConfig* CreateARCoreSessionConfig(bool bHorizontalPlaneDetection, bool bVerticalPlaneDetection, EARLightEstimationMode InLightEstimationMode, EARFrameSyncMode InFrameSyncMode, bool bInEnableAutoFocus, bool bInEnableAutomaticCameraOverlay, bool bInEnableAutomaticCameraTracking)
 	{
 		UGoogleARCoreSessionConfig* NewARCoreConfig = NewObject<UGoogleARCoreSessionConfig>();

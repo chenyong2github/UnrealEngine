@@ -1440,7 +1440,10 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData( ARAnchor* Anchor, doubl
 			FString(ImageAnchor.referenceImage.name)
 		);
 #if SUPPORTS_ARKIT_2_0
-		NewAnchor->bIsTracked = ImageAnchor.isTracked;
+		if (FAppleARKitAvailability::SupportsARKit20())
+		{
+			NewAnchor->bIsTracked = ImageAnchor.isTracked;
+		}
 #endif
 	}
 #endif
@@ -1614,7 +1617,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UARTrackedImage* NewImage = NewObject<UARTrackedImage>();
 			UARCandidateImage** CandidateImage = CandidateImages.Find(AnchorData->DetectedAnchorName);
 			ensure(CandidateImage != nullptr);
-			NewImage->UpdateTrackedGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), *CandidateImage);
+			FVector2D PhysicalSize((*CandidateImage)->GetPhysicalWidth(), (*CandidateImage)->GetPhysicalHeight());
+			NewImage->UpdateTrackedGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), PhysicalSize, *CandidateImage);
 			NewGeometry = NewImage;
 			break;
 		}
@@ -1726,8 +1730,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					UARCandidateImage** CandidateImage = CandidateImages.Find(AnchorData->DetectedAnchorName);
 					ensure(CandidateImage != nullptr);
-
-					ImageAnchor->UpdateTrackedGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), *CandidateImage);
+					FVector2D PhysicalSize((*CandidateImage)->GetPhysicalWidth(), (*CandidateImage)->GetPhysicalHeight());
+					ImageAnchor->UpdateTrackedGeometry(ARComponent.ToSharedRef(), AnchorData->FrameNumber, AnchorData->Timestamp, AnchorData->Transform, GetARCompositionComponent()->GetAlignmentTransform(), PhysicalSize, *CandidateImage);
 					ImageAnchor->SetTrackingState(AnchorData->bIsTracked ? EARTrackingState::Tracking : EARTrackingState::NotTracking);
 					// @todo JoeG -- remove this in 4.22
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

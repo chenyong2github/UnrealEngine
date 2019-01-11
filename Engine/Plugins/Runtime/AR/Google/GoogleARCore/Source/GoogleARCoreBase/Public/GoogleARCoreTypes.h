@@ -94,6 +94,8 @@ enum class EGoogleARCoreFunctionStatus : uint8
 	NotAvailable,
 	/** Function failed due to the function augment has invalid type. */
 	InvalidType,
+	/** Function failed due to it is invoked at an illegal or inappropriate time. */
+	IllegalState,
 	/** Function failed with unknown reason. */
 	Unknown
 };
@@ -128,7 +130,7 @@ struct FGoogleARCoreLightEstimate
 	/** The average pixel intensity of the passthrough camera image. */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|LightEstimate")
 	float PixelIntensity;
-	
+
 	/**
 	 * The RGB scale to match the color of the light in the real environment.
 	 */
@@ -162,42 +164,71 @@ enum class EGoogleARCoreLineTraceChannel : uint8
 };
 ENUM_CLASS_FLAGS(EGoogleARCoreLineTraceChannel);
 
+/**
+ * Camera configuration from ARCore.
+ */
 USTRUCT(BlueprintType)
 struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 {
 	GENERATED_BODY()
 
+	/**
+	 * CPU-accessible camera image resolution.
+	 */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
 	FIntPoint CameraImageResolution;
+
+	/**
+	 * Texture resolution for the camera image accessible to the
+	 * graphics API and shaders.
+	 */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
 	FIntPoint CameraTextureResolution;
 
+	/**
+	 * Comparison operator.
+	 *
+	 * @param OtherConfig	The other configuration to compare this against.
+	 * @return True if this configuration is identical to OtherConfig.
+	 */
 	bool operator==(const FGoogleARCoreCameraConfig& OtherConfig) const
 	{
 		return CameraImageResolution == OtherConfig.CameraImageResolution && CameraTextureResolution == OtherConfig.CameraTextureResolution;
 	}
 };
 
+/**
+ * Delegate to call on camera configuration.
+ */
 class GOOGLEARCOREBASE_API FGoogleARCoreDelegates
 {
 public:
+/// @cond EXCLUDE_FROM_DOXYGEN
 	DECLARE_MULTICAST_DELEGATE_OneParam(FGoogleARCoreOnConfigCameraDelegate, const TArray<FGoogleARCoreCameraConfig>&);
+/// @endcond
 
 	/**
-	 * A delegate can be bind through c++. Will be called before ARSession started and returns
-	 * a list of supported ARCore camera config. 
-	 * Bind this delegate if you want to choose a specific camera config in your app. Call 
-	 * UGoogleARCoreSessionFunctionLibrary::ConfigARCoreCamera after the delegate is triggered.
+	 * A delegate can be bound through C++. It will be called before
+	 * ARSession started and returns a list of supported ARCore camera
+	 * configurations. Bind this delegate if you want to choose a
+	 * specific camera config in your app. Call
+	 * UGoogleARCoreSessionFunctionLibrary::ConfigARCoreCamera after
+	 * the delegate is triggered.
 	 */
 	static FGoogleARCoreOnConfigCameraDelegate OnCameraConfig;
 };
 
+/**
+ * Manager for ARCore delegates.
+ */
 UCLASS(BlueprintType, Category = "AR AugmentedReality")
 class GOOGLEARCOREBASE_API UGoogleARCoreEventManager : public UObject
 {
 	GENERATED_BODY()
 public:
+/// @cond EXCLUDE_FROM_DOXYGEN
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGoogleARCoreOnConfigCameraDynamicDelegate, const TArray<FGoogleARCoreCameraConfig>&, SupportedCameraConfig);
+/// @endcond
 
 	UGoogleARCoreEventManager()
 	{
@@ -220,7 +251,7 @@ public:
 	 * resolutions returned are VGA, 720p, and a resolution matching the GPU
 	 * texture.
 	 *
-	 * Bind this delegate if you want to choose a specific camera config in your app. Call 
+	 * Bind this delegate if you want to choose a specific camera config in your app. Call
 	 * UGoogleARCoreSessionFunctionLibrary::ConfigARCoreCamera after the delegate is triggered.
 	 */
 	UPROPERTY(BlueprintAssignable)
@@ -271,6 +302,16 @@ public:
 	/** Returns the point position in Unreal world space and it's confidence value from 0 ~ 1. */
 	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PointCloud")
 	void GetPoint(int Index, FVector& OutWorldPosition, float& OutConfidence);
+
+	/**
+	 * Returns the point Id of the point at the given index.
+	 *
+	 * Each point has a unique identifier (within a session) that is persistent
+	 * across frames. That is, if a point from point cloud 1 has the same id as the
+	 * point from point cloud 2, then it represents the same point in space.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PointCloud")
+	int GetPointId(int Index);
 
 	/** Returns the point position in Unreal AR Tracking space. */
 	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PointCloud")

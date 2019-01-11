@@ -5,16 +5,18 @@
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 #include "Features/IModularFeature.h"
+#include "ARSessionConfig.h"
 
 #include "GoogleARCoreMotionController.h"
 #include "GoogleARCoreXRTrackingSystem.h"
 #include "GoogleARCoreDevice.h"
+#include "GoogleARCoreCookSupport.h"
 
 #define LOCTEXT_NAMESPACE "GoogleARCore"
 
 class FGoogleARCoreBaseModule : public IGoogleARCoreBaseModule
 {
-
+public:
 	/** IHeadMountedDisplayModule implementation*/
 	/** Returns the key into the HMDPluginPriority section of the config file for this module */
 	virtual FString GetModuleKeyName() const override
@@ -42,9 +44,12 @@ class FGoogleARCoreBaseModule : public IGoogleARCoreBaseModule
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	// Not really clear where this should go given that unlike other, input-derived controllers we never hand
-	// off a shared pointer of the object to the engine.
 	FGoogleARCoreMotionController ControllerInstance;
+
+#if WITH_EDITORONLY_DATA
+	FGoogleARCoreSessionConfigCookSupport SessionConfigCookSupport;
+#endif
+
 };
 
 IMPLEMENT_MODULE(FGoogleARCoreBaseModule, GoogleARCoreBase)
@@ -81,6 +86,10 @@ void FGoogleARCoreBaseModule::StartupModule()
 	// Register VR-like controller interface.
 	ControllerInstance.RegisterController();
 
+#if WITH_EDITORONLY_DATA
+	SessionConfigCookSupport.RegisterModuleFeature();
+#endif
+
 	// Register IHeadMountedDisplayModule
 	IHeadMountedDisplayModule::StartupModule();
 
@@ -94,6 +103,10 @@ void FGoogleARCoreBaseModule::ShutdownModule()
 
 	// Unregister VR-like controller interface.
 	ControllerInstance.UnregisterController();
+
+#if WITH_EDITORONLY_DATA
+	SessionConfigCookSupport.UnregisterModuleFeature();
+#endif
 
 	// Complete ARCore teardown.
 	FGoogleARCoreDevice::GetInstance()->OnModuleUnloaded();

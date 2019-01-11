@@ -138,8 +138,12 @@ public:
 	/** @return the current point cloud data for the ar scene */
 	virtual TArray<FVector> OnGetPointCloud() const = 0;
 
+	/** Add candidate image at runtime @return True if it added the iamge successfully */
+	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) = 0;
+
 	virtual void* GetARSessionRawPointer() = 0;
 	virtual void* GetGameThreadARFrameRawPointer() = 0;
+
 
 public:
 	virtual ~IARSystemSupport(){}

@@ -58,6 +58,6 @@ public class GoogleARCoreJavaHelper {
     public static native void onApplicationStop();
     public static native void onApplicationStart();
     public static native void onDisplayOrientationChanged();
-	
+
 	public static native void ARCoreSessionStart();
 }

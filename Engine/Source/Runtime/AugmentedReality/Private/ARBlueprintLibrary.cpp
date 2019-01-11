@@ -430,3 +430,17 @@ TArray<FARVideoFormat> UARBlueprintLibrary::GetSupportedVideoFormats(EARSessionT
 	}
 	return TArray<FARVideoFormat>();
 }
+
+UARCandidateImage* UARBlueprintLibrary::AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth)
+{
+	auto ARSystem = GetARSystem();
+	if (ensure(ARSystem.IsValid()))
+	{
+		return ARSystem->AddRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+

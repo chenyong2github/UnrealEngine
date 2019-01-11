@@ -7,6 +7,7 @@
 #include "ARBlueprintLibrary.h"
 #include "ARBlueprintProxy.h"
 #include "Templates/SharedPointer.h"
+#include "Engine/Texture2D.h"
 
 FARSupportInterface ::FARSupportInterface (IARSystemSupport* InARImplementation, IXRTrackingSystem* InXRTrackingSystem)
 	: ARImplemention(InARImplementation)
@@ -276,7 +277,20 @@ TArray<FVector> FARSupportInterface ::GetPointCloud() const
 	return TArray<FVector>();
 }
 
-
+UARCandidateImage* FARSupportInterface::AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth)
+{
+	if (ARImplemention && ARImplemention->OnAddRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth))
+	{
+		float PhysicalHeight = PhysicalWidth / CandidateTexture->GetSizeX() * CandidateTexture->GetSizeY();
+		UARCandidateImage* NewCandidateImage = UARCandidateImage::CreateNewARCandidateImage(CandidateTexture, FriendlyName, PhysicalWidth, PhysicalHeight, EARCandidateImageOrientation::Landscape);
+		SessionConfig->AddCandidateImage(NewCandidateImage);
+		return NewCandidateImage;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
 
 void* FARSupportInterface ::GetARSessionRawPointer()
 {
@@ -304,4 +318,3 @@ void FARSupportInterface ::AddReferencedObjects(FReferenceCollector& Collector)
 		Collector.AddReferencedObject(ARSettings);
 	}
 }
-

@@ -95,6 +95,9 @@ public:
 	/** @return the current point cloud data for the ar scene */
 	TArray<FVector> GetPointCloud() const;
 
+	/** \see UARBlueprintLibrary::AddRuntimeCandidateImage() */
+	UARCandidateImage* AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth);
+
 	void* GetARSessionRawPointer();
 	void* GetGameThreadARFrameRawPointer();
 

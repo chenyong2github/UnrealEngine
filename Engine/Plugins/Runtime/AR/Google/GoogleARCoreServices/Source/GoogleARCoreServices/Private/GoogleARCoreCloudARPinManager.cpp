@@ -87,7 +87,7 @@ namespace {
 class FGoogleARCoreCloudARPinManagerAndroid : FGoogleARCoreCloudARPinManager
 {
 public:
-	FGoogleARCoreCloudARPinManagerAndroid(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
+	FGoogleARCoreCloudARPinManagerAndroid(TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> InArSystem)
 		: FGoogleARCoreCloudARPinManager(InArSystem)
 	{
 
@@ -144,7 +144,7 @@ protected:
 class FGoogleARCoreCloudARPinManageriOS : FGoogleARCoreCloudARPinManager
 {
 public:
-	FGoogleARCoreCloudARPinManageriOS(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
+	FGoogleARCoreCloudARPinManageriOS(TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> InArSystem)
 		: FGoogleARCoreCloudARPinManager(InArSystem)
 		, SessionHandle(nullptr)
 		, FrameHandle(nullptr)
@@ -249,7 +249,7 @@ private:
 };
 #endif // PLATFORM_IOS
 
-FGoogleARCoreCloudARPinManager* FGoogleARCoreCloudARPinManager::CreateCloudARPinManager(TSharedRef<FARSupportInterface , ESPMode::ThreadSafe> InArSystem)
+FGoogleARCoreCloudARPinManager* FGoogleARCoreCloudARPinManager::CreateCloudARPinManager(TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> InArSystem)
 {
 #if PLATFORM_ANDROID
 	return reinterpret_cast<FGoogleARCoreCloudARPinManager*>(new FGoogleARCoreCloudARPinManagerAndroid(InArSystem));

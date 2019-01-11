@@ -183,22 +183,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
 	static void SetArmModelPointerTiltAngle(float TiltAngle);
 
-	/** Get gaze behavior
-	 *  Gaze behavior determines if the controller should follow the player's gaze. Useful for games that require the
-	 *  player to turn more than 90 degrees.
-	 *  @return gaze behavior.
-	 */
-	UFUNCTION(BlueprintPure, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static EGoogleVRArmModelFollowGazeBehavior GetArmModelGazeBehavior();
-
-	/** Set gaze behavior
-	 *  Gaze behavior determines if the controller should follow the player's gaze. Useful for games that require the
-	 *  player to turn more than 90 degrees.
-	 *  @param GazeBehavior - value to set
-	 */
-	UFUNCTION(BlueprintCallable, Category = "GoogleVRController", meta = (Keywords = "Cardboard AVR GVR"))
-	static void SetArmModelGazeBehavior(EGoogleVRArmModelFollowGazeBehavior GazeBehavior);
-
 	/** Get if the arm model will use accelerometer data
 	 *  If this is turned on, then the arm model will estimate the position of the controller in space
 	 *  using accelerometer data. This is useful when trying to make the player feel like they are moving

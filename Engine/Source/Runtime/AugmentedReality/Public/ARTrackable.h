@@ -141,21 +141,37 @@ class AUGMENTEDREALITY_API UARTrackedImage : public UARTrackedGeometry
 public:
 	virtual void DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds = 0.0f) const override;
 
-	void UpdateTrackedGeometry(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, UARCandidateImage* InDetectedImage);
+	void UpdateTrackedGeometry(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, FVector2D InEstimatedSize, UARCandidateImage* InDetectedImage);
 
 	/** @see DetectedImage */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Image Detection")
 	UARCandidateImage* GetDetectedImage() const { return DetectedImage; };
+	
+	/*
+	 * Get the estimate size of the detected image, where X is the estimated width, and Y is the estimated height.
+	 *
+	 * Note that ARCore can return a valid estimate size of the detected image when the tracking state of the UARTrackedImage
+	 * is tracking. The size should reflect the actual size of the image target, which could be different than the input physical
+	 * size of the candidate image.
+	 *
+	 * ARKit will return the physical size of the ARCandidate image.
+	 */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Image Detection")
+	FVector2D GetEstimateSize();
 
 	UE_DEPRECATED(4.21, "This property is now deprecated, please use GetTrackingState() and check for EARTrackingState::Tracking or IsTracked() instead.")
 	/** Whether the image is currently being tracked by the AR system */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Face Geometry")
 	bool bIsTracked;
 
-private:
+protected:
 	/** The candidate image that was detected in the scene */
 	UPROPERTY()
 	UARCandidateImage* DetectedImage;
+
+	/** The estimated image size that was detected in the scene */
+	UPROPERTY()
+	FVector2D EstimatedSize;
 };
 
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))

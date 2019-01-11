@@ -23,7 +23,9 @@ public:
 	 * A Latent Action to check the availability of ARCore on this device.
 	 * This may initiate a query with a remote service to determine if the device is supported by ARCore. The Latent Action will complete when the check is finished.
 	 *
-	 * @param OutAvailability	The availability result as a EGoogleARCoreAvailability.
+	 * @param WorldContextObject	The world context.
+	 * @param LatentInfo			Unreal internal type required for all latent actions.
+	 * @param OutAvailability		The availability result as a EGoogleARCoreAvailability.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|Availability", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "googlear arcore availability"))
 	static void CheckARCoreAvailability(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, EGoogleARCoreAvailability& OutAvailability);
@@ -32,7 +34,9 @@ public:
 	 * A Latent Action to initiates installation of ARCore if required.
 	 * This function may cause your application be paused if installing ARCore is required.
 	 *
-	 * @param OutInstallResult	The install request result as a EGoogleARCoreInstallRequestResult.
+	 * @param WorldContextObject	The world context.
+	 * @param LatentInfo			Unreal internal type required for all latent actions.
+	 * @param OutInstallResult		The install request result as a EGoogleARCoreInstallRequestResult.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|Availability", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "googlear arcore availability"))
 	static void InstallARCoreService(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, EGoogleARCoreInstallRequestResult& OutInstallResult);
@@ -72,13 +76,15 @@ public:
 	 * If the session already started and the config isn't the same, it will stop the previous session and start a new session with the new config.
 	 * Note that this is a latent action, you can query the session start result by querying GetARCoreSessionStatus() after the latent action finished.
 	 *
-	 * @param Configuration				The ARCoreSession configuration to start the session.
+	 * @param WorldContextObject	The world context.
+	 * @param LatentInfo			Unreal internal type required for all latent actions.
+	 * @param Configuration			The ARCoreSession configuration to start the session.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|Session", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject", Keywords = "googlear arcore session start config"))
 	static void StartARCoreSession(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UGoogleARCoreSessionConfig* Configuration);
 
 	/**
-	 * Configure the ARCoreSession with the desired camera configuration. The TargetCameraConfig must be 
+	 * Configure the ARCoreSession with the desired camera configuration. The TargetCameraConfig must be
 	 * from a list returned by UGoogleARCoreEventManager::OnCameraConfig delegate.
 	 *
 	 * This function should be called when UGoogleARCoreEventManager::OnCameraConfig delegate got triggered.
@@ -86,9 +92,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|Session", meta = (Keywords = "googlear arcore camera config"))
 	static bool SetARCoreCameraConfig(FGoogleARCoreCameraConfig TargetCameraConfig);
 
-	/** 
-	 * Get the FGoogleARCoreCameraConfig that the current ARCore session is using. 
-	 * 
+	/**
+	 * Get the FGoogleARCoreCameraConfig that the current ARCore session is using.
+	 *
 	 * @param OutCurrentCameraConfig   The FGoogleARCoreCameraConfig that the current ARCore session is using.
 	 * @return  True if there is a valid ARCore session and the current camera config is returned.
 	 *          False if ARCore session hasn't been started or it is already stopped.
@@ -128,7 +134,7 @@ public:
 	 * Planes that have entered the EARTrackingState::StoppedTracking state or for which
 	 * UARPlaneGeometry::GetSubsumedBy returns non-null will not be included.
 	 *
-	 * @param OutAnchorList		An array that contains all the valid planes detected by ARCore.
+	 * @param OutPlaneList		An array that contains all the valid planes detected by ARCore.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePlane", meta = (Keywords = "googlear arcore all plane"))
 	static void GetAllPlanes(TArray<UARPlaneGeometry*>& OutPlaneList);
@@ -137,13 +143,29 @@ public:
 	 * Gets a list of all valid UARTrackedPoint objects that ARCore is currently tracking.
 	 * TrackablePoint that have entered the EARTrackingState::StoppedTracking state will not be included.
 	 *
-	 * @param OutAnchorList		An array that contains all the valid planes detected by ARCore.
+	 * @param OutTrackablePointList		An array that contains all the valid trackable points detected by ARCore.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePoint", meta = (Keywords = "googlear arcore pose transform"))
 	static void GetAllTrackablePoints(TArray<UARTrackedPoint*>& OutTrackablePointList);
 
 	/** Template function to get all trackables from a given type. */
 	template< class T > static void GetAllTrackable(TArray<T*>& OutTrackableList);
+
+	/**
+	 * Create an ARCandidateImage object from the raw pixel data and add it to the ARCandidateImageList of the given \c UARSessionConfig object.
+	 *
+	 * Note that you need to restart the AR session with the \c UARSessionConfig you are adding to to make the change take effect.
+	 *
+	 * On ARCore platform, you can leave the PhysicalWidth and PhysicalHeight to 0 if you don't know the physical size of the image or
+	 * the physical size is dynamic. And this function takes time to perform non-trivial image processing (20ms - 30ms),
+	 * and should be run on a background thread.
+	 *
+	 * @return A \c UARCandidateImage Object pointer if the underlying ARPlatform added the candidate image at runtime successfully.
+	 *		  Return nullptr otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Session", meta = (Keywords = "ar augmentedreality augmented reality candidate image"))
+	static UARCandidateImage* AddRuntimeCandidateImageFromRawbytes(UARSessionConfig* SessionConfig, const TArray<uint8>& ImageGrayscalePixels, int ImageWidth, int ImageHeight,
+			FString FriendlyName, float PhysicalWidth, UTexture2D* CandidateTexture = nullptr);
 };
 
 /** A function library that provides static/Blueprint functions associated with most recent GoogleARCore tracking frame.*/
@@ -180,7 +202,7 @@ public:
 	 *
 	 * @param WorldContextObject	The world context.
 	 * @param ScreenPosition		The position on the screen to cast the ray from.
-	 * @param ARObjectType			A set of EGoogleARCoreLineTraceChannel indicate which type of line trace it should perform.
+	 * @param TraceChannels			A set of EGoogleARCoreLineTraceChannel indicate which type of line trace it should perform.
 	 * @param OutHitResults			The list of hit results sorted by distance.
 	 * @return						True if there is a hit detected.
 	 */
@@ -188,13 +210,13 @@ public:
 	static bool ARCoreLineTrace(UObject* WorldContextObject, const FVector2D& ScreenPosition, TSet<EGoogleARCoreLineTraceChannel> TraceChannels, TArray<FARTraceResult>& OutHitResults);
 
 	/**
-	* Traces a ray along the given line. Intersections with detected scene geometry are returned, 
+	* Traces a ray along the given line. Intersections with detected scene geometry are returned,
 	* sorted by distance from the start of the line; the nearest intersection is returned first.
 	*
 	* @param WorldContextObject	The world context.
 	* @param Start		The start of line segment.
 	* @param End		The end of line segment.
-	* @param ARObjectType			A set of EGoogleARCoreLineTraceChannel indicate which type of line trace it should perform.
+	* @param TraceChannels			A set of EGoogleARCoreLineTraceChannel indicate which type of line trace it should perform.
 	* @param OutHitResults			The list of hit results sorted by distance.
 	* @return						True if there is a hit detected.
 	*/
@@ -212,7 +234,7 @@ public:
 	/**
 	 * Gets a list of UARPlaneGeometry objects that were changed in this frame.
 	 *
-	 * @param OutARCorePlaneList	An array that contains the updated UARPlaneGeometry.
+	 * @param OutPlaneList	An array that contains the updated UARPlaneGeometry.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePlane", meta = (Keywords = "googlear arcore pose transform"))
 	static void GetUpdatedPlanes(TArray<UARPlaneGeometry*>& OutPlaneList);
@@ -220,7 +242,7 @@ public:
 	/**
 	 * Gets a list of UARTrackedPoint objects that were changed in this frame.
 	 *
-	 * @param OutARCorePlaneList	An array that contains the updated UARTrackedPoint.
+	 * @param OutTrackablePointList	An array that contains the updated UARTrackedPoint.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|TrackablePoint", meta = (Keywords = "googlear arcore pose transform"))
 	static void GetUpdatedTrackablePoints(TArray<UARTrackedPoint*>& OutTrackablePointList);
@@ -269,6 +291,16 @@ public:
 #endif
 
 	/**
+	 * Get the pass-through camera texture that GoogleARCore plugin will use to render the passthrough camera background.
+	 * Note that UTexture object this function returns may change every frame. If you want to use the camera texture, you should
+	 * call the function every frame and update the texture parameter in your material.
+	 *
+	 * @return A pointer to the UTexture that will be used to render the passthrough camera background.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GoogleARCore|PassthroughCamera", meta = (Keywords = "googlear arcore passthroughcamera"))
+	static UTexture* GetCameraTexture();
+
+	/**
 	 * Acquire a CPU-accessible camera image.
 	 *
 	 * @param OutLatestCameraImage    A place to store the pointer to a new UGoogleARCoreCameraImage instance.
@@ -292,5 +324,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GoogleARCore|CameraIntrinsics", meta = (Keywords = "googlear arcore camera"))
 	static EGoogleARCoreFunctionStatus GetCameraTextureIntrinsics(UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics);
+
+
 
 };

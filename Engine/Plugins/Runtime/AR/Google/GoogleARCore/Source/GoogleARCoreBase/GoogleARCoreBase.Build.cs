@@ -16,6 +16,9 @@ namespace UnrealBuildTool.Rules
 					"GoogleARCoreBase/Private",
 				}
 			);
+
+			PublicIncludePathModuleNames.Add("TargetPlatform");
+
 			PublicDependencyModuleNames.AddRange(
 					new string[]
 					{
