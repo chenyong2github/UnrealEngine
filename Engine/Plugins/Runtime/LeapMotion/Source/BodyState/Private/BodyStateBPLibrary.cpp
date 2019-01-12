@@ -4,6 +4,10 @@
 #include "BodyStateUtility.h"
 #include "FBodyState.h"
 #include "Runtime/Launch/Resources/Version.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 
 UBodyStateBPLibrary::UBodyStateBPLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
