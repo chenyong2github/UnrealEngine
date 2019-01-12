@@ -3,6 +3,7 @@
 #include "LeapUtility.h"
 #include "Engine/Engine.h" // for GEngine
 #include "Engine/World.h"
+#include "GameFramework/WorldSettings.h"
 #include "IXRTrackingSystem.h"
 
 DEFINE_LOG_CATEGORY(LeapMotionLog);
