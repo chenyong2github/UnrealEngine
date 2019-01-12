@@ -5,6 +5,7 @@
 #include "IXRTrackingSystem.h"
 #include "Engine/Engine.h"
 #include "Skeleton/BodyStateSkeleton.h"
+#include "Features/IModularFeatures.h"
 
 FBodyStateHMDDevice::FBodyStateHMDDevice()
 {
