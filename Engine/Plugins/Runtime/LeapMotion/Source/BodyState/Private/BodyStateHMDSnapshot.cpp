@@ -5,6 +5,7 @@
 #include "BodyStateHMDSnapshot.h"
 #include "BodyStateUtility.h"
 #include "IXRTrackingSystem.h"
+#include "Engine/Engine.h"
 
 
 void BSHMDSnapshotHandler::AddCurrentHMDSample(double CustomTimeStamp)

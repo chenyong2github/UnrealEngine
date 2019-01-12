@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #define MAX_HMD_SNAPSHOT_COUNT 30
 
 /**
