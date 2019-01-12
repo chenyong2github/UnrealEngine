@@ -5,6 +5,7 @@
 #include "LeapC.h"
 #include "Engine/Texture2D.h"
 #include "RHI.h"
+#include "HAL/ThreadSafeBool.h"
 #include "LeapMotionData.h"
 
 /** Signature with Left/Right Image pair */
