@@ -2,6 +2,7 @@
 
 #include "BodyStateEstimatorComponent.h"
 #include "IBodyState.h"
+#include "Engine/World.h"
 
 UBodyStateEstimatorComponent::UBodyStateEstimatorComponent(const FObjectInitializer &init) : UActorComponent(init)
 {

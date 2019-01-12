@@ -3,6 +3,7 @@
 #include "BodyStateSkeletonStorage.h"
 #include "Skeleton/BodyStateSkeleton.h"
 #include "CoreMinimal.h"
+#include "Misc/App.h"
 #include "BodyStateUtility.h"
 
 
