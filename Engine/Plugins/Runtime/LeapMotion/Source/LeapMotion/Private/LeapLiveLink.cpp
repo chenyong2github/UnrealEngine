@@ -2,6 +2,8 @@
 
 #include "LeapLiveLink.h"
 #include "CoreMinimal.h"
+#include "Misc/App.h"
+#include "Animation/AnimInstance.h"
 #include "LiveLinkProvider.h"
 
 FLeapLiveLinkProducer::FLeapLiveLinkProducer()

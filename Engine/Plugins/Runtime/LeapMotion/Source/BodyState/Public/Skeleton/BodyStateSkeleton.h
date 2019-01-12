@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/CoreNet.h"
 #include "Skeleton/BodyStateBone.h"
 #include "Skeleton/BodyStateArm.h"
 #include "BodyStateEnums.h"
