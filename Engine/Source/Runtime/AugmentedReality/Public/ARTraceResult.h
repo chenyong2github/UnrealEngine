@@ -20,6 +20,8 @@ struct AUGMENTEDREALITY_API FARTraceResult
 	FARTraceResult( const TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe>& InARSystem, float InDistanceFromCamera, EARLineTraceChannels InTraceChannel, const FTransform& InLocalToTrackingTransform, UARTrackedGeometry* InTrackedGeometry );
 	
 	float GetDistanceFromCamera() const;
+
+	void SetLocalToWorldTransform(const FTransform& LocalToWorldTransform);
 	
 	FTransform GetLocalToTrackingTransform() const;
 	
@@ -28,6 +30,14 @@ struct AUGMENTEDREALITY_API FARTraceResult
 	UARTrackedGeometry* GetTrackedGeometry() const;
 	
 	EARLineTraceChannels GetTraceChannel() const;
+
+	struct FARTraceResultComparer
+	{
+		FORCEINLINE_STATS bool operator()(const FARTraceResult& A, const FARTraceResult& B) const
+		{
+			return A.GetDistanceFromCamera() < B.GetDistanceFromCamera();
+		}
+	};
 	
 private:
 	

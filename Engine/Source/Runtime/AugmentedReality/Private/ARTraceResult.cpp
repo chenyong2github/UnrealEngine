@@ -29,6 +29,11 @@ float FARTraceResult::GetDistanceFromCamera() const
 	return DistanceFromCamera;
 }
 
+void FARTraceResult::SetLocalToWorldTransform(const FTransform& LocalToWorldTransform)
+{
+	LocalToTrackingTransform = LocalToWorldTransform * ARSystem->GetXRTrackingSystem()->GetTrackingToWorldTransform().Inverse();
+}
+
 FTransform FARTraceResult::GetLocalToTrackingTransform() const
 {
 	return LocalToTrackingTransform;

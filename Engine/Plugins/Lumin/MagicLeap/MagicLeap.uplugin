@@ -31,6 +31,16 @@
 			]
 		},
 		{
+			"Name" : "MagicLeapAR",
+			"Type" : "Runtime",
+			"WhitelistPlatforms" :
+			[
+				"Win64",
+				"Mac",
+				"Lumin"
+			]
+		},
+		{
 			"Name" : "MagicLeapAudio",
 			"Type" : "Runtime",
 			"WhitelistPlatforms" :

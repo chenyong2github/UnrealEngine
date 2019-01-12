@@ -232,7 +232,7 @@ void FGoogleARCoreXRTrackingSystem::OnSetAlignmentTransform(const FTransform& In
 	}
 }
 
-TArray<FARTraceResult> FGoogleARCoreXRTrackingSystem::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
+static EGoogleARCoreLineTraceChannel ConvertToGoogleARCoreTraceChannels(EARLineTraceChannels TraceChannels)
 {
 	EGoogleARCoreLineTraceChannel ARCoreTraceChannels = EGoogleARCoreLineTraceChannel::None;
 	if (!!(TraceChannels & EARLineTraceChannels::FeaturePoint))
@@ -251,9 +251,20 @@ TArray<FARTraceResult> FGoogleARCoreXRTrackingSystem::OnLineTraceTrackedObjects(
 	{
 		ARCoreTraceChannels = ARCoreTraceChannels | EGoogleARCoreLineTraceChannel::PlaneUsingExtent;
 	}
+	return ARCoreTraceChannels;
+}
 
+TArray<FARTraceResult> FGoogleARCoreXRTrackingSystem::OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels)
+{
 	TArray<FARTraceResult> OutHitResults;
-	FGoogleARCoreDevice::GetInstance()->ARLineTrace(ScreenCoord, ARCoreTraceChannels, OutHitResults);
+	FGoogleARCoreDevice::GetInstance()->ARLineTrace(ScreenCoord, ConvertToGoogleARCoreTraceChannels(TraceChannels), OutHitResults);
+	return OutHitResults;
+}
+
+TArray<FARTraceResult> FGoogleARCoreXRTrackingSystem::OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
+{
+	TArray<FARTraceResult> OutHitResults;
+	FGoogleARCoreDevice::GetInstance()->ARLineTrace(Start, End, ConvertToGoogleARCoreTraceChannels(TraceChannels), OutHitResults);
 	return OutHitResults;
 }
 

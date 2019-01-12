@@ -12,9 +12,6 @@
 #include "Editor.h"
 #endif
 
-#if WITH_MLSDK
-#include "ml_planes.h"
-#endif //WITH_MLSDK
 
 class FPlanesTrackerImpl
 {
@@ -36,7 +33,6 @@ public:
 #if WITH_MLSDK
 		if (!MLHandleIsValid(Tracker))
 		{
-			UE_LOG(LogMagicLeap, Display, TEXT("Creating Planes Tracker"));
 			MLResult CreateResult = MLPlanesCreate(&Tracker);
 
 			if (CreateResult != MLResult_Ok || !MLHandleIsValid(Tracker))

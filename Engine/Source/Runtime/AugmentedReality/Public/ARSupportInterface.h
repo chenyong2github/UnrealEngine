@@ -60,6 +60,8 @@ public:
 
 	/** \see UARBlueprintLibrary::LineTraceTrackedObjects() */
 	TArray<FARTraceResult> LineTraceTrackedObjects(const FVector2D ScreenCoords, EARLineTraceChannels TraceChannels);
+	/** \see UARBlueprintLibrary::LineTraceTrackedObjects() */
+	TArray<FARTraceResult> LineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels);
 	/** \see UARBlueprintLibrary::GetAllTrackedGeometries() */
 	TArray<UARTrackedGeometry*> GetAllTrackedGeometries() const;
 	/** \see UARBlueprintLibrary::GetAllPins() */

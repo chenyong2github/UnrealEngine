@@ -56,6 +56,7 @@ protected:
 	virtual FARSessionStatus OnGetARSessionStatus() const override;
 	virtual void OnSetAlignmentTransform(const FTransform& InAlignmentTransform) override;
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels) override;
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels) override;
 	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const override;
 	virtual TArray<UARPin*> OnGetAllPins() const override;
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const override;

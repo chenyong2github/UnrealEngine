@@ -122,6 +122,25 @@ TArray<FARTraceResult> UARBlueprintLibrary::LineTraceTrackedObjects( const FVect
 	return Result;
 }
 
+TArray<FARTraceResult> UARBlueprintLibrary::LineTraceTrackedObjects3D(const FVector Start, const FVector End, bool bTestFeaturePoints, bool bTestGroundPlane, bool bTestPlaneExtents, bool bTestPlaneBoundaryPolygon)
+{
+	TArray<FARTraceResult> Result;
+
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		EARLineTraceChannels ActiveTraceChannels =
+			(bTestFeaturePoints ? EARLineTraceChannels::FeaturePoint : EARLineTraceChannels::None) |
+			(bTestGroundPlane ? EARLineTraceChannels::GroundPlane : EARLineTraceChannels::None) |
+			(bTestPlaneExtents ? EARLineTraceChannels::PlaneUsingExtent : EARLineTraceChannels::None) |
+			(bTestPlaneBoundaryPolygon ? EARLineTraceChannels::PlaneUsingBoundaryPolygon : EARLineTraceChannels::None);
+
+		Result = ARSystem->LineTraceTrackedObjects(Start, End, ActiveTraceChannels);
+	}
+
+	return Result;
+}
+
 TArray<UARTrackedGeometry*> UARBlueprintLibrary::GetAllGeometries()
 {
 	TArray<UARTrackedGeometry*> Geometries;

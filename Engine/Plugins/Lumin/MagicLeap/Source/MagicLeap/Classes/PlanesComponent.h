@@ -2,40 +2,26 @@
 
 #pragma once
 
+#if WITH_MLSDK
+#include "ml_planes.h"
+#endif //WITH_MLSDK
+
 #include "Components/SceneComponent.h"
+#include "LuminARTypes.h"
 #include "PlanesComponent.generated.h"
 
-/** Control flags for plane queries. */
-UENUM(BlueprintType)
-enum class EPlaneQueryFlags : uint8
-{
-	/** Include planes whose normal is perpendicular to gravity. */
-	Vertical,
+#if WITH_MLSDK
 
-	/** Include planes whose normal is parallel to gravity. */
-	Horizontal,
+MLPlanesQueryFlags UnrealToMLPlanesQueryFlagMap(EPlaneQueryFlags QueryFlag);
 
-	/** Include planes with arbitrary normals. */
-	Arbitrary,
+EPlaneQueryFlags MLToUnrealPlanesQueryFlagMap(MLPlanesQueryFlags QueryFlag);
 
-	/** If set, non-horizontal planes will be aligned perpendicular to gravity. */
-	OrientToGravity,
+MLPlanesQueryFlags UnrealToMLPlanesQueryFlags(const TArray<EPlaneQueryFlags>& QueryFlags);
 
-	/** If set, inner planes will be returned; if not set, outer planes will be returned. */
-	PreferInner,
+void MLToUnrealPlanesQueryFlags(uint32 QueryFlags, TArray<EPlaneQueryFlags>& OutPlaneFlags);
 
-	/** If set, holes in planar surfaces will be ignored. */
-	IgnoreHoles,
+#endif //WITH_MLSDK
 
-	/** If set, include planes semantically tagged as ceiling. */
-	Ceiling,
-
-	/** If set, include planes semantically tagged as floor. */
-	Floor,
-
-	/** If set, include planes semantically tagged as wall. */
-	Wall
-};
 
 /** Represents a plane returned from the ML-API. */
 USTRUCT(BlueprintType)
@@ -64,9 +50,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
 	TArray<EPlaneQueryFlags> PlaneFlags;
 
+	/** The Boundary of the plane in plane local space.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Planes|MagicLeap")
+	TArray<FVector> BoundaryPolygon;
+
 	/** ID of the plane result. This ID is persistent across queries */
 	UPROPERTY(BlueprintReadOnly, Category = "Planes|MagicLeap")
 	FGuid ID;
+
+	/** ID of the plane result. This ID is persistent across queries */
+	uint64 ID_64;
 };
 
 /** 

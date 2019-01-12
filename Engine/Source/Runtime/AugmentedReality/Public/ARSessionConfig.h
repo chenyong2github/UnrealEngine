@@ -224,6 +224,10 @@ public:
 	/** @see FaceTrackingUpdate */
 	UFUNCTION(BlueprintCallable, Category = "AR Settings")
 	void SetFaceTrackingUpdate(EARFaceTrackingUpdate InUpdate);
+
+
+	bool ShouldDoHorizontalPlaneDetection() const { return bHorizontalPlaneDetection; }
+	bool ShouldDoVerticalPlaneDetection() const { return bVerticalPlaneDetection; }
 	
 	const TArray<uint8>& GetSerializedARCandidateImageDatabase() const;	
 private:

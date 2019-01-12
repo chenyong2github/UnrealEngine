@@ -43,6 +43,7 @@
 #include "VulkanRHIBridge.h"
 #endif
 
+#include "LuminARModule.h"
 #include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
 
 #if WITH_MLSDK
@@ -174,9 +175,13 @@ public:
 		else
 		{
 			//initialize AR system
-			TSharedPtr<IARSystemSupport, ESPMode::ThreadSafe> ARImplementation;
+			auto ARModule = FModuleManager::LoadModulePtr<ILuminARModule>("MagicLeapAR");
+			check(ARModule);
+			ARImplementation = ARModule->CreateARImplementation();
 			LocalHMD = MakeShared<FMagicLeapHMD, ESPMode::ThreadSafe>(this, ARImplementation.Get(), bIsVDZIEnabled, bUseVulkanForZI);
 			HMD = LocalHMD;
+			ARModule->ConnectARImplementationToXRSystem(LocalHMD.Get());
+			ARModule->InitializeARImplementation();
 		}
 #endif
 		if (LocalHMD.IsValid() && !LocalHMD->IsInitialized())
@@ -307,6 +312,7 @@ private:
 	bool bUseVulkanForZI;
 	FMagicLeapAPISetup APISetup;
 	TWeakPtr<FMagicLeapHMD, ESPMode::ThreadSafe> HMD;
+	TSharedPtr<IARSystemSupport, ESPMode::ThreadSafe> ARImplementation;
 	TSharedPtr<FMagicLeapVulkanExtensions, ESPMode::ThreadSafe> VulkanExtensions;
 	TSet<IMagicLeapInputDevice*> InputDevices;
 };

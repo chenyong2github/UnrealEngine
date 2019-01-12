@@ -87,7 +87,8 @@ public:
 	 * @return a list of all the geometries that were hit, sorted by distance
 	 */
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels ) = 0;
-	
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector Start, const FVector End, EARLineTraceChannels TraceChannels ) = 0;
+
 	/** @return a TArray of all the tracked geometries known to your ar system */
 	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const = 0;
 	

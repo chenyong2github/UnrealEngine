@@ -150,6 +150,16 @@ TArray<FARTraceResult> FARSupportInterface ::LineTraceTrackedObjects(const FVect
 	return TArray<FARTraceResult>();
 }
 
+TArray<FARTraceResult> FARSupportInterface::LineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
+{
+	if (ARImplemention)
+	{
+		return ARImplemention->OnLineTraceTrackedObjects(Start, End, TraceChannels);
+	}
+	return TArray<FARTraceResult>();
+
+}
+
 TArray<UARTrackedGeometry*> FARSupportInterface ::GetAllTrackedGeometries() const
 {
 	if (ARImplemention)

@@ -682,6 +682,13 @@ TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects( const FVect
 	return Results;
 }
 
+TArray<FARTraceResult> FAppleARKitSystem::OnLineTraceTrackedObjects(const FVector Start, const FVector End, EARLineTraceChannels TraceChannels)
+{
+	UE_LOG(LogAppleARKit, Warning, TEXT("FAppleARKitSystem::OnLineTraceTrackedObjects(Start, End, TraceChannels) is currently unsupported.  No results will be returned."))
+	TArray<FARTraceResult> EmptyResults;
+	return EmptyResults;
+}
+
 TArray<UARTrackedGeometry*> FAppleARKitSystem::OnGetAllTrackedGeometries() const
 {
 	TArray<UARTrackedGeometry*> Geometries;
