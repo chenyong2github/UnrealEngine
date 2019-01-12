@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
+#include "UObject/Package.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(BodyStateLog, Log, All);
 
