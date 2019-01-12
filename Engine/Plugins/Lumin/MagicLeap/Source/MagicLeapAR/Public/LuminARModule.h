@@ -4,6 +4,9 @@
 
 #include "Modules/ModuleManager.h"
 
+class IARSystemSupport;
+class FXRTrackingSystemBase;
+
 /**
  * The public interface to this module.
  */
