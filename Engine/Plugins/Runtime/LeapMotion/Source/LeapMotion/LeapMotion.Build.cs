@@ -198,7 +198,7 @@ namespace UnrealBuildTool.Rules
 
 				if (IsEnginePlugin())
 				{
-					string PluginDLLPath = Path.Combine(BinariesPath, PlatformString, "LeapC.dll");
+					//string PluginDLLPath = Path.Combine(BinariesPath, PlatformString, "LeapC.dll");
 
 					//System.Console.WriteLine("Engine plugin detected, using dll at " + PluginDLLPath);
 
