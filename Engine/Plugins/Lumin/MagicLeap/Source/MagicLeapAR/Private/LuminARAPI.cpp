@@ -13,7 +13,10 @@
 #include "HeadMountedDisplayFunctionLibrary.h"
 
 #if WITH_MLSDK
+#pragma warning( push )
+#pragma warning( disable : 4201)
 #include "ml_planes.h"
+#pragma warning( pop ) 
 #endif //WITH_MLSDK
 
 namespace
