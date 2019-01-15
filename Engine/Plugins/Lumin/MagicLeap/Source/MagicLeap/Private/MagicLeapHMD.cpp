@@ -43,7 +43,6 @@
 #include "VulkanRHIBridge.h"
 #endif
 
-#include "LuminARModule.h"
 #include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
 
 #if WITH_MLSDK

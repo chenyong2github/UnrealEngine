@@ -52,7 +52,6 @@ namespace UnrealBuildTool.Rules
 					"MagicLeapHelperVulkan",
 					"LuminRuntimeSettings",
 					"MagicLeapSecureStorage",
-					"MagicLeapAR",
 				}
 			);
 

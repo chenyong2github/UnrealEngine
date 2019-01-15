@@ -168,34 +168,3 @@ enum class ELuminARLineTraceChannel : uint8
 ENUM_CLASS_FLAGS(ELuminARLineTraceChannel);
 
 
-/** Control flags for plane queries. */
-UENUM(BlueprintType)
-enum class EPlaneQueryFlags : uint8
-{
-	/** Include planes whose normal is perpendicular to gravity. */
-	Vertical,
-
-	/** Include planes whose normal is parallel to gravity. */
-	Horizontal,
-
-	/** Include planes with arbitrary normals. */
-	Arbitrary,
-
-	/** If set, non-horizontal planes will be aligned perpendicular to gravity. */
-	OrientToGravity,
-
-	/** If set, inner planes will be returned; if not set, outer planes will be returned. */
-	PreferInner,
-
-	/** If set, holes in planar surfaces will be ignored. */
-	IgnoreHoles,
-
-	/** If set, include planes semantically tagged as ceiling. */
-	Ceiling,
-
-	/** If set, include planes semantically tagged as floor. */
-	Floor,
-
-	/** If set, include planes semantically tagged as wall. */
-	Wall
-};

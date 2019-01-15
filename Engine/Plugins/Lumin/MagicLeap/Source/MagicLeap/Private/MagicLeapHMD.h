@@ -25,6 +25,23 @@ ML_INCLUDES_START
 ML_INCLUDES_END
 #endif //WITH_MLSDK
 
+class IARSystemSupport;
+class FXRTrackingSystemBase;
+
+/**
+ * The public interface to this module.
+ */
+class ILuminARModule : public IModuleInterface
+{
+public:
+	//create for mutual connection (regardless of construction order)
+	virtual TSharedPtr<IARSystemSupport, ESPMode::ThreadSafe> CreateARImplementation() = 0;
+	//Now connect (regardless of connection order)
+	virtual void ConnectARImplementationToXRSystem(FXRTrackingSystemBase* InXRTrackingSystem) = 0;
+	//Now initialize fully connected systems
+	virtual void InitializeARImplementation() = 0;
+};
+
 /**
   * MagicLeap Head Mounted Display
   */

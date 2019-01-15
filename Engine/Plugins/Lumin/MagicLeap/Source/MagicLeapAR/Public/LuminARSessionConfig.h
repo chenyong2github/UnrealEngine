@@ -5,6 +5,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "LuminARTypes.h"
+#include "PlanesComponent.h"
 #include "ARSessionConfig.h"
 
 #include "LuminARSessionConfig.generated.h"
