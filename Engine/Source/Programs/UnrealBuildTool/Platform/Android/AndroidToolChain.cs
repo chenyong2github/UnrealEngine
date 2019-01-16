@@ -1384,7 +1384,6 @@ namespace UnrealBuildTool
 						{
 							if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 							{
-								CompileAction.bIsUsingPCH = true;
 								FileItem ArchPrecompiledHeaderFile = FileItem.GetItemByPath(InlineArchName(BasePCHName, Arch, GPUArchitecture) + PCHExtension);
 								CompileAction.PrerequisiteItems.Add(ArchPrecompiledHeaderFile);
 							}

@@ -121,11 +121,6 @@ namespace UnrealBuildTool
 		public bool bIsGCCCompiler = false;
 
 		/// <summary>
-		/// Whether the action is using a pre-compiled header to speed it up.
-		/// </summary>
-		public bool bIsUsingPCH = false;
-
-		/// <summary>
 		/// Whether we should log this action, whether executed locally or remotely.  This is useful for actions that take time
 		/// but invoke tools without any console output.
 		/// </summary>
@@ -180,7 +175,6 @@ namespace UnrealBuildTool
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
 			bIsGCCCompiler = Reader.ReadBool();
-			bIsUsingPCH = Reader.ReadBool();
 			bShouldOutputStatusDescription = Reader.ReadBool();
 			bProducesImportLibrary = Reader.ReadBool();
 			PrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem());
@@ -204,7 +198,6 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bCanExecuteRemotely);
 			Writer.WriteBool(bCanExecuteRemotelyWithSNDBS);
 			Writer.WriteBool(bIsGCCCompiler);
-			Writer.WriteBool(bIsUsingPCH);
 			Writer.WriteBool(bShouldOutputStatusDescription);
 			Writer.WriteBool(bProducesImportLibrary);
 			Writer.WriteList(PrerequisiteItems, Item => Writer.WriteFileItem(Item));
