@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -34,6 +34,7 @@ public class WebBrowser : ModuleRules
 				{
 					"WebBrowserTexture",
 					"Engine",
+					"Launch"
 				}
 			);
 
@@ -76,6 +77,11 @@ public class WebBrowser : ModuleRules
 			Target.bCompileAgainstEngine)
 		{
 			PrivateDependencyModuleNames.Add("Engine");
+		}
+
+		if(Target.Platform == UnrealTargetPlatform.Lumin)
+		{
+			PrecompileForTargets = ModuleRules.PrecompileTargetsType.None;
 		}
 
 		bEnableShadowVariableWarnings = false;

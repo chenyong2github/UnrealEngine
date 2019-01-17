@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -81,12 +81,12 @@ public:
 
 	// used by external classes to duplicate a message into a channel that didn't otherwise receive it
 	void AddMirroredMessage(FSocialChatMessageRef NewMessage);
+	void AddSystemMessage(const FText& MessageBody);
 protected:
 
 	IOnlineChatPtr GetChatInterface() const;
 	void SanitizeMessage(FString& RawMessage) const;
 
-	void AddSystemMessage(const FString& MessageBody);
 	void AddMessageInternal(FSocialChatMessageRef NewMessage);
 	
 	FText ChannelDisplayName;

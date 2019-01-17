@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -82,8 +82,11 @@ struct FLevelSequencePlayerSnapshot
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
 	UCameraComponent* CameraComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "General")
 	FLevelSequenceSnapshotSettings Settings;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "General")
+	ULevelSequence* ActiveShot;
 
 	UPROPERTY()
 	FMovieSceneSequenceID ShotID;

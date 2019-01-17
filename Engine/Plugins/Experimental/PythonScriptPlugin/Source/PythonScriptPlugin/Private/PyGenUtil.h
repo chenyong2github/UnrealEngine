@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -75,7 +75,7 @@ namespace PyGenUtil
 		}
 		static FORCEINLINE uint32 GetKeyHash(const FString& Key)
 		{
-			return FLocKey::ProduceHash(Key);
+			return FCrc::StrCrc32<TCHAR>(*Key);
 		}
 	};
 
@@ -314,6 +314,7 @@ namespace PyGenUtil
 		InlineRightShift,	// >>=
 		LeftShift,			// <<
 		InlineLeftShift,	// <<=
+		Negated,			// -obj prefix operator
 		Num,
 	};
 

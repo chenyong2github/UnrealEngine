@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,6 +15,10 @@ class VARIANTMANAGERCONTENT_API UPropertyValueVisibility : public UPropertyValue
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	// Utility functions that set/read the recorded data
+	virtual void SetVisibility(bool bVisible);
+	virtual bool GetVisibility();
 
 	virtual void ApplyDataToResolvedObject() override;
 };

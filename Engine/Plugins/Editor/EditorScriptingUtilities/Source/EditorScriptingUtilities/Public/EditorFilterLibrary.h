@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -40,9 +40,9 @@ public:
 	 * @return	The filtered list.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Utilities | Filter", meta = (DisplayName="Filter by Class", DeterminesOutputType = "ObjectClass"))
-		static TArray<class UObject*> ByClass(const TArray<class UObject*>& TargetArray
-			, TSubclassOf<class UObject> ObjectClass
-			, EEditorScriptingFilterType FilterType = EEditorScriptingFilterType::Include);
+	static TArray<class UObject*> ByClass(const TArray<class UObject*>& TargetArray
+		, TSubclassOf<class UObject> ObjectClass
+		, EEditorScriptingFilterType FilterType = EEditorScriptingFilterType::Include);
 
 	/**
 	 * Filter the array based on the Object's ID name.

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -64,6 +64,8 @@ struct CORE_API FFbxErrors
 	static FName Generic_Mesh_TooManyLODs;
 
 	static FName Generic_Mesh_TangentsComputeError;
+
+	static FName Generic_Mesh_NoReductionModuleAvailable;
 
 	/** Static Mesh **/
 	static FName StaticMesh_TooManyMaterials;

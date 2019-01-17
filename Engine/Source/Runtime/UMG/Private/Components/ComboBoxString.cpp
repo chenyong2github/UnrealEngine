@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ComboBoxString.h"
 #include "UObject/EditorObjectVersion.h"
@@ -64,6 +64,13 @@ void UComboBoxString::ReleaseSlateResources(bool bReleaseChildren)
 
 	MyComboBox.Reset();
 	ComboBoxContent.Reset();
+}
+
+void UComboBoxString::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 }
 
 void UComboBoxString::PostLoad()

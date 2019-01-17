@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -221,9 +221,12 @@ protected:
 			KeyMode == ESequencerKeyMode::ManualKeyForced ||
 			AllowEditsMode == EAllowEditsMode::AllowSequencerEditsOnly;
 
+		bool bShouldPlaceInChildFolder = KeyMode == ESequencerKeyMode::AutoKey;
+		const FName CreatedFolderName = bShouldPlaceInChildFolder ? FName(TEXT("Autotracked Changes")) : NAME_None;
+
 		for ( UObject* Object : ObjectsToKey )
 		{
-			FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject( Object, bCreateHandle );
+			FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject( Object, bCreateHandle, CreatedFolderName);
 			FGuid ObjectHandle = HandleResult.Handle;
 			KeyPropertyResult.bHandleCreated = HandleResult.bWasCreated;
 

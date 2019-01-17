@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -590,7 +592,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return OutReason - If the Paths was invalid then this will contain the failure reason
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-		static void ValidatePath(const FString& InPath, bool& bDidSucceed, FText& OutReason);
+	static void ValidatePath(const FString& InPath, bool& bDidSucceed, FText& OutReason);
 
 	/**
 	* Parses a fully qualified or relative filename into its components (filename, path, extension).
@@ -600,7 +602,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param	Extension	[out] receives the value of the extension portion of the input string
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-		static void Split(const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart);
+	static void Split(const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart);
 
 	/** Gets the relative path to get from BaseDir to RootDirectory  */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")

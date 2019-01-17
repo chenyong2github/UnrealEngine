@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 // .
 
 #include "CoreMinimal.h"
@@ -1468,7 +1468,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input,FShaderCom
 		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
 		IsES2Platform(Version) ? HSF_InvalidFrequency : HSF_GeometryShader,
-		bIsSM5 ? HSF_ComputeShader : HSF_InvalidFrequency
+		RHISupportsComputeShaders(Input.Target.GetPlatform()) ? HSF_ComputeShader : HSF_InvalidFrequency
 	};
 
 	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];

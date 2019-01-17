@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /**
  * MaterialParameterCollection.h - defines an asset that has a list of parameters, which can be referenced by any material and updated efficiently at runtime
@@ -90,7 +90,8 @@ class UMaterialParameterCollection : public UObject
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void PreEditChange(class FEditPropertyChain& PropertyAboutToChange) override;
+	using Super::PreEditChange;
+	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;

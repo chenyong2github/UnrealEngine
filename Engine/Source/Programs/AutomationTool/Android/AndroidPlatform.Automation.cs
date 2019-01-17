@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -66,6 +66,8 @@ public class AndroidPlatform : Platform
 	private static string EngineMajorVersion = "4";
 	private static string EngineMinorVersion = "0";
 	private static string EnginePatchVersion = "0";
+
+	#pragma warning disable CS0414
 	private static string EngineChangelist = "0";
 
 	private static string ReadEngineVersion(string EngineDirectory)
@@ -99,6 +101,9 @@ public class AndroidPlatform : Platform
 
 		return EngineMajorVersion + "." + EngineMinorVersion + "." + EnginePatchVersion;
 	}
+
+	#pragma warning restore CS0414
+
 
 	private static string GetFinalSymbolizedSODirectory(string ApkName, DeploymentContext SC, string Architecture, string GPUArchitecture)
 	{

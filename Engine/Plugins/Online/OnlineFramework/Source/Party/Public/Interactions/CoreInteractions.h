@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "SocialInteractionMacros.h"
@@ -8,7 +8,9 @@
  */
 
 DECLARE_SOCIAL_INTERACTION_EXPORT(PARTY_API, AddFriend);
+DECLARE_SOCIAL_INTERACTION_EXPORT(PARTY_API, AddPlatformFriend);
 DECLARE_SOCIAL_INTERACTION_EXPORT(PARTY_API, RemoveFriend);
+
 DECLARE_SOCIAL_INTERACTION_EXPORT(PARTY_API, AcceptFriendInvite);
 DECLARE_SOCIAL_INTERACTION_EXPORT(PARTY_API, RejectFriendInvite);
 

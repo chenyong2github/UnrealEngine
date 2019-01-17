@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Input/SEditableText.h"
 #include "Framework/Text/TextEditHelper.h"
@@ -443,7 +443,7 @@ void SEditableText::SynchronizeTextStyle()
 	if (bTextStyleChanged)
 	{
 		EditableTextLayout->SetTextStyle(NewTextStyle);
-		EditableTextLayout->Refresh();
+		EditableTextLayout->ForceRefreshTextLayout(EditableTextLayout->GetEditableText());
 	}
 }
 

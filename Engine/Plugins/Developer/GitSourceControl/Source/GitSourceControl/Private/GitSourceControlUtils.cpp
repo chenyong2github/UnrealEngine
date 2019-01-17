@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GitSourceControlUtils.h"
 #include "GitSourceControlCommand.h"
@@ -334,9 +334,9 @@ bool FindRootDirectory(const FString& InPath, FString& OutRepositoryRoot)
 
 	while(!bFound && !OutRepositoryRoot.IsEmpty())
 	{
-		// Look for the ".git" subdirectory present at the root of every Git repository
+		// Look for the ".git" subdirectory (or file) present at the root of every Git repository
 		PathToGitSubdirectory = OutRepositoryRoot / TEXT(".git");
-		bFound = IFileManager::Get().DirectoryExists(*PathToGitSubdirectory);
+		bFound = IFileManager::Get().DirectoryExists(*PathToGitSubdirectory) || IFileManager::Get().FileExists(*PathToGitSubdirectory);
 		if(!bFound)
 		{
 			int32 LastSlashIndex;

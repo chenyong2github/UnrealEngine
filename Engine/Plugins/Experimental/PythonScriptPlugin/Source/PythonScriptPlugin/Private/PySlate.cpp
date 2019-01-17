@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PySlate.h"
 #include "PyGIL.h"
@@ -9,6 +9,7 @@
 #include "PyWrapperTypeRegistry.h"
 
 #include "UObject/Package.h"
+#include "UObject/UObjectThreadContext.h"
 #include "Framework/Application/SlateApplication.h"
 
 #if PLATFORM_WINDOWS
@@ -27,6 +28,12 @@ FPyDelegateHandle* RegisterSlateTickCallback(FSlateApplication::FSlateTickEvent&
 	FPyObjectPtr PyCallable = FPyObjectPtr::NewReference(InPyCallable);
 	FDelegateHandle TickEventDelegateHandle = InSlateTickEvent.AddLambda([PyCallable](const float InDeltaTime) mutable
 	{
+		// Do not tick into Python when it may not be safe to call back into C++
+		if (GIsSavingPackage || IsGarbageCollecting() || FUObjectThreadContext::Get().IsRoutingPostLoad)
+		{
+			return;
+		}
+
 		FPyScopedGIL GIL;
 
 		FPyObjectPtr PyArgs = FPyObjectPtr::StealReference(PyTuple_New(1));

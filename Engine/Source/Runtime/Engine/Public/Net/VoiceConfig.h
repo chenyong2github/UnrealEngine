@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,7 +37,7 @@ namespace MicSilenceDetectionConfig
 	static const Audio::EPeakMode::Type LevelDetectionMode = Audio::EPeakMode::Type::Peak;
 	static const bool IsAnalog = false;
 
-	static const int32 PacketBufferSlack = 6;
+	static const int32 PacketBufferSlack = 20;
 }
 
 class USoundAttenuation;

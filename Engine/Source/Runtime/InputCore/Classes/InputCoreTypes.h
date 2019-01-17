@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,7 +37,7 @@ enum class EControllerHand : uint8
 	ControllerHand_Count UMETA(Hidden, DisplayName = "<INVALID>"),
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType,Blueprintable)
 struct INPUTCORE_API FKey
 {
 	GENERATED_USTRUCT_BODY()

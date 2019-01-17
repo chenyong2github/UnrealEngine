@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SocialChatManager.h"
 #include "User/SocialUser.h"
@@ -158,6 +158,11 @@ void USocialChatManager::FocusChatChannel(USocialUser& InChannelUser)
 void USocialChatManager::FocusChatChannel(USocialChatChannel& InChannel)
 {
 	OnChannelFocusRequestedEvent.Broadcast(InChannel);
+}
+
+void USocialChatManager::DisplayChatChannel(USocialChatChannel& InChannel)
+{
+	OnChannelDisplayRequestedEvent.Broadcast(InChannel);
 }
 
 TSubclassOf<USocialChatRoom> USocialChatManager::GetClassForChatRoom(ESocialChannelType Type) const

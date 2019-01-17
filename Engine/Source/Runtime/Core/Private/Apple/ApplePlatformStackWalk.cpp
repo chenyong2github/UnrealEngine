@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ApplePlatformStackWalk.mm: Apple implementations of stack walk functions
@@ -7,10 +7,12 @@
 #include "Apple/ApplePlatformStackWalk.h"
 #include "Apple/ApplePlatformSymbolication.h"
 #include "Containers/StringConv.h"
+#include "Apple/PreAppleSystemHeaders.h"
 #include <execinfo.h>
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 #include <cxxabi.h>
+#include "Apple/PostAppleSystemHeaders.h"
 #include "CoreGlobals.h"
 
 #if PLATFORM_MAC

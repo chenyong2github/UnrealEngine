@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Canvas.cpp: Unreal canvas rendering.
@@ -404,15 +404,11 @@ bool FCanvasBatchedElementRenderItem::Render_RenderThread(FRHICommandListImmedia
 			Canvas->IsHitTesting(),
 			Gamma
 			);
-
-		if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
-		{
-			// delete data since we're done rendering it
-			delete Data;
-		}
 	}
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 	{
+		// delete data since we're done rendering it
+		delete Data;
 		Data = NULL;
 	}
 	return bDirty;

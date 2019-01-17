@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTasksComponent.h"
 #include "UObject/Package.h"
@@ -179,12 +179,14 @@ void UGameplayTasksComponent::OnRep_SimulatedTasks()
 		if (SimulatedTask && SimulatedTask->IsTickingTask() && TickingTasks.Contains(SimulatedTask) == false)
 		{
 			SimulatedTask->InitSimulatedTask(*this);
-			if (TickingTasks.Num() == 0)
+
+			TickingTasks.Add(SimulatedTask);
+
+			// If this is our first ticking task, set this component as active so it begins ticking
+			if (TickingTasks.Num() == 1)
 			{
 				UpdateShouldTick();
 			}
-
-			TickingTasks.Add(SimulatedTask);
 		}
 	}
 }

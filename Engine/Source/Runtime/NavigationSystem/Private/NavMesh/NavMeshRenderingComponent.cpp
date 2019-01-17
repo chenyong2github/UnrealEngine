@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	NavMeshRenderingComponent.cpp: A component that renders a nav mesh.
@@ -1129,7 +1129,7 @@ namespace
 			return true;
 		}
 		
-		for (FEditorViewportClient* CurrentViewport : GEditor->AllViewportClients)
+		for (FEditorViewportClient* CurrentViewport : GEditor->GetAllViewportClients())
 		{
 			if (CurrentViewport && CurrentViewport->IsVisible())
 			{
@@ -1164,7 +1164,7 @@ bool UNavMeshRenderingComponent::IsNavigationShowFlagSet(const UWorld* World)
 		if (bShowNavigation == false)
 		{
 			// we have to check all viewports because we can't to distinguish between SIE and PIE at this point.
-			for (FEditorViewportClient* CurrentViewport : GEditor->AllViewportClients)
+			for (FEditorViewportClient* CurrentViewport : GEditor->GetAllViewportClients())
 			{
 				if (CurrentViewport && CurrentViewport->EngineShowFlags.Navigation)
 				{

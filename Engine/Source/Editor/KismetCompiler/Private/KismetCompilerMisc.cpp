@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	KismetCompilerMisc.cpp
@@ -121,6 +121,11 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 	else if (PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		UIntProperty* SpecificProperty = Cast<UIntProperty>(TestProperty);
+		bTypeMismatch = (SpecificProperty == nullptr);
+	}
+	else if (PinCategory == UEdGraphSchema_K2::PC_Int64)
+	{
+		UInt64Property* SpecificProperty = Cast<UInt64Property>(TestProperty);
 		bTypeMismatch = (SpecificProperty == nullptr);
 	}
 	else if (PinCategory == UEdGraphSchema_K2::PC_Name)
@@ -1025,6 +1030,11 @@ UProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(UObject* PropertySc
 	else if (PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		NewProperty = NewObject<UIntProperty>(PropertyScope, ValidatedPropertyName, ObjectFlags);
+		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
+	}
+	else if (PinCategory == UEdGraphSchema_K2::PC_Int64)
+	{
+		NewProperty = NewObject<UInt64Property>(PropertyScope, ValidatedPropertyName, ObjectFlags);
 		NewProperty->SetPropertyFlags(CPF_HasGetValueTypeHash);
 	}
 	else if (PinCategory == UEdGraphSchema_K2::PC_Float)

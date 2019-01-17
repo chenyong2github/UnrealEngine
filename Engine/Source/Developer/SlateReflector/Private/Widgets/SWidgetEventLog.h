@@ -1,6 +1,11 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+
+#include "Debugging/SlateDebugging.h"
+
+#if WITH_SLATE_DEBUGGING
 
 #include "CoreMinimal.h"
 #include "Styling/SlateColor.h"
@@ -8,7 +13,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Debugging/SlateDebugging.h"
 
 /**
  * 
@@ -30,3 +34,5 @@ private:
 	void OnInputEvent(const FSlateDebuggingInputEventArgs& EventArgs);
 	void OnFocusEvent(const FSlateDebuggingFocusEventArgs& EventArgs);
 };
+
+#endif // WITH_SLATE_DEBUGGING

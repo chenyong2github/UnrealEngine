@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -266,6 +266,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light", meta=(DisplayName = "Set IES Texture"))
 	void SetIESTexture(UTextureLightProfile* NewValue);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light", meta=(DisplayName = "Set Use IES Intensity"))
+	void SetUseIESBrightness(bool bNewValue);
+
+	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light", meta=(DisplayName = "Set IES Intensity Scale"))
+	void SetIESBrightnessScale(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetShadowBias(float NewValue);

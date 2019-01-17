@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 // Re-enable warnings
 THIRD_PARTY_INCLUDES_END
@@ -33,6 +33,8 @@ THIRD_PARTY_INCLUDES_END
 #undef GetProp
 #undef SetProp
 #undef GetFileAttributes
+#undef ReportEvent
+#undef GetClassName
 #undef GetClassInfo
 #undef IMediaEventSink
 

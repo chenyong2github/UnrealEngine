@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 	
 #include "CoreMinimal.h"
 #include "Misc/App.h"
@@ -243,13 +243,6 @@ int32 WINAPI WinMain( _In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstan
 		GEnableInnerException = false;
 	}
 #endif	
-
-#if WINVER > 0x502	// Windows Error Reporting is not supported on Windows XP
-	if (FParse::Param(CmdLine, TEXT("useautoreporter")))
-#endif
-	{
-		GUseCrashReportClient = false;
-	}
 
 #if UE_BUILD_DEBUG
 	if( true && !GAlwaysReportCrash )

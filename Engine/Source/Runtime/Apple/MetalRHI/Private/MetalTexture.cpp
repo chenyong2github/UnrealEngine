@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
  MetalVertexBuffer.cpp: Metal texture RHI implementation.
@@ -78,7 +78,7 @@ static bool IsRenderTarget(uint32 Flags)
 static mtlpp::TextureUsage ConvertFlagsToUsage(uint32 Flags)
 {
 	NSUInteger Usage = mtlpp::TextureUsage::Unknown;
-	if(Flags & (TexCreate_ShaderResource|TexCreate_ResolveTargetable))
+    if(Flags & (TexCreate_ShaderResource|TexCreate_ResolveTargetable|TexCreate_DepthStencilTargetable))
 	{
 		Usage |= mtlpp::TextureUsage::ShaderRead;
 		Usage |= mtlpp::TextureUsage::PixelFormatView;

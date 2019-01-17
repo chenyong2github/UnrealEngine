@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/StringTableCore.h"
 #include "Misc/ScopeLock.h"
@@ -524,7 +524,8 @@ void FStringTableRedirects::InitStringTableRedirects()
 	{
 		for (FConfigSection::TIterator It(*CoreStringTableSection); It; ++It)
 		{
-			if (It.Key() == TEXT("StringTableRedirects"))
+			static const FName StringTableRedirectsName = TEXT("StringTableRedirects");
+			if (It.Key() == StringTableRedirectsName)
 			{
 				const FString& ConfigValue = It.Value().GetValue();
 

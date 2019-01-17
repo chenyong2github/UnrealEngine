@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,7 +22,7 @@ struct FTickContext;
 //
 //	EInputEvent
 //
-UENUM(meta=(ScriptName="InputEventType"))
+UENUM( BlueprintType, meta=(ScriptName="InputEventType"))
 enum EInputEvent
 {
 	IE_Pressed              =0,
@@ -743,7 +743,7 @@ namespace EDemoPlayFailure
 		switch (FailureType)
 		{
 		case Generic:
-			return TEXT("Gneric");
+			return TEXT("Generic");
 		case DemoNotFound:
 			return TEXT("DemoNotFound");
 		case Corrupt:

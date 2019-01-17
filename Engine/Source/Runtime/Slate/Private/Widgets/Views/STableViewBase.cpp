@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Views/STableViewBase.h"
 #include "Rendering/DrawElements.h"
@@ -868,6 +868,8 @@ void STableViewBase::RequestLayoutRefresh()
 	{
 		ItemsPanel->SetRefreshPending(true);
 	}
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void STableViewBase::ScrollToTop()

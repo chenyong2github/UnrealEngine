@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SSequencerTreeView.h"
 #include "SSequencerTrackLane.h"
@@ -791,7 +791,7 @@ TSharedRef<ITableRow> SSequencerTreeView::OnGenerateRow(FDisplayNodeRef InDispla
 			TAttribute<TRange<double>> ViewRange = FAnimatedRange::WrapAttribute( TAttribute<FAnimatedRange>::Create(TAttribute<FAnimatedRange>::FGetter::CreateSP(&SequencerNodeTree->GetSequencer(), &FSequencer::GetViewRange)) );
 
 			TrackLane = SNew(SSequencerTrackLane, SectionAuthority.ToSharedRef(), SharedThis(this))
-			.IsEnabled(!InDisplayNode->GetSequencer().IsReadOnly())
+			//.IsEnabled(!InDisplayNode->GetSequencer().IsReadOnly())
 			[
 				SectionAuthority->GenerateWidgetForSectionArea(ViewRange)
 			];

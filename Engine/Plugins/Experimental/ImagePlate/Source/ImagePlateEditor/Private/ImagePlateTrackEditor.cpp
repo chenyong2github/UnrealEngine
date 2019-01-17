@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ImagePlateTrackEditor.h"
 #include "ImagePlateFileSequence.h"
@@ -397,7 +397,7 @@ TSharedPtr<SWidget> FImagePlateTrackEditor::BuildOutlinerEditWidget(const FGuid&
 		return Picker;
 	};
 
-	return FSequencerUtilities::MakeAddButton(LOCTEXT("AddImagePlateSection_Text", "Image Sequence"), FOnGetContent::CreateLambda(CreatePicker), Params.NodeIsHovered);
+	return FSequencerUtilities::MakeAddButton(LOCTEXT("AddImagePlateSection_Text", "Image Sequence"), FOnGetContent::CreateLambda(CreatePicker), Params.NodeIsHovered, GetSequencer());
 }
 
 void FImagePlateTrackEditor::AddNewSection(const FAssetData& AssetData, UMovieSceneImagePlateTrack* Track)

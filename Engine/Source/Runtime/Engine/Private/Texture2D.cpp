@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Texture2D.cpp: Implementation of UTexture2D.
@@ -964,6 +964,12 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 	{
 		return true;
 	}
+
+	if (GIsEditor && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
+	{
+		return true;
+	}
+
 	return false;
 }
 

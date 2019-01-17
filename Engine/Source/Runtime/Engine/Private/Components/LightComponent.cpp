@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	LightComponent.cpp: LightComponent implementation.
@@ -947,6 +947,26 @@ void ULightComponent::SetIESTexture(UTextureLightProfile* NewValue)
 		&& IESTexture != NewValue)
 	{
 		IESTexture = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void ULightComponent::SetUseIESBrightness(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bUseIESBrightness != bNewValue)
+	{
+		bUseIESBrightness = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void ULightComponent::SetIESBrightnessScale(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& IESBrightnessScale != NewValue)
+	{
+		IESBrightnessScale = NewValue;
 		MarkRenderStateDirty();
 	}
 }

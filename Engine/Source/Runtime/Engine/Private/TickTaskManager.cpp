@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	TickTaskManager.cpp: Manager for ticking tasks
@@ -2091,6 +2091,12 @@ struct FTestTickFunction : public FTickFunction
 	virtual FString DiagnosticMessage() override
 	{
 		return FString(TEXT("test"));
+	}
+
+	/** Function used to describe this tick for active tick reporting. **/
+	virtual FName DiagnosticContext(bool bDetailed) override
+	{
+		return FName(TEXT("test"));
 	}
 };
 

@@ -1,7 +1,8 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Unix/UnixPlatformProcess.h"
 #include "Unix/UnixPlatformCrashContext.h"
+#include "Unix/UnixPlatformRealTimeSignals.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/StringConv.h"
 #include "Logging/LogMacros.h"
@@ -1193,8 +1194,6 @@ void FUnixPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool Kill
  */
 FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 {
-#define WAIT_AND_FORK_QUEUE_SIGNAL SIGRTMIN + 1
-#define WAIT_AND_FORK_RESPONSE_SIGNAL SIGRTMIN + 2
 #define WAIT_AND_FORK_QUEUE_LENGTH 4096
 #define WAIT_AND_FORK_PARENT_SLEEP_DURATION 10
 #define WAIT_AND_FORK_CHILD_SPAWN_DELAY 0.125

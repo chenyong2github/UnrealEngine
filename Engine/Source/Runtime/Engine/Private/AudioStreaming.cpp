@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 AudioStreaming.cpp: Implementation of audio streaming classes.
@@ -303,7 +303,7 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 			// returns.
 			PendingChunkChangeRequestStatus.Increment();
 
-			EAsyncIOPriority AsyncIOPriority = AIOP_High;
+			EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
 
 			// Load and decompress async.
 #if WITH_EDITORONLY_DATA

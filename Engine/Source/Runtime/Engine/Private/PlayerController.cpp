@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/PlayerController.h"
 #include "Misc/PackageName.h"
@@ -168,7 +168,7 @@ bool APlayerController::DestroyNetworkActorHandled()
 		if (C->Channels[0] && C->State != USOCK_Closed)
 		{
 			C->bPendingDestroy = true;
-			C->Channels[0]->Close();
+			C->Channels[0]->Close(EChannelCloseReason::Destroyed);
 		}
 		return true;
 	}

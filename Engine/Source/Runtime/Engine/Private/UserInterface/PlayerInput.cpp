@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PlayerInput.cpp: Unreal input system.
@@ -510,7 +510,10 @@ void UPlayerInput::InvertAxis(const FName AxisName)
 		{
 			for (int32 InvertIndex = InvertedAxis.Num() - 1; InvertIndex >= 0; --InvertIndex)
 			{
-				InvertedAxis.RemoveAtSwap(InvertIndex, 1, false);
+				if (InvertedAxis[InvertIndex] == AxisName)
+				{
+					InvertedAxis.RemoveAtSwap(InvertIndex, 1, false);
+				}
 			}
 		}
 	}

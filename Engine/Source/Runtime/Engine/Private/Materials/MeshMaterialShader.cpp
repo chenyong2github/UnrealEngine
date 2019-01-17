@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MeshMaterialShader.cpp: Mesh material shader implementation.
@@ -27,6 +27,13 @@ static inline bool ShouldCacheMeshShader(const FMeshMaterialShaderType* ShaderTy
 		Material->ShouldCache(Platform, ShaderType, InVertexFactoryType) &&
 		InVertexFactoryType->ShouldCache(Platform, Material, ShaderType);
 }
+
+#if PLATFORM_WINDOWS && defined(__clang__)
+void FMeshMaterialShader::ValidateAfterBind()
+{
+	checkfSlow(PassUniformBuffer.IsInitialized(), TEXT("FMeshMaterialShader must bind a pass uniform buffer, even if it is just FSceneTexturesUniformParameters: %s"), GetType()->GetName());
+}
+#endif
 
 /**
  * Enqueues a compilation for a new shader of this type.

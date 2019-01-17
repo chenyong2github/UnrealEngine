@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRig.h"
 #include "GameFramework/Actor.h"
@@ -47,6 +47,8 @@ UWorld* UControlRig::GetWorld() const
 
 void UControlRig::Initialize()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Initialize);
+
 	// initialize hierarchy refs
 	// @todo re-think
 	{

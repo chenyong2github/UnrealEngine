@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1444,10 +1444,10 @@ private:
 
 public:
 	/** Adds an inputcomponent to the top of the input stack. */
-	void PushInputComponent(UInputComponent* Input);
+	virtual void PushInputComponent(UInputComponent* Input);
 
 	/** Removes given inputcomponent from the input stack (regardless of if it's the top, actually). */
-	bool PopInputComponent(UInputComponent* Input);
+	virtual bool PopInputComponent(UInputComponent* Input);
 
 	/** Flushes the current key state. */
 	virtual void FlushPressedKeys();

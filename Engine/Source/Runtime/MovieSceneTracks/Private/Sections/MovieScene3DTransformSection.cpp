@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieScene3DTransformSection.h"
 #include "UObject/StructOnScope.h"
@@ -303,6 +303,13 @@ void UMovieScene3DTransformSection::Serialize(FArchive& Ar)
 	{
 		UpdateChannelProxy();
 	}
+}
+
+void UMovieScene3DTransformSection::PostEditImport()
+{
+	Super::PostEditImport();
+
+	UpdateChannelProxy();
 }
 
 FMovieSceneTransformMask UMovieScene3DTransformSection::GetMask() const

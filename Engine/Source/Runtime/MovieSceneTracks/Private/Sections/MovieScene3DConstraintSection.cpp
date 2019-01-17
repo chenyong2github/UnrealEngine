@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieScene3DConstraintSection.h"
 #include "MovieSceneObjectBindingID.h"
@@ -8,6 +8,13 @@ UMovieScene3DConstraintSection::UMovieScene3DConstraintSection( const FObjectIni
 	: Super( ObjectInitializer )
 { }
 
+void UMovieScene3DConstraintSection::SetConstraintId(const FGuid& InConstraintId, const FMovieSceneSequenceID& SequenceID)
+{
+	if (TryModify())
+	{
+		SetConstraintBindingID(FMovieSceneObjectBindingID(InConstraintId, SequenceID, EMovieSceneObjectBindingSpace::Root)); //use root if specifying binding
+	}
+}
 
 void UMovieScene3DConstraintSection::SetConstraintId(const FGuid& InConstraintId)
 {
@@ -23,6 +30,11 @@ void UMovieScene3DConstraintSection::OnBindingsUpdated(const TMap<FGuid, FGuid>&
 	{
 		ConstraintBindingID.SetGuid(OldGuidToNewGuidMap[ConstraintBindingID.GetGuid()]);
 	}
+}
+
+void UMovieScene3DConstraintSection::GetReferencedBindings(TArray<FGuid>& OutBindings)
+{
+	OutBindings.Add(ConstraintBindingID.GetGuid());
 }
 
 void UMovieScene3DConstraintSection::PostLoad()

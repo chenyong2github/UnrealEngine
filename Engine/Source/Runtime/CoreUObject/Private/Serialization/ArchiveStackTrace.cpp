@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveStackTrace.h"
 #include "Misc/CommandLine.h"
@@ -285,7 +285,7 @@ void FArchiveStackTrace::Serialize(void* InData, int64 Num)
 		{
 			StackTrace[0] = '\0';
 			FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, StackIgnoreCount);
-#if WITH_EDITOR
+#if WITH_EDITOR && !NO_LOGGING
 			//if we have a debug name stack, plaster it onto the end of the current stack buffer so that it's a part of the unique stack entry.
 			if (DebugDataStack.Num() > 0)
 			{

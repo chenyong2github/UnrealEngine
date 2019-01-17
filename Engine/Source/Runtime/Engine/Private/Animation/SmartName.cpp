@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/SmartName.h"
 #include "UObject/FrameworkObjectVersion.h"
@@ -150,6 +150,27 @@ void FSmartNameMapping::FillNameArray(TArray<FName>& Array) const
 #else
 	Array = CurveNameList;
 #endif
+}
+
+void FSmartNameMapping::FillCurveTypeArray(TArray<FAnimCurveType>& Array) const
+{
+	Array.Reset(CurveNameList.Num());
+
+	for (const FName& Name : CurveNameList)
+	{
+		const FCurveMetaData* MetaData = CurveMetaDataMap.Find(Name);
+		FAnimCurveType AnimCurveType = MetaData ? MetaData->Type : FAnimCurveType();
+
+		//In editor names can be removed and so have to deal with empty slots
+#if WITH_EDITOR
+		if (Name != NAME_None)
+		{
+			Array.Add(AnimCurveType);
+		}
+#else
+		Array.Add(AnimCurveType);
+#endif
+	}
 }
 
 bool FSmartNameMapping::Exists(const SmartName::UID_Type& Uid) const

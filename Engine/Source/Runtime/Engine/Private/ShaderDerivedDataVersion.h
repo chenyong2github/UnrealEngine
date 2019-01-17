@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderDerivedDataVersion.h: Shader derived data version.
@@ -12,4 +12,4 @@
 // guid as version
 
 #define GLOBALSHADERMAP_DERIVEDDATA_VER			TEXT("4A393A7FDF3048EF8376E103162A8ED6")
-#define MATERIALSHADERMAP_DERIVEDDATA_VER		TEXT("F1CC9C7A48F5422EB67E3ADC82465189")
+#define MATERIALSHADERMAP_DERIVEDDATA_VER		TEXT("F544D0CDF81844F7BFC5027050D52F68")

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ModelLight.cpp: Unreal model lighting.
@@ -35,7 +35,7 @@ TMap<UModelComponent*, TIndirectArray<FModelElement> > UModelComponent::TempBSPE
 #define SHADOWMAP_TEXTURE_WIDTH		512
 #define SHADOWMAP_TEXTURE_HEIGHT	512
 
-#if (defined(_MSC_VER) || PLATFORM_MAC || PLATFORM_UNIX) && WITH_EDITOR && !UE_BUILD_MINIMAL
+#if (defined(_MSC_VER) || PLATFORM_MAC || PLATFORM_UNIX) && WITH_EDITOR
 	/** Whether to allow cropping of unmapped borders in lightmaps and shadowmaps. Controlled by BaseLightmass.ini setting. */
 	extern ENGINE_API bool GAllowLightmapCropping;
 #endif

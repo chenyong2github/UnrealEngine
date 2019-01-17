@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "JsonObjectConverter.h"
 #include "Internationalization/Culture.h"
@@ -454,6 +454,11 @@ namespace
 				TSharedPtr<FJsonObject> ObjectValue = JsonValue->AsObject();
 
 				FScriptMapHelper Helper(MapProperty, OutValue);
+
+				check(ObjectValue);
+
+				int32 MapSize = ObjectValue->Values.Num();
+				Helper.EmptyValues(MapSize);
 
 				// set the property values
 				for (const auto& Entry : ObjectValue->Values)

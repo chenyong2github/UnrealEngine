@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneCameraCutSection.h"
 
@@ -55,6 +55,11 @@ void UMovieSceneCameraCutSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& Ol
 	{
 		CameraBindingID.SetGuid(OldGuidToNewGuidMap[CameraBindingID.GetGuid()]);
 	}
+}
+
+void UMovieSceneCameraCutSection::GetReferencedBindings(TArray<FGuid>& OutBindings)
+{
+	OutBindings.Add(CameraBindingID.GetGuid());
 }
 
 void UMovieSceneCameraCutSection::PostLoad()

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12VertexBuffer.cpp: D3D texture RHI implementation.
@@ -724,6 +724,11 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		check(!(Flags & TexCreate_RenderTargetable));
 		check(!(Flags & TexCreate_DepthStencilTargetable));
 		check(!(Flags & TexCreate_ShaderResource));
+		bCreateShaderResource = false;
+	}
+
+	if (Flags & TexCreate_DisableSRVCreation)
+	{
 		bCreateShaderResource = false;
 	}
 

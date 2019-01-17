@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/SoundWaveDecoder.h"
 #include "Engine/Public/AudioThread.h"
@@ -146,8 +146,9 @@ namespace Audio
 
 			if (MixerSourceBuffer.GetNumBuffersQueued() > 0)
 			{
+				check(SourceInfo.CurrentPCMBuffer->AudioData.Num() > 0);
 				SourceInfo.CurrentPCMBuffer = MixerSourceBuffer.GetNextBuffer();
-				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->Samples / SourceInfo.NumSourceChannels;
+				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / SourceInfo.NumSourceChannels;
 
 				if (bReadCurrentFrame)
 				{

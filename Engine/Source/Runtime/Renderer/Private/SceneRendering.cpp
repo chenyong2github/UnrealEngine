@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRendering.cpp: Scene rendering.
@@ -783,8 +783,10 @@ void FViewInfo::Init()
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;
 	bUsesSceneDepth = false;
+	bFogOnlyOnRenderedOpaque = false;
 
 	ExponentialFogParameters = FVector4(0,1,1,0);
+	ExponentialFogParameters2 = FVector4(0, 1, 0, 0);
 	ExponentialFogColor = FVector::ZeroVector;
 	FogMaxOpacity = 1;
 	ExponentialFogParameters3 = FVector4(0, 0, 0, 0);

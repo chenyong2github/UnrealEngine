@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneVectorSection.h"
 #include "UObject/StructOnScope.h"
@@ -105,6 +105,13 @@ void UMovieSceneVectorSection::Serialize(FArchive& Ar)
 	{
 		RecreateChannelProxy();
 	}
+}
+
+void UMovieSceneVectorSection::PostEditImport()
+{
+	Super::PostEditImport();
+
+	RecreateChannelProxy();
 }
 
 void UMovieSceneVectorSection::RecreateChannelProxy()

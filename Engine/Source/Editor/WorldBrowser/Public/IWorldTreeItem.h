@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -56,6 +56,8 @@ namespace WorldHierarchy
 				: bExpanded(1)
 				, bFilteredOut(0)
 				, bChildrenRequiresSort(1)
+				, bVisible(1)
+				, bLocked(0)
 			{}
 		};
 

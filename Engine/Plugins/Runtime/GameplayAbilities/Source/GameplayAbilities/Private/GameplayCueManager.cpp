@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueManager.h"
 #include "Engine/ObjectLibrary.h"
@@ -69,7 +69,15 @@ void UGameplayCueManager::OnCreated()
 	FNetworkReplayDelegates::OnPreScrub.AddUObject(this, &UGameplayCueManager::OnPreReplayScrub);
 		
 #if WITH_EDITOR
-	FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UGameplayCueManager::OnEngineInitComplete);
+	if (GIsRunning)
+	{
+		// Engine init already completed
+		OnEngineInitComplete();
+	}
+	else
+	{
+		FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UGameplayCueManager::OnEngineInitComplete);
+	}
 #endif
 }
 

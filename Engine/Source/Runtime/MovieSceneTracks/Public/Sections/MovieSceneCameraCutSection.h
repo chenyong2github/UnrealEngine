@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,6 +52,7 @@ public:
 	//~ UMovieSceneSection interface
 	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 	virtual void OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap) override;
+	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
 
 	/** ~UObject interface */
 	virtual void PostLoad() override;

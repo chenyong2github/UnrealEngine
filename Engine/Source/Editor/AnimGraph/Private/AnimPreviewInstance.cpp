@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 #include "AnimPreviewInstance.h"
@@ -143,6 +143,11 @@ void FAnimPreviewInstanceProxy::Update(float DeltaSeconds)
 void FAnimPreviewInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
 {
 	FAnimSingleNodeInstanceProxy::PreUpdate(InAnimInstance, DeltaSeconds);
+
+	if (CopyPoseNode.SourceMeshComponent.IsValid())
+	{
+		CopyPoseNode.PreUpdate(InAnimInstance);
+	}
 
 	if (!bForceRetargetBasePose)
 	{

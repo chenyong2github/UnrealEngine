@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceCollisionQuery.h"
 #include "NiagaraTypes.h"
@@ -178,7 +178,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FName& Definitio
 					Out_CollisionNormal = WorldNormal;\n\
 					Out_Friction = 0.0f;\n\
 					Out_Restitution = 1.0f;\n\
-					Out_QueryID = 0.0f;\
+					Out_QueryID = 0;\
 				}\n\
 				else\n\
 				{\n\

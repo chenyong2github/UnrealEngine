@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_SubInstance.h"
 #include "Animation/AnimClassInterface.h"
@@ -34,12 +34,7 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 	{
 		FAnimInstanceProxy& Proxy = InstanceToRun->GetProxyOnAnyThread<FAnimInstanceProxy>();
 
-		// Only update if we've not had a single-threaded update already
-		if(InstanceToRun->bNeedsUpdate)
-		{
-			Proxy.UpdateAnimation();
-		}
-
+		// First copy properties
 		check(InstanceProperties.Num() == SubInstanceProperties.Num());
 		for(int32 PropIdx = 0; PropIdx < InstanceProperties.Num(); ++PropIdx)
 		{
@@ -57,6 +52,12 @@ void FAnimNode_SubInstance::Update_AnyThread(const FAnimationUpdateContext& Cont
 
 				CallerProperty->CopyCompleteValue(DestPtr, SrcPtr);
 			}
+		}
+
+		// Only update if we've not had a single-threaded update already
+		if(InstanceToRun->bNeedsUpdate)
+		{
+			Proxy.UpdateAnimation();
 		}
 	}
 }

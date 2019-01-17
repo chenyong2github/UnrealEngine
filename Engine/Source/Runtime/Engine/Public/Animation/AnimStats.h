@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	AnimStats.h:	Animation stats
@@ -39,6 +39,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("BlueprintPostEvaluateAnimation"), STAT_Blueprint
 DECLARE_CYCLE_STAT_EXTERN(TEXT("MontageAdvance"), STAT_Montage_Advance, STATGROUP_Anim, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("MontageUpdateWeight"), STAT_Montage_UpdateWeight, STATGROUP_Anim, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("UpdateCurves"), STAT_UpdateCurves, STATGROUP_Anim, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("UpdateCurvesToEvaluationContext"), STAT_UpdateCurvesToEvaluationContext, STATGROUP_Anim, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("UpdateCurvesPostEvaluation"), STAT_UpdateCurvesPostEvaluation, STATGROUP_Anim, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("LocalBlendCSBoneTransforms"), STAT_LocalBlendCSBoneTransforms, STATGROUP_Anim, ENGINE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("TickAssetPlayerInstances"), STAT_TickAssetPlayerInstances, STATGROUP_Anim, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("TickAssetPlayerInstance"), STAT_TickAssetPlayerInstance, STATGROUP_Anim, );

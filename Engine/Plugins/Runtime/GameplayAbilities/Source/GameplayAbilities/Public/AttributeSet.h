@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -338,8 +338,8 @@ public:
 
 private:
 
-	// Cached direct pointer to RichCurve we should evaluate
-	mutable FRichCurve* FinalCurve;
+	// Cached direct pointer to the RealCurve we should evaluate
+	mutable FRealCurve* FinalCurve;
 };
 
 template<>

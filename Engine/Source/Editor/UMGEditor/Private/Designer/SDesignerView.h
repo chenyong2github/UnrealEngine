@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -344,6 +344,12 @@ private:
 
 	/** The configured Height of the preview area, simulates screen size. */
 	int32 PreviewHeight;
+
+	/** The original Width of the preview area, read from the settings file. */
+	int32 WidthReadFromSettings;
+
+	/** The original Height of the preview area, read from the settings file. */
+	int32 HeightReadFromSettings;
 
 	/***/
 	bool bShowResolutionOutlines;

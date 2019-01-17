@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UObjectHash.cpp: Unreal object name hashes
@@ -259,11 +259,14 @@ private:
 		
 		ContentPathToRoot.Empty(11);
 		ContentPathToRoot.Emplace(EngineRootPath, EngineContentPath);
-#if IS_MONOLITHIC
-		ContentPathToRoot.Emplace(GameRootPath,   ContentPathShort);
-#else
-		ContentPathToRoot.Emplace(EngineRootPath, ContentPathShort);
-#endif
+		if (FPaths::IsSamePath(GameContentPath, ContentPathShort))
+		{
+			ContentPathToRoot.Emplace(GameRootPath, ContentPathShort);
+		}
+		else
+		{
+			ContentPathToRoot.Emplace(EngineRootPath, ContentPathShort);
+		}
 		ContentPathToRoot.Emplace(EngineRootPath, EngineShadersPath);
 		ContentPathToRoot.Emplace(EngineRootPath, EngineShadersPathShort);
 		ContentPathToRoot.Emplace(GameRootPath,   GameContentPath);

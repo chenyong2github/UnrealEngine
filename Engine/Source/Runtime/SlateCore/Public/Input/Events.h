@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -326,6 +326,14 @@ public:
 	bool AreCapsLocked() const
 	{
 		return ModifierKeys.AreCapsLocked();
+	}
+
+	/**
+	 * @return the complete set of modifier keys
+	 */
+	const FModifierKeysState& GetModifierKeys() const
+	{
+		return ModifierKeys;
 	}
 
 	/**
@@ -840,6 +848,8 @@ public:
 	/** @return Is the gesture delta inverted */
 	bool IsDirectionInvertedFromDevice() const { return bIsDirectionInvertedFromDevice; }
 
+	/** @return the full set of pressed buttons */
+	const TSet<FKey>& GetPressedButtons() const { return PressedButtons; }
 
 	/** We override the assignment operator to allow generated code to compile with the const ref member. */
 	void operator=( const FPointerEvent& Other )

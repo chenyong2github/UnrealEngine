@@ -1,5 +1,5 @@
 #!/bin/bash
-## Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+## Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 ##
 ## Unreal Engine 4 AutomationTool setup script
 ##
@@ -77,7 +77,7 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		fi
 		echo Compiling AutomationTool with xbuild
 
-		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo"
+		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /p:TargetFrameworkVersion=v4.5 /verbosity:quiet /nologo"
 		ARGS="${ARGS} /p:TargetFrameworkProfile="
 
 		echo "xbuild Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"

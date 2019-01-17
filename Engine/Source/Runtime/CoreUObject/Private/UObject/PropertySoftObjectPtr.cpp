@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -164,6 +164,11 @@ EConvertFromTypeResult USoftObjectProperty::ConvertFromType(const FPropertyTag& 
 	}
 
 	return EConvertFromTypeResult::UseSerializeItem;
+}
+
+UObject* USoftObjectProperty::LoadObjectPropertyValue(const void* PropertyValueAddress) const
+{
+	return GetPropertyValue(PropertyValueAddress).LoadSynchronous();
 }
 
 UObject* USoftObjectProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const

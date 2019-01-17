@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditor/PreviewMaterial.h"
 #include "Modules/ModuleManager.h"
@@ -267,13 +267,6 @@ void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEv
 				OriginalFunction->PreviewMaterial->PostEditChangeProperty(PropertyChangedEvent);
 			}
 		}
-	
-		if(DetailsView.IsValid())
-		{
-			// Tell our source instance to update itself so the preview updates.
-			DetailsView.Pin()->OnFinishedChangingProperties().Broadcast(PropertyChangedEvent);
-		}
-
 	}
 }
 

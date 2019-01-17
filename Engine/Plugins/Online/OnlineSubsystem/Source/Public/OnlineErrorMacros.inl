@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #ifndef ONLINE_ERROR_NAMESPACE
 #error "ONLINE_ERROR_NAMESPACE not defined"
@@ -10,6 +10,9 @@
 
 namespace Errors
 {
+	// Configured namspace
+	inline const TCHAR* BaseNamespace() { return TEXT(ONLINE_ERROR_NAMESPACE); }
+
 	// Configuration
 	inline FOnlineError NotConfigured() { return ONLINE_ERROR(EOnlineErrorResult::NotConfigured); }
 

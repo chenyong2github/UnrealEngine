@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Text/IOS/IOSPlatformTextField.h"
 #include "IOS/IOSAppDelegate.h"
@@ -59,7 +59,6 @@ FIOSPlatformTextField::~FIOSPlatformTextField()
 #if !PLATFORM_TVOS
             [LocalTextField hide];
 #endif
-			[LocalTextField release];
 		});
 	}
 }
@@ -108,8 +107,7 @@ void FIOSPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSh
                     if (LocalTextField != nullptr)
                     {
                         [LocalTextField hide];
-                        [LocalTextField release];
-                    }
+                     }
                 });
 			}
         }

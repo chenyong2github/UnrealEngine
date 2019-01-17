@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 #include "Slate/SceneViewport.h"
@@ -278,6 +278,8 @@ void FSceneViewport::ProcessAccumulatedPointerInput()
 	FScopedConditionalWorldSwitcher WorldSwitcher( ViewportClient );
 
 	const bool bViewportHasCapture = ViewportWidget.IsValid() && ViewportWidget.Pin()->HasMouseCapture();
+
+	ViewportClient->ProcessAccumulatedPointerInput(this);
 
 	if (NumMouseSamplesX > 0 || NumMouseSamplesY > 0)
 	{
@@ -1396,11 +1398,23 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 
 void FSceneViewport::SetFixedViewportSize(uint32 NewViewportSizeX, uint32 NewViewportSizeY)
 {
-	bForceViewportSize = true;
-	TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
-	if (Window.IsValid())
+	if (NewViewportSizeX > 0 && NewViewportSizeY > 0)
 	{
-		ResizeViewport(FMath::Max(0U, NewViewportSizeX), FMath::Max(0U, NewViewportSizeY), Window->GetWindowMode());
+		bForceViewportSize = true;
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+		if (Window.IsValid())
+		{
+			ResizeViewport(NewViewportSizeX, NewViewportSizeY, Window->GetWindowMode());
+		}
+	}
+	else
+	{
+		bForceViewportSize = false;
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+		if (Window.IsValid())
+		{
+			Window->Invalidate(EInvalidateWidget::PaintAndVolatility);
+		}
 	}
 }
 

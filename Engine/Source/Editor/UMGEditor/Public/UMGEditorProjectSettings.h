@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,6 +13,7 @@
 class UWidgetCompilerRule;
 class UUserWidget;
 class UWidgetBlueprint;
+class UPanelWidget;
 
 USTRUCT()
 struct FDebugResolution
@@ -173,6 +174,10 @@ public:
 	TArray<FSoftClassPath> WidgetClassesToHide;
 
 public:
+
+	/** The panel widget to place at the root of all newly constructed widget blueprints. Can be empty. */
+	UPROPERTY(EditAnywhere, config, Category = Designer)
+	TSubclassOf<UPanelWidget> DefaultRootWidget;
 
 	UPROPERTY(EditAnywhere, config, Category=Designer)
 	TArray<FDebugResolution> DebugResolutions;

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/ObjectPropertyTrackEditor.h"
 #include "Tracks/MovieSceneObjectPropertyTrack.h"
@@ -20,7 +20,7 @@ TSharedRef<ISequencerTrackEditor> FObjectPropertyTrackEditor::CreateTrackEditor(
 
 void FObjectPropertyTrackEditor::GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys)
 {
-	TSoftObjectPtr<> Existing = PropertyChangedParams.GetPropertyValue<UObject*>();
+	UObject* Existing = PropertyChangedParams.GetPropertyValue<UObject*>();
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneObjectPathChannel>(0, Existing, true));
 }
 

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -32,9 +32,6 @@ namespace Audio
 	{
 		/** PCM float data. */
 		AlignedFloatBuffer AudioData;
-
-		/** The amount of samples of audio data in the float buffer array. */
-		uint32 Samples;
 
 		/** How many times this buffer will loop. */
 		int32 LoopCount;

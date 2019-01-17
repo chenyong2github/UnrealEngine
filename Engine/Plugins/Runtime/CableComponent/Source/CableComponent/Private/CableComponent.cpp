@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved. 
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved. 
 
 #include "CableComponent.h"
 #include "EngineGlobals.h"
@@ -553,6 +553,13 @@ void UCableComponent::PerformSubstep(float InSubstepTime, const FVector& Gravity
 	{
 		PerformCableCollision();
 	}
+}
+
+void UCableComponent::SetAttachEndToComponent(TWeakObjectPtr<class USceneComponent> Component, FName SocketName)
+{
+	AttachEndTo.OtherActor = Component->GetOwner();
+	AttachEndTo.OverrideComponent = Component;
+	AttachEndToSocketName = SocketName;
 }
 
 void UCableComponent::SetAttachEndTo(AActor* Actor, FName ComponentProperty, FName SocketName)

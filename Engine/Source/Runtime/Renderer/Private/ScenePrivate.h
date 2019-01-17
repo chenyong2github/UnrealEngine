@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ScenePrivate.h: Private scene manager definitions.
@@ -2647,6 +2647,12 @@ inline bool ShouldIncludeDomainInMeshPass(EMaterialDomain Domain)
 	// Volume domain materials however must only be rendered in the voxelization pass
 	return Domain != MD_Volume;
 }
+
+template<>
+TStaticMeshDrawList<TMobileBasePassDrawingPolicy<FUniformLightMapPolicy>>& FScene::GetMobileBasePassDrawList<FUniformLightMapPolicy>(EBasePassDrawListType DrawType);
+
+template<>
+TStaticMeshDrawList<TMobileBasePassDrawingPolicy<FUniformLightMapPolicy>>& FScene::GetMobileBasePassCSMDrawList<FUniformLightMapPolicy>(EBasePassDrawListType DrawType);
 
 #include "BasePassRendering.inl"
 

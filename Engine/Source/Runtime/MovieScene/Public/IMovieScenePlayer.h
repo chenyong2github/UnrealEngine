@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -313,6 +313,15 @@ public:
 	FORCEINLINE void RestorePreAnimatedState(const FMovieSceneEvaluationKey& EntityKey)
 	{
 		PreAnimatedState.RestorePreAnimatedState(*this, EntityKey);
+	}
+
+	/**
+	 * Discard any tokens that relate to entity animation (ie sections or tracks) without restoring the values.
+	 * Any global pre-animated state tokens (that reset the animation when saving a map, for instance) will remain.
+	 */
+	void DiscardEntityTokens()
+	{
+		PreAnimatedState.DiscardEntityTokens();
 	}
 
 public:

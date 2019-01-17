@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePlayerThreading.h"
 #include "HAL/Runnable.h"
@@ -75,7 +75,7 @@ void FSlateLoadingSynchronizationMechanism::DestroySlateThread()
 		{
 			FPlatformApplicationMisc::PumpMessages(false);
 
-			FPlatformProcess::Sleep(0.1f);
+			FPlatformProcess::Sleep(0.016f);
 		}
 
 		delete SlateLoadingThread;

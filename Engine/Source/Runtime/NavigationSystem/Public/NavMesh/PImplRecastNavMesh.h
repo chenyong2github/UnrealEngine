@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 //
 // Private implementation for communication with Recast library
@@ -187,6 +187,11 @@ public:
 	void SetRecastMesh(dtNavMesh* NavMesh);
 
 	float GetTotalDataSize() const;
+
+	/** Gets the size of the compressed tile cache, this is slow */
+#if !UE_BUILD_SHIPPING
+	int32 GetCompressedTileCacheSize();
+#endif
 
 	/** Called on world origin changes */
 	void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift);

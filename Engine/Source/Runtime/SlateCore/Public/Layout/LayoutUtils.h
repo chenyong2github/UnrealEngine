@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -167,4 +167,4 @@ void ArrangeSingleChild( const FGeometry& AllottedGeometry, FArrangedChildren& A
 *
 * @return A best position within the RectToFit such that none of the popup clips outside of the RectToFit.
 */
-SLATECORE_API FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation Orientation, const FSlateRect RectToFit);
+SLATECORE_API FVector2D ComputePopupFitInRect(const FSlateRect& InAnchor, const FSlateRect& PopupRect, const EOrientation& Orientation, const FSlateRect& RectToFit);

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,10 +37,7 @@ struct AIMODULE_API FActorPerceptionInfo
 	FActorPerceptionInfo(AActor* InTarget = NULL)
 		: Target(InTarget), DominantSense(FAISenseID::InvalidID())
 	{
-		for (uint32 Index = 0; Index < FAISenseID::GetSize(); ++Index)
-		{
-			LastSensedStimuli.Add(FAIStimulus());
-		}
+		LastSensedStimuli.AddDefaulted(FAISenseID::GetSize());
 	}
 
 	/** Retrieves last known location. Active (last reported as "successful")

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -29,7 +29,11 @@ public class VirtualCamera : ModuleRules
 
         if (Target.bBuildEditor == true)
         {
-            PublicDependencyModuleNames.Add("SequenceRecorder");
+			PublicDependencyModuleNames.Add("LevelSequenceEditor");
+			PublicDependencyModuleNames.Add("Sequencer");
+			PublicDependencyModuleNames.Add("SlateCore");
+			PublicDependencyModuleNames.Add("TakeRecorder");
+			PrivateDependencyModuleNames.Add("UnrealEd");
         }
 	}
 }

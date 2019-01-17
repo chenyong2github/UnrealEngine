@@ -1,10 +1,11 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "UMGEditorProjectSettings.h"
 #include "WidgetBlueprint.h"
 #include "WidgetCompilerRule.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
+#include "Components/CanvasPanel.h"
 
 UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 {
@@ -12,6 +13,8 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	CurrentVersion = 1;
 	bShowWidgetsFromEngineContent = false;
 	bShowWidgetsFromDeveloperContent = true;
+
+	DefaultRootWidget = UCanvasPanel::StaticClass();
 
 	// Deprecated
 	bCookSlowConstructionWidgetTree_DEPRECATED = true;

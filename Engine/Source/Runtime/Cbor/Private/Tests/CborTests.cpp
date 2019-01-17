@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
@@ -185,7 +185,7 @@ bool FCborAutomationTest::RunTest(const FString& Parameters)
 	check(Context.MajorType() == ECborCode::TextString);
 	check(Context.AsString() == TestString);
 
-	TestString = TEXT("ありがとう");
+	TestString = TEXT("\u3042\u308A\u304C\u3068\u3046");
 	Writer.WriteValue(TestString);
 	check(Reader.ReadNext(Context) == true);
 	check(Context.MajorType() == ECborCode::TextString);

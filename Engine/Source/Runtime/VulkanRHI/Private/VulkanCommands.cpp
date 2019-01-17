@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VulkanCommands.cpp: Vulkan RHI commands implementation.
@@ -88,7 +88,7 @@ void FVulkanCommandListContext::RHISetComputePipelineState(FRHIComputePipelineSt
 		}
 	}
 
-	if (CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
+	if (!UseVulkanDescriptorCache() && CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
 	{
 		CmdBuffer->CurrentDescriptorPoolSetContainer = &Device->GetDescriptorPoolsManager().AcquirePoolSetContainer();
 	}

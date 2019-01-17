@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -34,6 +34,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
 	UWidget* GetChildAt(int32 Index) const;
+	
+	/** Gets all widgets in the container */
+	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
+	TArray<UWidget*> GetAllChildren() const;
 
 	/** Gets the index of a specific child widget */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")

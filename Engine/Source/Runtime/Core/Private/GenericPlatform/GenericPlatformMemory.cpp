@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -21,7 +21,7 @@
 #include "Misc/MessageDialog.h"
 #include "Templates/UnrealTemplate.h"
 
-#if PLATFORM_UNIX || PLATFORM_MAC || PLATFORM_IOS
+#if PLATFORM_UNIX || PLATFORM_MAC || PLATFORM_IOS || PLATFORM_ANDROID
 	#include <sys/mman.h>
 	// more mmap()-based platforms can be added
 	#define UE4_PLATFORM_USES_MMAP_FOR_BINNED_OS_ALLOCS			1

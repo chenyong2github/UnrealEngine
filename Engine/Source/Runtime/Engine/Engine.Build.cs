@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -78,7 +78,6 @@ public class Engine : ModuleRules
 				"EngineSettings",
 				"SynthBenchmark",
 				"GameplayTags",
-				"DatabaseSupport",
 				"PacketHandler",
 				"AudioPlatformConfiguration",
 				"MeshDescription",
@@ -183,6 +182,7 @@ public class Engine : ModuleRules
 				"MovieScene",
 				"MovieSceneCapture",
 				"MovieSceneTracks",
+				"LevelSequence",
 				"HeadMountedDisplay",
 				"MRMesh",
 				"StreamingPauseRendering",

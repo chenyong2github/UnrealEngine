@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PIEPreviewDevice.h"
 
@@ -410,7 +410,11 @@ void FPIEPreviewDevice::ApplyRHIOverrides() const
 
 	if (PreviewPlatform != SP_NumPlatforms)
 	{
+		UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
 		FName QualityPreviewShaderPlatform = LegacyShaderPlatformToShaderFormat(PreviewPlatform);
+		MaterialShaderQualitySettings->GetShaderPlatformQualitySettings(QualityPreviewShaderPlatform);
+		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(PreviewPlatform);
+
 		UMaterialShaderQualitySettings::Get()->SetPreviewPlatform(QualityPreviewShaderPlatform);
 	}
 

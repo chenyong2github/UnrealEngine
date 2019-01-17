@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "BlueprintCompilationManager.h"
@@ -1532,6 +1532,13 @@ UClass* FBlueprintCompileReinstancer::MoveCDOToNewClass(UClass* OwnerClass, cons
 	{
 		BPGDuplicatedClass->OverridenArchetypeForCDO = BPClassToReinstance->OverridenArchetypeForCDO;
 	}
+
+#if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
+	if (BPGDuplicatedClass && BPClassToReinstance)
+	{
+		BPGDuplicatedClass->UberGraphFunctionKey = BPClassToReinstance->UberGraphFunctionKey;
+	}
+#endif
 
 	UFunction* DuplicatedClassUberGraphFunction = BPGDuplicatedClass ? BPGDuplicatedClass->UberGraphFunction : nullptr;
 	if (DuplicatedClassUberGraphFunction)

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=================================================================================
  MacPlatformSurvey.mm: Mac OS X platform hardware-survey classes
@@ -27,8 +27,8 @@ bool FMacPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResults, b
 	vm_statistics Stats;
 	mach_msg_type_number_t StatsSize = sizeof(Stats);
 	host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)&Stats, &StatsSize);
-	uint64_t FreeMem = Stats.free_count * PageSize;
-	uint64_t UsedMem = (Stats.active_count + Stats.inactive_count + Stats.wire_count) * PageSize;
+	uint64_t FreeMem = (Stats.free_count + Stats.inactive_count) * PageSize;
+	uint64_t UsedMem = (Stats.active_count + Stats.wire_count) * PageSize;
 	uint64_t TotalPhys = FreeMem + UsedMem;
 	OutResults.MemoryMB = uint32(float(TotalPhys/1024.0/1024.0)+ .1f);
 

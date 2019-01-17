@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/App.h"
 #include "HAL/FileManager.h"
@@ -95,7 +95,7 @@ void FApp::SetDebugGame(bool bInIsDebugGame)
 
 FString FApp::GetBuildDate()
 {
-	return FString(ANSI_TO_TCHAR(__DATE__));
+	return FString(BuildSettings::GetBuildDate());
 }
 
 

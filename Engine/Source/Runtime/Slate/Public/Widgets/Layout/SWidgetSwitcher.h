@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -132,9 +132,7 @@ public:
 	 */
 	void SetActiveWidgetIndex( int32 Index );
 
-#if SLATE_PARENT_POINTERS
 	virtual bool ValidatePathToChild(SWidget* InChild) override;
-#endif
 
 public:
 

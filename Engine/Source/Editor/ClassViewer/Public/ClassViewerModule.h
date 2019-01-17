@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -103,6 +103,10 @@ public:
 
 	/** true (the default) shows the view options at the bottom of the class picker*/
 	bool bAllowViewOptions;
+
+	/** Defines additional classes you want listed in the "Common Classes" section for the picker. */
+	TArray<UClass*> ExtraPickerCommonClasses;
+
 public:
 
 	/** Constructor */

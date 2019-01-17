@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorViewportClient.h"
 #include "Modules/ModuleManager.h"
@@ -680,15 +680,7 @@ bool FAnimationViewportClient::ShouldDisplayAdditiveScaleErrorMessage() const
 	return false;
 }
 
-static FText ConcatenateLine(const FText& InText, const FText& InNewLine)
-{
-	if(InText.IsEmpty())
-	{
-		return InNewLine;
-	}
-
-	return FText::Format(LOCTEXT("ViewportTextNewlineFormatter", "{0}\n{1}"), InText, InNewLine);
-}
+extern FText ConcatenateLine(const FText& InText, const FText& InNewLine);
 
 FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 {
@@ -1909,6 +1901,12 @@ void FAnimationViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFami
 void FAnimationViewportClient::HandleToggleShowFlag(FEngineShowFlags::EShowFlag EngineShowFlagIndex)
 {
 	FEditorViewportClient::HandleToggleShowFlag(EngineShowFlagIndex);
+	
+	if (UDebugSkelMeshComponent* Component = GetAnimPreviewScene()->GetPreviewMeshComponent())
+	{
+		Component->bDisplayVertexColors = EngineShowFlags.VertexColors;
+		Component->MarkRenderStateDirty();
+	}
 
 	ConfigOption->SetShowGrid(EngineShowFlags.Grid);
 }

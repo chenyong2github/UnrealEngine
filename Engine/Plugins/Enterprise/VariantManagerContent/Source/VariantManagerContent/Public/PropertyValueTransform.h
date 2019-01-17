@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,6 +15,13 @@ class VARIANTMANAGERCONTENT_API UPropertyValueTransform : public UPropertyValue
 	GENERATED_UCLASS_BODY()
 
 public:
+	FVector GetLocation();
+	FQuat GetRotation();
+	FVector GetScale3D();
+
+	void SetLocation(const FVector& NewValue);
+	void SetRotation(const FQuat& NewValue);
+	void SetScale3D(const FVector& NewValue);
 
 	virtual void ApplyDataToResolvedObject() override;
 };

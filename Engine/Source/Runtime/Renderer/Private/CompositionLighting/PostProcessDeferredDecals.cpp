@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PostProcessDeferredDecals.cpp: Deferred Decals implementation.
@@ -569,7 +569,7 @@ static FDepthStencilStateRHIParamRef GetDecalDepthState(uint32& StencilRef, FDec
 	}
 }
 
-static FRasterizerStateRHIParamRef GetDecalRasterizerState(EDecalRasterizerState DecalRasterizerState)
+FRasterizerStateRHIParamRef GetDecalRasterizerState(EDecalRasterizerState DecalRasterizerState)
 {
 	switch (DecalRasterizerState)
 	{

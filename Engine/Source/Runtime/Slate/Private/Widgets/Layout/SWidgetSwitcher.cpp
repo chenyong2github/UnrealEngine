@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Layout/LayoutUtils.h"
@@ -126,12 +126,10 @@ void SWidgetSwitcher::SetActiveWidgetIndex( int32 Index )
 	}
 }
 
-#if SLATE_PARENT_POINTERS
 bool SWidgetSwitcher::ValidatePathToChild(SWidget* InChild)
 {
 	return InChild == GetActiveWidget().Get();
 }
-#endif
 
 void SWidgetSwitcher::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {

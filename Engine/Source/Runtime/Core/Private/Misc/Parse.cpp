@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Parse.h"
 #include "Misc/DateTime.h"
@@ -482,7 +482,7 @@ bool FParse::QuotedString( const TCHAR* Buffer, FString& Value, int32* OutNumCha
 //
 bool FParse::Text( const TCHAR* Buffer, FText& Value, const TCHAR* Namespace )
 {
-	return FTextStringHelper::ReadFromString(Buffer, Value, Namespace);
+	return FTextStringHelper::ReadFromBuffer(Buffer, Value, Namespace) != nullptr;
 }
 
 // 

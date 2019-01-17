@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TabFactory/AnimationTabSummoner.h"
 #include "Widgets/Layout/SBorder.h"
@@ -216,6 +216,7 @@ private:
 			Blueprint->Modify();
 			Blueprint->Animations.Add(WidgetAnimation);
 			ListItem.Pin()->bNewAnimation = false;
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}
 	}
 private:

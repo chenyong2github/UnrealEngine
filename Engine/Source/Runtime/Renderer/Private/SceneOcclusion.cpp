@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRendering.cpp: Scene rendering.
@@ -1189,6 +1189,8 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	// Downsampling...
 	for (uint8 MipIndex = 1; MipIndex < NumMips; MipIndex++)
 	{
+		SrcSize.X = FMath::Max(SrcSize.X, 1);
+		SrcSize.Y = FMath::Max(SrcSize.Y, 1);
 		DstSize.X = FMath::Max(DstSize.X, 1);
 		DstSize.Y = FMath::Max(DstSize.Y, 1);
 

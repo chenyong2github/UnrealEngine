@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,7 @@ struct FMovieSceneObjectCache;
 /**
  * Abstract base class for movie scene animations (C++ version).
  */
-UCLASS(MinimalAPI, Config = Engine)
+UCLASS(MinimalAPI, Config = Engine, BlueprintType)
 class UMovieSceneSequence
 	: public UMovieSceneSignedObject
 {

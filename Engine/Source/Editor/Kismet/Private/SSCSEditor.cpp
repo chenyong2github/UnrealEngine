@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 #include "SSCSEditor.h"
@@ -4693,7 +4693,8 @@ void SSCSEditor::AddInstancedTreeNodesRecursive(USceneComponent* Component, FSCS
 {
 	if (Component != nullptr)
 	{
-		for (USceneComponent* ChildComponent : Component->GetAttachChildren())
+		TArray<USceneComponent*> Components = Component->GetAttachChildren();
+		for (USceneComponent* ChildComponent : Components)
 		{
 			if (ComponentsToAdd.Contains(ChildComponent)
 				&& ShouldAddInstancedActorComponent(ChildComponent, Component)

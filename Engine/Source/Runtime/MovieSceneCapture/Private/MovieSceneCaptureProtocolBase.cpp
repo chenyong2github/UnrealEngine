@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneCaptureProtocolBase.h"
 #include "CoreMinimal.h"
@@ -14,6 +14,9 @@ UMovieSceneCaptureProtocolBase::UMovieSceneCaptureProtocolBase(const FObjectInit
 {
 	State = EMovieSceneCaptureProtocolState::Idle;
 	CaptureHost = nullptr;
+
+	bFrameRequested[0] = false;
+	bFrameRequested[1] = false;
 }
 
 bool UMovieSceneCaptureProtocolBase::Setup(const FCaptureProtocolInitSettings& InSettings, const ICaptureProtocolHost* Host)
@@ -99,19 +102,21 @@ void UMovieSceneCaptureProtocolBase::CaptureFrame(const FFrameMetrics& FrameMetr
 {
 	if (State == EMovieSceneCaptureProtocolState::Capturing)
 	{
-		bFrameRequested = true;
+		bFrameRequested[GFrameCounter % 2] = true;
 		CaptureFrameImpl(FrameMetrics);
 	}
 }
 
 bool UMovieSceneCaptureProtocolBase::HasFinishedProcessing() const
 {
-	return !bFrameRequested && HasFinishedProcessingImpl();
+	return bFrameRequested[GFrameCounter % 2] == false && HasFinishedProcessingImpl();
 }
 
 void UMovieSceneCaptureProtocolBase::PreTick()
 {
-	bFrameRequested = false;
+	// Reset the frame requested bool for the next frame
+	bFrameRequested[(GFrameCounter + 1) % 2] = false;
+
 	PreTickImpl();
 }
 

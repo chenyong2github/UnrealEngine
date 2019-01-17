@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.IO;
@@ -29,7 +29,9 @@ public class MeshMergeUtilities : ModuleRules
         
         PublicDependencyModuleNames.AddRange(
 			new string [] {
-				"RawMesh",
+                "RawMesh",
+                "MeshDescription",
+                "MeshDescriptionOperations"
             }
 		);
 

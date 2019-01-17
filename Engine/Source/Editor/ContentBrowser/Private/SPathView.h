@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -80,9 +80,6 @@ public:
 
 	/** Constructs this widget with InArgs */
 	virtual void Construct( const FArguments& InArgs );
-
-	/** Sets focus to the search box */
-	void FocusSearchBox();
 
 	/** Selects the closest matches to the supplied paths in the tree. "/" delimited */
 	virtual void SetSelectedPaths(const TArray<FString>& Paths);

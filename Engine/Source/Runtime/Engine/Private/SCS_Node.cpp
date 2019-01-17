@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SCS_Node.h"
 #include "UObject/LinkerLoad.h"
@@ -88,7 +88,8 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 	UActorComponent* NewActorComp = nullptr;
 	UBlueprintGeneratedClass* ActualBPGC = CastChecked<UBlueprintGeneratedClass>(Actor->GetClass());
 	const FBlueprintCookedComponentInstancingData* ActualComponentTemplateData = ActualBPGC->UseFastPathComponentInstancing() ? GetActualComponentTemplateData(ActualBPGC) : nullptr;
-	if (ActualComponentTemplateData && ActualComponentTemplateData->bIsValid)
+	if (ActualComponentTemplateData && ActualComponentTemplateData->bIsValid
+		&& ensureMsgf(ActualComponentTemplateData->ComponentTemplateClass != nullptr, TEXT("SCS fast path (%s.%s): Cooked data is valid, but runtime support data is not initialized. Using the slow path instead."), *ActualBPGC->GetName(), *InternalVariableName.ToString()))
 	{
 		// Use cooked instancing data if valid (fast path).
 		NewActorComp = Actor->CreateComponentFromTemplateData(ActualComponentTemplateData, InternalVariableName);

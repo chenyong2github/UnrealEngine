@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Perception/AISense_Hearing.h"
 #include "Perception/AIPerceptionSystem.h"
@@ -138,9 +138,8 @@ float UAISense_Hearing::Update()
 
 		const FDigestedHearingProperties& PropDigest = DigestedProperties[Listener.GetListenerID()];
 
-		for (int32 EventIndex = 0; EventIndex < NoiseEvents.Num(); ++EventIndex)
+		for (const FAINoiseEvent& Event : NoiseEvents)
 		{
-			const FAINoiseEvent& Event = NoiseEvents[EventIndex];
 			const float ClampedLoudness = FMath::Max(0.f, Event.Loudness);
 			const float DistToSoundSquared = FVector::DistSquared(Event.NoiseLocation, Listener.CachedLocation);
 			

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	VorbisAudioInfo.h: Unreal audio vorbis decompression interface object.
@@ -101,13 +101,13 @@ public:
 	virtual int32 GetCurrentChunkOffset() const override {return BufferOffset % CurrentStreamingChunksSize;}
 	// End of ICompressedAudioInfo Interface
 
+private:
+
 	struct FVorbisFileWrapper* VFWrapper;
 	const uint8* SrcBufferData;
 	uint32 SrcBufferDataSize;
 	uint32 BufferOffset;
 	uint32 CurrentBufferChunkOffset;
-
-	FThreadSafeBool bPerformingOperation;
 
 	/** Critical section used to prevent multiple threads accessing same ogg-vorbis file handles at the same time */
 	FCriticalSection VorbisCriticalSection;

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderCore.h: Shader core module implementation.
@@ -55,6 +55,9 @@ void UpdateShaderDevelopmentMode()
 
 DEFINE_STAT(STAT_ShaderCompiling_NiagaraShaders);
 DEFINE_STAT(STAT_ShaderCompiling_NumTotalNiagaraShaders);
+
+DEFINE_STAT(STAT_ShaderCompiling_OpenColorIOShaders);
+DEFINE_STAT(STAT_ShaderCompiling_NumTotalOpenColorIOShaders);
 
 DEFINE_STAT(STAT_ShaderCompiling_MaterialShaders);
 DEFINE_STAT(STAT_ShaderCompiling_GlobalShaders);

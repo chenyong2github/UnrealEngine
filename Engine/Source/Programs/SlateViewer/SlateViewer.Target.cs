@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.Collections.Generic;
@@ -15,10 +15,7 @@ public class SlateViewerTarget : TargetRules
 		LaunchModuleName = "SlateViewer";
 		ExtraModuleNames.Add("EditorStyle");
 
-		bCompileLeanAndMeanUE = true;
-
-		// Don't need editor
-		bBuildEditor = false;
+		bBuildDeveloperTools = false;
 
 		// SlateViewer doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;

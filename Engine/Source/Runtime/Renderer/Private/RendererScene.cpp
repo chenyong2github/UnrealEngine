@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Scene.cpp: Scene manager implementation.
@@ -3076,7 +3076,10 @@ void FScene::ApplyWorldOffset_RenderThread(FVector InOffset)
 	// Exponential Fog
 	for (FExponentialHeightFogSceneInfo& FogInfo : ExponentialFogs)
 	{
-		FogInfo.FogHeight+= InOffset.Z;
+		for (FExponentialHeightFogSceneInfo::FExponentialHeightFogSceneData& FogData : FogInfo.FogData)
+		{
+			FogData.Height += InOffset.Z;
+		}
 	}
 	
 	// StaticMeshDrawLists

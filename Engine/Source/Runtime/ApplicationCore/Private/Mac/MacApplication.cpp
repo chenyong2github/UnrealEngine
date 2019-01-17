@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Mac/MacApplication.h"
 #include "Mac/MacWindow.h"
@@ -1098,7 +1098,7 @@ void FMacApplication::OnWindowDidResize(TSharedRef<FMacWindow> Window, bool bRes
 	uint32 Width = [Window->GetWindowHandle() openGLFrame].size.width * Window->GetDPIScaleFactor();
 	uint32 Height = [Window->GetWindowHandle() openGLFrame].size.height * Window->GetDPIScaleFactor();
 
-	if ([Window->GetWindowHandle() windowMode] == EWindowMode::WindowedFullscreen)
+	if (Window->GetWindowHandle().TargetWindowMode == EWindowMode::WindowedFullscreen)
 	{
 		// Grab current monitor data for sizing
 		Width = FMath::TruncToInt([[Window->GetWindowHandle() screen] frame].size.width * Window->GetDPIScaleFactor());

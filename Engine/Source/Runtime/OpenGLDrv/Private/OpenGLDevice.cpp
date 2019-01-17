@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	OpenGLDevice.cpp: OpenGL device RHI implementation.
@@ -1609,6 +1609,7 @@ void FOpenGLDynamicRHI::Init()
 	VERIFY_GL_SCOPE();
 
 	FOpenGLProgramBinaryCache::Initialize();
+	RegisterSharedShaderCodeDelegates();
 	InitializeStateResources();
 
 	// Create a default point sampler state for internal use.

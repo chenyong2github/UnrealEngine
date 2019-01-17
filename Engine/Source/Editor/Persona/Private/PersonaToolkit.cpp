@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaToolkit.h"
 #include "Modules/ModuleManager.h"
@@ -119,6 +119,10 @@ void FPersonaToolkit::CreatePreviewScene(const FPersonaToolkitArgs& PersonaToolk
 
 			// Create the preview component
 			UDebugSkelMeshComponent* SkeletalMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
+			if (GEditor->PreviewFeatureLevel <= ERHIFeatureLevel::ES3_1)
+			{
+				SkeletalMeshComponent->SetMobility(EComponentMobility::Static);
+			}
 			PreviewScene->AddComponent(SkeletalMeshComponent, FTransform::Identity);
 			PreviewScene->SetPreviewMeshComponent(SkeletalMeshComponent);
 

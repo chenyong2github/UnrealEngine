@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintCompilationManager.h"
@@ -2807,6 +2807,9 @@ void FBlueprintEditorUtils::RenameGraph(UEdGraph* Graph, const FString& NewNameS
 				}
 			}
 		}
+
+		// We should let the blueprint know we renamed a graph, some stuff may need to be fixed up.
+		Blueprint->NotifyGraphRenamed(Graph, OldGraphName, NewGraphName);
 
 		if (!Blueprint->bIsRegeneratingOnLoad && !Blueprint->bBeingCompiled)
 		{

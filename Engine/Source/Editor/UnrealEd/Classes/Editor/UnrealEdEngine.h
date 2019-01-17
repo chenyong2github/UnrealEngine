@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -357,6 +357,13 @@ public:
 	 * Invert the selection of all actors and BSP models.
 	 */
 	virtual void edactSelectInvert( UWorld* InWorld );
+
+	/**
+	 * Select all children actors of the current selection.
+	 *
+	 * @param   bRecurseChildren	true to recurse through all descendants of the children
+	 */
+	virtual void edactSelectAllChildren( bool bRecurseChildren );
 
 	/**
 	 * Select all actors in a particular class.

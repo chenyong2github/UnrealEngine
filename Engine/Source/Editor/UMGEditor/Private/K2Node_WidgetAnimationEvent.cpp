@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_WidgetAnimationEvent.h"
 #include "EdGraphSchema_K2.h"
@@ -28,7 +28,6 @@ void UK2Node_WidgetAnimationEvent::Initialize(const UWidgetBlueprint* InSourceBl
 
 	AnimationPropertyName = InAnimation->GetMovieScene()->GetFName();
 	Action = InAction;
-	DelegatePropertyDisplayName = InAnimation->GetDisplayName();
 
 	MarkDirty();
 }

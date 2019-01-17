@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
 #include "Stats/Stats.h"
@@ -487,7 +487,9 @@ void StatelessConnectHandlerComponent::SendRestartHandshakeRequest(const FString
 		AckPacket.WriteBit(bRestartHandshake);
 
 #if !UE_BUILD_SHIPPING
-		UE_LOG(LogHandshake, Log, TEXT("SendRestartHandshakeRequest."));
+		FDDoSDetection* DDoS = Handler->GetDDoS();
+
+		UE_CLOG((DDoS == nullptr || !DDoS->CheckLogRestrictions()), LogHandshake, Log, TEXT("SendRestartHandshakeRequest."));
 #endif
 
 		CapHandshakePacket(AckPacket);

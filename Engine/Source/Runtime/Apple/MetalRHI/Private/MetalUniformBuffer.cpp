@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MetalConstantBuffer.cpp: Metal Constant buffer implementation.
@@ -57,6 +57,7 @@ struct FMetalRHICommandInitialiseUniformBufferIAB : public FRHICommand<FMetalRHI
 		Buffer->InitIAB();
 	}
 };
+bool GMetalManagedUniformBuffers = false;
 
 struct FMetalArgumentDesc
 {

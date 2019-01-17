@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TextureCompressorModule.h"
 #include "Math/RandomStream.h"
@@ -10,6 +10,7 @@
 #include "Engine/Texture.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
+#include "Misc/Paths.h"
 #include "ImageCore.h"
 
 #if PLATFORM_WINDOWS
@@ -1933,9 +1934,9 @@ public:
 	{
 #if PLATFORM_WINDOWS
 	#if PLATFORM_64BITS
-		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(TEXT("../../../Engine/Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll"));
+		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
 	#else	//32-bit platform
-		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(TEXT("../../../Engine/Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll"));
+		nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win32/nvtt_.dll")));
 	#endif
 #endif	//PLATFORM_WINDOWS
 	}

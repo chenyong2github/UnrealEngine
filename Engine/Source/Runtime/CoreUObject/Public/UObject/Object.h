@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -1216,6 +1216,8 @@ public:
 	// Function calls
 	DECLARE_FUNCTION(execVirtualFunction);
 	DECLARE_FUNCTION(execFinalFunction);
+	DECLARE_FUNCTION(execLocalVirtualFunction);
+	DECLARE_FUNCTION(execLocalFinalFunction);
 
 	// Struct comparison
 	DECLARE_FUNCTION(execStructCmpEq);

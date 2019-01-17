@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SClothAssetSelector.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -1126,7 +1126,6 @@ FReply SClothAssetSelector::AddNewMask()
 
 			NewMask.MaskName = TEXT("New Mask");
 			NewMask.CurrentTarget = MaskTarget_PhysMesh::None;
-			NewMask.MaxValue = 0.0f;
 			NewMask.Values.AddZeroed(NumRequiredValues);
 
 			OnRefresh();

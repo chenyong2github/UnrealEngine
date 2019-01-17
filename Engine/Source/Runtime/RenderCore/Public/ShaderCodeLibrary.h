@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ShaderCodeLibrary.h: 
@@ -88,6 +88,7 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 	void ComputeKeyHash();
 	void ParseFromString(const FString& Src);
 	FString ToString() const;
+	void ToString(FString& OutResult) const;
 	static FString HeaderLine();
 
 	friend bool operator ==(const FStableShaderKeyAndValue& A, const FStableShaderKeyAndValue& B)

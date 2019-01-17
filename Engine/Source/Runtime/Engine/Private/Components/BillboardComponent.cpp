@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Components/BillboardComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -297,7 +297,6 @@ UBillboardComponent::UBillboardComponent(const FObjectInitializer& ObjectInitial
 	bUseEditorCompositing = true;
 
 #if WITH_EDITORONLY_DATA
-	Sprite = ConstructorStatics.SpriteTexture.Object;
 	SpriteInfo.Category = ConstructorStatics.ID_Misc;
 	SpriteInfo.DisplayName = ConstructorStatics.NAME_Misc;
 	bUseInEditorScaling = true;

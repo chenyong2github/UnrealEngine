@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -18,6 +18,10 @@ namespace Audio
 
 	/** Multiplies the input aligned float buffer with the given value. */
 	void BufferMultiplyByConstant(const AlignedFloatBuffer& InFloatBuffer, float InValue, AlignedFloatBuffer& OutFloatBuffer);
+
+	/** Similar to BufferMultiplyByConstant, but (a) assumes a buffer length divisible by 4 and (b) performs the multiply in place. */
+	void MultiplyBufferByConstantInPlace(AlignedFloatBuffer& InBuffer, float InGain);
+	void MultiplyBufferByConstantInPlace(float* InBuffer, int32 NumSamples, float InGain);
 
 	/* Takes a float buffer and quickly interpolates it's gain from StartValue to EndValue. */
 	/* This operation completely ignores channel counts, so avoid using this function on buffers that are not mono, stereo or quad */

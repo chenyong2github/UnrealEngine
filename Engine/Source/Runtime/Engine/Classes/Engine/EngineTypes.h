@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -743,19 +743,6 @@ enum ETraceTypeQuery
 
 	TraceTypeQuery_MAX	UMETA(Hidden)
 };
-
-
-/** Enum indicating which physics scene to use. */
-UENUM()
-enum EPhysicsSceneType
-{
-	/** The synchronous scene, which must finish before Unreal simulation code is run. */
-	PST_Sync,
-	/** The asynchronous scene, which may run while Unreal simulation code runs. */
-	PST_Async,
-	PST_MAX,
-};
-
 
 /** Enum indicating how each type should respond */
 UENUM(BlueprintType, meta=(ScriptName="CollisionResponseType"))
@@ -3359,6 +3346,8 @@ struct FReplicationFlags
 			uint32 bReplay:1;
 			/** True if this actor's RPCs should be ignored. */
 			uint32 bIgnoreRPCs:1;
+			/** True if we should not swap the role and remote role of this actor when receiving properties. */
+			uint32 bSkipRoleSwap:1;
 		};
 
 		uint32	Value;
@@ -3877,35 +3866,35 @@ struct FCanvasUVTri
 
 	/** UV of first vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FVector2D V0_UV;
+	FVector2D V0_UV;
 
 	/** Color of first vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FLinearColor V0_Color;
+	FLinearColor V0_Color;
 
 	/** Position of second vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FVector2D V1_Pos;
+	FVector2D V1_Pos;
 
 	/** UV of second vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FVector2D V1_UV;
+	FVector2D V1_UV;
 
 	/** Color of second vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FLinearColor V1_Color;
+	FLinearColor V1_Color;
 
 	/** Position of third vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FVector2D V2_Pos;
+	FVector2D V2_Pos;
 
 	/** UV of third vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FVector2D V2_UV;
+	FVector2D V2_UV;
 
 	/** Color of third vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CanvasUVTri)
-		FLinearColor V2_Color;
+	FLinearColor V2_Color;
 
 	FCanvasUVTri()
 		: V0_Pos(ForceInit)

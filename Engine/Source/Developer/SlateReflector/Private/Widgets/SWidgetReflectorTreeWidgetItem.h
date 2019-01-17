@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -60,7 +60,12 @@ protected:
 	{
 		return CachedWidgetType;
 	}
-	
+
+	FText GetWidgetTypeAndShortName() const
+	{
+		return CachedWidgetTypeAndShortName;
+	}
+
 	virtual FString GetReadableLocation() const override
 	{
 		return CachedReadableLocation.ToString();
@@ -111,6 +116,7 @@ private:
 	TSharedPtr<FWidgetReflectorNodeBase> WidgetInfo;
 
 	FText CachedWidgetType;
+	FText CachedWidgetTypeAndShortName;
 	FText CachedWidgetVisibility;
 	FText CachedWidgetClipping;
 	bool bCachedWidgetFocusable;

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SBoxPanel.h"
@@ -264,9 +264,10 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 {
 	if(InCommitType == ETextCommit::OnCleared)
 	{
+		FText SourceTextInEditMode = Text.Get();
 		CancelEditMode();
 		// Commit the name, certain actions might need to be taken by the bound function
-		OnTextCommittedDelegate.ExecuteIfBound(Text.Get(), InCommitType);
+		OnTextCommittedDelegate.ExecuteIfBound(SourceTextInEditMode, InCommitType);
 	}
 	else if(IsInEditMode())
 	{

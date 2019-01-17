@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UnBits.h: Unreal bitstream manipulation classes.
@@ -65,6 +65,7 @@ void FBitWriter::Reset(void)
 
 	// This class is exclusively used by the netcode
 	ArIsNetArchive = true;
+	ArMaxSerializeSize = CVarMaxNetStringSize.GetValueOnAnyThread();
 }
 
 void FBitWriter::SerializeBits( void* Src, int64 LengthBits )

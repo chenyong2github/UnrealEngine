@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -47,6 +47,11 @@ public:
 		Data.AddUninitialized(SizeBytes);
 		FMemory::Memcpy(Data.GetData(), InData, SizeBytes);
 	}
+
+	void CountBytes(FArchive& Ar) const
+	{
+		Data.CountBytes(Ar);
+	}
 };
 
 
@@ -76,6 +81,8 @@ public:
 	virtual FString RemoteAddressToString() override { return TEXT("Demo"); }
 
 public:
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	/** @return The DemoRecording driver object */
 	FORCEINLINE class UDemoNetDriver* GetDriver()

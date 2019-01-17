@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ParameterCollection.h"
 #include "UObject/UObjectHash.h"
@@ -144,9 +144,9 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 TArray<FCollectionScalarParameter> PreviousScalarParameters;
 TArray<FCollectionVectorParameter> PreviousVectorParameters;
 
-void UMaterialParameterCollection::PreEditChange(class FEditPropertyChain& PropertyAboutToChange)
+void UMaterialParameterCollection::PreEditChange(UProperty* PropertyThatWillChange)
 {
-	Super::PreEditChange(PropertyAboutToChange);
+	Super::PreEditChange(PropertyThatWillChange);
 
 	PreviousScalarParameters = ScalarParameters;
 	PreviousVectorParameters = VectorParameters;

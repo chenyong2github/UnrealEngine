@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTranslatorEDL.h"
 #include "MovieScene.h"
@@ -423,7 +423,7 @@ bool MovieSceneTranslatorEDL::ImportEDL(UMovieScene* InMovieScene, FFrameRate In
 			if (ShotSection)
 			{
 				ShotSection->Modify();
-				ShotSection->Parameters.SetStartFrameOffset(ShotData.SourceInFrame.Value);
+				ShotSection->Parameters.StartFrameOffset = ShotData.SourceInFrame;
 				ShotSection->SetRange(TRange<FFrameNumber>(ShotData.EditInFrame, ShotData.EditOutFrame));
 			}
 		}

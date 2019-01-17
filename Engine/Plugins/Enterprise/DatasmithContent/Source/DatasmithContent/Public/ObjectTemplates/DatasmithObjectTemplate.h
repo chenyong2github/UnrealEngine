@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -37,6 +37,13 @@ public:
 	if ( !PreviousTemplate || Destination->MemberName == PreviousTemplate->MemberName ) \
 	{ \
 		Destination->MemberName = MemberName; \
+	}
+
+// Specialized version of DATASMITHOBJECTTEMPLATE_CONDITIONALSET to handle SoftObjectPtr to Ptr assignment
+#define DATASMITHOBJECTTEMPLATE_CONDITIONALSETSOFTOBJECTPTR(MemberName, Destination, PreviousTemplate) \
+	if ( !PreviousTemplate || Destination->MemberName == PreviousTemplate->MemberName.Get() ) \
+	{ \
+		Destination->MemberName = MemberName.Get(); \
 	}
 
 struct DATASMITHCONTENT_API FDatasmithObjectTemplateUtils

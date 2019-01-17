@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneEvent.h"
+#include "Channels/MovieSceneObjectPathChannel.h"
 #include "Sections/MovieSceneEventSection.h"
 #include "Sections/MovieSceneActorReferenceSection.h"
 #include "MovieSceneClipboard.h"
@@ -59,9 +60,9 @@ namespace MovieSceneClipboard
 	{
 		return "EventPayload";
 	}
-	template<> inline FName GetKeyTypeName<TSoftObjectPtr<UObject>>()
+	template<> inline FName GetKeyTypeName<FMovieSceneObjectPathChannelKeyValue>()
 	{
-		return "SoftObjectPtr";
+		return "MovieSceneObjectPathChannelKeyValue";
 	}
 	template<> inline FName GetKeyTypeName<FMovieSceneEvent>()
 	{

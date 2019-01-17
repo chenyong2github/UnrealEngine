@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DatasmithImportOptions.h"
 
@@ -22,6 +22,7 @@ FDatasmithImportBaseOptions::FDatasmithImportBaseOptions()
 	, bIncludeMaterial(true)
 	, bIncludeLight(true)
 	, bIncludeCamera(true)
+	, bIncludeAnimation(true)
 {
 }
 
@@ -99,6 +100,8 @@ void UDatasmithImportOptions::UpdateNotDisplayedConfig( bool bIsAReimport )
 	{
 		CameraImportPolicy = EDatasmithImportActorPolicy::Ignore;
 	}
+
+	OtherActorImportPolicy = DefaultImportActorPolicy;
 
 	MaterialQuality = EDatasmithImportMaterialQuality::UseRealFresnelCurves;
 

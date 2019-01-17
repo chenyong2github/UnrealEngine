@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -58,6 +58,9 @@ public:
 
 	/** Extra time to reduce from current player's time. */
 	FTimespan TimeDelay;
+
+	/** Active media player options. */
+	TOptional<FMediaPlayerOptions> ActivePlayerOptions;
 
 public:
 
@@ -807,9 +810,6 @@ private:
 
 	/** Media player event queue. */
 	TQueue<EMediaEvent, EQueueMode::Mpsc> QueuedEvents;
-
-	/** Active media player options. */
-	TOptional<FMediaPlayerOptions> ActivePlayerOptions;
 
 	/** Time of last audio sample played. */
 	TAtomic<FTimespan> LastAudioRenderedSampleTime;

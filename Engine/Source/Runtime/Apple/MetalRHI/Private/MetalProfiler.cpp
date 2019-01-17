@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "MetalRHIPrivate.h"
 #include "MetalProfiler.h"
@@ -168,7 +168,11 @@ void FMetalEventNode::StopTiming()
 				if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesGPUCommandBufferTimes))
 				{
 					uint32 Time = FMath::TruncToInt( double(GetTiming()) / double(FPlatformTime::GetSecondsPerCycle()) );
+#if PLATFORM_IOS
+                    FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)0);
+#else
 					FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)Time);
+#endif
 				}
 
 				if(!bFullProfiling)
@@ -213,7 +217,11 @@ mtlpp::CommandBufferHandler FMetalEventNode::Stop(void)
 			if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesGPUCommandBufferTimes))
 			{
 				uint32 Time = FMath::TruncToInt( double(GetTiming()) / double(FPlatformTime::GetSecondsPerCycle()) );
+#if PLATFORM_IOS
+                FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)0);
+#else
 				FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)Time);
+#endif
 			}
 			
 			if(!bFullProfiling)
@@ -390,7 +398,12 @@ void FMetalGPUProfiler::RecordFrame()
 	{
 		const double CyclesPerSecond = 1.0 / FPlatformTime::GetSecondsPerCycle();
 		FrameGPUTimeCycles[FrameTimeGPUIndex] = uint64(CyclesPerSecond * RunningFrameTimeSeconds);
+        // for now set the GPU time to 0 until we figure out why it isn't always accurate
+#if PLATFORM_IOS
+        FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, (int32)0);
+#else
 		FPlatformAtomics::AtomicStore_Relaxed((int32*)&GGPUFrameTime, int32(FrameGPUTimeCycles[FrameTimeGPUIndex]));
+#endif
 		
 #if STATS
 		FPlatformAtomics::AtomicStore_Relaxed(&GMetalGPUWorkTime, FrameGPUTimeCycles[FrameTimeGPUIndex]);

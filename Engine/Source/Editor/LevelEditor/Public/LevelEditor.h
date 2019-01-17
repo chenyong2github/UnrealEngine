@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,7 +6,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Framework/Docking/TabManager.h"
-#include "Toolkits/AssetEditorManager.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Docking/LayoutService.h"

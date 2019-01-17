@@ -1,16 +1,13 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IPDisplayClusterInputManager.h"
-
-#include "CoreMinimal.h"
-
+#include "Input/IPDisplayClusterInputManager.h"
 #include "Devices/DisplayClusterInputDeviceTraits.h"
 #include "Network/DisplayClusterMessage.h"
 
-struct IDisplayClusterInputDevice;
+class IDisplayClusterInputDevice;
 struct FDisplayClusterVrpnAnalogChannelData;
 struct FDisplayClusterVrpnButtonChannelData;
 struct FDisplayClusterVrpnTrackerChannelData;

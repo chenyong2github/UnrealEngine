@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Unix/UnixErrorOutputDevice.h"
 #include "Containers/StringConv.h"
@@ -11,6 +11,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
+#include "HAL/ExceptionHandling.h"
 
 FUnixErrorOutputDevice::FUnixErrorOutputDevice()
 :	ErrorPos(0)
@@ -53,7 +54,7 @@ void FUnixErrorOutputDevice::Serialize(const TCHAR* Msg, ELogVerbosity::Type Ver
 #if PLATFORM_EXCEPTIONS_DISABLED
 		UE_DEBUG_BREAK();
 #endif
-		FPlatformMisc::RaiseException(1);
+		ReportAssert(Msg, 0);
 	}
 	else
 	{

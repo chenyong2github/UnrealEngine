@@ -1,4 +1,4 @@
-// Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -42,7 +42,7 @@ class ISocialUserList
 public:
 	virtual ~ISocialUserList() {}
 	
-	DECLARE_EVENT_OneParam(ISocialUserList, FOnUserAdded, const USocialUser&)
+	DECLARE_EVENT_OneParam(ISocialUserList, FOnUserAdded, USocialUser&)
 	virtual FOnUserAdded& OnUserAdded() const = 0;
 
 	DECLARE_EVENT_OneParam(ISocialUserList, FOnUserRemoved, const USocialUser&)

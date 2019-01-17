@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SSequencerPlayRateCombo.h"
 #include "Sequencer.h"
@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "MovieSceneCommonHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SFrameRateEntryBox.h"
 #include "EditorFontGlyphs.h"
@@ -342,6 +343,21 @@ void SSequencerPlayRateCombo::SetDisplayRate(FFrameRate InFrameRate)
 
 		MovieScene->Modify();
 		MovieScene->SetDisplayRate(InFrameRate);
+
+		TArray<UMovieScene*> DescendantMovieScenes;
+		MovieSceneHelpers::GetDescendantMovieScenes(FocusedSequence, DescendantMovieScenes);
+
+		for (UMovieScene* DescendantMovieScene : DescendantMovieScenes)
+		{
+			if (DescendantMovieScene && InFrameRate != DescendantMovieScene->GetDisplayRate())
+			{
+				if (!DescendantMovieScene->IsReadOnly())
+				{
+					DescendantMovieScene->Modify();
+					DescendantMovieScene->SetDisplayRate(InFrameRate);
+				}
+			}
+		}
 	}
 }
 

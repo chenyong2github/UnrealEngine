@@ -1,9 +1,10 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
+#include "Internationalization/TextKey.h"
 #include "Internationalization/GatherableTextData.h"
 
 enum class EPropertyLocalizationGathererTextFlags : uint8
@@ -82,8 +83,13 @@ public:
 	void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
 	void GatherScriptBytecode(const FString& PathToScript, const TArray<uint8>& ScriptData, const bool bIsEditorOnly);
 
+	bool IsDefaultTextInstance(const FText& Text) const;
+	void MarkDefaultTextInstance(const FText& Text);
+
 	bool ShouldProcessObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const;
 	void MarkObjectProcessed(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+
+	static bool ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace);
 
 	static FLocalizationDataGatheringCallbackMap& GetTypeSpecificLocalizationDataGatheringCallbacks();
 
@@ -136,6 +142,8 @@ private:
 	EPropertyLocalizationGathererResultFlags& ResultFlags;
 	TSet<const UObject*> AllObjectsInPackage;
 	TSet<FObjectAndGatherFlags> ProcessedObjects;
+	TSet<FObjectAndGatherFlags> BytecodePendingGather;
+	TSet<FTextId> DefaultTextInstances;
 };
 
 /** Struct to automatically register a callback when it's constructed */

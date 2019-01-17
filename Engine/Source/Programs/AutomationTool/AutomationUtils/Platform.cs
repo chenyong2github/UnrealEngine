@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -511,7 +511,7 @@ namespace AutomationTool
 			}
 		}
 
-		public virtual bool PublishSymbols(DirectoryReference SymbolStoreDirectory, List<FileReference> Files, string Product)
+		public virtual bool PublishSymbols(DirectoryReference SymbolStoreDirectory, List<FileReference> Files, string Product, string BuildVersion = null)
 		{
 			CommandUtils.LogWarning("PublishSymbols() has not been implemented for {0}", PlatformType.ToString());
 			return false;

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -129,7 +129,7 @@ public:
 	const FSceneViewport* GetGameViewport() const;
 
 	/* Returns the widget for this viewport */
-	TSharedPtr<SViewport> GetGameViewportWidget();
+	TSharedPtr<SViewport> GetGameViewportWidget() const;
 
 	/* Returns the relevant game instance for this viewport */
 	UGameInstance* GetGameInstance() const;
@@ -288,17 +288,10 @@ public:
 	virtual void SetViewport( FViewport* InViewportFrame );
 
 	/** Assigns the viewport overlay widget to use for this viewport client.  Should only be called when first created */
-	void SetViewportOverlayWidget( TSharedPtr< SWindow > InWindow, TSharedRef<SOverlay> InViewportOverlayWidget )
-	{
-		Window = InWindow;
-		ViewportOverlayWidget = InViewportOverlayWidget;
-	}
+	void SetViewportOverlayWidget(TSharedPtr< SWindow > InWindow, TSharedRef<SOverlay> InViewportOverlayWidget);
 
 	/** Assigns the viewport game layer manager for this viewport client.  Should only be called when first created. */
-	void SetGameLayerManager(TSharedPtr< IGameLayerManager > LayerManager)
-	{
-		GameLayerManagerPtr = LayerManager;
-	}
+	void SetGameLayerManager(TSharedPtr< IGameLayerManager > LayerManager);
 
 	/**
 	 * Gets the layer manager for the UI.

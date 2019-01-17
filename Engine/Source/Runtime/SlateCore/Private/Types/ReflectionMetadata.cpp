@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Types/ReflectionMetadata.h"
 
@@ -34,7 +34,7 @@ FString FReflectionMetaData::GetWidgetDebugInfo(const SWidget* InWidget)
 		}
 	}
 
-	return InWidget->GetReadableLocation();
+	return InWidget->ToString();
 }
 
 TSharedPtr<FReflectionMetaData> FReflectionMetaData::GetWidgetOrParentMetaData(const SWidget* InWidget)

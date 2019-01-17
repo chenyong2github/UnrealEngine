@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 #include "CoreMinimal.h"
@@ -1809,6 +1809,7 @@ AActor* FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(UBlueprint*
 
 	AActor* NewActor = World->SpawnActor(Blueprint->GeneratedClass, &Location, &Rotator);
 	GEditor->Layers->InitializeNewActorLayers(NewActor);
+	FActorLabelUtilities::SetActorLabelUnique(NewActor, Blueprint->GetName());
 
 	// Quietly ensure that no components are selected
 	USelection* ComponentSelection = GEditor->GetSelectedComponents();

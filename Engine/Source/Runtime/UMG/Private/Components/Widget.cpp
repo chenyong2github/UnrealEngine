@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Components/Widget.h"
 #include "Misc/ConfigCacheIni.h"
@@ -978,6 +978,27 @@ const FSlateBrush* UWidget::GetEditorIcon()
 EVisibility UWidget::GetVisibilityInDesigner() const
 {
 	return bHiddenInDesigner ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+bool UWidget::IsVisibleInDesigner() const
+{
+	if (bHiddenInDesigner)
+	{
+		return false;
+	}
+
+	UWidget* Parent = GetParent();
+	while (Parent != nullptr)
+	{
+		if (Parent->bHiddenInDesigner)
+		{
+			return false;
+		}
+
+		Parent = Parent->GetParent();
+	}
+
+	return true;
 }
 
 void UWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

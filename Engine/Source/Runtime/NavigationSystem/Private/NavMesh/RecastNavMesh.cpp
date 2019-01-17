@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NavMesh/RecastNavMesh.h"
 #include "Misc/Paths.h"
@@ -922,6 +922,13 @@ TArray<FNavMeshTileData> ARecastNavMesh::GetTileCacheLayers(int32 TileX, int32 T
 	
 	return TArray<FNavMeshTileData>();
 }
+
+#if !UE_BUILD_SHIPPING
+int32 ARecastNavMesh::GetCompressedTileCacheSize()
+{
+	return RecastNavMeshImpl ? RecastNavMeshImpl->GetCompressedTileCacheSize() : 0;
+}
+#endif
 
 bool ARecastNavMesh::IsResizable() const
 {

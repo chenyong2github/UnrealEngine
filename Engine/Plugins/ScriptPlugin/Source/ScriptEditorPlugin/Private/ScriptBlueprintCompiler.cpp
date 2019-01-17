@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ScriptBlueprintCompiler.h"
 #include "ScriptBlueprint.h"
@@ -60,6 +60,10 @@ void FScriptBlueprintCompiler::CreateClassVariablesFromBlueprint()
 			else if (Field.Class->IsChildOf(UIntProperty::StaticClass()))
 			{
 				PinCategory = UEdGraphSchema_K2::PC_Int;
+			}
+			else if (Field.Class->IsChildOf(UInt64Property::StaticClass()))
+			{
+				PinCategory = UEdGraphSchema_K2::PC_Int64;
 			}
 			else if (Field.Class->IsChildOf(UBoolProperty::StaticClass()))
 			{

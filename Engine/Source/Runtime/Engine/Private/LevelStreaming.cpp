@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/LevelStreaming.h"
 #include "ContentStreaming.h"
@@ -428,10 +428,6 @@ bool ULevelStreaming::DetermineTargetState()
 		else if (World->GetShouldForceUnloadStreamingLevels())
 		{
 			bContinueToConsider = false;
-		}
-		else if (!GUseBackgroundLevelStreaming && ShouldBeLoaded())
-		{
-			TargetState = ETargetState::LoadedNotVisible;
 		}
 		else if (!World->IsGameWorld())
 		{
@@ -1400,6 +1396,22 @@ void ULevelStreaming::RenameForPIE(int32 PIEInstanceID)
 			FSoftObjectPath::AddPIEPackageName(LODPackageName);
 
 			NetDriverRenameStreamingLevelPackageForPIE(World, NonPrefixedLODPackageName);
+		}
+	}
+}
+
+void ULevelStreaming::SetPriority(const int32 NewPriority)
+{
+	if (NewPriority != StreamingPriority)
+	{
+		StreamingPriority = NewPriority;
+
+		if (CurrentState != ECurrentState::Removed && CurrentState != ECurrentState::FailedToLoad)
+		{
+			if (UWorld* World = GetWorld())
+			{
+				World->UpdateStreamingLevelPriority(this);
+			}
 		}
 	}
 }

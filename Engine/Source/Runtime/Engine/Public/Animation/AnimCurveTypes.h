@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -589,6 +589,8 @@ struct ENGINE_API FBlendedHeapCurve : public FBaseBlendedCurve<FDefaultAllocator
 	{
 		UIDToArrayIndexLUT = CurveToMoveFrom.UIDToArrayIndexLUT;
 		CurveToMoveFrom.UIDToArrayIndexLUT = nullptr;
+		NumValidCurveCount = CurveToMoveFrom.NumValidCurveCount;
+		CurveToMoveFrom.NumValidCurveCount = 0;
 		Elements = MoveTemp(CurveToMoveFrom.Elements);
 		bInitialized = true;
 		CurveToMoveFrom.bInitialized = false;

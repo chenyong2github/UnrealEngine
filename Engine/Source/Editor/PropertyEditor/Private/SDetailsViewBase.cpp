@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SDetailsViewBase.h"
 #include "GameFramework/Actor.h"
@@ -581,6 +581,16 @@ void SDetailsViewBase::OnFilterTextChanged(const FText& InFilterText)
 
 	FilterView(InFilterString);
 
+}
+
+void SDetailsViewBase::OnFilterTextCommitted(const FText& InSearchText, ETextCommit::Type InCommitType)
+{
+	if (InCommitType == ETextCommit::OnCleared)
+	{
+		SearchBox->SetText(FText::GetEmpty());
+		OnFilterTextChanged(FText::GetEmpty());
+		FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
+	}
 }
 
 TSharedPtr<SWidget> SDetailsViewBase::GetNameAreaWidget()

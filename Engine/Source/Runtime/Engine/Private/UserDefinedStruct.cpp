@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/UserDefinedStruct.h"
 #include "UObject/UObjectHash.h"
@@ -76,7 +76,7 @@ namespace
 				if (StructVariableDesc.Category == TextCategory)
 				{
 					FText StructVariableValue;
-					if (FTextStringHelper::ReadFromString(*StructVariableDesc.DefaultValue, StructVariableValue))
+					if (FTextStringHelper::ReadFromBuffer(*StructVariableDesc.DefaultValue, StructVariableValue))
 					{
 						Ar << StructVariableValue;
 					}

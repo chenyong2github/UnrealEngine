@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SkeletalMeshLODModel.h"
 
@@ -332,7 +332,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 			Ar << S.BaseVertexIndex;
 		}
 
-		if (!StripFlags.IsEditorDataStripped())
+		if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()))
 		{
 			// For backwards compat, read rigid vert array into array
 			TArray<FLegacyRigidSkinVertex> LegacyRigidVertices;

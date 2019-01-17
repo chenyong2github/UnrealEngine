@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Shader.h: Shader definitions.
@@ -26,6 +26,7 @@
 class FGlobalShaderType;
 class FMaterialShaderType;
 class FNiagaraShaderType;
+class FOpenColorIOShaderType;
 class FMeshMaterialShaderType;
 class FShader;
 class FShaderPipelineType;
@@ -975,7 +976,8 @@ public:
 		Global,
 		Material,
 		MeshMaterial,
-		Niagara
+		Niagara,
+		OCIO
 	};
 
 	typedef class FShader* (*ConstructSerializedType)();
@@ -1069,6 +1071,14 @@ public:
 	FORCEINLINE FNiagaraShaderType* GetNiagaraShaderType()
 	{
 		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Niagara) ? reinterpret_cast<FNiagaraShaderType*>(this) : nullptr;
+	}
+	FORCEINLINE const FOpenColorIOShaderType* GetOpenColorIOShaderType() const
+	{
+		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO) ? reinterpret_cast<const FOpenColorIOShaderType*>(this) : nullptr;
+	}
+	FORCEINLINE FOpenColorIOShaderType* GetOpenColorIOShaderType()
+	{
+		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO) ? reinterpret_cast<FOpenColorIOShaderType*>(this) : nullptr;
 	}
 
 	// Accessors.

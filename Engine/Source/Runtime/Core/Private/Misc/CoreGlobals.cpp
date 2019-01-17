@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "CoreGlobals.h"
 #include "Internationalization/Text.h"
@@ -48,9 +48,6 @@ TCHAR GErrorHist[16384]	= TEXT("");
 
 /** For building exception description text dump in guard/unguard mechanism. */
 TCHAR GErrorExceptionDescription[4096] = TEXT( "" );
-
-/** The error message, can be assertion message, ensure message or message from the fatal error. */
-TCHAR GErrorMessage[4096] = TEXT( "" );
 
 
 CORE_API const FText GYes	= LOCTEXT("Yes",	"Yes");

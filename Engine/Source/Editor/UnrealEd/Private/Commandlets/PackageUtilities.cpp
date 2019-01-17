@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PackageUtilities.cpp: Commandlets for viewing information about package files
@@ -1607,6 +1607,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 			{
 				Reporter->GeneratePackageReport(Linker, *OutputOverride);
 			}
+#if !NO_LOGGING
 			if (bDumpProperties)
 			{
 				check(Reader);
@@ -1635,6 +1636,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 				}
 				Out.Logf(ELogVerbosity::Display, TEXT("Total number of Serialize calls: %lld"), TotalSerializeCalls);
 			}
+#endif // !NO_LOGGING
 		}
 		CollectGarbage(RF_NoFlags);
 	}

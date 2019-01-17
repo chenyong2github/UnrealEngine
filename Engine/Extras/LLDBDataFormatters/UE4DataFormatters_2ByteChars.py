@@ -1,4 +1,4 @@
-# Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+# Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 # /*=============================================================================
 #	LLDB Data Formatters for Unreal Types
@@ -59,7 +59,7 @@ def UE4FNameSummaryProvider(valobj,dict):
     if not Index.IsValid():
         Index = valobj.GetChildMemberWithName('ComparisonIndex')
     IndexVal = Index.GetValueAsUnsigned(0)
-    if IndexVal >= 1048576:
+    if IndexVal >= 4194304:
         return 'name=Invalid'
     else:
         Expr = '(char*)(((FNameEntry***)FName::GetNameTableForDebuggerVisualizers_MT())['+str(IndexVal)+' / 16384]['+str(IndexVal)+' % 16384])->AnsiName'
@@ -74,7 +74,7 @@ def UE4FNameSummaryProvider(valobj,dict):
 def UE4FMinimalNameSummaryProvider(valobj,dict):
     Index = valobj.GetChildMemberWithName('Index')
     IndexVal = Index.GetValueAsUnsigned(0)
-    if IndexVal >= 1048576:
+    if IndexVal >= 4194304:
         return 'name=Invalid'
     else:
         Expr = '(char*)(((FNameEntry***)FName::GetNameTableForDebuggerVisualizers_MT())['+str(IndexVal)+' / 16384]['+str(IndexVal)+' % 16384])->AnsiName'

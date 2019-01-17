@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/Granulator.h"
 #include "AudioMixer.h"
@@ -774,7 +774,7 @@ namespace Audio
 
 	float FGranularSynth::GetSampleDuration() const
 	{
-		return SampleBuffer.SampleDuration;
+		return SampleBuffer.GetSampleDuration();
 	}
 
 	void FGranularSynth::Generate(float* OutAudiobuffer, const int32 NumFrames)

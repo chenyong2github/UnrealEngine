@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
 
@@ -290,6 +290,8 @@ public:
 	/** Reverse a merge */
 	TSharedPtr< FUICommandInfo > SeparatePolys;
 
+	/** Align brush verticies to the grid */
+	TSharedPtr<FUICommandInfo> AlignBrushVerticesToGrid;
 
 	/**
 	 * Actor group commands
@@ -346,6 +348,12 @@ public:
 
 	/** Invert the current selection */
 	TSharedPtr< FUICommandInfo > InvertSelection;
+
+	/** Selects all direct children of the current selection */
+	TSharedPtr< FUICommandInfo > SelectImmediateChildren;
+
+	/** Selects all descendants of the current selection */
+	TSharedPtr< FUICommandInfo > SelectAllDescendants;
 
 	/** Selects all actors of the same class as the current selection */
 	TSharedPtr< FUICommandInfo > SelectAllActorsOfSameClass;
@@ -577,6 +585,8 @@ public:
 
 	TSharedPtr< FUICommandInfo > FeatureLevelPreview[ERHIFeatureLevel::Num];
 	
+	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
+
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_DefaultES2;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES2;
 
@@ -616,6 +626,17 @@ public:
 
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;
+
+	/** Selects all Geometry Collection geometry */
+	TSharedPtr< FUICommandInfo > GeometryCollectionSelectAllGeometry;
+
+	/** Deselects all Geometry Collection geometry */
+	TSharedPtr< FUICommandInfo > GeometryCollectionSelectNone;
+
+	/** Selects inverse of currently seleted Geometry Collection geometry */
+	TSharedPtr< FUICommandInfo > GeometryCollectionSelectInverseGeometry;
+
+
 };
 
 /**
@@ -784,12 +805,20 @@ public:
 	static void AttachToSocketSelection(FName SocketName, AActor* ParentActorPtr);
 	static void SetMaterialQualityLevel( EMaterialQualityLevel::Type NewQualityLevel );
 	static bool IsMaterialQualityLevelChecked( EMaterialQualityLevel::Type TestQualityLevel );
+	static void ToggleFeatureLevelPreview();
+	static bool IsFeatureLevelPreviewEnabled();
+	static bool IsFeatureLevelPreviewActive();
+	static bool IsFeatureLevelPreviewDropdownEnabled();
 	static void SetPreviewPlatform(FName MaterialQualityPlatform,ERHIFeatureLevel::Type PreviewFeatureLevel);
 	static bool IsPreviewPlatformChecked(FName MaterialQualityPlatform, ERHIFeatureLevel::Type PreviewFeatureLevel);
 	static void SetFeatureLevelPreview(ERHIFeatureLevel::Type InFeatureLevel);
 	static bool IsFeatureLevelPreviewChecked(ERHIFeatureLevel::Type InFeatureLevel);
 	static bool IsFeatureLevelPreviewAvailable(ERHIFeatureLevel::Type InFeatureLevel);
-	
+	static void GeometryCollection_SelectAllGeometry();
+	static void GeometryCollection_SelectNone();
+	static void GeometryCollection_SelectInverseGeometry();
+	static bool GeometryCollection_IsChecked();
+
 	/**
 	 * Called when the Scene Stats button is clicked.  Invokes the Primitive Stats dialog.
 	 */
@@ -1254,6 +1283,11 @@ public:
 	 * @param InUsePivot		Whether or not to use the pivot position.
 	 */
 	static void SnapActorToActor_Clicked( bool InAlign, bool InUseLineTrace, bool InUseBounds, bool InUsePivot );
+
+	/**
+	 * Aligns brush verticies to the nearest grid point.
+	 */
+	static void AlignBrushVerticesToGrid_Execute();
 
 	/**
 	 * Checks to see if multiple actors are selected

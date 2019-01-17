@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	KismetCompiler.cpp
@@ -2341,6 +2341,16 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 		else
 		{
 			Class->RemoveMetaData(NAME_Tooltip);
+		}
+
+		static const FName NAME_DisplayName(TEXT("DisplayName"));
+		if (!Blueprint->BlueprintDisplayName.IsEmpty())
+		{
+			Class->SetMetaData(FBlueprintMetadata::MD_DisplayName, *Blueprint->BlueprintDisplayName);
+		}
+		else
+		{
+			Class->RemoveMetaData(NAME_DisplayName);
 		}
 
 		// Copy the category info from the parent class

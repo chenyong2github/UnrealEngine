@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /**
  * Shader Pipeline Precompilation Cache
@@ -125,6 +125,8 @@ public:
 	 */
 	static bool SetGameUsageMaskWithComparison(uint64 Mask, FPSOMaskComparisonFn InComparisonFnPtr);
 
+    static bool IsBatchingPaused();
+    
 	FShaderPipelineCache(EShaderPlatform Platform);
 	virtual ~FShaderPipelineCache();
 
@@ -226,6 +228,7 @@ private:
 	bool bPaused;
 	bool bOpened;
 	bool bReady;
+    int32 PausedCount;
 	FShaderCachePrecompileContext ShaderCachePrecompileContext;
 	
     volatile int64 TotalActiveTasks;

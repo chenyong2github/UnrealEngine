@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -140,15 +140,10 @@ namespace UnrealBuildTool
 			ProjectFile = InProjectFile;
 		}
 
-		protected string GetMacDevSrcRoot()
+		protected DirectoryReference GetMacDevSrcRoot()
 		{
-			return UnrealBuildTool.EngineSourceDirectory.FullName;
+			return UnrealBuildTool.EngineSourceDirectory;
 		}
-
-        protected string GetMacDevEngineRoot()
-        {
-            return UnrealBuildTool.EngineDirectory.FullName;
-        }
 
 		protected void StripSymbolsWithXcode(FileReference SourceFile, FileReference TargetFile, string ToolchainDir)
 		{

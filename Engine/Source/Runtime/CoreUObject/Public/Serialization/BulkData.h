@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -375,6 +375,13 @@ public:
 	 */
 	void StoreCompressedOnDisk( ECompressionFlags CompressionFlags );
 
+	/**
+	 * Deallocates bulk data without detaching the archive, so that further bulk data accesses require a reload.
+	 * Only supported in editor builds.
+	 *
+	 * @return Whether the operation succeeded.
+	 */
+	bool UnloadBulkData();
 
 	/*-----------------------------------------------------------------------------
 		Serialization.

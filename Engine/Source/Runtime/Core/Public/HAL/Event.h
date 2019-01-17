@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -81,6 +81,7 @@ public:
 	 */
 	bool Wait( const FTimespan& WaitTime, const bool bIgnoreThreadIdleStats = false )
 	{
+		check(WaitTime.GetTicks() >= 0);
 		return Wait(WaitTime.GetTotalMilliseconds(), bIgnoreThreadIdleStats);
 	}
 

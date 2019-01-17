@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphPin.h"
 #include "UObject/BlueprintsObjectVersion.h"
@@ -657,7 +657,7 @@ FString UEdGraphPin::GetDefaultAsString() const
 	else if(!DefaultTextValue.IsEmpty())
 	{
 		FString TextAsString;
-		FTextStringHelper::WriteToString(TextAsString, DefaultTextValue);
+		FTextStringHelper::WriteToBuffer(TextAsString, DefaultTextValue);
 		return TextAsString;
 	}
 	else

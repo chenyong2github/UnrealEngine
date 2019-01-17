@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -936,6 +936,31 @@ public:
 		bPromptForRemoteDebugOnEnsure = bInShouldPrompt;
 	}
 #endif	//#if !UE_BUILD_SHIPPING
+
+	/** 
+	 * Allows disabling ensure()s without rebuilding the binary, by either a commandline switch or a hotfix.
+	 *
+	 * @return ensure is allowed
+	 */
+#if DO_CHECK
+	static bool IsEnsureAllowed();
+#else
+	static bool IsEnsureAllowed() { return true; }
+#endif // DO_CHECK
+
+	/**
+	 * Updates hotfixable ensure settings from config and commandline (config takes priority).
+	 */
+#if DO_CHECK
+	static void UpdateHotfixableEnsureSettings();
+#else
+	static void UpdateHotfixableEnsureSettings() {}
+#endif // DO_CHECK
+
+	/**
+	 * Ticks values that can be hotfixable in the config.
+	 */
+	static void TickHotfixables();
 
 	static void PromptForRemoteDebugging(bool bIsEnsure)
 	{

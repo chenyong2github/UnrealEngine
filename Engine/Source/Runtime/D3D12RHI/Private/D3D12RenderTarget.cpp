@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	D3D12RenderTarget.cpp: D3D render target implementation.
@@ -692,6 +692,9 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 	case DXGI_FORMAT_R8_SNORM:
 	case DXGI_FORMAT_R8_SINT:
 		BytesPerPixel = 1;
+		break;
+	case DXGI_FORMAT_R32G32B32A32_UINT:
+		BytesPerPixel = 16;
 		break;
 	}
 

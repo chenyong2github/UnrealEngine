@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -78,6 +78,25 @@ private:
 	 * @param Object The object whose transform has changed
 	 */
 	void OnTransformChanged( UObject& InObject );
+
+	/** 
+	 * Called before an actor or component property changes.
+	 * Forward to OnPreTransformChanged if the property is transform related.
+	 *
+	 * @param InObject The object whose property is about to change
+	 * @param InPropertyChain the property that is about to change
+	 */
+	void OnPrePropertyChanged(UObject* InObject, const class FEditPropertyChain& InPropertyChain);
+
+	/** 
+	 * Called before an actor or component property changes.
+	 * Forward to OnTransformChanged if the property is transform related.
+	 *
+	 * @param InObject The object whose property is about to change
+	 * @param InPropertyChangedEvent the property that changed
+	 */
+	void OnPostPropertyChanged(UObject* InObject, struct FPropertyChangedEvent& InPropertyChangedEvent);
+
 
 	/** Delegate for camera button visible state */
 	EVisibility IsCameraVisible(FGuid ObjectGuid) const;

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerBuffer.h"
 #include "AudioMixerDevice.h"
@@ -151,11 +151,6 @@ namespace Audio
 			return true;
 		}
 		return false;
-	}
-
-	bool FMixerBuffer::ReadCompressedData(uint8* Destination, bool bLooping)
-	{
-		return ReadCompressedData(Destination, MONO_PCM_BUFFER_SAMPLES, bLooping);
 	}
 
 	bool FMixerBuffer::ReadCompressedData(uint8* Destination, int32 InNumFrames, bool bLooping)

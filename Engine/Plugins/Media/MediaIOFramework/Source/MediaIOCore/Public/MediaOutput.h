@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,13 @@
 
 
 class UMediaCapture;
+
+enum class EMediaCaptureConversionOperation : int8
+{
+	NONE,
+	RGBA8_TO_YUV_8BIT,
+	RGB10_TO_YUVv210_10BIT
+};
 
 /**
  * Abstract base class for media output.
@@ -46,8 +53,9 @@ public:
 	virtual bool Validate(FString& OutFailureReason) const;
 
 public:
-	virtual FIntPoint GetRequestedSize() const PURE_VIRTUAL(UMediaOutput::GetRequestedSize, return FIntPoint(0, 0); );
+	virtual FIntPoint GetRequestedSize() const PURE_VIRTUAL(UMediaOutput::GetRequestedSize, return FIntPoint::ZeroValue; );
 	virtual EPixelFormat GetRequestedPixelFormat() const PURE_VIRTUAL(UMediaOutput::GetRequestedPixelFormat, return EPixelFormat::PF_Unknown; );
+	virtual EMediaCaptureConversionOperation GetConversionOperation() const { return EMediaCaptureConversionOperation::NONE; }
 
 protected:
 	virtual UMediaCapture* CreateMediaCaptureImpl() { return nullptr; }

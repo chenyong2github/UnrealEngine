@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/ReimportSoundFactory.h"
 #include "Sound/SoundWave.h"
@@ -87,6 +87,9 @@ EReimportResult::Type UReimportSoundFactory::Reimport(UObject* Obj)
 		UE_LOG(LogAudioEditor, Log, TEXT("-- imported successfully"));
 
 		SoundWave->AssetImportData->Update(Filename);
+		SoundWave->InvalidateCompressedData();
+		SoundWave->FreeResources();
+		SoundWave->UpdatePlatformData();
 		SoundWave->MarkPackageDirty();
 		SoundWave->bNeedsThumbnailGeneration = true;
 	}

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "VREditorModeManager.h"
 #include "InputCoreTypes.h"
@@ -211,6 +211,11 @@ void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 		CurrentVREditorMode->SetActuallyUsingVR( !bForceWithoutHMD );
 
 		CurrentVREditorMode->Enter();
+
+		if (CurrentVREditorMode->IsActuallyUsingVR())
+		{
+			OnVREditingModeEnterHandle.Broadcast();
+		}
 	}
 }
 
@@ -241,7 +246,13 @@ void FVREditorModeManager::CloseVREditor( const bool bShouldDisableStereo )
 			WorldInteraction->UseLegacyInteractions();
 		}
 
+		if (CurrentVREditorMode->IsActuallyUsingVR())
+		{
+			OnVREditingModeExitHandle.Broadcast();
+		}
+
 		CurrentVREditorMode = nullptr;
+
 	}
 }
 

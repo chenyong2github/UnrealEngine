@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -21,6 +21,12 @@ namespace Gauntlet
 		public List<ArgumentWithParams> Platforms = new List<ArgumentWithParams>();
 
 		public Params TestParams { get; set; }
+
+		public override string ToString()
+		{
+			return string.Format("{0}({1})", TestName, string.Join(",", Platforms.Aggregate(new List<string>(), (L, P) => { L.Add(P.Argument); return L; })));
+		}
+
 
 		static public TestRequest CreateRequest(string InName) { return new TestRequest() { TestName = InName, TestParams = new Params(new string[0]) }; }
 	}

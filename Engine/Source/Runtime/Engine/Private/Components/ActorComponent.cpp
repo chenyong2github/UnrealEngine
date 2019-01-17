@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 // ActorComponent.cpp: Actor component implementation.
 
 #include "Components/ActorComponent.h"
@@ -157,6 +157,8 @@ UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*=
 	PrimaryComponentTick.bCanEverTick = false;
 	PrimaryComponentTick.SetTickFunctionEnable(false);
 
+	MarkedForEndOfFrameUpdateArrayIndex = INDEX_NONE;
+
 	CreationMethod = EComponentCreationMethod::Native;
 
 	bAllowReregistration = true;
@@ -196,6 +198,14 @@ void UActorComponent::PostInitProperties()
 		else
 		{
 			OwnerPrivate->AddOwnedComponent(this);
+		}
+	}
+
+	for (UAssetUserData* Datum : AssetUserData)
+	{
+		if (Datum != nullptr)
+		{
+			Datum->PostEditChangeOwner();
 		}
 	}
 }

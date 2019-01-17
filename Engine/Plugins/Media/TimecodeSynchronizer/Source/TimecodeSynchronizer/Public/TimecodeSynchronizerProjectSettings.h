@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,7 +20,7 @@ public:
 	GENERATED_BODY()
 
 	UTimecodeSynchronizerProjectSettings()
-		: bDisplayInToolbar(true)
+		: bDisplayInToolbar(false)
 	{ }
 
 public:
@@ -30,6 +30,20 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category="TimecodeSynchronizer")
 	TSoftObjectPtr<UTimecodeSynchronizer> DefaultTimecodeSynchronizer;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		if (GET_MEMBER_NAME_CHECKED(ThisClass, DefaultTimecodeSynchronizer) == PropertyChangedEvent.GetPropertyName())
+		{
+			OnDefaultTimecodeSynchronizerChanged.Broadcast();
+		}
+		
+		Super::PostEditChangeProperty(PropertyChangedEvent);
+	}
+#endif
+
+	FSimpleMulticastDelegate OnDefaultTimecodeSynchronizerChanged;
 };
 
 /**

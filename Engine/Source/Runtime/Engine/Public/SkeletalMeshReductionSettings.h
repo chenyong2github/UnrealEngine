@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SkeletalMeshReductionSettings.h: Skeletal Mesh Reduction Settings
@@ -52,10 +52,6 @@ USTRUCT()
 struct FSkeletalMeshOptimizationSettings
 {
 	GENERATED_USTRUCT_BODY()
-
-#if WITH_EDITOR
-	ENGINE_API bool IsReductionSettingActive();
-#endif
 
 	/** The method to use when optimizing the skeletal mesh LOD */
 	UPROPERTY(EditAnywhere, Category = ReductionMethod)

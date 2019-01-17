@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ParticleVertexFactory.cpp: Particle vertex factory implementation.
@@ -225,7 +225,7 @@ inline TGlobalResource<FNiagaraSpriteVertexDeclaration>& GetNiagaraSpriteVertexD
 
 bool FNiagaraSpriteVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
-	return (!IsES2Platform(Platform) && Platform != SP_OPENGL_SM4 && (Material->IsUsedWithNiagaraSprites() || Material->IsSpecialEngineMaterial()));
+	return (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES3_1)) && (Material->IsUsedWithNiagaraSprites() || Material->IsSpecialEngineMaterial());
 }
 
 /**

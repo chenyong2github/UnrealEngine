@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -107,7 +107,7 @@ public:
 	* @see AutoAttachParent, AutoAttachSocketName, AutoAttachLocationType
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
-		uint32 bAutoManageAttachment : 1;
+	uint32 bAutoManageAttachment : 1;
 
 
 	virtual void Activate(bool bReset = false)override;
