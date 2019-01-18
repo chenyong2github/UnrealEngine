@@ -236,7 +236,8 @@ void FRemoteSessionRole::CreateChannel(const FString& InChannelName, ERemoteSess
 	else if (InChannelName == FRemoteSessionARCameraChannel::StaticType())
 	{
 		// Client side sending only works on iOS with Android coming in the future
-		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || (PLATFORM_IOS && UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World));
+		bool bSessionTypeSupported = UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
+		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || (PLATFORM_IOS && bSessionTypeSupported);
 		if (IsSupported)
 		{
 			NewChannel = MakeShareable(new FRemoteSessionARCameraChannel(InMode, OSCConnection));

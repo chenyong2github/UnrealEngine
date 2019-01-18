@@ -228,9 +228,15 @@ void FLeapWrapper::SetDevice(const LEAP_DEVICE_INFO *DeviceProps)
 	{
 		LastDevice = (LEAP_DEVICE_INFO*) malloc(sizeof(*DeviceProps));
 	}
-	*LastDevice = *DeviceProps;
-	LastDevice->serial = (char*)malloc(DeviceProps->serial_length);
-	memcpy(LastDevice->serial, DeviceProps->serial, DeviceProps->serial_length);
+	if (LastDevice)
+	{
+		*LastDevice = *DeviceProps;
+		LastDevice->serial = (char*)malloc(DeviceProps->serial_length);
+		if (LastDevice->serial)
+		{
+			memcpy(LastDevice->serial, DeviceProps->serial, DeviceProps->serial_length);
+		}
+	}
 	DataLock.Unlock();
 }
 
@@ -246,8 +252,14 @@ void FLeapWrapper::CleanupLastDevice()
 void FLeapWrapper::SetFrame(const LEAP_TRACKING_EVENT *Frame)
 {
 	DataLock.Lock();
-	if (!LastFrame) LastFrame = (LEAP_TRACKING_EVENT *)malloc(sizeof(*Frame));
-	*LastFrame = *Frame;
+	if (!LastFrame)
+	{
+		LastFrame = (LEAP_TRACKING_EVENT *)malloc(sizeof(*Frame));
+	}
+	if (LastFrame)
+	{
+		*LastFrame = *Frame;
+	}
 	DataLock.Unlock();
 }
 
