@@ -8,9 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MagicLeapAR(ReadOnlyTargetRules Target) : base(Target)
 		{
-			//JB - Remove
-            OptimizeCode = CodeOptimization.Never;
-
             PrivateIncludePaths.AddRange(
 				new string[] {
 					"../../../../Source/Runtime/Renderer/Private",
