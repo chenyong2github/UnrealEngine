@@ -31,6 +31,7 @@ FAutoConsoleVariableRef CVarSyncAudioAfterDropouts(
 
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Sync"), STAT_MediaUtils_MediaSoundComponentSync, STATGROUP_Media);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent SampleTime"), STAT_MediaUtils_MediaSoundComponentSampleTime, STATGROUP_Media);
+DECLARE_DWORD_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Queued"), STAT_Media_SoundCompQueued, STATGROUP_Media);
 
 /* Static initialization
  *****************************************************************************/
@@ -439,11 +440,12 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 			}
 
 			// Launch an analysis task with this audio
-			(new FAutoDeleteAsyncTask<FMediaSoundComponentSpectrumAnalysisTask>(&SpectrumAnalyzer, &SpectrumAnalysisCounter))->StartBackgroundTask();
+			SpectrumAnalyzer.PerformAnalysisIfPossible(true, true);
 		}
 
 		SET_FLOAT_STAT(STAT_MediaUtils_MediaSoundComponentSync, FMath::Abs((Time - OutTime).GetTotalMilliseconds()));
 		SET_FLOAT_STAT(STAT_MediaUtils_MediaSoundComponentSampleTime, OutTime.GetTotalMilliseconds());
+		SET_DWORD_STAT(STAT_Media_SoundCompQueued, PinnedSampleQueue->Num());
 	}
 	else
 	{
@@ -467,25 +469,25 @@ void UMediaSoundComponent::SetEnableSpectralAnalysis(bool bInSpectralAnalysisEna
 
 void UMediaSoundComponent::SetSpectralAnalysisSettings(TArray<float> InFrequenciesToAnalyze, EMediaSoundComponentFFTSize InFFTSize)
 {
-	Audio::SpectrumAnalyzerSettings::EFFTSize SpectrumAnalyzerSize;
+	Audio::FSpectrumAnalyzerSettings::EFFTSize SpectrumAnalyzerSize;
 
 	switch (InFFTSize)
 	{
 		case EMediaSoundComponentFFTSize::Min_64: 
-			SpectrumAnalyzerSize = Audio::SpectrumAnalyzerSettings::EFFTSize::Min_64; 
+			SpectrumAnalyzerSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Min_64;
 			break;
 		
 		case EMediaSoundComponentFFTSize::Small_256: 
-			SpectrumAnalyzerSize = Audio::SpectrumAnalyzerSettings::EFFTSize::Small_256; 
+			SpectrumAnalyzerSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Small_256;
 			break;
 		
 		default:
 		case EMediaSoundComponentFFTSize::Medium_512:
-			SpectrumAnalyzerSize = Audio::SpectrumAnalyzerSettings::EFFTSize::Medium_512; 
+			SpectrumAnalyzerSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Medium_512;
 			break;
 
 		case EMediaSoundComponentFFTSize::Large_1024: 
-			SpectrumAnalyzerSize = Audio::SpectrumAnalyzerSettings::EFFTSize::Large_1024; 
+			SpectrumAnalyzerSize = Audio::FSpectrumAnalyzerSettings::EFFTSize::Large_1024;
 			break;
 	}
 
