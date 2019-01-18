@@ -563,7 +563,7 @@ public class LuminPlatform : Platform
 
 		//requires target name instead of just the project name
 		string TargetName = Params.ClientCookedTargets[0];
-		Deploy.InitUPL(TargetName, SC.ProjectRoot, SC.StageTargets[0].Receipt.Configuration);
+		Deploy.InitUPL(SC.StageTargets[0].Receipt);
 
 		string MpkName = GetFinalMpkName(Params, SC);
 		string PackageName = GetPackageName(Params);
