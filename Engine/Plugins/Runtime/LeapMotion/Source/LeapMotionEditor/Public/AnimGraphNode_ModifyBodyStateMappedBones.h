@@ -5,7 +5,7 @@
 #include "Editor/AnimGraph/Classes/AnimGraphNode_SkeletalControlBase.h"
 
 #include "AnimNode_ModifyBodyStateMappedBones.h"
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_ModifyBodyStateMappedBones.generated.h"
 
