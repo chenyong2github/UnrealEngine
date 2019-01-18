@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "BSDSockets/SocketsBSD.h"
 
@@ -386,14 +386,36 @@ bool FSocketBSD::JoinMulticastGroup(const FInternetAddr& GroupAddress)
 	if (BSDAddr.GetProtocolFamily() == ESocketProtocolFamily::IPv6)
 	{
 		ipv6_mreq imr;
-		imr.ipv6mr_interface = htonl(BSDAddr.GetScopeId());
+		imr.ipv6mr_interface = 0;
 		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
-		return (setsockopt(Socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, (char*)&imr, sizeof(imr)) == 0);
+		return (setsockopt(Socket, IPPROTO_IPV6, IP_ADD_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
 	}
 #endif
 
 	ip_mreq imr;
 	imr.imr_interface.s_addr = INADDR_ANY;
+	imr.imr_multiaddr = ((sockaddr_in*)&(BSDAddr.Addr))->sin_addr;
+	return (setsockopt(Socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+}
+
+
+bool FSocketBSD::JoinMulticastGroup(const FInternetAddr& GroupAddress, const FInternetAddr& InterfaceAddress)
+{
+	const FInternetAddrBSD& BSDAddr = static_cast<const FInternetAddrBSD&>(GroupAddress);
+	const FInternetAddrBSD& BSDIFAddr = static_cast<const FInternetAddrBSD&>(InterfaceAddress);
+
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+	if (BSDAddr.GetProtocolFamily() == ESocketProtocolFamily::IPv6)
+	{
+		ipv6_mreq imr;
+		imr.ipv6mr_interface = htonl(BSDIFAddr.GetScopeId());
+		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
+		return (setsockopt(Socket, IPPROTO_IPV6, IP_ADD_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+	}
+#endif
+
+	ip_mreq imr;
+	imr.imr_interface.s_addr = ((sockaddr_in*)&(BSDIFAddr.Addr))->sin_addr.s_addr;
 	imr.imr_multiaddr = ((sockaddr_in*)&(BSDAddr.Addr))->sin_addr;
 	return (setsockopt(Socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
 }
@@ -407,9 +429,9 @@ bool FSocketBSD::LeaveMulticastGroup(const FInternetAddr& GroupAddress)
 	if (BSDAddr.GetProtocolFamily() == ESocketProtocolFamily::IPv6)
 	{
 		ipv6_mreq imr;
-		imr.ipv6mr_interface = htonl(BSDAddr.GetScopeId());
+		imr.ipv6mr_interface = 0;
 		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
-		return (setsockopt(Socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (char*)&imr, sizeof(imr)) == 0);
+		return (setsockopt(Socket, IPPROTO_IPV6, IP_DROP_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
 	}
 #endif
 
@@ -420,11 +442,32 @@ bool FSocketBSD::LeaveMulticastGroup(const FInternetAddr& GroupAddress)
 }
 
 
+bool FSocketBSD::LeaveMulticastGroup(const FInternetAddr& GroupAddress, const FInternetAddr& InterfaceAddress)
+{
+	const FInternetAddrBSD& BSDAddr = static_cast<const FInternetAddrBSD&>(GroupAddress);
+	const FInternetAddrBSD& BSDIFAddr = static_cast<const FInternetAddrBSD&>(InterfaceAddress);
+
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+	if (BSDAddr.GetProtocolFamily() == ESocketProtocolFamily::IPv6)
+	{
+		ipv6_mreq imr;
+		imr.ipv6mr_interface = htonl(BSDIFAddr.GetScopeId());
+		imr.ipv6mr_multiaddr = ((sockaddr_in6*)&(BSDAddr.Addr))->sin6_addr;
+		return (setsockopt(Socket, IPPROTO_IPV6, IP_DROP_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+	}
+#endif
+
+	ip_mreq imr;
+	imr.imr_interface.s_addr = ((sockaddr_in*)&(BSDIFAddr.Addr))->sin_addr.s_addr;
+	imr.imr_multiaddr = ((sockaddr_in*)&(BSDAddr.Addr))->sin_addr;
+	return (setsockopt(Socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&imr, sizeof(imr)) == 0);
+}
+
+
 bool FSocketBSD::SetMulticastLoopback(bool bLoopback)
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	uint32 ShouldLoopback = bLoopback ? 1 : 0;
-	return (setsockopt(Socket, IPPROTO_IPV6, IP_MULTICAST_LOOP, (char*)&ShouldLoopback, sizeof(ShouldLoopback)) == 0);
+	return (setsockopt(Socket, IPPROTO_IPV6, IP_MULTICAST_LOOP, (char*)&bLoopback, sizeof(bLoopback)) == 0);
 #endif
 
 	return (setsockopt(Socket, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&bLoopback, sizeof(bLoopback)) == 0);
@@ -434,11 +477,24 @@ bool FSocketBSD::SetMulticastLoopback(bool bLoopback)
 bool FSocketBSD::SetMulticastTtl(uint8 TimeToLive)
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
-	uint32 RealTimeToLive = TimeToLive;
-	return (setsockopt(Socket, IPPROTO_IPV6, IP_MULTICAST_TTL, (char*)&RealTimeToLive, sizeof(RealTimeToLive)) == 0);
+	return (setsockopt(Socket, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char*)&TimeToLive, sizeof(TimeToLive)) == 0);
 #endif
 
 	return (setsockopt(Socket, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&TimeToLive, sizeof(TimeToLive)) == 0);
+}
+
+
+bool FSocketBSD::SetMulticastInterface(const FInternetAddr& InterfaceAddress)
+{
+	const FInternetAddrBSD& BSDIFAddr = static_cast<const FInternetAddrBSD&>(InterfaceAddress);
+
+#if PLATFORM_HAS_BSD_IPV6_SOCKETS
+	uint32 InterfaceIndex = htonl(BSDIFAddr.GetScopeId());
+	return (setsockopt(Socket, IPPROTO_IPV6, IPV6_MULTICAST_IF, (char*)&InterfaceIndex, sizeof(InterfaceIndex)) == 0);
+#endif
+
+	in_addr InterfaceAddr = ((sockaddr_in*)&(BSDIFAddr.Addr))->sin_addr;
+	return (setsockopt(Socket, IPPROTO_IP, IP_MULTICAST_IF, (char*)&InterfaceAddr, sizeof(InterfaceAddr)) == 0);
 }
 
 
@@ -529,7 +585,7 @@ bool FSocketBSD::SetIPv6Only(bool bIPv6Only)
 {
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
 	int v6only = bIPv6Only ? 1 : 0;
-	bool bOk = (setsockopt(Socket, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&v6only, sizeof(v6only)) == 0);
+	bool bOk = setsockopt(Socket, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&v6only, sizeof(v6only)) == 0;
 
 	if (bOk == false)
 	{

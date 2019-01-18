@@ -216,7 +216,7 @@ namespace WindowsMixedReality
 
 		FlushRenderingCommands();
 
-		return std::move(D3D11DeviceLocal);
+		return D3D11DeviceLocal;
 	}
 
 	/** Helper function for acquiring the appropriate FSceneViewport */
@@ -1080,11 +1080,11 @@ namespace WindowsMixedReality
 	FWindowsMixedRealityHMD::FWindowsMixedRealityHMD(const FAutoRegister& AutoRegister)
 		: FSceneViewExtensionBase(AutoRegister)
 		, FHeadMountedDisplayBase(nullptr)
+		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)
+		, HMDTrackingOrigin(EHMDTrackingOrigin::Floor)
 		, CurrOrientation(FQuat::Identity)
 		, CurrPosition(FVector::ZeroVector)
-		, HMDTrackingOrigin(EHMDTrackingOrigin::Floor)
-		, ScreenScalePercentage(1.0f)
 	{
 		static const FName RendererModuleName("Renderer");
 		RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
