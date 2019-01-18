@@ -8,6 +8,8 @@
 #ifndef _LEAP_C_H
 #define _LEAP_C_H
 
+#pragma warning(disable : 4201)
+
 #ifndef LEAP_EXPORT
 #  ifdef _MSC_VER
 #    define LEAP_EXPORT __declspec(dllimport)

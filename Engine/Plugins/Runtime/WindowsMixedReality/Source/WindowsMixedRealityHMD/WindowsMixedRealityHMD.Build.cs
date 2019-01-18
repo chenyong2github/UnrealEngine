@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
             {
                 releaseId = Convert.ToInt32(releaseIdString);
             }
-            bool bAllowWindowsMixedReality = (Target.WindowsPlatform.Compiler != UnrealBuildTool.WindowsCompiler.VisualStudio2015) && (releaseId >= 1803);
+            bool bAllowWindowsMixedReality = (releaseId >= 1803);
 
             if (bAllowWindowsMixedReality)
             {

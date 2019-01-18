@@ -1078,8 +1078,8 @@ namespace WindowsMixedReality
 	}
 
 	FWindowsMixedRealityHMD::FWindowsMixedRealityHMD(const FAutoRegister& AutoRegister)
-		: FSceneViewExtensionBase(AutoRegister)
-		, FHeadMountedDisplayBase(nullptr)
+		: FHeadMountedDisplayBase(nullptr)
+		, FSceneViewExtensionBase(AutoRegister)
 		, ScreenScalePercentage(1.0f)
 		, mCustomPresent(nullptr)
 		, HMDTrackingOrigin(EHMDTrackingOrigin::Floor)
