@@ -921,7 +921,6 @@ namespace UnrealBuildTool
 				case "PS4RHI":
                 case "Gnmx":
 				case "OnlineSubsystemIOS":
-				case "OnlineSubsystemLive":
 					return true;
 			}
 			return false;
