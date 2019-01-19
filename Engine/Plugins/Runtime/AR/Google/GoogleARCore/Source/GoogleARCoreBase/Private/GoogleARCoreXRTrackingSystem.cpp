@@ -314,6 +314,7 @@ TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
 		return PointCloudPoints;
 	}
 
+#if PLATFORM_ANDROID //Static analysis complains that i is always < 0, because GetPointNum returns 0 on non-android platforms
 	for(int i=0; i<LatestPointCloud->GetPointNum(); i++)
 	{
 		FVector Point = FVector::ZeroVector;
@@ -321,6 +322,7 @@ TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
 		LatestPointCloud->GetPoint(i, Point, Confident);
 		PointCloudPoints.Add(Point);
 	}
+#endif
 
 	return PointCloudPoints;
 }
@@ -354,7 +356,7 @@ bool FGoogleARCoreXRTrackingSystem::OnAddRuntimeCandidateImage(UARSessionConfig*
 				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 			}
 		}
-		else if (PixelFormat == EPixelFormat::PF_G8)
+		else
 		{
 			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
 				TEXT("Unsupported texture data when adding runtime candidate image."));

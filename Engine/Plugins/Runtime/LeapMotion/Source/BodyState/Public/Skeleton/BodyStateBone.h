@@ -68,6 +68,11 @@ struct BODYSTATE_API FBodyStateBoneData
 
 	FBodyStateBoneData()
 	{
+		Reset();
+	}
+
+	void Reset()
+	{
 		Transform.SetScale3D(FVector(1.f));
 		Alpha = 1.f;
 		Length = 1.f;
@@ -77,7 +82,7 @@ struct BODYSTATE_API FBodyStateBoneData
 	/** If you're only tracking transform */
 	void SetFromTransform(FTransform InTransform)
 	{
-		FBodyStateBoneData();
+		Reset();
 		Transform = InTransform;
 	}
 };

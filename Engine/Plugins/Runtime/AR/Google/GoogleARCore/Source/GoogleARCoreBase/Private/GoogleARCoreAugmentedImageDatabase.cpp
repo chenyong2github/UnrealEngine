@@ -48,7 +48,7 @@ int UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImageFromTexture(UTe
 				GrayscaleBuffer[i] = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 			}
 		}
-		else if(PixelFormat == EPixelFormat::PF_G8)
+		else
 		{
 			ensureMsgf(RawImageData->GetBulkDataSize() == ImageWidth * ImageHeight,
 				TEXT("Unsupported texture data in UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImage"));
