@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 2017 Google Inc.
 
 using System.IO;
 using UnrealBuildTool;
