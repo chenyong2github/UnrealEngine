@@ -1669,12 +1669,6 @@ protected:
 	/** Returns the scene color texture multi-view is targeting. */	
 	FTextureRHIParamRef GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
 
-	/** Composites the monoscopic far field view into the stereo views. */
-	void CompositeMonoscopicFarField(FRHICommandListImmediate& RHICmdList);
-
-	/** Renders a depth mask into the monoscopic far field view to ensure we only render visible pixels. */
-	void RenderMonoscopicFarFieldMask(FRHICommandListImmediate& RHICmdList);
-
 	void UpdatePrimitivePrecomputedLightingBuffers();
 	void ClearPrimitiveSingleFramePrecomputedLightingBuffers();
 

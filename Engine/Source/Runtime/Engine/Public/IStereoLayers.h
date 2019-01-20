@@ -136,7 +136,7 @@ public:
 	* @param Offset				(in) Position from which to start rendering the texture.
 	* @param ShowLoadingMovie	(in) Whether the splash screen presents loading movies.
 	*/
-	void SetSplashScreen(FTextureRHIRef Texture, FVector2D Scale, FVector2D Offset, bool bShowLoadingMovie)
+	void SetSplashScreen(FTextureRHIRef Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie)
 	{
 		bSplashShowMovie = bShowLoadingMovie;
 		SplashTexture = nullptr;
@@ -177,6 +177,7 @@ public:
 		if (Texture)
 		{
 			SplashMovie = Texture->GetTexture2D();
+			bSplashShowMovie = true;
 		}
 		UpdateSplashScreen();
 	}
@@ -209,7 +210,7 @@ protected:
 	bool				bSplashShowMovie = false;
 	FTexture2DRHIRef	SplashTexture;
 	FTexture2DRHIRef	SplashMovie;
-	FVector2D			SplashOffset = FVector2D(0.0f, 0.0f);
+	FVector			    SplashOffset = FVector::ZeroVector;
 	FVector2D			SplashScale = FVector2D(1.0f, 1.0f);
 	uint32				SplashLayerHandle = 0;
 };

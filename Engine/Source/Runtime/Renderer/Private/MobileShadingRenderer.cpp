@@ -286,10 +286,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	TArray<const FViewInfo*> ViewList;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 	{
-		if (Views[ViewIndex].StereoPass != eSSP_MONOSCOPIC_EYE)
-		{
-			ViewList.Add(&Views[ViewIndex]);
-		}
+		ViewList.Add(&Views[ViewIndex]);
 	}
 
 	const bool bGammaSpace = !IsMobileHDR();
@@ -437,17 +434,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderTranslucency(RHICmdList, ViewList, !bGammaSpace || bRenderToSceneColor);
 		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	}
-
-	if (ViewFamily.IsMonoscopicFarFieldEnabled() && ViewFamily.Views.Num() == 3)
-	{
-		TArray<const FViewInfo*> MonoViewList;
-		MonoViewList.Add(&Views[2]);
-
-		RenderMonoscopicFarFieldMask(RHICmdList);
-		RenderMobileBasePass(RHICmdList, MonoViewList);
-		RenderTranslucency(RHICmdList, MonoViewList, !bGammaSpace || bRenderToSceneColor);
-		CompositeMonoscopicFarField(RHICmdList);
 	}
 
 	if (!View.bIsMobileMultiViewDirectEnabled)
