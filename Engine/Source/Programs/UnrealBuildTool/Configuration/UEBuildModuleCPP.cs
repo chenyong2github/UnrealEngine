@@ -920,7 +920,6 @@ namespace UnrealBuildTool
 				case "MetalRHI":
 				case "PS4RHI":
                 case "Gnmx":
-				case "OnlineSubsystemIOS":
 					return true;
 			}
 			return false;

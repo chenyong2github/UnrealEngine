@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Interfaces/OnlinePurchaseInterface.h"
+#include "OnlineSubsystemIOSTypes.h"
 
 struct FStoreKitTransactionData;
+@class SKProductsResponse;
 @class FStoreKitHelperV2;
 
 /**

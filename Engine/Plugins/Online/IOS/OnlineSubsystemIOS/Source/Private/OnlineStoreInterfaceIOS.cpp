@@ -1,8 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemIOSPrivatePCH.h"
 #include "OnlineStoreInterfaceIOS.h"
 #include "OnlineSubsystemNames.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineStoreInterface.h"
 #import "OnlineStoreKitHelper.h"
 
 
