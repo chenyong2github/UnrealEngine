@@ -188,7 +188,7 @@ namespace UnrealGameSync
 			this.MinimumSize = new System.Drawing.Size(800, 350);
 			this.Name = "MainWindow";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-			this.Text = "UnrealGameSync TEST";
+			this.Text = "UnrealGameSync";
 			this.Activated += new System.EventHandler(this.MainWindow_Activated);
 			this.Deactivate += new System.EventHandler(this.MainWindow_Deactivate);
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainWindow_FormClosing);
