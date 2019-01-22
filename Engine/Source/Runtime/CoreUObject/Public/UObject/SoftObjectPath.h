@@ -154,11 +154,11 @@ struct COREUOBJECT_API FSoftObjectPath
 	/** Serializes the internal path and also handles save/PIE fixups. Call this from the archiver overrides */
 	void SerializePath(FArchive& Ar);
 
-	/** Fixes up string asset reference for saving, call if saving with a method that skips SerializePath. This can modify the path, it will return true if it was modified */
+	/** Fixes up path for saving, call if saving with a method that skips SerializePath. This can modify the path, it will return true if it was modified */
 	bool PreSavePath(bool* bReportSoftObjectPathRedirects = nullptr);
 
 	/** 
-	 * Handles when a string asset reference has been loaded, call if loading with a method that skips SerializePath. This does not modify path but might call callbacks
+	 * Handles when a path has been loaded, call if loading with a method that skips SerializePath. This does not modify path but might call callbacks
 	 * @param InArchive The archive that loaded this path
 	 */
 	void PostLoadPath(FArchive* InArchive) const;
@@ -326,21 +326,21 @@ public:
 	 * Returns the current serialization options that were added using SerializationScope or LinkerLoad
 	 *
 	 * @param OutPackageName Package that this string asset belongs to
-	 * @param OutPropertyName Property that this string asset reference belongs to
+	 * @param OutPropertyName Property that this path belongs to
 	 * @param OutCollectType Type of collecting that should be done
 	 * @param Archive The FArchive that is serializing this path if known. If null it will check FUObjectThreadContext
 	 */
 	bool GetSerializationOptions(FName& OutPackageName, FName& OutPropertyName, ESoftObjectPathCollectType& OutCollectType, ESoftObjectPathSerializeType& OutSerializeType, FArchive* Archive = nullptr) const;
 };
 
-/** Helper class to set and restore serialization options for string asset references */
+/** Helper class to set and restore serialization options for soft object paths */
 struct FSoftObjectPathSerializationScope
 {
 	/** 
-	 * Create a new serialization scope, which affects the way that string asset references are saved
+	 * Create a new serialization scope, which affects the way that soft object paths are saved
 	 *
 	 * @param SerializingPackageName Package that this string asset belongs to
-	 * @param SerializingPropertyName Property that this string asset reference belongs to
+	 * @param SerializingPropertyName Property that this path belongs to
 	 * @param CollectType Set type of collecting that should be done, can be used to disable tracking entirely
 	 */
 	FSoftObjectPathSerializationScope(FName SerializingPackageName, FName SerializingPropertyName, ESoftObjectPathCollectType CollectType, ESoftObjectPathSerializeType SerializeType)
