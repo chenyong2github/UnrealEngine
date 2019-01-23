@@ -1600,6 +1600,24 @@ void AActor::SetOwner(AActor* NewOwner)
 	}
 }
 
+bool AActor::HasLocalNetOwner() const
+{
+	if (Owner == nullptr)
+	{
+		// all basic AActors are unable to call RPCs without special AActors as their owners (ie APlayerController)
+		return false;
+	}
+
+	// Find the topmost actor in this owner chain
+	AActor* TopOwner = nullptr;
+	for (TopOwner = Owner; TopOwner->Owner; TopOwner = TopOwner->Owner)
+	{
+	}
+
+	AController* Controller = Cast<AController>(TopOwner);
+	return Controller && Controller->IsLocalController();
+}
+
 bool AActor::HasNetOwner() const
 {
 	if (Owner == nullptr)

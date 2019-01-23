@@ -262,6 +262,13 @@ public:
 	 */
 	virtual bool HasNetOwner() const;
 
+	/**
+	 * Does this actor have a locally controlled owner responsible for replication? (APlayerController typically)
+	 *
+	 * @return true if this actor can call RPCs or false if no such owner chain exists
+	 */
+	virtual bool HasLocalNetOwner() const;
+
 protected:
 	/**
 	 * If true, this actor will replicate to remote machines

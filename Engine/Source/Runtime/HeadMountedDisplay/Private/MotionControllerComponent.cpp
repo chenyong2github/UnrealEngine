@@ -471,7 +471,7 @@ bool UMotionControllerComponent::PollControllerState(FVector& Position, FRotator
 	{
 		// Cache state from the game thread for use on the render thread
 		const AActor* MyOwner = GetOwner();
-		bHasAuthority = MyOwner->HasNetOwner();
+		bHasAuthority = MyOwner->HasLocalNetOwner();
 	}
 
 	if(bHasAuthority)
