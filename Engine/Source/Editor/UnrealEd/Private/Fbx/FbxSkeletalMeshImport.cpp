@@ -1608,7 +1608,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	FSkeletalMeshModel *ImportedResource = SkeletalMesh->GetImportedModel();
 	check(ImportedResource->LODModels.Num() == 0);
 	ImportedResource->LODModels.Empty();
-	new(ImportedResource->LODModels)FSkeletalMeshLODModel();
+	ImportedResource->LODModels.Add(new FSkeletalMeshLODModel());
 
 	FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[0];
 
@@ -1756,7 +1756,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			USkinnedMeshComponent* SkinComp = *It;
 			if (SkinComp->SkeletalMesh == SkeletalMesh)
 			{
-				new(ComponentContexts) FComponentReregisterContext(SkinComp);
+				ComponentContexts.Add(new FComponentReregisterContext(SkinComp));
 			}
 		}
 	}
@@ -1905,13 +1905,13 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	// Import mesh metadata to SkeletalMesh
 	for (FbxNode* MeshNode : ImportSkeletalMeshArgs.NodeArray)
 	{
-		ImportNodeCustomProperties(SkeletalMesh, MeshNode);
+		ImportNodeCustomProperties(SkeletalMesh, MeshNode, true);
 	}
 
 	// Import bone metadata to Skeleton
 	for (FbxNode* SkeletonNode : ImportSkeletalMeshArgs.BoneNodeArray)
 	{
-		ImportNodeCustomProperties(SkeletalMesh->Skeleton, SkeletonNode);
+		ImportNodeCustomProperties(SkeletalMesh->Skeleton, SkeletonNode, true);
 	}
 
 	// ComponentContexts will now go out of scope, causing components to be re-registered
@@ -3514,7 +3514,7 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 	// If we want to add this as a new LOD to this mesh - add to LODModels/LODInfo array.
 	if (DesiredLOD == DestImportedResource->LODModels.Num())
 	{
-		new(DestImportedResource->LODModels)FSkeletalMeshLODModel();
+		DestImportedResource->LODModels.Add(new FSkeletalMeshLODModel());
 
 		// Add element to LODInfo array.
 		BaseSkeletalMesh->AddLODInfo();
@@ -4344,8 +4344,9 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 
 			TArray< FMorphTargetDelta >* Deltas = Results[ NewMorphDeltasIdx ];
 
-			FAsyncTask<FAsyncImportMorphTargetWork>* NewWork = new (PendingWork)FAsyncTask<FAsyncImportMorphTargetWork>( &BaseLODModel, BaseSkelMesh->RefSkeleton, BaseImportData,
+			FAsyncTask<FAsyncImportMorphTargetWork>* NewWork = new FAsyncTask<FAsyncImportMorphTargetWork>( &BaseLODModel, BaseSkelMesh->RefSkeleton, BaseImportData,
 				MoveTemp( ShapeImportData.Points ), ImportOptions, *Deltas, BaseIndexData, BaseWedgePointIndices, WedgePointToVertexIndexMap, OverlappingVertices, MoveTemp( ModifiedPoints ), WedgeToFaces, MeshDataBundle, TangentZ);
+			PendingWork.Add(NewWork);
 
 			NewWork->StartBackgroundTask(GLargeThreadPool);
 			CurrentNumTasks++;
