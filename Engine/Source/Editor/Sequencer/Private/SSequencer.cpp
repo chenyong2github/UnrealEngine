@@ -911,15 +911,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		}
 		else
 		{
-			TAttribute<FSlateIcon> AutoKeyIcon;
-			AutoKeyIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&]{
-				static FSlateIcon AutoKeyEnabledIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SetAutoKey");
-				static FSlateIcon AutoKeyDisabledIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SetAutoChangeNone");
-
-				return SequencerPtr.Pin()->GetAutoChangeMode() == EAutoChangeMode::None ? AutoKeyDisabledIcon : AutoKeyEnabledIcon;
-			}));
-
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleAutoKeyEnabled, NAME_None, TAttribute<FText>(), TAttribute<FText>(), AutoKeyIcon );
+			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleAutoKeyEnabled );
 		}
 
 		if( SequencerPtr.Pin()->IsLevelEditorSequencer() )
