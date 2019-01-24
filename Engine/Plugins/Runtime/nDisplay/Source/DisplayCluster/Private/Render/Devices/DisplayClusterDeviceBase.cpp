@@ -417,7 +417,7 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 		break;
 
 	default:
-		DecodedViewIndex = (int(StereoPassType) - int(EStereoscopicPass::eSSP_MONOSCOPIC_EYE) + 1);
+		DecodedViewIndex = (int(StereoPassType) - int(EStereoscopicPass::eSSP_RIGHT_EYE_SIDE) + 1);
 		break;
 	}
 
