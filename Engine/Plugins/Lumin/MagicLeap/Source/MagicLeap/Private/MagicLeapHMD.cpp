@@ -758,7 +758,7 @@ void FMagicLeapHMD::DisplayWarningIfVDZINotEnabled()
 #if PLATFORM_LUMIN
 void FMagicLeapHMD::SetFrameTimingHint(ELuminFrameTimingHint InFrameTimingHint)
 {
-	const static UEnum* FrameTimingEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ELuminFrameTimingHint"));
+	const static UEnum* FrameTimingEnum = StaticEnum<ELuminFrameTimingHint>();
 	check(FrameTimingEnum != nullptr);
 
 	if (InFrameTimingHint != CurrentFrameTimingHint)
@@ -1164,7 +1164,7 @@ void FMagicLeapHMD::LoadFromIni()
 
 #if PLATFORM_LUMIN
 	ELuminFrameTimingHint ConfigFrameTimingHint = ELuminFrameTimingHint::Unspecified;
-	const static UEnum* FrameTimingEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ELuminFrameTimingHint"));
+	const static UEnum* FrameTimingEnum = StaticEnum<ELuminFrameTimingHint>();
 
 	FString EnumVal;
 	GConfig->GetString(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("FrameTimingHint"), EnumVal, GEngineIni);

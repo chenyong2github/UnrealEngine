@@ -176,7 +176,7 @@ void FAppleARKitLiveLinkSource::PublishBlendShapes(FName SubjectName, const FTim
 		Client->PushSubjectSkeleton(SourceGuid, SubjectName, FLiveLinkRefSkeleton());
 	}
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
+	const UEnum* EnumPtr = StaticEnum<EARFaceBlendShape>();
 	if (EnumPtr != nullptr)
 	{
 		static FLiveLinkFrameData LiveLinkFrame;

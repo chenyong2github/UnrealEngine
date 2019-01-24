@@ -22,18 +22,6 @@
 
 #include "MagicLeapControllerMappings.h"
 
-template<typename T> inline const FString EnumToString(const char* EnumName, T EnumValue)
-{
-	static const FString InvalidEnum("Invalid");
-
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, UTF8_TO_TCHAR(EnumName), true);
-	if (!EnumPtr)
-	{
-		return InvalidEnum;
-	}
-	return EnumPtr->GetNameStringByIndex(static_cast<int32>(EnumValue));
-}
-
 #if WITH_MLSDK
 static_assert(MLInput_MaxControllerTouchpadTouches == FMagicLeapControllerState::kMaxTouches, "Mismatch in max touch constants");
 
@@ -522,7 +510,7 @@ void FMagicLeapController::ReadConfigParams()
 #if WITH_MLSDK
 	// Pull hand-mapping preferences from config file. If there are none, the default (legacy)
 	// mapping of device 0 to right and device 1 to left will persist.
-	const UEnum* ControllerHandEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EControllerHand"));
+	const UEnum* ControllerHandEnum = StaticEnum<EControllerHand>();
 	TArray<FString> ControllerHands;
 	GConfig->GetArray(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"),
 		TEXT("ControllerHands"), ControllerHands, GEngineIni);
@@ -567,7 +555,7 @@ void FMagicLeapController::ReadConfigParams()
 		TEXT("ControllerTrackingType"), ConfigString, GEngineIni);
 	if (ConfigString.Len() > 0)
 	{
-		const UEnum* TrackingTypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ETrackingStatus"));
+		const UEnum* TrackingTypeEnum = StaticEnum<ETrackingStatus>();
 
 		auto TrackingTypeIndex = TrackingTypeEnum->GetValueByNameString(ConfigString);
 		if (TrackingTypeIndex != INDEX_NONE)
@@ -594,7 +582,7 @@ void FMagicLeapController::ReadConfigParams()
 		}
 	}
 
-	const static UEnum* TrackingModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMLControllerTrackingMode"));
+	const static UEnum* TrackingModeEnum = StaticEnum<EMLControllerTrackingMode>();
 	GConfig->GetString(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"),
 		TEXT("ControllerTrackingMode"), ConfigString, GEngineIni);
 	if (ConfigString.Len() > 0)
