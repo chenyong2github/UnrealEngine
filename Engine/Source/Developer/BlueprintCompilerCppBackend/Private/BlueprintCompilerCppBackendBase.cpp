@@ -74,7 +74,7 @@ void FBlueprintCompilerCppBackendBase::EmitStructProperties(FEmitterLocalContext
 		check(Property);
 		FString PropertyMacro(TEXT("UPROPERTY("));
 		{
-			TArray<FString> Tags = FEmitHelper::ProperyFlagsToTags(Property->PropertyFlags, nullptr != Cast<UClass>(SourceClass));
+			TArray<FString> Tags = FEmitHelper::PropertyFlagsToTags(Property->PropertyFlags, nullptr != Cast<UClass>(SourceClass));
 			Tags.Emplace(FEmitHelper::HandleRepNotifyFunc(Property));
 			Tags.Emplace(FEmitHelper::HandleMetaData(Property, false));
 			Tags.Remove(FString());
