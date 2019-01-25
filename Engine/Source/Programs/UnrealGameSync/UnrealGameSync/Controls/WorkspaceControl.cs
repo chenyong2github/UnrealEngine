@@ -1544,7 +1544,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				ShowingChanges = String.Format("Showing {0}/{1} changes.", ListIndexToChangeIndex.Count, CurrentMaxChanges);
+				ShowingChanges = String.Format("Showing {0}/{1} changes.", ListIndexToChangeIndex.Count, Math.Max(ListIndexToChangeIndex.Count, CurrentMaxChanges));
 			}
 
 			if(PerforceMonitor.PendingMaxChanges > CurrentMaxChanges)
