@@ -535,6 +535,7 @@ FLowLevelMemTracker::FLowLevelMemTracker()
 
 FLowLevelMemTracker::~FLowLevelMemTracker()
 {
+	bIsDisabled = true; // tracking must stop at this point or it will crash while tracking its own destruction
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		Trackers[TrackerIndex]->~FLLMTracker();
