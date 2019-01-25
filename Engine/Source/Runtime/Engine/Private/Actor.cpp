@@ -1615,6 +1615,12 @@ bool AActor::HasLocalNetOwner() const
 	{
 	}
 
+	// Top owner is will normally be a Pawn or a Controller
+	if (APawn* Pawn = Cast<APawn>(TopOwner))
+	{
+		return Pawn->IsLocallyControlled();
+	}
+
 	AController* Controller = Cast<AController>(TopOwner);
 	return Controller && Controller->IsLocalController();
 }
