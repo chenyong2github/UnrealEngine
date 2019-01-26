@@ -66,11 +66,11 @@ UNetConnection* UNetConnection::GNetConnectionBeingCleanedUp = NULL;
 
 UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 :	UPlayer(ObjectInitializer)
-,	Driver				( NULL )
+,	Driver				( nullptr )
 ,	PackageMapClass		( UPackageMapClient::StaticClass() )
-,	PackageMap			( NULL )
-,	ViewTarget			( NULL )
-,   OwningActor			( NULL )
+,	PackageMap			( nullptr )
+,	ViewTarget			( nullptr )
+,   OwningActor			( nullptr )
 ,	MaxPacket			( 0 )
 ,	InternalAck			( false )
 ,	MaxPacketHandlerBits ( 0 )
@@ -86,7 +86,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 
 ,	AllowMerge			( false )
 ,	TimeSensitive		( false )
-,	LastOutBunch		( NULL )
+,	LastOutBunch		( nullptr )
 ,	SendBunchHeader		( MAX_BUNCH_HEADER_BITS )
 
 ,	StatPeriod			( 1.f  )
@@ -298,7 +298,7 @@ void UNetConnection::InitHandler()
 
 			Handler->InitializeDelegates(FPacketHandlerLowLevelSendTraits::CreateUObject(this, &UNetConnection::LowLevelSend));
 			Handler->NotifyAnalyticsProvider(Driver->AnalyticsProvider, Driver->AnalyticsAggregator);
-			Handler->Initialize(Mode, MaxPacket * 8, false);
+			Handler->Initialize(Mode, MaxPacket * 8, false, nullptr, nullptr, Driver->NetDriverName);
 
 
 			// Add handling for the stateless connect handshake, for connectionless packets, as the outermost layer
@@ -2533,7 +2533,13 @@ void UNetConnection::Tick()
 			Driver->Time,
 			Timeout,
 			*Describe());
-		UE_LOG(LogNet, Warning, TEXT("%s"), *Error);
+		
+		static double LastTimePrinted = 0.0f;
+		if (FPlatformTime::Seconds() - LastTimePrinted > GEngine->NetErrorLogInterval)
+		{
+			UE_LOG(LogNet, Warning, TEXT("%s"), *Error);
+			LastTimePrinted = FPlatformTime::Seconds();
+		}
 
 		if (!bPendingDestroy)
 		{
