@@ -359,7 +359,7 @@ public:
 	TWeakPtr<SGraphNode> DEPRECATED_NodeWidget;
 
 	/** Get all pins this node owns */
-	TArray<UEdGraphPin*> GetAllPins() { return Pins; }
+	const TArray<UEdGraphPin*>& GetAllPins() const { return Pins; }
 
 	struct FNameParameterHelper
 	{
