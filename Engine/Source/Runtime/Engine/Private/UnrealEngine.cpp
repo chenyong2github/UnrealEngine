@@ -11061,7 +11061,12 @@ void UEngine::HandleTravelFailure(UWorld* InWorld, ETravelFailure::Type FailureT
 
 void UEngine::HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
 {
-	UE_LOG(LogNet, Log, TEXT("NetworkFailure: %s, Error: '%s'"), ENetworkFailure::ToString(FailureType), *ErrorString);
+	static double LastTimePrinted = 0.0f;
+	if (FPlatformTime::Seconds() - LastTimePrinted > NetErrorLogInterval)
+	{
+		UE_LOG(LogNet, Log, TEXT("NetworkFailure: %s, Error: '%s'"), ENetworkFailure::ToString(FailureType), *ErrorString);
+		LastTimePrinted = FPlatformTime::Seconds();
+	}
 
 	if (!NetDriver)
 	{
@@ -13954,7 +13959,7 @@ bool AllowHighQualityLightmaps(ERHIFeatureLevel::Type FeatureLevel)
 // Helper function for changing system resolution via the r.setres console command
 void FSystemResolution::RequestResolutionChange(int32 InResX, int32 InResY, EWindowMode::Type InWindowMode)
 {
-#if PLATFORM_UNIX
+#if PLATFORM_UNIX || PLATFORM_HTML5
 	// Fullscreen and WindowedFullscreen behave the same on Linux, see FLinuxWindow::ReshapeWindow()/SetWindowMode().
 	// Allowing Fullscreen window mode confuses higher level code (see UE-19996).
 	if (InWindowMode == EWindowMode::Fullscreen)
