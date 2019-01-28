@@ -40,7 +40,7 @@ public:
 	/** Remove a dependency from this node */
 	void RemoveDependency(FDependsNode* InDependency);
 	/** Remove a referencer from this node */
-	void RemoveReferencer(FDependsNode* InReferencer) { Referencers.Remove(InReferencer); }
+	void RemoveReferencer(FDependsNode* InReferencer) { Referencers.RemoveSingleSwap(InReferencer, false); }
 	/** Clear all dependency records from this node */
 	void ClearDependencies();
 	/** Removes Manage dependencies on this node and clean up referencers array. Manage references are the only ones safe to remove at runtime */
