@@ -3354,10 +3354,7 @@ void AActor::EnableInput(APlayerController* PlayerController)
 			InputComponent->bBlockInput = bBlockInput;
 			InputComponent->Priority = InputPriority;
 
-			if (UInputDelegateBinding::SupportsInputDelegate(GetClass()))
-			{
-				UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent);
-			}
+			UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent);
 		}
 		else
 		{
