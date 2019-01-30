@@ -387,7 +387,7 @@ public:
 	void ListTimers() const;
 
 	/** Used by the UGameInstance constructor to set this manager's owning game instance. */
-	void SetGameInstance(UGameInstance* InGameInstance) { OwningGameInstance = InGameInstance; }
+	void SetGameInstance(UGameInstance* InGameInstance);
 
 // This should be private, but needs to be public for testing.
 public:
@@ -406,7 +406,7 @@ protected:
 private:
 	void InternalSetTimer( FTimerHandle& InOutHandle, FTimerUnifiedDelegate&& InDelegate, float InRate, bool InbLoop, float InFirstDelay );
 	FTimerHandle InternalSetTimerForNextTick( FTimerUnifiedDelegate&& InDelegate );
-	void InternalClearTimer( FTimerHandle const& InDelegate );
+	void InternalClearTimer( FTimerHandle InDelegate );
 	void InternalClearAllTimers( void const* Object );
 	float InternalGetTimerRate( FTimerData const* const TimerData ) const;
 	float InternalGetTimerElapsed( FTimerData const* const TimerData ) const;
@@ -423,6 +423,7 @@ private:
 	FTimerHandle AddTimer(FTimerData&& TimerData);
 	/** Removes a timer from the Timers list at the given index, also cleaning up the TimerIndicesByObject map */
 	void RemoveTimer(FTimerHandle Handle);
+	bool WillRemoveTimerAssert(FTimerHandle Handle) const;
 
 	/** The array of timers - all other arrays will index into this */
 	TSparseArray<FTimerData> Timers;

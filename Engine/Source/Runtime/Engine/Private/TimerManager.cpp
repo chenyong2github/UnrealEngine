@@ -170,6 +170,9 @@ FTimerData& FTimerManager::GetTimer(FTimerHandle const& InHandle)
 
 FTimerData* FTimerManager::FindTimer(FTimerHandle const& InHandle)
 {
+	// not currently threadsafe
+	check(IsInGameThread());
+
 	if (!InHandle.IsValid())
 	{
 		return nullptr;
@@ -297,7 +300,7 @@ FTimerHandle FTimerManager::InternalSetTimerForNextTick(FTimerUnifiedDelegate&& 
 	return NewTimerHandle;
 }
 
-void FTimerManager::InternalClearTimer(FTimerHandle const& InHandle)
+void FTimerManager::InternalClearTimer(FTimerHandle InHandle)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ClearTimer);
 
@@ -598,11 +601,12 @@ void FTimerManager::Tick(float DeltaTime)
 				RunTimerDelegates.Add(Top->TimerDelegate);
 #endif
 
-
+				checkf(!WillRemoveTimerAssert(CurrentlyExecutingTimer), TEXT("RemoveTimer(CurrentlyExecutingTimer) - due to fail before Execute()"));
 				Top->TimerDelegate.Execute();
 
 				// Update Top pointer, in case it has been invalidated by the Execute call
 				Top = FindTimer(CurrentlyExecutingTimer);
+				checkf(!Top || !WillRemoveTimerAssert(CurrentlyExecutingTimer), TEXT("RemoveTimer(CurrentlyExecutingTimer) - due to fail after Execute()"));
 				if (!Top || Top->Status != ETimerStatus::Executing)
 				{
 					break;
@@ -661,6 +665,9 @@ TStatId FTimerManager::GetStatId() const
 
 void FTimerManager::ListTimers() const
 {
+	// not currently threadsafe
+	check(IsInGameThread());
+
 	TArray<const FTimerData*> ValidActiveTimers;
 	ValidActiveTimers.Reserve(ActiveTimerHeap.Num());
 	for (FTimerHandle Handle : ActiveTimerHeap)
@@ -695,6 +702,14 @@ void FTimerManager::ListTimers() const
 	}
 
 	UE_LOG(LogEngine, Log, TEXT("------- %d Total Timers -------"), PendingTimerSet.Num() + PausedTimerSet.Num() + ValidActiveTimers.Num());
+}
+
+void FTimerManager::SetGameInstance(UGameInstance* InGameInstance)
+{
+	// not currently threadsafe
+	check(IsInGameThread());
+
+	OwningGameInstance = InGameInstance;
 }
 
 FTimerHandle FTimerManager::AddTimer(FTimerData&& TimerData)
@@ -739,6 +754,29 @@ void FTimerManager::RemoveTimer(FTimerHandle Handle)
 	}
 
 	Timers.RemoveAt(Handle.GetIndex());
+}
+
+bool FTimerManager::WillRemoveTimerAssert(FTimerHandle Handle) const
+{
+	const FTimerData& Data = GetTimer(Handle);
+
+	// Remove TimerIndicesByObject entry if necessary
+	if (const void* TimerIndicesByObjectKey = Data.TimerIndicesByObjectKey)
+	{
+		const TSet<FTimerHandle>* TimersForObject = ObjectToTimers.Find(TimerIndicesByObjectKey);
+		if (!TimersForObject)
+		{
+			return true;
+		}
+
+		const FTimerHandle* Found = TimersForObject->Find(Handle);
+		if (!Found)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 FTimerHandle FTimerManager::GenerateHandle(int32 Index)
