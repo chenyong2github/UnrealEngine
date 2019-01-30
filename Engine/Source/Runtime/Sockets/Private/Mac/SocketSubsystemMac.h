@@ -36,7 +36,7 @@ PACKAGE_SCOPE:
 	/**
 	 * Allows a subsystem subclass to create a FSocketBSD sub class 
 	 */
-	virtual class FSocketBSD* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, ESocketProtocolFamily SocketProtocol);
+	virtual class FSocketBSD* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol);
 
 public:
 
@@ -83,7 +83,7 @@ public:
 	 * @param InSocketType the type of socket that was created
 	 * @param InSocketDescription the debug description of the socket
 	 */
-	FSocketMac(SOCKET InSocket, ESocketType InSocketType, const FString& InSocketDescription, ESocketProtocolFamily InSocketProtocol, ISocketSubsystem * InSubsystem) 
+	FSocketMac(SOCKET InSocket, ESocketType InSocketType, const FString& InSocketDescription, const FName& InSocketProtocol, ISocketSubsystem * InSubsystem) 
 	: FSocketBSD(InSocket, InSocketType, InSocketDescription, InSocketProtocol, InSubsystem)
 	{
 	}

@@ -9,9 +9,6 @@
 
 class FInternetAddr;
 
-#if PLATFORM_HAS_BSD_IPV6_SOCKETS
-
-
 /**
  * Implements a BSD network socket on IOS.
  */
@@ -20,7 +17,7 @@ class FSocketBSDIOS
 {
 public:
 
-	FSocketBSDIOS(SOCKET InSocket, ESocketType InSocketType, const FString& InSocketDescription, ESocketProtocolFamily InSocketProtocol, ISocketSubsystem* InSubsystem)
+	FSocketBSDIOS(SOCKET InSocket, ESocketType InSocketType, const FString& InSocketDescription, const FName& InSocketProtocol, ISocketSubsystem* InSubsystem)
 		:FSocketBSD(InSocket, InSocketType, InSocketDescription, InSocketProtocol, InSubsystem)
 	{
 	}
@@ -31,5 +28,3 @@ public:
 	}
 
 };
-
-#endif

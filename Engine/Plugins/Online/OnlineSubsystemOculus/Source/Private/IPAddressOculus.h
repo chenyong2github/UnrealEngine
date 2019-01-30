@@ -6,6 +6,7 @@
 #include "IPAddress.h"
 #include "Algo/Reverse.h"
 #include "Engine/EngineBaseTypes.h"
+#include "OnlineSubsystemOculus.h"
 #include "OnlineSubsystemOculusTypes.h"
 #include "OnlineSubsystemOculusPackage.h"
 
@@ -201,9 +202,14 @@ public:
 		return !(FInternetAddrOculus::operator==(Other));
 	}
 
-	virtual uint32 GetTypeHash() override
+	virtual uint32 GetTypeHash() const override
 	{
 		return ::GetTypeHash((uint64)GetID());
+	}
+
+	virtual FName GetProtocolType() const override
+	{
+		return FNetworkProtocolTypes::Oculus;
 	}
 
 	/**

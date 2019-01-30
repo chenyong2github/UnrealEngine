@@ -12,7 +12,7 @@
 class FSocketSubsystemIOS : public FSocketSubsystemBSD
 {
 protected:
-	virtual TSharedRef<FInternetAddr> CreateInternetAddr(uint32 Address = 0, uint32 Port = 0) override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
 	/** Single instantiation of this subsystem */
 	static FSocketSubsystemIOS* SocketSingleton;
 
@@ -35,9 +35,9 @@ public:
 	static void Destroy();
 
 
-	virtual ESocketProtocolFamily GetDefaultSocketProtocolFamily() const override
+	virtual FName GetDefaultSocketProtocolFamily() const override
 	{
-		return ESocketProtocolFamily::IPv6;
+		return FNetworkProtocolTypes::IPv6;
 	}
 
 public:
@@ -51,14 +51,11 @@ public:
 	{
 	}
 
-	virtual ESocketErrors CreateAddressFromIP(const ANSICHAR* IPAddress, FInternetAddr& OutAddr) override;
-	virtual ESocketErrors GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr) override;
-
 	virtual bool Init(FString& Error) override;
 	virtual void Shutdown() override;
 	virtual bool HasNetworkDevice() override;
-	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType) override;
+	virtual FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType) override;
 
 	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll) override;
-	virtual class FSocketBSD* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, ESocketProtocolFamily SocketProtocol) override;
+	virtual class FSocketBSD* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol) override;
 };

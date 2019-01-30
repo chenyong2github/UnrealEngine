@@ -7,6 +7,7 @@
 #include "BSDSockets/SocketSubsystemBSDPrivate.h"
 #include "BSDIPv6Sockets/SocketsBSDIPv6.h"
 #include "IPAddress.h"
+#include "SocketTypes.h"
 #include "SocketSubsystemPackage.h"
 
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
@@ -21,20 +22,25 @@ public:
 
 	//~ Begin ISocketSubsystem Interface
 
-	virtual TSharedRef<FInternetAddr> CreateInternetAddr( uint32 Address = 0, uint32 Port = 0 ) override;
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr() override;
 
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType) override;
+	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false) override
+	{
+		return CreateSocket(SocketType, SocketDescription, FNetworkProtocolTypes::IPv6);
+	}
+
+	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType) override;
 
 	virtual FResolveInfoCached* CreateResolveInfoCached(TSharedPtr<FInternetAddr> Addr) const override;
 
-	virtual void DestroySocket( class FSocket* Socket ) override;
+	virtual void DestroySocket(class FSocket* Socket) override;
 
 	virtual FAddressInfoResult GetAddressInfo(const TCHAR* HostName, const TCHAR* ServiceName = nullptr,
 		EAddressInfoFlags QueryFlags = EAddressInfoFlags::Default,
-		ESocketProtocolFamily ProtocolType = ESocketProtocolFamily::None,
+		const FName ProtocolTypeName = NAME_None,
 		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown) override;
 
-	virtual ESocketErrors GetHostByName( const ANSICHAR* HostName, FInternetAddr& OutAddr ) override;
+	virtual TSharedPtr<FInternetAddr> GetAddressFromString(const FString& InAddress) override;
 
 	virtual bool GetHostName( FString& HostName ) override;
 
@@ -73,7 +79,7 @@ protected:
 	/**
 	 * Allows a subsystem subclass to create a FSocketBSD sub class.
 	 */
-	virtual class FSocketBSDIPv6* InternalBSDSocketFactory( SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, ESocketProtocolFamily SocketProtocol );
+	virtual class FSocketBSDIPv6* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol);
 
 
 	/**
@@ -82,7 +88,7 @@ protected:
 	UE_DEPRECATED(4.22, "To support multiple stack types, move to the constructor that allows for specifying the protocol stack to initialize the socket on.")
 	virtual class FSocketBSDIPv6* InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription)
 	{
-		return InternalBSDSocketFactory(Socket, SocketType, SocketDescription, ESocketProtocolFamily::IPv6);
+		return InternalBSDSocketFactory(Socket, SocketType, SocketDescription, FNetworkProtocolTypes::IPv6);
 	}
 
 	/**

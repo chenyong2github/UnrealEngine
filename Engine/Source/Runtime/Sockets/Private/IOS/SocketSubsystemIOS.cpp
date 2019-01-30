@@ -3,16 +3,14 @@
 #include "SocketSubsystemIOS.h"
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
-#include "BSDSockets/SocketsBSD.h"
-#include "IPAddress.h"
-#include <net/if.h>
-#include <ifaddrs.h>
 #include "SocketsBSDIOS.h"
 #include "IPAddressBSDIOS.h"
+#include <net/if.h>
+#include <ifaddrs.h>
 
 FSocketSubsystemIOS* FSocketSubsystemIOS::SocketSingleton = NULL;
 
-class FSocketBSD* FSocketSubsystemIOS::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, ESocketProtocolFamily SocketProtocol)
+class FSocketBSD* FSocketSubsystemIOS::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
 {
 	UE_LOG(LogIOS, Log, TEXT(" FSocketSubsystemIOS::InternalBSDSocketFactory"));
 	return new FSocketBSDIOS(Socket, SocketType, SocketDescription, SocketProtocol, this);
@@ -77,33 +75,12 @@ bool FSocketSubsystemIOS::HasNetworkDevice()
 	return true;
 }
 
-ESocketErrors FSocketSubsystemIOS::CreateAddressFromIP(const ANSICHAR* IPAddress, FInternetAddr& OutAddr)
-{
-	return GetHostByName(IPAddress, OutAddr);
-}
-
-ESocketErrors FSocketSubsystemIOS::GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr)
-{
-	FAddressInfoResult GAIResult = GetAddressInfo(ANSI_TO_TCHAR(HostName), nullptr,
-		EAddressInfoFlags::AllResultsWithMapping | EAddressInfoFlags::OnlyUsableAddresses, ESocketProtocolFamily::IPv6);
-
-	if (GAIResult.Results.Num() > 0)
-	{
-		TSharedRef<FInternetAddrBSDIOS> ResultAddr = StaticCastSharedRef<FInternetAddrBSDIOS>(GAIResult.Results[0].Address);
-		OutAddr.SetRawIp(ResultAddr->GetRawIp());
-		static_cast<FInternetAddrBSDIOS&>(OutAddr).SetScopeId(ResultAddr->GetScopeId());
-		return SE_NO_ERROR;
-	}
-
-	return SE_HOST_NOT_FOUND;
-}
-
-FSocket* FSocketSubsystemIOS::CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+FSocket* FSocketSubsystemIOS::CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType)
 {
 	FSocketBSD* NewSocket = (FSocketBSD*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
 	if (NewSocket)
 	{
-		if (ProtocolType != ESocketProtocolFamily::IPv4)
+		if (ProtocolType != FNetworkProtocolTypes::IPv4)
 		{
 			NewSocket->SetIPv6Only(false);
 		}
@@ -174,7 +151,7 @@ TSharedRef<FInternetAddr> FSocketSubsystemIOS::GetLocalHostAddr(FOutputDevice& O
 				}
 			}
 		}
-		
+
 		// Free memory
 		freeifaddrs(Interfaces);
 
@@ -197,10 +174,7 @@ TSharedRef<FInternetAddr> FSocketSubsystemIOS::GetLocalHostAddr(FOutputDevice& O
 	return HostAddr;
 }
 
-TSharedRef<FInternetAddr> FSocketSubsystemIOS::CreateInternetAddr(uint32 Address, uint32 Port)
+TSharedRef<FInternetAddr> FSocketSubsystemIOS::CreateInternetAddr()
 {
-	TSharedRef<FInternetAddr> Result = MakeShareable(new FInternetAddrBSDIOS(this));
-	Result->SetIp(Address);
-	Result->SetPort(Port);
-	return Result;
+	return MakeShareable(new FInternetAddrBSDIOS(this));
 }

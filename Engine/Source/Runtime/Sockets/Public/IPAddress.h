@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
+#include "SocketTypes.h"
 
 /**
  * Represents an internet address. All data is in network byte order
@@ -144,7 +145,7 @@ public:
 	 *
 	 * @return	The value to use for the hash
 	 */
-	virtual uint32 GetTypeHash() = 0;
+	virtual uint32 GetTypeHash() const = 0;
 
 	/**
 	 * Is this a well formed internet address
@@ -159,6 +160,17 @@ public:
 	 * @return The new structure
 	 */
 	virtual TSharedRef<FInternetAddr> Clone() const = 0;
+
+	/**
+	 * Returns the protocol type name of the address data currently stored in this struct
+	 *
+	 * @return The type of the address. 
+	 *         If it's not known or overridden in a derived class, the return is None.
+	 */
+	virtual FName GetProtocolType() const
+	{
+		return NAME_None;
+	}
 };
 
 /**

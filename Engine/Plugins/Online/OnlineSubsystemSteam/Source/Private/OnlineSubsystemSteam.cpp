@@ -40,6 +40,11 @@
 #define UE4_PROJECT_STEAMSHIPPINGID 0
 #endif
 
+namespace FNetworkProtocolTypes
+{
+	const FName Steam(TEXT("Steam"));
+}
+
 #if !UE_BUILD_SHIPPING
 namespace OSSConsoleVariables
 {

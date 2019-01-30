@@ -14,20 +14,25 @@ FInternetAddrBSDIPv6::FInternetAddrBSDIPv6()
 
 void FInternetAddrBSDIPv6::SetRawIp(const TArray<uint8>& RawAddr)
 {
-	if (RawAddr.Num() >= 16)
+	FMemory::Memzero(&Addr, sizeof(Addr));
+	if (RawAddr.Num() == 4)
+	{
+		Addr.sin6_addr.s6_addr[10] = 0xff;
+		Addr.sin6_addr.s6_addr[11] = 0xff;
+		Addr.sin6_addr.s6_addr[12] = RawAddr[0];
+		Addr.sin6_addr.s6_addr[13] = RawAddr[1];
+		Addr.sin6_addr.s6_addr[14] = RawAddr[2];
+		Addr.sin6_addr.s6_addr[15] = RawAddr[3];
+	}
+	else if (RawAddr.Num() == 16)
 	{
 		for (int i = 0; i < 16; ++i)
 		{
 			Addr.sin6_addr.s6_addr[i] = RawAddr[i];
 		}
+	}
 
-		Addr.sin6_family = AF_INET6;
-	}
-	else
-	{
-		FMemory::Memzero(&Addr, sizeof(Addr));
-		Addr.sin6_family = AF_INET6;
-	}
+	Addr.sin6_family = AF_INET6;
 }
 
 TArray<uint8> FInternetAddrBSDIPv6::GetRawIp() const
@@ -221,6 +226,16 @@ int32 FInternetAddrBSDIPv6::GetPort() const
 	return ntohs(Addr.sin6_port);
 }
 
+void FInternetAddrBSDIPv6::SetScopeId(uint32 NewScopeId)
+{
+	Addr.sin6_scope_id = htonl(NewScopeId);
+}
+
+uint32 FInternetAddrBSDIPv6::GetScopeId() const
+{
+	return ntohl(Addr.sin6_scope_id);
+}
+
 void FInternetAddrBSDIPv6::SetAnyAddress()
 {
 	SetIp(in6addr_any);
@@ -267,7 +282,7 @@ FString FInternetAddrBSDIPv6::ToString(bool bAppendPort) const
 	return Result;
 }
 
-uint32 FInternetAddrBSDIPv6::GetTypeHash()
+uint32 FInternetAddrBSDIPv6::GetTypeHash() const
 {
 	// @todo: Find a more efficient way to hash IPv6 addresses, if they are to be used with NetConnection's
 	//return Addr.sin_addr.s_addr + (Addr.sin_port * 23);
@@ -279,16 +294,6 @@ bool FInternetAddrBSDIPv6::IsValid() const
 {
 	FInternetAddrBSDIPv6 Temp;
 	return memcmp(&Addr.sin6_addr, &Temp.Addr.sin6_addr, sizeof(in6_addr)) != 0;
-}
-
-uint32 FInternetAddrBSDIPv6::GetScopeId() const
-{
-	return ntohl(Addr.sin6_scope_id);
-}
-
-void FInternetAddrBSDIPv6::SetScopeId(uint32 NewScopeId)
-{
-	Addr.sin6_scope_id = htonl(NewScopeId);
 }
 
 TSharedRef<FInternetAddr> FInternetAddrBSDIPv6::Clone() const

@@ -165,7 +165,7 @@ void FSocketSubsystemSteam::Shutdown()
  *
  * @return the new socket or NULL if failed
  */
-FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType)
 {
 	FSocket* NewSocket = nullptr;
 	if (SocketType == FName("SteamClientSocket"))
@@ -174,7 +174,7 @@ FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FStr
 		if (SteamUserPtr != nullptr)
 		{
 			FUniqueNetIdSteam ClientId(SteamUserPtr->GetSteamID());
-			NewSocket = new FSocketSteam(SteamNetworking(), ClientId, SocketDescription, ProtocolType);
+			NewSocket = new FSocketSteam(SteamNetworking(), ClientId, SocketDescription, FNetworkProtocolTypes::Steam);
 
 			if (NewSocket)
 			{
@@ -191,12 +191,12 @@ FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FStr
 			// If the GameServer connection hasn't been created yet, mark the socket as invalid for now
 			if (SessionInt->bSteamworksGameServerConnected && SessionInt->GameServerSteamId->IsValid() && SessionInt->bPolicyResponseReceived)
 			{
-				NewSocket = new FSocketSteam(SteamGameServerNetworking(), *SessionInt->GameServerSteamId, SocketDescription, ProtocolType);
+				NewSocket = new FSocketSteam(SteamGameServerNetworking(), *SessionInt->GameServerSteamId, SocketDescription, FNetworkProtocolTypes::Steam);
 			}
 			else
 			{
 				FUniqueNetIdSteam InvalidId(uint64(0));
-				NewSocket = new FSocketSteam(SteamGameServerNetworking(), InvalidId, SocketDescription, ProtocolType);
+				NewSocket = new FSocketSteam(SteamGameServerNetworking(), InvalidId, SocketDescription, FNetworkProtocolTypes::Steam);
 			}
 
 			if (NewSocket)
@@ -339,21 +339,82 @@ void FSocketSubsystemSteam::ConnectFailure(const FUniqueNetIdSteam& RemoteId)
  * @return the array of results from GetAddrInfo
  */
 FAddressInfoResult FSocketSubsystemSteam::GetAddressInfo(const TCHAR* HostName, const TCHAR* ServiceName,
-	EAddressInfoFlags QueryFlags, ESocketProtocolFamily ProtocolType,	ESocketType SocketType)
+	EAddressInfoFlags QueryFlags, const FName ProtocolTypeName, ESocketType SocketType)
 {
-	UE_LOG_ONLINE(Warning, TEXT("GetAddressInfo is not supported on Steam Sockets"));
-	return FAddressInfoResult(HostName, ServiceName);
+	int32 UnusedIndex;
+	FString RawAddress(HostName);
+	// Remove steam prefixes if they exist
+	RawAddress.RemoveFromStart(STEAM_URL_PREFIX);
+
+	if (!RawAddress.FindChar(TEXT(':'), UnusedIndex) && !RawAddress.FindChar(TEXT('.'), UnusedIndex))
+	{
+		FAddressInfoResult SteamResult(HostName, ServiceName);
+
+		// This is an Steam address
+		uint64 Id = FCString::Atoi64(*RawAddress);
+		if (Id != 0)
+		{
+			FString PortString(ServiceName);
+			SteamResult.ReturnCode = SE_NO_ERROR;
+			TSharedRef<FInternetAddrSteam> SteamIdAddress = StaticCastSharedRef<FInternetAddrSteam>(CreateInternetAddr());
+			SteamIdAddress->SteamId = FUniqueNetIdSteam(Id);
+			if (PortString.IsNumeric())
+			{
+				SteamIdAddress->SetPort(FCString::Atoi(*PortString));
+			}
+
+			SteamResult.Results.Add(FAddressInfoResultData(SteamIdAddress, 0, FNetworkProtocolTypes::Steam, SOCKTYPE_Unknown));
+			return SteamResult;
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("GetAddressInfo: Could not serialize %s into a SteamID, the ID was invalid."), *RawAddress);
+			SteamResult.ReturnCode = SE_HOST_NOT_FOUND;
+			return SteamResult;
+		}
+	}
+
+	return ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressInfo(HostName, ServiceName, QueryFlags, ProtocolTypeName, SocketType);
 }
 
 /**
- * Does a DNS look up of a host name
+ * Serializes a string that only contains an address.
  *
- * @param HostName the name of the host to look up
- * @param OutAddr the address to copy the IP address to
+ * On Steam, this will take SteamIDs and serialize them into FInternetAddrSteam if it is determined
+ * the input string is an ID. Otherwise, this will give you back a FInternetAddrBSD.
+ *
+ * This is a what you see is what you get, there is no DNS resolution of the input string,
+ * so only use this if you know you already have a valid ip address.
+ * Otherwise, feed the address to GetAddressInfo for guaranteed results.
+ *
+ * @param InAddress the address to serialize
+ *
+ * @return The FInternetAddr of the given string address. This will point to nullptr on failure.
  */
-ESocketErrors FSocketSubsystemSteam::GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr)
+TSharedPtr<FInternetAddr> FSocketSubsystemSteam::GetAddressFromString(const FString& InAddress)
 {
-	return SE_EADDRNOTAVAIL;
+	int32 UnusedIndex;
+	FString RawAddress = InAddress;
+	// Remove steam prefixes if they exist
+	RawAddress.RemoveFromStart(STEAM_URL_PREFIX);
+	if (!RawAddress.FindChar(TEXT(':'), UnusedIndex) && !RawAddress.FindChar(TEXT('.'), UnusedIndex))
+	{
+		// This is a Steam Address
+		uint64 Id = FCString::Atoi64(*RawAddress);
+		if (Id != 0)
+		{
+			TSharedRef<FInternetAddrSteam> ReturnAddress = StaticCastSharedRef<FInternetAddrSteam>(CreateInternetAddr());
+			ReturnAddress->SteamId = FUniqueNetIdSteam(Id);
+			return ReturnAddress;
+		}
+		else
+		{
+			UE_LOG(LogSockets, Warning, TEXT("Could not serialize %s into a SteamID, the ID was invalid."), *RawAddress);
+			return nullptr;
+		}
+	}
+	
+	return ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressFromString(InAddress);
 }
 
 /**
@@ -370,13 +431,10 @@ bool FSocketSubsystemSteam::GetHostName(FString& HostName)
 
 /**
  *	Create a proper FInternetAddr representation
- * @param Address host address
- * @param Port host port
  */
-TSharedRef<FInternetAddr> FSocketSubsystemSteam::CreateInternetAddr(uint32 Address, uint32 Port)
+TSharedRef<FInternetAddr> FSocketSubsystemSteam::CreateInternetAddr()
 {
-	FInternetAddrSteam* SteamAddr = new FInternetAddrSteam();
-	return MakeShareable(SteamAddr);
+	return MakeShareable(new FInternetAddrSteam());
 }
 
 /**
@@ -727,6 +785,12 @@ void FSocketSubsystemSteam::CleanupDeadConnections(bool bSkipLinger)
  */
 void FSocketSubsystemSteam::DumpSteamP2PSessionInfo(P2PSessionState_t& SessionInfo)
 {
+	FOnlineSubsystemSteam* SteamSubsystem = static_cast<FOnlineSubsystemSteam*>(IOnlineSubsystem::Get(STEAM_SUBSYSTEM));
+	if (SteamSubsystem == nullptr)
+	{
+		return;
+	}
+
 	TSharedRef<FInternetAddr> IpAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr(SessionInfo.m_nRemoteIP, SessionInfo.m_nRemotePort);
 	UE_LOG_ONLINE(Verbose, TEXT("- Detailed P2P session info:"));
 	UE_LOG_ONLINE(Verbose, TEXT("-- IPAddress: %s"), *IpAddr->ToString(true));
