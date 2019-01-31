@@ -135,7 +135,7 @@ public:
 
 public:
 
-	/** Called whenever the text is changed interactively by the user */
+	/** Called whenever the text is changed programmatically or interactively by the user */
 	UPROPERTY(BlueprintAssignable, Category="Widget Event", meta=(DisplayName="OnTextChanged (Editable Text)"))
 	FOnEditableTextChangedEvent OnTextChanged;
 

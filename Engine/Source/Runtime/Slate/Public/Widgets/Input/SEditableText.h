@@ -129,7 +129,7 @@ public:
 		 */
 		SLATE_EVENT( FOnIsTypedCharValid, OnIsTypedCharValid )
 
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnTextChanged, OnTextChanged )
 
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
@@ -436,7 +436,7 @@ protected:
 	/** Called when a character is typed and we want to know if the text field supports typing this character. */
 	FOnIsTypedCharValid OnIsTypedCharValid;
 
-	/** Called whenever the text is changed interactively by the user */
+	/** Called whenever the text is changed programmatically or interactively by the user */
 	FOnTextChanged OnTextChangedCallback;
 
 	/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
