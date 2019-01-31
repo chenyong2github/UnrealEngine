@@ -24,14 +24,20 @@
 
 IMPLEMENT_SHADER_TYPE(,FNiagaraShader, TEXT("/Engine/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
-
 int32 GCreateNiagaraShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("niagara.CreateShadersOnLoad"),
 	GCreateNiagaraShadersOnLoad,
 	TEXT("Whether to create Niagara's simulation shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
-	);
+);
 
+int32 GNiagaraSkipVectorVMBackendOptimizations = 0;
+static FAutoConsoleVariableRef CVarNiagaraSkipVectorVMBackendOptimizations(
+	TEXT("fx.SkipVectorVMBackendOptimizations"),
+	GNiagaraSkipVectorVMBackendOptimizations,
+	TEXT("If 1, skip HLSLCC's backend optimization passes during VectorVM compilation. \n"),
+	ECVF_Default
+);
 
 #if ENABLE_COOK_STATS
 namespace NiagaraShaderCookStats
