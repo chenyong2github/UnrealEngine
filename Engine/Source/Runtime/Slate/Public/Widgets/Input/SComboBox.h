@@ -340,7 +340,13 @@ protected:
 				}
 				else if (KeyPressed == EKeys::Escape || KeyPressed == EKeys::Virtual_Back || KeyPressed == EKeys::BackSpace)
 				{
+					const bool bWasInputCaptured = bControllerInputCaptured;
+
 					OnMenuOpenChanged(false);
+					if (bWasInputCaptured)
+					{
+						return FReply::Handled();
+					}
 				}
 				else
 				{
