@@ -900,29 +900,54 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 	return true;
 }
 
-FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader, FRayTracingShaderRHIParamRef MissShader, FRayTracingShaderRHIParamRef DefaultChsShader)
+FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader, FRayTracingShaderRHIParamRef MissShader, FRayTracingShaderRHIParamRef DefaultClosestHitShader)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
-	FRayTracingPipelineStateInitializer Initializer;
-	Initializer.RayGenShaderRHI = RayGenShader;
-	Initializer.DefaultClosestHitShaderRHI = DefaultChsShader;
-	Initializer.MissShaderRHI = MissShader;
+	FRHIRayTracingPipelineState* PipelineState = nullptr;
 
-	TArray<FRayTracingHitGroupInitializer> RayTracingMaterialLibrary;
-	FShaderResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary);
-	Initializer.SetHitGroups(RayTracingMaterialLibrary);
+	FRayTracingPipelineStateInitializer Initializer;
+
 	Initializer.MaxPayloadSizeInBytes = 152; // #dxr_todo: set Initializer.MaxPayloadSizeInBytes based on shader requirements (it's not obvious how to compute this right now)
 
-	FRHIRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+	FRayTracingShaderRHIParamRef RayGenShaderTable[] = { RayGenShader };
+	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	if (GEnableRayTracingMaterials)
+	FRayTracingShaderRHIParamRef MissShaderTable[] = { MissShader };
+	Initializer.SetMissShaderTable(MissShaderTable);
+
+	const bool bEnableMaterials = GEnableRayTracingMaterials;
+
+	if (bEnableMaterials)
 	{
-		for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : View.RaytraycingVisibleMeshDrawCommands)
-		{
-			const FMeshDrawCommand& MeshDrawCommand = *VisibleMeshDrawCommand.MeshDrawCommand;
-			MeshDrawCommand.ShaderBindings.SetOnRayTracingStructure(RHICmdList, View.PerViewRayTracingScene.RayTracingSceneRHI, VisibleMeshDrawCommand.RayTracedInstanceIndex, MeshDrawCommand.RayTracedSegmentIndex, PipelineState, MeshDrawCommand.RayTracingMaterialLibraryIndex);
-		}
+		TArray<FRayTracingShaderRHIParamRef> RayTracingMaterialLibrary;
+		FShaderResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
+		Initializer.SetHitGroupTable(RayTracingMaterialLibrary);
+
+		PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+	}
+	else
+	{
+		FRayTracingShaderRHIParamRef HitGroupTable[] = { DefaultClosestHitShader };
+		Initializer.SetHitGroupTable(HitGroupTable);
+
+		PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
+	}
+
+	for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : View.RaytraycingVisibleMeshDrawCommands)
+	{
+		const FMeshDrawCommand& MeshDrawCommand = *VisibleMeshDrawCommand.MeshDrawCommand;
+
+		const uint32 HitGroupIndex = bEnableMaterials
+			? MeshDrawCommand.RayTracingMaterialLibraryIndex
+			: 0; // Force the same shader to be used on all geometry
+
+		MeshDrawCommand.ShaderBindings.SetOnRayTracingStructure(RHICmdList,
+			View.PerViewRayTracingScene.RayTracingSceneRHI,
+			VisibleMeshDrawCommand.RayTracedInstanceIndex,
+			MeshDrawCommand.RayTracedSegmentIndex,
+			PipelineState,
+			HitGroupIndex);
 	}
 
 	return PipelineState;

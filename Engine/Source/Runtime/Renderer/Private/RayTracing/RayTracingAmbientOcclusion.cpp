@@ -102,7 +102,9 @@ public:
 	)
 	{
 		FRayTracingPipelineStateInitializer Initializer;
-		Initializer.RayGenShaderRHI = GetRayTracingShader();
+
+		FRayTracingShaderRHIParamRef RayGenShaderTable[] = { GetRayTracingShader() };
+		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 		FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer); // #dxr_todo: this should be done once at load-time and cached
 
@@ -113,7 +115,8 @@ public:
 		GlobalResources.Set(AmbientOcclusionParameter, AmbientOcclusionUniformBuffer);
 		GlobalResources.Set(OcclusionMaskUAVParameter, OcclusionMaskUAV);
 
-		RHICmdList.RayTraceDispatch(Pipeline, GlobalResources, Width, Height);
+		const uint32 RayGenShaderIndex = 0;
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResources, Width, Height);
 	}
 
 private:

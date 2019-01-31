@@ -405,6 +405,7 @@ void QuantizeBoundShaderState(
 
 #if D3D12_RHI_RAYTRACING
 void QuantizeBoundShaderState(
+	EShaderFrequency ShaderFrequency,
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
 	const FD3D12RayTracingShader* const RayTracingShader,
 	FD3D12QuantizedBoundShaderState &OutQBSS
@@ -417,15 +418,42 @@ void QuantizeBoundShaderState(
 	FMemory::Memzero(&OutQBSS, sizeof(OutQBSS));
 	FShaderRegisterCounts& QBSSRegisterCounts = OutQBSS.RegisterCounts[SV_All];
 
-	QBSSRegisterCounts.SamplerCount = Counts.NumSamplers;
-	QBSSRegisterCounts.ShaderResourceCount = Counts.NumSRVs;
-	QBSSRegisterCounts.ConstantBufferCount = Counts.NumCBs;
-	QBSSRegisterCounts.UnorderedAccessCount = Counts.NumUAVs;
+	switch (ShaderFrequency)
+	{
+	case SF_RayGen:
+	case SF_RayMiss:
 
-	check(QBSSRegisterCounts.SamplerCount < MAX_SAMPLERS);
-	check(QBSSRegisterCounts.ShaderResourceCount < MAX_SRVS);
-	check(QBSSRegisterCounts.ConstantBufferCount < MAX_CBS);
-	check(QBSSRegisterCounts.UnorderedAccessCount < MAX_UAVS);
+		// Shared conservative root signature layout is used for all raygen and miss shaders.
+
+		OutQBSS.RootSignatureType = RS_RayTracingGlobal;
+
+		QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
+		QBSSRegisterCounts.ShaderResourceCount = MAX_SRVS;
+		QBSSRegisterCounts.ConstantBufferCount = MAX_CBS;
+		QBSSRegisterCounts.UnorderedAccessCount = MAX_UAVS;
+
+		break;
+
+	case SF_RayHitGroup:
+
+		// Local root signature is used for hit group shaders, using the exact number of resources to minimize shader binding table record size.
+
+		OutQBSS.RootSignatureType = RS_RayTracingLocal;
+
+		QBSSRegisterCounts.SamplerCount = Counts.NumSamplers;
+		QBSSRegisterCounts.ShaderResourceCount = Counts.NumSRVs;
+		QBSSRegisterCounts.ConstantBufferCount = Counts.NumCBs;
+		QBSSRegisterCounts.UnorderedAccessCount = Counts.NumUAVs;
+
+		check(QBSSRegisterCounts.SamplerCount <= MAX_SAMPLERS);
+		check(QBSSRegisterCounts.ShaderResourceCount <= MAX_SRVS);
+		check(QBSSRegisterCounts.ConstantBufferCount <= MAX_CBS);
+		check(QBSSRegisterCounts.UnorderedAccessCount <= MAX_UAVS);
+
+		break;
+	default:
+		checkNoEntry(); // Unexpected shader target frequency
+	}
 }
 #endif // D3D12_RHI_RAYTRACING
 
