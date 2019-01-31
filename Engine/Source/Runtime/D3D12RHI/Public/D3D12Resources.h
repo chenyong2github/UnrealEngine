@@ -705,9 +705,6 @@ public:
 	}
 
 	virtual ~FD3D12UniformBuffer();
-
-private:
-	class FD3D12DynamicRHI* D3D12RHI;
 };
 
 #if PLATFORM_WINDOWS
