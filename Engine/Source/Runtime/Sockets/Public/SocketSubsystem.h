@@ -85,7 +85,8 @@ public:
 	 */
 	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false)
 	{
-		return CreateSocket(SocketType, SocketDescription, NAME_None);
+		const FName NoProtocolTypeName(NAME_None);
+		return CreateSocket(SocketType, SocketDescription, NoProtocolTypeName);
 	}
 
 	/**
