@@ -1609,7 +1609,7 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 		UStaticMeshSocket* Socket = NewMesh->FindSocket(ExistingSocket->SocketName);
 		if (!Socket && !ExistingSocket->bSocketCreatedAtImport)
 		{
-			NewMesh->Sockets.Add(ExistingSocket);
+			NewMesh->AddSocket(ExistingSocket);
 		}
 	}
 

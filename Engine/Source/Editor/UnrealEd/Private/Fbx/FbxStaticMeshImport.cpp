@@ -2201,7 +2201,7 @@ void UnFbx::FFbxImporter::ImportStaticMeshLocalSockets(UStaticMesh* StaticMesh, 
 			check(Socket);
 
 			Socket->SocketName = SocketNode.SocketName;
-			StaticMesh->Sockets.Add(Socket);
+			StaticMesh->AddSocket(Socket);
 		}
 
 		if (Socket)
@@ -2267,7 +2267,7 @@ void UnFbx::FFbxImporter::ImportStaticMeshGlobalSockets( UStaticMesh* StaticMesh
 			check(Socket);
 
 			Socket->SocketName = SocketNode.SocketName;
-			StaticMesh->Sockets.Add(Socket);
+			StaticMesh->AddSocket(Socket);
 			//Remove the axis conversion for the socket since its attach to a mesh containing this conversion.
 			const FbxAMatrix& SocketMatrix = Scene->GetAnimationEvaluator()->GetNodeGlobalTransform(SocketNode.Node) * FFbxDataConverter::GetAxisConversionMatrixInv();
 			FTransform SocketTransform;

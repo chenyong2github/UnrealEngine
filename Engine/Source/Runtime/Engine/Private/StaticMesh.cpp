@@ -4993,6 +4993,11 @@ void UStaticMesh::GenerateLodsInPackage()
 
 #endif // #if WITH_EDITOR
 
+void UStaticMesh::AddSocket(UStaticMeshSocket* Socket)
+{
+	Sockets.AddUnique(Socket);
+}
+
 UStaticMeshSocket* UStaticMesh::FindSocket(FName InSocketName) const
 {
 	if(InSocketName == NAME_None)
@@ -5009,6 +5014,11 @@ UStaticMeshSocket* UStaticMesh::FindSocket(FName InSocketName) const
 		}
 	}
 	return NULL;
+}
+
+void UStaticMesh::RemoveSocket(UStaticMeshSocket* Socket)
+{
+	Sockets.Remove(Socket);
 }
 
 /*-----------------------------------------------------------------------------
