@@ -83,14 +83,14 @@ public:
 
 	virtual ESocketErrors TranslateErrorCode( int32 Code ) override;
 
+	virtual bool IsSocketWaitSupported() const override;
+
 	/**
 	 * Translates an ESocketProtocolFamily code into a value usable by raw socket apis.
 	 */
 	UE_DEPRECATED(4.23, "Switch to the FName version for scalable protocol support")
 	virtual int32 GetProtocolFamilyValue(ESocketProtocolFamily InProtocol) const;
 	virtual int32 GetProtocolFamilyValue(const FName& InProtocol) const;
-	
-	virtual bool IsSocketWaitSupported() const override;
 	
 	/**
 	 * Translates an raw socket family type value into a protocol name that can be used by the network layer.
