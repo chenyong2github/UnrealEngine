@@ -84,6 +84,7 @@ public:
 	void SetLayer(int32 InLayer);
 
 	/** Sets the offset for this slot's content by some amount; positive values offset to lower right*/
+	UFUNCTION(BlueprintCallable, Category = "Layout|Grid Slot")
 	void SetNudge(FVector2D InNudge);
 
 	/**  */
