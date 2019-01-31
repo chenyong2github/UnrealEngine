@@ -951,15 +951,25 @@ class FD3D12StagingBuffer : public FRHIStagingBuffer
 public:
 	FD3D12StagingBuffer()
 		: FRHIStagingBuffer()
+		, StagedRead(nullptr)
 		, ShadowBufferSize(0)
 	{}
 	virtual ~FD3D12StagingBuffer() final override;
+
+	void SafeRelease()
+	{
+		if (StagedRead)
+		{
+			StagedRead->Release();
+			StagedRead = nullptr;
+		}
+	}
 
 	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
 	virtual void Unlock() final override;
 
 private:
-	TRefCountPtr<FD3D12Resource> StagedRead;
+	FD3D12Resource* StagedRead;
 	uint32 ShadowBufferSize;
 };
 
