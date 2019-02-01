@@ -98,7 +98,7 @@ public:
 	 * Called when a shader resource is cooked, so the shader format can perform platform-specific operations on the debug data.
 	 * Does nothing on platforms that make no use of the platform debug data.
 	 */
-	virtual void NotifyShaderCooked(const TArray<uint8>& PlatformDebugData) const { }
+	virtual void NotifyShaderCooked(const TArray<uint8>& PlatformDebugData, FName Format) const { }
 
 public:
 	/** Virtual destructor. */
