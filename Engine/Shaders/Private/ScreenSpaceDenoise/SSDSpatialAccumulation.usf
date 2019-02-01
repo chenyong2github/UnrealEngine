@@ -20,6 +20,7 @@
 	#define SAMPLE_COUNT_POLICY_METADATA_BASED 1
 	#define SAMPLE_COUNT_POLICY_HIT_DISTANCE_BASED 2
 	#define SAMPLE_COUNT_POLICY_ACCUMULATION_BASED 3
+	#define SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED 4
 
 
 //------------------------------------------------------- CONFIGS
@@ -74,9 +75,9 @@
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_3X3
-		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		//#define CONFIG_SAMPLE_SUBSET        1
+		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_3X3
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SUBSET        1
 		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_ACCUMULATION_BASED
 
 		// Can only be done using tokoyashi because have more than one sample at a time.
@@ -88,7 +89,7 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
@@ -100,17 +101,20 @@
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_INPUT
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_3X3
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SUBSET        1
+
+		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
 
 	#else
 		#error Unexpected stage.
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
-	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
@@ -122,10 +126,13 @@
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		// Input and output layout.
-		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_GI_AND_AO_INPUT
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
 		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
 
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_3X3
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SUBSET        1
+
+		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
 
 	#else
 		#error Unexpected stage.
@@ -314,6 +321,10 @@ static const uint kStackowiakSampleCountPerSet = 56;
 uint MaxSampleCount;
 uint UpscaleFactor;
 
+#if !CONFIG_UPSCALE && CONFIG_CUSTOM_SPREAD_FACTOR
+	float KernelSpreadFactor;
+#endif
+
 Texture2D SignalInput0;
 Texture2D SignalInput1;
 
@@ -410,9 +421,10 @@ void MainCS(
 	#endif
 	
 	/** factor by witch should be spread out. */
-	float KernelSpreadFactor = 1;
 	#if CONFIG_UPSCALE
-		KernelSpreadFactor = UpscaleFactor;
+		float KernelSpreadFactor = UpscaleFactor;
+	#elif !CONFIG_CUSTOM_SPREAD_FACTOR
+		const float KernelSpreadFactor = 1;
 	#endif
 
 	/** Find out the number of samples that should be done. */
@@ -443,16 +455,19 @@ void MainCS(
 		IdealSampleCount = min(IdealSampleCount, MaxSampleCount);
 
 		RequestedSampleCount = IdealSampleCount / clamp(RefSample.AccumulatedSampleCount, 1, MaxSampleCount);
-		
-		DebugOutput[DispatchThreadId] = float4(IdealSampleCount, RequestedSampleCount, 0, 0);
+	}
+	#elif CONFIG_SAMPLE_COUNT_POLICY == SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
+	{
+		const float IdealSampleCount = TARGETED_SAMPLE_COUNT;
+
+		RequestedSampleCount = clamp(IdealSampleCount / RefSample.AccumulatedSampleCount, 1, MaxSampleCount);
 	}
 	#else
 		#error Unknown policy to control the number of samples.
 	#endif
 
 
-	/** Iterate over the samples of the kernel.
-	 */
+	/** Iterate over the samples of the kernel. */
 	float2 KernelCenterBufferUV = SceneBufferUV;
 
 	#if CONFIG_SAMPLE_SET == SAMPLE_SET_NONE

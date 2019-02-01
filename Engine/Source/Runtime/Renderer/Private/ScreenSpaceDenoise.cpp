@@ -44,7 +44,7 @@ static TAutoConsoleVariable<int32> CVarReflectionTemporalAccumulation(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarReflectionHistoryConvolutionSampleCount(
-	TEXT("r.Reflections.Denoiser.HistoryConvolutionSampleCount"), 1,
+	TEXT("r.Reflections.Denoiser.HistoryConvolution.SampleCount"), 1,
 	TEXT("Number of samples to use for history post filter (default = 1)."),
 	ECVF_RenderThreadSafe);
 
@@ -59,8 +59,13 @@ static TAutoConsoleVariable<int32> CVarAOTemporalAccumulation(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarAOHistoryConvolutionSampleCount(
-	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolutionSampleCount"), 1,
-	TEXT("Number of samples to use for history post filter (default = 1)."),
+	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.SampleCount"), 16,
+	TEXT("Number of samples to use for history post filter (default = 16)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarAOHistoryConvolutionKernelSpreadFactor(
+	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.KernelSpreadFactor"), 3,
+	TEXT("Multiplication factor applied on the kernel sample offset (default=3)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarGIReconstructionSampleCount(
@@ -74,8 +79,13 @@ static TAutoConsoleVariable<int32> CVarGITemporalAccumulation(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarGIHistoryConvolutionSampleCount(
-	TEXT("r.GlobalIllumination.Denoiser.HistoryConvolutionSampleCount"), 1,
+	TEXT("r.GlobalIllumination.Denoiser.HistoryConvolution.SampleCount"), 16,
 	TEXT("Number of samples to use for history post filter (default = 1)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarGIHistoryConvolutionKernelSpreadFactor(
+	TEXT("r.GlobalIllumination.Denoiser.HistoryConvolution.KernelSpreadFactor"), 3,
+	TEXT("Multiplication factor applied on the kernel sample offset (default=3)."),
 	ECVF_RenderThreadSafe);
 
 
@@ -269,6 +279,7 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 		SHADER_PARAMETER(int32, UpscaleFactor)
+		SHADER_PARAMETER(float, KernelSpreadFactor)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 
@@ -686,6 +697,7 @@ struct FSSDConstantPixelDensitySettings
 	int32 ReconstructionSamples = 1;
 	bool bUseTemporalAccumulation = false;
 	int32 HistoryConvolutionSampleCount = 1;
+	float HistoryConvolutionKernelSpreadFactor = 1.0f;
 };
 
 
@@ -849,7 +861,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 	}
 	
 	// Spatial filter, to converge history faster.
-	int32 MaxPostFilterSampleCount = FMath::Clamp(Settings.HistoryConvolutionSampleCount, 1, 16);
+	int32 MaxPostFilterSampleCount = FMath::Clamp(Settings.HistoryConvolutionSampleCount, 1, kStackowiakMaxSampleCountPerSet);
 	if (MaxPostFilterSampleCount > 1)
 	{
 		FRDGTextureRef SignalOutput0 = GraphBuilder.CreateTexture(SignalProcessingDesc[0], TEXT("SSDReflectionsHistory0"));
@@ -857,6 +869,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		FSSDSpatialAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDSpatialAccumulationCS::FParameters>();
 		PassParameters->MaxSampleCount = FMath::Clamp(MaxPostFilterSampleCount, 1, kStackowiakMaxSampleCountPerSet);
+		PassParameters->KernelSpreadFactor = Settings.HistoryConvolutionKernelSpreadFactor;
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->SignalInput0 = SignalHistory0;
 		PassParameters->SignalInput1 = SignalHistory1;
@@ -1033,6 +1046,7 @@ public:
 		Settings.ReconstructionSamples = CVarAOReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarAOTemporalAccumulation.GetValueOnRenderThread() != 0;
 		Settings.HistoryConvolutionSampleCount = CVarAOHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.HistoryConvolutionKernelSpreadFactor = CVarAOHistoryConvolutionKernelSpreadFactor.GetValueOnRenderThread();
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
@@ -1062,6 +1076,7 @@ public:
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
 		Settings.HistoryConvolutionSampleCount = CVarGIHistoryConvolutionSampleCount.GetValueOnRenderThread();
+		Settings.HistoryConvolutionKernelSpreadFactor = CVarGIHistoryConvolutionKernelSpreadFactor.GetValueOnRenderThread();
 
 		FSSDSignalTextures SignalOutput;
 		DenoiseSignalAtConstantPixelDensity(
