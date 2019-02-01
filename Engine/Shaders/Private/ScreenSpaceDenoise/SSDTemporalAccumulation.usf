@@ -17,6 +17,8 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_PENUMBRA_INTERNAL
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_PENUMBRA_INTERNAL
 
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+
 	// Uses a larger kernel when burteforcing to converge faster.
 	#define CONFIG_LARGER_HISTORY_KERNEL 1
 
@@ -41,6 +43,11 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
 
+	// Can only be done using tokoyashi because have more than one sample at a time.
+	#define CONFIG_TOKOYASHI_LOBE_BILATERAL 1
+	#define CONFIG_TOKOYASHI_AXES_BILATERAL 1
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+
 	#define CONFIG_HISTORY_REJECTION 2
 	#define CONFIG_HISTORY_REJECTION_COLOR_SPACE (COLOR_SPACE_LCOCG | COLOR_SPACE_UNPREMULTIPLY)
 
@@ -52,6 +59,9 @@
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 
 	#define CONFIG_HISTORY_REJECTION 1
+
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 #else
 	#error Unimplemented signal processing.
@@ -657,6 +667,7 @@ void TemporallyAccumulate(
 			FSSFSignalSample NeighborSample = CreateSignalSample();
 			float NeighborPenumbra = -1;
 			float NeighborUncertainty = 1.0;
+			bool bUseNeighborSample = false;
 
 			#if CONFIG_INPUT_TILE_CLASSIFICATION
 			{
@@ -751,12 +762,15 @@ void TemporallyAccumulate(
 					CurrentSceneMetadata,
 					NeighborSceneMetadata);
 
-				if (BilateralWeight > 0 && NeighborSample.AccumulatedSampleCount > 0)
+				// TODO: requires further improvement for CurrentFrame.AccumulatedSampleCount == 0.
+				if (NeighborSample.AccumulatedSampleCount > 0 &&
+					(BilateralWeight > 0 || (CurrentFrame.AccumulatedSampleCount == 0 && abs(x) <= 1 && abs(y) <= 1)))
 				{
 					NeighborPenumbra = GetSamplePenumbra(NeighborSample);
 					NeighborUncertainty = bUsesHistoryRejectionSignal
 						? 0.0
 						: NeighborSample.UncertainRayCount / (NeighborSample.AccumulatedSampleCount + NeighborSample.UncertainRayCount);
+					bUseNeighborSample = true;
 				}
 			}
 			#endif // !CONFIG_INPUT_TILE_CLASSIFICATION
@@ -765,10 +779,14 @@ void TemporallyAccumulate(
 			NormalizedNeighborSample = TransformSignalForPreRejection(NormalizedNeighborSample);
 			
 			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_PENUMBRA
-				bool bUseNeighborSample = NeighborUncertainty < 1.0;
-			#else
-				bool bUseNeighborSample = NeighborSample.AccumulatedSampleCount > 0.0;
+				bUseNeighborSample = NeighborUncertainty < 1.0;
 			#endif
+
+			// When the denoiser is upsampling, may have no input information, and have neighbor being bilaterally rejected. In this case
+			// Force the immediate neighborhood to avoid ghosting.
+			bool bForceUseNeighbor = CurrentFrame.AccumulatedSampleCount == 0 && NeighborSample.AccumulatedSampleCount > 0 && abs(x) <= 1 && abs(y) <= 1;
+
+			//bUseNeighborSample = bUseNeighborSample || bForceUseNeighbor;
 
 			if (CONFIG_CERTAINTY_BASED_REJECTION && bUseNeighborSample)
 			{

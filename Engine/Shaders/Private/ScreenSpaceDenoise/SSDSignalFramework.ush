@@ -5,8 +5,24 @@
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
 
-#ifndef CONFIG_TOKOYASHI_BILATERAL
-	#define CONFIG_TOKOYASHI_BILATERAL 0
+/** Whether should use bilateral rejection for significantly different roughness. */
+#ifndef CONFIG_TOKOYASHI_LOBE_BILATERAL
+	#define CONFIG_TOKOYASHI_LOBE_BILATERAL 0
+#endif
+
+/** Whether should use bilateral rejection for significantly different lobe axis directions. */
+#ifndef CONFIG_TOKOYASHI_AXES_BILATERAL
+	#define CONFIG_TOKOYASHI_AXES_BILATERAL 0
+#endif
+
+/** Whether should use normal based rejection. */
+#ifndef CONFIG_VIEW_POSITION_BASED_BILATERAL
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 0
+#endif
+
+/** Whether should use normal based rejection. */
+#ifndef CONFIG_NORMAL_BASED_BILATERAL
+	#define CONFIG_NORMAL_BASED_BILATERAL 0
 #endif
 
 #ifndef CONFIG_SPECULAR_RATIO_ESTIMATOR
@@ -219,16 +235,19 @@ float HitDistanceToWorldBluringRadius;
 /** Create a spherical gaussian lob for a given roughness. */
 FSphericalGaussian ComputeRoughnessLobe(float Roughness, float3 N, float3 V)
 {
-	float a = Pow2( max( 0.02, Roughness ) );
+	//float a = Pow2( max( 0.02, Roughness ) );
+	float a = Pow2( max( 0.001, Roughness ) );
 	float a2 = a*a;
 	
 	float NoV = saturate( abs( dot(N, V) ) + 1e-5 );
+	//float NoV = saturate( abs( dot(N, V) ) );
 	
 	float3 R = 2 * NoV * N - V;
 
 	FSphericalGaussian SpecularSG;
 	SpecularSG.Axis = R;
 	SpecularSG.Sharpness = 0.5 / ( a2 * max( NoV, 0.1 ) );
+	//SpecularSG.Sharpness = 0.5 / ( a2 * max( NoV, 0.1 ) );
 	SpecularSG.Amplitude = rcp( PI * a2 );
 
 	return SpecularSG;
@@ -274,23 +293,6 @@ float ComputeBluringRadiusOfNormalizedSample(FSSFSignalSample Sample, FSSFSample
 	return InifinityRadius * (1 - DistanceCameraToPixel / (DistanceCameraToPixel + Sample.PenumbraClosestHit));
 }
 
-// [ Tokoyashi 2015, "Specular Lobe-Aware Filtering and Upsampling for Interactive Indirect Illumination" ]
-float TokoyashiLobeBilateralWeight(FSSFSampleSceneInfos RefSceneMetadata, FSSFSampleSceneInfos NeighborSceneMetadata)
-{
-	FSphericalGaussian Ref = ComputeRoughnessLobe(RefSceneMetadata);
-	FSphericalGaussian Neighbor = ComputeRoughnessLobe(NeighborSceneMetadata);
-	
-#if 1
-	const float Beta = 5.05; // TODO: to be tunned with GGX.
-
-	float CombinedSharpness = sqrt(Ref.Sharpness * Neighbor.Sharpness) / (Ref.Sharpness + Neighbor.Sharpness);
-
-	return pow(2 * CombinedSharpness, Beta) * exp((Beta * CombinedSharpness) * (dot(Ref.Axis, Neighbor.Axis) - 1));
-#else
-	return Dot(Ref, Neighbor);
-#endif
-}
-
 // TODO: duplicated...
 float3 GenerateReflectedRayDirection(
 	float3 IncidentDirection,
@@ -307,12 +309,23 @@ float3 GenerateReflectedRayDirection(
 	}
 	else
 	{
-		float NoV = saturate(dot(-IncidentDirection, WorldNormal));
+		float3 N = WorldNormal;
+		float3 V = -IncidentDirection;
 		float2 E = RandSample;
-		float4 Sample = ImportanceSampleGGX(E, Pow4(Roughness));
-		float3 H = TangentToWorld(Sample.xyz, WorldNormal);
-		RayDirection = reflect(IncidentDirection, H);
 
+		float3x3 TangentBasis = GetTangentBasis(N);
+		float3 TangentV = mul(TangentBasis, V);
+
+		float NoV = saturate(dot(V, WorldNormal));
+		
+		float4 Sample = ImportanceSampleGGX(E, Pow4(Roughness));
+		if (View.GeneralPurposeTweak > 0.5)
+			Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
+
+		float3 H = mul(Sample.xyz, TangentBasis);
+		float3 L = 2 * dot( V, H ) * H - V;
+
+		RayDirection = L;
 		PDF = Sample.w;
 	}
 
@@ -385,15 +398,14 @@ float ComputeBilateralWeight(
 	float MaxWorldBluringDistance,
 	FSSFSampleSceneInfos RefSceneMetadata,
 	FSSFSampleSceneInfos NeighborSceneMetadata)
-#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_PENUMBRA || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
 {
 	if (DEBUG_DISABLE_BILATERAL)
 	{
 		return 1;
 	}
 	
-	float WorldBilateralWeight = 1;
-	if (1)
+	float ViewPositionBilateralWeight = 1;
+	#if CONFIG_VIEW_POSITION_BASED_BILATERAL
 	{
 		const float WorldRadius = MaxWorldBluringDistance;
 
@@ -410,11 +422,12 @@ float ComputeBilateralWeight(
 
 		float Multiplier = rcp(WorldRadius * WorldRadius);
 
-		WorldBilateralWeight = saturate(1 - DistSquare * Multiplier);
+		ViewPositionBilateralWeight = saturate(1 - DistSquare * Multiplier);
 	}
+	#endif
 
 	float NormalBilateralWeight = 1;
-	if (CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO)
+	#if CONFIG_NORMAL_BASED_BILATERAL
     {
 		float NoN = max(dot(RefSceneMetadata.WorldNormal, NeighborSceneMetadata.WorldNormal), 0);
 
@@ -431,23 +444,30 @@ float ComputeBilateralWeight(
 			NormalBilateralWeight = exp(-x * x);
 		#endif
     }
-
-	return WorldBilateralWeight * NormalBilateralWeight;
-}
-#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
-{
-	float LobeBilateralWeight = 1;
-	#if CONFIG_TOKOYASHI_BILATERAL
+	#endif
+	
+	// [ Tokoyashi 2015, "Specular Lobe-Aware Filtering and Upsampling for Interactive Indirect Illumination" ]
+	float LobeSimilarity = 1;
+	float AxesSimilarity = 1;
+	#if CONFIG_TOKOYASHI_LOBE_BILATERAL || CONFIG_TOKOYASHI_AXES_BILATERAL
 	{
-		LobeBilateralWeight = TokoyashiLobeBilateralWeight(RefSceneMetadata, NeighborSceneMetadata);
+		const float Beta = 32;
+
+		FSphericalGaussian Ref = ComputeRoughnessLobe(RefSceneMetadata);
+		FSphericalGaussian Neighbor = ComputeRoughnessLobe(NeighborSceneMetadata);
+	
+		float InvSharpnessSum = rcp(Ref.Sharpness + Neighbor.Sharpness);
+
+		if (CONFIG_TOKOYASHI_LOBE_BILATERAL)
+			LobeSimilarity = pow(2 * sqrt(Ref.Sharpness * Neighbor.Sharpness) * InvSharpnessSum, Beta);
+
+		if (CONFIG_TOKOYASHI_AXES_BILATERAL)
+			AxesSimilarity = exp(-(Beta * (Ref.Sharpness * Neighbor.Sharpness) * InvSharpnessSum) * saturate(1 - dot(Ref.Axis, Neighbor.Axis)));
 	}
 	#endif
 
-	return LobeBilateralWeight;
+	return ViewPositionBilateralWeight * NormalBilateralWeight * LobeSimilarity * AxesSimilarity;
 }
-#else
-	#error Unimplemented ComputeBilateralWeight()
-#endif
 
 float GetSignalWorldBluringRadius(FSSFSignalSample Sample, FSSFSampleSceneInfos SceneMetadata)
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_PENUMBRA
