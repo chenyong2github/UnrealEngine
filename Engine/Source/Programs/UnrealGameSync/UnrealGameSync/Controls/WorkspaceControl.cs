@@ -1535,18 +1535,9 @@ namespace UnrealGameSync
 		{
 			ExpandRowLayout Layout = new ExpandRowLayout();
 
+			string ShowingChanges = String.Format("Showing {0}/{1} changes.", ListIndexToChangeIndex.Count, NumChanges);
+
 			int CurrentMaxChanges = PerforceMonitor.CurrentMaxChanges;
-
-			string ShowingChanges;
-			if(ListIndexToChangeIndex.Count == CurrentMaxChanges)
-			{
-				ShowingChanges = String.Format("Showing {0} changes.", ListIndexToChangeIndex.Count);
-			}
-			else
-			{
-				ShowingChanges = String.Format("Showing {0}/{1} changes.", ListIndexToChangeIndex.Count, Math.Max(ListIndexToChangeIndex.Count, CurrentMaxChanges));
-			}
-
 			if(PerforceMonitor.PendingMaxChanges > CurrentMaxChanges)
 			{
 				Layout.MainText = String.Format("{0}. Fetching {1} more from server...  ", ShowingChanges, PerforceMonitor.PendingMaxChanges - CurrentMaxChanges);
