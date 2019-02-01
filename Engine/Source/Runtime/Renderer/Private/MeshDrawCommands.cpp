@@ -871,16 +871,10 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	check(!TaskEventRef.IsValid() && MeshPassProcessor != nullptr && TaskContext.PrimitiveIdBufferData == nullptr);
 	check((PassType == EMeshPass::Num) == (DynamicMeshElementsPassRelevance == nullptr));
 
-	// Assign these before the early-out because we still need to destroy them in Empty()
+	MaxNumDraws = InOutMeshDrawCommands.Num() + NumDynamicMeshElements + NumDynamicMeshCommandBuildRequestElements;
+
 	TaskContext.MeshPassProcessor = MeshPassProcessor;
 	TaskContext.MobileBasePassCSMMeshPassProcessor = MobileBasePassCSMMeshPassProcessor;
-
-	MaxNumDraws = InOutMeshDrawCommands.Num() + NumDynamicMeshElements + NumDynamicMeshCommandBuildRequestElements;
-	if (MaxNumDraws <= 0)
-	{
-		return;
-	}
-
 	TaskContext.DynamicMeshElements = &DynamicMeshElements;
 	TaskContext.DynamicMeshElementsPassRelevance = DynamicMeshElementsPassRelevance;
 
@@ -926,27 +920,30 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 		check(MobileBasePassCSMMeshPassProcessor == nullptr && InOutMobileBasePassCSMMeshDrawCommands == nullptr);
 	}
 
-	// Preallocate resources on rendering thread based on MaxNumDraws.
-	bPrimitiveIdBufferDataOwnedByRHIThread = false;
-	TaskContext.PrimitiveIdBufferDataSize = TaskContext.MaxInstanceFactor * MaxNumDraws * sizeof(int32);
-	TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
-	PrimitiveIdVertexBufferRHI = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
-	TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
-	TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
-
-	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
-
-	if (bExecuteInParallel)
+	if (MaxNumDraws > 0)
 	{
-		TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(
-			nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
-	}
-	else
-	{
-		FMeshDrawCommandPassSetupTask Task(TaskContext);
-		Task.AnyThreadTask();
+		// Preallocate resources on rendering thread based on MaxNumDraws.
+		bPrimitiveIdBufferDataOwnedByRHIThread = false;
+		TaskContext.PrimitiveIdBufferDataSize = TaskContext.MaxInstanceFactor * MaxNumDraws * sizeof(int32);
+		TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
+		PrimitiveIdVertexBufferRHI = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
+		TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
+		TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
+
+		const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
+			&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
+			&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+
+		if (bExecuteInParallel)
+		{
+			TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(
+				nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+		}
+		else
+		{
+			FMeshDrawCommandPassSetupTask Task(TaskContext);
+			Task.AnyThreadTask();
+		}
 	}
 }
 
@@ -970,10 +967,12 @@ void FParallelMeshDrawCommandPass::Empty()
 	if (TaskContext.MeshPassProcessor)
 	{
 		TaskContext.MeshPassProcessor->~FMeshPassProcessor();
+		TaskContext.MeshPassProcessor = nullptr;
 	}
 	if (TaskContext.MobileBasePassCSMMeshPassProcessor)
 	{
 		TaskContext.MobileBasePassCSMMeshPassProcessor->~FMeshPassProcessor();
+		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
 	}
 
 	if (!bPrimitiveIdBufferDataOwnedByRHIThread)
@@ -985,8 +984,6 @@ void FParallelMeshDrawCommandPass::Empty()
 	MaxNumDraws = 0;
 	PassNameForStats.Empty();
 
-	TaskContext.MeshPassProcessor = nullptr;
-	TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
 	TaskContext.DynamicMeshElements = nullptr;
 	TaskContext.DynamicMeshElementsPassRelevance = nullptr;
 	TaskContext.MeshDrawCommands.Empty();
