@@ -760,6 +760,7 @@ struct FPreviousViewInfo
 		CustomSSRInput.SafeRelease();
 		ReflectionsHistory.SafeRelease();
 		AmbientOcclusionHistory.SafeRelease();
+		GlobalIlluminationHistory.SafeRelease();
 		ShadowHistories.Reset();
 	}
 };
