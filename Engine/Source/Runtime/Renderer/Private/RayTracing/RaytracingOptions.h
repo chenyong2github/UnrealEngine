@@ -10,6 +10,7 @@ extern bool IsRayTracingSkyLightSelected();
 
 extern bool IsRayTracingRectLightSelected();
 
+extern bool ShouldRenderRayTracingAmbientOcclusion();
 extern bool ShouldRenderRayTracingStaticOrStationaryRectLight(const FLightSceneInfo& LightSceneInfo);
 extern bool ShouldRenderRayTracingDynamicRectLight(const FLightSceneInfo& LightSceneInfo);
 

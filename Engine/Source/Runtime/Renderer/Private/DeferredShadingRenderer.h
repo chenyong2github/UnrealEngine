@@ -440,8 +440,6 @@ private:
 		float ResolutionFraction);
 
 #if RHI_RAYTRACING
-	bool ShouldRenderRayTracingAmbientOcclusion() const;
-
 	void RenderRayTracingOcclusion(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture);
 
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);

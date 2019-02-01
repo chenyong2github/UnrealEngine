@@ -23,7 +23,7 @@ static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusion(
 	TEXT("Enables ray tracing ambient occlusion (default = 1)")
 );
 
-bool FDeferredShadingSceneRenderer::ShouldRenderRayTracingAmbientOcclusion() const
+bool ShouldRenderRayTracingAmbientOcclusion()
 {
 	return GRayTracingAmbientOcclusion != 0;
 }
@@ -45,11 +45,12 @@ static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusionMaxRayDistance(
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, )
 SHADER_PARAMETER(int, SamplesPerPixel)
 SHADER_PARAMETER(float, MaxRayDistance)
+SHADER_PARAMETER(float, Intensity)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, "AmbientOcclusion");
 
-DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("RTAO"));
+DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
 DECLARE_GPU_STAT_NAMED(CompositeRayTracingAmbientOcclusion, TEXT("Denoising: RTAO"));
 
 class FAmbientOcclusionRGS : public FGlobalShader
@@ -161,8 +162,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	// Add ambient occlusion parameters to uniform buffer
 	FAmbientOcclusionData AmbientOcclusionData;
 	AmbientOcclusionData.SamplesPerPixel = GRayTracingAmbientOcclusionSamplesPerPixel;
-	AmbientOcclusionData.MaxRayDistance = GRayTracingAmbientOcclusionMaxRayDistance;
-	FUniformBufferRHIRef AmbientOcclusionUniformBuffer = RHICreateUniformBuffer(&AmbientOcclusionData, FAmbientOcclusionData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -173,6 +172,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 		FSceneTexturesUniformParameters SceneTextures;
 		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 		FUniformBufferRHIRef SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
+
+		AmbientOcclusionData.MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
+		AmbientOcclusionData.Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
+		FUniformBufferRHIRef AmbientOcclusionUniformBuffer = RHICreateUniformBuffer(&AmbientOcclusionData, FAmbientOcclusionData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 		AmbientOcclusionRayGenerationShader->Dispatch(
 			RHICmdList,
@@ -195,6 +198,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	
 	GVisualizeTexture.SetCheckPoint(RHICmdList, AmbientOcclusionMask);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, HitDistance);
+	SceneContext.bScreenSpaceAOIsValid = true;
 }
 
 class FCompositeAmbientOcclusionPS : public FGlobalShader

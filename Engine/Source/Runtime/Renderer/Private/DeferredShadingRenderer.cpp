@@ -33,6 +33,7 @@
 #include "RayTracing/RayTracingDynamicGeometryCollection.h"
 #include "SceneViewFamilyBlackboard.h"
 #include "ScreenSpaceDenoise.h"
+#include "RayTracing/RayTracingOptions.h"
 
 TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("r.EarlyZPass"),
@@ -197,6 +198,7 @@ DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer ViewExtensionPostRenderBas
 
 DECLARE_GPU_STAT(Postprocessing);
 DECLARE_GPU_STAT(HZB);
+DECLARE_GPU_STAT_NAMED(AmbientOcclusionDenoiser, TEXT("Ambient Occlusion Denoiser"));
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
 
 bool ShouldForceFullDepthPass(EShaderPlatform ShaderPlatform)
@@ -1730,14 +1732,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			else if (ShouldRenderRayTracingAmbientOcclusion())
 			{
 				checkSlow(RHICmdList.IsOutsideRenderPass());
-				TRefCountPtr<IPooledRenderTarget> AmbientOcclusionRT;
-				TRefCountPtr<IPooledRenderTarget> AmbientOcclusionHitDistanceRT;
-				RenderRayTracingAmbientOcclusion(RHICmdList, nullptr, AmbientOcclusionRT, AmbientOcclusionHitDistanceRT);
 				checkSlow(RHICmdList.IsOutsideRenderPass());
+				TRefCountPtr<IPooledRenderTarget> AmbientOcclusionHitDistanceRT;
+				RenderRayTracingAmbientOcclusion(RHICmdList, nullptr, SceneContext.ScreenSpaceAO, AmbientOcclusionHitDistanceRT);
 				
 				int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();
 				if (DenoiserMode != 0)
 				{	
+					SCOPED_GPU_STAT(RHICmdList, AmbientOcclusionDenoiser);
 					FRDGBuilder GraphBuilder(RHICmdList);
 
 					FSceneViewFamilyBlackboard SceneBlackboard;
@@ -1749,7 +1751,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
 
 					IScreenSpaceDenoiser::FAmbientOcclusionInputs DenoiserInputs;
-					DenoiserInputs.Mask = GraphBuilder.RegisterExternalTexture(AmbientOcclusionRT, TEXT("AOMask"));
+					DenoiserInputs.Mask = GraphBuilder.RegisterExternalTexture(SceneContext.ScreenSpaceAO, TEXT("AOMask"));
 					DenoiserInputs.RayHitDistance = GraphBuilder.RegisterExternalTexture(AmbientOcclusionHitDistanceRT, TEXT("AOHitDistance"));
 
 					const FViewInfo& View = Views[0];
@@ -1767,14 +1769,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 							DenoiserInputs,
 							RayTracingConfig);
 						
-						GraphBuilder.QueueTextureExtraction(DenoiserOutputs.AmbientOcclusionMask, &AmbientOcclusionRT);
+						GraphBuilder.QueueTextureExtraction(DenoiserOutputs.AmbientOcclusionMask, &SceneContext.ScreenSpaceAO);
 					}
 					GraphBuilder.Execute();
 				}
 
 				// #dxr_todo: Denoise AO
-				CompositeRayTracingAmbientOcclusion(RHICmdList, AmbientOcclusionRT);
-				checkSlow(RHICmdList.IsOutsideRenderPass());
 			}
 		}
 	}

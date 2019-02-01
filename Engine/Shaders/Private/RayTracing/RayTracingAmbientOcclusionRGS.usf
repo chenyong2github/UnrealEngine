@@ -69,6 +69,7 @@ void AmbientOcclusionRGS()
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
+	float Intensity = AmbientOcclusion.Intensity;
 	float ClosestRayHitDistance = 1.#INF;
 	uint SamplesPerPixel = AmbientOcclusion.SamplesPerPixel;
 	
@@ -105,7 +106,7 @@ void AmbientOcclusionRGS()
 		);
 		
 		RayCount += 1;
-		Visibility += Payload.HitT < 0 ? 1.0 : 0.0;
+		Visibility += Payload.HitT < 0 ? 1.0 : 1.0 - Intensity;
 		if (Payload.HitT >= 0.0)
 		{
 			ClosestRayHitDistance = min(ClosestRayHitDistance, Payload.HitT);
