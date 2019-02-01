@@ -22,6 +22,7 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#include "/Engine/Private/ShadingCommon.ush"
 #include "/Engine/Private/SHCommon.ush"
 #include "/Engine/Private/ReflectionEnvironmentShared.ush"
 #include "/Engine/Private/LightmapCommon.ush"
@@ -284,13 +285,7 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 	Payload.Metallic = Metallic;
 	Payload.Ior = Refraction.x;
 	//Payload.Opacity = Opacity;
-
-// #if MATERIAL_SHADINGMODEL_UNLIT
-	// Payload.ShadingModelID = SHADINGMODELID_UNLIT;
-// #else
-	// Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-	// // TODO - support other ShadingModelIDs in path tracer
-// #endif
+    Payload.ShadingModelID = GetShadingModelID();
 
 	// TODO - support different blending modes in path tracer?
 	// uint MaterialBlendingMode = 0;
