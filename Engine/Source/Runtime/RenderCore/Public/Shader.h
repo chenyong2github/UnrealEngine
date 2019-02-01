@@ -35,6 +35,9 @@ class FVertexFactoryParameterRef;
 class FVertexFactoryType;
 class FShaderParametersMetadata;
 
+/** By default most shader source hashes are stripped at cook time so can be discarded
+	to save memory. See implementation of FilterShaderSourceHashForSerialization. */
+#define KEEP_SHADER_SOURCE_HASHES	(WITH_EDITOR)
 
 /** Define a shader permutation uniquely according to its type, and permutation id.*/
 template<typename MetaShaderType>
@@ -591,11 +594,13 @@ public:
 	 */ 
 	FSHAHash MaterialShaderMapHash;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
 
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	/** Shader platform and frequency. */
 	FShaderTarget Target;
@@ -647,13 +652,15 @@ public:
 		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
 			&& X.ShaderPipeline == Y.ShaderPipeline
 			&& X.VertexFactoryType == Y.VertexFactoryType
-			&& X.VFSourceHash == Y.VFSourceHash
 			&& ((X.VFSerializationHistory == NULL && Y.VFSerializationHistory == NULL)
 				|| (X.VFSerializationHistory != NULL && Y.VFSerializationHistory != NULL &&
 					*X.VFSerializationHistory == *Y.VFSerializationHistory))
 			&& X.ShaderType == Y.ShaderType
 			&& X.PermutationId == Y.PermutationId 
+#if KEEP_SHADER_SOURCE_HASHES
 			&& X.SourceHash == Y.SourceHash 
+			&& X.VFSourceHash == Y.VFSourceHash
+#endif
 			&& X.SerializationHistory == Y.SerializationHistory
 			&& X.Target == Y.Target;
 	}
@@ -675,11 +682,13 @@ public:
 	 */ 
 	FSHAHash MaterialShaderMapHash;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
 
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	/** 
 	 * Name of the vertex factory type that the shader was created for, 
@@ -1582,21 +1591,41 @@ public:
 		, PermutationId(0)
 	{}
 
+	FShaderTypeDependency(FShaderType* InShaderType, EShaderPlatform ShaderPlatform)
+		: ShaderType(InShaderType)
+		, PermutationId(0)
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		if (ShaderType)
+		{
+			SourceHash = ShaderType->GetSourceHash(ShaderPlatform);
+		}
+#endif
+	}
+
 	/** Shader type */
 	FShaderType* ShaderType;
 
 	/** Unique permutation identifier of the global shader type. */
 	int32 PermutationId;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar,class FShaderTypeDependency& Ref)
 	{
 		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
 		Ar << Ref.ShaderType;
-		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.SourceHash);
+
+#if KEEP_SHADER_SOURCE_HASHES
+		FSHAHash& Hash = Ref.SourceHash;
+#else
+		FSHAHash Hash;
+#endif
+		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 
 		if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::ShaderPermutationId)
 		{
@@ -1608,7 +1637,16 @@ public:
 
 	bool operator==(const FShaderTypeDependency& Reference) const
 	{
+#if KEEP_SHADER_SOURCE_HASHES
 		return ShaderType == Reference.ShaderType && PermutationId == Reference.PermutationId && SourceHash == Reference.SourceHash;
+#else
+		return ShaderType == Reference.ShaderType && PermutationId == Reference.PermutationId;
+#endif
+	}
+
+	bool operator!=(const FShaderTypeDependency& Reference) const
+	{
+		return !(*this == Reference);
 	}
 };
 
@@ -1620,22 +1658,50 @@ public:
 		ShaderPipelineType(nullptr)
 	{}
 
+	FShaderPipelineTypeDependency(const FShaderPipelineType* InShaderPipelineType, EShaderPlatform ShaderPlatform) :
+		ShaderPipelineType(InShaderPipelineType)
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		if (ShaderPipelineType)
+		{
+			StagesSourceHash = ShaderPipelineType->GetSourceHash(ShaderPlatform);
+		}
+#endif
+	}
+
 	/** Shader Pipeline type */
 	const FShaderPipelineType* ShaderPipelineType;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the shader source files. */
 	FSHAHash StagesSourceHash;
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar, class FShaderPipelineTypeDependency& Ref)
 	{
 		Ar << Ref.ShaderPipelineType;
-		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.StagesSourceHash);
+
+#if KEEP_SHADER_SOURCE_HASHES
+		FSHAHash& Hash = Ref.StagesSourceHash;
+#else
+		FSHAHash Hash;
+#endif
+		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 		return Ar;
 	}
 
 	bool operator==(const FShaderPipelineTypeDependency& Reference) const
 	{
+#if KEEP_SHADER_SOURCE_HASHES	
 		return ShaderPipelineType == Reference.ShaderPipelineType && StagesSourceHash == Reference.StagesSourceHash;
+#else
+		return ShaderPipelineType == Reference.ShaderPipelineType;
+#endif
+	}
+
+	bool operator!=(const FShaderPipelineTypeDependency& Reference) const
+	{
+		return !(*this == Reference);
 	}
 };
 

@@ -26,6 +26,7 @@
 #include "MeshBatch.h"
 #include "SceneUtils.h"
 #include "LightmapUniformShaderParameters.h"
+#include "DynamicBufferAllocator.h"
 
 class FCanvas;
 class FLightMap;
@@ -1907,6 +1908,27 @@ public:
 		return MeshBatchStorage[Index];
 	}
 
+	/** Return dynamic index buffer for this collector. */
+	FGlobalDynamicIndexBuffer& GetDynamicIndexBuffer()
+	{
+		check(DynamicIndexBuffer);
+		return *DynamicIndexBuffer;
+	}
+
+	/** Return dynamic vertex buffer for this collector. */
+	FGlobalDynamicVertexBuffer& GetDynamicVertexBuffer()
+	{
+		check(DynamicVertexBuffer);
+		return *DynamicVertexBuffer;
+	}
+
+	/** Return dynamic read buffer for this collector. */
+	FGlobalDynamicReadBuffer& GetDynamicReadBuffer()
+	{
+		check(DynamicReadBuffer);
+		return *DynamicReadBuffer;
+	}
+
 	// @return number of MeshBatches collected (so far) for a given view
 	uint32 GetMeshBatchCount(uint32 ViewIndex) const
 	{
@@ -2005,6 +2027,9 @@ private:
 		MeshIdInPrimitivePerView.Empty();
 		DynamicPrimitiveShaderDataPerView.Empty();
 		NumMeshBatchElementsPerView.Empty();
+		DynamicIndexBuffer = nullptr;
+		DynamicVertexBuffer = nullptr;
+		DynamicReadBuffer = nullptr;
 	}
 
 	void AddViewMeshArrays(
@@ -2012,7 +2037,10 @@ private:
 		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>* ViewMeshes,
 		FSimpleElementCollector* ViewSimpleElementCollector, 
 		TArray<FPrimitiveUniformShaderParameters>* InDynamicPrimitiveShaderData,
-		ERHIFeatureLevel::Type InFeatureLevel)
+		ERHIFeatureLevel::Type InFeatureLevel,
+		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
+		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
+		FGlobalDynamicReadBuffer* InDynamicReadBuffer)
 	{
 		Views.Add(InView);
 		MeshIdInPrimitivePerView.Add(0);
@@ -2020,6 +2048,11 @@ private:
 		NumMeshBatchElementsPerView.Add(0);
 		SimpleElementCollectors.Add(ViewSimpleElementCollector);
 		DynamicPrimitiveShaderDataPerView.Add(InDynamicPrimitiveShaderData);
+
+		check(InDynamicIndexBuffer && InDynamicVertexBuffer && InDynamicReadBuffer);
+		DynamicIndexBuffer = InDynamicIndexBuffer;
+		DynamicVertexBuffer = InDynamicVertexBuffer;
+		DynamicReadBuffer = InDynamicReadBuffer;
 	}
 
 	/** 
@@ -2051,6 +2084,11 @@ private:
 
 	/** Current primitive being gathered. */
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
+
+	/** Dynamic buffer pools. */
+	FGlobalDynamicIndexBuffer* DynamicIndexBuffer;
+	FGlobalDynamicVertexBuffer* DynamicVertexBuffer;
+	FGlobalDynamicReadBuffer* DynamicReadBuffer;
 
 	ERHIFeatureLevel::Type FeatureLevel;
 

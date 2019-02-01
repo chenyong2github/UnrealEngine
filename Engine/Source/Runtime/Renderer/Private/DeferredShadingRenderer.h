@@ -112,6 +112,12 @@ public:
 private:
 
 	static FGraphEventRef TranslucencyTimestampQuerySubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1];
+	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitViews;
+	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitShadows;
+	static FGlobalDynamicVertexBuffer DynamicVertexBufferForInitViews;
+	static FGlobalDynamicVertexBuffer DynamicVertexBufferForInitShadows;
+	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBufferForInitViews;
+	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBufferForInitShadows;
 
 	/** Creates a per object projected shadow for the given interaction. */
 	void CreatePerObjectProjectedShadow(
@@ -233,11 +239,11 @@ private:
 	/** Issues a timestamp query for the end of the separate translucency pass. */
 	void EndTimingSeparateTranslucencyPass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
-	/** Setup the downsampled view uniform buffer if it was not already built */
-	void SetupDownsampledTranslucencyViewUniformBuffer(
+	/** Setup the downsampled view uniform parameters if it was not already built */
+	void SetupDownsampledTranslucencyViewParameters(
 		FRHICommandListImmediate& RHICmdList, 
 		const FViewInfo& View,
-		TUniformBufferRef<FViewUniformShaderParameters>& DownsampledTranslucencyViewUniformBuffer);
+		FViewUniformShaderParameters& DownsampledTranslucencyViewParameters);
 
 	/** Resolve the scene color if any translucent material needs it. */
 	void ConditionalResolveSceneColorForTranslucentMaterials(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SceneColorCopy);

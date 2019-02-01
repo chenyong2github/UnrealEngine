@@ -17,7 +17,6 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	PassShadersType PassShaders,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
-	int32 InstanceFactor,
 	FMeshDrawCommandSortKey SortKey,
 	EMeshPassFeatures MeshPassFeatures,
 	const ShaderElementDataType& ShaderElementData)
@@ -133,7 +132,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 			const int32 DrawPrimitiveId = GetDrawCommandPrimitiveId(PrimitiveSceneInfo, BatchElement);
 			FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
-			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, PipelineState, &ShadersForDebugging, MeshDrawCommand, true);
+			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, SortKey, PipelineState, &ShadersForDebugging, MeshDrawCommand, true);
 		}
 	}
 }
@@ -152,7 +151,9 @@ void DrawDynamicMeshPass(const FSceneView& View, FRHICommandList& RHICmdList, co
 
 	BuildPassProcessorLambda(&DynamicMeshPassContext);
 
-	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage);
+	// We assume all dynamic passes are in stereo if it is enabled in the view, so we apply ISR to them
+	const uint32 InstanceFactor = View.IsInstancedStereoPass() ? 2 : 1;
+	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, InstanceFactor);
 }
 
 template<typename PassShadersType, typename ShaderElementDataType>
@@ -166,7 +167,6 @@ void FMeshPassProcessor::BuildRayTracingDrawCommands(
 	PassShadersType PassShaders,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
-	int32 InstanceFactor,
 	FMeshDrawCommandSortKey SortKey,
 	EMeshPassFeatures MeshPassFeatures,
 	const ShaderElementDataType& ShaderElementData)
@@ -215,7 +215,7 @@ void FMeshPassProcessor::BuildRayTracingDrawCommands(
 			const int32 DrawPrimitiveId = 0;
 			const int32 ScenePrimitiveId = 0;
 			FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
-			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, DummyPipelineState, &ShadersForDebugging, MeshDrawCommand, false);
+			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, SortKey, DummyPipelineState, &ShadersForDebugging, MeshDrawCommand, false);
 		}
 	}
 }

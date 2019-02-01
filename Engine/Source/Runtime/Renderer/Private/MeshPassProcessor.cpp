@@ -629,7 +629,6 @@ void FMeshDrawCommand::SetRayTracingShaders(const FMeshProcessorShaders& Shaders
 void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	const FMeshBatch& MeshBatch, 
 	int32 BatchElementIndex, 
-	int32 BatchInstanceFactor, 
 	const FGraphicsMinimalPipelineStateInitializer& PipelineState, 
 	const FMeshProcessorShaders* ShadersForDebugging,
 	bool bDoSetupPsoStateForRasterization)
@@ -642,7 +641,6 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	FirstIndex = BatchElement.FirstIndex;
 	NumPrimitives = BatchElement.NumPrimitives;
 	NumInstances = BatchElement.NumInstances;
-	InstanceFactor = BatchInstanceFactor;
 
 	if (NumPrimitives > 0)
 	{
@@ -757,7 +755,8 @@ void FMeshDrawCommand::SubmitDraw(
 	const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
 	FVertexBufferRHIParamRef ScenePrimitiveIdsBuffer,
 	int32 PrimitiveIdOffset,
-	FRHICommandList& RHICmdList, 
+	uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
 	FMeshDrawCommandStateCache& RESTRICT StateCache)
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
@@ -785,7 +784,7 @@ void FMeshDrawCommand::SubmitDraw(
 			DrawEventName = Material->GetFriendlyName();
 		}
 
-		const uint32 Instances = MeshDrawCommand.NumInstances * MeshDrawCommand.InstanceFactor;
+		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
 		if (Instances > 1)
 		{
 			BEGIN_DRAW_EVENTF(
@@ -848,7 +847,7 @@ void FMeshDrawCommand::SubmitDraw(
 				MeshDrawCommand.VertexParams.NumVertices,
 				MeshDrawCommand.FirstIndex,
 				MeshDrawCommand.NumPrimitives,
-				MeshDrawCommand.NumInstances * MeshDrawCommand.InstanceFactor
+				MeshDrawCommand.NumInstances * InstanceFactor
 			);
 		}
 		else
@@ -865,7 +864,7 @@ void FMeshDrawCommand::SubmitDraw(
 		RHICmdList.DrawPrimitive(
 			MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
 			MeshDrawCommand.NumPrimitives,
-			MeshDrawCommand.NumInstances * MeshDrawCommand.InstanceFactor
+			MeshDrawCommand.NumInstances * InstanceFactor
 		);
 	}
 
@@ -876,9 +875,10 @@ void SubmitMeshDrawCommands(
 	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
+	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList)
 {
-	SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), RHICmdList);
+	SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 }
 
 void SubmitMeshDrawCommandsRange(
@@ -888,6 +888,7 @@ void SubmitMeshDrawCommandsRange(
 	bool bDynamicInstancing,
 	int32 StartIndex,
 	int32 NumMeshDrawCommands,
+	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList)
 {
 	FMeshDrawCommandStateCache StateCache;
@@ -900,7 +901,7 @@ void SubmitMeshDrawCommandsRange(
 		const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
 		const int32 PrimitiveIdBufferOffset = BasePrimitiveIdsOffset + (bDynamicInstancing ? VisibleMeshDrawCommand.PrimitiveIdBufferOffset : DrawCommandIndex) * sizeof(int32);
 		checkSlow(!bDynamicInstancing || VisibleMeshDrawCommand.PrimitiveIdBufferOffset >= 0);
-		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, PrimitiveIdsBuffer, PrimitiveIdBufferOffset, RHICmdList, StateCache);
+		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, PrimitiveIdsBuffer, PrimitiveIdBufferOffset, InstanceFactor, RHICmdList, StateCache);
 	}
 }
 
@@ -908,7 +909,8 @@ void DrawDynamicMeshPassPrivate(
 	const FSceneView& View,
 	FRHICommandList& RHICmdList,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage)
+	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	uint32 InstanceFactor)
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
 	{
@@ -916,9 +918,9 @@ void DrawDynamicMeshPassPrivate(
 
 		FVertexBufferRHIParamRef PrimitiveIdVertexBuffer = nullptr;
 
-		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer);
+		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor);
 
-		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), RHICmdList);
+		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 	}
 }
 
@@ -1046,7 +1048,6 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	int32 DrawPrimitiveId,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
-	int32 InstanceFactor,
 	FMeshDrawCommandSortKey SortKey,
 	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 	const FMeshProcessorShaders* ShadersForDebugging,
@@ -1055,7 +1056,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FinalizeCachedMeshDrawCommand);
 
-	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, InstanceFactor, PipelineState, ShadersForDebugging, bDoSetupPsoStateForRasterization);
+	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, bDoSetupPsoStateForRasterization);
 
 	if (bUseStateBuckets)
 	{

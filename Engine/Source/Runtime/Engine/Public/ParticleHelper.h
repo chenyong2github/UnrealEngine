@@ -1628,6 +1628,8 @@ struct FDynamicSpriteEmitterDataBase : public FDynamicEmitterDataBase
 		int32 InVertexCount, 
 		int32 InVertexSize, 
 		int32 InDynamicParameterVertexSize, 
+		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
+		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
 		FGlobalDynamicVertexBuffer::FAllocation& DynamicVertexAllocation,
 		FGlobalDynamicIndexBuffer::FAllocation& DynamicIndexAllocation,
 		FGlobalDynamicVertexBuffer::FAllocation* DynamicParameterAllocation,
@@ -1711,10 +1713,11 @@ struct FDynamicSpriteEmitterData : public FDynamicSpriteEmitterDataBase
 	 *	@param	ParticleOrder		The (optional) particle ordering to use
 	 *	@param	InCameraPosition	The position of the camera in world space.
 	 *	@param	InLocalToWorld		Transform from local to world space.
+	 *	@param	InstanceFactor		The factor to duplicate instances by.
 	 *
 	 *	@return	bool			true if successful, false if failed
 	 */
-	bool GetVertexAndIndexData(void* VertexData, void* DynamicParameterVertexData, void* FillIndexData, FParticleOrder* ParticleOrder, const FVector& InCameraPosition, const FMatrix& InLocalToWorld) const;
+	bool GetVertexAndIndexData(void* VertexData, void* DynamicParameterVertexData, void* FillIndexData, FParticleOrder* ParticleOrder, const FVector& InCameraPosition, const FMatrix& InLocalToWorld, uint32 InstanceFactor) const;
 
 	/**
 	 *	Retrieve the vertex and (optional) index required to render this emitter.
@@ -1862,8 +1865,9 @@ struct FDynamicMeshEmitterData : public FDynamicSpriteEmitterDataBase
 	 *	@param	PrevTransformBuffer     The memory to fill the vertex prev transform data into. May be null
 	 *	@param	Proxy                   The scene proxy for the particle system that owns this emitter
 	 *	@param	View                    The scene view being rendered
+	 *	@param	InstanceFactor			The factor to duplicate instances by
 	 */
-	void GetInstanceData(void* InstanceData, void* DynamicParameterData, void* PrevTransformBuffer, const FParticleSystemSceneProxy* Proxy, const FSceneView* View) const;
+	void GetInstanceData(void* InstanceData, void* DynamicParameterData, void* PrevTransformBuffer, const FParticleSystemSceneProxy* Proxy, const FSceneView* View, uint32 InstanceFactor) const;
 
 	/**
 	 *	Helper function for retrieving the particle transform.

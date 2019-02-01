@@ -2977,11 +2977,8 @@ void UActorChannel::Serialize(FArchive& Ar)
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ReplicationMap",
 			ReplicationMap.CountBytes(Ar);
-			for (const auto& MapPair : ReplicationMap)
-			{
-				Ar.CountBytes(sizeof(*MapPair.Value), sizeof(*MapPair.Value));
-				MapPair.Value->Serialize(Ar);
-			}
+
+			// ObjectReplicators are going to be counted by UNetDriver::Serialize AllOwnedReplicators.
 		);
 		
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("QueudBunches",	
@@ -3938,6 +3935,12 @@ static void	FindNetGUID( const TArray<FString>& Args, UWorld* InWorld )
 		if ( Driver->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) )
 		{
 			continue;
+		}
+
+		if (!FNetGUIDCache::IsHistoryEnabled())
+		{
+			UE_LOG(LogNet, Warning, TEXT("FindNetGUID - GuidCacheHistory is not enabled"));
+			return;
 		}
 
 		if (Args.Num() <= 0)
