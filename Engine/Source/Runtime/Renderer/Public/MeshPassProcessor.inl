@@ -30,7 +30,9 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	FMeshDrawCommand SharedMeshDrawCommand;
 
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());
-	SharedMeshDrawCommand.PipelineState.PrimitiveType = (EPrimitiveType)MeshBatch.Type;
+
+	FGraphicsMinimalPipelineStateInitializer PipelineState;
+	PipelineState.PrimitiveType = (EPrimitiveType)MeshBatch.Type;
 
 	const bool bPositionOnly = (MeshPassFeatures & EMeshPassFeatures::PositionOnly) != EMeshPassFeatures::Default;
 
@@ -38,15 +40,15 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	FVertexDeclarationRHIParamRef VertexDeclaration = bPositionOnly ? VertexFactory->GetPositionDeclaration() : VertexFactory->GetDeclaration();
 	check(!VertexFactory->NeedsDeclaration() || VertexDeclaration);
 
-	SharedMeshDrawCommand.SetShaders(VertexDeclaration, PassShaders.GetUntypedShaders());
+	SharedMeshDrawCommand.SetShaders(VertexDeclaration, PassShaders.GetUntypedShaders(), PipelineState);
 
-	SharedMeshDrawCommand.PipelineState.RasterizerState = GetStaticRasterizerState<true>(MeshFillMode, MeshCullMode);
+	PipelineState.RasterizerState = GetStaticRasterizerState<true>(MeshFillMode, MeshCullMode);
 
 	check(DrawRenderState.GetDepthStencilState());
 	check(DrawRenderState.GetBlendState());
 
-	SharedMeshDrawCommand.PipelineState.BlendState = DrawRenderState.GetBlendState();
-	SharedMeshDrawCommand.PipelineState.DepthStencilState = DrawRenderState.GetDepthStencilState();
+	PipelineState.BlendState = DrawRenderState.GetBlendState();
+	PipelineState.DepthStencilState = DrawRenderState.GetDepthStencilState();
 
 	check(VertexFactory && VertexFactory->IsInitialized());
 
@@ -130,8 +132,8 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 			}
 
 			const int32 DrawPrimitiveId = GetDrawCommandPrimitiveId(PrimitiveSceneInfo, BatchElement);
-
-			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, MeshDrawCommand, true);
+			FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
+			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, PipelineState, &ShadersForDebugging, MeshDrawCommand, true);
 		}
 	}
 }
@@ -173,6 +175,7 @@ void FMeshPassProcessor::BuildRayTracingDrawCommands(
 
 	checkf(MaterialRenderProxy.ImmutableSamplerState.ImmutableSamplers[0] == nullptr, TEXT("Immutable samplers not yet supported in Mesh Draw Command pipeline"));
 
+	FGraphicsMinimalPipelineStateInitializer DummyPipelineState;
 	FMeshDrawCommand SharedMeshDrawCommand;
 
 	check(VertexFactory && VertexFactory->IsInitialized());
@@ -211,7 +214,8 @@ void FMeshPassProcessor::BuildRayTracingDrawCommands(
 
 			const int32 DrawPrimitiveId = 0;
 			const int32 ScenePrimitiveId = 0;
-			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, MeshDrawCommand, false);
+			FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
+			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, MeshFillMode, MeshCullMode, InstanceFactor, SortKey, DummyPipelineState, &ShadersForDebugging, MeshDrawCommand, false);
 		}
 	}
 }

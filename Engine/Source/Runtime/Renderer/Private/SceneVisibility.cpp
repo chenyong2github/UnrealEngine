@@ -1706,8 +1706,12 @@ struct FDrawCommandRelevancePacket
 
 				FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 
+				const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
+					? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+					: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
+
 				NewVisibleMeshDrawCommand.Setup(
-					&SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex],
+					MeshDrawCommand,
 					PrimitiveIndex,
 					CachedMeshDrawCommand.StateBucketId,
 					CachedMeshDrawCommand.MeshFillMode,

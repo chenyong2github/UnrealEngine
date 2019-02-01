@@ -111,6 +111,23 @@ public:
 
 	void Setup(const FGraphicsMinimalPipelineStateInitializer& InPipelineState);
 
+	inline bool operator==(const FGraphicsMinimalPipelineStateId& rhs) const
+	{
+		return Id == rhs.Id;
+	}
+
+	inline bool operator!=(const FGraphicsMinimalPipelineStateId& rhs) const
+	{
+		return !(*this == rhs);
+	}
+	
+	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState() const
+	{
+		return GlobalTable[Id];
+	}
+
+	static SIZE_T GetGlobalTableSize() { return GlobalTable.GetAllocatedSize(); }
+
 private:
 	FSetElementId Id;
 
@@ -183,7 +200,8 @@ struct FMeshDrawCommandDebugData
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
 	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
-	FMeshProcessorShaders Shaders;
+	FMeshMaterialShader* VertexShader;
+	FMeshMaterialShader* PixelShader;
 #endif
 };
 
@@ -211,7 +229,7 @@ public:
 	void Initialize(FMeshProcessorShaders Shaders);
 
 	/** Called once binding setup is complete. */
-	void Finalize(const FMeshDrawCommandDebugData& DebugData);
+	void Finalize(const FMeshProcessorShaders* ShadersForDebugging);
 
 	inline FMeshDrawSingleShaderBindings GetSingleShaderBindings(EShaderFrequency Frequency)
 	{
@@ -246,13 +264,25 @@ public:
 	SIZE_T GetAllocatedSize() const
 	{
 		SIZE_T Bytes = ShaderLayouts.GetAllocatedSize();
-		if (Size > ARRAY_COUNT(InlineStorage))
+		if (Size > sizeof(InlineStorage))
 		{
 			Bytes += Size;
 		}
 
 		return Bytes;
 	}
+
+	void GetShaderFrequencies(TArray<EShaderFrequency, TInlineAllocator<SF_NumFrequencies>>& OutShaderFrequencies) const
+	{
+		OutShaderFrequencies.Empty(ShaderLayouts.Num());
+
+		for (int32 BindingIndex = 0; BindingIndex < ShaderLayouts.Num(); BindingIndex++)
+		{
+			OutShaderFrequencies.Add(ShaderLayouts[BindingIndex].Frequency);
+		}
+	}
+
+	inline int32 GetDataSize() const { return Size; }
 
 private:
 
@@ -326,12 +356,7 @@ private:
 class FMeshDrawCommand
 {
 public:
-	/**
-	 * PSO
-	 */
-	FGraphicsMinimalPipelineStateInitializer PipelineState;
-	FGraphicsMinimalPipelineStateId CachedPipelineId;
-
+	
 	/**
 	 * Resource bindings
 	 */
@@ -340,33 +365,46 @@ public:
 	FIndexBufferRHIParamRef IndexBuffer;
 
 	/**
-	* Ray tracing specific
-	*/
-	uint32 RayTracingMaterialLibraryIndex = UINT_MAX;
+	 * PSO
+	 */
+	FGraphicsMinimalPipelineStateId CachedPipelineId;
 
 	/**
-	* Draw command parameters
-	*/
+	 * Draw command parameters
+	 */
 	uint32 FirstIndex;
 	uint32 NumPrimitives;
 	uint32 NumInstances;
 	uint32 InstanceFactor;
-	uint32 BaseVertexIndex;
-	uint32 NumVertices;
-	FVertexBufferRHIParamRef IndirectArgsBuffer;
-	uint8 RayTracedSegmentIndex;
+
+	union
+	{
+		struct 
+		{
+			uint32 BaseVertexIndex;
+			uint32 NumVertices;
+		} VertexParams;
+		
+		FVertexBufferRHIParamRef IndirectArgsBuffer;
+	};
 
 	int8 PrimitiveIdStreamIndex;
 
 	/** Non-pipeline state */
 	uint8 StencilRef;
 
+    /**
+	 * Ray tracing specific
+	 */
+	uint8 RayTracedSegmentIndex;
+	uint32 RayTracingMaterialLibraryIndex = UINT_MAX;
+
 	FMeshDrawCommand()
 	{}
 
 	bool MatchesForDynamicInstancing(const FMeshDrawCommand& Rhs) const
 	{
-		return PipelineState == Rhs.PipelineState
+		return CachedPipelineId == Rhs.CachedPipelineId
 			&& StencilRef == Rhs.StencilRef
 			&& ShaderBindings.MatchesForDynamicInstancing(Rhs.ShaderBindings)
 			&& VertexStreams == Rhs.VertexStreams
@@ -376,13 +414,12 @@ public:
 			&& NumPrimitives == Rhs.NumPrimitives
 			&& NumInstances == Rhs.NumInstances
 			&& InstanceFactor == Rhs.InstanceFactor
-			&& BaseVertexIndex == Rhs.BaseVertexIndex
-			&& NumVertices == Rhs.NumVertices
-			&& IndirectArgsBuffer == Rhs.IndirectArgsBuffer;
+			&& ((NumPrimitives > 0 && VertexParams.BaseVertexIndex == Rhs.VertexParams.BaseVertexIndex && VertexParams.NumVertices == Rhs.VertexParams.NumVertices)
+				|| (NumPrimitives == 0 && IndirectArgsBuffer == Rhs.IndirectArgsBuffer));
 	}
 
 	/** Sets shaders on the mesh draw command and allocates room for the shader bindings. */
-	RENDERER_API void SetShaders(FVertexDeclarationRHIParamRef VertexDeclaration, const FMeshProcessorShaders& Shaders);
+	RENDERER_API void SetShaders(FVertexDeclarationRHIParamRef VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState);
 
 #if RHI_RAYTRACING
 	/** Sets ray hit group shaders on the mesh draw command and allocates room for the shader bindings. */
@@ -397,17 +434,22 @@ public:
 	}
 
 	/** Called when the mesh draw command is complete. */
-	RENDERER_API void SetDrawParametersAndFinalize(const FMeshBatch& MeshBatch, int32 BatchElementIndex, int32 BatchInstanceFactor, bool bDoSetupPsoStateForRasterization);
+	RENDERER_API void SetDrawParametersAndFinalize(
+		const FMeshBatch& MeshBatch, 
+		int32 BatchElementIndex, 
+		int32 BatchInstanceFactor, 
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState, 
+		const FMeshProcessorShaders* ShadersForDebugging,
+		bool bDoSetupPsoStateForRasterization);
 
-	void Finalize(bool bDoSetupPsoStateForRasterization)
+	void Finalize(const FGraphicsMinimalPipelineStateInitializer& PipelineState, const FMeshProcessorShaders* ShadersForDebugging, bool bDoSetupPsoStateForRasterization)
 	{
 		if (bDoSetupPsoStateForRasterization)
 		{
 			CachedPipelineId.Setup(PipelineState);
 		}
-#if MESH_DRAW_COMMAND_DEBUG_DATA
-		ShaderBindings.Finalize(DebugData);	
-#endif
+
+		ShaderBindings.Finalize(ShadersForDebugging);	
 	}
 
 	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
@@ -418,7 +460,7 @@ public:
 		FRHICommandList& CommandList, 
 		class FMeshDrawCommandStateCache& RESTRICT StateCache);
 
-	FORCEINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
+	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
 	{
 		return Other.CachedPipelineId.GetId();
 	}
@@ -429,13 +471,22 @@ public:
 		DebugData.PrimitiveSceneProxy = PrimitiveSceneProxy;
 		DebugData.Material = Material;
 		DebugData.MaterialRenderProxy = MaterialRenderProxy;
-		DebugData.Shaders = UntypedShaders;
+		DebugData.VertexShader = UntypedShaders.VertexShader;
+		DebugData.PixelShader = UntypedShaders.PixelShader;
 #endif
 	}
 
 	SIZE_T GetAllocatedSize() const
 	{
 		return ShaderBindings.GetAllocatedSize() + VertexStreams.GetAllocatedSize();
+	}
+
+	SIZE_T GetDebugDataSize() const
+	{
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+		return sizeof(DebugData);
+#endif
+		return 0;
 	}
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
@@ -504,6 +555,8 @@ public:
 		ERasterizerCullMode MeshCullMode,
 		int32 InstanceFactor,
 		FMeshDrawCommandSortKey SortKey,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand,
 		bool bDoSetupPsoStateForRasterization) = 0;
 };
@@ -602,10 +655,12 @@ public:
 		ERasterizerCullMode MeshCullMode,
 		int32 InstanceFactor,
 		FMeshDrawCommandSortKey SortKey,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand,
 		bool bDoSetupPsoStateForRasterization) override final
 	{
-		MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, InstanceFactor, bDoSetupPsoStateForRasterization);
+		MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, InstanceFactor, PipelineState, ShadersForDebugging, bDoSetupPsoStateForRasterization);
 
 		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws
@@ -618,6 +673,10 @@ private:
 	FDynamicMeshDrawCommandStorage& DrawListStorage;
 	FMeshCommandOneFrameArray& DrawList;
 };
+
+#if PLATFORM_SUPPORTS_PRAGMA_PACK
+	#pragma pack (push,4)
+#endif
 
 /** 
  * Stores information about a mesh draw command which is cached in the scene. 
@@ -637,7 +696,10 @@ public:
 
 	FMeshDrawCommandSortKey SortKey;
 
+	// Stores the index into FScene::CachedDrawLists of the corresponding FMeshDrawCommand, or -1 if not stored there
 	int32 CommandIndex;
+
+	// Stores the index into FScene::CachedMeshDrawCommandStateBuckets of the corresponding FMeshDrawCommand, or -1 if not stored there
 	int32 StateBucketId;
 
 	// Needed for easier debugging and faster removal of cached mesh draw commands.
@@ -647,6 +709,10 @@ public:
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
 	ERasterizerCullMode MeshCullMode : ERasterizerCullMode_NumBits + 1;
 };
+
+#if PLATFORM_SUPPORTS_PRAGMA_PACK
+	#pragma pack (pop)
+#endif
 
 class FCachedPassMeshDrawList
 {
@@ -672,13 +738,17 @@ public:
 		ERasterizerCullMode MeshCullMode,
 		int32 InstanceFactor,
 		FMeshDrawCommandSortKey SortKey,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand,
 		bool bDoSetupPsoStateForRasterization) override final;
 
 private:
+	FMeshDrawCommand MeshDrawCommandForStateBucketing;
 	FCachedMeshDrawCommandInfo& CommandInfo;
 	FCachedPassMeshDrawList& DrawList;
 	FScene& Scene;
+	bool bUseStateBuckets;
 };
 
 template<typename VertexType, typename HullType, typename DomainType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayHitGroupType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>
