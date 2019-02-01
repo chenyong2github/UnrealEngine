@@ -289,7 +289,9 @@ FVertexFactoryParameterRef::FVertexFactoryParameterRef(FVertexFactoryType* InVer
 , ShaderPlatform(InShaderPlatform)
 {
 	Parameters = VertexFactoryType->CreateShaderParameters(InShaderFrequency);
+#if KEEP_SHADER_SOURCE_HASHES
 	VFHash = GetShaderFileHash(VertexFactoryType->GetShaderFilename(), InShaderPlatform);
+#endif
 
 	if(Parameters)
 	{
@@ -317,7 +319,12 @@ bool operator<<(FArchive& Ar,FVertexFactoryParameterRef& Ref)
 		Ref.ShaderPlatform = (EShaderPlatform)ShaderPlatformByte;
 	}
 
-	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.VFHash);
+#if KEEP_SHADER_SOURCE_HASHES
+	FSHAHash& VFHash = Ref.VFHash;
+#else
+	FSHAHash VFHash;
+#endif
+	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, VFHash);
 
 
 	if (Ar.IsLoading())
@@ -363,11 +370,13 @@ bool operator<<(FArchive& Ar,FVertexFactoryParameterRef& Ref)
 	return bShaderHasOutdatedParameters;
 }
 
+#if KEEP_SHADER_SOURCE_HASHES
 /** Returns the hash of the vertex factory shader file that this shader was compiled with. */
 const FSHAHash& FVertexFactoryParameterRef::GetHash() const 
 { 
 	return VFHash;
 }
+#endif
 
 /** Returns the shader platform that this shader was compiled with. */
 EShaderPlatform FVertexFactoryParameterRef::GetShaderPlatform() const
