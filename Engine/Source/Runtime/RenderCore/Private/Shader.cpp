@@ -735,7 +735,7 @@ void FShaderResource::SerializePlatformDebugData(FArchive& Ar)
 				const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName);
 				if (ShaderFormat)
 				{
-					ShaderFormat->NotifyShaderCooked(PlatformDebugData);
+					ShaderFormat->NotifyShaderCooked(PlatformDebugData, FormatName);
 				}
 			}
 		}
