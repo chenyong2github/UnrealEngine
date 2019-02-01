@@ -33,7 +33,7 @@
 #include "RayTracing/RayTracingDynamicGeometryCollection.h"
 #include "SceneViewFamilyBlackboard.h"
 #include "ScreenSpaceDenoise.h"
-#include "RayTracing/RayTracingOptions.h"
+#include "RayTracing/RaytracingOptions.h"
 
 TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("r.EarlyZPass"),

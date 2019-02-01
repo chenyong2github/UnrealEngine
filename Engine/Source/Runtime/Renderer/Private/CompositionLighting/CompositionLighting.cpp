@@ -17,7 +17,7 @@
 #include "LightPropagationVolumeSettings.h"
 #include "DecalRenderingShared.h"
 #include "VisualizeTexture.h"
-#include "RayTracing/RayTracingOptions.h"
+#include "RayTracing/RaytracingOptions.h"
 
 /** The global center for all deferred lighting activities. */
 FCompositionLighting GCompositionLighting;
