@@ -437,6 +437,7 @@ private:
 		FRDGTextureRef* OutColorTexture,
 		FRDGTextureRef* OutRayHitDistanceTexture,
 		int32 SamplePerPixel,
+		int32 HeightFog,
 		float ResolutionFraction);
 
 #if RHI_RAYTRACING

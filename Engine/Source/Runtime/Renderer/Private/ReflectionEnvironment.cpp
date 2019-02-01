@@ -121,6 +121,12 @@ static FAutoConsoleVariableRef CVarRayTracingReflectionsSamplesPerPixel(
 	GRayTracingReflectionsSamplesPerPixel,
 	TEXT("Sets the samples-per-pixel for reflections (default = 1)"));
 
+static int32 GRayTracingReflectionsHeightFog = 1;
+static FAutoConsoleVariableRef CVarRayTracingReflectionsHeightFog(
+	TEXT("r.RayTracing.Reflections.HeightFog"),
+	GRayTracingReflectionsHeightFog,
+	TEXT("Enables height fog in ray traced reflections (default = 1)"));
+
 static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
 	TEXT("r.Reflections.Denoiser"),
 	2,
@@ -767,7 +773,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			RayTraceReflections(
 				GraphBuilder,
 				View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
-				GRayTracingReflectionsSamplesPerPixel, RayTracingConfig.ResolutionFraction);
+				GRayTracingReflectionsSamplesPerPixel, GRayTracingReflectionsHeightFog, RayTracingConfig.ResolutionFraction);
 
 
 			// Denoise the reflections.
