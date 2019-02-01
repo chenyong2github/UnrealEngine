@@ -54,6 +54,8 @@
 #include "MeshDescriptionOperations.h"
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
+#include "TessellationRendering.h"
+#include "Misc/MessageDialog.h"
 
 #endif // #if WITH_EDITOR
 
@@ -304,6 +306,7 @@ int32 FStaticMeshLODResources::GetNumTexCoords() const
 void FStaticMeshVertexFactories::InitVertexFactory(
 	const FStaticMeshLODResources& LodResources,
 	FLocalVertexFactory& InOutVertexFactory,
+	uint32 LODIndex,
 	const UStaticMesh* InParentMesh,
 	bool bInOverrideColorVertexBuffer
 	)
@@ -316,6 +319,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 		const FStaticMeshLODResources* LODResources;
 		bool bOverrideColorVertexBuffer;
 		uint32 LightMapCoordinateIndex;
+		uint32 LODIndex;
 	} Params;
 
 	uint32 LightMapCoordinateIndex = (uint32)InParentMesh->LightMapCoordinateIndex;
@@ -325,6 +329,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 	Params.LODResources = &LodResources;
 	Params.bOverrideColorVertexBuffer = bInOverrideColorVertexBuffer;
 	Params.LightMapCoordinateIndex = LightMapCoordinateIndex;
+	Params.LODIndex = LODIndex;
 
 	// Initialize the static mesh's vertex factory.
 	ENQUEUE_RENDER_COMMAND(InitStaticMeshVertexFactory)(
@@ -349,17 +354,18 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 				Params.LODResources->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(Params.VertexFactory, Data);
 			}
 
+			Data.LODLightmapDataIndex = Params.LODIndex;
 			Params.VertexFactory->SetData(Data);
 			Params.VertexFactory->InitResource();
 		});
 }
 
-void FStaticMeshVertexFactories::InitResources(const FStaticMeshLODResources& LodResources, const UStaticMesh* Parent)
+void FStaticMeshVertexFactories::InitResources(const FStaticMeshLODResources& LodResources, uint32 LODIndex, const UStaticMesh* Parent)
 {
-	InitVertexFactory(LodResources, VertexFactory, Parent, false);
+	InitVertexFactory(LodResources, VertexFactory, LODIndex, Parent, false);
 	BeginInitResource(&VertexFactory);
 
-	InitVertexFactory(LodResources, VertexFactoryOverrideColorVertexBuffer, Parent, true);
+	InitVertexFactory(LodResources, VertexFactoryOverrideColorVertexBuffer, LODIndex, Parent, true);
 	BeginInitResource(&VertexFactoryOverrideColorVertexBuffer);
 }
 
@@ -681,19 +687,55 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 		BeginInitResource(&AdjacencyIndexBuffer);
 	}
 
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				FRayTracingGeometryInitializer Initializer;
+				Initializer.PositionVertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
+				Initializer.BaseVertexIndex = 0;
+				Initializer.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
+				Initializer.VertexBufferByteOffset = 0;
+				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
+				Initializer.VertexBufferElementType = VET_Float3;
+				Initializer.PrimitiveType = PT_TriangleList;
+				Initializer.bFastBuild = false;
+				
+				TArray<FRayTracingGeometrySegment> GeometrySections;
+				GeometrySections.Reserve(Sections.Num());
+				for (const FStaticMeshSection& Section : Sections)
+				{
+					FRayTracingGeometrySegment Segment;
+					Segment.FirstPrimitive = Section.FirstIndex / 3;
+					Segment.NumPrimitives = Section.NumTriangles;
+					GeometrySections.Add(Segment);
+					Initializer.TotalPrimitiveCount += Section.NumTriangles;
+				}
+				Initializer.Segments = GeometrySections;
+				
+				RayTracingGeometry.SetInitializer(Initializer);
+				RayTracingGeometry.InitResource();
+			}
+		);
+	}
+#endif // RHI_RAYTRACING
+
 	if (DistanceFieldData)
 	{
 		DistanceFieldData->VolumeTexture.Initialize(Parent);
 		INC_DWORD_STAT_BY( STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes() );
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		UpdateMemoryStats,
-		FStaticMeshLODResources*, This, this,
+	FStaticMeshLODResources* This = this;
+	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
+		[This](FRHICommandList& RHICmdList)
 		{		
 			const uint32 StaticMeshVertexMemory =
-			This->VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
-			This->VertexBuffers.PositionVertexBuffer.GetStride() * This->VertexBuffers.PositionVertexBuffer.GetNumVertices();
+				This->VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
+				This->VertexBuffers.PositionVertexBuffer.GetStride() * This->VertexBuffers.PositionVertexBuffer.GetNumVertices();
 			const uint32 ResourceVertexColorMemory = This->VertexBuffers.ColorVertexBuffer.GetStride() * This->VertexBuffers.ColorVertexBuffer.GetNumVertices();
 
 			INC_DWORD_STAT_BY( STAT_StaticMeshVertexMemory, StaticMeshVertexMemory );
@@ -727,6 +769,9 @@ void FStaticMeshLODResources::ReleaseResources()
 	BeginReleaseResource(&ReversedIndexBuffer);
 	BeginReleaseResource(&DepthOnlyIndexBuffer);
 	BeginReleaseResource(&ReversedDepthOnlyIndexBuffer);
+#if RHI_RAYTRACING
+	BeginReleaseResource(&RayTracingGeometry);
+#endif // RHI_RAYTRACING
 
 	if (DistanceFieldData)
 	{
@@ -775,7 +820,7 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		LODVertexFactories.Empty(LODResources.Num());
 		for (int i = 0; i < LODResources.Num(); i++)
 		{
-			LODVertexFactories.Add(new FStaticMeshVertexFactories(ERHIFeatureLevel::Num));
+			LODVertexFactories.Add(new FStaticMeshVertexFactories(GMaxRHIFeatureLevel));
 		}
 	}
 
@@ -874,7 +919,7 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 		if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 		{
 			LODResources[LODIndex].InitResources(Owner);
-			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], Owner);
+			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], LODIndex, Owner);
 		}
 	}
 	bIsInitialized = true;
@@ -898,7 +943,7 @@ void FStaticMeshRenderData::AllocateLODResources(int32 NumLODs)
 	while (LODResources.Num() < NumLODs)
 	{
 		LODResources.Add(new FStaticMeshLODResources);
-		LODVertexFactories.Add(new FStaticMeshVertexFactories(ERHIFeatureLevel::Num));
+		LODVertexFactories.Add(new FStaticMeshVertexFactories(GMaxRHIFeatureLevel));
 	}
 }
 
@@ -1829,9 +1874,9 @@ void UStaticMesh::InitResources()
 	}
 	
 #if	STATS
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		UpdateMemoryStats,
-		UStaticMesh*, This, this,
+	UStaticMesh* This = this;
+	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
+		[This](FRHICommandList& RHICmdList)
 		{
 			const uint32 StaticMeshResourceSize = This->GetResourceSizeBytes( EResourceSizeMode::Exclusive );
 			INC_DWORD_STAT_BY( STAT_StaticMeshTotalMemory, StaticMeshResourceSize );
@@ -2407,6 +2452,79 @@ void UStaticMesh::RemoveSourceModel(const int32 Index)
 	SourceModels.RemoveAt(Index);
 }
 
+bool UStaticMesh::FixLODRequiresAdjacencyInformation(const int32 LODIndex, const bool bPreviewMode, bool bPromptUser, bool* OutUserCancel)
+{
+	if (OutUserCancel != nullptr)
+	{
+		*OutUserCancel = false;
+	}
+
+	bool bIsUnattended = FApp::IsUnattended() == true || GIsRunningUnattendedScript || GIsAutomationTesting;
+	//Cannot prompt user in unattended mode
+	if (!SourceModels.IsValidIndex(LODIndex) || (bIsUnattended && bPromptUser))
+	{
+		return false;
+	}
+	FStaticMeshSourceModel& SourceModel = SourceModels[LODIndex];
+	FMeshDescription* MeshDescription = GetMeshDescription(LODIndex);
+	//In preview mode we simulate a false BuildAdjacencyBuffer
+	if (MeshDescription && (!(SourceModel.BuildSettings.bBuildAdjacencyBuffer) || bPreviewMode))
+	{
+		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+		int32 SectionIndex = 0;
+		
+		for (const FPolygonGroupID& PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+		{
+			const FName MaterialImportedName = PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
+			int32 MaterialIndex = 0;
+			for (FStaticMaterial& Material : StaticMaterials)
+			{
+				if (Material.ImportedMaterialSlotName != NAME_None && Material.ImportedMaterialSlotName == MaterialImportedName)
+				{
+					FStaticMaterial *RemapMaterial = &Material;
+					FMeshSectionInfo SectionInfo = SectionInfoMap.Get(LODIndex, SectionIndex);
+					if (StaticMaterials.IsValidIndex(SectionInfo.MaterialIndex))
+					{
+						RemapMaterial = &StaticMaterials[SectionInfo.MaterialIndex];
+					}
+					const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(RemapMaterial->MaterialInterface, nullptr, GWorld->FeatureLevel);
+					if (bRequiresAdjacencyInformation)
+					{
+						if (bPromptUser)
+						{
+							FText ConfirmRequiredAdjacencyText = FText::Format(LOCTEXT("ConfirmRequiredAdjacency", "Using a tessellation material required the adjacency buffer to be computed.\nDo you want to set the adjacency options to true?\n\n\tSaticMesh: {0}\n\tLOD Index: {1}\n\tMaterial: {2}"), FText::FromString(GetPathName()), LODIndex, FText::FromString(RemapMaterial->MaterialInterface->GetPathName()));
+							EAppReturnType::Type Result = FMessageDialog::Open((OutUserCancel != nullptr) ? EAppMsgType::YesNoCancel : EAppMsgType::YesNo, ConfirmRequiredAdjacencyText);
+							switch(Result)
+							{
+								//Handle cancel and negative answer
+								case EAppReturnType::Cancel:
+								{
+									check(OutUserCancel != nullptr);
+									*OutUserCancel = true;
+									return false;
+								}
+								case EAppReturnType::No:
+								{
+									return false;
+								}
+							}
+						}
+						if (!bPreviewMode)
+						{
+							UE_LOG(LogStaticMesh, Warning, TEXT("Adjacency information not built for static mesh with a material that requires it. Forcing build setting to use adjacency.\n\tLOD Index: %d\n\tMaterial: %s\n\tStaticMesh: %s"), LODIndex, *RemapMaterial->MaterialInterface->GetPathName(), *GetPathName());
+							SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
+						}
+						return true;
+					}
+				}
+				MaterialIndex++;
+			}
+			SectionIndex++;
+		}
+	}
+	return false;
+}
+
 #endif // WITH_EDITOR
 
 void UStaticMesh::BeginDestroy()
@@ -2663,6 +2781,24 @@ void FStaticMeshSourceModel::SerializeBulkData(FArchive& Ar, UObject* Owner)
 			}
 
 			MeshDescriptionBulkData->Serialize(Ar, Owner);
+		}
+
+		// For transactions only, serialize the unpacked mesh description here too.
+		// This is so we can preserve any transient attributes which have been set on it when undoing.
+		if (Ar.IsTransacting())
+		{
+			bool bIsMeshDescriptionValid = MeshDescription.IsValid();
+			Ar << bIsMeshDescriptionValid;
+
+			if (bIsMeshDescriptionValid)
+			{
+				if (Ar.IsLoading())
+				{
+					MeshDescription = MakeUnique<FMeshDescription>();
+				}
+
+				Ar << (*MeshDescription);
+			}
 		}
 	}
 }
@@ -3043,7 +3179,7 @@ void UStaticMesh::FixupMaterialSlotName()
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("7B4DCBC8C34E4C6E97A9A84BA61CADCD")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("F62CF84A92D948DEB06D56AEC759D2D3")
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
 {
@@ -4318,7 +4454,8 @@ void UStaticMesh::EnforceLightmapRestrictions()
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
 	LightMapResolution = FMath::Max(LightMapResolution, 4);
 
-	int32 NumUVs = 16;
+	// Lightmass only supports 4 UVs
+	int32 NumUVs = 4;
 
 	if (RenderData)
 	{
@@ -4628,7 +4765,7 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 		UProperty* ChangedProperty = FindField<UProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
 		check(ChangedProperty);
 		PreEditChange(ChangedProperty);
-
+		UMaterialInterface* CancelOldMaterial = StaticMaterials[MaterialIndex].MaterialInterface;
 		StaticMaterials[MaterialIndex].MaterialInterface = NewMaterial;
 		if (NewMaterial != nullptr)
 		{
@@ -4672,6 +4809,48 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 					}
 				}
 				StaticMaterials[MaterialIndex].ImportedMaterialSlotName = FName(*MaterialSlotName);
+			}
+
+			//Make sure adjacency information fit new material change
+			TArray<bool> FixLODAdjacencyOption;
+			FixLODAdjacencyOption.AddZeroed(GetNumLODs());
+			bool bPromptUser = false;
+			for (int32 LODIndex = 0; LODIndex < GetNumLODs(); ++LODIndex)
+			{
+				FixLODAdjacencyOption[LODIndex] = FixLODRequiresAdjacencyInformation(LODIndex);
+				bPromptUser |= FixLODAdjacencyOption[LODIndex];
+			}
+
+			//Prompt the user only once
+			if (bPromptUser)
+			{
+				FText ConfirmRequiredAdjacencyText = FText::Format(LOCTEXT("ConfirmRequiredAdjacencyNoLODIndex", "Using a tessellation material required the adjacency buffer to be computed.\nDo you want to set the adjacency options to true?\n\n\tSaticMesh: {0}\n\tMaterial: {1}"), FText::FromString(GetPathName()), FText::FromString(StaticMaterials[MaterialIndex].MaterialInterface->GetPathName()));
+				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNoCancel, ConfirmRequiredAdjacencyText);
+				bool bRevertAdjacency = false;
+				switch(Result)
+				{
+					//Handle cancel and negative answer
+					case EAppReturnType::Cancel:
+					{
+						StaticMaterials[MaterialIndex].MaterialInterface = CancelOldMaterial;
+						bRevertAdjacency = true;
+					}
+					case EAppReturnType::No:
+					{
+						bRevertAdjacency = true;
+					}
+				}
+				if (bRevertAdjacency)
+				{
+					//Revert previous change since the material was reverse
+					for (int32 FixLODIndex = 0; FixLODIndex < FixLODAdjacencyOption.Num(); ++FixLODIndex)
+					{
+						if (FixLODAdjacencyOption[FixLODIndex])
+						{
+							SourceModels[FixLODIndex].BuildSettings.bBuildAdjacencyBuffer = false;
+						}
+					}
+				}
 			}
 		}
 

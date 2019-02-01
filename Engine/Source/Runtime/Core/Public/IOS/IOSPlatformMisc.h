@@ -20,6 +20,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
     static void PlatformPreInit();
 	static void PlatformInit();
     static void PlatformHandleSplashScreen(bool ShowSplashScreen = false);
+	static const TCHAR* GetPlatformFeaturesModuleName();
 
 	FORCEINLINE static int32 GetMaxPathLength()
 	{
@@ -74,7 +75,9 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static void ReleaseMobileHaptics();
 
 	static void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
-    
+
+	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+
 	static void EnableVoiceChat(bool bEnable);
 	static bool IsVoiceChatEnabled();
 

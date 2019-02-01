@@ -530,6 +530,10 @@ class PAKFILE_API FPakFile : FNoncopyable
 	/** ID for the chunk this pakfile is part of. INDEX_NONE if this isn't a pak chunk (derived from filename) */
 	int32 ChunkID;
 
+	class IMappedFileHandle* MappedFileHandle;
+	FCriticalSection MappedFileHandleCriticalSection;
+
+
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{
 		const uint32* LeftHash = (const uint32*)Left;
@@ -1093,6 +1097,11 @@ public:
 	}
 };
 
+/**
+ * Typedef for a function that returns an archive to use for accessing an underlying pak file
+ */
+typedef TFunction<FArchive*()> TAcquirePakReaderFunction;
+
 template< typename EncryptionPolicy = FPakNoEncryption >
 class PAKFILE_API FPakReaderPolicy
 {
@@ -1102,14 +1111,14 @@ public:
 	/** Pak file entry for this file. */
 	FPakEntry			PakEntry;
 	/** Pak file archive to read the data from. */
-	FArchive*			PakReader;
+	TAcquirePakReaderFunction AcquirePakReader;
 	/** Offset to the file in pak (including the file header). */
 	int64				OffsetToFile;
 
-	FPakReaderPolicy(const FPakFile& InPakFile,const FPakEntry& InPakEntry,FArchive* InPakReader)
+	FPakReaderPolicy(const FPakFile& InPakFile,const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReader)
 		: PakFile(InPakFile)
 		, PakEntry(InPakEntry)
-		, PakReader(InPakReader)
+		, AcquirePakReader(InAcquirePakReader)
 	{
 		OffsetToFile = PakEntry.Offset + PakEntry.GetSerializedSize(PakFile.GetInfo().Version);
 	}
@@ -1125,6 +1134,7 @@ public:
 		const constexpr int64 Alignment = (int64)EncryptionPolicy::Alignment;
 		const constexpr int64 AlignmentMask = ~(Alignment - 1);
 		uint8 TempBuffer[Alignment];
+		FArchive* PakReader = AcquirePakReader();
 		if (EncryptionPolicy::AlignReadRequest(DesiredPosition) != DesiredPosition)
 		{
 			int64 Start = DesiredPosition & AlignmentMask;
@@ -1179,12 +1189,27 @@ public:
 	 *
 	 * @param InFilename Filename
 	 * @param InPakEntry Entry in the pak file.
+	 * @param InAcquirePakReaderFunction Function that returns the archive to use for serialization. The result of this should not be cached, but reacquired on each serialization operation
+	 */
+	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReaderFunction, bool bIsSharedReader)
+		: bSharedReader(bIsSharedReader)
+		, ReadPos(0)
+		, Reader(InPakFile, InPakEntry, InAcquirePakReaderFunction)
+	{
+		INC_DWORD_STAT(STAT_PakFile_NumOpenHandles);
+	}
+
+	/**
+	 * Constructs pak file handle to read from pak.
+	 *
+	 * @param InFilename Filename
+	 * @param InPakEntry Entry in the pak file.
 	 * @param InPakFile Pak file.
 	 */
 	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader, bool bIsSharedReader)
 		: bSharedReader(bIsSharedReader)
 		, ReadPos(0)
-		, Reader(InPakFile, InPakEntry, InPakReader)
+		, Reader(InPakFile, InPakEntry, [InPakReader]() { return InPakReader; })
 	{
 		INC_DWORD_STAT(STAT_PakFile_NumOpenHandles);
 	}
@@ -1196,7 +1221,7 @@ public:
 	{
 		if (!bSharedReader)
 		{
-			delete Reader.PakReader;
+			delete Reader.AcquirePakReader();
 		}
 
 		DEC_DWORD_STAT(STAT_PakFile_NumOpenHandles);
@@ -1228,8 +1253,9 @@ public:
 		if (!Reader.PakEntry.Verified)
 		{
 			FPakEntry FileHeader;
-			Reader.PakReader->Seek(Reader.PakEntry.Offset);
-			FileHeader.Serialize(*Reader.PakReader, Reader.PakFile.GetInfo().Version);
+			FArchive* PakReader = Reader.AcquirePakReader();
+			PakReader->Seek(Reader.PakEntry.Offset);
+			FileHeader.Serialize(*PakReader, Reader.PakFile.GetInfo().Version);
 			if (FPakEntry::VerifyPakEntriesMatch(Reader.PakEntry, FileHeader))
 			{
 				Reader.PakEntry.Verified = true;
@@ -2220,6 +2246,7 @@ public:
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override;
 	virtual void SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
 
+	virtual IMappedFileHandle* OpenMapped(const TCHAR* Filename) override;
 	/**
 	 * Converts a filename to a path inside pak file.
 	 *

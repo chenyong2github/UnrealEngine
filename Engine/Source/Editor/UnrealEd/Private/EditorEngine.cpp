@@ -304,6 +304,7 @@ UEditorEngine* GEditor = nullptr;
 
 UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, EditorSubsystemCollection(this)
 {
 	if (!IsRunningCommandlet() && !IsRunningDedicatedServer())
 	{
@@ -633,7 +634,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	GEngine->SetSubduedSelectionOutlineColor(StyleSettings->GetSubduedSelectionColor());
 	GEngine->SelectionHighlightIntensity = ViewportSettings->SelectionHighlightIntensity;
 	GEngine->BSPSelectionHighlightIntensity = ViewportSettings->BSPSelectionHighlightIntensity;
-	GEngine->HoverHighlightIntensity = ViewportSettings->HoverHighlightIntensity;
 
 	// Set navigation system property indicating whether navigation is supposed to rebuild automatically 
 	FWorldContext &EditorContext = GetEditorWorldContext();
@@ -718,6 +718,8 @@ void UEditorEngine::HandleSettingChanged( FName Name )
 
 void UEditorEngine::InitializeObjectReferences()
 {
+	EditorSubsystemCollection.Initialize();
+
 	Super::InitializeObjectReferences();
 
 	if ( PlayFromHerePlayerStartClass == NULL )
@@ -782,7 +784,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	{
 		if (GetPIEWorldContext() != nullptr && GetPIEWorldContext()->World() != nullptr)
 		{
-			GEngine->ShutdownWorldNetDriver(GetPIEWorldContext()->World());
+			GetPIEWorldContext()->World()->DestroyDemoNetDriver();
 		}
 	});
 
@@ -1137,7 +1139,7 @@ void UEditorEngine::RemoveLevelViewportClients(FLevelEditorViewportClient* Viewp
 void UEditorEngine::BroadcastObjectReimported(UObject* InObject)
 {
 	ObjectReimportedEvent.Broadcast(InObject);
-	FEditorDelegates::OnAssetReimport.Broadcast(InObject);
+	GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetReimport(InObject);
 }
 
 void UEditorEngine::FinishDestroy()
@@ -3833,19 +3835,23 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 		}
 	}
 
-	for (ULevel* Level : World->GetLevels())
 	{
-		if (Level->bIsVisible)
-		{
-			if (Level->MapBuildData)
-			{
-				// Remove all existing reflection capture data from visible levels before the build
-				Level->MapBuildData->InvalidateReflectionCaptures(Level->bIsLightingScenario ? &ResourcesToKeep : nullptr);
-			}
+		FGlobalComponentRecreateRenderStateContext Context;
 
-			if (Level->bIsLightingScenario)
+		for (ULevel* Level : World->GetLevels())
+		{
+			if (Level->bIsVisible)
 			{
-				LightingScenarios.Add(Level);
+				if (Level->MapBuildData)
+				{
+					// Remove all existing reflection capture data from visible levels before the build
+					Level->MapBuildData->InvalidateReflectionCaptures(Level->bIsLightingScenario ? &ResourcesToKeep : nullptr);
+				}
+
+				if (Level->bIsLightingScenario)
+				{
+					LightingScenarios.Add(Level);
+				}
 			}
 		}
 	}
@@ -5105,6 +5111,18 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			NewActor->PostEditMove(true);
 			NewActor->MarkPackageDirty();
 
+			TSet<ULevel*> LevelsToRebuildBSP;
+			ABrush* Brush = Cast<ABrush>(OldActor);
+			if (Brush && !FActorEditorUtils::IsABuilderBrush(Brush)) // Track whether or not a brush actor was deleted.
+			{
+				ULevel* BrushLevel = OldActor->GetLevel();
+				if (BrushLevel && !Brush->IsVolumeBrush())
+				{
+					BrushLevel->Model->Modify();
+					LevelsToRebuildBSP.Add(BrushLevel);
+				}
+			}
+
 			// Replace references in the level script Blueprint with the new Actor
 			const bool bDontCreate = true;
 			ULevelScriptBlueprint* LSB = NewActor->GetLevel()->GetLevelScriptBlueprint(bDontCreate);
@@ -5119,6 +5137,17 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				Layers->DisassociateActorFromLayers( OldActor );
 			}
 			World->EditorDestroyActor(OldActor, true);
+
+			// If any brush actors were modified, update the BSP in the appropriate levels
+			if (LevelsToRebuildBSP.Num())
+			{
+				FlushRenderingCommands();
+
+				for (ULevel* LevelToRebuild : LevelsToRebuildBSP)
+				{
+					GEditor->RebuildLevel(*LevelToRebuild);
+				}
+			}
 		}
 		else
 		{
@@ -7322,6 +7351,8 @@ void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeat
 
 	SlowTask.EnterProgressFrame(15.0f, NSLOCTEXT("Engine", "SlowTaskFinalizingMessage", "Finalizing"));
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
+
+	PreviewFeatureLevelChanged.Broadcast(InFeatureLevel);
 }
 
 void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel)
@@ -7336,16 +7367,27 @@ void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPrevie
 	}
 }
 
-void UEditorEngine::AllMaterialsCacheResourceShadersForRendering()
+void UEditorEngine::AllMaterialsCacheResourceShadersForRendering(ERHIFeatureLevel::Type InPreviewFeatureLevel)
 {
 	FGlobalComponentRecreateRenderStateContext Recreate;
 	FlushRenderingCommands();
 	UMaterial::AllMaterialsCacheResourceShadersForRendering(true);
 	UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
+	PreviewFeatureLevelChanged.Broadcast(InPreviewFeatureLevel);
 }
 
-void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, const ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings/* = true*/)
+void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings/* = true*/)
 {
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (PreviewFeatureLevel != ERHIFeatureLevel::SM5)
+		{
+			UE_LOG(LogEditor, Warning, TEXT("Preview feature level is incompatible with ray tracing, defaulting to Shader Model 5"));
+			PreviewFeatureLevel = ERHIFeatureLevel::SM5;
+		}
+	}
+#endif
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
 	check(MaterialQualityPlatform.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(MaterialQualityPlatform)) == InPreviewFeatureLevel);
 
@@ -7361,10 +7403,8 @@ void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, cons
 	else if (InitialPreviewPlatform != MaterialQualityPlatform)
 	{
 		// Rebuild materials if we have the same feature level but a different 'material quality platform'
-		AllMaterialsCacheResourceShadersForRendering();
+		AllMaterialsCacheResourceShadersForRendering(InPreviewFeatureLevel);
 	}
-
-	PreviewFeatureLevelChanged.Broadcast(InPreviewFeatureLevel);
 
 	if (bSaveSettings)
 	{

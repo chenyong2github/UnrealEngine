@@ -60,6 +60,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "DrawDebugHelpers.h"
 #include "Misc/ScopeExit.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 int32 CVar_RepGraph_Pause = 0;
 static FAutoConsoleVariableRef CVarRepGraphPause(TEXT("Net.RepGraph.Pause"), CVar_RepGraph_Pause, TEXT("Pauses actor replication in the Replication Graph."), ECVF_Default );
@@ -207,6 +208,45 @@ UReplicationGraph::UReplicationGraph()
 		};
 	}
 #endif
+}
+
+extern void CountReplicationGraphSharedBytes_Private(FArchive& Ar);
+
+void UReplicationGraph::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UReplicationGraph::Serialize");
+
+		// Currently, there is some global memory associated with RepGraph.
+		// If there happens to be multiple RepGraphs, that would cause it to be counted multiple times.
+		// This works, as "obj list" is the primary use case of counting memory, but it would break
+		// if different legitimate memory counts happened in the same frame.
+		static uint64 LastSharedCountFrame = 0;
+		if (GFrameCounter != LastSharedCountFrame)
+		{
+			LastSharedCountFrame = GFrameCounter;
+
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepGraphSharedBytes", CountReplicationGraphSharedBytes_Private(Ar));
+		}
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PrioritizedReplicationList", PrioritizedReplicationList.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("GlobalActorReplicationInfoMap", GlobalActorReplicationInfoMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActiveNetworkActors", ActiveNetworkActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RPCSendPolicyMap", RPCSendPolicyMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RPC_Multicast_OpenChannelForClass", RPC_Multicast_OpenChannelForClass.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CSVTracker", CSVTracker.CountBytes(Ar));
+
+		if (FastSharedReplicationBunch)
+		{
+			GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("FastSharedReplicationBunch",
+				Ar.CountBytes(sizeof(FOutBunch), sizeof(FOutBunch));
+				FastSharedReplicationBunch->CountMemory(Ar);
+			);
+		}
+	}
 }
 
 void UReplicationGraph::InitForNetDriver(UNetDriver* InNetDriver)
@@ -413,6 +453,7 @@ void UReplicationGraph::InitializeActorsInWorld(UWorld* InWorld)
 void UReplicationGraph::InitializeForWorld(UWorld* World)
 {
 	ActiveNetworkActors.Reset();
+	GlobalActorReplicationInfoMap.ResetActorMap();
 
 	for (UReplicationGraphNode* Manager : GlobalGraphNodes)
 	{
@@ -1026,8 +1067,9 @@ void UReplicationGraph::ReplicateActorListsForConnection_Default(UNetReplication
 				// -------------------
 				if (GlobalData.Settings.StarvationPriorityScale > 0.f)
 				{
-					const uint32 FramesSinceLastRep = (FrameNum - ConnectionData.LastRepFrameNum);
-					const float StarvationFactor = 1.f - FMath::Clamp<float>((float)FramesSinceLastRep / (float)MaxFramesSinceLastRep, 0.f, 1.f);
+					// StarvationPriorityScale = scale "Frames since last rep". E.g, 2.0 means treat every missed frame as if it were 2, etc.
+					const float FramesSinceLastRep = ((float)(FrameNum - ConnectionData.LastRepFrameNum)) * GlobalData.Settings.StarvationPriorityScale;
+					const float StarvationFactor = 1.f - FMath::Clamp<float>(FramesSinceLastRep / (float)MaxFramesSinceLastRep, 0.f, 1.f);
 
 					AccumulatedPriority += StarvationFactor;
 
@@ -1053,19 +1095,15 @@ void UReplicationGraph::ReplicateActorListsForConnection_Default(UNetReplication
 				// -------------------
 				//	Game code priority
 				// -------------------
-							
-				if (GlobalData.ForceNetUpdateFrame > 0)
+				
+				if ( GlobalData.ForceNetUpdateFrame > ConnectionData.LastRepFrameNum )
 				{
-					const int32 ForceNetUpdateDelta = static_cast<int32>(GlobalData.ForceNetUpdateFrame - ConnectionData.LastRepFrameNum);
-					if ( ForceNetUpdateDelta > 0 )
-					{
-						// Note that in legacy ForceNetUpdate did not actually bump priority. This gives us a hard coded bump if we haven't replicated since the last ForceNetUpdate frame.
-						AccumulatedPriority -= 1.f;
+					// Note that in legacy ForceNetUpdate did not actually bump priority. This gives us a hard coded bump if we haven't replicated since the last ForceNetUpdate frame.
+					AccumulatedPriority -= 1.f;
 
-						if (DO_REPGRAPH_DETAILS(UNLIKELY(DebugDetails)))
-						{
-							DebugDetails->GameCodeScaling = -1.f;
-						}
+					if (DO_REPGRAPH_DETAILS(UNLIKELY(DebugDetails)))
+					{
+						DebugDetails->GameCodeScaling = -1.f;
 					}
 				}
 							
@@ -1825,6 +1863,29 @@ UNetReplicationGraphConnection::UNetReplicationGraphConnection()
 
 }
 
+void UNetReplicationGraphConnection::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsCountingMemory())
+	{
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetReplicationGraphConnection::Serialize");
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActorInfoMap", ActorInfoMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActorInfoMap", OnClientVisibleLevelNameAddMap.CountBytes(Ar));
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingDestructionInfoList",
+			PendingDestructInfoList.CountBytes(Ar);
+			for (const FCachedDestructInfo& Info : PendingDestructInfoList)
+			{
+				Info.CountBytes(Ar);
+			}
+		);
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TrackedDestructionInfoPtrs", TrackedDestructionInfoPtrs.CountBytes(Ar));
+	}
+}
+
 void UNetReplicationGraphConnection::TearDown()
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1902,9 +1963,13 @@ void UNetReplicationGraphConnection::InitForConnection(UNetConnection* InConnect
 	InConnection->SetReplicationConnectionDriver(this);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	DebugActor = GetWorld()->SpawnActor<AReplicationGraphDebugActor>();
-	DebugActor->ConnectionManager = this;
-	DebugActor->ReplicationGraph = Cast<UReplicationGraph>(GetOuter());
+	UReplicationGraph* Graph = Cast<UReplicationGraph>(GetOuter());
+	DebugActor = Graph->CreateDebugActor();
+	if (DebugActor)
+	{
+		DebugActor->ConnectionManager = this;
+		DebugActor->ReplicationGraph = Graph;
+	}
 #endif
 
 #if 0
@@ -2253,6 +2318,10 @@ bool UReplicationGraphNode_ActorList::NotifyRemoveNetworkActor(const FNewReplica
 		{
 			UE_LOG(LogReplicationGraph, Warning, TEXT("Attempted to remove %s from list %s but it was not found. (StreamingLevelName == NAME_None)"), *GetActorRepListTypeDebugString(ActorInfo.Actor), *GetFullName());
 		}
+		else
+		{
+			bRemovedSomething = true;
+		}
 
 		if (CVar_RepGraph_Verify)
 		{
@@ -2261,7 +2330,7 @@ bool UReplicationGraphNode_ActorList::NotifyRemoveNetworkActor(const FNewReplica
 	}
 	else
 	{
-		StreamingLevelCollection.RemoveActor(ActorInfo, bWarnIfNotFound, this);
+		bRemovedSomething = StreamingLevelCollection.RemoveActor(ActorInfo, bWarnIfNotFound, this);
 	}
 
 	return bRemovedSomething;

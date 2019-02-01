@@ -92,6 +92,10 @@ namespace ReplayTaskNames
 
 #define DEMO_CHECKSUMS 0		// When setting this to 1, this will invalidate all demos, you will need to re-record and playback
 
+// static delegates
+FOnDemoStartedDelegate UDemoNetDriver::OnDemoStarted;
+FOnDemoFailedToStartDelegate UDemoNetDriver::OnDemoFailedToStart;
+
 // This is only intended for testing purposes
 // A "better" way might be to throw together a GameplayDebuggerComponent or Category, so we could populate
 // more than just the DemoTime.
@@ -3896,8 +3900,8 @@ void UDemoNetDriver::ReplayStreamingReady( const FStartStreamingResult& Result )
 		UE_LOG(LogDemo, Warning, TEXT("UDemoNetConnection::ReplayStreamingReady: Failed. %s"), Result.bRecording ? TEXT("") : EDemoPlayFailure::ToString(EDemoPlayFailure::DemoNotFound));
 
 		if (Result.bRecording)
-	{
-		StopDemo();
+		{
+			StopDemo();
 		}
 		else
 		{
@@ -3905,6 +3909,8 @@ void UDemoNetDriver::ReplayStreamingReady( const FStartStreamingResult& Result )
 		}
 		return;
 	}
+
+
 
 	if ( !Result.bRecording )
 	{
@@ -3947,6 +3953,9 @@ void UDemoNetDriver::ReplayStreamingReady( const FStartStreamingResult& Result )
 
 		UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s"),
 			*PlaybackDemoHeader.Guid.ToString(EGuidFormats::Digits), *DemoURL.Map, *PlaybackDemoHeader.EngineVersion.ToString());
+
+		// Notify all listeners that a demo is starting
+		OnDemoStarted.Broadcast(this);
 	}
 }
 
@@ -5585,6 +5594,9 @@ void UDemoNetDriver::NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureTyp
 
 	const bool bIsPlaying = IsPlaying();
 
+	// fire delegate
+	OnDemoFailedToStart.Broadcast(this, FailureType);
+
 	StopDemo();
 
 	if (bIsPlaying)
@@ -5828,7 +5840,7 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		LevelStatusesByName.CountBytes(Ar);
 		for (const auto& LevelStatusNamePair : LevelStatusesByName)
 		{
-			Ar << const_cast<FString&>(LevelStatusNamePair.Key);
+			LevelStatusNamePair.Key.CountBytes(Ar);
 		}
 
 		LevelStatusIndexByLevel.CountBytes(Ar);

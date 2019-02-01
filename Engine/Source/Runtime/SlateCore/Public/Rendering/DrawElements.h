@@ -1359,7 +1359,7 @@ public:
 /**
  * Represents a top level window and its draw elements.
  */
-class FSlateWindowElementList
+class FSlateWindowElementList : public FNoncopyable
 {
 	friend class FSlateElementBatcher;
 	friend class FSlateDrawElement;
@@ -1372,7 +1372,7 @@ public:
 	 * @param InPaintWindow		The window that owns the widgets being painted.  This is almost most always the same window that is being rendered to
 	 * @param InRenderWindow	The window that we will be rendering to.
 	 */
-	SLATECORE_API explicit FSlateWindowElementList(TSharedPtr<SWindow> InPaintWindow = nullptr);
+	SLATECORE_API explicit FSlateWindowElementList(const TSharedPtr<SWindow>& InPaintWindow = TSharedPtr<SWindow>());
 
 	SLATECORE_API ~FSlateWindowElementList();
 

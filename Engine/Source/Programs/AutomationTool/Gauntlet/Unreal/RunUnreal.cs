@@ -103,14 +103,8 @@ namespace Gauntlet
 			if (ContextOptions.TestList.Count == 0)
 			{
 				Gauntlet.Log.Info("No test specified, creating default test node");
-				ContextOptions.TestList.Add(TestRequest.CreateRequest("DefaultNode"));
+				ContextOptions.TestList.Add(TestRequest.CreateRequest("DefaultTest"));
 			}
-
-			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
-			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.UsesSharedBuildType, Environment.CurrentDirectory, ContextOptions.Build, ContextOptions.SearchPaths });
-
-			// Setup accounts
-			SetupAccounts();
 
 			bool EditorForAllRoles = Globals.Params.ParseParam("editor") || string.Equals(Globals.Params.ParseValue("build", ""), "editor", StringComparison.OrdinalIgnoreCase);
 
@@ -124,7 +118,12 @@ namespace Gauntlet
 			// Default platform to the current os
 			UnrealTargetPlatform DefaultPlatform = BuildHostPlatform.Current.Platform;
 			UnrealTargetConfiguration DefaultConfiguration = UnrealTargetConfiguration.Development;
-					
+
+			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
+			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.UsesSharedBuildType, Environment.CurrentDirectory, ContextOptions.Build, ContextOptions.SearchPaths });
+
+			// Setup accounts
+			SetupAccounts();
 
 			List<ITestNode> AllTestNodes = new List<ITestNode>();
 

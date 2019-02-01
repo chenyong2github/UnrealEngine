@@ -549,6 +549,12 @@ const TArray<FString>& FPaths::GetGameLocalizationPaths()
 	return Results;
 }
 
+FString FPaths::GetPlatformLocalizationFolderName()
+{
+	// Note: If you change this, also update StageLocalizationDataForTarget (CopyBuildToStagingDirectory.Automation.cs), ProjectImportExportInfo.PlatformLocalizationFolderName (LocalizationProvider.cs)
+	return TEXT("Platforms");
+}
+
 const TArray<FString>& FPaths::GetRestrictedFolderNames()
 {
 	static bool bBuiltArray = false;
@@ -1011,16 +1017,11 @@ void FPaths::MakeStandardFilename(FString& InPath)
 	// if this is an empty path, use the relative base dir
 	if (InPath.Len() == 0)
 	{
-#if !PLATFORM_HTML5
 		InPath = FPlatformProcess::BaseDir();
-		// if the base directory is nothing then this function will recurse infinitely instead of returning nothing. 
+		// if the base directory is nothing then this function will recurse infinitely instead of returning nothing.
 		if (InPath.Len() == 0)
 			return;
 		FPaths::MakeStandardFilename(InPath);
-#else
-		// @todo: revisit this as needed
-//		InPath = TEXT("/");
-#endif
 		return;
 	}
 

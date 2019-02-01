@@ -14,11 +14,7 @@
  * Whether to use OggVorbis audio format.
  **/
 #ifndef WITH_OGGVORBIS
-	#if PLATFORM_DESKTOP
-		#define WITH_OGGVORBIS 1
-	#else
-		#define WITH_OGGVORBIS 0
-	#endif
+	#define WITH_OGGVORBIS 0
 #endif
 
 namespace VorbisChannelInfo
@@ -117,5 +113,6 @@ private:
 	int32 CurrentStreamingChunkIndex;
 	int32 NextStreamingChunkIndex;
 	uint32 CurrentStreamingChunksSize;
+	bool bHeaderParsed;
 };
 #endif

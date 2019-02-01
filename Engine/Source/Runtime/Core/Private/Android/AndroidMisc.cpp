@@ -30,6 +30,7 @@
 #include <android/keycodes.h>
 #endif
 #if USE_ANDROID_JNI
+#include <android/asset_manager.h>
 #include <cpu-features.h>
 #include <android_native_app_glue.h>
 #include "Templates/Function.h"
@@ -40,6 +41,10 @@
 #include "Async/TaskGraphInterfaces.h"
 
 #include "FramePro/FrameProProfiler.h"
+
+#if USE_ANDROID_JNI
+extern AAssetManager * AndroidThunkCpp_GetAssetManager();
+#endif
 
 static int32 GAndroidTraceMarkersEnabled = 0;
 static FAutoConsoleVariableRef CAndroidTraceMarkersEnabled(
@@ -106,12 +111,12 @@ void FAndroidMisc::LocalPrint(const TCHAR *Message)
 #if !UE_BUILD_SHIPPING
 	const int MAX_LOG_LENGTH = 4096;
 	// not static since may be called by different threads
-	ANSICHAR MessageBuffer[MAX_LOG_LENGTH];
+	wchar_t MessageBuffer[MAX_LOG_LENGTH];
 
 	const TCHAR* SourcePtr = Message;
 	while (*SourcePtr)
 	{
-		ANSICHAR* WritePtr = MessageBuffer;
+		wchar_t* WritePtr = MessageBuffer;
 		int32 RemainingSpace = MAX_LOG_LENGTH;
 		while (*SourcePtr && --RemainingSpace > 0)
 		{
@@ -128,13 +133,12 @@ void FAndroidMisc::LocalPrint(const TCHAR *Message)
 				break;
 			}
 			else {
-				*WritePtr++ = static_cast<ANSICHAR>(*SourcePtr++);
+				*WritePtr++ = static_cast<wchar_t>(*SourcePtr++);
 			}
 		}
 		*WritePtr = '\0';
-		__android_log_write(ANDROID_LOG_DEBUG, "UE4", MessageBuffer);
+		__android_log_print(ANDROID_LOG_DEBUG, "UE4", "%ls", MessageBuffer);
 	}
-	//	__android_log_print(ANDROID_LOG_DEBUG, "UE4", "%s", TCHAR_TO_ANSI(Message));
 #endif
 }
 
@@ -1066,6 +1070,29 @@ void FAndroidMisc::ShareURL(const FString& URL, const FText& Description, int32 
 #endif
 }
 
+FString FAndroidMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
+{
+#if USE_ANDROID_JNI
+	AAssetManager* AssetMgr = AndroidThunkCpp_GetAssetManager();
+	AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(*RelativePath), AASSET_MODE_BUFFER);
+
+	if (asset)
+	{
+		const void* FileContents = (const ANSICHAR*)AAsset_getBuffer(asset);
+		int32 FileLength = AAsset_getLength(asset);
+
+		TArray<ANSICHAR> TextContents;
+		TextContents.AddUninitialized(FileLength + 1);
+		FMemory::Memcpy(TextContents.GetData(), FileContents, FileLength);
+		TextContents[FileLength] = 0;
+
+		AAsset_close(asset);
+
+		return FString(ANSI_TO_TCHAR(TextContents.GetData()));
+	}
+#endif
+	return FString();
+}
 
 void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
 {

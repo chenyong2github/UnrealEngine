@@ -112,7 +112,7 @@ const uint8* FSceneViewState::GetPrecomputedVisibilityData(FViewInfo& View, cons
 	if (Scene->PrecomputedVisibilityHandler && GAllowPrecomputedVisibility && View.Family->EngineShowFlags.PrecomputedVisibility)
 	{
 		const FPrecomputedVisibilityHandler& Handler = *Scene->PrecomputedVisibilityHandler;
-		FViewElementPDI VisibilityCellsPDI(&View, NULL);
+		FViewElementPDI VisibilityCellsPDI(&View, nullptr, nullptr);
 
 		// Draw visibility cell bounds for debugging if enabled
 		if ((GShowPrecomputedVisibilityCells || View.Family->EngineShowFlags.PrecomputedVisibilityCells) && !GShowRelevantPrecomputedVisibilityCells)
@@ -1206,7 +1206,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HZB(mip=%d) %dx%d", MipIndex, DstSize.X, DstSize.Y),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERenderGraphPassFlags::GenerateMips,
 			[PassParameters, SrcSize, DstSize, &View](FRHICommandListImmediate& RHICmdList)
 			{
 				FHZBBuildPS::FPermutationDomain PermutationVector;

@@ -15,6 +15,13 @@
 #include "RHI.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+enum class EShadingPath
+{
+	Mobile,
+	Deferred,
+	Num,
+};
+
 // Note:  WITH_PROFILEGPU should be 0 for final builds
 #define WANTS_DRAW_MESH_EVENTS (RHI_COMMAND_LIST_DEBUG_TRACES || (WITH_PROFILEGPU && PLATFORM_SUPPORTS_DRAW_MESH_EVENTS))
 
@@ -289,6 +296,8 @@ ENGINE_API bool IsMobileHDR32bpp();
 ENGINE_API bool IsMobileHDRMosaic();
 
 ENGINE_API EMobileHDRMode GetMobileHDRMode();
+
+ENGINE_API bool IsMobileColorsRGB();
 
 /**
 * A pool of render (e.g. occlusion/timer) queries which are allocated individually, and returned to the pool as a group.
