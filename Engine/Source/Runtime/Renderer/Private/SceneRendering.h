@@ -741,6 +741,9 @@ struct FPreviousViewInfo
 	// History for the ambient occlusion
 	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
 
+	// History for global illumination
+	FScreenSpaceFilteringHistory GlobalIlluminationHistory;
+
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
 

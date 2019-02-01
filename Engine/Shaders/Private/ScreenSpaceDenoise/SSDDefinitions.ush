@@ -81,6 +81,11 @@
 	/** Internal buffer layout for ambient occlusion. */
 	#define SIGNAL_BUFFER_LAYOUT_AO_HISTORY 6
 
+	/** Buffer layout given by the ray generation shader for global illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_GI_AND_AO_INPUT 7
+
+	/** Internal buffer layout for global illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY 8
 
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
 	/** Shadow penumbra denoising. */
@@ -91,6 +96,9 @@
 
 	/** Ambient occlusion denoising. */
 	#define SIGNAL_PROCESSING_AO 2
+
+	/** Global illumination denoising. */
+	#define SIGNAL_PROCESSING_GI_AND_AO 3
 
 
 

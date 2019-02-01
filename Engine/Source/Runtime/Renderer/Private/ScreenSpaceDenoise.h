@@ -115,6 +115,25 @@ public:
 		const FAmbientOcclusionInputs& ReflectionInputs,
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const = 0;
 
+	/** All the inputs of the GI denoisers. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationInputs, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** All the outputs of the GI denoiser may generate. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationOutputs, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** Entry point to denoise reflections. */
+	virtual FGlobalIlluminationOutputs DenoiseGlobalIllumination(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FGlobalIlluminationInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const = 0;
+
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();
 }; // class FScreenSpaceDenoisingInterface

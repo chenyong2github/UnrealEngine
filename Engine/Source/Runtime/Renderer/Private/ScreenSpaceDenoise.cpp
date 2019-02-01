@@ -63,6 +63,21 @@ static TAutoConsoleVariable<int32> CVarAOHistoryConvolutionSampleCount(
 	TEXT("Number of samples to use for history post filter (default = 1)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarGIReconstructionSampleCount(
+	TEXT("r.GlobalIllumination.Denoiser.ReconstructionSamples"), 16,
+	TEXT("Maximum number of samples for the reconstruction pass (default = 16)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarGITemporalAccumulation(
+	TEXT("r.GlobalIllumination.Denoiser.TemporalAccumulation"), 1,
+	TEXT("Accumulates the samples over multiple frames."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarGIHistoryConvolutionSampleCount(
+	TEXT("r.GlobalIllumination.Denoiser.HistoryConvolutionSampleCount"), 1,
+	TEXT("Number of samples to use for history post filter (default = 1)."),
+	ECVF_RenderThreadSafe);
+
 
 /** The maximum number of mip level supported in the denoiser. */
 static const int32 kMaxMipLevel = 4;
@@ -96,6 +111,7 @@ enum class ESignalProcessing
 	Penumbra,
 	Reflections,
 	AmbientOcclusion,
+	GlobalIllumination,
 
 	MAX,
 };
@@ -711,6 +727,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 		{
 			SignalProcessingDesc[0].Format = PF_G16R16F;
 		}
+		else if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+		{
+			SignalProcessingDesc[0].Format = PF_FloatRGBA;
+			SignalProcessingDesc[1].Format = PF_G16R16F;
+			SignalTextureCount = 2;
+		}
 		else
 		{
 			check(0);
@@ -736,6 +758,10 @@ static void DenoiseSignalAtConstantPixelDensity(
 	else if (Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion)
 	{
 		PrevFrameHistory = View.PrevViewInfo.AmbientOcclusionHistory;
+	}
+	else if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+	{
+		PrevFrameHistory = View.PrevViewInfo.GlobalIlluminationHistory;
 	}
 	else
 	{
@@ -876,6 +902,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 				NewHistory = &View.ViewState->PendingPrevFrameViewInfo.ReflectionsHistory;
 			else if (Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion)
 				NewHistory = &View.ViewState->PendingPrevFrameViewInfo.AmbientOcclusionHistory;
+			else if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
+				NewHistory = &View.ViewState->PendingPrevFrameViewInfo.GlobalIlluminationHistory;
 			else
 				check(0);
 
@@ -1015,6 +1043,35 @@ public:
 		FAmbientOcclusionOutputs AmbientOcclusionOutput;
 		AmbientOcclusionOutput.AmbientOcclusionMask = SignalOutput.Texture0;
 		return AmbientOcclusionOutput;
+	}
+
+	FGlobalIlluminationOutputs DenoiseGlobalIllumination(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FSceneViewFamilyBlackboard& SceneBlackboard,
+		const FGlobalIlluminationInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const override
+	{
+		FSSDSignalTextures InputSignal;
+		InputSignal.Texture0 = Inputs.Color;
+		InputSignal.Texture1 = Inputs.RayHitDistance;
+
+		FSSDConstantPixelDensitySettings Settings;
+		Settings.SignalProcessing = ESignalProcessing::GlobalIllumination;
+		Settings.InputResolutionFraction = Config.ResolutionFraction;
+		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
+		Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
+		Settings.HistoryConvolutionSampleCount = CVarGIHistoryConvolutionSampleCount.GetValueOnRenderThread();
+
+		FSSDSignalTextures SignalOutput;
+		DenoiseSignalAtConstantPixelDensity(
+			GraphBuilder, View, SceneBlackboard,
+			InputSignal, Settings,
+			&SignalOutput);
+
+		FGlobalIlluminationOutputs GlobalIlluminationOutputs;
+		GlobalIlluminationOutputs.Color = SignalOutput.Texture0;
+		return GlobalIlluminationOutputs;
 	}
 
 }; // class FDefaultScreenSpaceDenoiser

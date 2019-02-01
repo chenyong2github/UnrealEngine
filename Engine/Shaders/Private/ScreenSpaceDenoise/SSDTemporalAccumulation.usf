@@ -63,6 +63,16 @@
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
+	// Input and output layout.
+	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
+	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_GI_AND_AO_HISTORY
+
+	#define CONFIG_HISTORY_REJECTION 1
+
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 1
+	#define CONFIG_NORMAL_BASED_BILATERAL 1
+
 #else
 	#error Unimplemented signal processing.
 #endif
@@ -277,7 +287,7 @@ void TemporallyAccumulate(
 		//	max(CurrentFrame.AccumulatedSampleCount - TargetedSampleCount, 0),
 		//	0);
 	}
-	#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+	#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
 	{
 		TargetedSampleCount = TARGETED_SAMPLE_COUNT;
 	}
@@ -581,7 +591,7 @@ void TemporallyAccumulate(
 	
 	FSSFSignalSample HistorySample = PreviousFrame;
 
-	const bool bPostRejectionBlending = !bBruteForce || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO;
+	const bool bPostRejectionBlending = !bBruteForce || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO;
 
 	if (!bPostRejectionBlending)
 	{
@@ -880,7 +890,7 @@ void TemporallyAccumulate(
 					RejectionFactor = max(RejectionFactor, 1 * max(RejectedDiff.SceneColor.y, RejectedDiff.SceneColor.z));
 					RejectionFactor = max(RejectionFactor, 1 * RejectedDiff.SceneColor.a);
 				}
-				#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+				#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_GI_AND_AO
 				{
 					RejectionFactor = abs(ClampedTransformedHistorySample.LeavingRayCount - TransformedHistorySample.LeavingRayCount);
 				}
