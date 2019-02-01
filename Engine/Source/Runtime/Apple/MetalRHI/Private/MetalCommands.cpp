@@ -640,7 +640,6 @@ void FMetalRHICommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTar
 	@autoreleasepool {
 	bool bHasTarget = (RenderTargetsInfo.DepthStencilRenderTarget.Texture != nullptr);
 	FMetalContext* Manager = Context;
-	if (Context->GetCommandQueue().SupportsFeature(EMetalFeaturesGraphicsUAVs))
 	{
 		for (uint32 i = 0; !bHasTarget && i < RenderTargetsInfo.NumUAVs; i++)
 		{
@@ -649,10 +648,6 @@ void FMetalRHICommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTar
 				bHasTarget = true;
 			}
 		}
-	}
-	else
-	{
-		checkf(RenderTargetsInfo.NumUAVs == 0, TEXT("Calling SetRenderTargets with UAVs is not supported in this Metal standard"));
 	}
 	
 	for (uint32 i = 0; bHasTarget == false && i < RenderTargetsInfo.NumColorRenderTargets; i++)

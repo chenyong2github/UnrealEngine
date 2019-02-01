@@ -408,7 +408,6 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 #endif
 			CompileOptions.SetPreprocessorMacros(PreprocessorMacros);
 #endif
-			if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesShaderVersions))
 			{
 				if (Header.Version < 3)
 				{
@@ -441,10 +440,6 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 			GlslCodeNSString = NewShaderString;
 			[GlslCodeNSString retain];
 		}
-		
-		// Make sure that the current device can actually run with function constants otherwise bad things will happen!
-		UE_CLOG(bHasFunctionConstants && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFunctionConstants), LogMetal, Error, TEXT("Metal shader has function constants but current OS/device does not support them."));
-		UE_CLOG(bHasFunctionConstants && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFunctionConstants), LogMetal, Fatal, TEXT("%s"), *FString(GetSourceCode()));
 		
         GetCompiledFunction(true);
     }

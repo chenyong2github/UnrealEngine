@@ -1137,10 +1137,6 @@ void FMetalContext::TransitionResources(FUnorderedAccessViewRHIParamRef* InUAVs,
 				if (Surface != nullptr && Surface->Texture)
 				{
 					RenderPass.TransitionResources(Surface->Texture);
-					if (Surface->StencilTexture)
-					{
-						RenderPass.TransitionResources(Surface->StencilTexture);
-					}
 					if (Surface->MSAATexture)
 					{
 						RenderPass.TransitionResources(Surface->MSAATexture);
@@ -1161,10 +1157,6 @@ void FMetalContext::TransitionResources(FTextureRHIParamRef* InTextures, int32 N
 			if (Surface != nullptr && Surface->Texture)
 			{
 				RenderPass.TransitionResources(Surface->Texture);
-				if (Surface->StencilTexture)
-				{
-					RenderPass.TransitionResources(Surface->StencilTexture);
-				}
 				if (Surface->MSAATexture)
 				{
 					RenderPass.TransitionResources(Surface->MSAATexture);

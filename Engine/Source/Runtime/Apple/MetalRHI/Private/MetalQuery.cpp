@@ -300,15 +300,8 @@ FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery_RenderThread(class FRH
 FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery(ERenderQueryType QueryType)
 {
 	@autoreleasepool {
-	FRenderQueryRHIRef Query;
-	// AMD have subtleties to their completion handler routines that mean we don't seem able to reliably wait on command-buffers
-	// until after a drawable present...
-	static bool const bSupportsTimeQueries = GetMetalDeviceContext().GetCommandQueue().SupportsFeature(EMetalFeaturesAbsoluteTimeQueries);
-	if (QueryType != RQT_AbsoluteTime || bSupportsTimeQueries)
-	{
-		Query = new FMetalRenderQuery(QueryType);
-	}
-	return Query;
+		FRenderQueryRHIRef Query = new FMetalRenderQuery(QueryType);
+		return Query;
 	}
 }
 

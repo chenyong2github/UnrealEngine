@@ -404,7 +404,6 @@ void FMetalViewport::Present(FMetalCommandQueue& CommandQueue, bool bLockToVsync
 	NSNumber* ScreenId = [View.window.screen.deviceDescription objectForKey:@"NSScreenNumber"];
 	DisplayID = ScreenId.unsignedIntValue;
 	bIsLiveResize = View.inLiveResize;
-	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesSupportsVSyncToggle))
 	{
 		FCAMetalLayer* CurrentLayer = (FCAMetalLayer*)[View layer];
 		static bool sVSyncSafe = FPlatformMisc::MacOSXVersionCompare(10,13,4) >= 0;

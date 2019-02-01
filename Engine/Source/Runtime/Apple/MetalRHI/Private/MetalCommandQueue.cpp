@@ -61,14 +61,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	NSOperatingSystemVersion Vers = [[NSProcessInfo processInfo] operatingSystemVersion];
 	if(Vers.majorVersion >= 9)
 	{
-		Features = EMetalFeaturesSeparateStencil | EMetalFeaturesSetBufferOffset | EMetalFeaturesResourceOptions | EMetalFeaturesDepthStencilBlitOptions | EMetalFeaturesShaderVersions | EMetalFeaturesSetBytes;
+		Features = EMetalFeaturesSetBufferOffset | EMetalFeaturesSetBytes;
 
 #if PLATFORM_TVOS
         Features &= ~(EMetalFeaturesSetBytes);
-		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily1_v2))
-		{
-			Features |= EMetalFeaturesStencilView | EMetalFeaturesGraphicsUAVs | EMetalFeaturesFunctionConstants | EMetalFeaturesMemoryLessResources;
-		}
 		
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1))
 		{
@@ -77,21 +73,14 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		
 		if(Vers.majorVersion > 10)
 		{
-			Features |= EMetalFeaturesGPUCommandBufferTimes;
-			Features |= EMetalFeaturesLinearTextures;
 			Features |= EMetalFeaturesPrivateBufferSubAllocation;
-			Features |= EMetalFeaturesDeferredStoreActions | EMetalFeaturesCombinedDepthStencil;
 			
 			if(Vers.majorVersion >= 11)
 			{
 				Features |= EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
 				GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
-				
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
+
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
@@ -113,8 +102,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
 		{
-			Features |= EMetalFeaturesStencilView | EMetalFeaturesFunctionConstants | EMetalFeaturesGraphicsUAVs | EMetalFeaturesMemoryLessResources;
-			
 			if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 			{
 				Features |= EMetalFeaturesFences;
@@ -133,18 +120,12 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		
 		if(Vers.majorVersion > 10 || (Vers.majorVersion == 10 && Vers.minorVersion >= 3))
         {
-			Features |= EMetalFeaturesGPUCommandBufferTimes;
-
-			Features |= EMetalFeaturesLinearTextures;
-			// InjectCurves() does not work with this
-			//Features |= EMetalFeaturesEfficientBufferBlits;
+			// Turning the below option on will allocate more buffer memory which isn't generally desirable on iOS
+			// Features |= EMetalFeaturesEfficientBufferBlits;
+			
+			// These options are fine however as thye just change how we allocate small buffers
             Features |= EMetalFeaturesBufferSubAllocation;
 			Features |= EMetalFeaturesPrivateBufferSubAllocation;
-			
-			if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
-			{
-				Features |= EMetalFeaturesDeferredStoreActions | EMetalFeaturesCombinedDepthStencil;
-			}
 			
 			if(Vers.majorVersion >= 11)
 			{
@@ -152,18 +133,19 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				
 				Features |= EMetalFeaturesPresentMinDuration | EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
-				// Turn on Linear Texture UAVs! Avoids the need to have function-constants which reduces initial runtime shader compile time
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
-				
 				// Turn on Texture Buffers! These are faster on the GPU as we don't need to do out-of-bounds tests but require Metal 2.1 and macOS 10.14
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
-					Features |= EMetalFeaturesFences;
-					Features |= EMetalFeaturesHeaps;
+                    if (!FParse::Param(FCommandLine::Get(),TEXT("nometalfence")))
+                    {
+                        Features |= EMetalFeaturesFences;
+                    }
+                    
+                    if (!FParse::Param(FCommandLine::Get(),TEXT("nometalheap")))
+                    {
+                        Features |= EMetalFeaturesHeaps;
+                    }
 					
 					if (MaxShaderVersion >= 4)
 					{
@@ -180,23 +162,21 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	}
 	else if(Vers.majorVersion == 8 && Vers.minorVersion >= 3)
 	{
-		Features = EMetalFeaturesSeparateStencil | EMetalFeaturesSetBufferOffset;
+		Features = EMetalFeaturesSetBufferOffset;
 	}
 #else // Assume that Mac & other platforms all support these from the start. They can diverge later.
 	const bool bIsNVIDIA = [Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound;
-	Features = EMetalFeaturesSeparateStencil | EMetalFeaturesDepthClipMode | EMetalFeaturesResourceOptions | EMetalFeaturesDepthStencilBlitOptions | EMetalFeaturesCountingQueries | EMetalFeaturesBaseVertexInstance | EMetalFeaturesIndirectBuffer | EMetalFeaturesLayeredRendering | EMetalFeaturesShaderVersions | EMetalFeaturesCombinedDepthStencil | EMetalFeaturesCubemapArrays;
+	Features = EMetalFeaturesCountingQueries | EMetalFeaturesBaseVertexInstance | EMetalFeaturesIndirectBuffer | EMetalFeaturesLayeredRendering | EMetalFeaturesCubemapArrays;
 	if (!bIsNVIDIA)
 	{
 		Features |= EMetalFeaturesSetBufferOffset;
 	}
 	if (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2))
     {
-        Features |= EMetalFeaturesStencilView | EMetalFeaturesDepth16 | EMetalFeaturesTessellation | EMetalFeaturesFunctionConstants | EMetalFeaturesGraphicsUAVs | EMetalFeaturesDeferredStoreActions | EMetalFeaturesMSAADepthResolve | EMetalFeaturesMSAAStoreAndResolve;
+        Features |= EMetalFeaturesTessellation | EMetalFeaturesMSAADepthResolve | EMetalFeaturesMSAAStoreAndResolve;
         
         // Assume that set*Bytes only works on macOS Sierra and above as no-one has tested it anywhere else.
 		Features |= EMetalFeaturesSetBytes;
-		
-		Features |= EMetalFeaturesLinearTextures;
 		
 		FString DeviceName(Device.GetName());
 		// On earlier OS versions Intel Broadwell couldn't suballocate properly
@@ -224,12 +204,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesParallelRenderEncoders;
 			}
-		}
-
-		// Turn on Linear Texture UAVs! Avoids the need to have function-constants which reduces initial runtime shader compile time
-		if (MaxShaderVersion >= 3 && FPlatformMisc::MacOSXVersionCompare(10,13,5) >= 0)
-		{
-			Features |= EMetalFeaturesLinearTextureUAVs;
 		}
 
 		// Turn on Texture Buffers! These are faster on the GPU as we don't need to do out-of-bounds tests but require Metal 2.1 and macOS 10.14
@@ -271,7 +245,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
     
     if(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3) && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
     {
-        Features |= EMetalFeaturesMultipleViewports | EMetalFeaturesGPUCommandBufferTimes | EMetalFeaturesPipelineBufferMutability | EMetalFeaturesGPUCaptureManager | EMetalFeaturesAbsoluteTimeQueries | EMetalFeaturesSupportsVSyncToggle;
+        Features |= EMetalFeaturesMultipleViewports | EMetalFeaturesPipelineBufferMutability | EMetalFeaturesGPUCaptureManager;
 		
 		if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 		{
@@ -288,12 +262,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			Features |= EMetalFeaturesIABs;
 		}
     }
-	else
-	// Time query emulation breaks on AMD < 10.13 - disable by default until they can explain why, should work everywhere else.
-	if (!FString(Device.GetName()).Contains(TEXT("AMD")) || FParse::Param(FCommandLine::Get(),TEXT("metaltimequery")))
-	{
-		Features |= EMetalFeaturesAbsoluteTimeQueries;
-	}
 	
 	GMetalManagedUniformBuffers = FParse::Param(FCommandLine::Get(),TEXT("metalmanagedubs"));
 #endif
@@ -339,17 +307,13 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	PermittedOptions = 0;
 	PermittedOptions |= mtlpp::ResourceOptions::CpuCacheModeDefaultCache;
 	PermittedOptions |= mtlpp::ResourceOptions::CpuCacheModeWriteCombined;
-	if (Features & EMetalFeaturesResourceOptions)
 	{
 		PermittedOptions |= mtlpp::ResourceOptions::StorageModeShared;
 		PermittedOptions |= mtlpp::ResourceOptions::StorageModePrivate;
 #if PLATFORM_MAC
 		PermittedOptions |= mtlpp::ResourceOptions::StorageModeManaged;
 #else
-		if (Features & EMetalFeaturesMemoryLessResources)
-		{
-			PermittedOptions |= mtlpp::ResourceOptions::StorageModeMemoryless;
-		}
+		PermittedOptions |= mtlpp::ResourceOptions::StorageModeMemoryless;
 #endif
 		// You can't use HazardUntracked under the validation layer due to bugs in the layer when trying to create linear-textures/texture-buffers
 		if ((Features & EMetalFeaturesFences) && !(Features & EMetalFeaturesValidation))
@@ -456,12 +420,7 @@ FMetalFence* FMetalCommandQueue::CreateFence(ns::String const& Label) const
 				FMetalDebugFence* Fence = (FMetalDebugFence*)InnerFence.GetPtr();
 				Fence.label = String;
 			}
-			else
 	#endif
-			if(InnerFence && String)
-			{
-				InnerFence.SetLabel(String);
-			}
 		}
 		return InternalFence;
 	}
@@ -493,7 +452,7 @@ mtlpp::ResourceOptions FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::R
 {
 	NSUInteger NewOptions = (Options & PermittedOptions);
 #if PLATFORM_IOS // Swizzle Managed to Shared for iOS - we can do this as they are equivalent, unlike Shared -> Managed on Mac.
-	if ((Features & EMetalFeaturesResourceOptions) && (Options & (1 /*mtlpp::StorageMode::Managed*/ << mtlpp::ResourceStorageModeShift)))
+	if ((Options & (1 /*mtlpp::StorageMode::Managed*/ << mtlpp::ResourceStorageModeShift)))
 	{
 		NewOptions |= mtlpp::ResourceOptions::StorageModeShared;
 	}

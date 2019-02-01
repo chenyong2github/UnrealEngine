@@ -107,8 +107,6 @@ void FMetalCommandEncoder::Reset(void)
 		RenderPassDesc = nil;
 	}
 	
-	static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-	if (bDeferredStoreActions)
 	{
 		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 		{
@@ -504,8 +502,7 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 			if (RenderCommandEncoder)
 			{
 				check(!bSupportsFences || EncoderFence || !CommandList.IsImmediate());
-				static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-				if (bDeferredStoreActions && ParallelRenderCommandEncoder.GetPtr() == nil)
+				if (ParallelRenderCommandEncoder.GetPtr() == nil)
 				{
 					check(RenderPassDesc);
 					
@@ -611,8 +608,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 
 			if (ParallelRenderCommandEncoder && IsImmediate())
 			{
-				static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-				if (bDeferredStoreActions)
 				{
 					check(RenderPassDesc);
 					
@@ -1125,9 +1120,6 @@ void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor R
 	{
 		SafeReleaseMetalRenderPassDescriptor(RenderPassDesc);
 		RenderPassDesc = RenderPass;
-		
-		static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-		if (bDeferredStoreActions)
 		{
 			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 			{
@@ -1156,8 +1148,6 @@ void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor R
 void FMetalCommandEncoder::SetRenderPassStoreActions(mtlpp::StoreAction const* const ColorStore, mtlpp::StoreAction const DepthStore, mtlpp::StoreAction const StencilStore)
 {
 	check(RenderPassDesc);
-	static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-	if (bDeferredStoreActions)
 	{
 		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 		{

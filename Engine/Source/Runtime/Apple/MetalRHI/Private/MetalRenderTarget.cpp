@@ -605,7 +605,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 		SCOPE_CYCLE_COUNTER(STAT_MetalTexturePageOffTime);
 		
 		FMetalTexture TempTexture = nil;
-		if (ImmediateContext.Context->GetCommandQueue().SupportsFeature(EMetalFeaturesResourceOptions) && Texture.GetStorageMode() == mtlpp::StorageMode::Private)
+		if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
 		{
 #if PLATFORM_MAC
 			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Managed;
@@ -679,7 +679,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 			{
 				ImmediateContext.Context->CopyFromTextureToBuffer(Texture, 0, 0, Region.origin, Region.size, Buffer, 0, AlignedStride, BytesPerImage, mtlpp::BlitOption::None);
 			}
-			else if (GetMetalDeviceContext().SupportsFeature(EMetalFeaturesDepthStencilBlitOptions))
+			else
 			{
 				if (!InFlags.GetOutputStencil())
 				{
@@ -689,11 +689,6 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 				{
 					ImmediateContext.Context->CopyFromTextureToBuffer(Texture, 0, 0, Region.origin, Region.size, Buffer, 0, AlignedStride, BytesPerImage, mtlpp::BlitOption::StencilFromDepthStencil);
 				}
-			}
-			else
-			{
-				// not supported yet
-				NOT_SUPPORTED("RHIReadSurfaceData Format");
 			}
 			
 			//kick the current command buffer.
