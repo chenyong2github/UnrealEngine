@@ -659,7 +659,7 @@ void FWindowsPlatformMisc::SetGracefulTerminationHandler()
 		0xc3							// ret
 	};
 	DWORD PrevProtection;
-	if (VirtualProtect(SetCtrlCProc, sizeof(Patch), PAGE_READWRITE, &PrevProtection))
+	if (VirtualProtect(SetCtrlCProc, sizeof(Patch), PAGE_EXECUTE_READWRITE, &PrevProtection))
 	{
 		memcpy(SetCtrlCProc, Patch, sizeof(Patch));
 		VirtualProtect(SetCtrlCProc, sizeof(Patch), PrevProtection, &PrevProtection);
@@ -1678,7 +1678,7 @@ int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 
 	int32 MaxWorkerThreadsWanted = IsRunningDedicatedServer() ? MaxServerWorkerThreads : MaxWorkerThreads;
 	// need to spawn at least one worker thread (see FTaskGraphImplementation)
-	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 1);
+	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
 }
 
 bool FWindowsPlatformMisc::OsExecute(const TCHAR* CommandType, const TCHAR* Command, const TCHAR* CommandLine)
