@@ -3937,6 +3937,12 @@ static void	FindNetGUID( const TArray<FString>& Args, UWorld* InWorld )
 			continue;
 		}
 
+		if (!FNetGUIDCache::IsHistoryEnabled())
+		{
+			UE_LOG(LogNet, Warning, TEXT("FindNetGUID - GuidCacheHistory is not enabled"));
+			return;
+		}
+
 		if (Args.Num() <= 0)
 		{
 			// Display all
