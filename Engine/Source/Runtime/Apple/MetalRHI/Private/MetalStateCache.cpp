@@ -710,9 +710,7 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 					switch(DepthStencilFormat)
 					{
 						case mtlpp::PixelFormat::Depth32Float:
-#if !PLATFORM_MAC
-							StencilTexture = (DepthStencilPixelFormat == PF_DepthStencil) ? Surface.StencilTexture : nil;
-#endif
+							StencilTexture =  nil;
 							break;
 						case mtlpp::PixelFormat::Stencil8:
 							StencilTexture = DepthTexture;
