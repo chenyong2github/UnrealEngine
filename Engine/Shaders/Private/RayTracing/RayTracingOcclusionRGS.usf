@@ -20,6 +20,7 @@ RWTexture2D<float4> RWOcclusionMaskUAV;
 RWTexture2D<float> RWRayDistanceUAV;
 
 uint SamplesPerPixel;
+float NormalBias;
 
 float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 {
@@ -111,7 +112,7 @@ bool GenerateOcclusionRay(
 		float LightRadius = LightParameters.SourceRadius;
 
 		GenerateDirectionalLightOcclusionRay(
-			WorldPosition, WorldNormal,
+			WorldPosition, WorldNormal, NormalBias,
 			LightDirection, LightRadius,
 			RandSample,
 			/* out */ RayOrigin,

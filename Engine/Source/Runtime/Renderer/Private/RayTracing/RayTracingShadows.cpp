@@ -27,6 +27,12 @@ static FAutoConsoleVariableRef CVarRayTracingOcclusionSamplesPerPixel(
 	TEXT("Sets the samples-per-pixel for directional light occlusion (default = 1)")
 );
 
+static float GRayTracingOcclusionNormalBias = 0.3f;
+static FAutoConsoleVariableRef CVarRayTracingOcclusionNormalBias(
+	TEXT("r.Shadow.RayTracing.NormalBias"),
+	GRayTracingOcclusionNormalBias,
+	TEXT("Sets the max. normal bias used for offseting the ray start position along the normal for directional light occlusion (default = 0.3)")
+);
 static TAutoConsoleVariable<int32> CVarShadowUseDenoiser(
 	TEXT("r.Shadow.Denoiser"),
 	2,
@@ -52,7 +58,7 @@ class FOcclusionRGS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
-
+		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
@@ -108,6 +114,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingOcclusion(
 		PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenShadowMaskTexture));
 		PassParameters->RWRayDistanceUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayDistanceTexture));
 		PassParameters->SamplesPerPixel = GRayTracingOcclusionSamplesPerPixel;
+		PassParameters->NormalBias = GRayTracingOcclusionNormalBias;
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
 		PassParameters->TLAS = View.PerViewRayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;

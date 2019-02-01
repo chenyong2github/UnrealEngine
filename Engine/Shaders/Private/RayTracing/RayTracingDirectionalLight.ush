@@ -42,6 +42,7 @@ float2 ToConcentricMap(float2 RectangularCoords)
 void GenerateDirectionalLightOcclusionRay(
 	float3 WorldPosition,
 	float3 WorldNormal,
+	float MaxNormalBias,
 	float3 LightDirection,
 	float LightRadius,
 	float2 RandSample,
@@ -69,9 +70,20 @@ void GenerateDirectionalLightOcclusionRay(
 	float3 dPdv = cross(dPdu, N);
 	LightDirection += dPdu * DiskUV.x + dPdv * DiskUV.y;
 
-	// Apply normal perturbation when defining ray
-	RayOrigin = WorldPosition + WorldNormal * 0.01;
-	RayDirection = normalize(LightDirection);
+	// Apply normal perturbation when defining ray to:
+	// * avoid self intersection with current underlying triangle
+	// * hide mismatch between shading surface & geometric surface
+	//
+	// While using shading normal is not correct (we should use the 
+	// geometry normal, but it is not available atm/too costly to compute), 
+	// it is good enough for a cheap solution
+    const float3 NormalizedLightDirection = normalize(LightDirection);
+    const float MinBias = 0.01f;
+    const float MaxBias = max(MinBias, MaxNormalBias);
+    const float NormalBias = lerp(MaxBias, MinBias, saturate(dot(WorldNormal, NormalizedLightDirection)));
+
+    RayOrigin = WorldPosition + WorldNormal * NormalBias;
+    RayDirection = NormalizedLightDirection;
 	RayTMin = 0.0;
 	RayTMax = 1.0e27;
 }
