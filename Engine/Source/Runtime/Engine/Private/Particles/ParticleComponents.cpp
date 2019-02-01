@@ -54,6 +54,7 @@
 #include "ObjectEditorUtils.h"
 #endif
 
+#include "Particles/FXSystemPrivate.h"
 #include "Particles/Camera/ParticleModuleCameraOffset.h"
 #include "Particles/Collision/ParticleModuleCollision.h"
 #include "Particles/Color/ParticleModuleColorOverLife.h"
@@ -3757,7 +3758,11 @@ void UParticleSystemComponent::OnRegister()
 
 	if (World->Scene)
 	{
-		FXSystem = World->Scene->GetFXSystem();
+		FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
+		if (FXSystemInterface)
+		{
+			FXSystem = static_cast<FFXSystem*>(FXSystemInterface->GetInterface(FFXSystem::Name));
+		}
 	}
 
 	if (bAutoManageAttachment && !IsActive())
