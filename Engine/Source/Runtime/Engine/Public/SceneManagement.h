@@ -27,10 +27,6 @@
 #include "SceneUtils.h"
 #include "LightmapUniformShaderParameters.h"
 
-#ifndef ENVIRONMENT_TEXTURE_ARRAY_WORKAROUND // RHI_RAYTRACING
-#define ENVIRONMENT_TEXTURE_ARRAY_WORKAROUND	1
-#endif
-
 class FCanvas;
 class FLightMap;
 class FLightmapResourceCluster;
