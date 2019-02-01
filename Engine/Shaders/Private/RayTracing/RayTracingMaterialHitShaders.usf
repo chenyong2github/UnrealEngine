@@ -284,6 +284,7 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 	Payload.Roughness = Roughness;
 	Payload.Metallic = Metallic;
 	Payload.Ior = Refraction.x;
+    Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	//Payload.Opacity = Opacity;
     Payload.ShadingModelID = GetShadingModelID();
 

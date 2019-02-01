@@ -82,7 +82,7 @@ struct FMaterialClosestHitPayload
 	uint ShadingModelID;				//96	1byte	4bits
 	uint BlendingMode;					//100	0bytes	4bits (packed)
 	uint PrimitiveLightingChannelMask;	//104	0bytes	(removed)
-	float4 CustomData;					//120	0bytes	(removed)
+	float4 CustomData;					//120	4bytes	32bits	/* only xy are packed at the moment */
 	float GBufferAO;					//124	0bytes	(removed)
 	float3 IndirectIrradiance;			//136	0bytes	48bits	/* gbuffer only has float payload and there are truncation HLSL warnings */
 
@@ -107,6 +107,7 @@ struct FPackedMaterialClosestHitPayload
 	int MetallicAndSpecularAndRoughness;
 	int IorAndShadingModelIDAndBlendingModeAndHitKind;
 	int IndirectIrradiance[2];
+	int CustomData;
 };
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
@@ -134,6 +135,7 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.IndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
 	Output.IndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
 	Output.IndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
+	Output.CustomData = f32tof16(Input.CustomData.x) | (f32tof16(Input.CustomData.y) << 16);
 
 	return Output;
 }
@@ -163,6 +165,9 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	Output.IndirectIrradiance.x	= f16tof32(Input.IndirectIrradiance[0]);
 	Output.IndirectIrradiance.y	= f16tof32(Input.IndirectIrradiance[0] >> 16);
 	Output.IndirectIrradiance.z	= f16tof32(Input.IndirectIrradiance[1]);
+	Output.CustomData.x = f16tof32(Input.CustomData.x);
+	Output.CustomData.y = f16tof32(Input.CustomData.y >> 16);
+	Output.CustomData.zw = 0;
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
 	Output.SpecularColor = lerp(0.08 * Output.Specular.xxx, Output.BaseColor, Output.Metallic);
