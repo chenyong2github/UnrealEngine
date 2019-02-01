@@ -98,9 +98,9 @@ FSSFSignalSample DecodeInputSignal(const uint SignalBufferLayout, float4 RawSamp
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_INPUT)
 	{
-		OutSample.AccumulatedSampleCount = RawSample[0].g < 0 ? 0 : 1;
+		OutSample.AccumulatedSampleCount = RawSample[1].r < 0 ? 0 : 1;
 		OutSample.LeavingRayCount = OutSample.AccumulatedSampleCount * RawSample[0].r;
-		OutSample.PenumbraClosestHit = OutSample.AccumulatedSampleCount * RawSample[0].g;
+		OutSample.PenumbraClosestHit = OutSample.AccumulatedSampleCount * RawSample[1].r;
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_HISTORY)
 	{

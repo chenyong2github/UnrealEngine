@@ -7,7 +7,8 @@
 #include "RayTracingCommon.ush"
 
 RaytracingAccelerationStructure TLAS;
-RWTexture2D<float2> RWOcclusionMaskUAV;
+RWTexture2D<float> RWOcclusionMaskUAV;
+RWTexture2D<float> RWHitDistanceUAV;
 
 uint CalcLinearIndex(uint2 PixelCoord)
 {
@@ -131,6 +132,7 @@ void AmbientOcclusionRGS()
 			RawOutput.y = ClosestRayHitDistance;
 		}
 
-		RWOcclusionMaskUAV[PixelCoord] = RawOutput;
+		RWOcclusionMaskUAV[PixelCoord] = RawOutput.x;
+		RWHitDistanceUAV[PixelCoord] = RawOutput.y;
 	}
 }

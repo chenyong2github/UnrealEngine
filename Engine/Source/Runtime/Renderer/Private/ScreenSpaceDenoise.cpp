@@ -996,7 +996,8 @@ public:
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const override
 	{
 		FSSDSignalTextures InputSignal;
-		InputSignal.Texture0 = ReflectionInputs.MaskAndRayHitDistance;
+		InputSignal.Texture0 = ReflectionInputs.Mask;
+		InputSignal.Texture1 = ReflectionInputs.RayHitDistance;
 		
 		FSSDConstantPixelDensitySettings Settings;
 		Settings.SignalProcessing = ESignalProcessing::AmbientOcclusion;

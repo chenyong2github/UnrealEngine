@@ -78,6 +78,7 @@ public:
 		AmbientOcclusionParameter.Bind(Initializer.ParameterMap, TEXT("AmbientOcclusion"));
 
 		OcclusionMaskUAVParameter.Bind(Initializer.ParameterMap, TEXT("RWOcclusionMaskUAV"));
+		RayDistanceUAVParameter.Bind(Initializer.ParameterMap, TEXT("RWHitDistanceUAV"));
 	}
 
 	bool Serialize(FArchive& Ar)
@@ -88,6 +89,7 @@ public:
 		Ar << SceneTexturesParameter;
 		Ar << AmbientOcclusionParameter;
 		Ar << OcclusionMaskUAVParameter;
+		Ar << RayDistanceUAVParameter;
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -98,6 +100,7 @@ public:
 		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
 		FUniformBufferRHIParamRef AmbientOcclusionUniformBuffer,
 		FUnorderedAccessViewRHIParamRef OcclusionMaskUAV,
+		FUnorderedAccessViewRHIParamRef HitDistanceUAV,
 		uint32 Width, uint32 Height
 	)
 	{
@@ -114,6 +117,7 @@ public:
 		GlobalResources.Set(SceneTexturesParameter, SceneTexturesUniformBuffer);
 		GlobalResources.Set(AmbientOcclusionParameter, AmbientOcclusionUniformBuffer);
 		GlobalResources.Set(OcclusionMaskUAVParameter, OcclusionMaskUAV);
+		GlobalResources.Set(RayDistanceUAVParameter, HitDistanceUAV);
 
 		const uint32 RayGenShaderIndex = 0;
 		RHICmdList.RayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResources, Width, Height);
@@ -136,7 +140,8 @@ IMPLEMENT_SHADER_TYPE(, FAmbientOcclusionRGS, TEXT("/Engine/Private/RayTracing/R
 void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	FRHICommandListImmediate& RHICmdList,
 	const FLightSceneInfo* SkyLightSceneInfo,
-	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT
+	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionMask,
+	TRefCountPtr<IPooledRenderTarget>& HitDistance
 )
 {
 	SCOPED_DRAW_EVENT(RHICmdList, RayTracingAmbientOcclusion);
@@ -144,10 +149,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	FPooledRenderTargetDesc Desc = SceneContext.GetSceneColor()->GetDesc();
-	Desc.Format = PF_G16R16F;
+	Desc.Format = PF_R16F;
 	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, AmbientOcclusionRT, TEXT("RayTracingAmbientOcclusion"));
-	ClearUAV(RHICmdList, AmbientOcclusionRT->GetRenderTargetItem(), FLinearColor::Black);
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, AmbientOcclusionMask, TEXT("RayTracingAmbientOcclusion"));
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HitDistance, TEXT("RayTracingAmbientOcclusionHitDistance"));
+
+	// TODO: ClearUAV is useless.
+	ClearUAV(RHICmdList, AmbientOcclusionMask->GetRenderTargetItem(), FLinearColor::Black);
+	ClearUAV(RHICmdList, HitDistance->GetRenderTargetItem(), FLinearColor::Black);
 
 	// Add ambient occlusion parameters to uniform buffer
 	FAmbientOcclusionData AmbientOcclusionData;
@@ -171,15 +180,21 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 			View.ViewUniformBuffer,
 			SceneTexturesUniformBuffer,
 			AmbientOcclusionUniformBuffer,
-			AmbientOcclusionRT->GetRenderTargetItem().UAV,
+			AmbientOcclusionMask->GetRenderTargetItem().UAV,
+			HitDistance->GetRenderTargetItem().UAV,
 			ViewSize.X, ViewSize.Y
 		);
 	}
 
 	// Transition to graphics pipeline
 	FComputeFenceRHIRef Fence = RHICmdList.CreateComputeFence(TEXT("RayTracingAmbientOcclusion"));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, AmbientOcclusionRT->GetRenderTargetItem().UAV, Fence);
-	GVisualizeTexture.SetCheckPoint(RHICmdList, AmbientOcclusionRT);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, AmbientOcclusionMask->GetRenderTargetItem().UAV, Fence);
+
+	FComputeFenceRHIRef Fence2 = RHICmdList.CreateComputeFence(TEXT("RayTracingAmbientOcclusion"));
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, HitDistance->GetRenderTargetItem().UAV, Fence2);
+	
+	GVisualizeTexture.SetCheckPoint(RHICmdList, AmbientOcclusionMask);
+	GVisualizeTexture.SetCheckPoint(RHICmdList, HitDistance);
 }
 
 class FCompositeAmbientOcclusionPS : public FGlobalShader

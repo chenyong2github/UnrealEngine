@@ -97,10 +97,8 @@ public:
 	
 	/** All the inputs of the AO denoisers. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FAmbientOcclusionInputs, )
-		// G16R16F texture:
-		//  R: mask as [0; 1].
-		//  B: closest hit distance of the ray.
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MaskAndRayHitDistance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Mask)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** All the outputs of the AO denoiser may generate. */

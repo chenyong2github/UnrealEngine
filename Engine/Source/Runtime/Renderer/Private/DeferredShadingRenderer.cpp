@@ -1731,7 +1731,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			{
 				checkSlow(RHICmdList.IsOutsideRenderPass());
 				TRefCountPtr<IPooledRenderTarget> AmbientOcclusionRT;
-				RenderRayTracingAmbientOcclusion(RHICmdList, nullptr, AmbientOcclusionRT);
+				TRefCountPtr<IPooledRenderTarget> AmbientOcclusionHitDistanceRT;
+				RenderRayTracingAmbientOcclusion(RHICmdList, nullptr, AmbientOcclusionRT, AmbientOcclusionHitDistanceRT);
 				checkSlow(RHICmdList.IsOutsideRenderPass());
 				
 				int32 DenoiserMode = CVarUseAODenoiser.GetValueOnRenderThread();
@@ -1748,7 +1749,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
 
 					IScreenSpaceDenoiser::FAmbientOcclusionInputs DenoiserInputs;
-					DenoiserInputs.MaskAndRayHitDistance = GraphBuilder.RegisterExternalTexture(AmbientOcclusionRT, TEXT("AOMaskAndHitDistance"));
+					DenoiserInputs.Mask = GraphBuilder.RegisterExternalTexture(AmbientOcclusionRT, TEXT("AOMask"));
+					DenoiserInputs.RayHitDistance = GraphBuilder.RegisterExternalTexture(AmbientOcclusionHitDistanceRT, TEXT("AOHitDistance"));
 
 					const FViewInfo& View = Views[0];
 
