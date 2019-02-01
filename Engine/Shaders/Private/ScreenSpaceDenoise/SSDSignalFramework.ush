@@ -317,10 +317,8 @@ float3 GenerateReflectedRayDirection(
 		float3 TangentV = mul(TangentBasis, V);
 
 		float NoV = saturate(dot(V, WorldNormal));
-		
-		float4 Sample = ImportanceSampleGGX(E, Pow4(Roughness));
-		if (View.GeneralPurposeTweak > 0.5)
-			Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
+
+		float4 Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
 
 		float3 H = mul(Sample.xyz, TangentBasis);
 		float3 L = 2 * dot( V, H ) * H - V;
