@@ -303,7 +303,7 @@ namespace UnrealGameSync
 				else
 				{
 					List<string> ProjectLines;
-					if(PerforceClient.Print(NewSelectedClientFileName, out ProjectLines, Log))
+					if(!PerforceClient.Print(NewSelectedClientFileName, out ProjectLines, Log))
 					{
 						ErrorMessage = String.Format("Unable to get contents of {0}", NewSelectedClientFileName);
 						return false;
