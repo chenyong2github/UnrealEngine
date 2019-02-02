@@ -465,21 +465,6 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 			{
 				Velocity = FVector::ZeroVector;
 			}
-
-			if ( Ar.IsSaving() )
-			{
-				FObjectReplicator * RepData = &Channel->GetActorReplicationData();
-				uint8* Recent = RepData && RepData->RepState.IsValid() && RepData->RepState->StaticBuffer.Num() ? RepData->RepState->StaticBuffer.GetData() : NULL;
-				if ( Recent )
-				{
-					FRepMovement* RepMovement = RepData->RepLayout->GetShadowStateValue<FRepMovement>(Recent, GET_MEMBER_NAME_CHECKED(AActor, ReplicatedMovement));
-					check(RepMovement);
-
-					RepMovement->Location = LocalLocation;
-					RepMovement->Rotation = Rotation;
-					RepMovement->LinearVelocity = Velocity;
-				}
-			}
 		}
 
 		if ( Ar.IsLoading() )

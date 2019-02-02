@@ -338,6 +338,8 @@ struct FDemoSavedRepObjectState
 	TSharedPtr<FRepLayout> RepLayout;
 	FRepStateStaticBuffer PropertyData;
 
+	ENGINE_API ~FDemoSavedRepObjectState();
+
 	void CountBytes(FArchive& Ar) const
 	{
 		if (FRepLayout const * const LocalRepLayout = RepLayout.Get())
