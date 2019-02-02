@@ -444,7 +444,7 @@ int FPyWrapperStruct::SetPropertyValue(FPyWrapperStruct* InSelf, PyObject* InVal
 	bool OwnerIsTemplate = false;
 	if (const UObject* OwnerObject = PyUtil::GetOwnerObject((PyObject*)InSelf))
 	{
-		OwnerIsTemplate = OwnerObject->IsTemplate();
+		OwnerIsTemplate = OwnerObject->IsTemplate() || OwnerObject->IsAsset();
 	}
 
 	const FPyWrapperOwnerContext ChangeOwner = InNotifyChange ? FPyWrapperOwnerContext((PyObject*)InSelf, InPropDef.Prop) : FPyWrapperOwnerContext();
