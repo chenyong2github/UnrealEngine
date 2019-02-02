@@ -113,7 +113,7 @@ namespace UnrealGameSync
 				{
 					if(!PerforceClient.ConvertToLocalPath(NewSelectedClientFileName, out NewSelectedFileName, Log))
 					{
-						ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedFileName);
+						ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedClientFileName);
 						return false;
 					}
 				}
