@@ -742,7 +742,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		else if (Settings.SignalProcessing == ESignalProcessing::GlobalIllumination)
 		{
 			SignalProcessingDesc[0].Format = PF_FloatRGBA;
-			SignalProcessingDesc[1].Format = PF_G16R16F;
+			SignalProcessingDesc[1].Format = PF_R16F;
 			SignalTextureCount = 2;
 		}
 		else
