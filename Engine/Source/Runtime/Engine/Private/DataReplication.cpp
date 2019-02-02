@@ -17,6 +17,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/Engine.h"
 #include "Engine/NetConnection.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 DECLARE_CYCLE_STAT(TEXT("Custom Delta Property Rep Time"), STAT_NetReplicateCustomDeltaPropTime, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
@@ -1491,61 +1492,80 @@ void FObjectReplicator::Serialize(FArchive& Ar)
 
 void FObjectReplicator::CountBytes(FArchive& Ar) const
 {
-	Retirement.CountBytes(Ar);
-	RecentCustomDeltaState.CountBytes(Ar);
-	for (const auto& RecentCustomDeltaStatePair : RecentCustomDeltaState)
-	{
-		if (INetDeltaBaseState const * const BaseState = RecentCustomDeltaStatePair.Value.Get())
-		{
-			BaseState->CountBytes(Ar);
-		}
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FObjectReplicator::CountBytes");
 
-	CDOCustomDeltaState.CountBytes(Ar);
-	for (const auto& CDOCustomDeltaStatePair : CDOCustomDeltaState)
-	{
-		if (INetDeltaBaseState const * const BaseState = CDOCustomDeltaStatePair.Value.Get())
-		{
-			BaseState->CountBytes(Ar);
-		}
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Retirement", Retirement.CountBytes(Ar));
 
-	LifetimeCustomDeltaProperties.CountBytes(Ar);
-	LifetimeCustomDeltaPropertyConditions.CountBytes(Ar);
-	UnmappedCustomProperties.CountBytes(Ar);
-	RepNotifies.CountBytes(Ar);
-	RepNotifyMetaData.CountBytes(Ar);
-	for (const auto& MetaDataPair : RepNotifyMetaData)
-	{
-		MetaDataPair.Value.CountBytes(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentCustomDeltaState",
+		RecentCustomDeltaState.CountBytes(Ar);
+		for (const auto& RecentCustomDeltaStatePair : RecentCustomDeltaState)
+		{
+			if (INetDeltaBaseState const * const BaseState = RecentCustomDeltaStatePair.Value.Get())
+			{
+				BaseState->CountBytes(Ar);
+			}
+		}
+	);
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CDOCustomDeltaState",
+		CDOCustomDeltaState.CountBytes(Ar);
+		for (const auto& CDOCustomDeltaStatePair : CDOCustomDeltaState)
+		{
+			if (INetDeltaBaseState const * const BaseState = CDOCustomDeltaStatePair.Value.Get())
+			{
+				BaseState->CountBytes(Ar);
+			}
+		}
+	);
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeCustomDeltaProperties", LifetimeCustomDeltaProperties.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeCustomDeltaPropertyConditions", LifetimeCustomDeltaPropertyConditions.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UnmappedCustomProperties", UnmappedCustomProperties.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepNotifies", RepNotifies.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepNotifyMetaData",
+		RepNotifyMetaData.CountBytes(Ar);
+		for (const auto& MetaDataPair : RepNotifyMetaData)
+		{
+			MetaDataPair.Value.CountBytes(Ar);
+		}
+	);
 
 	// FObjectReplicator has a shared pointer to an FRepLayout, but since it's shared with
 	// the UNetDriver, the memory isn't tracked here.
 
-	if (RepState.IsValid())
-	{
-		const SIZE_T SizeOfRepState = sizeof(FRepState);
-		Ar.CountBytes(SizeOfRepState, SizeOfRepState);
-		RepState->CountBytes(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepState",
+		if (RepState.IsValid())
+		{
+			const SIZE_T SizeOfRepState = sizeof(FRepState);
+			Ar.CountBytes(SizeOfRepState, SizeOfRepState);
+			RepState->CountBytes(Ar);
+		}
+	);
 
-	ReferencedGuids.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ReferencedGuids", ReferencedGuids.CountBytes(Ar));
 
 	// ChangelistMgr points to a ReplicationChangelistMgr managed by the UNetDriver, so it's not tracked here
 
-	RemoteFuncInfo.CountBytes(Ar);
-	if (RemoteFunctions)
-	{
-		RemoteFunctions->CountMemory(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RemoveFuncInfo",
+		RemoteFuncInfo.CountBytes(Ar);
+		if (RemoteFunctions)
+		{
+			RemoteFunctions->CountMemory(Ar);
+		}
+	);
 
-	PendingLocalRPCs.CountBytes(Ar);
-	for (const FRPCPendingLocalCall& PendingRPC : PendingLocalRPCs)
-	{
-		PendingRPC.Buffer.CountBytes(Ar);
-		PendingRPC.UnmappedGuids.CountBytes(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingLocalRPCs",
+		PendingLocalRPCs.CountBytes(Ar);
+		for (const FRPCPendingLocalCall& PendingRPC : PendingLocalRPCs)
+		{
+			PendingRPC.Buffer.CountBytes(Ar);
+			PendingRPC.UnmappedGuids.CountBytes(Ar);
+		}
+	);
 }
 
 void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bunch )
