@@ -169,6 +169,15 @@ static TAutoConsoleVariable<int32> CVarUseAODenoiser(
 	TEXT(" 2: GScreenSpaceDenoiser witch may be overriden by a third party plugin (default)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(
+	TEXT("r.RayTracing.Translucency"),
+	0,
+	TEXT("0 to disable ray tracing translucency.\n")
+	TEXT(" 0: off\n")
+	TEXT(" 1: on"),
+	ECVF_RenderThreadSafe);
+
+
 
 DECLARE_CYCLE_STAT(TEXT("PostInitViews FlushDel"), STAT_PostInitViews_FlushDel, STATGROUP_InitViews);
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
@@ -2029,36 +2038,47 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_Translucency));
 
-		// For now there is only one resolve for all translucency passes. This can be changed by enabling the resolve in RenderTranslucency()
-		TRefCountPtr<IPooledRenderTarget> SceneColorCopy;
-		ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);
-
-		if (ViewFamily.AllowTranslucencyAfterDOF())
+#if RHI_RAYTRACING
+		const bool bRaytracedTranslucency = CVarRayTracingTranslucency.GetValueOnRenderThread() != 0;
+		if (bRaytracedTranslucency)
 		{
-			RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_StandardTranslucency, SceneColorCopy);
-			// Translucency after DOF is rendered now, but stored in the separate translucency RT for later use.
-			RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyAfterDOF, SceneColorCopy);
+			ResolveSceneColor(RHICmdList);
+			RayTraceTranslucency(RHICmdList);
 		}
-		else // Otherwise render translucent primitives in a single bucket.
+		else
+#endif
 		{
-			RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_AllTranslucency, SceneColorCopy);
-		}
-		ServiceLocalQueue();
+			// For now there is only one resolve for all translucency passes. This can be changed by enabling the resolve in RenderTranslucency()
+			TRefCountPtr<IPooledRenderTarget> SceneColorCopy;
+			ConditionalResolveSceneColorForTranslucentMaterials(RHICmdList, SceneColorCopy);
 
-		static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));
-		const bool bAllowDistortion = DisableDistortionCVar->GetValueOnAnyThread() != 1;
-
-		if (GetRefractionQuality(ViewFamily) > 0 && bAllowDistortion)
-		{
-			// To apply refraction effect by distorting the scene color.
-			// After non separate translucency as that is considered at scene depth anyway
-			// It allows skybox translucency (set to non separate translucency) to be refracted.
-			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_RenderDistortion));
-			RenderDistortion(RHICmdList);
+			if (ViewFamily.AllowTranslucencyAfterDOF())
+			{
+				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_StandardTranslucency, SceneColorCopy);
+				// Translucency after DOF is rendered now, but stored in the separate translucency RT for later use.
+				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_TranslucencyAfterDOF, SceneColorCopy);
+			}
+			else // Otherwise render translucent primitives in a single bucket.
+			{
+				RenderTranslucency(RHICmdList, ETranslucencyPass::TPT_AllTranslucency, SceneColorCopy);
+			}
 			ServiceLocalQueue();
-		}
 
-		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
+			static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));
+			const bool bAllowDistortion = DisableDistortionCVar->GetValueOnAnyThread() != 1;
+
+			if (GetRefractionQuality(ViewFamily) > 0 && bAllowDistortion)
+			{
+				// To apply refraction effect by distorting the scene color.
+				// After non separate translucency as that is considered at scene depth anyway
+				// It allows skybox translucency (set to non separate translucency) to be refracted.
+				RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_RenderDistortion));
+				RenderDistortion(RHICmdList);
+				ServiceLocalQueue();
+			}
+
+			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_AfterTranslucency));
+		}
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());

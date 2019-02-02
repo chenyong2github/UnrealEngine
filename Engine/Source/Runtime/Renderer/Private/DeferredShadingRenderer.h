@@ -480,6 +480,16 @@ private:
 	void RenderRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
 
+	void RayTraceTranslucency(FRHICommandListImmediate& RHICmdList);
+	void RayTraceTranslucencyView(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FRDGTextureRef* OutColorTexture,
+		FRDGTextureRef* OutRayHitDistanceTexture,
+		int32 SamplePerPixel,
+		int32 HeightFog,
+		float ResolutionFraction);
+
 	/** Path tracing functions. */
 	void RenderPathTracing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
