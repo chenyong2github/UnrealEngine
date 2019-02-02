@@ -86,10 +86,22 @@ float Luma_To_LumaLog(float x)
 	return max(x > 0 ? log2(x) : -100, -100);
 }
 
+/** Returns the exposure multiplier that should be used for the color transformation of the signal. */
+float GetSignalColorTransformationExposure()
+{
+	// TODO: expose that guy.
+	const float Tweak = 1;
+
+	float FrameExposureScale = EyeAdaptationLookup();
+
+	return FrameExposureScale * Tweak;
+}
+
+/** Returns the linear color space Luma with a 4 multiplier for ALU perf reasons. */
 float GetSignalLuma4(FSSFSignalSample Sample, const uint Basis)
 {
 	// TODO: should force this to be scalar load.
-	float FrameExposureScale = EyeAdaptationLookup();
+	float FrameExposureScale = GetSignalColorTransformationExposure();
 		
 	// TODO: exposes optimisation if sample is normalized.
 	const bool bIsNormalizedSample = false;
@@ -129,10 +141,8 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		return Sample;
 	}
 
-	const float Tweak = 1;
-
 	// TODO: should force this to be scalar load.
-	float FrameExposureScale = EyeAdaptationLookup() * Tweak;
+	float FrameExposureScale = GetSignalColorTransformationExposure();
 		
 	// TODO: exposes optimisation if sample is normalized.
 	const bool bIsNormalizedSample = false;
