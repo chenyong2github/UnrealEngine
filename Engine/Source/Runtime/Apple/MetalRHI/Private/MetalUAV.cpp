@@ -533,7 +533,7 @@ void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Un
 			FMetalBuffer Temp = nil;
 			bool bBufferPooled = false;
 			
-			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, mtlpp::StorageMode::Shared);
+			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
 			Temp = GetMetalDeviceContext().CreatePooledBuffer(Args);
 			bBufferPooled = true;
 			
@@ -888,7 +888,7 @@ void FMetalRHICommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef So
 			{
 				SafeReleaseMetalBuffer(ReadbackBuffer);
 			}
-			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), NumBytes, mtlpp::StorageMode::Shared);
+			FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), NumBytes, BUF_Dynamic, mtlpp::StorageMode::Shared);
 			ReadbackBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
 		}
 
