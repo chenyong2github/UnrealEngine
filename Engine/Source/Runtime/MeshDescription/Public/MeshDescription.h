@@ -12,6 +12,7 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/CustomVersion.h"
 #include "MeshDescription.generated.h"
 
 enum
@@ -922,6 +923,8 @@ private:
 
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;
+
+	FCustomVersionContainer CustomVersions;
 };
 
 
