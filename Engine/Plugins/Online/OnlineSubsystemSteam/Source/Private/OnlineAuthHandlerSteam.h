@@ -7,6 +7,7 @@
 #include "OnlineSubsystemSteamTypes.h"
 #include "PacketHandler.h"
 #include "HandlerComponentFactory.h"
+#include "IPAddress.h"
 #include "OnlineAuthHandlerSteam.generated.h"
 
 class FSteamAuthHandlerComponent : public HandlerComponent
@@ -23,8 +24,8 @@ public:
 	virtual void Incoming(FBitReader& Packet) override;
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) override;
 
-	virtual void IncomingConnectionless(const FString& Address, FBitReader& Packet) override {}
-	virtual void OutgoingConnectionless(const FString& Address, FBitWriter& Packet, FOutPacketTraits& Traits) override {}
+	virtual void IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet) override {}
+	virtual void OutgoingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitWriter& Packet, FOutPacketTraits& Traits) override {}
 
 	virtual void Tick(float DeltaTime) override;
 

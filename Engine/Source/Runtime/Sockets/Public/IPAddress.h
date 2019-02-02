@@ -400,3 +400,21 @@ struct FInternetAddrKeyMapFuncs : public BaseKeyFuncs<ValueType, TSharedRef<FInt
 	}
 };
 
+template<typename ValueType>
+struct FInternetAddrConstKeyMapFuncs : public BaseKeyFuncs<ValueType, TSharedRef<const FInternetAddr>, false>
+{
+	static FORCEINLINE const TSharedRef<const FInternetAddr>& GetSetKey(const TPair<TSharedRef<const FInternetAddr>, ValueType>& Element)
+	{
+		return Element.Key;
+	}
+
+	static FORCEINLINE bool Matches(const TSharedRef<const FInternetAddr>& A, const TSharedRef<const FInternetAddr>& B)
+	{
+		return *A == *B;
+	}
+
+	static FORCEINLINE uint32 GetKeyHash(const TSharedRef<const FInternetAddr>& Key)
+	{
+		return Key->GetTypeHash();
+	}
+};

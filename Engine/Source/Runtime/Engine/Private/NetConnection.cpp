@@ -34,6 +34,7 @@
 #include "UObject/ObjectKey.h"
 #include "UObject/UObjectIterator.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "SocketSubsystem.h"
 
 static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime( TEXT( "net.PingExcludeFrameTime" ), 0, TEXT( "Calculate RTT time between NIC's of server and client." ) );
 
@@ -97,6 +98,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,   OwningActor			( nullptr )
 ,	MaxPacket			( 0 )
 ,	InternalAck			( false )
+,	RemoteAddr			( nullptr )
 ,	MaxPacketHandlerBits ( 0 )
 ,	State				( USOCK_Invalid )
 ,	Handler()
@@ -320,6 +322,11 @@ void UNetConnection::InitHandler()
 		{
 			Handler::Mode Mode = Driver->ServerConnection != nullptr ? Handler::Mode::Client : Handler::Mode::Server;
 
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Handler->InitializeAddressSerializer([this](const FString& InAddress){
+				return Driver->GetSocketSubsystem()->GetAddressFromString(InAddress);
+			});
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Handler->InitializeDelegates(FPacketHandlerLowLevelSendTraits::CreateUObject(this, &UNetConnection::LowLevelSend));
 			Handler->NotifyAnalyticsProvider(Driver->AnalyticsProvider, Driver->AnalyticsAggregator);
 			Handler->Initialize(Mode, MaxPacket * 8, false, nullptr, nullptr, Driver->NetDriverName);

@@ -199,14 +199,14 @@ void UOculusNetDriver::TickDispatch(float DeltaTime)
 			}
 
 			UE_LOG(LogNet, Verbose, TEXT("Checking challenge from: %llu"), PeerID);
+			TSharedPtr<FInternetAddr> OculusAddr = MakeShareable(new FInternetAddrOculus(PeerID));
 			StatelessConnect = StatelessConnectComponent.Pin();
-			FString IncomingAddress = FString::Printf(TEXT("%llu.oculus"), PeerID);
 
 			const ProcessedPacket UnProcessedPacket =
-				ConnectionlessHandler->IncomingConnectionless(IncomingAddress, Data, PacketSize);
+				ConnectionlessHandler->IncomingConnectionless(OculusAddr, Data, PacketSize);
 
 			bool bRestartedHandshake = false;
-			bPassedChallenge = !UnProcessedPacket.bError && StatelessConnect->HasPassedChallenge(IncomingAddress, bRestartedHandshake);
+			bPassedChallenge = !UnProcessedPacket.bError && StatelessConnect->HasPassedChallenge(OculusAddr, bRestartedHandshake);
 
 			if (bPassedChallenge)
 			{
@@ -224,9 +224,7 @@ void UOculusNetDriver::TickDispatch(float DeltaTime)
 				UOculusNetConnection* Connection = NewObject<UOculusNetConnection>(NetConnectionClass);
 				check(Connection);
 
-				auto OculusAddr = new FInternetAddrOculus(PeerID);
-				TSharedRef<FInternetAddr> InternetAddr = MakeShareable(OculusAddr);
-				Connection->InitRemoteConnection(this, nullptr, FURL(), *InternetAddr, ovr_Net_IsConnected(PeerID) ? USOCK_Open : USOCK_Pending);
+				Connection->InitRemoteConnection(this, nullptr, FURL(), *OculusAddr, ovr_Net_IsConnected(PeerID) ? USOCK_Open : USOCK_Pending);
 
 				AddClientConnection(Connection);
 
@@ -287,13 +285,13 @@ void UOculusNetDriver::TickDispatch(float DeltaTime)
 	}
 }
 
-void UOculusNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
+void UOculusNetDriver::LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
 {
 	if (bIsPassthrough)
 	{
 		return UIpNetDriver::LowLevelSend(Address, Data, CountBits, Traits);
 	}
-	FInternetAddrOculus OculusAddr(FURL(nullptr, *Address, ETravelType::TRAVEL_Absolute));
+	FInternetAddrOculus OculusAddr(FURL(nullptr, *Address->ToString(false), ETravelType::TRAVEL_Absolute));
 	ovrID PeerID = OculusAddr.GetID();
 	if (ovr_Net_IsConnected(PeerID))
 	{

@@ -274,6 +274,9 @@ class UNetConnection : public UPlayer
 	uint32 InternalAck:1;					// Internally ack all packets, for 100% reliable connections.
 
 	struct FURL			URL;				// URL of the other side.
+	
+	/** The remote address of this connection, typically generated from the URL. */
+	TSharedPtr<FInternetAddr>	RemoteAddr;
 
 	// Track each type of bit used per-packet for bandwidth profiling
 
@@ -741,14 +744,28 @@ public:
 	ENGINE_API virtual void HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection );
 
 	/** @return the address of the connection as an integer */
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr as it allows direct access to the RemoteAddr and allows for dynamic address sizing.")
 	virtual int32 GetAddrAsInt(void)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (RemoteAddr.IsValid())
+		{
+			uint32 OutAddr = 0;
+			// Get the host byte order ip addr
+			RemoteAddr->GetIp(OutAddr);
+			return (int32)OutAddr;
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return 0;
 	}
 
 	/** @return the port of the connection as an integer */
 	virtual int32 GetAddrPort(void)
 	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->GetPort();
+		}
 		return 0;
 	}
 
@@ -758,7 +775,16 @@ public:
 	 *
 	 * @return	The platform specific FInternetAddr containing this connections address
 	 */
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() PURE_VIRTUAL(UNetConnection::GetInternetAddr,return TSharedPtr<FInternetAddr>(););
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr to safely get the FInternetAddr tied to this connection")
+	virtual TSharedPtr<FInternetAddr> GetInternetAddr() { return ConstCastSharedPtr<FInternetAddr>(GetRemoteAddr()); }
+
+	/**
+	 * Return the platform specific FInternetAddr type, containing this connections address.
+	 * If nullptr is returned, connection is not added to MappedClientConnections, and can't receive net packets which depend on this.
+	 *
+	 * @return	The platform specific FInternetAddr containing this connections address
+	 */
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() { return RemoteAddr; }
 
 	/** closes the connection (including sending a close notify across the network) */
 	ENGINE_API void Close();
@@ -873,7 +899,14 @@ public:
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
 	* For IP connections this is an IP Address and port, for steam this is a SteamID
 	*/
-	ENGINE_API virtual FString RemoteAddressToString() PURE_VIRTUAL(UNetConnection::RemoteAddressToString, return TEXT("Error"););
+	ENGINE_API virtual FString RemoteAddressToString()
+	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->ToString(true);
+		}
+		return TEXT("Invalid");
+	}
 	
 	
 	/** Called by UActorChannel. Handles creating a new replicator for an actor */
@@ -1194,7 +1227,6 @@ public:
 	virtual FString LowLevelGetRemoteAddress(bool bAppendPort=false) override { return FString(); }
 	virtual bool ClientHasInitializedLevelFor(const AActor* TestActor) const { return true; }
 
-
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() override { return TSharedPtr<FInternetAddr>(); }
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
 };
 

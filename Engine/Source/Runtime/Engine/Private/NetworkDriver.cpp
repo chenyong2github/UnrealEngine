@@ -63,6 +63,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/LevelScriptActor.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "SocketSubsystem.h"
+#include "AddressInfoTypes.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -266,6 +268,7 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 #endif
 ,	ProcessQueuedBunchesCurrentFrameMilliseconds(0.0f)
 ,	DDoS()
+,	LocalAddr(nullptr)
 ,	NetworkObjects(new FNetworkObjectList)
 ,	LagState(ENetworkLagState::NotLagging)
 ,	DuplicateLevelID(INDEX_NONE)
@@ -1314,6 +1317,22 @@ void UNetDriver::PostTickFlush()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UNetDriver::LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits)
+{
+	if (GetSocketSubsystem() != nullptr)
+	{
+		TSharedPtr<FInternetAddr> NetAddress = GetSocketSubsystem()->GetAddressFromString(*Address);
+		if (NetAddress.IsValid())
+		{
+			LowLevelSend(NetAddress, Data, CountBits, Traits);
+			return;
+		}
+	}
+	UE_LOG(LogNet, Warning, TEXT("Could not infer the address to use for LowLevelSend, please use the one that takes an FInternetAddr to avoid this problem"));
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 bool UNetDriver::InitConnectionClass(void)
 {
 	if (NetConnectionClass == NULL && NetConnectionClassName != TEXT(""))
@@ -1403,6 +1422,11 @@ void UNetDriver::InitConnectionlessHandler()
 
 		if (ConnectionlessHandler.IsValid())
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ConnectionlessHandler->InitializeAddressSerializer([this](const FString& InAddress) {
+				return GetSocketSubsystem()->GetAddressFromString(InAddress);
+			});
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
 			ConnectionlessHandler->Initialize(Handler::Mode::Server, MAX_PACKET_SIZE, true, nullptr, nullptr, NetDriverName);
 
@@ -2389,6 +2413,10 @@ void UNetDriver::LowLevelDestroy()
 	SetWorld(NULL);
 }
 
+FString UNetDriver::LowLevelGetNetworkNumber()
+{
+	return LocalAddr.IsValid() ? LocalAddr->ToString(true) : FString(TEXT(""));
+}
 
 #if !UE_BUILD_SHIPPING
 bool UNetDriver::HandleSocketsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
@@ -4742,20 +4770,17 @@ void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
 
 	ClientConnections.Add(NewConnection);
 
-	TSharedPtr<FInternetAddr> ConnAddr = NewConnection->GetInternetAddr();
+	TSharedPtr<const FInternetAddr> ConnAddr = NewConnection->GetRemoteAddr();
 
 	if (ConnAddr.IsValid())
 	{
-		TSharedRef<FInternetAddr> ConnAddrRef = ConnAddr.ToSharedRef();
-
-		MappedClientConnections.Add(ConnAddrRef, NewConnection);
-
+		MappedClientConnections.Add(ConnAddr.ToSharedRef(), NewConnection);
 
 		// On the off-chance of the same IP:Port being reused, check RecentlyDisconnectedClients
 		int32 RecentDisconnectIdx = RecentlyDisconnectedClients.IndexOfByPredicate(
-			[&ConnAddrRef](const FDisconnectedClient& CurElement)
+			[&ConnAddr](const FDisconnectedClient& CurElement)
 			{
-				return *ConnAddrRef == *CurElement.Address;
+				return *ConnAddr == *CurElement.Address;
 			});
 
 		if (RecentDisconnectIdx != INDEX_NONE)
@@ -4867,28 +4892,28 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 {
 	verify(ClientConnections.Remove(ClientConnectionToRemove) == 1);
 
-	TSharedPtr<FInternetAddr> AddrToRemove = ClientConnectionToRemove->GetInternetAddr();
+	TSharedPtr<const FInternetAddr> AddrToRemove = ClientConnectionToRemove->GetRemoteAddr();
 
 	if (AddrToRemove.IsValid())
 	{
-		TSharedRef<FInternetAddr> AddrRef = AddrToRemove.ToSharedRef();
+		TSharedRef<const FInternetAddr> ConstAddrRef = AddrToRemove.ToSharedRef();
 
 		if (RecentlyDisconnectedTrackingTime > 0)
 		{
-			UNetConnection** FoundVal = MappedClientConnections.Find(AddrRef);
+			UNetConnection** FoundVal = MappedClientConnections.Find(ConstAddrRef);
 
 			// Mark recently disconnected clients as nullptr (don't wait for GC), and keep the MappedClientConections entry for a while.
 			// Required for identifying/ignoring packets from recently disconnected clients, with the same performance as for NetConnection's (important for DDoS detection)
 			if (ensure(FoundVal != nullptr))
 			{
-				RecentlyDisconnectedClients.Add(FDisconnectedClient(AddrRef, FPlatformTime::Seconds()));
+				RecentlyDisconnectedClients.Add(FDisconnectedClient(ConstAddrRef, FPlatformTime::Seconds()));
 
 				*FoundVal = nullptr;
 			}
 		}
 		else
 		{
-			verify(MappedClientConnections.Remove(AddrRef) == 1);
+			verify(MappedClientConnections.Remove(ConstAddrRef) == 1);
 		}
 	}
 

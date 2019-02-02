@@ -193,7 +193,7 @@ StatelessConnectHandlerComponent::StatelessConnectHandlerComponent()
 	, HandshakeSecret()
 	, ActiveSecret(255)
 	, LastSecretUpdateTimestamp(0.f)
-	, LastChallengeSuccessAddress(TEXT(""))
+	, LastChallengeSuccessAddress(nullptr)
 	, LastServerSequence(0)
 	, LastClientSequence(0)
 	, LastClientSendTimestamp(0.0)
@@ -219,8 +219,6 @@ void StatelessConnectHandlerComponent::CountBytes(FArchive& Ar) const
 	{
 		HandshakeSecret[i].CountBytes(Ar);
 	}
-
-	LastChallengeSuccessAddress.CountBytes(Ar);
 }
 
 void StatelessConnectHandlerComponent::NotifyHandshakeBegin()
@@ -286,7 +284,7 @@ void StatelessConnectHandlerComponent::NotifyHandshakeBegin()
 	}
 }
 
-void StatelessConnectHandlerComponent::SendConnectChallenge(const FString& ClientAddress)
+void StatelessConnectHandlerComponent::SendConnectChallenge(TSharedPtr<const FInternetAddr> ClientAddress)
 {
 	if (Driver != nullptr)
 	{
@@ -425,7 +423,7 @@ void StatelessConnectHandlerComponent::SendChallengeResponse(uint8 InSecretId, f
 	}
 }
 
-void StatelessConnectHandlerComponent::SendChallengeAck(const FString& ClientAddress, uint8 InCookie[COOKIE_BYTE_SIZE])
+void StatelessConnectHandlerComponent::SendChallengeAck(TSharedPtr<const FInternetAddr> ClientAddress, uint8 InCookie[COOKIE_BYTE_SIZE])
 {
 	if (Driver != nullptr)
 	{
@@ -489,7 +487,7 @@ void StatelessConnectHandlerComponent::SendChallengeAck(const FString& ClientAdd
 	}
 }
 
-void StatelessConnectHandlerComponent::SendRestartHandshakeRequest(const FString& ClientAddress)
+void StatelessConnectHandlerComponent::SendRestartHandshakeRequest(const TSharedPtr<const FInternetAddr> ClientAddress)
 {
 	if (Driver != nullptr)
 	{
@@ -716,7 +714,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 				// In this codepath, this component is linked to a UNetConnection, and the Last* values below, cache the handshake info.
 #if !UE_BUILD_SHIPPING
 				UE_LOG(LogHandshake, Log, TEXT("Received unexpected post-connect handshake packet - resending ack for LastChallengeSuccessAddress %s and LastCookie %s."),
-						*LastChallengeSuccessAddress, *FString::FromBlob(AuthorisedCookie, COOKIE_BYTE_SIZE));
+						*LastChallengeSuccessAddress->ToString(true), *FString::FromBlob(AuthorisedCookie, COOKIE_BYTE_SIZE));
 #endif
 
 				SendChallengeAck(LastChallengeSuccessAddress, AuthorisedCookie);
@@ -751,11 +749,11 @@ void StatelessConnectHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTr
 	Packet = MoveTemp(NewPacket);
 }
 
-void StatelessConnectHandlerComponent::IncomingConnectionless(const FString& Address, FBitReader& Packet)
+void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet)
 {
 	bool bHandshakePacket = !!Packet.ReadBit() && !Packet.IsError();
 
-	LastChallengeSuccessAddress.Empty();
+	LastChallengeSuccessAddress = nullptr;
 
 	if (bHandshakePacket)
 	{
@@ -891,16 +889,17 @@ bool StatelessConnectHandlerComponent::ParseHandshakePacket(FBitReader& Packet, 
 	return bValidPacket;
 }
 
-void StatelessConnectHandlerComponent::GenerateCookie(FString ClientAddress, uint8 SecretId, float Timestamp, uint8 (&OutCookie)[20])
+void StatelessConnectHandlerComponent::GenerateCookie(TSharedPtr<const FInternetAddr> ClientAddress, uint8 SecretId, float Timestamp, uint8 (&OutCookie)[20])
 {
 	// @todo #JohnB: Add cpu stats tracking, like what Oodle does upon compression
 	//					NOTE: Being serverside, will only show up in .uprof, not on any 'stat' commands. Still necessary though.
 
 	TArray<uint8> CookieData;
 	FMemoryWriter CookieArc(CookieData);
+	FString ClientAddressString(ClientAddress->ToString(true));
 
 	CookieArc << Timestamp;
-	CookieArc << ClientAddress;
+	CookieArc << ClientAddressString;
 
 	FSHA1::HMACBuffer(HandshakeSecret[!!SecretId].GetData(), SECRET_BYTE_SIZE, CookieData.GetData(), CookieData.Num(), OutCookie);
 }
