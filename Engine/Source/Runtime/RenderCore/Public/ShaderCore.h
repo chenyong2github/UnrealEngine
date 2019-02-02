@@ -95,6 +95,12 @@ extern RENDERCORE_API bool AllowDebugViewmodes();
 /** Returns true if debug viewmodes are allowed for the given platform. */
 extern RENDERCORE_API bool AllowDebugViewmodes(EShaderPlatform Platform);
 
+/** Returns true if debug information should be kept for a given platform. */
+extern SHADERCORE_API bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);
+
+/** Returns true if debug information should be exported to separate files for a given platform . */
+extern SHADERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
+
 struct FShaderTarget
 {
 	uint32 Frequency : SF_NumBits;
