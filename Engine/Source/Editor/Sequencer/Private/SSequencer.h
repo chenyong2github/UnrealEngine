@@ -442,6 +442,9 @@ private:
 	/** Controls how fast Spinboxes change values. */
 	double GetSpinboxDelta() const;
 
+	/** Get minimum desired width of the current time spin box */
+	float GetPlayTimeMinDesiredWidth() const;
+
 	bool GetIsSequenceReadOnly() const;
 	void OnSetSequenceReadOnly(ECheckBoxState CheckBoxState);
 

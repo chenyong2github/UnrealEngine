@@ -76,6 +76,7 @@
 #include "SequencerLog.h"
 #include "MovieSceneCopyableBinding.h"
 #include "MovieSceneCopyableTrack.h"
+#include "Fonts/FontMeasure.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -395,6 +396,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.TypeInterface(NumericTypeInterface)
 									.Delta(this, &SSequencer::GetSpinboxDelta)
 									.LinearDeltaSensitivity(25)
+									.MinDesiredWidth(this, &SSequencer::GetPlayTimeMinDesiredWidth)
 								]
 							]
 						]
@@ -2494,6 +2496,24 @@ double SSequencer::GetSpinboxDelta() const
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	return Sequencer->GetDisplayRateDeltaFrameCount();
 }
+
+float SSequencer::GetPlayTimeMinDesiredWidth() const
+{
+	TRange<double> ViewRange = SequencerPtr.Pin()->GetViewRange();
+
+	FString LowerBoundStr = NumericTypeInterface->ToString(ViewRange.GetLowerBoundValue());
+	FString UpperBoundStr = NumericTypeInterface->ToString(ViewRange.GetUpperBoundValue());
+
+	const FSlateFontInfo NormalFont = FCoreStyle::Get().GetFontStyle(TEXT("NormalFont"));
+	
+	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+	FVector2D LowerTextSize = FontMeasureService->Measure(LowerBoundStr, NormalFont);
+	FVector2D UpperTextSize = FontMeasureService->Measure(UpperBoundStr, NormalFont);
+
+	return FMath::Max(LowerTextSize.X, UpperTextSize.X);
+}
+
 
 bool SSequencer::GetIsSequenceReadOnly() const
 {

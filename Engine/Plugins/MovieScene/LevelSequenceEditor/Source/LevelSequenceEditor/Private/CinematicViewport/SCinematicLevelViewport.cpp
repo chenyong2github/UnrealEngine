@@ -28,6 +28,7 @@
 #include "CineCameraComponent.h"
 #include "Math/UnitConversion.h"
 #include "LevelEditorSequencerIntegration.h"
+#include "Fonts/FontMeasure.h"
 
 
 #define LOCTEXT_NAMESPACE "SCinematicLevelViewport"
@@ -212,6 +213,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 					return UIData.OuterResolution.AsDecimal() * UIData.OuterPlayRate.AsInterval(); 
 				})
 				.LinearDeltaSensitivity(25)
+				.MinDesiredWidth(this, &SCinematicLevelViewport::GetPlayTimeMinDesiredWidth)
 			]
 		]
 
@@ -496,6 +498,29 @@ double SCinematicLevelViewport::GetTime() const
 		return Sequencer->GetLocalTime().Time.GetFrame().Value;
 	}
 	return 0;
+}
+
+float SCinematicLevelViewport::GetPlayTimeMinDesiredWidth() const
+{
+	ISequencer* Sequencer = GetSequencer();
+	if (Sequencer)
+	{
+		TRange<double> ViewRange = Sequencer->GetViewRange();
+
+		FString LowerBoundStr = Sequencer->GetNumericTypeInterface()->ToString(ViewRange.GetLowerBoundValue());
+		FString UpperBoundStr = Sequencer->GetNumericTypeInterface()->ToString(ViewRange.GetUpperBoundValue());
+
+		const FSlateFontInfo PlayTimeFont = FEditorStyle::GetFontStyle("Sequencer.FixedFont");
+
+		const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		FVector2D LowerTextSize = FontMeasureService->Measure(LowerBoundStr, PlayTimeFont);
+		FVector2D UpperTextSize = FontMeasureService->Measure(UpperBoundStr, PlayTimeFont);
+
+		return FMath::Max(LowerTextSize.X, UpperTextSize.X);
+	}
+
+	return 0.f;
 }
 
 void SCinematicLevelViewport::CacheDesiredViewportSize(const FGeometry& AllottedGeometry)
