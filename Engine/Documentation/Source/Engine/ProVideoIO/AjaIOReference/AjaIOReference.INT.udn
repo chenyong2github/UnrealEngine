@@ -1,0 +1,199 @@
+Availability: Public
+Crumbs: 
+Title: AJA Media Reference
+Description: Describes the options and settings exposed by the AJA Media Framework components.
+Type: 
+Version: 4.20
+Parent: Engine/ProVideoIO
+Order: 
+Tags: Reference
+Tags: Early Access
+Tags: professional video
+
+
+This page describes the options and settings exposed on AJA Media Framework objects.
+
+## Supported AJA Cards and Software
+
+The AJA Media Source and AJA Media Output have been tested with the following cards, using **Version 14.X** of the AJA Desktop Software:
+
+*   **Kona 4** (in 4K mode, not UFC mode)
+*   **Corvid 44**
+
+Other devices may or may not work as expected.
+
+**Version 15** of the AJA Desktop Software is not yet supported.
+
+## AJA Media Source Settings
+
+Each AJA Media Source object that you create exposes the following configuration settings.
+
+  
+| **Property** | **Description** |
+| --- | --- |
+| **Configuration Options**| | 
+| [INCLUDE:#excerpt_0] | |
+| **Device** | Sets the AJA device that this Media Source will use to bring video into the Unreal Engine. If you have multiple cards or devices attached to your computer, you can choose which one to use here. |
+| **Source** | Sets the port or SDI connection on the specified device that this Media Source will use to bring video into the Unreal Engine. Note that only single-link connections are supported. |
+| **Resolution** | Sets the resolution of the incoming video feed. Note that this must match the actual video feed exactly. |
+| **Standard** | Sets whether the incoming video feed is progressive or interlaced. Note that this must match the actual video feed exactly. |
+| **Frame Rate** | Sets the number of video frames per second in the incoming feed. Note that this must match the actual video feed exactly. |
+| **Other AJA Options** | |
+| **Timecode Format** | Specifies the type of timecode that accompanies the video signal. |
+| **Capture with Auto Circulating** | [INCLUDE:#excerpt_1] |
+| **Ancillary** | |
+| **Capture Ancillary** | Determines whether the Unreal Engine captures ancillary metadata that accompanies the video signal. |
+| **Max Num Ancillary Frame Buffer** | Sets the maximum number of frames of ancillary data the Unreal Engine will store in memory at any given time. If the input video jumps or hitches, you can try raising this value. |
+| **Audio** | |
+| **Capture Audio** | Determines whether the Unreal Engine captures audio from the Media Port. |
+| **Audio Channel** | Specifies the audio channel that contains the signal you want the Unreal Engine to capture. |
+| **Max Num Audio Frame Buffer** | Sets the maximum number of frames of audio data the Unreal Engine will store in memory at any given time. If the input video jumps or hitches, you can try raising this value. |
+| **Video** | |
+| **Capture Video** | Determines whether the Unreal Engine captures video from the Media Port. |
+| **Color Format** | Determines the order of the color channels that make up each pixel in the input video, and the number of bits in each channel. |
+| **Max Num Video Frame Buffer** | Sets the maximum number of frames of video data the Unreal Engine will store in memory at any given time. If the input video jumps or hitches, you can try raising this value. |
+| **Debug** | |
+| **Log Drop Frame** | When enabled, the Unreal Engine prints a message to its output log every time it detects a dropped frame in the input feed. |
+| **Encode Timecode in Texel** | When enabled, the engine embeds the timecode of each frame into the captured video. You can use this to check that the timecode for each frame of input matches the values you're expecting. See [Timecode Texel Encoding](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding). |
+| **Synchronization** | |
+| **Synchronize with Engine's Timecode** | By default, the Unreal Engine attempts to play the video frames as they come in. Enable this setting to buffer incoming frames, and try to align them with the Unreal Engine's internal timecode. If the timecode of any buffered frame matches the Unreal Engine's internal timecode for any frame, the video input will be synchronized with from that frame forward. |
+| **Platforms** | |
+| **Player Overrides** | Leave these options at their default values for AJA Media Sources. |
+
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+Captures video, audio, and ancillary data at the same time. This may decrease your transfer performance, but it guarantees that all data for each frame will be synchronized together.  
+If you experience problems with latency, you can try disabling this option.
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+
+![Aja Media Source Configuration](aja-source-settings.png "Aja Media Source Configuration")
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+## AJA Media Output Settings
+
+Each AJA Media Output object that you create exposes the following configuration settings.
+
+  
+| **Property** | **Description** |
+| --- | --- |
+| **Configuration Settings** | |
+| [INCLUDE:#excerpt_2]| |
+| **Output Type** | [INCLUDE:#excerpt_3] |
+| **Device** | Sets the AJA device that this Media Source will send its video feed to. If you have multiple cards or devices attached to your computer, you can choose which one to use here |
+| **Source** | Sets the port or SDI connection on the specified **Device **that this Media Source will send video to. Note that only single-link connections are supported. |
+| **Resolution** | Sets the resolution of the video feed produced by this Media Output. |
+| **Standard** | Sets whether the output feed produced by this Media Output is progressive or interlaced. |
+| **Frame Rate** | Sets the number of frames per second in the video feed produced by this Media Output. |
+| **Key Source** | Sets the port that will receive the key images from the Unreal Engine, when the **Output Type** is set to **Fill and Key**. |
+| **Reference** | [INCLUDE:#excerpt_4] |
+| **Sync Source** | When the **Output Reference** is set to **Input**, this setting specifies which input port the AJA card should use as its output reference. The sync port must be on the same device as the fill port. |
+| **Output** | |
+| **Output with Auto Circulating** | [INCLUDE:#excerpt_5] |
+| **Timecode Format** | Determines whether the Unreal Engine should embed timecode in the output feed, and which timecode format it should use. |
+| **Pixel Format** | [INCLUDE:#excerpt_6] |
+| **Number of AJA Buffers** | [INCLUDE:#excerpt_7] |
+| **Interlaced Fields Timecode Need to Match** | When producing an interlaced video feed, this setting determines whether the timecode values for both fields in a single interlaced frame need to match. |
+| **Number of Texture Buffers** | [INCLUDE:#excerpt_8] |
+| **Synchronization** | |
+| **Wait for Sync Event** | [INCLUDE:#excerpt_9] |
+| **Debug** | |
+| **Encode Timecode in Pixel** | When enabled, the engine embeds the timecode of each frame in the output signal. See [Timecode Texel Encoding](Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding). |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+
+When this option is disabled, and you don't already have the Unreal Engine genlocked to an input signal, the engine runs at the fastest frame rate it can manage and provides all the frames it generates to the AJA card. Each time the card is ready to output a new frame, it selects one of the frames generated by the Engine.
+
+When this option is enabled, the Unreal Engine does not generate any new frames of output until the AJA card is ready to accept the new frame. The effect is similar to genlock, but instead of locking the Unreal Engine's frame rate to an input signal, it locks the Engine's frame rate to the output timing of the AJA card.  
+
+This option is most useful when you don't already have an input signal that you can lock the Unreal Engine's frame rate to, but you want to ensure that the Engine is producing only one output frame for every frame in the output video feed.  
+
+Do not enable this option if you already have the Unreal Engine genlocked to an input feed using a custom time step.
+
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+Sets the number of buffers used to transfer each frame image from the GPU to main thread memory.  
+Lower values are more likely to cause a bottleneck on the GPU side as it waits for each transfer to complete; larger numbers are more likely to increase latency.
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+Sets the number of buffers used to transfer each frame image from the main thread memory to the AJA card.  
+Lower values are more likely to cause missed frames as it waits for each transfer to complete; larger numbers are more likely to increase latency.
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+
+Determines the order of the color channels that make up each pixel, and the number of bits in each channel.
+
+[REGION:tip]
+If you want to output the alpha, set the **Output Type **setting to **Fill and Key**, and use the **Key Source **to send the alpha to an output port on your AJA card.
+[/REGION]
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+
+When enabled, the Unreal Engine buffers its output frames before sending them to the AJA card. This may improve the smoothness of the video signal, at the cost of some latency.  
+Leave this option disabled to minimize latency, at the risk of seeing interruptions in the output signal.
+
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+
+Configures the source of the timing for the internal clock on the AJA card. The card uses this to determine when it should send each frame of video output.  
+
+*   **Free Run -** Uses the card's internal clock.
+*   **External -** Synchronizes the card's internal clock with the genlock signal that arrives on its reference pin from an external source.
+*   **Input -** Synchronizes with the video signal from the input port that you specify in the **Sync Source** setting below. 
+
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+Determines whether the Unreal Engine outputs only the fill image, or both the fill and key images.  
+When you set this to **Fill Only**, only the fill image is output to the **Source** set below.  
+When you set this to **Fill and Key**, the fill image is output to the **Source**, and the key is output to the **Key Source**.
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+
+![Aja Media Output Configuration](aja-output-settings.png "Aja Media Output Configuration")
+
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
