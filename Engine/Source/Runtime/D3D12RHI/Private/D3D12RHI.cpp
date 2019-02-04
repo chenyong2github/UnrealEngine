@@ -508,3 +508,8 @@ uint32 FD3D12DynamicRHI::GetDebugFlags()
 {
 	return GetAdapter().GetDebugFlags();
 }
+
+bool FD3D12DynamicRHI::CheckGpuHeartbeat() const
+{
+	return ChosenAdapters[0]->GetGPUProfiler().CheckGpuHeartbeat();
+}

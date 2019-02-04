@@ -328,5 +328,21 @@ namespace D3D12RHI
 		void BeginFrame(class FD3D12DynamicRHI* InRHI);
 
 		void EndFrame(class FD3D12DynamicRHI* InRHI);
+
+		bool CheckGpuHeartbeat() const;
+
+#if NV_AFTERMATH
+		virtual void PushEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context);
+
+		void RegisterCommandList(GFSDK_Aftermath_ContextHandle context);
+		void UnregisterCommandList(GFSDK_Aftermath_ContextHandle context);
+
+		TArray<GFSDK_Aftermath_ContextHandle> AftermathContexts;
+		FCriticalSection AftermathLock;
+
+		TArray<uint32> PushPopStack;
+		TMap<uint32, FString> CachedStrings;
+#endif
+
 	};
 }

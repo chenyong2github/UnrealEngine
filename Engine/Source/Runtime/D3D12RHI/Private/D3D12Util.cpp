@@ -184,6 +184,11 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 extern CORE_API bool GIsGPUCrashed;
 static void TerminateOnDeviceRemoved(HRESULT D3DResult)
 {
+	if (GDynamicRHI)
+	{
+		GDynamicRHI->CheckGpuHeartbeat();
+	}
+
 	if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
 	{
 		GIsGPUCrashed = true;
