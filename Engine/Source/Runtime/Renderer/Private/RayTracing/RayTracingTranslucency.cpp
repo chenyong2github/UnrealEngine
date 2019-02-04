@@ -21,6 +21,13 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 
+
+static int32 GRayTracingTranslucencyMaxRefractionRays = 3;
+static FAutoConsoleVariableRef CVarRayTracingTranslucencyMaxRefractionRays(
+	TEXT("r.RayTracing.Translucency.MaxRefractionRays"),
+	GRayTracingTranslucencyMaxRefractionRays,
+	TEXT("Sets the maximum number of refraction rays for ray traced translucency (default = 3)"));
+
 static int32 GRayTracingTranslucencyEmissiveAndIndirectLighting = 1;
 static FAutoConsoleVariableRef CVarRayTracingTranslucencyEmissiveAndIndirectLighting(
 	TEXT("r.RayTracing.Translucency.EmissiveAndIndirectLighting"),
@@ -71,6 +78,7 @@ static FAutoConsoleVariableRef CVarRayTracingTranslucencyHeightFog(
 DECLARE_GPU_STAT_NAMED(RayTracingTranslucency, TEXT("Ray Tracing Translucency"));
 
 
+//#dxr_todo: factor out with the light structure in RayTracingReflections.cpp
 static const int32 GTranslucencyLightCountMaximum = 64;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucencyLightData, )
@@ -92,7 +100,7 @@ SHADER_PARAMETER_TEXTURE(Texture2D, DummyRectLightTexture) //#dxr_todo: replace 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucencyLightData, "TranslucencyLightsData");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucencyLightData, "ReflectionLightsData");
 
 
 void SetupTranslucencyLightData(
@@ -149,6 +157,7 @@ class FRayTracingTranslucencyRG : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, SamplesPerPixel)
+		SHADER_PARAMETER(int32, MaxRefractionRays)
 		SHADER_PARAMETER(int32, HeightFog)
 		SHADER_PARAMETER(int32, ShouldDoDirectLighting)
 		SHADER_PARAMETER(int32, ShouldDoReflectedShadows)
@@ -280,6 +289,14 @@ IMPLEMENT_SHADER_TYPE(, FCompositeTranslucencyPS, TEXT("/Engine/Private/RayTraci
 
 void FDeferredShadingSceneRenderer::RayTraceTranslucency(FRHICommandListImmediate& RHICmdList)
 {
+	//#dxr_todo: check TPT_StandardTranslucency/TPT_TranslucencyAfterDOF support
+	ETranslucencyPass::Type TranslucencyPass(ETranslucencyPass::TPT_AllTranslucency);
+
+	if (!ShouldRenderTranslucency(TranslucencyPass))
+	{
+		return; // Early exit if nothing needs to be done.
+	}
+
 	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
@@ -320,11 +337,10 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucency(FRHICommandListImmediat
 			TShaderMapRef<FCompositeTranslucencyPS> PixelShader(ShaderMap);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthNop_StencilNop, true);
+			SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-			//#dxr_todo review render mode
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -348,6 +364,7 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucency(FRHICommandListImmediat
 		}
 
 		ResolveSceneColor(RHICmdList);
+		SceneContext.FinishRenderingSceneColor(RHICmdList);
 	}
 }
 
@@ -360,11 +377,6 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucencyView(
 	int32 HeightFog,
 	float ResolutionFraction)
 {
-	if (!View.bHasTranslucentViewMeshElements)
-	{
-		return;
-	}
-
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	int32 UpscaleFactor = int32(1.0f / ResolutionFraction);
@@ -387,6 +399,7 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucencyView(
 	FRayTracingTranslucencyRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingTranslucencyRG::FParameters>();
 
 	PassParameters->SamplesPerPixel = SamplePerPixel;
+	PassParameters->MaxRefractionRays = GRayTracingTranslucencyMaxRefractionRays;
 	PassParameters->HeightFog = HeightFog;
 	PassParameters->ShouldDoDirectLighting = GRayTracingTranslucencyDirectLighting;
 	PassParameters->ShouldDoReflectedShadows = GRayTracingTranslucencyShadows;
@@ -430,7 +443,7 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucencyView(
 	ClearUnusedGraphResources(RayGenShader, PassParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("TranslucencyRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.X),
+		RDG_EVENT_NAME("TranslucencyRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERenderGraphPassFlags::Compute,
 		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHICommandList& RHICmdList)
