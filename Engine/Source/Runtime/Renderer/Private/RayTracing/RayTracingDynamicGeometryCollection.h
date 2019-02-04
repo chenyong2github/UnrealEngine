@@ -7,7 +7,7 @@
 class RENDERER_API FRayTracingDynamicGeometryCollection
 {
 public:
-	void AddDynamicMeshBatchForGeometryUpdate(const FScene* Scene, const FSceneView* View, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMeshBatch& MeshBatch, FRayTracingGeometry& Geometry, FRWBuffer& Buffer);
+	void AddDynamicMeshBatchForGeometryUpdate(const FScene* Scene, const FSceneView* View, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMeshBatch& MeshBatch, FRayTracingGeometry& Geometry, uint32 NumVertices, FRWBuffer& Buffer);
 	void DispatchUpdates(FRHICommandListImmediate& RHICmdList);
 	void Clear();
 

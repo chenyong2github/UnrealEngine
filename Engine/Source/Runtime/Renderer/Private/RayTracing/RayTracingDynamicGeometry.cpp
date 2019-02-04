@@ -82,6 +82,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
 	const FMeshBatch& MeshBatch, 
 	FRayTracingGeometry& Geometry,
+	uint32 NumVertices,
 	FRWBuffer& Buffer)
 {
 	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
@@ -117,7 +118,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	FVertexInputStreamArray DummyArray;
 	Shader->GetElementShaderBindings(Scene, View, MeshBatch.VertexFactory, false, Scene->GetFeatureLevel(), PrimitiveSceneProxy, MeshBatch, MeshBatch.Elements[0], ShaderElementData, SingleShaderBindings, DummyArray);
 
-	DispatchCmd.NumVertices = MeshBatch.Elements[0].NumPrimitives * 3 * MeshBatch.Elements[0].NumInstances;
+	DispatchCmd.NumVertices = NumVertices;
 	DispatchCmd.TargetBuffer = &Buffer;
 	DispatchCmd.TargetGeometry = &Geometry;
 

@@ -346,8 +346,21 @@ void NiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVie
 #if RHI_RAYTRACING
 void NiagaraRendererSprites::GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections)
 {
+	FNiagaraDynamicDataSprites *DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(DynamicDataRender);
+
+	if (!DynamicDataSprites
+		|| DynamicDataSprites->RTParticleData.GetNumInstancesAllocated() == 0
+		|| DynamicDataSprites->RTParticleData.GetNumInstances() == 0
+		|| nullptr == Properties
+		|| !GSupportsResourceView // Current shader requires SRV to draw properly in all cases.
+		)
+	{
+		return;
+	}
+
 	FRayTracingGeometryInstanceCollection Collection;
 	Collection.Geometry = &RayTracingGeometry;
+	Collection.NumDynamicVertices = 6 * DynamicDataSprites->RTParticleData.GetNumInstances();
 	Collection.DynamicVertexPositionBuffer = &RayTracingDynamicVertexBuffer;
 	Collection.InstanceTransformMode = FRayTracingGeometryInstanceCollection::TransformMode::Identity;
 
