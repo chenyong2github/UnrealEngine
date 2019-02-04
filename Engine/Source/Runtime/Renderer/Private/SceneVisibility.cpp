@@ -2765,11 +2765,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 	// Notify the RHI we are beginning to render a scene.
 	RHICmdList.BeginScene();
 
-	//@todo MeshCommandPipeline r.DoLazyStaticMeshUpdate isn't currently supported.
-	/*
 	{
 		static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DoLazyStaticMeshUpdate"));
-		const bool DoLazyStaticMeshUpdate = (CVar->GetInt() && !WITH_EDITOR);
+		const bool DoLazyStaticMeshUpdate = (CVar->GetInt() && !GIsEditor);
 
 		if (DoLazyStaticMeshUpdate)
 		{
@@ -2785,7 +2783,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				Scene->Primitives[RollingRemoveIndex]->UpdateStaticMeshes(RHICmdList, false);
 			}
 		}
-	}*/
+	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.
 	if (Scene->FXSystem && !Views[0].bIsPlanarReflection)
