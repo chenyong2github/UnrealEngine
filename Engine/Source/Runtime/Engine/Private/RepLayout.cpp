@@ -18,6 +18,7 @@
 #include "Misc/NetworkVersion.h"
 #include "Misc/App.h"
 #include "Algo/Sort.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -5109,41 +5110,51 @@ void FRepLayout::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FRepLayout::CountBytes(FArchive& Ar) const
 {
-	PropertyToParentHandle.CountBytes(Ar);
-	Parents.CountBytes(Ar);
-	Cmds.CountBytes(Ar);
-	BaseHandleToCmdIndex.CountBytes(Ar);
-	SharedInfoRPC.CountBytes(Ar);
-	SharedInfoRPCParentsChanged.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepLayout::CountBytes");
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PropertyToParentHandle", PropertyToParentHandle.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Parents", Parents.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Cmds", Cmds.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("BaseHandleToCmdIndex", BaseHandleToCmdIndex.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedInfoRPC", SharedInfoRPC.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedInfoRPCParentsChanged", SharedInfoRPCParentsChanged.CountBytes(Ar));
 }
 
 void FRepState::CountBytes(FArchive& Ar) const
 {
-	StaticBuffer.CountBytes(Ar);
-	GuidReferencesMap.CountBytes(Ar);
-	for (const auto& GuidRefPair : GuidReferencesMap)
-	{
-		GuidRefPair.Value.CountBytes(Ar);
-	}
-	RepNotifies.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepState::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("StaticBuffer", StaticBuffer.CountBytes(Ar));
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("GuidReferencesMap",
+		GuidReferencesMap.CountBytes(Ar);
+		for (const auto& GuidRefPair : GuidReferencesMap)
+		{
+			GuidRefPair.Value.CountBytes(Ar);
+		}
+	);
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepNotifies", RepNotifies.CountBytes(Ar));
 
 	// RepChangedPropertyTracker is also stored on the net driver, so it's not tracked here.
 
-	for (const FRepChangedHistory& HistoryItem : ChangeHistory)
-	{
-		HistoryItem.CountBytes(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChangeHistory",
+		for (const FRepChangedHistory& HistoryItem : ChangeHistory)
+		{
+			HistoryItem.CountBytes(Ar);
+		}
+	);
 
-	PreOpenAckHistory.CountBytes(Ar);
-	for (const FRepChangedHistory& HistoryItem : PreOpenAckHistory)
-	{
-		HistoryItem.CountBytes(Ar);
-	}
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PreOpenAckHistory",
+		PreOpenAckHistory.CountBytes(Ar);
+		for (const FRepChangedHistory& HistoryItem : PreOpenAckHistory)
+		{
+			HistoryItem.CountBytes(Ar);
+		}
+	);
 
-	LifetimeChangelist.CountBytes(Ar);
-
-	InactiveChangelist.CountBytes(Ar);
-	InactiveParents.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeChangelist", LifetimeChangelist.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("InactiveChangelist", InactiveChangelist.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("InactiveParents", InactiveParents.CountBytes(Ar));
 }
 
 FRepState::~FRepState()
