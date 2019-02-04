@@ -336,7 +336,9 @@ FResolveInfoCachedBSDIPv6::FResolveInfoCachedBSDIPv6(const FInternetAddr& InAddr
 	{
 		uint32 IpAddr;
 		InAddr.GetIp(IpAddr);
-		Addr = ISocketSubsystem::Get()->CreateInternetAddr(IpAddr, InAddr.GetPort());
+		Addr = ISocketSubsystem::Get()->CreateInternetAddr();
+		Addr->SetIp(IpAddr);
+		Addr->SetPort(InAddr.GetPort());
 	}
 	
 }

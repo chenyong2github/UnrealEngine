@@ -40,9 +40,10 @@ ENUM_CLASS_FLAGS(EAddressInfoFlags);
 
 struct FAddressInfoResultData
 {
-	UE_DEPRECATED(4.23, "Use constructor that supports an FName as the protocol specification as it supports multiple protocol types")
+	UE_DEPRECATED(4.23, "Use constructor that supports an FName as the AddressProtocol property is now deprecated. AddressProtocolName supports multiple protocol types as should be used instead.")
 	FAddressInfoResultData(TSharedRef<FInternetAddr> InAddr, SIZE_T InAddrLen, ESocketProtocolFamily InProtocol, ESocketType InSocketConfiguration) :
 		AddressProtocol(InProtocol),
+		AddressProtocolName(NAME_None),
 		SocketConfiguration(InSocketConfiguration),
 		AddressLen(InAddrLen),
 		Address(InAddr)
@@ -83,7 +84,6 @@ struct FAddressInfoResultData
 	}
 
 	/* The protocol of the address stored */
-	UE_DEPRECATED(4.23, "Use AddressProtocolName as it supports multiple protocol types")
 	ESocketProtocolFamily AddressProtocol;
 	/* The protocol name of the address stored */
 	FName AddressProtocolName;

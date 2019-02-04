@@ -73,8 +73,13 @@ bool FPerfCounters::Initialize()
 
 	ScratchIPAddr = SocketSubsystem->CreateInternetAddr();
 
+	// create a localhost binding for the requested port
+	TSharedRef<FInternetAddr> LocalhostAddr = SocketSubsystem->CreateInternetAddr();
+	LocalhostAddr->SetLoopbackAddress();
+	LocalhostAddr->SetPort(StatsPort);
+
 	// make our listen socket
-	Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FPerfCounters"));
+	Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FPerfCounters"), LocalhostAddr->GetProtocolType());
 	if (Socket == nullptr)
 	{
 		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to allocate stream socket"));
@@ -84,8 +89,6 @@ bool FPerfCounters::Initialize()
 	// make us non blocking
 	Socket->SetNonBlocking(true);
 
-	// create a localhost binding for the requested port
-	TSharedRef<FInternetAddr> LocalhostAddr = SocketSubsystem->CreateInternetAddr(0x7f000001 /* 127.0.0.1 */, StatsPort);
 	if (!Socket->Bind(*LocalhostAddr))
 	{
 		UE_LOG(LogPerfCounters, Error, TEXT("FPerfCounters unable to bind to %s"), *LocalhostAddr->ToString(true));

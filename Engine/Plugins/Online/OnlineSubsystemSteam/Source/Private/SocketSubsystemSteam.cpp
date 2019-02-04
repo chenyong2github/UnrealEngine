@@ -263,10 +263,10 @@ void FSocketSubsystemSteam::RegisterConnection(USteamNetConnection* Connection)
 	FWeakObjectPtr ObjectPtr = Connection;
 	SteamConnections.Add(ObjectPtr);
 
-	if (Connection->GetInternetAddr().IsValid() && Connection->Socket)
+	if (Connection->GetRemoteAddr().IsValid() && Connection->Socket)
 	{
 		FSocketSteam* SteamSocket = (FSocketSteam*)Connection->Socket;
-		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetInternetAddr());
+		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetRemoteAddr());
 
 		UE_LOG_ONLINE(Log, TEXT("Adding user %s from RegisterConnection"), *SteamAddr->ToString(true));
 		P2PTouch(SteamSocket->SteamNetworkingPtr, SteamAddr->SteamId, SteamAddr->SteamChannel);
@@ -289,9 +289,9 @@ void FSocketSubsystemSteam::UnregisterConnection(USteamNetConnection* Connection
 	// is garbage collected. It's possible that the player who left rejoined before garbage
 	// collection runs (their connection object will be different), so P2PRemove would kick
 	// them from the session when it shouldn't.
-	if (SteamConnections.RemoveSingleSwap(ObjectPtr) == 1 && Connection->GetInternetAddr().IsValid())
+	if (SteamConnections.RemoveSingleSwap(ObjectPtr) == 1 && Connection->GetRemoteAddr().IsValid())
 	{
-		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetInternetAddr());
+		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetRemoteAddr());
 		P2PRemove(SteamAddr->SteamId, SteamAddr->SteamChannel);
 	}
 }
@@ -311,7 +311,7 @@ void FSocketSubsystemSteam::ConnectFailure(const FUniqueNetIdSteam& RemoteId)
 	for (int32 ConnIdx=0; ConnIdx<SteamConnections.Num(); ConnIdx++)
 	{
 		USteamNetConnection* SteamConn = CastChecked<USteamNetConnection>(SteamConnections[ConnIdx].Get());
-		TSharedPtr<const FInternetAddrSteam> RemoteAddrSteam = StaticCastSharedPtr<const FInternetAddrSteam>(SteamConn->GetInternetAddr());
+		TSharedPtr<const FInternetAddrSteam> RemoteAddrSteam = StaticCastSharedPtr<const FInternetAddrSteam>(SteamConn->GetRemoteAddr());
 
 		// Only checking Id here because its a complete failure (channel doesn't matter)
 		if (RemoteAddrSteam->SteamId == RemoteId)
@@ -791,7 +791,9 @@ void FSocketSubsystemSteam::DumpSteamP2PSessionInfo(P2PSessionState_t& SessionIn
 		return;
 	}
 
-	TSharedRef<FInternetAddr> IpAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr(SessionInfo.m_nRemoteIP, SessionInfo.m_nRemotePort);
+	TSharedRef<FInternetAddr> IpAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	IpAddr->SetIp(SessionInfo.m_nRemoteIP);
+	IpAddr->SetPort(SessionInfo.m_nRemotePort);
 	UE_LOG_ONLINE(Verbose, TEXT("- Detailed P2P session info:"));
 	UE_LOG_ONLINE(Verbose, TEXT("-- IPAddress: %s"), *IpAddr->ToString(true));
 	UE_LOG_ONLINE(Verbose, TEXT("-- ConnectionActive: %i, Connecting: %i, SessionError: %i, UsingRelay: %i"),

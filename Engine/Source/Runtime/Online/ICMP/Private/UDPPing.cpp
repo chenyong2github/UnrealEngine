@@ -81,21 +81,21 @@ FIcmpEchoResult UDPEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetAd
 	//ISocketSubsystem* SocketSub = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	if (SocketSub)
 	{
-		FSocket* Socket = SocketSub->CreateSocket(NAME_DGram, TEXT("UDPPing"), false);
-		if (Socket)
+		TSharedRef<FInternetAddr> ToAddr = SocketSub->CreateInternetAddr();
+
+		bool bIsValid = false;
+		ToAddr->SetIp(*ResolvedAddress, bIsValid);
+		ToAddr->SetPort(Port);
+		
+		if (bIsValid)
 		{
 			uint8 SendBuffer[PacketSize];
 			// Clear packet buffer
 			FMemory::Memset(SendBuffer, 0, PacketSize);
-
 			Result.ResolvedAddress = ResolvedAddress;
 
-			TSharedRef<FInternetAddr> ToAddr = SocketSub->CreateInternetAddr();
-
-			bool bIsValid = false;
-			ToAddr->SetIp(*ResolvedAddress, bIsValid);
-			ToAddr->SetPort(Port);
-			if (bIsValid)
+			FSocket* Socket = SocketSub->CreateSocket(NAME_DGram, TEXT("UDPPing"), ToAddr->GetProtocolType());
+			if (Socket)
 			{
 				uint16 SentId = (uint16)FPlatformProcess::GetCurrentProcessId();
 				uint16 SentSeq = PingSequence++;

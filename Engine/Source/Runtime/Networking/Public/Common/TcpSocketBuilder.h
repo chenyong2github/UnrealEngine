@@ -8,6 +8,7 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Sockets.h"
+#include "SocketTypes.h"
 
 class Error;
 
@@ -215,7 +216,7 @@ public:
 
 		if (SocketSubsystem != nullptr)
 		{
-			Socket = SocketSubsystem->CreateSocket(NAME_Stream, *Description, ESocketProtocolFamily::IPv4);
+			Socket = SocketSubsystem->CreateSocket(NAME_Stream, *Description, FNetworkProtocolTypes::IPv4);
 
 			if (Socket != nullptr)
 			{
