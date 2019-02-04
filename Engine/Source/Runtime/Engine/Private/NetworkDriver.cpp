@@ -5092,7 +5092,7 @@ static void	DumpRelevantActors( UWorld* InWorld )
 
 TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropertyTracker(UObject* Obj)
 {
-	check(IsServer());
+	check(IsServer() || MaySendProperties());
 
 	FRepChangedPropertyTrackerWrapper * GlobalPropertyTrackerPtr = RepChangedPropertyTrackerMap.Find( Obj );
 
@@ -5120,27 +5120,25 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 
 TSharedPtr<FRepLayout> UNetDriver::GetObjectClassRepLayout( UClass * Class )
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Class );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Class);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromObjectClass( Class, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Class, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Class, FRepLayout::CreateFromClass(Class, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
 }
 
-TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout( UFunction * Function )
+TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout(UFunction * Function)
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Function );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Function);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromFunction( Function, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Function, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Function, FRepLayout::CreateFromFunction(Function, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
@@ -5148,13 +5146,12 @@ TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout( UFunction * Function )
 
 TSharedPtr<FRepLayout> UNetDriver::GetStructRepLayout( UStruct * Struct )
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Struct );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Struct);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromStruct( Struct, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Struct, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Struct, FRepLayout::CreateFromStruct(Struct, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
@@ -5162,7 +5159,7 @@ TSharedPtr<FRepLayout> UNetDriver::GetStructRepLayout( UStruct * Struct )
 
 TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr( UObject* Object )
 {
-	check(IsServer());
+	check(IsServer() || MaySendProperties());
 
 	FReplicationChangelistMgrWrapper* ReplicationChangeListMgrPtr = ReplicationChangeListMap.Find(Object);
 
