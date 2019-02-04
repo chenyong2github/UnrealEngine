@@ -5,6 +5,8 @@
 
 #if WITH_ENGINE
 
+class IFileHandle;
+
 /** Helper class for generating an uncompressed zip archive file. */
 class FILEUTILITIES_API FZipArchiveWriter
 {
