@@ -12,6 +12,15 @@ DECLARE_MEMORY_STAT(TEXT("Unused Pooled Buffer Memory"), STAT_MetalPooledBufferU
 DECLARE_MEMORY_STAT(TEXT("Unused Magazine Buffer Memory"), STAT_MetalMagazineBufferUnusedMemory, STATGROUP_MetalRHI);
 DECLARE_MEMORY_STAT(TEXT("Unused Heap Buffer Memory"), STAT_MetalHeapBufferUnusedMemory, STATGROUP_MetalRHI);
 
+
+
+static int32 GMetalHeapBufferBytesToCompact = 0;
+static FAutoConsoleVariableRef CVarMetalHeapBufferBytesToCompact(
+	TEXT("rhi.Metal.HeapBufferBytesToCompact"),
+	GMetalHeapBufferBytesToCompact,
+	TEXT("When enabled (> 0) this will force MetalRHI to compact the given number of bytes each frame into older buffer heaps from newer ones in order to defragment memory and reduce wastage.\n")
+	TEXT("(Off by default (0))"));
+
 #if METAL_DEBUG_OPTIONS
 extern int32 GMetalBufferScribble;
 #endif
@@ -135,6 +144,14 @@ void FMetalBuffer::Release()
 	}
 }
 
+void FMetalBuffer::SetOwner(class FMetalRHIBuffer* Owner)
+{
+	if (Heap)
+	{
+		Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner);
+	}
+}
+
 FMetalSubBufferHeap::FMetalSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options, FCriticalSection& InPoolMutex)
 : PoolMutex(InPoolMutex)
 , OutstandingAllocs(0)
@@ -189,9 +206,36 @@ FMetalSubBufferHeap::~FMetalSubBufferHeap()
 	}
 }
 
+void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner)
+{
+	FScopeLock Lock(&PoolMutex);
+	for (uint32 i = 0; i < AllocRanges.Num(); i++)
+	{
+		if (AllocRanges[i].Range.Location == Range.Location)
+		{
+			check(AllocRanges[i].Range.Length == Range.Length);
+			check(AllocRanges[i].Owner == nullptr || Owner == nullptr);
+			AllocRanges[i].Owner = Owner;
+			break;
+		}
+	}
+}
+
 void FMetalSubBufferHeap::FreeRange(ns::Range const& Range)
 {
 	FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
+	{
+		FScopeLock Lock(&PoolMutex);
+		for (uint32 i = 0; i < AllocRanges.Num(); i++)
+		{
+			if (AllocRanges[i].Range.Location == Range.Location)
+			{
+				check(AllocRanges[i].Range.Length == Range.Length);
+				AllocRanges.RemoveAt(i);
+				break;
+			}
+		}
+	}
 	if (ParentHeap)
 	{
 		SET_MEMORY_STAT(STAT_MetalBufferUnusedMemory, ParentHeap.GetSize() - ParentHeap.GetUsedSize());
@@ -425,6 +469,12 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 #endif
 					
 					Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(Range)), this);
+					
+					Allocation Alloc;
+					Alloc.Range = Range;
+					Alloc.Resource = Result.GetPtr();
+					Alloc.Owner = nullptr;
+					AllocRanges.Add(Alloc);
 				
 					break;
 				}
@@ -1595,8 +1645,67 @@ void FMetalResourceHeap::Compact(bool const bForce)
 				}
 			}
 			
+			mtlpp::CommandBuffer Buffer;
+			mtlpp::BlitCommandEncoder Encoder;
+			
+			uint32 BytesCompacted = 0;
+			uint32 const BytesToCompact = GMetalHeapBufferBytesToCompact;
+			
 			for (uint32 i = 0; i < NumHeapSizes; i++)
 			{
+				for (uint32 j = 1; j < BufferHeaps[u][t][i].Num(); j++)
+				{
+					FMetalSubBufferHeap* Data = BufferHeaps[u][t][i][j];
+					if (Data->AllocRanges.Num() > 0 && BytesCompacted < BytesToCompact)
+					{
+						for (FMetalSubBufferHeap::Allocation const& Alloc : Data->AllocRanges)
+						{
+							if (Alloc.Owner)
+							{
+								for (uint32 AllocIndex = 0; AllocIndex < j && BytesCompacted < BytesToCompact; AllocIndex++)
+								{
+									FMetalSubBufferHeap* Prev = BufferHeaps[u][t][i][AllocIndex];
+									if (Prev->MaxAvailableSize() >= Alloc.Range.Length)
+									{
+										if (!Encoder)
+										{
+											Buffer = Queue->CreateCommandBuffer();
+											Encoder = Buffer.BlitCommandEncoder();
+										}
+										
+										FMetalBuffer NewBuffer = Prev->NewBuffer(Alloc.Range.Length);
+										check(NewBuffer && NewBuffer.GetPtr());
+										
+										FMetalBuffer SourceResource = FMetalBuffer((id<MTLBuffer>)Alloc.Resource);
+										Encoder.Copy(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
+										
+										FMetalBuffer PrevBuffer;
+										FMetalBuffer PrevCPUBuffer;
+										if (Alloc.Owner->Buffer.GetPtr() == Alloc.Resource && Alloc.Owner->Buffer.GetOffset() == Alloc.Range.Location)
+										{
+											PrevBuffer = Alloc.Owner->Buffer;
+											Alloc.Owner->Buffer = NewBuffer;
+										}
+										if (Alloc.Owner->CPUBuffer.GetPtr() == Alloc.Resource && Alloc.Owner->CPUBuffer.GetOffset() == Alloc.Range.Location)
+										{
+											PrevCPUBuffer = Alloc.Owner->CPUBuffer;
+											Alloc.Owner->CPUBuffer = NewBuffer;
+										}
+										if (PrevBuffer)
+											SafeReleaseMetalBuffer(PrevBuffer);
+										if (PrevCPUBuffer)
+											SafeReleaseMetalBuffer(PrevCPUBuffer);
+										
+										BytesCompacted += Alloc.Range.Length;
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+				
+				
 				for (auto It = BufferHeaps[u][t][i].CreateIterator(); It; ++It)
 				{
 					FMetalSubBufferHeap* Data = *It;
@@ -1606,6 +1715,12 @@ void FMetalResourceHeap::Compact(bool const bForce)
 						delete Data;
 					}
 				}
+			}
+			
+			if (Encoder)
+			{
+				Encoder.EndEncoding();
+				Queue->CommitCommandBuffer(Buffer);
 			}
 		}
 	}

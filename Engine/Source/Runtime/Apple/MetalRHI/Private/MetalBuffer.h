@@ -29,6 +29,8 @@ struct FMetalPooledBufferArgs
 
 class FMetalSubBufferHeap
 {
+	friend class FMetalResourceHeap;
+	
 public:
 	FMetalSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions, FCriticalSection& PoolMutex);
 	~FMetalSubBufferHeap();
@@ -47,8 +49,17 @@ public:
     FMetalBuffer NewBuffer(NSUInteger length);
     mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
 	void FreeRange(ns::Range const& Range);
+	
+	void SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner);
 
 private:
+	struct Allocation
+	{
+		ns::Range Range;
+		mtlpp::Buffer::Type Resource;
+		FMetalRHIBuffer* Owner;
+	};
+	
 	FCriticalSection& PoolMutex;
 	int64 volatile OutstandingAllocs;
 	NSUInteger MinAlign;
@@ -56,6 +67,7 @@ private:
 	mtlpp::Buffer ParentBuffer;
 	mutable mtlpp::Heap ParentHeap;
 	TArray<ns::Range> FreeRanges;
+	TArray<Allocation> AllocRanges;
 };
 
 class FMetalSubBufferLinear

@@ -492,12 +492,6 @@ void FMetalDeviceContext::DrainHeap()
 
 void FMetalDeviceContext::EndFrame()
 {
-	FlushFreeList();
-	
-	ClearFreeList();
-	
-    Heap.Compact(false);
-    
 	// A 'frame' in this context is from the beginning of encoding on the CPU
 	// to the end of all rendering operations on the GPU. So the semaphore is
 	// signalled when the last command buffer finishes GPU execution.
@@ -533,6 +527,12 @@ void FMetalDeviceContext::EndFrame()
 #endif
 	SubmitCommandsHint((uint32)SubmitFlags);
 	
+	FlushFreeList();
+	
+	ClearFreeList();
+	
+	Heap.Compact(false);	
+
 	InitFrame(true, 0, 0);
 }
 
