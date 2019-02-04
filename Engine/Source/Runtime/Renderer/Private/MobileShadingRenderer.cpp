@@ -463,7 +463,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	IRendererModule& RendererModule = GetRendererModule();
-	RendererModule.DispatchPostOpaqueCompute(RHICmdList, View.ViewUniformBuffer);
 
 	if (!View.bIsPlanarReflection)
 	{
