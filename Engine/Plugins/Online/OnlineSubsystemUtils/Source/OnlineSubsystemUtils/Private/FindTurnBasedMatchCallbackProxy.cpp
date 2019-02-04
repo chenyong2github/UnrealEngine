@@ -100,10 +100,9 @@ void FFindTurnBasedMatchCallbackProxyMatchmakerDelegate::OnMatchFound(FTurnBased
 	
 	if (Match->GetMatchData(MatchData) && FindTurnBasedMatchCallbackProxy)
 	{
-		FRepLayout RepLayout;
-		RepLayout.InitFromObjectClass(FindTurnBasedMatchCallbackProxy->GetTurnBasedMatchInterfaceObject()->GetClass());
+		// TODO: We should cache off the RepLayout by class, just like we do in NetDriver.
 		FBitReader Reader(MatchData.GetData(), TurnBasedInterface->GetMatchDataSize());
-		RepLayout.SerializeObjectReplicatedProperties(FindTurnBasedMatchCallbackProxy->GetTurnBasedMatchInterfaceObject(), Reader);
+		FRepLayout::CreateFromClass(FindTurnBasedMatchCallbackProxy->GetTurnBasedMatchInterfaceObject()->GetClass())->SerializeObjectReplicatedProperties(FindTurnBasedMatchCallbackProxy->GetTurnBasedMatchInterfaceObject(), Reader);
 	}
 
 	if (FindTurnBasedMatchCallbackProxy)
