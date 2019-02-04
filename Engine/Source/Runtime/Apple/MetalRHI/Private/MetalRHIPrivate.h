@@ -75,12 +75,7 @@ enum EMTLTextureType
 #define METAL_SUPPORTS_CAPTURE_MANAGER (PLATFORM_MAC && __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300) || (!PLATFORM_MAC && __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000) && (__clang_major__ >= 9)
 #define METAL_SUPPORTS_TILE_SHADERS (!PLATFORM_MAC && !PLATFORM_TVOS && __IPHONE_OS_VERSION_MAX_ALLOWED >= 110000) && (__clang_major__ >= 9)
 // In addition to compile-time SDK checks we also need a way to check if these are available on runtime
-extern bool GMetalSupportsIndirectArgumentBuffers;
 extern bool GMetalSupportsCaptureManager;
-extern bool GMetalSupportsTileShaders;
-extern bool GMetalSupportsStoreActionOptions;
-extern bool GMetalSupportsDepthClipMode;
-extern bool GMetalCommandBufferHasStartEndTimeAPI;
 
 struct FMetalBufferFormat
 {
@@ -106,8 +101,6 @@ extern FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 #define METAL_DEBUG_ONLY(Code)
 #define METAL_DEBUG_LAYER(Level, Code)
 #endif
-
-extern bool GMetalSupportsTileShaders;
 
 /** Set to 1 to enable GPU events in Xcode frame debugger */
 #ifndef ENABLE_METAL_GPUEVENTS_IN_TEST

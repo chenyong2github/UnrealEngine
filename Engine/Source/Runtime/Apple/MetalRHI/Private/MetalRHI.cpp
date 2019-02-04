@@ -23,12 +23,6 @@
 DEFINE_LOG_CATEGORY(LogMetal)
 
 bool GIsMetalInitialized = false;
-bool GMetalSupportsHeaps = false;
-bool GMetalSupportsIndirectArgumentBuffers = false;
-bool GMetalSupportsTileShaders = false;
-bool GMetalSupportsStoreActionOptions = false;
-bool GMetalSupportsDepthClipMode = false;
-bool GMetalCommandBufferHasStartEndTimeAPI = false;
 
 FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 
@@ -348,24 +342,6 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 #endif
-
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 13, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsIndirectArgumentBuffers = true;
-		GMetalSupportsStoreActionOptions = true;
-	}
-	if (!PLATFORM_MAC && FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){0, 0, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsTileShaders = true;
-	}
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 11, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsDepthClipMode = true;
-	}
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 13, 0}, (uint32[]){10, 3, 0}, (uint32[]){10, 3, 0}))
-	{
-		GMetalCommandBufferHasStartEndTimeAPI = true;
-	}
 		
 	if(
 	   #if PLATFORM_MAC
