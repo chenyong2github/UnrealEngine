@@ -128,9 +128,6 @@ public:
 	 */
 	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
 
-	UE_DEPRECATED(4.19, "Use OnAllowDrop with a given RowIndex and Guid")
-	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track) { return OnAllowDrop(DragDropEvent, Track, 0, FGuid()); }
-
 	/**
 	 * Called when an asset is dropped directly onto a track.
 	 *
@@ -141,9 +138,6 @@ public:
 	 * @return Whether the drop event was handled.
 	 */	
 	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track, int32 RowIndex, const FGuid& TargetObjectGuid) = 0;
-
-	UE_DEPRECATED(4.19, "Use OnDrop with a given RowIndex")
-	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, UMovieSceneTrack* Track) { return OnDrop(DragDropEvent, Track, 0, FGuid()); }
 
 	/**
 	 * Called to generate a section layout for a particular section.
