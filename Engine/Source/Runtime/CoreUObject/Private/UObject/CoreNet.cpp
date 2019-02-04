@@ -372,6 +372,14 @@ void SerializeChecksum(FArchive &Ar, uint32 x, bool ErrorOK)
 	}
 }
 
+void FPropertyRetirement::CountBytes(FArchive& Ar) const
+{
+	for (const FPropertyRetirement* NextRetirement = Next; NextRetirement; NextRetirement = NextRetirement->Next)
+	{
+		Ar.CountBytes(sizeof(FPropertyRetirement), sizeof(FPropertyRetirement));
+	}
+}
+
 // ----------------------------------------------------------------
 //	FNetBitWriter
 // ----------------------------------------------------------------

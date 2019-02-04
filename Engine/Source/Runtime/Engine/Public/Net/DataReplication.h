@@ -23,16 +23,15 @@ class UNetConnection;
 class UNetDriver;
 class AActor;
 
-bool FORCEINLINE IsCustomDeltaProperty( const UProperty* Property )
+bool FORCEINLINE IsCustomDeltaProperty(const UStructProperty* StructProperty)
 {
-	const UStructProperty * StructProperty = Cast< UStructProperty >( Property );
+	return EnumHasAnyFlags(StructProperty->Struct->StructFlags, STRUCT_NetDeltaSerializeNative);
+}
 
-	if ( StructProperty != NULL && StructProperty->Struct->StructFlags & STRUCT_NetDeltaSerializeNative )
-	{
-		return true;
-	}
-
-	return false;
+bool FORCEINLINE IsCustomDeltaProperty(const UProperty* Property)
+{
+	const UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+	return StructProperty && IsCustomDeltaProperty(StructProperty);
 }
 
 /** struct containing property and offset for replicated actor properties */

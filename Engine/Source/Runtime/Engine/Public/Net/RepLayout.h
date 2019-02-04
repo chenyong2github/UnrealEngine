@@ -982,9 +982,16 @@ typedef TRepDataBuffer<ERepDataBufferType::ShadowBuffer> FRepShadowDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ObjectBuffer> FConstRepObjectDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ShadowBuffer> FConstRepShadowDataBuffer;
 
+enum class ECreateRepLayoutFlags
+{
+	None,
+	MaySendProperties,	//! Regardless of whether or not this RepLayout is being created for servers, it may be used to send property data, and needs state to handle that.
+};
+ENUM_CLASS_FLAGS(ECreateRepLayoutFlags);
+
 enum class ERepLayoutState
 {
-	Uninitialized,	//! The RepLayout was never initiliazed.
+	Uninitialized,	//! The RepLayout was never initiliazed, this should not be possible.
 	Empty,			//! The RepLayout was initialized, but doesn't have any RepCommands.
 					//! This can happen when replicating References to actors with no network state (e.g., Item Definitions, etc.).
 	Normal			//! The RepLayout was initialized, and contains commands.
@@ -1051,6 +1058,8 @@ enum class ERepLayoutState
  */
 class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
+private:
+
 	// TODO: A lot of this friend access could be revoked if we exposed a "CreateShadowState" method,
 	//		and had it return a wrapped ShadowState that would properly destroy properties when it was destroyed.
 	friend class FReceivingRepState;
@@ -1060,7 +1069,6 @@ class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 	friend struct FDemoSavedRepObjectState;
 	friend class UPackageMapClient;
 
-public:
 	FRepLayout():
 		FirstNonCustomParent(0),
 		RoleIndex(-1),
@@ -1068,6 +1076,23 @@ public:
 		Owner(NULL),
 		LayoutState(ERepLayoutState::Uninitialized)
 	{}
+
+public:
+
+	~FRepLayout()
+	{
+		// This should never happen.
+		check(ERepLayoutState::Uninitialized != LayoutState);
+	}
+
+	/** Creates a new FRepLayout for the given class. */
+	ENGINE_API static TSharedPtr<FRepLayout> CreateFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
+
+	/** Creates a new FRepLayout for the given struct. */
+	ENGINE_API static TSharedPtr<FRepLayout> CreateFromStruct(UStruct * InStruct, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
+
+	/** Creates a new FRepLayout for the given function. */
+	static TSharedPtr<FRepLayout> CreateFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
 
 	/**
 	 * Used to signal that the channel that owns a given object has been opened and acknowledged
@@ -1180,8 +1205,6 @@ public:
 	{
 		SendProperties(RepState->GetSendingRepState(), ChangedTracker, Data, ObjectClass, Writer, Changed, SharedInfo);
 	}
-
-	ENGINE_API void InitFromObjectClass(UClass * InObjectClass, const UNetConnection* ServerConnection = nullptr);
 
 	/**
 	 * Reads all property values from the received buffer, and applies them to the
@@ -1408,9 +1431,6 @@ public:
 
 	void GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions);
 
-	// RPC support
-	void InitFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection = nullptr);
-
 	/** @see SendProperties. */
 	void ENGINE_API SendPropertiesForRPC(
 		UFunction*		Function,
@@ -1440,8 +1460,6 @@ public:
 		UPackageMap*	Map,
 		void*			Data,
 		bool&			bHasUnmapped) const;
-
-	ENGINE_API void InitFromStruct(UStruct * InStruct, const UNetConnection* ServerConnection = nullptr);
 
 	/** Serializes all replicated properties of a UObject in or out of an archive (depending on what type of archive it is). */
 	ENGINE_API void SerializeObjectReplicatedProperties(UObject* Object, FBitArchive & Ar) const;
@@ -1527,6 +1545,12 @@ public:
 	void CountBytes(FArchive& Ar) const;
 
 private:
+
+	void InitFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	void InitFromStruct(UStruct* InStruct, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	void InitFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
 
 	/**
 	 * Writes all changed property values from the input owner data to the given buffer.
@@ -1808,10 +1832,19 @@ private:
 	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Src) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
 
-	/**
-	 * Maps a UProperty* to a Parent Handle. Note, only returns the First Parent in the case of a c-style array.
-	 */
-	TMap<UProperty*, int32> PropertyToParentHandle;
+
+	ERepLayoutState LayoutState;
+
+	int16 FirstNonCustomParent;
+
+	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
+	int16 RoleIndex;
+
+	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
+	int16 RemoteRoleIndex;
+
+	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
+	int32 ShadowDataBufferSize;
 
 	/** Top level Layout Commands. */
 	TArray<FRepParentCmd> Parents;
@@ -1822,17 +1855,6 @@ private:
 	/** Converts a relative handle to the appropriate index into the Cmds array */
 	TArray<FHandleToCmdIndex> BaseHandleToCmdIndex;
 
-	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
-	int32 ShadowDataBufferSize;
-
-	int32 FirstNonCustomParent;
-
-	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int32 RoleIndex;
-
-	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int32 RemoteRoleIndex;
-
 	/** UClass, UStruct, or UFunction that this FRepLayout represents.*/
 	UStruct* Owner;
 
@@ -1840,7 +1862,5 @@ private:
 	FRepSerializationSharedInfo SharedInfoRPC;
 
 	/** Shared comparison to default state for multicast rpc */
-	TBitArray<> SharedInfoRPCParentsChanged;
-
-	ERepLayoutState LayoutState;
+	TBitArray<> SharedInfoRPCParentsChanged;	
 };
