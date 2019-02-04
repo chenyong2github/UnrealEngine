@@ -173,7 +173,23 @@ static FAutoConsoleVariableRef CVarForceAllCoresForShaderCompiling(
 static TAutoConsoleVariable<int32> CVarKeepShaderDebugData(
 	TEXT("r.Shaders.KeepDebugInfo"),
 	0,
-	TEXT("Whether to keep shader reflection and debug data from shader bytecode, default is to strip.  When using graphical debuggers like Nsight it can be useful to enable this on startup."),
+	TEXT("Whether to keep shader reflection and debug data from shader bytecode, default is to strip.  When using graphical debuggers like Nsight it can be useful to enable this on startup.")
+	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarExportShaderDebugData(
+	TEXT("r.Shaders.ExportDebugInfo"),
+	0,
+	TEXT("Whether to export the shader reflection and debug data from shader bytecode as separate files.")
+	TEXT("r.Shaders.KeepDebugInfo must be enabled and r.DumpShaderDebugInfo will enable this cvar.")
+	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarExportShaderDebugDataMode(
+	TEXT("r.Shaders.ExportDebugInfoMode"),
+	0,
+	TEXT(" 0: Export as loose files.\n")
+	TEXT(" 1: Export as an uncompressed archive.\n"),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarOptimizeShaders(
@@ -3032,17 +3048,14 @@ void GlobalBeginCompileShader(
 
 	{
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.Optimize"));
-
-		if (CVar->GetInt() == 0)
+		if (CVar && CVar->GetInt() == 0)
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_Debug);
 		}
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
-
-		if (CVar->GetInt() != 0)
+		if (ShouldKeepShaderDebugInfo((EShaderPlatform)Target.Platform))
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_KeepDebugInfo);
 		}
