@@ -1814,13 +1814,11 @@ bool FStreamingManagerTexture::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputD
 		return HandleDumpTextureStreamingStatsCommand( Cmd, Ar );
 	}
 #endif
-#if STATS
+#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("ListStreamingTextures")))
 	{
 		return HandleListStreamingTexturesCommand( Cmd, Ar );
 	}
-#endif
-#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd, TEXT("ResetMaxEverRequiredTextures")))
 	{
 		return HandleResetMaxEverRequiredTexturesCommand(Cmd, Ar);
