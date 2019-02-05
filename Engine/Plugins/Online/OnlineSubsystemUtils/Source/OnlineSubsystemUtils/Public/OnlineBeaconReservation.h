@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/OnlineReplStructs.h"
 #include "OnlineBeaconReservation.generated.h"
 
 /** A single player reservation */
