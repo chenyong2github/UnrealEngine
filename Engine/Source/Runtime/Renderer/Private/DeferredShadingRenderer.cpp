@@ -1645,6 +1645,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	ServiceLocalQueue();
 
+	// Make sure the rendertargets the particle system might need aren't currently bound on RHIs
+	// that don't really have internal renderpasses.
+	UnbindRenderTargets(RHICmdList);
+
 	// Notify the FX system that opaque primitives have been rendered and we now have a valid depth buffer.
 	if (Scene->FXSystem && Views.IsValidIndex(0) && bAllowGPUParticleSceneUpdate)
 	{
