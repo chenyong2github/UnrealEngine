@@ -99,15 +99,6 @@ float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestH
 	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f; 
 	GBufferData.ShadingModelID = 1;
 
-	//#dxr_todo: calculate on the fly or store in Payload?
-#if 1
-	GBufferData.SpecularColor = lerp(0.08 * GBufferData.Specular.xxx, GBufferData.BaseColor, GBufferData.Metallic);
-	GBufferData.DiffuseColor = GBufferData.BaseColor - GBufferData.BaseColor * GBufferData.Metallic;
-#else	
-	GBufferData.SpecularColor = Payload.SpecularColor;
-	GBufferData.DiffuseColor = Payload.DiffuseColor;
-#endif
-
 	//#dxr_todo: think on the more efficient way of iterate through lights (split in light types, etc)
 	for (uint DirIndex = 0; DirIndex < ReflectionLightsData.Count; DirIndex++)
 	{
@@ -187,6 +178,33 @@ float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestH
 	return DirectLighting;
 }
 
+void ApplyViewDependentMaterialPayloadModifications(RayDesc Ray, inout FMaterialClosestHitPayload Payload)
+{
+	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		float ClearCoat				= Payload.CustomData.x;
+		float ClearCoatRoughness	= Payload.CustomData.y;
+		float MetalSpec = 0.9;
+
+		float NoV = saturate( dot( Payload.WorldNormal, -Ray.Direction ) );
+
+		// Approximation of refraction's effect on EnvBRDF
+		float RefractionScale = ( (NoV * 0.5 + 0.5) * NoV - 1 ) * saturate( 1.25 - 1.25 * Payload.Roughness ) + 1;
+
+		// Approximation of absorption integral, tuned for Roughness=0.4
+		float3 AbsorptionColor = Payload.BaseColor * (1 / MetalSpec);
+		float3 Absorption = AbsorptionColor * ( (NoV - 1) * 0.85 * ( 1 - lerp( AbsorptionColor, Square(AbsorptionColor), -0.78 ) ) + 1 );
+
+		float F0 = 0.04;
+		float Fc = Pow5( 1 - NoV );
+		float F = Fc + (1 - Fc) * F0;
+		float LayerAttenuation = lerp( 1, (1 - F), ClearCoat );
+
+		Payload.BaseColor = lerp( Payload.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, Payload.Metallic * ClearCoat );
+		Payload.Specular *= lerp( 1, RefractionScale, ClearCoat );
+	}
+}
+
 FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in RayDesc Ray,
 	inout FRayCone RayCone,
@@ -209,6 +227,11 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 		RayCone
 	);
 
+    ApplyViewDependentMaterialPayloadModifications(Ray, Payload);
+
+    Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
+	Payload.SpecularColor = lerp(0.08 * Payload.Specular.xxx, Payload.BaseColor, Payload.Metallic);
+
 	if (ShouldDoDirectLighting)
 	{
 		float3 DirectLighting = ComputeDirectLighting(Ray, RayCone, Payload, ShouldDoReflectedShadows > 0);
@@ -222,7 +245,7 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	{
 		// Emissive & indirect contribution
 		Radiance += Payload.Radiance;
-		Radiance += Payload.IndirectIrradiance;
+		Radiance += Payload.DiffuseColor * Payload.IndirectIrradiance;
 	}
 
 	return Payload;

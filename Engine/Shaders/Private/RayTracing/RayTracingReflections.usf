@@ -78,16 +78,7 @@ void RayTracingReflectionsRGS()
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 	float Depth = ScreenSpaceData.GBuffer.Depth;
-	float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
-	//#dxr - todo: use also the shading normal (interpolate, or apply a more sophisticated approach)
-	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-	float Roughness = ScreenSpaceData.GBuffer.Roughness;
-	
-	float3 BRDFThroughput = float3(1.0f, 1.0f, 1.0f);
 
-	uint MaxBounces = 1; //#dxr-todo: only works with 1 bounce until hit shaders are supported
 	uint LocalSamplesPerPixel = SamplesPerPixel;
 
 	// Mask out depth values at or beyond far plane
@@ -100,46 +91,123 @@ void RayTracingReflectionsRGS()
 	float ReflectedWeight = 0.0;
 	float HitDistance = -2.0;
 
-	const float RoughnessFade = GetRoughnessFade(Roughness, ReflectionMaxRoughness);
+	float RoughnessFade = GetRoughnessFade(ScreenSpaceData.GBuffer.Roughness, ReflectionMaxRoughness);
+	float ClearCoatRoughnessFade = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(ScreenSpaceData.GBuffer.CustomData.y, ReflectionMaxRoughness) : 1.0f;
 
 	// Sky is only sampled when infinite reflection rays are used.
 	const bool bAllowSkySampling = ReflectionMaxRayDistance < 0;
 
 	// Shorten the rays on rougher surfaces between user-provided min and max ray lengths.
 	// When a shortened ray misses the geometry, we fall back to local reflection capture sampling (similar to SSR).
-	const float LocalMaxRayDistance = bAllowSkySampling ? 1e27f : lerp(ReflectionMaxRayDistance, ReflectionMinRayDistance, Roughness);
+	const float LocalMaxRayDistance = bAllowSkySampling ? 1e27f : lerp(ReflectionMaxRayDistance, ReflectionMinRayDistance, ScreenSpaceData.GBuffer.Roughness);
 
-	if (RoughnessFade > 0)
+	if (RoughnessFade > 0 || ClearCoatRoughnessFade > 0)
 	{
 		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
 		{
+			bool bIsValidSample = false;
+			
+			float3 PathRadiance = 0;
+			float3 BRDFThroughput = float3(1.0f, 1.0f, 1.0f);
+			
+			// Initialize path states according to GBuffer
+			float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
+			float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
+			float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+			float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
+			float Roughness = ScreenSpaceData.GBuffer.Roughness;
+			float3 SpecularColor = ScreenSpaceData.GBuffer.SpecularColor;
 			float3 IncidentDirection = CameraDirection;
-					
+			float ClearCoat;
+			float ClearCoatRoughness;
+			#if CLEAR_COAT_BOTTOM_NORMAL
+			float3 ClearCoatBottomNormal;
+			#endif
+			
+			uint ShadingModelID = ScreenSpaceData.GBuffer.ShadingModelID;
+			if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+			{
+				ClearCoat = ScreenSpaceData.GBuffer.CustomData.x;
+				ClearCoatRoughness = ScreenSpaceData.GBuffer.CustomData.y;
+				#if CLEAR_COAT_BOTTOM_NORMAL
+					const float2 oct1 = ((float2(ScreenSpaceData.GBuffer.CustomData.a, ScreenSpaceData.GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(ScreenSpaceData.GBuffer.WorldNormal);
+					ClearCoatBottomNormal = OctahedronToUnitVector(oct1);
+				#endif
+			}
+			else
+			{
+				ClearCoat = 1.0f;
+				ClearCoatRoughness = 1.0f;
+				#if CLEAR_COAT_BOTTOM_NORMAL
+					ClearCoatBottomNormal = WorldNormal;
+				#endif
+			}
+
 			FRayCone RayCone = (FRayCone)0;
 			RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
             float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
 			RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
 
-			for (uint BounceIndex = 0; BounceIndex < MaxBounces; ++BounceIndex)
+			uint DummyVariable;
+				
+			const uint MaxBounces = 1;
+			// Add one more 'fake bounce' and we will evaluate cubemap there
+			for (uint BounceIndex = 0; BounceIndex < MaxBounces + 1; ++BounceIndex)
 			{
+				float NoV = saturate(dot(-IncidentDirection, WorldNormal));
+				float FinalRoughness = Roughness;
+				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+				{
+					float F = EnvBRDF( 0.04, ClearCoatRoughness, NoV ).x;
+					F *= ClearCoat;
+					
+					float w = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+					
+					if (w <= F)
+					{
+						SpecularColor = 0.04;
+						FinalRoughness = ClearCoatRoughness;
+					}
+					else
+					{
+						#if CLEAR_COAT_BOTTOM_NORMAL
+							WorldNormal = ClearCoatBottomNormal;
+							NoV = saturate(dot(-IncidentDirection, WorldNormal));
+						#endif
+						BRDFThroughput *= EnvBRDF( SpecularColor, Roughness, NoV );
+					}
+				}
+				else
+				{
+					// If it is not clear coat, and we're on the first bounce, the G F terms will be applied by ReflectionEnvironmentPixelShader
+					if (BounceIndex > 0)
+						BRDFThroughput *= EnvBRDF( SpecularColor, Roughness, NoV );
+				}				
+
 				RayDesc Ray;
 				Ray.Origin = WorldPosition + WorldNormal * 0.01;
 				Ray.TMin = 0.0;
 				Ray.TMax = LocalMaxRayDistance;
-
-				uint DummyVariable;
-				float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
-
-				if (LocalSamplesPerPixel == 1)
+				
+				int RetryCount = 0;
+				do
 				{
-					uint2 SobolFrame = ComputePixelUniqueSobolRandSample(DispatchThreadId);
-					RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
-				}
+					float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
-				Ray.Direction = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, Roughness, RandSample);
-				if (dot(WorldNormal, Ray.Direction) <= 0.0)
+					// Sobol can only be used on the first sample of the first bounce
+					if (BounceIndex == 0 && LocalSamplesPerPixel == 1 && RetryCount == 0)
+					{
+						uint2 SobolFrame = ComputePixelUniqueSobolRandSample(DispatchThreadId);
+						RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+					}
+				
+					Ray.Direction = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, FinalRoughness, RandSample);
+				} while (dot(WorldNormal, Ray.Direction) < 0.0 && ++RetryCount < 16);
+
+				if (dot(WorldNormal, Ray.Direction) < 0.0)
 				{
 					// Refraction rays are handled separately
+					bIsValidSample = false;
 					break;
 				}
 
@@ -148,16 +216,27 @@ void RayTracingReflectionsRGS()
 				uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 
 				float3 Radiance = float3(0, 0, 0);
-				FMaterialClosestHitPayload Payload = TraceRayAndAccumulateResults(Ray, RayCone, Radiance);
+				FMaterialClosestHitPayload Payload;
+				
+				// Force the ray to miss on the MaxBounces + 1 fake bounce, so that we fallback to cubemap there
+				if (BounceIndex < MaxBounces)
+				{
+					Payload = TraceRayAndAccumulateResults(Ray, RayCone, Radiance);
+				}
 
-				float4 PathRadiance = 0.0f;
 				bool bApplyHeightFog = false;
 				float3 OriginToCollider = 0.0f;
 
-				if (Payload.HitT >= 0)
+				// Force the ray to miss on the MaxBounces + 1 fake bounce, so that we fallback to cubemap there
+				if (Payload.HitT >= 0 && BounceIndex < MaxBounces)
 				{
-					PathRadiance = float4(Radiance, 1.0);
-					HitDistance = Payload.HitT;
+					PathRadiance += BRDFThroughput * Radiance; 
+					bIsValidSample = true;
+
+					if (BounceIndex == 0)
+					{
+						HitDistance = Payload.HitT;
+					}
 
 					bApplyHeightFog = HeightFog > 0;
 					OriginToCollider = Payload.WorldPos - Ray.Origin;
@@ -165,21 +244,28 @@ void RayTracingReflectionsRGS()
 				else if (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0)
 				{
 					float SkyAverageBrightness = 1.0f;
-					float3 SkyLighting = GetSkyLightReflection(Ray.Direction, Roughness, SkyAverageBrightness);
-					PathRadiance = float4(SkyLighting, 1.0);
+					float3 SkyLighting = GetSkyLightReflection(Ray.Direction, FinalRoughness, SkyAverageBrightness);
+					PathRadiance += BRDFThroughput * SkyLighting;
+					bIsValidSample = true;
 
 					bApplyHeightFog = HeightFog > 0;
 					const float SkyFarDistance = 100000.0f;
-					OriginToCollider = Ray.Direction*SkyFarDistance;
-						
-					// To tell the denoiser the black input is valid even if no valid ray trace result was found. Uses a high ray hit distance
-					// so that the sample may be reused by another neighbor pixel in the denoise as if RoughnessFade in ]0;1[.
-					HitDistance = 1.0e20;
+					OriginToCollider = Ray.Direction * SkyFarDistance;
+
+					if (BounceIndex == 0)
+					{
+						// To tell the denoiser the black input is valid even if no valid ray trace result was found. Uses a high ray hit distance
+						// so that the sample may be reused by another neighbor pixel in the denoise as if RoughnessFade in ]0;1[.
+						HitDistance = 1.0e20;
+					}
 				}
 				else
 				{
-					// Tell to the denoiser this sample reached outer bounds of the scene without any intersection.
-					HitDistance = -1;
+					if (BounceIndex == 0)
+					{
+						// Tell to the denoiser this sample reached outer bounds of the scene without any intersection.
+						HitDistance = -1;
+					}
 				}
 
 				// If there is a contribution on this path, apply the required fog on the sample. 
@@ -190,11 +276,32 @@ void RayTracingReflectionsRGS()
 				{
 					float4 HeightFogInscatteringAndTransmittance = CalculateHeightFog(OriginToCollider);
 					PathRadiance.rgb = PathRadiance.rgb * HeightFogInscatteringAndTransmittance.a + HeightFogInscatteringAndTransmittance.rgb;
-
 				}
-				ReflectedColor += PathRadiance;
-				ReflectedWeight += 1.0;
+				
 				IncidentDirection = Ray.Direction;
+				WorldPosition = Ray.Origin + Payload.HitT * Ray.Direction;
+				WorldNormal = Payload.WorldNormal;
+				Roughness = Payload.Roughness;
+				SpecularColor = Payload.SpecularColor;
+				
+				ShadingModelID = Payload.ShadingModelID;
+				if (ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+				{
+					ClearCoat = Payload.CustomData.x;
+					ClearCoatRoughness = Payload.CustomData.y;
+					#if CLEAR_COAT_BOTTOM_NORMAL
+						const float2 oct1 = ((float2(Payload.CustomData.a, Payload.GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(Payload.WorldNormal);
+						ClearCoatBottomNormal = OctahedronToUnitVector(oct1);
+					#endif
+				}
+				
+				if (all(BRDFThroughput < 0.1)) break;
+			}
+			
+			if (bIsValidSample)
+			{
+				ReflectedColor += float4(PathRadiance, 1.0f);
+				ReflectedWeight += 1.0;
 			}
 		}
 	}
@@ -203,8 +310,8 @@ void RayTracingReflectionsRGS()
 	{
 		float DistanceFadeRange = LocalMaxRayDistance * 0.1; // Fade out reflections over 10% of the total maximum ray length (arbitrarily chosen)
 		float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
-
-		ReflectedColor *= DistanceFade * RoughnessFade * rcp(ReflectedWeight);
+		
+		ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(ReflectedWeight);
 	}
 
 	ColorOutput[DispatchThreadId] = float4(ReflectedColor);
