@@ -1750,6 +1750,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				// #dxr_todo: Denoise SkyLight
 				CompositeRayTracingSkyLight(RHICmdList, SkyLightRT, HitDistanceRT);
 			}
+			if (ShouldRenderRayTracingGlobalIllumination())
+			{
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					RenderRayTracingGlobalIllumination(RHICmdList, Views[ViewIndex], SceneContext.ScreenSpaceAO);
+				}
+			}
 			else if (ShouldRenderRayTracingAmbientOcclusion())
 			{
 				checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -1794,8 +1801,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					}
 					GraphBuilder.Execute();
 				}
-
-				// #dxr_todo: Denoise AO
 			}
 		}
 	}
