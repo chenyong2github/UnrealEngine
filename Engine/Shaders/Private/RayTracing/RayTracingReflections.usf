@@ -24,6 +24,7 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "RayTracingHitGroupCommon.ush"
 
 uint SamplesPerPixel;
+uint MaxBounces;
 uint HeightFog;
 uint ShouldDoDirectLighting;
 uint ShouldDoReflectedShadows;
@@ -150,7 +151,6 @@ void RayTracingReflectionsRGS()
 
 			uint DummyVariable;
 				
-			const uint MaxBounces = 1;
 			// Add one more 'fake bounce' and we will evaluate cubemap there
 			for (uint BounceIndex = 0; BounceIndex < MaxBounces + 1; ++BounceIndex)
 			{
