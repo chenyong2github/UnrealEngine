@@ -130,7 +130,7 @@ public:
 			return ReferenceKey.Object;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get default value."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get default value."), ELogVerbosity::Error);
 		return FMovieSceneObjectBindingID();
 	}
 
@@ -148,7 +148,7 @@ public:
 			Channel->ClearDefault();
 			return;
 		}
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."), ELogVerbosity::Error);
 	}
 
 	/**

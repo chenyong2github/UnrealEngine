@@ -92,7 +92,7 @@ void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 S
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+			FFrame::KismetExecutionMessage(TEXT("Invalid range specified"), ELogVerbosity::Error);
 		}
 	}
 }
@@ -114,7 +114,7 @@ void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, 
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+			FFrame::KismetExecutionMessage(TEXT("Invalid range specified"), ELogVerbosity::Error);
 		}
 	}
 }
@@ -224,7 +224,7 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::GetChannels(U
 	TArray<UMovieSceneScriptingChannel*> Channels;
 	if (!Section)
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Cannot get channels for null section"));
+		FFrame::KismetExecutionMessage(TEXT("Cannot get channels for null section"), ELogVerbosity::Error);
 		return Channels;
 	}
 	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
@@ -249,8 +249,8 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::FindChannelsB
 	TArray<UMovieSceneScriptingChannel*> Channels;
 	if (!Section)
 	{
- 		UE_LOG(LogMovieScene, Error, TEXT("Cannot get channels for null section"));
- 		return Channels;
+		FFrame::KismetExecutionMessage(TEXT("Cannot get channels for null section"), ELogVerbosity::Error);
+		return Channels;
 	}
  
 	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
@@ -267,7 +267,7 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::FindChannelsB
 	else if (ChannelType == UMovieSceneScriptingActorReferenceChannel::StaticClass())	{ GetScriptingChannelsForChannel<FMovieSceneActorReferenceData, UMovieSceneScriptingActorReferenceChannel>(ChannelProxy, Sequence, Channels); }
 	else
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Unsupported ChannelType for FindChannelsByType!"));
+		FFrame::KismetExecutionMessage(TEXT("Unsupported ChannelType for FindChannelsByType!"), ELogVerbosity::Error);
 	}
 
 
