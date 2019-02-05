@@ -264,6 +264,7 @@ class FMetalTexturePool
 {
 	enum
 	{
+		PurgeAfterNumFrames = 2, /* Textures must be reused fairly rapidly but after this number of frames we reclaim the memory, even though the object persists */
 		CullAfterNumFrames = 3, /* Textures must be reused fairly rapidly or we bin them as they are much larger than buffers */
 	};
 public:

@@ -1199,6 +1199,8 @@ FMetalTexture FMetalTexturePool::CreateTexture(mtlpp::Device Device, mtlpp::Text
 	{
 		Texture = *Tex;
 		Pool.Remove(Descriptor);
+		
+		Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
 	}
 	else
 	{
@@ -1226,6 +1228,8 @@ void FMetalTexturePool::ReleaseTexture(FMetalTexture& Texture)
 	Descriptor.usage = Texture.GetUsage();
 	Descriptor.freedFrame = GFrameNumberRenderThread;
 	
+	Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+	
 	FScopeLock Lock(&PoolMutex);
 	Pool.Add(Descriptor, Texture);
 }
@@ -1244,6 +1248,10 @@ void FMetalTexturePool::Drain(bool const bForce)
 			if ((GFrameNumberRenderThread - It->Key.freedFrame) >= CullAfterNumFrames)
 			{
 				It.RemoveCurrent();
+			}
+			else if ((GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
+			{
+				It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
 			}
 		}
 	}
@@ -1439,6 +1447,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 				 else
 				{
 					Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
+					Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
 				}
@@ -1511,6 +1520,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 				{
 					FScopeLock Lock(&Mutex);
 					Buffer = Buffers[Storage].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
+					Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
 				}
@@ -1551,6 +1561,8 @@ void FMetalResourceHeap::ReleaseBuffer(FMetalBuffer& Buffer)
 		
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 		INC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
+		
+		Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
 		
 		switch (StorageMode)
 		{
