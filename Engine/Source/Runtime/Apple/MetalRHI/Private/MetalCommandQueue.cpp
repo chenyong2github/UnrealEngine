@@ -19,7 +19,6 @@
 #pragma mark - Private C++ Statics -
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
-extern bool GMetalManagedUniformBuffers;
 
 #pragma mark - Public C++ Boilerplate -
 
@@ -294,8 +293,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	{
 		Features |= EMetalFeaturesAbsoluteTimeQueries;
 	}
-	
-	GMetalManagedUniformBuffers = FParse::Param(FCommandLine::Get(),TEXT("metalmanagedubs"));
 #endif
 	
 #if !UE_BUILD_SHIPPING
