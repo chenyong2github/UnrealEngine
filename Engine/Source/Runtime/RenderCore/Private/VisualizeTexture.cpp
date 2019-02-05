@@ -276,7 +276,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder, ShaderMap,
 		RDG_EVENT_NAME("VisualizeTextureCapture(%s)", SrcTexture->Name),
-		*PixelShader, PassParameters);
+		*PixelShader, PassParameters, FIntRect(0, 0, RTExtent.X, RTExtent.Y));
 
 	// Save the copied texture and descriptor about original informations.
 	{
