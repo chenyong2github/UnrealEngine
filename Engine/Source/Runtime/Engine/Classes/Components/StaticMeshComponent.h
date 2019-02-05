@@ -42,18 +42,16 @@ struct FPaintedVertex
 	FVector Position;
 
 	UPROPERTY()
-	FVector4 Normal;
-
-	UPROPERTY()
 	FColor Color;
 
+	UPROPERTY()
+	FVector4 Normal;
 
 	FPaintedVertex()
 		: Position(ForceInit)
 		, Color(ForceInit)
 	{
 	}
-
 
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FPaintedVertex& PaintedVertex)
 	{
