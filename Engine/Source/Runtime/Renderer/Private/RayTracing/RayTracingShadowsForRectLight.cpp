@@ -18,7 +18,7 @@
 
 #include "RHI/Public/PipelineStateCache.h"
 
-static int32 GRayTracingRectLight = 1;
+static int32 GRayTracingRectLight = 0;
 static FAutoConsoleVariableRef CVarRayTracingRectLight(
 	TEXT("r.RayTracing.RectLight"),
 	GRayTracingRectLight,
