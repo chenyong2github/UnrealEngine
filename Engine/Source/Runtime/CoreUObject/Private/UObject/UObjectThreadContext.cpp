@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/Object.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectThreadContext);
 
@@ -54,4 +55,18 @@ void FUObjectSerializeContext::AddUniqueLoadedObjects(const TArray<UObject*>& In
 		ObjectsLoaded.AddUnique(NewLoadedObject);
 	}
 	
+}
+
+bool FUObjectSerializeContext::PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* NewObject)
+{
+	const int32 ObjLoadedIdx = ObjectsLoaded.Find(OldObject);
+	if (ObjLoadedIdx != INDEX_NONE)
+	{
+		ObjectsLoaded[ObjLoadedIdx] = NewObject;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }

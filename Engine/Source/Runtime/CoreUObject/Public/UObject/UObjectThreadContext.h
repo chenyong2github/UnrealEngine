@@ -178,19 +178,7 @@ public:
 		return !!ObjectsLoaded.Num();
 	}
 
-	bool PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* NewObject)
-	{
-		const int32 ObjLoadedIdx = ObjectsLoaded.Find(OldObject);
-		if (ObjLoadedIdx != INDEX_NONE)
-		{
-			ObjectsLoaded[ObjLoadedIdx] = NewObject;
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
+	bool PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* NewObject);
 
 	/** This is only meant to be used by FAsyncPackage for performance reasons. The ObjectsLoaded array should not be manipulated directly! */
 	TArray<UObject*>& PRIVATE_GetObjectsLoadedInternalUseOnly()
