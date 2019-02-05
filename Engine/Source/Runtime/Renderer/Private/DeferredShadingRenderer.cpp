@@ -1681,6 +1681,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	ServiceLocalQueue();
 
+	// Unbind everything in case FX has to read.
+	UnbindRenderTargets(RHICmdList);
+
 	// Notify the FX system that opaque primitives have been rendered and we now have a valid depth buffer.
 	if (Scene->FXSystem && Views.IsValidIndex(0) && bAllowGPUParticleSceneUpdate)
 	{
