@@ -29,7 +29,6 @@ struct FMetalRHICommandInitialiseUniformBufferIAB : public FRHICommand<FMetalRHI
 		Buffer->InitIAB();
 	}
 };
-bool GMetalManagedUniformBuffers = false;
 
 struct FMetalArgumentDesc
 {
