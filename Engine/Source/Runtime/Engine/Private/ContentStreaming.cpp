@@ -263,10 +263,12 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 
 					int32 WantedMips		= RenderAsset->GetNumRequestedMips();
 					float BoostFactor		= 1.0f;
+					FStreamingRenderAsset::EAssetType AssetType = FStreamingRenderAsset::AT_Num;
 					if ( StreamingRenderAsset )
 					{
 						WantedMips			= StreamingRenderAsset->WantedMips;
 						BoostFactor			= StreamingRenderAsset->BoostFactor;
+						AssetType			= StreamingRenderAsset->RenderAssetType;
 					}
 
 					if ( LastEvent->NumResidentMips != RenderAsset->GetNumResidentMips() ||
@@ -284,7 +286,7 @@ bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreama
 						NewEvent.Timestamp				= LastEvent->Timestamp			= float(FPlatformTime::Seconds() - GStartTime);
 						NewEvent.BoostFactor			= LastEvent->BoostFactor		= BoostFactor;
 						UE_LOG(LogContentStreaming, Log, TEXT("%s: \"%s\", ResidentMips: %d/%d, RequestedMips: %d, WantedMips: %d, Boost: %.1f (%s)"),
-							FStreamingRenderAsset::GetStreamingAssetTypeStr(StreamingRenderAsset->RenderAssetType),
+							FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType),
 							AssetName, LastEvent->NumResidentMips, RenderAsset->GetNumMipsForStreaming(), bIsDestroying ? 0 : LastEvent->NumRequestedMips, LastEvent->WantedMips, 
 							BoostFactor, bIsDestroying ? TEXT("DESTROYED") : TEXT("updated") );
 					}
