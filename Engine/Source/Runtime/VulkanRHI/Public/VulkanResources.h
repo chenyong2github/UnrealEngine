@@ -1363,6 +1363,9 @@ public:
 	{
 	}
 
+	void Clear();
+
+	void Rename(FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
 
 	void UpdateView();
 

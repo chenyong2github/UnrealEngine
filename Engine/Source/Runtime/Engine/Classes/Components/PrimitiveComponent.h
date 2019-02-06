@@ -235,9 +235,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
 	uint8 bNeverDistanceCull:1;
 
-	/** Whether this primitive is referenced by a FLevelTextureManager  */
+	/** Whether this primitive is referenced by a FLevelRenderAssetManager  */
 	mutable uint8 bAttachedToStreamingManagerAsStatic : 1;
-	/** Whether this primitive is referenced by a FDynamicTextureInstanceManager */
+	/** Whether this primitive is referenced by a FDynamicRenderAssetInstanceManager */
 	mutable uint8 bAttachedToStreamingManagerAsDynamic : 1;
 	/** Whether this primitive is handled as dynamic, although it could have no references */
 	mutable uint8 bHandledByStreamingManagerAsDynamic : 1;
@@ -1516,17 +1516,17 @@ public:
 	virtual ELightMapInteractionType GetStaticLightingType() const	{ return LMIT_None;	}
 
 	/**
-	 * Enumerates the streaming textures used by the primitive.
+	 * Enumerates the streaming textures/meshes used by the primitive.
 	 * @param LevelContext - Level scope context used to process texture streaming build data.
-	 * @param OutStreamingTextures - Upon return, contains a list of the streaming textures used by the primitive.
+	 * @param OutStreamingRenderAssets - Upon return, contains a list of the streaming textures/meshes used by the primitive.
 	 */
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const;
 
 	/**
-	 * Call GetStreamingTextureInfo and remove the elements with a NULL texture
-	 * @param OutStreamingTextures - Upon return, contains a list of the non-null streaming textures used by the primitive.
+	 * Call GetStreamingRenderAssetInfo and remove the elements with a NULL texture
+	 * @param OutStreamingRenderAssets - Upon return, contains a list of the non-null streaming textures or meshes used by the primitive.
 	 */
-	void GetStreamingTextureInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const;
+	void GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const;
 
 	/**
 	 *	Update the streaming data of this component.

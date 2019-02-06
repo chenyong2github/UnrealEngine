@@ -1795,6 +1795,41 @@ struct FRHICommandUpdateTextureReference final : public FRHICommand<FRHICommandU
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHIShaderResourceViewUpdateInfo_VB
+{
+	FShaderResourceViewRHIParamRef SRV;
+	FVertexBufferRHIParamRef VertexBuffer;
+	uint32 Stride;
+	uint8 Format;
+};
+
+struct FRHIResourceUpdateInfo
+{
+	enum EUpdateType
+	{
+		UT_VertexBufferSRV,
+		UT_Num
+	};
+
+	EUpdateType Type;
+	union
+	{
+		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
+	};
+};
+
+struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdateRHIResources>
+{
+	FRHIResourceUpdateInfo* UpdateInfos;
+	int32 Num;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateRHIResources(FRHIResourceUpdateInfo* InUpdateInfos, int32 InNum)
+		: UpdateInfos(InUpdateInfos)
+		, Num(InNum)
+	{}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 #if RHI_RAYTRACING
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
@@ -4246,6 +4281,7 @@ public:
 	}
 	void UpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture);
 
+	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num);
 };
 
  struct FScopedGPUMask
@@ -4498,6 +4534,11 @@ FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, 
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
 }
 
+FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
+}
+
 FORCEINLINE void* RHILockIndexBuffer(FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().LockIndexBuffer(IndexBuffer, Offset, Size, LockMode);
@@ -4516,6 +4557,11 @@ FORCEINLINE FVertexBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, uint32
 FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateVertexBuffer(Size, InUsage, CreateInfo);
+}
+
+FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateVertexBuffer(Size, InUsage, CreateInfo);
 }
 
 FORCEINLINE void* RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -4576,6 +4622,11 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FVertexBufferR
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer);
+}
+
+FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().UpdateRHIResources(UpdateInfos, Num);
 }
 
 FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
@@ -4812,6 +4863,43 @@ FORCEINLINE void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }
+
+template <int32 MaxNumUpdates>
+struct TRHIResourceUpdateBatcher
+{
+	FRHIResourceUpdateInfo UpdateInfos[MaxNumUpdates];
+	int32 NumBatched;
+
+	TRHIResourceUpdateBatcher()
+		: NumBatched(0)
+	{}
+
+	~TRHIResourceUpdateBatcher()
+	{
+		Flush();
+	}
+
+	void Flush()
+	{
+		if (NumBatched > 0)
+		{
+			RHIUpdateRHIResources(UpdateInfos, NumBatched);
+			NumBatched = 0;
+		}
+	}
+
+	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+	{
+		check(NumBatched <= MaxNumUpdates);
+		if (NumBatched == MaxNumUpdates)
+		{
+			Flush();
+		}
+		const int32 Idx = NumBatched++;
+		UpdateInfos[Idx].Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
+		UpdateInfos[Idx].VertexBufferSRV = { SRV, VertexBuffer, Stride, Format };
+	}
+};
 
 #undef RHICOMMAND_CALLSTACK
 

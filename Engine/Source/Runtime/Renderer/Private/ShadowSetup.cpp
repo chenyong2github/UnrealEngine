@@ -857,15 +857,17 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 		{
 			FLODMask ViewLODToRender;
 			float MeshScreenSizeSquared = 0;
+			const int8 CurFirstLODIdx = InPrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
 
 			if (InPrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
 				ViewLODToRender = InPrimitiveSceneInfo->Proxy->GetCustomLOD(InCurrentView, InCurrentView.LODDistanceFactor, ForcedLOD, MeshScreenSizeSquared);
+				ViewLODToRender.ClampToFirstLOD(CurFirstLODIdx);
 			}
 			else
 			{
 				const FBoxSphereBounds& Bounds = InPrimitiveSceneInfo->Proxy->GetBounds();
-				ViewLODToRender = ComputeLODForMeshes(InPrimitiveSceneInfo->StaticMeshRelevances, InCurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, InCurrentView.LODDistanceFactor);
+				ViewLODToRender = ComputeLODForMeshes(InPrimitiveSceneInfo->StaticMeshRelevances, InCurrentView, Bounds.Origin, Bounds.SphereRadius, ForcedLOD, MeshScreenSizeSquared, CurFirstLODIdx, InCurrentView.LODDistanceFactor);
 			}	
 
 			InCurrentView.PrimitivesLODMask[PrimitiveId] = ViewLODToRender;

@@ -2021,12 +2021,12 @@ bool UInstancedStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingB
 	return true;
 }
 
-void UInstancedStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UInstancedStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	// Don't only look the instance count but also if the bound is valid, as derived classes might not set PerInstanceSMData.
 	if (GetInstanceCount() > 0 || Bounds.SphereRadius > 0)
 	{
-		return Super::GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
+		return Super::GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
 	}
 }
 

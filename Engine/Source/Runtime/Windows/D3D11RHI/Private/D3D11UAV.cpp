@@ -188,14 +188,10 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FStructu
 	return new FD3D11ShaderResourceView(ShaderResourceView,StructuredBuffer);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
+static void CreateD3D11ShaderResourceViewOnVertexBuffer(ID3D11Device* Direct3DDevice, ID3D11Buffer* Buffer, uint32 Stride, uint8 Format, ID3D11ShaderResourceView** OutSRV)
 {
-	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-	check(VertexBuffer);
-	check(VertexBuffer->Resource);
-
 	D3D11_BUFFER_DESC BufferDesc;
-	VertexBuffer->Resource->GetDesc(&BufferDesc);
+	Buffer->GetDesc(&BufferDesc);
 
 	// Create a Shader Resource View
 	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
@@ -203,26 +199,59 @@ FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FVertexB
 	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 	SRVDesc.Buffer.FirstElement = 0;
 
-	SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat,false);
+	SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
 	SRVDesc.Buffer.NumElements = BufferDesc.ByteWidth / Stride;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	
-	HRESULT hr = Direct3DDevice->CreateShaderResourceView(VertexBuffer->Resource, &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference());
+
+	HRESULT hr = Direct3DDevice->CreateShaderResourceView(Buffer, &SRVDesc, OutSRV);
 	if (FAILED(hr))
 	{
 		if (hr == E_OUTOFMEMORY)
 		{
 			// There appears to be a driver bug that causes SRV creation to fail with an OOM error and then succeed on the next call.
-			hr = Direct3DDevice->CreateShaderResourceView(VertexBuffer->Resource, &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference());
+			hr = Direct3DDevice->CreateShaderResourceView(Buffer, &SRVDesc, OutSRV);
 		}
 		if (FAILED(hr))
 		{
-			UE_LOG(LogD3D11RHI,Error,TEXT("Failed to create shader resource view for vertex buffer: ByteWidth=%d NumElements=%d Format=%s"),BufferDesc.ByteWidth,BufferDesc.ByteWidth / Stride, GPixelFormats[Format].Name);
-			VerifyD3D11Result(hr,"Direct3DDevice->CreateShaderResourceView",__FILE__,__LINE__,Direct3DDevice);
+			UE_LOG(LogD3D11RHI, Error, TEXT("Failed to create shader resource view for vertex buffer: ByteWidth=%d NumElements=%d Format=%s"), BufferDesc.ByteWidth, BufferDesc.ByteWidth / Stride, GPixelFormats[Format].Name);
+			VerifyD3D11Result(hr, "Direct3DDevice->CreateShaderResourceView", __FILE__, __LINE__, Direct3DDevice);
 		}
 	}
+}
+
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
+{
+	if (!VertexBufferRHI)
+	{
+		return new FD3D11ShaderResourceView(nullptr, nullptr);
+	}
+	FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+	check(VertexBuffer);
+	check(VertexBuffer->Resource);
+
+	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+	CreateD3D11ShaderResourceViewOnVertexBuffer(Direct3DDevice, VertexBuffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
 
 	return new FD3D11ShaderResourceView(ShaderResourceView,VertexBuffer);
+}
+
+void FD3D11DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
+{
+	check(SRV);
+	FD3D11ShaderResourceView* SRVD3D11 = ResourceCast(SRV);
+	if (!VertexBufferRHI)
+	{
+		SRVD3D11->Rename(nullptr, nullptr);
+	}
+	else
+	{
+		FD3D11VertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
+		check(VertexBuffer->Resource);
+
+		TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+		CreateD3D11ShaderResourceViewOnVertexBuffer(Direct3DDevice, VertexBuffer->Resource, Stride, Format, ShaderResourceView.GetInitReference());
+
+		SRVD3D11->Rename(ShaderResourceView, VertexBuffer);
+	}
 }
 
 FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FIndexBufferRHIParamRef BufferRHI)

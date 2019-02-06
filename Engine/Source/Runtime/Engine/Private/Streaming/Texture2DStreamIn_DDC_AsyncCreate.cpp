@@ -12,7 +12,7 @@ Texture2DStreamIn_DDC_AsyncCreate.h: Load texture 2D mips from the DDC using asy
 FTexture2DStreamIn_DDC_AsyncCreate::FTexture2DStreamIn_DDC_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips)
 	: FTexture2DStreamIn_DDC(InTexture, InRequestedMips) 
 {
-	PushTask(FContext(InTexture, TT_None), TT_Async, TEXTURE2D_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
+	PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
 }
 
 // ****************************
@@ -27,7 +27,7 @@ void FTexture2DStreamIn_DDC_AsyncCreate::AllocateAndLoadMips(const FContext& Con
 	DoAllocateNewMips(Context);
 	DoLoadNewMipsFromDDC(Context);
 
-	PushTask(Context, TT_Async, TEXTURE2D_UPDATE_CALLBACK(AsyncCreate), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(AsyncCreate), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_DDC_AsyncCreate::AsyncCreate(const FContext& Context)
@@ -38,7 +38,7 @@ void FTexture2DStreamIn_DDC_AsyncCreate::AsyncCreate(const FContext& Context)
 	DoAsyncCreateWithNewMips(Context);
 	DoFreeNewMips(Context);
 
-	PushTask(Context, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Finalize), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_DDC_AsyncCreate::Finalize(const FContext& Context)

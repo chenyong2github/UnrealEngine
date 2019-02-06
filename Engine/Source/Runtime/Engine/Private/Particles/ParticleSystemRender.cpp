@@ -1575,7 +1575,8 @@ public:
 
 uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSceneProxy *InOwnerProxy) const
 {
-	int FirstAvailableLOD = 0;
+	check(IsInRenderingThread());
+	int FirstAvailableLOD = StaticMesh->RenderData->CurrentFirstLODIdx;
 	for (; FirstAvailableLOD < StaticMesh->RenderData->LODResources.Num(); FirstAvailableLOD++)
 	{
 		if (StaticMesh->RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)

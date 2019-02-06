@@ -10,7 +10,7 @@ Texture2DStreamIn_IO_AsyncCreate.cpp: Async create path for streaming in texture
 FTexture2DStreamIn_IO_AsyncCreate::FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn_IO(InTexture, InRequestedMips, InPrioritizedIORequest) 
 {
-	PushTask(FContext(InTexture, TT_None), TT_Async, TEXTURE2D_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
+	PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
 }
 
 // ****************************
@@ -26,7 +26,7 @@ void FTexture2DStreamIn_IO_AsyncCreate::AllocateAndLoadMips(const FContext& Cont
 	DoAllocateNewMips(Context);
 	SetIORequests(Context);
 
-	PushTask(Context, TT_Async, TEXTURE2D_UPDATE_CALLBACK(AsyncCreate), TT_Async, TEXTURE2D_UPDATE_CALLBACK(CancelIO));
+	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(AsyncCreate), TT_Async, SRA_UPDATE_CALLBACK(CancelIO));
 }
 
 
@@ -39,7 +39,7 @@ void FTexture2DStreamIn_IO_AsyncCreate::AsyncCreate(const FContext& Context)
 	DoFreeNewMips(Context);
 	ClearIORequests(Context);
 
-	PushTask(Context, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Finalize), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_IO_AsyncCreate::Finalize(const FContext& Context)
@@ -62,7 +62,7 @@ void FTexture2DStreamIn_IO_AsyncCreate::CancelIO(const FContext& Context)
 
 	ClearIORequests(Context);
 
-	PushTask(Context, TT_None, nullptr, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_None, nullptr, TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 
