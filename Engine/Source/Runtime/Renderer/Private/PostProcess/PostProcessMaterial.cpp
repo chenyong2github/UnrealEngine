@@ -13,6 +13,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "SceneRendering.h"
 #include "ClearQuad.h"
+#include "RHI/Public/PipelineStateCache.h"
 
 enum class EPostProcessMaterialTarget
 {
@@ -166,7 +167,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FPostProcessMaterialPS_Mobile,TEXT("/E
 FRCPassPostProcessMaterial::FRCPassPostProcessMaterial(UMaterialInterface* InMaterialInterface, ERHIFeatureLevel::Type InFeatureLevel, EPixelFormat OutputFormatIN)
 : MaterialInterface(InMaterialInterface), OutputFormat(OutputFormatIN)
 {
-	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy(false);
+	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
 	check(Proxy);
 
 	const FMaterial* Material = Proxy->GetMaterialNoFallback(InFeatureLevel);
@@ -203,7 +204,7 @@ TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVerte
 
 void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context)
 {
-	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy(false);
+	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
 
 	check(Proxy);
 
@@ -328,6 +329,7 @@ FPooledRenderTargetDesc FRCPassPostProcessMaterial::ComputeOutputDesc(EPassOutpu
 	Ret.AutoWritable = false;
 	Ret.DebugName = TEXT("PostProcessMaterial");
 	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
+	Ret.Flags |= GFastVRamConfig.PostProcessMaterial;
 
 	return Ret;
 }

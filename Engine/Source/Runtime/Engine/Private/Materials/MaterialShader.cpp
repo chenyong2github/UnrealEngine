@@ -634,9 +634,8 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
-		
-		if (ShaderTypeDependency.ShaderType != ReferenceSet.ShaderTypeDependencies[ShaderIndex].ShaderType
-			|| ShaderTypeDependency.SourceHash != ReferenceSet.ShaderTypeDependencies[ShaderIndex].SourceHash)
+
+		if (ShaderTypeDependency != ReferenceSet.ShaderTypeDependencies[ShaderIndex])
 		{
 			return false;
 		}
@@ -646,8 +645,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	{
 		const FShaderPipelineTypeDependency& ShaderPipelineTypeDependency = ShaderPipelineTypeDependencies[ShaderPipelineIndex];
 
-		if (ShaderPipelineTypeDependency.ShaderPipelineType != ReferenceSet.ShaderPipelineTypeDependencies[ShaderPipelineIndex].ShaderPipelineType
-			|| ShaderPipelineTypeDependency.StagesSourceHash != ReferenceSet.ShaderPipelineTypeDependencies[ShaderPipelineIndex].StagesSourceHash)
+		if (ShaderPipelineTypeDependency != ReferenceSet.ShaderPipelineTypeDependencies[ShaderPipelineIndex])
 		{
 			return false;
 		}
@@ -656,9 +654,8 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	for (int32 VFIndex = 0; VFIndex < VertexFactoryTypeDependencies.Num(); VFIndex++)
 	{
 		const FVertexFactoryTypeDependency& VFDependency = VertexFactoryTypeDependencies[VFIndex];
-		
-		if (VFDependency.VertexFactoryType != ReferenceSet.VertexFactoryTypeDependencies[VFIndex].VertexFactoryType
-			|| VFDependency.VFSourceHash != ReferenceSet.VertexFactoryTypeDependencies[VFIndex].VFSourceHash)
+
+		if (VFDependency != ReferenceSet.VertexFactoryTypeDependencies[VFIndex])
 		{
 			return false;
 		}
@@ -710,6 +707,7 @@ void FMaterialShaderMapId::UpdateParameterSet(const FStaticParameterSet& StaticP
 
 void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 {
+#if WITH_EDITOR
 	KeyString += BaseMaterialId.ToString();
 	KeyString += TEXT("_");
 
@@ -817,10 +815,12 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += BytesToHex(&TextureReferencesHash.Hash[0], sizeof(TextureReferencesHash.Hash));
 
 	KeyString += BytesToHex(&BasePropertyOverridesHash.Hash[0], sizeof(BasePropertyOverridesHash.Hash));
+#endif // WITH_EDITOR
 }
 
 void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform)
 {
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		for (int32 ShaderTypeIndex = 0; ShaderTypeIndex < ShaderTypes.Num(); ShaderTypeIndex++)
@@ -848,6 +848,7 @@ void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& Sha
 			ShaderPipelineTypeDependencies.Add(Dependency);
 		}
 	}
+#endif // WITH_EDITOR
 }
 
 /**
@@ -1235,6 +1236,7 @@ void FMaterialShaderMap::SaveForRemoteRecompile(FArchive& Ar, const TMap<FString
 
 void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform, const TArray<FString>& MaterialsForShaderMaps)
 {
+#if WITH_EDITOR
 	int32 NumResources;
 	Ar << NumResources;
 
@@ -1336,6 +1338,7 @@ void FMaterialShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sh
 			}
 		}
 	}
+#endif // WITH_EDITOR
 }
 
 
@@ -1580,7 +1583,7 @@ void FMaterialShaderMap::Compile(
 				}
 			}
 
-			UE_LOG(LogShaders, Warning, TEXT("		%u Shaders among %u VertexFactories"), NumShaders, NumVertexFactories);
+			UE_LOG(LogShaders, Log, TEXT("		%u Shaders among %u VertexFactories"), NumShaders, NumVertexFactories);
 
 			// Register this shader map in the global map with the material's ID.
 			Register(InPlatform);

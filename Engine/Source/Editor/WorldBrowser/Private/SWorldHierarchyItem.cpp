@@ -411,7 +411,21 @@ FReply SWorldHierarchyItem::OnToggleLightingScenario()
 
 FReply SWorldHierarchyItem::OnToggleLock()
 {
-	WorldTreeItem->OnToggleLock();
+	if (FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Alt))
+	{
+		if (WorldTreeItem->IsLocked())
+		{
+			WorldTreeItem->OnLockAllButSelected();
+		}
+		else
+		{
+			WorldTreeItem->OnLockOnlySelected();
+		}
+	}
+	else
+	{
+		WorldTreeItem->OnToggleLock();
+	}
 	
 	return FReply::Handled();
 }
@@ -522,6 +536,7 @@ FReply SWorldHierarchyItem::OnMouseButtonDown(const FGeometry& MyGeometry, const
 		}
 
 		Reply.PreventThrottling();
+		return Reply;
 	}
 
 	return FReply::Handled();

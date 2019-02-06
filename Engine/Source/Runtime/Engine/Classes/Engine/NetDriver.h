@@ -231,6 +231,11 @@ public:
 	FString			PathName;
 	FName			StreamingLevelName;
 	EChannelCloseReason Reason;
+
+	void CountBytes(FArchive& Ar)
+	{
+		PathName.CountBytes(Ar);
+	}
 };
 
 /** Used to specify properties of a channel type */
@@ -1189,6 +1194,26 @@ protected:
 	/** Handles that track our LevelAdded / Removed delegates. */
 	FDelegateHandle OnLevelRemovedFromWorldHandle;
 	FDelegateHandle OnLevelAddedToWorldHandle;
+
+
+public:
+
+	/**
+	 * Typically, properties will only ever be replicated / sent from Server net drivers.
+	 * Therefore, on clients sending replication state won't be created.
+	 * Setting this to true will force creation of sending replication state.
+	 *
+	 * Note, this doesn't imply the NetDriver *will* ever send properties and will not
+	 * standard NetDrivers to send properties from clients.
+	 */
+	const bool MaySendProperties() const
+	{
+		return bMaySendProperties;
+	}
+
+protected:
+
+	bool bMaySendProperties;
 
 private:
 	FActorDestructionInfo* CreateDestructionInfo(UNetDriver* NetDriver, AActor* ThisActor, FActorDestructionInfo *DestructionInfo);

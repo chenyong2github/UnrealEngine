@@ -124,6 +124,7 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 
 		ConfigFile.Dirty = true;
 		ConfigFile.Write(ConfigPath);
+		bRes = true;
 	}
 	return bRes;
 }
@@ -168,31 +169,34 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 		Section.Remove(Key);
 	}
 
-	// @todo: currently we can enumerate only this installation
-	FString EngineDir = FPaths::RootDir();
-	FPaths::NormalizeDirectoryName(EngineDir);
-	FPaths::CollapseRelativeDirectories(EngineDir);
+	// Iterate through all entries.
+	for (auto It : Section)
+	{
+		FString EngineDir = It.Value.GetValue();
+		FPaths::NormalizeDirectoryName(EngineDir);
+		FPaths::CollapseRelativeDirectories(EngineDir);
 
-	FString EngineId;
-	const FName* Key = Section.FindKey(EngineDir);
-	if (Key)
-	{
-		FGuid IdGuid;
-		FGuid::Parse(Key->ToString(), IdGuid);
-		EngineId = IdGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces);;
-	}
-	else
-	{
-		if (!OutInstallations.FindKey(EngineDir))
+		FString EngineId;
+		const FName* Key = Section.FindKey(EngineDir);
+		if (Key)
 		{
-			EngineId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensInBraces);
-			Section.AddUnique(*EngineId, EngineDir);
-			ConfigFile.Dirty = true;
+			FGuid IdGuid;
+			FGuid::Parse(Key->ToString(), IdGuid);
+			EngineId = IdGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces);
 		}
-	}
-	if (!EngineId.IsEmpty() && !OutInstallations.Find(EngineId))
-	{
-		OutInstallations.Add(EngineId, EngineDir);
+		else
+		{
+			if (!OutInstallations.FindKey(EngineDir))
+			{
+				EngineId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensInBraces);
+				Section.AddUnique(*EngineId, EngineDir);
+				ConfigFile.Dirty = true;
+			}
+		}
+		if (!EngineId.IsEmpty() && !OutInstallations.Find(EngineId))
+		{
+			OutInstallations.Add(EngineId, EngineDir);
+		}
 	}
 
 	ConfigFile.Write(ConfigPath);
@@ -336,7 +340,7 @@ bool FDesktopPlatformLinux::UpdateFileAssociations()
 	{
 		return false;
 	}
-	
+
 	if (!RunXDGUtil(FString::Printf(TEXT("xdg-icon-resource install --novendor --mode user --context apps --size 256 %sRuntime/Launch/Resources/Linux/UE4.png ubinary"), *FPaths::EngineSourceDir())))
 	{
 		return false;
@@ -354,7 +358,7 @@ bool FDesktopPlatformLinux::UpdateFileAssociations()
 		return false;
 	}
 
-	// Add the desktop file for the Unreal Engine icon from the template.
+	// Add the desktop file for the Unreal Engine Generate Project List icon from the template.
 	DesktopTemplate = FString();
 	FFileHelper::LoadFileToString(DesktopTemplate, *FString::Printf(TEXT("%sPrograms/UnrealVersionSelector/Private/Linux/Resources/com.epicgames.UnrealEngine.desktop"), *FPaths::EngineSourceDir()));      
 	DesktopTemplate = DesktopTemplate.Replace(TEXT("*ENGINEDIR*"), *AbsoluteEngineDir);
@@ -364,12 +368,22 @@ bool FDesktopPlatformLinux::UpdateFileAssociations()
 		return false;
 	}
 
+	// Add the desktop file for the Unreal Engine Editor icon from the template.
+	DesktopTemplate = FString();
+	FFileHelper::LoadFileToString(DesktopTemplate, *FString::Printf(TEXT("%sPrograms/UnrealVersionSelector/Private/Linux/Resources/com.epicgames.UnrealEngineEditor.desktop"), *FPaths::EngineSourceDir()));      
+	DesktopTemplate = DesktopTemplate.Replace(TEXT("*ENGINEDIR*"), *AbsoluteEngineDir);
+	FFileHelper::SaveStringToFile(DesktopTemplate, TEXT("/tmp/com.epicgames.UnrealEngineEditor.desktop"));
+	if (!RunXDGUtil(TEXT("xdg-desktop-menu install --novendor --mode user /tmp/com.epicgames.UnrealEngineEditor.desktop")))
+	{
+		return false;
+	}
+
 	// Create the mime types and set the default applications.
 	if (!RunXDGUtil(FString::Printf(TEXT("xdg-mime install --novendor --mode user %sPrograms/UnrealVersionSelector/Private/Linux/Resources/uproject.xml"), *FPaths::EngineSourceDir())))
 	{
 		return false;
 	}
-	if (!RunXDGUtil(TEXT("xdg-mime default com.epicgames.UnrealVersionSelector.desktop application/uproject")))
+	if (!RunXDGUtil(TEXT("xdg-mime default com.epicgames.UnrealEngineEditor.desktop application/uproject")))
 	{
 		return false;
 	}

@@ -25,7 +25,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Components/ChildActorComponent.h"
-#include "Serialization/ArchiveCountMem.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 #if WITH_EDITOR
 #include "UObject/ObjectRedirector.h"
@@ -465,21 +465,6 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 			{
 				Velocity = FVector::ZeroVector;
 			}
-
-			if ( Ar.IsSaving() )
-			{
-				FObjectReplicator * RepData = &Channel->GetActorReplicationData();
-				uint8* Recent = RepData && RepData->RepState.IsValid() && RepData->RepState->StaticBuffer.Num() ? RepData->RepState->StaticBuffer.GetData() : NULL;
-				if ( Recent )
-				{
-					FRepMovement* RepMovement = RepData->RepLayout->GetShadowStateValue<FRepMovement>(Recent, GET_MEMBER_NAME_CHECKED(AActor, ReplicatedMovement));
-					check(RepMovement);
-
-					RepMovement->Location = LocalLocation;
-					RepMovement->Rotation = Rotation;
-					RepMovement->LinearVelocity = Velocity;
-				}
-			}
 		}
 
 		if ( Ar.IsLoading() )
@@ -878,6 +863,8 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 		if ( ExportFlags.bHasNetworkChecksum )
 		{
 			Ar << NetworkChecksum;
+
+			UE_LOG(LogNetPackageMap, Verbose, TEXT("%s has network checksum %u"), *PathName, NetworkChecksum);
 		}
 
 		const bool bIsPackage = NetGUID.IsStatic() && !OuterGUID.IsValid();
@@ -1896,11 +1883,14 @@ bool UPackageMapClient::PrintExportBatch()
 
 	// Print the whole thing for reference
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	for (auto It = GuidCache->History.CreateIterator(); It; ++It)
+	if (FNetGUIDCache::IsHistoryEnabled())
 	{
-		FString Str = It.Value();
-		FNetworkGUID NetGUID = It.Key();
-		UE_LOG(LogNetPackageMap, Warning, TEXT("<%s> - %s"), *NetGUID.ToString(), *Str);
+		for (auto It = GuidCache->History.CreateIterator(); It; ++It)
+		{
+			FString Str = It.Value();
+			FNetworkGUID NetGUID = It.Key();
+			UE_LOG(LogNetPackageMap, Warning, TEXT("<%s> - %s"), *NetGUID.ToString(), *Str);
+		}
 	}
 #endif
 
@@ -1983,32 +1973,38 @@ void UPackageMapClient::Serialize(FArchive& Ar)
 		// TODO: We don't currently track:
 		//		Working Bunches.
 
-		NetGUIDExportCountMap.CountBytes(Ar);
-		ExportGUIDArchives.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UPackageMapClient::Serialize");
 
-		for (const TArray<uint8>& Archive : ExportGUIDArchives)
-		{
-			Archive.CountBytes(Ar);
-		}
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetGUIDExportCountMap", NetGUIDExportCountMap.CountBytes(Ar));
 
-		CurrentExportNetGUIDs.CountBytes(Ar);
-		CurrentQueuedBunchNetGUIDs.CountBytes(Ar);
-		PendingAckGUIDs.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExportGUIDArchives",
+			ExportGUIDArchives.CountBytes(Ar);
+			for (const TArray<uint8>& Archive : ExportGUIDArchives)
+			{
+				Archive.CountBytes(Ar);
+			}
+		);
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CurrentExportNetGUIDS", CurrentExportNetGUIDs.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CurrentQueuedBunchNetGUIDs", CurrentQueuedBunchNetGUIDs.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingAckGUIDs", PendingAckGUIDs.CountBytes(Ar));
 
 		// Don't use the override here, as that's not technically owned by us.
-		AckState.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AckState", AckState.CountBytes(Ar));
 
-		ExportBunches.CountBytes(Ar);
-		for (FOutBunch const * const ExportBunch : ExportBunches)
-		{
-			if (ExportBunch)
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExportBunches",
+			ExportBunches.CountBytes(Ar);
+			for (FOutBunch const * const ExportBunch : ExportBunches)
 			{
-				ExportBunch->CountMemory(Ar);
+				if (ExportBunch)
+				{
+					ExportBunch->CountMemory(Ar);
+				}
 			}
-		}
+		);
 
-		MustBeMappedGuidsInLastBunch.CountBytes(Ar);
-		NetFieldExports.CountBytes(Ar);
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("MustBeMappedGuidsInLastBunch", MustBeMappedGuidsInLastBunch.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetFieldExports", NetFieldExports.CountBytes(Ar));
 
 		// Don't count the GUID Cache here. Instead, we'll let the UNetDriver count it as
 		// that's the class that constructs it.
@@ -2266,13 +2262,19 @@ void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const
 		NetGUIDLookup.Add( CacheObject.Object, NetGUID );
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		History.Add( NetGUID, CacheObject.Object->GetPathName() );
+		if (IsHistoryEnabled())
+		{
+			History.Add(NetGUID, CacheObject.Object->GetPathName());
+		}
 #endif
 	}
 	else
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		History.Add( NetGUID, CacheObject.PathName.ToString() );
+		if (IsHistoryEnabled())
+		{
+			History.Add(NetGUID, CacheObject.PathName.ToString());
+		}
 #endif
 	}
 }
@@ -3101,41 +3103,28 @@ void FNetGUIDCache::ResetCacheForDemo()
 	NetFieldExportGroupPathToIndex.Reset();
 }
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+static int32 bIsNetGuidCacheHistoryEnabled = 0;
+static FAutoConsoleVariableRef CVarIsNetGuidCacheHistoryEnabled(
+	TEXT("Net.NetGuidCacheHistoryEnabled"),
+	bIsNetGuidCacheHistoryEnabled,
+	TEXT("When enabled, allows logging of NetGUIDCache History. Warning, this can eat up a lot of memory, and won't free itself until the Cache is destroyed.")
+);
+
+const bool FNetGUIDCache::IsHistoryEnabled()
+{
+	return !!bIsNetGuidCacheHistoryEnabled;
+}
+#endif
+
 void FNetGUIDCache::CountBytes(FArchive& Ar) const
 {
-#define WITH_SCOPED_COUNT_LOG 1
-
-
-#if WITH_SCOPED_COUNT_LOG
-	const bool bIsCountMemArchive = FString(TEXT("FArchiveCountMem")).Equals(Ar.GetArchiveName());
-	auto GetMaxBytes = [bIsCountMemArchive](FArchive& InAr) -> uint64
-	{
-		return bIsCountMemArchive ? ((FArchiveCountMem&)InAr).GetMax() : 0;
-	};
-
-	uint64 BeforeAction = 0;
-	uint64 AfterAction = GetMaxBytes(Ar);
-
-#define SCOPED_COUNT_LOG(SCOPE_NAME, WORK) \
-	{ \
-		BeforeAction = AfterAction; \
-		WORK; \
-		AfterAction = GetMaxBytes(Ar); \
-		UE_LOG(LogNet, Log, TEXT("FNetGUIDCache::Serialize: " SCOPE_NAME " is %d bytes"), AfterAction - BeforeAction); \
-	}
-
-#else
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FNetGuidCache::CountBytes");
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ObjectLookup", ObjectLookup.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetGUIDLookup", NetGUIDLookup.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ImportedNetGuids", ImportedNetGuids.CountBytes(Ar));
 	
-#define SCOPED_COUNT_LOG(SCOPE_NAME, WORK) WORK;
-
-#endif // WITH_SCOPED_COUNT_LOG
-
-	SCOPED_COUNT_LOG("ObjectLookup", ObjectLookup.CountBytes(Ar));
-	SCOPED_COUNT_LOG("NetGUIDLookup", NetGUIDLookup.CountBytes(Ar));
-	SCOPED_COUNT_LOG("ImportedNetGuids", ImportedNetGuids.CountBytes(Ar));
-	
-	
-	SCOPED_COUNT_LOG("PendingOuterNetGuids",
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingOuterNetGuids",
 		PendingOuterNetGuids.CountBytes(Ar);
 
 		for (const auto& PendingOuterNetGuidPar : PendingOuterNetGuids)
@@ -3144,13 +3133,13 @@ void FNetGUIDCache::CountBytes(FArchive& Ar) const
 		}
 	);
 
-	SCOPED_COUNT_LOG("PendingAsyncPackages", PendingAsyncPackages.CountBytes(Ar));
-	SCOPED_COUNT_LOG("NetFieldExportGroupMap",
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingAsyncPackages", PendingAsyncPackages.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetFieldExportGroupMap",
 		NetFieldExportGroupMap.CountBytes(Ar);
 
 		for (const auto& NetfieldExportGroupPair : NetFieldExportGroupMap)
 		{
-			Ar << const_cast<FString&>(NetfieldExportGroupPair.Key);
+			NetfieldExportGroupPair.Key.CountBytes(Ar);
 			if (FNetFieldExportGroup const * const NetfieldExportGroup = NetfieldExportGroupPair.Value.Get())
 			{
 				Ar.CountBytes(sizeof(FNetFieldExportGroup), sizeof(FNetFieldExportGroup));
@@ -3159,43 +3148,40 @@ void FNetGUIDCache::CountBytes(FArchive& Ar) const
 		}
 	);
 
-	SCOPED_COUNT_LOG("NetFieldExportGroupPathToIndex",
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetFieldExportGroupPathToIndex",
 		NetFieldExportGroupPathToIndex.CountBytes(Ar);
 
 		for (const auto& NetFieldExportGroupPathToIndexPair : NetFieldExportGroupPathToIndex)
 		{
-			Ar << const_cast<FString&>(NetFieldExportGroupPathToIndexPair.Key);
+			NetFieldExportGroupPathToIndexPair.Key.CountBytes(Ar);
 		}
 	);
 
-	SCOPED_COUNT_LOG("NetFieldExportGroupIndexToGroup", NetFieldExportGroupIndexToGroup.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetFieldExportGroupIndexToGroup", NetFieldExportGroupIndexToGroup.CountBytes(Ar));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-	SCOPED_COUNT_LOG("History",
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("History",
 		History.CountBytes(Ar);
 		for (const auto& HistoryPairs : History)
 		{
-			Ar << const_cast<FString&>(HistoryPairs.Value);
+			HistoryPairs.Value.CountBytes(Ar);
 		}
 	);
 #endif
-
-#undef WITH_SCOPED_COUNT_LOG
-#undef SCOPED_COUNT_LOG
 }
 
 void FNetFieldExport::CountBytes(FArchive& Ar) const
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Ar << const_cast<FString&>(Name);
-	Ar << const_cast<FString&>(Type);
+	Name.CountBytes(Ar);
+	Type.CountBytes(Ar);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FNetFieldExportGroup::CountBytes(FArchive& Ar) const
 {
-	Ar << const_cast<FString&>(PathName);
+	PathName.CountBytes(Ar);
 	NetFieldExports.CountBytes(Ar);
 	for (const FNetFieldExport& NetFieldExport : NetFieldExports)
 	{

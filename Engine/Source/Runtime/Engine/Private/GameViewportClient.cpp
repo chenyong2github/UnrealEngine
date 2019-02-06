@@ -730,7 +730,7 @@ void UGameViewportClient::MouseEnter(FViewport* InViewport, int32 x, int32 y)
 	Super::MouseEnter(InViewport, x, y);
 
 #if PLATFORM_DESKTOP || PLATFORM_HTML5
-	if (InViewport && GetUseMouseForTouch() && !GetGameViewport()->GetPlayInEditorIsSimulate())
+	if (InViewport && GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
 	{
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(true);
 	}
@@ -762,7 +762,8 @@ void UGameViewportClient::MouseLeave(FViewport* InViewport)
 			InViewport->GetMousePos(LastViewportCursorPos, false);
 
 #if PLATFORM_DESKTOP || PLATFORM_HTML5
-			if (!GetGameViewportWidget()->HasFocusedDescendants())
+			TSharedPtr<class SViewport> ViewportWidget = GetGameViewportWidget();
+			if (ViewportWidget.IsValid() && !ViewportWidget->HasFocusedDescendants())
 			{
 				FVector2D CursorPos(LastViewportCursorPos.X, LastViewportCursorPos.Y);
 				FSlateApplication::Get().SetGameIsFakingTouchEvents(false, &CursorPos);
@@ -1162,7 +1163,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	ESplitScreenType::Type SplitScreenConfig = GetCurrentSplitscreenConfiguration();
 	ViewFamily.ViewMode = EViewModeIndex(ViewModeIndex);
-	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, NAME_None);
+	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer && AllowDebugViewmodes())
 	{
@@ -1214,7 +1215,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			APlayerController* PlayerController = LocalPlayer->PlayerController;
 
 			const bool bEnableStereo = GEngine->IsStereoscopic3D(InViewport);
-			const int32 NumViews = bStereoRendering ? ((ViewFamily.IsMonoscopicFarFieldEnabled()) ? 3 : GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering)) : 1;
+			const int32 NumViews = bStereoRendering ? GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering) : 1;
 
 			for (int32 i = 0; i < NumViews; ++i)
 			{
@@ -1487,10 +1488,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	else
 	{
 		// Make sure RHI resources get flushed if we're not using a renderer
-		ENQUEUE_UNIQUE_RENDER_COMMAND( UGameViewportClient_FlushRHIResources,
-		{ 
-			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-		});
+		ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
+			[](FRHICommandListImmediate& RHICmdList)
+			{ 
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			});
 	}
 
 	// Beyond this point, only UI rendering independent from dynamc resolution.
@@ -3073,6 +3075,23 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 		Ar.Logf(TEXT("Debug viewmodes not allowed on consoles by default.  See AllowDebugViewmodes()."));
 		ViewModeIndex = VMI_Lit;
 	}
+
+#if RHI_RAYTRACING
+	if (!GRHISupportsRayTracing)
+	{
+		if (ViewModeIndex == VMI_PathTracing)
+		{
+			Ar.Logf(TEXT("Path Tracing view mode requires ray tracing support. It is not supported on this system."));
+			ViewModeIndex = VMI_Lit;
+		}
+
+		if (ViewModeIndex == VMI_RayTracingDebug)
+		{
+			Ar.Logf(TEXT("Ray tracing view mode requires ray tracing support. It is not supported on this system."));
+			ViewModeIndex = VMI_Lit;
+		}
+	}
+#endif
 
 	ApplyViewMode((EViewModeIndex)ViewModeIndex, true, EngineShowFlags);
 

@@ -268,11 +268,12 @@ bool FStreamingManagerTexture::StreamOutTextureData( int64 RequiredMemorySize )
 			if (TempMemoryUsed >= MaxTempMemoryAllowed)
 			{
 				// Queue up the process on the render thread and wait for everything to complete.
-				ENQUEUE_UNIQUE_RENDER_COMMAND(FlushResourceCommand,
-				{				
-					FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-					RHIFlushResources();
-				});
+				ENQUEUE_RENDER_COMMAND(FlushResourceCommand)(
+					[](FRHICommandList& RHICmdList)
+					{				
+						FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+						RHIFlushResources();
+					});
 				FlushRenderingCommands();
 				TempMemoryUsed = 0;
 			}
@@ -1390,8 +1391,7 @@ bool FStreamingManagerTexture::HandleDumpTextureStreamingStatsCommand( const TCH
 }
 #endif // STATS_FAST
 
-#if !UE_BUILD_SHIPPING
-
+#if STATS
 bool FStreamingManagerTexture::HandleListStreamingTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	FScopeLock ScopeLock(&CriticalSection);
@@ -1448,6 +1448,9 @@ bool FStreamingManagerTexture::HandleListStreamingTexturesCommand( const TCHAR* 
 	}
 	return true;
 }
+#endif // STATS
+
+#if !UE_BUILD_SHIPPING
 
 bool FStreamingManagerTexture::HandleResetMaxEverRequiredTexturesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {

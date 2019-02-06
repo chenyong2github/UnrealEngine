@@ -7,9 +7,11 @@ public class ShaderFormatD3D : ModuleRules
 	public ShaderFormatD3D(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
-		PrivateIncludePathModuleNames.Add("D3D11RHI"); 
+		PrivateIncludePathModuleNames.Add("D3D11RHI");
 
-		PrivateDependencyModuleNames.AddRange(
+        PrivateIncludePaths.Add("../Shaders/Private/RayTracing");
+
+        PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"RenderCore",
@@ -18,6 +20,12 @@ public class ShaderFormatD3D : ModuleRules
 			}
 			);
 
+		//DXC
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/dxil.dll");
+            RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/dxcompiler.dll");
+        }
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 	}
 }

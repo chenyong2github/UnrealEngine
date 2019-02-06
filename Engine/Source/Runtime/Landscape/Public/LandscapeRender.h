@@ -129,10 +129,17 @@ public:
 	*/
 	virtual void Serialize(FArchive& Ar) override;
 
-	/**
-	* Set any shader data specific to this vertex factory
-	*/
-	virtual void SetMesh(FRHICommandList& RHICmdList, FShader* PixelShader, const FVertexFactory* VertexFactory, const FSceneView& View, const FMeshBatchElement& BatchElement, uint32 DataFlags) const override;
+	virtual void GetElementShaderBindings(
+		const class FSceneInterface* Scene,
+		const FSceneView* InView,
+		const class FMeshMaterialShader* Shader,
+		bool bShaderRequiresPositionOnlyStream,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams
+	) const override;
 
 	virtual uint32 GetSize() const override
 	{
@@ -182,7 +189,7 @@ public:
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	*/
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	* Copy the data from another vertex factory
@@ -224,7 +231,7 @@ public:
 
 	virtual ~FLandscapeXYOffsetVertexFactory() {}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
 };
 
 struct FLandscapeVertex
@@ -272,7 +279,7 @@ public:
 //
 // FLandscapeSharedAdjacencyIndexBuffer
 //
-class FLandscapeSharedAdjacencyIndexBuffer : public FRefCountedObject
+class FLandscapeSharedAdjacencyIndexBuffer
 {
 public:
 	FLandscapeSharedAdjacencyIndexBuffer(class FLandscapeSharedBuffers* SharedBuffer);
@@ -447,7 +454,7 @@ class FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLands
 	public:
 		/** Initialization constructor. */
 		FLandscapeLCI(const ULandscapeComponent* InComponent)
-			: FLightCacheInterface(NULL, NULL)
+			: FLightCacheInterface()
 		{
 			const FMeshMapBuildData* MapBuildData = InComponent->GetMeshMapBuildData();
 
@@ -455,6 +462,7 @@ class FLandscapeComponentSceneProxy : public FPrimitiveSceneProxy, public FLands
 			{
 				SetLightMap(MapBuildData->LightMap);
 				SetShadowMap(MapBuildData->ShadowMap);
+				SetResourceCluster(MapBuildData->ResourceCluster);
 				IrrelevantLights = MapBuildData->IrrelevantLights;
 			}
 		}
@@ -603,7 +611,6 @@ protected:
 	// Reference counted vertex and index buffer shared among all landscape scene proxies of the same component size
 	// Key is the component size and number of subsections.
 	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
-	static TMap<uint32, FLandscapeSharedAdjacencyIndexBuffer*> SharedAdjacencyIndexBufferMap;
 
 #if WITH_EDITORONLY_DATA
 	FLandscapeEditToolRenderData EditToolRenderData;
@@ -671,7 +678,7 @@ public:
 	virtual void CreateRenderThreadResources() override;
 	virtual void OnLevelAddedToWorld() override;
 	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant = false, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override;
-	virtual void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) override;
+	virtual void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const override;
 	virtual bool IsUsingCustomLODRules() const override;
 	virtual FLODMask GetCustomLOD(const FSceneView& View, float InViewLODScale, int32 InForcedLODLevel, float& OutScreenSizeSquared) const override;
 	virtual bool IsUsingCustomWholeSceneShadowLODRules() const override;
@@ -732,9 +739,9 @@ public:
 	{}
 
 	// FMaterialRenderProxy interface.
-	virtual void GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial) const override
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
-		Parent->GetMaterialWithFallback(InFeatureLevel, OutMaterialRenderProxy, OutMaterial);
+		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 
 	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
@@ -802,9 +809,9 @@ public:
 	{}
 
 	// FMaterialRenderProxy interface.
-	virtual void GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial) const override
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
-		Parent->GetMaterialWithFallback(InFeatureLevel, OutMaterialRenderProxy, OutMaterial);
+		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
 	{
@@ -851,9 +858,9 @@ public:
 	{}
 
 	// FMaterialRenderProxy interface.
-	virtual void GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial) const override
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
-		Parent->GetMaterialWithFallback(InFeatureLevel, OutMaterialRenderProxy, OutMaterial);
+		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
 	{
@@ -898,9 +905,9 @@ public:
 	{}
 
 	// FMaterialRenderProxy interface.
-	virtual void GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial) const override
+	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
-		Parent->GetMaterialWithFallback(InFeatureLevel, OutMaterialRenderProxy, OutMaterial);
+		return Parent->GetMaterialWithFallback(InFeatureLevel, OutFallbackMaterialRenderProxy);
 	}
 	virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
 	{

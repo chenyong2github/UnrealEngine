@@ -527,8 +527,6 @@ void FMetalSurface::Init(FMetalSurface& Source, NSRange MipRange, EPixelFormat F
 	}
 	
 	ns::Range Slices(0, Source.Texture.GetArrayLength() * (bIsCubemap ? 6 : 1));
-	// @todo Zebra Temporary workaround for absence of X24_G8 or equivalent to GL_STENCIL_INDEX so that the stencil part of a texture may be sampled
-	// For now, if we find ourselves *requiring* this we lazily blit the stencil data out to a separate texture. radr://21813831
 	if(Source.PixelFormat != PF_DepthStencil && !bUseSourceTex)
 	{
 		Texture = Source.Texture.NewTextureView(MetalFormat, Source.Texture.GetTextureType(), ns::Range(MipRange.location, MipRange.length), Slices);
@@ -863,7 +861,7 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
 #endif
 		}
-		else if(((Flags & (TexCreate_NoTiling)) && !(Flags & (TexCreate_FastVRAM|TexCreate_DepthStencilTargetable|TexCreate_RenderTargetable))))
+		else if(((Flags & (TexCreate_NoTiling)) && !(Flags & (TexCreate_FastVRAM|TexCreate_DepthStencilTargetable|TexCreate_RenderTargetable|TexCreate_UAV))))
 		{
 #if PLATFORM_MAC
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::WriteCombined);
@@ -964,7 +962,19 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 	}
 	else
 	{
-		Texture = GetMetalDeviceContext().CreateTexture(this, Desc);
+		if ((Flags & (TexCreate_UAV|TexCreate_NoTiling)) != (TexCreate_UAV|TexCreate_NoTiling))
+		{
+			Texture = GetMetalDeviceContext().CreateTexture(this, Desc);
+		}
+		else
+		{
+			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
+			mtlpp::SizeAndAlign SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
+			FMetalPooledBufferArgs Args(Device, SizeAlign.Size, mtlpp::StorageMode::Private);
+			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
+			Texture = Buffer.NewTexture(Desc, 0, SizeAlign.Size);
+		}
+		
 		if (Texture.GetPtr() == nil)
 		{
 			UE_LOG(LogMetal, Fatal, TEXT("Failed to create texture, desc %s"), *FString([Desc description]));
@@ -1386,7 +1396,7 @@ void FMetalSurface::UpdateSurface(FMetalBuffer& Buffer, uint32 MipIndex, uint32 
 	else
 	{
 #if !PLATFORM_MAC
-		if (Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Texture.GetPixelFormat() <= mtlpp::PixelFormat::ETC2_RGB8A1_sRGB) // @todo zebra
+		if (Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Texture.GetPixelFormat() <= mtlpp::PixelFormat::ETC2_RGB8A1_sRGB) // @todo Calculate correct strides and byte-counts
 		{
 			Stride = 0;
 			BytesPerImage = 0;
@@ -2775,10 +2785,25 @@ void FMetalDynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextu
 			check(DestinationSize.width == SourceSize.width);
 			check(DestinationSize.height == SourceSize.height);
 			
-			// Account for create with TexCreate_SRGB flag which could make these different
-			if(MetalSrcTexture->Surface.Texture.GetPixelFormat() == MetalDestTexture->Surface.Texture.GetPixelFormat())
+			FMetalTexture SrcTexture;
+			mtlpp::TextureUsage Usage = MetalSrcTexture->Surface.Texture.GetUsage();
+			if(Usage & mtlpp::TextureUsage::PixelFormatView)
 			{
-				ImmediateContext.GetInternalContext().CopyFromTextureToTexture(MetalSrcTexture->Surface.Texture, 0, 0, SourceOrigin,SourceSize,MetalDestTexture->Surface.Texture, 0, 0, DestinationOrigin);
+				ns::Range Slices(0, MetalSrcTexture->Surface.Texture.GetArrayLength() * (MetalSrcTexture->Surface.bIsCubemap ? 6 : 1));
+				if(MetalSrcTexture->Surface.Texture.GetPixelFormat() != MetalDestTexture->Surface.Texture.GetPixelFormat())
+				{
+					SrcTexture = MetalSrcTexture->Surface.Texture.NewTextureView(MetalDestTexture->Surface.Texture.GetPixelFormat(), MetalSrcTexture->Surface.Texture.GetTextureType(), ns::Range(0, MetalSrcTexture->Surface.Texture.GetMipmapLevelCount()), Slices);
+				}
+			}
+			if (!SrcTexture)
+			{
+				SrcTexture = MetalSrcTexture->Surface.Texture;
+			}
+			
+			// Account for create with TexCreate_SRGB flag which could make these different
+			if(SrcTexture.GetPixelFormat() == MetalDestTexture->Surface.Texture.GetPixelFormat())
+			{
+				ImmediateContext.GetInternalContext().CopyFromTextureToTexture(SrcTexture, 0, 0, SourceOrigin,SourceSize,MetalDestTexture->Surface.Texture, 0, 0, DestinationOrigin);
 			}
 			else
 			{
@@ -2806,10 +2831,114 @@ void FMetalDynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextu
 				
 				GetMetalDeviceContext().ReleaseBuffer(Buffer);
 			}
+			
+			if (SrcTexture != MetalSrcTexture->Surface.Texture)
+			{
+				SafeReleaseMetalTexture(SrcTexture);
+			}
 		}
 		else
 		{
 			UE_LOG(LogMetal, Warning, TEXT("RHICopySubTextureRegion Source <-> Destination texture format mismatch"));
+		}
+	}
+}
+
+
+
+void FMetalRHICommandContext::RHICopyTexture(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
+{
+	if (!SourceTextureRHI || !DestTextureRHI || SourceTextureRHI == DestTextureRHI)
+	{
+		// no need to do anything (silently ignored)
+		return;
+	}
+	
+	RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
+	
+	@autoreleasepool {
+		check(SourceTextureRHI);
+		check(DestTextureRHI);
+		
+		if(SourceTextureRHI->GetFormat() == DestTextureRHI->GetFormat())
+		{
+			FMetalSurface* MetalSrcTexture = GetMetalSurfaceFromRHITexture(SourceTextureRHI);
+			FMetalSurface* MetalDestTexture = GetMetalSurfaceFromRHITexture(DestTextureRHI);
+			
+			FIntVector Size = (CopyInfo.Size != FIntVector::ZeroValue) ? CopyInfo.Size : FIntVector(MetalSrcTexture->Texture.GetWidth(), MetalSrcTexture->Texture.GetHeight(), MetalSrcTexture->Texture.GetDepth());
+			
+			mtlpp::Origin SourceOrigin(CopyInfo.SourcePosition.X, CopyInfo.SourcePosition.Y, CopyInfo.SourcePosition.Z);
+			mtlpp::Origin DestinationOrigin(CopyInfo.DestPosition.X, CopyInfo.DestPosition.Y, CopyInfo.DestPosition.Z);
+
+			FMetalTexture SrcTexture;
+			mtlpp::TextureUsage Usage = MetalSrcTexture->Texture.GetUsage();
+			if(Usage & mtlpp::TextureUsage::PixelFormatView)
+			{
+				ns::Range Slices(0, MetalSrcTexture->Texture.GetArrayLength() * (MetalSrcTexture->bIsCubemap ? 6 : 1));
+				if(MetalSrcTexture->Texture.GetPixelFormat() != MetalDestTexture->Texture.GetPixelFormat())
+				{
+					SrcTexture = MetalSrcTexture->Texture.NewTextureView(MetalDestTexture->Texture.GetPixelFormat(), MetalSrcTexture->Texture.GetTextureType(), ns::Range(0, MetalSrcTexture->Texture.GetMipmapLevelCount()), Slices);
+				}
+			}
+			if (!SrcTexture)
+			{
+				SrcTexture = MetalSrcTexture->Texture;
+			}
+			
+			for (uint32 SliceIndex = 0; SliceIndex < CopyInfo.NumSlices; ++SliceIndex)
+			{
+				uint32 SourceSliceIndex = CopyInfo.SourceSliceIndex + SliceIndex;
+				uint32 DestSliceIndex = CopyInfo.DestSliceIndex + SliceIndex;
+
+				for (uint32 MipIndex = 0; MipIndex < CopyInfo.NumMips; ++MipIndex)
+				{
+					uint32 SourceMipIndex = CopyInfo.SourceMipIndex + MipIndex;
+					uint32 DestMipIndex = CopyInfo.DestMipIndex + MipIndex;
+					mtlpp::Size SourceSize(FMath::Max(CopyInfo.Size.X >> MipIndex, 1), FMath::Max(CopyInfo.Size.Y >> MipIndex, 1), FMath::Max(CopyInfo.Size.Z >> MipIndex, 1));
+					
+					// Account for create with TexCreate_SRGB flag which could make these different
+					if(SrcTexture.GetPixelFormat() == MetalDestTexture->Texture.GetPixelFormat())
+					{
+						GetInternalContext().CopyFromTextureToTexture(SrcTexture, SourceSliceIndex, SourceMipIndex, SourceOrigin,SourceSize,MetalDestTexture->Texture, DestSliceIndex, DestMipIndex, DestinationOrigin);
+					}
+					else
+					{
+						// Linear and sRGB mismatch then try to go via metal buffer
+						// Modified clone of logic from MetalRenderTarget.cpp
+						uint32 BytesPerPixel = (MetalSrcTexture->PixelFormat != PF_DepthStencil) ? GPixelFormats[MetalSrcTexture->PixelFormat].BlockBytes : 1;
+						const uint32 Stride = BytesPerPixel * SourceSize.width;
+						const uint32 Alignment = PLATFORM_MAC ? 1u : 64u;
+						const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
+						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
+						const uint32 DataSize = BytesPerImage * SourceSize.depth;
+						
+						FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(FMetalPooledBufferArgs(GetInternalContext().GetDevice(), DataSize, mtlpp::StorageMode::Shared));
+						
+						check(Buffer);
+						
+						mtlpp::BlitOption Options = mtlpp::BlitOption::None;
+#if !PLATFORM_MAC
+						if (MetalSrcTexture->Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && MetalSrcTexture->Texture.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB)
+						{
+							Options = mtlpp::BlitOption::RowLinearPVRTC;
+						}
+#endif
+						GetInternalContext().CopyFromTextureToBuffer(MetalSrcTexture->Texture, SourceSliceIndex, SourceMipIndex, SourceOrigin, SourceSize, Buffer, 0, AlignedStride, BytesPerImage, Options);
+						GetInternalContext().CopyFromBufferToTexture(Buffer, 0, Stride, BytesPerImage, SourceSize, MetalDestTexture->Texture, DestSliceIndex, DestMipIndex, DestinationOrigin, Options);
+						
+						GetMetalDeviceContext().ReleaseBuffer(Buffer);
+					}
+				}
+			}
+			
+			if (SrcTexture != MetalSrcTexture->Texture)
+			{
+				SafeReleaseMetalTexture(SrcTexture);
+			}
+		}
+		else
+		{
+			UE_LOG(LogMetal, Warning, TEXT("RHICopyTexture Source <-> Destination texture format mismatch"));
 		}
 	}
 }

@@ -153,7 +153,7 @@ struct FLevelNameAndTime
 
 	void CountBytes(FArchive& Ar) const
 	{
-		Ar << const_cast<FString&>(LevelName);
+		LevelName.CountBytes(Ar);
 	}
 };
 
@@ -282,7 +282,7 @@ struct FNetworkDemoHeader
 		GameSpecificData.CountBytes(Ar);
 		for (const FString& Datum : GameSpecificData)
 		{
-			Ar << const_cast<FString&>(Datum);
+			Datum.CountBytes(Ar);
 		}
 	}
 };
@@ -318,11 +318,12 @@ struct FRollbackNetStartupActorInfo
 		SubObjRepState.CountBytes(Ar);
 		for (const auto& SubObjRepStatePair : SubObjRepState)
 		{
-			Ar << const_cast<FString&>(SubObjRepStatePair.Key);
+			SubObjRepStatePair.Key.CountBytes(Ar);
 			
 			if (FRepState const * const LocalRepState = SubObjRepStatePair.Value.Get())
 			{
-				Ar.CountBytes(sizeof(FRepState), sizeof(FRepState));
+				const SIZE_T SizeOfRepState = sizeof(FRepState);
+				Ar.CountBytes(SizeOfRepState, SizeOfRepState);
 				LocalRepState->CountBytes(Ar);
 			}
 		}
@@ -336,6 +337,8 @@ struct FDemoSavedRepObjectState
 	TWeakObjectPtr<const UObject> Object;
 	TSharedPtr<FRepLayout> RepLayout;
 	FRepStateStaticBuffer PropertyData;
+
+	ENGINE_API ~FDemoSavedRepObjectState();
 
 	void CountBytes(FArchive& Ar) const
 	{
@@ -869,7 +872,7 @@ private:
 
 		void CountBytes(FArchive& Ar) const
 		{
-			Ar << const_cast<FString&>(LevelName);
+			LevelName.CountBytes(Ar);
 		}
 	};
 

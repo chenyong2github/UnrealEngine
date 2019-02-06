@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
+#include "Misc/CommandLine.h"
 
 #import <IOKit/hid/IOHIDKeys.h>
 #import <IOKit/hidsystem/IOHIDShared.h>
@@ -26,6 +27,7 @@ static FAutoConsoleVariableRef CVarMacDisableMouseAcceleration(
 FMacCursor::FMacCursor()
 :	bIsVisible(true)
 ,	bUseHighPrecisionMode(false)
+,	CursorTypeOverride(-1)
 ,	CurrentPosition(FVector2D::ZeroVector)
 ,	MouseWarpDelta(FVector2D::ZeroVector)
 ,	bIsPositionInitialised(false)
@@ -128,6 +130,14 @@ FMacCursor::FMacCursor()
 
 		CursorHandles[CursorIndex] = CursorHandle;
 	}
+
+#if !UE_BUILD_SHIPPING
+	FParse::Value(FCommandLine::Get(), TEXT("MacCursorTypeOverride="), CursorTypeOverride);
+	if (CursorTypeOverride < EMouseCursor::None || CursorTypeOverride >= EMouseCursor::TotalCursorCount)
+	{
+		CursorTypeOverride = -1;
+	}
+#endif
 
 	// Set the default cursor
 	SetType(EMouseCursor::Default);
@@ -250,8 +260,8 @@ void FMacCursor::SetType(const EMouseCursor::Type InNewCursor)
 		MacApplication->SetHighPrecisionMouseMode(false, nullptr);
 	}
 	
-	CurrentType = InNewCursor;
-	CurrentCursor = CursorOverrideHandles[InNewCursor] ? CursorOverrideHandles[InNewCursor] : CursorHandles[InNewCursor];
+	CurrentType = CursorTypeOverride > -1 ? (EMouseCursor::Type)CursorTypeOverride : InNewCursor;
+	CurrentCursor = CursorOverrideHandles[CurrentType] ? CursorOverrideHandles[CurrentType] : CursorHandles[CurrentType];
 
 	if (CurrentCursor)
 	{

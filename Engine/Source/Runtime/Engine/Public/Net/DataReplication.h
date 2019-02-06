@@ -18,20 +18,20 @@ class FOutBunch;
 class FRepChangelistState;
 class FRepLayout;
 class FRepState;
+class FSendingRepState;
 class UNetConnection;
 class UNetDriver;
 class AActor;
 
-bool FORCEINLINE IsCustomDeltaProperty( const UProperty* Property )
+bool FORCEINLINE IsCustomDeltaProperty(const UStructProperty* StructProperty)
 {
-	const UStructProperty * StructProperty = Cast< UStructProperty >( Property );
+	return EnumHasAnyFlags(StructProperty->Struct->StructFlags, STRUCT_NetDeltaSerializeNative);
+}
 
-	if ( StructProperty != NULL && StructProperty->Struct->StructFlags & STRUCT_NetDeltaSerializeNative )
-	{
-		return true;
-	}
-
-	return false;
+bool FORCEINLINE IsCustomDeltaProperty(const UProperty* Property)
+{
+	const UStructProperty* StructProperty = Cast<UStructProperty>(Property);
+	return StructProperty && IsCustomDeltaProperty(StructProperty);
 }
 
 /** struct containing property and offset for replicated actor properties */
@@ -61,9 +61,6 @@ public:
 
 	~FReplicationChangelistMgr();
 
-	UE_DEPRECATED(4.22, "Please use the version of Update that accepts a FRepState pointer.")
-	void Update(const UObject* InObject, const uint32 ReplicationFrame, const int32 LastCompareIndex, const FReplicationFlags& RepFlags, const bool bForceCompare);
-
 	/**
 	 * Updates the shared RepChangelistState for the given object, potentially skipping unnecessary updates.
 	 * See FRepLayout::CompareProperties.
@@ -73,7 +70,7 @@ public:
 	 * @param RepFlags		Replication Flags that will be used if the object needs to be replicated.
 	 * @param bForceCompare	Force the comparison, even if other connections have already done it this frame.
 	 */
-	void Update(FRepState* RESTRICT RepState, const UObject* InObject, const uint32 ReplicationFrame, const FReplicationFlags& RepFlags, const bool bForceCompare);
+	void Update(FSendingRepState* RESTRICT RepState, const UObject* InObject, const uint32 ReplicationFrame, const FReplicationFlags& RepFlags, const bool bForceCompare);
 
 	FRepChangelistState* GetRepChangelistState() const { return RepChangelistState.Get(); }
 
@@ -194,7 +191,10 @@ public:
 	/** Packet was dropped */
 	void	ReceivedNak( int32 NakPacketId );
 
-	void	Serialize(FArchive& Ar);
+	UE_DEPRECATED(4.23, "Use CountBytes instead")
+	void Serialize(FArchive& Ar);
+
+	void CountBytes(FArchive& Ar) const;
 
 	/** Writes dirty properties to bunch */
 	void	ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, FReplicationFlags RepFlags );

@@ -133,12 +133,14 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 	int32 NumInstances = DynamicDataMesh->RTParticleData.GetNumInstances();
 
 	int32 TotalFloatSize = DynamicDataMesh->RTParticleData.GetFloatBuffer().Num() / sizeof(float);
-	FNiagaraGlobalReadBuffer::FAllocation ParticleData;
+
+	FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
+	FGlobalDynamicReadBuffer::FAllocation ParticleData;
 	
 	//For cpu sims we allocate render buffers from the global pool. GPU sims own their own.
 	if (DynamicDataMesh->DataSet->GetSimTarget() == ENiagaraSimTarget::CPUSim)
 	{
-		ParticleData = FNiagaraGlobalReadBuffer::Get().AllocateFloat(TotalFloatSize);
+		ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
 		FMemory::Memcpy(ParticleData.Buffer, DynamicDataMesh->RTParticleData.GetFloatBuffer().GetData(), DynamicDataMesh->RTParticleData.GetFloatBuffer().Num());
 	}
 
@@ -152,6 +154,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 		{
 			FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = GetPrimitiveUniformShaderParameters(
 				FMatrix::Identity,
+				FMatrix::Identity,
 				SceneProxy->GetActorPosition(),
 				SceneProxy->GetBounds(),
 				SceneProxy->GetLocalBounds(),
@@ -161,7 +164,10 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				false,
 				false,
 				SceneProxy->UseEditorDepthTest(),
-				SceneProxy->GetLightingChannelMask()
+				SceneProxy->GetLightingChannelMask(),
+				0,
+				INDEX_NONE,
+				INDEX_NONE
 				);
 			WorldSpacePrimitiveUniformBuffer.SetContents(PrimitiveUniformShaderParameters);
 			WorldSpacePrimitiveUniformBuffer.InitResource();
@@ -214,17 +220,17 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 					if (Properties->bOverrideMaterials && Properties->OverrideMaterials.Num() > Section.MaterialIndex &&
 						Properties->OverrideMaterials[Section.MaterialIndex] != nullptr)
 					{
-						MaterialProxy = Properties->OverrideMaterials[Section.MaterialIndex]->GetRenderProxy(false, false);
+						MaterialProxy = Properties->OverrideMaterials[Section.MaterialIndex]->GetRenderProxy();
 					}
 
 					if (MaterialProxy == nullptr && ParticleMeshMaterial)
 					{
-						MaterialProxy = ParticleMeshMaterial->GetRenderProxy(false, false);
+						MaterialProxy = ParticleMeshMaterial->GetRenderProxy();
 					}
 
 					if (MaterialProxy == nullptr)
 					{
-						MaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy(SceneProxy->IsSelected(), SceneProxy->IsHovered());
+						MaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 					}
 
 					MaterialProxies.Add(MaterialProxy);
@@ -236,7 +242,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				}
 
 				//Sort particles if needed.
-				FNiagaraGlobalReadBuffer::FAllocation SortedIndices;
+				FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 				CollectorResources.VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 				if (DynamicDataMesh->DataSet->GetSimTarget() == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
 				{
@@ -248,7 +254,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 						int32 SortAttributeOffest = bCustomSortMode ? CustomSortingOffset : PositionOffset;
 						if (SortMode != ENiagaraSortMode::None && SortAttributeOffest != INDEX_NONE)
 						{
-							SortedIndices = FNiagaraGlobalReadBuffer::Get().AllocateInt32(NumInstances);
+							SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
 							SortIndices(SortMode, SortAttributeOffest, DynamicDataMesh->RTParticleData, SceneProxy->GetLocalToWorld(), View, SortedIndices);
 							CollectorResources.VertexFactory.SetSortedIndices(SortedIndices.ReadBuffer->SRV, SortedIndices.FirstIndex / sizeof(float));
 						}
@@ -288,7 +294,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 					Mesh.DepthPriorityGroup = (ESceneDepthPriorityGroup)SceneProxy->GetDepthPriorityGroup(View);
 
 					FMeshBatchElement& BatchElement = Mesh.Elements[0];
-					BatchElement.PrimitiveUniformBufferResource = &WorldSpacePrimitiveUniformBuffer;
+					BatchElement.PrimitiveUniformBuffer = WorldSpacePrimitiveUniformBuffer.GetUniformBufferRHI();
 					BatchElement.FirstIndex = 0;
 					BatchElement.MinVertexIndex = 0;
 					BatchElement.MaxVertexIndex = 0;
@@ -303,7 +309,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 						if (LODModel.WireframeIndexBuffer.IsInitialized())
 						{
 							Mesh.Type = PT_LineList;
-							Mesh.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy(SceneProxy->IsSelected(), SceneProxy->IsHovered());
+							Mesh.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 							BatchElement.FirstIndex = 0;
 							BatchElement.IndexBuffer = &LODModel.WireframeIndexBuffer;
 							BatchElement.NumPrimitives = LODModel.WireframeIndexBuffer.GetNumIndices() / 2;

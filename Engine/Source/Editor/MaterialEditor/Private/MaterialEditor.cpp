@@ -1003,7 +1003,7 @@ void FMaterialEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& 
 void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	bool bRefreshNodePreviews = false;
-	if (PropertyChangedEvent.Property != nullptr)
+	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		RefreshExpressionPreviews(true);
 		RefreshPreviewViewport();
@@ -1028,16 +1028,9 @@ FText FMaterialEditor::GetBaseToolkitName() const
 FText FMaterialEditor::GetToolkitName() const
 {
 	const UObject* EditingObject = GetEditingObjects()[0];
-
 	check(EditingObject);
 
-	const bool bDirtyState = EditingObject->GetOutermost()->IsDirty();
-
-	// Overridden to accommodate editing of multiple objects (original and preview materials)
-	FFormatNamedArguments Args;
-	Args.Add( TEXT("ObjectName"), FText::FromString( EditingObject->GetName() ) );
-	Args.Add( TEXT("DirtyState"), bDirtyState ? FText::FromString( TEXT( "*" ) ) : FText::GetEmpty() );
-	return FText::Format( LOCTEXT("MaterialEditorAppLabel", "{ObjectName}{DirtyState}"), Args );
+	return FText::FromString(EditingObject->GetName());
 }
 
 FText FMaterialEditor::GetToolkitToolTipText() const
@@ -3105,6 +3098,9 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 		MaterialsToOverride.Add(OriginalMaterial);
 	}
 
+
+	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
+
 	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
@@ -3112,6 +3108,7 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
 
 		CurrentMaterial->OverrideVectorParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
+		UpdateContext.AddMaterial(CurrentMaterial);
 	}
 
 	// Update MI's that reference any of the materials affected
@@ -3181,6 +3178,9 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 		MaterialsToOverride.Add(OriginalMaterial);
 	}
 
+
+	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
+
 	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
@@ -3188,6 +3188,7 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
 
 		CurrentMaterial->OverrideScalarParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
+		UpdateContext.AddMaterial(CurrentMaterial);
 	}
 
 	// Update MI's that reference any of the materials affected
@@ -3392,6 +3393,10 @@ void FMaterialEditor::SetPreviewExpression(UMaterialExpression* NewPreviewExpres
 			if (Material->IsUIMaterial())
 			{
 				ExpressionPreviewMaterial->MaterialDomain = MD_UI;
+			}
+			else if (Material->IsPostProcessMaterial())
+			{
+				ExpressionPreviewMaterial->MaterialDomain = MD_PostProcess;
 			}
 		}
 

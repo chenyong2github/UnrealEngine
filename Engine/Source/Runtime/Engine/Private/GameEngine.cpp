@@ -680,6 +680,7 @@ void UGameEngine::OnViewportResized(FViewport* Viewport, uint32 Unused)
 UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ViewExtensions( new FSceneViewExtensions() )
+	, EngineSubsystemCollection(this)
 {
 	C_WorldBox = FColor(0, 0, 40, 255);
 	C_BrushWire = FColor(192, 0, 0, 255);
@@ -696,11 +697,7 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 	C_BrushShape = FColor(128, 255, 128, 255);
 
 	SelectionHighlightIntensity = 0.0f;
-#if WITH_EDITOR
-	SelectionMeshSectionHighlightIntensity = 0.2f;
-#endif
 	BSPSelectionHighlightIntensity = 0.0f;
-	HoverHighlightIntensity = 10.f;
 
 	SelectionHighlightIntensityBillboards = 0.25f;
 

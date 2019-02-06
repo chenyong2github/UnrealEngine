@@ -3760,10 +3760,11 @@ void UDemoNetDriver::FinalizeFastForward( const double StartTime )
 			const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator;
 			if (Actor->IsNetStartupActor() && ActorReplicator)
 			{
-				FRepShadowDataBuffer ShadowData(ActorReplicator->RepState->StaticBuffer.GetData());
+				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
+				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
 				FConstRepObjectDataBuffer ActorData(Actor);
 
-				ActorReplicator->RepLayout->DiffProperties(&(ActorReplicator->RepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+				ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
 			}
 		}
 	}
@@ -4034,19 +4035,18 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 			}
 
 			TSharedPtr<FRepLayout> RepLayout = GetObjectClassRepLayout(Actor->GetClass());
-			if (RepLayout.IsValid())
+			FReceivingRepState* ReceivingRepState = RollbackActor.RepState.IsValid() ? RollbackActor.RepState->GetReceivingRepState() : nullptr;
+
+			if (RepLayout.IsValid() && ReceivingRepState && bSanityCheckReferences)
 			{
-				if (RepLayout.IsValid() && RollbackActor.RepState.IsValid() && bSanityCheckReferences)
-				{
-					const ENetRole SavedRole = Actor->Role;
+				const ENetRole SavedRole = Actor->Role;
 
-					FRepObjectDataBuffer ActorData(Actor);
-					FConstRepShadowDataBuffer ShadowData(RollbackActor.RepState->StaticBuffer.GetData());
+				FRepObjectDataBuffer ActorData(Actor);
+				FConstRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
 
-					RepLayout->DiffStableProperties(&RollbackActor.RepState->RepNotifies, nullptr, ActorData, ShadowData);
+				RepLayout->DiffStableProperties(&ReceivingRepState->RepNotifies, nullptr, ActorData, ShadowData);
 
-					Actor->Role = SavedRole;
-				}
+				Actor->Role = SavedRole;
 			}
 
 			check(Actor->GetRemoteRole() != ROLE_Authority);
@@ -4060,11 +4060,11 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 				Actor->SwapRoles();
 			}
 
-			if (RepLayout.IsValid() && RollbackActor.RepState.IsValid())
+			if (RepLayout.IsValid() && ReceivingRepState)
 			{
-				if (RollbackActor.RepState->RepNotifies.Num() > 0)
+				if (ReceivingRepState->RepNotifies.Num() > 0)
 				{
-					RepLayout->CallRepNotifies(RollbackActor.RepState.Get(), Actor);
+					RepLayout->CallRepNotifies(ReceivingRepState, Actor);
 
 					Actor->PostRepNotifies();
 				}
@@ -4075,20 +4075,21 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 				if (ActorComp)
 				{
 					TSharedPtr<FRepLayout> SubObjLayout = GetObjectClassRepLayout(ActorComp->GetClass());
-					if (SubObjLayout.IsValid())
+					if (SubObjLayout.IsValid() && bSanityCheckReferences)
 					{
 						TSharedPtr<FRepState> RepState = RollbackActor.SubObjRepState.FindRef(ActorComp->GetFullName());
+						FReceivingRepState* SubObjReceivingRepState = RepState.IsValid() ? RepState->GetReceivingRepState() : nullptr;
 
-						if (SubObjLayout.IsValid() && RepState.IsValid() && bSanityCheckReferences)
+						if (SubObjReceivingRepState)
 						{
 							FRepObjectDataBuffer ActorCompData(ActorComp);
-							FConstRepShadowDataBuffer ShadowData(RepState->StaticBuffer.GetData());
+							FConstRepShadowDataBuffer ShadowData(SubObjReceivingRepState->StaticBuffer.GetData());
 
-							SubObjLayout->DiffStableProperties(&RepState->RepNotifies, nullptr, ActorCompData, ShadowData);
+							SubObjLayout->DiffStableProperties(&SubObjReceivingRepState->RepNotifies, nullptr, ActorCompData, ShadowData);
 
-							if (RepState->RepNotifies.Num() > 0)
+							if (SubObjReceivingRepState->RepNotifies.Num() > 0)
 							{
-								SubObjLayout->CallRepNotifies(RepState.Get(), ActorComp);
+								SubObjLayout->CallRepNotifies(SubObjReceivingRepState, ActorComp);
 
 								ActorComp->PostRepNotifies();
 							}
@@ -4473,10 +4474,11 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			ChannelsToUpdate.Add(ActorChannel);
 			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator)
 			{
-				FRepShadowDataBuffer ShadowData(ActorReplicator->RepState->StaticBuffer.GetData());
+				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
+				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
 				FConstRepObjectDataBuffer ActorData(Actor);
 
-				ActorReplicator->RepLayout->DiffProperties(&(ActorReplicator->RepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+				ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
 			}
 		}
 
@@ -5024,6 +5026,14 @@ void UDemoNetDriver::AddNonQueuedGUIDForScrubbing(FNetworkGUID InGUID)
 	}
 }
 
+FDemoSavedRepObjectState::~FDemoSavedRepObjectState()
+{
+	if (RepLayout.IsValid() && PropertyData.Num() > 0)
+	{
+		RepLayout->DestructProperties(PropertyData);
+	}
+}
+
 FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
 {
 	FDemoSavedPropertyState State;
@@ -5045,8 +5055,11 @@ FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
 						SavedObject.Object = WeakObjectPtr;
 						SavedObject.RepLayout = ReplicatorPair.Value->RepLayout;
 
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						SavedObject.RepLayout->InitShadowData(SavedObject.PropertyData, RepObject->GetClass(), reinterpret_cast<const uint8* const>(RepObject));
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+						// TODO: InitShadowData should copy property data, so this seem uneccessary.
 						// Store the properties in the new RepState
 						FRepShadowDataBuffer ShadowData(SavedObject.PropertyData.GetData());
 						FConstRepObjectDataBuffer RepObjectData(RepObject);
@@ -5515,14 +5528,14 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion( AActor* Actor )
 
 	if (GDemoSaveRollbackActorState != 0)
 	{
-		TSharedPtr<FObjectReplicator> NewReplicator = MakeShared<FObjectReplicator>();
-		if (NewReplicator.IsValid())
 		{
+			TSharedPtr<FObjectReplicator> NewReplicator = MakeShared<FObjectReplicator>();
 			NewReplicator->InitWithObject(Actor->GetArchetype(), ServerConnection, false);
 
 			if (NewReplicator->RepLayout.IsValid() && NewReplicator->RepState.IsValid())
 			{
-				FRepShadowDataBuffer ShadowData(NewReplicator->RepState->StaticBuffer.GetData());
+				FReceivingRepState* ReceivingRepState = NewReplicator->RepState->GetReceivingRepState();
+				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
 				FConstRepObjectDataBuffer ActorData(Actor);
 
 				if (NewReplicator->RepLayout->DiffStableProperties(nullptr, &RollbackActor.ObjReferences, ShadowData, ActorData))
@@ -5537,19 +5550,17 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion( AActor* Actor )
 			if (ActorComp)
 			{
 				TSharedPtr<FObjectReplicator> SubObjReplicator = MakeShared<FObjectReplicator>();
-				if (SubObjReplicator.IsValid())
+				SubObjReplicator->InitWithObject(ActorComp->GetArchetype(), ServerConnection, false);
+
+				if (SubObjReplicator->RepLayout.IsValid() && SubObjReplicator->RepState.IsValid())
 				{
-					SubObjReplicator->InitWithObject(ActorComp->GetArchetype(), ServerConnection, false);
+					FReceivingRepState* ReceivingRepState = SubObjReplicator->RepState->GetReceivingRepState();
+					FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
+					FConstRepObjectDataBuffer ActorCompData(ActorComp);
 
-					if (SubObjReplicator->RepLayout.IsValid() && SubObjReplicator->RepState.IsValid())
+					if (SubObjReplicator->RepLayout->DiffStableProperties(nullptr, &RollbackActor.ObjReferences, ShadowData, ActorCompData))
 					{
-						FRepShadowDataBuffer ShadowData(SubObjReplicator->RepState->StaticBuffer.GetData());
-						FConstRepObjectDataBuffer ActorCompData(ActorComp);
-
-						if (SubObjReplicator->RepLayout->DiffStableProperties(nullptr, &RollbackActor.ObjReferences, ShadowData, ActorCompData))
-						{
-							RollbackActor.SubObjRepState.Add(ActorComp->GetFullName(), MakeShareable(SubObjReplicator->RepState.Release()));
-						}
+						RollbackActor.SubObjRepState.Add(ActorComp->GetFullName(), MakeShareable(SubObjReplicator->RepState.Release()));
 					}
 				}
 			}
@@ -5840,7 +5851,7 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		LevelStatusesByName.CountBytes(Ar);
 		for (const auto& LevelStatusNamePair : LevelStatusesByName)
 		{
-			Ar << const_cast<FString&>(LevelStatusNamePair.Key);
+			LevelStatusNamePair.Key.CountBytes(Ar);
 		}
 
 		LevelStatusIndexByLevel.CountBytes(Ar);

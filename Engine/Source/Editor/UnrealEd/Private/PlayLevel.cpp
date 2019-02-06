@@ -102,6 +102,7 @@
 #include "IVREditorModule.h"
 #include "EditorModeRegistry.h"
 #include "PhysicsManipulationMode.h"
+#include "CookerSettings.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
@@ -1993,6 +1994,11 @@ void UEditorEngine::PlayUsingLauncher()
 			CurrentLauncherCookMode = ELauncherProfileCookModes::OnTheFlyInEditor;
 			bIncrimentalCooking = false;
 		}
+		if ( GetDefault<UCookerSettings>()->bCookOnTheFlyForLaunchOn )
+		{
+			CurrentLauncherCookMode = ELauncherProfileCookModes::OnTheFly;
+			bIncrimentalCooking = false;
+		}
 		LauncherProfile->SetCookMode( CurrentLauncherCookMode );
 		LauncherProfile->SetUnversionedCooking(!bIncrimentalCooking);
 		LauncherProfile->SetIncrementalCooking(bIncrimentalCooking);
@@ -3804,8 +3810,7 @@ void UEditorEngine::FocusNextPIEWorld(UWorld *CurrentPieWorld, bool previous)
 			FSlateApplication& SlateApp = FSlateApplication::Get();
 			TSharedRef<SViewport> ViewportWidget = SceneViewport->GetViewportWidget().Pin().ToSharedRef();
 
-			FWidgetPath WindowWidgetPath;
-			TSharedPtr<SWindow> ViewportWindow = SlateApp.FindWidgetWindow(ViewportWidget, WindowWidgetPath);
+			TSharedPtr<SWindow> ViewportWindow = SlateApp.FindWidgetWindow(ViewportWidget);
 			check(ViewportWindow.IsValid());
 
 			// Force window to front
