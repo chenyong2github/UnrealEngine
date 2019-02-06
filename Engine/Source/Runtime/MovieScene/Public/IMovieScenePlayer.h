@@ -49,7 +49,7 @@ struct EMovieSceneViewportParams
  * Interface for movie scene players
  * Provides information for playback of a movie scene
  */
-class IMovieScenePlayer
+class MOVIESCENE_VTABLE IMovieScenePlayer
 {
 public:
 	virtual ~IMovieScenePlayer() { }

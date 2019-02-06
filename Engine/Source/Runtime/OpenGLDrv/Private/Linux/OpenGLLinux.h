@@ -363,7 +363,7 @@ THIRD_PARTY_INCLUDES_END
 	ENUM_GL_ENTRYPOINTS_OPTIONAL(EnumMacro)
 
 /** Declare all GL functions. */
-#define DECLARE_GL_ENTRYPOINTS(Type,Func) extern Type Func;
+#define DECLARE_GL_ENTRYPOINTS(Type,Func) extern Type OPENGLDRV_API Func;
 
 // We need to make pointer names different from GL functions otherwise we may end up getting
 // addresses of those symbols when looking for extensions.

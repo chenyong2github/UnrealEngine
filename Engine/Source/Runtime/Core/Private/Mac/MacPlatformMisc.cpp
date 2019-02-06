@@ -75,7 +75,7 @@ static FAutoConsoleVariableRef CVarMacExplicitRendererID(
  FMacApplicationInfo - class to contain all state for crash reporting that is unsafe to acquire in a signal.
  ------------------------------------------------------------------------------*/
 
-FMacMallocCrashHandler* GCrashMalloc = nullptr;
+ CORE_API FMacMallocCrashHandler* GCrashMalloc = nullptr;
 
 /**
  * Information that cannot be obtained during a signal-handler is initialised here.

@@ -1119,7 +1119,7 @@ extern ENGINE_API bool CanConnectMaterialValueTypes(uint32 InputType, uint32 Out
  *   Stores a cached shader map, and other transient output from a compile, which is necessary with async shader compiling
  *      (when a material finishes async compilation, the shader map and compile errors need to be stored somewhere)
  */
-class FMaterial
+class ENGINE_VTABLE FMaterial
 {
 public:
 
@@ -1641,7 +1641,7 @@ class USubsurfaceProfile;
 /**
  * A material render proxy used by the renderer.
  */
-class FMaterialRenderProxy : public FRenderResource
+class ENGINE_VTABLE FMaterialRenderProxy : public FRenderResource
 {
 public:
 
@@ -1780,7 +1780,7 @@ private:
 /**
  * An material render proxy which overrides the material's Color vector parameter.
  */
-class FColoredMaterialRenderProxy : public FMaterialRenderProxy
+class ENGINE_VTABLE FColoredMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 
@@ -1824,7 +1824,7 @@ public:
 /**
  * A material render proxy which overrides the selection color
  */
-class FOverrideSelectionColorMaterialRenderProxy : public FMaterialRenderProxy
+class ENGINE_VTABLE FOverrideSelectionColorMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 
@@ -2140,7 +2140,7 @@ public:
 /**
  * Material property to attribute data mappings
  */
-class FMaterialAttributeDefinitionMap
+class ENGINE_VTABLE FMaterialAttributeDefinitionMap
 {
 public:
 	FMaterialAttributeDefinitionMap()

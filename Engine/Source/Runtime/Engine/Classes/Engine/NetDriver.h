@@ -305,7 +305,7 @@ struct FDisconnectedClient
 
 
 UCLASS(Abstract, customConstructor, transient, MinimalAPI, config=Engine)
-class UNetDriver : public UObject, public FExec
+class ENGINE_VTABLE UNetDriver : public UObject, public FExec
 {
 	GENERATED_UCLASS_BODY()
 

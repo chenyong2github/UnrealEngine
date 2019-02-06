@@ -62,6 +62,11 @@ namespace UnrealBuildTool
 		protected readonly string ModuleApiDefine;
 
 		/// <summary>
+		/// The name of the _VTABLE define for this module
+		/// </summary>
+		protected readonly string ModuleVTableDefine;
+
+		/// <summary>
 		/// Set of all the public definitions
 		/// </summary>
 		protected readonly HashSet<string> PublicDefinitions;
@@ -160,6 +165,7 @@ namespace UnrealBuildTool
 			this.Rules = Rules;
 
 			ModuleApiDefine = Name.ToUpperInvariant() + "_API";
+			ModuleVTableDefine = Name.ToUpperInvariant() + "_VTABLE";
 
 			PublicDefinitions = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDefinitions);
 			PublicIncludePaths = CreateDirectoryHashSet(Rules.PublicIncludePaths);
@@ -476,23 +482,28 @@ namespace UnrealBuildTool
 				{
 					if (Rules.Target.bShouldCompileAsDLL && Rules.Target.bHasExports)
 					{
+						Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 						Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 					}
 					else
 					{
+						Definitions.Add(ModuleVTableDefine + "=");
 						Definitions.Add(ModuleApiDefine + "=");
 					}
 				}
 				else if(Binary == null || SourceBinary != Binary)
 				{
+					Definitions.Add(ModuleVTableDefine + "=DLLIMPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLIMPORT");
 				}
 				else if(!Binary.bAllowExports)
 				{
+					Definitions.Add(ModuleVTableDefine + "=");
 					Definitions.Add(ModuleApiDefine + "=");
 				}
 				else
 				{
+					Definitions.Add(ModuleVTableDefine + "=DLLEXPORT_VTABLE");
 					Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 				}
 			}

@@ -368,7 +368,7 @@ struct FTexturePlatformData
 };
 
 UCLASS(abstract, MinimalAPI, BlueprintType)
-class UTexture : public UObject, public IInterface_AssetUserData
+class ENGINE_VTABLE UTexture : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 

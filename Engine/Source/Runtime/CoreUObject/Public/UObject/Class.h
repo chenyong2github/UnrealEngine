@@ -841,7 +841,7 @@ FORCEINLINE typename TEnableIf<THasGetTypeHash<CPPSTRUCT>::Value, uint32>::Type 
 /**
  * Reflection data for a standalone structure declared in a header or as a user defined struct
  */
-class UScriptStruct : public UStruct
+class COREUOBJECT_VTABLE UScriptStruct : public UStruct
 {
 public:
 	/** Interface to template to manage dynamic access to C++ struct construction and destruction **/

@@ -232,7 +232,7 @@ private:
  * Represents a widget that can display a UProperty 
  * With the ability to customize the look of the property                 
  */
-class SProperty
+class PROPERTYEDITOR_VTABLE SProperty
 	: public SCompoundWidget
 {
 public:

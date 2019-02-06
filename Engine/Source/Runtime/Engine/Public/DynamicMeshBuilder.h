@@ -101,7 +101,7 @@ struct FDynamicMeshVertex
 	FColor Color;
 };
 
-class FMeshBuilderOneFrameResources : public FOneFrameResource
+class ENGINE_VTABLE FMeshBuilderOneFrameResources : public FOneFrameResource
 {
 public:
 	class FPooledDynamicMeshVertexBuffer* VertexBuffer = nullptr;

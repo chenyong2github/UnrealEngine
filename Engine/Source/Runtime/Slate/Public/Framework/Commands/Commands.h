@@ -106,7 +106,7 @@ protected:
 	}
 
 	/** A static instance of the command set. */
-	static TWeakPtr< CommandContextType > Instance;
+	static SLATE_API TWeakPtr< CommandContextType > Instance;
 
 	/** Pure virtual to override; describe and instantiate the commands in here by using the UI COMMAND macro. */
 	virtual void RegisterCommands() = 0;

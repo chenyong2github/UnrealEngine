@@ -418,7 +418,7 @@ private:
 
 
 // This object is a base class helper used when building a list of actions for some menu or palette
-struct FGraphActionListBuilderBase
+struct ENGINE_VTABLE FGraphActionListBuilderBase
 {
 public:
 	/** A single entry in the list - can contain multiple actions */
@@ -545,7 +545,7 @@ public:
 };
 
 /** Used to nest all added action under one root category */
-struct FCategorizedGraphActionListBuilder : public FGraphActionListBuilderBase
+struct ENGINE_VTABLE FCategorizedGraphActionListBuilder : public FGraphActionListBuilderBase
 {
 public:
 	ENGINE_API FCategorizedGraphActionListBuilder(FString Category = FString());

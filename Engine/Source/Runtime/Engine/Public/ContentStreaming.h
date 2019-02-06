@@ -79,7 +79,7 @@ struct FStreamingViewInfo
 /**
  * Pure virtual base class of a streaming manager.
  */
-struct IStreamingManager
+struct ENGINE_VTABLE IStreamingManager
 {
 	IStreamingManager()
 	:	NumWantingResources(0)
@@ -427,7 +427,7 @@ struct IAudioStreamingManager : public IStreamingManager
  * Streaming manager collection, routing function calls to streaming managers that have been added
  * via AddStreamingManager.
  */
-struct FStreamingManagerCollection : public IStreamingManager
+struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 {
 	/** Default constructor, initializing all member variables. */
 	ENGINE_API FStreamingManagerCollection();

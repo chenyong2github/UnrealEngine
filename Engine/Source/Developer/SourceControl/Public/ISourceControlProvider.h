@@ -71,7 +71,7 @@ DECLARE_MULTICAST_DELEGATE(FSourceControlStateChanged);
 /**
  * Interface to talking with source control providers.
  */
-class ISourceControlProvider : public IModularFeature
+class SOURCECONTROL_VTABLE ISourceControlProvider : public IModularFeature
 {
 public:
 	/**

@@ -502,12 +502,6 @@ namespace UnrealBuildTool
 				);
 			}
 
-			// for now only hide by default monolithic builds.
-			if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				CompileEnvironment.bHideSymbolsByDefault = true;
-			}
-
 			// link with Linux libraries.
 			LinkEnvironment.AdditionalLibraries.Add("pthread");
 

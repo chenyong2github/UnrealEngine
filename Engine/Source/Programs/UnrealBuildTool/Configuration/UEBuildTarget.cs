@@ -2862,7 +2862,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalCompileEnvironment.bUseRTTI = Rules.bForceEnableRTTI;
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
-			GlobalCompileEnvironment.bHideSymbolsByDefault = Rules.bHideSymbolsByDefault;
+			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments;
 

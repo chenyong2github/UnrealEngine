@@ -207,7 +207,7 @@ struct FMaterialTextureInfo
 };
 
 UCLASS(abstract, BlueprintType, MinimalAPI, HideCategories = (Thumbnail))
-class UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
+class ENGINE_VTABLE UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -282,7 +282,7 @@ private:
 
 private:
 	/** Feature level bitfield to compile for all materials */
-	static uint32 FeatureLevelsForAllMaterials;
+	ENGINE_API static uint32 FeatureLevelsForAllMaterials;
 public:
 	/** Set which feature levels this material instance should compile. GMaxRHIFeatureLevel is always compiled! */
 	ENGINE_API void SetFeatureLevelToCompile(ERHIFeatureLevel::Type FeatureLevel, bool bShouldCompile);

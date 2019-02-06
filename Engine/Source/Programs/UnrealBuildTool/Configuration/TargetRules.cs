@@ -951,10 +951,11 @@ namespace UnrealBuildTool
 		public bool bPrintToolChainTimingInfo = false;
 
 		/// <summary>
-		/// Whether to hide symbols by default on POSIX platforms
+		/// Whether to expose all symbols as public by default on POSIX platforms
 		/// </summary>
-		[CommandLine("-HideSymbolsByDefault")]
-		public bool bHideSymbolsByDefault;
+		[CommandLine("-PublicSymbolsByDefault")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPublicSymbolsByDefault = false;
 
 		/// <summary>
 		/// Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
@@ -2107,9 +2108,9 @@ namespace UnrealBuildTool
 			get { return Inner.bPrintToolChainTimingInfo; }
 		}
 
-		public bool bHideSymbolsByDefault
+		public bool bPublicSymbolsByDefault
 		{
-			get { return Inner.bHideSymbolsByDefault; }
+			get { return Inner.bPublicSymbolsByDefault; }
 		}
 
 		public string ToolChainName
