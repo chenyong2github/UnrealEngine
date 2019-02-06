@@ -87,3 +87,11 @@
 #ifndef DEPRECATED_MACRO
 	#define DEPRECATED_MACRO(Version, Message) EMIT_CUSTOM_WARNING(Message " Please update your code to the new API before upgrading to the next release, otherwise your project will no longer compile.")
 #endif
+
+#ifndef PRAGMA_DEFAULT_VISIBILITY_START
+	#define PRAGMA_DEFAULT_VISIBILITY_START
+#endif
+
+#ifndef PRAGMA_DEFAULT_VISIBILITY_END
+	#define PRAGMA_DEFAULT_VISIBILITY_END
+#endif

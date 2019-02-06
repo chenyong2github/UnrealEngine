@@ -16,10 +16,12 @@
 
 #include "HAL/Platform.h"
 
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcGeom/All.h>
 #include "Materials/MaterialInstance.h"
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_START
 
 #define LOCTEXT_NAMESPACE "AbcFile"
 

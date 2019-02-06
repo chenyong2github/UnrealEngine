@@ -7,10 +7,12 @@
 #include "Modules/ModuleManager.h"
 #include "MeshUtilities.h"
 
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/Visibility.h>
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_END
 
 static const ESampleReadFlags ReadAllFlags = ESampleReadFlags::Positions | ESampleReadFlags::Indices | ESampleReadFlags::UVs | ESampleReadFlags::Normals | ESampleReadFlags::Colors | ESampleReadFlags::MaterialIndices;
 

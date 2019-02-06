@@ -10,6 +10,7 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
@@ -20,6 +21,7 @@ THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcGeom/All.h>
 #include <Alembic/Abc/IObject.h>
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "Rendering/SkeletalMeshLODModel.h"
 

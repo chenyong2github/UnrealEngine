@@ -79,3 +79,6 @@
 #define PRAGMA_DISABLE_OPTIMIZATION_ACTUAL _Pragma("clang optimize off")
 #define PRAGMA_ENABLE_OPTIMIZATION_ACTUAL  _Pragma("clang optimize on")
 #endif
+
+#define PRAGMA_DEFAULT_VISIBILITY_START _Pragma("GCC visibility push(default)")
+#define PRAGMA_DEFAULT_VISIBILITY_END   _Pragma("GCC visibility pop")
