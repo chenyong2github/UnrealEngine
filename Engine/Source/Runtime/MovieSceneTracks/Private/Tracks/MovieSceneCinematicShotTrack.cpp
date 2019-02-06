@@ -75,6 +75,12 @@ void UMovieSceneCinematicShotTrack::RemoveSection(UMovieSceneSection& Section)
 	// @todo Sequencer: The movie scene owned by the section is now abandoned.  Should we offer to delete it?  
 }
 
+void UMovieSceneCinematicShotTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
+	MovieSceneHelpers::SortConsecutiveSections(Sections);
+}
+
 bool UMovieSceneCinematicShotTrack::SupportsMultipleRows() const
 {
 	return true;

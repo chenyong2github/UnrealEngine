@@ -106,6 +106,11 @@ void UMovieSceneGeometryCacheTrack::RemoveSection(UMovieSceneSection& Section)
 	AnimationSections.Remove(&Section);
 }
 
+void UMovieSceneGeometryCacheTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	AnimationSections.RemoveAt(SectionIndex);
+}
+
 
 bool UMovieSceneGeometryCacheTrack::IsEmpty() const
 {

@@ -48,6 +48,11 @@ void UMovieSceneMaterialTrack::RemoveSection(UMovieSceneSection& Section)
 	Sections.Remove(&Section);
 }
 
+void UMovieSceneMaterialTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
+}
+
 
 bool UMovieSceneMaterialTrack::IsEmpty() const
 {

@@ -65,6 +65,12 @@ void UMovieSceneAudioTrack::RemoveSection(UMovieSceneSection& Section)
 }
 
 
+void UMovieSceneAudioTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	AudioSections.RemoveAt(SectionIndex);
+}
+
+
 bool UMovieSceneAudioTrack::IsEmpty() const
 {
 	return AudioSections.Num() == 0;

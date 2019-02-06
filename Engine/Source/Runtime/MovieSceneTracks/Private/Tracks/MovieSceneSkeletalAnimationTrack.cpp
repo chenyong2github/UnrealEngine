@@ -122,6 +122,12 @@ void UMovieSceneSkeletalAnimationTrack::RemoveSection(UMovieSceneSection& Sectio
 }
 
 
+void UMovieSceneSkeletalAnimationTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	AnimationSections.RemoveAt(SectionIndex);
+}
+
+
 bool UMovieSceneSkeletalAnimationTrack::IsEmpty() const
 {
 	return AnimationSections.Num() == 0;
