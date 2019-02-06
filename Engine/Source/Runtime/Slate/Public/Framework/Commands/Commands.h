@@ -106,7 +106,11 @@ protected:
 	}
 
 	/** A static instance of the command set. */
+#if PLATFORM_UNIX || PLATFORM_APPLE
 	static SLATE_API TWeakPtr< CommandContextType > Instance;
+#else
+	static TWeakPtr< CommandContextType > Instance;
+#endif
 
 	/** Pure virtual to override; describe and instantiate the commands in here by using the UI COMMAND macro. */
 	virtual void RegisterCommands() = 0;

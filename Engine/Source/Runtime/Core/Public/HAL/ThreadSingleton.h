@@ -35,14 +35,25 @@ public:
 template < class T >
 class TThreadSingleton : public FTlsAutoCleanup
 {
+#if PLATFORM_UNIX || PLATFORM_APPLE
 	/**
 	 * @return TLS slot that holds a TThreadSingleton.
 	 */
-	static CORE_API uint32& GetTlsSlot()
+	CORE_API static uint32& GetTlsSlot()
 	{
 		static uint32 TlsSlot = 0xFFFFFFFF;
 		return TlsSlot;
 	}
+#else
+	/**
+	 * @return TLS slot that holds a TThreadSingleton.
+	 */
+	static uint32& GetTlsSlot()
+	{
+		static uint32 TlsSlot = 0xFFFFFFFF;
+		return TlsSlot;
+	}
+#endif
 
 protected:
 
