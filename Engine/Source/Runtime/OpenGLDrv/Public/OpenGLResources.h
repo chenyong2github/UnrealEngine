@@ -1880,9 +1880,11 @@ public:
 	,	OpenGLRHI(InOpenGLRHI)
 	,	OwnsResource(true)
 	{
-		check(IsValidRef(VertexBuffer));
-		FOpenGLVertexBuffer* VB = (FOpenGLVertexBuffer*)VertexBuffer.GetReference();
-		ModificationVersion = VB->ModificationCount;
+		if (VertexBuffer)
+		{
+			FOpenGLVertexBuffer* VB = (FOpenGLVertexBuffer*)VertexBuffer.GetReference();
+			ModificationVersion = VB->ModificationCount;
+		}
 	}
 
 	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, GLuint Mip, bool InOwnsResource )

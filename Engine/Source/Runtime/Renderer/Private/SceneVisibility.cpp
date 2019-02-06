@@ -1751,13 +1751,14 @@ struct FRelevancePacket
 	int32 NumVisibleDynamicEditorPrimitives;
 	FMeshPassMask VisibleDynamicMeshesPassMask;
 	FTranslucenyPrimCount TranslucentPrimCount;
-	FRelevancePrimSet<FMeshDecalPrimSet::KeyType> MeshDecalPrimSet;
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> LazyUpdatePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
-	FRelevancePrimSet<FPrimitiveSceneProxy*> VolumetricPrimSet;
+
+	TArray<FMeshDecalBatch> MeshDecalBatches;
+	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -1891,11 +1892,6 @@ struct FRelevancePacket
 				continue;
 			}
 
-			if (ViewRelevance.bDecal && ViewRelevance.bRenderInMainPass)
-			{
-				MeshDecalPrimSet.AddPrim(FMeshDecalPrimSet::GenerateKey(PrimitiveSceneInfo, PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority()));
-			}
-
 			if (bEditorRelevance)
 			{
 				++NumVisibleDynamicEditorPrimitives;
@@ -1946,11 +1942,6 @@ struct FRelevancePacket
 				{
 					bHasDistortionPrimitives = true;
 				}
-			}
-
-			if (ViewRelevance.bHasVolumeMaterialDomain)
-			{
-				VolumetricPrimSet.AddPrim(PrimitiveSceneInfo->Proxy);
 			}
 
 			CombinedShadingModelMask |= ViewRelevance.ShadingModelMaskRelevance;
@@ -2034,16 +2025,19 @@ struct FRelevancePacket
 			const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
 			const bool bIsPrimitiveDistanceCullFading = View.PrimitiveFadeUniformBufferMap[PrimitiveIndex];
 
+			const int8 CurFirstLODIdx = PrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
+			check(CurFirstLODIdx >= 0);
 			float MeshScreenSizeSquared = 0;
 			FLODMask LODToRender;
 
 			if (PrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
 				LODToRender = PrimitiveSceneInfo->Proxy->GetCustomLOD(View, View.LODDistanceFactor, ViewData.ForcedLODLevel, MeshScreenSizeSquared);
+				LODToRender.ClampToFirstLOD(CurFirstLODIdx);
 			}
 			else
 			{
-				LODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, View, Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius, ViewData.ForcedLODLevel, MeshScreenSizeSquared, ViewData.LODScale);
+				LODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, View, Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius, ViewData.ForcedLODLevel, MeshScreenSizeSquared, CurFirstLODIdx, ViewData.LODScale);
 			}
 
 			PrimitivesLODMask.AddPrim(FRelevancePacket::FPrimitiveLODMask(PrimitiveIndex, LODToRender));
@@ -2231,6 +2225,24 @@ struct FRelevancePacket
 						DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::EditorSelection);
 					}
 #endif
+
+					if (ViewRelevance.bHasVolumeMaterialDomain)
+					{
+						VolumetricMeshBatches.AddUninitialized(1);
+						FVolumetricMeshBatch& BatchAndProxy = VolumetricMeshBatches.Last();
+						BatchAndProxy.Mesh = &StaticMesh;
+						BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+					}
+
+					if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
+					{
+						MeshDecalBatches.AddUninitialized(1);
+						FMeshDecalBatch& BatchAndProxy = MeshDecalBatches.Last();
+						BatchAndProxy.Mesh = &StaticMesh;
+						BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+						BatchAndProxy.SortKey = PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority();
+					}
+
 					if (MarkMask)
 					{
 						MarkMasks[StaticMeshRelevance.Id] = MarkMask;
@@ -2267,11 +2279,12 @@ struct FRelevancePacket
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
 		WriteView.TranslucentPrimCount.Append(TranslucentPrimCount);
-		MeshDecalPrimSet.AppendTo(WriteView.MeshDecalPrimSet.Prims);
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
-		VolumetricPrimSet.AppendTo(WriteView.VolumetricPrimSet);
+
+		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
+		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
 
 		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
 		{
@@ -2604,6 +2617,23 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		View.NumVisibleDynamicMeshElements[EMeshPass::EditorSelection] += NumElements;
 	}
 #endif
+
+	if (ViewRelevance.bHasVolumeMaterialDomain)
+	{
+		View.VolumetricMeshBatches.AddUninitialized(1);
+		FVolumetricMeshBatch& BatchAndProxy = View.VolumetricMeshBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+	}
+
+	if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
+	{
+		View.MeshDecalBatches.AddUninitialized(1);
+		FMeshDecalBatch& BatchAndProxy = View.MeshDecalBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
+	}
 }
 
 void FSceneRenderer::GatherDynamicMeshElements(
@@ -2679,12 +2709,6 @@ void FSceneRenderer::GatherDynamicMeshElements(
 						ComputeDynamicMeshRelevance(ShadingPath, bAddLightmapDensityCommands, ViewRelevance, MeshBatch, View, PassRelevance);
 					}
 				}
-			}
-
-			// to support GetDynamicMeshElementRange()
-			for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
-			{
-				InViews[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex] = Collector.GetMeshBatchCount(ViewIndex);
 			}
 		}
 	}
@@ -3319,7 +3343,6 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		// Allocate the view's visibility maps.
 		View.PrimitiveVisibilityMap.Init(false,Scene->Primitives.Num());
 		// we don't initialized as we overwrite the whole array (in GatherDynamicMeshElements)
-		View.DynamicMeshEndIndices.SetNumUninitialized(Scene->Primitives.Num());
 		View.PrimitiveDefinitelyUnoccludedMap.Init(false,Scene->Primitives.Num());
 		View.PotentiallyFadingPrimitiveMap.Init(false,Scene->Primitives.Num());
 		View.PrimitiveFadeUniformBuffers.AddZeroed(Scene->Primitives.Num());
@@ -3635,7 +3658,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 		{		
 			FViewInfo& View = Views[ViewIndex];
 
-			View.MeshDecalPrimSet.SortPrimitives();
+			View.MeshDecalBatches.Sort();
 
 			if (View.State)
 			{

@@ -7530,7 +7530,7 @@ void AddMaterials(TArray<FMaterialWithScale, TInlineAllocator<12> >& OutMaterial
 	}
 }
 
-void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UParticleSystemComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	TArray<FMaterialWithScale, TInlineAllocator<12> > MaterialWithScales;
 
@@ -7573,7 +7573,7 @@ void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelCon
 			for (const FMaterialWithScale& MaterialWithScale : MaterialWithScales)
 			{
 				MaterialData.Material = MaterialWithScale.Key;
-				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingTextures);
+				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingRenderAssets);
 			}
 		}
 	}

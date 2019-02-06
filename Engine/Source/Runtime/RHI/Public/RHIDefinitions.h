@@ -98,6 +98,9 @@ enum ERenderQueryType
 /** Maximum number of miplevels in a texture. */
 enum { MAX_TEXTURE_MIP_COUNT = 14 };
 
+/** Maximum number of static/skeletal mesh LODs */
+enum { MAX_MESH_LOD_COUNT = 8 };
+
 /** Maximum number of immutable samplers in a PSO. */
 enum
 {

@@ -175,51 +175,73 @@ void FIOSLocalNotificationService::ScheduleLocalNotificationAtTime(const FDateTi
 {
 #if !PLATFORM_TVOS
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
-	UNMutableNotificationContent* Content = FIOSLocalNotificationModule::CreateNotificationContent(Title, Body, Action, ActivationEvent, 1);
-	UNCalendarNotificationTrigger* Trigger = FIOSLocalNotificationModule::CreateCalendarNotificationTrigger(FireDateTime);
-	
-	UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
-	
-	FString NotId = Title.ToString() + FString::FromInt(NotificationNumber);
-	NSString* NotificationIdentifier = [NSString stringWithFString:NotId];
-	
-	UNNotificationRequest *Request = [UNNotificationRequest requestWithIdentifier:NotificationIdentifier content:Content trigger:Trigger];
-	
-	[Center addNotificationRequest:Request withCompletionHandler:^(NSError * _Nullable error) {
-		if (error != nil) {
-			UE_LOG(LogIOSLocalNotification, Warning, TEXT("Error scheduling notification: %s"), *NotId);
-		}
-	}];
+    
+    //Create local copies of these for the block to capture
+    FDateTime FireDateTimeCopy = FireDateTime;
+    FText TitleCopy = Title;
+    FText BodyCopy = Body;
+    FText ActionCopy = Action;
+    FString ActivationEventCopy = ActivationEvent;
+    
+	//have to schedule notification on main thread queue
+	dispatch_async(dispatch_get_main_queue(), ^{
+        UNMutableNotificationContent* Content = FIOSLocalNotificationModule::CreateNotificationContent(TitleCopy, BodyCopy, ActionCopy, ActivationEventCopy, 1);
+        UNCalendarNotificationTrigger* Trigger = FIOSLocalNotificationModule::CreateCalendarNotificationTrigger(FireDateTimeCopy);
+        
+        UNUserNotificationCenter *Center = [UNUserNotificationCenter currentNotificationCenter];
+        
+        FString NotId = TitleCopy.ToString() + FString::FromInt(NotificationNumber);
+        NSString* NotificationIdentifier = [NSString stringWithFString : NotId];
+        
+        UNNotificationRequest *Request = [UNNotificationRequest requestWithIdentifier:NotificationIdentifier content:Content trigger:Trigger];
+        
+        [Center addNotificationRequest : Request withCompletionHandler : ^ (NSError * _Nullable error) {
+            if (error != nil) {
+                UE_LOG(LogIOSLocalNotification, Warning, TEXT("Error scheduling notification: %s"), *NotId);
+            }
+        }];
+    });
 #else
-	UILocalNotification *localNotif = FIOSLocalNotificationModule::CreateLocalNotification(FireDateTime, LocalTime, ActivationEvent);
-	if (localNotif == nil)
-		return;
+    
+    //Create local copies of these for the block to capture
+    FDateTime FireDateTimeCopy = FireDateTime;
+    FText TitleCopy = Title;
+    FText BodyCopy = Body;
+    FText ActionCopy = Action;
+    FString ActivationEventCopy = ActivationEvent;
+    
+	//have to schedule notification on main thread queue
+	dispatch_async(dispatch_get_main_queue(), ^{
+		UILocalNotification *localNotif = FIOSLocalNotificationModule::CreateLocalNotification(FireDateTimeCopy, LocalTime, ActivationEventCopy);
+		if (localNotif == nil)
+			return;
 
-	NSString*	alertBody = [NSString stringWithFString : Body.ToString()];
-	if (alertBody != nil)
-	{
-		localNotif.alertBody = alertBody;
-	}
-
-	NSString*	alertAction = [NSString stringWithFString:Action.ToString()];
-	if(alertAction != nil)
-	{
-		localNotif.alertAction = alertAction;
-	}
-	
-	if([IOSAppDelegate GetDelegate].OSVersion >= 8.2f)
-	{
-		NSString*	alertTitle = [NSString stringWithFString:Title.ToString()];
-		if(alertTitle != nil)
+		NSString*	alertBody = [NSString stringWithFString : BodyCopy.ToString()];
+		if (alertBody != nil)
 		{
-			localNotif.alertTitle = alertTitle;
+			localNotif.alertBody = alertBody;
 		}
-	}
-	
-	localNotif.soundName = UILocalNotificationDefaultSoundName;
-	localNotif.applicationIconBadgeNumber = 1;
 
-	[[UIApplication sharedApplication] scheduleLocalNotification:localNotif];
+		NSString*	alertAction = [NSString stringWithFString : ActionCopy.ToString()];
+		if (alertAction != nil)
+		{
+			localNotif.alertAction = alertAction;
+		}
+
+		if ([IOSAppDelegate GetDelegate].OSVersion >= 8.2f)
+		{
+			NSString*	alertTitle = [NSString stringWithFString : TitleCopy.ToString()];
+			if (alertTitle != nil)
+			{
+				localNotif.alertTitle = alertTitle;
+			}
+		}
+
+		localNotif.soundName = UILocalNotificationDefaultSoundName;
+		localNotif.applicationIconBadgeNumber = 1;
+
+		[[UIApplication sharedApplication] scheduleLocalNotification:localNotif];
+    });
 #endif
 #endif
 }

@@ -7,7 +7,7 @@
 #include "Streaming/StaticTextureInstanceManager.h"
 #include "Components/PrimitiveComponent.h"
 
-void FStaticTextureInstanceManager::FTasks::SyncResults()
+void FStaticRenderAssetInstanceManager::FTasks::SyncResults()
 {
 	RefreshVisibilityTask->TryWork(false);
 	NormalizeLightmapTexelFactorTask->TryWork(false);
@@ -17,12 +17,12 @@ void FStaticTextureInstanceManager::FTasks::SyncResults()
 
 }
 
-FStaticTextureInstanceManager::FStaticTextureInstanceManager(TextureInstanceTask::FDoWorkTask& AsyncTask)
+FStaticRenderAssetInstanceManager::FStaticRenderAssetInstanceManager(RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: DirtyIndex(0)
 {
 	FTasks& Tasks = StateSync.GetTasks();
 
-	Tasks.RefreshVisibilityTask = new FRefreshVisibilityTask(TextureInstanceTask::FRefreshVisibility::FOnWorkDone::CreateLambda([this](int32 InBeginIndex, int32 InEndIndex){ this->OnRefreshVisibilityDone(InBeginIndex, InEndIndex); }));
+	Tasks.RefreshVisibilityTask = new FRefreshVisibilityTask(RenderAssetInstanceTask::FRefreshVisibility::FOnWorkDone::CreateLambda([this](int32 InBeginIndex, int32 InEndIndex){ this->OnRefreshVisibilityDone(InBeginIndex, InEndIndex); }));
 	AsyncTask.Add(Tasks.RefreshVisibilityTask.GetReference());
 
 	Tasks.NormalizeLightmapTexelFactorTask = new FNormalizeLightmapTexelFactorTask();
@@ -30,11 +30,11 @@ FStaticTextureInstanceManager::FStaticTextureInstanceManager(TextureInstanceTask
 
 }
 
-void FStaticTextureInstanceManager::NormalizeLightmapTexelFactor()
+void FStaticRenderAssetInstanceManager::NormalizeLightmapTexelFactor()
 {
 	if (!AsyncView)
 	{
-		FTextureInstanceState* State = StateSync.SyncAndGetState();
+		FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 		if (State->NumBounds() > 0)
 		{
 			StateSync.GetTasks().NormalizeLightmapTexelFactorTask->Init(State);
@@ -42,7 +42,7 @@ void FStaticTextureInstanceManager::NormalizeLightmapTexelFactor()
 	}
 }
 
-void FStaticTextureInstanceManager::OnRefreshVisibilityDone(int32 InBeginIndex, int32 InEndIndex)
+void FStaticRenderAssetInstanceManager::OnRefreshVisibilityDone(int32 InBeginIndex, int32 InEndIndex)
 {
 	// Make sure there are no wholes between the DirtyIndex and the first updated index.
 	if (InBeginIndex <= DirtyIndex)
@@ -52,10 +52,10 @@ void FStaticTextureInstanceManager::OnRefreshVisibilityDone(int32 InBeginIndex, 
 }
 
 /*-----------------------------------
------- ITextureInstanceManager ------
+------ IRenderAssetInstanceManager ------
 -----------------------------------*/
 
-bool FStaticTextureInstanceManager::CanManage(const UPrimitiveComponent* Component) const
+bool FStaticRenderAssetInstanceManager::CanManage(const UPrimitiveComponent* Component) const
 {
 	// This manager only manages static components from static actors.
 	// Note that once the view has been shared, no other modifications are allowed.
@@ -69,11 +69,11 @@ bool FStaticTextureInstanceManager::CanManage(const UPrimitiveComponent* Compone
 	return false;
 }
 
-void FStaticTextureInstanceManager::Refresh(float Percentage)
+void FStaticRenderAssetInstanceManager::Refresh(float Percentage)
 {
 	// Since this is only managing static components, only visibility needs to be refreshed.
 
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 	if (DirtyIndex < State->NumBounds())
 	{
 		const int32 EndIndex = FMath::Min(State->NumBounds(), DirtyIndex + FMath::CeilToInt((float)State->NumBounds() * Percentage));
@@ -81,19 +81,19 @@ void FStaticTextureInstanceManager::Refresh(float Percentage)
 	}
 }
 
-EAddComponentResult FStaticTextureInstanceManager::Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity)
+EAddComponentResult FStaticRenderAssetInstanceManager::Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity)
 {
 	if (!AsyncView)
 	{
-		FTextureInstanceState* State = StateSync.SyncAndGetState();
+		FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 		return State->AddComponent(Component, LevelContext, MaxAllowedUIDensity);
 	}
 	return EAddComponentResult::Fail;
 }
 
-void FStaticTextureInstanceManager::Remove(const UPrimitiveComponent* Component, FRemovedTextureArray* RemovedTextures)
+void FStaticRenderAssetInstanceManager::Remove(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedRenderAssets)
 {
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 	// If the view is shared, we are limited to clearing the references (no realloc)
 	if (AsyncView)
 	{
@@ -101,13 +101,13 @@ void FStaticTextureInstanceManager::Remove(const UPrimitiveComponent* Component,
 	}
 	else // Otherwise it can be cleaned properly
 	{
-		State->RemoveComponent(Component, RemovedTextures);
+		State->RemoveComponent(Component, RemovedRenderAssets);
 	}
 }
 
-const FTextureInstanceView* FStaticTextureInstanceManager::GetAsyncView(bool bCreateIfNull)
+const FRenderAssetInstanceView* FStaticRenderAssetInstanceManager::GetAsyncView(bool bCreateIfNull)
 {
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 	if (!AsyncView && bCreateIfNull)
 	{
 		AsyncView = State;
@@ -116,16 +116,16 @@ const FTextureInstanceView* FStaticTextureInstanceManager::GetAsyncView(bool bCr
 	return AsyncView.GetReference();
 }
 
-uint32 FStaticTextureInstanceManager::GetAllocatedSize() const
+uint32 FStaticRenderAssetInstanceManager::GetAllocatedSize() const
 {
-	const FTextureInstanceState* State = StateSync.GetState();
-	return  State ? (sizeof(FTextureInstanceState) + State->GetAllocatedSize()) : 0;
+	const FRenderAssetInstanceState* State = StateSync.GetState();
+	return  State ? (sizeof(FRenderAssetInstanceState) + State->GetAllocatedSize()) : 0;
 }
 
 
-void FStaticTextureInstanceManager::OffsetBounds(const FVector& Offset)
+void FStaticRenderAssetInstanceManager::OffsetBounds(const FVector& Offset)
 {
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 	if (State)
 	{
 		State->OffsetBounds(Offset);

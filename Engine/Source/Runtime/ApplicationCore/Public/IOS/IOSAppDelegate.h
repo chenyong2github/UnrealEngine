@@ -186,6 +186,9 @@ UITextFieldDelegate>
 @property (atomic) bool bHasStarted;
 - (void)ToggleSuspend:(bool)bSuspend;
 
+
+@property (nonatomic, copy) void(^BackgroundSessionEventCompleteDelegate)();
+
 static void interruptionListener(void* ClientData, UInt32 Interruption);
 
 -(UIWindow*)window;

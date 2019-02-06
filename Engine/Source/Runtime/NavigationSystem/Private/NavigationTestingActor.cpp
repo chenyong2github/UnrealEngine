@@ -32,7 +32,6 @@ ANavigationTestingActor::ANavigationTestingActor(const FObjectInitializer& Objec
 {
 #if WITH_EDITORONLY_DATA
 	EdRenderComp = CreateDefaultSubobject<UNavTestRenderingComponent>(TEXT("EdRenderComp"));
-	EdRenderComp->PostPhysicsComponentTick.bCanEverTick = false;
 
 #if WITH_RECAST
 	TickHelper = NULL;

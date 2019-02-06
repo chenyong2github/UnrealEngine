@@ -243,6 +243,11 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FVertexB
 		}
 	};
 
+	if (!VertexBufferRHI)
+	{
+		return new FD3D12ShaderResourceView(nullptr);
+	}
+
 	FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(VertexBufferRHI);
 	return GetAdapter().CreateLinkedViews<FD3D12VertexBuffer, FD3D12ShaderResourceView>(VertexBuffer,
 	[Stride, Format](FD3D12VertexBuffer* VertexBuffer)
@@ -319,6 +324,47 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FIndexBu
 		FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(IndexBuffer->GetParentDevice(), SRVDesc, Location, CreationStride);
 		return ShaderResourceView;
 	});
+}
+
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+{
+	check(SRV);
+	if (VertexBuffer)
+	{
+		FD3D12VertexBuffer* VBD3D12 = ResourceCast(VertexBuffer);
+		FD3D12ShaderResourceView* SRVD3D12 = ResourceCast(SRV);
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		if (VBD3D12->GetUsage() & BUF_ByteAddressBuffer)
+		{
+			SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+			SRVDesc.Buffer.NumElements = VBD3D12->GetSize() / 4;
+			SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+			Stride = 4;
+		}
+		else
+		{
+			SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
+			SRVDesc.Buffer.NumElements = VBD3D12->GetSize() / Stride;
+		}
+		SRVDesc.Buffer.StructureByteStride = 0;
+		SRVDesc.Buffer.FirstElement = VBD3D12->ResourceLocation.GetOffsetFromBaseOfResource() / Stride;
+
+		// Rename the SRV to view on the new vertex buffer
+		while (VBD3D12)
+		{
+			FD3D12Device* ParentDevice = VBD3D12->GetParentDevice();
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, VBD3D12->ResourceLocation, Stride);
+			VBD3D12->SetDynamicSRV(SRVD3D12);
+			VBD3D12 = VBD3D12->GetNextObject();
+			if (VBD3D12 && !SRVD3D12->GetNextObject())
+			{
+				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(ParentDevice));
+			}
+			SRVD3D12 = SRVD3D12->GetNextObject();
+		}
+	}
 }
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)

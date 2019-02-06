@@ -16,7 +16,7 @@ FTexture2DStreamOut_AsyncReallocate::FTexture2DStreamOut_AsyncReallocate(UTextur
 {
 	ensure(InRequestedMips < InTexture->GetNumResidentMips());
 
-	PushTask(FContext(InTexture, TT_None), TT_Render, TEXTURE2D_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
+	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
 }
 
 void FTexture2DStreamOut_AsyncReallocate::AsyncReallocate(const FContext& Context)
@@ -26,7 +26,7 @@ void FTexture2DStreamOut_AsyncReallocate::AsyncReallocate(const FContext& Contex
 
 	DoAsyncReallocate(Context);
 	
-	PushTask(Context, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Finalize), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamOut_AsyncReallocate::Finalize(const FContext& Context)
