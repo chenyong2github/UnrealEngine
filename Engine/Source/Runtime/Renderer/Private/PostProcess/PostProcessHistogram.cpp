@@ -8,53 +8,6 @@
 #include "SceneUtils.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 
-
-class FPostProcessClearHistogramCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessClearHistogramCS, Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), FRCPassPostProcessHistogram::ThreadGroupSizeX);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), FRCPassPostProcessHistogram::ThreadGroupSizeY);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), FRCPassPostProcessHistogram::LoopCountX);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), FRCPassPostProcessHistogram::LoopCountY);
-		OutEnvironment.SetDefine(TEXT("HISTOGRAM_SIZE"), FRCPassPostProcessHistogram::HistogramSize);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
-		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
-	}
-
-	/** Default constructor. */
-	FPostProcessClearHistogramCS() {}
-
-public:
-	FRWShaderParameter HistogramRWTexture;
-
-
-	/** Initialization constructor. */
-	FPostProcessClearHistogramCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		HistogramRWTexture.Bind(Initializer.ParameterMap, TEXT("HistogramTexture"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << HistogramRWTexture;
-		return bShaderHasOutdatedParameters;
-	}
-};
-IMPLEMENT_SHADER_TYPE(, FPostProcessClearHistogramCS, TEXT("/Engine/Private/PostProcessHistogram.usf"), TEXT("ClearHistogramCS"), SF_Compute);
-
-
 /** Encapsulates the post processing histogram compute shader. */
 class FPostProcessHistogramCS : public FGlobalShader
 {
@@ -82,7 +35,7 @@ class FPostProcessHistogramCS : public FGlobalShader
 
 public:
 	FPostProcessPassParameters PostprocessParameter;
-	FRWShaderParameter HistogramRWTexture;
+	FShaderResourceParameter HistogramRWTexture;
 	FShaderParameter HistogramParameters;
 	FShaderParameter ThreadGroupCount;
 	FShaderParameter LeftTopOffset;
@@ -93,7 +46,7 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		HistogramRWTexture.Bind(Initializer.ParameterMap, TEXT("HistogramTexture"));
+		HistogramRWTexture.Bind(Initializer.ParameterMap, TEXT("HistogramRWTexture"));
 		HistogramParameters.Bind(Initializer.ParameterMap, TEXT("HistogramParameters"));
 		ThreadGroupCount.Bind(Initializer.ParameterMap, TEXT("ThreadGroupCount"));
 		LeftTopOffset.Bind(Initializer.ParameterMap, TEXT("LeftTopOffset"));
@@ -151,33 +104,28 @@ void FRCPassPostProcessHistogram::Process(FRenderingCompositePassContext& Contex
 	FIntRect DestRect = Context.SceneColorViewRect;
 
 	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-	
-	UnbindRenderTargets(Context.RHICmdList);
-	// Clear histogram counters
-	check(DestRenderTarget.UAV);
-	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-	SetRenderTarget(Context.RHICmdList, FTextureRHIRef(), FTextureRHIRef());
-	{
-		TShaderMapRef<FPostProcessClearHistogramCS> ComputeShader(Context.GetShaderMap());
-		const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
-		Context.RHICmdList.SetComputeShader(ShaderRHI);
-		ComputeShader->HistogramRWTexture.SetTexture(Context.RHICmdList, ShaderRHI, nullptr, DestRenderTarget.UAV);
-		DispatchComputeShader(Context.RHICmdList, *ComputeShader, 1, 1, 1);
-	}
 
 	TShaderMapRef<FPostProcessHistogramCS> ComputeShader(Context.GetShaderMap());
-	const FComputeShaderRHIParamRef ShaderRHI = ComputeShader->GetComputeShader();
-	Context.RHICmdList.SetComputeShader(ShaderRHI);
- 	ComputeShader->HistogramRWTexture.SetTexture(Context.RHICmdList, ShaderRHI, nullptr, DestRenderTarget.UAV);
+
+	// #todo-renderpasses remove once everything is renderpasses
+	UnbindRenderTargets(Context.RHICmdList);
+    Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+    
+
+	// set destination
+	check(DestRenderTarget.UAV);
+	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
+	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->HistogramRWTexture.GetBaseIndex(), DestRenderTarget.UAV);
 
 	FIntPoint GatherExtent = ComputeGatherExtent(Context);
 	FIntPoint ThreadGroupCountValue = ComputeThreadGroupCount(GatherExtent);
 
 	ComputeShader->SetCS(Context.RHICmdList, Context, ThreadGroupCountValue, (DestRect.Min + FIntPoint(1, 1)) / 2, GatherExtent);
+	
 	DispatchComputeShader(Context.RHICmdList, *ComputeShader, ThreadGroupCountValue.X, ThreadGroupCountValue.Y, 1);
 
-	// unset destination
-	ComputeShader->HistogramRWTexture.UnsetUAV(Context.RHICmdList, ComputeShader->GetComputeShader());
+	// un-set destination
+	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->HistogramRWTexture.GetBaseIndex(), NULL);
 
 	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV);
 	ensureMsgf(DestRenderTarget.TargetableTexture == DestRenderTarget.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DestRenderTarget.TargetableTexture->GetName().ToString());	
@@ -210,10 +158,11 @@ FPooledRenderTargetDesc FRCPassPostProcessHistogram::ComputeOutputDesc(EPassOutp
 
 	FIntPoint ThreadGroupCount = ComputeThreadGroupCount(PixelExtent);
 
-	// One shared histogram (groups counts accumulated using integer atomics)
-	FIntPoint NewSize = FIntPoint(HistogramSize, 1);
-	FPooledRenderTargetDesc Ret(FPooledRenderTargetDesc::Create2DDesc(NewSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_None, TexCreate_UAV, false));
+	// each ThreadGroup outputs one histogram
+	FIntPoint NewSize = FIntPoint(HistogramTexelCount, ThreadGroupCount.X * ThreadGroupCount.Y);
 
+	// format can be optimized later
+	FPooledRenderTargetDesc Ret(FPooledRenderTargetDesc::Create2DDesc(NewSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false));
 	Ret.Flags |= GFastVRamConfig.Histogram;
 	Ret.DebugName = TEXT("Histogram");
 

@@ -34,7 +34,6 @@ public:
 	FPostProcessPassParameters PostprocessParameter;
 	FShaderParameter LoopSize;
 	FShaderResourceParameter EyeAdaptationTexture;
-	FShaderResourceParameter HistogramTexture;
 	FShaderParameter EyeAdapationTemporalParams;
 
 	/** Initialization constructor. */
@@ -45,18 +44,16 @@ public:
 		LoopSize.Bind(Initializer.ParameterMap, TEXT("LoopSize"));
 		EyeAdaptationTexture.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationTexture"));
 		EyeAdapationTemporalParams.Bind(Initializer.ParameterMap, TEXT("EyeAdapationTemporalParams"));
-		HistogramTexture.Bind(Initializer.ParameterMap, TEXT("HistogramTexture"));
 	}
 
 	template <typename TRHICmdList>
-	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, uint32 LoopSizeValue, IPooledRenderTarget* InHistogramTexture)
+	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, uint32 LoopSizeValue)
 	{
 		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SetTextureParameter(Context.RHICmdList, ShaderRHI, HistogramTexture, InHistogramTexture->GetRenderTargetItem().TargetableTexture);
 
 		SetShaderValue(RHICmdList, ShaderRHI, LoopSize, LoopSizeValue);
 
@@ -83,7 +80,7 @@ public:
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << LoopSize << EyeAdaptationTexture << EyeAdapationTemporalParams << HistogramTexture;
+		Ar << PostprocessParameter << LoopSize << EyeAdaptationTexture << EyeAdapationTemporalParams;
 		return bShaderHasOutdatedParameters;
 	}
 };
@@ -134,7 +131,7 @@ void FRCPassPostProcessHistogramReduce::Process(FRenderingCompositePassContext& 
 
 		uint32 LoopSizeValue = ComputeLoopSize(GatherExtent);
 
-		PixelShader->SetPS(Context.RHICmdList, Context, LoopSizeValue, GetInput(ePId_Input0)->GetOutput()->PooledRenderTarget);
+		PixelShader->SetPS(Context.RHICmdList, Context, LoopSizeValue);
 
 		DrawRectangle(
 			Context.RHICmdList,

@@ -21,10 +21,10 @@ public:
 
 	// -------------------------------------------
 
-	// IMPORTANT: Optimized algorithm needs groups thread count == 256. Change shader if you want to change group size.
 	// changing this number require Histogram.usf to be recompiled
-	static const uint32 ThreadGroupSizeX = 16;
-	static const uint32 ThreadGroupSizeY = 16;
+	static const uint32 ThreadGroupSizeX = 8;
+	// changing this number require Histogram.usf to be recompiled
+	static const uint32 ThreadGroupSizeY = 4;
 
 	static const uint32 HistogramSize = 64;
 
@@ -33,10 +33,10 @@ public:
 
 	// one ThreadGroup processes LoopCountX*LoopCountY blocks of size ThreadGroupSizeX*ThreadGroupSizeY
 
-	// Using smaller loop count (2,2) to increase wave count. Otherwise will only use a few CUs (GPU practically idles).
-	// Higher amount of groups is not a problem since new algorithm doesn't need a separate reduction step (all groups accumulate to same histogram with atomic adds).
-	static const uint32 LoopCountX = 2;
-	static const uint32 LoopCountY = 2;
+	// changing this number require Histogram.usf to be recompiled
+	static const uint32 LoopCountX = 8;
+	// changing this number require Histogram.usf to be recompiled
+	static const uint32 LoopCountY = 8;
 
 	// -------------------------------------------
 
