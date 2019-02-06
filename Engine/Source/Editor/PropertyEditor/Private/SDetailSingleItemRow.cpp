@@ -685,6 +685,10 @@ const FSlateBrush* SDetailSingleItemRow::GetBorderImage() const
 	{
 		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted");
 	}
+	else if (bIsDragDropObject)
+	{
+		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Active");
+	}
 	else if (IsHovered() && !bIsHoveredDragTarget)
 	{
 		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
@@ -786,6 +790,11 @@ bool SDetailSingleItemRow::IsHighlighted() const
 	return OwnerTreeNode.Pin()->IsHighlighted();
 }
 
+void SDetailSingleItemRow::SetIsDragDrop(bool bInIsDragDrop)
+{
+	bIsDragDropObject = bInIsDragDrop;
+}
+
 void SArrayRowHandle::Construct(const FArguments& InArgs)
 {
 	ParentRow = InArgs._ParentRow;
@@ -800,12 +809,10 @@ FReply SArrayRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPoint
 {
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		{	
-			TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
-			if (DragDropOp.IsValid())
-			{
-				return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
-			}
+		TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
+		if (DragDropOp.IsValid())
+		{
+			return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
 		}
 	}
 
@@ -818,4 +825,47 @@ TSharedPtr<FArrayRowDragDropOp> SArrayRowHandle::CreateDragDropOperation(TShared
 	TSharedPtr<FArrayRowDragDropOp> Operation = MakeShareable(new FArrayRowDragDropOp(InRow));
 
 	return Operation;
+}
+
+FArrayRowDragDropOp::FArrayRowDragDropOp(TSharedPtr<SDetailSingleItemRow> InRow)
+{
+	Row = InRow;
+
+	TSharedPtr<SDetailSingleItemRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		// mark row as being used for drag and drop
+		RowPtr->SetIsDragDrop(true);
+	}
+
+	DecoratorWidget = SNew(SBorder)
+		.Padding(8.f)
+		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.Content()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("ArrayDragDrop", "PlaceRowHere", "Place Row Here"))
+			]
+		];
+
+	Construct();
+}
+
+void FArrayRowDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
+{
+	FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
+
+	TSharedPtr<SDetailSingleItemRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		// reset value
+		RowPtr->SetIsDragDrop(false);
+	}
 }
