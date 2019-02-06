@@ -140,7 +140,6 @@ AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 
 #if WITH_EDITORONLY_DATA
 	RenderComp = CreateDefaultSubobject<UFuncTestRenderingComponent>(TEXT("RenderComp"));
-	RenderComp->PostPhysicsComponentTick.bCanEverTick = false;
 	RenderComp->SetupAttachment(RootComponent);
 #endif // WITH_EDITORONLY_DATA
 
@@ -161,7 +160,6 @@ AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 		TestName->SetHorizontalAlignment(EHTA_Center);
 		TestName->SetRelativeLocation(FVector(0, 0, 80));
 		TestName->SetRelativeRotation(FRotator(0, 0, 0));
-		TestName->PostPhysicsComponentTick.bCanEverTick = false;
 		TestName->SetupAttachment(RootComponent);
 	}
 #endif
