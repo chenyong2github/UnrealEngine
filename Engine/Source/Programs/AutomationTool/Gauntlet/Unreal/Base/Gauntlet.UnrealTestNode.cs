@@ -64,6 +64,11 @@ namespace Gauntlet
 		public IEnumerable<UnrealRoleArtifacts> SessionArtifacts { get; private set; }
 
 		/// <summary>
+		/// Whether we submit to the dashboard
+		/// </summary>
+		public virtual bool ShouldSubmitDashboardResult { get { return CommandUtils.IsBuildMachine; } }
+
+		/// <summary>
 		/// Helper class that turns our wishes into reallity
 		/// </summary>
 		protected UnrealSession UnrealApp;
@@ -180,6 +185,20 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Returns the cached version of our config. Avoids repeatedly calling GetConfiguration() on derived nodes
+		/// </summary>
+		/// <returns></returns>
+		protected TConfigClass GetCachedConfiguration()
+		{
+			if (CachedConfig == null)
+			{
+				return GetConfiguration();
+			}
+
+			return CachedConfig;
+		}
+
+		/// <summary>
 		/// Returns a priority value for this test
 		/// </summary>
 		/// <returns></returns>
@@ -225,7 +244,7 @@ namespace Gauntlet
 			}
 
 			// This test only ends when all roles are gone
-			if (GetConfiguration().AllRolesExit)
+			if (GetCachedConfiguration().AllRolesExit)
 			{
 				return true;
 			}
@@ -251,7 +270,7 @@ namespace Gauntlet
 		protected bool PrepareUnrealApp()
 		{
 			// Get our configuration
-			TConfigClass Config = GetConfiguration();
+			TConfigClass Config = GetCachedConfiguration();
 
 			if (Config == null)
 			{
@@ -303,13 +322,16 @@ namespace Gauntlet
 
 				foreach (UnrealTestRole TestRole in TypesToRoles.Value)
 				{
+					// If a config has overriden a platform then we can't use the context constraints from the commandline
+					bool UseContextConstraint = TestRole.Type == UnrealTargetRole.Client && TestRole.PlatformOverride == UnrealTargetPlatform.Unknown;
+
 					// important, use the type from the ContextRolke because Server may have been mapped to EditorServer etc
 					UnrealTargetPlatform SessionPlatform = TestRole.PlatformOverride != UnrealTargetPlatform.Unknown ? TestRole.PlatformOverride : RoleContext.Platform;
 
 					UnrealSessionRole SessionRole = new UnrealSessionRole(RoleContext.Type, SessionPlatform, RoleContext.Configuration, TestRole.CommandLine);
 
 					SessionRole.RoleModifier = TestRole.RoleType;
-					SessionRole.Constraint = TestRole.Type == UnrealTargetRole.Client ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);
+					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);
 					
 					Log.Verbose("Created SessionRole {0} from RoleContext {1} (RoleType={2})", SessionRole, RoleContext, TypesToRoles.Key);
 
@@ -386,7 +408,7 @@ namespace Gauntlet
 				throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
 			}
 
-			TConfigClass Config = GetConfiguration();
+			TConfigClass Config = GetCachedConfiguration();
 
 			CurrentPass = Pass;
 			NumPasses = InNumPasses;			
@@ -519,21 +541,23 @@ namespace Gauntlet
 
 			try
 			{
-                // Basic pre-existing directory check.
-                if (!Globals.Params.ParseParam("dev") && Directory.Exists(OutputPath))
-                {
-                    string NewOutputPath = OutputPath;
-                    int i = 0;
-                    while (Directory.Exists(NewOutputPath))
-                    {
-                        i++;
-                        NewOutputPath = string.Format("{0}_{1}", OutputPath, i);
-                    }
-                    Log.Info("Directory already exists at {0}", OutputPath);
-                    OutputPath = NewOutputPath;
-                }
+				// Basic pre-existing directory check.
+				if (CommandUtils.IsBuildMachine && Directory.Exists(OutputPath))
+				{
+					string NewOutputPath = OutputPath;
+					int i = 0;
+					while (Directory.Exists(NewOutputPath))
+					{
+						i++;
+						NewOutputPath = string.Format("{0}_{1}", OutputPath, i);
+					}
+					Log.Info("Directory already exists at {0}", OutputPath);
+					OutputPath = NewOutputPath;
+				}
 				Log.Info("Saving artifacts to {0}", OutputPath);
 				Directory.CreateDirectory(OutputPath);
+				Utils.SystemHelpers.MarkDirectoryForCleanup(OutputPath);
+
 				SessionArtifacts = SaveRoleArtifacts(OutputPath);
 
 				// call legacy version
@@ -552,6 +576,15 @@ namespace Gauntlet
 			{
 				Log.Warning("Failed to save completion report. {0}", Ex);
 			}
+
+			try
+			{
+				SubmitToDashboard(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, OutputPath);
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Failed to submit results to dashboard. {0}", Ex);
+			}
 		}
 
 		/// <summary>
@@ -561,6 +594,16 @@ namespace Gauntlet
 		/// <param name="Contex"></param>
 		/// <param name="Build"></param>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
+		{
+		}
+
+		/// <summary>
+		/// Optional function that is called on test completion and gives an opportunity to create a report
+		/// </summary>
+		/// <param name="Result"></param>
+		/// <param name="Contex"></param>
+		/// <param name="Build"></param>
+		public virtual void SubmitToDashboard(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{
 		}
 
@@ -585,7 +628,7 @@ namespace Gauntlet
 		/// <param name="Node"></param>
 		/// <param name="OutputPath"></param>
 		/// <returns></returns>
-		public IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
+		public virtual IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
 		{
 			CachedArtifactPath = OutputPath;
 			return UnrealApp.SaveRoleArtifacts(Context, TestInstance, CachedArtifactPath);
@@ -780,7 +823,7 @@ namespace Gauntlet
 
 			MB.Paragraph(string.Format("ResultHash: {0}", GetRoleResultHash(InArtifacts)));
 
-			if (GetConfiguration().ShowErrorsInSummary && InArtifacts.LogSummary.Errors.Count() > 0)
+			if (GetCachedConfiguration().ShowErrorsInSummary && InArtifacts.LogSummary.Errors.Count() > 0)
 			{
 				MB.H4("Errors");
 				MB.UnorderedList(LogSummary.Errors.Take(MaxLogLines));
@@ -791,7 +834,7 @@ namespace Gauntlet
 				}
 			}
 
-			if (GetConfiguration().ShowWarningsInSummary && InArtifacts.LogSummary.Warnings.Count() > 0)
+			if (GetCachedConfiguration().ShowWarningsInSummary && InArtifacts.LogSummary.Warnings.Count() > 0)
 			{
 				MB.H4("Warnings");
 				MB.UnorderedList(LogSummary.Warnings.Take(MaxLogLines));

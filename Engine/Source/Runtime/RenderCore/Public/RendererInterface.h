@@ -29,30 +29,6 @@ struct FSynthBenchmarkResults;
 class IVirtualTextureSpace;
 struct FVirtualTextureSpaceDesc;
 
-enum class EShowMaterialDrawEventTypes
-{
-	None						= 0 << 0,  //0
-	CompositionLighting			= 1 << 0,  //1
-	BasePass					= 1 << 1,  //2
-	DepthPositionOnly			= 1 << 2,  //4
-	Depth						= 1 << 3,  //8
-	DistortionDynamic			= 1 << 4,  //16
-	DistortionStatic			= 1 << 5,  //32
-	MobileBasePass				= 1 << 6,  //64
-	MobileTranslucent			= 1 << 7,  //128
-	MobileTranslucentOpacity	= 1 << 8,  //256
-	ShadowDepth					= 1 << 9,  //512
-	ShadowDepthRsm				= 1 << 10, //1024
-	ShadowDepthStatic			= 1 << 11, //2048
-	StaticDraw					= 1 << 12, //4096
-	StaticDrawStereo			= 1 << 13, //8192
-	TranslucentLighting			= 1 << 14, //16384
-	Translucent					= 1 << 15, //32768
-	Velocity					= 1 << 16, //65536
-	FogVoxelization				= 1 << 17, //131072
-};
-ENUM_CLASS_FLAGS(EShowMaterialDrawEventTypes)
-
 // Shortcut for the allocator used by scene rendering.
 typedef TMemStackAllocator<> SceneRenderingAllocator;
 
@@ -527,14 +503,6 @@ public:
 };
 DECLARE_DELEGATE_OneParam(FPostOpaqueRenderDelegate, class FPostOpaqueRenderParameters&);
 
-
-class FComputeDispatcher
-{
-public:
-	virtual void Execute(FRHICommandList &RHICmdList, FUniformBufferRHIParamRef ViewUniformBuffer) = 0;
-};
-
-
 class ICustomVisibilityQuery: public IRefCountedObject
 {
 public:
@@ -697,6 +665,11 @@ public:
 	virtual void RemoveScene(FSceneInterface* Scene) = 0;
 
 	/**
+	* Updates all static draw lists for each allocated scene.
+	*/
+	virtual void UpdateStaticDrawLists() = 0;
+
+	/**
 	 * Updates static draw lists for the given set of materials for each allocated scene.
 	 */
 	virtual void UpdateStaticDrawListsForMaterials(const TArray<const FMaterial*>& Materials) = 0;
@@ -716,7 +689,7 @@ public:
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
 
 	/** Draws a tile mesh element with the specified view. */
-	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FDrawingPolicyRenderState& DrawRenderState, const FSceneView& View, const FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId) = 0;
+	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId) = 0;
 
 	/** Render thread side, use TRefCountPtr<IPooledRenderTarget>, allows to use sharing and VisualizeTexture */
 	// TODO(RDG): Kill that guy.
@@ -780,10 +753,6 @@ public:
 	virtual void RenderOverlayExtensions(const class FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext) = 0;
 	virtual FPreSceneRenderValues PreSceneRenderExtension() = 0;
 	virtual bool HasPostOpaqueExtentions() const = 0;
-
-	virtual void RegisterPostOpaqueComputeDispatcher(FComputeDispatcher *Dispatcher) = 0;
-	virtual void UnRegisterPostOpaqueComputeDispatcher(FComputeDispatcher *Dispatcher) = 0;
-	virtual void DispatchPostOpaqueCompute(FRHICommandList &CmdList, FUniformBufferRHIParamRef ViewUniformBuffer) = 0;
 
 	/** Delegate that is called upon resolving scene color. */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnResolvedSceneColor, FRHICommandListImmediate& /*RHICmdList*/, class FSceneRenderTargets& /*SceneContext*/);

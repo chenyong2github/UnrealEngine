@@ -154,7 +154,7 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 			TShaderMapRef<FYUY2ConvertPS> ConvertShader(ShaderMap);
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 			SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-			ConvertShader->SetParameters(CommandList, InputTarget, OutputDim, MediaShaders::YuvToSrgbDefault, bSampleIsOutputSrgb);
+			ConvertShader->SetParameters(CommandList, InputTarget, OutputDim, MediaShaders::YuvToSrgbDefault, MediaShaders::YUVOffset8bits, bSampleIsOutputSrgb);
 		}
 		break;
 
@@ -400,7 +400,7 @@ HRESULT FVideoPlayer::Invoke(IMFAsyncResult* AsyncResult)
 	bool bFinishedAndClose = false;
 	switch (EventType)
 	{
-	case MEAudioSessionDeviceRemoved:
+	case MESinkInvalidated:
 		// Need to stop playback now or will be stuck forever
 		bFinishedAndClose = true;
 		break;

@@ -21,10 +21,13 @@
 #include "Templates/Greater.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Misc/Base64.h"
+#include "HAL/PlatformFilemanager.h"
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "Misc/ConfigCacheIni.h"
 #endif
 #include "ProfilingDebugging/CsvProfiler.h"
+
+#include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY(LogPakFile);
 
@@ -3168,7 +3171,6 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 				FPakData* PakData = &CachedPakData[PakIndex];
 
 				UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), SignatureIndex, PakData->ChunkHashes.Num(), PakData->OriginalSignatureFileHash, ThisHash);
-				UE_LOG(LogPakFile, Warning, TEXT("Pak file has been corrupted or tampered with!"));
 
 				// Check the signatures are still as we expected them
 				TPakChunkHash CurrentSignatureHash = ComputePakChunkHash(&PakData->ChunkHashes[0], PakData->ChunkHashes.Num() * sizeof(TPakChunkHash));
@@ -3734,6 +3736,101 @@ void FPakPlatformFile::Tick()
 #endif
 }
 
+class FMappedFilePakProxy final : public IMappedFileHandle
+{
+	IMappedFileHandle* LowerLevel;
+	int64 OffsetInPak;
+	int64 PakSize;
+	FString DebugFilename;
+public:
+	FMappedFilePakProxy(IMappedFileHandle* InLowerLevel, int64 InOffset, int64 InSize, int64 InPakSize, const TCHAR* InDebugFilename)
+		: IMappedFileHandle(InSize)
+		, LowerLevel(InLowerLevel)
+		, OffsetInPak(InOffset)
+		, PakSize(InPakSize)
+		, DebugFilename(InDebugFilename)
+	{
+		check(PakSize >= 0);
+	}
+	virtual ~FMappedFilePakProxy()
+	{
+		// we don't own lower level, it is shared
+	}
+	virtual IMappedFileRegion* MapRegion(int64 Offset = 0, int64 BytesToMap = MAX_int64, bool bPreloadHint = false) override
+	{
+		check(Offset + OffsetInPak < PakSize); // don't map zero bytes and don't map off the end of the (real) file
+		check(Offset < GetFileSize()); // don't map zero bytes and don't map off the end of the (virtual) file
+		BytesToMap = FMath::Min<int64>(BytesToMap, GetFileSize() - Offset);
+		check(BytesToMap > 0); // don't map zero bytes
+		check(Offset + BytesToMap <= GetFileSize()); // don't map zero bytes and don't map off the end of the (virtual) file
+		check(Offset + OffsetInPak + BytesToMap <= PakSize); // don't map zero bytes and don't map off the end of the (real) file
+		return LowerLevel->MapRegion(Offset + OffsetInPak, BytesToMap, bPreloadHint);
+	}
+};
+
+
+#if !UE_BUILD_SHIPPING
+
+static void MappedFileTest(const TArray<FString>& Args)
+{
+	FString TestFile(TEXT("../../../Engine/Config/BaseDeviceProfiles.ini"));
+	if (Args.Num() > 0)
+	{
+		TestFile = Args[0];
+	}
+
+	while (true)
+	{
+		IMappedFileHandle* Handle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(*TestFile);
+		IMappedFileRegion *Region = Handle->MapRegion();
+
+		int64 Size = Region->GetMappedSize();
+		const char* Data = (const char *)Region->GetMappedPtr();
+
+		delete Region;
+		delete Handle;
+	}
+
+
+}
+
+static FAutoConsoleCommand MappedFileTestCmd(
+	TEXT("MappedFileTest"),
+	TEXT("Tests the file mappings through the low level."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&MappedFileTest)
+);
+#endif
+
+IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
+{
+	// Check pak files first
+	FPakEntry FileEntry;
+	FPakFile* PakEntry = nullptr;
+	if (FindFileInPakFiles(Filename, &PakEntry, &FileEntry) && PakEntry)
+	{
+		if (FileEntry.CompressionMethodIndex != 0)
+		{
+			// can't map compressed files
+			return nullptr;
+		}
+		FScopeLock Lock(&PakEntry->MappedFileHandleCriticalSection);
+		if (!PakEntry->MappedFileHandle)
+		{
+			PakEntry->MappedFileHandle = LowerLevel->OpenMapped(*PakEntry->GetFilename());
+		}
+		if (!PakEntry->MappedFileHandle)
+		{
+			return nullptr;
+		}
+		return new FMappedFilePakProxy(PakEntry->MappedFileHandle, FileEntry.Offset + FileEntry.GetSerializedSize(PakEntry->GetInfo().Version), FileEntry.UncompressedSize, PakEntry->TotalSize(), Filename);
+	}
+	if (IsNonPakFilenameAllowed(Filename))
+	{
+		return LowerLevel->OpenMapped(Filename);
+	}
+	return nullptr;
+}
+
 
 /**
  * Class to handle correctly reading from a compressed file within a compressed package
@@ -3829,10 +3926,10 @@ public:
 		}
 	};
 
-	FPakCompressedReaderPolicy(const FPakFile& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader)
+	FPakCompressedReaderPolicy(const FPakFile& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReader)
 		: PakFile(InPakFile)
 		, PakEntry(InPakEntry)
-		, PakReader(InPakReader)
+		, AcquirePakReader(InAcquirePakReader)
 	{
 	}
 
@@ -3840,8 +3937,8 @@ public:
 	const FPakFile&		PakFile;
 	/** Pak file entry for this file. */
 	FPakEntry			PakEntry;
-	/** Pak file archive to read the data from. */
-	FArchive*			PakReader;
+	/** Function that gives us an FArchive to read from. The result should never be cached, but acquired and used within the function doing the serialization operation */
+	TAcquirePakReaderFunction AcquirePakReader;
 
 	FORCEINLINE int64 FileSize() const
 	{
@@ -3874,6 +3971,8 @@ public:
 		ScratchSpace.EnsureBufferSpace(CompressionBlockSize, WorkingBufferRequiredSize * 2);
 		WorkingBuffers[0] = ScratchSpace.ScratchBuffer.Get();
 		WorkingBuffers[1] = ScratchSpace.ScratchBuffer.Get() + WorkingBufferRequiredSize;
+
+		FArchive* PakReader = AcquirePakReader();
 
 		while (Length > 0)
 		{
@@ -4019,6 +4118,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(NULL);
 	if (Reader)
@@ -4043,6 +4143,7 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(LowerLevel);
 	if (Reader)
@@ -4064,6 +4165,7 @@ FPakFile::FPakFile(FArchive* Archive)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(INDEX_NONE)
+	, MappedFileHandle(nullptr)
 {
 	Initialize(Archive);
 }
@@ -4071,6 +4173,7 @@ FPakFile::FPakFile(FArchive* Archive)
 
 FPakFile::~FPakFile()
 {
+	delete MappedFileHandle;
 	delete[] MiniPakEntries;
 	delete[] MiniPakEntriesOffsets;
 	delete[] FilenameHashes;
@@ -4832,30 +4935,31 @@ FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 		{
 			PakReader = ExistingReader->Get();
 		}
-	}
-	if (!PakReader)
-	{
-		// Create a new FArchive reader and pass it to the new handle.
-		if (LowerLevel != NULL)
-		{
-			IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
-			if (PakHandle)
-			{
-				PakReader = CreatePakReader(*PakHandle, *GetFilename());
-			}
-		}
-		else
-		{
-			PakReader = CreatePakReader(*GetFilename());
-		}
+
 		if (!PakReader)
 		{
-			UE_LOG(LogPakFile, Fatal, TEXT("Unable to create pak \"%s\" handle"), *GetFilename());
-		}
-		{
-			FScopeLock ScopedLock(&CriticalSection);
+			// Create a new FArchive reader and pass it to the new handle.
+			if (LowerLevel != NULL)
+			{
+				IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
+				if (PakHandle)
+				{
+					PakReader = CreatePakReader(*PakHandle, *GetFilename());
+				}
+			}
+			else
+			{
+				PakReader = CreatePakReader(*GetFilename());
+			}
+			if (!PakReader)
+			{
+				UE_LOG(LogPakFile, Fatal, TEXT("Unable to create pak \"%s\" handle"), *GetFilename());
+			}
+
 #if DO_CHECK
-			ReaderMap.Emplace(Thread, new FThreadCheckingArchiveProxy(PakReader, Thread));
+			FArchive* Proxy = new FThreadCheckingArchiveProxy(PakReader, Thread);
+			ReaderMap.Emplace(Thread, Proxy);
+			PakReader = Proxy;
 #else //DO_CHECK
 			ReaderMap.Emplace(Thread, PakReader);
 #endif //DO_CHECK
@@ -5419,27 +5523,27 @@ IFileHandle* FPakPlatformFile::CreatePakFileHandle(const TCHAR* Filename, FPakFi
 {
 	IFileHandle* Result = NULL;
 	bool bNeedsDelete = true;
-	FArchive* PakReader = PakFile->GetSharedReader(LowerLevel);
+	TFunction<FArchive*()> AcquirePakReader = [PakFile, LowerLevelPlatformFile = LowerLevel]() { return PakFile->GetSharedReader(LowerLevelPlatformFile); };
 
 	// Create the handle.
 	if (FileEntry->CompressionMethodIndex != 0 && PakFile->GetInfo().Version >= FPakInfo::PakFile_Version_CompressionEncryption)
 	{
 		if (FileEntry->IsEncrypted())
 		{
-			Result = new FPakFileHandle< FPakCompressedReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, PakReader, bNeedsDelete);
+			Result = new FPakFileHandle< FPakCompressedReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 		}
 		else
 		{
-			Result = new FPakFileHandle< FPakCompressedReaderPolicy<> >(*PakFile, *FileEntry, PakReader, bNeedsDelete);
+			Result = new FPakFileHandle< FPakCompressedReaderPolicy<> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 		}
 	}
 	else if (FileEntry->IsEncrypted())
 	{
-		Result = new FPakFileHandle< FPakReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, PakReader, bNeedsDelete);
+		Result = new FPakFileHandle< FPakReaderPolicy<FPakSimpleEncryption> >(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 	}
 	else
 	{
-		Result = new FPakFileHandle<>(*PakFile, *FileEntry, PakReader, bNeedsDelete);
+		Result = new FPakFileHandle<>(*PakFile, *FileEntry, AcquirePakReader, bNeedsDelete);
 	}
 
 	return Result;
@@ -5782,6 +5886,15 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		// remove ourselves from the platform file chain (there can be late writes after the shutdown).
+		if (Singleton.IsValid())
+		{
+			if (FPlatformFileManager::Get().FindPlatformFile(Singleton.Get()->GetName()))
+			{
+				FPlatformFileManager::Get().RemovePlatformFile(Singleton.Get());
+			}
+		}
+
 		Singleton.Reset();
 	}
 

@@ -107,7 +107,7 @@ bool BuildResourceTableMapping(
 			if (!ParameterMap.FindParameterAllocation(*Entry.UniformBufferName, UniformBufferIndex, UBBaseIndex, UBSize))
 			{
 				UniformBufferIndex = UsedUniformBufferSlots.FindAndSetFirstZeroBit();
-				ParameterMap.AddParameterAllocation(*Entry.UniformBufferName,UniformBufferIndex,0,0);
+				ParameterMap.AddParameterAllocation(*Entry.UniformBufferName,UniformBufferIndex,0,0,EShaderParameterType::UniformBuffer);
 			}
 
 			// Mark used UB index
@@ -131,19 +131,19 @@ bool BuildResourceTableMapping(
 			switch( Entry.Type )
 			{
 			case UBMT_TEXTURE:
-			case UBMT_GRAPH_TRACKED_TEXTURE:
+			case UBMT_RDG_TEXTURE:
 				OutSRT.TextureMap.Add(ResourceMap);
 				break;
 			case UBMT_SAMPLER:
 				OutSRT.SamplerMap.Add(ResourceMap);
 				break;
 			case UBMT_SRV:
-			case UBMT_GRAPH_TRACKED_SRV:
-			case UBMT_GRAPH_TRACKED_BUFFER_SRV:
+			case UBMT_RDG_TEXTURE_SRV:
+			case UBMT_RDG_BUFFER_SRV:
 				OutSRT.ShaderResourceViewMap.Add(ResourceMap);
 				break;
-			case UBMT_GRAPH_TRACKED_UAV:
-			case UBMT_GRAPH_TRACKED_BUFFER_UAV:
+			case UBMT_RDG_TEXTURE_UAV:
+			case UBMT_RDG_BUFFER_UAV:
 				OutSRT.UnorderedAccessViewMap.Add(ResourceMap);
 				break;
 			default:
@@ -513,7 +513,7 @@ void MoveShaderParametersToRootConstantBuffer(const FShaderCompilerInput& Compil
 			if ((Char >= 'a' && Char <= 'z') ||
 				(Char >= 'A' && Char <= 'Z') ||
 				(Char >= '0' && Char <= '9') ||
-				Char == '<' || Char == '>')
+				Char == '<' || Char == '>' || Char == '_')
 			{
 				if (TypeStartPos == -1)
 				{
@@ -763,7 +763,7 @@ void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environmen
 	}
 }
 
-FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input)
+FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input, uint32 CCFlags)
 {
 	FString Text(TEXT("-directcompile -format="));
 	Text += Input.ShaderFormat.GetPlainNameString();
@@ -777,6 +777,11 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	case SF_Geometry:	Text += TEXT(" -gs"); break;
 	case SF_Pixel:		Text += TEXT(" -ps"); break;
 	case SF_Compute:	Text += TEXT(" -cs"); break;
+#if RHI_RAYTRACING
+	case SF_RayGen:			Text += TEXT(" -rgs"); break;
+	case SF_RayMiss:		Text += TEXT(" -rms"); break;
+	case SF_RayHitGroup:	Text += TEXT(" -rhs"); break;
+#endif // RHI_RAYTRACING
 	default: break;
 	}
 	if (Input.bCompilingForShaderPipeline)
@@ -808,6 +813,11 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	{
 		Text += TEXT(" -cflags=");
 		Text += FString::Printf(TEXT("%llu"), CFlags);
+	}
+	if (CCFlags)
+	{
+		Text += TEXT(" -hlslccflags=");
+		Text += FString::Printf(TEXT("%llu"), CCFlags);
 	}
 	// When we're running in directcompile mode, we don't to spam the crash reporter
 	Text += TEXT(" -nocrashreports");
@@ -893,6 +903,8 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 		FString CompilerPath = Input.ExtraSettings.OfflineCompilerPath;
 
+		FString CompilerCommand = "";
+
 		// add process and thread ids to the file name to avoid collision between workers
 		auto ProcID = FPlatformProcess::GetCurrentProcessId();
 		auto ThreadID = FPlatformTLS::GetCurrentThreadId();
@@ -904,27 +916,27 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 		{
 			case SF_Vertex:
 				GLSLSourceFile += TEXT(".vert");
-				CompilerPath += TEXT(" -v");
+				CompilerCommand += TEXT(" -v");
 			break;
 			case SF_Pixel:
 				GLSLSourceFile += TEXT(".frag");
-				CompilerPath += TEXT(" -f");
+				CompilerCommand += TEXT(" -f");
 			break;
 			case SF_Geometry:
 				GLSLSourceFile += TEXT(".geom");
-				CompilerPath += TEXT(" -g");
+				CompilerCommand += TEXT(" -g");
 			break;
 			case SF_Hull:
 				GLSLSourceFile += TEXT(".tesc");
-				CompilerPath += TEXT(" -t");
+				CompilerCommand += TEXT(" -t");
 			break;
 			case SF_Domain:
 				GLSLSourceFile += TEXT(".tese");
-				CompilerPath += TEXT(" -e");
+				CompilerCommand += TEXT(" -e");
 			break;
 			case SF_Compute:
 				GLSLSourceFile += TEXT(".comp");
-				CompilerPath += TEXT(" -C");
+				CompilerCommand += TEXT(" -C");
 			break;
 
 			default:
@@ -934,11 +946,11 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 		if (bVulkanSpirV)
 		{
-			CompilerPath += TEXT(" -p");
+			CompilerCommand += TEXT(" -p");
 		}
 		else
 		{
-			CompilerPath += TEXT(" -s");
+			CompilerCommand += TEXT(" -s");
 		}
 
 		FArchive* Ar = IFileManager::Get().CreateFileWriter(*GLSLSourceFile, FILEWRITE_EvenIfReadOnly);
@@ -956,8 +968,21 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 		FString StdErr;
 		int32 ReturnCode = 0;
 
-		// Run Mali shader compiler and wait for completion
-		FPlatformProcess::ExecProcess(*CompilerPath, *GLSLSourceFile, &ReturnCode, &StdOut, &StdErr);
+		// Since v6.2.0, Mali compiler needs to be started in the executable folder or it won't find "external/glslangValidator" for Vulkan
+		FString CompilerWorkingDirectory = FPaths::GetPath(CompilerPath);
+
+		if (!CompilerWorkingDirectory.IsEmpty() && FPaths::DirectoryExists(CompilerWorkingDirectory))
+		{
+			// compiler command line contains flags and the GLSL source file name
+			CompilerCommand += " " + FPaths::ConvertRelativePathToFull(GLSLSourceFile);
+
+			// Run Mali shader compiler and wait for completion
+			FPlatformProcess::ExecProcess(*CompilerPath, *CompilerCommand, &ReturnCode, &StdOut, &StdErr, *CompilerWorkingDirectory);
+		}
+		else
+		{
+			StdErr = "Couldn't find Mali offline compiler at " + CompilerPath;
+		}
 
 		// parse Mali's output and extract instruction count or eventual errors
 		ShaderOutput.bSucceeded = (ReturnCode >= 0);
@@ -1166,7 +1191,10 @@ namespace CrossCompiler
 		TEXT("Domain"),
 		TEXT("Pixel"),
 		TEXT("Geometry"),
-		TEXT("Compute")
+		TEXT("Compute"),
+		TEXT("RayGen"),
+		TEXT("RayMiss"),
+		TEXT("RayHitGroup"),
 	};
 
 	/** Compile time check to verify that the GL mapping tables are up-to-date. */

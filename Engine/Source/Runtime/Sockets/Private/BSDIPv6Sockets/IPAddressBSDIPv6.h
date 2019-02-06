@@ -135,7 +135,7 @@ public:
 	 */
 	virtual bool operator==(const FInternetAddr& Other) const override;
 
-	virtual uint32 GetTypeHash() override;
+	virtual uint32 GetTypeHash() const override;
 
 	/**
 	 * Is this a well formed internet address, the only criteria being non-zero
@@ -155,6 +155,23 @@ public:
 	}
 
 	virtual TSharedRef<FInternetAddr> Clone() const override;
+
+	/**
+	 * Sets the scope interface id of the currently held address if this address
+	 * is an IPv6 address internally. If it is not, no data will be assigned.
+	 * The NewScopeId must be in host byte order.
+	 *
+	 * @param NewScopeId the new scope interface id to set this address to
+	 */
+	virtual void SetScopeId(uint32 NewScopeId);
+
+	/**
+	 * Returns the IPv6 scope interface id of the currently held address
+	 * if the address is an IPv6 address.
+	 *
+	 * @return the scope interface id
+	 */
+	virtual uint32 GetScopeId() const;
 };
 
 

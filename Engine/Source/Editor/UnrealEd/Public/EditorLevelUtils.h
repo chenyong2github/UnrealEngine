@@ -17,7 +17,8 @@ class ULevelStreaming;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelTools, Warning, All);
 
-enum class ELevelVisibilityDirtyMode
+UENUM(BlueprintType)
+enum class ELevelVisibilityDirtyMode : uint8
 {
 	// Use when the user is causing the visibility change.  Will update transaction state and mark the package dirty.
 	ModifyOnChange,
@@ -96,10 +97,11 @@ public:
 	 * @param	LevelStreamingClass					The streaming class type instead to use for the level.
 	 * @param	DefaultFilename						Optional file name for level.  If empty, the user will be prompted during the save process.
 	 * @param	bMoveSelectedActorsIntoNewLevel		If true, move any selected actors into the new level.
+	 * @param	InTemplateWorld						If valid, the new level will be a copy of the template world.
 	 *
 	 * @return	Returns the newly created level, or NULL on failure
 	 */
-	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""), bool bMoveSelectedActorsIntoNewLevel = false);
+	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""), bool bMoveSelectedActorsIntoNewLevel = false, UWorld* InTemplateWorld = nullptr);
 
 
 	/**
@@ -167,6 +169,7 @@ public:
 	 * @param	bShouldBeVisible		The level's new visibility state.
 	 * @param	bForceLayersVisible		If true and the level is visible, force the level's layers to be visible.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static UNREALED_API void SetLevelVisibility(ULevel* Level, bool bShouldBeVisible, bool bForceLayersVisible, ELevelVisibilityDirtyMode ModifyMode = ELevelVisibilityDirtyMode::ModifyOnChange);
 	
 	/** 

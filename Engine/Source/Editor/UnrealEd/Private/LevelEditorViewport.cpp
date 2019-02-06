@@ -1201,7 +1201,12 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 	}
 
 	UObject* AssetObj = AssetData.GetAsset();
-	UClass* ClassObj = Cast<UClass>( AssetObj );
+	UClass* ClassObj = Cast<UClass>(AssetObj);
+	if (!ClassObj)
+	{
+		UBlueprint* BlueprintObj = Cast<UBlueprint>(AssetObj);
+		ClassObj = BlueprintObj ? BlueprintObj->ParentClass : nullptr;
+	}
 
 	if ( ClassObj )
 	{
@@ -1769,6 +1774,11 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 	View->SpriteCategoryVisibility = SpriteCategoryVisibility;
 	View->bCameraCut = bEditorCameraCut;
 	View->bHasSelectedComponents = GEditor->GetSelectedComponentCount() > 0;
+
+#if RHI_RAYTRACING
+	View->SetupRayTracedRendering();
+#endif
+
 	return View;
 
 }
@@ -4326,7 +4336,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 				}
 
 				// Allocate the material proxy and register it so it can be deleted properly once the rendering is done with it.
-				FDynamicColoredMaterialRenderProxy* MaterialProxy = new FDynamicColoredMaterialRenderProxy(GEngine->EditorBrushMaterial->GetRenderProxy(false), Brush->GetWireColor());
+				FDynamicColoredMaterialRenderProxy* MaterialProxy = new FDynamicColoredMaterialRenderProxy(GEngine->EditorBrushMaterial->GetRenderProxy(), Brush->GetWireColor());
 				PDI->RegisterDynamicResource(MaterialProxy);
 
 				// Flush the mesh triangles.
@@ -4806,6 +4816,71 @@ void FLevelEditorViewportClient::RemoveReferenceToWorldContext(FWorldContext& Wo
 void FLevelEditorViewportClient::SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport )
 { 
 	bIsSimulateInEditorViewport = bInIsSimulateInEditorViewport; 
+}
+
+bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
+{
+	if (FEditorViewportClient::GetPivotForOrbit(Pivot))
+	{
+		return true;
+	}
+
+	FBox BoundingBox(ForceInit);
+	int32 NumValidComponents = 0;
+	for (FSelectionIterator It(GEditor->GetSelectedComponentIterator()); It; ++It)
+	{
+		// Allow orbiting on selected SceneComponents
+		USceneComponent* Component = Cast<USceneComponent>(*It);
+		if (Component && Component->IsRegistered())
+		{
+			// It's possible that it doesn't have a bounding box, so just take its position in that case
+			FBox ComponentBBox = Component->Bounds.GetBox();
+			if (ComponentBBox.GetVolume() != 0)
+			{
+				BoundingBox += ComponentBBox;
+			}
+			else
+			{
+				BoundingBox += Component->GetComponentLocation();
+			}
+			++NumValidComponents;
+		}
+	}
+
+	if (NumValidComponents > 0)
+	{
+		Pivot = BoundingBox.GetCenter();
+		return true;
+	}
+
+	// Use the center of the bounding box of the current selected actors, if any, as the pivot point for orbiting the camera
+	int32 NumSelectedActors = 0;
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		if (AActor* Actor = Cast<AActor>(*It))
+		{
+			TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Actor);
+
+			for(int32 ComponentIndex = 0; ComponentIndex < PrimitiveComponents.Num(); ++ComponentIndex)
+			{
+				UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIndex];
+
+				if (PrimitiveComponent->IsRegistered())
+				{
+					BoundingBox += PrimitiveComponent->Bounds.GetBox();
+					++NumSelectedActors;
+				}
+			}
+		}
+	}
+
+	if (NumSelectedActors > 0)
+	{
+		Pivot = BoundingBox.GetCenter();
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

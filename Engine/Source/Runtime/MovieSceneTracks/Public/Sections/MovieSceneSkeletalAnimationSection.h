@@ -54,6 +54,10 @@ struct FMovieSceneSkeletalAnimationParams
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	bool bSkipAnimNotifiers;
 
+	/** If on animation sequence will always play when active even if the animation is controlled by a Blueprint or Anim Instance Class*/
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	bool bForceCustomMode;
+
 	UPROPERTY()
 	float StartOffset_DEPRECATED;
 
@@ -87,7 +91,7 @@ protected:
 	virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
-
+	virtual float GetTotalWeightValue(FFrameTime InTime) const override;
 	/** ~UObject interface */
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;

@@ -14,6 +14,9 @@
 #include "Engine/World.h"
 #include "Misc/BufferedOutputDevice.h"
 #include "Misc/FrameRate.h"
+#include "Subsystems/SubsystemCollection.h"
+#include "Subsystems/EngineSubsystem.h"
+
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -1057,6 +1060,10 @@ public:
 	UPROPERTY()
 	class UMaterial* ArrowMaterial;
 
+	/** Arrow material instance with yellow color. */
+	UPROPERTY()
+	class UMaterialInstanceDynamic* ArrowMaterialYellow;
+
 	/** @todo document */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath ArrowMaterialName;
@@ -1570,17 +1577,9 @@ public:
 	UPROPERTY(transient)
 	float SelectionHighlightIntensity;
 
-	/** Used to alter the intensity level of the selection highlight on selected mesh sections in mesh editors */
-	UPROPERTY(transient)
-	float SelectionMeshSectionHighlightIntensity;
-
 	/** Used to alter the intensity level of the selection highlight on selected BSP surfaces */
 	UPROPERTY(transient)
 	float BSPSelectionHighlightIntensity;
-
-	/** Used to alter the intensity level of the selection highlight on hovered objects */
-	UPROPERTY(transient)
-	float HoverHighlightIntensity;
 
 	/** Used to alter the intensity level of the selection highlight on selected billboard objects */
 	UPROPERTY(transient)
@@ -2749,6 +2748,10 @@ public:
 	UPROPERTY()
 	TArray<FString> RuntimeServerActors;
 
+	/** Amount of time in seconds between network error logging */
+	UPROPERTY(globalconfig)
+	float NetErrorLogInterval;
+
 	/** Spawns all of the registered server actors */
 	virtual void SpawnServerActors(UWorld *World);
 
@@ -3169,6 +3172,38 @@ public:
 	virtual int32 EndTransaction() { return INDEX_NONE; }
 	virtual void CancelTransaction(int32 Index) { }
 #endif
+
+public:
+	/**
+	 * Get an Engine Subsystem of specified type
+	 */
+	UEngineSubsystem* GetEngineSubsystemBase(TSubclassOf<UEngineSubsystem> SubsystemClass) const
+	{
+		checkSlow(this != nullptr);
+		return EngineSubsystemCollection.GetSubsystem<UEngineSubsystem>(SubsystemClass);
+	}
+
+	/**
+	 * Get an Engine Subsystem of specified type
+	 */
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetEngineSubsystem() const
+	{
+		checkSlow(this != nullptr);
+		return EngineSubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+	/**
+	 * Get all Engine Subsystem of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
+	 */
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetEngineSubsystemArray() const
+	{
+		return EngineSubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+private:
+	FSubsystemCollection<UEngineSubsystem> EngineSubsystemCollection;
 
 public:
 	/**

@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "WebRTCProxyPCH.h"
 #include "Logging.h"
 #include "StringUtils.h"
 #include "TimeUtils.h"
@@ -28,9 +27,9 @@ const char* LogVerbosityToString(ELogVerbosity v)
 }
 
 FLogCategoryBase::FLogCategoryBase(const char* Name, ELogVerbosity Verbosity, ELogVerbosity CompileTimeVerbosity)
-    : Name(Name)
-    , Verbosity(Verbosity)
+    : Verbosity(Verbosity)
     , CompileTimeVerbosity(CompileTimeVerbosity)
+    , Name(Name)
 {
 }
 

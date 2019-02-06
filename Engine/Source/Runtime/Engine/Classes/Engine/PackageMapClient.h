@@ -270,6 +270,9 @@ private:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 public:
+
+	static const bool IsHistoryEnabled();
+
 	// History for debugging entries in the guid cache
 	TMap<FNetworkGUID, FString>						History;
 private:

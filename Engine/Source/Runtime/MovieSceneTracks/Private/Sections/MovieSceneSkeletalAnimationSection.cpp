@@ -27,6 +27,7 @@ FMovieSceneSkeletalAnimationParams::FMovieSceneSkeletalAnimationParams()
 	SlotName = DefaultSlotName;
 	Weight.SetDefault(1.f);
 	bSkipAnimNotifiers = false;
+	bForceCustomMode = false;
 }
 
 UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const FObjectInitializer& ObjectInitializer )
@@ -250,6 +251,13 @@ float UMovieSceneSkeletalAnimationSection::MapTimeToAnimation(FFrameTime InPosit
 {
 	FMovieSceneSkeletalAnimationSectionTemplateParameters TemplateParams(Params, GetInclusiveStartFrame(), GetExclusiveEndFrame());
 	return TemplateParams.MapTimeToAnimation(InPosition, InFrameRate);
+}
+
+float UMovieSceneSkeletalAnimationSection::GetTotalWeightValue(FFrameTime InTime) const
+{
+	float ManualWeight = 1.f;
+	Params.Weight.Evaluate(InTime, ManualWeight);
+	return ManualWeight *  EvaluateEasing(InTime);
 }
 
 

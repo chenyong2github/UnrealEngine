@@ -84,9 +84,8 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform)
 	ShaderTypes.Sort(FCompareShaderTypes());
 	for (int32 TypeIndex = 0; TypeIndex < ShaderTypes.Num(); TypeIndex++)
 	{
-		FShaderTypeDependency Dependency;
-		Dependency.ShaderType = ShaderTypes[TypeIndex];
-		Dependency.SourceHash = ShaderTypes[TypeIndex]->GetSourceHash(Platform);
+		FShaderType* ShaderType = ShaderTypes[TypeIndex];
+		FShaderTypeDependency Dependency(ShaderType, Platform);
 
 		const TCHAR* ShaderFilename = Dependency.ShaderType->GetShaderFilename();
 
@@ -100,15 +99,14 @@ FGlobalShaderMapId::FGlobalShaderMapId(EShaderPlatform Platform)
 	for (int32 TypeIndex = 0; TypeIndex < ShaderPipelineTypes.Num(); TypeIndex++)
 	{
 		const FShaderPipelineType* Pipeline = ShaderPipelineTypes[TypeIndex];
-		FShaderPipelineTypeDependency Dependency;
-		Dependency.ShaderPipelineType = Pipeline;
-		Dependency.StagesSourceHash = Pipeline->GetSourceHash(Platform);
+		FShaderPipelineTypeDependency Dependency(Pipeline, Platform);
 		ShaderPipelineTypeDependencies.Add(Dependency);
 	}
 }
 
 void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShaderTypeDependency>& Dependencies) const
 {
+#if WITH_EDITOR
 	TMap<const TCHAR*,FCachedUniformBufferDeclaration> ReferencedUniformBuffers;
 
 	for (int32 ShaderIndex = 0; ShaderIndex < Dependencies.Num(); ShaderIndex++)
@@ -167,6 +165,7 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 
 		SerializationHistory.AppendKeyString(KeyString);
 	}
+#endif // WITH_EDITOR
 }
 
 FGlobalShader::FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

@@ -916,7 +916,13 @@ public:
 	 */
 	void MoveViewportCamera( const FVector& InDrag, const FRotator& InRot, bool bDollyCamera = false );
 
-	
+	/** 
+	 * Get the custom pivot point around which the camera should orbit for this viewport
+	 * @param	OutPivot	The custom pivot point specified by the viewport
+	 * @return	true if a custom pivot point was specified, false otherwise.
+	 */
+	virtual bool GetPivotForOrbit(FVector& OutPivot) const;
+
 	// Utility functions to return the modifier key states
 	bool IsAltPressed() const;
 	bool IsCtrlPressed() const;
@@ -1106,7 +1112,22 @@ public:
 	 * @return	true if the supplied buffer visualization mode is checked
 	 */
 	bool IsBufferVisualizationModeSelected( FName InName ) const;
-	
+
+	/**
+	 * Changes the ray tracing debug visualization mode for this viewport
+	 *
+	 * @param InName	The ID of the required ray tracing debug visualization mode
+	 */
+	void ChangeRayTracingDebugVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a ray tracing debug visualization mode is selected
+	 *
+	 * @param InName	The ID of the required ray tracing debug visualization mode
+	 * @return	true if the supplied ray tracing debug visualization mode is checked
+	 */
+	bool IsRayTracingDebugVisualizationModeSelected(FName InName) const;
+
 	/** @return True if PreviewResolutionFraction is supported. */
 	bool SupportsPreviewResolutionFraction() const;
 
@@ -1392,6 +1413,8 @@ public:
 	FExposureSettings		ExposureSettings;
 
 	FName CurrentBufferVisualizationMode;
+
+	FName CurrentRayTracingDebugVisualizationMode;
 
 	/** The number of frames since this viewport was last drawn.  Only applies to linked orthographic movement. */
 	int32 FramesSinceLastDraw;

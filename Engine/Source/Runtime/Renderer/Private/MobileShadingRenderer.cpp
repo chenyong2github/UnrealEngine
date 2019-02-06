@@ -44,6 +44,7 @@
 #include "RendererModule.h"
 #include "EngineModule.h"
 
+#include "VisualizeTexture.h"
 
 uint32 GetShadowQuality();
 
@@ -84,6 +85,10 @@ DECLARE_CYCLE_STAT(TEXT("Post"), STAT_CLMM_Post, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLMM_Translucency, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("Shadows"), STAT_CLMM_Shadows, STATGROUP_CommandListMarkers);
 
+FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
+FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
+TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffer;
+
 FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
 	:	FSceneRenderer(InViewFamily, HitProxyConsumer)
 {
@@ -122,6 +127,62 @@ TUniformBufferRef<FMobileDirectionalLightShaderParameters>& GetNullMobileDirecti
 	return NullLightParams->UniformBufferRHI;
 }
 
+void FMobileSceneRenderer::PrepareViewVisibilityLists()
+{
+	// Prepare view's visibility lists.
+	// TODO: only do this when CSM + static is required.
+	for (auto& View : Views)
+	{
+		FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo = View.MobileCSMVisibilityInfo;
+		// Init list of primitives that can receive Dynamic CSM.
+		MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap.Init(false, View.PrimitiveVisibilityMap.Num());
+
+		// Init static mesh visibility info for CSM drawlist
+		MobileCSMVisibilityInfo.MobileCSMStaticMeshVisibilityMap.Init(false, View.StaticMeshVisibilityMap.Num());
+		MobileCSMVisibilityInfo.MobileCSMStaticBatchVisibility.AddZeroed(View.StaticMeshBatchVisibility.Num());
+
+		// Init static mesh visibility info for default drawlist that excludes meshes in CSM only drawlist.
+		MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap = View.StaticMeshVisibilityMap;
+		MobileCSMVisibilityInfo.MobileNonCSMStaticBatchVisibility = View.StaticMeshBatchVisibility;
+	}
+}
+
+void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView)
+{
+	// Sort front to back on all platforms, even HSR benefits from it
+	//const bool bWantsFrontToBackSorting = (GHardwareHiddenSurfaceRemoval == false);
+
+	// compute keys for front to back sorting and dispatch pass setup.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		FViewCommands& ViewCommands = ViewCommandsPerView[ViewIndex];
+
+		PassProcessorCreateFunction CreateFunction = FPassProcessorManager::GetCreateFunction(EShadingPath::Mobile, EMeshPass::BasePass);
+		FMeshPassProcessor* MeshPassProcessor = CreateFunction(Scene, &View, nullptr);
+
+		PassProcessorCreateFunction BasePassCSMCreateFunction = FPassProcessorManager::GetCreateFunction(EShadingPath::Mobile, EMeshPass::MobileBasePassCSM);
+		FMeshPassProcessor* BasePassCSMMeshPassProcessor = BasePassCSMCreateFunction(Scene, &View, nullptr);
+
+		// Run sorting on BasePass, as it's ignored inside FSceneRenderer::SetupMeshPass, so it can be done after shadow init on mobile.
+		FParallelMeshDrawCommandPass& Pass = View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass];
+		Pass.DispatchPassSetup(
+			Scene,
+			View,
+			EMeshPass::BasePass,
+			BasePassDepthStencilAccess,
+			MeshPassProcessor,
+			View.DynamicMeshElements,
+			&View.DynamicMeshElementsPassRelevance,
+			View.NumVisibleDynamicMeshElements[EMeshPass::BasePass],
+			ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass],
+			ViewCommands.NumDynamicMeshCommandBuildRequestElements[EMeshPass::BasePass],
+			ViewCommands.MeshCommands[EMeshPass::BasePass],
+			BasePassCSMMeshPassProcessor,
+			&ViewCommands.MeshCommands[EMeshPass::MobileBasePassCSM]);
+	}
+}
+
 /**
  * Initialize scene's views.
  * Check visibility, sort translucent items, etc.
@@ -135,8 +196,13 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
 
 	FILCUpdatePrimTaskData ILCTaskData;
+	FViewVisibleCommandsPerView ViewCommandsPerView;
+	ViewCommandsPerView.SetNum(Views.Num());
+
+	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+
 	PreVisibilityFrameSetup(RHICmdList);
-	ComputeViewVisibility(RHICmdList);
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
 	PostVisibilityFrameSetup(ILCTaskData);
 
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
@@ -144,8 +210,15 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);		
+		InitDynamicShadows(RHICmdList);
 	}
+	else
+	{
+		// TODO: only do this when CSM + static is required.
+		PrepareViewVisibilityLists();
+	}
+
+	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, ViewCommandsPerView);
 
 	// if we kicked off ILC update via task, wait and finalize.
 	if (ILCTaskData.TaskRef.IsValid())
@@ -159,29 +232,30 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Initialize the view's RHI resources.
 		Views[ViewIndex].InitRHIResources();
 
+		// TODO: remove when old path is removed
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(Views[ViewIndex]);
 	}
-
-	// Now that the indirect lighting cache is updated, we can update the primitive precomputed lighting buffers.
-	UpdatePrimitivePrecomputedLightingBuffers();
-
-	PostInitViewCustomData();
 	
-	OnStartFrame(RHICmdList);
-}
-
-void FMobileSceneRenderer::PostInitViewCustomData()
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateViewCustomData);
-
-	for (FViewInfo& ViewInfo : Views)
+	// update buffers used in cached mesh path
+	// in case there are multiple views, these buffers will be updated before rendering each view
+	if (Views.Num() > 0)
 	{
-		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : ViewInfo.PrimitivesWithCustomData)
-		{
-			PrimitiveSceneInfo->Proxy->PostInitViewCustomData(ViewInfo, ViewInfo.GetCustomData(PrimitiveSceneInfo->GetIndex()));
-		}
+		const FViewInfo& View = Views[0];
+		Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
+
+		FMobileDistortionPassUniformParameters DistortionPassParameters;
+		SetupMobileDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
+		Scene->UniformBuffers.MobileDistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
 	}
+
+	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
+	UpdatePrimitiveIndirectLightingCacheBuffers();
+
+	OnStartRender(RHICmdList);
 }
 
 /** 
@@ -232,9 +306,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	GEngine->GetPreRenderDelegate().Broadcast();
 
-	// Dynamic vertex and index buffers need to be committed before rendering.
-	FGlobalDynamicVertexBuffer::Get().Commit();
-	FGlobalDynamicIndexBuffer::Get().Commit();
+	// Global dynamic buffers need to be committed before rendering.
+	DynamicIndexBuffer.Commit();
+	DynamicVertexBuffer.Commit();
+	DynamicReadBuffer.Commit();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	// Notify the FX system that the scene is about to be rendered.
@@ -244,8 +319,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-
-	FVisualizeTexturePresent::OnStartRender(Views[0]);
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Shadows));
 
@@ -261,10 +334,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	TArray<const FViewInfo*> ViewList;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++) 
 	{
-		if (Views[ViewIndex].StereoPass != eSSP_MONOSCOPIC_EYE)
-		{
-			ViewList.Add(&Views[ViewIndex]);
-		}
+		ViewList.Add(&Views[ViewIndex]);
 	}
 
 	const bool bGammaSpace = !IsMobileHDR();
@@ -398,7 +468,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	IRendererModule& RendererModule = GetRendererModule();
-	RendererModule.DispatchPostOpaqueCompute(RHICmdList, View.ViewUniformBuffer);
 
 	if (!View.bIsPlanarReflection)
 	{
@@ -412,17 +481,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderTranslucency(RHICmdList, ViewList, !bGammaSpace || bRenderToSceneColor);
 		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	}
-
-	if (ViewFamily.IsMonoscopicFarFieldEnabled() && ViewFamily.Views.Num() == 3)
-	{
-		TArray<const FViewInfo*> MonoViewList;
-		MonoViewList.Add(&Views[2]);
-
-		RenderMonoscopicFarFieldMask(RHICmdList);
-		RenderMobileBasePass(RHICmdList, MonoViewList);
-		RenderTranslucency(RHICmdList, MonoViewList, !bGammaSpace || bRenderToSceneColor);
-		CompositeMonoscopicFarField(RHICmdList);
 	}
 
 	if (!View.bIsMobileMultiViewDirectEnabled)
@@ -499,7 +557,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-					GPostProcessing.ProcessES2(RHICmdList, Views[ViewIndex], bOnChipSunMask);
+					GPostProcessing.ProcessES2(RHICmdList, Scene, Views[ViewIndex], bOnChipSunMask);
 				}
 			}
 		}
@@ -670,14 +728,12 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 					// Switch target to force hardware flush current depth to texture
 					FTextureRHIRef DummySceneColor = GSystemTextures.BlackDummy->GetRenderTargetItem().TargetableTexture;
 					FTextureRHIRef DummyDepthTarget = GSystemTextures.DepthDummy->GetRenderTargetItem().TargetableTexture;
-
-					if(CVarMobileForceDepthResolve.GetValueOnRenderThread() != 0)
-					{
-						FRHIRenderPassInfo RPInfo(DummySceneColor, ERenderTargetActions::DontLoad_DontStore);
-						RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
-						RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DummyDepthTarget;
-						RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-						RHICmdList.BeginRenderPass(RPInfo, TEXT("ResolveDepth"));
+					
+					FRHIRenderPassInfo RPInfo(DummySceneColor, ERenderTargetActions::DontLoad_DontStore);
+					RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
+					RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DummyDepthTarget;
+					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+					RHICmdList.BeginRenderPass(RPInfo, TEXT("ResolveDepth"));
 					{
 						FGraphicsPipelineStateInitializer GraphicsPSOInit;
 						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -712,65 +768,54 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 							FIntPoint(1, 1),
 							*ScreenVertexShader,
 							EDRF_UseTriangleOptimization);
-					}
-						RHICmdList.EndRenderPass();
 					} // force depth resolve
+					RHICmdList.EndRenderPass();
 				}
 			}
 		}
 	}
 }
 
-void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FSceneView& SceneView)
+void FMobileSceneRenderer::UpdateOpaqueBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FMobileBasePassUniformParameters Parameters;
+	SetupMobileBasePassUniformParameters(RHICmdList, View, false, Parameters);
+	Scene->UniformBuffers.MobileOpaqueBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+}
+
+void FMobileSceneRenderer::UpdateTranslucentBasePassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	FMobileBasePassUniformParameters Parameters;
+	SetupMobileBasePassUniformParameters(RHICmdList, View, true, Parameters);
+	Scene->UniformBuffers.MobileTranslucentBasePassUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+}
+
+void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
-
-	// First array entry is used for primitives with no lighting channel set
-	SceneView.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);
-
 	// Fill in the other entries based on the lights
 	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
 	{
 		FMobileDirectionalLightShaderParameters Params;
-
-		FLightSceneInfo* Light = Scene->MobileDirectionalLights[ChannelIdx];
-		if (Light)
-		{
-			Params.DirectionalLightColor = Light->Proxy->GetColor() / PI;
-			Params.DirectionalLightDirectionAndShadowTransition = FVector4(-Light->Proxy->GetDirection(), 0.f);
-
-			const FVector2D FadeParams = Light->Proxy->GetDirectionalLightDistanceFadeParameters(FeatureLevel, Light->IsPrecomputedLightingValid(), SceneView.MaxShadowCascades);
-			Params.DirectionalLightDistanceFadeMAD.X = FadeParams.Y;
-			Params.DirectionalLightDistanceFadeMAD.Y = -FadeParams.X * FadeParams.Y;
-
-			if (bDynamicShadows && VisibleLightInfos.IsValidIndex(Light->Id) && VisibleLightInfos[Light->Id].AllProjectedShadows.Num() > 0)
-			{
-				const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = VisibleLightInfos[Light->Id].AllProjectedShadows;
-
-				static_assert(MAX_MOBILE_SHADOWCASCADES <= 4, "more than 4 cascades not supported by the shader and uniform buffer");
-				{
-					const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[0];
-					const FIntPoint ShadowBufferResolution = ShadowInfo->GetShadowBufferResolution();
-					const FVector4 ShadowBufferSizeValue((float)ShadowBufferResolution.X, (float)ShadowBufferResolution.Y, 1.0f / (float)ShadowBufferResolution.X, 1.0f / (float)ShadowBufferResolution.Y);
-
-					Params.DirectionalLightShadowTexture = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
-					Params.DirectionalLightDirectionAndShadowTransition.W = 1.0f / ShadowInfo->ComputeTransitionSize();
-					Params.DirectionalLightShadowSize = ShadowBufferSizeValue;
-				}
-
-				const int32 NumShadowsToCopy = FMath::Min(DirectionalLightShadowInfos.Num(), MAX_MOBILE_SHADOWCASCADES);
-				for (int32 i = 0; i < NumShadowsToCopy; ++i)
-				{
-					const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[i];
-					Params.DirectionalLightScreenToShadow[i] = ShadowInfo->GetScreenToShadowMatrix(SceneView);
-					Params.DirectionalLightShadowDistances[i] = ShadowInfo->CascadeSettings.SplitFar;
-				}
-			}
-		}
-
-		SceneView.MobileDirectionalLightUniformBuffers[ChannelIdx + 1] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_SingleFrame);
+		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
+		Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
 	}
 }
+
+void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)
+{
+	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
+	// First array entry is used for primitives with no lighting channel set
+	View.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);
+	// Fill in the other entries based on the lights
+	for (int32 ChannelIdx = 0; ChannelIdx < ARRAY_COUNT(Scene->MobileDirectionalLights); ChannelIdx++)
+	{
+		FMobileDirectionalLightShaderParameters Params;
+		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
+		View.MobileDirectionalLightUniformBuffers[ChannelIdx + 1] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_SingleFrame);
+	}
+}
+
 class FCopyMobileMultiViewSceneColorPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FCopyMobileMultiViewSceneColorPS, Global);

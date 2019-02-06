@@ -23,6 +23,10 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Misc/CompilationResult.h"
+
+#include "EditorSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
+
 #include "EditorEngine.generated.h"
 
 class AMatineeActor;
@@ -746,6 +750,7 @@ public:
 
 	/** Called when an object is reimported. */
 	DECLARE_EVENT_OneParam( UEditorEngine, FObjectReimported, UObject* );
+	UE_DEPRECATED(4.22, "Use the ImportSubsystem instead. GEditor->GetEditorSubsystem<UImportSubsystem>()")
 	FObjectReimported& OnObjectReimported() { return ObjectReimportedEvent; }
 
 	/** Editor-only event triggered before an actor or component is moved, rotated or scaled by an editor system */
@@ -3036,7 +3041,7 @@ public:
 	void OnSceneMaterialsModified();
 
 	/** Call this function to change the feature level and to override the material quality platform of the editor and PIE worlds */
-	void SetPreviewPlatform(const FName MaterialQualityPlatform, const ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings = true);
+	void SetPreviewPlatform(const FName MaterialQualityPlatform, ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings = true);
 
 	/** Toggle the feature level preview */
 	void ToggleFeatureLevelPreview();
@@ -3055,10 +3060,10 @@ protected:
 	void SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** call this function to change the feature level for all materials */
-	void SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel);
+	void SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** call this to recompile the materials */
-	void AllMaterialsCacheResourceShadersForRendering();
+	void AllMaterialsCacheResourceShadersForRendering(ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** Function pair used to save and restore the global feature level */
 	void LoadEditorFeatureLevel();
@@ -3089,6 +3094,41 @@ private:
 
 	/** Delegate handle for game viewport close requests in PIE sessions. */
 	FDelegateHandle ViewportCloseRequestedDelegateHandle;
+
+public:
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	UEditorSubsystem* GetEditorSubsystemBase(TSubclassOf<UEditorSubsystem> SubsystemClass) const
+	{
+		checkSlow(this != nullptr);
+		return EditorSubsystemCollection.GetSubsystem<UEditorSubsystem>(SubsystemClass);
+	}
+
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetEditorSubsystem() const
+	{
+		checkSlow(this != nullptr);
+		return EditorSubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+	/**
+	 * Get all Subsystem of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
+	 *
+	 * Do not hold onto this Array reference unless you are sure the lifetime is less than that of UGameInstance
+	 */
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetEditorSubsystemArray() const
+	{
+		return EditorSubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+private:
+	FSubsystemCollection<UEditorSubsystem> EditorSubsystemCollection;
+
 };
 
 //////////////////////////////////////////////////////////////////////////

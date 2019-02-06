@@ -70,6 +70,8 @@
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FSimpleMulticastDelegate								FEditorDelegates::NewCurrentLevel;
 FEditorDelegates::FOnMapChanged							FEditorDelegates::MapChange;
 FSimpleMulticastDelegate								FEditorDelegates::LayerChange;
@@ -139,6 +141,8 @@ FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenReferenceVi
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenSizeMap;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenAssetAudit;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnEditAssetIdentifiers;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -251,11 +255,16 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 		TArray<FString> SourceFilenames;
 
 		FReimportHandler *CanReimportHandler = SpecifiedReimportHandler;
+		if (CanReimportHandler)
+		{
+			CanReimportHandler->SetPreferredReimportPath(PreferredReimportFile);
+		}
 		if (CanReimportHandler == nullptr || !CanReimportHandler->CanReimport(Obj, SourceFilenames))
 		{
 			for (int32 HandlerIndex = 0; HandlerIndex < Handlers.Num(); ++HandlerIndex)
 			{
 				SourceFilenames.Empty();
+				Handlers[HandlerIndex]->SetPreferredReimportPath(PreferredReimportFile);
 				if (Handlers[HandlerIndex]->CanReimport(Obj, SourceFilenames))
 				{
 					CanReimportHandler = Handlers[HandlerIndex];

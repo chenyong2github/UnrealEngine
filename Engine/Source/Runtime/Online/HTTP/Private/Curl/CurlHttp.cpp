@@ -12,6 +12,7 @@
 #include "Curl/CurlHttpManager.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/FileManager.h"
+#include "Internationalization/Regex.h"
 
 int32 FCurlHttpRequest::NumberOfInfoMessagesToCache = 50;
 
@@ -24,9 +25,15 @@ static int SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context)
 {
 	if (PreverifyOk == 1)
 	{
-		SSL* Handle = static_cast<SSL*>(X509_STORE_CTX_get_app_data(Context));
+		SSL* Handle = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(Context, SSL_get_ex_data_X509_STORE_CTX_idx()));
+		check(Handle);
+
 		SSL_CTX* SslContext = SSL_get_SSL_CTX(Handle);
+		check(SslContext);
+
 		FCurlHttpRequest* Request = static_cast<FCurlHttpRequest*>(SSL_CTX_get_app_data(SslContext));
+		check(Request);
+
 		const FString Domain = FPlatformHttp::GetUrlDomain(Request->GetURL());
 
 		if (!FSslModule::Get().GetCertificateManager().VerifySslCertificates(Context, Domain))
@@ -61,6 +68,7 @@ FCurlHttpRequest::FCurlHttpRequest()
 	,	HeaderList(NULL)
 	,	bCanceled(false)
 	,	bCurlRequestCompleted(false)
+	,	bRedirected(false)
 	,	CurlAddToMultiResult(CURLM_OK)
 	,	CurlCompletionResult(CURLE_OK)
 	,	CompletionStatus(EHttpRequestStatus::NotStarted)
@@ -429,7 +437,7 @@ size_t FCurlHttpRequest::ReceiveResponseHeaderCallback(void* Ptr, size_t SizeInB
 			if (Header.Split(TEXT(":"), &HeaderKey, &HeaderValue))
 			{
 				HeaderValue.TrimStartInline();
-				if (!HeaderKey.IsEmpty() && !HeaderValue.IsEmpty())
+				if (!HeaderKey.IsEmpty() && !HeaderValue.IsEmpty() && !bRedirected)
 				{
 					//Store the content length so OnRequestProgress() delegates have something to work with
 					if (HeaderKey == TEXT("Content-Length"))
@@ -437,6 +445,20 @@ size_t FCurlHttpRequest::ReceiveResponseHeaderCallback(void* Ptr, size_t SizeInB
 						Response->ContentLength = FCString::Atoi(*HeaderValue);
 					}
 					Response->NewlyReceivedHeaders.Enqueue(TPair<FString, FString>(MoveTemp(HeaderKey), MoveTemp(HeaderValue)));
+				}
+			}
+			else
+			{
+				const FRegexPattern StatusPattern(TEXT("HTTP/\\d+\\.\\d+ 30\\d")); // \d+ is jic http status version ever goes double digits...
+				FRegexMatcher StatusMatcher(StatusPattern, *Header);
+
+				if (StatusMatcher.FindNext())
+				{
+					bRedirected = true;
+				}
+				else if (Header.IsEmpty()) // an empty line notes the end of the headers
+				{
+					bRedirected = false;
 				}
 			}
 			return HeaderSize;

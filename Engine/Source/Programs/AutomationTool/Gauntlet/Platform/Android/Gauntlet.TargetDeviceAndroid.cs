@@ -190,9 +190,27 @@ namespace Gauntlet
 		protected void SaveArtifacts()
 		{
 			// copy remote artifacts to local
+			if (Directory.Exists(Install.AndroidDevice.LocalCachePath))
+			{
+				try
+				{
+					// don't consider this fatal, people often have the directory or a file open
+					Directory.Delete(Install.AndroidDevice.LocalCachePath, true);
+				}
+				catch
+				{
+					Log.Warning("Failed to remove old cache folder {0}", Install.AndroidDevice.LocalCachePath);
+				}
+			}
+
+			// mark it as a temp dir (will also create it)
+			Utils.SystemHelpers.MarkDirectoryForCleanup(Install.AndroidDevice.LocalCachePath);
+
 			string LocalSaved = Path.Combine(Install.AndroidDevice.LocalCachePath, "Saved");
 			Directory.CreateDirectory(LocalSaved);
-			string ArtifactPullCommand = string.Format("pull {0} {1}", Install.AndroidDevice.DeviceArtifactPath, Install.AndroidDevice.LocalCachePath);
+
+			// pull all the artifacts
+			string ArtifactPullCommand = string.Format("pull {0} {1}", Install.AndroidDevice.DeviceArtifactPath, LocalSaved);
 			IProcessResult PullCmd = Install.AndroidDevice.RunAdbDeviceCommand(ArtifactPullCommand);
 
 			if (PullCmd.ExitCode != 0)
@@ -430,7 +448,8 @@ namespace Gauntlet
 			// for IP devices need to sanitize this
 			Name = DeviceName.Replace(":", "_");
 
-			LocalCachePath = Path.Combine(Path.GetTempPath(), "AndroidDevice_" + Name);
+			// Path we use for artifacts, we'll create it later when we need it
+			LocalCachePath = Path.Combine(Globals.TempDir, "AndroidDevice_" + Name);
 
 			ConnectedDevices = GetAllConnectedDevices();
 
@@ -469,12 +488,7 @@ namespace Gauntlet
 						RunAdbGlobalCommand(string.Format("disconnect {0}", DeviceName));
 
 						Log.Info("Disconnected {0}", DeviceName);
-					}
-
-					if (Directory.Exists(LocalCachePath))
-					{
-						Directory.Delete(LocalCachePath, true);
-					}
+					}					
 				}
 				catch (Exception Ex)
 				{
@@ -715,7 +729,7 @@ namespace Gauntlet
 				}
 				else
 				{
-					Log.Info("Installing {0} to {1} via adb push", SourcePath, DestPath);
+					Log.Info("Copying {0} to {1} via adb push", QuotedSourcePath, DestPath);
 					string AdbCommand = string.Format("push {0} {1}", QuotedSourcePath, DestPath);
 					AdbResult = RunAdbDeviceCommand(AdbCommand);
 
@@ -1035,7 +1049,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public static IProcessResult RunAdbGlobalCommand(string Args, bool Wait = true, bool bShouldLogCommand = false)
 		{
-			CommandUtils.ERunOptions RunOptions = CommandUtils.ERunOptions.AppMustExist;
+			CommandUtils.ERunOptions RunOptions = CommandUtils.ERunOptions.AppMustExist | CommandUtils.ERunOptions.NoWaitForExit;
 
 			if (Log.IsVeryVerbose)
 			{
@@ -1045,19 +1059,20 @@ namespace Gauntlet
 			{
 				RunOptions |= CommandUtils.ERunOptions.NoLoggingOfRunCommand;
 			}
-
-			if (Wait == false)
-			{
-				RunOptions |= CommandUtils.ERunOptions.NoWaitForExit;
-			}
-
+	
 			if (bShouldLogCommand)
 			{
 				Log.Verbose("Running ADB Command: adb {0}", Args);
 			}
 			
 			IProcessResult Process = AndroidPlatform.RunAdbCommand(null, null, Args, null, RunOptions);
-			return Process;
+
+			if (Wait)
+			{
+				Process.WaitForExit();
+			}
+			
+return Process;
 		}
 
 		public void AllowDeviceSleepState(bool bAllowSleep)

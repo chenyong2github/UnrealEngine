@@ -56,16 +56,10 @@ UENUM()
 UENUM()
 enum class EIOSMetalShaderStandard : uint8
 {
-    /** Metal Shaders Compatible With iOS 8.0/tvOS 9.0 or later (std=ios-metal1.0) */
-    IOSMetalSLStandard_1_0 = 0 UMETA(DisplayName="Metal v1.0 (iOS 8.0/tvOS 9.0)"),
-    
-    /** Metal Shaders Compatible With iOS 9.0/tvOS 9.0 or later (std=ios-metal1.1) */
-    IOSMetalSLStandard_1_1 = 1 UMETA(DisplayName="Metal v1.1 (iOS 9.0/tvOS 9.0)"),
-    
-    /** Metal Shaders Compatible With iOS 10.0/tvOS 10.0 or later (std=ios-metal1.2) */
+	/** Metal Shaders Compatible With iOS 10.0/tvOS 10.0 or later (std=ios-metal1.2) */
 	IOSMetalSLStandard_1_2 = 2 UMETA(DisplayName="Metal v1.2 (iOS 10.0/tvOS 10.0)"),
 	
-	/** Metal Shaders Compatible With iOS 11.0/tvOS 11.0 or later (std=ios-metal2.0) */
+    /** Metal Shaders Compatible With iOS 11.0/tvOS 11.0 or later (std=ios-metal2.0) */
 	IOSMetalSLStandard_2_0 = 3 UMETA(DisplayName="Metal v2.0 (iOS 11.0/tvOS 11.0)"),
     
     /** Metal Shaders Compatible With iOS 12.0/tvOS 12.0 or later (std=ios-metal2.1) */
@@ -80,6 +74,19 @@ enum class EIOSLandscapeOrientation : uint8
 
 	/** Landscape Right */
 	LandscapeRight = 1 UMETA(DisplayName = "Landscape (right home button)"),
+};
+
+UENUM()
+enum class EIOSCloudKitSyncStrategy : uint8
+{
+	/** Only at game start */
+	None  = 0 UMETA(DisplayName = "Never (do not use iCloud for Load/Save Game)"),
+
+	/** Only at game start */
+	OnlyAtGameStart = 1 UMETA(DisplayName = "At game start only (iOS)"),
+
+	/** Always */
+	Always = 2 UMETA(DisplayName = "Always (whenever LoadGame is called)"),
 };
 
 /**
@@ -204,6 +211,10 @@ public:
 	// Should Cloud Kit support (iOS Online Subsystem) be enabled?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
 	uint32 bEnableCloudKitSupport : 1;
+
+	// iCloud Read stategy
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (DisplayName = "iCloud save files sync strategy"), meta = (EditCondition = "bEnableCloudKitSupport"))
+	EIOSCloudKitSyncStrategy IOSCloudKitSyncStrategy;
 
     // Should push/remote notifications support (iOS Online Subsystem) be enabled?
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
@@ -436,6 +447,14 @@ public:
 	bool UseFastIntrinsics;
 	
 	/**
+	 * Whether to force Metal shaders to use 32bit floating point precision even when the shader uses half floats.
+	 * Half floats are much more efficient when they are availble but have less accuracy over large ranges,
+	 * as such some projects may need to use 32bit floats to ensure correct rendering.
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Rendering, meta = (DisplayName = "Force 32bit Floating Point Precision", ConfigRestartRequired = true))
+	bool ForceFloats;
+	
+	/**
 	 * Whether to use of Metal shader-compiler's -ffast-math optimisations.
 	 * Fast-Math performs algebraic-equivalent & reassociative optimisations not permitted by the floating point arithmetic standard (IEEE-754).
 	 * These can improve shader performance at some cost to precision and can lead to NaN/INF propagation as they rely on
@@ -521,8 +540,5 @@ public:
 	virtual void PostInitProperties() override;
 	// End of UObject interface
 #endif
-
-private:
-	virtual void EnsureOrientationInProjectDefaultEngine();
 
 };

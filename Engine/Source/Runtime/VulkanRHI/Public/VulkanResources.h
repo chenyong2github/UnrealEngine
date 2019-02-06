@@ -38,7 +38,7 @@ enum
 {
 	NUM_OCCLUSION_QUERIES_PER_POOL = 4096,
 
-	NUM_TIMESTAMP_QUERIES_PER_POOL = 10240,
+	NUM_TIMESTAMP_QUERIES_PER_POOL = 1024,
 };
 
 struct FSamplerYcbcrConversionInitializer
@@ -719,25 +719,25 @@ inline FVulkanTextureBase* GetVulkanTextureFromRHITexture(FRHITexture* Texture)
 	{
 		return NULL;
 	}
-	else if (Texture->GetTexture2D())
+	else if (FRHITexture2D* Tex2D = Texture->GetTexture2D())
 	{
-		return static_cast<FVulkanTexture2D*>(Texture);
+		return static_cast<FVulkanTexture2D*>(Tex2D);
 	}
-	else if (Texture->GetTextureReference())
+	else if (FRHITextureReference* TexRef = Texture->GetTextureReference())
 	{
-		return static_cast<FVulkanTextureReference*>(Texture);
+		return static_cast<FVulkanTextureReference*>(TexRef);
 	}
-	else if (Texture->GetTexture2DArray())
+	else if (FRHITexture2DArray* Tex2DArray = Texture->GetTexture2DArray())
 	{
-		return static_cast<FVulkanTexture2DArray*>(Texture);
+		return static_cast<FVulkanTexture2DArray*>(Tex2DArray);
 	}
-	else if (Texture->GetTexture3D())
+	else if (FRHITexture3D* Tex3D = Texture->GetTexture3D())
 	{
-		return static_cast<FVulkanTexture3D*>(Texture);
+		return static_cast<FVulkanTexture3D*>(Tex3D);
 	}
-	else if (Texture->GetTextureCube())
+	else if (FRHITextureCube* TexCube = Texture->GetTextureCube())
 	{
-		return static_cast<FVulkanTextureCube*>(Texture);
+		return static_cast<FVulkanTextureCube*>(TexCube);
 	}
 	else
 	{
@@ -769,6 +769,7 @@ public:
 
 protected:
 	VkQueryPool QueryPool;
+	VkEvent ResetEvent;
 	const uint32 MaxQueries;
 	const VkQueryType QueryType;
 	TArray<uint64> QueryOutput;
@@ -1258,11 +1259,17 @@ public:
 class FVulkanUniformBuffer : public FRHIUniformBuffer
 {
 public:
-	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage, bool bCopyIntoConstantData);
+	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation, bool bCopyIntoConstantData);
 
 	TArray<uint8> ConstantData;
 
 	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }
+
+	void UpdateResourceTable(const FRHIUniformBufferLayout& InLayout, const void* Contents, int32 ResourceNum);
+	void UpdateResourceTable(FRHIResource** Resources, int32 ResourceNum);
+
+	virtual void Update(const void* Contents, int32 ContentsSize);
+
 
 private:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
@@ -1271,7 +1278,9 @@ private:
 class FVulkanRealUniformBuffer : public FVulkanUniformBuffer, public FVulkanResourceMultiBuffer
 {
 public:
-	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage);
+	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+
+	virtual void Update(const void* Contents, int32 ContentsSize);
 
 private:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;

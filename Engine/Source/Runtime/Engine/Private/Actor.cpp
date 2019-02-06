@@ -83,28 +83,10 @@ AActor::AActor()
 	InitializeDefaults();
 }
 
-
 AActor::AActor(const FObjectInitializer& ObjectInitializer)
 {
 	// Forward to default constructor (we don't use ObjectInitializer for anything, this is for compatibility with inherited classes that call Super( ObjectInitializer )
 	InitializeDefaults();
-
-#if (CSV_PROFILER && !UE_BUILD_SHIPPING)
-	// Increment actor class count
-	{
-		if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-		{
-			FScopeLock Lock(&CSVActorClassNameToCountMapLock);
-
-			const UClass* ParentNativeClass = GetParentNativeClass(GetClass());
-			FName NativeClassName = ParentNativeClass ? ParentNativeClass->GetFName() : NAME_None;
-			int32& CurrentCount = CSVActorClassNameToCountMap.FindOrAdd(NativeClassName);
-			CurrentCount++;
-			CSVActorTotalCount++;
-		}
-	}
-#endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
-
 }
 
 void AActor::InitializeDefaults()
@@ -133,8 +115,7 @@ void AActor::InitializeDefaults()
 	bHiddenEdLevel = false;
 	bActorLabelEditable = true;
 	SpriteScale = 1.0f;
-	bEnableAutoLODGeneration = true;	
-	InputConsumeOption_DEPRECATED = ICO_ConsumeBoundKeys;
+	bEnableAutoLODGeneration = true;
 	bOptimizeBPComponentData = false;
 #endif // WITH_EDITORONLY_DATA
 	NetCullDistanceSquared = 225000000.0f;
@@ -155,6 +136,22 @@ void AActor::InitializeDefaults()
 	PivotOffset = FVector::ZeroVector;
 #endif
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+#if (CSV_PROFILER && !UE_BUILD_SHIPPING)
+	// Increment actor class count
+	{
+		if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+		{
+			FScopeLock Lock(&CSVActorClassNameToCountMapLock);
+
+			const UClass* ParentNativeClass = GetParentNativeClass(GetClass());
+			FName NativeClassName = ParentNativeClass ? ParentNativeClass->GetFName() : NAME_None;
+			int32& CurrentCount = CSVActorClassNameToCountMap.FindOrAdd(NativeClassName);
+			CurrentCount++;
+			CSVActorTotalCount++;
+		}
+	}
+#endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 }
 
 void FActorTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -676,11 +673,6 @@ void AActor::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (GetLinkerUE4Version() < VER_UE4_CONSUME_INPUT_PER_BIND)
-	{
-		bBlockInput = (InputConsumeOption_DEPRECATED == ICO_ConsumeAll);
-	}
-
 	if (AActor* ParentActor = ParentComponentActor_DEPRECATED.Get())
 	{
 		TInlineComponentArray<UChildActorComponent*> ParentChildActorComponents(ParentActor);
@@ -1031,6 +1023,7 @@ void AActor::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTracker
 {
 	// Attachment replication gets filled in by GatherCurrentMovement(), but in the case of a detached root we need to trigger remote detachment.
 	AttachmentReplication.AttachParent = nullptr;
+	AttachmentReplication.AttachComponent = nullptr;
 
 	GatherCurrentMovement();
 
@@ -1600,6 +1593,29 @@ void AActor::SetOwner(AActor* NewOwner)
 	}
 }
 
+bool AActor::HasLocalNetOwner() const
+{
+	// I might be the top owner if I am a Pawn or a Controller (owner will be null)
+	const AActor* TopOwner = this;
+
+	if (Owner != nullptr)
+	{
+		// I have an owner so search that for the top owner
+		for (TopOwner = Owner; TopOwner->Owner; TopOwner = TopOwner->Owner)
+		{
+		}
+	}
+
+	// Top owner will normally be a Pawn or a Controller
+	if (const APawn* Pawn = Cast<APawn>(TopOwner))
+	{
+		return Pawn->IsLocallyControlled();
+	}
+
+	const AController* Controller = Cast<AController>(TopOwner);
+	return Controller && Controller->IsLocalController();
+}
+
 bool AActor::HasNetOwner() const
 {
 	if (Owner == nullptr)
@@ -1620,7 +1636,7 @@ bool AActor::HasNetOwner() const
 void AActor::K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-if (RootComponent && InParent)
+	if (RootComponent && InParent)
 	{
 		RootComponent->AttachTo(InParent, InSocketName, AttachLocationType, bWeldSimulatedBodies);
 	}
@@ -1653,7 +1669,21 @@ void AActor::OnRep_AttachmentReplication()
 				RootComponent->RelativeLocation = AttachmentReplication.LocationOffset;
 				RootComponent->RelativeRotation = AttachmentReplication.RotationOffset;
 				RootComponent->RelativeScale3D = AttachmentReplication.RelativeScale3D;
-				RootComponent->AttachToComponent(AttachParentComponent, FAttachmentTransformRules::KeepRelativeTransform,  AttachmentReplication.AttachSocket);
+
+				// If we're already attached to the correct Parent and Socket, then the update must be position only.
+				// AttachToComponent would early out in this case.
+				// Note, we ignore the special case for simulated bodies in AttachToComponent as AttachmentReplication shouldn't get updated
+				// if the body is simulated (see AActor::GatherMovement).
+				const bool bAlreadyAttached = (AttachParentComponent == RootComponent->GetAttachParent() && AttachmentReplication.AttachSocket == RootComponent->GetAttachSocketName() && AttachParentComponent->GetAttachChildren().Contains(RootComponent));
+				if (bAlreadyAttached)
+				{
+					// Note, this doesn't match AttachToComponent, but we're assuming it's safe to skip physics (see comment above).
+					RootComponent->UpdateComponentToWorld(EUpdateTransformFlags::SkipPhysicsUpdate, ETeleportType::None);
+				}
+				else
+				{
+					RootComponent->AttachToComponent(AttachParentComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachmentReplication.AttachSocket);
+				}
 			}
 		}
 	}
@@ -1664,7 +1694,10 @@ void AActor::OnRep_AttachmentReplication()
 		// Handle the case where an object was both detached and moved on the server in the same frame.
 		// Calling this extraneously does not hurt but will properly fire events if the movement state changed while attached.
 		// This is needed because client side movement is ignored when attached
-		OnRep_ReplicatedMovement();
+		if (bReplicateMovement)
+		{
+			OnRep_ReplicatedMovement();
+		}
 	}
 }
 
@@ -3193,19 +3226,24 @@ void AActor::SetReplicates(bool bInReplicates)
 { 
 	if (Role == ROLE_Authority)
 	{
-		const bool ChangedReplicates = (bReplicates == false && bInReplicates == true);
-
-		// Update our settings before calling into net driver
-		RemoteRole = (bInReplicates ? ROLE_SimulatedProxy : ROLE_None);
-		bReplicates = bInReplicates;
-
 		// Only call into net driver if we actually changed
-		if (ChangedReplicates)
+		if (bReplicates != bInReplicates)
 		{
-			if (UWorld* MyWorld = GetWorld())		// GetWorld will return nullptr on CDO, FYI
+			// Update our settings before calling into net driver
+			RemoteRole = bInReplicates ? ROLE_SimulatedProxy : ROLE_None;
+			bReplicates = bInReplicates;
+
+			// This actor should already be in the Network Actors List if it was already replicating.
+			if (bReplicates)
 			{
-				MyWorld->AddNetworkActor(this);
+				// GetWorld will return nullptr on CDO, FYI
+				if (UWorld* MyWorld = GetWorld())		
+				{
+					MyWorld->AddNetworkActor(this);
+					ForcePropertyCompare();
+				}
 			}
+			
 		}
 	}
 	else
@@ -3246,6 +3284,7 @@ void AActor::CopyRemoteRoleFrom(const AActor* CopyFromActor)
 	if (RemoteRole != ROLE_None)
 	{
 		GetWorld()->AddNetworkActor(this);
+		ForcePropertyCompare();
 	}
 }
 
@@ -3278,6 +3317,7 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 	{
 		if (bRemoteOwned)
 		{
+			// Don't worry about calling SetRemoteRoleInternal here, as this should only be hit during initialization.
 			Exchange( Role, RemoteRole );
 		}
 		bExchangedRoles = true;
@@ -3287,6 +3327,7 @@ void AActor::ExchangeNetRoles(bool bRemoteOwned)
 void AActor::SwapRoles()
 {
 	Swap(Role, RemoteRole);
+	ForcePropertyCompare();
 }
 
 void AActor::DispatchBeginPlay()

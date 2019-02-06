@@ -26,6 +26,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Layout/SBox.h"
 
+#include "Engine/LevelScriptActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "SceneOutlinerModule.h"
@@ -151,7 +152,7 @@ namespace
 			{
 				for (AActor* Actor : Level->Actors)
 				{
-					if (Actor && Actor->IsA(Class))
+					if (Actor && Actor->IsA(Class) && !Actor->IsA(ALevelScriptActor::StaticClass()))
 					{
 						OutActors.AddUnique(Actor);
 					}
@@ -474,24 +475,31 @@ public:
 			if (FParse::Token(Str, Specifier, ARRAY_COUNT(Specifier), 0))
 			{
 				FString const SpecifierStr = FString(Specifier).TrimStart();
-				if (FilterType == EFilterType::Actor)
+
+				TArray<FString> Splits;
+				SpecifierStr.ParseIntoArray(Splits, TEXT(","));
+
+				for (FString Split : Splits)
 				{
-					AActor* FoundActor = FindActorByLabel(SpecifierStr, InWorld, true);
-					if (FoundActor)
+					if (FilterType == EFilterType::Actor)
 					{
-						ActorsToRecord.Add(FoundActor);
-					}
-				}
-				else
-				{
-					UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *SpecifierStr);
-					if (FoundClass != nullptr)
-					{
-						FindActorsOfClass(FoundClass, InWorld, ActorsToRecord);
+						AActor* FoundActor = FindActorByLabel(Split, InWorld, true);
+						if (FoundActor)
+						{
+							ActorsToRecord.Add(FoundActor);
+						}
 					}
 					else
 					{
-						UE_LOG(LogTakesCore, Warning, TEXT("Couldn't parse class filter, aborting recording."));
+						UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *Split);
+						if (FoundClass != nullptr)
+						{
+							FindActorsOfClass(FoundClass, InWorld, ActorsToRecord);
+						}
+						else
+						{
+							UE_LOG(LogTakesCore, Warning, TEXT("Couldn't parse class filter, aborting recording."));
+						}
 					}
 				}
 			}
@@ -527,8 +535,6 @@ public:
 
 			ULevelSequence* LevelSequence = NewObject<ULevelSequence>(GetTransientPackage(), NAME_None, RF_Transient);
 			LevelSequence->Initialize();
-
-			LevelSequence->GetMovieScene()->SetPlaybackRange(TRange<FFrameNumber>(0, TNumericLimits<int32>::Max() - 1));
 
 			UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
 			if (NewRecorder->Initialize(LevelSequence, Sources, MetaData, Parameters, &ErrorText))

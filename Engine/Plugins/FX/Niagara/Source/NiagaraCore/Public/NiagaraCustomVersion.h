@@ -111,6 +111,9 @@ struct FNiagaraCustomVersion
 		TextureDataInterfaceSizeSerialize, // The texture data interface now streams size info
 
 		SkelMeshInterfaceAPIImprovements, //API to skeletal mesh interface was improved but requires a recompile and some graph fixup.
+
+		ImproveLoadTimeFixupOfOpAddPins, // Only do op add pin fixup on existing nodes which are before this version
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,

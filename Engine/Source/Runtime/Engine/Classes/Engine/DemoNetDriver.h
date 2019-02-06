@@ -29,6 +29,9 @@ DECLARE_LOG_CATEGORY_EXTERN( LogDemo, Log, All );
 DECLARE_MULTICAST_DELEGATE(FOnGotoTimeMCDelegate);
 DECLARE_DELEGATE_OneParam(FOnGotoTimeDelegate, const bool /* bWasSuccessful */);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDemoStartedDelegate, UDemoNetDriver* /* DemoNetDriver */);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDemoFailedToStartDelegate, UDemoNetDriver* /* DemoNetDriver */, EDemoPlayFailure::Type /* FailureType*/);
+
 DECLARE_MULTICAST_DELEGATE(FOnDemoFinishPlaybackDelegate);
 
 class UDemoNetDriver;
@@ -150,7 +153,7 @@ struct FLevelNameAndTime
 
 	void CountBytes(FArchive& Ar) const
 	{
-		Ar << const_cast<FString&>(LevelName);
+		LevelName.CountBytes(Ar);
 	}
 };
 
@@ -279,7 +282,7 @@ struct FNetworkDemoHeader
 		GameSpecificData.CountBytes(Ar);
 		for (const FString& Datum : GameSpecificData)
 		{
-			Ar << const_cast<FString&>(Datum);
+			Datum.CountBytes(Ar);
 		}
 	}
 };
@@ -315,11 +318,12 @@ struct FRollbackNetStartupActorInfo
 		SubObjRepState.CountBytes(Ar);
 		for (const auto& SubObjRepStatePair : SubObjRepState)
 		{
-			Ar << const_cast<FString&>(SubObjRepStatePair.Key);
+			SubObjRepStatePair.Key.CountBytes(Ar);
 			
 			if (FRepState const * const LocalRepState = SubObjRepStatePair.Value.Get())
 			{
-				Ar.CountBytes(sizeof(FRepState), sizeof(FRepState));
+				const SIZE_T SizeOfRepState = sizeof(FRepState);
+				Ar.CountBytes(SizeOfRepState, SizeOfRepState);
 				LocalRepState->CountBytes(Ar);
 			}
 		}
@@ -333,6 +337,8 @@ struct FDemoSavedRepObjectState
 	TWeakObjectPtr<const UObject> Object;
 	TSharedPtr<FRepLayout> RepLayout;
 	FRepStateStaticBuffer PropertyData;
+
+	ENGINE_API ~FDemoSavedRepObjectState();
 
 	void CountBytes(FArchive& Ar) const
 	{
@@ -439,6 +445,12 @@ public:
 
 	void		SaveExternalData( FArchive& Ar );
 	void		LoadExternalData( FArchive& Ar, const float TimeSeconds );
+
+	/** Public delegate for external systems to be notified when a replay begins. UDemoNetDriver is passed as a param */
+	static FOnDemoStartedDelegate		OnDemoStarted;
+
+	/** Public delegate to be notified when a replay failed to start. UDemoNetDriver and FailureType are passed as params */
+	static FOnDemoFailedToStartDelegate OnDemoFailedToStart;
 
 	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
 	FOnGotoTimeMCDelegate OnGotoTimeDelegate;
@@ -599,6 +611,12 @@ public:
 
 	bool IsRecording() const;
 	bool IsPlaying() const;
+
+	/** Total time of demo in seconds */
+	float GetDemoTotalTime() const { return DemoTotalTime; }
+
+	/** Current record/playback position in seconds */
+	float GetDemoCurrentTime() const { return DemoCurrentTime; }
 
 	FString GetDemoURL() const { return DemoURL.ToString(); }
 
@@ -854,7 +872,7 @@ private:
 
 		void CountBytes(FArchive& Ar) const
 		{
-			Ar << const_cast<FString&>(LevelName);
+			LevelName.CountBytes(Ar);
 		}
 	};
 

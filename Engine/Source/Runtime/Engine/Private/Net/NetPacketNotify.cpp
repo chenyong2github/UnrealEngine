@@ -25,28 +25,27 @@ SIZE_T FNetPacketNotify::GetCurrentSequenceHistoryLength() const
 
 FNetPacketNotify::SequenceNumberT FNetPacketNotify::UpdateInAckSeqAck(SequenceNumberT::DifferenceT AckCount, SequenceNumberT AckedSeq)
 {
-	check((SIZE_T)AckCount <= AckRecord.Count());
-
-	if (AckCount > 1)
+	if ((SIZE_T)AckCount <= AckRecord.Count())
 	{
-		AckRecord.PopNoCheck(AckCount - 1);
+		if (AckCount > 1)
+		{
+			AckRecord.PopNoCheck(AckCount - 1);
+		}
+
+		FSentAckData AckData = AckRecord.PeekNoCheck();
+		AckRecord.PopNoCheck();
+
+		// verify that we have a matching sequence number
+		if (AckData.OutSeq == AckedSeq)
+		{
+			return AckData.InAckSeq;
+		}
 	}
 
-	FSentAckData AckData = AckRecord.PeekNoCheck();
-	AckRecord.PopNoCheck();
-
-	// verify that we have a matching sequence number
-	if (AckData.OutSeq == AckedSeq)
-	{
-		return AckData.InAckSeq;
-	}
-	else
-	{
-		UE_LOG_PACKET_NOTIFY_WARNING(TEXT("FNetPacketNotify::UpdateInAckSeqAck - Failed to find matching AckRecord for %u, (Found %u)"), AckedSeq.Get(), AckData.OutSeq.Get());
-
-		// Pessimistic view, should never occur
-		return SequenceNumberT(AckedSeq.Get() - MaxSequenceHistoryLength);
-	}
+	// Pessimistic view, should never occur but we do want to know about it if it would
+	ensureMsgf(false, TEXT("FNetPacketNotify::UpdateInAckSeqAck - Failed to find matching AckRecord for %u"), AckedSeq.Get());
+	
+	return SequenceNumberT(AckedSeq.Get() - MaxSequenceHistoryLength);
 }
 
 void FNetPacketNotify::Init(SequenceNumberT InitialInSeq, SequenceNumberT InitialOutSeq)

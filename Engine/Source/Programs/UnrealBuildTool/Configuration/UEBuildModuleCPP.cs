@@ -490,7 +490,11 @@ namespace UnrealBuildTool
 			if(InputFiles.RCFiles.Count > 0)
 			{
 				CppCompileEnvironment ResourceCompileEnvironment = new CppCompileEnvironment(BinaryCompileEnvironment);
-				WindowsPlatform.SetupResourceCompileEnvironment(ResourceCompileEnvironment, Target);
+				if(Binary != null)
+				{
+					// @todo: This should be in some Windows code somewhere...
+					ResourceCompileEnvironment.Definitions.Add("ORIGINAL_FILE_NAME=\"" + Binary.OutputFilePaths[0].GetFileName() + "\"");
+				}
 				LinkInputFiles.AddRange(ToolChain.CompileRCFiles(ResourceCompileEnvironment, InputFiles.RCFiles, IntermediateDirectory, Makefile.Actions).ObjectFiles);
 			}
 
@@ -501,7 +505,7 @@ namespace UnrealBuildTool
 
 				PrecompiledManifest Manifest = new PrecompiledManifest();
 				Manifest.OutputFiles.AddRange(LinkInputFiles.Select(x => x.Location));
-				Manifest.Write(PrecompiledManifestLocation);
+				Manifest.WriteIfModified(PrecompiledManifestLocation);
 			}
 
 			return LinkInputFiles;

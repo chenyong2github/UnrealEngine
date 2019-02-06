@@ -555,7 +555,8 @@ public class AndroidPlatform : Platform
             BatchLines = new string[] {
 						"setlocal",
                         "set ANDROIDHOME=%ANDROID_HOME%",
-                        "if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
+						"if NOT \"UE_SDKS_ROOT\"==\"\" (call %UE_SDKS_ROOT%\\HostWin64\\Android\\SetupEnvironmentVars.bat)",
+						"if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
 						"set DEVICE=",
                         "if not \"%1\"==\"\" set DEVICE=-s %1",
@@ -1734,6 +1735,7 @@ public class AndroidPlatform : Platform
 
 	public override IProcessResult RunClient(ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 	{
+		IProcessResult Result = null;
 		//make a copy of the device names, we'll be working through them
 		List<string> DeviceNames = new List<string>();
 		//same with the package names
@@ -1844,6 +1846,10 @@ public class AndroidPlatform : Platform
 					File.WriteAllText(LogFilename, LogFileProcess.Output);
 					File.WriteAllText(ServerLogFilename, LogFileProcess.Output);
 
+					if (Result == null)
+					{
+						Result = LogFileProcess;
+					}
 					DeviceNames.RemoveAt(DeviceIndex);
 					PackageNames.RemoveAt(DeviceIndex);
 
@@ -1852,7 +1858,7 @@ public class AndroidPlatform : Platform
 			}
 		}
 
-		return null;
+		return Result;
 	}
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)

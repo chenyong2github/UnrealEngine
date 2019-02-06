@@ -302,6 +302,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category = Controls, meta = (DisplayName = "Use distance-scaled camera speed"), AdvancedDisplay)
 	bool bUseDistanceScaledCameraSpeed;
 
+	/** If enabled, the camera will orbit around the current selection in the viewport */
+	UPROPERTY(EditAnywhere, config, Category = Controls, meta = (DisplayName = "Orbit camera around selection"), AdvancedDisplay)
+	bool bOrbitCameraAroundSelection;
+
 public:
 
 	/** If enabled will use power of 2 grid settings (e.g, 1,2,4,8,16,...,1024) instead of decimal grid sizes */
@@ -439,10 +443,6 @@ public:
 	/** Sets the intensity of the overlay displayed when an object is selected */
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, AdvancedDisplay, meta=(DisplayName = "BSP Surface Highlight Intensity" ,ClampMin = "0", UIMin = "0", UIMax = "1"))
 	float BSPSelectionHighlightIntensity;
-
-	/** Sets the intensity of the overlay displayed when an object is hovered */
-	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, AdvancedDisplay, meta=(DisplayName = "Hover Highlight Intensity" ,ClampMin = "0", UIMin = "0", UIMax = "20"))
-	float HoverHighlightIntensity;
 
 	/** Enables the editor perspective camera to be dropped at the last PlayInViewport cam position */
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=(DisplayName = "Use Camera Location from Play-In-Viewport"))
