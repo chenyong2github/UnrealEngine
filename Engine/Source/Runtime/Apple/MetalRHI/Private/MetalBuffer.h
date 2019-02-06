@@ -43,6 +43,7 @@ public:
     NSUInteger     GetUsedSize() const;
 	NSUInteger	 MaxAvailableSize() const;
 	int64     NumCurrentAllocations() const;
+	bool	 CanAllocateSize(NSUInteger Size) const;
 
     void SetLabel(const ns::String& label);
 	
@@ -113,6 +114,7 @@ public:
     NSUInteger     GetUsedSize() const;
 	NSUInteger	 GetFreeSize() const;
 	int64     NumCurrentAllocations() const;
+	bool	 CanAllocateSize(NSUInteger Size) const;
 
     void SetLabel(const ns::String& label);
 	void FreeRange(ns::Range const& Range);
@@ -122,6 +124,7 @@ public:
 
 private:
 	NSUInteger MinAlign;
+	NSUInteger BlockSize;
 	int64 volatile OutstandingAllocs;
 	int64 volatile UsedSize;
 	mtlpp::Buffer ParentBuffer;

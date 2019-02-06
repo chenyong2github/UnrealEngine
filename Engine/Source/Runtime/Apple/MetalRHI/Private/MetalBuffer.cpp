@@ -423,6 +423,24 @@ NSUInteger FMetalSubBufferHeap::MaxAvailableSize() const
 	}
 }
 
+
+bool FMetalSubBufferHeap::CanAllocateSize(NSUInteger Size) const
+{
+	if (ParentHeap)
+	{
+		NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
+		NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
+		mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
+		
+		NSUInteger Align = ParentHeap.GetDevice().HeapBufferSizeAndAlign(Size, Opt).Align;
+		return Size <= ParentHeap.MaxAvailableSizeWithAlignment(Align);
+	}
+	else
+	{
+		return Size <= MaxAvailableSize();
+	}
+}
+
 FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 {
 	NSUInteger Size = Align(length, MinAlign);
@@ -646,18 +664,24 @@ mtlpp::PurgeableState FMetalSubBufferLinear::SetPurgeableState(mtlpp::PurgeableS
 
 FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSize, mtlpp::ResourceOptions Options)
 : MinAlign(ChunkSize)
+, BlockSize(ChunkSize)
 , OutstandingAllocs(0)
 , UsedSize(0)
 {
-	NSUInteger FullSize = Align(Size, ChunkSize);
+	static bool bSupportsHeaps = GetMetalDeviceContext().SupportsFeature(EMetalFeaturesHeaps);
+	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
+	if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
+	{
+		MinAlign = GetMetalDeviceContext().GetDevice().HeapBufferSizeAndAlign(BlockSize, Options).Align;
+	}
+	
+	NSUInteger FullSize = Align(Size, MinAlign);
 	METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
-	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
 #if PLATFORM_MAC
 	check(Storage != mtlpp::StorageMode::Managed /* Managed memory cannot be safely suballocated! When you overwrite existing data the GPU buffer is immediately disposed of! */);
 #endif
 
-	static bool bSupportsHeaps = GetMetalDeviceContext().SupportsFeature(EMetalFeaturesHeaps);
 	if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
 	{
 		mtlpp::HeapDescriptor Desc;
@@ -805,12 +829,24 @@ NSUInteger FMetalSubBufferMagazine::GetUsedSize() const
 
 NSUInteger FMetalSubBufferMagazine::GetFreeSize() const 
 {
-	return GetSize() - GetUsedSize();
+	if (ParentHeap)
+	{
+		return ParentHeap.MaxAvailableSizeWithAlignment(MinAlign);
+	}
+	else
+	{
+		return GetSize() - GetUsedSize();
+	}
 }
 
 int64 FMetalSubBufferMagazine::NumCurrentAllocations() const
 {
 	return OutstandingAllocs;
+}
+
+bool FMetalSubBufferMagazine::CanAllocateSize(NSUInteger Size) const
+{
+	return GetFreeSize() >= Size;
 }
 
 void FMetalSubBufferMagazine::SetLabel(const ns::String& label)
@@ -827,7 +863,7 @@ void FMetalSubBufferMagazine::SetLabel(const ns::String& label)
 
 FMetalBuffer FMetalSubBufferMagazine::NewBuffer()
 {
-	NSUInteger Size = MinAlign;
+	NSUInteger Size = BlockSize;
 	FMetalBuffer Result;
 
 	if (ParentHeap)
@@ -1491,7 +1527,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					FMetalSubBufferMagazine* Found = nullptr;
 					for (FMetalSubBufferMagazine* Heap : Heaps)
 					{
-						if (Heap->GetFreeSize() >= BlockSize)
+						if (Heap->CanAllocateSize(BlockSize))
 						{
 							Found = Heap;
 							break;
@@ -1518,7 +1554,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 					FMetalSubBufferHeap* Found = nullptr;
 					for (FMetalSubBufferHeap* Heap : Heaps)
 					{
-						if (Heap->MaxAvailableSize() >= BlockSize)
+						if (Heap->CanAllocateSize(BlockSize))
 						{
 							Found = Heap;
 							break;
