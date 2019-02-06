@@ -714,8 +714,14 @@ public:
 class FCachedPassMeshDrawList
 {
 public:
+
+	FCachedPassMeshDrawList() :
+		LowestFreeIndexSearchStart(0)
+	{}
+
 	/** Indices held by FStaticMeshBatch::CachedMeshDrawCommands must be stable */
 	TSparseArray<FMeshDrawCommand> MeshDrawCommands;
+	int32 LowestFreeIndexSearchStart;
 };
 
 typedef TArray<int32, TInlineAllocator<5>> FDrawCommandIndices;

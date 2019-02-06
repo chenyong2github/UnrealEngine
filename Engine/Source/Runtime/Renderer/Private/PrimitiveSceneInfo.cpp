@@ -312,6 +312,9 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 		{
 			FCachedPassMeshDrawList& PassDrawList = Scene->CachedDrawLists[CachedCommand.MeshPass];
 			PassDrawList.MeshDrawCommands.RemoveAt(CachedCommand.CommandIndex);
+
+			// Track the lowest index that might be free for faster AddAtLowestFreeIndex
+			PassDrawList.LowestFreeIndexSearchStart = FMath::Min(PassDrawList.LowestFreeIndexSearchStart, CachedCommand.CommandIndex);
 		}
 	}
 

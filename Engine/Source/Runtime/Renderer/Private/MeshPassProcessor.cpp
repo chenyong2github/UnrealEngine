@@ -1037,7 +1037,8 @@ FMeshDrawCommand& FCachedPassMeshDrawListContext::AddCommand(const FMeshDrawComm
 	{
 		// Only one FMeshDrawCommand supported per FStaticMesh in a pass
 		check(CommandInfo.CommandIndex == -1);
-		CommandInfo.CommandIndex = DrawList.MeshDrawCommands.Add(Initializer);
+		// Allocate at lowest free index so that 'r.DoLazyStaticMeshUpdate' can shrink the TSparseArray more effectively
+		CommandInfo.CommandIndex = DrawList.MeshDrawCommands.AddAtLowestFreeIndex(Initializer, DrawList.LowestFreeIndexSearchStart);
 		return DrawList.MeshDrawCommands[CommandInfo.CommandIndex];
 	}
 }

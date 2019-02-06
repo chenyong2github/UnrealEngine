@@ -2773,9 +2773,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_PreVisibilityFrameSetup_EvictionForLazyStaticMeshUpdate);
 			static int32 RollingRemoveIndex = 0;
+			static int32 RollingPassShrinkIndex = 0;
 			if (RollingRemoveIndex >= Scene->Primitives.Num())
 			{
 				RollingRemoveIndex = 0;
+				RollingPassShrinkIndex++;
+				if (RollingPassShrinkIndex >= ARRAY_COUNT(Scene->CachedDrawLists))
+				{
+					RollingPassShrinkIndex = 0;
+				}
+				// Periodically shrink the SparseArray containing cached mesh draw commands which we are causing to be regenerated with UpdateStaticMeshes
+				Scene->CachedDrawLists[RollingPassShrinkIndex].MeshDrawCommands.Shrink();
 			}
 			const int32 NumRemovedPerFrame = 10;
 			for (int32 NumRemoved = 0; NumRemoved < NumRemovedPerFrame && RollingRemoveIndex < Scene->Primitives.Num(); NumRemoved++, RollingRemoveIndex++)
