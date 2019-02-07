@@ -129,22 +129,21 @@ struct FStreamedAudioPlatformData
 
 };
 
-// Struct used to retrieve the spectral magnitude of an audio signal at a given frequency to BP
 USTRUCT(BlueprintType)
 struct FSoundWaveSpectralData
 {
 	GENERATED_USTRUCT_BODY()
 
 	// The frequency hz of the spectrum value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData|Foo")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float FrequencyHz;
 
 	// The magnitude of the spectrum at this frequency
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData|Bar")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float Magnitude;
 
 	// The normalized magnitude of the spectrum at this frequency
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData|Bar")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float NormalizedMagnitude;
 
 	FSoundWaveSpectralData()
@@ -152,6 +151,42 @@ struct FSoundWaveSpectralData
 		, Magnitude(0.0f)
 		, NormalizedMagnitude(0.0f)
 	{}
+};
+
+USTRUCT(BlueprintType)
+struct FSoundWaveSpectralDataPerSound
+{
+	GENERATED_USTRUCT_BODY()
+
+	// The array of current spectral data for this sound wave
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
+	TArray<FSoundWaveSpectralData> SpectralData;
+
+	// The current playback time of this sound wave
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
+	float PlaybackTime;
+
+	// The sound wave this spectral data is associated with
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
+	USoundWave* SoundWave;
+};
+
+USTRUCT(BlueprintType)
+struct FSoundWaveEnvelopeDataPerSound
+{
+	GENERATED_USTRUCT_BODY()
+
+	// The current envelope of the playing sound
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnvelopeData")
+	float Envelope;
+
+	// The current playback time of this sound wave
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnvelopeData")
+	float PlaybackTime;
+
+	// The sound wave this envelope data is associated with
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EnvelopeData")
+	USoundWave* SoundWave;
 };
 
 // Sort predicate for sorting spectral data by frequency (lowest first)
@@ -301,6 +336,17 @@ class ENGINE_API USoundWave : public USoundBase
 	uint8 bDecompressedFromOgg : 1;
 
 #if WITH_EDITORONLY_DATA
+	/** Specify a sound to use for the baked analysis. Will default to this USoundWave if not sete. */
+	UPROPERTY(EditAnywhere, Category = "Analysis")
+	USoundWave* OverrideSoundToUseForAnalysis;
+
+	/** 
+		Whether or not we should treat the sound wave used for analysis (this or the override) as looping while performing analysis. 
+		A looping sound may include the end of the file for inclusion in analysis for envelope and FFT analysis.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Analysis")
+	uint8 TreatFileAsLoopingForAnalysis:1;
+
 	/** Whether or not to enable cook-time baked FFT analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT")
 	uint8 bEnableBakedFFTAnalysis : 1;
@@ -314,18 +360,26 @@ class ENGINE_API USoundWave : public USoundBase
 	ESoundWaveFFTSize FFTSize;
 
 	/** How many audio frames analyze at a time. */
-	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "512", UIMin = "512"))
+	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "512", UIMin = "512"))
 	int32 FFTAnalysisFrameSize;
+
+	/** Attack time in milliseconds of the spectral envelope follower. */
+	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "0", UIMin = "0"))
+	int32 FFTAnalysisAttackTime;
+
+	/** Release time in milliseconds of the spectral envelope follower. */
+	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis", ClampMin = "0", UIMin = "0"))
+	int32 FFTAnalysisReleaseTime;
 
 	/** How many audio frames to average a new envelope value. Larger values use less memory for audio envelope data but will result in lower envelope accuracy. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "512", UIMin = "512"))
 	int32 EnvelopeFollowerFrameSize;
 
-	/** How quickly the envelope analyzer responds to increasing amplitudes. */
+	/** The attack time in milliseconds. Describes how quickly the envelope analyzer responds to increasing amplitudes. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerAttackTime;
 
-	/** How quickly the envelope analyzer responds to decreasing amplitudes. */
+	/** The release time in milliseconds. Describes how quickly the envelope analyzer responds to decreasing amplitudes. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|Envelope", meta = (EditCondition = "bEnableAmplitudeEnvelopeAnalysis", ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerReleaseTime;
 #endif
@@ -648,6 +702,11 @@ private:
 #endif
 
 public:
+
+#if WITH_EDITOR
+	void LogBakedData();
+#endif
+
 	virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
 
 	/** 
