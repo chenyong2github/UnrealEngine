@@ -332,21 +332,24 @@ struct FRollbackNetStartupActorInfo
 	}
 };
 
-struct FDemoSavedRepObjectState
+struct ENGINE_API FDemoSavedRepObjectState
 {
-	TWeakObjectPtr<const UObject> Object;
-	TSharedPtr<FRepLayout> RepLayout;
-	FRepStateStaticBuffer PropertyData;
+	FDemoSavedRepObjectState(
+		const TWeakObjectPtr<const UObject>& InObject,
+		const TSharedRef<const FRepLayout>& InRepLayout,
+		FRepStateStaticBuffer&& InPropertyData);
 
-	ENGINE_API ~FDemoSavedRepObjectState();
+	~FDemoSavedRepObjectState();
+
+	TWeakObjectPtr<const UObject> Object;
+	TSharedPtr<const FRepLayout> RepLayout;
+	FRepStateStaticBuffer PropertyData;
 
 	void CountBytes(FArchive& Ar) const
 	{
-		if (FRepLayout const * const LocalRepLayout = RepLayout.Get())
-		{
-			Ar.CountBytes(sizeof(FRepLayout), sizeof(FRepLayout));
-			LocalRepLayout->CountBytes(Ar);
-		}
+		// The RepLayout for this object should still be stored by the UDemoNetDriver,
+		// so we don't need to count it here.
+
 		PropertyData.CountBytes(Ar);
 	}
 };
