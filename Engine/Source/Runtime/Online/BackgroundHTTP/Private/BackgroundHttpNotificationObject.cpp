@@ -1,6 +1,11 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 #include "BackgroundHttpNotificationObject.h"
 
+#include "Misc/ConfigCacheIni.h"
+
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+
 #include "LocalNotification.h"
 
 FBackgroundHttpNotificationObject::FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationBody, FText InNotificationAction, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess)
