@@ -111,6 +111,13 @@ FAutoConsoleVariableRef CVarNumPrecacheFrames(
 	TEXT("0: Use default value for precache frames, >0: Number of frames to precache."),
 	ECVF_Default);
 
+static int32 AllowAudioSpatializationCVar = 1;
+FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
+	TEXT("au.AllowAudioSpatialization"),
+	AllowAudioSpatializationCVar,
+	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
 
 /*-----------------------------------------------------------------------------
 FDynamicParameter implementation.
@@ -4154,6 +4161,12 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 	if (ActiveSound->IsOneShot())
 	{
 		OneShotCount++;
+	}
+
+	// If we've disabled audio spatialization, then we need to force this active sound to no longer spatialize.
+	if (AllowAudioSpatializationCVar == 0)
+	{
+		ActiveSound->bAllowSpatialization = false;
 	}
 
 	// Set the active sound to be playing audio so it gets parsed at least once.
