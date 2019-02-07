@@ -10,7 +10,7 @@ TextureInstanceTask.h: Definitions of classes used for texture streaming.
 #include "Streaming/TextureInstanceState.h"
 #include "Async/AsyncWork.h"
 
-namespace TextureInstanceTask {
+namespace RenderAssetInstanceTask {
 
 enum ETaskState
 {
@@ -79,7 +79,7 @@ public:
 	DECLARE_DELEGATE_TwoParams(FOnWorkDone, int32, int32);
 
 	FRefreshVisibility(const FOnWorkDone& InOnWorkDoneDelegate);
-	void Init(FTextureInstanceState* InState, int32 InBeginIndex, int32 InEndIndex);
+	void Init(FRenderAssetInstanceState* InState, int32 InBeginIndex, int32 InEndIndex);
 	void operator()(bool bAsync);
 	void Sync();
 
@@ -88,7 +88,7 @@ private:
 	// Callback to process the results.
 	FOnWorkDone OnWorkDoneDelegate;
 	// The state to update (no re/allocation allowed)
-	TRefCountPtr<FTextureInstanceState> State;
+	TRefCountPtr<FRenderAssetInstanceState> State;
 	// The index of the first bound to update.
 	int32 BeginIndex;
 	// The index of the last bound to update.
@@ -103,7 +103,7 @@ public:
 	DECLARE_DELEGATE_FiveParams(FOnWorkDone, int32, int32, const TArray<int32>&, int32, int32);
 
 	FRefreshFull(const FOnWorkDone& InOnWorkDoneDelegate);
-	void Init(FTextureInstanceState* InState, int32 InBeginIndex, int32 InEndIndex);
+	void Init(FRenderAssetInstanceState* InState, int32 InBeginIndex, int32 InEndIndex);
 	void operator()(bool bAsync);
 	void Sync();
 
@@ -118,7 +118,7 @@ private:
 	// Any bounds that couldn't be updated for some reason (incoherent bounds).
 	TArray<int32> SkippedIndices;
 	// The state to update (no re/allocation allowed)
-	TRefCountPtr<FTextureInstanceState> State;
+	TRefCountPtr<FRenderAssetInstanceState> State;
 	// The index of the first bound to update.
 	int32 BeginIndex;
 	// The index of the last bound to update.
@@ -130,24 +130,24 @@ class FNormalizeLightmapTexelFactor
 {
 public:
 
-	void Init(FTextureInstanceState* InState) { State = InState; }
+	void Init(FRenderAssetInstanceState* InState) { State = InState; }
 	void operator()(bool bAsync);
 	void Sync() { State.SafeRelease(); }
 
 private:
 
 	// The state to update (no re/allocation allowed)
-	TRefCountPtr<FTextureInstanceState> State;
+	TRefCountPtr<FRenderAssetInstanceState> State;
 };
 
 // Create an independent view of a state
 class FCreateViewWithUninitializedBounds : public FNonAbandonableTask
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnWorkDone, FTextureInstanceView*);
+	DECLARE_DELEGATE_OneParam(FOnWorkDone, FRenderAssetInstanceView*);
 
 	FCreateViewWithUninitializedBounds(const FOnWorkDone& InOnWorkDoneDelegate) : OnWorkDoneDelegate(InOnWorkDoneDelegate) {}
-	void Init(const FTextureInstanceState* InState, const FTextureInstanceView* InViewToRelease)
+	void Init(const FRenderAssetInstanceState* InState, const FRenderAssetInstanceView* InViewToRelease)
 	{
 		State = InState;
 		ViewToRelease = InViewToRelease;
@@ -161,11 +161,11 @@ private:
 	// Callback to process the results.
 	FOnWorkDone OnWorkDoneDelegate;
 	// The view created from the state, as a result of the execution.
-	TRefCountPtr<FTextureInstanceView> View;
+	TRefCountPtr<FRenderAssetInstanceView> View;
 	// The state for which to create the view.
-	TRefCountPtr<const FTextureInstanceState> State;
+	TRefCountPtr<const FRenderAssetInstanceState> State;
 	// The previous view of the state. Used to release the state and run the destructor async.
-	TRefCountPtr<const FTextureInstanceView> ViewToRelease;
+	TRefCountPtr<const FRenderAssetInstanceView> ViewToRelease;
 };
 
 typedef TDoWorkTask<FRefreshFull> FRefreshFullTask;
@@ -201,4 +201,4 @@ class FDoWorkAsyncTask : public FAsyncTask<FDoWorkTask>, public FRefCountedObjec
 {
 };
 
-} // namespace TextureInstanceTask
+} // namespace RenderAssetInstanceTask

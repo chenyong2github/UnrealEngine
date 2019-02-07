@@ -342,7 +342,9 @@ public:
 	uint8					ExpectedClientLoginMsgType;	// Used to determine what the next expected control channel msg type should be from a connecting client
 
 	// CD key authentication
+	UE_DEPRECATED(4.23, "CDKeyHash is deprecated.")
 	FString			CDKeyHash;				// Hash of client's CD key
+	UE_DEPRECATED(4.23, "CDKeyResponse is deprecated.")
 	FString			CDKeyResponse;			// Client's response to CD key challenge
 
 	// Internal.

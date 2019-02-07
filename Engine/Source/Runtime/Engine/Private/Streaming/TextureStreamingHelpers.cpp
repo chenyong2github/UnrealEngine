@@ -44,13 +44,13 @@ DECLARE_MEMORY_STAT_POOL(TEXT("     NeverStream"),		STAT_StreamingOverview06_Nev
 DECLARE_MEMORY_STAT_POOL(TEXT("     UI Group"),			STAT_StreamingOverview07_UIGroup, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 DECLARE_MEMORY_STAT_POOL(TEXT("Average Required PoolSize"),	STAT_StreamingOverview08_AverageRequiredPool, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 
-DEFINE_STAT(STAT_TextureStreaming_GameThreadUpdateTime);
+DEFINE_STAT(STAT_RenderAssetStreaming_GameThreadUpdateTime);
 
 CSV_DEFINE_CATEGORY(TextureStreaming, true);
 
 DEFINE_LOG_CATEGORY(LogContentStreaming);
 
-int32 FTextureStreamingSettings::ExtraIOLatency = 0;
+int32 FRenderAssetStreamingSettings::ExtraIOLatency = 0;
 
 ENGINE_API TAutoConsoleVariable<int32> CVarStreamingUseNewMetrics(
 	TEXT("r.Streaming.UseNewMetrics"),
@@ -221,8 +221,8 @@ TAutoConsoleVariable<int32> CVarStreamingMinMipForSplitRequest(
 	TEXT("If non-zero, the minimum hidden mip for which load requests will first load the visible mip"),
 	ECVF_Default);
 
-TAutoConsoleVariable<float> CVarStreamingMinLevelTextureScreenSize(
-	TEXT("r.Streaming.MinLevelTextureScreenSize"),
+TAutoConsoleVariable<float> CVarStreamingMinLevelRenderAssetScreenSize(
+	TEXT("r.Streaming.MinLevelRenderAssetScreenSize"),
 	100,
 	TEXT("If non-zero, levels only get handled if any of their referenced texture could be required of this size. Using conservative metrics on the level data."),
 	ECVF_Default);
@@ -259,7 +259,7 @@ static TAutoConsoleVariable<int32> CVarStreamingStressTestFramesForFullUpdate(
 	TEXT("Num frames to update texture states when doing the stress tests."),
 	ECVF_Cheat);
 
-void FTextureStreamingSettings::Update()
+void FRenderAssetStreamingSettings::Update()
 {
 	MaxEffectiveScreenSize = CVarStreamingScreenSizeEffectiveMax.GetValueOnAnyThread();
 	MaxTempMemoryAllowed = CVarStreamingMaxTempMemoryAllowed.GetValueOnAnyThread();
@@ -274,7 +274,7 @@ void FTextureStreamingSettings::Update()
 	MinMipForSplitRequest = CVarStreamingMinMipForSplitRequest.GetValueOnAnyThread();
 	PerTextureBiasViewBoostThreshold = CVarStreamingPerTextureBiasViewBoostThreshold.GetValueOnAnyThread();
 	MaxHiddenPrimitiveViewBoost = FMath::Max<float>(1.f, CVarStreamingMaxHiddenPrimitiveViewBoost.GetValueOnAnyThread());
-	MinLevelTextureScreenSize = CVarStreamingMinLevelTextureScreenSize.GetValueOnAnyThread();
+	MinLevelRenderAssetScreenSize = CVarStreamingMinLevelRenderAssetScreenSize.GetValueOnAnyThread();
 	MaxTextureUVDensity = CVarStreamingMaxTextureUVDensity.GetValueOnAnyThread();
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
@@ -329,7 +329,7 @@ float GShadowmapStreamingFactor = 0.09f;
 /** For testing, finding useless textures or special demo purposes. If true, textures will never be streamed out (but they can be GC'd). 
 * Caution: this only applies to unlimited texture pools (i.e. not consoles)
 */
-bool GNeverStreamOutTextures = false;
+bool GNeverStreamOutRenderAssets = false;
 
 #if STATS
 extern int64 GUITextureMemory;
@@ -340,11 +340,11 @@ int64 GRequiredPoolSizeCount= 0;
 int64 GAverageRequiredPool = 0;
 #endif
 
-void FTextureStreamingStats::Apply()
+void FRenderAssetStreamingStats::Apply()
 {
 	/** Streaming stats */
 
-	SET_MEMORY_STAT(MCR_TexturePool, TexturePool); 
+	SET_MEMORY_STAT(MCR_TexturePool, RenderAssetPool); 
 	SET_MEMORY_STAT(MCR_StreamingPool, StreamingPool);
 	SET_MEMORY_STAT(MCR_UsedStreamingPool, UsedStreamingPool);
 

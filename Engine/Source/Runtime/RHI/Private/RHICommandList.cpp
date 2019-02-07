@@ -2497,6 +2497,28 @@ void FRHICommandListImmediate::UpdateTextureReference(FTextureReferenceRHIParamR
 	}
 }
 
+void FRHICommandListImmediate::UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+{
+	if (this->Bypass())
+	{
+		FRHICommandUpdateRHIResources Cmd(UpdateInfos, Num);
+		Cmd.Execute(*this);
+	}
+	else
+	{
+		const SIZE_T NumBytes = sizeof(FRHIResourceUpdateInfo) * Num;
+		FRHIResourceUpdateInfo* LocalUpdateInfos = reinterpret_cast<FRHIResourceUpdateInfo*>(this->Alloc(NumBytes, alignof(FRHIResourceUpdateInfo)));
+		FMemory::Memcpy(LocalUpdateInfos, UpdateInfos, NumBytes);
+		new (AllocCommand<FRHICommandUpdateRHIResources>()) FRHICommandUpdateRHIResources(LocalUpdateInfos, Num);
+		RHIThreadFence(true);
+		if (GetUsedMemory() > 256 * 1024)
+		{
+			// we could be loading a level or something, lets get this stuff going
+			ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
+	}
+}
+
 void FDynamicRHI::RHICopySubTextureRegion_RenderThread(class FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SourceTexture, FTexture2DRHIParamRef DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICopySubTextureRegion_RenderThread);

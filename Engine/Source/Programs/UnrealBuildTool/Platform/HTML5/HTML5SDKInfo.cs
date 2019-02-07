@@ -18,8 +18,8 @@ namespace UnrealBuildTool
 		static string NODE_VER = "8.9.1_64bit";
 		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
 
-		static string LLVM_VER = "e1.38.20_64bit";
-		static string SDKVersion = "1.38.20";
+		static string LLVM_VER = "e1.38.24_64bit";
+		static string SDKVersion = "1.38.24";
 
 //		static string LLVM_VER = "incoming";
 //		static string SDKVersion = "incoming";
@@ -98,7 +98,6 @@ namespace UnrealBuildTool
 			string config = Environment.GetEnvironmentVariable("EM_CONFIG"); // This is either a string containing the config directly, or points to a file
 			if (config != null && File.Exists(config))
 			{
-				Log.TraceInformation( "NOTE [ReadEmscriptenConfigFile]: using EM_CONFIG=" + config );
 				config = File.ReadAllText(config);
 			}
 			return config;

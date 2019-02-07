@@ -269,14 +269,17 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 	{
 		// Add one LOD 
 		DestinationStaticMesh->AddSourceModel();
-		
+
 		DestinationLodIndex = DestinationStaticMesh->SourceModels.Num() - 1;
+
+		// The newly added SourceModel won't have a MeshDescription so create it explicitly
+		DestinationStaticMesh->CreateMeshDescription(DestinationLodIndex);
 	}
 
-	const FMeshDescription& SourceRawMesh = *SourceStaticMesh->GetMeshDescription(SourceLodIndex);
-	FMeshDescription& DestRawMesh = *SourceStaticMesh->GetMeshDescription(DestinationLodIndex);
-	DestRawMesh = SourceRawMesh;
-	SourceStaticMesh->CommitMeshDescription(DestinationLodIndex);
+	const FMeshDescription& SourceMeshDescription = *SourceStaticMesh->GetMeshDescription(SourceLodIndex);
+	FMeshDescription& DestinationMeshDescription = *DestinationStaticMesh->GetMeshDescription(DestinationLodIndex);
+	DestinationMeshDescription = SourceMeshDescription;
+	DestinationStaticMesh->CommitMeshDescription(DestinationLodIndex);
 
 	// Assign materials for the destination LOD
 	{
@@ -682,6 +685,12 @@ bool UEditorStaticMeshLibrary::RemoveCollisions(UStaticMesh* StaticMesh)
 	{
 		UE_LOG(LogEditorScripting, Error, TEXT("RemoveCollisions: The StaticMesh is null."));
 		return false;
+	}
+
+	if (StaticMesh->BodySetup == nullptr)
+	{
+		UE_LOG(LogEditorScripting, Log, TEXT("RemoveCollisions: No collision set up. Nothing to do."));
+		return true;
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.

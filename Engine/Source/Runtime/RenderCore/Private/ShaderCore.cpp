@@ -21,6 +21,7 @@
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/ConfigCacheIni.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
@@ -263,6 +264,91 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 #else
 	return AllowDebugViewmodes();
 #endif
+}
+
+#if WITH_EDITOR
+static void GetShaderCompilerPlatformConfigs(const TCHAR* Key, uint64& OutPlatformFlags)
+{
+	for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+	{
+		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
+		FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
+		if (!PlatformName.IsNone())
+		{
+			FConfigFile EngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName.ToString());
+
+			bool bEnabled = false;
+			if (EngineSettings.GetBool(TEXT("ShaderCompiler"), Key, bEnabled))
+			{
+				uint64 Mask = (uint64)1 << ShaderPlatformIndex;
+				if (bEnabled)
+				{
+					OutPlatformFlags |= Mask;
+				}
+				else
+				{
+					OutPlatformFlags &= ~Mask;
+				}
+			}
+		}
+	}
+}
+#endif
+
+static uint64 GetKeepShaderDebugInfoPlatforms()
+{
+	uint64 KeepDebugInfoPlatforms = 0;
+
+	// First check the global cvars
+	static IConsoleVariable* CVarKeepDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
+	if (CVarKeepDebugInfo && CVarKeepDebugInfo->GetInt())
+	{
+		KeepDebugInfoPlatforms = ~(uint64)0;
+	}
+
+#if WITH_EDITOR
+	// Then load the per platform settings.
+	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.KeepDebugInfo"), KeepDebugInfoPlatforms);
+#endif
+
+	return KeepDebugInfoPlatforms;
+}
+
+bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform)
+{
+	static uint64 KeepShaderDebugInfoPlatforms = GetKeepShaderDebugInfoPlatforms();
+	return (KeepShaderDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+}
+
+static uint64 GetExportShaderDebugInfoPlatforms()
+{
+	uint64 ExportDebugInfoPlatforms = 0;
+
+	// First check the global cvars
+
+	// r.DumpShaderDebugInfo should also turn on ExportShaderDebugInfo
+	// The difference is that r.DumpShaderDebugInfo will also output engine debug files such as converted hlsl or SCW helper files.
+	// Where as r.Shader.ExportDebugInfo is purely to export the graphics debugging tool's debug info files.
+	static IConsoleVariable* CVarExportDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.ExportDebugInfo"));
+	static IConsoleVariable* CVarDumpDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DumpShaderDebugInfo"));
+	if ((CVarExportDebugInfo && CVarExportDebugInfo->GetInt()) || (CVarDumpDebugInfo && CVarDumpDebugInfo->GetInt()))
+	{
+		ExportDebugInfoPlatforms = ~(uint64)0;
+	}
+
+#if WITH_EDITOR
+	// Then load the per platform settings.
+	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.ExportDebugInfo"), ExportDebugInfoPlatforms);
+#endif
+
+	return ExportDebugInfoPlatforms;
+}
+
+bool ShouldExportShaderDebugInfo(EShaderPlatform Platform)
+{
+	static uint64 GExportDebugInfoPlatforms = GetExportShaderDebugInfoPlatforms();
+	return (GExportDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
 }
 
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const

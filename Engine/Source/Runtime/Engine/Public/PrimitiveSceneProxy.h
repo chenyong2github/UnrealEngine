@@ -726,6 +726,8 @@ public:
 	 */
 	ENGINE_API virtual struct FLODMask GetCustomWholeSceneShadowLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, const struct FLODMask& InVisibilePrimitiveLODMask, float InShadowMapTextureResolution, float InShadowMapCascadeSize, int8 InShadowCascadeId, bool InHasSelfShadow) const;
 
+	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const { return 0; }
+
 protected:
 
 	/** Allow subclasses to override the primitive name. Used primarily by BSP. */

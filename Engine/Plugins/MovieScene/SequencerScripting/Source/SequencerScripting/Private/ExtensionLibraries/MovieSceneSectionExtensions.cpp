@@ -75,18 +75,47 @@ float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Secti
 	return -1.f;
 }
 
-void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, const FSequencerScriptingRange& InRange)
+void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 StartFrame, int32 EndFrame)
 {
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
-	TRange<FFrameNumber> NewRange = InRange.ToNative(MovieScene->GetTickResolution());
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-	if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
-	{
-		Section->SetRange(NewRange);
+		TRange<FFrameNumber> NewRange;
+		NewRange.SetLowerBound(TRangeBound<FFrameNumber>::Inclusive(ConvertFrameTime(StartFrame, DisplayRate, MovieScene->GetTickResolution()).FrameNumber));
+		NewRange.SetUpperBound(TRangeBound<FFrameNumber>::Inclusive(ConvertFrameTime(EndFrame, DisplayRate, MovieScene->GetTickResolution()).FrameNumber));
+
+		if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
+		{
+			Section->SetRange(NewRange);
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		}
 	}
-	else
+}
+
+void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, float StartTime, float EndTime)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+		TRange<FFrameNumber> NewRange;
+		NewRange.SetLowerBound((StartTime * MovieScene->GetTickResolution()).RoundToFrame());
+		NewRange.SetUpperBound((EndTime * MovieScene->GetTickResolution()).RoundToFrame());
+
+		if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
+		{
+			Section->SetRange(NewRange);
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		}
 	}
 }
 
@@ -110,6 +139,28 @@ void UMovieSceneSectionExtensions::SetStartFrameSeconds(UMovieSceneSection* Sect
 	}
 }
 
+void UMovieSceneSectionExtensions::SetStartFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		if (bIsBounded)
+		{
+			int32 NewFrameNumber = 0;
+			if (!MovieScene->GetPlaybackRange().GetLowerBound().IsOpen())
+			{
+				NewFrameNumber = MovieScene->GetPlaybackRange().GetLowerBoundValue().Value;
+			}
+
+			Section->SectionRange.Value.SetLowerBound(TRangeBound<FFrameNumber>(FFrameNumber(NewFrameNumber)));
+		}
+		else
+		{
+			Section->SectionRange.Value.SetLowerBound(TRangeBound<FFrameNumber>());
+		}
+	}
+}
+
 void UMovieSceneSectionExtensions::SetEndFrame(UMovieSceneSection* Section, int32 EndFrame)
 {
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
@@ -127,6 +178,28 @@ void UMovieSceneSectionExtensions::SetEndFrameSeconds(UMovieSceneSection* Sectio
 	if (MovieScene)
 	{
 		Section->SetEndFrame((EndTime * MovieScene->GetTickResolution()).RoundToFrame());
+	}
+}
+
+void UMovieSceneSectionExtensions::SetEndFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		if (bIsBounded)
+		{
+			int32 NewFrameNumber = 0;
+			if (!MovieScene->GetPlaybackRange().GetUpperBound().IsOpen())
+			{
+				NewFrameNumber = MovieScene->GetPlaybackRange().GetUpperBoundValue().Value;
+			}
+
+			Section->SectionRange.Value.SetUpperBound(TRangeBound<FFrameNumber>(FFrameNumber(NewFrameNumber)));
+		}
+		else
+		{
+			Section->SectionRange.Value.SetUpperBound(TRangeBound<FFrameNumber>());
+		}
 	}
 }
 

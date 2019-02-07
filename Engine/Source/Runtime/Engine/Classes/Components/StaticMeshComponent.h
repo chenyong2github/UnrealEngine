@@ -42,18 +42,16 @@ struct FPaintedVertex
 	FVector Position;
 
 	UPROPERTY()
-	FVector4 Normal;
-
-	UPROPERTY()
 	FColor Color;
 
+	UPROPERTY()
+	FVector4 Normal;
 
 	FPaintedVertex()
 		: Position(ForceInit)
 		, Color(ForceInit)
 	{
 	}
-
 
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FPaintedVertex& PaintedVertex)
 	{
@@ -401,7 +399,6 @@ public:
 	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;	
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
-	virtual void NotifyObjectReferenceEliminated() const override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 	virtual void PreEditUndo() override;
@@ -472,7 +469,7 @@ public:
 	/** Build the data to compute accuracte StreaminTexture data. */
 	virtual bool BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources) override;
 	/** Get the StreaminTexture data. */
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const override;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 
 	virtual class UBodySetup* GetBodySetup() override;
 	virtual bool CanEditSimulatePhysics() override;

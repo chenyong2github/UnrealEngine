@@ -663,7 +663,7 @@ struct FVisForPrimParams
 //since only one of the task threads will ever reference it.  However, any modifications to shared state like the ViewState must be buffered
 //to be recombined later.
 template<bool bSingleThreaded>
-static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params)
+static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGlobalDynamicVertexBuffer* DynamicVertexBufferIfSingleThreaded)
 {	
 	int32 NumOccludedPrimitives = 0;
 	
@@ -1043,6 +1043,8 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params)
 
 								if (bSingleThreaded)
 								{
+									checkSlow(DynamicVertexBufferIfSingleThreaded);
+
 									if (GRHIMaximumReccommendedOustandingOcclusionQueries < MAX_int32 && !bGroupedQuery)
 									{
 										QueriesToAdd->Emplace(FPrimitiveOcclusionHistoryKey(PrimitiveId, SubQuery), BoundOrigin, BoundExtent, PrimitiveOcclusionHistory->LastQuerySubmitFrame());
@@ -1051,8 +1053,8 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params)
 									{
 										PrimitiveOcclusionHistory->SetCurrentQuery(OcclusionFrameCounter,
 											bGroupedQuery ?
-											View.GroupedOcclusionQueries.BatchPrimitive(BoundOrigin, BoundExtent) :
-											View.IndividualOcclusionQueries.BatchPrimitive(BoundOrigin, BoundExtent),
+											View.GroupedOcclusionQueries.BatchPrimitive(BoundOrigin, BoundExtent, *DynamicVertexBufferIfSingleThreaded) :
+											View.IndividualOcclusionQueries.BatchPrimitive(BoundOrigin, BoundExtent, *DynamicVertexBufferIfSingleThreaded),
 											NumBufferedFrames,
 											bGroupedQuery,
 											Params.bNeedsScanOnRead
@@ -1171,11 +1173,11 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FetchVisibilityForPrimitives_Range<false>(Params);
+		FetchVisibilityForPrimitives_Range<false>(Params, nullptr);
 	}
 };
 
-static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, const bool bSubmitQueries, const bool bHZBOcclusion)
+static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, const bool bSubmitQueries, const bool bHZBOcclusion, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FetchVisibilityForPrimitives);
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
@@ -1341,8 +1343,8 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 				{
 					RunQueriesIter->PrimitiveOcclusionHistory->SetCurrentQuery(OcclusionFrameCounter,
 						RunQueriesIter->bGroupedQuery ?
-						View.GroupedOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent) :
-						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent),
+						View.GroupedOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent, DynamicVertexBuffer) :
+						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent, DynamicVertexBuffer),
 						NumBufferedFrames,
 						RunQueriesIter->bGroupedQuery,
 						Params[i].bNeedsScanOnRead
@@ -1397,7 +1399,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 			&SubIsOccluded
 			);
 
-		FetchVisibilityForPrimitives_Range<true>(Params);
+		FetchVisibilityForPrimitives_Range<true>(Params, &DynamicVertexBuffer);
 
 		int32 IndQueries = PendingIndividualQueriesWhenOptimizing.Num();
 		if (IndQueries)
@@ -1427,7 +1429,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 					FPrimitiveOcclusionHistory* PrimitiveOcclusionHistory = ViewPrimitiveOcclusionHistory.Find(RunQueriesIter->PrimitiveOcclusionHistoryKey);
 
 					PrimitiveOcclusionHistory->SetCurrentQuery(OcclusionFrameCounter,
-						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent),
+						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent, DynamicVertexBuffer),
 						NumBufferedFrames,
 						false,
 						Params.bNeedsScanOnRead
@@ -1455,7 +1457,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 					FOcclusionBounds* RunQueriesIter = PendingIndividualQueriesWhenOptimizingSorter[Index];
 					FPrimitiveOcclusionHistory* PrimitiveOcclusionHistory = ViewPrimitiveOcclusionHistory.Find(RunQueriesIter->PrimitiveOcclusionHistoryKey);
 					PrimitiveOcclusionHistory->SetCurrentQuery(OcclusionFrameCounter,
-						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent),
+						View.IndividualOcclusionQueries.BatchPrimitive(RunQueriesIter->BoundsOrigin, RunQueriesIter->BoundsExtent, DynamicVertexBuffer),
 						NumBufferedFrames,
 						false,
 						Params.bNeedsScanOnRead
@@ -1483,7 +1485,7 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 /**
  * Cull occluded primitives in the view.
  */
-static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View)
+static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_OcclusionCull);	
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_OcclusionReadback));
@@ -1563,7 +1565,7 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 								  (!FrameParity && View.StereoPass == eSSP_RIGHT_EYE);
 			}
 
-			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion);
+			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
 
 			if( bHZBOcclusion )
 			{
@@ -1749,13 +1751,14 @@ struct FRelevancePacket
 	int32 NumVisibleDynamicEditorPrimitives;
 	FMeshPassMask VisibleDynamicMeshesPassMask;
 	FTranslucenyPrimCount TranslucentPrimCount;
-	FRelevancePrimSet<FMeshDecalPrimSet::KeyType> MeshDecalPrimSet;
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> LazyUpdatePrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> RecachedReflectionCapturePrimitives;
-	FRelevancePrimSet<FPrimitiveSceneProxy*> VolumetricPrimSet;
+
+	TArray<FMeshDecalBatch> MeshDecalBatches;
+	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -1889,11 +1892,6 @@ struct FRelevancePacket
 				continue;
 			}
 
-			if (ViewRelevance.bDecal && ViewRelevance.bRenderInMainPass)
-			{
-				MeshDecalPrimSet.AddPrim(FMeshDecalPrimSet::GenerateKey(PrimitiveSceneInfo, PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority()));
-			}
-
 			if (bEditorRelevance)
 			{
 				++NumVisibleDynamicEditorPrimitives;
@@ -1944,11 +1942,6 @@ struct FRelevancePacket
 				{
 					bHasDistortionPrimitives = true;
 				}
-			}
-
-			if (ViewRelevance.bHasVolumeMaterialDomain)
-			{
-				VolumetricPrimSet.AddPrim(PrimitiveSceneInfo->Proxy);
 			}
 
 			CombinedShadingModelMask |= ViewRelevance.ShadingModelMaskRelevance;
@@ -2032,16 +2025,19 @@ struct FRelevancePacket
 			const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
 			const bool bIsPrimitiveDistanceCullFading = View.PrimitiveFadeUniformBufferMap[PrimitiveIndex];
 
+			const int8 CurFirstLODIdx = PrimitiveSceneInfo->Proxy->GetCurrentFirstLODIdx_RenderThread();
+			check(CurFirstLODIdx >= 0);
 			float MeshScreenSizeSquared = 0;
 			FLODMask LODToRender;
 
 			if (PrimitiveSceneInfo->bIsUsingCustomLODRules)
 			{
 				LODToRender = PrimitiveSceneInfo->Proxy->GetCustomLOD(View, View.LODDistanceFactor, ViewData.ForcedLODLevel, MeshScreenSizeSquared);
+				LODToRender.ClampToFirstLOD(CurFirstLODIdx);
 			}
 			else
 			{
-				LODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, View, Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius, ViewData.ForcedLODLevel, MeshScreenSizeSquared, ViewData.LODScale);
+				LODToRender = ComputeLODForMeshes(PrimitiveSceneInfo->StaticMeshRelevances, View, Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius, ViewData.ForcedLODLevel, MeshScreenSizeSquared, CurFirstLODIdx, ViewData.LODScale);
 			}
 
 			PrimitivesLODMask.AddPrim(FRelevancePacket::FPrimitiveLODMask(PrimitiveIndex, LODToRender));
@@ -2229,6 +2225,24 @@ struct FRelevancePacket
 						DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::EditorSelection);
 					}
 #endif
+
+					if (ViewRelevance.bHasVolumeMaterialDomain)
+					{
+						VolumetricMeshBatches.AddUninitialized(1);
+						FVolumetricMeshBatch& BatchAndProxy = VolumetricMeshBatches.Last();
+						BatchAndProxy.Mesh = &StaticMesh;
+						BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+					}
+
+					if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
+					{
+						MeshDecalBatches.AddUninitialized(1);
+						FMeshDecalBatch& BatchAndProxy = MeshDecalBatches.Last();
+						BatchAndProxy.Mesh = &StaticMesh;
+						BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+						BatchAndProxy.SortKey = PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority();
+					}
+
 					if (MarkMask)
 					{
 						MarkMasks[StaticMeshRelevance.Id] = MarkMask;
@@ -2265,11 +2279,12 @@ struct FRelevancePacket
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
 		WriteView.TranslucentPrimCount.Append(TranslucentPrimCount);
-		MeshDecalPrimSet.AppendTo(WriteView.MeshDecalPrimSet.Prims);
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
-		VolumetricPrimSet.AppendTo(WriteView.VolumetricPrimSet);
+
+		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
+		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
 
 		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
 		{
@@ -2602,12 +2617,32 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		View.NumVisibleDynamicMeshElements[EMeshPass::EditorSelection] += NumElements;
 	}
 #endif
+
+	if (ViewRelevance.bHasVolumeMaterialDomain)
+	{
+		View.VolumetricMeshBatches.AddUninitialized(1);
+		FVolumetricMeshBatch& BatchAndProxy = View.VolumetricMeshBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+	}
+
+	if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
+	{
+		View.MeshDecalBatches.AddUninitialized(1);
+		FMeshDecalBatch& BatchAndProxy = View.MeshDecalBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
+	}
 }
 
 void FSceneRenderer::GatherDynamicMeshElements(
 	TArray<FViewInfo>& InViews, 
 	const FScene* InScene, 
 	const FSceneViewFamily& InViewFamily, 
+	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
+	FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
+	FGlobalDynamicReadBuffer& DynamicReadBuffer,
 	const FPrimitiveViewMasks& HasDynamicMeshElementsMasks, 
 	const FPrimitiveViewMasks& HasDynamicEditorMeshElementsMasks, 
 	const FPrimitiveViewMasks& HasViewCustomDataMasks,
@@ -2629,7 +2664,10 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				&InViews[ViewIndex].DynamicMeshElements,
 				&InViews[ViewIndex].SimpleElementCollector,
 				&InViews[ViewIndex].DynamicPrimitiveShaderData, 
-				InViewFamily.GetFeatureLevel());
+				InViewFamily.GetFeatureLevel(),
+				&DynamicIndexBuffer,
+				&DynamicVertexBuffer,
+				&DynamicReadBuffer);
 		}
 
 		const bool bIsInstancedStereo = (ViewCount > 0) ? (InViews[0].IsInstancedStereoPass() || InViews[0].bIsMobileMultiViewEnabled) : false;
@@ -2650,32 +2688,26 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				SetDynamicMeshElementViewCustomData(InViews, HasViewCustomDataMasks, PrimitiveSceneInfo);
 
 				PrimitiveSceneInfo->Proxy->GetDynamicMeshElements(InViewFamily.Views, InViewFamily, ViewMaskFinal, Collector);
-			}
 
-			// to support GetDynamicMeshElementRange()
-			for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
-			{
-				InViews[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex] = Collector.GetMeshBatchCount(ViewIndex);
-			}
-
-			// Compute DynamicMeshElementsMeshPassRelevance for this primitive.
-			for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
-			{
-				FViewInfo& View = InViews[ViewIndex];
-				const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
-				const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
-
-				View.DynamicMeshElementsPassRelevance.SetNum(View.DynamicMeshElements.Num());
-
-				const int32 NumPrimitiveElements = Collector.GetMeshBatchCount(ViewIndex);
-				const int32 PrimitiveFirstElement = View.DynamicMeshElements.Num() - NumPrimitiveElements;
-
-				for (int32 ElementIndex = PrimitiveFirstElement; ElementIndex < NumPrimitiveElements; ++ElementIndex)
+				// Compute DynamicMeshElementsMeshPassRelevance for this primitive.
+				for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
 				{
-					const FMeshBatchAndRelevance& MeshBatch = View.DynamicMeshElements[ElementIndex];
-					FMeshPassMask& PassRelevance = View.DynamicMeshElementsPassRelevance[ElementIndex];
+					FViewInfo& View = InViews[ViewIndex];
+					const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
+					const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
 
-					ComputeDynamicMeshRelevance(ShadingPath, bAddLightmapDensityCommands, ViewRelevance, MeshBatch, View, PassRelevance);
+					View.DynamicMeshElementsPassRelevance.SetNum(View.DynamicMeshElements.Num());
+
+					const int32 NumPrimitiveElements = Collector.GetMeshBatchCount(ViewIndex);
+					const int32 PrimitiveFirstElement = View.DynamicMeshElements.Num() - NumPrimitiveElements;
+
+					for (int32 ElementIndex = PrimitiveFirstElement; ElementIndex < NumPrimitiveElements; ++ElementIndex)
+					{
+						const FMeshBatchAndRelevance& MeshBatch = View.DynamicMeshElements[ElementIndex];
+						FMeshPassMask& PassRelevance = View.DynamicMeshElementsPassRelevance[ElementIndex];
+
+						ComputeDynamicMeshRelevance(ShadingPath, bAddLightmapDensityCommands, ViewRelevance, MeshBatch, View, PassRelevance);
+					}
 				}
 			}
 		}
@@ -2692,7 +2724,10 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				&InViews[ViewIndex].DynamicEditorMeshElements, 
 				&InViews[ViewIndex].EditorSimpleElementCollector, 
 				&InViews[ViewIndex].DynamicPrimitiveShaderData, 
-				InViewFamily.GetFeatureLevel());
+				InViewFamily.GetFeatureLevel(),
+				&DynamicIndexBuffer,
+				&DynamicVertexBuffer,
+				&DynamicReadBuffer);
 		}
 
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < NumPrimitives; ++PrimitiveIndex)
@@ -3261,7 +3296,8 @@ void UpdateReflectionSceneData(FScene* Scene)
 	}
 }
 
-void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView)
+void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
+	FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime);
 	SCOPED_NAMED_EVENT(FSceneRenderer_ComputeViewVisibility, FColor::Magenta);
@@ -3307,7 +3343,6 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		// Allocate the view's visibility maps.
 		View.PrimitiveVisibilityMap.Init(false,Scene->Primitives.Num());
 		// we don't initialized as we overwrite the whole array (in GatherDynamicMeshElements)
-		View.DynamicMeshEndIndices.SetNumUninitialized(Scene->Primitives.Num());
 		View.PrimitiveDefinitelyUnoccludedMap.Init(false,Scene->Primitives.Num());
 		View.PotentiallyFadingPrimitiveMap.Init(false,Scene->Primitives.Num());
 		View.PrimitiveFadeUniformBuffers.AddZeroed(Scene->Primitives.Num());
@@ -3507,7 +3542,7 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		// Occlusion cull for all primitives in the view frustum, but not in wireframe.
 		if (!View.Family->EngineShowFlags.Wireframe)
 		{
-			int32 NumOccludedPrimitivesInView = OcclusionCull(RHICmdList, Scene, View);
+			int32 NumOccludedPrimitivesInView = OcclusionCull(RHICmdList, Scene, View, DynamicVertexBuffer);
 			STAT(NumOccludedPrimitives += NumOccludedPrimitivesInView);
 		}
 
@@ -3593,7 +3628,8 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 	}
 
 	// Gather FMeshBatches from scene proxies
-	GatherDynamicMeshElements(Views, Scene, ViewFamily, HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, HasViewCustomDataMasks, MeshCollector);
+	GatherDynamicMeshElements(Views, Scene, ViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
+		HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, HasViewCustomDataMasks, MeshCollector);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -3622,7 +3658,7 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 		{		
 			FViewInfo& View = Views[ViewIndex];
 
-			View.MeshDecalPrimSet.SortPrimitives();
+			View.MeshDecalBatches.Sort();
 
 			if (View.State)
 			{
@@ -3868,7 +3904,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
 
-	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView);
+	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews);
 
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
@@ -3991,7 +4027,7 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRHICommandLis
 		&& !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);
+		InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows);
 
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}

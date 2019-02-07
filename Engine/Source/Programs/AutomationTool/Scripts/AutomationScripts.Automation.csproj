@@ -62,6 +62,7 @@
     </Compile>
     <Compile Include="AnalyzeThirdPartyLibs.Automation.cs" />
     <Compile Include="ArchiveCommand.Automation.cs" />
+    <Compile Include="ParseMsvcTimingInfo.cs" />
     <Compile Include="StashTarget.cs" />
     <Compile Include="BlameKeyword.Automation.cs" />
     <Compile Include="BuildCommonTools.Automation.cs" />

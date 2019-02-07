@@ -28,9 +28,6 @@ class UActorChannel;
 class UNetConnection;
 class UPackageMapClient;
 
-// Properties will be copied in here so memory needs aligned to largest type
-typedef TArray<uint8, TAlignedHeapAllocator<16>> FRepStateStaticBuffer;
-
 enum class EDiffPropertiesFlags : uint32
 {
 	None = 0,
@@ -48,6 +45,9 @@ enum class EReceivePropertiesFlags : uint32
 };
 
 ENUM_CLASS_FLAGS(EReceivePropertiesFlags);
+
+/** Builds a Bitfield that flags whether or not given replication conditions are met. */
+extern TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFlags);
 
 /** Stores meta data about a given Replicated property. */
 class FRepChangedParent
@@ -292,25 +292,76 @@ public:
 };
 
 /**
+ * Holds deep copies of replicated property data for objects.
+ * The term "shadow data" is often used in code to refer to memory stored in one of these buffers.
+ * Note, dynamic memory allocated by the properties (such as Arrays or Maps) will still be dynamically
+ * allocated elsewhere, and the buffer will hold pointers to the dynamic memory (or containers, etc.)
+ *
+ * When necessary, use FRepShadowDataBuffer or FConstRepShadowDataBuffer to wrap this object's data.
+ * Never use FRepObjectDataBuffer or FConstRepObjectDataBuffer as the shadow memory layout is not guaranteed
+ * to match an object's layout.
+ */
+struct FRepStateStaticBuffer : public FNoncopyable
+{
+private:
+
+	friend class FRepLayout;
+
+	FRepStateStaticBuffer(const TSharedRef<const FRepLayout>& InRepLayout) :
+		RepLayout(InRepLayout)
+	{
+	}
+
+public:
+
+	FRepStateStaticBuffer(FRepStateStaticBuffer&& InStaticBuffer) :
+		Buffer(MoveTemp(InStaticBuffer.Buffer)),
+		RepLayout(MoveTemp(InStaticBuffer.RepLayout))
+	{
+	}
+
+	~FRepStateStaticBuffer();
+
+	uint8* GetData()
+	{
+		return Buffer.GetData();
+	}
+
+	const uint8* GetData() const
+	{
+		return Buffer.GetData();
+	}
+
+	int32 Num() const
+	{
+		return Buffer.Num();
+	}
+
+	void CountBytes(FArchive& Ar) const;
+
+private:
+
+	// Properties will be copied in here so memory needs aligned to largest type
+	TArray<uint8, TAlignedHeapAllocator<16>> Buffer;
+	TSharedRef<const FRepLayout> RepLayout;
+};
+
+/**
  * Stores changelist history (that are used to know what properties have changed) for objects.
  *
  * Only a fixed number of history items are kept. Once that limit is reached, old entries are
  * merged into a single monolithic changelist (this happens incrementally each time a new entry
  * is added).
  */
-class FRepChangelistState
+class FRepChangelistState : public FNoncopyable
 {
+private:
+
+	friend class FReplicationChangelistMgr;
+
+	FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+
 public:
-
-	FRepChangelistState() :
-		HistoryStart(0),
-		HistoryEnd(0),
-		CompareIndex(0)
-	{}
-
-	~FRepChangelistState();
-
-	TSharedPtr<FRepLayout> RepLayout;
 
 	/** The maximum number of individual changelists allowed.*/
 	static const int32 MAX_CHANGE_HISTORY = 64;
@@ -333,11 +384,37 @@ public:
 	/** Latest state of all shared serialization data. */
 	FRepSerializationSharedInfo SharedSerialization;
 
-	void CountBytes(FArchive& Ar) const
+	void CountBytes(FArchive& Ar) const;
+};
+
+/**
+ *	FReplicationChangelistMgr manages a list of change lists for a particular replicated object that have occurred since the object started replicating
+ *	Once the history is completely full, the very first changelist will then be merged with the next one (freeing a slot)
+ *		This way we always have the entire history for join in progress players
+ *	This information is then used by all connections, to share the compare work needed to determine what to send each connection
+ *	Connections will send any changelist that is new since the last time the connection checked
+ */
+class FReplicationChangelistMgr : public FNoncopyable
+{
+private:
+
+	friend class FRepLayout;
+
+	FReplicationChangelistMgr(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+
+public:
+
+	FRepChangelistState* GetRepChangelistState() const
 	{
-		StaticBuffer.CountBytes(Ar);
-		SharedSerialization.CountBytes(Ar);
+		return const_cast<FRepChangelistState*>(&RepChangelistState);
 	}
+
+	void CountBytes(FArchive& Ar) const;
+
+private:
+
+	uint32 LastReplicationFrame;
+	FRepChangelistState RepChangelistState;
 };
 
 class FGuidReferences;
@@ -421,53 +498,58 @@ public:
 	int32 CmdIndex;
 };
 
-/** Replication State that is unique Per Object Per Net Connection. */
-class FRepState
+/** Replication State needed to track received properties. */
+class FReceivingRepState : public FNoncopyable
 {
+private:
+
+	friend class FRepLayout;
+
+	FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer);
+
 public:
 
-	FRepState() : 
-		HistoryStart(0), 
+	void CountBytes(FArchive& Ar) const;
+
+	/** Latest state of all property data. Only valid on clients. */
+	FRepStateStaticBuffer StaticBuffer;
+
+	/** Map of Absolute Property Offset to GUID Reference for properties. */
+	FGuidReferencesMap GuidReferencesMap;
+
+	/** List of properties that have RepNotifies that we will need to call on Clients. */
+	TArray<UProperty*> RepNotifies;
+};
+
+/** Replication State that is only needed when sending properties. */
+class FSendingRepState : public FNoncopyable
+{
+private:
+
+	friend class FRepLayout;
+
+	FSendingRepState() :
+		bOpenAckedCalled(false),
+		HistoryStart(0),
 		HistoryEnd(0),
 		NumNaks(0),
-		OpenAckedCalled(false),
-		AwakeFromDormancy(false),
 		LastChangelistIndex(0),
 		LastCompareIndex(0),
 		InactiveChangelist({0})
 	{}
 
-	~FRepState();
+public:
 
 	void CountBytes(FArchive& Ar) const;
-	
-	/**
-	 * Builds a new ConditionMap given the input RepFlags.
-	 * This can be used to determine whether or not a given property should be
-	 * considered enabled / disabled based on ELifetimeCondition.
-	 *
-	 * TODO: This doesn't have to be part of FRepState.
-	 */
-	static TStaticBitArray<COND_Max> BuildConditionMap(const FReplicationFlags& InFlags);
 
-	/** Latest state of all property data. Used on Clients, or on Servers if Shadow State is disabled. */
-	FRepStateStaticBuffer StaticBuffer;
+	/** Whether or not FRepLayout::OpenAcked has been called with this FRepState. */
+	bool bOpenAckedCalled;
 
-	FGuidReferencesMap GuidReferencesMap;
+	// Cache off the RemoteRole and Role per connection to avoid issues with
+	// FScopedRoleDowngrade. See UE-66313 (among others).
 
-	TSharedPtr<FRepLayout> RepLayout;
-
-	/** Properties that have RepNotifies that we will need to call on Clients (and ListenServers). */
-	TArray<UProperty *> RepNotifies;
-
-	// This will be invalid on client connections / client net drivers.
-	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker;
-
-	/** The maximum number of individual changelists allowed.*/
-	static const int32 MAX_CHANGE_HISTORY = 32;
-
-	/** Circular buffer of changelists. */
-	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];
+	ENetRole SavedRemoteRole = ROLE_MAX;
+	ENetRole SavedRole = ROLE_MAX;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
 	int32 HistoryStart;
@@ -477,20 +559,6 @@ public:
 
 	/** Number of Changelist history entries that have outstanding Naks. */
 	int32 NumNaks;
-
-	/** List of changelists that were generated before the channel was fully opened.*/
-	TArray<FRepChangedHistory> PreOpenAckHistory;
-
-	/** Whether or not FRepLayout::OpenAcked has been called with this FRepState. */
-	bool OpenAckedCalled;
-
-	/** This property is no longer used. */
-	bool AwakeFromDormancy;
-
-	FReplicationFlags RepFlags;
-
-	/** The unique list of properties that have changed since the channel was first opened */
-	TArray<uint16> LifetimeChangelist;
 
 	/**
 	 * The last change list history item we replicated from FRepChangelistState.
@@ -509,18 +577,27 @@ public:
 	 */
 	int32 LastCompareIndex;
 
+	FReplicationFlags RepFlags;
+
+	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker;
+
+	/** The maximum number of individual changelists allowed.*/
+	static constexpr int32 MAX_CHANGE_HISTORY = 32;
+
+	/** Circular buffer of changelists. */
+	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];
+
+	/** List of changelists that were generated before the channel was fully opened.*/
+	TArray<FRepChangedHistory> PreOpenAckHistory;
+
+	/** The unique list of properties that have changed since the channel was first opened */
+	TArray<uint16> LifetimeChangelist;
+
 	/**
 	 * A map tracking which replication conditions are currently active.
 	 * @see ELifetimeCondition.
 	 */
-	UE_DEPRECATED(4.22, "Please use InactiveParents to determine whether or not a given ParentCommand is active.")
 	TStaticBitArray<COND_Max> ConditionMap;
-
-	// Cache off the RemoteRole and Role per connection to avoid issues with
-	// FScopedRoleDowngrade. See UE-66313 (among others).
-
-	ENetRole SavedRemoteRole = ROLE_MAX;
-	ENetRole SavedRole = ROLE_MAX;
 
 	/**
 	 * Properties which are inactive through conditions have their changes stored here, so they can be 
@@ -533,6 +610,58 @@ public:
 	/** Cached set of inactive parent commands. */
 	TBitArray<> InactiveParents;
 };
+
+
+/** Replication State that is unique Per Object Per Net Connection. */
+class FRepState : public FNoncopyable
+{
+private:
+
+	friend FRepLayout;
+
+	FRepState() {}
+
+	/** May be null on connections that don't receive properties. */
+	TUniquePtr<FReceivingRepState> ReceivingRepState;
+
+	/** May be null on connections that don't send properties. */
+	TUniquePtr<FSendingRepState> SendingRepState;
+
+public:
+
+	void CountBytes(FArchive& Ar) const;
+
+	FReceivingRepState* GetReceivingRepState()
+	{
+		return ReceivingRepState.Get();
+	}
+
+	const FReceivingRepState* GetReceivingRepState() const
+	{
+		return ReceivingRepState.Get();
+	}
+
+	FSendingRepState* GetSendingRepState()
+	{
+		return SendingRepState.Get();
+	}
+
+	const FSendingRepState* GetSendingRepState() const
+	{
+		return SendingRepState.Get();
+	}
+};
+
+/**
+ * Flags used to customize how RepStates are created.
+ * @see FRepLayout::CreateRepState.
+ */
+enum class ECreateRepStateFlags : uint32
+{
+	None,
+	SkipCreateReceivingState = 0x1,	// Don't create a receiving RepState, as we never expect it to be used.
+};
+ENUM_CLASS_FLAGS(ECreateRepStateFlags);
 
 /** Various types of Properties supported for Replication. */
 enum class ERepLayoutCmdType : uint8
@@ -921,9 +1050,16 @@ typedef TRepDataBuffer<ERepDataBufferType::ShadowBuffer> FRepShadowDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ObjectBuffer> FConstRepObjectDataBuffer;
 typedef TConstRepDataBuffer<ERepDataBufferType::ShadowBuffer> FConstRepShadowDataBuffer;
 
+enum class ECreateRepLayoutFlags
+{
+	None,
+	MaySendProperties,	//! Regardless of whether or not this RepLayout is being created for servers, it may be used to send property data, and needs state to handle that.
+};
+ENUM_CLASS_FLAGS(ECreateRepLayoutFlags);
+
 enum class ERepLayoutState
 {
-	Uninitialized,	//! The RepLayout was never initiliazed.
+	Uninitialized,	//! The RepLayout was never initiliazed, this should not be possible.
 	Empty,			//! The RepLayout was initialized, but doesn't have any RepCommands.
 					//! This can happen when replicating References to actors with no network state (e.g., Item Definitions, etc.).
 	Normal			//! The RepLayout was initialized, and contains commands.
@@ -988,31 +1124,56 @@ enum class ERepLayoutState
  * explicit changelist is required. As each Handle is read, a Layout Command is applied
  * that serializes the data from the network bunch and applies it to an object.
  */
-class FRepLayout : public FGCObject
+class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
-	friend class FRepState;
-	friend class FRepChangelistState;
+private:
+
+	friend struct FRepStateStaticBuffer;
 	friend class UPackageMapClient;
 
-public:
 	FRepLayout():
+		LayoutState(ERepLayoutState::Uninitialized),
 		FirstNonCustomParent(0),
-		RoleIndex(-1),
+		RoleIndex(INDEX_NONE),
 		RemoteRoleIndex(-1),
-		Owner(NULL),
-		LayoutState(ERepLayoutState::Uninitialized)
+		Owner(nullptr)
 	{}
+
+public:
+
+	~FRepLayout()
+	{
+		// This should never happen.
+		check(ERepLayoutState::Uninitialized != LayoutState);
+	}
+
+	/** Creates a new FRepLayout for the given class. */
+	ENGINE_API static TSharedPtr<FRepLayout> CreateFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
+
+	/** Creates a new FRepLayout for the given struct. */
+	ENGINE_API static TSharedPtr<FRepLayout> CreateFromStruct(UStruct * InStruct, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
+
+	/** Creates a new FRepLayout for the given function. */
+	static TSharedPtr<FRepLayout> CreateFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
 
 	/**
 	 * Used to signal that the channel that owns a given object has been opened and acknowledged
 	 * by a client.
 	 *
 	 * @param RepState	RepState for the Object whose channel was acked.
+	 *					This is expected to be valid.
 	 */
-	void OpenAcked(FRepState * RepState) const;
+	void OpenAcked(FSendingRepState* RepState) const;
+
+	UE_DEPRECATED(4.23, "Use OpenAcked that accepts a FSendingRepState")
+	void OpenAcked(FRepState* RepState) const
+	{
+		check(RepState);
+		OpenAcked(RepState->GetSendingRepState());
+	}
 
 	/**
-	 * Used to initialize the given shadow data.
+	 * Creates and initialize a new Shadow Buffer.
 	 *
 	 * Shadow Data / Shadow States are used to cache property data so that the Object's state can be
 	 * compared between frames to see if any properties have changed. They are also used on clients
@@ -1023,17 +1184,19 @@ public:
 	 *		- Constructing instances of each Property.
 	 *		- Copying the values of the Properties from given object.
 	 *
-	 * @param ShadowData	The buffer where shadow data will be stored.
-	 * @param Class			The class of the object represented by the input memory buffer.
-	 * @param Src			Memory buffer storing object property data.
+	 * @param Source	Memory buffer storing object property data.
 	 */
-	void InitShadowData(
-		FRepStateStaticBuffer&	ShadowData,
-		UClass *				InObjectClass,
-		const uint8* const		Src) const;
+	FRepStateStaticBuffer CreateShadowBuffer(const uint8* const Source) const;
 
 	/**
-	 * Used to initialize a FRepState.
+	 * Creates and initializes a new FReplicationChangelistMgr.
+	 *
+	 * @param InObject	The Object that is being managed.
+	 */
+	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject) const;
+
+	/**
+	 * Creates and initializes a new FRepState.
 	 *
 	 * This includes:
 	 *		- Initializing the ShadowData.
@@ -1044,12 +1207,14 @@ public:
 	 * @param Class							The class of the object represented by the input memory.
 	 * @param Src							Memory buffer storing object property data.
 	 * @param InRepChangedPropertyTracker	The PropertyTracker we want to associate with the RepState.
+	 *
+	 * @return A new RepState.
+	 *			Note, maybe a a FRepStateBase or FRepStateSending based on parameters.
 	 */
-	void InitRepState(
-		FRepState *									RepState, 
-		UClass *									InObjectClass, 
-		const uint8 * const							Src,
-		TSharedPtr<FRepChangedPropertyTracker> &	InRepChangedPropertyTracker) const;
+	TUniquePtr<FRepState> CreateRepState(
+		const uint8* const Source,
+		TSharedPtr<FRepChangedPropertyTracker>& InRepChangedPropertyTracker,
+		ECreateRepStateFlags Flags) const;
 
 	void InitChangedTracker(FRepChangedPropertyTracker * ChangedTracker) const;
 
@@ -1061,6 +1226,7 @@ public:
 	 * to serialize properties.
 	 *
 	 * @param RepState				RepState for the object.
+	 *								This is expected to be valid.
 	 * @param RepChangelistState	RepChangelistState for the object.
 	 * @param Data					Pointer to memory where property data is stored.
 	 * @param ObjectClass			Class of the object.
@@ -1068,66 +1234,38 @@ public:
 	 * @param RepFlags				Flags used for replication.
 	 */
 	bool ReplicateProperties(
-		FRepState* RESTRICT				RepState,
-		FRepChangelistState* RESTRICT	RepChangelistState,
-		const uint8* RESTRICT			Data,
-		UClass*							ObjectClass,
-		UActorChannel*					OwningChannel,
-		FNetBitWriter&					Writer,
-		const FReplicationFlags &		RepFlags) const;
+		FSendingRepState* RESTRICT RepState,
+		FRepChangelistState* RESTRICT RepChangelistState,
+		const uint8* RESTRICT Data,
+		UClass* ObjectClass,
+		UActorChannel* OwningChannel,
+		FNetBitWriter& Writer,
+		const FReplicationFlags& RepFlags) const;
 
-	/**
-	 * Writes all changed property values from the input owner data to the given buffer.
-	 * This is used primarily by ReplicateProperties.
-	 *
-	 * Note, the changelist is expected to have any conditional properties whose conditions
-	 * aren't met filtered out already. See FRepState::ConditionMap and FRepLayout::FilterChangeList
-	 *
-	 * @param RepState			RepState for the object.
-	 * @param ChangedTracker	Used to indicate
-	 * @param Data				Pointer to the object's memory.
-	 * @param ObjectClass		Class of the object.
-	 * @param Writer			Writer used to store / write out the replicated properties.
-	 * @param Changed			Aggregate list of property handles that need to be written.
-	 * @param SharedInfo		Shared Serialization state for properties.
-	 */
-	void SendProperties(
-		FRepState*	RESTRICT				RepState,
-		FRepChangedPropertyTracker*			ChangedTracker,
-		const uint8* RESTRICT				Data,
-		UClass*								ObjectClass,
-		FNetBitWriter&						Writer,
-		TArray<uint16>&						Changed,
-		const FRepSerializationSharedInfo&	SharedInfo) const;
-
-	ENGINE_API void InitFromObjectClass(UClass * InObjectClass, const UNetConnection* ServerConnection = nullptr);
-
-	/**
-	 * Reads all property values from the received buffer, and applies them to the
-	 * property memory.
-	 *
-	 * @param OwningChannel			The channel of the Actor that owns the object whose properties we're reading.
-	 * @param InObjectClass			Class of the object.
-	 * @param RepState				RepState for the object.
-	 * @param Data					Pointer to memory where read property data should be stored.
-	 * @param InBunch				The data that should be read.
-	 * @param bOutHasUnmapped		Whether or not unmapped GUIDs were read.
-	 * @param bEnableRepNotifies	Whether or not RepNotifies will be fired due to changed properties.
-	 * @param bOutGuidsChanged		Whether or not any GUIDs were changed.
-	 */
-	UE_DEPRECATED(4.22, "ReceiveProperties now takes Flags")
-	bool ReceiveProperties(
-		UActorChannel*			OwningChannel,
-		UClass*					InObjectClass,
-		FRepState* RESTRICT		RepState,
-		void* RESTRICT			Data,
-		FNetBitReader&			InBunch,
-		bool&					bOutHasUnmapped,
-		const bool				bEnableRepNotifies,
-		bool&					bOutGuidsChanged) const
+	UE_DEPRECATED(4.23, "Use ReplicateProperties that accepts a FSendingRepState")
+	bool ReplicateProperties(
+		FRepState* RESTRICT RepState,
+		FRepChangelistState* RESTRICT RepChangelistState,
+		const uint8* RESTRICT Data,
+		UClass* ObjectClass,
+		UActorChannel* OwningChannel,
+		FNetBitWriter& Writer,
+		const FReplicationFlags& RepFlags) const
 	{
-		EReceivePropertiesFlags Flags = bEnableRepNotifies ? EReceivePropertiesFlags::RepNotifies : EReceivePropertiesFlags::None;
-		return ReceiveProperties(OwningChannel, InObjectClass, RepState, Data, InBunch, bOutHasUnmapped, bOutGuidsChanged, Flags);
+		return ReplicateProperties(RepState->GetSendingRepState(), RepChangelistState, Data, ObjectClass, OwningChannel, Writer, RepFlags);
+	}
+
+	UE_DEPRECATED(4.23, "This method will be made private in future versions. Use ReplicateProperties (or SendProperties_BackwardsCompatible for replays).")
+	void SendProperties(
+		FRepState* RESTRICT RepState,
+		FRepChangedPropertyTracker* ChangedTracker,
+		const uint8* RESTRICT Data,
+		UClass* ObjectClass,
+		FNetBitWriter& Writer,
+		TArray<uint16>& Changed,
+		const FRepSerializationSharedInfo& SharedInfo) const
+	{
+		SendProperties(RepState->GetSendingRepState(), ChangedTracker, Data, ObjectClass, Writer, Changed, SharedInfo);
 	}
 
 	/**
@@ -1137,6 +1275,7 @@ public:
 	 * @param OwningChannel			The channel of the Actor that owns the object whose properties we're reading.
 	 * @param InObjectClass			Class of the object.
 	 * @param RepState				RepState for the object.
+	 *								This is expected to be valid.
 	 * @param Data					Pointer to memory where read property data should be stored.
 	 * @param InBunch				The data that should be read.
 	 * @param bOutHasUnmapped		Whether or not unmapped GUIDs were read.
@@ -1144,14 +1283,28 @@ public:
 	 * @param Flags					Controls how ReceiveProperties behaves.
 	 */
 	bool ReceiveProperties(
-		UActorChannel*			OwningChannel,
-		UClass*					InObjectClass,
-		FRepState* RESTRICT		RepState,
-		void* RESTRICT			Data,
-		FNetBitReader&			InBunch,
-		bool&					bOutHasUnmapped,
-		bool&					bOutGuidsChanged,
+		UActorChannel* OwningChannel,
+		UClass* InObjectClass,
+		FReceivingRepState* RESTRICT RepState,
+		void* RESTRICT Data,
+		FNetBitReader& InBunch,
+		bool& bOutHasUnmapped,
+		bool& bOutGuidsChanged,
 		const EReceivePropertiesFlags Flags) const;
+
+	UE_DEPRECATED(4.23, "Use ReceiveProperties that accepts a FReceivingRepState")
+	bool ReceiveProperties(
+		UActorChannel* OwningChannel,
+		UClass* InObjectClass,
+		FRepState* RESTRICT RepState,
+		void* RESTRICT Data,
+		FNetBitReader& InBunch,
+		bool& bOutHasUnmapped,
+		bool& bOutGuidsChanged,
+		const EReceivePropertiesFlags Flags) const
+	{
+		return ReceiveProperties(OwningChannel, InObjectClass, RepState->GetReceivingRepState(), Data, InBunch, bOutHasUnmapped, bOutGuidsChanged, Flags);
+	}
 
 	/**
 	 * Finds any properties in the Shadow Buffer of the given Rep State that are currently valid
@@ -1159,13 +1312,23 @@ public:
 	 * Net GUIDS.
 	 *
 	 * @param RepState					The RepState whose shadow buffer we'll inspect.
+	 *									This is expected to be valid.
 	 * @param OutReferencedGuids		Set of Net GUIDs being referenced by the RepState.
 	 * @param OutTrackedGuidMemoryBytes	Total memory usage of properties containing GUID references. 
 	 */
 	void GatherGuidReferences(
-		FRepState*			RepState,
-		TSet<FNetworkGUID>&	OutReferencedGuids,
-		int32&				OutTrackedGuidMemoryBytes) const;
+		FReceivingRepState* RESTRICT RepState,
+		TSet<FNetworkGUID>& OutReferencedGuids,
+		int32& OutTrackedGuidMemoryBytes) const;
+
+	UE_DEPRECATED(4.23, "Use GatherGuidReferences that accepts a FReceivingRepState")
+	void GatherGuidReferences(
+		FRepState* RepState,
+		TSet<FNetworkGUID>& OutReferencedGuids,
+		int32& OutTrackedGuidMemoryBytes) const
+	{
+		GatherGuidReferences(RepState->GetReceivingRepState(), OutReferencedGuids, OutTrackedGuidMemoryBytes);
+	}
 
 	/**
 	 * Called to indicate that the object referenced by the FNetworkGUID is no longer mapped.
@@ -1174,9 +1337,16 @@ public:
 	 * reference the object. Note, it's possible the object may become valid again later.
 	 *
 	 * @param RepState	The RepState that holds a reference to the object.
+	 *					This is expected to be valid.
 	 * @param GUID		The Network GUID of the object to unmap.
 	 */
-	bool MoveMappedObjectToUnmapped(FRepState* RepState, const FNetworkGUID& GUID) const;
+	bool MoveMappedObjectToUnmapped(FReceivingRepState* RESTRICT RepState, const FNetworkGUID& GUID) const;
+
+	UE_DEPRECATED(4.23, "Use MoveMappedObjectToUnmapped that accepts a FReceivingRepState")
+	bool MoveMappedObjectToUnmapped(FRepState* RepState, const FNetworkGUID& GUID) const
+	{
+		return MoveMappedObjectToUnmapped(RepState->GetReceivingRepState(), GUID);
+	}
 
 	/**
 	 * Attempts to update any unmapped network guids referenced by the RepState.
@@ -1184,24 +1354,66 @@ public:
 	 * object to point to the referenced object.
 	 *
 	 * @param RepState					The RepState associated with the Object.
+	 *									This is expected to be valid.
 	 * @param PackageMap				The package map that controls FNetworkGUID associations.
 	 * @param Object					The live game object whose properties should be updated if we map any objects.
 	 * @param bOutSomeObjectsWereMapped	Whether or not we successfully mapped any references.
 	 * @param bOutHasMoreUnamapped		Whether or not there are more unmapped references in the RepState.
 	 */
 	void UpdateUnmappedObjects(
-		FRepState*		RepState,
-		UPackageMap*	PackageMap,
-		UObject*		Object,
-		bool&			bOutSomeObjectsWereMapped,
-		bool&			bOutHasMoreUnmapped) const;
+		FReceivingRepState* RESTRICT RepState,
+		UPackageMap* PackageMap,
+		UObject* Object,
+		bool& bOutSomeObjectsWereMapped,
+		bool& bOutHasMoreUnmapped) const;
 
-	void CallRepNotifies(FRepState * RepState, UObject* Object) const;
+	UE_DEPRECATED(4.23, "Use UpdateUnmappedObjects that accepts a FReceivingRepState")
+	void UpdateUnmappedObjects(
+		FRepState* RepState,
+		UPackageMap* PackageMap,
+		UObject* Object,
+		bool& bOutSomeObjectsWereMapped,
+		bool& bOutHasMoreUnmapped) const
+	{
+		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+	}
+	
+	/**
+	 * Fire any RepNotifies that have been queued for an object while receiving properties.
+	 *
+	 * @param RepState	The ReceivingRepState associated with the Object.
+	 *					This is expected to be valid.
+	 * @param Object	The Object that received properties.
+	 */
+	void CallRepNotifies(FReceivingRepState* RepState, UObject* Object) const;
 
+	UE_DEPRECATED(4.23, "Use CallRepNotifies that accepts a FReceivingRepState")
+	void CallRepNotifies(FRepState* RepState, UObject* Object) const
+	{
+		return CallRepNotifies(RepState->GetReceivingRepState(), Object);
+	}
+
+	/**
+	 * Called after an object has finished replicating its properties.
+	 *
+	 * @param RepState		The RepState associated with the Object.
+	 *						This is expected to be valid.
+	 * @param PacketRange	Range / IDs of the Packets sent containing the property data.
+	 * @param bReliable		Whether or not the data was sent in reliable bunches.
+	 */
 	void PostReplicate(
-		FRepState*		RepState,
-		FPacketIdRange&	PacketRange,
-		bool			bReliable) const;
+		FSendingRepState* RESTRICT RepState,
+		FPacketIdRange& PacketRange,
+		bool bReliable) const;
+
+	UE_DEPRECATED(4.23, "Use PostReplicate that accepts a FSendingRepState")
+	void PostReplicate(
+		FRepState* RepState,
+		FPacketIdRange& PacketRange,
+		bool bReliable) const
+	{
+		PostReplicate(RepState->GetSendingRepState(), PacketRange, bReliable);
+	}
 
 	void ReceivedNak(FRepState * RepState, int32 NakPacketId) const;
 	bool AllAcked(FRepState * RepState) const;
@@ -1210,20 +1422,17 @@ public:
 	template<ERepDataBufferType DataType>
 	void ValidateWithChecksum(TConstRepDataBuffer<DataType> Data, FBitArchive & Ar) const;
 
-	UE_DEPRECATED(4.22, "Please use the version of ValidateWithChecksum that accepts a TConstRepDataBuffer")
-	void ValidateWithChecksum(const void* RESTRICT Data, FBitArchive& Ar) const
-	{
-		ValidateWithChecksum(FConstRepObjectDataBuffer(Data), Ar);
-	}
-
 	uint32 GenerateChecksum(const FRepState* RepState) const;
 
-	/** Clamp the changelist so that it conforms to the current size of either the array, or arrays within structs/arrays */
+	UE_DEPRECATED(4.23, "This method will be made private in future versions.")
 	void PruneChangeList(
-		FRepState*				RepState,
-		const void* RESTRICT	Data,
-		const TArray<uint16>&	Changed,
-		TArray<uint16>&			PrunedChanged) const;
+		FRepState* RepState,
+		const void* RESTRICT Data,
+		const TArray<uint16>& Changed,
+		TArray<uint16>& PrunedChanged) const
+	{
+		PruneChangeList(Data, Changed, PrunedChanged);
+	}
 
 	/**
 	 * Combines two changelists, ensuring that handles are in the correct order, and arrays are properly structured.
@@ -1233,11 +1442,12 @@ public:
 	 * @param Dirty2		Second changelist to merge. May be empty, or otherwise valid changelist.
 	 * @param MergedDirty	The combined changelist.
 	 */
+	UE_DEPRECATED(4.23, "This method will be made private in future versions.")
 	void MergeChangeList(
-		const uint8* RESTRICT	Data,
-		const TArray<uint16>&	Dirty1,
-		const TArray<uint16>&	Dirty2,
-		TArray<uint16>&			MergedDirty) const;
+		const uint8* RESTRICT Data,
+		const TArray<uint16>& Dirty1,
+		const TArray<uint16>& Dirty2,
+		TArray<uint16>& MergedDirty) const;
 
 	/**
 	 * Compare all properties between source and destination buffer, and optionally update the destination
@@ -1256,19 +1466,6 @@ public:
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source,
 		const EDiffPropertiesFlags Flags) const;
-
-	UE_DEPRECATED(4.22, "Please use the templated version of DiffProperties")
-	bool DiffProperties(
-		TArray<UProperty*>* RepNotifies,
-		void* RESTRICT Destination,
-		const void* RESTRICT Source,
-		const EDiffPropertiesFlags Flags) const
-	{
-		FRepShadowDataBuffer Dest(Destination);
-		FConstRepObjectDataBuffer Src(Source);
-
-		return DiffProperties(RepNotifies, Dest, Src, Flags);
-	}
 
 	/**
 	 * @see DiffProperties
@@ -1294,23 +1491,7 @@ public:
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source) const;
 
-	UE_DEPRECATED(4.22, "Please use the templated version of DiffStableProperties")
-	bool DiffStableProperties(
-		TArray<UProperty*>*		RepNotifies,
-		TArray<UObject*>*		ObjReferences,
-		void* RESTRICT			Destination,
-		const void* RESTRICT	Source) const
-	{
-		FRepShadowDataBuffer Dest(Destination);
-		FConstRepObjectDataBuffer Src(Source);
-
-		return DiffStableProperties(RepNotifies, ObjReferences, Dest, Src);
-	}
-
 	void GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions);
-
-	// RPC support
-	void InitFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection = nullptr);
 
 	/** @see SendProperties. */
 	void ENGINE_API SendPropertiesForRPC(
@@ -1342,8 +1523,6 @@ public:
 		void*			Data,
 		bool&			bHasUnmapped) const;
 
-	ENGINE_API void InitFromStruct(UStruct * InStruct, const UNetConnection* ServerConnection = nullptr);
-
 	/** Serializes all replicated properties of a UObject in or out of an archive (depending on what type of archive it is). */
 	ENGINE_API void SerializeObjectReplicatedProperties(UObject* Object, FBitArchive & Ar) const;
 
@@ -1351,46 +1530,30 @@ public:
 
 	/** Currently only used for Replays / with the UDemoNetDriver. */
 	void SendProperties_BackwardsCompatible(
-		FRepState* RESTRICT			RepState,
+		FSendingRepState* RESTRICT RepState,
 		FRepChangedPropertyTracker* ChangedTracker,
-		const uint8* RESTRICT		Data,
-		UNetConnection*				Connection,
-		FNetBitWriter&				Writer,
-		TArray<uint16>&				Changed) const;
+		const uint8* RESTRICT Data,
+		UNetConnection* Connection,
+		FNetBitWriter& Writer,
+		TArray<uint16>& Changed) const;
 
 	/** Currently only used for Replays / with the UDemoNetDriver. */
 	bool ReceiveProperties_BackwardsCompatible(
-		UNetConnection*				Connection,
-		FRepState* RESTRICT			RepState,
-		void* RESTRICT				Data,
-		FNetBitReader&				InBunch,
-		bool&						bOutHasUnmapped,
-		const bool					bEnableRepNotifies,
-		bool&						bOutGuidsChanged) const;
+		UNetConnection* Connection,
+		FReceivingRepState* RESTRICT RepState,
+		void* RESTRICT Data,
+		FNetBitReader& InBunch,
+		bool& bOutHasUnmapped,
+		const bool bEnableRepNotifies,
+		bool& bOutGuidsChanged) const;
 
-	UE_DEPRECATED(4.22, "Please use the version of CompareProperties that accepts a FRepState pointer.")
-	bool CompareProperties(
-		FRepChangelistState* RESTRICT	RepChangelistState,
-		const uint8* RESTRICT			Data,
-		const FReplicationFlags&		RepFlags) const
-	{
-		return CompareProperties(nullptr, RepChangelistState, Data, RepFlags);
-	}
-
-	/**
-	 * Compare Property Values currently stored in the Changelist State to the Property Values
-	 * in the passed in data, generating a new changelist if necessary.
-	 *
-	 * @param RepState				RepState for the object.
-	 * @param RepChangelistState	The FRepChangelistState that contains the last cached values and changelists.
-	 * @param Data					The newest Property Data available.
-	 * @param RepFlags				Flags that will be used if the object is replicated.
-	 */
-	bool CompareProperties(
-		FRepState* RESTRICT				RepState,
-		FRepChangelistState* RESTRICT	RepChangelistState,
-		const uint8* RESTRICT			Data,
-		const FReplicationFlags&		RepFlags) const;
+	void UpdateChangelistMgr(
+		FReplicationChangelistMgr& InChangelistMgr,
+		FSendingRepState* RESTRICT RepState,
+		const UObject* InObject,
+		const uint32 ReplicationFrame,
+		const FReplicationFlags& RepFlags,
+		const bool bForceCompare) const;
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -1438,67 +1601,125 @@ public:
 
 private:
 
+	void InitFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	void InitFromStruct(UStruct* InStruct, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	void InitFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	/**
+	 * Compare Property Values currently stored in the Changelist State to the Property Values
+	 * in the passed in data, generating a new changelist if necessary.
+	 *
+	 * @param RepState				RepState for the object.
+	 * @param RepChangelistState	The FRepChangelistState that contains the last cached values and changelists.
+	 * @param Data					The newest Property Data available.
+	 * @param RepFlags				Flags that will be used if the object is replicated.
+	 */
+	bool CompareProperties(
+		FSendingRepState* RESTRICT RepState,
+		FRepChangelistState* RESTRICT RepChangelistState,
+		const uint8* RESTRICT Data,
+		const FReplicationFlags& RepFlags) const;
+
+	/**
+	 * Writes all changed property values from the input owner data to the given buffer.
+	 * This is used primarily by ReplicateProperties.
+	 *
+	 * Note, the changelist is expected to have any conditional properties whose conditions
+	 * aren't met filtered out already. See FRepState::ConditionMap and FRepLayout::FilterChangeList
+	 *
+	 * @param RepState			RepState for the object.
+	 *							This is expected to be valid.
+	 * @param ChangedTracker	Used to indicate
+	 * @param Data				Pointer to the object's memory.
+	 * @param ObjectClass		Class of the object.
+	 * @param Writer			Writer used to store / write out the replicated properties.
+	 * @param Changed			Aggregate list of property handles that need to be written.
+	 * @param SharedInfo		Shared Serialization state for properties.
+	 */
+	void SendProperties(
+		FSendingRepState* RESTRICT RepState,
+		FRepChangedPropertyTracker* ChangedTracker,
+		const uint8* RESTRICT Data,
+		UClass* ObjectClass,
+		FNetBitWriter& Writer,
+		TArray<uint16>& Changed,
+		const FRepSerializationSharedInfo& SharedInfo) const;
+
+	/**
+	 * Clamps a changelist so that it conforms to the current size of either an array, or arrays within structs/arrays.
+	 *
+	 * @param Data				Object memory.
+	 * @param Changed			The changelist to prune.
+	 * @param PrunedChanged		The resulting pruned changelist.
+	 */
+	void PruneChangeList(
+		const void* RESTRICT Data,
+		const TArray<uint16>& Changed,
+		TArray<uint16>& PrunedChanged) const;
+
 	void RebuildConditionalProperties(
-		FRepState* RESTRICT					RepState,
-		const FReplicationFlags&			RepFlags) const;
+		FSendingRepState* RESTRICT RepState,
+		const FReplicationFlags& RepFlags) const;
 
 	void UpdateChangelistHistory(
-		FRepState*				RepState,
-		UClass*					ObjectClass,
-		const uint8* RESTRICT	Data,
-		UNetConnection*			Connection,
-		TArray<uint16>*			OutMerged) const;
+		FSendingRepState* RepState,
+		UClass* ObjectClass,
+		const uint8* RESTRICT Data,
+		UNetConnection* Connection,
+		TArray<uint16>* OutMerged) const;
 
 	void SendProperties_BackwardsCompatible_r(
-		FRepState* RESTRICT					RepState,
-		UPackageMapClient*					PackageMapClient,
-		FNetFieldExportGroup*				NetFieldExportGroup,
-		FRepChangedPropertyTracker*			ChangedTracker,
-		FNetBitWriter&						Writer,
-		const bool							bDoChecksum,
-		FRepHandleIterator&					HandleIterator,
-		const uint8* RESTRICT				SourceData) const;
+		FSendingRepState* RESTRICT RepState,
+		UPackageMapClient* PackageMapClient,
+		FNetFieldExportGroup* NetFieldExportGroup,
+		FRepChangedPropertyTracker* ChangedTracker,
+		FNetBitWriter& Writer,
+		const bool bDoChecksum,
+		FRepHandleIterator& HandleIterator,
+		const uint8* RESTRICT SourceData) const;
 
 	void SendAllProperties_BackwardsCompatible_r(
-		FRepState* RESTRICT					RepState,
-		FNetBitWriter&						Writer,
-		const bool							bDoChecksum,
-		UPackageMapClient*					PackageMapClient,
-		FNetFieldExportGroup*				NetFieldExportGroup,
-		const int32							CmdStart,
-		const int32							CmdEnd,
-		const uint8*						SourceData) const;
+		FSendingRepState* RESTRICT RepState,
+		FNetBitWriter& Writer,
+		const bool bDoChecksum,
+		UPackageMapClient* PackageMapClient,
+		FNetFieldExportGroup* NetFieldExportGroup,
+		const int32 CmdStart,
+		const int32 CmdEnd,
+		const uint8* SourceData) const;
 
 	void SendProperties_r(
-		FRepState*	RESTRICT				RepState,
-		FRepChangedPropertyTracker*			ChangedTracker,
-		FNetBitWriter&						Writer,
-		const bool							bDoChecksum,
-		FRepHandleIterator&					HandleIterator,
-		const uint8* RESTRICT				SourceData,
-		const int32							ArrayDepth,
-		const FRepSerializationSharedInfo&	SharedInfo) const;
+		FSendingRepState* RESTRICT RepState,
+		FRepChangedPropertyTracker* ChangedTracker,
+		FNetBitWriter& Writer,
+		const bool bDoChecksum,
+		FRepHandleIterator& HandleIterator,
+		const uint8* RESTRICT SourceData,
+		const int32	 ArrayDepth,
+		const FRepSerializationSharedInfo& SharedInfo) const;
 
 	uint16 CompareProperties_r(
-		FRepState* RESTRICT		RepState,
-		const int32				CmdStart,
-		const int32				CmdEnd,
-		const uint8* RESTRICT	CompareData,
-		const uint8* RESTRICT	Data,
-		TArray<uint16>&		Changed,
-		uint16					Handle,
-		const bool				bIsInitial,
-		const bool				bForceFail) const;
+		FSendingRepState* RESTRICT RepState,
+		const int32 CmdStart,
+		const int32 CmdEnd,
+		const uint8* RESTRICT CompareData,
+		const uint8* RESTRICT Data,
+		TArray<uint16>& Changed,
+		uint16 Handle,
+		const bool bIsInitial,
+		const bool bForceFail) const;
 
 	void CompareProperties_Array_r(
-		FRepState* RESTRICT		RepState,
-		const uint8* RESTRICT	CompareData,
-		const uint8* RESTRICT	Data,
-		TArray<uint16>&			Changed,
-		const uint16			CmdIndex,
-		const uint16			Handle,
-		const bool				bIsInitial,
-		const bool				bForceFail) const;
+		FSendingRepState* RESTRICT RepState,
+		const uint8* RESTRICT CompareData,
+		const uint8* RESTRICT Data,
+		TArray<uint16>& Changed,
+		const uint16 CmdIndex,
+		const uint16 Handle,
+		const bool bIsInitial,
+		const bool bForceFail) const;
 
 	void BuildSharedSerialization(
 		const uint8* RESTRICT			Data,
@@ -1536,35 +1757,35 @@ private:
 		const uint32	Checksum) const;
 
 	bool ReceiveProperties_BackwardsCompatible_r(
-		FRepState * RESTRICT	RepState,
-		FNetFieldExportGroup*	NetFieldExportGroup,
-		FNetBitReader &			Reader,
-		const int32				CmdStart,
-		const int32				CmdEnd,
-		uint8* RESTRICT			ShadowData,
-		uint8* RESTRICT			OldData,
-		uint8* RESTRICT			Data,
-		FGuidReferencesMap*		GuidReferencesMap,
-		bool&					bOutHasUnmapped,
-		bool&					bOutGuidsChanged) const;
+		FReceivingRepState* RESTRICT RepState,
+		FNetFieldExportGroup* NetFieldExportGroup,
+		FNetBitReader& Reader,
+		const int32 CmdStart,
+		const int32 CmdEnd,
+		uint8* RESTRICT ShadowData,
+		uint8* RESTRICT OldData,
+		uint8* RESTRICT Data,
+		FGuidReferencesMap* GuidReferencesMap,
+		bool& bOutHasUnmapped,
+		bool& bOutGuidsChanged) const;
 
 	void GatherGuidReferences_r(
-		FGuidReferencesMap*	GuidReferencesMap,
-		TSet<FNetworkGUID>&	OutReferencedGuids,
-		int32&				OutTrackedGuidMemoryBytes) const;
+		FGuidReferencesMap* GuidReferencesMap,
+		TSet<FNetworkGUID>& OutReferencedGuids,
+		int32& OutTrackedGuidMemoryBytes) const;
 
 	bool MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferencesMap, const FNetworkGUID& GUID) const;
 
 	void UpdateUnmappedObjects_r(
-		FRepState*				RepState, 
-		FGuidReferencesMap*		GuidReferencesMap,
-		UObject*				OriginalObject,
-		UPackageMap*			PackageMap, 
-		uint8* RESTRICT			StoredData, 
-		uint8* RESTRICT			Data, 
-		const int32				MaxAbsOffset,
-		bool&					bOutSomeObjectsWereMapped,
-		bool&					bOutHasMoreUnmapped) const;
+		FReceivingRepState* RESTRICT RepState, 
+		FGuidReferencesMap* GuidReferencesMap,
+		UObject* OriginalObject,
+		UPackageMap* PackageMap, 
+		uint8* RESTRICT StoredData, 
+		uint8* RESTRICT Data, 
+		const int32 MaxAbsOffset,
+		bool& bOutSomeObjectsWereMapped,
+		bool& bOutHasMoreUnmapped) const;
 
 	void SanityCheckChangeList_DynamicArray_r(
 		const int32				CmdIndex, 
@@ -1586,21 +1807,21 @@ private:
 
 	int32 InitFromProperty_r(
 		UProperty* Property,
-		int32					Offset,
-		int32					RelativeHandle,
-		int32					ParentIndex,
-		uint32					ParentChecksum,
-		int32					StaticArrayIndex,
-		const UNetConnection*	ServerConnection);
+		int32 Offset,
+		int32 RelativeHandle,
+		int32 ParentIndex,
+		uint32 ParentChecksum,
+		int32 StaticArrayIndex,
+		const UNetConnection* ServerConnection);
 
 	uint32 AddPropertyCmd(
 		UProperty* Property,
-		int32					Offset,
-		int32					RelativeHandle,
-		int32					ParentIndex,
-		uint32					ParentChecksum,
-		int32					StaticArrayIndex,
-		const UNetConnection*	ServerConnection);
+		int32 Offset,
+		int32 RelativeHandle,
+		int32 ParentIndex,
+		uint32 ParentChecksum,
+		int32 StaticArrayIndex,
+		const UNetConnection* ServerConnection);
 
 	uint32 AddArrayCmd(
 		UArrayProperty*			Property,
@@ -1653,16 +1874,16 @@ private:
 	 * @param OutActiveProperties		The properties found to be active.
 	 */
 	void FilterChangeList( 
-		const TArray<uint16>&	Changelist,
-		const TBitArray<>&		InactiveParentHandles,
-		TArray<uint16>&			OutInactiveProperties,
-		TArray<uint16>&			OutActiveProperties) const;
+		const TArray<uint16>& Changelist,
+		const TBitArray<>& InactiveParentHandles,
+		TArray<uint16>& OutInactiveProperties,
+		TArray<uint16>& OutActiveProperties) const;
 
 	/** Same as FilterChangeList, but only populates an Active Change List. */
 	void FilterChangeListToActive(
-		const TArray<uint16>&	Changelist,
-		const TBitArray<>&		InactiveParentHandles,
-		TArray<uint16>&			OutActiveProperties) const;
+		const TArray<uint16>& Changelist,
+		const TBitArray<>& InactiveParentHandles,
+		TArray<uint16>& OutActiveProperties) const;
 
 	void BuildChangeList_r(
 		const TArray<FHandleToCmdIndex>&	HandleToCmdIndex,
@@ -1677,14 +1898,23 @@ private:
 		const int32					CmdEnd,
 		TArray<FHandleToCmdIndex>&	HandleToCmdIndex);
 
+	void InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, const uint8* Source) const;
 	void ConstructProperties(FRepStateStaticBuffer& ShadowData) const;
-	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Src) const;
+	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Source) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
 
-	/**
-	 * Maps a UProperty* to a Parent Handle. Note, only returns the First Parent in the case of a c-style array.
-	 */
-	TMap<UProperty*, int32> PropertyToParentHandle;
+	ERepLayoutState LayoutState;
+
+	int16 FirstNonCustomParent;
+
+	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
+	int16 RoleIndex;
+
+	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
+	int16 RemoteRoleIndex;
+
+	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
+	int32 ShadowDataBufferSize;
 
 	/** Top level Layout Commands. */
 	TArray<FRepParentCmd> Parents;
@@ -1695,17 +1925,6 @@ private:
 	/** Converts a relative handle to the appropriate index into the Cmds array */
 	TArray<FHandleToCmdIndex> BaseHandleToCmdIndex;
 
-	/** Size (in bytes) needed to allocate a single instance of a Shadow buffer for this RepLayout. */
-	int32 ShadowDataBufferSize;
-
-	int32 FirstNonCustomParent;
-
-	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int32 RoleIndex;
-
-	/** Index of the RemoteRole property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
-	int32 RemoteRoleIndex;
-
 	/** UClass, UStruct, or UFunction that this FRepLayout represents.*/
 	UStruct* Owner;
 
@@ -1713,7 +1932,5 @@ private:
 	FRepSerializationSharedInfo SharedInfoRPC;
 
 	/** Shared comparison to default state for multicast rpc */
-	TBitArray<> SharedInfoRPCParentsChanged;
-
-	ERepLayoutState LayoutState;
+	TBitArray<> SharedInfoRPCParentsChanged;	
 };

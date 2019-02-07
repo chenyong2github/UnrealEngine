@@ -622,7 +622,7 @@ bool UMaterialInterface::UseAnyStreamingTexture() const
 
 	for (UTexture* Texture : Textures)
 	{
-		if (IsStreamingTexture(Cast<UTexture2D>(Texture)))
+		if (IsStreamingRenderAsset(Texture))
 		{
 			return true;
 		}

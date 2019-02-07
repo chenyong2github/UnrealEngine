@@ -64,6 +64,11 @@ namespace Gauntlet
 		public IEnumerable<UnrealRoleArtifacts> SessionArtifacts { get; private set; }
 
 		/// <summary>
+		/// Whether we submit to the dashboard
+		/// </summary>
+		public virtual bool ShouldSubmitDashboardResult { get { return CommandUtils.IsBuildMachine; } }
+
+		/// <summary>
 		/// Helper class that turns our wishes into reallity
 		/// </summary>
 		protected UnrealSession UnrealApp;
@@ -571,6 +576,15 @@ namespace Gauntlet
 			{
 				Log.Warning("Failed to save completion report. {0}", Ex);
 			}
+
+			try
+			{
+				SubmitToDashboard(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, OutputPath);
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Failed to submit results to dashboard. {0}", Ex);
+			}
 		}
 
 		/// <summary>
@@ -580,6 +594,16 @@ namespace Gauntlet
 		/// <param name="Contex"></param>
 		/// <param name="Build"></param>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
+		{
+		}
+
+		/// <summary>
+		/// Optional function that is called on test completion and gives an opportunity to create a report
+		/// </summary>
+		/// <param name="Result"></param>
+		/// <param name="Contex"></param>
+		/// <param name="Build"></param>
+		public virtual void SubmitToDashboard(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{
 		}
 
@@ -604,7 +628,7 @@ namespace Gauntlet
 		/// <param name="Node"></param>
 		/// <param name="OutputPath"></param>
 		/// <returns></returns>
-		public IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
+		public virtual IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
 		{
 			CachedArtifactPath = OutputPath;
 			return UnrealApp.SaveRoleArtifacts(Context, TestInstance, CachedArtifactPath);
