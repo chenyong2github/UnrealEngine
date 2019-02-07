@@ -844,6 +844,14 @@ void FD3D11DynamicRHIModule::FindAdapter()
 					}
 				}
 			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("  %2u. Unknown, failed to create test device."), AdapterIndex);
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("  %2u. Unknown, failed to create adapter."), AdapterIndex);
 		}
 	}
 
