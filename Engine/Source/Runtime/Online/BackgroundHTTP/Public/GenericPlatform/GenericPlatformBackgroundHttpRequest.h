@@ -22,6 +22,7 @@ public:
 	//IHttpBackgroundHttpRequest
 	virtual bool HandleDelayedProcess() override;
 	virtual void CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse) override;
+	virtual void CancelRequest() override;
 
 protected:
 	//In the default implementation we actually use HTTPRequests instead of HttpBackgroundRequests.

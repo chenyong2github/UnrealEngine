@@ -5,6 +5,10 @@
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformAtomics.h"
 
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/ScopeRWLock.h"
+
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 
 FApplePlatformBackgroundHttpManager::~FApplePlatformBackgroundHttpManager()
@@ -143,6 +147,21 @@ void FApplePlatformBackgroundHttpManager::GenerateURLMapEntriesForRequest( FAppl
     }
 }
 
+void FApplePlatformBackgroundHttpManager::RemoveURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request)
+{
+    FRWScopeLock ScopeLock(URLToRequestMapLock, SLT_Write);
+    for (const FString& URL : Request->GetURLList())
+    {
+        FBackgroundHttpURLMappedRequestPtr& FoundRequest = URLToRequestMap.FindOrAdd(URL);
+        
+        if (FoundRequest == Request)
+        {
+            UE_LOG(LogBackgroundHttpManager, Display, TEXT("Removing URL Entry -- RequestID:%s | URL:%s"), *Request->GetRequestID(), *URL);
+            URLToRequestMap.Remove(URL);
+        }
+    }
+}
+
 void FApplePlatformBackgroundHttpManager::StartRequest(FAppleBackgroundHttpRequestPtr Request)
 {
     //Just count it as a retry that won't increment the retry counter before giving us the URL as our RetryCount 0 should start this up.
@@ -172,7 +191,11 @@ void FApplePlatformBackgroundHttpManager::DeletePendingRemoveRequests()
 
 void FApplePlatformBackgroundHttpManager::RemoveSessionTasksForRequest(FAppleBackgroundHttpRequestPtr Request)
 {
-    //@TODO TRoss: Should implement this
+    //First remove map entries. That way we won't send a completion handler when we cancel
+    RemoveURLMapEntriesForRequest(Request);
+    
+    //Now cancel our active task
+    Request->CancelActiveTask();
 }
 
 bool FApplePlatformBackgroundHttpManager::AssociateWithAnyExistingRequest(const FBackgroundHttpRequestPtr Request)
@@ -250,16 +273,16 @@ void FApplePlatformBackgroundHttpManager::CleanUpNSURLSessionResponseDelegates()
 void FApplePlatformBackgroundHttpManager::OnApp_EnteringForeground()
 {
     FPlatformAtomics::InterlockedExchange(&bIsInBackground,false);
-	PauseAllActiveRequests();
+	PauseAllActiveTasks();
 }
 
 void FApplePlatformBackgroundHttpManager::OnApp_EnteringBackground()
 {
 	FPlatformAtomics::InterlockedExchange(&bIsInBackground,true);
-	UnpauseAllPausedRequests();
+	ResumeAllTasks();
 }
 
-void FApplePlatformBackgroundHttpManager::PauseAllActiveRequests()
+void FApplePlatformBackgroundHttpManager::PauseAllActiveTasks()
 {
     UE_LOG(LogBackgroundHttpManager, Display, TEXT("Attempting to Pause All Active Tasks"));
     
@@ -279,13 +302,13 @@ void FApplePlatformBackgroundHttpManager::PauseAllActiveRequests()
 				}
 			}
             
-            //Reset our active requests to 0 now that we are coming back to the BG
+            //Reset our active requests to 0 now that we are pausing everything
             FPlatformAtomics::InterlockedExchange(&NumCurrentlyActiveRequests, 0);
 		}];
 	}
 }
 
-void FApplePlatformBackgroundHttpManager::UnpauseAllPausedRequests()
+void FApplePlatformBackgroundHttpManager::ResumeAllTasks()
 {
     UE_LOG(LogBackgroundHttpManager, Display, TEXT("Attempting to Resume All Active Tasks"));
     
@@ -596,6 +619,7 @@ void FApplePlatformBackgroundHttpManager::TickRequests(float DeltaTime)
             if (ensureAlwaysMsgf(AppleRequest.IsValid(), TEXT("Invalid Request Pointer in ActiveRequests list!")))
             {
                 const bool bIsTaskActive = AppleRequest->IsUnderlyingTaskActive();
+                const bool bIsTaskPaused = AppleRequest->IsUnderlyingTaskPaused();
                 const bool bIsTaskComplete = AppleRequest->IsTaskComplete();
                 const bool bWasStartedInBG = FPlatformAtomics::AtomicRead(&(AppleRequest->bWasTaskStartedInBG));
                 
@@ -614,7 +638,7 @@ void FApplePlatformBackgroundHttpManager::TickRequests(float DeltaTime)
                     //We want to recreate any task spun up in the background as it will not respect our session settings if created in BG.
                     AppleRequest->CancelActiveTask();
                 }
-                else if (bIsTaskActive)
+                else if (bIsTaskActive && !bIsTaskPaused)
                 {
                     const bool bShouldTimeOut = AppleRequest->TickTimeOutTimer(DeltaTime);
                     if (bShouldTimeOut)
@@ -668,6 +692,8 @@ void FApplePlatformBackgroundHttpManager::TickTasks(float DeltaTime)
                                      FBackgroundHttpURLMappedRequestPtr* WeakRequestInMap = URLToRequestMap.Find(TaskURL);
                                      FAppleBackgroundHttpRequestPtr FoundRequest = (nullptr != WeakRequestInMap) ? WeakRequestInMap->Pin() : nullptr;
                                      
+                                     const bool bIsPaused = FoundRequest.IsValid() ? FoundRequest->IsUnderlyingTaskPaused() : false;
+                                     
                                      if (FoundRequest.IsValid())
                                      {
                                          UE_LOG(LogBackgroundHttpManager, Display, TEXT("Activating Task For Requets -- RequestID:%s | TaskURL:%s | CurrentlyActiveRequests:%d"), *(FoundRequest->GetRequestID()), *TaskURL, NewRequestCount);
@@ -675,7 +701,7 @@ void FApplePlatformBackgroundHttpManager::TickTasks(float DeltaTime)
                                      }
                                      else
                                      {
-                                         UE_LOG(LogBackgroundHttpManager, Display, TEXT("Skipping Activating Task as there is no associated Request. Once a Request associates with this task, it can then be activated. -- TaskURL:%s"), *TaskURL);
+                                         UE_LOG(LogBackgroundHttpManager, Display, TEXT("Skipping Activating Task as there is no associated Request or Request is paused. Once a Request associates with this task, it can then be activated. -- TaskURL:%s | bIsPaused:%d"), *TaskURL, (int)bIsPaused);
                                          
                                          //Don't activate and remove our increment from above because something put us over the limit before we resumed
                                          FPlatformAtomics::InterlockedDecrement(&NumCurrentlyActiveRequests);

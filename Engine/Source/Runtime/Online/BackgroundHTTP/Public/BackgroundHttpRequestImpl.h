@@ -22,7 +22,10 @@ public:
 
 	// IBackgroundHttpRequest
 	virtual bool ProcessRequest() override;
-	virtual void SetURLAsList(const TArray<FString>& URLs, int NumRetriesToAttempt) override;
+	virtual void CancelRequest() override;
+    virtual void PauseRequest() override;
+    virtual void ResumeRequest() override;
+    virtual void SetURLAsList(const TArray<FString>& URLs, int NumRetriesToAttempt) override;
 	virtual const TArray<FString>& GetURLList() const override;
 	virtual void SetCompleteNotification(FBackgroundHttpNotificationObjectPtr DownloadCompleteNotificationObjectIn) override;
 	virtual void CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse) override;

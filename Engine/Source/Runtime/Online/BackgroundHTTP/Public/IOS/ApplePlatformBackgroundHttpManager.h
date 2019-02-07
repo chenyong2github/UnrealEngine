@@ -70,8 +70,9 @@ private:
 	void SetupNSURLSessionResponseDelegates();
 	void CleanUpNSURLSessionResponseDelegates();
 
-	void PauseAllActiveRequests();
-	void UnpauseAllPausedRequests();
+    //These are used internally to pause/resume things at the task level
+	void PauseAllActiveTasks();
+	void ResumeAllTasks();
 
     void PauseAllUnassociatedTasks();
     void UnpauseAllUnassociatedTasks();
@@ -85,6 +86,7 @@ private:
 	void RetryRequest(FAppleBackgroundHttpRequestPtr Request, bool bShouldIncreaseRetryCount, bool bShouldStartImmediately, NSData* RetryData);
     void RemoveSessionTasksForRequest(FAppleBackgroundHttpRequestPtr Request);
     void GenerateURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
+    void RemoveURLMapEntriesForRequest(FAppleBackgroundHttpRequestPtr Request);
     
 	bool IsRetryDataValid(NSData* RetryData) const;
 	bool ShouldUseRequestRetryData(FAppleBackgroundHttpRequestPtr Request, NSData* RetryData) const;

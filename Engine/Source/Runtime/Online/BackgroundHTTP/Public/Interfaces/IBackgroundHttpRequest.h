@@ -96,11 +96,28 @@ public:
 	/**
 	* Called by certain platform's implementation when we have to wait for the BackgroundHttpManager / PlatformBackgroundHttp to do some work
 	* before we can finish our ProcessRequest call. Should only be called by different platform layers.
+	* 
+	* NOTE: Should really only be called by the BackgroundHttpManager! You are probably looking for ProcessRequest.
 	*
 	* @return if the request was successfully handled.
 	*/
 	virtual bool HandleDelayedProcess() = 0;
 
+	/**
+	 * Called to cancel a request that is still being processed
+	 */
+	virtual void CancelRequest() = 0;
+
+    /**
+    * Called to pause a request that is still being processed
+    */
+    virtual void PauseRequest() = 0;
+    
+    /**
+    * Called to resume a request that was previously paused
+    */
+    virtual void ResumeRequest() = 0;
+    
 	/**
 	* Get the associated Response
 	*
