@@ -176,7 +176,7 @@ public:
 			if (bCheckDevices)
 			{
 #if WITH_EDITOR
-				if (GIsEditor || FPlatformProperties::IsProgram())
+				if (!IsRunningCommandlet())
 				{
 					// BHP - Turning off device check to prevent it from interfering with packaging
 					QueryDevices();
