@@ -3874,10 +3874,11 @@ bool UNavigationSystemV1::K2_GetRandomReachablePointInRadius(UObject* WorldConte
 	return bResult;
 }
 
-bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+bool UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
 {
 	FNavLocation RandomPoint(Origin);
 	bool bResult = false;
+	RandomLocation = Origin;
 
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
@@ -3886,8 +3887,11 @@ bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldConte
 		ANavigationData* UseNavData = NavData ? NavData : NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
 		if (UseNavData)
 		{
-			bResult = NavSys->GetRandomPointInNavigableRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass));
-			RandomLocation = RandomPoint.Location;
+			if (NavSys->GetRandomPointInNavigableRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass)))
+			{
+				bResult = true;
+				RandomLocation = RandomPoint.Location;
+			}
 		}
 	}
 
@@ -4319,6 +4323,11 @@ FVector UNavigationSystemV1::GetRandomPointInNavigableRadius(UObject* WorldConte
 	}
 
 	return RandomPoint.Location;
+}
+
+bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+{
+	return K2_GetRandomLocationInNavigableRadius(WorldContextObject, Origin, RandomLocation, Radius, NavData, FilterClass);
 }
 
 void UNavigationSystemV1::SimpleMoveToActor(AController* Controller, const AActor* Goal)
