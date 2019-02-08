@@ -49,6 +49,9 @@ enum class EReceivePropertiesFlags : uint32
 
 ENUM_CLASS_FLAGS(EReceivePropertiesFlags);
 
+/** Builds a Bitfield that flags whether or not given replication conditions are met. */
+extern TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFlags);
+
 /** Stores meta data about a given Replicated property. */
 class FRepChangedParent
 {
@@ -1474,10 +1477,10 @@ public:
 	 * @param RepFlags				Flags that will be used if the object is replicated.
 	 */
 	bool CompareProperties(
-		FRepState* RESTRICT				RepState,
-		FRepChangelistState* RESTRICT	RepChangelistState,
-		const uint8* RESTRICT			Data,
-		const FReplicationFlags&		RepFlags) const;
+		FSendingRepState* RESTRICT RepState,
+		FRepChangelistState* RESTRICT RepChangelistState,
+		const uint8* RESTRICT Data,
+		const FReplicationFlags& RepFlags) const;
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -1584,14 +1587,14 @@ private:
 		const uint8* RESTRICT SourceData) const;
 
 	void SendAllProperties_BackwardsCompatible_r(
-		FRepState* RESTRICT					RepState,
-		FNetBitWriter&						Writer,
-		const bool							bDoChecksum,
-		UPackageMapClient*					PackageMapClient,
-		FNetFieldExportGroup*				NetFieldExportGroup,
-		const int32							CmdStart,
-		const int32							CmdEnd,
-		const uint8*						SourceData) const;
+		FSendingRepState* RESTRICT RepState,
+		FNetBitWriter& Writer,
+		const bool bDoChecksum,
+		UPackageMapClient* PackageMapClient,
+		FNetFieldExportGroup* NetFieldExportGroup,
+		const int32 CmdStart,
+		const int32 CmdEnd,
+		const uint8* SourceData) const;
 
 	void SendProperties_r(
 		FSendingRepState* RESTRICT RepState,
