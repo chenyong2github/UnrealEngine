@@ -1155,6 +1155,9 @@ private:
 	/** Automatically start playback of next item in play list. */
 	bool PlayOnNext;
 
+	/** Has registered with the media module */
+	bool RegisteredWithMediaModule;
+
 #if WITH_EDITORONLY_DATA
 public:
 	/** Whether this player should stop when entering or exiting PIE. */
