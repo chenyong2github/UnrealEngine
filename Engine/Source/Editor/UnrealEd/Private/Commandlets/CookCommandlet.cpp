@@ -1034,7 +1034,10 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms, 
 		}
 	} while (bTestCook);
 
-	VerifyEDLCookInfo();
+	if (!bIterativeCooking)
+	{
+		VerifyEDLCookInfo();
+	}
 
 	return true;
 }
