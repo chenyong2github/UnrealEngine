@@ -131,9 +131,18 @@ void FOnlineSubsystemSteamModule::LoadSteamModules()
 	SteamDLLHandle = FPlatformProcess::GetDllHandle(*(RootSteamPath + "steam_api" + Suffix + ".dll"));
 	if (IsRunningDedicatedServer() && FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("force_steamclient_link")))
 	{
-		UE_LOG_ONLINE(Log, TEXT("Force linking the steam client dlls."));
+		FString SteamClientDLL("steamclient" + Suffix + ".dll"),
+			SteamTierDLL("tier0_s" + Suffix + ".dll"),
+			SteamVSTDDLL("vstdlib_s" + Suffix + ".dll");
+
+		UE_LOG_ONLINE(Log, TEXT("Attempting to force linking the steam client dlls."));
 		bForceLoadSteamClientDll = true;
-		SteamServerDLLHandle = FPlatformProcess::GetDllHandle(*(RootSteamPath + "steamclient" + Suffix + ".dll"));
+		SteamServerDLLHandle = FPlatformProcess::GetDllHandle(*(RootSteamPath + SteamClientDLL));
+		if(!SteamServerDLLHandle)
+		{
+			UE_LOG_ONLINE(Error, TEXT("Could not find the %s, %s and %s DLLs, make sure they are all located at %s! These dlls can be located in your Steam install directory."), 
+				*SteamClientDLL, *SteamTierDLL, *SteamVSTDDLL, *RootSteamPath);
+		}
 	}
 	FPlatformProcess::PopDllDirectory(*RootSteamPath);
 #elif PLATFORM_MAC
