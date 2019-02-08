@@ -6,11 +6,12 @@
 #include "Party/PartyDataReplicator.h"
 
 #include "PartyBeaconState.h"
+#include "SpectatorBeaconState.h"
+#include "SpectatorBeaconClient.h"
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlineChatInterface.h"
 #include "Containers/Queue.h"
 #include "Engine/EngineBaseTypes.h"
-
 #include "SocialParty.generated.h"
 
 class APartyBeaconClient;
@@ -242,12 +243,25 @@ protected:
 
 	APartyBeaconClient* GetReservationBeaconClient() const { return ReservationBeaconClient; }
 
+	/**
+	* Create a spectator beacon and connect to the server to get approval for new spectators
+	*/
+	void ConnectToSpectatorBeacon();
+	void CleanupSpectatorBeacon();
+	ASpectatorBeaconClient* CreateSpectatorBeaconClient();
+
+	ASpectatorBeaconClient* GetSpectatorBeaconClient() const { return SpectatorBeaconClient; }
+
 	/** Child classes MUST call EstablishRepDataInstance() on this using their member rep data struct instance */
 	FPartyDataReplicator PartyDataReplicator;
 
 	/** Reservation beacon class for getting server approval for new party members while in a game */
 	UPROPERTY()
 	TSubclassOf<APartyBeaconClient> ReservationBeaconClientClass;
+
+	/** Spectator beacon class for getting server approval for new spectators while in a game */
+	UPROPERTY()
+		TSubclassOf<ASpectatorBeaconClient> SpectatorBeaconClientClass;
 
 private:
 	UPartyMember* GetOrCreatePartyMember(const FUniqueNetId& MemberId);
@@ -325,10 +339,21 @@ private:
 	 * Some network error handlers may be called after we cleanup our beacon connection.
 	 */
 	FName LastReservationBeaconClientNetDriverName;
-
+	
 	/** Reservation beacon client instance while getting approval for new party members*/
 	UPROPERTY()
-	APartyBeaconClient* ReservationBeaconClient = nullptr;
+		APartyBeaconClient* ReservationBeaconClient = nullptr;
+	
+	/**
+	* Last known spectator beacon client net driver name
+	* Intended to be used to detect network errors related to our current or last spectator beacon client's net driver.
+	* Some network error handlers may be called after we cleanup our beacon connection.
+	*/
+	FName LastSpectatorBeaconClientNetDriverName;
+	
+	/** Spectator beacon client instance while getting approval for spectator*/
+	UPROPERTY()
+		ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
 
 	/**
 	 * True when we have limited functionality due to lacking an xmpp connection.
