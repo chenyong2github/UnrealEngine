@@ -315,6 +315,8 @@ FBodyInstance::FBodyInstance()
 	, bPendingCollisionProfileSetup(false)
 	, Scale3D(1.0f)
 	, CollisionProfileName(UCollisionProfile::CustomCollisionProfileName)
+	, PositionSolverIterationCount(8)
+	, VelocitySolverIterationCount(1)
 	, MaxDepenetrationVelocity(0.f)
 	, MassInKgOverride(100.f)
 	, ExternalCollisionProfileBodySetup(nullptr)
@@ -330,8 +332,6 @@ FBodyInstance::FBodyInstance()
 	, CustomSleepThresholdMultiplier(1.f)
 	, StabilizationThresholdMultiplier(1.f)
 	, PhysicsBlendWeight(0.f)
-	, PositionSolverIterationCount(8)
-	, VelocitySolverIterationCount(1)
 {
 	MaxAngularVelocity = UPhysicsSettings::Get()->MaxAngularVelocity;
 }
