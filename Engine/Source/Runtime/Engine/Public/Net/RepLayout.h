@@ -1070,11 +1070,11 @@ private:
 	friend class UPackageMapClient;
 
 	FRepLayout():
+		LayoutState(ERepLayoutState::Uninitialized),
 		FirstNonCustomParent(0),
-		RoleIndex(-1),
+		RoleIndex(INDEX_NONE),
 		RemoteRoleIndex(-1),
-		Owner(NULL),
-		LayoutState(ERepLayoutState::Uninitialized)
+		Owner(nullptr)
 	{}
 
 public:
@@ -1831,7 +1831,6 @@ private:
 	void ConstructProperties(FRepStateStaticBuffer& ShadowData) const;
 	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Src) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
-
 
 	ERepLayoutState LayoutState;
 
