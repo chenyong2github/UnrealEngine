@@ -767,6 +767,14 @@ namespace Audio
 	{
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_OPUS(TEXT("OPUS"));
+		static FName NAME_XMA(TEXT("XMA"));
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2)
+		{
+			return NAME_XMA;
+		}
+#endif
 
 		if (InSoundWave->IsStreaming())
 		{
@@ -780,7 +788,6 @@ namespace Audio
 #if WITH_XMA2
 		if (InSoundWave->NumChannels <= 2)
 		{
-			static FName NAME_XMA(TEXT("XMA"));
 			return NAME_XMA;
 		}
 #endif //#if WITH_XMA2

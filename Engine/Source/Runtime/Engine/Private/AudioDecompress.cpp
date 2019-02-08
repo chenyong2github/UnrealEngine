@@ -290,6 +290,12 @@ int32 IStreamedCompressedInfo::DecompressToPCMBuffer(uint16 FrameSize)
 	LastPCMOffset = 0;
 	
 	const FDecodeResult DecodeResult = Decode(SrcPtr, FrameSize, LastDecodedPCM.GetData(), LastDecodedPCM.Num());
+	if (DecodeResult.NumCompressedBytesConsumed != INDEX_NONE )
+	{
+		SrcBufferOffset -= FrameSize;
+		SrcBufferOffset += DecodeResult.NumCompressedBytesConsumed;
+	}
+
 	return DecodeResult.NumAudioFramesProduced;
 }
 
