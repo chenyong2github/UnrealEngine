@@ -622,7 +622,7 @@ void FScene::DumpMeshDrawCommandMemoryStats()
 				PassStats.ShaderBindingHeapBytes += MeshDrawCommand.ShaderBindings.GetAllocatedSize();
 				PassStats.VertexStreamsInlineBytes += sizeof(MeshDrawCommand.VertexStreams);
 				PassStats.DebugDataBytes += MeshDrawCommand.GetDebugDataSize();
-				PassStats.DrawCommandParameterBytes += sizeof(MeshDrawCommand.IndexBuffer) + sizeof(MeshDrawCommand.FirstIndex) + sizeof(MeshDrawCommand.NumPrimitives) + sizeof(MeshDrawCommand.NumInstances) + sizeof(MeshDrawCommand.VertexParams);
+				PassStats.DrawCommandParameterBytes += sizeof(MeshDrawCommand.IndexBuffer) + sizeof(MeshDrawCommand.FirstIndex) + sizeof(MeshDrawCommand.NumPrimitives) + sizeof(MeshDrawCommand.NumInstances) + sizeof(MeshDrawCommand.VertexParams); //-V568
 				PassStats.NumCommands++;
 			}
 		}
