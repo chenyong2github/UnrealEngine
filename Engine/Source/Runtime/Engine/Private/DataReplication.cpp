@@ -168,9 +168,8 @@ void FObjectReplicator::InitRecentProperties( uint8* Source )
 	check( !RepState.IsValid() );
 
 	const bool bIsServer = Connection->Driver->IsServer();
-	UClass* InObjectClass = GetObject()->GetClass();
 
-	RepState = MakeUnique<FRepState>();
+	UClass* InObjectClass = GetObject()->GetClass();
 
 	// Initialize the RepState memory
 	// Clients don't need RepChangedPropertyTracker's, as they are mainly
@@ -178,8 +177,10 @@ void FObjectReplicator::InitRecentProperties( uint8* Source )
 	// for replays (and the DemoNetDriver will be acts as a server during recording).
 	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = bIsServer ? Connection->Driver->FindOrCreateRepChangedPropertyTracker(GetObject()) : nullptr;
 
-	RepLayout->InitRepState( RepState.Get(), InObjectClass, Source, RepChangedPropertyTracker );
-	RepState->RepLayout = RepLayout;
+	// If acting as a server and are InternalAck, that means we're recording.
+	// In that case, we don't need to create any receiving state, as no one will be sending data to us.
+	ECreateRepStateFlags Flags = (Connection->InternalAck && bIsServer) ? ECreateRepStateFlags::SkipCreateReceivingState : ECreateRepStateFlags::None;
+	RepState = RepLayout->CreateRepState(InObjectClass, Source, RepChangedPropertyTracker, Flags);
 
 	if ( !bIsServer)
 	{
@@ -244,7 +245,7 @@ bool FObjectReplicator::ValidateAgainstState( const UObject* ObjectState )
 	FRepShadowDataBuffer ShadowData(ChangelistState->StaticBuffer.GetData());
 	FConstRepObjectDataBuffer ObjectData(ObjectState);
 
-	if ( RepLayout->DiffProperties( &(RepState->RepNotifies), ShadowData, ObjectData, EDiffPropertiesFlags::None ) )
+	if ( RepLayout->DiffProperties( nullptr, ShadowData, ObjectData, EDiffPropertiesFlags::None ) )
 	{
 		UE_LOG(LogRep, Warning, TEXT("ValidateAgainstState: Properties changed for %s"), *ObjectState->GetName());
 		return false;
@@ -428,7 +429,10 @@ FReplicationChangelistMgr::FReplicationChangelistMgr( UNetDriver* InDriver, UObj
 
 	RepChangelistState = TUniquePtr< FRepChangelistState >( new FRepChangelistState );
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	RepLayout->InitShadowData( RepChangelistState->StaticBuffer, InObject->GetClass(), (uint8*)InObject->GetArchetype() );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	RepChangelistState->RepLayout = RepLayout;
 }
 
@@ -663,7 +667,7 @@ bool FObjectReplicator::ReceivedBunch( FNetBitReader& Bunch, const FReplicationF
 
 		bool bLocalHasUnmapped = false;
 
-		if ( !RepLayout->ReceiveProperties(OwningChannel, ObjectClass, RepState.Get(), ( void* )Object, Bunch, bLocalHasUnmapped, bGuidsChanged, ReceivePropFlags ) )
+		if ( !RepLayout->ReceiveProperties(OwningChannel, ObjectClass, RepState->GetReceivingRepState(), ( void* )Object, Bunch, bLocalHasUnmapped, bGuidsChanged, ReceivePropFlags ) )
 		{
 			UE_LOG( LogRep, Error, TEXT( "RepLayout->ReceiveProperties FAILED: %s" ), *Object->GetFullName() );
 			return false;
@@ -1036,7 +1040,7 @@ void FObjectReplicator::UpdateGuidToReplicatorMap()
 	// Gather guids on rep layout
 	if ( RepLayout.IsValid() && RepState.IsValid() )
 	{
-		RepLayout->GatherGuidReferences( RepState.Get(), LocalReferencedGuids, LocalTrackedGuidMemoryBytes );
+		RepLayout->GatherGuidReferences( RepState->GetReceivingRepState(), LocalReferencedGuids, LocalTrackedGuidMemoryBytes );
 	}
 
 	UObject* Object = GetObject();
@@ -1116,7 +1120,7 @@ bool FObjectReplicator::MoveMappedObjectToUnmapped( const FNetworkGUID& GUID )
 
 	if ( RepLayout.IsValid() )
 	{
-		if ( RepLayout->MoveMappedObjectToUnmapped( RepState.Get(), GUID ) )
+		if ( RepLayout->MoveMappedObjectToUnmapped( RepState->GetReceivingRepState(), GUID ) )
 		{
 			bFound = true;
 		}
@@ -1324,7 +1328,8 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	{
 		check(OwningChannel);
 		check(RepLayout.IsValid());
-		check(RepState.IsValid())
+		check(RepState.IsValid());
+		check(RepState->GetSendingRepState());
 		check(RepLayout->GetRepLayoutState() != ERepLayoutState::Uninitialized);
 		check(ChangelistMgr.IsValid());
 		check(ChangelistMgr->GetRepChangelistState() != nullptr);
@@ -1336,10 +1341,11 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	FNetBitWriter Writer( Bunch.PackageMap, 8192 );
 
 	// Update change list (this will re-use work done by previous connections)
-	ChangelistMgr->Update(RepState.Get(), Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
+	FSendingRepState* SendingRepState = RepState->GetSendingRepState();
+	ChangelistMgr->Update(SendingRepState, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
 
 	// Replicate properties in the layout
-	const bool bHasRepLayout = RepLayout->ReplicateProperties(RepState.Get(), ChangelistMgr->GetRepChangelistState(), (uint8*)Object, ObjectClass, OwningChannel, Writer, RepFlags);
+	const bool bHasRepLayout = RepLayout->ReplicateProperties(SendingRepState, ChangelistMgr->GetRepChangelistState(), (uint8*)Object, ObjectClass, OwningChannel, Writer, RepFlags);
 
 	// Replicate all the custom delta properties (fast arrays, etc)
 	ReplicateCustomDeltaProperties(Writer, RepFlags);
@@ -1400,7 +1406,7 @@ void FObjectReplicator::ForceRefreshUnreliableProperties()
 
 	check( !bOpenAckCalled );
 
-	RepLayout->OpenAcked( RepState.Get() );
+	RepLayout->OpenAcked( RepState->GetSendingRepState() );
 
 	bOpenAckCalled = true;
 }
@@ -1423,7 +1429,7 @@ void FObjectReplicator::PostSendBunch( FPacketIdRange & PacketRange, uint8 bReli
 		// Don't call if reliable, since the bunch will be resent. We dont want this to end up in the changelist history
 		// But is that enough? How does it know to delta against this latest state?
 
-		RepLayout->PostReplicate( RepState.Get(), PacketRange, bReliable ? true : false );
+		RepLayout->PostReplicate(RepState->GetSendingRepState(), PacketRange, bReliable ? true : false);
 	}
 
 	for ( int32 i = 0; i < LifetimeCustomDeltaProperties.Num(); i++ )
@@ -1685,29 +1691,29 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RepNotifies);
 	UObject* Object = GetObject();
 
-	if ( Object == NULL || Object->IsPendingKill() )
+	if (!Object || Object->IsPendingKill())
 	{
 		return;
 	}
 
-	if ( Connection != NULL && Connection->Driver != NULL && Connection->Driver->ShouldSkipRepNotifies() )
+	if (Connection && Connection->Driver && Connection->Driver->ShouldSkipRepNotifies())
 	{
 		return;
 	}
 
-	if ( bSkipIfChannelHasQueuedBunches && ( OwningChannel != NULL && OwningChannel->QueuedBunches.Num() > 0 ) )
+	if (bSkipIfChannelHasQueuedBunches && (OwningChannel && OwningChannel->QueuedBunches.Num() > 0))
 	{
 		return;
 	}
 
-	RepLayout->CallRepNotifies( RepState.Get(), Object );
+	FReceivingRepState* ReceivingRepState = RepState->GetReceivingRepState();
+	RepLayout->CallRepNotifies(ReceivingRepState, Object);
 
-	if ( RepNotifies.Num() > 0 )
+	if (RepNotifies.Num() > 0)
 	{
-		for (int32 RepNotifyIdx = 0; RepNotifyIdx < RepNotifies.Num(); RepNotifyIdx++)
+		for (UProperty* RepProperty : RepNotifies)
 		{
 			//UE_LOG(LogRep, Log,  TEXT("Calling Object->%s with %s"), *RepNotifies(RepNotifyIdx)->RepNotifyFunc.ToString(), *RepNotifies(RepNotifyIdx)->GetName()); 						
-			UProperty* RepProperty = RepNotifies[RepNotifyIdx];
 			UFunction* RepNotifyFunc = Object->FindFunction(RepProperty->RepNotifyFunc);
 
 			if (RepNotifyFunc == nullptr)
@@ -1723,7 +1729,7 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 			}
 			else if (RepNotifyFunc->NumParms == 1)
 			{
-				Object->ProcessEvent(RepNotifyFunc, RepProperty->ContainerPtrToValuePtr<uint8>(RepState->StaticBuffer.GetData()) );
+				Object->ProcessEvent(RepNotifyFunc, RepProperty->ContainerPtrToValuePtr<uint8>(ReceivingRepState->StaticBuffer.GetData()) );
 			}
 			else if (RepNotifyFunc->NumParms == 2)
 			{
@@ -1737,25 +1743,25 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 				// But this is all sort of an edge case feature anyways, so its not worth tearing things up too much over.
 
 				FMemMark Mark(FMemStack::Get());
-				uint8* Parms = new(FMemStack::Get(),MEM_Zeroed,RepNotifyFunc->ParmsSize)uint8;
+				uint8* Parms = new(FMemStack::Get(), MEM_Zeroed, RepNotifyFunc->ParmsSize)uint8;
 
 				TFieldIterator<UProperty> Itr(RepNotifyFunc);
 				check(Itr);
 
-				Itr->CopyCompleteValue( Itr->ContainerPtrToValuePtr<void>(Parms), RepProperty->ContainerPtrToValuePtr<uint8>(RepState->StaticBuffer.GetData()) );
+				Itr->CopyCompleteValue(Itr->ContainerPtrToValuePtr<void>(Parms), RepProperty->ContainerPtrToValuePtr<uint8>(ReceivingRepState->StaticBuffer.GetData()));
 				++Itr;
 				check(Itr);
 
-				TArray<uint8> *NotifyMetaData = RepNotifyMetaData.Find(RepNotifies[RepNotifyIdx]);
+				TArray<uint8> *NotifyMetaData = RepNotifyMetaData.Find(RepProperty);
 				check(NotifyMetaData);
-				Itr->CopyCompleteValue( Itr->ContainerPtrToValuePtr<void>(Parms), NotifyMetaData );
+				Itr->CopyCompleteValue(Itr->ContainerPtrToValuePtr<void>(Parms), NotifyMetaData);
 
-				Object->ProcessEvent(RepNotifyFunc, Parms );
+				Object->ProcessEvent(RepNotifyFunc, Parms);
 
 				Mark.Pop();
 			}
 
-			if (Object == NULL || Object->IsPendingKill())
+			if (Object->IsPendingKill())
 			{
 				// script event destroyed Object
 				break;
@@ -1776,30 +1782,31 @@ void FObjectReplicator::UpdateUnmappedObjects( bool & bOutHasMoreUnmapped )
 {
 	UObject* Object = GetObject();
 	
-	if ( Object == NULL || Object->IsPendingKill() )
+	if (!Object || Object->IsPendingKill())
 	{
 		bOutHasMoreUnmapped = false;
 		return;
 	}
 
-	if ( Connection->State == USOCK_Closed )
+	if (Connection->State == USOCK_Closed)
 	{
 		UE_LOG(LogNet, Verbose, TEXT("FObjectReplicator::UpdateUnmappedObjects: Connection->State == USOCK_Closed"));
 		return;
 	}
 
 	// Since RepNotifies aren't processed while a channel has queued bunches, don't assert in that case.
+	FReceivingRepState* ReceivingRepState = RepState->GetReceivingRepState();
 	const bool bHasQueuedBunches = OwningChannel && OwningChannel->QueuedBunches.Num() > 0;
-	checkf( bHasQueuedBunches || RepState->RepNotifies.Num() == 0, TEXT("Failed RepState RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), RepState->RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
+	checkf( bHasQueuedBunches || ReceivingRepState->RepNotifies.Num() == 0, TEXT("Failed RepState RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), ReceivingRepState->RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 	checkf( bHasQueuedBunches || RepNotifies.Num() == 0, TEXT("Failed replicator RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 
 	bool bSomeObjectsWereMapped = false;
 
 	// Let the rep layout update any unmapped properties
-	RepLayout->UpdateUnmappedObjects( RepState.Get(), Connection->PackageMap, Object, bSomeObjectsWereMapped, bOutHasMoreUnmapped );
+	RepLayout->UpdateUnmappedObjects(ReceivingRepState, Connection->PackageMap, Object, bSomeObjectsWereMapped, bOutHasMoreUnmapped);
 
 	// Update unmapped objects for custom properties (currently just fast tarray)
-	for ( auto It = UnmappedCustomProperties.CreateIterator(); It; ++It )
+	for (auto It = UnmappedCustomProperties.CreateIterator(); It; ++It)
 	{
 		const int32			Offset			= It.Key();
 		UStructProperty*	StructProperty	= It.Value();
@@ -1846,7 +1853,7 @@ void FObjectReplicator::UpdateUnmappedObjects( bool & bOutHasMoreUnmapped )
 		}
 	}
 
-	if ( bSomeObjectsWereMapped )
+	if (bSomeObjectsWereMapped)
 	{
 		// If we mapped some objects, make sure to call PostNetReceive (some game code will need to think this was actually replicated to work)
 		PostNetReceive();
