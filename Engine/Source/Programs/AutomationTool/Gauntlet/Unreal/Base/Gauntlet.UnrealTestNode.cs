@@ -628,7 +628,7 @@ namespace Gauntlet
 		/// <param name="Node"></param>
 		/// <param name="OutputPath"></param>
 		/// <returns></returns>
-		public IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
+		public virtual IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
 		{
 			CachedArtifactPath = OutputPath;
 			return UnrealApp.SaveRoleArtifacts(Context, TestInstance, CachedArtifactPath);
