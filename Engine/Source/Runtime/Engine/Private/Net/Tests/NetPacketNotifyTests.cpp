@@ -5,7 +5,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetPacketNotifyTest, "Network.PacketNotifyTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNetPacketNotifyTest, "Net.PacketNotifyTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
 struct FNetPacketNotifyTestUtil
 {
@@ -256,6 +256,36 @@ bool FNetPacketNotifyTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, 1);
 		TestEqual(TEXT("Notifications - Create sequence"), FPlatformMemory::Memcmp(ExpectedAckdPacketIds, RcvdAcks, sizeof(ExpectedAckdPacketIds)), 0u);
 	}
+
+	// test received invalid ack
+	{
+		static const FNetPacketNotify::SequenceNumberT ExpectedAckdPacketIds[] = {3, 7, 12, 14, 17, 18};
+		static const SIZE_T ExpectedCount = sizeof(ExpectedAckdPacketIds)/sizeof((ExpectedAckdPacketIds)[0]);		
+
+		FNetPacketNotify::SequenceNumberT RcvdAcks[ExpectedCount] = { 0 };
+		SIZE_T RcvdCount = 0;
+
+		// Create src data
+		FNetPacketNotify Acks = Util.DefaultNotify;
+
+		// Fill in some data
+		FNetPacketNotify::FNotificationHeader Data;
+		Data.Seq = FNetPacketNotify::SequenceNumberT(0);
+		Data.AckedSeq = FNetPacketNotify::SequenceNumberT(19);
+		Data.History = FNetPacketNotify::SequenceHistoryT(0x8853u);
+		Data.HistoryWordCount = 1;
+
+		// Need to fake ack record as well.
+		for (SIZE_T It=0; It <= 18; ++It)
+		{
+			FNetPacketNotifyTestUtil::PretendSendSeq(Acks, 0);
+		}
+	
+		SIZE_T DeltaSeq = FNetPacketNotifyTestUtil::PretendReceivedPacket(Acks, Data, RcvdAcks);
+
+		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, 0);
+	}
+
 
 	// test various sequence
 	{
