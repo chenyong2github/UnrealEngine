@@ -44,10 +44,9 @@ void UEndTurnCallbackProxy::Activate()
 		{
 			if (TurnBasedMatchInterface != nullptr)
 			{
-				FRepLayout RepLayout;
-				RepLayout.InitFromObjectClass(TurnBasedMatchInterface->GetClass());
+				// TODO: We should cache off the RepLayout by class, just like we do in NetDriver.
 				FBitWriter Writer(TurnBasedInterface->GetMatchDataSize());
-				RepLayout.SerializeObjectReplicatedProperties(TurnBasedMatchInterface, Writer);
+				FRepLayout::CreateFromClass(TurnBasedMatchInterface->GetClass())->SerializeObjectReplicatedProperties(TurnBasedMatchInterface, Writer);
 
 				FUploadMatchDataSignature UploadMatchDataSignature;
 				UploadMatchDataSignature.BindUObject(this, &UEndTurnCallbackProxy::UploadMatchDataDelegate);
