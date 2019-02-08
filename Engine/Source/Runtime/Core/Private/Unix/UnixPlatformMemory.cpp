@@ -183,14 +183,6 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 					int32 Max = FCStringAnsi::Atoi(Cmd + sizeof(FileMapCacheCmd) - 1);
 					GMaxNumberFileMappingCache = FMath::Clamp(Max, 0, MaximumAllowedMaxNumFileMappingCache);
 				}
-#if UE_SERVER
-				const char MemPoolTableScaleCmd[] = "-mempoolscale=";
-				if (const char* Cmd = FCStringAnsi::Stristr(Arg, MemPoolTableScaleCmd))
-				{
-					float MemPoolScale = FCStringAnsi::Atof(Cmd + sizeof(MemPoolTableScaleCmd) - 1);
-					GPoolTableScale = FMath::Max(MemPoolScale, 0.0f);
-				}
-#endif
 
 #if UE_USE_MALLOC_REPLAY_PROXY
 				if (FCStringAnsi::Stricmp(Arg, "-mallocsavereplay") == 0)
