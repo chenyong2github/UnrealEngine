@@ -388,6 +388,14 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 
 	/** Return all bounds related to the ref object */
 	ENGINE_API virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) = 0;
+
+	//BEGIN: APIs for backward compatibility
+	ENGINE_API void UpdateIndividualTexture(UTexture2D* Texture);
+	ENGINE_API bool StreamOutTextureData(int64 RequiredMemorySize);
+	ENGINE_API void AddStreamingTexture(UTexture2D* Texture);
+	ENGINE_API void RemoveStreamingTexture(UTexture2D* Texture);
+	ENGINE_API void PauseTextureStreaming(bool bInShouldPause);
+	//END: APIs for backward compatibility
 };
 
 /**

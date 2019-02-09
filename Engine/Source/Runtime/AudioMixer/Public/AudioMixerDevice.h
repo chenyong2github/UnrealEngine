@@ -141,9 +141,9 @@ namespace Audio
 		FMixerSubmixWeakPtr GetSubmixInstance(USoundSubmix* SoundSubmix);
 
 		// Functions which check the thread it's called on and helps make sure functions are called from correct threads
-		void CheckAudioThread();
-		void CheckAudioRenderingThread();
-		bool IsAudioRenderingThread();
+		void CheckAudioThread() const;
+		void CheckAudioRenderingThread() const;
+		bool IsAudioRenderingThread() const;
 
 		// Public Functions
 		FMixerSourceVoice* GetMixerSourceVoice();
@@ -278,10 +278,10 @@ namespace Audio
 		FMixerSourceManager SourceManager;
 
 		/** ThreadId for the game thread (or if audio is running a seperate thread, that ID) */
-		int32 GameOrAudioThreadId;
+		mutable int32 GameOrAudioThreadId;
 
 		/** ThreadId for the low-level platform audio mixer. */
-		int32 AudioPlatformThreadId;
+		mutable int32 AudioPlatformThreadId;
 
 		/** Command queue to send commands to audio render thread from game thread or audio thread. */
 		TQueue<TFunction<void()>> CommandQueue;

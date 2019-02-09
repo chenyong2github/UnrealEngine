@@ -1057,7 +1057,7 @@ void USoundWave::BakeFFTAnalysis()
 				SpectrumAnalyzer.PushAudio(AnalysisData.GetData(), AnalysisData.Num());
 
 				// Block while the analyzer does the analysis
-				while (SpectrumAnalyzer.PerformAnalysisIfPossible()) {}
+				SpectrumAnalyzer.PerformAnalysisIfPossible(true);
 
 				FSoundWaveSpectralTimeData NewData;
 
@@ -1072,7 +1072,7 @@ void USoundWave::BakeFFTAnalysis()
 					DataEntry.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
 
 					// Feed the magnitude through the spectral envelope follower for this band
-					DataEntry.Magnitude = SpectralEnvelopeFollowers[Index].ProcessAudio(DataEntry.Magnitude);
+					DataEntry.Magnitude = SpectralEnvelopeFollowers[Index].ProcessAudioNonClamped(DataEntry.Magnitude);
 
 					// Track the max magnitude so we can later set normalized magnitudes
 					if (DataEntry.Magnitude > MaximumMagnitude)
@@ -1115,6 +1115,8 @@ void USoundWave::BakeFFTAnalysis()
 					CookedSpectralTimeData.Add(NewData);
 				}
 				*/
+
+				CookedSpectralTimeData.Add(NewData);
 
 				AnalysisData.Reset();
 			}

@@ -2656,9 +2656,11 @@ public:
 				if (Bypass())
 				{
 					GetContext().RHICopyTexture(SourceTextureRHI, DestTextureRHI, PerMipInfo);
-					return;
 				}
-				ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, PerMipInfo);
+				else
+				{
+					ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, PerMipInfo);
+				}
 
 				++PerMipInfo.SourceMipIndex;
 				++PerMipInfo.DestMipIndex;

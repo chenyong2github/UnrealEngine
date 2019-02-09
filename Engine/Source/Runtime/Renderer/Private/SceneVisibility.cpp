@@ -1663,9 +1663,6 @@ namespace EMarkMaskBits
 	};
 }
 
-typedef TChunkedArray<FVisibleMeshDrawCommand> FPassDrawCommandArray;
-typedef TChunkedArray<const FStaticMeshBatch*> FPassDrawCommandBuildRequestArray;
-
 struct FDrawCommandRelevancePacket
 {
 	FDrawCommandRelevancePacket()
@@ -1678,8 +1675,8 @@ struct FDrawCommandRelevancePacket
 		}
 	}
 
-	FPassDrawCommandArray VisibleCachedDrawCommands[EMeshPass::Num];
-	FPassDrawCommandBuildRequestArray DynamicBuildRequests[EMeshPass::Num];
+	TArray<FVisibleMeshDrawCommand, TInlineAllocator<256>> VisibleCachedDrawCommands[EMeshPass::Num];
+	TArray<const FStaticMeshBatch*, TInlineAllocator<256>> DynamicBuildRequests[EMeshPass::Num];
 	int32 NumDynamicBuildRequestElements[EMeshPass::Num];
 	bool bUseCachedMeshDrawCommands;
 
@@ -1716,13 +1713,13 @@ struct FDrawCommandRelevancePacket
 					CachedMeshDrawCommand.MeshCullMode,
 					CachedMeshDrawCommand.SortKey);
 
-				VisibleCachedDrawCommands[(uint32)PassType].AddElement(NewVisibleMeshDrawCommand);
+				VisibleCachedDrawCommands[(uint32)PassType].Add(NewVisibleMeshDrawCommand);
 			}
 		}
 		else
 		{
 			NumDynamicBuildRequestElements[PassType] += StaticMeshRelevance.NumElements;
-			DynamicBuildRequests[PassType].AddElement(&StaticMesh);
+			DynamicBuildRequests[PassType].Add(&StaticMesh);
 		}
 	}
 };
@@ -2314,8 +2311,24 @@ struct FRelevancePacket
 
 		for (int32 PassIndex = 0; PassIndex < EMeshPass::Num; PassIndex++)
 		{
-			DrawCommandPacket.VisibleCachedDrawCommands[PassIndex].CopyToLinearArray(WriteViewCommands.MeshCommands[PassIndex]);
-			DrawCommandPacket.DynamicBuildRequests[PassIndex].CopyToLinearArray(WriteViewCommands.DynamicMeshCommandBuildRequests[PassIndex]);
+			TArray<FVisibleMeshDrawCommand, TInlineAllocator<256>>& SrcCommands = DrawCommandPacket.VisibleCachedDrawCommands[PassIndex];
+			FMeshCommandOneFrameArray& DstCommands = WriteViewCommands.MeshCommands[PassIndex];
+			if (SrcCommands.Num() > 0)
+			{
+				static_assert(sizeof(SrcCommands[0]) == sizeof(DstCommands[0]), "Memcpy sizes must match.");
+				const int32 PrevNum = DstCommands.AddUninitialized(SrcCommands.Num());
+				FMemory::Memcpy(&DstCommands[PrevNum], &SrcCommands[0], SrcCommands.Num() * sizeof(SrcCommands[0]));
+			}
+
+			TArray<const FStaticMeshBatch*, TInlineAllocator<256>>& SrcRequests = DrawCommandPacket.DynamicBuildRequests[PassIndex];
+			TArray<const FStaticMeshBatch*, SceneRenderingAllocator>& DstRequests = WriteViewCommands.DynamicMeshCommandBuildRequests[PassIndex];
+			if (SrcRequests.Num() > 0)
+			{
+				static_assert(sizeof(SrcRequests[0]) == sizeof(DstRequests[0]), "Memcpy sizes must match.");
+				const int32 PrevNum = DstRequests.AddUninitialized(SrcRequests.Num());
+				FMemory::Memcpy(&DstRequests[PrevNum], &SrcRequests[0], SrcRequests.Num() * sizeof(SrcRequests[0]));
+			}
+
 			WriteViewCommands.NumDynamicMeshCommandBuildRequestElements[PassIndex] += DrawCommandPacket.NumDynamicBuildRequestElements[PassIndex];
 		}
 
@@ -2692,21 +2705,22 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				// Compute DynamicMeshElementsMeshPassRelevance for this primitive.
 				for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
 				{
-					FViewInfo& View = InViews[ViewIndex];
-					const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
-					const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
-
-					View.DynamicMeshElementsPassRelevance.SetNum(View.DynamicMeshElements.Num());
-
-					const int32 NumPrimitiveElements = Collector.GetMeshBatchCount(ViewIndex);
-					const int32 PrimitiveFirstElement = View.DynamicMeshElements.Num() - NumPrimitiveElements;
-
-					for (int32 ElementIndex = PrimitiveFirstElement; ElementIndex < NumPrimitiveElements; ++ElementIndex)
+					if (ViewMaskFinal & (1 << ViewIndex))
 					{
-						const FMeshBatchAndRelevance& MeshBatch = View.DynamicMeshElements[ElementIndex];
-						FMeshPassMask& PassRelevance = View.DynamicMeshElementsPassRelevance[ElementIndex];
+						FViewInfo& View = InViews[ViewIndex];
+						const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
+						const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveIndex];
 
-						ComputeDynamicMeshRelevance(ShadingPath, bAddLightmapDensityCommands, ViewRelevance, MeshBatch, View, PassRelevance);
+						const int32 LastNumDynamicMeshElements = View.DynamicMeshElementsPassRelevance.Num();
+						View.DynamicMeshElementsPassRelevance.SetNum(View.DynamicMeshElements.Num());
+
+						for (int32 ElementIndex = LastNumDynamicMeshElements; ElementIndex < View.DynamicMeshElements.Num(); ++ElementIndex)
+						{
+							const FMeshBatchAndRelevance& MeshBatch = View.DynamicMeshElements[ElementIndex];
+							FMeshPassMask& PassRelevance = View.DynamicMeshElementsPassRelevance[ElementIndex];
+
+							ComputeDynamicMeshRelevance(ShadingPath, bAddLightmapDensityCommands, ViewRelevance, MeshBatch, View, PassRelevance);
+						}
 					}
 				}
 			}

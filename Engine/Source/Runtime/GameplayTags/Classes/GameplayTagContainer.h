@@ -1045,7 +1045,7 @@ public:
 	void GetQueryExpr(struct FGameplayTagQueryExpression& OutExpr) const;
 
 	/** Returns description string. */
-	FString GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
+	const FString& GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
 
 #if WITH_EDITOR
 	/** Creates this query based on the given EditableQuery object */

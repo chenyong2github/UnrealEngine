@@ -646,9 +646,8 @@ void ApplyViewOverridesToMeshDrawCommands(
 FAutoConsoleTaskPriority CPrio_FMeshDrawCommandPassSetupTask(
 	TEXT("TaskGraph.TaskPriorities.FMeshDrawCommandPassSetupTask"),
 	TEXT("Task and thread priority for FMeshDrawCommandPassSetupTask."),
-	ENamedThreads::HighThreadPriority, // if we have high priority task threads, then use them...
-	ENamedThreads::NormalTaskPriority, // .. at normal task priority
-	ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
+	ENamedThreads::NormalThreadPriority,
+	ENamedThreads::HighTaskPriority
 );
 
 /**
@@ -1069,7 +1068,7 @@ struct FRHICommandUpdatePrimitiveIdBuffer : public FRHICommand<FRHICommandUpdate
 	{
 		// Upload vertex buffer data.
 		void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockVertexBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
-		FMemory::BigBlockMemcpy(Data, VertexBufferData, VertexBufferDataSize);
+		FMemory::Memcpy(Data, VertexBufferData, VertexBufferDataSize);
 		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
 
 		FMemory::Free(VertexBufferData);
@@ -1148,7 +1147,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		{
 			// Can immediately upload vertex buffer data, as there is no parallel draw task.
 			void* RESTRICT Data = RHILockVertexBuffer(PrimitiveIdVertexBufferRHI, 0, TaskContext.PrimitiveIdBufferDataSize, RLM_WriteOnly);
-			FMemory::BigBlockMemcpy(Data, TaskContext.PrimitiveIdBufferData, TaskContext.PrimitiveIdBufferDataSize);
+			FMemory::Memcpy(Data, TaskContext.PrimitiveIdBufferData, TaskContext.PrimitiveIdBufferDataSize);
 			RHIUnlockVertexBuffer(PrimitiveIdVertexBufferRHI);
 		}
 

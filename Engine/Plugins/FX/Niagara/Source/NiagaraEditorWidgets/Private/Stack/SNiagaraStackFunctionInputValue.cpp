@@ -25,6 +25,8 @@
 #include "Modules/ModuleManager.h"
 #include "AssetRegistryModule.h"
 #include "NiagaraParameterCollection.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraSystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -414,7 +416,7 @@ FText SNiagaraStackFunctionInputValue::GetInvalidValueToolTipText() const
 	}
 }
 
-FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked()
+FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	UNiagaraNodeFunctionCall* DynamicInputNode = FunctionInput->GetDynamicInputNode();
 	if (DynamicInputNode->FunctionScript != nullptr && DynamicInputNode->FunctionScript->IsAsset())
@@ -425,7 +427,7 @@ FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked()
 	return FReply::Unhandled();
 }
 
-FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked()
+FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	FString ParamCollection;
 	FString ParamName;
@@ -440,7 +442,16 @@ FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked()
 		UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset());
 		if (Collection && Collection->GetNamespace() == *ParamCollection)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(Collection);
+			if (UNiagaraParameterCollectionInstance* NPCInst = FunctionInput->GetSystemViewModel()->GetSystem().GetParameterCollectionOverride(Collection))
+			{
+				//If we override this NPC then open the instance.
+				FAssetEditorManager::Get().OpenEditorForAsset(NPCInst);
+			}
+			else
+			{
+				FAssetEditorManager::Get().OpenEditorForAsset(Collection); 
+			}
+			
 			return FReply::Handled();
 		}
 	}
