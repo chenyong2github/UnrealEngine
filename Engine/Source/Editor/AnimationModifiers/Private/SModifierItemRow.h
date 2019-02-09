@@ -13,7 +13,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const ModifierListviewItem& Item);
-	FReply OnDoubleClicked();
+	FReply OnDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
 
 protected:
 	FText GetInstanceText() const;
