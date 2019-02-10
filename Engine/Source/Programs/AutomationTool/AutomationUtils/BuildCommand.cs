@@ -96,7 +96,7 @@ namespace AutomationTool
 			FileReference Value = ParseOptionalFileReferenceParam(Param);
 			if(Value == null)
 			{
-				throw new AutomationException("Missing -{0}=... parameter");
+				throw new AutomationException("Missing -{0}=... parameter", Param);
 			}
 			return Value;
 		}

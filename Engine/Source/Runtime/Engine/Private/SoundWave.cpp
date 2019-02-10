@@ -4,6 +4,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectIterator.h"
 #include "EngineDefines.h"
 #include "Components/AudioComponent.h"
 #include "ContentStreaming.h"
@@ -19,10 +20,14 @@
 #include "EditorFramework/AssetImportData.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/FileManager.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/BufferVectorOperations.h"
+#include "Misc/OutputDeviceArchiveWrapper.h"
+#include "Sound/SampleBuffer.h"
 
 static int32 BypassVirtualizeWhenSilentCVar = 0;
 FAutoConsoleVariableRef CVarBypassVirtualizeWhenSilent(
@@ -31,6 +36,41 @@ FAutoConsoleVariableRef CVarBypassVirtualizeWhenSilent(
 	TEXT("When set to 1, ignores the Play When Silent flag for non-procedural sources.\n")
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
+
+#if !UE_BUILD_SHIPPING
+static void DumpBakedAnalysisData(const TArray<FString>& Args)
+{
+	if (IsInGameThread())
+	{
+		if (Args.Num() == 1)
+		{
+			const FString& SoundWaveToDump = Args[0];
+			UE_LOG(LogTemp, Log, TEXT("Foo"));
+			for (TObjectIterator<USoundWave> It; It; ++It)
+			{
+				if (It->IsTemplate(RF_ClassDefaultObject))
+				{
+					continue;
+				}
+
+				if (SoundWaveToDump.Equals(It->GetName()))
+				{
+					UE_LOG(LogTemp, Log, TEXT("Foo"));
+#if WITH_EDITOR
+					It->LogBakedData();
+#endif // WITH_EDITOR
+				}
+			}
+		}
+	}
+}
+
+static FAutoConsoleCommand DumpBakedAnalysisDataCmd(
+	TEXT("au.DumpBakedAnalysisData"),
+	TEXT("debug command to dump the baked analysis data of a sound wave to a csv file."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&DumpBakedAnalysisData)
+);
+#endif
 
 #if ENABLE_COOK_STATS
 namespace SoundWaveCookStats
@@ -129,6 +169,8 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	FrequenciesToAnalyze.Add(1000.0f);
 	FrequenciesToAnalyze.Add(5000.0f);
 	FFTAnalysisFrameSize = 1024;
+	FFTAnalysisAttackTime = 10;
+	FFTAnalysisReleaseTime = 3000;
 	EnvelopeFollowerFrameSize = 1024;
 	EnvelopeFollowerAttackTime = 10;
 	EnvelopeFollowerReleaseTime = 100;
@@ -791,28 +833,115 @@ float USoundWave::GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPl
 	}
 }
 
+void USoundWave::LogBakedData()
+{
+	const FString AnalysisPathName = *(FPaths::ProjectLogDir() + TEXT("BakedAudioAnalysisData/"));
+	IFileManager::Get().MakeDirectory(*AnalysisPathName);
+
+	FString SoundWaveName = FString::Printf(TEXT("%s.%s"), *FDateTime::Now().ToString(TEXT("%d-%H.%M.%S")), *GetName());
+
+	if (CookedEnvelopeTimeData.Num())
+	{
+		FString EnvelopeFileName = FString::Printf(TEXT("%s.envelope.csv"), *SoundWaveName);	
+		FString FilenameFull = AnalysisPathName + EnvelopeFileName;
+
+		FArchive* FileAr = IFileManager::Get().CreateDebugFileWriter(*FilenameFull);
+		FOutputDeviceArchiveWrapper* FileArWrapper = new FOutputDeviceArchiveWrapper(FileAr);
+		FOutputDevice* ReportAr = FileArWrapper;
+
+		ReportAr->Log(TEXT("TimeStamp (Sec),Amplitude"));
+
+		for (const FSoundWaveEnvelopeTimeData& EnvTimeData : CookedEnvelopeTimeData)
+		{
+			ReportAr->Logf(TEXT("%.4f,%.4f"), EnvTimeData.TimeSec, EnvTimeData.Amplitude);
+		}
+
+		// Shutdown and free archive resources
+		FileArWrapper->TearDown();
+		delete FileArWrapper;
+		delete FileAr;
+	}
+
+	if (CookedSpectralTimeData.Num())
+	{
+		FString AnalysisFileName = FString::Printf(TEXT("%s.spectral.csv"), *SoundWaveName);
+		FString FilenameFull = AnalysisPathName + AnalysisFileName;
+
+		FArchive* FileAr = IFileManager::Get().CreateDebugFileWriter(*FilenameFull);
+		FOutputDeviceArchiveWrapper* FileArWrapper = new FOutputDeviceArchiveWrapper(FileAr);
+		FOutputDevice* ReportAr = FileArWrapper;
+
+		// Build the header string
+		FString ScratchString;
+		ScratchString.Append(TEXT("Time Stamp (Sec),"));
+
+		for (int32 i = 0; i < FrequenciesToAnalyze.Num(); ++i)
+		{
+			ScratchString.Append(FString::Printf(TEXT("%.2f Hz"), FrequenciesToAnalyze[i]));
+			if (i != FrequenciesToAnalyze.Num() - 1)
+			{
+				ScratchString.Append(TEXT(","));
+			}
+		}
+
+		ReportAr->Log(ScratchString);
+
+		for (const FSoundWaveSpectralTimeData& SpectralTimeData : CookedSpectralTimeData)
+		{
+			ScratchString.Reset();
+			ScratchString.Append(FString::Printf(TEXT("%.4f,"), SpectralTimeData.TimeSec));
+
+			for (int32 i = 0; i < SpectralTimeData.Data.Num(); ++i)
+			{
+				ScratchString.Append(FString::Printf(TEXT("%.4f"), SpectralTimeData.Data[i].Magnitude));
+				if (i != SpectralTimeData.Data.Num() - 1)
+				{
+					ScratchString.Append(TEXT(","));
+				}
+			}
+
+			ReportAr->Log(*ScratchString);
+		}
+
+		// Shutdown and free archive resources
+		FileArWrapper->TearDown();
+		delete FileArWrapper;
+		delete FileAr;
+	}
+
+}
+
 static bool AnyFFTAnalysisPropertiesChanged(const FName& PropertyName)
 {
-	// List of properties which cause re-cooking to get triggered
+	// List of properties which cause analysis to get triggered
+	static FName OverrideSoundName						= GET_MEMBER_NAME_CHECKED(USoundWave, OverrideSoundToUseForAnalysis);
 	static FName EnableFFTAnalysisFName					= GET_MEMBER_NAME_CHECKED(USoundWave, bEnableBakedFFTAnalysis);
 	static FName FFTSizeFName							= GET_MEMBER_NAME_CHECKED(USoundWave, FFTSize);
 	static FName FFTAnalysisFrameSizeFName				= GET_MEMBER_NAME_CHECKED(USoundWave, FFTAnalysisFrameSize);
 	static FName FrequenciesToAnalyzeFName				= GET_MEMBER_NAME_CHECKED(USoundWave, FrequenciesToAnalyze);
+	static FName FFTAnalysisAttackTimeFName				= GET_MEMBER_NAME_CHECKED(USoundWave, FFTAnalysisAttackTime);
+	static FName FFTAnalysisReleaseTimeFName			= GET_MEMBER_NAME_CHECKED(USoundWave, FFTAnalysisReleaseTime);
 
-	return	PropertyName == EnableFFTAnalysisFName ||
+	return	PropertyName == OverrideSoundName ||
+			PropertyName == EnableFFTAnalysisFName ||
 			PropertyName == FFTSizeFName ||
 			PropertyName == FFTAnalysisFrameSizeFName ||
-			PropertyName == FrequenciesToAnalyzeFName;
+			PropertyName == FrequenciesToAnalyzeFName || 
+			PropertyName == FFTAnalysisAttackTimeFName ||
+			PropertyName == FFTAnalysisReleaseTimeFName;
 }
 
 static bool AnyEnvelopeAnalysisPropertiesChanged(const FName& PropertyName)
 {
-	static FName EnableAmplitudeEnvelopeAnalysisFName = GET_MEMBER_NAME_CHECKED(USoundWave, bEnableAmplitudeEnvelopeAnalysis);
-	static FName EnvelopeFollowerFrameSizeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerFrameSize);
-	static FName EnvelopeFollowerAttackTimeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerAttackTime);
-	static FName EnvelopeFollowerReleaseTimeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerReleaseTime);
+	// List of properties which cause re-analysis to get triggered
+	static FName OverrideSoundName						= GET_MEMBER_NAME_CHECKED(USoundWave, OverrideSoundToUseForAnalysis);
+	static FName EnableAmplitudeEnvelopeAnalysisFName	= GET_MEMBER_NAME_CHECKED(USoundWave, bEnableAmplitudeEnvelopeAnalysis);
+	static FName EnvelopeFollowerFrameSizeFName			= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerFrameSize);
+	static FName EnvelopeFollowerAttackTimeFName		= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerAttackTime);
+	static FName EnvelopeFollowerReleaseTimeFName		= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerReleaseTime);
 
-	return	PropertyName == EnableAmplitudeEnvelopeAnalysisFName ||
+	return	PropertyName == OverrideSoundName ||
+			PropertyName == EnableAmplitudeEnvelopeAnalysisFName ||
 			PropertyName == EnvelopeFollowerFrameSizeFName ||
 			PropertyName == EnvelopeFollowerAttackTimeFName ||
 			PropertyName == EnvelopeFollowerReleaseTimeFName;
@@ -845,7 +974,13 @@ void USoundWave::BakeFFTAnalysis()
 		uint32 RawDataSampleRate = 0;
 		uint16 RawDataNumChannels = 0;
 
-		if (!GetImportedSoundWaveData(RawImportedWaveData, RawDataSampleRate, RawDataNumChannels))
+		USoundWave* SoundWaveToUseForAnalysis = this;
+		if (OverrideSoundToUseForAnalysis)
+		{
+			SoundWaveToUseForAnalysis = OverrideSoundToUseForAnalysis;
+		}
+		
+		if (!SoundWaveToUseForAnalysis->GetImportedSoundWaveData(RawImportedWaveData, RawDataSampleRate, RawDataNumChannels))
 		{
 			return;
 		}
@@ -885,8 +1020,17 @@ void USoundWave::BakeFFTAnalysis()
 
 		}
 
+		// Prepare the spectral envelope followers
+		TArray<Audio::FEnvelopeFollower> SpectralEnvelopeFollowers;
+		SpectralEnvelopeFollowers.AddDefaulted(FrequenciesToAnalyze.Num());
+
+		for (Audio::FEnvelopeFollower& EnvFollower : SpectralEnvelopeFollowers)
+		{
+			EnvFollower.Init((float)RawDataSampleRate / FFTAnalysisFrameSize, FFTAnalysisAttackTime, FFTAnalysisReleaseTime);
+		}
+
 		// Build a new spectrum analyzer
-		Audio::FSpectrumAnalyzer SpectrumAnalyzer(SpectrumAnalyzerSettings, (float)SampleRate);
+		Audio::FSpectrumAnalyzer SpectrumAnalyzer(SpectrumAnalyzerSettings, (float)RawDataSampleRate);
 
 		// The audio data block to use to submit audio data to the spectrum analyzer
 		Audio::AlignedFloatBuffer AnalysisData;
@@ -913,7 +1057,7 @@ void USoundWave::BakeFFTAnalysis()
 				SpectrumAnalyzer.PushAudio(AnalysisData.GetData(), AnalysisData.Num());
 
 				// Block while the analyzer does the analysis
-				while (SpectrumAnalyzer.PerformAnalysisIfPossible()) {}
+				SpectrumAnalyzer.PerformAnalysisIfPossible(true);
 
 				FSoundWaveSpectralTimeData NewData;
 
@@ -921,10 +1065,14 @@ void USoundWave::BakeFFTAnalysis()
 				SpectrumAnalyzer.LockOutputBuffer();
 
 				// Get the magntiudes for the specified frequencies
-				for (float Frequency : FrequenciesToAnalyze)
+				for (int32 Index = 0; Index < FrequenciesToAnalyze.Num(); ++Index)
 				{
+					float Frequency = FrequenciesToAnalyze[Index];
 					FSoundWaveSpectralDataEntry DataEntry;
 					DataEntry.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
+
+					// Feed the magnitude through the spectral envelope follower for this band
+					DataEntry.Magnitude = SpectralEnvelopeFollowers[Index].ProcessAudioNonClamped(DataEntry.Magnitude);
 
 					// Track the max magnitude so we can later set normalized magnitudes
 					if (DataEntry.Magnitude > MaximumMagnitude)
@@ -940,11 +1088,50 @@ void USoundWave::BakeFFTAnalysis()
 				// The time stamp is derived from the frame index and sample rate
 				NewData.TimeSec = FMath::Max((float)(FrameIndex - FFTAnalysisFrameSize + 1) / RawDataSampleRate, 0.0f);
 
+				/*
+				// TODO: add FFTAnalysisTimeOffset
+				// Don't let the time shift be more than the negative or postive duration
+				float Duration = (float)NumFrames / RawDataSampleRate;
+				float TimeShift = FMath::Clamp((float)FFTAnalysisTimeOffset / 1000, -Duration, Duration);
+				
+				NewData.TimeSec = NewData.TimeSec + (float)FFTAnalysisTimeOffset / 1000;
+
+				// Truncate data if time shift is far enough to left that it's before the start of the sound
+				if (TreatFileAsLoopingForAnalysis)
+				{
+					// Wrap the time value from endpoints if we're told this sound wave is looping
+					if (NewData.TimeSec < 0.0f)
+					{
+						NewData.TimeSec = Duration + NewData.TimeSec;
+					}
+					else if (NewData.TimeSec >= Duration)
+					{
+						NewData.TimeSec = NewData.TimeSec - Duration;
+					}
+					CookedSpectralTimeData.Add(NewData);
+				}
+				else if (NewData.TimeSec > 0.0f)
+				{
+					CookedSpectralTimeData.Add(NewData);
+				}
+				*/
+
 				CookedSpectralTimeData.Add(NewData);
 
 				AnalysisData.Reset();
 			}
 		}
+
+		// Sort predicate for sorting spectral data by time (lowest first)
+		struct FSortSpectralDataByTime
+		{
+			FORCEINLINE bool operator()(const FSoundWaveSpectralTimeData& A, const FSoundWaveSpectralTimeData& B) const
+			{
+				return A.TimeSec < B.TimeSec;
+			}
+		};
+
+		CookedSpectralTimeData.Sort(FSortSpectralDataByTime());
 
 		// It's possible for the maximum magnitude to be 0.0 if the audio file was silent. 
 		if (MaximumMagnitude > 0.0f)
@@ -981,7 +1168,13 @@ void USoundWave::BakeEnvelopeAnalysis()
 		uint32 RawDataSampleRate = 0;
 		uint16 RawDataNumChannels = 0;
 
-		if (!GetImportedSoundWaveData(RawImportedWaveData, RawDataSampleRate, RawDataNumChannels))
+		USoundWave* SoundWaveToUseForAnalysis = this;
+		if (OverrideSoundToUseForAnalysis)
+		{
+			SoundWaveToUseForAnalysis = OverrideSoundToUseForAnalysis;
+		}
+
+		if (!SoundWaveToUseForAnalysis->GetImportedSoundWaveData(RawImportedWaveData, RawDataSampleRate, RawDataNumChannels))
 		{
 			return;
 		}
@@ -1019,9 +1212,7 @@ void USoundWave::BakeEnvelopeAnalysis()
 				CookedEnvelopeTimeData.Add(NewData);
 			}
 		}
-
 	}
-
 }
 
 void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -1045,11 +1236,13 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				UpdatePlatformData();
 				MarkPackageDirty();
 			}
-			else if (AnyFFTAnalysisPropertiesChanged(Name))
+			
+			if (AnyFFTAnalysisPropertiesChanged(Name))
 			{
 				BakeFFTAnalysis();
 			}
-			else if (AnyEnvelopeAnalysisPropertiesChanged(Name))
+			
+			if (AnyEnvelopeAnalysisPropertiesChanged(Name))
 			{
 				BakeEnvelopeAnalysis();
 			}

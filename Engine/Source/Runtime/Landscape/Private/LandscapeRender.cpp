@@ -4094,7 +4094,7 @@ bool ULandscapeMaterialInstanceConstant::HasOverridenBaseProperties() const
 
 //////////////////////////////////////////////////////////////////////////
 
-void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void ULandscapeComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(GetOuter());
 	FSphere BoundingSphere = Bounds.GetSphere();
@@ -4126,10 +4126,10 @@ void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				UTexture2D* Texture2D = Cast<UTexture2D>(Textures[TextureIndex]);
 				if (!Texture2D) continue;
 
-				FStreamingTexturePrimitiveInfo& StreamingTexture = *new(OutStreamingTextures)FStreamingTexturePrimitiveInfo;
+				FStreamingRenderAssetPrimitiveInfo& StreamingTexture = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
 				StreamingTexture.Bounds = BoundingSphere;
 				StreamingTexture.TexelFactor = TexelFactor;
-				StreamingTexture.Texture = Texture2D;
+				StreamingTexture.RenderAsset = Texture2D;
 			}
 
 			const UMaterial* Material = MaterialInterface->GetMaterial();
@@ -4162,10 +4162,10 @@ void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 
 						if (TextureCoordinate || TerrainTextureCoordinate)
 						{
-							for (int32 i = 0; i < OutStreamingTextures.Num(); ++i)
+							for (int32 i = 0; i < OutStreamingRenderAssets.Num(); ++i)
 							{
-								FStreamingTexturePrimitiveInfo& StreamingTexture = OutStreamingTextures[i];
-								if (StreamingTexture.Texture == TextureSample->Texture)
+								FStreamingRenderAssetPrimitiveInfo& StreamingTexture = OutStreamingRenderAssets[i];
+								if (StreamingTexture.RenderAsset == TextureSample->Texture)
 								{
 									if (TextureCoordinate)
 									{
@@ -4194,9 +4194,9 @@ void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
 				{
 					const float LightmapTexelFactor = TexelFactor / FMath::Min(Scale.X, Scale.Y);
-					new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, LightmapTexelFactor);
-					new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetAOMaterialMaskTexture(), Bounds, LightmapTexelFactor);
-					new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetSkyOcclusionTexture(), Bounds, LightmapTexelFactor);
+					new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, LightmapTexelFactor);
+					new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetAOMaterialMaskTexture(), Bounds, LightmapTexelFactor);
+					new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetSkyOcclusionTexture(), Bounds, LightmapTexelFactor);
 				}
 			}
 
@@ -4208,7 +4208,7 @@ void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
 				{
 					const float ShadowmapTexelFactor = TexelFactor / FMath::Min(Scale.X, Scale.Y);
-					new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Shadowmap->GetTexture(), Bounds, ShadowmapTexelFactor);
+					new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Shadowmap->GetTexture(), Bounds, ShadowmapTexelFactor);
 				}
 			}
 		}
@@ -4217,39 +4217,39 @@ void ULandscapeComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 	// Weightmap
 	for (int32 TextureIndex = 0; TextureIndex < WeightmapTextures.Num(); TextureIndex++)
 	{
-		FStreamingTexturePrimitiveInfo& StreamingWeightmap = *new(OutStreamingTextures)FStreamingTexturePrimitiveInfo;
+		FStreamingRenderAssetPrimitiveInfo& StreamingWeightmap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
 		StreamingWeightmap.Bounds = BoundingSphere;
 		StreamingWeightmap.TexelFactor = TexelFactor;
-		StreamingWeightmap.Texture = WeightmapTextures[TextureIndex];
+		StreamingWeightmap.RenderAsset = WeightmapTextures[TextureIndex];
 	}
 
 	// Heightmap
 	if (HeightmapTexture)
 	{
-		FStreamingTexturePrimitiveInfo& StreamingHeightmap = *new(OutStreamingTextures)FStreamingTexturePrimitiveInfo;
+		FStreamingRenderAssetPrimitiveInfo& StreamingHeightmap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
 		StreamingHeightmap.Bounds = BoundingSphere;
 
 		float HeightmapTexelFactor = TexelFactor * (static_cast<float>(HeightmapTexture->GetSizeY()) / (ComponentSizeQuads + 1));
 		StreamingHeightmap.TexelFactor = ForcedLOD >= 0 ? -(1 << (13 - ForcedLOD)) : HeightmapTexelFactor; // Minus Value indicate forced resolution (Mip 13 for 8k texture)
-		StreamingHeightmap.Texture = HeightmapTexture;
+		StreamingHeightmap.RenderAsset = HeightmapTexture;
 	}
 
 	// XYOffset
 	if (XYOffsetmapTexture)
 	{
-		FStreamingTexturePrimitiveInfo& StreamingXYOffset = *new(OutStreamingTextures)FStreamingTexturePrimitiveInfo;
+		FStreamingRenderAssetPrimitiveInfo& StreamingXYOffset = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
 		StreamingXYOffset.Bounds = BoundingSphere;
 		StreamingXYOffset.TexelFactor = TexelFactor;
-		StreamingXYOffset.Texture = XYOffsetmapTexture;
+		StreamingXYOffset.RenderAsset = XYOffsetmapTexture;
 	}
 
 #if WITH_EDITOR
 	if (GIsEditor && EditToolRenderData.DataTexture)
 	{
-		FStreamingTexturePrimitiveInfo& StreamingDatamap = *new(OutStreamingTextures)FStreamingTexturePrimitiveInfo;
+		FStreamingRenderAssetPrimitiveInfo& StreamingDatamap = *new(OutStreamingRenderAssets)FStreamingRenderAssetPrimitiveInfo;
 		StreamingDatamap.Bounds = BoundingSphere;
 		StreamingDatamap.TexelFactor = TexelFactor;
-		StreamingDatamap.Texture = EditToolRenderData.DataTexture;
+		StreamingDatamap.RenderAsset = EditToolRenderData.DataTexture;
 	}
 #endif
 }
@@ -4267,21 +4267,19 @@ void ALandscapeProxy::ChangeTessellationComponentScreenSize(float InTessellation
 			RenderProxies[Idx] = (FLandscapeComponentSceneProxy*)(LandscapeComponents[Idx]->SceneProxy);
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			LandscapeChangeTessellationComponentScreenSizeCommand,
-			FLandscapeComponentSceneProxy**, RenderProxies, RenderProxies,
-			int32, ComponentCount, ComponentCount,
-			float, InTessellationComponentScreenSize, TessellationComponentScreenSize,
+		float TessellationComponentScreenSizeLocal = TessellationComponentScreenSize;
+		ENQUEUE_RENDER_COMMAND(LandscapeChangeTessellationComponentScreenSizeCommand)(
+			[RenderProxies, ComponentCount, TessellationComponentScreenSizeLocal](FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 Idx = 0; Idx < ComponentCount; ++Idx)
 				{
 					if (RenderProxies[Idx] != nullptr)
 					{
-						RenderProxies[Idx]->ChangeTessellationComponentScreenSize_RenderThread(InTessellationComponentScreenSize);
+						RenderProxies[Idx]->ChangeTessellationComponentScreenSize_RenderThread(TessellationComponentScreenSizeLocal);
 					}
 				}
 
-		delete[] RenderProxies;
+				delete[] RenderProxies;
 			}
 		);
 	}
@@ -4300,21 +4298,19 @@ void ALandscapeProxy::ChangeComponentScreenSizeToUseSubSections(float InComponen
 			RenderProxies[Idx] = (FLandscapeComponentSceneProxy*)(LandscapeComponents[Idx]->SceneProxy);
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			LandscapeChangeComponentScreenSizeToUseSubSectionsCommand,
-			FLandscapeComponentSceneProxy**, RenderProxies, RenderProxies,
-			int32, ComponentCount, ComponentCount,
-			float, InComponentScreenSizeToUseSubSections, ComponentScreenSizeToUseSubSections,
+		float ComponentScreenSizeToUseSubSectionsLocal = ComponentScreenSizeToUseSubSections;
+		ENQUEUE_RENDER_COMMAND(LandscapeChangeComponentScreenSizeToUseSubSectionsCommand)(
+			[RenderProxies, ComponentCount, ComponentScreenSizeToUseSubSectionsLocal](FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 Idx = 0; Idx < ComponentCount; ++Idx)
 				{
 					if (RenderProxies[Idx] != nullptr)
 					{
-						RenderProxies[Idx]->ChangeComponentScreenSizeToUseSubSections_RenderThread(InComponentScreenSizeToUseSubSections);
+						RenderProxies[Idx]->ChangeComponentScreenSizeToUseSubSections_RenderThread(ComponentScreenSizeToUseSubSectionsLocal);
 					}
 				}
 
-		delete[] RenderProxies;
+				delete[] RenderProxies;
 			}
 		);
 	}
@@ -4333,11 +4329,8 @@ void ALandscapeProxy::ChangeUseTessellationComponentScreenSizeFalloff(bool InUse
 			RenderProxies[Idx] = (FLandscapeComponentSceneProxy*)(LandscapeComponents[Idx]->SceneProxy);
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			LandscapeChangeUseTessellationComponentScreenSizeFalloffCommand,
-			FLandscapeComponentSceneProxy**, RenderProxies, RenderProxies,
-			int32, ComponentCount, ComponentCount,
-			bool, InUseTessellationComponentScreenSizeFalloff, UseTessellationComponentScreenSizeFalloff,
+		ENQUEUE_RENDER_COMMAND(LandscapeChangeUseTessellationComponentScreenSizeFalloffCommand)(
+			[RenderProxies, ComponentCount, InUseTessellationComponentScreenSizeFalloff](FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 Idx = 0; Idx < ComponentCount; ++Idx)
 				{
@@ -4347,7 +4340,7 @@ void ALandscapeProxy::ChangeUseTessellationComponentScreenSizeFalloff(bool InUse
 					}
 				}
 
-		delete[] RenderProxies;
+				delete[] RenderProxies;
 			}
 		);
 	}
@@ -4366,21 +4359,19 @@ void ALandscapeProxy::ChangeTessellationComponentScreenSizeFalloff(float InTesse
 			RenderProxies[Idx] = (FLandscapeComponentSceneProxy*)(LandscapeComponents[Idx]->SceneProxy);
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			LandscapeChangeTessellationComponentScreenSizeFalloffCommand,
-			FLandscapeComponentSceneProxy**, RenderProxies, RenderProxies,
-			int32, ComponentCount, ComponentCount,
-			float, InTessellationComponentScreenSizeFalloff, TessellationComponentScreenSizeFalloff,
+		float TessellationComponentScreenSizeFalloffLocal = TessellationComponentScreenSizeFalloff;
+		ENQUEUE_RENDER_COMMAND(LandscapeChangeTessellationComponentScreenSizeFalloffCommand)(
+			[RenderProxies, ComponentCount, TessellationComponentScreenSizeFalloffLocal](FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 Idx = 0; Idx < ComponentCount; ++Idx)
 				{
 					if (RenderProxies[Idx] != nullptr)
 					{
-						RenderProxies[Idx]->ChangeTessellationComponentScreenSizeFalloff_RenderThread(InTessellationComponentScreenSizeFalloff);
+						RenderProxies[Idx]->ChangeTessellationComponentScreenSizeFalloff_RenderThread(TessellationComponentScreenSizeFalloffLocal);
 					}
 				}
 
-		delete[] RenderProxies;
+				delete[] RenderProxies;
 			}
 		);
 	}

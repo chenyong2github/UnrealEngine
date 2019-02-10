@@ -125,7 +125,8 @@ bool USocialParty::IsJoiningDuringLoadEnabled()
 }
 
 USocialParty::USocialParty()
-	: ReservationBeaconClientClass(APartyBeaconClient::StaticClass())
+	: ReservationBeaconClientClass(APartyBeaconClient::StaticClass()),
+	  SpectatorBeaconClientClass(ASpectatorBeaconClient::StaticClass())
 {}
 
 ECrossplayPreference GetCrossplayPreferenceFromJoinData(const FOnlinePartyData& JoinData)
@@ -1240,6 +1241,18 @@ APartyBeaconClient* USocialParty::CreateReservationBeaconClient()
 	return ReservationBeaconClient;
 }
 
+ASpectatorBeaconClient* USocialParty::CreateSpectatorBeaconClient()
+{
+	UWorld* World = GetWorld();
+	check(World);
+
+	// Clear out our cached net driver name, we're going to create a new one here
+	LastSpectatorBeaconClientNetDriverName = NAME_None;
+	SpectatorBeaconClient = World->SpawnActor<ASpectatorBeaconClient>(SpectatorBeaconClientClass);
+
+	return SpectatorBeaconClient;
+}
+
 void USocialParty::PumpApprovalQueue()
 {
 	// Check if there are any more while we are connected
@@ -1337,6 +1350,20 @@ void USocialParty::CleanupReservationBeacon()
 		ReservationBeaconClient->OnReservationRequestComplete().Unbind();
 		ReservationBeaconClient->DestroyBeacon();
 		ReservationBeaconClient = nullptr;
+	}
+}
+
+void USocialParty::CleanupSpectatorBeacon()
+{
+	if (SpectatorBeaconClient)
+	{
+		UE_LOG(LogParty, Verbose, TEXT("Spectator reservation beacon cleanup while in state %s, pending approvals: %s"), ToString(SpectatorBeaconClient->GetConnectionState()), !PendingApprovals.IsEmpty() ? TEXT("true") : TEXT("false"));
+
+		LastReservationBeaconClientNetDriverName = SpectatorBeaconClient->GetNetDriverName();
+		SpectatorBeaconClient->OnHostConnectionFailure().Unbind();
+		SpectatorBeaconClient->OnReservationRequestComplete().Unbind();
+		SpectatorBeaconClient->DestroyBeacon();
+		SpectatorBeaconClient = nullptr;
 	}
 }
 

@@ -72,6 +72,10 @@
 #include "Streaming/UVChannelDensity.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "UObject/CoreRedirects.h"
+#include "HAL/FileManager.h"
+#include "ContentStreaming.h"
+#include "Streaming/StaticMeshUpdate.h"
 
 #define LOCTEXT_NAMESPACE "StaticMesh"
 DEFINE_LOG_CATEGORY(LogStaticMesh);	
@@ -124,6 +128,8 @@ static TAutoConsoleVariable<int32> CVarStripDistanceFieldDataDuringLoad(
 	0,
 	TEXT("If non-zero, data for distance fields will be discarded on load. TODO: change to discard during cook!."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+extern bool TrackRenderAssetEvent(struct FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager);
 
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
@@ -183,15 +189,131 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 	return Ar;
 }
 
-void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Index)
+uint8 FStaticMeshLODResources::GenerateClassStripFlags(FArchive& Ar, UStaticMesh* OwnerStaticMesh, int32 Index)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime );
+#if WITH_EDITOR
+	// Defined class flags for possible stripping
+	const uint8 AdjacencyDataStripFlag = CDSF_AdjacencyData;
+	const uint8 MinLodDataStripFlag = CDSF_MinLodData;
+	const uint8 ReversedIndexBufferStripFlag = CDSF_ReversedIndexBuffer;
 
+	const bool bWantToStripTessellation = Ar.IsCooking()
+		&& ((GForceStripMeshAdjacencyDataDuringCooking != 0) || !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::Tessellation));
+	const bool bWantToStripLOD = Ar.IsCooking()
+		&& (CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0)
+		&& OwnerStaticMesh
+		&& OwnerStaticMesh->MinLOD.GetValueForPlatformIdentifiers(
+			Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName,
+			Ar.CookingTarget()->GetPlatformInfo().VanillaPlatformName) > Index;
+
+	return (bWantToStripTessellation ? AdjacencyDataStripFlag : 0) |
+		(bWantToStripLOD ? MinLodDataStripFlag : 0);
+#else
+	return 0;
+#endif
+}
+
+bool FStaticMeshLODResources::IsLODCookedOut(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, bool bIsBelowMinLOD)
+{
+	check(StaticMesh);
+#if WITH_EDITOR
+	if (!bIsBelowMinLOD)
+	{
+		return false;
+	}
+
+	if (!TargetPlatform)
+	{
+		TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	}
+	check(TargetPlatform);
+
+	// If LOD streaming is supported, LODs below MinLOD are stored to optional paks and thus never cooked out
+	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
+	return !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !LODGroupSettings.IsLODStreamingSupported();
+#else
+	return false;
+#endif
+}
+
+bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, int32 LODIdx, bool bIsBelowMinLOD)
+{
+	check(StaticMesh);
+#if WITH_EDITOR
+	if (!TargetPlatform)
+	{
+		TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	}
+	check(TargetPlatform);
+
+	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
+	if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !LODGroupSettings.IsLODStreamingSupported())
+	{
+		return true;
+	}
+
+	if (bIsBelowMinLOD)
+	{
+		return false;
+	}
+
+	int32 MaxNumStreamedLODs = 0;
+	const int32 NumStreamedLODsOverride = StaticMesh->NumStreamedLODs.GetValueForPlatformIdentifiers(
+		TargetPlatform->GetPlatformInfo().PlatformGroupName,
+		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	if (NumStreamedLODsOverride >= 0)
+	{
+		MaxNumStreamedLODs = NumStreamedLODsOverride;
+	}
+	else
+	{
+		MaxNumStreamedLODs = LODGroupSettings.GetDefaultMaxNumStreamedLODs();
+	}
+	
+	const int32 NumLODs = StaticMesh->GetNumLODs();
+	const int32 NumStreamedLODs = FMath::Min(MaxNumStreamedLODs, NumLODs - 1);
+	const int32 InlinedLODStartIdx = NumStreamedLODs;
+	return LODIdx >= InlinedLODStartIdx;
+#else
+	return false;
+#endif
+}
+
+void FStaticMeshLODResources::AccumVertexBuffersSize(const FStaticMeshVertexBuffers& VertexBuffers, uint32& OutSize)
+{
+#if (WITH_EDITOR || DO_CHECK)
+	const FPositionVertexBuffer& Pos = VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& TanTex = VertexBuffers.StaticMeshVertexBuffer;
+	const FColorVertexBuffer& Color = VertexBuffers.ColorVertexBuffer;
+	OutSize += Pos.GetNumVertices() * Pos.GetStride();
+	OutSize += TanTex.GetResourceSize();
+	OutSize += Color.GetNumVertices() * Color.GetStride();
+#endif
+}
+
+void FStaticMeshLODResources::AccumIndexBufferSize(const FRawStaticIndexBuffer& IndexBuffer, uint32& OutSize)
+{
+#if (WITH_EDITOR || DO_CHECK)
+	OutSize += IndexBuffer.GetIndexDataSize();
+#endif
+}
+
+uint32 FStaticMeshLODResources::FStaticMeshBuffersSize::CalcBuffersSize() const
+{
+	// Assumes these two cvars don't change at runtime
+	const bool bEnableDepthOnlyIndexBuffer = !!CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread();
+	const bool bEnableReversedIndexBuffer = !!CVarSupportReversedIndexBuffers.GetValueOnAnyThread();
+	return SerializedBuffersSize
+		- (bEnableDepthOnlyIndexBuffer ? 0 : DepthOnlyIBSize)
+		- (bEnableReversedIndexBuffer ? 0 : ReversedIBsSize);
+}
+
+void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerStaticMesh, uint8 InStripFlags, FStaticMeshBuffersSize& OutBuffersSize)
+{
 	bool bEnableDepthOnlyIndexBuffer = (CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread() == 1);
 	bool bEnableReversedIndexBuffer = (CVarSupportReversedIndexBuffers.GetValueOnAnyThread() == 1);
 
 	// See if the mesh wants to keep resources CPU accessible
-	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
 	bool bMeshCPUAcces = OwnerStaticMesh ? OwnerStaticMesh->bAllowCPUAccess : false;
 
 	// Note: this is all derived data, native versioning is not needed, but be sure to bump STATICMESH_DERIVEDDATA_VER when modifying!
@@ -200,86 +322,226 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	// TODO: Not needed in uncooked games either after PostLoad!
 	bool bNeedsCPUAccess = !FPlatformProperties::RequiresCookedData() || bMeshCPUAcces;
 
+	bHasWireframeIndices = false;
 	bHasAdjacencyInfo = false;
 	bHasDepthOnlyIndices = false;
 	bHasReversedIndices = false;
 	bHasReversedDepthOnlyIndices = false;
+	bHasColorVertexData = false;
 	DepthOnlyNumTriangles = 0;
 
-	// Defined class flags for possible stripping
-	const uint8 AdjacencyDataStripFlag = 1;
-	const uint8 MinLodDataStripFlag = 2;
-	const uint8 ReversedIndexBufferStripFlag = 4;
+	FStripDataFlags StripFlags(Ar, InStripFlags);
 
-	// Actual flags used during serialization
-	uint8 ClassDataStripFlags = 0;
+	VertexBuffers.PositionVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	VertexBuffers.StaticMeshVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	VertexBuffers.ColorVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	OutBuffersSize.Clear();
+	AccumVertexBuffersSize(VertexBuffers, OutBuffersSize.SerializedBuffersSize);
 
+	IndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	AccumIndexBufferSize(IndexBuffer, OutBuffersSize.SerializedBuffersSize);
+
+	const bool bSerailizeReversedIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_ReversedIndexBuffer);
+	if (bSerailizeReversedIndexBuffer)
+	{
+		ReversedIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(ReversedIndexBuffer, OutBuffersSize.ReversedIBsSize);
+		AccumIndexBufferSize(ReversedIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		if (!bEnableReversedIndexBuffer)
+		{
+			ReversedIndexBuffer.Discard();
+		}
+	}
+
+	DepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	AccumIndexBufferSize(DepthOnlyIndexBuffer, OutBuffersSize.DepthOnlyIBSize);
+	AccumIndexBufferSize(DepthOnlyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+	if (!bEnableDepthOnlyIndexBuffer)
+	{
+		DepthOnlyIndexBuffer.Discard();
+	}
+
+	if (bSerailizeReversedIndexBuffer)
+	{
+		ReversedDepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(ReversedDepthOnlyIndexBuffer, OutBuffersSize.ReversedIBsSize);
+		AccumIndexBufferSize(ReversedDepthOnlyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		if (!bEnableReversedIndexBuffer)
+		{
+			ReversedDepthOnlyIndexBuffer.Discard();
+		}
+	}
+
+	if (!StripFlags.IsEditorDataStripped())
+	{
+		WireframeIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(WireframeIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		bHasWireframeIndices = WireframeIndexBuffer.GetNumIndices() != 0;
+	}
+
+	if (!StripFlags.IsClassDataStripped(CDSF_AdjacencyData))
+	{
+		AdjacencyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(AdjacencyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		bHasAdjacencyInfo = AdjacencyIndexBuffer.GetNumIndices() != 0;
+	}
+
+	// Needs to be done now because on cooked platform, indices are discarded after RHIInit.
+	bHasDepthOnlyIndices = DepthOnlyIndexBuffer.GetNumIndices() != 0;
+	bHasReversedIndices = bSerailizeReversedIndexBuffer && ReversedIndexBuffer.GetNumIndices() != 0;
+	bHasReversedDepthOnlyIndices = bSerailizeReversedIndexBuffer && ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
+	bHasColorVertexData = VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0;
+	DepthOnlyNumTriangles = DepthOnlyIndexBuffer.GetNumIndices() / 3;
+
+	AreaWeightedSectionSamplers.SetNum(Sections.Num());
+	for (FStaticMeshSectionAreaWeightedTriangleSampler& Sampler : AreaWeightedSectionSamplers)
+	{
+		Sampler.Serialize(Ar);
+	}
+	AreaWeightedSampler.Serialize(Ar);
+}
+
+void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
+{
+	Ar << DepthOnlyNumTriangles;
+	uint32 Packed;
 #if WITH_EDITOR
-	const bool bWantToStripTessellation = Ar.IsCooking() && ((GForceStripMeshAdjacencyDataDuringCooking != 0) || !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::Tessellation));
-	const bool bWantToStripLOD = Ar.IsCooking() && (CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0) && OwnerStaticMesh && OwnerStaticMesh->MinLOD.GetValueForPlatformIdentifiers(Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName, Ar.CookingTarget()->GetPlatformInfo().VanillaPlatformName) > Index;
-
-	ClassDataStripFlags |=	(bWantToStripTessellation ? AdjacencyDataStripFlag : 0)	|
-							(bWantToStripLOD ? MinLodDataStripFlag : 0);
+	if (Ar.IsSaving())
+	{
+		Packed = bHasAdjacencyInfo
+			| (bHasDepthOnlyIndices << 1u)
+			| (bHasReversedIndices << 2u)
+			| (bHasReversedDepthOnlyIndices << 3u)
+			| (bHasColorVertexData << 4u)
+			| (bHasWireframeIndices << 5u);
+		Ar << Packed;
+	}
+	else
 #endif
+	{
+		const bool bEnableDepthOnlyIndexBuffer = !!CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread();
+		const bool bEnableReversedIndexBuffer = !!CVarSupportReversedIndexBuffers.GetValueOnAnyThread();
+		Ar << Packed;
+		DepthOnlyNumTriangles *= static_cast<uint32>(bEnableDepthOnlyIndexBuffer);
+		bHasAdjacencyInfo = Packed & 1u;
+		bHasDepthOnlyIndices = bEnableDepthOnlyIndexBuffer && !!(Packed & 2u);
+		bHasReversedIndices = bEnableReversedIndexBuffer && !!(Packed & 4u);
+		bHasReversedDepthOnlyIndices = bEnableReversedIndexBuffer && !!(Packed & 8u);
+		bHasColorVertexData = (Packed >> 4u) & 1u;
+		bHasWireframeIndices = (Packed >> 5u) & 1u;
+	}
 
-	FStripDataFlags StripFlags( Ar, ClassDataStripFlags );
+	VertexBuffers.StaticMeshVertexBuffer.SerializeMetaData(Ar);
+	VertexBuffers.PositionVertexBuffer.SerializeMetaData(Ar);
+	VertexBuffers.ColorVertexBuffer.SerializeMetaData(Ar);
+	IndexBuffer.SerializeMetaData(Ar);
+	ReversedIndexBuffer.SerializeMetaData(Ar);
+	if (!bHasReversedIndices)
+	{
+		// Reversed indices are either stripped during cook or will be stripped on load.
+		// In either case, clear CachedNumIndices to show that the buffer will be empty after actual loading
+		ReversedIndexBuffer.Discard();
+	}
+	DepthOnlyIndexBuffer.SerializeMetaData(Ar);
+	if (!bHasDepthOnlyIndices)
+	{
+		DepthOnlyIndexBuffer.Discard();
+	}
+	ReversedDepthOnlyIndexBuffer.SerializeMetaData(Ar);
+	if (!bHasReversedDepthOnlyIndices)
+	{
+		ReversedDepthOnlyIndexBuffer.Discard();
+	}
+	WireframeIndexBuffer.SerializeMetaData(Ar);
+	if (!bHasWireframeIndices)
+	{
+		WireframeIndexBuffer.Discard();
+	}
+	AdjacencyIndexBuffer.SerializeMetaData(Ar);
+	if (!bHasAdjacencyInfo)
+	{
+		AdjacencyIndexBuffer.Discard();
+	}
+}
+
+void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Index)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
+
+	UStaticMesh* OwnerStaticMesh = Cast<UStaticMesh>(Owner);
+	// Actual flags used during serialization
+	const uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar, OwnerStaticMesh, Index);
+	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
 
 	Ar << Sections;
 	Ar << MaxDeviation;
 
-	if( !StripFlags.IsDataStrippedForServer() && !StripFlags.IsClassDataStripped(MinLodDataStripFlag) )
+	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
+	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerStaticMesh, bIsBelowMinLOD);
+	Ar << bIsLODCookedOut;
+
+	bool bInlined = bIsLODCookedOut || IsLODInlined(Ar.CookingTarget(), OwnerStaticMesh, Index, bIsBelowMinLOD);
+	Ar << bInlined;
+	bBuffersInlined = bInlined;
+
+	VertexBuffers.StaticMeshVertexBuffer.SetIsStreamed(!bBuffersInlined);
+	VertexBuffers.PositionVertexBuffer.SetIsStreamed(!bBuffersInlined);
+	VertexBuffers.ColorVertexBuffer.SetIsStreamed(!bBuffersInlined);
+	IndexBuffer.SetIsStreamed(!bBuffersInlined);
+	ReversedIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	DepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	ReversedDepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	WireframeIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	AdjacencyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+
+	if (!StripFlags.IsDataStrippedForServer() && !bIsLODCookedOut)
 	{
-		VertexBuffers.PositionVertexBuffer.Serialize( Ar, bNeedsCPUAccess );
-		VertexBuffers.StaticMeshVertexBuffer.Serialize( Ar, bNeedsCPUAccess );
-		VertexBuffers.ColorVertexBuffer.Serialize( Ar, bNeedsCPUAccess );
-		IndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-
-		const bool bSerailizeReversedIndexBuffer = !StripFlags.IsClassDataStripped(ReversedIndexBufferStripFlag);
-		if (bSerailizeReversedIndexBuffer)
+		FStaticMeshBuffersSize TmpBuffersSize;
+		if (bInlined)
 		{
-			ReversedIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-			if (!bEnableReversedIndexBuffer)
+			SerializeBuffers(Ar, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
+			Ar << TmpBuffersSize;
+			BuffersSize = TmpBuffersSize.CalcBuffersSize();
+		}
+		else if (FPlatformProperties::RequiresCookedData() || Ar.IsCooking())
+		{
+#if WITH_EDITOR
+			if (Ar.IsSaving())
 			{
-				ReversedIndexBuffer.Discard();
+				TArray<uint8> TmpBuff;
+				FMemoryWriter MemWriter(TmpBuff, true);
+				MemWriter.SetCookingTarget(Ar.CookingTarget());
+				MemWriter.SetByteSwapping(Ar.IsByteSwapping());
+				SerializeBuffers(MemWriter, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
+
+				bIsOptionalLOD = bIsBelowMinLOD;
+				const uint32 BulkDataFlags = BULKDATA_Force_NOT_InlinePayload
+					| (bIsOptionalLOD ? BULKDATA_OptionalPayload : 0);
+				BulkData.SetBulkDataFlags(BulkDataFlags);
+				BulkData.Lock(LOCK_READ_WRITE);
+				void* BulkDataMem = BulkData.Realloc(TmpBuff.Num());
+				FMemory::Memcpy(BulkDataMem, TmpBuff.GetData(), TmpBuff.Num());
+				BulkData.Unlock();
+				BulkData.Serialize(Ar, Owner, Index);
 			}
-		}
-		DepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		if (!bEnableDepthOnlyIndexBuffer)
-		{
-			DepthOnlyIndexBuffer.Discard();
-		}
-		if (bSerailizeReversedIndexBuffer)
-		{
-			ReversedDepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-			if (!bEnableReversedIndexBuffer)
+			else
+#endif
 			{
-				ReversedDepthOnlyIndexBuffer.Discard();
+				FByteBulkData TmpBulkData;
+				TmpBulkData.Serialize(Ar, Owner, Index);
+				bIsOptionalLOD = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+				int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
+				check(Tmp >= 0 && Tmp <= 0xffffffff);
+				OffsetInFile = static_cast<uint32>(Tmp);
+				check(TmpBulkData.GetBulkDataSize() >= 0);
+				BulkDataSize = static_cast<uint32>(TmpBulkData.GetBulkDataSize());
 			}
-		}
 
-		if( !StripFlags.IsEditorDataStripped() )
-		{
-			WireframeIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		}
+			SerializeAvailabilityInfo(Ar);
 
-		if ( !StripFlags.IsClassDataStripped( AdjacencyDataStripFlag ) )
-		{
-			AdjacencyIndexBuffer.Serialize( Ar, bNeedsCPUAccess );
-			bHasAdjacencyInfo = AdjacencyIndexBuffer.GetNumIndices() != 0;
+			Ar << TmpBuffersSize;
+			BuffersSize = TmpBuffersSize.CalcBuffersSize();
 		}
-
-		// Needs to be done now because on cooked platform, indices are discarded after RHIInit.
-		bHasDepthOnlyIndices = DepthOnlyIndexBuffer.GetNumIndices() != 0;
-		bHasReversedIndices = bSerailizeReversedIndexBuffer && ReversedIndexBuffer.GetNumIndices() != 0;
-		bHasReversedDepthOnlyIndices = bSerailizeReversedIndexBuffer && ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
-		DepthOnlyNumTriangles = DepthOnlyIndexBuffer.GetNumIndices() / 3;
-
-		AreaWeightedSectionSamplers.SetNum(Sections.Num());
-		for (FStaticMeshSectionAreaWeightedTriangleSampler& Sampler : AreaWeightedSectionSamplers)
-		{
-			Sampler.Serialize(Ar);
-		}
-		AreaWeightedSampler.Serialize(Ar);
 	}
 }
 
@@ -614,7 +876,12 @@ FStaticMeshLODResources::FStaticMeshLODResources()
 	, bHasDepthOnlyIndices(false)
 	, bHasReversedIndices(false)
 	, bHasReversedDepthOnlyIndices(false)
+	, bHasColorVertexData(false)
+	, bHasWireframeIndices(false)
+	, bBuffersInlined(false)
+	, bIsOptionalLOD(false)
 	, DepthOnlyNumTriangles(0)
+	, BuffersSize(0)
 #if STATS
 	, StaticMeshIndexMemory(0)
 #endif
@@ -626,10 +893,8 @@ FStaticMeshLODResources::~FStaticMeshLODResources()
 	delete DistanceFieldData;
 }
 
-void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
+void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent)
 {
-	const auto MaxShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
-
 	// Initialize the vertex and index buffers.
 	// All platforms supporting Metal also support 32-bit indices.
 	if (IsES2Platform(MaxShaderPlatform) && !IsMetalPlatform(MaxShaderPlatform))
@@ -640,49 +905,88 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 			TArray<uint32> Indices;
 			IndexBuffer.GetCopy(Indices);
 			IndexBuffer.SetIndices(Indices, EIndexBufferStride::Force16Bit);
-			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Mesh has more that 65535 vertices, incompatible with mobile; forcing 16-bit (will probably cause rendering issues)." ), *Parent->GetName());
+			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Mesh has more that 65535 vertices, incompatible with mobile; forcing 16-bit (will probably cause rendering issues)."), *Parent->GetName());
 		}
 	}
+}
 
+template <bool bIncrement>
+void FStaticMeshLODResources::UpdateIndexMemoryStats()
+{
 #if STATS
-	uint32 iMem = IndexBuffer.GetAllocatedSize();
-	uint32 wiMem = WireframeIndexBuffer.GetAllocatedSize();
-	uint32 riMem = ReversedIndexBuffer.GetAllocatedSize();
-	uint32 doiMem = DepthOnlyIndexBuffer.GetAllocatedSize();
-	uint32 rdoiMem = ReversedDepthOnlyIndexBuffer.GetAllocatedSize();
-	uint32 aiMem = AdjacencyIndexBuffer.GetAllocatedSize();
-	StaticMeshIndexMemory = iMem + wiMem + riMem + doiMem + rdoiMem + aiMem;
-	INC_DWORD_STAT_BY(STAT_StaticMeshIndexMemory, StaticMeshIndexMemory);
+	if (bIncrement)
+	{
+		uint32 iMem = IndexBuffer.GetAllocatedSize();
+		uint32 wiMem = WireframeIndexBuffer.GetAllocatedSize();
+		uint32 riMem = ReversedIndexBuffer.GetAllocatedSize();
+		uint32 doiMem = DepthOnlyIndexBuffer.GetAllocatedSize();
+		uint32 rdoiMem = ReversedDepthOnlyIndexBuffer.GetAllocatedSize();
+		uint32 aiMem = AdjacencyIndexBuffer.GetAllocatedSize();
+		StaticMeshIndexMemory = iMem + wiMem + riMem + doiMem + rdoiMem + aiMem;
+		INC_DWORD_STAT_BY(STAT_StaticMeshIndexMemory, StaticMeshIndexMemory);
+	}
+	else
+	{
+		DEC_DWORD_STAT_BY(STAT_StaticMeshIndexMemory, StaticMeshIndexMemory);
+	}
 #endif
+}
+
+template <bool bIncrement>
+void FStaticMeshLODResources::UpdateVertexMemoryStats() const
+{
+#if STATS
+	const uint32 StaticMeshVertexMemory =
+		VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
+		VertexBuffers.PositionVertexBuffer.GetStride() * VertexBuffers.PositionVertexBuffer.GetNumVertices();
+	const uint32 ResourceVertexColorMemory = VertexBuffers.ColorVertexBuffer.GetStride() * VertexBuffers.ColorVertexBuffer.GetNumVertices();
+
+	if (bIncrement)
+	{
+		INC_DWORD_STAT_BY(STAT_StaticMeshVertexMemory, StaticMeshVertexMemory);
+		INC_DWORD_STAT_BY(STAT_ResourceVertexColorMemory, ResourceVertexColorMemory);
+	}
+	else
+	{
+		DEC_DWORD_STAT_BY(STAT_StaticMeshVertexMemory, StaticMeshVertexMemory);
+		DEC_DWORD_STAT_BY(STAT_ResourceVertexColorMemory, ResourceVertexColorMemory);
+	}
+#endif
+}
+
+void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
+{
+	ConditionalForce16BitIndexBuffer(GMaxRHIShaderPlatform, Parent);
+	UpdateIndexMemoryStats<true>();
 
 	BeginInitResource(&IndexBuffer);
-	if( WireframeIndexBuffer.GetNumIndices() > 0 )
+	if(bHasWireframeIndices)
 	{
 		BeginInitResource(&WireframeIndexBuffer);
-	}	
+	}
 	BeginInitResource(&VertexBuffers.StaticMeshVertexBuffer);
 	BeginInitResource(&VertexBuffers.PositionVertexBuffer);
-	if( VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0 )
+	if(bHasColorVertexData)
 	{
 		BeginInitResource(&VertexBuffers.ColorVertexBuffer);
 	}
 
-	if (ReversedIndexBuffer.GetNumIndices() > 0)
+	if (bHasReversedIndices)
 	{
 		BeginInitResource(&ReversedIndexBuffer);
 	}
 
-	if (DepthOnlyIndexBuffer.GetNumIndices() > 0)
+	if (bHasDepthOnlyIndices)
 	{
 		BeginInitResource(&DepthOnlyIndexBuffer);
 	}
 
-	if (ReversedDepthOnlyIndexBuffer.GetNumIndices() > 0)
+	if (bHasReversedDepthOnlyIndices)
 	{
 		BeginInitResource(&ReversedDepthOnlyIndexBuffer);
 	}
 
-	if (RHISupportsTessellation(MaxShaderPlatform))
+	if (bHasAdjacencyInfo && RHISupportsTessellation(GMaxRHIShaderPlatform))
 	{
 		BeginInitResource(&AdjacencyIndexBuffer);
 	}
@@ -729,30 +1033,19 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 		INC_DWORD_STAT_BY( STAT_StaticMeshDistanceFieldMemory, DistanceFieldData->GetResourceSizeBytes() );
 	}
 
-	FStaticMeshLODResources* This = this;
+#if STATS
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
-		[This](FRHICommandList& RHICmdList)
-		{		
-			const uint32 StaticMeshVertexMemory =
-				This->VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
-				This->VertexBuffers.PositionVertexBuffer.GetStride() * This->VertexBuffers.PositionVertexBuffer.GetNumVertices();
-			const uint32 ResourceVertexColorMemory = This->VertexBuffers.ColorVertexBuffer.GetStride() * This->VertexBuffers.ColorVertexBuffer.GetNumVertices();
-
-			INC_DWORD_STAT_BY( STAT_StaticMeshVertexMemory, StaticMeshVertexMemory );
-			INC_DWORD_STAT_BY( STAT_ResourceVertexColorMemory, ResourceVertexColorMemory );
-		});
+		[this](FRHICommandListImmediate&)
+	{
+		UpdateVertexMemoryStats<true>();
+	});
+#endif
 }
 
 void FStaticMeshLODResources::ReleaseResources()
 {
-	const uint32 StaticMeshVertexMemory = 
-		VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
-		VertexBuffers.PositionVertexBuffer.GetStride() * VertexBuffers.PositionVertexBuffer.GetNumVertices();
-	const uint32 ResourceVertexColorMemory = VertexBuffers.ColorVertexBuffer.GetStride() * VertexBuffers.ColorVertexBuffer.GetNumVertices();
-
-	DEC_DWORD_STAT_BY( STAT_StaticMeshVertexMemory, StaticMeshVertexMemory );
-	DEC_DWORD_STAT_BY( STAT_ResourceVertexColorMemory, ResourceVertexColorMemory );
-	DEC_DWORD_STAT_BY( STAT_StaticMeshIndexMemory, StaticMeshIndexMemory );
+	UpdateVertexMemoryStats<false>();
+	UpdateIndexMemoryStats<false>();
 
 	// Release the vertex and index buffers.
 	
@@ -780,12 +1073,40 @@ void FStaticMeshLODResources::ReleaseResources()
 	}
 }
 
+void FStaticMeshLODResources::IncrementMemoryStats()
+{
+	UpdateIndexMemoryStats<true>();
+	UpdateVertexMemoryStats<true>();
+}
+
+void FStaticMeshLODResources::DecrementMemoryStats()
+{
+	UpdateVertexMemoryStats<false>();
+	UpdateIndexMemoryStats<false>();
+}
+
+void FStaticMeshLODResources::DiscardCPUData()
+{
+	VertexBuffers.StaticMeshVertexBuffer.CleanUp();
+	VertexBuffers.PositionVertexBuffer.CleanUp();
+	VertexBuffers.ColorVertexBuffer.CleanUp();
+	IndexBuffer.Discard();
+	ReversedIndexBuffer.Discard();
+	DepthOnlyIndexBuffer.Discard();
+	ReversedDepthOnlyIndexBuffer.Discard();
+	WireframeIndexBuffer.Discard();
+	AdjacencyIndexBuffer.Discard();
+}
+
 /*------------------------------------------------------------------------------
 	FStaticMeshRenderData
 ------------------------------------------------------------------------------*/
 
 FStaticMeshRenderData::FStaticMeshRenderData()
 	: bLODsShareStaticLighting(false)
+	, bReadyForStreaming(false)
+	, NumInlinedLODs(0)
+	, CurrentFirstLODIdx(0)
 {
 	for (int32 LODIndex = 0; LODIndex < MAX_STATIC_MESH_LODS; ++LODIndex)
 	{
@@ -815,6 +1136,25 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 #endif // #if WITH_EDITORONLY_DATA
 
 	LODResources.Serialize(Ar, Owner);
+#if WITH_EDITOR
+	if (Ar.IsSaving())
+	{
+		int32 Tmp = 0;
+		for (int32 Idx = LODResources.Num() - 1; Idx >= 0; --Idx)
+		{
+			if (!LODResources[Idx].bBuffersInlined)
+			{
+				break;
+			}
+			++Tmp;
+		}
+		NumInlinedLODs = Tmp;
+	}
+#endif
+	Ar << NumInlinedLODs;
+	CurrentFirstLODIdx = LODResources.Num() - NumInlinedLODs;
+	Owner->SetCachedNumResidentLODs(NumInlinedLODs);
+
 	if (Ar.IsLoading())
 	{
 		LODVertexFactories.Empty(LODResources.Num());
@@ -922,6 +1262,13 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], LODIndex, Owner);
 		}
 	}
+
+	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
+		[this, Owner](FRHICommandListImmediate&)
+	{
+		bReadyForStreaming = true;
+		Owner->SetCachedReadyForStreaming(true);
+	});
 	bIsInitialized = true;
 }
 
@@ -1155,6 +1502,7 @@ void FStaticMeshRenderData::SyncUVChannelData(const TArray<FStaticMaterial>& Obj
 
 void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
 {
+	check(!Groups.Num());
 	// Ensure there is a default LOD group.
 	Groups.FindOrAdd(NAME_None);
 
@@ -1169,6 +1517,17 @@ void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
 			FStaticMeshLODGroup& Group = Groups.FindOrAdd(GroupName);
 			ReadEntry(Group, It.Value().GetValue());
 		};
+	}
+
+	Groups.KeySort(TLess<FName>());
+	GroupName2Index.Empty(Groups.Num());
+	{
+		int32 GroupIdx = 0;
+		TMap<FName, FStaticMeshLODGroup>::TConstIterator It(Groups);
+		for (; It; ++It, ++GroupIdx)
+		{
+			GroupName2Index.Add(It.Key(), GroupIdx);
+		}
 	}
 
 	// Do some per-group initialization.
@@ -1205,6 +1564,17 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 		Group.DefaultNumLODs = FMath::Clamp<int32>(Group.DefaultNumLODs, 1, MAX_STATIC_MESH_LODS);
 	}
 
+	if (FParse::Value(*Entry, TEXT("MaxNumStreamedLODs="), Group.DefaultMaxNumStreamedLODs))
+	{
+		Group.DefaultMaxNumStreamedLODs = FMath::Max(Group.DefaultMaxNumStreamedLODs, 0);
+	}
+	
+	int32 LocalSupportLODStreaming = 0;
+	if (FParse::Value(*Entry, TEXT("bSupportLODStreaming="), LocalSupportLODStreaming))
+	{
+		Group.bSupportLODStreaming = !!LocalSupportLODStreaming;
+	}
+
 	if (FParse::Value(*Entry, TEXT("LightMapResolution="), Group.DefaultLightMapResolution))
 	{
 		Group.DefaultLightMapResolution = FMath::Max<int32>(Group.DefaultLightMapResolution, 0);
@@ -1215,15 +1585,15 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 	if (FParse::Value(*Entry, TEXT("BasePercentTriangles="), BasePercentTriangles))
 	{
 		BasePercentTriangles = FMath::Clamp<float>(BasePercentTriangles, 0.0f, 100.0f);
+		Group.DefaultSettings[0].PercentTriangles = BasePercentTriangles * 0.01f;
 	}
-	Group.DefaultSettings[0].PercentTriangles = BasePercentTriangles * 0.01f;
 
 	float LODPercentTriangles = 100.0f;
 	if (FParse::Value(*Entry, TEXT("LODPercentTriangles="), LODPercentTriangles))
 	{
 		LODPercentTriangles = FMath::Clamp<float>(LODPercentTriangles, 0.0f, 100.0f);
+		Group.DefaultSettings[1].PercentTriangles = LODPercentTriangles * 0.01f;
 	}
-	Group.DefaultSettings[1].PercentTriangles = LODPercentTriangles * 0.01f;
 
 	if (FParse::Value(*Entry, TEXT("MaxDeviation="), Settings.MaxDeviation))
 	{
@@ -1264,15 +1634,15 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 	if (FParse::Value(*Entry, TEXT("BasePercentTrianglesMult="), BasePercentTrianglesMult))
 	{
 		BasePercentTrianglesMult = FMath::Clamp<float>(BasePercentTrianglesMult, 0.0f, 100.0f);
+		Group.BasePercentTrianglesMult = BasePercentTrianglesMult * 0.01f;
 	}
-	Group.BasePercentTrianglesMult = BasePercentTrianglesMult * 0.01f;
 
 	float LODPercentTrianglesMult = 100.0f;
 	if (FParse::Value(*Entry, TEXT("LODPercentTrianglesMult="), LODPercentTrianglesMult))
 	{
 		LODPercentTrianglesMult = FMath::Clamp<float>(LODPercentTrianglesMult, 0.0f, 100.0f);
+		Bias.PercentTriangles = LODPercentTrianglesMult * 0.01f;
 	}
-	Bias.PercentTriangles = LODPercentTrianglesMult * 0.01f;
 
 	if (FParse::Value(*Entry, TEXT("MaxDeviationBias="), Bias.MaxDeviation))
 	{
@@ -1498,7 +1868,7 @@ namespace StaticMeshDerivedDataTimings
 		);
 }
 
-static FString BuildStaticMeshDerivedDataKey(UStaticMesh* Mesh, const FStaticMeshLODGroup& LODGroup)
+static FString BuildStaticMeshDerivedDataKeySuffix(UStaticMesh* Mesh, const FStaticMeshLODGroup& LODGroup)
 {
 	FString KeySuffix(TEXT(""));
 	TArray<uint8> TempBytes;
@@ -1561,6 +1931,31 @@ static FString BuildStaticMeshDerivedDataKey(UStaticMesh* Mesh, const FStaticMes
 		}
 	}
 
+	// Mesh LOD streaming settings that need to trigger recache when changed
+	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	check(RunningPlatform);
+	const bool bAllowLODStreaming = RunningPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) && LODGroup.IsLODStreamingSupported();
+	KeySuffix.AppendChar(bAllowLODStreaming ? TEXT('1') : TEXT('0'));
+	if (bAllowLODStreaming)
+	{
+		int32 MaxNumStreamedLODs = Mesh->NumStreamedLODs.GetValueForPlatformIdentifiers(
+				RunningPlatform->GetPlatformInfo().PlatformGroupName,
+				RunningPlatform->GetPlatformInfo().VanillaPlatformName);
+		if (MaxNumStreamedLODs < 0)
+		{
+			MaxNumStreamedLODs = LODGroup.GetDefaultMaxNumStreamedLODs();
+		}
+		for (int32 Idx = 0; Idx < 4; ++Idx)
+		{
+			ByteToHex((MaxNumStreamedLODs & 0xff000000) >> 24, KeySuffix);
+			MaxNumStreamedLODs <<= 8;
+		}
+	}
+	else
+	{
+		KeySuffix += TEXT("zzzzzzzz");
+	}
+
 	KeySuffix.AppendChar(Mesh->bSupportUniformlyDistributedSampling ? TEXT('1') : TEXT('0'));
 
 	// Value of this CVar affects index buffer <-> painted vertex color correspondence (see UE-51421).
@@ -1591,12 +1986,23 @@ static FString BuildStaticMeshDerivedDataKey(UStaticMesh* Mesh, const FStaticMes
 				break;
 		}
 	}
+	return KeySuffix;
+}
 
+static FString BuildStaticMeshDerivedDataKey(const FString& KeySuffix)
+{
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("STATICMESH"),
 		*GetStaticMeshDerivedDataVersion(),
-		*KeySuffix
-		);
+		*KeySuffix);
+}
+
+static FString BuildStaticMeshLODDerivedDataKey(const FString& KeySuffix, int32 LODIdx)
+{
+	return FDerivedDataCacheInterface::BuildCacheKey(
+		TEXT("STATICMESH"),
+		*GetStaticMeshDerivedDataVersion(),
+		*FString::Printf(TEXT("%s_LOD%d"), *KeySuffix, LODIdx));
 }
 
 void FStaticMeshRenderData::ComputeUVDensities()
@@ -1691,7 +2097,8 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 		int32 T0 = FPlatformTime::Cycles();
 		int32 NumLODs = Owner->SourceModels.Num();
 		const FStaticMeshLODGroup& LODGroup = LODSettings.GetLODGroup(Owner->LODGroup);
-		DerivedDataKey = BuildStaticMeshDerivedDataKey(Owner, LODGroup);
+		const FString KeySuffix = BuildStaticMeshDerivedDataKeySuffix(Owner, LODGroup);
+		DerivedDataKey = BuildStaticMeshDerivedDataKey(KeySuffix);
 
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData))
@@ -1699,6 +2106,26 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
+
+			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
+			{
+				FStaticMeshLODResources& LODResource = LODResources[LODIdx];
+				if (LODResource.bBuffersInlined)
+				{
+					break;
+				}
+				// TODO: can we postpone the loading to streaming time?
+				LODResource.DerivedDataKey = BuildStaticMeshLODDerivedDataKey(KeySuffix, LODIdx);
+				TArray<uint8> LODDerivedData;
+				verify(GetDerivedDataCacheRef().GetSynchronous(*LODResource.DerivedDataKey, LODDerivedData));
+				FMemoryReader LODAr(LODDerivedData, true);
+				typename FStaticMeshLODResources::FStaticMeshBuffersSize DummyBuffersSize;
+				LODResource.SerializeBuffers(LODAr, Owner, 0, DummyBuffersSize);
+				typename FStaticMeshLODResources::FStaticMeshBuffersSize LODBuffersSize;
+				Ar << LODBuffersSize;
+				LODResource.BuffersSize = LODBuffersSize.CalcBuffersSize();
+				check(LODResource.BuffersSize == DummyBuffersSize.CalcBuffersSize());
+			}
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogStaticMesh,Verbose,TEXT("Static mesh found in DDC [%fms] %s"),
@@ -1730,6 +2157,24 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
+
+			for (int32 LODIdx = 0; LODIdx < LODResources.Num(); ++LODIdx)
+			{
+				FStaticMeshLODResources& LODResource = LODResources[LODIdx];
+				if (LODResource.bBuffersInlined)
+				{
+					break;
+				}
+				TArray<uint8> LODDerivedData;
+				FMemoryWriter LODAr(LODDerivedData, true);
+				typename FStaticMeshLODResources::FStaticMeshBuffersSize LODBuffersSize;
+				const uint8 LODStripFlags = FStaticMeshLODResources::GenerateClassStripFlags(LODAr, Owner, LODIdx);
+				LODResource.SerializeBuffers(LODAr, Owner, LODStripFlags, LODBuffersSize);
+				Ar << LODBuffersSize;
+				LODResource.DerivedDataKey = BuildStaticMeshLODDerivedDataKey(KeySuffix, LODIdx);
+				GetDerivedDataCacheRef().Put(*LODResource.DerivedDataKey, LODDerivedData);
+			}
+
 			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
 
 			int32 T1 = FPlatformTime::Cycles();
@@ -1822,7 +2267,7 @@ const float UStaticMesh::MinimumAutoLODPixelError = SMALL_NUMBER;
 #endif	//#if WITH_EDITORONLY_DATA
 
 UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
-	: UObject(ObjectInitializer)
+	: UStreamableRenderAsset(ObjectInitializer)
 {
 	ElementToIgnoreForTexFactor = -1;
 	bHasNavigationData=true;
@@ -1830,6 +2275,7 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	bAutoComputeLODScreenSize=true;
 	ImportVersion = EImportStaticMeshVersion::BeforeImportStaticMeshVersionWasAdded;
 	LODForOccluderMesh = -1;
+	NumStreamedLODs.Default = -1;
 #endif // #if WITH_EDITORONLY_DATA
 	LightMapResolution = 4;
 	LpvBiasMultiplier = 1.0f;
@@ -1871,6 +2317,30 @@ void UStaticMesh::InitResources()
 	if (OccluderData)
 	{
 		INC_DWORD_STAT_BY( STAT_StaticMeshOccluderMemory, OccluderData->GetResourceSizeBytes() );
+	}
+
+	// Determine whether or not this mesh can be streamed.
+	const int32 NumLODs = GetNumLODs();
+	bIsStreamable = !NeverStream
+		&& NumLODs > 1
+		&& !RenderData->LODResources[0].bBuffersInlined;
+		//&& !bTemporarilyDisableStreaming;
+
+#if (WITH_EDITOR && DO_CHECK)
+	if (bIsStreamable)
+	{
+		for (int32 LODIdx = 0; LODIdx < NumLODs; ++LODIdx)
+		{
+			const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+			check(LODResource.bBuffersInlined || !LODResource.DerivedDataKey.IsEmpty());
+		}
+	}
+#endif
+
+	UnlinkStreaming();
+	if (bIsStreamable)
+	{
+		LinkStreaming();
 	}
 	
 #if	STATS
@@ -2531,6 +3001,15 @@ void UStaticMesh::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	// Cancel any in flight IO requests
+	CancelPendingMipChangeRequest();
+
+	// Safely unlink mesh from list of streamable ones.
+	UnlinkStreaming();
+
+	// Remove from the list of tracked assets if necessary
+	TrackRenderAssetEvent(nullptr, this, false, nullptr);
+
 	if (FApp::CanEverRender() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		ReleaseResources();
@@ -2955,7 +3434,8 @@ static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh,
 {
 	check(Mesh && Mesh->RenderData);
 	const FStaticMeshLODSettings& PlatformLODSettings = Platform->GetStaticMeshLODSettings();
-	FString PlatformDerivedDataKey = BuildStaticMeshDerivedDataKey(Mesh, PlatformLODSettings.GetLODGroup(Mesh->LODGroup));
+	FString PlatformDerivedDataKey = BuildStaticMeshDerivedDataKey(
+		BuildStaticMeshDerivedDataKeySuffix(Mesh, PlatformLODSettings.GetLODGroup(Mesh->LODGroup)));
 	FStaticMeshRenderData* PlatformRenderData = Mesh->RenderData.Get();
 
 	if (Mesh->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
@@ -3179,7 +3659,7 @@ void UStaticMesh::FixupMaterialSlotName()
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("F62CF84A92D948DEB06D56AEC759D2D3")
+#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("6E342F4997294EBEA9FB3ED1E8CF5D3B")
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
 {
@@ -4093,6 +4573,248 @@ void UStaticMesh::PostLoad()
 bool UStaticMesh::CanBeClusterRoot() const
 {
 	return false;
+}
+
+int32 UStaticMesh::GetLODGroupForStreaming() const
+{
+	// TODO: mesh LOD streaming may need to know LOD group settings
+	return 0;
+}
+
+int32 UStaticMesh::GetNumMipsForStreaming() const
+{
+	check(RenderData);
+	return GetNumLODs();
+}
+
+int32 UStaticMesh::GetNumNonStreamingMips() const
+{
+	check(RenderData);
+	return RenderData->NumInlinedLODs;
+}
+
+int32 UStaticMesh::CalcNumOptionalMips() const
+{
+#if !WITH_EDITOR
+	return MinLOD.Default;
+#else
+	return 0;
+#endif
+}
+
+int32 UStaticMesh::CalcCumulativeLODSize(int32 NumLODs) const
+{
+	uint32 Accum = 0;
+	const int32 LODCount = GetNumLODs();
+	const int32 LastLODIdx = LODCount - NumLODs;
+	for (int32 Idx = LODCount - 1; Idx >= LastLODIdx; --Idx)
+	{
+		Accum += RenderData->LODResources[Idx].BuffersSize;
+	}
+	return Accum;
+}
+
+bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
+{
+#if !WITH_EDITOR
+	FString PackageName = GetOutermost()->FileName.ToString();
+	// Handle name redirection and localization
+	const FCoreRedirectObjectName RedirectedName =
+		FCoreRedirects::GetRedirectedName(
+			ECoreRedirectFlags::Type_Package,
+			FCoreRedirectObjectName(NAME_None, NAME_None, *PackageName));
+	FString LocalizedName;
+	LocalizedName = FPackageName::GetDelegateResolvedPackagePath(RedirectedName.PackageName.ToString());
+	LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
+	bool bSucceed = FPackageName::DoesPackageExist(LocalizedName, nullptr, &OutBulkDataFilename);
+	check(bSucceed);
+	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
+	check(MipIndex < MinLOD.Default || IFileManager::Get().FileExists(*OutBulkDataFilename));
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UStaticMesh::IsReadyForStreaming() const
+{
+	return RenderData && RenderData->bReadyForStreaming;
+}
+
+int32 UStaticMesh::GetNumResidentMips() const
+{
+	check(RenderData);
+	return GetNumLODs() - RenderData->CurrentFirstLODIdx;
+}
+
+int32 UStaticMesh::GetNumRequestedMips() const
+{
+	if (PendingUpdate && !PendingUpdate->IsCancelled())
+	{
+		return PendingUpdate->GetNumRequestedMips();
+	}
+	else
+	{
+		return GetCachedNumResidentLODs();
+	}
+}
+
+bool UStaticMesh::CancelPendingMipChangeRequest()
+{
+	if (PendingUpdate)
+	{
+		if (!PendingUpdate->IsCancelled())
+		{
+			PendingUpdate->Abort();
+		}
+		return true;
+	}
+	return false;
+}
+
+bool UStaticMesh::HasPendingUpdate() const
+{
+	return !!PendingUpdate;
+}
+
+bool UStaticMesh::StreamOut(int32 NewMipCount)
+{
+	check(IsInGameThread());
+	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount < GetNumResidentMips())
+	{
+		PendingUpdate = new FStaticMeshStreamOut(this, NewMipCount);
+
+		// The object starts in the locked state while it is being initialized.
+		PendingUpdate->DoUnlock();
+
+		return !PendingUpdate->IsCancelled();
+	}
+	return false;
+}
+
+bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
+{
+	check(IsInGameThread());
+	if (bIsStreamable && !PendingUpdate && RenderData.IsValid() && RenderData->bReadyForStreaming && NewMipCount > GetNumResidentMips())
+	{
+#if WITH_EDITOR
+		if (FPlatformProperties::HasEditorOnlyData())
+		{
+			if (GRHISupportsAsyncTextureCreation)
+			{
+				PendingUpdate = new FStaticMeshStreamIn_DDC_Async(this, NewMipCount);
+			}
+			else
+			{
+				PendingUpdate = new FStaticMeshStreamIn_DDC_RenderThread(this, NewMipCount);
+			}
+		}
+		else
+#endif
+		{
+			if (GRHISupportsAsyncTextureCreation)
+			{
+				PendingUpdate = new FStaticMeshStreamIn_IO_Async(this, NewMipCount, bHighPrio);
+			}
+			else
+			{
+				PendingUpdate = new FStaticMeshStreamIn_IO_RenderThread(this, NewMipCount, bHighPrio);
+			}
+		}
+
+		// The object starts in the locked state while it is being initialized.
+		PendingUpdate->DoUnlock();
+		return !PendingUpdate->IsCancelled();
+	}
+	return false;
+}
+
+bool UStaticMesh::UpdateStreamingStatus(bool bWaitForMipFading)
+{
+	// if resident and requested mip counts match then no pending request is in flight
+	if (PendingUpdate)
+	{
+		if (GIsRequestingExit || !RenderData)
+		{
+			PendingUpdate->Abort();
+		}
+
+		// When the renderthread is the gamethread, allow the Tick to execute rendercommands.
+		PendingUpdate->Tick(this, GIsThreadedRendering ? FStaticMeshUpdate::TT_None : FStaticMeshUpdate::TT_Render);
+		if (!PendingUpdate->IsCompleted())
+		{
+			return true;
+		}
+
+#if WITH_EDITOR
+		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
+#endif
+
+		delete PendingUpdate;
+		PendingUpdate = nullptr;
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			// When all the requested mips are streamed in, generate an empty property changed event, to force the
+			// ResourceSize asset registry tag to be recalculated.
+			FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
+
+			// We can't load the source art from a bulk data object if the mesh itself is pending kill because the linker will have been detached.
+			// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
+			// destroying the object.
+			if (bRebuildPlatformData)
+			{
+				// TODO: force rebuild even if DDC keys match
+				ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+				ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+				check(TargetPlatform);
+				const FStaticMeshLODSettings& LODSettings = TargetPlatform->GetStaticMeshLODSettings();
+				RenderData->Cache(this, LODSettings);
+				// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
+				// UpdateResource();
+			}
+		}
+#endif
+	}
+
+	// TODO: LOD fading?
+
+	return false;
+}
+
+void UStaticMesh::LinkStreaming()
+{
+	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
+	{
+		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
+	}
+	else
+	{
+		StreamingIndex = INDEX_NONE;
+	}
+}
+
+void UStaticMesh::UnlinkStreaming()
+{
+	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
+	{
+		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+	}
+}
+
+void UStaticMesh::CancelAllPendingStreamingActions()
+{
+	FlushRenderingCommands();
+
+	for (TObjectIterator<UStaticMesh> It; It; ++It)
+	{
+		UStaticMesh* StaticMesh = *It;
+		StaticMesh->CancelPendingMipChangeRequest();
+	}
+
+	FlushRenderingCommands();
 }
 
 //

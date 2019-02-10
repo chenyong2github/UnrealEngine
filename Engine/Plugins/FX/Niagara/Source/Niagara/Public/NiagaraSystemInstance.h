@@ -16,6 +16,7 @@ class FNiagaraWorldManager;
 class UNiagaraComponent;
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
+class NiagaraEmitterInstanceBatcher;
 
 class NIAGARA_API FNiagaraSystemInstance 
 {
@@ -201,6 +202,9 @@ public:
 
 	bool GetPerInstanceDataAndOffsets(void*& OutData, uint32& OutDataSize, TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>*& OutOffsets);
 
+	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
+
+	int32 GetDetailLevel()const;
 private:
 
 	/** Builds the emitter simulations. */
@@ -224,6 +228,9 @@ private:
 
 	void BindParameterCollections(FNiagaraScriptExecutionContext& ExecContext);
 	
+	/** Calculates the distance to use for distance based LODing / culling. */
+	float GetLODDistance();
+
 	UNiagaraComponent* Component;
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 	FBox SystemBounds;
@@ -288,7 +295,7 @@ private:
 	FNiagaraParameterDirectBinding<float> SystemAgeParam;
 	FNiagaraParameterDirectBinding<int32> SystemTickCountParam;
 
-	FNiagaraParameterDirectBinding<float> OwnerMinDistanceToCameraParam;
+	FNiagaraParameterDirectBinding<float> OwnerLODDistanceParam;
 	FNiagaraParameterDirectBinding<int32> SystemNumEmittersParam;
 	FNiagaraParameterDirectBinding<int32> SystemNumEmittersAliveParam;
 
@@ -319,4 +326,6 @@ private:
 	ENiagaraExecutionState ActualExecutionState;
 
 	bool bDataInterfacesInitialized;
+
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

@@ -52,6 +52,9 @@ enum class ETargetPlatformFeatures
 	/** Texture streaming. */
 	TextureStreaming,
 
+	/** Mesh LOD streaming. */
+	MeshLODStreaming,
+
 	/** User credentials are required to use the device. */
 	UserCredentials,
 

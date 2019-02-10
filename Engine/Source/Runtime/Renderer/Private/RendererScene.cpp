@@ -884,10 +884,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	static auto* ShaderPipelinesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
 	StaticDrawShaderPipelines = ShaderPipelinesCvar->GetValueOnAnyThread();
 
-	// Query instanced stereo and multi-view state
-	static const auto InstancedStereoCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
-	bStaticDrawInstancedStereo = RHISupportsInstancedStereo(GShaderPlatformForFeatureLevel[InFeatureLevel]) && GEngine->IsStereoscopic3D() && InstancedStereoCvar->GetValueOnAnyThread();
-
 	if (World->FXSystem)
 	{
 		FFXSystemInterface::Destroy(World->FXSystem);
@@ -2210,11 +2206,10 @@ void FScene::UpdateLightTransform(ULightComponent* Light)
 		FUpdateLightTransformParameters Parameters;
 		Parameters.LightToWorld = Light->GetComponentTransform().ToMatrixNoScale();
 		Parameters.Position = Light->GetLightPosition();
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			UpdateLightTransform,
-			FScene*,Scene,this,
-			FLightSceneInfo*,LightSceneInfo,Light->SceneProxy->GetLightSceneInfo(),
-			FUpdateLightTransformParameters,Parameters,Parameters,
+		FScene* Scene = this;
+		FLightSceneInfo* LightSceneInfo = Light->SceneProxy->GetLightSceneInfo();
+		ENQUEUE_RENDER_COMMAND(UpdateLightTransform)(
+			[Scene, LightSceneInfo, Parameters](FRHICommandListImmediate& RHICmdList)
 			{
 				FScopeCycleCounter Context(LightSceneInfo->Proxy->GetStatId());
 				Scene->UpdateLightTransform_RenderThread(LightSceneInfo, Parameters);
@@ -2248,11 +2243,10 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 			 NewParameters.NewColor *= FLinearColor::MakeFromColorTemperature(Light->Temperature);
 		}
 	
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			UpdateLightColorAndBrightness,
-			FLightSceneInfo*,LightSceneInfo,Light->SceneProxy->GetLightSceneInfo(),
-			FScene*,Scene,this,
-			FUpdateLightColorParameters,Parameters,NewParameters,
+		FScene* Scene = this;
+		FLightSceneInfo* LightSceneInfo = Light->SceneProxy->GetLightSceneInfo();
+		ENQUEUE_RENDER_COMMAND(UpdateLightColorAndBrightness)(
+			[LightSceneInfo, Scene, NewParameters](FRHICommandListImmediate& RHICmdList)
 			{
 				if( LightSceneInfo && LightSceneInfo->bVisible )
 				{
@@ -2262,16 +2256,16 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 					Scene->bScenesPrimitivesNeedStaticMeshElementUpdate =
 						Scene->bScenesPrimitivesNeedStaticMeshElementUpdate ||
 						( Scene->GetShadingPath() == EShadingPath::Mobile 
-						&& Parameters.NewColor.IsAlmostBlack() != LightSceneInfo->Proxy->GetColor().IsAlmostBlack() );
+						&& NewParameters.NewColor.IsAlmostBlack() != LightSceneInfo->Proxy->GetColor().IsAlmostBlack() );
 
-					LightSceneInfo->Proxy->SetColor(Parameters.NewColor);
-					LightSceneInfo->Proxy->IndirectLightingScale = Parameters.NewIndirectLightingScale;
-					LightSceneInfo->Proxy->VolumetricScatteringIntensity = Parameters.NewVolumetricScatteringIntensity;
+					LightSceneInfo->Proxy->SetColor(NewParameters.NewColor);
+					LightSceneInfo->Proxy->IndirectLightingScale = NewParameters.NewIndirectLightingScale;
+					LightSceneInfo->Proxy->VolumetricScatteringIntensity = NewParameters.NewVolumetricScatteringIntensity;
 
 					// Also update the LightSceneInfoCompact
 					if( LightSceneInfo->Id != INDEX_NONE )
 					{
-						Scene->Lights[ LightSceneInfo->Id ].Color = Parameters.NewColor;
+						Scene->Lights[ LightSceneInfo->Id ].Color = NewParameters.NewColor;
 					}
 				}
 			});
@@ -2593,11 +2587,9 @@ void FScene::AddSpeedTreeWind(FVertexFactory* VertexFactory, const UStaticMesh* 
 {
 	if (StaticMesh != NULL && StaticMesh->SpeedTreeWind.IsValid() && StaticMesh->RenderData.IsValid())
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			FAddSpeedTreeWindCommand,
-			FScene*,Scene,this,
-			const UStaticMesh*,StaticMesh,StaticMesh,
-			FVertexFactory*,VertexFactory,VertexFactory,
+		FScene* Scene = this;
+		ENQUEUE_RENDER_COMMAND(FAddSpeedTreeWindCommand)(
+			[Scene, StaticMesh, VertexFactory](FRHICommandListImmediate& RHICmdList)
 			{
 				Scene->SpeedTreeVertexFactoryMap.Add(VertexFactory, StaticMesh);
 
@@ -2765,11 +2757,9 @@ void FScene::GetRelevantLights( UPrimitiveComponent* Primitive, TArray<const ULi
 	if( Primitive && RelevantLights )
 	{
 		// Add interacting lights to the array.
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			FGetRelevantLightsCommand,
-			const FScene*,Scene,this,
-			UPrimitiveComponent*,Primitive,Primitive,
-			TArray<const ULightComponent*>*,RelevantLights,RelevantLights,
+		const FScene* Scene = this;
+		ENQUEUE_RENDER_COMMAND(FGetRelevantLightsCommand)(
+			[Scene, Primitive, RelevantLights](FRHICommandListImmediate& RHICmdList)
 			{
 				Scene->GetRelevantLights_RenderThread( Primitive, RelevantLights );
 			});
@@ -2862,21 +2852,17 @@ void FScene::ConditionalMarkStaticMeshElementsForUpdate()
 {
 	static auto* EarlyZPassCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EarlyZPass"));
 	static auto* ShaderPipelinesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-	static auto* InstancedStereoCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
 
 	bool bMobileHDR = IsMobileHDR();
 	bool bMobileHDR32bpp = IsMobileHDR32bpp();
 	int32 DesiredStaticDrawListsEarlyZPassMode = EarlyZPassCvar->GetValueOnRenderThread();
 	int32 DesiredStaticDrawShaderPipelines = ShaderPipelinesCvar->GetValueOnRenderThread();
-	bool bDesiredStaticDrawInstancedStereo = RHISupportsInstancedStereo(GShaderPlatformForFeatureLevel[FeatureLevel]) &&
-		GEngine->IsStereoscopic3D() && InstancedStereoCvar->GetValueOnAnyThread();
 
 	if (bScenesPrimitivesNeedStaticMeshElementUpdate
 		|| bStaticDrawListsMobileHDR != bMobileHDR
 		|| bStaticDrawListsMobileHDR32bpp != bMobileHDR32bpp
 		|| StaticDrawShaderPipelines != DesiredStaticDrawShaderPipelines
-		|| StaticDrawListsEarlyZPassMode != DesiredStaticDrawListsEarlyZPassMode
-		|| bStaticDrawInstancedStereo != bDesiredStaticDrawInstancedStereo)
+		|| StaticDrawListsEarlyZPassMode != DesiredStaticDrawListsEarlyZPassMode)
 	{
 		// Mark all primitives as needing an update
 		// Note: Only visible primitives will actually update their static mesh elements
@@ -2890,7 +2876,6 @@ void FScene::ConditionalMarkStaticMeshElementsForUpdate()
 		bStaticDrawListsMobileHDR32bpp = bMobileHDR32bpp;
 		StaticDrawListsEarlyZPassMode = DesiredStaticDrawListsEarlyZPassMode;
 		StaticDrawShaderPipelines = DesiredStaticDrawShaderPipelines;
-		bStaticDrawInstancedStereo = bDesiredStaticDrawInstancedStereo;
 	}
 }
 

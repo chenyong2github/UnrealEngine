@@ -111,6 +111,13 @@ FAutoConsoleVariableRef CVarNumPrecacheFrames(
 	TEXT("0: Use default value for precache frames, >0: Number of frames to precache."),
 	ECVF_Default);
 
+static int32 AllowAudioSpatializationCVar = 1;
+FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
+	TEXT("au.AllowAudioSpatialization"),
+	AllowAudioSpatializationCVar,
+	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
 
 /*-----------------------------------------------------------------------------
 FDynamicParameter implementation.
@@ -2052,7 +2059,7 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
-		ConcurrencyManager.StopQuietSoundsDueToMaxConcurrency();
+		ConcurrencyManager.UpdateQuietSoundsToStop();
 	}
 
 	// Remove all wave instances from the wave instance list that are stopping due to max concurrency
@@ -2071,6 +2078,7 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 			if (ActiveSound->bShouldStopDueToMaxConcurrency)
 			{
 				ActiveSound->Stop(false);
+				ConcurrencyManager.StopActiveSound(ActiveSound);
 			}
 		}
 	}
@@ -4155,6 +4163,12 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 		OneShotCount++;
 	}
 
+	// If we've disabled audio spatialization, then we need to force this active sound to no longer spatialize.
+	if (AllowAudioSpatializationCVar == 0)
+	{
+		ActiveSound->bAllowSpatialization = false;
+	}
+
 	// Set the active sound to be playing audio so it gets parsed at least once.
 	ActiveSound->bIsPlayingAudio = true;
 
@@ -4272,6 +4286,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 {
 	check(IsInAudioThread());
+	check(SoundToStop);
 
 	const uint64 AudioComponentID = SoundToStop->GetAudioComponentID();
 	if (AudioComponentID > 0)
@@ -4279,8 +4294,13 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 		AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
 	}
 
-	check(SoundToStop);
-	PendingSoundsToStop.Add(SoundToStop);
+	bool bAlreadyPending = false;
+	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
+
+	if (!bAlreadyPending)
+	{
+		ConcurrencyManager.StopActiveSound(SoundToStop);
+	}
 }
 
 void FAudioDevice::StopActiveSound(const uint64 AudioComponentID)
@@ -4343,8 +4363,6 @@ FActiveSound* FAudioDevice::FindActiveSound(const uint64 AudioComponentID)
 void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
 {
 	check(IsInAudioThread());
-
-	ConcurrencyManager.RemoveActiveSound(ActiveSound);
 
 	// Perform the notification
 	if (ActiveSound->GetAudioComponentID() > 0)

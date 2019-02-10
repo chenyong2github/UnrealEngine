@@ -207,6 +207,9 @@ static TAutoConsoleVariable<int32> CVarUseParallelGetDynamicMeshElementsTasks(
 
 FMeshElementCollector::FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel) :
 	PrimitiveSceneProxy(NULL),
+	DynamicIndexBuffer(nullptr),
+	DynamicVertexBuffer(nullptr),
+	DynamicReadBuffer(nullptr),
 	FeatureLevel(InFeatureLevel),
 	bUseAsyncTasks(FApp::ShouldUseThreadingForPerformance() && CVarUseParallelGetDynamicMeshElementsTasks.GetValueOnAnyThread() > 0)
 {	
@@ -538,7 +541,7 @@ int8 ComputeStaticMeshLOD( const FStaticMeshRenderData* RenderData, const FVecto
 	return MinLOD;
 }
 
-FLODMask ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, float ScreenSizeScale, bool bDitheredLODTransition)
+FLODMask ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, int8 CurFirstLODIdx, float ScreenSizeScale, bool bDitheredLODTransition)
 {
 	FLODMask LODToRender;
 	const FSceneView& LODView = GetLODView(View);
@@ -560,6 +563,7 @@ FLODMask ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& Stat
 				MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
 			}
 		}
+		MinLOD = FMath::Max(MinLOD, (int32)CurFirstLODIdx);
 		LODToRender.SetLOD(FMath::Clamp(ForcedLODLevel, MinLOD, MaxLOD));
 	}
 	else if (LODView.Family->EngineShowFlags.LOD && NumMeshes)
@@ -623,6 +627,7 @@ FLODMask ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& Stat
 				LODToRender.SetLOD(MinLODFound);
 			}
 		}
+		LODToRender.ClampToFirstLOD(CurFirstLODIdx);
 	}
 	return LODToRender;
 }

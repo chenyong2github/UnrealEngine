@@ -131,7 +131,7 @@ bool FStaticMeshComponentInstanceData::ApplyVertexColorData(UStaticMeshComponent
 				// may not be null at the start (could have been initialized 
 				// from a  component template with vert coloring), but should
 				// be null at this point, after RemoveInstanceVertexColorsFromLOD()
-				if (LODInfo.OverrideVertexColors == NULL)
+				if (LODInfo.OverrideVertexColors == NULL && VertexColorLODData.VertexBufferColors.Num() > 0)
 				{
 					LODInfo.PaintedVertices = VertexColorLODData.PaintedVertices;
 
@@ -345,12 +345,6 @@ void UStaticMeshComponent::PostInitProperties()
 	{
 		LODData[LODIndex].OwningComponent = this;
 	}
-}
-
-void UStaticMeshComponent::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogStaticMesh, Error, TEXT("Garbage collector eliminated reference from staticmeshcomponent!  Static Mesh objects should not be cleaned up via MarkPendingKill().\n           StaticMesh=%s"),
-		*GetPathName());
 }
 
 bool UStaticMeshComponent::AreNativePropertiesIdenticalTo( UObject* Other ) const
@@ -644,21 +638,21 @@ static int32 GetNumberOfElements(const TIndirectArray<FStaticMeshLODResources>& 
  *	@param	StreamingTextureData	[out]		The resulting packed data.
  *	@param	RefBounds				[in]		The reference bounds used to packed the relative bounds.
  */
-static void PackStreamingTextureData(ULevel* Level, TArray<FStreamingTexturePrimitiveInfo>& UnpackedData, TArray<FStreamingTextureBuildInfo>& StreamingTextureData, const FBoxSphereBounds& RefBounds)
+static void PackStreamingTextureData(ULevel* Level, TArray<FStreamingRenderAssetPrimitiveInfo>& UnpackedData, TArray<FStreamingTextureBuildInfo>& StreamingTextureData, const FBoxSphereBounds& RefBounds)
 {
 	StreamingTextureData.Empty();
 
 	while (UnpackedData.Num())
 	{
-		FStreamingTexturePrimitiveInfo Info = UnpackedData[0];
+		FStreamingRenderAssetPrimitiveInfo Info = UnpackedData[0];
 		UnpackedData.RemoveAtSwap(0);
 
 		// Merge with any other lod section using the same texture.
 		for (int32 Index = 0; Index < UnpackedData.Num(); ++Index)
 		{
-			const FStreamingTexturePrimitiveInfo& CurrInfo = UnpackedData[Index];
+			const FStreamingRenderAssetPrimitiveInfo& CurrInfo = UnpackedData[Index];
 
-			if (CurrInfo.Texture == Info.Texture)
+			if (CurrInfo.RenderAsset == Info.RenderAsset)
 			{
 				Info.Bounds = Union(Info.Bounds, CurrInfo.Bounds);
 				// Take the max scale since it relates to higher texture resolution.
@@ -732,7 +726,7 @@ bool UStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingBuildType 
 				{
 					// Get the data without any component scaling as the built data does not include scale.
 					FStreamingTextureLevelContext LevelContext(QualityLevel, FeatureLevel, true); // Use the boxes that were just computed!
-					TArray<FStreamingTexturePrimitiveInfo> UnpackedData;
+					TArray<FStreamingRenderAssetPrimitiveInfo> UnpackedData;
 					GetStreamingTextureInfoInner(LevelContext, nullptr, 1.f, UnpackedData);
 					PackStreamingTextureData(Level, UnpackedData, StreamingTextureData, Bounds);
 				}
@@ -807,7 +801,7 @@ float UStaticMeshComponent::GetTextureStreamingTransformScale() const
 	return GetComponentTransform().GetMaximumAxisScale();
 }
 
-void UStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	if (bIgnoreInstanceForTextureStreaming || !GetStaticMesh() || !GetStaticMesh()->HasValidRenderData())
 	{
@@ -815,7 +809,7 @@ void UStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext
 	}
 
 	const float TransformScale = GetTextureStreamingTransformScale();
-	GetStreamingTextureInfoInner(LevelContext, Mobility == EComponentMobility::Static ? &StreamingTextureData : nullptr, TransformScale * StreamingDistanceMultiplier, OutStreamingTextures);
+	GetStreamingTextureInfoInner(LevelContext, Mobility == EComponentMobility::Static ? &StreamingTextureData : nullptr, TransformScale * StreamingDistanceMultiplier, OutStreamingRenderAssets);
 
 	// Process the lightmaps and shadowmaps entries.
 	for (int32 LODIndex = 0; LODIndex < LODData.Num(); ++LODIndex)
@@ -830,9 +824,9 @@ void UStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext
 			if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
 			{
 				const float TexelFactor = GetStaticMesh()->LightmapUVDensity * TransformScale / FMath::Min(Scale.X, Scale.Y);
-				new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, TexelFactor, PackedRelativeBox_Identity);
-				new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetAOMaterialMaskTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
-				new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Lightmap->GetSkyOcclusionTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
+				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetTexture(LightmapIndex), Bounds, TexelFactor, PackedRelativeBox_Identity);
+				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetAOMaterialMaskTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
+				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Lightmap->GetSkyOcclusionTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
 			}
 		}
 
@@ -843,9 +837,15 @@ void UStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext
 			if (Scale.X > SMALL_NUMBER && Scale.Y > SMALL_NUMBER)
 			{
 				const float TexelFactor = GetStaticMesh()->LightmapUVDensity * TransformScale / FMath::Min(Scale.X, Scale.Y);
-				new (OutStreamingTextures) FStreamingTexturePrimitiveInfo(Shadowmap->GetTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
+				new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(Shadowmap->GetTexture(), Bounds, TexelFactor, PackedRelativeBox_Identity);
 			}
 		}
+	}
+
+	if (IsStreamingRenderAsset(GetStaticMesh()))
+	{
+		const float TexelFactor = ForcedLodModel > 0 ? -(GetStaticMesh()->RenderData->LODResources.Num() - ForcedLodModel + 1) : Bounds.SphereRadius * 2.f;
+		new (OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo(GetStaticMesh(), Bounds, TexelFactor, PackedRelativeBox_Identity);
 	}
 }
 
@@ -2730,13 +2730,20 @@ FArchive& operator<<(FArchive& Ar,FStaticMeshComponentLODInfo& I)
 			check(I.OverrideVertexColors != nullptr);
 			I.OverrideVertexColors->Serialize(Ar, bNeedsCPUAccess);
 			
-			//When IsSaving, we cannot have this situation since it is check before
-			if (Ar.IsLoading() && (I.OverrideVertexColors->GetNumVertices() <= 0 || I.OverrideVertexColors->GetStride() <= 0))
+			if (Ar.IsLoading())
 			{
-				UE_LOG(LogStaticMesh, Log, TEXT("Loading a staticmesh component that is flag with override vertex color buffer, but the buffer is empty after loading(serializing) it. Resave the map to fix the component override vertex color data."));
-				//Avoid saving an empty array
-				delete I.OverrideVertexColors;
-				I.OverrideVertexColors = nullptr;
+				//When IsSaving, we cannot have this situation since it is check before
+				if (I.OverrideVertexColors->GetNumVertices() <= 0 || I.OverrideVertexColors->GetStride() <= 0)
+				{
+					UE_LOG(LogStaticMesh, Log, TEXT("Loading a staticmesh component that is flag with override vertex color buffer, but the buffer is empty after loading(serializing) it. Resave the map to fix the component override vertex color data."));
+					//Avoid saving an empty array
+					delete I.OverrideVertexColors;
+					I.OverrideVertexColors = nullptr;
+				}
+				else
+				{
+					BeginInitResource(I.OverrideVertexColors);
+				}
 			}
 		}
 	}

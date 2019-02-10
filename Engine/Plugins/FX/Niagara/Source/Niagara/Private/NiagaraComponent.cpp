@@ -342,6 +342,10 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bIsSeeking(false)
 	, bAutoDestroy(false)
 #if WITH_EDITOR
+	, PreviewDetailLevel(INDEX_NONE)
+	, PreviewLODDistance(0.0f)
+	, bEnablePreviewDetailLevel(false)
+	, bEnablePreviewLODDistance(false)
 	, bWaitForCompilationOnActivate(false)
 #endif
 	, bAwaitingActivationDueToNotReady(false)
@@ -453,7 +457,7 @@ void UNiagaraComponent::ResetSystem()
 void UNiagaraComponent::ReinitializeSystem()
 {
 	DestroyInstance();
-	Activate();
+	Activate(true);
 }
 
 bool UNiagaraComponent::GetRenderingEnabled() const
@@ -1204,6 +1208,24 @@ void UNiagaraComponent::PostLoadNormalizeOverrideNames()
 		ValueMap.Add(ValueName, Pair.Value);
 	}
 	EditorOverridesValue = ValueMap;
+}
+
+void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel)
+{
+	bool bReInit = bEnablePreviewDetailLevel != bInEnablePreviewDetailLevel || (bEnablePreviewDetailLevel && PreviewDetailLevel != InPreviewDetailLevel);
+
+	bEnablePreviewDetailLevel = bInEnablePreviewDetailLevel;
+	PreviewDetailLevel = InPreviewDetailLevel;
+	if (bReInit)
+	{
+		ReinitializeSystem();
+	}
+}
+
+void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance)
+{
+	bEnablePreviewLODDistance = bInEnablePreviewLODDistance;
+	PreviewLODDistance = InPreviewLODDistance;
 }
 
 bool UNiagaraComponent::IsParameterValueOverriddenLocally(const FName& InParamName)

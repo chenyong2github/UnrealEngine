@@ -38,6 +38,10 @@
 #include "Engine/LODActor.h"
 #endif // WITH_EDITOR
 
+#if DO_CHECK
+#include "Engine/StaticMesh.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "PrimitiveComponent"
 
 //////////////////////////////////////////////////////////////////////////
@@ -213,7 +217,6 @@ private:
 // PRIMITIVE COMPONENT
 ///////////////////////////////////////////////////////////////////////////////
 
-int32 UPrimitiveComponent::CurrentTag = 2147483647 / 4;
 uint32 UPrimitiveComponent::GlobalOverlapEventsCounter = 0;
 
 // 0 is reserved to mean invalid
@@ -222,10 +225,6 @@ FThreadSafeCounter UPrimitiveComponent::NextComponentId;
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
 {
-	PostPhysicsComponentTick.bCanEverTick = false;
-	PostPhysicsComponentTick.bStartWithTickEnabled = true;
-	PostPhysicsComponentTick.TickGroup = TG_PostPhysics;
-
 	LastRenderTime = -1000.0f;
 	LastRenderTimeOnScreen = -1000.0f;
 	BoundsScale = 1.0f;
@@ -331,7 +330,7 @@ bool UPrimitiveComponent::HasStaticLighting() const
 	return ((Mobility == EComponentMobility::Static) || LightmapType == ELightmapType::ForceSurface) && SupportsStaticLighting();
 }
 
-void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	if (CVarStreamingUseNewMetrics.GetValueOnGameThread() != 0)
 	{
@@ -358,7 +357,7 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				if (MaterialInterface)
 				{
 					MaterialData.Material = MaterialInterface;
-					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingTextures);
+					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingRenderAssets);
 				}
 				// Remove all instances of this material in case there were duplicates.
 				UsedMaterials.RemoveSwap(MaterialInterface);
@@ -368,26 +367,33 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 }
 
 
-void UPrimitiveComponent::GetStreamingTextureInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	// Ignore components that are fully initialized but have no scene proxy (hidden primitive or non game primitive)
 	if (!IsRegistered() || !IsRenderStateCreated() || SceneProxy)
 	{
-		GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
-		for (int32 Index = 0; Index < OutStreamingTextures.Num(); Index++)
+		GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
+		for (int32 Index = 0; Index < OutStreamingRenderAssets.Num(); Index++)
 		{
-			const FStreamingTexturePrimitiveInfo& Info = OutStreamingTextures[Index];
-			if (!IsStreamingTexture(Info.Texture))
+			const FStreamingRenderAssetPrimitiveInfo& Info = OutStreamingRenderAssets[Index];
+			if (!IsStreamingRenderAsset(Info.RenderAsset))
 			{
-				OutStreamingTextures.RemoveAtSwap(Index--);
+				OutStreamingRenderAssets.RemoveAtSwap(Index--);
 			}
 			else
 			{
+#if DO_CHECK
+				ensure(Info.TexelFactor >= 0.f
+					|| Info.RenderAsset->IsA<UStaticMesh>()
+					|| Info.RenderAsset->IsA<USkeletalMesh>()
+					|| (Info.RenderAsset->IsA<UTexture>() && Info.RenderAsset->GetLODGroupForStreaming() == TEXTUREGROUP_Terrain_Heightmap));
+#endif
+
 				// Other wise check that everything is setup right. If the component is not yet registered, then the bound data is irrelevant.
 				const bool bCanBeStreamedByDistance = Info.TexelFactor > SMALL_NUMBER && (Info.Bounds.SphereRadius > SMALL_NUMBER || !IsRegistered()) && ensure(FMath::IsFinite(Info.TexelFactor));
-				if (!bForceMipStreaming && !bCanBeStreamedByDistance && !(Info.TexelFactor < 0 && Info.Texture->LODGroup == TEXTUREGROUP_Terrain_Heightmap))
+				if (!bForceMipStreaming && !bCanBeStreamedByDistance && Info.TexelFactor >= 0.f)
 				{
-					OutStreamingTextures.RemoveAtSwap(Index--);
+					OutStreamingRenderAssets.RemoveAtSwap(Index--);
 				}
 			}
 		}
@@ -418,74 +424,6 @@ void UPrimitiveComponent::GetUsedTextures(TArray<UTexture*>& OutTextures, EMater
 		}
 	}
 }
-
-/** 
-* Abstract function actually execute the tick. 
-* @param DeltaTime - frame time to advance, in seconds
-* @param TickType - kind of tick for this frame
-* @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
-* @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
-**/
-void FPrimitiveComponentPostPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FActorComponentTickFunction::ExecuteTickHelper(Target, /*bTickInEditor=*/ false, DeltaTime, TickType, [this](float DilatedTime){ Target->PostPhysicsTick(*this); });
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-FString FPrimitiveComponentPostPhysicsTickFunction::DiagnosticMessage()
-{
-	return Target->GetFullName() + TEXT("[UPrimitiveComponent::PostPhysicsTick]");
-}
-
-void UPrimitiveComponent::RegisterComponentTickFunctions(bool bRegister)
-{
-	Super::RegisterComponentTickFunctions(bRegister);
-
-	if (bRegister)
-	{
-		if (SetupActorComponentTickFunction(&PostPhysicsComponentTick))
-		{
-			PostPhysicsComponentTick.Target = this;
-
-			// If primary tick is registered, add a prerequisate to it
-			if(PrimaryComponentTick.bCanEverTick)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(this,PrimaryComponentTick); 
-			}
-
-			// Set a prereq for the post physics tick to happen after physics is finished
-			UWorld* World = GetWorld();
-			if (World != nullptr)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(World, World->EndPhysicsTickFunction);
-			}
-		}
-	}
-	else
-	{
-		if(PostPhysicsComponentTick.IsTickFunctionRegistered())
-		{
-			PostPhysicsComponentTick.UnRegisterTickFunction();
-		}
-	}
-}
-
-void UPrimitiveComponent::SetPostPhysicsComponentTickEnabled(bool bEnable)
-{
-	// @todo ticking, James, turn this off when not needed
-	if (PostPhysicsComponentTick.bCanEverTick && !IsTemplate())
-	{
-		PostPhysicsComponentTick.SetTickFunctionEnable(bEnable);
-	}
-}
-
-bool UPrimitiveComponent::IsPostPhysicsComponentTickEnabled() const
-{
-	return PostPhysicsComponentTick.IsTickFunctionEnabled();
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // Render

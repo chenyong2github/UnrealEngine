@@ -94,6 +94,25 @@ namespace Audio
 		return CurrentEnvelopeValue = NewEnvelopeValue;
 	}
 
+	float FEnvelopeFollower::ProcessAudioNonClamped(const float InAudioSample)
+	{
+		// Take the absolute value of the input sample
+		float Sample = FMath::Abs(InAudioSample);
+
+		// If we're not Peak detecting, then square the input
+		if (EnvMode != EPeakMode::Peak)
+		{
+			Sample = Sample * Sample;
+		}
+
+		float TimeSamples = (Sample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
+		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - Sample) + Sample;;
+		NewEnvelopeValue = Audio::UnderflowClamp(NewEnvelopeValue);
+
+		// Update and return the envelope value
+		return CurrentEnvelopeValue = NewEnvelopeValue;
+	}
+
 	int16 FEnvelopeFollower::ProcessAudio(const int16 InAudioSample)
 	{
 		// Convert to float

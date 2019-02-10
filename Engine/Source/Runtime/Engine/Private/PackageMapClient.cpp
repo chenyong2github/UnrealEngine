@@ -465,21 +465,6 @@ bool UPackageMapClient::SerializeNewActor(FArchive& Ar, class UActorChannel *Cha
 			{
 				Velocity = FVector::ZeroVector;
 			}
-
-			if ( Ar.IsSaving() )
-			{
-				FObjectReplicator * RepData = &Channel->GetActorReplicationData();
-				uint8* Recent = RepData && RepData->RepState.IsValid() && RepData->RepState->StaticBuffer.Num() ? RepData->RepState->StaticBuffer.GetData() : NULL;
-				if ( Recent )
-				{
-					FRepMovement* RepMovement = RepData->RepLayout->GetShadowStateValue<FRepMovement>(Recent, GET_MEMBER_NAME_CHECKED(AActor, ReplicatedMovement));
-					check(RepMovement);
-
-					RepMovement->Location = LocalLocation;
-					RepMovement->Rotation = Rotation;
-					RepMovement->LinearVelocity = Velocity;
-				}
-			}
 		}
 
 		if ( Ar.IsLoading() )
@@ -1898,11 +1883,14 @@ bool UPackageMapClient::PrintExportBatch()
 
 	// Print the whole thing for reference
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	for (auto It = GuidCache->History.CreateIterator(); It; ++It)
+	if (FNetGUIDCache::IsHistoryEnabled())
 	{
-		FString Str = It.Value();
-		FNetworkGUID NetGUID = It.Key();
-		UE_LOG(LogNetPackageMap, Warning, TEXT("<%s> - %s"), *NetGUID.ToString(), *Str);
+		for (auto It = GuidCache->History.CreateIterator(); It; ++It)
+		{
+			FString Str = It.Value();
+			FNetworkGUID NetGUID = It.Key();
+			UE_LOG(LogNetPackageMap, Warning, TEXT("<%s> - %s"), *NetGUID.ToString(), *Str);
+		}
 	}
 #endif
 
@@ -2274,13 +2262,19 @@ void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const
 		NetGUIDLookup.Add( CacheObject.Object, NetGUID );
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		History.Add( NetGUID, CacheObject.Object->GetPathName() );
+		if (IsHistoryEnabled())
+		{
+			History.Add(NetGUID, CacheObject.Object->GetPathName());
+		}
 #endif
 	}
 	else
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		History.Add( NetGUID, CacheObject.PathName.ToString() );
+		if (IsHistoryEnabled())
+		{
+			History.Add(NetGUID, CacheObject.PathName.ToString());
+		}
 #endif
 	}
 }
@@ -3108,6 +3102,20 @@ void FNetGUIDCache::ResetCacheForDemo()
 	NetFieldExportGroupIndexToGroup.Reset();
 	NetFieldExportGroupPathToIndex.Reset();
 }
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+static int32 bIsNetGuidCacheHistoryEnabled = 0;
+static FAutoConsoleVariableRef CVarIsNetGuidCacheHistoryEnabled(
+	TEXT("Net.NetGuidCacheHistoryEnabled"),
+	bIsNetGuidCacheHistoryEnabled,
+	TEXT("When enabled, allows logging of NetGUIDCache History. Warning, this can eat up a lot of memory, and won't free itself until the Cache is destroyed.")
+);
+
+const bool FNetGUIDCache::IsHistoryEnabled()
+{
+	return !!bIsNetGuidCacheHistoryEnabled;
+}
+#endif
 
 void FNetGUIDCache::CountBytes(FArchive& Ar) const
 {

@@ -817,7 +817,7 @@ public:
 	/** Prioritization Constants: these affect how the final priority of an actor is calculated in the prioritize phase */
 	struct FPrioritizationConstants
 	{
-		float MaxDistanceScaling = 3000.f * 3000.f;		// Distance scaling for prioritization scales up to this distance, everything passed this distance is the same or "capped"
+		float MaxDistanceScaling = 60000.f * 60000.f;	// Distance scaling for prioritization scales up to this distance, everything passed this distance is the same or "capped"
 		uint32 MaxFramesSinceLastRep = 20;				// Time since last rep scales up to this
 		
 	};

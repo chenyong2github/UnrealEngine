@@ -607,7 +607,7 @@ ULocalPlayer* UGameInstance::CreateInitialPlayer(FString& OutError)
 	return CreateLocalPlayer( 0, OutError, false );
 }
 
-ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnActor)
+ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnPlayerController)
 {
 	check(GetEngine()->LocalPlayerClass != NULL);
 
@@ -641,7 +641,7 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 		NewPlayer = NewObject<ULocalPlayer>(GetEngine(), GetEngine()->LocalPlayerClass);
 		InsertIndex = AddLocalPlayer(NewPlayer, ControllerId);
-		if (bSpawnActor && InsertIndex != INDEX_NONE && GetWorld() != NULL)
+		if (bSpawnPlayerController && InsertIndex != INDEX_NONE && GetWorld() != NULL)
 		{
 			if (GetWorld()->GetNetMode() != NM_Client)
 			{
@@ -958,8 +958,6 @@ void UGameInstance::StartRecordingReplay(const FString& Name, const FString& Fri
 		CurrentWorld->DestroyDemoNetDriver();
 		bDestroyedDemoNetDriver = true; 
 
-		const FName NAME_DemoNetDriver(TEXT("DemoNetDriver"));
-
 		if (!GEngine->CreateNamedNetDriver(CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver))
 		{
 			UE_LOG(LogDemo, Warning, TEXT("RecordReplay: failed to create demo net driver!"));
@@ -1047,8 +1045,6 @@ bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const
 	{
 		DemoURL.AddOption(*Option);
 	}
-
-	const FName NAME_DemoNetDriver( TEXT( "DemoNetDriver" ) );
 
 	if ( !GEngine->CreateNamedNetDriver( CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver ) )
 	{

@@ -419,18 +419,34 @@ public:
 
 	FVertexFactoryType* VertexFactoryType;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar,class FVertexFactoryTypeDependency& Ref)
 	{
-		Ar << Ref.VertexFactoryType << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.VFSourceHash);
+#if KEEP_SHADER_SOURCE_HASHES
+		FSHAHash& Hash = Ref.VFSourceHash;
+#else
+		FSHAHash Hash;
+#endif
+		Ar << Ref.VertexFactoryType << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 		return Ar;
 	}
 
 	bool operator==(const FVertexFactoryTypeDependency& Reference) const
 	{
+#if KEEP_SHADER_SOURCE_HASHES
 		return VertexFactoryType == Reference.VertexFactoryType && VFSourceHash == Reference.VFSourceHash;
+#else
+		return VertexFactoryType == Reference.VertexFactoryType;
+#endif
+	}
+
+	bool operator!=(const FVertexFactoryTypeDependency& Reference) const
+	{
+		return !(*this == Reference);
 	}
 };
 
@@ -637,8 +653,10 @@ public:
 
 	const FVertexFactoryType* GetVertexFactoryType() const { return VertexFactoryType; }
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Returns the hash of the vertex factory shader file that this shader was compiled with. */
 	const FSHAHash& GetHash() const;
+#endif
 
 	/** Returns the shader platform that this shader was compiled with. */
 	EShaderPlatform GetShaderPlatform() const;
@@ -656,8 +674,10 @@ private:
 	EShaderFrequency ShaderFrequency;
 	EShaderPlatform ShaderPlatform;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	// Hash of the vertex factory's source file at shader compile time, used by the automatic versioning system to detect changes
 	FSHAHash VFHash;
+#endif
 };
 
 /**
