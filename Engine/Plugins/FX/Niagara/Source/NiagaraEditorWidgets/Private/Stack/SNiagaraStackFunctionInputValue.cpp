@@ -416,7 +416,7 @@ FText SNiagaraStackFunctionInputValue::GetInvalidValueToolTipText() const
 	}
 }
 
-FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked()
+FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	UNiagaraNodeFunctionCall* DynamicInputNode = FunctionInput->GetDynamicInputNode();
 	if (DynamicInputNode->FunctionScript != nullptr && DynamicInputNode->FunctionScript->IsAsset())
@@ -427,7 +427,7 @@ FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked()
 	return FReply::Unhandled();
 }
 
-FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked()
+FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	FString ParamCollection;
 	FString ParamName;
