@@ -1084,6 +1084,15 @@ namespace UnrealGameSync
 			return RunCommand(String.Format("have \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError, Log);
 		}
 
+		public bool Have(string Filter, Action<PerforceFileRecord> HaveOutput, TextWriter Log)
+		{
+			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => HaveOutput(new PerforceFileRecord(x))))
+			{
+				string CommandLine = String.Format("-ztag have \"{0}\"", Filter);
+				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.IgnoreFilesNotOnClientError, Log);
+			}
+		}
+
 		public bool Stat(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
 			return RunCommand(String.Format("fstat \"{0}\"", Filter), out FileRecords, CommandOptions.IgnoreFilesNotOnClientError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreProtectedNamespaceError, Log);
@@ -1157,6 +1166,20 @@ namespace UnrealGameSync
 			}
 		}
 
+		private static bool FilterTaggedOutput(PerforceOutputLine Line, PerforceTagRecordParser Parser, TextWriter Log)
+		{
+			if(Line.Channel == PerforceOutputChannel.TaggedInfo)
+			{
+				Parser.OutputLine(Line.Text);
+				return true;
+			}
+			else
+			{
+				Log.WriteLine(Line.Text);
+				return Line.Channel != PerforceOutputChannel.Error;
+			}
+		}
+
 		private static bool FilterSyncOutput(PerforceOutputLine Line, PerforceTagRecordParser Parser, List<string> TamperedFiles, TextWriter Log)
 		{
 			if(Line.Channel == PerforceOutputChannel.TaggedInfo)
@@ -1189,6 +1212,15 @@ namespace UnrealGameSync
 		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
 			return RunCommand(String.Format("sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber), out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+		}
+
+		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, Action<PerforceFileRecord> SyncOutput, TextWriter Log)
+		{
+			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => SyncOutput(new PerforceFileRecord(x))))
+			{
+				string CommandLine = String.Format("-ztag sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber);
+				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode, Log);
+			}
 		}
 
 		public bool ForceSync(string Filter, TextWriter Log)
