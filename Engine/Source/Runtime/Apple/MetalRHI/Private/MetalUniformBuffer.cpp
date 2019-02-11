@@ -267,6 +267,23 @@ void FMetalUniformBuffer::InitIAB()
 						Desc.SetDataType(mtlpp::DataType::Texture);
 						Desc.SetTextureType(Surface->Texture.GetTextureType());
 						
+						union {
+							uint8 Components[4];
+							uint32 Packed;
+						} Swizzle;
+						Swizzle.Packed = 0;
+						assert(sizeof(Swizzle) == sizeof(uint32));
+						if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+						 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+						)
+						{
+							Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+						}
+						BufferSizes.Add(Swizzle.Packed);
+						BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
+						
 						check(!Surface->Texture.IsAliasable());
 						NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample)));
 					}
@@ -335,6 +352,23 @@ void FMetalUniformBuffer::InitIAB()
 						Desc.SetDataType(mtlpp::DataType::Texture);
 						Desc.SetTextureType(Surface->Texture.GetTextureType());
 						
+						union {
+							uint8 Components[4];
+							uint32 Packed;
+						} Swizzle;
+						Swizzle.Packed = 0;
+						assert(sizeof(Swizzle) == sizeof(uint32));
+						if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+						 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+						)
+						{
+							Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+						}
+						BufferSizes.Add(Swizzle.Packed);
+						BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
+						
 						check(!Surface->Texture.IsAliasable());
 						NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Write)));
 					}
@@ -402,6 +436,23 @@ void FMetalUniformBuffer::InitIAB()
 					check (Surface != nullptr);
 					Desc.SetDataType(mtlpp::DataType::Texture);
 					Desc.SetTextureType(Surface->Texture.GetTextureType());
+					
+					union {
+						uint8 Components[4];
+						uint32 Packed;
+					} Swizzle;
+					Swizzle.Packed = 0;
+					assert(sizeof(Swizzle) == sizeof(uint32));
+					if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+					 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+					)
+					{
+						Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+					}
+					BufferSizes.Add(Swizzle.Packed);
+					BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
 					
 					check(!Surface->Texture.IsAliasable());
 					NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample)));

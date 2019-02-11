@@ -375,6 +375,13 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	bool const bZeroInitialise = Input.Environment.CompilerFlags.Contains(CFLAG_ZeroInitialise);
 	bool const bBoundsChecks = Input.Environment.CompilerFlags.Contains(CFLAG_BoundsChecking);
 
+	bool bSwizzleSample = false;
+	FString const* Swizzle = Input.Environment.GetDefinitions().Find(TEXT("METAL_SWIZZLE_SAMPLES"));
+	if (Swizzle)
+	{
+		LexFromString(bSwizzleSample, *(*Swizzle));
+	}
+
 	bool bAllowFastIntriniscs = false;
 	FString const* FastIntrinsics = Input.Environment.GetDefinitions().Find(TEXT("METAL_USE_FAST_INTRINSICS"));
 	if (FastIntrinsics)
@@ -391,7 +398,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	}
 
 	FMetalTessellationOutputs Attribs;
-	FMetalCodeBackend MetalBackEnd(Attribs, CCFlags, MetalCompilerTarget, VersionEnum, Semantics, TypeMode, MaxUnrollLoops, bZeroInitialise, bBoundsChecks, bAllowFastIntriniscs, bForceInvariance);
+	FMetalCodeBackend MetalBackEnd(Attribs, CCFlags, MetalCompilerTarget, VersionEnum, Semantics, TypeMode, MaxUnrollLoops, bZeroInitialise, bBoundsChecks, bAllowFastIntriniscs, bForceInvariance, bSwizzleSample);
 	FMetalLanguageSpec MetalLanguageSpec(VersionEnum);
 
 	int32 Result = 0;

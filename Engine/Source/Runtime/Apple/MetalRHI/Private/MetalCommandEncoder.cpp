@@ -1470,6 +1470,18 @@ void FMetalCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FM
 	
 	if (Texture)
 	{
+		uint8 Swizzle[4] = {0,0,0,0};
+		assert(sizeof(Swizzle) == sizeof(uint32));
+		if (Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+		 ||	Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+		)
+		{
+			Swizzle[0] = Swizzle[1] = Swizzle[2] = Swizzle[3] = 1;
+		}
+		FMemory::Memcpy(&ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)], Swizzle, sizeof(Swizzle));
+		ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)+1] = 0;
 		TextureBindingHistory.Add(ns::AutoReleased<FMetalTexture>(Texture));
 	}
 }

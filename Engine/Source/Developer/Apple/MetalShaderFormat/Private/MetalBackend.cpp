@@ -235,112 +235,6 @@ static const char * const MetalExpressionTable[ir_opcode_count][4] =
 
 static_assert((sizeof(MetalExpressionTable) / sizeof(MetalExpressionTable[0])) == ir_opcode_count, "Metal Expression Table Size Mismatch");
 
-struct SDMARange
-{
-	unsigned SourceCB;
-	unsigned SourceOffset;
-	unsigned Size;
-	unsigned DestCBIndex;
-	unsigned DestCBPrecision;
-	unsigned DestOffset;
-
-	bool operator <(SDMARange const & Other) const
-	{
-		if (SourceCB == Other.SourceCB)
-		{
-			return SourceOffset < Other.SourceOffset;
-		}
-
-		return SourceCB < Other.SourceCB;
-	}
-};
-typedef std::list<SDMARange> TDMARangeList;
-typedef std::map<unsigned, TDMARangeList> TCBDMARangeMap;
-
-
-static void InsertRange( TCBDMARangeMap& CBAllRanges, unsigned SourceCB, unsigned SourceOffset, unsigned Size, unsigned DestCBIndex, unsigned DestCBPrecision, unsigned DestOffset ) 
-{
-	check(SourceCB < (1 << 12));
-	check(DestCBIndex < (1 << 12));
-	check(DestCBPrecision < (1 << 8));
-	unsigned SourceDestCBKey = (SourceCB << 20) | (DestCBIndex << 8) | DestCBPrecision;
-	SDMARange Range = { SourceCB, SourceOffset, Size, DestCBIndex, DestCBPrecision, DestOffset };
-
-	TDMARangeList& CBRanges = CBAllRanges[SourceDestCBKey];
-//printf("* InsertRange: %08x\t%u:%u - %u:%c:%u:%u\n", SourceDestCBKey, SourceCB, SourceOffset, DestCBIndex, DestCBPrecision, DestOffset, Size);
-	if (CBRanges.empty())
-	{
-		CBRanges.push_back(Range);
-	}
-	else
-	{
-		TDMARangeList::iterator Prev = CBRanges.end();
-		bool bAdded = false;
-		for (auto Iter = CBRanges.begin(); Iter != CBRanges.end(); ++Iter)
-		{
-			if (SourceOffset + Size <= Iter->SourceOffset)
-			{
-				if (Prev == CBRanges.end())
-				{
-					CBRanges.push_front(Range);
-				}
-				else
-				{
-					CBRanges.insert(Iter, Range);
-				}
-
-				bAdded = true;
-				break;
-			}
-
-			Prev = Iter;
-		}
-
-		if (!bAdded)
-		{
-			CBRanges.push_back(Range);
-		}
-
-		if (CBRanges.size() > 1)
-		{
-			// Try to merge ranges
-			bool bDirty = false;
-			do
-			{
-				bDirty = false;
-				TDMARangeList NewCBRanges;
-				for (auto Iter = CBRanges.begin(); Iter != CBRanges.end(); ++Iter)
-				{
-					if (Iter == CBRanges.begin())
-					{
-						Prev = CBRanges.begin();
-					}
-					else
-					{
-						if (Prev->SourceOffset + Prev->Size == Iter->SourceOffset && Prev->DestOffset + Prev->Size == Iter->DestOffset)
-						{
-							SDMARange Merged = *Prev;
-							Merged.Size = Prev->Size + Iter->Size;
-							NewCBRanges.pop_back();
-							NewCBRanges.push_back(Merged);
-							++Iter;
-							NewCBRanges.insert(NewCBRanges.end(), Iter, CBRanges.end());
-							bDirty = true;
-							break;
-						}
-					}
-
-					NewCBRanges.push_back(*Iter);
-					Prev = Iter;
-				}
-
-				CBRanges.swap(NewCBRanges);
-			}
-			while (bDirty);
-		}
-	}
-}
-
 static TDMARangeList SortRanges( TCBDMARangeMap& CBRanges ) 
 {
 	TDMARangeList Sorted;
@@ -1457,6 +1351,7 @@ protected:
         bInsertSideTable = false;
         if (sig->is_main && Backend.bBoundsChecks)
 		{
+			bInsertSideTable = Backend.bSwizzleSample;
             foreach_iter(exec_list_iterator, iter, sig->parameters)
             {
                 ir_variable *const inst = (ir_variable *) iter.get();
@@ -2021,12 +1916,20 @@ protected:
 		check(scope_depth > 0);
 		bool bNeedsClosingParenthesis = true;
 		bool bDepthTypeExpand = tex->sampler->type->sampler_shadow && !tex->shadow_comparitor;
+		bool bSwizzleSample = Backend.bSwizzleSample && (tex->sampler->type->is_sampler() && !tex->sampler->type->sampler_buffer && !tex->shadow_comparitor);
 		switch (tex->op)
 		{
+			case ir_txf:
+				if (bSwizzleSample)
+					ralloc_asprintf_append(buffer, "swizzle_sample(");
+				break;
 			case ir_tex:
 			case ir_txl:
 			case ir_txb:
 			case ir_txd:
+				if (bSwizzleSample)
+					ralloc_asprintf_append(buffer, "swizzle_sample(");
+				
 				if (bDepthTypeExpand)
 				{
 					print_type_pre(tex->type);
@@ -2038,6 +1941,43 @@ protected:
 				break;
 			default:
 				break;
+		}
+		
+		auto* Texture = tex->sampler->variable_referenced();
+		check(Texture);
+		
+		int Index = 0;
+		char const* BufferSizesName = "BufferSizes";
+		bool bSideTable = bInsertSideTable;
+		{
+			if (Texture->mode == ir_var_temporary)
+			{
+				// IAB sampling path
+				ir_variable* IABVariable = Backend.IABVariablesMap.FindChecked(Texture);
+				int FieldIndex = IABVariable->type->field_index(Texture->name);
+				for (int i = 0; i < FieldIndex; i++)
+				{
+					if (IABVariable->type->fields.structure[i].type->sampler_buffer)
+					{
+						Index++;
+					}
+				}
+				
+				BufferSizesName = ralloc_asprintf(ParseState, "%s.BufferSizes", IABVariable->name);
+				bSideTable = true;
+				check(Index >= 0);
+			}
+			else
+			{
+				// Function argument path
+				Index = Buffers.GetIndex(Texture);
+				check(Index >= 0);
+				if (bSwizzleSample)
+				{
+					Index *= 2;
+					Index += 31 * 2;
+				}
+			}
 		}
 
 		bool bTexCubeArray = tex->sampler->type->sampler_array && (tex->sampler->type->sampler_dimensionality == GLSL_SAMPLER_DIM_CUBE);
@@ -2066,9 +2006,6 @@ protected:
 				tex->sampler->accept(this);
 				ralloc_asprintf_append(buffer, ", ");
 			}
-			
-			auto* Texture = tex->sampler->variable_referenced();
-			check(Texture);
 			
 			if (tex->SamplerState)
 			{
@@ -2205,9 +2142,18 @@ protected:
 				tex->offset->accept(this);
 			}
 			
+			ralloc_asprintf_append(buffer, ")");
+			
+			bNeedsClosingParenthesis = false;
+			
 			if (bDepthTypeExpand)
 			{
 				ralloc_asprintf_append(buffer, ")");
+			}
+			
+			if (bSwizzleSample)
+			{
+				ralloc_asprintf_append(buffer, ", %s[%d])", BufferSizesName, Index);
 			}
 		}
 			break;
@@ -2217,35 +2163,8 @@ protected:
 			check(tex->sampler->type);
 			if (tex->sampler->type->is_sampler() && tex->sampler->type->sampler_buffer)
 			{
-				auto* Texture = tex->sampler->variable_referenced();
-				int Index = 0;
-				char const* BufferSizesName = "BufferSizes";
-				int FormatIndex = -1;
-				bool bSideTable = bInsertSideTable;
-				if (Texture->mode == ir_var_temporary)
-				{
-					// IAB sampling path
-					ir_variable* IABVariable = Backend.IABVariablesMap.FindChecked(Texture);
-					int FieldIndex = IABVariable->type->field_index(Texture->name);
-					for (int i = 0; i < FieldIndex; i++)
-					{
-						if (IABVariable->type->fields.structure[i].type->sampler_buffer)
-						{
-							Index++;
-						}
-					}
-					
-					BufferSizesName = ralloc_asprintf(ParseState, "%s.BufferSizes", IABVariable->name);
-					bSideTable = true;
-				}
-				else
-				{
-					// Function argument path
-					Index = Buffers.GetIndex(Texture);
-					FormatIndex = Index;
-				}
-				check(Index >= 0 && Index <= 30);
-					
+				check(Index >= 0 && (Texture->mode == ir_var_temporary || Index <= 30));
+				
 				ralloc_asprintf_append(buffer, "(");
 				
 				bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
@@ -2322,6 +2241,14 @@ protected:
 					ralloc_asprintf_append(buffer, ",");
 					tex->lod_info.lod->accept(this);
 				}
+				
+				ralloc_asprintf_append(buffer, ")");
+				bNeedsClosingParenthesis = false;
+				
+				if (bSwizzleSample)
+				{
+					ralloc_asprintf_append(buffer, ", %s[%d])", BufferSizesName, Index);
+				}
 			}
 		}
 			break;
@@ -2343,10 +2270,6 @@ protected:
 				tex->sampler->accept(this);
 				ralloc_asprintf_append(buffer, ", ");
 			}
-			
-			// Sampler
-			auto* Texture = tex->sampler->variable_referenced();
-			check(Texture);
 			
 			if (tex->SamplerState)
 			{
@@ -2673,11 +2596,46 @@ protected:
 		
 		check( 1 <= dst_elements && dst_elements <= 4);
 		check( 1 <= src_elements && src_elements <= 4);
-
+		
 		if ( deref->op == ir_image_access)
 		{
 			bool bIsRWTexture = !deref->image->type->sampler_buffer;
 			bool bIsArray = bIsRWTexture && strstr(deref->image->type->name, "Array") != nullptr;
+			
+			auto* Texture = deref->image->variable_referenced();
+			int Index = 0;
+			char const* BufferSizesName = "BufferSizes";
+			bool bSideTable = bInsertSideTable;
+			if (Texture->mode == ir_var_temporary)
+			{
+				// IAB sampling path
+				ir_variable* IABVariable = Backend.IABVariablesMap.FindChecked(Texture);
+				int FieldIndex = IABVariable->type->field_index(Texture->name);
+				for (int i = 0; i < FieldIndex; i++)
+				{
+					if (IABVariable->type->fields.structure[i].type->sampler_buffer)
+					{
+						Index++;
+					}
+				}
+				
+				BufferSizesName = ralloc_asprintf(ParseState, "%s.BufferSizes", IABVariable->name);
+				bSideTable = true;
+				check(Index >= 0);
+			}
+			else
+			{
+				// Function argument path
+				Index = Buffers.GetIndex(Texture);
+				check(Index >= 0);
+				
+				if (bIsRWTexture)
+				{
+					Index *= 2;
+					Index += 31 * 2;
+				}
+			}
+			
 			if (src == nullptr)
 			{
 				if (bIsRWTexture)
@@ -2706,35 +2664,6 @@ protected:
 				}
 				else
 				{
-					auto* Texture = deref->image->variable_referenced();
-					int Index = 0;
-					char const* BufferSizesName = "BufferSizes";
-					int FormatIndex = -1;
-					bool bSideTable = bInsertSideTable;
-					if (Texture->mode == ir_var_temporary)
-					{
-						// IAB sampling path
-						ir_variable* IABVariable = Backend.IABVariablesMap.FindChecked(Texture);
-						int FieldIndex = IABVariable->type->field_index(Texture->name);
-						for (int i = 0; i < FieldIndex; i++)
-						{
-							if (IABVariable->type->fields.structure[i].type->sampler_buffer)
-							{
-								Index++;
-							}
-						}
-						
-						BufferSizesName = ralloc_asprintf(ParseState, "%s.BufferSizes", IABVariable->name);
-						bSideTable = true;
-					}
-					else
-					{
-						// Function argument path
-						Index = Buffers.GetIndex(Texture);
-						FormatIndex = Index;
-					}
-					check(Index >= 0 && Index <= 30);
-					
 					ralloc_asprintf_append(buffer, "(");
 					
 					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
@@ -2802,6 +2731,13 @@ protected:
 				{
 					deref->image->accept(this);
 					ralloc_asprintf_append(buffer, ".write(");
+					
+					bool bSwizzleSample = Backend.bSwizzleSample;
+					if (bSwizzleSample)
+					{
+						ralloc_asprintf_append(buffer, "swizzle_sample(");
+					}
+					
 					// @todo Zebra: Below is a terrible hack - the input to write is always vec<T, 4>,
 					// 				but the type T comes from the texture type.  
 					if(src_elements == 1)
@@ -2857,6 +2793,11 @@ protected:
 								break;
 						}
 					}
+					
+					if (bSwizzleSample)
+					{
+						ralloc_asprintf_append(buffer, ", %s[%d])", BufferSizesName, Index);
+					}
 
 					//#todo-rco: Add language spec to know if indices need to be uint
 					ralloc_asprintf_append(buffer, ",(uint");
@@ -2897,35 +2838,6 @@ protected:
 				}
 				else
 				{
-					auto* Texture = deref->image->variable_referenced();
-					int Index = 0;
-					char const* BufferSizesName = "BufferSizes";
-					int FormatIndex = -1;
-					bool bSideTable = bInsertSideTable;
-					if (Texture->mode == ir_var_temporary)
-					{
-						// IAB sampling path
-						ir_variable* IABVariable = Backend.IABVariablesMap.FindChecked(Texture);
-						int FieldIndex = IABVariable->type->field_index(Texture->name);
-						for (int i = 0; i < FieldIndex; i++)
-						{
-							if (IABVariable->type->fields.structure[i].type->sampler_buffer)
-							{
-								Index++;
-							}
-						}
-						
-						BufferSizesName = ralloc_asprintf(ParseState, "%s.BufferSizes", IABVariable->name);
-						bSideTable = true;
-					}
-					else
-					{
-						// Function argument path
-						Index = Buffers.GetIndex(Texture);
-						FormatIndex = Index;
-					}
-					check(Index >= 0 && Index <= 30);
-					
 					bool bIsStructuredBuffer = (Texture->type->inner_type->is_record() || !strncmp(Texture->type->name, "RWStructuredBuffer<", 19) || !strncmp(Texture->type->name, "StructuredBuffer<", 17));
 					bool bIsByteAddressBuffer = (!strncmp(Texture->type->name, "RWByteAddressBuffer", 19) || !strncmp(Texture->type->name, "ByteAddressBuffer", 17));
                     bool bIsInvariantType = Texture->invariant;
@@ -6395,7 +6307,7 @@ void FMetalCodeBackend::CallPatchConstantFunction(_mesa_glsl_parse_state* ParseS
 	pv_if->then_instructions.push_tail(thread_if);
 }
 
-FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 InVersion, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 InMaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance) :
+FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 InVersion, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 InMaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance, bool bInSwizzleSample) :
 	FCodeBackend(InHlslCompileFlags, HCT_FeatureLevelES3_1),
 	TessAttribs(TessOutputAttribs),
 	InvariantBuffers(0),
@@ -6410,6 +6322,7 @@ FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttrib
 	MaxUnrollLoops = InMaxUnrollLoops;
 	bZeroInitialise = bInZeroInitialise;
 	bBoundsChecks = bInBoundsChecks;
+	bSwizzleSample = bInSwizzleSample;
 	bAllowFastIntriniscs = bInAllFastIntriniscs;
 	bForceInvariance = bInForceInvariance;
 	
