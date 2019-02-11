@@ -87,7 +87,7 @@ namespace Audio
 	{
 	public:
 		FAudioCaptureSynth();
-		virtual ~FAudioCaptureSynth();
+		AUDIOCAPTURE_API virtual ~FAudioCaptureSynth();
 
 		//~ IAudioCaptureCallback Begin
 		virtual void OnAudioCapture(float* AudioData, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverflow) override;
