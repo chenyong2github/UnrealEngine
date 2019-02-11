@@ -848,12 +848,6 @@ IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleMan
 	return Manager;
 }
 
-IPlatformCompression* FGenericPlatformMisc::GetPlatformCompression()
-{
-	static FGenericPlatformCompression Singleton;
-	return &Singleton;
-}
-
 void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)
 {
 	// Here we derive the game path from the project file location.
