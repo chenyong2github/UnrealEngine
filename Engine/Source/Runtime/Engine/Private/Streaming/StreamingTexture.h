@@ -288,6 +288,9 @@ public:
 	/** (5) */
 	uint32			bCachedForceFullyLoadHeuristic : 1;
 
+	/** (5) */
+	TBitArray<>		LevelIndexUsage;
+
 private:
 	FORCEINLINE_DEBUGGABLE void StreamWantedMips_Internal(FRenderAssetStreamingManager& Manager, bool bUseCachedData);
 };
