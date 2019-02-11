@@ -386,7 +386,9 @@ float4 CalcPrevWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermedia
 #endif
 	// if we don't have a full previous transform, we can at least calculate the position to get some motion blur
 	{
-		return CalcWorldPosition(Input, Intermediates)- float4(Intermediates.ParticleVelocity.xyz*NiagaraMeshVF.DeltaSeconds, 0.0);
+		// ParticleVelocity.xyz - normalized direction vector
+		// ParticleVelocity.w - velocity magnitude
+		return CalcWorldPosition(Input, Intermediates) - float4(Intermediates.ParticleVelocity.xyz * (Intermediates.ParticleVelocity.w * NiagaraMeshVF.DeltaSeconds), 0.0);
 	}
 }
 
