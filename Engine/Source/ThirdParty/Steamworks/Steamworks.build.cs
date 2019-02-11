@@ -24,23 +24,23 @@ public class Steamworks : ModuleRules
 		}
 		
 		string SteamBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/Steamworks/Steam{0}/", SteamVersion);
-		// We do not need to explicitly link to these dlls however if they are provided in these directories, then we must take these versions.
-		if(Target.Type == TargetType.Server && (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64))
-		{
-			string PlatformPrefix = "";
-			if(Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PlatformPrefix = "64";
-				SteamBinariesDir += "Win64/";
-			}
-			else
-			{
-				SteamBinariesDir += "Win32/";
-			}
-			
-			string SteamClientDll = SteamBinariesDir + String.Format("steamclient{0}.dll", PlatformPrefix);
-			string SteamTier0Dll = SteamBinariesDir + String.Format("tier0_s{0}.dll", PlatformPrefix);
-			string SteamVstDll = SteamBinariesDir + String.Format("vstdlib_s{0}.dll", PlatformPrefix);
+        string ArchPlatformPrefix = "";
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            ArchPlatformPrefix = "64";
+            SteamBinariesDir += "Win64/";
+        }
+        else if(Target.Platform == UnrealTargetPlatform.Win32)
+        {
+            SteamBinariesDir += "Win32/";
+        }
+
+        // We do not need to explicitly link to these dlls however if they are provided in these directories, then we must take these versions.
+        if (Target.Type == TargetType.Server && (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64))
+		{		
+			string SteamClientDll = SteamBinariesDir + String.Format("steamclient{0}.dll", ArchPlatformPrefix);
+			string SteamTier0Dll = SteamBinariesDir + String.Format("tier0_s{0}.dll", ArchPlatformPrefix);
+			string SteamVstDll = SteamBinariesDir + String.Format("vstdlib_s{0}.dll", ArchPlatformPrefix);
 			
 			if(File.Exists(SteamClientDll) && File.Exists(SteamTier0Dll) && File.Exists(SteamVstDll))
 			{
@@ -54,27 +54,21 @@ public class Steamworks : ModuleRules
 		PublicIncludePaths.Add(SdkBase + "/public");
 
 		string LibraryPath = SdkBase + "/redistributable_bin/";
-		if(Target.Platform == UnrealTargetPlatform.Win32)
+		if(Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(LibraryPath);
-			PublicAdditionalLibraries.Add("steam_api.lib");
-			PublicDelayLoadDLLs.Add("steam_api.dll");
+			if(Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                PublicLibraryPaths.Add(LibraryPath + "win64");
+            }
+			else
+            {
+                PublicLibraryPaths.Add(LibraryPath);
+            }
+			
+            PublicAdditionalLibraries.Add(String.Format("steam_api{0}.lib", ArchPlatformPrefix));
+			PublicDelayLoadDLLs.Add(String.Format("steam_api{0}.dll", ArchPlatformPrefix));
 
-			RuntimeDependencies.Add(SteamBinariesDir + "steam_api.dll");
-
-			if(Target.Type != TargetType.Server)
-			{
-				// assume SteamController is needed
-				RuntimeDependencies.Add("$(EngineDir)/Config/controller.vdf");
-			}
-		}
-		else if(Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicLibraryPaths.Add(LibraryPath + "win64");
-			PublicAdditionalLibraries.Add("steam_api64.lib");
-			PublicDelayLoadDLLs.Add("steam_api64.dll");
-
-			RuntimeDependencies.Add(SteamBinariesDir + "steam_api64.dll");
+			RuntimeDependencies.Add(SteamBinariesDir + String.Format("steam_api{0}.dll", ArchPlatformPrefix));
 
 			if(Target.Type != TargetType.Server)
 			{
