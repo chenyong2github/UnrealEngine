@@ -78,7 +78,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
-				GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				if (MaxShaderVersion >= 3)
+				{
+					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				}
 
 				if (Vers.majorVersion >= 12)
 				{
@@ -128,7 +131,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			
 			if(Vers.majorVersion >= 11)
 			{
-				GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				if (MaxShaderVersion >= 3)
+				{
+					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				}
 				
 				Features |= EMetalFeaturesPresentMinDuration | EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
