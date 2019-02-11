@@ -39,10 +39,13 @@ uint32 FMediaTicker::Run()
 {
 	while (!Stopping)
 	{
-		if (WakeupEvent->Wait(FTimespan::MaxValue()))
+		if (WakeupEvent->Wait())
 		{
 			TickTickables();
-			FPlatformProcess::Sleep(0.005f);
+			if (!Stopping)
+			{
+				FPlatformProcess::Sleep(0.005f);
+			}
 		}
 	}
 
