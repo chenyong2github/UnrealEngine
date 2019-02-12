@@ -22,6 +22,10 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "SourceCodeNavigation.h"
 
 #define LOCTEXT_NAMESPACE "DataTableEditor"
 
@@ -227,6 +231,8 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	
 	FDataTableEditorModule& DataTableEditorModule = FModuleManager::LoadModuleChecked<FDataTableEditorModule>( "DataTableEditor" );
 	AddMenuExtender(DataTableEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+
+	RegenerateMenusAndToolbars();
 
 	// Support undo/redo
 	GEditor->RegisterForUndo(this);
@@ -461,6 +467,90 @@ void FDataTableEditor::OnFilterTextChanged(const FText& InFilterText)
 {
 	ActiveFilterText = InFilterText;
 	UpdateVisibleRows();
+}
+
+void FDataTableEditor::PostRegenerateMenusAndToolbars()
+{
+	const UDataTable* DataTable = GetDataTable();
+
+	if (DataTable)
+	{
+		const UUserDefinedStruct* UDS = Cast<const UUserDefinedStruct>(DataTable->GetRowStruct());
+
+		// build and attach the menu overlay
+		TSharedRef<SHorizontalBox> MenuOverlayBox = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.ShadowOffset(FVector2D::UnitVector)
+				.Text(LOCTEXT("DataTableEditor_RowStructType", "Row Type: "))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.ShadowOffset(FVector2D::UnitVector)
+				.Text(FText::FromName(DataTable->GetRowStructName()))
+				.ToolTipText(LOCTEXT("DataTableRowToolTip", "The struct used for each row in this data table"))
+				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.VAlign(VAlign_Center)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &FDataTableEditor::OnFindRowInContentBrowserClicked)
+				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
+				.ToolTipText(LOCTEXT("FindRowInCBToolTip", "Find row in Content Browser"))
+				.ContentPadding(4.0f)
+				.ForegroundColor(FSlateColor::UseForeground())
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+			[
+				SNew(SHyperlink)
+				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Visibility(!UDS ? EVisibility::Visible : EVisibility::Collapsed)
+				.OnNavigate(this, &FDataTableEditor::OnNavigateToDataTableRowCode)
+				.Text(FText::FromName(DataTable->GetRowStructName()))
+				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
+			];
+	
+		SetMenuOverlay(MenuOverlayBox);
+	}
+}
+
+FReply FDataTableEditor::OnFindRowInContentBrowserClicked()
+{
+	const UDataTable* DataTable = GetDataTable();
+	if(DataTable)
+	{
+		TArray<FAssetData> ObjectsToSync;
+		ObjectsToSync.Add(FAssetData(DataTable->GetRowStruct()));
+		GEditor->SyncBrowserToObjects(ObjectsToSync);
+	}
+
+	return FReply::Handled();
+}
+
+void FDataTableEditor::OnNavigateToDataTableRowCode()
+{
+	const UDataTable* DataTable = GetDataTable();
+	if (DataTable && FSourceCodeNavigation::NavigateToStruct(DataTable->GetRowStruct()))
+	{
+		FSourceCodeNavigation::NavigateToStruct(DataTable->GetRowStruct());
+	}
 }
 
 void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, const bool bUpdateEvenIfValid)
