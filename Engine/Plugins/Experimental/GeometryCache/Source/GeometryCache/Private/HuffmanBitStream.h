@@ -56,18 +56,26 @@ public:
 	}
 
 	/**
+	Flush pending bits and align to byte.
+	*/
+	void Align()
+	{
+		// Round up to next byte by appending 0s.
+		if (BitBufferBits)
+		{
+			Write(0, 8 - BitBufferBits);
+		}
+		check(BitBufferBits == 0);
+	}
+
+	/**
 	Close the stream. This ensures the stream's underlying byte buffer is correctly
 	flushed with all bits written to the stream.
 	Once closed you cannot longer Write additional data on the stream.
 	*/
 	void Close()
 	{
-		// Round up to next byte by appending 0s.
-		if(BitBufferBits)
-		{
-			Write(0, 8 - BitBufferBits);
-		}
-		check(BitBufferBits == 0);
+		Align();
 		
 		bFlushed = true;
 	}
