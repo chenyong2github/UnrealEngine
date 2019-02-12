@@ -51,7 +51,7 @@ public:
 	/**
 	 * Set the color, depth and stencil render targets, and then make the new command buffer/encoder
 	 */
-	void SetRenderTargetsInfo(const FRHISetRenderTargetsInfo& RenderTargetsInfo, bool const bRestart = false);
+	void SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool const bRestart = false);
 	
 	/**
 	 * Allocate from a dynamic ring buffer - by default align to the allowed alignment for offset field when setting buffers
@@ -215,7 +215,7 @@ public:
 	uint32 GetNumActiveContexts(void) const;
 
 	void BeginParallelRenderCommandEncoding(uint32 Num);
-	void SetParallelRenderPassDescriptor(FRHISetRenderTargetsInfo const& TargetInfo);
+	void SetParallelRenderPassDescriptor(FRHIRenderPassInfo const& TargetInfo);
 	mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer);
 	void EndParallelRenderCommandEncoding(void);
 	

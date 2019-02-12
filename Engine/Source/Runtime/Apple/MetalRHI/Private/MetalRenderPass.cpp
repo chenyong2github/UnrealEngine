@@ -1692,7 +1692,7 @@ void FMetalRenderPass::ConditionalSubmit()
 	bool bCanForceSubmit = State.CanRestartRenderPass();
 
 #if METAL_DEBUG_OPTIONS
-	FRHISetRenderTargetsInfo CurrentRenderTargets = State.GetRenderTargetsInfo();
+	FRHIRenderPassInfo CurrentRenderTargets = State.GetRenderPassInfo();
 	
 	// Force a command-encoder when GMetalRuntimeDebugLevel is enabled to help track down intermittent command-buffer failures.
 	if (GMetalCommandBufferCommitThreshold > 0 && NumOutstandingOps >= GMetalCommandBufferCommitThreshold && CmdList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelConditionalSubmit)
@@ -1704,14 +1704,13 @@ void FMetalRenderPass::ConditionalSubmit()
 			const bool bIsMSAAActive = State.GetHasValidRenderTarget() && State.GetSampleCount() != 1;
 			bCanChangeRT = !bIsMSAAActive;
 			
-			for (int32 RenderTargetIndex = 0; bCanChangeRT && RenderTargetIndex < CurrentRenderTargets.NumColorRenderTargets; RenderTargetIndex++)
+			for (int32 RenderTargetIndex = 0; bCanChangeRT && RenderTargetIndex < CurrentRenderTargets.GetNumColorRenderTargets(); RenderTargetIndex++)
 			{
-				FRHIRenderTargetView& RenderTargetView = CurrentRenderTargets.ColorRenderTarget[RenderTargetIndex];
+				FRHIRenderPassInfo::FColorEntry& RenderTargetView = CurrentRenderTargets.ColorRenderTargets[RenderTargetIndex];
 				
-				if (RenderTargetView.StoreAction != ERenderTargetStoreAction::EMultisampleResolve)
+				if (GetStoreAction(RenderTargetView.Action) != ERenderTargetStoreAction::EMultisampleResolve)
 				{
-					RenderTargetView.LoadAction = ERenderTargetLoadAction::ELoad;
-					RenderTargetView.StoreAction = ERenderTargetStoreAction::EStore;
+					RenderTargetView.Action = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
 				}
 				else
 				{
@@ -1719,11 +1718,12 @@ void FMetalRenderPass::ConditionalSubmit()
 				}
 			}
 			
-			if (bCanChangeRT && CurrentRenderTargets.DepthStencilRenderTarget.Texture)
+			if (bCanChangeRT && CurrentRenderTargets.DepthStencilRenderTarget.DepthStencilTarget)
 			{
-				if (CurrentRenderTargets.DepthStencilRenderTarget.DepthStoreAction != ERenderTargetStoreAction::EMultisampleResolve && CurrentRenderTargets.DepthStencilRenderTarget.GetStencilStoreAction() != ERenderTargetStoreAction::EMultisampleResolve)
+				if (GetStoreAction(GetDepthActions(CurrentRenderTargets.DepthStencilRenderTarget.Action)) != ERenderTargetStoreAction::EMultisampleResolve && GetStoreAction(GetStencilActions(CurrentRenderTargets.DepthStencilRenderTarget.Action)) != ERenderTargetStoreAction::EMultisampleResolve)
 				{
-					CurrentRenderTargets.DepthStencilRenderTarget = FRHIDepthRenderTargetView(CurrentRenderTargets.DepthStencilRenderTarget.Texture, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+					ERenderTargetActions Actions = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+					CurrentRenderTargets.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(Actions, Actions);
 				}
 				else
 				{
@@ -1752,11 +1752,11 @@ void FMetalRenderPass::ConditionalSubmit()
 			State.InvalidateRenderTargets();
 			if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM4 ))
 			{
-				bSet = State.SetRenderTargetsInfo(CurrentRenderTargets, State.GetVisibilityResultsBuffer(), false);
+				bSet = State.SetRenderPassInfo(CurrentRenderTargets, State.GetVisibilityResultsBuffer(), false);
 			}
 			else
 			{
-				bSet = State.SetRenderTargetsInfo(CurrentRenderTargets, NULL, false);
+				bSet = State.SetRenderPassInfo(CurrentRenderTargets, NULL, false);
 			}
 			
 			if (bSet)

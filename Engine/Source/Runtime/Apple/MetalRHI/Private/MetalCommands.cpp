@@ -638,27 +638,50 @@ void FMetalRHICommandContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTa
 void FMetalRHICommandContext::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
 	@autoreleasepool {
+		
+	FRHIRenderPassInfo PassInfo;
 	bool bHasTarget = (RenderTargetsInfo.DepthStencilRenderTarget.Texture != nullptr);
 	FMetalContext* Manager = Context;
 	{
-		for (uint32 i = 0; !bHasTarget && i < RenderTargetsInfo.NumUAVs; i++)
+		PassInfo.NumUAVs = RenderTargetsInfo.NumUAVs;
+		for (uint32 i = 0; i < RenderTargetsInfo.NumUAVs; i++)
 		{
 			if (IsValidRef(RenderTargetsInfo.UnorderedAccessView[i]))
 			{
+				PassInfo.UAVs[i] = RenderTargetsInfo.UnorderedAccessView[i];
 				bHasTarget = true;
 			}
 		}
 	}
 	
-	for (uint32 i = 0; bHasTarget == false && i < RenderTargetsInfo.NumColorRenderTargets; i++)
+	for (uint32 i = 0; i < RenderTargetsInfo.NumColorRenderTargets; i++)
 	{
-		bHasTarget = (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr);
+		if (RenderTargetsInfo.ColorRenderTarget[i].Texture)
+		{
+			PassInfo.ColorRenderTargets[i].RenderTarget = RenderTargetsInfo.ColorRenderTarget[i].Texture;
+			PassInfo.ColorRenderTargets[i].ArraySlice = RenderTargetsInfo.ColorRenderTarget[i].ArraySliceIndex;
+			PassInfo.ColorRenderTargets[i].MipIndex = RenderTargetsInfo.ColorRenderTarget[i].MipIndex;
+			PassInfo.ColorRenderTargets[i].Action = MakeRenderTargetActions(RenderTargetsInfo.ColorRenderTarget[i].LoadAction, RenderTargetsInfo.ColorRenderTarget[i].StoreAction);
+			bHasTarget = (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr);
+			PassInfo.bIsMSAA |= PassInfo.ColorRenderTargets[i].RenderTarget->GetNumSamples() > 1;
+		}
 	}
+		
+	if (RenderTargetsInfo.DepthStencilRenderTarget.Texture)
+	{
+		PassInfo.DepthStencilRenderTarget.DepthStencilTarget = RenderTargetsInfo.DepthStencilRenderTarget.Texture;
+		PassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess();
+		PassInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(RenderTargetsInfo.DepthStencilRenderTarget.DepthLoadAction, RenderTargetsInfo.DepthStencilRenderTarget.DepthStoreAction), MakeRenderTargetActions(RenderTargetsInfo.DepthStencilRenderTarget.StencilLoadAction, RenderTargetsInfo.DepthStencilRenderTarget.GetStencilStoreAction()));
+		PassInfo.bIsMSAA |= RenderTargetsInfo.DepthStencilRenderTarget.Texture->GetNumSamples() > 1;
+	}
+		
+	PassInfo.NumOcclusionQueries = UINT16_MAX;
+	PassInfo.bOcclusionQueries = true;
 
 	// Ignore any attempt to "clear" the render-targets as that is senseless with the way MetalRHI has to try and coalesce passes.
 	if (bHasTarget)
 	{
-		Manager->SetRenderTargetsInfo(RenderTargetsInfo);
+		Manager->SetRenderPassInfo(PassInfo);
 
 		// Set the viewport to the full size of render target 0.
 		if (RenderTargetsInfo.ColorRenderTarget[0].Texture)
