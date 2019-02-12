@@ -582,6 +582,26 @@ void UGameplayTagsManager::GetOwnersForTagSource(const FString& SourceName, TArr
 	}
 }
 
+void UGameplayTagsManager::GameplayTagContainerLoaded(FGameplayTagContainer& Container, UProperty* SerializingProperty) const
+{
+	RedirectTagsForContainer(Container, SerializingProperty);
+
+	if (OnGameplayTagLoadedDelegate.IsBound())
+	{
+		for (const FGameplayTag& Tag : Container)
+		{
+			OnGameplayTagLoadedDelegate.Broadcast(Tag);
+		}
+	}
+}
+
+void UGameplayTagsManager::SingleGameplayTagLoaded(FGameplayTag& Tag, UProperty* SerializingProperty) const
+{
+	RedirectSingleGameplayTag(Tag, SerializingProperty);
+
+	OnGameplayTagLoadedDelegate.Broadcast(Tag);
+}
+
 void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Container, UProperty* SerializingProperty) const
 {
 	TSet<FName> NamesToRemove;
@@ -661,21 +681,30 @@ void UGameplayTagsManager::RedirectSingleGameplayTag(FGameplayTag& Tag, UPropert
 
 bool UGameplayTagsManager::ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName) const
 {
+	bool bRetVal = false;
 	if (const FGameplayTag* RedirectedTag = TagRedirects.Find(ImportedTagName))
 	{
 		Tag = *RedirectedTag;
-		return true;
+		bRetVal = true;
 	}
 	else if (ValidateTagCreation(ImportedTagName))
 	{
 		// The tag name is valid
 		Tag.TagName = ImportedTagName;
-		return true;
+		bRetVal = true;
 	}
 
-	// No valid tag established in this attempt
-	Tag.TagName = NAME_None;
-	return false;
+	if (bRetVal)
+	{
+		OnGameplayTagLoadedDelegate.Broadcast(Tag);
+	}
+	else
+	{
+		// No valid tag established in this attempt
+		Tag.TagName = NAME_None;
+	}
+
+	return bRetVal;
 }
 
 void UGameplayTagsManager::InitializeManager()
