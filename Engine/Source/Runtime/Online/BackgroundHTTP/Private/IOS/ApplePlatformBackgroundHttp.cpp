@@ -6,6 +6,8 @@
 #include "IOS/ApplePlatformBackgroundHttpResponse.h"
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 
+#include "Misc/Paths.h"
+
 void FApplePlatformBackgroundHttp::Initialize()
 {
 	const FString DefaultIdentifier = TEXT("com.epicgames.backgroundhttp");
