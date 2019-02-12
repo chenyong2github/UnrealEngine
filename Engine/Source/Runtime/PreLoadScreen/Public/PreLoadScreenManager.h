@@ -75,6 +75,9 @@ public:
     void SetEngineLoadingComplete(bool IsEngineLoadingFinished = true);
     bool IsEngineLoadingComplete() const { return bIsEngineLoadingComplete; }
 
+	void OnPostEngineInit();
+	void SetupSceneViewport();
+
     void CleanUpResources();
 
     static void EnableRendering(bool bEnabled);
@@ -102,6 +105,8 @@ protected:
 
     //Singleton Instance
     static TSharedPtr<FPreLoadScreenManager> Instance;
+
+	void OnFirstEngineFrame();
 
     void BeginPlay();
 
