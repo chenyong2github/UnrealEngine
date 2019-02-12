@@ -287,6 +287,7 @@ namespace AutomationTool
 			this.Pak = InParams.Pak;
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
+			this.PakAlignForMemoryMapping = InParams.PakAlignForMemoryMapping;
 			this.SkipPak = InParams.SkipPak;
             this.PrePak = InParams.PrePak;
             this.NoXGE = InParams.NoXGE;
@@ -462,7 +463,8 @@ namespace AutomationTool
 			string AppLocalDirectory = null,
 			bool? NoBootstrapExe = null,
             bool? SignedPak = null,
-            bool? NullRHI = null,
+			bool? PakAlignForMemoryMapping = null,
+			bool? NullRHI = null,
             bool? FakeClient = null,
             bool? EditorTest = null,
             bool? RunAutomationTests = null,
@@ -627,6 +629,7 @@ namespace AutomationTool
 					this.SignPak = null;
 				}
 			}
+			this.PakAlignForMemoryMapping = GetParamValueIfNotSpecified(Command, PakAlignForMemoryMapping, this.PakAlignForMemoryMapping, "PakAlignForMemoryMapping");
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
 			if (this.SkipPak)
@@ -1202,6 +1205,12 @@ namespace AutomationTool
         /// </summary>
         [Help("signed", "the game should expect to use a signed pak file.")]
 		public bool SignedPak { private set; get; }
+
+		/// <summary>
+		/// Shared: The game will be set up for memory mapping bulk data.
+		/// </summary>
+		[Help("PakAlignForMemoryMapping", "The game will be set up for memory mapping bulk data.")]
+		public bool PakAlignForMemoryMapping { private set; get; }
 
 		/// <summary>
 		/// Shared: true if this build is staged, command line: -stage
