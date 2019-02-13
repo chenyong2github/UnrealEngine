@@ -190,6 +190,7 @@ private:
 		void ProcessRemovedRenderAssets();
 		void ProcessAddedRenderAssets();
 		void ConditionalUpdateStaticData();
+		void ProcessLevelsToReferenceToStreamedTextures();
 
 		/** Adds new textures/meshes and level data on the gamethread (while the worker thread isn't active). */
 		void PrepareAsyncTask( bool bProcessEverything );
@@ -351,7 +352,7 @@ private:
 	int32 CurrentPendingMipCopyRequestIdx;
 
 	/** Level data */
-	TIndirectArray<FLevelRenderAssetManager> LevelRenderAssetManagers;
+	TArray<FLevelRenderAssetManager*> LevelRenderAssetManagers;
 
 	/** Stages [0,N-2] is non-threaded data collection, Stage N-1 is wait-for-AsyncWork-and-finalize. */
 	int32					ProcessingStage;

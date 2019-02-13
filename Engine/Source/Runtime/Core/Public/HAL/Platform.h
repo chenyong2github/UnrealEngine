@@ -337,6 +337,18 @@
 	#define PLATFORM_USES_ES2					0
 #endif
 
+#ifndef PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define PLATFORM_SUPPORTS_GEOMETRY_SHADERS		1
+#endif
+
+#ifndef PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define PLATFORM_SUPPORTS_TESSELLATION_SHADERS	1
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS && !PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#error Geometry shader support is required by tessellation
+#endif
+
 #ifndef PLATFORM_BUILTIN_VERTEX_HALF_FLOAT
 	#define PLATFORM_BUILTIN_VERTEX_HALF_FLOAT	1
 #endif
@@ -447,6 +459,10 @@
 
 #ifndef PLATFORM_HAS_CRC_INTRINSICS
 	#define PLATFORM_HAS_CRC_INTRINSICS							0
+#endif
+
+#ifndef PLATFORM_NEEDS_RHIRESOURCELIST
+	#define PLATFORM_NEEDS_RHIRESOURCELIST 1
 #endif
 
 // deprecated, do not use
@@ -660,6 +676,13 @@
 	#define DLLIMPORT
 #endif
 
+// embedded app is not default (embedding UE4 in a native view, right now just for IOS and Android)
+#ifndef BUILD_EMBEDDED_APP
+	#define BUILD_EMBEDDED_APP  0
+#endif
+#ifndef FAST_BOOT_HACKS
+	#define FAST_BOOT_HACKS  0
+#endif
 
 #ifndef DEPRECATED_FORGAME
 	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")

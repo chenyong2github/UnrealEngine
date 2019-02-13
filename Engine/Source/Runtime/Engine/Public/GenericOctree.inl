@@ -297,7 +297,7 @@ bool TOctree<ElementType,OctreeSemantics>::IsValidElementId(FOctreeElementId Ele
 };
 
 template<typename ElementType,typename OctreeSemantics>
-void TOctree<ElementType,OctreeSemantics>::DumpStats()
+void TOctree<ElementType,OctreeSemantics>::DumpStats() const
 {
 	int32 NumNodes = 0;
 	int32 NumLeaves = 0;

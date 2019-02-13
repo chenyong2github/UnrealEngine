@@ -9,7 +9,7 @@
 #include "RHIDefinitions.h"
 
 #ifndef VULKAN_SUPPORTS_GEOMETRY_SHADERS
-	#define VULKAN_SUPPORTS_GEOMETRY_SHADERS					!(PLATFORM_ANDROID) || PLATFORM_LUMIN || PLATFORM_LUMINGL4
+	#define VULKAN_SUPPORTS_GEOMETRY_SHADERS					(!(PLATFORM_ANDROID) || PLATFORM_LUMIN || PLATFORM_LUMINGL4) && PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 #endif
 
 // This defines controls shader generation (so will cause a format rebuild)
@@ -25,11 +25,7 @@ namespace ShaderStage
 		Vertex			= 0,
 		Pixel			= 1,
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
-		NumStages		= 2,
-
-		MaxNumSets		= 4,
-#else
+#if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		// We don't support tessellation on desktop currently
 		//Hull			= 3,
 		//Domain		= 4,
@@ -38,6 +34,10 @@ namespace ShaderStage
 		NumStages		= 3,
 
 		MaxNumSets		= 8,
+#else
+		NumStages		= 2,
+
+		MaxNumSets		= 4,
 #endif
 
 		// Compute is its own pipeline, so it can all live as set 0

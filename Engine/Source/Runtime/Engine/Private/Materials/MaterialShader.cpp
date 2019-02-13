@@ -940,7 +940,7 @@ FShader* FMaterialShaderType::FinishCompileShader(
 	// This allows FShaders to share compiled bytecode and RHI shader references
 	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, /* PermutationId = */ 0);
 
-	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs())
+	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 	{
 		// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 		ShaderPipelineType = nullptr;
@@ -1538,7 +1538,7 @@ void FMaterialShaderMap::Compile(
 			for (TLinkedList<FShaderPipelineType*>::TIterator ShaderPipelineIt(FShaderPipelineType::GetTypeList());ShaderPipelineIt;ShaderPipelineIt.Next())
 			{
 				const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
-				if (Pipeline->IsMaterialTypePipeline() && Pipeline->HasTessellation() == bHasTessellation)
+				if (Pipeline->IsMaterialTypePipeline() && Pipeline->HasTessellation() == bHasTessellation && RHISupportsShaderPipelines(InPlatform))
 				{
 					auto& StageTypes = Pipeline->GetStages();
 					TArray<FMaterialShaderType*> ShaderStagesToCompile;
@@ -1561,7 +1561,7 @@ void FMaterialShaderMap::Compile(
 					{
 						// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 						check(InShaderMapId.ContainsShaderPipelineType(Pipeline));
-						if (Pipeline->ShouldOptimizeUnusedOutputs())
+						if (Pipeline->ShouldOptimizeUnusedOutputs(InPlatform))
 						{
 							NumShaders += ShaderStagesToCompile.Num();
 							FMaterialShaderType::BeginCompileShaderPipeline(CompilingId, InPlatform, Material, MaterialEnvironment, Pipeline, ShaderStagesToCompile, NewJobs);
@@ -2036,7 +2036,7 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 					FMaterialShaderType* ShaderType = (FMaterialShaderType*)Shader->GetMaterialShaderType();
 					if (!HasShader(ShaderType, /* PermutationId = */ 0))
 					{
-						FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs() ? PipelineType : nullptr, nullptr, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform()));
+						FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(GetShaderPlatform()) ? PipelineType : nullptr, nullptr, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform()));
 						FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
 						if (FoundShader)
 						{

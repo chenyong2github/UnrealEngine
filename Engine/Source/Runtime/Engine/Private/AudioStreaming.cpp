@@ -486,7 +486,7 @@ void FAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWa
 
 		// Grab the loaded chunk memory ptr since it will be invalid as soon as this callback finishes
 		NewAudioChunkLoadResult->DataResults = Mem;
-
+		
 		// The chunk index to load the results into
 		NewAudioChunkLoadResult->LoadedAudioChunkIndex = LoadedAudioChunkIndex;
 

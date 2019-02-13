@@ -99,6 +99,8 @@ PARTY_SCOPE:
 
 	bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
 
+	void HandleUserInvalidated(USocialUser* InvalidUser);
+
 #if PLATFORM_PS4
 	void NotifyPSNFriendsListRebuilt();
 #endif

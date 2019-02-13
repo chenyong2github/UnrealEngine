@@ -26,7 +26,7 @@ public:
 	void Init(
 		TArray<FStreamingViewInfo> InViewInfos,
 		float InWorldTime,
-		TIndirectArray<FLevelRenderAssetManager>& LevelStaticInstanceManagers,
+		TArray<FLevelRenderAssetManager*>& LevelStaticInstanceManagers,
 		FDynamicRenderAssetInstanceManager& DynamicComponentManager);
 
 	void ComputeViewInfoExtras(const FRenderAssetStreamingSettings& Settings);
@@ -61,8 +61,8 @@ public:
 		}
 	}
 
-private:
 
+private:
 	/** Cached from FStreamingManagerBase. */
 	TArray<FStreamingViewInfo> ViewInfos;
 	
@@ -84,6 +84,9 @@ private:
 
 	/** List of all static instances that were rejected. */
 	TArray<int32> CulledStaticInstancesViewIndices;
+
+	/** list of all static instances based on level index */
+	TArray<int32> StaticInstancesViewLevelIndices;
 };
 
 struct FCompareRenderAssetByRetentionPriority // Bigger retention priority first.

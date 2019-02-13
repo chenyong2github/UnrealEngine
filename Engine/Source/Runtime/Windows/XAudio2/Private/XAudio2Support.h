@@ -743,7 +743,6 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 	// These variables are non-static to support multiple audio device instances
 	struct IXAudio2*					XAudio2;
 	struct IXAudio2MasteringVoice*		MasteringVoice;
-	HMODULE								XAudio2Dll;
 
 	// These variables are static because they are common across all audio device instances
 	static int32						NumSpeakers;
@@ -754,6 +753,7 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 
 #if PLATFORM_WINDOWS
 	FMMNotificationClient* NotificationClient;
+	static HMODULE XAudio2Dll;
 #endif
 
 	// For calculating speaker maps for 3d audio
@@ -774,7 +774,6 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 	FXAudioDeviceProperties()
 		: XAudio2(nullptr)
 		, MasteringVoice(nullptr)
-		, XAudio2Dll(nullptr)
 		, NumActiveVoices(0)
 		, bDeviceChanged(false)
 		, bAllowNewVoices(true)
@@ -815,12 +814,15 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 		}
 
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
-		if (XAudio2Dll)
+		// Only free the library if we're shutting down
+		if (XAudio2Dll != nullptr && GIsRequestingExit)
 		{
+			UE_LOG(LogAudio, Verbose, TEXT("Freeing XAudio2 dll"));
 			if (!FreeLibrary(XAudio2Dll))
 			{
 				UE_LOG(LogAudio, Warning, TEXT("Failed to free XAudio2 Dll"));
 			}
+			XAudio2Dll = nullptr;
 		}
 #endif
 	}

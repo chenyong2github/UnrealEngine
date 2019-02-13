@@ -1075,7 +1075,7 @@ inline bool RHINeedsToSwitchVerticalAxis(EShaderPlatform Platform)
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const EShaderPlatform Platform)
 {
 	// Metal mobile devices, Vulkan and Android ES2/3.1 need to handle MSAA and resolve textures internally (unless RHICreateTexture2D was changed to take an optional resolve target)
-	const bool bMobileMetalDevice = (Platform == SP_METAL || Platform == SP_METAL_TVOS || Platform == SP_METAL_MRT || Platform == SP_METAL_MRT_TVOS);
+	const bool bMobileMetalDevice = (Platform == SP_METAL || Platform == SP_METAL_TVOS);
 	return !bMobileMetalDevice && !IsVulkanPlatform(Platform) && !IsAndroidOpenGLESPlatform(Platform);
 }
 
@@ -1109,6 +1109,11 @@ inline bool RHISupportsDrawIndirect(const EShaderPlatform Platform)
 inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)
 {
 	return IsMetalPlatform(Platform);
+}
+
+inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
+{
+	return !IsMobilePlatform(Platform);
 }
 
 
@@ -1207,3 +1212,15 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	String += Index;
 	return String;
 };
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
+#else
+	#define GEOMETRY_SHADER(GeometryShader)	nullptr
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define TESSELLATION_SHADER(HullOrDomainShader)	(HullOrDomainShader)
+#else
+	#define TESSELLATION_SHADER(HullOrDomainShader)	nullptr
+#endif
