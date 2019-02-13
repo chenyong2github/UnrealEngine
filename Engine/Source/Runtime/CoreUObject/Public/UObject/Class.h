@@ -2777,6 +2777,11 @@ private:
 		return UObject::FindFunctionChecked(InName);
 	}
 
+	/**
+	 * Tests if all properties tagged with Replicate were registered in GetLifetimeReplicatedProps
+	 */
+	void ValidateRuntimeReplicationData();
+
 protected:
 	/**
 	 * Get the default object from the class, creating it if missing, if requested or under a few other circumstances

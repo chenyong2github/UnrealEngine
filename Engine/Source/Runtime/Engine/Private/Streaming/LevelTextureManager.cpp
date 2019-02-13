@@ -12,8 +12,9 @@
 FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: Level(InLevel)
 	, bIsInitialized(false)
+	, bHasBeenReferencedToStreamedTextures(false)
 	, StaticInstances(AsyncTask)
-	, BuildStep(EStaticBuildStep::BuildTextureLookUpMap) 
+	, BuildStep(EStaticBuildStep::BuildTextureLookUpMap)
 {
 	if (Level)
 	{

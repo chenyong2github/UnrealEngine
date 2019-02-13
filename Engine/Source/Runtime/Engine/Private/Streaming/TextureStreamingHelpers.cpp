@@ -235,6 +235,12 @@ TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity(
 	TEXT("Component with bigger entries become handled as dynamic component.\n"),
 	ECVF_Default);
 
+TAutoConsoleVariable<int32> CVarStreamingMipCalculationEnablePerLevelList(
+	TEXT("r.Streaming.MipCalculationEnablePerLevelList"),
+	1,
+	TEXT("If non-zero, Mip size computation for streamed texture will use levels referenced with it (instead of iterating thorugh every levels).\n"),
+	ECVF_Default);
+
 ENGINE_API TAutoConsoleVariable<int32> CVarFramesForFullUpdate(
 	TEXT("r.Streaming.FramesForFullUpdate"),
 	5,
@@ -278,6 +284,7 @@ void FRenderAssetStreamingSettings::Update()
 	MaxTextureUVDensity = CVarStreamingMaxTextureUVDensity.GetValueOnAnyThread();
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
+	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
 
 	MaterialQualityLevel = (int32)GetCachedScalabilityCVars().MaterialQualityLevel;
 

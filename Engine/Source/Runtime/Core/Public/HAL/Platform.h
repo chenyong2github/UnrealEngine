@@ -660,6 +660,13 @@
 	#define DLLIMPORT
 #endif
 
+// embedded app is not default (embedding UE4 in a native view, right now just for IOS and Android)
+#ifndef BUILD_EMBEDDED_APP
+	#define BUILD_EMBEDDED_APP  0
+#endif
+#ifndef FAST_BOOT_HACKS
+	#define FAST_BOOT_HACKS  0
+#endif
 
 #ifndef DEPRECATED_FORGAME
 	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")

@@ -53,6 +53,8 @@ public:
 	uint32 GetAllocatedSize() const;
 
 	bool IsInitialized() const { return bIsInitialized; }
+	bool HasBeenReferencedToStreamedTextures() const { return bHasBeenReferencedToStreamedTextures; }
+	void SetReferencedToStreamedTextures() { bHasBeenReferencedToStreamedTextures = true; }
 
 	void NotifyLevelOffset(const FVector& Offset);
 
@@ -61,7 +63,8 @@ private:
 	ULevel* Level;
 
 	bool bIsInitialized;
-
+	bool bHasBeenReferencedToStreamedTextures;
+	
 	FStaticRenderAssetInstanceManager StaticInstances;
 
 	/** Incremental build implementation. */

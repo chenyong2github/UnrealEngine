@@ -7,7 +7,6 @@
 #include "Misc/Paths.h"
 #include "Misc/CString.h"
 #include "HAL/IConsoleManager.h"
-#include "Stats/StatsData.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 
@@ -17,8 +16,6 @@
 // There is a little memory and cpu overhead in tracking peak memory but it is generally more useful than current memory.
 // Disable if you need a little more memory or speed
 #define LLM_TRACK_PEAK_MEMORY 0		// currently disabled because there was a problem with tracking peaks from multiple threads.
-
-#define ENABLE_CATCH_RUNAWAY_TAGS 1
 
 #ifdef ENABLE_MEMPRO
 namespace MemProProfiler
@@ -243,10 +240,6 @@ public:
 	void SetStat(int64 Tag, int64 Value);
 #endif
 
-	int64 GetStat(int64 Tag);
-
-	void CatchRunawayTags(FLLMPlatformTag* PlatformTags);
-
 	void Update(FLLMPlatformTag* PlatformTags, const int32* ParentTags);
 
 	void SetEnabled(bool value) { Enabled = value; }
@@ -348,7 +341,6 @@ public:
 	void SetTotalTags(ELLMTag Untagged, ELLMTag Tracked);
 	void Update(FLLMPlatformTag* PlatformTags, const int32* ParentTags);
 	void UpdateTotals();
-	void CatchRunawayTags(FLLMPlatformTag* PlatformTags);
 
 	int64 GetTagAmount(ELLMTag Tag) const;
 	void SetTagAmount(ELLMTag Tag, int64 Amount, bool AddToTotal);
@@ -585,9 +577,6 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; TrackerIndex++)
 	{
 		GetTracker((ELLMTracker)TrackerIndex)->Update(PlatformTags,ParentTags);
-#if ENABLE_CATCH_RUNAWAY_TAGS
-		GetTracker((ELLMTracker)TrackerIndex)->CatchRunawayTags(PlatformTags);
-#endif
 	}
 
 	// calculate FMalloc unused stat and set it in the Default tracker
@@ -1324,11 +1313,6 @@ void FLLMTracker::UpdateTotals()
 	}
 }
 
-void FLLMTracker::CatchRunawayTags(FLLMPlatformTag* PlatformTags)
-{
-	CsvWriter.CatchRunawayTags(PlatformTags);
-}
-
 void FLLMTracker::WriteCsv(FLLMPlatformTag* PlatformTags, const int32* ParentTags)
 {
 	CsvWriter.Update(PlatformTags,ParentTags);
@@ -1797,44 +1781,6 @@ void FLLMCsvWriter::SetStat(int64 Tag, int64 Value)
 	NewStatValue.Peak = Peak;
 #endif
 	StatValues.Add(NewStatValue);
-}
-
-int64 FLLMCsvWriter::GetStat(int64 Tag)
-{
-	int StatValueCount = StatValues.Num();
-	for (int32 i = 0; i < StatValueCount; ++i)
-	{
-		if (StatValues[i].Tag == Tag)
-		{
-			return StatValues[i].Value;
-		}
-	}
-
-	return 0;
-}
-
-void FLLMCsvWriter::CatchRunawayTags(FLLMPlatformTag* PlatformTags)
-{
-#if STATS
-	const FString StatsTagName(TEXT("Stats"));
-	int64 StatsTag = -1;
-
-	for (uint32 i = 0; i < StatValues.Num(); i++)
-	{
-		if (GetTagName(StatValues[i].Tag, PlatformTags,nullptr) == StatsTagName)
-		{
-			StatsTag = StatValues[i].Tag;
-		}
-	}
-
-	static bool bDumpStatsEnabled = false;
-	const int64 StatsDumpThreshold = 500 * 1024 * 1024;
-	if (!bDumpStatsEnabled && StatsTag >= 0 && GetStat(StatsTag) > StatsDumpThreshold)
-	{
-		FStatPacket::bDumpStatPacket = true;
-		bDumpStatsEnabled = true;
-	}
-#endif
 }
 
 /*

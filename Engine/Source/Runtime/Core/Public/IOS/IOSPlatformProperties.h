@@ -68,6 +68,19 @@ struct FIOSPlatformProperties
 		return true;
 	}
 
+	static FORCEINLINE bool SupportsMemoryMappedFiles()
+	{
+		return true;
+	}
+	static FORCEINLINE bool SupportsMemoryMappedAudio()
+	{
+		return true;
+	}
+	static FORCEINLINE int64 GetMemoryMappingAlignment()
+	{
+		return 16384;
+	}
+
 	static FORCEINLINE bool HasFixedResolution()
 	{
 		return true;

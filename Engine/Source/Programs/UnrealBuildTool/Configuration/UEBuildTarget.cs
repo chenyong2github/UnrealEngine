@@ -1401,7 +1401,7 @@ namespace UnrealBuildTool
 				// Create an action which to generate the receipts
 				WriteMetadataTargetInfo MetadataTargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, ReceiptFileName, Receipt, FileNameToModuleManifest);
 				FileReference MetadataTargetFile = FileReference.Combine(ProjectIntermediateDirectory, "Metadata.dat");
-				BinaryFormatterUtils.Save(MetadataTargetFile, MetadataTargetInfo);
+				BinaryFormatterUtils.SaveIfDifferent(MetadataTargetFile, MetadataTargetInfo);
 
 				StringBuilder WriteMetadataArguments = new StringBuilder();
 				WriteMetadataArguments.AppendFormat("-Input={0}", Utils.MakePathSafeToUseWithCommandLine(MetadataTargetFile));
@@ -1415,6 +1415,7 @@ namespace UnrealBuildTool
 				WriteMetadataAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				WriteMetadataAction.StatusDescription = ReceiptFileName.GetFileName();
 				WriteMetadataAction.bCanExecuteRemotely = false;
+				WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(MetadataTargetFile));
 				WriteMetadataAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
 				WriteMetadataAction.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
 				Makefile.Actions.Add(WriteMetadataAction);
@@ -2035,7 +2036,7 @@ namespace UnrealBuildTool
 				{
 					if(!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
 					{
-						HotReloadModuleNames.UnionWith(GameModules.Select(x => x.Name));
+						HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Select(x => x.Name));
 					}
 				}
 			}

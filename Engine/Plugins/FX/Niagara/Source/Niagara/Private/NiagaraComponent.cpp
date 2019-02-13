@@ -1196,20 +1196,6 @@ void UNiagaraComponent::SetMaxSimTime(float InMaxTime)
 	MaxSimTime = InMaxTime;
 }
 
-#if WITH_EDITOR
-
-void UNiagaraComponent::PostLoadNormalizeOverrideNames()
-{
-	TMap<FName, bool> ValueMap;
-	for (TPair<FName, bool> Pair : EditorOverridesValue)
-	{
-		bool IsOldUserParam = Pair.Key.ToString().StartsWith(TEXT("User."));
-		FName ValueName = IsOldUserParam ? (*Pair.Key.ToString().RightChop(5)) : Pair.Key;
-		ValueMap.Add(ValueName, Pair.Value);
-	}
-	EditorOverridesValue = ValueMap;
-}
-
 void UNiagaraComponent::SetPreviewDetailLevel(bool bInEnablePreviewDetailLevel, int32 InPreviewDetailLevel)
 {
 	bool bReInit = bEnablePreviewDetailLevel != bInEnablePreviewDetailLevel || (bEnablePreviewDetailLevel && PreviewDetailLevel != InPreviewDetailLevel);
@@ -1226,6 +1212,20 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 {
 	bEnablePreviewLODDistance = bInEnablePreviewLODDistance;
 	PreviewLODDistance = InPreviewLODDistance;
+}
+
+#if WITH_EDITOR
+
+void UNiagaraComponent::PostLoadNormalizeOverrideNames()
+{
+	TMap<FName, bool> ValueMap;
+	for (TPair<FName, bool> Pair : EditorOverridesValue)
+	{
+		bool IsOldUserParam = Pair.Key.ToString().StartsWith(TEXT("User."));
+		FName ValueName = IsOldUserParam ? (*Pair.Key.ToString().RightChop(5)) : Pair.Key;
+		ValueMap.Add(ValueName, Pair.Value);
+	}
+	EditorOverridesValue = ValueMap;
 }
 
 bool UNiagaraComponent::IsParameterValueOverriddenLocally(const FName& InParamName)

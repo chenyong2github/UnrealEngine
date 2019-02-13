@@ -1072,7 +1072,7 @@ void FObjectReplicator::PostReceivedBunch()
 	{
 		PostNetReceive();
 		bHasReplicatedProperties = false;
-	}	
+	}
 
 	// Call RepNotifies
 	CallRepNotifies(true);

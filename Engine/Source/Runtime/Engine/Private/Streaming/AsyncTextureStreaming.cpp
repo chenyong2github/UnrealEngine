@@ -8,11 +8,12 @@ AsyncTextureStreaming.cpp: Definitions of classes used for texture streaming asy
 #include "Misc/App.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "Engine/World.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 void FAsyncRenderAssetStreamingData::Init(
 	TArray<FStreamingViewInfo> InViewInfos,
 	float InLastUpdateTime,
-	TIndirectArray<FLevelRenderAssetManager>& LevelStaticInstanceManagers,
+	TArray<FLevelRenderAssetManager*>& LevelStaticInstanceManagers,
 	FDynamicRenderAssetInstanceManager& DynamicComponentManager)
 {
 	ViewInfos = InViewInfos;
@@ -23,12 +24,26 @@ void FAsyncRenderAssetStreamingData::Init(
 	StaticInstancesViews.Reset();
 	StaticInstancesViewIndices.Reset();
 	CulledStaticInstancesViewIndices.Reset();
+	StaticInstancesViewLevelIndices.Reset();
 
-	for (FLevelRenderAssetManager& LevelManager : LevelStaticInstanceManagers)
+	for (int32 LevelIndex = 0; LevelIndex<LevelStaticInstanceManagers.Num(); ++LevelIndex)
 	{
+		if (LevelStaticInstanceManagers[LevelIndex] == nullptr)
+		{
+			StaticInstancesViewLevelIndices.Add(INDEX_NONE);
+			continue;
+		}
+
+		const FLevelRenderAssetManager& LevelManager = *LevelStaticInstanceManagers[LevelIndex];
+
 		if (LevelManager.IsInitialized() && LevelManager.GetLevel()->bIsVisible && LevelManager.HasRenderAssetReferences())
 		{
-			StaticInstancesViews.Push(LevelManager.GetAsyncView());
+			StaticInstancesViewLevelIndices.Add(StaticInstancesViews.Num());
+			StaticInstancesViews.Add(LevelStaticInstanceManagers[LevelIndex]->GetAsyncView());
+		}
+		else
+		{
+			StaticInstancesViewLevelIndices.Add(INDEX_NONE);
 		}
 	}
 }
@@ -132,20 +147,75 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 		const typename FStreamingRenderAsset::EAssetType AssetType = StreamingRenderAsset.RenderAssetType;
 		DynamicInstancesView.GetRenderAssetScreenSize(AssetType, RenderAsset, MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs, bOutputToLog ? TEXT("Dynamic") : nullptr);
 
-		for (int32 StaticViewIndex : StaticInstancesViewIndices)
+		bool bCulled = false;
+		if (Settings.bMipCalculationEnablePerLevelList)
 		{
-			const FRenderAssetInstanceAsyncView& StaticInstancesView = StaticInstancesViews[StaticViewIndex];
+			int32 LevelToIterateCount = FMath::Min(StreamingRenderAsset.LevelIndexUsage.Num(), StaticInstancesViewLevelIndices.Num());
 			
-			// No need to iterate more if texture is already at maximum resolution.
-			if ((MaxNumForcedLODs >= StreamingRenderAsset.MaxAllowedMips
-				|| MaxSize_VisibleOnly >= MAX_TEXTURE_SIZE
-				|| (MaxSize_VisibleOnly > StaticInstancesView.GetMaxLevelRenderAssetScreenSize() && Settings.MinLevelRenderAssetScreenSize > 0))
-				&& !bOutputToLog)
+			for (TBitArray<>::FIterator LevelUsageIterator(StreamingRenderAsset.LevelIndexUsage); LevelUsageIterator.GetIndex() < LevelToIterateCount; ++LevelUsageIterator)
 			{
-				break;
-			}
+				if (!LevelUsageIterator.GetValue())
+				{
+					continue;
+				}
 
-			StaticInstancesView.GetRenderAssetScreenSize(AssetType, RenderAsset, MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs, bOutputToLog ? TEXT("Static") : nullptr);
+				int32 ViewIndex = StaticInstancesViewLevelIndices[LevelUsageIterator.GetIndex()];
+
+				if (ViewIndex==INDEX_NONE)
+				{
+					continue;
+				}
+
+				const FRenderAssetInstanceAsyncView& StaticInstancesView = StaticInstancesViews[ViewIndex];
+
+				if (!StaticInstancesView.HasRenderAssetReferences(RenderAsset))
+				{
+					// Level entry has been replaced by another level
+					// Remove its reference.
+					StreamingRenderAsset.LevelIndexUsage[LevelUsageIterator.GetIndex()] = false;
+					continue;
+				}
+
+				if (StaticInstancesView.GetMaxLevelRenderAssetScreenSize() < Settings.MinLevelRenderAssetScreenSize)
+				{
+					bCulled = true;
+					continue;
+				}
+
+				// No need to iterate more if render asset is already at maximum resolution.
+				if (MaxSize_VisibleOnly >= MAX_TEXTURE_SIZE || MaxNumForcedLODs >= StreamingRenderAsset.MaxAllowedMips)
+				{
+					break;
+				}
+
+				float TmpMaxSize = MaxSize;
+				float TmpMaxVisibleOnly = MaxSize_VisibleOnly;
+				int32 TmpMaxNumForcedLODs = MaxNumForcedLODs;
+				
+				StaticInstancesView.GetRenderAssetScreenSize(AssetType, RenderAsset, TmpMaxSize, TmpMaxVisibleOnly, TmpMaxNumForcedLODs, bOutputToLog ? TEXT("Static") : nullptr);
+
+				MaxSize = FMath::Max(TmpMaxSize, MaxSize);
+				MaxSize_VisibleOnly = FMath::Max(TmpMaxVisibleOnly, MaxSize_VisibleOnly);
+				MaxNumForcedLODs = FMath::Max(TmpMaxNumForcedLODs, MaxNumForcedLODs);
+			}
+		}
+		else
+		{
+			for (int32 StaticViewIndex : StaticInstancesViewIndices)
+			{
+				const FRenderAssetInstanceAsyncView& StaticInstancesView = StaticInstancesViews[StaticViewIndex];
+
+				// No need to iterate more if texture is already at maximum resolution.
+				if ((MaxNumForcedLODs >= StreamingRenderAsset.MaxAllowedMips
+					|| MaxSize_VisibleOnly >= MAX_TEXTURE_SIZE
+					|| (MaxSize_VisibleOnly > StaticInstancesView.GetMaxLevelRenderAssetScreenSize() && Settings.MinLevelRenderAssetScreenSize > 0))
+					&& !bOutputToLog)
+				{
+					break;
+				}
+
+				StaticInstancesView.GetRenderAssetScreenSize(AssetType, RenderAsset, MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs, bOutputToLog ? TEXT("Static") : nullptr);
+			}
 		}
 
 		// Don't apply to FLT_MAX since it is used as forced streaming. BoostFactor as only meaning for texture/mesh instances since the other heuristics are based on max resolution.
@@ -168,14 +238,21 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 		StreamingRenderAsset.bUseUnkownRefHeuristic = MaxSize == 0 && MaxSize_VisibleOnly == 0 && !MaxNumForcedLODs && StreamingRenderAsset.LastRenderTime < TimeSinceRemoved - 5.f;
 		if (StreamingRenderAsset.bUseUnkownRefHeuristic)
 		{
-			// Check that it's not simply culled
-			for (int32 StaticViewIndex : CulledStaticInstancesViewIndices)
+			if (Settings.bMipCalculationEnablePerLevelList)
 			{
-				const FRenderAssetInstanceAsyncView& StaticInstancesView = StaticInstancesViews[StaticViewIndex];
-				if (StaticInstancesView.HasRenderAssetReferences(RenderAsset))
+				StreamingRenderAsset.bUseUnkownRefHeuristic = !bCulled;
+			}
+			else
+			{
+				// Check that it's not simply culled
+				for (int32 StaticViewIndex : CulledStaticInstancesViewIndices)
 				{
-					StreamingRenderAsset.bUseUnkownRefHeuristic = false;
-					break;
+					const FRenderAssetInstanceAsyncView& StaticInstancesView = StaticInstancesViews[StaticViewIndex];
+					if (StaticInstancesView.HasRenderAssetReferences(RenderAsset))
+					{
+						StreamingRenderAsset.bUseUnkownRefHeuristic = false;
+						break;
+					}
 				}
 			}
 
@@ -636,6 +713,7 @@ void FRenderAssetStreamingMipCalcTask::DoWork()
 {
 	SCOPED_NAMED_EVENT(FRenderAssetStreamingMipCalcTask_DoWork, FColor::Turquoise);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FRenderAssetStreamingMipCalcTask::DoWork"), STAT_FRenderAssetStreamingMipCalcTask_DoWork, STATGROUP_StreamingDetails);
+	CSV_SCOPED_TIMING_STAT_GLOBAL(FRenderAssetStreamingMipCalcTask);
 
 	// While the async task is runnning, the StreamingRenderAssets are guarantied not to be reallocated.
 	// 2 things can happen : a texture can be removed, in which case the texture will be set to null

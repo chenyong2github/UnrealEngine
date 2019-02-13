@@ -147,14 +147,19 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 	// Check all levels for pending kills.
 	for (int32 Index = 0; Index < LevelRenderAssetManagers.Num(); ++Index)
 	{
-		FLevelRenderAssetManager& LevelManager = LevelRenderAssetManagers[Index];
+		if (LevelRenderAssetManagers[Index] == nullptr)
+		{
+			continue;
+		}
+
+		FLevelRenderAssetManager& LevelManager = *LevelRenderAssetManagers[Index];
 		if (LevelManager.GetLevel()->IsPendingKill())
 		{
 			LevelManager.Remove(&RemovedRenderAssets);
 
 			// Remove the level entry. The async task view will still be valid as it uses a shared ptr.
-			LevelRenderAssetManagers.RemoveAtSwap(Index);
-			--Index;
+			delete LevelRenderAssetManagers[Index];
+			LevelRenderAssetManagers[Index] = nullptr;
 		}
 	}
 
@@ -300,9 +305,12 @@ void FRenderAssetStreamingManager::IncrementalUpdate(float Percentage, bool bUpd
 		NumStepsLeftForIncrementalBuild = MAX_int64;
 	}
 
-	for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+	for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		LevelManager.IncrementalUpdate(DynamicComponentManager, RemovedRenderAssets, NumStepsLeftForIncrementalBuild, Percentage, bUseDynamicStreaming); // Complete the incremental update.
+		if (LevelManager != nullptr)
+		{
+			LevelManager->IncrementalUpdate(DynamicComponentManager, RemovedRenderAssets, NumStepsLeftForIncrementalBuild, Percentage, bUseDynamicStreaming); // Complete the incremental update.
+		}
 	}
 
 	// Dynamic component are only udpated when it is useful for the dynamic async view.
@@ -398,10 +406,13 @@ void FRenderAssetStreamingManager::ConditionalUpdateStaticData()
 			TArray<ULevel*, TInlineAllocator<32> > Levels;
 
 			// RemoveLevel data
-			for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+			for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 			{
-				Levels.Push(LevelManager.GetLevel());
-				LevelManager.Remove(nullptr);
+				if (LevelManager!=nullptr)
+				{
+					Levels.Push(LevelManager->GetLevel());
+					LevelManager->Remove(nullptr);
+				}
 			}
 			LevelRenderAssetManagers.Empty();
 
@@ -426,6 +437,60 @@ void FRenderAssetStreamingManager::ConditionalUpdateStaticData()
 	}
 }
 
+void FRenderAssetStreamingManager::ProcessLevelsToReferenceToStreamedTextures()
+{
+	// Iterate through levels and reference Levels to StreamedTexture if needed
+	for (int32 LevelIndex = 0; LevelIndex < LevelRenderAssetManagers.Num(); ++LevelIndex)
+	{
+		if (LevelRenderAssetManagers[LevelIndex] == nullptr)
+		{
+			continue;
+		}
+
+		FLevelRenderAssetManager& LevelRenderAssetManager = *LevelRenderAssetManagers[LevelIndex];
+		if (LevelRenderAssetManager.HasBeenReferencedToStreamedTextures())
+		{
+			continue;
+		}
+
+		const FRenderAssetInstanceView* View = LevelRenderAssetManager.GetRawAsyncView();
+		if (View == nullptr)
+		{
+			continue;
+		}
+
+		LevelRenderAssetManager.SetReferencedToStreamedTextures();
+
+		FRenderAssetInstanceView::FRenderAssetIterator RenderAssetIterator = LevelRenderAssetManager.GetRawAsyncView()->GetRenderAssetIterator();
+
+		for (; RenderAssetIterator; ++RenderAssetIterator)
+		{
+			const UStreamableRenderAsset* RenderAsset = *RenderAssetIterator;
+			if (RenderAsset == nullptr || !ReferencedRenderAssets.Contains(RenderAsset) || !StreamingRenderAssets.IsValidIndex(RenderAsset->StreamingIndex))
+			{
+				continue;
+			}
+
+			FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[RenderAsset->StreamingIndex];
+
+			check(StreamingRenderAsset.RenderAsset == RenderAsset);
+
+			TBitArray<>& LevelIndexUsage = StreamingRenderAsset.LevelIndexUsage;
+
+			if (LevelIndex >= LevelIndexUsage.Num())
+			{
+				uint32 NumBits = LevelIndex + 1 - LevelIndexUsage.Num();
+				for (uint32 Index = 0; Index < NumBits; ++Index)
+				{
+					LevelIndexUsage.Add(false);
+				}
+			}
+
+			LevelIndexUsage[LevelIndex] = true;
+		}
+	}
+}
+
 void FRenderAssetStreamingManager::UpdatePendingStates(bool bUpdateDynamicComponents)
 {
 	CheckUserSettings();
@@ -444,6 +509,8 @@ void FRenderAssetStreamingManager::UpdatePendingStates(bool bUpdateDynamicCompon
 	{
 		DynamicComponentManager.PrepareAsyncView();
 	}
+
+	ProcessLevelsToReferenceToStreamedTextures();
 }
 
 /**
@@ -521,9 +588,9 @@ void FRenderAssetStreamingManager::AddLevel( ULevel* Level )
 	else
 	{
 		// In game, because static components can not be changed, the level static data is computed and kept as long as the level is not destroyed.
-		for (const FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+		for (const FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 		{
-			if (LevelManager.GetLevel() == Level)
+			if (LevelManager!=nullptr && LevelManager->GetLevel() == Level)
 			{
 				// Nothing to do, since the incremental update automatically manages what needs to be done.
 				return;
@@ -531,9 +598,19 @@ void FRenderAssetStreamingManager::AddLevel( ULevel* Level )
 		}
 	}
 
-	// If the level was not already there, add a new entry.
+	// If the level was not already there, create a new one, find an available slot or add a new one.
 	RenderAssetInstanceAsyncWork->EnsureCompletion();
-	LevelRenderAssetManagers.Add(new FLevelRenderAssetManager(Level, RenderAssetInstanceAsyncWork->GetTask()));
+	FLevelRenderAssetManager* LevelRenderAssetManager = new FLevelRenderAssetManager(Level, RenderAssetInstanceAsyncWork->GetTask());
+
+	uint32 LevelIndex = LevelRenderAssetManagers.FindLastByPredicate([](FLevelRenderAssetManager* Ptr) { return (Ptr == nullptr); });
+	if (LevelIndex != INDEX_NONE)
+	{
+		LevelRenderAssetManagers[LevelIndex] = LevelRenderAssetManager;
+	}
+	else
+	{
+		LevelRenderAssetManagers.Add(LevelRenderAssetManager);
+	}
 }
 
 /** Removes a ULevel from the streaming manager. */
@@ -549,15 +626,16 @@ void FRenderAssetStreamingManager::RemoveLevel( ULevel* Level )
 	{
 		for (int32 Index = 0; Index < LevelRenderAssetManagers.Num(); ++Index)
 		{
-			FLevelRenderAssetManager& LevelManager = LevelRenderAssetManagers[Index];
-			if (LevelManager.GetLevel() == Level)
+			FLevelRenderAssetManager* LevelManager = LevelRenderAssetManagers[Index];
+			if (LevelManager!=nullptr && LevelManager->GetLevel() == Level)
 			{
 				FRemovedRenderAssetArray RemovedRenderAssets;
-				LevelManager.Remove(&RemovedRenderAssets);
+				LevelManager->Remove(&RemovedRenderAssets);
 				SetRenderAssetsRemovedTimestamp(RemovedRenderAssets);
 
 				// Remove the level entry. The async task view will still be valid as it uses a shared ptr.
-				LevelRenderAssetManagers.RemoveAtSwap(Index);
+				LevelRenderAssetManagers[Index] = nullptr;
+				delete LevelManager;
 				break;
 			}
 		}
@@ -568,11 +646,11 @@ void FRenderAssetStreamingManager::NotifyLevelOffset(ULevel* Level, const FVecto
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+	for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		if (LevelManager.GetLevel() == Level)
+		if (LevelManager!=nullptr && LevelManager->GetLevel() == Level)
 		{
-			LevelManager.NotifyLevelOffset(Offset);
+			LevelManager->NotifyLevelOffset(Offset);
 			break;
 		}
 	}
@@ -665,14 +743,14 @@ void FRenderAssetStreamingManager::NotifyActorDestroyed( AActor* Actor )
 	ULevel* Level = !GIsEditor ? Actor->GetLevel() : nullptr;
 
 	// Remove any reference in the level managers.
-	for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+	for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		if (!Level || LevelManager.GetLevel() == Level)
+		if (LevelManager!=nullptr && (!Level || LevelManager->GetLevel() == Level))
 		{
-			LevelManager.RemoveActorReferences(Actor);
+			LevelManager->RemoveActorReferences(Actor);
 			for (UPrimitiveComponent* Component : Components)
 			{
-				LevelManager.RemoveComponentReferences(Component, RemovedRenderAssets);
+				LevelManager->RemoveComponentReferences(Component, RemovedRenderAssets);
 			}
 		}
 	}
@@ -700,11 +778,11 @@ void FRenderAssetStreamingManager::RemoveStaticReferences(const UPrimitiveCompon
 	{
 		FRemovedRenderAssetArray RemovedRenderAssets;
 		ULevel* Level = Primitive->GetComponentLevel();
-		for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+		for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 		{
-			if (!Level || LevelManager.GetLevel() == Level)
+			if (LevelManager != nullptr && (!Level || LevelManager->GetLevel() == Level))
 			{
-				LevelManager.RemoveComponentReferences(Primitive, RemovedRenderAssets);
+				LevelManager->RemoveComponentReferences(Primitive, RemovedRenderAssets);
 			}
 		}
 		Primitive->bAttachedToStreamingManagerAsStatic = false;
@@ -745,11 +823,11 @@ void FRenderAssetStreamingManager::NotifyPrimitiveDetached( const UPrimitiveComp
 		// Unless in editor, we don't want to remove reference in static level data when toggling visibility.
 		else if (GIsEditor || Primitive->IsPendingKill() || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 		{
-			for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+			for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 			{
-				if (!Level || LevelManager.GetLevel() == Level)
+				if (LevelManager != nullptr && (!Level || LevelManager->GetLevel() == Level))
 				{
-					LevelManager.RemoveComponentReferences(Primitive, RemovedRenderAssets);
+					LevelManager->RemoveComponentReferences(Primitive, RemovedRenderAssets);
 				}
 			}
 			Primitive->bAttachedToStreamingManagerAsStatic = false;
@@ -1136,8 +1214,13 @@ void FRenderAssetStreamingManager::SetLastUpdateTime()
 
 	for (int32 LevelIndex = 0; LevelIndex < LevelRenderAssetManagers.Num(); ++LevelIndex)
 	{
+		if (LevelRenderAssetManagers[LevelIndex] == nullptr)
+		{
+			continue;
+		}
+
 		// Update last update time only if there is a reasonable threshold to define visibility.
-		WorldTime = LevelRenderAssetManagers[LevelIndex].GetWorldTime();
+		WorldTime = LevelRenderAssetManagers[LevelIndex]->GetWorldTime();
 		if (WorldTime > 0)
 		{
 			break;
@@ -1426,9 +1509,14 @@ void FRenderAssetStreamingManager::GetObjectReferenceBounds(const UObject* RefOb
 	const UStreamableRenderAsset* RenderAsset = Cast<const UStreamableRenderAsset>(RefObject);
 	if (RenderAsset)
 	{
-		for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+		for (FLevelRenderAssetManager *LevelManager : LevelRenderAssetManagers)
 		{
-			const FRenderAssetInstanceView* View = LevelManager.GetRawAsyncView();
+			if (LevelManager == nullptr)
+			{
+				continue;
+			}
+
+			const FRenderAssetInstanceView* View = LevelManager->GetRawAsyncView();
 			if (View)
 			{
 				for (auto It = View->GetElementIterator(RenderAsset); It; ++It)
@@ -1456,10 +1544,13 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 	// Note that dynamic components don't need to be handled because their renderstates are updated, which triggers and update.
 	
 	TArray<ULevel*, TInlineAllocator<32> > Levels;
-	for (FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+	for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		Levels.Push(LevelManager.GetLevel());
-		LevelManager.Remove(nullptr);
+		if (LevelManager!=nullptr)
+		{
+			Levels.Push(LevelManager->GetLevel());
+			LevelManager->Remove(nullptr);
+		}
 	}
 
 	LevelRenderAssetManagers.Empty();
@@ -1847,9 +1938,12 @@ bool FRenderAssetStreamingManager::HandleStreamingManagerMemoryCommand( const TC
 	MemSize += LevelRenderAssetManagers.GetAllocatedSize();
 	MemSize += AsyncWork->GetTask().StreamingData.GetAllocatedSize();
 
-	for (const FLevelRenderAssetManager& LevelManager : LevelRenderAssetManagers)
+	for (const FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		MemSize += LevelManager.GetAllocatedSize();
+		if (LevelManager!=nullptr)
+		{
+			MemSize += LevelManager->GetAllocatedSize();
+		}
 	}
 
 	Ar.Logf(TEXT("StreamingManagerTexture: %.2f KB used"), MemSize / 1024.0f);

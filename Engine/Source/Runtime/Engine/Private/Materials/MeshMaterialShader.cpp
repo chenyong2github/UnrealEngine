@@ -152,7 +152,7 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	// This allows FShaders to share compiled bytecode and RHI shader references
 	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, /* PermutationId = */ 0);
 
-	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs())
+	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 	{
 		// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 		ShaderPipelineType = nullptr;
@@ -253,7 +253,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 				// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 				check(InShaderMapId.ContainsShaderPipelineType(Pipeline));
 
-				if (Pipeline->ShouldOptimizeUnusedOutputs())
+				if (Pipeline->ShouldOptimizeUnusedOutputs(InPlatform))
 				{
 					NumShadersPerVF += NumShaderStagesToCompile;
 					TArray<FMeshMaterialShaderType*> ShaderStagesToCompile;
@@ -432,7 +432,7 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 					FMeshMaterialShaderType* ShaderType = (FMeshMaterialShaderType*)Shader->GetMeshMaterialShaderType();
 					if (!HasShader(ShaderType, /* PermutationId = */ 0))
 					{
-						const FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs() ? PipelineType : nullptr, VertexFactoryType, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
+						const FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(InPlatform) ? PipelineType : nullptr, VertexFactoryType, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
 						FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
 						if (FoundShader)
 						{
