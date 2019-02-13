@@ -894,7 +894,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	
 	for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 	{
-		PSO.GraphicsDesc.RenderTargetFormats[i] = Init.RenderTargetFormats[i];
+		PSO.GraphicsDesc.RenderTargetFormats[i] = (EPixelFormat)Init.RenderTargetFormats[i];
 		PSO.GraphicsDesc.RenderTargetFlags[i] = Init.RenderTargetFlags[i];
 	}
 	
