@@ -164,19 +164,28 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
 {
+	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
+	// The allocations could *probably* be moved somewhere else (like InitBase), but that
+	// causes failure to connect for some reason, and for now this is easier.
+	LLM_SCOPE(ELLMTag::Networking);
+
 	MaxChannelSize = CVarMaxChannelSize.GetValueOnAnyThread();
 	if (MaxChannelSize <= 0)
 	{
 		UE_LOG(LogNet, Warning, TEXT("CVarMaxChannelSize of %d is less than or equal to 0, using the default number of channels."), MaxChannelSize);
 		MaxChannelSize = DEFAULT_MAX_CHANNEL_SIZE;
 	}
+	
+	
+	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject | EObjectFlags::RF_ArchetypeObject))
+	{
+		Channels.AddDefaulted(MaxChannelSize);
+		OutReliable.AddDefaulted(MaxChannelSize);
+		InReliable.AddDefaulted(MaxChannelSize);
+		PendingOutRec.AddDefaulted(MaxChannelSize);
 
-	Channels.AddDefaulted(MaxChannelSize);
-	OutReliable.AddDefaulted(MaxChannelSize);
-	InReliable.AddDefaulted(MaxChannelSize);
-	PendingOutRec.AddDefaulted(MaxChannelSize);
-
-	PacketNotify.Init(InPacketId, OutPacketId);
+		PacketNotify.Init(InPacketId, OutPacketId);
+	}	
 }
 
 /**
@@ -501,7 +510,6 @@ void UNetConnection::Serialize( FArchive& Ar )
 	{
 		// TODO: We don't currently track:
 		//		StatelessConnectComponents
-		//		PacketHandlers
 		//		AnalyticsVars
 		//		AnalyticsData
 		//		Histogram data.
@@ -560,6 +568,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastOut", LastOut.CountMemory(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SendBunchHeader", SendBunchHeader.CountMemory(Ar));
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PacketHandler",
+			if (Handler.IsValid())
+			{
+				// PacketHandler already counts its size.
+				Handler->CountBytes(Ar);
+			}
+		);
 
 #if DO_ENABLE_NET_TEST
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Delayed",
