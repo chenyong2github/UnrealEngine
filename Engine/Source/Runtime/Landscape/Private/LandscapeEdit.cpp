@@ -2397,14 +2397,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 						}
 					}
 
-					if (TotalWeight == 0)
-					{
-						if (MaxLayerIdx >= 0)
-						{
-							WeightValues[MaxLayerIdx][Idx] = 255;
-						}
-					}
-					else if (TotalWeight != 255)
+					if (TotalWeight > 0 && TotalWeight != 255)
 					{
 						// normalization...
 						float Factor = 255.0f / TotalWeight;

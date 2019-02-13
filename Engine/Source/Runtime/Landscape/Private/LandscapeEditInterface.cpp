@@ -2766,7 +2766,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 										}
 									}
 
-									if (OtherLayerWeightSum != 255)
+									if (OtherLayerWeightSum > 0 && OtherLayerWeightSum != 255)
 									{
 										const float Factor = 255.0f / OtherLayerWeightSum;
 										OtherLayerWeightSum = 0;
@@ -3909,9 +3909,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 									}
 
 									Weight = FinalValue;
+									StoreData.Store(LandscapeX, LandscapeY, Weight);
 								}
-
-								StoreData.Store(LandscapeX, LandscapeY, Weight);
 							}
 							else // Whole weight map case... no interpolation now...
 							{
