@@ -739,7 +739,7 @@ void FCodecV1Encoder::WriteInt32(FHuffmanEncodeTable& ValueTable, int32 Value)
 			int32 NumRawBits = HighestSetBit(~Value);	// Find first 0-bit. 1 <= NumRawBits <= 30.
 			int32 Packed = 3 + NumRawBits * 2;			// First negative code is 5
 			WriteSymbol(ValueTable, Packed);
-			int32 RawBits = Value & ~(-1 << NumRawBits);
+			int32 RawBits = Value & ~(0xFFFFFFFFu << NumRawBits);
 			WriteBits(RawBits, NumRawBits);
 		}
 	}
@@ -1201,49 +1201,49 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 			}
 
 			FHuffmanBitStreamReader ReaderObj(Bytes.GetData() + ChunkOffset, Bytes.Num() - ChunkOffset);
-			FHuffmanBitStreamReader& Reader = IsChunked ? ReaderObj : BitReader;
+			FHuffmanBitStreamReader& ChunkReader = IsChunked ? ReaderObj : BitReader;
 
 			if (NumChunkIndices > 0 && !OutMeshData.VertexInfo.bConstantIndices)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_DecodeIndexStream);
-				DecodeIndexStream(Reader, &OutMeshData.Indices[IndexOffset], OutMeshData.Indices.GetTypeSize(), NumChunkIndices);
+				DecodeIndexStream(ChunkReader, &OutMeshData.Indices[IndexOffset], OutMeshData.Indices.GetTypeSize(), NumChunkIndices);
 			}
 
 			if (NumChunkVertices > 0)
 			{
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodePositionStream);
-					DecodePositionStream(Reader, &OutMeshData.Positions[VertexOffset], OutMeshData.Positions.GetTypeSize(), NumChunkVertices);
+					DecodePositionStream(ChunkReader, &OutMeshData.Positions[VertexOffset], OutMeshData.Positions.GetTypeSize(), NumChunkVertices);
 				}
 
 				if (OutMeshData.VertexInfo.bHasColor0)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodeColorStream);
-					DecodeColorStream(Reader, &OutMeshData.Colors[VertexOffset], OutMeshData.Colors.GetTypeSize(), NumChunkVertices);
+					DecodeColorStream(ChunkReader, &OutMeshData.Colors[VertexOffset], OutMeshData.Colors.GetTypeSize(), NumChunkVertices);
 				}
 
 				if (OutMeshData.VertexInfo.bHasTangentX)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodeTangentXStream);
-					DecodeNormalStream(Reader, &OutMeshData.TangentsX[VertexOffset], OutMeshData.TangentsX.GetTypeSize(), NumChunkVertices, DecodingContext.ResidualNormalTangentXTable);
+					DecodeNormalStream(ChunkReader, &OutMeshData.TangentsX[VertexOffset], OutMeshData.TangentsX.GetTypeSize(), NumChunkVertices, DecodingContext.ResidualNormalTangentXTable);
 				}
 
 				if (OutMeshData.VertexInfo.bHasTangentZ)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodeTangentZStream);
-					DecodeNormalStream(Reader, &OutMeshData.TangentsZ[VertexOffset], OutMeshData.TangentsZ.GetTypeSize(), NumChunkVertices, DecodingContext.ResidualNormalTangentZTable);
+					DecodeNormalStream(ChunkReader, &OutMeshData.TangentsZ[VertexOffset], OutMeshData.TangentsZ.GetTypeSize(), NumChunkVertices, DecodingContext.ResidualNormalTangentZTable);
 				}
 
 				if (OutMeshData.VertexInfo.bHasUV0)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodeUVStream);
-					DecodeUVStream(Reader, &OutMeshData.TextureCoordinates[VertexOffset], OutMeshData.TextureCoordinates.GetTypeSize(), NumChunkVertices);
+					DecodeUVStream(ChunkReader, &OutMeshData.TextureCoordinates[VertexOffset], OutMeshData.TextureCoordinates.GetTypeSize(), NumChunkVertices);
 				}
 
 				if (OutMeshData.VertexInfo.bHasMotionVectors)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_DecodeMotionVectorStream);
-					DecodeMotionVectorStream(Reader, &OutMeshData.MotionVectors[VertexOffset], OutMeshData.MotionVectors.GetTypeSize(), NumChunkVertices);
+					DecodeMotionVectorStream(ChunkReader, &OutMeshData.MotionVectors[VertexOffset], OutMeshData.MotionVectors.GetTypeSize(), NumChunkVertices);
 				}
 			}
 		}, GET_STATID(STAT_CodecV1Decoder));
