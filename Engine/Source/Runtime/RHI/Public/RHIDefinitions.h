@@ -1212,3 +1212,15 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	String += Index;
 	return String;
 };
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
+#else
+	#define GEOMETRY_SHADER(GeometryShader)	nullptr
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define TESSELLATION_SHADER(HullOrDomainShader)	(HullOrDomainShader)
+#else
+	#define TESSELLATION_SHADER(HullOrDomainShader)	nullptr
+#endif
