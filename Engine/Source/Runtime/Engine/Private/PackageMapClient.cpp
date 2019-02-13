@@ -1340,11 +1340,57 @@ void UPackageMapClient::ReceiveExportData(FArchive& Archive)
 	ReceiveNetExportGUIDs(Archive);
 }
 
+void UPackageMapClient::SerializeNetFieldExportDelta(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		TSet<uint64> DeltaNetFieldExports;
+		
+		for ( auto It = GuidCache->NetFieldExportGroupMap.CreateIterator(); It; ++It )
+		{
+			// Save out the export group
+			TSharedPtr<FNetFieldExportGroup> ExportGroup = It.Value();
+			if (ExportGroup.IsValid())
+			{
+				for ( int32 i = 0; i < ExportGroup->NetFieldExports.Num(); i++ )
+				{
+					if (ExportGroup->NetFieldExports[i].bExported && ExportGroup->NetFieldExports[i].bDirtyForReplay)
+					{
+						check(ExportGroup->PathNameIndex != 0);
+
+						const uint64 CmdHandle = ((uint64)ExportGroup->PathNameIndex) << 32 | (uint64)i;
+
+						check(i == ExportGroup->NetFieldExports[i].Handle);
+
+						DeltaNetFieldExports.Add(CmdHandle);
+
+						ExportGroup->NetFieldExports[i].bDirtyForReplay = false;
+					}
+				}
+			}
+		}
+
+		AppendNetFieldExportsInternal(Ar, DeltaNetFieldExports, EAppendNetExportFlags::ForceExportDirtyGroups);
+
+		NetFieldExports.Empty();
+	}
+	else
+	{
+		ReceiveNetFieldExports(Ar);
+	}
+}
+
 void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
+{
+	AppendNetFieldExportsInternal(Archive, NetFieldExports, EAppendNetExportFlags::None);
+	NetFieldExports.Empty();
+}
+
+void UPackageMapClient::AppendNetFieldExportsInternal(FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags)
 {
 	check(Connection->InternalAck);
 
-	uint32 NetFieldCount = NetFieldExports.Num();
+	uint32 NetFieldCount = InNetFieldExports.Num();
 	Archive.SerializeIntPacked(NetFieldCount);
 
 	if (0 == NetFieldCount)
@@ -1355,7 +1401,7 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 	TArray< uint32, TInlineAllocator<64> > ExportedPathInThisBunchAlready;
 	ExportedPathInThisBunchAlready.Reserve(NetFieldCount);
 
-	for (const uint64 FieldExport : NetFieldExports)
+	for (const uint64 FieldExport : InNetFieldExports)
 	{
 		// Parse the path name index and cmd index out of the uint64
 		uint32 PathNameIndex = FieldExport >> 32;
@@ -1369,7 +1415,9 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 		check(NetFieldExportHandle == NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].Handle);
 
 		// Export the path if we need to
-		uint32 NeedsExport = (OverrideAckState->NetFieldExportGroupPathAcked.Contains(PathNameIndex) || ExportedPathInThisBunchAlready.Contains(PathNameIndex)) ? 0 : 1;
+		const bool bForceExportDirty = EnumHasAnyFlags(Flags, EAppendNetExportFlags::ForceExportDirtyGroups) && NetFieldExportGroup->bDirtyForReplay;
+
+		uint32 NeedsExport = ((bForceExportDirty || !OverrideAckState->NetFieldExportGroupPathAcked.Contains(PathNameIndex)) && !ExportedPathInThisBunchAlready.Contains(PathNameIndex)) ? 1 : 0;
 
 		Archive.SerializeIntPacked(PathNameIndex);
 		Archive.SerializeIntPacked(NeedsExport);
@@ -1382,6 +1430,11 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 			Archive.SerializeIntPacked(NumExports);
 
 			ExportedPathInThisBunchAlready.Add(PathNameIndex);
+
+			if (bForceExportDirty)
+			{
+				NetFieldExportGroup->bDirtyForReplay = false;
+			}
 		}
 
 		Archive << NetFieldExportGroup->NetFieldExports[NetFieldExportHandle];
@@ -1389,8 +1442,6 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 		OverrideAckState->NetFieldExportGroupPathAcked.Add( PathNameIndex );
 		OverrideAckState->NetFieldExportAcked.Add( FieldExport );
 	}
-
-	NetFieldExports.Empty();
 }
 
 void UPackageMapClient::ReceiveNetFieldExports(FArchive& Archive)
@@ -2015,7 +2066,11 @@ void UPackageMapClient::Serialize(FArchive& Ar)
 //	FNetGUIDCache
 //----------------------------------------------------------------------------------------
 
-FNetGUIDCache::FNetGUIDCache( UNetDriver * InDriver ) : IsExportingNetGUIDBunch( false ), Driver( InDriver ), NetworkChecksumMode( ENetworkChecksumMode::SaveAndUse ), AsyncLoadMode( EAsyncLoadMode::UseCVar )
+FNetGUIDCache::FNetGUIDCache(UNetDriver* InDriver) 
+	: Driver(InDriver)
+	, NetworkChecksumMode(ENetworkChecksumMode::SaveAndUse)
+	, AsyncLoadMode(EAsyncLoadMode::UseCVar)
+	, IsExportingNetGUIDBunch(false)
 {
 	UniqueNetIDs[0] = UniqueNetIDs[1] = 0;
 	UniqueNetFieldExportGroupPathIndex = 0;

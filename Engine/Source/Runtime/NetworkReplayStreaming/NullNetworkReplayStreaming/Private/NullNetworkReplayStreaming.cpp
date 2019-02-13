@@ -558,7 +558,7 @@ void FNullNetworkReplayStreamer::FlushCheckpoint(const uint32 TimeInMS)
 	++CurrentCheckpointIndex;
 }
 
-void FNullNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate)
+void FNullNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	GotoCheckpointIndexInternal(CheckpointIndex, Delegate, -1);
 }
@@ -641,7 +641,7 @@ void FNullNetworkReplayStreamer::UpdateReplayInfoIfValid()
 	}
 }
 
-void FNullNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate)
+void FNullNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	// Enumerate all the events in the events folder, since we need to know what times the checkpoints correlate with
 	TArray<FNullCheckpointListItem> Checkpoints;
