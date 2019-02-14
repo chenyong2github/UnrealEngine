@@ -4,6 +4,9 @@
 
 #include "IMediaCaptureSupport.h"
 #include "Modules/ModuleManager.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+#include "ShaderCore.h"
 
 #include "IWmfMediaModule.h"
 
