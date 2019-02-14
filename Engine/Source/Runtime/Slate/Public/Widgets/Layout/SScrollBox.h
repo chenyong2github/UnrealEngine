@@ -168,6 +168,9 @@ public:
 
 	float GetViewOffsetFraction() const;
 
+	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
+	float GetScrollOffsetOfEnd() const;
+
 	void SetScrollOffset( float NewScrollOffset );
 
 	void ScrollToStart();

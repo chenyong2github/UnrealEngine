@@ -323,6 +323,13 @@ float SScrollBox::GetScrollOffset() const
 	return DesiredScrollOffset;
 }
 
+float SScrollBox::GetScrollOffsetOfEnd() const
+{
+	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
+	const float ContentSize = GetScrollComponentFromVector(ScrollPanel->GetDesiredSize());
+	return FMath::Max(ContentSize - GetScrollComponentFromVector(ScrollPanelGeometry.Size), 0.0f);
+}
+
 float SScrollBox::GetViewFraction() const
 {
 	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());

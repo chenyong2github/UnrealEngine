@@ -114,6 +114,16 @@ float UScrollBox::GetScrollOffset() const
 	return 0;
 }
 
+float UScrollBox::GetScrollOffsetOfEnd() const
+{
+	if (MyScrollBox.IsValid())
+	{
+		return MyScrollBox->GetScrollOffsetOfEnd();
+	}
+
+	return 0;
+}
+
 float UScrollBox::GetViewOffsetFraction() const
 {
 	if ( MyScrollBox.IsValid() )

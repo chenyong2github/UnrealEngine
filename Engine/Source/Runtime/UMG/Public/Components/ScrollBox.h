@@ -116,6 +116,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetScrollOffset() const;
 
+	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	float GetScrollOffsetOfEnd() const;
+
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	float GetViewOffsetFraction() const;
 
