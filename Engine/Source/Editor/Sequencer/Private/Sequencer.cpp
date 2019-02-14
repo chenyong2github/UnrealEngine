@@ -5455,6 +5455,12 @@ void FSequencer::GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSec
 	}
 }
 
+void FSequencer::GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders)
+{
+	FString OutNewNodePath;
+	CalculateSelectedFolderAndPath(OutSelectedFolders, OutNewNodePath);
+}
+
 void FSequencer::SelectObject(FGuid ObjectBinding)
 {
 	const TSharedPtr<FSequencerObjectBindingNode>* Node = NodeTree->GetObjectBindingMap().Find(ObjectBinding);

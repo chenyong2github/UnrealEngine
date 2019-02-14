@@ -2,6 +2,7 @@
 
 #include "WidgetBlueprintEditor.h"
 #include "MovieSceneBinding.h"
+#include "MovieSceneFolder.h"
 #include "MovieScene.h"
 #include "Animation/WidgetAnimation.h"
 #include "Widgets/Text/STextBlock.h"
@@ -1200,7 +1201,15 @@ void FWidgetBlueprintEditor::AddObjectToAnimation(UObject* ObjectToAnimate)
 	Sequencer->GetFocusedMovieSceneSequence()->Modify();
 
 	// @todo Sequencer - Make this kind of adding more explicit, this current setup seem a bit brittle.
-	Sequencer->GetHandleToObject(ObjectToAnimate);
+	FGuid NewGuid = Sequencer->GetHandleToObject(ObjectToAnimate);
+
+	TArray<UMovieSceneFolder*> SelectedParentFolders;
+	Sequencer->GetSelectedFolders(SelectedParentFolders);
+
+	if (SelectedParentFolders.Num() > 0)
+	{
+		SelectedParentFolders[0]->AddChildObjectBinding(NewGuid);
+	}
 }
 
 TSharedRef<FExtender> FWidgetBlueprintEditor::GetAddTrackSequencerExtender( const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects )
