@@ -282,6 +282,15 @@ public:
 		FMemoryReader& MemoryReader) PURE_VIRTUAL(AnimEncoding::ByteSwapIn,);
 
 	/**
+	 * Temp routine to determine if this compressed data can be memory mapped
+	 *
+	 * @param	Seq					An Animation Sequence to contain the read data.
+	 * @return	true if this sequence can be memory mapped
+	 */
+	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize)
+		PURE_VIRTUAL(AnimEncoding::CanBeMemoryMapped, return false;);
+
+	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
 	 * @param	Seq					An Animation Sequence to write.
@@ -466,6 +475,8 @@ public:
 	virtual void ByteSwapIn(
 		UAnimSequence& Seq, 
 		FMemoryReader& MemoryReader) override;
+
+	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize) override;
 
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
