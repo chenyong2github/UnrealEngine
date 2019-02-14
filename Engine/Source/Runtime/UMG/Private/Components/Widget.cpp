@@ -187,10 +187,15 @@ void UWidget::SetRenderShear(FVector2D Shear)
 	UpdateRenderTransform();
 }
 
-void UWidget::SetRenderAngle(float Angle)
+void UWidget::SetRenderTransformAngle(float Angle)
 {
 	RenderTransform.Angle = Angle;
 	UpdateRenderTransform();
+}
+
+float UWidget::GetRenderTransformAngle() const
+{
+	return RenderTransform.Angle;
 }
 
 void UWidget::SetRenderTranslation(FVector2D Translation)

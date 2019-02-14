@@ -419,7 +419,11 @@ public:
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderAngle(float Angle);
+	void SetRenderTransformAngle(float Angle);
+	
+	/** */
+	UFUNCTION(BlueprintCallable, Category = "Widget|Transform")
+	float GetRenderTransformAngle() const;
 	
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
