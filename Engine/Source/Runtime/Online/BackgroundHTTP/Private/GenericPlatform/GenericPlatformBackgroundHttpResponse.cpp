@@ -4,7 +4,6 @@
 
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/FileHelper.h"
-#include "HTML5/HTML5PlatformBackgroundHttp.h"
 
 FGenericPlatformBackgroundHttpResponse::FGenericPlatformBackgroundHttpResponse(int32 InResponseCode, const FString& InTempContentFilePath)
 {
