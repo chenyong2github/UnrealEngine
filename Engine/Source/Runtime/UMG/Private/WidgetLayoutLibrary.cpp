@@ -9,6 +9,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/ScrollBoxSlot.h"
 #include "Components/UniformGridSlot.h"
 #include "Components/GridSlot.h"
 #include "Components/OverlaySlot.h"
@@ -275,6 +276,16 @@ UVerticalBoxSlot* UWidgetLayoutLibrary::SlotAsVerticalBoxSlot(UWidget* Widget)
 	if (Widget)
 	{
 		return Cast<UVerticalBoxSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+UScrollBoxSlot* UWidgetLayoutLibrary::SlotAsScrollBoxSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<UScrollBoxSlot>(Widget->Slot);
 	}
 
 	return nullptr;
