@@ -10,6 +10,8 @@
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif // #if WITH_EDITOR
 
+#define LOCTEXT_NAMESPACE "RenderSettings"
+
 namespace EAlphaChannelMode
 {
 	EAlphaChannelMode::Type FromInt(int32 InAlphaChannelMode)
@@ -84,6 +86,13 @@ void URendererSettings::PostInitProperties()
 }
 
 #if WITH_EDITOR
+void URendererSettings::PreEditChange(UProperty* PropertyAboutToChange)
+{
+	Super::PreEditChange(PropertyAboutToChange);
+
+	PreEditReflectionCaptureResolution = ReflectionCaptureResolution;
+}
+
 void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -134,9 +143,43 @@ bool URendererSettings::CanEditChange(const UProperty* InProperty) const
 
 void URendererSettings::SanatizeReflectionCaptureResolution()
 {
-	static const int32 MaxReflectionCaptureResolution = 1024;
-	static const int32 MinReflectionCaptureResolution = 64;
-	ReflectionCaptureResolution = FMath::Clamp(int32(FMath::RoundUpToPowerOfTwo(ReflectionCaptureResolution)), MinReflectionCaptureResolution, MaxReflectionCaptureResolution);
+	const int32 MaxCubemapResolution = GetMaxCubeTextureDimension();
+	const int32 MinCubemapResolution = 8;
+
+	ReflectionCaptureResolution = FMath::Clamp(int32(FMath::RoundUpToPowerOfTwo(ReflectionCaptureResolution)), MinCubemapResolution, MaxCubemapResolution);
+
+#if WITH_EDITOR
+	SIZE_T TexMemRequired = CalcTextureSize(ReflectionCaptureResolution, ReflectionCaptureResolution, PF_FloatRGBA, FMath::CeilLogTwo(ReflectionCaptureResolution) + 1) * CubeFace_MAX;
+
+	FTextureMemoryStats TextureMemStats;
+	RHIGetTextureMemoryStats(TextureMemStats);
+
+	if (TexMemRequired > SIZE_T(TextureMemStats.DedicatedVideoMemory / 4))
+	{
+		FNumberFormattingOptions FmtOpts = FNumberFormattingOptions()
+			.SetUseGrouping(false)
+			.SetMaximumFractionalDigits(2)
+			.SetMinimumFractionalDigits(0)
+			.SetRoundingMode(HalfFromZero);
+
+		EAppReturnType::Type Response = FPlatformMisc::MessageBoxExt(
+			EAppMsgType::YesNo,
+			*FText::Format(
+				LOCTEXT("MemAllocWarning_Message_ReflectionCubemap", "A resolution of {0} will require {1} of video memory PER reflection capture component. Are you sure?"),
+				FText::AsNumber(ReflectionCaptureResolution, &FmtOpts),
+				FText::AsMemory(TexMemRequired, &FmtOpts)
+				).ToString(),
+			*LOCTEXT("MemAllocWarning_Title_ReflectionCubemap", "Memory Allocation Warning").ToString()
+			);
+
+		if (Response == EAppReturnType::No)
+		{
+			ReflectionCaptureResolution = PreEditReflectionCaptureResolution;
+		}
+	}
+
+	PreEditReflectionCaptureResolution = ReflectionCaptureResolution;
+#endif // WITH_EDITOR
 }
 
 URendererOverrideSettings::URendererOverrideSettings(const FObjectInitializer& ObjectInitializer)
@@ -168,3 +211,5 @@ void URendererOverrideSettings::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	}
 }
 #endif // #if WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE

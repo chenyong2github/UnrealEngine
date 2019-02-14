@@ -696,6 +696,7 @@ public:
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
+	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
 #endif
@@ -703,6 +704,11 @@ public:
 	//~ End UObject Interface
 
 private:
+#if WITH_EDITOR
+	/** shadow copy saved before effects of PostEditChange() to provide option to roll back edit. */
+	int32 PreEditReflectionCaptureResolution = 128;
+#endif // WITH_EDITOR
+
 	void SanatizeReflectionCaptureResolution();
 };
 

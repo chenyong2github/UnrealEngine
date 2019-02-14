@@ -59,8 +59,8 @@ ENGINE_API TAutoConsoleVariable<int32> CVarReflectionCaptureSize(
 
 static int32 SanitizeReflectionCaptureSize(int32 ReflectionCaptureSize)
 {
-	static const int32 MaxReflectionCaptureSize = 1024;
-	static const int32 MinReflectionCaptureSize = 1;
+	const int32 MaxReflectionCaptureSize = GetMaxCubeTextureDimension();
+	const int32 MinReflectionCaptureSize = 1;
 
 	return FMath::Clamp(ReflectionCaptureSize, MinReflectionCaptureSize, MaxReflectionCaptureSize);
 }
