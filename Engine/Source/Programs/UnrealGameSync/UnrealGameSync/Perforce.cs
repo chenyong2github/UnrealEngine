@@ -72,6 +72,14 @@ namespace UnrealGameSync
 		}
 	}
 
+	[DebuggerDisplay("{Name}")]
+	class PerforceUserRecord
+	{
+		public string Name;
+		public string FullName;
+		public string Email;
+	}
+
 	[DebuggerDisplay("{DepotFile}")]
 	class PerforceDescribeFileRecord
 	{
@@ -695,6 +703,26 @@ namespace UnrealGameSync
                  FileRecords.RemoveAll(x => x.Action != null && x.Action.Contains("delete"));
 			}
 			return bResult;
+		}
+		public bool FindUsers(out List<PerforceUserRecord> UserRecords, TextWriter Log)
+		{
+			List<Dictionary<string, string>> TagRecords;
+			if(!RunCommand("users", out TagRecords, CommandOptions.None, Log))
+			{
+				UserRecords = null;
+				return false;
+			}
+
+			UserRecords = new List<PerforceUserRecord>();
+			foreach(Dictionary<string, string> TagRecord in TagRecords)
+			{
+				PerforceUserRecord UserRecord = new PerforceUserRecord();
+				if(TagRecord.TryGetValue("User", out UserRecord.Name) && TagRecord.TryGetValue("FullName", out UserRecord.FullName) && TagRecord.TryGetValue("Email", out UserRecord.Email))
+				{
+					UserRecords.Add(UserRecord);
+				}
+			}
+			return true;
 		}
 
 		public bool Print(string DepotPath, out List<string> Lines, TextWriter Log)
