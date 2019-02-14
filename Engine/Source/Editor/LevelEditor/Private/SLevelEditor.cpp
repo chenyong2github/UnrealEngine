@@ -668,6 +668,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	else if( TabIdentifier == TEXT("LevelEditorSceneOutliner") )
 	{
 		SceneOutliner::FInitializationOptions InitOptions;
+		InitOptions.bShowTransient = true;
 		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
 		{
 			TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);

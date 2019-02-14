@@ -118,7 +118,7 @@ namespace SceneOutliner
 	TSharedPtr< FOutlinerFilter > CreateHideTemporaryActorsFilter()
 	{
 		return MakeShareable( new FOutlinerPredicateFilter( FActorFilterPredicate::CreateStatic( []( const AActor* InActor ){			
-			return (InActor->GetWorld() && InActor->GetWorld()->WorldType != EWorldType::PIE) || GEditor->ObjectsThatExistInEditorWorld.Get(InActor);
+			return ((InActor->GetWorld() && InActor->GetWorld()->WorldType != EWorldType::PIE) || GEditor->ObjectsThatExistInEditorWorld.Get(InActor)) && !InActor->HasAnyFlags(EObjectFlags::RF_Transient);
 		} ), EDefaultFilterBehaviour::Pass ) );
 	}
 
