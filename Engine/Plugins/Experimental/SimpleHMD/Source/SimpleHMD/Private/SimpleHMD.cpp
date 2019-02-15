@@ -243,7 +243,7 @@ void FSimpleHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 	}
 }
 
-void FSimpleHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
+void FSimpleHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float InWorldToMeters, FVector& ViewLocation)
 {
 	if( StereoPassType != eSSP_FULL)
 	{
