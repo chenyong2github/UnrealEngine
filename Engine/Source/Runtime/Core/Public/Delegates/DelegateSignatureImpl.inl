@@ -887,13 +887,16 @@ public:
 	 * Note that the order of the delegate instances may not be preserved!
 	 *
 	 * @param Handle The handle of the delegate instance to remove.
+	 * @return  true if the delegate was successfully removed.
 	 */
-	void Remove( FDelegateHandle Handle )
+	bool Remove( FDelegateHandle Handle )
 	{
+		bool bResult = false;
 		if (Handle.IsValid())
 		{
-			RemoveDelegateInstance(Handle);
+			bResult = RemoveDelegateInstance(Handle);
 		}
+		return bResult;
 	}
 
 protected:
@@ -996,8 +999,9 @@ protected:
 	 * It will be removed next time the invocation list is compacted within Broadcast().
 	 *
 	 * @param Handle The handle of the delegate instance to remove.
+	 * @return  true if the delegate was successfully removed.
 	 */
-	void RemoveDelegateInstance( FDelegateHandle Handle )
+	bool RemoveDelegateInstance( FDelegateHandle Handle )
 	{
 		const TInvocationList& LocalInvocationList = Super::GetInvocationList();
 
@@ -1011,12 +1015,12 @@ protected:
 			if ((DelegateInstanceInterface != nullptr) && DelegateInstanceInterface->GetHandle() == Handle)
 			{
 				DelegateBase.Unbind();
-
-				break; // each delegate binding has a unique handle, so once we find it, we can stop
+				Super::CompactInvocationList();
+				return true; // each delegate binding has a unique handle, so once we find it, we can stop
 			}
 		}
 
-		Super::CompactInvocationList();
+		return false;
 	}
 };
 
