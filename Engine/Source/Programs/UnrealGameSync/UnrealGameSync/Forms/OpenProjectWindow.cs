@@ -315,7 +315,7 @@ namespace UnrealGameSync
 		{
 			string NewServerAndPort;
 			string NewUserName;
-			if(ConnectWindow.ShowModal(this, ServerAndPort, UserName, out NewServerAndPort, out NewUserName))
+			if(ConnectWindow.ShowModal(this, ServerAndPort, UserName, Log, out NewServerAndPort, out NewUserName))
 			{
 				ServerAndPort = NewServerAndPort;
 				UserName = NewUserName;
