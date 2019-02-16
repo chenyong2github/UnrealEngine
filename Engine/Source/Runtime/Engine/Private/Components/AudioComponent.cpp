@@ -1285,8 +1285,8 @@ bool UAudioComponent::GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpect
 				if (NewOutput.SpectralData.Num())
 				{
 					OutSoundWaveSpectralData.Add(NewOutput);
+					bHadData = true;
 				}
-				bHadData = true;
 			}
 		}
 	}
