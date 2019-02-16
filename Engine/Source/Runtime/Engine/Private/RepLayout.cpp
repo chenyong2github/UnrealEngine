@@ -19,6 +19,7 @@
 #include "Misc/App.h"
 #include "Algo/Sort.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Serialization/ArchiveCountMem.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -567,7 +568,100 @@ TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFla
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 {
-	Buffer.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepStateStaticBuffer::CountBytes");
+
+	// Unfortunately, this won't track Custom Serialize stucts or Custom Delta Serialize
+	// structs.
+	struct FCountBytesHelper
+	{
+		FCountBytesHelper(
+			FArchive& InAr,
+			const FConstRepShadowDataBuffer InShadowData,
+			const TArray<FRepParentCmd>& InParents,
+			const TArray<FRepLayoutCmd>& InCmds)
+
+			: Ar((FArchiveCountMem&)InAr)
+			, MainShadowData(InShadowData)
+			, Parents(InParents)
+			, Cmds(InCmds)
+		{
+		}
+
+		void CountBytes()
+		{
+			uint64 NewMax = Ar.GetMax();
+			uint64 OldMax = 0;
+
+			for (const FRepParentCmd& Parent : Parents)
+			{
+				OldMax = NewMax;
+
+				CountBytes_Command(Parent, Parent.CmdStart, Parent.CmdEnd, MainShadowData);
+
+				NewMax = Ar.GetMax();
+
+				if (0 < Parent.RepNotifyNumParams ||
+					(0 == Parent.RepNotifyNumParams && REPNOTIFY_OnChanged == Parent.RepNotifyCondition))
+				{
+					OnRepMemory += (NewMax - OldMax);
+				}
+				else
+				{
+					NonRepMemory += (NewMax - OldMax);
+				}
+			}
+		}
+
+		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData) const
+		{
+			for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
+			{
+				const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
+				CountBytes_r(Parent, Cmd, CmdIndex, ShadowData);
+
+				if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+				{
+					CmdIndex = Cmd.EndCmd - 1;
+				}
+			}
+		}
+
+		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, const int32 InCmdIndex, const FConstRepShadowDataBuffer ShadowData) const
+		{
+			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+			{
+				FScriptArray* Array = (FScriptArray*)(ShadowData + Cmd).Data;
+				Array->CountBytes(Ar, Cmd.ElementSize);
+
+				FConstRepShadowDataBuffer ShadowArrayData(Array->GetData());
+
+				for (int32 i = 0; i < Array->Num(); ++i)
+				{
+					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd, ShadowArrayData + (Cmd.ElementSize * i));
+				}
+			}
+			else if (ERepLayoutCmdType::PropertyString == Cmd.Type)
+			{
+				((FString const * const)(ShadowData + Cmd).Data)->CountBytes(Ar);
+			}
+		}
+
+		FArchiveCountMem& Ar;
+		const FConstRepShadowDataBuffer MainShadowData;
+		const TArray<FRepParentCmd>& Parents;
+		const TArray<FRepLayoutCmd>& Cmds;
+
+		uint64 OnRepMemory = 0;
+		uint64 NonRepMemory = 0;
+	};
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static Memory", Buffer.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic Memory (Undercounts!)",
+		FCountBytesHelper CountBytesHelper(Ar, Buffer.GetData(), RepLayout->Parents, RepLayout->Cmds);
+		CountBytesHelper.CountBytes();
+		GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("OnRepMemory", CountBytesHelper.OnRepMemory);
+		GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("NonRepMemory", CountBytesHelper.NonRepMemory);
+	);
 }
 
 FRepChangelistState::FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source) :
