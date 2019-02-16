@@ -993,8 +993,8 @@ bool FRepLayout::ReplicateProperties(
 			if (Pruned.Num() > 0)
 			{
 				SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Pruned);
-			return true;
-		}
+				return true;
+			}
 		}
 
 		return false;
@@ -1052,7 +1052,7 @@ bool FRepLayout::ReplicateProperties(
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MergeChangeList(Data, HistoryItem.Changed, Temp, Changed);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS		
 	}
 
 	// Merge in newly active properties so they can be sent.
@@ -1110,7 +1110,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const int32 NumBits = Writer.GetNumBits();
 
-	// Filter out the final changelist into Active and Inaction.
+	// Filter out the final changelist into Active and Inactive.
 	TArray<uint16> UnfilteredChanged = MoveTemp(Changed);
 	TArray<uint16> NewlyInactiveChangelist;
 	FilterChangeList(UnfilteredChanged, RepState->InactiveParents, NewlyInactiveChangelist, Changed);
@@ -5041,13 +5041,48 @@ void FRepLayout::BuildHandleToCmdIndexTable_r(
 	}
 }
 
+TStaticBitArray<COND_Max> FSendingRepState::BuildConditionMap(const FReplicationFlags& RepFlags)
+{
+	TStaticBitArray<COND_Max> ConditionMap;
+
+	// Setup condition map
+	const bool bIsInitial = RepFlags.bNetInitial ? true : false;
+	const bool bIsOwner = RepFlags.bNetOwner ? true : false;
+	const bool bIsSimulated = RepFlags.bNetSimulated ? true : false;
+	const bool bIsPhysics = RepFlags.bRepPhysics ? true : false;
+	const bool bIsReplay = RepFlags.bReplay ? true : false;
+
+	ConditionMap[COND_None] = true;
+	ConditionMap[COND_InitialOnly] = bIsInitial;
+
+	ConditionMap[COND_OwnerOnly] = bIsOwner;
+	ConditionMap[COND_SkipOwner] = !bIsOwner;
+
+	ConditionMap[COND_SimulatedOnly] = bIsSimulated;
+	ConditionMap[COND_SimulatedOnlyNoReplay] = bIsSimulated && !bIsReplay;
+	ConditionMap[COND_AutonomousOnly] = !bIsSimulated;
+
+	ConditionMap[COND_SimulatedOrPhysics] = bIsSimulated || bIsPhysics;
+	ConditionMap[COND_SimulatedOrPhysicsNoReplay] = (bIsSimulated || bIsPhysics) && !bIsReplay;
+
+	ConditionMap[COND_InitialOrOwner] = bIsInitial || bIsOwner;
+	ConditionMap[COND_ReplayOrOwner] = bIsReplay || bIsOwner;
+	ConditionMap[COND_ReplayOnly] = bIsReplay;
+	ConditionMap[COND_SkipReplay] = !bIsReplay;
+
+	ConditionMap[COND_Custom] = true;
+	ConditionMap[COND_Never] = false;
+
+	return ConditionMap;
+}
+
 void FRepLayout::RebuildConditionalProperties(
 	FSendingRepState* RESTRICT RepState,
 	const FReplicationFlags& RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetRebuildConditionalTime);
 	
-	TStaticBitArray<COND_Max> ConditionMap = BuildConditionMapFromRepFlags(RepFlags);
+	TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMap(RepFlags);
 	for (auto It = TBitArray<>::FIterator(RepState->InactiveParents); It; ++It)
 	{
 		It.GetValue() = !ConditionMap[Parents[It.GetIndex()].Condition];
@@ -5109,8 +5144,8 @@ TUniquePtr<FRepState> FRepLayout::CreateRepState(
 
 		// Start out the conditional props based on a default RepFlags struct
 		// It will rebuild if it ever changes
-		RepState->SendingRepState->InactiveParents.Init(false, Parents.Num());
 		RebuildConditionalProperties(RepState->SendingRepState.Get(), FReplicationFlags());
+		RepState->SendingRepState->InactiveParents.Init(false, Parents.Num());
 	}
 	
 	if (!EnumHasAnyFlags(Flags, ECreateRepStateFlags::SkipCreateReceivingState))
@@ -5137,7 +5172,6 @@ void FRepLayout::InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, con
 	ConstructProperties(ShadowData);
 	CopyProperties(ShadowData, Source);
 }
-
 
 void FRepLayout::ConstructProperties(FRepStateStaticBuffer& InShadowData) const
 {
