@@ -457,10 +457,7 @@ void UNiagaraComponent::ResetSystem()
 void UNiagaraComponent::ReinitializeSystem()
 {
 	DestroyInstance();
-	if (bIsActive)
-	{
-		Activate(true);
-	}
+	Activate(true);
 }
 
 bool UNiagaraComponent::GetRenderingEnabled() const
