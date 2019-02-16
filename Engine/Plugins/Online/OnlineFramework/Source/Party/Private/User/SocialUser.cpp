@@ -318,16 +318,28 @@ void USocialUser::TryBroadcastInitializationComplete()
 	{
 		// We consider a social user to be initialized when it has valid primary OSS user info and no pending queries
 		const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(ESocialSubsystem::Primary);
-		if (SubsystemInfo && ensureMsgf(SubsystemInfo->UserInfo.IsValid(), TEXT("SocialUser [%s] has primary subsystem info and no pending queries, but primary UserInfo is invalid!"), *ToDebugString()))
+		if (SubsystemInfo)
 		{
-			UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] fully initialized."), *ToDebugString());
-
-			bIsInitialized = true;
-
-			FOnNewSocialUserInitialized InitEvent;
-			if (InitEventsByUser.RemoveAndCopyValue(this, InitEvent))
+			if (SubsystemInfo->UserInfo.IsValid())
 			{
-				InitEvent.Broadcast(*this);
+				UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] fully initialized."), *ToDebugString());
+
+				bIsInitialized = true;
+
+				FOnNewSocialUserInitialized InitEvent;
+				if (InitEventsByUser.RemoveAndCopyValue(this, InitEvent))
+				{
+					InitEvent.Broadcast(*this);
+				}
+			}
+			else
+			{
+				// User is invalid with no open queries
+				// Assume that this means the sought user doesn't exist
+				InitEventsByUser.Remove(this);
+
+				// Remove Toolkit's reference to the SocialUser, GC will clean it
+				GetOwningToolkit().HandleUserInvalidated(this);
 			}
 		}
 	}
