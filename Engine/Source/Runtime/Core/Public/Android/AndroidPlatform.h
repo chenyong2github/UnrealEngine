@@ -56,6 +56,8 @@ typedef FAndroidTypes FPlatformTypes;
 #define PLATFORM_UI_NEEDS_TOOLTIPS					0
 #define PLATFORM_UI_NEEDS_FOCUS_OUTLINES			0
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK		1 // movies will start before engine is initalized
+#define PLATFORM_SUPPORTS_GEOMETRY_SHADERS			0
+#define PLATFORM_SUPPORTS_TESSELLATION_SHADERS		0
 
 #define PLATFORM_CODE_SECTION(Name)					__attribute__((section(Name)))
 

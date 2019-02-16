@@ -848,6 +848,7 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 		PSO.GraphicsDesc.VertexShader = Init.BoundShaderState.VertexShaderRHI->GetHash();
 	}
 	
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if (Init.BoundShaderState.HullShaderRHI)
 	{
 		PSO.GraphicsDesc.HullShader = Init.BoundShaderState.HullShaderRHI->GetHash();
@@ -857,16 +858,18 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	{
 		PSO.GraphicsDesc.DomainShader = Init.BoundShaderState.DomainShaderRHI->GetHash();
 	}
-	
+#endif
 	if (Init.BoundShaderState.PixelShaderRHI)
 	{
 		PSO.GraphicsDesc.FragmentShader = Init.BoundShaderState.PixelShaderRHI->GetHash();
 	}
 	
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	if (Init.BoundShaderState.GeometryShaderRHI)
 	{
 		PSO.GraphicsDesc.GeometryShader = Init.BoundShaderState.GeometryShaderRHI->GetHash();
 	}
+#endif
 	
 	check (Init.BlendState);
 	{
