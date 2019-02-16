@@ -511,12 +511,6 @@ public:
 	/** Toggles tracking the most memory expensive stats. */
 	void ToggleFindMemoryExtensiveStats();
 
-	/** Enables tracking the most memory expensive stats. */
-	void EnableFindMemoryExtensiveStats();
-
-	/** Disables tracking the most memory expensive stats. */
-	void DisableFindMemoryExtensiveStats();
-
 	/** Resets stats for raw stats. */
 	void ResetStatsForRawStats()
 	{
