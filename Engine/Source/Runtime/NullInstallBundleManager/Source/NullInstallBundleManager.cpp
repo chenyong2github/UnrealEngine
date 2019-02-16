@@ -86,4 +86,4 @@ private:
 	TUniquePtr<FNullInstallBundleManager> InstallBundleManager;
 };
 
-IMPLEMENT_MODULE(FNullInstallBundleManagerModule, NullInstallBundleManagerModule);
+IMPLEMENT_MODULE(FNullInstallBundleManagerModule, NullInstallBundleManager);
