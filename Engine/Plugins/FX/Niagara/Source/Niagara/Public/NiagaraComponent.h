@@ -277,8 +277,17 @@ public:
 	virtual void PostLoad();
 #if WITH_EDITOR
 	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
-
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject Interface
+
+#if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
+	void SetPreviewDetailLevel(bool bEnablePreviewDetailLevel, int32 PreviewDetailLevel);
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
+	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
 
 	void PostLoadNormalizeOverrideNames();
 	bool IsParameterValueOverriddenLocally(const FName& InParamName);
@@ -356,6 +365,19 @@ public:
 	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule);
 
 #if WITH_EDITORONLY_DATA
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient, meta=(EditCondition=bEnablePreviewDetailLevel))
+	int32 PreviewDetailLevel;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient, meta=(EditCondition= bEnablePreviewLODDistance))
+	float PreviewLODDistance;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient)
+	uint32 bEnablePreviewDetailLevel : 1;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient)
+	uint32 bEnablePreviewLODDistance : 1;
+
 	UPROPERTY(EditAnywhere, Category = Compilation)
 	uint32 bWaitForCompilationOnActivate : 1;
 #endif
