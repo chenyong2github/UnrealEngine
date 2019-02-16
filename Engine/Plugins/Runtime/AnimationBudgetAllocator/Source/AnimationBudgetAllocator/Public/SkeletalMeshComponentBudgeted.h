@@ -41,6 +41,9 @@ public:
 	/** Get delegate called to calculate significance if bAutoCalculateSignificance = true */
 	static FOnCalculateSignificance& OnCalculateSignificance() { return OnCalculateSignificanceDelegate; }
 
+	bool GetShouldUseActorRenderedFlag() const { return bShouldUseActorRenderedFlag; };
+
+	void SetShouldUseActorRenderedFlag(bool value) { bShouldUseActorRenderedFlag = value; };
 private:
 	// UActorComponent interface
 	virtual void BeginPlay() override;
@@ -79,4 +82,7 @@ private:
 	/** Whether this component should automatically register with the budget allocator in OnRegister/OnUnregister */
 	UPROPERTY(EditAnywhere, Category = Budgeting)
 	uint8 bAutoCalculateSignificance : 1;
+
+	UPROPERTY(EditAnywhere, Category = Budgeting)
+	uint8 bShouldUseActorRenderedFlag : 1;
 };

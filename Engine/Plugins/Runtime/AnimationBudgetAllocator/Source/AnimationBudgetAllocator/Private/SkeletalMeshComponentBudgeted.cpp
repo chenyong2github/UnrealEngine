@@ -15,6 +15,7 @@ USkeletalMeshComponentBudgeted::USkeletalMeshComponentBudgeted(const FObjectInit
 	, AnimationBudgetAllocator(nullptr)
 	, bAutoRegisterWithBudgetAllocator(true)
 	, bAutoCalculateSignificance(false)
+	, bShouldUseActorRenderedFlag(false)
 {
 }
 
