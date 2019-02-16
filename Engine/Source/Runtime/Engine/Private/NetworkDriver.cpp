@@ -5021,10 +5021,7 @@ void UNetDriver::CleanupWorldForSeamlessTravel()
 				// skips over AWorldSettings actors for an unknown reason.
 				if (Level->GetWorldSettings())
 				{
-					if (ServerConnection != nullptr)
-					{
-						NotifyActorLevelUnloaded(Level->GetWorldSettings());
-					}
+					NotifyActorLevelUnloaded(Level->GetWorldSettings());
 				}
 			}
 		}
