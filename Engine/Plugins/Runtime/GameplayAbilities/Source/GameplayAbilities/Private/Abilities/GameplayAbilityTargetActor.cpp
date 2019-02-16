@@ -54,6 +54,8 @@ void AGameplayAbilityTargetActor::GetLifetimeReplicatedProps(TArray< FLifetimePr
 	DOREPLIFETIME(AGameplayAbilityTargetActor, SourceActor);
 	DOREPLIFETIME(AGameplayAbilityTargetActor, bDebug);
 	DOREPLIFETIME(AGameplayAbilityTargetActor, bDestroyOnConfirmation);
+
+	DISABLE_REPLICATED_PROPERTY(AGameplayAbilityTargetActor, Filter);
 }
 
 void AGameplayAbilityTargetActor::StartTargeting(UGameplayAbility* Ability)
