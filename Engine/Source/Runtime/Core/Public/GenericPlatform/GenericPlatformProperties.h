@@ -239,6 +239,11 @@ struct FGenericPlatformProperties
 		return true;
 	}
 
+	static FORCEINLINE bool SupportsMeshLODStreaming()
+	{
+		return true;
+	}
+
 	/**
 	 * Gets whether user settings should override the resolution or not
 	 */

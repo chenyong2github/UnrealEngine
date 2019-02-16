@@ -243,6 +243,8 @@ public:
 
 		case ETargetPlatformFeatures::TextureStreaming:
 			return TPlatformProperties::SupportsTextureStreaming();
+		case ETargetPlatformFeatures::MeshLODStreaming:
+			return TPlatformProperties::SupportsMeshLODStreaming();
 
 		case ETargetPlatformFeatures::SdkConnectDisconnect:
 		case ETargetPlatformFeatures::UserCredentials:

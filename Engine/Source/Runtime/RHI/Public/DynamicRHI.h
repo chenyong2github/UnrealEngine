@@ -424,6 +424,10 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer) = 0;
 
+	// Must be called on RHI thread timeline
+	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) /*= 0;*/ {}
+
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.
 	*
