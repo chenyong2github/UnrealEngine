@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "BackgroundHttpModule.h"
 #include "BackgroundHttp.h"
 #include "Modules/ModuleManager.h"
