@@ -48,43 +48,26 @@ DECLARE_CYCLE_STAT(TEXT("Build Anim Track Pairs"), STAT_BuildAnimTrackPairs, STA
 DECLARE_CYCLE_STAT(TEXT("Extract Pose From Anim Data"), STAT_ExtractPoseFromAnimData, STATGROUP_Anim);
 
 int32 GPerformFrameStripping = 0;
-int32 GPerformFrameStrippingOddFramedAnimations = 0;
 
 static const TCHAR* StripFrameCVarName = TEXT("a.StripFramesOnCompression");
-static const TCHAR* OddFrameStripStrippingCVarName = TEXT("a.StripOddFramesWhenFrameStripping");
 
 static FAutoConsoleVariableRef CVarAnimStripFramesOnCompression(
 	StripFrameCVarName,
 	GPerformFrameStripping,
 	TEXT("1 = Strip every other frame on animations that have an even number of frames. 0 = off"));
 
-static FAutoConsoleVariableRef CVarOddFrameStripping(
-	OddFrameStripStrippingCVarName,
-	GPerformFrameStrippingOddFramedAnimations,
-	TEXT("1 = When frame stripping apply to animations with an odd number of frames too. 0 = only even framed animations"));
-
 void OnCVarsChanged()
 {
 	static bool bCompressionFrameStrip = (GPerformFrameStripping == 1);
-	static bool bOddFramedStrip = (GPerformFrameStrippingOddFramedAnimations == 1);
-
 	static TArray<UAnimSequence*> SequenceCache;
 	static FString OutputMessage;
 
 	const bool bCurrentFrameStrip = (GPerformFrameStripping == 1);
-	const bool bCurrentOddFramedStrip = (GPerformFrameStrippingOddFramedAnimations == 1);
-
-	const bool bFrameStripChanged = bCompressionFrameStrip != bCurrentFrameStrip;
-	const bool bOddFrameStripChanged = bOddFramedStrip != bCurrentOddFramedStrip;
-
-	if (bFrameStripChanged || bOddFrameStripChanged)
+	if (bCompressionFrameStrip != bCurrentFrameStrip)
 	{
 		bCompressionFrameStrip = bCurrentFrameStrip;
-		bOddFramedStrip = bCurrentOddFramedStrip;
 
 		SequenceCache.Reset();
-
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 		for (TObjectIterator<UAnimSequence> It; It; ++It)
 		{
@@ -98,7 +81,10 @@ void OnCVarsChanged()
 		{
 			Seq->RequestSyncAnimRecompression();
 
-			Sizes.Emplace(Seq->GetApproxCompressedSize(), Seq);
+			if (!bCurrentFrameStrip || Seq->GetCompressedNumberOfFrames() != Seq->GetRawNumberOfFrames())
+			{
+				Sizes.Emplace(Seq->GetApproxCompressedSize(), Seq);
+			}
 		}
 
 		Sizes.Sort([](const TPair<int32, UAnimSequence*>& A, const TPair<int32, UAnimSequence*>& B)
@@ -108,25 +94,14 @@ void OnCVarsChanged()
 
 		OutputMessage.Reset();
 
-		const TCHAR* StripMessage = bCompressionFrameStrip ? TEXT("Stripping: On") : TEXT("Stripping: Off");
-		const TCHAR* OddMessage = bOddFramedStrip ? TEXT("Odd Frames: On") : TEXT("Odd Frames: Off");
-
-		OutputMessage += FString::Printf(TEXT("%s - %s\n\n"), StripMessage, OddMessage);
-
 		int32 TotalSize = 0;
 		int32 NumAnimations = 0;
 		for (const TPair<int32, UAnimSequence*>& Pair : Sizes)
 		{
-			const bool bIsOddFramed = (Pair.Value->GetNumberOfFrames() % 2) == 0;
-			if (bIsOddFramed)
-			{
-				OutputMessage += FString::Printf(TEXT("%s - %.1fK\n"), *Pair.Value->GetPathName(), (float)Pair.Key / 1000.f);
-				TotalSize += Pair.Key;
-				NumAnimations++;
-			}
+			OutputMessage += FString::Printf(TEXT("%s - %.1fK\n"), *Pair.Value->GetPathName(), (float)Pair.Key / 1000.f);
+			TotalSize += Pair.Key;
+			NumAnimations++;
 		}
-
-		OutputMessage += FString::Printf(TEXT("\n\nTotalAnims: %i TotalSize = %.1fK"), NumAnimations, ((float)TotalSize / 1000.f));
 		FPlatformApplicationMisc::ClipboardCopy(*OutputMessage);
 	}
 }
@@ -152,7 +127,6 @@ FRequestAnimCompressionParams::FRequestAnimCompressionParams(bool bInAsyncCompre
 void FRequestAnimCompressionParams::InitFrameStrippingFromCVar()
 {
 	bPerformFrameStripping = (GPerformFrameStripping == 1);
-	bPerformFrameStrippingOnOddNumberedFrames = (GPerformFrameStrippingOddFramedAnimations == 1);
 }
 
 void FRequestAnimCompressionParams::InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform)
@@ -2540,10 +2514,9 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 	else
 	{
 		const bool bPerformFrameStripping = Params.bPerformFrameStripping && bAllowFrameStripping;
-		const bool bPerformStrippingOnOddFramedAnims = Params.bPerformFrameStrippingOnOddNumberedFrames;
 
 		TArray<uint8> OutData;
-		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(this, Params.CompressContext, bDoCompressionInPlace, bPerformFrameStripping, bPerformStrippingOnOddFramedAnims);
+		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(this, Params.CompressContext, bDoCompressionInPlace, bPerformFrameStripping);
 		// For debugging DDC/Compression issues		
 		const bool bSkipDDC = false;
 		if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))

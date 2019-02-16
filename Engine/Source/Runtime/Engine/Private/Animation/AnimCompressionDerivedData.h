@@ -33,11 +33,8 @@ private:
 	// Whether we should frame strip (remove every other frame from even frames animations)
 	bool bPerformStripping;
 
-	// Track if it is an even framed animation (when stripping odd framed animations will need to be resampled)
-	bool bIsEvenFramed;
-
 public:
-	FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims);
+	FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping);
 	virtual ~FDerivedDataAnimationCompression();
 
 	virtual const TCHAR* GetPluginName() const override
@@ -50,7 +47,7 @@ public:
 		// This is a version string that mimics the old versioning scheme. If you
 		// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 		// return it here. Ex.
-		return TEXT("A74732B14AD94950856C6A09F708445C");
+		return TEXT("D58C7C3E48274C04BFC4D7823AF46F5E");
 	}
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override;
