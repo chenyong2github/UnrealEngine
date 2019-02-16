@@ -111,7 +111,7 @@ FOwnedBulkDataPtr::~FOwnedBulkDataPtr()
 const void* FOwnedBulkDataPtr::GetPointer()
 {
 	// return the pointer that the caller can use
-	return AllocatedData ? AllocatedData : MappedRegion->GetMappedPtr();
+	return AllocatedData ? AllocatedData : (MappedRegion ? MappedRegion->GetMappedPtr() : nullptr);
 }
 
 bool FUntypedBulkData::FAllocatedPtr::MapFile(const TCHAR *InFilename, int64 Offset, int64 Size)

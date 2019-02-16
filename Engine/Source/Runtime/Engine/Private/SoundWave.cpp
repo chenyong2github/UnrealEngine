@@ -800,6 +800,19 @@ void USoundWave::InitAudioResource( FByteBulkData& CompressedData )
 			check(!OwnedBulkDataPtr);
 			OwnedBulkDataPtr = CompressedData.StealFileMapping();
 			ResourceData = (const uint8*)OwnedBulkDataPtr->GetPointer();
+			if (!ResourceData)
+			{
+				UE_LOG(LogAudio, Error, TEXT("Soundwave '%s' was not loaded when it should have been, forcing a sync load."), *GetFullName());
+
+				delete OwnedBulkDataPtr;
+				CompressedData.ForceBulkDataResident();
+				OwnedBulkDataPtr = CompressedData.StealFileMapping();
+				ResourceData = (const uint8*)OwnedBulkDataPtr->GetPointer();
+				if (!ResourceData)
+				{
+					UE_LOG(LogAudio, Fatal, TEXT("Soundwave '%s' failed to load even after forcing a sync load."), *GetFullName());
+				}
+			}
 		}
 	}
 }
