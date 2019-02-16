@@ -703,6 +703,34 @@ void IStreamingManager::Tick( float DeltaTime, bool bProcessEverything/*=false*/
 	bPendingRemoveViews = true;
 }
 
+/*-----------------------------------------------------------------------------
+	IRenderAssetStreamingManager implementation.
+-----------------------------------------------------------------------------*/
+
+void IRenderAssetStreamingManager::UpdateIndividualTexture(UTexture2D* Texture)
+{
+	UpdateIndividualRenderAsset(Texture);
+}
+
+bool IRenderAssetStreamingManager::StreamOutTextureData(int64 RequiredMemorySize)
+{
+	return StreamOutRenderAssetData(RequiredMemorySize);
+}
+
+void IRenderAssetStreamingManager::AddStreamingTexture(UTexture2D* Texture)
+{
+	AddStreamingRenderAsset(Texture);
+}
+
+void IRenderAssetStreamingManager::RemoveStreamingTexture(UTexture2D* Texture)
+{
+	RemoveStreamingRenderAsset(Texture);
+}
+
+void IRenderAssetStreamingManager::PauseTextureStreaming(bool bInShouldPause)
+{
+	PauseRenderAssetStreaming(bInShouldPause);
+}
 
 /*-----------------------------------------------------------------------------
 	FStreamingManagerCollection implementation.
