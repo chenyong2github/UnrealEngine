@@ -532,7 +532,8 @@ public:
 	int32 RawPCMDataSize;
 
 	/** Memory containing the data copied from the compressed bulk data */
-	uint8* ResourceData;
+	FOwnedBulkDataPtr* OwnedBulkDataPtr;
+	const uint8* ResourceData;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
 	FByteBulkData RawData;
