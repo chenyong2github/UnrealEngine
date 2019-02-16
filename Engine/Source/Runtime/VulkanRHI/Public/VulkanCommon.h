@@ -9,7 +9,7 @@
 #include "RHIDefinitions.h"
 
 #ifndef VULKAN_SUPPORTS_GEOMETRY_SHADERS
-	#define VULKAN_SUPPORTS_GEOMETRY_SHADERS					!(PLATFORM_ANDROID) || PLATFORM_LUMIN || PLATFORM_LUMINGL4
+	#define VULKAN_SUPPORTS_GEOMETRY_SHADERS					(!(PLATFORM_ANDROID) || PLATFORM_LUMIN || PLATFORM_LUMINGL4)
 #endif
 
 // This defines controls shader generation (so will cause a format rebuild)
