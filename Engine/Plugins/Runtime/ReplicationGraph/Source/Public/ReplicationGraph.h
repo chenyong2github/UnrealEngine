@@ -889,6 +889,7 @@ protected:
 
 	FOutBunch* FastSharedReplicationBunch = nullptr;
 	class UActorChannel* FastSharedReplicationChannel = nullptr;
+	FName FastSharedReplicationFuncName = NAME_None;
 
 #if REPGRAPH_DETAILS
 	bool bEnableFullActorPrioritizationDetailsAllConnections = false;
