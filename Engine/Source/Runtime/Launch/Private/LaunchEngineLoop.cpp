@@ -3951,32 +3951,8 @@ void FEngineLoop::Tick()
 		// wait for it to finish before we continue to tick or tick again
 		// We do this right after GEngine->Tick() because that is where user code would initiate a load / movie.
 		{
-            if (FPreLoadScreenManager::Get())
-            {
-                if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
-                {
-                    //Wait for any Engine Loading Screen to stop
-                    if (FPreLoadScreenManager::Get()->HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
-                    {
-                        FPreLoadScreenManager::Get()->WaitForEngineLoadingScreenToFinish();
-                    }
-
-                    //Switch Game Window Back
-                    UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-                    if (GameEngine)
-                    {
-                        GameEngine->SwitchGameWindowToUseGameViewport();
-                    }
-                }
-                
-                //Destroy / Clean Up PreLoadScreenManager as we are now done
-                FPreLoadScreenManager::Destroy();
-            }
-			else
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_WaitForMovieToFinish);
-				GetMoviePlayer()->WaitForMovieToFinish(true);
-			}
+            QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_WaitForMovieToFinish);
+			GetMoviePlayer()->WaitForMovieToFinish(true);
 		}
 
 		if (GShaderCompilingManager)
