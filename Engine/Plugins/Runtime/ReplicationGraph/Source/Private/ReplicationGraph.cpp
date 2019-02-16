@@ -1093,6 +1093,14 @@ void UReplicationGraph::ReplicateActorListsForConnection_Default(UNetReplication
 				}
 
 				// -------------------
+				// Always prioritize the connection's owner and view target, since these are the most important actors for the client.
+				// -------------------
+				if (Actor == Viewer.ViewTarget || Actor == Viewer.InViewer)
+				{
+					AccumulatedPriority -= 10.0f;
+				}
+
+				// -------------------
 				//	Game code priority
 				// -------------------
 				
