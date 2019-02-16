@@ -41,11 +41,11 @@ ANiagaraPreviewGrid::ANiagaraPreviewGrid(const FObjectInitializer& ObjectInitial
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
-	static ConstructorHelpers::FClassFinder<ANiagaraPreviewBase> DefaultPreviewClassBP(TEXT("/Niagara/Blueprints/NiagaraPreview"));
-	if (DefaultPreviewClassBP.Class != NULL)
-	{
-		PreviewClass = DefaultPreviewClassBP.Class;
-	}
+// 	static ConstructorHelpers::FClassFinder<ANiagaraPreviewBase> DefaultPreviewClassBP(TEXT("/Niagara/Blueprints/NiagaraPreview"));
+// 	if (DefaultPreviewClassBP.Class != NULL)
+// 	{
+// 		PreviewClass = DefaultPreviewClassBP.Class;
+// 	}
 
 #if WITH_EDITORONLY_DATA
 	RootComponent = CreateEditorOnlyDefaultSubobject<USceneComponent>(TEXT("SceneComp"));
