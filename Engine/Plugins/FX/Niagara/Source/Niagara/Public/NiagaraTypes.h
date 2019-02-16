@@ -297,6 +297,21 @@ enum class ENiagaraExecutionState : uint32
 	Num
 };
 
+/** Defines options for conditionally editing and showing script inputs in the UI. */
+USTRUCT()
+struct NIAGARA_API FNiagaraInputConditionMetadata
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	/** The name of the input to use for matching the target values. */
+	UPROPERTY(EditAnywhere, Category="Input Condition")
+	FName InputName;
+
+	/** The list of target values which will satisfy the input condition.  If this is empty it's assumed to be a single value of "true" for matching bool inputs. */
+	UPROPERTY(EditAnywhere, Category="Input Condition")
+	TArray<FString> TargetValues;
+};
+
 USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
@@ -304,6 +319,8 @@ struct NIAGARA_API FNiagaraVariableMetaData
 public:
 	FNiagaraVariableMetaData()
 		:EditorSortPriority(0)
+		, bAdvancedDisplay(false)
+		, bInlineEditConditionToggle(false)
 		, CallSortPriority(0)
 	{
 	}
@@ -319,6 +336,23 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero."))
 	int32 EditorSortPriority;
+
+	/** Declares that this input is advanced and should only be visible if expanded inputs have been expanded. */
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	bool bAdvancedDisplay;
+
+	/** Declares the associated input is used as an inline edit condition toggle, so it should should be hidden and it should be edited as a 
+	checkbox inline with the input which has designated as its edit condition. */
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	bool bInlineEditConditionToggle;
+
+	/** Declares the associated input should be conditionally editable based on the value of another input. */
+	UPROPERTY(EditAnywhere, Category = "Input Conditions")
+	FNiagaraInputConditionMetadata EditCondition;
+
+	/** Declares the associated input should be conditionally visible based on the value of another input. */
+	UPROPERTY(EditAnywhere, Category = "Input Conditions")
+	FNiagaraInputConditionMetadata VisibleCondition;
 
 	UPROPERTY()
 	int32 CallSortPriority;
