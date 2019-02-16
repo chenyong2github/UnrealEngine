@@ -560,6 +560,7 @@ TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFla
 	ConditionMap[COND_SkipReplay] = !bIsReplay;
 
 	ConditionMap[COND_Custom] = true;
+	ConditionMap[COND_Never] = false;
 
 	return ConditionMap;
 }
@@ -626,14 +627,14 @@ void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
 
 uint16 FRepLayout::CompareProperties_r(
 	FSendingRepState* RESTRICT RepState,
-	const int32 CmdStart,
-	const int32 CmdEnd,
-	const uint8* RESTRICT ShadowData,
-	const uint8* RESTRICT Data,
-	TArray<uint16>& Changed,
-	uint16 Handle,
-	const bool bIsInitial,
-	const bool bForceFail) const
+	const int32				CmdStart,
+	const int32				CmdEnd,
+	const uint8* RESTRICT	ShadowData,
+	const uint8* RESTRICT	Data,
+	TArray<uint16>&			Changed,
+	uint16					Handle,
+	const bool				bIsInitial,
+	const bool				bForceFail) const
 {
 	check(ShadowData);
 
@@ -708,13 +709,13 @@ uint16 FRepLayout::CompareProperties_r(
 
 void FRepLayout::CompareProperties_Array_r(
 	FSendingRepState* RESTRICT RepState,
-	const uint8* RESTRICT ShadowData,
-	const uint8* RESTRICT Data,
-	TArray<uint16>& Changed,
-	const uint16 CmdIndex,
-	const uint16 Handle,
-	const bool bIsInitial,
-	const bool bForceFail
+	const uint8* RESTRICT	ShadowData,
+	const uint8* RESTRICT	Data,
+	TArray<uint16>&			Changed,
+	const uint16			CmdIndex,
+	const uint16			Handle,
+	const bool				bIsInitial,
+	const bool				bForceFail
 	) const
 {
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
@@ -766,9 +767,9 @@ void FRepLayout::CompareProperties_Array_r(
 
 bool FRepLayout::CompareProperties(
 	FSendingRepState* RESTRICT RepState,
-	FRepChangelistState* RESTRICT RepChangelistState,
-	const uint8* RESTRICT Data,
-	const FReplicationFlags& RepFlags) const
+	FRepChangelistState* RESTRICT	RepChangelistState,
+	const uint8* RESTRICT			Data,
+	const FReplicationFlags&		RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime);
 
@@ -900,8 +901,8 @@ bool FRepLayout::ReplicateProperties(
 			if (Pruned.Num() > 0)
 			{
 				SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Pruned);
-				return true;
-			}
+			return true;
+		}
 		}
 
 		return false;
@@ -1045,8 +1046,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (Changed.Num() > 0)
 		{
-			SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
-		}
+		SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
+	}
 	}
 	else if (Changed.Num() > 0)
 	{
@@ -2096,13 +2097,13 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 
 void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 	FSendingRepState* RESTRICT RepState,
-	FNetBitWriter& Writer,
-	const bool bDoChecksum,
-	UPackageMapClient* PackageMapClient,
-	FNetFieldExportGroup* NetFieldExportGroup,
-	const int32 CmdStart,
-	const int32 CmdEnd, 
-	const uint8* SourceData) const
+	FNetBitWriter&						Writer,
+	const bool							bDoChecksum,
+	UPackageMapClient*					PackageMapClient,
+	FNetFieldExportGroup*				NetFieldExportGroup,
+	const int32							CmdStart,
+	const int32							CmdEnd, 
+	const uint8*						SourceData) const
 {
 	FNetBitWriter TempWriter(Writer.PackageMap, 0);
 
@@ -4178,12 +4179,12 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 	SCOPE_CYCLE_UOBJECT(ObjectClass, InObjectClass);
 
 	const bool bIsObjectActor = InObjectClass->IsChildOf(AActor::StaticClass());
-	RoleIndex                 = -1;
-	RemoteRoleIndex           = -1;
-	FirstNonCustomParent      = -1;
+	RoleIndex = -1;
+	RemoteRoleIndex = -1;
+	FirstNonCustomParent = -1;
 
-	int32 RelativeHandle      = 0;
-	int32 LastOffset          = -1;
+	int32 RelativeHandle = 0;
+	int32 LastOffset = -1;
 
 	InObjectClass->SetUpRuntimeReplicationData();
 	Parents.Empty(InObjectClass->ClassReps.Num());
@@ -4227,21 +4228,21 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 
 		if (bIsObjectActor)
 		{
-			// Find Role/RemoteRole property indexes so we can swap them on the client
-			if (Property->GetFName() == NAME_Role)
-			{
-				check(RoleIndex == -1);
-				check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-				RoleIndex = ParentHandle;
-			}
-
-			if (Property->GetFName() == NAME_RemoteRole)
-			{
-				check(RemoteRoleIndex == -1);
-				check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
-				RemoteRoleIndex = ParentHandle;
-			}
+		// Find Role/RemoteRole property indexes so we can swap them on the client
+		if (Property->GetFName() == NAME_Role)
+		{
+			check(RoleIndex == -1);
+			check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
+			RoleIndex = ParentHandle;
 		}
+
+		if (Property->GetFName() == NAME_RemoteRole)
+		{
+			check(RemoteRoleIndex == -1);
+			check(Parents[ParentHandle].CmdEnd == Parents[ParentHandle].CmdStart + 1);
+			RemoteRoleIndex = ParentHandle;
+		}
+	}
 	}
 
 	// Make sure it either found both, or didn't find either
@@ -4296,7 +4297,7 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 		{
 			// We handle remote role specially, since it can change between connections when downgraded
 			// So we force it on the conditional list
-			check(LifetimeProps[i].Condition == COND_None);
+			check(LifetimeProps[i].Condition == COND_None || LifetimeProps[i].Condition == COND_Never);
 			LifetimeProps[i].Condition = COND_Custom;
 			continue;
 		}
