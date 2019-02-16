@@ -5026,12 +5026,19 @@ void UDemoNetDriver::AddNonQueuedGUIDForScrubbing(FNetworkGUID InGUID)
 	}
 }
 
+FDemoSavedRepObjectState::FDemoSavedRepObjectState(
+	const TWeakObjectPtr<const UObject>& InObject,
+	const TSharedRef<const FRepLayout>& InRepLayout,
+	FRepStateStaticBuffer&& InPropertyData) :
+
+	Object(InObject),
+	RepLayout(InRepLayout),
+	PropertyData(MoveTemp(InPropertyData))
+{
+}
+
 FDemoSavedRepObjectState::~FDemoSavedRepObjectState()
 {
-	if (RepLayout.IsValid() && PropertyData.Num() > 0)
-	{
-		RepLayout->DestructProperties(PropertyData);
-	}
 }
 
 FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
@@ -5051,15 +5058,10 @@ FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
 					TWeakObjectPtr<UObject> WeakObjectPtr = ReplicatorPair.Value->GetWeakObjectPtr();
 					if (const UObject* const RepObject = WeakObjectPtr.Get())
 					{
-						FDemoSavedRepObjectState& SavedObject = State.Emplace_GetRef();
-						SavedObject.Object = WeakObjectPtr;
-						SavedObject.RepLayout = ReplicatorPair.Value->RepLayout;
+						const TSharedRef<const FRepLayout> RepLayout = ReplicatorPair.Value->RepLayout.ToSharedRef();
+						FDemoSavedRepObjectState& SavedObject = State.Emplace_GetRef(WeakObjectPtr, RepLayout, RepLayout->CreateShadowBuffer((const uint8*)RepObject));
 
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						SavedObject.RepLayout->InitShadowData(SavedObject.PropertyData, RepObject->GetClass(), reinterpret_cast<const uint8* const>(RepObject));
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-						// TODO: InitShadowData should copy property data, so this seem uneccessary.
+						// TODO: InitShadowData should copy property data, so this seem unnecessary.
 						// Store the properties in the new RepState
 						FRepShadowDataBuffer ShadowData(SavedObject.PropertyData.GetData());
 						FConstRepObjectDataBuffer RepObjectData(RepObject);
