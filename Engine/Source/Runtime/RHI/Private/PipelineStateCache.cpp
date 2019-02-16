@@ -50,9 +50,9 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 static inline uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
 {
 	return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
-		GetTypeHash(Initializer.RayGenShaderRHI) ^
-		GetTypeHash(Initializer.MissShaderRHI) ^
-		GetTypeHash(Initializer.DefaultClosestHitShaderRHI) ^ 
+		GetTypeHash(Initializer.HitGroupStride) ^
+		GetTypeHash(Initializer.GetRayGenHash()) ^
+		GetTypeHash(Initializer.GetRayMissHash()) ^
 		GetTypeHash(Initializer.GetHitGroupHash());
 }
 #endif
@@ -1144,6 +1144,10 @@ void DumpPipelineCacheStats()
 #endif // PSO_VALIDATE_CACHE
 }
 
+/** Global cache of vertex declarations. Note we don't store TRefCountPtrs, instead we AddRef() manually. */
+static TMap<uint32, FRHIVertexDeclaration*> GVertexDeclarationCache;
+static FCriticalSection GVertexDeclarationLock;
+
 void PipelineStateCache::Shutdown()
 {
 	GGraphicsPipelineCache.WaitTasksComplete();
@@ -1166,4 +1170,29 @@ void PipelineStateCache::Shutdown()
 		GGraphicsPipelineCache.DiscardAndSwap();
 	}
 	FPipelineFileCache::Shutdown();
+
+	for (auto Pair : GVertexDeclarationCache)
+	{
+		Pair.Value->Release();
+	}
+	GVertexDeclarationCache.Empty();
+}
+
+FRHIVertexDeclaration*	PipelineStateCache::GetOrCreateVertexDeclaration(const FVertexDeclarationElementList& Elements)
+{
+	// Actual locking/contention time should be close to unmeasurable
+	FScopeLock ScopeLock(&GVertexDeclarationLock);
+	uint32 Key = FCrc::MemCrc_DEPRECATED(Elements.GetData(), Elements.Num() * sizeof(FVertexElement));
+	FRHIVertexDeclaration** Found = GVertexDeclarationCache.Find(Key);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FVertexDeclarationRHIRef NewDeclaration = RHICreateVertexDeclaration(Elements);
+
+	// Add an extra reference so we don't have TRefCountPtr in the maps
+	NewDeclaration->AddRef();
+	GVertexDeclarationCache.Add(Key, NewDeclaration);
+	return NewDeclaration;
 }

@@ -846,12 +846,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 			UE_LOG(LogPakFile, Log, TEXT("Added file Source: %s Dest: %s"), *Input.Source, *Input.Dest);
 
 			bool bIsUBulk = FPaths::GetExtension(Input.Source, true) == TEXT(".ubulk");
-			if (bIsUBulk && CmdLineParameters.AlignForMemoryMapping > 0 && (Input.bNeedsCompression || Input.bNeedEncryption))
+			if (bIsUBulk && CmdLineParameters.AlignForMemoryMapping > 0 && Input.bNeedsCompression)
 			{
 				// no compression for bulk aligned files because they are memory mapped
 				Input.bNeedsCompression = false;
-				Input.bNeedEncryption = false;
-				UE_LOG(LogPakFile, Warning, TEXT("Stripped compression or encryption from %s for memory mapping."), *Input.Dest);
+				UE_LOG(LogPakFile, Warning, TEXT("Stripped compression from %s for memory mapping."), *Input.Dest);
 			}
 			Entries.Add(Input);
 		}			
@@ -1530,7 +1529,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
 		bool bIsUAssetUExpPairUAsset = false;
 		bool bIsUAssetUExpPairUExp = false;
-		bool bIsUBulk = FPaths::GetExtension(FilesToAdd[FileIndex].Dest, true) == TEXT(".ubulk");
+		bool bIsUBulk = FPaths::GetExtension(FilesToAdd[FileIndex].Source, true) == TEXT(".ubulk");
 
 		if (FileIndex)
 		{

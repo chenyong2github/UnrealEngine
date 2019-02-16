@@ -27,6 +27,11 @@ namespace UnrealBuildTool.Rules
                     "WmfMediaFactory",
                 });
 
+            if (Target.Platform != UnrealTargetPlatform.XboxOne)
+            {
+                PrivateDependencyModuleNames.Add("D3D11RHI");
+            }
+
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",

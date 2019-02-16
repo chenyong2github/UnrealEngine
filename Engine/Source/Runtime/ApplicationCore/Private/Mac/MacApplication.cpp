@@ -257,7 +257,11 @@ void FMacApplication::InitializeWindow(const TSharedRef<FGenericWindow>& InWindo
 	const TSharedRef<FMacWindow> Window = StaticCastSharedRef<FMacWindow >(InWindow);
 	const TSharedPtr<FMacWindow> ParentWindow = StaticCastSharedPtr<FMacWindow>(InParent);
 
-	Windows.Add(Window);
+	{
+		FScopeLock Lock(&WindowsMutex);
+		Windows.Add(Window);
+	}
+
 	Window->Initialize(this, InDefinition, ParentWindow, bShowImmediately);
 }
 
@@ -351,7 +355,11 @@ void FMacApplication::EndScopedModalEvent()
 
 void FMacApplication::CloseWindow(TSharedRef<FMacWindow> Window)
 {
-	MessageHandler->OnWindowClose(Window);
+	FScopeLock Lock(&WindowsToCloseMutex);
+	if (!SlateWindowsToClose.Contains(Window))
+	{
+		SlateWindowsToClose.Add(Window);
+	}
 }
 
 void FMacApplication::DeferEvent(NSObject* Object)
@@ -577,6 +585,7 @@ void FMacApplication::OnDisplayReconfiguration(CGDirectDisplayID Display, CGDisp
 		App->BroadcastDisplayMetricsChanged(DisplayMetrics);
 	}
 
+	FScopeLock Lock(&App->WindowsMutex);
 	for (int32 WindowIndex=0; WindowIndex < App->Windows.Num(); ++WindowIndex)
 	{
 		TSharedRef<FMacWindow> WindowRef = App->Windows[WindowIndex];
@@ -1139,11 +1148,14 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		OnWindowActivationChanged(DestroyedWindow, EWindowActivation::Deactivate);
 	}
 
-	Windows.Remove(DestroyedWindow);
-
-	if (!WindowsToClose.Contains(WindowHandle))
 	{
-		WindowsToClose.Add(WindowHandle);
+		FScopeLock Lock(&WindowsMutex);
+		Windows.Remove(DestroyedWindow);
+	}
+
+	if (!CocoaWindowsToClose.Contains(WindowHandle))
+	{
+		CocoaWindowsToClose.Add(WindowHandle);
 	}
 
 	TSharedPtr<FMacWindow> WindowToActivate;
@@ -1157,7 +1169,7 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		for (int32 Index = 0; Index < Windows.Num(); ++Index)
 		{
 			TSharedRef<FMacWindow> WindowRef = Windows[Index];
-			if (!WindowsToClose.Contains(WindowRef->GetWindowHandle()) && [WindowRef->GetWindowHandle() canBecomeMainWindow] && WindowRef->GetDefinition().Type != EWindowType::Notification)
+			if (!CocoaWindowsToClose.Contains(WindowRef->GetWindowHandle()) && [WindowRef->GetWindowHandle() canBecomeMainWindow] && WindowRef->GetDefinition().Type != EWindowType::Notification)
 			{
 				WindowToActivate = WindowRef;
 				break;
@@ -1939,18 +1951,31 @@ TCHAR FMacApplication::TranslateCharCode(TCHAR CharCode, uint32 KeyCode) const
 
 void FMacApplication::CloseQueuedWindows()
 {
-	if (WindowsToClose.Num() > 0)
+	{
+		FScopeLock Lock(&WindowsToCloseMutex);
+
+		if (SlateWindowsToClose.Num() > 0)
+		{
+			for (TSharedRef<FMacWindow> Window : SlateWindowsToClose)
+			{
+				MessageHandler->OnWindowClose(Window);
+			}
+			SlateWindowsToClose.Empty();
+		}
+	}
+
+	if (CocoaWindowsToClose.Num() > 0)
 	{
 		MainThreadCall(^{
 			SCOPED_AUTORELEASE_POOL;
-			for (FCocoaWindow* Window : WindowsToClose)
+			for (FCocoaWindow* Window : CocoaWindowsToClose)
 			{
 				[Window close];
 				[Window release];
 			}
 		}, UE4CloseEventMode, true);
 
-		WindowsToClose.Empty();
+		CocoaWindowsToClose.Empty();
 	}
 }
 

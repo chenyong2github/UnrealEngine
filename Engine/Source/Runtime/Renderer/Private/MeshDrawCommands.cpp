@@ -669,16 +669,17 @@ void ApplyViewOverridesToMeshDrawCommands(
 				NewMeshCommand = MeshCommand;
 
 				const ERasterizerCullMode LocalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCulling ? FMeshPassProcessor::InverseCullMode(VisibleMeshDrawCommand.MeshCullMode) : VisibleMeshDrawCommand.MeshCullMode;
-				NewMeshCommand.PipelineState.RasterizerState = GetStaticRasterizerState<true>(VisibleMeshDrawCommand.MeshFillMode, LocalCullMode);
+				FGraphicsMinimalPipelineStateInitializer PipelineState = MeshCommand.CachedPipelineId.GetPipelineState();
+				PipelineState.RasterizerState = GetStaticRasterizerState<true>(VisibleMeshDrawCommand.MeshFillMode, LocalCullMode);
 
 				if (BasePassDepthStencilAccess != DefaultBasePassDepthStencilAccess && PassType == EMeshPass::BasePass)
 				{
 					FMeshPassProcessorRenderState PassDrawRenderState;
 					SetupBasePassState(BasePassDepthStencilAccess, false, PassDrawRenderState);
-					NewMeshCommand.PipelineState.DepthStencilState = PassDrawRenderState.GetDepthStencilState();
+					PipelineState.DepthStencilState = PassDrawRenderState.GetDepthStencilState();
 				}
 
-				NewMeshCommand.Finalize(true);
+				NewMeshCommand.Finalize(PipelineState, nullptr, true);
 
 				FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 
@@ -923,10 +924,6 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	check((PassType == EMeshPass::Num) == (DynamicMeshElementsPassRelevance == nullptr));
 
 	MaxNumDraws = InOutMeshDrawCommands.Num() + NumDynamicMeshElements + NumDynamicMeshCommandBuildRequestElements;
-	if (MaxNumDraws <= 0)
-	{
-		return;
-	}
 
 	TaskContext.MeshPassProcessor = MeshPassProcessor;
 	TaskContext.MobileBasePassCSMMeshPassProcessor = MobileBasePassCSMMeshPassProcessor;
@@ -976,27 +973,30 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 		check(MobileBasePassCSMMeshPassProcessor == nullptr && InOutMobileBasePassCSMMeshDrawCommands == nullptr);
 	}
 
-	// Preallocate resources on rendering thread based on MaxNumDraws.
-	bPrimitiveIdBufferDataOwnedByRHIThread = false;
-	TaskContext.PrimitiveIdBufferDataSize = TaskContext.InstanceFactor * MaxNumDraws * sizeof(int32);
-	TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
-	PrimitiveIdVertexBufferRHI = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
-	TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
-	TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
-
-	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
-
-	if (bExecuteInParallel)
+	if (MaxNumDraws > 0)
 	{
-		TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(
-			nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
-	}
-	else
-	{
-		FMeshDrawCommandPassSetupTask Task(TaskContext);
-		Task.AnyThreadTask();
+		// Preallocate resources on rendering thread based on MaxNumDraws.
+		bPrimitiveIdBufferDataOwnedByRHIThread = false;
+		TaskContext.PrimitiveIdBufferDataSize = TaskContext.InstanceFactor * MaxNumDraws * sizeof(int32);
+		TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
+		PrimitiveIdVertexBufferRHI = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
+		TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
+		TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
+
+		const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
+			&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
+			&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+
+		if (bExecuteInParallel)
+		{
+			TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(
+				nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
+		}
+		else
+		{
+			FMeshDrawCommandPassSetupTask Task(TaskContext);
+			Task.AnyThreadTask();
+		}
 	}
 }
 
@@ -1017,6 +1017,17 @@ void FParallelMeshDrawCommandPass::Empty()
 
 	DumpInstancingStats();
 
+	if (TaskContext.MeshPassProcessor)
+	{
+		TaskContext.MeshPassProcessor->~FMeshPassProcessor();
+		TaskContext.MeshPassProcessor = nullptr;
+	}
+	if (TaskContext.MobileBasePassCSMMeshPassProcessor)
+	{
+		TaskContext.MobileBasePassCSMMeshPassProcessor->~FMeshPassProcessor();
+		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
+	}
+
 	if (!bPrimitiveIdBufferDataOwnedByRHIThread)
 	{
 		FMemory::Free(TaskContext.PrimitiveIdBufferData);
@@ -1026,8 +1037,6 @@ void FParallelMeshDrawCommandPass::Empty()
 	MaxNumDraws = 0;
 	PassNameForStats.Empty();
 
-	TaskContext.MeshPassProcessor = nullptr;
-	TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
 	TaskContext.DynamicMeshElements = nullptr;
 	TaskContext.DynamicMeshElementsPassRelevance = nullptr;
 	TaskContext.MeshDrawCommands.Empty();

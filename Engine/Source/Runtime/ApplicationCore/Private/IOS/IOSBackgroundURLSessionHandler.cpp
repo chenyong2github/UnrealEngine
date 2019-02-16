@@ -152,7 +152,8 @@ const FString FBackgroundURLSessionHandler::GetTemporaryFilePathFromURL(const FS
         FString ConvertedPath = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*DestinationPath);
         
 		destinationURL = [NSURL fileURLWithPath:ConvertedPath.GetNSString()];
-
+        NSLog(@"Attempting to move iOS temp file to BackgroundHttp temp folder | iOSLocation:%s | DestinationLocation:%s", [[location path] UTF8String], [DestinationPath.GetNSString() UTF8String]);
+        
 		[[NSFileManager defaultManager] moveItemAtURL:location toURL:destinationURL error:&downloadError];
 	}
     

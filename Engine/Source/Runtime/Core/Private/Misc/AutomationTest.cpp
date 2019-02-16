@@ -882,6 +882,14 @@ void FAutomationTestBase::AddError(const FString& InError, int32 StackOffset)
 	}
 }
 
+void FAutomationTestBase::AddErrorIfFalse(bool bCondition, const FString& InError, int32 StackOffset)
+{
+	if (!bCondition)
+	{
+		AddError(InError, StackOffset);
+	}
+}
+
 void FAutomationTestBase::AddErrorS(const FString& InError, const FString& InFilename, int32 InLineNumber)
 {
 	if ( !bSuppressLogs && !IsExpectedError(InError))

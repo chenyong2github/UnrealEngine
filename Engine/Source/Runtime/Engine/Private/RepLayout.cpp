@@ -19,6 +19,7 @@
 #include "Misc/App.h"
 #include "Algo/Sort.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "Serialization/ArchiveCountMem.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -567,7 +568,100 @@ TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFla
 
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 {
-	Buffer.CountBytes(Ar);
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepStateStaticBuffer::CountBytes");
+
+	// Unfortunately, this won't track Custom Serialize stucts or Custom Delta Serialize
+	// structs.
+	struct FCountBytesHelper
+	{
+		FCountBytesHelper(
+			FArchive& InAr,
+			const FConstRepShadowDataBuffer InShadowData,
+			const TArray<FRepParentCmd>& InParents,
+			const TArray<FRepLayoutCmd>& InCmds)
+
+			: Ar((FArchiveCountMem&)InAr)
+			, MainShadowData(InShadowData)
+			, Parents(InParents)
+			, Cmds(InCmds)
+		{
+		}
+
+		void CountBytes()
+		{
+			uint64 NewMax = Ar.GetMax();
+			uint64 OldMax = 0;
+
+			for (const FRepParentCmd& Parent : Parents)
+			{
+				OldMax = NewMax;
+
+				CountBytes_Command(Parent, Parent.CmdStart, Parent.CmdEnd, MainShadowData);
+
+				NewMax = Ar.GetMax();
+
+				if (0 < Parent.RepNotifyNumParams ||
+					(0 == Parent.RepNotifyNumParams && REPNOTIFY_OnChanged == Parent.RepNotifyCondition))
+				{
+					OnRepMemory += (NewMax - OldMax);
+				}
+				else
+				{
+					NonRepMemory += (NewMax - OldMax);
+				}
+			}
+		}
+
+		void CountBytes_Command(const FRepParentCmd& Parent, const int32 CmdStart, const int32 CmdEnd, const FConstRepShadowDataBuffer ShadowData) const
+		{
+			for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
+			{
+				const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
+				CountBytes_r(Parent, Cmd, CmdIndex, ShadowData);
+
+				if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+				{
+					CmdIndex = Cmd.EndCmd - 1;
+				}
+			}
+		}
+
+		void CountBytes_r(const FRepParentCmd& Parent, const FRepLayoutCmd& Cmd, const int32 InCmdIndex, const FConstRepShadowDataBuffer ShadowData) const
+		{
+			if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+			{
+				FScriptArray* Array = (FScriptArray*)(ShadowData + Cmd).Data;
+				Array->CountBytes(Ar, Cmd.ElementSize);
+
+				FConstRepShadowDataBuffer ShadowArrayData(Array->GetData());
+
+				for (int32 i = 0; i < Array->Num(); ++i)
+				{
+					CountBytes_Command(Parent, InCmdIndex + 1, Cmd.EndCmd, ShadowArrayData + (Cmd.ElementSize * i));
+				}
+			}
+			else if (ERepLayoutCmdType::PropertyString == Cmd.Type)
+			{
+				((FString const * const)(ShadowData + Cmd).Data)->CountBytes(Ar);
+			}
+		}
+
+		FArchiveCountMem& Ar;
+		const FConstRepShadowDataBuffer MainShadowData;
+		const TArray<FRepParentCmd>& Parents;
+		const TArray<FRepLayoutCmd>& Cmds;
+
+		uint64 OnRepMemory = 0;
+		uint64 NonRepMemory = 0;
+	};
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Static Memory", Buffer.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Dynamic Memory (Undercounts!)",
+		FCountBytesHelper CountBytesHelper(Ar, Buffer.GetData(), RepLayout->Parents, RepLayout->Cmds);
+		CountBytesHelper.CountBytes();
+		GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("OnRepMemory", CountBytesHelper.OnRepMemory);
+		GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK("NonRepMemory", CountBytesHelper.NonRepMemory);
+	);
 }
 
 FRepChangelistState::FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source) :
@@ -595,8 +689,8 @@ FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
 }
 
 void FRepLayout::UpdateChangelistMgr(
-	FReplicationChangelistMgr& InChangelistMgr,
 	FSendingRepState* RESTRICT RepState,
+	FReplicationChangelistMgr& InChangelistMgr,
 	const UObject* InObject,
 	const uint32 ReplicationFrame,
 	const FReplicationFlags& RepFlags,
@@ -624,17 +718,16 @@ void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
 	RepChangelistState.CountBytes(Ar);
 }
 
-
 uint16 FRepLayout::CompareProperties_r(
 	FSendingRepState* RESTRICT RepState,
-	const int32				CmdStart,
-	const int32				CmdEnd,
-	const uint8* RESTRICT	ShadowData,
-	const uint8* RESTRICT	Data,
-	TArray<uint16>&			Changed,
-	uint16					Handle,
-	const bool				bIsInitial,
-	const bool				bForceFail) const
+	const int32 CmdStart,
+	const int32 CmdEnd,
+	const uint8* RESTRICT ShadowData,
+	const uint8* RESTRICT Data,
+	TArray<uint16>& Changed,
+	uint16 Handle,
+	const bool bIsInitial,
+	const bool bForceFail) const
 {
 	check(ShadowData);
 
@@ -667,7 +760,7 @@ uint16 FRepLayout::CompareProperties_r(
 			}
 
 			// Once we hit an array, start using a stack based approach
-			CompareProperties_Array_r(RepState, ShadowData + Cmd.ShadowOffset, ( const uint8* )Data + Cmd.Offset, Changed, CmdIndex, Handle, bIsInitial, bForceFail );
+			CompareProperties_Array_r(RepState, ShadowData + Cmd.ShadowOffset, (const uint8*)Data + Cmd.Offset, Changed, CmdIndex, Handle, bIsInitial, bForceFail);
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
@@ -709,14 +802,13 @@ uint16 FRepLayout::CompareProperties_r(
 
 void FRepLayout::CompareProperties_Array_r(
 	FSendingRepState* RESTRICT RepState,
-	const uint8* RESTRICT	ShadowData,
-	const uint8* RESTRICT	Data,
-	TArray<uint16>&			Changed,
-	const uint16			CmdIndex,
-	const uint16			Handle,
-	const bool				bIsInitial,
-	const bool				bForceFail
-	) const
+	const uint8* RESTRICT ShadowData,
+	const uint8* RESTRICT Data,
+	TArray<uint16>& Changed,
+	const uint16 CmdIndex,
+	const uint16 Handle,
+	const bool bIsInitial,
+	const bool bForceFail) const
 {
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 
@@ -727,7 +819,7 @@ void FRepLayout::CompareProperties_Array_r(
 	const uint16 ShadowArrayNum = ShadowArray->Num();
 
 	// Make the shadow state match the actual state at the time of compare
-	FScriptArrayHelper StoredArrayHelper((UArrayProperty*)Cmd.Property, ShadowData);
+	FScriptArrayHelper StoredArrayHelper((UArrayProperty*)Cmd.Property, ShadowArray);
 	StoredArrayHelper.Resize(ArrayNum);
 
 	TArray<uint16> ChangedLocal;
@@ -767,9 +859,9 @@ void FRepLayout::CompareProperties_Array_r(
 
 bool FRepLayout::CompareProperties(
 	FSendingRepState* RESTRICT RepState,
-	FRepChangelistState* RESTRICT	RepChangelistState,
-	const uint8* RESTRICT			Data,
-	const FReplicationFlags&		RepFlags) const
+	FRepChangelistState* RESTRICT RepChangelistState,
+	const uint8* RESTRICT Data,
+	const FReplicationFlags& RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime);
 
@@ -901,8 +993,8 @@ bool FRepLayout::ReplicateProperties(
 			if (Pruned.Num() > 0)
 			{
 				SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Pruned);
-			return true;
-		}
+				return true;
+			}
 		}
 
 		return false;
@@ -960,7 +1052,7 @@ bool FRepLayout::ReplicateProperties(
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MergeChangeList(Data, HistoryItem.Changed, Temp, Changed);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS		
 	}
 
 	// Merge in newly active properties so they can be sent.
@@ -1018,7 +1110,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	const int32 NumBits = Writer.GetNumBits();
 
-	// Filter out the final changelist into Active and Inaction.
+	// Filter out the final changelist into Active and Inactive.
 	TArray<uint16> UnfilteredChanged = MoveTemp(Changed);
 	TArray<uint16> NewlyInactiveChangelist;
 	FilterChangeList(UnfilteredChanged, RepState->InactiveParents, NewlyInactiveChangelist, Changed);
@@ -1046,8 +1138,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (Changed.Num() > 0)
 		{
-		SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
-	}
+			SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
+		}
 	}
 	else if (Changed.Num() > 0)
 	{
@@ -1756,7 +1848,7 @@ void FRepLayout::SendProperties_r(
 			{
 				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
 			}
-		}		
+		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GDoReplicationContextString> 0)
@@ -2087,7 +2179,7 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 			{
 				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
 			}
-		}		
+		}
 
 		WriteProperty_BackwardsCompatible(Writer, Cmd, HandleIterator.CmdIndex, Owner, Data, bDoChecksum);
 	}
@@ -2097,13 +2189,13 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 
 void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 	FSendingRepState* RESTRICT RepState,
-	FNetBitWriter&						Writer,
-	const bool							bDoChecksum,
-	UPackageMapClient*					PackageMapClient,
-	FNetFieldExportGroup*				NetFieldExportGroup,
-	const int32							CmdStart,
-	const int32							CmdEnd, 
-	const uint8*						SourceData) const
+	FNetBitWriter& Writer,
+	const bool bDoChecksum,
+	UPackageMapClient* PackageMapClient,
+	FNetFieldExportGroup* NetFieldExportGroup,
+	const int32 CmdStart,
+	const int32 CmdEnd, 
+	const uint8* SourceData) const
 {
 	FNetBitWriter TempWriter(Writer.PackageMap, 0);
 
@@ -4949,13 +5041,48 @@ void FRepLayout::BuildHandleToCmdIndexTable_r(
 	}
 }
 
+TStaticBitArray<COND_Max> FSendingRepState::BuildConditionMap(const FReplicationFlags& RepFlags)
+{
+	TStaticBitArray<COND_Max> ConditionMap;
+
+	// Setup condition map
+	const bool bIsInitial = RepFlags.bNetInitial ? true : false;
+	const bool bIsOwner = RepFlags.bNetOwner ? true : false;
+	const bool bIsSimulated = RepFlags.bNetSimulated ? true : false;
+	const bool bIsPhysics = RepFlags.bRepPhysics ? true : false;
+	const bool bIsReplay = RepFlags.bReplay ? true : false;
+
+	ConditionMap[COND_None] = true;
+	ConditionMap[COND_InitialOnly] = bIsInitial;
+
+	ConditionMap[COND_OwnerOnly] = bIsOwner;
+	ConditionMap[COND_SkipOwner] = !bIsOwner;
+
+	ConditionMap[COND_SimulatedOnly] = bIsSimulated;
+	ConditionMap[COND_SimulatedOnlyNoReplay] = bIsSimulated && !bIsReplay;
+	ConditionMap[COND_AutonomousOnly] = !bIsSimulated;
+
+	ConditionMap[COND_SimulatedOrPhysics] = bIsSimulated || bIsPhysics;
+	ConditionMap[COND_SimulatedOrPhysicsNoReplay] = (bIsSimulated || bIsPhysics) && !bIsReplay;
+
+	ConditionMap[COND_InitialOrOwner] = bIsInitial || bIsOwner;
+	ConditionMap[COND_ReplayOrOwner] = bIsReplay || bIsOwner;
+	ConditionMap[COND_ReplayOnly] = bIsReplay;
+	ConditionMap[COND_SkipReplay] = !bIsReplay;
+
+	ConditionMap[COND_Custom] = true;
+	ConditionMap[COND_Never] = false;
+
+	return ConditionMap;
+}
+
 void FRepLayout::RebuildConditionalProperties(
 	FSendingRepState* RESTRICT RepState,
 	const FReplicationFlags& RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetRebuildConditionalTime);
 	
-	TStaticBitArray<COND_Max> ConditionMap = BuildConditionMapFromRepFlags(RepFlags);
+	TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMap(RepFlags);
 	for (auto It = TBitArray<>::FIterator(RepState->InactiveParents); It; ++It)
 	{
 		It.GetValue() = !ConditionMap[Parents[It.GetIndex()].Condition];
@@ -5017,8 +5144,8 @@ TUniquePtr<FRepState> FRepLayout::CreateRepState(
 
 		// Start out the conditional props based on a default RepFlags struct
 		// It will rebuild if it ever changes
-		RepState->SendingRepState->InactiveParents.Init(false, Parents.Num());
 		RebuildConditionalProperties(RepState->SendingRepState.Get(), FReplicationFlags());
+		RepState->SendingRepState->InactiveParents.Init(false, Parents.Num());
 	}
 	
 	if (!EnumHasAnyFlags(Flags, ECreateRepStateFlags::SkipCreateReceivingState))
@@ -5045,7 +5172,6 @@ void FRepLayout::InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, con
 	ConstructProperties(ShadowData);
 	CopyProperties(ShadowData, Source);
 }
-
 
 void FRepLayout::ConstructProperties(FRepStateStaticBuffer& InShadowData) const
 {

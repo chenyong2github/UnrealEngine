@@ -31,6 +31,8 @@ UPendingNetGame::UPendingNetGame(const FObjectInitializer& ObjectInitializer)
 
 void UPendingNetGame::InitNetDriver()
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if (!GDisallowNetworkTravel)
 	{
 		NETWORK_PROFILER(GNetworkProfiler.TrackSessionChange(true, URL));

@@ -153,7 +153,7 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromPositionHistory(
 				NextIndex = 0;
 			}
 			History.Positions[NextIndex] = Position;
-			History.Velocities[History.LastIndex] = LengthOfV;
+			History.Velocities[NextIndex] = LengthOfV;
 			History.LastIndex = NextIndex;
 		}
 		else

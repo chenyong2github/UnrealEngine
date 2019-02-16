@@ -42,11 +42,6 @@ struct FIOSPlatformProperties
 	{
 		return true;
 	}
-
-    static FORCEINLINE bool SupportsQuit()
-    {
-        return true;
-    }
     
 	static FORCEINLINE bool SupportsBuildTarget( EBuildTargets::Type BuildTarget )
 	{
@@ -73,6 +68,10 @@ struct FIOSPlatformProperties
 		return true;
 	}
 	static FORCEINLINE bool SupportsMemoryMappedAudio()
+	{
+		return true;
+	}
+	static FORCEINLINE bool SupportsMemoryMappedAnimation()
 	{
 		return true;
 	}

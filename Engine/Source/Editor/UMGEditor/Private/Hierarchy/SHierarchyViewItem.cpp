@@ -607,6 +607,17 @@ void FHierarchyRoot::UpdateSelection()
 	}
 }
 
+bool FHierarchyRoot::DoesWidgetOverrideFlowDirection() const
+{
+	TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
+	if (UWidget* Default = BPEd->GetWidgetBlueprintObj()->GeneratedClass->GetDefaultObject<UWidget>())
+	{
+		return Default->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+	}
+
+	return false;
+}
+
 TOptional<EItemDropZone> FHierarchyRoot::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
 	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
@@ -1163,6 +1174,19 @@ void SHierarchyViewItem::Construct(const FArguments& InArgs, const TSharedRef< S
 				.OnVerifyTextChanged(this, &SHierarchyViewItem::OnVerifyNameTextChanged)
 				.OnTextCommitted(this, &SHierarchyViewItem::OnNameTextCommited)
 				.IsSelected(this, &SHierarchyViewItem::IsSelectedExclusively)
+			]
+
+			// Flow Direction Icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("FlowDirectionHierarchyToolTip", "This widget overrides the flow direction preference."))
+				.Visibility_Lambda([InModel] { return InModel->DoesWidgetOverrideFlowDirection() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.ColorAndOpacity(FCoreStyle::Get().GetSlateColor("Foreground"))
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FEditorFontGlyphs::Exchange)
 			]
 
 			// Locked Icon
