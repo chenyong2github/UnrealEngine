@@ -110,7 +110,7 @@ struct FMetalGraphicsPipelineKey
 		bool bHasActiveTargets = false;
 		for (uint32 i = 0; i < NumActiveTargets; i++)
 		{
-			EPixelFormat TargetFormat = Init.RenderTargetFormats[i];
+			EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
 			if (TargetFormat == PF_Unknown) { continue; }
 
 			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
@@ -525,7 +525,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		
         for (uint32 i = 0; i < NumActiveTargets; i++)
         {
-            EPixelFormat TargetFormat = Init.RenderTargetFormats[i];
+            EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
             if (TargetFormat == PF_Unknown && PixelShader && (((PixelShader->Bindings.InOutMask & 0x7fff) & (1 << i))))
             {
 				UE_LOG(LogMetal, Fatal, TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
