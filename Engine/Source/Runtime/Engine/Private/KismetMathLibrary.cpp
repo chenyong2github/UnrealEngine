@@ -1131,4 +1131,51 @@ float UKismetMathLibrary::PerlinNoise1D(const float Value)
 	return FMath::PerlinNoise1D(Value);
 }
 
+float UKismetMathLibrary::WeightedMovingAverage_Float(float CurrentSample, float PreviousSample, float Weight)
+{
+	return FMath::WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
+}
+
+FVector UKismetMathLibrary::WeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float Weight)
+{
+	FVector OutVector;
+	OutVector.X = FMath::WeightedMovingAverage(CurrentSample.X, PreviousSample.X, Weight);
+	OutVector.Y = FMath::WeightedMovingAverage(CurrentSample.Y, PreviousSample.Y, Weight);
+	OutVector.Z = FMath::WeightedMovingAverage(CurrentSample.Z, PreviousSample.Z, Weight);
+	return OutVector;
+}
+
+FRotator UKismetMathLibrary::WeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float Weight)
+{
+	FRotator OutRotator;
+	OutRotator.Yaw = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Yaw, PreviousSample.Yaw, Weight), -180.f, 180.f);
+	OutRotator.Pitch = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Pitch, PreviousSample.Pitch, Weight), -180.f, 180.f);
+	OutRotator.Roll = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Roll, PreviousSample.Roll, Weight), -180.f, 180.f);
+	return OutRotator;
+}
+
+float UKismetMathLibrary::DynamicWeightedMovingAverage_Float(float CurrentSample, float PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
+{
+	return FMath::DynamicWeightedMovingAverage(CurrentSample, PreviousSample, MaxDistance, MinWeight, MaxWeight);
+}
+
+FVector UKismetMathLibrary::DynamicWeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
+{
+	FVector OutVector;
+	OutVector.X = FMath::DynamicWeightedMovingAverage(CurrentSample.X, PreviousSample.X, MaxDistance, MinWeight, MaxWeight);
+	OutVector.Y = FMath::DynamicWeightedMovingAverage(CurrentSample.Y, PreviousSample.Y, MaxDistance, MinWeight, MaxWeight);
+	OutVector.Z = FMath::DynamicWeightedMovingAverage(CurrentSample.Z, PreviousSample.Z, MaxDistance, MinWeight, MaxWeight);
+	return OutVector;
+}
+
+FRotator UKismetMathLibrary::DynamicWeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
+{
+	FRotator OutRotator;
+	OutRotator.Yaw = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Yaw, PreviousSample.Yaw, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	OutRotator.Pitch = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Pitch, PreviousSample.Pitch, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	OutRotator.Roll = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Roll, PreviousSample.Roll, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	return OutRotator;
+}
+
+
 #undef LOCTEXT_NAMESPACE
