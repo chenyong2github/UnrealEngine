@@ -5,6 +5,7 @@
 #include "GameplayEffect.h"
 #include "GameplayTagsModule.h"
 #include "GameplayEffectExtension.h"
+#include "Net/UnrealNetwork.h"
 
 
 UAbilitySystemTestAttributeSet::UAbilitySystemTestAttributeSet(const FObjectInitializer& ObjectInitializer)
@@ -115,6 +116,8 @@ void UAbilitySystemTestAttributeSet::PostGameplayEffectExecute(const struct FGam
 
 void UAbilitySystemTestAttributeSet::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {
+	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(UAbilitySystemTestAttributeSet, EFieldIteratorFlags::IncludeSuper);
+	
 	/*
 	DOREPLIFETIME( UAbilitySystemTestAttributeSet, MaxHealth);
 	DOREPLIFETIME( UAbilitySystemTestAttributeSet, Health);
