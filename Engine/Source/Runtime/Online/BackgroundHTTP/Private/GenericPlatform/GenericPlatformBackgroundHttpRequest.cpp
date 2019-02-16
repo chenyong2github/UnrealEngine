@@ -31,6 +31,12 @@ bool FGenericPlatformBackgroundHttpRequest::HandleDelayedProcess()
 	return RequestWrapper.IsValid() || GetResponse().IsValid();
 }
 
+void FGenericPlatformBackgroundHttpRequest::CancelRequest()
+{
+	FBackgroundHttpRequestImpl::CancelRequest();
+	RequestWrapper.Reset();
+}
+
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpRequest::CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse)
 {
 	//Remove our request wrapper immediately so the Response cleans up ASAP instead of the user having to delete this task to clean up the Http Response.
