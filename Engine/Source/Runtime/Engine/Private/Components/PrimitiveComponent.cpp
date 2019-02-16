@@ -225,10 +225,6 @@ FThreadSafeCounter UPrimitiveComponent::NextComponentId;
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
 {
-	PostPhysicsComponentTick.bCanEverTick = false;
-	PostPhysicsComponentTick.bStartWithTickEnabled = true;
-	PostPhysicsComponentTick.TickGroup = TG_PostPhysics;
-
 	LastRenderTime = -1000.0f;
 	LastRenderTimeOnScreen = -1000.0f;
 	BoundsScale = 1.0f;
@@ -428,74 +424,6 @@ void UPrimitiveComponent::GetUsedTextures(TArray<UTexture*>& OutTextures, EMater
 		}
 	}
 }
-
-/** 
-* Abstract function actually execute the tick. 
-* @param DeltaTime - frame time to advance, in seconds
-* @param TickType - kind of tick for this frame
-* @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
-* @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
-**/
-void FPrimitiveComponentPostPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FActorComponentTickFunction::ExecuteTickHelper(Target, /*bTickInEditor=*/ false, DeltaTime, TickType, [this](float DilatedTime){ Target->PostPhysicsTick(*this); });
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-FString FPrimitiveComponentPostPhysicsTickFunction::DiagnosticMessage()
-{
-	return Target->GetFullName() + TEXT("[UPrimitiveComponent::PostPhysicsTick]");
-}
-
-void UPrimitiveComponent::RegisterComponentTickFunctions(bool bRegister)
-{
-	Super::RegisterComponentTickFunctions(bRegister);
-
-	if (bRegister)
-	{
-		if (SetupActorComponentTickFunction(&PostPhysicsComponentTick))
-		{
-			PostPhysicsComponentTick.Target = this;
-
-			// If primary tick is registered, add a prerequisate to it
-			if(PrimaryComponentTick.bCanEverTick)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(this,PrimaryComponentTick); 
-			}
-
-			// Set a prereq for the post physics tick to happen after physics is finished
-			UWorld* World = GetWorld();
-			if (World != nullptr)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(World, World->EndPhysicsTickFunction);
-			}
-		}
-	}
-	else
-	{
-		if(PostPhysicsComponentTick.IsTickFunctionRegistered())
-		{
-			PostPhysicsComponentTick.UnRegisterTickFunction();
-		}
-	}
-}
-
-void UPrimitiveComponent::SetPostPhysicsComponentTickEnabled(bool bEnable)
-{
-	// @todo ticking, James, turn this off when not needed
-	if (PostPhysicsComponentTick.bCanEverTick && !IsTemplate())
-	{
-		PostPhysicsComponentTick.SetTickFunctionEnable(bEnable);
-	}
-}
-
-bool UPrimitiveComponent::IsPostPhysicsComponentTickEnabled() const
-{
-	return PostPhysicsComponentTick.IsTickFunctionEnabled();
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // Render
