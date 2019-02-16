@@ -745,7 +745,7 @@ void FRenderAssetStreamingManager::NotifyActorDestroyed( AActor* Actor )
 	// Remove any reference in the level managers.
 	for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 	{
-		if (!Level || (LevelManager!=nullptr && LevelManager->GetLevel() == Level))
+		if (LevelManager!=nullptr && (!Level || LevelManager->GetLevel() == Level))
 		{
 			LevelManager->RemoveActorReferences(Actor);
 			for (UPrimitiveComponent* Component : Components)
