@@ -71,6 +71,7 @@ class ENGINE_API UChannel
 	uint32				SentClosingBunch:1;	// Set when sending closing bunch to avoid recursion in send-failure-close case.
 	uint32				bPooled:1;			// Set when placed in the actor channel pool
 	uint32				OpenedLocally:1;	// Whether channel was opened locally or by remote.
+	uint32				bOpenedForCheckpoint:1;	// Whether channel was opened by replay checkpoint recording
 	int32				ChIndex;			// Index of this channel.
 	FPacketIdRange		OpenPacketId;		// If OpenedLocally is true, this is the packet we sent the bOpen bunch on. Otherwise, it's the packet we received the bOpen bunch on.
 	UE_DEPRECATED(4.22, "ChType has been deprecated in favor of ChName.")
