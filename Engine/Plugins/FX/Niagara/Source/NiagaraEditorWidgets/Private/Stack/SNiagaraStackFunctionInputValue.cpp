@@ -25,6 +25,8 @@
 #include "Modules/ModuleManager.h"
 #include "AssetRegistryModule.h"
 #include "NiagaraParameterCollection.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraSystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -440,7 +442,16 @@ FReply SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked()
 		UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset());
 		if (Collection && Collection->GetNamespace() == *ParamCollection)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(Collection);
+			if (UNiagaraParameterCollectionInstance* NPCInst = FunctionInput->GetSystemViewModel()->GetSystem().GetParameterCollectionOverride(Collection))
+			{
+				//If we override this NPC then open the instance.
+				FAssetEditorManager::Get().OpenEditorForAsset(NPCInst);
+			}
+			else
+			{
+				FAssetEditorManager::Get().OpenEditorForAsset(Collection); 
+			}
+			
 			return FReply::Handled();
 		}
 	}

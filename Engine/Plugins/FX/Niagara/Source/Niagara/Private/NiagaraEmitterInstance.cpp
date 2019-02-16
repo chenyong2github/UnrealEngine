@@ -161,8 +161,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	checkSlow(CachedEmitter);
 	CachedIDName = EmitterHandle.GetIdName();
 
+	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	if (!EmitterHandle.GetIsEnabled()
-		|| !CachedEmitter->IsAllowedByDetailLevel()
+		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
 		|| (GMaxRHIFeatureLevel != ERHIFeatureLevel::SM5 && GMaxRHIFeatureLevel != ERHIFeatureLevel::ES3_1 && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
 		)
 	{
@@ -891,10 +892,9 @@ void FNiagaraEmitterInstance::PreTick()
 
 bool FNiagaraEmitterInstance::WaitForDebugInfo()
 {
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && DebugContext)
 	{
-		FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
-
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList)
 		{
 			Batcher->ProcessDebugInfo(RHICmdList, GPUExecContext);
