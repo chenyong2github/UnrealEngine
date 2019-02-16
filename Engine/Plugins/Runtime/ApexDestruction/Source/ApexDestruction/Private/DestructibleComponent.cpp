@@ -38,7 +38,6 @@ UDestructibleComponent::UDestructibleComponent(const FObjectInitializer& ObjectI
 {
 
 	PrimaryComponentTick.bCanEverTick = false;
-	PostPhysicsComponentTick.bCanEverTick = false;
 
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
 
