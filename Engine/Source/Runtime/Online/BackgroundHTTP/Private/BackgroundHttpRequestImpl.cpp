@@ -24,6 +24,26 @@ bool FBackgroundHttpRequestImpl::ProcessRequest()
 	return true;
 }
 
+void FBackgroundHttpRequestImpl::CancelRequest()
+{
+	UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Cancelling Request - RequestID:%s"), *GetRequestID());
+	FBackgroundHttpModule::Get().GetBackgroundHttpManager()->RemoveRequest(SharedThis(this));
+}
+
+void FBackgroundHttpRequestImpl::PauseRequest()
+{
+    //for now a pause is just wrapping a cancel in the general case
+    UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Request (through cancel) - RequestID:%s"), *GetRequestID());
+    CancelRequest();
+}
+
+void FBackgroundHttpRequestImpl::ResumeRequest()
+{
+    //for now a resume is just wrapping a restart in the general case
+    UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Request (through restart) - RequestID:%s"), *GetRequestID());
+    ProcessRequest();
+}
+
 void FBackgroundHttpRequestImpl::OnBackgroundDownloadComplete()
 {
 	FBackgroundHttpModule::Get().GetBackgroundHttpManager()->RemoveRequest(SharedThis(this));
