@@ -89,6 +89,7 @@ struct FRenderAssetStreamingSettings
 	float MaxTextureUVDensity;
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
+	bool bMipCalculationEnablePerLevelList;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;
