@@ -305,6 +305,9 @@ struct ENGINE_API FRequestAnimCompressionParams
 	// Should we attempt to do framestripping (removing every other frame from raw animation tracks)
 	bool bPerformFrameStripping;
 
+	// If false we only perform frame stripping on even numbered frames (as a quality measure)
+	bool bPerformFrameStrippingOnOddNumberedFrames;
+
 	// Compression context
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
