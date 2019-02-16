@@ -5089,6 +5089,8 @@ void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response,
 bool UWorld::Listen( FURL& InURL )
 {
 #if WITH_SERVER_CODE
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if( NetDriver )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverAlreadyExists);
