@@ -408,6 +408,22 @@ FString FHlslNiagaraTranslator::GetFunctionDefinitions()
 		// data interface functions that should be defined differently.
 	}
 
+	//Add a few hard coded helper functions in.
+	FwdDeclString += TEXT("float GetSpawnInterpolation();");
+	//Add helper function to get the interpolation factor.
+	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
+	{
+		DefinitionsString += TEXT("float GetSpawnInterpolation()\n{\n");
+		DefinitionsString += TEXT("\treturn HackSpawnInterp;\n");
+		DefinitionsString += TEXT("}\n\n");
+	}
+	else
+	{
+		DefinitionsString += TEXT("float GetSpawnInterpolation()\n{\n");
+		DefinitionsString += TEXT("\treturn 1.0f;");
+		DefinitionsString += TEXT("}\n\n");
+	}
+
 	return FwdDeclString + TEXT("\n") + DefinitionsString;
 }
 
@@ -1171,6 +1187,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 			HlslOutput += TEXT("};\n\n");
 		}
+		
+		HlslOutput += TEXT("static float HackSpawnInterp = 1.0;\n");
 
 		HlslOutput += FunctionDefinitionString;
 
@@ -1437,6 +1455,7 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 			HlslOutputString += TEXT("\tfloat InterpSpawn_InvSpawnTime = 1.0 / InterpSpawn_SpawnTime;\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_InvUpdateTime = 1.0 / InterpSpawn_UpdateTime;\n");
 			HlslOutputString += TEXT("\tfloat SpawnInterp = InterpSpawn_SpawnTime * Engine_InverseDeltaTime ;\n");
+			HlslOutputString += TEXT("\tHackSpawnInterp = SpawnInterp;\n");
 
 			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Interpolation.InterpSpawn_Index = InterpSpawn_Index;\n");
 			HlslOutputString += TEXT("\tContext.") + PrevMap + TEXT(".Interpolation.InterpSpawn_SpawnTime = InterpSpawn_SpawnTime;\n");
