@@ -29,6 +29,8 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Sound/SampleBuffer.h"
 
+#include "Misc/CommandLine.h"
+
 static int32 BypassVirtualizeWhenSilentCVar = 0;
 FAutoConsoleVariableRef CVarBypassVirtualizeWhenSilent(
 	TEXT("au.BypassVirtualizeWhenSilent"),
@@ -116,7 +118,9 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	{
 		BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
 	}
-	BulkData.Serialize(Ar, Owner, ChunkIndex);
+
+	// streaming doesn't use memory mapped IO
+	BulkData.Serialize(Ar, Owner, ChunkIndex, false);
 	Ar << DataSize;
 	Ar << AudioDataSize;
 
@@ -353,12 +357,20 @@ void USoundWave::Serialize( FArchive& Ar )
 						ActualFormatsToSave.Add(Format);
 					}
 				}
-				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave);
+				bool bInline = !(CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAudio));
+				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave, true, DEFAULT_ALIGNMENT, bInline);
 #endif
 			}
 			else
 			{
-				CompressedFormatData.Serialize(Ar, this);
+				if (FPlatformProperties::SupportsMemoryMappedFiles() && FPlatformProperties::SupportsMemoryMappedAudio())
+				{
+					CompressedFormatData.SerializeAttemptMappedLoad(Ar, this);
+				}
+				else
+				{
+					CompressedFormatData.Serialize(Ar, this);
+				}
 			}
 		}
 	}
@@ -785,8 +797,9 @@ void USoundWave::InitAudioResource( FByteBulkData& CompressedData )
 		ResourceSize = CompressedData.GetBulkDataSize();
 		if( ResourceSize > 0 )
 		{
-			check(!ResourceData);
-			CompressedData.GetCopy( ( void** )&ResourceData, true );
+			check(!OwnedBulkDataPtr);
+			OwnedBulkDataPtr = CompressedData.StealFileMapping();
+			ResourceData = (const uint8*)OwnedBulkDataPtr->GetPointer();
 		}
 	}
 }
@@ -798,10 +811,8 @@ bool USoundWave::InitAudioResource(FName Format)
 		FByteBulkData* Bulk = GetCompressedData(Format, GetPlatformCompressionOverridesForCurrentPlatform());
 		if (Bulk)
 		{
-			ResourceSize = Bulk->GetBulkDataSize();
+			InitAudioResource(*Bulk);
 			check(ResourceSize > 0);
-			check(!ResourceData);
-			Bulk->GetCopy((void**)&ResourceData, true);
 		}
 	}
 
@@ -810,12 +821,10 @@ bool USoundWave::InitAudioResource(FName Format)
 
 void USoundWave::RemoveAudioResource()
 {
-	if(ResourceData)
-	{
-		FMemory::Free(ResourceData);
+	delete OwnedBulkDataPtr;
+	OwnedBulkDataPtr = nullptr;
+	ResourceData = nullptr;
 		ResourceSize = 0;
-		ResourceData = NULL;
-	}
 }
 
 #if WITH_EDITOR
@@ -935,10 +944,10 @@ static bool AnyEnvelopeAnalysisPropertiesChanged(const FName& PropertyName)
 {
 	// List of properties which cause re-analysis to get triggered
 	static FName OverrideSoundName						= GET_MEMBER_NAME_CHECKED(USoundWave, OverrideSoundToUseForAnalysis);
-	static FName EnableAmplitudeEnvelopeAnalysisFName	= GET_MEMBER_NAME_CHECKED(USoundWave, bEnableAmplitudeEnvelopeAnalysis);
-	static FName EnvelopeFollowerFrameSizeFName			= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerFrameSize);
-	static FName EnvelopeFollowerAttackTimeFName		= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerAttackTime);
-	static FName EnvelopeFollowerReleaseTimeFName		= GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerReleaseTime);
+	static FName EnableAmplitudeEnvelopeAnalysisFName = GET_MEMBER_NAME_CHECKED(USoundWave, bEnableAmplitudeEnvelopeAnalysis);
+	static FName EnvelopeFollowerFrameSizeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerFrameSize);
+	static FName EnvelopeFollowerAttackTimeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerAttackTime);
+	static FName EnvelopeFollowerReleaseTimeFName = GET_MEMBER_NAME_CHECKED(USoundWave, EnvelopeFollowerReleaseTime);
 
 	return	PropertyName == OverrideSoundName ||
 			PropertyName == EnableAmplitudeEnvelopeAnalysisFName ||
@@ -1112,7 +1121,7 @@ void USoundWave::BakeFFTAnalysis()
 				}
 				else if (NewData.TimeSec > 0.0f)
 				{
-					CookedSpectralTimeData.Add(NewData);
+				CookedSpectralTimeData.Add(NewData);
 				}
 				*/
 

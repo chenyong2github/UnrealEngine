@@ -244,6 +244,19 @@ struct FGenericPlatformProperties
 		return true;
 	}
 
+	static FORCEINLINE bool SupportsMemoryMappedFiles()
+	{
+		return false;
+	}
+	static FORCEINLINE bool SupportsMemoryMappedAudio()
+	{
+		return false;
+	}
+	static FORCEINLINE int64 GetMemoryMappingAlignment()
+	{
+		return 0;
+	}
+
 	/**
 	 * Gets whether user settings should override the resolution or not
 	 */
