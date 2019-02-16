@@ -2625,6 +2625,16 @@ void USkeletalMeshComponent::K2_SetAnimInstanceClass(class UClass* NewClass)
 	SetAnimInstanceClass(NewClass);
 }
 
+void USkeletalMeshComponent::SetAnimClass(class UClass* NewClass)
+{
+	SetAnimInstanceClass(NewClass);
+}
+
+class UClass* USkeletalMeshComponent::GetAnimClass()
+{
+	return AnimClass;
+}
+
 void USkeletalMeshComponent::SetAnimInstanceClass(class UClass* NewClass)
 {
 	if (NewClass != nullptr)
