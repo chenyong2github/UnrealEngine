@@ -2,6 +2,8 @@
 #include "GenericPlatform/GenericPlatformBackgroundHttpResponse.h"
 #include "GenericPlatform/GenericPlatformBackgroundHttp.h"
 
+#include "PlatformBackgroundHttp.h"
+
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/FileHelper.h"
 
