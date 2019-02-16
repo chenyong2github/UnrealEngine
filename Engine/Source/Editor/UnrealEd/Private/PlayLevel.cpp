@@ -3429,6 +3429,34 @@ FViewport* UEditorEngine::GetPIEViewport()
 	return nullptr;
 }
 
+bool UEditorEngine::GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const
+{
+	if (bIsSimulatingInEditor)
+	{
+		// The first PIE world context is the one that can toggle between PIE and SIE
+		for (const FWorldContext& WorldContext : WorldList)
+		{
+			if (WorldContext.WorldType == EWorldType::PIE && !WorldContext.RunAsDedicated)
+			{
+				const FSlatePlayInEditorInfo* SlateInfoPtr = SlatePlayInEditorMap.Find(WorldContext.ContextHandle);
+				if (SlateInfoPtr)
+				{
+					// This is only supported inside SLevelEditor viewports currently
+					TSharedPtr<ILevelViewport> LevelViewport = SlateInfoPtr->DestinationSlateViewport.Pin();
+					if (LevelViewport.IsValid())
+					{
+						FLevelEditorViewportClient& EditorViewportClient = LevelViewport->GetLevelViewportClient();
+						OutViewTransform = FTransform(EditorViewportClient.GetViewRotation(), EditorViewportClient.GetViewLocation());
+						return true;
+					}
+				}
+				break;
+			}
+		}
+	}
+	return false;
+}
+
 void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 {
 	bIsToggleBetweenPIEandSIEQueued = false;
