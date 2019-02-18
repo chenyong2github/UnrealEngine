@@ -1,5 +1,6 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 #include "IOS/ApplePlatformBackgroundHttpRequest.h"
+#include "IOS/ApplePlatformBackgroundHttpManager.h"
 #include "Interfaces/IBackgroundHttpResponse.h"
 #include "BackgroundHttpModule.h"
 
@@ -10,6 +11,7 @@ FApplePlatformBackgroundHttpRequest::FApplePlatformBackgroundHttpRequest()
 	, ResumeDataRetryCount(0)
     , FirstTask(nullptr)
     , bIsTaskActive(false)
+    , bIsTaskPaused(false)
     , bIsCompleted(false)
     , bIsFailed(false)
     , bWasTaskStartedInBG(false)
@@ -93,7 +95,30 @@ void FApplePlatformBackgroundHttpRequest::ActivateUnderlyingTask()
             UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Activating Task for Request -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
         
             FPlatformAtomics::InterlockedExchange(&bIsTaskActive, true);
+            FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, false);
+
             [UnderlyingTask resume];
+            
+            ResetTimeOutTimer();
+            ResetProgressTracking();
+        }
+    }
+}
+
+void FApplePlatformBackgroundHttpRequest::PauseUnderlyingTask()
+{
+    volatile FTaskNode* ActiveTaskNode = FirstTask;
+    if (ensureAlwaysMsgf((nullptr != ActiveTaskNode), TEXT("Call to PauseUnderlyingTask with an invalid node! Need to create underlying task(and node) before trying to pause!")))
+    {
+        NSURLSessionTask* UnderlyingTask = ActiveTaskNode->OurTask;
+        if (ensureAlwaysMsgf((nullptr != UnderlyingTask), TEXT("Call to PauseUnderlyingTask with an invalid task! Need to create underlying task before trying to pause!")))
+        {
+            FString TaskURL = [[[UnderlyingTask currentRequest] URL] absoluteString];
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Task for Request -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
+            
+            FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
+            FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, true);
+            [UnderlyingTask suspend];
             
             ResetTimeOutTimer();
             ResetProgressTracking();
@@ -104,6 +129,11 @@ void FApplePlatformBackgroundHttpRequest::ActivateUnderlyingTask()
 bool FApplePlatformBackgroundHttpRequest::IsUnderlyingTaskActive()
 {
     return FPlatformAtomics::AtomicRead(&bIsTaskActive);
+}
+
+bool FApplePlatformBackgroundHttpRequest::IsUnderlyingTaskPaused()
+{
+    return FPlatformAtomics::AtomicRead(&bIsTaskPaused);
 }
 
 bool FApplePlatformBackgroundHttpRequest::TickTimeOutTimer(float DeltaTime)
@@ -136,6 +166,16 @@ void FApplePlatformBackgroundHttpRequest::AssociateWithTask(NSURLSessionTask* Ex
         ResetTimeOutTimer();
         ResetProgressTracking();
 	}
+}
+
+void FApplePlatformBackgroundHttpRequest::PauseRequest()
+{
+    PauseUnderlyingTask();
+}
+
+void FApplePlatformBackgroundHttpRequest::ResumeRequest()
+{
+    ActivateUnderlyingTask();
 }
 
 void FApplePlatformBackgroundHttpRequest::CancelActiveTask()
