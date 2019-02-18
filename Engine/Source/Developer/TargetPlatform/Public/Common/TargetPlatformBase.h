@@ -251,6 +251,8 @@ public:
 
 		case ETargetPlatformFeatures::MemoryMappedAudio:
 			return TPlatformProperties::SupportsMemoryMappedAudio();
+		case ETargetPlatformFeatures::MemoryMappedAnimation:
+			return TPlatformProperties::SupportsMemoryMappedAnimation();
 
 		case ETargetPlatformFeatures::SdkConnectDisconnect:
 		case ETargetPlatformFeatures::UserCredentials:

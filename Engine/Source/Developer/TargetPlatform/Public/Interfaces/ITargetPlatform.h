@@ -81,6 +81,9 @@ enum class ETargetPlatformFeatures
 
 	/* The platform supports memory mapped audio */
 	MemoryMappedAudio,
+
+	/* The platform supports memory mapped animation */
+	MemoryMappedAnimation,
 };
 
 
