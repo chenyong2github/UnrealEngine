@@ -689,8 +689,8 @@ FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
 }
 
 void FRepLayout::UpdateChangelistMgr(
-	FReplicationChangelistMgr& InChangelistMgr,
 	FSendingRepState* RESTRICT RepState,
+	FReplicationChangelistMgr& InChangelistMgr,
 	const UObject* InObject,
 	const uint32 ReplicationFrame,
 	const FReplicationFlags& RepFlags,
@@ -718,17 +718,16 @@ void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
 	RepChangelistState.CountBytes(Ar);
 }
 
-
 uint16 FRepLayout::CompareProperties_r(
 	FSendingRepState* RESTRICT RepState,
-	const int32				CmdStart,
-	const int32				CmdEnd,
-	const uint8* RESTRICT	ShadowData,
-	const uint8* RESTRICT	Data,
-	TArray<uint16>&			Changed,
-	uint16					Handle,
-	const bool				bIsInitial,
-	const bool				bForceFail) const
+	const int32 CmdStart,
+	const int32 CmdEnd,
+	const uint8* RESTRICT ShadowData,
+	const uint8* RESTRICT Data,
+	TArray<uint16>& Changed,
+	uint16 Handle,
+	const bool bIsInitial,
+	const bool bForceFail) const
 {
 	check(ShadowData);
 
@@ -761,7 +760,7 @@ uint16 FRepLayout::CompareProperties_r(
 			}
 
 			// Once we hit an array, start using a stack based approach
-			CompareProperties_Array_r(RepState, ShadowData + Cmd.ShadowOffset, ( const uint8* )Data + Cmd.Offset, Changed, CmdIndex, Handle, bIsInitial, bForceFail );
+			CompareProperties_Array_r(RepState, ShadowData + Cmd.ShadowOffset, (const uint8*)Data + Cmd.Offset, Changed, CmdIndex, Handle, bIsInitial, bForceFail);
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
@@ -803,14 +802,13 @@ uint16 FRepLayout::CompareProperties_r(
 
 void FRepLayout::CompareProperties_Array_r(
 	FSendingRepState* RESTRICT RepState,
-	const uint8* RESTRICT	ShadowData,
-	const uint8* RESTRICT	Data,
-	TArray<uint16>&			Changed,
-	const uint16			CmdIndex,
-	const uint16			Handle,
-	const bool				bIsInitial,
-	const bool				bForceFail
-	) const
+	const uint8* RESTRICT ShadowData,
+	const uint8* RESTRICT Data,
+	TArray<uint16>& Changed,
+	const uint16 CmdIndex,
+	const uint16 Handle,
+	const bool bIsInitial,
+	const bool bForceFail) const
 {
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 
@@ -821,7 +819,7 @@ void FRepLayout::CompareProperties_Array_r(
 	const uint16 ShadowArrayNum = ShadowArray->Num();
 
 	// Make the shadow state match the actual state at the time of compare
-	FScriptArrayHelper StoredArrayHelper((UArrayProperty*)Cmd.Property, ShadowData);
+	FScriptArrayHelper StoredArrayHelper((UArrayProperty*)Cmd.Property, ShadowArray);
 	StoredArrayHelper.Resize(ArrayNum);
 
 	TArray<uint16> ChangedLocal;
@@ -861,9 +859,9 @@ void FRepLayout::CompareProperties_Array_r(
 
 bool FRepLayout::CompareProperties(
 	FSendingRepState* RESTRICT RepState,
-	FRepChangelistState* RESTRICT	RepChangelistState,
-	const uint8* RESTRICT			Data,
-	const FReplicationFlags&		RepFlags) const
+	FRepChangelistState* RESTRICT RepChangelistState,
+	const uint8* RESTRICT Data,
+	const FReplicationFlags& RepFlags) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime);
 
@@ -1140,8 +1138,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (Changed.Num() > 0)
 		{
-		SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
-	}
+			SendProperties_BackwardsCompatible(RepState, ChangeTracker, Data, OwningChannel->Connection, Writer, Changed);
+		}
 	}
 	else if (Changed.Num() > 0)
 	{
@@ -1850,7 +1848,7 @@ void FRepLayout::SendProperties_r(
 			{
 				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
 			}
-		}		
+		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GDoReplicationContextString> 0)
@@ -2181,7 +2179,7 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 			{
 				Data = reinterpret_cast<const uint8*>(&(RepState->SavedRemoteRole));
 			}
-		}		
+		}
 
 		WriteProperty_BackwardsCompatible(Writer, Cmd, HandleIterator.CmdIndex, Owner, Data, bDoChecksum);
 	}
@@ -2191,13 +2189,13 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 
 void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 	FSendingRepState* RESTRICT RepState,
-	FNetBitWriter&						Writer,
-	const bool							bDoChecksum,
-	UPackageMapClient*					PackageMapClient,
-	FNetFieldExportGroup*				NetFieldExportGroup,
-	const int32							CmdStart,
-	const int32							CmdEnd, 
-	const uint8*						SourceData) const
+	FNetBitWriter& Writer,
+	const bool bDoChecksum,
+	UPackageMapClient* PackageMapClient,
+	FNetFieldExportGroup* NetFieldExportGroup,
+	const int32 CmdStart,
+	const int32 CmdEnd, 
+	const uint8* SourceData) const
 {
 	FNetBitWriter TempWriter(Writer.PackageMap, 0);
 
