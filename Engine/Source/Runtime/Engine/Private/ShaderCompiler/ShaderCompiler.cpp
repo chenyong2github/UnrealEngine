@@ -3708,7 +3708,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, SpecificPermutationId);
 		check(Resource);
 
-		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs())
+		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 		{
 			// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 			ShaderPipelineType = nullptr;
@@ -3869,7 +3869,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 						UE_LOG(LogShaders, Log, TEXT("	%s"), Pipeline->GetName());
 					}
 
-					if (Pipeline->ShouldOptimizeUnusedOutputs())
+					if (Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 					{
 						// Make a pipeline job with all the stages
 						FGlobalShaderTypeCompiler::BeginCompileShaderPipeline(Platform, Pipeline, ShaderStages, GlobalShaderJobs);
@@ -4494,7 +4494,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 	{
 		// Add the new global shader instance to the global shader map if it's a shared shader
 		EShaderPlatform Platform = (EShaderPlatform)SingleJob->Input.Target.Platform;
-		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs())
+		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 		{
 			GGlobalShaderMap[Platform]->AddShader(GlobalShaderType, SingleJob->PermutationId, Shader);
 			// Add this shared pipeline to the list

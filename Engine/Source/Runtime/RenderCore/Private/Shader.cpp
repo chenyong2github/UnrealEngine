@@ -1904,7 +1904,7 @@ void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 					}
 				}
 
-				if (!PipelineType->ShouldOptimizeUnusedOutputs() && bFound)
+				if (!PipelineType->ShouldOptimizeUnusedOutputs(Platform) && bFound)
 				{
 					++NumSharedPipelines;
 				}
@@ -1984,7 +1984,7 @@ void DumpShaderPipelineStats(EShaderPlatform Platform)
 
 		// Write a row for the shader type.
 		ShaderTypeViewer.AddColumn(Type->GetName());
-		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs() ? TEXT("U") : TEXT("S"));
+		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs(Platform) ? TEXT("U") : TEXT("S"));
 
 		for (int32 Index = 0; Index < SF_NumFrequencies - 1; ++Index)
 		{

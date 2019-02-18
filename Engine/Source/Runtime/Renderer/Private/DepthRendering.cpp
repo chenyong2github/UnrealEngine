@@ -77,10 +77,10 @@ IMPLEMENT_SHADERPIPELINE_TYPE_VS(DepthPosOnlyNoPixelPipeline, TDepthOnlyVS<true>
 IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(DepthPipeline, TDepthOnlyVS<false>, FDepthOnlyPS, true);
 
 
-bool UseShaderPipelines()
+static FORCEINLINE bool UseShaderPipelines(ERHIFeatureLevel::Type InFeatureLevel)
 {
 	static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-	return CVar && CVar->GetValueOnAnyThread() != 0;
+	return RHISupportsShaderPipelines(GShaderPlatformForFeatureLevel[InFeatureLevel]) && CVar && CVar->GetValueOnAnyThread() != 0;
 }
 
 template <bool bPositionOnly>
@@ -97,7 +97,7 @@ void GetDepthPassShaders(
 {
 	if (bPositionOnly && !bUsesMobileColorValue)
 	{
-		ShaderPipeline = UseShaderPipelines() ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : nullptr;
+		ShaderPipeline = UseShaderPipelines(FeatureLevel) ? Material.GetShaderPipeline(&DepthPosOnlyNoPixelPipeline, VertexFactoryType) : nullptr;
 		VertexShader = ShaderPipeline
 			? ShaderPipeline->GetShader<TDepthOnlyVS<bPositionOnly> >()
 			: Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType);
@@ -124,7 +124,7 @@ void GetDepthPassShaders(
 		{
 			HullShader = nullptr;
 			DomainShader = nullptr;
-			bool bUseShaderPipelines = UseShaderPipelines();
+			bool bUseShaderPipelines = UseShaderPipelines(FeatureLevel);
 			if (bNeedsPixelShader)
 			{
 				ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&DepthPipeline, VertexFactoryType, false) : nullptr;
