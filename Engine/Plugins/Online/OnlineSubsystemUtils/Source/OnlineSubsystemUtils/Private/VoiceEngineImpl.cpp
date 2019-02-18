@@ -15,7 +15,6 @@
 
 #if PLATFORM_WINDOWS
 #include "XAudio2Support.h"
-HMODULE FXAudioDeviceProperties::XAudio2Dll;
 namespace NotificationClient
 {
 	TSharedPtr<FMMNotificationClient> WindowsNotificationClient;
