@@ -9,5 +9,5 @@ class FWmfMediaHardwareVideoDecodingTextureSample;
 class FWmfMediaHardwareVideoDecodingParameters
 {
 public:
-	static bool ConvertTextureFormat_RenderThread(FWmfMediaHardwareVideoDecodingTextureSample* InSample, FTexture2DRHIRef InDstTexture);
+	WMFMEDIA_API static bool ConvertTextureFormat_RenderThread(FWmfMediaHardwareVideoDecodingTextureSample* InSample, FTexture2DRHIRef InDstTexture);
 };
