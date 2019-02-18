@@ -496,6 +496,13 @@ struct CORE_API IConsoleManager
 	*/
 	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
 	/**
+	* Create a reference to a string console variable
+	* @param Name must not be 0
+	* @param Help must not be 0
+	* @param Flags bitmask combined from EConsoleVariableFlags
+	*/
+	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default) = 0;
+	/**
 	 * Create a reference to a show flag variable
 	 * @param CVarName must not be 0, e.g. "Show.PostProcessing"
 	 * @param FlagName must not be 0, e.g. "PostProcessing"
