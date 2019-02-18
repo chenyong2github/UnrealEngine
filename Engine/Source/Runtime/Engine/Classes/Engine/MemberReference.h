@@ -369,8 +369,8 @@ public:
 					MemberParent  = ParentAsClass;
 
 					// Re-evaluate self-ness against the redirect if we were given a valid SelfScope
-					// For functions we don't want to go from not-self to self as we lose the knowledge of overriding
-					if (SelfScope != nullptr && (bSelfContext || TFieldType::StaticClass() != UFunction::StaticClass()))
+					// For functions and multicast delegates we don't want to go from not-self to self as the target pin type should remain consistent
+					if (SelfScope != nullptr && (bSelfContext || (TFieldType::StaticClass() != UFunction::StaticClass() && TFieldType::StaticClass() != UMulticastDelegateProperty::StaticClass())))
 					{
 						SetGivenSelfScope(MemberName, MemberGuid, ParentAsClass, SelfScope);
 					}
