@@ -130,8 +130,8 @@ public:
 	virtual FArchive* GetStreamingArchive() override;
 	virtual FArchive* GetCheckpointArchive() override;
 	virtual void FlushCheckpoint( const uint32 TimeInMS ) override;
-	virtual void GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate ) override;
-	virtual void GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate ) override;
+	virtual void GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
+	virtual void GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
 	virtual void UpdateTotalDemoTime( uint32 TimeInMS ) override;
 	virtual uint32 GetTotalDemoTime() const override;
 	virtual bool IsDataAvailable() const override;
@@ -192,6 +192,8 @@ public:
 	{
 		return EStreamingOperationResult::Unsupported;
 	}
+
+	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override { return (CheckpointType == EReplayCheckpointType::Full); }
 
 private:
 	bool IsNamedStreamLive( const FString& StreamName ) const;
