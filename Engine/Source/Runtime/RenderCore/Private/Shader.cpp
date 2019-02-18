@@ -1152,12 +1152,12 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	, Target(Initializer.Target)
 	, NumRefs(0)
 {
-	OutputHash = Initializer.OutputHash;
-	checkSlow(OutputHash != FSHAHash());
-
 	check(Type);
 
 #if KEEP_SHADER_SOURCE_HASHES
+	OutputHash = Initializer.OutputHash;
+	checkSlow(OutputHash != FSHAHash());
+
 	// Store off the source hash that this shader was compiled with
 	// This will be used as part of the shader key in order to identify when shader files have been changed and a recompile is needed
 	SourceHash = Type->GetSourceHash(Target.GetPlatform());
@@ -1226,7 +1226,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 	FSHAHash& VFHash = VFSourceHash;
 	FSHAHash& Hash = SourceHash;
 #else
-	FSHAHash VFHash, Hash;
+	FSHAHash VFHash, Hash, OutputHash;
 #endif
 
 	Ar << OutputHash;
@@ -1315,6 +1315,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 			// Load the inlined shader resource
 			SerializedResource = new FShaderResource();
 			SerializedResource->Serialize(Ar, bLoadedByCookedMaterial);
+			checkSlow(OutputHash == SerializedResource->OutputHash);
 		}
 	}
 	else
@@ -1432,8 +1433,8 @@ void FShader::DumpDebugInfo()
 #if KEEP_SHADER_SOURCE_HASHES
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :SourceHash %s"), *SourceHash.ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFSourceHash %s"), *VFSourceHash.ToString());
-#endif
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :OutputHash %s"), *OutputHash.ToString());
+#endif
 }
 
 void FShader::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const FStableShaderKeyAndValue& InSaveKeyVal)
