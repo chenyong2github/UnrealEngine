@@ -273,7 +273,7 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	void SetDrawAtDesiredSize(bool InbDrawAtDesiredSize) { bDrawAtDesiredSize = InbDrawAtDesiredSize; }
+	void SetDrawAtDesiredSize(bool bInDrawAtDesiredSize) { bDrawAtDesiredSize = bInDrawAtDesiredSize; }
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
