@@ -144,7 +144,7 @@ private:
 	friend class FTexture2DUpdate;
 
 	/** The UTexture2D which this resource represents.														*/
-	const UTexture2D*	Owner;
+	UTexture2D*	Owner;
 	/** Resource memory allocated by the owner for serialize bulk mip data into								*/
 	FTexture2DResourceMem* ResourceMem;
 

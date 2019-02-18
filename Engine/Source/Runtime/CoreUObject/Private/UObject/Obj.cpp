@@ -1950,24 +1950,20 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	{
 		TFieldIterator<UProperty> It1(Struct1);
 		TFieldIterator<UProperty> It2(Struct2);
-
 		for (;;)
 		{
 			bool bAtEnd1 = !It1;
 			bool bAtEnd2 = !It2;
-
 			// If one iterator is at the end and one isn't, the property lists are different
 			if (bAtEnd1 != bAtEnd2)
 			{
 				return false;
 			}
-
 			// If both iterators have reached the end, the property lists are the same
 			if (bAtEnd1)
 			{
 				return true;
 			}
-
 			// If the properties are different, the property lists are different
 			if (*It1 != *It2)
 			{
@@ -1975,7 +1971,6 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 			}
 		}
 	};
-
 	// Do we have properties that don't exist yet?
 	// If this happens then we're trying to load the config for an object that doesn't
 	// know what its layout is. Usually a call to GetDefaultObject that occurs too early

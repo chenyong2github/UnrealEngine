@@ -2649,6 +2649,11 @@ struct FLODMask
 	{
 		DitheredLODIndices[SampleIndex] = (int8)LODIndex;
 	}
+	void ClampToFirstLOD(int8 FirstLODIdx)
+	{
+		DitheredLODIndices[0] = FMath::Max(DitheredLODIndices[0], FirstLODIdx);
+		DitheredLODIndices[1] = FMath::Max(DitheredLODIndices[1], FirstLODIdx);
+	}
 	bool ContainsLOD(int32 LODIndex) const
 	{
 		return DitheredLODIndices[0] == LODIndex || DitheredLODIndices[1] == LODIndex;
@@ -2671,7 +2676,7 @@ struct FLODMask
 		return DitheredLODIndices[0] != DitheredLODIndices[1];
 	}
 };
-FLODMask ENGINE_API ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
+FLODMask ENGINE_API ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, int8 CurFirstLODIdx, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
 FLODMask ENGINE_API ComputeFastLODForMeshes(const TArray<float>& ScreenSizes, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
 
 class FSharedSamplerState : public FRenderResource

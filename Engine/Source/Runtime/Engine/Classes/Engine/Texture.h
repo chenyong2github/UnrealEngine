@@ -15,6 +15,7 @@
 #include "Engine/TextureDefines.h"
 #include "MaterialShared.h"
 #include "TextureResource.h"
+#include "Engine/StreamableRenderAsset.h"
 #include "Texture.generated.h"
 
 class ITargetPlatform;
@@ -368,7 +369,7 @@ struct FTexturePlatformData
 };
 
 UCLASS(abstract, MinimalAPI, BlueprintType)
-class UTexture : public UObject, public IInterface_AssetUserData
+class UTexture : public UStreamableRenderAsset, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -520,10 +521,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="LOD Bias"), AssetRegistrySearchable)
 	int32 LODBias;
 
-	/** Number of mip-levels to use for cinematic quality. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, AdvancedDisplay)
-	int32 NumCinematicMipLevels;
-
 	/** Compression settings to use when building the texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, AssetRegistrySearchable)
 	TEnumAsByte<enum TextureCompressionSettings> CompressionSettings;
@@ -548,25 +545,14 @@ public:
 
 #endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AssetRegistrySearchable, AdvancedDisplay)
-	uint8 NeverStream:1;
-
 	/** If true, the RHI texture will be created using TexCreate_NoTiling */
 	UPROPERTY()
 	uint8 bNoTiling:1;
-
-	/** Whether to use the extra cinematic quality mip-levels, when we're forcing mip-levels to be resident. */
-	UPROPERTY(transient)
-	uint8 bUseCinematicMipLevels:1;
 
 private:
 	/** Whether the async resource release process has already been kicked off or not */
 	UPROPERTY(transient)
 	uint8 bAsyncResourceReleaseHasBeenStarted : 1;
-
-	/** Cached combined group and texture LOD bias to use.	*/
-	UPROPERTY(transient)
-	int32 CachedCombinedLODBias;
 
 protected:
 	/** Array of user data stored with the asset */
@@ -603,13 +589,6 @@ public:
 	 */
 	virtual class FTextureResource* CreateResource() PURE_VIRTUAL(UTexture::CreateResource,return NULL;);
 
-	/**
-	 * Returns the cached combined LOD bias based on texture LOD group and LOD bias.
-	 *
-	 * @return	LOD bias
-	 */
-	ENGINE_API int32 GetCachedLODBias() const;
-
 	/** Cache the combined LOD bias based on texture LOD group and LOD bias. */
 	ENGINE_API void UpdateCachedLODBias();
 
@@ -623,18 +602,6 @@ public:
 	 */
 	virtual void WaitForStreaming()
 	{
-	}
-	
-	/**
-	 * Updates the streaming status of the texture and performs finalization when appropriate. The function returns
-	 * true while there are pending requests in flight and updating needs to continue.
-	 *
-	 * @param bWaitForMipFading	Whether to wait for Mip Fading to complete before finalizing.
-	 * @return					true if there are requests in flight, false otherwise
-	 */
-	virtual bool UpdateStreamingStatus( bool bWaitForMipFading = false )
-	{
-		return false;
 	}
 
 	/**
@@ -760,6 +727,11 @@ public:
 #endif
 	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
 	//~ End UObject Interface.
+
+	//~ Begin UStreamableRenderAsset Interface
+	virtual int32 GetLODGroupForStreaming() const final override { return static_cast<int32>(LODGroup); }
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) override { return false; }
+	//~ End UStreamableRenderAsset Interface
 
 	/**
 	 *	Gets the average brightness of the texture (in linear space)

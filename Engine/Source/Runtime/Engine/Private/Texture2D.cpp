@@ -128,8 +128,8 @@ int64 GUITextureMemory = 0;
 int64 GNeverStreamTextureMemory = 0;
 #endif
 
-/** Turn on ENABLE_TEXTURE_TRACKING in ContentStreaming.cpp and setup GTrackedTextures to track specific textures through the streaming system. */
-extern bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture, bool bForceMipLevelsToBeResident, const FStreamingManagerTexture* Manager );
+/** Turn on ENABLE_RENDER_ASSET_TRACKING in ContentStreaming.cpp and setup GTrackedTextures to track specific textures/meshes through the streaming system. */
+extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreamableRenderAsset* Texture, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager );
 
 
 /** Scoped debug info that provides the texture name to memory allocation and crash callstacks. */
@@ -254,7 +254,7 @@ void UTexture2D::Serialize(FArchive& Ar)
 #endif // #if WITH_EDITOR
 }
 
-float UTexture2D::GetLastRenderTimeForStreaming()
+float UTexture2D::GetLastRenderTimeForStreaming() const
 {
 	float LastRenderTime = -FLT_MAX;
 	if (Resource)
@@ -313,7 +313,7 @@ int32 UTexture2D::GetNumRequestedMips() const
 	}
 	else
 	{
-		return GetNumResidentMips();
+		return GetCachedNumResidentLODs();
 	}
 }
 
@@ -413,9 +413,9 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 
 void UTexture2D::LinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingTexture(this))
+	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
 	{
-		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingTexture(this);
+		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
 	}
 	else
 	{
@@ -427,7 +427,7 @@ void UTexture2D::UnlinkStreaming()
 {
 	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
-		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingTexture(this);
+		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
 	}
 }
 
@@ -562,7 +562,7 @@ void UTexture2D::WaitForStreaming()
 		// Update the wanted mip and stream in..		
 		if (IStreamingManager::Get().IsTextureStreamingEnabled())
 		{
-			IStreamingManager::Get().GetTextureStreamingManager().UpdateIndividualTexture( this );
+			IStreamingManager::Get().GetTextureStreamingManager().UpdateIndividualRenderAsset( this );
 
 			while (	UpdateStreamingStatus() ) 
 			{
@@ -956,11 +956,7 @@ void UTexture2D::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 {
-	if ( bGlobalForceMipLevelsToBeResident || bForceMiplevelsToBeResident || LODGroup == TEXTUREGROUP_Skybox )
-	{
-		return true;
-	}
-	if ( ForceMipLevelsToBeResidentTimestamp >= FApp::GetCurrentTime() )
+	if (LODGroup == TEXTUREGROUP_Skybox || this->Super::ShouldMipLevelsBeForcedResident())
 	{
 		return true;
 	}
@@ -1024,14 +1020,6 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2D::Create()"));
 	}
 	return NewTexture;
-}
-
-void UTexture2D::SetForceMipLevelsToBeResident( float Seconds, int32 CinematicTextureGroups )
-{
-	uint32 TextureGroupBitfield = (uint32) CinematicTextureGroups;
-	uint32 MyTextureGroup = FMath::BitFlag[LODGroup];
-	bUseCinematicMipLevels = (TextureGroupBitfield & MyTextureGroup) ? true : false;
-	ForceMipLevelsToBeResidentTimestamp = FApp::GetCurrentTime() + Seconds;
 }
 
 int32 UTexture2D::Blueprint_GetSizeX() const
@@ -1187,6 +1175,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 
 	// Keep track of first miplevel to use.
 	CurrentFirstMip = InOwner->GetNumMips() - InitialMipCount;
+	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
 	// texture must be as big as base miptail level
@@ -1315,6 +1304,7 @@ void FTexture2DResource::InitRHI()
 
 				// We're done with initialization.
 				bReadyForStreaming = true;
+				Owner->SetCachedReadyForStreaming(true);
 
 				return;
 			}
@@ -1360,6 +1350,7 @@ void FTexture2DResource::InitRHI()
 
 		// We're done with initialization.
 		bReadyForStreaming = true;
+		Owner->SetCachedReadyForStreaming(true);
 	}
 	else
 	{
@@ -1616,10 +1607,11 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 	if (Owner)
 	{
+		const int32 NumMips = Owner->GetNumMips();
+		
 		// Update mip-level fading.
 		if (CurrentFirstMip != InNewFirstMip)
 		{
-			const int32 NumMips = Owner->GetNumMips();
 			const int32 ResidentMips = NumMips - CurrentFirstMip;
 			const int32 RequestedMips = NumMips - InNewFirstMip;
 			MipBiasFade.SetNewMipCount(FMath::Max<int32>(RequestedMips, ResidentMips), RequestedMips, LastRenderTime, MipFadeSetting);
@@ -1639,6 +1631,7 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
 		CurrentFirstMip = InNewFirstMip;
+		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
 }
