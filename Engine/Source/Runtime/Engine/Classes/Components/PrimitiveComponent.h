@@ -1561,22 +1561,6 @@ public:
 	 */
 	virtual void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel);
 
-	/** Tick function for physics ticking **/
-	UPROPERTY()
-	struct FPrimitiveComponentPostPhysicsTickFunction PostPhysicsComponentTick;
-
-	/** Controls if we get a post physics tick or not. If set during ticking, will take effect next frame **/
-	UE_DEPRECATED(4.11, "Please register your own tick function or use the primary tick function")
-	void SetPostPhysicsComponentTickEnabled(bool bEnable);
-
-	/** Returns whether we have the post physics tick enabled **/
-	UE_DEPRECATED(4.11, "Please register your own tick function or use the primary tick function")
-	bool IsPostPhysicsComponentTickEnabled() const;
-
-	/** Tick function called after physics (sync scene) has finished simulation */
-	UE_DEPRECATED(4.11, "Please register your own tick function or use the primary tick function")
-	virtual void PostPhysicsTick(FPrimitiveComponentPostPhysicsTickFunction &ThisTickFunction) {}
-
 	/** Return the BodySetup to use for this PrimitiveComponent (single body case) */
 	virtual class UBodySetup* GetBodySetup() { return NULL; }
 
@@ -1770,7 +1754,6 @@ public:
 	virtual void OnCreatePhysicsState() override;
 	virtual void OnDestroyPhysicsState() override;
 	virtual void OnActorEnableCollisionChanged() override;
-	virtual void RegisterComponentTickFunctions(bool bRegister) override;
 	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
 	virtual bool IsEditorOnly() const override;
 	virtual bool ShouldCreatePhysicsState() const override;
