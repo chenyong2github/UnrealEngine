@@ -51,6 +51,9 @@ static FAutoConsoleVariable CVarLogSkippedRepNotifies(TEXT("Net.LogSkippedRepNot
 int32 GUsePackedShadowBuffers = 1;
 static FAutoConsoleVariableRef CVarUsePackedShadowBuffers(TEXT("Net.UsePackedShadowBuffers"), GUsePackedShadowBuffers, TEXT("When enabled, FRepLayout will generate shadow buffers that are packed with only the necessary NetProperties, instead of copying entire object state."));
 
+int32 GShareShadowState = 1;
+static FAutoConsoleVariableRef CVarShareShadowState(TEXT("net.ShareShadowState"), GShareShadowState, TEXT("If true, work done to compare properties will be shared across connections"));
+
 int32 MaxRepArraySize = UNetworkSettings::DefaultMaxRepArraySize;
 int32 MaxRepArrayMemory = UNetworkSettings::DefaultMaxRepArrayMemory;
 
@@ -560,6 +563,66 @@ TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(FReplicationFlags RepFla
 
 	return ConditionMap;
 }
+
+void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
+{
+	Buffer.CountBytes(Ar);
+}
+
+FRepChangelistState::FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source) :
+	HistoryStart(0),
+	HistoryEnd(0),
+	CompareIndex(0),
+	StaticBuffer(InRepLayout->CreateShadowBuffer(Source))
+{}
+
+void FRepChangelistState::CountBytes(FArchive& Ar) const
+{
+	StaticBuffer.CountBytes(Ar);
+	SharedSerialization.CountBytes(Ar);
+}
+
+FReplicationChangelistMgr::FReplicationChangelistMgr(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source):
+	LastReplicationFrame(0),
+	RepChangelistState(InRepLayout, Source)
+{
+}
+
+FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
+	StaticBuffer(MoveTemp(InStaticBuffer))
+{
+}
+
+void FRepLayout::UpdateChangelistMgr(
+	FReplicationChangelistMgr& InChangelistMgr,
+	FSendingRepState* RESTRICT RepState,
+	const UObject* InObject,
+	const uint32 ReplicationFrame,
+	const FReplicationFlags& RepFlags,
+	const bool bForceCompare) const
+{
+	// See if we can re-use the work already done on a previous connection
+	// Rules:
+	//	1. We always compare once per frame (i.e. check LastReplicationFrame == ReplicationFrame)
+	//	2. We check LastCompareIndex > 1 so we can do at least one pass per connection to compare all properties
+	//		This is necessary due to how RemoteRole is manipulated per connection, so we need to give all connections a chance to see if it changed
+	//	3. We ALWAYS compare on bNetInitial to make sure we have a fresh changelist of net initial properties in this case
+	if (!bForceCompare && GShareShadowState && !RepFlags.bNetInitial && RepState->LastCompareIndex > 1 && InChangelistMgr.LastReplicationFrame == ReplicationFrame)
+	{
+		INC_DWORD_STAT_BY(STAT_NetSkippedDynamicProps, 1);
+		return;
+	}
+
+	CompareProperties(RepState, &InChangelistMgr.RepChangelistState, (const uint8*)InObject, RepFlags);
+
+	InChangelistMgr.LastReplicationFrame = ReplicationFrame;
+}
+
+void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
+{
+	RepChangelistState.CountBytes(Ar);
+}
+
 
 uint16 FRepLayout::CompareProperties_r(
 	FSendingRepState* RESTRICT RepState,
@@ -4911,33 +4974,28 @@ void FRepLayout::InitChangedTracker(FRepChangedPropertyTracker* ChangedTracker) 
 	}
 }
 
-void FRepLayout::InitShadowData(
-	FRepStateStaticBuffer&	ShadowData,
-	UClass*					InObjectClass,
-	const uint8* const		Src) const
+FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const uint8* const Source) const
 {
+	FRepStateStaticBuffer ShadowData(AsShared());
+
 	if (ShadowDataBufferSize == 0 && LayoutState != ERepLayoutState::Empty)
 	{
 		UE_LOG(LogRep, Error, TEXT("FRepLayout::InitShadowData: Invalid RepLayout: %s"), *GetPathNameSafe(Owner));
-		return;
 	}
-
-	ShadowData.Empty();
-
-	if (LayoutState == ERepLayoutState::Normal)
+	else if (LayoutState == ERepLayoutState::Normal)
 	{
-		ShadowData.AddZeroed(ShadowDataBufferSize);
-
-		// Construct the properties
-		ConstructProperties(ShadowData);
-
-		// Init the properties
-		CopyProperties(ShadowData, Src);
+		InitRepStateStaticBuffer(ShadowData, Source);
 	}
+
+	return ShadowData;
+}
+
+TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject) const
+{
+	return MakeShareable(new FReplicationChangelistMgr(AsShared(), (const uint8*)InObject->GetArchetype()));
 }
 
 TUniquePtr<FRepState> FRepLayout::CreateRepState(
-	UClass* InObjectClass,
 	const uint8* const Source,
 	TSharedPtr<FRepChangedPropertyTracker>& InRepChangedPropertyTracker,
 	ECreateRepStateFlags Flags) const
@@ -4964,21 +5022,27 @@ TUniquePtr<FRepState> FRepLayout::CreateRepState(
 	
 	if (!EnumHasAnyFlags(Flags, ECreateRepStateFlags::SkipCreateReceivingState))
 	{
-		RepState->ReceivingRepState.Reset(new FReceivingRepState());
+		FRepStateStaticBuffer StaticBuffer(AsShared());
 
 		// For server's, we don't need ShadowData as the ChangelistTracker / Manager will be used
 		// instead.
 		if (!bIsServer)
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			InitShadowData(RepState->ReceivingRepState->StaticBuffer, InObjectClass, Source);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			InitRepStateStaticBuffer(StaticBuffer, Source);
 		}
 
-		RepState->ReceivingRepState->RepLayout = const_cast<FRepLayout*>(this)->AsShared();
+		RepState->ReceivingRepState.Reset(new FReceivingRepState(MoveTemp(StaticBuffer)));
 	}
 
 	return RepState;
+}
+
+void FRepLayout::InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, const uint8* Source) const
+{
+	check(ShadowData.Buffer.Num() == 0);
+	ShadowData.Buffer.SetNumZeroed(ShadowDataBufferSize);
+	ConstructProperties(ShadowData);
+	CopyProperties(ShadowData, Source);
 }
 
 
@@ -4998,7 +5062,7 @@ void FRepLayout::ConstructProperties(FRepStateStaticBuffer& InShadowData) const
 	}
 }
 
-void FRepLayout::CopyProperties(FRepStateStaticBuffer& InShadowData, const uint8* const Src) const
+void FRepLayout::CopyProperties(FRepStateStaticBuffer& InShadowData, const uint8* const Source) const
 {
 	uint8* ShadowData = InShadowData.GetData();
 
@@ -5009,7 +5073,7 @@ void FRepLayout::CopyProperties(FRepStateStaticBuffer& InShadowData, const uint8
 		if (Parent.ArrayIndex == 0)
 		{
 			check((Parent.ShadowOffset + Parent.Property->GetSize()) <= InShadowData.Num());
-			Parent.Property->CopyCompleteValue(ShadowData + Parent.ShadowOffset, Parent.Property->ContainerPtrToValuePtr<uint8>(Src));
+			Parent.Property->CopyCompleteValue(ShadowData + Parent.ShadowOffset, Parent.Property->ContainerPtrToValuePtr<uint8>(Source));
 		}
 	}
 }
@@ -5029,7 +5093,7 @@ void FRepLayout::DestructProperties(FRepStateStaticBuffer& InShadowData) const
 		}
 	}
 
-	InShadowData.Empty();
+	InShadowData.Buffer.Empty();
 }
 
 void FRepLayout::GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions)
@@ -5144,22 +5208,13 @@ void FRepState::CountBytes(FArchive& Ar) const
 	);	
 }
 
-FReceivingRepState::~FReceivingRepState()
+FRepStateStaticBuffer::~FRepStateStaticBuffer()
 {
-	if (RepLayout.IsValid() && StaticBuffer.Num() > 0)
-	{	
-		RepLayout->DestructProperties(StaticBuffer);
+	if (Buffer.Num() > 0)
+	{
+		RepLayout->DestructProperties(*this);
 	}
 }
-
-FRepChangelistState::~FRepChangelistState()
-{
-	if (RepLayout.IsValid() && StaticBuffer.Num() > 0)
-	{	
-		RepLayout->DestructProperties(StaticBuffer);
-	}
-}
-
 
 #define REPDATATYPE_SPECIALIZATION(DstType, SrcType) \
 template bool FRepLayout::DiffStableProperties(TArray<UProperty*>*, TArray<UObject*>*, TRepDataBuffer<DstType>, TConstRepDataBuffer<SrcType>) const; \

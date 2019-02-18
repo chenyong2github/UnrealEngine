@@ -28,9 +28,6 @@ class UActorChannel;
 class UNetConnection;
 class UPackageMapClient;
 
-// Properties will be copied in here so memory needs aligned to largest type
-typedef TArray<uint8, TAlignedHeapAllocator<16>> FRepStateStaticBuffer;
-
 enum class EDiffPropertiesFlags : uint32
 {
 	None = 0,
@@ -295,25 +292,76 @@ public:
 };
 
 /**
+ * Holds deep copies of replicated property data for objects.
+ * The term "shadow data" is often used in code to refer to memory stored in one of these buffers.
+ * Note, dynamic memory allocated by the properties (such as Arrays or Maps) will still be dynamically
+ * allocated elsewhere, and the buffer will hold pointers to the dynamic memory (or containers, etc.)
+ *
+ * When necessary, use FRepShadowDataBuffer or FConstRepShadowDataBuffer to wrap this object's data.
+ * Never use FRepObjectDataBuffer or FConstRepObjectDataBuffer as the shadow memory layout is not guaranteed
+ * to match an object's layout.
+ */
+struct FRepStateStaticBuffer : public FNoncopyable
+{
+private:
+
+	friend class FRepLayout;
+
+	FRepStateStaticBuffer(const TSharedRef<const FRepLayout>& InRepLayout) :
+		RepLayout(InRepLayout)
+	{
+	}
+
+public:
+
+	FRepStateStaticBuffer(FRepStateStaticBuffer&& InStaticBuffer) :
+		Buffer(MoveTemp(InStaticBuffer.Buffer)),
+		RepLayout(MoveTemp(InStaticBuffer.RepLayout))
+	{
+	}
+
+	~FRepStateStaticBuffer();
+
+	uint8* GetData()
+	{
+		return Buffer.GetData();
+	}
+
+	const uint8* GetData() const
+	{
+		return Buffer.GetData();
+	}
+
+	int32 Num() const
+	{
+		return Buffer.Num();
+	}
+
+	void CountBytes(FArchive& Ar) const;
+
+private:
+
+	// Properties will be copied in here so memory needs aligned to largest type
+	TArray<uint8, TAlignedHeapAllocator<16>> Buffer;
+	TSharedRef<const FRepLayout> RepLayout;
+};
+
+/**
  * Stores changelist history (that are used to know what properties have changed) for objects.
  *
  * Only a fixed number of history items are kept. Once that limit is reached, old entries are
  * merged into a single monolithic changelist (this happens incrementally each time a new entry
  * is added).
  */
-class FRepChangelistState
+class FRepChangelistState : public FNoncopyable
 {
+private:
+
+	friend class FReplicationChangelistMgr;
+
+	FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+
 public:
-
-	FRepChangelistState() :
-		HistoryStart(0),
-		HistoryEnd(0),
-		CompareIndex(0)
-	{}
-
-	~FRepChangelistState();
-
-	TSharedPtr<FRepLayout> RepLayout;
 
 	/** The maximum number of individual changelists allowed.*/
 	static const int32 MAX_CHANGE_HISTORY = 64;
@@ -336,11 +384,37 @@ public:
 	/** Latest state of all shared serialization data. */
 	FRepSerializationSharedInfo SharedSerialization;
 
-	void CountBytes(FArchive& Ar) const
+	void CountBytes(FArchive& Ar) const;
+};
+
+/**
+ *	FReplicationChangelistMgr manages a list of change lists for a particular replicated object that have occurred since the object started replicating
+ *	Once the history is completely full, the very first changelist will then be merged with the next one (freeing a slot)
+ *		This way we always have the entire history for join in progress players
+ *	This information is then used by all connections, to share the compare work needed to determine what to send each connection
+ *	Connections will send any changelist that is new since the last time the connection checked
+ */
+class FReplicationChangelistMgr : public FNoncopyable
+{
+private:
+
+	friend class FRepLayout;
+
+	FReplicationChangelistMgr(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+
+public:
+
+	FRepChangelistState* GetRepChangelistState() const
 	{
-		StaticBuffer.CountBytes(Ar);
-		SharedSerialization.CountBytes(Ar);
+		return const_cast<FRepChangelistState*>(&RepChangelistState);
 	}
+
+	void CountBytes(FArchive& Ar) const;
+
+private:
+
+	FRepChangelistState RepChangelistState;
+	uint32 LastReplicationFrame;
 };
 
 class FGuidReferences;
@@ -425,23 +499,17 @@ public:
 };
 
 /** Replication State needed to track received properties. */
-class FReceivingRepState
+class FReceivingRepState : public FNoncopyable
 {
 private:
 
 	friend class FRepLayout;
 
-	FReceivingRepState()
-	{
-	}
+	FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer);
 
 public:
 
-	~FReceivingRepState();
-
 	void CountBytes(FArchive& Ar) const;
-
-	TSharedPtr<FRepLayout> RepLayout;
 
 	/** Latest state of all property data. Only valid on clients. */
 	FRepStateStaticBuffer StaticBuffer;
@@ -454,7 +522,7 @@ public:
 };
 
 /** Replication State that is only needed when sending properties. */
-class FSendingRepState
+class FSendingRepState : public FNoncopyable
 {
 private:
 
@@ -545,7 +613,7 @@ public:
 
 
 /** Replication State that is unique Per Object Per Net Connection. */
-class FRepState
+class FRepState : public FNoncopyable
 {
 private:
 
@@ -1060,13 +1128,7 @@ class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
 private:
 
-	// TODO: A lot of this friend access could be revoked if we exposed a "CreateShadowState" method,
-	//		and had it return a wrapped ShadowState that would properly destroy properties when it was destroyed.
-	friend class FReceivingRepState;
-	friend class FSendingRepState;
-	friend class FRepState;
-	friend class FRepChangelistState;
-	friend struct FDemoSavedRepObjectState;
+	friend struct FRepStateStaticBuffer;
 	friend class UPackageMapClient;
 
 	FRepLayout():
@@ -1111,7 +1173,7 @@ public:
 	}
 
 	/**
-	 * Used to initialize the given shadow data.
+	 * Creates and initialize a new Shadow Buffer.
 	 *
 	 * Shadow Data / Shadow States are used to cache property data so that the Object's state can be
 	 * compared between frames to see if any properties have changed. They are also used on clients
@@ -1122,15 +1184,16 @@ public:
 	 *		- Constructing instances of each Property.
 	 *		- Copying the values of the Properties from given object.
 	 *
-	 * @param ShadowData	The buffer where shadow data will be stored.
-	 * @param Class			The class of the object represented by the input memory buffer.
-	 * @param Src			Memory buffer storing object property data.
+	 * @param Source	Memory buffer storing object property data.
 	 */
-	UE_DEPRECATED(4.23, "This method will be made private in future versions.")
-	void InitShadowData(
-		FRepStateStaticBuffer&	ShadowData,
-		UClass *				InObjectClass,
-		const uint8* const		Src) const;
+	FRepStateStaticBuffer CreateShadowBuffer(const uint8* const Source) const;
+
+	/**
+	 * Creates and initializes a new FReplicationChangelistMgr.
+	 *
+	 * @param InObject	The Object that is being managed.
+	 */
+	TSharedPtr<FReplicationChangelistMgr> CreateReplicationChangelistMgr(const UObject* InObject) const;
 
 	/**
 	 * Creates and initializes a new FRepState.
@@ -1149,7 +1212,6 @@ public:
 	 *			Note, maybe a a FRepStateBase or FRepStateSending based on parameters.
 	 */
 	TUniquePtr<FRepState> CreateRepState(
-		UClass* InObjectClass,
 		const uint8* const Source,
 		TSharedPtr<FRepChangedPropertyTracker>& InRepChangedPropertyTracker,
 		ECreateRepStateFlags Flags) const;
@@ -1485,20 +1547,13 @@ public:
 		const bool bEnableRepNotifies,
 		bool& bOutGuidsChanged) const;
 
-	/**
-	 * Compare Property Values currently stored in the Changelist State to the Property Values
-	 * in the passed in data, generating a new changelist if necessary.
-	 *
-	 * @param RepState				RepState for the object.
-	 * @param RepChangelistState	The FRepChangelistState that contains the last cached values and changelists.
-	 * @param Data					The newest Property Data available.
-	 * @param RepFlags				Flags that will be used if the object is replicated.
-	 */
-	bool CompareProperties(
+	void UpdateChangelistMgr(
+		FReplicationChangelistMgr& InChangelistMgr,
 		FSendingRepState* RESTRICT RepState,
-		FRepChangelistState* RESTRICT RepChangelistState,
-		const uint8* RESTRICT Data,
-		const FReplicationFlags& RepFlags) const;
+		const UObject* InObject,
+		const uint32 ReplicationFrame,
+		const FReplicationFlags& RepFlags,
+		const bool bForceCompare) const;
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -1551,6 +1606,21 @@ private:
 	void InitFromStruct(UStruct* InStruct, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
 
 	void InitFromFunction(UFunction* InFunction, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
+
+	/**
+	 * Compare Property Values currently stored in the Changelist State to the Property Values
+	 * in the passed in data, generating a new changelist if necessary.
+	 *
+	 * @param RepState				RepState for the object.
+	 * @param RepChangelistState	The FRepChangelistState that contains the last cached values and changelists.
+	 * @param Data					The newest Property Data available.
+	 * @param RepFlags				Flags that will be used if the object is replicated.
+	 */
+	bool CompareProperties(
+		FSendingRepState* RESTRICT RepState,
+		FRepChangelistState* RESTRICT RepChangelistState,
+		const uint8* RESTRICT Data,
+		const FReplicationFlags& RepFlags) const;
 
 	/**
 	 * Writes all changed property values from the input owner data to the given buffer.
@@ -1828,8 +1898,9 @@ private:
 		const int32					CmdEnd,
 		TArray<FHandleToCmdIndex>&	HandleToCmdIndex);
 
+	void InitRepStateStaticBuffer(FRepStateStaticBuffer& ShadowData, const uint8* Source) const;
 	void ConstructProperties(FRepStateStaticBuffer& ShadowData) const;
-	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Src) const;
+	void CopyProperties(FRepStateStaticBuffer& ShadowData, const uint8* const Source) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
 
 	ERepLayoutState LayoutState;
