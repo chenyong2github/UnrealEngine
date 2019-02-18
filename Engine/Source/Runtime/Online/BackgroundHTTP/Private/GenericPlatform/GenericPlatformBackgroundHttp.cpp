@@ -4,6 +4,8 @@
 #include "GenericPlatform/GenericPlatformBackgroundHttpRequest.h"
 #include "GenericPlatform/GenericPlatformBackgroundHttpResponse.h"
 
+#include "Misc/Paths.h"
+
 void FGenericPlatformBackgroundHttp::Initialize()
 {
 }

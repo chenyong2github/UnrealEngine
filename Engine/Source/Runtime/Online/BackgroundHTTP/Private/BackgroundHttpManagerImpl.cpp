@@ -1,7 +1,11 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 #include "BackgroundHttpManagerImpl.h"
 
-#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFilemanager.h"
+#include "HAL/PlatformAtomics.h"
+#include "HAL/PlatformFile.h"
+
+#include "Misc/ScopeRWLock.h"
 
 DEFINE_LOG_CATEGORY(LogBackgroundHttpManager);
 
