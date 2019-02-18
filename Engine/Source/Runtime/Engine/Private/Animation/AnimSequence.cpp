@@ -2784,7 +2784,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 			void* Dest = OptionalBulk.Realloc(Num);
 			FMemory::Memcpy(Dest, &(SerializedData[0]), Num);
 			OptionalBulk.Unlock();
-			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
 			OptionalBulk.ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
 			OptionalBulk.Serialize(Ar, this);
 
