@@ -152,6 +152,9 @@ public:
 #endif
 
 protected:
+	/** Refresh ComboBoxContent with the correct widget/data when the selected option changes */
+	void UpdateOrGenerateWidget(TSharedPtr<FString> Item);
+
 	/** Called by slate when it needs to generate a new item for the combobox */
 	virtual TSharedRef<SWidget> HandleGenerateWidget(TSharedPtr<FString> Item) const;
 
@@ -174,6 +177,9 @@ protected:
 
 	/** A shared pointer to a container that holds the combobox content that is selected */
 	TSharedPtr< SBox > ComboBoxContent;
+
+	/** If OnGenerateWidgetEvent is not bound, this will store the default STextBlock generated */
+	TWeakPtr<STextBlock> DefaultComboBoxContent;
 
 	/** A shared pointer to the current selected string */
 	TSharedPtr<FString> CurrentOptionPtr;
