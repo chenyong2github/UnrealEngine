@@ -417,7 +417,7 @@ void UWheeledVehicleMovementComponent::SetupVehicleMass()
 	}
 
 	//Ensure that if mass properties ever change we set them back to our override
-	UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties.AddUObject(this, &UWheeledVehicleMovementComponent::UpdateMassProperties);
+	UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties().AddUObject(this, &UWheeledVehicleMovementComponent::UpdateMassProperties);
 
 	UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 }
