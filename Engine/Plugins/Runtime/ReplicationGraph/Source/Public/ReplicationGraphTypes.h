@@ -364,6 +364,7 @@ struct FClassReplicationInfo
 	uint8 ActorChannelFrameTimeout = 4;
 
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
+	FName FastSharedReplicationFuncName = NAME_None;
 
 	FString BuildDebugStringDelta() const
 	{
