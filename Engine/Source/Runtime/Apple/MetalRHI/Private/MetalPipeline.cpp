@@ -185,15 +185,17 @@ struct FMetalGraphicsPipelineKey
 		Key.VertexDescriptorHash = VertexDecl->Layout;
 		
 		FMetalVertexShader* VertexShader = (FMetalVertexShader*)Init.BoundShaderState.VertexShaderRHI;
+		Key.VertexFunction = VertexShader->GetHash();
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		FMetalDomainShader* DomainShader = (FMetalDomainShader*)Init.BoundShaderState.DomainShaderRHI;
-		
-        Key.VertexFunction = VertexShader->GetHash();
 		if (DomainShader)
 		{
 			Key.DomainFunction = DomainShader->GetHash();
 			Key.SetHashValue(Offset_IndexType, NumBits_IndexType, IndexType);
 		}
 		else
+#endif
 		{
 			Key.SetHashValue(Offset_IndexType, NumBits_IndexType, EMetalIndexType_None);
 		}
@@ -439,15 +441,22 @@ static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* Input
 static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGraphicsPipelineKey const& Key, const FGraphicsPipelineStateInitializer& Init, EMetalIndexType const IndexType)
 {
     FMetalVertexShader* VertexShader = (FMetalVertexShader*)Init.BoundShaderState.VertexShaderRHI;
-    FMetalDomainShader* DomainShader = (FMetalDomainShader*)Init.BoundShaderState.DomainShaderRHI;
     FMetalPixelShader* PixelShader = (FMetalPixelShader*)Init.BoundShaderState.PixelShaderRHI;
     
     mtlpp::Function vertexFunction = VertexShader->GetFunction();
     mtlpp::Function fragmentFunction = PixelShader ? PixelShader->GetFunction() : nil;
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	FMetalDomainShader* DomainShader = (FMetalDomainShader*)Init.BoundShaderState.DomainShaderRHI;
     mtlpp::Function domainFunction = DomainShader ? DomainShader->GetFunction() : nil;
+#endif
     
     FMetalShaderPipeline* Pipeline = nil;
-    if (vertexFunction && ((PixelShader != nullptr) == (fragmentFunction != nil)) && ((DomainShader != nullptr) == (domainFunction != nil)))
+    if (vertexFunction && ((PixelShader != nullptr) == (fragmentFunction != nil))
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		&& ((DomainShader != nullptr) == (domainFunction != nil))
+#endif
+	)
     {
 		ns::Error Error;
 		mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
@@ -603,10 +612,10 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
         }
         
         check(Init.BoundShaderState.VertexShaderRHI != nullptr);
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
         check(Init.BoundShaderState.GeometryShaderRHI == nullptr);
+#endif
 
-        FMetalHullShader* HullShader = (FMetalHullShader*)Init.BoundShaderState.HullShaderRHI;
-        
         if(RenderPipelineDesc.GetDepthAttachmentPixelFormat() == mtlpp::PixelFormat::Invalid && PixelShader && ((PixelShader->Bindings.InOutMask & 0x8000) || (NumActiveTargets == 0 && (PixelShader->Bindings.NumUAVs > 0))))
         {
             RenderPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
@@ -619,10 +628,15 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
     #endif
         
         FMetalVertexDeclaration* VertexDecl = (FMetalVertexDeclaration*)Init.BoundShaderState.VertexDeclarationRHI;
-        
-        if (Init.BoundShaderState.HullShaderRHI == nullptr)
+		
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		FMetalHullShader* HullShader = (FMetalHullShader*)Init.BoundShaderState.HullShaderRHI;
+		if (Init.BoundShaderState.HullShaderRHI == nullptr)
+#endif
         {
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
             check(Init.BoundShaderState.DomainShaderRHI == nullptr);
+#endif
             RenderPipelineDesc.SetVertexDescriptor(GetMaskedVertexDescriptor(VertexDecl->Layout.VertexDesc, VertexShader->Bindings.InOutMask));
             RenderPipelineDesc.SetVertexFunction(vertexFunction);
             RenderPipelineDesc.SetFragmentFunction(fragmentFunction);
@@ -632,6 +646,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 			RenderPipelineDesc.SetLabel([NSString stringWithFormat:@"%@+%@", VertexName.GetPtr(), FragmentName.GetPtr()]);
 #endif
         }
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
         else
         {
             check(Init.BoundShaderState.DomainShaderRHI != nullptr);
@@ -947,6 +962,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #endif
             }
         }
+#endif
         
         NSUInteger RenderOption = mtlpp::PipelineOption::NoPipelineOption;
 		mtlpp::AutoReleasedRenderPipelineReflection* Reflection = nullptr;
@@ -976,8 +992,10 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Failed to generate a pipeline state object: %s"), *FString(Error.GetPtr().description));
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Vertex shader: %s"), *FString(VertexShader->GetSourceCode()));
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Pixel shader: %s"), PixelShader ? *FString(PixelShader->GetSourceCode()) : TEXT("NULL"));
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Hull shader: %s"), HullShader ? *FString(HullShader->GetSourceCode()) : TEXT("NULL"));
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Domain shader: %s"), DomainShader ? *FString(DomainShader->GetSourceCode()) : TEXT("NULL"));
+#endif
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Descriptor: %s"), *FString(RenderPipelineDesc.GetPtr().description));
 		UE_CLOG((Pipeline->RenderPipelineState == nil), LogMetal, Error, TEXT("Failed to generate a render pipeline state object:\n\n %s\n\n"), *FString(Error.GetLocalizedDescription()));
 		
@@ -989,32 +1007,13 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		}
 		
     #if METAL_DEBUG_OPTIONS
-        Pipeline->ComputeSource = DomainShader ? VertexShader->GetSourceCode() : nil;
+	#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		Pipeline->ComputeSource = DomainShader ? VertexShader->GetSourceCode() : nil;
         Pipeline->VertexSource = DomainShader ? DomainShader->GetSourceCode() : VertexShader->GetSourceCode();
+	#else
+		Pipeline->VertexSource = VertexShader->GetSourceCode();
+	#endif
         Pipeline->FragmentSource = PixelShader ? PixelShader->GetSourceCode() : nil;
-    #endif
-        
-    #if 0
-        if (GFrameCounter > 3)
-        {
-            NSLog(@"===============================================================");
-            NSLog(@"Creating a BSS at runtime frame %lld... this may hitch! [this = %p]", GFrameCounter, Pipeline);
-            NSLog(@"Vertex declaration:");
-            FVertexDeclarationElementList& Elements = VertexDecl->Elements;
-            for (int32 i = 0; i < Elements.Num(); i++)
-            {
-                FVertexElement& Elem = Elements[i];
-                NSLog(@"   Elem %d: attr: %d, stream: %d, type: %d, stride: %d, offset: %d", i, Elem.AttributeIndex, Elem.StreamIndex, (uint32)Elem.Type, Elem.Stride, Elem.Offset);
-            }
-            
-            NSLog(@"\nVertexShader:");
-            NSLog(@"%@", VertexShader ? VertexShader->GetSourceCode() : @"NONE");
-            NSLog(@"\nPixelShader:");
-            NSLog(@"%@", PixelShader ? PixelShader->GetSourceCode() : @"NONE");
-            NSLog(@"\nDomainShader:");
-            NSLog(@"%@", DomainShader ? DomainShader->GetSourceCode() : @"NONE");
-            NSLog(@"===============================================================");
-        }
     #endif
         
 #if METAL_DEBUG_OPTIONS
@@ -1092,9 +1091,13 @@ FGraphicsPipelineStateRHIRef FMetalDynamicRHI::RHICreateGraphicsPipelineState(co
 	State->VertexDeclaration = ResourceCast(Initializer.BoundShaderState.VertexDeclarationRHI);
 	State->VertexShader = ResourceCast(Initializer.BoundShaderState.VertexShaderRHI);
 	State->PixelShader = ResourceCast(Initializer.BoundShaderState.PixelShaderRHI);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	State->HullShader = ResourceCast(Initializer.BoundShaderState.HullShaderRHI);
 	State->DomainShader = ResourceCast(Initializer.BoundShaderState.DomainShaderRHI);
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	State->GeometryShader = ResourceCast(Initializer.BoundShaderState.GeometryShaderRHI);
+#endif
 	State->DepthStencilState = ResourceCast(Initializer.DepthStencilState);
 	State->RasterizerState = ResourceCast(Initializer.RasterizerState);
 	return State;
