@@ -17,7 +17,7 @@
 #include "Animation/AnimSequenceBase.h"
 
 #include "Async/MappedFileHandle.h"
-#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
 #include "Serialization/BulkData.h"
