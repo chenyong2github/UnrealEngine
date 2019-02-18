@@ -281,7 +281,7 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	void SetRedrawTime(float bInRedrawTime) { RedrawTime = bInRedrawTime; }
+	void SetRedrawTime(float InRedrawTime) { RedrawTime = InRedrawTime; }
 
 	/** Get the fake window we create for widgets displayed in the world. */
 	TSharedPtr< SWindow > GetVirtualWindow() const;
