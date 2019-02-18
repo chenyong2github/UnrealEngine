@@ -1646,17 +1646,25 @@ struct FBoundShaderStateInput
 	(
 		FVertexDeclarationRHIParamRef InVertexDeclarationRHI
 		, FVertexShaderRHIParamRef InVertexShaderRHI
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, FHullShaderRHIParamRef InHullShaderRHI
 		, FDomainShaderRHIParamRef InDomainShaderRHI
+#endif
 		, FPixelShaderRHIParamRef InPixelShaderRHI
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, FGeometryShaderRHIParamRef InGeometryShaderRHI
+#endif
 	)
 		: VertexDeclarationRHI(InVertexDeclarationRHI)
 		, VertexShaderRHI(InVertexShaderRHI)
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, HullShaderRHI(InHullShaderRHI)
 		, DomainShaderRHI(InDomainShaderRHI)
+#endif
 		, PixelShaderRHI(InPixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, GeometryShaderRHI(InGeometryShaderRHI)
+#endif
 	{
 	}
 
@@ -1747,9 +1755,13 @@ public:
 		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI || 
 			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
 			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			BoundShaderState.DomainShaderRHI != rhs.BoundShaderState.DomainShaderRHI ||
-			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||			
+			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||	
+#endif		
 			BlendState != rhs.BlendState || 
 			RasterizerState != rhs.RasterizerState || 
 			DepthStencilState != rhs.DepthStencilState ||
@@ -1794,9 +1806,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1814,9 +1830,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1969,9 +1989,13 @@ public:
 
 	FSHAHash						VertexShaderHash;
 	FSHAHash						PixelShaderHash;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FSHAHash						GeometryShaderHash;
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FSHAHash						HullShaderHash;
 	FSHAHash						DomainShaderHash;
+#endif
 	uint32							RenderTargetsEnabled;
 	TRenderTargetFormats			RenderTargetFormats;
 	TRenderTargetFlags				RenderTargetFlags;
