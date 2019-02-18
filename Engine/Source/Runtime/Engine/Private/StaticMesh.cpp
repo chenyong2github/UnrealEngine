@@ -322,6 +322,14 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	// TODO: Not needed in uncooked games either after PostLoad!
 	bool bNeedsCPUAccess = !FPlatformProperties::RequiresCookedData() || bMeshCPUAcces;
 
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		if (bNeedsCPUAccess && OwnerStaticMesh)
+		{
+			UE_LOG(LogStaticMesh, Log, TEXT("[%s] Mesh is marked for CPU read."), *OwnerStaticMesh->GetName());
+		}
+	}
+
 	bHasWireframeIndices = false;
 	bHasAdjacencyInfo = false;
 	bHasDepthOnlyIndices = false;
