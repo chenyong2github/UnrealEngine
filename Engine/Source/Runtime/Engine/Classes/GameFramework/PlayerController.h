@@ -1864,6 +1864,9 @@ protected:
 	/** Destroys the SpectatorPawn and sets it to nullptr. */
 	virtual void DestroySpectatorPawn();
 
+	/** Useful to spectate other pawn without un-possessing the current pawn */
+	virtual bool ShouldKeepCurrentPawnUponSpectating() const { return false; }
+
 private:
 	/** The pawn used when spectating (nullptr if not spectating). */
 	UPROPERTY()
