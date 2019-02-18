@@ -120,7 +120,7 @@ enum class BodyInstanceSceneState : uint8
 	Removed
 };
 
-#define USE_BODYINSTANCE_DEBUG_NAMES (WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING
+#define USE_BODYINSTANCE_DEBUG_NAMES ((WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING)
 
 /** Container for a physics representation of an object */
 USTRUCT(BlueprintType)
