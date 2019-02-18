@@ -1226,7 +1226,7 @@ void FMeshDescription::ReverseAllPolygonFacing()
 
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 {
-	if (Ar.IsLoading())
+	if( Ar.IsLoading() )
 	{
 		CustomVersions = Ar.GetCustomVersions();
 	}
@@ -1272,8 +1272,7 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 			// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
 			// is serialized with the same versioning.
-			Ar.SetCustomVersions(CustomVersions);
-
+			Ar.SetCustomVersions( CustomVersions );
 			Ar << MeshDescription;
 		}
 		// Unlock bulk data when we leave scope
