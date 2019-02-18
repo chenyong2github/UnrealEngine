@@ -809,17 +809,25 @@ void UIpNetDriver::LowLevelDestroy()
 			IpServerConnection->WaitForSendTasks();
 		}
 
+		ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
+
 		// If using a recieve thread, shut down the socket, which will signal the thread to exit gracefully, then wait on the thread.
 		if (SocketReceiveThread.IsValid() && SocketReceiveThreadRunnable.IsValid())
 		{
+			UE_LOG(LogNet, Log, TEXT("Shutting down and waiting for socket receive thread for %s"), *GetDescription());
+
 			SocketReceiveThreadRunnable->bIsRunning = false;
-			Socket->Shutdown(ESocketShutdownMode::Read);
+			
+			if (!Socket->Shutdown(ESocketShutdownMode::Read))
+			{
+				const ESocketErrors ShutdownError = SocketSubsystem->GetLastErrorCode();
+				UE_LOG(LogNet, Log, TEXT("UIpNetDriver::LowLevelDestroy Socket->Shutdown returned error %s (%d) for %s"), SocketSubsystem->GetSocketError(ShutdownError), static_cast<int>(ShutdownError), *GetDescription());
+			}
 
 			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_Destroy_WaitForReceiveThread);
 			SocketReceiveThread->WaitForCompletion();
 		}
 
-		ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 		if( !Socket->Close() )
 		{
 			UE_LOG(LogExit, Log, TEXT("closesocket error (%i)"), (int32)SocketSubsystem->GetLastErrorCode() );
@@ -930,7 +938,7 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 {
 	const FTimespan Timeout = FTimespan::FromMilliseconds(CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread());
 
-	UE_LOG(LogNet, Log, TEXT("Receive Thread Startup."));
+	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run starting up."));
 
 	while (bIsRunning && OwningNetDriver->Socket)
 	{
@@ -985,10 +993,14 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 				IncomingPacket.Error = WaitError;
 				IncomingPacket.PlatformTimeSeconds = FPlatformTime::Seconds();
 
+				UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run: Socket->Wait returned error %s (%d)"), SocketSubsystem->GetSocketError(IncomingPacket.Error), static_cast<int>(IncomingPacket.Error));
+
 				ReceiveQueue.Enqueue(MoveTemp(IncomingPacket));
 			}
 		}
 	}
+
+	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run returning."));
 
 	return 0;
 }
