@@ -15,7 +15,7 @@
 DECLARE_CYCLE_STAT(TEXT("Anim Compression (Derived Data)"), STAT_AnimCompressionDerivedData, STATGROUP_Anim);
 
 template<typename ArrayValue>
-void StripFrames(TArray<ArrayValue>& Keys, const int32 NumFrames)
+void StripFramesEven(TArray<ArrayValue>& Keys, const int32 NumFrames)
 {
 	if (Keys.Num() > 1)
 	{
@@ -33,7 +33,46 @@ void StripFrames(TArray<ArrayValue>& Keys, const int32 NumFrames)
 	}
 }
 
-FDerivedDataAnimationCompression::FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping)
+template<typename ArrayValue>
+void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
+{
+	if (Keys.Num() > 1)
+	{
+		const int32 NewNumFrames = NumFrames / 2;
+
+		TArray<ArrayValue> NewKeys;
+		NewKeys.Reserve(NewNumFrames);
+
+		check(Keys.Num() == NumFrames);
+
+		NewKeys.Add(Keys[0]); //Always keep first 
+
+		//Always keep first and last
+		const int32 NumFramesToCalculate = NewNumFrames - 2;
+
+		// Frame increment is ratio of old frame spaces vs new frame spaces 
+		const double FrameIncrement = (double)(NumFrames - 1) / (double)(NewNumFrames - 1);
+			
+		for(int32 Frame=0; Frame < NumFramesToCalculate; ++Frame)
+		{
+			const double NextFramePosition = FrameIncrement * (Frame + 1);
+			const int32 Frame1 = (int32)NextFramePosition;
+			const float Alpha = (NextFramePosition - (double)Frame1);
+
+			NewKeys.Add(AnimationCompressionUtils::Interpolate(Keys[Frame1], Keys[Frame1 + 1], Alpha));
+
+		}
+
+		NewKeys.Add(Keys.Last()); // Always Keep Last
+
+		const int32 HalfSize = (NumFrames - 1) / 2;
+		const int32 StartRemoval = HalfSize + 1;
+
+		Keys = MoveTemp(NewKeys);
+	}
+}
+
+FDerivedDataAnimationCompression::FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims)
 	: OriginalAnimSequence(InAnimSequence)
 	, DuplicateSequence(nullptr)
 	, CompressContext(InCompressContext)
@@ -43,7 +82,11 @@ FDerivedDataAnimationCompression::FDerivedDataAnimationCompression(UAnimSequence
 	InAnimSequence->AddToRoot(); //Keep this around until we are finished
 
 	// Can only do stripping on animations that have an even number of frames once the end frame is removed)
-	const bool bStripCandidate = (OriginalAnimSequence->GetRawNumberOfFrames() > 10) && (((OriginalAnimSequence->GetRawNumberOfFrames() - 1) % 2) == 0);
+	bIsEvenFramed = ((OriginalAnimSequence->GetRawNumberOfFrames() - 1) % 2) == 0;
+	const bool bIsValidForStripping = bIsEvenFramed || bTryStrippingOnOddFramedAnims;
+
+	const bool bStripCandidate = (OriginalAnimSequence->GetRawNumberOfFrames() > 10) && bIsValidForStripping;
+	
 	bPerformStripping = bStripCandidate && bInTryFrameStripping;
 }
 
@@ -52,7 +95,9 @@ FDerivedDataAnimationCompression::~FDerivedDataAnimationCompression()
 	OriginalAnimSequence->RemoveFromRoot();
 	if (DuplicateSequence)
 	{
+		DuplicateSequence->ClearFlags(RF_Standalone | RF_Public);
 		DuplicateSequence->RemoveFromRoot();
+		DuplicateSequence->MarkPendingKill();
 	}
 }
 
@@ -144,17 +189,34 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutData )
 			const int32 NumTracks = AnimToOperateOn->GetRawAnimationData().Num();
 
 			//Strip every other frame from tracks
-			for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+			if(bIsEvenFramed)
 			{
-				FRawAnimSequenceTrack& Track = AnimToOperateOn->GetRawAnimationTrack(TrackIndex);
+				for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+				{
+					FRawAnimSequenceTrack& Track = AnimToOperateOn->GetRawAnimationTrack(TrackIndex);
 
-				StripFrames(Track.PosKeys, NumFrames);
-				StripFrames(Track.RotKeys, NumFrames);
-				StripFrames(Track.ScaleKeys, NumFrames);
+					StripFramesEven(Track.PosKeys, NumFrames);
+					StripFramesEven(Track.RotKeys, NumFrames);
+					StripFramesEven(Track.ScaleKeys, NumFrames);
+				}
+
+				const int32 ActualFrames = AnimToOperateOn->GetRawNumberOfFrames() - 1; // strip bookmark end frame
+				AnimToOperateOn->SetRawNumberOfFrame((ActualFrames / 2) + 1);
 			}
+			else
+			{
+				for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+				{
+					FRawAnimSequenceTrack& Track = AnimToOperateOn->GetRawAnimationTrack(TrackIndex);
 
-			const int32 StripFrames = AnimToOperateOn->GetRawNumberOfFrames() - 1;
-			AnimToOperateOn->SetRawNumberOfFrame((StripFrames / 2) + 1);
+					StripFramesOdd(Track.PosKeys, NumFrames);
+					StripFramesOdd(Track.RotKeys, NumFrames);
+					StripFramesOdd(Track.ScaleKeys, NumFrames);
+				}
+
+				const int32 ActualFrames = AnimToOperateOn->GetRawNumberOfFrames(); // strip bookmark end frame
+				AnimToOperateOn->SetRawNumberOfFrame((ActualFrames / 2));
+			}
 		}
 
 		AnimToOperateOn->UpdateCompressedTrackMapFromRaw();
