@@ -1,4 +1,5 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "IOS/ApplePlatformBackgroundHttpRequest.h"
 #include "IOS/ApplePlatformBackgroundHttpManager.h"
 #include "Interfaces/IBackgroundHttpResponse.h"
