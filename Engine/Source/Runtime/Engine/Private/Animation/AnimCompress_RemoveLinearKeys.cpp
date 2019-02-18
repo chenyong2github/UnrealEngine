@@ -25,33 +25,6 @@ static FQuat EnforceShortestArc(const FQuat& A, const FQuat& B)
 }
 
 /**
- * Helper template function to interpolate between two data types.
- * Used in the FilterLinearKeysTemplate function below
- */
-template <typename T>
-T Interpolate(const T& A, const T& B, float Alpha)
-{
-	// only the custom instantiations below are valid
-	check(0);
-	return 0;
-}
-
-/** custom instantiation of Interpolate for FVectors */
-template <> FVector Interpolate<FVector>(const FVector& A, const FVector& B, float Alpha)
-{
-	return FMath::Lerp(A,B,Alpha);
-}
-
-/** custom instantiation of Interpolate for FQuats */
-template <> FQuat Interpolate<FQuat>(const FQuat& A, const FQuat& B, float Alpha)
-{
-	FQuat result = FQuat::FastLerp(A,B,Alpha);
-	result.Normalize();
-
-	return result;
-}
-
-/**
  * Helper template function to calculate the delta between two data types.
  * Used in the FilterLinearKeysTemplate function below
  */
@@ -259,7 +232,7 @@ void FilterLinearKeysTemplate(
 
 					// compute the proposed, interpolated value for the key
 					const float Alpha = (TestTime - LowTime) * InvRange;
-					const KeyType LerpValue = Interpolate(LowValue, HighValue, Alpha);
+					const KeyType LerpValue = AnimationCompressionUtils::Interpolate(LowValue, HighValue, Alpha);
 
 					// compute the error between our interpolated value and the desired value
 					float LerpError = CalcDelta(TestValue, LerpValue);
@@ -463,7 +436,7 @@ void FilterLinearKeysTemplate(
 
 					// compute the proposed, interpolated value for the key
 					const float Alpha = (TestTime - LowTime) * InvRange;
-					const KeyType LerpValue = Interpolate(LowValue, HighValue, Alpha);
+					const KeyType LerpValue = AnimationCompressionUtils::Interpolate(LowValue, HighValue, Alpha);
 
 					// compute the error between our interpolated value and the desired value
 					float LerpError = CalcDelta(TestValue, LerpValue);
