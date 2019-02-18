@@ -49,7 +49,7 @@ void STextBlock::Construct( const FArguments& InArgs )
 
 	bSimpleTextMode = InArgs._SimpleTextMode;
 
-	OnDoubleClicked = InArgs._OnDoubleClicked;
+	SetOnMouseDoubleClick(InArgs._OnDoubleClicked);
 
 	BoundText = InArgs._Text;
 
@@ -236,19 +236,6 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	}
 
 	return LayerId;
-}
-
-FReply STextBlock::OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent )
-{
-	if ( InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
-	{
-		if( OnDoubleClicked.IsBound() )
-		{
-			return OnDoubleClicked.Execute();
-		}
-	}
-
-	return FReply::Unhandled();
 }
 
 FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
