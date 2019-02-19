@@ -1544,6 +1544,9 @@ void ACharacter::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLi
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
+	DISABLE_REPLICATED_PROPERTY(ACharacter, JumpMaxHoldTime);
+	DISABLE_REPLICATED_PROPERTY(ACharacter, JumpMaxCount);
+
 	DOREPLIFETIME_CONDITION( ACharacter, RepRootMotion,						COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, ReplicatedBasedMovement,			COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, ReplicatedServerLastTransformUpdateTimeStamp, COND_SimulatedOnlyNoReplay );
