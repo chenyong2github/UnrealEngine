@@ -131,7 +131,7 @@ bool FStaticMeshComponentInstanceData::ApplyVertexColorData(UStaticMeshComponent
 				// may not be null at the start (could have been initialized 
 				// from a  component template with vert coloring), but should
 				// be null at this point, after RemoveInstanceVertexColorsFromLOD()
-				if (LODInfo.OverrideVertexColors == NULL)
+				if (LODInfo.OverrideVertexColors == NULL && VertexColorLODData.VertexBufferColors.Num() > 0)
 				{
 					LODInfo.PaintedVertices = VertexColorLODData.PaintedVertices;
 
