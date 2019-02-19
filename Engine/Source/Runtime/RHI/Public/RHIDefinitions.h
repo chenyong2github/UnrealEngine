@@ -1111,6 +1111,11 @@ inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)
 	return IsMetalPlatform(Platform);
 }
 
+inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
+{
+	return !IsMobilePlatform(Platform);
+}
+
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
