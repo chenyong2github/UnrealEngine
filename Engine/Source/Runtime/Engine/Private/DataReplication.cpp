@@ -204,8 +204,9 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 
 					SerializeCustomDeltaProperty( Connection, Source, *It, ArrayIdx, DeltaState, NewState, OldState );
 
-					// Store the initial delta state in case we need it for when we're asked to resend all data since channel was first openeded (bResendAllDataSinceOpen)
-					CDOCustomDeltaState.Add( It->RepIndex + ArrayIdx, NewState );
+					// Store the initial delta state in case we need it for when we're asked to resend all data since channel was first opened (bResendAllDataSinceOpen)
+					CDOCustomDeltaState.Add( It->RepIndex + ArrayIdx, NewState ); 
+					CheckpointCustomDeltaState.Add( It->RepIndex + ArrayIdx, NewState );
 				}
 			}
 		}
@@ -340,11 +341,13 @@ void FObjectReplicator::CleanUp()
 
 	// Cleanup custom delta state
 	RecentCustomDeltaState.Empty();
+	CheckpointCustomDeltaState.Empty();
 
 	LifetimeCustomDeltaProperties.Empty();
 	LifetimeCustomDeltaPropertyConditions.Empty();
 
 	RepState = nullptr;
+	CheckpointRepState = nullptr;
 }
 
 void FObjectReplicator::StartReplicating( class UActorChannel * InActorChannel )
@@ -1160,17 +1163,35 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 		TempBitWriter.Reset();
 
-		if ( Connection->bResendAllDataSinceOpen )
+		if (Connection->ResendAllDataState != EResendAllDataState::None)
 		{
-			// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
-			// In this case, we'll send all of the properties since the CDO, so use the initial CDO delta state
-			TSharedPtr<INetDeltaBaseState>& OldState = CDOCustomDeltaState.FindChecked( RetireIndex );
-
-			if ( SerializeCustomDeltaProperty( OwningChannelConnection, ( void* )Object, It, Index, TempBitWriter, NewState, OldState ) )
+			if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
 			{
-				// Write property header and payload to the bunch
-				WritePropertyHeaderAndPayload( Object, It, NetFieldExportGroup, Bunch, TempBitWriter );
+				TSharedPtr<INetDeltaBaseState> OldState = CheckpointCustomDeltaState.FindChecked(RetireIndex);
+
+				if (!SerializeCustomDeltaProperty(OwningChannelConnection, (void*)Object, It, Index, TempBitWriter, NewState, OldState))
+				{
+					continue;
+				}
+
+				// update checkpoint with new state
+				CheckpointCustomDeltaState.Add(RetireIndex, NewState);
 			}
+			else
+			{
+				// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
+				// In this case, we'll send all of the properties since the CDO, so use the initial CDO delta state
+				TSharedPtr<INetDeltaBaseState>& OldState = CDOCustomDeltaState.FindChecked(RetireIndex);
+
+				if (!SerializeCustomDeltaProperty(OwningChannelConnection, (void*)Object, It, Index, TempBitWriter, NewState, OldState))
+				{
+					continue;
+				}
+			}
+
+			// Write property header and payload to the bunch
+			WritePropertyHeaderAndPayload( Object, It, NetFieldExportGroup, Bunch, TempBitWriter );
+
 			continue;
 		}
 
@@ -1242,7 +1263,7 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	//		and all the work could just be done in a single place.
 
 	// Update change list (this will re-use work done by previous connections)
-	FSendingRepState* SendingRepState = RepState->GetSendingRepState();
+	FSendingRepState* SendingRepState = ((Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint) && CheckpointRepState.IsValid()) ? CheckpointRepState->GetSendingRepState() : RepState->GetSendingRepState();
 	RepLayout->UpdateChangelistMgr(*ChangelistMgr, SendingRepState, Object, Connection->Driver->ReplicationFrame, RepFlags, OwningChannel->bForceCompareProperties);
 
 	// Replicate properties in the layout
@@ -1251,7 +1272,7 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	// Replicate all the custom delta properties (fast arrays, etc)
 	ReplicateCustomDeltaProperties(Writer, RepFlags);
 
-	if ( OwningChannelConnection->bResendAllDataSinceOpen )
+	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just send the data, and return
 		const bool WroteImportantData = Writer.GetNumBits() != 0;
@@ -1259,6 +1280,12 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 		if ( WroteImportantData )
 		{
 			OwningChannel->WriteContentBlockPayload( Object, Bunch, bHasRepLayout, Writer );
+
+			if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
+			{
+				UpdateCheckpoint();
+			}
+
 			return true;
 		}
 
@@ -1905,6 +1932,28 @@ void FObjectReplicator::WritePropertyHeaderAndPayload(
 	NETWORK_PROFILER( GNetworkProfiler.TrackWritePropertyHeader( Property, HeaderBits, nullptr ) );
 }
 
+void FObjectReplicator::UpdateCheckpoint()
+{
+	TArray<uint16> CheckpointChangelist;
+
+	if (CheckpointRepState.IsValid())
+	{
+		CheckpointChangelist = MoveTemp(CheckpointRepState->GetSendingRepState()->LifetimeChangelist);
+	}
+	else
+	{
+		CheckpointChangelist = RepState->GetSendingRepState()->LifetimeChangelist;
+	}
+
+	// Update rep state
+	TSharedPtr<FRepChangedPropertyTracker> RepChangedPropertyTracker = Connection->Driver->FindOrCreateRepChangedPropertyTracker( GetObject() );
+
+	CheckpointRepState = RepLayout->CreateRepState((const uint8*)GetObject(), RepChangedPropertyTracker, ECreateRepStateFlags::SkipCreateReceivingState);
+
+	// Keep current set of changed properties
+	CheckpointRepState->GetSendingRepState()->LifetimeChangelist = MoveTemp(CheckpointChangelist);
+}
+
 FScopedActorRoleSwap::FScopedActorRoleSwap(AActor* InActor)
 	: Actor(InActor)
 {
@@ -1927,5 +1976,3 @@ FScopedActorRoleSwap::~FScopedActorRoleSwap()
 		Actor->SwapRoles();
 	}
 }
-
-
