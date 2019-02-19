@@ -66,7 +66,7 @@ void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& InContext)
 			if (JointIndex != INDEX_NONE)
 			{
 				const int32 TargetNum = Targets.Num();
-				if (TargetNum > 0)
+				if (TargetNum > 0 && ConstraintData.Num() > 0)
 				{
 					for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
 					{
