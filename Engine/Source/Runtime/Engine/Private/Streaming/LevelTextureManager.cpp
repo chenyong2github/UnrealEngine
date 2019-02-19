@@ -14,6 +14,7 @@ FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetI
 	, bIsInitialized(false)
 	, StaticInstances(AsyncTask)
 	, BuildStep(EStaticBuildStep::BuildTextureLookUpMap) 
+	, bHasBeenReferencedToStreamedTextures(false)
 {
 	if (Level)
 	{
