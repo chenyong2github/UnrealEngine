@@ -918,6 +918,8 @@ const TArray<class ULocalPlayer*>& UGameInstance::GetLocalPlayers() const
 
 void UGameInstance::StartRecordingReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if ( FParse::Param( FCommandLine::Get(),TEXT( "NOREPLAYS" ) ) )
 	{
 		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::StartRecordingReplay: Rejected due to -noreplays option" ) );
@@ -1026,6 +1028,8 @@ void UGameInstance::StopRecordingReplay()
 
 bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	UWorld* CurrentWorld = WorldOverride != nullptr ? WorldOverride : GetWorld();
 
 	if ( CurrentWorld == nullptr )
