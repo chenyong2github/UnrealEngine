@@ -5607,6 +5607,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 					}
 
+					bool bAlignBulkData = false;
+					int64 BulkDataAlignment = 0;
+
+					if (TargetPlatform)
+					{
+						bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
+						BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
+					}
+
 					for (int32 i=0; i < Linker->BulkDataToAppend.Num(); ++i)
 					{
 						BulkDataFeedback.EnterProgressFrame();
@@ -5627,6 +5636,29 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						}
 
 						int64 BulkStartOffset = TargetArchive->Tell();
+
+						if (bAlignBulkData && BulkDataAlignment > 0 && !IsAligned(BulkStartOffset, BulkDataAlignment))
+						{
+							int64 AlignedOffset = Align(BulkStartOffset, BulkDataAlignment);
+							int64 Padding = AlignedOffset - BulkStartOffset;
+							check(Padding > 0);
+							uint64 Zero64 = 0;
+							while (Padding >= 8)
+							{
+								*TargetArchive << Zero64;
+								Padding -= 8;
+							}
+							uint8 Zero8 = 0;
+							while (Padding > 0)
+							{
+								*TargetArchive << Zero8;
+								Padding--;
+							}
+							BulkStartOffset = TargetArchive->Tell();
+							check(BulkStartOffset == AlignedOffset);
+						}
+
+
 						int64 StoredBulkStartOffset = BulkStartOffset - StartOfBulkDataArea;
 
 						BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));

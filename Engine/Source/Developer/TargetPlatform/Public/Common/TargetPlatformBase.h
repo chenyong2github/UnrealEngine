@@ -246,6 +246,12 @@ public:
 		case ETargetPlatformFeatures::MeshLODStreaming:
 			return TPlatformProperties::SupportsMeshLODStreaming();
 
+		case ETargetPlatformFeatures::MemoryMappedFiles:
+			return TPlatformProperties::SupportsMemoryMappedFiles();
+
+		case ETargetPlatformFeatures::MemoryMappedAudio:
+			return TPlatformProperties::SupportsMemoryMappedAudio();
+
 		case ETargetPlatformFeatures::SdkConnectDisconnect:
 		case ETargetPlatformFeatures::UserCredentials:
 			break;
@@ -268,6 +274,12 @@ public:
 	{
 		return TPlatformProperties::GetZlibReplacementFormat() != nullptr ? FName(TPlatformProperties::GetZlibReplacementFormat()) : NAME_Zlib;
 	}
+
+	virtual int32 GetMemoryMappingAlignment() const override
+	{
+		return TPlatformProperties::GetMemoryMappingAlignment();
+	}
+
 
 #if WITH_ENGINE
 	virtual FName GetPhysicsFormat( class UBodySetup* Body ) const override

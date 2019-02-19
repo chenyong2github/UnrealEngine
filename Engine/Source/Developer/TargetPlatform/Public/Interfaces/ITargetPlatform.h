@@ -75,6 +75,12 @@ enum class ETargetPlatformFeatures
 
 	/* The platform supports the experimental Device Output Log window */
 	DeviceOutputLog,
+
+	/* The platform supports memory mapped files */
+	MemoryMappedFiles,
+
+	/* The platform supports memory mapped audio */
+	MemoryMappedAudio,
 };
 
 
@@ -190,6 +196,13 @@ public:
 	 * @return Compression format to use instead of Zlib
 	 */
 	virtual FName GetZlibReplacementFormat() const = 0;
+
+	/**
+	 * Gets the alignment of memory mapping for this platform, typically the page size.
+	 *
+	 * @return alignment of memory mapping.
+	 */
+	virtual int32 GetMemoryMappingAlignment() const = 0;
 
 	/**
 	 * Generates a platform specific asset manifest given an array of FAssetData.
