@@ -26,12 +26,17 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 
 static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 {
-	return GetTypeHash(Input.VertexDeclarationRHI) ^
-		GetTypeHash(Input.VertexShaderRHI) ^
-		GetTypeHash(Input.PixelShaderRHI) ^
-		GetTypeHash(Input.HullShaderRHI) ^
-		GetTypeHash(Input.DomainShaderRHI) ^
-		GetTypeHash(Input.GeometryShaderRHI);
+	return GetTypeHash(Input.VertexDeclarationRHI)
+		^ GetTypeHash(Input.VertexShaderRHI)
+		^ GetTypeHash(Input.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		^ GetTypeHash(Input.HullShaderRHI)
+		^ GetTypeHash(Input.DomainShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		^ GetTypeHash(Input.GeometryShaderRHI)
+#endif
+		;
 }
 
 static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initializer)
@@ -94,6 +99,7 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	{
 		UE_LOG(LogRHI, Error, TEXT("Vertex: %s"), *Init.BoundShaderState.VertexShaderRHI->ShaderName);
 	}
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if(Init.BoundShaderState.HullShaderRHI)
 	{
 		UE_LOG(LogRHI, Error, TEXT("Hull: %s"), *Init.BoundShaderState.HullShaderRHI->ShaderName);
@@ -102,10 +108,13 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	{
 		UE_LOG(LogRHI, Error, TEXT("Domain: %s"), *Init.BoundShaderState.DomainShaderRHI->ShaderName);
 	}
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	if(Init.BoundShaderState.GeometryShaderRHI)
 	{
 		UE_LOG(LogRHI, Error, TEXT("Geometry: %s"), *Init.BoundShaderState.GeometryShaderRHI->ShaderName);
 	}
+#endif
 	if(Init.BoundShaderState.PixelShaderRHI)
 	{
 		UE_LOG(LogRHI, Error, TEXT("Pixel: %s"), *Init.BoundShaderState.PixelShaderRHI->ShaderName);
@@ -652,12 +661,16 @@ public:
 			Initializer.BoundShaderState.VertexShaderRHI->AddRef();
 		if (Initializer.BoundShaderState.PixelShaderRHI)
 			Initializer.BoundShaderState.PixelShaderRHI->AddRef();
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		if (Initializer.BoundShaderState.GeometryShaderRHI)
 			Initializer.BoundShaderState.GeometryShaderRHI->AddRef();
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		if (Initializer.BoundShaderState.DomainShaderRHI)
 			Initializer.BoundShaderState.DomainShaderRHI->AddRef();
 		if (Initializer.BoundShaderState.HullShaderRHI)
 			Initializer.BoundShaderState.HullShaderRHI->AddRef();
+#endif
 		if (Initializer.BlendState)
 			Initializer.BlendState->AddRef();
 		if (Initializer.RasterizerState)
@@ -693,12 +706,16 @@ public:
 				Initializer.BoundShaderState.VertexShaderRHI->Release();
 			if (Initializer.BoundShaderState.PixelShaderRHI)
 				Initializer.BoundShaderState.PixelShaderRHI->Release();
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			if (Initializer.BoundShaderState.GeometryShaderRHI)
 				Initializer.BoundShaderState.GeometryShaderRHI->Release();
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			if (Initializer.BoundShaderState.DomainShaderRHI)
 				Initializer.BoundShaderState.DomainShaderRHI->Release();
 			if (Initializer.BoundShaderState.HullShaderRHI)
 				Initializer.BoundShaderState.HullShaderRHI->Release();
+#endif
 			if (Initializer.BlendState)
 				Initializer.BlendState->Release();
 			if (Initializer.RasterizerState)
@@ -930,10 +947,14 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 	{
 		FGraphicsPipelineStateInitializer& HashableInitializer = const_cast<FGraphicsPipelineStateInitializer&>(OriginalInitializer);
 		HashableInitializer.VertexShaderHash = HashableInitializer.BoundShaderState.VertexShaderRHI ? HashableInitializer.BoundShaderState.VertexShaderRHI->GetHash() : FSHAHash();
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		HashableInitializer.HullShaderHash = HashableInitializer.BoundShaderState.HullShaderRHI ? HashableInitializer.BoundShaderState.HullShaderRHI->GetHash() : FSHAHash();
 		HashableInitializer.DomainShaderHash = HashableInitializer.BoundShaderState.DomainShaderRHI ? HashableInitializer.BoundShaderState.DomainShaderRHI->GetHash() : FSHAHash();
+#endif
 		HashableInitializer.PixelShaderHash = HashableInitializer.BoundShaderState.PixelShaderRHI ? HashableInitializer.BoundShaderState.PixelShaderRHI->GetHash() : FSHAHash();
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		HashableInitializer.GeometryShaderHash = HashableInitializer.BoundShaderState.GeometryShaderRHI ? HashableInitializer.BoundShaderState.GeometryShaderRHI->GetHash() : FSHAHash();
+#endif
 	}
 	
 	FGraphicsPipelineStateInitializer NewInitializer;
