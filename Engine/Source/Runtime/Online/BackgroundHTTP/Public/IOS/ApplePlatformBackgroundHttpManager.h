@@ -46,8 +46,8 @@ public:
 	static int RetryResumeDataLimitSetting;
 
 protected:
-	virtual bool AssociateWithAnyExistingRequest(const FBackgroundHttpRequestPtr Request) override;
-	
+	bool AssociateWithAnyExistingUnAssociatedTasks(const FBackgroundHttpRequestPtr Request);
+        
 	bool CheckForExistingUnAssociatedTask(const FAppleBackgroundHttpRequestPtr Request);
 
     void DeletePendingRemoveRequests();
@@ -112,4 +112,7 @@ private:
     
     //Need to store requests to remove at the end of our tick as we find them during iteration
     TArray<FBackgroundHttpRequestPtr> RequestsPendingRemove;
+    
+    /** On iOS we need to track how many Tasks we have active. This is to replace the default implementations NumCurrentlyActiveRequests **/
+    volatile int NumCurrentlyActiveTasks;
 };
