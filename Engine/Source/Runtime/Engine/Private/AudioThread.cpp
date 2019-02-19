@@ -478,12 +478,13 @@ void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 		FTaskGraphInterface::Get().TriggerEventWhenTaskCompletes(Event, CompletionEvent, ENamedThreads::GameThread);
 
 		bool bDone;
-		const uint32 WaitTime = 35;
+		const uint32 WaitTimeMs = 35;
 		do
 		{
-			bDone = Event->Wait(WaitTime);
+			bDone = Event->Wait(WaitTimeMs);
+
 			float ThisTime = FPlatformTime::Seconds() - StartTime;
- 			if (ThisTime > .036f)
+ 			if (ThisTime > static_cast<float>(WaitTimeMs) / 1000.0f + SMALL_NUMBER)
 			{
 				if (GCVarEnableAudioCommandLogging == 1)
 				{
@@ -497,7 +498,7 @@ void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 				}
 				else
 				{
-					UE_LOG(LogAudio, Warning,  TEXT("Waited %fms for audio thread."), ThisTime * 1000.0f);
+					UE_LOG(LogAudio, Warning,  TEXT("Waited %f ms for audio thread."), ThisTime * 1000.0f);
 				}
 			}
 		} while (!bDone);
