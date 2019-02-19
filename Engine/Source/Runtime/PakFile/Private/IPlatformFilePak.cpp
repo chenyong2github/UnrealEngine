@@ -3811,6 +3811,15 @@ static FAutoConsoleCommand MappedFileTestCmd(
 
 IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
 {
+#if !UE_BUILD_SHIPPING
+	// disable all mmio if commandline requested it
+	static bool bNoMMIO = FParse::Param(FCommandLine::Get(), TEXT("nommio"));
+	if (bNoMMIO)
+	{
+		return nullptr;
+	}
+#endif
+
 	// Check pak files first
 	FPakEntry FileEntry;
 	FPakFile* PakEntry = nullptr;
