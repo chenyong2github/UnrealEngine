@@ -481,7 +481,7 @@ class FUObjectAnnotationChunked : public FUObjectArray::FUObjectDeleteListener
 
 		TAnnotationChunk()
 			: Num(0)
-			: Items(nullptr)
+			, Items(nullptr)
 		{}
 	};
 
