@@ -476,9 +476,8 @@ UNiagaraScript* UNiagaraEmitter::GetScript(ENiagaraScriptUsage Usage, FGuid Usag
 	return nullptr;
 }
 
-bool UNiagaraEmitter::IsAllowedByDetailLevel()const
+bool UNiagaraEmitter::IsAllowedByDetailLevel(int32 DetailLevel)const
 {
-	int32 DetailLevel = INiagaraModule::GetDetailLevel();
 	if ((bUseMinDetailLevel && DetailLevel < MinDetailLevel) || (bUseMaxDetailLevel && DetailLevel > MaxDetailLevel))
 	{
 		return false;

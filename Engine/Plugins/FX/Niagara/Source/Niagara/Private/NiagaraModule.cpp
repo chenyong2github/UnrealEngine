@@ -80,7 +80,7 @@ FNiagaraVariable INiagaraModule::Engine_Owner_SystemLocalToWorldNoScale;
 FNiagaraVariable INiagaraModule::Engine_Owner_SystemWorldToLocalNoScale;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_TimeSinceRendered;
-FNiagaraVariable INiagaraModule::Engine_Owner_MinDistanceToCamera;
+FNiagaraVariable INiagaraModule::Engine_Owner_LODDistance;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_ExecutionState;
 
@@ -187,7 +187,7 @@ void INiagaraModule::StartupModule()
 	Engine_Owner_SystemWorldToLocalNoScale = FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Engine.Owner.SystemWorldToLocalNoScale"));
 
 	Engine_Owner_TimeSinceRendered = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.TimeSinceRendered"));
-	Engine_Owner_MinDistanceToCamera = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.MinDistanceToCamera"));
+	Engine_Owner_LODDistance = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.LODDistance"));
 
 	Engine_Owner_ExecutionState = FNiagaraVariable(FNiagaraTypeDefinition::GetExecutionStateEnum(), TEXT("Engine.Owner.ExecutionState"));
 	
