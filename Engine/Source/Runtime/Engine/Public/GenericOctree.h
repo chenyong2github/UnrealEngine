@@ -705,7 +705,7 @@ public:
 	bool IsValidElementId(FOctreeElementId ElementId) const;
 
 	/** Writes stats for the octree to the log. */
-	void DumpStats();
+	void DumpStats() const;
 
 	SIZE_T GetSizeBytes() const
 	{
