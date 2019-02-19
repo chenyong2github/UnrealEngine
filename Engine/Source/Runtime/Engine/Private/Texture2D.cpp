@@ -503,6 +503,20 @@ void UTexture2D::UpdateResource()
 	CachePlatformData();
 	// clear all the cooked cached platform data if the source could have changed... 
 	ClearAllCachedCookedPlatformData();
+#else
+	// Note that using TF_FirstMip disables texture streaming, because the mip data becomes lost.
+	// Also, the cleanup of the platform data must go between UpdateCachedLODBias() and UpdateResource().
+	if ((Filter == TF_FirstMipNearest || Filter == TF_FirstMipBilinear) && PlatformData && FPlatformProperties::RequiresCookedData())
+	{
+		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
+		// Remove any mips after the first mip.
+		PlatformData->Mips.RemoveAt(FirstMip + 1, PlatformData->Mips.Num() - FirstMip - 1);
+		// Remove any mips before the first mip.
+		PlatformData->Mips.RemoveAt(0, FirstMip);
+		// Update the texture size for the memory usage metrics.
+		PlatformData->SizeX = PlatformData->Mips[0].SizeX;
+		PlatformData->SizeY = PlatformData->Mips[0].SizeY;
+	}
 #endif // #if WITH_EDITOR
 
 	// Route to super.
@@ -827,6 +841,7 @@ FTextureResource* UTexture2D::CreateResource()
 					!NeverStream && 
 					(NumMips > 1) && 
 					(LODGroup != TEXTUREGROUP_UI) && 
+					(Filter != TF_FirstMipNearest && Filter != TF_FirstMipBilinear) &&
 					!bTemporarilyDisableStreaming;
 	
 	if (bIsStreamable && NumMips > 0)
@@ -1470,15 +1485,13 @@ uint32 FTexture2DResource::GetSizeY() const
 /** Returns the default mip bias for this texture. */
 int32 FTexture2DResource::GetDefaultMipMapBias() const
 {
-	if ( Owner->LODGroup == TEXTUREGROUP_UI )
+	check(Owner);
+	if ((Owner->LODGroup == TEXTUREGROUP_UI && CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0) || 
+		(!GIsEditor && (Owner->Filter == TF_FirstMipNearest || Owner->Filter == TF_FirstMipBilinear))) // Don't use in editor otherwise it prevents visualizing mips.
 	{
-		if ( CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0 )
-		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
-			return -OwnerMips.Num();
-		}
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
+		return -OwnerMips.Num();
 	}
-	
 	return 0;
 }
 
