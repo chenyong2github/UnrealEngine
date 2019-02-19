@@ -48,7 +48,10 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
-	TArray<FShaderCommonCompileJob*>& NewJobs
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
+
 	)
 {
 	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, VertexFactoryType, this, /* PermutationId = */ 0);
@@ -84,7 +87,9 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 		FShaderTarget(GetFrequency(),Platform),
 		NewJob,
 		NewJobs,
-		bAllowDevelopmentShaderCompile
+		bAllowDevelopmentShaderCompile,
+		DebugDescription,
+		DebugExtension
 		);
 	return NewJob;
 }
@@ -97,7 +102,10 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
 	const TArray<FMeshMaterialShaderType*>& ShaderStages,
-	TArray<FShaderCommonCompileJob*>& NewJobs)
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
+	)
 {
 	check(ShaderStages.Num() > 0);
 	check(ShaderPipeline);
@@ -108,7 +116,7 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	for (int32 Index = 0; Index < ShaderStages.Num(); ++Index)
 	{
 		auto* ShaderStage = ShaderStages[Index];
-		ShaderStage->BeginCompileShader(ShaderMapId, Platform, Material, MaterialEnvironment, VertexFactoryType, ShaderPipeline, NewPipelineJob->StageJobs);
+		ShaderStage->BeginCompileShader(ShaderMapId, Platform, Material, MaterialEnvironment, VertexFactoryType, ShaderPipeline, NewPipelineJob->StageJobs, DebugDescription, DebugExtension);
 	}
 
 	NewJobs.Add(NewPipelineJob);
@@ -184,7 +192,9 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 	const FMaterial* Material,
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<FShaderCommonCompileJob*>& NewJobs
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
 	)
 {
 	if (!VertexFactoryType)
@@ -218,7 +228,9 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 					MaterialEnvironment,
 					VertexFactoryType,
 					nullptr,
-					NewJobs
+					NewJobs,
+					DebugDescription, 
+					DebugExtension
 					);
 				check(!SharedShaderJobs.Find(ShaderType));
 				SharedShaderJobs.Add(ShaderType, Job);
@@ -268,7 +280,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 					}
 
 					// Make a pipeline job with all the stages
-					FMeshMaterialShaderType::BeginCompileShaderPipeline(ShaderMapId, InPlatform, Material, MaterialEnvironment, VertexFactoryType, Pipeline, ShaderStagesToCompile, NewJobs);
+					FMeshMaterialShaderType::BeginCompileShaderPipeline(ShaderMapId, InPlatform, Material, MaterialEnvironment, VertexFactoryType, Pipeline, ShaderStagesToCompile, NewJobs, DebugDescription, DebugExtension);
 				}
 				else
 				{

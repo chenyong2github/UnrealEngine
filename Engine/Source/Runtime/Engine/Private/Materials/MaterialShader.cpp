@@ -861,7 +861,9 @@ FShaderCompileJob* FMaterialShaderType::BeginCompileShader(
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
 	EShaderPlatform Platform,
-	TArray<FShaderCommonCompileJob*>& NewJobs
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	const FString& DebugDescription,
+	const FString& DebugExtension
 	)
 {
 	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, nullptr, this, /* PermutationId = */ 0);
@@ -890,7 +892,10 @@ FShaderCompileJob* FMaterialShaderType::BeginCompileShader(
 		GetFunctionName(),
 		FShaderTarget(GetFrequency(),Platform),
 		NewJob,
-		NewJobs
+		NewJobs,
+		true,
+		DebugDescription,
+		DebugExtension
 		);
 	return NewJob;
 }
@@ -902,7 +907,9 @@ void FMaterialShaderType::BeginCompileShaderPipeline(
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
 	const TArray<FMaterialShaderType*>& ShaderStages,
-	TArray<FShaderCommonCompileJob*>& NewJobs)
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	const FString& DebugDescription,
+	const FString& DebugExtension)
 {
 	check(ShaderStages.Num() > 0);
 	check(ShaderPipeline);
@@ -913,7 +920,7 @@ void FMaterialShaderType::BeginCompileShaderPipeline(
 	for (int32 Index = 0; Index < ShaderStages.Num(); ++Index)
 	{
 		auto* ShaderStage = ShaderStages[Index];
-		ShaderStage->BeginCompileShader(ShaderMapId, Material, MaterialEnvironment, ShaderPipeline, Platform, NewPipelineJob->StageJobs);
+		ShaderStage->BeginCompileShader(ShaderMapId, Material, MaterialEnvironment, ShaderPipeline, Platform, NewPipelineJob->StageJobs, DebugDescription, DebugExtension);
 	}
 
 	NewJobs.Add(NewPipelineJob);
@@ -1448,6 +1455,16 @@ void FMaterialShaderMap::Compile(
 			);
   
 			UE_LOG(LogShaders, Display, TEXT("	%s"), *DebugDescription);
+
+			FSHA1 IdParameterSetHash;
+			IdParameterSetHash.Reset();
+			IdParameterSet.UpdateHash(IdParameterSetHash);
+			IdParameterSetHash.Final();
+			uint32* Hash = (uint32*)&IdParameterSetHash.m_digest[0];
+			FString DebugExtension = FString::Printf( TEXT("_%08x%08x"), Hash[0], Hash[1]);
+#else
+			FString DebugExtension = "";
+			FString DebugDescription = "";
 #endif
 
 			uint32 NumShaders = 0;
@@ -1491,7 +1508,9 @@ void FMaterialShaderMap::Compile(
 						Material,
 						MaterialEnvironment,
 						InPlatform,
-						NewJobs
+						NewJobs,
+						DebugDescription, 
+						DebugExtension
 						);
 					NumShaders += MeshShaders;
 					if (MeshShaders > 0)
@@ -1523,7 +1542,8 @@ void FMaterialShaderMap::Compile(
 							MaterialEnvironment,
 							nullptr,
 							InPlatform,
-							NewJobs
+							NewJobs,
+							DebugDescription, DebugExtension
 							);
 						check(!SharedShaderJobs.Find(ShaderType));
 						SharedShaderJobs.Add(ShaderType, Job);
@@ -1562,7 +1582,7 @@ void FMaterialShaderMap::Compile(
 						if (Pipeline->ShouldOptimizeUnusedOutputs(InPlatform))
 						{
 							NumShaders += ShaderStagesToCompile.Num();
-							FMaterialShaderType::BeginCompileShaderPipeline(CompilingId, InPlatform, Material, MaterialEnvironment, Pipeline, ShaderStagesToCompile, NewJobs);
+							FMaterialShaderType::BeginCompileShaderPipeline(CompilingId, InPlatform, Material, MaterialEnvironment, Pipeline, ShaderStagesToCompile, NewJobs, DebugDescription, DebugExtension);
 						}
 						else
 						{
