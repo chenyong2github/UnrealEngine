@@ -830,7 +830,7 @@ void UActorChannel::AppendExportBunches( TArray<FOutBunch *>& OutExportBunches )
 	Super::AppendExportBunches( OutExportBunches );
 
 	// We don't want to append QueuedExportBunches to these bunches, since these were for queued RPC's, and we don't want to record RPC's during bResendAllDataSinceOpen
-	if ( !Connection->bResendAllDataSinceOpen )
+	if ( Connection->ResendAllDataState == EResendAllDataState::None )
 	{
 		// Let the profiler know about exported GUID bunches
 		for ( const FOutBunch* ExportBunch : QueuedExportBunches )
@@ -857,7 +857,7 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 	}
 
 	// We don't want to append QueuedMustBeMappedGuidsInLastBunch to these bunches, since these were for queued RPC's, and we don't want to record RPC's during bResendAllDataSinceOpen
-	if ( !Connection->bResendAllDataSinceOpen )
+	if ( Connection->ResendAllDataState == EResendAllDataState::None )
 	{
 		if ( QueuedMustBeMappedGuidsInLastBunch.Num() > 0 )
 		{
@@ -890,10 +890,21 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 	check( !Bunch->bHasPackageMapExports );
 
 	// Set bunch flags.
-	if( ( OpenPacketId.First==INDEX_NONE || Connection->bResendAllDataSinceOpen ) && OpenedLocally )
+	if( ( OpenPacketId.First==INDEX_NONE || (Connection->ResendAllDataState != EResendAllDataState::None) ) && OpenedLocally )
 	{
-		Bunch->bOpen = 1;
-		OpenTemporary = !Bunch->bReliable;
+		bool bOpenBunch = true;
+
+		if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
+		{
+			bOpenBunch = !bOpenedForCheckpoint;
+			bOpenedForCheckpoint = true;
+		}
+		
+		if (bOpenBunch)
+		{
+			Bunch->bOpen = 1;
+			OpenTemporary = !Bunch->bReliable;
+		}
 	}
 
 	// If channel was opened temporarily, we are never allowed to send reliable packets on it.
@@ -1088,7 +1099,7 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 	}
 
 	// Update open range if necessary
-	if (Bunch->bOpen && !Connection->bResendAllDataSinceOpen)
+	if (Bunch->bOpen && (Connection->ResendAllDataState == EResendAllDataState::None))
 	{
 		OpenPacketId = PacketIdRange;		
 	}
@@ -1112,7 +1123,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 // OUtbunch is a bunch that was new'd by the network system or NULL. It should never be one created on the stack
 FOutBunch* UChannel::PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge)
 {
-	if ( Connection->bResendAllDataSinceOpen )
+	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
 		return Bunch;
 	}
@@ -1176,7 +1187,7 @@ FOutBunch* UChannel::PrepBunch(FOutBunch* Bunch, FOutBunch* OutBunch, bool Merge
 
 int32 UChannel::SendRawBunch(FOutBunch* OutBunch, bool Merge)
 {
-	if ( Connection->bResendAllDataSinceOpen )
+	if ( Connection->ResendAllDataState != EResendAllDataState::None )
 	{
 		check( OpenPacketId.First != INDEX_NONE );
 		check( OpenPacketId.Last != INDEX_NONE );
@@ -1187,9 +1198,14 @@ int32 UChannel::SendRawBunch(FOutBunch* OutBunch, bool Merge)
 	OutBunch->ReceivedAck = 0;
 	int32 PacketId = Connection->SendRawBunch(*OutBunch, Merge);
 	if( OpenPacketId.First==INDEX_NONE && OpenedLocally )
+	{
 		OpenPacketId = FPacketIdRange(PacketId);
+	}
+
 	if( OutBunch->bClose )
+	{
 		SetClosingFlag();
+	}
 
 	return PacketId;
 }
@@ -1254,6 +1270,7 @@ void UChannel::AddedToChannelPool()
 	bPendingDormancy = false;
 	bPausedUntilReliableACK = false;
 	SentClosingBunch = false;
+	bOpenedForCheckpoint = false;
 	ChIndex = 0;
 	OpenedLocally = false;
 	OpenPacketId = FPacketIdRange();
@@ -2766,7 +2783,7 @@ int64 UActorChannel::ReplicateActor()
 	FReplicationFlags RepFlags;
 
 	// Send initial stuff.
-	if( OpenPacketId.First != INDEX_NONE && !Connection->bResendAllDataSinceOpen )
+	if( OpenPacketId.First != INDEX_NONE && (Connection->ResendAllDataState == EResendAllDataState::None) )
 	{
 		if( !SpawnAcked && OpenAcked )
 		{
@@ -2782,7 +2799,15 @@ int64 UActorChannel::ReplicateActor()
 	}
 	else
 	{
-		RepFlags.bNetInitial = true;
+		if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
+		{
+			RepFlags.bNetInitial = !bOpenedForCheckpoint;
+		}
+		else
+		{
+			RepFlags.bNetInitial = true;
+		}
+
 		Bunch.bClose = Actor->bNetTemporary;
 		Bunch.bReliable = true; // Net temporary sends need to be reliable as well to force them to retry
 	}
@@ -2838,7 +2863,7 @@ int64 UActorChannel::ReplicateActor()
 		// The SubObjects
 		WroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &RepFlags);
 
-		if (Connection->bResendAllDataSinceOpen)
+		if (Connection->ResendAllDataState != EResendAllDataState::None)
 		{
 			if (WroteSomethingImportant)
 			{

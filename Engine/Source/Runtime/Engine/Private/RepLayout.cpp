@@ -883,7 +883,7 @@ bool FRepLayout::ReplicateProperties(
 		FilterChangeList(InactiveChangelist, RepState->InactiveParents, RepState->InactiveChangelist, NewlyActiveChangelist);
 	}
 
-	if (OwningChannel->Connection->bResendAllDataSinceOpen)
+	if (OwningChannel->Connection->ResendAllDataState != EResendAllDataState::None)
 	{
 		check(OwningChannel->Connection->InternalAck);
 
