@@ -1530,7 +1530,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
 		bool bIsUAssetUExpPairUAsset = false;
 		bool bIsUAssetUExpPairUExp = false;
-		bool bIsUBulk = FPaths::GetExtension(FilesToAdd[FileIndex].Dest, true) == TEXT(".ubulk");
+		bool bIsUBulk = FPaths::GetExtension(FilesToAdd[FileIndex].Source, true) == TEXT(".ubulk");
 
 		if (FileIndex)
 		{
