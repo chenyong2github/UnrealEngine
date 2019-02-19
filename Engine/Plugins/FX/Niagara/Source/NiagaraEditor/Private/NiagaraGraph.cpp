@@ -184,6 +184,55 @@ void UNiagaraGraph::PostLoad()
 
 	Parameters.Empty();
 	FindParameters();
+
+	// Migrate input condition metadata
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::MoveCommonInputMetadataToProperties)
+	{
+		auto MigrateInputCondition = [](TMap<FName,FString>& PropertyMetaData, const FName& InputConditionKey, FNiagaraInputConditionMetadata& InOutInputCondition)
+		{
+			FString* InputCondition = PropertyMetaData.Find(InputConditionKey);
+			if (InputCondition != nullptr)
+			{
+				FString InputName;
+				FString TargetValue;
+				int32 EqualsIndex = InputCondition->Find("=");
+				if (EqualsIndex == INDEX_NONE)
+				{
+					InOutInputCondition.InputName = **InputCondition;
+				}
+				else
+				{
+					InOutInputCondition.InputName = *InputCondition->Left(EqualsIndex);
+					InOutInputCondition.TargetValues.Add(InputCondition->RightChop(EqualsIndex + 1));
+				}
+				PropertyMetaData.Remove(InputConditionKey);
+			}
+		};
+
+		for (auto& VariableToMetaDataItem : VariableToMetaData)
+		{
+			FNiagaraVariableMetaData& MetaData = VariableToMetaDataItem.Value;
+
+			// Migrate advanced display.
+			if (MetaData.PropertyMetaData.Contains("AdvancedDisplay"))
+			{
+				MetaData.bAdvancedDisplay = true;
+				MetaData.PropertyMetaData.Remove("AdvancedDisplay");
+			}
+
+			// Migrate inline edit condition toggle
+			if (MetaData.PropertyMetaData.Contains("InlineEditConditionToggle"))
+			{
+				MetaData.bInlineEditConditionToggle = true;
+				MetaData.PropertyMetaData.Remove("InlineEditConditionToggle");
+			}
+
+			// Migrate edit and visible conditions
+			MigrateInputCondition(MetaData.PropertyMetaData, TEXT("EditCondition"), MetaData.EditCondition);
+			MigrateInputCondition(MetaData.PropertyMetaData, TEXT("VisibleCondition"), MetaData.VisibleCondition);
+		}
+	}
 }
 
 void UNiagaraGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
