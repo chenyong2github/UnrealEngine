@@ -10992,6 +10992,7 @@ UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName
 
 UNetDriver* UEngine::CreateNetDriver(UWorld *InWorld, FName NetDriverDefinition)
 {
+	LLM_SCOPE(ELLMTag::Networking);
 	return CreateNetDriver_Local(this, GetWorldContextFromWorldChecked(InWorld), NetDriverDefinition);
 }
 
@@ -11630,10 +11631,15 @@ EBrowseReturnVal::Type UEngine::Browse( FWorldContext& WorldContext, FURL URL, F
 				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 			}
 
-			// Just reload the RPC world (as we have no real map to load)
-			WorldContext.PendingNetGame = NewObject<UPendingNetGame>();
-			WorldContext.PendingNetGame->Initialize(WorldContext.LastURL);
-			WorldContext.PendingNetGame->InitNetDriver();
+			{
+				LLM_SCOPE(ELLMTag::Networking);
+
+				// Just reload the RPC world (as we have no real map to load)
+				WorldContext.PendingNetGame = NewObject<UPendingNetGame>();
+				WorldContext.PendingNetGame->Initialize(WorldContext.LastURL);
+				WorldContext.PendingNetGame->InitNetDriver();
+			}
+
 			if (!WorldContext.PendingNetGame->NetDriver)
 			{
 				// UPendingNetGame will set the appropriate error code and connection lost type, so
