@@ -113,6 +113,13 @@ typedef FAndroidTypes FPlatformTypes;
 #define FUNCTION_CHECK_RETURN_END __attribute__ ((warn_unused_result))	/* Warn that callers should not ignore the return value. */
 #define FUNCTION_NO_RETURN_END __attribute__ ((noreturn))				/* Indicate that the function never returns. */
 
+// Optimization macros
+#define PRAGMA_DISABLE_OPTIMIZATION_ACTUAL _Pragma("clang optimize off")
+#define PRAGMA_ENABLE_OPTIMIZATION_ACTUAL _Pragma("clang optimize on")
+
+// Disable optimization of a specific function
+#define DISABLE_FUNCTION_OPTIMIZATION	__attribute__((optnone))
+
 #define ABSTRACT abstract
 
 // DLL export and import definitions

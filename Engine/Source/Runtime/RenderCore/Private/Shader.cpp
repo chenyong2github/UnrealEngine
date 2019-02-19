@@ -702,8 +702,10 @@ void FShaderResource::SerializeShaderCode(FArchive& Ar)
 		{
 			if (!GRHILazyShaderCodeLoading)
 			{
-				FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar);
-				bCodeInSharedLocationRequested = true;
+				if (FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar))
+				{
+					bCodeInSharedLocationRequested = true;
+				}
 			}
 			else
 			{

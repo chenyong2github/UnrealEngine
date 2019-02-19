@@ -520,6 +520,7 @@ public:
 			FScopeLock ScopeLock(&ReadRequestLock);
 
 			Entry->NumRefs--;
+			check(Entry->NumRefs >= 0);
 			if (Entry->NumRefs == 0)
 			{
 				// should not attempt to release shader code while it's loading
