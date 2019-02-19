@@ -413,8 +413,8 @@ public:
 
 private:
 
-	FRepChangelistState RepChangelistState;
 	uint32 LastReplicationFrame;
+	FRepChangelistState RepChangelistState;
 };
 
 class FGuidReferences;
