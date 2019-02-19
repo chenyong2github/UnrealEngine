@@ -714,7 +714,7 @@ enum ETextureCreateFlags
 	TexCreate_CPUWritable			= 1<<5,
 	// Texture will be created with an un-tiled format
 	TexCreate_NoTiling				= 1<<6,
-	// Texture will be used for video decode on Switch
+	// Texture will be used for video decode
 	TexCreate_VideoDecode			= 1<<7,
 	// Texture that may be updated every frame
 	TexCreate_Dynamic				= 1<<8,
