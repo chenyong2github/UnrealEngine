@@ -594,12 +594,6 @@ public:
 	TArray<uint16> LifetimeChangelist;
 
 	/**
-	 * A map tracking which replication conditions are currently active.
-	 * @see ELifetimeCondition.
-	 */
-	TStaticBitArray<COND_Max> ConditionMap;
-
-	/**
 	 * Properties which are inactive through conditions have their changes stored here, so they can be 
 	 * applied if/when the property becomes active.
 	 *
@@ -609,6 +603,12 @@ public:
 
 	/** Cached set of inactive parent commands. */
 	TBitArray<> InactiveParents;
+
+	// Cache off the RemoteRole and Role per connection to avoid issues with
+	// FScopedRoleDowngrade. See UE-66313 (among others).
+
+	ENetRole SavedRemoteRole = ROLE_MAX;
+	ENetRole SavedRole = ROLE_MAX;
 };
 
 
@@ -1548,8 +1548,8 @@ public:
 		bool& bOutGuidsChanged) const;
 
 	void UpdateChangelistMgr(
-		FReplicationChangelistMgr& InChangelistMgr,
 		FSendingRepState* RESTRICT RepState,
+		FReplicationChangelistMgr& InChangelistMgr,
 		const UObject* InObject,
 		const uint32 ReplicationFrame,
 		const FReplicationFlags& RepFlags,
