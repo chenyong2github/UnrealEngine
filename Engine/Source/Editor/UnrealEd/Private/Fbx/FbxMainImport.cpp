@@ -400,6 +400,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.bConvertSceneUnit		= StaticMeshData->bConvertSceneUnit;
 		InOutImportOptions.VertexColorImportOption	= StaticMeshData->VertexColorImportOption;
 		InOutImportOptions.VertexOverrideColor		= StaticMeshData->VertexOverrideColor;
+		InOutImportOptions.bReorderMaterialToFbxOrder = StaticMeshData->bReorderMaterialToFbxOrder;
 	}
 	else if ( ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh )
 	{
@@ -419,6 +420,7 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 		InOutImportOptions.bConvertSceneUnit			= SkeletalMeshData->bConvertSceneUnit;
 		InOutImportOptions.VertexColorImportOption		= SkeletalMeshData->VertexColorImportOption;
 		InOutImportOptions.VertexOverrideColor			= SkeletalMeshData->VertexOverrideColor;
+		InOutImportOptions.bReorderMaterialToFbxOrder	= SkeletalMeshData->bReorderMaterialToFbxOrder;
 
 		if(ImportUI->bImportAnimations)
 		{
@@ -1423,6 +1425,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 				  * @EventParam ImportUniformScale float Returns the uniform scale apply on the import data
 				  * @EventParam MaterialBasePath string Returns the path pointing on the base material use to import material instance
 				  * @EventParam MaterialSearchLocation string Returns the scope of the search for existing materials (if material not found it can create one depending on bImportMaterials value)
+				  * @EventParam ReorderMaterialToFbxOrder boolean returns weather the importer should reorder the materials in the same order has the fbx file
 				  * @EventParam AutoGenerateCollision boolean Returns whether the importer should create collision primitive
 				  * @EventParam CombineToSingle boolean Returns whether the importer should combine all mesh part together or import many meshes
 				  * @EventParam BakePivotInVertex boolean Returns whether the importer should bake the fbx mesh pivot into the vertex position
@@ -1509,6 +1512,7 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 						Attribs.Add(FAnalyticsEventAttribute(TEXT("GenOpt ImportUniformScale"), ImportOptions->ImportUniformScale));
 						Attribs.Add(FAnalyticsEventAttribute(TEXT("GenOpt MaterialBasePath"), ImportOptions->MaterialBasePath));
 						Attribs.Add(FAnalyticsEventAttribute(TEXT("GenOpt MaterialSearchLocation"), MaterialSearchLocationEnum->GetNameStringByValue((uint64)(ImportOptions->MaterialSearchLocation))));
+						Attribs.Add(FAnalyticsEventAttribute(TEXT("GenOpt ReorderMaterialToFbxOrder"), ImportOptions->bReorderMaterialToFbxOrder));
 
 						//We cant capture a this member, so just assign the pointer here
 						FBXImportOptions* CaptureImportOptions = ImportOptions;

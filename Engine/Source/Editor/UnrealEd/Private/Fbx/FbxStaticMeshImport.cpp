@@ -34,6 +34,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
+#include "MeshDescriptionOperations.h"
 #include "IMeshBuilderModule.h"
 #include "Settings/EditorExperimentalSettings.h"
 
@@ -1754,7 +1755,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	return StaticMesh;
 }
 
-void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshNodeArray)
+void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshNodeArray, bool bAllowFbxReorder)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -1843,70 +1844,73 @@ void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshN
 	}
 
 	//Reorder the StaticMaterials array to reflect the order in the fbx file
-	//So we make sure the order reflect the material ID in the DCCs
-	FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->SectionInfoMap;
-	TArray<int32> FbxRemapMaterials;
-	TArray<FStaticMaterial> NewStaticMaterials;
-	for (int32 FbxMaterialIndex = 0; FbxMaterialIndex < MeshMaterials.Num(); ++FbxMaterialIndex)
+	if (bAllowFbxReorder)
 	{
-		const FString &FbxMaterial = MeshMaterials[FbxMaterialIndex];
-		int32 FoundMaterialIndex = INDEX_NONE;
+		//So we make sure the order reflect the material ID in the DCCs
+		FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->SectionInfoMap;
+		TArray<int32> FbxRemapMaterials;
+		TArray<FStaticMaterial> NewStaticMaterials;
+		for (int32 FbxMaterialIndex = 0; FbxMaterialIndex < MeshMaterials.Num(); ++FbxMaterialIndex)
+		{
+			const FString &FbxMaterial = MeshMaterials[FbxMaterialIndex];
+			int32 FoundMaterialIndex = INDEX_NONE;
+			for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
+			{
+				FStaticMaterial &BuildMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
+				if (FbxMaterial.Compare(BuildMaterial.ImportedMaterialSlotName.ToString()) == 0)
+				{
+					FoundMaterialIndex = BuildMaterialIndex;
+					break;
+				}
+			}
+
+			if (FoundMaterialIndex != INDEX_NONE)
+			{
+				FbxRemapMaterials.Add(FoundMaterialIndex);
+				NewStaticMaterials.Add(StaticMesh->StaticMaterials[FoundMaterialIndex]);
+			}
+		}
+		//Add the materials not used by the LOD 0 at the end of the array. The order here is irrelevant since it can be used by many LOD other then LOD 0 and in different order
 		for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
 		{
-			FStaticMaterial &BuildMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
-			if (FbxMaterial.Compare(BuildMaterial.ImportedMaterialSlotName.ToString()) == 0)
+			const FStaticMaterial &StaticMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
+			bool bFoundMaterial = false;
+			for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
 			{
-				FoundMaterialIndex = BuildMaterialIndex;
-				break;
+				if (StaticMaterial == BuildMaterial)
+				{
+					bFoundMaterial = true;
+					break;
+				}
+			}
+			if (!bFoundMaterial)
+			{
+				FbxRemapMaterials.Add(BuildMaterialIndex);
+				NewStaticMaterials.Add(StaticMaterial);
 			}
 		}
 
-		if (FoundMaterialIndex != INDEX_NONE)
-		{
-			FbxRemapMaterials.Add(FoundMaterialIndex);
-			NewStaticMaterials.Add(StaticMesh->StaticMaterials[FoundMaterialIndex]);
-		}
-	}
-	//Add the materials not used by the LOD 0 at the end of the array. The order here is irrelevant since it can be used by many LOD other then LOD 0 and in different order
-	for (int32 BuildMaterialIndex = 0; BuildMaterialIndex < StaticMesh->StaticMaterials.Num(); ++BuildMaterialIndex)
-	{
-		const FStaticMaterial &StaticMaterial = StaticMesh->StaticMaterials[BuildMaterialIndex];
-		bool bFoundMaterial = false;
+		StaticMesh->StaticMaterials.Empty();
 		for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
 		{
-			if (StaticMaterial == BuildMaterial)
-			{
-				bFoundMaterial = true;
-				break;
-			}
+			StaticMesh->StaticMaterials.Add(BuildMaterial);
 		}
-		if (!bFoundMaterial)
-		{
-			FbxRemapMaterials.Add(BuildMaterialIndex);
-			NewStaticMaterials.Add(StaticMaterial);
-		}
-	}
 
-	StaticMesh->StaticMaterials.Empty();
-	for (const FStaticMaterial &BuildMaterial : NewStaticMaterials)
-	{
-		StaticMesh->StaticMaterials.Add(BuildMaterial);
-	}
-
-	//Remap the material instance of the staticmaterial array and remap the material index of all sections
-	for (int32 LODResoureceIndex = 0; LODResoureceIndex < StaticMesh->RenderData->LODResources.Num(); ++LODResoureceIndex)
-	{
-		FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[LODResoureceIndex];
-		int32 NumSections = LOD.Sections.Num();
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+		//Remap the material instance of the staticmaterial array and remap the material index of all sections
+		for (int32 LODResoureceIndex = 0; LODResoureceIndex < StaticMesh->RenderData->LODResources.Num(); ++LODResoureceIndex)
 		{
-			FMeshSectionInfo Info = OldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
-			int32 RemapIndex = FbxRemapMaterials.Find(Info.MaterialIndex);
-			if (StaticMesh->StaticMaterials.IsValidIndex(RemapIndex))
+			FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[LODResoureceIndex];
+			int32 NumSections = LOD.Sections.Num();
+			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
-				Info.MaterialIndex = RemapIndex;
-				StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
-				StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+				FMeshSectionInfo Info = OldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
+				int32 RemapIndex = FbxRemapMaterials.Find(Info.MaterialIndex);
+				if (StaticMesh->StaticMaterials.IsValidIndex(RemapIndex))
+				{
+					Info.MaterialIndex = RemapIndex;
+					StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+				}
 			}
 		}
 	}
@@ -2063,7 +2067,7 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 	//If we have import a LOD other then the base, the material array cannot be sorted, because only the base LOD reorder the material array
 	if (LODIndex == 0 && StaticMesh->StaticMaterials.Num() > 1)
 	{
-		ReorderMaterialAfterImport(StaticMesh, MeshNodeArray);
+		ReorderMaterialAfterImport(StaticMesh, MeshNodeArray, ImportOptions->bReorderMaterialToFbxOrder);
 	}
 }
 

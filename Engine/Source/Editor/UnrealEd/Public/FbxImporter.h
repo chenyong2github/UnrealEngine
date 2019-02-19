@@ -166,6 +166,8 @@ struct FBXImportOptions
 	FString BaseEmmisiveTextureName;
 	FString BaseSpecularTextureName;
 	EMaterialSearchLocation MaterialSearchLocation;
+	//If true the materials will be reorder to follow the fbx order
+	bool bReorderMaterialToFbxOrder;
 	// Skeletal Mesh options
 	bool bImportMorph;
 	bool bImportAnimations;

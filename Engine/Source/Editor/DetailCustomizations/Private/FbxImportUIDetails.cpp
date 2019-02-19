@@ -593,6 +593,18 @@ void FFbxImportUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 				}
 			}
 		}
+
+		TSharedPtr<IPropertyHandle> ReorderMaterialToFbxOrderProp = nullptr;
+		if (ImportUI->MeshTypeToImport == FBXIT_StaticMesh)
+		{
+			ReorderMaterialToFbxOrderProp = StaticMeshDataProp->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxStaticMeshImportData, bReorderMaterialToFbxOrder));
+		}
+		else if (ImportUI->MeshTypeToImport == FBXIT_SkeletalMesh)
+		{
+			ReorderMaterialToFbxOrderProp = SkeletalMeshDataProp->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, bReorderMaterialToFbxOrder));
+		}
+		//Add the advance reorder option at the end
+		MaterialCategory.AddProperty(ReorderMaterialToFbxOrderProp);
 	}
 
 	//Information category
