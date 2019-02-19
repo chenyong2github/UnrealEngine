@@ -25,6 +25,9 @@ struct FSoundQualityInfo
 	/** Holds the length of the sound in seconds. */
 	float Duration;
 
+	/** Holds whether the sound will be streamed. */
+	bool bStreaming;
+
 	/** Holds a string for debugging purposes. */
 	FString DebugName;
 };
