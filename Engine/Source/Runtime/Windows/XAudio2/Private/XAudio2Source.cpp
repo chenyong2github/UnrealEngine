@@ -112,7 +112,7 @@ void FXAudio2SoundSource::FreeResources( void )
 
 	if (RealtimeAsyncTask)
 	{
-		RealtimeAsyncTask->EnsureCompletion();
+		RealtimeAsyncTask->EnsureCompletion(false);
 		delete RealtimeAsyncTask;
 		RealtimeAsyncTask = nullptr;
 		check(bResourcesNeedFreeing);
