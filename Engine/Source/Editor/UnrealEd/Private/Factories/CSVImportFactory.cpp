@@ -212,6 +212,7 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 			// If there is an existing table, need to call this to free data memory before recreating object
 			bool bStripFromClientBuilds = false;
 			UDataTable::FOnDataTableChanged OldOnDataTableChanged;
+			FString ImportKeyField;
 			if (ExistingTable != nullptr)
 			{
 				OldOnDataTableChanged = MoveTemp(ExistingTable->OnDataTableChanged());
@@ -219,6 +220,7 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 				DataTableClass = ExistingTable->GetClass();
 				ExistingTable->EmptyTable();
 				bStripFromClientBuilds = ExistingTable->bStripFromClientBuilds;
+				ImportKeyField = ExistingTable->ImportKeyField;
 			}
 
 			// Create/reset table
@@ -226,6 +228,7 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 			NewTable->RowStruct = ImportRowStruct;
 			NewTable->AssetImportData->Update(CurrentFilename);
 			NewTable->bStripFromClientBuilds = bStripFromClientBuilds;
+			NewTable->ImportKeyField = ImportKeyField;
 			// Go ahead and create table from string
 			Problems = DoImportDataTable(NewTable, String);
 

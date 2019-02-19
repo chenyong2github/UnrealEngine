@@ -52,7 +52,7 @@ struct FTableRowBase
 /**
  * Imported spreadsheet table.
  */
-UCLASS(MinimalAPI, BlueprintType)
+UCLASS(MinimalAPI, BlueprintType, AutoExpandCategories = DataTable)
 class UDataTable
 	: public UObject
 {
@@ -90,6 +90,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=DataTable)
 	uint8 bStripFromClientBuilds : 1;
 
+	/** Explicit field in import data to use as key. If this is empty it uses Name for JSON and the first field found for CSV */
+	UPROPERTY(EditAnywhere, Category=DataTable)
+	FString ImportKeyField;
+	
 #if WITH_EDITOR
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -317,7 +321,8 @@ public:
 	*/
 	ENGINE_API TArray<FString> CreateTableFromJSONString(const FString& InString);
 
-	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems);
+	/** Get array of UProperties that corresponds to columns in the table */
+	TArray<UProperty*> GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* RowStruct, TArray<FString>& OutProblems, bool bIncludeNameColumn = false);
 	
 	/** 
 	 *	Create table from another Data Table

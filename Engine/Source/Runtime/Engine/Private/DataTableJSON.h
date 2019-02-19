@@ -31,14 +31,20 @@ public:
 
 	~FDataTableExporterJSON();
 
+	/** Writes the data table out as an array of objects */
 	bool WriteTable(const UDataTable& InDataTable);
 
 	/** Writes the data table out as a named object with each row being a sub value on that object */
 	bool WriteTableAsObject(const UDataTable& InDataTable);
 
-	bool WriteRow(const UScriptStruct* InRowStruct, const void* InRowData);
+	/** Writes out a single row */
+	bool WriteRow(const UScriptStruct* InRowStruct, const void* InRowData, const FString* FieldToSkip = nullptr);
 
-	bool WriteStruct(const UScriptStruct* InStruct, const void* InStructData);
+	/** Writes the contents of a single row */
+	bool WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip = nullptr);
+
+	/** Returns what string is used as the key/name field for a data table */
+	static FString GetKeyFieldName(const UDataTable& InDataTable);
 
 private:
 	bool WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData);

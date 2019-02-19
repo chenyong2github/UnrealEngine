@@ -558,22 +558,20 @@ bool UDataTable::WriteTableAsJSONObject(const TSharedRef< TJsonWriter<TCHAR, TPr
 }
 #endif
 
-/** Get array of UProperties that corresponds to columns in the table */
-TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems)
+TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems, bool bIncludeNameColumn)
 {
 	TArray<UProperty*> ColumnProps;
 
 	// Get list of all expected properties from the struct
 	TArray<FName> ExpectedPropNames = DataTableUtils::GetStructPropertyNames(InRowStruct);
 
-	// Need at least 2 columns, first column is skipped, will contain row names
+	// Need at least 2 columns, first column will contain row names
 	if(Cells.Num() > 1)
 	{
 		ColumnProps.AddZeroed( Cells.Num() );
 
-		// first element always NULL - as first column is row names
-
-		for (int32 ColIdx = 1; ColIdx < Cells.Num(); ++ColIdx)
+		// Skip first column depending on option
+		for (int32 ColIdx = bIncludeNameColumn ? 0 : 1; ColIdx < Cells.Num(); ++ColIdx)
 		{
 			const TCHAR* ColumnValue = Cells[ColIdx];
 
