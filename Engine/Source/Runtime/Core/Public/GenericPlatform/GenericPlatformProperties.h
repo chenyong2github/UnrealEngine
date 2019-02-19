@@ -252,6 +252,10 @@ struct FGenericPlatformProperties
 	{
 		return false;
 	}
+	static FORCEINLINE bool SupportsMemoryMappedAnimation()
+	{
+		return false;
+	}
 	static FORCEINLINE int64 GetMemoryMappingAlignment()
 	{
 		return 0;
