@@ -120,6 +120,7 @@ public:
 	static FORCEINLINE bool SupportsColorBufferFloat()					{ return true; }
 	static FORCEINLINE bool SupportsColorBufferHalfFloat()				{ return true; }
 	static FORCEINLINE bool	SupportsRG16UI()							{ return true; }
+	static FORCEINLINE bool	SupportsRG32UI()							{ return true; }
 	static FORCEINLINE bool SupportsR11G11B10F()						{ return true; }
 	static FORCEINLINE bool SupportsVolumeTextureRendering()			{ return false; }
 	static FORCEINLINE bool SupportsShaderFramebufferFetch()			{ return false; }

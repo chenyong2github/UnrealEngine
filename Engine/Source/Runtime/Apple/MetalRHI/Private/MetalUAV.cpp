@@ -584,6 +584,7 @@ void FMetalRHICommandContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef Un
 					break;
 				}
 				case PF_G32R32F:
+				case PF_R32G32_UINT:
 				{
 					UE_LOG(LogMetal, Warning, TEXT("UAV pattern fill for format: %d is untested"), Format);
 					Pattern[0] = Values[0];
