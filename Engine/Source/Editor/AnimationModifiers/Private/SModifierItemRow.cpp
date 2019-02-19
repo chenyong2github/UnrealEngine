@@ -35,7 +35,7 @@ void SModifierItemRow::Construct(const FArguments& InArgs, const TSharedRef<STab
 	];
 }
 
-FReply SModifierItemRow::OnDoubleClicked()
+FReply SModifierItemRow::OnDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
 	OnOpenModifier.ExecuteIfBound(InternalItem->Instance);
 	return FReply::Handled();

@@ -137,7 +137,7 @@ public:
 		SLATE_ARGUMENT( bool, SimpleTextMode )
 
 		/** Called when this text is double clicked */
-		SLATE_EVENT( FOnClicked, OnDoubleClicked )
+		SLATE_EVENT(FPointerEventHandler, OnDoubleClicked)
 
 	SLATE_END_ARGS()
 
@@ -232,7 +232,6 @@ public:
 
 	// SWidget interface
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	// End of SWidget interface
 
@@ -321,9 +320,6 @@ private:
 
 	/** Prevents the text block from being smaller than desired in certain cases (e.g. when it is empty) */
 	TAttribute<float> MinDesiredWidth;
-
-	/** The delegate to execute when this text is double clicked */
-	FOnClicked OnDoubleClicked;
 
 	/** If this is enabled, text shaping, wrapping, justification are disabled in favor of much faster text layout and measurement. */
 	mutable TOptional<FVector2D> CachedSimpleDesiredSize;
