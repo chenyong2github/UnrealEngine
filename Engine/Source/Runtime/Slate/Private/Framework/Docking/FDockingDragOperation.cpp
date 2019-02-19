@@ -94,6 +94,8 @@ void FDockingDragOperation::OnTabWellLeft( const TSharedRef<class SDockingTabWel
 
 	LastContentSize = DesiredSizeFrom( DockNodeGeometry.GetLocalSize() );
 
+	CursorDecoratorStackNode->OpenTab(TabBeingDragged.ToSharedRef());
+
 	TabBeingDragged->SetDraggedOverDockArea( NULL );
 }
 
@@ -245,9 +247,6 @@ FDockingDragOperation::FDockingDragOperation( const TSharedRef<SDockTab>& InTabT
 	CursorDecoratorWindow->SetSizingRule( ESizingRule::FixedSize );
 	CursorDecoratorWindow->SetOpacity(0.45f);
 	
-	//TSharedPtr<SDockingArea> OriginalDockArea = TabBeingDragged->GetOriginalDockArea();
-
-	TSharedPtr<SDockingTabStack> CursorDecoratorStackNode;
 	CursorDecoratorWindow->SetContent
 	(
 		SNew(SBorder)
@@ -261,8 +260,6 @@ FDockingDragOperation::FDockingDragOperation( const TSharedRef<SDockTab>& InTabT
 			)
 		]
 	);
-
-	CursorDecoratorStackNode->OpenTab( TabBeingDragged.ToSharedRef() );
 
 	if ( TabBeingDragged->IsActive() )
 	{
