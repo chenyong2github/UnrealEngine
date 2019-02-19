@@ -536,11 +536,20 @@ private:
 		LastChangelistIndex(0),
 		LastCompareIndex(0),
 		InactiveChangelist({0})
-	{}
+	{}	
 
 public:
 
 	void CountBytes(FArchive& Ar) const;
+	
+	/**
+	 * Builds a new ConditionMap given the input RepFlags.
+	 * This can be used to determine whether or not a given property should be
+	 * considered enabled / disabled based on ELifetimeCondition.
+	 *
+	 * TODO: This doesn't have to be part of FRepState.
+	 */
+	static TStaticBitArray<COND_Max> BuildConditionMap(const FReplicationFlags& InFlags);
 
 	/** Whether or not FRepLayout::OpenAcked has been called with this FRepState. */
 	bool bOpenAckedCalled;
@@ -593,6 +602,7 @@ public:
 	/** The unique list of properties that have changed since the channel was first opened */
 	TArray<uint16> LifetimeChangelist;
 
+
 	/**
 	 * Properties which are inactive through conditions have their changes stored here, so they can be 
 	 * applied if/when the property becomes active.
@@ -604,7 +614,6 @@ public:
 	/** Cached set of inactive parent commands. */
 	TBitArray<> InactiveParents;
 };
-
 
 /** Replication State that is unique Per Object Per Net Connection. */
 class FRepState : public FNoncopyable
