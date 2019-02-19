@@ -173,6 +173,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 {
 	check(IsInRenderingThread());
 
+	CachedSample.Reset();
+
 	SCOPE_CYCLE_COUNTER(STAT_MediaAssets_MediaTextureResourceRender);
 
 	FLinearColor Rotation(1, 0, 0, 1);
@@ -296,6 +298,10 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			);
 		}
 #endif
+
+		// We're not done with `Sample` as rendering is asynchronous. 
+		// Hold a reference in a member to postpone recycling `Sample` till the next call
+		CachedSample = Sample;
 	}
 	else if (Params.CanClear)
 	{
