@@ -461,6 +461,10 @@
 	#define PLATFORM_HAS_CRC_INTRINSICS							0
 #endif
 
+#ifndef PLATFORM_NEEDS_RHIRESOURCELIST
+	#define PLATFORM_NEEDS_RHIRESOURCELIST 1
+#endif
+
 // deprecated, do not use
 #define PLATFORM_HAS_THREADSAFE_RHIGetRenderQueryResult	#
 #define PLATFORM_SUPPORTS_RHI_THREAD #
