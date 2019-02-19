@@ -274,10 +274,10 @@ void UPaperSpriteComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMat
 	return Super::GetUsedMaterials(OutMaterials, bGetDebugMaterials);
 }
 
-void UPaperSpriteComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPaperSpriteComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	//@TODO: PAPER2D: Need to support this for proper texture streaming
-	return Super::GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
+	return Super::GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
 }
 
 int32 UPaperSpriteComponent::GetNumMaterials() const

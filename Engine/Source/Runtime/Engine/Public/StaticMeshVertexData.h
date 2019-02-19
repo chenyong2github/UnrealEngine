@@ -82,6 +82,12 @@ public:
 	{
 		return &Data;
 	}
+
+	const FResourceArrayInterface* GetResourceArray() const
+	{
+		return &Data;
+	}
+
 	/**
 	* Serializer for this class
 	*

@@ -254,8 +254,8 @@ void FEngineModule::StartupModule()
 		CVARShowMaterialDrawEvents->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeEngineCVarRequiringRecreateRenderState));
 	}
 
-	SuspendTextureStreamingRenderTasks = &SuspendTextureStreamingRenderTasksInternal;
-	ResumeTextureStreamingRenderTasks = &ResumeTextureStreamingRenderTasksInternal;
+	SuspendTextureStreamingRenderTasks = &SuspendRenderAssetStreamingRenderTasksInternal;
+	ResumeTextureStreamingRenderTasks = &ResumeRenderAssetStreamingRenderTasksInternal;
 
 	FParticleSystemWorldManager::OnStartup();
 
@@ -4804,13 +4804,13 @@ bool UEngine::HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		// that GetStreamingTextureInfo doesn't check whether a texture is actually streamable or not
 		// and is also implemented for skeletal meshes and such.
 		FStreamingTextureLevelContext LevelContext(EMaterialQualityLevel::Num, PrimitiveComponent);
-		TArray<FStreamingTexturePrimitiveInfo> StreamingTextures;
-		PrimitiveComponent->GetStreamingTextureInfo( LevelContext, StreamingTextures );
+		TArray<FStreamingRenderAssetPrimitiveInfo> StreamingTextures;
+		PrimitiveComponent->GetStreamingRenderAssetInfo( LevelContext, StreamingTextures );
 
 		// Increase usage count for all referenced textures
 		for( int32 TextureIndex=0; TextureIndex<StreamingTextures.Num(); TextureIndex++ )
 		{
-			UTexture2D* Texture = StreamingTextures[TextureIndex].Texture;
+			UTexture2D* Texture = Cast<UTexture2D>(StreamingTextures[TextureIndex].RenderAsset);
 			if( Texture )
 			{
 				// Initializes UsageCount to 0 if texture is not found.

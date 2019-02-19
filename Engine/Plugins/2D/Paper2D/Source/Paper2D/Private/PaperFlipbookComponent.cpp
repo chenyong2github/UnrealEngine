@@ -171,10 +171,10 @@ void UPaperFlipbookComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutM
 	return Super::GetUsedMaterials(OutMaterials, bGetDebugMaterials);
 }
 
-void UPaperFlipbookComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPaperFlipbookComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	//@TODO: PAPER2D: Need to support this for proper texture streaming
-	return Super::GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
+	return Super::GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
 }
 
 int32 UPaperFlipbookComponent::GetNumMaterials() const

@@ -118,11 +118,6 @@ bool UTexture::IsPostLoadThreadSafe() const
 	return false;
 }
 
-int32 UTexture::GetCachedLODBias() const
-{
-	return CachedCombinedLODBias;
-}
-
 #if WITH_EDITOR
 bool UTexture::CanEditChange(const UProperty* InProperty) const
 {

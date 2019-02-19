@@ -38,6 +38,10 @@
 #include "Engine/LODActor.h"
 #endif // WITH_EDITOR
 
+#if DO_CHECK
+#include "Engine/StaticMesh.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "PrimitiveComponent"
 
 //////////////////////////////////////////////////////////////////////////
@@ -330,7 +334,7 @@ bool UPrimitiveComponent::HasStaticLighting() const
 	return ((Mobility == EComponentMobility::Static) || LightmapType == ELightmapType::ForceSurface) && SupportsStaticLighting();
 }
 
-void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	if (CVarStreamingUseNewMetrics.GetValueOnGameThread() != 0)
 	{
@@ -357,7 +361,7 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				if (MaterialInterface)
 				{
 					MaterialData.Material = MaterialInterface;
-					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingTextures);
+					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingRenderAssets);
 				}
 				// Remove all instances of this material in case there were duplicates.
 				UsedMaterials.RemoveSwap(MaterialInterface);
@@ -367,26 +371,33 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 }
 
 
-void UPrimitiveComponent::GetStreamingTextureInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	// Ignore components that are fully initialized but have no scene proxy (hidden primitive or non game primitive)
 	if (!IsRegistered() || !IsRenderStateCreated() || SceneProxy)
 	{
-		GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
-		for (int32 Index = 0; Index < OutStreamingTextures.Num(); Index++)
+		GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
+		for (int32 Index = 0; Index < OutStreamingRenderAssets.Num(); Index++)
 		{
-			const FStreamingTexturePrimitiveInfo& Info = OutStreamingTextures[Index];
-			if (!IsStreamingTexture(Info.Texture))
+			const FStreamingRenderAssetPrimitiveInfo& Info = OutStreamingRenderAssets[Index];
+			if (!IsStreamingRenderAsset(Info.RenderAsset))
 			{
-				OutStreamingTextures.RemoveAtSwap(Index--);
+				OutStreamingRenderAssets.RemoveAtSwap(Index--);
 			}
 			else
 			{
+#if DO_CHECK
+				ensure(Info.TexelFactor >= 0.f
+					|| Info.RenderAsset->IsA<UStaticMesh>()
+					|| Info.RenderAsset->IsA<USkeletalMesh>()
+					|| (Info.RenderAsset->IsA<UTexture>() && Info.RenderAsset->GetLODGroupForStreaming() == TEXTUREGROUP_Terrain_Heightmap));
+#endif
+
 				// Other wise check that everything is setup right. If the component is not yet registered, then the bound data is irrelevant.
 				const bool bCanBeStreamedByDistance = Info.TexelFactor > SMALL_NUMBER && (Info.Bounds.SphereRadius > SMALL_NUMBER || !IsRegistered()) && ensure(FMath::IsFinite(Info.TexelFactor));
-				if (!bForceMipStreaming && !bCanBeStreamedByDistance && !(Info.TexelFactor < 0 && Info.Texture->LODGroup == TEXTUREGROUP_Terrain_Heightmap))
+				if (!bForceMipStreaming && !bCanBeStreamedByDistance && Info.TexelFactor >= 0.f)
 				{
-					OutStreamingTextures.RemoveAtSwap(Index--);
+					OutStreamingRenderAssets.RemoveAtSwap(Index--);
 				}
 			}
 		}

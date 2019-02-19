@@ -363,6 +363,11 @@ bool FStaticMeshSceneProxy::GetShadowMeshElement(int32 LODIndex, int32 BatchInde
 
 	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && LOD.bHasReversedDepthOnlyIndices;
 
+	if ((bUseReversedIndices && !LOD.bHasReversedDepthOnlyIndices) || (!bUseReversedIndices && !LOD.bHasDepthOnlyIndices))
+	{
+		return false;
+	}
+
 	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
 	OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVertexBuffer ? ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference() : VFs.VertexFactory.GetUniformBuffer();
 	OutMeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
@@ -1817,6 +1822,10 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 			}
 		}
 	}
+
+	const int8 CurFirstLODIdx = GetCurrentFirstLODIdx_Internal();
+	check(CurFirstLODIdx >= 0);
+	Result.ClampToFirstLOD(CurFirstLODIdx);
 	
 	return Result;
 }
