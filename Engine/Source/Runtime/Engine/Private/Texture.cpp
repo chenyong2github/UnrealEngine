@@ -59,6 +59,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 {
 	SRGB = true;
 	Filter = TF_Default;
+	MipLoadOptions = ETextureMipLoadOptions::Default;
 #if WITH_EDITORONLY_DATA
 	AdjustBrightness = 1.0f;
 	AdjustBrightnessCurve = 1.0f;
