@@ -970,7 +970,7 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
 			mtlpp::SizeAndAlign SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
-			FMetalPooledBufferArgs Args(Device, SizeAlign.Size, mtlpp::StorageMode::Private);
+			FMetalPooledBufferArgs Args(Device, SizeAlign.Size, 0, mtlpp::StorageMode::Private);
 			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 			Texture = Buffer.NewTexture(Desc, 0, SizeAlign.Size);
 		}
@@ -2912,7 +2912,7 @@ void FMetalRHICommandContext::RHICopyTexture(FTextureRHIParamRef SourceTextureRH
 						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
 						const uint32 DataSize = BytesPerImage * SourceSize.depth;
 						
-						FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(FMetalPooledBufferArgs(GetInternalContext().GetDevice(), DataSize, mtlpp::StorageMode::Shared));
+						FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(FMetalPooledBufferArgs(GetInternalContext().GetDevice(), DataSize, 0, mtlpp::StorageMode::Shared));
 						
 						check(Buffer);
 						
