@@ -78,6 +78,7 @@ FWindowsApplication* FWindowsApplication::CreateWindowsApplication( const HINSTA
 FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle )
 	: GenericApplication( MakeShareable( new FWindowsCursor() ) )
 	, InstanceHandle( HInstance )
+	, bMinimized( false )
 	, bUsingHighPrecisionMouseInput( false )
 	, bIsMouseAttached( false )
 	, bForceActivateByMouse( false )
@@ -2065,9 +2066,11 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 					{
 					case SW_PARENTCLOSING:
 						CurrentNativeEventWindowPtr->OnParentWindowMinimized();
+						bMinimized = true;
 						break;
 					case SW_PARENTOPENING:
 						CurrentNativeEventWindowPtr->OnParentWindowRestored();
+						bMinimized = true;
 						break;
 					default:
 						break;
