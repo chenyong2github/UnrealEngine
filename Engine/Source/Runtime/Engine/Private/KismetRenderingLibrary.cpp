@@ -130,8 +130,14 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 
 		FName RTName = TextureRenderTarget->GetFName();
 		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-			[RTName, DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
+			[RTName, DrawMaterialToTargetEvent](FRHICommandListImmediate& RHICmdList)
 			{
+				// Update resources that were marked for deferred update. This is important
+				// in cases where the blueprint is invoked in the same frame that the render
+				// target is created. Among other things, this will perform deferred render
+				// target clears.
+				FDeferredUpdateResource::UpdateResources(RHICmdList);
+
 				BEGIN_DRAW_EVENTF(
 					RHICmdList, 
 					DrawCanvasToTarget, 
