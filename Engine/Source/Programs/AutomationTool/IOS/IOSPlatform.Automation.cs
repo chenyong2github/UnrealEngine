@@ -626,6 +626,23 @@ public class IOSPlatform : Platform
 		}
 	}
 
+	private bool ShouldUseMaxIPACompression(ProjectParams Params)
+	{
+		if (!string.IsNullOrEmpty(Params.AdditionalPackageOptions))
+		{
+			string[] OptionsArray = Params.AdditionalPackageOptions.Split(' ');
+			foreach (string Option in OptionsArray)
+			{
+				if (Option.Equals("-ForceMaxIPACompression", StringComparison.InvariantCultureIgnoreCase))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private void PackageIPA(ProjectParams Params, string ProjectGameExeFilename, DeploymentContext SC)
 	{
 		string BaseDirectory = Path.GetDirectoryName(ProjectGameExeFilename);
@@ -661,7 +678,8 @@ public class IOSPlatform : Platform
             Zip.AlternateEncoding = Encoding.UTF8;
 
 			// set the compression level
-			if (Params.Distribution)
+			bool bUseMaxIPACompression = ShouldUseMaxIPACompression(Params);
+			if (Params.Distribution || bUseMaxIPACompression)
 			{
 				Zip.CompressionLevel = CompressionLevel.BestCompression;
 			}
@@ -706,7 +724,7 @@ public class IOSPlatform : Platform
 					bIsExecutable = true;
 				}
 
-				if (bIsExecutable)
+				if (bIsExecutable && !bUseMaxIPACompression)
 				{
 					// The executable will be encrypted in the final distribution IPA and will compress very poorly, so keeping it
 					// uncompressed gives a better indicator of IPA size for our distro builds

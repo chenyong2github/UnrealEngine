@@ -413,6 +413,7 @@ void USkinnedMeshComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 
 FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
 	FSkeletalMeshSceneProxy* Result = nullptr;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();

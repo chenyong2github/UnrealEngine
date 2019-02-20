@@ -16,23 +16,44 @@ the same VectorVM byte code / compute shader code
 #include "Modules/ModuleManager.h"
 #include "RHIResources.h"
 #include "FXSystem.h"
+#include "NiagaraRendererProperties.h"
+#include "ParticleResources.h"
+#include "Runtime/Engine/Private/Particles/ParticleSortingGPU.h"
+#include "NiagaraGPUSortInfo.h"
 
 struct FNiagaraScriptExecutionContext;
 struct FNiagaraComputeExecutionContext;
 
 #define SIMULATION_QUEUE_COUNT 2
 
+class FNiagaraIndicesVertexBuffer : public FParticleIndicesVertexBuffer
+{
+public:
+
+	FNiagaraIndicesVertexBuffer(int32 InIndexCount);
+
+	FUnorderedAccessViewRHIRef VertexBufferUAV;
+
+	// The allocation count.
+	const int32 IndexCount;
+
+	// Currently used count.
+	int32 UsedIndexCount = 0;
+};
+
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
 public:
-	NiagaraEmitterInstanceBatcher()
-		: CurQueueIndex(0)
+
+	NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)
+		: FeatureLevel(InFeatureLevel)
+		, ShaderPlatform(InShaderPlatform)
+		, CurQueueIndex(0)
+		, ParticleSortBuffers(true)
 	{
 	}
 
-	~NiagaraEmitterInstanceBatcher()
-	{
-	}
+	~NiagaraEmitterInstanceBatcher();
 
 	static const FName Name;
 	virtual FFXSystemInterface* GetInterface(const FName& InName) override;
@@ -50,7 +71,7 @@ public:
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
-	virtual void PreInitViews() override {}
+	virtual void PreInitViews() override;
 	virtual bool UsesGlobalDistanceField() const override { return false; }
 	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData) override {}
 
@@ -78,10 +99,17 @@ public:
 		CurQueueIndex ^= 0x1;
 
 		ExecuteAll(RHICmdList, ViewUniformBuffer);
+		SortGPUParticles(RHICmdList);
 	}
 
 	void ExecuteAll(FRHICommandList &RHICmdList, FUniformBufferRHIParamRef ViewUniformBuffer);
 	void TickSingle(FNiagaraComputeExecutionContext *Context, FRHICommandList &RHICmdList, FUniformBufferRHIParamRef ViewUniformBuffer) const;
+
+	int32 AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo);
+	void SortGPUParticles(FRHICommandListImmediate& RHICmdList);
+	void ResolveParticleSortBuffers(FRHICommandListImmediate& RHICmdList, int32 ResultBufferIndex);
+
+	const FParticleIndicesVertexBuffer& GetGPUSortedBuffer() const { return SortedVertexBuffers.Last(); }
 
 	void ProcessDebugInfo(FRHICommandList &RHICmdList, const FNiagaraComputeExecutionContext *Context) const;
 
@@ -106,8 +134,25 @@ public:
 	void ClearIndexBufferCur(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context) const;
 	void ResolveDatasetWrites(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context) const;
 	void ResizeCurrentBuffer(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context, uint32 NewNumInstances, uint32 PrevNumInstances) const;
+
 private:
 
+	/** Feature level of this effects system */
+	ERHIFeatureLevel::Type FeatureLevel;
+	/** Shader platform that will be rendering this effects system */
+	EShaderPlatform ShaderPlatform;
+
 	uint32 CurQueueIndex;
+
 	TArray<FNiagaraComputeExecutionContext*> SimulationQueue[SIMULATION_QUEUE_COUNT];
+
+	// Number of particle to sort this frame.
+	int32 SortedParticleCount = 0;
+	int32 NumFramesRequiringShrinking = 0;
+	TArray<FNiagaraGPUSortInfo> SimulationsToSort;
+	FParticleSortBuffers ParticleSortBuffers;
+
+	// The result of the GPU sort. Each next element replace the previous.
+	// The last entry is used to transfer the result of the ParticleSortBuffers.
+	TIndirectArray<FNiagaraIndicesVertexBuffer> SortedVertexBuffers;
 };

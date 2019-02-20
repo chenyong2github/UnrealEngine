@@ -1457,13 +1457,13 @@ private:
 	void GetForceRecompileTextureIdsHash(FSHAHash &TextureReferencesHash);
 
 public:
-	bool IsTextureForceRecompileCacheRessource(UTexture *Texture);
+	ENGINE_API bool IsTextureForceRecompileCacheRessource(UTexture *Texture);
 
 #if WITH_EDITOR
 	/* Recompute the ddc cache key and reload the material in case the key is not the same.
 	 * It will also make sure lightmass texture reference are up to date
 	 */
-	void UpdateMaterialShaderCacheAndTextureReferences();
+	ENGINE_API void UpdateMaterialShaderCacheAndTextureReferences();
 #endif
 
 	/**

@@ -1158,8 +1158,9 @@ void FMagicLeapHMD::Startup()
 
 void FMagicLeapHMD::Shutdown()
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(ShutdownRen,
-		FMagicLeapHMD*, Plugin, this,
+	FMagicLeapHMD* Plugin = this;
+	ENQUEUE_RENDER_COMMAND(ShutdownRendering)(
+		[Plugin](FRHICommandListImmediate& RHICmdList)
 		{
 			Plugin->ShutdownRendering();
 		});
@@ -1364,7 +1365,7 @@ void FMagicLeapHMD::InitDevice_RenderThread()
 		{
 #if PLATFORM_WINDOWS || PLATFORM_LUMIN
 			static const auto* VulkanRHIThread = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.RHIThread"));
-			UE_LOG(LogMagicLeap, Warning, TEXT("r.Vulkan.RHIThread=%d"), VulkanRHIThread->GetValueOnAnyThread());
+			UE_LOG(LogMagicLeap, Log, TEXT("RHI Thread Usage (r.Vulkan.RHIThread)=%d"), VulkanRHIThread->GetValueOnAnyThread());
 
 			bQueuedGraphicsCreateCall = true;
 
@@ -1494,8 +1495,9 @@ void FMagicLeapHMD::ReleaseDevice()
 	// save any runtime configuration changes to the .ini
 	SaveToIni();
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(ReleaseDevice_RT,
-		FMagicLeapHMD*, Plugin, this,
+	FMagicLeapHMD* Plugin = this;
+	ENQUEUE_RENDER_COMMAND(ReleaseDevice_RT)(
+		[Plugin](FRHICommandListImmediate& RHICmdList)
 		{
 			Plugin->ReleaseDevice_RenderThread();
 		}

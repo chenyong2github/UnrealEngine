@@ -61,6 +61,12 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer = false;
 
 		/// <summary>
+		/// Enables "thin" LTO
+		/// </summary>
+		[CommandLine("-ThinLTO")]
+		public bool bEnableThinLTO = false;
+
+		/// <summary>
 		/// Whether or not to preserve the portable symbol file produced by dump_syms
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
@@ -112,6 +118,11 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
+		}
+
+		public bool bEnableThinLTO
+		{
+			get { return Inner.bEnableThinLTO; }
 		}
 
 		#if !__MonoCS__
@@ -233,6 +244,11 @@ namespace UnrealBuildTool
 
 		public override void ValidateTarget(TargetRules Target)
 		{
+			if(Target.LinuxPlatform.bEnableThinLTO)
+			{
+				Target.bAllowLTCG = true;
+			}
+
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
 			{
 				throw new BuildException("LTO (LTCG) for modular builds is not supported (lld is not currently used for dynamic libraries).");
@@ -554,6 +570,10 @@ namespace UnrealBuildTool
 			if(Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
 				Options |= LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer;
+			}
+			if(Target.LinuxPlatform.bEnableThinLTO)
+			{
+				Options |= LinuxToolChainOptions.EnableThinLTO;
 			}
 
 			return new LinuxToolChain(Target.Architecture, SDK, Target.LinuxPlatform.bPreservePSYM, Options);

@@ -32,6 +32,7 @@
 	#include <X3Daudio.h>
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#include "XAudio2Device.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -199,6 +200,7 @@ struct FXWMABufferInfo
 	UINT32						XWMASeekDataSize;
 };
 
+class FXAudio2SoundBuffer;
 typedef FAsyncRealtimeAudioTaskProxy<FXAudio2SoundBuffer> FAsyncRealtimeAudioTask;
 
 /**
@@ -409,9 +411,14 @@ public:
 	virtual ~FXAudio2SoundSource();
 
 	/**
-	 * Frees existing resources. Called from destructor and therefore not virtual.
+	 * Frees existing resources except for the buffer. Called from destructor and therefore not virtual.
 	 */
 	void FreeResources();
+
+	/**
+	 * Frees the source's underlying buffer, if neccessary. 
+	 */
+	void FreeBuffer();
 
 	/**
 	* Initializes any effects used with this source voice

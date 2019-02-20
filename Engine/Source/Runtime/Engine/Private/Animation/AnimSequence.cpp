@@ -182,11 +182,16 @@ void FRequestAnimCompressionParams::InitFrameStrippingFromPlatform(const class I
 
 	if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(TargetPlatform->IniPlatformName()))
 	{
-		// if we don't prune, we assume all detail modes
 		int32 CVarPlatformFrameStrippingValue = 0;
 		if (DeviceProfile->GetConsolidatedCVarValue(StripFrameCVarName, CVarPlatformFrameStrippingValue))
 		{
 			bPerformFrameStripping = CVarPlatformFrameStrippingValue == 1;
+		}
+
+		int32 CVarPlatformOddAnimFrameStrippingValue = 0;
+		if (DeviceProfile->GetConsolidatedCVarValue(OddFrameStripStrippingCVarName, CVarPlatformOddAnimFrameStrippingValue))
+		{
+			bPerformFrameStrippingOnOddNumberedFrames = CVarPlatformOddAnimFrameStrippingValue == 1;
 		}
 	}
 #endif
@@ -2784,7 +2789,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 			void* Dest = OptionalBulk.Realloc(Num);
 			FMemory::Memcpy(Dest, &(SerializedData[0]), Num);
 			OptionalBulk.Unlock();
-			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
 			OptionalBulk.ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
 			OptionalBulk.Serialize(Ar, this);
 

@@ -181,7 +181,7 @@ void UpdateTranslucentMeshSortKeys(
 	}
 }
 
-static uint64 GetMobileBasePassSortKey_FrontToBack(bool bMasked, bool bBackground, int32 PipelineId, int32 StateBucketId, float PrimitiveDistance)
+static uint64 GetMobileBasePassSortKey_FrontToBack(bool bMasked, bool bBackground, uint32 PipelineId, int32 StateBucketId, float PrimitiveDistance)
 {
 	union
 	{
@@ -304,14 +304,14 @@ void UpdateMobileBasePassMeshSortKeys(
 				bBackground|= (PrimitiveBounds.BoxSphereBounds.SphereRadius > HALF_WORLD_MAX / 4.0f);
 			}
 
-			int32 PipelineId = Cmd.MeshDrawCommand->CachedPipelineId.GetId();
+			uint32 PipelineId = Cmd.MeshDrawCommand->CachedPipelineId.GetId();
 			int32 StateBucketId = PointerHash(Cmd.MeshDrawCommand->IndexBuffer);
 			Cmd.SortKey.PackedData = GetMobileBasePassSortKey_FrontToBack(bMasked, bBackground, PipelineId, StateBucketId, PrimitiveDistance);
 		}
 	}
 	else // prefer state then distance
 	{
-		TMap<int32, float> PipelineDistances;
+		TMap<uint32, float> PipelineDistances;
 		PipelineDistances.Reserve(256);
 				
 		// pre-compute distance to a group of meshes that share same PSO
@@ -679,7 +679,8 @@ void ApplyViewOverridesToMeshDrawCommands(
 					PipelineState.DepthStencilState = PassDrawRenderState.GetDepthStencilState();
 				}
 
-				NewMeshCommand.Finalize(PipelineState, nullptr, true);
+				const FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetOneFrameId(PipelineState);
+				NewMeshCommand.Finalize(PipelineId, nullptr);
 
 				FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 
@@ -994,6 +995,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 		}
 		else
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
 		}
@@ -1005,6 +1007,7 @@ void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
 	if (TaskEventRef.IsValid())
 	{
 		// Need to wait on GetRenderThread_Local, as mesh pass setup task can wait on rendering thread inside InitResourceFromPossiblyParallelRendering().
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_WaitForMeshPassSetupTask);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEventRef, ENamedThreads::GetRenderThread_Local());
 	}
 }
@@ -1207,6 +1210,8 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 	}
 	else
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassDrawImmediate);
+
 		WaitForMeshPassSetupTask();
 
 		if (TaskContext.bUseGPUScene)

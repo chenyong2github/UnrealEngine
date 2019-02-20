@@ -5564,6 +5564,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 					FArchive* BulkArchive = nullptr;
 					FArchive* OptionalBulkArchive = nullptr;
+					FArchive* MappedBulkArchive = nullptr;
 					uint32 ExtraBulkDataFlags = 0;
 
 					static struct FUseSeperateBulkDataFiles
@@ -5591,6 +5592,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 					const FString OptionalBulkFilename = FPaths::ChangeExtension(Filename, OptionalBulkFileExtension);
 
+					const static TCHAR* MappedBulkFileExtension = TEXT(".m.ubulk");
+
+					const FString MappedBulkFilename = FPaths::ChangeExtension(Filename, MappedBulkFileExtension);
+
 					if (bShouldUseSeparateBulkFile)
 					{
 						ExtraBulkDataFlags = BULKDATA_PayloadInSeperateFile;
@@ -5598,12 +5603,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							BulkArchive = new FBufferArchive(true);
 							OptionalBulkArchive = new FBufferArchive(true);
-
+							MappedBulkArchive = new FBufferArchive(true);
 						}
 						else
 						{
 							BulkArchive = IFileManager::Get().CreateFileWriter(*BulkFilename);
 							OptionalBulkArchive = IFileManager::Get().CreateFileWriter(*OptionalBulkFilename);
+							MappedBulkArchive = IFileManager::Get().CreateFileWriter(*MappedBulkFilename);
 						}
 					}
 
@@ -5625,6 +5631,16 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						// Set bulk data flags to what they were during initial serialization (they might have changed after that)
 						const uint32 OldBulkDataFlags = BulkDataStorageInfo.BulkData->GetBulkDataFlags();
 						uint32 ModifiedBulkDataFlags = BulkDataStorageInfo.BulkDataFlags | ExtraBulkDataFlags;
+						bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload);
+						bool bBulkItemIsMapped = bAlignBulkData && (ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload);
+
+						if (bBulkItemIsMapped && bBulkItemIsOptional)
+						{
+							UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
+							ModifiedBulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
+							bBulkItemIsMapped = false;
+						}
+
 						BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
 						BulkDataStorageInfo.BulkData->SetBulkDataFlags(ModifiedBulkDataFlags);
 
@@ -5632,12 +5648,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						if ( bShouldUseSeparateBulkFile )
 						{
 							check( OptionalBulkArchive && BulkArchive );
-							TargetArchive = ModifiedBulkDataFlags & BULKDATA_OptionalPayload ? OptionalBulkArchive : BulkArchive;
+							TargetArchive = bBulkItemIsOptional ? OptionalBulkArchive : (bBulkItemIsMapped ? MappedBulkArchive : BulkArchive);
 						}
 
 						int64 BulkStartOffset = TargetArchive->Tell();
 
-						if (bAlignBulkData && BulkDataAlignment > 0 && !IsAligned(BulkStartOffset, BulkDataAlignment))
+						if (bBulkItemIsMapped && BulkDataAlignment > 0 && !IsAligned(BulkStartOffset, BulkDataAlignment))
 						{
 							int64 AlignedOffset = Align(BulkStartOffset, BulkDataAlignment);
 							int64 Padding = AlignedOffset - BulkStartOffset;
@@ -5692,24 +5708,24 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							{
 								TotalPackageSizeUncompressed += Archive->TotalSize();
 								Archive->Close();
-						if ( bSaveAsync )
-						{
+								if ( bSaveAsync )
+								{
 									FBufferArchive* Buffer = (FBufferArchive*)(Archive);
 
 									if ( Buffer->TotalSize() > 0 )
 									{
 										int64 DataSize = Buffer->TotalSize();
 
-							// TODO - update the BulkBuffer code to write into a FLargeMemoryWriter so we can 
-							// take ownership of the data
-							uint8* Data = new uint8[DataSize];
+										// TODO - update the BulkBuffer code to write into a FLargeMemoryWriter so we can 
+										// take ownership of the data
+										uint8* Data = new uint8[DataSize];
 										FMemory::Memcpy(Data, Buffer->GetData(), DataSize);
 
-							FLargeMemoryPtr DataPtr = FLargeMemoryPtr(Data);
+										FLargeMemoryPtr DataPtr = FLargeMemoryPtr(Data);
 		
 										AsyncWriteFile(MoveTemp(DataPtr), DataSize, *ArchiveFilename, FDateTime::MinValue(), false);
-							}
-						}
+									}
+								}
 								delete Archive;
 							};
 
@@ -5725,10 +5741,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								{
 									CookedPackageHash.Update(((FBufferArchive*)OptionalBulkArchive)->GetData(), OptionalBulkArchive->TotalSize());
 								}
+								if (MappedBulkArchive->TotalSize())
+								{
+									CookedPackageHash.Update(((FBufferArchive*)MappedBulkArchive)->GetData(), MappedBulkArchive->TotalSize());
+								}
 							}
 						}
 						FinalizeBulkDataFile(BulkArchive, BulkFilename);
 						FinalizeBulkDataFile(OptionalBulkArchive, OptionalBulkFilename);
+						FinalizeBulkDataFile(MappedBulkArchive, MappedBulkFilename);
 
 						if (SaveFlags & SAVE_ComputeHash)
 						{
@@ -5736,6 +5757,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							{
 								AddFileToHash(BulkFilename, CookedPackageHash);
 								AddFileToHash(OptionalBulkFilename, CookedPackageHash);
+								AddFileToHash(MappedBulkFilename, CookedPackageHash);
 							}
 						}
 						

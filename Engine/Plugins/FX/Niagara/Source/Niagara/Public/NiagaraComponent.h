@@ -19,6 +19,7 @@ class UNiagaraSystem;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class FNiagaraSystemSimulation;
+class NiagaraEmitterInstanceBatcher;
 
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
@@ -424,13 +425,15 @@ public:
 	/** Called on render thread to assign new dynamic data */
 	void SetDynamicData_RenderThread(struct FNiagaraDynamicDataBase* NewDynamicData);
 	TArray<class NiagaraRenderer*>& GetEmitterRenderers() { return EmitterRenderers; }
-	void UpdateEmitterRenderers(TArray<NiagaraRenderer*>& InRenderers);
+	void UpdateEmitterRenderers(const TArray<NiagaraRenderer*>& InRenderers);
 
 	/** Gets whether or not this scene proxy should be rendered. */
 	bool GetRenderingEnabled() const;
 
 	/** Sets whether or not this scene proxy should be rendered. */
 	void SetRenderingEnabled(bool bInRenderingEnabled);
+
+	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
 #if RHI_RAYTRACING
 	virtual void GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections) override;
@@ -468,6 +471,6 @@ private:
 private:
 	//class NiagaraRenderer* EmitterRenderer;
 	TArray<class NiagaraRenderer*>EmitterRenderers;
-
 	bool bRenderingEnabled;
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

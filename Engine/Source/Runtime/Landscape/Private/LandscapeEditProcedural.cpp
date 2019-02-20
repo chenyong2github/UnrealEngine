@@ -997,9 +997,8 @@ void ALandscape::CopyProceduralTargetToResolveTarget(UTexture* InHeightmapRTRead
 {
 	FLandscapeProceduralCopyResource_RenderThread CopyResource(InHeightmapRTRead, InCopyResolveTarget, InCopyResolveTargetCPUResource, InFirstComponentSectionBase, SubsectionSizeQuads, NumSubsections, InCurrentMip);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		FLandscapeProceduralCopyResultCommand,
-		FLandscapeProceduralCopyResource_RenderThread, CopyResource, CopyResource,
+	ENQUEUE_RENDER_COMMAND(FLandscapeProceduralCopyResultCommand)(
+		[CopyResource](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			CopyResource.CopyToResolveTarget(RHICmdList);
 		});
@@ -1115,13 +1114,11 @@ void ALandscape::DrawHeightmapComponentsToRenderTarget(const FString& InDebugNam
 
 	FLandscapeHeightmapProceduralRender_RenderThread ProceduralRender(InDebugName, InHeightmapRTWrite, HeightmapWriteTextureSize, HeightmapReadTextureSize, ProjectionMatrix, InShaderParams, InMipRender, TriangleList);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FDrawSceneCommand,
-		FLandscapeHeightmapProceduralRender_RenderThread, ProceduralRender, ProceduralRender,
-		bool, ClearRT, InClearRTWrite,
-	{
-		ProceduralRender.Render(RHICmdList, ClearRT);
-	});
+	ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
+		[ProceduralRender, ClearRT = InClearRTWrite](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			ProceduralRender.Render(RHICmdList, ClearRT);
+		});
 	
 	PrintDebugRTHeightmap(InDebugName, InHeightmapRTWrite, InMipRender, InShaderParams.GenerateNormals);
 }
@@ -1493,9 +1490,9 @@ void ALandscape::PrintDebugRTHeightmap(FString Context, UTextureRenderTarget2D* 
 		return;
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		HeightmapRTCanvasRenderTargetResolveCommand,
-		FTextureRenderTargetResource*, RenderTargetResource, InDebugRT->GameThread_GetRenderTargetResource(),
+	FTextureRenderTargetResource* RenderTargetResource = InDebugRT->GameThread_GetRenderTargetResource();
+	ENQUEUE_RENDER_COMMAND(HeightmapRTCanvasRenderTargetResolveCommand)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
 			// Copy (resolve) the rendered image from the frame buffer to its render target texture
 			RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());

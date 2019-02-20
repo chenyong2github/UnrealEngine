@@ -1602,18 +1602,20 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 		else
 		{
 			// Enqueue a render command to delete the handle.  It must be deleted on the render thread after the resource is released
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(DeleteSlateRenderTarget, TArray<FSlateRenderTargetRHI*>&, BufferedSlateHandles, BufferedSlateHandles,
-																				FSlateRenderTargetRHI*&, RenderThreadSlateTexture, RenderThreadSlateTexture,
-			{
-				for (int32 i = 0; i < BufferedSlateHandles.Num(); ++i)
+			FSlateRenderTargetRHI** RenderThreadSlateTexturePtr = &RenderThreadSlateTexture;
+			TArray<FSlateRenderTargetRHI*>* BufferedSlateHandlesPtr = &BufferedSlateHandles;
+			ENQUEUE_RENDER_COMMAND(DeleteSlateRenderTarget)(
+				[BufferedSlateHandlesPtr, RenderThreadSlateTexturePtr](FRHICommandListImmediate& RHICmdList)
 				{
-					delete BufferedSlateHandles[i];
-					BufferedSlateHandles[i] = nullptr;
+					for (int32 i = 0; i < BufferedSlateHandlesPtr->Num(); ++i)
+					{
+						delete (*BufferedSlateHandlesPtr)[i];
+						(*BufferedSlateHandlesPtr)[i] = nullptr;
+					}
 
-					delete RenderThreadSlateTexture;
-					RenderThreadSlateTexture = nullptr;
-				}						
-			});
+					delete *RenderThreadSlateTexturePtr;
+					*RenderThreadSlateTexturePtr = nullptr;
+				});
 
 		}
 	}
@@ -1675,14 +1677,11 @@ void FSceneViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 
 	//set the rendertarget visible to the render thread
 	//must come before any render thread frame handling.
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetRenderThreadViewportTarget,
-		FSceneViewport*, Viewport, this,
-		FTexture2DRHIRef, RT, RenderTargetTextureRHI,		
+	ENQUEUE_RENDER_COMMAND(SetRenderThreadViewportTarget)(
+		[Viewport = this, RT = RenderTargetTextureRHI](FRHICommandListImmediate& RHICmdList) mutable
 		{
-
-		Viewport->SetRenderTargetTextureRenderThread(RT);			
-	});		
+			Viewport->SetRenderTargetTextureRenderThread(RT);			
+		});		
 
 	FViewport::EnqueueBeginRenderFrame(bShouldPresent);
 

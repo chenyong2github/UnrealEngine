@@ -94,26 +94,63 @@ public:
 
 static_assert(sizeof(FMeshPassMask::Data) * 8 >= EMeshPass::Num, "FMeshPassMask::Data is too small to fit all mesh passes.");
 
+struct FRefCountedGraphicsMinimalPipelineStateInitializer
+{
+	FRefCountedGraphicsMinimalPipelineStateInitializer(const FGraphicsMinimalPipelineStateInitializer& InStateInitializer, int32 InRefNum = 0)
+		: StateInitializer(InStateInitializer)
+		, RefNum(InRefNum)
+	{
+	}
+
+	FGraphicsMinimalPipelineStateInitializer StateInitializer;
+	int32 RefNum = 0;
+};
+
+struct RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs : DefaultKeyFuncs<FRefCountedGraphicsMinimalPipelineStateInitializer, false>
+{
+	typedef typename TCallTraits<FGraphicsMinimalPipelineStateInitializer>::ConstReference KeyInitType;
+
+	/**
+	 * @return True if the keys match.
+	 */
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A == B;
+	}
+
+	/**
+	 * @return The key used to index the given element.
+	 */
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	{
+		return Element.StateInitializer;
+	}
+
+	/** Calculates a hash index for a key. */
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+};
+
 /** Uniquely represents a FGraphicsMinimalPipelineStateInitializer for fast compares. */
 class FGraphicsMinimalPipelineStateId
 {
 public:
-	FORCEINLINE_DEBUGGABLE int32 GetId() const
+	FORCEINLINE_DEBUGGABLE uint32 GetId() const
 	{
 		checkSlow(IsValid());
-		return Id.AsInteger();
+		return PackedId;
 	}
 
 	inline bool IsValid() const 
 	{
-		return Id.IsValidId();
+		return bValid != 0;
 	}
-
-	void Setup(const FGraphicsMinimalPipelineStateInitializer& InPipelineState);
 
 	inline bool operator==(const FGraphicsMinimalPipelineStateId& rhs) const
 	{
-		return Id == rhs.Id;
+		return PackedId == rhs.PackedId;
 	}
 
 	inline bool operator!=(const FGraphicsMinimalPipelineStateId& rhs) const
@@ -123,15 +160,52 @@ public:
 	
 	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState() const
 	{
-		return GlobalTable[Id];
+		const FSetElementId SetElementId = FSetElementId::FromInteger(SetElementIndex);
+
+		if (bOneFrameId)
+		{
+			return OneFrameIdTable[SetElementId];
+		}
+
+		return PersistentIdTable[SetElementId].StateInitializer;
 	}
 
-	static SIZE_T GetGlobalTableSize() { return GlobalTable.GetAllocatedSize(); }
+	/**
+	 * Get a ref counted persistent pipeline id, which needs to manually released.
+	 */
+	static FGraphicsMinimalPipelineStateId GetPersistentId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState);
+
+	/**
+	 * Removes a persistent pipeline Id from the global persistent Id table.
+	 */
+	static void RemovePersistentId(FGraphicsMinimalPipelineStateId Id);
+
+	/**
+	 * Get a pipeline id, which is valid only for a single frame and doesn't need to be released manually.
+	 */
+	RENDERER_API static FGraphicsMinimalPipelineStateId GetOneFrameId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState);
+
+	static void ResetOneFrameIdTable();
+	static SIZE_T GetPersistentIdTableSize() { return PersistentIdTable.GetAllocatedSize(); }
+	static int32 GetPersistentIdNum() { return PersistentIdTable.Num(); }
+	static SIZE_T GetOneFrameIdTableSize() { return OneFrameIdTable.GetAllocatedSize(); }
 
 private:
-	FSetElementId Id;
+	union
+	{
+		uint32 PackedId = 0;
 
-	static TSet<FGraphicsMinimalPipelineStateInitializer> GlobalTable;
+		struct
+		{
+			uint32 SetElementIndex	: 30;
+			uint32 bOneFrameId		: 1;
+			uint32 bValid			: 1;
+		};
+	};
+
+	static TSet<FRefCountedGraphicsMinimalPipelineStateInitializer, RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs> PersistentIdTable;
+	static TSet<FGraphicsMinimalPipelineStateInitializer> OneFrameIdTable;
+	static FCriticalSection OneFrameIdTableCriticalSection;
 };
 
 struct FMeshProcessorShaders
@@ -436,17 +510,12 @@ public:
 	RENDERER_API void SetDrawParametersAndFinalize(
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
-		const FGraphicsMinimalPipelineStateInitializer& PipelineState, 
-		const FMeshProcessorShaders* ShadersForDebugging,
-		bool bDoSetupPsoStateForRasterization);
+		FGraphicsMinimalPipelineStateId PipelineId,
+		const FMeshProcessorShaders* ShadersForDebugging);
 
-	void Finalize(const FGraphicsMinimalPipelineStateInitializer& PipelineState, const FMeshProcessorShaders* ShadersForDebugging, bool bDoSetupPsoStateForRasterization)
+	void Finalize(FGraphicsMinimalPipelineStateId PipelineId, const FMeshProcessorShaders* ShadersForDebugging)
 	{
-		if (bDoSetupPsoStateForRasterization)
-		{
-			CachedPipelineId.Setup(PipelineState);
-		}
-
+		CachedPipelineId = PipelineId;
 		ShaderBindings.Finalize(ShadersForDebugging);	
 	}
 
@@ -657,7 +726,13 @@ public:
 		FMeshDrawCommand& MeshDrawCommand,
 		bool bDoSetupPsoStateForRasterization) override final
 	{
-		MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, bDoSetupPsoStateForRasterization);
+		FGraphicsMinimalPipelineStateId PipelineId;
+		if (bDoSetupPsoStateForRasterization)
+		{
+			PipelineId = FGraphicsMinimalPipelineStateId::GetOneFrameId(PipelineState);
+		}
+
+		MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
 
 		FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws

@@ -106,6 +106,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("VideoRecording"), STAT_VideoRecordingLLM, STATGROU
 DECLARE_LLM_MEMORY_STAT(TEXT("CsvProfiler"), STAT_CsvProfilerLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("MaterialInstance"), STAT_MaterialInstanceLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("SkeletalMesh"), STAT_SkeletalMeshLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("InstancedMesh"), STAT_InstancedMeshLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Landscape"), STAT_LandscapeLLM, STATGROUP_LLMFULL);
 
 /*
@@ -348,6 +349,7 @@ public:
 	int64 GetTagAmount(ELLMTag Tag) const;
 	void SetTagAmount(ELLMTag Tag, int64 Amount, bool AddToTotal);
     int64 GetActiveTag();
+	int64 FindTagForPtr( void* Ptr );
 
 	int64 GetAllocTypeAmount(ELLMAllocType AllocType);
 
@@ -1032,6 +1034,47 @@ FLLMPauseScope::~FLLMPauseScope()
 }
 
 
+FLLMScopeFromPtr::FLLMScopeFromPtr(void* Ptr, ELLMTracker Tracker )
+	: TrackerSet(Tracker)
+	, Enabled(false)
+{
+	if(GIsRequestingExit || Ptr == nullptr)
+	{
+		return;
+	}
+
+	FLowLevelMemTracker& LLM = FLowLevelMemTracker::Get();
+	if (!LLM.IsEnabled())
+	{
+		return;
+	}
+
+	int64 Tag = LLM.GetTracker(TrackerSet)->FindTagForPtr( Ptr );
+	if( Tag != (int64)ELLMTag::Untagged )
+	{
+		LLM.GetTracker(TrackerSet)->PushTag(Tag);
+		Enabled = true;
+	}
+}
+
+FLLMScopeFromPtr::~FLLMScopeFromPtr()
+{
+	if (!Enabled)
+	{
+		return;
+	}
+
+	FLowLevelMemTracker& LLM = FLowLevelMemTracker::Get();
+	if (!LLM.IsEnabled())
+	{
+		return;
+	}
+
+	LLM.GetTracker(TrackerSet)->PopTag();
+}
+
+
+
 
 
 
@@ -1326,6 +1369,16 @@ int64 FLLMTracker::GetActiveTag()
     FLLMThreadState* State = GetOrCreateState();
     return State->GetTopTag();
 }
+
+int64 FLLMTracker::FindTagForPtr( void* Ptr )
+{
+#if LLM_USE_ALLOC_INFO_STRUCT
+	return GetAllocationMap().GetValue(Ptr).Value2.Tag;
+#else
+	return (int64)GetAllocationMap().GetValue(Ptr).Value2;
+#endif
+}
+
 
 FLLMTracker::FLLMThreadState::FLLMThreadState()
 	: UntaggedAllocs(0)

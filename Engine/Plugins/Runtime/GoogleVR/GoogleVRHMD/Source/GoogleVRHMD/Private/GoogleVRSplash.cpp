@@ -110,13 +110,14 @@ void FGoogleVRSplash::Show()
 	//SplashScreenRenderingOrientation = FRotator(GVRHMD->CachedFinalHeadRotation);
 
 	RenderThreadTicker = MakeShareable(new FGoogleVRSplashTicker(this));
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(RegisterAsyncTick,
-	FTickableObjectRenderThread*, RenderThreadTicker, RenderThreadTicker.Get(),
-	FGoogleVRSplash*, pGVRSplash, this,
-	{
-		pGVRSplash->AllocateSplashScreenRenderTarget();
-		RenderThreadTicker->Register();
-	});
+	FTickableObjectRenderThread* RenderThreadTickerLocal = RenderThreadTicker.Get();
+	FGoogleVRSplash* pGVRSplash = this;
+	ENQUEUE_RENDER_COMMAND(RegisterAsyncTick)(
+		[RenderThreadTickerLocal, pGVRSplash](FRHICommandListImmediate& RHICmdList)
+		{
+			pGVRSplash->AllocateSplashScreenRenderTarget();
+			RenderThreadTickerLocal->Register();
+		});
 
 	bIsShown = true;
 }
@@ -130,15 +131,16 @@ void FGoogleVRSplash::Hide()
 		return;
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(UnregisterAsyncTick,
-	TSharedPtr<FGoogleVRSplashTicker>&, RenderThreadTicker, RenderThreadTicker,
-	FGoogleVRSplash*, pGVRSplash, this,
-	{
-		pGVRSplash->SubmitBlackFrame();
+	FTickableObjectRenderThread* RenderThreadTickerLocal = RenderThreadTicker.Get();
+	FGoogleVRSplash* pGVRSplash = this;
+	ENQUEUE_RENDER_COMMAND(UnregisterAsyncTick)(
+		[RenderThreadTickerLocal, pGVRSplash](FRHICommandListImmediate& RHICmdList)
+		{
+			pGVRSplash->SubmitBlackFrame();
 
-		RenderThreadTicker->Unregister();
-		RenderThreadTicker = nullptr;
-	});
+			RenderThreadTickerLocal->Unregister();
+			RenderThreadTickerLocal = nullptr;
+		});
 	FlushRenderingCommands();
 
 	if (!SplashTexturePath.IsEmpty())

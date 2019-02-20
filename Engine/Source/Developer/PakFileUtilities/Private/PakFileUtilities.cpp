@@ -845,12 +845,13 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 
 			UE_LOG(LogPakFile, Log, TEXT("Added file Source: %s Dest: %s"), *Input.Source, *Input.Dest);
 
-			bool bIsUBulk = FPaths::GetExtension(Input.Source, true) == TEXT(".ubulk");
-			if (bIsUBulk && CmdLineParameters.AlignForMemoryMapping > 0 && Input.bNeedsCompression)
+			bool bIsMappedBulk = Input.Source.EndsWith(TEXT(".m.ubulk"));
+			if (bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0 && Input.bNeedsCompression 
+				&& !Input.bNeedEncryption) // if it is encrypted, we will compress it anyway since it won't be mapped at runtime
 			{
 				// no compression for bulk aligned files because they are memory mapped
 				Input.bNeedsCompression = false;
-				UE_LOG(LogPakFile, Warning, TEXT("Stripped compression from %s for memory mapping."), *Input.Dest);
+				UE_LOG(LogPakFile, Log, TEXT("Stripped compression from %s for memory mapping."), *Input.Dest);
 			}
 			Entries.Add(Input);
 		}			
@@ -1529,7 +1530,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
 		bool bIsUAssetUExpPairUAsset = false;
 		bool bIsUAssetUExpPairUExp = false;
-		bool bIsUBulk = FPaths::GetExtension(FilesToAdd[FileIndex].Source, true) == TEXT(".ubulk");
+		bool bIsMappedBulk = FilesToAdd[FileIndex].Source.EndsWith(TEXT(".m.ubulk"));
 
 		if (FileIndex)
 		{
@@ -1655,7 +1656,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				}
 			}
 			// Align bulk data
-			if (bIsUBulk && CmdLineParameters.AlignForMemoryMapping > 0 && OriginalFileSize != INDEX_NONE && !bDeleted)
+			if (bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0 && OriginalFileSize != INDEX_NONE && !bDeleted)
 			{
 				if (!IsAligned(NewEntryOffset + NewEntry.Info.GetSerializedSize(FPakInfo::PakFile_Version_Latest), CmdLineParameters.AlignForMemoryMapping))
 				{
@@ -1701,7 +1702,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		if (bCopiedToPak)
 		{
 			if (RequiredPatchPadding > 0 &&
-				!(bIsUBulk && CmdLineParameters.AlignForMemoryMapping > 0) // don't wreck the bulk padding with patch padding
+				!(bIsMappedBulk && CmdLineParameters.AlignForMemoryMapping > 0) // don't wreck the bulk padding with patch padding
 				)
 			{
 				//if the next file is going to cross a patch-block boundary then pad out the current set of files with 0's
@@ -1856,7 +1857,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 				int64 RealStart = Entry.Info.Offset;
 				if ((RealStart % RequiredPatchPadding) != 0 && 
 					!Entry.Filename.EndsWith(TEXT("uexp")) && // these are export sections of larger files and may be packed with uasset/umap and so we don't need a warning here
-					!(Entry.Filename.EndsWith(TEXT("ubulk")) && CmdLineParameters.AlignForMemoryMapping > 0)) // Bulk padding unaligns patch padding and so we don't need a warning here
+					!(Entry.Filename.EndsWith(TEXT(".m.ubulk")) && CmdLineParameters.AlignForMemoryMapping > 0)) // Bulk padding unaligns patch padding and so we don't need a warning here
 				{
 					UE_LOG(LogPakFile, Warning, TEXT("File at offset %lld of size %lld not aligned to patch size %i"), RealStart, Entry.Info.Size, RequiredPatchPadding);
 				}
