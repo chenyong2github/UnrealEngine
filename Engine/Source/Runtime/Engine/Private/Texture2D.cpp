@@ -1641,6 +1641,8 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 			TextureRHI->DoNoDeferDelete();
 		}
 
+		check(Owner->GetCachedNumResidentLODs() == NumMips - CurrentFirstMip);
+
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
 		CurrentFirstMip = InNewFirstMip;
