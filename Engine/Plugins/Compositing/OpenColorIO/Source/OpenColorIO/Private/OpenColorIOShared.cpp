@@ -435,6 +435,7 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 
 void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& InShaderTypes, EShaderPlatform InShaderPlatform)
 {
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		for (FShaderType* ShaderType : InShaderTypes)
@@ -448,6 +449,7 @@ void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& 
 			}
 		}
 	}
+#endif //WITH_EDITOR
 }
 
 bool FOpenColorIOShaderMapId::ContainsShaderType(const FShaderType* ShaderType) const
