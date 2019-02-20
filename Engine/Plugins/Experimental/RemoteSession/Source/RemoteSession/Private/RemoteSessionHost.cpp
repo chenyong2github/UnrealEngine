@@ -147,7 +147,7 @@ void FRemoteSessionHost::OnCreateChannels()
 	
 	// setup framebuffer capture
 	TSharedPtr<FRemoteSessionFrameBufferChannel> FBChannel = IRemoteSessionRole::GetChannel<FRemoteSessionFrameBufferChannel>();
-	if (FBChannel.IsValid())
+	if (FBChannel.IsValid() && SceneViewport.IsValid())
 	{
 		FBChannel->SetCaptureViewport(SceneViewport.ToSharedRef());
 		FBChannel->SetCaptureQuality(Quality, Framerate);
