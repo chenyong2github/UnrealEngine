@@ -984,7 +984,7 @@ public:
 
 					const float ItemHeight = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
 
-					if (HeightGeneratedSoFar + ItemHeight > MyGeometry.GetLocalSize().Y)
+					if (HeightGeneratedSoFar + ItemHeight > MyGeometry.GetLocalSize().Y && ItemHeight > 0.f)
 					{
 						// Generated the item that puts us over the top.
 						// Count the fraction of this item that will stick out above the list
@@ -1028,7 +1028,8 @@ public:
 		NewlyGeneratedWidget->SlatePrepass(LayoutScaleMultiplier);
 
 		const bool IsFirstWidgetOnScreen = (ItemIndex == StartIndex);
-		const float ItemHeight = NewlyGeneratedWidget->GetDesiredSize().Y;
+		const bool IsVisible = NewlyGeneratedWidget->GetVisibility().IsVisible();
+		const float ItemHeight = IsVisible ? NewlyGeneratedWidget->GetDesiredSize().Y : 0;
 
 		// We have a widget for this item; add it to the panel so that it is part of the UI.
 		if (ItemIndex >= StartIndex)
