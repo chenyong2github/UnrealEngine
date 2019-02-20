@@ -39,7 +39,11 @@ private:
     void SetRequestAsFailed();
     void CompleteRequest_Internal(bool bWasRequestSuccess, const FString& CompletedTempDownloadLocation);
 	void CancelActiveTask();
-	void UpdateDownloadProgress(int64_t TotalDownloaded, int64_t DownloadedSinceLastUpdate);
+	
+    //on iOS we need to delay when we send progress updates as they can come from a background thread
+    //save off results in UpdateDownloadProgress to send later when we get a SendDownloadProgressUpdate
+    void UpdateDownloadProgress(int64_t TotalDownloaded, int64_t DownloadedSinceLastUpdate);
+    void SendDownloadProgressUpdate();
     void ResetProgressTracking();
     
     void ActivateUnderlyingTask();
@@ -63,7 +67,10 @@ private:
 	volatile int32 bIsFailed;
 	volatile int32 bWasTaskStartedInBG;
     volatile int32 bHasAlreadyFinishedRequest;
+    volatile int32 bIsPendingCancel;
+    
 	volatile int64 DownloadProgress;
+    volatile int64 DownloadProgressSinceLastUpdateSent;
     
     friend class FApplePlatformBackgroundHttpManager;
 };

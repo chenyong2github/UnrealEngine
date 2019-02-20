@@ -606,10 +606,6 @@ public:
 	 * Updates the primitive proxy's uniform buffer.
 	 */
 	ENGINE_API void UpdateUniformBuffer();
-	/**
-	 * Updates the primitive proxy's uniform buffer.
-	 */
-	ENGINE_API bool NeedsUniformBufferUpdate() const;
 
 #if !UE_BUILD_SHIPPING
 
@@ -679,11 +675,12 @@ public:
 	 * @param InView - Current View
  	 * @param InViewLODScale - View LOD scale
   	 * @param InCustomDataMemStack - MemStack to allocate the custom data
-   	 * @param InIsStaticRelevant - Tell us if it was called in a static of dynamic relevancy context
+	 * @param InIsStaticRelevant - Tell us if it was called in a static of dynamic relevancy context
+	 * @param InIsShadowOnly - Tell us if we are creating in the shadow context
    	 * @param InVisiblePrimitiveLODMask - Calculated LODMask for visibile primitive in static relevancy
    	 * @param InMeshScreenSizeSquared - Computed mesh batch screen size, passed to prevent recalculation
 	 */
-	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant = false, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
+	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
 	
 	/**
 	 * Called during post visibility and shadow setup, just before the frame is rendered. It can be used to update custom data that had a dependency between them.
@@ -1043,11 +1040,6 @@ private:
 	ENGINE_API void SetTransform(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
 
 	ENGINE_API bool WouldSetTransformBeRedundant(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
-
-	/**
-	 * Either updates the uniform buffer or defers it until it becomes visible depending on a cvar
-	 */
-	ENGINE_API void UpdateUniformBufferMaybeLazy();
 
 	/** Updates the hidden editor view visibility map on the render thread */
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );

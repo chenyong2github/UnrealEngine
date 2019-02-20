@@ -38,6 +38,8 @@ enum EBulkDataFlags
 	BULKDATA_Force_NOT_InlinePayload			= 1 << 10,
 	/** This payload is optional and may not be on device */
 	BULKDATA_OptionalPayload					= 1 << 11,
+	/** This payload will be memory mapped, this requires alignment, no compression etc. */
+	BULKDATA_MemoryMappedPayload = 1 << 12,
 };
 
 /**
@@ -101,6 +103,13 @@ struct COREUOBJECT_API FOwnedBulkDataPtr
 	IMappedFileRegion* GetMappedRegion()
 	{
 		return MappedRegion;
+	}
+
+	void RelinquishOwnership()
+	{
+		AllocatedData = nullptr;
+		MappedHandle = nullptr;
+		MappedRegion = nullptr;
 	}
 
 private:
@@ -762,7 +771,7 @@ public:
 		}
 		Formats.Empty();
 	}
-	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint32 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true);
+	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint32 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true, bool bMapped = false);
 	COREUOBJECT_API void SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner);
 };
 

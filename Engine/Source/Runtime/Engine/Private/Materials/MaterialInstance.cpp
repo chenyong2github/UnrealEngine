@@ -306,14 +306,13 @@ void FMaterialInstanceResource::GameThread_SetParent(UMaterialInterface* ParentM
 
 		// Set the rendering thread's parent and instance pointers.
 		check(ParentMaterialInterface != NULL);
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			InitMaterialInstanceResource,
-			FMaterialInstanceResource*, Resource, this,
-			UMaterialInterface*, Parent, ParentMaterialInterface,
+		FMaterialInstanceResource* Resource = this;
+		ENQUEUE_RENDER_COMMAND(InitMaterialInstanceResource)(
+			[Resource, ParentMaterialInterface](FRHICommandListImmediate& RHICmdList)
 			{
-			Resource->Parent = Parent;
-			Resource->InvalidateUniformExpressionCache(false);
-		});
+				Resource->Parent = ParentMaterialInterface;
+				Resource->InvalidateUniformExpressionCache(false);
+			});
 
 		if (OldParent)
 		{
@@ -407,6 +406,7 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 
 void UMaterialInstance::PostInitProperties()	
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	Super::PostInitProperties();
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
@@ -2956,7 +2956,7 @@ void UMaterialInstance::ClearAllCachedCookedPlatformData()
 
 void UMaterialInstance::Serialize(FArchive& Ar)
 {
-	LLM_SCOPE(ELLMTag::Materials);
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPED_LOADTIMER(MaterialInstanceSerializeTime);
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_Serialize);
 
@@ -3082,6 +3082,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 
 void UMaterialInstance::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPED_LOADTIMER(MaterialInstancePostLoad);
 
 	Super::PostLoad();

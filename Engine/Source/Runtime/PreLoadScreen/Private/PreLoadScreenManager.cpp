@@ -58,11 +58,7 @@ void FPreLoadScreenManager::Initialize(FSlateRenderer& InSlateRenderer)
         MainWindow = GameWindow;
 
         WidgetRenderer = MakeShared<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe>(GameWindow, VirtualRenderWindow, &InSlateRenderer);
-
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPreLoadScreenManager::OnPostEngineInit);
     }
-
-	FCoreDelegates::OnBeginFrame.AddRaw(this, &FPreLoadScreenManager::OnFirstEngineFrame);
 
     LastRenderTickTime = FPlatformTime::Seconds();
     LastTickTime = FPlatformTime::Seconds();
@@ -80,30 +76,6 @@ void FPreLoadScreenManager::UnRegisterPreLoadScreen(TSharedPtr<IPreLoadScreen> P
         PreLoadScreen->CleanUp();
         PreLoadScreens.Remove(PreLoadScreen);
     }
-}
-
-void FPreLoadScreenManager::OnPostEngineInit()
-{
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-	SetupSceneViewport();
-}
-
-void FPreLoadScreenManager::SetupSceneViewport()
-{
-	UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-	if (GameEngine)
-	{
-		GameEngine->SwitchGameWindowToUseGameViewport();
-	}
-}
-
-void FPreLoadScreenManager::OnFirstEngineFrame()
-{
-	//Only want to run this on the first Engine Frame
-	FCoreDelegates::OnBeginFrame.RemoveAll(this);
-
-	//Destroy / Clean Up as we are now done
-	Destroy();
 }
 
 void FPreLoadScreenManager::PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay)
@@ -356,10 +328,8 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
         float SlateDeltaTime = SlateApp.GetDeltaTime();
 
         //Setup Slate Render Command
-        ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-            BeginPreLoadScreenFrame,
-            IPreLoadScreen*, ActivePreLoadScreen, ActivePreLoadScreen,
-            float, SlateDeltaTime, SlateDeltaTime,
+        ENQUEUE_RENDER_COMMAND(BeginPreLoadScreenFrame)(
+			[ActivePreLoadScreen, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
             {
                 if (FPreLoadScreenManager::ShouldRender())
                 {

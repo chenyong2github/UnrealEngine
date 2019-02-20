@@ -485,6 +485,9 @@ public:
 	/** Create physics engine constraint using physx actors. */
 	void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken());
 
+	/** Set teh constraint broken delegate. */
+	void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
+
 	/** Terminate physics engine constraint */
 	void TermConstraint();
 

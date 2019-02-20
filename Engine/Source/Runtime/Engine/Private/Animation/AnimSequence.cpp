@@ -182,11 +182,16 @@ void FRequestAnimCompressionParams::InitFrameStrippingFromPlatform(const class I
 
 	if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(TargetPlatform->IniPlatformName()))
 	{
-		// if we don't prune, we assume all detail modes
 		int32 CVarPlatformFrameStrippingValue = 0;
 		if (DeviceProfile->GetConsolidatedCVarValue(StripFrameCVarName, CVarPlatformFrameStrippingValue))
 		{
 			bPerformFrameStripping = CVarPlatformFrameStrippingValue == 1;
+		}
+
+		int32 CVarPlatformOddAnimFrameStrippingValue = 0;
+		if (DeviceProfile->GetConsolidatedCVarValue(OddFrameStripStrippingCVarName, CVarPlatformOddAnimFrameStrippingValue))
+		{
+			bPerformFrameStrippingOnOddNumberedFrames = CVarPlatformOddAnimFrameStrippingValue == 1;
 		}
 	}
 #endif
@@ -2632,38 +2637,82 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 	Ar << RotationCompressionFormat;
 	Ar << ScaleCompressionFormat;
 
-	Ar << CompressedTrackOffsets;
-	Ar << CompressedScaleOffsets;
-	Ar << CompressedSegments;
-
-	Ar << CompressedTrackToSkeletonMapTable;
-	Ar << CompressedCurveNames;
-
-	Ar << CompressedRawDataSize;
-	Ar << CompressedNumFrames;
-
 	if (Ar.IsLoading())
 	{
 		// Serialize the compressed byte stream from the archive to the buffer.
+		Ar << CompressedTrackOffsets;
+		Ar << CompressedScaleOffsets;
+		Ar << CompressedSegments;
+
+		Ar << CompressedTrackToSkeletonMapTable;
+		Ar << CompressedCurveNames;
+
+		Ar << CompressedRawDataSize;
+		Ar << CompressedNumFrames;
 		int32 NumBytes;
 		Ar << NumBytes;
 
-		TArray<uint8> SerializedData;
-		SerializedData.Empty(NumBytes);
-		SerializedData.AddUninitialized(NumBytes);
-		Ar.Serialize(SerializedData.GetData(), NumBytes);
-
-		// Swap the buffer into the byte stream.
-		FMemoryReader MemoryReader(SerializedData, true);
-		MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
-
 		// we must know the proper codecs to use
 		AnimationFormat_SetInterfaceLinks(*this);
-
-		// and then use the codecs to byte swap
 		check(RotationCodec != NULL);
-		((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
 
+		bool bUseBulkDataForLoad = false;
+		if (!bDDCData && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::FortMappedCookedAnimation)
+		{
+			Ar << bUseBulkDataForLoad;
+		}
+		if (bUseBulkDataForLoad)
+		{
+#if !WITH_EDITOR
+			FByteBulkData OptionalBulk;
+#endif
+			bool bUseMapping = FPlatformProperties::SupportsMemoryMappedFiles() && FPlatformProperties::SupportsMemoryMappedAnimation();
+			OptionalBulk.Serialize(Ar, this, -1, bUseMapping);
+
+			if (!bUseMapping)
+			{
+				OptionalBulk.ForceBulkDataResident();
+			}
+
+			size_t Size = OptionalBulk.GetBulkDataSize();
+
+			FOwnedBulkDataPtr* OwnedPtr = OptionalBulk.StealFileMapping();
+
+#if WITH_EDITOR
+			check(!bUseMapping && !OwnedPtr->GetMappedHandle());
+			CompressedByteStream.Empty(Size);
+			CompressedByteStream.AddUninitialized(Size);
+			if (Size)
+			{
+				FMemory::Memcpy(&CompressedByteStream[0], OwnedPtr->GetPointer(), Size);
+			}
+#else
+			CompressedByteStream.AcceptOwnedBulkDataPtr(OwnedPtr, Size);
+#endif
+			delete OwnedPtr;
+		}
+		else
+		{
+			if (FPlatformProperties::RequiresCookedData() && ((AnimEncoding*)RotationCodec)->CanBeMemoryMapped(*this, NumBytes))
+			{
+				CompressedByteStream.Empty(NumBytes);
+				CompressedByteStream.AddUninitialized(NumBytes);
+				Ar.Serialize(CompressedByteStream.GetData(), NumBytes);
+			}
+			else
+			{
+				TArray<uint8> SerializedData;
+				SerializedData.Empty(NumBytes);
+				SerializedData.AddUninitialized(NumBytes);
+				Ar.Serialize(SerializedData.GetData(), NumBytes);
+
+				// Swap the buffer into the byte stream.
+				FMemoryReader MemoryReader(SerializedData, true);
+				MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
+				((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
+			}
+		}
+		
 #if WITH_EDITOR
 		if (bDDCData)
 		{
@@ -2709,11 +2758,94 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 
 		// Serialize the buffer to archive.
 		int32 Num = SerializedData.Num();
-		Ar << Num;
-		Ar.Serialize(SerializedData.GetData(), SerializedData.Num());
 
+
+
+		bool bUseBulkDataForSave = !bDDCData && Num && Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAnimation);
+
+		// repairing the offsets will leave them inconsistent with the sequence itself, so we need to restore them later
+		TArray<int32> SavedCompressedTrackOffsets = CompressedTrackOffsets;
+		FCompressedOffsetData SavedCompressedScaleOffsets = CompressedScaleOffsets;
+
+		bool bSavebUseBulkDataForSave = false;
+		if (!bDDCData)
+		{
+			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FortMappedCookedAnimation)
+			{
+				bUseBulkDataForSave = false;
+			}
+			else
+			{
+				bSavebUseBulkDataForSave = true;
+			}
+		}
+		if (bUseBulkDataForSave)
+		{
+			bUseBulkDataForSave = ((AnimEncoding*)RotationCodec)->CanBeMemoryMapped(*this, Num);
+		}
+
+		Ar << CompressedTrackOffsets;
+		Ar << CompressedScaleOffsets;
+		Ar << CompressedSegments;
+
+		Ar << CompressedTrackToSkeletonMapTable;
+		Ar << CompressedCurveNames;
+
+		Ar << CompressedRawDataSize;
+		Ar << CompressedNumFrames;
+		Ar << Num;
 		// Count compressed data.
 		Ar.CountBytes(SerializedData.Num(), SerializedData.Num());
+
+		if (bSavebUseBulkDataForSave)
+		{
+			Ar << bUseBulkDataForSave;
+		}
+		else
+		{
+			check(!bUseBulkDataForSave);
+		}
+
+		if (bUseBulkDataForSave)
+		{
+#if WITH_EDITOR
+			OptionalBulk.Lock(LOCK_READ_WRITE);
+			void* Dest = OptionalBulk.Realloc(Num);
+			FMemory::Memcpy(Dest, &(SerializedData[0]), Num);
+			OptionalBulk.Unlock();
+			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
+			OptionalBulk.ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
+			OptionalBulk.Serialize(Ar, this);
+
+
+#define TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING WITH_EDITOR
+#if TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING
+			FMemoryReader MemoryReader(SerializedData, true);
+			MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
+			TArray<uint8> SavedCompressedByteStream = CompressedByteStream;
+
+			CompressedByteStream.Empty();
+
+			((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
+
+			check(CompressedByteStream.Num() == Num);
+
+			check(FMemory::Memcmp(SerializedData.GetData(), CompressedByteStream.GetData(), Num) == 0);
+
+			CompressedByteStream = SavedCompressedByteStream;
+#endif
+#else
+			UE_LOG(LogAnimation, Fatal, TEXT("Can't save animation as bulk data in non-editor builds!"));
+#endif
+		}
+		else
+		{
+			Ar.Serialize(SerializedData.GetData(), SerializedData.Num());
+		}
+
+		CompressedTrackOffsets = SavedCompressedTrackOffsets;
+		CompressedScaleOffsets = SavedCompressedScaleOffsets;
 
 #if WITH_EDITOR
 		if (bDDCData)

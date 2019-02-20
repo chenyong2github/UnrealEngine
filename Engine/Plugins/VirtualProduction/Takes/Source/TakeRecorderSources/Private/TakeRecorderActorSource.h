@@ -31,7 +31,7 @@ enum class ETakeRecorderActorRecordType : uint8
 * Records the properties of the actor and the components on the actor and safely
 * handles new components being spawned at runtime and the actor being destroyed.
 */
-UCLASS(DisplayName="Any Actor", Category="Actors")
+UCLASS(Category="Actors", meta = (TakeRecorderDisplayName="Any Actor"))
 class UTakeRecorderActorSource : public UTakeRecorderSource, public IMovieSceneTrackRecorderHost
 {
 public:
@@ -91,10 +91,21 @@ public:
 	 * Add a take recorder source for the given actor. 
 	 *
 	 * @param InActor The actor to add a source for
-	 * @return The added source
+	 * @param InSources The sources to add the actor to
+	 * @return The added source or the source already present with the same actor
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
 	static UTakeRecorderSource* AddSourceForActor(AActor* InActor, UTakeRecorderSources* InSources);
+
+	/*
+	 * Remove the given actor from TakeRecorderSources.
+	 *
+	 * @param InActor The actor to remove from the sources
+	 * @param InSources The sources from where to remove the actor
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void RemoveActorFromSources(AActor* InActor, UTakeRecorderSources* InSources);
+
 
 public:
 	UTakeRecorderActorSource(const FObjectInitializer& ObjInit);

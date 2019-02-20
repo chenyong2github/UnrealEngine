@@ -1522,7 +1522,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				{
 					// Instanced stereo needs to use the right plane from the right eye when constructing the frustum bounds to cull against.
 					// Otherwise we'll cull objects visible in the right eye, but not the left.
-					if (Views[0]->IsInstancedStereoPass() && ViewIndex == 0)
+					if ((Views[0]->IsInstancedStereoPass() || Views[0]->bIsMobileMultiViewEnabled) && ViewIndex == 0)
 					{
 						check(Views.Num() == 2);
 						
@@ -1969,7 +1969,7 @@ void UHierarchicalInstancedStaticMeshComponent::PreSave(const class ITargetPlatf
 
 void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 {
-	LLM_SCOPE(ELLMTag::StaticMesh);	
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
@@ -2864,6 +2864,7 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 
 FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_HierarchicalInstancedStaticMeshComponent_CreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_FoliageCreateProxy);
 
@@ -3112,6 +3113,11 @@ void UHierarchicalInstancedStaticMeshComponent::PartialNavigationUpdate(int32 In
 			AccumulatedNavigationDirtyArea+= InstanceBox;
 		}
 	}
+}
+
+FBox UHierarchicalInstancedStaticMeshComponent::GetNavigationBounds() const
+{
+	return CalcBounds(GetComponentTransform()).GetBox();
 }
 
 void UHierarchicalInstancedStaticMeshComponent::FlushAccumulatedNavigationUpdates()

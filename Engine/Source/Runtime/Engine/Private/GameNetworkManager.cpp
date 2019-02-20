@@ -32,6 +32,8 @@ AGameNetworkManager::AGameNetworkManager(const FObjectInitializer& ObjectInitial
 	ClientNetSendMoveThrottleOverPlayerCount = 10;
 	ClientAuthorativePosition = false;
 	ClientErrorUpdateRateLimit = 0.0f;
+	ClientNetCamUpdateDeltaTime = 0.0166f;
+	ClientNetCamUpdatePositionLimit = 1000.0f;
 	bMovementTimeDiscrepancyDetection = false;
 	bMovementTimeDiscrepancyResolution = false;
 	MovementTimeDiscrepancyMaxTimeMargin = 0.25f;

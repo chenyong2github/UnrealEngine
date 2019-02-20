@@ -151,7 +151,10 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	InitInReliable		( 0 )
 ,	EngineNetworkProtocolVersion( FNetworkVersion::GetEngineNetworkProtocolVersion() )
 ,	GameNetworkProtocolVersion( FNetworkVersion::GetGameNetworkProtocolVersion() )
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ,	bResendAllDataSinceOpen( false )
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+,	ResendAllDataState( EResendAllDataState::None )
 #if !UE_BUILD_SHIPPING
 ,	ReceivedRawPacketDel()
 #endif
@@ -161,19 +164,28 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
 {
+	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
+	// The allocations could *probably* be moved somewhere else (like InitBase), but that
+	// causes failure to connect for some reason, and for now this is easier.
+	LLM_SCOPE(ELLMTag::Networking);
+
 	MaxChannelSize = CVarMaxChannelSize.GetValueOnAnyThread();
 	if (MaxChannelSize <= 0)
 	{
 		UE_LOG(LogNet, Warning, TEXT("CVarMaxChannelSize of %d is less than or equal to 0, using the default number of channels."), MaxChannelSize);
 		MaxChannelSize = DEFAULT_MAX_CHANNEL_SIZE;
 	}
+	
+	
+	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject | EObjectFlags::RF_ArchetypeObject))
+	{
+		Channels.AddDefaulted(MaxChannelSize);
+		OutReliable.AddDefaulted(MaxChannelSize);
+		InReliable.AddDefaulted(MaxChannelSize);
+		PendingOutRec.AddDefaulted(MaxChannelSize);
 
-	Channels.AddDefaulted(MaxChannelSize);
-	OutReliable.AddDefaulted(MaxChannelSize);
-	InReliable.AddDefaulted(MaxChannelSize);
-	PendingOutRec.AddDefaulted(MaxChannelSize);
-
-	PacketNotify.Init(InPacketId, OutPacketId);
+		PacketNotify.Init(InPacketId, OutPacketId);
+	}	
 }
 
 /**
@@ -498,7 +510,6 @@ void UNetConnection::Serialize( FArchive& Ar )
 	{
 		// TODO: We don't currently track:
 		//		StatelessConnectComponents
-		//		PacketHandlers
 		//		AnalyticsVars
 		//		AnalyticsData
 		//		Histogram data.
@@ -557,6 +568,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastOut", LastOut.CountMemory(Ar));
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SendBunchHeader", SendBunchHeader.CountMemory(Ar));
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PacketHandler",
+			if (Handler.IsValid())
+			{
+				// PacketHandler already counts its size.
+				Handler->CountBytes(Ar);
+			}
+		);
 
 #if DO_ENABLE_NET_TEST
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Delayed",
@@ -1525,6 +1544,32 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 	return true;
 }
 
+FNetworkGUID UNetConnection::GetActorGUIDFromOpenBunch(FInBunch& Bunch)
+{
+	// NOTE: This could break if this is a PartialBunch and the ActorGUID wasn't serialized.
+	//			Seems unlikely given the aggressive Flushing + increased MTU on InternalAck.
+
+	// Any GUIDs / Exports will have been read already for InternalAck connections,
+	// but we may have to skip over must-be-mapped GUIDs before we can read the actor GUID.
+
+	if (Bunch.bHasMustBeMappedGUIDs)
+	{
+		uint16 NumMustBeMappedGUIDs = 0;
+		Bunch << NumMustBeMappedGUIDs;
+
+		for (int32 i = 0; i < NumMustBeMappedGUIDs; i++)
+		{
+			FNetworkGUID NetGUID;
+			Bunch << NetGUID;
+		}
+	}
+
+	FNetworkGUID ActorGUID;
+	Bunch << ActorGUID;
+
+	return ActorGUID;
+}
+
 void UNetConnection::ReceivedPacket( FBitReader& Reader )
 {
 	SCOPED_NAMED_EVENT(UNetConnection_ReceivedPacket, FColor::Green);
@@ -1876,28 +1921,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				if (bNewlyOpenedActorChannel)
 				{
-					// NOTE: This could break if this is a PartialBunch and the ActorGUID wasn't serialized.
-					//			Seems unlikely given the aggressive Flushing + increased MTU on InternalAck.
+					FNetworkGUID ActorGUID = GetActorGUIDFromOpenBunch(Bunch);
 
-					// Any GUIDs / Exports will have been read already for InternalAck connections,
-					// but we may have to skip over must-be-mapped GUIDs before we can read the actor GUID.
-
-					if (Bunch.bHasMustBeMappedGUIDs)
+					if (!Bunch.IsError())
 					{
-						uint16 NumMustBeMappedGUIDs = 0;
-						Bunch << NumMustBeMappedGUIDs;
-
-						for (int32 i = 0; i < NumMustBeMappedGUIDs; i++)
-						{
-							FNetworkGUID NetGUID;
-							Bunch << NetGUID;
-						}
+						IgnoringChannels.Add(Bunch.ChIndex, ActorGUID);
 					}
-
-					FNetworkGUID ActorGUID;
-					Bunch << ActorGUID;
-
-					IgnoringChannels.Add(Bunch.ChIndex, ActorGUID);
+					else
+					{
+						UE_LOG(LogNetTraffic, Error, TEXT("UNetConnection::ReceivedPacket: Unable to read actor GUID for ignored bunch. (Channel %d)"), Bunch.ChIndex);
+					}
 				}
 
 				if (IgnoringChannels.Contains(Bunch.ChIndex))
@@ -1919,6 +1952,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 							}
 						}
 					}
+
+					UE_LOG(LogNetTraffic, Log, TEXT("Ignoring bunch for already open channel: %i"), Bunch.ChIndex);
 					continue;
 				}
 			}
@@ -1984,6 +2019,42 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					UE_LOG(LogNetTraffic, Warning, TEXT("      Ignoring Bunch Create received from client since only server is allowed to create this type of channel: Bunch  %i: ChName %s, ChSequence: %i, bReliable: %i, bPartial: %i, bPartialInitial: %i, bPartialFinal: %i"), Bunch.ChIndex, *Bunch.ChName.ToString(), Bunch.ChSequence, (int)Bunch.bReliable, (int)Bunch.bPartial, (int)Bunch.bPartialInitial, (int)Bunch.bPartialFinal );
 					RejectedChans.AddUnique(Bunch.ChIndex);
 					continue;
+				}
+
+				// peek for guid
+				if (InternalAck && (Bunch.ChName == NAME_Actor))
+				{
+					if (Bunch.bOpen && (!Bunch.bPartial || Bunch.bPartialInitial))
+					{
+						FBitReaderMark Mark(Bunch);
+						FNetworkGUID ActorGUID = GetActorGUIDFromOpenBunch(Bunch);
+						Mark.Pop(Bunch);
+
+						if (ActorGUID.IsValid() && !ActorGUID.IsDefault())
+						{
+							if (IgnoredGuids.Contains(ActorGUID))
+							{
+								UE_LOG(LogNetTraffic, Verbose, TEXT("Adding Channel: %i to ignore list, ignoring guid: %s"), Bunch.ChIndex, *ActorGUID.ToString());
+								IgnoredChannels.Add(Bunch.ChIndex);
+								continue;
+							}
+							else
+							{
+								if (IgnoredChannels.Remove(Bunch.ChIndex))
+								{
+									UE_LOG(LogNetTraffic, Verbose, TEXT("Removing Channel: %i from ignore list, got new guid: %s"), Bunch.ChIndex, *ActorGUID.ToString());
+								}
+							}
+						}
+					}
+					else
+					{
+						if (IgnoredChannels.Contains(Bunch.ChIndex))
+						{
+							UE_LOG(LogNetTraffic, Verbose, TEXT("Ignoring bunch on channel: %i"), Bunch.ChIndex);
+							continue;
+						}
+					}
 				}
 
 				// Reliable (either open or later), so create new channel.

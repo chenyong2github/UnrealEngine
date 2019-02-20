@@ -380,15 +380,15 @@ public:
 		return RayTracingMaterialLibraryIndex;
 	}
 
-	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRayTracingHitGroupInitializer>& RayTracingMaterials);
+	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader);
 
 private:
-	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRHIRayTracingShader* Shader);
+	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader);
 	RENDERCORE_API static void RemoveFromRayTracingLibrary(uint32 Index);
 
 	static uint32 GlobalMaxIndex;
 	static TArray<uint32> GlobalUnusedIndicies;
-	static TMap<uint32, FRHIRayTracingShader*> GlobalRayTracingMaterialLibrary;
+	static TMap<uint32, FRayTracingShaderRHIParamRef> GlobalRayTracingMaterialLibrary;
 	static FCriticalSection GlobalRayTracingMaterialLibraryCS;
 
 public:
@@ -941,7 +941,15 @@ public:
 #endif
 	inline const TArray<uint8>& GetCode() const { return Resource->Code; }
 	inline const FShaderTarget GetTarget() const { return Target; }
-	inline FSHAHash GetOutputHash() const { return OutputHash; }
+	inline FSHAHash GetOutputHash() const
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		return OutputHash;
+#else
+		check(Resource);
+		return Resource->OutputHash;
+#endif
+	}
 	FShaderId GetId() const;
 	inline FVertexFactoryType* GetVertexFactoryType() const { return VFType; }
 	inline int32 GetNumRefs() const { return NumRefs; }
@@ -1088,17 +1096,16 @@ protected:
 	TArray<FShaderUniformBufferParameter*> UniformBufferParameters;
 
 private:
-
-	/** 
-	 * Hash of the compiled output from this shader and the resulting parameter map.  
-	 * This is used to find a matching resource.
-	 */
-	FSHAHash OutputHash;
-
 	/** Hash of the material shader map this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash MaterialShaderMapHash;
 
 #if KEEP_SHADER_SOURCE_HASHES
+	/**
+	* Hash of the compiled output from this shader and the resulting parameter map.
+	* This is used to find a matching resource.
+	*/
+	FSHAHash OutputHash;
+
 	/** Vertex factory source hash, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash VFSourceHash;
 

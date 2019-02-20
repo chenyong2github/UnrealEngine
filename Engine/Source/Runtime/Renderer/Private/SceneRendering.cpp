@@ -85,8 +85,13 @@ FAutoConsoleVariableRef CVarDumpInstancingStats(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-extern ENGINE_API FLightMap2D* GDebugSelectedLightmap;
-extern ENGINE_API UPrimitiveComponent* GDebugSelectedComponent;
+int32 GDumpMeshDrawCommandMemoryStats = 0;
+FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
+	TEXT("r.MeshDrawCommands.LogMeshDrawCommandMemoryStats"),
+	GDumpMeshDrawCommandMemoryStats,
+	TEXT("Whether to log mesh draw command memory stats on the next frame"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
 
 DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
 
@@ -2639,6 +2644,12 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 
 	// Notify the RHI we are done rendering a scene.
 	RHICmdList.EndScene();
+
+	if (GDumpMeshDrawCommandMemoryStats)
+	{
+		GDumpMeshDrawCommandMemoryStats = 0;
+		Scene->DumpMeshDrawCommandMemoryStats();
+	}
 }
 
 void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands)
@@ -2882,7 +2893,12 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 	}
 
-	GPrimitiveIdVertexBufferPool.DiscardAll();
+	// Destroy cached preshadow transient arrays (allocated with SceneRenderingAllocator).
+	TArray<TRefCountPtr<FProjectedShadowInfo>>& CachedPreshadows = SceneRenderer->Scene->CachedPreshadows;
+	for (int32 CachedShadowIndex = 0; CachedShadowIndex < CachedPreshadows.Num(); ++CachedShadowIndex)
+	{
+		CachedPreshadows[CachedShadowIndex]->ClearTransientArrays();
+	}
 
 	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots
 	FSceneRenderTargets::GetGlobalUnsafe().DestroyAllSnapshots(); // this will destroy the render target snapshots
@@ -2902,6 +2918,10 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer);
 		delete SceneRenderer;
 	}
+
+	// Can relase only after all mesh pass tasks are finished.
+	GPrimitiveIdVertexBufferPool.DiscardAll();
+	FGraphicsMinimalPipelineStateId::ResetOneFrameIdTable();
 
 	delete LocalRootMark;
 }
@@ -3299,9 +3319,8 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		// Anything between here and FDrawSceneCommand will add to HMD view latency
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FViewExtensionPreDrawCommand,
-			FSceneRenderer*, SceneRenderer, SceneRenderer,
+		ENQUEUE_RENDER_COMMAND(FViewExtensionPreDrawCommand)(
+			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
 			{
 				ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
 			});
@@ -3317,13 +3336,12 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		SceneRenderer->ViewFamily.DisplayInternalsData.Setup(World);
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FDrawSceneCommand,
-			FSceneRenderer*,SceneRenderer,SceneRenderer,
-		{
-			RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
-			FlushPendingDeleteRHIResources_RenderThread();
-		});
+		ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
+			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
+			{
+				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
+				FlushPendingDeleteRHIResources_RenderThread();
+			});
 	}
 }
 

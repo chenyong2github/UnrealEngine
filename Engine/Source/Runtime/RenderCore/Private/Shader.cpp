@@ -397,7 +397,7 @@ TArray<uint32> FShaderResource::GlobalUnusedIndicies;
 TMap<uint32, FRHIRayTracingShader*> FShaderResource::GlobalRayTracingMaterialLibrary;
 FCriticalSection FShaderResource::GlobalRayTracingMaterialLibraryCS;
 
-void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingHitGroupInitializer>& RayTracingMaterials)
+void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 	RayTracingMaterials.Reset();
@@ -405,18 +405,16 @@ void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingHitGroupIni
 
 	for (const auto Entry : GlobalRayTracingMaterialLibrary)
 	{
-		FRayTracingHitGroupInitializer HitGroupInitializer;
-		HitGroupInitializer.ShaderRHI = Entry.Value;
-		RayTracingMaterials[Entry.Key] = HitGroupInitializer;
+		RayTracingMaterials[Entry.Key] = Entry.Value;
 	}
 
 	for (uint32 Index : GlobalUnusedIndicies)
 	{
-		RayTracingMaterials[Index] = FRayTracingHitGroupInitializer();
+		RayTracingMaterials[Index] = DefaultShader;
 	}
 }
 
-uint32 FShaderResource::AddToRayTracingLibrary(FRHIRayTracingShader* Shader)
+uint32 FShaderResource::AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 
@@ -1154,12 +1152,12 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	, Target(Initializer.Target)
 	, NumRefs(0)
 {
-	OutputHash = Initializer.OutputHash;
-	checkSlow(OutputHash != FSHAHash());
-
 	check(Type);
 
 #if KEEP_SHADER_SOURCE_HASHES
+	OutputHash = Initializer.OutputHash;
+	checkSlow(OutputHash != FSHAHash());
+
 	// Store off the source hash that this shader was compiled with
 	// This will be used as part of the shader key in order to identify when shader files have been changed and a recompile is needed
 	SourceHash = Type->GetSourceHash(Target.GetPlatform());
@@ -1228,7 +1226,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 	FSHAHash& VFHash = VFSourceHash;
 	FSHAHash& Hash = SourceHash;
 #else
-	FSHAHash VFHash, Hash;
+	FSHAHash VFHash, Hash, OutputHash;
 #endif
 
 	Ar << OutputHash;
@@ -1317,6 +1315,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 			// Load the inlined shader resource
 			SerializedResource = new FShaderResource();
 			SerializedResource->Serialize(Ar, bLoadedByCookedMaterial);
+			checkSlow(OutputHash == SerializedResource->OutputHash);
 		}
 	}
 	else
@@ -1434,8 +1433,8 @@ void FShader::DumpDebugInfo()
 #if KEEP_SHADER_SOURCE_HASHES
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :SourceHash %s"), *SourceHash.ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFSourceHash %s"), *VFSourceHash.ToString());
-#endif
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :OutputHash %s"), *OutputHash.ToString());
+#endif
 }
 
 void FShader::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const FStableShaderKeyAndValue& InSaveKeyVal)

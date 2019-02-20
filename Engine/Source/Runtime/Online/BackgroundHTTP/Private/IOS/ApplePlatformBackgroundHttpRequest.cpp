@@ -17,7 +17,9 @@ FApplePlatformBackgroundHttpRequest::FApplePlatformBackgroundHttpRequest()
     , bIsFailed(false)
     , bWasTaskStartedInBG(false)
     , bHasAlreadyFinishedRequest(false)
+    , bIsPendingCancel(false)
     , DownloadProgress(0)
+    , DownloadProgressSinceLastUpdateSent(0)
 {    
 }
 
@@ -47,6 +49,7 @@ void FApplePlatformBackgroundHttpRequest::CompleteRequest_Internal(bool bWasRequ
     FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
 	FPlatformAtomics::InterlockedExchange(&bIsCompleted, true);
 	FPlatformAtomics::InterlockedExchange(&bIsFailed, !bWasRequestSuccess);
+    FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
     
     if (!CompletedTempDownloadLocationIn.IsEmpty())
     {
@@ -97,7 +100,8 @@ void FApplePlatformBackgroundHttpRequest::ActivateUnderlyingTask()
         
             FPlatformAtomics::InterlockedExchange(&bIsTaskActive, true);
             FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, false);
-
+            FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
+            
             [UnderlyingTask resume];
             
             ResetTimeOutTimer();
@@ -118,7 +122,9 @@ void FApplePlatformBackgroundHttpRequest::PauseUnderlyingTask()
             UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Task for Request -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
             
             FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
+            FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
             FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, true);
+            
             [UnderlyingTask suspend];
             
             ResetTimeOutTimer();
@@ -164,6 +170,8 @@ void FApplePlatformBackgroundHttpRequest::AssociateWithTask(NSURLSessionTask* Ex
 		FString TaskURL = [[[ExistingTask currentRequest] URL] absoluteString];
 		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Associated Request With New Task -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
         
+        FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
+        
         ResetTimeOutTimer();
         ResetProgressTracking();
 	}
@@ -188,7 +196,9 @@ void FApplePlatformBackgroundHttpRequest::CancelActiveTask()
         {
             FString TaskURL = [[[TaskNodeWeAreCancelling->OurTask currentRequest] URL] absoluteString];
             UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Cancelling Task -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
-
+            
+            FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, true);
+            
             [TaskNodeWeAreCancelling->OurTask cancel];
         }
 	}
@@ -199,9 +209,23 @@ void FApplePlatformBackgroundHttpRequest::UpdateDownloadProgress(int64_t TotalDo
     UE_LOG(LogBackgroundHttpRequest, VeryVerbose, TEXT("Request Update Progress -- RequestID:%s | OldProgress:%lld | NewProgress:%lld | ProgressSinceLastUpdate:%lld"), *GetRequestID(), DownloadProgress, TotalDownloaded, DownloadedSinceLastUpdate);
 	
     FPlatformAtomics::AtomicStore(&DownloadProgress, TotalDownloaded);
-    ResetTimeOutTimer();
+    FPlatformAtomics::InterlockedAdd(&DownloadProgressSinceLastUpdateSent, DownloadedSinceLastUpdate);
     
-    OnProgressUpdated().ExecuteIfBound(SharedThis(this), TotalDownloaded, DownloadedSinceLastUpdate);
+    ResetTimeOutTimer();
+}
+
+void FApplePlatformBackgroundHttpRequest::SendDownloadProgressUpdate()
+{
+    volatile int64 DownloadProgressCopy = FPlatformAtomics::AtomicRead(&DownloadProgress);
+    
+    //Don't send any updates if we haven't updated anything since we last sent an update
+    if (DownloadProgressCopy > 0)
+    {
+        //Reset our DownloadProgressSinceLastUpdateSent to 0 now that we are sending a progress update
+        volatile int64 DownloadProgressSinceLastUpdateSentCopy = FPlatformAtomics::InterlockedExchange(&DownloadProgressSinceLastUpdateSent, 0);
+        
+        OnProgressUpdated().ExecuteIfBound(SharedThis(this), DownloadProgressCopy, DownloadProgressSinceLastUpdateSentCopy);
+    }
 }
 
 bool FApplePlatformBackgroundHttpRequest::IsTaskComplete() const

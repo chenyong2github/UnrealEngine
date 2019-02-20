@@ -380,9 +380,13 @@ protected:
 	}
 	DECLARE_SHADER_TRAITS(Vertex);
 	DECLARE_SHADER_TRAITS(Pixel);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	DECLARE_SHADER_TRAITS(Domain);
 	DECLARE_SHADER_TRAITS(Hull);
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	DECLARE_SHADER_TRAITS(Geometry);
+#endif
 #undef DECLARE_SHADER_TRAITS
 
 	template <typename TShader> D3D12_STATE_CACHE_INLINE void SetShader(TShader* Shader)
@@ -661,17 +665,29 @@ public:
 
 	D3D12_STATE_CACHE_INLINE void GetHullShader(FD3D12HullShader** Shader)
 	{
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		GetShader(Shader);
+#else
+		*Shader = nullptr;
+#endif
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetDomainShader(FD3D12DomainShader** Shader)
 	{
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		GetShader(Shader);
+#else
+		*Shader = nullptr;
+#endif
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetGeometryShader(FD3D12GeometryShader** Shader)
 	{
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		GetShader(Shader);
+#else
+		*Shader = nullptr;
+#endif
 	}
 
 	D3D12_STATE_CACHE_INLINE void GetPixelShader(FD3D12PixelShader** Shader)
@@ -687,10 +703,13 @@ public:
 			SetStreamStrides(GraphicsPipelineState->StreamStrides);
 			SetShader(GraphicsPipelineState->GetVertexShader());
 			SetShader(GraphicsPipelineState->GetPixelShader());
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			SetShader(GraphicsPipelineState->GetDomainShader());
 			SetShader(GraphicsPipelineState->GetHullShader());
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			SetShader(GraphicsPipelineState->GetGeometryShader());
-
+#endif
 			// See if we need to change the root signature
 			if (GetGraphicsRootSignature() != GraphicsPipelineState->RootSignature)
 			{

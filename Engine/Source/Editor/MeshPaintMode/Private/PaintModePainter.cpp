@@ -387,6 +387,8 @@ void FPaintModePainter::PasteVertexColors()
 			}
 		}
 	}
+
+	UpdateCachedVertexDataSize();
 }
 
 void FPaintModePainter::FixVertexColors()
@@ -407,6 +409,8 @@ void FPaintModePainter::RemoveVertexColors()
 	{
 		MeshPaintHelpers::RemoveComponentInstanceVertexColors(Component);
 	}
+
+	UpdateCachedVertexDataSize();
 }
 
 void FPaintModePainter::PropagateVertexColorsToLODs()
@@ -493,6 +497,24 @@ void FPaintModePainter::CycleMeshLODs(int32 Direction)
 		const int32 AdjustedLODIndex = NewLODIndex < 0 ? MaxLODIndex + NewLODIndex : NewLODIndex % MaxLODIndex;
 		PaintSettings->VertexPaintSettings.LODIndex = AdjustedLODIndex;
 		PaintLODChanged();
+	}
+}
+
+void FPaintModePainter::UpdateCachedVertexDataSize()
+{
+	if (PaintSettings->PaintMode == EPaintMode::Vertices)
+	{
+		CachedVertexDataSize = 0;
+
+		const bool bInstance = true;
+		for (UMeshComponent* SelectedComponent : PaintableComponents)
+		{
+			int32 NumLODs = MeshPaintHelpers::GetNumberOfLODs(SelectedComponent);
+			for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+			{
+				CachedVertexDataSize += MeshPaintHelpers::GetVertexColorBufferSize(SelectedComponent, LODIndex, bInstance);
+			}
+		}
 	}
 }
 
@@ -783,6 +805,9 @@ void FPaintModePainter::FinishPainting()
 	{
 		PropagateVertexColorsToLODs();
 	}
+
+	UpdateCachedVertexDataSize();
+
 }
 
 bool FPaintModePainter::PaintInternal(const FVector& InCameraOrigin, const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintAction PaintAction, float PaintStrength)
@@ -1592,9 +1617,8 @@ void FPaintModePainter::PaintTexture(const FMeshPaintParameters& InParams, TArra
 	}
 
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			UpdateMeshPaintRTCommand1,
-			FTextureRenderTargetResource*, BrushRenderTargetResource, BrushRenderTargetResource,
+		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand1)(
+			[BrushRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
 				// Copy (resolve) the rendered image from the frame buffer to its render target texture
 				RHICmdList.CopyToResolveTarget(
@@ -1610,9 +1634,8 @@ void FPaintModePainter::PaintTexture(const FMeshPaintParameters& InParams, TArra
 		BrushMaskCanvas->Flush_GameThread(true);
 
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-				UpdateMeshPaintRTCommand2,
-				FTextureRenderTargetResource*, BrushMaskRenderTargetResource, BrushMaskRenderTargetResource,
+			ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand2)(
+				[BrushMaskRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 				{
 					// Copy (resolve) the rendered image from the frame buffer to its render target texture
 					RHICmdList.CopyToResolveTarget(
@@ -1712,9 +1735,8 @@ void FPaintModePainter::PaintTexture(const FMeshPaintParameters& InParams, TArra
 		}
 
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-				UpdateMeshPaintRTCommand3,
-				FTextureRenderTargetResource*, RenderTargetResource, RenderTargetResource,
+			ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand3)(
+				[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 				{
 					// Copy (resolve) the rendered image from the frame buffer to its render target texture
 					RHICmdList.CopyToResolveTarget(
@@ -2168,7 +2190,9 @@ void FPaintModePainter::Tick(FEditorViewportClient* ViewportClient, float DeltaT
 		bRefreshCachedData = false;
 		CacheSelectionData();
 		CacheTexturePaintData();
-		
+
+		UpdateCachedVertexDataSize();
+
 		bDoRestoreRenTargets = true;
 	}
 

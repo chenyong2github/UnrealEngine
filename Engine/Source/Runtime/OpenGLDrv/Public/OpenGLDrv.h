@@ -797,12 +797,6 @@ public:
 		return this->RHICreateShaderResourceView(Buffer);
 	}
 
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements) final override
-	{
-		// threadsafe, doesn't really do anything
-		return this->RHICreateVertexDeclaration(Elements);
-	}
-
 	virtual FTextureReferenceRHIRef RHICreateTextureReference_RenderThread(class FRHICommandListImmediate& RHICmdList, FLastRenderTimeContainer* LastRenderTime) final override
 	{
 		// threadsafe, doesn't really do anything
@@ -1007,10 +1001,10 @@ public:
 			RHICreateBoundShaderState_internal(
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
-				PsoInit.BoundShaderState.HullShaderRHI,
-				PsoInit.BoundShaderState.DomainShaderRHI,
+				TESSELLATION_SHADER(PsoInit.BoundShaderState.HullShaderRHI),
+				TESSELLATION_SHADER(PsoInit.BoundShaderState.DomainShaderRHI),
 				PsoInit.BoundShaderState.PixelShaderRHI,
-				PsoInit.BoundShaderState.GeometryShaderRHI,
+				GEOMETRY_SHADER(PsoInit.BoundShaderState.GeometryShaderRHI),
 				PsoInit.bFromPSOFileCache
 			).GetReference()
 		);

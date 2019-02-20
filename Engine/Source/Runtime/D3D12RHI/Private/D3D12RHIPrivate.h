@@ -48,6 +48,13 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 #include "XboxOne/D3D12RHIBasePrivate.h"
 #endif
 
+#if NV_AFTERMATH
+#define GFSDK_Aftermath_WITH_DX12 1
+#include "GFSDK_Aftermath.h"
+#undef GFSDK_Aftermath_WITH_DX12
+extern int32 GDX12NVAfterMathEnabled;
+#endif
+
 #include "D3D12Residency.h"
 
 // D3D RHI public headers.
@@ -378,11 +385,6 @@ public:
 	// These will be un-commented as they are implemented.
 	//
 
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements) override final
-	{
-		return RHICreateVertexDeclaration(Elements);
-	}
-
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
 	{
 		return RHICreateVertexShader(Code);
@@ -466,6 +468,8 @@ public:
 	virtual FRayTracingPipelineStateRHIRef RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer) final override;
 
 #endif //D3D12_RHI_RAYTRACING
+
+	bool CheckGpuHeartbeat() const override;
 
 	bool IsQuadBufferStereoEnabled() const;
 	void DisableQuadBufferStereo();

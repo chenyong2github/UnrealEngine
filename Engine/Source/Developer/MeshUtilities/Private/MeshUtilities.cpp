@@ -2791,7 +2791,7 @@ public:
 						InversedIndices[SectionInfo.FirstIndex + i] = CombinedIndices[SectionInfo.FirstIndex + SectionIndexCount - 1 - i];
 					}
 				}
-				LODModel.ReversedIndexBuffer.SetIndices(InversedIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
+				LODModel.AdditionalIndexBuffers->ReversedIndexBuffer.SetIndices(InversedIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			}
 
 			// Build the depth-only index buffer.
@@ -2822,7 +2822,7 @@ public:
 				{
 					ReversedDepthOnlyIndices[i] = DepthOnlyIndices[IndexCount - 1 - i];
 				}
-				LODModel.ReversedDepthOnlyIndexBuffer.SetIndices(ReversedDepthOnlyIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
+				LODModel.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetIndices(ReversedDepthOnlyIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			}
 
 			// Build a list of wireframe edges in the static mesh.
@@ -2838,7 +2838,7 @@ public:
 					WireframeIndices.Add(Edge.Vertices[0]);
 					WireframeIndices.Add(Edge.Vertices[1]);
 				}
-				LODModel.WireframeIndexBuffer.SetIndices(WireframeIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
+				LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.SetIndices(WireframeIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			}
 
 			// Build the adjacency index buffer used for tessellation.
@@ -2852,7 +2852,7 @@ public:
 					CombinedIndices,
 					AdjacencyIndices
 					);
-				LODModel.AdjacencyIndexBuffer.SetIndices(AdjacencyIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
+				LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer.SetIndices(AdjacencyIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			}
 		}
 

@@ -114,6 +114,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraSceneProxy %p"), this);
 
 		bAlwaysHasVelocity = true;
+		Batcher = SystemInst->GetBatcher();
 	}
 }
 
@@ -122,7 +123,8 @@ SIZE_T FNiagaraSceneProxy::GetTypeHash() const
 	static size_t UniquePointer;
 	return reinterpret_cast<size_t>(&UniquePointer);
 }
-void FNiagaraSceneProxy::UpdateEmitterRenderers(TArray<NiagaraRenderer*>& InRenderers)
+
+void FNiagaraSceneProxy::UpdateEmitterRenderers(const TArray<NiagaraRenderer*>& InRenderers)
 {
 	EmitterRenderers.Empty();
 	for (NiagaraRenderer* EmitterRenderer : InRenderers)
@@ -820,20 +822,18 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 					if (bRendererEditorEnabled && !Emitter->IsComplete() && !SystemInstance->IsComplete())
 					{
 						FNiagaraDynamicDataBase* DynamicData = Renderer->GenerateVertexData(NiagaraProxy, Emitter->GetData(), Emitter->GetEmitterHandle().GetInstance()->SimTarget);
-
-						ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-							FSendNiagaraDynamicData,
-							NiagaraRenderer*, EmitterRenderer, Emitter->GetEmitterRenderer(EmitterIdx),
-							FNiagaraDynamicDataBase*, DynamicData, DynamicData,
+						NiagaraRenderer* EmitterRenderer = Emitter->GetEmitterRenderer(EmitterIdx);
+						ENQUEUE_RENDER_COMMAND(FSendNiagaraDynamicData)(
+							[EmitterRenderer, DynamicData](FRHICommandListImmediate& RHICmdList)
 							{
 								EmitterRenderer->SetDynamicData_RenderThread(DynamicData);
 							});
 					}
 					else
 					{
-						ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-							FSendNiagaraDynamicData,
-							NiagaraRenderer*, EmitterRenderer, Emitter->GetEmitterRenderer(EmitterIdx),
+						NiagaraRenderer* EmitterRenderer = Emitter->GetEmitterRenderer(EmitterIdx);
+						ENQUEUE_RENDER_COMMAND(FSendNiagaraDynamicData)(
+							[EmitterRenderer](FRHICommandListImmediate& RHICmdList)
 							{
 								EmitterRenderer->SetDynamicData_RenderThread(nullptr);
 							});
@@ -856,15 +856,23 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	FBoxSphereBounds SystemBounds;
 	if (SystemInstance.IsValid())
 	{
-		SystemInstance->GetSystemBounds().Init();
-		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+		UNiagaraSystem* System = SystemInstance->GetSystem();
+		if (System->bFixedBounds)
 		{
-			FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
-			SystemInstance->GetSystemBounds() += Sim.GetBounds();
+			SystemBounds = System->GetFixedBounds();
 		}
-		FBox BoundingBox = SystemInstance->GetSystemBounds();
+		else
+		{
+			SystemInstance->GetSystemBounds().Init();
+			for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+			{
+				FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
+				SystemInstance->GetSystemBounds() += Sim.GetBounds();
+			}
+			FBox BoundingBox = SystemInstance->GetSystemBounds();
 
-		SystemBounds = FBoxSphereBounds(BoundingBox);
+			SystemBounds = FBoxSphereBounds(BoundingBox);
+		}
 	}
 	else
 	{

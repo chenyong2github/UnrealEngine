@@ -503,6 +503,21 @@ void UTexture2D::UpdateResource()
 	CachePlatformData();
 	// clear all the cooked cached platform data if the source could have changed... 
 	ClearAllCachedCookedPlatformData();
+#else
+	// Note that using TF_FirstMip disables texture streaming, because the mip data becomes lost.
+	// Also, the cleanup of the platform data must go between UpdateCachedLODBias() and UpdateResource().
+	const bool bLoadOnlyFirstMip = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetMipLoadOptions(this) == ETextureMipLoadOptions::OnlyFirstMip;
+	if (bLoadOnlyFirstMip && PlatformData && FPlatformProperties::RequiresCookedData())
+	{
+		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
+		// Remove any mips after the first mip.
+		PlatformData->Mips.RemoveAt(FirstMip + 1, PlatformData->Mips.Num() - FirstMip - 1);
+		// Remove any mips before the first mip.
+		PlatformData->Mips.RemoveAt(0, FirstMip);
+		// Update the texture size for the memory usage metrics.
+		PlatformData->SizeX = PlatformData->Mips[0].SizeX;
+		PlatformData->SizeY = PlatformData->Mips[0].SizeY;
+	}
 #endif // #if WITH_EDITOR
 
 	// Route to super.
@@ -1082,30 +1097,28 @@ void UTexture2D::UpdateTextureRegions(int32 MipIndex, uint32 NumRegions, const F
 		RegionData->SrcBpp = SrcBpp;
 		RegionData->SrcData = SrcData;
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			UpdateTextureRegionsData,
-			FUpdateTextureRegionsData*, RegionData, RegionData,			
-			TFunction<void(uint8* SrcData, const FUpdateTextureRegion2D* Regions)>, DataCleanupFunc, DataCleanupFunc,
+		ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
+			[RegionData, DataCleanupFunc](FRHICommandListImmediate& RHICmdList)
 			{
-			for (uint32 RegionIndex = 0; RegionIndex < RegionData->NumRegions; ++RegionIndex)
-			{
-				int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
-				if (RegionData->MipIndex >= CurrentFirstMip)
+				for (uint32 RegionIndex = 0; RegionIndex < RegionData->NumRegions; ++RegionIndex)
 				{
-					RHIUpdateTexture2D(
-						RegionData->Texture2DResource->GetTexture2DRHI(),
-						RegionData->MipIndex - CurrentFirstMip,
-						RegionData->Regions[RegionIndex],
-						RegionData->SrcPitch,
-						RegionData->SrcData
-						+ RegionData->Regions[RegionIndex].SrcY * RegionData->SrcPitch
-						+ RegionData->Regions[RegionIndex].SrcX * RegionData->SrcBpp
-						);
+					int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
+					if (RegionData->MipIndex >= CurrentFirstMip)
+					{
+						RHIUpdateTexture2D(
+							RegionData->Texture2DResource->GetTexture2DRHI(),
+							RegionData->MipIndex - CurrentFirstMip,
+							RegionData->Regions[RegionIndex],
+							RegionData->SrcPitch,
+							RegionData->SrcData
+							+ RegionData->Regions[RegionIndex].SrcY * RegionData->SrcPitch
+							+ RegionData->Regions[RegionIndex].SrcX * RegionData->SrcBpp
+							);
+					}
 				}
-			}
-			DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
-			delete RegionData;
-		});
+				DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
+				delete RegionData;
+			});
 	}
 }
 
@@ -1470,15 +1483,12 @@ uint32 FTexture2DResource::GetSizeY() const
 /** Returns the default mip bias for this texture. */
 int32 FTexture2DResource::GetDefaultMipMapBias() const
 {
-	if ( Owner->LODGroup == TEXTUREGROUP_UI )
+	check(Owner);
+	if (Owner->LODGroup == TEXTUREGROUP_UI && CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0)
 	{
-		if ( CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0 )
-		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
-			return -OwnerMips.Num();
-		}
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
+		return -OwnerMips.Num();
 	}
-	
 	return 0;
 }
 
@@ -1627,6 +1637,8 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 		{
 			TextureRHI->DoNoDeferDelete();
 		}
+
+		check(Owner->GetCachedNumResidentLODs() == NumMips - CurrentFirstMip);
 
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;

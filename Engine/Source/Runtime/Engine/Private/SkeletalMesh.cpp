@@ -990,6 +990,7 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 
 void USkeletalMesh::Serialize( FArchive& Ar )
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USkeletalMesh::Serialize"), STAT_SkeletalMesh_Serialize, STATGROUP_LoadTime );
 
 	Super::Serialize(Ar);
@@ -1537,6 +1538,7 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 
 void USkeletalMesh::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
 #if WITH_EDITOR

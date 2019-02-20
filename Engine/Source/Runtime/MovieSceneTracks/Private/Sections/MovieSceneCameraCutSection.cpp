@@ -9,6 +9,9 @@
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneCameraCutTemplate.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
+#include "IMovieScenePlayer.h"
+#include "Camera/CameraComponent.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 
 /* UMovieSceneCameraCutSection interface
  *****************************************************************************/
@@ -36,7 +39,7 @@ FMovieSceneEvalTemplatePtr UMovieSceneCameraCutSection::GenerateTemplate() const
 					FMovieSceneInterrogationData Container;
 					TransformTrackTemplate.Interrogate(Context, Container);
 
-					for (auto It = Container.Iterate<FTransform>(UMovieScene3DTransformTrack::GetInterrogationKey()); It; ++It)
+					for (auto It = Container.Iterate<FTransform>(UMovieScene3DTransformSection::GetInterrogationKey()); It; ++It)
 					{
 						CutTransform = *It;
 						break;
@@ -74,4 +77,29 @@ void UMovieSceneCameraCutSection::PostLoad()
 		}
 		CameraGuid_DEPRECATED.Invalidate();
 	}
+}
+
+
+UCameraComponent* UMovieSceneCameraCutSection::GetFirstCamera(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const
+{
+	if (CameraBindingID.GetSequenceID().IsValid())
+	{
+		// Ensure that this ID is resolvable from the root, based on the current local sequence ID
+		FMovieSceneObjectBindingID RootBindingID = CameraBindingID.ResolveLocalToRoot(SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
+		SequenceID = RootBindingID.GetSequenceID();
+	}
+
+	for (TWeakObjectPtr<>& WeakObject : Player.FindBoundObjects(CameraBindingID.GetGuid(), SequenceID))
+	{
+		if (UObject* Object = WeakObject .Get())
+		{
+			UCameraComponent* Camera = MovieSceneHelpers::CameraComponentFromRuntimeObject(Object);
+			if (Camera)
+			{
+				return Camera;
+			}
+		}
+	}
+
+	return nullptr;
 }

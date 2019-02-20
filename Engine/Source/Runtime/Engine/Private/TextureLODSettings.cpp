@@ -3,6 +3,16 @@
 #include "Engine/TextureLODSettings.h"
 #include "Engine/Texture2D.h"
 
+
+int32 GUITextureLODBias = 0;
+FAutoConsoleVariableRef CVarUITextureLODBias(
+	TEXT("r.UITextureLODBias"),
+	GUITextureLODBias,
+	TEXT("Extra LOD bias to apply to UI textures. (default=0)"),
+	ECVF_Scalability
+);
+
+
 void FTextureLODGroup::SetupGroup()
 {
 	// editor would never want to use smaller mips based on memory (could affect cooking, etc!)
@@ -150,6 +160,11 @@ int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 Max
 		// Considering them again here would apply them twice.
 		UsedLODBias	+= LODBias + LODGroupInfo.LODBias;
 	}
+	
+	if (LODGroup == TEXTUREGROUP_UI)
+	{
+		UsedLODBias += GUITextureLODBias;
+	}
 
 	int32 MinLOD		= LODGroupInfo.MinLODMipCount;
 	int32 MaxLOD		= LODGroupInfo.MaxLODMipCount;
@@ -278,9 +293,15 @@ ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(const UTexture* Text
 
 	switch(Texture->Filter)
 	{
-		case TF_Nearest: Filter = ETextureSamplerFilter::Point; break;
-		case TF_Bilinear: Filter = ETextureSamplerFilter::Bilinear; break;
-		case TF_Trilinear: Filter = ETextureSamplerFilter::Trilinear; break;
+		case TF_Nearest: 
+			Filter = ETextureSamplerFilter::Point; 
+			break;
+		case TF_Bilinear: 
+			Filter = ETextureSamplerFilter::Bilinear; 
+			break;
+		case TF_Trilinear: 
+			Filter = ETextureSamplerFilter::Trilinear; 
+			break;
 
 		// TF_Default
 		default:
@@ -294,4 +315,18 @@ ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(const UTexture* Text
 ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(int32 InLODGroup) const
 {
 	return TextureLODGroups[InLODGroup].Filter;
+}
+
+
+ETextureMipLoadOptions UTextureLODSettings::GetMipLoadOptions(const UTexture* Texture) const
+{
+	check(Texture);
+	if (Texture->MipLoadOptions != ETextureMipLoadOptions::Default)
+	{
+		return Texture->MipLoadOptions;
+	}
+	else
+	{
+		return TextureLODGroups[Texture->LODGroup].MipLoadOptions;
+	}
 }

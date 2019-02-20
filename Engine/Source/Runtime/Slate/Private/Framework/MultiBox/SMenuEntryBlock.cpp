@@ -932,14 +932,7 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 	if(TutorialName != NAME_None)
 	{
 		TSharedRef<SWidget> ChildWidget = ChildSlot.GetWidget();
-		ChildSlot
-		[
-			SNew( SBox )
-			.AddMetaData<FTagMetaData>(FTagMetaData(TutorialName))
-			[
-				ChildWidget
-			]
-		];
+		ChildWidget->AddMetadata<FTagMetaData>(MakeShared<FTagMetaData>(TutorialName));
 	}
 
 	// Bind our widget's enabled state to whether or not our action can execute

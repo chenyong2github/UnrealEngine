@@ -776,6 +776,8 @@ public:
 
 	bool IsConnectionReady(UNetConnection* Connection);
 
+	void SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKBytesPerSec);
+
 	// --------------------------------------------------------------
 
 	/** Creates a new node for the graph. This and UReplicationNode::CreateChildNode should be the only things that create the graph node UObjects */
@@ -836,8 +838,8 @@ public:
 
 	// --------------------------------------------------------------
 
-	int64 ReplicateSingleActor(AActor* Actor, FConnectionReplicationActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalActorInfo, FPerConnectionActorInfoMap& ConnectionActorInfoMap, UNetConnection* NetConnection, const uint32 FrameNum);
-	int64 ReplicateSingleActor_FastShared(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, FGlobalActorReplicationInfo& GlobalActorInfo, UNetConnection* NetConnection, const uint32 FrameNum);
+	int64 ReplicateSingleActor(AActor* Actor, FConnectionReplicationActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalActorInfo, FPerConnectionActorInfoMap& ConnectionActorInfoMap, UNetReplicationGraphConnection& ConnectionManager, const uint32 FrameNum);
+	int64 ReplicateSingleActor_FastShared(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, FGlobalActorReplicationInfo& GlobalActorInfo, UNetReplicationGraphConnection& ConnectionManager, const uint32 FrameNum);
 
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
@@ -909,6 +911,9 @@ private:
 	/** Internal frame counter for replication. This is only updated by us. The one of UNetDriver can be updated by RPC calls and is only used to invalidate shared property CLs/serialiation data. */
 	uint32 ReplicationGraphFrame = 0;
 
+	/** Separate bandwidth cap for traffic used when opening actor channels. Ignored if set to 0 */
+	int32 ActorDiscoveryMaxBitsPerFrame;
+
 	UNetReplicationGraphConnection* CreateClientConnectionManagerInternal(UNetConnection* Connection);
 
 	friend class AReplicationGraphDebugActor;
@@ -959,6 +964,9 @@ public:
 	int32 ConnectionId; 
 
 	FVector LastGatherLocation;
+
+	// Nb of bits sent for actor channel creation when a dedicated budget is allocated for this
+	int32 QueuedBitsForActorDiscovery = 0;
 
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
 	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() { return ConnectionGraphNodes; }

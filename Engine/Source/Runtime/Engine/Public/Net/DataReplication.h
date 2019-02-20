@@ -78,6 +78,7 @@ public:
 	TArray<FPropertyRetirement>						Retirement;					// Property retransmission.
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	RecentCustomDeltaState;		// This is the delta state we need to compare with when determining what to send to a client for custom delta properties
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CDOCustomDeltaState;		// Same as RecentCustomDeltaState, but this will always remain as the initial CDO version. We use this to send all properties since channel was first opened (for bResendAllDataSinceOpen)
+	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CheckpointCustomDeltaState;	// Same as RecentCustomDeltaState, but will represent the state at the last checkpoint
 
 	TArray< int32 >									LifetimeCustomDeltaProperties;
 	TArray< ELifetimeCondition >					LifetimeCustomDeltaPropertyConditions;
@@ -96,6 +97,7 @@ public:
 
 	TSharedPtr< FRepLayout >						RepLayout;
 	TUniquePtr< FRepState > 						RepState;
+	TUniquePtr< FRepState >							CheckpointRepState;
 
 	TSet< FNetworkGUID >							ReferencedGuids;
 	int32											TrackedGuidMemoryBytes;
@@ -164,6 +166,9 @@ public:
 	void	ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, FReplicationFlags RepFlags );
 	bool	ReplicateProperties( FOutBunch & Bunch, FReplicationFlags RepFlags );
 	void	PostSendBunch(FPacketIdRange & PacketRange, uint8 bReliable);
+
+	/** Updates the custom delta state for a replay delta checkpoint */
+	void	UpdateCheckpoint();
 	
 	bool	ReceivedBunch( FNetBitReader& Bunch, const FReplicationFlags& RepFlags, const bool bHasRepLayout, bool& bOutHasUnmapped );
 	bool	ReceivedRPC(FNetBitReader& Reader, const FReplicationFlags& RepFlags, const FFieldNetCache* FieldCache, const bool bCanDelayRPC, bool& bOutDelayRPC, TSet<FNetworkGUID>& OutUnmappedGuids);

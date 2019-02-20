@@ -661,7 +661,9 @@ public:
 		const FMaterial* Material,
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		EShaderPlatform Platform,
-		TArray<FShaderCommonCompileJob*>& NewJobs
+		TArray<FShaderCommonCompileJob*>& NewJobs,
+		FString DebugDescription,
+		FString DebugExtension
 		);
 
 	/**
@@ -849,7 +851,6 @@ public:
 		return sizeof(*this)
 			+ MeshShaderMaps.GetAllocatedSize()
 			+ OrderedMeshShaderMaps.GetAllocatedSize()
-			+ VertexFactoryMap.GetAllocatedSize()
 			+ MaterialCompilationOutput.UniformExpressionSet.GetAllocatedSize()
 #if ALLOW_SHADERMAP_DEBUG_DATA
 			+ FriendlyName.GetAllocatedSize()
@@ -950,9 +951,6 @@ private:
 
 	/** The static parameter set that this shader map was compiled with */
 	FMaterialShaderMapId ShaderMapId;
-
-	/** A map from vertex factory type to the material's cached shaders for that vertex factory type. */
-	TMap<FVertexFactoryType*,FMeshMaterialShaderMap*> VertexFactoryMap;
 
 	/** Uniform expressions generated from the material compile. */
 	FMaterialCompilationOutput MaterialCompilationOutput;

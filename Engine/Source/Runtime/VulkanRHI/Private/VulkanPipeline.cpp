@@ -1554,12 +1554,12 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::FindInRuntime
 
 	#if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 			TempUInt64 = GetShaderKey(PSI.BoundShaderState.GeometryShaderRHI);
+	#endif
 			Ar << TempUInt64;
 			//TempUInt64 = GetShaderKey(PSI.BoundShaderState.HullShaderRHI);
 			Ar << TempUInt64;
 			//TempUInt64 = GetShaderKey(PSI.BoundShaderState.DomainShaderRHI);
 			Ar << TempUInt64;
-	#endif
 			Ar << ResourceCast(PSI.BoundShaderState.VertexDeclarationRHI)->Elements;
 			Ar << ResourceCast(PSI.RasterizerState)->Initializer;
 			Ar << ResourceCast(PSI.DepthStencilState)->Initializer;
@@ -1929,6 +1929,7 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		OutShaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader());
 	}
 
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	if (BSI.GeometryShaderRHI)
 	{
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
@@ -1937,7 +1938,9 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		ensureMsgf(0, TEXT("Geometry not supported!"));
 #endif
 	}
+#endif
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if (BSI.HullShaderRHI)
 	{
 		ensureMsgf(0, TEXT("Tessellation not supported yet!"));
@@ -1953,6 +1956,7 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		// Can't have Domain w/o Hull
 		check(BSI.DomainShaderRHI == nullptr);
 	}
+#endif
 }
 
 void GetVulkanShaders(FVulkanDevice* Device, const FVulkanRHIGraphicsPipelineState& GfxPipelineState, FVulkanShader* OutShaders[ShaderStage::NumStages])

@@ -36,6 +36,11 @@ namespace UnrealBuildTool
 		/// Enable undefined behavior sanitizer
 		/// </summary>
 		EnableUndefinedBehaviorSanitizer = 0x4,
+
+		/// <summary>
+		/// Enable thin LTO
+		/// </summary>
+		EnableThinLTO = 0x8,
 	}
 
 	class LinuxToolChain : UEToolChain
@@ -664,7 +669,14 @@ namespace UnrealBuildTool
 			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
 			if (CompileEnvironment.bAllowLTCG)
 			{
-				Result += " -flto";
+				if((Options & LinuxToolChainOptions.EnableThinLTO) != 0)
+				{
+					Result += " -flto=thin";
+				}
+				else
+				{
+					Result += " -flto";
+				}
 			}
 
 			if (CompileEnvironment.bEnableShadowVariableWarnings)
@@ -703,12 +715,6 @@ namespace UnrealBuildTool
 
 				// Make debug info LLDB friendly
 				Result += " -glldb";
-
-				if (CompileEnvironment.bIsBuildingDLL)
-				{
-					// Makes debugging .so libraries better
-					Result += " -fstandalone-debug";
-				}
 			}
 
 			// optimization level
@@ -973,7 +979,14 @@ namespace UnrealBuildTool
 			// whether we actually can do that is checked in CanUseAdvancedLinkerFeatures() earlier
 			if (LinkEnvironment.bAllowLTCG)
 			{
-				Result += " -flto";
+				if((Options & LinuxToolChainOptions.EnableThinLTO) != 0)
+				{
+					Result += String.Format(" -flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount());
+				}
+				else
+				{
+					Result += " -flto";
+				}
 			}
 
 			if (CrossCompiling())

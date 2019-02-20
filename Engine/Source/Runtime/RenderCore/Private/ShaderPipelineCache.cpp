@@ -540,7 +540,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 	{
 		FGraphicsPipelineStateInitializer GraphicsInitializer;
 		
-		auto VertexDesc = RHICmdList.CreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
+		FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
 		GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
 		
 		FVertexShaderRHIRef VertexShader;
@@ -550,6 +550,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
 		}
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		FHullShaderRHIRef HullShader;
 		if (PSO.GraphicsDesc.HullShader != FSHAHash())
 		{
@@ -563,7 +564,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader, DummyCode);
 			GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
 		}
-
+#endif
 		FPixelShaderRHIRef FragmentShader;
 		if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
 		{
@@ -571,13 +572,14 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
 		}
 
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		FGeometryShaderRHIRef GeometryShader;
 		if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
 		{
 			GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader, DummyCode);
 			GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
 		}
-		
+#endif
 		auto BlendState = RHICmdList.CreateBlendState(PSO.GraphicsDesc.BlendState);
 		GraphicsInitializer.BlendState = BlendState;
 		

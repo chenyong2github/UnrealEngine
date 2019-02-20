@@ -1136,14 +1136,14 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, 
 		{
 			FRHITextureCube* TextureRHICube = TextureRHI->GetTextureCube();
 			FVulkanTextureCube* TextureCube = (FVulkanTextureCube*)TextureRHICube;
-			DoCopyFloat(Device, CmdBuffer, TextureCube->Surface, MipIndex, CubeFace, Rect, OutData);
+			DoCopyFloat(Device, CmdBuffer, TextureCube->Surface, MipIndex, CubeFace + 6 * ArrayIndex, Rect, OutData);
 		}
 		else
 		{
 			FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
 			check(TextureRHI2D);
 			FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
-			DoCopyFloat(Device, CmdBuffer, Texture2D->Surface, MipIndex, 0, Rect, OutData);
+			DoCopyFloat(Device, CmdBuffer, Texture2D->Surface, MipIndex, ArrayIndex, Rect, OutData);
 		}
 		Device->GetImmediateContext().GetCommandBufferManager()->PrepareForNewActiveCommandBuffer();
 	}
@@ -2141,7 +2141,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 	NumSamples = Initializer.NumSamples;
 	for (uint32 Index = 0; Index < Initializer.RenderTargetsEnabled; ++Index)
 	{
-		EPixelFormat UEFormat = Initializer.RenderTargetFormats[Index];
+		EPixelFormat UEFormat = (EPixelFormat)Initializer.RenderTargetFormats[Index];
 		if (UEFormat != PF_Unknown)
 		{
 			VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];

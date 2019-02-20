@@ -232,41 +232,6 @@ FPrimitiveViewRelevance FPrimitiveSceneProxy::GetViewRelevance(const FSceneView*
 	return FPrimitiveViewRelevance();
 }
 
-static TAutoConsoleVariable<int32> CVarDeferUniformBufferUpdatesUntilVisible(
-	TEXT("r.DeferUniformBufferUpdatesUntilVisible"),
-	0,
-	TEXT("If > 0, then don't update the primitive uniform buffer until it is visible. Incompatible with the Mesh Draw Command pipeline."));
-
-void FPrimitiveSceneProxy::UpdateUniformBufferMaybeLazy()
-{
-	//@todo MeshCommandPipeline r.DeferUniformBufferUpdatesUntilVisible isn't currently supported.
-	/*
-	if (PrimitiveSceneInfo && CVarDeferUniformBufferUpdatesUntilVisible.GetValueOnAnyThread() > 0)
-	{
-		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
-	}
-	else
-	{
-		UpdateUniformBuffer();
-	}
-	*/
-
-	UpdateUniformBuffer();
-}
-
-bool FPrimitiveSceneProxy::NeedsUniformBufferUpdate() const
-{
-	//@todo MeshCommandPipeline r.DeferUniformBufferUpdatesUntilVisible isn't currently supported.
-	/*
-	if (PrimitiveSceneInfo && CVarDeferUniformBufferUpdatesUntilVisible.GetValueOnAnyThread() > 0)
-	{
-		return PrimitiveSceneInfo->NeedsUniformBufferUpdate();
-	}
-	*/
-
-	return false;
-}
-
 void FPrimitiveSceneProxy::UpdateUniformBuffer()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneProxy_UpdateUniformBuffer);
@@ -328,7 +293,7 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	LocalBounds = InLocalBounds;
 	ActorPosition = InActorPosition;
 	
-	UpdateUniformBufferMaybeLazy();
+	UpdateUniformBuffer();
 	
 	// Notify the proxy's implementation of the change.
 	OnTransformChanged();
@@ -493,13 +458,12 @@ void FPrimitiveSceneProxy::SetHovered_GameThread(const bool bInHovered)
 	check(IsInGameThread());
 
 	// Enqueue a message to the rendering thread containing the interaction to add.
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetNewHovered,
-		FPrimitiveSceneProxy*,PrimitiveSceneProxy,this,
-		const bool,bNewHovered,bInHovered,
-	{
-		PrimitiveSceneProxy->SetHovered_RenderThread(bNewHovered);
-	});
+	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetNewHovered)(
+		[PrimitiveSceneProxy, bInHovered](FRHICommandListImmediate& RHICmdList)
+		{
+			PrimitiveSceneProxy->SetHovered_RenderThread(bInHovered);
+		});
 }
 
 #if !UE_BUILD_SHIPPING
@@ -539,13 +503,12 @@ void FPrimitiveSceneProxy::SetHiddenEdViews_GameThread( uint64 InHiddenEditorVie
 {
 	check(IsInGameThread());
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetEditorVisibility,
-		FPrimitiveSceneProxy*,PrimitiveSceneProxy,this,
-		const uint64,NewHiddenEditorViews,InHiddenEditorViews,
-	{
-		PrimitiveSceneProxy->SetHiddenEdViews_RenderThread(NewHiddenEditorViews);
-	});
+	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetEditorVisibility)(
+		[PrimitiveSceneProxy, InHiddenEditorViews](FRHICommandListImmediate& RHICmdList)
+		{
+			PrimitiveSceneProxy->SetHiddenEdViews_RenderThread(InHiddenEditorViews);
+		});
 }
 
 /**
@@ -564,13 +527,12 @@ void FPrimitiveSceneProxy::SetCollisionEnabled_GameThread(const bool bNewEnabled
 	check(IsInGameThread());
 
 	// Enqueue a message to the rendering thread to change draw state
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetCollisionEnabled,
-		FPrimitiveSceneProxy*,PrimSceneProxy,this,
-		const bool,bEnabled,bNewEnabled,
-	{
-		PrimSceneProxy->SetCollisionEnabled_RenderThread(bEnabled);
-	});
+	FPrimitiveSceneProxy* PrimSceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetCollisionEnabled)(
+		[PrimSceneProxy, bNewEnabled](FRHICommandListImmediate& RHICmdList)
+		{
+			PrimSceneProxy->SetCollisionEnabled_RenderThread(bNewEnabled);
+		});
 }
 
 void FPrimitiveSceneProxy::SetCollisionEnabled_RenderThread(const bool bNewEnabled)

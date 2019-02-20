@@ -300,6 +300,7 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 
 void ULandscapeComponent::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE(ELLMTag::Landscape);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 

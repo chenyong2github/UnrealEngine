@@ -822,11 +822,14 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
 		{
 			const FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = InPrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 			const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
+			const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
+					? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+					: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
 			FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 
 			NewVisibleMeshDrawCommand.Setup(
-				&SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex],
+				MeshDrawCommand,
 				PrimitiveIndex,
 				CachedMeshDrawCommand.StateBucketId,
 				CachedMeshDrawCommand.MeshFillMode,
@@ -877,7 +880,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 			{
 				if (InCurrentView.GetCustomData(InPrimitiveSceneInfo->GetIndex()) == nullptr)
 				{
-					InCurrentView.SetCustomData(InPrimitiveSceneInfo, InPrimitiveSceneInfo->Proxy->InitViewCustomData(InCurrentView, InCurrentView.LODDistanceFactor, InCurrentView.GetCustomDataGlobalMemStack(), true, &ViewLODToRender, MeshScreenSizeSquared));
+					InCurrentView.SetCustomData(InPrimitiveSceneInfo, InPrimitiveSceneInfo->Proxy->InitViewCustomData(InCurrentView, InCurrentView.LODDistanceFactor, InCurrentView.GetCustomDataGlobalMemStack(), true, true, &ViewLODToRender, MeshScreenSizeSquared));
 				}
 			}
 		}
@@ -1301,7 +1304,10 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 
 			ApplyViewOverridesToMeshDrawCommands(View, ProjectionStencilingPass.VisibleMeshDrawCommands);
 
-			SortAndMergeDynamicPassMeshDrawCommands(Renderer.FeatureLevel, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, ProjectionStencilingPass.PrimitiveIdVertexBuffer, 1);
+			// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
+			// TODO: Support instanced stereo properly in the projection stenciling pass.
+			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && View.StereoPass != eSSP_FULL ? 2 : 1;
+			SortAndMergeDynamicPassMeshDrawCommands(Renderer.FeatureLevel, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, ProjectionStencilingPass.PrimitiveIdVertexBuffer, InstanceFactor);
 		}
 	}
 }
@@ -1325,9 +1331,11 @@ void FProjectedShadowInfo::ApplyViewOverridesToMeshDrawCommands(const FViewInfo&
 			NewMeshCommand = MeshCommand;
 
 			const ERasterizerCullMode LocalCullMode = View.bRenderSceneTwoSided ? CM_None : View.bReverseCulling ? FMeshPassProcessor::InverseCullMode(VisibleMeshDrawCommand.MeshCullMode) : VisibleMeshDrawCommand.MeshCullMode;
-			NewMeshCommand.PipelineState.RasterizerState = GetStaticRasterizerState<true>(VisibleMeshDrawCommand.MeshFillMode, LocalCullMode);
+			FGraphicsMinimalPipelineStateInitializer PipelineState = MeshCommand.CachedPipelineId.GetPipelineState();
+			PipelineState.RasterizerState = GetStaticRasterizerState<true>(VisibleMeshDrawCommand.MeshFillMode, LocalCullMode);
 
-			NewMeshCommand.Finalize(true);
+			const FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetOneFrameId(PipelineState);
+			NewMeshCommand.Finalize(PipelineId, nullptr);
 
 			FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 
@@ -1472,7 +1480,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElementsArray(
 			{
 				if (DependentView->GetCustomData(PrimitiveSceneInfo->GetIndex()) == nullptr)
 				{
-					void* CustomData = PrimitiveSceneInfo->Proxy->InitViewCustomData(*DependentView, DependentView->LODDistanceFactor, DependentView->GetCustomDataGlobalMemStack());
+					void* CustomData = PrimitiveSceneInfo->Proxy->InitViewCustomData(*DependentView, DependentView->LODDistanceFactor, DependentView->GetCustomDataGlobalMemStack(), false, true);
 					DependentView->SetCustomData(PrimitiveSceneInfo, CustomData);
 
 					// This is required as GetDynamicMeshElements will received ReusedViewsArray which contains only FoundView
@@ -4096,6 +4104,10 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 			FScopeCycleCounter Context(LightSceneInfo->Proxy->GetStatId());
 
 			FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
+
+			const FLightOcclusionType OcclusionType = GetLightOcclusionType(LightSceneInfoCompact);
+			if (OcclusionType != FLightOcclusionType::Shadowmap)
+				continue;
 
 			// Only consider lights that may have shadows.
 			if ((LightSceneInfoCompact.bCastStaticShadow || LightSceneInfoCompact.bCastDynamicShadow) && GetShadowQuality() > 0)

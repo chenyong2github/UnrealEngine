@@ -322,6 +322,14 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	// TODO: Not needed in uncooked games either after PostLoad!
 	bool bNeedsCPUAccess = !FPlatformProperties::RequiresCookedData() || bMeshCPUAcces;
 
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		if (bNeedsCPUAccess && OwnerStaticMesh)
+		{
+			UE_LOG(LogStaticMesh, Log, TEXT("[%s] Mesh is marked for CPU read."), *OwnerStaticMesh->GetName());
+		}
+	}
+
 	bHasWireframeIndices = false;
 	bHasAdjacencyInfo = false;
 	bHasDepthOnlyIndices = false;
@@ -341,15 +349,34 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	IndexBuffer.Serialize(Ar, bNeedsCPUAccess);
 	AccumIndexBufferSize(IndexBuffer, OutBuffersSize.SerializedBuffersSize);
 
-	const bool bSerailizeReversedIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_ReversedIndexBuffer);
-	if (bSerailizeReversedIndexBuffer)
+	const bool bSerializeReversedIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_ReversedIndexBuffer);
+	const bool bSerializeAdjacencyDataIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_AdjacencyData);
+	const bool bSerializeWireframeIndexBuffer = !StripFlags.IsEditorDataStripped();
+
+	FAdditionalStaticMeshIndexBuffers DummyBuffers;
+	FAdditionalStaticMeshIndexBuffers* SerializedAdditionalIndexBuffers = &DummyBuffers;
+	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bSerializeReversedIndexBuffer || bSerializeAdjacencyDataIndexBuffer || bSerializeWireframeIndexBuffer || bEnableDepthOnlyIndexBuffer))
 	{
-		ReversedIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		AccumIndexBufferSize(ReversedIndexBuffer, OutBuffersSize.ReversedIBsSize);
-		AccumIndexBufferSize(ReversedIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		if (AdditionalIndexBuffers == nullptr)
+		{
+			AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers();
+		}
+		SerializedAdditionalIndexBuffers = AdditionalIndexBuffers;
+	}
+	
+	SerializedAdditionalIndexBuffers->ReversedIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->WireframeIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+
+	if (bSerializeReversedIndexBuffer)
+	{
+		SerializedAdditionalIndexBuffers->ReversedIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->ReversedIndexBuffer, OutBuffersSize.ReversedIBsSize);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->ReversedIndexBuffer, OutBuffersSize.SerializedBuffersSize);
 		if (!bEnableReversedIndexBuffer)
 		{
-			ReversedIndexBuffer.Discard();
+			SerializedAdditionalIndexBuffers->ReversedIndexBuffer.Discard();
 		}
 	}
 
@@ -361,35 +388,35 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		DepthOnlyIndexBuffer.Discard();
 	}
 
-	if (bSerailizeReversedIndexBuffer)
+	if (bSerializeReversedIndexBuffer)
 	{
-		ReversedDepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		AccumIndexBufferSize(ReversedDepthOnlyIndexBuffer, OutBuffersSize.ReversedIBsSize);
-		AccumIndexBufferSize(ReversedDepthOnlyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer, OutBuffersSize.ReversedIBsSize);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
 		if (!bEnableReversedIndexBuffer)
 		{
-			ReversedDepthOnlyIndexBuffer.Discard();
+			SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
 		}
 	}
 
-	if (!StripFlags.IsEditorDataStripped())
+	if (bSerializeWireframeIndexBuffer)
 	{
-		WireframeIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		AccumIndexBufferSize(WireframeIndexBuffer, OutBuffersSize.SerializedBuffersSize);
-		bHasWireframeIndices = WireframeIndexBuffer.GetNumIndices() != 0;
+		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->WireframeIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		bHasWireframeIndices = AdditionalIndexBuffers && SerializedAdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() != 0;
 	}
 
-	if (!StripFlags.IsClassDataStripped(CDSF_AdjacencyData))
+	if (bSerializeAdjacencyDataIndexBuffer)
 	{
-		AdjacencyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		AccumIndexBufferSize(AdjacencyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
-		bHasAdjacencyInfo = AdjacencyIndexBuffer.GetNumIndices() != 0;
+		SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
+		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
+		bHasAdjacencyInfo = AdditionalIndexBuffers && SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() != 0;
 	}
 
 	// Needs to be done now because on cooked platform, indices are discarded after RHIInit.
 	bHasDepthOnlyIndices = DepthOnlyIndexBuffer.GetNumIndices() != 0;
-	bHasReversedIndices = bSerailizeReversedIndexBuffer && ReversedIndexBuffer.GetNumIndices() != 0;
-	bHasReversedDepthOnlyIndices = bSerailizeReversedIndexBuffer && ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
+	bHasReversedIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices() != 0;
+	bHasReversedDepthOnlyIndices = AdditionalIndexBuffers && bSerializeReversedIndexBuffer && SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices() != 0;
 	bHasColorVertexData = VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0;
 	DepthOnlyNumTriangles = DepthOnlyIndexBuffer.GetNumIndices() / 3;
 
@@ -403,6 +430,9 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 
 void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 {
+	const bool bEnableDepthOnlyIndexBuffer = !!CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread();
+	const bool bEnableReversedIndexBuffer = !!CVarSupportReversedIndexBuffers.GetValueOnAnyThread();
+
 	Ar << DepthOnlyNumTriangles;
 	uint32 Packed;
 #if WITH_EDITOR
@@ -419,8 +449,6 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 	else
 #endif
 	{
-		const bool bEnableDepthOnlyIndexBuffer = !!CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread();
-		const bool bEnableReversedIndexBuffer = !!CVarSupportReversedIndexBuffers.GetValueOnAnyThread();
 		Ar << Packed;
 		DepthOnlyNumTriangles *= static_cast<uint32>(bEnableDepthOnlyIndexBuffer);
 		bHasAdjacencyInfo = Packed & 1u;
@@ -435,32 +463,50 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 	VertexBuffers.PositionVertexBuffer.SerializeMetaData(Ar);
 	VertexBuffers.ColorVertexBuffer.SerializeMetaData(Ar);
 	IndexBuffer.SerializeMetaData(Ar);
-	ReversedIndexBuffer.SerializeMetaData(Ar);
+
+	FAdditionalStaticMeshIndexBuffers DummyBuffers;
+	FAdditionalStaticMeshIndexBuffers* SerializedAdditionalIndexBuffers = &DummyBuffers;
+	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bHasReversedIndices || bHasAdjacencyInfo || bHasWireframeIndices || bHasDepthOnlyIndices))
+	{
+		if (AdditionalIndexBuffers == nullptr)
+		{
+			AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers();
+		}
+		SerializedAdditionalIndexBuffers = AdditionalIndexBuffers;
+	}
+
+	SerializedAdditionalIndexBuffers->ReversedIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->WireframeIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.SetIsStreamed(!bBuffersInlined);
+	
+
+	SerializedAdditionalIndexBuffers->ReversedIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasReversedIndices)
 	{
 		// Reversed indices are either stripped during cook or will be stripped on load.
 		// In either case, clear CachedNumIndices to show that the buffer will be empty after actual loading
-		ReversedIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->ReversedIndexBuffer.Discard();
 	}
 	DepthOnlyIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasDepthOnlyIndices)
 	{
 		DepthOnlyIndexBuffer.Discard();
 	}
-	ReversedDepthOnlyIndexBuffer.SerializeMetaData(Ar);
+	SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasReversedDepthOnlyIndices)
 	{
-		ReversedDepthOnlyIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
 	}
-	WireframeIndexBuffer.SerializeMetaData(Ar);
+	SerializedAdditionalIndexBuffers->WireframeIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasWireframeIndices)
 	{
-		WireframeIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.Discard();
 	}
-	AdjacencyIndexBuffer.SerializeMetaData(Ar);
+	SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasAdjacencyInfo)
 	{
-		AdjacencyIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.Discard();
 	}
 }
 
@@ -488,11 +534,7 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 	VertexBuffers.PositionVertexBuffer.SetIsStreamed(!bBuffersInlined);
 	VertexBuffers.ColorVertexBuffer.SetIsStreamed(!bBuffersInlined);
 	IndexBuffer.SetIsStreamed(!bBuffersInlined);
-	ReversedIndexBuffer.SetIsStreamed(!bBuffersInlined);
 	DepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
-	ReversedDepthOnlyIndexBuffer.SetIsStreamed(!bBuffersInlined);
-	WireframeIndexBuffer.SetIsStreamed(!bBuffersInlined);
-	AdjacencyIndexBuffer.SetIsStreamed(!bBuffersInlined);
 
 	if (!StripFlags.IsDataStrippedForServer() && !bIsLODCookedOut)
 	{
@@ -870,7 +912,8 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 };
 
 FStaticMeshLODResources::FStaticMeshLODResources()
-	: DistanceFieldData(NULL)
+	: AdditionalIndexBuffers(nullptr)
+	, DistanceFieldData(nullptr)
 	, MaxDeviation(0.0f)
 	, bHasAdjacencyInfo(false)
 	, bHasDepthOnlyIndices(false)
@@ -891,6 +934,7 @@ FStaticMeshLODResources::FStaticMeshLODResources()
 FStaticMeshLODResources::~FStaticMeshLODResources()
 {
 	delete DistanceFieldData;
+	delete AdditionalIndexBuffers;
 }
 
 void FStaticMeshLODResources::ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent)
@@ -916,13 +960,17 @@ void FStaticMeshLODResources::UpdateIndexMemoryStats()
 #if STATS
 	if (bIncrement)
 	{
-		uint32 iMem = IndexBuffer.GetAllocatedSize();
-		uint32 wiMem = WireframeIndexBuffer.GetAllocatedSize();
-		uint32 riMem = ReversedIndexBuffer.GetAllocatedSize();
-		uint32 doiMem = DepthOnlyIndexBuffer.GetAllocatedSize();
-		uint32 rdoiMem = ReversedDepthOnlyIndexBuffer.GetAllocatedSize();
-		uint32 aiMem = AdjacencyIndexBuffer.GetAllocatedSize();
-		StaticMeshIndexMemory = iMem + wiMem + riMem + doiMem + rdoiMem + aiMem;
+		StaticMeshIndexMemory += IndexBuffer.GetAllocatedSize();
+		StaticMeshIndexMemory += DepthOnlyIndexBuffer.GetAllocatedSize();
+
+		if (AdditionalIndexBuffers)
+		{
+			StaticMeshIndexMemory += AdditionalIndexBuffers->WireframeIndexBuffer.GetAllocatedSize();
+			StaticMeshIndexMemory += AdditionalIndexBuffers->ReversedIndexBuffer.GetAllocatedSize();
+			StaticMeshIndexMemory += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetAllocatedSize();
+			StaticMeshIndexMemory += AdditionalIndexBuffers->AdjacencyIndexBuffer.GetAllocatedSize();
+		}
+
 		INC_DWORD_STAT_BY(STAT_StaticMeshIndexMemory, StaticMeshIndexMemory);
 	}
 	else
@@ -962,7 +1010,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	BeginInitResource(&IndexBuffer);
 	if(bHasWireframeIndices)
 	{
-		BeginInitResource(&WireframeIndexBuffer);
+		BeginInitResource(&AdditionalIndexBuffers->WireframeIndexBuffer);
 	}
 	BeginInitResource(&VertexBuffers.StaticMeshVertexBuffer);
 	BeginInitResource(&VertexBuffers.PositionVertexBuffer);
@@ -973,7 +1021,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 
 	if (bHasReversedIndices)
 	{
-		BeginInitResource(&ReversedIndexBuffer);
+		BeginInitResource(&AdditionalIndexBuffers->ReversedIndexBuffer);
 	}
 
 	if (bHasDepthOnlyIndices)
@@ -983,12 +1031,12 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 
 	if (bHasReversedDepthOnlyIndices)
 	{
-		BeginInitResource(&ReversedDepthOnlyIndexBuffer);
+		BeginInitResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
 	}
 
 	if (bHasAdjacencyInfo && RHISupportsTessellation(GMaxRHIShaderPlatform))
 	{
-		BeginInitResource(&AdjacencyIndexBuffer);
+		BeginInitResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
 	}
 
 #if RHI_RAYTRACING
@@ -1049,19 +1097,25 @@ void FStaticMeshLODResources::ReleaseResources()
 
 	// Release the vertex and index buffers.
 	
-	// AdjacencyIndexBuffer may not be initialized at this time, but it is safe to release it anyway.
-	// The bInitialized flag will be safely checked in the render thread.
-	// This avoids a race condition regarding releasing this resource.
-	BeginReleaseResource(&AdjacencyIndexBuffer);
+
 
 	BeginReleaseResource(&IndexBuffer);
-	BeginReleaseResource(&WireframeIndexBuffer);
+	
 	BeginReleaseResource(&VertexBuffers.StaticMeshVertexBuffer);
 	BeginReleaseResource(&VertexBuffers.PositionVertexBuffer);
 	BeginReleaseResource(&VertexBuffers.ColorVertexBuffer);
-	BeginReleaseResource(&ReversedIndexBuffer);
 	BeginReleaseResource(&DepthOnlyIndexBuffer);
-	BeginReleaseResource(&ReversedDepthOnlyIndexBuffer);
+
+	if (AdditionalIndexBuffers)
+	{
+		// AdjacencyIndexBuffer may not be initialized at this time, but it is safe to release it anyway.
+		// The bInitialized flag will be safely checked in the render thread.
+		// This avoids a race condition regarding releasing this resource.
+		BeginReleaseResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
+		BeginReleaseResource(&AdditionalIndexBuffers->ReversedIndexBuffer);
+		BeginReleaseResource(&AdditionalIndexBuffers->WireframeIndexBuffer);
+		BeginReleaseResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
+	}
 #if RHI_RAYTRACING
 	BeginReleaseResource(&RayTracingGeometry);
 #endif // RHI_RAYTRACING
@@ -1091,11 +1145,15 @@ void FStaticMeshLODResources::DiscardCPUData()
 	VertexBuffers.PositionVertexBuffer.CleanUp();
 	VertexBuffers.ColorVertexBuffer.CleanUp();
 	IndexBuffer.Discard();
-	ReversedIndexBuffer.Discard();
 	DepthOnlyIndexBuffer.Discard();
-	ReversedDepthOnlyIndexBuffer.Discard();
-	WireframeIndexBuffer.Discard();
-	AdjacencyIndexBuffer.Discard();
+
+	if (AdditionalIndexBuffers)
+	{
+		AdditionalIndexBuffers->ReversedIndexBuffer.Discard();
+		AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
+		AdditionalIndexBuffers->WireframeIndexBuffer.Discard();
+		AdditionalIndexBuffers->AdjacencyIndexBuffer.Discard();
+	}
 }
 
 /*------------------------------------------------------------------------------
@@ -2384,9 +2442,13 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 		const int32 VBSize = LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
 			LODRenderData.VertexBuffers.PositionVertexBuffer.GetStride()			* LODRenderData.VertexBuffers.PositionVertexBuffer.GetNumVertices() +
 			LODRenderData.VertexBuffers.ColorVertexBuffer.GetStride()				* LODRenderData.VertexBuffers.ColorVertexBuffer.GetNumVertices();
-		const int32 IBSize = LODRenderData.IndexBuffer.GetAllocatedSize()
-			+ LODRenderData.WireframeIndexBuffer.GetAllocatedSize()
-			+ (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdjacencyIndexBuffer.GetAllocatedSize() : 0);
+		int32 IBSize = LODRenderData.IndexBuffer.GetAllocatedSize();
+
+		if (LODRenderData.AdditionalIndexBuffers)
+		{
+			IBSize += LODRenderData.AdditionalIndexBuffers->WireframeIndexBuffer.GetAllocatedSize()
+			+ (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdditionalIndexBuffers->AdjacencyIndexBuffer.GetAllocatedSize() : 0);
+		}
 
 		CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
 		CumulativeResourceSize.AddUnknownMemoryBytes(LODRenderData.Sections.GetAllocatedSize());
@@ -4253,6 +4315,7 @@ bool UStaticMesh::IsPostLoadThreadSafe() const
 //
 void UStaticMesh::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
 	Super::PostLoad();
 
 #if WITH_EDITOR
