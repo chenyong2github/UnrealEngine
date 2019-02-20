@@ -3853,14 +3853,16 @@ void UDemoNetDriver::FinalizeFastForward( const double StartTime )
 				continue;
 			}
 
-			const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator;
-			if (Actor->IsNetStartupActor() && ActorReplicator)
+			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
 			{
-				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
-				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
-				FConstRepObjectDataBuffer ActorData(Actor);
+				if (Actor->IsNetStartupActor())
+				{
+					FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
+					FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
+					FConstRepObjectDataBuffer ActorData(Actor);
 
-				ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+					ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+				}
 			}
 		}
 	}
@@ -4599,7 +4601,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			}
 
 			ChannelsToUpdate.Add(ActorChannel);
-			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator)
+			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
 			{
 				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
 				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
