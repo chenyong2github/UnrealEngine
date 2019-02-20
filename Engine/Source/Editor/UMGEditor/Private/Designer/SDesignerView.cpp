@@ -2963,7 +2963,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 					}
 					else
 					{
-						Slot = ParentWidget->AddChild(Widget);
+						Slot = ParentWidget->InsertChildAt(ParentWidget->GetChildIndex(Widget), Widget);
 					}
 
 					if (Slot != nullptr)
