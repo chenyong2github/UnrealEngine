@@ -698,6 +698,14 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
 #define SHADER_PARAMETER_SRV(ShaderType,MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_SRV, TShaderResourceParameterTypeInfo<FShaderResourceViewRHIParamRef>, FShaderResourceViewRHIParamRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
 
+/** Adds an unordered access view.
+ *
+ * Example:
+ *	SHADER_PARAMETER_UAV(Texture2D, MyUAV)
+ */
+#define SHADER_PARAMETER_UAV(ShaderType,MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_UAV, TShaderResourceParameterTypeInfo<FUnorderedAccessViewRHIParamRef>, FUnorderedAccessViewRHIParamRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(#ShaderType),false)
+
 /** Adds a sampler.
  *
  * Example:

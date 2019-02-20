@@ -415,6 +415,7 @@ enum EUniformBufferBaseType : uint8
 	// RHI resources not tracked by render graph.
 	UBMT_TEXTURE,
 	UBMT_SRV,
+	UBMT_UAV,
 	UBMT_SAMPLER,
 
 	// Resources tracked by render graph.

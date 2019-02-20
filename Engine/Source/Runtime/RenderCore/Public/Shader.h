@@ -777,6 +777,7 @@ public:
 	TArray<FParameter> Parameters;
 	TArray<FResourceParameter> Textures;
 	TArray<FResourceParameter> SRVs;
+	TArray<FResourceParameter> UAVs;
 	TArray<FResourceParameter> Samplers;
 	TArray<FResourceParameter> GraphTextures;
 	TArray<FResourceParameter> GraphSRVs;
@@ -791,6 +792,7 @@ public:
 		Ar << ParametersBindingData.Parameters;
 		Ar << ParametersBindingData.Textures;
 		Ar << ParametersBindingData.SRVs;
+		Ar << ParametersBindingData.UAVs;
 		Ar << ParametersBindingData.Samplers;
 		Ar << ParametersBindingData.GraphTextures;
 		Ar << ParametersBindingData.GraphSRVs;

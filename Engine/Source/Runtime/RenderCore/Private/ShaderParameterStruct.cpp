@@ -130,6 +130,7 @@ struct FShaderParameterStructBindingContext
 			else if (
 				BaseType == UBMT_TEXTURE ||
 				BaseType == UBMT_SRV ||
+				BaseType == UBMT_UAV ||
 				BaseType == UBMT_SAMPLER ||
 				BaseType == UBMT_RDG_TEXTURE ||
 				BaseType == UBMT_RDG_TEXTURE_SRV ||
@@ -148,6 +149,8 @@ struct FShaderParameterStructBindingContext
 					Bindings->Textures.Add(Parameter);
 				else if (BaseType == UBMT_SRV)
 					Bindings->SRVs.Add(Parameter);
+				else if (BaseType == UBMT_UAV)
+					Bindings->UAVs.Add(Parameter);
 				else if (BaseType == UBMT_SAMPLER)
 					Bindings->Samplers.Add(Parameter);
 				else if (BaseType == UBMT_RDG_TEXTURE)

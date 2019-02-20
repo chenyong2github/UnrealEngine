@@ -83,6 +83,19 @@ inline void SetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader, F
 	const typename TShaderClass::FParameters* ParametersPtr = &Parameters;
 	const uint8* Base = reinterpret_cast<const uint8*>(ParametersPtr);
 
+	// UAVs
+	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.UAVs)
+	{
+		auto ShaderParameterRef = *reinterpret_cast<const FUnorderedAccessViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+
+		if (DO_CHECK && !ShaderParameterRef)
+		{
+			EmitNullShaderParameterFatalError(Shader, TShaderClass::FParameters::FTypeInfo::GetStructMetadata(), ParameterBinding.ByteOffset);
+		}
+
+		RHICmdList.SetUAVParameter(ShadeRHI, ParameterBinding.BaseIndex, ShaderParameterRef);
+	}
+
 	// Graph UAVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.GraphUAVs)
 	{
@@ -115,6 +128,11 @@ inline void UnsetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader,
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use UnsetShaderUAVs() for root parameter buffer index."));
+
+	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.UAVs)
+	{
+		RHICmdList.SetUAVParameter(ShadeRHI, ParameterBinding.BaseIndex, nullptr);
+	}
 
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.GraphUAVs)
 	{
@@ -225,7 +243,7 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 		RHICmdList.SetShaderResourceViewParameter(ShadeRHI, ParameterBinding.BaseIndex, GraphSRV->CachedRHI.SRV);
 	}
 
-	// Graph UAVs for compute shaders
+	// UAVs for compute shaders
 	SetShaderUAVs(RHICmdList, Shader, ShadeRHI, Parameters);
 
 	// Reference structures
@@ -280,6 +298,19 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 		}
 
 		RTBindingsWriter.SetSRV(ParameterBinding.BaseIndex, ShaderParameterRef);
+	}
+
+	// UAVs
+	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.UAVs)
+	{
+		auto ShaderParameterRef = *reinterpret_cast<const FUnorderedAccessViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+
+		if (DO_CHECK && !ShaderParameterRef)
+		{
+			EmitNullShaderParameterFatalError(Shader, TShaderClass::FParameters::FTypeInfo::GetStructMetadata(), ParameterBinding.ByteOffset);
+		}
+
+		RTBindingsWriter.SetUAV(ParameterBinding.BaseIndex, ShaderParameterRef);
 	}
 
 	// Samplers
