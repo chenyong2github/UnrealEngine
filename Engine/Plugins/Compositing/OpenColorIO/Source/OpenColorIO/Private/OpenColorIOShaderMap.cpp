@@ -118,8 +118,7 @@ bool FOpenColorIOShaderMapId::operator==(const FOpenColorIOShaderMapId& InRefere
 	{
 		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
 
-		if (ShaderTypeDependency.ShaderType != InReferenceSet.ShaderTypeDependencies[ShaderIndex].ShaderType
-			|| ShaderTypeDependency.SourceHash != InReferenceSet.ShaderTypeDependencies[ShaderIndex].SourceHash)
+		if (ShaderTypeDependency != InReferenceSet.ShaderTypeDependencies[ShaderIndex])
 		{
 			return false;
 		}
