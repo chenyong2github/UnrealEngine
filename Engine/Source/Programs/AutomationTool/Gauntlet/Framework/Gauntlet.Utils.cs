@@ -933,7 +933,10 @@ namespace Gauntlet
 							}
 							else
 							{
-								Log.Error("File Copy failed with {0}.", ex.Message);
+								using (var PauseEC = new ScopedSuspendECErrorParsing())
+								{
+									Log.Error("File Copy failed with {0}.", ex.Message);
+								}
 								throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
 							}
 						}
