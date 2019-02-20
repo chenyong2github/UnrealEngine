@@ -26,6 +26,8 @@ public:
 	 */
 	virtual void ByteSwapIn(UAnimSequence& Seq, FMemoryReader& MemoryReader) override;
 
+	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize) override;
+
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *

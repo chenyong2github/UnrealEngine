@@ -103,6 +103,13 @@ struct COREUOBJECT_API FOwnedBulkDataPtr
 		return MappedRegion;
 	}
 
+	void RelinquishOwnership()
+	{
+		AllocatedData = nullptr;
+		MappedHandle = nullptr;
+		MappedRegion = nullptr;
+	}
+
 private:
 	// hidden
 	FOwnedBulkDataPtr() {}
