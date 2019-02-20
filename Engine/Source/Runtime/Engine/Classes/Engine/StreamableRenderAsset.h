@@ -188,7 +188,6 @@ public:
 #if WITH_EDITOR
 		return GetNumResidentMips();
 #else
-		check(CachedNumResidentLODs == GetNumResidentMips());
 		return CachedNumResidentLODs;
 #endif
 	}
@@ -198,7 +197,6 @@ public:
 #if WITH_EDITOR
 		return IsReadyForStreaming();
 #else
-		check(bCachedReadyForStreaming == IsReadyForStreaming());
 		return bCachedReadyForStreaming;
 #endif
 	}
