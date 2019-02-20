@@ -3825,9 +3825,9 @@ IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
 	FPakFile* PakEntry = nullptr;
 	if (FindFileInPakFiles(Filename, &PakEntry, &FileEntry) && PakEntry)
 	{
-		if (FileEntry.CompressionMethodIndex != 0)
+		if (FileEntry.CompressionMethodIndex != 0 || (FileEntry.Flags & FPakEntry::Flag_Encrypted) != 0)
 		{
-			// can't map compressed files
+			// can't map compressed or encrypted files
 			return nullptr;
 		}
 		FScopeLock Lock(&PakEntry->MappedFileHandleCriticalSection);
