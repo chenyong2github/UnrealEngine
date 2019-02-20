@@ -2712,6 +2712,31 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 				((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
 			}
 		}
+		
+#if WITH_EDITOR
+		if (bDDCData)
+		{
+			FString CurveCodecPath;
+			Ar << CurveCodecPath;
+
+			CurveCompressionCodec = CurveCompressionSettings->GetCodec(CurveCodecPath);
+		}
+		else
+#else
+		check(!bDDCData);
+#endif
+		{
+			UAnimCurveCompressionCodec* CurveCodec = nullptr;
+			Ar << CurveCodec;
+			CurveCompressionCodec = CurveCodec;
+		}
+
+		int32 NumCurveBytes;
+		Ar << NumCurveBytes;
+
+		CompressedCurveByteStream.Empty(NumCurveBytes);
+		CompressedCurveByteStream.AddUninitialized(NumCurveBytes);
+		Ar.Serialize(CompressedCurveByteStream.GetData(), NumCurveBytes);
 	}
 	else if (Ar.IsSaving() || Ar.IsCountingMemory())
 	{
