@@ -220,20 +220,22 @@ void UComboBoxString::SetSelectedOption(FString Option)
 
 void UComboBoxString::SetSelectedIndex(const int32 Index)
 {
-	// Don't select item if its already selected
-	if (Options.IsValidIndex(Index) && SelectedOption != *CurrentOptionPtr)
+	if (Options.IsValidIndex(Index))
 	{
 		CurrentOptionPtr = Options[Index];
-		SelectedOption = *CurrentOptionPtr;
-
-		if ( ComboBoxContent.IsValid() )
+		// Don't select item if its already selected
+		if (SelectedOption != *CurrentOptionPtr)
 		{
-			MyComboBox->SetSelectedItem(CurrentOptionPtr);
-			UpdateOrGenerateWidget(CurrentOptionPtr);
+			SelectedOption = *CurrentOptionPtr;
+
+			if (ComboBoxContent.IsValid())
+			{
+				MyComboBox->SetSelectedItem(CurrentOptionPtr);
+				UpdateOrGenerateWidget(CurrentOptionPtr);
+			}
 		}
 	}
 }
-
 FString UComboBoxString::GetSelectedOption() const
 {
 	if (CurrentOptionPtr.IsValid())
