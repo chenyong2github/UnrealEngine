@@ -638,6 +638,21 @@ TSharedPtr<SWidget> FSequencerDisplayNode::OnSummonContextMenu()
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetSequencer().GetCommandBindings());
 
+	// let track editors & object bindings populate the menu
+	if (CanAddObjectBindingsMenu())
+	{
+		MenuBuilder.BeginSection("ObjectBindings");
+		GetSequencer().BuildAddObjectBindingsMenu(MenuBuilder);
+		MenuBuilder.EndSection();
+	}
+
+	if (CanAddTracksMenu())
+	{
+		MenuBuilder.BeginSection("AddTracks");
+		GetSequencer().BuildAddTrackMenu(MenuBuilder);
+		MenuBuilder.EndSection();
+	}
+
 	BuildContextMenu(MenuBuilder);
 
 	return MenuBuilder.MakeWidget();
