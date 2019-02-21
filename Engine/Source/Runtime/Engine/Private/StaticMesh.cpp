@@ -4740,6 +4740,11 @@ bool UStaticMesh::HasPendingUpdate() const
 	return !!PendingUpdate;
 }
 
+bool UStaticMesh::IsPendingUpdateLocked() const 
+{ 
+	return PendingUpdate && PendingUpdate->IsLocked(); 
+}
+
 bool UStaticMesh::StreamOut(int32 NewMipCount)
 {
 	check(IsInGameThread());
