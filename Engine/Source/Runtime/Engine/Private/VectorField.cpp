@@ -57,14 +57,14 @@ FVectorFieldInstance::~FVectorFieldInstance()
 {
 	if (Resource && bInstancedResource)
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FDestroyVectorFieldResourceCommand,
-			FVectorFieldResource*,Resource,Resource,
-		{
-			Resource->ReleaseResource();
-			delete Resource;
-		});
-		Resource = NULL;
+		FVectorFieldResource* InResource = Resource;
+		ENQUEUE_RENDER_COMMAND(FDestroyVectorFieldResourceCommand)(
+			[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
+		Resource = nullptr;
 	}
 }
 
@@ -239,25 +239,24 @@ public:
 		UpdateParams.VolumeData = NULL;
 		InVectorField->SourceData.GetCopy(&UpdateParams.VolumeData, /*bDiscardInternalCopy=*/ true);
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			FUpdateStaticVectorFieldCommand,
-			FVectorFieldStaticResource*, Resource, this,
-			FUpdateParams, UpdateParams, UpdateParams,
-		{
-				// Free any existing volume data on the resource.
-				FMemory::Free(Resource->VolumeData);
+		FVectorFieldStaticResource* Resource = this;
+		ENQUEUE_RENDER_COMMAND(FUpdateStaticVectorFieldCommand)(
+			[Resource, UpdateParams](FRHICommandListImmediate& RHICmdList)
+			{
+					// Free any existing volume data on the resource.
+					FMemory::Free(Resource->VolumeData);
 
-				// Update settings on this resource.
-				Resource->SizeX = UpdateParams.SizeX;
-				Resource->SizeY = UpdateParams.SizeY;
-				Resource->SizeZ = UpdateParams.SizeZ;
-				Resource->Intensity = UpdateParams.Intensity;
-				Resource->LocalBounds = UpdateParams.Bounds;
-				Resource->VolumeData = UpdateParams.VolumeData;
+					// Update settings on this resource.
+					Resource->SizeX = UpdateParams.SizeX;
+					Resource->SizeY = UpdateParams.SizeY;
+					Resource->SizeZ = UpdateParams.SizeZ;
+					Resource->Intensity = UpdateParams.Intensity;
+					Resource->LocalBounds = UpdateParams.Bounds;
+					Resource->VolumeData = UpdateParams.VolumeData;
 
-				// Update RHI resources.
-				Resource->UpdateRHI();
-		});
+					// Update RHI resources.
+					Resource->UpdateRHI();
+			});
 	}
 
 private:
@@ -380,15 +379,15 @@ void UVectorFieldStatic::ReleaseResource()
 {
 	if ( Resource != NULL )
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			ReleaseVectorFieldCommand,
-			FRenderResource*,Resource,Resource,
-		{
-			Resource->ReleaseResource();
-			delete Resource;
-		});
+		FRenderResource* InResource = Resource;
+		ENQUEUE_RENDER_COMMAND(ReleaseVectorFieldCommand)(
+			[InResource](FRHICommandList& RHICmdList)
+			{
+				InResource->ReleaseResource();
+				delete InResource;
+			});
 	}
-	Resource = NULL;
+	Resource = nullptr;
 }
 
 void UVectorFieldStatic::Serialize(FArchive& Ar)
@@ -648,13 +647,13 @@ void UVectorFieldComponent::OnUnregister()
 	{
 		if (VectorFieldInstance)
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-				FDestroyVectorFieldInstanceCommand,
-				FVectorFieldInstance*, VectorFieldInstance, VectorFieldInstance,
-			{
-				delete VectorFieldInstance;
-			});
-			VectorFieldInstance = NULL;
+			FVectorFieldInstance* InVectorFieldInstance = VectorFieldInstance;
+			ENQUEUE_RENDER_COMMAND(FDestroyVectorFieldInstanceCommand)(
+				[InVectorFieldInstance](FRHICommandList& RHICmdList)
+				{
+					delete InVectorFieldInstance;
+				});
+			VectorFieldInstance = nullptr;
 		}
 	}
 	else if (VectorFieldInstance)

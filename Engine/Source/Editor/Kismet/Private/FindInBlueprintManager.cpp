@@ -1958,7 +1958,12 @@ FString FFindInBlueprintSearchManager::QuerySingleBlueprint(UBlueprint* InBluepr
 
 		int32* ArrayIdx = SearchMap.Find(Key);
 		// This should always be true since we make sure to refresh the search data for this Blueprint when doing the search, unless we do not rebuild the searchable data
-		check((bInRebuildSearchData && ArrayIdx && *ArrayIdx < SearchArray.Num()) || !bInRebuildSearchData);
+		checkf((bInRebuildSearchData && ArrayIdx && *ArrayIdx < SearchArray.Num()) || !bInRebuildSearchData,
+			TEXT("bInRebuildSearchData: %s, ArrayIdx is %s:%d, SearchArray.Num():%d"),
+			bInRebuildSearchData ? TEXT("true") : TEXT("false"),
+			(ArrayIdx != nullptr) ? TEXT("Valid") : TEXT("Invalid"),
+			(ArrayIdx != nullptr) ? *ArrayIdx : INDEX_NONE,
+			SearchArray.Num());
 
 		if (ArrayIdx)
 		{

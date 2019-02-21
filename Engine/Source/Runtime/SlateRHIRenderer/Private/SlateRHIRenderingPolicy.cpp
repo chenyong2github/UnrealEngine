@@ -1287,6 +1287,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 #if !(PLATFORM_IOS || PLATFORM_ANDROID)
 	if (GSlateColorDeficiencyType != EColorVisionDeficiency::NormalVision && GSlateColorDeficiencySeverity > 0)
 	{
+		RHICmdList.EndRenderPass();
+
 		FPostProcessRectParams RectParams;
 		RectParams.SourceTexture = BackBuffer.GetRenderTargetTexture();
 		RectParams.SourceRect = FSlateRect(0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y);
@@ -1294,6 +1296,13 @@ void FSlateRHIRenderingPolicy::DrawElements(
 		RectParams.SourceTextureSize = BackBuffer.GetSizeXY();
 
 		PostProcessor->ColorDeficiency(RHICmdList, RendererModule, RectParams);
+
+		FRHIRenderPassInfo RPInfo(ColorTarget, ERenderTargetActions::Load_Store);
+		RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthStencilTarget;
+
+		// @todo refactor this.
+		// ColorDeficiency has self-contained renderpasses. To avoid starting an empty renderpass we do not
+		// restart the renderpass here.
 	}
 #endif
 
@@ -1326,9 +1335,15 @@ ETextureSamplerFilter FSlateRHIRenderingPolicy::GetSamplerFilter(const UTexture*
 
 	switch (Texture->Filter)
 	{
-	case TF_Nearest: Filter = ETextureSamplerFilter::Point; break;
-	case TF_Bilinear: Filter = ETextureSamplerFilter::Bilinear; break;
-	case TF_Trilinear: Filter = ETextureSamplerFilter::Trilinear; break;
+	case TF_Nearest: 
+		Filter = ETextureSamplerFilter::Point; 
+		break;
+	case TF_Bilinear:
+		Filter = ETextureSamplerFilter::Bilinear; 
+		break;
+	case TF_Trilinear: 
+		Filter = ETextureSamplerFilter::Trilinear; 
+		break;
 
 		// TF_Default
 	default:

@@ -45,6 +45,7 @@ UMediaPlayer::UMediaPlayer(const FObjectInitializer& ObjectInitializer)
 	, ViewRotation(FRotator::ZeroRotator)
 	, PlayerGuid(FGuid::NewGuid())
 	, PlayOnNext(false)
+	, RegisteredWithMediaModule(false)
 #if WITH_EDITORONLY_DATA
 	, AffectedByPIEHandling(true)
 	, WasPlayingInPIE(false)
@@ -390,6 +391,7 @@ bool UMediaPlayer::Next()
 	}
 
 	PlayOnNext |= PlayerFacade->IsPlaying();
+	RegisterWithMediaModule();
 
 	while (RemainingAttempts-- > 0)
 	{
@@ -459,6 +461,7 @@ bool UMediaPlayer::OpenPlaylistIndex(UMediaPlaylist* InPlaylist, int32 Index)
 		return false;
 	}
 
+	RegisterWithMediaModule();
 	return PlayerFacade->Open(MediaSource->GetUrl(), MediaSource);
 }
 
@@ -486,6 +489,7 @@ bool UMediaPlayer::OpenSourceInternal(UMediaSource* MediaSource, const FMediaPla
 	PlayOnNext |= PlayerFacade->IsPlaying();
 	Playlist->GetNext(PlaylistIndex);
 
+	RegisterWithMediaModule();
 	return PlayerFacade->Open(MediaSource->GetUrl(), MediaSource, PlayerOptions);
 }
 
@@ -543,6 +547,7 @@ bool UMediaPlayer::Previous()
 	}
 
 	PlayOnNext |= PlayerFacade->IsPlaying();
+	RegisterWithMediaModule();
 
 	while (--RemainingAttempts >= 0)
 	{
@@ -766,6 +771,11 @@ void UMediaPlayer::PostInitProperties()
 
 void UMediaPlayer::RegisterWithMediaModule()
 {
+	if (RegisteredWithMediaModule)
+	{
+		return;
+	}
+
 	static const FName MediaModuleName("Media");
 	IMediaModule* MediaModule = nullptr;
 	if (IsInGameThread())
@@ -783,6 +793,7 @@ void UMediaPlayer::RegisterWithMediaModule()
 	{
 		MediaModule->GetClock().AddSink(PlayerFacade.ToSharedRef());
 		MediaModule->GetTicker().AddTickable(PlayerFacade.ToSharedRef());
+		RegisteredWithMediaModule = true;
 	}
 	else
 	{

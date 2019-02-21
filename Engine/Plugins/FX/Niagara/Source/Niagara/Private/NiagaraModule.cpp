@@ -19,6 +19,7 @@
 #include "Misc/CoreDelegates.h"
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -79,7 +80,7 @@ FNiagaraVariable INiagaraModule::Engine_Owner_SystemLocalToWorldNoScale;
 FNiagaraVariable INiagaraModule::Engine_Owner_SystemWorldToLocalNoScale;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_TimeSinceRendered;
-FNiagaraVariable INiagaraModule::Engine_Owner_MinDistanceToCamera;
+FNiagaraVariable INiagaraModule::Engine_Owner_LODDistance;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_ExecutionState;
 
@@ -186,7 +187,7 @@ void INiagaraModule::StartupModule()
 	Engine_Owner_SystemWorldToLocalNoScale = FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Engine.Owner.SystemWorldToLocalNoScale"));
 
 	Engine_Owner_TimeSinceRendered = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.TimeSinceRendered"));
-	Engine_Owner_MinDistanceToCamera = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.MinDistanceToCamera"));
+	Engine_Owner_LODDistance = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Owner.LODDistance"));
 
 	Engine_Owner_ExecutionState = FNiagaraVariable(FNiagaraTypeDefinition::GetExecutionStateEnum(), TEXT("Engine.Owner.ExecutionState"));
 	
@@ -259,10 +260,16 @@ void INiagaraModule::StartupModule()
 		return FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(DIClassName);
 	}));
 
+	FFXSystemInterface::RegisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name, FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform) -> FFXSystemInterface*
+	{
+		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform);
+	}));
 }
 
 void INiagaraModule::ShutdownRenderingResources()
 {
+	FFXSystemInterface::UnregisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name);
+
 	FNiagaraViewDataMgr::Shutdown();
 }
 

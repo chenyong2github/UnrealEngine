@@ -54,6 +54,33 @@ namespace AnimationCompressionUtils
 		return Result;
 #endif
 	}
+
+	/**
+	* Helper template function to interpolate between two data types.
+	* Used in the FilterLinearKeysTemplate function below
+	*/
+	template <typename T>
+	FORCEINLINE T Interpolate(const T& A, const T& B, float Alpha)
+	{
+		// only the custom instantiations below are valid
+		check(0);
+		return 0;
+	}
+
+	/** custom instantiation of Interpolate for FVectors */
+	template <> FORCEINLINE FVector Interpolate<FVector>(const FVector& A, const FVector& B, float Alpha)
+	{
+		return FMath::Lerp(A, B, Alpha);
+	}
+
+	/** custom instantiation of Interpolate for FQuats */
+	template <> FORCEINLINE FQuat Interpolate<FQuat>(const FQuat& A, const FQuat& B, float Alpha)
+	{
+		FQuat result = FQuat::FastLerp(A, B, Alpha);
+		result.Normalize();
+
+		return result;
+	}
 }
 
 class FQuatFixed48NoW

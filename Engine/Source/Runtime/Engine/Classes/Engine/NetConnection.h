@@ -134,6 +134,13 @@ namespace EClientLoginState
 	}
 };
 
+/** Type of property data resend used by replay checkpoints */
+ enum class EResendAllDataState : uint8
+ {
+	 None,
+	 SinceOpen,
+	 SinceCheckpoint
+ };
 
 // Delegates
 #if !UE_BUILD_SHIPPING
@@ -342,7 +349,9 @@ public:
 	uint8					ExpectedClientLoginMsgType;	// Used to determine what the next expected control channel msg type should be from a connecting client
 
 	// CD key authentication
+	UE_DEPRECATED(4.23, "CDKeyHash is deprecated.")
 	FString			CDKeyHash;				// Hash of client's CD key
+	UE_DEPRECATED(4.23, "CDKeyResponse is deprecated.")
 	FString			CDKeyResponse;			// Client's response to CD key challenge
 
 	// Internal.
@@ -613,8 +622,16 @@ public:
 	 *	This will also act as if it needs to re-open all the channels, etc.
 	 *   NOTE - This doesn't force all exports to happen again though, it will only export new stuff, so keep that in mind.
 	 */
+	UE_DEPRECATED(4.23, "Use ResendAllDataState instead.")
 	bool bResendAllDataSinceOpen;
 
+	EResendAllDataState ResendAllDataState;
+
+	/** Set of guids we may need to ignore when processing a delta checkpoint */
+	TSet<FNetworkGUID> IgnoredGuids;
+
+	/** Set of channels we may need to ignore when processing a delta checkpoint */
+	TSet<int32> IgnoredChannels;
 
 #if !UE_BUILD_SHIPPING
 	/** Delegate for hooking ReceivedRawPacket */
@@ -1122,6 +1139,8 @@ private:
 	
 	/** True if we've hit the actor channel limit and logged a warning about it */
 	bool bHasWarnedAboutChannelLimit;
+
+	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
 };
 
 

@@ -48,7 +48,10 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
-	TArray<FShaderCommonCompileJob*>& NewJobs
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
+
 	)
 {
 	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, VertexFactoryType, this, /* PermutationId = */ 0);
@@ -84,7 +87,9 @@ FShaderCompileJob* FMeshMaterialShaderType::BeginCompileShader(
 		FShaderTarget(GetFrequency(),Platform),
 		NewJob,
 		NewJobs,
-		bAllowDevelopmentShaderCompile
+		bAllowDevelopmentShaderCompile,
+		DebugDescription,
+		DebugExtension
 		);
 	return NewJob;
 }
@@ -97,7 +102,10 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	FVertexFactoryType* VertexFactoryType,
 	const FShaderPipelineType* ShaderPipeline,
 	const TArray<FMeshMaterialShaderType*>& ShaderStages,
-	TArray<FShaderCommonCompileJob*>& NewJobs)
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
+	)
 {
 	check(ShaderStages.Num() > 0);
 	check(ShaderPipeline);
@@ -108,7 +116,7 @@ void FMeshMaterialShaderType::BeginCompileShaderPipeline(
 	for (int32 Index = 0; Index < ShaderStages.Num(); ++Index)
 	{
 		auto* ShaderStage = ShaderStages[Index];
-		ShaderStage->BeginCompileShader(ShaderMapId, Platform, Material, MaterialEnvironment, VertexFactoryType, ShaderPipeline, NewPipelineJob->StageJobs);
+		ShaderStage->BeginCompileShader(ShaderMapId, Platform, Material, MaterialEnvironment, VertexFactoryType, ShaderPipeline, NewPipelineJob->StageJobs, DebugDescription, DebugExtension);
 	}
 
 	NewJobs.Add(NewPipelineJob);
@@ -152,7 +160,7 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	// This allows FShaders to share compiled bytecode and RHI shader references
 	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, /* PermutationId = */ 0);
 
-	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs())
+	if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 	{
 		// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 		ShaderPipelineType = nullptr;
@@ -184,7 +192,9 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 	const FMaterial* Material,
 	FShaderCompilerEnvironment* MaterialEnvironment,
 	EShaderPlatform InPlatform,
-	TArray<FShaderCommonCompileJob*>& NewJobs
+	TArray<FShaderCommonCompileJob*>& NewJobs,
+	FString DebugDescription,
+	FString DebugExtension
 	)
 {
 	if (!VertexFactoryType)
@@ -218,7 +228,9 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 					MaterialEnvironment,
 					VertexFactoryType,
 					nullptr,
-					NewJobs
+					NewJobs,
+					DebugDescription, 
+					DebugExtension
 					);
 				check(!SharedShaderJobs.Find(ShaderType));
 				SharedShaderJobs.Add(ShaderType, Job);
@@ -253,7 +265,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 				// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 				check(InShaderMapId.ContainsShaderPipelineType(Pipeline));
 
-				if (Pipeline->ShouldOptimizeUnusedOutputs())
+				if (Pipeline->ShouldOptimizeUnusedOutputs(InPlatform))
 				{
 					NumShadersPerVF += NumShaderStagesToCompile;
 					TArray<FMeshMaterialShaderType*> ShaderStagesToCompile;
@@ -268,7 +280,7 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 					}
 
 					// Make a pipeline job with all the stages
-					FMeshMaterialShaderType::BeginCompileShaderPipeline(ShaderMapId, InPlatform, Material, MaterialEnvironment, VertexFactoryType, Pipeline, ShaderStagesToCompile, NewJobs);
+					FMeshMaterialShaderType::BeginCompileShaderPipeline(ShaderMapId, InPlatform, Material, MaterialEnvironment, VertexFactoryType, Pipeline, ShaderStagesToCompile, NewJobs, DebugDescription, DebugExtension);
 				}
 				else
 				{
@@ -432,7 +444,7 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 					FMeshMaterialShaderType* ShaderType = (FMeshMaterialShaderType*)Shader->GetMeshMaterialShaderType();
 					if (!HasShader(ShaderType, /* PermutationId = */ 0))
 					{
-						const FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs() ? PipelineType : nullptr, VertexFactoryType, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
+						const FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(InPlatform) ? PipelineType : nullptr, VertexFactoryType, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), InPlatform));
 						FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
 						if (FoundShader)
 						{

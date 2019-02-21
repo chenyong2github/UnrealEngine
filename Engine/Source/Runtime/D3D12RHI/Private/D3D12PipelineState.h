@@ -314,15 +314,24 @@ struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
 	const FGraphicsPipelineStateInitializer PipelineStateInitializer;
 	const FD3D12RootSignature* RootSignature;
 	uint16 StreamStrides[MaxVertexElementCount];
-	bool bShaderNeedsGlobalConstantBuffer[SF_NumFrequencies];
+	bool bShaderNeedsGlobalConstantBuffer[SF_NumStandardFrequencies];
 
 	FD3D12PipelineState* PipelineState;
 
 	FORCEINLINE class FD3D12VertexShader*   GetVertexShader() const { return (FD3D12VertexShader*)PipelineStateInitializer.BoundShaderState.VertexShaderRHI; }
 	FORCEINLINE class FD3D12PixelShader*    GetPixelShader() const { return (FD3D12PixelShader*)PipelineStateInitializer.BoundShaderState.PixelShaderRHI; }
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FORCEINLINE class FD3D12HullShader*     GetHullShader() const { return (FD3D12HullShader*)PipelineStateInitializer.BoundShaderState.HullShaderRHI; }
 	FORCEINLINE class FD3D12DomainShader*   GetDomainShader() const { return (FD3D12DomainShader*)PipelineStateInitializer.BoundShaderState.DomainShaderRHI; }
+#else
+	FORCEINLINE class FD3D12HullShader*     GetHullShader() const { return nullptr; }
+	FORCEINLINE class FD3D12DomainShader*   GetDomainShader() const { return nullptr; }
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GeometryShaderRHI; }
+#else
+	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return nullptr; }
+#endif
 };
 
 struct FD3D12ComputePipelineState : public FRHIComputePipelineState

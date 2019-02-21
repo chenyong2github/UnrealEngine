@@ -318,16 +318,28 @@ void USocialUser::TryBroadcastInitializationComplete()
 	{
 		// We consider a social user to be initialized when it has valid primary OSS user info and no pending queries
 		const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(ESocialSubsystem::Primary);
-		if (SubsystemInfo && ensureMsgf(SubsystemInfo->UserInfo.IsValid(), TEXT("SocialUser [%s] has primary subsystem info and no pending queries, but primary UserInfo is invalid!"), *ToDebugString()))
+		if (SubsystemInfo)
 		{
-			UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] fully initialized."), *ToDebugString());
-
-			bIsInitialized = true;
-
-			FOnNewSocialUserInitialized InitEvent;
-			if (InitEventsByUser.RemoveAndCopyValue(this, InitEvent))
+			if (SubsystemInfo->UserInfo.IsValid())
 			{
-				InitEvent.Broadcast(*this);
+				UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] fully initialized."), *ToDebugString());
+
+				bIsInitialized = true;
+
+				FOnNewSocialUserInitialized InitEvent;
+				if (InitEventsByUser.RemoveAndCopyValue(this, InitEvent))
+				{
+					InitEvent.Broadcast(*this);
+				}
+			}
+			else
+			{
+				// User is invalid with no open queries
+				// Assume that this means the sought user doesn't exist
+				InitEventsByUser.Remove(this);
+
+				// Remove Toolkit's reference to the SocialUser, GC will clean it
+				GetOwningToolkit().HandleUserInvalidated(this);
 			}
 		}
 	}
@@ -1040,19 +1052,23 @@ void USocialUser::SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNe
 		IOnlineSubsystem* OSS = OwningToolkit.GetSocialOss(SubsystemType);
 		if (ensure(OSS))
 		{
-			TSharedPtr<FOnlineUser> UserInfo = OSS->GetUserInterface()->GetUserInfo(OwningToolkit.GetLocalUserNum(), *SubsystemId);
-			if (UserInfo.IsValid())
+			IOnlineUserPtr UserInterface = OSS->GetUserInterface();
+			if (UserInterface.IsValid())
 			{
-				SetUserInfo(SubsystemType, UserInfo.ToSharedRef());
-			}
-			else
-			{
-				UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] querying user info on subsystem [%s]"), *ToDebugString(), ToString(SubsystemType));
+				TSharedPtr<FOnlineUser> UserInfo = UserInterface->GetUserInfo(OwningToolkit.GetLocalUserNum(), *SubsystemId);
+				if (UserInfo.IsValid())
+				{
+					SetUserInfo(SubsystemType, UserInfo.ToSharedRef());
+				}
+				else
+				{
+					UE_LOG(LogParty, VeryVerbose, TEXT("SocialUser [%s] querying user info on subsystem [%s]"), *ToDebugString(), ToString(SubsystemType));
 
-				// No valid user info exists on this subsystem, so queue up a query for it
-				auto QueryCompleteHandler = FSocialQuery_UserInfo::FOnQueryComplete::CreateUObject(this, &USocialUser::HandleQueryUserInfoComplete);
-				FSocialQueryManager::AddUserId<FSocialQuery_UserInfo>(OwningToolkit, SubsystemType, SubsystemId.GetUniqueNetId().ToSharedRef(), QueryCompleteHandler);
-				NumPendingQueries++;
+					// No valid user info exists on this subsystem, so queue up a query for it
+					auto QueryCompleteHandler = FSocialQuery_UserInfo::FOnQueryComplete::CreateUObject(this, &USocialUser::HandleQueryUserInfoComplete);
+					FSocialQueryManager::AddUserId<FSocialQuery_UserInfo>(OwningToolkit, SubsystemType, SubsystemId.GetUniqueNetId().ToSharedRef(), QueryCompleteHandler);
+					NumPendingQueries++;
+				}
 			}
 		}
 	}

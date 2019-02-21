@@ -158,11 +158,14 @@ bool UIpNetDriver::InitBase( bool bInitAsClient, FNetworkNotify* InNotify, const
 
 	// Increase socket queue size, because we are polling rather than threading
 	// and thus we rely on the OS socket to buffer a lot of data.
-	int32 RecvSize = bInitAsClient ? ClientDesiredSocketReceiveBufferBytes	: ServerDesiredSocketReceiveBufferBytes;
-	int32 SendSize = bInitAsClient ? ClientDesiredSocketSendBufferBytes		: ServerDesiredSocketSendBufferBytes;
-	Socket->SetReceiveBufferSize(RecvSize,RecvSize);
-	Socket->SetSendBufferSize(SendSize,SendSize);
-	UE_LOG(LogInit, Log, TEXT("%s: Socket queue %i / %i"), SocketSubsystem->GetSocketAPIName(), RecvSize, SendSize );
+	const int32 DesiredRecvSize = bInitAsClient ? ClientDesiredSocketReceiveBufferBytes	: ServerDesiredSocketReceiveBufferBytes;
+	const int32 DesiredSendSize = bInitAsClient ? ClientDesiredSocketSendBufferBytes	: ServerDesiredSocketSendBufferBytes;
+	int32 ActualRecvSize(0);
+	int32 ActualSendSize(0);
+	Socket->SetReceiveBufferSize(DesiredRecvSize, ActualRecvSize);
+	Socket->SetSendBufferSize(DesiredSendSize, ActualSendSize);
+	UE_LOG(LogInit, Log, TEXT("%s: Socket queue. Rx: %i (config %i) Tx: %i (config %i)"), SocketSubsystem->GetSocketAPIName(),
+		ActualRecvSize, DesiredRecvSize, ActualSendSize, DesiredSendSize);
 
 	// allow multihome as a url option
 	const TCHAR* MultiHomeBindAddr = URL.GetOption(TEXT("multihome="), nullptr);
@@ -471,9 +474,9 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					bRecentlyDisconnectedClient = true;
 				}
 			}
-
 			check(Connection == nullptr || CastChecked<UIpConnection>(Connection)->RemoteAddr->CompareEndpoints(*FromAddr));
 		}
+
 
 		if( bOk == false )
 		{
@@ -809,17 +812,25 @@ void UIpNetDriver::LowLevelDestroy()
 			IpServerConnection->WaitForSendTasks();
 		}
 
+		ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
+
 		// If using a recieve thread, shut down the socket, which will signal the thread to exit gracefully, then wait on the thread.
 		if (SocketReceiveThread.IsValid() && SocketReceiveThreadRunnable.IsValid())
 		{
+			UE_LOG(LogNet, Log, TEXT("Shutting down and waiting for socket receive thread for %s"), *GetDescription());
+
 			SocketReceiveThreadRunnable->bIsRunning = false;
-			Socket->Shutdown(ESocketShutdownMode::Read);
+			
+			if (!Socket->Shutdown(ESocketShutdownMode::Read))
+			{
+				const ESocketErrors ShutdownError = SocketSubsystem->GetLastErrorCode();
+				UE_LOG(LogNet, Log, TEXT("UIpNetDriver::LowLevelDestroy Socket->Shutdown returned error %s (%d) for %s"), SocketSubsystem->GetSocketError(ShutdownError), static_cast<int>(ShutdownError), *GetDescription());
+			}
 
 			SCOPE_CYCLE_COUNTER(STAT_IpNetDriver_Destroy_WaitForReceiveThread);
 			SocketReceiveThread->WaitForCompletion();
 		}
 
-		ISocketSubsystem* SocketSubsystem = GetSocketSubsystem();
 		if( !Socket->Close() )
 		{
 			UE_LOG(LogExit, Log, TEXT("closesocket error (%i)"), (int32)SocketSubsystem->GetLastErrorCode() );
@@ -930,7 +941,7 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 {
 	const FTimespan Timeout = FTimespan::FromMilliseconds(CVarNetIpNetDriverReceiveThreadPollTimeMS.GetValueOnAnyThread());
 
-	UE_LOG(LogNet, Log, TEXT("Receive Thread Startup."));
+	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run starting up."));
 
 	while (bIsRunning && OwningNetDriver->Socket)
 	{
@@ -985,10 +996,14 @@ uint32 UIpNetDriver::FReceiveThreadRunnable::Run()
 				IncomingPacket.Error = WaitError;
 				IncomingPacket.PlatformTimeSeconds = FPlatformTime::Seconds();
 
+				UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run: Socket->Wait returned error %s (%d)"), SocketSubsystem->GetSocketError(IncomingPacket.Error), static_cast<int>(IncomingPacket.Error));
+
 				ReceiveQueue.Enqueue(MoveTemp(IncomingPacket));
 			}
 		}
 	}
+
+	UE_LOG(LogNet, Log, TEXT("UIpNetDriver::FReceiveThreadRunnable::Run returning."));
 
 	return 0;
 }

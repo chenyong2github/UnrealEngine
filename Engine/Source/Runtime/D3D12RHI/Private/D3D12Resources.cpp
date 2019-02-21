@@ -26,15 +26,34 @@ FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
 	}
 }
 
-void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource)
+void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* pFence)
 {
 	check(pResource->ShouldDeferDelete());
-	const uint64 CurrentFrameFence = GetParentAdapter()->GetFrameFence().GetCurrentFence();
+	const uint64 CurrentFrameFence = pFence->GetCurrentFence();
 
 	// Useful message for identifying when resources are released on the rendering thread.
 	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, CurrentFrameFence);
 
-	const FencedObjectType FencedObject(pResource, CurrentFrameFence);
+	FencedObjectType FencedObject;
+	FencedObject.RHIObject  = pResource;
+	FencedObject.Fence = pFence;
+	FencedObject.FenceValue = CurrentFrameFence;
+	FencedObject.Type       = EObjectType::RHI;
+	DeferredReleaseQueue.Enqueue(FencedObject);
+}
+
+void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D12Fence* pFence)
+{
+	const uint64 CurrentFrameFence = pFence->GetCurrentFence();
+
+	// Useful message for identifying when resources are released on the rendering thread.
+	//UE_CLOG(IsInActualRenderingThread(), LogD3D12RHI, Display, TEXT("Rendering Thread: Deleting %#016llx when done with frame fence %llu"), pResource, CurrentFrameFence);
+
+	FencedObjectType FencedObject;
+	FencedObject.D3DObject  = pResource;
+	FencedObject.Fence = pFence;
+	FencedObject.FenceValue = CurrentFrameFence;
+	FencedObject.Type       = EObjectType::D3D;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
 
@@ -57,26 +76,23 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 
 		struct FDequeueFenceObject
 		{
-			FDequeueFenceObject(FD3D12Fence& InFence)
-				: FrameFence(InFence)
-			{
-			}
-
 			bool operator() (FencedObjectType FenceObject) const
 			{
-				return FrameFence.IsFenceComplete(FenceObject.Value);
+				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
 			}
-
-		private:
-			FD3D12Fence& FrameFence;
 		};
 
 		FencedObjectType FenceObject;
-		const FDequeueFenceObject DequeueFenceObject(Adapter->GetFrameFence());
-
-		while (DeferredReleaseQueue.Dequeue(FenceObject, DequeueFenceObject))
+		while (DeferredReleaseQueue.Dequeue(FenceObject, FDequeueFenceObject()))
 		{
-			FenceObject.Key->Release();
+			if (FenceObject.Type == EObjectType::RHI)
+			{
+				FenceObject.RHIObject->Release();
+			}
+			else
+			{
+				FenceObject.D3DObject->Release();
+			}
 		}
 
 		return DeferredReleaseQueue.IsEmpty();
@@ -102,27 +118,18 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool DeleteImmediately)
 #endif
 }
 
-FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FencedObjectType>* DeletionQueue) :
-	FD3D12AdapterChild(Adapter)
+FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::FD3D12AsyncDeletionWorker(FD3D12Adapter* Adapter, FThreadsafeQueue<FencedObjectType>* DeletionQueue)
+	: FD3D12AdapterChild(Adapter)
 {
 	struct FDequeueFenceObject
 	{
-		FDequeueFenceObject(FD3D12Fence& InFence)
-			: FrameFence(InFence)
-		{
-		}
-
 		bool operator() (FencedObjectType FenceObject) const
 		{
-			return FrameFence.IsFenceComplete(FenceObject.Value);
+			return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
 		}
-
-	private:
-		FD3D12Fence& FrameFence;
 	};
 
-	const FDequeueFenceObject DequeueFenceObject(Adapter->GetFrameFence());
-	DeletionQueue->BatchDequeue(&Queue, DequeueFenceObject, 4096);
+	DeletionQueue->BatchDequeue(&Queue, FDequeueFenceObject(), 4096);
 }
 
 void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
@@ -131,9 +138,16 @@ void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
 
 	while (Queue.Dequeue(ResourceToDelete))
 	{
-		// TEMP: Disable check until memory cleanup issues are resolved. This should be a final release.
-		//check(ResourceToDelete.Key->GetRefCount() == 1);
-		ResourceToDelete.Key->Release();
+		if (ResourceToDelete.Type == EObjectType::RHI)
+		{
+			// This should be a final release.
+			check(ResourceToDelete.RHIObject->GetRefCount() == 1);
+			ResourceToDelete.RHIObject->Release();
+		}
+		else
+		{
+			ResourceToDelete.D3DObject->Release();
+		}
 	}
 }
 
@@ -221,6 +235,11 @@ void FD3D12Resource::UpdateResidency(FD3D12CommandListHandle& CommandList)
 #endif
 }
 
+void FD3D12Resource::DeferDelete()
+{
+	GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(this, &GetParentDevice()->GetCommandListManager().GetFence());
+}
+
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Heap
 /////////////////////////////////////////////////////////////////////
@@ -280,8 +299,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 
 	TRefCountPtr<ID3D12Resource> pResource;
 	const HRESULT hr = RootDevice->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &InDesc, InitialUsage, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
-	checkf(SUCCEEDED(hr), TEXT("HR=0x%x"), hr);
-	check(SUCCEEDED(hr));
+	VERIFYD3D12RESULT_EX(hr, RootDevice);
 
 	if (SUCCEEDED(hr))
 	{
@@ -310,7 +328,7 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 
 	TRefCountPtr<ID3D12Resource> pResource;
 	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InitialUsage, nullptr, IID_PPV_ARGS(pResource.GetInitReference()));
-	check(SUCCEEDED(hr));
+	VERIFYD3D12RESULT_EX(hr, RootDevice);
 
 	if (SUCCEEDED(hr))
 	{
@@ -335,10 +353,21 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask CreationNode, FRHIGPUMask VisibleNodes, uint64 HeapSize, FD3D12Resource** ppOutResource, D3D12_RESOURCE_FLAGS Flags)
 {
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, (uint32)CreationNode, (uint32)VisibleNodes);
-	return CreateBuffer(HeapProps, HeapSize, ppOutResource, Flags);
+	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProps.Type, &HeapProps);
+	return CreateBuffer(HeapProps, InitialState, HeapSize, ppOutResource, Flags);
 }
 
-HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps, uint64 HeapSize, FD3D12Resource** ppOutResource, D3D12_RESOURCE_FLAGS Flags)
+HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask CreationNode, FRHIGPUMask VisibleNodes, D3D12_RESOURCE_STATES InitialState, uint64 HeapSize, FD3D12Resource** ppOutResource, D3D12_RESOURCE_FLAGS Flags)
+{
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, (uint32)CreationNode, (uint32)VisibleNodes);
+	return CreateBuffer(HeapProps, InitialState, HeapSize, ppOutResource, Flags);
+}
+
+HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
+	D3D12_RESOURCE_STATES InitialState,
+	uint64 HeapSize,
+	FD3D12Resource** ppOutResource,
+	D3D12_RESOURCE_FLAGS Flags)
 {
 	if (!ppOutResource)
 	{
@@ -346,8 +375,6 @@ HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps, uint
 	}
 
 	const D3D12_RESOURCE_DESC BufDesc = CD3DX12_RESOURCE_DESC::Buffer(HeapSize, Flags);
-	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProps.Type, &HeapProps);
-	TRefCountPtr<ID3D12Resource> pResource;
 	return CreateCommittedResource(BufDesc,
 		HeapProps,
 		InitialState,
@@ -460,7 +487,7 @@ void FD3D12ResourceLocation::ReleaseResource()
 		
 		if (UnderlyingResource->ShouldDeferDelete())
 		{
-			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(UnderlyingResource);
+			UnderlyingResource->DeferDelete();
 		}
 		else
 		{
@@ -489,7 +516,7 @@ void FD3D12ResourceLocation::ReleaseResource()
 	{
 		if (UnderlyingResource->ShouldDeferDelete() && UnderlyingResource->GetRefCount() == 1)
 		{
-			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(UnderlyingResource);
+			UnderlyingResource->DeferDelete();
 		}
 		else
 		{
@@ -502,7 +529,7 @@ void FD3D12ResourceLocation::ReleaseResource()
 		check(UnderlyingResource->GetRefCount() == 1);
 		if (UnderlyingResource->ShouldDeferDelete())
 		{
-			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(UnderlyingResource);
+			UnderlyingResource->DeferDelete();
 		}
 		else
 		{
@@ -523,10 +550,7 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 	check(UnderlyingResource == nullptr);
 	check(ResidencyHandle == nullptr);
 
-	if (Type == ResourceLocationType::eStandAlone)
-	{
-		GPUVirtualAddress = Value->GetGPUVirtualAddress();
-	}
+	GPUVirtualAddress = Value->GetGPUVirtualAddress();
 
 	UnderlyingResource = Value;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();

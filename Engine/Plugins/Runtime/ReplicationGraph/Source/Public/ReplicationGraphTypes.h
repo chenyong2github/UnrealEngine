@@ -358,12 +358,14 @@ struct FClassReplicationInfo
 	float DistancePriorityScale = 1.f;
 	float StarvationPriorityScale = 1.f;
 	float CullDistanceSquared = 0.f;
+	float AccumulatedNetPriorityBias = 0.f;
 	
 	uint8 ReplicationPeriodFrame = 1;
 	uint8 FastPath_ReplicationPeriodFrame = 1;
 	uint8 ActorChannelFrameTimeout = 4;
 
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
+	FName FastSharedReplicationFuncName = NAME_None;
 
 	FString BuildDebugStringDelta() const
 	{

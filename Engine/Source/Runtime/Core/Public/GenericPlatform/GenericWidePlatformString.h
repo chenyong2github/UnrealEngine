@@ -75,6 +75,22 @@ public:
 		return Length;
 	}
 
+
+#if PLATFORM_TCHAR_IS_CHAR16
+	static int32 Strlen( const wchar_t* String )
+	{
+		int32 Length = -1;
+		
+		do
+		{
+			Length++;
+		}
+		while (*String++);
+		
+		return Length;
+	}
+#endif
+
 	CORE_API static const WIDECHAR* Strstr( const WIDECHAR* String, const WIDECHAR* Find)
 	{
 		WIDECHAR Char1, Char2;

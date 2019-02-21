@@ -6,6 +6,7 @@
 #include "RBF/RBFSolver.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
 
 #define LOCTEXT_NAMESPACE "PoseDriver"
 
@@ -42,6 +43,8 @@ UAnimGraphNode_PoseDriver::UAnimGraphNode_PoseDriver(const FObjectInitializer& O
 	:Super(ObjectInitializer)
 {
 	SelectedTargetIndex = INDEX_NONE;
+	AxisLength = 20.0f;
+	ConeSubdivision = 32;
 }
 
 FText UAnimGraphNode_PoseDriver::GetTooltipText() const
@@ -210,6 +213,10 @@ void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPrev
 	PreviewPoseDriver->RBFParams.DistanceMethod = Node.RBFParams.DistanceMethod;
 	PreviewPoseDriver->RBFParams.TwistAxis = Node.RBFParams.TwistAxis;
 	PreviewPoseDriver->RBFParams.WeightThreshold = Node.RBFParams.WeightThreshold;
+	PreviewPoseDriver->RBFParams.NormalizeMethod = Node.RBFParams.NormalizeMethod;
+	PreviewPoseDriver->RBFParams.MedianReference = Node.RBFParams.MedianReference;
+	PreviewPoseDriver->RBFParams.MedianMin = Node.RBFParams.MedianMin;
+	PreviewPoseDriver->RBFParams.MedianMax = Node.RBFParams.MedianMax;
 	PreviewPoseDriver->DriveOutput = Node.DriveOutput;
 	PreviewPoseDriver->DriveSource = Node.DriveSource;
 	PreviewPoseDriver->PoseTargets = Node.PoseTargets;
@@ -219,10 +226,28 @@ void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPrev
 FAnimNode_PoseDriver* UAnimGraphNode_PoseDriver::GetPreviewPoseDriverNode() const
 {
 	FAnimNode_PoseDriver* PreviewNode = nullptr;
+	USkeletalMeshComponent * Component = nullptr;
 
-	if (LastPreviewComponent != nullptr && LastPreviewComponent->GetAnimInstance() != nullptr)
+	// look for a valid component in the object being debugged,
+	// we might be set to something other than the preview.
+	UObject * ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
+	if (ObjectBeingDebugged)
 	{
-		PreviewNode = static_cast<FAnimNode_PoseDriver*>(FindDebugAnimNode(LastPreviewComponent));
+		UAnimInstance * InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged);
+		if (InstanceBeingDebugged)
+		{
+			Component = InstanceBeingDebugged->GetSkelMeshComponent();
+		}
+	}
+
+	// Fall back to the LastPreviewComponent
+	if (Component == nullptr)
+	{
+		Component = LastPreviewComponent;
+	}
+	if (Component != nullptr && Component->GetAnimInstance() != nullptr)
+	{
+		PreviewNode = static_cast<FAnimNode_PoseDriver*>(FindDebugAnimNode(Component));
 	}
 
 	return PreviewNode;
@@ -260,6 +285,13 @@ FTransform GetComponentSpaceTransform(FName BoneName, TArray<FTransform>& LocalT
 void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 {
 	UPoseAsset* PoseAsset = Node.PoseAsset;
+
+	// store the previous targets for re-use
+	TMap< FName, FPoseDriverTarget > PreviousTargets;
+	for (int32 i = 0; i < Node.PoseTargets.Num(); i++)
+	{
+		PreviousTargets.Add(Node.PoseTargets[i].DrivenName, Node.PoseTargets[i]);
+	}
 
 	if (PoseAsset && PoseAsset->GetSkeleton()) // Use PoseAsset here not CurrentPoseAsset, because we want to be able to run this on on nodes that have not been init'd yet
 	{
@@ -313,6 +345,18 @@ void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 				PoseTarget.BoneTransforms.Add(PoseTransform);
 			}
 
+			// re-apply the same setting in case we have seen this target before
+			const FPoseDriverTarget * PreviousTarget = PreviousTargets.Find(PoseTarget.DrivenName);
+			if (PreviousTarget)
+			{
+				PoseTarget.TargetScale = PreviousTarget->TargetScale;
+				PoseTarget.bApplyCustomCurve = PreviousTarget->bApplyCustomCurve;
+				PoseTarget.CustomCurve = PreviousTarget->CustomCurve;
+				PoseTarget.DistanceMethod = PreviousTarget->DistanceMethod;
+				PoseTarget.FunctionType = PreviousTarget->FunctionType;
+				PoseTarget.bIsHidden = PreviousTarget->bIsHidden;
+			}
+
 			Node.PoseTargets.Add(PoseTarget);
 		}
 
@@ -336,6 +380,11 @@ void UAnimGraphNode_PoseDriver::ReserveTargetTransforms()
 	{
 		PoseTarget.BoneTransforms.SetNum(Node.SourceBones.Num());
 	}
+}
+
+FLinearColor UAnimGraphNode_PoseDriver::GetColorFromWeight(float InWeight)
+{
+	return FMath::Lerp(FLinearColor::Blue.Desaturate(0.5), FLinearColor::Red, InWeight);
 }
 
 void UAnimGraphNode_PoseDriver::AutoSetTargetScales(float &OutMaxDistance)

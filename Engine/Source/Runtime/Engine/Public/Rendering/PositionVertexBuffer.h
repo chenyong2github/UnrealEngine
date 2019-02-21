@@ -32,21 +32,21 @@ public:
 	/** Delete existing resources */
 	ENGINE_API void CleanUp();
 
-	void ENGINE_API Init(uint32 NumVertices, bool bNeedsCPUAccess = true);
+	void ENGINE_API Init(uint32 NumVertices, bool bInNeedsCPUAccess = true);
 
 	/**
 	* Initializes the buffer with the given vertices, used to convert legacy layouts.
 	* @param InVertices - The vertices to initialize the buffer with.
 	*/
-	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bNeedsCPUAccess = true);
+	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bInNeedsCPUAccess = true);
 
 	/**
 	* Initializes this vertex buffer with the contents of the given vertex buffer.
 	* @param InVertexBuffer - The vertex buffer to initialize from.
 	*/
-	void Init(const FPositionVertexBuffer& InVertexBuffer, bool bNeedsCPUAccess = true);
+	void Init(const FPositionVertexBuffer& InVertexBuffer, bool bInNeedsCPUAccess = true);
 
-	ENGINE_API void Init(const TArray<FVector>& InPositions, bool bNeedsCPUAccess = true);
+	ENGINE_API void Init(const TArray<FVector>& InPositions, bool bInNeedsCPUAccess = true);
 
 	/**
 	 * Appends the specified vertices to the end of the buffer
@@ -59,10 +59,12 @@ public:
 	/**
 	* Serializer
 	*
-	* @param	Ar				Archive to serialize with
-	* @param	bNeedsCPUAccess	Whether the elements need to be accessed by the CPU
+	* @param	Ar					Archive to serialize with
+	* @param	bInNeedsCPUAccess	Whether the elements need to be accessed by the CPU
 	*/
-	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
+	void Serialize(FArchive& Ar, bool bInNeedsCPUAccess);
+
+	void SerializeMetaData(FArchive& Ar);
 
 	/**
 	* Specialized assignment operator, only used when importing LOD's.
@@ -88,6 +90,38 @@ public:
 	FORCEINLINE uint32 GetNumVertices() const
 	{
 		return NumVertices;
+	}
+
+	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateRHIBuffer_Async();
+
+	/** Set whether this buffer is managed by the streamer. Must be set before InitRHI is called */
+	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
+
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	template <int32 MaxNumUpdates>
+	void InitRHIForStreaming(FVertexBufferRHIParamRef IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		check(!VertexBufferRHI);
+		if (IntermediateBuffer)
+		{
+			VertexBufferRHI = IntermediateBuffer;
+			if (PositionComponentSRV)
+			{
+				Batcher.QueueUpdateRequest(PositionComponentSRV, VertexBufferRHI, 4, PF_R32_FLOAT);
+			}
+		}
+	}
+
+	template <int32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (PositionComponentSRV)
+		{
+			Batcher.QueueUpdateRequest(PositionComponentSRV, nullptr, 0, 0);
+		}
+		FVertexBuffer::ReleaseRHI();
 	}
 
 	// FRenderResource interface.
@@ -118,8 +152,13 @@ private:
 	/** The cached number of vertices. */
 	uint32 NumVertices;
 
-	bool NeedsCPUAccess = true;
+	bool bNeedsCPUAccess = true;
+
+	bool bStreamed;
 
 	/** Allocates the vertex data storage type. */
-	void AllocateData(bool bNeedsCPUAccess = true);
+	void AllocateData(bool bInNeedsCPUAccess = true);
+
+	template <bool bRenderThread>
+	FVertexBufferRHIRef CreateRHIBuffer_Internal();
 };

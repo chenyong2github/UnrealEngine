@@ -308,7 +308,7 @@ private:
 			if (Section != nullptr)
 			{
 				const bool bIsSelected = false;
-				FMaterialRenderProxy* MaterialProxy = MaterialToUse->GetRenderProxy(bIsSelected);
+				FMaterialRenderProxy* MaterialProxy = MaterialToUse->GetRenderProxy();
 
 				// For each view..
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -323,7 +323,11 @@ private:
 						Mesh.bWireframe = false;
 						Mesh.VertexFactory = &Section->VertexFactory;
 						Mesh.MaterialRenderProxy = MaterialProxy;
-						BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), InfiniteBounds, InfiniteBounds, true, UseEditorDepthTest());
+
+						FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
+						DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), GetLocalToWorld(), InfiniteBounds, InfiniteBounds, true, false, UseEditorDepthTest());
+						BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
+
 						BatchElement.FirstIndex = 0;
 						BatchElement.NumPrimitives = Section->IndexBuffer.NumIndices / 3;
 						BatchElement.MinVertexIndex = 0;
@@ -680,10 +684,9 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 			check(SceneProxy != nullptr);
 
 			// Graphics update
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-				FSendBrickDataLambda,
-				UMRMeshComponent*, This, this,
-				IMRMesh::FSendBrickDataArgs, Args, Args,
+			UMRMeshComponent* This = this;
+			ENQUEUE_RENDER_COMMAND(FSendBrickDataLambda)(
+				[This, Args](FRHICommandListImmediate& RHICmdList)
 				{
 					FMRMeshProxy* MRMeshProxy = static_cast<FMRMeshProxy*>(This->SceneProxy);
 					if (MRMeshProxy)
@@ -731,9 +734,9 @@ void UMRMeshComponent::ClearAllBrickData_Internal()
 	}
 
 	// Graphics update
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		FClearAllBricksLambda,
-		UMRMeshComponent*, This, this,
+	UMRMeshComponent* This = this;
+	ENQUEUE_RENDER_COMMAND(FClearAllBricksLambda)(
+		[This](FRHICommandListImmediate& RHICmdList)
 		{
 			FMRMeshProxy* MRMeshProxy = static_cast<FMRMeshProxy*>(This->SceneProxy);
 			if (MRMeshProxy)
@@ -760,15 +763,15 @@ void UMRMeshComponent::SendRenderDynamicData_Concurrent()
 	if (SceneProxy)
 	{
 		// Enqueue command to send to render thread
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			FSetMaterialLambda,
-			UMRMeshComponent*, This, this,
-			UMaterialInterface*, Material, Material,
+		UMRMeshComponent* This = this;
+		UMaterialInterface* InMaterial = Material;
+		ENQUEUE_RENDER_COMMAND(FSetMaterialLambda)(
+			[This, InMaterial](FRHICommandListImmediate& RHICmdList)
 			{
 				FMRMeshProxy* MRMeshProxy = static_cast<FMRMeshProxy*>(This->SceneProxy);
 				if (MRMeshProxy)
 				{
-					MRMeshProxy->RenderThread_SetMaterial(Material);
+					MRMeshProxy->RenderThread_SetMaterial(InMaterial);
 				}
 			});
 	}

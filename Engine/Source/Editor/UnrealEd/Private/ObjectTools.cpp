@@ -2236,6 +2236,19 @@ namespace ObjectTools
 			return 0;
 		}
 
+		{
+			// Force delete is a dangerous operation, add some fingerprints to the log:
+			FString Msg;
+			Msg.Append(FString::Printf(TEXT("Force Deleting %d Package(s):"), ShownObjectsToDelete.Num()));
+			const int32 MAX_PACKAGES_TO_LOG = 10;
+			for(int32 I = 0; I < ShownObjectsToDelete.Num() && I < MAX_PACKAGES_TO_LOG; ++I)
+			{
+				Msg.Append(TEXT("\n"));
+				Msg.Append(FString::Printf(TEXT("\tAsset Name: %s"), *GetPathNameSafe(ShownObjectsToDelete[I])));
+			}
+			UE_LOG(LogUObjectGlobals, Log, TEXT("%s"), *Msg);
+		}
+
 		GWarn->BeginSlowTask( NSLOCTEXT("UnrealEd", "Deleting", "Deleting"), true );
 
 		struct FSCSNodeToDelete
@@ -3865,16 +3878,15 @@ namespace ThumbnailTools
 
 
 			{
-				ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-					UpdateThumbnailRTCommand,
-					FTextureRenderTargetResource*, RenderTargetResource, RenderTargetResource,
-				{
-					// Copy (resolve) the rendered thumbnail from the render target to its texture
-					RHICmdList.CopyToResolveTarget(
-						RenderTargetResource->GetRenderTargetTexture(),		// Source texture
-						RenderTargetResource->TextureRHI,					// Dest texture
-						FResolveParams() );									// Resolve parameters
-				});
+				ENQUEUE_RENDER_COMMAND(UpdateThumbnailRTCommand)(
+					[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
+					{
+						// Copy (resolve) the rendered thumbnail from the render target to its texture
+						RHICmdList.CopyToResolveTarget(
+							RenderTargetResource->GetRenderTargetTexture(),		// Source texture
+							RenderTargetResource->TextureRHI,					// Dest texture
+							FResolveParams() );									// Resolve parameters
+					});
 
 				if(OutThumbnail)
 				{

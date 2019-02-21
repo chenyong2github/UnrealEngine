@@ -11,7 +11,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
 
-void FTextureInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float InLastRenderTime, const FVector& RangeOrigin, float InMinDistance, float InMinRange, float InMaxRange)
+void FRenderAssetInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float InLastRenderTime, const FVector& RangeOrigin, float InMinDistance, float InMinRange, float InMaxRange)
 {
 	check(Index >= 0 && Index < 4);
 
@@ -32,7 +32,7 @@ void FTextureInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds& Bo
 	LastRenderTime.Component(Index) = InLastRenderTime;
 }
 
-void FTextureInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimitiveComponent* Component)
+void FRenderAssetInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimitiveComponent* Component)
 {
 	check(Component);
 	check(Index >= 0 && Index < 4);
@@ -44,7 +44,7 @@ void FTextureInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimitiveC
 
 		// Update the visibility range once we have the bounds.
 		float MinDistance = 0, MinRange = 0, MaxRange = FLT_MAX;
-		FTextureInstanceView::GetDistanceAndRange(Component, SubBounds, MinDistance, MinRange, MaxRange);
+		FRenderAssetInstanceView::GetDistanceAndRange(Component, SubBounds, MinDistance, MinRange, MaxRange);
 
 		OriginX.Component(Index) = SubBounds.Origin.X;
 		OriginY.Component(Index) = SubBounds.Origin.Y;
@@ -64,7 +64,7 @@ void FTextureInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimitiveC
 }
 
 /** Dynamic Path, this needs to reset all members since the dynamic data is rebuilt from scratch every update (the previous data is given to the async task) */
-void FTextureInstanceView::FBounds4::FullUpdate(int32 Index, const FBoxSphereBounds& Bounds, float InLastRenderTime)
+void FRenderAssetInstanceView::FBounds4::FullUpdate(int32 Index, const FBoxSphereBounds& Bounds, float InLastRenderTime)
 {
 	check(Index >= 0 && Index < 4);
 
@@ -85,18 +85,18 @@ void FTextureInstanceView::FBounds4::FullUpdate(int32 Index, const FBoxSphereBou
 	LastRenderTime.Component(Index) = InLastRenderTime;
 }
 
-FTextureInstanceView::FTextureLinkConstIterator::FTextureLinkConstIterator(const FTextureInstanceView& InState, const UTexture2D* InTexture) 
+FRenderAssetInstanceView::FRenderAssetLinkConstIterator::FRenderAssetLinkConstIterator(const FRenderAssetInstanceView& InState, const UStreamableRenderAsset* InAsset)
 :	State(InState)
 ,	CurrElementIndex(INDEX_NONE)
 {
-	const FTextureDesc* TextureDesc = State.TextureMap.Find(InTexture);
-	if (TextureDesc)
+	const FRenderAssetDesc* AssetDesc = State.RenderAssetMap.Find(InAsset);
+	if (AssetDesc)
 	{
-		CurrElementIndex = TextureDesc->HeadLink;
+		CurrElementIndex = AssetDesc->HeadLink;
 	}
 }
 
-FBoxSphereBounds FTextureInstanceView::FTextureLinkConstIterator::GetBounds() const
+FBoxSphereBounds FRenderAssetInstanceView::FRenderAssetLinkConstIterator::GetBounds() const
 { 
 	FBoxSphereBounds Bounds(ForceInitToZero);
 
@@ -119,7 +119,7 @@ FBoxSphereBounds FTextureInstanceView::FTextureLinkConstIterator::GetBounds() co
 	return Bounds;
 }
 
-void FTextureInstanceView::FTextureLinkConstIterator::OutputToLog(float MaxNormalizedSize, float MaxNormalizedSize_VisibleOnly, const TCHAR* Prefix) const
+void FRenderAssetInstanceView::FRenderAssetLinkConstIterator::OutputToLog(float MaxNormalizedSize, float MaxNormalizedSize_VisibleOnly, const TCHAR* Prefix) const
 {
 #if !UE_BUILD_SHIPPING
 	const UPrimitiveComponent* Component = GetComponent();
@@ -197,33 +197,33 @@ void FTextureInstanceView::FTextureLinkConstIterator::OutputToLog(float MaxNorma
 #endif // !UE_BUILD_SHIPPING
 }
 
-TRefCountPtr<const FTextureInstanceView> FTextureInstanceView::CreateView(const FTextureInstanceView* RefView)
+TRefCountPtr<const FRenderAssetInstanceView> FRenderAssetInstanceView::CreateView(const FRenderAssetInstanceView* RefView)
 {
-	TRefCountPtr<FTextureInstanceView> NewView(new FTextureInstanceView());
+	TRefCountPtr<FRenderAssetInstanceView> NewView(new FRenderAssetInstanceView());
 	
 	NewView->Bounds4 = RefView->Bounds4;
 	NewView->Elements = RefView->Elements;
-	NewView->TextureMap = RefView->TextureMap;
+	NewView->RenderAssetMap = RefView->RenderAssetMap;
 	NewView->MaxTexelFactor = RefView->MaxTexelFactor;
 	// NewView->CompiledTextureMap = RefView->CompiledTextureMap;
 
-	return TRefCountPtr<const FTextureInstanceView>(NewView.GetReference());
+	return TRefCountPtr<const FRenderAssetInstanceView>(NewView.GetReference());
 }
 
-TRefCountPtr<FTextureInstanceView> FTextureInstanceView::CreateViewWithUninitializedBounds(const FTextureInstanceView* RefView)
+TRefCountPtr<FRenderAssetInstanceView> FRenderAssetInstanceView::CreateViewWithUninitializedBounds(const FRenderAssetInstanceView* RefView)
 {
-	TRefCountPtr<FTextureInstanceView> NewView(new FTextureInstanceView());
+	TRefCountPtr<FRenderAssetInstanceView> NewView(new FRenderAssetInstanceView());
 	
 	NewView->Bounds4.AddUninitialized(RefView->Bounds4.Num());
 	NewView->Elements = RefView->Elements;
-	NewView->TextureMap = RefView->TextureMap;
+	NewView->RenderAssetMap = RefView->RenderAssetMap;
 	NewView->MaxTexelFactor = RefView->MaxTexelFactor;
 	// NewView->CompiledTextureMap = RefView->RefView;
 
 	return NewView;
 }
 
-void FTextureInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& TextureInstanceBounds, float& MinDistance, float& MinRange, float& MaxRange)
+void FRenderAssetInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistance, float& MinRange, float& MaxRange)
 {
 	check(Component && Component->IsRegistered());
 
@@ -235,71 +235,40 @@ void FTextureInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Compon
 
 	const UPrimitiveComponent* LODParent = Component->GetLODParentPrimitive();
 
-	MinDistance = FMath::Max<float>(0, Component->MinDrawDistance - (TextureInstanceBounds.Origin - Component->Bounds.Origin).Size() - TextureInstanceBounds.SphereRadius);
+	MinDistance = FMath::Max<float>(0, Component->MinDrawDistance - (RenderAssetInstanceBounds.Origin - Component->Bounds.Origin).Size() - RenderAssetInstanceBounds.SphereRadius);
 	MinRange = FMath::Max<float>(0, Component->MinDrawDistance);
 	// Max distance when HLOD becomes visible.
 	MaxRange = LODParent ? (LODParent->MinDrawDistance + (Component->Bounds.Origin - LODParent->Bounds.Origin).Size()) : FLT_MAX;
-	if (LODParent)
-	{
-		MaxRange = LODParent->MinDrawDistance + (Component->Bounds.Origin - LODParent->Bounds.Origin).Size();
-	}
 }
 
-void FTextureInstanceView::SwapData(FTextureInstanceView* Lfs, FTextureInstanceView* Rhs)
+void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAssetInstanceView* Rhs)
 {
 	// Things must be compatible somehow or derived classes will be in incoherent state.
 	check(Lfs->Bounds4.Num() == Rhs->Bounds4.Num());
 	check(Lfs->Elements.Num() == Rhs->Elements.Num());
-	check(Lfs->TextureMap.Num() == Rhs->TextureMap.Num());
-	check(Lfs->CompiledTextureMap.Num() == 0 && Rhs->CompiledTextureMap.Num() == 0);
+	check(Lfs->RenderAssetMap.Num() == Rhs->RenderAssetMap.Num());
+	check(Lfs->CompiledRenderAssetMap.Num() == 0 && Rhs->CompiledRenderAssetMap.Num() == 0);
 
 	FMemory::Memswap(&Lfs->Bounds4 , &Rhs->Bounds4, sizeof(Lfs->Bounds4));
 	FMemory::Memswap(&Lfs->Elements , &Rhs->Elements, sizeof(Lfs->Elements));
-	FMemory::Memswap(&Lfs->TextureMap , &Rhs->TextureMap, sizeof(Lfs->TextureMap));
+	FMemory::Memswap(&Lfs->RenderAssetMap, &Rhs->RenderAssetMap, sizeof(Lfs->RenderAssetMap));
 	FMemory::Memswap(&Lfs->MaxTexelFactor , &Rhs->MaxTexelFactor, sizeof(Lfs->MaxTexelFactor));
 }
 
-struct FStreamingViewInfoExtra
+void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
+	const TArray<FStreamingViewInfo>& ViewInfos,
+	const FStreamingViewInfoExtraArray& ViewInfoExtras,
+	float LastUpdateTime,
+	const FRenderAssetStreamingSettings& Settings)
 {
-	// The screen size factor including the view boost.
-	float ScreenSizeFloat;
+	check(ViewInfos.Num() == ViewInfoExtras.Num());
 
-	// The extra view boost for visible primitive (if ViewInfo.BoostFactor > "r.Streaming.MaxHiddenPrimitiveViewBoost").
-	float ExtraBoostForVisiblePrimitiveFloat;
-};
-
-void FTextureInstanceAsyncView::UpdateBoundSizes_Async(const TArray<FStreamingViewInfo>& ViewInfos, float LastUpdateTime, const FTextureStreamingSettings& Settings)
-{
 	if (!View.IsValid())  return;
 
 	const int32 NumViews = ViewInfos.Num();
 	const int32 NumBounds4 = View->NumBounds4();
 
 	const VectorRegister LastUpdateTime4 = VectorSet(LastUpdateTime, LastUpdateTime, LastUpdateTime, LastUpdateTime);
-	const float OneOverMaxHiddenPrimitiveViewBoost = 1.f / Settings.MaxHiddenPrimitiveViewBoost;
-	
-	TArray<FStreamingViewInfoExtra, TInlineAllocator<4> > ViewInfoExtras;
-	ViewInfoExtras.AddZeroed(ViewInfos.Num());
-	
-	for (int32 ViewIndex = 0; ViewIndex < NumViews; ++ViewIndex)
-	{
-		const FStreamingViewInfo& ViewInfo = ViewInfos[ViewIndex];
-		FStreamingViewInfoExtra& ViewInfoExtra = ViewInfoExtras[ViewIndex];
-
-		const float EffectiveScreenSize = (Settings.MaxEffectiveScreenSize > 0.0f) ? FMath::Min(Settings.MaxEffectiveScreenSize, ViewInfo.ScreenSize) : ViewInfo.ScreenSize;
-		ViewInfoExtra.ScreenSizeFloat = EffectiveScreenSize * .5f; // Multiply by half since the ratio factors map to half the screen only
-		ViewInfoExtra.ExtraBoostForVisiblePrimitiveFloat = 1.f;
-
-		if (ViewInfo.BoostFactor > Settings.MaxHiddenPrimitiveViewBoost)
-		{
-			ViewInfoExtra.ScreenSizeFloat *= Settings.MaxHiddenPrimitiveViewBoost;
-			ViewInfoExtra.ExtraBoostForVisiblePrimitiveFloat = ViewInfo.BoostFactor * OneOverMaxHiddenPrimitiveViewBoost;
-		}
-		else
-		{
-			ViewInfoExtra.ScreenSizeFloat *= ViewInfo.BoostFactor;
-		}
-	}
 
 	BoundsViewInfo.Empty(NumBounds4 * 4);
 	BoundsViewInfo.AddUninitialized(NumBounds4 * 4);
@@ -309,7 +278,7 @@ void FTextureInstanceAsyncView::UpdateBoundSizes_Async(const TArray<FStreamingVi
 
 	for (int32 Bounds4Index = 0; Bounds4Index < NumBounds4; ++Bounds4Index)
 	{
-		const FTextureInstanceView::FBounds4& CurrentBounds4 = View->GetBounds4(Bounds4Index);
+		const FRenderAssetInstanceView::FBounds4& CurrentBounds4 = View->GetBounds4(Bounds4Index);
 
 		// Calculate distance of viewer to bounding sphere.
 		const VectorRegister OriginX = VectorLoadAligned( &CurrentBounds4.OriginX );
@@ -423,18 +392,25 @@ void FTextureInstanceAsyncView::UpdateBoundSizes_Async(const TArray<FStreamingVi
 		}
 	}
 
-	if (Settings.MinLevelTextureScreenSize > 0)
+	if (Settings.MinLevelRenderAssetScreenSize > 0)
 	{
 		float ViewMaxNormalizedSizeResult = VectorGetComponent(ViewMaxNormalizedSize, 0);
 		for (int32 SubIndex = 1; SubIndex < 4; ++SubIndex)
 		{
 			ViewMaxNormalizedSizeResult = FMath::Max(ViewMaxNormalizedSizeResult, VectorGetComponent(ViewMaxNormalizedSize, SubIndex));
 		}
-		MaxLevelTextureScreenSize = View->GetMaxTexelFactor() * ViewMaxNormalizedSizeResult;
+		MaxLevelRenderAssetScreenSize = View->GetMaxTexelFactor() * ViewMaxNormalizedSizeResult;
 	}
 }
 
-void FTextureInstanceAsyncView::ProcessElement(const FBoundsViewInfo& BoundsVieWInfo, float TexelFactor, bool bForceLoad, float& MaxSize, float& MaxSize_VisibleOnly) const
+void FRenderAssetInstanceAsyncView::ProcessElement(
+	typename FStreamingRenderAsset::EAssetType AssetType,
+	const FBoundsViewInfo& BoundsVieWInfo,
+	float TexelFactor,
+	bool bForceLoad,
+	float& MaxSize,
+	float& MaxSize_VisibleOnly,
+	int32& MaxNumForcedLODs) const
 {
 	if (TexelFactor == FLT_MAX) // If this is a forced load component.
 	{
@@ -454,8 +430,17 @@ void FTextureInstanceAsyncView::ProcessElement(const FBoundsViewInfo& BoundsVieW
 	}
 	else // Negative texel factors map to fixed resolution. Currently used for lanscape.
 	{
-		MaxSize = FMath::Max(MaxSize, -TexelFactor);
-		MaxSize_VisibleOnly = FMath::Max(MaxSize_VisibleOnly, -TexelFactor);
+		if (AssetType == FStreamingRenderAsset::AT_Texture)
+		{
+			MaxSize = FMath::Max(MaxSize, -TexelFactor);
+			MaxSize_VisibleOnly = FMath::Max(MaxSize_VisibleOnly, -TexelFactor);
+		}
+		else
+		{
+			check(AssetType == FStreamingRenderAsset::AT_StaticMesh || AssetType == FStreamingRenderAsset::AT_SkeletalMesh);
+			check(-TexelFactor <= MAX_MESH_LOD_COUNT);
+			MaxNumForcedLODs = FMath::Max(MaxNumForcedLODs, static_cast<int32>(-TexelFactor));
+		}
 
 		// Force load will load the immediatly visible part, and later the full texture.
 		if (bForceLoad && (BoundsVieWInfo.MaxNormalizedSize > 0 || BoundsVieWInfo.MaxNormalizedSize_VisibleOnly > 0))
@@ -466,9 +451,18 @@ void FTextureInstanceAsyncView::ProcessElement(const FBoundsViewInfo& BoundsVieW
 	}
 }
 
-void FTextureInstanceAsyncView::GetTexelSize(const UTexture2D* InTexture, float& MaxSize, float& MaxSize_VisibleOnly, const TCHAR* LogPrefix) const
+void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
+	typename FStreamingRenderAsset::EAssetType AssetType,
+	const UStreamableRenderAsset* InAsset,
+	float& MaxSize,
+	float& MaxSize_VisibleOnly,
+	int32& MaxNumForcedLODs,
+	const TCHAR* LogPrefix) const
 {
 	// No need to iterate more if texture is already at maximum resolution.
+	// Meshes don't really fit into the concept of max resolution but current
+	// max_res for texture is 8k which is large enough to let mesh screen
+	// sizes be constrained by this value
 
 	int32 CurrCount = 0;
 
@@ -477,19 +471,26 @@ void FTextureInstanceAsyncView::GetTexelSize(const UTexture2D* InTexture, float&
 		// Use the fast path if available, about twice as fast when there are a lot of elements.
 		if (View->HasCompiledElements() && !LogPrefix)
 		{
-			const TArray<FTextureInstanceView::FCompiledElement>* CompiledElements = View->GetCompiledElements(InTexture);
+			const TArray<FRenderAssetInstanceView::FCompiledElement>* CompiledElements = View->GetCompiledElements(InAsset);
 			if (CompiledElements)
 			{
 				const int32 NumCompiledElements = CompiledElements->Num();
-				const FTextureInstanceView::FCompiledElement* CompiledElementData = CompiledElements->GetData();
+				const FRenderAssetInstanceView::FCompiledElement* CompiledElementData = CompiledElements->GetData();
 
 				int32 CompiledElementIndex = 0;
 				while (CompiledElementIndex < NumCompiledElements && MaxSize_VisibleOnly < MAX_TEXTURE_SIZE)
 				{
-					const FTextureInstanceView::FCompiledElement& CompiledElement = CompiledElementData[CompiledElementIndex];
+					const FRenderAssetInstanceView::FCompiledElement& CompiledElement = CompiledElementData[CompiledElementIndex];
 					if (ensure(BoundsViewInfo.IsValidIndex(CompiledElement.BoundsIndex)))
 					{
-						ProcessElement(BoundsViewInfo[CompiledElement.BoundsIndex], CompiledElement.TexelFactor, CompiledElement.bForceLoad, MaxSize, MaxSize_VisibleOnly);
+						ProcessElement(
+							AssetType,
+							BoundsViewInfo[CompiledElement.BoundsIndex],
+							CompiledElement.TexelFactor,
+							CompiledElement.bForceLoad,
+							MaxSize,
+							MaxSize_VisibleOnly,
+							MaxNumForcedLODs);
 					}
 					++CompiledElementIndex;
 				}
@@ -497,20 +498,20 @@ void FTextureInstanceAsyncView::GetTexelSize(const UTexture2D* InTexture, float&
 				if (MaxSize_VisibleOnly >= MAX_TEXTURE_SIZE && CompiledElementIndex > 1)
 				{
 					// This does not realloc anything but moves the closest element at head, making the next update find it immediately and early exit.
-					FTextureInstanceView::FCompiledElement* SwapElementData = const_cast<FTextureInstanceView::FCompiledElement*>(CompiledElementData);
-					Swap<FTextureInstanceView::FCompiledElement>(SwapElementData[0], SwapElementData[CompiledElementIndex - 1]);
+					FRenderAssetInstanceView::FCompiledElement* SwapElementData = const_cast<FRenderAssetInstanceView::FCompiledElement*>(CompiledElementData);
+					Swap<FRenderAssetInstanceView::FCompiledElement>(SwapElementData[0], SwapElementData[CompiledElementIndex - 1]);
 				}
 			}
 		}
 		else
 		{
-			for (auto It = View->GetElementIterator(InTexture); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It)
+			for (auto It = View->GetElementIterator(InAsset); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It)
 			{
 				// Only handle elements that are in bounds.
 				if (ensure(BoundsViewInfo.IsValidIndex(It.GetBoundsIndex())))
 				{
 					const FBoundsViewInfo& BoundsVieWInfo = BoundsViewInfo[It.GetBoundsIndex()];
-					ProcessElement(BoundsVieWInfo, It.GetTexelFactor(), It.GetForceLoad(), MaxSize, MaxSize_VisibleOnly);
+					ProcessElement(AssetType, BoundsVieWInfo, It.GetTexelFactor(), It.GetForceLoad(), MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs);
 					if (LogPrefix)
 					{
 						It.OutputToLog(BoundsVieWInfo.MaxNormalizedSize, BoundsVieWInfo.MaxNormalizedSize_VisibleOnly, LogPrefix);
@@ -521,7 +522,7 @@ void FTextureInstanceAsyncView::GetTexelSize(const UTexture2D* InTexture, float&
 	}
 }
 
-bool FTextureInstanceAsyncView::HasTextureReferences(const UTexture2D* InTexture) const
+bool FRenderAssetInstanceAsyncView::HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const
 {
-	return View.IsValid() && (bool)View->GetElementIterator(InTexture);
+	return View.IsValid() && (bool)View->GetElementIterator(InAsset);
 }

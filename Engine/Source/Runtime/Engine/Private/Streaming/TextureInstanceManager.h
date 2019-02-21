@@ -10,11 +10,11 @@ TextureInstanceManager.h: Definitions of classes used for texture streaming.
 #include "Streaming/TextureInstanceState.h"
 
 /** An interface to manage the TextureInstanceState from a group of components with similar properties, allowing to add/remove components incrementally and update their content. */
-class ITextureInstanceManager
+class IRenderAssetInstanceManager
 {
 public:
 
-	virtual ~ITextureInstanceManager() {}
+	virtual ~IRenderAssetInstanceManager() {}
 
 	/** Return whether the component is referenced. */
 	virtual bool IsReferenced(const UPrimitiveComponent* Component) const = 0;
@@ -30,13 +30,13 @@ public:
 	virtual EAddComponentResult Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity) = 0;
 
 	/** Remove a component, the RemoveTextures is the list of textures not referred anymore. */
-	virtual void Remove(const UPrimitiveComponent* Component, FRemovedTextureArray* RemovedTextures) = 0;
+	virtual void Remove(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedTextures) = 0;
 
 	/** Notify the manager that an async view will be requested on the next frame. */
 	virtual void PrepareAsyncView() = 0;
 
 	/** Return a view of the data that has to be 100% thread safe. The content is allowed to be updated, but not memory must be reallocated. */
-	virtual const FTextureInstanceView* GetAsyncView(bool bCreateIfNull) = 0;
+	virtual const FRenderAssetInstanceView* GetAsyncView(bool bCreateIfNull) = 0;
 
 	/** Return the size taken for sub-allocation. */
 	virtual uint32 GetAllocatedSize() const = 0;

@@ -603,6 +603,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 		break;
 	//#todo-rco: Temp until we have fully switched to RenderPass system
 	case ERenderTargetStoreAction::ENoAction:
+	case ERenderTargetStoreAction::EMultisampleResolve:
 		OutStoreAction = bRealRenderPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
 		break;
 	default:
@@ -702,6 +703,8 @@ static inline VkFormat UEToVkFormat(EVertexElementType Type)
 		return VK_FORMAT_R32G32B32A32_SFLOAT;
 	case VET_URGB10A2N:
 		return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	case VET_UInt:
+		return VK_FORMAT_R32_UINT;
 	default:
 		break;
 	}

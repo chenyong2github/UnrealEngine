@@ -1060,6 +1060,10 @@ public:
 	UPROPERTY()
 	class UMaterial* ArrowMaterial;
 
+	/** Arrow material instance with yellow color. */
+	UPROPERTY()
+	class UMaterialInstanceDynamic* ArrowMaterialYellow;
+
 	/** @todo document */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath ArrowMaterialName;
@@ -1573,17 +1577,9 @@ public:
 	UPROPERTY(transient)
 	float SelectionHighlightIntensity;
 
-	/** Used to alter the intensity level of the selection highlight on selected mesh sections in mesh editors */
-	UPROPERTY(transient)
-	float SelectionMeshSectionHighlightIntensity;
-
 	/** Used to alter the intensity level of the selection highlight on selected BSP surfaces */
 	UPROPERTY(transient)
 	float BSPSelectionHighlightIntensity;
-
-	/** Used to alter the intensity level of the selection highlight on hovered objects */
-	UPROPERTY(transient)
-	float HoverHighlightIntensity;
 
 	/** Used to alter the intensity level of the selection highlight on selected billboard objects */
 	UPROPERTY(transient)
@@ -2008,7 +2004,6 @@ public:
 	bool HandleProfileGPUHitchesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleShaderComplexityCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleFreezeRenderingCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleShowSelectedLightmapCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleStartFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleStopFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 	bool HandleDumpLevelScriptActorsCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );

@@ -390,8 +390,22 @@ namespace UnrealBuildTool
 				{
 					using(Timeline.ScopeEvent("XmlConfig.ReadConfigFiles()"))
 					{
-						FileReference XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
-						XmlConfig.ReadConfigFiles(XmlConfigCache);
+						string XmlConfigMutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex_XmlConfig", Assembly.GetExecutingAssembly().CodeBase);
+						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
+						{
+							FileReference XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
+							XmlConfig.ReadConfigFiles(XmlConfigCache);
+						}
+					}
+				}
+
+				// Acquire a lock for this branch
+				if((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
+				{
+					using(Timeline.ScopeEvent("SingleInstanceMutex.Acquire()"))
+					{
+						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase);
+						Mutex = new SingleInstanceMutex(MutexName, Options.bWaitMutex);
 					}
 				}
 
@@ -408,16 +422,6 @@ namespace UnrealBuildTool
 					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
 					{
 						UEBuildPlatform.RegisterPlatforms(true);
-					}
-				}
-
-				// Acquire a lock for this branch
-				if((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
-				{
-					using(Timeline.ScopeEvent("SingleInstanceMutex.Acquire()"))
-					{
-						string MutexName = SingleInstanceMutex.GetUniqueMutexForPath("UnrealBuildTool_Mutex", Assembly.GetExecutingAssembly().CodeBase);
-						Mutex = new SingleInstanceMutex(MutexName, Options.bWaitMutex);
 					}
 				}
 
@@ -447,12 +451,6 @@ namespace UnrealBuildTool
 			}
 			finally
 			{
-				// Dispose of the mutex
-				if(Mutex != null)
-				{
-					Mutex.Dispose();
-				}
-
 				// Cancel the prefetcher
 				using(Timeline.ScopeEvent("FileMetadataPrefetch.Stop()"))
 				{
@@ -464,6 +462,12 @@ namespace UnrealBuildTool
 
 				// Make sure we flush the logs however we exit
 				Trace.Close();
+
+				// Dispose of the mutex. Must be done last to ensure that another process does not startup and start trying to write to the same log file.
+				if(Mutex != null)
+				{
+					Mutex.Dispose();
+				}
 			}
 		}
 	}

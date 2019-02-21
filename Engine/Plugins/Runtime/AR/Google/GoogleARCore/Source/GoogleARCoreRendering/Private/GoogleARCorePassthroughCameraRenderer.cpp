@@ -51,20 +51,18 @@ void FGoogleARCorePassthroughCameraRenderer::SetOverlayMaterialInstance(UMateria
 	{
 		OverrideOverlayMaterial = NewMaterialInstance;
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-        UseOverrideOverlayMaterial,
-        FGoogleARCorePassthroughCameraRenderer*, VideoOverlayRendererRHIPtr, this,
-        {
-            VideoOverlayRendererRHIPtr->RenderingOverlayMaterial = VideoOverlayRendererRHIPtr->OverrideOverlayMaterial;
-        });
+		ENQUEUE_RENDER_COMMAND(UseOverrideOverlayMaterial)(
+			[VideoOverlayRendererRHIPtr = this](FRHICommandListImmediate& RHICmdList)
+	        {
+				VideoOverlayRendererRHIPtr->RenderingOverlayMaterial = VideoOverlayRendererRHIPtr->OverrideOverlayMaterial;
+			});
 	}
 }
 
 void FGoogleARCorePassthroughCameraRenderer::ResetOverlayMaterialToDefault()
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-        UseDefaultOverlayMaterial,
-        FGoogleARCorePassthroughCameraRenderer*, VideoOverlayRendererRHIPtr, this,
+	ENQUEUE_RENDER_COMMAND(UseDefaultOverlayMaterial)(
+		[VideoOverlayRendererRHIPtr = this](FRHICommandListImmediate& RHICmdList)
         {
             VideoOverlayRendererRHIPtr->RenderingOverlayMaterial = VideoOverlayRendererRHIPtr->DefaultOverlayMaterial;
         }
@@ -275,7 +273,7 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread(FRH
 
 	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
-		const FMaterial* CameraMaterial = RenderingOverlayMaterial->GetRenderProxy(false)->GetMaterial(FeatureLevel);
+		const FMaterial* CameraMaterial = RenderingOverlayMaterial->GetRenderProxy()->GetMaterial(FeatureLevel);
 		const FMaterialShaderMap* MaterialShaderMap = CameraMaterial->GetRenderingThreadShaderMap();
 
 		FGoogleARCoreCameraOverlayPS* PixelShader = MaterialShaderMap->GetShader<FGoogleARCoreCameraOverlayPS>();
@@ -295,7 +293,7 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlay_RenderThread(FRH
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
 
 		VertexShader->SetParameters(RHICmdList, InView);
-		PixelShader->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy(false));
+		PixelShader->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy());
 
 		FIntPoint ViewSize = InView.UnscaledViewRect.Size();
 

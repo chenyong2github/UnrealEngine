@@ -9,24 +9,8 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraMergeable.h"
+#include "NiagaraGPUSortInfo.h"
 #include "NiagaraRendererProperties.generated.h"
-
-
-UENUM()
-enum class ENiagaraSortMode : uint8
-{
-	/** Perform no additional sorting prior to rendering.*/
-	None,
-	/** Sort by depth to the camera's near plane.*/
-	ViewDepth,
-	/** Sort by distance to the camera's origin.*/
-	ViewDistance,
-	/** Custom sorting according to a per particle attribute. Lower values are rendered before higher values. */
-	CustomAscending,
-	/** Custom sorting according to a per particle attribute. Higher values are rendered before lower values. */
-	CustomDecending,
-};
-
 
 /**
 * Emitter properties base class

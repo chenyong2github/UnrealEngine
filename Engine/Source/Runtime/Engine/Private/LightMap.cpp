@@ -270,7 +270,7 @@ struct FLightMapAllocation
 	{
 		if (InstanceIndex >= 0 && Registry)
 		{
-			FMeshMapBuildData* MeshBuildData = Registry->GetMeshBuildData(MapBuildDataId);
+			FMeshMapBuildData* MeshBuildData = Registry->GetMeshBuildDataDuringBuild(MapBuildDataId);
 			check(MeshBuildData);
 
 			UInstancedStaticMeshComponent* Component = CastChecked<UInstancedStaticMeshComponent>(Primitive);
@@ -283,7 +283,7 @@ struct FLightMapAllocation
 				// Need to create per-LOD instance data to fix that
 				MeshBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias = LightMap->GetCoordinateBias();
 
-				int32 RenderIndex = Component->InstanceReorderTable.IsValidIndex(InstanceIndex) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
+				int32 RenderIndex = (Component->InstanceReorderTable.IsValidIndex(InstanceIndex) && Component->InstanceReorderTable[InstanceIndex] != INDEX_NONE) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
 				Component->InstanceUpdateCmdBuffer.SetLightMapData(RenderIndex, MeshBuildData->PerInstanceLightmapData[InstanceIndex].LightmapUVBias);
 				Component->MarkRenderStateDirty();
 			}
@@ -2228,13 +2228,11 @@ FLightMap2D::FLightMap2D(const TArray<FGuid>& InLightGuids)
 
 const UTexture2D* FLightMap2D::GetTexture(uint32 BasisIndex) const
 {
-	check(IsValid(BasisIndex));
 	return Textures[BasisIndex];
 }
 
 UTexture2D* FLightMap2D::GetTexture(uint32 BasisIndex)
 {
-	check(IsValid(BasisIndex));
 	return Textures[BasisIndex];
 }
 
@@ -2630,4 +2628,24 @@ bool FQuantizedLightmapData::HasNonZeroData() const
 	}
 
 	return false;
+}
+
+void FLightmapResourceCluster::SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)
+{
+	FLightmapResourceCluster* Cluster = this;
+
+	ENQUEUE_RENDER_COMMAND(SetFeatureLevel)(
+		[Cluster, InFeatureLevel](FRHICommandList& RHICmdList)
+	{
+		Cluster->FeatureLevel = InFeatureLevel;
+	});
+}
+
+void FLightmapResourceCluster::InitRHI()
+{
+	FLightmapResourceClusterShaderParameters Parameters;
+	check(FeatureLevel != ERHIFeatureLevel::Num);
+	GetLightmapClusterResourceParameters(FeatureLevel, Input, Parameters);
+
+	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
 }

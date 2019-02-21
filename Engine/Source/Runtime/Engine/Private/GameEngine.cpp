@@ -697,11 +697,7 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 	C_BrushShape = FColor(128, 255, 128, 255);
 
 	SelectionHighlightIntensity = 0.0f;
-#if WITH_EDITOR
-	SelectionMeshSectionHighlightIntensity = 0.2f;
-#endif
 	BSPSelectionHighlightIntensity = 0.0f;
-	HoverHighlightIntensity = 10.f;
 
 	SelectionHighlightIntensityBillboards = 0.25f;
 
@@ -1505,15 +1501,14 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 	// rendering thread commands
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			TickRenderingTimer,
-			bool, bPauseRenderingRealtimeClock, GPauseRenderingRealtimeClock,
-			float, DeltaTime, DeltaSeconds,
+		bool bPauseRenderingRealtimeClock = GPauseRenderingRealtimeClock;
+		ENQUEUE_RENDER_COMMAND(TickRenderingTimer)(
+			[bPauseRenderingRealtimeClock, DeltaSeconds](FRHICommandListImmediate& RHICmdList)
 		{
 			if(!bPauseRenderingRealtimeClock)
 			{
 				// Tick the GRenderingRealtimeClock, unless it's paused
-				GRenderingRealtimeClock.Tick(DeltaTime);
+				GRenderingRealtimeClock.Tick(DeltaSeconds);
 			}
 
 			GetRendererModule().TickRenderTargetPool();

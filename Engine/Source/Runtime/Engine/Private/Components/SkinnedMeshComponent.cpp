@@ -413,6 +413,7 @@ void USkinnedMeshComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 
 FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
 	FSkeletalMeshSceneProxy* Result = nullptr;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
@@ -900,9 +901,9 @@ bool USkinnedMeshComponent::GetMaterialStreamingData(int32 MaterialIndex, FPrimi
 	return MaterialData.IsValid();
 }
 
-void USkinnedMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void USkinnedMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
-	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingTextures);
+	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingRenderAssets);
 }
 
 bool USkinnedMeshComponent::ShouldUpdateBoneVisibility() const
@@ -2166,13 +2167,11 @@ void USkinnedMeshComponent::ShowMaterialSection(int32 MaterialID, bool bShow, in
 		if ( MeshObject )
 		{
 			// need to send render thread for updated hidden section
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FUpdateHiddenSectionCommand, 
-				FSkeletalMeshObject*, MeshObject, MeshObject, 
-				TArray<bool>, HiddenMaterials, HiddenMaterials, 
-				int32, LODIndex, LODIndex,
+			FSkeletalMeshObject* InMeshObject = MeshObject;
+			ENQUEUE_RENDER_COMMAND(FUpdateHiddenSectionCommand)(
+				[InMeshObject, HiddenMaterials, LODIndex](FRHICommandListImmediate& RHICmdList)
 			{
-				MeshObject->SetHiddenMaterials(LODIndex,HiddenMaterials);
+				InMeshObject->SetHiddenMaterials(LODIndex, HiddenMaterials);
 			});
 		}
 	}
@@ -2197,13 +2196,11 @@ void USkinnedMeshComponent::ShowAllMaterialSections(int32 LODIndex)
 			if (MeshObject)
 			{
 				// need to send render thread for updated hidden section
-				ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-					FUpdateHiddenSectionCommand,
-					FSkeletalMeshObject*, MeshObject, MeshObject,
-					TArray<bool>, HiddenMaterials, HiddenMaterials,
-					int32, LODIndex, LODIndex,
+				FSkeletalMeshObject* InMeshObject = MeshObject;
+				ENQUEUE_RENDER_COMMAND(FUpdateHiddenSectionCommand)(
+					[InMeshObject, HiddenMaterials, LODIndex](FRHICommandListImmediate& RHICmdList)
 					{
-						MeshObject->SetHiddenMaterials(LODIndex,HiddenMaterials);
+						InMeshObject->SetHiddenMaterials(LODIndex, HiddenMaterials);
 					});
 			}
 		}

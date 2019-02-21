@@ -123,7 +123,7 @@ public:
 	TRefCountPtr<ID3D11DomainShader> DomainShader;
 	TRefCountPtr<ID3D11GeometryShader> GeometryShader;
 
-	bool bShaderNeedsGlobalConstantBuffer[SF_NumFrequencies];
+	bool bShaderNeedsGlobalConstantBuffer[SF_NumStandardFrequencies];
 
 
 	/** Initialization constructor. */
@@ -816,6 +816,12 @@ public:
 	: View(InView)
 	, Resource(InResource)
 	{}
+
+	void Rename(ID3D11ShaderResourceView* InView, FD3D11BaseShaderResource* InResource)
+	{
+		View = InView;
+		Resource = InResource;
+	}
 };
 
 /** Unordered access view class. */

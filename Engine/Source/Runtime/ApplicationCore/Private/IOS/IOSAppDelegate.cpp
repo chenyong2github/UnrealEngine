@@ -9,6 +9,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "IOS/IOSPlatformMisc.h"
+#include "IOS/IOSBackgroundURLSessionHandler.h"
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/OutputDeviceError.h"
@@ -166,6 +167,8 @@ bool FIOSCoreDelegates::PassesPushNotificationFilters(NSDictionary* Payload)
 @synthesize IdleTimerEnablePeriod;
 
 @synthesize savedOpenUrlParameters;
+
+@synthesize BackgroundSessionEventCompleteDelegate;
 
 -(void)dealloc
 {
@@ -1301,11 +1304,19 @@ extern double GCStartTime;
     completionHandler(UIBackgroundFetchResultNewData);
 }
 
-- (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler
+#endif
+
+#if !PLATFORM_TVOS
+- (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void(^)(void))completionHandler
 {
-    FString Id(identifier);
-    FCoreDelegates::ApplicationBackgroundSessionEventDelegate.Broadcast(Id);
-    completionHandler();
+    //Save off completionHandler so that a future call to FCoreDelegates::ApplicationBackgroundSessionEventsAllSentDelegate can execute it
+    self.BackgroundSessionEventCompleteDelegate = completionHandler;
+    
+    //Create background session with this identifier if needed to handle these events
+	FString Id(identifier);
+	FBackgroundURLSessionHandler::InitBackgroundSession(Id);
+
+	FCoreDelegates::ApplicationBackgroundSessionEventDelegate.Broadcast(Id);
 }
 #endif
 

@@ -14,10 +14,21 @@ SLevelOfDetailBranchNode::SLevelOfDetailBranchNode()
 
 void SLevelOfDetailBranchNode::Construct(const FArguments& InArgs)
 {
+	OnGetActiveDetailSlotContent = InArgs._OnGetActiveDetailSlotContent;
 	ShowLowDetailAttr = InArgs._UseLowDetailSlot;
 	ChildSlotLowDetail = InArgs._LowDetail.Widget;
 	ChildSlotHighDetail = InArgs._HighDetail.Widget;
-	ChildSlot[ChildSlotHighDetail];
+
+	if (OnGetActiveDetailSlotContent.IsBound())
+	{
+		const int32 CurrentValue = ShowLowDetailAttr.Get() ? 1 : 0;
+		ChildSlot[OnGetActiveDetailSlotContent.Execute((CurrentValue != 0) ? false : true)];
+	}
+	else
+	{
+		ChildSlot[ChildSlotHighDetail];
+	}
+
 }
 
 void SLevelOfDetailBranchNode::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -26,9 +37,20 @@ void SLevelOfDetailBranchNode::Tick( const FGeometry& AllottedGeometry, const do
 	if (CurrentValue != LastCachedValue)
 	{
 		LastCachedValue = CurrentValue;
-		ChildSlot
-		[
-			(CurrentValue != 0) ? ChildSlotLowDetail : ChildSlotHighDetail
-		];
+
+		if (OnGetActiveDetailSlotContent.IsBound())
+		{
+			ChildSlot
+			[
+				OnGetActiveDetailSlotContent.Execute((CurrentValue != 0) ? false : true)
+			];
+		}
+		else
+		{
+			ChildSlot
+			[
+				(CurrentValue != 0) ? ChildSlotLowDetail : ChildSlotHighDetail
+			];
+		}
 	}
 }

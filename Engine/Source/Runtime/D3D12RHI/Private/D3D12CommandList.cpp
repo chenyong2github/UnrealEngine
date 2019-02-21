@@ -56,11 +56,31 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	CommandList->QueryInterface(IID_PPV_ARGS(CommandList1.GetInitReference()));
 #endif
 
+#if D3D12_RHI_RAYTRACING
+	// Obtain ID3D12CommandListRaytracingPrototype if parent device supports ray tracing and this is a compatible command list type (compute or graphics).
+	if (ParentDevice->GetRayTracingDevice() && (InCommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || InCommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE))
+	{
+		VERIFYD3D12RESULT(CommandList->QueryInterface(IID_PPV_ARGS(RayTracingCommandList.GetInitReference())));
+	}
+#endif // D3D12_RHI_RAYTRACING
+
 #if NAME_OBJECTS
 	TArray<FStringFormatArg> Args;
 	Args.Add(LexToString(ParentDevice->GetGPUIndex()));
 	FString Name = FString::Format(TEXT("FD3D12CommandListData (GPU {0})"), Args);
 	SetName(CommandList, Name.GetCharArray().GetData());
+#endif
+
+#if NV_AFTERMATH
+	AftermathHandle = nullptr;
+
+	if (GDX12NVAfterMathEnabled)
+	{
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_CreateContextHandle(CommandList, &AftermathHandle);
+
+		check(Result == GFSDK_Aftermath_Result_Success);
+		ParentDevice->GetParentAdapter()->GetGPUProfiler().RegisterCommandList(AftermathHandle);
+	}
 #endif
 
 	// Initially start with all lists closed.  We'll open them as we allocate them.
@@ -73,6 +93,17 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 
 FD3D12CommandListHandle::FD3D12CommandListData::~FD3D12CommandListData()
 {
+#if NV_AFTERMATH
+	if (AftermathHandle)
+	{
+		GetParentDevice()->GetParentAdapter()->GetGPUProfiler().UnregisterCommandList(AftermathHandle);
+
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_ReleaseContextHandle(AftermathHandle);
+
+		check(Result == GFSDK_Aftermath_Result_Success);
+	}
+#endif
+
 	CommandList.SafeRelease();
 	DEC_DWORD_STAT(STAT_D3D12NumCommandLists);
 

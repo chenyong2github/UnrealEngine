@@ -39,7 +39,7 @@ uint32 FMediaTicker::Run()
 {
 	while (!Stopping)
 	{
-		if (WakeupEvent->Wait())
+		if (WakeupEvent->Wait() && !Stopping)
 		{
 			TickTickables();
 			if (!Stopping)
@@ -89,13 +89,13 @@ void FMediaTicker::RemoveTickable(const TSharedRef<IMediaTickable, ESPMode::Thre
 
 void FMediaTicker::TickTickables()
 {
-	TArray<TWeakPtr<IMediaTickable, ESPMode::ThreadSafe>> TickablesCopy;
+	TickablesCopy.Reset();
 	{
 		FScopeLock Lock(&CriticalSection);
 
 		for (int32 TickableIndex = Tickables.Num() - 1; TickableIndex >= 0; --TickableIndex)
 		{
-			auto Tickable = Tickables[TickableIndex].Pin();
+			TSharedPtr<IMediaTickable, ESPMode::ThreadSafe> Tickable = Tickables[TickableIndex].Pin();
 
 			if (Tickable.IsValid())
 			{
@@ -106,22 +106,20 @@ void FMediaTicker::TickTickables()
 				Tickables.RemoveAtSwap(TickableIndex);
 			}
 		}
-	}
 
-	if (TickablesCopy.Num() > 0)
-	{
-		for (auto TickablePtr : TickablesCopy)
+		if (Tickables.Num() == 0)
 		{
-			auto Tickable = TickablePtr.Pin();
-
-			if (Tickable.IsValid())
-			{
-				Tickable->TickTickable();
-			}
+			WakeupEvent->Reset();
 		}
 	}
-	else
+
+	for (int32 i=0; i < TickablesCopy.Num(); ++i)
 	{
-		WakeupEvent->Reset();
+		TSharedPtr<IMediaTickable, ESPMode::ThreadSafe> Tickable = TickablesCopy[i].Pin();
+
+		if (Tickable.IsValid())
+		{
+			Tickable->TickTickable();
+		}
 	}
 }

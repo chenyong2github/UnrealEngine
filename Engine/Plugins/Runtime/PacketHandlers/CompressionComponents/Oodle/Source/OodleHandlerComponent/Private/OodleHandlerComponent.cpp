@@ -304,6 +304,14 @@ OodleHandlerComponent::~OodleHandlerComponent()
 	FreeDictionary(ClientDictionary);
 }
 
+void OodleHandlerComponent::CountBytes(FArchive& Ar) const
+{
+	HandlerComponent::CountBytes(Ar);
+
+	const SIZE_T SizeOfThis = sizeof(*this) - sizeof(HandlerComponent);
+	Ar.CountBytes(SizeOfThis, SizeOfThis);
+}
+
 void OodleHandlerComponent::InitFirstRunConfig()
 {
 	// Check that the OodleHandlerComponent section exists, and if not, init with defaults
@@ -924,8 +932,12 @@ void OodleHandlerComponent::Incoming(FBitReader& Packet)
 			if (bOodleAnalytics && NetAnalyticsData.IsValid())
 			{
 				FOodleAnalyticsVars* AnalyticsVars = NetAnalyticsData->GetLocalData();
+				uint32 PacketSize = Packet.GetBytesLeft();
 
 				AnalyticsVars->InNotCompressedNum++;
+				AnalyticsVars->InCompressedWithOverheadLengthTotal += PacketSize;
+				AnalyticsVars->InCompressedLengthTotal += PacketSize;
+				AnalyticsVars->InDecompressedLengthTotal += PacketSize;
 			}
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
@@ -1047,6 +1059,12 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 					}
 					else
 					{
+						if (AnalyticsVars != nullptr)
+						{
+							AnalyticsVars->OutCompressedLengthTotal += UncompressedBytes;
+							AnalyticsVars->OutCompressedWithOverheadLengthTotal += UncompressedBytes;
+						}
+
 						// @todo #JohnB: Try to eliminate this appBitscpy, by reserving the bCompressedPacket bit and other data,
 						//					at the start of the bit writer
 						Packet.SerializeBits(UncompressedData, UncompressedBits);

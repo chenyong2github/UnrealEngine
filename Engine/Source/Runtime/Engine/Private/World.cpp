@@ -1033,16 +1033,22 @@ void UWorld::SetupParameterCollectionInstances()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(Stat_World_SetupParameterCollectionInstances);
 
-	// Create an instance for each parameter collection in memory
+	// Newly serialized collection instances need to be parented to this world instance.
+	for (int32 InstanceIndex = 0; InstanceIndex < ParameterCollectionInstances.Num(); InstanceIndex++)
+	{
+		ParameterCollectionInstances[InstanceIndex]->SetWorld(this);
+	}
+
+	// Create an instance for each parameter collection in memory that didn't already exist.
 	for (UMaterialParameterCollection* CurrentCollection : TObjectRange<UMaterialParameterCollection>())
 	{
-		AddParameterCollectionInstance(CurrentCollection, false);
+		AddParameterCollectionInstance(CurrentCollection, false /* bUpdateScene */, false /* bOverwriteIfExists */);
 	}
 
 	UpdateParameterCollectionInstances(false);
 }
 
-void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene)
+void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene, bool bOverwriteIfExists)
 {
 	int32 ExistingIndex = INDEX_NONE;
 
@@ -1055,18 +1061,29 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 		}
 	}
 
-	UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
-	NewInstance->SetCollection(Collection, this);
+	const bool bFoundExisting = ExistingIndex != INDEX_NONE;
+	const bool bMakeNewInstance = !bFoundExisting || (bFoundExisting && bOverwriteIfExists);
 
-	if (ExistingIndex != INDEX_NONE)
+	if (bMakeNewInstance)
 	{
-		// Overwrite an existing instance
-		ParameterCollectionInstances[ExistingIndex] = NewInstance;
-	}
-	else
-	{
-		// Add a new instance
-		ParameterCollectionInstances.Add(NewInstance);
+		UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
+		NewInstance->SetCollection(Collection, this);
+
+		if (bFoundExisting)
+		{
+			ParameterCollectionInstances[ExistingIndex] = NewInstance;
+		}
+		else
+		{
+			ParameterCollectionInstances.Add(NewInstance);
+		}
+
+		// Ensure the new instance creates initial render thread resources
+		// This needs to happen right away, so they can be picked up by any cached shader bindings
+		if (NewInstance)
+		{
+			NewInstance->DeferredUpdateRenderState(false);
+		}
 	}
 
 	if (bUpdateScene)
@@ -5085,6 +5102,8 @@ void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response,
 bool UWorld::Listen( FURL& InURL )
 {
 #if WITH_SERVER_CODE
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if( NetDriver )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverAlreadyExists);
@@ -7174,6 +7193,9 @@ void UWorld::RecreateScene(ERHIFeatureLevel::Type InFeatureLevel)
 		Scene->Release();
 		IRendererModule& RendererModule = GetRendererModule();
 		RendererModule.RemoveScene(Scene);
+
+		FRenderResource::ChangeFeatureLevel(InFeatureLevel);
+
 		RendererModule.AllocateScene(this, bRequiresHitProxies, FXSystem != nullptr, InFeatureLevel);
 
 		for (ULevel* Level : Levels)

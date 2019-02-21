@@ -10,6 +10,7 @@
 class Error;
 class GenericApplication;
 class IPlatformChunkInstall;
+class IPlatformInstallBundleManager;
 class IPlatformCompression;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
@@ -846,6 +847,20 @@ public:
 	 * @return	Returns the platform specific chunk based install implementation
 	 */
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
+
+	/**
+	 * Returns the platform specific Install Bundle Manager
+	 *
+	 * @return	Returns the platform specific Install Bundle Manager implementation
+	 */
+	static IPlatformInstallBundleManager* GetPlatformInstallBundleManager();
+
+	/**
+	 * Returns the platform specific compression interface
+	 *
+	 * @return Returns the platform specific compression interface
+	 */
+	static IPlatformCompression* GetPlatformCompression();
 
 	/**
 	 * Has the OS execute a command and path pair (such as launch a browser)

@@ -53,24 +53,22 @@ void FViewportSurfaceReader::Resize(uint32 Width, uint32 Height)
 {
 	ReadbackTexture.SafeRelease();
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-		CreateCaptureFrameTexture,
-		int32, InWidth, Width,
-		int32, InHeight, Height,
-		FViewportSurfaceReader*, This, this,
-	{
-		FRHIResourceCreateInfo CreateInfo;
+	FViewportSurfaceReader* This = this;
+	ENQUEUE_RENDER_COMMAND(CreateCaptureFrameTexture)(
+		[Width, Height, This](FRHICommandListImmediate& RHICmdList)
+		{
+			FRHIResourceCreateInfo CreateInfo;
 
-		This->ReadbackTexture = RHICreateTexture2D(
-			InWidth,
-			InHeight,
-			This->PixelFormat,
-			1,
-			1,
-			TexCreate_CPUReadback,
-			CreateInfo
-			);
-	});
+			This->ReadbackTexture = RHICreateTexture2D(
+				Width,
+				Height,
+				This->PixelFormat,
+				1,
+				1,
+				TexCreate_CPUReadback,
+				CreateInfo
+				);
+		});
 }
 
 void FViewportSurfaceReader::BlockUntilAvailable()
@@ -222,12 +220,10 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 		}
 	};
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		ResolveCaptureFrameTexture,
-		TFunction<void(FRHICommandListImmediate&, FViewportSurfaceReader* InRenderToReadback)>, InRenderCommand, RenderCommand,
-		FViewportSurfaceReader*, InRenderToReadback, RenderToReadback,
+	ENQUEUE_RENDER_COMMAND(ResolveCaptureFrameTexture)(
+		[RenderCommand, RenderToReadback](FRHICommandListImmediate& RHICmdList)
 		{
-			InRenderCommand(RHICmdList, InRenderToReadback);
+			RenderCommand(RHICmdList, RenderToReadback);
 		}
 	);
 }

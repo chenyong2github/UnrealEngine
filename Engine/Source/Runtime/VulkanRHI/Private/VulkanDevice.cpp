@@ -305,7 +305,13 @@ void FVulkanDevice::CreateDevice()
 	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo);
 
 	// Create the device
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device));
+	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
+	if (Result == VK_ERROR_INITIALIZATION_FAILED)
+	{
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Cannot create a Vulkan device. Try updating your video driver to a more recent version.\n"), TEXT("Vulkan device creation failed"));
+		FPlatformMisc::RequestExitWithStatus(true, 1);
+	}
+	VERIFYVULKANRESULT_EXPANDED(Result);
 
 	// Create Graphics Queue, here we submit command buffers for execution
 	GfxQueue = new FVulkanQueue(this, GfxQueueFamilyIndex);
@@ -649,6 +655,18 @@ void FVulkanDevice::SetupFormats()
 			SetComponentMapping(PF_ETC2_RGBA, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
 		}
 	}
+
+	// Verify available Vertex Formats
+	static_assert(VET_None == 0, "Change loop below to skip VET_None");
+	for (int32 Index = (int32)VET_None + 1; Index < VET_MAX; ++Index)
+	{
+		EVertexElementType UEType = (EVertexElementType)Index;
+		VkFormat VulkanFormat = UEToVkFormat(UEType);
+		if (!IsBufferFormatSupported(VulkanFormat))
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("EVertexFormat(%d) is not supported with Vk format %d"), (int32)UEType, (int32)VulkanFormat);
+		}
+	}
 }
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
@@ -674,7 +692,7 @@ void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanForma
 {
 	FPixelFormatInfo& FormatInfo = GPixelFormats[UEFormat];
 	FormatInfo.PlatformFormat = VulkanFormat;
-	FormatInfo.Supported = IsFormatSupported(VulkanFormat);
+	FormatInfo.Supported = IsTextureFormatSupported(VulkanFormat);
 
 	if (!FormatInfo.Supported)
 	{
@@ -744,7 +762,7 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	};
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Device %d: %s"), DeviceIndex, ANSI_TO_TCHAR(GpuProps.deviceName));
-	UE_LOG(LogVulkanRHI, Display, TEXT("- API 0x%x Driver 0x%x VendorId 0x%x"), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
+	UE_LOG(LogVulkanRHI, Display, TEXT("- API %d.%d.%d(0x%x) Driver 0x%x VendorId 0x%x"), VK_VERSION_MAJOR(GpuProps.apiVersion), VK_VERSION_MINOR(GpuProps.apiVersion), VK_VERSION_PATCH(GpuProps.apiVersion), GpuProps.apiVersion, GpuProps.driverVersion, GpuProps.vendorID);
 	UE_LOG(LogVulkanRHI, Display, TEXT("- DeviceID 0x%x Type %s"), GpuProps.deviceID, *GetDeviceTypeString());
 	UE_LOG(LogVulkanRHI, Display, TEXT("- Max Descriptor Sets Bound %d Timestamps %d"), GpuProps.limits.maxBoundDescriptorSets, GpuProps.limits.timestampComputeAndGraphics);
 
@@ -1005,11 +1023,11 @@ void FVulkanDevice::WaitUntilIdle()
 	GetImmediateContext().GetCommandBufferManager()->RefreshFenceStatus();
 }
 
-bool FVulkanDevice::IsFormatSupported(VkFormat Format) const
+bool FVulkanDevice::IsTextureFormatSupported(VkFormat Format) const
 {
 	auto ArePropertiesSupported = [](const VkFormatProperties& Prop) -> bool
 	{
-		return (Prop.bufferFeatures != 0) || (Prop.linearTilingFeatures != 0) || (Prop.optimalTilingFeatures != 0);
+		return (Prop.linearTilingFeatures != 0) || (Prop.optimalTilingFeatures != 0);
 	};
 
 	if (Format >= 0 && Format < VK_FORMAT_RANGE_SIZE)
@@ -1031,6 +1049,34 @@ bool FVulkanDevice::IsFormatSupported(VkFormat Format) const
 	VulkanRHI::vkGetPhysicalDeviceFormatProperties(Gpu, Format, &NewProperties);
 
 	return ArePropertiesSupported(NewProperties);
+}
+
+bool FVulkanDevice::IsBufferFormatSupported(VkFormat Format) const
+{
+	auto ArePropertiesSupported = [](const VkFormatProperties& Prop) -> bool
+	{
+		return (Prop.bufferFeatures != 0);
+	};
+
+	if (Format >= 0 && Format < VK_FORMAT_RANGE_SIZE)
+	{
+		const VkFormatProperties& Prop = FormatProperties[Format];
+		return Prop.bufferFeatures != 0;
+	}
+
+	// Check for extension formats
+	const VkFormatProperties* FoundProperties = ExtensionFormatProperties.Find(Format);
+	if (FoundProperties)
+	{
+		return FoundProperties->bufferFeatures != 0;
+	}
+
+	// Add it for faster caching next time
+	VkFormatProperties& NewProperties = ExtensionFormatProperties.Add(Format);
+	FMemory::Memzero(NewProperties);
+	VulkanRHI::vkGetPhysicalDeviceFormatProperties(Gpu, Format, &NewProperties);
+
+	return NewProperties.bufferFeatures != 0;
 }
 
 const VkComponentMapping& FVulkanDevice::GetFormatComponentMapping(EPixelFormat UEFormat) const

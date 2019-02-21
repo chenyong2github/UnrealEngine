@@ -225,20 +225,15 @@ struct FPropertyRetirement
 
 	FPacketIdRange	OutPacketIdRange;
 
-	uint32			Reliable		: 1;	// Whether it was sent reliably.
-	uint32			CustomDelta		: 1;	// True if this property uses custom delta compression
-	uint32			Config			: 1;
-
 	FPropertyRetirement() :
 #if !UE_BUILD_SHIPPING
 			SanityTag( ExpectedSanityTag ),
 #endif
 			Next( nullptr )
 		,	DynamicState ( nullptr )
-		,   Reliable( 0 )
-		,   CustomDelta( 0 )
-		,	Config( 0 )
 	{}
+
+	void CountBytes(FArchive& Ar) const;
 };
 
 

@@ -454,6 +454,11 @@ public:
 		return Elements.Num();
 	}
 
+	FORCEINLINE int32 GetMaxIndex() const
+	{
+		return Elements.GetMaxIndex();
+	}
+
 	/**
 	 * Checks whether an element id is valid.
 	 * @param Id - The element id to check.
@@ -1221,7 +1226,7 @@ public:
 
 	public:
 		FORCEINLINE TConstIterator(const TSet& InSet)
-			: TBaseIterator<true>(begin(InSet.Elements))
+			: TBaseIterator<true>(InSet.Elements.begin())
 		{
 		}
 	};
@@ -1233,7 +1238,7 @@ public:
 
 	public:
 		FORCEINLINE TIterator(TSet& InSet)
-			: TBaseIterator<false>(begin(InSet.Elements))
+			: TBaseIterator<false>(InSet.Elements.begin())
 			, Set                 (InSet)
 		{
 		}
@@ -1291,15 +1296,15 @@ public:
 		return TConstIterator(*this);
 	}
 
-private:
+public:
 	/**
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
 	 */
-	FORCEINLINE friend TRangedForIterator      begin(      TSet& Set) { return TRangedForIterator     (begin(Set.Elements)); }
-	FORCEINLINE friend TRangedForConstIterator begin(const TSet& Set) { return TRangedForConstIterator(begin(Set.Elements)); }
-	FORCEINLINE friend TRangedForIterator      end  (      TSet& Set) { return TRangedForIterator     (end  (Set.Elements)); }
-	FORCEINLINE friend TRangedForConstIterator end  (const TSet& Set) { return TRangedForConstIterator(end  (Set.Elements)); }
+	FORCEINLINE TRangedForIterator      begin()       { return TRangedForIterator     (Elements.begin()); }
+	FORCEINLINE TRangedForConstIterator begin() const { return TRangedForConstIterator(Elements.begin()); }
+	FORCEINLINE TRangedForIterator      end()         { return TRangedForIterator     (Elements.end());   }
+	FORCEINLINE TRangedForConstIterator end() const   { return TRangedForConstIterator(Elements.end());   }
 };
 
 template<typename ElementType, typename KeyFuncs, typename Allocator>

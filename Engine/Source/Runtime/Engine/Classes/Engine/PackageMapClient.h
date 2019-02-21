@@ -36,27 +36,29 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS	// 4.22, Name, Type
 class ENGINE_API FNetFieldExport
 {
 public:
-	FNetFieldExport() : bExported( false ), Handle( 0 ), CompatibleChecksum( 0 ), bIncompatible( false )
+	FNetFieldExport() : Handle( 0 ), CompatibleChecksum( 0 ), bExported( false ), bDirtyForReplay( true ), bIncompatible( false )
 	{
 	}
 
 	UE_DEPRECATED(4.22, "Type is no longer required, please use other constructor.")
 	FNetFieldExport( const uint32 InHandle, const uint32 InCompatibleChecksum, const FString InName, FString InType ) :
-		bExported( false ),
 		Handle( InHandle ),
 		CompatibleChecksum( InCompatibleChecksum ),
 		ExportName( *InName ),
 		Name( InName ),
 		Type( InType ),
+		bExported( false ),
+		bDirtyForReplay( true ),
 		bIncompatible( false )
 	{
 	}
 
 	FNetFieldExport( const uint32 InHandle, const uint32 InCompatibleChecksum, const FName& InName ) :
-		bExported( false ),
 		Handle( InHandle ),
 		CompatibleChecksum( InCompatibleChecksum ),
 		ExportName( InName ),
+		bExported( false ),
+		bDirtyForReplay( true ),
 		bIncompatible( false )
 	{
 	}
@@ -86,9 +88,19 @@ public:
 			}
 			else
 			{
-				Ar << C.ExportName;
+				if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_NETEXPORT_SERIALIZE_FIX)
+				{
+					Ar << C.ExportName;
+				}
+				else
+				{
+					UPackageMap::StaticSerializeName(Ar, C.ExportName);
+				}
 
-				C.Name = C.ExportName.ToString();
+				if (Ar.IsLoading())
+				{
+					C.Name = C.ExportName.ToString();
+				}
 			}
 		}
 
@@ -97,7 +109,6 @@ public:
 
 	void CountBytes(FArchive& Ar) const;
 
-	bool			bExported;
 	uint32			Handle;
 	uint32			CompatibleChecksum;
 	FName			ExportName;
@@ -105,6 +116,8 @@ public:
 	FString			Name;
 	UE_DEPRECATED(4.22, "Type is deprecated.")
 	FString			Type;
+	bool			bExported;
+	bool			bDirtyForReplay;
 
 	// Transient properties
 	mutable bool	bIncompatible;		// If true, we've already determined that this property isn't compatible. We use this to curb warning spam.
@@ -114,11 +127,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 class ENGINE_API FNetFieldExportGroup
 {
 public:
-	FNetFieldExportGroup() : PathNameIndex( 0 ) { }
+	FNetFieldExportGroup() : PathNameIndex( 0 ), bDirtyForReplay( true ) { }
 
 	FString						PathName;
 	uint32						PathNameIndex;
 	TArray< FNetFieldExport >	NetFieldExports;
+	bool						bDirtyForReplay;
 
 	friend FArchive& operator<<( FArchive& Ar, FNetFieldExportGroup& C )
 	{
@@ -162,7 +176,7 @@ public:
 class FNetGuidCacheObject
 {
 public:
-	FNetGuidCacheObject() : NetworkChecksum( 0 ), ReadOnlyTimestamp( 0 ), bNoLoad( 0 ), bIgnoreWhenMissing( 0 ), bIsPending( 0 ), bIsBroken( 0 )
+	FNetGuidCacheObject() : NetworkChecksum( 0 ), ReadOnlyTimestamp( 0 ), bNoLoad( 0 ), bIgnoreWhenMissing( 0 ), bIsPending( 0 ), bIsBroken( 0 ), bDirtyForReplay( 1 )
 	{
 	}
 
@@ -179,21 +193,31 @@ public:
 	uint8						bIgnoreWhenMissing	: 1;	// Don't warn when this asset can't be found or loaded
 	uint8						bIsPending			: 1;	// This object is waiting to be fully loaded
 	uint8						bIsBroken			: 1;	// If this object failed to load, then we set this to signify that we should stop trying
+	uint8						bDirtyForReplay		: 1;	// If this object has been modified, used by replay checkpoints
 };
+
+enum class EAppendNetExportFlags : uint32
+{
+	None = 0,
+	ForceExportDirtyGroups = (1 << 0),
+};
+
+ENUM_CLASS_FLAGS(EAppendNetExportFlags);
+
 
 class ENGINE_API FNetGUIDCache
 {
 public:
 	FNetGUIDCache( UNetDriver * InDriver );
 
-	enum class ENetworkChecksumMode
+	enum class ENetworkChecksumMode : uint8
 	{
 		None			= 0,		// Don't use checksums
 		SaveAndUse		= 1,		// Save checksums in stream, and use to validate while loading packages
 		SaveButIgnore	= 2,		// Save checksums in stream, but ignore when loading packages
 	};
 
-	enum class EAsyncLoadMode
+	enum class EAsyncLoadMode : uint8
 	{
 		UseCVar			= 0,		// Use CVar (net.AllowAsyncLoading) to determine if we should async load
 		ForceDisable	= 1,		// Disable async loading
@@ -243,14 +267,14 @@ public:
 	TSet< FNetworkGUID >							ImportedNetGuids;
 	TMap< FNetworkGUID, TSet< FNetworkGUID > >		PendingOuterNetGuids;
 
-	bool											IsExportingNetGUIDBunch;
-
 	UNetDriver *									Driver;
 
 	TMap< FName, FNetworkGUID >						PendingAsyncPackages;
 
 	ENetworkChecksumMode							NetworkChecksumMode;
 	EAsyncLoadMode									AsyncLoadMode;
+
+	bool											IsExportingNetGUIDBunch;
 
 private:
 
@@ -270,6 +294,9 @@ private:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 public:
+
+	static const bool IsHistoryEnabled();
+
 	// History for debugging entries in the guid cache
 	TMap<FNetworkGUID, FString>						History;
 private:
@@ -377,6 +404,7 @@ public:
 	void								TrackNetFieldExport( FNetFieldExportGroup* NetFieldExportGroup, const int32 NetFieldExportHandle );
 	TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroupChecked( const FString& PathName ) const;
 	void								SerializeNetFieldExportGroupMap( FArchive& Ar, bool bClearPendingExports=true );
+	void								SerializeNetFieldExportDelta(FArchive& Ar);
 
 	TUniquePtr<TGuardValue<bool>> ScopedIgnoreReceivedExportGUIDs()
 	{
@@ -390,6 +418,8 @@ protected:
 	/** Functions to help with exporting/importing net field export info */
 	void AppendNetFieldExports( FArchive& Archive );
 	void ReceiveNetFieldExports( FArchive& Archive );
+
+	void AppendNetFieldExportsInternal( FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags );
 
 	void AppendNetExportGUIDs( FArchive& Archive );
 	void ReceiveNetExportGUIDs( FArchive& Archive );
@@ -434,6 +464,7 @@ protected:
 	TSet< uint64 >						NetFieldExports;
 
 private:
+	void ReceiveNetFieldExportsCompat(FInBunch& InBunch);
 
 	bool bIgnoreReceivedExportGUIDs;
 };

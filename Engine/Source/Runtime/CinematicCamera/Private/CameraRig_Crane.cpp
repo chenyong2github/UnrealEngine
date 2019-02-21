@@ -51,7 +51,6 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneBase->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			PreviewMesh_CraneBase->bHiddenInGame = true;
 			PreviewMesh_CraneBase->CastShadow = false;
-			PreviewMesh_CraneBase->PostPhysicsComponentTick.bCanEverTick = false;
 
 			PreviewMesh_CraneBase->SetupAttachment(TransformComponent);		// sibling of yawcontrol
 		}
@@ -65,7 +64,6 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneArm->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			PreviewMesh_CraneArm->bHiddenInGame = true;
 			PreviewMesh_CraneArm->CastShadow = false;
-			PreviewMesh_CraneArm->PostPhysicsComponentTick.bCanEverTick = false;
 			
 			PreviewMesh_CraneArm->SetupAttachment(CranePitchControl);		// sibling of the mount
 			PreviewMesh_CraneArm->RelativeRotation = FRotator(0.f, 90.f, 0.f);
@@ -82,7 +80,6 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneMount->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			PreviewMesh_CraneMount->bHiddenInGame = true;
 			PreviewMesh_CraneMount->CastShadow = false;
-			PreviewMesh_CraneMount->PostPhysicsComponentTick.bCanEverTick = false;
 
 			PreviewMesh_CraneMount->SetupAttachment(CranePitchControl);
 			PreviewMesh_CraneMount->RelativeRotation = FRotator(0.f, 90.f, 0.f);
@@ -99,7 +96,6 @@ ACameraRig_Crane::ACameraRig_Crane(const FObjectInitializer& ObjectInitializer)
 			PreviewMesh_CraneCounterWeight->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			PreviewMesh_CraneCounterWeight->bHiddenInGame = true;
 			PreviewMesh_CraneCounterWeight->CastShadow = false;
-			PreviewMesh_CraneCounterWeight->PostPhysicsComponentTick.bCanEverTick = false;
 
 			PreviewMesh_CraneCounterWeight->SetupAttachment(CranePitchControl);
 			PreviewMesh_CraneCounterWeight->RelativeRotation = FRotator(0.f, 90.f, 0.f);

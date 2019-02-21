@@ -110,7 +110,14 @@ public:
 		{
 #if PLATFORM_WINDOWS
 
-			APISetup.LoadDLL(TEXT("ml_remote"));
+			const bool bLoadedRemoteDLL = APISetup.LoadDLL(TEXT("ml_remote"));
+			if (!bLoadedRemoteDLL)
+			{
+				// Bail early, because we'll eventually die later.
+				UE_LOG(LogMagicLeap, Warning, TEXT("VDZI enabled, but can't load the ml_remote DLL.  Is your MLSDK directory set up properly?"));
+				bIsVDZIEnabled = false;
+			}
+			
 			FString CommandLine = FCommandLine::Get();
 			const FString GLFlag(" -opengl4 ");
 			const FString VKFlag(" -vulkan ");
@@ -165,7 +172,16 @@ public:
 	/** IHeadMountedDisplayModule implementation */
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override
 	{
+#if !PLATFORM_LUMIN
+		// Early out if VDZI is not enabled on non-Lumin platforms.  We don't want it reporting as available when no MLSDK is present
+		if (!bIsVDZIEnabled)
+		{
+			return nullptr;
+		}
+#endif //PLATFORM_LUMIN
+		
 		TSharedPtr<FMagicLeapHMD, ESPMode::ThreadSafe> LocalHMD;
+
 #if !PLATFORM_MAC
 		if (HMD.IsValid())
 		{
@@ -206,7 +222,7 @@ public:
 		{
 			TSharedPtr<FMagicLeapHMD, ESPMode::ThreadSafe> hmd = StaticCastSharedPtr<FMagicLeapHMD>(GEngine->XRSystem);
 			// IsHMDConnected() is an expensive call when MLRemote is enabled, so we'll keep the onus of that check on the caller.
-			return hmd.IsValid();
+			return hmd.IsValid() && hmd->IsVDZIEnabled();
 		}
 		return false;
 #endif // PLATFORM_LUMIN
@@ -230,6 +246,14 @@ public:
 
 	virtual TSharedPtr<IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe> GetVulkanExtensions() override
 	{
+#if !PLATFORM_LUMIN
+		// Check to see if VDZI is enabled, and abort if not.  We shouldn't modify the extensions if we're not active
+		if (!bIsVDZIEnabled)
+		{
+			return nullptr;
+		}
+#endif //PLATFORM_LUMIN
+
 #if PLATFORM_WINDOWS || PLATFORM_LUMIN
 		if (!VulkanExtensions.IsValid())
 		{
@@ -1134,8 +1158,9 @@ void FMagicLeapHMD::Startup()
 
 void FMagicLeapHMD::Shutdown()
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(ShutdownRen,
-		FMagicLeapHMD*, Plugin, this,
+	FMagicLeapHMD* Plugin = this;
+	ENQUEUE_RENDER_COMMAND(ShutdownRendering)(
+		[Plugin](FRHICommandListImmediate& RHICmdList)
 		{
 			Plugin->ShutdownRendering();
 		});
@@ -1340,7 +1365,7 @@ void FMagicLeapHMD::InitDevice_RenderThread()
 		{
 #if PLATFORM_WINDOWS || PLATFORM_LUMIN
 			static const auto* VulkanRHIThread = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Vulkan.RHIThread"));
-			UE_LOG(LogMagicLeap, Warning, TEXT("r.Vulkan.RHIThread=%d"), VulkanRHIThread->GetValueOnAnyThread());
+			UE_LOG(LogMagicLeap, Log, TEXT("RHI Thread Usage (r.Vulkan.RHIThread)=%d"), VulkanRHIThread->GetValueOnAnyThread());
 
 			bQueuedGraphicsCreateCall = true;
 
@@ -1470,8 +1495,9 @@ void FMagicLeapHMD::ReleaseDevice()
 	// save any runtime configuration changes to the .ini
 	SaveToIni();
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(ReleaseDevice_RT,
-		FMagicLeapHMD*, Plugin, this,
+	FMagicLeapHMD* Plugin = this;
+	ENQUEUE_RENDER_COMMAND(ReleaseDevice_RT)(
+		[Plugin](FRHICommandListImmediate& RHICmdList)
 		{
 			Plugin->ReleaseDevice_RenderThread();
 		}

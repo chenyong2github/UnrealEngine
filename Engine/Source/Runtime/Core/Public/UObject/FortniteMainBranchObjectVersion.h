@@ -84,6 +84,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// HUDWidgets now require an element tag
 		FortHUDElementNowRequiresTag,
 
+		// Animation saved as bulk data when cooked
+		FortMappedCookedAnimation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

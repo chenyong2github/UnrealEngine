@@ -34,10 +34,12 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript_ResetAfter"), STAT_Nia
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+, bFixedBounds(false)
 , ExposedParameters(this)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
 #endif
+, FixedBounds(FBox(FVector(-100), FVector(100)))
 , bAutoDeactivate(true)
 , WarmupTime(0.0f)
 , WarmupTickCount(0)
@@ -555,6 +557,11 @@ bool UNiagaraSystem::HasSystemScriptDIsWithPerInstanceData() const
 const TArray<FName>& UNiagaraSystem::GetUserDINamesReadInSystemScripts() const
 {
 	return UserDINamesReadInSystemScripts;
+}
+
+FBox UNiagaraSystem::GetFixedBounds() const
+{
+	return FixedBounds;
 }
 
 void CheckDICompileInfo(const TArray<FNiagaraScriptDataInterfaceCompileInfo>& ScriptDICompileInfos, bool& bOutbHasSystemDIsWithPerInstanceData, TArray<FName>& OutUserDINamesReadInSystemScripts)

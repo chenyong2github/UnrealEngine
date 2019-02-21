@@ -11,6 +11,14 @@
 #include "PixelFormat.h"
 #include "HAL/IConsoleManager.h"
 
+#ifndef RHI_RAYTRACING
+#if (PLATFORM_WINDOWS && PLATFORM_64BITS)
+	#define RHI_RAYTRACING 1
+#else
+	#define RHI_RAYTRACING 0
+#endif
+#endif
+
 enum EShaderFrequency
 {
 	SF_Vertex			= 0,
@@ -20,9 +28,15 @@ enum EShaderFrequency
 	SF_Geometry			= 4,
 	SF_Compute			= 5,
 
-	SF_NumFrequencies	= 6,
+	// Number of standard SM5-style graphics pipeline shader frequencies
+	SF_NumStandardFrequencies = 6,
 
-	SF_NumBits			= 3,
+	SF_RayGen			= 6,
+	SF_RayMiss			= 7,
+	SF_RayHitGroup		= 8,
+
+	SF_NumFrequencies	= 9,
+	SF_NumBits			= 4,
 };
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
 
@@ -83,6 +97,9 @@ enum ERenderQueryType
 
 /** Maximum number of miplevels in a texture. */
 enum { MAX_TEXTURE_MIP_COUNT = 14 };
+
+/** Maximum number of static/skeletal mesh LODs */
+enum { MAX_MESH_LOD_COUNT = 8 };
 
 /** Maximum number of immutable samplers in a PSO. */
 enum
@@ -353,6 +370,7 @@ enum EVertexElementType
 	VET_UShort2N,		// 16 bit word normalized to (value/65535.0,value/65535.0,0,0,1)
 	VET_UShort4N,		// 4 X 16 bit word unsigned, normalized 
 	VET_URGB10A2N,		// 10 bit r, g, b and 2 bit a normalized to (value/1023.0f, value/1023.0f, value/1023.0f, value/3.0f)
+	VET_UInt,
 	VET_MAX,
 
 	VET_NumBits = 5,
@@ -380,8 +398,14 @@ enum EUniformBufferUsage
 	UniformBuffer_MultiFrame,
 };
 
+enum class EUniformBufferValidation
+{
+	None,
+	ValidateResources
+};
+
 /** The base type of a value in a uniform buffer. */
-enum EUniformBufferBaseType
+enum EUniformBufferBaseType : uint8
 {
 	UBMT_INVALID,
 
@@ -391,18 +415,18 @@ enum EUniformBufferBaseType
 	UBMT_UINT32,
 	UBMT_FLOAT32,
 
-	// Untracked resources.
+	// RHI resources not tracked by render graph.
 	UBMT_TEXTURE,
 	UBMT_SRV,
 	UBMT_SAMPLER,
 
-	// Render graph tracked resources.
-	UBMT_GRAPH_TRACKED_TEXTURE,
-	UBMT_GRAPH_TRACKED_SRV,
-	UBMT_GRAPH_TRACKED_UAV,
-	UBMT_GRAPH_TRACKED_BUFFER,
-	UBMT_GRAPH_TRACKED_BUFFER_SRV,
-	UBMT_GRAPH_TRACKED_BUFFER_UAV,
+	// Resources tracked by render graph.
+	UBMT_RDG_TEXTURE,
+	UBMT_RDG_TEXTURE_SRV,
+	UBMT_RDG_TEXTURE_UAV,
+	UBMT_RDG_BUFFER,
+	UBMT_RDG_BUFFER_SRV,
+	UBMT_RDG_BUFFER_UAV,
 
 	// Nested structure.
 	UBMT_NESTED_STRUCT,
@@ -625,6 +649,13 @@ enum EBufferUsageFlags
 	/** Buffer that should be accessed one byte at a time. */
 	BUF_UINT8             = 0x4000,
 
+	/**
+	 * Buffer contains opaque ray tracing acceleration structure data.
+	 * Resources with this flag can't be bound directly to any shader stage and only can be used with ray tracing APIs.
+	 * This flag is mutually exclusive with all other buffer flags except BUF_Static.
+	*/
+	BUF_AccelerationStructure = 0x8000,
+
 	// Helper bit-masks
 	BUF_AnyDynamic = (BUF_Dynamic | BUF_Volatile),
 };
@@ -683,7 +714,7 @@ enum ETextureCreateFlags
 	TexCreate_CPUWritable			= 1<<5,
 	// Texture will be created with an un-tiled format
 	TexCreate_NoTiling				= 1<<6,
-	// Texture will be used for video decode on Switch
+	// Texture will be used for video decode
 	TexCreate_VideoDecode			= 1<<7,
 	// Texture that may be updated every frame
 	TexCreate_Dynamic				= 1<<8,
@@ -1044,7 +1075,7 @@ inline bool RHINeedsToSwitchVerticalAxis(EShaderPlatform Platform)
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const EShaderPlatform Platform)
 {
 	// Metal mobile devices, Vulkan and Android ES2/3.1 need to handle MSAA and resolve textures internally (unless RHICreateTexture2D was changed to take an optional resolve target)
-	const bool bMobileMetalDevice = (Platform == SP_METAL || Platform == SP_METAL_TVOS || Platform == SP_METAL_MRT || Platform == SP_METAL_MRT_TVOS);
+	const bool bMobileMetalDevice = (Platform == SP_METAL || Platform == SP_METAL_TVOS);
 	return !bMobileMetalDevice && !IsVulkanPlatform(Platform) && !IsAndroidOpenGLESPlatform(Platform);
 }
 
@@ -1080,6 +1111,11 @@ inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)
 	return IsMetalPlatform(Platform);
 }
 
+inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
+{
+	return !IsMobilePlatform(Platform);
+}
+
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
@@ -1113,35 +1149,42 @@ inline int32 GetFeatureLevelMaxNumberOfBones(ERHIFeatureLevel::Type FeatureLevel
 	return 0;
 }
 
-inline bool IsUniformBufferResourceType(EUniformBufferBaseType BaseType)
+/** Returns whether the shader parameter type is a reference onto a RDG resource. */
+inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType BaseType)
 {
 	return
+		BaseType == UBMT_RDG_TEXTURE ||
+		BaseType == UBMT_RDG_TEXTURE_SRV ||
+		BaseType == UBMT_RDG_TEXTURE_UAV ||
+		BaseType == UBMT_RDG_BUFFER ||
+		BaseType == UBMT_RDG_BUFFER_SRV ||
+		BaseType == UBMT_RDG_BUFFER_UAV;
+}
+
+/** Returns whether the shader parameter type needs to be passdown to RHI through FRHIUniformBufferLayout when creating an uniform buffer. */
+inline bool IsShaderParameterTypeForUniformBufferLayout(EUniformBufferBaseType BaseType)
+{
+	return
+		// RHI resource referenced in shader parameter structures.
 		BaseType == UBMT_TEXTURE ||
 		BaseType == UBMT_SRV ||
 		BaseType == UBMT_SAMPLER ||
-		BaseType == UBMT_GRAPH_TRACKED_TEXTURE ||
-		BaseType == UBMT_GRAPH_TRACKED_SRV ||
-		BaseType == UBMT_GRAPH_TRACKED_UAV ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER_SRV ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER_UAV ||
+
+		// RHI is able to dereference the RHI resource allocated in FRDGResource::CachedRHI to avoid pain in the high level to passdown.
+		IsRDGResourceReferenceShaderParameterType(BaseType) ||
+
+		// #yuriy_todo: RHI is able to dereference uniform buffer in root shader parameter structures
+		// BaseType == UBMT_REFERENCED_STRUCT ||
+
+		// Render graph uses FRHIUniformBufferLayout to walk pass' parameters.
 		BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS;
 }
 
-inline bool IsUniformBufferResourceTypeIgnoreByRHI(EUniformBufferBaseType BaseType)
+/** Returns whether the shader parameter type in FRHIUniformBufferLayout is actually ignored by the RHI. */
+inline bool IsShaderParameterTypeIgnoredByRHI(EUniformBufferBaseType BaseType)
 {
+	// Render targets bindings slots needs to be in FRHIUniformBufferLayout for render graph, but the RHI does not actually need to know about it.
 	return BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS;
-}
-
-inline bool IsUniformBufferResourceIndirectionType(EUniformBufferBaseType BaseType)
-{
-	return
-		BaseType == UBMT_GRAPH_TRACKED_TEXTURE ||
-		BaseType == UBMT_GRAPH_TRACKED_SRV ||
-		BaseType == UBMT_GRAPH_TRACKED_UAV ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER_SRV ||
-		BaseType == UBMT_GRAPH_TRACKED_BUFFER_UAV;
 }
 
 inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bIncludePrefix = true)
@@ -1155,7 +1198,11 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	case SF_Geometry:		String = TEXT("SF_Geometry"); break;
 	case SF_Pixel:			String = TEXT("SF_Pixel"); break;
 	case SF_Compute:		String = TEXT("SF_Compute"); break;
-	default:				
+	case SF_RayGen:			String = TEXT("SF_RayGen"); break;
+	case SF_RayMiss:		String = TEXT("SF_RayMiss"); break;
+	case SF_RayHitGroup:	String = TEXT("SF_RayHitGroup"); break;
+
+	default:
 		checkf(0, TEXT("Unknown ShaderFrequency %d"), (int32)Frequency);
 		break;
 	}
@@ -1165,3 +1212,15 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	String += Index;
 	return String;
 };
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
+#else
+	#define GEOMETRY_SHADER(GeometryShader)	nullptr
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define TESSELLATION_SHADER(HullOrDomainShader)	(HullOrDomainShader)
+#else
+	#define TESSELLATION_SHADER(HullOrDomainShader)	nullptr
+#endif

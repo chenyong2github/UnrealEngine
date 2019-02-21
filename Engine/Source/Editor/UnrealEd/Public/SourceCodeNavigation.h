@@ -76,7 +76,7 @@ public:
 	* Determines whether it is possible to navigate to the UFunction using this handler.
 	*
 	* @param	InFunction		Function to inspect
-	* @return					True if the class can be handled by this handler.
+	* @return					True if the function can be handled by this handler.
 	*/
 	virtual bool CanNavigateToFunction(const UFunction* InFunction) { return false; };
 
@@ -92,7 +92,7 @@ public:
 	* Determines whether it is possible to navigate to the UProperty using this handler.
 	*
 	* @param	InProperty		Property to inspect
-	* @return					True if the class can be handled by this handler.
+	* @return					True if the property can be handled by this handler.
 	*/
 	virtual bool CanNavigateToProperty(const UProperty* InProperty) { return false; };
 
@@ -103,6 +103,22 @@ public:
 	* @return					True if the property can be handled by this handler.
 	*/
 	virtual bool NavigateToProperty(const UProperty* InProperty) { return false; };
+
+	/**
+	* Determines whether it is possible to navigate to the UStruct using this handler.
+	*
+	* @param	InStruct		Struct to inspect
+	* @return					True if the struct can be handled by this handler.
+	*/
+	virtual bool CanNavigateToStruct(const UStruct* InStruct) { return false; };
+
+	/**
+	* Asynchronously navigates to a UStruct in an IDE or text editor.
+	*
+	* @param	InStruct		Struct in which to navigate.
+	* @return					True if the struct can be handled by this handler.
+	*/
+	virtual bool NavigateToStruct(const UStruct* InStruct) { return false; };
 };
 
 /**
@@ -240,6 +256,22 @@ public:
 	 * @return					Whether the navigation was successful or not
 	 */
 	UNREALED_API static bool NavigateToProperty(const UProperty* InProperty);
+
+	/**
+	 * Determines whether it is possible to navigate to the UStruct in the IDE
+	 *
+	 * @param	InStruct		UStruct to navigate to in source code
+	 * @return					Whether the navigation is likely to be successful or not
+ 	 */
+	UNREALED_API static bool CanNavigateToStruct(const UStruct* InStruct);
+
+	/**
+	 * Navigates asynchronously to the UStruct in the IDE
+	 *
+	 * @param	InStruct		UStruct to navigate to in source code
+	 * @return					Whether the navigation was successful or not
+	 */
+	UNREALED_API static bool NavigateToStruct(const UStruct* InStruct);
 
 	/** Delegate that's triggered when any symbol query has completed */
 	DECLARE_MULTICAST_DELEGATE( FOnSymbolQueryFinished );

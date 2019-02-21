@@ -16,6 +16,9 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/DebugSerializationFlags.h"
 #include "Serialization/AsyncLoadingPrivate.h"
+#include "Async/MappedFileHandle.h"
+#include "HAL/PlatformFilemanager.h"
+#include "UObject/UObjectThreadContext.h"
 
 /*-----------------------------------------------------------------------------
 	Constructors and operators
@@ -91,6 +94,65 @@ uint32 GetTypeHash( const FUntypedBulkData* BulkData )
 
 #endif
 
+
+FOwnedBulkDataPtr::~FOwnedBulkDataPtr()
+{
+	if (AllocatedData)
+	{
+		FMemory::Free(AllocatedData);
+	}
+	else
+	{
+		if (MappedRegion || MappedHandle)
+		{
+			delete MappedRegion;
+			delete MappedHandle;
+		}
+	}
+}
+
+const void* FOwnedBulkDataPtr::GetPointer()
+{
+	// return the pointer that the caller can use
+	return AllocatedData ? AllocatedData : (MappedRegion ? MappedRegion->GetMappedPtr() : nullptr);
+}
+
+bool FUntypedBulkData::FAllocatedPtr::MapFile(const TCHAR *InFilename, int64 Offset, int64 Size)
+{
+	check(!MappedHandle && !MappedRegion); // It doesn't make sense to do this twice, but if need be, not hard to do
+
+	MappedHandle = FPlatformFileManager::Get().GetPlatformFile().OpenMapped(InFilename);
+
+	if (!MappedHandle)
+	{
+		return false;
+	}
+	MappedRegion = MappedHandle->MapRegion(Offset, Size, true); //@todo we really don't want to hit the disk here to bring it into memory
+	if (!MappedRegion)
+	{
+		delete MappedHandle;
+		MappedHandle = nullptr;
+		return false;
+	}
+
+	check(Size == MappedRegion->GetMappedSize());
+	Ptr = (void*)(MappedRegion->GetMappedPtr()); //@todo mapped files should probably be const-correct
+	check(IsAligned(Ptr, FPlatformProperties::GetMemoryMappingAlignment()));
+	bAllocated = true;
+	return true;
+}
+
+void FUntypedBulkData::FAllocatedPtr::UnmapFile()
+{
+	if (MappedRegion || MappedHandle)
+	{
+		delete MappedRegion;
+		delete MappedHandle;
+		MappedRegion = nullptr;
+		MappedHandle = nullptr;
+		Ptr = nullptr; // make sure we don't try to free this pointer
+	}
+}
 
 /**
  * Constructor, initializing all member variables.
@@ -789,18 +851,13 @@ bool FUntypedBulkData::ShouldStreamBulkData()
 		GMinimumBulkDataSizeForAsyncLoading >= 0);
 }
 
-/**
-* Serialize function used to serialize this bulk data structure.
-*
-* @param Ar	Archive to serialize with
-* @param Owner	Object owning the bulk data
-* @param Idx	Index of bulk data item being serialized
-*/
-void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx )
+void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
 
 	check( LockStatus == LOCKSTATUS_Unlocked );
+
+	check(!bAttemptFileMapping || Ar.IsLoading()); // makes no sense to map unless we are loading
 
 	if(Ar.IsTransacting())
 	{
@@ -924,10 +981,32 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx )
 					}
 					else
 					{
-						// Force non-lazy loading of inline bulk data to prevent PostLoad spikes.
-						BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
-						// if the payload is stored inline, just serialize it
-						SerializeBulkData(Ar, BulkData.Get());
+						bool bWasMapped = false;
+						if (bAttemptFileMapping)
+						{
+							UE_LOG(LogSerialization, Error, TEXT("Attempt to file map inline bulk data. This is not desireable. File %s"), *Filename);
+
+							if (GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))
+							{
+								BulkDataOffsetInFile -= IFileManager::Get().FileSize(*Filename);
+								check(BulkDataOffsetInFile >= 0);
+								Filename = FPaths::GetBaseFilename(Filename, false) + TEXT(".uexp");
+							}
+							bWasMapped = BulkData.MapFile(*Filename, BulkDataOffsetInFile, GetBulkDataSize());
+						}
+						if (bWasMapped)
+						{
+							// we need to seek past the inline bulk data 
+							// @todo, we really don't want to do this with inline data
+							Ar.Seek(Ar.Tell() + GetBulkDataSize());
+						}
+						else
+						{
+							// Force non-lazy loading of inline bulk data to prevent PostLoad spikes.
+							BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
+							// if the payload is stored inline, just serialize it
+							SerializeBulkData(Ar, BulkData.Get());
+						}
 					}
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
@@ -936,9 +1015,27 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx )
 				}
 				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 				{
-					Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+					{
+						Filename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+					}
+					else
+					{
+						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+					}
+
+
+					if (bAttemptFileMapping)
+					{
+						check(!FPlatformProperties::GetMemoryMappingAlignment() || IsAligned(BulkDataOffsetInFile, FPlatformProperties::GetMemoryMappingAlignment()));
+						bool bWasMapped = BulkData.MapFile(*Filename, BulkDataOffsetInFile, GetBulkDataSize());
+						if (!bWasMapped)
+						{
+							// we failed to map when requested, so they will be looking for the memory, do a sync load now.
+							ForceBulkDataResident();
+						}
+					}
 				}
-				
 			}
 			// Serialize the bulk data right away.
 			else
@@ -1409,7 +1506,15 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
 		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.
-		const FString BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+		FString BulkDataFilename;
+		if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+		{
+			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+		}
+		else
+		{
+			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+		}
 		BulkDataArchive = IFileManager::Get().CreateFileReader(*BulkDataFilename, FILEREAD_Silent);
 	}
 
@@ -1610,7 +1715,7 @@ void FFloatBulkData::SerializeElement( FArchive& Ar, void* Data, int32 ElementIn
 	Ar << FloatData;
 }
 
-void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment)
+void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment, bool bInline, bool bMapped)
 {
 	if (Ar.IsLoading())
 	{
@@ -1651,7 +1756,25 @@ void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FNam
 				Ar << Name;
 				// Force this kind of bulk data (physics, etc) to be stored inline for streaming
 				const uint32 OldBulkDataFlags = Bulk->GetBulkDataFlags();
-				Bulk->SetBulkDataFlags(bSingleUse ? (BULKDATA_ForceInlinePayload | BULKDATA_SingleUse) : BULKDATA_ForceInlinePayload);				
+				if (bInline)
+				{
+					Bulk->SetBulkDataFlags(BULKDATA_ForceInlinePayload);
+					Bulk->ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
+				}
+				else
+				{
+					Bulk->SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+					if (bMapped)
+					{
+						Bulk->SetBulkDataFlags(BULKDATA_MemoryMappedPayload);
+					}
+					Bulk->ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
+
+				}
+				if (bSingleUse)
+				{
+					Bulk->SetBulkDataFlags(BULKDATA_SingleUse);
+				}
 				Bulk->Serialize(Ar, Owner);
 				Bulk->ClearBulkDataFlags(0xFFFFFFFF);
 				Bulk->SetBulkDataFlags(OldBulkDataFlags);
@@ -1661,4 +1784,17 @@ void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FNam
 	}
 }
 
+void FFormatContainer::SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner)
+{
+	check(Ar.IsLoading());
+	int32 NumFormats = 0;
+	Ar << NumFormats;
+	for (int32 Index = 0; Index < NumFormats; Index++)
+	{
+		FName Name;
+		Ar << Name;
+		FByteBulkData& Bulk = GetFormat(Name);
+		Bulk.Serialize(Ar, Owner, -1, true);
+	}
+}
 

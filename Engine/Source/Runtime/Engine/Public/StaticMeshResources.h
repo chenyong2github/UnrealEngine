@@ -46,6 +46,7 @@ class UBodySetup;
 #define STATICMESH_ENABLE_DEBUG_RENDERING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
 
 struct FStaticMaterial;
+struct FStaticMeshBuffersSize;
 
 /**
  * The LOD settings to use for a group of static meshes.
@@ -56,8 +57,10 @@ public:
 	/** Default values. */
 	FStaticMeshLODGroup()
 		: DefaultNumLODs(1)
+		, DefaultMaxNumStreamedLODs(0)
 		, DefaultLightMapResolution(64)
 		, BasePercentTrianglesMult(1.0f)
+		, bSupportLODStreaming(false)
 		, DisplayName( NSLOCTEXT( "UnrealEd", "None", "None" ) )
 	{
 		FMemory::Memzero(SettingsBias);
@@ -70,10 +73,22 @@ public:
 		return DefaultNumLODs;
 	}
 
+	/** Returns the default maximum of streamed LODs */
+	int32 GetDefaultMaxNumStreamedLODs() const
+	{
+		return DefaultMaxNumStreamedLODs;
+	}
+
 	/** Returns the default lightmap resolution. */
 	int32 GetDefaultLightMapResolution() const
 	{
 		return DefaultLightMapResolution;
+	}
+
+	/** Returns whether this LOD group supports LOD streaming. */
+	bool IsLODStreamingSupported() const
+	{
+		return bSupportLODStreaming;
 	}
 
 	/** Returns default reduction settings for the specified LOD. */
@@ -91,10 +106,14 @@ private:
 	friend class FStaticMeshLODSettings;
 	/** The default number of LODs to build. */
 	int32 DefaultNumLODs;
+	/** Maximum number of streamed LODs */
+	int32 DefaultMaxNumStreamedLODs;
 	/** Default lightmap resolution. */
 	int32 DefaultLightMapResolution;
 	/** An additional reduction of base meshes in this group. */
 	float BasePercentTrianglesMult;
+	/** Whether static meshes in this LOD group can be streamed. */
+	bool bSupportLODStreaming;
 	/** Display name. */
 	FText DisplayName;
 	/** Default reduction settings for meshes in this group. */
@@ -128,6 +147,12 @@ public:
 		return *Group;
 	}
 
+	int32 GetLODGroupIdx(FName GroupName) const
+	{
+		const int32* IdxPtr = GroupName2Index.Find(GroupName);
+		return IdxPtr ? *IdxPtr : INDEX_NONE;
+	}
+
 	/** Retrieve the names of all defined LOD groups. */
 	void GetLODGroupNames(TArray<FName>& OutNames) const;
 
@@ -139,6 +164,8 @@ private:
 	void ReadEntry(FStaticMeshLODGroup& Group, FString Entry);
 	/** Per-group settings. */
 	TMap<FName,FStaticMeshLODGroup> Groups;
+	/** For fast index lookup. Must not change after initialization */
+	TMap<FName, int32> GroupName2Index;
 };
 
 
@@ -240,6 +267,18 @@ struct FStaticMeshVertexBuffers
 	void ENGINE_API InitModelVF(FLocalVertexFactory* VertexFactory);
 };
 
+struct FAdditionalStaticMeshIndexBuffers
+{
+	/** Reversed index buffer, used to prevent changing culling state between drawcalls. */
+	FRawStaticIndexBuffer ReversedIndexBuffer;
+	/** Reversed depth only index buffer, used to prevent changing culling state between drawcalls. */
+	FRawStaticIndexBuffer ReversedDepthOnlyIndexBuffer;
+	/** Index buffer resource for rendering wireframe mode. */
+	FRawStaticIndexBuffer WireframeIndexBuffer;
+	/** Index buffer containing adjacency information required by tessellation. */
+	FRawStaticIndexBuffer AdjacencyIndexBuffer;
+};
+
 /** Rendering resources needed to render an individual static mesh LOD. */
 struct FStaticMeshLODResources
 {
@@ -247,16 +286,16 @@ struct FStaticMeshLODResources
 
 	/** Index buffer resource for rendering. */
 	FRawStaticIndexBuffer IndexBuffer;
-	/** Reversed index buffer, used to prevent changing culling state between drawcalls. */
-	FRawStaticIndexBuffer ReversedIndexBuffer;
+
 	/** Index buffer resource for rendering in depth only passes. */
 	FRawStaticIndexBuffer DepthOnlyIndexBuffer;
-	/** Reversed depth only index buffer, used to prevent changing culling state between drawcalls. */
-	FRawStaticIndexBuffer ReversedDepthOnlyIndexBuffer;
-	/** Index buffer resource for rendering wireframe mode. */
-	FRawStaticIndexBuffer WireframeIndexBuffer;
-	/** Index buffer containing adjacency information required by tessellation. */
-	FRawStaticIndexBuffer AdjacencyIndexBuffer;
+
+	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers;
+
+#if RHI_RAYTRACING
+	/** Geometry for ray tracing. */
+	FRayTracingGeometry RayTracingGeometry;
+#endif // RHI_RAYTRACING
 
 	/** Sections for this LOD. */
 	TArray<FStaticMeshSection> Sections;
@@ -278,6 +317,16 @@ struct FStaticMeshLODResources
 
 	/** True if the reversed index buffers contained data at init. Needed as it will not be available to the CPU afterwards. */
 	uint32 bHasReversedDepthOnlyIndices: 1;
+
+	uint32 bHasColorVertexData : 1;
+
+	uint32 bHasWireframeIndices : 1;
+
+	/** True if vertex and index data are serialized inline */
+	uint32 bBuffersInlined : 1;
+
+	/** True if this LOD is optional. That is, vertex and index data may not be available */
+	uint32 bIsOptionalLOD : 1;
 	
 	/**	Allows uniform random selection of mesh sections based on their area. */
 	FStaticMeshAreaWeightedSectionSampler AreaWeightedSampler;
@@ -286,8 +335,22 @@ struct FStaticMeshLODResources
 
 	uint32 DepthOnlyNumTriangles;
 
+	/** Sum of all vertex and index buffer sizes. Calculated in SerializeBuffers */
+	uint32 BuffersSize;
+
+	/** Offset in the .bulk file if this LOD is streamed */
+	uint32 OffsetInFile;
+	/** Size of serialized buffer data in bytes */
+	uint32 BulkDataSize;
+
 #if STATS
 	uint32 StaticMeshIndexMemory;
+#endif
+
+#if WITH_EDITOR
+	FByteBulkData BulkData;
+
+	FString DerivedDataKey;
 #endif
 	
 	/** Default constructor. */
@@ -311,6 +374,87 @@ struct FStaticMeshLODResources
 	ENGINE_API int32 GetNumVertices() const;
 
 	ENGINE_API int32 GetNumTexCoords() const;
+
+private:
+	enum EClassDataStripFlag : uint8
+	{
+		CDSF_AdjacencyData = 1,
+		CDSF_MinLodData = 2,
+		CDSF_ReversedIndexBuffer = 4,
+	};
+
+	/**
+	 * Due to discard on load, size of an static mesh LOD is not known at cook time and
+	 * this struct is used to keep track of all the information needed to compute LOD size
+	 * at load time
+	 */
+	struct FStaticMeshBuffersSize
+	{
+		uint32 SerializedBuffersSize;
+		uint32 DepthOnlyIBSize;
+		uint32 ReversedIBsSize;
+
+		void Clear()
+		{
+			SerializedBuffersSize = 0;
+			DepthOnlyIBSize = 0;
+			ReversedIBsSize = 0;
+		}
+
+		uint32 CalcBuffersSize() const;
+
+		friend FArchive& operator<<(FArchive& Ar, FStaticMeshBuffersSize& Info)
+		{
+			Ar << Info.SerializedBuffersSize;
+			Ar << Info.DepthOnlyIBSize;
+			Ar << Info.ReversedIBsSize;
+			return Ar;
+		}
+	};
+
+	static uint8 GenerateClassStripFlags(FArchive& Ar, UStaticMesh* OwnerStaticMesh, int32 Index);
+
+	static bool IsLODCookedOut(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, bool bIsBelowMinLOD);
+
+	static bool IsLODInlined(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, int32 LODIdx, bool bIsBelowMinLOD);
+
+	/** Compute the size of VertexBuffers and add the result to OutSize */
+	static void AccumVertexBuffersSize(const FStaticMeshVertexBuffers& VertexBuffers, uint32& OutSize);
+
+	/** Compute the size of IndexBuffer and add the result to OutSize */
+	static void AccumIndexBufferSize(const FRawStaticIndexBuffer& IndexBuffer, uint32& OutSize);
+
+	/**
+	 * Serialize vertex and index buffer data for this LOD
+	 * OutBuffersSize - Size of all serialized data in bytes
+	 */
+	void SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerStaticMesh, uint8 InStripFlags, FStaticMeshBuffersSize& OutBuffersSize);
+
+	/**
+	 * Serialize availability information such as bHasDepthOnlyIndices and size of buffers so it
+	 * can be retrieved without loading in actual vertex or index data
+	 */
+	void SerializeAvailabilityInfo(FArchive& Ar);
+
+	template <bool bIncrement>
+	void UpdateIndexMemoryStats();
+
+	template <bool bIncrement>
+	void UpdateVertexMemoryStats() const;
+
+	void ConditionalForce16BitIndexBuffer(EShaderPlatform MaxShaderPlatform, UStaticMesh* Parent);
+
+	void IncrementMemoryStats();
+
+	void DecrementMemoryStats();
+
+	/** Discard loaded vertex and index data. Used when a streaming request is cancelled */
+	void DiscardCPUData();
+
+	friend class FStaticMeshRenderData;
+	friend class FStaticMeshStreamIn;
+	friend class FStaticMeshStreamIn_IO;
+	friend class FStaticMeshStreamOut;
 };
 
 struct ENGINE_API FStaticMeshVertexFactories
@@ -320,7 +464,10 @@ struct ENGINE_API FStaticMeshVertexFactories
 		, VertexFactoryOverrideColorVertexBuffer(InFeatureLevel, "FStaticMeshVertexFactories_Override")
 		, SplineVertexFactory(nullptr)
 		, SplineVertexFactoryOverrideColorVertexBuffer(nullptr)
-	{}
+	{
+		// FLocalVertexFactory::InitRHI requires valid current feature level to setup streams properly
+		check(InFeatureLevel < ERHIFeatureLevel::Num);
+	}
 
 	~FStaticMeshVertexFactories();
 
@@ -341,10 +488,10 @@ struct ENGINE_API FStaticMeshVertexFactories
 	* @param	InParentMesh					Parent static mesh
 	* @param	bInOverrideColorVertexBuffer	If true, make a vertex factory ready for per-instance colors
 	*/
-	void InitVertexFactory(const FStaticMeshLODResources& LodResources, FLocalVertexFactory& InOutVertexFactory, const UStaticMesh* InParentMesh, bool bInOverrideColorVertexBuffer);
+	void InitVertexFactory(const FStaticMeshLODResources& LodResources, FLocalVertexFactory& InOutVertexFactory, uint32 LODIndex, const UStaticMesh* InParentMesh, bool bInOverrideColorVertexBuffer);
 
 	/** Initializes all rendering resources. */
-	void InitResources(const FStaticMeshLODResources& LodResources, const UStaticMesh* Parent);
+	void InitResources(const FStaticMeshLODResources& LodResources, uint32 LODIndex, const UStaticMesh* Parent);
 
 	/** Releases all rendering resources. */
 	void ReleaseResources();
@@ -376,6 +523,13 @@ public:
 
 	/** True if LODs share static lighting data. */
 	bool bLODsShareStaticLighting;
+
+	/** True if rhi resources are initialized */
+	bool bReadyForStreaming;
+
+	uint8 NumInlinedLODs;
+
+	uint8 CurrentFirstLODIdx;
 
 #if WITH_EDITORONLY_DATA
 	/** The derived data key associated with this render data. */
@@ -555,8 +709,7 @@ public:
 		int32 BatchIndex, 
 		int32 ElementIndex, 
 		uint8 InDepthPriorityGroup, 
-		bool bUseSelectedMaterial, 
-		bool bUseHoveredMaterial, 
+		bool bUseSelectionOutline,
 		bool bAllowPreCulledIndices,
 		FMeshBatch& OutMeshBatch) const;
 
@@ -565,12 +718,23 @@ public:
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
 
+	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override
+	{
+		return GetCurrentFirstLODIdx_Internal();
+	}
+
 protected:
 	/**
 	 * Sets IndexBuffer, FirstIndex and NumPrimitives of OutMeshElement.
 	 */
 	virtual void SetIndexSource(int32 LODIndex, int32 ElementIndex, FMeshBatch& OutMeshElement, bool bWireframe, bool bRequiresAdjacencyInformation, bool bUseInversedIndices, bool bAllowPreCulledIndices) const;
 	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
+
+	/** Only call on render thread timeline */
+	uint8 GetCurrentFirstLODIdx_Internal() const
+	{
+		return RenderData->CurrentFirstLODIdx;
+	}
 
 public:
 	// FPrimitiveSceneProxy interface.
@@ -581,6 +745,7 @@ public:
 	virtual int32 GetLOD(const FSceneView* View) const override;
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 	virtual bool CanBeOccluded() const override;
+	virtual bool IsUsingDistanceCullFade() const override;
 	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
 	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const override;
@@ -592,6 +757,15 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+
+#if RHI_RAYTRACING
+	virtual bool IsRayTracingRelevant() const override { return true; }
+	virtual bool IsRayTracingStaticRelevant() const override 
+	{ 
+		const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
+		return IsStaticPathAvailable() && !HasViewDependentDPG() && !(bAllowStaticLighting && HasStaticLighting() && !HasValidSettingsForStaticLighting());
+	}
+#endif // RHI_RAYTRACING
 
 	virtual void GetLCIs(FLCIArray& LCIs) override;
 
@@ -697,7 +871,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */
 	float StreamingDistanceMultiplier;
-	/** The cacheed GetTextureStreamingTransformScale */
+	/** The cached GetTextureStreamingTransformScale */
 	float StreamingTransformScale;
 	/** Material bounds used for texture streaming. */
 	TArray<uint32> MaterialStreamingRelativeBoxes;
@@ -706,6 +880,9 @@ protected:
 	int32 SectionIndexPreview;
 	/** Index of the material to preview. If set to INDEX_NONE, all section will be rendered */
 	int32 MaterialIndexPreview;
+
+	/** Whether selection should be per section or per entire proxy. */
+	bool bPerSectionSelection;
 #endif
 
 private:

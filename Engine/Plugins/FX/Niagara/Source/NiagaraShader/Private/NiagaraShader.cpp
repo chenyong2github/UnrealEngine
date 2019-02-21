@@ -32,6 +32,13 @@ static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("Whether to create Niagara's simulation shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
 	);
 
+int32 GNiagaraSkipVectorVMBackendOptimizations = 0;
+static FAutoConsoleVariableRef CVarNiagaraSkipVectorVMBackendOptimizations(
+	TEXT("fx.SkipVectorVMBackendOptimizations"),
+	GNiagaraSkipVectorVMBackendOptimizations,
+	TEXT("If 1, skip HLSLCC's backend optimization passes during VectorVM compilation. \n"),
+	ECVF_Default
+);
 
 #if ENABLE_COOK_STATS
 namespace NiagaraShaderCookStats
@@ -681,13 +688,11 @@ void FNiagaraShaderMap::LoadForRemoteRecompile(FArchive& Ar, EShaderPlatform Sha
 					MaterialResource->SetGameThreadShaderMap(LoadedShaderMap);
 					MaterialResource->RegisterInlineShaderMap();
 
-					ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-						FSetShaderMapOnMaterialResources,
-						FMaterial*,MaterialResource,MaterialResource,
-						FNiagaraShaderMap*,LoadedShaderMap,LoadedShaderMap,
-					{
-						MaterialResource->SetRenderingThreadShaderMap(LoadedShaderMap);
-					});
+					ENQUEUE_RENDER_COMMAND(FSetShaderMapOnMaterialResources)(
+						[MaterialResource,LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
+						{
+							MaterialResource->SetRenderingThreadShaderMap(LoadedShaderMap);
+						});
 				}
 			}
 		}

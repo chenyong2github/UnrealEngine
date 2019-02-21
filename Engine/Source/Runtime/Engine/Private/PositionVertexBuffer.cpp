@@ -29,7 +29,8 @@ FPositionVertexBuffer::FPositionVertexBuffer():
 	VertexData(NULL),
 	Data(NULL),
 	Stride(0),
-	NumVertices(0)
+	NumVertices(0),
+	bStreamed(false)
 {}
 
 FPositionVertexBuffer::~FPositionVertexBuffer()
@@ -47,13 +48,13 @@ void FPositionVertexBuffer::CleanUp()
 	}
 }
 
-void FPositionVertexBuffer::Init(uint32 InNumVertices, bool bNeedsCPUAccess)
+void FPositionVertexBuffer::Init(uint32 InNumVertices, bool bInNeedsCPUAccess)
 {
 	NumVertices = InNumVertices;
-	NeedsCPUAccess = bNeedsCPUAccess;
+	bNeedsCPUAccess = bInNeedsCPUAccess;
 
 	// Allocate the vertex data storage type.
-	AllocateData(bNeedsCPUAccess);
+	AllocateData(bInNeedsCPUAccess);
 
 	// Allocate the vertex data buffer.
 	VertexData->ResizeBuffer(NumVertices);
@@ -64,9 +65,9 @@ void FPositionVertexBuffer::Init(uint32 InNumVertices, bool bNeedsCPUAccess)
 * Initializes the buffer with the given vertices, used to convert legacy layouts.
 * @param InVertices - The vertices to initialize the buffer with.
 */
-void FPositionVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bNeedsCPUAccess)
+void FPositionVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertices, bool bInNeedsCPUAccess)
 {
-	Init(InVertices.Num(), bNeedsCPUAccess);
+	Init(InVertices.Num(), bInNeedsCPUAccess);
 
 	// Copy the vertices into the buffer.
 	for(int32 VertexIndex = 0;VertexIndex < InVertices.Num();VertexIndex++)
@@ -81,12 +82,12 @@ void FPositionVertexBuffer::Init(const TArray<FStaticMeshBuildVertex>& InVertice
 * Initializes this vertex buffer with the contents of the given vertex buffer.
 * @param InVertexBuffer - The vertex buffer to initialize from.
 */
-void FPositionVertexBuffer::Init(const FPositionVertexBuffer& InVertexBuffer, bool bNeedsCPUAccess)
+void FPositionVertexBuffer::Init(const FPositionVertexBuffer& InVertexBuffer, bool bInNeedsCPUAccess)
 {
-	NeedsCPUAccess = bNeedsCPUAccess;
+	bNeedsCPUAccess = bInNeedsCPUAccess;
 	if ( InVertexBuffer.GetNumVertices() )
 	{
-		Init(InVertexBuffer.GetNumVertices(), bNeedsCPUAccess);
+		Init(InVertexBuffer.GetNumVertices(), bInNeedsCPUAccess);
 
 		check( Stride == InVertexBuffer.GetStride() );
 
@@ -95,13 +96,13 @@ void FPositionVertexBuffer::Init(const FPositionVertexBuffer& InVertexBuffer, bo
 	}
 }
 
-void FPositionVertexBuffer::Init(const TArray<FVector>& InPositions, bool bNeedsCPUAccess)
+void FPositionVertexBuffer::Init(const TArray<FVector>& InPositions, bool bInNeedsCPUAccess)
 {
 	NumVertices = InPositions.Num();
-	NeedsCPUAccess = bNeedsCPUAccess;
+	bNeedsCPUAccess = bInNeedsCPUAccess;
 	if ( NumVertices )
 	{
-		AllocateData(bNeedsCPUAccess);
+		AllocateData(bInNeedsCPUAccess);
 		check( Stride == InPositions.GetTypeSize() );
 		VertexData->ResizeBuffer(NumVertices);
 		Data = VertexData->GetDataPointer();
@@ -114,7 +115,7 @@ void FPositionVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertic
 	if (VertexData == nullptr && NumVerticesToAppend > 0)
 	{
 		// Allocate the vertex data storage type if the buffer was never allocated before
-		AllocateData(NeedsCPUAccess);
+		AllocateData(bNeedsCPUAccess);
 	}
 
 	if( NumVerticesToAppend > 0 )
@@ -144,19 +145,19 @@ void FPositionVertexBuffer::AppendVertices( const FStaticMeshBuildVertex* Vertic
 /**
  * Serializer
  *
- * @param	Ar				Archive to serialize with
- * @param	bNeedsCPUAccess	Whether the elements need to be accessed by the CPU
+ * @param	Ar					Archive to serialize with
+ * @param	bInNeedsCPUAccess	Whether the elements need to be accessed by the CPU
  */
-void FPositionVertexBuffer::Serialize( FArchive& Ar, bool bNeedsCPUAccess )
+void FPositionVertexBuffer::Serialize( FArchive& Ar, bool bInNeedsCPUAccess )
 {
-	NeedsCPUAccess = bNeedsCPUAccess;
+	bNeedsCPUAccess = bInNeedsCPUAccess;
 
-	Ar << Stride << NumVertices;
+	SerializeMetaData(Ar);
 
 	if(Ar.IsLoading())
 	{
 		// Allocate the vertex data storage type.
-		AllocateData( bNeedsCPUAccess );
+		AllocateData( bInNeedsCPUAccess );
 	}
 
 	if(VertexData != NULL)
@@ -169,6 +170,11 @@ void FPositionVertexBuffer::Serialize( FArchive& Ar, bool bNeedsCPUAccess )
 	}
 }
 
+void FPositionVertexBuffer::SerializeMetaData(FArchive& Ar)
+{
+	Ar << Stride << NumVertices;
+}
+
 /**
 * Specialized assignment operator, only used when importing LOD's.  
 */
@@ -178,7 +184,8 @@ void FPositionVertexBuffer::operator=(const FPositionVertexBuffer &Other)
 	VertexData = NULL;
 }
 
-void FPositionVertexBuffer::InitRHI()
+template <bool bRenderThread>
+FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 {
 	check(VertexData);
 	FResourceArrayInterface* ResourceArray = VertexData->GetResourceArray();
@@ -186,29 +193,53 @@ void FPositionVertexBuffer::InitRHI()
 	{
 		// Create the vertex buffer.
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
-		VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-
-		// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
-		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable())
+		if (bRenderThread)
 		{
-			PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+			return RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+		}
+	}
+	return nullptr;
+}
+
+FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_RenderThread()
+{
+	return CreateRHIBuffer_Internal<true>();
+}
+
+FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
+{
+	return CreateRHIBuffer_Internal<false>();
+}
+
+void FPositionVertexBuffer::InitRHI()
+{
+	if (!bStreamed)
+	{
+		VertexBufferRHI = CreateRHIBuffer_RenderThread();
+	}
+	// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
+	if ((bStreamed || VertexBufferRHI) && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable()))
+	{
+		PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 	}
 }
 
 void FPositionVertexBuffer::ReleaseRHI()
 {
 	PositionComponentSRV.SafeRelease();
-
 	FVertexBuffer::ReleaseRHI();
 }
 
-void FPositionVertexBuffer::AllocateData( bool bNeedsCPUAccess /*= true*/ )
+void FPositionVertexBuffer::AllocateData( bool bInNeedsCPUAccess /*= true*/ )
 {
 	// Clear any old VertexData before allocating.
 	CleanUp();
 
-	VertexData = new FPositionVertexData(bNeedsCPUAccess);
+	VertexData = new FPositionVertexData(bInNeedsCPUAccess);
 	// Calculate the vertex stride.
 	Stride = VertexData->GetStride();
 }
