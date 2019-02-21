@@ -133,6 +133,8 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 	static bool HasOverriddenReturnCode(uint8 * OverriddenReturnCodeToUsePtr);
 	static FString GetOSVersion();
 
+	static void CreateGuid(FGuid& Result);
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 	static void BeginNamedEventFrame();
 	static void BeginNamedEvent(const struct FColor& Color, const TCHAR* Text);

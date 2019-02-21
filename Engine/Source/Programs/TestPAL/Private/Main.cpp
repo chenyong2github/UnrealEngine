@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "TestPALLog.h"
 #include "Parent.h"
+#include "Misc/Guid.h"
 #include "Stats/StatsMisc.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -34,6 +35,7 @@ IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
 #define ARG_THREAD_PRIO_TEST				"threadpriotest"
 #define ARG_INLINE_CALLSTACK_TEST			"inline"
 #define ARG_STRINGS_ALLOCATION_TEST			"stringsallocation"
+#define ARG_CREATEGUID_TEST					"createguid"
 
 namespace TestPAL
 {
@@ -673,6 +675,135 @@ int32 StringsAllocationTest(const TCHAR* CommandLine)
 	for(int32 i = 0; i < NumOfStrings; ++i)
 	{
 		delete Strings[i];
+	}
+
+	// GMalloc = OldGMalloc;
+	FEngineLoop::AppExit();
+	return 0;
+}
+
+/**
+ * Thread runnable
+ * bUseGenericMisc Whether to use FGenericPlatformMisc CreateGuid
+ */
+template<bool bUseGenericMisc>
+struct FCreateGuidThread : public FRunnable
+{
+	/** Number of CreateGuid calls to make. */
+	int32	NumCalls;
+
+	FCreateGuidThread(int32 InNumCalls)
+		:	FRunnable()
+		,	NumCalls(InNumCalls)
+	{
+	}
+
+	virtual uint32 Run()
+	{
+		FGuid Result;
+
+		for (int32 IdxRun = 0; IdxRun < NumCalls; ++IdxRun)
+		{
+			if (bUseGenericMisc)
+			{
+				FGenericPlatformMisc::CreateGuid(Result);
+			}
+			else
+			{
+				FPlatformMisc::CreateGuid(Result);
+			}
+		}
+
+		return 0;
+	}
+};
+
+
+/**
+ * CreateGuid test
+ */
+int32 CreateGuidTest(const TCHAR* CommandLine)
+{
+	FPlatformMisc::SetCrashHandler(NULL);
+	FPlatformMisc::SetGracefulTerminationHandler();
+
+	GEngineLoop.PreInit(CommandLine);
+	UE_LOG(LogTestPAL, Display, TEXT("Running CreateGuid test."));
+
+	TArray<FRunnable*> RunnableArray;
+	TArray<FRunnableThread*> ThreadArray;
+
+	UE_LOG(LogTestPAL, Display, TEXT("Accepted options:"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -numthreads=N"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -numcalls=N (how many times each thread will call CreateGuid)"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -norandomguids (disable SYS_getrandom syscall)"));
+
+	int32 NumTestThreads = 4, NumCalls = 1000000;
+	if (FParse::Value(CommandLine, TEXT("numthreads="), NumTestThreads))
+	{
+		NumTestThreads = FMath::Max(1, NumTestThreads);
+	}
+	if (FParse::Value(CommandLine, TEXT("numcalls="), NumCalls))
+	{
+		NumCalls = FMath::Max(1, NumCalls);
+	}
+
+	// start all threads
+	for (int Idx = 0; Idx < 2; ++Idx )
+	{
+		bool bUseGenericMisc = (Idx == 0);
+		double WallTimeDuration = FPlatformTime::Seconds();
+
+		for (int IdxThread = 0; IdxThread < NumTestThreads; ++IdxThread)
+		{
+			RunnableArray.Add(bUseGenericMisc ?
+				static_cast<FRunnable*>(new FCreateGuidThread<true>(NumCalls)) :
+				static_cast<FRunnable*>(new FCreateGuidThread<false>(NumCalls)) );
+
+			ThreadArray.Add( FRunnableThread::Create(RunnableArray[IdxThread],
+				*FString::Printf(TEXT("GuidTest%d"), IdxThread)) );
+		}
+
+		GLog->FlushThreadedLogs();
+		GLog->Flush();
+
+		// join all threads
+		for (int IdxThread = 0; IdxThread < NumTestThreads; ++IdxThread)
+		{
+			ThreadArray[IdxThread]->WaitForCompletion();
+
+			delete ThreadArray[IdxThread];
+			ThreadArray[IdxThread] = nullptr;
+
+			delete RunnableArray[IdxThread];
+			RunnableArray[IdxThread] = nullptr;
+		}
+
+		WallTimeDuration = FPlatformTime::Seconds() - WallTimeDuration;
+
+		UE_LOG(LogTestPAL, Display, TEXT("--- Results for %s ---"),
+			bUseGenericMisc ? TEXT("FGenericPlatformMisc::CreateGuid") : TEXT("FPlatformMisc::CreateGuid"));
+		UE_LOG(LogTestPAL, Display, TEXT("Total wall time: %f seconds, Threads: %d, Calls: %d"),
+				WallTimeDuration, NumTestThreads, NumCalls);
+
+		ThreadArray.Empty();
+		RunnableArray.Empty();
+	}
+
+	// Spew out a small sample of GUIDs to visually check we haven't horribly broken something
+	UE_LOG(LogTestPAL, Display, TEXT("--- CreateGuid Samples ---"));
+
+	for (int Idx = 0; Idx < 20; ++Idx)
+	{
+		FGuid GuidPlatform;
+		FGuid GuidGeneric;
+
+		FPlatformMisc::CreateGuid(GuidPlatform);
+		FGenericPlatformMisc::CreateGuid(GuidGeneric);
+
+		UE_LOG(LogTestPAL, Display, TEXT("%3d GuidGeneric:%s GuidPlatform:%s"), Idx,
+			*GuidGeneric.ToString(EGuidFormats::DigitsWithHyphensInBraces),
+			*GuidPlatform.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 	}
 
 	// GMalloc = OldGMalloc;
@@ -1418,6 +1549,10 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 		{
 			return StringsAllocationTest(*TestPAL::CommandLine);
 		}
+		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_CREATEGUID_TEST))
+		{
+			return CreateGuidTest(*TestPAL::CommandLine);
+		}
 	}
 
 	FPlatformMisc::SetCrashHandler(NULL);
@@ -1443,6 +1578,8 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test by replaying a saved malloc history saved by -mallocsavereplay. Possible options: -replayfile=File, -stopafter=N (operation), -suppresserrors"), UTF8_TO_TCHAR(ARG_MALLOC_REPLAY));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test thread priorities."), UTF8_TO_TCHAR(ARG_THREAD_PRIO_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test inline callstacks through ensures and a final crash."), UTF8_TO_TCHAR(ARG_INLINE_CALLSTACK_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test string allocations."), UTF8_TO_TCHAR(ARG_STRINGS_ALLOCATION_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test CreateGuid."), UTF8_TO_TCHAR(ARG_CREATEGUID_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT(""));
 	UE_LOG(LogTestPAL, Warning, TEXT("Pass one of those to run an appropriate test."));
 
