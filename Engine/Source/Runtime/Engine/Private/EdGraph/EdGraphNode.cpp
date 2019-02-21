@@ -158,10 +158,12 @@ UEdGraphNode::UEdGraphNode(const FObjectInitializer& ObjectInitializer)
 	, bIsNodeEnabled_DEPRECATED(true)
 #if WITH_EDITORONLY_DATA
 	, bCanResizeNode(false)
-#endif // WITH_EDITORONLY_DATA
+	, bUnrelated(false)
 	, bCommentBubblePinned(false)
 	, bCommentBubbleVisible(false)
 	, bCommentBubbleMakeVisible(false)
+#endif // WITH_EDITORONLY_DATA
+
 {
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UEdGraphNode::StaticClass(), &GatherGraphNodeForLocalization); }

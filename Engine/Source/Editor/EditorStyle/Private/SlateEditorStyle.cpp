@@ -4507,6 +4507,9 @@ void FSlateEditorStyle::FStyle::SetupGraphEditorStyles()
 
 		Set( "GraphEditor.DistributeNodesHorizontally", new IMAGE_BRUSH( "Icons/GraphEditor/icon_DistributeNodesHorizontally_20px", Icon20x20 ) );
 		Set( "GraphEditor.DistributeNodesVertically", new IMAGE_BRUSH( "Icons/GraphEditor/icon_DistributeNodesVertically_20px", Icon20x20 ) );
+		
+		Set( "GraphEditor.ToggleHideUnrelatedNodes", new IMAGE_BRUSH( "Icons/icon_HideUnrelatedNodes_40x", Icon40x40 ) );
+		Set( "GraphEditor.ToggleHideUnrelatedNodes.Small", new IMAGE_BRUSH( "Icons/icon_HideUnrelatedNodes_40x", Icon20x20 ) );
 
 		// Graph editor widgets
 		{

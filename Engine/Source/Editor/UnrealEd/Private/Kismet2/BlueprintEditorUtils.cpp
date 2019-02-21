@@ -2140,6 +2140,13 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		// Clear out the cache as the user may have added or removed a latent action to a macro graph
 		FBlueprintEditorUtils::ClearMacroCosmeticInfoCache(Blueprint);
 	}
+	
+	IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(Blueprint, true);
+	if (AssetEditor)
+	{
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
+		BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+	}
 }
 
 bool FBlueprintEditorUtils::ShouldRegenerateBlueprint(UBlueprint* Blueprint)

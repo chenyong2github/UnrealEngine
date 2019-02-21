@@ -69,7 +69,6 @@ SGraphPin::SGraphPin()
 	: GraphPinObj(nullptr)
 	, PinColorModifier(FLinearColor::White)
 	, CachedNodeOffset(FVector2D::ZeroVector)
-	, bGraphDataInvalid(false)
 	, bShowLabel(true)
 	, bOnlyShowDefaultValue(false)
 	, bIsMovingLinks(false)
@@ -974,7 +973,7 @@ FSlateColor SGraphPin::GetPinColor() const
 		}
 		if (const UEdGraphSchema* Schema = GraphPinObj->GetSchema())
 		{
-			if (!GetPinObj()->GetOwningNode()->IsNodeEnabled() || GetPinObj()->GetOwningNode()->IsDisplayAsDisabledForced() || !IsEditingEnabled())
+			if (!GetPinObj()->GetOwningNode()->IsNodeEnabled() || GetPinObj()->GetOwningNode()->IsDisplayAsDisabledForced() || !IsEditingEnabled() || GetPinObj()->GetOwningNode()->IsNodeUnrelated())
 			{
 				return Schema->GetPinTypeColor(GraphPinObj->PinType) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f);
 			}
@@ -997,13 +996,13 @@ FSlateColor SGraphPin::GetPinTextColor() const
 	// If there is no schema there is no owning node (or basically this is a deleted node)
 	if (UEdGraphNode* GraphNode = GraphPinObj->GetOwningNodeUnchecked())
 	{
-		const bool bDisabled = (!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || !IsEditingEnabled());
+		const bool bDisabled = (!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || !IsEditingEnabled() || GraphNode->IsNodeUnrelated());
 		if (GraphPinObj->bOrphanedPin)
 		{
 			FLinearColor PinColor = FLinearColor::Red;
 			if (bDisabled)
 			{
-				PinColor.A = 0.5f;
+				PinColor.A = .25;
 			}
 			return PinColor;
 		}
