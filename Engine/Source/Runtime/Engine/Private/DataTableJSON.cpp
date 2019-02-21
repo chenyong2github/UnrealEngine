@@ -65,6 +65,19 @@ namespace
 
 }
 
+FString DataTableJSONUtils::GetKeyFieldName(const UDataTable& InDataTable)
+{
+	FString ExplicitString = InDataTable.ImportKeyField;
+	if (ExplicitString.IsEmpty())
+	{
+		return TEXT("Name");
+	}
+	else
+	{
+		return ExplicitString;
+	}
+}
+
 
 #if WITH_EDITOR
 
@@ -97,7 +110,7 @@ bool FDataTableExporterJSON::WriteTable(const UDataTable& InDataTable)
 		return false;
 	}
 
-	FString KeyField = GetKeyFieldName(InDataTable);
+	FString KeyField = DataTableJSONUtils::GetKeyFieldName(InDataTable);
 	JsonWriter->WriteArrayStart();
 
 	// Iterate over rows
@@ -192,19 +205,6 @@ bool FDataTableExporterJSON::WriteStruct(const UScriptStruct* InStruct, const vo
 	}
 
 	return true;
-}
-
-FString FDataTableExporterJSON::GetKeyFieldName(const UDataTable& InDataTable)
-{
-	FString ExplicitString = InDataTable.ImportKeyField;
-	if (ExplicitString.IsEmpty())
-	{
-		return TEXT("Name");
-	}
-	else
-	{
-		return ExplicitString;
-	}
 }
 
 bool FDataTableExporterJSON::WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData)
@@ -443,7 +443,7 @@ bool FDataTableImporterJSON::ReadTable()
 bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTableRowObject, const int32 InRowIdx)
 {
 	// Get row name
-	FString RowKey = FDataTableExporterJSON::GetKeyFieldName(*DataTable);
+	FString RowKey = DataTableJSONUtils::GetKeyFieldName(*DataTable);
 	FName RowName = DataTableUtils::MakeValidName(InParsedTableRowObject->GetStringField(RowKey));
 
 	// Check its not 'none'

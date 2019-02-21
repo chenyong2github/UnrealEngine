@@ -18,6 +18,12 @@ struct TPrettyJsonPrintPolicy;
 template <class CharType, class PrintPolicy>
 class TJsonWriter;
 
+namespace DataTableJSONUtils
+{
+	/** Returns what string is used as the key/name field for a data table */
+	FString GetKeyFieldName(const UDataTable& InDataTable);
+}
+
 #if WITH_EDITOR
 
 class FDataTableExporterJSON
@@ -42,9 +48,6 @@ public:
 
 	/** Writes the contents of a single row */
 	bool WriteStruct(const UScriptStruct* InStruct, const void* InStructData, const FString* FieldToSkip = nullptr);
-
-	/** Returns what string is used as the key/name field for a data table */
-	static FString GetKeyFieldName(const UDataTable& InDataTable);
 
 private:
 	bool WriteStructEntry(const void* InRowData, const UProperty* InProperty, const void* InPropertyData);
