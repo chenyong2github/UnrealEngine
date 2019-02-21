@@ -367,7 +367,7 @@ public:
 
 	void DoWork()
 	{
-		LLM_SCOPE(ELLMTag::Audio);
+		LLM_SCOPE(ELLMTag::AudioMisc);
 
 		switch(TaskType)
 		{
