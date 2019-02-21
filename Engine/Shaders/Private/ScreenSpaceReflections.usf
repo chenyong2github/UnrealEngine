@@ -12,10 +12,6 @@
 #include "MonteCarlo.ush"
 #include "ScreenSpaceRayCast.ush"
 
-// 0:old for reference / 1:new optimized (fewer ALU instructions, minor performance difference on NV Titan)
-// define can be removed or used to judge the quality difference or profile on different platforms
-#define RANDOM_OPTIMZATION 1
-
 #define SSR_CONE_QUALITY 5
 
 // .r:Intensity in 0..1 range .g:RoughnessMaskMul, b:EnableDiscard for FPostProcessScreenSpaceReflectionsStencilPS, a:(bTemporalAAIsOn?TemporalAAIndex:StateFrameIndexMod8)*1551
@@ -27,25 +23,6 @@ float4 HZBUvFactorAndInvFactor;
 
 // Equivalent of View.ScreenPositionScaleBias, but for SSR.
 float4 PrevScreenPositionScaleBias;
-
-uint MortonCode( uint x )
-{
-	//x = (x ^ (x <<  8)) & 0x00ff00ff;
-	//x = (x ^ (x <<  4)) & 0x0f0f0f0f;
-	x = (x ^ (x <<  2)) & 0x33333333;
-	x = (x ^ (x <<  1)) & 0x55555555;
-	return x;
-}
-
-uint ReverseUIntBits( uint bits )
-{
-	//bits = ( bits << 16) | ( bits >> 16);
-	//bits = ( (bits & 0x00ff00ff) << 8 ) | ( (bits & 0xff00ff00) >> 8 );
-	//bits = ( (bits & 0x0f0f0f0f) << 4 ) | ( (bits & 0xf0f0f0f0) >> 4 );
-	bits = ( (bits & 0x33333333) << 2 ) | ( (bits & 0xcccccccc) >> 2 );
-	bits = ( (bits & 0x55555555) << 1 ) | ( (bits & 0xaaaaaaaa) >> 1 );
-	return bits;
-}
 
 float GetRoughness(const in FGBufferData GBuffer)
 {
@@ -105,7 +82,7 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 {
 	float2 UV = UVAndScreenPos.xy;
 	float2 ScreenPos = UVAndScreenPos.zw;
-	int2 PixelPos = (int2)SvPosition.xy;
+	uint2 PixelPos = (uint2)SvPosition.xy;
 
 	OutColor = 0;
 
@@ -121,188 +98,178 @@ void ScreenSpaceReflectionsPS(in noperspective float4 UVAndScreenPos : TEXCOORD0
 		return;
 	}
 
-#if SSR_QUALITY == 0
-	// visualize SSR
-
-	float PatternMask = ((PixelPos.x / 2 + PixelPos.y / 2) % 2) * 0.7f;
-
-	OutColor = lerp(float4(1, 0, 0, 1), float4(1, 1 ,0, 1), PatternMask) * 0.3f;
-	return;
-#endif
-
 	const float3 N = GBuffer.WorldNormal;
 	const float SceneDepth = CalcSceneDepth(UV);
 	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
-	float FrameRandom = SSRParams.a;
-
-#if SSR_QUALITY == SSR_CONE_QUALITY
-	const int NumSteps = 16;
+	float a = Roughness * Roughness;
+	float a2 = a * a;
 	
-	{
-		const float2 PixelPos = SvPosition.xy;
-		const float2 E = float2(PseudoRandom(PixelPos + float2(FrameRandom, 0)), PseudoRandom(PixelPos + float2(0, FrameRandom)));
-		const float StepOffset = PseudoRandom(PixelPos + FrameRandom);
+	float NoV = saturate( dot( N, V ) );
+	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
 
-		const float4 HNAndPDF = ImportanceSampleBlinn( E, Pow4(Roughness) );
-		const float3 H = TangentToWorld( HNAndPDF.xyz, N );
-		const float3 R = 2 * dot( V, H ) * H - V;
-
-		const float ReflectPDF = HNAndPDF.w / (4 * saturate(dot(V, H)));
-		const float TotalSamples = View.TemporalAAParams.g;
-		const float SolidAngleSample = 1.0 / ( TotalSamples * ReflectPDF );
-		const float ConeAngleWorld = acos( 1 - SolidAngleSample / (2*PI) );
-
-		float4 HitUVzTime;
-		float HCBLevel;
-		
-		RayCast(
-			PostprocessInput1, PostprocessInput1Sampler, PostprocessInput1Size.xy,
-			PositionTranslatedWorld, R, Roughness, ConeAngleWorld, SceneDepth,
-			NumSteps, StepOffset,
-			HZBUvFactorAndInvFactor,
-			PrevScreenPositionScaleBias,
-			HitUVzTime, HCBLevel
-		);
-
-		// if there was a hit
-		BRANCH if( HitUVzTime.w < 1 )
-		{
-			OutColor = SampleHCBLevel( PostprocessInput2, PostprocessInput2Sampler, HitUVzTime.xyz, HCBLevel, HZBUvFactorAndInvFactor );
-		}
-	}
-#else //SSR_QUALITY != SSR_CONE_QUALITY
 #if SSR_QUALITY == 1
-	const int NumSteps = 8;
-	const int NumRays = 1;
+	uint NumSteps = 8;
+	uint NumRays = 1;
 #elif SSR_QUALITY == 2
-	const int NumSteps = 16;
-	const int NumRays = 1;
+	uint NumSteps = 16;
+	uint NumRays = 1;
 #elif SSR_QUALITY == 3
-	const int NumSteps = 8;
-	const int NumRays = 4;
+	uint NumSteps = 8;
+	uint NumRays = 4;
 #else // SSR_QUALITY == 4
-	const int NumSteps = 12;
-	const int NumRays = 12;
+	uint NumSteps = 12;
+	uint NumRays = 12;
 #endif
 	
 	if( NumRays > 1 )
 	{
-#if RANDOM_OPTIMZATION
-		// magic numbers are found by experimentation
-//		uint2 Random = PseudoRandom(SvPosition.xy + View.StateFrameIndexMod8 * float2(97, 71)) * uint2(12, 25);	// SSR_QUALITY=3 instructions=253 but looks bad
-		uint2 Random = PseudoRandom(SvPosition.xy + View.StateFrameIndexMod8 * float2(97, 71)) * uint2(0x3127352, 0x11229256);		// doesn't compile with external HLSL with obscure error message but the line above does
-#else
-		uint2 Random = Rand3DPCG16(uint3(PixelPos, View.StateFrameIndexMod8)).xy;	// reference, SSR_QUALITY=3
-#endif
-		if( Roughness > 0.1 )
-		{
-			// Sample set dithered over 4x4 pixels
-			uint Morton = MortonCode( PixelPos.x & 3 ) | ( MortonCode( PixelPos.y & 3 ) * 2 );
-			uint PixelIndex = ReverseUIntBits( Morton );
-
-			// Shoot multiple rays
-			LOOP for( int i = 0; i < NumRays; i++ )
-			{
-				// TODO better per ray offset?
-				uint Offset = ( PixelIndex + ReverseUIntBits( FrameRandom + i * 117 ) ) & 15;
-				float StepOffset = Offset / 15.0;
-				StepOffset -= 0.5;
+		float2 Noise;
+		Noise.x = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
+		Noise.y = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 * 117 );
+		
+		//uint2 Random = 0x10000 * Noise;
+		uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
 			
-				float2 E = Hammersley( i, NumRays, Random );
-				float3 H = TangentToWorld( ImportanceSampleBlinn( E, Pow4(Roughness) ).xyz, N );
-				float3 R = 2 * dot( V, H ) * H - V;
+		float3x3 TangentBasis = GetTangentBasis( N );
+		float3 TangentV = mul( TangentBasis, V );
 
-				float4 HitUVzTime;
-				float HCBLevel;
+		float Count = 0;
 
-				RayCast(
-					PostprocessInput1, PostprocessInput1Sampler, PostprocessInput1Size.xy,
-					PositionTranslatedWorld, R, Roughness, 0.001, SceneDepth,
+		if( Roughness < 0.1 )
+		{
+			NumSteps = min( NumSteps * NumRays, 24 );
+			NumRays = 1;
+		}
+
+		// Shoot multiple rays
+		LOOP for( uint i = 0; i < NumRays; i++ )
+		{
+			float StepOffset = Noise.x;
+			StepOffset -= 0.9;
+			
+			float2 E = Hammersley16( i, NumRays, Random );
+
+#if 1
+			// TODO EnvBRDF isn't a perfect match anymore.
+			float3 H = mul( ImportanceSampleVisibleGGX( E, a2, TangentV ).xyz, TangentBasis );
+			float3 L = 2 * dot( V, H ) * H - V;
+#elif 0
+			float3 H = mul( ImportanceSampleGGX( E, a2 ).xyz, TangentBasis );
+			float3 L = 2 * dot( V, H ) * H - V;
+#elif 0
+			float3 L = CosineSampleHemisphere( E, N ).xyz;
+#elif 0
+			float3 L = CosineSampleHemisphere( E ).xyz;
+			L = mul( L, TangentBasis );
+#else
+			float3 L;
+			L.xy = UniformSampleDiskConcentric( E );
+			L.z = sqrt( 1 - dot( L.xy, L.xy ) );
+			L = mul( L, TangentBasis );
+			float3 H = normalize(V + L);
+#endif
+
+			float NoL = saturate( dot(N, L) );
+			float NoH = saturate( dot(N, H) );
+			float VoH = saturate( dot(V, H) );
+		
+			if( NoL > 0 && VoH > 0 )
+			{
+				float D = D_GGX( a2, NoH );
+				float G_SmithL = 2 * NoL / (NoL + sqrt(NoL * (NoL - NoL * a2) + a2));
+				float Vis = Vis_Smith( a2, NoV,  NoL );
+				float3 F = F_Schlick( GBuffer.SpecularColor, VoH );
+				
+				float3 HitUVz;
+				float Level = 0;
+
+				bool bHit = RayCast(
+					PostprocessInput1, PostprocessInput1Sampler,
+					PositionTranslatedWorld, L, Roughness, SceneDepth, 
 					NumSteps, StepOffset,
 					HZBUvFactorAndInvFactor,
-					PrevScreenPositionScaleBias,
-					HitUVzTime, HCBLevel
+					HitUVz,
+					Level
 				);
 
+#if 0	// Backface check
+				if( bHit )
+				{
+					float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+					bHit = dot( SampleNormal, L ) < 0;
+				}
+#endif
+
 				// if there was a hit
-				BRANCH if( HitUVzTime.w < 1 )
+				BRANCH if( bHit )
 				{
 					float2 SampleUV;
 					float Vignette;
-					ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVzTime.xyz, SampleUV, Vignette);
+					ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVz, SampleUV, Vignette);
 
-					float4 SampleColor = SampleScreenColor(PostprocessInput0, PostprocessInput0Sampler, SampleUV) * Vignette;
-				
-					SampleColor.rgb /= 1 + Luminance(SampleColor.rgb);
+#if SSR_QUALITY == SSR_CONE_QUALITY
+					float4 SampleColor = SampleHCBLevel( PostprocessInput2, PostprocessInput2Sampler, SampleUV, Level, HZBUvFactorAndInvFactor ) * Vignette;
+#else
+					float4 SampleColor = SampleScreenColor( PostprocessInput0, PostprocessInput0Sampler, SampleUV ) * Vignette;
+#endif
+					SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+
+					// Correct integration applies DGF below but for speed we apply EnvBRDF later when compositing
+#if 0
+					// CosineSampleHemisphere
+					// PDF = NoL / PI,
+					SampleColor.rgb *= F * (D * Vis * PI);
+#elif 0
+					// ImportanceSampleGGX
+					// PDF = D * NoH / (4 * VoH),
+					SampleColor.rgb *= F * ( NoL * Vis * (4 * VoH / NoH) );
+#elif 0
+					// ImportanceSampleVisibleGGX
+					// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
+					// PDF = G_SmithV * D / (4 * NoV);
+					SampleColor.rgb *= F * G_SmithL;
+#endif
+
 					OutColor += SampleColor;
 				}
-			}
 
-			OutColor /= NumRays;
-			OutColor.rgb /= 1 - Luminance(OutColor.rgb);
-		}
-		else
-		{
-			float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
-			StepOffset -= 0.5;
-		
-			float3 R = reflect( -V, N );
-		
-			float4 HitUVzTime;
-			float HCBLevel;
-
-			RayCast(
-				PostprocessInput1, PostprocessInput1Sampler, PostprocessInput1Size.xy,
-				PositionTranslatedWorld, R, Roughness, 0.001, SceneDepth,
-				16, StepOffset,
-				HZBUvFactorAndInvFactor,
-				PrevScreenPositionScaleBias,
-				HitUVzTime, HCBLevel
-			);
-
-			// if there was a hit
-			BRANCH if( HitUVzTime.w < 1 )
-			{
-				float2 SampleUV;
-				float Vignette;
-				ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVzTime.xyz, SampleUV, Vignette);
-
-				OutColor = SampleScreenColor(PostprocessInput0, PostprocessInput0Sampler, SampleUV) * Vignette;
+				Count++;
 			}
 		}
+
+		//OutColor /= NumRays;
+		OutColor /= max( Count, 0.0001 );
+		OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
 	}
 	else
 	{
 		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
-		StepOffset -= 0.5;
+		StepOffset -= 0.9;
 		
 		float3 R = reflect( -V, N );
-		
-		float4 HitUVzTime;
-		float HCBLevel;
+		float3 HitUVz;
+		float Level = 0;
 
-		RayCast(
-			PostprocessInput1, PostprocessInput1Sampler, PostprocessInput1Size.xy,
-			PositionTranslatedWorld, R, Roughness, 0.001, SceneDepth,
+		bool bHit = RayCast(
+			PostprocessInput1, PostprocessInput1Sampler,
+			PositionTranslatedWorld, R, Roughness, SceneDepth,
 			NumSteps, StepOffset,
 			HZBUvFactorAndInvFactor,
-			PrevScreenPositionScaleBias,
-			HitUVzTime, HCBLevel
+			HitUVz,
+			Level
 		);
 
-		// if there was a hit
-		BRANCH if( HitUVzTime.w < 1 )
+		BRANCH if( bHit )
 		{
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVzTime.xyz, SampleUV, Vignette);
+			ReprojectHit(PrevScreenPositionScaleBias, PostprocessInput3, PostprocessInput3Sampler, HitUVz, SampleUV, Vignette);
 
 			OutColor = SampleScreenColor(PostprocessInput0, PostprocessInput0Sampler, SampleUV) * Vignette;
 		}
 	}
-#endif //SSR_QUALITY  != SSR_CONE_QUALITY
 	
 	OutColor *= RoughnessFade;
 	OutColor *= SSRParams.r;

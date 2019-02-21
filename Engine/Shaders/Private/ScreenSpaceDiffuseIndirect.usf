@@ -1,0 +1,149 @@
+// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"	
+#include "PostProcessCommon.ush"				
+#include "DeferredShadingCommon.ush"
+#include "Random.ush"
+#include "BRDF.ush"
+#include "MonteCarlo.ush"
+#include "ScreenSpaceRayCast.ush"
+
+Texture2D		HZBTexture;
+SamplerState	HZBSampler;
+
+Texture2D		VelocityTexture;
+SamplerState	VelocitySampler;
+
+Texture2D		ColorTexture;
+SamplerState	ColorSampler;
+
+float4 HZBUvFactorAndInvFactor;
+
+float4 PrevScreenPositionScaleBias;
+float  PrevSceneColorPreExposureCorrection;
+
+void ScreenSpaceDiffuseIndirectPS(
+	in noperspective float4 UVAndScreenPos : TEXCOORD0,
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0,
+	out float OutAO : SV_Target1 )
+{
+	float2 UV = UVAndScreenPos.xy;
+	float2 ScreenPos = UVAndScreenPos.zw;
+	uint2 PixelPos = (uint2)SvPosition.xy;
+
+	OutColor = 0;
+
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+
+	// No SSS because diffuse luminance is in alpha channel and we don't have dual source blending.
+	BRANCH if( GBuffer.ShadingModelID == 0 || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE )
+	{
+		discard;
+	}
+
+	const float3 N = GBuffer.WorldNormal;
+	const float SceneDepth = CalcSceneDepth(UV);
+	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
+
+#if QUALITY == 1
+	uint NumSteps = 8;
+	uint NumRays = 4;
+#elif QUALITY == 2
+	uint NumSteps = 8;
+	uint NumRays = 8;
+#elif QUALITY == 3
+	uint NumSteps = 8;
+	uint NumRays = 12;
+#else // QUALITY == 4
+	uint NumSteps = 12;
+	uint NumRays = 16;
+#endif
+
+	float2 Noise;
+	Noise.x = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
+	Noise.y = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 * 117 );
+		
+	//uint2 Random = 0x10000 * Noise;
+	uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
+			
+	float3x3 TangentBasis = GetTangentBasis( N );
+
+	// Shoot multiple rays
+	LOOP for( int i = 0; i < NumRays; i++ )
+	{
+		float StepOffset = Noise.x;
+		StepOffset -= 0.9;
+			
+		float2 E = Hammersley16( i, NumRays, Random );
+
+#if 0
+		float3 L = CosineSampleHemisphere( E ).xyz;
+		L = mul( L, TangentBasis );
+#else
+		float3 L;
+		L.xy = UniformSampleDiskConcentric( E );
+		L.z = sqrt( 1 - dot( L.xy, L.xy ) );
+		L = mul( L, TangentBasis );
+#endif
+				
+		float3 HitUVz;
+		float Level = 0;
+
+		bool bHit = RayCast(
+			HZBTexture, HZBSampler,
+			PositionTranslatedWorld, L, 1, SceneDepth, 
+			NumSteps, StepOffset,
+			HZBUvFactorAndInvFactor,
+			HitUVz,
+			Level
+		);
+
+#if 0	// Backface check
+		if( bHit )
+		{
+			float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+			bHit = dot( SampleNormal, L ) < 0;
+		}
+#endif
+
+		// if there was a hit
+		BRANCH if( bHit )
+		{
+			float2 SampleUV;
+			float Vignette;
+			ReprojectHit(PrevScreenPositionScaleBias, VelocityTexture, VelocitySampler, HitUVz, SampleUV, Vignette);
+
+#if 0
+			float4 SampleColor = SampleHCBLevel( ColorTexture, ColorSampler, SampleUV, Level, HZBUvFactorAndInvFactor );
+#else
+			float4 SampleColor = SampleScreenColor( ColorTexture, ColorSampler, SampleUV );
+#endif
+
+			// Backface modulation of hit surface
+			float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+			SampleColor.rgb *= saturate( 1 - dot( SampleNormal, L ) );
+
+			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
+
+			OutColor += SampleColor;
+		}
+	}
+
+	OutColor /= NumRays;
+	OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
+	OutColor.rgb *= View.IndirectLightingColorScale;
+
+	OutColor.rgb *= GBuffer.DiffuseColor;
+	OutColor.a = 1 - OutColor.a;
+
+	//OutColor.rgb = OutColor.a;
+	//OutColor.a = 0;
+
+#if USE_PREEXPOSURE
+	OutColor.rgb *= PrevSceneColorPreExposureCorrection;
+#endif
+
+	OutAO = OutColor.a;
+}

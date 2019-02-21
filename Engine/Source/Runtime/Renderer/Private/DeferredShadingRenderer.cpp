@@ -479,6 +479,8 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->EarlyZPassMode != DDM_None || Renderer->bEarlyZPassMovable != 0);
 }
 
+bool ShouldRenderScreenSpaceDiffuseIndirect( const FViewInfo& View );
+
 bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdList)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -494,10 +496,11 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		FViewInfo& View = Views[ViewIndex];
 		FSceneViewState* ViewState = (FSceneViewState*)View.State;
 
-		const uint32 bSSR = ShouldRenderScreenSpaceReflections(View);
+		const bool bSSR  = ShouldRenderScreenSpaceReflections(View);
 		const bool bSSAO = ShouldRenderScreenSpaceAmbientOcclusion(View);
+		const bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
 
-		if (bSSAO || bHZBOcclusion || bSSR)
+		if (bSSAO || bHZBOcclusion || bSSR || bSSGI)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 			{
@@ -977,6 +980,7 @@ FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingPipeli
 #endif // RHI_RAYTRACING
 
 extern bool IsLpvIndirectPassRequired(const FViewInfo& View);
+void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT );
 
 static TAutoConsoleVariable<float> CVarStallInitViews(
 	TEXT("CriticalPathStall.AfterInitViews"),
@@ -1853,6 +1857,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			Scene->UniformBuffers.UpdateViewUniformBuffer(Views[ViewIndex]);
 
 			GCompositionLighting.ProcessAfterBasePass(RHICmdList, Views[ViewIndex]);
+			
+			RenderScreenSpaceDiffuseIndirect( RHICmdList, Views[ ViewIndex ], VelocityRT );
 		}
 		ServiceLocalQueue();
 	}
