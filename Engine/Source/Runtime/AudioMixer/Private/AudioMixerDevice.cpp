@@ -99,6 +99,11 @@ namespace Audio
 		return CurrentThreadId == AudioPlatformThreadId;
 	}
 
+	void FMixerDevice::UpdateDeviceDeltaTime()
+	{
+		DeviceDeltaTime = GetGameDeltaTime();
+	}
+
 	void FMixerDevice::GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const
 	{
 		if (AudioMixerPlatform && AudioMixerPlatform->IsInitialized())
