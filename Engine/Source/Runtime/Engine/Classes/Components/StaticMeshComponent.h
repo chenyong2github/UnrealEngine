@@ -101,7 +101,6 @@ struct FStaticMeshComponentLODInfo
 	TUniquePtr<FMeshMapBuildData> OverrideMapBuildData;
 
 	/** Vertex data cached at the time this LOD was painted, if any */
-	UPROPERTY()
 	TArray<struct FPaintedVertex> PaintedVertices;
 
 	/** Vertex colors to use for this mesh LOD */

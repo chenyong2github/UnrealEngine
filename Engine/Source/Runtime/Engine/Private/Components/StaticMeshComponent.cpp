@@ -2749,7 +2749,7 @@ FArchive& operator<<(FArchive& Ar,FStaticMeshComponentLODInfo& I)
 	}
 
 	// Serialize out cached vertex information if necessary.
-	if ( !StripFlags.IsEditorDataStripped() )
+	if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()))
 	{
 		Ar << I.PaintedVertices;
 	}
