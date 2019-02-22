@@ -1,6 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "WmfMediaPrivate.h"
+
 #include "WmfMediaHardwareVideoDecodingRendering.h"
+
+#if WMFMEDIA_SUPPORTED_PLATFORM
 
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -152,3 +156,5 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 	return true;
 }
+
+#endif

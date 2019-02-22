@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"D3D11RHI",
                     "Engine",
                     "MediaUtils",
 					"Projects",
