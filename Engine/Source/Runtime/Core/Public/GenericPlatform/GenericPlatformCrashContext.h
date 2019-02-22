@@ -214,8 +214,8 @@ public:
 	/** Clears the game data dictionary */
 	static void ResetGameData();
 
-	/** Adds arbitrary game data to the crash context */
-	static void AddGameData(const FString& Key, const FString& Value);
+	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
+	static void SetGameData(const FString& Key, const FString& Value);
 
 	/** Adds a plugin descriptor string to the enabled plugins list in the crash context */
 	static void AddPlugin(const FString& PluginDesc);
