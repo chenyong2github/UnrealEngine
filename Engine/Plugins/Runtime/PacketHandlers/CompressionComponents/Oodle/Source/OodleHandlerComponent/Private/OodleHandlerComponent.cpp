@@ -1211,20 +1211,18 @@ int32 OodleHandlerComponent::GetReservedPacketBits() const
 
 void OodleHandlerComponent::NotifyAnalyticsProvider()
 {
-	TSharedPtr<FNetAnalyticsAggregator> Aggregator = Handler->GetAggregator();
+	if (!NetAnalyticsData.IsValid())
+	{
+		TSharedPtr<FNetAnalyticsAggregator> Aggregator = Handler->GetAggregator();
 
-	if (Handler->GetProvider().IsValid() && Aggregator.IsValid())
-	{
-		NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
-	}
-	else
-	{
-		NetAnalyticsData.Reset();
+		if (Handler->GetProvider().IsValid() && Aggregator.IsValid())
+		{
+			NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
+		}
 	}
 
 	bOodleAnalytics = NetAnalyticsData.IsValid();
 }
-
 
 #if !UE_BUILD_SHIPPING
 /**
