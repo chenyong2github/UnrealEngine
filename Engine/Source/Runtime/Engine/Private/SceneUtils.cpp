@@ -78,6 +78,7 @@ void TDrawEvent<TRHICmdList>::Stop()
 }
 template struct TDrawEvent<FRHICommandList>;
 template struct TDrawEvent<FRHIAsyncComputeCommandList>;
+template struct TDrawEvent<FRHIAsyncComputeCommandListImmediate>;
 
 void FDrawEventRHIExecute::Start(IRHIComputeContext& InRHICommandContext, FColor Color, const TCHAR* Fmt, ...)
 {
