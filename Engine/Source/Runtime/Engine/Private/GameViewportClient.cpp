@@ -1833,6 +1833,16 @@ void UGameViewportClient::Deactivated(FViewport* InViewport, const FWindowActiva
 	LostFocus(InViewport);
 }
 
+bool UGameViewportClient::IsInPermanentCapture()
+{
+	bool bIsInPermanentCapture = FViewportClient::IsInPermanentCapture();
+	if (ViewportConsole)
+	{
+		bIsInPermanentCapture = !ViewportConsole->ConsoleActive() && bIsInPermanentCapture;
+	}
+	return bIsInPermanentCapture;
+}
+
 bool UGameViewportClient::WindowCloseRequested()
 {
 	return !WindowCloseRequestedDelegate.IsBound() || WindowCloseRequestedDelegate.Execute();
