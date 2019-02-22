@@ -28,12 +28,9 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 {
 	BlueprintEditor = InBlueprintEditor;
 
-	const TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::SelectedDebugObject_OnClicked));
-	BrowseButton->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::IsSelectDebugObjectButtonVisible)));
-	BrowseButton->SetToolTipText(LOCTEXT("DebugSelectActor", "Select this Actor in level"));
-
 	GenerateDebugWorldNames(false);
 	GenerateDebugObjectNames(false);
+
 	LastObjectObserved = DebugObjects[0];
 
 	DebugWorldsComboBox = SNew(STextComboBox)
@@ -62,73 +59,12 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged)
 		.AddMetaData<FTagMetaData>(TEXT("SelectDebugObjectCobmo"));
 
-	TSharedRef<SWidget> DebugObjectSelectionWidget =
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			DebugObjectsComboBox.ToSharedRef()
-		]
-	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		.Padding(2.0f)
-		[
-			BrowseButton
-		];
-
 	ChildSlot
-		[
-			SNew(SLevelOfDetailBranchNode)
-			.UseLowDetailSlot(FMultiBoxSettings::UseSmallToolBarIcons)
-			.LowDetail()
-			[
-				// Horizontal Layout when using small icons
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					DebugWorldsComboBox.ToSharedRef()
-				]
-
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						DebugObjectSelectionWidget
-					]
-			]
-			.HighDetail()
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.VAlign(VAlign_Bottom)
-					[
-						// Vertical Layout when using normal size icons
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							DebugWorldsComboBox.ToSharedRef()
-						]
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								DebugObjectSelectionWidget
-							]
-					]
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("DebugSelectTitle", "Debug Filter"))
-						]
-				]
-		];
+	[
+		SNew(SLevelOfDetailBranchNode)
+		.UseLowDetailSlot(FMultiBoxSettings::UseSmallToolBarIcons)
+		.OnGetActiveDetailSlotContent(this, &SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetailSlotContent)
+	];
 }
 
 void SBlueprintEditorSelectedDebugObjectWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -189,6 +125,76 @@ const FString& SBlueprintEditorSelectedDebugObjectWidget::GetNoDebugString() con
 const FString& SBlueprintEditorSelectedDebugObjectWidget::GetDebugAllWorldsString() const
 {
 	return NSLOCTEXT("BlueprintEditor", "DebugWorldNothingSelected", "All Worlds").ToString();
+}
+
+TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetailSlotContent(bool bChangedToHighDetail)
+{
+
+	const TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::SelectedDebugObject_OnClicked));
+	BrowseButton->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::IsSelectDebugObjectButtonVisible)));
+	BrowseButton->SetToolTipText(LOCTEXT("DebugSelectActor", "Select this Actor in level"));
+
+	TSharedRef<SWidget> DebugObjectSelectionWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			DebugObjectsComboBox.ToSharedRef()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f)
+		[
+			BrowseButton
+		];
+
+	if (!bChangedToHighDetail)
+	{
+		return
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				DebugWorldsComboBox.ToSharedRef()
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				DebugObjectSelectionWidget
+			];
+	}
+	else
+	{
+		return
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Bottom)
+			[
+				// Vertical Layout when using normal size icons
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					DebugWorldsComboBox.ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					DebugObjectSelectionWidget
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			.Padding(2.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DebugSelectTitle", "Debug Filter"))
+			];
+	}
 }
 
 void SBlueprintEditorSelectedDebugObjectWidget::OnRefresh()
