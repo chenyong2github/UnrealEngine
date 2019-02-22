@@ -1077,4 +1077,9 @@ void FAnimNode_RigidBody::PostSerialize(const FArchive& Ar)
 }
 #endif
 
+bool FAnimNode_RigidBody::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones)
+{
+	return BaseBoneRef.IsValidToEvaluate(RequiredBones);
+}
+
 #undef LOCTEXT_NAMESPACE
