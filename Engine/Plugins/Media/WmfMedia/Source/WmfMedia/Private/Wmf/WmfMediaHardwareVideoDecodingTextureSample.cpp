@@ -16,7 +16,13 @@ ID3D11Texture2D* FWmfMediaHardwareVideoDecodingTextureSample::InitializeSourceTe
 
 	if (SourceTexture.IsValid())
 	{
-		return SourceTexture;
+		D3D11_TEXTURE2D_DESC Desc;
+		SourceTexture->GetDesc(&Desc);
+
+		if (Desc.Width == Dim.X && Desc.Height == Dim.Y)
+		{
+			return SourceTexture;
+		}
 	}
 
 	D3D11_TEXTURE2D_DESC TextureDesc;
@@ -32,6 +38,7 @@ ID3D11Texture2D* FWmfMediaHardwareVideoDecodingTextureSample::InitializeSourceTe
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
 
+	SourceTexture.Reset();
 	InD3D11Device->CreateTexture2D(&TextureDesc, nullptr, &SourceTexture);
 
 	D3D11Device = InD3D11Device;
