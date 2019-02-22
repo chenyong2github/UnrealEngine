@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DSP/DynamicsProcesser.h"
+#include "DSP/DynamicsProcessor.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "AudioMixerSubmixEffectDynamicsProcessor.generated.h"
 
