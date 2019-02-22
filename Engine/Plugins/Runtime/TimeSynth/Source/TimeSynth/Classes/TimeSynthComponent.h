@@ -18,7 +18,7 @@
 #include "DSP/SpectrumAnalyzer.h"
 #include "DSP/Filter.h"
 #include "DSP/EnvelopeFollower.h"
-#include "DSP/DynamicsProcesser.h"
+#include "DSP/DynamicsProcessor.h"
 #include "TimeSynthComponent.generated.h"
 
 class USoundWave;

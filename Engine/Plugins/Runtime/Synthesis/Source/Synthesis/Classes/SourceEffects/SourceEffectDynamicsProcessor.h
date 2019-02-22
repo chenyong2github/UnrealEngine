@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Sound/SoundEffectSource.h"
-#include "DSP/DynamicsProcesser.h"
+#include "DSP/DynamicsProcessor.h"
 #include "SourceEffectDynamicsProcessor.generated.h"
 
 UENUM(BlueprintType)
