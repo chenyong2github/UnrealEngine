@@ -9047,7 +9047,8 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 		}
 		return;
 	}
-	ClientData->AckMove(MoveIndex);
+
+	ClientData->AckMove(MoveIndex, *this);
 	
 	FVector WorldShiftedNewLocation;
 	//  Received Location is relative to dynamic base
@@ -9351,7 +9352,8 @@ void UCharacterMovementComponent::ClientAckGoodMove_Implementation(float TimeSta
 		}
 		return;
 	}
-	ClientData->AckMove(MoveIndex);
+
+	ClientData->AckMove(MoveIndex, *this);
 }
 
 void UCharacterMovementComponent::CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult )
@@ -9998,6 +10000,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS // For deprecated members of FNetworkPredict
 FNetworkPredictionData_Client_Character::FNetworkPredictionData_Client_Character(const UCharacterMovementComponent& ClientMovement)
 	: ClientUpdateTime(0.f)
 	, CurrentTimeStamp(0.f)
+	, LastReceivedAckRealTime(0.f)
 	, PendingMove(NULL)
 	, LastAckedMove(NULL)
 	, MaxFreeMoveCount(96)
@@ -10146,7 +10149,7 @@ int32 FNetworkPredictionData_Client_Character::GetSavedMoveIndex(float TimeStamp
 	return INDEX_NONE;
 }
 
-void FNetworkPredictionData_Client_Character::AckMove(int32 AckedMoveIndex) 
+void FNetworkPredictionData_Client_Character::AckMove(int32 AckedMoveIndex, UCharacterMovementComponent& CharacterMovementComponent) 
 {
 	// It is important that we know the move exists before we go deleting outdated moves.
 	// Timestamps are not guaranteed to be increasing order all the time, since they can be reset!
@@ -10171,6 +10174,11 @@ void FNetworkPredictionData_Client_Character::AckMove(int32 AckedMoveIndex)
 		// And finally cull all of those, so only the unacknowledged moves remain in SavedMoves.
 		const bool bAllowShrinking = false;
 		SavedMoves.RemoveAt(0, AckedMoveIndex + 1, bAllowShrinking);
+	}
+
+	if (const UWorld* const World = CharacterMovementComponent.GetWorld())
+	{
+		LastReceivedAckRealTime = World->GetRealTimeSeconds();
 	}
 }
 
