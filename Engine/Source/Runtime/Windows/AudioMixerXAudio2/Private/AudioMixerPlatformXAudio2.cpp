@@ -48,7 +48,9 @@
 
 namespace Audio
 {
+#if PLATFORM_WINDOWS
 	HMODULE FMixerPlatformXAudio2::XAudio2Dll = nullptr;
+#endif
 
 	void FXAudio2VoiceCallback::OnBufferEnd(void* BufferContext)
 	{
