@@ -1026,6 +1026,7 @@ void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticM
 
 FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
@@ -1085,6 +1086,7 @@ void UInstancedStaticMeshComponent::CreateHitProxyData(TArray<TRefCountPtr<HHitP
 
 void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& OutData, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UInstancedStaticMeshComponent_BuildRenderData);
 
 	CreateHitProxyData(OutHitProxies);
@@ -1674,6 +1676,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 
 void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FMobileObjectVersion::GUID);
@@ -2103,6 +2106,8 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	{
 		return;
 	}
+
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 
 	// If we don't have a random seed for this instanced static mesh component yet, then go ahead and
 	// generate one now.  This will be saved with the static mesh component and used for future generation

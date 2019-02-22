@@ -1969,7 +1969,7 @@ void UHierarchicalInstancedStaticMeshComponent::PreSave(const class ITargetPlatf
 
 void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 {
-	LLM_SCOPE(ELLMTag::StaticMesh);	
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
@@ -2864,6 +2864,7 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 
 FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_HierarchicalInstancedStaticMeshComponent_CreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_FoliageCreateProxy);
 
