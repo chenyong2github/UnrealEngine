@@ -1110,9 +1110,19 @@ enum class ERepLayoutState
  * Changelists are arrays of Property Handles that describe what Properties have changed, however they don't
  * track the actual values of the Properties.
  *
- * Property Handles are either Layout Command indices (in FRepLayout::Cmds), or array indices for Properties in
- * dynamic arrays.
- * Handles are 1-based, reserving 0 as a terminal case.
+ * Changelists can contain "sub-changelists" for arrays. Formally, they can be described as the following grammar:
+ *
+ *		Terminator			::=	0
+ *		Handle				::= Integer between 1 ~ 65535
+ *		Number				::= Integer between 0 ~ 65535
+ *		Changelist			::=	<Terminator> | <Handle><Changelist> | <Handle><Array-Changelist><Changelist>
+ *		Array-Changelist:	::= <Number><Changelist>
+ *
+ * An important distinction is that Handles do not have a 1:1 mapping with RepLayoutCommands.
+ * Handles are 1-based (as opposed to 0-based), and track a relative command index within a single
+ * level of a changelist. Each Array Command, regardless of the number of child Commands it has,
+ * will only be count as a single handle in its owning changelist. Each time we recurse into an Array-Changelist,
+ * our handles restart at 1 for that "depth", and they correspond to the Commands associated with the Array's element type.
  *
  * In order to generate Changelists, Layout Commands are sequentially applied that compare the values
  * of an object's cached state to a object's current state. Any properties that are found to be different
