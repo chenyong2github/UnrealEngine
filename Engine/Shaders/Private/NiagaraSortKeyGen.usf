@@ -14,6 +14,8 @@
 ------------------------------------------------------------------------------*/
 
 #include "Common.ush"
+
+#define NIAGARA_KEYGEN 1
 #include "NiagaraVFParticleAccess.usf"
 
 Buffer<uint> GPUParticleCountBuffer;
