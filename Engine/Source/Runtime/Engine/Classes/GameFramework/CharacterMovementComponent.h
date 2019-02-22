@@ -2677,11 +2677,14 @@ public:
 	FNetworkPredictionData_Client_Character(const UCharacterMovementComponent& ClientMovement);
 	virtual ~FNetworkPredictionData_Client_Character();
 
-	/** Client timestamp of last time it sent a servermove() to the server.  Used for holding off on sending movement updates to save bandwidth. */
+	/** Client timestamp of last time it sent a servermove() to the server. This is an increasing timestamp from the owning UWorld. Used for holding off on sending movement updates to save bandwidth. */
 	float ClientUpdateTime;
 
-	/** Current TimeStamp for sending new Moves to the Server. */
+	/** Current TimeStamp for sending new Moves to the Server. This time resets to zero at a frequency of MinTimeBetweenTimeStampResets. */
 	float CurrentTimeStamp;
+
+	/** Last World timestamp (undilated, real time) at which we received a server ack for a move. This could be either a good move or a correction from the server. */
+	float LastReceivedAckRealTime;
 
 	TArray<FSavedMovePtr> SavedMoves;		// Buffered moves pending position updates, orderd oldest to newest. Moves that have been acked by the server are removed.
 	TArray<FSavedMovePtr> FreeMoves;		// freed moves, available for buffering
@@ -2785,7 +2788,7 @@ public:
 	int32 GetSavedMoveIndex(float TimeStamp) const;
 
 	/** Ack a given move. This move will become LastAckedMove, SavedMoves will be adjusted to only contain unAcked moves. */
-	void AckMove(int32 AckedMoveIndex);
+	void AckMove(int32 AckedMoveIndex, UCharacterMovementComponent& CharacterMovementComponent);
 
 	/** Allocate a new saved move. Subclasses should override this if they want to use a custom move class. */
 	virtual FSavedMovePtr AllocateNewMove();
