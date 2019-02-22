@@ -433,15 +433,13 @@ void UTexture2D::UnlinkStreaming()
 
 void UTexture2D::CancelPendingTextureStreaming()
 {
-	FlushRenderingCommands();
-
 	for( TObjectIterator<UTexture2D> It; It; ++It )
 	{
 		UTexture2D* CurrentTexture = *It;
 		CurrentTexture->CancelPendingMipChangeRequest();
 	}
 
-	FlushResourceStreaming();
+	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
 }
 
 void UTexture2D::PostLoad()
@@ -491,11 +489,11 @@ void UTexture2D::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void UTexture2D::UpdateResource()
 {
 	// Make sure there are no pending requests in flight.
-	while( UpdateStreamingStatus() == true )
+	while (UpdateStreamingStatus() && ensure(!IsAssetStreamingSuspended()))
 	{
 		// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 		FlushRenderingCommands();
-		FPlatformProcess::Sleep(0);
+		FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 	}
 
 #if WITH_EDITOR
@@ -564,14 +562,14 @@ FString UTexture2D::GetDesc()
 
 void UTexture2D::WaitForStreaming()
 {
-	if (bIsStreamable)
+	if (bIsStreamable && ensure(!IsAssetStreamingSuspended()))
 	{
 		// Make sure there are no pending requests in flight otherwise calling UpdateIndividualTexture could be prevented to defined a new requested mip.
 		while (	!IsReadyForStreaming() || UpdateStreamingStatus() ) 
 		{
 			// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 			FlushRenderingCommands();
-			FPlatformProcess::Sleep(0);
+			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 		}
 
 		// Update the wanted mip and stream in..		
@@ -583,7 +581,7 @@ void UTexture2D::WaitForStreaming()
 			{
 				// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 				FlushRenderingCommands();
-				FPlatformProcess::Sleep(0);
+				FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 			}
 		}
 	}
@@ -1131,7 +1129,6 @@ void UTexture2D::TemporarilyDisableStreaming()
 		UpdateResource();
 	}
 }
-
 #endif
 
 
@@ -1586,6 +1583,11 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
+}
+
+bool UTexture2D::IsPendingUpdateLocked() const 
+{ 
+	return PendingUpdate && PendingUpdate->IsLocked(); 
 }
 
 bool UTexture2D::StreamOut(int32 NewMipCount)

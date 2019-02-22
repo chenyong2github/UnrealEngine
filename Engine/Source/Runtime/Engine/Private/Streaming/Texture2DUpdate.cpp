@@ -8,6 +8,11 @@ Texture2DUpdate.cpp: Helpers to stream in and out mips.
 #include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
 
+#if STATS
+extern volatile int64 GPending2DUpdateCount;
+volatile int64 GPending2DUpdateCount = 0;
+#endif
+
 FTexture2DUpdateContext::FTexture2DUpdateContext(UTexture2D* InTexture, EThreadType InCurrentThread)
 	: Texture(InTexture)
 	, CurrentThread(InCurrentThread)
@@ -34,11 +39,15 @@ FTexture2DUpdate::FTexture2DUpdate(UTexture2D* InTexture, int32 InRequestedMips)
 		PendingFirstMip = INDEX_NONE;
 		bIsCancelled = true;
 	}
+
+	STAT(FPlatformAtomics::InterlockedIncrement(&GPending2DUpdateCount));
 }
 
 FTexture2DUpdate::~FTexture2DUpdate()
 {
 	ensure(!IntermediateTextureRHI);
+
+	STAT(FPlatformAtomics::InterlockedDecrement(&GPending2DUpdateCount));
 }
 
 
