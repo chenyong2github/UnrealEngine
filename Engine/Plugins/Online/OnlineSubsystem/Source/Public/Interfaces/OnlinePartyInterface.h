@@ -176,7 +176,6 @@ public:
 	 * Generate a JSON packet containing all key-value attributes
 	 * 
 	 * @param JsonString - [out] string containing the resulting JSON output
-	 * 
 	 */
 	void ToJsonFull(FString& JsonString) const;
 	
@@ -184,15 +183,25 @@ public:
 	 * Generate a JSON packet containing only the dirty key-value attributes for a delta update
 	 *
 	 * @param JsonString - [out] string containing the resulting JSON output
-	 *
 	 */
 	void ToJsonDirty(FString& JsonString) const;
+
+	/**
+	 * Create a JSON object containing all key-value attributes
+	 * @return a JSON object containing all key-value attributes
+	 */
+	TSharedRef<FJsonObject> GetAllAttributesAsJsonObject() const;
+
+	/**
+	 * Create a string representing a JSON object containing all key-value attributes
+	 * @return a string representing a JSON object containing all key-value attributes
+	 */
+	FString GetAllAttributesAsJsonObjectString() const;
 
 	/** 
 	 * Update attributes from a JSON packet
 	 *
 	 * @param JsonString - string containing the JSON packet
-	 *
 	 */
 	void FromJson(const FString& JsonString);
 
