@@ -1038,7 +1038,7 @@ void FVivoxVoiceChat::UnregisterOnVoiceChatBeforeRecvAudioRenderedDelegate(FDele
 {
 	FScopeLock Lock(&BeforeRecvAudioRenderedLock);
 
-	return OnVoiceChatBeforeRecvAudioRenderedDelegate.Remove(Handle);
+	OnVoiceChatBeforeRecvAudioRenderedDelegate.Remove(Handle);
 }
 
 FString FVivoxVoiceChat::InsecureGetLoginToken(const FString& PlayerName)
