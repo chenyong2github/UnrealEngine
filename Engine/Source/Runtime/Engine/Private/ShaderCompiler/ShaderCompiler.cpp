@@ -2824,7 +2824,10 @@ void GlobalBeginCompileShader(
 	FShaderTarget Target,
 	FShaderCompileJob* NewJob,
 	TArray<FShaderCommonCompileJob*>& NewJobs,
-	bool bAllowDevelopmentShaderCompile
+	bool bAllowDevelopmentShaderCompile,
+	const FString& DebugDescription,
+	const FString& DebugExtension
+
 	)
 {
 	COOK_STAT(ShaderCompilerCookStats::GlobalBeginCompileShaderCalls++);
@@ -2841,6 +2844,7 @@ void GlobalBeginCompileShader(
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderFormat.ToString();
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
+	Input.DebugDescription = DebugDescription;
 
 	if (ShaderType->GetRootParametersMetadata())
 	{
@@ -2955,7 +2959,7 @@ void GlobalBeginCompileShader(
 	// Setup the debug info path if requested, or if this is a global shader and shader development mode is enabled
 	if (GDumpShaderDebugInfo != 0)
 	{
-		Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName;
+		Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName + DebugExtension,
 		
 		// Sanitize the name to be used as a path
 		// List mostly comes from set of characters not allowed by windows in a path.  Just try to rename a file and type one of these for the list.
