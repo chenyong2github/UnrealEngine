@@ -235,6 +235,7 @@ namespace Audio
 		: bWarnedBufferUnderrun(false)
 		, AudioRenderThread(nullptr)
 		, AudioRenderEvent(nullptr)
+		, bIsInDeviceSwap(false)
 		, AudioFadeEvent(nullptr)
 		, CurrentBufferReadIndex(INDEX_NONE)
 		, CurrentBufferWriteIndex(INDEX_NONE)
@@ -364,9 +365,24 @@ namespace Audio
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		// Don't read any more audio if we're not running or changing device
-		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running || !DeviceSwapCriticalSection.TryLock())
+		// If we are flushing buffers for our output voice and this is being called on the audio thread directly,
+		// early exit.
+		if (bIsInDeviceSwap)
 		{
+			return;
+		}
+
+		// If we are currently swapping devices and OnBufferEnd is being triggered in an XAudio2Thread,
+		// early exit.
+		if (!DeviceSwapCriticalSection.TryLock())
+		{
+			return;
+		}
+
+		// Don't read any more audio if we're not running or changing device
+		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Running)
+		{
+			DeviceSwapCriticalSection.Unlock();
 			return;
 		}
 
