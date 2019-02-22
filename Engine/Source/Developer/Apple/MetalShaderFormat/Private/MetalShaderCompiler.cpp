@@ -1305,20 +1305,27 @@ void BuildMetalShaderOutput(
 	Header.NumThreadsY = CCHeader.NumThreads[1];
 	Header.NumThreadsZ = CCHeader.NumThreads[2];
 	
-	Header.TessellationOutputControlPoints 		= CCHeader.TessellationOutputControlPoints;
-	Header.TessellationDomain					= CCHeader.TessellationDomain;
-	Header.TessellationInputControlPoints       = CCHeader.TessellationInputControlPoints;
-	Header.TessellationMaxTessFactor            = CCHeader.TessellationMaxTessFactor;
-	Header.TessellationOutputWinding			= CCHeader.TessellationOutputWinding;
-	Header.TessellationPartitioning				= CCHeader.TessellationPartitioning;
-	Header.TessellationPatchesPerThreadGroup    = CCHeader.TessellationPatchesPerThreadGroup;
-	Header.TessellationPatchCountBuffer         = CCHeader.TessellationPatchCountBuffer;
-	Header.TessellationIndexBuffer              = CCHeader.TessellationIndexBuffer;
-	Header.TessellationHSOutBuffer              = CCHeader.TessellationHSOutBuffer;
-	Header.TessellationHSTFOutBuffer            = CCHeader.TessellationHSTFOutBuffer;
-	Header.TessellationControlPointOutBuffer    = CCHeader.TessellationControlPointOutBuffer;
-	Header.TessellationControlPointIndexBuffer  = CCHeader.TessellationControlPointIndexBuffer;
-	Header.TessellationOutputAttribs            = TessOutputAttribs;
+	if (ShaderInput.Target.Platform == SP_METAL_SM5 && (Frequency == SF_Vertex || Frequency == SF_Hull || Frequency == SF_Domain))
+	{
+		FMetalTessellationHeader TessHeader;
+		TessHeader.TessellationOutputControlPoints 		= CCHeader.TessellationOutputControlPoints;
+		TessHeader.TessellationDomain					= CCHeader.TessellationDomain;
+		TessHeader.TessellationInputControlPoints       = CCHeader.TessellationInputControlPoints;
+		TessHeader.TessellationMaxTessFactor            = CCHeader.TessellationMaxTessFactor;
+		TessHeader.TessellationOutputWinding			= CCHeader.TessellationOutputWinding;
+		TessHeader.TessellationPartitioning				= CCHeader.TessellationPartitioning;
+		TessHeader.TessellationPatchesPerThreadGroup    = CCHeader.TessellationPatchesPerThreadGroup;
+		TessHeader.TessellationPatchCountBuffer         = CCHeader.TessellationPatchCountBuffer;
+		TessHeader.TessellationIndexBuffer              = CCHeader.TessellationIndexBuffer;
+		TessHeader.TessellationHSOutBuffer              = CCHeader.TessellationHSOutBuffer;
+		TessHeader.TessellationHSTFOutBuffer            = CCHeader.TessellationHSTFOutBuffer;
+		TessHeader.TessellationControlPointOutBuffer    = CCHeader.TessellationControlPointOutBuffer;
+		TessHeader.TessellationControlPointIndexBuffer  = CCHeader.TessellationControlPointIndexBuffer;
+		TessHeader.TessellationOutputAttribs            = TessOutputAttribs;
+
+		Header.Tessellation.Add(TessHeader);
+		
+	}
 	Header.bDeviceFunctionConstants				= (FCStringAnsi::Strstr(USFSource, "#define __METAL_DEVICE_CONSTANT_INDEX__ 1") != nullptr);
 	Header.SideTable 							= CCHeader.SideTable;
 	Header.Bindings.ArgumentBufferMasks			= CCHeader.ArgumentBuffers;

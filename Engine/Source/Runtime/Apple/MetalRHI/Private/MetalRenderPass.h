@@ -46,10 +46,12 @@ public:
     void DrawIndexedIndirect(FMetalIndexBuffer* IndexBufferRHI, uint32 PrimitiveType, FMetalStructuredBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances);
     
     void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalIndexBuffer* IndexBufferRHI,FMetalVertexBuffer* VertexBufferRHI,uint32 ArgumentOffset);
-    
+	
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void DrawPatches(uint32 PrimitiveType, FMetalBuffer const& IndexBuffer, uint32 IndexBufferStride, int32 BaseVertexIndex, uint32 FirstInstance, uint32 StartIndex,
                      uint32 NumPrimitives, uint32 NumInstances);
-    
+#endif
+	
     void Dispatch(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ);
     
     void DispatchIndirect(FMetalVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset);
@@ -151,12 +153,16 @@ private:
 	void ConditionalSwitchToAsyncCompute(void);
 	
     void PrepareToRender(uint32 PrimType);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void PrepareToTessellate(uint32 PrimType);
+#endif
     void PrepareToDispatch(void);
 	void PrepareToAsyncDispatch(void);
 
     void CommitRenderResourceTables(void);
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void CommitTessellationResourceTables(void);
+#endif
     void CommitDispatchResourceTables(void);
 	void CommitAsyncDispatchResourceTables(void);
     
@@ -168,9 +174,9 @@ private:
     
     // Which of the buffers/textures/sampler slots are bound
     // The state cache is responsible for ensuring we bind the correct 
-    FMetalTextureMask BoundTextures[SF_NumStandardFrequencies];
-    uint32 BoundBuffers[SF_NumStandardFrequencies];
-    uint16 BoundSamplers[SF_NumStandardFrequencies];
+	FMetalTextureMask BoundTextures[EMetalShaderStages::Num];
+    uint32 BoundBuffers[EMetalShaderStages::Num];
+    uint16 BoundSamplers[EMetalShaderStages::Num];
     
     FMetalCommandEncoder CurrentEncoder;
     FMetalCommandEncoder PrologueEncoder;
