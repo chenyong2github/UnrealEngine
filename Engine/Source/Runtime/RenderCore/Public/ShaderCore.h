@@ -558,6 +558,9 @@ struct FShaderCompilerInput
 	// materialname or "Global" "for debugging and better error messages
 	FString DebugGroupName;
 
+	// Description of the configuration used when compiling. 
+	FString DebugDescription;
+
 	// Compilation Environment
 	FShaderCompilerEnvironment Environment;
 	TRefCountPtr<FShaderCompilerEnvironment> SharedEnvironment;
@@ -699,6 +702,7 @@ struct FShaderCompilerInput
 		Ar << Input.DumpDebugInfoRootPath;
 		Ar << Input.DumpDebugInfoPath;
 		Ar << Input.DebugGroupName;
+		Ar << Input.DebugDescription;
 		Ar << Input.Environment;
 		Ar << Input.ExtraSettings;
 		Ar << Input.RootParameterBindings;
