@@ -80,3 +80,22 @@ private:
 
 /** The global scratch vertex buffer. */
 extern TGlobalResource<FParticleScratchVertexBuffer> GParticleScratchVertexBuffer;
+
+
+/**
+ * Vertex buffer used to hold particle indices.
+ */
+class FParticleIndicesVertexBuffer : public FVertexBuffer
+{
+public:
+
+	/** Shader resource view of the vertex buffer. */
+	FShaderResourceViewRHIRef VertexBufferSRV;
+
+	/** Release RHI resources. */
+	virtual void ReleaseRHI() override
+	{
+		VertexBufferSRV.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
+	}
+};
