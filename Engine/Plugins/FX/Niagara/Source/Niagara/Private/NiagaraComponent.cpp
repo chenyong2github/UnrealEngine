@@ -114,6 +114,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraSceneProxy %p"), this);
 
 		bAlwaysHasVelocity = true;
+		Batcher = SystemInst->GetBatcher();
 	}
 }
 

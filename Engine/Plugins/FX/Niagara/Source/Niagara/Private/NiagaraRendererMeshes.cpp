@@ -7,6 +7,8 @@
 #include "NiagaraStats.h"
 #include "Async/ParallelFor.h"
 #include "Engine/StaticMesh.h"
+#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraSortingGPU.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
@@ -242,20 +244,48 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				}
 
 				//Sort particles if needed.
-				FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 				CollectorResources.VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
+
+				FNiagaraGPUSortInfo SortInfo;
+				if (View && Properties->SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !Properties->bSortOnlyWhenTranslucent))
+				{
+					SortInfo.ParticleCount = NumInstances;
+					SortInfo.SortMode = Properties->SortMode;
+					SortInfo.SortAttributeOffset = (SortInfo.SortMode == ENiagaraSortMode::CustomAscending || SortInfo.SortMode == ENiagaraSortMode::CustomDecending) ? CustomSortingOffset : PositionOffset;
+					SortInfo.ViewOrigin = View->ViewMatrices.GetViewOrigin();
+					SortInfo.ViewDirection = View->GetViewDirection();
+					if (bLocalSpace)
+					{
+						FMatrix InvTransform = SceneProxy->GetLocalToWorld().InverseFast();
+						SortInfo.ViewOrigin = InvTransform.TransformPosition(SortInfo.ViewOrigin);
+						SortInfo.ViewDirection = InvTransform.TransformVector(SortInfo.ViewDirection);
+					}
+				};
+
 				if (DynamicDataMesh->DataSet->GetSimTarget() == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
 				{
 					check(ParticleData.IsValid());
-					if (bHasTranslucentMaterials || !Properties->bSortOnlyWhenTranslucent)
+					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE)
 					{
-						ENiagaraSortMode SortMode = Properties->SortMode;
-						bool bCustomSortMode = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
-						int32 SortAttributeOffest = bCustomSortMode ? CustomSortingOffset : PositionOffset;
-						if (SortMode != ENiagaraSortMode::None && SortAttributeOffest != INDEX_NONE)
+						if (GNiagaraGPUSorting &&
+							GNiagaraGPUSortingCPUToGPUThreshold != INDEX_NONE &&
+							SortInfo.ParticleCount >= GNiagaraGPUSortingCPUToGPUThreshold &&
+							SceneProxy->GetBatcher())
 						{
+							SortInfo.ParticleDataFloatSRV = ParticleData.ReadBuffer->SRV;
+							SortInfo.FloatDataOffset = ParticleData.FirstIndex / sizeof(float);
+							SortInfo.FloatDataStride = DynamicDataMesh->RTParticleData.GetFloatStride() / sizeof(float);
+							const int32 IndexBufferOffset = SceneProxy->GetBatcher()->AddSortedGPUSimulation(SortInfo);
+							if (IndexBufferOffset != INDEX_NONE)
+							{
+								CollectorResources.VertexFactory.SetSortedIndices(SceneProxy->GetBatcher()->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+							}
+						}
+						else
+						{
+							FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 							SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
-							SortIndices(SortMode, SortAttributeOffest, DynamicDataMesh->RTParticleData, SceneProxy->GetLocalToWorld(), View, SortedIndices);
+							SortIndices(SortInfo.SortMode, SortInfo.SortAttributeOffset, DynamicDataMesh->RTParticleData, SceneProxy->GetLocalToWorld(), View, SortedIndices);
 							CollectorResources.VertexFactory.SetSortedIndices(SortedIndices.ReadBuffer->SRV, SortedIndices.FirstIndex / sizeof(float));
 						}
 					}
@@ -263,6 +293,19 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				}
 				else
 				{
+					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE && GNiagaraGPUSorting && SceneProxy->GetBatcher())
+					{
+						SortInfo.ParticleDataFloatSRV = DynamicDataMesh->DataSet->CurrData().GetGPUBufferFloat()->SRV;
+						SortInfo.FloatDataOffset = 0;
+						SortInfo.FloatDataStride = DynamicDataMesh->RTParticleData.GetFloatStride() / sizeof(float);
+						SortInfo.GPUParticleCountSRV = DynamicDataMesh->DataSet->GetCurDataSetIndices().SRV;
+						SortInfo.GPUParticleCountOffset = 1;
+						const int32 IndexBufferOffset = SceneProxy->GetBatcher()->AddSortedGPUSimulation(SortInfo);
+						if (IndexBufferOffset != INDEX_NONE)
+						{
+							CollectorResources.VertexFactory.SetSortedIndices(SceneProxy->GetBatcher()->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+						}
+					}
 					CollectorResources.VertexFactory.SetParticleData(DynamicDataMesh->DataSet->CurrData().GetGPUBufferFloat()->SRV, 0, DynamicDataMesh->DataSet->CurrData().GetFloatStride() / sizeof(float));
 				}
 
