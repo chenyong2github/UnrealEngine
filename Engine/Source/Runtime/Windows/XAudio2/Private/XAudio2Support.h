@@ -32,6 +32,7 @@
 	#include <X3Daudio.h>
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#include "XAudio2Device.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -199,6 +200,7 @@ struct FXWMABufferInfo
 	UINT32						XWMASeekDataSize;
 };
 
+class FXAudio2SoundBuffer;
 typedef FAsyncRealtimeAudioTaskProxy<FXAudio2SoundBuffer> FAsyncRealtimeAudioTask;
 
 /**
