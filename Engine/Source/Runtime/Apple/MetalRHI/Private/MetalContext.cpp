@@ -460,7 +460,7 @@ void FMetalDeviceContext::ClearFreeList()
 			}
 			for ( FMetalTexture& Texture : Pair->UsedTextures )
 			{
-                if (!(Texture.GetBuffer() || Texture.GetParentTexture()) && (Texture.GetStorageMode() != mtlpp::StorageMode::Private))
+                if (!Texture.GetBuffer() && !Texture.GetParentTexture())
 				{
 #if METAL_DEBUG_OPTIONS
 					if (GMetalResourcePurgeOnDelete && !Texture.GetHeap())
@@ -693,8 +693,15 @@ void FMetalDeviceContext::ReleaseTexture(FMetalTexture& Texture)
         if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
         {
             Heap.ReleaseTexture(nullptr, Texture);
+			
+			// Ensure that the Objective-C handle can't disappear prior to the GPU being done with it without racing with the above
+			if(!ObjectFreeList.Contains(Texture.GetPtr()))
+			{
+				[Texture.GetPtr() retain];
+				ObjectFreeList.Add(Texture.GetPtr());
+			}
         }
-		if(!UsedTextures.Contains(Texture))
+		else if(!UsedTextures.Contains(Texture))
 		{
 			UsedTextures.Add(MoveTemp(Texture));
 		}
