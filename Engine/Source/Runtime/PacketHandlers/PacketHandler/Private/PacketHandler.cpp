@@ -146,10 +146,6 @@ void PacketHandler::NotifyAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InPro
 
 	if (State != Handler::State::Uninitialized)
 	{
-		// Hotfixes should never reach this code from NetConnection's, but we can't avoid it in the case of the stateless connect handler.
-		// The latter should be ok without special/expensive multithreaded handling, as the hotfix happens so early - but it's not ideal.
-		ensure(bConnectionlessHandler || HandlerComponents.Num() == 0);
-
 		for (const TSharedPtr<HandlerComponent>& CurComponent : HandlerComponents)
 		{
 			if (CurComponent->IsInitialized())
