@@ -640,6 +640,7 @@ public:
 	 * Creates the MaterialInstance if it doesn't exist.
 	 */
 	LANDSCAPE_API void UpdateMaterialInstances();
+	LANDSCAPE_API void UpdateMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext);
 
 	// Internal implementation of UpdateMaterialInstances, not safe to call directly
 	void UpdateMaterialInstances_Internal(FMaterialUpdateContext& Context);
