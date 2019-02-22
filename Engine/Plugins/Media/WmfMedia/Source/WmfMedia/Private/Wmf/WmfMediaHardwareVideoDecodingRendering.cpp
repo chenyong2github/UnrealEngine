@@ -1,8 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "WmfMediaPrivate.h"
-
 #include "WmfMediaHardwareVideoDecodingRendering.h"
+
+#include "WmfMediaPrivate.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 

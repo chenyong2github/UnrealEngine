@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if PLATFORM_WINDOWS
+
 #include "Player/WmfMediaTextureSample.h"
 #include "RHI.h"
 
@@ -113,3 +115,5 @@ private:
 
 /** Implements a pool for WMF texture samples. */
 class FWmfMediaHardwareVideoDecodingTextureSamplePool : public TMediaObjectPool<FWmfMediaHardwareVideoDecodingTextureSample> { };
+
+#endif
