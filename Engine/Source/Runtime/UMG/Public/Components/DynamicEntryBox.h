@@ -91,10 +91,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
 	void SetEntrySpacing(const FVector2D& InEntrySpacing);
+	
+	//~ Begin UWidget Interface
+#if WITH_EDITOR	
+	virtual const FText GetPaletteCategory() override;
 
-#if WITH_EDITOR
 	virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const override;
 #endif
+	//~ End UWidget Interface
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = DynamicEntryBox, meta = (ClampMin = 0, ClampMax = 20))
