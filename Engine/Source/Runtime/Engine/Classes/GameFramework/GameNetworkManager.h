@@ -157,6 +157,14 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	UPROPERTY(GlobalConfig)
 	float ClientErrorUpdateRateLimit;
 
+	/** Minimum delay between calls to ServerUpdateCamera, in seconds. */
+	UPROPERTY(GlobalConfig)
+	float ClientNetCamUpdateDeltaTime;
+
+	/** Camera position change limit, when exceeded allows an immediate ServerUpdateCamera call. */
+	UPROPERTY(GlobalConfig)
+	float ClientNetCamUpdatePositionLimit;
+
 	//======================================================================================================================
 	// Movement Time Discrepancy settings for Characters (speed hack detection and prevention)
 
