@@ -18,15 +18,6 @@
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 
-static int32 GEnableDetailedWindowsDeviceLogging = 0;
-FAutoConsoleVariableRef CVarEnableDetailedWindowsDeviceLogging(
-	TEXT("au.EnableDetailedWindowsDeviceLogging"),
-	GEnableDetailedWindowsDeviceLogging,
-	TEXT("Enables detailed windows device logging.\n")
-	TEXT("0: Not Enabled, 1: Enabled"),
-	ECVF_Default);
-
-
 class FWindowsMMNotificationClient final : public IMMNotificationClient
 {
 public:
@@ -58,12 +49,17 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow InFlow, ERole InRole, LPCWSTR pwstrDeviceId) override
 	{
-		if (GEnableDetailedWindowsDeviceLogging)
+		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDefaultDeviceChanged: %d, %d, %s"), InFlow, InRole, pwstrDeviceId);
 		}
 
 		Audio::EAudioDeviceRole AudioDeviceRole;
+
+		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
+		{
+			return S_OK;
+		}
 
 		if (InRole == eConsole)
 		{
@@ -107,9 +103,14 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR pwstrDeviceId) override
 	{
-		if (GEnableDetailedWindowsDeviceLogging)
+		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceAdded: %s"), pwstrDeviceId);
+		}
+		
+		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
+		{
+			return S_OK;
 		}
 
 		for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
@@ -121,9 +122,14 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR pwstrDeviceId) override
 	{
-		if (GEnableDetailedWindowsDeviceLogging)
+		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceRemoved: %s"), pwstrDeviceId);
+		}
+
+		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
+		{
+			return S_OK;
 		}
 
 		for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
@@ -135,9 +141,14 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState) override
 	{
-		if (GEnableDetailedWindowsDeviceLogging)
+		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceStateChanged: %s, %d"), pwstrDeviceId, dwNewState);
+		}
+
+		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
+		{
+			return S_OK;
 		}
 
 		if (dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
@@ -166,9 +177,14 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
 	{
-		if (GEnableDetailedWindowsDeviceLogging)
+		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnPropertyValueChanged: %s, %d"), pwstrDeviceId, key.pid);
+		}
+
+		if (Audio::IAudioMixer::ShouldIgnoreDeviceSwaps())
+		{
+			return S_OK;
 		}
 
 		FString ChangedId = FString(pwstrDeviceId);
@@ -180,7 +196,7 @@ public:
 		{
 			for (Audio::IAudioMixerDeviceChangedLister* Listener : Listeners)
 			{
-				Listener->OnDeviceRemoved(FString(pwstrDeviceId));
+				Listener->OnDeviceRemoved(ChangedId);
 			}
 		}
 
