@@ -1796,9 +1796,6 @@ void FViewport::GetActorsAndModelsInHitProxy(FIntRect InRect, TSet<AActor*>& Out
 
 void FViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode, EPixelFormat PreferredPixelFormat)
 {
-	// Make sure we're not in the middle of streaming textures.
-	(*GFlushStreamingFunc)();
-
 	{
 		// Temporarily stop rendering thread.
 		SCOPED_SUSPEND_RENDERING_THREAD(true);
