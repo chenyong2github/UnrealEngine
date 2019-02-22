@@ -4291,6 +4291,11 @@ public:
 	}
 	void UpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture);
 
+	FORCEINLINE void PollRenderQueryResults()
+	{
+		GDynamicRHI->RHIPollRenderQueryResults();
+	}
+
 	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num);
 };
 
