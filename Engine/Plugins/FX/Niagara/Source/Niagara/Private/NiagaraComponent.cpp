@@ -856,15 +856,23 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	FBoxSphereBounds SystemBounds;
 	if (SystemInstance.IsValid())
 	{
-		SystemInstance->GetSystemBounds().Init();
-		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+		UNiagaraSystem* System = SystemInstance->GetSystem();
+		if (System->bFixedBounds)
 		{
-			FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
-			SystemInstance->GetSystemBounds() += Sim.GetBounds();
+			SystemBounds = System->GetFixedBounds();
 		}
-		FBox BoundingBox = SystemInstance->GetSystemBounds();
+		else
+		{
+			SystemInstance->GetSystemBounds().Init();
+			for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+			{
+				FNiagaraEmitterInstance &Sim = *(SystemInstance->GetEmitters()[i]);
+				SystemInstance->GetSystemBounds() += Sim.GetBounds();
+			}
+			FBox BoundingBox = SystemInstance->GetSystemBounds();
 
-		SystemBounds = FBoxSphereBounds(BoundingBox);
+			SystemBounds = FBoxSphereBounds(BoundingBox);
+		}
 	}
 	else
 	{
