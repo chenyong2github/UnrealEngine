@@ -103,8 +103,11 @@ FOwnedBulkDataPtr::~FOwnedBulkDataPtr()
 	}
 	else
 	{
-		delete MappedHandle;
-		delete MappedRegion;
+		if (MappedRegion || MappedHandle)
+		{
+			delete MappedRegion;
+			delete MappedHandle;
+		}
 	}
 }
 
@@ -1012,7 +1015,14 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				}
 				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 				{
-					Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+					{
+						Filename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+					}
+					else
+					{
+						Filename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+					}
 
 
 					if (bAttemptFileMapping)
@@ -1496,7 +1506,15 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
 		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.
-		const FString BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+		FString BulkDataFilename;
+		if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+		{
+			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
+		}
+		else
+		{
+			BulkDataFilename = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
+		}
 		BulkDataArchive = IFileManager::Get().CreateFileReader(*BulkDataFilename, FILEREAD_Silent);
 	}
 
@@ -1697,7 +1715,7 @@ void FFloatBulkData::SerializeElement( FArchive& Ar, void* Data, int32 ElementIn
 	Ar << FloatData;
 }
 
-void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment, bool bInline)
+void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave, bool bSingleUse, uint32 InAlignment, bool bInline, bool bMapped)
 {
 	if (Ar.IsLoading())
 	{
@@ -1741,11 +1759,15 @@ void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FNam
 				if (bInline)
 				{
 					Bulk->SetBulkDataFlags(BULKDATA_ForceInlinePayload);
-					Bulk->ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+					Bulk->ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
 				}
 				else
 				{
 					Bulk->SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+					if (bMapped)
+					{
+						Bulk->SetBulkDataFlags(BULKDATA_MemoryMappedPayload);
+					}
 					Bulk->ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
 
 				}
