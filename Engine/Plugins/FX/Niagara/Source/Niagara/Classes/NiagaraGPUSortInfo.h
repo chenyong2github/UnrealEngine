@@ -6,6 +6,7 @@ NiagaraGPUSortInfo.h: GPU particle sorting helper
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHI.h"
 #include "RHIResources.h"
 #include "NiagaraGPUSortInfo.generated.h"
 
