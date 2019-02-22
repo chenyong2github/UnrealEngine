@@ -17,7 +17,6 @@
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
 #include "AudioDevice.h"
-#include "VorbisAudioInfo.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogXAudio2, Log, All);
 

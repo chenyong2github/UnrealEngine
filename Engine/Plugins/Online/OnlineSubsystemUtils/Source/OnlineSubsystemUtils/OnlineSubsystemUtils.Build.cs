@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class OnlineSubsystemUtils : ModuleRules
 {
@@ -11,19 +10,6 @@ public class OnlineSubsystemUtils : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PrivateIncludePaths.Add("OnlineSubsystemUtils/Private");
-
-        string EnginePath = Path.GetFullPath(Target.RelativeEnginePath);
-        string RuntimePath = EnginePath + "Source/Runtime/";
-
-        bool bIsWindowsPlatformBuild = ((Target.Platform == UnrealTargetPlatform.Win32) || (Target.Platform == UnrealTargetPlatform.Win64));
-
-        if (bIsWindowsPlatformBuild)
-        {
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Public");
-            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Private");
-        }
-
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
