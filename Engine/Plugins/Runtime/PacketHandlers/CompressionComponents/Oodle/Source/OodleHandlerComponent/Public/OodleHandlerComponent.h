@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -20,6 +20,17 @@ DECLARE_LOG_CATEGORY_EXTERN(OodleHandlerComponentLog, Log, All);
 
 #include "OodleAnalytics.h"
 #include "OodleArchives.h"
+
+/**
+ * Specifies when compression is enabled. Used to make compression optional, for some platforms/clients
+ */
+UENUM()
+enum class EOodleEnableMode : uint8
+{
+	AlwaysEnabled,					// Oodle compression is always enabled - forces compression to be enabled remotely
+	WhenCompressedPacketReceived	// Oodle compression is only enabled if remotely requested
+};
+
 
 #if HAS_OODLE_SDK
 
@@ -356,9 +367,16 @@ public:
 
 	virtual void NotifyAnalyticsProvider() override;
 
+
 protected:
-	/** Whether or not Oodle is enabled */
+	/** Whether or not Oodle, and its additions to the packet protocol, are enabled */
 	bool bEnableOodle;
+
+	/** When to enable compression on the server */
+	EOodleEnableMode ServerEnableMode;
+
+	/** When to enable compression on the client */
+	EOodleEnableMode ClientEnableMode;
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 	/** File to log input packets to */
@@ -392,6 +410,9 @@ public:
 
 	/** Client (Incoming - relative to server) dictionary data */
 	TSharedPtr<FOodleDictionary> ClientDictionary;
+
+	/** Whether or not InitializeDictionaries was ever called */
+	bool bInitializedDictionaries;
 };
 #endif
 
