@@ -409,9 +409,14 @@ public:
 	virtual ~FXAudio2SoundSource();
 
 	/**
-	 * Frees existing resources. Called from destructor and therefore not virtual.
+	 * Frees existing resources except for the buffer. Called from destructor and therefore not virtual.
 	 */
 	void FreeResources();
+
+	/**
+	 * Frees the source's underlying buffer, if neccessary. 
+	 */
+	void FreeBuffer();
 
 	/**
 	* Initializes any effects used with this source voice
