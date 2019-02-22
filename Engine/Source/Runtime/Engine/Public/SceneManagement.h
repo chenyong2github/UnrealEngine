@@ -1194,8 +1194,11 @@ public:
 		return false;
 	}
 
-	virtual void SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect) const
+	// @param OutScissorRect the scissor rect used if one is set
+	// @return whether a scissor rect is set
+	virtual bool SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect, FIntRect* OutScissorRect = nullptr) const
 	{
+		return false;
 	}
 
 	virtual bool ShouldCreateRayTracedCascade(ERHIFeatureLevel::Type Type, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const { return false; }
