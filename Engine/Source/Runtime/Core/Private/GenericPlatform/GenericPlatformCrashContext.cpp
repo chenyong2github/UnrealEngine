@@ -19,10 +19,13 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Stats/Stats.h"
 #include "Internationalization/TextLocalizationManager.h"
+#include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 
 #ifndef NOINITCRASHREPORTER
 #define NOINITCRASHREPORTER 0
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogCrashContext, Display, All);
 
 extern CORE_API bool GIsGPUCrashed;
 
@@ -668,15 +671,31 @@ void FGenericCrashContext::ResetGameData()
 	NCachedCrashContextProperties::GameData.Reset();
 }
 
-void FGenericCrashContext::AddGameData(const FString& Key, const FString& Value)
+void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
 {
 	if (Value.Len() == 0)
 	{
+		// for testing purposes, only log values when they change, but don't pay the lookup price normally.
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (NCachedCrashContextProperties::GameData.Find(Key))
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetGameData(%s, <RemoveKey>)"), *Key);
+			}
+		});
 		NCachedCrashContextProperties::GameData.Remove(Key);
 	}
 	else
 	{
-		NCachedCrashContextProperties::GameData.Add(Key, Value);
+		FString& OldVal = NCachedCrashContextProperties::GameData.FindOrAdd(Key);
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (OldVal != Value)
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetGameData(%s, %s)"), *Key, *Value);
+			}
+		});
+		OldVal = Value;
 	}
 }
 
