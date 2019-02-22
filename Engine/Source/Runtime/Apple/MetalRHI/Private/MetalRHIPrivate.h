@@ -95,6 +95,7 @@ extern FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 #define METAL_DEBUG_OPTIONS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #if METAL_DEBUG_OPTIONS
 #define METAL_DEBUG_OPTION(Code) Code
+extern int32 GMetalResetOnPSOChange;
 #else
 #define METAL_DEBUG_OPTION(Code)
 #endif
