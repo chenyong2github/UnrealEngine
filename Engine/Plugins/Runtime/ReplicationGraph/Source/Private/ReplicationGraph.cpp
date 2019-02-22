@@ -1026,7 +1026,7 @@ void UReplicationGraph::ReplicateActorListsForConnection_Default(UNetReplication
 					DO_REPGRAPH_DETAILS(DebugDetails = PrioritizedReplicationList.GetNextFullDebugDetails(Actor));
 				}
 
-				float AccumulatedPriority = 0.f;
+				float AccumulatedPriority = GlobalData.Settings.AccumulatedNetPriorityBias;
 
 				// -------------------
 				// Distance Scaling
