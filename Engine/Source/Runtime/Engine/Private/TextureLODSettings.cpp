@@ -293,11 +293,9 @@ ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(const UTexture* Text
 
 	switch(Texture->Filter)
 	{
-		case TF_FirstMipNearest:
 		case TF_Nearest: 
 			Filter = ETextureSamplerFilter::Point; 
 			break;
-		case TF_FirstMipBilinear:
 		case TF_Bilinear: 
 			Filter = ETextureSamplerFilter::Bilinear; 
 			break;
@@ -317,4 +315,18 @@ ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(const UTexture* Text
 ETextureSamplerFilter UTextureLODSettings::GetSamplerFilter(int32 InLODGroup) const
 {
 	return TextureLODGroups[InLODGroup].Filter;
+}
+
+
+ETextureMipLoadOptions UTextureLODSettings::GetMipLoadOptions(const UTexture* Texture) const
+{
+	check(Texture);
+	if (Texture->MipLoadOptions != ETextureMipLoadOptions::Default)
+	{
+		return Texture->MipLoadOptions;
+	}
+	else
+	{
+		return TextureLODGroups[Texture->LODGroup].MipLoadOptions;
+	}
 }

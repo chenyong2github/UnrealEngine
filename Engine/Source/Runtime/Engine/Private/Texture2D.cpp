@@ -506,7 +506,8 @@ void UTexture2D::UpdateResource()
 #else
 	// Note that using TF_FirstMip disables texture streaming, because the mip data becomes lost.
 	// Also, the cleanup of the platform data must go between UpdateCachedLODBias() and UpdateResource().
-	if ((Filter == TF_FirstMipNearest || Filter == TF_FirstMipBilinear) && PlatformData && FPlatformProperties::RequiresCookedData())
+	const bool bLoadOnlyFirstMip = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetMipLoadOptions(this) == ETextureMipLoadOptions::OnlyFirstMip;
+	if (bLoadOnlyFirstMip && PlatformData && FPlatformProperties::RequiresCookedData())
 	{
 		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
 		// Remove any mips after the first mip.
@@ -841,7 +842,6 @@ FTextureResource* UTexture2D::CreateResource()
 					!NeverStream && 
 					(NumMips > 1) && 
 					(LODGroup != TEXTUREGROUP_UI) && 
-					(Filter != TF_FirstMipNearest && Filter != TF_FirstMipBilinear) &&
 					!bTemporarilyDisableStreaming;
 	
 	if (bIsStreamable && NumMips > 0)
@@ -1484,8 +1484,7 @@ uint32 FTexture2DResource::GetSizeY() const
 int32 FTexture2DResource::GetDefaultMipMapBias() const
 {
 	check(Owner);
-	if ((Owner->LODGroup == TEXTUREGROUP_UI && CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0) || 
-		(!GIsEditor && (Owner->Filter == TF_FirstMipNearest || Owner->Filter == TF_FirstMipBilinear))) // Don't use in editor otherwise it prevents visualizing mips.
+	if (Owner->LODGroup == TEXTUREGROUP_UI && CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0)
 	{
 		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
 		return -OwnerMips.Num();

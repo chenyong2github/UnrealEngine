@@ -149,3 +149,14 @@ enum class ETextureSamplerFilter : uint8
 	AnisotropicPoint,
 	AnisotropicLinear,
 };
+
+UENUM()
+enum class ETextureMipLoadOptions : uint8
+{
+	// Fallback to the LODGroup settings
+	Default,
+	// Load all mips.
+	AllMips,
+	// Load only the first mip.
+	OnlyFirstMip,
+};
