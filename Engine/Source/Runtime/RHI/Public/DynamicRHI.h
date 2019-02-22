@@ -1105,6 +1105,7 @@ public:
 	virtual void RHISignalFlipEvent() { }
 
 	virtual void RHICalibrateTimers() {}
+	virtual void RHIPollRenderQueryResults() {}
 
 	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return true; }
 
