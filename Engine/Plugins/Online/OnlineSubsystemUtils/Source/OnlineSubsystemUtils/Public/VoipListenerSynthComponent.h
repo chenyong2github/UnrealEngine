@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SynthComponent.h"
 #include "VoicePacketBuffer.h"
-#include "DSP/DynamicsProcesser.h"
+#include "DSP/DynamicsProcessor.h"
 #include "DSP/EQ.h"
 #include "VoipListenerSynthComponent.generated.h"
 
