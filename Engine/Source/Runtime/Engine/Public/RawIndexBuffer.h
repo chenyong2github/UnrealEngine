@@ -125,7 +125,7 @@ public:
 	 * Initialization constructor.
 	 * @param InNeedsCPUAccess	True if resource array data should be accessible by the CPU.
 	 */
-	FRawStaticIndexBuffer(bool InNeedsCPUAccess=false);
+	ENGINE_API FRawStaticIndexBuffer(bool InNeedsCPUAccess=false);
 
 	/**
 	 * Sets a single index value.  Consider using SetIndices() instead if you're setting a lot of indices.

@@ -267,6 +267,18 @@ struct FStaticMeshVertexBuffers
 	void ENGINE_API InitModelVF(FLocalVertexFactory* VertexFactory);
 };
 
+struct FAdditionalStaticMeshIndexBuffers
+{
+	/** Reversed index buffer, used to prevent changing culling state between drawcalls. */
+	FRawStaticIndexBuffer ReversedIndexBuffer;
+	/** Reversed depth only index buffer, used to prevent changing culling state between drawcalls. */
+	FRawStaticIndexBuffer ReversedDepthOnlyIndexBuffer;
+	/** Index buffer resource for rendering wireframe mode. */
+	FRawStaticIndexBuffer WireframeIndexBuffer;
+	/** Index buffer containing adjacency information required by tessellation. */
+	FRawStaticIndexBuffer AdjacencyIndexBuffer;
+};
+
 /** Rendering resources needed to render an individual static mesh LOD. */
 struct FStaticMeshLODResources
 {
@@ -274,16 +286,11 @@ struct FStaticMeshLODResources
 
 	/** Index buffer resource for rendering. */
 	FRawStaticIndexBuffer IndexBuffer;
-	/** Reversed index buffer, used to prevent changing culling state between drawcalls. */
-	FRawStaticIndexBuffer ReversedIndexBuffer;
+
 	/** Index buffer resource for rendering in depth only passes. */
 	FRawStaticIndexBuffer DepthOnlyIndexBuffer;
-	/** Reversed depth only index buffer, used to prevent changing culling state between drawcalls. */
-	FRawStaticIndexBuffer ReversedDepthOnlyIndexBuffer;
-	/** Index buffer resource for rendering wireframe mode. */
-	FRawStaticIndexBuffer WireframeIndexBuffer;
-	/** Index buffer containing adjacency information required by tessellation. */
-	FRawStaticIndexBuffer AdjacencyIndexBuffer;
+
+	FAdditionalStaticMeshIndexBuffers* AdditionalIndexBuffers;
 
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */
