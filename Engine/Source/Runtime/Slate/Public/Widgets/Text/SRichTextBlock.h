@@ -51,7 +51,9 @@ public:
 		, _Decorators()
 		, _Parser()
 		, _MinDesiredWidth()
-	{}
+	{
+		_Clipping = EWidgetClipping::OnDemand;
+	}
 		/** The text displayed in this text block */
 		SLATE_ATTRIBUTE( FText, Text )
 
