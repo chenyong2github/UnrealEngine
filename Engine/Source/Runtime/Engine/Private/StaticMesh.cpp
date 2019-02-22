@@ -4315,6 +4315,7 @@ bool UStaticMesh::IsPostLoadThreadSafe() const
 //
 void UStaticMesh::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
 	Super::PostLoad();
 
 #if WITH_EDITOR
