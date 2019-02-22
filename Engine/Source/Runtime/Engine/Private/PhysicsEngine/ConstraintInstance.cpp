@@ -464,6 +464,11 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 	EnsureSleepingActorsStaySleeping_AssumesLocked(ActorRef1, ActorRef2);
 }
 
+void FConstraintInstance::SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate)
+{
+	OnConstraintBrokenDelegate = InConstraintBrokenDelegate;
+}
+
 void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale) const
 {
 	// flags and projection settings
