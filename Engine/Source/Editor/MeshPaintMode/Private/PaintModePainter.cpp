@@ -387,6 +387,8 @@ void FPaintModePainter::PasteVertexColors()
 			}
 		}
 	}
+
+	UpdateCachedVertexDataSize();
 }
 
 void FPaintModePainter::FixVertexColors()
@@ -407,6 +409,8 @@ void FPaintModePainter::RemoveVertexColors()
 	{
 		MeshPaintHelpers::RemoveComponentInstanceVertexColors(Component);
 	}
+
+	UpdateCachedVertexDataSize();
 }
 
 void FPaintModePainter::PropagateVertexColorsToLODs()
@@ -493,6 +497,24 @@ void FPaintModePainter::CycleMeshLODs(int32 Direction)
 		const int32 AdjustedLODIndex = NewLODIndex < 0 ? MaxLODIndex + NewLODIndex : NewLODIndex % MaxLODIndex;
 		PaintSettings->VertexPaintSettings.LODIndex = AdjustedLODIndex;
 		PaintLODChanged();
+	}
+}
+
+void FPaintModePainter::UpdateCachedVertexDataSize()
+{
+	if (PaintSettings->PaintMode == EPaintMode::Vertices)
+	{
+		CachedVertexDataSize = 0;
+
+		const bool bInstance = true;
+		for (UMeshComponent* SelectedComponent : PaintableComponents)
+		{
+			int32 NumLODs = MeshPaintHelpers::GetNumberOfLODs(SelectedComponent);
+			for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+			{
+				CachedVertexDataSize += MeshPaintHelpers::GetVertexColorBufferSize(SelectedComponent, LODIndex, bInstance);
+			}
+		}
 	}
 }
 
@@ -783,6 +805,9 @@ void FPaintModePainter::FinishPainting()
 	{
 		PropagateVertexColorsToLODs();
 	}
+
+	UpdateCachedVertexDataSize();
+
 }
 
 bool FPaintModePainter::PaintInternal(const FVector& InCameraOrigin, const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintAction PaintAction, float PaintStrength)
@@ -2168,7 +2193,9 @@ void FPaintModePainter::Tick(FEditorViewportClient* ViewportClient, float DeltaT
 		bRefreshCachedData = false;
 		CacheSelectionData();
 		CacheTexturePaintData();
-		
+
+		UpdateCachedVertexDataSize();
+
 		bDoRestoreRenTargets = true;
 	}
 
