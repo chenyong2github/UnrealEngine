@@ -357,8 +357,10 @@ void USoundWave::Serialize( FArchive& Ar )
 						ActualFormatsToSave.Add(Format);
 					}
 				}
-				bool bInline = !(CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAudio));
-				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave, true, DEFAULT_ALIGNMENT, bInline);
+				bool bMapped = CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && CookingTarget->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAudio);
+				CompressedFormatData.Serialize(Ar, this, &ActualFormatsToSave, true, DEFAULT_ALIGNMENT, 
+					!bMapped, // inline if not mapped
+					bMapped);
 #endif
 			}
 			else
