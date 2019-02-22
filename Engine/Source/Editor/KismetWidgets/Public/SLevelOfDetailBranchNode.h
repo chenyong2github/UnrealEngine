@@ -11,6 +11,8 @@
 /////////////////////////////////////////////////////
 // SLevelOfDetailBranchNode
 
+DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGetActiveDetailSlotContent, bool);
+
 class KISMETWIDGETS_API SLevelOfDetailBranchNode : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SLevelOfDetailBranchNode)
@@ -25,7 +27,18 @@ class KISMETWIDGETS_API SLevelOfDetailBranchNode : public SCompoundWidget
 
 		// The high-detail slot
 		SLATE_NAMED_SLOT(FArguments, HighDetail)
+
+		SLATE_EVENT(FOnGetActiveDetailSlotContent, OnGetActiveDetailSlotContent)
 	SLATE_END_ARGS()
+
+public:
+	SLevelOfDetailBranchNode();
+
+	void Construct(const FArguments& InArgs);
+
+	// SWidget interface
+	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	// End of SWidget interface
 
 protected:
 	// What kind of slot was shown last frame
@@ -40,12 +53,6 @@ protected:
 	// The high-detail child slot
 	TSharedRef<SWidget> ChildSlotHighDetail;
 
-public:
-	SLevelOfDetailBranchNode();
+	FOnGetActiveDetailSlotContent OnGetActiveDetailSlotContent;
 
-	void Construct(const FArguments& InArgs);
-
-	// SWidget interface
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	// End of SWidget interface
 };
