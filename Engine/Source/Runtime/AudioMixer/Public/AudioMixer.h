@@ -515,6 +515,9 @@ namespace Audio
 		/** Critical Section used for times when we need the render loop to halt for the device swap. */
 		FCriticalSection DeviceSwapCriticalSection;
 
+		/** This is used if we are attempting to TryLock on DeviceSwapCriticalSection, but a buffer callback is being called in the current thread. */
+		FThreadSafeBool bIsInDeviceSwap;
+
 		/** Event allows you to block until fadeout is complete. */
 		FEvent* AudioFadeEvent;
 
