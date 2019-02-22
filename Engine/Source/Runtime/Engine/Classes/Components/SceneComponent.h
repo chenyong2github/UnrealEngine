@@ -146,11 +146,11 @@ public:
 	FBoxSphereBounds Bounds;
 
 	/** Location of the component relative to its parent */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_RelativeLocation, Category = Transform)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category = Transform)
 	FVector RelativeLocation;
 
 	/** Rotation of the component relative to its parent */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_RelativeRotation, Category=Transform)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, Category=Transform)
 	FRotator RelativeRotation;
 
 	/**
@@ -207,6 +207,12 @@ private:
 	UPROPERTY(Transient, Replicated)
 	uint8 bShouldBeAttached : 1;
 
+	UPROPERTY(Transient, Replicated)
+	uint8 bShouldSnapLocationWhenAttached : 1;
+
+	UPROPERTY(Transient, Replicated)
+	uint8 bShouldSnapRotationWhenAttached : 1;
+
 	/**
 	 * Whether or not the cached PhysicsVolume this component overlaps should be updated when the component is moved.
 	 * @see GetPhysicsVolume()
@@ -252,8 +258,6 @@ protected:
 private:
 	uint8 bNetUpdateTransform : 1;
 	uint8 bNetUpdateAttachment : 1;
-	uint8 bNetHasReceivedRelativeLocation : 1;
-	uint8 bNetHasReceivedRelativeRotation : 1;
 
 public:
 	/** Global flag to enable/disable overlap optimizations, settable with p.SkipUpdateOverlapsOptimEnabled cvar */ 
@@ -312,12 +316,6 @@ private:
 
 	UFUNCTION()
 	void OnRep_Transform();
-
-	UFUNCTION()
-	void OnRep_RelativeLocation();
-
-	UFUNCTION()
-	void OnRep_RelativeRotation();
 
 	UFUNCTION()
 	void OnRep_AttachParent();
