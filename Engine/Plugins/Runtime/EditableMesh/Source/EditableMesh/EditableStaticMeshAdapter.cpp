@@ -727,13 +727,18 @@ void UEditableStaticMeshAdapter::OnRebuildRenderMesh( const UEditableMesh* Edita
 	}
 
 	StaticMeshLOD.IndexBuffer.SetIndices( IndexBuffer, IndexBufferStride );
+	StaticMeshLOD.DepthOnlyIndexBuffer.SetIndices(TArray< uint32 >(), IndexBufferStride);
+
+	if (StaticMeshLOD.AdditionalIndexBuffers == nullptr)
+	{
+		StaticMeshLOD.AdditionalIndexBuffers = new FAdditionalStaticMeshIndexBuffers();
+	}
 
 	// @todo mesheditor: support the other index buffer types
-	StaticMeshLOD.ReversedIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
-	StaticMeshLOD.DepthOnlyIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
-	StaticMeshLOD.ReversedDepthOnlyIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
-	StaticMeshLOD.WireframeIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
-	StaticMeshLOD.AdjacencyIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
+	StaticMeshLOD.AdditionalIndexBuffers->ReversedIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
+	StaticMeshLOD.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
+	StaticMeshLOD.AdditionalIndexBuffers->WireframeIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
+	StaticMeshLOD.AdditionalIndexBuffers->AdjacencyIndexBuffer.SetIndices( TArray< uint32 >(), IndexBufferStride );
 
 	StaticMeshLOD.bHasAdjacencyInfo = false;
 	StaticMeshLOD.bHasDepthOnlyIndices = false;
