@@ -252,7 +252,7 @@ struct FEventTriggerExecutionToken
 #if WITH_EDITOR
 			else if (!bIsGameWorld && !Function->HasMetaData(NAME_CallInEditor))
 			{
-				UE_LOG(LogMovieScene, Log, TEXT("Refusing to trigger event '%s' in editor world when 'Call in Editor' is false."), *EventName.ToString());
+				UE_LOG(LogMovieScene, Verbose, TEXT("Refusing to trigger event '%s' in editor world when 'Call in Editor' is false."), *EventName.ToString());
 				continue;
 			}
 #endif // WITH_EDITOR
