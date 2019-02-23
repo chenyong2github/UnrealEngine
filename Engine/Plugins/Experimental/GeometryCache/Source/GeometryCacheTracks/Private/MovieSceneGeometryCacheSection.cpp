@@ -92,7 +92,7 @@ TOptional<TRange<FFrameNumber> > UMovieSceneGeometryCacheSection::GetAutoSizeRan
 	FFrameTime AnimationLength = Params.GetSequenceLength() * FrameRate;
 	int32 IFrameNumber = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f);
 
-	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + AnimationLength.FrameNumber);
+	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + IFrameNumber + 1);
 }
 
 
