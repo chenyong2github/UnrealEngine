@@ -143,7 +143,7 @@ void SetupSkyLightParameters(
 
 	if (Scene.SkyLight)
 	{
-		SkyLight->Color = FVector(Scene.SkyLight->LightColor);
+		SkyLight->Color = FVector(Scene.SkyLight->GetEffectiveLightColor());
 		SkyLight->Texture = Scene.SkyLight->ProcessedTexture->TextureRHI;
 		SkyLight->TextureSampler = Scene.SkyLight->ProcessedTexture->SamplerStateRHI;
 		SkyLight->MipDimensions = Scene.SkyLight->SkyLightMipDimensions;
