@@ -3761,7 +3761,7 @@ void UDemoNetDriver::TickDemoPlayback( float DeltaSeconds )
 	}
 
 	// Advance demo time by seconds passed if we're not paused
-	if ( World && World->GetWorldSettings() && World->GetWorldSettings()->Pauser == nullptr )
+	if ( World && World->GetWorldSettings() && World->GetWorldSettings()->GetPauserPlayerState() == nullptr )
 	{
 		DemoCurrentTime += DeltaSeconds;
 	}
