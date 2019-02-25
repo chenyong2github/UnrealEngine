@@ -1133,7 +1133,7 @@ struct op_external_func : public op_base
 		bool func_is_used = false;
 		for (variable_info_node* output : outputs)
 		{
-			if (output->last_read > op_idx)
+			if (output->last_read > op_idx || output->last_read != INDEX_NONE)
 			{
 				func_is_used = true;
 				break;
