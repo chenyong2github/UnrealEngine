@@ -47,8 +47,6 @@ enum TextureFilter
 	TF_Nearest UMETA(DisplayName="Nearest"),
 	TF_Bilinear UMETA(DisplayName="Bi-linear"),
 	TF_Trilinear UMETA(DisplayName="Tri-linear"),
-	TF_FirstMipNearest  UMETA(DisplayName = "First mip nearest"),
-	TF_FirstMipBilinear  UMETA(DisplayName = "First mip bi-linear"),
 	/** Use setting from the Texture Group. */
 	TF_Default UMETA(DisplayName="Default (from Texture Group)"),
 	TF_MAX,
@@ -530,6 +528,10 @@ public:
 	/** The texture filtering mode to use when sampling this texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, AssetRegistrySearchable, AdvancedDisplay)
 	TEnumAsByte<enum TextureFilter> Filter;
+
+	/** The texture mip load options. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AssetRegistrySearchable, AdvancedDisplay)
+	ETextureMipLoadOptions MipLoadOptions;
 
 	/** Texture group this texture belongs to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="Texture Group"), AssetRegistrySearchable)
