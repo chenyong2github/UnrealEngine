@@ -35,6 +35,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void* FMemory::Realloc(void* Original, SIZE_T 
 {
 	// optional tracking -- a realloc with an Original pointer of null is equivalent
 	// to malloc() so there's nothing to free
+	LLM_REALLOC_SCOPE(Original);
 	LLM_IF_ENABLED(if (Original != nullptr) FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Original, ELLMAllocType::FMalloc));
 
 	void* Ptr;

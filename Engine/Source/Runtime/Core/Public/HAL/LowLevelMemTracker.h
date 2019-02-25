@@ -29,7 +29,7 @@
 #endif
 
 	// using asset tagging requires a significantly higher number of per-thread tags, so make it optional
-	// even if this is on, we still need to run with -llmtagsets=assets because of the shear number of stat ids it makes
+	// even if this is on, we still need to run with -llmtagsets=assets because of the sheer number of stat ids it makes
 	// LLM Assets can be viewed in game using 'Stat LLMAssets'
 	#define LLM_ALLOW_ASSETS_TAGS 0
 
@@ -298,6 +298,12 @@ extern FName LLMGetTagStat(ELLMTag Tag);
 #define LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(Tag, Amount, Tracker, AllocType) FLLMPauseScope SCOPE_NAME(Tag, Amount, Tracker, AllocType);
 
 /**
+ * LLM realloc scope macros. Used when reallocating a pointer and you wish to retain the tagging from the source pointer
+ */
+#define LLM_REALLOC_SCOPE(Ptr) FLLMScopeFromPtr SCOPE_NAME(Ptr, ELLMTracker::Default);
+#define LLM_REALLOC_PLATFORM_SCOPE(Ptr) FLLMScopeFromPtr SCOPE_NAME(Ptr, ELLMTracker::Platform);
+
+/**
  * LLM Stat scope macros (if stats system is enabled)
  */
 #if LLM_STAT_TAGS_ENABLED
@@ -467,6 +473,7 @@ private:
 
 	friend class FLLMScope;
 	friend class FLLMPauseScope;
+	friend class FLLMScopeFromPtr;
 
 	FLLMAllocator Allocator;
 	
@@ -525,11 +532,27 @@ protected:
 	ELLMAllocType AllocType;
 };
 
+/*
+* LLM scope for inheriting tag from the given address
+*/
+class CORE_API FLLMScopeFromPtr
+{
+public:
+	FLLMScopeFromPtr(void* Ptr, ELLMTracker Tracker);
+	~FLLMScopeFromPtr();
+protected:
+	ELLMTracker TrackerSet;
+	bool Enabled;
+};
+
+
 #else
 	#define LLM(...)
 	#define LLM_IF_ENABLED(...)
 	#define LLM_SCOPE(...)
 	#define LLM_PLATFORM_SCOPE(...)
+	#define LLM_REALLOC_SCOPE(...)
+	#define LLM_REALLOC_PLATFORM_SCOPE(...)
 	#define LLM_SCOPED_TAG_WITH_STAT(...)
 	#define LLM_SCOPED_TAG_WITH_STAT_IN_SET(...)
 	#define LLM_SCOPED_TAG_WITH_STAT_NAME(...)
