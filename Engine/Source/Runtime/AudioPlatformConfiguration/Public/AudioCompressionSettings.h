@@ -63,13 +63,14 @@ struct FPlatformAudioCookOverrides
 		int32 ResampleBoolHash = (int32)InOverrides->bResampleForDevice;
 		OutSuffix.AppendInt(ResampleBoolHash);
 
-		for (auto& SampleRateQuality : InOverrides->PlatformSampleRates)
+		TMap<ESoundwaveSampleRateSettings, float> SampleRateMap = InOverrides->PlatformSampleRates;
+
+		for (auto& SampleRateQuality : SampleRateMap)
 		{
 			int32 SampleRateHash = FMath::FloorToInt(SampleRateQuality.Value / 1000.0f);
 			OutSuffix.AppendInt(SampleRateHash);
 		}
 	}
-
 };
 
 USTRUCT()
