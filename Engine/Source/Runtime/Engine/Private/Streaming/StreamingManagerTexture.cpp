@@ -23,6 +23,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Streaming/RenderAssetUpdate.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -1469,10 +1470,9 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimit /*= 0.0f*/, bool bLogResults /*= false*/ )
 {
 	FScopeLock ScopeLock(&CriticalSection);
-
 	double StartTime = FPlatformTime::Seconds();
 
-	while (true) 
+	while (ensure(!IsAssetStreamingSuspended()))
 	{
 		int32 NumOfInFlights = 0;
 
@@ -1488,18 +1488,19 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 		if (NumOfInFlights && (TimeLimit == 0 || (float)(FPlatformTime::Seconds() - StartTime) < TimeLimit))
 		{
 			FlushRenderingCommands();
-			FPlatformProcess::Sleep( 0.010f );
+			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 		}
 		else
 		{
 			if (bLogResults)
 			{
-				UE_LOG(LogContentStreaming, Log, TEXT("Blocking on texture streaming: %.1f ms (%d still in flight)"), (float)(FPlatformTime::Seconds() - StartTime) * 1000, NumOfInFlights );
+				UE_LOG(LogContentStreaming, Log, TEXT("Blocking on texture streaming: %.1f ms (%d still in flight)"), (float)(FPlatformTime::Seconds() - StartTime) * 1000, NumOfInFlights);
 
 			}
 			return NumOfInFlights;
 		}
 	}
+	return 0;
 }
 
 void FRenderAssetStreamingManager::GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes)
