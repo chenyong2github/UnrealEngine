@@ -1048,6 +1048,8 @@ public:
 	FShaderResourceViewRHIRef PrimitiveSceneDataOverrideSRV;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
+	FRWBufferStructured ShaderPrintValueBuffer;
+
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 

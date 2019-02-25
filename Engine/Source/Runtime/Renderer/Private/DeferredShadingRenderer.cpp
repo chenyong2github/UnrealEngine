@@ -34,6 +34,7 @@
 #include "SceneViewFamilyBlackboard.h"
 #include "ScreenSpaceDenoise.h"
 #include "RayTracing/RaytracingOptions.h"
+#include "ShaderPrint.h"
 
 TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("r.EarlyZPass"),
@@ -1103,6 +1104,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
+		ShaderPrint::BeginView(RHICmdList, Views[ViewIndex]);
+	}
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
 	}	
 	
@@ -2165,8 +2171,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 			else
 			{
-			GPostProcessing.Process(RHICmdList, Views[ ViewIndex ], VelocityRT);
-		}
+				GPostProcessing.Process(RHICmdList, Views[ ViewIndex ], VelocityRT);
+			}
 		}
 
 		// End of frame, we don't need it anymore
@@ -2179,6 +2185,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		// Release the original reference on the scene render targets
 		SceneContext.AdjustGBufferRefCount(RHICmdList, -1);
+	}
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		ShaderPrint::EndView(Views[ViewIndex]);
 	}
 
 #if WITH_MGPU

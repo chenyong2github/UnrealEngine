@@ -41,6 +41,7 @@
 #include "PostProcess/PostProcessHMD.h"
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
+#include "PostProcess/PostProcessShaderPrint.h"
 #include "CompositionLighting/PostProcessPassThrough.h"
 #include "PostProcess/PostProcessTestImage.h"
 #include "HighResScreenshot.h"
@@ -2104,6 +2105,13 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 		if(View.Family->EngineShowFlags.TestImage && FeatureLevel >= ERHIFeatureLevel::SM4)
 		{
 			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTestImage());
+			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
+			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+		}
+
+		if (FRCPassPostProcessShaderPrint::IsEnabled())
+		{
+			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessShaderPrint());
 			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
 		}
