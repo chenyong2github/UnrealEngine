@@ -66,6 +66,15 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Levels)
 	TSubclassOf<ULevelStreaming> DefaultLevelStreamingClass;
 
+	UPROPERTY(EditAnywhere, config, Category = Levels)
+	bool bPromptWhenAddingToLevelBeforeCheckout;
+
+	UPROPERTY(EditAnywhere, config, Category = Levels)
+	bool bPromptWhenAddingToLevelOutsideBounds;
+
+	UPROPERTY(EditAnywhere, config, Category = Levels, Meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float PercentageThresholdForPrompt;
+
 public:
 
 	/** The save directory for newly created screenshots */
