@@ -987,7 +987,7 @@ void APlayerController::ServerShortTimeout_Implementation()
 		bShortConnectTimeOut = true;
 
 		// quick update of pickups and gameobjectives since this player is now relevant
-		if (GetWorldSettings()->Pauser != NULL)
+		if (GetWorldSettings()->GetPauserPlayerState() != NULL)
 		{
 			// update everything immediately, as TimeSeconds won't get advanced while paused
 			// so otherwise it won't happen at all until the game is unpaused
@@ -1770,7 +1770,7 @@ bool APlayerController::SetPause( bool bPause, FCanUnpause CanUnpauseDelegate)
 
 bool APlayerController::IsPaused() const
 {
-	return GetWorldSettings()->Pauser != NULL;
+	return GetWorldSettings()->GetPauserPlayerState() != NULL;
 }
 
 void APlayerController::Pause()
@@ -4714,7 +4714,7 @@ FString APlayerController::GetServerNetworkAddress()
 
 bool APlayerController::DefaultCanUnpause()
 {
-	return GetWorldSettings() != NULL && GetWorldSettings()->Pauser == PlayerState;
+	return GetWorldSettings() != NULL && GetWorldSettings()->GetPauserPlayerState() == PlayerState;
 }
 
 void APlayerController::StartSpectatingOnly()
