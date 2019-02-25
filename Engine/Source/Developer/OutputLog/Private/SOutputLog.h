@@ -319,7 +319,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Destructor for output log, so we can unregister from notifications */
-	~SOutputLog();
+	virtual ~SOutputLog();
 
 	/**
 	 * Construct this widget.  Called by the SNew() Slate macro.
