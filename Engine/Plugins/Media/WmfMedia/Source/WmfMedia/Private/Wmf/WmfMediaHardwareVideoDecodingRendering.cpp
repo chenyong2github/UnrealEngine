@@ -76,23 +76,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		FTexture2DRHIRef SampleDestinationTexture = InSample->GetDestinationTexture();
-		if (!SampleDestinationTexture.IsValid())
-		{
-			FRHIResourceCreateInfo CreateInfo;
-			const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
-			FTexture2DRHIRef Texture = RHICreateTexture2D(
-				InSample->GetDim().X,
-				InSample->GetDim().Y,
-				PF_NV12,
-				1,
-				1,
-				CreateFlags,
-				CreateInfo);
-
-			InSample->SetDestinationTexture(Texture);
-			SampleDestinationTexture = Texture;
-		}
+		FTexture2DRHIRef SampleDestinationTexture = InSample->GetOrCreateDestinationTexture();
 
 		ID3D11Resource* DestinationTexture = reinterpret_cast<ID3D11Resource*>(SampleDestinationTexture->GetNativeResource());
 		if (DestinationTexture)
