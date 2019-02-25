@@ -20,7 +20,7 @@ namespace FreeTypeMemory
 
 static void* Alloc(FT_Memory Memory, long Size)
 {
-	LLM(ELLMTag::UI);
+	LLM_SCOPE(ELLMTag::UI);
 	void* Result = FMemory::Malloc(Size);
 
 #if STATS
@@ -33,7 +33,7 @@ static void* Alloc(FT_Memory Memory, long Size)
 
 static void* Realloc(FT_Memory Memory, long CurSize, long NewSize, void* Block)
 {
-	LLM(ELLMTag::UI);
+	LLM_SCOPE(ELLMTag::UI);
 
 #if STATS
 	long DeltaNewSize = NewSize - CurSize;
