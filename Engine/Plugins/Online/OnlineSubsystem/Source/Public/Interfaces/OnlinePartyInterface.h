@@ -130,12 +130,31 @@ public:
 	}
 
 	/**
-	 * Returns true if there are any dirty keys
+	 * Mark an attribute as dirty so it can be rebroadcasted
+	 *
+	 * @param AttrName - key for the attribute to mark dirty
+	 */
+	void MarkAttributeDirty(FString&& AttrName)
+	{
+		DirtyKeys.Emplace(MoveTemp(AttrName));
+	}
+
+	/**
+	 * Check if there are any dirty keys
+	 *
+	 * @return true if there are any dirty keys
 	 */
 	bool HasDirtyKeys() const
 	{
 		return DirtyKeys.Num() > 0;
 	}
+
+	/**
+	 * Get the dirty key-value attributes
+	 *
+	 * @return the dirty key-value attributes
+	 */
+	FOnlineKeyValuePairs<FString, FVariantData> GetDirtyKeyVaAttrs() const;
 
 	/**
 	 * Clear the attributes map
@@ -222,7 +241,7 @@ public:
 
 private:
 	/** map of key/val attributes that represents the data */
-	FOnlineKeyValuePairs<FString, FVariantData>  KeyValAttrs;
+	FOnlineKeyValuePairs<FString, FVariantData> KeyValAttrs;
 
 	/** set of which fields are dirty and need to transmitted */
 	TSet<FString> DirtyKeys;
