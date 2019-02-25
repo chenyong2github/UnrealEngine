@@ -26,6 +26,7 @@
 #include "Misc/ConfigCacheIni.h"
 #endif
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Misc/Fnv.h"
 
 #include "Async/MappedFileHandle.h"
 
@@ -4135,7 +4136,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
-	, MappedFileHandle(nullptr)
+ 	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(NULL);
 	if (Reader)
@@ -4468,7 +4469,7 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 	const int MAX_RETRIES = 10;
 	bool bHasCollision;
 	FilenameStartHash = 0;
-
+    
 	// Allocate the temporary array for hashing filenames. The Memset is to hopefully
 	// silence the Visual Studio static analyzer.
 	TArray<FMiniFileEntry> MiniFileEntries;
@@ -4486,7 +4487,7 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 			for (FPakDirectory::TConstIterator DirectoryIt(It.Value()); DirectoryIt; ++DirectoryIt)
 			{
 				FString FinalFilename = It.Key() / DirectoryIt.Key();
-				uint32 FilenameHash = FCrc::MemCrc32(*FinalFilename.ToLower(), FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
+                uint32 FilenameHash = FFnv::MemFnv32(*FinalFilename.ToLower(), FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
 				MiniFileEntries[EntryIndex].FilenameHash = FilenameHash;
 				MiniFileEntries[EntryIndex].EntryIndex = DirectoryIt.Value();
 				++EntryIndex;
@@ -5009,7 +5010,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& Filename, FPakEntry* OutEntr
 				++SplitStartPtr;
 				--SplitLen;
 			}
-			uint32 PathHash = FCrc::MemCrc32(SplitStartPtr, SplitLen * sizeof(TCHAR), FilenameStartHash);
+            uint32 PathHash = FFnv::MemFnv32(SplitStartPtr, SplitLen * sizeof(TCHAR), FilenameStartHash);
 
 			// Look it up in our sorted-by-filename-hash array.
 			uint32 PathHashMostSignificantBits = PathHash >> 24;
