@@ -625,7 +625,7 @@ public:
 	 *
 	 * TODO: This doesn't have to be part of FRepState.
 	 */
-	static TStaticBitArray<COND_Max> BuildConditionMap(const FReplicationFlags& InFlags);
+	static TStaticBitArray<COND_Max> BuildConditionMapFromRepFlags(const FReplicationFlags InFlags);
 
 	/** Whether or not FRepLayout::OpenAcked has been called with this FRepState. */
 	bool bOpenAckedCalled;
