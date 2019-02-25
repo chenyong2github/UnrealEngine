@@ -1230,7 +1230,7 @@ int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations
 
 void FXAudio2SoundSourceCallback::OnBufferEnd(void* BufferContext)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (BufferContext)
 	{

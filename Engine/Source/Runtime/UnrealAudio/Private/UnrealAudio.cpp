@@ -148,7 +148,7 @@ namespace UAudio
 
 	bool FUnrealAudioModule::InitializeAudioDevice()
 	{
-		LLM_SCOPE(ELLMTag::Audio);
+		LLM_SCOPE(ELLMTag::AudioMisc);
 
 		UnrealAudioDevice = FModuleManager::LoadModulePtr<IUnrealAudioDeviceModule>(ModuleName);
 		if (UnrealAudioDevice)
@@ -293,7 +293,7 @@ namespace UAudio
 
 	uint32 FUnrealAudioModule::Run()
 	{
-		LLM_SCOPE(ELLMTag::Audio);
+		LLM_SCOPE(ELLMTag::AudioMisc);
 
 		AudioThreadChecker.CheckThread();
 
