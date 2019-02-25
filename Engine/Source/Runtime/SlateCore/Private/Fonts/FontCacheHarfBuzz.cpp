@@ -4,6 +4,7 @@
 #include "Fonts/FontCache.h"
 #include "Fonts/FontCacheFreeType.h"
 #include "Fonts/SlateFontRenderer.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #if WITH_HARFBUZZ
 
@@ -12,11 +13,13 @@ extern "C"
 
 void* HarfBuzzMalloc(size_t InSizeBytes)
 {
+	LLM(ELLMTag::UI);
 	return FMemory::Malloc(InSizeBytes);
 }
 
 void* HarfBuzzCalloc(size_t InNumItems, size_t InItemSizeBytes)
 {
+	LLM(ELLMTag::UI);
 	const size_t AllocSizeBytes = InNumItems * InItemSizeBytes;
 	if (AllocSizeBytes > 0)
 	{
@@ -29,6 +32,7 @@ void* HarfBuzzCalloc(size_t InNumItems, size_t InItemSizeBytes)
 
 void* HarfBuzzRealloc(void* InPtr, size_t InSizeBytes)
 {
+	LLM(ELLMTag::UI);
 	return FMemory::Realloc(InPtr, InSizeBytes);
 }
 
