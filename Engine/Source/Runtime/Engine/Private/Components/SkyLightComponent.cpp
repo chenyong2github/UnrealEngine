@@ -58,6 +58,14 @@ FAutoConsoleVariableRef CVarUpdateSkylightsEveryFrame(
 	ECVF_Default
 	);
 
+float GSkylightIntensityMultiplier = 1.0f;
+FAutoConsoleVariableRef CVarSkylightIntensityMultiplier(
+	TEXT("r.SkylightIntensityMultiplier"),
+	GSkylightIntensityMultiplier,
+	TEXT("Intensity scale on Stationary and Movable skylights.  This is useful to control overall lighting contrast in dynamically lit games with scalability levels which disable Ambient Occlusion.  For example, if medium quality disables SSAO and DFAO, reduce skylight intensity."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
 void FSkyTextureCubeResource::InitRHI()
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM4 || GSupportsRenderTargetFormat_PF_FloatRGBA)
@@ -143,6 +151,11 @@ void FSkyLightSceneProxy::Initialize(
 #if RHI_RAYTRACING
 	IsDirtyImportanceSamplingData = true;
 #endif
+}
+
+FLinearColor FSkyLightSceneProxy::GetEffectiveLightColor() const
+{
+	return LightColor * GSkylightIntensityMultiplier;
 }
 
 FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightComponent)
@@ -339,7 +352,7 @@ void USkyLightComponent::UpdateLimitedRenderingStateFast()
 		ENQUEUE_RENDER_COMMAND(FFastUpdateSkyLightCommand)(
 			[LightSceneProxy, InLightColor, InIndirectLightingIntensity, InVolumetricScatteringIntensity](FRHICommandList& RHICmdList)
 			{
-				LightSceneProxy->LightColor = InLightColor;
+				LightSceneProxy->SetLightColor(InLightColor);
 				LightSceneProxy->IndirectLightingIntensity = InIndirectLightingIntensity;
 				LightSceneProxy->VolumetricScatteringIntensity = InVolumetricScatteringIntensity;
 			});

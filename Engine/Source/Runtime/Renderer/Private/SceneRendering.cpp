@@ -1367,7 +1367,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 
-		ViewUniformShaderParameters.SkyLightColor = SkyLight->LightColor;
+		ViewUniformShaderParameters.SkyLightColor = SkyLight->GetEffectiveLightColor();
 
 		bool bApplyPrecomputedBentNormalShadowing = 
 			SkyLight->bCastShadows 
