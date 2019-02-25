@@ -464,6 +464,7 @@ protected:
 	TSet< uint64 >						NetFieldExports;
 
 private:
+	void ReceiveNetFieldExportsCompat(FInBunch& InBunch);
 
 	bool bIgnoreReceivedExportGUIDs;
 };
