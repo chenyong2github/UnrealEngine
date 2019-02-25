@@ -1073,6 +1073,11 @@ namespace UnrealBuildTool
 		private string LaunchModuleNamePrivate;
 
 		/// <summary>
+		/// Specifies the path to write a header containing public definitions for this target. Useful when building a DLL to be consumed by external build processes.
+		/// </summary>
+		public string ExportPublicHeader;
+
+		/// <summary>
 		/// List of additional modules to be compiled into the target.
 		/// </summary>
 		public List<string> ExtraModuleNames = new List<string>();
@@ -2175,6 +2180,11 @@ namespace UnrealBuildTool
 		public string LaunchModuleName
 		{
 			get { return Inner.LaunchModuleName; }
+		}
+
+		public string ExportPublicHeader
+		{
+			get { return Inner.ExportPublicHeader; }
 		}
 
 		public IReadOnlyList<string> ExtraModuleNames
