@@ -24,12 +24,14 @@ typedef TSharedPtr<FTargetDeviceEntry> FTargetDeviceEntryPtr;
 class SDeviceOutputLog : public SOutputLog
 {
 public:
-	SLATE_BEGIN_ARGS( SDeviceOutputLog )
+	SLATE_BEGIN_ARGS(SDeviceOutputLog) 
+		: _AutoSelectDevice(false)
 	{}
+		SLATE_ARGUMENT(bool, AutoSelectDevice)	// If the first device found should be automatically selected.
 	SLATE_END_ARGS()
 
 	/** Destructor for output log, so we can unregister from notifications */
-	~SDeviceOutputLog();
+	virtual ~SDeviceOutputLog();
 
 	/**
 	 * Construct this widget.  Called by the SNew() Slate macro.
@@ -37,6 +39,8 @@ public:
 	 * @param	InArgs	Declaration used by the SNew() macro to construct this widget
 	 */
 	void Construct( const FArguments& InArgs );
+
+	ITargetDevicePtr GetSelectedTargetDevice() const;
 
 protected:
 	// SWidget interface
@@ -76,4 +80,6 @@ private:
 	/** Synchronization object for access to buffered lines */
 	FCriticalSection		BufferedLinesSynch;
 	TArray<FBufferedLine>	BufferedLines;
+
+	bool bAutoSelectDevice;
 };
