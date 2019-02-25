@@ -134,6 +134,48 @@ void FMetalCommandEncoder::Reset(void)
 	[DebugGroups removeAllObjects];
 }
 
+void FMetalCommandEncoder::ResetLive(void)
+{
+	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	{
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			ShaderBuffers[Frequency].Buffers[i] = nil;
+		}
+		FMemory::Memzero(ShaderBuffers[Frequency].Bytes);
+		FMemory::Memzero(ShaderBuffers[Frequency].Offsets);
+		FMemory::Memzero(ShaderBuffers[Frequency].Lengths);
+		ShaderBuffers[Frequency].Bound = 0;
+	}
+	
+	if (IsRenderCommandEncoderActive())
+	{
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			RenderCommandEncoder.SetVertexBuffer(nil, 0, i);
+			RenderCommandEncoder.SetFragmentBuffer(nil, 0, i);
+		}
+		
+		for (uint32 i = 0; i < ML_MaxTextures; i++)
+		{
+			RenderCommandEncoder.SetVertexTexture(nil, i);
+			RenderCommandEncoder.SetFragmentTexture(nil, i);
+		}
+	}
+	else if (IsComputeCommandEncoderActive())
+	{
+		for (uint32 i = 0; i < ML_MaxBuffers; i++)
+		{
+			ComputeCommandEncoder.SetBuffer(nil, 0, i);
+		}
+		
+		for (uint32 i = 0; i < ML_MaxTextures; i++)
+		{
+			ComputeCommandEncoder.SetTexture(nil, i);
+		}
+	}
+}
+
 #pragma mark - Public Command Buffer Mutators -
 
 void FMetalCommandEncoder::StartCommandBuffer(void)

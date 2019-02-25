@@ -233,6 +233,12 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FGraphicsPipelineState
 {
 	@autoreleasepool {
 		FMetalGraphicsPipelineState* PipelineState = ResourceCast(GraphicsState);
+#if METAL_DEBUG_OPTIONS
+		if (GMetalResetOnPSOChange >= 4 && Context->GetCurrentState().GetGraphicsPSO() != PipelineState)
+		{
+			Context->GetCurrentRenderPass().GetCurrentCommandEncoder().ResetLive();
+		}
+#endif
 		Context->GetCurrentState().SetGraphicsPipelineState(PipelineState);
 		// Bad Arne!
 		RHISetStencilRef(0);
