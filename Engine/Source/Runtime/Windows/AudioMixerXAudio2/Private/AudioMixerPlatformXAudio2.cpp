@@ -679,6 +679,17 @@ namespace Audio
 			// we have to wait for it here.
 			FScopeLock ScopeLock(&DeviceSwapCriticalSection);
 
+			// Now that we've properly locked, raise the bIsInDeviceSwap flag
+			// in case FlushSourceBuffers() calls OnBufferEnd on this thread,
+			// and DeviceSwapCriticalSection.TryLock() is still returning true
+			bIsInDeviceSwap = true;
+
+			// Flush all buffers. Because we've locked DeviceSwapCriticalSection, ReadNextBuffer will early exit and we will not submit any additional buffers.
+			if (OutputAudioStreamSourceVoice)
+			{
+				OutputAudioStreamSourceVoice->FlushSourceBuffers();
+			}
+
 			if (OutputAudioStreamSourceVoice)
 			{
 				// Then destroy the current audio stream source voice
@@ -692,6 +703,8 @@ namespace Audio
 				OutputAudioStreamMasteringVoice->DestroyVoice();
 				OutputAudioStreamMasteringVoice = nullptr;
 			}
+
+			bIsInDeviceSwap = false;
 		}
 
 		if (NumDevices > 0)
