@@ -322,6 +322,9 @@ extern CORE_API TSAN_ATOMIC(uint64) GFrameCounter;
 /** GFrameCounter the last time GC was run. */
 extern CORE_API uint64 GLastGCFrame;
 
+/** The time input was sampled, in cycles. */
+extern CORE_API uint64 GInputTime;
+
 /** Incremented once per frame before the scene is being rendered. In split screen mode this is incremented once for all views (not for each view). */
 extern CORE_API uint32 GFrameNumber;
 
