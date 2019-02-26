@@ -347,6 +347,13 @@ public:
 	void FreePacketLogs();
 #endif
 
+	/** 
+	 * Check if component is currently compressing packets
+	 *
+	 * @return	Whether or not compression is active
+	 */
+	bool IsCompressionActive() const;
+
 	virtual void Initialize() override;
 
 	virtual bool IsValid() const override;
