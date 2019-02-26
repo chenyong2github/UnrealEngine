@@ -30,6 +30,8 @@ public:
 	virtual FString GetErrorReason() const = 0;
 	/** @return whether the task has completed or not */
 	virtual bool IsDone() const = 0;
+	/** @return how long it took this task to complete */
+	virtual float GetElapsedTime() const = 0;
 	/** @return the data once the task has completed or empty array if still in progress. NOTE: this should use MoveTemp() to avoid duplication so call once :) */
 	virtual TArray<uint8> GetData() = 0;
 };
@@ -48,10 +50,13 @@ public:
 	virtual bool IsDone() const override { return bIsDone; }
 	virtual bool HadError() const override { return bHadError; }
 	virtual FString GetErrorReason() const override { return Error; }
+	virtual float GetElapsedTime() const override { return (EndTime - StartTime) * 1000.f; }
 
 protected:
 	FThreadSafeBool bIsDone;
 	FThreadSafeBool bHadError;
+	double StartTime = 0.f;
+	double EndTime = 0.f;
 	FString Error;
 };
 

@@ -77,15 +77,10 @@ public:
 		, SourceImage(InSourceImage)
 	{
 		check(InSourceImage != nullptr);
+		StartTime = FPlatformTime::Seconds();
 	}
 
-	virtual ~FAppleImageUtilsConversionTask()
-	{
-		if (SourceImage != nullptr)
-		{
-			[SourceImage release];
-		}
-	}
+	virtual ~FAppleImageUtilsConversionTask() { }
 #else
 	FAppleImageUtilsConversionTask() :
 		FAppleImageUtilsConversionTaskBase()
@@ -97,7 +92,17 @@ public:
 	virtual TArray<uint8> GetData() override { return MoveTemp(ConvertedBytes); }
 	//~ IAppleImageUtilsConversionTask
 
-	void MarkComplete() { bIsDone = true; }
+	void MarkComplete()
+	{
+		// Release on completion since we don't need it anymore
+		if (SourceImage != nullptr)
+		{
+			[SourceImage release];
+			SourceImage = nullptr;
+		}
+		EndTime = FPlatformTime::Seconds();
+		bIsDone = true;
+	}
 
 #if SUPPORTS_IMAGE_UTILS_1_0
 	/** Must be released */
