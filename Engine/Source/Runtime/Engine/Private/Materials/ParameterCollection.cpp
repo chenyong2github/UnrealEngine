@@ -53,7 +53,7 @@ void UMaterialParameterCollection::PostLoad()
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		CurrentWorld->AddParameterCollectionInstance(this, true /* bUpdateScene */);
+		CurrentWorld->AddParameterCollectionInstance(this, true);
 	}
 
 	UpdateDefaultResource();
@@ -186,7 +186,7 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 		for (TObjectIterator<UWorld> It; It; ++It)
 		{
 			UWorld* CurrentWorld = *It;
-			CurrentWorld->AddParameterCollectionInstance(this, false /* bUpdateScene */);
+			CurrentWorld->AddParameterCollectionInstance(this, false);
 		}
 
 		// Create a material update context so we can safely update materials using this parameter collection.
@@ -464,11 +464,6 @@ void UMaterialParameterCollectionInstance::PostInitProperties()
 	{
 		Resource = new FMaterialParameterCollectionInstanceResource();
 	}
-}
-
-void UMaterialParameterCollectionInstance::SetWorld(UWorld* InWorld)
-{
-	World = InWorld;
 }
 
 void UMaterialParameterCollectionInstance::SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld)
