@@ -917,6 +917,12 @@ public:
 	virtual void Activated(FViewport* Viewport, const FWindowActivateEvent& InActivateEvent) {}
 	virtual void Deactivated(FViewport* Viewport, const FWindowActivateEvent& InActivateEvent) {}
 
+	virtual bool IsInPermanentCapture()
+	{ 
+		return  !GIsEditor && ((CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
+			(CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+	}
+
 	/**
 	 * Called when the top level window associated with the viewport has been requested to close.
 	 * At this point, the viewport has not been closed and the operation may be canceled.
