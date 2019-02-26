@@ -94,12 +94,14 @@ public:
 
 	void MarkComplete()
 	{
+#if SUPPORTS_IMAGE_UTILS_1_0
 		// Release on completion since we don't need it anymore
 		if (SourceImage != nullptr)
 		{
 			[SourceImage release];
 			SourceImage = nullptr;
 		}
+#endif
 		EndTime = FPlatformTime::Seconds();
 		bIsDone = true;
 	}
