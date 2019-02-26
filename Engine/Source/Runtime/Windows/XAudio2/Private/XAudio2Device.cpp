@@ -307,7 +307,7 @@ void FXAudio2Device::TeardownHardware()
 void FXAudio2Device::UpdateHardware()
 {
 	// If the audio device changed, we need to tear down and restart the audio engine state
-	if (DeviceProperties->DidAudioDeviceChange())
+	if (DeviceProperties && DeviceProperties->DidAudioDeviceChange())
 	{
 		//Cache the current audio clock.
 		CachedAudioClockStartTime = GetAudioClock();
