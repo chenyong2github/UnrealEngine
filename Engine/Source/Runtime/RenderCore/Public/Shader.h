@@ -1954,7 +1954,7 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	virtual ~TShaderMap()
 	{
-		EmptyShaderPipelines();
+		Empty();
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
