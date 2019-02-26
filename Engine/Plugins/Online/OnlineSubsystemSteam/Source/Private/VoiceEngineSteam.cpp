@@ -122,6 +122,8 @@ FVoiceEngineSteam::FVoiceEngineSteam(IOnlineSubsystem* InSubsystem) :
 {
 	SteamUserPtr = SteamUser();
 	SteamFriendsPtr = SteamFriends();
+
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FVoiceEngineSteam::OnPostLoadMap);
 }
 
 FVoiceEngineSteam::~FVoiceEngineSteam()
@@ -136,6 +138,8 @@ FVoiceEngineSteam::~FVoiceEngineSteam()
 	VoiceEncoder = nullptr;
 
 	delete SerializeHelper;
+
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 }
 
 void FVoiceEngineSteam::VoiceCaptureUpdate() const
@@ -525,7 +529,7 @@ void FVoiceEngineSteam::TickTalkers(float DeltaTime)
 			RemoteData.VoipSynthComponent->Stop();
 
 			UAudioComponent* AudioComponent = RemoteData.VoipSynthComponent->GetAudioComponent();
-			if (AudioComponent->IsRegistered())
+			if (AudioComponent != nullptr && AudioComponent->IsRegistered())
 			{
 				AudioComponent->UnregisterComponent();
 			}
@@ -596,6 +600,18 @@ void FVoiceEngineSteam::OnAudioFinished()
 		}
 	}
 	UE_LOG(LogVoiceEngine, Verbose, TEXT("Audio Finished"));
+}
+
+void FVoiceEngineSteam::OnPostLoadMap(UWorld*)
+{
+	for (FRemoteTalkerData::TIterator It(RemoteTalkerBuffers); It; ++It)
+	{
+		FRemoteTalkerDataSteam& RemoteData = It.Value();
+		if (RemoteData.VoipSynthComponent && RemoteData.VoipSynthComponent->GetAudioComponent() != nullptr)
+		{
+			RemoteData.VoipSynthComponent->GetAudioComponent()->Play();
+		}
+	}
 }
 
 FString FVoiceEngineSteam::GetVoiceDebugState() const

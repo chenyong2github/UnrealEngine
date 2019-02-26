@@ -308,14 +308,19 @@ public:
 private:
 
 	/**
-	* Update the state of all remote talkers, possibly dropping data or the talker entirely
-	*/
+	 * Update the state of all remote talkers, possibly dropping data or the talker entirely
+	 */
 	void TickTalkers(float DeltaTime);
 
 	/**
-	* Delegate triggered when an audio component Stop() function is called
-	*/
+	 * Delegate triggered when an audio component Stop() function is called
+	 */
 	void OnAudioFinished();
+
+	/**
+	 * Delegate that fixes up remote audio components when the level changes
+	 */
+	void OnPostLoadMap(UWorld*);
 };
 
 typedef TSharedPtr<FVoiceEngineSteam, ESPMode::ThreadSafe> FVoiceEngineImplPtr;
