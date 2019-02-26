@@ -53,7 +53,7 @@ void UMaterialParameterCollection::PostLoad()
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		CurrentWorld->AddParameterCollectionInstance(this, true /* bUpdateScene */);
+		CurrentWorld->AddParameterCollectionInstance(this, true);
 	}
 
 	UpdateDefaultResource();
@@ -186,7 +186,7 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 		for (TObjectIterator<UWorld> It; It; ++It)
 		{
 			UWorld* CurrentWorld = *It;
-			CurrentWorld->AddParameterCollectionInstance(this, false /* bUpdateScene */);
+			CurrentWorld->AddParameterCollectionInstance(this, false);
 		}
 
 		// Create a material update context so we can safely update materials using this parameter collection.
@@ -466,11 +466,6 @@ void UMaterialParameterCollectionInstance::PostInitProperties()
 	}
 }
 
-void UMaterialParameterCollectionInstance::SetWorld(UWorld* InWorld)
-{
-	World = InWorld;
-}
-
 void UMaterialParameterCollectionInstance::SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld)
 {
 	Collection = InCollection;
@@ -696,11 +691,13 @@ void FMaterialParameterCollectionInstanceResource::UpdateContents(const FGuid& I
 
 	if (InId != FGuid() && Data.Num() > 0)
 	{
+		uint32 Size = Data.GetTypeSize() * Data.Num();
+		bool bSizeChanged = Size != UniformBufferLayout.ConstantBufferSize;
 		UniformBufferLayout.ConstantBufferSize = Data.GetTypeSize() * Data.Num();
 		UniformBufferLayout.ComputeHash();
 		check(UniformBufferLayout.Resources.Num() == 0);
 
-		if (IsValidRef(UniformBuffer))
+		if (!bSizeChanged && IsValidRef(UniformBuffer))
 		{
 			check(UniformBuffer->GetLayout() == UniformBufferLayout);
 			RHIUpdateUniformBuffer(UniformBuffer, Data.GetData());

@@ -1954,7 +1954,7 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	virtual ~TShaderMap()
 	{
-		EmptyShaderPipelines();
+		Empty();
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
@@ -2194,7 +2194,13 @@ public:
 				check(Type);
 				checkSlow(FName(Type->GetName()) != NAME_None);
 				Ar << Type;
+#if WITH_EDITOR
+				TRefCountPtr<FShader>* Found = Shaders.Find(Key);
+				checkf(Found, TEXT("Unable to find FShaderType %s!"), Type->GetName());
+				FShader* CurrentShader = *Found;
+#else
 				FShader* CurrentShader = Shaders.FindChecked(Key);
+#endif
 				SerializeShaderForSaving(CurrentShader, Ar, bHandleShaderKeyChanges, bInlineShaderResource);
 			}
 

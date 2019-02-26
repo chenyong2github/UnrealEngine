@@ -1012,7 +1012,7 @@ void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
 	}
 }
 
-void FParallelMeshDrawCommandPass::Empty()
+void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
 {
 	// Need to wait in case if someone dispatched sort and draw merge task, but didn't draw it.
 	WaitForMeshPassSetupTask();
@@ -1043,6 +1043,7 @@ void FParallelMeshDrawCommandPass::Empty()
 	TaskContext.DynamicMeshElements = nullptr;
 	TaskContext.DynamicMeshElementsPassRelevance = nullptr;
 	TaskContext.MeshDrawCommands.Empty();
+	TaskContext.MeshDrawCommandStorage.MeshDrawCommands.Empty();
 	TaskContext.MobileBasePassCSMMeshDrawCommands.Empty();
 	TaskContext.DynamicMeshCommandBuildRequests.Empty();
 	TaskContext.TempVisibleMeshDrawCommands.Empty();
@@ -1052,7 +1053,7 @@ void FParallelMeshDrawCommandPass::Empty()
 
 FParallelMeshDrawCommandPass::~FParallelMeshDrawCommandPass()
 {
-	Empty();
+	check(TaskEventRef == nullptr);
 }
 
 class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
