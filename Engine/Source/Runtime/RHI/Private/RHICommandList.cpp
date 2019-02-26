@@ -127,6 +127,9 @@ uint32 GWorkingRHIThreadTime = 0;
 uint32 GWorkingRHIThreadStallTime = 0;
 uint32 GWorkingRHIThreadStartCycles = 0;
 
+/** How many cycles the from sampling input to the frame being flipped. */
+uint64 GInputLatencyTime = 0;
+
 RHI_API bool GEnableAsyncCompute = true;
 RHI_API FRHICommandListExecutor GRHICommandList;
 

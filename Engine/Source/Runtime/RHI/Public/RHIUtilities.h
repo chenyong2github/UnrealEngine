@@ -943,6 +943,9 @@ extern RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBott
 /** Signals the completion of the specified task graph event when the given frame has flipped. */
 extern RHI_API void RHICompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event);
 
+/** Sets the FrameIndex and InputTime for the current frame. */
+extern RHI_API void RHISetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime);
+
 extern RHI_API void RHIInitializeFlipTracking();
 extern RHI_API void RHIShutdownFlipTracking();
 
