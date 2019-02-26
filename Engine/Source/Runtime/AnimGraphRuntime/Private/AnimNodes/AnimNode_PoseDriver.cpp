@@ -138,6 +138,11 @@ void FAnimNode_PoseDriver::GatherDebugData(FNodeDebugData& DebugData)
 	SourcePose.GatherDebugData(DebugData.BranchFlow(1.f));
 }
 
+float FAnimNode_PoseDriver::GetRadiusForTarget(const FRBFTarget& Target) const
+{
+	return FRBFSolver::GetRadiusForTarget(Target, RBFParams);
+}
+
 bool FAnimNode_PoseDriver::IsBoneDriven(FName BoneName) const
 {
 	// If not filtering, drive all the bones
@@ -196,6 +201,8 @@ void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 		RBFTarget.ScaleFactor = PoseTarget.TargetScale;
 		RBFTarget.bApplyCustomCurve = PoseTarget.bApplyCustomCurve;
 		RBFTarget.CustomCurve = PoseTarget.CustomCurve;
+		RBFTarget.DistanceMethod = PoseTarget.DistanceMethod;
+		RBFTarget.FunctionType = PoseTarget.FunctionType;
 	}
 }
 
