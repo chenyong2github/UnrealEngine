@@ -770,7 +770,7 @@ private:
 	static bool DoesCPPTypeRequireDocumentation(const FString& CPPType);
 
 	// Validates the documentation for a given enum
-	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, TArray<TMap<FName, FString>> Entries);
+	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
 
 	// Validates the documentation for a given struct
 	void CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData);
