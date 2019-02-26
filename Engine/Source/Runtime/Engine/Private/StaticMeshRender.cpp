@@ -1842,6 +1842,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	{
 		return nullptr;
 	}
+	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(this, false);
 #if STATICMESH_ENABLE_DEBUG_RENDERING

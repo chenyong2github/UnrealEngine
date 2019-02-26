@@ -1538,6 +1538,7 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 
 void USkeletalMesh::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
 #if WITH_EDITOR
