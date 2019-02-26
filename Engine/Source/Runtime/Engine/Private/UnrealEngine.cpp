@@ -254,8 +254,8 @@ void FEngineModule::StartupModule()
 		CVARShowMaterialDrawEvents->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeEngineCVarRequiringRecreateRenderState));
 	}
 
-	SuspendTextureStreamingRenderTasks = &SuspendRenderAssetStreamingRenderTasksInternal;
-	ResumeTextureStreamingRenderTasks = &ResumeRenderAssetStreamingRenderTasksInternal;
+	SuspendTextureStreamingRenderTasks = &SuspendRenderAssetStreaming;
+	ResumeTextureStreamingRenderTasks = &ResumeRenderAssetStreaming;
 
 	FParticleSystemWorldManager::OnStartup();
 
