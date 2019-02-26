@@ -169,6 +169,7 @@ void FPersonaModule::ShutdownModule()
 		PropertyModule.UnregisterCustomClassLayout("SkeletalMeshSocket");
 		PropertyModule.UnregisterCustomClassLayout("EditorNotifyObject");
 		PropertyModule.UnregisterCustomClassLayout("AnimGraphNode_Base");
+		PropertyModule.UnregisterCustomClassLayout("AnimInstance");
 		PropertyModule.UnregisterCustomClassLayout("BlendSpaceBase");
 
 		PropertyModule.UnregisterCustomPropertyTypeLayout("InputScaleBias");
@@ -177,8 +178,8 @@ void FPersonaModule::ShutdownModule()
 		PropertyModule.UnregisterCustomPropertyTypeLayout("BlendParameter");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("InterpolationParameter");
 
-		PropertyModule.UnregisterCustomClassLayout("SkeletalMeshSamplingRegionBoneFilter");
-		PropertyModule.UnregisterCustomClassLayout("SkeletalMeshSamplingRegionMaterialFilter");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("SkeletalMeshSamplingRegionBoneFilter");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("SkeletalMeshSamplingRegionMaterialFilter");
 	}
 }
 
