@@ -101,6 +101,7 @@ public:
 
 	virtual bool HasKeyboardFocus() const override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual bool SupportsKeyboardFocus() const override;
 
 private:

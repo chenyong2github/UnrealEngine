@@ -28,6 +28,7 @@
 #include "Internationalization/Culture.h"
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "BuildSettings.h"
 
 #include "Apple/PreAppleSystemHeaders.h"
 #include <dlfcn.h>
@@ -1775,7 +1776,16 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
 
 	bool bSendUnattendedBugReports = true;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+	}
 
 	if (GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
 	{
@@ -1850,7 +1860,16 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
 	
 	bool bSendUnattendedBugReports = true;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+	}
 
 	if(GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
 	{

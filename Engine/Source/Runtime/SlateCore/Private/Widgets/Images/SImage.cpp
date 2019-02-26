@@ -8,7 +8,9 @@ void SImage::Construct( const FArguments& InArgs )
 	Image = InArgs._Image;
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 	bFlipForRightToLeftFlowDirection = InArgs._FlipForRightToLeftFlowDirection;
-	OnMouseButtonDownHandler = InArgs._OnMouseButtonDown;
+	SetOnMouseButtonDown(InArgs._OnMouseButtonDown);
+
+
 }
 
 int32 SImage::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
@@ -34,20 +36,6 @@ int32 SImage::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry
 	}
 
 	return LayerId;
-}
-
-FReply SImage::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
-{
-	if ( OnMouseButtonDownHandler.IsBound() )
-	{
-		// If a handler is assigned, call it.
-		return OnMouseButtonDownHandler.Execute(MyGeometry, MouseEvent);
-	}
-	else
-	{
-		// otherwise the event is unhandled.
-		return FReply::Unhandled();
-	}	
 }
 
 FVector2D SImage::ComputeDesiredSize( float ) const
@@ -85,9 +73,4 @@ void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 		Image = InImage;
 		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	}
-}
-
-void SImage::SetOnMouseButtonDown(FPointerEventHandler EventHandler)
-{
-	OnMouseButtonDownHandler = EventHandler;
 }

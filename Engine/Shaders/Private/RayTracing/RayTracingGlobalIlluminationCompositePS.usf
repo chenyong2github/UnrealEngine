@@ -12,10 +12,21 @@ void GlobalIlluminationCompositePS(
 	out float OutAmbientOcclusion : SV_Target1
 )
 {
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+	float3 DiffuseColor = ScreenSpaceData.GBuffer.DiffuseColor;
 	float4 GlobalIllumination = GlobalIlluminationTexture.Sample(GlobalIlluminationSampler, UV);
-	// Scene color is ultimately multiplied by the occlusion term, so we counteract the weighting term here
-	// dxr_todo: this is currently a hack, due to catastrophic cancelation when AO is close to 0.
-	OutAmbientOcclusion = max(1.0 - GlobalIllumination.a, 1.0 / 256.0);
-	GlobalIllumination.rgb *= rcp(OutAmbientOcclusion);
+	// Apply albedo after denoising
+	GlobalIllumination.rgb *= DiffuseColor;
+	OutColor = float4(GlobalIllumination.rgb, 0.0);
+	OutAmbientOcclusion = 1.0 - GlobalIllumination.a;
+}
+
+void GlobalIlluminationSceneColorCompositePS(
+	in noperspective float2 UV : TEXCOORD0,
+	out float4 OutColor : SV_Target0
+)
+{
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+	float4 GlobalIllumination = GlobalIlluminationTexture.Sample(GlobalIlluminationSampler, UV);
 	OutColor = float4(GlobalIllumination.rgb, 0.0);
 }

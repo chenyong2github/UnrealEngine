@@ -306,14 +306,13 @@ void FMaterialInstanceResource::GameThread_SetParent(UMaterialInterface* ParentM
 
 		// Set the rendering thread's parent and instance pointers.
 		check(ParentMaterialInterface != NULL);
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			InitMaterialInstanceResource,
-			FMaterialInstanceResource*, Resource, this,
-			UMaterialInterface*, Parent, ParentMaterialInterface,
+		FMaterialInstanceResource* Resource = this;
+		ENQUEUE_RENDER_COMMAND(InitMaterialInstanceResource)(
+			[Resource, ParentMaterialInterface](FRHICommandListImmediate& RHICmdList)
 			{
-			Resource->Parent = Parent;
-			Resource->InvalidateUniformExpressionCache(false);
-		});
+				Resource->Parent = ParentMaterialInterface;
+				Resource->InvalidateUniformExpressionCache(false);
+			});
 
 		if (OldParent)
 		{
@@ -323,27 +322,20 @@ void FMaterialInstanceResource::GameThread_SetParent(UMaterialInterface* ParentM
 	}
 }
 
-ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER_DECLARE_TEMPLATE(
-	SetMIParameterValue, ParameterType,
-	FMaterialInstanceResource*, Resource, Resource,
-	FMaterialParameterInfo, ParameterInfo, Parameter.ParameterInfo,
-	typename ParameterType::ValueType, Value, ParameterType::GetValue(Parameter),
-	{
-		Resource->RenderThread_UpdateParameter(ParameterInfo, Value);
-	});
-
 /**
 * Updates a parameter on the material instance from the game thread.
 */
 template <typename ParameterType>
 void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const ParameterType& Parameter)
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER_CREATE_TEMPLATE(
-		SetMIParameterValue, ParameterType,
-		FMaterialInstanceResource*, Instance->Resource,
-		FMaterialParameterInfo, Parameter.ParameterInfo,
-		typename ParameterType::ValueType, ParameterType::GetValue(Parameter)
-		);
+	FMaterialInstanceResource* Resource = Instance->Resource;
+	const FMaterialParameterInfo& ParameterInfo = Parameter.ParameterInfo;
+	typename ParameterType::ValueType Value = ParameterType::GetValue(Parameter);
+	ENQUEUE_RENDER_COMMAND(SetMIParameterValue)(
+		[Resource, ParameterInfo, Value](FRHICommandListImmediate& RHICmdList)
+		{
+			Resource->RenderThread_UpdateParameter(ParameterInfo, Value);
+		});
 }
 
 bool UMaterialInstance::UpdateParameters()
@@ -414,6 +406,7 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 
 void UMaterialInstance::PostInitProperties()	
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	Super::PostInitProperties();
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
@@ -2963,7 +2956,7 @@ void UMaterialInstance::ClearAllCachedCookedPlatformData()
 
 void UMaterialInstance::Serialize(FArchive& Ar)
 {
-	LLM_SCOPE(ELLMTag::Materials);
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPED_LOADTIMER(MaterialInstanceSerializeTime);
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_Serialize);
 
@@ -3089,6 +3082,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 
 void UMaterialInstance::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::MaterialInstance);
 	SCOPED_LOADTIMER(MaterialInstancePostLoad);
 
 	Super::PostLoad();
@@ -3253,12 +3247,6 @@ void UMaterialInstance::FinishDestroy()
 	}
 #endif
 	Super::FinishDestroy();
-}
-
-void UMaterialInstance::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogMaterial, Error, TEXT("Garbage collector eliminated reference from material instance!  Material instance referenced objects should not be cleaned up via MarkPendingKill().\n           MI=%s\n"), 
-		*GetPathName());
 }
 
 void UMaterialInstance::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)

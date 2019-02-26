@@ -39,6 +39,7 @@
 
 Texture2D SignalInput0;
 Texture2D SignalInput1;
+Texture2D SignalInput2;
 
 RWTexture2D<float4>	SignalOutput0;
 
@@ -49,7 +50,7 @@ RWTexture2D<float4>	SignalOutput0;
 FSSFSignalSample SampleNearestInputMipLevel(float2 BufferUV, const uint MipLevel)
 {
 	return SampleInputSignal(
-		SignalInput0, SignalInput1,
+		SignalInput0, SignalInput1, SignalInput2,
 		GlobalPointClampedSampler,
 		CONFIG_SIGNAL_INPUT_LAYOUT,
 		BufferUV,

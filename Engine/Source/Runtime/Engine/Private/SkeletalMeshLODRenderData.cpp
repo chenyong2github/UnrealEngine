@@ -675,6 +675,14 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 			SkelMeshOwner->NeedCPUData(Idx);
 	}
 
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		if (bNeedsCPUAccess && SkelMeshOwner)
+		{
+			UE_LOG(LogStaticMesh, Verbose, TEXT("[%s] Skeletal Mesh is marked for CPU read."), *SkelMeshOwner->GetName());
+		}
+	}
+
 	if (StripFlags.IsDataStrippedForServer() || StripFlags.IsClassDataStripped(MinLodStripFlag))
 	{
 		TArray<FSkelMeshRenderSection> DummySections;

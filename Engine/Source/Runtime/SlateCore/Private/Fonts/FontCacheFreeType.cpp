@@ -4,6 +4,7 @@
 #include "SlateGlobals.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #if WITH_FREETYPE
 
@@ -19,6 +20,7 @@ namespace FreeTypeMemory
 
 static void* Alloc(FT_Memory Memory, long Size)
 {
+	LLM_SCOPE(ELLMTag::UI);
 	void* Result = FMemory::Malloc(Size);
 
 #if STATS
@@ -31,6 +33,7 @@ static void* Alloc(FT_Memory Memory, long Size)
 
 static void* Realloc(FT_Memory Memory, long CurSize, long NewSize, void* Block)
 {
+	LLM_SCOPE(ELLMTag::UI);
 
 #if STATS
 	long DeltaNewSize = NewSize - CurSize;

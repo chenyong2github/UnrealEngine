@@ -478,14 +478,15 @@ void FMeshDescriptionOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMes
 	{
 		if (!MaterialIndexToPolygonGroup.Contains(MaterialIndex))
 		{
-			FPolygonGroupID PolygonGroupID = DestinationMeshDescription.CreatePolygonGroup();
+			FPolygonGroupID PolygonGroupID(MaterialIndex);
+			DestinationMeshDescription.CreatePolygonGroupWithID(PolygonGroupID);
 			if (MaterialMap.Contains(MaterialIndex))
 			{
 				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = MaterialMap[MaterialIndex];
 			}
 			else
 			{
-				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = FName(*FString::Printf(TEXT("MaterialSlot_%d"), PolygonGroupID.GetValue()));
+				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = FName(*FString::Printf(TEXT("MaterialSlot_%d"), MaterialIndex));
 			}
 			PolygonGroups.Add(PolygonGroupID);
 			MaterialIndexToPolygonGroup.Add(MaterialIndex, PolygonGroupID);
@@ -1412,7 +1413,16 @@ struct FLayoutUVMeshDescriptionView final : FLayoutUV::IMeshView
 	}
 };
 
-void FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDescription,
+int32 FMeshDescriptionOperations::GetUVChartCount(FMeshDescription& MeshDescription, int32 SrcLightmapIndex, ELightmapUVVersion LightmapUVVersion, const FOverlappingCorners& OverlappingCorners)
+{
+	uint32 UnusedDstIndex = -1;
+	FLayoutUVMeshDescriptionView MeshDescriptionView(MeshDescription, SrcLightmapIndex, UnusedDstIndex);
+	FLayoutUV Packer(MeshDescriptionView);
+	Packer.SetVersion(LightmapUVVersion);
+	return Packer.FindCharts(OverlappingCorners);
+}
+
+bool FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDescription,
 	int32 SrcLightmapIndex,
 	int32 DstLightmapIndex,
 	int32 MinLightmapResolution,
@@ -1420,15 +1430,16 @@ void FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDe
 	const FOverlappingCorners& OverlappingCorners)
 {
 	FLayoutUVMeshDescriptionView MeshDescriptionView(MeshDescription, SrcLightmapIndex, DstLightmapIndex);
-	FLayoutUV Packer(MeshDescriptionView, MinLightmapResolution);
+	FLayoutUV Packer(MeshDescriptionView);
 	Packer.SetVersion(LightmapUVVersion);
 
 	Packer.FindCharts(OverlappingCorners);
-	bool bPackSuccess = Packer.FindBestPacking();
+	bool bPackSuccess = Packer.FindBestPacking(MinLightmapResolution);
 	if (bPackSuccess)
 	{
 		Packer.CommitPackedUVs();
 	}
+	return bPackSuccess;
 }
 
 bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords)
@@ -1544,10 +1555,10 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 
 	// Generate new UVs
 	FLayoutUVMeshDescriptionView DuplicateMeshDescriptionView(DuplicateMeshDescription, 0, 1);
-	FLayoutUV Packer(DuplicateMeshDescriptionView, FMath::Clamp(TextureResolution / 4, 32, 512));
+	FLayoutUV Packer(DuplicateMeshDescriptionView);
 	Packer.FindCharts(OverlappingCorners);
 
-	bool bPackSuccess = Packer.FindBestPacking();
+	bool bPackSuccess = Packer.FindBestPacking(FMath::Clamp(TextureResolution / 4, 32, 512));
 	if (bPackSuccess)
 	{
 		Packer.CommitPackedUVs();
@@ -1728,24 +1739,29 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 {
 	FVector Size = Params.Size * Params.Scale;
 	FVector HalfSize = Size / 2.0f;
-	FVector Offset = Params.Position - HalfSize;
-
-	FVector HintU = FVector::UpVector;
-	FVector HintV = FVector::RightVector;
 
 	TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
 	OutTexCoords.AddZeroed(MeshDescription.VertexInstances().Num());
 
+	// Setup the UVs such that the mapping is from top-left to bottom-right when viewed orthographically
+	TArray<TPair<FVector, FVector>> PlaneUVs;
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::ForwardVector, FVector::RightVector));	// Top view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::BackwardVector, FVector::RightVector));	// Bottom view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::ForwardVector, FVector::DownVector));		// Right view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::BackwardVector, FVector::DownVector));	// Left view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::LeftVector, FVector::DownVector));		// Front view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::RightVector, FVector::DownVector));		// Back view
+
 	TArray<FPlane> BoxPlanes;
 	const FVector& Center = Params.Position;
 
 	BoxPlanes.Add(FPlane(Center + FVector(0, 0, HalfSize.Z), FVector::UpVector));		// Top plane
-	BoxPlanes.Add(FPlane(Center - FVector(0, 0, HalfSize.Z), -FVector::UpVector));		// Bottom plane
-	BoxPlanes.Add(FPlane(Center + FVector(HalfSize.X, 0, 0), FVector::ForwardVector));	// Right plane
-	BoxPlanes.Add(FPlane(Center - FVector(HalfSize.X, 0, 0), -FVector::ForwardVector));	// Left plane
-	BoxPlanes.Add(FPlane(Center + FVector(0, HalfSize.Y, 0), FVector::RightVector));	// Front plane
-	BoxPlanes.Add(FPlane(Center - FVector(0, HalfSize.Y, 0), -FVector::RightVector));	// Back plane
+	BoxPlanes.Add(FPlane(Center - FVector(0, 0, HalfSize.Z), FVector::DownVector));		// Bottom plane
+	BoxPlanes.Add(FPlane(Center + FVector(0, HalfSize.Y, 0), FVector::RightVector));	// Right plane
+	BoxPlanes.Add(FPlane(Center - FVector(0, HalfSize.Y, 0), FVector::LeftVector));		// Left plane
+	BoxPlanes.Add(FPlane(Center + FVector(HalfSize.X, 0, 0), FVector::ForwardVector));	// Front plane
+	BoxPlanes.Add(FPlane(Center - FVector(HalfSize.X, 0, 0), FVector::BackwardVector));	// Back plane
 
 	// For each polygon, find the box plane that best matches the polygon normal
 	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
@@ -1773,17 +1789,9 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 			}
 		}
 
-		const FPlane& BestPlane = BoxPlanes[BestPlaneIndex];
-
-		FVector U = HintU;
-		FVector V = BestPlane ^ HintU;
-
-		if (V.IsZero())
-		{
-			// Plane normal and U were aligned, so try with V instead
-			U = HintV;
-			V = BestPlane ^ HintV;
-		}
+		FVector U = PlaneUVs[BestPlaneIndex].Key;
+		FVector V = PlaneUVs[BestPlaneIndex].Value;
+		FVector Offset = Params.Position - HalfSize * (U + V);
 
 		for (const FVertexInstanceID& VertexInstanceID : VertexInstances)
 		{

@@ -35,7 +35,7 @@ struct FHitGroupSystemParameters
 {
 	D3D12_GPU_VIRTUAL_ADDRESS IndexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS VertexBuffer;
-	FHitGroupSystemVertexFetchParameters FetchParameters;
+	FHitGroupSystemRootConstants RootConstants;
 };
 
 struct FD3D12ShaderIdentifier
@@ -266,7 +266,7 @@ public:
 	struct Entry
 	{
 		ID3D12DescriptorHeap* Heap = nullptr;
-		FD3D12CLSyncPoint SyncPoint;
+		uint64 FenceValue = 0;
 		uint32 NumDescriptors = 0;
 		D3D12_DESCRIPTOR_HEAP_TYPE Type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 	};
@@ -281,9 +281,12 @@ public:
 	{
 		check(AllocatedEntries == 0);
 
-		Flush();
-
-		check(Entries.Num() == 0);
+		FScopeLock Lock(&CriticalSection);
+		for (const Entry& It : Entries)
+		{
+			It.Heap->Release();
+		}
+		Entries.Empty();
 	}
 
 	void ReleaseHeap(Entry& Entry)
@@ -304,10 +307,13 @@ public:
 
 		Entry Result = {};
 
+		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+		const uint64 CompletedFenceValue = Adapter->GetFrameFence().GetLastCompletedFenceFast();
+
 		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
 		{
 			const Entry& It = Entries[EntryIndex];
-			if (It.Type == Type && It.NumDescriptors >= NumDescriptors && It.SyncPoint.IsComplete())
+			if (It.Type == Type && It.NumDescriptors >= NumDescriptors && It.FenceValue <= CompletedFenceValue)
 			{
 				Result = It;
 
@@ -345,7 +351,7 @@ public:
 
 		for (const Entry& It : Entries)
 		{
-			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap);
+			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap, &Device->GetCommandListManager().GetFence());
 		}
 		Entries.Empty();
 	}
@@ -415,12 +421,11 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 		return Result;
 	}
 
-	void UpdateSyncPoint(FD3D12CommandListHandle CommandListHandle)
+	void UpdateSyncPoint()
 	{
-		if (CommandListHandle.CurrentGeneration() > HeapCacheEntry.SyncPoint.GetGeneration())
-		{
-			HeapCacheEntry.SyncPoint = CommandListHandle;
-		}
+		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+		const uint64 FrameFenceValue = Adapter->GetFrameFence().GetCurrentFence();
+		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, FrameFenceValue);
 	}
 
 	ID3D12DescriptorHeap* D3D12Heap = nullptr;
@@ -452,15 +457,15 @@ public:
 		SamplerHeap.Init(NumSamplerDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 	}
 
-	void UpdateSyncPoint(FD3D12CommandListHandle CommandListHandle)
+	void UpdateSyncPoint()
 	{
-		ViewHeap.UpdateSyncPoint(CommandListHandle);
-		SamplerHeap.UpdateSyncPoint(CommandListHandle);
+		ViewHeap.UpdateSyncPoint();
+		SamplerHeap.UpdateSyncPoint();
 	}
 
 	void SetDescriptorHeaps(FD3D12CommandContext& CommandContext)
 	{
-		UpdateSyncPoint(CommandContext.CommandListHandle);
+		UpdateSyncPoint();
 
 		ID3D12DescriptorHeap* Heaps[2] =
 		{
@@ -1645,7 +1650,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	const uint32 NumHitGroupSlots = NumTotalSegments; // one hit group slot per geometry segment
 	const uint32 HitGroupStride = Pipeline->HitGroupStride;
 
-	checkf(Pipeline->MaxLocalRootSignatureSize >= sizeof(FHitGroupSystemParameters), TEXT("All local root signatures are expected to contain ray tracing system root parameters (2x root buffers + 1x root DWORD)"));
+	checkf(Pipeline->MaxLocalRootSignatureSize >= sizeof(FHitGroupSystemParameters), TEXT("All local root signatures are expected to contain ray tracing system root parameters (2x root buffers + 4x root DWORD)"));
 
 	CreatedShaderTable->Init(
 		Pipeline->RayGenShaders.Num(),
@@ -1680,18 +1685,18 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 
 				const uint32 RecordBaseIndex = GetHitGroupIndex(InstanceIndex, SegmentIndex) * HitGroupStride;
 
-				FHitGroupSystemParameters RootParameters = {};
-				RootParameters.IndexBuffer = IndexBufferAddress;
-				RootParameters.VertexBuffer = VertexBufferAddress;
+				FHitGroupSystemParameters SystemParameters = {};
+				SystemParameters.IndexBuffer = IndexBufferAddress;
+				SystemParameters.VertexBuffer = VertexBufferAddress;
 
 				// #dxr_todo: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
 				checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
-				RootParameters.FetchParameters.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
-				RootParameters.FetchParameters.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
+				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
+				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
 
 				for (uint32 SlotIndex = 0; SlotIndex < HitGroupStride; ++SlotIndex)
 				{
-					CreatedShaderTable->SetHitGroupParameters(RecordBaseIndex + SlotIndex, 0, RootParameters);
+					CreatedShaderTable->SetHitGroupParameters(RecordBaseIndex + SlotIndex, 0, SystemParameters);
 				}
 			}
 		}
@@ -2261,7 +2266,8 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamR
 void FD3D12CommandContext::RHISetRayTracingHitGroup(
 	FRayTracingSceneRHIParamRef InScene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 	FRayTracingPipelineStateRHIParamRef InPipeline, uint32 HitGroupIndex,
-	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers)
+	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+	uint32 UserData)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
 	FD3D12RayTracingPipelineState* Pipeline = FD3D12DynamicRHI::ResourceCast(InPipeline);
@@ -2272,6 +2278,9 @@ void FD3D12CommandContext::RHISetRayTracingHitGroup(
 
 	const uint32 RecordIndex = Scene->GetHitGroupIndex(InstanceIndex, SegmentIndex) * Pipeline->HitGroupStride + ShaderSlot;
 	ShaderTable->SetHitGroupIdentifier(RecordIndex, Pipeline->HitGroupShaders.Identifiers[HitGroupIndex]);
+
+	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
+	ShaderTable->SetHitGroupParameters(RecordIndex, UserDataOffset, UserData);
 
 	const FD3D12RayTracingShader* Shader = Pipeline->HitGroupShaders.Shaders[HitGroupIndex];
 

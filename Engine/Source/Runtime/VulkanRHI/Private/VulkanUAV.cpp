@@ -23,10 +23,39 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 
 FVulkanShaderResourceView::~FVulkanShaderResourceView()
 {
-	TextureView.Destroy(*Device);
-	BufferViews.Empty(0);
+	Clear();
+}
+
+void FVulkanShaderResourceView::Clear()
+{
+	SourceRHIBuffer = nullptr;
+	SourceBuffer = nullptr;
+	BufferViews.Empty();
+	SourceStructuredBuffer = nullptr;
+	if (Device)
+	{
+		TextureView.Destroy(*Device);
+	}
 	SourceTexture = nullptr;
 	Device = nullptr;
+}
+
+void FVulkanShaderResourceView::Rename(FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat)
+{
+	check(Device);
+	BufferViewFormat = InFormat;
+	SourceTexture = nullptr;
+	TextureView.Destroy(*Device);
+	SourceStructuredBuffer = nullptr;
+	MipLevel = 0;
+	NumMips = -1;
+	BufferViews.Reset();
+	BufferViews.AddZeroed(InSourceBuffer->IsVolatile() ? 1 : InSourceBuffer->GetNumBuffers());
+	BufferIndex = 0;
+	Size = InSize;
+	SourceBuffer = InSourceBuffer;
+	SourceRHIBuffer = InRHIBuffer;
+	VolatileLockCounter = MAX_uint32;
 }
 
 void FVulkanShaderResourceView::UpdateView()
@@ -238,9 +267,12 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FStruct
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FVertexBufferRHIParamRef VertexBufferRHI, uint32 Stride, uint8 Format)
 {	
+	if (!VertexBufferRHI)
+	{
+		return new FVulkanShaderResourceView(Device, nullptr, nullptr, 0, (EPixelFormat)Format);
+	}
 	FVulkanVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, VertexBufferRHI, VertexBuffer, VertexBuffer->GetSize(), (EPixelFormat)Format);
-	return SRV;
+	return new FVulkanShaderResourceView(Device, VertexBufferRHI, VertexBuffer, VertexBuffer->GetSize(), (EPixelFormat)Format);
 }
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)
@@ -280,6 +312,21 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FIndexB
 	EPixelFormat Format = (IndexBufferRHI->GetStride() == 4) ? PF_R32_UINT : PF_R16_UINT;
 	FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, IndexBufferRHI, IndexBuffer, IndexBuffer->GetSize(), Format);
 	return SRV;
+}
+
+void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+{
+	FVulkanShaderResourceView* SRVVk = ResourceCast(SRV);
+	check(SRVVk && SRVVk->GetParent() == Device);
+	if (!VertexBuffer)
+	{
+		SRVVk->Clear();
+	}
+	else if (SRVVk->SourceRHIBuffer.GetReference() != VertexBuffer)
+	{
+		FVulkanVertexBuffer* VertexBufferVk = ResourceCast(VertexBuffer);
+		SRVVk->Rename(VertexBuffer, VertexBufferVk, VertexBufferVk->GetSize(), (EPixelFormat)Format);
+	}
 }
 
 void FVulkanCommandListContext::RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32* Values)

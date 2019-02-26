@@ -12,6 +12,7 @@
 #include "RHIResources.h"
 #include "UniformBuffer.h"
 #include "RHI/Public/PipelineStateCache.h"
+#include "Raytracing/RaytracingOptions.h"
 
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -25,7 +26,7 @@ static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusion(
 
 bool ShouldRenderRayTracingAmbientOcclusion()
 {
-	return GRayTracingAmbientOcclusion != 0;
+	return IsRayTracingEnabled() && GRayTracingAmbientOcclusion != 0;
 }
 
 static int32 GRayTracingAmbientOcclusionSamplesPerPixel = 1;
@@ -39,6 +40,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, )
 SHADER_PARAMETER(int, SamplesPerPixel)
 SHADER_PARAMETER(float, MaxRayDistance)
 SHADER_PARAMETER(float, Intensity)
+SHADER_PARAMETER(float, MaxNormalBias)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, "AmbientOcclusion");
@@ -163,6 +165,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 
 		AmbientOcclusionData.MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
 		AmbientOcclusionData.Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
+		AmbientOcclusionData.MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 		FUniformBufferRHIRef AmbientOcclusionUniformBuffer = RHICreateUniformBuffer(&AmbientOcclusionData, FAmbientOcclusionData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 		AmbientOcclusionRayGenerationShader->Dispatch(

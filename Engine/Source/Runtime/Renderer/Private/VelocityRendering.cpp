@@ -640,7 +640,7 @@ void GetVelocityPassShaders(
 	}
 
 	static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-	const bool bUseShaderPipelines = !bNeedsHSDS && CVar && CVar->GetValueOnAnyThread() != 0;
+	const bool bUseShaderPipelines = RHISupportsShaderPipelines(GShaderPlatformForFeatureLevel[FeatureLevel]) && !bNeedsHSDS && CVar && CVar->GetValueOnAnyThread() != 0;
 
 	FShaderPipeline* ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&VelocityPipeline, VertexFactoryType, false) : nullptr;
 	if (ShaderPipeline)

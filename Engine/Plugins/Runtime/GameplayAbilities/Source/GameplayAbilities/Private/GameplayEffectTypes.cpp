@@ -10,6 +10,10 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 
+
+#define LOCTEXT_NAMESPACE "GameplayEffectTypes"
+
+
 #if WITH_EDITORONLY_DATA
 const FName FGameplayModEvaluationChannelSettings::ForceHideMetadataKey(TEXT("ForceHideEvaluationChannel"));
 const FString FGameplayModEvaluationChannelSettings::ForceHideMetadataEnabledValue(TEXT("True"));
@@ -490,6 +494,167 @@ bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, 
 	}
 
 	return CreatedSignificantChange;
+}
+
+FGameplayTagBlueprintPropertyMap::FGameplayTagBlueprintPropertyMap()
+{
+}
+
+FGameplayTagBlueprintPropertyMap::~FGameplayTagBlueprintPropertyMap()
+{
+	Unregister();
+}
+
+#if WITH_EDITOR
+EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(UObject* Owner, TArray<FText>& ValidationErrors)
+{
+	UClass* OwnerClass = ((Owner != nullptr) ? Owner->GetClass() : nullptr);
+	if (!OwnerClass)
+	{
+		ABILITY_LOG(Error, TEXT("FGameplayTagBlueprintPropertyMap: IsDataValid() called with an invalid Owner."));
+		return EDataValidationResult::Invalid;
+	}
+
+	for (const FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
+	{
+		if (!Mapping.TagToMap.IsValid())
+		{
+			ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadTag", "The gameplay tag [{0}] for property [{1}] is empty or invalid."),
+				FText::AsCultureInvariant(Mapping.TagToMap.ToString()),
+				FText::FromName(Mapping.PropertyName)));
+		}
+
+		if (UProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName))
+		{
+			if (!IsPropertyTypeValid(Property))
+			{
+				ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadType", "The property [{0}] for gameplay tag [{1}] is not a supported type.  Supported types are: integer, float, and boolean."),
+					FText::FromName(Mapping.PropertyName),
+					FText::AsCultureInvariant(Mapping.TagToMap.ToString())));
+			}
+		}
+		else
+		{
+			ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_MissingProperty", "The property [{0}] for gameplay tag [{1}] could not be found."),
+				FText::FromName(Mapping.PropertyName),
+				FText::AsCultureInvariant(Mapping.TagToMap.ToString())));
+		}
+	}
+
+	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
+}
+#endif // #if WITH_EDITOR
+
+void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystemComponent* ASC)
+{
+	UClass* OwnerClass = (Owner ? Owner->GetClass() : nullptr);
+	if (!OwnerClass)
+	{
+		ABILITY_LOG(Error, TEXT("FGameplayTagBlueprintPropertyMap: Initialize() called with an invalid Owner."));
+		return;
+	}
+
+	if (!ASC)
+	{
+		ABILITY_LOG(Error, TEXT("FGameplayTagBlueprintPropertyMap: Initialize() called with an invalid AbilitySystemComponent."));
+		return;
+	}
+
+	if (CachedOwner.IsValid())
+	{
+		Unregister();
+	}
+
+	CachedOwner = Owner;
+	CachedASC = ASC;
+
+	FOnGameplayEffectTagCountChanged::FDelegate Delegate = FOnGameplayEffectTagCountChanged::FDelegate::CreateRaw(this, &FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback);
+
+	// Process array starting at the end so we can remove invalid entries.
+	for (int32 MappingIndex = (PropertyMappings.Num() - 1); MappingIndex >= 0; --MappingIndex)
+	{
+		FGameplayTagBlueprintPropertyMapping& Mapping = PropertyMappings[MappingIndex];
+
+		if (Mapping.TagToMap.IsValid())
+		{
+			UProperty* Property = OwnerClass->FindPropertyByName(Mapping.PropertyName);
+			if (Property && IsPropertyTypeValid(Property))
+			{
+				Mapping.PropertyToEdit = Property;
+				Mapping.DelegateHandle = ASC->RegisterAndCallGameplayTagEvent(Mapping.TagToMap, Delegate, GetGameplayTagEventType(Property));
+				continue;
+			}
+		}
+
+		// Entry was invalid.  Remove it from the array.
+		ABILITY_LOG(Error, TEXT("FGameplayTagBlueprintPropertyMap: Removing invalid GameplayTagBlueprintPropertyMapping [Index: %d, Tag:%s, Property:%s] for [%s]."),
+			MappingIndex, *Mapping.TagToMap.ToString(), *Mapping.PropertyName.ToString(), *GetNameSafe(Owner));
+
+		PropertyMappings.RemoveAtSwap(MappingIndex, 1, false);
+	}
+}
+
+void FGameplayTagBlueprintPropertyMap::Unregister()
+{
+	if (UAbilitySystemComponent* ASC = CachedASC.Get())
+	{
+		for (FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
+		{
+			if (Mapping.PropertyToEdit && Mapping.TagToMap.IsValid())
+			{
+				ASC->UnregisterGameplayTagEvent(Mapping.DelegateHandle, Mapping.TagToMap, GetGameplayTagEventType(Mapping.PropertyToEdit));
+			}
+
+			Mapping.PropertyToEdit = nullptr;
+			Mapping.DelegateHandle.Reset();
+		}
+	}
+
+	CachedOwner = nullptr;
+	CachedASC = nullptr;
+}
+
+void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount)
+{
+	UObject* Owner = CachedOwner.Get();
+	if (!Owner)
+	{
+		ABILITY_LOG(Warning, TEXT("FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback has an invalid Owner."));
+		return;
+	}
+
+	FGameplayTagBlueprintPropertyMapping* Mapping = PropertyMappings.FindByPredicate([Tag](const FGameplayTagBlueprintPropertyMapping& Test)
+	{
+		return (Tag == Test.TagToMap);
+	});
+
+	if (Mapping && Mapping->PropertyToEdit)
+	{
+		if (const UBoolProperty* BoolProperty = Cast<const UBoolProperty>(Mapping->PropertyToEdit))
+		{
+			BoolProperty->SetPropertyValue_InContainer(Owner, NewCount > 0);
+		}
+		else if (const UIntProperty* IntProperty = Cast<const UIntProperty>(Mapping->PropertyToEdit))
+		{
+			IntProperty->SetPropertyValue_InContainer(Owner, NewCount);
+		}
+		else if (const UFloatProperty* FloatProperty = Cast<const UFloatProperty>(Mapping->PropertyToEdit))
+		{
+			FloatProperty->SetPropertyValue_InContainer(Owner, (float)NewCount);
+		}
+	}
+}
+
+bool FGameplayTagBlueprintPropertyMap::IsPropertyTypeValid(const UProperty* Property) const
+{
+	check(Property);
+	return (Property->IsA<UBoolProperty>() || Property->IsA<UIntProperty>() || Property->IsA<UFloatProperty>());
+}
+
+EGameplayTagEventType::Type FGameplayTagBlueprintPropertyMap::GetGameplayTagEventType(const UProperty* Property) const
+{
+	check(Property);
+	return (Property->IsA(UBoolProperty::StaticClass()) ? EGameplayTagEventType::NewOrRemoved : EGameplayTagEventType::AnyCountChange);
 }
 
 bool FGameplayTagRequirements::RequirementsMet(const FGameplayTagContainer& Container) const

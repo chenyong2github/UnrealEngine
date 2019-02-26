@@ -8,7 +8,6 @@
 #include "MetalCommandBuffer.h"
 #include "MetalProfiler.h"
 
-
 DECLARE_MEMORY_STAT(TEXT("Used Device Buffer Memory"), STAT_MetalDeviceBufferMemory, STATGROUP_MetalRHI);
 DECLARE_MEMORY_STAT(TEXT("Used Pooled Buffer Memory"), STAT_MetalPooledBufferMemory, STATGROUP_MetalRHI);
 DECLARE_MEMORY_STAT(TEXT("Used Magazine Buffer Memory"), STAT_MetalMagazineBufferMemory, STATGROUP_MetalRHI);
@@ -20,14 +19,18 @@ DECLARE_MEMORY_STAT(TEXT("Unused Magazine Buffer Memory"), STAT_MetalMagazineBuf
 DECLARE_MEMORY_STAT(TEXT("Unused Heap Buffer Memory"), STAT_MetalHeapBufferUnusedMemory, STATGROUP_MetalRHI);
 DECLARE_MEMORY_STAT(TEXT("Unused Linear Buffer Memory"), STAT_MetalLinearBufferUnusedMemory, STATGROUP_MetalRHI);
 
-
-
 static int32 GMetalHeapBufferBytesToCompact = 0;
 static FAutoConsoleVariableRef CVarMetalHeapBufferBytesToCompact(
-	TEXT("rhi.Metal.HeapBufferBytesToCompact"),
-	GMetalHeapBufferBytesToCompact,
-	TEXT("When enabled (> 0) this will force MetalRHI to compact the given number of bytes each frame into older buffer heaps from newer ones in order to defragment memory and reduce wastage.\n")
-	TEXT("(Off by default (0))"));
+    TEXT("rhi.Metal.HeapBufferBytesToCompact"),
+    GMetalHeapBufferBytesToCompact,
+    TEXT("When enabled (> 0) this will force MetalRHI to compact the given number of bytes each frame into older buffer heaps from newer ones in order to defragment memory and reduce wastage.\n")
+    TEXT("(Off by default (0))"));
+
+static int32 GMetalResourcePurgeInPool = 0;
+static FAutoConsoleVariableRef CVarMetalResourcePurgeInPool(
+	TEXT("rhi.Metal.ResourcePurgeInPool"),
+	GMetalResourcePurgeInPool,
+	TEXT("Use the SetPurgeableState function to allow the OS to reclaim memory from resources while they are unused in the pools. (Default: 0, Off)"));
 
 #if METAL_DEBUG_OPTIONS
 extern int32 GMetalBufferScribble;
@@ -500,13 +503,13 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 #endif
 					
 					Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(Range)), this);
-					
-					Allocation Alloc;
-					Alloc.Range = Range;
-					Alloc.Resource = Result.GetPtr();
-					Alloc.Owner = nullptr;
-					AllocRanges.Add(Alloc);
 				
+                    Allocation Alloc;
+                    Alloc.Range = Range;
+                    Alloc.Resource = Result.GetPtr();
+                    Alloc.Owner = nullptr;
+                    AllocRanges.Add(Alloc);
+
 					break;
 				}
 			}
@@ -1254,8 +1257,10 @@ FMetalTexture FMetalTexturePool::CreateTexture(mtlpp::Device Device, mtlpp::Text
 	{
 		Texture = *Tex;
 		Pool.Remove(Descriptor);
-		
-		Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+		if (GMetalResourcePurgeInPool)
+		{
+        	Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+        }
 	}
 	else
 	{
@@ -1283,7 +1288,10 @@ void FMetalTexturePool::ReleaseTexture(FMetalTexture& Texture)
 	Descriptor.usage = Texture.GetUsage();
 	Descriptor.freedFrame = GFrameNumberRenderThread;
 	
-	Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+	if (GMetalResourcePurgeInPool && Texture.SetPurgeableState(mtlpp::PurgeableState::KeepCurrent) == mtlpp::PurgeableState::NonVolatile)
+	{
+		Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+	}
 	
 	FScopeLock Lock(&PoolMutex);
 	Pool.Add(Descriptor, Texture);
@@ -1304,12 +1312,12 @@ void FMetalTexturePool::Drain(bool const bForce)
 			{
 				It.RemoveCurrent();
 			}
-			else if ((GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
-			{
-				It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
-			}
-		}
-	}
+            else if (GMetalResourcePurgeInPool && (GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
+            {
+                It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
+            }
+        }
+    }
 }
 
 FMetalResourceHeap::FMetalResourceHeap(void)
@@ -1501,8 +1509,11 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 				 }
 				 else
 				{
-					Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
-					Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+                    Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
+					if (GMetalResourcePurgeInPool)
+					{
+                    	Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+					}
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
 					INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
@@ -1575,8 +1586,11 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 				else
 				{
 					FScopeLock Lock(&Mutex);
-					Buffer = Buffers[Storage].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
-					Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+                    Buffer = Buffers[Storage].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
+					if (GMetalResourcePurgeInPool)
+					{
+                    	Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+					}
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
 					INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
@@ -1619,10 +1633,13 @@ void FMetalResourceHeap::ReleaseBuffer(FMetalBuffer& Buffer)
 		
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 		INC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
-		DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
+        DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
 		
-		Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
-		
+		if (GMetalResourcePurgeInPool)
+		{
+        	Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+		}
+        
 		switch (StorageMode)
 		{
 	#if PLATFORM_MAC
@@ -1684,7 +1701,7 @@ FMetalTexture FMetalResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, F
 
 void FMetalResourceHeap::ReleaseTexture(FMetalSurface* Surface, FMetalTexture& Texture)
 {
-	if (!Texture.GetBuffer() && !Texture.GetParentTexture() && !Texture.GetHeap())
+	if (Texture && !Texture.GetBuffer() && !Texture.GetParentTexture() && !Texture.GetHeap())
 	{
         if (Texture.GetUsage() & mtlpp::TextureUsage::RenderTarget)
         {

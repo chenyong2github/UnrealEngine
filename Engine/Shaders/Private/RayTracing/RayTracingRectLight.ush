@@ -36,7 +36,7 @@ bool GenerateRectLightOcclusionRay(
 	}
 
 	// Apply normal perturbation when defining ray
-	RayOrigin = WorldPosition + WorldNormal * 0.01;
+	RayOrigin = WorldPosition;
 	RayDirection = LightDirection;
 	RayTMin = 0.0;
 	RayTMax = length(LightSamplePosition - WorldPosition);

@@ -26,9 +26,11 @@
 #include "HAL/ExceptionHandling.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
+#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Templates/Function.h"
+#include "Modules/ModuleManager.h"
 
 #include "Misc/UProjectInfo.h"
 #include "Internationalization/Culture.h"
@@ -815,6 +817,35 @@ IPlatformChunkInstall* FGenericPlatformMisc::GetPlatformChunkInstall()
 {
 	static FGenericPlatformChunkInstall Singleton;
 	return &Singleton;
+}
+
+IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleManager()
+{
+	static IPlatformInstallBundleManager* Manager = nullptr;
+	static bool bCheckedIni = false;
+
+	if (Manager)
+		return Manager;
+
+	if (!bCheckedIni && !GEngineIni.IsEmpty())
+	{
+		FString ModuleName;
+		IPlatformInstallBundleManagerModule* Module = nullptr;
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+
+		FModuleStatus Status;
+		if (FModuleManager::Get().QueryModule(*ModuleName, Status))
+		{
+			Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
+			if (Module)
+			{
+				Manager = Module->GetInstallBundleManager();
+			}
+		}
+		bCheckedIni = true;
+	}
+
+	return Manager;
 }
 
 void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)

@@ -1469,7 +1469,7 @@ void FLocalFileNetworkReplayStreamer::FlushStream(const uint32 TimeInMS)
 	StreamTimeRange.Min = StreamTimeRange.Max;
 
 	// Save any newly streamed data to disk
-	UE_LOG(LogLocalFileReplay, Log, TEXT("FLocalFileNetworkReplayStreamer::FlushStream. StreamChunkIndex: %i, Size: %i"), StreamChunkIndex, StreamAr.Buffer.Num());
+	UE_LOG(LogLocalFileReplay, Verbose, TEXT("FLocalFileNetworkReplayStreamer::FlushStream. StreamChunkIndex: %i, Size: %i"), StreamChunkIndex, StreamAr.Buffer.Num());
 
 	AddGenericRequestToQueue<FLocalFileReplayInfo>(EQueuedLocalFileRequestType::WritingStream, 
 		[this, StreamChunkStartMS, StreamChunkEndMS, StreamData=MoveTemp(StreamAr.Buffer)](FLocalFileReplayInfo& ReplayInfo) mutable
@@ -1678,7 +1678,7 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeI
 	CheckpointAr.Pos = 0;	
 }
 
-void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate)
+void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	if (IsFileRequestPendingOrInProgress(EQueuedLocalFileRequestType::ReadingCheckpoint))
 	{
@@ -1743,8 +1743,185 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 		return;
 	}
 
-	AddCachedFileRequestToQueue<FGotoResult>(EQueuedLocalFileRequestType::ReadingCheckpoint, CurrentReplayInfo.Checkpoints[CheckpointIndex].ChunkIndex,
-		[this, CheckpointIndex](TLocalFileRequestCommonData<FGotoResult>& RequestData)
+	if (CheckpointType == EReplayCheckpointType::Delta)
+	{
+		AddDelegateFileRequestToQueue<FGotoResult>(EQueuedLocalFileRequestType::ReadingCheckpoint,
+			[this, CheckpointIndex](TLocalFileRequestCommonData<FGotoResult>& RequestData)
+		{
+			// If we get here after StopStreaming was called, then assume this operation should be cancelled
+			// A more correct fix would be to actually cancel this in-flight request when StopStreaming is called
+			// But for now, this is a safe change, and can co-exist with the more proper fix
+			if (bStopStreamingCalled)
+			{
+				return;
+			}
+
+			RequestData.DataBuffer.Empty();
+
+			const FString FullDemoFilename = GetDemoFullFilename(CurrentStreamName);
+
+			TSharedPtr<FArchive> LocalFileAr = CreateLocalFileReader(FullDemoFilename);
+			if (LocalFileAr.IsValid())
+			{
+				if (ReadReplayInfo(*LocalFileAr, RequestData.ReplayInfo))
+				{
+					TArray<uint8> CheckpointData;
+
+					// read all the checkpoints
+					for (int32 i = 0; i <= CheckpointIndex; ++i)
+					{
+						if (DeltaCheckpointCache.Contains(i))
+						{
+							FMemoryWriter Writer(RequestData.DataBuffer, true, true);
+							uint32 CheckpointSize = DeltaCheckpointCache[i]->RequestData.Num();
+							Writer << CheckpointSize;
+
+							RequestData.DataBuffer.Append(DeltaCheckpointCache[i]->RequestData);
+						}
+						else
+						{
+							LocalFileAr->Seek(RequestData.ReplayInfo.Checkpoints[i].EventDataOffset);
+
+							CheckpointData.Reset();
+							CheckpointData.AddUninitialized(RequestData.ReplayInfo.Checkpoints[i].SizeInBytes);
+
+							LocalFileAr->Serialize(CheckpointData.GetData(), CheckpointData.Num());
+
+							// Get the checkpoint data
+							if (RequestData.ReplayInfo.bCompressed)
+							{
+								if (SupportsCompression())
+								{
+									SCOPE_CYCLE_COUNTER(STAT_LocalReplay_DecompressTime);
+
+									TArray<uint8> UncompressedData;
+
+									if (!DecompressBuffer(CheckpointData, UncompressedData))
+									{
+										UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndexDelta. DecompressBuffer FAILED."));
+										RequestData.DataBuffer.Empty();
+										return;
+									}
+
+									FMemoryWriter Writer(RequestData.DataBuffer, true, true);
+									uint32 CheckpointSize = UncompressedData.Num();
+									Writer << CheckpointSize;
+
+									RequestData.DataBuffer.Append(UncompressedData);
+
+									DeltaCheckpointCache.Add(i, MakeShareable(new FCachedFileRequest(UncompressedData, 0)));
+								}
+								else
+								{
+									UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndexDelta. Compressed checkpoint but streamer does not support compression."));
+									RequestData.DataBuffer.Empty();
+									return;
+								}
+							}
+							else
+							{
+								FMemoryWriter Writer(RequestData.DataBuffer, true, true);
+								uint32 CheckpointSize = CheckpointData.Num();
+								Writer << CheckpointSize;
+
+								RequestData.DataBuffer.Append(CheckpointData);
+
+								DeltaCheckpointCache.Add(i, MakeShareable(new FCachedFileRequest(CheckpointData, 0)));
+							}
+						}
+					}
+				}
+
+				LocalFileAr = nullptr;
+			}
+		},
+			[this, CheckpointIndex, Delegate](TLocalFileRequestCommonData<FGotoResult>& RequestData)
+		{
+			if (bStopStreamingCalled)
+			{
+				Delegate.ExecuteIfBound(RequestData.DelegateResult);
+				LastGotoTimeInMS = -1;
+				return;
+			}
+
+			if (RequestData.DataBuffer.Num() == 0)
+			{
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndexDelta. Checkpoint empty."));
+				Delegate.ExecuteIfBound(RequestData.DelegateResult);
+				LastGotoTimeInMS = -1;
+				return;
+			}
+
+			CheckpointAr.Buffer = MoveTemp(RequestData.DataBuffer);
+			CheckpointAr.Pos = 0;
+
+			int32 DataChunkIndex = FCString::Atoi(*CurrentReplayInfo.Checkpoints[CheckpointIndex].Metadata);
+			check(CurrentReplayInfo.DataChunks.IsValidIndex(DataChunkIndex));
+
+			bool bIsDataAvailableForTimeRange = IsDataAvailableForTimeRange(CurrentReplayInfo.Checkpoints[CheckpointIndex].Time1, LastGotoTimeInMS);
+
+			if (!bIsDataAvailableForTimeRange)
+			{
+				// Completely reset our stream (we're going to start loading from the start of the checkpoint)
+				StreamAr.Buffer.Empty();
+				StreamAr.Pos = 0;
+				StreamAr.bAtEndOfReplay = false;
+
+				// Reset any time we were waiting on in the past
+				HighPriorityEndTime = 0;
+
+				StreamDataOffset = CurrentReplayInfo.DataChunks[DataChunkIndex].StreamOffset;
+
+				// Reset our stream range
+				StreamTimeRange = TInterval<uint32>(0, 0);
+
+				// Set the next chunk to be right after this checkpoint (which was stored in the metadata)
+				StreamChunkIndex = DataChunkIndex;
+
+				LastChunkTime = 0;		// Force the next chunk to start loading immediately in case LastGotoTimeInMS is 0 (which would effectively disable high priority mode immediately)
+			}
+			else
+			{
+				// set stream position back to the correct location
+				StreamAr.Pos = CurrentReplayInfo.DataChunks[DataChunkIndex].StreamOffset - StreamDataOffset;
+				check(StreamAr.Pos >= 0 && StreamAr.Pos <= StreamAr.Buffer.Num());
+				StreamAr.bAtEndOfReplay = false;
+			}
+
+			// If we want to fast forward past the end of a stream (and we set a new chunk to stream), clamp to the checkpoint
+			if (LastGotoTimeInMS >= 0 && StreamChunkIndex >= CurrentReplayInfo.DataChunks.Num() && !bIsDataAvailableForTimeRange)
+			{
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndexDelta. Clamped to checkpoint: %i"), LastGotoTimeInMS);
+
+				StreamTimeRange = TInterval<uint32>(CurrentReplayInfo.Checkpoints[CheckpointIndex].Time1, CurrentReplayInfo.Checkpoints[CheckpointIndex].Time1);
+				LastGotoTimeInMS = -1;
+			}
+
+			if (LastGotoTimeInMS >= 0)
+			{
+				// If we are fine scrubbing, make sure to wait on the part of the stream that is needed to do this in one frame
+				SetHighPriorityTimeRange(CurrentReplayInfo.Checkpoints[CheckpointIndex].Time1, LastGotoTimeInMS);
+
+				// Subtract off starting time so we pass in the leftover to the engine to fast forward through for the fine scrubbing part
+				LastGotoTimeInMS -= CurrentReplayInfo.Checkpoints[CheckpointIndex].Time1;
+			}
+
+			// Notify game code of success
+			RequestData.DelegateResult.Result = EStreamingOperationResult::Success;
+			RequestData.DelegateResult.ExtraTimeMS = LastGotoTimeInMS;
+
+			Delegate.ExecuteIfBound(RequestData.DelegateResult);
+
+			UE_LOG(LogLocalFileReplay, Verbose, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndexDelta. SUCCESS. StreamChunkIndex: %i"), StreamChunkIndex);
+
+			// Reset things
+			LastGotoTimeInMS = -1;
+		});
+	}
+	else
+	{
+		AddCachedFileRequestToQueue<FGotoResult>(EQueuedLocalFileRequestType::ReadingCheckpoint, CurrentReplayInfo.Checkpoints[CheckpointIndex].ChunkIndex,
+			[this, CheckpointIndex](TLocalFileRequestCommonData<FGotoResult>& RequestData)
 		{
 			// If we get here after StopStreaming was called, then assume this operation should be cancelled
 			// A more correct fix would be to actually cancel this in-flight request when StopStreaming is called
@@ -1801,7 +1978,7 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 				LocalFileAr = nullptr;
 			}
 		},
-		[this, CheckpointIndex, Delegate](TLocalFileRequestCommonData<FGotoResult>& RequestData)
+			[this, CheckpointIndex, Delegate](TLocalFileRequestCommonData<FGotoResult>& RequestData)
 		{
 			if (bStopStreamingCalled)
 			{
@@ -1812,7 +1989,7 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 
 			if (RequestData.DataBuffer.Num() == 0)
 			{
-				UE_LOG( LogLocalFileReplay, Warning, TEXT( "FLocalFileNetworkReplayStreamer::GotoCheckpointIndex. Checkpoint empty." ) );
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndex. Checkpoint empty."));
 				Delegate.ExecuteIfBound(RequestData.DelegateResult);
 				LastGotoTimeInMS = -1;
 				return;
@@ -1860,14 +2037,14 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 			}
 			else if (LastGotoTimeInMS >= 0)
 			{
-				UE_LOG( LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndex. Clamped to checkpoint: %i"), LastGotoTimeInMS );
+				UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndex. Clamped to checkpoint: %i"), LastGotoTimeInMS);
 
 				// If we want to fast forward past the end of a stream, clamp to the checkpoint
 				StreamTimeRange = TInterval<uint32>(Checkpoint.Time1, Checkpoint.Time1);
 				LastGotoTimeInMS = -1;
 			}
 
-			if ( LastGotoTimeInMS >= 0 )
+			if (LastGotoTimeInMS >= 0)
 			{
 				// If we are fine scrubbing, make sure to wait on the part of the stream that is needed to do this in one frame
 				SetHighPriorityTimeRange(Checkpoint.Time1, LastGotoTimeInMS);
@@ -1887,11 +2064,12 @@ void FLocalFileNetworkReplayStreamer::GotoCheckpointIndex(const int32 Checkpoint
 			UE_LOG(LogLocalFileReplay, Verbose, TEXT("FLocalFileNetworkReplayStreamer::GotoCheckpointIndex. SUCCESS. StreamChunkIndex: %i"), StreamChunkIndex);
 
 			// Reset things
-			LastGotoTimeInMS		= -1;
+			LastGotoTimeInMS = -1;
 		});
+	}
 }
 
-void FLocalFileNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate)
+void FLocalFileNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	if (IsFileRequestPendingOrInProgress(EQueuedLocalFileRequestType::ReadingCheckpoint) || LastGotoTimeInMS != -1)
 	{
@@ -1930,7 +2108,7 @@ void FLocalFileNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const 
 		}
 	}
 
-	GotoCheckpointIndex( CheckpointIndex, Delegate );
+	GotoCheckpointIndex(CheckpointIndex, Delegate, CheckpointType);
 }
 
 bool FLocalFileNetworkReplayStreamer::HasPendingFileRequests() const
@@ -2639,7 +2817,7 @@ void FLocalFileNetworkReplayStreamer::AddRequestToCache(int32 ChunkIndex, const 
 	}
 
 	// Add to cache (or freshen existing entry)
-	RequestCache.Add(ChunkIndex, FCachedFileRequest(RequestData, FPlatformTime::Seconds()));
+	RequestCache.Add(ChunkIndex, MakeShareable(new FCachedFileRequest(RequestData, FPlatformTime::Seconds())));
 
 	// Anytime we add something to cache, make sure it's within budget
 	CleanupRequestCache();
@@ -2654,16 +2832,20 @@ void FLocalFileNetworkReplayStreamer::CleanupRequestCache()
 		int32 OldestKey = INDEX_NONE;
 		uint32 TotalSize = 0;
 
-		for (auto It = RequestCache.CreateIterator(); It; ++It)
+		for (const auto& RequestPair : RequestCache)
 		{
-			if ((OldestKey == INDEX_NONE) || It.Value().LastAccessTime < OldestTime)
+			const TSharedPtr<FCachedFileRequest>& Request = RequestPair.Value;
+			if (Request.IsValid())
 			{
-				OldestTime = It.Value().LastAccessTime;
-				OldestKey = It.Key();
-			}
+				if ((OldestKey == INDEX_NONE) || Request->LastAccessTime < OldestTime)
+				{
+					OldestTime = Request->LastAccessTime;
+					OldestKey = RequestPair.Key;
+				}
 
-			// Accumulate total cache size
-			TotalSize += It.Value().RequestData.Num();
+				// Accumulate total cache size
+				TotalSize += Request->RequestData.Num();
+			}
 		}
 
 		check(OldestKey != INDEX_NONE);
@@ -2821,6 +3003,21 @@ const void FLocalFileNetworkReplayStreamer::GetUserIndicesFromUserStrings(const 
 			}
 		}
 	}
+}
+
+bool FLocalFileNetworkReplayStreamer::IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const
+{
+	bool bSupported = false;
+
+	switch (CheckpointType)
+	{
+	case EReplayCheckpointType::Full:
+	case EReplayCheckpointType::Delta:
+		bSupported = true;
+		break;
+	}
+
+	return bSupported;
 }
 
 IMPLEMENT_MODULE(FLocalFileNetworkReplayStreamingFactory, LocalFileNetworkReplayStreaming)

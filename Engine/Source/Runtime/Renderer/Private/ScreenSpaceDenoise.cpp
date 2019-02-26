@@ -100,20 +100,10 @@ static const int32 kStackowiakMaxSampleCountPerSet = 56;
 
 const IScreenSpaceDenoiser* GScreenSpaceDenoiser = nullptr;
 
-
-// ---------------------------------------------------- Simple functions
-
-static bool IsSupportedLightType(ELightComponentType LightType)
-{
-	// TODO: whitelist LightType_Spot once implemented in the ray generation shader and tested.
-	return  LightType == LightType_Point || LightType == LightType_Directional || LightType == LightType_Rect;
-}
-
-
-// ---------------------------------------------------- Shaders
-
 namespace
 {
+
+// ---------------------------------------------------- Enums
 
 /** Different signals to denoise. */
 enum class ESignalProcessing
@@ -127,6 +117,24 @@ enum class ESignalProcessing
 };
 
 
+// ---------------------------------------------------- Simple functions
+
+static bool IsSupportedLightType(ELightComponentType LightType)
+{
+	// TODO: whitelist LightType_Spot once implemented in the ray generation shader and tested.
+	return  LightType == LightType_Point || LightType == LightType_Directional || LightType == LightType_Rect;
+}
+
+/** Returns whether a signal processing uses a history rejection pre convolution pass. */
+static bool SignalUsesRejectionPreConvolution(ESignalProcessing SignalProcessing)
+{
+	return SignalProcessing == ESignalProcessing::Reflections;
+}
+
+
+// ---------------------------------------------------- Shaders
+
+
 class FSignalProcessingDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_SIGNAL_PROCESSING", ESignalProcessing);
 
 
@@ -134,59 +142,94 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	// Penumbra
 	nullptr,
 	nullptr,
+	nullptr,
 
 	// Reflections
 	TEXT("ReflectionsReconstruction0"),
 	TEXT("ReflectionsReconstruction1"),
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOReconstruction0"),
 	TEXT("AOReconstruction1"),
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GIReconstruction0"),
 	TEXT("GIReconstruction1"),
+	nullptr,
+};
+
+const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
+	// Penumbra
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// Reflections
+	TEXT("ReflectionsRejectionPreConvolution0"),
+	TEXT("ReflectionsRejectionPreConvolution1"),
+	TEXT("ReflectionsRejectionPreConvolution2"),
+
+	// AmbientOcclusion
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// GlobalIllumination
+	nullptr,
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	// Penumbra
 	nullptr,
 	nullptr,
+	nullptr,
 
 	// Reflections
 	TEXT("ReflectionsTemporalAccumulation0"),
 	TEXT("ReflectionsTemporalAccumulation1"),
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOTemporalAccumulation0"),
 	TEXT("AOTemporalAccumulation1"),
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GITemporalAccumulation0"),
 	TEXT("GITemporalAccumulation1"),
+	nullptr,
 };
 
 const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	// Penumbra
 	nullptr,
 	nullptr,
+	nullptr,
 
 	// Reflections
 	TEXT("ReflectionsHistoryConvolution0"),
 	TEXT("ReflectionsHistoryConvolution1"),
+	nullptr,
 
 	// AmbientOcclusion
 	TEXT("AOHistoryConvolution0"),
 	TEXT("AOHistoryConvolution1"),
+	nullptr,
 
 	// GlobalIllumination
 	TEXT("GIHistoryConvolution0"),
 	TEXT("GIHistoryConvolution1"),
+	nullptr,
 };
 
-static_assert(ARRAY_COUNT(kReconstructionResourceNames) == int32(ESignalProcessing::MAX) * 2, "You forgot me!");
-static_assert(ARRAY_COUNT(kTemporalAccumulationResourceNames) == int32(ESignalProcessing::MAX) * 2, "You forgot me!");
-static_assert(ARRAY_COUNT(kHistoryConvolutionResourceNames) == int32(ESignalProcessing::MAX) * 2, "You forgot me!");
+static_assert(ARRAY_COUNT(kReconstructionResourceNames) == int32(ESignalProcessing::MAX) * 3, "You forgot me!");
+static_assert(ARRAY_COUNT(kRejectionPreConvolutionResourceNames) == int32(ESignalProcessing::MAX) * 3, "You forgot me!");
+static_assert(ARRAY_COUNT(kTemporalAccumulationResourceNames) == int32(ESignalProcessing::MAX) * 3, "You forgot me!");
+static_assert(ARRAY_COUNT(kHistoryConvolutionResourceNames) == int32(ESignalProcessing::MAX) * 3, "You forgot me!");
 
 
 /** Base class for a screen space denoising shader. */
@@ -303,6 +346,9 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 		// Spatial kernel used to process raw input for the temporal accumulation.
 		ReConstruction,
 
+		// Spatial kernel used to pre convolve history rejection.
+		RejectionPreConvolution,
+
 		// Spatial kernel used to post filter the temporal accumulation.
 		PostFiltering,
 
@@ -332,6 +378,13 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 			return false;
 		}
 
+		// Only compile rejection pre convolution for signal that uses it.
+		if (!SignalUsesRejectionPreConvolution(PermutationVector.Get<FSignalProcessingDim>()) &&
+			PermutationVector.Get<FStageDim>() == EStage::RejectionPreConvolution)
+		{
+			return false;
+		}
+
 		return FScreenSpaceDenoisingShader::ShouldCompilePermutation(Parameters);
 	}
 
@@ -347,6 +400,7 @@ class FSSDSpatialAccumulationCS : public FScreenSpaceDenoisingShader
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalOutput0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalOutput1)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalOutput2)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO: remove
 	END_SHADER_PARAMETER_STRUCT()
@@ -357,25 +411,56 @@ class FSSDTemporalAccumulationCS : public FScreenSpaceDenoisingShader
 	DECLARE_GLOBAL_SHADER(FSSDTemporalAccumulationCS);
 	SHADER_USE_PARAMETER_STRUCT(FSSDTemporalAccumulationCS, FScreenSpaceDenoisingShader);
 
-	class FIsMip0Dim : SHADER_PERMUTATION_BOOL("DIM_IS_MIP_0");
-
-	using FPermutationDomain = TShaderPermutationDomain<
-		FIsMip0Dim,
-		FSignalProcessingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FSignalProcessingDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		// Shadows are only implemented at multiple MIP.
-		if (PermutationVector.Get<FSignalProcessingDim>() != ESignalProcessing::Penumbra && 
-			!PermutationVector.Get<FIsMip0Dim>())
+		// Penumbra denoising is not using the constant pixel density layout.
+		if (PermutationVector.Get<FSignalProcessingDim>() == ESignalProcessing::Penumbra)
 		{
 			return false;
 		}
 
 		return FScreenSpaceDenoisingShader::ShouldCompilePermutation(Parameters);
 	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, bCameraCut)
+		SHADER_PARAMETER(FMatrix, PrevScreenToTranslatedWorld)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SignalInput0)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SignalInput1)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevHistory0)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevHistory1)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevTileClassificationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevDepthBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevGBufferA)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevGBufferB)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal0)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal1)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal2)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalHistoryOutput0)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalHistoryOutput1)
+		
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO: remove
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FSSDTemporalMipAccumulationCS : public FScreenSpaceDenoisingShader
+{
+	DECLARE_GLOBAL_SHADER(FSSDTemporalMipAccumulationCS);
+	SHADER_USE_PARAMETER_STRUCT(FSSDTemporalMipAccumulationCS, FScreenSpaceDenoisingShader);
+
+	class FIsMip0Dim : SHADER_PERMUTATION_BOOL("DIM_IS_MIP_0");
+
+	using FPermutationDomain = TShaderPermutationDomain<FIsMip0Dim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, iMipLevel)
@@ -396,14 +481,14 @@ class FSSDTemporalAccumulationCS : public FScreenSpaceDenoisingShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevTileClassificationTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevDepthBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevGBufferA)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevGBufferB)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal0)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal1)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionSignal2)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalHistoryOutput0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SignalHistoryOutput1)
-		
+
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput) // TODO: remove
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -427,10 +512,11 @@ class FSSDOutputCS : public FScreenSpaceDenoisingShader
 IMPLEMENT_GLOBAL_SHADER(FSSDReduceCS, "/Engine/Private/ScreenSpaceDenoise/SSDReduce.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDTileDilateCS, "/Engine/Private/ScreenSpaceDenoise/SSDTileDilate.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDBuildHistoryRejectionCS, "/Engine/Private/ScreenSpaceDenoise/SSDBuildHistoryRejection.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FSSDSpatialAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDSpatialAccumulation.usf", "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FSSDTemporalAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDTemporalAccumulation.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FSSDTemporalMipAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDTemporalMipAccumulation.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSSDOutputCS, "/Engine/Private/ScreenSpaceDenoise/SSDOutput.usf", "MainCS", SF_Compute);
 
+IMPLEMENT_GLOBAL_SHADER(FSSDSpatialAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDSpatialAccumulation.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FSSDTemporalAccumulationCS, "/Engine/Private/ScreenSpaceDenoise/SSDTemporalAccumulation.usf", "MainCS", SF_Compute);
 
 #define SSD_DEBUG_PASS 1
 #if SSD_DEBUG_PASS
@@ -647,13 +733,12 @@ static void DenoiseShadowPenumbra(
 		// Process each mip level independently.
 		for (uint32 MipLevel = 0; MipLevel < kMaxMipLevel; MipLevel++)
 		{
-			FSSDTemporalAccumulationCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FSSDTemporalAccumulationCS::FIsMip0Dim>(MipLevel == 0);
-			PermutationVector.Set<FSignalProcessingDim>(ESignalProcessing::Penumbra);
+			FSSDTemporalMipAccumulationCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FSSDTemporalMipAccumulationCS::FIsMip0Dim>(MipLevel == 0);
 
-			TShaderMapRef<FSSDTemporalAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
+			TShaderMapRef<FSSDTemporalMipAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 
-			FSSDTemporalAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDTemporalAccumulationCS::FParameters>();
+			FSSDTemporalMipAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDTemporalMipAccumulationCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->iMipLevel = MipLevel;
 			PassParameters->iMipLevelPow2 = (1 << MipLevel);
@@ -682,7 +767,7 @@ static void DenoiseShadowPenumbra(
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("SSD TemporalAccumulation(Mip=%d)", MipLevel),
+				RDG_EVENT_NAME("SSD TemporalMipAccumulation(Mip=%d)", MipLevel),
 				*ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(Resolution, FComputeShaderUtils::kGolden2DGroupSize));
@@ -773,8 +858,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 	
 	auto GetResourceName = [&](const TCHAR* const ResourceNames[], int32 SubResourceId)
 	{
-		check(SubResourceId >= 0 && SubResourceId < 2);
-		return ResourceNames[int32(Settings.SignalProcessing) * 2 + SubResourceId];
+		check(SubResourceId >= 0 && SubResourceId < 3);
+		return ResourceNames[int32(Settings.SignalProcessing) * 3 + SubResourceId];
 	};
 
 	const FIntPoint DenoiseResolution = View.ViewRect.Size();
@@ -885,11 +970,57 @@ static void DenoiseSignalAtConstantPixelDensity(
 	// Temporal pass.
 	if (View.ViewState && Settings.bUseTemporalAccumulation)
 	{
+		FRDGTextureRef RejectionPreConvolutionSignal[3] = { nullptr, nullptr, nullptr };
+
+		// Temporal rejection might make use of a separable preconvolution.
+		if (SignalUsesRejectionPreConvolution(Settings.SignalProcessing))
+		{
+			{
+				FRDGTextureDesc RejectionSignalProcessingDesc[3];
+				RejectionSignalProcessingDesc[2] = RejectionSignalProcessingDesc[1] = RejectionSignalProcessingDesc[0] = SignalProcessingDesc[0];
+				if (Settings.SignalProcessing == ESignalProcessing::Reflections)
+				{
+					RejectionSignalProcessingDesc[0].Format = PF_FloatRGBA;
+					RejectionSignalProcessingDesc[1].Format = PF_G16R16F;
+					RejectionSignalProcessingDesc[2].Format = PF_FloatRGBA;
+				}
+				else
+				{
+					check(0);
+				}
+
+				RejectionPreConvolutionSignal[0] = GraphBuilder.CreateTexture(RejectionSignalProcessingDesc[0], GetResourceName(kRejectionPreConvolutionResourceNames, 0));
+				RejectionPreConvolutionSignal[1] = GraphBuilder.CreateTexture(RejectionSignalProcessingDesc[1], GetResourceName(kRejectionPreConvolutionResourceNames, 1));
+				RejectionPreConvolutionSignal[2] = GraphBuilder.CreateTexture(RejectionSignalProcessingDesc[2], GetResourceName(kRejectionPreConvolutionResourceNames, 2));
+			}
+
+			FSSDSpatialAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDSpatialAccumulationCS::FParameters>();
+			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->SignalInput0 = SignalHistory0;
+			PassParameters->SignalInput1 = SignalHistory1;
+			PassParameters->SignalOutput0 = GraphBuilder.CreateUAV(RejectionPreConvolutionSignal[0]);
+			PassParameters->SignalOutput1 = GraphBuilder.CreateUAV(RejectionPreConvolutionSignal[1]);
+			PassParameters->SignalOutput2 = GraphBuilder.CreateUAV(RejectionPreConvolutionSignal[2]);
+
+			FSSDSpatialAccumulationCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
+			PermutationVector.Set<FSSDSpatialAccumulationCS::FStageDim>(FSSDSpatialAccumulationCS::EStage::RejectionPreConvolution);
+
+			PassParameters->DebugOutput = GraphBuilder.CreateUAV(GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugRejectionPreConvolution")));
+
+			TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SSD SpatialAccumulation(RejectionPreConvolution MaxSamples=5)"),
+				*ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(DenoiseResolution, FComputeShaderUtils::kGolden2DGroupSize));
+		} // if (SignalUsesRejectionPreConvolution(Settings.SignalProcessing))
+
 		FRDGTextureRef SignalOutput0 = GraphBuilder.CreateTexture(SignalProcessingDesc[0], GetResourceName(kTemporalAccumulationResourceNames, 0));
 		FRDGTextureRef SignalOutput1 = GraphBuilder.CreateTexture(SignalProcessingDesc[1], GetResourceName(kTemporalAccumulationResourceNames, 1));
 
 		FSSDTemporalAccumulationCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FSSDTemporalAccumulationCS::FIsMip0Dim>(true);
 		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
 
 		TShaderMapRef<FSSDTemporalAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
@@ -901,6 +1032,10 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->SignalInput0 = SignalHistory0;
 		PassParameters->SignalInput1 = SignalHistory1;
 
+		PassParameters->HistoryRejectionSignal0 = RejectionPreConvolutionSignal[0];
+		PassParameters->HistoryRejectionSignal1 = RejectionPreConvolutionSignal[1];
+		PassParameters->HistoryRejectionSignal2 = RejectionPreConvolutionSignal[2];
+		
 		PassParameters->PrevScreenToTranslatedWorld = View.PrevViewInfo.ViewMatrices.GetInvTranslatedViewProjectionMatrix();
 		PassParameters->PrevHistory0 = RegisterExternalTextureWithFallback(GraphBuilder, PrevFrameHistory.RT[0], GSystemTextures.BlackDummy);
 		PassParameters->PrevHistory1 = RegisterExternalTextureWithFallback(GraphBuilder, PrevFrameHistory.RT[1], GSystemTextures.BlackDummy);
@@ -923,7 +1058,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		SignalHistory0 = SignalOutput0;
 		SignalHistory1 = SignalOutput1;
-	}
+	} // if (View.ViewState && Settings.bUseTemporalAccumulation)
 	
 	// Spatial filter, to converge history faster.
 	int32 MaxPostFilterSampleCount = FMath::Clamp(Settings.HistoryConvolutionSampleCount, 1, kStackowiakMaxSampleCountPerSet);
@@ -957,7 +1092,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		SignalHistory0 = SignalOutput0;
 		SignalHistory1 = SignalOutput1;
-	}
+	} // if (MaxPostFilterSampleCount > 1)
 
 	if (View.ViewState)
 	{

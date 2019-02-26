@@ -82,21 +82,10 @@ void UK2Node_BaseMCDelegate::AllocateDefaultPins()
 	{
 		PropertyOwnerClass = PropertyOwnerClass->GetAuthoritativeClass();
 	}
-	const UBlueprint* Blueprint = GetBlueprint();
 	
-	const bool bUseSelf = Blueprint && (PropertyOwnerClass == Blueprint->GeneratedClass);
+	UEdGraphPin* SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, PropertyOwnerClass, UEdGraphSchema_K2::PN_Self);
 
-	UEdGraphPin* SelfPin = NULL;
-	if (bUseSelf)
-	{
-		SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, UEdGraphSchema_K2::PSC_Self, UEdGraphSchema_K2::PN_Self);
-	}
-	else
-	{
-		SelfPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Object, PropertyOwnerClass, UEdGraphSchema_K2::PN_Self);
-	}
-
-	if(SelfPin)
+	if (SelfPin)
 	{
 		SelfPin->PinFriendlyName = NSLOCTEXT("K2Node", "BaseMCDelegateSelfPinName", "Target");
 	}
@@ -204,7 +193,7 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 {
 	const UBlueprint* SourceBlueprint = GetBlueprint();
 
-	auto MCProperty = GetProperty();
+	UProperty* MCProperty = GetProperty();
 	UClass* PropertySourceClass = MCProperty ? MCProperty->GetOwnerClass() : nullptr;
 	const bool bPropertyResult = (PropertySourceClass != NULL) && (PropertySourceClass->ClassGeneratedBy != SourceBlueprint);
 	if (bPropertyResult && OptionalOutput)
@@ -212,7 +201,7 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 		OptionalOutput->AddUnique(PropertySourceClass);
 	}
 
-	auto Signature = GetDelegateSignature(true);
+	UFunction* Signature = GetDelegateSignature(true);
 	UClass* SignatureSourceClass = Signature ? Signature->GetOwnerClass() : nullptr;
 	const bool bSignatureResult = (SignatureSourceClass != NULL) && (SignatureSourceClass->ClassGeneratedBy != SourceBlueprint);
 	if (bSignatureResult && OptionalOutput)
@@ -245,7 +234,7 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 		{
 			if (FromPin->PinType.PinSubCategoryObject.IsValid() && FromPin->PinType.PinSubCategoryObject->IsA(UClass::StaticClass()))
 			{
-				UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
+				UProperty* DelegateProperty = DelegateReference.ResolveMember<UMulticastDelegateProperty>(GetBlueprintClassFromNode());
 				if (DelegateProperty)
 				{
 					UClass* DelegateOwner = DelegateProperty->GetOwnerClass();
@@ -306,7 +295,7 @@ FText UK2Node_AddDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("PropertyName"), FText::FromName(GetPropertyName()));
+		Args.Add(TEXT("PropertyName"), GetPropertyDisplayName());
 		// FText::Format() is slow, so we cache this to save on performance
 		CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "AddDelegate", "Bind Event to {PropertyName}"), Args), this);
 	}
@@ -337,7 +326,7 @@ FText UK2Node_ClearDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("PropertyName"), FText::FromName(GetPropertyName()));
+		Args.Add(TEXT("PropertyName"), GetPropertyDisplayName());
 		// FText::Format() is slow, so we cache this to save on performance
 		CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "ClearDelegate", "Unbind all Events from {PropertyName}"), Args), this);
 	}
@@ -375,7 +364,7 @@ FText UK2Node_RemoveDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("PropertyName"), FText::FromName(GetPropertyName()));
+		Args.Add(TEXT("PropertyName"), GetPropertyDisplayName());
 		// FText::Format() is slow, so we cache this to save on performance
 		CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "RemoveDelegate", "Unbind Event from {PropertyName}"), Args), this);
 	}
@@ -428,7 +417,7 @@ FText UK2Node_CallDelegate::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	if (CachedNodeTitle.IsOutOfDate(this))
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("PropertyName"), FText::FromName(GetPropertyName()));
+		Args.Add(TEXT("PropertyName"), GetPropertyDisplayName());
 		// FText::Format() is slow, so we cache this to save on performance
 		CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "CallDelegate", "Call {PropertyName}"), Args), this);
 	}

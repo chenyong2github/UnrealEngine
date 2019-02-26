@@ -97,6 +97,7 @@ public:
 	
 	/** All the inputs of the AO denoisers. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FAmbientOcclusionInputs, )
+		// TODO: Merge this back to MaskAndRayHitDistance into RG texture for performance improvement of denoiser's reconstruction pass. May also support RayDistanceOnly for 1spp AO ray tracing.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Mask)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
 	END_SHADER_PARAMETER_STRUCT()
@@ -117,12 +118,14 @@ public:
 
 	/** All the inputs of the GI denoisers. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationInputs, )
+		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** All the outputs of the GI denoiser may generate. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FGlobalIlluminationOutputs, )
+		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
 	END_SHADER_PARAMETER_STRUCT()
 

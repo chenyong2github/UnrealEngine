@@ -289,10 +289,9 @@ void UGeometryCollectionComponent::CreateRenderState_Concurrent()
 		InitDynamicData(DynamicData);
 
 		// Enqueue command to send to render thread
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(FSendGeometryCollectionData,
-			FGeometryCollectionSceneProxy*, GeometryCollectionSceneProxy, (FGeometryCollectionSceneProxy*)SceneProxy,
-			FGeometryCollectionConstantData*, ConstantData, ConstantData,
-			FGeometryCollectionDynamicData*, DynamicData, DynamicData,
+		FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = (FGeometryCollectionSceneProxy*)SceneProxy;
+		ENQUEUE_RENDER_COMMAND(FSendGeometryCollectionData)(
+			[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
 			{
 				GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
 				GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
@@ -438,10 +437,9 @@ void UGeometryCollectionComponent::ForceInitRenderData()
 	InitDynamicData(DynamicData);
 
 	// Enqueue command to send to render thread
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(FSendGeometryCollectionData,
-		FGeometryCollectionSceneProxy*, GeometryCollectionSceneProxy, (FGeometryCollectionSceneProxy*)SceneProxy,
-		FGeometryCollectionConstantData*, ConstantData, ConstantData,
-		FGeometryCollectionDynamicData*, DynamicData, DynamicData,
+	FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = (FGeometryCollectionSceneProxy*)SceneProxy;
+	ENQUEUE_RENDER_COMMAND(FSendGeometryCollectionData)(
+		[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
 		{
 			GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData, true);
 			GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
@@ -695,9 +693,9 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 			InitDynamicData(DynamicData);
 
 			// Enqueue command to send to render thread
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(FSendGeometryCollectionData,
-				FGeometryCollectionSceneProxy*, GeometryCollectionSceneProxy, (FGeometryCollectionSceneProxy*)SceneProxy,
-				FGeometryCollectionDynamicData*, DynamicData, DynamicData,
+			FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = (FGeometryCollectionSceneProxy*)SceneProxy;
+			ENQUEUE_RENDER_COMMAND(FSendGeometryCollectionData)(
+				[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
 				{
 					GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
 				});

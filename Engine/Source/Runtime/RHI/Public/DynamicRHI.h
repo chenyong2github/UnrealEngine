@@ -424,6 +424,10 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer) = 0;
 
+	// Must be called on RHI thread timeline
+	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) /*= 0;*/ {}
+
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.
 	*
@@ -1022,7 +1026,6 @@ public:
 	virtual FIndexBufferRHIRef CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual void* LockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode);
 	virtual void UnlockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer);
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements);
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code);
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash);
 	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code);
@@ -1102,6 +1105,7 @@ public:
 	virtual void RHISignalFlipEvent() { }
 
 	virtual void RHICalibrateTimers() {}
+	virtual void RHIPollRenderQueryResults() {}
 
 	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return true; }
 
@@ -1168,9 +1172,16 @@ FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(FVertexDeclaration
 	return GDynamicRHI->RHICreateBoundShaderState(VertexDeclaration, VertexShader, HullShader, DomainShader, PixelShader, GeometryShader);
 }
 
+/** Before using this directly go through PipelineStateCache::GetAndOrCreateGraphicsPipelineState() */
 FORCEINLINE FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 {
 	return GDynamicRHI->RHICreateGraphicsPipelineState(Initializer);
+}
+
+/** Before using this directly go through PipelineStateCache::GetOrCreateVertexDeclaration() */
+FORCEINLINE FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& Elements)
+{
+	return GDynamicRHI->RHICreateVertexDeclaration(Elements);
 }
 
 FORCEINLINE TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)

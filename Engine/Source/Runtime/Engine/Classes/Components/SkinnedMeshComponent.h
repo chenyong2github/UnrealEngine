@@ -689,6 +689,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
 	FTransform GetDeltaTransformFromRefPose(FName BoneName, FName BaseName = NAME_None) const;
 
+	/** 
+	 * Get Twist and Swing Angle in Degree of Delta Rotation from Reference Pose in Local space 
+	 *
+	 * First this function gets rotation of current, and rotation of ref pose in local space, and 
+	 * And gets twist/swing angle value from refpose aligned. 
+	 * 
+	 * @param BoneName Name of the bone
+	 * @param OutTwistAngle TwistAngle in degree
+	 * @param OutSwingAngle SwingAngle in degree
+	 *
+	 * @return true if succeed. False otherwise. Often due to incorrect bone name. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
+
 public:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
@@ -733,7 +748,7 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const override;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
 

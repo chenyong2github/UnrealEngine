@@ -53,29 +53,29 @@ void ASceneCapture::PostLoad()
 		if (IsTemplate())
 		{
 			if (UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(GetClass()))
-			{
+{
 				for (USCS_Node* RootNode : BPClass->SimpleConstructionScript->GetRootNodes())
-				{
+{
 					static const FName OldMeshName(TEXT("CamMesh0"));
 					static const FName OldFrustumName(TEXT("DrawFrust0"));
 					static const FName NewRootName(TEXT("SceneComponent"));
 					if (RootNode->ParentComponentOrVariableName == OldMeshName || RootNode->ParentComponentOrVariableName == OldFrustumName)
-					{
+	{
 						RootNode->ParentComponentOrVariableName = NewRootName;
 					}
 				}
-			}
-		}
+	}
+}
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (MeshComp_DEPRECATED)
 		{
 			MeshComp_DEPRECATED->SetStaticMesh(nullptr);
-		}
+			}
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+		}
 #endif
-}
+	}
 
 void ASceneCapture::Serialize(FArchive& Ar)
 {
@@ -143,7 +143,6 @@ void USceneCaptureComponent::OnRegister()
 			ProxyMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			ProxyMeshComponent->bHiddenInGame = true;
 			ProxyMeshComponent->CastShadow = false;
-			ProxyMeshComponent->PostPhysicsComponentTick.bCanEverTick = false;
 			ProxyMeshComponent->CreationMethod = CreationMethod;
 			ProxyMeshComponent->RegisterComponentWithWorld(GetWorld());
 		}
@@ -712,15 +711,15 @@ void APlanarReflection::PostLoad()
 	Super::PostLoad();
 
 	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangeSceneCaptureRootComponent)
-	{
+{
 		if (PlanarReflectionComponent)
-		{
+	{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PlanarReflectionComponent->bShowPreviewPlane = bShowPreviewPlane_DEPRECATED;
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
-	}
-}
+			}
+		}
 
 void APlanarReflection::OnInterpToggle(bool bEnable)
 {
@@ -854,9 +853,9 @@ void UPlanarReflectionComponent::DestroyRenderState_Concurrent()
 		FPlanarReflectionSceneProxy* InSceneProxy = SceneProxy;
 		ENQUEUE_RENDER_COMMAND(FDestroyPlanarReflectionCommand)(
 			[InSceneProxy](FRHICommandList& RHICmdList)
-			{
+		{
 				delete InSceneProxy;
-			});
+		});
 
 		SceneProxy = nullptr;
 	}

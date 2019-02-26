@@ -26,12 +26,14 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Layout/SBox.h"
 
+#include "Engine/LevelScriptActor.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerPublicTypes.h"
 
 #include "TakeRecorderMicrophoneAudioSource.h"
+#include "TakeRecorderWorldSource.h"
 #include "TrackRecorders/MovieSceneAnimationTrackRecorderSettings.h"
 
 #define LOCTEXT_NAMESPACE "TakeRecorderSources"
@@ -151,7 +153,7 @@ namespace
 			{
 				for (AActor* Actor : Level->Actors)
 				{
-					if (Actor && Actor->IsA(Class))
+					if (Actor && Actor->IsA(Class) && !Actor->IsA(ALevelScriptActor::StaticClass()))
 					{
 						OutActors.AddUnique(Actor);
 					}
@@ -307,6 +309,7 @@ public:
 
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderMicrophoneAudioSourceSettings>());
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UMovieSceneAnimationTrackRecorderEditorSettings>());
+		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderWorldSourceSettings>());
 	}
 
 	virtual void ShutdownModule() override

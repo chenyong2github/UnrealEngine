@@ -35,6 +35,19 @@ void SkyLight_EvalLight(
 	OutRadiance = SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, LightUV, 0).rgb;
 }
 
+void SkyLight_EstimateLight(
+	int LightId,
+	RayDesc Ray,
+	FMaterialClosestHitPayload Payload,
+	out float OutIrradiance
+)
+{
+	uint Width, Height, NumberOfLevels;
+	SkyLight.Texture.GetDimensions(0, Width, Height, NumberOfLevels);
+	float LightPower = Luminance(GetColor(LightId) * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, float3(0.0, 1.0, 0.0), NumberOfLevels - 1));
+	OutIrradiance = LightPower * 2.0 * PI;
+}
+
 void SkyLight_SampleLight(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,

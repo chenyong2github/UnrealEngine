@@ -382,7 +382,7 @@ bool FStaticMeshSceneProxy::GetShadowMeshElement(int32 LODIndex, int32 BatchInde
 		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
 	}
 
-	OutMeshBatchElement.IndexBuffer = bUseReversedIndices ? &LOD.ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
+	OutMeshBatchElement.IndexBuffer = LOD.AdditionalIndexBuffers && bUseReversedIndices ? &LOD.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
 	OutMeshBatchElement.FirstIndex = 0;
 	OutMeshBatchElement.NumPrimitives = LOD.DepthOnlyNumTriangles;
 	OutMeshBatchElement.MinVertexIndex = 0;
@@ -737,12 +737,12 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 	{
 		const bool bSupportsTessellation = RHISupportsTessellation(GetScene().GetShaderPlatform()) && VertexFactory->GetType()->SupportsTessellationShaders();
 
-		if (LODModel.WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
+		if (LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
 		{
 			OutMeshBatch.Type = PT_LineList;
 			OutMeshBatchElement.FirstIndex = 0;
-			OutMeshBatchElement.IndexBuffer = &LODModel.WireframeIndexBuffer;
-			NumPrimitives = LODModel.WireframeIndexBuffer.GetNumIndices() / 2;
+			OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
+			NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
 		}
 		else
 		{
@@ -777,16 +777,15 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 		}
 		else
 		{
-			OutMeshBatchElement.IndexBuffer = bUseReversedIndices ? &LODModel.ReversedIndexBuffer : &LODModel.IndexBuffer;
+			OutMeshBatchElement.IndexBuffer = bUseReversedIndices ? &LODModel.AdditionalIndexBuffers->ReversedIndexBuffer : &LODModel.IndexBuffer;
 			OutMeshBatchElement.FirstIndex = Section.FirstIndex;
 			NumPrimitives = Section.NumTriangles;
 		}
 	}
 
-	if (bRequiresAdjacencyInformation)
 	{
 		check( LODModel.bHasAdjacencyInfo );
-		OutMeshBatchElement.IndexBuffer = &LODModel.AdjacencyIndexBuffer;
+		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
 		OutMeshBatch.Type = PT_12_ControlPointPatchList;
 		OutMeshBatchElement.FirstIndex *= 4;
 	}
@@ -1930,6 +1929,10 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 			}
 		}
 	}
+
+	const int8 CurFirstLODIdx = GetCurrentFirstLODIdx_Internal();
+	check(CurFirstLODIdx >= 0);
+	Result.ClampToFirstLOD(CurFirstLODIdx);
 	
 	return Result;
 }
@@ -1946,6 +1949,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	{
 		return nullptr;
 	}
+	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(this, false);
 #if STATICMESH_ENABLE_DEBUG_RENDERING

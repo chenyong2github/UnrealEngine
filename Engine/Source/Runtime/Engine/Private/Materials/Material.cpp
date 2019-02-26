@@ -4713,12 +4713,6 @@ void UMaterial::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-void UMaterial::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogMaterial, Error, TEXT("Garbage collector eliminated reference from material!  Material referenced objects should not be cleaned up via MarkPendingKill().\n           Material=%s"), 
-		*GetPathName());
-}
-
 void UMaterial::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
@@ -5673,6 +5667,12 @@ void UMaterial::AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgres
 	TArray<UObject*> MaterialArray;
 	GetObjectsOfClass(UMaterial::StaticClass(), MaterialArray, true, RF_ClassDefaultObject, EInternalObjectFlags::None);
 	float TaskIncrement = (float)100.0f / MaterialArray.Num();
+
+	// ensure default materials are cached first. Default materials must be available to fallback to during async compile.
+ 	MaterialArray.Sort([](const UObject& L, const UObject& R)
+ 	{
+ 		return ((const UMaterial&)L).IsDefaultMaterial() > ((const UMaterial&)R).IsDefaultMaterial();
+	});
 
 	for (UObject* MaterialObj : MaterialArray)
 	{

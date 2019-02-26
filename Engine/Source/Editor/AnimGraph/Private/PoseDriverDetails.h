@@ -93,6 +93,14 @@ public:
 	bool IsCustomCurveEnabled() const;
 	void OnApplyCustomCurveChanged(const ECheckBoxState NewCheckState);
 
+	bool IsHidden() const;
+	void OnIsHiddenChanged(const ECheckBoxState NewCheckState);
+
+	FText GetDistanceMethodAsText() const;
+	void OnDistanceMethodChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType);
+	FText GetFunctionTypeAsText() const;
+	void OnFunctionTypeChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType);
+
 	/** Remove this target from  */
 	void RemoveTarget();
 
@@ -116,6 +124,9 @@ public:
 
 	/** Info that this widget represents */
 	TWeakPtr<FPDD_TargetInfo> TargetInfoPtr;
+
+	static TArray< TSharedPtr<FName> > DistanceMethodOptions;
+	static TArray< TSharedPtr<FName> > FunctionTypeOptions;
 };
 
 

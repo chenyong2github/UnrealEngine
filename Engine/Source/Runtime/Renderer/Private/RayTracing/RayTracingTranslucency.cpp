@@ -20,9 +20,9 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
+#include "RayTracing/RaytracingOptions.h"
 
-
-static int32 GRayTracingTranslucencyMaxRefractionRays = 3;
+static int32 GRayTracingTranslucencyMaxRefractionRays = 4;
 static FAutoConsoleVariableRef CVarRayTracingTranslucencyMaxRefractionRays(
 	TEXT("r.RayTracing.Translucency.MaxRefractionRays"),
 	GRayTracingTranslucencyMaxRefractionRays,
@@ -166,6 +166,7 @@ class FRayTracingTranslucencyRG : public FGlobalShader
 		SHADER_PARAMETER(float, TranslucencyMinRayDistance)
 		SHADER_PARAMETER(float, TranslucencyMaxRayDistance)
 		SHADER_PARAMETER(float, TranslucencyMaxRoughness)
+		SHADER_PARAMETER(float, MaxNormalBias)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
@@ -173,6 +174,9 @@ class FRayTracingTranslucencyRG : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
 		SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LTCAmpSampler)
+
+		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
@@ -340,7 +344,7 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucency(FRHICommandListImmediat
 			SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -409,10 +413,13 @@ void FDeferredShadingSceneRenderer::RayTraceTranslucencyView(
 	PassParameters->TranslucencyMaxRayDistance = GRayTracingTranslucencyMaxRayDistance;
 	//#dxr-todo: do we want to use SSR parameter here?
 	PassParameters->TranslucencyMaxRoughness = FMath::Clamp(View.FinalPostProcessSettings.ScreenSpaceReflectionMaxRoughness, 0.01f, 1.0f); 
+	PassParameters->MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 	PassParameters->LTCMatTexture = GSystemTextures.LTCMat->GetRenderTargetItem().ShaderResourceTexture;
 	PassParameters->LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->LTCAmpTexture = GSystemTextures.LTCAmp->GetRenderTargetItem().ShaderResourceTexture;
 	PassParameters->LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	PassParameters->TLAS = View.PerViewRayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;

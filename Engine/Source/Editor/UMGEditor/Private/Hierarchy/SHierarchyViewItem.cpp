@@ -607,8 +607,39 @@ void FHierarchyRoot::UpdateSelection()
 	}
 }
 
+bool FHierarchyRoot::DoesWidgetOverrideFlowDirection() const
+{
+	TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
+	if (UWidget* Default = BPEd->GetWidgetBlueprintObj()->GeneratedClass->GetDefaultObject<UWidget>())
+	{
+		return Default->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+	}
+
+	return false;
+}
+
 TOptional<EItemDropZone> FHierarchyRoot::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
+	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid())
+	{
+		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
+		if(Blueprint)
+		{
+			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+	
+			if (Widget)
+			{
+				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
+				{
+					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
+					return TOptional<EItemDropZone>();
+				}
+			}
+		}
+	}
+
 	bool bIsDrop = false;
 	return ProcessHierarchyDragDrop(DragDropEvent, DropZone, bIsDrop, BlueprintEditor.Pin(), FWidgetReference());
 }
@@ -736,6 +767,18 @@ TOptional<EItemDropZone> FNamedSlotModel::HandleCanAcceptDrop(const FDragDropEve
 				TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
 				TemplateDragDropOp->CurrentHoverText = LOCTEXT("NamedSlotAlreadyFull", "Named Slot already has a child.");
 				return TOptional<EItemDropZone>();
+			}
+
+			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+
+			if (Widget)
+			{
+				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
+				{
+					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
+					return TOptional<EItemDropZone>();
+				}
 			}
 
 			TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
@@ -954,6 +997,25 @@ FSlateFontInfo FHierarchyWidget::GetFont() const
 
 TOptional<EItemDropZone> FHierarchyWidget::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
+	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
+	if (TemplateDragDropOp.IsValid())
+	{
+		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
+		if(Blueprint)
+		{
+			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+
+			if (Widget)
+			{
+				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
+				{
+					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
+					return TOptional<EItemDropZone>();
+				}
+			}
+		}
+	}
 	bool bIsDrop = false;
 	return ProcessHierarchyDragDrop(DragDropEvent, DropZone, bIsDrop, BlueprintEditor.Pin(), Item);
 }
@@ -1112,6 +1174,19 @@ void SHierarchyViewItem::Construct(const FArguments& InArgs, const TSharedRef< S
 				.OnVerifyTextChanged(this, &SHierarchyViewItem::OnVerifyNameTextChanged)
 				.OnTextCommitted(this, &SHierarchyViewItem::OnNameTextCommited)
 				.IsSelected(this, &SHierarchyViewItem::IsSelectedExclusively)
+			]
+
+			// Flow Direction Icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("FlowDirectionHierarchyToolTip", "This widget overrides the flow direction preference."))
+				.Visibility_Lambda([InModel] { return InModel->DoesWidgetOverrideFlowDirection() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.ColorAndOpacity(FCoreStyle::Get().GetSlateColor("Foreground"))
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FEditorFontGlyphs::Exchange)
 			]
 
 			// Locked Icon

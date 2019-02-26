@@ -84,6 +84,8 @@ void FOpenColorIOTransformResource::GetDependentShaderTypes(EShaderPlatform InPl
 			OutShaderTypes.Add(ShaderType);
 		}
 	}
+
+	OutShaderTypes.Sort(FCompareShaderTypes());
 }
 
 OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatform InPlatform, FOpenColorIOShaderMapId& OutId) const
@@ -96,8 +98,10 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 	{
 		TArray<FShaderType*> ShaderTypes;
 		GetDependentShaderTypes(InPlatform, ShaderTypes);
+
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.ShaderCodeHash = ShaderCodeHash;
+		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 	}
 }
 
@@ -115,9 +119,9 @@ void FOpenColorIOTransformResource::ReleaseShaderMap()
 	{
 		GameThreadShaderMap = nullptr;
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			ReleaseShaderMap,
-			FOpenColorIOTransformResource*, ColorTransform, this,
+		FOpenColorIOTransformResource* ColorTransform = this;
+		ENQUEUE_RENDER_COMMAND(ReleaseShaderMap)(
+			[ColorTransform](FRHICommandListImmediate& RHICmdList)
 			{
 				ColorTransform->SetRenderingThreadShaderMap(nullptr);
 			});
@@ -217,9 +221,9 @@ OPENCOLORIO_API  bool FOpenColorIOTransformResource::IsCompilationFinished() con
 
 bool FOpenColorIOTransformResource::CacheShaders(EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous)
 {
-	FOpenColorIOShaderMapId NoStaticParametersId;
-	GetShaderMapId(InPlatform, NoStaticParametersId);
-	return CacheShaders(NoStaticParametersId, InPlatform, bApplyCompletedShaderMapForRendering, bSynchronous);
+	FOpenColorIOShaderMapId ResourceShaderMapId;
+	GetShaderMapId(InPlatform, ResourceShaderMapId);
+	return CacheShaders(ResourceShaderMapId, InPlatform, bApplyCompletedShaderMapForRendering, bSynchronous);
 }
 
 bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous)
@@ -312,10 +316,10 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 		bSucceeded = true;
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FSetShaderMapOnColorSpaceTransformResources,
-		FOpenColorIOTransformResource*, ColorSpaceTransform, this,
-		FOpenColorIOShaderMap*, LoadedShaderMap, GameThreadShaderMap,
+	FOpenColorIOTransformResource* ColorSpaceTransform = this;
+	FOpenColorIOShaderMap* LoadedShaderMap = GameThreadShaderMap;
+	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnColorSpaceTransformResources)(
+		[ColorSpaceTransform, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
 		{
 			ColorSpaceTransform->SetRenderingThreadShaderMap(LoadedShaderMap);
 		});
@@ -427,4 +431,36 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 	UE_LOG(LogShaders, Fatal, TEXT("Compiling of shaders in a build without editordata is not supported."));
 	return false;
 #endif
+}
+
+void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& InShaderTypes, EShaderPlatform InShaderPlatform)
+{
+#if WITH_EDITOR
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		for (FShaderType* ShaderType : InShaderTypes)
+		{
+			if (ShaderType != nullptr)
+			{
+				FShaderTypeDependency Dependency;
+				Dependency.ShaderType = ShaderType;
+				Dependency.SourceHash = ShaderType->GetSourceHash(InShaderPlatform);
+				ShaderTypeDependencies.Add(Dependency);
+			}
+		}
+	}
+#endif //WITH_EDITOR
+}
+
+bool FOpenColorIOShaderMapId::ContainsShaderType(const FShaderType* ShaderType) const
+{
+	for (int32 TypeIndex = 0; TypeIndex < ShaderTypeDependencies.Num(); TypeIndex++)
+	{
+		if (ShaderTypeDependencies[TypeIndex].ShaderType == ShaderType)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

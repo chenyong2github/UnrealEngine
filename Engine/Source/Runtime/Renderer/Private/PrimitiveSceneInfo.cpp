@@ -294,10 +294,12 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 	{
 		const FCachedMeshDrawCommandInfo& CachedCommand = StaticMeshCommandInfos[CommandIndex];
 		const FSetElementId StateBucketId = FSetElementId::FromInteger(CachedCommand.StateBucketId);
-			
+
 		if (StateBucketId.IsValidId())
 		{
 			FMeshDrawCommandStateBucket& StateBucket = Scene->CachedMeshDrawCommandStateBuckets[StateBucketId];
+
+			FGraphicsMinimalPipelineStateId::RemovePersistentId(StateBucket.MeshDrawCommand.CachedPipelineId);
 
 			if (StateBucket.Num == 1)
 			{
@@ -311,6 +313,8 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 		else if (CachedCommand.CommandIndex >= 0)
 		{
 			FCachedPassMeshDrawList& PassDrawList = Scene->CachedDrawLists[CachedCommand.MeshPass];
+
+			FGraphicsMinimalPipelineStateId::RemovePersistentId(PassDrawList.MeshDrawCommands[CachedCommand.CommandIndex].CachedPipelineId);
 			PassDrawList.MeshDrawCommands.RemoveAt(CachedCommand.CommandIndex);
 
 			// Track the lowest index that might be free for faster AddAtLowestFreeIndex
@@ -367,42 +371,50 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		int MaxLOD = -1;
+		UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
+	}
+#endif // RHI_RAYTRACING
+}
+
+#if RHI_RAYTRACING
+void FPrimitiveSceneInfo::UpdateRayTracingLodIndexToMeshDrawCommandIndicies()
+{
+	int MaxLOD = -1;
+
+	for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
+	{
+		FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
+		MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
+	}
+
+	if (StaticMeshes.Num() > 0)
+	{
+		RayTracingLodIndexToMeshDrawCommandIndicies.Empty(MaxLOD + 1);
+		RayTracingLodIndexToMeshDrawCommandIndicies.AddDefaulted(MaxLOD + 1);
 
 		for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
 		{
+			FStaticMeshBatchRelevance& MeshRelevance = StaticMeshRelevances[MeshIndex];
 			FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
-			MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
-		}
 
-		if (StaticMeshes.Num() > 0)
-		{
-			RayTracingLodIndexToMeshDrawCommandIndicies.AddDefaulted(MaxLOD + 1);
-
-			for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
+			if (Mesh.Elements.Num() > 0)
 			{
-				FStaticMeshBatchRelevance& MeshRelevance = StaticMeshRelevances[MeshIndex];
-				FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
+				const int32 RayTracingStaticMeshCommandInfoIndex = MeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::RayTracing);
 
-				if (Mesh.Elements.Num() > 0)
+				if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy) && RayTracingStaticMeshCommandInfoIndex != -1)
 				{
-					const int32 RayTracingStaticMeshCommandInfoIndex = MeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::RayTracing);
-
-					if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy) && RayTracingStaticMeshCommandInfoIndex != -1)
-					{
-						const int32 CommandIndex = StaticMeshCommandInfos[RayTracingStaticMeshCommandInfoIndex].CommandIndex;
-						RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, CommandIndex });
-					}
-					else
-					{
-						RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, -1 });
-					}
+					const int32 CommandIndex = StaticMeshCommandInfos[RayTracingStaticMeshCommandInfoIndex].CommandIndex;
+					RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, CommandIndex });
+				}
+				else
+				{
+					RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, -1 });
 				}
 			}
 		}
 	}
-#endif
 }
+#endif // RHI_RAYTRACING
 
 void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists)
 {
@@ -649,6 +661,13 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 	{
 		CacheMeshDrawCommands(RHICmdList);
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
+	}
+#endif // RHI_RAYTRACING
 }
 
 void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList)

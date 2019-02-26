@@ -125,7 +125,8 @@ bool USocialParty::IsJoiningDuringLoadEnabled()
 }
 
 USocialParty::USocialParty()
-	: ReservationBeaconClientClass(APartyBeaconClient::StaticClass())
+	: ReservationBeaconClientClass(APartyBeaconClient::StaticClass()),
+	  SpectatorBeaconClientClass(ASpectatorBeaconClient::StaticClass())
 {}
 
 ECrossplayPreference GetCrossplayPreferenceFromJoinData(const FOnlinePartyData& JoinData)
@@ -521,7 +522,6 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 					PartyMembersById.Add(MemberIdRepl, PartyMember);
 					PartyMember->InitializePartyMember(OssPartyMember.ToSharedRef(), FSimpleDelegate::CreateUObject(this, &USocialParty::HandleMemberInitialized, PartyMember));
 
-					PartyInterface->ApproveUserForRejoin(*OwningLocalUserId, PartyId, MemberId);
 					RefreshPublicJoinability();
 
 					OnPartyMemberCreated().Broadcast(*PartyMember);
@@ -810,9 +810,9 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 
 void USocialParty::HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete)
 {
-	OnAttemptComplete.ExecuteIfBound(LeaveResult);
-
 	FinalizePartyLeave(EMemberExitedReason::Left);
+
+	OnAttemptComplete.ExecuteIfBound(LeaveResult);
 }
 
 void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings)
@@ -889,15 +889,6 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 				// Update party join state, will cause a failure on leader promotion currently
 				// because we can't tell the difference between "expected leader" and "actually the new leader"
 				RefreshPublicJoinability();
-
-				if (ExitReason != EMemberExitedReason::Removed)
-				{
-					Online::GetPartyInterfaceChecked(GetWorld())->RemoveUserForRejoin(*OwningLocalUserId, PartyId, MemberId);
-				}
-				else
-				{
-					// TODO:  Add a timer to remove players eventually
-				}
 			}
 		}
 		else
@@ -1240,6 +1231,18 @@ APartyBeaconClient* USocialParty::CreateReservationBeaconClient()
 	return ReservationBeaconClient;
 }
 
+ASpectatorBeaconClient* USocialParty::CreateSpectatorBeaconClient()
+{
+	UWorld* World = GetWorld();
+	check(World);
+
+	// Clear out our cached net driver name, we're going to create a new one here
+	LastSpectatorBeaconClientNetDriverName = NAME_None;
+	SpectatorBeaconClient = World->SpawnActor<ASpectatorBeaconClient>(SpectatorBeaconClientClass);
+
+	return SpectatorBeaconClient;
+}
+
 void USocialParty::PumpApprovalQueue()
 {
 	// Check if there are any more while we are connected
@@ -1337,6 +1340,20 @@ void USocialParty::CleanupReservationBeacon()
 		ReservationBeaconClient->OnReservationRequestComplete().Unbind();
 		ReservationBeaconClient->DestroyBeacon();
 		ReservationBeaconClient = nullptr;
+	}
+}
+
+void USocialParty::CleanupSpectatorBeacon()
+{
+	if (SpectatorBeaconClient)
+	{
+		UE_LOG(LogParty, Verbose, TEXT("Spectator reservation beacon cleanup while in state %s, pending approvals: %s"), ToString(SpectatorBeaconClient->GetConnectionState()), !PendingApprovals.IsEmpty() ? TEXT("true") : TEXT("false"));
+
+		LastReservationBeaconClientNetDriverName = SpectatorBeaconClient->GetNetDriverName();
+		SpectatorBeaconClient->OnHostConnectionFailure().Unbind();
+		SpectatorBeaconClient->OnReservationRequestComplete().Unbind();
+		SpectatorBeaconClient->DestroyBeacon();
+		SpectatorBeaconClient = nullptr;
 	}
 }
 

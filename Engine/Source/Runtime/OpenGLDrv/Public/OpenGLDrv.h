@@ -380,6 +380,7 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FStructuredBufferRHIParamRef StructuredBuffer) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer) final override;
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) final override;
 	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign) final override;
 	virtual uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) final override;
 	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) final override;
@@ -796,12 +797,6 @@ public:
 		return this->RHICreateShaderResourceView(Buffer);
 	}
 
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements) final override
-	{
-		// threadsafe, doesn't really do anything
-		return this->RHICreateVertexDeclaration(Elements);
-	}
-
 	virtual FTextureReferenceRHIRef RHICreateTextureReference_RenderThread(class FRHICommandListImmediate& RHICmdList, FLastRenderTimeContainer* LastRenderTime) final override
 	{
 		// threadsafe, doesn't really do anything
@@ -1006,10 +1001,10 @@ public:
 			RHICreateBoundShaderState_internal(
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
-				PsoInit.BoundShaderState.HullShaderRHI,
-				PsoInit.BoundShaderState.DomainShaderRHI,
+				TESSELLATION_SHADER(PsoInit.BoundShaderState.HullShaderRHI),
+				TESSELLATION_SHADER(PsoInit.BoundShaderState.DomainShaderRHI),
 				PsoInit.BoundShaderState.PixelShaderRHI,
-				PsoInit.BoundShaderState.GeometryShaderRHI,
+				GEOMETRY_SHADER(PsoInit.BoundShaderState.GeometryShaderRHI),
 				PsoInit.bFromPSOFileCache
 			).GetReference()
 		);

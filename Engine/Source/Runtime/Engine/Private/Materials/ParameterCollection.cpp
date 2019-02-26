@@ -53,7 +53,7 @@ void UMaterialParameterCollection::PostLoad()
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		CurrentWorld->AddParameterCollectionInstance(this, true);
+		CurrentWorld->AddParameterCollectionInstance(this, true /* bUpdateScene */);
 	}
 
 	UpdateDefaultResource();
@@ -141,15 +141,15 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 	}
 }
 
-TArray<FCollectionScalarParameter> PreviousScalarParameters;
-TArray<FCollectionVectorParameter> PreviousVectorParameters;
+int32 PreviousNumScalarParameters = 0;
+int32 PreviousNumVectorParameters = 0;
 
 void UMaterialParameterCollection::PreEditChange(UProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);
 
-	PreviousScalarParameters = ScalarParameters;
-	PreviousVectorParameters = VectorParameters;
+	PreviousNumScalarParameters = ScalarParameters.Num();
+	PreviousNumVectorParameters = VectorParameters.Num();
 }
 
 void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -159,8 +159,7 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 
 	// If the array counts have changed, an element has been added or removed, and we need to update the uniform buffer layout,
 	// Which also requires recompiling any referencing materials
-	if (ScalarParameters.Num() != PreviousScalarParameters.Num()
-		|| VectorParameters.Num() != PreviousVectorParameters.Num())
+	if (ScalarParameters.Num() != PreviousNumScalarParameters || VectorParameters.Num() != PreviousNumVectorParameters)
 	{
 		// Limit the count of parameters to fit within uniform buffer limits
 		const uint32 MaxScalarParameters = 1024;
@@ -187,29 +186,7 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 		for (TObjectIterator<UWorld> It; It; ++It)
 		{
 			UWorld* CurrentWorld = *It;
-			CurrentWorld->AddParameterCollectionInstance(this, false);
-		}
-
-		// Build set of changed parameter names
-		TSet<FName> ParameterNames;
-		for (const FCollectionVectorParameter& Param : PreviousVectorParameters)
-		{
-			ParameterNames.Add(Param.ParameterName);
-		}
-
-		for (const FCollectionScalarParameter& Param : PreviousScalarParameters)
-		{
-			ParameterNames.Add(Param.ParameterName);
-		}
-
-		for (const FCollectionVectorParameter& Param : VectorParameters)
-		{
-			ParameterNames.Remove(Param.ParameterName);
-		}
-
-		for (const FCollectionScalarParameter& Param : ScalarParameters)
-		{
-			ParameterNames.Remove(Param.ParameterName);
+			CurrentWorld->AddParameterCollectionInstance(this, false /* bUpdateScene */);
 		}
 
 		// Create a material update context so we can safely update materials using this parameter collection.
@@ -235,16 +212,8 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 					{
 						if (CurrentMaterial->MaterialParameterCollectionInfos[FunctionIndex].ParameterCollection == this)
 						{
-							TArray<UMaterialExpressionCollectionParameter*> CollectionParameters;
-							CurrentMaterial->GetAllExpressionsInMaterialAndFunctionsOfType(CollectionParameters);
-							for (UMaterialExpressionCollectionParameter* CollectionParameter : CollectionParameters)
-							{
-								if (ParameterNames.Contains(CollectionParameter->ParameterName))
-								{
-									bRecompile = true;
-									break;
-								}
-							}
+							bRecompile = true;
+							break;
 						}
 					}
 				}
@@ -270,9 +239,6 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 
 	UpdateDefaultResource();
-
-	PreviousScalarParameters.Empty();
-	PreviousVectorParameters.Empty();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -498,6 +464,11 @@ void UMaterialParameterCollectionInstance::PostInitProperties()
 	{
 		Resource = new FMaterialParameterCollectionInstanceResource();
 	}
+}
+
+void UMaterialParameterCollectionInstance::SetWorld(UWorld* InWorld)
+{
+	World = InWorld;
 }
 
 void UMaterialParameterCollectionInstance::SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld)

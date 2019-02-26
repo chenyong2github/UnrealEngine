@@ -98,6 +98,9 @@ enum ERenderQueryType
 /** Maximum number of miplevels in a texture. */
 enum { MAX_TEXTURE_MIP_COUNT = 14 };
 
+/** Maximum number of static/skeletal mesh LODs */
+enum { MAX_MESH_LOD_COUNT = 8 };
+
 /** Maximum number of immutable samplers in a PSO. */
 enum
 {
@@ -712,7 +715,7 @@ enum ETextureCreateFlags
 	TexCreate_CPUWritable			= 1<<5,
 	// Texture will be created with an un-tiled format
 	TexCreate_NoTiling				= 1<<6,
-	// Texture will be used for video decode on Switch
+	// Texture will be used for video decode
 	TexCreate_VideoDecode			= 1<<7,
 	// Texture that may be updated every frame
 	TexCreate_Dynamic				= 1<<8,
@@ -1109,6 +1112,11 @@ inline bool RHISupportsNativeShaderLibraries(const EShaderPlatform Platform)
 	return IsMetalPlatform(Platform);
 }
 
+inline bool RHISupportsShaderPipelines(EShaderPlatform Platform)
+{
+	return !IsMobilePlatform(Platform);
+}
+
 
 // Return what the expected number of samplers will be supported by a feature level
 // Note that since the Feature Level is pretty orthogonal to the RHI/HW, this is not going to be perfect
@@ -1205,3 +1213,15 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	String += Index;
 	return String;
 };
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
+#else
+	#define GEOMETRY_SHADER(GeometryShader)	nullptr
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define TESSELLATION_SHADER(HullOrDomainShader)	(HullOrDomainShader)
+#else
+	#define TESSELLATION_SHADER(HullOrDomainShader)	nullptr
+#endif

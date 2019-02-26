@@ -88,6 +88,8 @@ namespace UnrealBuildTool
 				Environment.SetEnvironmentVariable("EM_CACHE", HTML5SDKInfo.EMSCRIPTEN_CACHE);
 				Environment.SetEnvironmentVariable("EMCC_TEMP_DIR", TempDir);
 			}
+
+			Log.TraceInformation("*** Emscripten Config File: " + Environment.GetEnvironmentVariable("EM_CONFIG"));
 		}
 
 		string GetSharedArguments_Global(CppConfiguration Configuration, bool bOptimizeForSize, string Architecture, bool bEnableShadowVariableWarnings, bool bShadowVariableWarningsAsErrors, bool bEnableUndefinedIdentifierWarnings, bool bUndefinedIdentifierWarningsAsErrors, bool bUseInlining)
@@ -205,14 +207,14 @@ namespace UnrealBuildTool
 //			Environment.SetEnvironmentVariable("EMCC_CORES", "8");
 //			Environment.SetEnvironmentVariable("EMCC_OPTIMIZE_NORMALLY", "1");
 
-			// Linux builds needs this - or else system clang will be attempted to be picked up instead of UE4's
-			// TODO: test on other platforms to remove this if() check
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
+				// Packaging on Linux needs this - or else system clang will be attempted to be picked up instead of UE4's included emsdk
 				Environment.SetEnvironmentVariable(HTML5SDKInfo.PLATFORM_USER_HOME, HTML5SDKInfo.HTML5Intermediatory);
 			}
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32)
 			{
+				// Packaging on Window needs this - zap any existing HOME environment variables to prevent any accidental pick ups
 				Environment.SetEnvironmentVariable("HOME", "");
 			}
 			return Result;
@@ -641,6 +643,9 @@ namespace UnrealBuildTool
 			LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
 			LinkAction.PrerequisiteItems.Add(ResponseFileItem);
 			Actions.Add(LinkAction);
+
+			Log.TraceInformation("NOTE: about to link for HTML5 -- this takes at least 7 minutes (and up to 20 minutes on older machines) to complete.");
+			Log.TraceInformation("      we are workig with the Emscripten makers to speed this up.");
 
 			return OutputFile;
 		}

@@ -16,6 +16,13 @@ namespace GranularNetworkMemoryTrackingPrivate
 
 		void EndWork(const FString& WorkName);
 
+		void LogCustomWork(const FString& WorkName, const uint64 Bytes) const;
+
+		const bool IsEnabled() const
+		{
+			return bShouldTrack;
+		}
+
 	private:
 
 		uint64 PreWorkPos = 0;
@@ -33,10 +40,12 @@ namespace GranularNetworkMemoryTrackingPrivate
 		Work; \
 		GranularNetworkMemoryHelper.EndWork(Id); \
 	}
+#define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Value) GranularNetworkMemoryHelper.LogCustomWork(Id, Value);
 
 #else
 
 #define GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Archive, ScopeName) 
 #define GRANULAR_NETWORK_MEMORY_TRACKING_TRACK(Id, Work) { Work; }
+#define GRANULAR_NETWORK_MEMORY_TRACKING_CUSTOM_WORK(Id, Work) 
 
 #endif

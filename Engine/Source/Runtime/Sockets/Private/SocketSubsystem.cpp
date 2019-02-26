@@ -387,7 +387,6 @@ FResolveInfoCached* ISocketSubsystem::CreateResolveInfoCached(TSharedPtr<FIntern
  */
 const TCHAR* ISocketSubsystem::GetSocketError(ESocketErrors Code)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (Code == SE_GET_LAST_ERROR_CODE)
 	{
 		Code = GetLastErrorCode();
@@ -446,11 +445,12 @@ const TCHAR* ISocketSubsystem::GetSocketError(ESocketErrors Code)
 		case SE_TRY_AGAIN: return TEXT("SE_TRY_AGAIN");
 		case SE_NO_RECOVERY: return TEXT("SE_NO_RECOVERY");
 		case SE_NO_DATA: return TEXT("SE_NO_DATA");
+		case SE_UDP_ERR_PORT_UNREACH: return TEXT("SE_UDP_ERR_PORT_UNREACH");
+		case SE_ADDRFAMILY: return TEXT("SE_ADDRFAMILY");
+		case SE_SYSTEM: return TEXT("SE_SYSTEM");
+		case SE_NODEV: return TEXT("SE_NODEV");
 		default: return TEXT("Unknown Error");
 	};
-#else
-	return TEXT("");
-#endif
 }
 
 

@@ -55,6 +55,7 @@
 #include "LandscapeBPCustomBrush.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -96,8 +97,9 @@ struct HNewLandscapeGrabHandleProxy : public HHitProxy
 
 IMPLEMENT_HIT_PROXY(HNewLandscapeGrabHandleProxy, HHitProxy)
 
+ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
 
-void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLevel /*= false*/)
+void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLevel, FMaterialUpdateContext* InOutUpdateContext, TArray<FComponentRecreateRenderStateContext>* InOutRecreateRenderStateContext, bool InReregisterComponent)
 {
 	ULandscapeInfo* Info = Comp->GetLandscapeInfo();
 	ALandscape* Landscape = Info->LandscapeActor.Get();
@@ -247,19 +249,74 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 #endif
 
 		Comp->SetHeightmap(HeightmapTexture);
-		Comp->UpdateMaterialInstances();
 
 		for (int32 i = 0; i < HeightmapTextureMipData.Num(); i++)
 		{
 			HeightmapTexture->Source.UnlockMip(i);
-		}
+		}		
+
 		LandscapeEdit.SetHeightData(Comp->GetSectionBase().X, Comp->GetSectionBase().Y, Comp->GetSectionBase().X + Comp->ComponentSizeQuads, Comp->GetSectionBase().Y + Comp->ComponentSizeQuads, (uint16*)HeightData.GetData(), 0, false, (uint16*)NormalData.GetData());
 	}
 
+	// End material update
+	if (InOutUpdateContext != nullptr && InOutRecreateRenderStateContext != nullptr)
+	{
+		Comp->UpdateMaterialInstances(*InOutUpdateContext, *InOutRecreateRenderStateContext);
+	}
+	else
+	{
+		Comp->UpdateMaterialInstances();
+	}
+
 	// End of LandscapeEdit interface
-	HeightmapTexture->PostEditChange();
-	// Reregister
-	FComponentReregisterContext ReregisterContext(Comp);
+
+	// We disable automatic material update context, to manage it manually if we have a custom update context specified
+	GDisableAutomaticTextureMaterialUpdateDependencies = InOutUpdateContext != nullptr;
+
+	HeightmapTexture->PostEditChange();	
+
+	if (InOutUpdateContext != nullptr)
+	{
+		// Build a list of all unique materials the landscape uses
+		TArray<UMaterialInterface*> LandscapeMaterials;
+
+		int8 MaxLOD = FMath::CeilLogTwo(Comp->SubsectionSizeQuads + 1) - 1;
+
+		for (int8 LODIndex = 0; LODIndex < MaxLOD; ++LODIndex)
+		{
+			UMaterialInterface* Material = Comp->GetLandscapeMaterial(LODIndex);
+			LandscapeMaterials.AddUnique(Material);
+		}
+
+		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
+
+		for (UMaterialInterface* MaterialInterface : LandscapeMaterials)
+		{
+			if (DoesMaterialUseTexture(MaterialInterface, HeightmapTexture))
+			{
+				UMaterial* Material = MaterialInterface->GetMaterial();
+				bool MaterialAlreadyCompute = false;
+				BaseMaterialsThatUseThisTexture.Add(Material, &MaterialAlreadyCompute);
+
+				if (!MaterialAlreadyCompute)
+				{
+					if (Material->IsTextureForceRecompileCacheRessource(HeightmapTexture))
+					{
+						InOutUpdateContext->AddMaterial(Material);
+						Material->UpdateMaterialShaderCacheAndTextureReferences();
+					}
+				}
+			}
+		}
+	}
+	
+	GDisableAutomaticTextureMaterialUpdateDependencies = false;
+
+		// Reregister
+	if (InReregisterComponent)
+	{
+		FComponentReregisterContext ReregisterContext(Comp);
+	}
 }
 
 
@@ -3531,11 +3588,22 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 		}
 	}
 
-	// Changing Heightmap format for selected components
-	for (ULandscapeComponent* Component : HeightmapUpdateComponents)
+	TArray<FComponentRecreateRenderStateContext> RecreateRenderStateContexts;
+
 	{
-		ALandscape::SplitHeightmap(Component, false);
+		TArray<UActorComponent*> ComponentsToReregister(HeightmapUpdateComponents.Array());
+		FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+
+		// Changing Heightmap format for selected components
+		for (ULandscapeComponent* Component : HeightmapUpdateComponents)
+		{
+			ALandscape::SplitHeightmap(Component, false, &MaterialUpdateContext, &RecreateRenderStateContexts, false);
+		}
+
+		FMultiComponentReregisterContext RegisterContext(ComponentsToReregister);
 	}
+
+	RecreateRenderStateContexts.Empty();
 
 	// Remove attached foliage
 	for (ULandscapeComponent* Component : ComponentsToDelete)
@@ -3546,6 +3614,8 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			AInstancedFoliageActor::DeleteInstancesForComponent(Proxy->GetWorld(), CollisionComp);
 		}
 	}
+
+	TArray<UActorComponent*> NeighborsComponentToReregister;
 
 	// Check which ones are need for height map change
 	for (ULandscapeComponent* Component : ComponentsToDelete)
@@ -3572,8 +3642,7 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 				NeighborComp->Modify();
 				NeighborComp->InvalidateLightingCache();
 
-				// is this really needed? It can happen multiple times per component!
-				FComponentReregisterContext ReregisterContext(NeighborComp);
+				NeighborsComponentToReregister.AddUnique(NeighborComp);
 			}
 		}
 
@@ -3618,6 +3687,10 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			CollisionComp->DestroyComponent();
 		}
 		Component->DestroyComponent();
+	}
+
+	{
+		FMultiComponentReregisterContext RegisterContext(NeighborsComponentToReregister);
 	}
 
 	// Remove Selection

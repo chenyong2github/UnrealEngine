@@ -664,6 +664,21 @@ namespace UnrealBuildTool
 		public bool bAdaptiveUnityDisablesPCH = true;
 
 		/// <summary>
+		/// Backing storage for bAdaptiveUnityDisablesProjectPCH.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		bool? bAdaptiveUnityDisablesProjectPCHForProjectPrivate;
+
+		/// <summary>
+		/// Whether to disable force-included PCHs for project source files in the adaptive non-unity working set. Defaults to bAdaptiveUnityDisablesPCH;
+		/// </summary>
+		public bool bAdaptiveUnityDisablesPCHForProject
+		{
+			get { return bAdaptiveUnityDisablesProjectPCHForProjectPrivate ?? bAdaptiveUnityDisablesPCH; }
+			set { bAdaptiveUnityDisablesProjectPCHForProjectPrivate = value; }
+		}
+
+		/// <summary>
 		/// Creates a dedicated PCH for each source file in the working set, allowing faster iteration on cpp-only changes.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -1056,6 +1071,11 @@ namespace UnrealBuildTool
 		/// Backing storage for the LaunchModuleName property.
 		/// </summary>
 		private string LaunchModuleNamePrivate;
+
+		/// <summary>
+		/// Specifies the path to write a header containing public definitions for this target. Useful when building a DLL to be consumed by external build processes.
+		/// </summary>
+		public string ExportPublicHeader;
 
 		/// <summary>
 		/// List of additional modules to be compiled into the target.
@@ -1896,6 +1916,11 @@ namespace UnrealBuildTool
 			get { return Inner.bAdaptiveUnityDisablesPCH; }
 		}
 
+		public bool bAdaptiveUnityDisablesPCHForProject
+		{
+			get { return Inner.bAdaptiveUnityDisablesPCHForProject; }
+		}
+
 		public bool bAdaptiveUnityCreatesDedicatedPCH
 		{
 			get { return Inner.bAdaptiveUnityCreatesDedicatedPCH; }
@@ -2155,6 +2180,11 @@ namespace UnrealBuildTool
 		public string LaunchModuleName
 		{
 			get { return Inner.LaunchModuleName; }
+		}
+
+		public string ExportPublicHeader
+		{
+			get { return Inner.ExportPublicHeader; }
 		}
 
 		public IReadOnlyList<string> ExtraModuleNames

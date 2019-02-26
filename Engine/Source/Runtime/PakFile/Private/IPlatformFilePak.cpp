@@ -26,6 +26,7 @@
 #include "Misc/ConfigCacheIni.h"
 #endif
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Misc/Fnv.h"
 
 #include "Async/MappedFileHandle.h"
 
@@ -38,6 +39,14 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 
 #ifndef DISABLE_NONUFS_INI_WHEN_COOKED
 #define DISABLE_NONUFS_INI_WHEN_COOKED 0
+#endif
+
+#ifndef ALL_PAKS_WILDCARD
+#define ALL_PAKS_WILDCARD "*.pak"
+#endif 
+
+#ifndef MOUNT_STARTUP_PAKS_WILDCARD
+#define MOUNT_STARTUP_PAKS_WILDCARD ALL_PAKS_WILDCARD
 #endif
 
 int32 ParseChunkIDFromFilename(const FString& InFilename)
@@ -3803,14 +3812,23 @@ static FAutoConsoleCommand MappedFileTestCmd(
 
 IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
 {
+#if !UE_BUILD_SHIPPING
+	// disable all mmio if commandline requested it
+	static bool bNoMMIO = FParse::Param(FCommandLine::Get(), TEXT("nommio"));
+	if (bNoMMIO)
+	{
+		return nullptr;
+	}
+#endif
+
 	// Check pak files first
 	FPakEntry FileEntry;
 	FPakFile* PakEntry = nullptr;
 	if (FindFileInPakFiles(Filename, &PakEntry, &FileEntry) && PakEntry)
 	{
-		if (FileEntry.CompressionMethodIndex != 0)
+		if (FileEntry.CompressionMethodIndex != 0 || (FileEntry.Flags & FPakEntry::Flag_Encrypted) != 0)
 		{
-			// can't map compressed files
+			// can't map compressed or encrypted files
 			return nullptr;
 		}
 		FScopeLock Lock(&PakEntry->MappedFileHandleCriticalSection);
@@ -4118,7 +4136,7 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
-	, MappedFileHandle(nullptr)
+ 	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(NULL);
 	if (Reader)
@@ -4451,7 +4469,7 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 	const int MAX_RETRIES = 10;
 	bool bHasCollision;
 	FilenameStartHash = 0;
-
+    
 	// Allocate the temporary array for hashing filenames. The Memset is to hopefully
 	// silence the Visual Studio static analyzer.
 	TArray<FMiniFileEntry> MiniFileEntries;
@@ -4469,7 +4487,7 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 			for (FPakDirectory::TConstIterator DirectoryIt(It.Value()); DirectoryIt; ++DirectoryIt)
 			{
 				FString FinalFilename = It.Key() / DirectoryIt.Key();
-				uint32 FilenameHash = FCrc::MemCrc32(*FinalFilename.ToLower(), FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
+                uint32 FilenameHash = FFnv::MemFnv32(*FinalFilename.ToLower(), FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
 				MiniFileEntries[EntryIndex].FilenameHash = FilenameHash;
 				MiniFileEntries[EntryIndex].EntryIndex = DirectoryIt.Value();
 				++EntryIndex;
@@ -4992,7 +5010,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& Filename, FPakEntry* OutEntr
 				++SplitStartPtr;
 				--SplitLen;
 			}
-			uint32 PathHash = FCrc::MemCrc32(SplitStartPtr, SplitLen * sizeof(TCHAR), FilenameStartHash);
+            uint32 PathHash = FFnv::MemFnv32(SplitStartPtr, SplitLen * sizeof(TCHAR), FilenameStartHash);
 
 			// Look it up in our sorted-by-filename-hash array.
 			uint32 PathHashMostSignificantBits = PathHash >> 24;
@@ -5218,24 +5236,26 @@ FPakPlatformFile::~FPakPlatformFile()
 	}
 }
 
-void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, const TCHAR* Directory, TArray<FString>& OutPakFiles)
+void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, const TCHAR* Directory, const FString& WildCard, TArray<FString>& OutPakFiles)
 {
 	// Helper class to find all pak files.
 	class FPakSearchVisitor : public IPlatformFile::FDirectoryVisitor
 	{
 		TArray<FString>& FoundPakFiles;
-		IPlatformChunkInstall* ChunkInstall;
+		IPlatformChunkInstall* ChunkInstall = nullptr;
+		FString WildCard;
 	public:
-		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, IPlatformChunkInstall* InChunkInstall)
+		FPakSearchVisitor(TArray<FString>& InFoundPakFiles, const FString& InWildCard, IPlatformChunkInstall* InChunkInstall)
 			: FoundPakFiles(InFoundPakFiles)
 			, ChunkInstall(InChunkInstall)
+			, WildCard(InWildCard)
 		{}
 		virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 		{
 			if (bIsDirectory == false)
 			{
 				FString Filename(FilenameOrDirectory);
-				if (FPaths::GetExtension(Filename) == TEXT("pak"))
+				if(Filename.MatchesWildcard(WildCard))
 				{
 					// if a platform supports chunk style installs, make sure that the chunk a pak file resides in is actually fully installed before accepting pak files from it
 					if (ChunkInstall)
@@ -5256,16 +5276,16 @@ void FPakPlatformFile::FindPakFilesInDirectory(IPlatformFile* LowLevelFile, cons
 		}
 	};
 	// Find all pak files.
-	FPakSearchVisitor Visitor(OutPakFiles, FPlatformMisc::GetPlatformChunkInstall());
+	FPakSearchVisitor Visitor(OutPakFiles, WildCard, FPlatformMisc::GetPlatformChunkInstall());
 	LowLevelFile->IterateDirectoryRecursively(Directory, Visitor);
 }
 
-void FPakPlatformFile::FindAllPakFiles(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders, TArray<FString>& OutPakFiles)
+void FPakPlatformFile::FindAllPakFiles(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders, const FString& WildCard, TArray<FString>& OutPakFiles)
 {
 	// Find pak files from the specified directories.	
 	for (int32 FolderIndex = 0; FolderIndex < PakFolders.Num(); ++FolderIndex)
 	{
-		FindPakFilesInDirectory(LowLevelFile, *PakFolders[FolderIndex], OutPakFiles);
+		FindPakFilesInDirectory(LowLevelFile, *PakFolders[FolderIndex], WildCard, OutPakFiles);
 	}
 
 	// alert anyone listening
@@ -5298,7 +5318,7 @@ void FPakPlatformFile::GetPakFolders(const TCHAR* CmdLine, TArray<FString>& OutP
 bool FPakPlatformFile::CheckIfPakFilesExist(IPlatformFile* LowLevelFile, const TArray<FString>& PakFolders)
 {
 	TArray<FString> FoundPakFiles;
-	FindAllPakFiles(LowLevelFile, PakFolders, FoundPakFiles);
+	FindAllPakFiles(LowLevelFile, PakFolders, TEXT(ALL_PAKS_WILDCARD), FoundPakFiles);
 	return FoundPakFiles.Num() > 0;
 }
 
@@ -5342,11 +5362,11 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 
 	// signed if we have keys, and are not running with fileopenlog (currently results in a deadlock).
 	bSigned = !DecryptionKey.Exponent.IsZero() && !DecryptionKey.Modulus.IsZero() && !FParse::Param(FCommandLine::Get(), TEXT("fileopenlog"));;
-
+		
 	// Find and mount pak files from the specified directories.
 	TArray<FString> PakFolders;
 	GetPakFolders(FCommandLine::Get(), PakFolders);
-	MountAllPakFiles(PakFolders);
+	MountAllPakFiles(PakFolders, TEXT(MOUNT_STARTUP_PAKS_WILDCARD));
 
 #if !UE_BUILD_SHIPPING
 	GPakExec = MakeUnique<FPakExec>(*this);
@@ -5551,6 +5571,11 @@ IFileHandle* FPakPlatformFile::CreatePakFileHandle(const TCHAR* Filename, FPakFi
 
 int32 FPakPlatformFile::MountAllPakFiles(const TArray<FString>& PakFolders)
 {
+	return MountAllPakFiles(PakFolders, TEXT(ALL_PAKS_WILDCARD));
+}
+
+int32 FPakPlatformFile::MountAllPakFiles(const TArray<FString>& PakFolders, const FString& WildCard)
+{
 	int32 NumPakFilesMounted = 0;
 
 	bool bMountPaks = true;
@@ -5578,7 +5603,7 @@ int32 FPakPlatformFile::MountAllPakFiles(const TArray<FString>& PakFolders)
 	if (bMountPaks)
 	{
 		TArray<FString> FoundPakFiles;
-		FindAllPakFiles(LowerLevel, PakFolders, FoundPakFiles);
+		FindAllPakFiles(LowerLevel, PakFolders, WildCard, FoundPakFiles);
 		// Sort in descending order.
 		FoundPakFiles.Sort(TGreater<FString>());
 		// Mount all found pak files
@@ -5751,6 +5776,11 @@ IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 		}
 	}
 	return Result;
+}
+
+const TCHAR* FPakPlatformFile::GetMountStartupPaksWildCard()
+{
+	return TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 }
 
 EChunkLocation::Type FPakPlatformFile::GetPakChunkLocation(int32 InChunkID) const

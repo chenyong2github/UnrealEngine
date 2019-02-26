@@ -125,7 +125,7 @@ public:
 	 * Initialization constructor.
 	 * @param InNeedsCPUAccess	True if resource array data should be accessible by the CPU.
 	 */
-	FRawStaticIndexBuffer(bool InNeedsCPUAccess=false);
+	ENGINE_API FRawStaticIndexBuffer(bool InNeedsCPUAccess=false);
 
 	/**
 	 * Sets a single index value.  Consider using SetIndices() instead if you're setting a lot of indices.
@@ -226,7 +226,7 @@ public:
 	 */
 	FORCEINLINE int32 GetNumIndices() const
 	{
-		return b32Bit ? (IndexStorage.Num()/4) : (IndexStorage.Num()/2);
+		return CachedNumIndices >= 0 ? CachedNumIndices : (b32Bit ? (IndexStorage.Num()/4) : (IndexStorage.Num()/2));
 	}
 
 	/**
@@ -237,12 +237,28 @@ public:
 		return IndexStorage.GetAllocatedSize();
 	}
 
+	/** == GetNumIndices() * (b32Bit ? 4 : 2) */
+	int32 GetIndexDataSize() const { return IndexStorage.Num(); }
+
+	/** Create an RHI index buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FIndexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FIndexBufferRHIRef CreateRHIBuffer_Async();
+
+	/** Set whether this buffer is managed by the streamer. Must set before InitRHI is called */
+	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
+
+	/** Take over ownership of IntermediateBuffer */
+	void InitRHIForStreaming(FIndexBufferRHIParamRef IntermediateBuffer);
+
 	/**
 	 * Serialization.
 	 * @param	Ar				Archive to serialize with
 	 * @param	bNeedsCPUAccess	Whether the elements need to be accessed by the CPU
 	 */
 	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
+
+	/** Serialize only meta data (e.g. number of indices) but not the actual index data */
+	void SerializeMetaData(FArchive& Ar);
 
     /**
      * Discard
@@ -251,15 +267,24 @@ public:
     void Discard();
     
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	inline bool Is32Bit() const { return b32Bit; }
 
 private:
+	template <bool bRenderThread>
+	FIndexBufferRHIRef CreateRHIBuffer_Internal();
+
 	/** Storage for indices. */
 	TResourceArray<uint8,INDEXBUFFER_ALIGNMENT> IndexStorage;
+
+	/** If >= 0, represents the number of indices in this IB. Needed in cooked build since InitRHI may discard CPU data */
+	int32 CachedNumIndices;
+
 	/** 32bit or 16bit? */
 	bool b32Bit;
+
+	bool bStreamed;
 };
 
 /**

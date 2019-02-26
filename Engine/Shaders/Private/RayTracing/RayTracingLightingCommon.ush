@@ -7,6 +7,16 @@
 #define LIGHT_TYPE_RECT				3 
 #define LIGHT_TYPE_MAX				4 
 
+float GetHitT(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.HitT;
+}
+
+bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
+{
+	float t = HitInfo.HitT;
+	return t > Ray.TMin && t < Ray.TMax;
+}
 
 float GetRoughnessFade(float Roughness, float MaxRoughness)
 {
@@ -49,17 +59,9 @@ float3 GenerateReflectedRayDirection(
 }
 
 float TraceShadowRay(
-	float3 Origin,
-	float3 Direction,
-	float TMax,
+	in RayDesc Ray,
 	in FRayCone ShadowRayCone)
 {
-	RayDesc Ray;
-	Ray.Origin = Origin;
-	Ray.Direction = Direction;
-	Ray.TMin = 1e-4f;
-	Ray.TMax = TMax;
-
 	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 
 	FMaterialClosestHitPayload Payload = TraceRayInternal(
@@ -76,7 +78,7 @@ float TraceShadowRay(
 	return Payload.HitT;
 }
 
-float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestHitPayload Payload, bool bReflectedShadows)
+float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestHitPayload Payload, bool bReflectedShadows, float ShadowMaxNormalBias)
 {
 	float3 DirectLighting = float3(0.0, 0.0, 0.0);
 
@@ -92,12 +94,13 @@ float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestH
 	GBufferData.Metallic = Payload.Metallic;
 	GBufferData.Specular = Payload.Specular;
 	GBufferData.Roughness = Payload.Roughness;
-	GBufferData.ShadingModelID = Payload.ShadingModelID;
 	GBufferData.CustomData = Payload.CustomData;
 	GBufferData.GBufferAO = Payload.GBufferAO;
 	//#dxr_todo: change float3 to float in payload to reduce space?;
 	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f; 
-	GBufferData.ShadingModelID = 1;
+	GBufferData.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+	GBufferData.SpecularColor = Payload.SpecularColor;
+	GBufferData.DiffuseColor = Payload.DiffuseColor;
 
 	//#dxr_todo: think on the more efficient way of iterate through lights (split in light types, etc)
 	for (uint DirIndex = 0; DirIndex < ReflectionLightsData.Count; DirIndex++)
@@ -148,6 +151,7 @@ float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestH
 		if (LightType == LIGHT_TYPE_DIRECTIONAL)
 		{
 			ShadowRayDirection = LightData.Direction;
+			ToLight = LightData.Direction * 100000.0f;
 		}
 		else
 		{
@@ -166,8 +170,14 @@ float3 ComputeDirectLighting(RayDesc Ray, in FRayCone RayCone, FMaterialClosestH
 			FRayCone ShadowRayCone = RayCone;
 
 			//#dxr_todo: add support for sampling area lights (and perhaps add CVar to enable stocastic shadows?)
-			float DistanceToLight = length(ToLight);
-			float HitT = TraceShadowRay(WorldPosition + Payload.WorldNormal*0.001, ShadowRayDirection, DistanceToLight, ShadowRayCone);
+			RayDesc ShadowRay;
+			ShadowRay.Origin = WorldPosition;
+			ShadowRay.Direction = ShadowRayDirection;
+			ShadowRay.TMin = 1e-4f;
+			ShadowRay.TMax = length(ToLight);
+			ApplyPositionBias(ShadowRay, Payload.WorldNormal, ShadowMaxNormalBias);
+
+			float HitT = TraceShadowRay(ShadowRay, ShadowRayCone);
 			AmbientOcclusion = HitT < 0.0f;
 		}
 
@@ -207,14 +217,13 @@ void ApplyViewDependentMaterialPayloadModifications(RayDesc Ray, inout FMaterial
 
 FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in RayDesc Ray,
+	in bool bBackFaceCullingEnabled,
+	in float ShadowMaxNormalBias,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
-	// Call TraceRay iteratively until alpha is 0 and accumulate the result
-	//#dxr-todo: iterate until opacity == 1 if the material is not opaque
-	//#dxr-todo: add optimizations (TMax depending on roughness, etc)
-
-	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	//#dxr-todo: RayFlags should be 0 for refraction rays
+	uint RayFlags = bBackFaceCullingEnabled ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 
 	FMaterialClosestHitPayload Payload = TraceRayInternal(
 		TLAS,      // AccelerationStructure
@@ -227,25 +236,28 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 		RayCone
 	);
 
-    ApplyViewDependentMaterialPayloadModifications(Ray, Payload);
-
-    Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
-	Payload.SpecularColor = lerp(0.08 * Payload.Specular.xxx, Payload.BaseColor, Payload.Metallic);
-
-	if (ShouldDoDirectLighting)
+	if (IsHit(Ray, Payload))
 	{
-		float3 DirectLighting = ComputeDirectLighting(Ray, RayCone, Payload, ShouldDoReflectedShadows > 0);
+		ApplyViewDependentMaterialPayloadModifications(Ray, Payload);
 
-		// Transform NaNs to black, transform negative colors to black.
-		DirectLighting = -min(-DirectLighting, 0.0);
-		Radiance += DirectLighting;
-	}
+		Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
+		Payload.SpecularColor = lerp(0.08 * Payload.Specular.xxx, Payload.BaseColor, Payload.Metallic);
 
-	if (ShouldDoEmissiveAndIndirectLighting)
-	{
-		// Emissive & indirect contribution
-		Radiance += Payload.Radiance;
-		Radiance += Payload.DiffuseColor * Payload.IndirectIrradiance;
+		if (ShouldDoDirectLighting)
+		{
+			float3 DirectLighting = ComputeDirectLighting(Ray, RayCone, Payload, ShouldDoReflectedShadows > 0, ShadowMaxNormalBias);
+
+			// Transform NaNs to black, transform negative colors to black.
+			DirectLighting = -min(-DirectLighting, 0.0);
+			Radiance += DirectLighting;
+		}
+
+		if (ShouldDoEmissiveAndIndirectLighting)
+		{
+			// Emissive & indirect contribution
+			Radiance += Payload.Radiance;
+			Radiance += Payload.DiffuseColor * Payload.IndirectIrradiance;
+		}
 	}
 
 	return Payload;

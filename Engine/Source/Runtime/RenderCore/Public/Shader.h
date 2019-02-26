@@ -943,7 +943,15 @@ public:
 #endif
 	inline const TArray<uint8>& GetCode() const { return Resource->Code; }
 	inline const FShaderTarget GetTarget() const { return Target; }
-	inline FSHAHash GetOutputHash() const { return OutputHash; }
+	inline FSHAHash GetOutputHash() const
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		return OutputHash;
+#else
+		check(Resource);
+		return Resource->OutputHash;
+#endif
+	}
 	FShaderId GetId() const;
 	inline FVertexFactoryType* GetVertexFactoryType() const { return VFType; }
 	inline int32 GetNumRefs() const { return NumRefs; }
@@ -1090,21 +1098,22 @@ protected:
 	TArray<FShaderUniformBufferParameter*> UniformBufferParameters;
 
 private:
-
-	/** 
-	 * Hash of the compiled output from this shader and the resulting parameter map.  
-	 * This is used to find a matching resource.
-	 */
-	FSHAHash OutputHash;
-
 	/** Hash of the material shader map this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash MaterialShaderMapHash;
+
+#if KEEP_SHADER_SOURCE_HASHES
+	/**
+	* Hash of the compiled output from this shader and the resulting parameter map.
+	* This is used to find a matching resource.
+	*/
+	FSHAHash OutputHash;
 
 	/** Vertex factory source hash, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash VFSourceHash;
 
 	/** Hash of this shader's source files generated at compile time, and stored to allow creating an FShaderId. */
 	FSHAHash SourceHash;
+#endif
 
 	/** Reference to the shader resource, which stores the compiled bytecode and the RHI shader resource. */
 	TRefCountPtr<FShaderResource> Resource;
@@ -1531,7 +1540,11 @@ public:
 	bool IsGlobalTypePipeline() const { return Stages[0]->GetGlobalShaderType() != nullptr; }
 	bool IsMaterialTypePipeline() const { return Stages[0]->GetMaterialShaderType() != nullptr; }
 	bool IsMeshMaterialTypePipeline() const { return Stages[0]->GetMeshMaterialShaderType() != nullptr; }
-	bool ShouldOptimizeUnusedOutputs() const { return bShouldOptimizeUnusedOutputs; }
+
+	FORCEINLINE bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const
+	{
+		return bShouldOptimizeUnusedOutputs && RHISupportsShaderPipelines(Platform);
+	}
 
 	/** Gets a list of FShaderTypes & PipelineTypes whose source file no longer matches what that type was compiled with */
 	static void GetOutdatedTypes(TArray<FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
@@ -2049,11 +2062,11 @@ public:
 		for (auto Pair : ShaderPipelines)
 		{
 			FShaderPipeline* Pipeline = Pair.Value;
-			if (Pipeline->PipelineType->ShouldOptimizeUnusedOutputs() && Filter == FShaderPipeline::EOnlyShared)
+			if (Pipeline->PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyShared)
 			{
 				continue;
 			}
-			else if (!Pipeline->PipelineType->ShouldOptimizeUnusedOutputs() && Filter == FShaderPipeline::EOnlyUnique)
+			else if (!Pipeline->PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyUnique)
 			{
 				continue;
 			}

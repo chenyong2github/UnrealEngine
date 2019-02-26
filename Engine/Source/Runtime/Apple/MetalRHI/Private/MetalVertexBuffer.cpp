@@ -241,11 +241,11 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 	{
         check(LockMode != RLM_ReadOnly);
 		mtlpp::StorageMode Mode = (bUsePrivateMem ? mtlpp::StorageMode::Private : BUFFER_STORAGE_MODE);
-		FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), InSize, Usage, Mode);
+        FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), InSize, Usage, Mode);
 		Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 		check(Buffer && Buffer.GetPtr());
-		
-		Buffer.SetOwner(this);
+
+        Buffer.SetOwner(this);
 
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
         
@@ -264,10 +264,11 @@ void FMetalRHIBuffer::Alloc(uint32 InSize, EResourceLockMode LockMode)
 	
 	if (bUsePrivateMem && !CPUBuffer)
 	{
-		FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+        FMetalPooledBufferArgs ArgsCPU(GetMetalDeviceContext().GetDevice(), InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
 		CPUBuffer = GetMetalDeviceContext().CreatePooledBuffer(ArgsCPU);
 		CPUBuffer.SetOwner(this);
 		check(CPUBuffer && CPUBuffer.GetPtr());
+        CPUBuffer.SetOwner(this);
         METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize);
 		check(CPUBuffer.GetLength() >= Buffer.GetLength());
 	}

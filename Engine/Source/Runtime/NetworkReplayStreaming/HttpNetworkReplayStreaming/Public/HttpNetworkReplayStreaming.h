@@ -212,8 +212,8 @@ public:
 	virtual FArchive*	GetStreamingArchive() override;
 	virtual FArchive*	GetCheckpointArchive() override;
 	virtual void		FlushCheckpoint( const uint32 TimeInMS ) override;
-	virtual void		GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate ) override;
-	virtual void		GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate ) override;
+	virtual void		GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
+	virtual void		GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType ) override;
 	virtual void		UpdateTotalDemoTime( uint32 TimeInMS ) override;
 	virtual uint32		GetTotalDemoTime() const override { return TotalDemoTimeInMS; }
 	virtual bool		IsDataAvailable() const override;
@@ -260,6 +260,8 @@ public:
 		return EStreamingOperationResult::Unsupported;
 	}
 
+	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override;
+
 	/** FHttpNetworkReplayStreamer */
 	void UploadHeader();
 	void FlushStream();
@@ -292,6 +294,9 @@ public:
 	virtual bool DecompressResponse(FHttpResponsePtr HttpResponse, TArray<uint8>& ResultBuffer) const;
 	virtual bool CompressRequest(FHttpRequestPtr HttpRequest, const TArray<uint8>& RequestBuffer) const;
 
+	void InternalGotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, bool bDelta);
+	void InternalGotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, const FHttpRequestCompleteDelegate& RequestDelegate);
+
 	/** EStreamerState - Overall state of the streamer */
 	enum class EStreamerState
 	{
@@ -307,6 +312,7 @@ public:
 	void HttpDownloadHeaderFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FDownloadHeaderCallback Delegate);
 	void HttpDownloadFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, int32 RequestedStreamChunkIndex, bool bStreamWasLive );
 	void HttpDownloadCheckpointFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
+	void HttpDownloadCheckpointDeltaFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
 	void HttpRefreshViewerFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
 	void HttpStartUploadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
 	void HttpStopUploadingFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded );
@@ -357,6 +363,7 @@ public:
 	FStartStreamingCallback			StartStreamingDelegate;		// Delegate passed in to StartStreaming
 	FGotoCallback					GotoCheckpointDelegate;
 	int32							DownloadCheckpointIndex;
+	int32							DeltaDownloadCheckpointIndex;
 	int64							LastGotoTimeInMS;
 
 	FReplayEventList					CheckpointList;

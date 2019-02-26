@@ -89,6 +89,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;
 
+	//~ UObject interface
+#if WITH_EDITOR
+	virtual bool CanEditChange(const UProperty* InProperty) const override;
+#endif //WITH_EDITOR
+	//~ End UObject interface
+
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -132,6 +138,16 @@ class DATASMITHCONTENT_API UDatasmithGLTFSceneImportData : public UDatasmithScen
 
 	UPROPERTY(VisibleAnywhere, Category = "Scene Info", DisplayName="Source")
 	FString Source;
+};
+
+UCLASS(EditInlineNew)
+class DATASMITHCONTENT_API UDatasmithStaticMeshGLTFImportData : public UDatasmithStaticMeshImportData
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(VisibleAnywhere, Category = InternalProperty)
+	FString SourceMeshName;
 };
 
 UCLASS(EditInlineNew)

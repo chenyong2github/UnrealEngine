@@ -672,10 +672,10 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 
 	typedef TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> FStaticMeshInstanceDataPtr;
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FInstanceBuffer_UpdateFromPreallocatedData,
-		FStaticMeshInstanceDataPtr, InInstanceBufferDataPtr, InstanceBuffer_GameThread,
-		FStaticMeshInstanceBuffer*, InInstanceBuffer, &InstanceBuffer,
+	FStaticMeshInstanceDataPtr InInstanceBufferDataPtr = InstanceBuffer_GameThread;
+	FStaticMeshInstanceBuffer* InInstanceBuffer = &InstanceBuffer;
+	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateFromPreallocatedData)(
+		[InInstanceBufferDataPtr, InInstanceBuffer](FRHICommandListImmediate& RHICmdList)
 		{
 			InInstanceBuffer->InstanceData = InInstanceBufferDataPtr;
 			InInstanceBuffer->UpdateRHI();
@@ -1026,6 +1026,7 @@ void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticM
 
 FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
@@ -1085,6 +1086,7 @@ void UInstancedStaticMeshComponent::CreateHitProxyData(TArray<TRefCountPtr<HHitP
 
 void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& OutData, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UInstancedStaticMeshComponent_BuildRenderData);
 
 	CreateHitProxyData(OutHitProxies);
@@ -1674,6 +1676,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 
 void UInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FMobileObjectVersion::GUID);
@@ -2021,12 +2024,12 @@ bool UInstancedStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingB
 	return true;
 }
 
-void UInstancedStaticMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UInstancedStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	// Don't only look the instance count but also if the bound is valid, as derived classes might not set PerInstanceSMData.
 	if (GetInstanceCount() > 0 || Bounds.SphereRadius > 0)
 	{
-		return Super::GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
+		return Super::GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
 	}
 }
 
@@ -2103,6 +2106,8 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	{
 		return;
 	}
+
+	LLM_SCOPE(ELLMTag::InstancedMesh);
 
 	// If we don't have a random seed for this instanced static mesh component yet, then go ahead and
 	// generate one now.  This will be saved with the static mesh component and used for future generation
@@ -2225,6 +2230,11 @@ void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& D
 			Data.NavDataPerInstanceTransformDelegate = FNavDataPerInstanceTransformDelegate::CreateUObject(this, &UInstancedStaticMeshComponent::GetNavigationPerInstanceTransforms);
 		}
 	}
+}
+
+FBox UInstancedStaticMeshComponent::GetNavigationBounds() const
+{
+	return CalcBounds(GetComponentTransform()).GetBox();
 }
 
 void UInstancedStaticMeshComponent::GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const

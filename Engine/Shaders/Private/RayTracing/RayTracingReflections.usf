@@ -4,6 +4,15 @@
 	#define DIM_DENOISER_OUTPUT 0
 #endif
 
+// EDeferredMaterialMode
+#define DEFERRED_MATERIAL_MODE_NONE   0
+#define DEFERRED_MATERIAL_MODE_GATHER 1
+#define DEFERRED_MATERIAL_MODE_SHADE  2
+
+#ifndef DIM_DEFERRED_MATERIAL_MODE
+	#define DIM_DEFERRED_MATERIAL_MODE DEFERRED_MATERIAL_MODE_NONE
+#endif
+
 #include "../Common.ush"
 
 float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
@@ -30,17 +39,25 @@ uint ShouldDoDirectLighting;
 uint ShouldDoReflectedShadows;
 uint ShouldDoEmissiveAndIndirectLighting;
 uint UpscaleFactor;
+uint SortTileSize;
+uint2 RayTracingResolution;
+uint2 TileAlignedResolution;
 
 float ReflectionMinRayDistance;
 float ReflectionMaxRayDistance;
 float ReflectionMaxRoughness;
+float ReflectionMaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
+
+#include "RayTracingLightingCommon.ush" // #dxr_todo: helper functions must take TLAS explicitly rather than rely on a global declared above
 
 RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;
 
-#include "RayTracingLightingCommon.ush"
+
+// Material buffer and tile size are used for sorted materials.
+RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
 
 // #dxr-todo: move to RayTracingCommon.ush
 float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
@@ -66,10 +83,25 @@ uint2 GetPixelCoord(uint2 DispatchThreadId)
 [shader("raygeneration")]
 void RayTracingReflectionsRGS()
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+	FDeferredMaterialPayload DeferredMaterialPayload;
+	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
 
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId);
-	
+#if DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE
+	DeferredMaterialPayload = MaterialBuffer[DispatchRaysIndex().x];
+	uint2 DispatchThreadId;
+	DispatchThreadId.x = DeferredMaterialPayload.PixelCoordinates & 0xFFFF;
+	DispatchThreadId.y = DeferredMaterialPayload.PixelCoordinates >> 16;
+
+	if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
+	{
+		return;
+	}
+#else
+	uint2 DispatchThreadId = DispatchRaysIndex().xy;
+#endif
+
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId); // GBuffer pixel coordinates (full resolution)
+
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
@@ -93,7 +125,7 @@ void RayTracingReflectionsRGS()
 	float HitDistance = -2.0;
 
 	float RoughnessFade = GetRoughnessFade(ScreenSpaceData.GBuffer.Roughness, ReflectionMaxRoughness);
-	float ClearCoatRoughnessFade = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(ScreenSpaceData.GBuffer.CustomData.y, ReflectionMaxRoughness) : 1.0f;
+	float ClearCoatRoughnessFade = ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT ? GetRoughnessFade(ScreenSpaceData.GBuffer.CustomData.y, ReflectionMaxRoughness) : 0.0f;
 
 	// Sky is only sampled when infinite reflection rays are used.
 	const bool bAllowSkySampling = ReflectionMaxRayDistance < 0;
@@ -146,11 +178,11 @@ void RayTracingReflectionsRGS()
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
-            float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
+			float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
 			RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
 
 			uint DummyVariable;
-				
+
 			// Add one more 'fake bounce' and we will evaluate cubemap there
 			for (uint BounceIndex = 0; BounceIndex < MaxBounces + 1; ++BounceIndex)
 			{
@@ -182,13 +214,13 @@ void RayTracingReflectionsRGS()
 					// If it is not clear coat, and we're on the first bounce, the G F terms will be applied by ReflectionEnvironmentPixelShader
 					if (BounceIndex > 0)
 						PathThroughput *= EnvBRDF( SpecularColor, Roughness, NoV );
-				}				
+				}
 
 				RayDesc Ray;
-				Ray.Origin = WorldPosition + WorldNormal * 0.01;
+				Ray.Origin = WorldPosition;
 				Ray.TMin = 0.0;
 				Ray.TMax = LocalMaxRayDistance;
-				
+
 				int RetryCount = 0;
 				do
 				{
@@ -203,7 +235,9 @@ void RayTracingReflectionsRGS()
 				
 					Ray.Direction = GenerateReflectedRayDirection(IncidentDirection, WorldNormal, FinalRoughness, RandSample);
 				} while (dot(WorldNormal, Ray.Direction) < 0.0 && ++RetryCount < 16);
-
+				
+				ApplyPositionBias(Ray, WorldNormal, ReflectionMaxNormalBias);
+				
 				if (dot(WorldNormal, Ray.Direction) < 0.0)
 				{
 					// Refraction rays are handled separately
@@ -213,15 +247,48 @@ void RayTracingReflectionsRGS()
 
 				//#dxr-todo: apply heuristics to do different shading computations depending on BounceIndex
 
-				uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+				if (BounceIndex == 0 && SampleIndex == 0)
+				{
+					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
+					{
+						uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+						TraceRay(
+							TLAS,      // AccelerationStructure
+							RayFlags,
+							0xFF,      // InstanceInclusionMask
+							0,         // RayContributionToHitGroupIndex
+							1,         // MultiplierForGeometryContributionToShaderIndex
+							0,         // MissShaderIndex
+							Ray,       // RayDesc
+							DeferredMaterialPayload
+						);
+
+						break; // nothing else to do during gather pass, so exit the loop
+					}
+					else if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE)
+					{
+						if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
+						{
+							const float ShortRayLength = 1.0f; // 1cm is arbitrarily chosen
+							Ray.TMin = max(0, DeferredMaterialPayload.HitT - ShortRayLength * 0.5f);
+
+							// TMax can only be used if alpha masked materials are handled during initial ray tracing (material gathering)
+							// Ray.TMax = DeferredMaterialPayload.HitT + ShortRayLength * 0.5f;
+						}
+						else
+						{
+							Ray.TMax = 0;
+						}
+					}
+				}
 
 				float3 Radiance = float3(0, 0, 0);
 				FMaterialClosestHitPayload Payload;
-				
+
 				// Force the ray to miss on the MaxBounces + 1 fake bounce, so that we fallback to cubemap there
 				if (BounceIndex < MaxBounces)
 				{
-					Payload = TraceRayAndAccumulateResults(Ray, RayCone, Radiance);
+					Payload = TraceRayAndAccumulateResults(Ray, false, ReflectionMaxNormalBias, RayCone, Radiance);
 				}
 
 				bool bApplyHeightFog = false;
@@ -295,7 +362,7 @@ void RayTracingReflectionsRGS()
 					ClearCoat = Payload.CustomData.x;
 					ClearCoatRoughness = Payload.CustomData.y;
 					#if CLEAR_COAT_BOTTOM_NORMAL
-						const float2 oct1 = ((float2(Payload.CustomData.a, Payload.GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(Payload.WorldNormal);
+						const float2 oct1 = ((float2(Payload.CustomData.a, Payload.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(Payload.WorldNormal);
 						ClearCoatBottomNormal = OctahedronToUnitVector(oct1);
 					#endif
 				}
@@ -310,24 +377,58 @@ void RayTracingReflectionsRGS()
 			}
 		}
 	}
-
-	if (ReflectedWeight > 0)
+	else
 	{
-		float DistanceFadeRange = LocalMaxRayDistance * 0.1; // Fade out reflections over 10% of the total maximum ray length (arbitrarily chosen)
-		float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
-		
-		ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(ReflectedWeight);
+		DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 	}
 
-	ColorOutput[DispatchThreadId] = float4(ReflectedColor);
-	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
+	if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
+	{
+		uint LinearStoreIndex = DispatchRaysIndex().y * TileAlignedResolution.x + DispatchRaysIndex().x;
+		uint StoreIndex = LinearStoreIndex;
+
+		if (SortTileSize > 0) // Store payload in tile order
+		{
+			uint2 Block  = DispatchRaysIndex().xy / SortTileSize;
+			uint2 Thread = DispatchRaysIndex().xy % SortTileSize;
+
+			uint IndexInsideBlock = Thread.y * SortTileSize + Thread.x;
+			uint ElementsPerBlock = SortTileSize * SortTileSize;
+			uint BlocksPerRow = TileAlignedResolution.x / SortTileSize;
+			uint BlockIndex = Block.y * BlocksPerRow + Block.x;
+
+			StoreIndex = BlockIndex * ElementsPerBlock + IndexInsideBlock;
+		}
+
+		DeferredMaterialPayload.PixelCoordinates = DispatchThreadId.x | (DispatchThreadId.y << 16);
+
+		if (any(DispatchThreadId >= RayTracingResolution))
+		{
+			DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
+		}
+
+		MaterialBuffer[StoreIndex] = DeferredMaterialPayload;
+	}
+	else
+	{
+		if (ReflectedWeight > 0)
+		{
+			float DistanceFadeRange = LocalMaxRayDistance * 0.1; // Fade out reflections over 10% of the total maximum ray length (arbitrarily chosen)
+			float DistanceFade = bAllowSkySampling ? 1.0 : saturate((LocalMaxRayDistance - HitDistance) * rcp(DistanceFadeRange));
+
+			ReflectedColor *= DistanceFade * max(RoughnessFade, ClearCoatRoughnessFade) * rcp(ReflectedWeight);
+		}
+
+		ColorOutput[DispatchThreadId] = ReflectedColor;
+		RayHitDistanceOutput[DispatchThreadId] = HitDistance;
+	}
 }
 
 
 [shader("miss")]
 void RayTracingReflectionsMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
 {
-	PackedPayload.Payload.HitT = -1;
+	PackedPayload.HitT = -1;
 }
 
 
@@ -348,3 +449,4 @@ void RayTracingReflectionsMainCHS(inout FPackedMaterialClosestHitPayload PackedP
 
 	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
 }
+

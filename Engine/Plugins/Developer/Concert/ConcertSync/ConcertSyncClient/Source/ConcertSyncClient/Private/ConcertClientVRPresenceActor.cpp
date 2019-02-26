@@ -36,7 +36,6 @@ AConcertClientVRPresenceActor::AConcertClientVRPresenceActor(const FObjectInitia
 	AddOwnedComponent(LaserSplineComponent);
 	LaserSplineComponent->SetupAttachment(RootComponent);
 	LaserSplineComponent->SetVisibility(false);
-	LaserSplineComponent->PostPhysicsComponentTick.bCanEverTick = false;
 
 	bIsRightControllerVisible = true;
 	bIsLeftControllerVisible = true;
@@ -209,7 +208,6 @@ void AConcertClientVRPresenceActor::InitPresence(const class UConcertAssetContai
 		SplineSegment->SetMobility(EComponentMobility::Movable);
 		SplineSegment->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SplineSegment->SetSplineUpDir(FVector::UpVector, false);
-		SplineSegment->PostPhysicsComponentTick.bCanEverTick = false;
 
 		UStaticMesh* StaticMesh = nullptr;
 		if (i == 0)

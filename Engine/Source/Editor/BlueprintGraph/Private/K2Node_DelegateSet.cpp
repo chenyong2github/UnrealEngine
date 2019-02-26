@@ -38,7 +38,7 @@ public:
 			DelegateTerm->Type.PinCategory = UEdGraphSchema_K2::PC_Delegate;
 			FMemberReference::FillSimpleMemberReference<UFunction>(DelegateNode->GetDelegateSignature(), DelegateTerm->Type.PinSubCategoryMemberReference);
 			DelegateTerm->Source = Node;
-			DelegateTerm->Name = Context.NetNameMap->MakeValidName(Node) + TEXT("_TempBindingDelegate");
+			DelegateTerm->Name = Context.NetNameMap->MakeValidName(Node, TEXT("TempBindingDelegate"));
 			LocalDelegateMap.Add(Node, DelegateTerm);
 
 			// The only net we need to register for this node is the delegate's target (self) pin, since the others are expanded to their own event node

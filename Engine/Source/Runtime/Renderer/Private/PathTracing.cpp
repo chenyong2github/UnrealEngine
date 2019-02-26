@@ -12,6 +12,7 @@
 #include "PathTracingUniformBuffers.h"
 #include "RHI/Public/PipelineStateCache.h"
 #include "RayTracing/RayTracingSkyLight.h"
+#include "RayTracing/RaytracingOptions.h"
 
 ////static TAutoConsoleVariable<int32> CVarRayTracingPrimaryDebugMaxBounces(
 ////	TEXT("r.RayTracing.PrimaryDebug.MaxBounces"),
@@ -179,6 +180,16 @@ public:
 						LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
 						break;
 					}
+					case LightType_Spot:
+					{
+						LightData.Type[LightData.Count] = 4;
+						LightData.Position[LightData.Count] = LightParameters.Position;
+						LightData.Normal[LightData.Count] = -LightParameters.Direction;
+						// #dxr_todo: define these differences..
+						LightData.Color[LightData.Count] = 4.0 * PI * LightParameters.Color;
+						LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, 0.0);
+						break;
+					}
 					case LightType_Point:
 					default:
 					{
@@ -201,7 +212,7 @@ public:
 			FSkyLightData SkyLightData;
 			if (SkyLightTextureData)
 			{
-				SkyLightData.Color = FVector(Scene->SkyLight->LightColor);
+				SkyLightData.Color = FVector(Scene->SkyLight->GetEffectiveLightColor());
 				SkyLightData.Texture = Scene->SkyLight->ProcessedTexture->TextureRHI;
 				SkyLightData.TextureSampler = Scene->SkyLight->ProcessedTexture->SamplerStateRHI;
 
@@ -260,6 +271,7 @@ public:
 		// Adaptive sampling
 		{
 			FPathTracingAdaptiveSamplingData AdaptiveSamplingData;
+			AdaptiveSamplingData.MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 			AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
 			AdaptiveSamplingData.RandomSequence = CVarPathTracingRandomSequence.GetValueOnRenderThread();
 			if (VarianceMipTree.NumBytes > 0)
@@ -548,7 +560,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	uint32 SkyLightColumnCount = 0;
 	if (Scene->SkyLight)
 	{
-		SkyLightColor = Scene->SkyLight->LightColor;
+		SkyLightColor = Scene->SkyLight->GetEffectiveLightColor();
 		SkyLightTexture = Scene->SkyLight->ProcessedTexture;
 		SkyLightColumnCount = SkyLightTexture->GetSizeX();
 		SkyLightRowCount = SkyLightTexture->GetSizeY();

@@ -47,6 +47,36 @@ void RectLight_EvalLight(
 	OutRadiance = Color;
 }
 
+void RectLight_EstimateLight(
+	int LightId,
+	RayDesc Ray,
+	FMaterialClosestHitPayload Payload,
+	out float OutIrradiance
+)
+{
+	// Distance to centroid
+	// #dxr_todo: Use closest point, instead
+	float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
+	float LightDistanceSquared = dot(LightDirection, LightDirection);
+	LightDirection = normalize(LightDirection);
+	float3 LightNormal = GetNormal(LightId);
+
+	// Light-normal culling
+	if (dot(-LightDirection, LightNormal) <= 0.0)
+	{
+		OutIrradiance = 0.0;
+		return;
+	}
+
+	// Approximate geometric term
+	float3 SurfaceNormal = Payload.WorldNormal;
+	float NoL = saturate(dot(SurfaceNormal, LightDirection));
+	float Area = GetWidth(LightId) * GetHeight(LightId);
+
+	float LightPower = Luminance(GetColor(LightId));
+	OutIrradiance = LightPower * Area * NoL / LightDistanceSquared;
+}
+
 void RectLight_SampleLight(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,

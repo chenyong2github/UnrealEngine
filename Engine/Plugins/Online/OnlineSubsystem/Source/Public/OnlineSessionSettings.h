@@ -33,6 +33,10 @@
 #define SETTING_NEEDSSORT FName(TEXT("NEEDSSORT"))
 /** Setting describing the session key (value is FString) */
 #define SETTING_SESSIONKEY FName(TEXT("SESSIONKEY"))
+/** Setting describing the session key (value is FString) */
+#define SETTING_ALLOWBROADCASTING FName(TEXT("ALLOWBROADCASTING"))
+/** Setting defining broadcaster (value is bool) */
+#define SETTING_BROADCASTER FName(TEXT("BROADCASTER"))
 
 /** 8 user defined integer params to be used when filtering searches for sessions */
 #define SETTING_CUSTOMSEARCHINT1 FName(TEXT("CUSTOMSEARCHINT1"))

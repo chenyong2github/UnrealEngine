@@ -61,6 +61,9 @@ public:
 	/** Reset cached state for reuse */
 	void Reset(void);
 	
+	/** Reset cached state for reuse while in rendering */
+	void ResetLive(void);
+	
 #pragma mark - Public Command Buffer Mutators -
 
 	/**

@@ -649,7 +649,8 @@ public:
 	virtual void RHISetRayTracingHitGroup(
 		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 HitGroupIndex,
-		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers)
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData)
 	{
 		checkNoEntry();
 	}

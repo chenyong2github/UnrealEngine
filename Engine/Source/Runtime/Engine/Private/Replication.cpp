@@ -18,6 +18,8 @@ void AMatineeActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & Ou
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
+	DISABLE_REPLICATED_PROPERTY( AMatineeActor, bPendingStop );
+
 	DOREPLIFETIME_CONDITION( AMatineeActor, MatineeData,		COND_InitialOnly );
 	DOREPLIFETIME_CONDITION( AMatineeActor, GroupActorInfos,	COND_InitialOnly );
 

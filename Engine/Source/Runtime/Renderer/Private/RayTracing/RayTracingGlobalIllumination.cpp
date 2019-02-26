@@ -18,6 +18,7 @@
 #include "ClearQuad.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "Raytracing/RaytracingOptions.h"
 
 static int32 GRayTracingGlobalIllumination = 0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIllumination(
@@ -61,6 +62,13 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationEvalSkyLight(
 	TEXT("Evaluate SkyLight multi-bounce contribution")
 );
 
+static float GRayTracingGlobalIlluminationScreenPercentage = 100.0;
+static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationScreenPercentage(
+	TEXT("r.RayTracing.GlobalIllumination.ScreenPercentage"),
+	GRayTracingGlobalIlluminationScreenPercentage,
+	TEXT("Screen percentage for ray tracing global illumination (default = 100)")
+);
+
 static const int32 GLightCountMax = 64;
 
 DECLARE_GPU_STAT_NAMED(RayTracingGlobalIllumination, TEXT("Ray Tracing Global Illumination"));
@@ -83,7 +91,6 @@ void SetupLightParameters(
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
 		{
-			// TODO: LightType_Spot
 		case LightType_Directional:
 		{
 			LightParameters->Type[LightParameters->Count] = 2;
@@ -110,6 +117,15 @@ void SetupLightParameters(
 			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
 			break;
 		}
+		case LightType_Spot:
+		{
+			LightParameters->Type[LightParameters->Count] = 4;
+			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
+			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
+			LightParameters->Color[LightParameters->Count] = 4.0 * PI * LightShaderParameters.Color;
+			LightParameters->Dimensions[LightParameters->Count] = FVector(LightShaderParameters.SpotAngles, 0.0);
+			break;
+		}
 		};
 
 		LightParameters->Count++;
@@ -127,7 +143,7 @@ void SetupSkyLightParameters(
 
 	if (Scene.SkyLight)
 	{
-		SkyLight->Color = FVector(Scene.SkyLight->LightColor);
+		SkyLight->Color = FVector(Scene.SkyLight->GetEffectiveLightColor());
 		SkyLight->Texture = Scene.SkyLight->ProcessedTexture->TextureRHI;
 		SkyLight->TextureSampler = Scene.SkyLight->ProcessedTexture->SamplerStateRHI;
 		SkyLight->MipDimensions = Scene.SkyLight->SkyLightMipDimensions;
@@ -177,8 +193,10 @@ class FGlobalIlluminationRGS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(uint32, MaxBounces)
+		SHADER_PARAMETER(uint32, UpscaleFactor)
 		SHADER_PARAMETER(float, MaxRayDistance)
 		SHADER_PARAMETER(bool, EvalSkyLight)
+		SHADER_PARAMETER(float, MaxNormalBias)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWGlobalIlluminationUAV)
@@ -204,9 +222,27 @@ class FRayTracingGlobalIlluminationCompositePS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GlobalIlluminationTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, GlobalIlluminationSampler)
-		//SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		//SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
 	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FRayTracingGlobalIlluminationSceneColorCompositePS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingGlobalIlluminationSceneColorCompositePS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingGlobalIlluminationSceneColorCompositePS, FGlobalShader)
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RENDER_TARGET_BINDING_SLOTS()
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GlobalIlluminationTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, GlobalIlluminationSampler)
+		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
+		END_SHADER_PARAMETER_STRUCT()
 };
 
 class FRayTracingGlobalIlluminationCHS : public FGlobalShader
@@ -239,10 +275,12 @@ IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayT
 IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCHS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "RayTracingGlobalIlluminationCHS", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationMS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "RayTracingGlobalIlluminationMS", SF_RayMiss);
 IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCompositePS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationCompositePS.usf", "GlobalIlluminationCompositePS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationSceneColorCompositePS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationCompositePS.usf", "GlobalIlluminationSceneColorCompositePS", SF_Pixel);
 
 void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
+	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT,
 	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT
 )
 {
@@ -250,34 +288,43 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 	SCOPED_GPU_STAT(RHICmdList, RayTracingGlobalIllumination);
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	{
+		FPooledRenderTargetDesc Desc = SceneContext.GetSceneColor()->GetDesc();
+		Desc.Format = PF_FloatRGBA;
+		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GlobalIlluminationRT, TEXT("RayTracingGlobalIllumination"));
+	}
+
 	FRDGBuilder GraphBuilder(RHICmdList);
+
+	IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
+	RayTracingConfig.ResolutionFraction = 1.0;
+	if (GRayTracingGlobalIlluminationDenoiser != 0)
+	{
+		RayTracingConfig.ResolutionFraction = FMath::Clamp(GRayTracingGlobalIlluminationScreenPercentage / 100.0, 0.25, 1.0);
+	}
+	RayTracingConfig.RayCountPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel;
+	int32 UpscaleFactor = int32(1.0 / RayTracingConfig.ResolutionFraction);
 
 	// Render targets
 	FRDGTextureRef GlobalIlluminationTexture;
-	FRDGTextureRef ResultTexture;
 	{
 		FRDGTextureDesc Desc = SceneContext.GetSceneColor()->GetDesc();
+		Desc.Extent /= UpscaleFactor;
 		Desc.Format = PF_FloatRGBA;
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 		GlobalIlluminationTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingGlobalIllumination"));
-		ResultTexture = GraphBuilder.CreateTexture(Desc, TEXT("RTGI"));
 	}
 
 	FRDGTextureRef RayDistanceTexture;
 	{
 		FRDGTextureDesc Desc = SceneContext.GetSceneColor()->GetDesc();
+		Desc.Extent /= UpscaleFactor;
 		Desc.Format = PF_G16R16;
 		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
 		RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingGlobalIlluminationRayDistance"));
 	}
-
-	FRDGTextureRef AmbientOcclusionTexture;
-	{
-		FRDGTextureDesc Desc = SceneContext.GetSceneColor()->GetDesc();
-		Desc.Format = PF_R16F;
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
-		AmbientOcclusionTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingAmbientOcclusion"));
-	}
+	FRDGTextureRef ResultTexture;
 	
 	FSceneTexturesUniformParameters SceneTextures;
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
@@ -292,7 +339,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		FGlobalIlluminationRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalIlluminationRGS::FParameters>();
 		PassParameters->SamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel;
 		PassParameters->MaxBounces = GRayTracingGlobalIlluminationMaxBounces;
+		PassParameters->MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 		PassParameters->MaxRayDistance = GRayTracingGlobalIlluminationMaxRayDistance;
+		PassParameters->UpscaleFactor = UpscaleFactor;
 		PassParameters->EvalSkyLight = GRayTracingGlobalIlluminationEvalSkyLight;
 		PassParameters->TLAS = View.PerViewRayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -305,8 +354,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		auto RayGenerationShader = View.ShaderMap->GetShader<FGlobalIlluminationRGS>();
 		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
-		float ResolutionFraction = 1.0;
-		int32 UpscaleFactor = int32(1.0f / ResolutionFraction);
 		FIntPoint RayTracingResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
@@ -341,15 +388,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		const IScreenSpaceDenoiser* DefaultDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 		const IScreenSpaceDenoiser* DenoiserToUse = GRayTracingGlobalIlluminationDenoiser == 1 ? DefaultDenoiser : GScreenSpaceDenoiser;
 
-		IScreenSpaceDenoiser::FAmbientOcclusionRayTracingConfig RayTracingConfig;
-		RayTracingConfig.RayCountPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel;
-
 		IScreenSpaceDenoiser::FGlobalIlluminationInputs DenoiserInputs;
 		DenoiserInputs.Color = GlobalIlluminationTexture;
 		DenoiserInputs.RayHitDistance = RayDistanceTexture;
 
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "%s%s(AmbientOcclusion) %dx%d",
+			RDG_EVENT_SCOPE(GraphBuilder, "%s%s(GlobalIllumination) %dx%d",
 				DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
 				DenoiserToUse->GetDebugName(),
 				View.ViewRect.Width(), View.ViewRect.Height());
@@ -374,7 +418,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		FRayTracingGlobalIlluminationCompositePS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationCompositePS::FParameters>();
 		PassParameters->GlobalIlluminationTexture = ResultTexture;
 		PassParameters->GlobalIlluminationSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SceneTexturesStruct = CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleDraw);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(GlobalIlluminationRT), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 		PassParameters->RenderTargets[1] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(AmbientOcclusionRT), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 
 		GraphBuilder.AddPass(
@@ -389,7 +435,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 				// Additive blending
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_Zero>::GetRHI();
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
 				//GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -420,6 +466,62 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 
 	GraphBuilder.Execute();
 	SceneContext.bScreenSpaceAOIsValid = true;
+	GVisualizeTexture.SetCheckPoint(RHICmdList, GlobalIlluminationRT);
+}
+
+void FDeferredShadingSceneRenderer::CompositeGlobalIllumination(
+	FRHICommandListImmediate& RHICmdList,
+	const FViewInfo& View,
+	TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT
+)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FRDGBuilder GraphBuilder(RHICmdList);
+	FRayTracingGlobalIlluminationSceneColorCompositePS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationSceneColorCompositePS::FParameters>();
+	PassParameters->GlobalIlluminationTexture = GraphBuilder.RegisterExternalTexture(GlobalIlluminationRT);
+	PassParameters->GlobalIlluminationSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("GlobalIlluminationComposite"),
+		PassParameters,
+		ERenderGraphPassFlags::None,
+		[this, &SceneContext, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
+		{
+			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+			TShaderMapRef<FRayTracingGlobalIlluminationSceneColorCompositePS> PixelShader(View.ShaderMap);
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			// Additive blending
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			//GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.ViewRect.Min.X, View.ViewRect.Min.Y,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
+				SceneContext.GetBufferSizeXY(),
+				*VertexShader
+			);
+		}
+	);
+	GraphBuilder.Execute();
 }
 
 #endif // RHI_RAYTRACING

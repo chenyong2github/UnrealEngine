@@ -552,7 +552,7 @@ namespace FNiagaraUtilities
 		EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 		return RHISupportsComputeShaders(ShaderPlatform);
 	}
-	
+
 	inline bool SupportsGPUParticles(EShaderPlatform ShaderPlatform)
 	{
 		return RHISupportsComputeShaders(ShaderPlatform);

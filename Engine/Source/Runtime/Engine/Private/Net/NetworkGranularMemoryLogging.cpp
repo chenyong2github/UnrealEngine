@@ -35,7 +35,15 @@ namespace GranularNetworkMemoryTrackingPrivate
 	{
 		if (bShouldTrack)
 		{
-			UE_LOG(LogNet, Log, TEXT("%s: %s is %llu bytes"), *ScopeName, *WorkName, ((FArchiveCountMem&)Ar).GetMax() - PreWorkPos);
+			LogCustomWork(WorkName, ((FArchiveCountMem&)Ar).GetMax() - PreWorkPos);
+		}
+	}
+
+	void FHelper::LogCustomWork(const FString& WorkName, const uint64 Bytes) const
+	{
+		if (bShouldTrack)
+		{
+			UE_LOG(LogNet, Log, TEXT("%s: %s is %llu bytes"), *ScopeName, *WorkName, Bytes);
 		}
 	}
 };

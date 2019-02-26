@@ -34,6 +34,7 @@ uint UpscaleFactor;
 float TranslucencyMinRayDistance;
 float TranslucencyMaxRayDistance;
 float TranslucencyMaxRoughness;
+float MaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
 
@@ -41,18 +42,6 @@ RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;
 
 #include "RayTracingLightingCommon.ush"
-
-// #dxr-todo: move to RayTracingCommon.ush
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
-}
 
 float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
 {
@@ -73,31 +62,41 @@ uint2 GetPixelCoord(uint2 DispatchThreadId)
 	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
 }
 
-
-bool RefractRay(float3 V, float3 N, float IorV, float IorL, out float3 L)
+bool RefractRay(float3 V, float3 N, float Eta, out float3 L)
 {
-	float NoV = dot(V, N);
-	float IorRatio = IorV / IorL;
-	float d = 1.0 - IorRatio * IorRatio * (1.0 - NoV * NoV);
-
-	if (d > 0.0)
+	V = -V;
+	const float CosThetaI = dot(V, N);
+	const float CosThetaT2 = 1.f - Eta * Eta * (1.0f - CosThetaI * CosThetaI);
+	if (CosThetaT2 < 0.0f)
 	{
-		L = N * (IorRatio*NoV - sqrt(d)) - V * IorRatio;
-		return true;
+		// Total internal reflection
+		L = reflect(-V, N); 
+		return false;
 	}
+	const float CosThetaT = -(CosThetaI >= 0.0f ? 1.0f : -1.0f) * sqrt(CosThetaT2);
 
-	// TIR, force to reflect
-	L = N * (NoV + NoV) - V;
-	return false;
+	L = (Eta * CosThetaI + CosThetaT) * N - Eta * V;
+	return true;
+}
+
+float FresnelDielectric(float Eta, float IoH, float ToH)
+{
+	float Rs = Square((Eta * IoH - ToH) / (Eta * IoH + ToH));
+	float Rp = Square((Eta * ToH - IoH) / (Eta * ToH + IoH));
+	return (Rs + Rp) / 2;
+}
+
+float3 GetSkyRadiance(float3 Direction, float Roughness)
+{
+	float SkyAverageBrightness = 1.0f;
+	return GetSkyLightReflection(Direction, Roughness, SkyAverageBrightness);
 }
 
 [shader("raygeneration")]
 void RayTracingTranslucencyRGS()
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
-
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId);
-	
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
@@ -112,9 +111,6 @@ void RayTracingTranslucencyRGS()
 	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);	
 	const float GBufferHitT = length(WorldPosition - CameraOrigin);
 
-	float3 TranslucencyColor = 0.0;
-	float HitDistance = 0.0f;
-
 	// Trace rays from camera origin to (Gbuffer - epsilon) to only intersect translucent objects
 	//#dxr_todo: a potential big optimization would be to include translucent objects in the GBuffer
 	// and use the GBuffer shading ID to early return for non translucent objects 
@@ -123,77 +119,153 @@ void RayTracingTranslucencyRGS()
 	Ray.TMin = 0.0;
 	Ray.TMax = GBufferHitT - 0.1;
 	Ray.Direction = CameraDirection;
-
 	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+	// Sky is only sampled when infinite reflection rays are used.
+	const bool bAllowSkySampling = TranslucencyMaxRayDistance < 0;
+	const bool bRefractionBackFaceCulling = false;
+	const bool bReflectionBackFaceCulling = true;
+
+	// Integrated data by path tracing
+	float3 PathRadiance = 0.0;
+	float PathThroughput = 1.0;	// A float for now because UE does not support colored translucency as of today.
+	float LastRoughness = 0.0;
+	float HitDistance = 0.0f;
+	bool bHasScattered = false;
 
 	for (uint RefractionRayIndex = 0; RefractionRayIndex < MaxRefractionRays; ++RefractionRayIndex)
 	{
-		FMaterialClosestHitPayload Payload = TraceRayInternal(
-			TLAS,   // AccelerationStructure
-			RayFlags,
-			0xFF,   // InstanceInclusionMask
-			0,      // RayContributionToHitGroupIndex
-			1,      // MultiplierForGeometryContributionToShaderIndex #dxr_todo: we currently only support shader binding per mesh instance
-			0,      // MissShaderIndex
-			Ray,    // RayDesc
-			RayCone
-		);
+		float3 PathVertexRadiance = float3(0, 0, 0);
+		FMaterialClosestHitPayload Payload = TraceRayAndAccumulateResults(Ray, bRefractionBackFaceCulling, MaxNormalBias, RayCone, PathVertexRadiance);
+		LastRoughness = Payload.Roughness;
 
+		//
+		// Handle no hit condition
+		//
 		if (!IsHit(Ray, Payload))
 		{
-			//TranslucencyColor = float3(1, 0, 0);
+			if (bHasScattered && bAllowSkySampling)
+			{
+				// We only sample the sky if the ray has scattered (i.e. been refracted or reflected). Otherwise we are going ot use the regular scene color.
+				PathRadiance += PathThroughput * GetSkyRadiance(Ray.Direction, LastRoughness);
+			}
 			break;
 		}
-
-		//#dxr_todo: 
-		//- set stack of refraction & reflection rays
-		//- handle TIR
-		//- Handle translucency throughput depending on color and opacity (beer´s law)
-
 		float3 HitPoint = Ray.Origin + Ray.Direction * GetHitT(Payload);
+		bHasScattered = true;
 
-		// Trace reflection ray 
-		uint DummyVariable;
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
-		RayDesc ReflectionRay;
-		ReflectionRay.Origin = HitPoint;
-		ReflectionRay.TMin = 0.01;
-		ReflectionRay.TMax = TranslucencyMaxRayDistance;
-		ReflectionRay.Direction = GenerateReflectedRayDirection(Ray.Direction, Payload.WorldNormal, Payload.Roughness, RandSample);
+		//
+		// Handle surface lighting
+		//
 
-		float3 ReflectionRadiance = float3(0, 0, 0);
-		FMaterialClosestHitPayload ReflectionPayload = TraceRayAndAccumulateResults(ReflectionRay, RayCone, ReflectionRadiance);
-		TranslucencyColor += ReflectionRadiance;
+		float vertexRadianceWeight = Payload.Opacity;	// Opacity as coverage. This works for RAY_TRACING_BLEND_MODE_OPAQUE and RAY_TRACING_BLEND_MODE_TRANSLUCENT.
+		// It is also needed for RAY_TRACING_BLEND_MODE_ADDITIVE and  RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE: radiance continbution is alway weighted by coverage.
+		// #dxr_todo: I have not been able to setup a material using RAY_TRACING_BLEND_MODE_MODULATE.
+
+		PathRadiance += PathThroughput * PathVertexRadiance * vertexRadianceWeight;
+
+
+		//
+		// Handle reflection tracing with a ray per vertex of the refraction path
+		//
+
+		// Shorten the rays on rougher surfaces between user-provided min and max ray lengths.
+		// When a shortened ray misses the geometry, we fall back to local reflection capture sampling (similar to SSR).
+		const float LocalMaxRayDistance = bAllowSkySampling ? 1e27f : lerp(TranslucencyMaxRayDistance, TranslucencyMinRayDistance, Payload.Roughness);
+		if (Payload.Roughness < TranslucencyMaxRoughness)
+		{
+			// Trace reflection ray 
+			uint DummyVariable;
+			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+
+			RayDesc ReflectionRay;
+			ReflectionRay.TMin = 0.01;
+			ReflectionRay.TMax = LocalMaxRayDistance;
+			ReflectionRay.Origin = HitPoint;
+			ReflectionRay.Direction = GenerateReflectedRayDirection(Ray.Direction, Payload.WorldNormal, Payload.Roughness, RandSample);
+			ApplyPositionBias(ReflectionRay, Payload.WorldNormal, MaxNormalBias);
+
+			float3 ReflectionRadiance = float3(0, 0, 0);
+			FMaterialClosestHitPayload ReflectionPayload = TraceRayAndAccumulateResults(ReflectionRay, bReflectionBackFaceCulling, MaxNormalBias, RayCone, ReflectionRadiance);
+
+			// If we have not hit anything, sample the distance sky radiance.
+			if (!IsHit(ReflectionRay, ReflectionPayload))
+			{
+				ReflectionRadiance = GetSkyRadiance(ReflectionRay.Direction, LastRoughness);
+			}
+
+			// #dxr_todo: reflection IOR and clear coat also? This only handles default material.
+			float NoV = saturate(dot(-Ray.Direction, Payload.WorldNormal));
+			const float ReflectionThroughput = EnvBRDF(Payload.SpecularColor, Payload.Roughness, NoV);
+
+			PathRadiance += PathThroughput * ReflectionThroughput * ReflectionRadiance * vertexRadianceWeight;
+		}
+
+
+		//
+		// Handle refraction through the surface.
+		//
+
+		// Update the refraction path transmittance and check stop condition
+		float PathVertexTransmittance = Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ? 1.0 : 1.0 - Payload.Opacity;
+		PathThroughput *= PathVertexTransmittance;
+		if (PathThroughput <= 0.0)
+		{
+			break;
+		}
 
 		// Set refraction ray for next iteration
-		float IorV = 1.0;
-		float IorL = Payload.Ior;
-		if (Payload.HitKind != HIT_KIND_TRIANGLE_FRONT_FACE)
+		float Ior1 = Payload.Ior;
+		float Ior2 = 1.0f;
+		float Eta = Ior1/Ior2;
+
+		//#dxr_todo: check HitKind functionality
+		//bool bIsEntering = Payload.HitKind == HIT_KIND_TRIANGLE_FRONT_FACE;
+		bool bIsEntering = (dot(Ray.Direction, Payload.WorldNormal) < 0.0);
+		if (bIsEntering)
 		{
-			IorV = Payload.Ior;
-			IorL = 1.0;
+			Eta = 1.0/Payload.Ior;
 		}
 
-		float3 RefractedDirection;
-		if (!RefractRay(Ray.Direction, Payload.WorldNormal, IorV, IorL, RefractedDirection))
+		float3 RefractedDirection;	
+		if (RefractRay(Ray.Direction, Payload.WorldNormal, Eta, RefractedDirection))
 		{
-			// TIR
+			float VoH = abs(dot(Payload.WorldNormal, Ray.Direction));
+			float ToH = abs(dot(Payload.WorldNormal, RefractedDirection));
+			PathThroughput *= 1 - FresnelDielectric(Eta, VoH, ToH);
+		}
+		else
+		{
+			//TIR
+			//#dxr_todo: handle reflection ray
+			// This is a total internal reflection event. We should combine that step with the one above reflection evaluation.
+			// For now we stop tracing.
+			//PathRadiance = float3(1,0,0);
 			break;
 		}
 
+
+		//
+		// Setup refracted ray to be traced
+		//
+
 		Ray.Origin = HitPoint;
-		Ray.TMin = 0.001;
-		Ray.TMax = TranslucencyMaxRayDistance;
+		Ray.TMin = 0.01;
+		Ray.TMax = LocalMaxRayDistance;
 		Ray.Direction = RefractedDirection;
 		float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
 		RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
+		const float ReflectionMaxNormalBias = 1.0;
 	}
 
-	ColorOutput[DispatchThreadId] = float4(TranslucencyColor, 1.0); //#dxr_todo: set alpha value depending on hit
+	if (!bHasScattered)
+	{
+		// Use the scene opaque radiance for pixel that has not intersected any transparent.
+		PathRadiance = Texture2DSampleLevel(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, UV, 0).xyz;
+	}
+	ColorOutput[DispatchThreadId] = float4(PathRadiance, 0.0f);
 	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
 }
 
@@ -201,7 +273,7 @@ void RayTracingTranslucencyRGS()
 [shader("miss")]
 void RayTracingTranslucencyMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
 {
-	PackedPayload.Payload.HitT = -1;
+	PackedPayload.HitT = -1;
 }
 
 
@@ -222,3 +294,4 @@ void RayTracingTranslucencyMainCHS(inout FPackedMaterialClosestHitPayload Packed
 
 	PackedPayload = PackRayTracingPayload(Payload, PackedPayload.RayCone);
 }
+

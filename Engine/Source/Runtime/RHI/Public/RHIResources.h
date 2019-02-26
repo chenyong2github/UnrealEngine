@@ -1646,17 +1646,25 @@ struct FBoundShaderStateInput
 	(
 		FVertexDeclarationRHIParamRef InVertexDeclarationRHI
 		, FVertexShaderRHIParamRef InVertexShaderRHI
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, FHullShaderRHIParamRef InHullShaderRHI
 		, FDomainShaderRHIParamRef InDomainShaderRHI
+#endif
 		, FPixelShaderRHIParamRef InPixelShaderRHI
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, FGeometryShaderRHIParamRef InGeometryShaderRHI
+#endif
 	)
 		: VertexDeclarationRHI(InVertexDeclarationRHI)
 		, VertexShaderRHI(InVertexShaderRHI)
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, HullShaderRHI(InHullShaderRHI)
 		, DomainShaderRHI(InDomainShaderRHI)
+#endif
 		, PixelShaderRHI(InPixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, GeometryShaderRHI(InGeometryShaderRHI)
+#endif
 	{
 	}
 
@@ -1747,9 +1755,13 @@ public:
 		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI || 
 			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
 			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			BoundShaderState.DomainShaderRHI != rhs.BoundShaderState.DomainShaderRHI ||
-			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||			
+			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||	
+#endif		
 			BlendState != rhs.BlendState || 
 			RasterizerState != rhs.RasterizerState || 
 			DepthStencilState != rhs.DepthStencilState ||
@@ -1794,9 +1806,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1814,9 +1830,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1851,7 +1871,8 @@ public:
 class FGraphicsPipelineStateInitializer final : public FGraphicsMinimalPipelineStateInitializer
 {
 public:
-	using TRenderTargetFormats		= TStaticArray<TEnumAsByte<EPixelFormat>, MaxSimultaneousRenderTargets>;
+	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
+	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
 	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
@@ -1867,7 +1888,8 @@ public:
 		, NumSamples(0)
 		, Flags(0)
 	{
-		static_assert(PF_MAX <= 255, "EPixelFormat is assumed to be a byte; check usage of TEnumAsByte<EPixelFormat>");
+		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
+		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
 	}
 
 	FGraphicsPipelineStateInitializer(const FGraphicsMinimalPipelineStateInitializer& InMinimalState)
@@ -1927,9 +1949,13 @@ public:
 		if (!FGraphicsMinimalPipelineStateInitializer::operator ==(rhs) ||
 			VertexShaderHash != rhs.VertexShaderHash ||
 			PixelShaderHash != rhs.PixelShaderHash ||
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			GeometryShaderHash != rhs.GeometryShaderHash ||
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			HullShaderHash != rhs.HullShaderHash ||
 			DomainShaderHash != rhs.DomainShaderHash ||
+#endif
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			RenderTargetFlags != rhs.RenderTargetFlags || 
@@ -1969,9 +1995,13 @@ public:
 
 	FSHAHash						VertexShaderHash;
 	FSHAHash						PixelShaderHash;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FSHAHash						GeometryShaderHash;
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FSHAHash						HullShaderHash;
 	FSHAHash						DomainShaderHash;
+#endif
 	uint32							RenderTargetsEnabled;
 	TRenderTargetFormats			RenderTargetFormats;
 	TRenderTargetFlags				RenderTargetFlags;

@@ -1045,6 +1045,14 @@ public:
 	virtual void AddError( const FString& InError, int32 StackOffset = 0 );
 
 	/**
+	 * Adds an error message to this test if the condition is false
+	 *
+	 * @param   bCondition The condition to validate.
+	 * @param   InError	   Error message to add to this test
+	 */
+	virtual void AddErrorIfFalse( bool bCondition, const FString& InError, int32 StackOffset = 0 );
+
+	/**
 	 * Adds an error message to this test
 	 *
 	 * @param	InError	Error message to add to this test

@@ -468,10 +468,10 @@ FGraphicsPipelineStateRHIRef FD3D12DynamicRHI::RHICreateGraphicsPipelineState(co
 	FBoundShaderStateRHIRef const BSS = RHICreateBoundShaderState(
 		Initializer.BoundShaderState.VertexDeclarationRHI,
 		Initializer.BoundShaderState.VertexShaderRHI,
-		Initializer.BoundShaderState.HullShaderRHI,
-		Initializer.BoundShaderState.DomainShaderRHI,
+		TESSELLATION_SHADER(Initializer.BoundShaderState.HullShaderRHI),
+		TESSELLATION_SHADER(Initializer.BoundShaderState.DomainShaderRHI),
 		Initializer.BoundShaderState.PixelShaderRHI,
-		Initializer.BoundShaderState.GeometryShaderRHI);
+		GEOMETRY_SHADER(Initializer.BoundShaderState.GeometryShaderRHI));
 
 	// Next try to find the PSO based on the hash of its desc.
 	FD3D12BoundShaderState* const BoundShaderState = FD3D12DynamicRHI::ResourceCast(BSS.GetReference());

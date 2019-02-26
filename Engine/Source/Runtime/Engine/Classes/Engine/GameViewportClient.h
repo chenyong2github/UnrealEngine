@@ -162,6 +162,7 @@ public:
 	virtual bool IsFocused(FViewport* Viewport) override;
 	virtual void Activated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
 	virtual void Deactivated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
+	virtual bool IsInPermanentCapture() override;
 	virtual bool WindowCloseRequested() override;
 	virtual void CloseRequested(FViewport* Viewport) override;
 	virtual bool RequiresHitProxyStorage() override { return 0; }
@@ -369,6 +370,12 @@ public:
 
 	/** Allows game code to disable splitscreen (useful when in menus) */
 	void SetDisableSplitscreenOverride( const bool bDisabled );
+
+	/** Determines whether splitscreen is forced to be turned off */
+	bool GetDisableSplitscreenOverride() const
+	{
+		return bDisableSplitScreenOverride;
+	}
 
 	/** called before rending subtitles to allow the game viewport to determine the size of the subtitle area
 	 * @param Min top left bounds of subtitle region (0 to 1)

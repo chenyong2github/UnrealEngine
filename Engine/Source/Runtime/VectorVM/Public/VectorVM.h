@@ -388,11 +388,23 @@ namespace VectorVM
 		int32 AdvanceOffset;
 
 	public:
-		FORCEINLINE FExternalFuncInputHandler(FVectorVMContext& Context)
-			: InputOffset(DecodeU16(Context))
-			, InputPtr(IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.RegisterTable[GetOffset()])
-			, AdvanceOffset(IsConstant() ? 0 : 1)
+		FExternalFuncInputHandler()
+			: InputOffset(INDEX_NONE)
+			, InputPtr(nullptr)
+			, AdvanceOffset(0)
 		{}
+
+		FORCEINLINE FExternalFuncInputHandler(FVectorVMContext& Context)
+		{
+			Init(Context);
+		}
+
+		void Init(FVectorVMContext& Context)
+		{
+			InputOffset = DecodeU16(Context);
+			InputPtr = IsConstant() ? (T*)(Context.ConstantTable + GetOffset()) : (T*)Context.RegisterTable[GetOffset()];
+			AdvanceOffset = IsConstant() ? 0 : 1;
+		}
 
 		FORCEINLINE bool IsConstant()const { return !IsRegister(); }
 		FORCEINLINE bool IsRegister()const { return (InputOffset & VVM_EXT_FUNC_INPUT_LOC_BIT) != 0; }

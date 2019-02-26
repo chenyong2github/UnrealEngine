@@ -430,6 +430,9 @@ namespace Audio
 		if (AsyncRealtimeAudioTask) 
 		{ 
 			AsyncRealtimeAudioTask->EnsureCompletion(); 
+
+			delete AsyncRealtimeAudioTask;
+			AsyncRealtimeAudioTask = nullptr;
 		}
 	}
 

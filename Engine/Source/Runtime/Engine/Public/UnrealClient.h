@@ -205,6 +205,7 @@ struct FStatUnitData
 	float GPUFrameTime;
 	float FrameTime;
 	float RHITTime;
+	float InputLatencyTime;
 
 	/** Raw equivalents of the above variables */
 	float RawRenderThreadTime;
@@ -212,6 +213,7 @@ struct FStatUnitData
 	float RawGPUFrameTime;
 	float RawFrameTime;
 	float RawRHITTime;
+	float RawInputLatencyTime;
 
 	/** Time that has transpired since the last draw call */
 	double LastTime;
@@ -225,6 +227,7 @@ struct FStatUnitData
 	TArray<float> GPUFrameTimes;
 	TArray<float> FrameTimes;
 	TArray<float> RHITTimes;
+	TArray<float> InputLatencyTimes;
 	TArray<float> ResolutionFractions;
 #endif //!UE_BUILD_SHIPPING
 
@@ -234,10 +237,13 @@ struct FStatUnitData
 		, GPUFrameTime(0.0f)
 		, FrameTime(0.0f)
 		, RHITTime(0.0f)
+		, InputLatencyTime(0.0f)
 		, RawRenderThreadTime(0.0f)
 		, RawGameThreadTime(0.0f)
 		, RawGPUFrameTime(0.0f)
 		, RawFrameTime(0.0f)
+		, RawRHITTime(0.0f)
+		, RawInputLatencyTime(0.0f)
 		, LastTime(0.0)
 	{
 #if !UE_BUILD_SHIPPING
@@ -247,6 +253,7 @@ struct FStatUnitData
 		GPUFrameTimes.AddZeroed(NumberOfSamples);
 		FrameTimes.AddZeroed(NumberOfSamples);
 		RHITTimes.AddZeroed(NumberOfSamples);
+		InputLatencyTimes.AddZeroed(NumberOfSamples);
 		ResolutionFractions.Reserve(NumberOfSamples);
 		for (int32 i = 0; i < NumberOfSamples; i++)
 		{
@@ -916,6 +923,12 @@ public:
 
 	virtual void Activated(FViewport* Viewport, const FWindowActivateEvent& InActivateEvent) {}
 	virtual void Deactivated(FViewport* Viewport, const FWindowActivateEvent& InActivateEvent) {}
+
+	virtual bool IsInPermanentCapture()
+	{ 
+		return  !GIsEditor && ((CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
+			(CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+	}
 
 	/**
 	 * Called when the top level window associated with the viewport has been requested to close.

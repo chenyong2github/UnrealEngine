@@ -700,8 +700,10 @@ void FShaderResource::SerializeShaderCode(FArchive& Ar)
 		{
 			if (!GRHILazyShaderCodeLoading)
 			{
-				FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar);
-				bCodeInSharedLocationRequested = true;
+				if (FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar))
+				{
+					bCodeInSharedLocationRequested = true;
+				}
 			}
 			else
 			{
@@ -1150,12 +1152,12 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	, Target(Initializer.Target)
 	, NumRefs(0)
 {
-	OutputHash = Initializer.OutputHash;
-	checkSlow(OutputHash != FSHAHash());
-
 	check(Type);
 
 #if KEEP_SHADER_SOURCE_HASHES
+	OutputHash = Initializer.OutputHash;
+	checkSlow(OutputHash != FSHAHash());
+
 	// Store off the source hash that this shader was compiled with
 	// This will be used as part of the shader key in order to identify when shader files have been changed and a recompile is needed
 	SourceHash = Type->GetSourceHash(Target.GetPlatform());
@@ -1224,7 +1226,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 	FSHAHash& VFHash = VFSourceHash;
 	FSHAHash& Hash = SourceHash;
 #else
-	FSHAHash VFHash, Hash;
+	FSHAHash VFHash, Hash, OutputHash;
 #endif
 
 	Ar << OutputHash;
@@ -1313,6 +1315,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 			// Load the inlined shader resource
 			SerializedResource = new FShaderResource();
 			SerializedResource->Serialize(Ar, bLoadedByCookedMaterial);
+			checkSlow(OutputHash == SerializedResource->OutputHash);
 		}
 	}
 	else
@@ -1430,8 +1433,8 @@ void FShader::DumpDebugInfo()
 #if KEEP_SHADER_SOURCE_HASHES
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :SourceHash %s"), *SourceHash.ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFSourceHash %s"), *VFSourceHash.ToString());
-#endif
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :OutputHash %s"), *OutputHash.ToString());
+#endif
 }
 
 void FShader::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const FStableShaderKeyAndValue& InSaveKeyVal)
@@ -1900,7 +1903,7 @@ void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 					}
 				}
 
-				if (!PipelineType->ShouldOptimizeUnusedOutputs() && bFound)
+				if (!PipelineType->ShouldOptimizeUnusedOutputs(Platform) && bFound)
 				{
 					++NumSharedPipelines;
 				}
@@ -1980,7 +1983,7 @@ void DumpShaderPipelineStats(EShaderPlatform Platform)
 
 		// Write a row for the shader type.
 		ShaderTypeViewer.AddColumn(Type->GetName());
-		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs() ? TEXT("U") : TEXT("S"));
+		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs(Platform) ? TEXT("U") : TEXT("S"));
 
 		for (int32 Index = 0; Index < SF_NumFrequencies - 1; ++Index)
 		{
@@ -2136,8 +2139,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
-		KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoStrip") : TEXT("");
+		KeyString += ShouldKeepShaderDebugInfo(Platform) ? TEXT("_NoStrip") : TEXT("");
 	}
 
 	{

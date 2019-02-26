@@ -146,8 +146,17 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		
 	// TODO: exposes optimisation if sample is normalized.
 	const bool bIsNormalizedSample = false;
+	const bool bDebugForceNormalizeColor = true;
+	const bool bIsNormalizedColor = bIsNormalizedSample || bDebugForceNormalizeColor;
 
-	//Sample.SceneColor *= SafeRcp(Sample.AccumulatedSampleCount);
+
+	const bool bUnchangeAlphaPremultiply = (SrcBasis & COLOR_SPACE_UNPREMULTIPLY) == (DestBasis & COLOR_SPACE_UNPREMULTIPLY);
+	const bool bUnchangeColorSpace = bUnchangeAlphaPremultiply && (SrcBasis & 0x3) == (DestBasis & 0x3);
+
+	if (bDebugForceNormalizeColor)
+	{
+		Sample.SceneColor *= SafeRcp(Sample.AccumulatedSampleCount);
+	}
 
 	// Remove Karis weighting before doing any color transformations.
 	if (SrcBasis & COLOR_SPACE_KARIS_WEIGHTING)
@@ -158,7 +167,7 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 			KarisX = Sample.SceneColor.x;
 		}
 
-		if (!bIsNormalizedSample)
+		if (!bIsNormalizedColor)
 		{
 			KarisX *= SafeRcp(Sample.AccumulatedSampleCount);
 		}
@@ -166,7 +175,11 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		Sample.SceneColor *= KarisHdrWeightInvY(KarisX, FrameExposureScale);
 	}
 	
-	if ((SrcBasis & 0x3) == COLOR_SPACE_YCOCG)
+	if (bUnchangeColorSpace)
+	{
+		// NOP
+	}
+	else if ((SrcBasis & 0x3) == COLOR_SPACE_YCOCG)
 	{
 		Sample.SceneColor.rgb = YCoCg_2_LinearRGB(Sample.SceneColor.rgb);
 	}
@@ -175,35 +188,45 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		Sample.SceneColor.rgb = LCoCg_2_LinearRGB(Sample.SceneColor.rgb);
 	}
 
+	float Alpha = Sample.SceneColor.a * SafeRcp(Sample.AccumulatedSampleCount);
+	if (bIsNormalizedColor)
+	{
+		Alpha = Sample.SceneColor.a;
+	}
+
 	// Premultiplied RGBA
-	if ((SrcBasis & COLOR_SPACE_UNPREMULTIPLY) == (DestBasis & COLOR_SPACE_UNPREMULTIPLY))
+	if (bUnchangeAlphaPremultiply)
 	{
 		// NOP
 	}
 	else if (SrcBasis & COLOR_SPACE_UNPREMULTIPLY)
 	{
-		Sample.SceneColor.rgb *= Sample.SceneColor.a;
+		Sample.SceneColor.rgb *= Alpha;
 	}
 	else //if (DestBasis & COLOR_SPACE_UNPREMULTIPLY)
 	{
-		Sample.SceneColor.rgb *= SafeRcp(Sample.SceneColor.a);
+		Sample.SceneColor.rgb *= SafeRcp(Alpha);
 	}
 
 	float x = Luma4(Sample.SceneColor.rgb);
 	if ((DestBasis & 0x3) == COLOR_SPACE_YCOCG)
 	{
-		Sample.SceneColor.xyz = LinearRGB_2_YCoCg(Sample.SceneColor.rgb);
+		if (!bUnchangeColorSpace)
+			Sample.SceneColor.xyz = LinearRGB_2_YCoCg(Sample.SceneColor.rgb);
+
 		x = Sample.SceneColor.x;
 	}
 	else if ((DestBasis & 0x3) == COLOR_SPACE_LCOCG)
 	{
-		Sample.SceneColor.xyz = LinearRGB_2_LCoCg(Sample.SceneColor.rgb);
+		if (!bUnchangeColorSpace)
+			Sample.SceneColor.xyz = LinearRGB_2_LCoCg(Sample.SceneColor.rgb);
+
 		x = Sample.SceneColor.x;
 	}
 
 	if (DestBasis & COLOR_SPACE_KARIS_WEIGHTING)
 	{
-		if (bIsNormalizedSample)
+		if (bIsNormalizedColor)
 		{
 			Sample.SceneColor *= KarisHdrWeightY(x, FrameExposureScale);
 		}
@@ -213,7 +236,10 @@ FSSFSignalSample TransformSignal(FSSFSignalSample Sample, const uint SrcBasis, c
 		}
 	}
 	
-	//Sample.SceneColor *= Sample.AccumulatedSampleCount;
+	if (bDebugForceNormalizeColor)
+	{
+		Sample.SceneColor *= Sample.AccumulatedSampleCount;
+	}
 
 	return Sample;
 }

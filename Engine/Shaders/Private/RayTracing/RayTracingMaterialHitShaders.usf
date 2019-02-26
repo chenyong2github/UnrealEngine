@@ -23,6 +23,7 @@
 #include "/Engine/Generated/VertexFactory.ush"
 
 #include "/Engine/Private/ShadingCommon.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/SHCommon.ush"
 #include "/Engine/Private/ReflectionEnvironmentShared.ush"
 #include "/Engine/Private/LightmapCommon.ush"
@@ -228,12 +229,14 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 	float3 PB = WorldPositions[2] - WorldPositions[0];
     float3 Unnormalized = cross(PB, PA);
 	float InvWorldArea = rsqrt(dot(Unnormalized, Unnormalized));
+    float3 FaceNormal = Unnormalized * InvWorldArea;
     
     float RayConeCapArea = RayCone.Width * RayCone.Width * (1.0f / (2.0f * PI));
     float3 RayDir = WorldRayDirection();
-    float3 ShadingNormal = normalize(Interpolated.InterpolantsVSToPS.TangentToWorld2);
-    float RaySlope = dot(RayDir, ShadingNormal);
-    GlobalRayCone_TexArea = (UvArea * InvWorldArea * RayConeCapArea) / max(RaySlope * RaySlope, 0.00001f);
+    float RaySlope = dot(RayDir, FaceNormal);
+    const float SmallValue = 1.0 / 16777216.0;
+    GlobalRayCone_TexArea = (UvArea * InvWorldArea * RayConeCapArea) / max(RaySlope * RaySlope, SmallValue);
+    GlobalRayCone_TexArea = max(GlobalRayCone_TexArea, SmallValue);
 #endif
 }
 
@@ -306,21 +309,22 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 		#endif
 	}
 	#endif
-	//Payload.Opacity = Opacity;
+	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
     Payload.ShadingModelID = GetShadingModelID();
 
-	// TODO - support different blending modes in path tracer?
-	// uint MaterialBlendingMode = 0;
-// #if MATERIALBLENDING_ALPHACOMPOSITE
-	// MaterialBlendingMode = RT_MATERIAL_BLEND_MODE_ALPHA_COMPOSITE;
-// #elif MATERIALBLENDING_TRANSLUCENT
-	// MaterialBlendingMode = RT_MATERIAL_BLEND_MODE_TRANSLUCENT;
-// #elif MATERIALBLENDING_ADDITIVE
-	// MaterialBlendingMode = RT_MATERIAL_BLEND_MODE_ADDITIVE;
-// #elif MATERIALBLENDING_MODULATE
-	// MaterialBlendingMode = RT_MATERIAL_BLEND_MODE_MODULATE;
-// #endif
-	// Payload.BlendingMode = MaterialBlendingMode;
+ #if MATERIALBLENDING_ALPHACOMPOSITE
+	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+ #elif MATERIALBLENDING_TRANSLUCENT
+	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+ #elif MATERIALBLENDING_ADDITIVE
+	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
+ #elif MATERIALBLENDING_MODULATE
+	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
+#else
+	uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+#endif
+
+	Payload.BlendingMode = MaterialBlendingMode;
 
 	Payload.HitT = RayTCurrent();
 #if !MATERIAL_TWOSIDED

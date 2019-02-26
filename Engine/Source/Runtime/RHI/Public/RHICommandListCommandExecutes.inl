@@ -599,7 +599,7 @@ void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)
 void FRHICommandSetRayTracingHitGroup::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetRayTracingHitGroup);
-	INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers);
+	INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, UserData);
 }
 
 #endif // RHI_RAYTRACING
@@ -608,6 +608,28 @@ void FRHICommandUpdateTextureReference::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(UpdateTextureReference);
 	INTERNAL_DECORATOR(RHIUpdateTextureReference)(TextureRef, NewTexture);
+}
+
+void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(UpdateRHIResources);
+	for (int32 Idx = 0; Idx < Num; ++Idx)
+	{
+		FRHIResourceUpdateInfo& Info = UpdateInfos[Idx];
+		switch (Info.Type)
+		{
+		case FRHIResourceUpdateInfo::UT_VertexBufferSRV:
+			GDynamicRHI->RHIUpdateShaderResourceView(
+				Info.VertexBufferSRV.SRV,
+				Info.VertexBufferSRV.VertexBuffer,
+				Info.VertexBufferSRV.Stride,
+				Info.VertexBufferSRV.Format);
+			break;
+		default:
+			// Unrecognized type, do nothing
+			break;
+		}
+	}
 }
 
 void FRHICommandBeginScene::Execute(FRHICommandListBase& CmdList)

@@ -159,6 +159,10 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 
 		if (GGPUSceneUploadEveryFrame || Scene.GPUScene.bUpdateAllPrimitives)
 		{
+			for (int32 Index : Scene.GPUScene.PrimitivesToUpdate)
+			{
+				Scene.GPUScene.PrimitivesMarkedToUpdate[Index] = false;
+			}
 			Scene.GPUScene.PrimitivesToUpdate.Reset();
 
 			for (int32 i = 0; i < Scene.Primitives.Num(); i++)
@@ -196,6 +200,7 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 
 			for (int32 Index : Scene.GPUScene.PrimitivesToUpdate)
 			{
+				// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 				if (Index < Scene.PrimitiveSceneProxies.Num())
 				{
 					FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[Index];
@@ -204,13 +209,8 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 					FPrimitiveSceneShaderData PrimitiveSceneData(PrimitiveSceneProxy);
 					PrimitivesUploadBuilder.Add(Index, &PrimitiveSceneData.Data[0]);
 				}
-				else
-				{
-					// Dirty index belongs to a primitive that is now out of bounds
-					// Upload identity data to the dirty index to expose any incorrect shader indexing, even though no primitive should be referencing it
-					FPrimitiveSceneShaderData PrimitiveSceneData;
-					PrimitivesUploadBuilder.Add(Index, &PrimitiveSceneData.Data[0]);
-				}
+
+				Scene.GPUScene.PrimitivesMarkedToUpdate[Index] = false;
 			}
 
 			if (bResizedPrimitiveData)
@@ -247,6 +247,7 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 
 				for (int32 Index : Scene.GPUScene.PrimitivesToUpdate)
 				{
+					// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 					if (Index < Scene.PrimitiveSceneProxies.Num())
 					{
 						FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[Index];
@@ -353,7 +354,18 @@ void UploadDynamicPrimitiveShaderDataForView(FRHICommandList& RHICmdList, FScene
 void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 {
 	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
-	{
-		Scene.GPUScene.PrimitivesToUpdate.Add(PrimitiveId);
+	{ 
+		if (PrimitiveId + 1 > Scene.GPUScene.PrimitivesMarkedToUpdate.Num())
+		{
+			const int32 NewSize = Align(PrimitiveId + 1, 64);
+			Scene.GPUScene.PrimitivesMarkedToUpdate.Add(0, NewSize - Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
+		}
+
+		// Make sure we aren't updating same primitive multiple times.
+		if (!Scene.GPUScene.PrimitivesMarkedToUpdate[PrimitiveId])
+		{
+			Scene.GPUScene.PrimitivesToUpdate.Add(PrimitiveId);
+			Scene.GPUScene.PrimitivesMarkedToUpdate[PrimitiveId] = true;
+		}
 	}
 }

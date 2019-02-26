@@ -977,7 +977,6 @@ public:
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
-	FLinearColor LightColor;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
 	float VolumetricScatteringIntensity;
@@ -1012,6 +1011,15 @@ public:
 	FRWBuffer SkyLightMipTreePdfNegZ;
 	FRWBuffer SolidAnglePdf;
 #endif
+
+	void SetLightColor(const FLinearColor& InColor)
+	{
+		LightColor = InColor;
+	}
+	FLinearColor GetEffectiveLightColor() const;
+
+private:
+	FLinearColor LightColor;
 };
 
 
@@ -1190,8 +1198,11 @@ public:
 		return false;
 	}
 
-	virtual void SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect) const
+	// @param OutScissorRect the scissor rect used if one is set
+	// @return whether a scissor rect is set
+	virtual bool SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect, FIntRect* OutScissorRect = nullptr) const
 	{
+		return false;
 	}
 
 	virtual bool ShouldCreateRayTracedCascade(ERHIFeatureLevel::Type Type, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const { return false; }
@@ -1234,6 +1245,8 @@ public:
 	inline bool CastsStaticShadow() const { return bCastStaticShadow; }
 	inline bool CastsTranslucentShadows() const { return bCastTranslucentShadows; }
 	inline bool CastsVolumetricShadow() const { return bCastVolumetricShadow; }
+	inline bool CastsRaytracedShadow() const { return bCastRaytracedShadow; }
+	inline bool AffectReflection() const { return bAffectReflection; }
 	inline bool CastsShadowsFromCinematicObjectsOnly() const { return bCastShadowsFromCinematicObjectsOnly; }
 	inline bool CastsModulatedShadows() const { return bCastModulatedShadows; }
 	inline const FLinearColor& GetModulatedShadowColor() const { return ModulatedShadowColor; }
@@ -1379,6 +1392,12 @@ protected:
 	const uint8 bCastShadowsFromCinematicObjectsOnly : 1;
 
 	const uint8 bForceCachedShadowsForMovablePrimitives : 1;
+
+	/** Whether the light shadows are computed with shadow-mapping or ray-tracing (when available). */
+	const uint8 bCastRaytracedShadow : 1;
+
+	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
+	const uint8 bAffectReflection : 1;
 
 	/** Whether the light affects translucency or not.  Disabling this can save GPU time when there are many small lights. */
 	const uint8 bAffectTranslucentLighting : 1;
@@ -2645,6 +2664,11 @@ struct FLODMask
 	{
 		DitheredLODIndices[SampleIndex] = (int8)LODIndex;
 	}
+	void ClampToFirstLOD(int8 FirstLODIdx)
+	{
+		DitheredLODIndices[0] = FMath::Max(DitheredLODIndices[0], FirstLODIdx);
+		DitheredLODIndices[1] = FMath::Max(DitheredLODIndices[1], FirstLODIdx);
+	}
 	bool ContainsLOD(int32 LODIndex) const
 	{
 		return DitheredLODIndices[0] == LODIndex || DitheredLODIndices[1] == LODIndex;
@@ -2667,7 +2691,7 @@ struct FLODMask
 		return DitheredLODIndices[0] != DitheredLODIndices[1];
 	}
 };
-FLODMask ENGINE_API ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
+FLODMask ENGINE_API ComputeLODForMeshes(const TArray<class FStaticMeshBatchRelevance>& StaticMeshRelevances, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, int8 CurFirstLODIdx, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
 FLODMask ENGINE_API ComputeFastLODForMeshes(const TArray<float>& ScreenSizes, const FSceneView& View, const FVector4& Origin, float SphereRadius, int32 ForcedLODLevel, float& OutScreenRadiusSquared, float ScreenSizeScale = 1.0f, bool bDitheredLODTransition = true);
 
 class FSharedSamplerState : public FRenderResource

@@ -2857,7 +2857,7 @@ protected:
 
 	virtual int32 ReflectionVector() override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -2870,7 +2870,7 @@ protected:
 
 	virtual int32 ReflectionAboutCustomWorldNormal(int32 CustomWorldNormal, int32 bNormalizeCustomWorldNormal) override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -2892,7 +2892,7 @@ protected:
 
 	virtual int32 CameraVector() override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}

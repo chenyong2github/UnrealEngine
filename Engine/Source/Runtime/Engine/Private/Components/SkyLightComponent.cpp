@@ -59,6 +59,14 @@ FAutoConsoleVariableRef CVarUpdateSkylightsEveryFrame(
 	ECVF_Default
 	);
 
+float GSkylightIntensityMultiplier = 1.0f;
+FAutoConsoleVariableRef CVarSkylightIntensityMultiplier(
+	TEXT("r.SkylightIntensityMultiplier"),
+	GSkylightIntensityMultiplier,
+	TEXT("Intensity scale on Stationary and Movable skylights.  This is useful to control overall lighting contrast in dynamically lit games with scalability levels which disable Ambient Occlusion.  For example, if medium quality disables SSAO and DFAO, reduce skylight intensity."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
 constexpr EPixelFormat SKYLIGHT_CUBEMAP_FORMAT = PF_FloatRGBA;
 
 void FSkyTextureCubeResource::InitRHI()
@@ -148,6 +156,11 @@ void FSkyLightSceneProxy::Initialize(
 #endif
 }
 
+FLinearColor FSkyLightSceneProxy::GetEffectiveLightColor() const
+{
+	return LightColor * GSkylightIntensityMultiplier;
+}
+
 FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightComponent)
 	: LightComponent(InLightComponent)
 	, ProcessedTexture(InLightComponent->ProcessedSkyTexture)
@@ -158,7 +171,6 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, bHasStaticLighting(InLightComponent->HasStaticLighting())
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
 	, OcclusionCombineMode(InLightComponent->OcclusionCombineMode)
-	, LightColor(FLinearColor(InLightComponent->LightColor) * InLightComponent->Intensity)
 	, IndirectLightingIntensity(InLightComponent->IndirectLightingIntensity)
 	, VolumetricScatteringIntensity(FMath::Max(InLightComponent->VolumetricScatteringIntensity, 0.0f))
 	, OcclusionMaxDistance(InLightComponent->OcclusionMaxDistance)
@@ -169,6 +181,7 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 #if RHI_RAYTRACING
 	, IsDirtyImportanceSamplingData(true)
 #endif
+	, LightColor(FLinearColor(InLightComponent->LightColor) * InLightComponent->Intensity)
 {
 	const FSHVectorRGB3* InIrradianceEnvironmentMap = &InLightComponent->IrradianceEnvironmentMap;
 	const FSHVectorRGB3* BlendDestinationIrradianceEnvironmentMap = &InLightComponent->BlendDestinationIrradianceEnvironmentMap;
@@ -376,7 +389,7 @@ void USkyLightComponent::UpdateLimitedRenderingStateFast()
 		ENQUEUE_RENDER_COMMAND(FFastUpdateSkyLightCommand)(
 			[LightSceneProxy, InLightColor, InIndirectLightingIntensity, InVolumetricScatteringIntensity](FRHICommandList& RHICmdList)
 			{
-				LightSceneProxy->LightColor = InLightColor;
+				LightSceneProxy->SetLightColor(InLightColor);
 				LightSceneProxy->IndirectLightingIntensity = InIndirectLightingIntensity;
 				LightSceneProxy->VolumetricScatteringIntensity = InVolumetricScatteringIntensity;
 			});

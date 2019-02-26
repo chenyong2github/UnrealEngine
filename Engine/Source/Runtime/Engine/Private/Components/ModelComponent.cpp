@@ -413,7 +413,7 @@ void UModelComponent::SelectAllSurfaces()
 }
 #endif // WITH_EDITOR
 
-void UModelComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UModelComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	if( Model )
 	{
@@ -472,10 +472,10 @@ void UModelComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& Lev
 					UTexture2D* Texture2D = Cast<UTexture2D>(Textures[TextureIndex]);
 					if (!Texture2D) continue;
 
-					FStreamingTexturePrimitiveInfo& StreamingTexture = *new(OutStreamingTextures) FStreamingTexturePrimitiveInfo;
+					FStreamingRenderAssetPrimitiveInfo& StreamingTexture = *new(OutStreamingRenderAssets) FStreamingRenderAssetPrimitiveInfo;
 					StreamingTexture.Bounds = SurfaceBoundingSphere;
 					StreamingTexture.TexelFactor = TexelFactor;
-					StreamingTexture.Texture = Texture2D;
+					StreamingTexture.RenderAsset = Texture2D;
 				}
 			}
 		}

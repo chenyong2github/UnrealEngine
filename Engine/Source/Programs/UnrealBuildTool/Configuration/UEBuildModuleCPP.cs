@@ -64,12 +64,14 @@ namespace UnrealBuildTool
 		{
 			base.GetReferencedDirectories(Directories);
 
-			if(SourceDirectories == null)
+			if(!Rules.bUsePrecompiled)
 			{
-				throw new BuildException("GetReferencedDirectories() should not be called before building.");
+				if(SourceDirectories == null)
+				{
+					throw new BuildException("GetReferencedDirectories() should not be called before building.");
+				}
+				Directories.UnionWith(SourceDirectories);
 			}
-
-			Directories.UnionWith(SourceDirectories);
 		}
 
 		/// <summary>
@@ -490,6 +492,11 @@ namespace UnrealBuildTool
 			if(InputFiles.RCFiles.Count > 0)
 			{
 				CppCompileEnvironment ResourceCompileEnvironment = new CppCompileEnvironment(BinaryCompileEnvironment);
+				if(Binary != null)
+				{
+					// @todo: This should be in some Windows code somewhere...
+					ResourceCompileEnvironment.Definitions.Add("ORIGINAL_FILE_NAME=\"" + Binary.OutputFilePaths[0].GetFileName() + "\"");
+				}
 				LinkInputFiles.AddRange(ToolChain.CompileRCFiles(ResourceCompileEnvironment, InputFiles.RCFiles, IntermediateDirectory, Makefile.Actions).ObjectFiles);
 			}
 
@@ -500,7 +507,7 @@ namespace UnrealBuildTool
 
 				PrecompiledManifest Manifest = new PrecompiledManifest();
 				Manifest.OutputFiles.AddRange(LinkInputFiles.Select(x => x.Location));
-				Manifest.Write(PrecompiledManifestLocation);
+				Manifest.WriteIfModified(PrecompiledManifestLocation);
 			}
 
 			return LinkInputFiles;
@@ -636,7 +643,18 @@ namespace UnrealBuildTool
 			List<FileItem> NormalFiles = new List<FileItem>();
 			List<FileItem> AdaptiveFiles = new List<FileItem>();
 
-			bool bAdaptiveUnityDisablesPCH = (Target.bAdaptiveUnityDisablesPCH && Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs);
+			bool bAdaptiveUnityDisablesPCH = false;
+			if(Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs)
+			{
+				if(Rules.bTreatAsEngineModule || Rules.PrivatePCHHeaderFile == null)
+				{
+					bAdaptiveUnityDisablesPCH = Target.bAdaptiveUnityDisablesPCH;
+				}
+				else
+				{
+					bAdaptiveUnityDisablesPCH = Target.bAdaptiveUnityDisablesPCHForProject;
+				}
+			}
 
 			if ((Target.bAdaptiveUnityDisablesOptimizations || bAdaptiveUnityDisablesPCH || Target.bAdaptiveUnityCreatesDedicatedPCH) && !Target.bStressTestUnity)
 			{

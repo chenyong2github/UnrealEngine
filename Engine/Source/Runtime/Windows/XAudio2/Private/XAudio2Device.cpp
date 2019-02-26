@@ -62,6 +62,10 @@ const float* FXAudioDeviceProperties::OutputMixMatrix = NULL;
 XAUDIO2_DEVICE_DETAILS FXAudioDeviceProperties::DeviceDetails;
 #endif	//XAUDIO_SUPPORTS_DEVICE_DETAILS
 
+#if PLATFORM_WINDOWS
+HMODULE FXAudioDeviceProperties::XAudio2Dll = nullptr;
+#endif
+
 /*------------------------------------------------------------------------------------
 	FAudioDevice Interface.
 ------------------------------------------------------------------------------------*/
@@ -111,13 +115,22 @@ bool FXAudio2Device::InitializeHardware()
 	// Load the xaudio2 library and keep a handle so we can free it on teardown
 	// Note: windows internally ref-counts the library per call to load library so 
 	// when we call FreeLibrary, it will only free it once the refcount is zero
-	DeviceProperties->XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
+	// It's important that this dll stay around for the duration of the application's lifetime;
+	// attempting to free the library and losing our final ref when we change devices still exhibits the bad behavior.
 
-	// returning null means we failed to load XAudio2, which means everything will fail
-	if (DeviceProperties->XAudio2Dll == nullptr)
+	// Work around a known XAudio 2.7 issue: https://blogs.msdn.microsoft.com/chuckw/2015/10/09/known-issues-xaudio-2-7/
+	if (FXAudioDeviceProperties::XAudio2Dll == nullptr)
 	{
-		UE_LOG(LogInit, Warning, TEXT("Failed to load XAudio2 dll"));
-		return false;
+		UE_LOG(LogInit, Verbose, TEXT("Loading XAudio2 dll"));
+
+		FXAudioDeviceProperties::XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
+
+		// returning null means we failed to load XAudio2, which means everything will fail
+		if (FXAudioDeviceProperties::XAudio2Dll == nullptr)
+		{
+			UE_LOG(LogInit, Error, TEXT("Failed to load XAudio2 dll"));
+			return false;
+		}
 	}
 #endif	//PLATFORM_64BITS
 #endif	//PLATFORM_WINDOWS
@@ -294,7 +307,7 @@ void FXAudio2Device::TeardownHardware()
 void FXAudio2Device::UpdateHardware()
 {
 	// If the audio device changed, we need to tear down and restart the audio engine state
-	if (DeviceProperties->DidAudioDeviceChange())
+	if (DeviceProperties && DeviceProperties->DidAudioDeviceChange())
 	{
 		//Cache the current audio clock.
 		CachedAudioClockStartTime = GetAudioClock();
@@ -350,6 +363,19 @@ bool FXAudio2Device::HasCompressedAudioInfoClass(USoundWave* SoundWave)
 class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave* SoundWave)
 {
 	check(SoundWave);
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+	if (SoundWave->IsStreaming() && SoundWave->NumChannels <= 2 )
+	{
+		ICompressedAudioInfo* CompressedInfo = new FXMAAudioInfo();
+		if (!CompressedInfo)
+		{
+			UE_LOG(LogAudio, Error, TEXT("Failed to create new FXMAAudioInfo for streaming SoundWave %s: out of memory."), *SoundWave->GetName());
+			return nullptr;
+		}
+		return CompressedInfo;
+	}
+#endif
 
 	if (SoundWave->IsStreaming())
 	{

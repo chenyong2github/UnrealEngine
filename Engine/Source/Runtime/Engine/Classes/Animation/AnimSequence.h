@@ -15,7 +15,15 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequenceBase.h"
+
+#include "Async/MappedFileHandle.h"
+#include "HAL/PlatformFilemanager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "Misc/Paths.h"
+#include "Serialization/BulkData.h"
+
 #include "AnimSequence.generated.h"
+
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -305,6 +313,9 @@ struct ENGINE_API FRequestAnimCompressionParams
 	// Should we attempt to do framestripping (removing every other frame from raw animation tracks)
 	bool bPerformFrameStripping;
 
+	// If false we only perform frame stripping on even numbered frames (as a quality measure)
+	bool bPerformFrameStrippingOnOddNumberedFrames;
+
 	// Compression context
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
@@ -408,6 +419,185 @@ struct ENGINE_API FCompressedSegment
 			<< Segment.TranslationCompressionFormat << Segment.RotationCompressionFormat << Segment.ScaleCompressionFormat;
 	}
 };
+
+
+template<uint32 Alignment = DEFAULT_ALIGNMENT>
+class TMaybeMappedAllocator
+{
+public:
+
+	enum { NeedsElementType = false };
+	enum { RequireRangeCheck = true };
+
+	class ForAnyElementType
+	{
+	public:
+
+		/** Default constructor. */
+		ForAnyElementType()
+			: Data(nullptr)
+			, MappedHandle(nullptr)
+			, MappedRegion(nullptr)
+		{}
+
+		/**
+		 * Moves the state of another allocator into this one.
+		 * Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
+		 * @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
+		 */
+		void MoveToEmpty(ForAnyElementType& Other)
+		{
+			checkSlow(this != &Other);
+
+			Reset();
+
+			Data = Other.Data;
+			Other.Data = nullptr;
+
+			MappedRegion = Other.MappedRegion;
+			Other->MappedRegion = nullptr;
+
+			MappedHandle = Other.MappedHandle;
+			Other->MappedHandle = nullptr;
+		}
+
+		/** Destructor. */
+		~ForAnyElementType()
+		{
+			Reset();
+		}
+
+		// FContainerAllocatorInterface
+		FScriptContainerElement* GetAllocation() const
+		{
+			return Data;
+		}
+		void ResizeAllocation(
+			int32 PreviousNumElements,
+			int32 NumElements,
+			SIZE_T NumBytesPerElement
+		)
+		{
+			// Avoid calling FMemory::Realloc( nullptr, 0 ) as ANSI C mandates returning a valid pointer which is not what we want.
+			if (Data || NumElements)
+			{
+				check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
+					//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
+				Data = (FScriptContainerElement*)FMemory::Realloc(Data, NumElements*NumBytesPerElement, Alignment);
+			}
+		}
+		int32 CalculateSlackReserve(int32 NumElements, int32 NumBytesPerElement) const
+		{
+			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
+			return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, true, Alignment);
+		}
+		int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+		{
+			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
+			return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
+		}
+		int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+		{
+			check(!MappedHandle && !MappedRegion); // this could be supported, but it probably is never what you want, so we will just assert.
+			return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, true, Alignment);
+		}
+
+		SIZE_T GetAllocatedSize(int32 NumAllocatedElements, SIZE_T NumBytesPerElement) const
+		{
+			return NumAllocatedElements * NumBytesPerElement;
+		}
+
+		bool HasAllocation()
+		{
+			return !!Data;
+		}
+
+		void AcceptFileMapping(IMappedFileHandle* InMappedHandle, IMappedFileRegion* InMappedRegion, void *MallocPtr)
+		{
+			check(!MappedHandle && !Data); // we could support stuff like this, but that usually isn't what we want for streamlined loading
+			Reset(); // just in case
+			if (InMappedHandle || InMappedRegion)
+			{
+				MappedHandle = InMappedHandle;
+				MappedRegion = InMappedRegion;
+				Data = (FScriptContainerElement*)MappedRegion->GetMappedPtr(); //@todo mapped files should probably be const-correct
+				check(IsAligned(Data, FPlatformProperties::GetMemoryMappingAlignment()));
+			}
+			else
+			{
+				Data = (FScriptContainerElement*)MallocPtr;
+			}
+		}
+
+		bool IsMapped() const
+		{
+			return MappedRegion || MappedHandle;
+		}
+	private:
+
+		FScriptContainerElement* Data;
+		IMappedFileHandle* MappedHandle;
+		IMappedFileRegion* MappedRegion;
+
+		void Reset()
+		{
+			if (MappedRegion || MappedHandle)
+			{
+				delete MappedRegion;
+				delete MappedHandle;
+				MappedRegion = nullptr;
+				MappedHandle = nullptr;
+				Data = nullptr; // make sure we don't try to free this pointer
+			}
+			if (Data)
+			{
+				FMemory::Free(Data);
+				Data = nullptr;
+			}
+		}
+
+
+		ForAnyElementType(const ForAnyElementType&);
+		ForAnyElementType& operator=(const ForAnyElementType&);
+	};
+
+	template<typename ElementType>
+	class ForElementType : public ForAnyElementType
+	{
+	public:
+
+		/** Default constructor. */
+		ForElementType()
+		{}
+
+		ElementType* GetAllocation() const
+		{
+			return (ElementType*)ForAnyElementType::GetAllocation();
+		}
+	};
+};
+
+template<typename T, uint32 Alignment = DEFAULT_ALIGNMENT>
+class TMaybeMappedArray : public TArray<T, TMaybeMappedAllocator<Alignment>>
+{
+public:
+	TMaybeMappedArray()
+	{
+	}
+	TMaybeMappedArray(TMaybeMappedArray&&) = default;
+	TMaybeMappedArray(const TMaybeMappedArray&) = default;
+	TMaybeMappedArray& operator=(TMaybeMappedArray&&) = default;
+	TMaybeMappedArray& operator=(const TMaybeMappedArray&) = default;
+
+	void AcceptOwnedBulkDataPtr(FOwnedBulkDataPtr* OwnedPtr, int32 Num)
+	{
+		this->ArrayNum = Num;
+		this->ArrayMax = Num;
+		this->AllocatorInstance.AcceptFileMapping(OwnedPtr->GetMappedHandle(), OwnedPtr->GetMappedRegion(), (void*)OwnedPtr->GetPointer());
+		OwnedPtr->RelinquishOwnership();
+	}
+};
+
 
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
 class ENGINE_API UAnimSequence : public UAnimSequenceBase
@@ -542,7 +732,13 @@ public:
 	 * ByteStream for compressed animation data.
 	 * The memory layout is dependent on the algorithm used to compress the anim sequence.
 	 */
+#if WITH_EDITOR
 	TArray<uint8> CompressedByteStream;
+	FByteBulkData OptionalBulk;
+#else
+	TMaybeMappedArray<uint8> CompressedByteStream;
+#endif
+
 
 	/**
 	 * Array of segment descriptors for this compressed anim sequence.

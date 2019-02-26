@@ -23,77 +23,81 @@ void FNiagaraStackFunctionInputCondition::Initialize(UNiagaraScript* InScript,
 	FunctionCallNode = InFunctionCallNode;
 }
 
-void FNiagaraStackFunctionInputCondition::Refresh(const FString* Condition)
+void FNiagaraStackFunctionInputCondition::Refresh(const FNiagaraInputConditionMetadata& InputCondition, FText& OutErrorMessage)
 {
-	TargetValueData.Empty();
+	TargetValuesData.Empty();
 	InputBinder.Reset();
 
-	if (Condition == nullptr || Condition->IsEmpty())
+	if (InputCondition.InputName == "")
 	{
 		return;
 	}
 
-	FString InputName;
-	FString TargetValue;
-	int32 EqualsIndex = Condition->Find("=");
-	if (EqualsIndex == INDEX_NONE)
+	TArray<FString> TargetValues(InputCondition.TargetValues);
+	if (TargetValues.Num() == 0)
 	{
-		// If the condition doesn't have an equals sign the target value is assumed to be a bool value of true.
-		InputName = *Condition;
-		TargetValue = "true";
-	}
-	else
-	{
-		InputName = Condition->Left(EqualsIndex);
-		TargetValue = Condition->RightChop(EqualsIndex + 1);
+		// If no target values were specified it's assumed that the input is a bool and that the target value is "true".
+		TargetValues.Add("true");
 	}
 
-	FText ErrorMessage;
-	if (InputBinder.TryBind(Script, DependentScripts, OwningEmitterUniqueName, FunctionCallNode, *InputName, TOptional<FNiagaraTypeDefinition>(), true, ErrorMessage))
+	if (InputBinder.TryBind(Script, DependentScripts, OwningEmitterUniqueName, FunctionCallNode, InputCondition.InputName, TOptional<FNiagaraTypeDefinition>(), true, OutErrorMessage))
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(InputBinder.GetInputType());
 		if (TypeEditorUtilities.IsValid())
 		{
 			FNiagaraVariable TempVariable(InputBinder.GetInputType(), "Temp");
-			bool bValueParsed = false;
+			for (FString& TargetValue : TargetValues)
+			{
+				bool bValueParsed = true;
+				if (TypeEditorUtilities->CanHandlePinDefaults())
+				{
+					bValueParsed = TypeEditorUtilities->SetValueFromPinDefaultString(TargetValue, TempVariable);
+				}
+				if (bValueParsed == false && TypeEditorUtilities->CanSetValueFromDisplayName())
+				{
+					bValueParsed = TypeEditorUtilities->SetValueFromDisplayName(FText::FromString(TargetValue), TempVariable);
+				}
 
-			if (TypeEditorUtilities->CanHandlePinDefaults())
-			{
-				bValueParsed = TypeEditorUtilities->SetValueFromPinDefaultString(TargetValue, TempVariable);
-			}
-			if (bValueParsed == false && TypeEditorUtilities->CanSetValueFromDisplayName())
-			{
-				bValueParsed = TypeEditorUtilities->SetValueFromDisplayName(FText::FromString(TargetValue), TempVariable);
-			}
-
-			if (bValueParsed)
-			{
-				TargetValueData.AddUninitialized(InputBinder.GetInputType().GetSize());
-				TempVariable.CopyTo(TargetValueData.GetData());
-			}
-			else
-			{
-				ErrorMessage = FText::Format(LOCTEXT("ParseValueError", "Target value {0} is not a valid for type {1}"), FText::FromString(TargetValue), InputBinder.GetInputType().GetNameText());
-				InputBinder.Reset();
+				if (bValueParsed)
+				{
+					TArray<uint8>& TargetValueData = TargetValuesData.AddDefaulted_GetRef();
+					TargetValueData.AddUninitialized(InputBinder.GetInputType().GetSize());
+					TempVariable.CopyTo(TargetValueData.GetData());
+				}
+				else
+				{
+					OutErrorMessage = FText::Format(LOCTEXT("ParseValueError", "Target value {0} is not a valid for type {1}"),
+						FText::FromString(TargetValue), InputBinder.GetInputType().GetNameText());
+					InputBinder.Reset();
+					break;
+				}
 			}
 		}
-	}
-
-	if(ErrorMessage.IsEmpty() == false)
-	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("Input condition failed to bind %s=%s.  Message: %s"), *InputName, *TargetValue, *ErrorMessage.ToString());
+		else
+		{
+			OutErrorMessage = FText::Format(LOCTEXT("TypeEditorUtilitiesNotFoundError", "No type editor utilites registered for type {0}.  Can not parse target input condition {1}."),
+				InputBinder.GetInputType().GetNameText(), FText::FromName(InputCondition.InputName));
+			InputBinder.Reset();
+		}
 	}
 }
 
 bool FNiagaraStackFunctionInputCondition::IsValid() const
 {
-	return InputBinder.IsValid() && (TargetValueData.Num() > 0);
+	return InputBinder.IsValid() && TargetValuesData.Num() > 0;
 }
 
 bool FNiagaraStackFunctionInputCondition::GetConditionIsEnabled() const
 {
-	return IsValid() && FMemory::Memcmp(TargetValueData.GetData(), InputBinder.GetData().GetData(), TargetValueData.Num()) == 0;
+	if (IsValid())
+	{
+		TArray<uint8> InputValue = InputBinder.GetData();
+		bool bMatchFound = TargetValuesData.FindByPredicate([&InputValue](const TArray<uint8>& TargetValueData) {
+			return FMemory::Memcmp(TargetValueData.GetData(), InputValue.GetData(), TargetValueData.Num()) == 0; }) != nullptr;
+		return bMatchFound;
+	}
+	return false;
 }
 
 bool FNiagaraStackFunctionInputCondition::CanSetConditionIsEnabled() const

@@ -11,13 +11,13 @@ TextureStreamingHelpers.h: Definitions of classes used for texture streaming.
 #include "HAL/IConsoleManager.h"
 #include "Misc/MemStack.h"
 
-class UTexture2D;
+class UStreamableRenderAsset;
 
 /**
  * Streaming stats
  */
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Texture Streaming Game Thread Update Time"), STAT_TextureStreaming_GameThreadUpdateTime,STATGROUP_Streaming, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Renderable Asset Streaming Game Thread Update Time"), STAT_RenderAssetStreaming_GameThreadUpdateTime,STATGROUP_Streaming, );
 
 
 // Streaming Details
@@ -34,7 +34,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogContentStreaming, Log, All);
 
 extern float GLightmapStreamingFactor;
 extern float GShadowmapStreamingFactor;
-extern bool GNeverStreamOutTextures;
+extern bool GNeverStreamOutRenderAssets;
 
 //@DEBUG:
 // Set to 1 to log all dynamic component notifications
@@ -60,13 +60,13 @@ extern TAutoConsoleVariable<int32> CVarStreamingNumStaticComponentsProcessedPerF
 extern TAutoConsoleVariable<int32> CVarStreamingDefragDynamicBounds;
 extern TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity;
 
-struct FTextureStreamingSettings
+struct FRenderAssetStreamingSettings
 {
-	FTextureStreamingSettings() { Update(); }
+	FRenderAssetStreamingSettings() { Update(); }
 	void Update();
 
-	FORCEINLINE bool operator ==(const FTextureStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FTextureStreamingSettings)) == 0; }
-	FORCEINLINE bool operator !=(const FTextureStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FTextureStreamingSettings)) != 0; }
+	FORCEINLINE bool operator ==(const FRenderAssetStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FRenderAssetStreamingSettings)) == 0; }
+	FORCEINLINE bool operator !=(const FRenderAssetStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FRenderAssetStreamingSettings)) != 0; }
 
 
 	float MaxEffectiveScreenSize;
@@ -85,10 +85,11 @@ struct FTextureStreamingSettings
 	bool bUsePerTextureBias;
 	bool bUseMaterialData;
 	int32 MinMipForSplitRequest;
-	float MinLevelTextureScreenSize;
+	float MinLevelRenderAssetScreenSize;
 	float MaxTextureUVDensity;
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
+	bool bMipCalculationEnablePerLevelList;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;
@@ -98,7 +99,7 @@ protected:
 };
 
 typedef TArray<int32, TMemStackAllocator<> > FStreamingRequests;
-typedef TArray<const UTexture2D*, TInlineAllocator<12> > FRemovedTextureArray;
+typedef TArray<const UStreamableRenderAsset*, TInlineAllocator<12> > FRemovedRenderAssetArray;
 
 #define NUM_BANDWIDTHSAMPLES 512
 #define NUM_LATENCYSAMPLES 512
@@ -108,52 +109,50 @@ typedef TArray<const UTexture2D*, TInlineAllocator<12> > FRemovedTextureArray;
 #define MAX_MIPDELTA			5.0f
 #define MAX_LASTRENDERTIME		90.0f
 
-class UTexture2D;
 class UPrimitiveComponent;
-class FTextureBoundsVisibility;
-class FDynamicTextureInstanceManager;
+class FDynamicRenderAssetInstanceManager;
 template<typename T>
 class FAsyncTask;
-class FAsyncTextureStreamingTask;
+class FRenderAssetStreamingMipCalcTask;
 
 
-struct FStreamingTexture;
+struct FStreamingRenderAsset;
 struct FStreamingContext;
 struct FStreamingHandlerTextureBase;
 struct FTexturePriority;
 
-struct FTextureStreamingStats
+struct FRenderAssetStreamingStats
 {
-	FTextureStreamingStats() { Reset(); }
+	FRenderAssetStreamingStats() { Reset(); }
 
-	void Reset() { FMemory::Memzero(this, sizeof(FTextureStreamingStats)); }
+	void Reset() { FMemory::Memzero(this, sizeof(FRenderAssetStreamingStats)); }
 
 	void Apply();
 
-	int64 TexturePool;
+	int64 RenderAssetPool;		// Streaming pool size in bytes given by RHI, usally some percentage of available VRAM
 	// int64 StreamingPool;
-	int64 UsedStreamingPool;
+	int64 UsedStreamingPool;	// Estimated memory in bytes the streamer actually use
 
-	int64 SafetyPool;
-	int64 TemporaryPool;
-	int64 StreamingPool;
-	int64 NonStreamingMips;
+	int64 SafetyPool;			// Memory margin in bytes we want to left unused
+	int64 TemporaryPool;		// Pool size in bytes for staging resources
+	int64 StreamingPool;		// Estimated memory in bytes available for streaming after subtracting non-streamable memory and safety pool
+	int64 NonStreamingMips;		// Estimated memory in bytes the streamer deemed non-streamable
 
-	int64 RequiredPool;
-	int64 VisibleMips;
-	int64 HiddenMips;
-	int64 ForcedMips;
-	int64 UnkownRefMips;
-	int64 CachedMips;
+	int64 RequiredPool;			// Estimated memory in bytes the streamer would use if there was no limit
+	int64 VisibleMips;			// Estimated memory in bytes used by visible assets
+	int64 HiddenMips;			// Estimated memory in bytes used by hidden (e.g. culled by view frustum or occlusion) assets
+	int64 ForcedMips;			// Estimated memory in bytes used by forced-fully-load assets
+	int64 UnkownRefMips;		// Estimated memory in bytes used by unknown-ref-heuristic assets
+	int64 CachedMips;			// Estimated memory in bytes used by the streamer for caching
 
-	int64 WantedMips;
-	int64 NewRequests; // How much texture memory is required by new requests.
-	int64 PendingRequests; // How much texture memory is waiting to be loaded for previous requests.
-	int64 MipIOBandwidth;
+	int64 WantedMips;			// Estimated memory in bytes would be resident if there was no caching
+	int64 NewRequests;			// Estimated memory in bytes required by new requests (TODO)
+	int64 PendingRequests;		// Estimated memory in bytes waiting to be loaded for previous requests
+	int64 MipIOBandwidth;		// Estimated IO bandwidth in bytes/sec
 
-	int64 OverBudget;
+	int64 OverBudget;			// RequiredPool - StreamingPool
 
-	double Timestamp;
+	double Timestamp;			// Last time point these stats are updated in seconds
 
 	
 	volatile int32 CallbacksCycles;

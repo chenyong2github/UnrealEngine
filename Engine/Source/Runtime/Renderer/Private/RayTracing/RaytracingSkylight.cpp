@@ -30,6 +30,7 @@ bool IsRayTracingSkyLightSelected()
 #include "RayGenShaderUtils.h"
 #include "SceneViewFamilyBlackboard.h"
 
+#include "Raytracing/RaytracingOptions.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
 
@@ -758,7 +759,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FSkyLightData SkyLightData;
 	SkyLightData.SamplesPerPixel = GRayTracingSkyLightSamplesPerPixel;
 	SkyLightData.SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
-	SkyLightData.Color = FVector(Scene->SkyLight->LightColor);
+	SkyLightData.Color = FVector(Scene->SkyLight->GetEffectiveLightColor());
 	SkyLightData.Texture = Scene->SkyLight->ProcessedTexture->TextureRHI;
 	SkyLightData.TextureSampler = Scene->SkyLight->ProcessedTexture->SamplerStateRHI;
 	SkyLightData.MipDimensions = Scene->SkyLight->SkyLightMipDimensions;
@@ -776,6 +777,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	SkyLightData.MipTreePdfPosZ = Scene->SkyLight->SkyLightMipTreePdfPosZ.SRV;
 	SkyLightData.MipTreePdfNegZ = Scene->SkyLight->SkyLightMipTreePdfNegZ.SRV;
 	SkyLightData.SolidAnglePdf = Scene->SkyLight->SolidAnglePdf.SRV;
+	SkyLightData.MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 
 	FUniformBufferRHIRef SkyLightUniformBuffer = RHICreateUniformBuffer(&SkyLightData, FSkyLightData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 

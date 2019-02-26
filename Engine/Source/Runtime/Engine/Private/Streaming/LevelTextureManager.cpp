@@ -9,11 +9,12 @@
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
-FLevelTextureManager::FLevelTextureManager(ULevel* InLevel, TextureInstanceTask::FDoWorkTask& AsyncTask)
+FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: Level(InLevel)
 	, bIsInitialized(false)
+	, bHasBeenReferencedToStreamedTextures(false)
 	, StaticInstances(AsyncTask)
-	, BuildStep(EStaticBuildStep::BuildTextureLookUpMap) 
+	, BuildStep(EStaticBuildStep::BuildTextureLookUpMap)
 {
 	if (Level)
 	{
@@ -22,7 +23,7 @@ FLevelTextureManager::FLevelTextureManager(ULevel* InLevel, TextureInstanceTask:
 }
 
 
-void FLevelTextureManager::Remove(FRemovedTextureArray* RemovedTextures)
+void FLevelRenderAssetManager::Remove(FRemovedRenderAssetArray* RemovedRenderAssets)
 { 
 	TArray<const UPrimitiveComponent*> ReferencedComponents;
 	StaticInstances.GetReferencedComponents(ReferencedComponents);
@@ -41,12 +42,12 @@ void FLevelTextureManager::Remove(FRemovedTextureArray* RemovedTextures)
 		}
 	}
 
-	// Mark all static textures for removal.
-	if (RemovedTextures)
+	// Mark all static textures/meshes for removal.
+	if (RemovedRenderAssets)
 	{
-		for (auto It = StaticInstances.GetTextureIterator(); It; ++It)
+		for (auto It = StaticInstances.GetRenderAssetIterator(); It; ++It)
 		{
-			RemovedTextures->Push(*It);
+			RemovedRenderAssets->Push(*It);
 		}
 	}
 
@@ -62,7 +63,7 @@ void FLevelTextureManager::Remove(FRemovedTextureArray* RemovedTextures)
 	}
 }
 
-float FLevelTextureManager::GetWorldTime() const
+float FLevelRenderAssetManager::GetWorldTime() const
 {
 	if (Level)
 	{
@@ -81,7 +82,7 @@ float FLevelTextureManager::GetWorldTime() const
 	return 0;
 }
 
-void FLevelTextureManager::SetAsStatic(FDynamicTextureInstanceManager& DynamicComponentManager, const UPrimitiveComponent* Primitive)
+void FLevelRenderAssetManager::SetAsStatic(FDynamicRenderAssetInstanceManager& DynamicComponentManager, const UPrimitiveComponent* Primitive)
 {
 	check(Primitive);
 	Primitive->bAttachedToStreamingManagerAsStatic = true;
@@ -93,7 +94,7 @@ void FLevelTextureManager::SetAsStatic(FDynamicTextureInstanceManager& DynamicCo
 }
 
 
-void FLevelTextureManager::SetAsDynamic(FDynamicTextureInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, const UPrimitiveComponent* Primitive)
+void FLevelRenderAssetManager::SetAsDynamic(FDynamicRenderAssetInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, const UPrimitiveComponent* Primitive)
 {
 	check(Primitive);
 	Primitive->bAttachedToStreamingManagerAsStatic = false;
@@ -103,7 +104,7 @@ void FLevelTextureManager::SetAsDynamic(FDynamicTextureInstanceManager& DynamicC
 	}
 }
 
-void FLevelTextureManager::IncrementalBuild(FDynamicTextureInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, bool bForceCompletion, int64& NumStepsLeft)
+void FLevelRenderAssetManager::IncrementalBuild(FDynamicRenderAssetInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, bool bForceCompletion, int64& NumStepsLeft)
 {
 	check(Level);
 
@@ -243,7 +244,7 @@ void FLevelTextureManager::IncrementalBuild(FDynamicTextureInstanceManager& Dyna
 	}
 }
 
-bool FLevelTextureManager::NeedsIncrementalBuild(int32 NumStepsLeftForIncrementalBuild) const
+bool FLevelRenderAssetManager::NeedsIncrementalBuild(int32 NumStepsLeftForIncrementalBuild) const
 {
 	check(Level);
 
@@ -261,14 +262,14 @@ bool FLevelTextureManager::NeedsIncrementalBuild(int32 NumStepsLeftForIncrementa
 	}
 }
 
-void FLevelTextureManager::IncrementalUpdate(
-	FDynamicTextureInstanceManager& DynamicComponentManager, 
-	FRemovedTextureArray& RemovedTextures, 
+void FLevelRenderAssetManager::IncrementalUpdate(
+	FDynamicRenderAssetInstanceManager& DynamicComponentManager, 
+	FRemovedRenderAssetArray& RemovedRenderAssets,
 	int64& NumStepsLeftForIncrementalBuild, 
 	float Percentage, 
 	bool bUseDynamicStreaming) 
 {
-	QUICK_SCOPE_CYCLE_COUNTER(FStaticComponentTextureManager_IncrementalUpdate);
+	QUICK_SCOPE_CYCLE_COUNTER(FStaticComponentRenderAssetManager_IncrementalUpdate);
 
 	check(Level);
 
@@ -293,16 +294,16 @@ void FLevelTextureManager::IncrementalUpdate(
 		else if (bIsInitialized)
 		{
 			// Mark all static textures for removal.
-			for (auto It = StaticInstances.GetTextureIterator(); It; ++It)
+			for (auto It = StaticInstances.GetRenderAssetIterator(); It; ++It)
 			{
-				RemovedTextures.Push(*It);
+				RemovedRenderAssets.Push(*It);
 			}
 			bIsInitialized = false;
 		}
 	}
 }
 
-void FLevelTextureManager::NotifyLevelOffset(const FVector& Offset)
+void FLevelRenderAssetManager::NotifyLevelOffset(const FVector& Offset)
 {
 	if (BuildStep == EStaticBuildStep::Done)
 	{
@@ -311,7 +312,7 @@ void FLevelTextureManager::NotifyLevelOffset(const FVector& Offset)
 	}
 }
 
-uint32 FLevelTextureManager::GetAllocatedSize() const
+uint32 FLevelRenderAssetManager::GetAllocatedSize() const
 {
 	return StaticInstances.GetAllocatedSize() + 
 		UnprocessedComponents.GetAllocatedSize() + 

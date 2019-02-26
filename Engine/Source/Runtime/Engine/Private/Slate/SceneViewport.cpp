@@ -1155,9 +1155,8 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 		ViewportClient->Activated(this, InActivateEvent);
 		
 		// Determine if we're in permanent capture mode.  This cannot be cached as part of bShouldCaptureMouseOnActivate because it could change between window activate and deactivate
-		const bool bPermanentCapture =
-			!GIsEditor && ((ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
-			(ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+		const bool bPermanentCapture = ViewportClient->IsInPermanentCapture();
+
 
 		// If we are activating and had Mouse Capture on deactivate then we should get focus again
 		// It's important to note in the case of:
@@ -1175,6 +1174,7 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 
 	return FReply::Unhandled();
 }
+
 void FSceneViewport::OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent)
 {
 	// We backup if we have capture for us on activation, however we also maintain "true" if it's already true!
@@ -1602,18 +1602,20 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 		else
 		{
 			// Enqueue a render command to delete the handle.  It must be deleted on the render thread after the resource is released
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(DeleteSlateRenderTarget, TArray<FSlateRenderTargetRHI*>&, BufferedSlateHandles, BufferedSlateHandles,
-																				FSlateRenderTargetRHI*&, RenderThreadSlateTexture, RenderThreadSlateTexture,
-			{
-				for (int32 i = 0; i < BufferedSlateHandles.Num(); ++i)
+			FSlateRenderTargetRHI** RenderThreadSlateTexturePtr = &RenderThreadSlateTexture;
+			TArray<FSlateRenderTargetRHI*>* BufferedSlateHandlesPtr = &BufferedSlateHandles;
+			ENQUEUE_RENDER_COMMAND(DeleteSlateRenderTarget)(
+				[BufferedSlateHandlesPtr, RenderThreadSlateTexturePtr](FRHICommandListImmediate& RHICmdList)
 				{
-					delete BufferedSlateHandles[i];
-					BufferedSlateHandles[i] = nullptr;
+					for (int32 i = 0; i < BufferedSlateHandlesPtr->Num(); ++i)
+					{
+						delete (*BufferedSlateHandlesPtr)[i];
+						(*BufferedSlateHandlesPtr)[i] = nullptr;
+					}
 
-					delete RenderThreadSlateTexture;
-					RenderThreadSlateTexture = nullptr;
-				}						
-			});
+					delete *RenderThreadSlateTexturePtr;
+					*RenderThreadSlateTexturePtr = nullptr;
+				});
 
 		}
 	}
@@ -1675,14 +1677,11 @@ void FSceneViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 
 	//set the rendertarget visible to the render thread
 	//must come before any render thread frame handling.
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetRenderThreadViewportTarget,
-		FSceneViewport*, Viewport, this,
-		FTexture2DRHIRef, RT, RenderTargetTextureRHI,		
+	ENQUEUE_RENDER_COMMAND(SetRenderThreadViewportTarget)(
+		[Viewport = this, RT = RenderTargetTextureRHI](FRHICommandListImmediate& RHICmdList) mutable
 		{
-
-		Viewport->SetRenderTargetTextureRenderThread(RT);			
-	});		
+			Viewport->SetRenderTargetTextureRenderThread(RT);			
+		});		
 
 	FViewport::EnqueueBeginRenderFrame(bShouldPresent);
 

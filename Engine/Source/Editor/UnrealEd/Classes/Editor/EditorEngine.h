@@ -2666,6 +2666,14 @@ public:
 	 */
 	void OnViewportCloseRequested(FViewport* InViewport);
 
+	/*
+	 * Fills level viewport client transform used in simulation mode 
+	 *
+	 * @param OutViewTransform filled view transform used in SIE
+	 * @return true if function succeeded, false if failed
+	 */
+	bool GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const;
+
 private:
 	/** Gets the scene viewport for a viewport client */
 	FSceneViewport* GetGameSceneViewport(UGameViewportClient* ViewportClient) const;

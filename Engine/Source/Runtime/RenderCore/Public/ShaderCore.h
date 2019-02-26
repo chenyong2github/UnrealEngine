@@ -95,6 +95,12 @@ extern RENDERCORE_API bool AllowDebugViewmodes();
 /** Returns true if debug viewmodes are allowed for the given platform. */
 extern RENDERCORE_API bool AllowDebugViewmodes(EShaderPlatform Platform);
 
+/** Returns true if debug information should be kept for a given platform. */
+extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);
+
+/** Returns true if debug information should be exported to separate files for a given platform . */
+extern RENDERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
+
 struct FShaderTarget
 {
 	uint32 Frequency : SF_NumBits;
@@ -552,6 +558,9 @@ struct FShaderCompilerInput
 	// materialname or "Global" "for debugging and better error messages
 	FString DebugGroupName;
 
+	// Description of the configuration used when compiling. 
+	FString DebugDescription;
+
 	// Compilation Environment
 	FShaderCompilerEnvironment Environment;
 	TRefCountPtr<FShaderCompilerEnvironment> SharedEnvironment;
@@ -693,6 +702,7 @@ struct FShaderCompilerInput
 		Ar << Input.DumpDebugInfoRootPath;
 		Ar << Input.DumpDebugInfoPath;
 		Ar << Input.DebugGroupName;
+		Ar << Input.DebugDescription;
 		Ar << Input.Environment;
 		Ar << Input.ExtraSettings;
 		Ar << Input.RootParameterBindings;

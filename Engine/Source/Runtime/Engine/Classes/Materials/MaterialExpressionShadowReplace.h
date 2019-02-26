@@ -28,5 +28,3 @@ class UMaterialExpressionShadowReplace : public UMaterialExpression
 #endif
 	//~ End UMaterialExpression Interface
 };
-
-
