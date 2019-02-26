@@ -1131,8 +1131,30 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 					ExistingHandles.Add(NameData->PendingState.Handle);
 					continue;
 				}
-				// Clear pending state
-				NameData->PendingState.Reset(true);
+
+				bool bIsSuperSet = false;
+				if (NewBundleState.Num() > NameData->PendingState.BundleNames.Num())
+				{
+					bIsSuperSet = true;
+					for (int i = 0; i < NameData->PendingState.BundleNames.Num(); i++)
+					{
+						if (!NewBundleState.Contains(NameData->PendingState.BundleNames[i]))
+						{
+							bIsSuperSet = false;
+							break;
+						}
+					}
+				}
+
+				if (bIsSuperSet)
+				{
+					ExistingHandles.Add(NameData->PendingState.Handle);
+				}
+				else
+				{
+					// Clear pending state
+					NameData->PendingState.Reset(true);
+				}
 			}
 			else if (NameData->CurrentState.IsValid() && NameData->CurrentState.BundleNames == NewBundleState)
 			{
@@ -1184,6 +1206,8 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 
 				DebugName += TEXT(")");
 			}
+
+			UE_LOG(LogAssetManager, Verbose, TEXT("%s bundle state change: %s"), *PrimaryAssetId.ToString(), *DebugName);
 
 			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, DebugName);
 
