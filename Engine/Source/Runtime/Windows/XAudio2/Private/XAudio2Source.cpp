@@ -20,6 +20,7 @@
 #include "ContentStreaming.h"
 #include "HAL/LowLevelMemTracker.h"
 
+
 /*------------------------------------------------------------------------------------
 	For muting user soundtracks during cinematics
 ------------------------------------------------------------------------------------*/
@@ -558,7 +559,10 @@ bool FXAudio2SoundSource::Init(FWaveInstance* InWaveInstance)
 		SCOPE_CYCLE_COUNTER(STAT_AudioSourceInitTime);
 
 		// Set whether to apply reverb
-		SetReverbApplied(Effects->ReverbEffectVoice != nullptr);
+		if (!FAudioDevice::LegacyReverbDisabled())
+		{
+			SetReverbApplied(Effects->ReverbEffectVoice != nullptr);
+		}
 
 		// Create a new source if we haven't already
 		if (CreateSource())
@@ -1230,7 +1234,7 @@ int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations
 
 void FXAudio2SoundSourceCallback::OnBufferEnd(void* BufferContext)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (BufferContext)
 	{

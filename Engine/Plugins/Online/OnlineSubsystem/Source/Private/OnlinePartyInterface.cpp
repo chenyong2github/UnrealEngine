@@ -22,20 +22,26 @@ bool FOnlinePartyData::operator!=(const FOnlinePartyData& Other) const
 	return !operator==(Other);
 }
 
+FOnlineKeyValuePairs<FString, FVariantData> FOnlinePartyData::GetDirtyKeyVaAttrs() const
+{
+	FOnlineKeyValuePairs<FString, FVariantData> DirtyKeyValAttrs;
+	for (const FString& PropertyName : DirtyKeys)
+	{
+		const FVariantData* PropertyValue = KeyValAttrs.Find(PropertyName);
+		check(PropertyValue);
+
+		DirtyKeyValAttrs.Emplace(PropertyName, *PropertyValue);
+	}
+	return DirtyKeyValAttrs;
+}
+
 void FOnlinePartyData::ToJsonFull(FString& JsonString) const
 {
 	JsonString.Empty();
 
 	// iterate over key/val attrs and convert each entry to a json string
 	TSharedRef<FJsonObject> JsonObject(new FJsonObject());
-	TSharedRef<FJsonObject> JsonProperties = MakeShared<FJsonObject>();
-	for (auto Iterator : KeyValAttrs)
-	{
-		const FString& PropertyName = Iterator.Key;
-		const FVariantData& PropertyValue = Iterator.Value;
-
-		PropertyValue.AddToJsonObject(JsonProperties, PropertyName);
-	}
+	TSharedRef<FJsonObject> JsonProperties = GetAllAttributesAsJsonObject();
 	JsonObject->SetNumberField(TEXT("Rev"), RevisionCount);
 	JsonObject->SetObjectField(TEXT("Attrs"), JsonProperties);
 
@@ -51,7 +57,7 @@ void FOnlinePartyData::ToJsonDirty(FString& JsonString) const
 	// iterate over key/val attrs and convert each entry to a json string
 	TSharedRef<FJsonObject> JsonObject(new FJsonObject());
 	TSharedRef<FJsonObject> JsonProperties = MakeShared<FJsonObject>();
-	for (auto& PropertyName : DirtyKeys)
+	for (const FString& PropertyName : DirtyKeys)
 	{
 		const FVariantData* PropertyValue = KeyValAttrs.Find(PropertyName);
 		check(PropertyValue);
@@ -66,6 +72,30 @@ void FOnlinePartyData::ToJsonDirty(FString& JsonString) const
 	JsonWriter->Close();
 }
 
+TSharedRef<FJsonObject> FOnlinePartyData::GetAllAttributesAsJsonObject() const
+{
+	TSharedRef<FJsonObject> JsonProperties = MakeShared<FJsonObject>();
+	for (const TPair<FString, FVariantData>& Iterator : KeyValAttrs)
+	{
+		const FString& PropertyName = Iterator.Key;
+		const FVariantData& PropertyValue = Iterator.Value;
+
+		PropertyValue.AddToJsonObject(JsonProperties, PropertyName);
+	}
+	return JsonProperties;
+}
+
+FString FOnlinePartyData::GetAllAttributesAsJsonObjectString() const
+{
+	TSharedRef<FJsonObject> JsonProperties = GetAllAttributesAsJsonObject();
+
+	FString JsonString;
+	auto JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR> >::Create(&JsonString);
+	FJsonSerializer::Serialize(JsonProperties, JsonWriter);
+	JsonWriter->Close();
+	return JsonString;
+}
+
 void FOnlinePartyData::FromJson(const FString& JsonString)
 {
 	// json string to key/val attrs
@@ -77,7 +107,7 @@ void FOnlinePartyData::FromJson(const FString& JsonString)
 		if (JsonObject->HasTypedField<EJson::Object>(TEXT("Attrs")))
 		{
 			const TSharedPtr<FJsonObject>& JsonProperties = JsonObject->GetObjectField(TEXT("Attrs"));
-			for (auto& JsonProperty : JsonProperties->Values)
+			for (const TPair<FString, TSharedPtr<FJsonValue>>& JsonProperty : JsonProperties->Values)
 			{
 				FString PropertyName;
 				FVariantData PropertyData;

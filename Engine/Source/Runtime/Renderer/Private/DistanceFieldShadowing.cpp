@@ -1010,21 +1010,16 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(FRHIComma
 	}
 }
 
-void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading) 
+void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FIntRect& ScissorRect, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading)
 {
+	check(ScissorRect.Area() > 0);
+
 	BeginRenderRayTracedDistanceFieldProjection(RHICmdList, View);
 
 	if (RayTracedShadowsRT)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderRayTracedDistanceFieldShadows);
 		SCOPED_DRAW_EVENT(RHICmdList, RayTracedDistanceFieldShadow);
-
-		FIntRect ScissorRect;
-
-		if (!LightSceneInfo->Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
-		{
-			ScissorRect = View.ViewRect;
-		}
 
 		if ( IsTransientResourceBufferAliasingEnabled() )
 		{

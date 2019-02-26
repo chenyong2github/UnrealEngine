@@ -210,6 +210,11 @@ namespace AssetSelectionUtils
 	UNREALED_API bool IsBuilderBrushSelected();
 };
 
+namespace ActorPlacementUtils
+{
+	UNREALED_API bool IsLevelValidForActorPlacement(ULevel* Level, TArray<FTransform>& InActorTransforms);
+}
+
 class UNREALED_API FActorFactoryAssetProxy
 {
 public:

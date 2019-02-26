@@ -522,7 +522,6 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 					PartyMembersById.Add(MemberIdRepl, PartyMember);
 					PartyMember->InitializePartyMember(OssPartyMember.ToSharedRef(), FSimpleDelegate::CreateUObject(this, &USocialParty::HandleMemberInitialized, PartyMember));
 
-					PartyInterface->ApproveUserForRejoin(*OwningLocalUserId, PartyId, MemberId);
 					RefreshPublicJoinability();
 
 					OnPartyMemberCreated().Broadcast(*PartyMember);
@@ -811,9 +810,9 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 
 void USocialParty::HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete)
 {
-	OnAttemptComplete.ExecuteIfBound(LeaveResult);
-
 	FinalizePartyLeave(EMemberExitedReason::Left);
+
+	OnAttemptComplete.ExecuteIfBound(LeaveResult);
 }
 
 void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings)
@@ -890,15 +889,6 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 				// Update party join state, will cause a failure on leader promotion currently
 				// because we can't tell the difference between "expected leader" and "actually the new leader"
 				RefreshPublicJoinability();
-
-				if (ExitReason != EMemberExitedReason::Removed)
-				{
-					Online::GetPartyInterfaceChecked(GetWorld())->RemoveUserForRejoin(*OwningLocalUserId, PartyId, MemberId);
-				}
-				else
-				{
-					// TODO:  Add a timer to remove players eventually
-				}
 			}
 		}
 		else

@@ -613,7 +613,6 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 
 void FAsyncAudioDecompressWorker::DoWork()
 {
-	LLM_SCOPE(ELLMTag::Audio);
 	LLM_SCOPE(ELLMTag::AudioDecompress);
 
 	if (AudioInfo)
