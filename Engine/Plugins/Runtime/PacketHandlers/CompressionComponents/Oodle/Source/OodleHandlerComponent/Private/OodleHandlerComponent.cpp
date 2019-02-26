@@ -1204,6 +1204,33 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 	}
 }
 
+bool OodleHandlerComponent::IsCompressionActive() const
+{
+	bool bResult = false;
+
+	if (bEnableOodle && Handler)
+	{
+		const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+		FOodleDictionary* CurDict = (bIsServer ? ServerDictionary.Get() : ClientDictionary.Get());
+
+		const bool bSkipCompression =
+#if !UE_BUILD_SHIPPING
+			// Allow a lack of dictionary in capture mode, or when compression is disabled
+			(CurDict == nullptr && bCaptureMode) || bOodleCompressionDisabled ||
+#endif
+			// Skip compression when we are waiting on the remote side to enable compression
+			(!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived)
+			;
+
+		if (CurDict != nullptr && !bSkipCompression)
+		{
+			bResult = true;
+		}
+	}
+
+	return bResult;
+}
+
 int32 OodleHandlerComponent::GetReservedPacketBits() const
 {
 	return bEnableOodle ? OodleReservedPacketBits : 0;
