@@ -344,6 +344,9 @@ ULevelEditorMiscSettings::ULevelEditorMiscSettings( const FObjectInitializer& Ob
 	SectionName = TEXT("Misc");
 	CategoryName = TEXT("LevelEditor");
 	EditorScreenshotSaveDirectory.Path = FPaths::ScreenShotDir();
+	bPromptWhenAddingToLevelBeforeCheckout = true;
+	bPromptWhenAddingToLevelOutsideBounds = true;
+	PercentageThresholdForPrompt = 20.0f;
 }
 
 
