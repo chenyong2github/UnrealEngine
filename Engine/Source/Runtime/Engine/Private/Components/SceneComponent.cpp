@@ -505,6 +505,14 @@ void USceneComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		UpdateAttachedIsEditorOnly(this);
 	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, bVisible))
+	{
+		OnVisibilityChanged();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(USceneComponent, bHiddenInGame))
+	{
+		OnHiddenInGameChanged();
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
