@@ -1537,6 +1537,8 @@ void FProjectedShadowInfo::ClearTransientArrays()
 	SubjectMeshCommandBuildRequests.Empty();
 
 	ProjectionStencilingPasses.Reset();
+
+	DynamicMeshDrawCommandStorage.MeshDrawCommands.Empty();
 }
 
 /** Returns a cached preshadow matching the input criteria if one exists. */
