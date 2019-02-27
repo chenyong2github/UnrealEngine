@@ -321,6 +321,11 @@ public:
 
 	uint32 GetTrajectoryPathCap() const { return TrajectoryPathCap; }
 
+	/** Gets whether to show the sequencer outliner info column */
+	bool GetShowOutlinerInfoColumn() const;
+	/** Sets whether to show the sequencer outliner info column */
+	void SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColumn);
+
 	/** Gets the current curve visibility. */
 	ECurveEditorCurveVisibility GetCurveVisibility() const;
 	/** Sets the current curve visibility. */
@@ -496,10 +501,14 @@ protected:
 	bool bCompileDirectorOnEvaluate;
 
 	/** Specifies the maximum number of keys to draw when rendering trajectories in viewports */
-	UPROPERTY(config, EditAnywhere, Category=General)
+	UPROPERTY(config, EditAnywhere, Category = General)
 	uint32 TrajectoryPathCap;
 
-	/** What format do we display time in to the user? */	
+	/** Whether to show the sequencer outliner info column */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bShowOutlinerInfoColumn;
+
+	/** What format do we display time in to the user? */
 	UPROPERTY(config, EditAnywhere, Category=General)
 	EFrameNumberDisplayFormats FrameNumberDisplayFormat;
 

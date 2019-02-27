@@ -219,7 +219,6 @@ void FLevelEditorSequencerIntegration::Initialize()
 	ActivateDetailHandler();
 	ActivateSequencerEditorMode();
 	BindLevelEditorCommands();
-	AttachOutlinerColumn();
 
 	{
 		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -860,6 +859,18 @@ TSharedRef< ISceneOutlinerColumn > FLevelEditorSequencerIntegration::CreateSeque
 
 void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 {
+	for (const FSequencerAndOptions& SequencerAndOptions : BoundSequencers)
+	{
+		TSharedPtr<FSequencer> Pinned = SequencerAndOptions.Sequencer.Pin();
+		if (Pinned.IsValid())
+		{
+			if (!Pinned.Get()->GetSequencerSettings()->GetShowOutlinerInfoColumn())
+			{
+				return;
+			}
+		}
+	}
+
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
 
 	SceneOutliner::FColumnInfo ColumnInfo(SceneOutliner::EColumnVisibility::Visible, 15, 
@@ -1038,6 +1049,7 @@ void FLevelEditorSequencerIntegration::AddSequencer(TSharedRef<ISequencer> InSeq
 	}
 
 	ActivateRealtimeViewports();
+	AttachOutlinerColumn();
 }
 
 void FLevelEditorSequencerIntegration::OnSequencerReceivedFocus(TSharedRef<ISequencer> InSequencer)

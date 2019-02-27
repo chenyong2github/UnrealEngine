@@ -203,11 +203,14 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 
 	// Reopen the scene outliner so that is refreshed with the sequencer info column
-	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	if (LevelEditorTabManager->FindExistingLiveTab(FName("LevelEditorSceneOutliner")).IsValid())
+	if (Sequencer->GetSequencerSettings()->GetShowOutlinerInfoColumn())
 	{
-		LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();
-		LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		if (LevelEditorTabManager->FindExistingLiveTab(FName("LevelEditorSceneOutliner")).IsValid())
+		{
+			LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"))->RequestCloseTab();
+			LevelEditorTabManager->InvokeTab(FName("LevelEditorSceneOutliner"));
+		}
 	}
 	
 	// Now Attach so this window will apear in the correct front first order
