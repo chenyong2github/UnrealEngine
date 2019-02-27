@@ -1054,7 +1054,7 @@ private:
 class FMetalShaderLibrary final : public FRHIShaderLibrary
 {	
 public:
-	FMetalShaderLibrary(EShaderPlatform Platform, FString const& Name, TArray<mtlpp::Library> Library, FMetalShaderMap const& Map);
+	FMetalShaderLibrary(EShaderPlatform Platform, FString const& Name, TArray<mtlpp::Library> Library, FMetalShaderMap const& Map, const FString& InShaderLibraryFilename);
 	virtual ~FMetalShaderLibrary();
 	
 	virtual bool IsNativeLibrary() const override final {return true;}
@@ -1105,6 +1105,7 @@ private:
 private:
 	TArray<mtlpp::Library> Library;
 	FMetalShaderMap Map;
+	FString ShaderLibraryFilename;
 };
 
 template<class T>
