@@ -981,7 +981,6 @@ public:
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
-	FLinearColor LightColor;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
 	float VolumetricScatteringIntensity;
@@ -1016,6 +1015,15 @@ public:
 	FRWBuffer SkyLightMipTreePdfNegZ;
 	FRWBuffer SolidAnglePdf;
 #endif
+
+	void SetLightColor(const FLinearColor& InColor)
+	{
+		LightColor = InColor;
+	}
+	FLinearColor GetEffectiveLightColor() const;
+
+private:
+	FLinearColor LightColor;
 };
 
 
