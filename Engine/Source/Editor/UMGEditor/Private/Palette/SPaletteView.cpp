@@ -400,6 +400,15 @@ void SPaletteView::BuildWidgetList()
 
 	// Sort the view models by name
 	WidgetViewModels.Sort([] (TSharedPtr<FWidgetViewModel> L, TSharedPtr<FWidgetViewModel> R) { return R->GetName().CompareTo(L->GetName()) > 0; });
+
+	// Take the Advanced Section, and put it at the end.
+	TSharedPtr<FWidgetViewModel>* advancedSectionPtr = WidgetViewModels.FindByPredicate([](TSharedPtr<FWidgetViewModel> widget) {return widget->GetName().CompareTo(LOCTEXT("Advanced", "Advanced")) == 0; });
+	if (advancedSectionPtr)
+	{
+		TSharedPtr<FWidgetViewModel> advancedSection = *advancedSectionPtr;
+		WidgetViewModels.Remove(advancedSection);
+		WidgetViewModels.Push(advancedSection);
+	}
 }
 
 void SPaletteView::BuildClassWidgetList()

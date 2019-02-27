@@ -93,6 +93,12 @@ public:
 		return false;
 	}
 
+	virtual bool IsPendingUpdateLocked() const 
+	{ 
+		STREAMABLERENDERASSET_NODEFAULT(IsPendingUpdateLocked);
+		return false;
+	}
+
 	/**
 	* Unload some mips from memory. Only usable if the asset is streamable.
 	*

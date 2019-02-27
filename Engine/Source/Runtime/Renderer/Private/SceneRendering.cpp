@@ -902,6 +902,11 @@ FViewInfo::~FViewInfo()
 		CustomVisibilityQuery->Release();
 	}
 
+	for (int32 MeshDrawIndex = 0; MeshDrawIndex < EMeshPass::Num; MeshDrawIndex++)
+	{
+		ParallelMeshDrawCommandPasses[MeshDrawIndex].WaitForTasksAndEmpty();
+	}
+
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
 	TranslucentSelfShadowUniformBufferMap.Empty();
 }
@@ -1367,7 +1372,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 
-		ViewUniformShaderParameters.SkyLightColor = SkyLight->LightColor;
+		ViewUniformShaderParameters.SkyLightColor = SkyLight->GetEffectiveLightColor();
 
 		bool bApplyPrecomputedBentNormalShadowing = 
 			SkyLight->bCastShadows 
@@ -1566,7 +1571,7 @@ void FViewInfo::DestroyAllSnapshots()
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
-			Snapshot->ParallelMeshDrawCommandPasses[Index].Empty();
+			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty();
 		}
 
 		FreeViewInfoSnapshots.Add(Snapshot);
@@ -2320,7 +2325,7 @@ FSceneRenderer::~FSceneRenderer()
 {
 	// To prevent keeping persistent references to single frame buffers, clear any such reference at this point.
 	ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
-
+	
 	if(Scene)
 	{
 		// Destruct the projected shadow infos.
@@ -2893,11 +2898,10 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 	}
 
-	// Destroy cached preshadow transient arrays (allocated with SceneRenderingAllocator).
-	TArray<TRefCountPtr<FProjectedShadowInfo>>& CachedPreshadows = SceneRenderer->Scene->CachedPreshadows;
-	for (int32 CachedShadowIndex = 0; CachedShadowIndex < CachedPreshadows.Num(); ++CachedShadowIndex)
+	// Wait for all dispatched shadow mesh draw tasks.
+	for (int32 PassIndex = 0; PassIndex < SceneRenderer->DispatchedShadowDepthPasses.Num(); ++PassIndex)
 	{
-		CachedPreshadows[CachedShadowIndex]->ClearTransientArrays();
+		SceneRenderer->DispatchedShadowDepthPasses[PassIndex]->WaitForTasksAndEmpty();
 	}
 
 	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots

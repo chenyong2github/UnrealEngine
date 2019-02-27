@@ -60,17 +60,23 @@ bool FLocalLightSceneProxy::GetScissorRect(FIntRect& ScissorRect, const FSceneVi
 	return FMath::ComputeProjectedSphereScissorRect(ScissorRect, GetLightToWorld().GetOrigin(), Radius, View.ViewMatrices.GetViewOrigin(), View.ViewMatrices.GetViewMatrix(), View.ViewMatrices.GetProjectionMatrix()) == 1;
 }
 
-void FLocalLightSceneProxy::SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect) const
+bool FLocalLightSceneProxy::SetScissorRect(FRHICommandList& RHICmdList, const FSceneView& View, const FIntRect& ViewRect, FIntRect* OutScissorRect) const
 {
 	FIntRect ScissorRect;
 
 	if (GetScissorRect(ScissorRect, View, ViewRect))
 	{
 		RHICmdList.SetScissorRect(true, ScissorRect.Min.X, ScissorRect.Min.Y, ScissorRect.Max.X, ScissorRect.Max.Y);
+		if (OutScissorRect)
+		{
+			*OutScissorRect = ScissorRect;
+		}
+		return true;
 	}
 	else
 	{
 		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+		return false;
 	}
 }
 

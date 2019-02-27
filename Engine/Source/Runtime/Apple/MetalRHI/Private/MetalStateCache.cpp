@@ -1144,6 +1144,25 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 		
 		PipelineBits |= EMetalPipelineFlagPipelineState;
 		
+#if METAL_DEBUG_OPTIONS
+        if (GMetalResetOnPSOChange >= 4)
+        {
+            for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
+            {
+                ShaderBuffers[i].Bound = UINT32_MAX;
+#if PLATFORM_MAC
+#ifndef UINT128_MAX
+#define UINT128_MAX (((__uint128_t)1 << 127) - (__uint128_t)1 + ((__uint128_t)1 << 127))
+#endif
+                ShaderTextures[i].Bound = UINT128_MAX;
+#else
+                ShaderTextures[i].Bound = UINT32_MAX;
+#endif
+                ShaderSamplers[i].Bound = UINT16_MAX;
+            }
+        }
+#endif
+		
 		SetDepthStencilState(State->DepthStencilState);
 		SetRasterizerState(State->RasterizerState);
 

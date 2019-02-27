@@ -17,6 +17,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogGameNetworkManager, Log, All);
 AGameNetworkManager::AGameNetworkManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	BadPacketLossThreshold = 0.05f;
+	SeverePacketLossThreshold = 0.15f;
+	BadPingThreshold = 200;
+	SeverePingThreshold = 500;
+
 	MoveRepSize = 42.0f;
 	MAXPOSITIONERRORSQUARED = 3.0f;
 	MAXNEARZEROVELOCITYSQUARED = 9.0f;

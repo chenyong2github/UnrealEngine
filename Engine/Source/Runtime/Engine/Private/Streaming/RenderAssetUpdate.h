@@ -15,8 +15,10 @@ RenderAssetUpdate.h: Base class of helpers to stream in and out texture/mesh LOD
 /** SRA stands for StreamableRenderAsset */
 #define SRA_UPDATE_CALLBACK(FunctionName) [this](const FContext& C){ FunctionName(C); }
 
-/** A counter defining whether render thread tasks should be postponed The callback handling the cancellation of the update (only if the update gets cancelled). */
-extern volatile int32 GRenderAssetStreamingSuspendRenderThreadTasks;
+ // Allows yield to lower priority threads
+#define RENDER_ASSET_STREAMING_SLEEP_DT (0.010f)
+
+ENGINE_API bool IsAssetStreamingSuspended();
 
 /**
 * This class provides a framework for loading and unloading the texture/mesh LODs.
@@ -104,7 +106,7 @@ public:
 			// If the task is ready to execute. 
 			// If this is the renderthread and we shouldn't run renderthread task, mark as pending.
 			// This will require a tick from the game thread to reschedule the task.
-			if (TaskSynchronization.GetValue() <= 0 && !(GRenderAssetStreamingSuspendRenderThreadTasks > 0 && InCurrentThread == TT_Render))
+			if (TaskSynchronization.GetValue() <= 0 && !IsAssetStreamingSuspended())
 			{
 				FContext Context(InAsset, InCurrentThread);
 
@@ -214,6 +216,10 @@ public:
 		TaskState = CachedPendingTaskState;
 	}
 
+	bool IsLocked() const
+	{
+		return TaskState == TS_Locked;
+	}
 	/** Get the number of requested mips for this update, ignoring cancellation attempts. */
 	int32 GetNumRequestedMips() const
 	{
@@ -254,8 +260,8 @@ protected:
 		const EThreadType RelevantThread = !bCachedIsCancelled ? InTaskThread : InCancelationThread;
 
 		// TaskSynchronization is expected to be set before call this.
-		// If the rendering thread is suspended, delay the scheduling until not suspended anymore.
-		const bool bCanExecuteNow = TaskSynchronization.GetValue() <= 0 && !(GRenderAssetStreamingSuspendRenderThreadTasks > 0 && RelevantThread == TT_Render);
+		// If the update is suspended, delay the scheduling until not suspended anymore.
+		const bool bCanExecuteNow = TaskSynchronization.GetValue() <= 0 && !IsAssetStreamingSuspended();
 
 		if (RelevantThread == TT_None)
 		{
@@ -470,5 +476,5 @@ protected:
 	FCallback CancelationCallback;
 };
 
-void SuspendRenderAssetStreamingRenderTasksInternal();
-void ResumeRenderAssetStreamingRenderTasksInternal();
+void SuspendRenderAssetStreaming();
+void ResumeRenderAssetStreaming();

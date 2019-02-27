@@ -1232,6 +1232,40 @@ FTransform USkinnedMeshComponent::GetDeltaTransformFromRefPose(FName BoneName, F
 	return FTransform::Identity;
 }
 
+bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const
+{
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+	const int32 BoneIndex = GetBoneIndex(BoneName);
+	if (BoneIndex != INDEX_NONE)
+	{
+		FTransform LocalTransform = GetComponentSpaceTransforms()[BoneIndex];
+		FTransform ReferenceTransform = RefSkeleton.GetRefBonePose()[BoneIndex];
+		FName ParentName = GetParentBone(BoneName);
+		int32 ParentIndex = INDEX_NONE;
+		if (ParentName != NAME_None)
+		{
+			ParentIndex = GetBoneIndex(ParentName);
+		}
+
+		if (ParentIndex != INDEX_NONE)
+		{
+			LocalTransform = LocalTransform.GetRelativeTransform(GetComponentSpaceTransforms()[ParentIndex]);
+		}
+
+		FQuat Swing, Twist;
+
+		// figure out based on ref pose rotation, and calculate twist based on that 
+		FVector TwistAxis = ReferenceTransform.GetRotation().Vector();
+		ensure(TwistAxis.IsNormalized());
+		LocalTransform.GetRotation().ToSwingTwist(TwistAxis, Swing, Twist);
+		OutTwistAngle = FMath::RadiansToDegrees(Twist.GetAngle());
+		OutSwingAngle = FMath::RadiansToDegrees(Swing.GetAngle());
+		return true;
+	}
+
+	return false;
+}
+
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
 {
 	if (SkeletalMesh == NULL)

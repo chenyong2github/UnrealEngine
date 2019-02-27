@@ -162,6 +162,7 @@ public:
 	virtual bool IsFocused(FViewport* Viewport) override;
 	virtual void Activated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
 	virtual void Deactivated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
+	virtual bool IsInPermanentCapture() override;
 	virtual bool WindowCloseRequested() override;
 	virtual void CloseRequested(FViewport* Viewport) override;
 	virtual bool RequiresHitProxyStorage() override { return 0; }

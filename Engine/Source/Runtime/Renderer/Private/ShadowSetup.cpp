@@ -1191,6 +1191,8 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		SubjectMeshCommandBuildRequests,
 		NumSubjectMeshCommandBuildRequestElements * InstanceFactor,
 		ShadowDepthPassVisibleCommands);
+
+	Renderer.DispatchedShadowDepthPasses.Add(&ShadowDepthPass);
 }
 
 void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRenderer& Renderer)
@@ -1530,11 +1532,13 @@ void FProjectedShadowInfo::ClearTransientArrays()
 	DynamicSubjectTranslucentMeshElements.Empty();
 
 	ShadowDepthPassVisibleCommands.Empty();
-	ShadowDepthPass.Empty();
+	ShadowDepthPass.WaitForTasksAndEmpty();
 
 	SubjectMeshCommandBuildRequests.Empty();
 
 	ProjectionStencilingPasses.Reset();
+
+	DynamicMeshDrawCommandStorage.MeshDrawCommands.Empty();
 }
 
 /** Returns a cached preshadow matching the input criteria if one exists. */

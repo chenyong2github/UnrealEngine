@@ -937,6 +937,7 @@ public:
 	virtual int32 GetNumRequestedMips() const final override;
 	virtual bool CancelPendingMipChangeRequest() final override;
 	virtual bool HasPendingUpdate() const final override;
+	virtual bool IsPendingUpdateLocked() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
 	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;

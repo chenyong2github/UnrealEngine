@@ -6,6 +6,9 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SInputKeySelector.h"
+#include "Internationalization/Internationalization.h"
+
+#define LOCTEXT_NAMESPACE "UMG"
 
 UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
@@ -113,6 +116,12 @@ void UInputKeySelector::SetEscapeKeys(const TArray<FKey>& InKeys)
 	}
 	EscapeKeys = InKeys;
 }
+#if WITH_EDITOR
+const FText UInputKeySelector::GetPaletteCategory()
+{
+	return LOCTEXT("Advanced", "Advanced");
+}
+#endif
 
 void UInputKeySelector::SynchronizeProperties()
 {
@@ -172,3 +181,5 @@ void UInputKeySelector::SetTextBlockVisibility(const ESlateVisibility InVisibili
 		MyInputKeySelector->SetTextBlockVisibility(SlateVisibility);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

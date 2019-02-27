@@ -114,12 +114,47 @@ public:
 	}
 
 	/**
-	* Returns true if there are any dirty keys
-	*/
+	 * Set an attribute from the party data
+	 *
+	 * @param AttrName - key for the attribute
+	 * @param AttrValue - value to set the attribute to
+	 */
+	void SetAttribute(FString&& AttrName, FVariantData&& AttrValue)
+	{
+		FVariantData& NewAttrValue = KeyValAttrs.FindOrAdd(AttrName);
+		if (NewAttrValue != AttrValue)
+		{
+			NewAttrValue = MoveTemp(AttrValue);
+			DirtyKeys.Emplace(MoveTemp(AttrName));
+		}
+	}
+
+	/**
+	 * Mark an attribute as dirty so it can be rebroadcasted
+	 *
+	 * @param AttrName - key for the attribute to mark dirty
+	 */
+	void MarkAttributeDirty(FString&& AttrName)
+	{
+		DirtyKeys.Emplace(MoveTemp(AttrName));
+	}
+
+	/**
+	 * Check if there are any dirty keys
+	 *
+	 * @return true if there are any dirty keys
+	 */
 	bool HasDirtyKeys() const
 	{
 		return DirtyKeys.Num() > 0;
 	}
+
+	/**
+	 * Get the dirty key-value attributes
+	 *
+	 * @return the dirty key-value attributes
+	 */
+	FOnlineKeyValuePairs<FString, FVariantData> GetDirtyKeyVaAttrs() const;
 
 	/**
 	 * Clear the attributes map
@@ -160,7 +195,6 @@ public:
 	 * Generate a JSON packet containing all key-value attributes
 	 * 
 	 * @param JsonString - [out] string containing the resulting JSON output
-	 * 
 	 */
 	void ToJsonFull(FString& JsonString) const;
 	
@@ -168,15 +202,25 @@ public:
 	 * Generate a JSON packet containing only the dirty key-value attributes for a delta update
 	 *
 	 * @param JsonString - [out] string containing the resulting JSON output
-	 *
 	 */
 	void ToJsonDirty(FString& JsonString) const;
+
+	/**
+	 * Create a JSON object containing all key-value attributes
+	 * @return a JSON object containing all key-value attributes
+	 */
+	TSharedRef<FJsonObject> GetAllAttributesAsJsonObject() const;
+
+	/**
+	 * Create a string representing a JSON object containing all key-value attributes
+	 * @return a string representing a JSON object containing all key-value attributes
+	 */
+	FString GetAllAttributesAsJsonObjectString() const;
 
 	/** 
 	 * Update attributes from a JSON packet
 	 *
 	 * @param JsonString - string containing the JSON packet
-	 *
 	 */
 	void FromJson(const FString& JsonString);
 
@@ -197,7 +241,7 @@ public:
 
 private:
 	/** map of key/val attributes that represents the data */
-	FOnlineKeyValuePairs<FString, FVariantData>  KeyValAttrs;
+	FOnlineKeyValuePairs<FString, FVariantData> KeyValAttrs;
 
 	/** set of which fields are dirty and need to transmitted */
 	TSet<FString> DirtyKeys;
@@ -227,6 +271,7 @@ public:
  * Info needed to join a party
  */
 class IOnlinePartyJoinInfo
+	: public TSharedFromThis<IOnlinePartyJoinInfo>
 {
 public:
 	IOnlinePartyJoinInfo() {}
@@ -237,17 +282,17 @@ public:
 	/**
 	 * @return party id of party associated with this join invite
 	 */
-	virtual const TSharedRef<const FOnlinePartyId>& GetPartyId() const = 0;
+	virtual TSharedRef<const FOnlinePartyId> GetPartyId() const = 0;
 
 	/**
 	 * @return party id of party associated with this join invite
 	 */
-	virtual const FOnlinePartyTypeId GetPartyTypeId() const = 0;
+	virtual FOnlinePartyTypeId GetPartyTypeId() const = 0;
 
 	/**
 	 * @return user id of where this join info came from
 	 */
-	virtual const TSharedRef<const FUniqueNetId>& GetSourceUserId() const = 0;
+	virtual TSharedRef<const FUniqueNetId> GetSourceUserId() const = 0;
 
 	/**
 	 * @return user id of where this join info came from
@@ -409,27 +454,26 @@ enum class EPartyState
  */
 class FOnlineParty : public TSharedFromThis<FOnlineParty>
 {
+	FOnlineParty() = delete;
 protected:
-	FOnlineParty();
-	explicit FOnlineParty(const TSharedRef<const FOnlinePartyId>& InPartyId, const FOnlinePartyTypeId InPartyTypeId)
+	FOnlineParty(const TSharedRef<const FOnlinePartyId>& InPartyId, const FOnlinePartyTypeId InPartyTypeId, TSharedRef<FPartyConfiguration> InConfig = MakeShared<FPartyConfiguration>())
 		: PartyId(InPartyId)
 		, PartyTypeId(InPartyTypeId)
 		, State(EPartyState::None)
-		, Config(MakeShareable(new FPartyConfiguration()))
+		, Config(InConfig)
 	{}
 
 public:
-	virtual ~FOnlineParty()
-	{}
+	virtual ~FOnlineParty() = default;
 
 	virtual bool CanLocalUserInvite(const FUniqueNetId& LocalUserId) const = 0;
 	virtual bool IsJoinable() const = 0;
 
-	/** unique id of the party */
+	/** Unique id of the party */
 	TSharedRef<const FOnlinePartyId> PartyId;
-	/** unique id of the party */
+	/** Type of party (e.g., Primary) */
 	const FOnlinePartyTypeId PartyTypeId;
-	/** unique id of the leader */
+	/** Unique id of the leader */
 	TSharedPtr<const FUniqueNetId> LeaderId;
 	/** The current state of the party */
 	EPartyState State;
@@ -948,7 +992,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param ApprovedUserId - the user that has been approved to attempt to rejoin the party (does not need to be in the party now)
 	 */
-	virtual void ApproveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& ApprovedUserId) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void ApproveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& ApprovedUserId) {}
 
 	/** 
 	 * Unmark a user as approved to attempt to rejoin our party
@@ -957,7 +1002,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param RemovedUserId - the user that has lost approval to attempt to rejoin the party
 	 */
-	virtual void RemoveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RemovedUserId) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void RemoveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RemovedUserId) {}
 
 	/** 
 	 * Get a list of users that have been approved for rejoining
@@ -966,7 +1012,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param OutApprovedUserIds - list of users that have been approved
 	 */
-	virtual void GetUsersApprovedForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<const FUniqueNetId>>& OutApprovedUserIds) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void GetUsersApprovedForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<const FUniqueNetId>>& OutApprovedUserIds) {}
 
 	/**
 	 * Kick a user from an existing party
@@ -1203,7 +1250,7 @@ public:
 	 *
 	 * return the new IOnlinePartyJoinInfo object
 	 */
-	virtual TSharedRef<IOnlinePartyJoinInfo> MakeJoinInfoFromToken(const FString& Token) const = 0;
+	virtual TSharedPtr<IOnlinePartyJoinInfo> MakeJoinInfoFromToken(const FString& Token) const = 0;
 
 	/**
 	 * Checks to see if there is a pending command line invite and consumes it

@@ -1780,7 +1780,7 @@ namespace Audio
 
 	FMixerSourceManager::FSourceDownmixData& FMixerSourceManager::InitializeDownmixForSource(const int32 SourceId, const int32 NumInputChannels, const int32 NumOutputChannels, const int32 InNumOutputFrames)
 	{
-		DownmixDataArray[SourceId].ResetData(NumInputChannels);
+		DownmixDataArray[SourceId].ResetData(NumInputChannels, NumOutputChannels);
 		return DownmixDataArray[SourceId];
 	}
 

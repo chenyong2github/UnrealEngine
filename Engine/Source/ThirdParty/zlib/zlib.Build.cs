@@ -69,7 +69,7 @@ public class zlib : ModuleRules
 		{
 			string platform = "/Linux/" + Target.Architecture;
 			PublicIncludePaths.Add(zlibPath + "/include" + platform);
-			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + ((Target.LinkType == TargetLinkType.Monolithic) ? "/libz" : "/libz_fPIC") + ".a");
+			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + "/libz_fPIC.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{

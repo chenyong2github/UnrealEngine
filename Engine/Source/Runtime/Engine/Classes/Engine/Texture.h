@@ -608,6 +608,12 @@ public:
 	{
 	}
 
+	virtual bool HasPendingUpdate() const override 
+	{ 
+		return false; // Overriden in UTexture2D
+	}
+
+
 	/**
 	 * Textures that use the derived data cache must override this function and
 	 * provide a pointer to the linked list of platform data.

@@ -181,6 +181,12 @@ void UDynamicEntryBox::SetEntrySpacing(const FVector2D& InEntrySpacing)
 }
 
 #if WITH_EDITOR
+
+const FText UDynamicEntryBox::GetPaletteCategory()
+{
+	return LOCTEXT("Advanced", "Advanced");
+}
+
 void UDynamicEntryBox::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const
 {
 	if (!EntryWidgetClass)

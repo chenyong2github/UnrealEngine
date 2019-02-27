@@ -682,6 +682,7 @@ public:
 	FBroadphaseSettings BroadphaseSettings;
 
 	// If paused, FName of person pausing the game.
+	UE_DEPRECATED(4.23, "This property is deprecated. Please use Get/SetPauserPlayerState().")
 	UPROPERTY(transient, replicated)
 	class APlayerState* Pauser;
 
@@ -702,6 +703,11 @@ public:
 	/** Array of user data stored with the asset */
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
+
+private:
+	// If paused, PlayerState of person pausing the game.
+	UPROPERTY(transient, replicated)
+	class APlayerState* PauserPlayerState;
 
 public:
 	//~ Begin UObject Interface.
@@ -777,6 +783,9 @@ public:
 	int32 GetNumHierarchicalLODLevels() const;
 	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
 #endif // WITH EDITOR
+
+	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }
+	FORCEINLINE virtual void SetPauserPlayerState(class APlayerState* PlayerState) { PauserPlayerState = PlayerState; }
 
 private:
 

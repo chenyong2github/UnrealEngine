@@ -87,6 +87,10 @@ namespace Audio
 		const TCHAR* GetErrorString(HRESULT Result);
 		bool AllowDeviceSwap();
 
+		// Used to teardown and reinitialize XAudio2.
+		// This must be done to repopulate the playback device list in XAudio 2.7.
+		bool ResetXAudio2System();
+
 		typedef TArray<long> TChannelTypeMap;
 		
 #if PLATFORM_WINDOWS

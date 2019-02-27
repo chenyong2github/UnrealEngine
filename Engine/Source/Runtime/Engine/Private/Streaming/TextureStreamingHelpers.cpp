@@ -32,6 +32,7 @@ DECLARE_CYCLE_STAT(TEXT("Setup Async Task"), STAT_Streaming01_SetupAsyncTask, ST
 DECLARE_CYCLE_STAT(TEXT("Update Streaming Data"), STAT_Streaming02_UpdateStreamingData, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Streaming Texture"), STAT_Streaming03_StreamTextures, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Notifications"), STAT_Streaming04_Notifications, STATGROUP_Streaming);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Pending 2D Update"), STAT_Streaming05_Pending2DUpdate, STATGROUP_Streaming);
 
 /** Streaming Overview stats */
 
@@ -338,6 +339,7 @@ bool GNeverStreamOutRenderAssets = false;
 #if STATS
 extern int64 GUITextureMemory;
 extern int64 GNeverStreamTextureMemory;
+extern volatile int64 GPending2DUpdateCount;
 
 int64 GRequiredPoolSizeSum = 0;
 int64 GRequiredPoolSizeCount= 0;
@@ -372,6 +374,7 @@ void FRenderAssetStreamingStats::Apply()
 	SET_CYCLE_COUNTER(STAT_Streaming02_UpdateStreamingData, UpdateStreamingDataCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming03_StreamTextures, StreamTexturesCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming04_Notifications, CallbacksCycles);
+	INC_DWORD_STAT_BY(STAT_Streaming05_Pending2DUpdate, GPending2DUpdateCount);
 
 	/** Streaming Overview stats */
 

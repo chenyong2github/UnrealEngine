@@ -372,6 +372,11 @@ public:
 
 	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, void* TempBuffer) const;
 
+	inline bool HasExternalTextureExpressions() const
+	{
+		return UniformExternalTextureExpressions.Num() > 0;
+	}
+
 	uint32 GetAllocatedSize() const
 	{
 		return UniformVectorExpressions.GetAllocatedSize()
@@ -1791,6 +1796,31 @@ public:
 	ENGINE_API virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
 	ENGINE_API virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const;
 };
+
+/**
+ * A material render proxy which overrides the selection color
+ */
+class FOverrideSelectionColorMaterialRenderProxy : public FMaterialRenderProxy
+{
+public:
+
+	const FMaterialRenderProxy* const Parent;
+	const FLinearColor SelectionColor;
+
+	/** Initialization constructor. */
+	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor) :
+		Parent(InParent),
+		SelectionColor(InSelectionColor)
+	{
+	}
+
+	// FMaterialRenderProxy interface.
+	ENGINE_API virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
+	ENGINE_API virtual bool GetVectorValue(const FMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API virtual bool GetScalarValue(const FMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
+};
+
 
 /**
  * An material render proxy which overrides the material's Color and Lightmap resolution vector parameter.

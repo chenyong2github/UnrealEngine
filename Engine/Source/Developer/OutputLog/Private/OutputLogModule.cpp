@@ -112,6 +112,8 @@ void FOutputLogModule::ShutdownModule()
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::OutputLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName);
 	}
+
+	OutputLogHistory.Reset();
 }
 
 TSharedRef< SWidget > FOutputLogModule::MakeConsoleInputBox( TSharedPtr< SMultiLineEditableTextBox >& OutExposedEditableTextBox ) const

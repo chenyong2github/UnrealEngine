@@ -371,6 +371,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		static void ValidateSharedEnvironment(RulesAssembly RulesAssembly, string ThisTargetName, TargetRules ThisRules)
 		{
+			// Allow disabling these checks
+			if(ThisRules.bOverrideBuildEnvironment)
+			{
+				return;
+			}
+
 			// Get the name of the target with default settings
 			string BaseTargetName;
 			switch(ThisRules.Type)
@@ -456,7 +462,7 @@ namespace UnrealBuildTool
 			// Throw an exception if they don't match
 			if(!bFieldsMatch)
 			{
-				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting or change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
+				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting, change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor, or set bOverrideSharedBuildEnvironment = true to force this setting on.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
 			}
 		}
 
@@ -1509,6 +1515,14 @@ namespace UnrealBuildTool
 			}
 			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
 
+			// Write a header containing public definitions for this target
+			if(Rules.ExportPublicHeader != null)
+			{
+				UEBuildBinary Binary = Binaries[0];
+				FileReference Header = FileReference.Combine(Binary.OutputDir, Rules.ExportPublicHeader);
+				WritePublicHeader(Binary, Header, GlobalCompileEnvironment);
+			}
+
 			// Clean any stale modules which exist in multiple output directories. This can lead to the wrong DLL being loaded on Windows.
 			CleanStaleModules();
 
@@ -1722,6 +1736,44 @@ namespace UnrealBuildTool
 
 				Writer.WriteObjectEnd();
 			}
+		}
+
+		/// <summary>
+		/// Writes a header for the given binary that allows including headers from it in an external application
+		/// </summary>
+		/// <param name="Binary">Binary to write a header for</param>
+		/// <param name="HeaderFile">Path to the header to output</param>
+		/// <param name="GlobalCompileEnvironment">The global compile environment for this target</param>
+		void WritePublicHeader(UEBuildBinary Binary, FileReference HeaderFile, CppCompileEnvironment GlobalCompileEnvironment)
+		{
+			DirectoryReference.CreateDirectory(HeaderFile.Directory);
+
+			// Find all the public definitions from each module. We pass null as the source binary to AddModuleToCompileEnvironment, which forces all _API macros to 'export' mode
+			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
+			foreach(UEBuildModule Module in Binary.Modules)
+			{
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
+			}
+
+			// Write the header
+			using(StreamWriter Writer = new StreamWriter(HeaderFile.FullName))
+			{
+				Writer.WriteLine("#pragma once");
+				Writer.WriteLine();
+				foreach(string Definition in Definitions)
+				{
+					int EqualsIdx = Definition.IndexOf('=');
+					if(EqualsIdx == -1)
+					{
+						Writer.WriteLine(String.Format("#define {0} 1", Definition));
+					}
+					else
+					{
+						Writer.WriteLine(String.Format("#define {0} {1}", Definition.Substring(0, EqualsIdx), Definition.Substring(EqualsIdx + 1)));
+					}
+				}
+			}
+			Log.TraceInformation("Written public header to {0}", HeaderFile);
 		}
 
 		/// <summary>

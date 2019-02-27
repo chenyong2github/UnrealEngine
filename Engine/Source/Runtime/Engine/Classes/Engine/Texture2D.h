@@ -157,6 +157,7 @@ public:
 
 	/** true if the texture is currently being updated through StreamIn() or StreamOut(). */
 	virtual bool HasPendingUpdate() const final override { return PendingUpdate != nullptr; }
+	virtual bool IsPendingUpdateLocked() const final override;
 
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;

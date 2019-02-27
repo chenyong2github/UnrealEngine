@@ -300,8 +300,9 @@ void FMeshDrawShaderBindings::SetOnRayTracingStructure(FRHICommandList& RHICmdLi
 
 FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState)
 {
-	FSetElementId TableId = PersistentIdTable.FindId(InPipelineState);
+	checkSlow(IsInRenderingThread());
 
+	FSetElementId TableId = PersistentIdTable.FindId(InPipelineState);
 	if (TableId.IsValidId())
 	{
 		++PersistentIdTable[TableId].RefNum;
@@ -322,16 +323,19 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 
 void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelineStateId Id)
 {
-	check(Id.bValid && !Id.bOneFrameId);
+	check(!Id.bOneFrameId);
 
-	const FSetElementId SetElementId = FSetElementId::FromInteger(Id.SetElementIndex);
-	FRefCountedGraphicsMinimalPipelineStateInitializer& RefCountedStateInitializer = PersistentIdTable[SetElementId];
-
-	check(RefCountedStateInitializer.RefNum > 0);
-	--RefCountedStateInitializer.RefNum;
-	if (RefCountedStateInitializer.RefNum <= 0)
+	if (Id.bValid)
 	{
-		PersistentIdTable.Remove(SetElementId);
+		const FSetElementId SetElementId = FSetElementId::FromInteger(Id.SetElementIndex);
+		FRefCountedGraphicsMinimalPipelineStateInitializer& RefCountedStateInitializer = PersistentIdTable[SetElementId];
+
+		check(RefCountedStateInitializer.RefNum > 0);
+		--RefCountedStateInitializer.RefNum;
+		if (RefCountedStateInitializer.RefNum <= 0)
+		{
+			PersistentIdTable.Remove(SetElementId);
+		}
 	}
 }
 

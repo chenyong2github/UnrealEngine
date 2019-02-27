@@ -1033,22 +1033,16 @@ void UWorld::SetupParameterCollectionInstances()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(Stat_World_SetupParameterCollectionInstances);
 
-	// Newly serialized collection instances need to be parented to this world instance.
-	for (int32 InstanceIndex = 0; InstanceIndex < ParameterCollectionInstances.Num(); InstanceIndex++)
-	{
-		ParameterCollectionInstances[InstanceIndex]->SetWorld(this);
-	}
-
-	// Create an instance for each parameter collection in memory that didn't already exist.
+	// Create an instance for each parameter collection in memory
 	for (UMaterialParameterCollection* CurrentCollection : TObjectRange<UMaterialParameterCollection>())
 	{
-		AddParameterCollectionInstance(CurrentCollection, false /* bUpdateScene */, false /* bOverwriteIfExists */);
+		AddParameterCollectionInstance(CurrentCollection, false);
 	}
 
 	UpdateParameterCollectionInstances(false);
 }
 
-void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene, bool bOverwriteIfExists)
+void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene)
 {
 	int32 ExistingIndex = INDEX_NONE;
 
@@ -1061,30 +1055,23 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 		}
 	}
 
-	const bool bFoundExisting = ExistingIndex != INDEX_NONE;
-	const bool bMakeNewInstance = !bFoundExisting || (bFoundExisting && bOverwriteIfExists);
+	UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
+	NewInstance->SetCollection(Collection, this);
 
-	if (bMakeNewInstance)
+	if (ExistingIndex != INDEX_NONE)
 	{
-		UMaterialParameterCollectionInstance* NewInstance = NewObject<UMaterialParameterCollectionInstance>();
-		NewInstance->SetCollection(Collection, this);
-
-		if (bFoundExisting)
-		{
-			ParameterCollectionInstances[ExistingIndex] = NewInstance;
-		}
-		else
-		{
-			ParameterCollectionInstances.Add(NewInstance);
-		}
-
-		// Ensure the new instance creates initial render thread resources
-		// This needs to happen right away, so they can be picked up by any cached shader bindings
-		if (NewInstance)
-		{
-			NewInstance->DeferredUpdateRenderState(false);
-		}
+		// Overwrite an existing instance
+		ParameterCollectionInstances[ExistingIndex] = NewInstance;
 	}
+	else
+	{
+		// Add a new instance
+		ParameterCollectionInstances.Add(NewInstance);
+	}
+
+	// Ensure the new instance creates initial render thread resources
+	// This needs to happen right away, so they can be picked up by any cached shader bindings
+	NewInstance->DeferredUpdateRenderState(false);
 
 	if (bUpdateScene)
 	{
@@ -3496,7 +3483,7 @@ bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 		if (PlayerController != nullptr)
 		{
-			GetWorldSettings()->Pauser = PlayerController->PlayerState;
+			GetWorldSettings()->SetPauserPlayerState(PlayerController->PlayerState);
 			const uint32 Time = FCString::Atoi(*TimeString);
 			DemoNetDriver->GotoTimeInSeconds(Time);
 		}
@@ -3511,20 +3498,20 @@ bool UWorld::HandleDemoPauseCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	AWorldSettings* WorldSettings = GetWorldSettings();
 	check(WorldSettings != nullptr);
 
-	if (WorldSettings->Pauser == nullptr)
+	if (WorldSettings->GetPauserPlayerState() == nullptr)
 	{
 		if (DemoNetDriver != nullptr && DemoNetDriver->ServerConnection != nullptr && DemoNetDriver->ServerConnection->OwningActor != nullptr)
 		{
 			APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 			if (PlayerController != nullptr)
 			{
-				WorldSettings->Pauser = PlayerController->PlayerState;
+				WorldSettings->SetPauserPlayerState(PlayerController->PlayerState);
 			}
 		}
 	}
 	else
 	{
-		WorldSettings->Pauser = nullptr;
+		WorldSettings->SetPauserPlayerState(nullptr);
 	}
 	return true;
 }

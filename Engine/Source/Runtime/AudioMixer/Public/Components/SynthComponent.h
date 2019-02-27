@@ -46,7 +46,9 @@ class AUDIOMIXER_API USynthSound : public USoundWaveProcedural
 	/** End USoundWave */
 
 protected:
+	UPROPERTY()
 	USynthComponent* OwningSynthComponent;
+
 	TArray<float> FloatBuffer;
 	bool bAudioMixer;
 };

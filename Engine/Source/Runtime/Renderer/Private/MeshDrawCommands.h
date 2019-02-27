@@ -123,7 +123,8 @@ class FParallelMeshDrawCommandPass
 {
 public:
 	FParallelMeshDrawCommandPass()
-		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
+		: PrimitiveIdVertexBufferRHI(nullptr)
+		, bPrimitiveIdBufferDataOwnedByRHIThread(false)
 		, MaxNumDraws(0)
 	{
 	}
@@ -155,7 +156,7 @@ public:
 	 */
 	void DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList) const;
 
-	void Empty();
+	void WaitForTasksAndEmpty();
 	void SetDumpInstancingStats(const FString& InPassName);
 	bool HasAnyDraw() const { return MaxNumDraws > 0; }
 

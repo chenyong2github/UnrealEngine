@@ -140,6 +140,26 @@ namespace Audio
 		return false;
 	}
 
+	bool FMixerPlatformXAudio2::ResetXAudio2System()
+	{
+		SAFE_RELEASE(XAudio2System);
+
+		uint32 Flags = 0;
+
+#if WITH_XMA2
+		// We need to raise this flag explicitly to prevent initializing SHAPE twice, because we are allocating SHAPE in FXMAAudioInfo
+		Flags |= XAUDIO2_DO_NOT_USE_SHAPE;
+#endif
+
+		if (FAILED(XAudio2Create(&XAudio2System, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask())))
+		{
+			XAudio2System = nullptr;
+			return false;
+		}
+
+		return true;
+	}
+
 	bool FMixerPlatformXAudio2::InitializeHardware()
 	{
 		if (bIsInitialized)
@@ -659,6 +679,17 @@ namespace Audio
 			// we have to wait for it here.
 			FScopeLock ScopeLock(&DeviceSwapCriticalSection);
 
+			// Now that we've properly locked, raise the bIsInDeviceSwap flag
+			// in case FlushSourceBuffers() calls OnBufferEnd on this thread,
+			// and DeviceSwapCriticalSection.TryLock() is still returning true
+			bIsInDeviceSwap = true;
+
+			// Flush all buffers. Because we've locked DeviceSwapCriticalSection, ReadNextBuffer will early exit and we will not submit any additional buffers.
+			if (OutputAudioStreamSourceVoice)
+			{
+				OutputAudioStreamSourceVoice->FlushSourceBuffers();
+			}
+
 			if (OutputAudioStreamSourceVoice)
 			{
 				// Then destroy the current audio stream source voice
@@ -672,10 +703,19 @@ namespace Audio
 				OutputAudioStreamMasteringVoice->DestroyVoice();
 				OutputAudioStreamMasteringVoice = nullptr;
 			}
+
+			bIsInDeviceSwap = false;
 		}
 
 		if (NumDevices > 0)
 		{
+			if (!ResetXAudio2System())
+			{
+				// Reinitializing the XAudio2System failed, so we have to exit here.
+				StartRunningNullDevice();
+				return true;
+			}
+
 			// Now get info on the new audio device we're trying to reset to
 			uint32 DeviceIndex = 0;
 			if (!InNewDeviceId.IsEmpty())

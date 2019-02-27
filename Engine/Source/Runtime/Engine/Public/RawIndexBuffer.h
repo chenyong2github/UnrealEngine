@@ -267,7 +267,7 @@ public:
     void Discard();
     
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	inline bool Is32Bit() const { return b32Bit; }
 

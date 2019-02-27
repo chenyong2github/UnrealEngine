@@ -274,7 +274,7 @@ void USoundWave::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 void USoundWave::Serialize( FArchive& Ar )
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
 
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USoundWave::Serialize"), STAT_SoundWave_Serialize, STATGROUP_LoadTime );
 
@@ -684,7 +684,7 @@ void USoundWave::InvalidateCompressedData()
 
 void USoundWave::PostLoad()
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioSoundWaves);
 
 	Super::PostLoad();
 

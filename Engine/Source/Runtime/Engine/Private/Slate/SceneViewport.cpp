@@ -1155,9 +1155,8 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 		ViewportClient->Activated(this, InActivateEvent);
 		
 		// Determine if we're in permanent capture mode.  This cannot be cached as part of bShouldCaptureMouseOnActivate because it could change between window activate and deactivate
-		const bool bPermanentCapture =
-			!GIsEditor && ((ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
-			(ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+		const bool bPermanentCapture = ViewportClient->IsInPermanentCapture();
+
 
 		// If we are activating and had Mouse Capture on deactivate then we should get focus again
 		// It's important to note in the case of:
@@ -1175,6 +1174,7 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 
 	return FReply::Unhandled();
 }
+
 void FSceneViewport::OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent)
 {
 	// We backup if we have capture for us on activation, however we also maintain "true" if it's already true!

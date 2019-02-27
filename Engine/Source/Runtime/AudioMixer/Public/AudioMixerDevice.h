@@ -73,6 +73,7 @@ namespace Audio
 		~FMixerDevice();
 
 		//~ Begin FAudioDevice
+		virtual void UpdateDeviceDeltaTime() override;
 		virtual void GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const override;
 		virtual bool InitializeHardware() override;
 		virtual void FadeIn() override;

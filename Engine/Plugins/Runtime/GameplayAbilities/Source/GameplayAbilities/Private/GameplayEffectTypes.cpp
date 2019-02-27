@@ -502,16 +502,7 @@ FGameplayTagBlueprintPropertyMap::FGameplayTagBlueprintPropertyMap()
 
 FGameplayTagBlueprintPropertyMap::~FGameplayTagBlueprintPropertyMap()
 {
-	if (UAbilitySystemComponent* ASC = CachedASC.Get())
-	{
-		for (FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
-		{
-			if (Mapping.PropertyToEdit && Mapping.TagToMap.IsValid())
-			{
-				ASC->UnregisterGameplayTagEvent(Mapping.DelegateHandle, Mapping.TagToMap, GetGameplayTagEventType(Mapping.PropertyToEdit));
-			}
-		}
-	}
+	Unregister();
 }
 
 #if WITH_EDITOR
@@ -569,6 +560,11 @@ void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystem
 		return;
 	}
 
+	if (CachedOwner.IsValid())
+	{
+		Unregister();
+	}
+
 	CachedOwner = Owner;
 	CachedASC = ASC;
 
@@ -596,6 +592,26 @@ void FGameplayTagBlueprintPropertyMap::Initialize(UObject* Owner, UAbilitySystem
 
 		PropertyMappings.RemoveAtSwap(MappingIndex, 1, false);
 	}
+}
+
+void FGameplayTagBlueprintPropertyMap::Unregister()
+{
+	if (UAbilitySystemComponent* ASC = CachedASC.Get())
+	{
+		for (FGameplayTagBlueprintPropertyMapping& Mapping : PropertyMappings)
+		{
+			if (Mapping.PropertyToEdit && Mapping.TagToMap.IsValid())
+			{
+				ASC->UnregisterGameplayTagEvent(Mapping.DelegateHandle, Mapping.TagToMap, GetGameplayTagEventType(Mapping.PropertyToEdit));
+			}
+
+			Mapping.PropertyToEdit = nullptr;
+			Mapping.DelegateHandle.Reset();
+		}
+	}
+
+	CachedOwner = nullptr;
+	CachedASC = nullptr;
 }
 
 void FGameplayTagBlueprintPropertyMap::GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount)

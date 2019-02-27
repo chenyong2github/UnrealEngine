@@ -180,7 +180,7 @@ void FAudioThread::Exit()
 
 uint32 FAudioThread::Run()
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	FMemory::SetupTLSCachesOnCurrentThread();
 	FPlatformProcess::SetupAudioThread();

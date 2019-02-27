@@ -266,7 +266,7 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
-	DOREPLIFETIME( AWorldSettings, Pauser );
+	DOREPLIFETIME( AWorldSettings, PauserPlayerState );
 	DOREPLIFETIME( AWorldSettings, TimeDilation );
 	DOREPLIFETIME( AWorldSettings, MatineeTimeDilation );
 	DOREPLIFETIME( AWorldSettings, WorldGravityZ );

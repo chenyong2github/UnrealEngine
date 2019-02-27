@@ -15,7 +15,9 @@ class ISslCertificateManager
 {
 public:
 	virtual ~ISslCertificateManager() {}
-
+    
+	static constexpr int PUBLIC_KEY_DIGEST_SIZE = 32;
+    
 	/**
 	 * Add trusted root certificates to the SSL context
 	 *
@@ -60,4 +62,14 @@ public:
 	 * @return false if validation fails
 	 */
 	virtual bool VerifySslCertificates(X509_STORE_CTX* Context, const FString& Domain) const = 0;
+    
+	/**
+	 * Performs additional ssl validation (certificate pinning)
+	 *
+	 * @param Digests Array of public key digests to check against pinned key digests
+	 * @param Domain Domain we are connected to
+	 *
+	 * @return false if validation fails
+	 */
+	virtual bool VerifySslCertificates(TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>& Digests, const FString& Domain) const = 0;
 };

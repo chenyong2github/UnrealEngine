@@ -63,6 +63,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "AssetSelection.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
 
@@ -419,9 +420,20 @@ public:
 	void DuplicateActorsToLevel(TArray<AActor*>& OutNewActors, ULevel* DestLevel, bool bOffsetLocations)
 	{
 		// Check neither level is locked
-		if ( FLevelUtils::IsLevelLocked(SrcLevel) || FLevelUtils::IsLevelLocked(DestLevel) )
+		if ( FLevelUtils::IsLevelLocked(SrcLevel) )
 		{
 			UE_LOG(LogEditorActor, Warning, TEXT("DuplicateActorsToLevel: The requested operation could not be completed because the level is locked."));
+			return;
+		}
+
+		TArray<FTransform> ActorTransforms;
+		for (AActor* Actor : Actors)
+		{
+			ActorTransforms.Add(Actor->GetActorTransform());
+		}
+
+		if (!ActorPlacementUtils::IsLevelValidForActorPlacement(DestLevel, ActorTransforms))
+		{
 			return;
 		}
 

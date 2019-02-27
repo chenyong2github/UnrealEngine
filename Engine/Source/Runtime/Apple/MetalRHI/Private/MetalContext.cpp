@@ -54,6 +54,12 @@ static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("Debug option: when enabled will fill the buffer contents with 0 when allocating buffer objects, or regions thereof. (Default: 0, Off)"));
 
 #if METAL_DEBUG_OPTIONS
+int32 GMetalResetOnPSOChange = 0; // Deliberately not static
+static FAutoConsoleVariableRef CVarMetalResetOnPSOChange(
+	TEXT("rhi.Metal.ResetOnPSOChange"),
+	GMetalResetOnPSOChange,
+	TEXT("Debug option: when enabled will reset all the resource bindings when the PSO changes to aid debugging unbound resources. (Default: 0, Off)"));
+
 int32 GMetalBufferScribble = 0; // Deliberately not static, see InitFrame_UniformBufferPoolCleanup
 static FAutoConsoleVariableRef CVarMetalBufferScribble(
 	TEXT("rhi.Metal.BufferScribble"),
