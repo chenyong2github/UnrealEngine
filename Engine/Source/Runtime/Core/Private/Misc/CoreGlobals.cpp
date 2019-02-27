@@ -247,6 +247,8 @@ bool					GEventDrivenLoaderEnabled = false;
 /** Steadily increasing frame counter.																		*/
 TSAN_ATOMIC(uint64)		GFrameCounter(0);
 uint64					GLastGCFrame					= 0;
+/** The time input was sampled, in cycles. */
+uint64					GInputTime					= 0;
 /** Incremented once per frame before the scene is being rendered. In split screen mode this is incremented once for all views (not for each view). */
 uint32					GFrameNumber					= 1;
 /** NEED TO RENAME, for RT version of GFrameTime use View.ViewFamily->FrameNumber or pass down from RT from GFrameTime). */

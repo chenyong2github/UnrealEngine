@@ -412,6 +412,9 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	RawRHITTime = FPlatformTime::ToMilliseconds(GRHIThreadTime);
 	RHITTime = 0.9 * RHITTime + 0.1 * RawRHITTime;
 
+	RawInputLatencyTime = FPlatformTime::ToMilliseconds64(GInputLatencyTime);
+	InputLatencyTime = 0.9 * InputLatencyTime + 0.1 * RawInputLatencyTime;
+
 	FDynamicResolutionStateInfos DynamicResolutionStateInfos;
 	GEngine->GetDynamicResolutionCurrentStateInfos(/* out */ DynamicResolutionStateInfos);
 
@@ -425,6 +428,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	SET_FLOAT_STAT(STAT_UnitRHIT, RHITTime);
 	SET_FLOAT_STAT(STAT_UnitGame, GameThreadTime);
 	SET_FLOAT_STAT(STAT_UnitGPU, GPUFrameTime);
+	SET_FLOAT_STAT(STAT_InputLatencyTime, InputLatencyTime);
 
 	GEngine->SetAverageUnitTimes(FrameTime, RenderThreadTime, GameThreadTime, GPUFrameTime, RHITTime);
 
@@ -433,6 +437,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	float Max_GPUFrameTime = 0.0f;
 	float Max_FrameTime = 0.0f;
 	float Max_RHITTime = 0.0f;
+	float Max_InputLatencyTime = 0.0f;
 
 	const bool bShowUnitMaxTimes = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("UnitMax")) : false;
 #if !UE_BUILD_SHIPPING
@@ -442,6 +447,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	GPUFrameTimes[CurrentIndex] = bShowRawUnitTimes ? RawGPUFrameTime : GPUFrameTime;
 	FrameTimes[CurrentIndex] = bShowRawUnitTimes ? RawFrameTime : FrameTime;
 	RHITTimes[CurrentIndex] = bShowRawUnitTimes ? RawRHITTime : RHITTime;
+	InputLatencyTimes[CurrentIndex] = bShowRawUnitTimes ? RawInputLatencyTime : InputLatencyTime;
 	ResolutionFractions[CurrentIndex] = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 	CurrentIndex++;
 	if (CurrentIndex == NumberOfSamples)
@@ -474,6 +480,10 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			{
 				Max_RHITTime = RHITTimes[MaxIndex];
 			}
+			if (Max_InputLatencyTime < InputLatencyTimes[MaxIndex])
+			{
+				Max_InputLatencyTime = InputLatencyTimes[MaxIndex];
+			}
 		}
 	}
 #endif // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -485,6 +495,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 	const bool bShowUnitTimeGraph = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("UnitGraph")) : false;
 	const bool bHaveGPUData = GPUCycles > 0;
+	const bool bHaveInputLatencyData = InputLatencyTime > 0;
 
 	const float AlertResolutionFraction = 0.70f; // Truncation of sqrt(0.5) for easier remembering.
 
@@ -587,6 +598,19 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			{
 				const FColor RenderThreadMaxColor = GEngine->GetFrameTimeDisplayColor(Max_RHITTime);
 				InCanvas->DrawShadowedString(X3, InY, *FString::Printf(TEXT("%4.2f ms"), Max_RHITTime), Font, RenderThreadMaxColor);
+			}
+			InY += RowHeight;
+		}
+		if (bHaveInputLatencyData)
+		{
+			const float ReasonableInputLatencyFactor = 2.5f;
+			const FColor InputLatencyAverageColor = GEngine->GetFrameTimeDisplayColor(InputLatencyTime / ReasonableInputLatencyFactor);
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Input:"), Font, bShowUnitTimeGraph ? FColor(255, 255, 100) : FColor::White);
+			InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%3.2f ms"), InputLatencyTime), Font, InputLatencyAverageColor);
+			if (bShowUnitMaxTimes)
+			{
+				const FColor InputLatencyMaxColor = GEngine->GetFrameTimeDisplayColor(Max_InputLatencyTime / ReasonableInputLatencyFactor);
+				InCanvas->DrawShadowedString(X3, InY, *FString::Printf(TEXT("%4.2f ms"), Max_InputLatencyTime), Font, InputLatencyMaxColor);
 			}
 			InY += RowHeight;
 		}

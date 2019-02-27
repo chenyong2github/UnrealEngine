@@ -10179,6 +10179,20 @@ void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 {
 	check(IsInGameThread());			
 
+#if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
+	// Set the FrameDebugInfo on platforms that have accurate frame tracking.
+	ENQUEUE_RENDER_COMMAND(FrameDebugInfo)(
+		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandList&)
+	{
+		GRHICommandList.GetImmediateCommandList().EnqueueLambda(
+			[CurrentFrameCounter, CurrentInputTime](FRHICommandList&)
+		{
+			// Set the FrameCount and InputTime for input latency stats and flip debugging.
+			RHISetFrameDebugInfo(GRHIPresentCounter - 1, CurrentFrameCounter - 1, CurrentInputTime);
+		});
+	});
+#endif
+
 	// Since this is the frame end sync, allow sync with the RHI and GPU (true).
 	Fence[EventIndex].BeginFence(true);
 
@@ -12749,7 +12763,7 @@ void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 	else if(TransitionType == TT_None || TransitionType == TT_Paused)
 	{
 		// Display a paused screen if the game is paused.
-		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? TT_Paused : TT_None;
+		TransitionType = (CurrentWorld->GetWorldSettings()->Pauser != NULL) ? TT_Paused : TT_None;
 	}
 }
 
