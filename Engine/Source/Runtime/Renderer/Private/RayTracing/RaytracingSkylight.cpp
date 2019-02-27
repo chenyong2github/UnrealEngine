@@ -759,7 +759,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FSkyLightData SkyLightData;
 	SkyLightData.SamplesPerPixel = GRayTracingSkyLightSamplesPerPixel;
 	SkyLightData.SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
-	SkyLightData.Color = FVector(Scene->SkyLight->LightColor);
+	SkyLightData.Color = FVector(Scene->SkyLight->GetEffectiveLightColor());
 	SkyLightData.Texture = Scene->SkyLight->ProcessedTexture->TextureRHI;
 	SkyLightData.TextureSampler = Scene->SkyLight->ProcessedTexture->SamplerStateRHI;
 	SkyLightData.MipDimensions = Scene->SkyLight->SkyLightMipDimensions;

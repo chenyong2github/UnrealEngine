@@ -212,7 +212,7 @@ public:
 			FSkyLightData SkyLightData;
 			if (SkyLightTextureData)
 			{
-				SkyLightData.Color = FVector(Scene->SkyLight->LightColor);
+				SkyLightData.Color = FVector(Scene->SkyLight->GetEffectiveLightColor());
 				SkyLightData.Texture = Scene->SkyLight->ProcessedTexture->TextureRHI;
 				SkyLightData.TextureSampler = Scene->SkyLight->ProcessedTexture->SamplerStateRHI;
 
@@ -560,7 +560,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	uint32 SkyLightColumnCount = 0;
 	if (Scene->SkyLight)
 	{
-		SkyLightColor = Scene->SkyLight->LightColor;
+		SkyLightColor = Scene->SkyLight->GetEffectiveLightColor();
 		SkyLightTexture = Scene->SkyLight->ProcessedTexture;
 		SkyLightColumnCount = SkyLightTexture->GetSizeX();
 		SkyLightRowCount = SkyLightTexture->GetSizeY();
