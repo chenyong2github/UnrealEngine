@@ -992,7 +992,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param ApprovedUserId - the user that has been approved to attempt to rejoin the party (does not need to be in the party now)
 	 */
-	virtual void ApproveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& ApprovedUserId) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void ApproveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& ApprovedUserId) {}
 
 	/** 
 	 * Unmark a user as approved to attempt to rejoin our party
@@ -1001,7 +1002,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param RemovedUserId - the user that has lost approval to attempt to rejoin the party
 	 */
-	virtual void RemoveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RemovedUserId) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void RemoveUserForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RemovedUserId) {}
 
 	/** 
 	 * Get a list of users that have been approved for rejoining
@@ -1010,7 +1012,8 @@ public:
 	 * @param PartyId - party the player is approved to rejoin the party
 	 * @param OutApprovedUserIds - list of users that have been approved
 	 */
-	virtual void GetUsersApprovedForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<const FUniqueNetId>>& OutApprovedUserIds) = 0;
+	UE_DEPRECATED(4.23, "Marking users for rejoins in the public interface is deprecated. This functionality should be implemented internal to your party implementation.")
+	virtual void GetUsersApprovedForRejoin(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<const FUniqueNetId>>& OutApprovedUserIds) {}
 
 	/**
 	 * Kick a user from an existing party
