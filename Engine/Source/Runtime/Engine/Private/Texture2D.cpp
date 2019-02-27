@@ -10,6 +10,7 @@
 #include "Misc/App.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"
 #include "Containers/ResourceArray.h"
 #include "UObject/UObjectIterator.h"
@@ -1001,6 +1002,8 @@ bool UTexture2D::IsFullyStreamedIn()
 
 UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat)
 {
+	LLM_SCOPE(ELLMTag::Textures);
+
 	UTexture2D* NewTexture = NULL;
 	if (InSizeX > 0 && InSizeY > 0 &&
 		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
@@ -1030,7 +1033,7 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 	}
 	else
 	{
-		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2D::Create()"));
+		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2D::CreateTransient()"));
 	}
 	return NewTexture;
 }
