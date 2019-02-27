@@ -783,6 +783,7 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 		}
 	}
 
+	if (bRequiresAdjacencyInformation)
 	{
 		check( LODModel.bHasAdjacencyInfo );
 		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
