@@ -1102,6 +1102,12 @@ namespace UnrealBuildTool
 		public TargetBuildEnvironment BuildEnvironment = TargetBuildEnvironment.Default;
 
 		/// <summary>
+		/// Whether to ignore violations to the shared build environment (eg. editor targets modifying definitions)
+		/// </summary>
+		[CommandLine("-OverrideBuildEnvironment")]
+		public bool bOverrideBuildEnvironment = false;
+
+		/// <summary>
 		/// Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell.
 		/// The following variables will be expanded before execution: 
 		/// $(EngineDir), $(ProjectDir), $(TargetName), $(TargetPlatform), $(TargetConfiguration), $(TargetType), $(ProjectFile).
@@ -2205,6 +2211,11 @@ namespace UnrealBuildTool
 		public TargetBuildEnvironment BuildEnvironment
 		{
 			get { return Inner.BuildEnvironment; }
+		}
+
+		public bool bOverrideBuildEnvironment
+		{
+			get { return Inner.bOverrideBuildEnvironment; }
 		}
 
 		public IReadOnlyList<string> PreBuildSteps
