@@ -1056,3 +1056,9 @@ protected:
  * Returns if specified mesh command can be cached, or needs to be recreated every frame.
  */
 ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+
+/**
+ * Returns if specified mesh command can be cached, or needs to be recreated every frame; this is a slightly slower version
+ * used for materials with external textures that need invalidating their PSOs.
+ */
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const class FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel);
