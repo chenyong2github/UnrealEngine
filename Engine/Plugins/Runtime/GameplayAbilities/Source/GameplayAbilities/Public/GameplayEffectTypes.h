@@ -1383,6 +1383,8 @@ public:
 
 protected:
 
+	void Unregister();
+
 	void GameplayTagEventCallback(const FGameplayTag Tag, int32 NewCount);
 
 	bool IsPropertyTypeValid(const UProperty* Property) const;
