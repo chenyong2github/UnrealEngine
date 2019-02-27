@@ -3496,7 +3496,7 @@ bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 		if (PlayerController != nullptr)
 		{
-			GetWorldSettings()->Pauser = PlayerController->PlayerState;
+			GetWorldSettings()->SetPauserPlayerState(PlayerController->PlayerState);
 			const uint32 Time = FCString::Atoi(*TimeString);
 			DemoNetDriver->GotoTimeInSeconds(Time);
 		}
@@ -3511,20 +3511,20 @@ bool UWorld::HandleDemoPauseCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	AWorldSettings* WorldSettings = GetWorldSettings();
 	check(WorldSettings != nullptr);
 
-	if (WorldSettings->Pauser == nullptr)
+	if (WorldSettings->GetPauserPlayerState() == nullptr)
 	{
 		if (DemoNetDriver != nullptr && DemoNetDriver->ServerConnection != nullptr && DemoNetDriver->ServerConnection->OwningActor != nullptr)
 		{
 			APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 			if (PlayerController != nullptr)
 			{
-				WorldSettings->Pauser = PlayerController->PlayerState;
+				WorldSettings->SetPauserPlayerState(PlayerController->PlayerState);
 			}
 		}
 	}
 	else
 	{
-		WorldSettings->Pauser = nullptr;
+		WorldSettings->SetPauserPlayerState(nullptr);
 	}
 	return true;
 }
