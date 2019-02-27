@@ -811,9 +811,9 @@ void USocialParty::HandleMemberSessionIdChanged(const FSessionId& NewSessionId, 
 
 void USocialParty::HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete)
 {
-	OnAttemptComplete.ExecuteIfBound(LeaveResult);
-
 	FinalizePartyLeave(EMemberExitedReason::Left);
+
+	OnAttemptComplete.ExecuteIfBound(LeaveResult);
 }
 
 void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings)
