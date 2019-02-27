@@ -1395,6 +1395,15 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 		AdditionalParameters += PlayInSettings->AdditionalLaunchParameters;
 	}
 
+	if (bPlayUsingMobilePreview)
+	{
+		if (PlayInSettings->AdditionalLaunchParametersForMobile.Len() > 0)
+		{
+			AdditionalParameters += TEXT(" ");
+			AdditionalParameters += PlayInSettings->AdditionalLaunchParametersForMobile;
+		}
+	}
+
 	uint16 ServerPort = 0;
 	if (bIsServer && PlayInSettings->GetServerPort(ServerPort))
 	{
