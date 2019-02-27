@@ -10192,10 +10192,10 @@ void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 #if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
 	// Set the FrameDebugInfo on platforms that have accurate frame tracking.
 	ENQUEUE_RENDER_COMMAND(FrameDebugInfo)(
-		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandList&)
+		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandListImmediate& RHICmdList)
 	{
-		GRHICommandList.GetImmediateCommandList().EnqueueLambda(
-			[CurrentFrameCounter, CurrentInputTime](FRHICommandList&)
+		RHICmdList.EnqueueLambda(
+			[CurrentFrameCounter, CurrentInputTime](FRHICommandListImmediate&)
 		{
 			// Set the FrameCount and InputTime for input latency stats and flip debugging.
 			RHISetFrameDebugInfo(GRHIPresentCounter - 1, CurrentFrameCounter - 1, CurrentInputTime);

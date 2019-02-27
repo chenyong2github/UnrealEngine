@@ -1221,9 +1221,9 @@ void FlushRenderingCommands(bool bFlushDeferredDeletes)
 	}
 
 	ENQUEUE_RENDER_COMMAND(FlushPendingDeleteRHIResourcesCmd)(
-		[bFlushDeferredDeletes](FRHICommandList&)
+		[bFlushDeferredDeletes](FRHICommandListImmediate& RHICmdList)
 	{
-		GRHICommandList.GetImmediateCommandList().ImmediateFlush(
+		RHICmdList.ImmediateFlush(
 			bFlushDeferredDeletes ?
 			EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes :
 			EImmediateFlushType::FlushRHIThreadFlushResources);
