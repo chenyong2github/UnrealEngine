@@ -553,7 +553,24 @@ void FLevelSequenceEditorToolkit::OnSequencerReceivedFocus()
 
 void FLevelSequenceEditorToolkit::HandleAddComponentActionExecute(UActorComponent* Component)
 {
-	Sequencer->GetHandleToObject(Component);
+	const FScopedTransaction Transaction(LOCTEXT("AddComponent", "Add Component"));
+
+	FString ComponentName = Component->GetName();
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = CastChecked<AActor>(*Iter);
+
+		TArray<UActorComponent*> OutComponents;
+		Actor->GetComponents(OutComponents);
+		for (UActorComponent* ActorComponent : OutComponents)
+		{
+			if (ActorComponent->GetName() == ComponentName)
+			{
+				Sequencer->GetHandleToObject(ActorComponent);
+			}
+		}
+	}
 }
 
 
