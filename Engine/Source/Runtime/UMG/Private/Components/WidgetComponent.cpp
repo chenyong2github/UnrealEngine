@@ -996,7 +996,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
 
-				if ( TargetPlayer && PlayerController && IsVisible() )
+				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->bHidden))
 				{
 					if ( !bAddedToScreen )
 					{
