@@ -562,6 +562,7 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 		if (RenderingTextures[NextImage] == nullptr || DecompressedImage->Width != RenderingTextures[NextImage]->GetSizeX() || DecompressedImage->Height != RenderingTextures[NextImage]->GetSizeY())
 		{
 			RenderingTextures[NextImage] = UTexture2D::CreateTransient(DecompressedImage->Width, DecompressedImage->Height);
+			RenderingTextures[NextImage]->SRGB = 0;
 			RenderingTextures[NextImage]->UpdateResource();
 		}
 
