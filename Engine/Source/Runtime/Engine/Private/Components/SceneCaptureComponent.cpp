@@ -141,7 +141,8 @@ void USceneCaptureComponent::OnRegister()
 			ProxyMeshComponent->SetIsVisualizationComponent(true);
 			ProxyMeshComponent->SetStaticMesh(CaptureMesh);
 			ProxyMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-			ProxyMeshComponent->bHiddenInGame = true;
+			ProxyMeshComponent->bVisible = bVisible; // Match the visibility of the component
+			ProxyMeshComponent->bHiddenInGame = true; // Hidden in game should always be true as this is a visualization component
 			ProxyMeshComponent->CastShadow = false;
 			ProxyMeshComponent->CreationMethod = CreationMethod;
 			ProxyMeshComponent->RegisterComponentWithWorld(GetWorld());
@@ -399,6 +400,15 @@ void USceneCaptureComponent::UpdateDeferredCaptures(FSceneInterface* Scene)
 
 	// All scene captures for this world have been updated
 	SceneCapturesToUpdateMap.Remove(World);
+}
+
+void USceneCaptureComponent::OnVisibilityChanged()
+{
+	if (ProxyMeshComponent != nullptr)
+	{
+		ProxyMeshComponent->SetVisibility(bVisible);
+	}
+	Super::OnVisibilityChanged();
 }
 
 void USceneCaptureComponent::OnUnregister()
