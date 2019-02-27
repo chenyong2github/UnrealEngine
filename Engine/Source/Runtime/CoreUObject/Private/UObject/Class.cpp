@@ -4369,6 +4369,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 
 void UClass::AssembleReferenceTokenStreams()
 {
+	SCOPED_BOOT_TIMING("AssembleReferenceTokenStreams (can be optimized)");
 	// Iterate over all class objects and force the default objects to be created. Additionally also
 	// assembles the token reference stream at this point. This is required for class objects that are
 	// not taken into account for garbage collection but have instances that are.

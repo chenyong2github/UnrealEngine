@@ -622,7 +622,7 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	// remove the Overhead from the default LLM as it's not something anyone needs to investigate when finding what to reduce
 	// the platform LLM will have the info 
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Total, PlatformProcessMemory - Overhead, false);
-	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - TrackedTotal, false);
+	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - (TrackedTotal + Overhead), false);
 
 #if PLATFORM_WINDOWS
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::WorkingSetSize, PlatformStats.UsedPhysical, false);

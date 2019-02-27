@@ -284,12 +284,24 @@ FString FPreLoadSettingsContainerBase::ConvertIfPluginRelativeContentPath(const 
     return ReturnPath;
 }
 
+void FPreLoadSettingsContainerBase::SetShouldLoadBrushes(bool bInShouldLoadBrushes)
+{
+	bShouldLoadBrushes = bInShouldLoadBrushes;
+}
+
 void FPreLoadSettingsContainerBase::CreateCustomSlateImageBrush(const FString& Identifier, const FString& TexturePath, const FVector2D& ImageDimensions)
 {
-    BrushResources.Add(*Identifier, new FSlateDynamicImageBrush(*TexturePath, ImageDimensions));
+	if (bShouldLoadBrushes)
+	{
+		BrushResources.Add(*Identifier, new FSlateDynamicImageBrush(*TexturePath, ImageDimensions));
 
-    //Make sure this dynamic image resource is registered with the SlateApplication
-    FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(*TexturePath);
+		//Make sure this dynamic image resource is registered with the SlateApplication
+		FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(*TexturePath);
+	}
+	else
+	{
+		BrushResources.Add(*Identifier, new FSlateDynamicImageBrush(NAME_None, ImageDimensions));
+	}
 }
 
 void FPreLoadSettingsContainerBase::AddLocalizedText(const FString& Identifier, FText LocalizedText)

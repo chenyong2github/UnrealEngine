@@ -469,7 +469,7 @@ namespace Gauntlet
 
 						SearchContent = SearchContent.Substring(EOL + 1);
 
-					} while (LinesWithoutBacktrace < 5);
+					} while (LinesWithoutBacktrace < 10);
 
 					if (Backtrace.Count > 0)
 					{

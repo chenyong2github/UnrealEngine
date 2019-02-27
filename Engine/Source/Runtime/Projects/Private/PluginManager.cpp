@@ -1178,7 +1178,7 @@ void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)
 				{
 					if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
 					{
-						CoreSystemSection->AddUnique("Paths", Plugin->GetContentDir());
+						CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
 					}
 				}
 			}
@@ -1209,5 +1209,26 @@ void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)
 		}
 	}
 }
+
+FName FPluginManager::PackageNameFromModuleName(FName ModuleName)
+{
+	FName Result = ModuleName;
+	for (TMap<FString, TSharedRef<FPlugin>>::TIterator Iter(AllPlugins); Iter; ++Iter)
+	{
+		const TSharedRef<FPlugin>& Plugin = Iter.Value();
+		const TArray<FModuleDescriptor>& Modules = Plugin->Descriptor.Modules;
+		for (int Idx = 0; Idx < Modules.Num(); Idx++)
+		{
+			const FModuleDescriptor& Descriptor = Modules[Idx];
+			if (Descriptor.Name == ModuleName)
+			{
+				UE_LOG(LogPluginManager, Log, TEXT("Module %s belongs to Plugin %s and we assume that is the name of the package with the UObjects is /Script/%s"), *ModuleName.ToString(), *Plugin->Name, *Plugin->Name);
+				return FName(*Plugin->Name);
+			}
+		}
+	}
+	return Result;
+}
+
 
 #undef LOCTEXT_NAMESPACE

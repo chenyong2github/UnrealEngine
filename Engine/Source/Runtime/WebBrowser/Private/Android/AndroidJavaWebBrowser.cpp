@@ -50,12 +50,18 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// get field IDs for FrameUpdateInfo class members
-	jclass localFrameUpdateInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/WebViewControl$FrameUpdateInfo");
-	FrameUpdateInfoClass = (jclass)JEnv->NewGlobalRef(localFrameUpdateInfoClass);
-	JEnv->DeleteLocalRef(localFrameUpdateInfoClass);
+	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/WebViewControl$FrameUpdateInfo");
 	FrameUpdateInfo_Buffer = FindField(JEnv, FrameUpdateInfoClass, "Buffer", "Ljava/nio/Buffer;", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
 	FrameUpdateInfo_RegionChanged = FindField(JEnv, FrameUpdateInfoClass, "RegionChanged", "Z", false);
+}
+
+FJavaAndroidWebBrowser::~FJavaAndroidWebBrowser()
+{
+	if (auto Env = FAndroidApplication::GetJavaEnv())
+	{
+		Env->DeleteGlobalRef(FrameUpdateInfoClass);
+	}
 }
 
 void FJavaAndroidWebBrowser::Release()
@@ -67,42 +73,32 @@ bool FJavaAndroidWebBrowser::GetVideoLastFrameData(void* & outPixels, int64 & ou
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != Result)
-		{
-			JEnv->DeleteLocalRef(Result);
-		}
 		*bRegionChanged = false;
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		return false;
 	}
 
-	jobject buffer = JEnv->GetObjectField(Result, FrameUpdateInfo_Buffer);
-	if (nullptr != buffer)
+	auto buffer = NewScopedJavaObject(JEnv, JEnv->GetObjectField(*Result, FrameUpdateInfo_Buffer));
+	if (buffer)
 	{
-		bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-		*bRegionChanged = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_RegionChanged);
+		bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+		*bRegionChanged = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_RegionChanged);
 		
-		outPixels = JEnv->GetDirectBufferAddress(buffer);
-		outCount = JEnv->GetDirectBufferCapacity(buffer);
-
-		// the GetObjectField returns a local ref, but Java will still own the real buffer
-		JEnv->DeleteLocalRef(buffer);
-
-		JEnv->DeleteLocalRef(Result);
-
+		outPixels = JEnv->GetDirectBufferAddress(*buffer);
+		outCount = JEnv->GetDirectBufferCapacity(*buffer);
+		
 		return !(nullptr == outPixels || 0 == outCount);
 	}
-
-	JEnv->DeleteLocalRef(Result);
+	
 	return false;
 }
 
@@ -115,30 +111,24 @@ bool FJavaAndroidWebBrowser::UpdateVideoFrame(int32 ExternalTextureId, bool *bRe
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != Result)
-		{
-			JEnv->DeleteLocalRef(Result);
-		}
 		*bRegionChanged = false;
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		*bRegionChanged = false;
 		return false;
 	}
 
-	bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-	*bRegionChanged = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_RegionChanged);
+	bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+	*bRegionChanged = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_RegionChanged);
 	
-	JEnv->DeleteLocalRef(Result);
-
 	return bFrameReady;
 }
 
@@ -146,7 +136,7 @@ bool FJavaAndroidWebBrowser::GetVideoLastFrame(int32 destTexture)
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, GetVideoLastFrameMethod.Method, destTexture);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameMethod.Method, destTexture));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
@@ -154,15 +144,13 @@ bool FJavaAndroidWebBrowser::GetVideoLastFrame(int32 destTexture)
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		return false;
 	}
 
-	bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
+	bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
 	
-	JEnv->DeleteLocalRef(Result);
-
 	return bFrameReady;
 }
 
@@ -178,17 +166,21 @@ void FJavaAndroidWebBrowser::Update(const int posX, const int posY, const int si
 
 void FJavaAndroidWebBrowser::ExecuteJavascript(const FString& Script)
 {
-	CallMethod<void>(ExecuteJavascriptMethod, FJavaClassObject::GetJString(Script));
+	auto JString = FJavaClassObject::GetJString(Script);
+	CallMethod<void>(ExecuteJavascriptMethod, *JString);
 }
 
 void FJavaAndroidWebBrowser::LoadURL(const FString& NewURL)
 {
-	CallMethod<void>(LoadURLMethod, FJavaClassObject::GetJString(NewURL));
+	auto JString = FJavaClassObject::GetJString(NewURL);
+	CallMethod<void>(LoadURLMethod, *JString);
 }
 
 void FJavaAndroidWebBrowser::LoadString(const FString& Contents, const FString& BaseUrl)
 {
-	CallMethod<void>(LoadStringMethod, FJavaClassObject::GetJString(Contents), FJavaClassObject::GetJString(BaseUrl));
+	auto JContents = FJavaClassObject::GetJString(Contents);
+	auto JUrl = FJavaClassObject::GetJString(BaseUrl);
+	CallMethod<void>(LoadStringMethod, *JContents, *JUrl);
 }
 
 void FJavaAndroidWebBrowser::StopLoad()

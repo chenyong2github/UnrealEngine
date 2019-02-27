@@ -379,7 +379,8 @@ static void DumpBootTimingString(const TCHAR* Message)
 	}
 	else
 	{
-		FPlatformMisc::LowLevelOutputDebugString(Message);
+		// Some platforms add an implicit \n if it isn't there, others don't
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), Message);
 	}
 }
 
@@ -398,11 +399,18 @@ void DumpBootTiming()
 static void BootTimingPoint(const TCHAR *Message, const TCHAR *Prefix = nullptr, int32 Depth = 0, double TookTime = 0.0)
 {
 	static double LastTime = 0.0;
-	static FString LastMessage;
+	static TArray<FString> MessageStack;
+	static FString LastGapMessage;
 	double Now = FPlatformTime::Seconds();
 
 	FString Result;
 	FString GapTime;
+	FString LastMessage;
+
+	if (MessageStack.Num())
+	{
+		LastMessage = MessageStack.Last();
+	}
 
 	if (!Prefix || FCString::Strcmp(Prefix, TEXT("}")) || LastMessage != FString(Message))
 	{
@@ -411,12 +419,29 @@ static void BootTimingPoint(const TCHAR *Message, const TCHAR *Prefix = nullptr,
 			GapTime = FString::Printf(TEXT("              %7.3fs **Gap**"), float(Now - LastTime));
 			GAllBootTiming.Add(GapTime);
 			DumpBootTimingString(*FString::Printf(TEXT("[BT]******** %s"), *GapTime));
+			LastGapMessage = LastMessage;
 		}
 	}
 	LastTime = Now;
-	LastMessage = Message;
+
 	if (Prefix)
 	{
+		if (FCString::Strcmp(Prefix, TEXT("}")) == 0)
+		{
+			if (LastMessage == Message)
+			{
+				MessageStack.Pop();
+				if (LastGapMessage == Message)
+				{
+					LastGapMessage.Reset();
+				}
+			}
+		}
+		else if (FCString::Strcmp(Prefix, TEXT("{")) == 0)
+		{
+			MessageStack.Add(Message);
+		}
+
 		if (TookTime != 0.0)
 		{
 			Result = FString::Printf(TEXT("%7.3fs took %7.3fs %s   %1s %s"), float(Now - GBootTimingStart.FirstTime), float(TookTime), FCString::Spc(Depth * 2), Prefix, Message);
@@ -437,7 +462,28 @@ static void BootTimingPoint(const TCHAR *Message, const TCHAR *Prefix = nullptr,
 			Result = FString::Printf(TEXT("%7.3fs : %s"), float(Now - GBootTimingStart.FirstTime), Message);
 		}
 	}
-	GAllBootTiming.Add(Result);
+	bool bKeep = true;
+	if (Prefix && TookTime > 0.0 && GAllBootTiming.Num())
+	{
+		// Don't suppress the first 0 time block if there was a gap right before
+		if (MessageStack.Num() != 0 && MessageStack.Last() == LastGapMessage)
+		{
+			LastGapMessage.Reset();
+		}
+		else if (TookTime < 0.001)
+		{
+			// Remove a paired {} if time was too small
+			if (GAllBootTiming.Last().Contains(Message))
+			{
+				GAllBootTiming.Pop();
+				bKeep = false;
+			}
+		}
+	}
+	if (bKeep)
+	{
+		GAllBootTiming.Add(Result);
+	}
 	DumpBootTimingString(*FString::Printf(TEXT("[BT]******** %s"), *Result));
 }
 

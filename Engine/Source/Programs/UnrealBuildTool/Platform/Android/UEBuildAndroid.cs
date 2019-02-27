@@ -277,7 +277,17 @@ namespace UnrealBuildTool
 			{
 				foreach (string GPUArchitecture in GPUArchitectures)
 				{
-					AllBinaries.Add(new FileReference(AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture, GPUArchitecture)));
+					string BinaryPath;
+					if (Target.bShouldCompileAsDLL)
+					{
+						BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUE4.so");
+					}
+					else
+					{
+						BinaryPath = AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture, GPUArchitecture);
+					}
+
+					AllBinaries.Add(new FileReference(BinaryPath));
 				}
 			}
 

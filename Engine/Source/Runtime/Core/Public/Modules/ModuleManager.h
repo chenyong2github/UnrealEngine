@@ -438,7 +438,8 @@ public:
 	 *
 	 * @return The delegate.
 	 */
-	FSimpleMulticastDelegate& OnProcessLoadedObjectsCallback()
+	DECLARE_EVENT_TwoParams(FModuleManager, ProcessLoadedObjectsEvent, FName, bool);
+	ProcessLoadedObjectsEvent& OnProcessLoadedObjectsCallback()
 	{
 		return ProcessLoadedObjectsCallback;
 	}
@@ -583,7 +584,7 @@ private:
 	FModulesChangedEvent ModulesChangedEvent;
 	
 	/** Multicast delegate called to process any new loaded objects. */
-	FSimpleMulticastDelegate ProcessLoadedObjectsCallback;
+	ProcessLoadedObjectsEvent ProcessLoadedObjectsCallback;
 
 	/** When module manager is linked against an application that supports UObjects, this delegate will be primed
 		at startup to provide information about whether a UObject package is loaded into memory. */

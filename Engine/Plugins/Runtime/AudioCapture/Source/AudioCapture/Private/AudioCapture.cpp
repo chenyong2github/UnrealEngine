@@ -30,11 +30,11 @@ bool FAudioCapture::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
 	return false;
 }
 
-bool FAudioCapture::OpenDefaultCaptureStream(FAudioCaptureStreamParam& StreamParams)
+bool FAudioCapture::OpenDefaultCaptureStream(FOnCaptureFunction OnCapture, uint32 NumFramesDesired)
 {
 	if (Impl.IsValid())
 	{
-		return Impl->OpenDefaultCaptureStream(StreamParams);
+		return Impl->OpenDefaultCaptureStream(MoveTemp(OnCapture), NumFramesDesired);
 	}
 
 	return false;
@@ -123,21 +123,6 @@ FAudioCaptureSynth::~FAudioCaptureSynth()
 {
 }
 
-void FAudioCaptureSynth::OnAudioCapture(float* AudioData, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverflow)
-{
-	int32 NumSamples = NumChannels * NumFrames;
-
-	FScopeLock Lock(&CaptureCriticalSection);
-
-	if (bIsCapturing)
-	{
-		// Append the audio memory to the capture data buffer
-		int32 Index = AudioCaptureData.AddUninitialized(NumSamples);
-		float* AudioCaptureDataPtr = AudioCaptureData.GetData();
-		FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
-	}
-}
-
 bool FAudioCaptureSynth::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
 {
 	return AudioCapture.GetDefaultCaptureDeviceInfo(OutInfo);
@@ -148,15 +133,26 @@ bool FAudioCaptureSynth::OpenDefaultStream()
 	bool bSuccess = true;
 	if (!AudioCapture.IsStreamOpen())
 	{
-		FAudioCaptureStreamParam StreamParam;
-		StreamParam.Callback = this;
-		StreamParam.NumFramesDesired = 1024;
+		FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverFlow)
+		{
+			int32 NumSamples = NumChannels * NumFrames;
+
+			FScopeLock Lock(&CaptureCriticalSection);
+
+			if (bIsCapturing)
+			{
+				// Append the audio memory to the capture data buffer
+				int32 Index = AudioCaptureData.AddUninitialized(NumSamples);
+				float* AudioCaptureDataPtr = AudioCaptureData.GetData();
+				FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
+			}
+		};
 
 		// Prepare the audio buffer memory for 2 seconds of stereo audio at 48k SR to reduce chance for allocation in callbacks
 		AudioCaptureData.Reserve(2 * 2 * 48000);
 
 		// Start the stream here to avoid hitching the audio render thread. 
-		if (AudioCapture.OpenDefaultCaptureStream(StreamParam))
+		if (AudioCapture.OpenDefaultCaptureStream(MoveTemp(OnCapture), 1024))
 		{
 			AudioCapture.StartStream();
 		}
@@ -230,6 +226,87 @@ bool FAudioCaptureSynth::GetAudioData(TArray<float>& OutAudioData)
 }
 
 } // namespace audio
+
+UAudioCapture::UAudioCapture()
+{
+
+}
+
+UAudioCapture::~UAudioCapture()
+{
+
+}
+
+bool UAudioCapture::OpenDefaultAudioStream()
+{
+	if (!AudioCapture.IsStreamOpen())
+	{
+		Audio::FOnCaptureFunction OnCapture = [this](const float* AudioData, int32 NumFrames, int32 InNumChannels, double StreamTime, bool bOverFlow)
+		{
+			OnGeneratedAudio(AudioData, NumFrames * InNumChannels);
+		};
+
+		// Start the stream here to avoid hitching the audio render thread. 
+		if (AudioCapture.OpenDefaultCaptureStream(MoveTemp(OnCapture), 1024))
+		{
+			// If we opened the capture stream succesfully, get the capture device info and initialize the UAudioGenerator
+			Audio::FCaptureDeviceInfo Info;
+			if (AudioCapture.GetDefaultCaptureDeviceInfo(Info))
+			{
+				Init(Info.PreferredSampleRate, Info.InputChannels);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool UAudioCapture::GetAudioCaptureDeviceInfo(FAudioCaptureDeviceInfo& OutInfo)
+{
+	Audio::FCaptureDeviceInfo Info;
+	if (AudioCapture.GetDefaultCaptureDeviceInfo(Info))
+	{
+		OutInfo.DeviceName = FName(*Info.DeviceName);
+		OutInfo.NumInputChannels = Info.InputChannels;
+		OutInfo.SampleRate = Info.PreferredSampleRate;
+		return true;
+	}
+	return false;
+}
+
+void UAudioCapture::StartCapturingAudio()
+{
+	if (AudioCapture.IsStreamOpen())
+	{
+		AudioCapture.StartStream();
+	}
+}
+
+void UAudioCapture::StopCapturingAudio()
+{
+	if (AudioCapture.IsStreamOpen())
+	{
+		AudioCapture.StopStream();
+	}
+
+}
+
+bool UAudioCapture::IsCapturingAudio()
+{
+	return AudioCapture.IsCapturing();
+}
+
+UAudioCapture* UAudioCaptureFunctionLibrary::CreateAudioCapture()
+{
+	UAudioCapture* NewAudioCapture = NewObject<UAudioCapture>();
+	if (NewAudioCapture->OpenDefaultAudioStream())
+	{
+		return NewAudioCapture;
+	}
+	
+	UE_LOG(LogAudioCapture, Error, TEXT("Failed to open a default audio stream to the audio capture device."));
+	return nullptr;
+}
 
 void FAudioCaptureModule::StartupModule()
 {

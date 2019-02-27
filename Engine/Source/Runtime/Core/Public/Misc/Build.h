@@ -323,6 +323,11 @@
 	#define AGGRESSIVE_MEMORY_SAVING 0
 #endif
 
+// Controls if UObjects are initialized as soon as they are available or only after the module is "loaded". This only applies to monolithic builds; if there are DLLs, this is how it works anyway and this should not be turned on
+#ifndef USE_PER_MODULE_UOBJECT_BOOTSTRAP
+	#define USE_PER_MODULE_UOBJECT_BOOTSTRAP 0
+#endif
+
 #define USE_HITCH_DETECTION (ALLOW_HITCH_DETECTION && !WITH_EDITORONLY_DATA && !IS_PROGRAM && !UE_BUILD_DEBUG)
 
 // Controls whether shipping builds create backups of the most recent log file.

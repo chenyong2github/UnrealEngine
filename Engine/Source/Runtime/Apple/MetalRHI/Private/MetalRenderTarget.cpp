@@ -331,13 +331,21 @@ static void ConvertSurfaceDataToFColor(EPixelFormat Format, uint32 Width, uint32
 	}
 	else if(Format == PF_B8G8R8A8)
 	{
-		for(uint32 Y = 0; Y < Height; Y++)
+		const auto DestPitch = sizeof(FColor) * Width;
+		if (SrcPitch == DestPitch)
 		{
-			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			// Need to copy row wise since the Pitch might not match the Width.
-			FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
+			FMemory::Memcpy(Out, In, DestPitch * Height);
+		}
+		else
+		{
+			for(uint32 Y = 0; Y < Height; Y++)
+			{
+				FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
+				FColor* DestPtr = Out + Y * Width;
+				
+				// Need to copy row wise since the Pitch might not match the Width.
+				FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
+			}
 		}
 	}
 	else if(Format == PF_A2B10G10R10)

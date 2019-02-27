@@ -72,6 +72,7 @@ public:
 
 	static jmethodID AndroidThunkCpp_VirtualInputIgnoreClick;
 	static jmethodID AndroidThunkCpp_IsVirtuaKeyboardShown;
+	static jmethodID AndroidThunkCpp_IsWebViewShown;
 
 	// InputDeviceInfo member field ids
 	static jclass InputDeviceInfoClass;
@@ -136,6 +137,7 @@ public:
 	 * Helper wrapper functions around the JNIEnv versions with NULL/error handling
 	 */
 	static jclass FindClass(JNIEnv* Env, const ANSICHAR* ClassName, bool bIsOptional);
+	static jclass FindClassGlobalRef(JNIEnv* Env, const ANSICHAR* ClassName, bool bIsOptional);
 	static jmethodID FindMethod(JNIEnv* Env, jclass Class, const ANSICHAR* MethodName, const ANSICHAR* MethodSignature, bool bIsOptional);
 	static jmethodID FindStaticMethod(JNIEnv* Env, jclass Class, const ANSICHAR* MethodName, const ANSICHAR* MethodSignature, bool bIsOptional);
 	static jfieldID FindField(JNIEnv* Env, jclass Class, const ANSICHAR* FieldName, const ANSICHAR* FieldType, bool bIsOptional);
@@ -161,5 +163,8 @@ private:
 	static void FindGooglePlayMethods(JNIEnv* Env);
 	/** Find GooglePlay billing classes and methods */
 	static void FindGooglePlayBillingMethods(JNIEnv* Env);
+
+	// Setup communication with wrapper apps
+	static void SetupEmbeddedCommunication(JNIEnv* Env);
 };
 #endif

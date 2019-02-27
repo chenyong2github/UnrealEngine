@@ -27,7 +27,8 @@ public:
 			Settings.BrowserContextSettings,
 			Settings.CloseCallback, 
 			Settings.ErrorCallback,
-			Settings.RedirectCallback);
+			Settings.RedirectCallback, 
+			Settings.bConsumeInput);
 
 		TSharedPtr<SWidget> LoginFlowWidget = nullptr;
 		if (Settings.StyleSet)

@@ -1081,28 +1081,43 @@ bool FCEFWebBrowserWindow::OnUnhandledKeyEvent(const CefKeyEvent& CefEvent)
 			case KEYEVENT_KEYDOWN:
 				if (PreviousKeyDownEvent.IsSet())
 				{
-					bIgnoreKeyDownEvent = true;
-					bWasHandled = FSlateApplication::Get().ProcessKeyDownEvent(PreviousKeyDownEvent.GetValue());
+					bWasHandled = OnUnhandledKeyDown().IsBound() && OnUnhandledKeyDown().Execute(PreviousKeyDownEvent.GetValue());
+					if (!bWasHandled)
+					{
+						// If the keydown handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+						bIgnoreKeyDownEvent = true;
+						bWasHandled = FSlateApplication::Get().ProcessKeyDownEvent(PreviousKeyDownEvent.GetValue());
+						bIgnoreKeyDownEvent = false;
+					}
 					PreviousKeyDownEvent.Reset();
-					bIgnoreKeyDownEvent = false;
 				}
 				break;
 			case KEYEVENT_KEYUP:
 				if (PreviousKeyUpEvent.IsSet())
 				{
-					bIgnoreKeyUpEvent = true;
-					bWasHandled = FSlateApplication::Get().ProcessKeyUpEvent(PreviousKeyUpEvent.GetValue());
+					bWasHandled = OnUnhandledKeyUp().IsBound() && OnUnhandledKeyUp().Execute(PreviousKeyUpEvent.GetValue());
+					if (!bWasHandled)
+					{
+						// If the keyup handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+						bIgnoreKeyUpEvent = true;
+						bWasHandled = FSlateApplication::Get().ProcessKeyUpEvent(PreviousKeyUpEvent.GetValue());
+						bIgnoreKeyUpEvent = false;
+					}
 					PreviousKeyUpEvent.Reset();
-					bIgnoreKeyUpEvent = false;
 				}
 				break;
 			case KEYEVENT_CHAR:
 				if (PreviousCharacterEvent.IsSet())
 				{
-					bIgnoreCharacterEvent = true;
-					bWasHandled = FSlateApplication::Get().ProcessKeyCharEvent(PreviousCharacterEvent.GetValue());
+					bWasHandled = OnUnhandledKeyChar().IsBound() && OnUnhandledKeyChar().Execute(PreviousCharacterEvent.GetValue());
+					if (!bWasHandled)
+					{
+						// If the keychar handler is not bound or if the handler returns false, indicating the key is unhandled, we bubble it up.
+						bIgnoreCharacterEvent = true;
+						bWasHandled = FSlateApplication::Get().ProcessKeyCharEvent(PreviousCharacterEvent.GetValue());
+						bIgnoreCharacterEvent = false;
+					}
 					PreviousCharacterEvent.Reset();
-					bIgnoreCharacterEvent = false;
 				}
 				break;
 		  default:

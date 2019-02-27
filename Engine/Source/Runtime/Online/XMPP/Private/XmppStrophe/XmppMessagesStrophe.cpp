@@ -64,7 +64,7 @@ bool FXmppMessagesStrophe::HandleMessageStanza(const FStropheStanza& IncomingSta
 	{
 		JsonBody->TryGetStringField(TEXT("type"), Message.Type);
 		const TSharedPtr<FJsonObject>* JsonPayload = NULL;
-			if (JsonBody->TryGetObjectField(TEXT("payload"), JsonPayload) &&
+		if (JsonBody->TryGetObjectField(TEXT("payload"), JsonPayload) &&
 			JsonPayload != NULL &&
 			(*JsonPayload).IsValid())
 		{
@@ -72,9 +72,14 @@ bool FXmppMessagesStrophe::HandleMessageStanza(const FStropheStanza& IncomingSta
 			FJsonSerializer::Serialize((*JsonPayload).ToSharedRef(), JsonWriter);
 			JsonWriter->Close();
 		}
+		else if (JsonBody->TryGetStringField(TEXT("payload"), Message.Payload))
+		{
+			// Payload is now in Message.Payload
+		}
 		else
 		{
-			JsonBody->TryGetStringField(TEXT("payload"), Message.Payload);
+			// Treat the entire body as the payload
+			Message.Payload = IncomingStanza.GetBodyText().GetValue();
 		}
 		FString TimestampStr;
 		if (JsonBody->TryGetStringField(TEXT("timestamp"), TimestampStr))

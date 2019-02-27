@@ -2316,10 +2316,10 @@ public partial class Project : CommandUtils
 				bool bExcludeFromPaks = false;
 				List<string> PakList = new List<string>();
 
-					string OriginalFilename = StagingFile.Key;
-					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
-					string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
-					string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
+				string OriginalFilename = StagingFile.Key;
+				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
+				string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
+				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
 				// First read manifest
 				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
@@ -2327,9 +2327,9 @@ public partial class Project : CommandUtils
 					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
 
 					if (Chunk.Manifest.Contains(OriginalFilename) ||
-								Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-								Chunk.Manifest.Contains(NoExtension) ||
-								Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
+							Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
+							Chunk.Manifest.Contains(NoExtension) ||
+							Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
 					{
 						PakList.Add(Chunk.ChunkName);
 					}

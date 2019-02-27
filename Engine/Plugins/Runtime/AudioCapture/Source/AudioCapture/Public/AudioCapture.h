@@ -7,6 +7,12 @@
 #include "HAL/ThreadSafeBool.h"
 #include "DSP/Delay.h"
 #include "DSP/EnvelopeFollower.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
+#include "Generators/AudioGenerator.h"
+
+#include "AudioCapture.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioCapture, Log, All);
 
@@ -20,23 +26,9 @@ namespace Audio
 		int32 PreferredSampleRate;
 	};
 
-	class AUDIOCAPTURE_API IAudioCaptureCallback
-	{
-	public:
-		/** 
-		* Called when audio capture has received a new capture buffer. 
-		*/
-		virtual void OnAudioCapture(float* AudioData, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverflow) = 0;
-		virtual ~IAudioCaptureCallback() {}
-	};
-
-	struct FAudioCaptureStreamParam
-	{
-		IAudioCaptureCallback* Callback;
-		uint32 NumFramesDesired;
-	};
-
 	class FAudioCaptureImpl;
+
+	typedef TFunction<void(const float* InAudio, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverFlow)> FOnCaptureFunction;
 
 	// Class which handles audio capture internally, implemented with a back-end per platform
 	class AUDIOCAPTURE_API FAudioCapture
@@ -49,7 +41,7 @@ namespace Audio
 		bool GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo);
 
 		// Opens the audio capture stream with the given parameters
-		bool OpenDefaultCaptureStream(FAudioCaptureStreamParam& StreamParams);
+		bool OpenDefaultCaptureStream(FOnCaptureFunction OnCapture, uint32 NumFramesDesired);
 
 		// Closes the audio capture stream
 		bool CloseStream();
@@ -82,16 +74,12 @@ namespace Audio
 	};
 
 
-	/** Class which contains an FAudioCapture object and performs analysis on the audio stream, only outputing audio if it matches a detection criteteria. */
-	class FAudioCaptureSynth : public IAudioCaptureCallback
+	/** Class which contains an FAudioCapture object and performs analysis on the audio stream, only outputing audio if it matches a detection criteria. */
+	class FAudioCaptureSynth
 	{
 	public:
 		FAudioCaptureSynth();
 		virtual ~FAudioCaptureSynth();
-
-		//~ IAudioCaptureCallback Begin
-		virtual void OnAudioCapture(float* AudioData, int32 NumFrames, int32 NumChannels, double StreamTime, bool bOverflow) override;
-		//~ IAudioCaptureCallback End
 
 		// Gets the default capture device info
 		bool GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo);
@@ -153,4 +141,67 @@ class FAudioCaptureModule : public IModuleInterface
 public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+};
+
+// Struct defining the time synth global quantization settings
+USTRUCT(BlueprintType)
+struct AUDIOCAPTURE_API FAudioCaptureDeviceInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	// The name of the audio capture device
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AudioCapture")
+	FName DeviceName;
+
+	// The number of input channels
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AudioCapture")
+	int32 NumInputChannels;
+
+	// The sample rate of the audio capture device
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AudioCapture")
+	int32 SampleRate;
+};
+
+// Class which opens up a handle to an audio capture device.
+// Allows other objects to get audio buffers from the capture device.
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+class AUDIOCAPTURE_API UAudioCapture : public UAudioGenerator
+{
+	GENERATED_BODY()
+
+public:
+	UAudioCapture();
+	~UAudioCapture();
+
+	bool OpenDefaultAudioStream();
+
+	// Returns the audio capture device info
+	UFUNCTION(BlueprintCallable, Category = "AudioCapture")
+	bool GetAudioCaptureDeviceInfo(FAudioCaptureDeviceInfo& OutInfo);
+
+	// Starts capturing audio
+	UFUNCTION(BlueprintCallable, Category = "AudioCapture")
+	void StartCapturingAudio();
+
+	// Stops capturing audio
+	UFUNCTION(BlueprintCallable, Category = "AudioCapture")
+	void StopCapturingAudio();
+
+	// Returns true if capturing audio
+	UFUNCTION(BlueprintCallable, Category = "AudioCapture")
+	bool IsCapturingAudio();
+
+protected:
+
+	Audio::FAudioCapture AudioCapture;
+};
+
+UCLASS()
+class AUDIOCAPTURE_API UAudioCaptureFunctionLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "Audio Capture")
+	static class UAudioCapture* CreateAudioCapture();
 };

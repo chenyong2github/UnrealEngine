@@ -65,10 +65,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMFailedToRegisterFor
 // received message
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGCMReceivedRemoteNotification( JNIEnv* jenv, jobject thiz, jstring jMessage )
 {
-	FString Message;
-	const char* MessageChars = jenv->GetStringUTFChars( jMessage, 0 );
-	Message = FString( UTF8_TO_TCHAR( MessageChars ) );
-	jenv->ReleaseStringUTFChars( jMessage, MessageChars );
+	auto Message = FJavaHelper::FStringFromParam(jenv, jMessage);
 
 	int AppState = 3; // EApplicationState::Active;
 	if (FAppEventManager::GetInstance()->IsGamePaused())

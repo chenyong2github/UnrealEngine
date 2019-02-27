@@ -43,15 +43,7 @@ void FAppEntry::PreInit(IOSAppDelegate* AppDelegate, UIApplication* Application)
 	// point to the GL view we want to use
 	AppDelegate.RootView = [AppDelegate.SlateController view];
 
-	if (AppDelegate.OSVersion >= 6.0f)
-	{
-		// this probably works back to OS4, but would need testing
-		[AppDelegate.Window setRootViewController:AppDelegate.SlateController];
-	}
-	else
-	{
-		[AppDelegate.Window addSubview:AppDelegate.RootView];
-	}
+	[AppDelegate.Window setRootViewController:AppDelegate.SlateController];
 }
 
 

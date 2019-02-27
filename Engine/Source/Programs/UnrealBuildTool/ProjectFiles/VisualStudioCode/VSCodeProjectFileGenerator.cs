@@ -1198,6 +1198,10 @@ namespace UnrealBuildTool
 					{
 						DirectoryReference ProjDir = Target.TargetFilePath.Directory.GetDirectoryName() == "Source" ? Target.TargetFilePath.Directory.ParentDirectory : Target.TargetFilePath.Directory;
 						GetExcludePathsCPP(ProjDir, PathsToExclude);
+						
+						DirectoryReference PluginRootDir = DirectoryReference.Combine(ProjDir, "Plugins");
+						WriteWorkspaceSettingsFileForPlugins(PluginRootDir, PathsToExclude);
+
 						bFoundTarget = true;
 					}
 				}
@@ -1225,6 +1229,26 @@ namespace UnrealBuildTool
 			OutFile.Write(FileReference.Combine(VSCodeDir, "settings.json"));
 		}
 
+		private void WriteWorkspaceSettingsFileForPlugins(DirectoryReference PluginBaseDir, List<string> PathsToExclude)
+		{
+			if (DirectoryReference.Exists(PluginBaseDir))
+			{
+				foreach (DirectoryReference SubDir in DirectoryReference.EnumerateDirectories(PluginBaseDir, "*", SearchOption.TopDirectoryOnly))
+				{
+					string[] UPluginFiles = Directory.GetFiles(SubDir.ToString(), "*.uplugin");
+					if (UPluginFiles.Length == 1)
+					{
+						DirectoryReference PluginDir = SubDir;
+						GetExcludePathsCPP(PluginDir, PathsToExclude);
+					}
+					else
+					{
+						WriteWorkspaceSettingsFileForPlugins(SubDir, PathsToExclude);
+					}
+				}
+			}
+		}
+		
 		private void WriteWorkspaceFile(ProjectData ProjectData)
 		{
 			JsonFile WorkspaceFile = new JsonFile();
