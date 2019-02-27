@@ -125,6 +125,12 @@ public:
 	mtlpp::CommandBuffer const& GetCurrentCommandBuffer(void) const;
 	mtlpp::CommandBuffer& GetCurrentCommandBuffer(void);
 	
+    /*
+     * Get the internal current command-encoder.
+     * @returns The current command encoder.
+     */
+	inline FMetalCommandEncoder& GetCurrentCommandEncoder(void) { return CurrentEncoder; }
+	
 	/*
 	 * Get the internal ring-buffer used for temporary allocations.
 	 * @returns The temporary allocation buffer for the command-pass.
