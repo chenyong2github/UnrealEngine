@@ -1025,18 +1025,13 @@ public:
 
 	float GenerateWidgetForItem( const ItemType& CurItem, int32 ItemIndex, int32 StartIndex, float LayoutScaleMultiplier )
 	{
-		const FString CurItemAsString = OnItemToString_Debug.IsBound() ? OnItemToString_Debug.Execute(CurItem) : TEXT("Unknown");
-		UE_LOG(LogTemp, Log, TEXT("Getting widget for item %s."), *CurItemAsString);
-
 		// Find a previously generated Widget for this item, if one exists.
 		TSharedPtr<ITableRow> WidgetForItem = WidgetGenerator.GetWidgetForItem( CurItem );
 		if ( !WidgetForItem.IsValid() )
 		{
 			// We couldn't find an existing widgets, meaning that this data item was not visible before.
 			// Make a new widget for it.
-			UE_LOG(LogTemp, Log, TEXT("Generating widget for item %s."), *CurItemAsString);
 			WidgetForItem = this->GenerateNewWidget(CurItem);
-			UE_LOG(LogTemp, Log, TEXT("Generated widget for item %s."), *CurItemAsString);
 		}
 
 		// It is useful to know the item's index that the widget was generated from.
@@ -1046,8 +1041,6 @@ public:
 		// Let the item generator know that we encountered the current Item and associated Widget.
 		WidgetGenerator.OnItemSeen( CurItem, WidgetForItem.ToSharedRef() );
 
-		UE_LOG(LogTemp, Log, TEXT("Prepassing widget for item %s."), *CurItemAsString);
-
 		// We rely on the widgets desired size in order to determine how many will fit on screen.
 		const TSharedRef<SWidget> NewlyGeneratedWidget = WidgetForItem->AsWidget();
 		NewlyGeneratedWidget->SlatePrepass(LayoutScaleMultiplier);
@@ -1055,8 +1048,6 @@ public:
 		const bool IsFirstWidgetOnScreen = (ItemIndex == StartIndex);
 		const bool IsVisible = NewlyGeneratedWidget->GetVisibility().IsVisible();
 		const float ItemHeight = IsVisible ? NewlyGeneratedWidget->GetDesiredSize().Y : 0;
-
-		UE_LOG(LogTemp, Log, TEXT("Measured widget for item %s. Height is %f"), *CurItemAsString, ItemHeight);
 
 		// We have a widget for this item; add it to the panel so that it is part of the UI.
 		if (ItemIndex >= StartIndex)
