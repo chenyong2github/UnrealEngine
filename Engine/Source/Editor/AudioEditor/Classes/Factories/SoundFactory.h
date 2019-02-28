@@ -11,6 +11,9 @@
 #include "Factories/Factory.h"
 #include "SoundFactory.generated.h"
 
+
+class USoundWave;
+
 UCLASS(MinimalAPI, hidecategories=Object)
 class USoundFactory : public UFactory
 {
@@ -40,15 +43,30 @@ class USoundFactory : public UFactory
 	UPROPERTY(EditAnywhere, Category=SoundFactory, meta=(ToolTip="If not empty, generated SoundCues will be placed in PackageCuePackageSuffix, but only if bAutoCreateCue is true"))
 	FString CuePackageSuffix;
 
-
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateBinary( UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, const TCHAR* FileType, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn ) override;
 	//~ End UFactory Interface
 	
-	/** Suppresses the import overwrite dialog until one iteration of FactoryCreateBinary completes; this is primarily used for reimporting sounds */
-	AUDIOEDITOR_API static void SuppressImportOverwriteDialog();
+	/** Suppresses all dialogs pertaining to importing using factory */
+	void SuppressImportDialogs();
+
+	virtual void CleanUp() override;
+
+protected:
+	enum ESuppressImportDialog
+	{
+		None = 0,
+		Overwrite = 1 << 0,
+		UseTemplate = 1 << 1
+	};
+
+	uint8 SuppressImportDialogOptions;
 
 private:
+	void UpdateTemplate();
+
+	TWeakObjectPtr<USoundWave> TemplateSoundWave;
+
 
 	UObject* CreateObject(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, const TCHAR* FileType, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn);
 
