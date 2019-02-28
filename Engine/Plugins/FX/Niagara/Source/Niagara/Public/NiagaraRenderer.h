@@ -19,6 +19,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "RenderingThread.h"
 #include "SceneView.h"
 #include "NiagaraComponent.h"
+#include "NiagaraCutoutVertexBuffer.h"
 
 class FNiagaraDataSet;
 
@@ -182,9 +183,6 @@ protected:
 #endif
 };
 
-
-
-
 /**
 * NiagaraRendererSprites renders an FNiagaraEmitterInstance as sprite particles
 */
@@ -253,6 +251,9 @@ private:
 	int32 CustomSortingOffset;
 
 	int32 LastSyncId;
+
+	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
+	int32 NumCutoutVertexPerSubImage = 0;
 };
 
 
