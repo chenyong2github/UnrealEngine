@@ -290,18 +290,16 @@ void UIpConnection::HandleSocketSendResult(const FSocketSendResult& Result, ISoc
 	if (Result.Error != SE_EWOULDBLOCK &&
 		Result.Error != SE_NO_ERROR)
 	{
-		FString ErrorString = FString::Printf(TEXT("UIpNetConnection::LowLevelSend: Socket->SendTo failed with error %i (%s). %s"),
+		FString ErrorString = FString::Printf(TEXT("UIpNetConnection::LowLevelSend: Socket->SendTo failed with error %i (%s). %s Connection will be closed during next Tick()!"),
 			static_cast<int32>(Result.Error),
 			SocketSubsystem->GetSocketError(Result.Error),
 			*Describe());
 
 		GEngine->BroadcastNetworkFailure(Driver->GetWorld(), Driver, ENetworkFailure::ConnectionLost, ErrorString);
 
-		// Reset the send buffer before closing, as it could have been (almost) full and the close process may
-		// write a bunch that could cause an overflow.  We're closing the connection anyway, and given that
-		// the socket is returning errors, the close bunch probably won't be delivered either.
-		InitSendBuffer();
-		Close();
+		// Request the connection to be disconnected during next tick() since we got a critical socket failure, the actual disconnect is postponed 		
+		// to avoid issues with the call Close() causing issues with reentrant code paths in DataChannel::SendBunch() and FlushNet()
+		SetPendingCloseDueToSocketSendFailure();
 	}
 }
 
