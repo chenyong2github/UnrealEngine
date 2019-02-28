@@ -822,12 +822,12 @@ void FSHA1::HMACBuffer(const void* Key, uint32 KeySize, const void* Data, uint64
  * Shared hashes.sha reading code (each platform gets a buffer to the data,
  * then passes it to this function for processing)
  */
-void FSHA1::InitializeFileHashesFromBuffer(uint8* Buffer, int32 BufferSize, bool bDuplicateKeyMemory)
+void FSHA1::InitializeFileHashesFromBuffer(uint8* Buffer, uint64 BufferSize, bool bDuplicateKeyMemory)
 {
 	// the start of the file is full file hashes
 	bool bIsDoingFullFileHashes = true;
 	// if it exists, parse it
-	int32 Offset = 0;
+	uint64 Offset = 0;
 	while (Offset < BufferSize)
 	{
 		// format is null terminated string followed by hash
