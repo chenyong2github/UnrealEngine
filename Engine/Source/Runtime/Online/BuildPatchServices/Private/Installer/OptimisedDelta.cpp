@@ -36,6 +36,7 @@ namespace BuildPatchServices
 		// IOptimisedDelta interface end.
 
 	private:
+		bool RequiresChunkDownload();
 		void OnDownloadComplete(int32 RequestId, const FDownloadRef& Download);
 		bool ShouldRetry(const FDownloadRef& Download);
 		void SetFailedDownload();
@@ -72,7 +73,8 @@ namespace BuildPatchServices
 		const bool bNoSourceManifest = Configuration.SourceManifest.IsValid() == false;
 		const bool bNotPatching = Configuration.InstallerConfiguration == nullptr ? false : Configuration.InstallerConfiguration->bIsRepair || Configuration.InstallerConfiguration->InstallMode == EInstallMode::PrereqOnly;
 		const bool bSameBuild = bNoSourceManifest ? false : Configuration.SourceManifest->GetBuildId() == Configuration.DestinationManifest->GetBuildId();
-		if (bNoSourceManifest || bNotPatching || bSameBuild)
+		const bool bNoDownload = RequiresChunkDownload() == false;
+		if (bNoSourceManifest || bNotPatching || bSameBuild || bNoDownload)
 		{
 			DeltaPolicy = EDeltaPolicy::Skip;
 		}
@@ -99,6 +101,28 @@ namespace BuildPatchServices
 	{
 		ChunkDeltaFuture.Wait();
 		return DownloadedBytes.GetValue();
+	}
+
+	bool FOptimisedDelta::RequiresChunkDownload()
+	{
+		if (Configuration.SourceManifest.IsValid())
+		{
+			for (const FString& DestinationFile : Configuration.DestinationManifest->GetBuildFileList())
+			{
+				// Get file manifests
+				const FFileManifest* OldFile = Configuration.SourceManifest->GetFileManifest(DestinationFile);
+				const FFileManifest* NewFile = Configuration.DestinationManifest->GetFileManifest(DestinationFile);
+				// Different hash means different file, missing OldFile means added file.
+				if (!OldFile || OldFile->FileHash != NewFile->FileHash)
+				{
+					return true;
+				}
+			}
+			// No new or changed files found.
+			return false;
+		}
+		// No source manifest means full download.
+		return true;
 	}
 
 	void FOptimisedDelta::OnDownloadComplete(int32 RequestId, const FDownloadRef& Download)
