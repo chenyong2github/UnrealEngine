@@ -1260,7 +1260,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void SafeFileCopy(FileInfo SourceFile, string DestinationPath, bool bOverwrite)
+		public static void SafeFileCopy(FileInfo SourceFile, string DestinationPath, bool bOverwrite)
 		{
 			FileInfo DI = new FileInfo(DestinationPath);
 			if (DI.Exists && bOverwrite)

@@ -91,6 +91,9 @@ public class Core : ModuleRules
 			{
 				PublicFrameworks.AddRange(new string[] { "iAD" });
 			}
+
+			// export Core symbols for embedded Dlls
+			ModuleSymbolVisibility = ModuleRules.SymbolVisibility.VisibileForDll;
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{

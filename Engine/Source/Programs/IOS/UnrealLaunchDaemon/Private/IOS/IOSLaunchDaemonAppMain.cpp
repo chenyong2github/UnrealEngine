@@ -46,15 +46,7 @@ void FAppEntry::PreInit(IOSAppDelegate* AppDelegate, UIApplication* Application)
 
     AppDelegate.RootView = [pController view];
 
-    if (AppDelegate.OSVersion >= 6.0f)
-    {
-        // this probably works back to OS4, but would need testing
-        [AppDelegate.Window setRootViewController:pController];
-    }
-    else
-    {
-        [AppDelegate.Window addSubview:AppDelegate.RootView];
-    }
+	[AppDelegate.Window setRootViewController:pController];
 }
 
 void FAppEntry::PlatformInit()

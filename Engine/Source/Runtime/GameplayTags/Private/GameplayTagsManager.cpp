@@ -169,7 +169,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			LoadGameplayTagTables(false);
 		}
-
+		
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Construct from data asset"));
 			for (UDataTable* DataTable : GameplayTagTables)
@@ -191,7 +191,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			// Copy from deprecated list in DefaultEngine.ini
 			TArray<FString> EngineConfigTags;
 			GConfig->GetArray(TEXT("/Script/GameplayTags.GameplayTagsSettings"), TEXT("+GameplayTags"), EngineConfigTags, GEngineIni);
-
+			
 			for (const FString& EngineConfigTag : EngineConfigTags)
 			{
 				MutableDefault->GameplayTagList.AddUnique(FGameplayTagTableRow(FName(*EngineConfigTag)));
@@ -519,7 +519,7 @@ FGameplayTagNetIndex UGameplayTagsManager::GetNetIndexFromTag(const FGameplayTag
 bool UGameplayTagsManager::ShouldImportTagsFromINI() const
 {
 	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
-	
+
 	// Deprecated path
 	bool ImportFromINI = false;
 	if (GConfig->GetBool(TEXT("GameplayTags"), TEXT("ImportTagsFromConfig"), ImportFromINI, GEngineIni))
@@ -710,6 +710,7 @@ bool UGameplayTagsManager::ImportSingleGameplayTag(FGameplayTag& Tag, FName Impo
 void UGameplayTagsManager::InitializeManager()
 {
 	check(!SingletonManager);
+	SCOPED_BOOT_TIMING("UGameplayTagsManager::InitializeManager");
 	SCOPE_LOG_TIME_IN_SECONDS(TEXT("UGameplayTagsManager::InitializeManager"), nullptr);
 
 	SingletonManager = NewObject<UGameplayTagsManager>(GetTransientPackage(), NAME_None);
@@ -1958,7 +1959,7 @@ FGameplayTagNode::FGameplayTagNode(FName InTag, FName InFullTag, TSharedPtr<FGam
 	: Tag(InTag)
 	, ParentNode(InParentNode)
 	, NetIndex(INVALID_TAGNETINDEX)
-{	
+{
 	// Manually construct the tag container as we want to bypass the safety checks
 	CompleteTagWithParents.GameplayTags.Add(FGameplayTag(InFullTag));
 
@@ -1971,7 +1972,7 @@ FGameplayTagNode::FGameplayTagNode(FName InTag, FName InFullTag, TSharedPtr<FGam
 		CompleteTagWithParents.ParentTags.Add(ParentContainer.GameplayTags[0]);
 		CompleteTagWithParents.ParentTags.Append(ParentContainer.ParentTags);
 	}
-
+	
 #if WITH_EDITORONLY_DATA
 	bIsExplicitTag = InIsExplicitTag;
 	bIsRestrictedTag = InIsRestrictedTag;

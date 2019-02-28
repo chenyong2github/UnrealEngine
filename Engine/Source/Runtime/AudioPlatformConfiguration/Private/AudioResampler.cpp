@@ -3,7 +3,11 @@
 #include "AudioResampler.h"
 
 // Convenience macro for the case in which LibSampleRate needs to be built for limited platforms.
+#ifndef WITH_LIBSAMPLERATE
 #define WITH_LIBSAMPLERATE (WITH_EDITOR && !PLATFORM_LINUX)
+#endif
+
+DEFINE_LOG_CATEGORY(LogAudioResampler);
 
 #if WITH_LIBSAMPLERATE
 #include "samplerate.h"
@@ -16,19 +20,19 @@ namespace Audio
 	{
 		if (OutData.OutBuffer == nullptr)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Please specify an output buffer when using Resample()."));
+			UE_LOG(LogAudioResampler, Error, TEXT("Please specify an output buffer when using Resample()."));
 			return false;
 		}
 
 		if (InParameters.SourceSampleRate <= 0.0f || InParameters.DestinationSampleRate <= 0.0f)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Please use non-zero, positive sample rates when calling Resample()."));
+			UE_LOG(LogAudioResampler, Error, TEXT("Please use non-zero, positive sample rates when calling Resample()."));
 			return false;
 		}
 
 		if (OutData.OutBuffer->Num() < GetOutputBufferSize(InParameters))
 		{
-			UE_LOG(LogTemp, Error, TEXT("Insufficient space in output buffer: Please allocate space for %d samples."), GetOutputBufferSize(InParameters));
+			UE_LOG(LogAudioResampler, Error, TEXT("Insufficient space in output buffer: Please allocate space for %d samples."), GetOutputBufferSize(InParameters));
 			return false;
 		}
 
@@ -82,4 +86,156 @@ namespace Audio
 #endif //WITH_LIBSAMPLERATE
 		return true;
 	}
+
+	class FResamplerImpl
+	{
+	public:
+		FResamplerImpl();
+		~FResamplerImpl();
+
+		void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
+		void SetSampleRateRatio(float InRatio);
+		int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
+
+#if WITH_LIBSAMPLERATE
+		float CurrentSampleRateRatio;
+		SRC_STATE* LibSRCState;
+		SRC_DATA Data;
+#endif
+
+	};
+
+#if WITH_LIBSAMPLERATE
+	FResamplerImpl::FResamplerImpl() 
+		: CurrentSampleRateRatio(-1.0f)
+		, LibSRCState(nullptr)
+	{
+	}
+	
+	FResamplerImpl::~FResamplerImpl() 
+	{
+		if (LibSRCState)
+		{
+			LibSRCState = src_delete(LibSRCState);
+		}
+		check(!LibSRCState);
+	}
+	
+	void FResamplerImpl::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels) 
+	{
+		int32 ErrorResult = 0;
+
+		// Reset the SRC state if we already have one
+		if (LibSRCState)
+		{
+			ErrorResult = src_reset(LibSRCState);
+			if (ErrorResult != 0)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %s."), ErrorString);
+				return;
+			}
+		}
+		// Otherwise create a new one
+		else
+		{
+			LibSRCState = src_new((int32)ResamplingMethod, InNumChannels, &ErrorResult);
+			if (!LibSRCState)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to create a sample rate convertor state object: %s."), ErrorString);
+			}
+		}
+
+		if (LibSRCState)
+		{
+			ErrorResult = src_set_ratio(LibSRCState, StartingSampleRateRatio);
+			if (ErrorResult != 0)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to set sample rate ratio: %s."), ErrorString);
+			}
+		}
+
+		CurrentSampleRateRatio = StartingSampleRateRatio;
+	}
+	
+	void FResamplerImpl::SetSampleRateRatio(float InRatio) 
+	{
+		CurrentSampleRateRatio = FMath::Max(InRatio, 0.00001f);
+	}
+	
+	int32 FResamplerImpl::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames)
+	{
+		if (LibSRCState)
+		{
+			Data.data_in = InAudioBuffer;
+			Data.input_frames = InSamples;
+			Data.data_out = OutAudioBuffer;
+			Data.output_frames = MaxOutputFrames;
+			Data.src_ratio = (double)CurrentSampleRateRatio;
+			Data.end_of_input = bEndOfInput ? 1 : 0;
+
+			int32 ErrorResult = src_process(LibSRCState, &Data);
+			if (ErrorResult != 0)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to process audio: %s."), ErrorString);
+				return ErrorResult;
+			}
+
+			OutNumFrames = Data.output_frames_gen;
+		}
+		return 0; 
+	}
+
+#else
+	// Null implementation
+	FResamplerImpl::FResamplerImpl() {}
+	FResamplerImpl::~FResamplerImpl() {}
+	void FResamplerImpl::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels) {}
+	void FResamplerImpl::SetSampleRateRatio(float InRatio) {}	
+	int32 FResamplerImpl::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames) { return 0; }
+#endif
+
+	FResampler::FResampler()
+	{
+		Impl = CreateImpl();
+	}
+	
+	FResampler::~FResampler()
+	{
+
+	}
+
+	void FResampler::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels)
+	{
+		if (Impl.IsValid())
+		{
+			Impl->Init(ResamplingMethod, StartingSampleRateRatio, InNumChannels);
+		}
+	}
+
+	void FResampler::SetSampleRateRatio(float InRatio)
+	{
+		if (Impl.IsValid())
+		{
+			Impl->SetSampleRateRatio(InRatio);
+		}
+	}
+
+	int32 FResampler::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames)
+	{
+		if (Impl.IsValid())
+		{
+			return Impl->ProcessAudio(InAudioBuffer, InSamples, bEndOfInput, OutAudioBuffer, MaxOutputFrames, OutNumFrames);
+		}
+		return 0;
+	}
+
+	TUniquePtr<FResamplerImpl> FResampler::CreateImpl()
+	{
+		return TUniquePtr<FResamplerImpl>(new FResamplerImpl());
+	}
 }
+

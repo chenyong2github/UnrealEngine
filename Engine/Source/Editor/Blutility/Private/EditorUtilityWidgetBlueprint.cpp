@@ -6,6 +6,7 @@
 #include "EditorUtilityWidget.h"
 #include "IBlutilityModule.h"
 #include "Modules/ModuleManager.h"
+#include "LevelEditor.h"
 
 
 
@@ -16,7 +17,25 @@
 UEditorUtilityWidgetBlueprint::UEditorUtilityWidgetBlueprint(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+
 }
+
+void UEditorUtilityWidgetBlueprint::BeginDestroy()
+{
+	// Created tab is invalid on editor shutdown, prevents the cleanup script from running then
+	if (CreatedTab.IsValid())
+	{
+		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
+		BlutilityModule->RemoveLoadedScriptUI(this);
+
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		LevelEditorTabManager->UnregisterTabSpawner(RegistrationName);
+	}
+
+	Super::BeginDestroy();
+}
+
 
 TSharedRef<SDockTab> UEditorUtilityWidgetBlueprint::SpawnEditorUITab(const FSpawnTabArgs& SpawnTabArgs)
 {

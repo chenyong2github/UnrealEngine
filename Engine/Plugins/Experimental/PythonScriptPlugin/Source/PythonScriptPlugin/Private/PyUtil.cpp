@@ -90,6 +90,16 @@ FString PyStringToUEString(PyObject* InPyStr)
 	return Str;
 }
 
+FString PyObjectToUEStringRepr(PyObject* InPyObj)
+{
+	FPyObjectPtr PyReprObj = FPyObjectPtr::StealReference(PyObject_Repr(InPyObj));
+	if (PyReprObj)
+	{
+		return PyStringToUEString(PyReprObj);
+	}
+	return PyObjectToUEString(InPyObj);
+}
+
 FPropValueOnScope::FPropValueOnScope(const UProperty* InProp)
 	: Prop(InProp)
 	, Value(nullptr)
@@ -1257,7 +1267,7 @@ FString BuildPythonError()
 	return PythonErrorString;
 }
 
-void LogPythonError(const bool bInteractive)
+FString LogPythonError(const bool bInteractive)
 {
 	const FString ErrorStr = BuildPythonError();
 
@@ -1281,9 +1291,11 @@ void LogPythonError(const bool bInteractive)
 			FMessageDialog::Open(EAppMsgType::Ok, FText::AsCultureInvariant(ErrorStr), &DlgTitle);
 		}
 	}
+
+	return ErrorStr;
 }
 
-void ReThrowPythonError()
+FString ReThrowPythonError()
 {
 	const FString ErrorStr = BuildPythonError();
 
@@ -1291,6 +1303,8 @@ void ReThrowPythonError()
 	{
 		FFrame::KismetExecutionMessage(*ErrorStr, ELogVerbosity::Error);
 	}
+
+	return ErrorStr;
 }
 
 }

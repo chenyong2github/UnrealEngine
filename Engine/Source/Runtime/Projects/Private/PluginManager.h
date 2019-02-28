@@ -111,6 +111,8 @@ public:
 	virtual FNewPluginMountedEvent& OnNewPluginCreated() override;
 	virtual FNewPluginMountedEvent& OnNewPluginMounted() override;
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) override;
+	virtual FName PackageNameFromModuleName(FName ModuleName) override;
+
 
 private:
 

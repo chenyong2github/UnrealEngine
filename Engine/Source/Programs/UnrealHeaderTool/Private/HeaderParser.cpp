@@ -214,8 +214,9 @@ namespace
 	 */
 	void ParseNetServiceIdentifiers(FFuncInfo& FuncInfo, const TArray<FString>& Identifiers)
 	{
-		static const TCHAR IdTag        [] = TEXT("Id");
-		static const TCHAR ResponseIdTag[] = TEXT("ResponseId");
+		static const TCHAR IdTag         [] = TEXT("Id");
+		static const TCHAR ResponseIdTag [] = TEXT("ResponseId");
+		static const TCHAR JSBridgePriTag[] = TEXT("Priority");
 
 		for (const FString& Identifier : Identifiers)
 		{
@@ -234,7 +235,8 @@ namespace
 					}
 					FuncInfo.RPCId = TempInt;
 				}
-				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, ARRAY_COUNT(ResponseIdTag) - 1) == 0)
+				else if (FCString::Strnicmp(IdentifierPtr, ResponseIdTag, ARRAY_COUNT(ResponseIdTag) - 1) == 0 ||
+					FCString::Strnicmp(IdentifierPtr, JSBridgePriTag, ARRAY_COUNT(JSBridgePriTag) - 1) == 0)
 				{
 					int32 TempInt = FCString::Atoi(Equals + 1);
 					if (TempInt <= 0 || TempInt > MAX_uint16)
@@ -6875,7 +6877,7 @@ void FHeaderParser::CompileFunctionDeclaration(FClasses& AllClasses)
 			}
 		}
 
-		if (FuncInfo.RPCResponseId > 0)
+		if (FuncInfo.RPCResponseId > 0 && FuncInfo.EndpointName != TEXT("JSBridge"))
 		{
 			// Look for an existing response function
 			FString* ExistingFunc = UsedRPCIds.Find(FuncInfo.RPCResponseId);
