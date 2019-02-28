@@ -33,7 +33,7 @@ public:
 
 	void Init(int32 InEmitterIdx, FName SystemInstanceName);
 
-	void ResetSimulation();
+	void ResetSimulation(bool bKillExisting=true);
 
 	/** Called after all emitters in an System have been initialized, allows emitters to access information from one another. */
 	void PostInitSimulation();
