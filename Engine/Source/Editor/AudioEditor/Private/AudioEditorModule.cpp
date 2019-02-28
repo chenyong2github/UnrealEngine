@@ -280,7 +280,7 @@ public:
 
 		// Setup sane defaults for importing localized sound waves
 		SoundWaveFactory->bAutoCreateCue = false;
-		SoundWaveFactory->SuppressImportOverwriteDialog();
+		SoundWaveFactory->SuppressImportDialogs();
 
 		return ImportObject<USoundWave>(SoundWavePackage, *InSoundWaveAssetName, RF_Public | RF_Standalone, *InWavFilename, nullptr, SoundWaveFactory);
 	}
