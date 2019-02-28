@@ -2362,6 +2362,7 @@ namespace UnrealBuildTool
 				}
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
+			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
 			Text.AppendLine("\t             android:hasCode=\"true\">");
 			if (bShowLaunchImage)
 			{
@@ -3648,8 +3649,9 @@ namespace UnrealBuildTool
 					UpdateBuildXML(Arch, NDKArch, EngineDirectory, UE4BuildPath);
 				}
 
-				// update GameActivity.java if out of date
+				// update GameActivity.java and GameApplication.java if out of date
 				UpdateGameActivity(Arch, NDKArch, EngineDirectory, UE4BuildPath);
+				UpdateGameApplication(Arch, NDKArch, EngineDirectory, UE4BuildPath);
 
 				// we don't actually need the SO for the bSkipGradleBuild case
 				string FinalSOName = null;
@@ -4174,7 +4176,11 @@ bSaveSymbols = true;
 			string SuperClassDefault;
 			if (!Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "GameActivitySuperClass", out SuperClassDefault))
 			{
-				SuperClassDefault = "NativeActivity";
+				SuperClassDefault = UPL.ProcessPluginNode(NDKArch, "gameActivitySuperClass", "");
+				if (String.IsNullOrEmpty(SuperClassDefault))
+				{
+					SuperClassDefault = "NativeActivity";
+				}
 			}
 
 			string AndroidGraphicsDebugger;
@@ -4212,7 +4218,7 @@ bSaveSymbols = true;
 				{ "//$${gameActivityBeforeConfigRulesAppliedAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityBeforeConfigRulesAppliedAdditions", "")},
 				{ "//$${gameActivityLoggerCallbackAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameActivityLoggerCallbackAdditions", "")},
 				{ "//$${soLoadLibrary}$$", UPL.ProcessPluginNode(NDKArch, "soLoadLibrary", LoadLibraryDefaults)},
-				{ "$${gameActivitySuperClass}$$", UPL.ProcessPluginNode(NDKArch, "gameActivitySuperClass", SuperClassDefault)},
+				{ "$${gameActivitySuperClass}$$", SuperClassDefault},
 			};
 
 			string[] TemplateSrc = File.ReadAllLines(SourceFilename);
@@ -4247,6 +4253,52 @@ bSaveSymbols = true;
 			if (TemplateDest == null || TemplateSrc.Length != TemplateDest.Length || !TemplateSrc.SequenceEqual(TemplateDest))
 			{
 				Log.TraceInformation("\n==== Writing new GameActivity.java file to {0} ====", DestFilename);
+				File.WriteAllLines(DestFilename, TemplateSrc);
+			}
+		}
+
+		private void UpdateGameApplication(string UE4Arch, string NDKArch, string EngineDir, string UE4BuildPath)
+		{
+			string SourceFilename = Path.Combine(EngineDir, "Build", "Android", "Java", "src", "com", "epicgames", "ue4", "GameApplication.java.template");
+			string DestFilename = Path.Combine(UE4BuildPath, "src", "com", "epicgames", "ue4", "GameApplication.java");
+
+			Dictionary<string, string> Replacements = new Dictionary<string, string>{
+				{ "//$${gameActivityImportAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameApplicationImportAdditions", "")},
+				{ "//$${gameActivityOnCreateAdditions}$$", UPL.ProcessPluginNode(NDKArch, "gameApplicationOnCreateAdditions", "")},
+			};
+
+			string[] TemplateSrc = File.ReadAllLines(SourceFilename);
+			string[] TemplateDest = File.Exists(DestFilename) ? File.ReadAllLines(DestFilename) : null;
+
+			bool TemplateChanged = false;
+			for (int LineIndex = 0; LineIndex < TemplateSrc.Length; ++LineIndex)
+			{
+				string SrcLine = TemplateSrc[LineIndex];
+				bool Changed = false;
+				foreach (KeyValuePair<string, string> KVP in Replacements)
+				{
+					if (SrcLine.Contains(KVP.Key))
+					{
+						SrcLine = SrcLine.Replace(KVP.Key, KVP.Value);
+						Changed = true;
+					}
+				}
+				if (Changed)
+				{
+					TemplateSrc[LineIndex] = SrcLine;
+					TemplateChanged = true;
+				}
+			}
+
+			if (TemplateChanged)
+			{
+				// deal with insertions of newlines
+				TemplateSrc = string.Join("\n", TemplateSrc).Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+			}
+
+			if (TemplateDest == null || TemplateSrc.Length != TemplateDest.Length || !TemplateSrc.SequenceEqual(TemplateDest))
+			{
+				Log.TraceInformation("\n==== Writing new GameApplication.java file to {0} ====", DestFilename);
 				File.WriteAllLines(DestFilename, TemplateSrc);
 			}
 		}
