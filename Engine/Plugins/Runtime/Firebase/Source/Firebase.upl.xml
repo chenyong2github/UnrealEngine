@@ -66,6 +66,10 @@ apply plugin: 'com.google.gms.google-services'
 		</if>
 	</buildGradleAdditions>
 
+	<prebuildCopies>
+		<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4"/>
+	</prebuildCopies>
+	
 	<gradleCopies>
 		<if condition="bEnabled">
 			<true>
@@ -75,62 +79,4 @@ apply plugin: 'com.google.gms.google-services'
 		</if>
 	</gradleCopies>
 
-	<gameActivityImportAdditions>
-		<if condition="bEnabled">
-			<true>
-				<insert>
-	import android.text.TextUtils;
-	import static com.epicgames.ue4.notifications.EpicFirebaseMessagingService.KEY_NOTIFICATION_BODY;
-	import static com.epicgames.ue4.notifications.EpicFirebaseMessagingService.NOTIFICATION_ACTION;
-	import static com.epicgames.ue4.services.VoiceService.VOICE_ACTION_UPDATED;
-				</insert>
-			</true>
-		</if>
-	</gameActivityImportAdditions>
-
-		<!-- optional additions to GameActivity onResume in GameActivity.java -->
-	<gameActivityOnResumeAdditions>
-		<if condition="bEnabled">
-			<true>
-				<insert>
-	if (NOTIFICATION_ACTION.equals(getIntent().getAction())) {
-		handleNotificationAction();
-	}
-	else if(VOICE_ACTION_UPDATED.equals(getIntent().getAction())) {
-		routeServiceIntent(getIntent());
-	}
-				</insert>
-			</true>
-		</if>f
-	</gameActivityOnResumeAdditions>
-	<!-- optional additions to the GameActivity class in GameActivity.java -->
-	<gameActivityClassAdditions>
-		<if condition="bEnabled">
-			<true>
-				<insertNewline />
-				<insert>
-	private void handleNotificationAction() {
-		Bundle extras = getIntent().getExtras();
-		if (extras != null) {
-			String body = extras.getString(KEY_NOTIFICATION_BODY);
-			if(!TextUtils.isEmpty(body)) {
-				routeNotificationAction(body);
-			}
-		}
-		Intent i = getIntent();
-		i.setAction(null);
-		setIntent(i);
-	}
-				</insert>
-				<insertNewline />
-				<insert>
-	@Override
-	public void routeNotificationAction(String payload) {
-		super.routeNotificationAction(payload);
-	}
-				</insert>
-				<insertNewline />
-			</true>
-		</if>
-	</gameActivityClassAdditions>
 </root>
