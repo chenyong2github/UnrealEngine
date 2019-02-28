@@ -10,6 +10,7 @@
 #include "IOS/IOSView.h"
 #include "IOS/IOSInputInterface.h"
 #include "IOS/IOSErrorOutputDevice.h"
+#include "IOS/IOSFeedbackContext.h"
 
 FIOSApplication* FIOSPlatformApplicationMisc::CachedApplication = nullptr;
 
@@ -150,6 +151,12 @@ void FIOSPlatformApplicationMisc::LoadPreInitModules()
 	FModuleManager::Get().LoadModule(TEXT("OpenGLDrv"));
 	FModuleManager::Get().LoadModule(TEXT("IOSAudio"));
 	FModuleManager::Get().LoadModule(TEXT("AudioMixerAudioUnit"));
+}
+
+class FFeedbackContext* FIOSPlatformApplicationMisc::GetFeedbackContext()
+{
+	static FIOSFeedbackContext Singleton;
+	return &Singleton;
 }
 
 class FOutputDeviceError* FIOSPlatformApplicationMisc::GetErrorOutputDevice()

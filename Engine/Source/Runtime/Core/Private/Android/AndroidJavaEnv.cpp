@@ -69,8 +69,8 @@ void AndroidJavaEnv::InitializeJavaEnv( JavaVM* VM, jint Version, jobject Global
 		jclass classClass = Env->FindClass("java/lang/Class");
 		jclass classLoaderClass = Env->FindClass("java/lang/ClassLoader");
 		jmethodID getClassLoaderMethod = Env->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
-		jobject classLoader = Env->CallObjectMethod(MainClass, getClassLoaderMethod);
-		ClassLoader = Env->NewGlobalRef(classLoader);
+		auto classLoader = NewScopedJavaObject(Env, Env->CallObjectMethod(MainClass, getClassLoaderMethod));
+		ClassLoader = Env->NewGlobalRef(*classLoader);
 		FindClassMethod = Env->GetMethodID(classLoaderClass, "findClass", "(Ljava/lang/String;)Ljava/lang/Class;");
 	}
 	GlobalObjectRef = GlobalThis;
@@ -164,7 +164,7 @@ JNIEnv* AndroidJavaEnv::GetJavaEnv( bool bRequireGlobalThis /*= true*/ )
 #endif
 }
 
-jclass AndroidJavaEnv::FindJavaClass( const char* name )
+jclass AndroidJavaEnv::FindJavaClass(const char* name)
 {
 	JNIEnv* Env = GetJavaEnv();
 	if (!Env)
@@ -176,6 +176,20 @@ jclass AndroidJavaEnv::FindJavaClass( const char* name )
 	CheckJavaException();
 	Env->DeleteLocalRef(ClassNameObj);
 	return FoundClass;
+}
+
+jclass AndroidJavaEnv::FindJavaClassGlobalRef(const char* name)
+{
+	JNIEnv* Env = GetJavaEnv();
+	if (!Env)
+	{
+		return nullptr;
+	}
+	auto ClassNameObj = FJavaHelper::ToJavaString(Env, FString(ANSI_TO_TCHAR(name)));
+	auto FoundClass = NewScopedJavaObject(Env, static_cast<jclass>(Env->CallObjectMethod(ClassLoader, FindClassMethod, *ClassNameObj)));
+	CheckJavaException();
+	auto GlobalClass = (jclass)Env->NewGlobalRef(*FoundClass);
+	return GlobalClass;
 }
 
 void AndroidJavaEnv::DetachJavaEnv()
@@ -198,4 +212,47 @@ bool AndroidJavaEnv::CheckJavaException()
 		return true;
 	}
 	return false;
+}
+
+FString FJavaHelper::FStringFromLocalRef(JNIEnv* Env, jstring JavaString)
+{
+	auto ReturnString = FStringFromParam(Env, JavaString);
+	
+	if (Env && JavaString)
+	{
+		Env->DeleteLocalRef(JavaString);
+	}
+	
+	return MoveTemp(ReturnString);
+}
+
+FString FJavaHelper::FStringFromGlobalRef(JNIEnv* Env, jstring JavaString)
+{
+	auto ReturnString = FStringFromParam(Env, JavaString);
+	
+	if (Env && JavaString)
+	{
+		Env->DeleteGlobalRef(JavaString);
+	}
+	
+	return MoveTemp(ReturnString);
+}
+
+FString FJavaHelper::FStringFromParam(JNIEnv* Env, jstring JavaString)
+{
+	if (!Env || !JavaString || Env->IsSameObject(JavaString, NULL))
+	{
+		return {};
+	}
+	
+	const auto chars = Env->GetStringUTFChars(JavaString, 0);
+	FString ReturnString(UTF8_TO_TCHAR(chars));
+	Env->ReleaseStringUTFChars(JavaString, chars);
+	return MoveTemp(ReturnString);
+}
+
+FScopedJavaObject<jstring> FJavaHelper::ToJavaString(JNIEnv* Env, const FString& UnrealString)
+{
+	check(Env);
+	return NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(*UnrealString)));
 }

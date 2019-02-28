@@ -2701,8 +2701,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 		const int32 LODBias = GSkeletalMeshLODBias;
 #endif
 
-		int32 MinLodIndex = bOverrideMinLod ? MinLodModel : 0;
-		MinLodIndex = FMath::Max(MinLodIndex, SkeletalMesh->MinLod.GetValueForFeatureLevel(CachedSceneFeatureLevel));
+		int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->MinLod.GetValueForFeatureLevel(CachedSceneFeatureLevel);
 
 		int32 MaxLODIndex = 0;
 		if (MeshObject)

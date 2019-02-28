@@ -210,7 +210,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);
+		InitDynamicShadows(RHICmdList);		
 	}
 	else
 	{
@@ -236,7 +236,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(Views[ViewIndex]);
 	}
-	
+
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
 	if (Views.Num() > 0)
@@ -254,7 +254,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
-
+	
 	OnStartRender(RHICmdList);
 }
 
@@ -349,7 +349,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	const bool bGammaSpace = !IsMobileHDR();
-
+	
 	// Custom depth
 	if (!bGammaSpace)
 	{
@@ -376,7 +376,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
 	// workaround for corrupted depth on vulkan PC, always store depth
 	bKeepDepthContent|= (IsPCPlatform(ShaderPlatform) && IsVulkanPlatform(ShaderPlatform));
-	
+
 	//
 	FTextureRHIParamRef SceneColor = nullptr;
 	FTextureRHIParamRef SceneColorResolve = nullptr;
@@ -384,7 +384,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
 	bool bMobileMSAA = false;
-
+	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
 		SceneColor = GetMultiViewSceneColor(SceneContext);
@@ -400,12 +400,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneDepth = SceneContext.GetSceneDepthSurface();
 				
 		if (bRequiresTranslucencyPass)
-		{
+		{	
 			// store targets after opaque so trancluceny render pass can be restarted
 			ColorTargetAction = ERenderTargetActions::Clear_Store;
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
-
+						
 		if (bKeepDepthContent)
 		{
 			// store depth if post-processing/capture needs it
@@ -457,7 +457,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.EndRenderPass();
 	}
-	
+
 	// Notify the FX system that opaque primitives have been rendered.
 	if (Scene->FXSystem && IsGPUParticleCollisionEnabled(Views[0]))
 	{
@@ -470,7 +470,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Translucency));
-	
+
 	// Restart trancluceny render pass if needed
 	if (bRequiresTranslucencyPass)
 	{
@@ -516,7 +516,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RenderModulatedShadowProjections(RHICmdList);
 		}
 	}
-
+	
 	// Draw translucency.
 	if (ViewFamily.EngineShowFlags.Translucency)
 	{
@@ -536,12 +536,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.EndRenderPass();
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
-	
+
 	if (!View.bIsMobileMultiViewDirectEnabled)
 	{
 		CopyMobileMultiViewSceneColor(RHICmdList);
 	}
-	
+
 	if (ViewFamily.bResolveScene)
 	{
 		if (!bGammaSpace)
@@ -741,7 +741,7 @@ void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate
 		// Only these features require depth texture
 		bool bDecals = ViewFamily.EngineShowFlags.Decals && Scene->Decals.Num();
 		bool bModulatedShadows = ViewFamily.EngineShowFlags.DynamicShadows && bModulatedShadowsInUse;
-
+		
 		if (bDecals || bModulatedShadows || bAlwaysResolveDepth || View.bUsesSceneDepth)
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, ConditionalResolveSceneDepth);

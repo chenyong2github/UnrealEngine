@@ -90,7 +90,7 @@ struct FLiveLinkSubject
 	void OnStartSynchronization(const struct FTimeSynchronizationOpenData& OpenData, const int32 FrameOffset);
 	void OnSynchronizationEstablished(const struct FTimeSynchronizationStartData& StartData);
 	void OnStopSynchronization();
-	
+
 	bool IsTimeSynchronized() { return (GetMode() == ELiveLinkSourceMode::TimeSynchronized  && TimeSyncData.IsSet()); }
 	void AddLiveLinkFrameAddedWatcher(const FGuid& InGuid);
 	void RemoveLiveLinkFrameAddedWatcher(const FGuid& InGuid);
@@ -163,7 +163,7 @@ private:
 	};
 
 	TOptional<FLiveLinkTimeSynchronizationData> TimeSyncData;
-
+	
 	// Cache out recent frames
 	TMap<FGuid, FLiveLinkSavedRecentFrames> RecentAddedFramesMap;
 };
@@ -233,6 +233,9 @@ public:
 	virtual void ClearSubjectsFrames(FName SubjectName) override;
 	virtual void ClearAllSubjectsFrames() override;
 
+	// Get full settings structure for source 
+	virtual ULiveLinkSourceSettings* GetSourceSettingsForEntry(FGuid InEntryGuid);
+
 	virtual void AddSourceToSubjectWhiteList(FName SubjectName, FGuid SourceGuid) override;
 	virtual void RemoveSourceFromSubjectWhiteList(FName SubjectName, FGuid SourceGuid) override;
 	virtual void ClearSourceWhiteLists() override;
@@ -255,7 +258,7 @@ public:
 
 	bool GetSaveFrames() const override;
 	bool SetSaveFrames(bool InSave) override;
-	
+
 	FGuid StartRecordingLiveLink(const TArray<FName>& SubjectNames) override;
 	FGuid StartRecordingLiveLink(const FName& SubjectName) override;
 	void StopRecordingLiveLinkData(const FGuid &InGuid, const TArray<FName>& SubjectNames) override;
@@ -291,9 +294,6 @@ public:
 
 	// Get interpolation settings for a source
 	FLiveLinkInterpolationSettings* GetInterpolationSettingsForEntry(FGuid InEntryGuid);
-
-	// Get full settings structure for source 
-	ULiveLinkSourceSettings* GetSourceSettingsForEntry(FGuid InEntryGuid);
 
 	void OnPropertyChanged(FGuid InEntryGuid, const FPropertyChangedEvent& PropertyChangedEvent);
 

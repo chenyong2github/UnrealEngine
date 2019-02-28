@@ -26,10 +26,14 @@ void FAnimNode_LiveLinkPose::Initialize_AnyThread(const FAnimationInitializeCont
 	}
 
 	CurrentRetargetAsset = nullptr;
+
+	InputPose.Initialize(Context);
 }
 
 void FAnimNode_LiveLinkPose::Update_AnyThread(const FAnimationUpdateContext & Context)
 {
+	InputPose.Update(Context);
+
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	// Accumulate Delta time from update
@@ -50,7 +54,7 @@ void FAnimNode_LiveLinkPose::Update_AnyThread(const FAnimationUpdateContext & Co
 
 void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 {
-	Output.ResetToRefPose();
+	InputPose.Evaluate(Output);
 
 	if (!LiveLinkClient || !CurrentRetargetAsset)
 	{
@@ -79,4 +83,18 @@ void FAnimNode_LiveLinkPose::OnLiveLinkClientUnregistered(const FName& Type, cla
 	{
 		LiveLinkClient = nullptr;
 	}
+}
+
+void FAnimNode_LiveLinkPose::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
+{
+	Super::CacheBones_AnyThread(Context);
+	InputPose.CacheBones(Context);
+}
+
+void FAnimNode_LiveLinkPose::GatherDebugData(FNodeDebugData& DebugData)
+{
+	FString DebugLine = FString::Printf(TEXT("LiveLink - SubjectName: %s"), *SubjectName.ToString());
+
+	DebugData.AddDebugItem(DebugLine);
+	InputPose.GatherDebugData(DebugData);
 }

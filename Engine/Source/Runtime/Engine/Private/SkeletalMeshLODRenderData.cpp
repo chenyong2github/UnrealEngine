@@ -638,15 +638,16 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 
 	USkeletalMesh* OwnerMesh = CastChecked<USkeletalMesh>(Owner);
 	int32 MinMeshLod = 0;
-	
+	bool bMeshDisablesMinLodStrip = false;
 #if WITH_EDITOR
 	if(bIsCook)
 	{
 		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : 0;
+		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : false;
 	}
 #endif
 
-	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > Idx;
+	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > Idx && !bMeshDisablesMinLodStrip;
 
 	ClassDataStripFlags |= bWantToStripTessellation ? LodAdjacencyStripFlag : 0;
 	ClassDataStripFlags |= bWantToStripBelowMinLod ? MinLodStripFlag : 0;

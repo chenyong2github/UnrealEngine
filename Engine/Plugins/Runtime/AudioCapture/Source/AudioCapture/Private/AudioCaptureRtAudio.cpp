@@ -10,8 +10,7 @@ namespace Audio
 {
 
 FAudioCaptureImpl::FAudioCaptureImpl()
-	: Callback(nullptr)
-	, NumChannels(0)
+	: NumChannels(0)
 	, SampleRate(0)
 {
 }
@@ -26,10 +25,8 @@ static int32 OnAudioCaptureCallback(void *OutBuffer, void* InBuffer, uint32 InBu
 
 void FAudioCaptureImpl::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
 {
-	check(Callback);
-
 	float* InBufferData = (float*)InBuffer;
-	Callback->OnAudioCapture(InBufferData, InBufferFrames, NumChannels, StreamTime, bOverflow);
+	OnCapture(InBufferData, InBufferFrames, NumChannels, StreamTime, bOverflow);
 }
 
 bool FAudioCaptureImpl::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
@@ -47,14 +44,8 @@ bool FAudioCaptureImpl::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
 	return true;
 }
 
-bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam& StreamParams)
+bool FAudioCaptureImpl::OpenDefaultCaptureStream(FOnCaptureFunction InOnCapture, uint32 NumFramesDesired)
 {
-	if (!StreamParams.Callback)
-	{
-		UE_LOG(LogAudioCapture, Error, TEXT("Need a callback object passed to open a capture stream"));
-		return false;
-	}
-
 	uint32 DefaultInputDeviceId = CaptureDevice.getDefaultInputDevice();
 	RtAudio::DeviceInfo DeviceInfo = CaptureDevice.getDeviceInfo(DefaultInputDeviceId);
 
@@ -69,10 +60,10 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam&
 		CaptureDevice.closeStream();
 	}
 
-	uint32 NumFrames = StreamParams.NumFramesDesired;
+	uint32 NumFrames = NumFramesDesired;
 	NumChannels = RtAudioStreamParams.nChannels;
 	SampleRate = DeviceInfo.preferredSampleRate;
-	Callback = StreamParams.Callback;
+	OnCapture = MoveTemp(InOnCapture);
 
 	// Open up new audio stream
 	CaptureDevice.openStream(nullptr, &RtAudioStreamParams, RTAUDIO_FLOAT32, SampleRate, &NumFrames, &OnAudioCaptureCallback, this);

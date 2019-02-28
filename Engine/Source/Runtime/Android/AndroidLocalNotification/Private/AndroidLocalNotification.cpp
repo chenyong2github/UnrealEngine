@@ -35,11 +35,7 @@ public:
 #if PLATFORM_ANDROID
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeAppOpenedWithLocalNotification(JNIEnv* jenv, jobject thiz, jstring jactivationEvent, int32 jFireDate)
 {
-
-	FString ActivationEvent;
-	const char* ActivationEventChars = jenv->GetStringUTFChars(jactivationEvent, 0);
-	ActivationEvent = FString(UTF8_TO_TCHAR(ActivationEventChars));
-	jenv->ReleaseStringUTFChars(jactivationEvent, ActivationEventChars);
+	auto ActivationEvent = FJavaHelper::FStringFromParam(jenv, jactivationEvent);
 	
 	int32 FireDate = (int32)jFireDate;
 

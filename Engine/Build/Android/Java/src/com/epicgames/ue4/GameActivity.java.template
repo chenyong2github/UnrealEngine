@@ -174,6 +174,8 @@ import com.epicgames.ue4.GooglePlayLicensing;
 // Console commands listener, only for debug builds
 import com.epicgames.ue4.ConsoleCmdReceiver;
 
+import com.epicgames.ue4.MultiChannelMediaEncoder;
+
 import android.os.Build;
 
 // TODO: use the resources from the UE4 lib project once we've got the packager up and running
@@ -213,7 +215,7 @@ import android.content.BroadcastReceiver;
 //  Java libraries at the startup of the program and store references 
 //  to them in this class.
 
-public class GameActivity extends NativeActivity implements SurfaceHolder.Callback2,
+public class GameActivity extends $${gameActivitySuperClass}$$ implements SurfaceHolder.Callback2,
 															GoogleApiClient.ConnectionCallbacks,
 															GoogleApiClient.OnConnectionFailedListener,
 															SensorEventListener,
@@ -456,8 +458,6 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 	private String	localNotificationLaunchActivationEvent = "";
 	private int		localNotificationLaunchFireDate = 0;
 	
-	public int DeviceRotation = -1;
-
 	enum EAlertDialogType
 	{
 		None,
@@ -518,14 +518,6 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		Configuration config = getResources().getConfiguration();
 
 		int rotation = windowManager.getDefaultDisplay().getRotation();
-		switch (rotation)
-		{
-			case Surface.ROTATION_0:	DeviceRotation = 0;		break;
-			case Surface.ROTATION_90:	DeviceRotation = 90;	break;
-			case Surface.ROTATION_180:	DeviceRotation = 180;	break;
-			case Surface.ROTATION_270:	DeviceRotation = 270;	break;
-		}
-
 		if ( ((rotation == android.view.Surface.ROTATION_0 || rotation == android.view.Surface.ROTATION_180) &&
 				config.orientation == Configuration.ORIENTATION_LANDSCAPE)
 			|| ((rotation == android.view.Surface.ROTATION_90 || rotation == android.view.Surface.ROTATION_270) &&    
@@ -537,6 +529,23 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		{
 			return Configuration.ORIENTATION_PORTRAIT;
 		}
+	}
+
+	public int getCurrentDeviceRotationDegree() 
+	{
+		// onConfigurationChanged won't be called if orientation changes from landscape/portrait to reverse landscape/portrait
+		// use this function instead of caching DeviceRotation
+		int orientation = AndroidThunkJava_GetDeviceOrientation();
+
+		switch (orientation)
+		{
+			case Surface.ROTATION_0:	return 0;
+			case Surface.ROTATION_90:	return 90;
+			case Surface.ROTATION_180:	return 180;
+			case Surface.ROTATION_270:	return 270;
+		}
+
+		return 0;
 	}
 
 	private int getResourceId(String VariableName, String ResourceName, String PackageName)
@@ -703,7 +712,7 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		}
 	}
 
-	private byte[] getByteArrayFromFile(String filename)
+	public static byte[] getByteArrayFromFile(String filename)
 	{
 		try
 		{
@@ -1935,6 +1944,16 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 //$${gameActivityLoggerCallbackAdditions}$$
 	}
 
+	protected View GetMainView()
+	{
+		return mainView;
+	}
+
+	protected FrameLayout GetContainerFrameLayout()
+	{
+		return containerFrameLayout;
+	}
+
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
@@ -1951,9 +1970,9 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		_extrasBundle = getIntent().getExtras();
 		if (_extrasBundle != null)
 		{
-			ShouldHideUI = _extrasBundle.getString("ShouldHideUI") != null;
-			UseDisplayCutout = _extrasBundle.getString("UseDisplayCutout") != null;
-			if (_extrasBundle.getString("UseSplashScreen") != null)
+			ShouldHideUI = _extrasBundle.getBoolean("ShouldHideUI", false);
+			UseDisplayCutout = _extrasBundle.getBoolean("UseDisplayCutout", false);
+			if (_extrasBundle.getBoolean("UseSplashScreen", false))
 			{
 				SplashScreenLaunch = true;
 				try {
@@ -3264,14 +3283,6 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 	{
 		super.onConfigurationChanged(newConfig);
 
-		switch (getWindowManager().getDefaultDisplay().getRotation())
-		{
-			case Surface.ROTATION_0:	DeviceRotation = 0;		break;
-			case Surface.ROTATION_90:	DeviceRotation = 90;	break;
-			case Surface.ROTATION_180:	DeviceRotation = 180;	break;
-			case Surface.ROTATION_270:	DeviceRotation = 270;	break;
-		}
-
 		// forward the orientation
 		boolean bPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT;
 		nativeOnConfigurationChanged(bPortrait);
@@ -4343,9 +4354,9 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		}
 	}
 
-	private int LocalNotificationGetID()
+	public static int LocalNotificationGetID(Context context)
 	{
-		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		String notificationIDs = preferences.getString("notificationIDs", "");
 
@@ -4446,7 +4457,7 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 
 	public void AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
 	{
-		int notificationID = LocalNotificationGetID();
+		int notificationID = LocalNotificationGetID(this);
 
 		// Create callback for PendingIntent
 		Intent notificationIntent = new Intent(this, LocalNotificationReceiver.class); 
@@ -5301,6 +5312,11 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 
 	}
 
+	protected List<View> GetExtraIgnoreViews()
+	{
+		return null;
+	}
+
 	//check if the new virtual keyboard input has received a MOUSE_DOWN event
 	// or the keyboard animation is playing
 	public boolean AndroidThunkJava_VirtualInputIgnoreClick(int x, int y) 
@@ -5316,6 +5332,24 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 				return true;
 			}
 		}
+		else
+		{
+			List<View> ExtraIgnoreViews = GetExtraIgnoreViews();
+			if (ExtraIgnoreViews != null)
+			{
+				for (int i = 0; i < ExtraIgnoreViews.size(); i++)
+				{
+					Rect r = new Rect();
+					ExtraIgnoreViews.get(i).getGlobalVisibleRect(r);
+					if (r.contains(x, y))
+					{
+						//Log.debug("Webview: AndroidThunkJava_VirtualInputIgnoreClick true");
+						return true;
+					}
+				}
+			}
+		}
+
 		//Log.debug("VK: AndroidThunkJava_VirtualInputIgnoreClick false");
 		return false;
 	}
@@ -5447,7 +5481,7 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 		return true;
 	}
 
-	public void AndroidThunkJava_RestartApplication() 
+	public void AndroidThunkJava_RestartApplication(String RestartExtra) 
 	{
 		Context context = getApplicationContext();
 	
@@ -5457,6 +5491,7 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 
 		// make an "restart intent", to be used to re-launch an application's task in its base state
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+		intent.putExtra("RestartExtra", RestartExtra);
 		context.startActivity(intent);
 
 		// kill the current application instance. Undefined behaviour after this!
@@ -5477,6 +5512,11 @@ public class GameActivity extends NativeActivity implements SurfaceHolder.Callba
 			return item.getText().toString();
 		} 
 		return "";
+	}
+
+	public int AndroidThunkJava_GetDeviceOrientation() 
+	{
+		return getWindowManager().getDefaultDisplay().getRotation();
 	}
 
 	@SuppressWarnings("deprecation")

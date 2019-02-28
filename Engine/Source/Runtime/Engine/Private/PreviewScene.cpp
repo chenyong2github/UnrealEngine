@@ -35,28 +35,33 @@ FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
 	PreviewWorld->InitializeNewWorld(UWorld::InitializationValues()
 										.AllowAudioPlayback(CVS.bAllowAudioPlayback)
 										.CreatePhysicsScene(CVS.bCreatePhysicsScene)
-										.RequiresHitProxies(true)
+										.RequiresHitProxies(CVS.bEditor) // Only Need hit proxies in an editor scene
 										.CreateNavigation(false)
 										.CreateAISystem(false)
 										.ShouldSimulatePhysics(CVS.bShouldSimulatePhysics)
-										.SetTransactional(CVS.bTransactional));
+										.SetTransactional(CVS.bTransactional)
+										.SetDefaultGameMode(CVS.DefaultGameMode));
+
 	PreviewWorld->InitializeActorsForPlay(FURL());
 
-	DirectionalLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-	DirectionalLight->Intensity = CVS.LightBrightness;
-	DirectionalLight->LightColor = FColor::White;
-	AddComponent(DirectionalLight, FTransform(CVS.LightRotation));
+	if (CVS.bDefaultLighting)
+	{
+		DirectionalLight = NewObject<UDirectionalLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+		DirectionalLight->Intensity = CVS.LightBrightness;
+		DirectionalLight->LightColor = FColor::White;
+		AddComponent(DirectionalLight, FTransform(CVS.LightRotation));
 
-	SkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-	SkyLight->bLowerHemisphereIsBlack = false;
-	SkyLight->SourceType = ESkyLightSourceType::SLS_SpecifiedCubemap;
-	SkyLight->Intensity = CVS.SkyBrightness;
-	SkyLight->Mobility = EComponentMobility::Movable;
-	AddComponent(SkyLight, FTransform::Identity);
+		SkyLight = NewObject<USkyLightComponent>(GetTransientPackage(), NAME_None, RF_Transient);
+		SkyLight->bLowerHemisphereIsBlack = false;
+		SkyLight->SourceType = ESkyLightSourceType::SLS_SpecifiedCubemap;
+		SkyLight->Intensity = CVS.SkyBrightness;
+		SkyLight->Mobility = EComponentMobility::Movable;
+		AddComponent(SkyLight, FTransform::Identity);
 
-	LineBatcher = NewObject<ULineBatchComponent>(GetTransientPackage());
-	LineBatcher->bCalculateAccurateBounds = false;
-	AddComponent(LineBatcher, FTransform::Identity);
+		LineBatcher = NewObject<ULineBatchComponent>(GetTransientPackage());
+		LineBatcher->bCalculateAccurateBounds = false;
+		AddComponent(LineBatcher, FTransform::Identity);
+	}
 }
 
 FPreviewScene::~FPreviewScene()

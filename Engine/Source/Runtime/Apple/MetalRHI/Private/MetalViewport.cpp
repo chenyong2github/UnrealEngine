@@ -226,12 +226,6 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		}
 		
 		[IOSView UpdateRenderWidth:InSizeX andHeight:InSizeY];
-
-		// check the size of the window
-		float ScalingFactor = [IOSView contentScaleFactor];
-		CGRect ViewFrame = [IOSView frame];
-		check(FMath::TruncToInt(ScalingFactor * ViewFrame.size.width) == InSizeX &&
-			  FMath::TruncToInt(ScalingFactor * ViewFrame.size.height) == InSizeY);
 	}
 #endif
 

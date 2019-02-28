@@ -80,6 +80,8 @@ struct CORE_API FWindowsPlatformMisc
 	static int32 NumberOfCoresIncludingHyperthreads();
 	static int32 NumberOfWorkerThreadsToSpawn();
 
+	static const TCHAR* GetPlatformFeaturesModuleName();
+
 	static FString GetDefaultLanguage();
 	static FString GetDefaultLocale();
 

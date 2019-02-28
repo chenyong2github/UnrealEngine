@@ -23,6 +23,27 @@ EARTrackingQuality UARBlueprintLibrary::GetTrackingQuality()
 	}
 }
 
+EARTrackingQualityReason UARBlueprintLibrary::GetTrackingQualityReason()
+{
+	// @todo merge-check
+// 	auto ARSystem = GetARSystem();
+// 	if (ARSystem.IsValid())
+// 	{
+// 		return ARSystem->GetTrackingQualityReason();
+// 	}
+// 	else
+	{
+		return EARTrackingQualityReason::None;
+	}
+}
+
+bool UARBlueprintLibrary::IsARSupported(void)
+{
+	// @todo merge-check
+//	return GetARSystem().IsValid() && GetARSystem()->IsARAvailable();
+	return true;
+}
+
 void UARBlueprintLibrary::StartARSession(UARSessionConfig* SessionConfig)
 {
 	if (SessionConfig == nullptr)

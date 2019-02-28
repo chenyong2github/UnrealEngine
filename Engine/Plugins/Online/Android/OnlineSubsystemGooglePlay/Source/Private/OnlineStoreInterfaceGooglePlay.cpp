@@ -8,6 +8,7 @@
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemGooglePlay.h"
 #include <jni.h>
+#include "Android/AndroidJavaEnv.h"
 
 
 ////////////////////////////////////////////////////////////////////
@@ -104,37 +105,14 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryComplete
 
 			FInAppPurchaseProductInfo NewProductInfo;
 
-			jstring NextId = (jstring)jenv->GetObjectArrayElement(productIDs, Idx);
-			const char* charsId = jenv->GetStringUTFChars(NextId, 0);
-			NewProductInfo.Identifier = FString(UTF8_TO_TCHAR(charsId));
-			jenv->ReleaseStringUTFChars(NextId, charsId);
-			jenv->DeleteLocalRef(NextId);
-
-			jstring NextTitle = (jstring)jenv->GetObjectArrayElement(titles, Idx);
-			const char* charsTitle = jenv->GetStringUTFChars(NextTitle, 0);
-			NewProductInfo.DisplayName = FString(UTF8_TO_TCHAR(charsTitle));
-			jenv->ReleaseStringUTFChars(NextTitle, charsTitle);
-			jenv->DeleteLocalRef(NextTitle);
-
-			jstring NextDesc = (jstring)jenv->GetObjectArrayElement(descriptions, Idx);
-			const char* charsDesc = jenv->GetStringUTFChars(NextDesc, 0);
-			NewProductInfo.DisplayDescription = FString(UTF8_TO_TCHAR(charsDesc));
-			jenv->ReleaseStringUTFChars(NextDesc, charsDesc);
-			jenv->DeleteLocalRef(NextDesc);
-
-			jstring NextPrice = (jstring)jenv->GetObjectArrayElement(prices, Idx);
-			const char* charsPrice = jenv->GetStringUTFChars(NextPrice, 0);
-			NewProductInfo.DisplayPrice = FString(UTF8_TO_TCHAR(charsPrice));
-			jenv->ReleaseStringUTFChars(NextPrice, charsPrice);
-			jenv->DeleteLocalRef(NextPrice);
-
+			NewProductInfo.Identifier = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(productIDs, Idx));
+			NewProductInfo.DisplayName = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(titles, Idx));
+			NewProductInfo.DisplayDescription = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(descriptions, Idx));
+			NewProductInfo.DisplayPrice = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(prices, Idx));
+			
 			NewProductInfo.RawPrice = PricesRaw[Idx];
-
-			jstring NextCurrencyCode = (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx);
-			const char* charsCurrencyCodes = jenv->GetStringUTFChars(NextCurrencyCode, 0);
-			NewProductInfo.CurrencyCode = FString(UTF8_TO_TCHAR(charsCurrencyCodes));
-			jenv->ReleaseStringUTFChars(NextCurrencyCode, charsCurrencyCodes);
-			jenv->DeleteLocalRef(NextCurrencyCode);
+			
+			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx));
 
 			ProvidedProductInformation.Add(NewProductInfo);
 
@@ -236,21 +214,10 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativePurchaseCompl
 	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
 	if (bWasSuccessful)
 	{
-		const char* charsId = jenv->GetStringUTFChars(productId, 0);
-		ProductId = FString(UTF8_TO_TCHAR(charsId));
-		jenv->ReleaseStringUTFChars(productId, charsId);
-
-		const char* charsToken = jenv->GetStringUTFChars(productToken, 0);
-		ProductToken = FString(UTF8_TO_TCHAR(charsToken));
-		jenv->ReleaseStringUTFChars(productToken, charsToken);
-
-		const char* charsReceipt = jenv->GetStringUTFChars(receiptData, 0);
-		ReceiptData = FString(UTF8_TO_TCHAR(charsReceipt));
-		jenv->ReleaseStringUTFChars(receiptData, charsReceipt);
-
-		const char* charsSignature = jenv->GetStringUTFChars(signature, 0);
-		Signature = FString(UTF8_TO_TCHAR(charsSignature));
-		jenv->ReleaseStringUTFChars(signature, charsSignature);
+		ProductId = FJavaHelper::FStringFromParam(jenv, productId);
+		ProductToken = FJavaHelper::FStringFromParam(jenv, productToken);
+		ReceiptData = FJavaHelper::FStringFromParam(jenv, receiptData);
+		Signature = FJavaHelper::FStringFromParam(jenv, signature);
 	}
 
 	FGoogleTransactionData TransactionData(ProductId, ProductToken, ReceiptData, Signature);
@@ -362,30 +329,11 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeRestorePurcha
 			// Build the restore product information strings.
 			FInAppPurchaseRestoreInfo RestoreInfo;
 
-			jstring NextId = (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx);
-			const char* charsId = jenv->GetStringUTFChars(NextId, 0);
-			const FString OfferId = FString(UTF8_TO_TCHAR(charsId));
-			jenv->ReleaseStringUTFChars(NextId, charsId);
-			jenv->DeleteLocalRef(NextId);
-
-			jstring NextToken = (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx);
-			const char* charsToken = jenv->GetStringUTFChars(NextToken, 0);
-			const FString ProductToken = FString(UTF8_TO_TCHAR(charsToken));
-			jenv->ReleaseStringUTFChars(NextToken, charsToken);
-			jenv->DeleteLocalRef(NextToken);
-
-			jstring NextReceipt = (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx);
-			const char* charsReceipt = jenv->GetStringUTFChars(NextReceipt, 0);
-			const FString ReceiptData = FString(UTF8_TO_TCHAR(charsReceipt));
-			jenv->ReleaseStringUTFChars(NextReceipt, charsReceipt);
-			jenv->DeleteLocalRef(NextReceipt);
-
-			jstring NextSignature = (jstring)jenv->GetObjectArrayElement(Signatures, Idx);
-			const char* charsSignature = jenv->GetStringUTFChars(NextSignature, 0);
-			const FString SignatureData = FString(UTF8_TO_TCHAR(charsSignature));
-			jenv->ReleaseStringUTFChars(NextSignature, charsSignature);
-			jenv->DeleteLocalRef(NextSignature);
-
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+			
 			FGoogleTransactionData RestoredPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
 			RestoredPurchaseInfo.Add(RestoredPurchase);
 
@@ -461,30 +409,11 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryExisting
 		for (jsize Idx = 0; Idx < NumProducts; Idx++)
 		{
 			// Build the product information strings.
-			jstring NextId = (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx);
-			const char* charsId = jenv->GetStringUTFChars(NextId, 0);
-			const FString OfferId = FString(UTF8_TO_TCHAR(charsId));
-			jenv->ReleaseStringUTFChars(NextId, charsId);
-			jenv->DeleteLocalRef(NextId);
-
-			jstring NextToken = (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx);
-			const char* charsToken = jenv->GetStringUTFChars(NextToken, 0);
-			const FString ProductToken = FString(UTF8_TO_TCHAR(charsToken));
-			jenv->ReleaseStringUTFChars(NextToken, charsToken);
-			jenv->DeleteLocalRef(NextToken);
-
-			jstring NextReceipt = (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx);
-			const char* charsReceipt = jenv->GetStringUTFChars(NextReceipt, 0);
-			const FString ReceiptData = FString(UTF8_TO_TCHAR(charsReceipt));
-			jenv->ReleaseStringUTFChars(NextReceipt, charsReceipt);
-			jenv->DeleteLocalRef(NextReceipt);
-
-			jstring NextSignature = (jstring)jenv->GetObjectArrayElement(Signatures, Idx);
-			const char* charsSignature = jenv->GetStringUTFChars(NextSignature, 0);
-			const FString SignatureData = FString(UTF8_TO_TCHAR(charsSignature));
-			jenv->ReleaseStringUTFChars(NextSignature, charsSignature);
-			jenv->DeleteLocalRef(NextSignature);
-
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+			
 			FGoogleTransactionData ExistingPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
 			ExistingPurchaseInfo.Add(ExistingPurchase);
 

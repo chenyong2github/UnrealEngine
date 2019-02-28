@@ -8,6 +8,7 @@ struct APPLICATIONCORE_API FIOSPlatformApplicationMisc : public FGenericPlatform
 {
 	static void LoadPreInitModules();
 
+	static class FFeedbackContext* GetFeedbackContext();
 	static class FOutputDeviceError* GetErrorOutputDevice();
 	static class GenericApplication* CreateApplication();
 	static bool IsScreensaverEnabled();

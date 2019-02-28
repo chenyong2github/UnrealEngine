@@ -19,9 +19,8 @@ namespace
 		}
 
 		JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-		const char* Chars = JEnv->GetStringUTFChars(InString, 0);
-		FText Retval = FText::FromString(UTF8_TO_TCHAR(Chars));
-		JEnv->ReleaseStringUTFChars(InString, Chars);
+		FString Temp = FJavaHelper::FStringFromParam(JEnv, InString);
+		FText Retval = FText::FromString(Temp);
 		return Retval;
 	}
 }
@@ -48,15 +47,18 @@ void FAndroidWebBrowserDialog::Continue(bool Success, const FText& UserResponse)
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 	const char* MethodName = Success?"confirm":"cancel";
 	const char* MethodSignature = (Success && Type==EWebBrowserDialogType::Prompt)?"(Ljava/lang/String;)V":"()V";
-	jclass Class = JEnv->GetObjectClass(Callback);
-	jmethodID MethodId = JEnv->GetMethodID(Class, MethodName, MethodSignature);
+	auto Class = NewScopedJavaObject(JEnv, JEnv->GetObjectClass(Callback));
+	jmethodID MethodId = JEnv->GetMethodID(*Class, MethodName, MethodSignature);
 
-	jstring JUserResponse = nullptr;
 	if (Success && Type==EWebBrowserDialogType::Prompt)
 	{
-		JUserResponse = FJavaClassObject::GetJString(UserResponse.ToString());
+		auto JUserResponse = FJavaClassObject::GetJString(UserResponse.ToString());
+		JEnv->CallVoidMethod(Callback, MethodId, *JUserResponse);
 	}
-	JEnv->CallVoidMethod(Callback, MethodId, JUserResponse);
+	else
+	{
+		JEnv->CallVoidMethod(Callback, MethodId, nullptr);
+	}
 }
 
 #endif // USE_ANDROID_JNI
