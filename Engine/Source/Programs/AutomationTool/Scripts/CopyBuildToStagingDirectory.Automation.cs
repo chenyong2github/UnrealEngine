@@ -137,14 +137,22 @@ public partial class Project : CommandUtils
 		{
 			CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
 		}
-		if (CryptoSettings != null && CryptoSettings.bEnablePakIndexEncryption)
+		if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
 		{
-			CmdLine.AppendFormat(" -encryptindex");
+			if (CryptoSettings.bEnablePakIndexEncryption)
+			{
+				CmdLine.AppendFormat(" -encryptindex");
+			}
+			if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+			{
+				CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+			}
+			if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+			{
+				CmdLine.AppendFormat(" -sign");
+			}
 		}
-		if (!string.IsNullOrEmpty(EncryptionKeyGuid))
-		{
-			CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
-		}
+		
 		CmdLine.Append(PlatformOptions);
 
 		return CmdLine.ToString();
