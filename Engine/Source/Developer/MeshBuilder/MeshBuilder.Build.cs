@@ -29,7 +29,10 @@ namespace UnrealBuildTool.Rules
 	        AddEngineThirdPartyPrivateStaticDependencies(Target, "nvTessLib");
             AddEngineThirdPartyPrivateStaticDependencies(Target, "QuadricMeshReduction");
 
-			PublicAdditionalLibraries.Add("stdc++");	// can be fixed, see UE-70769
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				PublicAdditionalLibraries.Add("stdc++");	// can be fixed, see UE-70769
+			}
        }
 	}
 }
