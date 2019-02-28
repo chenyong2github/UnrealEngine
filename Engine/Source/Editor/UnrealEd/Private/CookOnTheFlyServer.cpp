@@ -1427,8 +1427,6 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	bIsSavingPackage(false),
 	AssetRegistry(nullptr)
 {
-	PackageNameCache = new FPackageNameCache;
-	PackageTracker	 = new FPackageTracker(PackageNameCache);
 }
 
 UCookOnTheFlyServer::~UCookOnTheFlyServer()
@@ -4055,9 +4053,13 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &UCookOnTheFlyServer::PreGarbageCollect);
 
-	if (IsCookByTheBookMode() && !IsCookingInEditor())
+	if (CurrentCookMode != ECookMode::CookByTheBook)
 	{
-		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
+		// For standalone CookByTheBook the PackageNameCache and PackageTracker are initialized 
+		// later to benefit from a fully scanned and initialized AssetRegistry.
+		// For IsCookingInEditor() these objects are required for the FCoreUObjectDelegates below
+		PackageNameCache = new FPackageNameCache();
+		PackageTracker = new FPackageTracker(PackageNameCache);
 	}
 
 	if (IsCookingInEditor())
@@ -5151,6 +5153,8 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 		const static FName NAME_DummyCookedFilename(TEXT("DummyCookedFilename")); // pls never name a package dummycookedfilename otherwise shit might go wonky
 		if (bIsIterateSharedBuild)
 		{
+			check(IFileManager::Get().FileExists(*NAME_DummyCookedFilename.ToString()) == false);
+
 			TSet<FName> ExistingPackages = ModifiedPackages;
 			ExistingPackages.Append(RemovedPackages);
 			ExistingPackages.Append(IdenticalCookedPackages);
@@ -5206,11 +5210,6 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 					bShouldKeep = false;
 				}
 			}
-				
-			if (CookedFile == NAME_DummyCookedFilename)
-			{
-				check(IFileManager::Get().FileExists(*CookedFile.ToString()) == false);
-			}
 
 			TArray<FName> PlatformNames;
 			PlatformNames.Add(PlatformFName);
@@ -5218,10 +5217,6 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPla
 			if (bShouldKeep)
 			{
 				// Add this package to the CookedPackages list so that we don't try cook it again
-				if (CookedFile != NAME_DummyCookedFilename)
-				{
-					check(IFileManager::Get().FileExists(*CookedFile.ToString()));
-				}
 				TArray<bool> Succeeded;
 				Succeeded.Add(true);
 
@@ -6672,6 +6667,14 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	GenerateAssetRegistry();
+	if (CurrentCookMode == ECookMode::CookByTheBook)
+	{
+		check(!PackageNameCache);
+		check(!PackageTracker);
+		PackageNameCache = new FPackageNameCache(AssetRegistry);
+		PackageTracker = new FPackageTracker(PackageNameCache);
+		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
+	}
 
 	// Find all the localized packages and map them back to their source package
 	{
