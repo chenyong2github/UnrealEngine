@@ -518,12 +518,9 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 		return;
 	}
 
-	if (bResetSimulations)
+	for (TSharedRef<FNiagaraEmitterInstance> Simulation : Emitters)
 	{
-		for (TSharedRef<FNiagaraEmitterInstance> Simulation : Emitters)
-		{
-			Simulation->ResetSimulation();
-		}
+		Simulation->ResetSimulation(bResetSimulations);
 	}
 
 #if WITH_EDITOR

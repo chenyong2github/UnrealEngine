@@ -359,31 +359,34 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, Scripts, ScriptDefinedDataInterfaceParameters);
 }
 
-void FNiagaraEmitterInstance::ResetSimulation()
+void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
 {
-	bResetPending = true;
 	Age = 0;
 	Loops = 0;
 	TickCount = 0;
-	TotalSpawnedParticles = 0;
 	CachedBounds.Init();
-
-	ParticleDataSet->ResetBuffers();
-	for (FNiagaraDataSet* SpawnScriptEventDataSet : SpawnScriptEventDataSets)
-	{
-		SpawnScriptEventDataSet->ResetBuffers();
-	}
-	for (FNiagaraDataSet* UpdateScriptEventDataSet : UpdateScriptEventDataSets)
-	{
-		UpdateScriptEventDataSet->ResetBuffers();
-	}
-	
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
-	{
-		GPUExecContext->Reset();
-	}
-
 	SetExecutionState(ENiagaraExecutionState::Active);
+
+	if (bKillExisting)
+	{
+		bResetPending = true;
+		TotalSpawnedParticles = 0;
+
+		ParticleDataSet->ResetBuffers();
+		for (FNiagaraDataSet* SpawnScriptEventDataSet : SpawnScriptEventDataSets)
+		{
+			SpawnScriptEventDataSet->ResetBuffers();
+		}
+		for (FNiagaraDataSet* UpdateScriptEventDataSet : UpdateScriptEventDataSets)
+		{
+			UpdateScriptEventDataSet->ResetBuffers();
+		}
+
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+		{
+			GPUExecContext->Reset();
+		}
+	}
 }
 
 void FNiagaraEmitterInstance::CheckForErrors()
