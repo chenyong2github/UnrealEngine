@@ -544,7 +544,8 @@ void ComputeBillboardUVs(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	if (NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame > 0)
 	{
 		// Avoid uint divide which is extremely slow on GCN
-		uint CutoutVertexIndex = (uint)fmod(Input.VertexId, NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame);
+		const uint VertexIndexMask = NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame == 8 ? 7 : 3; // BVC_FourVertices || BVC_EightVertices
+		uint CutoutVertexIndex = Input.VertexId & VertexIndexMask;
 		float NumFrames = NiagaraSpriteVF.SubImageSize.x * NiagaraSpriteVF.SubImageSize.y;
 		uint SubImageIndexInt = (uint)fmod(Intermediates.SizeRotSubImage.w, NumFrames);
 
