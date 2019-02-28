@@ -73,6 +73,7 @@ struct FMetalTessellationPipelineDesc
 @public
 	mtlpp::RenderPipelineState RenderPipelineState;
 	mtlpp::ComputePipelineState ComputePipelineState;
+	mtlpp::RenderPipelineState DebugPipelineState;
 	FMetalTessellationPipelineDesc TessellationPipelineDesc;
 #if METAL_DEBUG_OPTIONS
 	FMetalDebugShaderResourceMask ResourceMask[EMetalShaderStagesNum];

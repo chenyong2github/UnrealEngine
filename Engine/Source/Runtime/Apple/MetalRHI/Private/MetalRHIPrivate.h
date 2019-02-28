@@ -103,6 +103,8 @@ extern int32 GMetalResetOnPSOChange;
 #define METAL_DEBUG_LAYER(Level, Code)
 #endif
 
+extern bool GMetalCommandBufferDebuggingEnabled;
+
 /** Set to 1 to enable GPU events in Xcode frame debugger */
 #ifndef ENABLE_METAL_GPUEVENTS_IN_TEST
 	#define ENABLE_METAL_GPUEVENTS_IN_TEST 0
@@ -126,6 +128,16 @@ extern int32 GMetalResetOnPSOChange;
 #define METAL_TO_UNREAL_BUFFER_INDEX(Index) ((MaxMetalStreams - 1) - Index)
 
 #define METAL_NEW_NONNULL_DECL (__clang_major__ >= 9)
+
+struct FMetalDebugInfo
+{
+	uint32 CmdBuffIndex;
+	uint32 EncoderIndex;
+	uint32 ContextIndex;
+	uint32 CommandIndex;
+	uint64 CommandBuffer;
+	uint32 PSOSignature[4];
+};
 
 // Access the internal context for the device-owning DynamicRHI object
 FMetalDeviceContext& GetMetalDeviceContext();

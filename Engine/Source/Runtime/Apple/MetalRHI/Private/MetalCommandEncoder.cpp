@@ -19,6 +19,153 @@ const uint32 EncoderRingBufferSize = 1024 * 1024;
 extern int32 GMetalBufferScribble;
 #endif
 
+static TCHAR const* const GMetalCommandDataTypeName[] = {
+	TEXT("DrawPrimitive"),
+	TEXT("DrawPrimitiveIndexed"),
+	TEXT("DrawPrimitivePatch"),
+	TEXT("DrawPrimitiveIndirect"),
+	TEXT("DrawPrimitiveIndexedIndirect"),
+};
+
+
+FString FMetalCommandData::ToString() const
+{
+	FString Result;
+	if ((uint32)CommandType < (uint32)FMetalCommandData::Type::Num)
+	{
+		Result = GMetalCommandDataTypeName[(uint32)CommandType];
+		switch(CommandType)
+		{
+			case FMetalCommandData::Type::DrawPrimitive:
+				Result += FString::Printf(TEXT(" BaseInstance: %u InstanceCount: %u VertexCount: %u VertexStart: %u"), Draw.BaseInstance, Draw.InstanceCount, Draw.VertexCount, Draw.VertexStart);
+				break;
+			case FMetalCommandData::Type::DrawPrimitiveIndexed:
+				Result += FString::Printf(TEXT(" BaseInstance: %u BaseVertex: %u IndexCount: %u IndexStart: %u InstanceCount: %u"), DrawIndexed.BaseInstance, DrawIndexed.BaseVertex, DrawIndexed.IndexCount, DrawIndexed.IndexStart, DrawIndexed.InstanceCount);
+				break;
+			case FMetalCommandData::Type::DrawPrimitivePatch:
+				Result += FString::Printf(TEXT(" BaseInstance: %u InstanceCount: %u PatchCount: %u PatchStart: %u"), DrawPatch.BaseInstance, DrawPatch.InstanceCount, DrawPatch.PatchCount, DrawPatch.PatchStart);
+				break;
+			case FMetalCommandData::Type::DrawPrimitiveIndirect:
+			case FMetalCommandData::Type::DrawPrimitiveIndexedIndirect:
+			case FMetalCommandData::Type::Num:
+			default:
+				break;
+		}
+	}
+	return Result;
+};
+
+struct FMetalCommandContextDebug
+{
+	TArray<FMetalCommandDebug> Commands;
+	TSet<TRefCountPtr<FMetalGraphicsPipelineState>> PSOs;
+	FMetalBuffer DebugBuffer;
+};
+
+@interface FMetalCommandBufferDebug : FApplePlatformObject
+{
+	@public
+	TArray<FMetalCommandContextDebug> Contexts;
+}
+@end
+@implementation FMetalCommandBufferDebug
+APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalCommandBufferDebug)
+- (void)dealloc
+{
+	Contexts.Empty();
+	[super dealloc];
+}
+@end
+
+char const* FMetalCommandBufferMarkers::kTableAssociationKey = "FMetalCommandBufferMarkers::kTableAssociationKey";
+
+FMetalCommandBufferMarkers::FMetalCommandBufferMarkers(void)
+: ns::Object<FMetalCommandBufferDebug*, ns::CallingConvention::ObjectiveC>(nil)
+{
+	
+}
+
+FMetalCommandBufferMarkers::FMetalCommandBufferMarkers(mtlpp::CommandBuffer& CmdBuf)
+: ns::Object<FMetalCommandBufferDebug*, ns::CallingConvention::ObjectiveC>([FMetalCommandBufferDebug new], ns::Ownership::Assign)
+{
+	CmdBuf.SetAssociatedObject<FMetalCommandBufferMarkers>(FMetalCommandBufferMarkers::kTableAssociationKey, *this);
+	m_ptr->Contexts.SetNum(1);
+}
+
+
+FMetalCommandBufferMarkers::FMetalCommandBufferMarkers(FMetalCommandBufferDebug* CmdBuf)
+: ns::Object<FMetalCommandBufferDebug*, ns::CallingConvention::ObjectiveC>(CmdBuf)
+{
+	
+}
+
+void FMetalCommandBufferMarkers::AllocateContexts(uint32 NumContexts)
+{
+	if (m_ptr && m_ptr->Contexts.Num() < NumContexts)
+	{
+		m_ptr->Contexts.SetNum(NumContexts);
+	}
+}
+
+uint32 FMetalCommandBufferMarkers::AddCommand(uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data)
+{
+	uint32 Num = 0;
+	if (m_ptr)
+	{
+		FMetalCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
+		if (Context.DebugBuffer != DebugBuffer)
+		{
+			Context.DebugBuffer = DebugBuffer;
+		}
+		Context.PSOs.Add(PSO);
+		Num = Context.Commands.Num();
+		FMetalCommandDebug Command;
+		Command.Encoder = Encoder;
+		Command.Index = Num;
+		Command.PSO = PSO;
+		Command.Data = Data;
+		Context.Commands.Add(Command);
+	}
+	return Num;
+}
+
+TArray<FMetalCommandDebug>* FMetalCommandBufferMarkers::GetCommands(uint32 ContextIndex)
+{
+	TArray<FMetalCommandDebug>* Result = nullptr;
+	if (m_ptr)
+	{
+		FMetalCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
+		Result = &Context.Commands;
+	}
+	return Result;
+}
+
+ns::AutoReleased<FMetalBuffer> FMetalCommandBufferMarkers::GetDebugBuffer(uint32 ContextIndex)
+{
+	ns::AutoReleased<FMetalBuffer> Buffer;
+	if (m_ptr)
+	{
+		FMetalCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
+		Buffer = Context.DebugBuffer;
+	}
+	return Buffer;
+}
+
+uint32 FMetalCommandBufferMarkers::NumContexts() const
+{
+	uint32 Num = 0;
+	if (m_ptr)
+	{
+		Num = m_ptr->Contexts.Num();
+	}
+	return Num;
+}
+
+FMetalCommandBufferMarkers FMetalCommandBufferMarkers::Get(mtlpp::CommandBuffer const& CmdBuf)
+{
+	return CmdBuf.GetAssociatedObject<FMetalCommandBufferMarkers>(FMetalCommandBufferMarkers::kTableAssociationKey);
+}
+
 #pragma mark - Public C++ Boilerplate -
 
 FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList)
@@ -37,6 +184,7 @@ FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList)
 , DebugGroups([NSMutableArray new])
 , FenceStage(mtlpp::RenderStages::Fragment)
 , EncoderNum(0)
+, CmdBufIndex(0)
 {
 	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
 	{
@@ -185,8 +333,14 @@ void FMetalCommandEncoder::StartCommandBuffer(void)
 
 	if (!CommandBuffer)
 	{
+		CmdBufIndex++;
 		CommandBuffer = CommandList.GetCommandQueue().CreateCommandBuffer();
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CommandBufferDebug = FMetalCommandBufferDebugging::Get(CommandBuffer));
+		
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			CommandBufferMarkers = FMetalCommandBufferMarkers(CommandBuffer);
+		}
 		
 		if ([DebugGroups count] > 0)
 		{
@@ -1142,6 +1296,11 @@ void FMetalCommandEncoder::PopDebugGroup(void)
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, BlitEncoderDebug.PopDebugGroup());
 		}
 	}
+}
+
+FMetalCommandBufferMarkers& FMetalCommandEncoder::GetMarkers(void)
+{
+	return CommandBufferMarkers;
 }
 
 #if ENABLE_METAL_GPUPROFILE

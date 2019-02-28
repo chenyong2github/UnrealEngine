@@ -56,6 +56,68 @@ static float RoundTessLevel(float TessFactor, mtlpp::TessellationPartitionMode P
 	}
 }
 
+// A tile-based or vertex-based debug shader for trying to emulate Aftermath style failure reporting
+static NSString* GMetalDebugShader = @"#include <metal_stdlib>\n"
+"#include <metal_compute>\n"
+"\n"
+"using namespace metal;\n"
+"\n"
+"struct DebugInfo\n"
+"{\n"
+"   uint CmdBuffIndex;\n"
+"	uint EncoderIndex;\n"
+"   uint ContextIndex;\n"
+"   uint CommandIndex;\n"
+"   uint2 CommandBuffer;\n"
+"	uint4 PSOSignature;\n"
+"};\n"
+"\n"
+#if !PLATFORM_MAC
+"// Executes once per-tile\n"
+"fragment void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]], uint tile_index [[ tile_index ]])\n"
+"{\n"
+"	// Write Pass, Draw indices\n"
+"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
+"	debugBuffer[tile_index] = debugTable[0];\n"
+"}";
+#else
+"// Executes once as a point draw call\n"
+"vertex void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]])\n"
+"{\n"
+"	// Write Pass, Draw indices\n"
+"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
+"	debugBuffer[0] = debugTable[0];\n"
+"}";
+#endif
+
+struct FMetalHelperFunctions
+{
+    mtlpp::Library DebugShadersLib;
+    mtlpp::Function DebugFunc;
+    
+    FMetalHelperFunctions()
+    {
+        if (GMetalCommandBufferDebuggingEnabled)
+        {
+            mtlpp::CompileOptions CompileOptions;
+            ns::AutoReleasedError Error;
+            DebugShadersLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalDebugShader, CompileOptions, &Error);
+            DebugFunc = DebugShadersLib.NewFunction(@"Main_Debug");
+        }
+    }
+    
+    static FMetalHelperFunctions& Get()
+    {
+        static FMetalHelperFunctions sSelf;
+        return sSelf;
+    }
+    
+    mtlpp::Function GetDebugFunction()
+    {
+        return DebugFunc;
+    }
+};
+
 struct FMetalGraphicsPipelineKey
 {
 	FMetalRenderPipelineHash RenderPipelineHash;
@@ -478,7 +540,12 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		METAL_DEBUG_OPTION(FMemory::Memzero(Pipeline->ResourceMask, sizeof(Pipeline->ResourceMask)));
 
 		mtlpp::RenderPipelineDescriptor RenderPipelineDesc;
-		mtlpp::ComputePipelineDescriptor ComputePipelineDesc(nil);
+        mtlpp::ComputePipelineDescriptor ComputePipelineDesc(nil);
+#if PLATFORM_MAC
+        mtlpp::RenderPipelineDescriptor DebugPipelineDesc;
+#else
+        mtlpp::TileRenderPipelineDescriptor DebugPipelineDesc;
+#endif
 		
 		if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesPipelineBufferMutability))
 		{
@@ -536,8 +603,9 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
         FMetalBlendState* BlendState = (FMetalBlendState*)Init.BlendState;
 		
 		ns::Array<mtlpp::RenderPipelineColorAttachmentDescriptor> ColorAttachments = RenderPipelineDesc.GetColorAttachments();
-		
-        for (uint32 i = 0; i < NumActiveTargets; i++)
+		auto DebugColorAttachements = DebugPipelineDesc.GetColorAttachments();
+
+		for (uint32 i = 0; i < NumActiveTargets; i++)
         {
             EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
             if (TargetFormat == PF_Unknown && PixelShader && (((PixelShader->Bindings.InOutMask & 0x7fff) & (1 << i))))
@@ -561,7 +629,10 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
             
             mtlpp::RenderPipelineColorAttachmentDescriptor Attachment = ColorAttachments[i];
             Attachment.SetPixelFormat(MetalFormat);
-            
+			
+			auto DebugAttachment = DebugColorAttachements[i];;
+			DebugAttachment.SetPixelFormat(MetalFormat);
+			
             mtlpp::RenderPipelineColorAttachmentDescriptor Blend = BlendState->RenderTargetStates[i].BlendState;
             if(TargetFormat != PF_Unknown)
             {
@@ -574,11 +645,26 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
                 Attachment.SetDestinationAlphaBlendFactor(Blend.GetDestinationAlphaBlendFactor());
                 Attachment.SetAlphaBlendOperation(Blend.GetAlphaBlendOperation());
                 Attachment.SetWriteMask(Blend.GetWriteMask());
+				
+#if PLATFORM_MAC
+				DebugAttachment.SetBlendingEnabled(Blend.IsBlendingEnabled());
+				DebugAttachment.SetSourceRgbBlendFactor(Blend.GetSourceRgbBlendFactor());
+				DebugAttachment.SetDestinationRgbBlendFactor(Blend.GetDestinationRgbBlendFactor());
+				DebugAttachment.SetRgbBlendOperation(Blend.GetRgbBlendOperation());
+				DebugAttachment.SetSourceAlphaBlendFactor(Blend.GetSourceAlphaBlendFactor());
+				DebugAttachment.SetDestinationAlphaBlendFactor(Blend.GetDestinationAlphaBlendFactor());
+				DebugAttachment.SetAlphaBlendOperation(Blend.GetAlphaBlendOperation());
+				DebugAttachment.SetWriteMask(Blend.GetWriteMask());
+#endif
             }
             else
             {
                 Attachment.SetBlendingEnabled(NO);
 				Attachment.SetWriteMask(mtlpp::ColorWriteMask::None);
+#if PLATFORM_MAC
+				DebugAttachment.SetBlendingEnabled(NO);
+				DebugAttachment.SetWriteMask(mtlpp::ColorWriteMask::None);
+#endif
             }
         }
         
@@ -592,22 +678,35 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
                     if (Init.DepthTargetLoadAction != ERenderTargetLoadAction::ENoAction || Init.DepthTargetStoreAction != ERenderTargetStoreAction::ENoAction)
                     {
                         RenderPipelineDesc.SetDepthAttachmentPixelFormat(MetalFormat);
+#if PLATFORM_MAC
+						DebugPipelineDesc.SetDepthAttachmentPixelFormat(MetalFormat);
+#endif
                     }
                     if (Init.StencilTargetLoadAction != ERenderTargetLoadAction::ENoAction || Init.StencilTargetStoreAction != ERenderTargetStoreAction::ENoAction)
                     {
                         RenderPipelineDesc.SetStencilAttachmentPixelFormat(mtlpp::PixelFormat::Stencil8);
+#if PLATFORM_MAC
+						DebugPipelineDesc.SetStencilAttachmentPixelFormat(mtlpp::PixelFormat::Stencil8);
+#endif
                     }
                 }
                 else
                 {
                     RenderPipelineDesc.SetDepthAttachmentPixelFormat(MetalFormat);
                     RenderPipelineDesc.SetStencilAttachmentPixelFormat(MetalFormat);
+#if PLATFORM_MAC
+					DebugPipelineDesc.SetDepthAttachmentPixelFormat(MetalFormat);
+					DebugPipelineDesc.SetStencilAttachmentPixelFormat(MetalFormat);
+#endif
                 }
                 break;
             }
             case PF_ShadowDepth:
             {
                 RenderPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_ShadowDepth].PlatformFormat);
+#if PLATFORM_MAC
+				DebugPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_ShadowDepth].PlatformFormat);
+#endif
                 break;
             }
             default:
@@ -625,11 +724,18 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
         {
             RenderPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
             RenderPipelineDesc.SetStencilAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
+			
+#if PLATFORM_MAC
+			DebugPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
+			DebugPipelineDesc.SetStencilAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
+#endif
         }
         
         RenderPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
     #if PLATFORM_MAC
         RenderPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
+		DebugPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
+		DebugPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
     #endif
         
         FMetalVertexDeclaration* VertexDecl = (FMetalVertexDeclaration*)Init.BoundShaderState.VertexDeclarationRHI;
@@ -1020,6 +1126,25 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 	#endif
         Pipeline->FragmentSource = PixelShader ? PixelShader->GetSourceCode() : nil;
     #endif
+		
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+#if PLATFORM_MAC
+			DebugPipelineDesc.SetVertexFunction(FMetalHelperFunctions::Get().GetDebugFunction());
+			DebugPipelineDesc.SetRasterizationEnabled(false);
+#else
+			DebugPipelineDesc.SetTileFunction(FMetalHelperFunctions::Get().GetDebugFunction());
+			DebugPipelineDesc.SetRasterSampleCount(RenderPipelineDesc.GetSampleCount());
+			DebugPipelineDesc.SetThreadgroupSizeMatchesTileSize(false);
+#endif
+#if ENABLE_METAL_GPUPROFILE
+			DebugPipelineDesc.SetLabel(@"Main_Debug");
+#endif
+
+			ns::AutoReleasedError RenderError;
+			METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("NewDebugPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
+			Pipeline->DebugPipelineState = Device.NewRenderPipelineState(DebugPipelineDesc, (mtlpp::PipelineOption)RenderOption, Reflection, &RenderError);
+		}
         
 #if METAL_DEBUG_OPTIONS
         if (GFrameCounter > 3)

@@ -68,7 +68,9 @@ typedef NS_OPTIONS(uint64, EMetalFeatures)
 	/** Supports indirect argument buffers */
 	EMetalFeaturesIABs = 1llu << 24llu,
 	/** Supports specifying the mutability of buffers bound to PSOs */
-	EMetalFeaturesPipelineBufferMutability = 1llu << 25llu,
+    EMetalFeaturesPipelineBufferMutability = 1llu << 25llu,
+    /** Supports tile shaders */
+    EMetalFeaturesTileShaders = 1llu << 26llu,
 };
 
 /**

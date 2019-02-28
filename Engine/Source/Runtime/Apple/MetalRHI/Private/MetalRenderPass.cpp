@@ -37,6 +37,13 @@ static FAutoConsoleVariableRef CVarMetalDeferRenderPasses(
 	GMetalDeferRenderPasses,
 	TEXT("Whether to defer creating render command encoders. (Default: 1)"));
 
+// Deliberately not static!
+int32 GMetalDebugOpsCount = PLATFORM_MAC ? 1 : 10;
+static FAutoConsoleVariableRef CVarMetalDebugOpsCount(
+	TEXT("rhi.Metal.DebugOpsCount"),
+	GMetalDebugOpsCount,
+	TEXT("The number of operations to allow between GPU debug markers for the r.GPUCrashDebugging reports. (Default: Mac = 1 : iOS/tvOS = 10)"));
+
 #pragma mark - Public C++ Boilerplate -
 
 FMetalRenderPass::FMetalRenderPass(FMetalCommandList& InCmdList, FMetalStateCache& Cache)
@@ -406,6 +413,18 @@ void FMetalRenderPass::DrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexInde
 		METAL_GPUPROFILE(FMetalProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, NumPrimitives, NumVertices, NumInstances));
 		CurrentEncoder.GetRenderCommandEncoder().Draw(TranslatePrimitiveType(PrimitiveType), BaseVertexIndex, NumVertices, NumInstances);
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().Draw(TranslatePrimitiveType(PrimitiveType), BaseVertexIndex, NumVertices, NumInstances));
+
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitive;
+			Data.Draw.BaseInstance = 0;
+			Data.Draw.InstanceCount = NumInstances;
+			Data.Draw.VertexCount = NumVertices;
+			Data.Draw.VertexStart = BaseVertexIndex;
+			
+			InsertDebugDraw(Data);
+		}
 	}
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	else
@@ -430,6 +449,14 @@ void FMetalRenderPass::DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexB
 		METAL_GPUPROFILE(FMetalProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, 1, 1, 1));
 		CurrentEncoder.GetRenderCommandEncoder().Draw(TranslatePrimitiveType(PrimitiveType), VertexBuffer->Buffer, ArgumentOffset);
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().Draw(TranslatePrimitiveType(PrimitiveType), VertexBuffer->Buffer, ArgumentOffset));
+
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitiveIndirect;
+
+			InsertDebugDraw(Data);
+		}
 
 		ConditionalSubmit();
 	}
@@ -512,6 +539,19 @@ void FMetalRenderPass::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uin
 			CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(TranslatePrimitiveType(PrimitiveType), NumIndices, ((IndexStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32), IndexBuffer, StartIndex * IndexStride, NumInstances);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().DrawIndexed(TranslatePrimitiveType(PrimitiveType), NumIndices, ((IndexStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32), IndexBuffer, StartIndex * IndexStride, NumInstances));
 		}
+		
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitiveIndexed;
+			Data.DrawIndexed.BaseInstance = FirstInstance;
+			Data.DrawIndexed.BaseVertex = BaseVertexIndex;
+			Data.DrawIndexed.IndexCount = NumIndices;
+			Data.DrawIndexed.IndexStart = StartIndex;
+			Data.DrawIndexed.InstanceCount = NumInstances;
+			
+			InsertDebugDraw(Data);
+		}
 	}
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	else
@@ -540,6 +580,13 @@ void FMetalRenderPass::DrawIndexedIndirect(FMetalIndexBuffer* IndexBuffer, uint3
 		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(TranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, IndexBuffer->Buffer, 0, VertexBuffer->Buffer, (DrawArgumentsIndex * 5 * sizeof(uint32)));
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().DrawIndexed(TranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, IndexBuffer->Buffer, 0, VertexBuffer->Buffer, (DrawArgumentsIndex * 5 * sizeof(uint32))));
 
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitiveIndexedIndirect;
+			
+			InsertDebugDraw(Data);
+		}
 		ConditionalSubmit();
 	}
 	else
@@ -562,6 +609,14 @@ void FMetalRenderPass::DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalI
 		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(TranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, IndexBuffer->Buffer, 0, VertexBuffer->Buffer, ArgumentOffset);
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().DrawIndexed(TranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, IndexBuffer->Buffer, 0, VertexBuffer->Buffer, ArgumentOffset));
 
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitiveIndirect;
+			
+			InsertDebugDraw(Data);
+		}
+		
 		ConditionalSubmit();
 	}
 	else
@@ -718,6 +773,18 @@ void FMetalRenderPass::DrawPatches(uint32 PrimitiveType,FMetalBuffer const& Inde
 			METAL_GPUPROFILE(FMetalProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, NumPrimitives, GetVertexCountForPrimitiveCount(NumPrimitives, PrimitiveType), NumInstances));
 			renderEncoder.DrawPatches(boundShaderState->VertexShader->TessellationOutputControlPoints, 0, NumPrimitives * NumInstances, nil, 0, 1, 0);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, CurrentEncoder.GetRenderCommandEncoderDebugging().DrawPatches(boundShaderState->VertexShader->TessellationOutputControlPoints, 0, NumPrimitives * NumInstances, nil, 0, 1, 0));
+		}
+		
+		if (GMetalCommandBufferDebuggingEnabled)
+		{
+			FMetalCommandData Data;
+			Data.CommandType = FMetalCommandData::Type::DrawPrimitivePatch;
+			Data.DrawPatch.BaseInstance = FirstInstance;
+			Data.DrawPatch.InstanceCount = NumInstances;
+			Data.DrawPatch.PatchCount = NumPrimitives * NumInstances;
+			Data.DrawPatch.PatchStart = 0;
+			
+			InsertDebugDraw(Data);
 		}
 		
 		if(hullShaderOutputBufferSize)
@@ -1786,5 +1853,87 @@ void FMetalRenderPass::ConditionalSubmit()
 			}
 		}
 #endif
+	}
+}
+
+uint32 FMetalRenderPass::GetEncoderIndex(void) const
+{
+	if (!CmdList.IsParallel())
+	{
+		return PrologueEncoder.NumEncodedPasses() + CurrentEncoder.NumEncodedPasses();
+	}
+	else
+	{
+		return GetMetalDeviceContext().GetCurrentRenderPass().GetEncoderIndex();
+	}
+}
+
+uint32 FMetalRenderPass::GetCommandBufferIndex(void) const
+{
+	if (!CmdList.IsParallel())
+	{
+		return CurrentEncoder.GetCommandBufferIndex();
+	}
+	else
+	{
+		return GetMetalDeviceContext().GetCurrentRenderPass().GetCommandBufferIndex();
+	}
+}
+
+void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
+{
+	if (GMetalCommandBufferDebuggingEnabled)
+	{
+		FMetalGraphicsPipelineState* BoundShaderState = State.GetGraphicsPSO();
+		
+		uint32 NumCommands = CurrentEncoder.GetMarkers().AddCommand(GetEncoderIndex(), CmdList.GetParallelIndex(), State.GetDebugBuffer(), BoundShaderState, Data);
+		
+		if ((NumCommands % GMetalDebugOpsCount) == 0)
+		{
+			FMetalDebugInfo DebugInfo;
+			DebugInfo.EncoderIndex = GetEncoderIndex();
+			DebugInfo.ContextIndex = CmdList.GetParallelIndex();
+			DebugInfo.CommandIndex = NumCommands;
+			DebugInfo.CmdBuffIndex = GetCommandBufferIndex();
+			DebugInfo.CommandBuffer = reinterpret_cast<uintptr_t>(CurrentEncoder.GetCommandBuffer().GetPtr());
+			DebugInfo.PSOSignature[0] = BoundShaderState->VertexShader->SourceLen;
+			DebugInfo.PSOSignature[1] = BoundShaderState->VertexShader->SourceCRC;
+			if (IsValidRef(BoundShaderState->PixelShader))
+			{
+				DebugInfo.PSOSignature[2] = BoundShaderState->PixelShader->SourceLen;
+				DebugInfo.PSOSignature[3] = BoundShaderState->PixelShader->SourceCRC;
+			}
+			else
+			{
+				DebugInfo.PSOSignature[2] = 0;
+				DebugInfo.PSOSignature[3] = 0;
+			}
+			
+			FMetalShaderPipeline* PSO = State.GetPipelineState();
+			
+			CurrentEncoder.GetRenderCommandEncoder().SetRenderPipelineState(PSO->DebugPipelineState);
+
+		#if PLATFORM_MAC
+			id<MTLBuffer> DebugBufferPtr = State.GetDebugBuffer().GetPtr();
+			[CurrentEncoder.GetRenderCommandEncoder().GetPtr() memoryBarrierWithResources:&DebugBufferPtr count:1 afterStages:MTLRenderStageFragment beforeStages:MTLRenderStageVertex];
+			
+			CurrentEncoder.SetShaderBytes(mtlpp::FunctionType::Vertex, (uint8 const*)&DebugInfo, sizeof(DebugInfo), 0);
+			State.SetShaderBufferDirty(EMetalShaderStages::Vertex, 0);
+
+			CurrentEncoder.SetShaderBuffer(mtlpp::FunctionType::Vertex, State.GetDebugBuffer(), 0, State.GetDebugBuffer().GetLength(), 1, mtlpp::ResourceUsage::Write);
+			State.SetShaderBufferDirty(EMetalShaderStages::Vertex, 1);
+
+			CurrentEncoder.GetRenderCommandEncoder().Draw(mtlpp::PrimitiveType::Point, 0, 1);
+			
+			[CurrentEncoder.GetRenderCommandEncoder().GetPtr() memoryBarrierWithResources:&DebugBufferPtr count:1 afterStages:MTLRenderStageVertex beforeStages:MTLRenderStageVertex];
+		#else
+			CurrentEncoder.GetRenderCommandEncoder().SetTileData((uint8 const*)&DebugInfo, sizeof(DebugInfo), 0);
+			CurrentEncoder.GetRenderCommandEncoder().SetTileBuffer(State.GetDebugBuffer(), 0, 1);
+			mtlpp::Size ThreadsPerTile(1, 1, 1);
+			CurrentEncoder.GetRenderCommandEncoder().DispatchThreadsPerTile(ThreadsPerTile);
+		#endif
+
+			CurrentEncoder.GetRenderCommandEncoder().SetRenderPipelineState(PSO->RenderPipelineState);
+		}
 	}
 }
