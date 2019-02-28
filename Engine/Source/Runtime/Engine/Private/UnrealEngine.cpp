@@ -3714,7 +3714,7 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FString ConfigFilePath;
 		if (FParse::Value(Cmd, TEXT("REGENLOC="), ConfigFilePath))
 		{
-			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath, /*bSkipSourceCheck*/false);
+			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath);
 		}
 	}
 #endif
