@@ -31,11 +31,11 @@ namespace UnrealBuildTool
 			public byte[] Modulus;
 
 			/// <summary>
-			/// Returns TRUE if this is a valid Signing key
+			/// Determine if this key is valid
 			/// </summary>
 			public bool IsValid()
 			{
-				return Exponent != null && Modulus != null;
+				return Exponent != null && Modulus != null && Exponent.Length > 0 && Modulus.Length > 0;
 			}
 		}
 
@@ -55,7 +55,7 @@ namespace UnrealBuildTool
 			public SigningKey PrivateKey = new SigningKey();
 
 			/// <summary>
-			/// Returns TRUE if this is a valid signing key pair
+			/// Determine if this key is valid
 			/// </summary>
 			public bool IsValid()
 			{
@@ -77,16 +77,15 @@ namespace UnrealBuildTool
 			/// </summary>
 			public string Guid;
 			/// <summary>
-			/// 128 bit AES key
+			/// AES key
 			/// </summary>
 			public byte[] Key;
-
 			/// <summary>
-			/// Returns TRUE if this is a valid encryption key
+			/// Determine if this key is valid
 			/// </summary>
 			public bool IsValid()
 			{
-				return Key != null && Guid != null;
+				return Key != null && Key.Length > 0 && Guid != null;
 			}
 		}
 
@@ -394,6 +393,22 @@ namespace UnrealBuildTool
 				CryptoSettings NewSettings = new CryptoSettings();
 				NewSettings.SecondaryEncryptionKeys = Settings.SecondaryEncryptionKeys;
 				Settings = NewSettings;
+			}
+
+			// Validate the settings we have read
+			if (Settings.bDataCryptoRequired && Settings.bEnablePakSigning && (Settings.SigningKey == null || !Settings.SigningKey.IsValid()))
+			{
+				Log.TraceWarningOnce("Pak signing is enabled, but no valid signing keys were found. Please generate a key in the editor project crypto settings. Signing will be disabled");
+				Settings.bEnablePakSigning = false;
+			}
+
+			if (Settings.bDataCryptoRequired && Settings.IsAnyEncryptionEnabled() && (Settings.EncryptionKey == null || !Settings.EncryptionKey.IsValid()))
+			{
+				Log.TraceWarningOnce("Pak encryption is enabled, but no valid encryption key was found. Please generate a key in the editor project crypto settings. Encryption will be disabled");
+				Settings.bEnablePakUAssetEncryption = false;
+				Settings.bEnablePakFullAssetEncryption = false;
+				Settings.bEnablePakIndexEncryption = false;
+				Settings.bEnablePakIniEncryption = false;
 			}
 
 			return Settings;
