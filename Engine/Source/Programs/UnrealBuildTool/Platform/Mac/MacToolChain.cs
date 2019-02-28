@@ -791,7 +791,13 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
-				LinkCommand += string.Format(" -install_name {0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath));
+				// Add the output file to the command-line.
+				string InstallName = LinkEnvironment.InstallName;
+				if(InstallName == null)
+				{
+					InstallName = string.Format("{0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath));
+				}
+				LinkCommand += string.Format(" -install_name {0}", InstallName);
 			}
 
 			if (!bIsBuildingLibrary)

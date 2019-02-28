@@ -477,6 +477,28 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Checks the Additional properties for one with the given name that matches the given value
+		/// </summary>
+		/// <param name="PropertyName">Property name to search for</param>
+		/// <param name="Value">Value to compare against (with StringComparison.InvariantCultureIgnoreCase)</param>
+		/// <returns>True if any property with PropertyName has a value matching Value</returns>
+		public bool HasValueForAdditionalProperty(string PropertyName, string Value)
+		{
+			// get all properties with the given name?
+			IEnumerable<ReceiptProperty> Results = AdditionalProperties.Where(x => x.Name == PropertyName);
+			foreach (ReceiptProperty Property in Results)
+			{
+				// does the property value match?
+				if (Property.Value.Equals(Value, StringComparison.InvariantCultureIgnoreCase))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
 		/// Read a receipt from disk.
 		/// </summary>
 		/// <param name="Location">Filename to read from</param>

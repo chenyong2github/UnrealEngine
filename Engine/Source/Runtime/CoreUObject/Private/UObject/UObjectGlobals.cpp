@@ -4339,6 +4339,8 @@ namespace UE4CodeGen_Private
 #if WITH_METADATA
 		AddMetaData(NewFunction, Params.MetaDataArray, Params.NumMetaData);
 #endif
+		NewFunction->RPCId = Params.RPCId;
+		NewFunction->RPCResponseId = Params.RPCResponseId;
 
 		ConstructUProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
 
@@ -4414,7 +4416,20 @@ namespace UE4CodeGen_Private
 			return;
 		}
 
-		UPackage* NewPackage = CastChecked<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, FName(UTF8_TO_TCHAR(Params.NameUTF8)), false, false));
+		UObject* FoundPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, FName(UTF8_TO_TCHAR(Params.NameUTF8)), false, false);
+
+#if USE_PER_MODULE_UOBJECT_BOOTSTRAP
+		if (!FoundPackage)
+		{
+			UE_LOG(LogUObjectGlobals, Log, TEXT("Creating package on the fly %s"), UTF8_TO_TCHAR(Params.NameUTF8));
+			ProcessNewlyLoadedUObjects(FName(UTF8_TO_TCHAR(Params.NameUTF8)), false);
+			FoundPackage = CreatePackage(nullptr, UTF8_TO_TCHAR(Params.NameUTF8));
+		}
+#endif
+
+		checkf(FoundPackage, TEXT("Code not found for generated code (package %s)."), UTF8_TO_TCHAR(Params.NameUTF8));
+
+		UPackage* NewPackage = CastChecked<UPackage>(FoundPackage);
 		OutPackage = NewPackage;
 
 #if WITH_METADATA

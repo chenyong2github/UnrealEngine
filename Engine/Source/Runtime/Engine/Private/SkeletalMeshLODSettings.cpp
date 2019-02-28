@@ -161,6 +161,7 @@ int32 USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh) cons
 	if (InMesh)
 	{
 		InMesh->MinLod = MinLod;
+		InMesh->DisableBelowMinLodStripping = DisableBelowMinLodStripping;
 		// we only fill up until we have enough LODs
 		const int32 NumSettings = FMath::Min(LODGroups.Num(), InMesh->GetLODNum());
 		for (int32 Index = 0; Index < NumSettings; ++Index)
@@ -180,6 +181,7 @@ int32 USkeletalMeshLODSettings::SetLODSettingsFromMesh(USkeletalMesh* InMesh)
 	if (InMesh)
 	{
 		MinLod = InMesh->MinLod;
+		DisableBelowMinLodStripping = InMesh->DisableBelowMinLodStripping;
 		// we only fill up until we have enough LODs
 		const int32 NumSettings = InMesh->GetLODNum();
 		LODGroups.Reset(NumSettings);

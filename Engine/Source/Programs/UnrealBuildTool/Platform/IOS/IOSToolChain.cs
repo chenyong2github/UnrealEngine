@@ -320,7 +320,14 @@ namespace UnrealBuildTool
 			{
 				if(Framework.OutputDirectory != null)
 				{
-					Result += String.Format(" -F\"{0}\"", Framework.OutputDirectory);
+					string FrameworkDir = Framework.OutputDirectory.FullName;
+					// embedded frameworks have a framework inside of this directory, so we use this directory. regular frameworks need to go one up to point to the 
+					// directory containing the framework. -F gives a path to look for the -framework
+					if (FrameworkDir.Contains("embeddedframework") == false)
+					{
+						FrameworkDir = Path.GetDirectoryName(FrameworkDir);
+					}
+					Result += String.Format(" -F\"{0}\"", FrameworkDir);
 				}
 			}
 
@@ -519,6 +526,9 @@ namespace UnrealBuildTool
 				Result += " -fsanitize=undefined";
 			}
 
+			// need to tell where to load Framework dylibs
+			Result += " -rpath @executable_path/Frameworks";
+
 			Result += " " + GetAdditionalLinkerFlags(LinkEnvironment.Configuration);
 
 			// link in the frameworks
@@ -534,7 +544,15 @@ namespace UnrealBuildTool
 				if(Framework.OutputDirectory != null)
 				{
 					// If this framework has a zip specified, we'll need to setup the path as well
-					Result += String.Format(" -F\"{0}\"", Framework.OutputDirectory);
+					string FrameworkDir = Framework.OutputDirectory.FullName;
+
+					// embedded frameworks have a framework inside of this directory, so we use this directory. regular frameworks need to go one up to point to the 
+					// directory containing the framework. -F gives a path to look for the -framework
+					if (FrameworkDir.Contains("embeddedframework") == false)
+					{
+						FrameworkDir = Path.GetDirectoryName(FrameworkDir);
+					}
+					Result += String.Format(" -F\"{0}\"", FrameworkDir);
 				}
 
 				Result += " -framework " + Framework.Name;
@@ -744,6 +762,18 @@ namespace UnrealBuildTool
 
 			// build this up over the rest of the function
 			string LinkCommandArguments = LinkEnvironment.bIsBuildingLibrary ? GetArchiveArguments_Global(LinkEnvironment) : GetLinkArguments_Global(LinkEnvironment);
+			if (LinkEnvironment.bIsBuildingDLL)
+			{
+				// @todo roll this put into GetLinkArguments_Global
+				LinkerPath = IOSLinker;
+				LinkCommandArguments += " -dynamiclib -Xlinker -export_dynamic -Xlinker -no_deduplicate";
+
+				string InstallName = LinkEnvironment.InstallName ?? String.Format("@executable_path/Frameworks/{0}", LinkEnvironment.OutputFilePath.MakeRelativeTo(LinkEnvironment.OutputFilePath.Directory.ParentDirectory));
+				LinkCommandArguments += string.Format(" -Xlinker -install_name -Xlinker {0}", InstallName);
+
+				LinkCommandArguments += " -Xlinker -rpath -Xlinker @executable_path/Frameworks";
+				LinkCommandArguments += " -Xlinker -rpath -Xlinker @loader_path/Frameworks";
+			}
 
 			if (!LinkEnvironment.bIsBuildingLibrary)
 			{
@@ -788,7 +818,7 @@ namespace UnrealBuildTool
 			LinkAction.ProducedItems.Add(OutputFile);
 
 			// Add arguments to generate a map file too
-			if (!LinkEnvironment.bIsBuildingLibrary && LinkEnvironment.bCreateMapFile)
+			if ((!LinkEnvironment.bIsBuildingLibrary || LinkEnvironment.bIsBuildingDLL) && LinkEnvironment.bCreateMapFile)
 			{
 				FileItem MapFile = FileItem.GetItemByFileReference(new FileReference(OutputFile.Location.FullName + ".map"));
 				LinkCommandArguments += string.Format(" -Wl,-map,\"{0}\"", MapFile.Location.FullName);
@@ -922,6 +952,25 @@ namespace UnrealBuildTool
 			return Arguments.ToString();
 		}
 
+		private static bool IsCompiledAsFramework(string ExecutablePath)
+		{
+			// @todo ios: Get the receipt to here which has the property
+			return ExecutablePath.Contains(".framework");
+		}
+
+		private static string GetdSYMPath(FileItem Executable)
+		{
+			string ExecutablePath = Executable.AbsolutePath;
+			// for frameworks, we want to put the .dSYM outside of the framework, and the executable is inside the .framework
+			if (IsCompiledAsFramework(ExecutablePath))
+			{
+				return Path.Combine(Path.GetDirectoryName(ExecutablePath), "..", Path.GetFileName(ExecutablePath) + ".dSYM");
+			}
+
+			// return standard dSYM location
+			return Path.Combine(Path.GetDirectoryName(ExecutablePath), Path.GetFileName(ExecutablePath) + ".dSYM");
+		}
+
         /// <summary>
         /// Generates debug info for a given executable
         /// </summary>
@@ -930,7 +979,7 @@ namespace UnrealBuildTool
         public FileItem GenerateDebugInfo(FileItem Executable, List<Action> Actions)
 		{
             // Make a file item for the source and destination files
-			string FullDestPathRoot = Path.Combine(Path.GetDirectoryName(Executable.AbsolutePath), Path.GetFileName(Executable.AbsolutePath) + ".dSYM");
+			string FullDestPathRoot = GetdSYMPath(Executable);
 
             FileItem OutputFile = FileItem.GetItemByPath(FullDestPathRoot);
             FileItem ZipOutputFile = FileItem.GetItemByPath(FullDestPathRoot + ".zip");
@@ -975,8 +1024,8 @@ namespace UnrealBuildTool
         public FileItem GeneratePseudoPDB(FileItem Executable, List<Action> Actions)
         {
             // Make a file item for the source and destination files
-            string FullDestPathRoot = Path.Combine(Path.GetDirectoryName(Executable.AbsolutePath), Path.GetFileName(Executable.AbsolutePath) + ".udebugsymbols");
-            string FulldSYMPathRoot = Path.Combine(Path.GetDirectoryName(Executable.AbsolutePath), Path.GetFileName(Executable.AbsolutePath) + ".dSYM");
+			string FulldSYMPathRoot = GetdSYMPath(Executable);
+			string FullDestPathRoot = Path.ChangeExtension(FulldSYMPathRoot, ".udebugsymbols");
             string PathToDWARF = Path.Combine(FulldSYMPathRoot, "Contents", "Resources", "DWARF", Path.GetFileName(Executable.AbsolutePath));
 
             FileItem dSYMFile = FileItem.GetItemByPath(FulldSYMPathRoot);
@@ -1303,7 +1352,7 @@ namespace UnrealBuildTool
         {
             List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Executable, BinaryLinkEnvironment, Actions));
 
-            if (BinaryLinkEnvironment.bIsBuildingLibrary)
+			if (BinaryLinkEnvironment.bIsBuildingLibrary)
             {
                 return OutputFiles;
             }
@@ -1337,7 +1386,7 @@ namespace UnrealBuildTool
 				OutputFiles.Add(StripCompleteFile);
 			}
 
-			if(ShouldCompileAssetCatalog())
+			if(!BinaryLinkEnvironment.bIsBuildingDLL && ShouldCompileAssetCatalog())
 			{
 				// generate the asset catalog
 				bool bUserImagesExist = false;
@@ -1506,7 +1555,7 @@ namespace UnrealBuildTool
 			{
 				ProjectFileGenerator.bGenerateProjectFiles = false;
 			}
-			}
+		}
 
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
 		{
@@ -1514,8 +1563,26 @@ namespace UnrealBuildTool
 		}
 
         public static void PostBuildSync(IOSPostBuildSyncTarget Target)
-			{
+		{
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
+
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				if (IsCompiledAsFramework(Target.OutputPath.FullName))
+				{
+					// make sure the framework has a plist
+					FileReference PlistSrcLocation = FileReference.Combine(Target.ProjectFile.Directory, "Build", "IOS", "Embedded.plist");
+					if (!FileReference.Exists(PlistSrcLocation))
+					{
+						throw new BuildException("Unable to find plist for output framework ({0})", PlistSrcLocation);
+					}
+					FileReference PlistDstLocation = FileReference.Combine(Target.OutputPath.Directory, "Info.plist");
+					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
+
+					// and do nothing else
+					return;
+				}
+			}
 
 			string AppName = Target.TargetName;
 

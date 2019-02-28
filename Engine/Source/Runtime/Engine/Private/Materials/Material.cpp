@@ -435,7 +435,8 @@ void UMaterialInterface::InitDefaultMaterials()
 	// the default materials is only done very early in the boot process.
 	static bool bInitialized = false;
 	if (!bInitialized)
-	{		
+	{
+		SCOPED_BOOT_TIMING("UMaterialInterface::InitDefaultMaterials");
 		check(IsInGameThread());
 		if (!IsInGameThread())
 		{

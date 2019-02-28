@@ -90,6 +90,10 @@ public:
 
 	TSharedPtr<IWebBrowserWindow> CreateBrowserWindow(const FCreateBrowserWindowSettings& Settings) override;
 
+#if	BUILD_EMBEDDED_APP
+	TSharedPtr<IWebBrowserWindow> CreateNativeBrowserProxy() override;
+#endif
+
 	virtual void DeleteBrowserCookies(FString URL = TEXT(""), FString CookieName = TEXT(""), TFunction<void(int)> Completed = nullptr) override;
 
 	virtual TSharedPtr<IWebBrowserCookieManager> GetCookieManager() const override

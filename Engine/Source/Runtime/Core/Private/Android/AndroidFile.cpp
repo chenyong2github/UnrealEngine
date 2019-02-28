@@ -9,6 +9,7 @@
 #if USE_ANDROID_FILE
 #include "Misc/App.h"
 #include "Misc/Paths.h"
+#include "Android/AndroidJavaEnv.h"
 
 #include <dirent.h>
 #include <jni.h>
@@ -99,19 +100,12 @@ extern AAssetManager * AndroidThunkCpp_GetAssetManager();
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetObbInfo(String PackageName, int Version, int PatchVersion);"
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetObbInfo(JNIEnv* jenv, jobject thiz, jstring ProjectName, jstring PackageName, jint Version, jint PatchVersion, jstring AppType)
 {
-	const char* JavaProjectChars = jenv->GetStringUTFChars(ProjectName, 0);
-	GAndroidProjectName = UTF8_TO_TCHAR(JavaProjectChars);
-	const char* JavaPackageChars = jenv->GetStringUTFChars(PackageName, 0);
-	GPackageName = UTF8_TO_TCHAR(JavaPackageChars);
+	GAndroidProjectName = FJavaHelper::FStringFromParam(jenv, ProjectName);
+	GPackageName = FJavaHelper::FStringFromParam(jenv, PackageName);
+	GAndroidAppType = FJavaHelper::FStringFromParam(jenv, AppType);
+	
 	GAndroidPackageVersion = Version;
 	GAndroidPackagePatchVersion = PatchVersion;
-	const char* JavaAppTypeChars = jenv->GetStringUTFChars(AppType, 0);
-	GAndroidAppType = UTF8_TO_TCHAR(JavaAppTypeChars);
-
-	//Release the strings
-	jenv->ReleaseStringUTFChars(ProjectName, JavaProjectChars);
-	jenv->ReleaseStringUTFChars(PackageName, JavaPackageChars);
-	jenv->ReleaseStringUTFChars(PackageName, JavaAppTypeChars);
 }
 
 // Constructs the base path for any files which are not in OBB/pak data

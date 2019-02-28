@@ -38,9 +38,10 @@ public:
 	 * @param InPopupDelegate external delegate to receive widgets from the login flow
 	 * @param InCreationFlowPopupDelegate external delegate to receive widgets from the account creation flow
 	 * @param bPersistCookies let the global web context manage cookies, or keep them in memory only
+	 * @param bConsumeInput whether or not input, not handled by the widget, should be consumed an not bubbled up
 	 * @return whether or not the login flow was successfully added
 	 */
-	virtual bool AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies = true) = 0;
+	virtual bool AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies = true, bool bConsumeInput = false) = 0;
 
 	/**
 	 * Has a given login flow been setup

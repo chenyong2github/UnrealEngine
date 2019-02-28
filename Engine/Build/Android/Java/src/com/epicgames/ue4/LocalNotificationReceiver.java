@@ -1,29 +1,34 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
- package com.epicgames.ue4;
- 
- import android.app.Notification;
- import android.app.NotificationManager;
- import android.app.NotificationChannel;
- import android.app.PendingIntent; 
- import android.content.BroadcastReceiver;
- import android.content.Context;
- import android.content.Intent;
- import android.support.v4.app.NotificationCompat;
- 
- public class LocalNotificationReceiver extends BroadcastReceiver
- {
-	 private static boolean bChannelExists = false;
-	 private static final String NOTIFICATION_CHANNEL_ID = "ue4-push-notification-channel-id";
-	 private static final CharSequence NOTICATION_CHANNEL_NAME = "ue4-push-notification-channel";
-	 
-	 public void onReceive(Context context, Intent intent)
-	 {
-		int notificationID = intent.getIntExtra("local-notification-ID" , 0);
-		String title  = intent.getStringExtra("local-notification-title");
-		String details  = intent.getStringExtra("local-notification-body");
-		String action = intent.getStringExtra("local-notification-action");
-		String activationEvent = intent.getStringExtra("local-notification-activationEvent");
+package com.epicgames.ue4;
+
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.NotificationChannel;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.support.v4.app.NotificationCompat;
+
+public class LocalNotificationReceiver extends BroadcastReceiver
+{
+	private static final String NOTIFICATION_CHANNEL_ID = "ue4-push-notification-channel-id";
+	private static final CharSequence NOTICATION_CHANNEL_NAME = "ue4-push-notification-channel";
+
+	public static final String KEY_LOCAL_NOTIFICATION_ID = "local-notification-ID";
+	public static final String KEY_LOCAL_NOTIFICATION_TITLE = "local-notification-title";
+	public static final String KEY_LOCAL_NOTIFICATION_BODY = "local-notification-body";
+	public static final String KEY_LOCAL_NOTIFICATION_ACTION = "local-notification-action";
+	public static final String KEY_LOCAL_NOTIFICATION_ACTION_EVENT = "local-notification-activationEvent";
+
+	public void onReceive(Context context, Intent intent)
+	{
+		int notificationID = intent.getIntExtra(KEY_LOCAL_NOTIFICATION_ID , 0);
+		String title  = intent.getStringExtra(KEY_LOCAL_NOTIFICATION_TITLE);
+		String details  = intent.getStringExtra(KEY_LOCAL_NOTIFICATION_BODY);
+		String action = intent.getStringExtra(KEY_LOCAL_NOTIFICATION_ACTION);
+		String activationEvent = intent.getStringExtra(KEY_LOCAL_NOTIFICATION_ACTION_EVENT);
 
 		if(title == null || details == null || action == null || activationEvent == null)
 		{
@@ -40,14 +45,11 @@
 		notificationIntent.putExtra("localNotificationAppLaunched" , true);
 		notificationIntent.putExtra("localNotificationLaunchActivationEvent", activationEvent);
 
-		int notificationIconID = context.getResources().getIdentifier("ic_notification", "drawable", context.getPackageName());
-		if (notificationIconID == 0)
-		{
-			notificationIconID = context.getResources().getIdentifier("icon", "drawable", context.getPackageName());
-		}
+		int notificationIconID = getNotificationIconID(context);
 		PendingIntent pendingNotificationIntent = PendingIntent.getActivity(context, notificationID, notificationIntent, 0);
 
 		NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+		@SuppressWarnings("deprecation")
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
 			.setSmallIcon(notificationIconID)
 			.setContentIntent(pendingNotificationIntent)
@@ -62,13 +64,16 @@
 
 		if (android.os.Build.VERSION.SDK_INT >= 26)
 		{
-			if (!bChannelExists)
+			if(notificationManager != null)
 			{
-				NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTICATION_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
-				channel.enableVibration(true);
-				channel.enableLights(true);
-				notificationManager.createNotificationChannel(channel);
-				bChannelExists = true;
+				NotificationChannel channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID);
+				if (channel == null)
+				{
+					channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTICATION_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
+					channel.enableVibration(true);
+					channel.enableLights(true);
+					notificationManager.createNotificationChannel(channel);
+				}
 			}
 		}
 		Notification notification = builder.build();
@@ -77,8 +82,20 @@
 		notification.flags |= Notification.FLAG_AUTO_CANCEL;
 		notification.defaults |= Notification.DEFAULT_SOUND | Notification.DEFAULT_VIBRATE;
 
-		// show the notification
-		notificationManager.notify(notificationID, notification); 
-	 }
- }
- 
+		if(notificationManager != null)
+		{
+			// show the notification
+			notificationManager.notify(notificationID, notification);
+		}
+	}
+
+	public static int getNotificationIconID(Context context)
+	{
+		int notificationIconID = context.getResources().getIdentifier("ic_notification", "drawable", context.getPackageName());
+		if (notificationIconID == 0)
+		{
+			notificationIconID = context.getResources().getIdentifier("icon", "drawable", context.getPackageName());
+		}
+		return notificationIconID;
+	}
+}

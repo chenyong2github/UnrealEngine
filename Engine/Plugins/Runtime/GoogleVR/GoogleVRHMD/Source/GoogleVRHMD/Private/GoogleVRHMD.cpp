@@ -124,8 +124,8 @@ void AndroidThunkCpp_UiLayer_SetViewerName(const FString& ViewerName)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID UiLayerMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_UiLayer_SetViewerName", "(Ljava/lang/String;)V", false);
-		jstring NameJava = Env->NewStringUTF(TCHAR_TO_UTF8(*ViewerName));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, UiLayerMethod, NameJava);
+		auto NameJava = FJavaHelper::ToJavaString(Env, ViewerName);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, UiLayerMethod, *NameJava);
 	}
 }
 
@@ -204,14 +204,7 @@ FString AndroidThunkCpp_GetDataString()
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_GetDataString", "()Z", false);
-		jstring JavaString = (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, Method);
-		if (JavaString != NULL)
-		{
-			const char* JavaChars = Env->GetStringUTFChars(JavaString, 0);
-			Result = FString(UTF8_TO_TCHAR(JavaChars));
-			Env->ReleaseStringUTFChars(JavaString, JavaChars);
-			Env->DeleteLocalRef(JavaString);
-		}
+		Result = FJavaHelper::FStringFromLocalRef(Env, (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, Method));
 	}
 
 	return Result;

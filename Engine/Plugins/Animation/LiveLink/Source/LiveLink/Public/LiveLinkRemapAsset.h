@@ -12,6 +12,8 @@ class LIVELINK_API ULiveLinkRemapAsset : public ULiveLinkRetargetAsset
 {
 	GENERATED_UCLASS_BODY()
 
+	virtual ~ULiveLinkRemapAsset() {}
+
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface

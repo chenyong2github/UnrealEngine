@@ -90,6 +90,14 @@ public:
 	virtual bool SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) = 0;
 
 	/**
+	 * Set information for animated formats
+	 * @param InNumFrames The number of frames in the animation (the RawData from SetRaw will need to be a multiple of NumFrames)
+	 * @param InFramerate The playback rate of the animation
+	 * @return true if successful
+	 */
+	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) = 0;
+
+	/**
 	 * Gets the compressed data.
 	 *
 	 * @return Array of the compressed data.
@@ -136,6 +144,16 @@ public:
 	 * @return The format the image data is in
 	 */
 	virtual ERGBFormat GetFormat() const = 0;
+
+	/**
+	 * @return The number of frames in an animated image
+	 */
+	virtual int32 GetNumFrames() const = 0;
+
+	/**
+	 * @return The playback framerate of animated images (or 0 for non-animated)
+	 */
+	virtual int32 GetFramerate() const = 0;
 
 public:
 

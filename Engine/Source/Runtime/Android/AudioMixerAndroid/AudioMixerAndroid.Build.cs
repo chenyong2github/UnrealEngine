@@ -15,12 +15,11 @@ public class AudioMixerAndroid : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"AudioMixer",
 			}
 			);
-
-		PrivateDependencyModuleNames.Add("AudioMixer");
-
-		AddEngineThirdPartyPrivateStaticDependencies(Target, 
+			
+		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"UEOgg",
 			"Vorbis",
 			"VorbisFile"

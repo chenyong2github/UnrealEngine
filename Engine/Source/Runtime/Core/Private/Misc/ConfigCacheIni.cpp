@@ -64,36 +64,130 @@ namespace
 FConfigValue
 -----------------------------------------------------------------------------*/
 
+struct FConfigExpansion
+{
+	template<int N>
+	FConfigExpansion(const TCHAR(&Var)[N], FString&& Val)
+		: Variable(Var)
+		, Value(Val)
+		, VariableLen(N - 1)
+	{}
+
+	const TCHAR* Variable;
+	FString Value;
+	int VariableLen;
+};
+
+static FString GetApplicationSettingsDirNormalized()
+{
+	FString Dir = FPlatformProcess::ApplicationSettingsDir();
+	FPaths::NormalizeFilename(Dir);
+	return Dir;
+}
+
+static const FConfigExpansion* MatchExpansions(const TCHAR* PotentialVariable)
+{
+	// Allocate replacement value strings once
+	static const FConfigExpansion Expansions[] =
+	{
+		FConfigExpansion(TEXT("%GAME%"), FString(FApp::GetProjectName())),
+		FConfigExpansion(TEXT("%GAMEDIR%"), FPaths::ProjectDir()),
+		FConfigExpansion(TEXT("%ENGINEUSERDIR%"), FPaths::EngineUserDir()),
+		FConfigExpansion(TEXT("%ENGINEVERSIONAGNOSTICUSERDIR%"), FPaths::EngineVersionAgnosticUserDir()),
+		FConfigExpansion(TEXT("%APPSETTINGSDIR%"), GetApplicationSettingsDirNormalized()),
+	};
+
+	for (const FConfigExpansion& Expansion : Expansions)
+	{
+		if (FCString::Strncmp(Expansion.Variable, PotentialVariable, Expansion.VariableLen) == 0)
+		{
+			return &Expansion;
+		}
+	}
+
+	return nullptr;
+}
+
+static const FConfigExpansion* FindNextExpansion(const TCHAR* Str, const TCHAR*& OutMatch)
+{
+	for (const TCHAR* It = FCString::Strchr(Str, '%'); It; It = FCString::Strchr(It + 1, '%'))
+	{
+		if (const FConfigExpansion* Expansion = MatchExpansions(It))
+		{
+			OutMatch = It;
+			return Expansion;
+		}
+	}
+
+	return nullptr;
+}
+
 bool FConfigValue::ExpandValue(const FString& InCollapsedValue, FString& OutExpandedValue)
 {
-	int32 NumReplacements = 0;
-	OutExpandedValue = InCollapsedValue;
+	struct FSubstring
+	{
+		const TCHAR* Begin;
+		const TCHAR* End;
 
-	// Replace %GAME% with game name.
-	NumReplacements += OutExpandedValue.ReplaceInline(TEXT("%GAME%"), FApp::GetProjectName(), ESearchCase::CaseSensitive);
+		int32 Len() const { return End - Begin; }
+	};
 
-	// Replace %GAMEDIR% with the game directory.
-	NumReplacements += OutExpandedValue.ReplaceInline(TEXT("%GAMEDIR%"), *FPaths::ProjectDir(), ESearchCase::CaseSensitive);
+	// Find substrings of input and expansions to concatenate to final output string
+	TArray<FSubstring, TFixedAllocator<7>> Substrings;
+	const TCHAR* It = *InCollapsedValue;
+	while (true)
+	{
+		const TCHAR* Match;
+		if (const FConfigExpansion* Expansion = FindNextExpansion(It, Match))
+		{
+			Substrings.Add({ It, Match });
+			Substrings.Add({ *Expansion->Value, (*Expansion->Value) + Expansion->Value.Len() });
 
-	// Replace %ENGINEUSERDIR% with the user's engine directory.
-	NumReplacements += OutExpandedValue.ReplaceInline(TEXT("%ENGINEUSERDIR%"), *FPaths::EngineUserDir(), ESearchCase::CaseSensitive);
+			It = Match + Expansion->VariableLen;
+		}
+		else if (Substrings.Num() == 0)
+		{
+			// No expansions matched, skip concatenation and return input string
+			OutExpandedValue = InCollapsedValue;
+			return false;
+		}
+		else
+		{
+			Substrings.Add({ It, *InCollapsedValue + InCollapsedValue.Len() });
+			break;
+		}
+	}
 
-	// Replace %ENGINEVERSIONAGNOSTICUSERDIR% with the user's engine agnostic directory.
-	NumReplacements += OutExpandedValue.ReplaceInline(TEXT("%ENGINEVERSIONAGNOSTICUSERDIR%"), *FPaths::EngineVersionAgnosticUserDir(), ESearchCase::CaseSensitive);
+	// Concat
+	int32 OutLen = 0;
+	for (const FSubstring& Substring : Substrings)
+	{
+		OutLen += Substring.Len();
+	}
 
-	// Replace %APPSETTINGSDIR% with the application settings directory.
-	FString AppSettingsDir = FPlatformProcess::ApplicationSettingsDir();
-	FPaths::NormalizeFilename(AppSettingsDir);
-	NumReplacements += OutExpandedValue.ReplaceInline(TEXT("%APPSETTINGSDIR%"), *AppSettingsDir, ESearchCase::CaseSensitive);
+	OutExpandedValue.Reserve(OutLen);
+	for (const FSubstring& Substring : Substrings)
+	{
+		OutExpandedValue.AppendChars(Substring.Begin, Substring.Len());
+	}
 
-	return NumReplacements > 0;
+	return true;
 }
 
 FString FConfigValue::ExpandValue(const FString& InCollapsedValue)
 {
-	FString ExpandedValue;
-	ExpandValue(InCollapsedValue, ExpandedValue);
-	return ExpandedValue;
+	FString OutExpandedValue;
+	ExpandValue(InCollapsedValue, OutExpandedValue);
+	return OutExpandedValue;
+}
+
+void FConfigValue::ExpandValueInternal()
+{
+	const TCHAR* Dummy;
+	if (FindNextExpansion(*SavedValue, Dummy))
+	{
+		ExpandValue(SavedValue, /* out */ ExpandedValue);
+	}
 }
 
 bool FConfigValue::CollapseValue(const FString& InExpandedValue, FString& OutCollapsedValue)
@@ -223,8 +317,10 @@ bool FConfigSection::operator!=( const FConfigSection& Other ) const
 
 // Pull out a property from a Struct property, StructKeyMatch should be in the form "MyProp=". This reduces
 // memory allocations for each attempted match
-static FString ExtractPropertyValue(const FString& FullStructValue, const FString& StructKeyMatch)
+static void ExtractPropertyValue(const FString& FullStructValue, const FString& StructKeyMatch, FString& Out)
 {
+	Out.Reset();
+
 	int32 MatchLoc = FullStructValue.Find(StructKeyMatch);
 	// we only look for matching StructKeys if the incoming Value had a key
 	if (MatchLoc >= 0)
@@ -249,13 +345,11 @@ static FString ExtractPropertyValue(const FString& FullStructValue, const FStrin
 		}
 
 		// pull out the token
-		return FullStructValue.Mid(MatchLoc, Travel - Start);
+		Out.AppendChars(*FullStructValue + MatchLoc, Travel - Start);
 	}
-
-	return TEXT("");
 }
 
-void FConfigSection::HandleAddCommand(FName Key, const FString& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed)
+void FConfigSection::HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed)
 {
 	FString* StructKey = ArrayOfStructKeys.Find(Key);
 	bool bHandledWithKey = false;
@@ -265,10 +359,12 @@ void FConfigSection::HandleAddCommand(FName Key, const FString& Value, bool bApp
 		FString StructKeyMatch = *StructKey + "=";
 
 		// pull out the token that matches the StructKey (a property name) from the full struct property string
-		FString StructKeyValueToMatch = ExtractPropertyValue(Value, StructKeyMatch);
+		FString StructKeyValueToMatch;
+		ExtractPropertyValue(Value, StructKeyMatch, StructKeyValueToMatch);
 
 		if (StructKeyValueToMatch.Len() > 0)
 		{
+			FString ExistingStructValueKey;
 			// if we have a key for this array, then we look for it in the Value for each array entry
 			for (FConfigSection::TIterator It(*this); It; ++It)
 			{
@@ -276,7 +372,7 @@ void FConfigSection::HandleAddCommand(FName Key, const FString& Value, bool bApp
 				if (It.Key() == Key)
 				{
 					// now look for the matching ArrayOfStruct Key as the incoming KeyValue
-					FString ExistingStructValueKey = ExtractPropertyValue(It.Value().GetValue(), StructKeyMatch);
+					ExtractPropertyValue(It.Value().GetValue(), StructKeyMatch, ExistingStructValueKey);
 					if (ExistingStructValueKey == StructKeyValueToMatch)
 					{
 						// we matched ther key, so remove the existing line item (Value) and plop in the new one
@@ -296,11 +392,11 @@ void FConfigSection::HandleAddCommand(FName Key, const FString& Value, bool bApp
 	{
 		if (bAppendValueIfNotArrayOfStructsKeyUsed)
 		{
-			Add(Key, Value);
+			Add(Key, MoveTemp(Value));
 		}
 		else
 		{
-			AddUnique(Key, Value);
+			AddUnique(Key, MoveTemp(Value));
 		}
 	}
 }
@@ -472,6 +568,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 	const TCHAR* Ptr = *Buffer;
 	FConfigSection* CurrentSection = nullptr;
 	FString CurrentSectionName;
+	FString TheLine;
 	bool Done = false;
 	while( !Done )
 	{
@@ -482,9 +579,8 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 		}
 
 		// read the next line
-		FString TheLine;
 		int32 LinesConsumed = 0;
-		FParse::LineExtended(&Ptr, TheLine, LinesConsumed, false);
+		FParse::LineExtended(&Ptr, /* reset */ TheLine, LinesConsumed, false);
 		if (Ptr == nullptr || *Ptr == 0)
 		{
 			Done = true;
@@ -585,7 +681,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				if (Cmd == '+')
 				{
 					// Add if not already present.
-					CurrentSection->HandleAddCommand( Start, ProcessedValue, false );
+					CurrentSection->HandleAddCommand( Start, MoveTemp(ProcessedValue), false );
 				}
 				else if( Cmd=='-' )	
 				{
@@ -595,7 +691,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				}
 				else if ( Cmd=='.' )
 				{
-					CurrentSection->HandleAddCommand( Start, ProcessedValue, true );
+					CurrentSection->HandleAddCommand( Start, MoveTemp(ProcessedValue), true );
 				}
 				else if( Cmd=='!' )
 				{
@@ -604,13 +700,13 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				else if (Cmd == '@')
 				{
 					// track a key to show uniqueness for arrays of structs
-					CurrentSection->ArrayOfStructKeys.Add(Start, ProcessedValue);
+					CurrentSection->ArrayOfStructKeys.Add(Start, MoveTemp(ProcessedValue));
 				}
 				else if (Cmd == '*')
 				{
 					// track a key to show uniqueness for arrays of structs
 					TMap<FName, FString>& POCKeys = PerObjectConfigArrayOfStructKeys.FindOrAdd(CurrentSectionName);
-					POCKeys.Add(Start, ProcessedValue);
+					POCKeys.Add(Start, MoveTemp(ProcessedValue));
 				}
 				else
 				{
@@ -618,11 +714,11 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 					FConfigValue* ConfigValue = CurrentSection->Find( Start );
 					if( !ConfigValue )
 					{
-						CurrentSection->Add( Start, ProcessedValue );
+						CurrentSection->Add( Start, MoveTemp(ProcessedValue) );
 					}
 					else
 					{
-						*ConfigValue = FConfigValue(ProcessedValue);
+						*ConfigValue = FConfigValue(MoveTemp(ProcessedValue));
 					}
 				}
 
@@ -922,17 +1018,18 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 	else
 	{
 		// If no inis exist or only engine (Base*.ini) inis exist, don't load anything
-		int32 NumExistingOptionalInis = 0;
-		for( const auto& HierarchyIt : HierarchyToLoad )
+		bool bOptionalIniFound = false;
+		for (const TPair<EConfigFileHierarchy, FIniFilename>& Pair : HierarchyToLoad)
 		{
-			const FIniFilename& IniToLoad = HierarchyIt.Value;
+			const FIniFilename& IniToLoad = Pair.Value;
 			if (IniToLoad.bRequired == false &&
-				 (!IsUsingLocalIniFile(*IniToLoad.Filename, nullptr) || DoesConfigFileExistWrapper(*IniToLoad.Filename)))
+				(!IsUsingLocalIniFile(*IniToLoad.Filename, nullptr) || DoesConfigFileExistWrapper(*IniToLoad.Filename)))
 			{
-				NumExistingOptionalInis++;
+				bOptionalIniFound = true;
+				break;
 			}
 		}
-		if (NumExistingOptionalInis == 0)
+		if (!bOptionalIniFound)
 		{
 			// No point in generating ini
 			return true;
@@ -3363,7 +3460,12 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* 
 		ConfigFile.Name = IniName;
 
 		// don't write anything to disk in cooked builds - we will always use re-generated INI files anyway.
-		if (bWriteDestIni && (!FPlatformProperties::RequiresCookedData() || bAllowGeneratedIniWhenCooked)
+		// Note: Unfortunately bAllowGeneratedIniWhenCooked is often true even in shipping builds with cooked data
+		// due to default parameters. We don't dare change this now.
+		//
+		// Check GIsInitialLoad since no INI changes that should be persisted could have occurred this early.
+		// INI changes from code, environment variables, CLI parameters, etc should not be persisted. 
+		if (!GIsInitialLoad && bWriteDestIni && (!FPlatformProperties::RequiresCookedData() || bAllowGeneratedIniWhenCooked)
 			// We shouldn't save config files when in multiprocess mode,
 			// otherwise we get file contention in XGE shader builds.
 			&& !FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")))

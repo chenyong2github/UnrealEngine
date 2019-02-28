@@ -56,7 +56,8 @@ public:
 public:
 
     FPreLoadSettingsContainerBase() 
-    { 
+    {
+		bShouldLoadBrushes = true;
     }
 
     virtual ~FPreLoadSettingsContainerBase();
@@ -90,6 +91,9 @@ public:
     //Sets the PluginContent dir so that when parsing config entries we can accept plugin relative file paths
     virtual void SetPluginContentDir(const FString& PluginContentDirIn) { PluginContentDir = PluginContentDirIn; }
 
+	//Tells the container rather it should actually load image brushes
+	virtual void SetShouldLoadBrushes(bool bInShouldLoadBrushes);
+
     float TimeToDisplayEachBackground;
     
     //Screens are displayed in the order of this array
@@ -117,6 +121,9 @@ protected:
 
     //This string is used to make file paths relative to a particular Plugin's content directory when parsing file paths.
     FString PluginContentDir;
+
+	// Rather we should load image brushes
+	bool bShouldLoadBrushes;
 
     // Singleton Instance -- This is only not a TSharedPtr as it needs to be cleaned up by a deferredcleanup call which directly
     // nukes the underlying object, causing a SharedPtr crash at shutdown.

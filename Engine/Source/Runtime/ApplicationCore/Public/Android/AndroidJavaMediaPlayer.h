@@ -68,6 +68,7 @@ public:
 
 public:
 	FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkanRenderer, bool needTrackInfo);
+	virtual ~FJavaAndroidMediaPlayer();
 	int32 GetDuration();
 	void Reset();
 	void Stop();

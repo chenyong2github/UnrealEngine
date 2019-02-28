@@ -43,6 +43,10 @@ THIRD_PARTY_INCLUDES_END
 #	endif
 #endif
 
+#if BUILD_EMBEDDED_APP
+#	include "Native/NativeWebBrowserProxy.h"
+#endif
+
 #if PLATFORM_ANDROID && USE_ANDROID_JNI
 #	include "Android/AndroidWebBrowserWindow.h"
 #	include <Android/AndroidCookieManager.h>
@@ -315,7 +319,7 @@ FWebBrowserSingleton::FWebBrowserSingleton(const FWebBrowserInitSettings& WebBro
 	SetCurrentThreadName(TCHAR_TO_ANSI( *(FName( NAME_GameThread ).GetPlainNameString()) ));
 
 	DefaultCookieManager = FCefWebBrowserCookieManagerFactory::Create(CefCookieManager::GetGlobalManager(nullptr));
-#elif PLATFORM_IOS
+#elif PLATFORM_IOS && !BUILD_EMBEDDED_APP
 	DefaultCookieManager = MakeShareable(new FIOSCookieManager());
 #elif PLATFORM_ANDROID
 	DefaultCookieManager = MakeShareable(new FAndroidCookieManager());
@@ -441,7 +445,7 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FC
 {
 	bool bBrowserEnabled = true;
 	GConfig->GetBool(TEXT("Browser"), TEXT("bEnabled"), bBrowserEnabled, GEngineIni);
-	if (!bBrowserEnabled)
+	if (!bBrowserEnabled || !FApp::CanEverRender())
 	{
 		return nullptr;
 	}
@@ -584,6 +588,17 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FC
 #endif
 	return nullptr;
 }
+
+#if BUILD_EMBEDDED_APP
+TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateNativeBrowserProxy()
+{
+	TSharedPtr<FNativeWebBrowserProxy> NewBrowserWindow = MakeShareable(new FNativeWebBrowserProxy(
+		bJSBindingsToLoweringEnabled
+	));
+	NewBrowserWindow->Initialize();
+	return NewBrowserWindow;
+}
+#endif //BUILD_EMBEDDED_APP
 
 bool FWebBrowserSingleton::Tick(float DeltaTime)
 {

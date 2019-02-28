@@ -54,6 +54,10 @@ public:
 	/** @return the tracking quality; if unable to determine tracking quality, return EARTrackingQuality::NotAvailable */
 	virtual EARTrackingQuality OnGetTrackingQuality() const = 0;
 	
+	/** @return the reason of limited tracking quality; if the state is not limited, return EARTrackingQualityReason::None */
+	// @todo merge-check
+//	virtual EARTrackingQualityReason OnGetTrackingQualityReason() const = 0;
+	
 	/**
 	 * Start the AR system.
 	 *
@@ -72,6 +76,9 @@ public:
 	/** @return the info about whether the session is running normally or encountered some kind of error. */
 	virtual FARSessionStatus OnGetARSessionStatus() const = 0;
 	
+	/** Returns true/false based on whether AR features are available */
+//	virtual bool IsARAvailable() const = 0;
+	
 	/**
 	 * Set a transform that will align the Tracking Space origin to the World Space origin.
 	 * This is useful for supporting static geometry and static lighting in AR.
@@ -88,7 +95,7 @@ public:
 	 */
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector2D ScreenCoord, EARLineTraceChannels TraceChannels ) = 0;
 	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects( const FVector Start, const FVector End, EARLineTraceChannels TraceChannels ) = 0;
-
+	
 	/** @return a TArray of all the tracked geometries known to your ar system */
 	virtual TArray<UARTrackedGeometry*> OnGetAllTrackedGeometries() const = 0;
 	
@@ -135,16 +142,16 @@ public:
 	
 	/** @return The list of supported video formats for this device and session type */
 	virtual TArray<FARVideoFormat> OnGetSupportedVideoFormats(EARSessionType SessionType) const = 0;
-
+	
 	/** @return the current point cloud data for the ar scene */
 	virtual TArray<FVector> OnGetPointCloud() const = 0;
-
+	
 	/** Add candidate image at runtime @return True if it added the iamge successfully */
 	virtual bool OnAddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth) = 0;
 
 	virtual void* GetARSessionRawPointer() = 0;
 	virtual void* GetGameThreadARFrameRawPointer() = 0;
-
+	
 
 public:
 	virtual ~IARSystemSupport(){}

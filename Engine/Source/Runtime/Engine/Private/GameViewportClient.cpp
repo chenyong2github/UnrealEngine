@@ -72,6 +72,9 @@ bool GForceFullscreen = false;
 /** Delegate called at the end of the frame when a screenshot is captured */
 FOnScreenshotCaptured UGameViewportClient::ScreenshotCapturedDelegate;
 
+/** Delegate called right after the viewport is rendered */
+FOnViewportRendered UGameViewportClient::ViewportRenderedDelegate;
+
 /** Delegate called when the game viewport is created. */
 FSimpleMulticastDelegate UGameViewportClient::CreatedDelegate;
 
