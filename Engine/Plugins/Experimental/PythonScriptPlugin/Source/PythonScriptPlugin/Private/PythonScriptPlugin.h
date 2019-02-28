@@ -11,6 +11,7 @@
 #include "Framework/Commands/InputChord.h"
 
 class FPythonScriptPlugin;
+class FPythonScriptRemoteExecution;
 
 #if WITH_PYTHON
 
@@ -106,6 +107,9 @@ public:
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 #if WITH_PYTHON
+	/** Sync the remote execution environment to the current settings, starting or stopping it as required */
+	void SyncRemoteExecutionToSettings();
+
 	/** 
 	 * Import the given module into the "unreal" package.
 	 * This function will take the given name and attempt to import either "unreal_{name}" or "_unreal_{name}" into the "unreal" package as "unreal.{name}".
@@ -147,6 +151,7 @@ private:
 	void OnPrepareToCleanseEditorObject(UObject* InObject);
 #endif	// WITH_EDITOR
 
+	TUniquePtr<FPythonScriptRemoteExecution> RemoteExecution;
 	FPythonCommandExecutor CmdExec;
 	FPythonREPLCommandExecutor CmdREPLExec;
 	IPythonCommandMenu* CmdMenu;
