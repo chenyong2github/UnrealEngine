@@ -605,7 +605,7 @@ void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const F
 
 			static int32 Salt = 0;
 			Salt++;		// Use a salt to solve the issue where this function is called so fast it produces the same time (seems to happen during seamless travel)
-			const FString FinalFileName = FPaths::ProfilingDir() + FApp::GetProjectName() + TEXT( "-" ) + FDateTime::Now().ToString() + FString::Printf( TEXT( "[%i]" ), Salt ) + TEXT( ".nprof" );
+			const FString FinalFileName = FPaths::ProfilingDir() + FApp::GetProjectName() + FString::Printf(TEXT("-Pid%i"), FPlatformProcess::GetCurrentProcessId()) + TEXT( "-" ) + FDateTime::Now().ToString() + FString::Printf( TEXT( "[%i]" ), Salt ) + TEXT( ".nprof" );
 
 			IFileManager::Get().MakeDirectory( *FPaths::GetPath( FinalFileName ) );
 			FileWriter = IFileManager::Get().CreateFileWriter( *FinalFileName, FILEWRITE_EvenIfReadOnly );
