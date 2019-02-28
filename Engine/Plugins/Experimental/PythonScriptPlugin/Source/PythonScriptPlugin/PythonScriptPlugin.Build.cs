@@ -23,6 +23,9 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"InputCore",
+					"Sockets",
+					"Networking",
+					"Json",
 				}
 			);
 
