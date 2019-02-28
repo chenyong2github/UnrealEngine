@@ -428,6 +428,16 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Gets extra launch commandline arguments for this platform.
+		/// </summary>
+		/// <param name="Params"> ProjectParams </param>
+		/// <returns>Launch platform string.</returns>
+		public virtual string GetLaunchExtraCommandLine(ProjectParams Params)
+		{
+			return "";
+		}
+
+		/// <summary>
 		/// True if this platform can write to the abslog path that's on the host desktop.
 		/// </summary>
 		public virtual bool UseAbsLog
