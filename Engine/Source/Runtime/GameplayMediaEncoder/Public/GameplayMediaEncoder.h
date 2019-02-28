@@ -113,10 +113,10 @@ private:
 	bool bProcessMediaSamples = true;
 
 	// live streaming: quality adaptation to available uplink b/w
-	TAtomic<uint32> NewVideoBitrate = 0;
+	TAtomic<uint32> NewVideoBitrate{ 0 };
 	FThreadSafeBool bChangeBitrate = false;
 	FTimespan FramerateMonitoringStart = -1;
-	TAtomic<uint32> NewVideoFramerate = 0;
+	TAtomic<uint32> NewVideoFramerate{ 0 };
 	FThreadSafeBool bChangeFramerate = false;
 };
 

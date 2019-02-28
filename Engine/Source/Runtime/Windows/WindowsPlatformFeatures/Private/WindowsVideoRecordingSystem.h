@@ -41,7 +41,7 @@ private:
 	void NextRecording();
 	void FinalizeCallbackOnGameThread(bool bSaved, bool bAutoContinue, FString Path, bool bBroadcast);
 
-	TAtomic<EVideoRecordingState> RecordState = EVideoRecordingState::None;
+	TAtomic<EVideoRecordingState> RecordState{ EVideoRecordingState::None };
 
 	FVideoRecordingParameters Parameters;
 
