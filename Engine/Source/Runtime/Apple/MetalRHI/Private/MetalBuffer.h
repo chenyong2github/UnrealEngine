@@ -411,13 +411,6 @@ class FMetalResourceHeap
 		/** Number of texture usage types */
 		EMetalHeapTextureUsageNum = 2
 	};
-
-    enum UsageTypes
-    {
-        UsageStatic,
-        UsageDynamic,
-        NumUsageTypes = 2
-    };
     
 public:
 	FMetalResourceHeap(void);
