@@ -570,6 +570,10 @@ protected:
 
 	/** Helper class for drawing widgets to a render target. */
 	class FWidgetRenderer* WidgetRenderer;
+
+private: 
+	/** Set to true after a draw of an empty component.*/
+	bool bRenderCleared;
 };
 
 USTRUCT()
