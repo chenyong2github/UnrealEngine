@@ -948,3 +948,8 @@ void FUnixPlatformMisc::UngrabAllInput()
 		UngrabAllInputCallback();
 	}
 }
+
+FString FUnixPlatformMisc::GetLoginId()
+{
+	return FString::Printf(TEXT("%s + %s(%d)"), *GetOperatingSystemId(), FPlatformProcess::UserName(), geteuid());
+}
