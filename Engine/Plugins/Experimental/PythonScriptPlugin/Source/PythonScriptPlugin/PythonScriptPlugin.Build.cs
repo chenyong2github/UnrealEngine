@@ -38,6 +38,9 @@ namespace UnrealBuildTool.Rules
 					}
 				);
 			}
+
+			// some of the symbols libpython.a is referencing are unresolved (see UE-70768)
+			bIgnoreUnresolvedSymbols = true;
 		}
 	}
 }

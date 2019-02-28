@@ -731,6 +731,9 @@ namespace UnrealBuildTool
 
 			// Add all the additional properties
 			LinkEnvironment.AdditionalProperties.AddRange(Rules.AdditionalPropertiesForReceipt.Inner);
+
+			// this is a link-time property that needs to be accumulated (if any modules contributing to this module is ignoring, all are ignoring)
+			LinkEnvironment.bIgnoreUnresolvedSymbols |= Rules.bIgnoreUnresolvedSymbols;
 		}
 
 		/// <summary>

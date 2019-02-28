@@ -1719,6 +1719,14 @@ namespace UnrealBuildTool
 
 			LinkCommandString += " -Wl,--start-group";
 			LinkCommandString += ExternalLibraries;
+
+			// make unresolved symbols an error, unless a) building a cross-referenced DSO  b) we opted out
+			if ((!LinkEnvironment.bIsBuildingDLL || !LinkEnvironment.bIsCrossReferenced) && !LinkEnvironment.bIgnoreUnresolvedSymbols)
+			{
+				// This will make the linker report undefined symbols the current module, but ignore in the dependent DSOs.
+				// It is tempting, but may not be possible to change that report-all - due to circular dependencies between our libs.
+				LinkCommandString += " -Wl,--unresolved-symbols=ignore-in-shared-libs";
+			}
 			LinkCommandString += " -Wl,--end-group";
 
 			LinkCommandString += " -lrt"; // needed for clock_gettime()
@@ -1733,6 +1741,7 @@ namespace UnrealBuildTool
 				LinkCommandString += " " + "ThirdParty/Linux/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++abi.a";
 				LinkCommandString += " -lm";
 				LinkCommandString += " -lc";
+				LinkCommandString += " -lpthread"; // pthread_mutex_trylock is missing from libc stubs
 				LinkCommandString += " -lgcc_s";
 				LinkCommandString += " -lgcc";
 			}
