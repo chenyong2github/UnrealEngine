@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PythonScriptCommandlet.h"
-#include "PythonScriptPlugin.h"
+#include "IPythonScriptPlugin.h"
+#include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPythonScriptCommandlet, Log, All);
 
@@ -32,8 +33,14 @@ int32 UPythonScriptCommandlet::Main(const FString& Params)
 	}
 
 #if WITH_PYTHON
-	UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Running Python script: %s"), *PythonScript);
-	FPythonScriptPlugin::Get()->HandlePythonExecCommand(*PythonScript);
+	{
+		UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Running Python script: %s"), *PythonScript);
+
+		FPythonCommandEx PythonCommand;
+		PythonCommand.Flags |= EPythonCommandFlags::Unattended;
+		PythonCommand.Command = PythonScript;
+		IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand);
+	}
 #else	// WITH_PYTHON
 	UE_LOG(LogPythonScriptCommandlet, Error, TEXT("Python script cannot run as the plugin was built as a stub!"));
 	return -1;
