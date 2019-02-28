@@ -86,6 +86,10 @@ public:
 		Referencers.Reserve(InNumReferencers);
 	}
 
+	void Reserve(const FDependsNode* Other) {
+		Reserve(Other->HardDependencies.Num(), Other->SoftDependencies.Num(), Other->NameDependencies.Num(), Other->SoftManageDependencies.Num(), Other->HardManageDependencies.Num(), Other->Referencers.Num());
+	}
+
 private:
 
 	/** Iterate over all the separate dependency arrays. Const cast to avoid duplication */
