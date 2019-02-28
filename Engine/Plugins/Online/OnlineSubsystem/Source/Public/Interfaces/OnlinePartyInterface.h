@@ -491,19 +491,26 @@ enum class EMemberExitedReason
 	Kicked
 };
 
+/** Recipient information for SendInvitation */
 struct FPartyInvitationRecipient
 {
+	/** Constructor */
 	FPartyInvitationRecipient(const TSharedRef<const FUniqueNetId>& InId)
 		: Id(InId)
-		{}
+	{}
 
+	/** Constructor */
 	FPartyInvitationRecipient(const FUniqueNetId& InId)
 		: Id(InId.AsShared())
 	{}
 
-
+	/** Id of the user to send the invitation to */
 	TSharedRef<const FUniqueNetId> Id;
+	/** Additional data to provide context for the invitee */
 	FString PlatformData;
+
+	/** Get a string representation suitable for logging */
+	FString ONLINESUBSYSTEM_API ToDebugString() const;
 };
 
 

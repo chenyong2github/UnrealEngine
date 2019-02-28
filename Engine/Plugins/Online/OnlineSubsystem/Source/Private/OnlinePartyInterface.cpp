@@ -130,6 +130,11 @@ void FOnlinePartyData::FromJson(const FString& JsonString)
 	}
 }
 
+FString FPartyInvitationRecipient::ToDebugString() const
+{
+	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
+}
+
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const
 {
 	return JoinRequestAction == Other.JoinRequestAction &&
