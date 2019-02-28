@@ -80,6 +80,8 @@ DEFINE_STAT(STAT_Navigation_GatheringNavigationModifiersSync);
 DEFINE_STAT(STAT_Navigation_ActorsGeometryExportSync);
 DEFINE_STAT(STAT_Navigation_ProcessingActorsForNavMeshBuilding);
 DEFINE_STAT(STAT_Navigation_AdjustingNavLinks);
+DEFINE_STAT(STAT_Navigation_RegisterNavOctreeElement);
+DEFINE_STAT(STAT_Navigation_UnregisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_AddingActorsToNavOctree);
 DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTiles);
 DEFINE_STAT(STAT_Navigation_RecastTick);
@@ -2386,6 +2388,8 @@ int32 GetDirtyFlagHelper(int32 UpdateFlags, int32 DefaultValue)
 
 FSetElementId UNavigationSystemV1::RegisterNavOctreeElement(UObject* ElementOwner, INavRelevantInterface* ElementInterface, int32 UpdateFlags)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_RegisterNavOctreeElement);
+
 	FSetElementId SetId;
 
 #if WITH_EDITOR
@@ -2529,6 +2533,8 @@ bool UNavigationSystemV1::GetNavOctreeElementData(const UObject& NodeOwner, int3
 
 void UNavigationSystemV1::UnregisterNavOctreeElement(UObject* ElementOwner, INavRelevantInterface* ElementInterface, int32 UpdateFlags)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_UnregisterNavOctreeElement);
+
 #if WITH_EDITOR
 	if (IsNavigationUnregisterLocked())
 	{
