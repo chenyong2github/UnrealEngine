@@ -20,7 +20,7 @@ class FPythonScriptPlugin;
 class FPythonCommandExecutor : public IConsoleCommandExecutor
 {
 public:
-	FPythonCommandExecutor(FPythonScriptPlugin* InPythonScriptPlugin);
+	FPythonCommandExecutor(IPythonScriptPlugin* InPythonScriptPlugin);
 
 	static FName StaticName();
 	virtual FName GetName() const override;
@@ -37,7 +37,33 @@ public:
 		return FInputChord();
 	}
 private:
-	FPythonScriptPlugin* PythonScriptPlugin;
+	IPythonScriptPlugin* PythonScriptPlugin;
+};
+
+/**
+ * Executor for "Python (REPL)" commands
+ */
+class FPythonREPLCommandExecutor : public IConsoleCommandExecutor
+{
+public:
+	FPythonREPLCommandExecutor(IPythonScriptPlugin* InPythonScriptPlugin);
+
+	static FName StaticName();
+	virtual FName GetName() const override;
+	virtual FText GetDisplayName() const override;
+	virtual FText GetDescription() const override;
+	virtual FText GetHintText() const override;
+	virtual void GetAutoCompleteSuggestions(const TCHAR* Input, TArray<FString>& Out) override;
+	virtual void GetExecHistory(TArray<FString>& Out) override;
+	virtual bool Exec(const TCHAR* Input) override;
+	virtual bool AllowHotKeyClose() const override;
+	virtual bool AllowMultiLine() const override;
+	virtual FInputChord GetHotKey() const override
+	{
+		return FInputChord();
+	}
+private:
+	IPythonScriptPlugin* PythonScriptPlugin;
 };
 
 /**
@@ -68,6 +94,7 @@ public:
 	//~ IPythonScriptPlugin interface
 	virtual bool IsPythonAvailable() const override;
 	virtual bool ExecPythonCommand(const TCHAR* InPythonCommand) override;
+	virtual bool ExecPythonCommandEx(FPythonCommandEx& InOutPythonCommand) override;
 	virtual FSimpleMulticastDelegate& OnPythonInitialized() override;
 	virtual FSimpleMulticastDelegate& OnPythonShutdown() override;
 
@@ -85,14 +112,15 @@ public:
 	 */
 	void ImportUnrealModule(const TCHAR* InModuleName);
 
-	bool HandlePythonExecCommand(const TCHAR* InPythonCommand);
-
+	/** Evaluate/Execute a Python string, and return the result */
 	PyObject* EvalString(const TCHAR* InStr, const TCHAR* InContext, const int InMode);
 	PyObject* EvalString(const TCHAR* InStr, const TCHAR* InContext, const int InMode, PyObject* InGlobalDict, PyObject* InLocalDict);
 
-	bool RunString(const TCHAR* InStr);
+	/** Run literal Python script */
+	bool RunString(FPythonCommandEx& InOutPythonCommand);
 
-	bool RunFile(const TCHAR* InFile, const TCHAR* InArgs);
+	/** Run a Python file */
+	bool RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPythonCommandEx& InOutPythonCommand);
 #endif	// WITH_PYTHON
 
 private:
@@ -120,6 +148,7 @@ private:
 #endif	// WITH_EDITOR
 
 	FPythonCommandExecutor CmdExec;
+	FPythonREPLCommandExecutor CmdREPLExec;
 	IPythonCommandMenu* CmdMenu;
 	FDelegateHandle TickHandle;
 	FDelegateHandle ModuleDelayedHandle;
