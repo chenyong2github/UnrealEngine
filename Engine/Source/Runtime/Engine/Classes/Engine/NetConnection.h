@@ -1097,7 +1097,7 @@ public:
 
 protected:
 
-	void SetPendingCloseDueToSocketSendFailure();
+	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
 
 	void CleanupDormantActorState();
 
