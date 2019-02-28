@@ -88,7 +88,6 @@ namespace ns
         Object& operator=(Object&& rhs);
 #endif
 
-#if MTLPP_CONFIG_VALIDATE
 		template<typename AssociatedObject>
 		AssociatedObject GetAssociatedObject(void const* Key) const
 		{
@@ -109,7 +108,6 @@ namespace ns
 		{
 			objc_setAssociatedObject((id)GetPtr(), Key, (id)nullptr, (objc_AssociationPolicy)(01401));
 		}
-#endif
 		
         inline void Validate() const
         {
