@@ -103,12 +103,13 @@ public:
 	FMatrix LocalToWorld;
 	FVector2D LightingAtlasLocation;
 	FIntRect HeightfieldRect;
-
 	int32 NumSubsections;
 	FVector4 SubsectionScaleAndBias;
+	int32 VisibilityChannel;
 
 	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld) :
-		LocalToWorld(InLocalToWorld)
+		LocalToWorld(InLocalToWorld), 
+		VisibilityChannel(-1)
 	{}
 };
 
@@ -280,9 +281,11 @@ public:
 
 	virtual bool HeightfieldHasPendingStreaming() const { return false; }
 
-	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, FHeightfieldComponentDescription& OutDescription)
+	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription)
 	{
-		OutHeightmapTexture = NULL;
+		OutHeightmapTexture = nullptr;
+		OutDiffuseColorTexture = nullptr;
+		OutVisibilityTexture = nullptr;
 	}
 
 	/**

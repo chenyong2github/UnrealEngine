@@ -313,7 +313,7 @@ public:
 		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, DiffuseColorTextureValue);
+		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, DiffuseColorTextureValue, nullptr);
 	}
 	// FShader interface.
 	virtual bool Serialize(FArchive& Ar) override
@@ -408,8 +408,10 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 			{
 				UTexture2D* HeightfieldTexture = NULL;
 				UTexture2D* DiffuseColorTexture = NULL;
+				UTexture2D* VisibilityTexture = NULL;
+
 				FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
-				HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, NewComponentDescription);
+				HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
 				if (HeightfieldTexture && HeightfieldTexture->Resource->TextureRHI)
 				{
@@ -425,7 +427,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 						Heightfield.Rect.Union(NewComponentDescription.HeightfieldRect);
 					}
 
-					TArray<FHeightfieldComponentDescription>& ComponentDescriptions = Heightfield.ComponentDescriptions.FindOrAdd(FHeightfieldComponentTextures(HeightfieldTexture, DiffuseColorTexture));
+					TArray<FHeightfieldComponentDescription>& ComponentDescriptions = Heightfield.ComponentDescriptions.FindOrAdd(FHeightfieldComponentTextures(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture));
 					ComponentDescriptions.Add(NewComponentDescription);
 				}
 			}
@@ -534,8 +536,10 @@ void FHeightfieldLightingViewInfo::SetupHeightfieldsForScene(const FScene& Scene
 
 			UTexture2D* HeightfieldTexture = NULL;
 			UTexture2D* DiffuseColorTexture = NULL;
+			UTexture2D* VisibilityTexture = NULL;
+
 			FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
-			HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, NewComponentDescription);
+			HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
 			if (HeightfieldTexture && HeightfieldTexture->Resource->TextureRHI)
 			{
@@ -551,7 +555,7 @@ void FHeightfieldLightingViewInfo::SetupHeightfieldsForScene(const FScene& Scene
 					Heightfield.Rect.Union(NewComponentDescription.HeightfieldRect);
 				}
 
-				TArray<FHeightfieldComponentDescription>& ComponentDescriptions = Heightfield.ComponentDescriptions.FindOrAdd(FHeightfieldComponentTextures(HeightfieldTexture, DiffuseColorTexture));
+				TArray<FHeightfieldComponentDescription>& ComponentDescriptions = Heightfield.ComponentDescriptions.FindOrAdd(FHeightfieldComponentTextures(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture));
 				ComponentDescriptions.Add(NewComponentDescription);
 			}
 		}
@@ -567,7 +571,7 @@ public:
 	FHeightfieldDescriptionsResource()
 	{
 		// In float4's, must match usf
-		const int32 HEIGHTFIELD_DATA_STRIDE = 10;
+		const int32 HEIGHTFIELD_DATA_STRIDE = 12;
 
 		Data.Format = PF_A32B32G32R32F;
 		Data.Stride = HEIGHTFIELD_DATA_STRIDE;
@@ -620,7 +624,8 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 
 		HeightfieldDescriptionData.Add(LightingUVScaleBias);
 
-		HeightfieldDescriptionData.Add(FVector4(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, InvLightingAtlasSize.X, InvLightingAtlasSize.Y));
+		HeightfieldDescriptionData.Add(FVector4(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f/Description.HeightfieldRect.Size().X, 1.f/Description.HeightfieldRect.Size().Y));
+		HeightfieldDescriptionData.Add(FVector4(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
 
 		const FMatrix LocalToWorldT = Description.LocalToWorld.GetTransposed();
 		const FMatrix WorldToLocalT = Description.LocalToWorld.Inverse().GetTransposed();
@@ -632,6 +637,13 @@ void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription
 		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[0]);
 		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[1]);
 		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[2]);
+
+		FVector4 ChannelMask(0.f, 0.f, 0.f, 0.f);
+		if (Description.VisibilityChannel >= 0 && Description.VisibilityChannel < 4)
+		{
+			ChannelMask.Component(Description.VisibilityChannel) = 1.f;
+		}
+		HeightfieldDescriptionData.Add(ChannelMask);
 	}
 
 	check(HeightfieldDescriptionData.Num() % GHeightfieldDescriptions.Data.Stride == 0);
@@ -1289,7 +1301,7 @@ public:
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
-		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, NULL);
+		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, nullptr, nullptr);
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ScreenGridResources.ScreenGridConeVisibility.UAV);
 		ScreenGridConeVisibility.SetBuffer(RHICmdList, ShaderRHI, ScreenGridResources.ScreenGridConeVisibility);

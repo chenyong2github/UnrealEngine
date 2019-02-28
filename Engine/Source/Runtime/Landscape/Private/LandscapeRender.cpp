@@ -4395,7 +4395,7 @@ bool FLandscapeComponentSceneProxy::HeightfieldHasPendingStreaming() const
 	return HeightmapTexture && HeightmapTexture->bHasStreamingUpdatePending;
 }
 
-void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, FHeightfieldComponentDescription& OutDescription)
+void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription)
 {
 	OutHeightmapTexture = HeightmapTexture;
 	OutDiffuseColorTexture = BaseColorForGITexture;
@@ -4412,6 +4412,18 @@ void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& Ou
 	OutDescription.NumSubsections = NumSubsections;
 
 	OutDescription.SubsectionScaleAndBias = FVector4(SubsectionSizeQuads, SubsectionSizeQuads, HeightmapSubsectionOffsetU, HeightmapSubsectionOffsetV);
+
+	OutVisibilityTexture = nullptr;
+	OutDescription.VisibilityChannel = -1;
+	for (auto& Allocation : LandscapeComponent->WeightmapLayerAllocations)
+	{
+		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
+		{
+			OutVisibilityTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
+			OutDescription.VisibilityChannel = Allocation.WeightmapTextureChannel;
+			break;
+		}
+	}
 }
 
 void FLandscapeComponentSceneProxy::GetLCIs(FLCIArray& LCIs)
