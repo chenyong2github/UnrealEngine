@@ -62,6 +62,12 @@ void FRenderAssetInstanceView::FBounds4::UpdateLastRenderTime(int32 Index, float
 	LastRenderTime.Component(Index) = InLastRenderTime;
 }
 
+void FRenderAssetInstanceView::FBounds4::UpdateMaxDrawDistanceSquared(int32 Index, float InMaxRangeSq)
+{
+	check(Index >= 0 && Index < 4);
+	MaxRangeSq.Component(Index) = InMaxRangeSq;
+}
+
 FRenderAssetInstanceView::FElement::FElement()
 :	Component(nullptr)
 ,	RenderAsset(nullptr)

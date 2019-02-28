@@ -44,7 +44,7 @@ public:
 	void UpdateBounds(const UPrimitiveComponent* Component);
 	bool UpdateBounds(int32 BoundIndex);
 	bool ConditionalUpdateBounds(int32 BoundIndex);
-	void UpdateLastRenderTime(int32 BoundIndex);
+	void UpdateLastRenderTimeAndMaxDrawDistance(int32 BoundIndex);
 
 	uint32 GetAllocatedSize() const;
 
@@ -66,7 +66,7 @@ private:
 	// Returns the next elements using the same component.
 	void RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset);
 
-	int32 AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* Component, float LastRenderTime, const FVector4& RangeOrigin, float MinDistance, float MinRange, float MaxRange);
+	int32 AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* Component, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq);
 	FORCEINLINE int32 AddBounds(const UPrimitiveComponent* Component);
 	void RemoveBounds(int32 Index);
 
