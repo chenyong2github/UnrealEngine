@@ -1685,7 +1685,7 @@ const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
 {
 	bool bModuleExists = FModuleManager::Get().ModuleExists(TEXT("WindowsPlatformFeatures"));
 	// If running a dedicated server then we use the default PlatformFeatures
-	if (bModuleExists && !UE_SERVER)
+	if (bModuleExists && !IsRunningDedicatedServer())
 	{
 		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures enabled"));
 		return TEXT("WindowsPlatformFeatures");
