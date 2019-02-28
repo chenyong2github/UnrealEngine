@@ -27,6 +27,7 @@ void USoundBase::PostInitProperties()
 		const FSoftObjectPath DefaultSoundClassName = GetDefault<UAudioSettings>()->DefaultSoundClassName;
 		if (DefaultSoundClassName.IsValid())
 		{
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundClass");
 			USoundBase::DefaultSoundClassObject = LoadObject<USoundClass>(nullptr, *DefaultSoundClassName.ToString());
 		}
 	}
@@ -37,6 +38,7 @@ void USoundBase::PostInitProperties()
 		const FSoftObjectPath DefaultSoundConcurrencyName = GetDefault<UAudioSettings>()->DefaultSoundConcurrencyName;
 		if (DefaultSoundConcurrencyName.IsValid())
 		{
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundConcurrency");
 			USoundBase::DefaultSoundConcurrencyObject = LoadObject<USoundConcurrency>(nullptr, *DefaultSoundConcurrencyName.ToString());
 		}
 	}

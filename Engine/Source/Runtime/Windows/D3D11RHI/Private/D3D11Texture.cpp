@@ -549,6 +549,13 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	D3D11_USAGE TextureUsage = D3D11_USAGE_DEFAULT;
 	bool bCreateShaderResource = true;
 
+	// NV12 doesn't support SRV in NV12 format so don't create SRV for it.
+	// Todo: add support for SRVs of underneath luminance & chrominance textures.
+	if (Format == PF_NV12)
+	{
+		bCreateShaderResource = false;
+	}
+
 	uint32 ActualMSAACount = NumSamples;
 
 	uint32 ActualMSAAQuality = GetMaxMSAAQuality(ActualMSAACount);
@@ -657,6 +664,12 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 			TextureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 			bCreateRTV = true;
 		}
+	}
+	// NV12 doesn't support RTV in NV12 format so don't create RTV for it.
+	// Todo: add support for RTVs of underneath luminance & chrominance textures.
+	if (Format == PF_NV12)
+	{
+		bCreateRTV = false;
 	}
 
 	if (Flags & TexCreate_UAV)

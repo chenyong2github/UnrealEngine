@@ -54,6 +54,9 @@ public:
 	//Efficiently get data 
 	virtual const TArray<FLiveLinkFrame>* GetSubjectRawFrames(FName SubjectName) = 0;
 
+	//Get the settings structure for a particular source
+	virtual	class ULiveLinkSourceSettings* GetSourceSettingsForEntry(FGuid InEntryGuid) = 0;
+
 	//Functions to start recording live link data into a saved buffer that can that can queried dynamically for uses 
 	//such as recording in the sequencer or for serialization.
 	//Note that it's the responsibility of the client to handle any changes to the Subjects structure.

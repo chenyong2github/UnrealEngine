@@ -54,6 +54,14 @@ const TCHAR* GShaderSourceModeDefineName[] =
 	TEXT("SOURCE_MODE_BASE_COLOR")
 };
 
+static TAutoConsoleVariable<int32> CVarEnableViewExtensionsForSceneCapture(
+	TEXT("r.SceneCapture.EnableViewExtensions"),
+	0,
+	TEXT("Whether to enable view extensions when doing scene capture.\n")
+	TEXT("0: Disable view extensions (default).\n")
+	TEXT("1: Enable view extensions.\n"),
+	ECVF_Default);
+
 /**
  * A pixel shader for capturing a component of the rendered scene for a scene capture.
  */
@@ -643,7 +651,12 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		SceneCaptureComponent->ShowFlags)
 		.SetResolveScene(!bCaptureSceneColor)
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
-
+	
+	if (CVarEnableViewExtensionsForSceneCapture.GetValueOnAnyThread() > 0)
+	{
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(nullptr);
+	}
+	
 	SetupViewVamilyForSceneCapture(
 		ViewFamily,
 		SceneCaptureComponent,

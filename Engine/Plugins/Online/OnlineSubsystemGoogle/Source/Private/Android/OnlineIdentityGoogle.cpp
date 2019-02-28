@@ -299,19 +299,16 @@ int32 AndroidThunkCpp_Google_Init(const FString& InClientId, const FString& InSe
 		CHECK_JNI_METHOD(GoogleInitGoogleMethod);
 		//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("GoogleInitGoogleMethod 0x%08x"), GoogleInitGoogleMethod);
 
-		jstring jClientAuthId = Env->NewStringUTF(TCHAR_TO_UTF8(*InClientId));
-		jstring jServerAuthId = Env->NewStringUTF(TCHAR_TO_UTF8(*InServerId));
-
-		ReturnVal = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, GoogleInitGoogleMethod, jClientAuthId, jServerAuthId);
+		auto jClientAuthId = FJavaHelper::ToJavaString(Env, InClientId);
+		auto jServerAuthId = FJavaHelper::ToJavaString(Env, InServerId);
+		
+		ReturnVal = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, GoogleInitGoogleMethod, *jClientAuthId, *jServerAuthId);
 		if (Env->ExceptionCheck())
 		{
 			Env->ExceptionDescribe();
 			Env->ExceptionClear();
 			ReturnVal = GOOGLE_JNI_CPP_ERROR;
 		}
-
-		Env->DeleteLocalRef(jClientAuthId);
-		Env->DeleteLocalRef(jServerAuthId);
 
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("AndroidThunkJava_Google_Init retval=%d"), ReturnVal);
 	}
@@ -334,15 +331,14 @@ int32 AndroidThunkCpp_Google_Login(const TArray<FString>& InScopeFields)
 		UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("GoogleLoginMethod 0x%08x"), GoogleLoginMethod);
 
 		// Convert scope array into java fields
-		jobjectArray ScopeIDArray = (jobjectArray)Env->NewObjectArray(InScopeFields.Num(), FJavaWrapper::JavaStringClass, nullptr);
+		auto ScopeIDArray = NewScopedJavaObject(Env, (jobjectArray)Env->NewObjectArray(InScopeFields.Num(), FJavaWrapper::JavaStringClass, nullptr));
 		for (uint32 Param = 0; Param < InScopeFields.Num(); Param++)
 		{
-			jstring StringValue = Env->NewStringUTF(TCHAR_TO_UTF8(*InScopeFields[Param]));
-			Env->SetObjectArrayElement(ScopeIDArray, Param, StringValue);
-			Env->DeleteLocalRef(StringValue);
+			auto StringValue = FJavaHelper::ToJavaString(Env, InScopeFields[Param]);
+			Env->SetObjectArrayElement(*ScopeIDArray, Param, *StringValue);
 		}
 
-		ReturnVal = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, GoogleLoginMethod, ScopeIDArray);
+		ReturnVal = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, GoogleLoginMethod, *ScopeIDArray);
 		if (Env->ExceptionCheck())
 		{
 			Env->ExceptionDescribe();
@@ -350,8 +346,6 @@ int32 AndroidThunkCpp_Google_Login(const TArray<FString>& InScopeFields)
 			ReturnVal = GOOGLE_JNI_CPP_ERROR;
 		}
 
-		// clean up references
-		Env->DeleteLocalRef(ScopeIDArray);
 		UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("AndroidThunkCpp_Google_Login retval=%d"), ReturnVal);
 	}
 	else
@@ -365,10 +359,7 @@ int32 AndroidThunkCpp_Google_Login(const TArray<FString>& InScopeFields)
 JNI_METHOD void Java_com_epicgames_ue4_GoogleLogin_nativeLoginComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring javaData)
 {
 	EGoogleLoginResponse LoginResponse = (EGoogleLoginResponse)responseCode;
-
-	const char* charsJavaData = jenv->GetStringUTFChars(javaData, 0);
-	FString JavaData = FString(UTF8_TO_TCHAR(charsJavaData));
-	jenv->ReleaseStringUTFChars(javaData, charsJavaData);
+	auto JavaData = FJavaHelper::FStringFromParam(jenv, javaData);
 
 	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("nativeLoginComplete Response: %s Data: %s"), ToString(LoginResponse), *JavaData);
 

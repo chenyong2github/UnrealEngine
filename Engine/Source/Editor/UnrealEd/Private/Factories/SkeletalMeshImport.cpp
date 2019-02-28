@@ -389,6 +389,7 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 		
 		ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = SkeletalMeshIsUsingMaterialSlotNameWorkflow(ExistingSkelMesh->AssetImportData);
 		ExistingMeshDataPtr->MinLOD = ExistingSkelMesh->MinLod;
+		ExistingMeshDataPtr->DisableBelowMinLodStripping = ExistingSkelMesh->DisableBelowMinLodStripping;
 
 		FSkeletalMeshModel* ImportedResource = ExistingSkelMesh->GetImportedModel();
 
@@ -733,6 +734,7 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 	}
 
 	SkeletalMesh->MinLod = MeshData->MinLOD;
+	SkeletalMesh->DisableBelowMinLodStripping = MeshData->DisableBelowMinLodStripping;
 
 	FSkeletalMeshModel* SkeletalMeshImportedModel = SkeletalMesh->GetImportedModel();
 

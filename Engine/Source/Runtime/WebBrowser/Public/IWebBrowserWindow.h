@@ -369,6 +369,17 @@ public:
 	DECLARE_DELEGATE_RetVal(bool, FOnSuppressContextMenu);
 	virtual FOnSuppressContextMenu& OnSuppressContextMenu() = 0;
 
+	/** A delegate that is invoked for each key down event not handled by the browser, return true if event is handled to prevent it from bubbling up. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyDown, const FKeyEvent& /*KeyEvent*/);
+	virtual FOnUnhandledKeyDown& OnUnhandledKeyDown() = 0;
+
+	/** A delegate that is invoked for each up down event not handled by the browser, return true if event is handled to prevent it from bubbling up. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyUp, const FKeyEvent& /*KeyEvent*/);
+	virtual FOnUnhandledKeyUp& OnUnhandledKeyUp() = 0;
+
+	/** A delegate that is invoked for each key char event not handled by the browser, return true if event is handled to prevent it from bubbling up. */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyChar, const FCharacterEvent& /*CharacterEvent*/);
+	virtual FOnUnhandledKeyChar& OnUnhandledKeyChar() = 0;
 	/** A delegate that is invoked when drag is detected in an area specified as a drag region on the web page. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDragWindow, const FPointerEvent& /*MouseEvent*/)
 	virtual FOnDragWindow& OnDragWindow() = 0;

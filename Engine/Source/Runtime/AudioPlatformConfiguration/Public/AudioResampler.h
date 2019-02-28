@@ -11,6 +11,8 @@
 #define AUDIO_BUFFER_ALIGNMENT 16
 #endif
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioResampler, Warning, All);
+
 namespace Audio
 {
 	typedef TArray<float, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>> AlignedFloatBuffer;
@@ -28,7 +30,7 @@ namespace Audio
 	struct FResamplingParameters
 	{
 		EResamplingMethod ResamplerMethod;
-		int NumChannels;
+		int32 NumChannels;
 		float SourceSampleRate;
 		float DestinationSampleRate;
 		AlignedFloatBuffer& InputBuffer;
@@ -40,9 +42,9 @@ namespace Audio
 
 		float ResultingSampleRate;
 
-		int InputFramesUsed;
+		int32 InputFramesUsed;
 
-		int OutputFramesGenerated;
+		int32 OutputFramesGenerated;
 
 		FResamplerResults()
 			: OutBuffer(nullptr)
@@ -57,6 +59,24 @@ namespace Audio
 
 	// Simple, inline resampler. Returns true on success, false otherwise.
 	AUDIOPLATFORMCONFIGURATION_API bool Resample(const FResamplingParameters& InParameters, FResamplerResults& OutData);
+
+
+	class FResamplerImpl;
+
+	class AUDIOPLATFORMCONFIGURATION_API FResampler
+	{
+	public:
+		FResampler();
+		~FResampler();
+
+		void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
+		void SetSampleRateRatio(float InRatio);
+		int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
+
+	private:
+		TUniquePtr<FResamplerImpl> CreateImpl();
+		TUniquePtr<FResamplerImpl> Impl;
+	};
 	
 }
 

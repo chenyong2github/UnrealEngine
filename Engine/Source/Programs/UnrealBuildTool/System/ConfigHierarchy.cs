@@ -817,7 +817,7 @@ namespace UnrealBuildTool
 			}
 
 			DirectoryReference UserSettingsFolder = Utils.GetUserSettingDirectory(); // Match FPlatformProcess::UserSettingsDir()
-			if(UserSettingsFolder != null)
+			if (UserSettingsFolder != null)
 			{
 				// <AppData>/UE4/EngineConfig/User* ini
 				yield return FileReference.Combine(UserSettingsFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");

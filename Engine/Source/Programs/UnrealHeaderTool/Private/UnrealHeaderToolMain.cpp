@@ -70,11 +70,13 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		ModuleInfoFilename = FParse::Token(CmdLinePtr, false );
 	}
 
+#if !NO_LOGGING
 	const static bool bVerbose = FParse::Param(*CmdLine,TEXT("VERBOSE"));
 	if (bVerbose)
 	{
 		LogCompile.SetVerbosity(ELogVerbosity::Verbose);
 	}
+#endif
 
 	// Make sure the engine is properly cleaned up whenever we exit this function
 	ON_SCOPE_EXIT

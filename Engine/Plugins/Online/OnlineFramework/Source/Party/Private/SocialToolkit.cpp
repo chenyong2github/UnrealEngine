@@ -276,6 +276,15 @@ void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TF
 	}
 }
 
+void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate)
+{
+	// MERGE-REVIEW: Was changed from FindOrCreate
+	if (USocialUser* SocialUser = FindUser(SubsystemId))
+	{
+		SocialUser->RegisterInitCompleteHandler(UserActionDelegate);
+	}
+}
+
 void USocialToolkit::QueueUserDependentActionInternal(const FUniqueNetIdRepl& SubsystemId, ESocialSubsystem SubsystemType, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit)
 {
 	if (!ensure(SubsystemId.IsValid()))

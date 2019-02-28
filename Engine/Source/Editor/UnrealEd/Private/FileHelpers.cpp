@@ -77,6 +77,12 @@ bool FEditorFileUtils::bIsPromptingForCheckoutAndSave = false;
 TSet<FString> FEditorFileUtils::PackagesNotSavedDuringSaveAll;
 TSet<FString> FEditorFileUtils::PackagesNotToPromptAnyMore;
 
+
+static TAutoConsoleVariable<int32> CVarSkipSourceControlCheckForEditablePackages(
+	TEXT("r.Editor.SkipSourceControlCheckForEditablePackages"),
+	0,
+    TEXT("Whether to skip the source control status check for editable packages, 0: Disable (Default), 1: Enable"));
+
 #define LOCTEXT_NAMESPACE "FileHelpers"
 
 /** A special output device that puts save output in the message log when flushed */
@@ -1335,8 +1341,46 @@ bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if (ISourceControlModule::Get().IsEnabled() && SourceControlProvider.IsAvailable())
 	{
-		// Update the source control status of all potentially relevant packages
-		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackagesToCheckOut);
+		TArray<UPackage*> SourceControlCheckPackages;
+		if (CVarSkipSourceControlCheckForEditablePackages.GetValueOnAnyThread())
+		{
+			for (auto Package : PackagesToCheckOut)
+			{
+				if (!Package)
+				{
+					continue;
+				}
+				
+				FString Filename;
+				if (FPackageName::DoesPackageExist(Package->GetName(), NULL, &Filename))
+				{
+					if (IFileManager::Get().IsReadOnly(*Filename))
+					{
+						// check if the package is readonly
+						SourceControlCheckPackages.Add(Package);
+					}
+					else
+					{
+						auto SourceControlState = SourceControlProvider.GetState(Package, EStateCacheUsage::Use);
+						if (!SourceControlState)
+						{
+							// check if source control doesn't know about the package
+							SourceControlCheckPackages.Add(Package);
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			SourceControlCheckPackages = PackagesToCheckOut;
+		}
+		
+		if (SourceControlCheckPackages.Num())
+		{
+			// Update the source control status of all potentially relevant packages
+			SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlCheckPackages);
+		}
 	}
 
 	FPackagesDialogModule& CheckoutPackagesDialogModule = FModuleManager::LoadModuleChecked<FPackagesDialogModule>(TEXT("PackagesDialog"));

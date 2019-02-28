@@ -281,6 +281,7 @@ namespace UnrealBuildTool
 		/// Whether this target should be compiled as a DLL.  Requires LinkType to be set to TargetLinkType.Monolithic.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CompileAsDll")]
 		public bool bShouldCompileAsDLL = false;
 		
 		/// <summary>

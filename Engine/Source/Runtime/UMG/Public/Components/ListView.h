@@ -40,6 +40,9 @@ public:
 	{
 		ClearListItems();
 		ListItems.Append(InListItems);
+
+		OnItemsChanged(ListItems, TArray<UObject*>());
+
 		RequestRefresh();
 	}
 
@@ -69,6 +72,10 @@ public:
 	/** Adds an the item to the list */
 	UFUNCTION(BlueprintCallable, Category = ListView)
 	void AddItem(UObject* Item);
+
+	/** Removes an the item from the list */
+	UFUNCTION(BlueprintCallable, Category = ListView)
+	void RemoveItem(UObject* Item);
 
 	/** Returns the item at the given index */
 	UFUNCTION(BlueprintCallable, Category = ListView)
@@ -107,6 +114,8 @@ public:
 	void NavigateToIndex(int32 Index);
 
 protected:
+	virtual void OnItemsChanged(const TArray<UObject*>& AddedItems, const TArray<UObject*>& RemovedItems);
+
 	virtual TSharedRef<STableViewBase> RebuildListWidget() override;
 	virtual void HandleListEntryHovered(UUserWidget& EntryWidget) override;
 	virtual void HandleListEntryUnhovered(UUserWidget& EntryWidget) override;

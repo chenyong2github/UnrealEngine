@@ -227,7 +227,8 @@ public class Helpers {
     static public boolean doesFileExistInternal(Context c, File fileForNewFile, long fileSize,
                                                 boolean deleteFileOnMismatch) {
         if (fileForNewFile.exists()) {
-            if (fileForNewFile.length() == fileSize) {
+			// ignore actual file size if requested filesize is 0 (special case allow any)
+			if ((fileSize==0) || (fileForNewFile.length() == fileSize)) {
                 return true;
             }
             if (deleteFileOnMismatch) {

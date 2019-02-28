@@ -250,6 +250,14 @@ public class SharedCookedBuild
 		{
 			CopySharedCookedBuildForTargetInternal(CookedBuildPath, CookPlatform, LocalPath, bOnlyCopyAssetRegistry);
 		}
+		else if( FindBestSharedCookedBuild(ref CookedBuildPath, ProjectFullPath, TargetPlatform, TargetPlatform.ToString(), BuildCl) )
+		{
+			CopySharedCookedBuildForTargetInternal(CookedBuildPath, TargetPlatform.ToString(), LocalPath, bOnlyCopyAssetRegistry);
+		}
+		else
+		{
+			throw new AutomationException("Can't find cooked build for {0} {1} {2}", BuildCl, CookPlatform, TargetPlatform.ToString());
+		}
 
 		return;
 	}

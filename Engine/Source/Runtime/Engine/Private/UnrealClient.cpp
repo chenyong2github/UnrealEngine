@@ -1539,6 +1539,9 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
+				
+				UGameViewportClient::OnViewportRendered().Broadcast(this);
+				
 				ViewportClient->ProcessScreenShots(this);
 	
 				// Slate doesn't present immediately. Tag the viewport as requiring vsync so that it happens.
