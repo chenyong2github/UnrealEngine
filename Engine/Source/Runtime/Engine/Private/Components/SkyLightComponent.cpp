@@ -474,7 +474,8 @@ void USkyLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkyLightComponent, CubemapResolution) &&
+	if (PropertyChangedEvent.Property && 
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkyLightComponent, CubemapResolution) &&
 		PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		SanitizeCubemapSize();
