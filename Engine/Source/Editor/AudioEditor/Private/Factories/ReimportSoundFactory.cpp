@@ -12,7 +12,6 @@
 UReimportSoundFactory::UReimportSoundFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
 	SupportedClass = USoundWave::StaticClass();
 	Formats.Add(TEXT("wav;Wave audio file"));
 
@@ -114,8 +113,8 @@ EReimportResult::Type UReimportSoundFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
-	// Suppress the import overwrite dialog, we want to keep existing settings when re-importing
-	USoundFactory::SuppressImportOverwriteDialog();
+	// Always suppress dialogs on re-import
+	SuppressImportDialogs();
 
 	bool OutCanceled = false;
 	if (!ImportObject(SoundWave->GetClass(), SoundWave->GetOuter(), *SoundWave->GetName(), RF_Public | RF_Standalone, Filename, nullptr, OutCanceled))

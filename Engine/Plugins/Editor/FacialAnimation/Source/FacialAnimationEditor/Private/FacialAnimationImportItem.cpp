@@ -41,7 +41,7 @@ USoundWave* FFacialAnimationImportItem::ImportSoundWave(const FString& InSoundWa
 
 	// We set the correct options in the constructor, so run the import silently
 	USoundFactory* SoundWaveFactory = NewObject<USoundFactory>();
-	SoundWaveFactory->SuppressImportOverwriteDialog();
+	SoundWaveFactory->SuppressImportDialogs();
 
 	// Perform the actual import
 	USoundWave* const SoundWave = ImportObject<USoundWave>(SoundWavePackage, *InSoundWaveAssetName, RF_Public | RF_Standalone, *InWavFilename, nullptr, SoundWaveFactory);
