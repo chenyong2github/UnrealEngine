@@ -113,7 +113,6 @@ public:
 	FNiagaraSpriteVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel )
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel),
 		LooseParameterUniformBuffer(nullptr),
-		NumVertsInInstanceBuffer(0),
 		NumCutoutVerticesPerFrame(0),
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
@@ -126,7 +125,6 @@ public:
 	FNiagaraSpriteVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num),
 		LooseParameterUniformBuffer(nullptr),
-		NumVertsInInstanceBuffer(0),
 		NumCutoutVerticesPerFrame(0),
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
@@ -153,11 +151,6 @@ public:
 	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
 	
 	void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
-
-	inline void SetNumVertsInInstanceBuffer(int32 InNumVertsInInstanceBuffer)
-	{
-		NumVertsInInstanceBuffer = InNumVertsInInstanceBuffer;
-	}
 	
 	/**
 	 * Set the uniform buffer for this vertex factory.
@@ -242,6 +235,11 @@ public:
 		return AlignmentMode;
 	}
 
+	void SetVertexBufferOverride(const FVertexBuffer* InVertexBufferOverride)
+	{
+		VertexBufferOverride = InVertexBufferOverride;
+	}
+
 	/**
 	 * Construct shader parameters for this type of vertex factory.
 	 */
@@ -255,13 +253,13 @@ protected:
 
 private:
 
-	int32 NumVertsInInstanceBuffer;
+	const FVertexBuffer* VertexBufferOverride = nullptr;
 
 	/** Uniform buffer with sprite parameters. */
-	FUniformBufferRHIParamRef SpriteUniformBuffer;
+	FUniformBufferRHIRef SpriteUniformBuffer;
 
 	int32 NumCutoutVerticesPerFrame;
-	FShaderResourceViewRHIParamRef CutoutGeometrySRV;
+	FShaderResourceViewRHIRef CutoutGeometrySRV;
 	uint32 AlignmentMode;
 	uint32 FacingMode;
 	
