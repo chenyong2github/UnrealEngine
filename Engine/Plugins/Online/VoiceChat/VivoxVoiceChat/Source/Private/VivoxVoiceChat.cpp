@@ -1281,7 +1281,18 @@ void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& Account
 
 void FVivoxVoiceChat::onCallStatsUpdated(const VivoxClientApi::AccountName& AccountName, vx_call_stats_t& Stats, bool bIsFinal)
 {
+	const int TotalPacketsLost = Stats.incoming_packetloss + Stats.incoming_discarded + Stats.incoming_out_of_time;
+	const int TotalPackets = TotalPacketsLost + Stats.incoming_received;
 
+	FVoiceChatCallStats CallStats;
+	CallStats.CallLength = Stats.sample_interval_end - Stats.sample_interval_begin;
+	CallStats.LatencyMinMeasuredSeconds = Stats.min_latency;
+	CallStats.LatencyMaxMeasuredSeconds = Stats.max_latency;
+	CallStats.LatencyAverageMeasuredSeconds = Stats.latency_measurement_count > 0 ? Stats.latency_sum / Stats.latency_measurement_count : 0.0;
+	CallStats.PacketsNumLost = TotalPacketsLost;
+	CallStats.PacketsNumTotal = TotalPackets;
+
+	OnVoiceChatCallStatsUpdatedDelegate.Broadcast(CallStats);
 }
 
 void FVivoxVoiceChat::onParticipantAdded(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::Uri& ParticipantUri, bool bIsLoggedInUser)
