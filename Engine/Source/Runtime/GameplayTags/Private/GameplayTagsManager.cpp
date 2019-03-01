@@ -43,6 +43,7 @@ UGameplayTagsManager::UGameplayTagsManager(const FObjectInitializer& ObjectIniti
 	NetIndexFirstBitSegment = 16;
 	NetIndexTrueBitNum = 16;
 	NumBitsForContainerSize = 6;
+	NetworkGameplayTagNodeIndexHash = 0;
 }
 
 // Enable to turn on detailed startup logging
@@ -478,11 +479,15 @@ void UGameplayTagsManager::ConstructNetIndex()
 
 	UE_CLOG(PrintNetIndiceAssignment, LogGameplayTags, Display, TEXT("Assigning NetIndices to %d tags."), NetworkGameplayTagNodeIndex.Num() );
 
+	NetworkGameplayTagNodeIndexHash = 0;
+
 	for (FGameplayTagNetIndex i = 0; i < NetworkGameplayTagNodeIndex.Num(); i++)
 	{
 		if (NetworkGameplayTagNodeIndex[i].IsValid())
 		{
 			NetworkGameplayTagNodeIndex[i]->NetIndex = i;
+
+			NetworkGameplayTagNodeIndexHash = FCrc::StrCrc32(*NetworkGameplayTagNodeIndex[i]->GetCompleteTagString(), NetworkGameplayTagNodeIndexHash);
 
 			UE_CLOG(PrintNetIndiceAssignment, LogGameplayTags, Display, TEXT("Assigning NetIndex (%d) to Tag (%s)"), i, *NetworkGameplayTagNodeIndex[i]->GetCompleteTag().ToString());
 		}
@@ -491,6 +496,8 @@ void UGameplayTagsManager::ConstructNetIndex()
 			UE_LOG(LogGameplayTags, Warning, TEXT("TagNode Indice %d is invalid!"), i);
 		}
 	}
+
+	UE_LOG(LogGameplayTags, Log, TEXT("NetworkGameplayTagNodeIndexHash is %x"), NetworkGameplayTagNodeIndexHash);
 }
 
 FName UGameplayTagsManager::GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const
