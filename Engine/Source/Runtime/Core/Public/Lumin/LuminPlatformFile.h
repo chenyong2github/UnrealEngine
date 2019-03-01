@@ -75,11 +75,11 @@ protected:
 	bool bIsSandboxEnabled = true;
 
 private:
-	bool FileExistsCaseInsensitive(const FString& NormalizedFilename) const;
-	int64 FileSizeCaseInsensitive(const FString& NormalizedFilename) const;
-	bool IsReadOnlyCaseInsensitive(const FString& NormalizedFilename) const;
-	FDateTime GetTimeStampCaseInsensitive(const FString& NormalizedFilename) const;
-	FDateTime GetAccessTimeStampCaseInsensitive(const FString& NormalizedFilename) const;
-	FFileStatData GetStatDataCaseInsensitive(const FString& NormalizedFilename, bool& bFound) const;
-	bool DirectoryExistsCaseInsensitive(const FString& NormalizedFilename) const;
+	bool FileExistsInternal(const FString& NormalizedFilename) const;
+	int64 FileSizeInterenal(const FString& NormalizedFilename) const;
+	bool IsReadOnlyInternal(const FString& NormalizedFilename) const;
+	FDateTime GetTimeStampInternal(const FString& NormalizedFilename) const;
+	FDateTime GetAccessTimeStampInternal(const FString& NormalizedFilename) const;
+	FFileStatData GetStatDataInternal(const FString& NormalizedFilename, bool& bFound) const;
+	bool DirectoryExistsInternal(const FString& NormalizedFilename) const;
 };
