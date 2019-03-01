@@ -240,9 +240,11 @@ typedef bool(*FPSOMaskComparisonFn)(uint64 ReferenceMask, uint64 PSOMask);
 
 struct FPSOUsageData
 {
-	FPSOUsageData(uint32 InPSOHash, uint64 InUsageMask): PSOHash(InPSOHash), UsageMask(InUsageMask) {}
+	FPSOUsageData(): PSOHash(0), UsageMask(0), EngineFlags(0) {}
+	FPSOUsageData(uint32 InPSOHash, uint64 InUsageMask, uint16 InEngineFlags): PSOHash(InPSOHash), UsageMask(InUsageMask), EngineFlags(InEngineFlags) {}
 	uint32 PSOHash;
 	uint64 UsageMask;
+	uint16 EngineFlags;
 };
 
 class RHI_API FPipelineFileCache
@@ -281,6 +283,12 @@ public:
 	static void CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader const* Initializer);
 	static FPipelineStateStats* RegisterPSOStats(uint32 RunTimeHash);
 	
+	/*
+	 * This PSO has failed compile and is invalid - this cache should not return this invalid PSO from subsequent calls for PreCompile requests.
+	 * Note: Not implementated for Compute that has no flag to say it came from this cache - don't want to consume failures that didn't propagate from this cache.
+	 */
+	static void RegisterPSOCompileFailure(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
+	
 	/**
 	 * Event signature for being notified that a new PSO has been logged
 	 */
@@ -310,13 +318,13 @@ public:
 	
 private:
 	
-	static void EnsurePSOUsageMask(uint32 PSOHash, uint64 UsageMask);
+	static void RegisterPSOUsageDataUpdateForNextSave(FPSOUsageData& UsageData);
 	
 private:
 	static FRWLock FileCacheLock;
 	static class FPipelineCacheFile* FileCache;
-	static TMap<uint32, FPSOUsageData> RunTimeToPSOUsage;
-	static TMap<uint32, uint64> NewPSOUsageMasks;			// Note: this is not only for new PSO's but also for existing PSO's in the filecache when they have a new UsageMask
+	static TMap<uint32, FPSOUsageData> RunTimeToPSOUsage;		// Fast check structure - Not saved (External state cache runtime hash to seen usage data)
+	static TMap<uint32, FPSOUsageData> NewPSOUsage;				// For mask or engine updates - Merged + Saved (Our internal PSO hash to latest usage data) - temp working scratch, only holds updates since last "save" so is not the authority on state
 	static TMap<uint32, FPipelineStateStats*> Stats;
 	static TSet<FPipelineCacheFileFormatPSO> NewPSOs;
     static uint32 NumNewPSOs;
