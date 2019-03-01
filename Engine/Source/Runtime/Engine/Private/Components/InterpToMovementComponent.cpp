@@ -380,6 +380,10 @@ bool UInterpToMovementComponent::CheckStillInWorld()
 	{
 		return false;
 	}
+	if (!bCheckIfStillInWorld)
+	{
+		return true;
+	}
 	if (ActorOwner->GetActorLocation().Z < WorldSettings->KillZ)
 	{
 		UDamageType const* DmgType = WorldSettings->KillZDamageType ? WorldSettings->KillZDamageType->GetDefaultObject<UDamageType>() : GetDefault<UDamageType>();
