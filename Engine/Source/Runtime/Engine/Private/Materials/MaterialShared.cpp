@@ -448,6 +448,7 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 {
 	UniformExpressionSet.Serialize(Ar);
 
+	Ar << UsedSceneTextures;
 	Ar << NumUsedUVScalars;
 	Ar << NumUsedCustomInterpolatorScalars;
 	Ar << EstimatedNumTextureSamplesVS;
@@ -1279,6 +1280,21 @@ int32 FMaterialResource::GetBlendableLocation() const
 bool FMaterialResource::GetBlendableOutputAlpha() const
 {
 	return Material->BlendableOutputAlpha;
+}
+
+bool FMaterialResource::IsStencilTestEnabled() const
+{
+	return GetMaterialDomain() == MD_PostProcess && Material->bEnableStencilTest;
+}
+
+uint32 FMaterialResource::GetStencilRefValue() const
+{
+	return GetMaterialDomain() == MD_PostProcess ? Material->StencilRefValue : 0;
+}
+
+uint32 FMaterialResource::GetStencilCompare() const
+{
+	return GetMaterialDomain() == MD_PostProcess ? uint32(Material->StencilCompare.GetValue()) : 0;
 }
 
 UMaterialInterface* FMaterialResource::GetMaterialInterface() const 
@@ -2530,7 +2546,8 @@ bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 		// Render dithered material as masked if a stencil prepass is not used (UE-50064, UE-49537)
 		&& !((bShadowPass || !bStencilDitheredLOD) && IsDitheredLODTransition())
 		&& !IsWireframe()
-		&& !(bStencilDitheredLOD && IsDitheredLODTransition() && IsUsedWithInstancedStaticMeshes());
+		&& !(bStencilDitheredLOD && IsDitheredLODTransition() && IsUsedWithInstancedStaticMeshes())
+		&& !IsStencilTestEnabled();
 }
 
 #if WITH_EDITOR

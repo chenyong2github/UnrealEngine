@@ -417,6 +417,7 @@ class FMaterialCompilationOutput
 {
 public:
 	FMaterialCompilationOutput() :
+		UsedSceneTextures(0),
 		NumUsedUVScalars(0),
 		NumUsedCustomInterpolatorScalars(0),
 		EstimatedNumTextureSamplesVS(0),
@@ -437,6 +438,9 @@ public:
 	ENGINE_API void Serialize(FArchive& Ar);
 
 	FUniformExpressionSet UniformExpressionSet;
+
+	/** Bitfield of the ESceneTextures used */
+	uint64 UsedSceneTextures;
 
 	/** Number of used custom UV scalars. */
 	uint8 NumUsedUVScalars;
@@ -896,6 +900,7 @@ public:
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
 	void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const { VSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesVS; PSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesPS; }
+	bool UsesSceneTexture(uint32 TexId) const { return MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId); }
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
 	{
@@ -1283,6 +1288,9 @@ public:
 	virtual int32 GetNumCustomizedUVs() const { return 0; }
 	virtual int32 GetBlendableLocation() const { return 0; }
 	virtual bool GetBlendableOutputAlpha() const { return false; }
+	virtual bool IsStencilTestEnabled() const { return false; }
+	virtual uint32 GetStencilRefValue() const { return 0; }
+	virtual uint32 GetStencilCompare() const { return 0; }
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -1953,6 +1961,9 @@ public:
 	ENGINE_API virtual int32 GetNumCustomizedUVs() const override;
 	ENGINE_API virtual int32 GetBlendableLocation() const override;
 	ENGINE_API virtual bool GetBlendableOutputAlpha() const override;
+	ENGINE_API virtual bool IsStencilTestEnabled() const override;
+	ENGINE_API virtual uint32 GetStencilRefValue() const override;
+	ENGINE_API virtual uint32 GetStencilCompare() const override;
 	ENGINE_API virtual float GetRefractionDepthBiasValue() const override;
 	ENGINE_API virtual float GetMaxDisplacement() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
