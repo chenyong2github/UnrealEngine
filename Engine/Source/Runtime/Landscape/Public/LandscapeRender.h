@@ -574,6 +574,10 @@ protected:
 
 	FVector4 WeightmapScaleBias;
 	TArray<UTexture2D*> WeightmapTextures;
+
+	UTexture2D* VisibilityWeightmapTexture;
+	int32 VisibilityWeightmapChannel;
+
 #if WITH_EDITOR
 	TArray<FLinearColor> LayerColors;
 #endif
