@@ -80,6 +80,10 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Behaviour)
 	EInterpToBehaviourType BehaviourType;
 
+	/* Do we want this comp to perform CheckStillInWorld checks? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Behaviour)
+	bool bCheckIfStillInWorld = true;
+
 	/**
 	 * If true, forces sub-stepping to break up movement into discrete smaller steps to improve accuracy of the trajectory.
 	 * Objects that move in a straight line typically do *not* need to set this, as movement always uses continuous collision detection (sweeps) so collision is not missed.
