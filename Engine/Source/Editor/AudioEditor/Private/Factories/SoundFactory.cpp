@@ -512,6 +512,7 @@ UObject* USoundFactory::CreateObject
 	}
 
 	return nullptr;
+}
 
 void USoundFactory::SuppressImportDialogs()
 {
