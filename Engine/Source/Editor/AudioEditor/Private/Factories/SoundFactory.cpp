@@ -512,6 +512,10 @@ UObject* USoundFactory::CreateObject
 	}
 
 	return nullptr;
+
+void USoundFactory::SuppressImportDialogs()
+{
+	SuppressImportDialogOptions = ESuppressImportDialog::Overwrite & ESuppressImportDialog::UseTemplate;
 }
 
 void USoundFactory::UpdateTemplate()
