@@ -76,7 +76,16 @@ public class ApplicationCore : ModuleRules
 			// export ApplicationCore symbols for embedded Dlls
 			ModuleSymbolVisibility = ModuleRules.SymbolVisibility.VisibileForDll;
 		}
-		if (!Target.bCompileAgainstApplicationCore)
+        else if (Target.Platform == UnrealTargetPlatform.Android)
+        {
+            PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Launch"
+				}
+			);
+        }
+
+        if (!Target.bCompileAgainstApplicationCore)
         {
 			throw new System.Exception("ApplicationCore cannot be used when Target.bCompileAgainstApplicationCore = false.");
         }
