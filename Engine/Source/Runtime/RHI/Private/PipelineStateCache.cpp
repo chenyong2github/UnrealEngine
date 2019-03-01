@@ -131,7 +131,12 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	UE_LOG(LogRHI, Error, TEXT("0x%x"), Init.DepthStencilTargetFormat);
 #endif
 	
-	if(!Init.bFromPSOFileCache)
+	if(Init.bFromPSOFileCache)
+	{
+		// Let the cache know so it hopefully won't give out this one again
+		FPipelineFileCache::RegisterPSOCompileFailure(GetTypeHash(Init), Init);
+	}
+	else
 	{
 		UE_LOG(LogRHI, Fatal, TEXT("Shader compilation failures are Fatal."));
 	}
