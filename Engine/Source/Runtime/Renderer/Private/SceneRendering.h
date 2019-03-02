@@ -1062,6 +1062,9 @@ public:
 	/** Get the last valid exposure value for eye adapation. */
 	float GetLastEyeAdaptationExposure() const;
 
+	/** Get the last valid average scene luminange for eye adapation (exposure compensation curve). */
+	float GetLastAverageSceneLuminance() const;
+
 	/** Informs sceneinfo that tonemapping LUT has queued commands to compute it at least once */
 	void SetValidTonemappingLUT() const;
 
@@ -1614,8 +1617,6 @@ protected:
 	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
 	void PreTonemapMSAA(FRHICommandListImmediate& RHICmdList);
 
-	/** Whether GPU particle collisions simulation is allowed. */
-	bool IsGPUParticleCollisionEnabled(const FViewInfo& View);
 	void SortMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
 	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
 

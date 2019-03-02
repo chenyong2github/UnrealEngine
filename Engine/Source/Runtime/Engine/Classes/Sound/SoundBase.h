@@ -36,12 +36,9 @@ public:
 	static USoundClass* DefaultSoundClassObject;
 	static USoundConcurrency* DefaultSoundConcurrencyObject;
 
-protected:
 	/** Sound class this sound belongs to */
-	UPROPERTY(EditAnywhere, Category=Sound, meta=(DisplayName = "Sound Class"), AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category = Sound, meta = (DisplayName = "Sound Class"), AssetRegistrySearchable)
 	USoundClass* SoundClassObject;
-
-public:
 
 	/** When "stat sounds -debug" has been specified, draw this sound's attenuation shape when the sound is audible. For debugging purpose only. */
 	UPROPERTY(EditAnywhere, Category = Debug)

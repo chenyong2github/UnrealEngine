@@ -18,6 +18,13 @@
 	#define MINIMAL_WINDOWS_API extern "C" __declspec(dllimport)
 #endif
 
+// Undefine Windows types that we're going to redefine. This should be done by HideWindowsPlatformTypes.h after including any system headers, 
+// but it's less friction to just undefine them here.
+#pragma push_macro("TRUE")
+#pragma push_macro("FALSE")
+#undef TRUE
+#undef FALSE
+
 // Use strongly typed handles
 #ifndef STRICT
 #define STRICT
@@ -84,6 +91,10 @@ namespace Windows
 	} RTL_SRWLOCK, *PRTL_SRWLOCK;
 
 	typedef RTL_SRWLOCK SRWLOCK, *PSRWLOCK;
+
+	// Constants
+	static const BOOL TRUE = 1;
+	static const BOOL FALSE = 0;
 
 	// Modules
 	MINIMAL_WINDOWS_API HMODULE WINAPI LoadLibraryW(LPCTSTR lpFileName);
@@ -188,3 +199,7 @@ namespace Windows
 		return QueryPerformanceCounter((LPLARGE_INTEGER)Cycles);
 	}
 }
+
+// Restore the definitions for TRUE and FALSE
+#pragma pop_macro("FALSE")
+#pragma pop_macro("TRUE")

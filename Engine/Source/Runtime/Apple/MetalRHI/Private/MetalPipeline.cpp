@@ -537,6 +537,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		
 		ns::Array<mtlpp::RenderPipelineColorAttachmentDescriptor> ColorAttachments = RenderPipelineDesc.GetColorAttachments();
 		
+		uint32 TargetWidth = 0;
         for (uint32 i = 0; i < NumActiveTargets; i++)
         {
             EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
@@ -545,6 +546,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 				UE_LOG(LogMetal, Fatal, TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
                 continue;
             }
+			TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
             
             mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
             uint32 Flags = Init.RenderTargetFlags[i];
@@ -581,6 +583,12 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 				Attachment.SetWriteMask(mtlpp::ColorWriteMask::None);
             }
         }
+		
+		// don't allow a PSO that is too wide
+		if (!GSupportsWideMRT && TargetWidth > 16)
+		{
+			return nil;
+		}
         
         switch(Init.DepthStencilTargetFormat)
         {

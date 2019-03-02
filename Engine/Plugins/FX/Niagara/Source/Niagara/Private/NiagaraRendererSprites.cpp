@@ -7,6 +7,7 @@
 #include "NiagaraStats.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSortingGPU.h"
+#include "NiagaraCutoutVertexBuffer.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generate Sprite Vertex Data [GT]"), STAT_NiagaraGenSpriteVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Sprites [RT]"), STAT_NiagaraRenderSprites, STATGROUP_Niagara);
@@ -60,14 +61,20 @@ NiagaraRendererSprites::NiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLev
 	VertexFactory = new FNiagaraSpriteVertexFactory(NVFT_Sprite, FeatureLevel);
 	Properties = Cast<UNiagaraSpriteRendererProperties>(InProps);
 	BaseExtents = FVector(0.5f, 0.5f, 0.5f);
-}
 
+	if (Properties)
+	{
+		NumCutoutVertexPerSubImage = Properties->GetNumCutoutVertexPerSubimage();
+		CutoutVertexBuffer.Data = Properties->GetCutoutData();
+	}
+}
 
 void NiagaraRendererSprites::ReleaseRenderThreadResources()
 {
 	VertexFactory->ReleaseResource();
 	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 
+	CutoutVertexBuffer.ReleaseResource();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -79,7 +86,7 @@ void NiagaraRendererSprites::ReleaseRenderThreadResources()
 
 void NiagaraRendererSprites::CreateRenderThreadResources()
 {
-	VertexFactory->SetNumVertsInInstanceBuffer(4);
+	CutoutVertexBuffer.InitResource();
 	VertexFactory->InitResource();
 
 #if RHI_RAYTRACING
@@ -250,6 +257,21 @@ void NiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVie
 					PerViewUniformParameters.CustomFacingVectorMask = Properties->CustomFacingVectorMask;
 				}
 
+				// Cutout geometry.
+				const bool bUseSubImage = PerViewUniformParameters.SubImageSize.X != 1 || PerViewUniformParameters.SubImageSize.Y != 1;
+				const bool bUseCutout = CutoutVertexBuffer.VertexBufferRHI.IsValid();
+				if (bUseCutout)
+				{	// Is Accessing Properties safe here? Or should values be cached in the constructor?
+					if (bUseSubImage)
+					{
+						CollectorResources.VertexFactory.SetCutoutParameters(NumCutoutVertexPerSubImage, CutoutVertexBuffer.VertexBufferSRV);
+					}
+					else // Otherwise simply replace the input stream with the single cutout geometry
+					{
+						CollectorResources.VertexFactory.SetVertexBufferOverride(&CutoutVertexBuffer);
+					}
+				}
+
 				//Sort particles if needed.
 				EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(VertexFactory->GetFeatureLevel())->GetBlendMode();
 				CollectorResources.VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
@@ -324,16 +346,14 @@ void NiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				CollectorResources.VertexFactory.SetParticleFactoryType(NVFT_Sprite);
 
-
 				CollectorResources.UniformBuffer = FNiagaraSpriteUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
 
-				CollectorResources.VertexFactory.SetNumVertsInInstanceBuffer(4);
 				CollectorResources.VertexFactory.InitResource();
 				CollectorResources.VertexFactory.SetSpriteUniformBuffer(CollectorResources.UniformBuffer);
 
 				FNiagaraSpriteVFLooseParameters VFLooseParams;
 				VFLooseParams.NumCutoutVerticesPerFrame = CollectorResources.VertexFactory.GetNumCutoutVerticesPerFrame();
-				VFLooseParams.CutoutGeometry = CollectorResources.VertexFactory.GetCutoutGeometrySRV() ? CollectorResources.VertexFactory.GetCutoutGeometrySRV() : GFNiagaraNullSubUVCutoutVertexBuffer.VertexBufferSRV.GetReference();
+				VFLooseParams.CutoutGeometry = CollectorResources.VertexFactory.GetCutoutGeometrySRV() ? CollectorResources.VertexFactory.GetCutoutGeometrySRV() : GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV.GetReference();
 				VFLooseParams.NiagaraParticleDataFloat = CollectorResources.VertexFactory.GetParticleDataFloatSRV();
 				VFLooseParams.NiagaraFloatDataOffset = CollectorResources.VertexFactory.GetFloatDataOffset();
 				VFLooseParams.NiagaraFloatDataStride = CollectorResources.VertexFactory.GetFloatDataStride();
@@ -385,7 +405,13 @@ void NiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVie
 					MeshElement.IndirectArgsBuffer = DynamicDataSprites->DataSet->GetCurDataSetIndices().Buffer;
 					MeshElement.NumPrimitives = 0;
 				}
-				
+
+				if (NumCutoutVertexPerSubImage == 8)
+				{
+					MeshElement.NumPrimitives = 6;
+					MeshElement.IndexBuffer = &GSixTriangleParticleIndexBuffer;
+				}
+
 				Collector.AddMesh(ViewIndex, MeshBatch);				
 			}
 		}

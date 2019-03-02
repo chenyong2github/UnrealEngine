@@ -69,13 +69,6 @@ static TAutoConsoleVariable<int32> CVarMobileMoveSubmissionHintAfterTranslucency
 	TEXT("1: Submission hint occurs after translucency. (Default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMobileDisableGPUParticleCollision(
-	TEXT("r.Mobile.DisableGPUParticleCollision"),
-	1,
-	TEXT("0: Allow GPU particle collision simulation if supported (Default).\n")
-	TEXT("1: Disable GPU particle collision simulation"),
-	ECVF_RenderThreadSafe);
-
 DECLARE_CYCLE_STAT(TEXT("SceneStart"), STAT_CLMM_SceneStart, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneEnd"), STAT_CLMM_SceneEnd, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("InitViews"), STAT_CLMM_InitViews, STATGROUP_CommandListMarkers);
@@ -210,7 +203,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);
+		InitDynamicShadows(RHICmdList);		
 	}
 	else
 	{
@@ -236,7 +229,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(Views[ViewIndex]);
 	}
-	
+
 	// update buffers used in cached mesh path
 	// in case there are multiple views, these buffers will be updated before rendering each view
 	if (Views.Num() > 0)
@@ -254,7 +247,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
-
+	
 	OnStartRender(RHICmdList);
 }
 
@@ -349,7 +342,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	const bool bGammaSpace = !IsMobileHDR();
-
+	
 	// Custom depth
 	if (!bGammaSpace)
 	{
@@ -376,7 +369,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
 	// workaround for corrupted depth on vulkan PC, always store depth
 	bKeepDepthContent|= (IsPCPlatform(ShaderPlatform) && IsVulkanPlatform(ShaderPlatform));
-	
+
 	//
 	FTextureRHIParamRef SceneColor = nullptr;
 	FTextureRHIParamRef SceneColorResolve = nullptr;
@@ -384,7 +377,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
 	bool bMobileMSAA = false;
-
+	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
 		SceneColor = GetMultiViewSceneColor(SceneContext);
@@ -400,12 +393,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneDepth = SceneContext.GetSceneDepthSurface();
 				
 		if (bRequiresTranslucencyPass)
-		{
+		{	
 			// store targets after opaque so trancluceny render pass can be restarted
 			ColorTargetAction = ERenderTargetActions::Clear_Store;
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
-
+						
 		if (bKeepDepthContent)
 		{
 			// store depth if post-processing/capture needs it
@@ -458,19 +451,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RHICmdList.EndRenderPass();
 	}
 	
-	// Notify the FX system that opaque primitives have been rendered.
-	if (Scene->FXSystem && IsGPUParticleCollisionEnabled(Views[0]))
-	{
-		FMobileSceneTextureUniformParameters MobileSceneTextureParameters;
-		SetupMobileSceneTextureUniformParameters(SceneContext, FeatureLevel, true, MobileSceneTextureParameters);
-		TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextureUniformBuffer = TUniformBufferRef<FMobileSceneTextureUniformParameters>::CreateUniformBufferImmediate(MobileSceneTextureParameters, UniformBuffer_SingleFrame);
-
-		// This is switching to another RT!
-		Scene->FXSystem->PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, &FMobileSceneTextureUniformParameters::StaticStructMetadata, MobileSceneTextureUniformBuffer.GetReference());
-	}
-
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Translucency));
-	
+
 	// Restart trancluceny render pass if needed
 	if (bRequiresTranslucencyPass)
 	{
@@ -516,7 +498,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RenderModulatedShadowProjections(RHICmdList);
 		}
 	}
-
+	
 	// Draw translucency.
 	if (ViewFamily.EngineShowFlags.Translucency)
 	{
@@ -536,12 +518,12 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.EndRenderPass();
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
-	
+
 	if (!View.bIsMobileMultiViewDirectEnabled)
 	{
 		CopyMobileMultiViewSceneColor(RHICmdList);
 	}
-	
+
 	if (ViewFamily.bResolveScene)
 	{
 		if (!bGammaSpace)
@@ -1023,13 +1005,4 @@ void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList)
 		TargetSize,
 		*VertexShader,
 		EDRF_UseTriangleOptimization);
-}
-
-bool FMobileSceneRenderer::IsGPUParticleCollisionEnabled(const FViewInfo& View)
-{
-	if (!View.bIsPlanarReflection && ViewFamily.EngineShowFlags.Particles)
-	{
-		return CVarMobileDisableGPUParticleCollision.GetValueOnRenderThread() == 0;
-	}
-	return false;
 }

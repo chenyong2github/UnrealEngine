@@ -67,6 +67,11 @@ public:
 		return BrowserContextSettings;
 	}
 
+	virtual bool ShouldConsumeInput() const override
+	{
+		return bConsumeInput;
+	}
+
 private:
 
 	FLoginFlowViewModelImpl(
@@ -74,12 +79,14 @@ private:
 		const TSharedPtr<FBrowserContextSettings>& InBrowserContextSettings,
 		const FOnLoginFlowRequestClose& InOnRequestClose,
 		const FOnLoginFlowError& InOnError,
-		const FOnLoginFlowRedirectURL& InOnRedirectURL)
+		const FOnLoginFlowRedirectURL& InOnRedirectURL,
+		bool bInConsumeInput)
 		: LoginFlowStartingUrl(InLoginFlowStartingUrl)
 		, BrowserContextSettings(InBrowserContextSettings)
 		, OnRequestClose(InOnRequestClose)
 		, OnError(InOnError)
 		, OnRedirectURL(InOnRedirectURL)
+		, bConsumeInput(bInConsumeInput)
 	{ }
 
 	void Initialize()
@@ -93,6 +100,7 @@ private:
 	const FOnLoginFlowRequestClose OnRequestClose;
 	const FOnLoginFlowError OnError;
 	const FOnLoginFlowRedirectURL OnRedirectURL;
+	bool bConsumeInput;
 
 	friend FLoginFlowViewModelFactory;
 };
@@ -102,7 +110,8 @@ TSharedRef<FLoginFlowViewModel> FLoginFlowViewModelFactory::Create(
 	const TSharedPtr<FBrowserContextSettings>& BrowserContextSettings,
 	const FOnLoginFlowRequestClose& OnRequestClose,
 	const FOnLoginFlowError& OnError,
-	const FOnLoginFlowRedirectURL& OnRedirectURL)
+	const FOnLoginFlowRedirectURL& OnRedirectURL,
+	bool bConsumeInput)
 {
 	TSharedRef< FLoginFlowViewModelImpl > ViewModel = MakeShareable(
 		new FLoginFlowViewModelImpl(
@@ -110,7 +119,8 @@ TSharedRef<FLoginFlowViewModel> FLoginFlowViewModelFactory::Create(
 				BrowserContextSettings,
 				OnRequestClose,
 				OnError,
-				OnRedirectURL));
+				OnRedirectURL,
+				bConsumeInput));
 	ViewModel->Initialize();
 	return ViewModel;
 }

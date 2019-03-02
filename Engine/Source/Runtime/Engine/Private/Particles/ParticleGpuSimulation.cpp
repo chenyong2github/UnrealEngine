@@ -4535,9 +4535,11 @@ void FFXSystem::ReleaseGPUResources()
 
 void FFXSystem::AddGPUSimulation(FParticleSimulationGPU* Simulation)
 {
-	FFXSystem* FXSystem = this;
-	ENQUEUE_RENDER_COMMAND(FAddGPUSimulationCommand)(
-		[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
+	if (!IsPendingKill())
+	{
+		FFXSystem* FXSystem = this;
+		ENQUEUE_RENDER_COMMAND(FAddGPUSimulationCommand)(
+			[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
 		{
 			if (Simulation->SimulationIndex == INDEX_NONE)
 			{
@@ -4547,13 +4549,16 @@ void FFXSystem::AddGPUSimulation(FParticleSimulationGPU* Simulation)
 			}
 			check(FXSystem->GPUSimulations[Simulation->SimulationIndex] == Simulation);
 		});
+	}
 }
 
 void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 {
-	FFXSystem* FXSystem = this;
-	ENQUEUE_RENDER_COMMAND(FRemoveGPUSimulationCommand)(
-		[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
+	if (!IsPendingKill())
+	{
+		FFXSystem* FXSystem = this;
+		ENQUEUE_RENDER_COMMAND(FRemoveGPUSimulationCommand)(
+			[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
 		{
 			if (Simulation->SimulationIndex != INDEX_NONE)
 			{
@@ -4562,6 +4567,7 @@ void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 			}
 			Simulation->SimulationIndex = INDEX_NONE;
 		});
+	}
 }
 
 int32 FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin)
@@ -5103,17 +5109,20 @@ void FFXSystem::UpdateMultiGPUResources(FRHICommandListImmediate& RHICmdList)
 
 void FFXSystem::VisualizeGPUParticles(FCanvas* Canvas)
 {
-	FFXSystem* FXSystem = this;
-	int32 VisualizationMode = FXConsoleVariables::VisualizeGPUSimulation;
-	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
-	ERHIFeatureLevel::Type InFeatureLevel = FeatureLevel;
-	ENQUEUE_RENDER_COMMAND(FVisualizeGPUParticlesCommand)(
-		[FXSystem, VisualizationMode, RenderTarget, InFeatureLevel](FRHICommandList& RHICmdList)
+	if (!IsPendingKill())
 	{
-		FParticleSimulationResources* Resources = FXSystem->GetParticleSimulationResources();
-		FParticleStateTextures& CurrentStateTextures = Resources->GetVisualizeStateTextures();
-		VisualizeGPUSimulation(RHICmdList, InFeatureLevel, VisualizationMode, RenderTarget, CurrentStateTextures, GParticleCurveTexture.GetCurveTexture());
-	});
+		FFXSystem* FXSystem = this;
+		int32 VisualizationMode = FXConsoleVariables::VisualizeGPUSimulation;
+		FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
+		ERHIFeatureLevel::Type InFeatureLevel = FeatureLevel;
+		ENQUEUE_RENDER_COMMAND(FVisualizeGPUParticlesCommand)(
+			[FXSystem, VisualizationMode, RenderTarget, InFeatureLevel](FRHICommandList& RHICmdList)
+		{
+			FParticleSimulationResources* Resources = FXSystem->GetParticleSimulationResources();
+			FParticleStateTextures& CurrentStateTextures = Resources->GetVisualizeStateTextures();
+			VisualizeGPUSimulation(RHICmdList, InFeatureLevel, VisualizationMode, RenderTarget, CurrentStateTextures, GParticleCurveTexture.GetCurveTexture());
+		});
+	}
 }
 
 /*-----------------------------------------------------------------------------

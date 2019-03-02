@@ -254,6 +254,21 @@ public:
 
 	bool OnJsMessageReceived(const FString& Command, const TArray<FString>& Params, const FString& Origin);
 
+	virtual FOnUnhandledKeyDown& OnUnhandledKeyDown() override
+	{
+		return UnhandledKeyDownDelegate;
+	}
+
+	virtual FOnUnhandledKeyUp& OnUnhandledKeyUp() override
+	{
+		return UnhandledKeyUpDelegate;
+	}
+
+	virtual FOnUnhandledKeyChar& OnUnhandledKeyChar() override
+	{
+		return UnhandledKeyCharDelegate;
+	}
+
 	void NotifyUrlChanged(const FString& InCurrentUrl);
 public:
 	/**
@@ -350,6 +365,14 @@ private:
 	FMobileJSScriptingPtr Scripting;
 
 	mutable TOptional<TFunction<void(const FString&)>> GetPageSourceCallback;
+	/** Delegate for handling key down events not handled by the browser. */
+	FOnUnhandledKeyDown UnhandledKeyDownDelegate;
+	
+	/** Delegate for handling key up events not handled by the browser. */
+	FOnUnhandledKeyUp UnhandledKeyUpDelegate;
+	
+	/** Delegate for handling key char events not handled by the browser. */
+	FOnUnhandledKeyChar UnhandledKeyCharDelegate;
 
 	TSharedPtr<SWindow> ParentWindow;
 

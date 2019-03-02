@@ -22,17 +22,20 @@ bool FOnlinePartyData::operator!=(const FOnlinePartyData& Other) const
 	return !operator==(Other);
 }
 
-FOnlineKeyValuePairs<FString, FVariantData> FOnlinePartyData::GetDirtyKeyVaAttrs() const
+void FOnlinePartyData::GetDirtyKeyValAttrs(FOnlineKeyValuePairs<FString, FVariantData>& OutDirtyAttrs, TArray<FString>& OutRemovedAttrs) const
 {
-	FOnlineKeyValuePairs<FString, FVariantData> DirtyKeyValAttrs;
 	for (const FString& PropertyName : DirtyKeys)
 	{
 		const FVariantData* PropertyValue = KeyValAttrs.Find(PropertyName);
-		check(PropertyValue);
-
-		DirtyKeyValAttrs.Emplace(PropertyName, *PropertyValue);
+		if (PropertyValue)
+		{
+			OutDirtyAttrs.Emplace(PropertyName, *PropertyValue);
+		}
+		else
+		{
+			OutRemovedAttrs.Emplace(PropertyName);
+		}
 	}
-	return DirtyKeyValAttrs;
 }
 
 void FOnlinePartyData::ToJsonFull(FString& JsonString) const
@@ -128,6 +131,11 @@ void FOnlinePartyData::FromJson(const FString& JsonString)
 			RevisionCount = NewRevisionCount;
 		}
 	}
+}
+
+FString FPartyInvitationRecipient::ToDebugString() const
+{
+	return FString::Printf(TEXT("Id=[%s], PlatformData=[%s]"), *Id->ToDebugString(), *PlatformData);
 }
 
 bool FPartyConfiguration::operator==(const FPartyConfiguration& Other) const

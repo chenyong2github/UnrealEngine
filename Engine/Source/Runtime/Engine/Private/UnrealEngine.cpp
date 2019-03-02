@@ -2303,6 +2303,7 @@ UEngineCustomTimeStep* InitializeCustomTimeStep(UEngine* InEngine, FSoftClassPat
 */
 void UEngine::InitializeObjectReferences()
 {
+	SCOPED_BOOT_TIMING("UEngine::InitializeObjectReferences");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UEngine::InitializeObjectReferences"), STAT_InitializeObjectReferences, STATGROUP_LoadTime);
 
 	// This initializes the tag data if it hasn't been already, we need to do this before loading any game data
@@ -3323,6 +3324,7 @@ struct FSortedSkeletalMesh
 	int32		ResKBIncMobile;
 	int32		LodCount;
 	int32		MobileMinLOD;
+	int32		MeshDisablesMinLODStripping;
 	int32		VertexCountLod0;
 	int32		VertexCountLod1;
 	int32		VertexCountLod2;
@@ -3332,7 +3334,7 @@ struct FSortedSkeletalMesh
 	FString		Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
-	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InVertexCountLod0, 
+	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InMeshDisablesMinLODStripping, int32 InVertexCountLod0,
 		int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
@@ -3341,6 +3343,7 @@ struct FSortedSkeletalMesh
 		, ResKBIncMobile(InResKBIncMobile)
 		, LodCount(InLodCount)
 		, MobileMinLOD(InMobileMinLOD)
+		, MeshDisablesMinLODStripping(InMeshDisablesMinLODStripping)
 		, VertexCountLod0(InVertexCountLod0)
 		, VertexCountLod1(InVertexCountLod1)
 		, VertexCountLod2(InVertexCountLod2)
@@ -3711,7 +3714,7 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FString ConfigFilePath;
 		if (FParse::Value(Cmd, TEXT("REGENLOC="), ConfigFilePath))
 		{
-			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath, /*bSkipSourceCheck*/false);
+			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath);
 		}
 	}
 #endif
@@ -5211,11 +5214,17 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		int32 LodCount = 0;
 		int32 MobileMinLOD = -1;
-
+		int32 MeshDisablesMinLODStripping = 0;
 #if WITH_EDITORONLY_DATA
 		if (Mesh->MinLod.PerPlatform.Find(("Mobile")) != nullptr)
 		{
 			MobileMinLOD = *Mesh->MinLod.PerPlatform.Find(("Mobile"));
+		}
+
+		MeshDisablesMinLODStripping = Mesh->DisableBelowMinLodStripping.Default ? 1 : 0;
+		if (Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) != nullptr)
+		{
+			MeshDisablesMinLODStripping = *Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) ? 1 : 0;
 		}
 #endif
 
@@ -5237,7 +5246,7 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			for(int32 i = 0; i < LodCount; i++)
 			{
 				VertexCountTotal += LodRenderData[i].GetNumVertices();
-				VertexCountTotalMobile += i >= MobileMinLOD ? LodRenderData[i].GetNumVertices() : 0;
+				VertexCountTotalMobile += i >= MobileMinLOD || MeshDisablesMinLODStripping == 1 ? LodRenderData[i].GetNumVertices() : 0;
 			}
 		}
 
@@ -5263,6 +5272,7 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			ResKBIncMobile,
 			LodCount,
 			MobileMinLOD,
+			MeshDisablesMinLODStripping,
 			VertexCountLod0,
 			VertexCountLod1,
 			VertexCountLod2,
@@ -5286,11 +5296,11 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 	if (bCSV)
 	{
-		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
+		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
 	}
 	else
 	{
-		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
+		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex<SortedMeshes.Num(); MeshIndex++)
@@ -5299,15 +5309,15 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		if (bCSV)
 		{
-			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
 		else
 		{
-			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %10i %11i %11i %12i %17i %10i  %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %10i %11i %11i %12i %17i %10i  %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
@@ -10182,10 +10192,10 @@ void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 #if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
 	// Set the FrameDebugInfo on platforms that have accurate frame tracking.
 	ENQUEUE_RENDER_COMMAND(FrameDebugInfo)(
-		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandList&)
+		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandListImmediate& RHICmdList)
 	{
-		GRHICommandList.GetImmediateCommandList().EnqueueLambda(
-			[CurrentFrameCounter, CurrentInputTime](FRHICommandList&)
+		RHICmdList.EnqueueLambda(
+			[CurrentFrameCounter, CurrentInputTime](FRHICommandListImmediate&)
 		{
 			// Set the FrameCount and InputTime for input latency stats and flip debugging.
 			RHISetFrameDebugInfo(GRHIPresentCounter - 1, CurrentFrameCounter - 1, CurrentInputTime);

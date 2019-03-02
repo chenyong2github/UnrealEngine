@@ -163,6 +163,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 ,	LastNotifiedPacketId( -1 )
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
+,	bConnectionPendingCloseDueToSocketSendFailure(false)
 {
 	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
 	// The allocations could *probably* be moved somewhere else (like InitBase), but that
@@ -2619,6 +2620,15 @@ void UNetConnection::Tick()
 		OutPackets = 0;
 	}
 
+	if (bConnectionPendingCloseDueToSocketSendFailure)
+	{
+		Close();
+		bConnectionPendingCloseDueToSocketSendFailure = false;
+
+		// early out
+		return;
+	}
+
 	// Compute time passed since last update.
 	const float DeltaTime	= Driver->Time - LastTickTime;
 	LastTickTime			= Driver->Time;
@@ -3296,6 +3306,12 @@ void UNetConnection::CleanupStaleDormantReplicators()
 			It.RemoveCurrent();
 		}
 	}
+}
+
+
+void UNetConnection::SetPendingCloseDueToSocketSendFailure()
+{
+	bConnectionPendingCloseDueToSocketSendFailure = true;
 }
 
 /*-----------------------------------------------------------------------------

@@ -3948,10 +3948,6 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	}
 #endif
 
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-	UberGraphFramePointerProperty = NULL;
-#endif//USE_UBER_GRAPH_PERSISTENT_FRAME
-
 	ClassDefaultObject = NULL;
 
 	Interfaces.Empty();
@@ -4032,9 +4028,6 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin( UObject::StaticClass() )
 ,	ClassGeneratedBy(nullptr)
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-,	UberGraphFramePointerProperty(nullptr)
-#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
 ,	ClassDefaultObject(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
@@ -4053,9 +4046,6 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin(UObject::StaticClass())
 ,	ClassGeneratedBy(nullptr)
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-,	UberGraphFramePointerProperty(nullptr)
-#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
 ,	ClassDefaultObject(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
@@ -4369,6 +4359,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 
 void UClass::AssembleReferenceTokenStreams()
 {
+	SCOPED_BOOT_TIMING("AssembleReferenceTokenStreams (can be optimized)");
 	// Iterate over all class objects and force the default objects to be created. Additionally also
 	// assembles the token reference stream at this point. This is required for class objects that are
 	// not taken into account for garbage collection but have instances that are.

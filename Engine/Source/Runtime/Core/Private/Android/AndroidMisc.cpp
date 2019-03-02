@@ -90,8 +90,13 @@ int32 FAndroidMisc::AndroidBuildVersion = 0;
 // Whether or not the system handles the volume buttons (event will still be generated either way)
 bool FAndroidMisc::VolumeButtonsHandledBySystem = true;
 
+// Whether an app restart is needed to free driver allocated memory after precompiling PSOs
+bool FAndroidMisc::bNeedsRestartAfterPSOPrecompile = false;
+
 // Key/Value pair variables from the optional configuration.txt
 TMap<FString, FString> FAndroidMisc::ConfigRulesVariables;
+
+EDeviceScreenOrientation FAndroidMisc::DeviceOrientation = EDeviceScreenOrientation::Unknown;
 
 extern void AndroidThunkCpp_ForceQuit();
 
@@ -271,7 +276,7 @@ void InitializeJavaEventReceivers()
 
 		for (auto& JavaEventReceiver : JavaEventReceivers)
 		{
-			JavaEventReceiver.Clazz = AndroidJavaEnv::FindJavaClass(JavaEventReceiver.ClazzName);
+			JavaEventReceiver.Clazz = AndroidJavaEnv::FindJavaClassGlobalRef(JavaEventReceiver.ClazzName);
 			if (JavaEventReceiver.Clazz == nullptr)
 			{
 				UE_LOG(LogAndroid, Error, TEXT("Can't find class for %s"), ANSI_TO_TCHAR(JavaEventReceiver.ClazzName));
@@ -1190,7 +1195,7 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (nullptr != JEnv)
 		{
-			jclass Class = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/GameActivity");
+			jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
 			if (nullptr != Class)
 			{
 				jfieldID Field = JEnv->GetStaticFieldID(Class, "ANDROID_BUILD_VERSION", "I");
@@ -1198,7 +1203,7 @@ int32 FAndroidMisc::GetAndroidBuildVersion()
 				{
 					AndroidBuildVersion = JEnv->GetStaticIntField(Class, Field);
 				}
-				JEnv->DeleteLocalRef(Class);
+				JEnv->DeleteGlobalRef(Class);
 			}
 		}
 	}
@@ -1809,16 +1814,10 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetConfigRulesVariable
 	int32 Index = 0;
 	while (Index < Count)
 	{
-		jstring javaKey = (jstring)(jenv->GetObjectArrayElement(KeyValuePairs, Index++));
-		jstring javaValue = (jstring)(jenv->GetObjectArrayElement(KeyValuePairs, Index++));
-
-		const char *nativeKey = jenv->GetStringUTFChars(javaKey, 0);
-		const char *nativeValue = jenv->GetStringUTFChars(javaValue, 0);
-
-		FAndroidMisc::ConfigRulesVariables.Add(FString(nativeKey), FString(nativeValue));
-
-		jenv->ReleaseStringUTFChars(javaKey, nativeKey);
-		jenv->ReleaseStringUTFChars(javaValue, nativeValue);
+		auto javaKey = FJavaHelper::FStringFromLocalRef(jenv, (jstring)(jenv->GetObjectArrayElement(KeyValuePairs, Index++)));
+		auto javaValue = FJavaHelper::FStringFromLocalRef(jenv, (jstring)(jenv->GetObjectArrayElement(KeyValuePairs, Index++)));
+		
+		FAndroidMisc::ConfigRulesVariables.Add(javaKey, javaValue);
 	}
 }
 

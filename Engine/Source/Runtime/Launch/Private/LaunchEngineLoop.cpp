@@ -164,6 +164,8 @@
 #endif
 #endif  //WITH_ENGINE
 
+#include "Misc/EmbeddedCommunication.h"
+
 class FSlateRenderer;
 class SViewport;
 class IPlatformFile;
@@ -217,6 +219,14 @@ class FFeedbackContext;
 #define REAPPLY_INI_SETTINGS_AFTER_EARLY_LOADING_SCREEN 0
 #endif
 
+#ifndef MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN
+#define MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN 1
+#endif
+
+#ifndef OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN
+#define OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN 1
+#endif
+
 #if WITH_ENGINE
 	CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 #endif
@@ -248,6 +258,12 @@ static FAutoConsoleTaskPriority CPrio_AsyncEndOfFrameGameTasks(
 	ENamedThreads::NormalTaskPriority,
 	ENamedThreads::HighTaskPriority
 	);
+
+static TAutoConsoleVariable<float> CVarSecondsBeforeEmbeddedAppSleeps(
+	TEXT("tick.SecondsBeforeEmbeddedAppSleeps"),
+	1,
+	TEXT("When built as embedded, how many ticks to perform before sleeping")
+);
 
 /** Task that executes concurrently with Slate when tick.DoAsyncEndOfFrameTasks is true. */
 class FExecuteConcurrentWithSlateTickTask
@@ -1042,6 +1058,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	FWindowsPlatformMisc::SetGracefulTerminationHandler();
 #endif // PLATFORM_WINDOWS
 
+#if BUILD_EMBEDDED_APP
+	FEmbeddedCommunication::Init();
+	FEmbeddedCommunication::KeepAwake(TEXT("Startup"), false);
+#endif
+
 	FMemory::SetupTLSCachesOnCurrentThread();
 
 	// Set the flag for whether we've build DebugGame instead of Development. The engine does not know this (whereas the launch module does) because it is always built in development.
@@ -1705,6 +1726,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 	}
 
+	FEmbeddedCommunication::ForceTick(1);
+
 #if WITH_ENGINE
 	{
 		SCOPED_BOOT_TIMING("System settings and cvar init");
@@ -1794,6 +1817,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	FMessageDialog::Open(EAppMsgType::Ok, *NSLOCTEXT("Engine", "Error_PureVirtualsEnabled", "The game cannot run with CHECK_PUREVIRTUALS enabled.  Please disable CHECK_PUREVIRTUALS and rebuild the executable.").ToString());
 	FPlatformMisc::RequestExit(false);
 #endif
+
+	FEmbeddedCommunication::ForceTick(2);
 
 #if WITH_ENGINE
 	// allow for game explorer processing (including parental controls) and firewalls installation
@@ -2009,6 +2034,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		FInternationalization::Get().LoadAllCultureData();
 	}
 
+	FEmbeddedCommunication::ForceTick(3);
+
 	FScopedSlowTask SlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
 
 	SlowTask.EnterProgressFrame(10);
@@ -2153,6 +2180,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 #endif
 
+		FEmbeddedCommunication::ForceTick(4);
+
 #if !UE_SERVER// && !UE_EDITOR
 		if(!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
@@ -2262,15 +2291,29 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
             {
 				SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen");
 
-                // hide splash screen now before playing any movies
-                FPlatformMisc::PlatformHandleSplashScreen(false);
-
                 if (FPreLoadScreenManager::Get())
                 {
-                    //initialize and play our first Early PreLoad Screen if one is setup
+					SCOPED_BOOT_TIMING("PlayFirstPreLoadScreen - FPreLoadScreenManager::Get()->Initialize");
+                    // initialize and play our first Early PreLoad Screen if one is setup
                     FPreLoadScreenManager::Get()->Initialize(SlateRenderer.Get());
-                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
+
+					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
+					{
+						// disable the splash before playing the early startup screen
+						FPlatformMisc::PlatformHandleSplashScreen(false);
+	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
+	                }
+					else
+					{
+						// no early startup screen, show the splash screen
+						FPlatformMisc::PlatformHandleSplashScreen(true);
+					}
                 }
+				else
+				{
+					// no preload manager, show the splash screen
+					FPlatformMisc::PlatformHandleSplashScreen(true);
+				}
             }
 		}
 		else if ( IsRunningCommandlet() )
@@ -2283,7 +2326,9 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		{
 			SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterLoadScreen");
 
-			if (FCoreDelegates::OnMountAllPakFiles.IsBound() )
+			// This can be deleted after ForInstallBundleManager is in Engine
+			const bool bMountPaks = MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN;
+			if (bMountPaks && FCoreDelegates::OnMountAllPakFiles.IsBound() )
 			{
 #if 1
 				FString InstalledGameContentDir = FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("InstalledContent"), FApp::GetProjectName(), TEXT("Content"), TEXT("Paks"));
@@ -2314,19 +2359,20 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 			// Open the game library which contains the material shaders.
 			FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
-			if (FPaths::HasProjectPersistentDownloadDir())
+			for (const FString& RootDir : FPlatformMisc::GetAdditionalRootDirectories())
 			{
-				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("InstalledContent"), FApp::GetProjectName(), TEXT("Content")));
+				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(RootDir, FApp::GetProjectName(), TEXT("Content")));
 			}
 
-			// Now our shader code main library is opened, kick off the precompile.
-			FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
+			const bool bOpenPSOCache = OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN;
+			if (bOpenPSOCache)
+			{
+				// Now our shader code main library is opened, kick off the precompile.
+				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
+			}
 		}
 		
-		{
-			SCOPED_BOOT_TIMING("InitGameTextLocalization");
-			InitGameTextLocalization();
-		}
+		InitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
 
@@ -2336,19 +2382,18 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		SlowTask.EnterProgressFrame(5);
 
-#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
-		{
-			SCOPED_BOOT_TIMING("LoadModule AssetRegistry");
-			// If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
-			FModuleManager::Get().LoadModule("AssetRegistry");
-		}
+#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME && !USE_PER_MODULE_UOBJECT_BOOTSTRAP
+		// If we don't do this now and the async loading thread is active, then we will attempt to load this module from a thread
+		FModuleManager::Get().LoadModule("AssetRegistry");
 #endif
 
+		FEmbeddedCommunication::ForceTick(5);
+
 		// Make sure all UObject classes are registered and default properties have been initialized
-		{
-			SCOPED_BOOT_TIMING("ProcessNewlyLoadedUObjects");
-			ProcessNewlyLoadedUObjects();
-		}
+		ProcessNewlyLoadedUObjects();
+
+		FEmbeddedCommunication::ForceTick(6);
+
 #if WITH_EDITOR
 		if(FPIEPreviewDeviceModule::IsRequestingPreviewDevice())
 		{
@@ -2388,6 +2433,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
+
+	FEmbeddedCommunication::ForceTick(7);
 
 	// Setup GC optimizations
 	if (bDisableDisregardForGC)
@@ -2823,6 +2870,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		return 1;
 	}
 
+	FEmbeddedCommunication::ForceTick(8);
+
 	FString MatineeName;
 
 	if(FParse::Param(FCommandLine::Get(),TEXT("DUMPMOVIE")) || FParse::Value(FCommandLine::Get(), TEXT("-MATINEESSCAPTURE="), MatineeName))
@@ -2899,6 +2948,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		FAutomationTestFramework::Get().RunSmokeTests();
 	}
 
+	FEmbeddedCommunication::ForceTick(9);
+
 	// Note we still have 20% remaining on the slow task: this will be used by the Editor/Engine initialization next
 	return 0;
 }
@@ -2908,6 +2959,9 @@ bool FEngineLoop::LoadCoreModules()
 {
 	// Always attempt to load CoreUObject. It requires additional pre-init which is called from its module's StartupModule method.
 #if WITH_COREUOBJECT
+#if USE_PER_MODULE_UOBJECT_BOOTSTRAP // otherwise do it later
+	FModuleManager::Get().OnProcessLoadedObjectsCallback().AddStatic(ProcessNewlyLoadedUObjects);
+#endif
 	return FModuleManager::Get().LoadModule(TEXT("CoreUObject")) != nullptr;
 #else
 	return true;
@@ -3192,11 +3246,14 @@ void GameLoopIsStarved()
 int32 FEngineLoop::Init()
 {
 	LLM_SCOPE(ELLMTag::EngineInitMemory);
+	SCOPED_BOOT_TIMING("FEngineLoop::Init");
 
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FEngineLoop::Init" ), STAT_FEngineLoop_Init, STATGROUP_LoadTime );
 
 	FScopedSlowTask SlowTask(100);
 	SlowTask.EnterProgressFrame(10);
+
+	FEmbeddedCommunication::ForceTick(10);
 
 	// Figure out which UEngine variant to use.
 	UClass* EngineClass = nullptr;
@@ -3230,6 +3287,8 @@ int32 FEngineLoop::Init()
 #endif
 	}
 
+	FEmbeddedCommunication::ForceTick(11);
+
 	check( GEngine );
 
 	GetMoviePlayer()->PassLoadingScreenWindowBackToGame();
@@ -3243,6 +3302,8 @@ int32 FEngineLoop::Init()
 		SCOPED_BOOT_TIMING("GEngine->ParseCommandline()");
 		GEngine->ParseCommandline();
 	}
+
+	FEmbeddedCommunication::ForceTick(12);
 
 	{
 		SCOPED_BOOT_TIMING("InitTime");
@@ -3296,6 +3357,8 @@ int32 FEngineLoop::Init()
 		GEngine->Start();
 	}
 
+	FEmbeddedCommunication::ForceTick(13);
+
     if (FPreLoadScreenManager::Get() && FPreLoadScreenManager::Get()->HasActivePreLoadScreenType(EPreLoadScreenTypes::EngineLoadingScreen))
     {
 		SCOPED_BOOT_TIMING("WaitForEngineLoadingScreenToFinish");
@@ -3317,6 +3380,8 @@ int32 FEngineLoop::Init()
 		MediaModule->SetTimeSource(MakeShareable(new FAppMediaTimeSource));
 	}
 #endif
+
+	FEmbeddedCommunication::ForceTick(14);
 
 	// initialize automation worker
 #if WITH_AUTOMATION_WORKER
@@ -3347,6 +3412,8 @@ int32 FEngineLoop::Init()
 		FViewport::SetGameRenderingEnabled(true, 3);
 	}
 
+	FEmbeddedCommunication::ForceTick(15);
+
 	FCoreDelegates::StarvedGameLoop.BindStatic(&GameLoopIsStarved);
 
 	// Ready to measure thread heartbeat
@@ -3360,6 +3427,12 @@ int32 FEngineLoop::Init()
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnFEngineLoopInitComplete.Broadcast()");
 		FCoreDelegates::OnFEngineLoopInitComplete.Broadcast();
 	}
+
+#if BUILD_EMBEDDED_APP
+	FEmbeddedCommunication::AllowSleep(TEXT("Startup"));
+	FEmbeddedCommunication::KeepAwake(TEXT("FirstTicks"), true);
+#endif
+
 	return 0;
 }
 
@@ -3539,7 +3612,17 @@ bool FEngineLoop::ShouldUseIdleMode() const
 		&& !FPlatformApplicationMisc::IsThisApplicationForeground())
 	{
 		bIdleMode = true;
+	}
+	
+#if BUILD_EMBEDDED_APP
+	if (FEmbeddedCommunication::IsAwakeForTicking() == false)
+	{
+		bIdleMode = true;
+	}
+#endif
 
+	if (bIdleMode)
+	{
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			if (!Context.World()->AreAlwaysLoadedLevelsLoaded())
@@ -3721,8 +3804,15 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList)
 #endif // !UE_BUILD_SHIPPING 
 }
 
+#if BUILD_EMBEDDED_APP
+#include "Misc/EmbeddedCommunication.h"
+#endif
+
 void FEngineLoop::Tick()
 {
+    // make sure to catch any FMemStack uses outside of UWorld::Tick
+    FMemMark MemStackMark(FMemStack::Get());
+
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && MALLOC_GT_HOOKS
 	FScopedSampleMallocChurn ChurnTracker;
 #endif
@@ -4197,6 +4287,16 @@ void FEngineLoop::Tick()
 		SET_DWORD_STAT(STAT_Hash_NumObjects, GUObjectArray.GetObjectArrayNumMinusAvailable());
 #endif
 	}
+
+#if BUILD_EMBEDDED_APP
+	static double LastSleepTime = FPlatformTime::Seconds();
+	double TimeNow = FPlatformTime::Seconds();
+	if (LastSleepTime - TimeNow >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
+	{
+		LastSleepTime = TimeNow;
+		FEmbeddedCommunication::AllowSleep(TEXT("FirstTicks"));
+	}
+#endif
 }
 
 
@@ -4541,6 +4641,8 @@ bool FEngineLoop::AppInit( )
 			}
 		}
 
+		FEmbeddedCommunication::ForceTick(16);
+		
 		if(bNeedCompile)
 		{
 			// Try to compile it
@@ -4592,6 +4694,8 @@ bool FEngineLoop::AppInit( )
 	{
 		IPluginManager::Get().GetLocalizationPathsForEnabledPlugins(OutLocResPaths);
 	});
+
+	FEmbeddedCommunication::ForceTick(17);
 
 	PreInitHMDDevice();
 
@@ -4690,11 +4794,16 @@ bool FEngineLoop::AppInit( )
 	bForceSmokeTests |= FParse::Param(FCommandLine::Get(), TEXT("bForceSmokeTests"));
 	FAutomationTestFramework::Get().SetForceSmokeTests(bForceSmokeTests);
 
+	FEmbeddedCommunication::ForceTick(18);
+
 	// Init other systems.
 	{
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
 		FCoreDelegates::OnInit.Broadcast();
 	}
+
+	FEmbeddedCommunication::ForceTick(19);
+
 	return true;
 }
 

@@ -61,6 +61,7 @@ public:
 
 public:
 	FJavaAndroidCameraPlayer(bool swizzlePixels, bool vulkanRenderer);
+	virtual ~FJavaAndroidCameraPlayer();
 	int32 GetDuration();
 	bool IsActive();
 	void Reset();

@@ -548,7 +548,5 @@ namespace Audio
 		int32 MaxChannelsSupportedBySpatializationPlugin;
 
 		friend class FMixerSourceVoice;
-		// Set to true when the audio source manager should pump the command queue
-		FThreadSafeBool bPumpQueue;
 	};
 }

@@ -72,6 +72,14 @@ FAutoConsoleVariableRef CVarForceRealtimeDecompression(
 	TEXT("0: Allow full decompression on load, 1: force realtime decompression."),
 	ECVF_Default);
 
+static int32 DisableAutomaticPrecacheCvar = 0;
+FAutoConsoleVariableRef CVarDisableAutomaticPrecache(
+	TEXT("au.DisableAutomaticPrecache"),
+	DisableAutomaticPrecacheCvar,
+	TEXT("When set to 1, this disables precaching on load or startup, it will only precache synchronously when playing.\n")
+	TEXT("0: Use normal precaching logic, 1: disables all precaching except for synchronous calls."),
+	ECVF_Default);
+
 static float DecompressionThresholdCvar = 0.0f;
 FAutoConsoleVariableRef CVarDecompressionThreshold(
 	TEXT("au.DecompressionThreshold"),
@@ -267,6 +275,8 @@ FAudioQualitySettings FAudioDevice::GetQualityLevelSettings()
 
 bool FAudioDevice::Init(int32 InMaxChannels)
 {
+	SCOPED_BOOT_TIMING("FAudioDevice::Init");
+
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (bIsInitialized)
@@ -295,11 +305,6 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 
 	// If this is true, skip the initial startup precache so we can do it later in the flow
 	GConfig->GetBool(TEXT("Audio"), TEXT("DeferStartupPrecache"), bDeferStartupPrecache, GEngineIni);
-
-	// Hack: Make sure that Android defers startup sounds.
-#if PLATFORM_ANDROID
-	bDeferStartupPrecache = true;
-#endif
 
 	// Get an optional engine ini setting for platform headroom.
 	float Headroom = 0.0f; // in dB
@@ -457,7 +462,7 @@ float FAudioDevice::GetLowPassFilterResonance() const
 void FAudioDevice::PrecacheStartupSounds()
 {
 	// Iterate over all already loaded sounds and precache them. This relies on Super::Init in derived classes to be called last.
-	if (!GIsEditor && GEngine && GEngine->UseSound() )
+	if (!GIsEditor && GEngine && GEngine->UseSound() && DisableAutomaticPrecacheCvar == 0)
 	{
 		for (TObjectIterator<USoundWave> It; It; ++It)
 		{
@@ -5114,6 +5119,12 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 
 	if (!bSynchronous && SoundWave->GetPrecacheState() == ESoundWavePrecacheState::NotStarted)
 	{
+		if (!bForceFullDecompression && DisableAutomaticPrecacheCvar == 1)
+		{
+			// Don't schedule a precache for a normal async request because it is currently disabled
+			return;
+		}
+
 		if (IsInGameThread())
 		{
 			// On the game thread, add this sound wave to the referenced sound wave nodes so that it doesn't get GC'd

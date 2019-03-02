@@ -109,7 +109,7 @@ public:
 		if (NewAttrValue != AttrValue)
 		{
 			NewAttrValue = AttrValue;
-			DirtyKeys.Add(AttrName);
+			DirtyKeys.Emplace(AttrName);
 		}
 	}
 
@@ -126,6 +126,32 @@ public:
 		{
 			NewAttrValue = MoveTemp(AttrValue);
 			DirtyKeys.Emplace(MoveTemp(AttrName));
+		}
+	}
+
+	/**
+	 * Remove an attribute from the party data
+	 *
+	 * @param AttrName - key for the attribute
+	 */
+	void RemoveAttribute(FString&& AttrName)
+	{
+		if (KeyValAttrs.Remove(AttrName) > 0)
+		{
+			DirtyKeys.Emplace(MoveTemp(AttrName));
+		}
+	}
+
+	/**
+	 * Remove an attribute from the party data
+	 *
+	 * @param AttrName - key for the attribute
+	 */
+	void RemoveAttribute(const FString& AttrName)
+	{
+		if (KeyValAttrs.Remove(AttrName) > 0)
+		{
+			DirtyKeys.Emplace(AttrName);
 		}
 	}
 
@@ -150,11 +176,12 @@ public:
 	}
 
 	/**
-	 * Get the dirty key-value attributes
+	 * Get the dirty and removed key-value attributes
 	 *
-	 * @return the dirty key-value attributes
+	 * @param OutDirtyAttrs the dirty attributes
+	 * @param OutRemovedAttrs the removed attributes
 	 */
-	FOnlineKeyValuePairs<FString, FVariantData> GetDirtyKeyVaAttrs() const;
+	void GetDirtyKeyValAttrs(FOnlineKeyValuePairs<FString, FVariantData>& OutDirtyAttrs, TArray<FString>& OutRemovedAttrs) const;
 
 	/**
 	 * Clear the attributes map
@@ -491,19 +518,26 @@ enum class EMemberExitedReason
 	Kicked
 };
 
+/** Recipient information for SendInvitation */
 struct FPartyInvitationRecipient
 {
+	/** Constructor */
 	FPartyInvitationRecipient(const TSharedRef<const FUniqueNetId>& InId)
 		: Id(InId)
-		{}
+	{}
 
+	/** Constructor */
 	FPartyInvitationRecipient(const FUniqueNetId& InId)
 		: Id(InId.AsShared())
 	{}
 
-
+	/** Id of the user to send the invitation to */
 	TSharedRef<const FUniqueNetId> Id;
+	/** Additional data to provide context for the invitee */
 	FString PlatformData;
+
+	/** Get a string representation suitable for logging */
+	FString ONLINESUBSYSTEM_API ToDebugString() const;
 };
 
 
@@ -2171,6 +2205,25 @@ inline FString ToDebugString(const IOnlinePartyJoinInfo& JoinInfo)
 }
 
 /**
+ * Dump key/value pairs for debugging
+ */
+inline FString ToDebugString(const FOnlineKeyValuePairs<FString, FVariantData>& KeyValAttrs)
+{
+	FString Result;
+	bool bPrintedAny = false;
+	for (const TPair<FString, FVariantData>& Iterator : KeyValAttrs)
+	{
+		if (bPrintedAny)
+		{
+			Result += TEXT(",");
+		}
+		Result += FString::Printf(TEXT("[%s=%s]"), *Iterator.Key, *Iterator.Value.ToString());
+		bPrintedAny = true;
+	}
+	return Result;
+}
+
+/**
 * Dump state about the party data for debugging
 */
 inline FString ToDebugString(const FOnlinePartyData& PartyData)
@@ -2180,14 +2233,11 @@ inline FString ToDebugString(const FOnlinePartyData& PartyData)
 	int32 TotalBytesPerSec = PartyData.TotalPackets ? (PartyData.TotalBytes / PartyData.TotalPackets) : 0;
 	int32 TotalEffectiveBytesPerSec = PartyData.TotalPackets ? (PartyData.TotalEffectiveBytes / PartyData.TotalPackets) : 0;
 
-	Result += FString::Printf(TEXT("%dB [%d B/pkt], %dB [%d B/pkt], Rev: %d"), 
+	Result += FString::Printf(TEXT("%dB [%d B/pkt], %dB [%d B/pkt], Rev: %d,"), 
 		PartyData.TotalBytes, TotalBytesPerSec,
 		PartyData.TotalEffectiveBytes, TotalEffectiveBytesPerSec, 
 		PartyData.RevisionCount);
 
-	for (auto Iterator : PartyData.GetKeyValAttrs())
-	{
-		Result += FString::Printf(TEXT(",[%s=%s]"), *(Iterator.Key), *(Iterator.Value.ToString()));
-	}
+	Result += ToDebugString(PartyData.GetKeyValAttrs());
 	return Result;
 }

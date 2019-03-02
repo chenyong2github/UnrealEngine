@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
 #include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
@@ -851,6 +852,19 @@ public:
 	/** If this is enabled, the blendable will output alpha */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Output Alpha"))
 	bool BlendableOutputAlpha;
+
+	/** 
+	 * Selectively execute post process material only for pixels that pass the stencil test against the Custom Depth/Stencil buffer. 
+	 * Pixels that fail the stencil test are filled with the previous post process material output or scene color.
+	 */
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay)
+	uint8 bEnableStencilTest : 1;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	TEnumAsByte<EMaterialStencilCompare> StencilCompare;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	uint8 StencilRefValue = 0;
 
 	/** Controls how the Refraction input is interpreted and how the refraction offset into scene color is computed for this material. */
 	UPROPERTY(EditAnywhere, Category=Refraction)

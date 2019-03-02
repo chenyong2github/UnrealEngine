@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"InputCore",
-					"Engine",
+					"Engine"
                 }
 			);
 		}

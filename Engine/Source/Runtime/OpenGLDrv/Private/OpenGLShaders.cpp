@@ -4535,12 +4535,15 @@ void FOpenGLProgramBinaryCache::OnShaderPipelineCachePrecompilationComplete(uint
 	{
 		CloseWriteHandle();
 
-#if PLATFORM_ANDROID && USE_ANDROID_JNI
+#if PLATFORM_ANDROID
+		FAndroidMisc::bNeedsRestartAfterPSOPrecompile = true;
 		if (CVarRestartAndroidAfterPrecompile.GetValueOnAnyThread() == 1)
 		{
-			extern void AndroidThunkCpp_RestartApplication();
-			AndroidThunkCpp_RestartApplication();
-	}
+#if USE_ANDROID_JNI
+			extern void AndroidThunkCpp_RestartApplication(const FString& IntentString);
+			AndroidThunkCpp_RestartApplication(TEXT(""));
+#endif
+		}
 #endif
 		OpenAsyncReadHandle();
 		BinaryFileState = EBinaryFileState::ValidCacheFile;

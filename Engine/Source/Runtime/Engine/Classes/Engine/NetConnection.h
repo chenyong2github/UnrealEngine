@@ -1064,6 +1064,8 @@ public:
 
 protected:
 
+	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
+
 	void CleanupDormantActorState();
 
 	/** Called internally to destroy an actor during replay fast-forward when the actor channel index will be recycled */
@@ -1139,6 +1141,9 @@ private:
 	
 	/** True if we've hit the actor channel limit and logged a warning about it */
 	bool bHasWarnedAboutChannelLimit;
+
+	/** True if we are pending close due to a socket failure during send */
+	bool bConnectionPendingCloseDueToSocketSendFailure;
 
 	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
 };

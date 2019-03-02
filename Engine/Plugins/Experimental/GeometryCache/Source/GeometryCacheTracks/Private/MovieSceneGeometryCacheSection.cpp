@@ -22,8 +22,8 @@ FMovieSceneGeometryCacheParams::FMovieSceneGeometryCacheParams()
 	bReverse = false;
 }
 
-UMovieSceneGeometryCacheSection::UMovieSceneGeometryCacheSection( const FObjectInitializer& ObjectInitializer )
-	: Super( ObjectInitializer )
+UMovieSceneGeometryCacheSection::UMovieSceneGeometryCacheSection(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	BlendType = EMovieSceneBlendType::Absolute;
 	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::ProjectDefault);
@@ -133,11 +133,11 @@ void UMovieSceneGeometryCacheSection::GetSnapTimes(TArray<FFrameNumber>& OutSnap
 {
 	Super::GetSnapTimes(OutSnapTimes, bGetSectionBorders);
 
-	const FFrameRate   FrameRate  = GetTypedOuter<UMovieScene>()->GetTickResolution();
+	const FFrameRate   FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 	const FFrameNumber StartFrame = GetInclusiveStartFrame();
-	const FFrameNumber EndFrame   = GetExclusiveEndFrame() - 1; // -1 because we don't need to add the end frame twice
+	const FFrameNumber EndFrame = GetExclusiveEndFrame() - 1; // -1 because we don't need to add the end frame twice
 
-	const float AnimPlayRate     = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
+	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
 	const float SeqLengthSeconds = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
 
 	FFrameTime SequenceFrameLength = SeqLengthSeconds * FrameRate;
@@ -155,7 +155,7 @@ void UMovieSceneGeometryCacheSection::GetSnapTimes(TArray<FFrameNumber>& OutSnap
 
 float UMovieSceneGeometryCacheSection::MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const
 {
-	FMovieSceneGeometryCacheSectionTemplateParameters TemplateParams(Params, GetInclusiveStartFrame(), GetExclusiveEndFrame());
+	FMovieSceneGeometryCacheSectionTemplateParameters TemplateParams(const_cast<FMovieSceneGeometryCacheParams&> (Params), GetInclusiveStartFrame(), GetExclusiveEndFrame());
 	return TemplateParams.MapTimeToAnimation(InPosition, InFrameRate);
 }
 
@@ -181,7 +181,7 @@ void UMovieSceneGeometryCacheSection::PostEditChangeProperty(FPropertyChangedEve
 		{
 			float CurrentDuration = MovieScene::DiscreteSize(GetRange());
 			float NewDuration = CurrentDuration * (PreviousPlayRate / NewPlayRate);
-			SetEndFrame( GetInclusiveStartFrame() + FMath::FloorToInt(NewDuration) );
+			SetEndFrame(GetInclusiveStartFrame() + FMath::FloorToInt(NewDuration));
 
 			PreviousPlayRate = NewPlayRate;
 		}

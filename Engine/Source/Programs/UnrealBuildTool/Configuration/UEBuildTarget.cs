@@ -982,14 +982,21 @@ namespace UnrealBuildTool
 			// Create the receipt
 			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
 
-			// Set the launch executable if there is one
-			foreach(KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
+			if (!Rules.bShouldCompileAsDLL)
 			{
-				if(Pair.Value == BuildProductType.Executable)
+				// Set the launch executable if there is one
+				foreach (KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
 				{
-					Receipt.Launch = Pair.Key;
-					break;
+					if (Pair.Value == BuildProductType.Executable)
+					{
+						Receipt.Launch = Pair.Key;
+						break;
+					}
 				}
+			}
+			else
+			{
+				Receipt.AdditionalProperties.Add(new ReceiptProperty("CompileAsDll", "true"));
 			}
 
 			// Find all the build products and modules from this binary
@@ -3270,7 +3277,7 @@ namespace UnrealBuildTool
 				}
 
 				// If we can't use a shared PCH, check there's a private PCH set
-				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
+				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs && RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
 				{
 					// Try to figure out the legacy PCH file
 					FileReference CppFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, "*.cpp", SearchOption.AllDirectories).FirstOrDefault();

@@ -448,6 +448,7 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 {
 	UniformExpressionSet.Serialize(Ar);
 
+	Ar << UsedSceneTextures;
 	Ar << NumUsedUVScalars;
 	Ar << NumUsedCustomInterpolatorScalars;
 	Ar << EstimatedNumTextureSamplesVS;
@@ -1281,6 +1282,21 @@ bool FMaterialResource::GetBlendableOutputAlpha() const
 	return Material->BlendableOutputAlpha;
 }
 
+bool FMaterialResource::IsStencilTestEnabled() const
+{
+	return GetMaterialDomain() == MD_PostProcess && Material->bEnableStencilTest;
+}
+
+uint32 FMaterialResource::GetStencilRefValue() const
+{
+	return GetMaterialDomain() == MD_PostProcess ? Material->StencilRefValue : 0;
+}
+
+uint32 FMaterialResource::GetStencilCompare() const
+{
+	return GetMaterialDomain() == MD_PostProcess ? uint32(Material->StencilCompare.GetValue()) : 0;
+}
+
 UMaterialInterface* FMaterialResource::GetMaterialInterface() const 
 { 
 	return MaterialInstance ? (UMaterialInterface*)MaterialInstance : (UMaterialInterface*)Material;
@@ -1883,7 +1899,7 @@ FShader* FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FVertexFactor
 
 		// Assert with detailed information if the shader wasn't found for rendering.  
 		// This is usually the result of an incorrect ShouldCache function.
-		UE_LOG(LogMaterial, Fatal,
+		UE_LOG(LogMaterial, Error,
 			TEXT("Couldn't find Shader %s for Material Resource %s!\n")
 			TEXT("		RenderMeshShaderMap %d, RenderThreadShaderMap %d\n")
 			TEXT("		GameMeshShaderMap %d, GameThreadShaderMap %d, bShaderWasFoundInGameShaderMap %d\n")
@@ -1897,6 +1913,20 @@ FShader* FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FVertexFactor
 			bMaterialShouldCache, bVFShouldCache, bShaderShouldCache,
 			*MaterialUsage
 			);
+
+		if (MeshShaderMap)
+		{
+			TMap<FShaderId, FShader*> List;
+			MeshShaderMap->GetShaderList(List);
+
+			for (const auto& ShaderPair : List)
+			{
+				FString TypeName = ShaderPair.Value->GetType()->GetName();
+				UE_LOG(LogMaterial, Error, TEXT("ShaderType found in MaterialMap: %s"), *TypeName);
+			}
+		}
+
+		UE_LOG(LogMaterial, Fatal, TEXT("Fatal Error Material not found"));
 	}
 
 	return Shader;
@@ -2516,7 +2546,8 @@ bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 		// Render dithered material as masked if a stencil prepass is not used (UE-50064, UE-49537)
 		&& !((bShadowPass || !bStencilDitheredLOD) && IsDitheredLODTransition())
 		&& !IsWireframe()
-		&& !(bStencilDitheredLOD && IsDitheredLODTransition() && IsUsedWithInstancedStaticMeshes());
+		&& !(bStencilDitheredLOD && IsDitheredLODTransition() && IsUsedWithInstancedStaticMeshes())
+		&& !IsStencilTestEnabled();
 }
 
 #if WITH_EDITOR
