@@ -1371,6 +1371,10 @@ EMaterialSamplerType UMaterialExpressionTextureBase::GetSamplerTypeForTexture(co
 		{
 			return SAMPLERTYPE_External;
 		}
+		else if (Texture->LODGroup == TEXTUREGROUP_8BitData || Texture->LODGroup == TEXTUREGROUP_16BitData)
+		{
+			return SAMPLERTYPE_Data;
+		}
 
 		switch (Texture->CompressionSettings)
 		{

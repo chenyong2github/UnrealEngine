@@ -168,6 +168,20 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 			(PropertyName == SrgbName))
 		{
 			RequiresNotifyMaterials = true;
+
+			if (PropertyName == LODGroupName)
+			{
+				if (LODGroup == TEXTUREGROUP_8BitData)
+				{
+					CompressionSettings = TC_VectorDisplacementmap;
+					SRGB = false;
+				}
+				else if (LODGroup == TEXTUREGROUP_16BitData)
+				{
+					CompressionSettings = TC_HDR;
+					SRGB = false;
+				}
+			}
 		}
 		else if (PropertyName == DeferCompressionName)
 		{

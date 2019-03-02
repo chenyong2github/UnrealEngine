@@ -3579,7 +3579,11 @@ protected:
 				// Normal maps need to be unpacked in the pixel shader.
 				SampleCode = FString::Printf( TEXT("UnpackNormalMap(%s)"), *SampleCode );
 				break;
+
 			case SAMPLERTYPE_Masks:
+				break;
+
+			case SAMPLERTYPE_Data:
 				break;
 		}
 

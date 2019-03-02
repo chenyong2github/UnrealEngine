@@ -58,7 +58,11 @@ enum TextureGroup
 	/** Impostor Color Textures*/
 	TEXTUREGROUP_Impostor UMETA(DisplayName="ini:Impostor Color"),
 	/** Impostor Normal and Depth, use default compression*/
-	TEXTUREGROUP_ImpostorNormalDepth UMETA(DisplayName="ini:Impostor Normal and Depth"),
+	TEXTUREGROUP_ImpostorNormalDepth UMETA(DisplayName = "ini:Impostor Normal and Depth"),
+	/** 8 bit data stored in textures */
+	TEXTUREGROUP_8BitData UMETA(DisplayName = "ini:8 Bit Data"),
+	/** 16 bit data stored in textures */
+	TEXTUREGROUP_16BitData UMETA(DisplayName = "ini:16 Bit Data"),
 	/** Project specific group, rename in Engine.ini, [EnumRemap] TEXTUREGROUP_Project**.DisplayName=My Fun Group */
 	TEXTUREGROUP_Project01 UMETA(DisplayName="ini:Project Group 01"),
 	TEXTUREGROUP_Project02 UMETA(DisplayName="ini:Project Group 02"),
