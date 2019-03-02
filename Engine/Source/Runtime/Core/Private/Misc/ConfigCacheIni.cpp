@@ -92,6 +92,7 @@ static const FConfigExpansion* MatchExpansions(const TCHAR* PotentialVariable)
 	{
 		FConfigExpansion(TEXT("%GAME%"), FString(FApp::GetProjectName())),
 		FConfigExpansion(TEXT("%GAMEDIR%"), FPaths::ProjectDir()),
+		FConfigExpansion(TEXT("%ENGINEDIR%"), FPaths::EngineDir()),
 		FConfigExpansion(TEXT("%ENGINEUSERDIR%"), FPaths::EngineUserDir()),
 		FConfigExpansion(TEXT("%ENGINEVERSIONAGNOSTICUSERDIR%"), FPaths::EngineVersionAgnosticUserDir()),
 		FConfigExpansion(TEXT("%APPSETTINGSDIR%"), GetApplicationSettingsDirNormalized()),
