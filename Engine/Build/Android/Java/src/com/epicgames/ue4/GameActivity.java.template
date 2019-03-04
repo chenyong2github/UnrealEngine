@@ -174,8 +174,6 @@ import com.epicgames.ue4.GooglePlayLicensing;
 // Console commands listener, only for debug builds
 import com.epicgames.ue4.ConsoleCmdReceiver;
 
-import com.epicgames.ue4.MultiChannelMediaEncoder;
-
 import android.os.Build;
 
 // TODO: use the resources from the UE4 lib project once we've got the packager up and running
