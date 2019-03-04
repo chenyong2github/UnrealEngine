@@ -451,6 +451,8 @@ public:
 	const FRecastNavMeshCachedData& GetAdditionalCachedData() const { return AdditionalCachedData; }
 
 	bool HasDirtyTiles() const;
+	bool HasDirtyTiles(const FBox& AreaBounds) const;
+	int32 GetDirtyTilesCount(const FBox& AreaBounds) const;
 
 	bool GatherGeometryOnGameThread() const;
 
