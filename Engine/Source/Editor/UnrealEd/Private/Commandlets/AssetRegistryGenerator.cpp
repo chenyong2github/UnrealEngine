@@ -1344,7 +1344,7 @@ void FAssetRegistryGenerator::RemovePackageFromManifest(FName PackageName, int32
 	}
 }
 
-void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node, const FChunkPackageSet& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks)
+void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node, const TSet<FName>& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks)
 {
 	if (FinalChunkManifests.Num() > Node.ChunkID && FinalChunkManifests[Node.ChunkID])
 	{
@@ -1358,7 +1358,7 @@ void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependency
 			}
 		}
 		
-		FChunkPackageSet ModifiedAssetSet;
+		TSet<FName> ModifiedAssetSet;
 		
 		// Add the current Chunk's assets
 		for (auto It = FinalChunkManifests[Node.ChunkID]->CreateConstIterator(); It; ++It)//for (const auto It : *(FinalChunkManifests[Node.ChunkID]))
@@ -1368,7 +1368,7 @@ void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependency
 				ModifiedAssetSet = BaseAssetSet;
 			}
 			
-			ModifiedAssetSet.Add(It.Key(), It.Value());
+			ModifiedAssetSet.Add(It.Key());
 		}
 		
 		const auto& AssetSet = ModifiedAssetSet.Num() ? ModifiedAssetSet : BaseAssetSet;
