@@ -30,6 +30,3 @@ class UReimportSoundFactory : public USoundFactory, public FReimportHandler
 
 	int8 OverwriteOtherAssetTypes;
 };
-
-
-
