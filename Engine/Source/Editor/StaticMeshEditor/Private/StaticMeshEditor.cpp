@@ -2138,6 +2138,19 @@ void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyC
 		{
 			RefreshTool();
 		}
+		else if (PropertyChangedEvent.GetPropertyName() == TEXT("CollisionResponses"))
+		{
+			for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+			{
+				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+				if (StaticMeshComponent->GetStaticMesh() == StaticMesh)
+				{
+					StaticMeshComponent->UpdateCollisionFromStaticMesh();
+					StaticMeshComponent->MarkRenderTransformDirty();
+				}
+			}
+		}
+
 	}
 }
 
