@@ -51,10 +51,7 @@ class USoundFactory : public UFactory
 
 public:
 	/** Suppresses all dialogs pertaining to importing using factory */
-	void SuppressImportDialogs()
-	{
-		SuppressImportDialogOptions = ESuppressImportDialog::Overwrite & ESuppressImportDialog::UseTemplate;
-	}
+	AUDIOEDITOR_API void SuppressImportDialogs();
 
 	virtual void CleanUp() override;
 
