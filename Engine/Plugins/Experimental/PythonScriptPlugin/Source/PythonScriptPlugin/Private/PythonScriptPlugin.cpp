@@ -2,6 +2,7 @@
 
 #include "PythonScriptPlugin.h"
 #include "PythonScriptPluginSettings.h"
+#include "PythonScriptRemoteExecution.h"
 #include "PyGIL.h"
 #include "PyCore.h"
 #include "PySlate.h"
@@ -473,6 +474,9 @@ void FPythonScriptPlugin::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), &CmdExec);
 	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), &CmdREPLExec);
 
+	check(!RemoteExecution);
+	RemoteExecution = MakeUnique<FPythonScriptRemoteExecution>(this);
+
 #if WITH_EDITOR
 	check(CmdMenu == nullptr);
 	CmdMenu = new FPythonCommandMenuImpl();
@@ -487,6 +491,8 @@ void FPythonScriptPlugin::ShutdownModule()
 {
 #if WITH_PYTHON
 	FCoreDelegates::OnPreExit.RemoveAll(this);
+
+	RemoteExecution.Reset();
 
 #if WITH_EDITOR
 	check(CmdMenu);
@@ -752,7 +758,14 @@ void FPythonScriptPlugin::Tick(const float InDeltaTime)
 #endif	// WITH_EDITOR
 	}
 
+	RemoteExecution->Tick(InDeltaTime);
+
 	FPyWrapperTypeReinstancer::Get().ProcessPending();
+}
+
+void FPythonScriptPlugin::SyncRemoteExecutionToSettings()
+{
+	RemoteExecution->SyncToSettings();
 }
 
 void FPythonScriptPlugin::ImportUnrealModule(const TCHAR* InModuleName)
