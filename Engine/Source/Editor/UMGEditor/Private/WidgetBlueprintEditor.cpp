@@ -960,17 +960,15 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 
 			UWidgetTree* LatestWidgetTree = PreviewBlueprint->WidgetTree;
 
-			// HACK NickD: Doing this to match the hack in UUserWidget::Initialize(), to permit some semblance of widgettree
-			// inheritance.  This will correctly show the parent widget tree provided your class does not specify a root.
-			UWidgetBlueprintGeneratedClass* SuperBGClass = Cast<UWidgetBlueprintGeneratedClass>(PreviewBlueprint->GeneratedClass->GetSuperClass());
-			if ( SuperBGClass )
+			// If there is no RootWidget, we look for a WidgetTree in the parents classes until we find one.
+			if (LatestWidgetTree->RootWidget == nullptr)
 			{
-				UWidgetBlueprint* SuperWidgetBlueprint = Cast<UWidgetBlueprint>(SuperBGClass->ClassGeneratedBy);
-				if ( SuperWidgetBlueprint && (LatestWidgetTree->RootWidget == nullptr) )
+				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
+				if (BGClass)
 				{
-					LatestWidgetTree = SuperWidgetBlueprint->WidgetTree;
+					LatestWidgetTree = BGClass->WidgetTree;
 				}
-			}
+			 }
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.

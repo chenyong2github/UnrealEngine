@@ -230,8 +230,9 @@ public:
 
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
 
-protected:
 	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass();
+
+protected:
 	virtual void TemplateInitInner();
 
 	bool VerifyTemplateIntegrity(UUserWidget* TemplateRoot, TArray<FText>& OutErrors);
