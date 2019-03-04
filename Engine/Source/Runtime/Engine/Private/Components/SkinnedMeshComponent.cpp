@@ -413,6 +413,7 @@ void USkinnedMeshComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 
 FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	ERHIFeatureLevel::Type SceneFeatureLevel = GetWorld()->FeatureLevel;
 	FSkeletalMeshSceneProxy* Result = nullptr;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
@@ -900,9 +901,9 @@ bool USkinnedMeshComponent::GetMaterialStreamingData(int32 MaterialIndex, FPrimi
 	return MaterialData.IsValid();
 }
 
-void USkinnedMeshComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void USkinnedMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
-	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingTextures);
+	GetStreamingTextureInfoInner(LevelContext, nullptr, GetComponentTransform().GetMaximumAxisScale() * StreamingDistanceMultiplier, OutStreamingRenderAssets);
 }
 
 bool USkinnedMeshComponent::ShouldUpdateBoneVisibility() const
@@ -1229,6 +1230,40 @@ FTransform USkinnedMeshComponent::GetDeltaTransformFromRefPose(FName BoneName, F
 	}
 
 	return FTransform::Identity;
+}
+
+bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const
+{
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+	const int32 BoneIndex = GetBoneIndex(BoneName);
+	if (BoneIndex != INDEX_NONE)
+	{
+		FTransform LocalTransform = GetComponentSpaceTransforms()[BoneIndex];
+		FTransform ReferenceTransform = RefSkeleton.GetRefBonePose()[BoneIndex];
+		FName ParentName = GetParentBone(BoneName);
+		int32 ParentIndex = INDEX_NONE;
+		if (ParentName != NAME_None)
+		{
+			ParentIndex = GetBoneIndex(ParentName);
+		}
+
+		if (ParentIndex != INDEX_NONE)
+		{
+			LocalTransform = LocalTransform.GetRelativeTransform(GetComponentSpaceTransforms()[ParentIndex]);
+		}
+
+		FQuat Swing, Twist;
+
+		// figure out based on ref pose rotation, and calculate twist based on that 
+		FVector TwistAxis = ReferenceTransform.GetRotation().Vector();
+		ensure(TwistAxis.IsNormalized());
+		LocalTransform.GetRotation().ToSwingTwist(TwistAxis, Swing, Twist);
+		OutTwistAngle = FMath::RadiansToDegrees(Twist.GetAngle());
+		OutSwingAngle = FMath::RadiansToDegrees(Swing.GetAngle());
+		return true;
+	}
+
+	return false;
 }
 
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)
@@ -2166,13 +2201,11 @@ void USkinnedMeshComponent::ShowMaterialSection(int32 MaterialID, bool bShow, in
 		if ( MeshObject )
 		{
 			// need to send render thread for updated hidden section
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FUpdateHiddenSectionCommand, 
-				FSkeletalMeshObject*, MeshObject, MeshObject, 
-				TArray<bool>, HiddenMaterials, HiddenMaterials, 
-				int32, LODIndex, LODIndex,
+			FSkeletalMeshObject* InMeshObject = MeshObject;
+			ENQUEUE_RENDER_COMMAND(FUpdateHiddenSectionCommand)(
+				[InMeshObject, HiddenMaterials, LODIndex](FRHICommandListImmediate& RHICmdList)
 			{
-				MeshObject->SetHiddenMaterials(LODIndex,HiddenMaterials);
+				InMeshObject->SetHiddenMaterials(LODIndex, HiddenMaterials);
 			});
 		}
 	}
@@ -2197,13 +2230,11 @@ void USkinnedMeshComponent::ShowAllMaterialSections(int32 LODIndex)
 			if (MeshObject)
 			{
 				// need to send render thread for updated hidden section
-				ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-					FUpdateHiddenSectionCommand,
-					FSkeletalMeshObject*, MeshObject, MeshObject,
-					TArray<bool>, HiddenMaterials, HiddenMaterials,
-					int32, LODIndex, LODIndex,
+				FSkeletalMeshObject* InMeshObject = MeshObject;
+				ENQUEUE_RENDER_COMMAND(FUpdateHiddenSectionCommand)(
+					[InMeshObject, HiddenMaterials, LODIndex](FRHICommandListImmediate& RHICmdList)
 					{
-						MeshObject->SetHiddenMaterials(LODIndex,HiddenMaterials);
+						InMeshObject->SetHiddenMaterials(LODIndex, HiddenMaterials);
 					});
 			}
 		}
@@ -2670,8 +2701,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 		const int32 LODBias = GSkeletalMeshLODBias;
 #endif
 
-		int32 MinLodIndex = bOverrideMinLod ? MinLodModel : 0;
-		MinLodIndex = FMath::Max(MinLodIndex, SkeletalMesh->MinLod.GetValueForFeatureLevel(CachedSceneFeatureLevel));
+		int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->MinLod.GetValueForFeatureLevel(CachedSceneFeatureLevel);
 
 		int32 MaxLODIndex = 0;
 		if (MeshObject)

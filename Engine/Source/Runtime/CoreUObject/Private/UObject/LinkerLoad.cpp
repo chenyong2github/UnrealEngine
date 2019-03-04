@@ -554,8 +554,10 @@ void FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* 
 		ObjExport.Object = NewObject;
 
 		// If the object was in the ObjLoaded queue (exported, but not yet serialized), swap out for our new object
-		check(OldObjectLinker->GetSerializeContext());
-		OldObjectLinker->GetSerializeContext()->PRIVATE_PatchNewObjectIntoExport(OldObject, NewObject);
+		if(OldObjectLinker->GetSerializeContext())
+		{
+			OldObjectLinker->GetSerializeContext()->PRIVATE_PatchNewObjectIntoExport(OldObject, NewObject);
+		}
 	}
 }
 
@@ -640,7 +642,15 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 
 void FLinkerLoad::SetSerializeContext(FUObjectSerializeContext* InLoadContext)
 {
+	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
+	{
+		CurrentLoadContext->DetachLinker(this);
+	}
 	CurrentLoadContext = InLoadContext;
+	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
+	{
+		CurrentLoadContext->AttachLinker(this);
+	}
 }
 FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 {
@@ -862,6 +872,12 @@ FLinkerLoad::~FLinkerLoad()
 
 	// Detaches linker.
 	Detach();
+
+	// Detach the serialize context
+	if (GetSerializeContext())
+	{
+		SetSerializeContext(nullptr);
+	}
 
 	DEC_DWORD_STAT(STAT_LiveLinkerCount);
 
@@ -3011,6 +3027,12 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			return true;
 		}
 	}
+
+	if (!GEventDrivenLoaderEnabled && Import.SourceLinker && !Import.SourceLinker->GetSerializeContext())
+	{
+		Import.SourceLinker->SetSerializeContext(GetSerializeContext());
+	}
+
 	return false;
 }
 
@@ -4521,6 +4543,10 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 			if( Import.SourceLinker == NULL )
 			{
 				VerifyImportResult = VerifyImport(Index);
+			}
+			else if (!GEventDrivenLoaderEnabled && !Import.SourceLinker->GetSerializeContext())
+			{
+				Import.SourceLinker->SetSerializeContext(GetSerializeContext());
 			}
 			if(Import.SourceIndex != INDEX_NONE)
 			{

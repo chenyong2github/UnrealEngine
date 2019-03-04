@@ -48,6 +48,13 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 #include "XboxOne/D3D12RHIBasePrivate.h"
 #endif
 
+#if NV_AFTERMATH
+#define GFSDK_Aftermath_WITH_DX12 1
+#include "GFSDK_Aftermath.h"
+#undef GFSDK_Aftermath_WITH_DX12
+extern int32 GDX12NVAfterMathEnabled;
+#endif
+
 #include "D3D12Residency.h"
 
 // D3D RHI public headers.
@@ -290,6 +297,7 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FStructuredBufferRHIParamRef StructuredBuffer) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer) final override;
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) final override;
 	virtual uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign) override;
 	virtual uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) final override;
 	virtual uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, uint32& OutAlign) final override;
@@ -377,11 +385,6 @@ public:
 	// These will be un-commented as they are implemented.
 	//
 
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements) override final
-	{
-		return RHICreateVertexDeclaration(Elements);
-	}
-
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code) override final
 	{
 		return RHICreateVertexShader(Code);
@@ -465,6 +468,8 @@ public:
 	virtual FRayTracingPipelineStateRHIRef RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer) final override;
 
 #endif //D3D12_RHI_RAYTRACING
+
+	bool CheckGpuHeartbeat() const override;
 
 	bool IsQuadBufferStereoEnabled() const;
 	void DisableQuadBufferStereo();

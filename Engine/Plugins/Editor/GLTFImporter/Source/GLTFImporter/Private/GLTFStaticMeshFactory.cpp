@@ -19,13 +19,15 @@ namespace GLTF
 		FStaticMeshFactoryImpl();
 
 		const TArray<UStaticMesh*>& CreateMeshes(const GLTF::FAsset& Asset, UObject* ParentPackage, EObjectFlags Flags, bool bApplyPostEditChange);
+		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
 
 		void CleanUp();
 
 	private:
 		UStaticMesh* CreateMesh(const GLTF::FMesh& Mesh, UObject* ParentPackage, EObjectFlags Flags);
 
-		void SetupMeshBuildSettings(int32 NumUVs, bool bMeshHasTagents, UStaticMesh& StaticMesh, FStaticMeshSourceModel& SourceModel);
+		void SetupMeshBuildSettings(int32 NumUVs, bool bMeshHasTagents, bool bMeshHasUVs, UStaticMesh& StaticMesh,
+		                            FStaticMeshSourceModel& SourceModel);
 
 		bool ImportPrimitive(const GLTF::FPrimitive&                        Primitive,  //
 		                     int32                                          PrimitiveIndex,
@@ -38,7 +40,8 @@ namespace GLTF
 		                     const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 		                     const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
 		                     const TEdgeAttributesRef<bool>&                EdgeHardnesses,
-		                     const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses);
+		                     const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses,
+		                     FMeshDescription* MeshDescription);
 
 		inline TArray<FVector4>& GetVector4dBuffer(int32 Index)
 		{
@@ -94,13 +97,11 @@ namespace GLTF
 		TSet<int32>                  MaterialIndicesUsed;
 		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
 		TArray<FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
-		FMeshDescription*            MeshDescription;
 
 		TArray<FVector2D>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
 		TArray<FVector>                         VectorBuffers[VectorBufferCount];
 		TArray<FVector4>                        Vector4dBuffers[Vector4dBufferCount];
 		TArray<uint32>                          IntBuffer;
-		TArray<FMeshDescription::FContourPoint> Contours;
 		TArray<FVertexInstanceID>				CornerVertexInstanceIDs;
 		uint32                                  MaxReserveSize;
 
@@ -164,7 +165,6 @@ namespace GLTF
 	FStaticMeshFactoryImpl::FStaticMeshFactoryImpl()
 	    : ImportUniformScale(1.f)
 	    , bGenerateLightmapUVs(false)
-	    , MeshDescription(nullptr)
 	{
 		CornerVertexInstanceIDs.SetNum(3);
 	}
@@ -179,31 +179,62 @@ namespace GLTF
 
 		FStaticMeshSourceModel& SourceModel = StaticMesh->AddSourceModel();
 
-		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
-		SetupMeshBuildSettings(NumUVs, Mesh.HasTangents(), *StaticMesh, SourceModel);
-
 		// GLTF currently only supports LODs via MSFT_lod, for now use always 0
 		const int32 LODIndex = 0;
-		MeshDescription      = StaticMesh->CreateMeshDescription(LODIndex);
+		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 		StaticMesh->RegisterMeshAttributes(*MeshDescription);
 
+		FillMeshDescription(Mesh, MeshDescription);
+
+		if (Mesh.HasJointWeights())
+		{
+			Messages.Emplace(EMessageSeverity::Warning, TEXT("Mesh has joint weights which are not supported: ") + Mesh.Name);
+		}
+
+		const bool bRecomputeTangents = !Mesh.HasTangents();
+		if (bRecomputeTangents)
+		{
+			FMeshBuildSettings& Settings = SourceModel.BuildSettings;
+			Settings.bRecomputeTangents  = true;
+		}
+
+		for (int32 Index = 0; Index < Mesh.Primitives.Num(); ++Index)
+		{
+			const FPrimitive& Primitive = Mesh.Primitives[Index];
+			const FName SlotName(*FString::FromInt(Primitive.MaterialIndex));
+			const int32 MeshSlot = StaticMesh->StaticMaterials.Emplace(nullptr, SlotName, SlotName);
+			StaticMesh->SectionInfoMap.Set(0, MeshSlot, FMeshSectionInfo(MeshSlot));
+		}
+
+
+		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh)); // Duplicated from FillMeshDescription
+		SetupMeshBuildSettings(NumUVs, Mesh.HasTangents(), Mesh.HasTexCoords(0), *StaticMesh, SourceModel);
+		StaticMesh->CommitMeshDescription(LODIndex);
+
+		return StaticMesh;
+	}
+
+	void FStaticMeshFactoryImpl::FillMeshDescription(const FMesh &Mesh, FMeshDescription* MeshDescription)
+	{
+		const int32 NumUVs = FMath::Max(1, GetNumUVs(Mesh));
+
 		TVertexAttributesRef<FVector> VertexPositions =
-		    MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 		TEdgeAttributesRef<bool>  EdgeHardnesses = MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 		TEdgeAttributesRef<float> EdgeCreaseSharpnesses =
-		    MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
+			MeshDescription->EdgeAttributes().GetAttributesRef<float>(MeshAttribute::Edge::CreaseSharpness);
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames =
-		    MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+			MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
 		TVertexInstanceAttributesRef<FVector> VertexInstanceNormals =
-		    MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents =
-		    MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns =
-		    MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
+			MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs =
-		    MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors =
-		    MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+			MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
 		VertexInstanceUVs.SetNumIndices(NumUVs);
 
 		MaterialIndicesUsed.Empty(10);
@@ -226,10 +257,6 @@ namespace GLTF
 				VertexPositions[VertexID] = Positions[PositionIndex] * ImportUniformScale;
 				PositionIndexToVertexId.Add(PositionIndex, VertexID);
 			}
-
-			const FName SlotName(*FString::FromInt(Primitive.MaterialIndex));
-			const int32 MeshSlot = StaticMesh->StaticMaterials.Emplace(nullptr, SlotName, SlotName);
-			StaticMesh->SectionInfoMap.Set(0, MeshSlot, FMeshSectionInfo(MeshSlot));
 		}
 
 		// Add the PolygonGroup
@@ -245,15 +272,15 @@ namespace GLTF
 
 		// Add the VertexInstance
 		bool bMeshUsesEmptyMaterial = false;
-		bool bDidGenerateTexCoords  = false;
+		bool bDidGenerateTexCoords = false;
 		for (int32 Index = 0; Index < Mesh.Primitives.Num(); ++Index)
 		{
 			const FPrimitive& Primitive = Mesh.Primitives[Index];
-			const bool        basDegenerateTriangles =
-			    ImportPrimitive(Primitive, Index, NumUVs, Mesh.HasTangents(), Mesh.HasColors(),  //
-			                    VertexInstanceNormals, VertexInstanceTangents, VertexInstanceBinormalSigns, VertexInstanceUVs,
-			                    VertexInstanceColors,  //
-			                    EdgeHardnesses, EdgeCreaseSharpnesses);
+			const bool        bHasDegenerateTriangles =
+				ImportPrimitive(Primitive, Index, NumUVs, Mesh.HasTangents(), Mesh.HasColors(),  //
+					VertexInstanceNormals, VertexInstanceTangents, VertexInstanceBinormalSigns, VertexInstanceUVs,
+					VertexInstanceColors,  //
+					EdgeHardnesses, EdgeCreaseSharpnesses, MeshDescription);
 
 			bMeshUsesEmptyMaterial |= Primitive.MaterialIndex == INDEX_NONE;
 			for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
@@ -265,39 +292,19 @@ namespace GLTF
 				}
 			}
 
-			if (basDegenerateTriangles)
+			if (bHasDegenerateTriangles)
 			{
 				Messages.Emplace(EMessageSeverity::Warning,
-				                 FString::Printf(TEXT("Mesh %s has primitive with with degenerate triangles: %d"), *Mesh.Name, Index));
+					FString::Printf(TEXT("Mesh %s has primitive with degenerate triangles: %d"), *Mesh.Name, Index));
 			}
-		}
-
-		if (bDidGenerateTexCoords)
-		{
-			Messages.Emplace(EMessageSeverity::Warning, TEXT("Mesh has primitives with no UVs generated: ") + Mesh.Name);
 		}
 		if (bMeshUsesEmptyMaterial)
 		{
 			Messages.Emplace(EMessageSeverity::Warning, TEXT("Mesh has primitives with no materials assigned: ") + Mesh.Name);
 		}
-		if (Mesh.HasJointWeights())
-		{
-			Messages.Emplace(EMessageSeverity::Warning, TEXT("Mesh has joint weights which are not supported: ") + Mesh.Name);
-		}
-
-		const bool bRecomputeTangents = !Mesh.HasTangents();
-		if (bRecomputeTangents)
-		{
-			FMeshBuildSettings& Settings = SourceModel.BuildSettings;
-			Settings.bRecomputeTangents  = true;
-		}
-
-		StaticMesh->CommitMeshDescription(LODIndex);
-
-		return StaticMesh;
 	}
 
-	void FStaticMeshFactoryImpl::SetupMeshBuildSettings(int32 NumUVs, bool bMeshHasTagents, UStaticMesh& StaticMesh,
+	void FStaticMeshFactoryImpl::SetupMeshBuildSettings(int32 NumUVs, bool bMeshHasTagents, bool bMeshHasUVs, UStaticMesh& StaticMesh,
 	                                                    FStaticMeshSourceModel& SourceModel)
 	{
 		FMeshBuildSettings& Settings = SourceModel.BuildSettings;
@@ -307,6 +314,14 @@ namespace GLTF
 			StaticMesh.LightMapCoordinateIndex             = NumUVs;
 			SourceModel.BuildSettings.SrcLightmapIndex     = NumUVs - 1;
 			SourceModel.BuildSettings.DstLightmapIndex     = NumUVs;
+			SourceModel.BuildSettings.bGenerateLightmapUVs = true;
+		}
+		else if (!bMeshHasUVs)
+		{
+			// Generate automatically a UV for correct lighting if mesh has none
+			StaticMesh.LightMapCoordinateIndex             = 1;
+			SourceModel.BuildSettings.SrcLightmapIndex     = 0;
+			SourceModel.BuildSettings.DstLightmapIndex     = 1;
 			SourceModel.BuildSettings.bGenerateLightmapUVs = true;
 		}
 		else
@@ -338,9 +353,9 @@ namespace GLTF
 	                                             const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
 	                                             const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
 	                                             const TEdgeAttributesRef<bool>&                EdgeHardnesses,
-	                                             const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses)
+	                                             const TEdgeAttributesRef<float>&               EdgeCreaseSharpnesses,
+                                                 FMeshDescription* MeshDescription)
 	{
-		check(MeshDescription);
 
 		const FPolygonGroupID CurrentPolygonGroupID = MaterialIndexToPolygonGroupID[Primitive.MaterialIndex];
 		const uint32          TriCount              = Primitive.TriangleCount();
@@ -417,7 +432,7 @@ namespace GLTF
 			}
 		}
 
-		bool basDegenerateTriangles = false;
+		bool bHasDegenerateTriangles = false;
 		// Now add all vertexInstances
 		FVertexID         CornerVertexIDs[3];
 		for (uint32 TriangleIndex = 0; TriangleIndex < TriCount; ++TriangleIndex)
@@ -430,8 +445,32 @@ namespace GLTF
 				const FVertexID          VertexID         = PositionIndexToVertexIdPerPrim[PrimitiveIndex][VertexIndex];
 				const FVertexInstanceID& VertexInstanceID = MeshDescription->CreateVertexInstance(VertexID);
 
+				CornerVertexInstanceIDs[Corner] = VertexInstanceID;
+				CornerVertexIDs[Corner]         = VertexID;
+			}
+
+			// Check for degenerate triangles
+			const FVertexID& Vertex1 = CornerVertexIDs[0];
+			const FVertexID& Vertex2 = CornerVertexIDs[1];
+			const FVertexID& Vertex3 = CornerVertexIDs[2];
+
+			if (Vertex1 == Vertex2 || Vertex2 == Vertex3 || Vertex1 == Vertex3)
+			{
+				bHasDegenerateTriangles = true;
+				continue; // Triangle is degenerate, skip it
+			}
+
+			for (int32 Corner = 0; Corner < 3; ++Corner)
+			{
+				const uint32 IndiceIndex = TriangleIndex * 3 + Corner;
+
+				const FVertexInstanceID& VertexInstanceID = CornerVertexInstanceIDs[Corner];
+
 				if (Tangents.Num() > 0)
+				{
 					VertexInstanceTangents[VertexInstanceID] = Tangents[IndiceIndex];
+				}
+
 				VertexInstanceNormals[VertexInstanceID] = Normals[IndiceIndex];
 				VertexInstanceBinormalSigns[VertexInstanceID] =
 				    GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceID].GetSafeNormal(),
@@ -442,16 +481,17 @@ namespace GLTF
 				{
 					VertexInstanceUVs.Set(VertexInstanceID, UVIndex, (*UVs[UVIndex])[IndiceIndex]);
 				}
-				if (Colors.Num() > 0)
-					VertexInstanceColors[VertexInstanceID] = Colors[IndiceIndex];
 
-				CornerVertexInstanceIDs[Corner] = VertexInstanceID;
-				CornerVertexIDs[Corner]         = VertexID;
+				if (Colors.Num() > 0)
+				{
+					VertexInstanceColors[VertexInstanceID] = Colors[IndiceIndex];
+				}
 			}
 
 			// Insert a polygon into the mesh
 			TArray<FEdgeID> NewEdgeIDs;
 			const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs, &NewEdgeIDs);
+
 			for (const FEdgeID NewEdgeID : NewEdgeIDs)
 			{
 				// Make all faces part of the same smoothing group, so Unreal will combine identical adjacent verts.
@@ -461,23 +501,11 @@ namespace GLTF
 				EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
 			}
 
-			// Check for degenerate triangles
-			const FMeshDescription::FContourPoint& ContourPoint1 = Contours[0];
-			const FMeshDescription::FContourPoint& ContourPoint2 = Contours[1];
-			const FMeshDescription::FContourPoint& ContourPoint3 = Contours[2];
-			if (ContourPoint1.EdgeID != ContourPoint2.EdgeID && ContourPoint2.EdgeID != ContourPoint3.EdgeID &&
-			    ContourPoint1.EdgeID != ContourPoint3.EdgeID)
-			{
-				// Triangulate the polygon
-				FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-				MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
-			}
-			else
-			{
-				basDegenerateTriangles = true;
-			}
+			// Triangulate the polygon
+			FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
+			MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 		}
-		return basDegenerateTriangles;
+		return bHasDegenerateTriangles;
 	}
 
 	inline const TArray<UStaticMesh*>& FStaticMeshFactoryImpl::CreateMeshes(const GLTF::FAsset& Asset, UObject* ParentPackage, EObjectFlags Flags,
@@ -547,6 +575,12 @@ namespace GLTF
 	{
 		return Impl->CreateMeshes(Asset, ParentPackage, Flags, bApplyPostEditChange);
 	}
+
+	void FStaticMeshFactory::FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription)
+	{
+		Impl->FillMeshDescription(Mesh, MeshDescription);
+	}
+
 
 	const TArray<UStaticMesh*>& FStaticMeshFactory::GetMeshes() const
 	{

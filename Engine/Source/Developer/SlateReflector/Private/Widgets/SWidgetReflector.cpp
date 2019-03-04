@@ -293,6 +293,7 @@ private:
 			{
 				VisualCapture.Reset();
 				SInvalidationPanel::SetEnableWidgetCaching(false);
+				VisualCapture.Reset();
 			}
 			// If we're using the drawing picking mode enable it!
 			else if (PickingMode == EWidgetPickingMode::Drawable)

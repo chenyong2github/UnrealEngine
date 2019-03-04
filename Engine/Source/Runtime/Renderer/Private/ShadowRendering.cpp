@@ -605,21 +605,24 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		SCOPED_DRAW_EVENTF(RHICmdList, EventMaskSubjects, TEXT("Stencil Mask Subjects"));
 
 		// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
+		// TODO: Support instanced stereo properly in the projection stenciling pass.
 		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && View->StereoPass != eSSP_FULL;
 		if (bIsInstancedStereoEmulated)
 		{
 			RHICmdList.SetViewport(0, 0, 0, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1);
+			RHICmdList.SetScissorRect(true, View->ViewRect.Min.X, View->ViewRect.Min.Y, View->ViewRect.Max.X, View->ViewRect.Max.Y);
 		}
 
 		const FShadowMeshDrawCommandPass& ProjectionStencilingPass = ProjectionStencilingPasses[ViewIndex];
 		if (ProjectionStencilingPass.VisibleMeshDrawCommands.Num() > 0)
 		{
-			SubmitMeshDrawCommands(ProjectionStencilingPass.VisibleMeshDrawCommands, ProjectionStencilingPass.PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 1, RHICmdList);
+			SubmitMeshDrawCommands(ProjectionStencilingPass.VisibleMeshDrawCommands, ProjectionStencilingPass.PrimitiveIdVertexBuffer, 0, bDynamicInstancing, bIsInstancedStereoEmulated ? 2 : 1, RHICmdList);
 		}
 
 		// Restore viewport
 		if (bIsInstancedStereoEmulated)
 		{
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
 		}
 		
@@ -1237,6 +1240,12 @@ FDeferredShadingSceneRenderer
  */
 bool FSceneRenderer::CheckForProjectedShadows( const FLightSceneInfo* LightSceneInfo ) const
 {
+	// If light has ray-traced occlusion enabled, then it will project some shadows. No need 
+	// for doing a lookup through shadow maps data
+	const FLightOcclusionType LightOcclusionType = GetLightOcclusionType(*LightSceneInfo->Proxy);
+	if (LightOcclusionType == FLightOcclusionType::Raytraced)
+		return true;
+
 	// Find the projected shadows cast by this light.
 	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	for( int32 ShadowIndex=0; ShadowIndex<VisibleLightInfo.AllProjectedShadows.Num(); ShadowIndex++ )
@@ -1303,8 +1312,6 @@ bool FDeferredShadingSceneRenderer::InjectReflectiveShadowMaps(FRHICommandListIm
 
 bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading, bool bMobileModulatedProjections)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
@@ -1339,13 +1346,20 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 			// Set the light's scissor rectangle.
-			LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
-
-			// Project the shadow depth buffers onto the scene.
-			for (int32 ShadowIndex = 0; ShadowIndex < DistanceFieldShadows.Num(); ShadowIndex++)
+			FIntRect ScissorRect;
+			if (!LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect, &ScissorRect))
 			{
-				FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
-				ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(RHICmdList, View, ScreenShadowMaskTexture, bProjectingForForwardShading);
+				ScissorRect = View.ViewRect;
+			}
+
+			if (ScissorRect.Area() > 0)
+			{
+				// Project the shadow depth buffers onto the scene.
+				for (int32 ShadowIndex = 0; ShadowIndex < DistanceFieldShadows.Num(); ShadowIndex++)
+				{
+					FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
+					ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(RHICmdList, View, ScissorRect, ScreenShadowMaskTexture, bProjectingForForwardShading);
+				}
 			}
 
 			// Reset the scissor rectangle.
@@ -1358,10 +1372,12 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		// Render normal shadows
 		if (bMobileModulatedProjections)
 		{
-			SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
+			// part of scene color rendering pass
+			check(RHICmdList.IsInsideRenderPass());
 		}
 		else
 		{
+			check(RHICmdList.IsOutsideRenderPass());
 			// Normal deferred shadows render to the shadow mask
 			FRHIRenderPassInfo RPInfo(ScreenShadowMaskTexture->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
@@ -1414,7 +1430,8 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 
 		if (bMobileModulatedProjections)
 		{
-			SceneContext.FinishRenderingSceneColor(RHICmdList);
+			// part of scene color rendering pass
+			check(RHICmdList.IsInsideRenderPass());
 		}
 		else
 		{

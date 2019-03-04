@@ -64,12 +64,14 @@ namespace UnrealBuildTool
 		{
 			base.GetReferencedDirectories(Directories);
 
-			if(SourceDirectories == null)
+			if(!Rules.bUsePrecompiled)
 			{
-				throw new BuildException("GetReferencedDirectories() should not be called before building.");
+				if(SourceDirectories == null)
+				{
+					throw new BuildException("GetReferencedDirectories() should not be called before building.");
+				}
+				Directories.UnionWith(SourceDirectories);
 			}
-
-			Directories.UnionWith(SourceDirectories);
 		}
 
 		/// <summary>
@@ -256,6 +258,11 @@ namespace UnrealBuildTool
 			// If the module is precompiled, read the object files from the manifest
 			if(Rules.bUsePrecompiled && Target.LinkType == TargetLinkType.Monolithic)
 			{
+				if(!FileReference.Exists(PrecompiledManifestLocation))
+				{
+					throw new BuildException("Missing precompiled manifest for '{0}'. This module was most likely not flagged for being included in a precompiled build - set 'PrecompileForTargets = PrecompileTargetsType.Any;' in {0}.build.cs to override.", Name);
+				}
+
 				PrecompiledManifest Manifest = PrecompiledManifest.Read(PrecompiledManifestLocation);
 				foreach(FileReference OutputFile in Manifest.OutputFiles)
 				{
@@ -339,7 +346,7 @@ namespace UnrealBuildTool
 
 			// Set up the environment with which to compile the CPP files
 			CppCompileEnvironment CompileEnvironment = ModuleCompileEnvironment;
-			if (Target.bUsePCHFiles)
+			if (Target.bUsePCHFiles && Rules.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs)
 			{
 				// If this module doesn't need a shared PCH, configure that
 				if(Rules.PrivatePCHHeaderFile != null && (Rules.PCHUsage == ModuleRules.PCHUsageMode.NoSharedPCHs || Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs))
@@ -641,7 +648,18 @@ namespace UnrealBuildTool
 			List<FileItem> NormalFiles = new List<FileItem>();
 			List<FileItem> AdaptiveFiles = new List<FileItem>();
 
-			bool bAdaptiveUnityDisablesPCH = (Target.bAdaptiveUnityDisablesPCH && Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs);
+			bool bAdaptiveUnityDisablesPCH = false;
+			if(Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs)
+			{
+				if(Rules.bTreatAsEngineModule || Rules.PrivatePCHHeaderFile == null)
+				{
+					bAdaptiveUnityDisablesPCH = Target.bAdaptiveUnityDisablesPCH;
+				}
+				else
+				{
+					bAdaptiveUnityDisablesPCH = Target.bAdaptiveUnityDisablesPCHForProject;
+				}
+			}
 
 			if ((Target.bAdaptiveUnityDisablesOptimizations || bAdaptiveUnityDisablesPCH || Target.bAdaptiveUnityCreatesDedicatedPCH) && !Target.bStressTestUnity)
 			{

@@ -90,6 +90,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/LocalPlayer.h"
 #include "Slate/SGameLayerManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -1394,6 +1395,15 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 		AdditionalParameters += PlayInSettings->AdditionalLaunchParameters;
 	}
 
+	if (bPlayUsingMobilePreview)
+	{
+		if (PlayInSettings->AdditionalLaunchParametersForMobile.Len() > 0)
+		{
+			AdditionalParameters += TEXT(" ");
+			AdditionalParameters += PlayInSettings->AdditionalLaunchParametersForMobile;
+		}
+	}
+
 	uint16 ServerPort = 0;
 	if (bIsServer && PlayInSettings->GetServerPort(ServerPort))
 	{
@@ -1460,7 +1470,7 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	}
 
 	// launch the game process
-	FString GamePath = FPlatformProcess::GenerateApplicationPath(FApp::GetName(), FApp::GetBuildConfiguration());
+	FString GamePath = FString(FPlatformProcess::BaseDir()) / FString(FPlatformProcess::ExecutableName(false));
 	FPlayOnPCInfo *NewSession = new (PlayOnLocalPCSessions) FPlayOnPCInfo();
 
 	uint32 ProcessID = 0;
@@ -3236,7 +3246,9 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						static void OnPIEWindowClosed( const TSharedRef< SWindow >& WindowBeingClosed, TWeakPtr< SViewport > PIEViewportWidget, int32 index, bool bRestoreRootWindow )
 						{
 							// Save off the window position
-							const FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
+							FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
+							const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(PIEWindowPos.X, PIEWindowPos.Y);
+							PIEWindowPos /= DPIScale;
 
 							ULevelEditorPlaySettings* LevelEditorPlaySettings = ULevelEditorPlaySettings::StaticClass()->GetDefaultObject<ULevelEditorPlaySettings>();
 
@@ -3296,7 +3308,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 				ViewportClient->Viewport->SetPlayInEditorViewport( ViewportClient->bIsPlayInEditorViewport );
 
 				// Ensure the window has a valid size before calling BeginPlay
-				SlatePlayInEditorSession.SlatePlayInEditorWindowViewport->ResizeFrame( NewWindowWidth, NewWindowHeight, EWindowMode::Windowed );
+				PieWindow->ReshapeWindow(PieWindow->GetPositionInScreen(), FVector2D(NewWindowWidth, NewWindowHeight));
 
 				// Change the system resolution to match our window, to make sure game and slate window are kept syncronised
 				FSystemResolution::RequestResolutionChange(NewWindowWidth, NewWindowHeight, EWindowMode::Windowed);
@@ -3427,6 +3439,34 @@ FViewport* UEditorEngine::GetPIEViewport()
 	}
 
 	return nullptr;
+}
+
+bool UEditorEngine::GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const
+{
+	if (bIsSimulatingInEditor)
+	{
+		// The first PIE world context is the one that can toggle between PIE and SIE
+		for (const FWorldContext& WorldContext : WorldList)
+		{
+			if (WorldContext.WorldType == EWorldType::PIE && !WorldContext.RunAsDedicated)
+			{
+				const FSlatePlayInEditorInfo* SlateInfoPtr = SlatePlayInEditorMap.Find(WorldContext.ContextHandle);
+				if (SlateInfoPtr)
+				{
+					// This is only supported inside SLevelEditor viewports currently
+					TSharedPtr<ILevelViewport> LevelViewport = SlateInfoPtr->DestinationSlateViewport.Pin();
+					if (LevelViewport.IsValid())
+					{
+						FLevelEditorViewportClient& EditorViewportClient = LevelViewport->GetLevelViewportClient();
+						OutViewTransform = FTransform(EditorViewportClient.GetViewRotation(), EditorViewportClient.GetViewLocation());
+						return true;
+					}
+				}
+				break;
+			}
+		}
+	}
+	return false;
 }
 
 void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )

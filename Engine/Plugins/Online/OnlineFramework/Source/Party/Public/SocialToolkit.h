@@ -21,6 +21,8 @@ enum class EMemberExitedReason;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
+DECLARE_DELEGATE_OneParam(FUserDependentAction, USocialUser&);
+
 /** Represents the full suite of social functionality available to a given LocalPlayer */
 UCLASS(Within = SocialManager)
 class PARTY_API USocialToolkit : public UObject
@@ -42,6 +44,7 @@ public:
 	TSharedRef<ISocialUserList> CreateUserList(const FSocialUserListConfig& ListConfig);
 
 	USocialUser& GetLocalUser() const;
+
 	FUniqueNetIdRepl GetLocalUserNetId(ESocialSubsystem SubsystemType) const;
 	int32 GetLocalUserNum() const;
 
@@ -71,6 +74,7 @@ public:
 	 */
 	void TrySendFriendInvite(const FString& DisplayNameOrEmail) const;
 
+	void QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate);
 	void RequestDisplayPlatformSocialUI() const;
 
 	const FString& GetRecentPlayerNamespaceToQuery() const { return RecentPlayerNamespaceToQuery; }
@@ -98,6 +102,8 @@ PARTY_SCOPE:
 	TSubclassOf<USocialChatManager> GetChatManagerClass() { return ChatManagerClass; }
 
 	bool TrySendFriendInvite(USocialUser& SocialUser, ESocialSubsystem SubsystemType) const;
+
+	void HandleUserInvalidated(USocialUser* InvalidUser);
 
 #if PLATFORM_PS4
 	void NotifyPSNFriendsListRebuilt();

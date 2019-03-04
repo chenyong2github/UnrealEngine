@@ -13,6 +13,10 @@
 #include "HAL/ThreadManager.h"
 #include "Modules/ModuleManager.h"
 
+#if BUILD_EMBEDDED_APP
+#include "Misc/EmbeddedCommunication.h"
+#endif
+
 #if PLATFORM_ANDROID
 #if USE_ANDROID_EVENTS
 #include "Android/AndroidEventManager.h"
@@ -134,6 +138,8 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
         IPreLoadScreen* PreLoadScreen = GetActivePreLoadScreen();
         if (PreLoadScreen && MainWindow.IsValid())
         {
+			SCOPED_BOOT_TIMING("FPreLoadScreenManager::HandleEarlyStartupPlay()");
+
             PreLoadScreen->OnPlay(MainWindow.Pin());
 
             if (PreLoadScreen->GetWidget().IsValid())
@@ -147,11 +153,20 @@ void FPreLoadScreenManager::HandleEarlyStartupPlay()
 				bDidDisableScreensaver = FPlatformApplicationMisc::ControlScreensaver(FGenericPlatformApplicationMisc::EScreenSaverAction::Disable);
 			}
 
-            //We run this PreLoadScreen until its finished or we lose the MainWindow as EarlyPreLoadPlay is synchronous
-            while (!PreLoadScreen->IsDone())
-            {
-                EarlyPlayFrameTick();
-            }
+			{
+				SCOPED_BOOT_TIMING("FPreLoadScreenManager::EarlyPlayFrameTick()");
+
+				//We run this PreLoadScreen until its finished or we lose the MainWindow as EarlyPreLoadPlay is synchronous
+#if BUILD_EMBEDDED_APP && FAST_BOOT_HACKS
+				FString ObjName(TEXT("LoggedInObject"));
+				while (FEmbeddedDelegates::GetNamedObject(ObjName) == nullptr || !PreLoadScreen->IsDone())
+#else
+				while (!PreLoadScreen->IsDone())
+#endif
+				{
+					EarlyPlayFrameTick();
+				}
+			}
 
             if (bDidDisableScreensaver)
             {
@@ -328,10 +343,8 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
         float SlateDeltaTime = SlateApp.GetDeltaTime();
 
         //Setup Slate Render Command
-        ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-            BeginPreLoadScreenFrame,
-            IPreLoadScreen*, ActivePreLoadScreen, ActivePreLoadScreen,
-            float, SlateDeltaTime, SlateDeltaTime,
+        ENQUEUE_RENDER_COMMAND(BeginPreLoadScreenFrame)(
+			[ActivePreLoadScreen, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
             {
                 if (FPreLoadScreenManager::ShouldRender())
                 {

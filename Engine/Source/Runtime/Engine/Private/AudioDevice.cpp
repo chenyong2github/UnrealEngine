@@ -72,6 +72,14 @@ FAutoConsoleVariableRef CVarForceRealtimeDecompression(
 	TEXT("0: Allow full decompression on load, 1: force realtime decompression."),
 	ECVF_Default);
 
+static int32 DisableAutomaticPrecacheCvar = 0;
+FAutoConsoleVariableRef CVarDisableAutomaticPrecache(
+	TEXT("au.DisableAutomaticPrecache"),
+	DisableAutomaticPrecacheCvar,
+	TEXT("When set to 1, this disables precaching on load or startup, it will only precache synchronously when playing.\n")
+	TEXT("0: Use normal precaching logic, 1: disables all precaching except for synchronous calls."),
+	ECVF_Default);
+
 static float DecompressionThresholdCvar = 0.0f;
 FAutoConsoleVariableRef CVarDecompressionThreshold(
 	TEXT("au.DecompressionThreshold"),
@@ -109,6 +117,22 @@ FAutoConsoleVariableRef CVarNumPrecacheFrames(
 	NumPrecacheFramesCvar,
 	TEXT("When set to > 0, will use that value as the number of frames to precache audio buffers with.\n")
 	TEXT("0: Use default value for precache frames, >0: Number of frames to precache."),
+	ECVF_Default);
+
+static int32 AllowAudioSpatializationCVar = 1;
+FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
+	TEXT("au.AllowAudioSpatialization"),
+	AllowAudioSpatializationCVar,
+	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
+	TEXT("0: Disable, >0: Enable"),
+	ECVF_Default);
+
+static int32 DisableLegacyReverb = 0;
+FAutoConsoleVariableRef CVarDisableLegacyReverb(
+	TEXT("au.DisableLegacyReverb"),
+	DisableLegacyReverb,
+	TEXT("Disables reverb on legacy audio backends.\n")
+	TEXT("0: Enabled, 1: Disabled"),
 	ECVF_Default);
 
 
@@ -251,7 +275,9 @@ FAudioQualitySettings FAudioDevice::GetQualityLevelSettings()
 
 bool FAudioDevice::Init(int32 InMaxChannels)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	SCOPED_BOOT_TIMING("FAudioDevice::Init");
+
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (bIsInitialized)
 	{
@@ -279,11 +305,6 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 
 	// If this is true, skip the initial startup precache so we can do it later in the flow
 	GConfig->GetBool(TEXT("Audio"), TEXT("DeferStartupPrecache"), bDeferStartupPrecache, GEngineIni);
-
-	// Hack: Make sure that Android defers startup sounds.
-#if PLATFORM_ANDROID
-	bDeferStartupPrecache = true;
-#endif
 
 	// Get an optional engine ini setting for platform headroom.
 	float Headroom = 0.0f; // in dB
@@ -441,7 +462,7 @@ float FAudioDevice::GetLowPassFilterResonance() const
 void FAudioDevice::PrecacheStartupSounds()
 {
 	// Iterate over all already loaded sounds and precache them. This relies on Super::Init in derived classes to be called last.
-	if (!GIsEditor && GEngine && GEngine->UseSound() )
+	if (!GIsEditor && GEngine && GEngine->UseSound() && DisableAutomaticPrecacheCvar == 0)
 	{
 		for (TObjectIterator<USoundWave> It; It; ++It)
 		{
@@ -2052,7 +2073,7 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 	// Now stop any sounds that are active that are in concurrency resolution groups that resolve by stopping quietest
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AudioEvaluateConcurrency);
-		ConcurrencyManager.StopQuietSoundsDueToMaxConcurrency();
+		ConcurrencyManager.UpdateQuietSoundsToStop();
 	}
 
 	// Remove all wave instances from the wave instance list that are stopping due to max concurrency
@@ -2071,6 +2092,7 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 			if (ActiveSound->bShouldStopDueToMaxConcurrency)
 			{
 				ActiveSound->Stop(false);
+				ConcurrencyManager.StopActiveSound(ActiveSound);
 			}
 		}
 	}
@@ -3279,7 +3301,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 								bStopped = true;
 							}
 						}
-						else if (!ActiveSound->bIsPlayingAudio)
+						else if (!ActiveSound->bIsPlayingAudio && ActiveSound->bFinished)
 						{
 							bStopped = true;
 						}
@@ -3655,7 +3677,7 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 
 void FAudioDevice::Update(bool bGameTicking)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (!IsInAudioThread())
 	{
@@ -4051,7 +4073,7 @@ void FAudioDevice::InitializePluginListeners(UWorld* World)
 
 void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (NewActiveSound.Sound == nullptr)
 	{
@@ -4153,6 +4175,12 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 	if (ActiveSound->IsOneShot())
 	{
 		OneShotCount++;
+	}
+
+	// If we've disabled audio spatialization, then we need to force this active sound to no longer spatialize.
+	if (AllowAudioSpatializationCVar == 0)
+	{
+		ActiveSound->bAllowSpatialization = false;
 	}
 
 	// Set the active sound to be playing audio so it gets parsed at least once.
@@ -4272,6 +4300,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 {
 	check(IsInAudioThread());
+	check(SoundToStop);
 
 	const uint64 AudioComponentID = SoundToStop->GetAudioComponentID();
 	if (AudioComponentID > 0)
@@ -4279,8 +4308,13 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 		AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
 	}
 
-	check(SoundToStop);
-	PendingSoundsToStop.Add(SoundToStop);
+	bool bAlreadyPending = false;
+	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
+
+	if (!bAlreadyPending)
+	{
+		ConcurrencyManager.StopActiveSound(SoundToStop);
+	}
 }
 
 void FAudioDevice::StopActiveSound(const uint64 AudioComponentID)
@@ -4343,8 +4377,6 @@ FActiveSound* FAudioDevice::FindActiveSound(const uint64 AudioComponentID)
 void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
 {
 	check(IsInAudioThread());
-
-	ConcurrencyManager.RemoveActiveSound(ActiveSound);
 
 	// Perform the notification
 	if (ActiveSound->GetAudioComponentID() > 0)
@@ -5066,7 +5098,6 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 
 void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrackMemory, bool bForceFullDecompression)
 {
-	LLM_SCOPE(ELLMTag::Audio);
 	LLM_SCOPE(ELLMTag::AudioPrecache);
 
 	if (SoundWave == nullptr)
@@ -5088,6 +5119,12 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 
 	if (!bSynchronous && SoundWave->GetPrecacheState() == ESoundWavePrecacheState::NotStarted)
 	{
+		if (!bForceFullDecompression && DisableAutomaticPrecacheCvar == 1)
+		{
+			// Don't schedule a precache for a normal async request because it is currently disabled
+			return;
+		}
+
 		if (IsInGameThread())
 		{
 			// On the game thread, add this sound wave to the referenced sound wave nodes so that it doesn't get GC'd
@@ -5439,6 +5476,11 @@ void FAudioDevice::StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioC
 	{
 		UE_LOG(LogAudio, Warning, TEXT("All Sounds using SoundWave '%s' have been stopped"), *SoundWave->GetName());
 	}
+}
+
+bool FAudioDevice::LegacyReverbDisabled()
+{
+	return DisableLegacyReverb != 0;
 }
 
 void FAudioDevice::RegisterPluginListener(const TAudioPluginListenerPtr PluginListener)

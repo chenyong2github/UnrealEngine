@@ -701,9 +701,16 @@ public:
 	/** Array of physical interactions for the frame. This is a temporary solution for a more permanent force system and should not be used directly*/
 	TArray<FPendingRadialForces> PendingRadialForces;
 
-	/** Set the anim instance class. Clears and re-initializes the anim instance with the new class and sets animation mode to 'AnimationBlueprint' */
-	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh", meta=(Keywords = "AnimBlueprint", DisplayName = "Set Anim Instance Class"))
+	UE_DEPRECATED(4.23, "This function is deprecated. Please use SetAnimClass instead. ")
 	virtual void K2_SetAnimInstanceClass(class UClass* NewClass);
+
+	/** Set the anim instance class. Clears and re-initializes the anim instance with the new class and sets animation mode to 'AnimationBlueprint' */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (Keywords = "AnimBlueprint", DisplayName = "Set Anim Instance Class"))
+	virtual void SetAnimClass(class UClass* NewClass);
+
+	/** Get the anim instance class via getter callable by sequencer.  */
+	UFUNCTION(BlueprintInternalUseOnly)
+	class UClass*  GetAnimClass();
 
 	/** Set the anim instance class. Clears and re-initializes the anim instance with the new class and sets animation mode to 'AnimationBlueprint' */
 	void SetAnimInstanceClass(class UClass* NewClass);
@@ -1281,7 +1288,7 @@ public:
 	 *
 	 * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
 	 */
-	void RecalcRequiredBones(int32 LODIndex);
+	bool RecalcRequiredBones(int32 LODIndex);
 
 	/** Computes the required bones in this SkeletalMeshComponent based on current SkeletalMesh, LOD and PhysicsAsset
 	  * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
@@ -1294,10 +1301,24 @@ public:
 	*/
 	void RecalcRequiredCurves();
 
+private:
+	/**
+	 * Recalculates the RequiredBones array in this SkeletalMeshComponent based on current SkeletalMesh, LOD and PhysicsAsset.
+	 * Only modifies members of the SMC (safe to call while parallel task is in flight
+	 *
+	 * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
+	 */
+	bool RecalcRequiredBonesInternalSMC(int32 LODIndex);
+
+	/**
+	 * Causes the anim instances this component owns to recalc their required bones.
+	 * RecalcRequiredBonesInternalSMC must be called first
+	 */
+	void RecalcRequiredBonesInternalAnimInstances();
+
 public:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void NotifyObjectReferenceEliminated() const override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnSkeletalMeshPropertyChangedMulticaster)

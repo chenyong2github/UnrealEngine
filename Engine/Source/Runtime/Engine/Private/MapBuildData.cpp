@@ -492,6 +492,11 @@ FMeshMapBuildData* UMapBuildDataRegistry::GetMeshBuildData(FGuid MeshId)
 	return FoundData;
 }
 
+FMeshMapBuildData* UMapBuildDataRegistry::GetMeshBuildDataDuringBuild(FGuid MeshId)
+{
+	return MeshBuildData.Find(MeshId);
+}
+
 FPrecomputedLightVolumeData& UMapBuildDataRegistry::AllocateLevelPrecomputedLightVolumeBuildData(const FGuid& LevelId)
 {
 	check(LevelId.IsValid());
@@ -671,6 +676,8 @@ void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecrea
 
 		MarkPackageDirty();
 	}
+
+	bSetupResourceClusters = false;
 }
 
 void UMapBuildDataRegistry::InvalidateReflectionCaptures(const TSet<FGuid>* ResourcesToKeep)
@@ -851,7 +858,6 @@ void UMapBuildDataRegistry::EmptyLevelData(const TSet<FGuid>* ResourcesToKeep)
 	}
 
 	LightmapResourceClusters.Empty();
-	bSetupResourceClusters = false;
 }
 
 FUObjectAnnotationSparse<FMeshMapBuildLegacyData, true> GComponentsWithLegacyLightmaps;

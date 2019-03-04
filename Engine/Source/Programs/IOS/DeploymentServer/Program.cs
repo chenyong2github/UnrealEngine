@@ -31,7 +31,7 @@ namespace DeploymentServer
 		static bool IsRunningCommand = false;
 		static bool IsStopping = false;
 		static int ClientCounter = 0;
-		static long TimeOut = 120000;
+		static long TimeOut = 30000;
 		static Stopwatch GlobalTimer = Stopwatch.StartNew();
 		static int ParentPID = 0;
 		static string TestStartPath = null;
@@ -245,7 +245,7 @@ namespace DeploymentServer
 				LastResult = true;
 				bCommandComplete = false;
 				bool bWaitForCompletion = ShouldWaitForCompletion(Command);
-				bNeedsResponse = !bWaitForCompletion;
+				bNeedsResponse = bWaitForCompletion;
 
 				runLoop = new System.Threading.Thread(delegate ()
 				{
@@ -280,36 +280,43 @@ namespace DeploymentServer
                             case "backupdocs":
                                 Console.SetOut(Writer);
                                 LastResult = DeploymentProxy.Deployer.BackupDocumentsDirectory(Bundle, FileList.Count > 0 ? FileList[0] : ".");
-                                break;
+								Writer.Flush();
+								break;
 
 							case "backup":
 								Console.SetOut(Writer);
 								LastResult = DeploymentProxy.Deployer.BackupFiles(Bundle, FileList.ToArray());
+								Writer.Flush();
 								break;
 
 							case "deploy":
 								Console.SetOut(Writer);
 								LastResult = DeploymentProxy.Deployer.InstallFilesOnDevice(Bundle, Manifest);
+								Writer.Flush();
 								break;
 
 							case "copyfile":
 								Console.SetOut(Writer);
 								LastResult = DeploymentProxy.Deployer.CopyFileToDevice(Bundle, FileList[0], FileList[1]);
+								Writer.Flush();
 								break;
 
 							case "install":
 								Console.SetOut(Writer);
 								LastResult = DeploymentProxy.Deployer.InstallIPAOnDevice(IpaPath);
+								Writer.Flush();
 								break;
 
 							case "enumerate":
 								Console.SetOut(Writer);
 								DeploymentProxy.Deployer.EnumerateConnectedDevices();
+								Writer.Flush();
 								break;
 
 							case "listdevices":
 								Console.SetOut(Writer);
 								DeploymentProxy.Deployer.ListDevices();
+								Writer.Flush();
 								break;
 
 							case "command":
@@ -334,10 +341,13 @@ namespace DeploymentServer
 											int Ret = targetDevice.TunnelData(Param1, TCPService);
 											targetDevice.CloseTunnel(TCPService);
 
-											Writer.WriteLine("[command] Sennt '{0}' bytes.", Ret);
+											Console.WriteLine("[UE4][command] Sent '{0}' bytes. ({1})", Ret, Param1);
+											Writer.WriteLine("[UE4][command] Sent '{0}' bytes. ({1})", Ret, Param1);
 										}
+										else
 										{
-											Writer.WriteLine("[command] Device '{0}' not detected.", Device);
+											Console.WriteLine("[UE4][command] Device '{0}' not detected. ({1})", Device, Param1);
+											Writer.WriteLine("[UE4][command] Device '{0}' not detected. ({1})", Device, Param1);
 										}
 									}
 									catch
@@ -346,6 +356,7 @@ namespace DeploymentServer
 										Writer.WriteLine("[command] Errors encountered while tunneling to device.");
 									}
 								}
+								Writer.Flush();
 								break;
 
 							case "forward":
@@ -372,6 +383,7 @@ namespace DeploymentServer
 									Writer.WriteLine("{0}\r{1}\r{2}", P.DeviceID, P.TCPPort, P.DevicePort);
 								}
 								Writer.WriteLine("");
+								Writer.Flush();
 								break;
 
 							case "listentodevice":
@@ -397,7 +409,6 @@ namespace DeploymentServer
 					}
 					finally
 					{
-						Writer.Flush();
 						Console.SetOut(ConsoleOld);
 						bCommandComplete = true;
 					}
@@ -649,9 +660,9 @@ namespace DeploymentServer
 			RemotingConfiguration.RegisterWellKnownServiceType(typeof(DeploymentProxy), URI, WellKnownObjectMode.Singleton);
 		}
 
-		protected static void ParseServerParam(string[] Arguments)
+		protected static void ParseServerParam(List<string> Arguments)
 		{
-			if (Arguments.Length > 2)
+			if (Arguments.Count > 2)
 			{
 				TestStartPath = Arguments[2];
 			}
@@ -659,9 +670,9 @@ namespace DeploymentServer
 			{
 				TestStartPath = GetDeploymentServerPath();
 			}
-			if (Arguments.Length > 3)
+			if (Arguments.Count > 3)
 			{
-				for (int ArgIndex = 3; ArgIndex < Arguments.Length; ArgIndex++)
+				for (int ArgIndex = 3; ArgIndex < Arguments.Count; ArgIndex++)
 				{
 					string Arg = Arguments[ArgIndex].ToLowerInvariant();
 					if (Arg.StartsWith("-"))
@@ -670,7 +681,7 @@ namespace DeploymentServer
 						{
 							case "-timeout":
 								{
-									if (Arguments.Length > ArgIndex + 1)
+									if (Arguments.Count > ArgIndex + 1)
 									{
 										long ArgTime = TimeOut;
 										long.TryParse(Arguments[++ArgIndex], out ArgTime);
@@ -735,11 +746,20 @@ namespace DeploymentServer
 				}
 				Server = new TcpListener(IPAddress.Any, Port);
 				Server.Start();
-				
 
-				ParseServerParam(Args);
+				string CommandLine = "";
+				foreach (string Arg in Args)
+				{
+					CommandLine += Arg + " ";
+				}
+				List<string> Arguments = Regex.Matches(CommandLine, @"[\""].+?[\""]|[^ ]+")
+												.Cast<Match>()
+												.Select(m => m.Value)
+												.ToList();
+				ParseServerParam(Arguments);
 				Console.WriteLine(string.Format("Deployment Server listening to port {0}", Port.ToString()));
 				Console.WriteLine(string.Format("Deployment Server inactivity timeout {0}", TimeOut.ToString()));
+				Console.WriteLine(string.Format("Deployment Server starting from {0}", TestStartPath));
 				Console.WriteLine("---------------------------------------------------------");
 
 				// Processing commands
@@ -929,7 +949,7 @@ namespace DeploymentServer
 					if (TcpClientInfo.NeedsVersionCheck(LocalCommand))
 					{
 
-						if (!Response.Equals("DIR" + GetDeploymentServerPath(), StringComparison.InvariantCultureIgnoreCase))
+						if (!Response.Equals("[DSDIR]" + GetDeploymentServerPath(), StringComparison.InvariantCultureIgnoreCase))
 						{
 							Console.WriteLine("Wrong server running, restarting the server ...");
 							clientOut.Write("stop");
@@ -1143,7 +1163,7 @@ namespace DeploymentServer
 
 					TextWriter Writer = new StreamWriter(ClStream);
 					
-					Writer.WriteLine("DIR" + TestStartPath);
+					Writer.WriteLine("[DSDIR]" + TestStartPath);
 					Writer.Flush();
 
 					Byte[] Buffer = new Byte[2048];
@@ -1155,7 +1175,6 @@ namespace DeploymentServer
 						//Console.WriteLine("Looping [{0}]", localID);
 						if (ClientInfo.HasCommand && !IsStopping)
 						{
-							//Console.WriteLine("Got command [{0}]", localID);
 							if (!IsRunningCommand && !ClientInfo.IsStillRunning)
 							{
 								ClientInfo.HasCommand = false;
@@ -1173,7 +1192,10 @@ namespace DeploymentServer
 								IsRunningCommand = false;
 								if (!ClientInfo.IsStillRunning)
 								{
-									Writer.WriteLine(ClientInfo.GetLastResult ? "\nCMDOK" : "\nCMDFAIL");
+									if (ClientInfo.NeedsResponse || !ClientInfo.GetLastResult)
+									{
+										Writer.WriteLine(ClientInfo.GetLastResult ? "\nCMDOK" : "\nCMDFAIL");
+									}
 									Writer.Flush();
 									ClStream.Flush();
 									break;
@@ -1227,13 +1249,6 @@ namespace DeploymentServer
 								Client.Client.Blocking = BlockingState;
 							}
 						}
-						else if (ClientInfo.NeedsResponse)
-						{
-							Writer.WriteLine("\nCMDOK");
-							Writer.Flush();
-							ClStream.Flush();
-							break;
-						}
 						if (IsStopping)
 						{
 							try
@@ -1285,6 +1300,13 @@ namespace DeploymentServer
 		static void ForceKillProcesses()
 		{
 			foreach (var process in Process.GetProcessesByName("DeploymentServer"))
+			{
+				if (process.Id != Process.GetCurrentProcess().Id)
+				{
+					process.Kill();
+				}
+			}
+			foreach (var process in Process.GetProcessesByName("DeploymentServerLauncher"))
 			{
 				if (process.Id != Process.GetCurrentProcess().Id)
 				{

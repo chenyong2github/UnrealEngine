@@ -371,6 +371,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		static void ValidateSharedEnvironment(RulesAssembly RulesAssembly, string ThisTargetName, TargetRules ThisRules)
 		{
+			// Allow disabling these checks
+			if(ThisRules.bOverrideBuildEnvironment)
+			{
+				return;
+			}
+
 			// Get the name of the target with default settings
 			string BaseTargetName;
 			switch(ThisRules.Type)
@@ -456,7 +462,7 @@ namespace UnrealBuildTool
 			// Throw an exception if they don't match
 			if(!bFieldsMatch)
 			{
-				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting or change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
+				throw new BuildException("{0} modifies the value of {1}. This is not allowed, as {0} has build products in common with {2}.\nRemove the modified setting, change {0} to use a unique build environment by setting 'BuildEnvironment = TargetBuildEnvironment.Unique;' in the {3} constructor, or set bOverrideSharedBuildEnvironment = true to force this setting on.", ThisTargetName, FieldName, BaseTargetName, RulesType.Name);
 			}
 		}
 
@@ -976,14 +982,21 @@ namespace UnrealBuildTool
 			// Create the receipt
 			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
 
-			// Set the launch executable if there is one
-			foreach(KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
+			if (!Rules.bShouldCompileAsDLL)
 			{
-				if(Pair.Value == BuildProductType.Executable)
+				// Set the launch executable if there is one
+				foreach (KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
 				{
-					Receipt.Launch = Pair.Key;
-					break;
+					if (Pair.Value == BuildProductType.Executable)
+					{
+						Receipt.Launch = Pair.Key;
+						break;
+					}
 				}
+			}
+			else
+			{
+				Receipt.AdditionalProperties.Add(new ReceiptProperty("CompileAsDll", "true"));
 			}
 
 			// Find all the build products and modules from this binary
@@ -1401,7 +1414,7 @@ namespace UnrealBuildTool
 				// Create an action which to generate the receipts
 				WriteMetadataTargetInfo MetadataTargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, ReceiptFileName, Receipt, FileNameToModuleManifest);
 				FileReference MetadataTargetFile = FileReference.Combine(ProjectIntermediateDirectory, "Metadata.dat");
-				BinaryFormatterUtils.Save(MetadataTargetFile, MetadataTargetInfo);
+				BinaryFormatterUtils.SaveIfDifferent(MetadataTargetFile, MetadataTargetInfo);
 
 				StringBuilder WriteMetadataArguments = new StringBuilder();
 				WriteMetadataArguments.AppendFormat("-Input={0}", Utils.MakePathSafeToUseWithCommandLine(MetadataTargetFile));
@@ -1415,6 +1428,7 @@ namespace UnrealBuildTool
 				WriteMetadataAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				WriteMetadataAction.StatusDescription = ReceiptFileName.GetFileName();
 				WriteMetadataAction.bCanExecuteRemotely = false;
+				WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(MetadataTargetFile));
 				WriteMetadataAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
 				WriteMetadataAction.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
 				Makefile.Actions.Add(WriteMetadataAction);
@@ -1507,6 +1521,14 @@ namespace UnrealBuildTool
 				}
 			}
 			Makefile.AdditionalDependencies.UnionWith(Makefile.PluginFiles);
+
+			// Write a header containing public definitions for this target
+			if(Rules.ExportPublicHeader != null)
+			{
+				UEBuildBinary Binary = Binaries[0];
+				FileReference Header = FileReference.Combine(Binary.OutputDir, Rules.ExportPublicHeader);
+				WritePublicHeader(Binary, Header, GlobalCompileEnvironment);
+			}
 
 			// Clean any stale modules which exist in multiple output directories. This can lead to the wrong DLL being loaded on Windows.
 			CleanStaleModules();
@@ -1721,6 +1743,44 @@ namespace UnrealBuildTool
 
 				Writer.WriteObjectEnd();
 			}
+		}
+
+		/// <summary>
+		/// Writes a header for the given binary that allows including headers from it in an external application
+		/// </summary>
+		/// <param name="Binary">Binary to write a header for</param>
+		/// <param name="HeaderFile">Path to the header to output</param>
+		/// <param name="GlobalCompileEnvironment">The global compile environment for this target</param>
+		void WritePublicHeader(UEBuildBinary Binary, FileReference HeaderFile, CppCompileEnvironment GlobalCompileEnvironment)
+		{
+			DirectoryReference.CreateDirectory(HeaderFile.Directory);
+
+			// Find all the public definitions from each module. We pass null as the source binary to AddModuleToCompileEnvironment, which forces all _API macros to 'export' mode
+			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
+			foreach(UEBuildModule Module in Binary.Modules)
+			{
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
+			}
+
+			// Write the header
+			using(StreamWriter Writer = new StreamWriter(HeaderFile.FullName))
+			{
+				Writer.WriteLine("#pragma once");
+				Writer.WriteLine();
+				foreach(string Definition in Definitions)
+				{
+					int EqualsIdx = Definition.IndexOf('=');
+					if(EqualsIdx == -1)
+					{
+						Writer.WriteLine(String.Format("#define {0} 1", Definition));
+					}
+					else
+					{
+						Writer.WriteLine(String.Format("#define {0} {1}", Definition.Substring(0, EqualsIdx), Definition.Substring(EqualsIdx + 1)));
+					}
+				}
+			}
+			Log.TraceInformation("Written public header to {0}", HeaderFile);
 		}
 
 		/// <summary>
@@ -2035,7 +2095,7 @@ namespace UnrealBuildTool
 				{
 					if(!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
 					{
-						HotReloadModuleNames.UnionWith(GameModules.Select(x => x.Name));
+						HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Select(x => x.Name));
 					}
 				}
 			}
@@ -2901,6 +2961,9 @@ namespace UnrealBuildTool
 			// Toggle to enable vorbis for audio streaming where available
 			GlobalCompileEnvironment.Definitions.Add("USE_VORBIS_FOR_STREAMING=1");
 
+			// Toggle to enable XMA for audio streaming where available (XMA2 only supports up to stereo streams - surround streams will fall back to Vorbis etc)
+			GlobalCompileEnvironment.Definitions.Add("USE_XMA2_FOR_STREAMING=1");
+
 			// Add the 'Engine/Source' path as a global include path for all modules
 			GlobalCompileEnvironment.UserIncludePaths.Add(UnrealBuildTool.EngineSourceDirectory);
 
@@ -3214,7 +3277,7 @@ namespace UnrealBuildTool
 				}
 
 				// If we can't use a shared PCH, check there's a private PCH set
-				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
+				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs && RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
 				{
 					// Try to figure out the legacy PCH file
 					FileReference CppFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, "*.cpp", SearchOption.AllDirectories).FirstOrDefault();

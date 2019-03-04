@@ -26,6 +26,30 @@ TLinkedList<FRenderResource*>*& FRenderResource::GetResourceList()
 	return FirstResourceLink;
 }
 
+/** Initialize all resources initialized before the RHI was initialized */
+void FRenderResource::InitPreRHIResources()
+{	
+	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
+	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
+	{
+		ResourceIt->InitRHI();
+	}
+	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
+	{
+		ResourceIt->InitDynamicRHI();
+	}
+
+#if !PLATFORM_NEEDS_RHIRESOURCELIST
+	while (GetResourceList())
+	{
+		TLinkedList<FRenderResource*>* CurrentHead = GetResourceList();
+		CurrentHead->Unlink();
+		delete CurrentHead;
+	}
+#endif
+}
+
 void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 {
 	ENQUEUE_RENDER_COMMAND(FRenderResourceChangeFeatureLevel)(
@@ -53,12 +77,21 @@ void FRenderResource::InitResource()
 	check(IsInRenderingThread());
 	if(!bInitialized)
 	{
+#if PLATFORM_NEEDS_RHIRESOURCELIST
 		ResourceLink = TLinkedList<FRenderResource*>(this);
 		ResourceLink.LinkHead(GetResourceList());
+#endif
 		if(GIsRHIInitialized)
 		{
 			InitDynamicRHI();
 			InitRHI();
+		}
+		else
+		{
+#if !PLATFORM_NEEDS_RHIRESOURCELIST
+		TLinkedList<FRenderResource*>* ListEntry = new TLinkedList<FRenderResource*>(this);
+		ListEntry->LinkHead(GetResourceList());
+#endif
 		}
 		FPlatformMisc::MemoryBarrier(); // there are some multithreaded reads of bInitialized
 		bInitialized = true;
@@ -77,7 +110,9 @@ void FRenderResource::ReleaseResource()
 				ReleaseRHI();
 				ReleaseDynamicRHI();
 			}
+#if PLATFORM_NEEDS_RHIRESOURCELIST
 			ResourceLink.Unlink();
+#endif
 			bInitialized = false;
 		}
 	}

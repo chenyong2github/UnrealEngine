@@ -47,42 +47,6 @@ struct FReplicatedActorProperty
 	{}
 };
 
-/** 
- *	FReplicationChangelistMgr manages a list of change lists for a particular replicated object that have occurred since the object started replicating
- *	Once the history is completely full, the very first changelist will then be merged with the next one (freeing a slot)
- *		This way we always have the entire history for join in progress players
- *	This information is then used by all connections, to share the compare work needed to determine what to send each connection
- *	Connections will send any changelist that is new since the last time the connection checked
- */
-class ENGINE_API FReplicationChangelistMgr
-{
-public:
-	FReplicationChangelistMgr( UNetDriver* InDriver, UObject* InObject );
-
-	~FReplicationChangelistMgr();
-
-	/**
-	 * Updates the shared RepChangelistState for the given object, potentially skipping unnecessary updates.
-	 * See FRepLayout::CompareProperties.
-	 *
-	 * @param RepState		The connection specific RepState for this object.
-	 * @param InObject		The Object associated with the Changelist / RepLayout.
-	 * @param RepFlags		Replication Flags that will be used if the object needs to be replicated.
-	 * @param bForceCompare	Force the comparison, even if other connections have already done it this frame.
-	 */
-	void Update(FSendingRepState* RESTRICT RepState, const UObject* InObject, const uint32 ReplicationFrame, const FReplicationFlags& RepFlags, const bool bForceCompare);
-
-	FRepChangelistState* GetRepChangelistState() const { return RepChangelistState.Get(); }
-
-	void CountBytes(FArchive& Ar) const;
-
-private:
-	UNetDriver*							Driver;
-	TSharedPtr< FRepLayout >			RepLayout;
-	TUniquePtr< FRepChangelistState >	RepChangelistState;
-	uint32								LastReplicationFrame;
-};
-
 /** FObjectReplicator
  *   Generic class that replicates properties for an object.
  *   All delta/diffing work is done in this class. 
@@ -114,6 +78,7 @@ public:
 	TArray<FPropertyRetirement>						Retirement;					// Property retransmission.
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	RecentCustomDeltaState;		// This is the delta state we need to compare with when determining what to send to a client for custom delta properties
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CDOCustomDeltaState;		// Same as RecentCustomDeltaState, but this will always remain as the initial CDO version. We use this to send all properties since channel was first opened (for bResendAllDataSinceOpen)
+	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CheckpointCustomDeltaState;	// Same as RecentCustomDeltaState, but will represent the state at the last checkpoint
 
 	TArray< int32 >									LifetimeCustomDeltaProperties;
 	TArray< ELifetimeCondition >					LifetimeCustomDeltaPropertyConditions;
@@ -132,11 +97,12 @@ public:
 
 	TSharedPtr< FRepLayout >						RepLayout;
 	TUniquePtr< FRepState > 						RepState;
+	TUniquePtr< FRepState >							CheckpointRepState;
 
 	TSet< FNetworkGUID >							ReferencedGuids;
 	int32											TrackedGuidMemoryBytes;
 
-	TSharedPtr< FReplicationChangelistMgr >			ChangelistMgr;
+	TSharedPtr<class FReplicationChangelistMgr> ChangelistMgr;
 
 	struct FRPCCallInfo 
 	{
@@ -200,6 +166,9 @@ public:
 	void	ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, FReplicationFlags RepFlags );
 	bool	ReplicateProperties( FOutBunch & Bunch, FReplicationFlags RepFlags );
 	void	PostSendBunch(FPacketIdRange & PacketRange, uint8 bReliable);
+
+	/** Updates the custom delta state for a replay delta checkpoint */
+	void	UpdateCheckpoint();
 	
 	bool	ReceivedBunch( FNetBitReader& Bunch, const FReplicationFlags& RepFlags, const bool bHasRepLayout, bool& bOutHasUnmapped );
 	bool	ReceivedRPC(FNetBitReader& Reader, const FReplicationFlags& RepFlags, const FFieldNetCache* FieldCache, const bool bCanDelayRPC, bool& bOutDelayRPC, TSet<FNetworkGUID>& OutUnmappedGuids);

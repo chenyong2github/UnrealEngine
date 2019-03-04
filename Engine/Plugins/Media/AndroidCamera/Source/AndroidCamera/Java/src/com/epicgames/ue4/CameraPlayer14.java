@@ -1378,7 +1378,7 @@ public class CameraPlayer14
 
 			mSurfaceTexture.getTransformMatrix(mTransformMatrix);
 
-			int degrees = (GameActivity._activity.DeviceRotation + CameraRotationOffset) % 360;
+			int degrees = (GameActivity._activity.getCurrentDeviceRotationDegree() + CameraRotationOffset) % 360;
 			if (degrees == 0) {
 				mScaleRotation00 = mTransformMatrix[1];
 				mScaleRotation01 = mTransformMatrix[5];
@@ -1917,7 +1917,7 @@ public class CameraPlayer14
 			GameActivity.Log.debug(mTransformMatrix[12] + ", " + mTransformMatrix[13] + ", " + mTransformMatrix[14] + ", " + mTransformMatrix[15]);
 			*/
 
-			int degrees = (GameActivity._activity.DeviceRotation + CameraRotationOffset) % 360;
+			int degrees = (GameActivity._activity.getCurrentDeviceRotationDegree() + CameraRotationOffset) % 360;
 			if (degrees == 0) {
 				mScaleRotation00 = mTransformMatrix[1];
 				mScaleRotation01 = mTransformMatrix[5];

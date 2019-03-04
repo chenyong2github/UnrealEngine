@@ -2766,7 +2766,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 										}
 									}
 
-									if (OtherLayerWeightSum != 255)
+									if (OtherLayerWeightSum > 0 && OtherLayerWeightSum != 255)
 									{
 										const float Factor = 255.0f / OtherLayerWeightSum;
 										OtherLayerWeightSum = 0;
@@ -3459,7 +3459,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 			uint8 CornerSet = 0;
 			bool ExistLeft = ComponentIndexXX > 0 && ComponentDataExist[ ComponentIndexXX-1 + ComponentIndexYY * ComponentSizeX ];
 			bool ExistUp = ComponentIndexYY > 0 && ComponentDataExist[ ComponentIndexXX + (ComponentIndexYY-1) * ComponentSizeX ];
-
+			bool IsBorderPosition = false;
+		
 			if( Component )
 			{
 				if (LayerInfo != NULL)
@@ -3504,6 +3505,14 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 					BorderComponentY1.AddZeroed(ComponentSizeX);
 					BorderComponentY2.AddZeroed(ComponentSizeX);
 					bHasMissingValue = true;
+				}
+
+				if (LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX - 1, ComponentIndexY)) == nullptr
+					|| LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY - 1)) == nullptr
+					|| LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX + 1, ComponentIndexY)) == nullptr
+					|| LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentIndexX, ComponentIndexY + 1)) == nullptr)
+				{
+					IsBorderPosition = true;
 				}
 
 				// Search for neighbor component for interpolation
@@ -3792,14 +3801,14 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 							if (LayerInfo != NULL)
 							{
 								// Find the input data corresponding to this vertex
-								uint8 Weight;
+								uint8 Weight = 0;
 								if( WeightmapTexture )
 								{
 									// Find the texture data corresponding to this vertex
 									Weight = GetWeightMapData(Component, LayerInfo, (SubsectionSizeQuads+1) * SubIndexX + SubX, (SubsectionSizeQuads+1) * SubIndexY + SubY, WeightmapChannelOffset, WeightmapTexture, WeightmapTextureData );
-									StoreData.Store(LandscapeX, LandscapeY, Weight);
 								}
-								else
+								// only try generating between component if we have no component, otherwise we might end up trying to add some layer info to some component that do not originally had the allocation.
+								else if (Component == nullptr && !IsBorderPosition)
 								{
 									// Find the texture data corresponding to this vertex
 									uint8 Value[4] = {0, 0, 0, 0};

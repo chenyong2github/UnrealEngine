@@ -376,8 +376,9 @@ namespace Audio
 				DeviceSubmixInfo.Reset(NumInputChannels, NumDeviceOutputChannels, NumFrames);
 			}
 
-			void ResetData(const uint32 InNumInputChannels)
+			void ResetData(const uint32 InNumInputChannels, int32 InNumDeviceChannels)
 			{
+				NumDeviceChannels = InNumDeviceChannels;
 				NumInputChannels = InNumInputChannels;
 				PostEffectBuffers = nullptr;
 
@@ -547,7 +548,5 @@ namespace Audio
 		int32 MaxChannelsSupportedBySpatializationPlugin;
 
 		friend class FMixerSourceVoice;
-		// Set to true when the audio source manager should pump the command queue
-		FThreadSafeBool bPumpQueue;
 	};
 }

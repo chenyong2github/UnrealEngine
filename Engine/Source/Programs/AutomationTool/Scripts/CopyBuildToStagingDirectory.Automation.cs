@@ -137,14 +137,22 @@ public partial class Project : CommandUtils
 		{
 			CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
 		}
-		if (CryptoSettings != null && CryptoSettings.bEnablePakIndexEncryption)
+		if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
 		{
-			CmdLine.AppendFormat(" -encryptindex");
+			if (CryptoSettings.bEnablePakIndexEncryption)
+			{
+				CmdLine.AppendFormat(" -encryptindex");
+			}
+			if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+			{
+				CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+			}
+			if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+			{
+				CmdLine.AppendFormat(" -sign");
+			}
 		}
-		if (!string.IsNullOrEmpty(EncryptionKeyGuid))
-		{
-			CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
-		}
+		
 		CmdLine.Append(PlatformOptions);
 
 		return CmdLine.ToString();
@@ -1262,11 +1270,6 @@ public partial class Project : CommandUtils
 	{
 		CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "NonUFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
 
-		if (!Params.NoDebugInfo)
-		{
-			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
-		}
-
 		bool bStageUnrealFileSystemFiles = !Params.CookOnTheFly && !Params.UsePak(SC.StageTargetPlatform) && !Params.FileServer;
 		if (bStageUnrealFileSystemFiles)
 		{
@@ -1284,6 +1287,13 @@ public partial class Project : CommandUtils
 				}
 			}
 			CopyManifestFilesToStageDir(UFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "UFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
+		}
+
+		// Copy debug files last
+		// they do not respect the DeployLowerCaseFilenames() setting, but if copied to a case-insensitive staging directory first they determine the casing for outer directories (like Engine/Content) 
+		if (!Params.NoDebugInfo)
+		{
+			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
 		}
 	}
 
@@ -1886,7 +1896,27 @@ public partial class Project : CommandUtils
 				{
 					FileReference PrimaryOrderFile   = (PakOrderFileLocations.Count >= 1) ? PakOrderFileLocations[0] : null;
 					FileReference SecondaryOrderFile = (PakOrderFileLocations.Count >= 2) ? PakOrderFileLocations[1] : null;
-					Commands.Add(GetUnrealPakArguments(PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+
+                    string BulkOption = "";
+                    {
+                        ConfigHierarchy PlatformEngineConfig;
+                        if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+                        {
+                            bool bMasterEnable = false;
+							PlatformEngineConfig.GetBool("MemoryMappedFiles", "MasterEnable", out bMasterEnable);
+                            if (bMasterEnable)
+                            {
+                                int Value = 0;
+								PlatformEngineConfig.GetInt32("MemoryMappedFiles", "Alignment", out Value);
+                                if (Value > 0)
+                                {
+                                    BulkOption = String.Format(" -AlignForMemoryMapping={0}", Value);
+                                }
+                            }
+                        }
+                    }
+
+					Commands.Add(GetUnrealPakArguments(PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}
@@ -2296,10 +2326,10 @@ public partial class Project : CommandUtils
 				bool bExcludeFromPaks = false;
 				List<string> PakList = new List<string>();
 
-					string OriginalFilename = StagingFile.Key;
-					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
-					string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
-					string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
+				string OriginalFilename = StagingFile.Key;
+				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
+				string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
+				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
 				// First read manifest
 				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
@@ -2307,9 +2337,9 @@ public partial class Project : CommandUtils
 					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
 
 					if (Chunk.Manifest.Contains(OriginalFilename) ||
-								Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-								Chunk.Manifest.Contains(NoExtension) ||
-								Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
+							Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
+							Chunk.Manifest.Contains(NoExtension) ||
+							Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
 					{
 						PakList.Add(Chunk.ChunkName);
 					}
@@ -2674,7 +2704,7 @@ public partial class Project : CommandUtils
 
 	private static DirectoryReference GetIntermediateCommandlineDir(DeploymentContext SC)
 	{
-		return DirectoryReference.Combine(SC.EngineRoot, "Intermediate", "UAT", SC.FinalCookPlatform);
+		return DirectoryReference.Combine(SC.ProjectRoot, "Intermediate", "UAT", SC.FinalCookPlatform);
 	}
 
 	public static void WriteStageCommandline(FileReference IntermediateCmdLineFile, ProjectParams Params, DeploymentContext SC)

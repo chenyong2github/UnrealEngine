@@ -204,7 +204,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		if (InOutPixelFormat == PF_Unknown)
 		{
 			UE_LOG(LogVulkanRHI, Warning, TEXT("Can't find a proper pixel format for the swapchain, trying to pick up the first available"));
-			VkFormat PlatformFormat = UEToVkFormat(InOutPixelFormat, false);
+			VkFormat PlatformFormat = UEToVkTextureFormat(InOutPixelFormat, false);
 			bool bSupported = false;
 			for (int32 Index = 0; Index < Formats.Num(); ++Index)
 			{
@@ -242,7 +242,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		}
 	}
 
-	VkFormat PlatformFormat = UEToVkFormat(InOutPixelFormat, false);
+	VkFormat PlatformFormat = UEToVkTextureFormat(InOutPixelFormat, false);
 
 	Device.SetupPresentQueue(Surface);
 
@@ -251,7 +251,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	if (FVulkanPlatform::SupportsQuerySurfaceProperties())
 	{
 		// Only dump the present modes the very first time they are queried
-		static bool bFirstTimeLog = true;
+		static bool bFirstTimeLog = !!VULKAN_HAS_DEBUGGING_ENABLED;
 
 		uint32 NumFoundPresentModes = 0;
 		VERIFYVULKANRESULT(VulkanRHI::vkGetPhysicalDeviceSurfacePresentModesKHR(Device.GetPhysicalHandle(), Surface, &NumFoundPresentModes, nullptr));
@@ -431,6 +431,9 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
 
+	InternalWidth = FMath::Min(Width, SwapChainInfo.imageExtent.width);
+	InternalHeight = FMath::Min(Height, SwapChainInfo.imageExtent.height);
+
 	uint32 NumSwapChainImages;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkGetSwapchainImagesKHR(Device.GetInstanceHandle(), SwapChain, &NumSwapChainImages, nullptr));
 
@@ -555,6 +558,7 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 	++NumAcquireCalls;
 	*OutSemaphore = ImageAcquiredSemaphore[SemaphoreIndex];
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
 	if (Result == VK_ERROR_VALIDATION_FAILED_EXT)
 	{
 		extern TAutoConsoleVariable<int32> GValidationCvar;
@@ -564,6 +568,7 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 		}
 	}
 	else
+#endif
 	{
 		checkf(Result == VK_SUCCESS || Result == VK_SUBOPTIMAL_KHR, TEXT("vkAcquireNextImageKHR failed Result = %d"), int32(Result));
 	}

@@ -34,6 +34,7 @@ struct ENGINE_API FTextureLODGroup
 		, OptionalMaxLODMipCount(12)
 		, MinMagFilter(NAME_Aniso)
 		, MipFilter(NAME_Point)
+		, MipLoadOptions(ETextureMipLoadOptions::AllMips)
 	{
 		SetupGroup();
 	}
@@ -97,6 +98,9 @@ struct ENGINE_API FTextureLODGroup
 	UPROPERTY()
 	FName MipFilter;
 
+	UPROPERTY()
+	ETextureMipLoadOptions MipLoadOptions;
+
 	void SetupGroup();
 };
 
@@ -157,6 +161,14 @@ public:
 	ETextureSamplerFilter GetSamplerFilter(const UTexture* Texture) const;
 
 	ETextureSamplerFilter GetSamplerFilter(int32 InLODGroup) const;
+
+	/**
+	 * Returns the mip load options of a texture.
+	 *
+	 * @param	Texture		Texture to retrieve the mip load option, must not be 0
+	 * @return	The mip load option
+	 */
+	ETextureMipLoadOptions GetMipLoadOptions(const UTexture* Texture) const;
 
 	/**
 	 * Returns the LODGroup mip gen settings

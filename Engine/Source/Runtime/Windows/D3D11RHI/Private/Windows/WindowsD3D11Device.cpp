@@ -844,6 +844,14 @@ void FD3D11DynamicRHIModule::FindAdapter()
 					}
 				}
 			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("  %2u. Unknown, failed to create test device."), AdapterIndex);
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("  %2u. Unknown, failed to create adapter."), AdapterIndex);
 		}
 	}
 
@@ -1668,6 +1676,10 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 void FD3D11DynamicRHI::RHIPerFrameRHIFlushComplete()
 {
+	extern void D3D11RHIQueryBatcherPerFrameCleanup();
+
+	D3D11RHIQueryBatcherPerFrameCleanup();
+
 #if NV_AFTERMATH
 	if (GDX11NVAfterMathEnabled)
 	{

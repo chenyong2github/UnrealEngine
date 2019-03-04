@@ -3706,13 +3706,6 @@ void UParticleSystemComponent::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-void UParticleSystemComponent::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogParticles, Error, TEXT("Garbage collector eliminated reference from particle system!  Particle system objects should not be cleaned up via MarkPendingKill().\n           ParticleSystem=%s"),
-		*GetPathName());
-}
-
-
 void UParticleSystemComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
@@ -7537,7 +7530,7 @@ void AddMaterials(TArray<FMaterialWithScale, TInlineAllocator<12> >& OutMaterial
 	}
 }
 
-void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UParticleSystemComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	TArray<FMaterialWithScale, TInlineAllocator<12> > MaterialWithScales;
 
@@ -7580,7 +7573,7 @@ void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelCon
 			for (const FMaterialWithScale& MaterialWithScale : MaterialWithScales)
 			{
 				MaterialData.Material = MaterialWithScale.Key;
-				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingTextures);
+				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingRenderAssets);
 			}
 		}
 	}

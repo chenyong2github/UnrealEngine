@@ -328,6 +328,7 @@ void UNetDriver::PostInitProperties()
 	
 		OnLevelRemovedFromWorldHandle = FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNetDriver::OnLevelRemovedFromWorld);
 		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNetDriver::OnLevelAddedToWorld);
+		PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UNetDriver::PostGarbageCollect);
 
 		LoadChannelDefinitions();
 	}
@@ -2366,6 +2367,7 @@ void UNetDriver::FinishDestroy()
 
 		FWorldDelegates::LevelRemovedFromWorld.Remove(OnLevelRemovedFromWorldHandle);
 		FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldHandle);
+		FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
 	}
 	else
 	{
@@ -3103,28 +3105,44 @@ UChildConnection* UNetDriver::CreateChild(UNetConnection* Parent)
 	return Child;
 }
 
+void UNetDriver::PostGarbageCollect()
+{
+	// We can't perform this logic in AddReferencedObjects because destroying GCObjects
+	// during Garbage Collection is illegal (@see UGCObjectReferencer::RemoveObject).
+	// FRepLayout's are GC objects, and either map could be holding onto the last reference
+	// to a given RepLayout.
+
+	for (auto It = RepLayoutMap.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = ReplicationChangeListMap.CreateIterator(); It; ++It)
+	{
+		if (!It.Value().IsObjectValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UNetDriver* This = CastChecked<UNetDriver>(InThis);
 	Super::AddReferencedObjects(This, Collector);
 
-	// Compact any invalid entries
+	// TODO: It feels like we could get away without FRepLayout needing to track references.
+	//			E.G., if we detected that FObjectReplicator / FReplicationChangelistMgrs detected
+	//			their associated objects were destroyed, we could destroy the Shadow Buffers
+	//			which should be the last thing referencing the FRepLayout and the Properties.
 	for (auto It = This->RepLayoutMap.CreateIterator(); It; ++It)
 	{
-		if (!It.Value().IsValid())
-		{
-			It.RemoveCurrent();
-		}
+		It.Value()->AddReferencedObjects(Collector);
 	}
-
-	for (auto It = This->ReplicationChangeListMap.CreateIterator(); It; ++It)
-	{
-		if (!It.Value().IsValid())
-		{
-			It.RemoveCurrent();
-		}
-	}
-
+	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
 	{
 		Collector.AddReferencedObject(Replicator->ObjectPtr, This);
@@ -3136,6 +3154,7 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		Collector.AddReferencedObject(It.Value(), This);
 	}
 }
+
 
 #if DO_ENABLE_NET_TEST
 
@@ -5002,10 +5021,7 @@ void UNetDriver::CleanupWorldForSeamlessTravel()
 				// skips over AWorldSettings actors for an unknown reason.
 				if (Level->GetWorldSettings())
 				{
-					if (ServerConnection != nullptr)
-					{
-						NotifyActorLevelUnloaded(Level->GetWorldSettings());
-					}
+					NotifyActorLevelUnloaded(Level->GetWorldSettings());
 				}
 			}
 		}
@@ -5147,7 +5163,9 @@ TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr(
 
 	if (!ReplicationChangeListMgrPtr)
 	{
-		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, FReplicationChangelistMgrWrapper(Object, TSharedPtr< FReplicationChangelistMgr >(new FReplicationChangelistMgr(this, Object))));
+		const TSharedPtr<const FRepLayout> RepLayout = GetObjectClassRepLayout(Object->GetClass());
+		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object));
+		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, Wrapper);
 	}
 
 	return ReplicationChangeListMgrPtr->ReplicationChangelistMgr;

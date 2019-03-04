@@ -176,6 +176,7 @@ public:
 	
 	mtlpp::Function GetFunction();
 	
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	// for VSHS
 	FMetalTessellationOutputs TessellationOutputAttribs;
 	float  TessellationMaxTessFactor;
@@ -189,6 +190,7 @@ public:
 	uint32 TessellationHSTFOutBuffer;
 	uint32 TessellationControlPointOutBuffer;
 	uint32 TessellationControlPointIndexBuffer;
+#endif
 };
 
 class FMetalPixelShader : public TMetalBaseShader<FRHIPixelShader, SF_Pixel>
@@ -200,6 +202,7 @@ public:
 	mtlpp::Function GetFunction();
 };
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 class FMetalHullShader : public TMetalBaseShader<FRHIHullShader, SF_Hull>
 {
 public:
@@ -222,6 +225,10 @@ public:
 	uint32 TessellationHSOutBuffer;
 	uint32 TessellationControlPointOutBuffer;
 };
+#else
+typedef TMetalBaseShader<FRHIHullShader, SF_Hull> FMetalHullShader;
+typedef TMetalBaseShader<FRHIDomainShader, SF_Domain> FMetalDomainShader;
+#endif
 
 typedef TMetalBaseShader<FRHIGeometryShader, SF_Geometry> FMetalGeometryShader;
 
@@ -276,9 +283,13 @@ public:
 	/** Cached shaders */
 	TRefCountPtr<FMetalVertexShader> VertexShader;
 	TRefCountPtr<FMetalPixelShader> PixelShader;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	TRefCountPtr<FMetalHullShader> HullShader;
 	TRefCountPtr<FMetalDomainShader> DomainShader;
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	TRefCountPtr<FMetalGeometryShader> GeometryShader;
+#endif
 	
 	/** Cached state objects */
 	TRefCountPtr<FMetalDepthStencilState> DepthStencilState;
@@ -348,6 +359,7 @@ public:
 	inline bool IsPooled() const { return bPooled; }
 	inline bool IsSingleUse() const { return bSingleUse; }
 	inline void MarkSingleUse() { bSingleUse = true; }
+    void SetOwner(class FMetalRHIBuffer* Owner);
 	void Release();
 	
 	friend uint32 GetTypeHash(FMetalBuffer const& Hash)
@@ -960,7 +972,7 @@ public:
 	/**
 	 * Commit shader parameters to the currently bound program.
 	 */
-	void CommitPackedGlobals(class FMetalStateCache* Cache, class FMetalCommandEncoder* Encoder, EShaderFrequency Frequency, const FMetalShaderBindings& Bindings);
+	void CommitPackedGlobals(class FMetalStateCache* Cache, class FMetalCommandEncoder* Encoder, uint32 Frequency, const FMetalShaderBindings& Bindings);
 
 private:
 	/** CPU memory block for storing uniform values. */
@@ -1042,7 +1054,7 @@ private:
 class FMetalShaderLibrary final : public FRHIShaderLibrary
 {	
 public:
-	FMetalShaderLibrary(EShaderPlatform Platform, FString const& Name, TArray<mtlpp::Library> Library, FMetalShaderMap const& Map);
+	FMetalShaderLibrary(EShaderPlatform Platform, FString const& Name, TArray<mtlpp::Library> Library, FMetalShaderMap const& Map, const FString& InShaderLibraryFilename);
 	virtual ~FMetalShaderLibrary();
 	
 	virtual bool IsNativeLibrary() const override final {return true;}
@@ -1093,6 +1105,7 @@ private:
 private:
 	TArray<mtlpp::Library> Library;
 	FMetalShaderMap Map;
+	FString ShaderLibraryFilename;
 };
 
 template<class T>

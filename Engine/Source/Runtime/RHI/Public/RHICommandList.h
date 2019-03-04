@@ -77,6 +77,9 @@ extern RHI_API uint32 GWorkingRHIThreadTime;
 extern RHI_API uint32 GWorkingRHIThreadStallTime;
 extern RHI_API uint32 GWorkingRHIThreadStartCycles;
 
+/** How many cycles the from sampling input to the frame being flipped. */
+extern RHI_API uint64 GInputLatencyTime;
+
 /**
 * Whether the RHI commands are being run in a thread other than the render thread
 */
@@ -113,7 +116,7 @@ struct FRayTracingShaderBindings
 	FTextureRHIParamRef Textures[32] = {};
 	FShaderResourceViewRHIParamRef SRVs[32] = {};
 	FUniformBufferRHIParamRef UniformBuffers[8] = {};
-	FSamplerStateRHIParamRef Samplers[8] = {};
+	FSamplerStateRHIParamRef Samplers[16] = {};
 	FUnorderedAccessViewRHIParamRef UAVs[8] = {};
 };
 
@@ -1795,6 +1798,41 @@ struct FRHICommandUpdateTextureReference final : public FRHICommand<FRHICommandU
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHIShaderResourceViewUpdateInfo_VB
+{
+	FShaderResourceViewRHIParamRef SRV;
+	FVertexBufferRHIParamRef VertexBuffer;
+	uint32 Stride;
+	uint8 Format;
+};
+
+struct FRHIResourceUpdateInfo
+{
+	enum EUpdateType
+	{
+		UT_VertexBufferSRV,
+		UT_Num
+	};
+
+	EUpdateType Type;
+	union
+	{
+		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
+	};
+};
+
+struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdateRHIResources>
+{
+	FRHIResourceUpdateInfo* UpdateInfos;
+	int32 Num;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateRHIResources(FRHIResourceUpdateInfo* InUpdateInfos, int32 InNum)
+		: UpdateInfos(InUpdateInfos)
+		, Num(InNum)
+	{}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 #if RHI_RAYTRACING
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
@@ -1881,23 +1919,24 @@ struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTrac
 	FRayTracingPipelineStateRHIParamRef Pipeline;
 	FRayTracingSceneRHIParamRef Scene;
 	FRayTracingShaderBindings GlobalResourceBindings;
+	uint32 RayGenShaderIndex;
 	uint32 Width;
 	uint32 Height;
 
-	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InRayGenShaderIndex, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
 		: Pipeline(InPipeline)
 		, Scene(nullptr)
 		, GlobalResourceBindings(InGlobalResourceBindings)
+		, RayGenShaderIndex(InRayGenShaderIndex)
 		, Width(InWidth)
 		, Height(InHeight)
 	{}
 
-	
-
-	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InRayGenShaderIndex, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
 		: Pipeline(InPipeline)
 		, Scene(InScene)
 		, GlobalResourceBindings(InGlobalResourceBindings)
+		, RayGenShaderIndex(InRayGenShaderIndex)
 		, Width(InWidth)
 		, Height(InHeight)
 	{}
@@ -1910,19 +1949,25 @@ struct FRHICommandSetRayTracingHitGroup final : public FRHICommand<FRHICommandSe
 	FRayTracingSceneRHIParamRef Scene;
 	uint32 InstanceIndex;
 	uint32 SegmentIndex;
+	uint32 ShaderSlot;
 	FRayTracingPipelineStateRHIParamRef Pipeline;
 	uint32 HitGroupIndex;
 	uint32 NumUniformBuffers;
-	const FUniformBufferRHIParamRef* UniformBuffers; // Pointer to an array of uniform buffers, allocated inline with the command list
+	const FUniformBufferRHIParamRef* UniformBuffers; // Pointer to an array of uniform buffers, allocated inline within the command list
+	uint32 UserData;
 
-	FRHICommandSetRayTracingHitGroup(FRayTracingSceneRHIParamRef InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InHitGroupIndex, uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers)
+	FRHICommandSetRayTracingHitGroup(FRayTracingSceneRHIParamRef InScene, uint32 InInstanceIndex, uint32 InSegmentIndex, uint32 InShaderSlot,
+		FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InHitGroupIndex, uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* InUniformBuffers,
+		uint32 InUserData)
 		: Scene(InScene)
 		, InstanceIndex(InInstanceIndex)
 		, SegmentIndex(InSegmentIndex)
+		, ShaderSlot(InShaderSlot)
 		, Pipeline(InPipeline)
 		, HitGroupIndex(InHitGroupIndex)
 		, NumUniformBuffers(InNumUniformBuffers)
 		, UniformBuffers(InUniformBuffers)
+		, UserData(InUserData)
 	{
 	}
 
@@ -2621,9 +2666,11 @@ public:
 				if (Bypass())
 				{
 					GetContext().RHICopyTexture(SourceTextureRHI, DestTextureRHI, PerMipInfo);
-					return;
 				}
-				ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, PerMipInfo);
+				else
+				{
+					ALLOC_COMMAND(FRHICommandCopyTexture)(SourceTextureRHI, DestTextureRHI, PerMipInfo);
+				}
 
 				++PerMipInfo.SourceMipIndex;
 				++PerMipInfo.DestMipIndex;
@@ -3016,38 +3063,39 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, uint32 RayGenShaderIndex, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
 	{
 		if (Bypass())
 		{
-			GetContext().RHIRayTraceDispatch(Pipeline, GlobalResourceBindings, Width, Height);
+			GetContext().RHIRayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResourceBindings, Width, Height);
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, GlobalResourceBindings, Width, Height);
+			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShaderIndex, GlobalResourceBindings, Width, Height);
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, uint32 RayGenShaderIndex, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
 	{
 		if (Bypass())
 		{
-			GetContext().RHIRayTraceDispatch(Pipeline, Scene, GlobalResourceBindings, Width, Height);
+			GetContext().RHIRayTraceDispatch(Pipeline, RayGenShaderIndex, Scene, GlobalResourceBindings, Width, Height);
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, Scene, GlobalResourceBindings, Width, Height);
+			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShaderIndex, Scene, GlobalResourceBindings, Width, Height);
 		}
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetRayTracingHitGroup(
-		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex,
+		FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 		FRayTracingPipelineStateRHIParamRef Pipeline, uint32 HitGroupIndex,
-		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers)
+		uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+		uint32 UserData)
 	{
 		if (Bypass())
 		{
-			GetContext().RHISetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers);
+			GetContext().RHISetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, UserData);
 		}
 		else
 		{
@@ -3061,7 +3109,7 @@ public:
 				}
 			}
 
-			ALLOC_COMMAND(FRHICommandSetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, Pipeline, HitGroupIndex, NumUniformBuffers, InlineUniformBuffers);
+			ALLOC_COMMAND(FRHICommandSetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, InlineUniformBuffers, UserData);
 		}
 	}
 
@@ -3445,10 +3493,10 @@ public:
 		return RHICreateBlendState(Initializer);
 	}
 	
+	UE_DEPRECATED(4.22, "Use PipelineStateCache::GetOrCreateVertexDeclaration() instead.")
 	FORCEINLINE FVertexDeclarationRHIRef CreateVertexDeclaration(const FVertexDeclarationElementList& Elements)
 	{
-		LLM_SCOPE(ELLMTag::Shaders);
-		return GDynamicRHI->CreateVertexDeclaration_RenderThread(*this, Elements);
+		return GDynamicRHI->RHICreateVertexDeclaration(Elements);
 	}
 	
 	FORCEINLINE FPixelShaderRHIRef CreatePixelShader(const TArray<uint8>& Code)
@@ -4246,6 +4294,12 @@ public:
 	}
 	void UpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture);
 
+	FORCEINLINE void PollRenderQueryResults()
+	{
+		GDynamicRHI->RHIPollRenderQueryResults();
+	}
+
+	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num);
 };
 
  struct FScopedGPUMask
@@ -4398,11 +4452,6 @@ struct FScopedCommandListWaitForTasks
 };
 
 
-FORCEINLINE FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& Elements)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateVertexDeclaration(Elements);
-}
-
 FORCEINLINE FPixelShaderRHIRef RHICreatePixelShader(const TArray<uint8>& Code)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreatePixelShader(Code);
@@ -4498,6 +4547,11 @@ FORCEINLINE FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, 
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
 }
 
+FORCEINLINE FIndexBufferRHIRef RHIAsyncCreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
+}
+
 FORCEINLINE void* RHILockIndexBuffer(FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().LockIndexBuffer(IndexBuffer, Offset, Size, LockMode);
@@ -4516,6 +4570,11 @@ FORCEINLINE FVertexBufferRHIRef RHICreateAndLockVertexBuffer(uint32 Size, uint32
 FORCEINLINE FVertexBufferRHIRef RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateVertexBuffer(Size, InUsage, CreateInfo);
+}
+
+FORCEINLINE FVertexBufferRHIRef RHIAsyncCreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
+{
+	return GDynamicRHI->RHICreateVertexBuffer(Size, InUsage, CreateInfo);
 }
 
 FORCEINLINE void* RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
@@ -4576,6 +4635,11 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FVertexBufferR
 FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer);
+}
+
+FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().UpdateRHIResources(UpdateInfos, Num);
 }
 
 FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
@@ -4812,6 +4876,46 @@ FORCEINLINE void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer)
 {
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }
+
+template <int32 MaxNumUpdates>
+struct TRHIResourceUpdateBatcher
+{
+	FRHIResourceUpdateInfo UpdateInfos[MaxNumUpdates];
+	int32 NumBatched;
+
+	TRHIResourceUpdateBatcher()
+		: NumBatched(0)
+	{}
+
+	~TRHIResourceUpdateBatcher()
+	{
+		Flush();
+	}
+
+	void Flush()
+	{
+		if (NumBatched > 0)
+		{
+			RHIUpdateRHIResources(UpdateInfos, NumBatched);
+			NumBatched = 0;
+		}
+	}
+
+	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+	{
+		check(NumBatched >= 0 && NumBatched <= MaxNumUpdates);
+		if (NumBatched == MaxNumUpdates)
+		{
+			Flush();
+		}
+		if (LIKELY(NumBatched >= 0 && NumBatched < MaxNumUpdates))
+		{
+			const int32 Idx = NumBatched++;
+			UpdateInfos[Idx].Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
+			UpdateInfos[Idx].VertexBufferSRV = { SRV, VertexBuffer, Stride, Format };
+		}
+	}
+};
 
 #undef RHICOMMAND_CALLSTACK
 

@@ -10,6 +10,7 @@
 #include "Misc/App.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"
 #include "Containers/ResourceArray.h"
 #include "UObject/UObjectIterator.h"
@@ -128,8 +129,8 @@ int64 GUITextureMemory = 0;
 int64 GNeverStreamTextureMemory = 0;
 #endif
 
-/** Turn on ENABLE_TEXTURE_TRACKING in ContentStreaming.cpp and setup GTrackedTextures to track specific textures through the streaming system. */
-extern bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture, bool bForceMipLevelsToBeResident, const FStreamingManagerTexture* Manager );
+/** Turn on ENABLE_RENDER_ASSET_TRACKING in ContentStreaming.cpp and setup GTrackedTextures to track specific textures/meshes through the streaming system. */
+extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreamableRenderAsset* Texture, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager );
 
 
 /** Scoped debug info that provides the texture name to memory allocation and crash callstacks. */
@@ -254,7 +255,7 @@ void UTexture2D::Serialize(FArchive& Ar)
 #endif // #if WITH_EDITOR
 }
 
-float UTexture2D::GetLastRenderTimeForStreaming()
+float UTexture2D::GetLastRenderTimeForStreaming() const
 {
 	float LastRenderTime = -FLT_MAX;
 	if (Resource)
@@ -313,7 +314,7 @@ int32 UTexture2D::GetNumRequestedMips() const
 	}
 	else
 	{
-		return GetNumResidentMips();
+		return GetCachedNumResidentLODs();
 	}
 }
 
@@ -413,9 +414,9 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 
 void UTexture2D::LinkStreaming()
 {
-	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingTexture(this))
+	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled() && IsStreamingRenderAsset(this))
 	{
-		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingTexture(this);
+		IStreamingManager::Get().GetTextureStreamingManager().AddStreamingRenderAsset(this);
 	}
 	else
 	{
@@ -427,21 +428,19 @@ void UTexture2D::UnlinkStreaming()
 {
 	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
-		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingTexture(this);
+		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
 	}
 }
 
 void UTexture2D::CancelPendingTextureStreaming()
 {
-	FlushRenderingCommands();
-
 	for( TObjectIterator<UTexture2D> It; It; ++It )
 	{
 		UTexture2D* CurrentTexture = *It;
 		CurrentTexture->CancelPendingMipChangeRequest();
 	}
 
-	FlushResourceStreaming();
+	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
 }
 
 void UTexture2D::PostLoad()
@@ -491,11 +490,11 @@ void UTexture2D::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 void UTexture2D::UpdateResource()
 {
 	// Make sure there are no pending requests in flight.
-	while( UpdateStreamingStatus() == true )
+	while (UpdateStreamingStatus() && ensure(!IsAssetStreamingSuspended()))
 	{
 		// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 		FlushRenderingCommands();
-		FPlatformProcess::Sleep(0);
+		FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 	}
 
 #if WITH_EDITOR
@@ -503,6 +502,21 @@ void UTexture2D::UpdateResource()
 	CachePlatformData();
 	// clear all the cooked cached platform data if the source could have changed... 
 	ClearAllCachedCookedPlatformData();
+#else
+	// Note that using TF_FirstMip disables texture streaming, because the mip data becomes lost.
+	// Also, the cleanup of the platform data must go between UpdateCachedLODBias() and UpdateResource().
+	const bool bLoadOnlyFirstMip = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetMipLoadOptions(this) == ETextureMipLoadOptions::OnlyFirstMip;
+	if (bLoadOnlyFirstMip && PlatformData && FPlatformProperties::RequiresCookedData())
+	{
+		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
+		// Remove any mips after the first mip.
+		PlatformData->Mips.RemoveAt(FirstMip + 1, PlatformData->Mips.Num() - FirstMip - 1);
+		// Remove any mips before the first mip.
+		PlatformData->Mips.RemoveAt(0, FirstMip);
+		// Update the texture size for the memory usage metrics.
+		PlatformData->SizeX = PlatformData->Mips[0].SizeX;
+		PlatformData->SizeY = PlatformData->Mips[0].SizeY;
+	}
 #endif // #if WITH_EDITOR
 
 	// Route to super.
@@ -549,26 +563,26 @@ FString UTexture2D::GetDesc()
 
 void UTexture2D::WaitForStreaming()
 {
-	if (bIsStreamable)
+	if (bIsStreamable && ensure(!IsAssetStreamingSuspended()))
 	{
 		// Make sure there are no pending requests in flight otherwise calling UpdateIndividualTexture could be prevented to defined a new requested mip.
 		while (	!IsReadyForStreaming() || UpdateStreamingStatus() ) 
 		{
 			// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 			FlushRenderingCommands();
-			FPlatformProcess::Sleep(0);
+			FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 		}
 
 		// Update the wanted mip and stream in..		
 		if (IStreamingManager::Get().IsTextureStreamingEnabled())
 		{
-			IStreamingManager::Get().GetTextureStreamingManager().UpdateIndividualTexture( this );
+			IStreamingManager::Get().GetTextureStreamingManager().UpdateIndividualRenderAsset( this );
 
 			while (	UpdateStreamingStatus() ) 
 			{
 				// Force flush the RHI threads to execute all commands issued for texture streaming, and give up timeslice.
 				FlushRenderingCommands();
-				FPlatformProcess::Sleep(0);
+				FPlatformProcess::Sleep(RENDER_ASSET_STREAMING_SLEEP_DT);
 			}
 		}
 	}
@@ -956,11 +970,7 @@ void UTexture2D::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 {
-	if ( bGlobalForceMipLevelsToBeResident || bForceMiplevelsToBeResident || LODGroup == TEXTUREGROUP_Skybox )
-	{
-		return true;
-	}
-	if ( ForceMipLevelsToBeResidentTimestamp >= FApp::GetCurrentTime() )
+	if (LODGroup == TEXTUREGROUP_Skybox || this->Super::ShouldMipLevelsBeForcedResident())
 	{
 		return true;
 	}
@@ -992,6 +1002,8 @@ bool UTexture2D::IsFullyStreamedIn()
 
 UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat)
 {
+	LLM_SCOPE(ELLMTag::Textures);
+
 	UTexture2D* NewTexture = NULL;
 	if (InSizeX > 0 && InSizeY > 0 &&
 		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
@@ -1021,17 +1033,9 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 	}
 	else
 	{
-		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2D::Create()"));
+		UE_LOG(LogTexture, Warning, TEXT("Invalid parameters specified for UTexture2D::CreateTransient()"));
 	}
 	return NewTexture;
-}
-
-void UTexture2D::SetForceMipLevelsToBeResident( float Seconds, int32 CinematicTextureGroups )
-{
-	uint32 TextureGroupBitfield = (uint32) CinematicTextureGroups;
-	uint32 MyTextureGroup = FMath::BitFlag[LODGroup];
-	bUseCinematicMipLevels = (TextureGroupBitfield & MyTextureGroup) ? true : false;
-	ForceMipLevelsToBeResidentTimestamp = FApp::GetCurrentTime() + Seconds;
 }
 
 int32 UTexture2D::Blueprint_GetSizeX() const
@@ -1094,30 +1098,28 @@ void UTexture2D::UpdateTextureRegions(int32 MipIndex, uint32 NumRegions, const F
 		RegionData->SrcBpp = SrcBpp;
 		RegionData->SrcData = SrcData;
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			UpdateTextureRegionsData,
-			FUpdateTextureRegionsData*, RegionData, RegionData,			
-			TFunction<void(uint8* SrcData, const FUpdateTextureRegion2D* Regions)>, DataCleanupFunc, DataCleanupFunc,
+		ENQUEUE_RENDER_COMMAND(UpdateTextureRegionsData)(
+			[RegionData, DataCleanupFunc](FRHICommandListImmediate& RHICmdList)
 			{
-			for (uint32 RegionIndex = 0; RegionIndex < RegionData->NumRegions; ++RegionIndex)
-			{
-				int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
-				if (RegionData->MipIndex >= CurrentFirstMip)
+				for (uint32 RegionIndex = 0; RegionIndex < RegionData->NumRegions; ++RegionIndex)
 				{
-					RHIUpdateTexture2D(
-						RegionData->Texture2DResource->GetTexture2DRHI(),
-						RegionData->MipIndex - CurrentFirstMip,
-						RegionData->Regions[RegionIndex],
-						RegionData->SrcPitch,
-						RegionData->SrcData
-						+ RegionData->Regions[RegionIndex].SrcY * RegionData->SrcPitch
-						+ RegionData->Regions[RegionIndex].SrcX * RegionData->SrcBpp
-						);
+					int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
+					if (RegionData->MipIndex >= CurrentFirstMip)
+					{
+						RHIUpdateTexture2D(
+							RegionData->Texture2DResource->GetTexture2DRHI(),
+							RegionData->MipIndex - CurrentFirstMip,
+							RegionData->Regions[RegionIndex],
+							RegionData->SrcPitch,
+							RegionData->SrcData
+							+ RegionData->Regions[RegionIndex].SrcY * RegionData->SrcPitch
+							+ RegionData->Regions[RegionIndex].SrcX * RegionData->SrcBpp
+							);
+					}
 				}
-			}
-			DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
-			delete RegionData;
-		});
+				DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
+				delete RegionData;
+			});
 	}
 }
 
@@ -1130,7 +1132,6 @@ void UTexture2D::TemporarilyDisableStreaming()
 		UpdateResource();
 	}
 }
-
 #endif
 
 
@@ -1187,6 +1188,7 @@ FTexture2DResource::FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCou
 
 	// Keep track of first miplevel to use.
 	CurrentFirstMip = InOwner->GetNumMips() - InitialMipCount;
+	InOwner->SetCachedNumResidentLODs(static_cast<uint8>(InitialMipCount));
 
 	check(CurrentFirstMip>=0);
 	// texture must be as big as base miptail level
@@ -1315,6 +1317,7 @@ void FTexture2DResource::InitRHI()
 
 				// We're done with initialization.
 				bReadyForStreaming = true;
+				Owner->SetCachedReadyForStreaming(true);
 
 				return;
 			}
@@ -1360,6 +1363,7 @@ void FTexture2DResource::InitRHI()
 
 		// We're done with initialization.
 		bReadyForStreaming = true;
+		Owner->SetCachedReadyForStreaming(true);
 	}
 	else
 	{
@@ -1479,15 +1483,12 @@ uint32 FTexture2DResource::GetSizeY() const
 /** Returns the default mip bias for this texture. */
 int32 FTexture2DResource::GetDefaultMipMapBias() const
 {
-	if ( Owner->LODGroup == TEXTUREGROUP_UI )
+	check(Owner);
+	if (Owner->LODGroup == TEXTUREGROUP_UI && CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0)
 	{
-		if ( CVarForceHighestMipOnUITexturesEnabled.GetValueOnAnyThread() > 0 )
-		{
-			const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
-			return -OwnerMips.Num();
-		}
+		const TIndirectArray<FTexture2DMipMap>& OwnerMips = Owner->GetPlatformMips();
+		return -OwnerMips.Num();
 	}
-	
 	return 0;
 }
 
@@ -1587,6 +1588,11 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 	return false;
 }
 
+bool UTexture2D::IsPendingUpdateLocked() const 
+{ 
+	return PendingUpdate && PendingUpdate->IsLocked(); 
+}
+
 bool UTexture2D::StreamOut(int32 NewMipCount)
 {
 	check(IsInGameThread());
@@ -1616,10 +1622,11 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 
 	if (Owner)
 	{
+		const int32 NumMips = Owner->GetNumMips();
+		
 		// Update mip-level fading.
 		if (CurrentFirstMip != InNewFirstMip)
 		{
-			const int32 NumMips = Owner->GetNumMips();
 			const int32 ResidentMips = NumMips - CurrentFirstMip;
 			const int32 RequestedMips = NumMips - InNewFirstMip;
 			MipBiasFade.SetNewMipCount(FMath::Max<int32>(RequestedMips, ResidentMips), RequestedMips, LastRenderTime, MipFadeSetting);
@@ -1636,9 +1643,12 @@ void FTexture2DResource::UpdateTexture(FTexture2DRHIRef& InTextureRHI, int32 InN
 			TextureRHI->DoNoDeferDelete();
 		}
 
+		check(Owner->GetCachedNumResidentLODs() == NumMips - CurrentFirstMip);
+
 		TextureRHI		= InTextureRHI;
 		Texture2DRHI	= InTextureRHI;
 		CurrentFirstMip = InNewFirstMip;
+		Owner->SetCachedNumResidentLODs(static_cast<uint8>(NumMips - InNewFirstMip));
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
 }

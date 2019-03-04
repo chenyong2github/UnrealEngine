@@ -494,8 +494,13 @@ ECommandResult::Type FPerforceSourceControlProvider::ExecuteSynchronousCommand(F
 		}
 	};
 
+	FText TaskText = Task;
 	// Display the progress dialog
-	FScopedSourceControlProgress Progress(Task, FSimpleDelegate::CreateStatic(&Local::CancelCommand, &InCommand));
+	if (bSuppressResponseMsg)
+	{
+		TaskText = FText::GetEmpty();
+	}
+	FScopedSourceControlProgress Progress(TaskText, FSimpleDelegate::CreateStatic(&Local::CancelCommand, &InCommand));
 
 	// Perform the command asynchronously
 	IssueCommand( InCommand, false );

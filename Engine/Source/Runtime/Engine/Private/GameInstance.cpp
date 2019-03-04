@@ -607,7 +607,7 @@ ULocalPlayer* UGameInstance::CreateInitialPlayer(FString& OutError)
 	return CreateLocalPlayer( 0, OutError, false );
 }
 
-ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnActor)
+ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnPlayerController)
 {
 	check(GetEngine()->LocalPlayerClass != NULL);
 
@@ -641,7 +641,7 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 
 		NewPlayer = NewObject<ULocalPlayer>(GetEngine(), GetEngine()->LocalPlayerClass);
 		InsertIndex = AddLocalPlayer(NewPlayer, ControllerId);
-		if (bSpawnActor && InsertIndex != INDEX_NONE && GetWorld() != NULL)
+		if (bSpawnPlayerController && InsertIndex != INDEX_NONE && GetWorld() != NULL)
 		{
 			if (GetWorld()->GetNetMode() != NM_Client)
 			{
@@ -918,6 +918,8 @@ const TArray<class ULocalPlayer*>& UGameInstance::GetLocalPlayers() const
 
 void UGameInstance::StartRecordingReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if ( FParse::Param( FCommandLine::Get(),TEXT( "NOREPLAYS" ) ) )
 	{
 		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::StartRecordingReplay: Rejected due to -noreplays option" ) );
@@ -957,8 +959,6 @@ void UGameInstance::StartRecordingReplay(const FString& Name, const FString& Fri
 	{
 		CurrentWorld->DestroyDemoNetDriver();
 		bDestroyedDemoNetDriver = true; 
-
-		const FName NAME_DemoNetDriver(TEXT("DemoNetDriver"));
 
 		if (!GEngine->CreateNamedNetDriver(CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver))
 		{
@@ -1028,6 +1028,8 @@ void UGameInstance::StopRecordingReplay()
 
 bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)
 {
+	LLM_SCOPE(ELLMTag::Networking);
+
 	UWorld* CurrentWorld = WorldOverride != nullptr ? WorldOverride : GetWorld();
 
 	if ( CurrentWorld == nullptr )
@@ -1047,8 +1049,6 @@ bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const
 	{
 		DemoURL.AddOption(*Option);
 	}
-
-	const FName NAME_DemoNetDriver( TEXT( "DemoNetDriver" ) );
 
 	if ( !GEngine->CreateNamedNetDriver( CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver ) )
 	{

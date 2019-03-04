@@ -1216,6 +1216,10 @@ protected:
 	bool bMaySendProperties;
 
 private:
+
+	FDelegateHandle PostGarbageCollectHandle;
+	void PostGarbageCollect();
+
 	FActorDestructionInfo* CreateDestructionInfo(UNetDriver* NetDriver, AActor* ThisActor, FActorDestructionInfo *DestructionInfo);
 
 	void CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info);

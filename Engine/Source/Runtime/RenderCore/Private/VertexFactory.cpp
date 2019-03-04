@@ -7,6 +7,7 @@
 #include "VertexFactory.h"
 #include "Serialization/MemoryWriter.h"
 #include "UObject/DebugSerializationFlags.h"
+#include "PipelineStateCache.h"
 
 uint32 FVertexFactoryType::NextHashIndex = 0;
 bool FVertexFactoryType::bInitializedSerializationHistory = false;
@@ -210,8 +211,7 @@ void FVertexFactory::GetStreams(ERHIFeatureLevel::Type InFeatureLevel, FVertexIn
 
 void FVertexFactory::OffsetInstanceStreams(uint32 InstanceOffset, bool bOperateOnPositionOnly, FVertexInputStreamArray& VertexStreams) const
 {
-	const TArray<FVertexStream,TFixedAllocator<MaxVertexElementCount> >& StreamArray = bOperateOnPositionOnly ? PositionStream : Streams;
-
+	const TArrayView<const FVertexStream>& StreamArray = bOperateOnPositionOnly ? MakeArrayView(PositionStream) : MakeArrayView(Streams);
 	for (int32 StreamIndex = 0; StreamIndex < StreamArray.Num(); StreamIndex++)
 	{
 		const FVertexStream& Stream = StreamArray[StreamIndex];
@@ -274,12 +274,12 @@ FVertexElement FVertexFactory::AccessPositionStreamComponent(const FVertexStream
 void FVertexFactory::InitDeclaration(FVertexDeclarationElementList& Elements)
 {
 	// Create the vertex declaration for rendering the factory normally.
-	Declaration = RHICreateVertexDeclaration(Elements);
+	Declaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 }
 
 void FVertexFactory::InitPositionDeclaration(const FVertexDeclarationElementList& Elements)
 {
-	PositionDeclaration = RHICreateVertexDeclaration(Elements);
+	PositionDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 }
 
 FVertexFactoryParameterRef::FVertexFactoryParameterRef(FVertexFactoryType* InVertexFactoryType,const FShaderParameterMap& ParameterMap, EShaderFrequency InShaderFrequency, EShaderPlatform InShaderPlatform)

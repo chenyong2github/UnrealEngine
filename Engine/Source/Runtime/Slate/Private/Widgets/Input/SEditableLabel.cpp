@@ -34,7 +34,6 @@ void SEditableLabel::Construct(const FArguments& InArgs)
 					.HighlightShape(InArgs._HighlightShape)
 					.HighlightText(InArgs._HighlightText)
 					.MinDesiredWidth(InArgs._MinDesiredWidth)
-					.OnDoubleClicked(this, &SEditableLabel::HandleTextBlockDoubleClicked)
 					.ShadowColorAndOpacity(InArgs._ShadowColorAndOpacity)
 					.ShadowOffset(InArgs._ShadowOffset)
 					.TextStyle(InArgs._TextStyle)
@@ -114,6 +113,16 @@ FReply SEditableLabel::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 	return FReply::Unhandled();
 }
 
+
+FReply SEditableLabel::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		return HandleTextBlockDoubleClicked();
+	}
+
+	return FReply::Unhandled();
+}
 
 bool SEditableLabel::SupportsKeyboardFocus() const
 {

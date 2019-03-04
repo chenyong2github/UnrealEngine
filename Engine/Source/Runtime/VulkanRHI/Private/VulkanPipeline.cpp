@@ -1120,6 +1120,8 @@ void FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FGfxPipelineEn
 	FMemory::Memzero(ShaderStages);
 	PipelineInfo.stageCount = 0;
 	PipelineInfo.pStages = ShaderStages;
+	// main_00000000_00000000
+	ANSICHAR EntryPoints[ShaderStage::NumStages][24];
 	for (int32 ShaderStage = 0; ShaderStage < ShaderStage::NumStages; ++ShaderStage)
 	{
 		if (!GfxEntry->ShaderModules[ShaderStage])
@@ -1131,7 +1133,8 @@ void FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FGfxPipelineEn
 		ShaderStages[PipelineInfo.stageCount].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		ShaderStages[PipelineInfo.stageCount].stage = UEFrequencyToVKStageBit(ShaderStage::GetFrequencyForGfxStage(CurrStage));
 		ShaderStages[PipelineInfo.stageCount].module = GfxEntry->ShaderModules[CurrStage];
-		ShaderStages[PipelineInfo.stageCount].pName = "main";
+		Shaders[ShaderStage]->GetEntryPoint(EntryPoints[PipelineInfo.stageCount]);
+		ShaderStages[PipelineInfo.stageCount].pName = EntryPoints[PipelineInfo.stageCount];
 		PipelineInfo.stageCount++;
 	}
 
@@ -1554,12 +1557,12 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::FindInRuntime
 
 	#if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 			TempUInt64 = GetShaderKey(PSI.BoundShaderState.GeometryShaderRHI);
+	#endif
 			Ar << TempUInt64;
 			//TempUInt64 = GetShaderKey(PSI.BoundShaderState.HullShaderRHI);
 			Ar << TempUInt64;
 			//TempUInt64 = GetShaderKey(PSI.BoundShaderState.DomainShaderRHI);
 			Ar << TempUInt64;
-	#endif
 			Ar << ResourceCast(PSI.BoundShaderState.VertexDeclarationRHI)->Elements;
 			Ar << ResourceCast(PSI.RasterizerState)->Initializer;
 			Ar << ResourceCast(PSI.DepthStencilState)->Initializer;
@@ -1712,7 +1715,10 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 	PipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	PipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	PipelineInfo.stage.module = ShaderModule;
-	PipelineInfo.stage.pName = "main";
+	// main_00000000_00000000
+	ANSICHAR EntryPoint[24];
+	Shader->GetEntryPoint(EntryPoint);
+	PipelineInfo.stage.pName = EntryPoint;
 	PipelineInfo.layout = ComputeLayout->GetPipelineLayout();
 		
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateComputePipelines(Device->GetInstanceHandle(), PipelineCache, 1, &PipelineInfo, VULKAN_CPU_ALLOCATOR, &Pipeline->Pipeline));
@@ -1929,6 +1935,7 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		OutShaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel))->GetPixelShader());
 	}
 
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	if (BSI.GeometryShaderRHI)
 	{
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
@@ -1937,7 +1944,9 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		ensureMsgf(0, TEXT("Geometry not supported!"));
 #endif
 	}
+#endif
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if (BSI.HullShaderRHI)
 	{
 		ensureMsgf(0, TEXT("Tessellation not supported yet!"));
@@ -1953,6 +1962,7 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		// Can't have Domain w/o Hull
 		check(BSI.DomainShaderRHI == nullptr);
 	}
+#endif
 }
 
 void GetVulkanShaders(FVulkanDevice* Device, const FVulkanRHIGraphicsPipelineState& GfxPipelineState, FVulkanShader* OutShaders[ShaderStage::NumStages])

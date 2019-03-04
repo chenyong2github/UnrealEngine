@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Components/SceneComponent.h"
+#include "KismetAnimationTypes.h"
 #include "KismetAnimationLibrary.generated.h"
 
 class USkeletalMeshComponent;
@@ -32,5 +33,56 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 
 	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (DisplayName = "Make Perlin Noise and Remap", ScriptName = "MakeFloatFromPerlinNoise", RangeOutMinX = "-1.f", RangeOutMaxX = "1.f", RangeOutMinY = "-1.f", RangeOutMaxY = "1.f", RangeOutMinZ = "-1.f", RangeOutMaxZ = "1.f"))
 	static float K2_MakePerlinNoiseAndRemap(float Value, float RangeOutMin, float RangeOutMax);
+
+	/** 
+		This function calculates the velocity of a position changing over time.
+		You need to hook up a valid PositionHistory variable to this for storage.
+
+		@param Position The position to track over time.
+		@param History The history to use for storage.
+		@param NumberOfSamples The number of samples to use for the history. The higher the number of samples - the smoother the velocity changes.
+		@param VelocityMin The minimum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
+		@param VelocityMax The maximum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "Calculate Velocity From Position History", ScriptName = "CalculateVelocityFromPositionHistory", NumberOfSamples = "16", VelocityMin = "0.f", VelocityMax = "128.f"))
+	static float K2_CalculateVelocityFromPositionHistory(
+		float DeltaSeconds,
+		FVector Position,
+		UPARAM(ref) FPositionHistory& History,
+		int32 NumberOfSamples,
+		float VelocityMin,
+		float VelocityMax
+	);
+
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (DisplayName = "Scalar Easing", ScriptName = "ScalarEasing", Value = "0.f"))
+	static float K2_ScalarEasing(float Value, EEasingFuncType EasingType);
+
+	/** 
+		This function calculates the velocity of an offset position on a bone / socket over time.
+		The bone's / socket's motion can be expressed within a reference frame (another bone / socket). 
+		You need to hook up a valid PositionHistory variable to this for storage.
+
+		@param SocketOrBoneName The name of the bone / socket to track.
+		@param ReferenceSocketOrBone The name of the bone / socket to use as a frame of reference (or None if no frame of reference == world space).
+		@param OffsetInBoneSpace The relative position in the space of the bone / socket to track over time.
+		@param History The history to use for storage.
+		@param NumberOfSamples The number of samples to use for the history. The higher the number of samples - the smoother the velocity changes.
+		@param VelocityMin The minimum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
+		@param VelocityMax The maximum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "Calculate Velocity From Sockets", ScriptName = "CalculateVelocityFromSockets", NumberOfSamples = "16", VelocityMin = "0.f", VelocityMax = "128.f"))
+	static float K2_CalculateVelocityFromSockets(
+		float DeltaSeconds, 
+		USkeletalMeshComponent * Component,
+		const FName SocketOrBoneName,
+		const FName ReferenceSocketOrBone,
+		ERelativeTransformSpace SocketSpace,
+		FVector OffsetInBoneSpace, 
+		UPARAM(ref) FPositionHistory& History, 
+		int32 NumberOfSamples,
+		float VelocityMin, 
+		float VelocityMax,
+		EEasingFuncType EasingType
+	);
 };
 

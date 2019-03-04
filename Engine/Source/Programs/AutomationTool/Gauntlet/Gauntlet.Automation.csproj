@@ -18,7 +18,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\Binaries\DotNET\AutomationScripts\</OutputPath>
+    <OutputPath>..\..\..\..\Binaries\DotNET\AutomationScripts\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -199,6 +199,7 @@
     <Content Include="SelfTest\TestData\LogParser\OrionLogWithExceptionPS4Client.txt" />
     <Content Include="SelfTest\TestData\LogParser\OrionLogWithFatalErrorPS4Client.txt" />
     <Content Include="SelfTest\TestData\LogParser\OrionPS4ClientLogWithPerf.txt" />
+    <Content Include="SelfTest\TestData\LogParser\Win64FatalError.txt" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup />

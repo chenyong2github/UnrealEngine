@@ -507,6 +507,8 @@ public:
 			for (auto& ComponentInfo : ComponentInfos)
 			{
 				const FMeshBatch& Mesh = ComponentInfo.SceneProxy->GetGrassMeshBatch();
+				Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+
 				PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, NumPasses, ComponentInfo.ViewOffset, PassOffsetX, ComponentInfo.SceneProxy);
 			}
 		});
@@ -584,9 +586,9 @@ public:
 		RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource()->GetTextureRenderTarget2DResource();
 
 		// render
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FDrawSceneCommand,
-			FLandscapeGrassWeightExporter_RenderThread*, Exporter, this,
+		FLandscapeGrassWeightExporter_RenderThread* Exporter = this;
+		ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
+			[Exporter](FRHICommandListImmediate& RHICmdList)
 			{
 				Exporter->RenderLandscapeComponentToTexture_RenderThread(RHICmdList);
 				FlushPendingDeleteRHIResources_RenderThread();
@@ -1892,11 +1894,11 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 		int32 X2 = FMath::CeilToInt(TestX);
 		int32 Y2 = FMath::CeilToInt(TestY);
 
-		// Min is to prevent the sampling of the final column from overflowing
-		int32 IdxX1 = FMath::Min<int32>(X1, GrassData.GetStride() - 1);
-		int32 IdxY1 = FMath::Min<int32>(Y1, GrassData.GetStride() - 1);
-		int32 IdxX2 = FMath::Min<int32>(X2, GrassData.GetStride() - 1);
-		int32 IdxY2 = FMath::Min<int32>(Y2, GrassData.GetStride() - 1);
+		// Clamp to prevent the sampling of the final columns from overflowing
+		int32 IdxX1 = FMath::Clamp<int32>(X1, 0, GrassData.GetStride() - 1);
+		int32 IdxY1 = FMath::Clamp<int32>(Y1, 0, GrassData.GetStride() - 1);
+		int32 IdxX2 = FMath::Clamp<int32>(X2, 0, GrassData.GetStride() - 1);
+		int32 IdxY2 = FMath::Clamp<int32>(Y2, 0, GrassData.GetStride() - 1);
 
 		float LerpX = FMath::Fractional(TestX);
 		float LerpY = FMath::Fractional(TestY);

@@ -174,7 +174,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Build the data to compute accuracte StreaminTexture data. */
 	virtual bool BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources) override;
 	/** Get the StreaminTexture data. */
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const override;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 
 	/**
 	* Update the transform for the instance specified.
@@ -263,6 +263,7 @@ public:
 
 	//~ Begin UNavRelevantInterface Interface
 	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	virtual FBox GetNavigationBounds() const override;
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UObject Interface
@@ -299,6 +300,7 @@ public:
 
 	virtual void PropagateLightingScenarioChange() override;
 
+	void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */

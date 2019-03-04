@@ -816,6 +816,12 @@ public:
 	: View(InView)
 	, Resource(InResource)
 	{}
+
+	void Rename(ID3D11ShaderResourceView* InView, FD3D11BaseShaderResource* InResource)
+	{
+		View = InView;
+		Resource = InResource;
+	}
 };
 
 /** Unordered access view class. */

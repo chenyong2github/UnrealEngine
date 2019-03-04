@@ -14,8 +14,7 @@ TextureInstanceState.h: Definitions of classes used for texture streaming.
 class FStreamingTextureLevelContext;
 class ULevel;
 class UPrimitiveComponent;
-class UTexture2D;
-struct FStreamingTexturePrimitiveInfo;
+struct FStreamingRenderAssetPrimitiveInfo;
 
 enum class EAddComponentResult : uint8
 {
@@ -25,7 +24,7 @@ enum class EAddComponentResult : uint8
 };
 
 // Can be used either for static primitives or dynamic primitives
-class FTextureInstanceState : public FTextureInstanceView
+class FRenderAssetInstanceState : public FRenderAssetInstanceView
 {
 public:
 
@@ -37,7 +36,7 @@ public:
 	EAddComponentResult AddComponentIgnoreBounds(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext);
 
 	FORCEINLINE bool HasComponentReferences(const UPrimitiveComponent* Component) const { return ComponentMap.Contains(Component); }
-	void RemoveComponent(const UPrimitiveComponent* Component, FRemovedTextureArray* RemovedTextures);
+	void RemoveComponent(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedTextures);
 	bool RemoveComponentReferences(const UPrimitiveComponent* Component);
 
 	void GetReferencedComponents(TArray<const UPrimitiveComponent*>& Components) const;
@@ -45,7 +44,7 @@ public:
 	void UpdateBounds(const UPrimitiveComponent* Component);
 	bool UpdateBounds(int32 BoundIndex);
 	bool ConditionalUpdateBounds(int32 BoundIndex);
-	void UpdateLastRenderTime(int32 BoundIndex);
+	void UpdateLastRenderTimeAndMaxDrawDistance(int32 BoundIndex);
 
 	uint32 GetAllocatedSize() const;
 
@@ -63,15 +62,15 @@ public:
 
 private:
 
-	void AddElement(const UPrimitiveComponent* Component, const UTexture2D* Texture, int BoundsIndex, float TexelFactor, bool bForceLoad, int32*& ComponentLink);
+	void AddElement(const UPrimitiveComponent* Component, const UStreamableRenderAsset* Asset, int BoundsIndex, float TexelFactor, bool bForceLoad, int32*& ComponentLink);
 	// Returns the next elements using the same component.
-	void RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UTexture2D*& Texture);
+	void RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset);
 
-	int32 AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* Component, float LastRenderTime, const FVector4& RangeOrigin, float MinDistance, float MinRange, float MaxRange);
+	int32 AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* Component, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq);
 	FORCEINLINE int32 AddBounds(const UPrimitiveComponent* Component);
 	void RemoveBounds(int32 Index);
 
-	void AddTextureElements(const UPrimitiveComponent* Component, const TArrayView<FStreamingTexturePrimitiveInfo>& TextureInstanceInfos, int32 BoundsIndex, int32*& ComponentLink);
+	void AddRenderAssetElements(const UPrimitiveComponent* Component, const TArrayView<FStreamingRenderAssetPrimitiveInfo>& RenderAssetInstanceInfos, int32 BoundsIndex, int32*& ComponentLink);
 
 private:
 
@@ -93,36 +92,36 @@ private:
 
 	TMap<const UPrimitiveComponent*, int32> ComponentMap;
 
-	friend class FTextureLinkIterator;
-	friend class FTextureIterator;
+	friend class FRenderAssetLinkIterator;
+	friend class FRenderAssetIterator;
 };
 
 template <typename TTasks>
-class FTextureInstanceStateTaskSync
+class FRenderAssetInstanceStateTaskSync
 {
 public:
 
-	FTextureInstanceStateTaskSync() : State(new FTextureInstanceState()) {}
+	FRenderAssetInstanceStateTaskSync() : State(new FRenderAssetInstanceState()) {}
 
 	FORCEINLINE void Sync()
 	{
 		Tasks.SyncResults();
 	}
 
-	FORCEINLINE FTextureInstanceState* SyncAndGetState()
+	FORCEINLINE FRenderAssetInstanceState* SyncAndGetState()
 	{
 		Tasks.SyncResults();
 		return State.GetReference();
 	}
 
 	// Get State but must be constant as async tasks could be reading data.
-	FORCEINLINE const FTextureInstanceState* GetState() const
+	FORCEINLINE const FRenderAssetInstanceState* GetState() const
 	{
 		return State.GetReference();
 	}
 
 	// Used when updating the state, but with no possible reallocation.
-	FORCEINLINE FTextureInstanceState* GetStateUnsafe()
+	FORCEINLINE FRenderAssetInstanceState* GetStateUnsafe()
 	{
 		return State.GetReference();
 	}
@@ -132,6 +131,6 @@ public:
 
 private:
 
-	TRefCountPtr<FTextureInstanceState> State;
+	TRefCountPtr<FRenderAssetInstanceState> State;
 	TTasks Tasks;
 };

@@ -146,6 +146,7 @@ bool FD3D12Device::IsGPUIdle()
 typedef HRESULT(WINAPI *FDXGIGetDebugInterface1)(UINT, REFIID, void **);
 #endif
 
+ID3D12CommandQueue* gD3D12CommandQueue;
 
 void FD3D12Device::SetupAfterDeviceCreation()
 {
@@ -255,6 +256,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	TimestampQueryHeap.Init();
 
 	CommandListManager->Create(L"3D Queue");
+	gD3D12CommandQueue = CommandListManager->GetD3DCommandQueue();
 	CopyCommandListManager->Create(L"Copy Queue");
 	AsyncCommandListManager->Create(L"Async Compute Queue", 0, AsyncComputePriority_Default);
 
@@ -371,6 +373,13 @@ void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color)
 {
 	GetParentAdapter()->GetGPUProfiler().PushEvent(Name, Color);
 }
+
+#if NV_AFTERMATH
+void FD3D12Device::PushGPUEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context)
+{
+	GetParentAdapter()->GetGPUProfiler().PushEvent(Name, Color, Context);
+}
+#endif
 
 void FD3D12Device::PopGPUEvent()
 {

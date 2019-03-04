@@ -95,6 +95,9 @@ public:
 	// Accessors.
 	FORCEINLINE bool IsInitialized() const { return bInitialized; }
 
+	/** Initialize all resources initialized before the RHI was initialized */
+	static void InitPreRHIResources();
+
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? GMaxRHIFeatureLevel : FeatureLevel; }
@@ -103,12 +106,12 @@ protected:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 private:
+	#if PLATFORM_NEEDS_RHIRESOURCELIST
+	TLinkedList<FRenderResource*> ResourceLink;
+	#endif
 
 	/** True if the resource has been initialized. */
 	bool bInitialized;
-
-	/** This resource's link in the global resource list. */
-	TLinkedList<FRenderResource*> ResourceLink;
 };
 
 /**
@@ -593,6 +596,7 @@ struct FRayTracingGeometryInstanceCollection
 	};
 
 	FRayTracingGeometry* Geometry = nullptr;
+	uint32 NumDynamicVertices = 0;
 	FRWBuffer* DynamicVertexPositionBuffer = nullptr;
 	TransformMode InstanceTransformMode;
 	TArray<FMatrix> CustomTransforms;

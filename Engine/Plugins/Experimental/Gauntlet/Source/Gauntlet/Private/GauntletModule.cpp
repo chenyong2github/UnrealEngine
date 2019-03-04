@@ -260,6 +260,17 @@ void FGauntletModuleImpl::InnerPreMapChange(const FString& MapName)
 
 void FGauntletModuleImpl::InnerPostMapChange(UWorld* World)
 {
+	if (!World)
+	{
+		// Failed to load requested map
+		for (auto Controller : Controllers)
+		{
+			Controller->OnPostMapChange(World);
+		}
+
+		return;
+	}
+
 	CurrentMap = World->GetMapName();
 
 	for (auto Controller : Controllers)

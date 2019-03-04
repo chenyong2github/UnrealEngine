@@ -9,7 +9,7 @@ TextureInstanceTask.cpp: Definitions of classes used for texture streaming.
 #include "Engine/Texture2D.h"
 #include "HAL/LowLevelMemTracker.h"
 
-namespace TextureInstanceTask {
+namespace RenderAssetInstanceTask {
 
 FRefreshVisibility::FRefreshVisibility(const FOnWorkDone& InOnWorkDoneDelegate)
 	: OnWorkDoneDelegate(InOnWorkDoneDelegate)
@@ -18,7 +18,7 @@ FRefreshVisibility::FRefreshVisibility(const FOnWorkDone& InOnWorkDoneDelegate)
 {
 }
 
-void FRefreshVisibility::Init(FTextureInstanceState* InState, int32 InBeginIndex, int32 InEndIndex)
+void FRefreshVisibility::Init(FRenderAssetInstanceState* InState, int32 InBeginIndex, int32 InEndIndex)
 {
 	State = InState;
 	BeginIndex = InBeginIndex;
@@ -29,7 +29,7 @@ void FRefreshVisibility::operator()(bool bAsync)
 {
 	for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
 	{
-		State->UpdateLastRenderTime(Index);
+		State->UpdateLastRenderTimeAndMaxDrawDistance(Index);
 	}
 }
 
@@ -48,7 +48,7 @@ FRefreshFull::FRefreshFull(const FOnWorkDone& InOnWorkDoneDelegate)
 {
 }
 
-void FRefreshFull::Init(FTextureInstanceState* InState, int32 InBeginIndex, int32 InEndIndex)
+void FRefreshFull::Init(FRenderAssetInstanceState* InState, int32 InBeginIndex, int32 InEndIndex)
 {
 	check(!SkippedIndices.Num());
 
@@ -115,9 +115,9 @@ void FRefreshFull::Sync()
 void FNormalizeLightmapTexelFactor::operator()(bool bAsync)
 {
 	TArray<float> TexelFactors;
-	for (auto TextureIt = State->GetTextureIterator(); TextureIt; ++TextureIt)
+	for (auto TextureIt = State->GetRenderAssetIterator(); TextureIt; ++TextureIt)
 	{
-		const UTexture2D* Texture = *TextureIt;
+		const UStreamableRenderAsset* Texture = *TextureIt;
 		const int32 TextureLODGroup = TextureIt.GetLODGroup();
 		if (TextureLODGroup == TEXTUREGROUP_Lightmap || TextureLODGroup == TEXTUREGROUP_Shadowmap)
 		{
@@ -143,7 +143,7 @@ void FCreateViewWithUninitializedBounds::operator()(bool bAsync)
 { 
 	// The task creates another view but does not fully initialize the bounds.
 	// At sync point, the bound array are swapped as the dirty array gets refreshed.
-	View = FTextureInstanceView::CreateViewWithUninitializedBounds(State.GetReference());
+	View = FRenderAssetInstanceView::CreateViewWithUninitializedBounds(State.GetReference());
 
 	// Release the previous view. Ran here because the destructor is super expansive.
 	ViewToRelease.SafeRelease();
@@ -187,4 +187,4 @@ void FDoWorkTask::DoWork()
 	ProcessTasks(NormalizeLightmapTexelFactorTasks);
 }
 
-} // namespace TextureInstanceTask
+} // namespace RenderAssetInstanceTask

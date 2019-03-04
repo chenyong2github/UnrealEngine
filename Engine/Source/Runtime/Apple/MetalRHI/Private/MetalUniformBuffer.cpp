@@ -29,7 +29,6 @@ struct FMetalRHICommandInitialiseUniformBufferIAB : public FRHICommand<FMetalRHI
 		Buffer->InitIAB();
 	}
 };
-bool GMetalManagedUniformBuffers = false;
 
 struct FMetalArgumentDesc
 {
@@ -420,7 +419,7 @@ void FMetalUniformBuffer::InitIAB()
 			Desc.SetAccess(mtlpp::ArgumentAccess::ReadOnly);
 			Desc.SetDataType(mtlpp::DataType::Pointer);
 			
-			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), BufferSizes.Num() * sizeof(uint32), BUFFER_STORAGE_MODE);
+			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), BufferSizes.Num() * sizeof(uint32), 0, BUFFER_STORAGE_MODE);
 			NewIAB->IndirectArgumentBufferSideTable = GetMetalDeviceContext().CreatePooledBuffer(Args);
 			
 			FMemory::Memcpy(NewIAB->IndirectArgumentBufferSideTable.GetContents(), BufferSizes.GetData(), BufferSizes.Num() * sizeof(uint32));
@@ -447,7 +446,7 @@ void FMetalUniformBuffer::InitIAB()
 		
 		mtlpp::ArgumentEncoder Encoder = FMetalArgumentEncoderCache::Get().CreateEncoder(Arguments);
 		
-		NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
+		NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, 0, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
 		
 		Encoder.SetArgumentBuffer(NewIAB->IndirectArgumentBuffer, 0);
 		

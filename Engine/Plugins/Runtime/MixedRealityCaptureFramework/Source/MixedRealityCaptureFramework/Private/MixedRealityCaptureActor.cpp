@@ -245,7 +245,6 @@ void AMixedRealityCaptureActor::BeginPlay()
 		CamVizualizer->SetRelativeTransform(FTransform(FRotator(90.f, 0.f, 0.f), FVector(7.5, 0.f, 0.f), FVector(0.15f)));
 		CamVizualizer->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		CamVizualizer->CastShadow = false;
-		CamVizualizer->PostPhysicsComponentTick.bCanEverTick = false;
 		CamVizualizer->RegisterComponent();
 	}
 #endif

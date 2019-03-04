@@ -17,6 +17,7 @@
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
 #include "AudioDevice.h"
+#include "VorbisAudioInfo.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogXAudio2, Log, All);
 
@@ -120,6 +121,15 @@ private:
 	{
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_OGG(TEXT("OGG"));
+		static FName NAME_XMA(TEXT("XMA"));
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (SoundWave->IsStreaming() && SoundWave->NumChannels <= 2)
+		{
+			return NAME_XMA;
+		}
+#endif
+
 
 #if WITH_OGGVORBIS
 
@@ -132,7 +142,6 @@ private:
 #endif
 		}
 
-		static FName NAME_XMA(TEXT("XMA"));
 
 #if WITH_XMA2
 		if (SoundWave->NumChannels > 2)
@@ -149,7 +158,6 @@ private:
 #endif
 
 #else //WITH_OGGVORBIS
-		static FName NAME_XMA(TEXT("XMA"));
 		return NAME_XMA;
 #endif //WITH_OGGVORBIS
 	}

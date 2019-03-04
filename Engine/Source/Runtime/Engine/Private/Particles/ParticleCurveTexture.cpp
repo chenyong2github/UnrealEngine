@@ -154,7 +154,7 @@ public:
 			Offset += sizeof(FVector2D);
 		}
 
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	virtual void ReleaseRHI() override
@@ -617,12 +617,11 @@ void FParticleCurveTexture::SubmitPendingCurves()
 	check(IsInGameThread());
 	if (PendingCurves.Num())
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			FInjectPendingCurvesCommand,
-			FParticleCurveTexture*, ParticleCurveTexture, this,
-			TArray<FCurveSamples>, PendingCurves, PendingCurves,
+		FParticleCurveTexture* ParticleCurveTexture = this;
+		//TArray<FCurveSamples> InPendingCurves = PendingCurves;
+		ENQUEUE_RENDER_COMMAND(FInjectPendingCurvesCommand)(
+			[ParticleCurveTexture, PendingCurves = PendingCurves](FRHICommandListImmediate& RHICmdList) mutable
 			{
-
 				InjectCurves(
 					RHICmdList,
 					ParticleCurveTexture->CurveTextureRHI,

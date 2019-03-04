@@ -638,15 +638,16 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 
 	USkeletalMesh* OwnerMesh = CastChecked<USkeletalMesh>(Owner);
 	int32 MinMeshLod = 0;
-	
+	bool bMeshDisablesMinLodStrip = false;
 #if WITH_EDITOR
 	if(bIsCook)
 	{
 		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : 0;
+		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : false;
 	}
 #endif
 
-	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > Idx;
+	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > Idx && !bMeshDisablesMinLodStrip;
 
 	ClassDataStripFlags |= bWantToStripTessellation ? LodAdjacencyStripFlag : 0;
 	ClassDataStripFlags |= bWantToStripBelowMinLod ? MinLodStripFlag : 0;
@@ -673,6 +674,14 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 		// set cpu skinning flag on the vertex buffer so that the resource arrays know if they need to be CPU accessible
 		bNeedsCPUAccess = bKeepBuffersInCPUMemory || SkelMeshOwner->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel) ||
 			SkelMeshOwner->NeedCPUData(Idx);
+	}
+
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		if (bNeedsCPUAccess && SkelMeshOwner)
+		{
+			UE_LOG(LogStaticMesh, Verbose, TEXT("[%s] Skeletal Mesh is marked for CPU read."), *SkelMeshOwner->GetName());
+		}
 	}
 
 	if (StripFlags.IsDataStrippedForServer() || StripFlags.IsClassDataStripped(MinLodStripFlag))

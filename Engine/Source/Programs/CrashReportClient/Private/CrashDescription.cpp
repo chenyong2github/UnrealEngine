@@ -387,6 +387,17 @@ void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAtt
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("UserActivityHint"), UserActivityHint.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("GameSessionID"), GameSessionID.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("DeploymentName"), DeploymentName));
+
+	// Add arbitrary game data
+	const FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
+	if (MainNode)
+	{
+		for (const FXmlNode* ChildNode : MainNode->GetChildrenNodes())
+		{
+			FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
+			OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+		}
+	}
 }
 
 void FPrimaryCrashProperties::Save()

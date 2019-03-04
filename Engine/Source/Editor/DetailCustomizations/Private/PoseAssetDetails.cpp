@@ -13,6 +13,7 @@
 #include "ScopedTransaction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE	"PoseAssetDetails"
 
@@ -92,7 +93,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	]
 	.ValueContent()
 	[
-		SAssignNew(RetargetSourceComboBox, SComboBox< TSharedPtr<FString> >)
+		SAssignNew(RetargetSourceComboBox, SSearchableComboBox)
 		.OptionsSource(&RetargetSourceComboList)
 		.OnGenerateWidget(this, &FPoseAssetDetails::MakeRetargetSourceComboWidget)
 		.OnSelectionChanged(this, &FPoseAssetDetails::OnRetargetSourceChanged)
@@ -188,7 +189,7 @@ void FPoseAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		.HAlign(HAlign_Fill)
 		.Padding(3)
 		[
-			SAssignNew(BasePoseComboBox, SComboBox< TSharedPtr<FString> >)
+			SAssignNew(BasePoseComboBox, SSearchableComboBox)
 			.OptionsSource(&BasePoseComboList)
 			.OnGenerateWidget(this, &FPoseAssetDetails::MakeBasePoseComboWidget)
 			.OnSelectionChanged(this, &FPoseAssetDetails::OnBasePoseChanged)

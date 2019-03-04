@@ -161,8 +161,13 @@ ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMater
 			LayerParameter.WeightmapIndex = INDEX_NONE;
 		}
 	}
-	MaterialInstance->UpdateStaticPermutation(StaticParameters);
 
+	// Don't recreate the render state of everything, only update the materials context
+	{
+		FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+		MaterialInstance->UpdateStaticPermutation(StaticParameters, &MaterialUpdateContext);
+	}
+	
 	FLinearColor Mask(1.0f, 0.0f, 0.0f, 0.0f);
 	MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Mask);
 	MaterialInstance->SetTextureParameterValueEditorOnly(FName(TEXT("Weightmap0")), ThumbnailWeightmap);
@@ -434,6 +439,21 @@ void ULandscapeComponent::UpdateMaterialInstances()
 	// Recreate the render state for this component, needed to update the static drawlist which has cached the MaterialRenderProxies
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContext.Reset();
+}
+
+void ULandscapeComponent::UpdateMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext)
+{
+	InOutRecreateRenderStateContext.Add(this);
+	UpdateMaterialInstances_Internal(InOutMaterialContext);
+}
+
+void ALandscapeProxy::UpdateAllComponentMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext)
+{
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		Component->UpdateMaterialInstances(InOutMaterialContext, InOutRecreateRenderStateContext);
+	}
+
 }
 
 void ALandscapeProxy::UpdateAllComponentMaterialInstances()
@@ -2140,6 +2160,8 @@ ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerNa
 }
 
 #define HEIGHTDATA(X,Y) (HeightData[ FMath::Clamp<int32>(Y,0,VertsY) * VertsX + FMath::Clamp<int32>(X,0,VertsX) ])
+ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
+
 LANDSCAPE_API void ALandscapeProxy::Import(
 	const FGuid Guid,
 	const int32 MinX, const int32 MinY, const int32 MaxX, const int32 MaxY,
@@ -2397,14 +2419,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 						}
 					}
 
-					if (TotalWeight == 0)
-					{
-						if (MaxLayerIdx >= 0)
-						{
-							WeightValues[MaxLayerIdx][Idx] = 255;
-						}
-					}
-					else if (TotalWeight != 255)
+					if (TotalWeight > 0 && TotalWeight != 255)
 					{
 						// normalization...
 						float Factor = 255.0f / TotalWeight;
@@ -2704,14 +2719,65 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 		PendingTexturePlatformDataCreation.Add(HeightmapInfo.HeightmapTexture);
 	}
 
-	for (UTexture2D* Texture : PendingTexturePlatformDataCreation)
+	// Build a list of all unique materials the landscape uses
+	TArray<UMaterialInterface*> LandscapeMaterials;
+
+	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		Texture->FinishCachePlatformData();
-		Texture->PostEditChange();
+		int8 MaxLOD = FMath::CeilLogTwo(Component->SubsectionSizeQuads + 1) - 1;
+
+		for (int8 LODIndex = 0; LODIndex < MaxLOD; ++LODIndex)
+		{
+			UMaterialInterface* Material = Component->GetLandscapeMaterial(LODIndex);
+			LandscapeMaterials.AddUnique(Material);
+		}
 	}
 
-	// Update MaterialInstances (must be done after textures are fully initialized)
-	UpdateAllComponentMaterialInstances();
+	// Update all materials and recreate render state of all landscape components
+	TArray<FComponentRecreateRenderStateContext> RecreateRenderStateContexts;
+
+	{
+		// We disable automatic material update context, to manage it manually
+		GDisableAutomaticTextureMaterialUpdateDependencies = true;
+	
+		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+
+		for (UTexture2D* Texture : PendingTexturePlatformDataCreation)
+		{
+			Texture->FinishCachePlatformData();
+			Texture->PostEditChange();
+			
+			TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
+
+			for (UMaterialInterface* MaterialInterface : LandscapeMaterials)
+			{
+				if (DoesMaterialUseTexture(MaterialInterface, Texture))
+				{
+					UMaterial* Material = MaterialInterface->GetMaterial();
+					bool MaterialAlreadyCompute = false;
+					BaseMaterialsThatUseThisTexture.Add(Material, &MaterialAlreadyCompute);
+
+					if (!MaterialAlreadyCompute)
+					{
+						if (Material->IsTextureForceRecompileCacheRessource(Texture))
+						{
+							UpdateContext.AddMaterial(Material);
+							Material->UpdateMaterialShaderCacheAndTextureReferences();
+						}
+					}
+				}
+			}
+		}
+		
+		GDisableAutomaticTextureMaterialUpdateDependencies = false;
+
+		// Update MaterialInstances (must be done after textures are fully initialized)
+		UpdateAllComponentMaterialInstances(UpdateContext, RecreateRenderStateContexts);
+	}
+
+	// Recreate the render state for this component, needed to update the static drawlist which has cached the MaterialRenderProxies
+	// Must be after the FMaterialUpdateContext is destroyed
+	RecreateRenderStateContexts.Reset();
 
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 	{
@@ -5883,9 +5949,8 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	// Tell the rendering thread to draw any remaining batched elements
 	Canvas.Flush_GameThread(true);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		DrawHeightmapRTCommand,
-		FTextureRenderTargetResource*, RenderTargetResource, RenderTargetResource,
+	ENQUEUE_RENDER_COMMAND(DrawHeightmapRTCommand)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
 			// Copy (resolve) the rendered image from the frame buffer to its render target texture
 			RHICmdList.CopyToResolveTarget(

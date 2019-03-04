@@ -177,9 +177,9 @@ void FTexture2DStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 
 #if !UE_BUILD_SHIPPING
 		// On some platforms the IO is too fast to test cancelation requests timing issues.
-		if (FTextureStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
+		if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
 		{
-			FPlatformProcess::Sleep(FTextureStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
+			FPlatformProcess::Sleep(FRenderAssetStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
 		}
 #endif
 

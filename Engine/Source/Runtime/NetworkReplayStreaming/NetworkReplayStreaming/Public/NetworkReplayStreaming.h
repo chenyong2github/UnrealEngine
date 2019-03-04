@@ -446,6 +446,11 @@ struct FRenameReplayResult : public FStreamingResultBase
 DECLARE_DELEGATE_OneParam(FRenameReplayCallback, const FRenameReplayResult&);
 /** End KeepReplay Types */
 
+enum class EReplayCheckpointType : uint8
+{
+	Full,
+	Delta
+};
 
 /**
  * Generic interface for network replay streaming
@@ -468,9 +473,15 @@ public:
 	virtual FArchive* GetCheckpointArchive() = 0;
 	virtual void FlushCheckpoint(const uint32 TimeInMS) = 0;
 
-	virtual void GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate) = 0;
+	UE_DEPRECATED(4.23, "Please use the version of GotoCheckpointIndex that accepts a FGotoCallback delegate and an EReplayCheckpointType")
+	virtual void GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate) { GotoCheckpointIndex(CheckpointIndex, Delegate, EReplayCheckpointType::Full);	}
+	virtual void GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType) = 0;
 
-	virtual void GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate) = 0;
+	UE_DEPRECATED(4.23, "Please use the version of GotoCheckpointIndex that accepts a FGotoCallback delegate and an EReplayCheckpointType.")
+	virtual void GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate) { GotoTimeInMS(TimeInMS, Delegate, EReplayCheckpointType::Full); }
+	virtual void GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType) = 0;
+
+	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const = 0;
 
 	virtual void UpdateTotalDemoTime(uint32 TimeInMS) = 0;
 	virtual uint32 GetTotalDemoTime() const = 0;

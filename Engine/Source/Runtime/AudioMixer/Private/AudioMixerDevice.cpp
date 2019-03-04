@@ -65,7 +65,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::CheckAudioThread()
+	void FMixerDevice::CheckAudioThread() const
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		// "Audio Thread" is the game/audio thread ID used above audio rendering thread.
@@ -81,7 +81,7 @@ namespace Audio
 #endif
 	}
 
-	void FMixerDevice::CheckAudioRenderingThread()
+	void FMixerDevice::CheckAudioRenderingThread() const
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		if (AudioPlatformThreadId == INDEX_NONE)
@@ -93,10 +93,15 @@ namespace Audio
 #endif
 	}
 
-	bool FMixerDevice::IsAudioRenderingThread()
+	bool FMixerDevice::IsAudioRenderingThread() const
 	{
 		int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 		return CurrentThreadId == AudioPlatformThreadId;
+	}
+
+	void FMixerDevice::UpdateDeviceDeltaTime()
+	{
+		DeviceDeltaTime = GetGameDeltaTime();
 	}
 
 	void FMixerDevice::GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const

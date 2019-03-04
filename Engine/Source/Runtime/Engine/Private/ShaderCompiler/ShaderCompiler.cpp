@@ -394,7 +394,12 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJob*
 
 	TransferFile << FormatVersionMap;
 
+	// Convert all the source directory paths to absolute, since SCW might be in a different directory to the editor executable
 	TMap<FString, FString> ShaderSourceDirectoryMappings = AllShaderSourceDirectoryMappings();
+	for(TPair<FString, FString>& Pair : ShaderSourceDirectoryMappings)
+	{
+		Pair.Value = FPaths::ConvertRelativePathToFull(Pair.Value);
+	}
 	TransferFile << ShaderSourceDirectoryMappings;
 
 	TArray<FShaderCompileJob*> QueuedSingleJobs;
@@ -1442,11 +1447,11 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	NumOutstandingJobs(0),
 	NumExternalJobs(0),
 #if PLATFORM_MAC
-	ShaderCompileWorkerName(TEXT("../../../Engine/Binaries/Mac/ShaderCompileWorker")),
+	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Mac/ShaderCompileWorker")),
 #elif PLATFORM_LINUX
-	ShaderCompileWorkerName(TEXT("../../../Engine/Binaries/Linux/ShaderCompileWorker")),
+	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Linux/ShaderCompileWorker")),
 #else
-	ShaderCompileWorkerName(TEXT("../../../Engine/Binaries/Win64/ShaderCompileWorker.exe")),
+	ShaderCompileWorkerName(FPaths::EngineDir() / TEXT("Binaries/Win64/ShaderCompileWorker.exe")),
 #endif
 	SuppressedShaderPlatforms(0)
 {
@@ -2824,7 +2829,10 @@ void GlobalBeginCompileShader(
 	FShaderTarget Target,
 	FShaderCompileJob* NewJob,
 	TArray<FShaderCommonCompileJob*>& NewJobs,
-	bool bAllowDevelopmentShaderCompile
+	bool bAllowDevelopmentShaderCompile,
+	const FString& DebugDescription,
+	const FString& DebugExtension
+
 	)
 {
 	COOK_STAT(ShaderCompilerCookStats::GlobalBeginCompileShaderCalls++);
@@ -2841,6 +2849,7 @@ void GlobalBeginCompileShader(
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderFormat.ToString();
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
+	Input.DebugDescription = DebugDescription;
 
 	if (ShaderType->GetRootParametersMetadata())
 	{
@@ -2955,7 +2964,7 @@ void GlobalBeginCompileShader(
 	// Setup the debug info path if requested, or if this is a global shader and shader development mode is enabled
 	if (GDumpShaderDebugInfo != 0)
 	{
-		Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName;
+		Input.DumpDebugInfoPath = Input.DumpDebugInfoRootPath / Input.DebugGroupName + DebugExtension,
 		
 		// Sanitize the name to be used as a path
 		// List mostly comes from set of characters not allowed by windows in a path.  Just try to rename a file and type one of these for the list.
@@ -3708,7 +3717,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(CurrentJob.Output, SpecificType, SpecificPermutationId);
 		check(Resource);
 
-		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs())
+		if (ShaderPipelineType && !ShaderPipelineType->ShouldOptimizeUnusedOutputs(CurrentJob.Input.Target.GetPlatform()))
 		{
 			// If sharing shaders in this pipeline, remove it from the type/id so it uses the one in the shared shadermap list
 			ShaderPipelineType = nullptr;
@@ -3869,7 +3878,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 						UE_LOG(LogShaders, Log, TEXT("	%s"), Pipeline->GetName());
 					}
 
-					if (Pipeline->ShouldOptimizeUnusedOutputs())
+					if (Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 					{
 						// Make a pipeline job with all the stages
 						FGlobalShaderTypeCompiler::BeginCompileShaderPipeline(Platform, Pipeline, ShaderStages, GlobalShaderJobs);
@@ -4494,7 +4503,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 	{
 		// Add the new global shader instance to the global shader map if it's a shared shader
 		EShaderPlatform Platform = (EShaderPlatform)SingleJob->Input.Target.Platform;
-		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs())
+		if (!Pipeline || !Pipeline->ShouldOptimizeUnusedOutputs(Platform))
 		{
 			GGlobalShaderMap[Platform]->AddShader(GlobalShaderType, SingleJob->PermutationId, Shader);
 			// Add this shared pipeline to the list

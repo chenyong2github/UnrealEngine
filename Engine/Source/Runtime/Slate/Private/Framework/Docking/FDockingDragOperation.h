@@ -148,6 +148,9 @@ protected:
 	/** The area from which we initially started dragging */
 	TSharedPtr<SDockingArea> TabOwnerAreaOfOrigin;
 
+	/** Decorator widget where we add temp doc tabs to */
+	TSharedPtr<SDockingTabStack> CursorDecoratorStackNode;
+
 	/** Tab stack from which we started dragging this tab. */
 	TWeakPtr<class SDockingTabStack> TabStackOfOrigin;
 

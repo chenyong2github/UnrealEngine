@@ -38,6 +38,8 @@ enum EBulkDataFlags
 	BULKDATA_Force_NOT_InlinePayload			= 1 << 10,
 	/** This payload is optional and may not be on device */
 	BULKDATA_OptionalPayload					= 1 << 11,
+	/** This payload will be memory mapped, this requires alignment, no compression etc. */
+	BULKDATA_MemoryMappedPayload = 1 << 12,
 };
 
 /**
@@ -68,6 +70,60 @@ class IMappedFileRegion;
 /*-----------------------------------------------------------------------------
 	Base version of untyped bulk data.
 -----------------------------------------------------------------------------*/
+
+/**
+ * @documentation @todo documentation
+ */
+struct COREUOBJECT_API FOwnedBulkDataPtr
+{
+
+	FOwnedBulkDataPtr(void* InAllocatedData)
+		: AllocatedData(InAllocatedData)
+		, MappedHandle(nullptr)
+		, MappedRegion(nullptr)
+	{
+		
+	}
+
+	FOwnedBulkDataPtr(IMappedFileHandle* Handle, IMappedFileRegion* Region)
+		: AllocatedData(nullptr)
+		, MappedHandle(Handle)
+		, MappedRegion(Region)
+	{
+		
+	}
+
+	~FOwnedBulkDataPtr();
+	const void* GetPointer();
+
+	IMappedFileHandle* GetMappedHandle()
+	{
+		return MappedHandle;
+	}
+	IMappedFileRegion* GetMappedRegion()
+	{
+		return MappedRegion;
+	}
+
+	void RelinquishOwnership()
+	{
+		AllocatedData = nullptr;
+		MappedHandle = nullptr;
+		MappedRegion = nullptr;
+	}
+
+private:
+	// hidden
+	FOwnedBulkDataPtr() {}
+
+
+	// if allocated memory was used, this will be non-null
+	void* AllocatedData;
+	
+	// if memory mapped IO was used, these will be non-null
+	IMappedFileHandle* MappedHandle;
+	IMappedFileRegion* MappedRegion;
+};
 
 /**
  * @documentation @todo documentation
@@ -164,6 +220,28 @@ private:
 		COREUOBJECT_API bool MapFile(const TCHAR *Filename, int64 Offset, int64 Size);
 		COREUOBJECT_API void UnmapFile();
 
+		FOwnedBulkDataPtr* StealFileMapping()
+		{
+			FOwnedBulkDataPtr* Result;
+			// make the proper kind of owner pointer info
+			if (MappedHandle && MappedRegion && Ptr && bAllocated)
+			{
+				Result = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
+			}
+			else
+			{
+				Result = new FOwnedBulkDataPtr(Ptr);
+			}
+
+			// no matter what, this allocated pointer is now fully owned by the caller, so we just null everything out, no deletions
+			MappedHandle = nullptr;
+			MappedRegion = nullptr;
+			Ptr = nullptr;
+			bAllocated = false;
+
+			return Result;
+		}
+		
 	private:
 		FAllocatedPtr(const FAllocatedPtr&);
 		FAllocatedPtr& operator=(const FAllocatedPtr&);
@@ -423,6 +501,12 @@ public:
 	 */
 	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false);
 
+	FOwnedBulkDataPtr* StealFileMapping()
+	{
+		// @todo if non-mapped bulk data, do we need to detach this, or mimic GetCopy more than we do?
+		return BulkData.StealFileMapping();
+	}
+
 	/**
 	 * Serialize just the bulk data portion to/ from the passed in memory.
 	 *
@@ -431,6 +515,7 @@ public:
 	 */
 	void SerializeBulkData( FArchive& Ar, void* Data );
 
+	
 	/*-----------------------------------------------------------------------------
 		Class specific virtuals.
 	-----------------------------------------------------------------------------*/
@@ -686,7 +771,7 @@ public:
 		}
 		Formats.Empty();
 	}
-	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint32 InAlignment = DEFAULT_ALIGNMENT);
+	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint32 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true, bool bMapped = false);
 	COREUOBJECT_API void SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner);
 };
 

@@ -37,7 +37,7 @@ FCustomPresent::FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType 
 	CheckInGameThread();
 
 	DefaultOvrpTextureFormat = GetOvrpTextureFormat(GetDefaultPixelFormat());
-	DefaultDepthOvrpTextureFormat = bSupportsDepth ? ovrpTextureFormat_D24_S8 : ovrpTextureFormat_None;
+	DefaultDepthOvrpTextureFormat = bSupportsDepth ? ovrpTextureFormat_D32_S824_FP : ovrpTextureFormat_None;
 
 	// grab a pointer to the renderer module for displaying our mirror window
 	static const FName RendererModuleName("Renderer");
@@ -433,11 +433,7 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 			RendererModule->DrawRectangle(
 				RHICmdList,
 				0, 0, ViewportWidth, ViewportHeight,
-#if PLATFORM_ANDROID
 				U, V, USize, VSize,
-#else
-				U, 1.0 - V, USize, -VSize,
-#endif
 				TargetSize,
 				FIntPoint(1, 1),
 				*VertexShader,
@@ -472,7 +468,11 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				RendererModule->DrawRectangle(
 					RHICmdList,
 					0, 0, ViewportWidth, ViewportHeight,
+#if PLATFORM_ANDROID
 					U, V, USize, VSize,
+#else
+					U, 1.0 - V, USize, -VSize,
+#endif
 					TargetSize,
 					FIntPoint(1, 1),
 					*VertexShader,

@@ -1681,6 +1681,22 @@ int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
 }
 
+const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
+{
+	bool bModuleExists = FModuleManager::Get().ModuleExists(TEXT("WindowsPlatformFeatures"));
+	// If running a dedicated server then we use the default PlatformFeatures
+	if (bModuleExists && !IsRunningDedicatedServer())
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures enabled"));
+		return TEXT("WindowsPlatformFeatures");
+	}
+	else
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures disabled or dedicated server build"));
+		return nullptr;
+	}
+}
+
 bool FWindowsPlatformMisc::OsExecute(const TCHAR* CommandType, const TCHAR* Command, const TCHAR* CommandLine)
 {
 	HINSTANCE hApp = ShellExecute(NULL,

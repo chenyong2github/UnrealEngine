@@ -403,9 +403,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeGoogleClientConnectCom
 	FString AccessToken;
 	if (bSuccess)
 	{
-		const char* charsToken = jenv->GetStringUTFChars(accessToken, 0);
-		AccessToken = FString(UTF8_TO_TCHAR(charsToken));
-		jenv->ReleaseStringUTFChars(accessToken, charsToken);
+		AccessToken = FJavaHelper::FStringFromParam(jenv, accessToken);
 	}
 
 	UE_LOG_ONLINE(Log, TEXT("nativeGoogleClientConnectCompleted Success: %d Token: %s"), bSuccess, *AccessToken);

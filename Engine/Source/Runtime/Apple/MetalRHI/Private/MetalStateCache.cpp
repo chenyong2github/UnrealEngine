@@ -159,7 +159,9 @@ FMetalStateCache::FMetalStateCache(bool const bInImmediate)
 , bHasValidRenderTarget(false)
 , bHasValidColorTarget(false)
 , bScissorRectEnabled(false)
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 , bUsingTessellation(false)
+#endif
 , bCanRestartRenderPass(false)
 , bImmediate(bInImmediate)
 , bFallbackDepthStencilBound(false)
@@ -190,7 +192,7 @@ FMetalStateCache::~FMetalStateCache()
 		VertexBuffers[i].Length = 0;
 		VertexBuffers[i].Offset = 0;
 	}
-	for (uint32 Frequency = 0; Frequency < SF_NumStandardFrequencies; Frequency++)
+	for (uint32 Frequency = 0; Frequency < EMetalShaderStages::Num; Frequency++)
 	{
 		ShaderSamplers[Frequency].Bound = 0;
 		for (uint32 i = 0; i < ML_MaxSamplers; i++)
@@ -247,7 +249,7 @@ void FMetalStateCache::Reset(void)
 		VertexBuffers[i].Length = 0;
 		VertexBuffers[i].Offset = 0;
 	}
-	for (uint32 Frequency = 0; Frequency < SF_NumStandardFrequencies; Frequency++)
+	for (uint32 Frequency = 0; Frequency < EMetalShaderStages::Num; Frequency++)
 	{
 		ShaderSamplers[Frequency].Bound = 0;
 		for (uint32 i = 0; i < ML_MaxSamplers; i++)
@@ -294,7 +296,9 @@ void FMetalStateCache::Reset(void)
 	BlendFactor = FLinearColor::Transparent;
 	FrameBufferSize = CGSizeMake(0.0, 0.0);
 	RenderTargetArraySize = 0;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     bUsingTessellation = false;
+#endif
     bCanRestartRenderPass = false;
     
     RasterBits = EMetalRenderFlagMask;
@@ -379,13 +383,15 @@ void FMetalStateCache::SetComputeShader(FMetalComputeShader* InComputeShader)
 		
 		PipelineBits |= EMetalPipelineFlagComputeShader;
 		
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		bUsingTessellation = false;
+#endif
 		
-		DirtyUniformBuffers[SF_Compute] = 0xffffffff;
+		DirtyUniformBuffers[EMetalShaderStages::Compute] = 0xffffffff;
 
 		for (const auto& PackedGlobalArray : InComputeShader->Bindings.PackedGlobalArrays)
 		{
-			ShaderParameters[CrossCompiler::SHADER_STAGE_COMPUTE].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
+			ShaderParameters[EMetalShaderStages::Compute].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 		}
 	}
 }
@@ -1048,7 +1054,7 @@ void FMetalStateCache::SetVertexStream(uint32 const Index, FMetalBuffer* Buffer,
 	VertexBuffers[Index].Bytes = Bytes;
 	VertexBuffers[Index].Length = Length;
 	
-	SetShaderBuffer(SF_Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), mtlpp::ResourceUsage::Read);
+	SetShaderBuffer(EMetalShaderStages::Vertex, VertexBuffers[Index].Buffer, Bytes, Offset, Length, UNREAL_TO_METAL_BUFFER_INDEX(Index), mtlpp::ResourceUsage::Read);
 }
 
 uint32 FMetalStateCache::GetVertexBufferSize(uint32 const Index)
@@ -1064,10 +1070,11 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 	{
 		GraphicsPSO = State;
 		
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		bool bNewUsingTessellation = (State && State->GetPipeline(IndexType)->TessellationPipelineDesc.DomainVertexDescriptor);
 		if (bNewUsingTessellation != bUsingTessellation)
 		{
-			for (uint32 i = 0; i < SF_NumStandardFrequencies; i++)
+			for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
 			{
 				ShaderBuffers[i].Bound = UINT32_MAX;
 #if PLATFORM_MAC
@@ -1085,68 +1092,90 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 		// previous pipeline with different binding table will overwrite the vertex shader bindings for the current pipeline.
 		if (bNewUsingTessellation)
 		{
-			ShaderBuffers[SF_Hull].Bound = UINT32_MAX;
+			ShaderBuffers[EMetalShaderStages::Hull].Bound = UINT32_MAX;
 #if PLATFORM_MAC
-			ShaderTextures[SF_Hull].Bound = UINT128_MAX;
+			ShaderTextures[EMetalShaderStages::Hull].Bound = UINT128_MAX;
 #else
-			ShaderTextures[SF_Hull].Bound = UINT32_MAX;
+			ShaderTextures[EMetalShaderStages::Hull].Bound = UINT32_MAX;
 #endif
-			ShaderSamplers[SF_Hull].Bound = UINT16_MAX;
+			ShaderSamplers[EMetalShaderStages::Hull].Bound = UINT16_MAX;
 			
 			for (uint32 i = 0; i < ML_MaxBuffers; i++)
 			{
-				BoundUniformBuffers[SF_Hull][i] = nullptr;
-				ShaderBuffers[SF_Hull].Buffers[i].Buffer = nil;
-				ShaderBuffers[SF_Hull].Buffers[i].Bytes = nil;
-				ShaderBuffers[SF_Hull].Buffers[i].Length = 0;
-				ShaderBuffers[SF_Hull].Buffers[i].Offset = 0;
-				ShaderBuffers[SF_Hull].Buffers[i].Usage = mtlpp::ResourceUsage(0);
-				ShaderBuffers[SF_Hull].Formats[i] = PF_Unknown;
+				BoundUniformBuffers[EMetalShaderStages::Hull][i] = nullptr;
+				ShaderBuffers[EMetalShaderStages::Hull].Buffers[i].Buffer = nil;
+				ShaderBuffers[EMetalShaderStages::Hull].Buffers[i].Bytes = nil;
+				ShaderBuffers[EMetalShaderStages::Hull].Buffers[i].Length = 0;
+                ShaderBuffers[EMetalShaderStages::Hull].Buffers[i].Offset = 0;
+                ShaderBuffers[EMetalShaderStages::Hull].Buffers[i].Usage = mtlpp::ResourceUsage(0);
+				ShaderBuffers[EMetalShaderStages::Hull].Formats[i] = PF_Unknown;
 			}
 			for (uint32 i = 0; i < ML_MaxTextures; i++)
 			{
-				ShaderTextures[SF_Hull].Textures[i] = nil;
-				ShaderTextures[SF_Hull].Usage[i] = mtlpp::ResourceUsage(0);
+				ShaderTextures[EMetalShaderStages::Hull].Textures[i] = nil;
+				ShaderTextures[EMetalShaderStages::Hull].Usage[i] = mtlpp::ResourceUsage(0);
 			}
 			
 			for (uint32 i = 0; i < ML_MaxSamplers; i++)
 			{
-				ShaderSamplers[SF_Hull].Samplers[i] = nil;
+				ShaderSamplers[EMetalShaderStages::Hull].Samplers[i] = nil;
 			}
 
 			for (const auto& PackedGlobalArray : State->HullShader->Bindings.PackedGlobalArrays)
 			{
-				ShaderParameters[CrossCompiler::SHADER_STAGE_HULL].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
+				ShaderParameters[EMetalShaderStages::Hull].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 			}
 
 			for (const auto& PackedGlobalArray : State->DomainShader->Bindings.PackedGlobalArrays)
 			{
-				ShaderParameters[CrossCompiler::SHADER_STAGE_DOMAIN].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
+				ShaderParameters[EMetalShaderStages::Domain].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 			}
 		}
 		bUsingTessellation = bNewUsingTessellation;
+		DirtyUniformBuffers[EMetalShaderStages::Hull] = 0xffffffff;
+		DirtyUniformBuffers[EMetalShaderStages::Domain] = 0xffffffff;
+#endif
 		
-		DirtyUniformBuffers[SF_Vertex] = 0xffffffff;
-		DirtyUniformBuffers[SF_Pixel] = 0xffffffff;
-		DirtyUniformBuffers[SF_Hull] = 0xffffffff;
-		DirtyUniformBuffers[SF_Domain] = 0xffffffff;
-		DirtyUniformBuffers[SF_Geometry] = 0xffffffff;
+		DirtyUniformBuffers[EMetalShaderStages::Vertex] = 0xffffffff;
+		DirtyUniformBuffers[EMetalShaderStages::Pixel] = 0xffffffff;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		DirtyUniformBuffers[EMetalShaderStages::Geometry] = 0xffffffff;
+#endif
 		
 		PipelineBits |= EMetalPipelineFlagPipelineState;
+		
+#if METAL_DEBUG_OPTIONS
+        if (GMetalResetOnPSOChange >= 4)
+        {
+            for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
+            {
+                ShaderBuffers[i].Bound = UINT32_MAX;
+#if PLATFORM_MAC
+#ifndef UINT128_MAX
+#define UINT128_MAX (((__uint128_t)1 << 127) - (__uint128_t)1 + ((__uint128_t)1 << 127))
+#endif
+                ShaderTextures[i].Bound = UINT128_MAX;
+#else
+                ShaderTextures[i].Bound = UINT32_MAX;
+#endif
+                ShaderSamplers[i].Bound = UINT16_MAX;
+            }
+        }
+#endif
 		
 		SetDepthStencilState(State->DepthStencilState);
 		SetRasterizerState(State->RasterizerState);
 
 		for (const auto& PackedGlobalArray : State->VertexShader->Bindings.PackedGlobalArrays)
 		{
-			ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
+			ShaderParameters[EMetalShaderStages::Vertex].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 		}
 
 		if (State->PixelShader)
 		{
 			for (const auto& PackedGlobalArray : State->PixelShader->Bindings.PackedGlobalArrays)
 			{
-				ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
+				ShaderParameters[EMetalShaderStages::Pixel].PrepareGlobalUniforms(CrossCompiler::PackedTypeNameToTypeIndex(PackedGlobalArray.TypeName), PackedGlobalArray.Size);
 			}
 		}
 		
@@ -1158,7 +1187,7 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 				if (IsValidRef(RenderTargetsInfo.UnorderedAccessView[i]))
 				{
 					FMetalUnorderedAccessView* UAV = ResourceCast(RenderTargetsInfo.UnorderedAccessView[i].GetReference());
-					SetShaderUnorderedAccessView(SF_Pixel, i, UAV);
+					SetShaderUnorderedAccessView(EMetalShaderStages::Pixel, i, UAV);
 				}
 			}
 		}
@@ -1175,7 +1204,7 @@ void FMetalStateCache::SetIndexType(EMetalIndexType InIndexType)
 	}
 }
 
-void FMetalStateCache::BindUniformBuffer(EShaderFrequency const Freq, uint32 const BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FMetalStateCache::BindUniformBuffer(EMetalShaderStages const Freq, uint32 const BufferIndex, FUniformBufferRHIParamRef BufferRHI)
 {
 	check(BufferIndex < ML_MaxBuffers);
 	if (BoundUniformBuffers[Freq][BufferIndex] != BufferRHI)
@@ -1186,7 +1215,7 @@ void FMetalStateCache::BindUniformBuffer(EShaderFrequency const Freq, uint32 con
 	}
 }
 
-void FMetalStateCache::SetDirtyUniformBuffers(EShaderFrequency const Freq, uint32 const Dirty)
+void FMetalStateCache::SetDirtyUniformBuffers(EMetalShaderStages const Freq, uint32 const Dirty)
 {
 	DirtyUniformBuffers[Freq] = Dirty;
 }
@@ -1348,9 +1377,9 @@ bool FMetalStateCache::NeedsToSetRenderTarget(const FRHISetRenderTargetsInfo& In
 	return bAllChecksPassed == false;
 }
 
-void FMetalStateCache::SetShaderBuffer(EShaderFrequency const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format)
+void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format)
 {
-	check(Frequency < SF_NumStandardFrequencies);
+	check(Frequency < EMetalShaderStages::Num);
 	check(Index < ML_MaxBuffers);
 	
 	if (ShaderBuffers[Frequency].Buffers[Index].Buffer != Buffer ||
@@ -1379,9 +1408,9 @@ void FMetalStateCache::SetShaderBuffer(EShaderFrequency const Frequency, FMetalB
 	}
 }
 
-void FMetalStateCache::SetShaderTexture(EShaderFrequency const Frequency, FMetalTexture const& Texture, NSUInteger const Index, mtlpp::ResourceUsage const Usage)
+void FMetalStateCache::SetShaderTexture(EMetalShaderStages const Frequency, FMetalTexture const& Texture, NSUInteger const Index, mtlpp::ResourceUsage const Usage)
 {
-	check(Frequency < SF_NumStandardFrequencies);
+	check(Frequency < EMetalShaderStages::Num);
 	check(Index < ML_MaxTextures);
 	
 	if (ShaderTextures[Frequency].Textures[Index] != Texture
@@ -1406,9 +1435,9 @@ void FMetalStateCache::SetShaderTexture(EShaderFrequency const Frequency, FMetal
 	}
 }
 
-void FMetalStateCache::SetShaderSamplerState(EShaderFrequency const Frequency, FMetalSamplerState* const Sampler, NSUInteger const Index)
+void FMetalStateCache::SetShaderSamplerState(EMetalShaderStages const Frequency, FMetalSamplerState* const Sampler, NSUInteger const Index)
 {
-	check(Frequency < SF_NumStandardFrequencies);
+	check(Frequency < EMetalShaderStages::Num);
 	check(Index < ML_MaxSamplers);
 	
 	if (ShaderSamplers[Frequency].Samplers[Index].GetPtr() != (Sampler ? Sampler->State.GetPtr() : nil))
@@ -1416,7 +1445,7 @@ void FMetalStateCache::SetShaderSamplerState(EShaderFrequency const Frequency, F
 		if (Sampler)
 		{
 #if !PLATFORM_MAC
-			ShaderSamplers[Frequency].Samplers[Index] = ((Frequency == SF_Vertex || Frequency == SF_Compute) && Sampler->NoAnisoState) ? Sampler->NoAnisoState : Sampler->State;
+			ShaderSamplers[Frequency].Samplers[Index] = ((Frequency == EMetalShaderStages::Vertex || Frequency == EMetalShaderStages::Compute) && Sampler->NoAnisoState) ? Sampler->NoAnisoState : Sampler->State;
 #else
 			ShaderSamplers[Frequency].Samplers[Index] = Sampler->State;
 #endif
@@ -1445,24 +1474,25 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITex
 	switch (ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderTexture(SF_Pixel, Texture, BindIndex, Usage);
+			SetShaderTexture(EMetalShaderStages::Pixel, Texture, BindIndex, Usage);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderTexture(SF_Vertex, Texture, BindIndex, Usage);
+			SetShaderTexture(EMetalShaderStages::Vertex, Texture, BindIndex, Usage);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderTexture(SF_Compute, Texture, BindIndex, Usage);
+			SetShaderTexture(EMetalShaderStages::Compute, Texture, BindIndex, Usage);
 			break;
-			
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		case CrossCompiler::SHADER_STAGE_HULL:
-			SetShaderTexture(SF_Hull, Texture, BindIndex, Usage);
+			SetShaderTexture(EMetalShaderStages::Hull, Texture, BindIndex, Usage);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_DOMAIN:
-			SetShaderTexture(SF_Domain, Texture, BindIndex, Usage);
+			SetShaderTexture(EMetalShaderStages::Domain, Texture, BindIndex, Usage);
 			break;
+#endif
 			
 		default:
 			check(0);
@@ -1470,7 +1500,7 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITex
 	}
 }
 
-void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EShaderFrequency ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV)
+void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV)
 {
 	if (SRV)
 	{
@@ -1521,31 +1551,33 @@ void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EShaderFreq
 	}
 }
 
-bool FMetalStateCache::IsLinearBuffer(EShaderFrequency ShaderStage, uint32 BindIndex)
+bool FMetalStateCache::IsLinearBuffer(EMetalShaderStages ShaderStage, uint32 BindIndex)
 {
     switch (ShaderStage)
     {
-        case SF_Vertex:
+        case EMetalShaderStages::Vertex:
         {
             return (GraphicsPSO->VertexShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
             break;
         }
-        case SF_Pixel:
+        case EMetalShaderStages::Pixel:
         {
             return (GraphicsPSO->PixelShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
             break;
         }
-        case SF_Hull:
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+        case EMetalShaderStages::Hull:
         {
             return (GraphicsPSO->HullShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
             break;
         }
-        case SF_Domain:
+        case EMetalShaderStages::Domain:
         {
             return (GraphicsPSO->DomainShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
             break;
         }
-        case SF_Compute:
+#endif
+        case EMetalShaderStages::Compute:
         {
             return (ComputeShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
         }
@@ -1557,7 +1589,7 @@ bool FMetalStateCache::IsLinearBuffer(EShaderFrequency ShaderStage, uint32 BindI
     }
 }
 
-void FMetalStateCache::SetShaderUnorderedAccessView(EShaderFrequency ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV)
+void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV)
 {
 	if (UAV)
 	{
@@ -1638,24 +1670,26 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalS
 	switch (ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderResourceView(nullptr, SF_Pixel, BindIndex, SRV);
+			SetShaderResourceView(nullptr, EMetalShaderStages::Pixel, BindIndex, SRV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderResourceView(nullptr, SF_Vertex, BindIndex, SRV);
+			SetShaderResourceView(nullptr, EMetalShaderStages::Vertex, BindIndex, SRV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderResourceView(nullptr, SF_Compute, BindIndex, SRV);
+			SetShaderResourceView(nullptr, EMetalShaderStages::Compute, BindIndex, SRV);
 			break;
 			
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		case CrossCompiler::SHADER_STAGE_HULL:
-			SetShaderResourceView(nullptr, SF_Hull, BindIndex, SRV);
+			SetShaderResourceView(nullptr, EMetalShaderStages::Hull, BindIndex, SRV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_DOMAIN:
-			SetShaderResourceView(nullptr, SF_Domain, BindIndex, SRV);
+			SetShaderResourceView(nullptr, EMetalShaderStages::Domain, BindIndex, SRV);
 			break;
+#endif
 			
 		default:
 			check(0);
@@ -1669,24 +1703,26 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalS
 	switch (ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderSamplerState(SF_Pixel, SamplerState, BindIndex);
+			SetShaderSamplerState(EMetalShaderStages::Pixel, SamplerState, BindIndex);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderSamplerState(SF_Vertex, SamplerState, BindIndex);
+			SetShaderSamplerState(EMetalShaderStages::Vertex, SamplerState, BindIndex);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderSamplerState(SF_Compute, SamplerState, BindIndex);
+			SetShaderSamplerState(EMetalShaderStages::Compute, SamplerState, BindIndex);
 			break;
 			
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		case CrossCompiler::SHADER_STAGE_HULL:
-			SetShaderSamplerState(SF_Hull, SamplerState, BindIndex);
+			SetShaderSamplerState(EMetalShaderStages::Hull, SamplerState, BindIndex);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_DOMAIN:
-			SetShaderSamplerState(SF_Domain, SamplerState, BindIndex);
+			SetShaderSamplerState(EMetalShaderStages::Domain, SamplerState, BindIndex);
 			break;
+#endif
 			
 		default:
 			check(0);
@@ -1699,24 +1735,26 @@ void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalU
 	switch (ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderUnorderedAccessView(SF_Pixel, BindIndex, UAV);
+			SetShaderUnorderedAccessView(EMetalShaderStages::Pixel, BindIndex, UAV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderUnorderedAccessView(SF_Vertex, BindIndex, UAV);
+			SetShaderUnorderedAccessView(EMetalShaderStages::Vertex, BindIndex, UAV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderUnorderedAccessView(SF_Compute, BindIndex, UAV);
+			SetShaderUnorderedAccessView(EMetalShaderStages::Compute, BindIndex, UAV);
 			break;
 			
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		case CrossCompiler::SHADER_STAGE_HULL:
-			SetShaderUnorderedAccessView(SF_Hull, BindIndex, UAV);
+			SetShaderUnorderedAccessView(EMetalShaderStages::Hull, BindIndex, UAV);
 			break;
 			
 		case CrossCompiler::SHADER_STAGE_DOMAIN:
-			SetShaderUnorderedAccessView(SF_Domain, BindIndex, UAV);
+			SetShaderUnorderedAccessView(EMetalShaderStages::Domain, BindIndex, UAV);
 			break;
+#endif
 			
 		default:
 			check(0);
@@ -1758,26 +1796,28 @@ void FMetalStateCache::SetResourcesFromTables(ShaderType Shader, uint32 ShaderSt
 {
 	checkSlow(Shader);
 	
-	EShaderFrequency Frequency;
+	EMetalShaderStages Frequency;
 	switch(ShaderStage)
 	{
 		case CrossCompiler::SHADER_STAGE_VERTEX:
-			Frequency = SF_Vertex;
+			Frequency = EMetalShaderStages::Vertex;
 			break;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		case CrossCompiler::SHADER_STAGE_HULL:
-			Frequency = SF_Hull;
+			Frequency = EMetalShaderStages::Hull;
 			break;
 		case CrossCompiler::SHADER_STAGE_DOMAIN:
-			Frequency = SF_Domain;
+			Frequency = EMetalShaderStages::Domain;
 			break;
+#endif
 		case CrossCompiler::SHADER_STAGE_PIXEL:
-			Frequency = SF_Pixel;
+			Frequency = EMetalShaderStages::Pixel;
 			break;
 		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			Frequency = SF_Compute;
+			Frequency = EMetalShaderStages::Compute;
 			break;
 		default:
-			Frequency = SF_NumFrequencies; //Silence a compiler warning/error
+			Frequency = EMetalShaderStages::Num; //Silence a compiler warning/error
 			check(false);
 			break;
 	}
@@ -1813,41 +1853,43 @@ void FMetalStateCache::CommitRenderResources(FMetalCommandEncoder* Raster)
 	check(IsValidRef(GraphicsPSO));
     
     SetResourcesFromTables(GraphicsPSO->VertexShader, CrossCompiler::SHADER_STAGE_VERTEX);
-    GetShaderParameters(CrossCompiler::SHADER_STAGE_VERTEX).CommitPackedGlobals(this, Raster, SF_Vertex, GraphicsPSO->VertexShader->Bindings);
+    GetShaderParameters(EMetalShaderStages::Vertex).CommitPackedGlobals(this, Raster, EMetalShaderStages::Vertex, GraphicsPSO->VertexShader->Bindings);
 	
     if (IsValidRef(GraphicsPSO->PixelShader))
     {
     	SetResourcesFromTables(GraphicsPSO->PixelShader, CrossCompiler::SHADER_STAGE_PIXEL);
-        GetShaderParameters(CrossCompiler::SHADER_STAGE_PIXEL).CommitPackedGlobals(this, Raster, SF_Pixel, GraphicsPSO->PixelShader->Bindings);
+        GetShaderParameters(EMetalShaderStages::Pixel).CommitPackedGlobals(this, Raster, EMetalShaderStages::Pixel, GraphicsPSO->PixelShader->Bindings);
     }
 }
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 void FMetalStateCache::CommitTessellationResources(FMetalCommandEncoder* Raster, FMetalCommandEncoder* Compute)
 {
 	check(IsValidRef(GraphicsPSO));
     check(IsValidRef(GraphicsPSO->HullShader) && IsValidRef(GraphicsPSO->DomainShader));
     
     SetResourcesFromTables(GraphicsPSO->VertexShader, CrossCompiler::SHADER_STAGE_VERTEX);
-    GetShaderParameters(CrossCompiler::SHADER_STAGE_VERTEX).CommitPackedGlobals(this, Compute, SF_Vertex, GraphicsPSO->VertexShader->Bindings);
+    GetShaderParameters(EMetalShaderStages::Vertex).CommitPackedGlobals(this, Compute, EMetalShaderStages::Vertex, GraphicsPSO->VertexShader->Bindings);
 	
     if (IsValidRef(GraphicsPSO->PixelShader))
     {
     	SetResourcesFromTables(GraphicsPSO->PixelShader, CrossCompiler::SHADER_STAGE_PIXEL);
-        GetShaderParameters(CrossCompiler::SHADER_STAGE_PIXEL).CommitPackedGlobals(this, Raster, SF_Pixel, GraphicsPSO->PixelShader->Bindings);
+        GetShaderParameters(EMetalShaderStages::Pixel).CommitPackedGlobals(this, Raster, EMetalShaderStages::Pixel, GraphicsPSO->PixelShader->Bindings);
     }
     
     SetResourcesFromTables(GraphicsPSO->HullShader, CrossCompiler::SHADER_STAGE_HULL);
 	
 	SetResourcesFromTables(GraphicsPSO->DomainShader, CrossCompiler::SHADER_STAGE_DOMAIN);
-   	GetShaderParameters(CrossCompiler::SHADER_STAGE_DOMAIN).CommitPackedGlobals(this, Raster, SF_Domain, GraphicsPSO->DomainShader->Bindings);
+    GetShaderParameters(EMetalShaderStages::Domain).CommitPackedGlobals(this, Raster, EMetalShaderStages::Domain, GraphicsPSO->DomainShader->Bindings);
 }
+#endif
 
 void FMetalStateCache::CommitComputeResources(FMetalCommandEncoder* Compute)
 {
 	check(IsValidRef(ComputeShader));
 	SetResourcesFromTables(ComputeShader, CrossCompiler::SHADER_STAGE_COMPUTE);
 	
-	GetShaderParameters(CrossCompiler::SHADER_STAGE_COMPUTE).CommitPackedGlobals(this, Compute, SF_Compute, ComputeShader->Bindings);
+	GetShaderParameters(EMetalShaderStages::Compute).CommitPackedGlobals(this, Compute, EMetalShaderStages::Compute, ComputeShader->Bindings);
 }
 
 bool FMetalStateCache::PrepareToRestart(bool const bCurrentApplied)
@@ -1928,7 +1970,7 @@ void FMetalStateCache::SetStateDirty(void)
 {	
 	RasterBits = UINT32_MAX;
     PipelineBits = EMetalPipelineFlagMask;
-	for (uint32 i = 0; i < SF_NumStandardFrequencies; i++)
+	for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
 	{
 		ShaderBuffers[i].Bound = UINT32_MAX;
 #if PLATFORM_MAC
@@ -2085,7 +2127,7 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
     }
 }
 
-void FMetalStateCache::CommitResourceTable(EShaderFrequency const Frequency, mtlpp::FunctionType const Type, FMetalCommandEncoder& CommandEncoder)
+void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, mtlpp::FunctionType const Type, FMetalCommandEncoder& CommandEncoder)
 {
 	FMetalBufferBindings& BufferBindings = ShaderBuffers[Frequency];
 	while(BufferBindings.Bound)
@@ -2169,23 +2211,25 @@ void FMetalStateCache::CommitResourceTable(EShaderFrequency const Frequency, mtl
 	TMap<uint8, TArray<uint8>> ArgumentBufferMasks;
 	switch(Frequency)
 	{
-		case SF_Vertex:
+		case EMetalShaderStages::Vertex:
 			ArgumentBuffers = GraphicsPSO->VertexShader->Bindings.ArgumentBuffers;
 			ArgumentBufferMasks = GraphicsPSO->VertexShader->Bindings.ArgumentBufferMasks;
-			break;
-		case SF_Hull:
+            break;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case EMetalShaderStages::Hull:
 			ArgumentBuffers = GraphicsPSO->HullShader->Bindings.ArgumentBuffers;
 			ArgumentBufferMasks = GraphicsPSO->HullShader->Bindings.ArgumentBufferMasks;
 			break;
-		case SF_Domain:
+		case EMetalShaderStages::Domain:
 			ArgumentBuffers = GraphicsPSO->DomainShader->Bindings.ArgumentBuffers;
 			ArgumentBufferMasks = GraphicsPSO->DomainShader->Bindings.ArgumentBufferMasks;
 			break;
-		case SF_Pixel:
+#endif
+		case EMetalShaderStages::Pixel:
 			ArgumentBuffers = GraphicsPSO->PixelShader->Bindings.ArgumentBuffers;
 			ArgumentBufferMasks = GraphicsPSO->PixelShader->Bindings.ArgumentBufferMasks;
 			break;
-		case SF_Compute:
+		case EMetalShaderStages::Compute:
 			ArgumentBuffers = ComputeShader->Bindings.ArgumentBuffers;
 			ArgumentBufferMasks = ComputeShader->Bindings.ArgumentBufferMasks;
 			break;

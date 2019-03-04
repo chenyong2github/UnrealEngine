@@ -20,7 +20,7 @@
 			"Name" : "WmfMedia",
 			"Type" : "Runtime",
 			"LoadingPhase" : "PostConfigInit",
-			"WhitelistPlatforms" : [ "Win32", "Win64" ]
+			"WhitelistPlatforms" : [ "Win32", "Win64", "XboxOne" ]
 		},
 		{
 			"Name" : "WmfMediaEditor",

@@ -359,24 +359,6 @@ public:
 };
 
 /**
- * Vertex buffer used to hold particle indices.
- */
-class FParticleIndicesVertexBuffer : public FVertexBuffer
-{
-public:
-
-	/** Shader resource view of the vertex buffer. */
-	FShaderResourceViewRHIRef VertexBufferSRV;
-
-	/** Release RHI resources. */
-	virtual void ReleaseRHI() override
-	{
-		VertexBufferSRV.SafeRelease();
-		FVertexBuffer::ReleaseRHI();
-	}
-};
-
-/**
  * Resources required for GPU particle simulation.
  */
 class FParticleSimulationResources
@@ -676,7 +658,7 @@ public:
 		/** The stream to read the texture coordinates from. */
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2D), false));
 
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	/**
@@ -1337,7 +1319,7 @@ public:
 		FVertexDeclarationElementList Elements;
 		// TexCoord.
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2D), /*bUseInstanceIndex=*/ false));
-		VertexDeclarationRHI = RHICreateVertexDeclaration( Elements );
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration( Elements );
 	}
 
 	virtual void ReleaseRHI() override
@@ -1366,7 +1348,7 @@ public:
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2D), /*bUseInstanceIndex=*/ false));
 		// TileOffsets
 		Elements.Add(FVertexElement(1, 0, VET_Float2, 1, sizeof(FVector2D), /*bUseInstanceIndex=*/ true));
-		VertexDeclarationRHI = RHICreateVertexDeclaration( Elements );
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration( Elements );
 	}
 
 	virtual void ReleaseRHI() override
@@ -1867,7 +1849,7 @@ public:
 			Offset += sizeof(FVector2D);
 		}
 
-		VertexDeclarationRHI = RHICreateVertexDeclaration( Elements );
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration( Elements );
 	}
 
 	virtual void ReleaseRHI() override
@@ -2080,7 +2062,7 @@ public:
 	{
 		FVertexDeclarationElementList Elements;
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2D)));
-		VertexDeclarationRHI = RHICreateVertexDeclaration( Elements );
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration( Elements );
 	}
 
 	virtual void ReleaseRHI() override
@@ -2832,11 +2814,10 @@ void FParticleSimulationGPU::InitResources(const TArray<uint32>& Tiles, FGPUSpri
 
 	if (InGPUSpriteResources)
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			FInitParticleSimulationGPUCommand,
-			FParticleSimulationGPU*, Simulation, this,
-			TArray<uint32>, Tiles, Tiles,
-			TRefCountPtr<FGPUSpriteResources>, InGPUSpriteResources, InGPUSpriteResources, // TRefCountPtr to take reference for lifetime of this render command
+		TRefCountPtr<FGPUSpriteResources> InGPUSpriteResourcesRef = InGPUSpriteResources;
+		FParticleSimulationGPU* Simulation = this;
+		ENQUEUE_RENDER_COMMAND(FInitParticleSimulationGPUCommand)(
+			[Simulation, Tiles, InGPUSpriteResourcesRef](FRHICommandListImmediate& RHICmdList)
 			{
 				// Release vertex buffers.
 				Simulation->VertexBuffer.ReleaseResource();
@@ -2847,8 +2828,8 @@ void FParticleSimulationGPU::InitResources(const TArray<uint32>& Tiles, FGPUSpri
 				Simulation->TileVertexBuffer.Init(Tiles);
 
 				// Store simulation resources for this emitter.
-				Simulation->GPUSpriteResources = InGPUSpriteResources;
-				Simulation->EmitterSimulationResources = &InGPUSpriteResources->EmitterSimulationResources;
+				Simulation->GPUSpriteResources = InGPUSpriteResourcesRef;
+				Simulation->EmitterSimulationResources = &InGPUSpriteResourcesRef->EmitterSimulationResources;
 
 				// If a visualization vertex factory has been created, initialize it.
 				if (Simulation->VectorFieldVisualizationVertexFactory)
@@ -4554,35 +4535,39 @@ void FFXSystem::ReleaseGPUResources()
 
 void FFXSystem::AddGPUSimulation(FParticleSimulationGPU* Simulation)
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FAddGPUSimulationCommand,
-		FFXSystem*, FXSystem, this,
-		FParticleSimulationGPU*, Simulation, Simulation,
+	if (!IsPendingKill())
 	{
-		if (Simulation->SimulationIndex == INDEX_NONE)
+		FFXSystem* FXSystem = this;
+		ENQUEUE_RENDER_COMMAND(FAddGPUSimulationCommand)(
+			[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
 		{
-			FSparseArrayAllocationInfo Allocation = FXSystem->GPUSimulations.AddUninitialized();
-			Simulation->SimulationIndex = Allocation.Index;
-			FXSystem->GPUSimulations[Allocation.Index] = Simulation;
-		}
-		check(FXSystem->GPUSimulations[Simulation->SimulationIndex] == Simulation);
-	});
+			if (Simulation->SimulationIndex == INDEX_NONE)
+			{
+				FSparseArrayAllocationInfo Allocation = FXSystem->GPUSimulations.AddUninitialized();
+				Simulation->SimulationIndex = Allocation.Index;
+				FXSystem->GPUSimulations[Allocation.Index] = Simulation;
+			}
+			check(FXSystem->GPUSimulations[Simulation->SimulationIndex] == Simulation);
+		});
+	}
 }
 
 void FFXSystem::RemoveGPUSimulation(FParticleSimulationGPU* Simulation)
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FRemoveGPUSimulationCommand,
-		FFXSystem*, FXSystem, this,
-		FParticleSimulationGPU*, Simulation, Simulation,
+	if (!IsPendingKill())
 	{
-		if (Simulation->SimulationIndex != INDEX_NONE)
+		FFXSystem* FXSystem = this;
+		ENQUEUE_RENDER_COMMAND(FRemoveGPUSimulationCommand)(
+			[FXSystem, Simulation](FRHICommandListImmediate& RHICmdList)
 		{
-			check(FXSystem->GPUSimulations[Simulation->SimulationIndex] == Simulation);
-			FXSystem->GPUSimulations.RemoveAt(Simulation->SimulationIndex);
-		}
-		Simulation->SimulationIndex = INDEX_NONE;
-	});
+			if (Simulation->SimulationIndex != INDEX_NONE)
+			{
+				check(FXSystem->GPUSimulations[Simulation->SimulationIndex] == Simulation);
+				FXSystem->GPUSimulations.RemoveAt(Simulation->SimulationIndex);
+			}
+			Simulation->SimulationIndex = INDEX_NONE;
+		});
+	}
 }
 
 int32 FFXSystem::AddSortedGPUSimulation(FParticleSimulationGPU* Simulation, const FVector& ViewOrigin)
@@ -5124,17 +5109,20 @@ void FFXSystem::UpdateMultiGPUResources(FRHICommandListImmediate& RHICmdList)
 
 void FFXSystem::VisualizeGPUParticles(FCanvas* Canvas)
 {
-	FFXSystem* FXSystem = this;
-	int32 VisualizationMode = FXConsoleVariables::VisualizeGPUSimulation;
-	FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
-	ERHIFeatureLevel::Type InFeatureLevel = FeatureLevel;
-	ENQUEUE_RENDER_COMMAND(FVisualizeGPUParticlesCommand)(
-		[FXSystem, VisualizationMode, RenderTarget, InFeatureLevel](FRHICommandList& RHICmdList)
+	if (!IsPendingKill())
 	{
-		FParticleSimulationResources* Resources = FXSystem->GetParticleSimulationResources();
-		FParticleStateTextures& CurrentStateTextures = Resources->GetVisualizeStateTextures();
-		VisualizeGPUSimulation(RHICmdList, InFeatureLevel, VisualizationMode, RenderTarget, CurrentStateTextures, GParticleCurveTexture.GetCurveTexture());
-	});
+		FFXSystem* FXSystem = this;
+		int32 VisualizationMode = FXConsoleVariables::VisualizeGPUSimulation;
+		FRenderTarget* RenderTarget = Canvas->GetRenderTarget();
+		ERHIFeatureLevel::Type InFeatureLevel = FeatureLevel;
+		ENQUEUE_RENDER_COMMAND(FVisualizeGPUParticlesCommand)(
+			[FXSystem, VisualizationMode, RenderTarget, InFeatureLevel](FRHICommandList& RHICmdList)
+		{
+			FParticleSimulationResources* Resources = FXSystem->GetParticleSimulationResources();
+			FParticleStateTextures& CurrentStateTextures = Resources->GetVisualizeStateTextures();
+			VisualizeGPUSimulation(RHICmdList, InFeatureLevel, VisualizationMode, RenderTarget, CurrentStateTextures, GParticleCurveTexture.GetCurveTexture());
+		});
+	}
 }
 
 /*-----------------------------------------------------------------------------

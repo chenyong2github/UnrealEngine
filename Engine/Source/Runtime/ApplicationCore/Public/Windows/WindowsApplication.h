@@ -349,6 +349,7 @@ public:
 	virtual void InitializeWindow( const TSharedRef< FGenericWindow >& Window, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FGenericWindow >& InParent, const bool bShowImmediately ) override;
 	virtual void SetCapture( const TSharedPtr< FGenericWindow >& InWindow ) override;
 	virtual void* GetCapture( void ) const override;
+	virtual bool IsMinimized() const override { return bMinimized; }
 	virtual void SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow ) override;
 	virtual bool IsUsingHighPrecisionMouseMode() const override { return bUsingHighPrecisionMouseInput; }
 	virtual bool IsMouseAttached() const override { return bIsMouseAttached; }
@@ -448,6 +449,8 @@ private:
 	static const FIntPoint MinimizedWindowPosition;
 
 	HINSTANCE InstanceHandle;
+
+	bool bMinimized;
 
 	bool bUsingHighPrecisionMouseInput;
 

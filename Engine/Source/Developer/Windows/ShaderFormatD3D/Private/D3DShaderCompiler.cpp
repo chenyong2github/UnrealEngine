@@ -970,7 +970,9 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
 				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
 				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-
+				Line += TEXT("//");
+				Line += Input.DebugDescription;
+				Line += TEXT("\n");
 				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
 			}
 			FileWriter->Close();

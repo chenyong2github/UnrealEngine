@@ -27,6 +27,7 @@ FWebMMovieStreamer::FWebMMovieStreamer()
 	, VideoFramesCurrentlyProcessing(0)
 	, StartTime(0)
 	, bPlaying(false)
+	, TicksLeftToWaitPostCompletion(0)
 {
 }
 
@@ -79,7 +80,10 @@ bool FWebMMovieStreamer::StartNextMovie()
 		}
 		else
 		{
-			UE_LOG(LogWebMMoviePlayer, Error, TEXT("Movie '%s' not found."));
+			UE_LOG(LogWebMMoviePlayer, Error, TEXT("Movie '%s' not found."), *MoviePath);
+			
+			MovieName = FString();
+			return false;
 		}
 
 		UE_LOG(LogWebMMoviePlayer, Verbose, TEXT("Starting '%s'"), *MoviePath);
@@ -131,6 +135,17 @@ bool FWebMMovieStreamer::Tick(float InDeltaTime)
 {
 	if (bPlaying)
 	{
+		if (TicksLeftToWaitPostCompletion)
+		{
+			if (--TicksLeftToWaitPostCompletion <= 0)
+			{
+				TicksLeftToWaitPostCompletion = 0;
+				return !StartNextMovie();
+			}
+
+			return false;
+		}
+
 		bool bHaveThingsToDo = false;
 
 		bHaveThingsToDo |= DisplayFrames(InDeltaTime);
@@ -138,16 +153,13 @@ bool FWebMMovieStreamer::Tick(float InDeltaTime)
 
 		bHaveThingsToDo |= ReadMoreFrames();
 
-		if (bHaveThingsToDo)
+		if (!bHaveThingsToDo)
 		{
-			// We're still playing this movie
-			return false;
+			// we're done playing this movie, make sure we can safely remove the textures next frame
+			TicksLeftToWaitPostCompletion = 1;
+			Viewport->SetTexture(nullptr);
 		}
-		else
-		{
-			// Try to start next movie from the queue
-			return !StartNextMovie();
-		}
+		return false;
 	}
 	else
 	{

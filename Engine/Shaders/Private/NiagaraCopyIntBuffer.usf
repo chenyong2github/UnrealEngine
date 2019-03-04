@@ -1,0 +1,53 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*==============================================================================
+	NiagaraCopyIntBuffer.usf: Shader to copy sorted index buffers.
+==============================================================================*/
+
+/*------------------------------------------------------------------------------
+	Compile time parameters:
+		THREAD_COUNT - The number of threads to launch per workgroup.
+		SORT_VIEW_DEPTH
+		SORT_VIEW_DISTANCE
+		SORT_CUSTOM_ASCENDING
+		SORT_CUSTOM_DESCENDING
+------------------------------------------------------------------------------*/
+
+#include "Common.ush"
+
+
+// (StartingIndex, UsedIndexCount0, UsedIndexCount1, UsedIndexCount2)
+uint4 CopyParams;
+
+
+Buffer<int> SourceData;
+
+RWBuffer<int> DestData0;
+RWBuffer<int> DestData1;
+RWBuffer<int> DestData2;
+
+[numthreads(THREAD_COUNT,1,1)]
+void MainCS(uint IndexOffset : SV_DispatchThreadID)
+{
+	const uint StartingIndex = CopyParams.x;
+	const uint UsedIndexCount0 = CopyParams.y;
+	const uint UsedIndexCount1 = CopyParams.z;
+	const uint UsedIndexCount2 = CopyParams.w;
+
+	uint Index = StartingIndex + IndexOffset;
+
+	// The source buffer copy is splitted between the destination buffers.
+	if (Index < UsedIndexCount0)
+	{
+		DestData0[Index] = SourceData[Index];
+	}
+	else if (Index < UsedIndexCount1)
+	{
+		DestData1[Index] = SourceData[Index];
+	}
+	else if (Index < UsedIndexCount2)
+	{
+		DestData2[Index] = SourceData[Index];
+	}
+}
+ 

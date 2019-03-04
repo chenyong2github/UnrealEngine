@@ -54,6 +54,12 @@ static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("Debug option: when enabled will fill the buffer contents with 0 when allocating buffer objects, or regions thereof. (Default: 0, Off)"));
 
 #if METAL_DEBUG_OPTIONS
+int32 GMetalResetOnPSOChange = 0; // Deliberately not static
+static FAutoConsoleVariableRef CVarMetalResetOnPSOChange(
+	TEXT("rhi.Metal.ResetOnPSOChange"),
+	GMetalResetOnPSOChange,
+	TEXT("Debug option: when enabled will reset all the resource bindings when the PSO changes to aid debugging unbound resources. (Default: 0, Off)"));
+
 int32 GMetalBufferScribble = 0; // Deliberately not static, see InitFrame_UniformBufferPoolCleanup
 static FAutoConsoleVariableRef CVarMetalBufferScribble(
 	TEXT("rhi.Metal.BufferScribble"),
@@ -460,7 +466,7 @@ void FMetalDeviceContext::ClearFreeList()
 			}
 			for ( FMetalTexture& Texture : Pair->UsedTextures )
 			{
-                if (!(Texture.GetBuffer() || Texture.GetParentTexture()) && (Texture.GetStorageMode() != mtlpp::StorageMode::Private))
+                if (!Texture.GetBuffer() && !Texture.GetParentTexture())
 				{
 #if METAL_DEBUG_OPTIONS
 					if (GMetalResourcePurgeOnDelete && !Texture.GetHeap())
@@ -492,12 +498,6 @@ void FMetalDeviceContext::DrainHeap()
 
 void FMetalDeviceContext::EndFrame()
 {
-	FlushFreeList();
-	
-	ClearFreeList();
-	
-    Heap.Compact(false);
-    
 	// A 'frame' in this context is from the beginning of encoding on the CPU
 	// to the end of all rendering operations on the GPU. So the semaphore is
 	// signalled when the last command buffer finishes GPU execution.
@@ -533,6 +533,12 @@ void FMetalDeviceContext::EndFrame()
 #endif
 	SubmitCommandsHint((uint32)SubmitFlags);
 	
+    FlushFreeList();
+    
+    ClearFreeList();
+    
+    Heap.Compact(false);
+    
 	InitFrame(true, 0, 0);
 }
 
@@ -693,8 +699,15 @@ void FMetalDeviceContext::ReleaseTexture(FMetalTexture& Texture)
         if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
         {
             Heap.ReleaseTexture(nullptr, Texture);
+			
+			// Ensure that the Objective-C handle can't disappear prior to the GPU being done with it without racing with the above
+			if(!ObjectFreeList.Contains(Texture.GetPtr()))
+			{
+				[Texture.GetPtr() retain];
+				ObjectFreeList.Add(Texture.GetPtr());
+			}
         }
-		if(!UsedTextures.Contains(Texture))
+		else if(!UsedTextures.Contains(Texture))
 		{
 			UsedTextures.Add(MoveTemp(Texture));
 		}
@@ -767,7 +780,7 @@ FMetalTexture FMetalDeviceContext::CreateTexture(FMetalSurface* Surface, mtlpp::
 
 FMetalBuffer FMetalDeviceContext::CreatePooledBuffer(FMetalPooledBufferArgs const& Args)
 {
-	FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
+    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, Args.Flags, GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
 	if (GMetalResourcePurgeOnDelete && !Buffer.GetHeap())
@@ -1480,7 +1493,7 @@ void FMetalContext::DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexBuff
 	RenderPass.DrawPrimitiveIndirect(PrimitiveType, VertexBuffer, ArgumentOffset);
 }
 
-void FMetalContext::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, FMetalTexture const& IndexTexture, uint32 IndexStride, mtlpp::IndexType IndexType, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
+void FMetalContext::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uint32 IndexStride, mtlpp::IndexType IndexType, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
 	// finalize any pending state
 	if(!PrepareToDraw(PrimitiveType, GetRHIMetalIndexType(IndexType)))
@@ -1488,7 +1501,7 @@ void FMetalContext::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, FMetal
 		return;
 	}
 	
-	RenderPass.DrawIndexedPrimitive(IndexBuffer, IndexTexture, IndexStride, PrimitiveType, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
+	RenderPass.DrawIndexedPrimitive(IndexBuffer, IndexStride, PrimitiveType, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
 }
 
 void FMetalContext::DrawIndexedIndirect(FMetalIndexBuffer* IndexBuffer, uint32 PrimitiveType, FMetalStructuredBuffer* VertexBuffer, int32 DrawArgumentsIndex, uint32 NumInstances)

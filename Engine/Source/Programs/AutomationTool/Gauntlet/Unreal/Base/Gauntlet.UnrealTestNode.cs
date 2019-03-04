@@ -855,6 +855,23 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Returns the current Pass count for this node
+		/// </summary>
+		public int GetCurrentPass()
+		{
+			return CurrentPass;
+		}
+
+		/// <summary>
+		/// Returns the current total Pass count for this node
+		/// </summary>
+		/// <returns></returns>
+		public int GetNumPasses()
+		{
+			return NumPasses;
+		}
+
+		/// <summary>
 		/// Result of the test once completed. Nodes inheriting from us should override
 		/// this if custom results are necessary
 		/// </summary>

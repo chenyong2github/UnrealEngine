@@ -64,6 +64,8 @@ public:
 	*/
 	void Serialize(FArchive& Ar, bool bInNeedsCPUAccess);
 
+	void SerializeMetaData(FArchive& Ar);
+
 	/**
 	* Specialized assignment operator, only used when importing LOD's.
 	*/
@@ -88,6 +90,38 @@ public:
 	FORCEINLINE uint32 GetNumVertices() const
 	{
 		return NumVertices;
+	}
+
+	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateRHIBuffer_Async();
+
+	/** Set whether this buffer is managed by the streamer. Must be set before InitRHI is called */
+	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
+
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	template <int32 MaxNumUpdates>
+	void InitRHIForStreaming(FVertexBufferRHIParamRef IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		check(!VertexBufferRHI);
+		if (IntermediateBuffer)
+		{
+			VertexBufferRHI = IntermediateBuffer;
+			if (PositionComponentSRV)
+			{
+				Batcher.QueueUpdateRequest(PositionComponentSRV, VertexBufferRHI, 4, PF_R32_FLOAT);
+			}
+		}
+	}
+
+	template <int32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (PositionComponentSRV)
+		{
+			Batcher.QueueUpdateRequest(PositionComponentSRV, nullptr, 0, 0);
+		}
+		FVertexBuffer::ReleaseRHI();
 	}
 
 	// FRenderResource interface.
@@ -120,6 +154,11 @@ private:
 
 	bool bNeedsCPUAccess = true;
 
+	bool bStreamed;
+
 	/** Allocates the vertex data storage type. */
 	void AllocateData(bool bInNeedsCPUAccess = true);
+
+	template <bool bRenderThread>
+	FVertexBufferRHIRef CreateRHIBuffer_Internal();
 };

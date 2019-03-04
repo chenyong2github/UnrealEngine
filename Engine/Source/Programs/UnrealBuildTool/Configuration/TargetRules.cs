@@ -281,6 +281,7 @@ namespace UnrealBuildTool
 		/// Whether this target should be compiled as a DLL.  Requires LinkType to be set to TargetLinkType.Monolithic.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CompileAsDll")]
 		public bool bShouldCompileAsDLL = false;
 		
 		/// <summary>
@@ -662,6 +663,21 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bAdaptiveUnityDisablesPCH = true;
+
+		/// <summary>
+		/// Backing storage for bAdaptiveUnityDisablesProjectPCH.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		bool? bAdaptiveUnityDisablesProjectPCHForProjectPrivate;
+
+		/// <summary>
+		/// Whether to disable force-included PCHs for project source files in the adaptive non-unity working set. Defaults to bAdaptiveUnityDisablesPCH;
+		/// </summary>
+		public bool bAdaptiveUnityDisablesPCHForProject
+		{
+			get { return bAdaptiveUnityDisablesProjectPCHForProjectPrivate ?? bAdaptiveUnityDisablesPCH; }
+			set { bAdaptiveUnityDisablesProjectPCHForProjectPrivate = value; }
+		}
 
 		/// <summary>
 		/// Creates a dedicated PCH for each source file in the working set, allowing faster iteration on cpp-only changes.
@@ -1058,6 +1074,11 @@ namespace UnrealBuildTool
 		private string LaunchModuleNamePrivate;
 
 		/// <summary>
+		/// Specifies the path to write a header containing public definitions for this target. Useful when building a DLL to be consumed by external build processes.
+		/// </summary>
+		public string ExportPublicHeader;
+
+		/// <summary>
 		/// List of additional modules to be compiled into the target.
 		/// </summary>
 		public List<string> ExtraModuleNames = new List<string>();
@@ -1080,6 +1101,12 @@ namespace UnrealBuildTool
 		[CommandLine("-SharedBuildEnvironment", Value = "Shared")]
 		[CommandLine("-UniqueBuildEnvironment", Value = "Unique")]
 		public TargetBuildEnvironment BuildEnvironment = TargetBuildEnvironment.Default;
+
+		/// <summary>
+		/// Whether to ignore violations to the shared build environment (eg. editor targets modifying definitions)
+		/// </summary>
+		[CommandLine("-OverrideBuildEnvironment")]
+		public bool bOverrideBuildEnvironment = false;
 
 		/// <summary>
 		/// Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell.
@@ -1896,6 +1923,11 @@ namespace UnrealBuildTool
 			get { return Inner.bAdaptiveUnityDisablesPCH; }
 		}
 
+		public bool bAdaptiveUnityDisablesPCHForProject
+		{
+			get { return Inner.bAdaptiveUnityDisablesPCHForProject; }
+		}
+
 		public bool bAdaptiveUnityCreatesDedicatedPCH
 		{
 			get { return Inner.bAdaptiveUnityCreatesDedicatedPCH; }
@@ -2157,6 +2189,11 @@ namespace UnrealBuildTool
 			get { return Inner.LaunchModuleName; }
 		}
 
+		public string ExportPublicHeader
+		{
+			get { return Inner.ExportPublicHeader; }
+		}
+
 		public IReadOnlyList<string> ExtraModuleNames
 		{
 			get { return Inner.ExtraModuleNames.AsReadOnly(); }
@@ -2175,6 +2212,11 @@ namespace UnrealBuildTool
 		public TargetBuildEnvironment BuildEnvironment
 		{
 			get { return Inner.BuildEnvironment; }
+		}
+
+		public bool bOverrideBuildEnvironment
+		{
+			get { return Inner.bOverrideBuildEnvironment; }
 		}
 
 		public IReadOnlyList<string> PreBuildSteps

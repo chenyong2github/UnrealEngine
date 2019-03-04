@@ -310,7 +310,7 @@ IOnlineSubsystem* FOnlineSubsystemModule::GetOnlineSubsystem(const FName InSubsy
 					{
 						OnlineSubsystems.Add(KeyName, NewSubsystemInstance);
 						OnlineSubsystem = OnlineSubsystems.Find(KeyName);
-						FOnlineSubsystemDelegates::OnOnlineSubsystemCreated.Broadcast(NewSubsystemInstance.Get());
+						FOnlineSubsystemDelegates::OnOnlineSubsystemCreated.Broadcast(NewSubsystemInstance.Get());						
 					}
 					else
 					{

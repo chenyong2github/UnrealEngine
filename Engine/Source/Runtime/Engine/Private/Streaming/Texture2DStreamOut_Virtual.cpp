@@ -12,7 +12,7 @@ FTexture2DStreamOut_Virtual::FTexture2DStreamOut_Virtual(UTexture2D* InTexture, 
 {
 	ensure(InRequestedMips < InTexture->GetNumResidentMips());
 	
-	PushTask(FContext(InTexture, TT_None), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Finalize), TT_None, nullptr);
+	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_None, nullptr);
 }
 
 // ****************************

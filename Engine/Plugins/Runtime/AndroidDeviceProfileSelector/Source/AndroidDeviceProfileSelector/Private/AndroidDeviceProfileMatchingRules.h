@@ -76,6 +76,12 @@ class UAndroidDeviceProfileMatchingRules : public UObject
 
 public:
 
+	// Use Android .ini files in the editor
+	virtual const TCHAR* GetConfigOverridePlatform() const override
+	{
+		return TEXT("Android");
+	}
+
 	/** Array of rules to match */
 	UPROPERTY(EditAnywhere, config, Category = "Matching Rules")
 	TArray<FProfileMatch> MatchProfile;

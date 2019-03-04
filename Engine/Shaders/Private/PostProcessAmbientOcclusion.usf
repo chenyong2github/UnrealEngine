@@ -866,6 +866,36 @@ void MainCS(
 	// http://on-demand.gputechconf.com/gtc/2010/presentations/S12312-DirectCompute-Pre-Conference-Tutorial.pdf
 	OutTexture[PixelPos] = OutColor.r;
 }
+
+// xy - output rect min
+// zw - output rect width and height
+float4 SSAOSmoothParams;
+RWTexture2D<float> SSAOSmoothResult;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void MainSSAOSmoothCS(
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	BRANCH
+	if (any(DispatchThreadId >= SSAOSmoothParams.zw))
+	{
+		return;
+	}
+
+	uint2 DestPixelPos = SSAOSmoothParams.xy + DispatchThreadId;
+	float2 SampleUV = DestPixelPos * PostprocessInput0Size.zw;
+
+	// Use a 4x4 box filter because the random texture is tiled 4x4
+	float Result;
+	Result = PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0).r;
+	Result += PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0, int2(2, 0)).r;
+	Result += PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0, int2(0, 2)).r;
+	Result += PostprocessInput0.SampleLevel(PostprocessInput0Sampler, SampleUV, 0, int2(2, 2)).r;
+
+	SSAOSmoothResult[DestPixelPos] = Result * 0.25;
+}
 #endif
 
 

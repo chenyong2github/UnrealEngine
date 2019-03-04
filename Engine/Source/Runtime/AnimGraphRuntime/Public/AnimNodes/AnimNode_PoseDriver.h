@@ -79,6 +79,14 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	float TargetScale;
 
+	/** Override for the distance method to use for each target */
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	ERBFDistanceMethod DistanceMethod;
+
+	/** Override for the function method to use for each target */
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	ERBFFunctionType FunctionType;
+
 	/** If we should apply a custom curve mapping to how this target activates */
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	bool bApplyCustomCurve;
@@ -101,13 +109,20 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 	/** Pose buffer index */
 	int32 PoseCurveIndex;
 
+	/** If we should hide this pose from the UI */
+	UPROPERTY(EditAnywhere, Category = PoseDriver)
+	bool bIsHidden;
+
 	FPoseDriverTarget()
 		: TargetRotation(ForceInitToZero)
 		, TargetScale(1.f)
+		, DistanceMethod(ERBFDistanceMethod::DefaultMethod)
+		, FunctionType(ERBFFunctionType::DefaultFunction)
 		, bApplyCustomCurve(false)
 		, DrivenName(NAME_None)
 		, DrivenUID(INDEX_NONE)
 		, PoseCurveIndex(INDEX_NONE)
+		, bIsHidden(false)
 	{}
 };
 
@@ -190,6 +205,9 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	// End of FAnimNode_Base interface
 
 	FAnimNode_PoseDriver();
+
+	/** Returns the radius for a given target */
+	float GetRadiusForTarget(const FRBFTarget& Target) const;
 
 	/** Util for seeing if BoneName is in the list of driven bones (and bFilterDrivenBones is true) */
 	bool IsBoneDriven(FName BoneName) const;

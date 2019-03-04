@@ -53,7 +53,7 @@ public:
 	static bool PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 LODIndex, FStaticMeshComponentLODInfo& ComponentLODInfo);	
 
 	/** Retrieves the Vertex Color buffer size for the given LOD level in the Static Mesh */
-	static uint32 GetVertexColorBufferSize(UStaticMeshComponent* MeshComponent, int32 LODIndex, bool bInstance);
+	static uint32 GetVertexColorBufferSize(UMeshComponent* MeshComponent, int32 LODIndex, bool bInstance);
 
 	/** Retrieves the vertex positions from the given LOD level in the Static Mesh */
 	static TArray<FVector> GetVerticesForLOD(const UStaticMesh* StaticMesh, int32 LODIndex);

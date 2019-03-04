@@ -52,6 +52,9 @@ struct FSamplerYcbcrConversionInitializer
 	VkChromaLocation YOffset;
 };
 
+// Mirror GPixelFormats with format information for buffers
+extern VkFormat GVulkanBufferFormat[PF_MAX];
+
 /** This represents a vertex declaration that hasn't been combined with a specific shader to create a bound shader. */
 class FVulkanVertexDeclaration : public FRHIVertexDeclaration
 {
@@ -105,6 +108,12 @@ public:
 	}
 #endif
 
+	// Name should be pointing to "main_"
+	void GetEntryPoint(ANSICHAR* Name)
+	{
+		FCStringAnsi::Sprintf(Name, "main_%0.8x_%0.8x", Spirv.Num() * sizeof(uint32), CodeHeader.SpirvCRC);
+	}
+
 	FORCEINLINE const FVulkanShaderHeader& GetCodeHeader() const
 	{
 		return CodeHeader;
@@ -116,6 +125,9 @@ public:
 	}
 
 protected:
+#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+	FString							DebugEntryPoint;
+#endif
 	uint64							ShaderKey;
 
 	/** External bindings for this shader. */
@@ -1363,6 +1375,9 @@ public:
 	{
 	}
 
+	void Clear();
+
+	void Rename(FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
 
 	void UpdateView();
 

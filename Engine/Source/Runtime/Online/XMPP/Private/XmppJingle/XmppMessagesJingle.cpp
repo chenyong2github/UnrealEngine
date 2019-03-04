@@ -227,9 +227,14 @@ static void ConvertToMessage(FXmppMessage& OutMessage, const FXmppMessageJingle&
 			FJsonSerializer::Serialize((*JsonPayload).ToSharedRef(), JsonWriter);
  			JsonWriter->Close();
 		}
+		else if (JsonBody->TryGetStringField(TEXT("payload"), OutMessage.Payload))
+		{
+			// Payload is now in Message.Payload
+		}
 		else
 		{
-			JsonBody->TryGetStringField(TEXT("payload"), OutMessage.Payload);
+			// Treat the entire body as the payload
+			OutMessage.Payload = UTF8_TO_TCHAR(InMessageJingle.Body.c_str());
 		}
 		FString TimestampStr;
 		if (JsonBody->TryGetStringField(TEXT("timestamp"), TimestampStr))

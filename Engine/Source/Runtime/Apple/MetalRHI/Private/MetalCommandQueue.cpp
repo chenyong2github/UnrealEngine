@@ -19,7 +19,6 @@
 #pragma mark - Private C++ Statics -
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
-extern bool GMetalManagedUniformBuffers;
 
 #pragma mark - Public C++ Boilerplate -
 
@@ -86,7 +85,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
-				GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				if (MaxShaderVersion >= 3)
+				{
+					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				}
 				
 				if (MaxShaderVersion >= 3)
 				{
@@ -148,7 +150,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			
 			if(Vers.majorVersion >= 11)
 			{
-				GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				if (MaxShaderVersion >= 3)
+				{
+					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
+				}
 				
 				Features |= EMetalFeaturesPresentMinDuration | EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
@@ -294,8 +299,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	{
 		Features |= EMetalFeaturesAbsoluteTimeQueries;
 	}
-	
-	GMetalManagedUniformBuffers = FParse::Param(FCommandLine::Get(),TEXT("metalmanagedubs"));
 #endif
 	
 #if !UE_BUILD_SHIPPING

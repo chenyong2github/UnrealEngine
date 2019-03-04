@@ -363,11 +363,16 @@ bool FStaticMeshSceneProxy::GetShadowMeshElement(int32 LODIndex, int32 BatchInde
 
 	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && LOD.bHasReversedDepthOnlyIndices;
 
+	if ((bUseReversedIndices && !LOD.bHasReversedDepthOnlyIndices) || (!bUseReversedIndices && !LOD.bHasDepthOnlyIndices))
+	{
+		return false;
+	}
+
 	FMeshBatchElement& OutBatchElement = OutMeshBatch.Elements[0];
 	OutBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVertexBuffer ? ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference() : VFs.VertexFactory.GetUniformBuffer();
 	OutMeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	OutMeshBatch.VertexFactory = ProxyLODInfo.OverrideColorVertexBuffer ? &VFs.VertexFactoryOverrideColorVertexBuffer : &VFs.VertexFactory;
-	OutBatchElement.IndexBuffer = bUseReversedIndices ? &LOD.ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
+	OutBatchElement.IndexBuffer = LOD.AdditionalIndexBuffers && bUseReversedIndices ? &LOD.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer : &LOD.DepthOnlyIndexBuffer;
 	OutMeshBatch.Type = PT_TriangleList;
 	OutBatchElement.FirstIndex = 0;
 	OutBatchElement.NumPrimitives = LOD.DepthOnlyNumTriangles;
@@ -650,14 +655,14 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 	if (bWireframe)
 	{
-		if( LODModel.WireframeIndexBuffer.IsInitialized()
+		if( LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
 			&& !(RHISupportsTessellation(GetScene().GetShaderPlatform()) && OutMeshElement.VertexFactory->GetType()->SupportsTessellationShaders())
 			)
 		{
 			OutMeshElement.Type = PT_LineList;
 			OutElement.FirstIndex = 0;
-			OutElement.IndexBuffer = &LODModel.WireframeIndexBuffer;
-			OutElement.NumPrimitives = LODModel.WireframeIndexBuffer.GetNumIndices() / 2;
+			OutElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
+			OutElement.NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
 		}
 		else
 		{
@@ -697,7 +702,7 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 		}
 		else
 		{
-			OutElement.IndexBuffer = bUseReversedIndices ? &LODModel.ReversedIndexBuffer : &LODModel.IndexBuffer;
+			OutElement.IndexBuffer = bUseReversedIndices ? &LODModel.AdditionalIndexBuffers->ReversedIndexBuffer : &LODModel.IndexBuffer;
 			OutElement.FirstIndex = Section.FirstIndex;
 			OutElement.NumPrimitives = Section.NumTriangles;
 		}
@@ -706,7 +711,7 @@ void FStaticMeshSceneProxy::SetIndexSource(int32 LODIndex, int32 SectionIndex, F
 	if ( bRequiresAdjacencyInformation )
 	{
 		check( LODModel.bHasAdjacencyInfo );
-		OutElement.IndexBuffer = &LODModel.AdjacencyIndexBuffer;
+		OutElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
 		OutMeshElement.Type = PT_12_ControlPointPatchList;
 		OutElement.FirstIndex *= 4;
 	}
@@ -1817,6 +1822,10 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 			}
 		}
 	}
+
+	const int8 CurFirstLODIdx = GetCurrentFirstLODIdx_Internal();
+	check(CurFirstLODIdx >= 0);
+	Result.ClampToFirstLOD(CurFirstLODIdx);
 	
 	return Result;
 }
@@ -1833,6 +1842,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	{
 		return nullptr;
 	}
+	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(this, false);
 #if STATICMESH_ENABLE_DEBUG_RENDERING

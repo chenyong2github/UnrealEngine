@@ -389,10 +389,7 @@ public:
 	template<typename FilterMode, typename AreaWeightingMode>
 	void IsValidTriCoord(FVectorVMContext& Context);
 
-	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
-	void GetTriCoordSkinnedData_Opt(FVectorVMContext& Context);
-
-	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
+	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType, typename bInterpolated>
 	void GetTriCoordSkinnedData(FVectorVMContext& Context);
 
 	void GetTriCoordColor(FVectorVMContext& Context);

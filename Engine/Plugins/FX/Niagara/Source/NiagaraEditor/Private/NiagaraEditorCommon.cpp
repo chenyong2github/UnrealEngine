@@ -1191,6 +1191,15 @@ void FNiagaraOpInfo::Init()
 	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, IntType, ResultText, ResultText, Default_IntZero, TEXT("ExecIndex()")));
 	Op->BuildName(TEXT("ExecIndex"), UtilCategoryName);
 	OpInfoMap.Add(Op->Name) = Idx;
+
+	Idx = OpInfos.AddDefaulted();
+	Op = &OpInfos[Idx];
+	Op->Category = UtilCategory;
+	Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "SpawnInterp Name", "Spawn Interpolation");
+	Op->Description = NSLOCTEXT("NiagaraOpInfo", "SpawnInterp Desc", "Returns the fraction used for interpolated spawning. i.e. A fraction defining where this particle was spawned between this frame and the last.");
+	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetFloatDef(), ResultText, ResultText, Default_IntZero, TEXT("GetSpawnInterpolation()")));
+	Op->BuildName(TEXT("SpawnInterpolation"), UtilCategoryName);
+	OpInfoMap.Add(Op->Name) = Idx;
 }
 END_FUNCTION_BUILD_OPTIMIZATION
 //////////////////////////////////////////////////////////////////////////

@@ -137,6 +137,18 @@ static inline std::string FixHlslName(const glsl_type* Type, bool bUseTextureIns
 			{
 				return "textureCubeArray";
 			}
+			else if (!FCStringAnsi::Strcmp(Type->HlslName, "texture2darray"))
+			{
+				return "texture2DArray";
+			}
+			else if (!FCStringAnsi::Strcmp(Type->HlslName, "texture2dms"))
+			{
+				return "texture2DArray";
+			}
+			else if (!FCStringAnsi::Strcmp(Type->HlslName, "texture2dmsarray"))
+			{
+				return "texture2DMSArray";
+			}
 
 			return Type->HlslName;
 		}
@@ -5643,7 +5655,8 @@ bool FVulkanCodeBackend::GenerateMain(
 			_mesa_glsl_warning(ParseState, "'patchconstantfunc' attribute only applies to hull shaders");
 		}
 
-		ir_function* MainFunction = new(ParseState)ir_function("main");
+		// Values that will be patched in later from the SPIRV
+		ir_function* MainFunction = new(ParseState)ir_function("main_00000000_00000000");
 		MainFunction->add_signature(MainSig);
 
 		Instructions->append_list(&DeclInstructions);

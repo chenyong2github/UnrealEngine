@@ -8,7 +8,7 @@
 #include "DSP/SampleBufferReader.h"
 #include "DSP/Envelope.h"
 #include "DSP/Amp.h"
-#include "DSP/DynamicsProcesser.h"
+#include "DSP/DynamicsProcessor.h"
 #include "AudioDevice.h"
 #include "Sound/SampleBuffer.h"
 

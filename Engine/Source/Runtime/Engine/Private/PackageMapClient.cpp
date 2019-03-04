@@ -1194,9 +1194,7 @@ void UPackageMapClient::ReceiveNetGUIDBunch( FInBunch &InBunch )
 	if ( bHasRepLayoutExport )
 	{
 		// We need to keep this around to ensure we don't break backwards compatability.
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		ReceiveNetFieldExports( InBunch );
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		ReceiveNetFieldExportsCompat( InBunch );
 		return;
 	}
 
@@ -1340,11 +1338,57 @@ void UPackageMapClient::ReceiveExportData(FArchive& Archive)
 	ReceiveNetExportGUIDs(Archive);
 }
 
+void UPackageMapClient::SerializeNetFieldExportDelta(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		TSet<uint64> DeltaNetFieldExports;
+		
+		for ( auto It = GuidCache->NetFieldExportGroupMap.CreateIterator(); It; ++It )
+		{
+			// Save out the export group
+			TSharedPtr<FNetFieldExportGroup> ExportGroup = It.Value();
+			if (ExportGroup.IsValid())
+			{
+				for ( int32 i = 0; i < ExportGroup->NetFieldExports.Num(); i++ )
+				{
+					if (ExportGroup->NetFieldExports[i].bExported && ExportGroup->NetFieldExports[i].bDirtyForReplay)
+					{
+						check(ExportGroup->PathNameIndex != 0);
+
+						const uint64 CmdHandle = ((uint64)ExportGroup->PathNameIndex) << 32 | (uint64)i;
+
+						check(i == ExportGroup->NetFieldExports[i].Handle);
+
+						DeltaNetFieldExports.Add(CmdHandle);
+
+						ExportGroup->NetFieldExports[i].bDirtyForReplay = false;
+					}
+				}
+			}
+		}
+
+		AppendNetFieldExportsInternal(Ar, DeltaNetFieldExports, EAppendNetExportFlags::ForceExportDirtyGroups);
+
+		NetFieldExports.Empty();
+	}
+	else
+	{
+		ReceiveNetFieldExports(Ar);
+	}
+}
+
 void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
+{
+	AppendNetFieldExportsInternal(Archive, NetFieldExports, EAppendNetExportFlags::None);
+	NetFieldExports.Empty();
+}
+
+void UPackageMapClient::AppendNetFieldExportsInternal(FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags)
 {
 	check(Connection->InternalAck);
 
-	uint32 NetFieldCount = NetFieldExports.Num();
+	uint32 NetFieldCount = InNetFieldExports.Num();
 	Archive.SerializeIntPacked(NetFieldCount);
 
 	if (0 == NetFieldCount)
@@ -1355,7 +1399,7 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 	TArray< uint32, TInlineAllocator<64> > ExportedPathInThisBunchAlready;
 	ExportedPathInThisBunchAlready.Reserve(NetFieldCount);
 
-	for (const uint64 FieldExport : NetFieldExports)
+	for (const uint64 FieldExport : InNetFieldExports)
 	{
 		// Parse the path name index and cmd index out of the uint64
 		uint32 PathNameIndex = FieldExport >> 32;
@@ -1369,7 +1413,9 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 		check(NetFieldExportHandle == NetFieldExportGroup->NetFieldExports[NetFieldExportHandle].Handle);
 
 		// Export the path if we need to
-		uint32 NeedsExport = (OverrideAckState->NetFieldExportGroupPathAcked.Contains(PathNameIndex) || ExportedPathInThisBunchAlready.Contains(PathNameIndex)) ? 0 : 1;
+		const bool bForceExportDirty = EnumHasAnyFlags(Flags, EAppendNetExportFlags::ForceExportDirtyGroups) && NetFieldExportGroup->bDirtyForReplay;
+
+		uint32 NeedsExport = ((bForceExportDirty || !OverrideAckState->NetFieldExportGroupPathAcked.Contains(PathNameIndex)) && !ExportedPathInThisBunchAlready.Contains(PathNameIndex)) ? 1 : 0;
 
 		Archive.SerializeIntPacked(PathNameIndex);
 		Archive.SerializeIntPacked(NeedsExport);
@@ -1382,6 +1428,11 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 			Archive.SerializeIntPacked(NumExports);
 
 			ExportedPathInThisBunchAlready.Add(PathNameIndex);
+
+			if (bForceExportDirty)
+			{
+				NetFieldExportGroup->bDirtyForReplay = false;
+			}
 		}
 
 		Archive << NetFieldExportGroup->NetFieldExports[NetFieldExportHandle];
@@ -1389,8 +1440,94 @@ void UPackageMapClient::AppendNetFieldExports(FArchive& Archive)
 		OverrideAckState->NetFieldExportGroupPathAcked.Add( PathNameIndex );
 		OverrideAckState->NetFieldExportAcked.Add( FieldExport );
 	}
+}
 
-	NetFieldExports.Empty();
+void UPackageMapClient::ReceiveNetFieldExportsCompat(FInBunch &InBunch)
+{
+	check(Connection->InternalAck);
+
+	// Read number of net field exports
+	uint32 NumLayoutCmdExports = 0;
+	InBunch << NumLayoutCmdExports;
+
+	for (int32 i = 0; i < (int32)NumLayoutCmdExports; i++)
+	{
+		// Read the index that represents the name in the NetFieldExportGroupIndexToPath map
+		uint32 PathNameIndex;
+		InBunch.SerializeIntPacked(PathNameIndex);
+
+		if (InBunch.IsError())
+		{
+			break;
+		}
+
+		int32 MaxExports = 0;
+
+		FNetFieldExportGroup* NetFieldExportGroup = nullptr;
+
+		// See if the path name was exported (we'll expect it if we haven't seen this index before)
+		if (InBunch.ReadBit() == 1)
+		{
+			FString PathName;
+
+			InBunch << PathName;
+			InBunch << MaxExports;
+
+			if (InBunch.IsError())
+			{
+				break;
+			}
+
+			GEngine->NetworkRemapPath(Connection->Driver, PathName, true);
+
+			NetFieldExportGroup = GuidCache->NetFieldExportGroupMap.FindRef(PathName).Get();
+			if (!NetFieldExportGroup)
+			{
+				TSharedPtr<FNetFieldExportGroup> NewNetFieldExportGroup(new FNetFieldExportGroup());
+				NetFieldExportGroup = NewNetFieldExportGroup.Get();
+
+				NetFieldExportGroup->PathName = PathName;
+				NetFieldExportGroup->PathNameIndex = PathNameIndex;
+
+				NetFieldExportGroup->NetFieldExports.SetNum(MaxExports);
+
+				GuidCache->NetFieldExportGroupMap.Add(PathName, NewNetFieldExportGroup);
+			}
+
+			GuidCache->NetFieldExportGroupPathToIndex.Add(PathName, PathNameIndex);
+			GuidCache->NetFieldExportGroupIndexToGroup.Add(PathNameIndex, NetFieldExportGroup);
+		}
+		else
+		{
+			NetFieldExportGroup = GuidCache->NetFieldExportGroupIndexToGroup.FindChecked(PathNameIndex);
+		}
+
+
+		FNetFieldExport NetFieldExport;
+
+		// Read the cmd
+		InBunch << NetFieldExport;
+
+		if (InBunch.IsError())
+		{
+			break;
+		}
+
+		TArray<FNetFieldExport>& NetFieldExportsRef = NetFieldExportGroup->NetFieldExports;
+
+		if ((int32)NetFieldExport.Handle < NetFieldExportsRef.Num())
+		{
+			// Assign it to the correct slot (NetFieldExport.Handle is just the index into the array)
+			NetFieldExportGroup->NetFieldExports[NetFieldExport.Handle] = NetFieldExport;
+		}
+		else
+		{
+			UE_LOG(LogNetPackageMap, Error, TEXT("ReceiveNetFieldExports: Invalid NetFieldExport Handle '%i', Max '%i'."),
+				NetFieldExport.Handle, NetFieldExportsRef.Num());
+
+			InBunch.SetError();
+		}
+	}
 }
 
 void UPackageMapClient::ReceiveNetFieldExports(FArchive& Archive)
@@ -2015,7 +2152,11 @@ void UPackageMapClient::Serialize(FArchive& Ar)
 //	FNetGUIDCache
 //----------------------------------------------------------------------------------------
 
-FNetGUIDCache::FNetGUIDCache( UNetDriver * InDriver ) : IsExportingNetGUIDBunch( false ), Driver( InDriver ), NetworkChecksumMode( ENetworkChecksumMode::SaveAndUse ), AsyncLoadMode( EAsyncLoadMode::UseCVar )
+FNetGUIDCache::FNetGUIDCache(UNetDriver* InDriver) 
+	: Driver(InDriver)
+	, NetworkChecksumMode(ENetworkChecksumMode::SaveAndUse)
+	, AsyncLoadMode(EAsyncLoadMode::UseCVar)
+	, IsExportingNetGUIDBunch(false)
 {
 	UniqueNetIDs[0] = UniqueNetIDs[1] = 0;
 	UniqueNetFieldExportGroupPathIndex = 0;

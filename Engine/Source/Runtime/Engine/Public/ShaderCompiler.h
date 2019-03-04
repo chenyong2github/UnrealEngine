@@ -611,7 +611,9 @@ extern ENGINE_API void GlobalBeginCompileShader(
 	FShaderTarget Target,
 	FShaderCompileJob* NewJob,
 	TArray<FShaderCommonCompileJob*>& NewJobs,
-	bool bAllowDevelopmentShaderCompile = true
+	bool bAllowDevelopmentShaderCompile = true,
+	const FString& DebugDescription = "",
+	const FString& DebugExtension = ""
 	);
 
 /** Implementation of the 'recompileshaders' console command.  Recompiles shaders at runtime based on various criteria. */

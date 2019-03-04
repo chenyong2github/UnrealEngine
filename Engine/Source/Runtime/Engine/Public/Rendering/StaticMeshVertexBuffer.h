@@ -176,6 +176,8 @@ public:
 	*/
 	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
 
+	void SerializeMetaData(FArchive& Ar);
+
 	/**
 	* Specialized assignment operator, only used when importing LOD's.
 	*/
@@ -384,6 +386,64 @@ public:
 		return (TangentsStride + (TexcoordStride * GetNumTexCoords())) * NumVertices;
 	}
 
+	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FVertexBufferRHIRef CreateTangentsRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateTangentsRHIBuffer_Async();
+	FVertexBufferRHIRef CreateTexCoordRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateTexCoordRHIBuffer_Async();
+
+	/** Set whether this buffer is managed by the streamer. Must be set before InitRHI is called */
+	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
+
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	template <int32 MaxNumUpdates>
+	void InitRHIForStreaming(
+		FVertexBufferRHIParamRef IntermediateTangentsBuffer,
+		FVertexBufferRHIParamRef IntermediateTexCoordBuffer,
+		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		check(!TangentsVertexBuffer.VertexBufferRHI && !TexCoordVertexBuffer.VertexBufferRHI);
+		if (IntermediateTangentsBuffer)
+		{
+			TangentsVertexBuffer.VertexBufferRHI = IntermediateTangentsBuffer;
+			if (TangentsSRV)
+			{
+				Batcher.QueueUpdateRequest(
+					TangentsSRV,
+					TangentsVertexBuffer.VertexBufferRHI,
+					GetUseHighPrecisionTangentBasis() ? 8u : 4u,
+					GetUseHighPrecisionTangentBasis() ? (uint8)PF_R16G16B16A16_SNORM : (uint8)PF_R8G8B8A8_SNORM);;
+			}
+		}
+		if (IntermediateTexCoordBuffer)
+		{
+			TexCoordVertexBuffer.VertexBufferRHI = IntermediateTexCoordBuffer;
+			if (TextureCoordinatesSRV)
+			{
+				Batcher.QueueUpdateRequest(
+					TextureCoordinatesSRV,
+					TexCoordVertexBuffer.VertexBufferRHI,
+					GetUseFullPrecisionUVs() ? 8u : 4u,
+					GetUseFullPrecisionUVs() ? (uint8)PF_G32R32F : (uint8)PF_G16R16F);
+			}
+		}
+	}
+
+	template<int32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (TangentsSRV)
+		{
+			Batcher.QueueUpdateRequest(TangentsSRV, nullptr, 0, 0);
+		}
+		if (TextureCoordinatesSRV)
+		{
+			Batcher.QueueUpdateRequest(TextureCoordinatesSRV, nullptr, 0, 0);
+		}
+		TangentsVertexBuffer.ReleaseRHI();
+		TexCoordVertexBuffer.ReleaseRHI();
+	}
+
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
@@ -465,6 +525,8 @@ private:
 
 	bool NeedsCPUAccess = true;
 
+	bool bStreamed;
+
 	/** Allocates the vertex data storage type. */
 	void AllocateData(bool bNeedsCPUAccess = true);
 
@@ -472,4 +534,12 @@ private:
 	* @param InData - optional half float source data to convert into full float texture coordinate buffer. if null, convert existing half float texture coordinates to a new float buffer.
 	*/
 	void ConvertHalfTexcoordsToFloat(const uint8* InData);
+
+	template <bool bRenderThread>
+	FVertexBufferRHIRef CreateTangentsRHIBuffer_Internal();
+
+	template<bool bRenderThread>
+	FVertexBufferRHIRef CreateTexCoordRHIBuffer_Internal();
+
+	void InitTangentAndTexCoordStrides();
 };

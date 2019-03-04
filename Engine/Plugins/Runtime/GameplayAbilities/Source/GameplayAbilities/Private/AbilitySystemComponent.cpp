@@ -468,15 +468,22 @@ FOnGameplayEffectTagCountChanged& UAbilitySystemComponent::RegisterGameplayTagEv
 	return GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType);
 }
 
-void UAbilitySystemComponent::RegisterAndCallGameplayTagEvent(FGameplayTag Tag, FOnGameplayEffectTagCountChanged::FDelegate Delegate, EGameplayTagEventType::Type EventType)
+void UAbilitySystemComponent::UnregisterGameplayTagEvent(FDelegateHandle DelegateHandle, FGameplayTag Tag, EGameplayTagEventType::Type EventType)
 {
-	GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType).Add(Delegate);
+	GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType).Remove(DelegateHandle);
+}
+
+FDelegateHandle UAbilitySystemComponent::RegisterAndCallGameplayTagEvent(FGameplayTag Tag, FOnGameplayEffectTagCountChanged::FDelegate Delegate, EGameplayTagEventType::Type EventType)
+{
+	FDelegateHandle DelegateHandle = GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType).Add(Delegate);
 
 	const int32 TagCount = GetTagCount(Tag);
 	if (TagCount > 0)
 	{
 		Delegate.Execute(Tag, TagCount);
 	}
+
+	return DelegateHandle;
 }
 
 FOnGameplayEffectTagCountChanged& UAbilitySystemComponent::RegisterGenericGameplayTagEvent()

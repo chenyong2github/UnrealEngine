@@ -73,6 +73,11 @@ namespace UnrealBuildTool
 			Default,
 
 			/// <summary>
+			/// Never use any PCHs.
+			/// </summary>
+			NoPCHs,
+
+			/// <summary>
 			/// Never use shared PCHs.  Always generate a unique PCH for this module if appropriate
 			/// </summary>
 			NoSharedPCHs,
@@ -118,6 +123,23 @@ namespace UnrealBuildTool
 			/// </summary>
 			Any,
 		}
+
+		/// <summary>
+		/// Control visibility of symbols in this module for special cases
+		/// </summary>
+		public enum SymbolVisibility
+		{
+			/// <summary>
+			/// Standard visibility rules
+			/// </summary>
+			Default,
+
+			/// <summary>
+			/// Make sure symbols in this module are visible in Dll builds
+			/// </summary>
+			VisibileForDll,
+		}
+
 
 		/// <summary>
 		/// Information about a file which is required by the target at runtime, and must be moved around with it.
@@ -703,6 +725,11 @@ namespace UnrealBuildTool
 		/// Which stanard to use for compiling this module
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+
+		/// <summary>
+		///  Control visibility of symbols
+		/// </summary>
+		public SymbolVisibility ModuleSymbolVisibility = ModuleRules.SymbolVisibility.Default;
 
 		/// <summary>
 		/// The current engine directory

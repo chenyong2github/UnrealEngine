@@ -127,6 +127,9 @@ uint32 GWorkingRHIThreadTime = 0;
 uint32 GWorkingRHIThreadStallTime = 0;
 uint32 GWorkingRHIThreadStartCycles = 0;
 
+/** How many cycles the from sampling input to the frame being flipped. */
+uint64 GInputLatencyTime = 0;
+
 RHI_API bool GEnableAsyncCompute = true;
 RHI_API FRHICommandListExecutor GRHICommandList;
 
@@ -2132,13 +2135,6 @@ ETextureReallocationStatus FDynamicRHI::CancelAsyncReallocateTexture2D_RenderThr
 	return GDynamicRHI->RHICancelAsyncReallocateTexture2D(Texture2D, bBlockUntilCompleted);
 }
 
-FVertexDeclarationRHIRef FDynamicRHI::CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexDeclaration_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateVertexDeclaration(Elements);
-}
-
 FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexShader_RenderThread);
@@ -2494,6 +2490,28 @@ void FRHICommandListImmediate::UpdateTextureReference(FTextureReferenceRHIParamR
 	{
 		// we could be loading a level or something, lets get this stuff going
 		ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+	}
+}
+
+void FRHICommandListImmediate::UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+{
+	if (this->Bypass())
+	{
+		FRHICommandUpdateRHIResources Cmd(UpdateInfos, Num);
+		Cmd.Execute(*this);
+	}
+	else
+	{
+		const SIZE_T NumBytes = sizeof(FRHIResourceUpdateInfo) * Num;
+		FRHIResourceUpdateInfo* LocalUpdateInfos = reinterpret_cast<FRHIResourceUpdateInfo*>(this->Alloc(NumBytes, alignof(FRHIResourceUpdateInfo)));
+		FMemory::Memcpy(LocalUpdateInfos, UpdateInfos, NumBytes);
+		new (AllocCommand<FRHICommandUpdateRHIResources>()) FRHICommandUpdateRHIResources(LocalUpdateInfos, Num);
+		RHIThreadFence(true);
+		if (GetUsedMemory() > 256 * 1024)
+		{
+			// we could be loading a level or something, lets get this stuff going
+			ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
 	}
 }
 

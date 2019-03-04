@@ -14,13 +14,14 @@ struct FGPUSortBuffers;
 /**
  * Buffers in GPU memory used to sort particles.
  */
-class FParticleSortBuffers : public FRenderResource
+class ENGINE_API FParticleSortBuffers : public FRenderResource
 {
 public:
 
 	/** Initialization constructor. */
-	explicit FParticleSortBuffers()
-		:BufferSize(0)
+	explicit FParticleSortBuffers(bool InAsInt32 = false)
+		: BufferSize(0)
+		, bAsInt32(InAsInt32)
 	{
 	}
 
@@ -49,8 +50,9 @@ public:
 
 	/**
 	 * Retrieve the UAV for writing particle vertices.
+	 * bAsUint : whether to return a G16R16 view or a Uint32 view.
 	 */
-	FUnorderedAccessViewRHIParamRef GetVertexBufferUAV()
+	FORCEINLINE FUnorderedAccessViewRHIParamRef GetVertexBufferUAV()
 	{
 		return VertexBufferUAVs[0];
 	}
@@ -77,6 +79,16 @@ public:
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBufferSRVs[BufferIndex];
 	}
+	   
+	/**
+	 * Retrieve the UAV for the sorted vertex buffer at the given index.
+	 */
+	FUnorderedAccessViewRHIParamRef GetSortedVertexBufferUAV(int32 BufferIndex)
+	{
+		check((BufferIndex & 0xFFFFFFFE) == 0);
+		return VertexBufferUAVs[BufferIndex];
+	}
+
 
 	/**
 	 * Get the size allocated for sorted vertex buffers.
@@ -105,6 +117,8 @@ private:
 
 	/** Size allocated for buffers. */
 	int32 BufferSize;
+	/** Whether to allocate UAV and SRV as Int32 instead of G16R16F. */
+	bool bAsInt32;
 };
 
 /**

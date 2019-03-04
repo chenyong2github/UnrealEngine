@@ -1646,17 +1646,25 @@ struct FBoundShaderStateInput
 	(
 		FVertexDeclarationRHIParamRef InVertexDeclarationRHI
 		, FVertexShaderRHIParamRef InVertexShaderRHI
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, FHullShaderRHIParamRef InHullShaderRHI
 		, FDomainShaderRHIParamRef InDomainShaderRHI
+#endif
 		, FPixelShaderRHIParamRef InPixelShaderRHI
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, FGeometryShaderRHIParamRef InGeometryShaderRHI
+#endif
 	)
 		: VertexDeclarationRHI(InVertexDeclarationRHI)
 		, VertexShaderRHI(InVertexShaderRHI)
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		, HullShaderRHI(InHullShaderRHI)
 		, DomainShaderRHI(InDomainShaderRHI)
+#endif
 		, PixelShaderRHI(InPixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		, GeometryShaderRHI(InGeometryShaderRHI)
+#endif
 	{
 	}
 
@@ -1705,6 +1713,9 @@ struct FImmutableSamplerState
 class FGraphicsMinimalPipelineStateInitializer
 {
 public:
+	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
+	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
+	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
 
 	FGraphicsMinimalPipelineStateInitializer()
 		: BlendState(nullptr)
@@ -1712,6 +1723,8 @@ public:
 		, DepthStencilState(nullptr)
 		, PrimitiveType(PT_Num)
 	{
+		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
+		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
 	}
 
 	FGraphicsMinimalPipelineStateInitializer(
@@ -1747,9 +1760,13 @@ public:
 		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI || 
 			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
 			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			BoundShaderState.DomainShaderRHI != rhs.BoundShaderState.DomainShaderRHI ||
-			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||			
+			BoundShaderState.HullShaderRHI != rhs.BoundShaderState.HullShaderRHI ||	
+#endif		
 			BlendState != rhs.BlendState || 
 			RasterizerState != rhs.RasterizerState || 
 			DepthStencilState != rhs.DepthStencilState ||
@@ -1794,9 +1811,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1814,9 +1835,13 @@ public:
 		COMPARE_FIELD_BEGIN(BoundShaderState.VertexDeclarationRHI)
 		COMPARE_FIELD(BoundShaderState.VertexShaderRHI)
 		COMPARE_FIELD(BoundShaderState.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		COMPARE_FIELD(BoundShaderState.GeometryShaderRHI)
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		COMPARE_FIELD(BoundShaderState.DomainShaderRHI)
 		COMPARE_FIELD(BoundShaderState.HullShaderRHI)
+#endif
 		COMPARE_FIELD(BlendState)
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
@@ -1851,7 +1876,8 @@ public:
 class FGraphicsPipelineStateInitializer final : public FGraphicsMinimalPipelineStateInitializer
 {
 public:
-	using TRenderTargetFormats		= TStaticArray<TEnumAsByte<EPixelFormat>, MaxSimultaneousRenderTargets>;
+	// Can't use TEnumByte<EPixelFormat> as it changes the struct to be non trivially constructible, breaking memset
+	using TRenderTargetFormats		= TStaticArray<uint8/*EPixelFormat*/, MaxSimultaneousRenderTargets>;
 	using TRenderTargetFlags		= TStaticArray<uint32, MaxSimultaneousRenderTargets>;
 
 	FGraphicsPipelineStateInitializer()
@@ -1867,7 +1893,8 @@ public:
 		, NumSamples(0)
 		, Flags(0)
 	{
-		static_assert(PF_MAX <= 255, "EPixelFormat is assumed to be a byte; check usage of TEnumAsByte<EPixelFormat>");
+		static_assert(sizeof(EPixelFormat) != sizeof(uint8), "Change TRenderTargetFormats's uint8 to EPixelFormat");
+		static_assert(PF_MAX < MAX_uint8, "TRenderTargetFormats assumes EPixelFormat can fit in a uint8!");
 	}
 
 	FGraphicsPipelineStateInitializer(const FGraphicsMinimalPipelineStateInitializer& InMinimalState)
@@ -1927,9 +1954,13 @@ public:
 		if (!FGraphicsMinimalPipelineStateInitializer::operator ==(rhs) ||
 			VertexShaderHash != rhs.VertexShaderHash ||
 			PixelShaderHash != rhs.PixelShaderHash ||
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			GeometryShaderHash != rhs.GeometryShaderHash ||
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			HullShaderHash != rhs.HullShaderHash ||
 			DomainShaderHash != rhs.DomainShaderHash ||
+#endif
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
 			RenderTargetFlags != rhs.RenderTargetFlags || 
@@ -1969,9 +2000,13 @@ public:
 
 	FSHAHash						VertexShaderHash;
 	FSHAHash						PixelShaderHash;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FSHAHash						GeometryShaderHash;
+#endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FSHAHash						HullShaderHash;
 	FSHAHash						DomainShaderHash;
+#endif
 	uint32							RenderTargetsEnabled;
 	TRenderTargetFormats			RenderTargetFormats;
 	TRenderTargetFlags				RenderTargetFlags;
@@ -2001,81 +2036,85 @@ public:
 
 #if RHI_RAYTRACING
 
-struct FRayTracingHitGroupInitializer
-{
-	FRayTracingShaderRHIParamRef ShaderRHI = nullptr;
-
-	bool operator==(const FRayTracingHitGroupInitializer& rhs) const
-	{
-		return ShaderRHI == rhs.ShaderRHI;
-	}
-
-	inline friend uint32 GetTypeHash(const FRayTracingHitGroupInitializer& Initializer)
-	{
-		return PointerHash(Initializer.ShaderRHI); // Only consider the shader when computing the hash (operator== performs full state test)
-	}
-};
-
 class FRayTracingPipelineStateInitializer
 {
 public:
 
-	FRayTracingPipelineStateInitializer() {}
+	FRayTracingPipelineStateInitializer() {};
 
 	// NOTE: GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer) should also be updated when changing this function
 	bool operator==(const FRayTracingPipelineStateInitializer& rhs) const
 	{
 		return MaxPayloadSizeInBytes == rhs.MaxPayloadSizeInBytes
-			&& RayGenShaderRHI == rhs.RayGenShaderRHI
-			&& MissShaderRHI == rhs.MissShaderRHI
-			&& DefaultClosestHitShaderRHI == rhs.DefaultClosestHitShaderRHI
+			&& HitGroupStride == rhs.HitGroupStride
+			&& RayGenHash == rhs.RayGenHash
+			&& MissHash == rhs.MissHash
 			&& HitGroupHash == rhs.HitGroupHash;
 	}
 
-	uint32 MaxPayloadSizeInBytes = 32; // sizeof FDefaultPayload
+	uint32 MaxPayloadSizeInBytes = 32; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 
-	FRayTracingShaderRHIParamRef RayGenShaderRHI = nullptr;
+	// Hit group stride controls how many slots will be allocated in the shader binding table per geometry segment.
+	// Changing this value allows different hit shaders to be used for different effects.
+	// For example, setting this to 2 allows one hit shader for regular material evaluation and a different one for shadows.
+	// Desired hit shader can be selected by providing appropriate RayContributionToHitGroupIndex to TraceRay() function.
+	// Setting hit group stride to 0 effectively disables hit group indexing entirely, forcing the same hit shader to be used for all ray hits.
+	// Use ShaderSlot argument in SetRayTracingHitGroup() to assign shaders and resources for specific part of the shder binding table record.
+	uint32 HitGroupStride = 1;
 
-	// Shader that will be invoked if a ray misses all geometry.
-	// If this is not provided, a default miss shader will be used that sets HitT member of FDefaultPayload to -1.
-	FRayTracingShaderRHIParamRef MissShaderRHI = nullptr;
+	const TArrayView<const FRayTracingShaderRHIParamRef>& GetRayGenTable()   const { return RayGenTable; }
+	const TArrayView<const FRayTracingShaderRHIParamRef>& GetMissTable()     const { return MissTable; }
+	const TArrayView<const FRayTracingShaderRHIParamRef>& GetHitGroupTable() const { return HitGroupTable; }
 
-	// Closest hit shader that will be assigned to all geometry by default.
-	// If this is NULL, then built-in default shader will be used which assumes the following payload:
-	// 	struct FDefaultPayload
-	// 	{
-	// 		float2 Barycentrics;
-	// 		uint   InstanceID;
-	// 		uint   InstanceIndex;
-	// 		uint   PrimitiveIndex;
-	// 		float  HitT;
-	// 		float2 Padding;
-	// 	};
-	FRayTracingShaderRHIParamRef DefaultClosestHitShaderRHI = nullptr;
-
-
-	const TArrayView<const FRayTracingHitGroupInitializer>& GetHitGroups() const { return HitGroups; }
-
-	void SetHitGroups(const TArrayView<const FRayTracingHitGroupInitializer>& InHitGroups)
+	// Shaders used as entry point to ray tracing work. At least one RayGen shader must be provided.
+	void SetRayGenShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InRayGenShaders)
 	{
-		HitGroups = InHitGroups;
+		RayGenTable = InRayGenShaders;
+		RayGenHash = ComputeShaderTableHash(InRayGenShaders);
+	}
 
-		uint32 CombinedHash = 2085640061; // Large prime number
-		for (const FRayTracingHitGroupInitializer& HitGroup : HitGroups)
-		{
-			// #dxr_todo: some sort of session-unique ID should be used instead of pointers to ensure that unique hash is
-			// produced if the same memory happens to be re-used for a different shader (i.e. delete followed by new).
-			CombinedHash = PointerHash(HitGroup.ShaderRHI, CombinedHash);
-		}
+	// Shaders that will be invoked if a ray misses all geometry.
+	// If this table is empty, then a built-in default miss shader will be used that sets HitT member of FDefaultPayload to -1.
+	// Desired miss shader can be selected by providing MissShaderIndex to TraceRay() function.
+	void SetMissShaderTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InMissShaders)
+	{
+		MissTable = InMissShaders;
+		MissHash = ComputeShaderTableHash(InMissShaders);
+	}
 
-		HitGroupHash = CombinedHash;
+	// Shaders that will be invoked when ray intersects geometry.
+	// If this table is empty, then a built-in default shader will be used for all geometry, using FDefaultPayload.
+	void SetHitGroupTable(const TArrayView<const FRayTracingShaderRHIParamRef>& InHitGroups)
+	{
+		HitGroupTable = InHitGroups;
+		HitGroupHash = ComputeShaderTableHash(HitGroupTable);
 	}
 
 	uint32 GetHitGroupHash() const { return HitGroupHash; }
+	uint32 GetRayGenHash()   const { return RayGenHash; }
+	uint32 GetRayMissHash()  const { return MissHash; }
 
 private:
 
-	TArrayView<const FRayTracingHitGroupInitializer> HitGroups;
+	uint32 ComputeShaderTableHash(const TArrayView<const FRayTracingShaderRHIParamRef>& ShaderTable, uint32 InitialHash = 2085640061)
+	{
+		uint32 CombinedHash = InitialHash;
+		for (FRayTracingShaderRHIParamRef ShaderRHI : ShaderTable)
+		{
+			// #dxr_todo: some sort of session-unique ID should be used instead of pointers to ensure that unique hash is
+			// produced if the same memory happens to be re-used for a different shader (i.e. delete followed by new).
+			CombinedHash = PointerHash(ShaderRHI, CombinedHash);
+		}
+
+		return CombinedHash;
+	}
+
+	TArrayView<const FRayTracingShaderRHIParamRef> RayGenTable;
+	TArrayView<const FRayTracingShaderRHIParamRef> MissTable;
+	TArrayView<const FRayTracingShaderRHIParamRef> HitGroupTable;
+
+	uint32 RayGenHash = 0;
+	uint32 MissHash = 0;
 	uint32 HitGroupHash = 0;
 };
 #endif // RHI_RAYTRACING

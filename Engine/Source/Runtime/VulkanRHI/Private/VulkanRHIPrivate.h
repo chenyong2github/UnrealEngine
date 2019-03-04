@@ -603,6 +603,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 		break;
 	//#todo-rco: Temp until we have fully switched to RenderPass system
 	case ERenderTargetStoreAction::ENoAction:
+	case ERenderTargetStoreAction::EMultisampleResolve:
 		OutStoreAction = bRealRenderPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
 		break;
 	default:
@@ -614,7 +615,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 	return OutStoreAction;
 }
 
-inline VkFormat UEToVkFormat(EPixelFormat UEFormat, const bool bIsSRGB)
+inline VkFormat UEToVkTextureFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 {
 	VkFormat Format = (VkFormat)GPixelFormats[UEFormat].PlatformFormat;
 	if (bIsSRGB && GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2)
@@ -660,7 +661,7 @@ inline VkFormat UEToVkFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 	return Format;
 }
 
-static inline VkFormat UEToVkFormat(EVertexElementType Type)
+static inline VkFormat UEToVkBufferFormat(EVertexElementType Type)
 {
 	switch (Type)
 	{

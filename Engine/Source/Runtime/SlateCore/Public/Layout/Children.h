@@ -324,6 +324,9 @@ public:
 	{
 		if ( !bEmptying )
 		{
+			// NOTE:
+			// We don't do any invalidating here, that's handled by the FSlotBase, which eventually calls ConditionallyDetatchParentWidget
+
 			TIndirectArray< SlotType >::RemoveAt(Index);
 		}
 	}
@@ -332,6 +335,9 @@ public:
 	{
 		if ( !bEmptying )
 		{
+			// NOTE:
+			// We don't do any invalidating here, that's handled by the FSlotBase, which eventually calls ConditionallyDetatchParentWidget
+
 			TGuardValue<bool> GuardEmptying(bEmptying, true);
 			TIndirectArray< SlotType >::Empty();
 		}

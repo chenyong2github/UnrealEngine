@@ -114,6 +114,8 @@ struct FNiagaraCustomVersion
 
 		ImproveLoadTimeFixupOfOpAddPins, // Only do op add pin fixup on existing nodes which are before this version
 
+		MoveCommonInputMetadataToProperties, // Moved commonly used input metadata out of the strin/string property metadata map to actual properties on the metadata struct.
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,

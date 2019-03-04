@@ -487,22 +487,20 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 			Settings = LocalSubsurfaceProfile->Settings;
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-			UpdateMaterialRenderProxySubsurface,
-			const FSubsurfaceProfileStruct, Settings, Settings,
-			USubsurfaceProfile*, LocalSubsurfaceProfile, LocalSubsurfaceProfile,
-			FMaterialRenderProxy&, Proxy, Proxy,
-		{
-			uint32 AllocationId = 0;
-
-			if (LocalSubsurfaceProfile)
+		FMaterialRenderProxy* InProxy = &Proxy;
+		ENQUEUE_RENDER_COMMAND(UpdateMaterialRenderProxySubsurface)(
+			[Settings, LocalSubsurfaceProfile, InProxy](FRHICommandListImmediate& RHICmdList)
 			{
-				AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
+				uint32 AllocationId = 0;
 
-				check(AllocationId >= 0 && AllocationId <= 255);
-			}
-			Proxy.SetSubsurfaceProfileRT(LocalSubsurfaceProfile);
-		});
+				if (LocalSubsurfaceProfile)
+				{
+					AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
+
+					check(AllocationId >= 0 && AllocationId <= 255);
+				}
+				InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile);
+			});
 	}
 }
 
@@ -622,7 +620,7 @@ bool UMaterialInterface::UseAnyStreamingTexture() const
 
 	for (UTexture* Texture : Textures)
 	{
-		if (IsStreamingTexture(Cast<UTexture2D>(Texture)))
+		if (IsStreamingRenderAsset(Texture))
 		{
 			return true;
 		}

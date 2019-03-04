@@ -1335,9 +1335,15 @@ ETextureSamplerFilter FSlateRHIRenderingPolicy::GetSamplerFilter(const UTexture*
 
 	switch (Texture->Filter)
 	{
-	case TF_Nearest: Filter = ETextureSamplerFilter::Point; break;
-	case TF_Bilinear: Filter = ETextureSamplerFilter::Bilinear; break;
-	case TF_Trilinear: Filter = ETextureSamplerFilter::Trilinear; break;
+	case TF_Nearest: 
+		Filter = ETextureSamplerFilter::Point; 
+		break;
+	case TF_Bilinear:
+		Filter = ETextureSamplerFilter::Bilinear; 
+		break;
+	case TF_Trilinear: 
+		Filter = ETextureSamplerFilter::Trilinear; 
+		break;
 
 		// TF_Default
 	default:

@@ -83,7 +83,7 @@ public:
 	bool GetSkipRoleSwap() const { return !!bSkipRoleSwap; }
 	void SetSkipRoleSwap(const bool bShouldSkip) { bSkipRoleSwap = bShouldSkip; }
 
-	FObjectReplicator* ActorReplicator;
+	TSharedPtr<FObjectReplicator> ActorReplicator;
 
 	TMap< UObject*, TSharedRef< FObjectReplicator > > ReplicationMap;
 

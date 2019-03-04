@@ -497,7 +497,7 @@ public:
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual ELightMapInteractionType GetStaticLightingType() const override { return LMIT_Texture;	}
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const override;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual bool IsPrecomputedLightingValid() const override;
 
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnCurrentEditingHeightmap = false) const;
@@ -640,6 +640,7 @@ public:
 	 * Creates the MaterialInstance if it doesn't exist.
 	 */
 	LANDSCAPE_API void UpdateMaterialInstances();
+	LANDSCAPE_API void UpdateMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<class FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext);
 
 	// Internal implementation of UpdateMaterialInstances, not safe to call directly
 	void UpdateMaterialInstances_Internal(FMaterialUpdateContext& Context);

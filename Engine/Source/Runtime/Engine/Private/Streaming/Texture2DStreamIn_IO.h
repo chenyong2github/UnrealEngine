@@ -47,7 +47,7 @@ private:
 		void DoWork();
 		FORCEINLINE TStatId GetStatId() const
 		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FCancelIORequestsTask, STATGROUP_ThreadPoolAsyncTasks);
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FCancelIORequestsTask_Texture, STATGROUP_ThreadPoolAsyncTasks);
 		}
 	protected:
 		FTexture2DStreamIn_IO* PendingUpdate;

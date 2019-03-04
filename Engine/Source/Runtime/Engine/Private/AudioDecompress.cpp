@@ -290,6 +290,12 @@ int32 IStreamedCompressedInfo::DecompressToPCMBuffer(uint16 FrameSize)
 	LastPCMOffset = 0;
 	
 	const FDecodeResult DecodeResult = Decode(SrcPtr, FrameSize, LastDecodedPCM.GetData(), LastDecodedPCM.Num());
+	if (DecodeResult.NumCompressedBytesConsumed != INDEX_NONE )
+	{
+		SrcBufferOffset -= FrameSize;
+		SrcBufferOffset += DecodeResult.NumCompressedBytesConsumed;
+	}
+
 	return DecodeResult.NumAudioFramesProduced;
 }
 
@@ -607,7 +613,6 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 
 void FAsyncAudioDecompressWorker::DoWork()
 {
-	LLM_SCOPE(ELLMTag::Audio);
 	LLM_SCOPE(ELLMTag::AudioDecompress);
 
 	if (AudioInfo)
@@ -686,6 +691,7 @@ void FAsyncAudioDecompressWorker::DoWork()
 
 		if (Wave->DecompressionType == DTYPE_Native)
 		{
+			UE_CLOG(Wave->OwnedBulkDataPtr && Wave->OwnedBulkDataPtr->GetMappedRegion(), LogAudio, Warning, TEXT("Mapped audio (%s) was discarded after decompression. This is not ideal as it takes more load time and doesn't save memory."), *Wave->GetName());
 			// Delete the compressed data
 			Wave->RemoveAudioResource();
 		}

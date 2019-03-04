@@ -216,70 +216,6 @@ public:
 	}
 };
 
-
-/** 
-* Set of sorted scene prims  
-*/
-template <class TKey>
-class FSortedPrimSet
-{
-public:
-	// contains a scene prim and its sort key
-	struct FSortedPrim
-	{
-		// Default constructor
-		FSortedPrim() {}
-
-		FSortedPrim(FPrimitiveSceneInfo* InPrimitiveSceneInfo, const TKey InSortKey)
-			:	PrimitiveSceneInfo(InPrimitiveSceneInfo)
-			,	SortKey(InSortKey)
-		{
-		}
-
-		FORCEINLINE bool operator<( const FSortedPrim& rhs ) const
-		{
-			return SortKey < rhs.SortKey;
-		}
-
-		//
-		FPrimitiveSceneInfo* PrimitiveSceneInfo;
-		//
-		TKey SortKey;
-	};
-
-	/**
-	* Sort any primitives that were added to the set back-to-front
-	*/
-	void SortPrimitives()
-	{
-		Prims.Sort();
-	}
-
-	/** 
-	* @return number of prims to render
-	*/
-	int32 NumPrims() const
-	{
-		return Prims.Num();
-	}
-
-	/** list of primitives, sorted after calling Sort() */
-	TArray<FSortedPrim, SceneRenderingAllocator> Prims;
-};
-
-template <> struct TIsPODType<FSortedPrimSet<uint32>::FSortedPrim> { enum { Value = true }; };
-
-class FMeshDecalPrimSet : public FSortedPrimSet<uint32>
-{
-public:
-	typedef FSortedPrimSet<uint32>::FSortedPrim KeyType;
-
-	static KeyType GenerateKey(FPrimitiveSceneInfo* PrimitiveSceneInfo, int16 InSortPriority)
-	{
-		return KeyType(PrimitiveSceneInfo, (uint32)(InSortPriority - SHRT_MIN));
-	}
-};
-
 /** A batched occlusion primitive. */
 struct FOcclusionPrimitive
 {
@@ -604,39 +540,22 @@ public:
 	}
 };
 
-class FVolumetricPrimSet
+struct FVolumetricMeshBatch
 {
-public:
+	const FMeshBatch* Mesh;
+	const FPrimitiveSceneProxy* Proxy;
+};
 
-	/**
-	* Adds a new primitives to the list of distortion prims
-	* @param PrimitiveSceneProxies - primitive info to add.
-	*/
-	void Append(FPrimitiveSceneProxy** PrimitiveSceneProxies, int32 NumProxies)
+struct FMeshDecalBatch
+{
+	const FMeshBatch* Mesh;
+	const FPrimitiveSceneProxy* Proxy;
+	int16 SortKey;
+
+	FORCEINLINE bool operator<(const FMeshDecalBatch& rhs) const
 	{
-		Prims.Append(PrimitiveSceneProxies, NumProxies);
+		return SortKey < rhs.SortKey;
 	}
-
-	/** 
-	* @return number of prims to render
-	*/
-	int32 NumPrims() const
-	{
-		return Prims.Num();
-	}
-
-	/** 
-	* @return a prim currently set to render
-	*/
-	const FPrimitiveSceneProxy* GetPrim(int32 i)const
-	{
-		check(i>=0 && i<NumPrims());
-		return Prims[i];
-	}
-
-private:
-	/** list of distortion prims added from the scene */
-	TArray<FPrimitiveSceneProxy*, SceneRenderingAllocator> Prims;
 };
 
 static const int32 GMaxNumReflectionCaptures = 341;
@@ -741,6 +660,9 @@ struct FPreviousViewInfo
 	// History for the ambient occlusion
 	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
 
+	// History for global illumination
+	FScreenSpaceFilteringHistory GlobalIlluminationHistory;
+
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
 
@@ -757,6 +679,7 @@ struct FPreviousViewInfo
 		CustomSSRInput.SafeRelease();
 		ReflectionsHistory.SafeRelease();
 		AmbientOcclusionHistory.SafeRelease();
+		GlobalIlluminationHistory.SafeRelease();
 		ShadowHistories.Reset();
 	}
 };
@@ -859,15 +782,15 @@ public:
 
 	/** Count of translucent prims for this view. */
 	FTranslucenyPrimCount TranslucentPrimCount;
-
-	/** Set of mesh decal prims for this view */
-	FMeshDecalPrimSet MeshDecalPrimSet;
 	
 	bool bHasDistortionPrimitives;
 	bool bHasCustomDepthPrimitives;
 
-	/** Primitives with a volumetric material. */
-	FVolumetricPrimSet VolumetricPrimSet;
+	/** Mesh batches with for mesh decal rendering. */
+	TArray<FMeshDecalBatch, SceneRenderingAllocator> MeshDecalBatches;
+
+	/** Mesh batches with a volumetric material. */
+	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> VolumetricMeshBatches;
 
 	/** A map from light ID to a boolean visibility value. */
 	TArray<FVisibleLightViewInfo,SceneRenderingAllocator> VisibleLightInfos;
@@ -895,9 +818,6 @@ public:
 
 	/** Gathered in UpdateRayTracingWorld from all the primitives with dynamic view relevance, used in each mesh pass. */
 	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> RayTracedDynamicMeshElements;
-
-	// [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange()
-	TArray<uint32,SceneRenderingAllocator> DynamicMeshEndIndices;
 
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator> DynamicEditorMeshElements;
 
@@ -1142,6 +1062,9 @@ public:
 	/** Get the last valid exposure value for eye adapation. */
 	float GetLastEyeAdaptationExposure() const;
 
+	/** Get the last valid average scene luminange for eye adapation (exposure compensation curve). */
+	float GetLastAverageSceneLuminance() const;
+
 	/** Informs sceneinfo that tonemapping LUT has queued commands to compute it at least once */
 	void SetValidTonemappingLUT() const;
 
@@ -1187,18 +1110,6 @@ public:
 
 	/** Destroy all snapshots before we wipe the scene allocator. */
 	static void DestroyAllSnapshots();
-	
-	// Get the range in DynamicMeshElements[] for a given PrimitiveIndex
-	// @return range (start is inclusive, end is exclusive)
-	FInt32Range GetDynamicMeshElementRange(uint32 PrimitiveIndex) const
-	{
-		// inclusive
-		int32 Start = (PrimitiveIndex == 0) ? 0 : DynamicMeshEndIndices[PrimitiveIndex - 1];
-		// exclusive
-		int32 AfterEnd = DynamicMeshEndIndices[PrimitiveIndex];
-		
-		return FInt32Range(Start, AfterEnd);
-	}
 
 	/** Set the custom data associated with a primitive scene info.	*/
 	void SetCustomData(const FPrimitiveSceneInfo* InPrimitiveSceneInfo, void* InCustomData);
@@ -1377,6 +1288,9 @@ public:
 
 	/** Information about the visible lights. */
 	TArray<FVisibleLightInfo,SceneRenderingAllocator> VisibleLightInfos;
+
+	/** Array of dispatched parallel shadow depth passes. */
+	TArray<FParallelMeshDrawCommandPass*, SceneRenderingAllocator> DispatchedShadowDepthPasses;
 
 	FSortedShadowMaps SortedShadowsForShadowDepthPass;
 
@@ -1682,6 +1596,9 @@ protected:
 	/** Computes how many queries will be issued this frame */
 	int32 ComputeNumOcclusionQueriesToBatch() const;
 
+	/** Whether platform requires separate translucent render pass */
+	bool RequiresTranslucencyPass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View) const;
+
 	/** Renders decals. */
 	void RenderDecals(FRHICommandListImmediate& RHICmdList);
 
@@ -1697,8 +1614,9 @@ protected:
 	/** Copy scene color from the mobile multi-view render target array to side by side stereo scene color */
 	void CopyMobileMultiViewSceneColor(FRHICommandListImmediate& RHICmdList);
 
-	/** Whether GPU particle collisions simulation is allowed. */
-	bool IsGPUParticleCollisionEnabled(const FViewInfo& View);
+	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
+	void PreTonemapMSAA(FRHICommandListImmediate& RHICmdList);
+
 	void SortMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
 	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView);
 

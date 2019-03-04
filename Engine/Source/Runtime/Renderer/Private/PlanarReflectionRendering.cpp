@@ -443,13 +443,13 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 
 		if (CaptureComponent->RenderTarget != NULL && CaptureComponent->RenderTarget->GetSizeXY() != DesiredPlanarReflectionTextureSize)
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER( 
-				ReleaseRenderTargetCommand,
-				FPlanarReflectionRenderTarget*, RenderTarget, CaptureComponent->RenderTarget,
-			{
-				RenderTarget->ReleaseResource();
-				delete RenderTarget;
-			});
+			FPlanarReflectionRenderTarget* RenderTarget = CaptureComponent->RenderTarget;
+			ENQUEUE_RENDER_COMMAND(ReleaseRenderTargetCommand)(
+				[RenderTarget](FRHICommandListImmediate& RHICmdList)
+				{
+					RenderTarget->ReleaseResource();
+					delete RenderTarget;
+				});
 
 			CaptureComponent->RenderTarget = NULL;
 		}
@@ -458,24 +458,24 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		{
 			CaptureComponent->RenderTarget = new FPlanarReflectionRenderTarget(DesiredPlanarReflectionTextureSize);
 
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER( 
-				InitRenderTargetCommand,
-				FPlanarReflectionRenderTarget*, RenderTarget, CaptureComponent->RenderTarget,
-				FPlanarReflectionSceneProxy*, SceneProxy, CaptureComponent->SceneProxy,
-			{
-				RenderTarget->InitResource();
-				SceneProxy->RenderTarget = nullptr;
-			});
+			FPlanarReflectionRenderTarget* RenderTarget = CaptureComponent->RenderTarget;
+			FPlanarReflectionSceneProxy* SceneProxy = CaptureComponent->SceneProxy;
+			ENQUEUE_RENDER_COMMAND(InitRenderTargetCommand)(
+				[RenderTarget, SceneProxy](FRHICommandListImmediate& RHICmdList)
+				{
+					RenderTarget->InitResource();
+					SceneProxy->RenderTarget = nullptr;
+				});
 		}
 		else
 		{
 			// Remove the render target on the planar reflection proxy so that this planar reflection is not getting drawn in its own FSceneRenderer.
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-				InitRenderTargetCommand,
-				FPlanarReflectionSceneProxy*, SceneProxy, CaptureComponent->SceneProxy,
-			{
-				SceneProxy->RenderTarget = nullptr;
-			});
+			FPlanarReflectionSceneProxy* SceneProxy = CaptureComponent->SceneProxy;
+			ENQUEUE_RENDER_COMMAND(InitRenderTargetCommand)(
+				[SceneProxy](FRHICommandListImmediate& RHICmdList)
+				{
+					SceneProxy->RenderTarget = nullptr;
+				});
 		}
 
 		const FMatrix ComponentTransform = CaptureComponent->GetComponentTransform().ToMatrixWithScale();
@@ -600,14 +600,14 @@ void FScene::AddPlanarReflection(UPlanarReflectionComponent* Component)
 	check(Component->SceneProxy);
 	PlanarReflections_GameThread.Add(Component);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FAddPlanarReflectionCommand,
-		FPlanarReflectionSceneProxy*,SceneProxy,Component->SceneProxy,
-		FScene*,Scene,this,
-	{
-		Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
-		Scene->PlanarReflections.Add(SceneProxy);
-	});
+	FPlanarReflectionSceneProxy* SceneProxy = Component->SceneProxy;
+	FScene* Scene = this;
+	ENQUEUE_RENDER_COMMAND(FAddPlanarReflectionCommand)(
+		[SceneProxy, Scene](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
+			Scene->PlanarReflections.Add(SceneProxy);
+		});
 }
 
 void FScene::RemovePlanarReflection(UPlanarReflectionComponent* Component) 
@@ -615,29 +615,29 @@ void FScene::RemovePlanarReflection(UPlanarReflectionComponent* Component)
 	check(Component->SceneProxy);
 	PlanarReflections_GameThread.Remove(Component);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FRemovePlanarReflectionCommand,
-		FPlanarReflectionSceneProxy*,SceneProxy,Component->SceneProxy,
-		FScene*,Scene,this,
-	{
-		Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
-		Scene->PlanarReflections.Remove(SceneProxy);
-	});
+	FPlanarReflectionSceneProxy* SceneProxy = Component->SceneProxy;
+	FScene* Scene = this;
+	ENQUEUE_RENDER_COMMAND(FRemovePlanarReflectionCommand)(
+		[SceneProxy, Scene](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
+			Scene->PlanarReflections.Remove(SceneProxy);
+		});
 }
 
 void FScene::UpdatePlanarReflectionTransform(UPlanarReflectionComponent* Component)
 {	
 	check(Component->SceneProxy);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-		FUpdatePlanarReflectionCommand,
-		FPlanarReflectionSceneProxy*,SceneProxy,Component->SceneProxy,
-		FMatrix,Transform,Component->GetComponentTransform().ToMatrixWithScale(),
-		FScene*,Scene,this,
-	{
-		Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
-		SceneProxy->UpdateTransform(Transform);
-	});
+	FPlanarReflectionSceneProxy* SceneProxy = Component->SceneProxy;
+	FMatrix Transform = Component->GetComponentTransform().ToMatrixWithScale();
+	FScene* Scene = this;
+	ENQUEUE_RENDER_COMMAND(FUpdatePlanarReflectionCommand)(
+		[SceneProxy, Transform, Scene](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
+			SceneProxy->UpdateTransform(Transform);
+		});
 }
 
 class FPlanarReflectionPS : public FGlobalShader

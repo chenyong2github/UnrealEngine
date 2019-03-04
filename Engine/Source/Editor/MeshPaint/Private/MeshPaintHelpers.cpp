@@ -651,7 +651,7 @@ bool MeshPaintHelpers::RetrieveViewportPaintRays(const FSceneView* View, FViewpo
 	return false;
 }
 
-uint32 MeshPaintHelpers::GetVertexColorBufferSize(UStaticMeshComponent* MeshComponent, int32 LODIndex, bool bInstance)
+uint32 MeshPaintHelpers::GetVertexColorBufferSize(UMeshComponent* MeshComponent, int32 LODIndex, bool bInstance)
 {
 	checkf(MeshComponent != nullptr, TEXT("Invalid static mesh component ptr"));
 	
@@ -660,25 +660,50 @@ uint32 MeshPaintHelpers::GetVertexColorBufferSize(UStaticMeshComponent* MeshComp
 	// Retrieve component instance vertex color buffer size
 	if (bInstance)
 	{
-		if (MeshComponent->LODData.IsValidIndex(LODIndex))
+		if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 		{
-			const FStaticMeshComponentLODInfo& InstanceMeshLODInfo = MeshComponent->LODData[LODIndex];
-			if (InstanceMeshLODInfo.OverrideVertexColors)
+			if (StaticMeshComponent->LODData.IsValidIndex(LODIndex))
 			{
-				SizeInBytes = InstanceMeshLODInfo.OverrideVertexColors->GetAllocatedSize();
+				const FStaticMeshComponentLODInfo& InstanceMeshLODInfo = StaticMeshComponent->LODData[LODIndex];
+				if (InstanceMeshLODInfo.OverrideVertexColors)
+				{
+					SizeInBytes = InstanceMeshLODInfo.OverrideVertexColors->GetAllocatedSize();
+				}
+			}
+		}
+		else if (USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
+		{
+			if (SkinnedMeshComponent->LODInfo.IsValidIndex(LODIndex))
+			{
+				const FSkelMeshComponentLODInfo& LODInfo = SkinnedMeshComponent->LODInfo[LODIndex];
+				if (LODInfo.OverrideVertexColors)
+				{
+					SizeInBytes = LODInfo.OverrideVertexColors->GetAllocatedSize();
+				}
 			}
 		}
 	}
 	// Retrieve static mesh asset vertex color buffer size
 	else
 	{
-		UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-		checkf(StaticMesh != nullptr, TEXT("Invalid static mesh ptr"));
-		if (StaticMesh->RenderData->LODResources.IsValidIndex(LODIndex))
+		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 		{
-			// count the base mesh color data
-			FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[LODIndex];
-			SizeInBytes = LODModel.VertexBuffers.ColorVertexBuffer.GetAllocatedSize();
+			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+			checkf(StaticMesh != nullptr, TEXT("Invalid static mesh ptr"));
+			if (StaticMesh->RenderData->LODResources.IsValidIndex(LODIndex))
+			{
+				// count the base mesh color data
+				FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[LODIndex];
+				SizeInBytes = LODModel.VertexBuffers.ColorVertexBuffer.GetAllocatedSize();
+			}
+		}
+		else if (USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
+		{
+			FSkeletalMeshRenderData* RenderData = SkinnedMeshComponent->GetSkeletalMeshRenderData();
+			if (RenderData && RenderData->LODRenderData.IsValidIndex(LODIndex))
+			{
+				SizeInBytes = RenderData->LODRenderData[LODIndex].StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize();
+			}
 		}
 	}
 	
@@ -1467,7 +1492,12 @@ void MeshPaintHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshCompon
 		else
 		{
 			// Original mesh didn't have any colors, so just use a default color
-			MeshPaintHelpers::SetInstanceColorDataForLOD(StaticMeshComponent, ImportLOD, FColor::White, FColor::White);
+			InstanceMeshLODInfo.OverrideVertexColors->InitFromSingleColor(FColor::White, LODModel.GetNumVertices());
+		}
+		
+		if (ImportLOD > 0)
+		{
+			StaticMeshComponent->bCustomOverrideVertexColorPerLOD = true;
 		}
 
 		const int32 UVIndex = Options->UVIndex;

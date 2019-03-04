@@ -6,6 +6,7 @@
 #include "Fonts/FontBulkData.h"
 #include "Misc/FileHelper.h"
 #include "Algo/BinarySearch.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
 
@@ -340,6 +341,8 @@ const FFontData& FCompositeFontCache::GetFontDataForCharacter(const FSlateFontIn
 
 TSharedPtr<FFreeTypeFace> FCompositeFontCache::GetFontFace(const FFontData& InFontData)
 {
+	LLM_SCOPE(ELLMTag::UI);
+
 	TSharedPtr<FFreeTypeFace> FaceAndMemory = FontFaceMap.FindRef(InFontData);
 	if (!FaceAndMemory.IsValid() && InFontData.HasFont())
 	{

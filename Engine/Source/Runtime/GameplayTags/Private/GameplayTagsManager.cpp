@@ -43,6 +43,7 @@ UGameplayTagsManager::UGameplayTagsManager(const FObjectInitializer& ObjectIniti
 	NetIndexFirstBitSegment = 16;
 	NetIndexTrueBitNum = 16;
 	NumBitsForContainerSize = 6;
+	NetworkGameplayTagNodeIndexHash = 0;
 }
 
 // Enable to turn on detailed startup logging
@@ -169,7 +170,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			LoadGameplayTagTables(false);
 		}
-
+		
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Construct from data asset"));
 			for (UDataTable* DataTable : GameplayTagTables)
@@ -191,7 +192,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			// Copy from deprecated list in DefaultEngine.ini
 			TArray<FString> EngineConfigTags;
 			GConfig->GetArray(TEXT("/Script/GameplayTags.GameplayTagsSettings"), TEXT("+GameplayTags"), EngineConfigTags, GEngineIni);
-
+			
 			for (const FString& EngineConfigTag : EngineConfigTags)
 			{
 				MutableDefault->GameplayTagList.AddUnique(FGameplayTagTableRow(FName(*EngineConfigTag)));
@@ -478,11 +479,15 @@ void UGameplayTagsManager::ConstructNetIndex()
 
 	UE_CLOG(PrintNetIndiceAssignment, LogGameplayTags, Display, TEXT("Assigning NetIndices to %d tags."), NetworkGameplayTagNodeIndex.Num() );
 
+	NetworkGameplayTagNodeIndexHash = 0;
+
 	for (FGameplayTagNetIndex i = 0; i < NetworkGameplayTagNodeIndex.Num(); i++)
 	{
 		if (NetworkGameplayTagNodeIndex[i].IsValid())
 		{
 			NetworkGameplayTagNodeIndex[i]->NetIndex = i;
+
+			NetworkGameplayTagNodeIndexHash = FCrc::StrCrc32(*NetworkGameplayTagNodeIndex[i]->GetCompleteTagString(), NetworkGameplayTagNodeIndexHash);
 
 			UE_CLOG(PrintNetIndiceAssignment, LogGameplayTags, Display, TEXT("Assigning NetIndex (%d) to Tag (%s)"), i, *NetworkGameplayTagNodeIndex[i]->GetCompleteTag().ToString());
 		}
@@ -491,6 +496,8 @@ void UGameplayTagsManager::ConstructNetIndex()
 			UE_LOG(LogGameplayTags, Warning, TEXT("TagNode Indice %d is invalid!"), i);
 		}
 	}
+
+	UE_LOG(LogGameplayTags, Log, TEXT("NetworkGameplayTagNodeIndexHash is %x"), NetworkGameplayTagNodeIndexHash);
 }
 
 FName UGameplayTagsManager::GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const
@@ -519,7 +526,7 @@ FGameplayTagNetIndex UGameplayTagsManager::GetNetIndexFromTag(const FGameplayTag
 bool UGameplayTagsManager::ShouldImportTagsFromINI() const
 {
 	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
-	
+
 	// Deprecated path
 	bool ImportFromINI = false;
 	if (GConfig->GetBool(TEXT("GameplayTags"), TEXT("ImportTagsFromConfig"), ImportFromINI, GEngineIni))
@@ -580,6 +587,26 @@ void UGameplayTagsManager::GetOwnersForTagSource(const FString& SourceName, TArr
 			}
 		}
 	}
+}
+
+void UGameplayTagsManager::GameplayTagContainerLoaded(FGameplayTagContainer& Container, UProperty* SerializingProperty) const
+{
+	RedirectTagsForContainer(Container, SerializingProperty);
+
+	if (OnGameplayTagLoadedDelegate.IsBound())
+	{
+		for (const FGameplayTag& Tag : Container)
+		{
+			OnGameplayTagLoadedDelegate.Broadcast(Tag);
+		}
+	}
+}
+
+void UGameplayTagsManager::SingleGameplayTagLoaded(FGameplayTag& Tag, UProperty* SerializingProperty) const
+{
+	RedirectSingleGameplayTag(Tag, SerializingProperty);
+
+	OnGameplayTagLoadedDelegate.Broadcast(Tag);
 }
 
 void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Container, UProperty* SerializingProperty) const
@@ -661,26 +688,36 @@ void UGameplayTagsManager::RedirectSingleGameplayTag(FGameplayTag& Tag, UPropert
 
 bool UGameplayTagsManager::ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName) const
 {
+	bool bRetVal = false;
 	if (const FGameplayTag* RedirectedTag = TagRedirects.Find(ImportedTagName))
 	{
 		Tag = *RedirectedTag;
-		return true;
+		bRetVal = true;
 	}
 	else if (ValidateTagCreation(ImportedTagName))
 	{
 		// The tag name is valid
 		Tag.TagName = ImportedTagName;
-		return true;
+		bRetVal = true;
 	}
 
-	// No valid tag established in this attempt
-	Tag.TagName = NAME_None;
-	return false;
+	if (bRetVal)
+	{
+		OnGameplayTagLoadedDelegate.Broadcast(Tag);
+	}
+	else
+	{
+		// No valid tag established in this attempt
+		Tag.TagName = NAME_None;
+	}
+
+	return bRetVal;
 }
 
 void UGameplayTagsManager::InitializeManager()
 {
 	check(!SingletonManager);
+	SCOPED_BOOT_TIMING("UGameplayTagsManager::InitializeManager");
 	SCOPE_LOG_TIME_IN_SECONDS(TEXT("UGameplayTagsManager::InitializeManager"), nullptr);
 
 	SingletonManager = NewObject<UGameplayTagsManager>(GetTransientPackage(), NAME_None);
@@ -1929,7 +1966,7 @@ FGameplayTagNode::FGameplayTagNode(FName InTag, FName InFullTag, TSharedPtr<FGam
 	: Tag(InTag)
 	, ParentNode(InParentNode)
 	, NetIndex(INVALID_TAGNETINDEX)
-{	
+{
 	// Manually construct the tag container as we want to bypass the safety checks
 	CompleteTagWithParents.GameplayTags.Add(FGameplayTag(InFullTag));
 
@@ -1942,7 +1979,7 @@ FGameplayTagNode::FGameplayTagNode(FName InTag, FName InFullTag, TSharedPtr<FGam
 		CompleteTagWithParents.ParentTags.Add(ParentContainer.GameplayTags[0]);
 		CompleteTagWithParents.ParentTags.Append(ParentContainer.ParentTags);
 	}
-
+	
 #if WITH_EDITORONLY_DATA
 	bIsExplicitTag = InIsExplicitTag;
 	bIsRestrictedTag = InIsRestrictedTag;

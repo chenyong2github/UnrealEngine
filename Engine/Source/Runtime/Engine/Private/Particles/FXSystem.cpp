@@ -48,6 +48,10 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 
 void FFXSystemInterface::Destroy( FFXSystemInterface* FXSystem )
 {
+	check(FXSystem && !FXSystem->bIsPendingKill);
+
+	// Notify that the delete command is on its way. Preventing any future render commands from accessing the FFXSystemInterface.
+	FXSystem->bIsPendingKill = true;
 	ENQUEUE_RENDER_COMMAND(FDestroyFXSystemCommand)(
 		[FXSystem](FRHICommandList& RHICmdList)
 		{
@@ -188,6 +192,15 @@ FFXSystem::FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InSh
 
 FFXSystem::~FFXSystem()
 {
+	for (FVectorFieldInstance* VectorFieldInstance : VectorFields)
+	{
+		if (VectorFieldInstance)
+		{
+			delete VectorFieldInstance;
+		}
+	}
+	VectorFields.Empty();
+
 	DestroyGPUSimulation();
 }
 
@@ -250,7 +263,7 @@ void FFXSystem::AddVectorField( UVectorFieldComponent* VectorFieldComponent )
 		check( VectorFieldComponent->VectorFieldInstance == NULL );
 		checkSlow( VectorFieldComponent->FXSystem && VectorFieldComponent->FXSystem->GetInterface(Name) == this );
 
-		if ( VectorFieldComponent->VectorField )
+		if ( VectorFieldComponent->VectorField && !IsPendingKill() )
 		{
 			FVectorFieldInstance* Instance = new FVectorFieldInstance();
 			VectorFieldComponent->VectorField->InitInstance(Instance, /*bPreviewInstance=*/ false);
@@ -259,16 +272,15 @@ void FFXSystem::AddVectorField( UVectorFieldComponent* VectorFieldComponent )
 			Instance->Intensity = VectorFieldComponent->Intensity;
 			Instance->Tightness = VectorFieldComponent->Tightness;
 
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FAddVectorFieldCommand,
-				FFXSystem*, FXSystem, this,
-				FVectorFieldInstance*, Instance, Instance,
-				FMatrix, ComponentToWorld, VectorFieldComponent->GetComponentTransform().ToMatrixWithScale(),
-			{
-				Instance->UpdateTransforms( ComponentToWorld );
-				Instance->Index = FXSystem->VectorFields.AddUninitialized().Index;
-				FXSystem->VectorFields[ Instance->Index ] = Instance;
-			});
+			FFXSystem* FXSystem = this;
+			FMatrix ComponentToWorld = VectorFieldComponent->GetComponentTransform().ToMatrixWithScale();
+			ENQUEUE_RENDER_COMMAND(FAddVectorFieldCommand)(
+				[FXSystem, Instance, ComponentToWorld](FRHICommandListImmediate& RHICmdList)
+				{
+					Instance->UpdateTransforms( ComponentToWorld );
+					Instance->Index = FXSystem->VectorFields.AddUninitialized().Index;
+					FXSystem->VectorFields[ Instance->Index ] = Instance;
+				});
 		}
 	}
 }
@@ -282,19 +294,19 @@ void FFXSystem::RemoveVectorField( UVectorFieldComponent* VectorFieldComponent )
 		FVectorFieldInstance* Instance = VectorFieldComponent->VectorFieldInstance;
 		VectorFieldComponent->VectorFieldInstance = NULL;
 
-		if ( Instance )
+		// If pending kill the VectorFieldInstance will be freed in the destructor.
+		if ( Instance  && !IsPendingKill() )
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-				FRemoveVectorFieldCommand,
-				FFXSystem*, FXSystem, this,
-				FVectorFieldInstance*, Instance, Instance,
-			{
-				if ( Instance->Index != INDEX_NONE )
+			FFXSystem* FXSystem = this;
+			ENQUEUE_RENDER_COMMAND(FRemoveVectorFieldCommand)(
+				[FXSystem, Instance](FRHICommandListImmediate& RHICmdList)
 				{
-					FXSystem->VectorFields.RemoveAt( Instance->Index );
-					delete Instance;
-				}
-			});
+					if ( Instance->Index != INDEX_NONE )
+					{
+						FXSystem->VectorFields.RemoveAt( Instance->Index );
+						delete Instance;
+					}
+				});
 		}
 	}
 }
@@ -307,7 +319,7 @@ void FFXSystem::UpdateVectorField( UVectorFieldComponent* VectorFieldComponent )
 
 		FVectorFieldInstance* Instance = VectorFieldComponent->VectorFieldInstance;
 
-		if ( Instance )
+		if ( Instance && !IsPendingKill() )
 		{
 			struct FUpdateVectorFieldParams
 			{
@@ -323,17 +335,15 @@ void FFXSystem::UpdateVectorField( UVectorFieldComponent* VectorFieldComponent )
 			UpdateParams.Intensity = VectorFieldComponent->Intensity;
 			UpdateParams.Tightness = VectorFieldComponent->Tightness;
 
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FUpdateVectorFieldCommand,
-				FFXSystem*, FXSystem, this,
-				FVectorFieldInstance*, Instance, Instance,
-				FUpdateVectorFieldParams, UpdateParams, UpdateParams,
-			{
-				Instance->WorldBounds = UpdateParams.Bounds;
-				Instance->Intensity = UpdateParams.Intensity;
-				Instance->Tightness = UpdateParams.Tightness;
-				Instance->UpdateTransforms( UpdateParams.ComponentToWorld );
-			});
+			FFXSystem* FXSystem = this;
+			ENQUEUE_RENDER_COMMAND(FUpdateVectorFieldCommand)(
+				[FXSystem, Instance, UpdateParams](FRHICommandListImmediate& RHICmdList)
+				{
+					Instance->WorldBounds = UpdateParams.Bounds;
+					Instance->Intensity = UpdateParams.Intensity;
+					Instance->Tightness = UpdateParams.Tightness;
+					Instance->UpdateTransforms( UpdateParams.ComponentToWorld );
+				});
 		}
 	}
 }

@@ -163,6 +163,8 @@ public:
 	/** Returns the AbilitySystemComponent that is activating this ability */
 	UFUNCTION(BlueprintCallable, Category = Ability)
 	UAbilitySystemComponent* GetAbilitySystemComponentFromActorInfo() const;
+	UAbilitySystemComponent* GetAbilitySystemComponentFromActorInfo_Checked() const;
+	UAbilitySystemComponent* GetAbilitySystemComponentFromActorInfo_Ensured() const;
 
 	/** Gets the current actor info bound to this ability - can only be called on instanced abilities. */
 	const FGameplayAbilityActorInfo* GetCurrentActorInfo() const

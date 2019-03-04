@@ -786,6 +786,9 @@ private:
 		/** Get the last frame exposure value (used to compute pre-exposure) */
 		float GetLastExposure() const { return LastExposure; }
 
+		/** Get the last frame average scene luminance (used for exposure compensation curve) */
+		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
+
 	private:
 
 		/** Return one of two two render targets */
@@ -796,6 +799,8 @@ private:
 		int32 CurrentBuffer;
 
 		float LastExposure;
+		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
+
 		int32 CurrentStagingBuffer;
 		static const int32 NUM_STAGING_BUFFERS = 3;
 
@@ -1169,6 +1174,11 @@ public:
 	float GetLastEyeAdaptationExposure() const
 	{
 		return EyeAdaptationRTManager.GetLastExposure();
+	}
+
+	float GetLastAverageSceneLuminance() const
+	{
+		return EyeAdaptationRTManager.GetLastAverageSceneLuminance();
 	}
 
 	bool HasValidTonemappingLUT() const
@@ -1711,6 +1721,9 @@ public:
 	/** Indices of primitives that need to be updated in GPU Scene */
 	TArray<int32> PrimitivesToUpdate;
 
+	/** Bit array of all scene primitives. Set bit means that current primitive is in PrimitivesToUpdate array. */
+	TBitArray<> PrimitivesMarkedToUpdate;
+
 	/** GPU mirror of Primitives */
 	FRWBufferStructured PrimitiveBuffer;
 
@@ -2137,9 +2150,11 @@ class FComponentVelocityData
 {
 public:
 
+	FPrimitiveSceneInfo* PrimitiveSceneInfo;
 	FMatrix LocalToWorld;
 	FMatrix PreviousLocalToWorld;
 	mutable uint64 LastFrameUsed;
+	uint64 LastFrameUpdated;
 	bool bPreviousLocalToWorldValid = false;
 };
 
@@ -2153,24 +2168,7 @@ public:
 	/**
 	 * Must be called once per frame, even when there are multiple BeginDrawingViewports.
 	 */
-	void StartFrame()
-	{
-		InternalFrameIndex++;
-
-		const bool bTrimOld = InternalFrameIndex % 100 == 0;
-
-		for (TMap<FPrimitiveComponentId, FComponentVelocityData>::TIterator It(ComponentData); It; ++It)
-		{
-			FComponentVelocityData& VelocityData = It.Value();
-			VelocityData.PreviousLocalToWorld = VelocityData.LocalToWorld;
-			VelocityData.bPreviousLocalToWorldValid = true;
-
-			if (bTrimOld && (InternalFrameIndex - VelocityData.LastFrameUsed) > 10)
-			{
-				It.RemoveCurrent();
-			}
-		}
-	}
+	void StartFrame(FScene* Scene);
 
 	/** 
 	 * Looks up the PreviousLocalToWorld state for the given component.  Returns false if none is found (the primitive has never been moved). 
@@ -2193,11 +2191,15 @@ public:
 	/** 
 	 * Updates a primitives current LocalToWorld state.
 	 */
-	void UpdateTransform(FPrimitiveComponentId PrimitiveComponentId, FMatrix LocalToWorld, FMatrix PreviousLocalToWorld)
+	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix LocalToWorld, FMatrix PreviousLocalToWorld)
 	{
-		FComponentVelocityData& VelocityData = ComponentData.FindOrAdd(PrimitiveComponentId);
+		check(PrimitiveSceneInfo->Proxy->IsMovable());
+
+		FComponentVelocityData& VelocityData = ComponentData.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 		VelocityData.LocalToWorld = LocalToWorld;
 		VelocityData.LastFrameUsed = InternalFrameIndex;
+		VelocityData.LastFrameUpdated = InternalFrameIndex;
+		VelocityData.PrimitiveSceneInfo = PrimitiveSceneInfo;
 
 		// If this transform state is newly added, use the passed in PreviousLocalToWorld for this frame
 		if (!VelocityData.bPreviousLocalToWorldValid)
@@ -2207,12 +2209,14 @@ public:
 		}
 	}
 
-	/**
-	* Removes primitives velocity data.
-	*/
-	void RemoveTransform(FPrimitiveComponentId PrimitiveComponentId)
+	void RemoveFromScene(FPrimitiveComponentId PrimitiveComponentId)
 	{
-		ComponentData.Remove(PrimitiveComponentId);
+		FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
+
+		if (VelocityData)
+		{
+			VelocityData->PrimitiveSceneInfo = nullptr;
+		}
 	}
 
 	void ApplyOffset(FVector Offset)
@@ -2416,7 +2420,7 @@ struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,fal
 	/** Calculates a hash index for a key. */
 	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 	{
-		return PointerHash(Key.IndexBuffer, GetTypeHash(Key.PipelineState));
+		return PointerHash(Key.IndexBuffer, GetTypeHash(Key.CachedPipelineId.GetId()));
 	}
 };
 
@@ -2844,7 +2848,7 @@ public:
 
 	virtual void StartFrame() override
 	{
-		VelocityData.StartFrame();
+		VelocityData.StartFrame(this);
 	}
 
 	virtual uint32 GetFrameNumber() const override
@@ -2859,6 +2863,8 @@ public:
 
 	/** Debug function to abtest lazy static mesh drawlists. */
 	void UpdateDoLazyStaticMeshUpdate(FRHICommandListImmediate& CmdList);
+
+	void DumpMeshDrawCommandMemoryStats();
 
 private:
 

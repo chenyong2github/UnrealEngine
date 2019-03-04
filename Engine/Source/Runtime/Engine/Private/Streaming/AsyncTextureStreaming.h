@@ -13,27 +13,33 @@ AsyncTextureStreaming.h: Definitions of classes used for texture streaming async
 #include "Streaming/StreamingTexture.h"
 #include "Streaming/TextureInstanceView.h"
 
-class FLevelTextureManager;
-class FDynamicTextureInstanceManager;
-struct FStreamingManagerTexture;
+class FLevelRenderAssetManager;
+class FDynamicRenderAssetInstanceManager;
+struct FRenderAssetStreamingManager;
 
 /** Thread-safe helper struct for streaming information. */
-class FAsyncTextureStreamingData
+class FAsyncRenderAssetStreamingData
 {
 public:
 
 	/** Set the data but do as little as possible, called from the game thread. */
-	void Init(TArray<FStreamingViewInfo> InViewInfos, float InWorldTime, TIndirectArray<FLevelTextureManager>& LevelTextureManagers, FDynamicTextureInstanceManager& DynamicComponentManager);
+	void Init(
+		TArray<FStreamingViewInfo> InViewInfos,
+		float InWorldTime,
+		TArray<FLevelRenderAssetManager*>& LevelStaticInstanceManagers,
+		FDynamicRenderAssetInstanceManager& DynamicComponentManager);
+
+	void ComputeViewInfoExtras(const FRenderAssetStreamingSettings& Settings);
 
 	/** Update everything internally so to allow calls to CalcWantedMips */
-	void UpdateBoundSizes_Async(const FTextureStreamingSettings& Settings);
+	void UpdateBoundSizes_Async(const FRenderAssetStreamingSettings& Settings);
 
-	void UpdatePerfectWantedMips_Async(FStreamingTexture& StreamingTexture, const FTextureStreamingSettings& Settings, bool bOutputToLog = false) const;
+	void UpdatePerfectWantedMips_Async(FStreamingRenderAsset& StreamingRenderAsset, const FRenderAssetStreamingSettings& Settings, bool bOutputToLog = false) const;
 
 	uint32 GetAllocatedSize() const { return ViewInfos.GetAllocatedSize() + StaticInstancesViews.GetAllocatedSize(); }
 
-	FORCEINLINE const FTextureInstanceAsyncView& GetDynamicInstancesView() const { return DynamicInstancesView; }
-	FORCEINLINE const TArray<FTextureInstanceAsyncView>& GetStaticInstancesViews() const { return StaticInstancesViews; }
+	FORCEINLINE const FRenderAssetInstanceAsyncView& GetDynamicInstancesView() const { return DynamicInstancesView; }
+	FORCEINLINE const TArray<FRenderAssetInstanceAsyncView>& GetStaticInstancesViews() const { return StaticInstancesViews; }
 	FORCEINLINE const TArray<FStreamingViewInfo>& GetViewInfos() const { return ViewInfos; }
 
 	FORCEINLINE bool HasAnyView() const { return ViewInfos.Num() > 0; }
@@ -42,76 +48,84 @@ public:
 	// This must be done on the gamethread as the refcount are not threadsafe.
 	void ReleaseViews()
 	{
-		DynamicInstancesView = FTextureInstanceAsyncView();
+		DynamicInstancesView = FRenderAssetInstanceAsyncView();
 		StaticInstancesViews.Reset();
 	}
 
 	void OnTaskDone_Async() 
 	{ 
 		DynamicInstancesView.OnTaskDone();
-		for (FTextureInstanceAsyncView& StaticView : StaticInstancesViews)
+		for (FRenderAssetInstanceAsyncView& StaticView : StaticInstancesViews)
 		{
 			StaticView.OnTaskDone();
 		}
 	}
 
-private:
 
+private:
 	/** Cached from FStreamingManagerBase. */
 	TArray<FStreamingViewInfo> ViewInfos;
 	
-	FTextureInstanceAsyncView DynamicInstancesView;
+	/** View related data taking view boost into account */
+	FStreamingViewInfoExtraArray ViewInfoExtras;
+
+	FRenderAssetInstanceAsyncView DynamicInstancesView;
 
 	/** Cached from each ULevel. */
-	TArray<FTextureInstanceAsyncView> StaticInstancesViews;
+	TArray<FRenderAssetInstanceAsyncView> StaticInstancesViews;
 
 	/** Time since last full update. Used to know if something is immediately visible. */
 	float LastUpdateTime;
+
+	float MaxScreenSizeOverAllViews;
 
 	/** Sorted list of all static instances. The sorting is based on MaxLevelTextureScreenSize. */
 	TArray<int32> StaticInstancesViewIndices;
 
 	/** List of all static instances that were rejected. */
 	TArray<int32> CulledStaticInstancesViewIndices;
+
+	/** list of all static instances based on level index */
+	TArray<int32> StaticInstancesViewLevelIndices;
 };
 
-struct FCompareTextureByRetentionPriority // Bigger retention priority first.
+struct FCompareRenderAssetByRetentionPriority // Bigger retention priority first.
 {
-	FCompareTextureByRetentionPriority(const TArray<FStreamingTexture>& InStreamingTextures) : StreamingTextures(InStreamingTextures) {}
-	const TArray<FStreamingTexture>& StreamingTextures;
+	FCompareRenderAssetByRetentionPriority(const TArray<FStreamingRenderAsset>& InStreamingRenderAssets) : StreamingRenderAssets(InStreamingRenderAssets) {}
+	const TArray<FStreamingRenderAsset>& StreamingRenderAssets;
 
 	FORCEINLINE bool operator()( int32 IndexA, int32 IndexB ) const
 	{
-		const int32 PrioA = StreamingTextures[IndexA].RetentionPriority;
-		const int32 PrioB = StreamingTextures[IndexB].RetentionPriority;
+		const int32 PrioA = StreamingRenderAssets[IndexA].RetentionPriority;
+		const int32 PrioB = StreamingRenderAssets[IndexB].RetentionPriority;
 		if ( PrioA > PrioB )  return true;
 		if ( PrioA == PrioB ) return IndexA > IndexB;  // Sorting by index so that it gets deterministic.
 		return false;
 	}
 };
 
-struct FCompareTextureByLoadOrderPriority // Bigger load order priority first.
+struct FCompareRenderAssetByLoadOrderPriority // Bigger load order priority first.
 {
-	FCompareTextureByLoadOrderPriority(const TArray<FStreamingTexture>& InStreamingTextures) : StreamingTextures(InStreamingTextures) {}
-	const TArray<FStreamingTexture>& StreamingTextures;
+	FCompareRenderAssetByLoadOrderPriority(const TArray<FStreamingRenderAsset>& InStreamingRenderAssets) : StreamingRenderAssets(InStreamingRenderAssets) {}
+	const TArray<FStreamingRenderAsset>& StreamingRenderAssets;
 
 	FORCEINLINE bool operator()( int32 IndexA, int32 IndexB ) const
 	{
-		const int32 PrioA = StreamingTextures[IndexA].LoadOrderPriority;
-		const int32 PrioB = StreamingTextures[IndexB].LoadOrderPriority;
+		const int32 PrioA = StreamingRenderAssets[IndexA].LoadOrderPriority;
+		const int32 PrioB = StreamingRenderAssets[IndexB].LoadOrderPriority;
 		if ( PrioA > PrioB )  return true;
 		if ( PrioA == PrioB ) return IndexA > IndexB;  // Sorting by index so that it gets deterministic.
 		return false;
 	}
 };
 
-/** Async work class for calculating priorities for all textures. */
+/** Async work for calculating priorities and target number of mips for all textures/meshes. */
 // this could implement a better abandon, but give how it is used, it does that anyway via the abort mechanism
-class FAsyncTextureStreamingTask : public FNonAbandonableTask
+class FRenderAssetStreamingMipCalcTask : public FNonAbandonableTask
 {
 public:
 
-	FAsyncTextureStreamingTask( FStreamingManagerTexture* InStreamingManager )
+	FRenderAssetStreamingMipCalcTask( FRenderAssetStreamingManager* InStreamingManager )
 	:	StreamingManager( *InStreamingManager )
 	,	bAbort( false )
 	{
@@ -138,12 +152,12 @@ public:
 	/** Whether the async work is being aborted. Can be used in conjunction with IsDone() to see if it has finished. */
 	bool IsAborted() const { return bAbort;	}
 
-	/** Returns the resulting priorities, matching the FStreamingManagerTexture::StreamingTextures array. */
+	/** Returns the resulting priorities, matching the FRenderAssetStreamingManager::StreamingRenderAssets array. */
 	const TArray<int32>& GetLoadRequests() const { return LoadRequests; }
 	const TArray<int32>& GetCancelationRequests() const { return CancelationRequests; }
 	const TArray<int32>& GetPendingUpdateDirties() const { return PendingUpdateDirties; }
 
-	FAsyncTextureStreamingData StreamingData;
+	FAsyncRenderAssetStreamingData StreamingData;
 	
 	/** Performs the async work. */
 	void DoWork();
@@ -157,12 +171,12 @@ public:
 
 protected:
 
-	/** Ensures that no temporary streaming boost are active which could interfere with texture streaming bias in undesirable ways. */
-	bool AllowPerTextureMipBiasChanges() const;
+	/** Ensures that no temporary streaming boost are active which could interfere with render asset streaming bias in undesirable ways. */
+	bool AllowPerRenderAssetMipBiasChanges() const;
 
 private:
 
-	friend class FAsyncTask<FAsyncTextureStreamingTask>;
+	friend class FAsyncTask<FRenderAssetStreamingMipCalcTask>;
 
 	void UpdateBudgetedMips_Async(int64& OutMemoryUsed, int64& OutTempMemoryUsed);
 
@@ -174,11 +188,11 @@ private:
 
 	FORCEINLINE TStatId GetStatId() const
 	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncTextureStreamingTask, STATGROUP_ThreadPoolAsyncTasks);
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FRenderAssetStreamingMipCalcTask, STATGROUP_ThreadPoolAsyncTasks);
 	}
 
 	/** Reference to the owning streaming manager, for accessing the thread-safe data. */
-	FStreamingManagerTexture& StreamingManager;
+	FRenderAssetStreamingManager& StreamingManager;
 
 	/** Indices for load/unload requests, sorted by load order. */
 	TArray<int32>	LoadRequests;
@@ -193,7 +207,7 @@ private:
 	/** How much VRAM the hardware has. */
 	int64 TotalGraphicsMemory;
 
-	/** How much gpu resources are currently allocated in the texture pool (all category). */
+	/** How much gpu resources are currently allocated in the texture/mesh pool (all category). */
 	int64 AllocatedMemory; 
 
 	/** Size of the pool once non streaming data is removed and value is stabilized */
@@ -205,7 +219,7 @@ private:
 	/** How much temp memory is allowed (temp memory is taken when changing mip count). */
 	int64 MemoryMargin;
 
-	/** How much memory is available for textures. */
+	/** How much memory is available for textures/meshes. */
 	int64 MemoryBudget;
 
 	/**

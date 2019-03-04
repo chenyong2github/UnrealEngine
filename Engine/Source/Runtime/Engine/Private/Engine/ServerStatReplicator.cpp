@@ -27,6 +27,9 @@ AServerStatReplicator::AServerStatReplicator(const FObjectInitializer& ObjectIni
 
 void AServerStatReplicator::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
+	// No need to replicate any inherited properties
+	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(Super, EFieldIteratorFlags::IncludeSuper);
+
 	DOREPLIFETIME(AServerStatReplicator, Channels);
 	DOREPLIFETIME(AServerStatReplicator, InRate);
 	DOREPLIFETIME(AServerStatReplicator, OutRate);

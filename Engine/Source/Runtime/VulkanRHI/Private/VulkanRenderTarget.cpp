@@ -1093,14 +1093,17 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, 
 
 		StagingBuffer->InvalidateMappedMemory();
 
-		OutputData.SetNum(NumPixels);
+		uint32 OutWidth = InRect.Max.X - InRect.Min.X;
+		uint32 OutHeight= InRect.Max.Y - InRect.Min.Y;
+		OutputData.SetNum(OutWidth * OutHeight);
+		uint32 OutIndex = 0;
 		FFloat16Color* Dest = OutputData.GetData();
 		for (int32 Row = InRect.Min.Y; Row < InRect.Max.Y; ++Row)
 		{
 			FFloat16Color* Src = (FFloat16Color*)StagingBuffer->GetMappedPointer() + Row * (Surface.Width >> InMipIndex) + InRect.Min.X;
 			for (int32 Col = InRect.Min.X; Col < InRect.Max.X; ++Col)
 			{
-				*Dest++ = *Src++;
+				OutputData[OutIndex++] = *Src++;
 			}
 		}
 		InDevice->GetStagingManager().ReleaseBuffer(InCmdBuffer, StagingBuffer);
@@ -1136,14 +1139,14 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, 
 		{
 			FRHITextureCube* TextureRHICube = TextureRHI->GetTextureCube();
 			FVulkanTextureCube* TextureCube = (FVulkanTextureCube*)TextureRHICube;
-			DoCopyFloat(Device, CmdBuffer, TextureCube->Surface, MipIndex, CubeFace, Rect, OutData);
+			DoCopyFloat(Device, CmdBuffer, TextureCube->Surface, MipIndex, CubeFace + 6 * ArrayIndex, Rect, OutData);
 		}
 		else
 		{
 			FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
 			check(TextureRHI2D);
 			FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
-			DoCopyFloat(Device, CmdBuffer, Texture2D->Surface, MipIndex, 0, Rect, OutData);
+			DoCopyFloat(Device, CmdBuffer, Texture2D->Surface, MipIndex, ArrayIndex, Rect, OutData);
 		}
 		Device->GetImmediateContext().GetCommandBufferManager()->PrepareForNewActiveCommandBuffer();
 	}
@@ -1743,7 +1746,24 @@ void FVulkanCommandListContext::RHIEndRenderPass()
 	{
 		TransitionAndLayoutManager.EndRealRenderPass(CmdBuffer);
 	}
-
+	if(!RenderPassInfo.bIsMSAA)
+	{
+		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
+		{
+			if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
+			{
+				break;
+			}
+			if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
+			{
+				RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
+			}
+		}
+		if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
+		{
+			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
+		}
+	}
 	RHIPopEvent();
 }
 
@@ -1834,7 +1854,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		
 			VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 			CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
-			CurrDesc.format = UEToVkFormat(RTView.Texture->GetFormat(), (Texture->Surface.UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+			CurrDesc.format = UEToVkTextureFormat(RTView.Texture->GetFormat(), (Texture->Surface.UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 			CurrDesc.loadOp = RenderTargetLoadActionToVulkan(RTView.LoadAction);
 			bFoundClearOp = bFoundClearOp || (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR);
 			CurrDesc.storeOp = RenderTargetStoreActionToVulkan(RTView.StoreAction);
@@ -1887,7 +1907,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		NumSamples = Surface->GetNumSamples();
 
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
-		CurrDesc.format = UEToVkFormat(RTInfo.DepthStencilRenderTarget.Texture->GetFormat(), false);
+		CurrDesc.format = UEToVkTextureFormat(RTInfo.DepthStencilRenderTarget.Texture->GetFormat(), false);
 		CurrDesc.loadOp = RenderTargetLoadActionToVulkan(RTInfo.DepthStencilRenderTarget.DepthLoadAction);
 		CurrDesc.stencilLoadOp = RenderTargetLoadActionToVulkan(RTInfo.DepthStencilRenderTarget.StencilLoadAction);
 		bFoundClearOp = bFoundClearOp || (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR || CurrDesc.stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR);
@@ -2005,7 +2025,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
-		CurrDesc.format = UEToVkFormat(ColorEntry.RenderTarget->GetFormat(), (Texture->Surface.UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+		CurrDesc.format = UEToVkTextureFormat(ColorEntry.RenderTarget->GetFormat(), (Texture->Surface.UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 		CurrDesc.loadOp = RenderTargetLoadActionToVulkan(GetLoadAction(ColorEntry.Action));
 		bFoundClearOp = bFoundClearOp || (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR);
 		CurrDesc.storeOp = RenderTargetStoreActionToVulkan(GetStoreAction(ColorEntry.Action), true);
@@ -2051,7 +2071,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetNumSamples());
 		ensure(!NumSamples || CurrDesc.samples == NumSamples);
 		NumSamples = CurrDesc.samples;
-		CurrDesc.format = UEToVkFormat(RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetFormat(), false);
+		CurrDesc.format = UEToVkTextureFormat(RPInfo.DepthStencilRenderTarget.DepthStencilTarget->GetFormat(), false);
 		CurrDesc.loadOp = RenderTargetLoadActionToVulkan(GetLoadAction(GetDepthActions(RPInfo.DepthStencilRenderTarget.Action)));
 		CurrDesc.stencilLoadOp = RenderTargetLoadActionToVulkan(GetLoadAction(GetStencilActions(RPInfo.DepthStencilRenderTarget.Action)));
 		bFoundClearOp = bFoundClearOp || (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR || CurrDesc.stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR);
@@ -2141,12 +2161,12 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 	NumSamples = Initializer.NumSamples;
 	for (uint32 Index = 0; Index < Initializer.RenderTargetsEnabled; ++Index)
 	{
-		EPixelFormat UEFormat = Initializer.RenderTargetFormats[Index];
+		EPixelFormat UEFormat = (EPixelFormat)Initializer.RenderTargetFormats[Index];
 		if (UEFormat != PF_Unknown)
 		{
 			VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 			CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
-			CurrDesc.format = UEToVkFormat(UEFormat, (Initializer.RenderTargetFlags[Index] & TexCreate_SRGB) == TexCreate_SRGB);
+			CurrDesc.format = UEToVkTextureFormat(UEFormat, (Initializer.RenderTargetFlags[Index] & TexCreate_SRGB) == TexCreate_SRGB);
 			CurrDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -2187,7 +2207,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 		FMemory::Memzero(CurrDesc);
 
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(NumSamples);
-		CurrDesc.format = UEToVkFormat(Initializer.DepthStencilTargetFormat, false);
+		CurrDesc.format = UEToVkTextureFormat(Initializer.DepthStencilTargetFormat, false);
 		CurrDesc.loadOp = RenderTargetLoadActionToVulkan(Initializer.DepthTargetLoadAction);
 		CurrDesc.stencilLoadOp = RenderTargetLoadActionToVulkan(Initializer.StencilTargetLoadAction);
 		if (CurrDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR || CurrDesc.stencilLoadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)

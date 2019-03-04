@@ -1487,7 +1487,14 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// Set constant name for WorldSettings to make a network replication work between new worlds on host and client
 	SpawnInfo.Name = GEngine->WorldSettingsClass->GetFName();
-	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>( GEngine->WorldSettingsClass, SpawnInfo );
+	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>(GEngine->WorldSettingsClass, SpawnInfo );
+
+	// Allow the world creator to override the default game mode in case they do not plan to load a level.
+	if (IVS.DefaultGameMode)
+	{
+		WorldSettings->DefaultGameMode = IVS.DefaultGameMode;
+	}
+
 	PersistentLevel->SetWorldSettings(WorldSettings);
 	check(GetWorldSettings());
 #if WITH_EDITOR
@@ -3483,7 +3490,7 @@ bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 		if (PlayerController != nullptr)
 		{
-			GetWorldSettings()->Pauser = PlayerController->PlayerState;
+			GetWorldSettings()->SetPauserPlayerState(PlayerController->PlayerState);
 			const uint32 Time = FCString::Atoi(*TimeString);
 			DemoNetDriver->GotoTimeInSeconds(Time);
 		}
@@ -3498,20 +3505,20 @@ bool UWorld::HandleDemoPauseCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	AWorldSettings* WorldSettings = GetWorldSettings();
 	check(WorldSettings != nullptr);
 
-	if (WorldSettings->Pauser == nullptr)
+	if (WorldSettings->GetPauserPlayerState() == nullptr)
 	{
 		if (DemoNetDriver != nullptr && DemoNetDriver->ServerConnection != nullptr && DemoNetDriver->ServerConnection->OwningActor != nullptr)
 		{
 			APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 			if (PlayerController != nullptr)
 			{
-				WorldSettings->Pauser = PlayerController->PlayerState;
+				WorldSettings->SetPauserPlayerState(PlayerController->PlayerState);
 			}
 		}
 	}
 	else
 	{
-		WorldSettings->Pauser = nullptr;
+		WorldSettings->SetPauserPlayerState(nullptr);
 	}
 	return true;
 }
@@ -3752,6 +3759,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
 	check(bIsWorldInitialized);
+	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();
 
 	// Don't reset time for seamless world transitions.
@@ -5089,6 +5097,8 @@ void UWorld::SendChallengeControlMessage(const FEncryptionKeyResponse& Response,
 bool UWorld::Listen( FURL& InURL )
 {
 #if WITH_SERVER_CODE
+	LLM_SCOPE(ELLMTag::Networking);
+
 	if( NetDriver )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverAlreadyExists);

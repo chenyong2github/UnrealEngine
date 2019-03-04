@@ -1580,6 +1580,7 @@ void SDesignerView::ClearDropPreviews()
 		// it will remain outered to the widget tree and end up as a property in the BP class layout as a result.
 		if (DropPreview.Widget->GetOutermost() != GetTransientPackage())
 		{
+			DropPreview.Widget->SetFlags(RF_NoFlags);
 			DropPreview.Widget->Rename(nullptr, GetTransientPackage());
 		}
 	}
@@ -2812,6 +2813,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 		{
 			if (Widget->GetOutermost() != GetTransientPackage())
 			{
+				Widget->SetFlags(RF_NoFlags);
 				Widget->Rename(nullptr, GetTransientPackage());
 			}
 		}
@@ -3070,25 +3072,6 @@ FReply SDesignerView::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& 
 		BlueprintEditor.Pin()->SelectWidgets(SelectedTemplates, false);
 		// Regenerate extension widgets now that we've finished moving or placing the widget.
 		CreateExtensionWidgetsForSelection();
-
-		UPanelSlot* Slot;
-		UWidgetTree* WidgetTree = BP->WidgetTree;
-		if (WidgetTree && SelectedDragDropOp.IsValid())
-		{
-			for (auto& DraggedWidget : SelectedDragDropOp->DraggedWidgets)
-			{
-				FWidgetReference Reference = BlueprintEditor.Pin()->GetReferenceFromTemplate(DraggedWidget.Template);
-				UWidget* LocalPreviewWidget = Reference.GetPreview();
-				if (LocalPreviewWidget && LocalPreviewWidget->GetParent())
-				{
-					Slot = LocalPreviewWidget->GetParent()->GetSlots()[LocalPreviewWidget->GetParent()->GetChildIndex(LocalPreviewWidget)];
-					if (Slot != nullptr)
-					{
-						FWidgetBlueprintEditorUtils::ImportPropertiesFromText(Slot, DraggedWidget.ExportedSlotProperties);
-					}
-				}
-			}
-		}
 
 		DropPreviews.Empty();
 		return FReply::Handled().SetUserFocus(SharedThis(this));

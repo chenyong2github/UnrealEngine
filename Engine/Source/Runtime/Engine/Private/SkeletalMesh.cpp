@@ -296,6 +296,7 @@ USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 	
 	MinLod.Default = 0;
+	DisableBelowMinLodStripping.Default = false;
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)
@@ -990,6 +991,7 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 
 void USkeletalMesh::Serialize( FArchive& Ar )
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USkeletalMesh::Serialize"), STAT_SkeletalMesh_Serialize, STATGROUP_LoadTime );
 
 	Super::Serialize(Ar);
@@ -1537,6 +1539,7 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 
 void USkeletalMesh::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	Super::PostLoad();
 
 #if WITH_EDITOR
@@ -3509,7 +3512,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	}
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
-	bVFRequiresPrimitiveUniformBuffer = !(bRenderStatic && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
+	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
 }
 
 
@@ -4161,7 +4164,7 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 	{
 		FRandomStream Stream((int32)InUID);
 		const uint8 Hue = (uint8)(Stream.FRand()*255.f);
-		return FLinearColor::MakeFromHSV8(Hue, 0, 255);
+		return FLinearColor::MakeFromHSV8(Hue, 255, 255);
 	};
 
 	FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);

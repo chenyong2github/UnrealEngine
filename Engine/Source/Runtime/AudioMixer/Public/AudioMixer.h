@@ -139,6 +139,12 @@ namespace Audio
 
 		bool IsMainAudioMixer() const { return bIsMainAudioMixer; }
 
+		/** Called by FWindowsMMNotificationClient to bypass notifications for audio device changes: */
+		AUDIOMIXER_API static bool ShouldIgnoreDeviceSwaps();
+
+		/** Called by FWindowsMMNotificationClient to toggle logging for audio device changes: */
+		AUDIOMIXER_API static bool ShouldLogDeviceSwaps();
+
 	protected:
 
 		IAudioMixer() 
@@ -506,8 +512,11 @@ namespace Audio
 		/** The render thread sync event. */
 		FEvent* AudioRenderEvent;
 
-		/** Event for a single buffer render. */
-		FEvent* AudioBufferEvent;
+		/** Critical Section used for times when we need the render loop to halt for the device swap. */
+		FCriticalSection DeviceSwapCriticalSection;
+
+		/** This is used if we are attempting to TryLock on DeviceSwapCriticalSection, but a buffer callback is being called in the current thread. */
+		FThreadSafeBool bIsInDeviceSwap;
 
 		/** Event allows you to block until fadeout is complete. */
 		FEvent* AudioFadeEvent;
@@ -533,13 +542,11 @@ namespace Audio
 		/** Struct used to store render time analysis data. */
 		FAudioRenderTimeAnalysis RenderTimeAnalysis;
 
-		/** Flag if the audio device is in the process of changing. Prevents more buffers from being submitted to platform. */
-		FThreadSafeBool bAudioDeviceChanging;
-
 		FThreadSafeBool bPerformingFade;
 		FThreadSafeBool bFadedOut;
 		FThreadSafeBool bIsDeviceInitialized;
 
+		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
 
 	private:

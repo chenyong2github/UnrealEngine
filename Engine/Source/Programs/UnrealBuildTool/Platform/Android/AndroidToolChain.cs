@@ -315,7 +315,8 @@ namespace UnrealBuildTool
 			}
 
 			// verify NDK toolchain is supported
-			if (NDKDefineInt < MinimumNDKToolchain || NDKDefineInt > MaximumNDKToolchain)
+			if ((NDKDefineInt < MinimumNDKToolchain || NDKDefineInt > MaximumNDKToolchain)
+				&& !bAllowMissingNDK)
 			{
 				throw new BuildException("Android toolchain NDK " + ToolchainIntToString(NDKDefineInt) + " not supported; please use NDK " + ToolchainIntToString(MinimumNDKToolchain) + " to NDK " + ToolchainIntToString(MaximumNDKToolchain) +
 					" (NDK " + ToolchainIntToString(RecommendedNDKToolchain) + " recommended)");
@@ -1569,8 +1570,9 @@ namespace UnrealBuildTool
 					int OutputPathIndex = ArchIndex * GPUArchitectures.Count + GPUArchIndex;
 
 					// Android will have an array of outputs
-					if (LinkEnvironment.OutputFilePaths.Count < OutputPathIndex ||
-						!LinkEnvironment.OutputFilePaths[OutputPathIndex].GetFileNameWithoutExtension().EndsWith(Arch + GPUArchitecture))
+					if (!LinkEnvironment.bIsBuildingDLL && // DLL compiles don't have the Arch embedded in the name
+						(LinkEnvironment.OutputFilePaths.Count < OutputPathIndex ||
+						!LinkEnvironment.OutputFilePaths[OutputPathIndex].GetFileNameWithoutExtension().EndsWith(Arch + GPUArchitecture)))
 					{
 						throw new BuildException("The OutputFilePaths array didn't match the Arches array in AndroidToolChain.LinkAllFiles");
 					}

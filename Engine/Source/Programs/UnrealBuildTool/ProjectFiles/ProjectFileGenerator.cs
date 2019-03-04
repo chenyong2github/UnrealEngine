@@ -540,6 +540,26 @@ namespace UnrealBuildTool
 					Format = ProjectFileFormat.KDevelop;
 					return true;
 				}
+				else if (PreferredAccessor == "visualstudiosourcecodeaccessor")
+				{
+					Format = ProjectFileFormat.VisualStudio;
+					return true;
+				}
+				else if (PreferredAccessor == "visualstudio2015")
+				{
+					Format = ProjectFileFormat.VisualStudio2015;
+					return true;
+				}
+				else if (PreferredAccessor == "visualstudio2017")
+				{
+					Format = ProjectFileFormat.VisualStudio2017;
+					return true;
+				}
+				else if (PreferredAccessor == "visualstudio2019")
+				{
+					Format = ProjectFileFormat.VisualStudio2019;
+					return true;
+				}
 			}
 
 			Format = ProjectFileFormat.VisualStudio;
@@ -1148,6 +1168,8 @@ namespace UnrealBuildTool
 				if(UniqueGameProjectDirectories.Add(GameProjectDirectory))
 				{
 					// @todo projectfiles: We have engine localization files, but should we also add GAME localization files?
+
+					GameProject.AddFilesToProject( SourceFileSearch.FindFiles( GameProjectDirectory, SearchSubdirectories: false ), GameProjectDirectory );
 
 					// Game config files
 					if( bIncludeConfigFiles )

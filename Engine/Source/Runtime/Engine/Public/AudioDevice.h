@@ -598,6 +598,8 @@ public:
 	 */
 	void StopSoundsUsingResource(USoundWave* SoundWave, TArray<UAudioComponent*>* StoppedComponents = nullptr);
 
+	static bool LegacyReverbDisabled();
+
 #if WITH_EDITOR
 	/** Deals with anything audio related that should happen when PIE starts */
 	void OnBeginPIE(const bool bIsSimulating);

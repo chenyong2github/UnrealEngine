@@ -606,10 +606,6 @@ public:
 	 * Updates the primitive proxy's uniform buffer.
 	 */
 	ENGINE_API void UpdateUniformBuffer();
-	/**
-	 * Updates the primitive proxy's uniform buffer.
-	 */
-	ENGINE_API bool NeedsUniformBufferUpdate() const;
 
 #if !UE_BUILD_SHIPPING
 
@@ -679,11 +675,12 @@ public:
 	 * @param InView - Current View
  	 * @param InViewLODScale - View LOD scale
   	 * @param InCustomDataMemStack - MemStack to allocate the custom data
-   	 * @param InIsStaticRelevant - Tell us if it was called in a static of dynamic relevancy context
+	 * @param InIsStaticRelevant - Tell us if it was called in a static of dynamic relevancy context
+	 * @param InIsShadowOnly - Tell us if we are creating in the shadow context
    	 * @param InVisiblePrimitiveLODMask - Calculated LODMask for visibile primitive in static relevancy
    	 * @param InMeshScreenSizeSquared - Computed mesh batch screen size, passed to prevent recalculation
 	 */
-	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant = false, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
+	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
 	
 	/**
 	 * Called during post visibility and shadow setup, just before the frame is rendered. It can be used to update custom data that had a dependency between them.
@@ -725,6 +722,8 @@ public:
    	 * @param InHasSelfShadow - Indicate if we have self shadow, as it can impact which LODMask we choose
 	 */
 	ENGINE_API virtual struct FLODMask GetCustomWholeSceneShadowLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, const struct FLODMask& InVisibilePrimitiveLODMask, float InShadowMapTextureResolution, float InShadowMapCascadeSize, int8 InShadowCascadeId, bool InHasSelfShadow) const;
+
+	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const { return 0; }
 
 protected:
 
@@ -1042,11 +1041,6 @@ private:
 
 	ENGINE_API bool WouldSetTransformBeRedundant(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
 
-	/**
-	 * Either updates the uniform buffer or defers it until it becomes visible depending on a cvar
-	 */
-	ENGINE_API void UpdateUniformBufferMaybeLazy();
-
 	/** Updates the hidden editor view visibility map on the render thread */
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );
 
@@ -1062,3 +1056,9 @@ protected:
  * Returns if specified mesh command can be cached, or needs to be recreated every frame.
  */
 ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+
+/**
+ * Returns if specified mesh command can be cached, or needs to be recreated every frame; this is a slightly slower version
+ * used for materials with external textures that need invalidating their PSOs.
+ */
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const class FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel);

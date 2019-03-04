@@ -14,6 +14,11 @@ extern bool GShowSplashScreen;
  */
 - (void)ShowConsole
 {
+	if (self.ConsoleAlertController != nil)
+	{
+		return;
+	}
+	
 	// start at the end of the list for history
 	self.ConsoleHistoryValuesIndex = [self.ConsoleHistoryValues count];
 
@@ -36,6 +41,8 @@ extern bool GShowSplashScreen;
 										// we clicked Ok (not Cancel at index 0), submit the console command
                                         UITextField* AlertTextField = self.ConsoleAlertController.textFields.firstObject;
 										[self HandleConsoleCommand:AlertTextField.text];
+
+										self.ConsoleAlertController = nil;
 									}
 		];
 		UIAlertAction* cancelAction = [UIAlertAction
@@ -45,6 +52,7 @@ extern bool GShowSplashScreen;
 										{
 											self.AlertResponse = 0;
 											[self.ConsoleAlertController dismissViewControllerAnimated : YES completion : nil];
+											self.ConsoleAlertController = nil;
 										}
 		];
 
@@ -111,7 +119,9 @@ extern bool GShowSplashScreen;
 #endif
 	}
 }
+#endif
 
+#if !UE_BUILD_SHIPPING
 /**
  * Handles processing of an input console command
  */
@@ -127,7 +137,7 @@ extern bool GShowSplashScreen;
 			FPlatformString::CFStringToTCHAR((CFStringRef)ConsoleCommand, Ch.GetData());
 			new(GEngine->DeferredCommands) FString(Ch.GetData());
 		}
-
+#if !PLATFORM_TVOS
 		NSUInteger ExistingCommand = [self.ConsoleHistoryValues indexOfObjectPassingTest:
 			^ BOOL (id obj, NSUInteger idx, BOOL *stop)
 			{ 
@@ -146,6 +156,7 @@ extern bool GShowSplashScreen;
 		// save to local storage
 		[[NSUserDefaults standardUserDefaults] setObject:self.ConsoleHistoryValues forKey:@"ConsoleHistory"];
 		[[NSUserDefaults standardUserDefaults] synchronize];
+#endif
 	}
 }
 #endif
@@ -157,9 +168,9 @@ extern bool GShowSplashScreen;
 {
 	if (GShowSplashScreen)
 	{
-		if ([[IOSAppDelegate GetDelegate].Window viewWithTag : 2] != nil)
+		if ([[IOSAppDelegate GetDelegate].Window viewWithTag : 200] != nil)
 		{
-			[[[IOSAppDelegate GetDelegate].Window viewWithTag : 2] removeFromSuperview];
+			[[[IOSAppDelegate GetDelegate].Window viewWithTag : 200] removeFromSuperview];
 		}
 		GShowSplashScreen = false;
 	}
@@ -300,7 +311,7 @@ extern bool GShowSplashScreen;
 
 void EnqueueConsoleCommand(uint8 *Command)
 {
-#if !UE_BUILD_SHIPPING && !PLATFORM_TVOS
+#if !UE_BUILD_SHIPPING
 	if (!Command)
 	{
 		return;

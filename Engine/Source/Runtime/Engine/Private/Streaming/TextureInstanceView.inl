@@ -6,7 +6,7 @@ TextureInstanceView.h: Definitions of classes used for texture streaming.
 
 #pragma once
 
-FTextureInstanceView::FBounds4::FBounds4()
+FRenderAssetInstanceView::FBounds4::FBounds4()
 :	OriginX( 0, 0, 0, 0 )
 ,	OriginY( 0, 0, 0, 0 )
 ,	OriginZ( 0, 0, 0, 0 )
@@ -25,7 +25,7 @@ FTextureInstanceView::FBounds4::FBounds4()
 {
 }
 
-void FTextureInstanceView::FBounds4::Clear(int32 Index)
+void FRenderAssetInstanceView::FBounds4::Clear(int32 Index)
 {
 	check(Index >= 0 && Index < 4);
 
@@ -46,7 +46,7 @@ void FTextureInstanceView::FBounds4::Clear(int32 Index)
 	LastRenderTime.Component(Index) = -FLT_MAX;
 }
 
-void FTextureInstanceView::FBounds4::OffsetBounds(int32 Index, const FVector& Offset)
+void FRenderAssetInstanceView::FBounds4::OffsetBounds(int32 Index, const FVector& Offset)
 {
 	check(Index >= 0 && Index < 4);
 
@@ -55,20 +55,26 @@ void FTextureInstanceView::FBounds4::OffsetBounds(int32 Index, const FVector& Of
 	OriginZ.Component(Index) += Offset.Z;
 }
 
-void FTextureInstanceView::FBounds4::UpdateLastRenderTime(int32 Index, float InLastRenderTime)
+void FRenderAssetInstanceView::FBounds4::UpdateLastRenderTime(int32 Index, float InLastRenderTime)
 {
 	check(Index >= 0 && Index < 4);
 
 	LastRenderTime.Component(Index) = InLastRenderTime;
 }
 
-FTextureInstanceView::FElement::FElement()
+void FRenderAssetInstanceView::FBounds4::UpdateMaxDrawDistanceSquared(int32 Index, float InMaxRangeSq)
+{
+	check(Index >= 0 && Index < 4);
+	MaxRangeSq.Component(Index) = InMaxRangeSq;
+}
+
+FRenderAssetInstanceView::FElement::FElement()
 :	Component(nullptr)
-,	Texture(nullptr)
+,	RenderAsset(nullptr)
 ,	BoundsIndex(INDEX_NONE)
 ,	TexelFactor(0)
-,	PrevTextureLink(INDEX_NONE)
-,	NextTextureLink(INDEX_NONE)
+,	PrevRenderAssetLink(INDEX_NONE)
+,	NextRenderAssetLink(INDEX_NONE)
 ,	NextComponentLink(INDEX_NONE)
 {
 }

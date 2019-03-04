@@ -121,6 +121,8 @@ protected:
 	virtual void PostEditImport() override;
 
 	void UpdateChannelProxy();
+public:
+	UMG_API const static FMovieSceneInterrogationKey GetWidgetTransformInterrogationKey();
 
 public:
 

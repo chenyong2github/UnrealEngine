@@ -1599,6 +1599,52 @@ bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
 	return false;
 }
 
+bool FSourceCodeNavigation::CanNavigateToStruct(const UStruct* InStruct)
+{
+	if (!InStruct)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
+	{
+		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
+		if (handler->CanNavigateToStruct(InStruct))
+		{
+			return true;
+		}
+	}
+
+	return InStruct->IsNative() && IsCompilerAvailable();
+}
+
+bool FSourceCodeNavigation::NavigateToStruct(const UStruct* InStruct)
+{
+	if (!InStruct)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
+	{
+		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
+		if (handler->NavigateToStruct(InStruct))
+		{
+			return true;
+		}
+	}
+
+	FString ClassHeaderPath;
+	if (FSourceCodeNavigation::FindClassHeaderPath(InStruct, ClassHeaderPath) && IFileManager::Get().FileSize(*ClassHeaderPath) != INDEX_NONE)
+	{
+		FString AbsoluteHeaderPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ClassHeaderPath);
+		FSourceCodeNavigation::OpenSourceFile(AbsoluteHeaderPath);
+		return true;
+	}
+
+	return false;
+}
+
 bool FSourceCodeNavigation::FindClassModuleName( UClass* InClass, FString& ModuleName )
 {
 	bool bResult = false;
@@ -1726,7 +1772,7 @@ void FSourceCodeNavigation::RefreshCompilerAvailability()
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 	SourceCodeAccessModule.GetAccessor().RefreshAvailability();
 
-	bCachedIsCompilerAvailable = SourceCodeAccessModule.GetAccessor().CanAccessSourceCode();
+	bCachedIsCompilerAvailable = SourceCodeAccessModule.CanCompileSourceCode();
 }
 
 bool FSourceCodeNavigation::OpenSourceFile( const FString& AbsoluteSourcePath, int32 LineNumber, int32 ColumnNumber )

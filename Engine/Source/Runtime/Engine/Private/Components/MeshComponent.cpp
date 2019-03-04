@@ -408,7 +408,7 @@ void UMeshComponent::CacheMaterialParameterNameIndices()
 	bCachedMaterialParameterIndicesAreDirty = false;
 }
 
-void UMeshComponent::GetStreamingTextureInfoInner(FStreamingTextureLevelContext& LevelContext, const TArray<FStreamingTextureBuildInfo>* PreBuiltData, float ComponentScaling, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UMeshComponent::GetStreamingTextureInfoInner(FStreamingTextureLevelContext& LevelContext, const TArray<FStreamingTextureBuildInfo>* PreBuiltData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures) const
 {
 	LevelContext.BindBuildData(PreBuiltData);
 

@@ -32,14 +32,6 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnCreateStackWidget, UNiagaraStackViewModel*);
 	DECLARE_DELEGATE_RetVal_OneParam(UMovieSceneNiagaraParameterTrack*, FOnCreateMovieSceneTrackForParameter, FNiagaraVariable);
 
-	struct FInputMetaDataKeys
-	{
-		static const FName AdvancedDisplay;
-		static const FName EditCondition;
-		static const FName VisibleCondition;
-		static const FName InlineEditConditionToggle;
-	};
-
 public:
 	FNiagaraEditorModule();
 

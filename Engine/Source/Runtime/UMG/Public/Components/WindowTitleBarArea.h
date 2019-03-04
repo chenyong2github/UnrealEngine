@@ -53,6 +53,12 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 
+	//~ Begin UWidget Interface
+#if WITH_EDITOR	
+	virtual const FText GetPaletteCategory() override;
+#endif
+	//~ End UWidget Interface
+
 protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;

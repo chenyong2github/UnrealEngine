@@ -64,6 +64,11 @@ public:
 		return Parent;
 	}
 
+	FD3D12Device* GetParentDevice_Unsafe() const
+	{
+		return Parent;
+	}
+
 	// To be used with delayed setup
 	inline void SetParentDevice(FD3D12Device* InParent)
 	{

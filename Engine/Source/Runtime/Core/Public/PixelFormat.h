@@ -75,7 +75,7 @@ enum EPixelFormat
 	PF_R8G8B8A8_SNORM		=61,
 	PF_R16G16B16A16_UNORM	=62,
 	PF_R16G16B16A16_SNORM	=63,
-	PF_PLATFORM_HDR_0		=64,	// Indicates platform-specific HDR output formats
+	PF_PLATFORM_HDR_0		=64,
 	PF_PLATFORM_HDR_1		=65,	// Reserved.
 	PF_PLATFORM_HDR_2		=66,	// Reserved.
 	PF_NV12					=67,

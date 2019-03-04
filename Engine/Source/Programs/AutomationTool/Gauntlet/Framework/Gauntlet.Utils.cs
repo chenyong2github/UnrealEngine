@@ -881,8 +881,20 @@ namespace Gauntlet
 						DestPath = Transform(DestPath);
 					}
 
-					FileInfo DestInfo = new FileInfo(DestPath);
-					FileInfo SrcInfo = new FileInfo(Path.Combine(SourceDir.FullName, RelativePath));
+					string SourcePath = Path.Combine(SourceDir.FullName, RelativePath);
+					FileInfo DestInfo;
+					FileInfo SrcInfo;
+
+					// wrap FileInfo creation with exception handler as can throw and want informative error
+					try
+					{
+						DestInfo = new FileInfo(DestPath);
+						SrcInfo = new FileInfo(SourcePath);
+					}
+					catch (Exception Ex)
+					{
+						throw new Exception(string.Format("FileInfo creation failed for Source:{0}, Dest:{1}, with: {2}", SourcePath, DestPath, Ex.Message));
+					}
 
 					// ensure directory exists
 					DestInfo.Directory.Create();
@@ -921,7 +933,10 @@ namespace Gauntlet
 							}
 							else
 							{
-								Log.Error("File Copy failed with {0}.", ex.Message);
+								using (var PauseEC = new ScopedSuspendECErrorParsing())
+								{
+									Log.Error("File Copy failed with {0}.", ex.Message);
+								}
 								throw new Exception(string.Format("File Copy failed with {0}.", ex.Message));
 							}
 						}

@@ -12,29 +12,29 @@ DynamicTextureInstanceManager.h: Definitions of classes used for texture streami
 #include "ContentStreaming.h"
 
 /** 
- * A texture instance manager to manage dynamic components. 
+ * A texture/mesh instance manager to manage dynamic components. 
  * The async view generated is duplicated so that the state can change freely.
  */
-class FDynamicTextureInstanceManager : public ITextureInstanceManager
+class FDynamicRenderAssetInstanceManager : public IRenderAssetInstanceManager
 {
 public:
 
 	/** Contructor. */
-	FDynamicTextureInstanceManager();
-	~FDynamicTextureInstanceManager() { StateSync.Sync(); }
+	FDynamicRenderAssetInstanceManager();
+	~FDynamicRenderAssetInstanceManager() { StateSync.Sync(); }
 
-	void RegisterTasks(TextureInstanceTask::FDoWorkTask& AsyncTask);
+	void RegisterTasks(RenderAssetInstanceTask::FDoWorkTask& AsyncTask);
 
-	void IncrementalUpdate(FRemovedTextureArray& RemovedTextures, float Percentage);
+	void IncrementalUpdate(FRemovedRenderAssetArray& RemovedRenderAssets, float Percentage);
 
 	// Get all (non removed) components refered by the manager. Debug only.
 	void GetReferencedComponents(TArray<const UPrimitiveComponent*>& Components) { StateSync.SyncAndGetState()->GetReferencedComponents(Components); }
 
 	/** Remove all pending components that are marked for delete. This prevents searching in the pending list for each entry. */
-	void OnPreGarbageCollect(FRemovedTextureArray& RemovedTextures);
+	void OnPreGarbageCollect(FRemovedRenderAssetArray& RemovedRenderAssets);
 
 	/*-----------------------------------
-	------ ITextureInstanceManager ------
+	------ IRenderAssetInstanceManager ------
 	-----------------------------------*/
 
 	/** Return whether this component can be managed by this manager. */
@@ -49,27 +49,27 @@ public:
 	/** Add a component streaming data, the LevelContext gives support for precompiled data. */
 	EAddComponentResult Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity = 0) final override;
 
-	/** Remove a component, the RemoveTextures is the list of textures not referred anymore. */
-	 void Remove(const UPrimitiveComponent* Component, FRemovedTextureArray* RemovedTextures) final override;
+	/** Remove a component, the RemovedRenderAssets is the list of textures or meshes not referred anymore. */
+	 void Remove(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedRenderAssets) final override;
 
 	/** Notify the manager that an async view will be requested on the next frame. */
 	void PrepareAsyncView() final override;
 
 	/** Return a view of the data that has to be 100% thread safe. The content is allowed to be updated, but not memory must be reallocated. */
-	const FTextureInstanceView* GetAsyncView(bool bCreateIfNull) final override;
+	const FRenderAssetInstanceView* GetAsyncView(bool bCreateIfNull) final override;
 
 	/** Return the size taken for sub-allocation. */
 	uint32 GetAllocatedSize() const final override;
 
 protected:
 
-	void OnCreateViewDone(FTextureInstanceView* InView);
+	void OnCreateViewDone(FRenderAssetInstanceView* InView);
 	void OnRefreshVisibilityDone(int32 BeginIndex, int32 EndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound);
 
 private:
 
-	typedef TextureInstanceTask::FCreateViewWithUninitializedBoundsTask FCreateViewTask;
-	typedef TextureInstanceTask::FRefreshFullTask FRefreshFullTask;
+	typedef RenderAssetInstanceTask::FCreateViewWithUninitializedBoundsTask FCreateViewTask;
+	typedef RenderAssetInstanceTask::FRefreshFullTask FRefreshFullTask;
 
 	struct FTasks
 	{
@@ -79,11 +79,11 @@ private:
 		TRefCountPtr<FRefreshFullTask> RefreshFullTask;
 	};
 
-	/** The texture instances. Shared with the async task. */
-	FTextureInstanceStateTaskSync<FTasks> StateSync;
+	/** The texture/mesh instances. Shared with the async task. */
+	FRenderAssetInstanceStateTaskSync<FTasks> StateSync;
 
 	/** A duplicate view for the async streaming task. */
-	TRefCountPtr<const FTextureInstanceView> AsyncView;
+	TRefCountPtr<const FRenderAssetInstanceView> AsyncView;
 
 	/** Ranges from 0 to Bounds4Components.Num(). Used in the incremental update to update bounds and visibility. */
 	int32 DirtyIndex;

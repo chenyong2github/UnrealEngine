@@ -142,7 +142,7 @@ FQuat SolveAim(const FTransform& CurrentTransform, const FVector& TargetPosition
 FTransform SolveConstraints(const FTransform& CurrentTransform, const FTransform& CurrentParentTransform, const TArray<struct FConstraintData>& Constraints)
 {
 	int32 TotalNum = Constraints.Num();
-	ensureAlways(TotalNum > 0);
+	ensure(TotalNum > 0);
 
 	FMultiTransformBlendHelper BlendHelperInLocalSpace;
 	FTransform BlendedLocalTransform = CurrentTransform.GetRelativeTransform(CurrentParentTransform);

@@ -9,6 +9,7 @@
 #if USE_ANDROID_FILE
 #include "Misc/App.h"
 #include "Misc/Paths.h"
+#include "Android/AndroidJavaEnv.h"
 
 #include <dirent.h>
 #include <jni.h>
@@ -99,19 +100,12 @@ extern AAssetManager * AndroidThunkCpp_GetAssetManager();
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetObbInfo(String PackageName, int Version, int PatchVersion);"
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetObbInfo(JNIEnv* jenv, jobject thiz, jstring ProjectName, jstring PackageName, jint Version, jint PatchVersion, jstring AppType)
 {
-	const char* JavaProjectChars = jenv->GetStringUTFChars(ProjectName, 0);
-	GAndroidProjectName = UTF8_TO_TCHAR(JavaProjectChars);
-	const char* JavaPackageChars = jenv->GetStringUTFChars(PackageName, 0);
-	GPackageName = UTF8_TO_TCHAR(JavaPackageChars);
+	GAndroidProjectName = FJavaHelper::FStringFromParam(jenv, ProjectName);
+	GPackageName = FJavaHelper::FStringFromParam(jenv, PackageName);
+	GAndroidAppType = FJavaHelper::FStringFromParam(jenv, AppType);
+	
 	GAndroidPackageVersion = Version;
 	GAndroidPackagePatchVersion = PatchVersion;
-	const char* JavaAppTypeChars = jenv->GetStringUTFChars(AppType, 0);
-	GAndroidAppType = UTF8_TO_TCHAR(JavaAppTypeChars);
-
-	//Release the strings
-	jenv->ReleaseStringUTFChars(ProjectName, JavaProjectChars);
-	jenv->ReleaseStringUTFChars(PackageName, JavaPackageChars);
-	jenv->ReleaseStringUTFChars(PackageName, JavaAppTypeChars);
 }
 
 // Constructs the base path for any files which are not in OBB/pak data
@@ -566,10 +560,11 @@ public:
 	{
 		TSharedPtr<FFileHandleAndroid> File;
 		FString FileName;
-		int32 ModTime;
+		int32 ModTime = 0;
+		bool IsDirectory = false;
 
-		Entry(TSharedPtr<FFileHandleAndroid> file, const FString & filename, int32 modtime = 0)
-			: File(file), FileName(filename), ModTime(modtime)
+		Entry(TSharedPtr<FFileHandleAndroid> file, const FString & filename, int32 modtime, bool isdir)
+			: File(file), FileName(filename), ModTime(modtime), IsDirectory(isdir)
 		{
 		}
 	};
@@ -604,9 +599,8 @@ public:
 			{
 				if (Current.Key().StartsWith(Path))
 				{
-					int32 i = -1;
-					Current.Key().FindLastChar('/', i);
-					if (i == Path.Len() - 1)
+					int32 i = Current.Key().Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Path.Len());
+					if (i == INDEX_NONE || i == Current.Key().Len() - 1)
 					{
 						break;
 					}
@@ -761,32 +755,40 @@ public:
 #if LOG_ANDROID_FILE
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FUnionZipFile::AddPatchFile.. FILE: '%s'"), *FileName);
 #endif
-				Entries.Add(
-					FileName,
-					MakeShareable(new Entry(
-						MakeShareable(new FFileHandleAndroid(
-							*file, EntryOffset, UncompressedLength)),
-						FileName,
-						WhenModified)));
-
-				// Add extra directory entries to contain the file
-				// that we can use to later discover directory contents.
-				FileName = FPaths::GetPath(FileName);
-				while (!FileName.IsEmpty())
+				if (FileName.EndsWith(TEXT("/"))) // We only care about actual files in the zip
 				{
-					FString DirName = FileName + "/";
-					if (!Entries.Contains(DirName))
-					{
-#if LOG_ANDROID_FILE
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FUnionZipFile::AddPatchFile.. DIR: '%s'"), *DirName);
-#endif
-						Entries.Add(
-							DirName,
-							MakeShareable(new Entry(
-								nullptr, DirName, 0))
-							);
-					}
+					check(UncompressedLength == 0);
+				}
+				else
+				{
+					Entries.Add(
+						FileName,
+						MakeShareable(new Entry(
+							MakeShareable(new FFileHandleAndroid(
+								*file, EntryOffset, UncompressedLength)),
+							FileName,
+							WhenModified,
+							false)));
+
+					// Add extra directory entries to contain the file
+					// that we can use to later discover directory contents.
 					FileName = FPaths::GetPath(FileName);
+					while (!FileName.IsEmpty())
+					{
+						FString DirName = FileName + "/";
+						if (!Entries.Contains(DirName))
+						{
+#if LOG_ANDROID_FILE
+							FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FUnionZipFile::AddPatchFile.. DIR: '%s'"), *DirName);
+#endif
+							Entries.Add(
+								DirName,
+								MakeShareable(new Entry(
+									nullptr, DirName, 0, true))
+							);
+						}
+						FileName = FPaths::GetPath(FileName);
+					}
 				}
 			}
 
@@ -1601,9 +1603,9 @@ public:
 			return Visitor.Visit(*DirPath, InEntry->d_type == DT_DIR);
 		};
 		
-		auto InternalResourceVisitor = [&](const FString& InResourceName) -> bool
+		auto InternalResourceVisitor = [&](const FString& InResourceName, bool IsDirectory) -> bool
 		{
-			return Visitor.Visit(*InResourceName, false);
+			return Visitor.Visit(*InResourceName, IsDirectory);
 		};
 		
 		auto InternalAssetVisitor = [&](const char* InAssetPath) -> bool
@@ -1644,7 +1646,7 @@ public:
 			return true;
 		};
 		
-		auto InternalResourceVisitor = [&](const FString& InResourceName) -> bool
+		auto InternalResourceVisitor = [&](const FString& InResourceName, bool IsDir) -> bool
 		{
 			return Visitor.Visit(
 				*InResourceName, 
@@ -1653,7 +1655,7 @@ public:
 					FDateTime::MinValue(),						// AccessTime
 					FDateTime::MinValue(),						// ModificationTime
 					ZipResource.GetEntryLength(InResourceName),	// FileSize
-					false,										// bIsDirectory
+					IsDir,										// bIsDirectory
 					true										// bIsReadOnly
 					)
 				);
@@ -1693,7 +1695,7 @@ public:
 		return IterateDirectoryCommon(Directory, InternalVisitor, InternalResourceVisitor, InternalAssetVisitor, AllowLocal, AllowAsset);
 	}
 
-	bool IterateDirectoryCommon(const TCHAR* Directory, const TFunctionRef<bool(const FString&, struct dirent*)>& Visitor, const TFunctionRef<bool(const FString&)>& ResourceVisitor, const TFunctionRef<bool(const char*)>& AssetVisitor, bool AllowLocal, bool AllowAsset)
+	bool IterateDirectoryCommon(const TCHAR* Directory, const TFunctionRef<bool(const FString&, struct dirent*)>& Visitor, const TFunctionRef<bool(const FString&, bool)>& ResourceVisitor, const TFunctionRef<bool(const char*)>& AssetVisitor, bool AllowLocal, bool AllowAsset)
 	{
 #if LOG_ANDROID_FILE
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAndroidPlatformFile::IterateDirectory('%s')"), Directory);
@@ -1720,7 +1722,7 @@ public:
 					}
 				}
 				closedir(Handle);
-				return true;
+				return Result;
 			}
 		}
 		else if (IsResource(AssetPath))
@@ -1732,8 +1734,16 @@ public:
 #if LOG_ANDROID_FILE
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAndroidPlatformFile::IterateDirectory('%s').. RESOURCE Visit: '%s'"), Directory, *ResourceDir.Current.Key());
 #endif
-				Result = ResourceVisitor(ResourceDir.Current.Key());
+				FString ResourcePath = ResourceDir.Current.Key();
+				bool IsDirectory = ResourceDir.Current.Value()->IsDirectory;
+				if (IsDirectory && ResourcePath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+				{
+					ResourcePath.GetCharArray()[ResourcePath.Len() - 1] = 0;
+					ResourcePath.TrimToNullTerminator();
+				}
+				Result = ResourceVisitor(ResourcePath, IsDirectory);
 			}
+			return Result;
 		}
 		else if (IsResource(AssetPath + "/"))
 		{
@@ -1744,8 +1754,16 @@ public:
 #if LOG_ANDROID_FILE
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAndroidPlatformFile::IterateDirectory('%s').. RESOURCE/ Visit: '%s'"), Directory, *ResourceDir.Current.Key());
 #endif
-				Result = ResourceVisitor(ResourceDir.Current.Key());
+				FString ResourcePath = ResourceDir.Current.Key();
+				bool IsDirectory = ResourceDir.Current.Value()->IsDirectory;
+				if (IsDirectory && ResourcePath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+				{
+					ResourcePath.GetCharArray()[ResourcePath.Len() - 1] = 0;
+					ResourcePath.TrimToNullTerminator();
+				}
+				Result = ResourceVisitor(ResourcePath, IsDirectory);
 			}
+			return Result;
 		}
 		else if (AllowAsset)
 		{
@@ -1762,7 +1780,7 @@ public:
 					Result = AssetVisitor(fileName);
 				}
 				AAssetDir_close(dir);
-				return true;
+				return Result;
 			}
 		}
 		return false;

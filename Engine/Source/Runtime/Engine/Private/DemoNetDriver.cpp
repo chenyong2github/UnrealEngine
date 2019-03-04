@@ -65,11 +65,15 @@ static TAutoConsoleVariable<int32> CVarLoopDemo(TEXT("demo.Loop"), 0, TEXT("<1> 
 static TAutoConsoleVariable<int32> CVarDemoFastForwardIgnoreRPCs( TEXT( "demo.FastForwardIgnoreRPCs" ), 1, TEXT( "If true, RPCs will be discarded during playback fast forward." ) );
 static TAutoConsoleVariable<int32> CVarDemoLateActorDormancyCheck(TEXT("demo.LateActorDormancyCheck"), 1, TEXT("If true, check if an actor should become dormant as late as possible- when serializing it to the demo archive."));
 
+static int32 GDemoLoopCount = 0;
+static FAutoConsoleVariableRef CVarDemoLoopCount( TEXT( "demo.LoopCount" ), GDemoLoopCount, TEXT( "If > 1, will play the replay that many times before stopping." ) );
+
 static int32 GDemoSaveRollbackActorState = 1;
 static FAutoConsoleVariableRef CVarDemoSaveRollbackActorState( TEXT( "demo.SaveRollbackActorState" ), GDemoSaveRollbackActorState, TEXT( "If true, rollback actors will save some replicated state to apply when respawned." ) );
 
 static TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes(TEXT("demo.WithLevelStreamingFixes"), 0, TEXT("If 1, provides fixes for level streaming (but breaks backwards compatibility)."));
 static TAutoConsoleVariable<int32> CVarWithDemoTimeBurnIn(TEXT("demo.WithTimeBurnIn"), 0, TEXT("If true, adds an on screen message with the current DemoTime and Changelist."));
+static TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints(TEXT("demo.WithDeltaCheckpoints"), 0, TEXT("If true, record checkpoints as a delta from the previous checkpoint."));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 static TAutoConsoleVariable<int32> CVarDemoForceFailure( TEXT( "demo.ForceFailure" ), 0, TEXT( "" ) );
@@ -145,12 +149,12 @@ namespace DemoNetDriverRecordingPrivate
 }
 
 // Helps manage packets, and any associations with streaming levels or exported GUIDs / fields.
-class FScopedPacketManager
+class FScopedPacketManager : public FNoncopyable
 {
 public:
 	FScopedPacketManager(UDemoNetConnection& InConnection, const uint32 InSeenLevelIndex):
 		Connection(InConnection),
-		Packets(Connection.bResendAllDataSinceOpen ? InConnection.QueuedCheckpointPackets : InConnection.QueuedDemoPackets),
+		Packets((Connection.ResendAllDataState != EResendAllDataState::None) ? InConnection.QueuedCheckpointPackets : InConnection.QueuedDemoPackets),
 		SeenLevelIndex(InSeenLevelIndex)
 	{
 		FlushNetChecked(Connection);
@@ -205,8 +209,9 @@ public:
  * This relies on serialization always used a fixed number of bytes for primitive types,
  * and Sane implementations of Seek and Tell.
  */
-struct FScopedStoreArchiveOffset
+class FScopedStoreArchiveOffset : public FNoncopyable
 {
+public:
 	typedef UDemoNetDriver::FArchivePos FArchivePos;
 
 	FScopedStoreArchiveOffset(FArchive& InAr):
@@ -231,6 +236,32 @@ private:
 
 	FArchive& Ar;
 	const FArchivePos StartPosition;
+};
+
+class FScopedIgnoreDeletedGuids : public FNoncopyable
+{
+public:
+	FScopedIgnoreDeletedGuids(UNetConnection* InConnection, TSet<FNetworkGUID>& DeletedActorGuids)
+		: ServerConnection(InConnection)
+	{
+		if (ServerConnection)
+		{
+			ServerConnection->IgnoredGuids = MoveTemp(DeletedActorGuids);
+			ServerConnection->IgnoredChannels.Empty();
+		}
+	}
+
+	~FScopedIgnoreDeletedGuids()
+	{
+		if (ServerConnection)
+		{
+			ServerConnection->IgnoredGuids.Empty();
+			ServerConnection->IgnoredChannels.Empty();
+		}
+	}
+
+private:
+	UNetConnection* ServerConnection;
 };
 
 class FJumpToLiveReplayTask : public FQueuedReplayTask
@@ -316,8 +347,10 @@ public:
 		// Clamp time
 		Driver->DemoCurrentTime = FMath::Clamp(Driver->DemoCurrentTime, 0.0f, Driver->DemoTotalTime - 0.01f);
 
+		EReplayCheckpointType CheckpointType = Driver->HasDeltaCheckpoints() ? EReplayCheckpointType::Delta : EReplayCheckpointType::Full;
+
 		// Tell the streamer to start going to this time
-		Driver->ReplayStreamer->GotoTimeInMS(Driver->DemoCurrentTime * 1000, FGotoCallback::CreateSP(this, &FGotoTimeInSecondsTask::CheckpointReady));
+		Driver->ReplayStreamer->GotoTimeInMS(Driver->DemoCurrentTime * 1000, FGotoCallback::CreateSP(this, &FGotoTimeInSecondsTask::CheckpointReady), CheckpointType);
 
 		// Pause channels while we wait (so the world is paused while we wait for the new stream location to load)
 		Driver->PauseChannels( true );
@@ -452,7 +485,9 @@ public:
 			const float LastProcessedPacketTime = FPendingTaskHelper::GetLastProcessedPacketTime(Driver.Get());
 			GotoTime = LastProcessedPacketTime * 1000;
 
-			Driver->ReplayStreamer->GotoTimeInMS(GotoTime, FGotoCallback::CreateSP(this, &FFastForwardLevelsTask::CheckpointReady));
+			EReplayCheckpointType CheckpointType = Driver->HasDeltaCheckpoints() ? EReplayCheckpointType::Delta : EReplayCheckpointType::Full;
+
+			Driver->ReplayStreamer->GotoTimeInMS(GotoTime, FGotoCallback::CreateSP(this, &FFastForwardLevelsTask::CheckpointReady), CheckpointType);
 
 			// Pause channels while we wait (so the world is paused while we wait for the new stream location to load)
 			Driver->PauseChannels(true);
@@ -503,7 +538,7 @@ public:
 
 		if (!Result.WasSuccessful())
 		{
-			UE_LOG( LogDemo, Warning, TEXT( "FFastForwardLevelsTask::CheckpointReady: Faled to get checkpoint." ) );
+			UE_LOG( LogDemo, Warning, TEXT( "FFastForwardLevelsTask::CheckpointReady: Failed to get checkpoint." ) );
 		}
 	}
 
@@ -514,7 +549,7 @@ private:
 	TOptional<FGotoResult> GotoResult;
 };
 
-class FScopedForceUnicodeInArchive
+class FScopedForceUnicodeInArchive : public FNoncopyable
 {
 public:
 	FScopedForceUnicodeInArchive(FArchive& InArchive)
@@ -562,6 +597,7 @@ UDemoNetDriver::UDemoNetDriver(const FObjectInitializer& ObjectInitializer)
 	bRecordMapChanges = false;
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
+	MaxArchiveReadPos = 0;
 
 	LevelIntervals.Reserve(512);
 
@@ -860,7 +896,16 @@ bool UDemoNetDriver::ReadPlaybackDemoHeader(FString& Error)
 	}
 	
 	// Check whether or not we need to process streaming level fixes.
-	bHasLevelStreamingFixes = !!(PlaybackDemoHeader.HeaderFlags & EReplayHeaderFlags::HasStreamingFixes);
+	bHasLevelStreamingFixes = EnumHasAnyFlags(PlaybackDemoHeader.HeaderFlags, EReplayHeaderFlags::HasStreamingFixes);
+	// Or delta checkpoints
+	bHasDeltaCheckpoints = EnumHasAnyFlags(PlaybackDemoHeader.HeaderFlags, EReplayHeaderFlags::DeltaCheckpoints);
+
+	if (bHasDeltaCheckpoints && !ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta))
+	{
+		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::InitConnect: Replay has delta checkpoints but streamer does not support them."));
+		GameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::Generic, FString(EDemoPlayFailure::ToString(EDemoPlayFailure::Generic)));
+		return false;
+	}
 
 	// Set network version on connection
 	ServerConnection->EngineNetworkProtocolVersion = PlaybackDemoHeader.EngineNetworkProtocolVersion;
@@ -973,6 +1018,7 @@ bool UDemoNetDriver::InitListen( FNetworkNotify* InNotify, FURL& ListenURL, bool
 	// We'll only check these CVars here, because we don't want to break the replay if they change part way through recording.
 	// During playback the CVars won't be used. Instead, we'll rely on the DemoPacketHeader value.
 	bHasLevelStreamingFixes = !!CVarWithLevelStreamingFixes.GetValueOnAnyThread();
+	bHasDeltaCheckpoints = !!CVarWithDeltaCheckpoints.GetValueOnAnyThread() && ReplayStreamer->IsCheckpointTypeSupported(EReplayCheckpointType::Delta);
 
 	// Recording, local machine is server, demo stream acts "as if" it's a client.
 	UDemoNetConnection* Connection = NewObject<UDemoNetConnection>();
@@ -1192,9 +1238,15 @@ bool UDemoNetDriver::WriteNetworkDemoHeader(FString& Error)
 	{
 		DemoHeader.HeaderFlags |= EReplayHeaderFlags::ClientRecorded;
 	}
+
 	if (HasLevelStreamingFixes())
 	{
 		DemoHeader.HeaderFlags |= EReplayHeaderFlags::HasStreamingFixes;
+	}
+
+	if (HasDeltaCheckpoints())
+	{
+		DemoHeader.HeaderFlags |= EReplayHeaderFlags::DeltaCheckpoints;
 	}
 
 	DemoHeader.Guid = FGuid::NewGuid();
@@ -1572,7 +1624,7 @@ bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connectio
 			// Close the channel if this actor shouldn't have one
 			if (!bShouldHaveChannel)
 			{
-				if (!Connection->bResendAllDataSinceOpen)		// Don't close the channel if we're forcing them to re-open for checkpoints
+				if (Connection->ResendAllDataState == EResendAllDataState::None)		// Don't close the channel if we're forcing them to re-open for checkpoints
 				{
 					Channel->Close(EChannelCloseReason::Destroyed);
 				}
@@ -1580,7 +1632,7 @@ bool UDemoNetDriver::DemoReplicateActor(AActor* Actor, UNetConnection* Connectio
 		}
 	}
 
-	if ( bMustReplicate && Connection->Driver->OutBunches == OriginalOutBunches )
+	if ( bMustReplicate && !HasDeltaCheckpoints() && Connection->Driver->OutBunches == OriginalOutBunches )
 	{
 		UE_LOG( LogDemo, Error, TEXT( "DemoReplicateActor: bMustReplicate is true but nothing was sent: %s" ), Actor ? *Actor->GetName() : TEXT( "NULL" ) );
 	}
@@ -1593,14 +1645,21 @@ void UDemoNetDriver::SerializeGuidCache(TSharedPtr<FNetGUIDCache> InGuidCache, F
 	int32 NumValues = 0;
 	int32 UnloadedValues = 0;
 
-	int64 CountPos = CheckpointArchive->Tell();
+	FArchivePos CountPos = CheckpointArchive->Tell();
 
 	*CheckpointArchive << NumValues;
+
+	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
 
 	for ( auto It = InGuidCache->ObjectLookup.CreateIterator(); It; ++It )
 	{
 		FNetworkGUID& NetworkGUID = It.Key();
 		FNetGuidCacheObject& CacheObject = It.Value();
+
+		if (bDeltaCheckpoint && !CacheObject.bDirtyForReplay)
+		{
+			continue;
+		}
 
 		if (NetworkGUID.IsValid())
 		{
@@ -1629,6 +1688,8 @@ void UDemoNetDriver::SerializeGuidCache(TSharedPtr<FNetGUIDCache> InGuidCache, F
 
 				*CheckpointArchive << Flags;
 
+				CacheObject.bDirtyForReplay = false;
+
 				++NumValues;
 
 				const bool bUnloaded = Object == nullptr || !Object->IsNameStableForNetworking();
@@ -1640,7 +1701,7 @@ void UDemoNetDriver::SerializeGuidCache(TSharedPtr<FNetGUIDCache> InGuidCache, F
 		}
 	}
 
-	int64 Pos = CheckpointArchive->Tell();
+	FArchivePos Pos = CheckpointArchive->Tell();
 	CheckpointArchive->Seek(CountPos);
 	*CheckpointArchive << NumValues;
 	CheckpointArchive->Seek(Pos);
@@ -1682,6 +1743,8 @@ void UDemoNetDriver::SaveCheckpoint()
 
 	check( CheckpointSaveContext.CheckpointSaveState == ECheckpointSaveState_Idle );
 	
+	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+
 	if (HasLevelStreamingFixes())
 	{
 		SCOPED_NAMED_EVENT(UDemoNetDriver_ReplayLevelSortAndAssign, FColor::Purple);
@@ -1711,9 +1774,17 @@ void UDemoNetDriver::SaveCheckpoint()
 					if (Actor)
 					{
 						// Validate that we do not pickup any extra actors
-						if (AllObjectsSet.Find(Actor) != nullptr)
+						const TSharedPtr<FNetworkObjectInfo>* ObjectInfo = AllObjectsSet.Find(Actor);
+						if (ObjectInfo != nullptr && ObjectInfo->IsValid())
 						{
-							ActorArray.Add( { ChannelPair.Key, Actor->GetOuter() } );
+							FNetworkObjectInfo* Info = ObjectInfo->Get();
+
+							if (!bDeltaCheckpoint || Info->bDirtyForReplay)
+							{
+								ActorArray.Add({ ChannelPair.Key, Actor->GetOuter() });
+
+								Info->bDirtyForReplay = false;
+							}
 						}
 					}
 				}
@@ -1751,7 +1822,12 @@ void UDemoNetDriver::SaveCheckpoint()
 
 			if ( ClientConnections[0]->FindActorChannelRef( Actor ) )
 			{
-				CheckpointSaveContext.PendingCheckpointActors.Add( { Actor, -1 } );
+				if (!bDeltaCheckpoint || ObjectInfo->bDirtyForReplay)
+				{
+					CheckpointSaveContext.PendingCheckpointActors.Add({ Actor, -1 });
+
+					ObjectInfo->bDirtyForReplay = false;
+				}
 			}
 		}
 	}
@@ -1840,6 +1916,8 @@ void UDemoNetDriver::TickCheckpoint()
 		// Save package map ack status in case we export stuff during the checkpoint (so we can restore the connection back to what it was before we saved the checkpoint)
 		PackageMapClient->OverridePackageMapExportAckStatus( &CheckpointSaveContext.CheckpointAckState );
 
+		const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+
 		while (bExecuteNextState && (CheckpointSaveContext.CheckpointSaveState != ECheckpointSaveState_Finalize) && !(Params.CheckpointMaxUploadTimePerFrame > 0 && CurrentTime - Params.StartCheckpointTime > Params.CheckpointMaxUploadTimePerFrame))
 		{
 			switch (CheckpointSaveContext.CheckpointSaveState)
@@ -1864,8 +1942,7 @@ void UDemoNetDriver::TickCheckpoint()
 
 					{
 						// Re-use the existing connection to record all properties that have changed since channels were first opened
-						// Set bResendAllDataSinceOpen to true to signify that we want to do this
-						TGuardValue<bool> ResendAllData(ClientConnection->bResendAllDataSinceOpen, true);
+						TGuardValue<EResendAllDataState> ResendAllData(ClientConnection->ResendAllDataState, bDeltaCheckpoint ? EResendAllDataState::SinceCheckpoint : EResendAllDataState::SinceOpen);
 
 						// Can't use conditionally create here, because NumActorsToProcess will be empty when HasLevelStreamingFixes is false.
 						TUniquePtr<FScopedPacketManager> PacketManager;
@@ -1935,8 +2012,19 @@ void UDemoNetDriver::TickCheckpoint()
 
 						*CheckpointArchive << CurrentLevelIndex;
 
-						// Save deleted startup actors	
-						*CheckpointArchive << DeletedNetStartupActors;
+						// Save deleted startup actors
+						if (bDeltaCheckpoint)
+						{
+							*CheckpointArchive << DeltaDeletedNetStartupActors;
+							DeltaDeletedNetStartupActors.Empty();
+
+							*CheckpointArchive << DeltaDeletedActorGuids;
+							DeltaDeletedActorGuids.Empty();
+						}
+						else
+						{
+							*CheckpointArchive << DeletedNetStartupActors;
+						}
 
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_SerializeGuidCache;
 					}
@@ -1968,7 +2056,14 @@ void UDemoNetDriver::TickCheckpoint()
 						SCOPED_NAMED_EVENT(UDemoNetDriver_SerializeNetFieldExportGroupMap, FColor::Green);
 
 						// Save the compatible rep layout map
-						PackageMapClient->SerializeNetFieldExportGroupMap( *CheckpointArchive );
+						if (bDeltaCheckpoint)
+						{
+							PackageMapClient->SerializeNetFieldExportDelta(*CheckpointArchive);
+						}
+						else
+						{
+							PackageMapClient->SerializeNetFieldExportGroupMap(*CheckpointArchive);
+						}
 
 						CheckpointSaveContext.CheckpointSaveState = ECheckpointSaveState_SerializeDemoFrameFromQueuedDemoPackets;
 					}
@@ -2459,6 +2554,8 @@ void UDemoNetDriver::TickDemoRecordFrame( float DeltaSeconds )
 			FDemoActorPriority DemoActorPriority;
 			FActorPriority& ActorPriority = DemoActorPriority.ActorPriority;
 
+			const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+
 			for (const TSharedPtr<FNetworkObjectInfo>& ObjectInfo : ActiveObjectSet)
 			{
 				FNetworkObjectInfo* ActorInfo = ObjectInfo.Get();
@@ -2538,6 +2635,8 @@ void UDemoNetDriver::TickDemoRecordFrame( float DeltaSeconds )
 					}
 
 					PrioritizedActors.Add(DemoActorPriority);
+
+					ActorInfo->bDirtyForReplay = bDeltaCheckpoint;
 
 					if (bIsRelevant)
 					{
@@ -3034,7 +3133,7 @@ bool UDemoNetDriver::ReadDemoFrameIntoPlaybackPackets( FArchive& Ar, TArray<FPla
 
 		const EReadPacketMode ReadPacketMode = bAppendPackets ? EReadPacketMode::Default : EReadPacketMode::SkipData;
 
-		while (true)
+		while ((MaxArchiveReadPos == 0) || (Ar.Tell() < MaxArchiveReadPos))
 		{
 			if (HasLevelStreamingFixes())
 			{
@@ -3639,20 +3738,30 @@ void UDemoNetDriver::TickDemoPlayback( float DeltaSeconds )
 		{
 			OnDemoFinishPlaybackDelegate.Broadcast();
 
-			if (FParse::Param(FCommandLine::Get(), TEXT("ExitAfterReplay")))
+			// checking against 1 so the count will mean total number of playthroughs, not additional loops
+			if (GDemoLoopCount > 1)
 			{
-				FPlatformMisc::RequestExit(false);
-			}
+				--GDemoLoopCount;
 
-			if (CVarLoopDemo.GetValueOnGameThread() > 0)
-			{
 				GotoTimeInSeconds(0.0f);
+			}
+			else
+			{
+				if (FParse::Param(FCommandLine::Get(), TEXT("ExitAfterReplay")))
+				{
+					FPlatformMisc::RequestExit(false);
+				}
+
+				if (CVarLoopDemo.GetValueOnGameThread() > 0)
+				{
+					GotoTimeInSeconds(0.0f);
+				}
 			}
 		}
 	}
 
 	// Advance demo time by seconds passed if we're not paused
-	if ( World->GetWorldSettings()->Pauser == nullptr )
+	if ( World && World->GetWorldSettings() && World->GetWorldSettings()->GetPauserPlayerState() == nullptr )
 	{
 		DemoCurrentTime += DeltaSeconds;
 	}
@@ -3757,14 +3866,16 @@ void UDemoNetDriver::FinalizeFastForward( const double StartTime )
 				continue;
 			}
 
-			const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator;
-			if (Actor->IsNetStartupActor() && ActorReplicator)
+			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
 			{
-				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
-				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
-				FConstRepObjectDataBuffer ActorData(Actor);
+				if (Actor->IsNetStartupActor())
+				{
+					FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
+					FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
+					FConstRepObjectDataBuffer ActorData(Actor);
 
-				ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+					ActorReplicator->RepLayout->DiffProperties(&(ReceivingRepState->RepNotifies), ShadowData, ActorData, EDiffPropertiesFlags::Sync);
+				}
 			}
 		}
 	}
@@ -3990,10 +4101,21 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 			continue;
 		}
 
-		// skip rollback actors in streamed out levels (pending gc)
-		if (!LevelStatusesByName.Contains(GetLevelPackageName(*RollbackActor.Level)))
+		if (HasLevelStreamingFixes())
 		{
-			continue;
+			const FString LevelPackageName = GetLevelPackageName(*RollbackActor.Level);
+
+			// skip rollback actors in streamed out levels (pending gc)
+			if (!LevelStatusesByName.Contains(LevelPackageName))
+			{
+				continue;
+			}
+
+			FLevelStatus& LevelStatus = GetLevelStatus(LevelPackageName);
+			if (!LevelStatus.bIsReady)
+			{
+				continue;
+			}
 		}
 
 		AActor* ExistingActor = FindObjectFast<AActor>(RollbackActor.Level, RollbackActor.Name);
@@ -4311,16 +4433,34 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 			TGuardValue<bool> LoadingCheckpointGuard(bIsLoadingCheckpoint, true);
 
-			FArchivePos PacketOffset = 0;
-			*CheckpointArchive << PacketOffset;
-			CheckpointArchive->Seek(PacketOffset + CheckpointArchive->Tell());
+			const bool bDeltaCheckpoint = HasDeltaCheckpoints();
 
-			if (!ReadPacketsHelper.ReadPackets(*CheckpointArchive) && ReadPacketsHelper.IsError())
+			do 
 			{
-				UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::FastForwardLevels: Failed to read packets from Checkpoint."));
-				NotifyDemoPlaybackFailure(EDemoPlayFailure::Serialization);
-				return false;
-			}
+				FArchivePos MaxArchivePos = 0;
+
+				if (bDeltaCheckpoint)
+				{
+					uint32 CheckpointSize = 0;
+					*CheckpointArchive << CheckpointSize;
+
+					MaxArchivePos = CheckpointArchive->Tell() + CheckpointSize;
+				}
+
+				TGuardValue<int64> MaxArchivePosGuard(MaxArchiveReadPos, MaxArchivePos);
+
+				FArchivePos PacketOffset = 0;
+				*CheckpointArchive << PacketOffset;
+				CheckpointArchive->Seek(PacketOffset + CheckpointArchive->Tell());
+
+				if (!ReadPacketsHelper.ReadPackets(*CheckpointArchive) && ReadPacketsHelper.IsError())
+				{
+					UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::FastForwardLevels: Failed to read packets from Checkpoint."));
+					NotifyDemoPlaybackFailure(EDemoPlayFailure::Generic);
+					return false;
+				}
+			} 
+			while (!CheckpointArchive->IsError() && (CheckpointArchive->Tell() < CheckpointArchive->TotalSize()));
 		}
 
 		// Next, read in streaming data (if any is available)
@@ -4404,6 +4544,8 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			TWeakObjectPtr<UNetConnection> Connection;
 		} ScopedIgnoreChannels(ServerConnection);
 
+		FScopedIgnoreDeletedGuids IgnoreGuids(ServerConnection, DeletedActorGuids);
+
 		// Process all the packets we need.
 		for (FPlaybackPacket& Packet : ReadPacketsHelper.Packets)
 		{
@@ -4472,7 +4614,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			}
 
 			ChannelsToUpdate.Add(ActorChannel);
-			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator)
+			if (const FObjectReplicator* const ActorReplicator = ActorChannel->ActorReplicator.Get())
 			{
 				FReceivingRepState* ReceivingRepState = ActorReplicator->RepState->GetReceivingRepState();
 				FRepShadowDataBuffer ShadowData(ReceivingRepState->StaticBuffer.GetData());
@@ -4513,6 +4655,17 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	GotoCheckpointArchive->SetGameNetVer(PlaybackDemoHeader.GameNetworkProtocolVersion);
 
 	int32 LevelForCheckpoint = 0;
+
+	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
+
+	if (bDeltaCheckpoint)
+	{
+		if (GotoCheckpointArchive->TotalSize() > 0)
+		{
+			uint32 CheckpointSize = 0;
+			*GotoCheckpointArchive << CheckpointSize;
+		}
+	}
 
 	if (HasLevelStreamingFixes())
 	{
@@ -4776,6 +4929,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	{
 		// Make sure this is empty so that RespawnNecessaryNetStartupActors will respawn them
 		DeletedNetStartupActors.Empty();
+		DeletedActorGuids.Empty();
 
 		// Re-create all startup actors that were destroyed but should exist beyond this point
 		TArray<AActor*> SpawnedActors;
@@ -4800,14 +4954,108 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		return true;
 	}
 
-	// Load net startup actors that need to be destroyed
-	if ( PlaybackDemoHeader.Version >= HISTORY_DELETED_STARTUP_ACTORS )
-	{
-		*GotoCheckpointArchive << DeletedNetStartupActors;
-	}
+	GotoCheckpointArchive->Seek(0);
 
+	DeletedNetStartupActors.Empty();
+	DeletedActorGuids.Empty();
+
+	do
+	{
+		FArchivePos MaxArchivePos = 0;
+
+		if (bDeltaCheckpoint)
+		{
+			uint32 CheckpointSize = 0;
+			*GotoCheckpointArchive << CheckpointSize;
+
+			MaxArchivePos = GotoCheckpointArchive->Tell() + CheckpointSize;
+		}
+
+		TGuardValue<int64> MaxArchivePosGuard(MaxArchiveReadPos, MaxArchivePos);
+			
+		if (HasLevelStreamingFixes())
+		{
+			FArchivePos PacketOffset = 0;
+			*GotoCheckpointArchive << PacketOffset;
+		}
+
+		if (PlaybackDemoHeader.Version >= HISTORY_MULTIPLE_LEVELS)
+		{
+			int32 LevelIndex;
+			*GotoCheckpointArchive << LevelIndex;
+		}
+
+		// Load net startup actors that need to be destroyed
+		if ( PlaybackDemoHeader.Version >= HISTORY_DELETED_STARTUP_ACTORS )
+		{
+			if (bDeltaCheckpoint)
+			{
+				TSet<FString> DeltaActors;
+				*GotoCheckpointArchive << DeltaActors;
+
+				DeletedNetStartupActors.Append(DeltaActors);
+
+				TSet<FNetworkGUID> DeltaGuids;
+				*GotoCheckpointArchive << DeltaGuids;
+
+				DeletedActorGuids.Append(DeltaGuids);
+			}
+			else
+			{
+				DeletedNetStartupActors.Empty();
+				DeletedActorGuids.Empty();
+
+				*GotoCheckpointArchive << DeletedNetStartupActors;
+			}
+		}
+
+		int32 NumValues = 0;
+		*GotoCheckpointArchive << NumValues;
+
+		for ( int32 i = 0; i < NumValues; i++ )
+		{
+			FNetworkGUID Guid;
+
+			*GotoCheckpointArchive << Guid;
+
+			FNetGuidCacheObject CacheObject;
+
+			FString PathName;
+
+			*GotoCheckpointArchive << CacheObject.OuterGUID;
+			*GotoCheckpointArchive << PathName;
+			*GotoCheckpointArchive << CacheObject.NetworkChecksum;
+
+			// Remap the pathname to handle client-recorded replays
+			GEngine->NetworkRemapPath(this, PathName, true);
+
+			CacheObject.PathName = FName( *PathName );
+
+			uint8 Flags = 0;
+			*GotoCheckpointArchive << Flags;
+
+			CacheObject.bNoLoad = ( Flags & ( 1 << 0 ) ) ? true : false;
+			CacheObject.bIgnoreWhenMissing = ( Flags & ( 1 << 1 ) ) ? true : false;		
+
+			GuidCache->ObjectLookup.Add( Guid, CacheObject );
+		}
+
+		// Read in the compatible rep layouts in this checkpoint
+		if (bDeltaCheckpoint)
+		{
+			CastChecked<UPackageMapClient>(ServerConnection->PackageMap)->SerializeNetFieldExportDelta(*GotoCheckpointArchive);
+		}
+		else
+		{
+			CastChecked<UPackageMapClient>(ServerConnection->PackageMap)->SerializeNetFieldExportGroupMap(*GotoCheckpointArchive);
+		}
+
+		ReadDemoFrameIntoPlaybackPackets( *GotoCheckpointArchive );
+	}
+	while (!GotoCheckpointArchive->IsError() && (GotoCheckpointArchive->Tell() < GotoCheckpointArchive->TotalSize()));
+	
 	// Destroy startup actors that shouldn't exist past this checkpoint
-	for ( FActorIterator It( GetWorld() ); It; ++It )
+	for ( FActorIterator It( World ); It; ++It )
 	{
 		const FString FullName = It->GetFullName();
 		if ( DeletedNetStartupActors.Contains( FullName ) )
@@ -4826,50 +5074,14 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			UE_LOG(LogDemo, Verbose, TEXT("LoadCheckpoint: deleting startup actor %s"), *FullName);
 
 			// Delete the actor
-			GetWorld()->DestroyActor( *It, true );
+			World->DestroyActor( *It, true );
 		}
 	}
 
 	// Re-create all startup actors that were destroyed but should exist beyond this point
 	TArray<AActor*> SpawnedActors;
 	RespawnNecessaryNetStartupActors(SpawnedActors);
-
-	int32 NumValues = 0;
-	*GotoCheckpointArchive << NumValues;
-
-	for ( int32 i = 0; i < NumValues; i++ )
-	{
-		FNetworkGUID Guid;
 		
-		*GotoCheckpointArchive << Guid;
-		
-		FNetGuidCacheObject CacheObject;
-
-		FString PathName;
-
-		*GotoCheckpointArchive << CacheObject.OuterGUID;
-		*GotoCheckpointArchive << PathName;
-		*GotoCheckpointArchive << CacheObject.NetworkChecksum;
-
-		// Remap the pathname to handle client-recorded replays
-		GEngine->NetworkRemapPath(this, PathName, true);
-
-		CacheObject.PathName = FName( *PathName );
-
-		uint8 Flags = 0;
-		*GotoCheckpointArchive << Flags;
-
-		CacheObject.bNoLoad = ( Flags & ( 1 << 0 ) ) ? true : false;
-		CacheObject.bIgnoreWhenMissing = ( Flags & ( 1 << 1 ) ) ? true : false;		
-
-		GuidCache->ObjectLookup.Add( Guid, CacheObject );
-	}
-
-	// Read in the compatible rep layouts in this checkpoint
-	( ( UPackageMapClient* )ServerConnection->PackageMap )->SerializeNetFieldExportGroupMap( *GotoCheckpointArchive );
-
-	ReadDemoFrameIntoPlaybackPackets( *GotoCheckpointArchive );
-
 	if ( PlaybackPackets.Num() > 0 )
 	{
 		DemoCurrentTime = PlaybackPackets.Last().TimeSeconds;
@@ -4891,7 +5103,10 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		CleanupOutstandingRewindActors();
 	}
 
-	ProcessAllPlaybackPackets();
+	{
+		FScopedIgnoreDeletedGuids IgnoreGuids(ServerConnection, DeletedActorGuids);
+		ProcessAllPlaybackPackets();
+	}
 
 	bDemoPlaybackDone = false;
 	bIsLoadingCheckpoint = false;
@@ -4926,7 +5141,7 @@ bool UDemoNetDriver::IsSavingCheckpoint() const
 		UNetConnection* const NetConnection = ClientConnections[0];
 		if (NetConnection)
 		{
-			return NetConnection->bResendAllDataSinceOpen;
+			return (NetConnection->ResendAllDataState != EResendAllDataState::None);
 		}
 	}
 
@@ -5026,12 +5241,19 @@ void UDemoNetDriver::AddNonQueuedGUIDForScrubbing(FNetworkGUID InGUID)
 	}
 }
 
+FDemoSavedRepObjectState::FDemoSavedRepObjectState(
+	const TWeakObjectPtr<const UObject>& InObject,
+	const TSharedRef<const FRepLayout>& InRepLayout,
+	FRepStateStaticBuffer&& InPropertyData) :
+
+	Object(InObject),
+	RepLayout(InRepLayout),
+	PropertyData(MoveTemp(InPropertyData))
+{
+}
+
 FDemoSavedRepObjectState::~FDemoSavedRepObjectState()
 {
-	if (RepLayout.IsValid() && PropertyData.Num() > 0)
-	{
-		RepLayout->DestructProperties(PropertyData);
-	}
 }
 
 FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
@@ -5051,15 +5273,10 @@ FDemoSavedPropertyState UDemoNetDriver::SavePropertyState() const
 					TWeakObjectPtr<UObject> WeakObjectPtr = ReplicatorPair.Value->GetWeakObjectPtr();
 					if (const UObject* const RepObject = WeakObjectPtr.Get())
 					{
-						FDemoSavedRepObjectState& SavedObject = State.Emplace_GetRef();
-						SavedObject.Object = WeakObjectPtr;
-						SavedObject.RepLayout = ReplicatorPair.Value->RepLayout;
+						const TSharedRef<const FRepLayout> RepLayout = ReplicatorPair.Value->RepLayout.ToSharedRef();
+						FDemoSavedRepObjectState& SavedObject = State.Emplace_GetRef(WeakObjectPtr, RepLayout, RepLayout->CreateShadowBuffer((const uint8*)RepObject));
 
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						SavedObject.RepLayout->InitShadowData(SavedObject.PropertyData, RepObject->GetClass(), reinterpret_cast<const uint8* const>(RepObject));
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-						// TODO: InitShadowData should copy property data, so this seem uneccessary.
+						// TODO: InitShadowData should copy property data, so this seem unnecessary.
 						// Store the properties in the new RepState
 						FRepShadowDataBuffer ShadowData(SavedObject.PropertyData.GetData());
 						FConstRepObjectDataBuffer RepObjectData(RepObject);
@@ -5150,7 +5367,7 @@ void UDemoNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTra
 
 	TrackSendForProfiler( Data, CountBytes );
 
-	if ( bResendAllDataSinceOpen )
+	if ( ResendAllDataState != EResendAllDataState::None )
 	{
 		// This path is only active for a checkpoint saving out, we need to queue in separate list
 		new( QueuedCheckpointPackets )FQueuedDemoPacket( ( uint8* )Data, CountBits, Traits );
@@ -5411,18 +5628,31 @@ void UDemoNetDriver::NotifyActorDestroyed( AActor* Actor, bool IsSeamlessTravel 
 		}
 		else
 		{
+			const FString FullName = Actor->GetFullName();
+
 			// This was deleted due to a game interaction, which isn't supported for Rewindable actors (while recording).
 			// However, since the actor is going to be deleted imminently, we need to track it.
-			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *Actor->GetFullName());
+			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
 
-			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActyorDestroyed: adding actor to deleted startup list: %s"), *Actor->GetFullName());
-			DeletedNetStartupActors.Add( Actor->GetFullName() );
+			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActyorDestroyed: adding actor to deleted startup list: %s"), *FullName);
+			DeletedNetStartupActors.Add( FullName );
+			DeltaDeletedNetStartupActors.Add( FullName );
 
 			FNetworkGUID NetGUID = GuidCache->NetGUIDLookup.FindRef(Actor);
 			if (NetGUID.IsValid())
 			{
 				DeletedNetStartupActorGUIDs.Add(NetGUID);
 			}
+		}
+	}
+
+	if (bIsRecording && !IsSeamlessTravel)
+	{
+		FNetworkGUID NetGUID = GuidCache->NetGUIDLookup.FindRef(Actor);
+		if (NetGUID.IsValid() && !NetGUID.IsDefault())
+		{
+			DeletedActorGuids.Add(NetGUID);
+			DeltaDeletedActorGuids.Add(NetGUID);
 		}
 	}
 

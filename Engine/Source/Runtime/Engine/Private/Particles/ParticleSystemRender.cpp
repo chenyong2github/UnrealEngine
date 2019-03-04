@@ -1026,7 +1026,7 @@ FParticleVertexFactoryBase *FDynamicSpriteEmitterData::CreateVertexFactory(ERHIF
 	FParticleSpriteVertexFactory *VertexFactory = new FParticleSpriteVertexFactory(InFeatureLevel);
 	VertexFactory->SetParticleFactoryType(PVFT_Sprite);
 	const FParticleRequiredModule * RequiredModule = GetSourceData()->RequiredModule;
-	VertexFactory->SetNumVertsInInstanceBuffer(RequiredModule->bCutoutTexureIsValid && RequiredModule->AlphaThreshold ? RequiredModule->NumBoundingVertices : 4);
+	VertexFactory->SetNumVertsInInstanceBuffer(RequiredModule->bCutoutTexureIsValid ? RequiredModule->NumBoundingVertices : 4);
 	VertexFactory->SetUsesDynamicParameter(bUsesDynamicParameter, bUsesDynamicParameter ? GetDynamicParameterVertexStride(): 0);
 	VertexFactory->InitResource();
 	return VertexFactory;
@@ -1193,7 +1193,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 					SpriteVertexFactory->SetInstanceBuffer(Allocation.VertexBuffer, Allocation.VertexOffset, InstanceBufferStride, bInstanced);
 					SpriteVertexFactory->SetDynamicParameterBuffer(DynamicParameterAllocation.VertexBuffer, DynamicParameterAllocation.VertexOffset, GetDynamicParameterVertexStride(), bInstanced);
 
-					if (SourceData->RequiredModule->bCutoutTexureIsValid && SourceData->RequiredModule->AlphaThreshold)
+					if (SourceData->RequiredModule->bCutoutTexureIsValid)
 					{
 						SpriteVertexFactory->SetCutoutParameters(SourceData->RequiredModule->NumBoundingVertices, SourceData->RequiredModule->BoundingGeometryBufferSRV);
 					}
@@ -1575,7 +1575,8 @@ public:
 
 uint32 FDynamicMeshEmitterData::GetMeshLODIndexFromProxy(const FParticleSystemSceneProxy *InOwnerProxy) const
 {
-	int FirstAvailableLOD = 0;
+	check(IsInRenderingThread());
+	int FirstAvailableLOD = StaticMesh->RenderData->CurrentFirstLODIdx;
 	for (; FirstAvailableLOD < StaticMesh->RenderData->LODResources.Num(); FirstAvailableLOD++)
 	{
 		if (StaticMesh->RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
@@ -1862,14 +1863,14 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 					if (bIsWireframe)
 					{
-						if (LODModel.WireframeIndexBuffer.IsInitialized()
+						if (LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
 							&& !(RHISupportsTessellation(ShaderPlatform) && Mesh.VertexFactory->GetType()->SupportsTessellationShaders()))
 						{
 							Mesh.Type = PT_LineList;
 							Mesh.MaterialRenderProxy = Proxy->GetDeselectedWireframeMatInst();
 							BatchElement.FirstIndex = 0;
-							BatchElement.IndexBuffer = &LODModel.WireframeIndexBuffer;
-							BatchElement.NumPrimitives = LODModel.WireframeIndexBuffer.GetNumIndices() / 2;
+							BatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
+							BatchElement.NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
 
 						}
 						else
@@ -7069,10 +7070,9 @@ void FParticleSystemSceneProxy::ReleaseRenderThreadResourcesForEmitterData()
 
 void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 {
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		ParticleUpdateDataCommand,
-		FParticleSystemSceneProxy*, Proxy, this,
-		FParticleDynamicData*, NewDynamicData, NewDynamicData,
+	FParticleSystemSceneProxy* Proxy = this;
+	ENQUEUE_RENDER_COMMAND(ParticleUpdateDataCommand)(
+		[Proxy, NewDynamicData](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)

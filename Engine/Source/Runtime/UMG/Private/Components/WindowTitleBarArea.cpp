@@ -139,6 +139,13 @@ void UWindowTitleBarArea::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
+const FText UWindowTitleBarArea::GetPaletteCategory()
+{
+	return LOCTEXT("Advanced", "Advanced");
+}
+#endif
+
 bool UWindowTitleBarArea::HandleWindowAction(const TSharedRef<FGenericWindow>& PlatformWindow, EWindowAction::Type WindowAction)
 {
 	if (GEngine && (WindowAction == EWindowAction::Maximize || WindowAction == EWindowAction::Restore))

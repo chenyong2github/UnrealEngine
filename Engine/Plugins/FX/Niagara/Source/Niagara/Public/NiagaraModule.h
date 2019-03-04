@@ -135,7 +135,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_SystemWorldToLocalNoScale() { return Engine_Owner_SystemWorldToLocalNoScale; }
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_TimeSinceRendered() { return Engine_Owner_TimeSinceRendered; }
-	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_MinDistanceToCamera() { return Engine_Owner_MinDistanceToCamera; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_LODDistance() { return Engine_Owner_LODDistance; }
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_Owner_ExecutionState() { return Engine_Owner_ExecutionState; }
 
@@ -231,7 +231,7 @@ private:
 	static FNiagaraVariable Engine_Owner_SystemWorldToLocalNoScale;
 
 	static FNiagaraVariable Engine_Owner_TimeSinceRendered;
-	static FNiagaraVariable Engine_Owner_MinDistanceToCamera;
+	static FNiagaraVariable Engine_Owner_LODDistance;
 	
 	static FNiagaraVariable Engine_Owner_ExecutionState;
 

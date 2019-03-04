@@ -34,7 +34,7 @@ namespace
 			uint16 Stride = sizeof(FMediaElementVertex);
 			Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, Position), VET_Float4, 0, Stride));
 			Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, TextureCoordinate), VET_Float2, 1, Stride));
-			VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+			VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 
 			TResourceArray<FMediaElementVertex> Vertices;
 			Vertices.AddUninitialized(4);
@@ -132,14 +132,14 @@ void FWebMVideoDecoder::DoDecodeVideoFrames(const TArray<TSharedPtr<FWebMFrame>>
 		const void* ImageIter = nullptr;
 		while (const vpx_image_t* Image = vpx_codec_get_frame(&Context, &ImageIter))
 		{
+			FWebMVideoDecoder* Self = this;
 			if (!bTexturesCreated)
 			{
 				// First creation of conversion textures
 
 				bTexturesCreated = true;
-
-				ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(WebMMediaPlayerCreateTextures,
-					FWebMVideoDecoder*, Self, this, const vpx_image_t*, Image, Image,
+				ENQUEUE_RENDER_COMMAND(WebMMediaPlayerCreateTextures)(
+					[Self, Image](FRHICommandListImmediate& RHICmdList)
 					{
 						Self->CreateTextures(Image);
 					});
@@ -152,9 +152,8 @@ void FWebMVideoDecoder::DoDecodeVideoFrames(const TArray<TSharedPtr<FWebMFrame>>
 			FConvertParams Params;
 			Params.VideoSample = VideoSample;
 			Params.Image = Image;
-
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(WebMMediaPlayerConvertYUVToRGB,
-				FWebMVideoDecoder*, Self, this, FConvertParams, Params, Params,
+			ENQUEUE_RENDER_COMMAND(WebMMediaPlayerConvertYUVToRGB)(
+				[Self, Params](FRHICommandListImmediate& RHICmdList)
 				{
 					Self->ConvertYUVToRGBAndSubmit(Params);
 				});
@@ -179,7 +178,13 @@ void FWebMVideoDecoder::Close()
 	}
 
 	// Make sure all compute shader decoding is done
-	FlushRenderingCommands();
+	//
+	// This function can also be called on a rendering thread (the streamer is ticked there during a startup movie, and decoder gets deleted on StartNextMovie()
+	// if there are >1 movie queued). In this case we will ensure that the resources survive for one more frame after use by other means.
+	if (IsInGameThread())
+	{
+		FlushRenderingCommands();
+	}
 
 	if (bIsInitialized)
 	{

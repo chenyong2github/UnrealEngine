@@ -276,8 +276,8 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 
 		// Clamp the window size to a reasonable default anything below 8 is a d3d warning and 8 is used anyway.
 		// @todo Slate: This is a hack to work around menus being summoned with 0,0 for window size until they are ticked.
-		int32 Width = FMath::Max(MIN_VIEWPORT_SIZE, FMath::TruncToInt(WindowSize.X));
-		int32 Height = FMath::Max(MIN_VIEWPORT_SIZE, FMath::TruncToInt(WindowSize.Y));
+		int32 Width = FMath::Max(MIN_VIEWPORT_SIZE, FMath::CeilToInt(WindowSize.X));
+		int32 Height = FMath::Max(MIN_VIEWPORT_SIZE, FMath::CeilToInt(WindowSize.Y));
 
 		// Sanity check dimensions
 		if (!ensureMsgf(Width <= MAX_VIEWPORT_SIZE && Height <= MAX_VIEWPORT_SIZE, TEXT("Invalid window with Width=%u and Height=%u"), Width, Height))
@@ -865,16 +865,20 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
 						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 						GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GETSAFERHISHADER_GEOMETRY(*GeometryShader);
+#endif
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 						GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 						VertexShader->SetParameters(RHICmdList, VolumeBounds, FIntVector(VolumeBounds.MaxX - VolumeBounds.MinX));
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 						if (GeometryShader.IsValid())
 						{
 							GeometryShader->SetParameters(RHICmdList, VolumeBounds.MinZ);
 						}
+#endif
 						PixelShader->SetParameters(RHICmdList);
 
 						RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
@@ -1182,8 +1186,8 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 	if (DeferredUpdateContexts.Num() > 0)
 	{
 		// Intentionally copy the contexts to avoid contention with the game thread
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(DrawWidgetRendererImmediate,
-			FDeferredUpdateContextList, Contexts, DeferredUpdateContexts,
+		ENQUEUE_RENDER_COMMAND(DrawWidgetRendererImmediate)(
+			[Contexts = DeferredUpdateContexts](FRHICommandListImmediate& RHICmdList) mutable
 			{
 				for (const FRenderThreadUpdateContext& Context : Contexts)
 				{
@@ -1546,8 +1550,9 @@ void FSlateRHIRenderer::AddWidgetRendererUpdate(const struct FRenderThreadUpdate
 	else
 	{
 		// Enqueue a command to unlock the draw buffer after all windows have been drawn
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(DrawWidgetRendererImmediate,
-			FRenderThreadUpdateContext, InContext, Context,
+		FRenderThreadUpdateContext InContext = Context;
+		ENQUEUE_RENDER_COMMAND(DrawWidgetRendererImmediate)(
+			[InContext](FRHICommandListImmediate& RHICmdList)
 			{
 				static_cast<ISlate3DRenderer*>(InContext.Renderer)->DrawWindowToTarget_RenderThread(RHICmdList, InContext);
 			});

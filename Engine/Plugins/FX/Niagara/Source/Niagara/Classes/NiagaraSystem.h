@@ -232,6 +232,12 @@ public:
 
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
+	FBox GetFixedBounds() const;
+
+	/** Whether or not fixed bounds are enabled. */
+	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
+		uint32 bFixedBounds : 1;
+
 private:
 #if WITH_EDITORONLY_DATA
 	INiagaraModule::FMergeEmitterResults MergeChangesForEmitterHandle(FNiagaraEmitterHandle& EmitterHandle);
@@ -284,6 +290,10 @@ protected:
 	/** A multicast delegate which is called whenever the script has been compiled (successfully or not). */
 	FOnSystemCompiled OnSystemCompiledDelegate;
 #endif
+
+	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */
+	UPROPERTY(EditAnywhere, Category = "System", meta = (EditCondition = "bFixedBounds"))
+	FBox FixedBounds;
 
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Auto-deactivate system if all emitters are determined to not spawn particles again, regardless of lifetime."))
 	bool bAutoDeactivate;

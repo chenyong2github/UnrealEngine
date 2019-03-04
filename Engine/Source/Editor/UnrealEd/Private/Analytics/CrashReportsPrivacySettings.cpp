@@ -4,13 +4,18 @@
 #include "UObject/UnrealType.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
+#include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "CrashReportsPrivacySettings"
 
 UCrashReportsPrivacySettings::UCrashReportsPrivacySettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bSendUnattendedBugReports(true)
+	, bSendUnattendedBugReports(false)
 {
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
 }
 
 void UCrashReportsPrivacySettings::GetToogleCategoryAndPropertyNames(FName& OutCategory, FName& OutProperty) const
@@ -31,7 +36,7 @@ FText UCrashReportsPrivacySettings::GetFalseStateTooltip() const
 
 FText UCrashReportsPrivacySettings::GetFalseStateDescription() const
 {
-	return LOCTEXT("FalseStateDescription", "Turn on this setting to allow the editor send non-critical bug reports by default to Epic Games to help us improve Unreal Engine. Please note that if you turn off this setting, we may ask you to share information about critical bugs, but sharing such information is optional. You can find out more at our Privacy Policy.");
+	return LOCTEXT("FalseStateDescription", "By opting out you have chosen to not send Editor non-critical bug reports by default to Epic Games. Please consider opting in to help improve Unreal Engine. Please note that while this setting is disabled, we may ask you to share information about critical bugs, but sharing such information is optional. You can find out more at our Privacy Policy.");
 };
 
 FText UCrashReportsPrivacySettings::GetTrueStateLabel() const
@@ -46,7 +51,7 @@ FText UCrashReportsPrivacySettings::GetTrueStateTooltip() const
 
 FText UCrashReportsPrivacySettings::GetTrueStateDescription() const
 {
-	return LOCTEXT("TrueStateDescription", "Turn off this setting if you prefer to not have the editor send non-critical bug reports by default to Epic Games to help us improve Unreal Engine. Please note that if you turn off this setting, we may ask you to share information about critical bugs, but sharing such information is optional. You can find out more at our Privacy Policy.");
+	return LOCTEXT("TrueStateDescription", "By opting in you have chosen to send Editor non-critical bug reports by default to Epic Games to help us improve Unreal Engine. Please note that if you turn off this setting, we may ask you to share information about critical bugs, but sharing such information is optional. You can find out more at our Privacy Policy.");
 };
 
 FString UCrashReportsPrivacySettings::GetAdditionalInfoUrl() const
@@ -56,7 +61,7 @@ FString UCrashReportsPrivacySettings::GetAdditionalInfoUrl() const
 
 FText UCrashReportsPrivacySettings::GetAdditionalInfoUrlLabel() const
 {
-	return LOCTEXT("HyperlinkLabel", "Epic Games Privacy Notice");
+	return LOCTEXT("HyperlinkLabel", "Epic Games Privacy Policy");
 };
 
 #undef LOCTEXT_NAMESPACE

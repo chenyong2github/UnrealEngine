@@ -113,6 +113,15 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 
 	EShaderFrequency ShaderFrequency = Compiler->GetCurrentShaderFrequency();
 	
+	int32 SelectionColorIndex = INDEX_NONE;
+
+	if (ShaderFrequency == SF_Pixel &&
+		GetMaterialDomain() != MD_Volume &&
+		Compiler->IsDevelopmentFeatureEnabled(NAME_SelectionColor))
+	{
+		SelectionColorIndex = Compiler->ComponentMask(Compiler->VectorParameter(NAME_SelectionColor, FLinearColor::Black), 1, 1, 1, 0);
+	}
+
 	//Compile the material instance if we have one.
 	UMaterialInterface* MaterialInterface = MaterialInstance ? static_cast<UMaterialInterface*>(MaterialInstance) : Material;
 
@@ -121,7 +130,14 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 	switch(Property)
 	{
 		case MP_EmissiveColor:
-			Ret = MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor);
+			if (SelectionColorIndex != INDEX_NONE)
+			{
+				Ret = Compiler->Add(MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor, MFCF_ForceCast), SelectionColorIndex);
+			}
+			else
+			{
+				Ret = MaterialInterface->CompileProperty(Compiler, MP_EmissiveColor);
+			}
 			break;
 
 		case MP_DiffuseColor: 
@@ -419,7 +435,8 @@ void UMaterialInterface::InitDefaultMaterials()
 	// the default materials is only done very early in the boot process.
 	static bool bInitialized = false;
 	if (!bInitialized)
-	{		
+	{
+		SCOPED_BOOT_TIMING("UMaterialInterface::InitDefaultMaterials");
 		check(IsInGameThread());
 		if (!IsInGameThread())
 		{
@@ -862,6 +879,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
 	BlendableOutputAlpha = false;
+	bEnableStencilTest = false;
 
 	bUseEmissiveForDynamicAreaLighting = false;
 	bBlockGI = false;
@@ -4194,14 +4212,18 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableLocation) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendablePriority) || 
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableOutputAlpha)	)
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableOutputAlpha) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableStencilTest) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, StencilCompare) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, StencilRefValue)
+			)
 		{
 			return MaterialDomain == MD_PostProcess;
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendMode))
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI;
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
@@ -4711,12 +4733,6 @@ void UMaterial::FinishDestroy()
 	ReleaseResources();
 
 	Super::FinishDestroy();
-}
-
-void UMaterial::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogMaterial, Error, TEXT("Garbage collector eliminated reference from material!  Material referenced objects should not be cleaned up via MarkPendingKill().\n           Material=%s"), 
-		*GetPathName());
 }
 
 void UMaterial::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -5673,6 +5689,12 @@ void UMaterial::AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgres
 	TArray<UObject*> MaterialArray;
 	GetObjectsOfClass(UMaterial::StaticClass(), MaterialArray, true, RF_ClassDefaultObject, EInternalObjectFlags::None);
 	float TaskIncrement = (float)100.0f / MaterialArray.Num();
+
+	// ensure default materials are cached first. Default materials must be available to fallback to during async compile.
+ 	MaterialArray.Sort([](const UObject& L, const UObject& R)
+ 	{
+ 		return ((const UMaterial&)L).IsDefaultMaterial() > ((const UMaterial&)R).IsDefaultMaterial();
+	});
 
 	for (UObject* MaterialObj : MaterialArray)
 	{

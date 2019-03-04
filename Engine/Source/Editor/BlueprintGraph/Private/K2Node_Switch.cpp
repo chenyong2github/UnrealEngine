@@ -44,7 +44,7 @@ public:
 		FBPTerminal* BoolTerm = Context.CreateLocalTerminal();
 		BoolTerm->Type.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 		BoolTerm->Source = Node;
-		BoolTerm->Name = Context.NetNameMap->MakeValidName(Node) + TEXT("_CmpSuccess");
+		BoolTerm->Name = Context.NetNameMap->MakeValidName(Node, TEXT("CmpSuccess"));
 		BoolTermMap.Add(Node, BoolTerm);
 	}
 

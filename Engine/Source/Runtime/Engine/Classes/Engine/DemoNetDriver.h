@@ -162,6 +162,7 @@ enum class EReplayHeaderFlags : uint32
 	None				= 0,
 	ClientRecorded		= ( 1 << 0 ),
 	HasStreamingFixes	= ( 1 << 1 ),
+	DeltaCheckpoints	= ( 1 << 2 ),
 };
 
 ENUM_CLASS_FLAGS(EReplayHeaderFlags);
@@ -332,21 +333,24 @@ struct FRollbackNetStartupActorInfo
 	}
 };
 
-struct FDemoSavedRepObjectState
+struct ENGINE_API FDemoSavedRepObjectState
 {
-	TWeakObjectPtr<const UObject> Object;
-	TSharedPtr<FRepLayout> RepLayout;
-	FRepStateStaticBuffer PropertyData;
+	FDemoSavedRepObjectState(
+		const TWeakObjectPtr<const UObject>& InObject,
+		const TSharedRef<const FRepLayout>& InRepLayout,
+		FRepStateStaticBuffer&& InPropertyData);
 
-	ENGINE_API ~FDemoSavedRepObjectState();
+	~FDemoSavedRepObjectState();
+
+	TWeakObjectPtr<const UObject> Object;
+	TSharedPtr<const FRepLayout> RepLayout;
+	FRepStateStaticBuffer PropertyData;
 
 	void CountBytes(FArchive& Ar) const
 	{
-		if (FRepLayout const * const LocalRepLayout = RepLayout.Get())
-		{
-			Ar.CountBytes(sizeof(FRepLayout), sizeof(FRepLayout));
-			LocalRepLayout->CountBytes(Ar);
-		}
+		// The RepLayout for this object should still be stored by the UDemoNetDriver,
+		// so we don't need to count it here.
+
 		PropertyData.CountBytes(Ar);
 	}
 };
@@ -404,13 +408,22 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 
 	/** Keeps track of NetGUIDs that were deleted, so we can skip them when saving checkpoints. Only used while recording. */
 	TSet< FNetworkGUID >							DeletedNetStartupActorGUIDs;
-	
+
+	/** Delta net startup actors that need to be destroyed after checkpoints are loaded */
+	TSet< FString >									DeltaDeletedNetStartupActors;
+
+	/** GUID list of actors deleted before the checkpoint was recorded, including dynamic actors */
+	TSet<FNetworkGUID>								DeletedActorGuids;
+
+	/** Delta checkpoint list for DeletedActorGuids */
+	TSet<FNetworkGUID>								DeltaDeletedActorGuids;
+
 	/** 
 	 * Net startup actors that need to be rolled back during scrubbing by being destroyed and re-spawned 
 	 * NOTE - DeletedNetStartupActors will take precedence here, and destroy the actor instead
 	 */
 	UPROPERTY(transient)
-	TMap< FString, FRollbackNetStartupActorInfo >	RollbackNetStartupActors;
+	TMap<FString, FRollbackNetStartupActorInfo>		RollbackNetStartupActors;
 
 	double				LastCheckpointTime;					// Last time a checkpoint was saved
 
@@ -789,6 +802,12 @@ public:
 		return bHasLevelStreamingFixes;
 	}
 
+	/** Returns whether or not this replay was recorded / is playing with delta checkpoints. */
+	FORCEINLINE bool HasDeltaCheckpoints() const 
+	{
+		return bHasDeltaCheckpoints;
+	}
+
 	/**
 	 * Called when a new ActorChannel is opened, before the Actor is notified.
 	 *
@@ -904,6 +923,9 @@ private:
 
 	// Whether or not the Streaming Level Fixes are enabled for capture or playback.
 	bool bHasLevelStreamingFixes;
+
+	// Checkpoints are delta compressed
+	bool bHasDeltaCheckpoints;
 
 	// Levels that are currently pending for fast forward.
 	// Using raw pointers, because we manually keep when levels are added and removed.
@@ -1089,6 +1111,8 @@ protected:
 
 	bool bIsWaitingForHeaderDownload;
 	bool bIsWaitingForStream;
+
+	int64 MaxArchiveReadPos;
 
 private:
 

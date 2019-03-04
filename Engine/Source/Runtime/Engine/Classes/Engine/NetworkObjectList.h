@@ -48,6 +48,9 @@ struct FNetworkObjectInfo
 	/** Force this object to be considered relevant for at least one update */
 	uint8 bForceRelevantNextUpdate : 1;
 
+	/** Should this object be considered for replay checkpoint writes */
+	uint8 bDirtyForReplay : 1;
+
 	FNetworkObjectInfo()
 		: Actor(nullptr)
 		, NextUpdateTime(0.0)
@@ -55,7 +58,8 @@ struct FNetworkObjectInfo
 		, OptimalNetUpdateDelta(0.0f)
 		, LastNetUpdateTime(0.0f)
 		, bPendingNetUpdate(false)
-		, bForceRelevantNextUpdate(false) {}
+		, bForceRelevantNextUpdate(false)
+		, bDirtyForReplay(false) {}
 
 	FNetworkObjectInfo(AActor* InActor)
 		: Actor(InActor)
@@ -65,7 +69,8 @@ struct FNetworkObjectInfo
 		, OptimalNetUpdateDelta(0.0f) 
 		, LastNetUpdateTime(0.0f)
 		, bPendingNetUpdate(false)
-		, bForceRelevantNextUpdate(false) {}
+		, bForceRelevantNextUpdate(false)
+		, bDirtyForReplay(false) {}
 
 	void CountBytes(FArchive& Ar) const;
 };

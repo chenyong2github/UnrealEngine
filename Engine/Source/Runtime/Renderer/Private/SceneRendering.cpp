@@ -85,8 +85,13 @@ FAutoConsoleVariableRef CVarDumpInstancingStats(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-extern ENGINE_API FLightMap2D* GDebugSelectedLightmap;
-extern ENGINE_API UPrimitiveComponent* GDebugSelectedComponent;
+int32 GDumpMeshDrawCommandMemoryStats = 0;
+FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
+	TEXT("r.MeshDrawCommands.LogMeshDrawCommandMemoryStats"),
+	GDumpMeshDrawCommandMemoryStats,
+	TEXT("Whether to log mesh draw command memory stats on the next frame"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
 
 DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
 
@@ -897,6 +902,11 @@ FViewInfo::~FViewInfo()
 		CustomVisibilityQuery->Release();
 	}
 
+	for (int32 MeshDrawIndex = 0; MeshDrawIndex < EMeshPass::Num; MeshDrawIndex++)
+	{
+		ParallelMeshDrawCommandPasses[MeshDrawIndex].WaitForTasksAndEmpty();
+	}
+
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
 	TranslucentSelfShadowUniformBufferMap.Empty();
 }
@@ -1362,7 +1372,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 
-		ViewUniformShaderParameters.SkyLightColor = SkyLight->LightColor;
+		ViewUniformShaderParameters.SkyLightColor = SkyLight->GetEffectiveLightColor();
 
 		bool bApplyPrecomputedBentNormalShadowing = 
 			SkyLight->bCastShadows 
@@ -1561,7 +1571,7 @@ void FViewInfo::DestroyAllSnapshots()
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
-			Snapshot->ParallelMeshDrawCommandPasses[Index].Empty();
+			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty();
 		}
 
 		FreeViewInfoSnapshots.Add(Snapshot);
@@ -1672,6 +1682,16 @@ float FViewInfo::GetLastEyeAdaptationExposure() const
 		return EffectiveViewState->GetLastEyeAdaptationExposure();
 	}
 	return 0.f; // Invalid exposure
+}
+
+float FViewInfo::GetLastAverageSceneLuminance() const
+{
+	const FSceneViewState* EffectiveViewState = GetEffectiveViewState();
+	if (EffectiveViewState)
+	{
+		return EffectiveViewState->GetLastAverageSceneLuminance();
+	}
+	return 0.f; // Invalid scene luminance
 }
 
 void FViewInfo::SetValidTonemappingLUT() const
@@ -2315,7 +2335,7 @@ FSceneRenderer::~FSceneRenderer()
 {
 	// To prevent keeping persistent references to single frame buffers, clear any such reference at this point.
 	ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
-
+	
 	if(Scene)
 	{
 		// Destruct the projected shadow infos.
@@ -2639,6 +2659,12 @@ void FSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICmdList)
 
 	// Notify the RHI we are done rendering a scene.
 	RHICmdList.EndScene();
+
+	if (GDumpMeshDrawCommandMemoryStats)
+	{
+		GDumpMeshDrawCommandMemoryStats = 0;
+		Scene->DumpMeshDrawCommandMemoryStats();
+	}
 }
 
 void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands)
@@ -2882,7 +2908,11 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 	}
 
-	GPrimitiveIdVertexBufferPool.DiscardAll();
+	// Wait for all dispatched shadow mesh draw tasks.
+	for (int32 PassIndex = 0; PassIndex < SceneRenderer->DispatchedShadowDepthPasses.Num(); ++PassIndex)
+	{
+		SceneRenderer->DispatchedShadowDepthPasses[PassIndex]->WaitForTasksAndEmpty();
+	}
 
 	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots
 	FSceneRenderTargets::GetGlobalUnsafe().DestroyAllSnapshots(); // this will destroy the render target snapshots
@@ -2902,6 +2932,10 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_DeleteSceneRenderer);
 		delete SceneRenderer;
 	}
+
+	// Can relase only after all mesh pass tasks are finished.
+	GPrimitiveIdVertexBufferPool.DiscardAll();
+	FGraphicsMinimalPipelineStateId::ResetOneFrameIdTable();
 
 	delete LocalRootMark;
 }
@@ -3299,9 +3333,8 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		// Anything between here and FDrawSceneCommand will add to HMD view latency
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FViewExtensionPreDrawCommand,
-			FSceneRenderer*, SceneRenderer, SceneRenderer,
+		ENQUEUE_RENDER_COMMAND(FViewExtensionPreDrawCommand)(
+			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
 			{
 				ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
 			});
@@ -3317,13 +3350,12 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		SceneRenderer->ViewFamily.DisplayInternalsData.Setup(World);
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			FDrawSceneCommand,
-			FSceneRenderer*,SceneRenderer,SceneRenderer,
-		{
-			RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
-			FlushPendingDeleteRHIResources_RenderThread();
-		});
+		ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
+			[SceneRenderer](FRHICommandListImmediate& RHICmdList)
+			{
+				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
+				FlushPendingDeleteRHIResources_RenderThread();
+			});
 	}
 }
 

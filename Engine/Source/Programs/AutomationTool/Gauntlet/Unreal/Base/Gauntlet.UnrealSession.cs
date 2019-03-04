@@ -140,7 +140,7 @@ namespace Gauntlet
                 RequiredBuildFlags |= BuildFlags.Bulk;
             }
 
-			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch))
+			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne))
 			{
 				RequiredBuildFlags |= BuildFlags.Packaged;
 			}

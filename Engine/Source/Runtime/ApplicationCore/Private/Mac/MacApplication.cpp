@@ -257,7 +257,11 @@ void FMacApplication::InitializeWindow(const TSharedRef<FGenericWindow>& InWindo
 	const TSharedRef<FMacWindow> Window = StaticCastSharedRef<FMacWindow >(InWindow);
 	const TSharedPtr<FMacWindow> ParentWindow = StaticCastSharedPtr<FMacWindow>(InParent);
 
-	Windows.Add(Window);
+	{
+		FScopeLock Lock(&WindowsMutex);
+		Windows.Add(Window);
+	}
+
 	Window->Initialize(this, InDefinition, ParentWindow, bShowImmediately);
 }
 
@@ -351,7 +355,11 @@ void FMacApplication::EndScopedModalEvent()
 
 void FMacApplication::CloseWindow(TSharedRef<FMacWindow> Window)
 {
-	MessageHandler->OnWindowClose(Window);
+	FScopeLock Lock(&WindowsToCloseMutex);
+	if (!SlateWindowsToClose.Contains(Window))
+	{
+		SlateWindowsToClose.Add(Window);
+	}
 }
 
 void FMacApplication::DeferEvent(NSObject* Object)
@@ -577,6 +585,7 @@ void FMacApplication::OnDisplayReconfiguration(CGDirectDisplayID Display, CGDisp
 		App->BroadcastDisplayMetricsChanged(DisplayMetrics);
 	}
 
+	FScopeLock Lock(&App->WindowsMutex);
 	for (int32 WindowIndex=0; WindowIndex < App->Windows.Num(); ++WindowIndex)
 	{
 		TSharedRef<FMacWindow> WindowRef = App->Windows[WindowIndex];
@@ -1139,11 +1148,14 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		OnWindowActivationChanged(DestroyedWindow, EWindowActivation::Deactivate);
 	}
 
-	Windows.Remove(DestroyedWindow);
-
-	if (!WindowsToClose.Contains(WindowHandle))
 	{
-		WindowsToClose.Add(WindowHandle);
+		FScopeLock Lock(&WindowsMutex);
+		Windows.Remove(DestroyedWindow);
+	}
+
+	if (!CocoaWindowsToClose.Contains(WindowHandle))
+	{
+		CocoaWindowsToClose.Add(WindowHandle);
 	}
 
 	TSharedPtr<FMacWindow> WindowToActivate;
@@ -1157,7 +1169,7 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		for (int32 Index = 0; Index < Windows.Num(); ++Index)
 		{
 			TSharedRef<FMacWindow> WindowRef = Windows[Index];
-			if (!WindowsToClose.Contains(WindowRef->GetWindowHandle()) && [WindowRef->GetWindowHandle() canBecomeMainWindow] && WindowRef->GetDefinition().Type != EWindowType::Notification)
+			if (!CocoaWindowsToClose.Contains(WindowRef->GetWindowHandle()) && [WindowRef->GetWindowHandle() canBecomeMainWindow] && WindowRef->GetDefinition().Type != EWindowType::Notification)
 			{
 				WindowToActivate = WindowRef;
 				break;
@@ -1580,27 +1592,13 @@ void FMacApplication::UpdateScreensArray()
 		WholeWorkspace = NSUnionRect(WholeWorkspace, CurScreen->Frame);
 	}
 
-	for (TSharedRef<FMacScreen> CurScreen : AllScreens)
-	{
-		CurScreen->Frame.origin.y = WholeWorkspace.origin.y + WholeWorkspace.size.height - CurScreen->Frame.size.height - CurScreen->Frame.origin.y;
-		CurScreen->VisibleFrame.origin.y = WholeWorkspace.origin.y + WholeWorkspace.size.height - CurScreen->VisibleFrame.size.height - CurScreen->VisibleFrame.origin.y;
-	}
-
 	const bool bUseHighDPIMode = FPlatformApplicationMisc::IsHighDPIModeEnabled();
 
 	TArray<TSharedRef<FMacScreen>> SortedScreens;
-
 	for (TSharedRef<FMacScreen> CurScreen : AllScreens)
 	{
-		const float DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0f;
-		CurScreen->FramePixels.origin.x = CurScreen->Frame.origin.x;
-		CurScreen->FramePixels.origin.y = CurScreen->Frame.origin.y;
-		CurScreen->FramePixels.size.width = CurScreen->Frame.size.width * DPIScaleFactor;
-		CurScreen->FramePixels.size.height = CurScreen->Frame.size.height * DPIScaleFactor;
-		CurScreen->VisibleFramePixels.origin.x = CurScreen->Frame.origin.x + (CurScreen->VisibleFrame.origin.x - CurScreen->Frame.origin.x) * DPIScaleFactor;
-		CurScreen->VisibleFramePixels.origin.y = CurScreen->Frame.origin.y + (CurScreen->VisibleFrame.origin.y - CurScreen->Frame.origin.y) * DPIScaleFactor;
-		CurScreen->VisibleFramePixels.size.width = CurScreen->VisibleFrame.size.width * DPIScaleFactor;
-		CurScreen->VisibleFramePixels.size.height = CurScreen->VisibleFrame.size.height * DPIScaleFactor;
+		CurScreen->Frame.origin.y = CurScreen->FramePixels.origin.y = WholeWorkspace.origin.y + WholeWorkspace.size.height - CurScreen->Frame.size.height - CurScreen->Frame.origin.y;
+		CurScreen->VisibleFrame.origin.y = CurScreen->VisibleFramePixels.origin.y = WholeWorkspace.origin.y + WholeWorkspace.size.height - CurScreen->VisibleFrame.size.height - CurScreen->VisibleFrame.origin.y;
 
 		SortedScreens.Add(CurScreen);
 	}
@@ -1613,13 +1611,18 @@ void FMacApplication::UpdateScreensArray()
 		const float DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0f;
 		if (DPIScaleFactor != 1.0f)
 		{
+			CurScreen->FramePixels.size.width = CurScreen->Frame.size.width * DPIScaleFactor;
+			CurScreen->FramePixels.size.height = CurScreen->Frame.size.height * DPIScaleFactor;
+			CurScreen->VisibleFramePixels.size.width = CurScreen->VisibleFrame.size.width * DPIScaleFactor;
+			CurScreen->VisibleFramePixels.size.height = CurScreen->VisibleFrame.size.height * DPIScaleFactor;
+
 			for (int32 OtherIndex = Index + 1; OtherIndex < SortedScreens.Num(); ++OtherIndex)
 			{
 				TSharedRef<FMacScreen> OtherScreen = SortedScreens[OtherIndex];
 				const float DiffFrame = (OtherScreen->Frame.origin.x - CurScreen->Frame.origin.x) * DPIScaleFactor;
 				const float DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.x - CurScreen->VisibleFrame.origin.x) * DPIScaleFactor;
-				OtherScreen->FramePixels.origin.x = CurScreen->Frame.origin.x + DiffFrame;
-				OtherScreen->VisibleFramePixels.origin.x = CurScreen->VisibleFrame.origin.x + DiffVisibleFrame;
+				OtherScreen->FramePixels.origin.x = CurScreen->FramePixels.origin.x + DiffFrame;
+				OtherScreen->VisibleFramePixels.origin.x = CurScreen->VisibleFramePixels.origin.x + DiffVisibleFrame;
 			}
 		}
 	}
@@ -1637,8 +1640,8 @@ void FMacApplication::UpdateScreensArray()
 				TSharedRef<FMacScreen> OtherScreen = SortedScreens[OtherIndex];
 				const float DiffFrame = (OtherScreen->Frame.origin.y - CurScreen->Frame.origin.y) * DPIScaleFactor;
 				const float DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.y - CurScreen->VisibleFrame.origin.y) * DPIScaleFactor;
-				OtherScreen->FramePixels.origin.y = CurScreen->Frame.origin.y + DiffFrame;
-				OtherScreen->VisibleFramePixels.origin.y = CurScreen->VisibleFrame.origin.y + DiffVisibleFrame;
+				OtherScreen->FramePixels.origin.y = CurScreen->FramePixels.origin.y + DiffFrame;
+				OtherScreen->VisibleFramePixels.origin.y = CurScreen->VisibleFramePixels.origin.y + DiffVisibleFrame;
 			}
 		}
 	}
@@ -1948,18 +1951,35 @@ TCHAR FMacApplication::TranslateCharCode(TCHAR CharCode, uint32 KeyCode) const
 
 void FMacApplication::CloseQueuedWindows()
 {
-	if (WindowsToClose.Num() > 0)
+	// OnWindowClose may call PumpMessages, which would reenter this function, so make a local copy of SlateWindowsToClose array to avoid infinite recursive calls
+	TArray<TSharedRef<FMacWindow>> LocalWindowsToClose;
+
+	{
+		FScopeLock Lock(&WindowsToCloseMutex);
+		LocalWindowsToClose = SlateWindowsToClose;
+		SlateWindowsToClose.Empty();
+	}
+
+	if (LocalWindowsToClose.Num() > 0)
+	{
+		for (TSharedRef<FMacWindow> Window : LocalWindowsToClose)
+		{
+			MessageHandler->OnWindowClose(Window);
+		}
+	}
+
+	if (CocoaWindowsToClose.Num() > 0)
 	{
 		MainThreadCall(^{
 			SCOPED_AUTORELEASE_POOL;
-			for (FCocoaWindow* Window : WindowsToClose)
+			for (FCocoaWindow* Window : CocoaWindowsToClose)
 			{
 				[Window close];
 				[Window release];
 			}
 		}, UE4CloseEventMode, true);
 
-		WindowsToClose.Empty();
+		CocoaWindowsToClose.Empty();
 	}
 }
 

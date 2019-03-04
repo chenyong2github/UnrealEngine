@@ -571,10 +571,9 @@ void UProceduralMeshComponent::UpdateMeshSection(int32 SectionIndex, const TArra
 			SectionData->NewVertexBuffer = Section.ProcVertexBuffer;
 
 			// Enqueue command to send to render thread
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-				FProcMeshSectionUpdate,
-				FProceduralMeshSceneProxy*, ProcMeshSceneProxy, (FProceduralMeshSceneProxy*)SceneProxy,
-				FProcMeshSectionUpdateData*, SectionData, SectionData,
+			FProceduralMeshSceneProxy* ProcMeshSceneProxy = (FProceduralMeshSceneProxy*)SceneProxy;
+			ENQUEUE_RENDER_COMMAND(FProcMeshSectionUpdate)(
+				[ProcMeshSceneProxy, SectionData](FRHICommandListImmediate& RHICmdList)
 				{
 					ProcMeshSceneProxy->UpdateSection_RenderThread(SectionData);
 				}
@@ -640,15 +639,12 @@ void UProceduralMeshComponent::SetMeshSectionVisible(int32 SectionIndex, bool bN
 		if (SceneProxy)
 		{
 			// Enqueue command to modify render thread info
-			ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-				FProcMeshSectionVisibilityUpdate,
-				FProceduralMeshSceneProxy*, ProcMeshSceneProxy, (FProceduralMeshSceneProxy*)SceneProxy,
-				int32, SectionIndex, SectionIndex,
-				bool, bNewVisibility, bNewVisibility,
+			FProceduralMeshSceneProxy* ProcMeshSceneProxy = (FProceduralMeshSceneProxy*)SceneProxy;
+			ENQUEUE_RENDER_COMMAND(FProcMeshSectionVisibilityUpdate)(
+				[ProcMeshSceneProxy, SectionIndex, bNewVisibility](FRHICommandListImmediate& RHICmdList)
 				{
 					ProcMeshSceneProxy->SetSectionVisibility_RenderThread(SectionIndex, bNewVisibility);
-				}
-			);
+				});
 		}
 	}
 }

@@ -48,6 +48,10 @@ FRBFParams::FRBFParams()
 	, DistanceMethod(ERBFDistanceMethod::Euclidean)
 	, TwistAxis(EBoneAxis::BA_X)
 	, WeightThreshold(KINDA_SMALL_NUMBER)
+	, NormalizeMethod(ERBFNormalizeMethod::OnlyNormalizeAboveOne)
+	, MedianReference(FVector(0, 0, 0))
+	, MedianMin(45.0f)
+	, MedianMax(60.0f)
 {
 
 }
@@ -68,12 +72,14 @@ FVector FRBFParams::GetTwistAxisVector() const
 
 //////////////////////////////////////////////////////////////////////////
 
-float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params)
+float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params, ERBFDistanceMethod OverrideMethod)
 {
 	check(A.GetDimensions() == B.GetDimensions());
 
+	ERBFDistanceMethod DistanceMethod = OverrideMethod == ERBFDistanceMethod::DefaultMethod ? Params.DistanceMethod : OverrideMethod;
+
 	// Simple n-dimensional distance
-	if (Params.DistanceMethod == ERBFDistanceMethod::Euclidean)
+	if (DistanceMethod == ERBFDistanceMethod::Euclidean)
 	{
 		float DistSqr = 0.f;
 
@@ -85,7 +91,7 @@ float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry
 		return FMath::Sqrt(DistSqr);
 	}
 	// Treat values as sequence of eulers - find quat distance between each pair, then sqrt-sum-of-squares of those
-	else if (Params.DistanceMethod == ERBFDistanceMethod::Quaternion)
+	else if (DistanceMethod == ERBFDistanceMethod::Quaternion)
 	{
 		float DistSqr = 0.f;
 
@@ -99,7 +105,7 @@ float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry
 		return FMath::Sqrt(DistSqr);
 	}
 	// Treat values as sequence of eulers - find 'swing' distance between each pair, then sqrt-sum-of-squares of those
-	else if(Params.DistanceMethod == ERBFDistanceMethod::SwingAngle)
+	else if(DistanceMethod == ERBFDistanceMethod::SwingAngle || DistanceMethod == ERBFDistanceMethod::DefaultMethod)
 	{
 		float DistSqr = 0.f;
 
@@ -141,31 +147,32 @@ void FRBFSolver::Solve(const FRBFParams& Params, const TArray<FRBFTarget>& Targe
 	for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
 	{
 		const FRBFTarget& Target = Targets[TargetIdx];
+		ERBFFunctionType FunctionType = Target.FunctionType == ERBFFunctionType::DefaultFunction ? Params.Function : Target.FunctionType;
 
 		// Find distance
-		const float Distance = FindDistanceBetweenEntries(Target, Input, Params);
-		const float Scaling = FMath::Max(Params.Radius * Target.ScaleFactor, KINDA_SMALL_NUMBER);
+		const float Distance = FindDistanceBetweenEntries(Target, Input, Params, Target.DistanceMethod);
+		const float Scaling = GetRadiusForTarget(Target, Params);
 		const float X = Distance / Scaling;
 
 		// Evaluate radial basis function to find weight
 		float Weight = 0.f;
-		if (Params.Function == ERBFFunctionType::Gaussian)
+		if (FunctionType == ERBFFunctionType::Gaussian)
 		{
 			Weight = FMath::Exp(-(X * X));
 		}
-		else if (Params.Function == ERBFFunctionType::Exponential)
+		else if (FunctionType == ERBFFunctionType::Exponential)
 		{
 			Weight = 1.f / FMath::Exp(X);
 		}
-		else if (Params.Function == ERBFFunctionType::Linear)
+		else if (FunctionType == ERBFFunctionType::Linear || FunctionType == ERBFFunctionType::DefaultFunction)
 		{
 			Weight = FMath::Max(1.f - X, 0.f);
 		}
-		else if (Params.Function == ERBFFunctionType::Cubic)
+		else if (FunctionType == ERBFFunctionType::Cubic)
 		{
 			Weight = FMath::Max(1.f - (X * X * X), 0.f);
 		}
-		else if (Params.Function == ERBFFunctionType::Quintic)
+		else if (FunctionType == ERBFFunctionType::Quintic)
 		{
 			Weight = FMath::Max(1.f - (X * X * X * X * X), 0.f);
 		}
@@ -186,8 +193,56 @@ void FRBFSolver::Solve(const FRBFParams& Params, const TArray<FRBFTarget>& Targe
 	// Only normalize and apply if we got some kind of weight
 	if (TotalWeight > KINDA_SMALL_NUMBER)
 	{
-		// If total is >1, we renormalize
-		const float WeightScale = (TotalWeight > 1.f) ? 1.f / TotalWeight : 1.f;
+		float WeightScale = 1.f;
+		if (TotalWeight > 1.f)
+		{
+			WeightScale = 1.f / TotalWeight;
+		}
+		else
+		{
+			switch (Params.NormalizeMethod)
+			{
+				case ERBFNormalizeMethod::OnlyNormalizeAboveOne:
+				{
+					break;
+				}
+				case ERBFNormalizeMethod::AlwaysNormalize:
+				{
+					WeightScale = 1.f / TotalWeight;
+					break;
+				}
+				case ERBFNormalizeMethod::NormalizeWithinMedian:
+				{
+					if (Params.MedianMax < Params.MedianMin)
+					{
+						break;
+					}
+
+					FRBFEntry MedianEntry;
+					while (Input.GetDimensions() > MedianEntry.GetDimensions())
+					{
+						MedianEntry.AddFromVector(Params.MedianReference);
+					}
+					
+					float MedianDistance = FindDistanceBetweenEntries(Input, MedianEntry, Params);
+					if (MedianDistance > Params.MedianMax)
+					{
+						break;
+					}
+					if (MedianDistance <= Params.MedianMin)
+					{
+						WeightScale = 1.f / TotalWeight;
+						break;
+					}
+
+					float Bias = FMath::Clamp<float>((MedianDistance - Params.MedianMin) / (Params.MedianMax - Params.MedianMin), 0.f, 1.f);
+					WeightScale = FMath::Lerp<float>(1.f / TotalWeight, 1.f, Bias);
+					break;
+				}
+			}
+		}
+		
+		/// TotalWeight : (Params.bNormalizeWeightsBelowSumOfOne ? 1.f / TotalWeight : 1.f);
 		for (int32 TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
 		{
 			float NormalizedWeight = AllWeights[TargetIdx] * WeightScale;
@@ -222,7 +277,7 @@ bool FRBFSolver::FindTargetNeighbourDistances(const FRBFParams& Params, const TA
 				if (OtherTargetIdx != TargetIdx) // If not ourself..
 				{
 					// Get distance between poses
-					float Dist = FindDistanceBetweenEntries(Targets[TargetIdx], Targets[OtherTargetIdx], Params);
+					float Dist = FindDistanceBetweenEntries(Targets[TargetIdx], Targets[OtherTargetIdx], Params, Targets[TargetIdx].DistanceMethod);
 					NearestDist = FMath::Min(Dist, NearestDist);
 				}
 			}
@@ -237,4 +292,9 @@ bool FRBFSolver::FindTargetNeighbourDistances(const FRBFParams& Params, const TA
 	{
 		return false;
 	}
+}
+
+float FRBFSolver::GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams& Params)
+{
+	return FMath::Max(Params.Radius * Target.ScaleFactor, KINDA_SMALL_NUMBER);
 }
