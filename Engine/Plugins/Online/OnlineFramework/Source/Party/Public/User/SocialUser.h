@@ -165,7 +165,7 @@ private:
 	int32 NumPendingQueries = 0;
 	bool bIsInitialized = false;
 
-	TSharedPtr<IOnlinePartyJoinInfo> PersistentPartyInfo;
+	TSharedPtr<const IOnlinePartyJoinInfo> PersistentPartyInfo;
 	TMap<ESocialSubsystem, FSubsystemUserInfo> SubsystemInfoByType;
 
 	// Initialization delegates that fire only when a specific user has finishing initializing
