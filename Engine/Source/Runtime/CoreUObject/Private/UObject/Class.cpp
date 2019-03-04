@@ -498,12 +498,12 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UField, UObject,
 //
 // Constructors.
 //
-UStruct::UStruct( EStaticConstructor, int32 InSize, EObjectFlags InFlags )
+UStruct::UStruct( EStaticConstructor, int32 InSize, int32 InMinAlignment, EObjectFlags InFlags )
 :	UField			( EC_StaticConstructor, InFlags )
 ,	SuperStruct		( nullptr )
 ,	Children		( NULL )
 ,	PropertiesSize	( InSize )
-,	MinAlignment	( 1 )
+,	MinAlignment	( InMinAlignment )
 ,	PropertyLink	( NULL )
 ,	RefLink			( NULL )
 ,	DestructorLink	( NULL )
@@ -1900,8 +1900,8 @@ bool FindConstructorUninitialized(UStruct* BaseClass,uint8* Data,uint8* Defaults
 #endif
 
 
-UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, EObjectFlags InFlags )
-	: UStruct( EC_StaticConstructor, InSize, InFlags )
+UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags )
+	: UStruct( EC_StaticConstructor, InSize, InAlignment, InFlags )
 	, StructFlags(STRUCT_NoFlags)
 #if HACK_HEADER_GENERATOR
 	, StructMacroDeclaredLineNumber(INDEX_NONE)
@@ -4090,6 +4090,7 @@ UClass::UClass
 	EStaticConstructor,
 	FName			InName,
 	uint32			InSize,
+	uint32			InAlignment,
 	EClassFlags		InClassFlags,
 	EClassCastFlags	InClassCastFlags,
 	const TCHAR*    InConfigName,
@@ -4098,7 +4099,7 @@ UClass::UClass
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 	ClassAddReferencedObjectsType InClassAddReferencedObjects
 )
-:	UStruct					( EC_StaticConstructor, InSize, InFlags )
+:	UStruct					( EC_StaticConstructor, InSize, InAlignment, InFlags )
 ,	ClassConstructor		( InClassConstructor )
 ,	ClassVTableHelperCtorCaller(InClassVTableHelperCtorCaller)
 ,	ClassAddReferencedObjects( InClassAddReferencedObjects )
@@ -4552,6 +4553,7 @@ void GetPrivateStaticClassBody(
 	UClass*& ReturnClass,
 	void(*RegisterNativeFunc)(),
 	uint32 InSize,
+	uint32 InAlignment,
 	EClassFlags InClassFlags,
 	EClassCastFlags InClassCastFlags,
 	const TCHAR* InConfigName,
@@ -4611,6 +4613,7 @@ void GetPrivateStaticClassBody(
 			EC_StaticConstructor,
 			Name,
 			InSize,
+			InAlignment,
 			InClassFlags,
 			InClassCastFlags,
 			InConfigName,
@@ -4630,6 +4633,7 @@ void GetPrivateStaticClassBody(
 			EC_StaticConstructor,
 			Name,
 			InSize,
+			InAlignment,
 			InClassFlags|CLASS_CompiledFromBlueprint,
 			InClassCastFlags,
 			InConfigName,
@@ -5191,6 +5195,7 @@ UDynamicClass::UDynamicClass(
 	EStaticConstructor,
 	FName			InName,
 	uint32			InSize,
+	uint32			InAlignment,
 	EClassFlags		InClassFlags,
 	EClassCastFlags	InClassCastFlags,
 	const TCHAR*    InConfigName,
@@ -5202,6 +5207,7 @@ UDynamicClass::UDynamicClass(
   EC_StaticConstructor
 , InName
 , InSize
+, InAlignment
 , InClassFlags
 , InClassCastFlags
 , InConfigName
