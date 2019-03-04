@@ -87,7 +87,7 @@ private:
 	void OnMediaSample(const FGameplayMediaEncoderSample& Sample) override;
 
 private:
-	TAtomic<EState> State = EState::Stopped;
+	TAtomic<EState> State{ EState::Stopped };
 
 	TUniquePtr<FWmfMp4Writer> Mp4Writer;
 
