@@ -245,8 +245,6 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 					{
 						Job.Message = FString::Printf(TEXT("Failed to load object file: %s"), *Job.OutputObjectFile);
 					}
-
-					RemoveRemoteFile(RemoteObjFile);
 				}
 			}
 			else
@@ -255,6 +253,7 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 			}
 		}
 
+		RemoveRemoteFile(RemoteObjFile);
 		CopyRemoteFileToLocal(RemoteOutputFilename, Job.OutputFile);
 		Output.NativePath = RemoteInputFile;
 		bSucceeded = FFileHelper::LoadFileToArray(Output.OutputFile, *Job.OutputFile);
