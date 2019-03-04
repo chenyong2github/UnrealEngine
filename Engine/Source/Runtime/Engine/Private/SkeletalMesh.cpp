@@ -296,6 +296,7 @@ USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 #endif
 	
 	MinLod.Default = 0;
+	DisableBelowMinLodStripping.Default = false;
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)

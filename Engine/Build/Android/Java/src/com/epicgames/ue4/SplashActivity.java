@@ -2,6 +2,7 @@
 
 package com.epicgames.ue4;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.app.Activity;
 import android.content.Intent;
@@ -13,6 +14,9 @@ import android.view.WindowManager;
 
 public class SplashActivity extends Activity
 {
+	public static Logger Log = new Logger("UE4-SplashActivity");
+	
+	@SuppressLint("ObsoleteSdkInt")
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -33,11 +37,9 @@ public class SplashActivity extends Activity
 				UseDisplayCutout = bundle.getBoolean("com.epicgames.ue4.GameActivity.bUseDisplayCutout");
 			}
 		}
-		catch (NameNotFoundException e)
+		catch (NameNotFoundException | NullPointerException e)
 		{
-		}
-		catch (NullPointerException e)
-		{
+			Log.error("Error when accessing application metadata", e);
 		}
 
 		if (ShouldHideUI)
@@ -78,10 +80,10 @@ public class SplashActivity extends Activity
 		Intent intent = new Intent(this, GameActivity.class);
 		intent.putExtras(getIntent());
 		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-		intent.putExtra("UseSplashScreen", "true");
+		intent.putExtra("UseSplashScreen", true);
 		if (ShouldHideUI)
 		{
-			intent.putExtra("ShouldHideUI", "true");
+			intent.putExtra("ShouldHideUI", true);
 		}
 		if (UseDisplayCutout)
 		{

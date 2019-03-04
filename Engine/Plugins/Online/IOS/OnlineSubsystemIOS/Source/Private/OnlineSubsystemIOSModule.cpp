@@ -64,6 +64,8 @@ FOnlineSubsystemIOSPtr FOnlineFactoryIOS::IOSSingleton = NULL;
 
 void FOnlineSubsystemIOSModule::StartupModule()
 {
+	SCOPED_BOOT_TIMING("FOnlineSubsystemIOSModule::StartupModule");
+
 	UE_LOG_ONLINE(Display, TEXT("FOnlineSubsystemIOSModule::StartupModule()"));
 
 	FHttpModule::Get();

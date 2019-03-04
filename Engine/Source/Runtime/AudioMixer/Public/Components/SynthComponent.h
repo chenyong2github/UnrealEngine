@@ -17,6 +17,13 @@
 #include "DSP/SinOsc.h"
 #endif
 
+/** Simple interface class to allow objects to route audio between them. */
+class IAudioBufferListener
+{
+public:
+	virtual void OnGeneratedBuffer(const float* AudioBuffer, const int32 NumSamples, const int32 NumChannels) = 0;
+};
+
 class USynthComponent;
 class USoundConcurrency;
 
@@ -191,6 +198,10 @@ public:
 	FOnSynthEnvelopeValueNative OnAudioEnvelopeValueNative;
 
 	void OnAudioComponentEnvelopeValue(const UAudioComponent* AudioComponent, const USoundWave* SoundWave, const float EnvelopeValue);
+
+	// Adds and removes audio buffer listener
+	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
+	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 
 protected:
 

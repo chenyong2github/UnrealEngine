@@ -83,7 +83,7 @@ void FSlateOpenGLViewport::Resize( int Width, int Height, bool bInFullscreen )
 		CGRect Frame = [[UIScreen mainScreen] bounds];
 		CGFloat Scale = [[UIScreen mainScreen] scale];
 
-		IOSAppDelegate* AppDelegate = (IOSAppDelegate*)[[UIApplication sharedApplication] delegate];
+		IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
 		if (!AppDelegate.bDeviceInPortraitMode)
 		{
 			Swap<float>(Frame.size.width, Frame.size.height);

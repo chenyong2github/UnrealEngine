@@ -4233,7 +4233,9 @@ void InitUObject()
 
 	FCoreDelegates::OnShutdownAfterError.AddStatic(StaticShutdownAfterError);
 	FCoreDelegates::OnExit.AddStatic(StaticExit);
+#if !USE_PER_MODULE_UOBJECT_BOOTSTRAP // otherwise this is already done
 	FModuleManager::Get().OnProcessLoadedObjectsCallback().AddStatic(ProcessNewlyLoadedUObjects);
+#endif
 
 	struct Local
 	{

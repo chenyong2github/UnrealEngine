@@ -28,7 +28,7 @@ public:
 	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
 
 #if !PLATFORM_TVOS
-	static void OrientationChanged(UIDeviceOrientation orientation);
+	static void OrientationChanged(UIInterfaceOrientation orientation);
 #endif
 
 	virtual IInputInterface* GetInputInterface() override { return (IInputInterface*)InputInterface.Get(); }

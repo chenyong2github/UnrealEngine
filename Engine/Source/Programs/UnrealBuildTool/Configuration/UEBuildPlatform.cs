@@ -687,7 +687,7 @@ namespace UnrealBuildTool
 					ProjIni.GetBool(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}
@@ -700,7 +700,7 @@ namespace UnrealBuildTool
 					ProjIni.GetInt32(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}
@@ -713,7 +713,7 @@ namespace UnrealBuildTool
 					ProjIni.GetString(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}

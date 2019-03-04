@@ -5631,8 +5631,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						// Set bulk data flags to what they were during initial serialization (they might have changed after that)
 						const uint32 OldBulkDataFlags = BulkDataStorageInfo.BulkData->GetBulkDataFlags();
 						uint32 ModifiedBulkDataFlags = BulkDataStorageInfo.BulkDataFlags | ExtraBulkDataFlags;
-						bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload);
-						bool bBulkItemIsMapped = bAlignBulkData && (ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload);
+						bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload) != 0;
+						bool bBulkItemIsMapped = bAlignBulkData && ((ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
 
 						if (bBulkItemIsMapped && bBulkItemIsOptional)
 						{

@@ -12,6 +12,7 @@
 #include "ARBlueprintLibrary.generated.h"
 
 
+
 UCLASS(meta=(ScriptName="ARLibrary"))
 class AUGMENTEDREALITY_API UARBlueprintLibrary : public UBlueprintFunctionLibrary
 {
@@ -19,6 +20,13 @@ class AUGMENTEDREALITY_API UARBlueprintLibrary : public UBlueprintFunctionLibrar
 
 public:
 
+	/**
+	 * Checks if the current device can support AR
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Session", meta = (DisplayName="Is AR Supported", Keywords = "ar augmentedreality augmented reality session start run running"))
+	static bool IsARSupported();
+	
 	/**
 	 * Begin a new Augmented Reality session. Subsequently, use the \c GetARSessionStatus() function to figure out the status of the session.
 	 *
@@ -84,10 +92,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Trace Result", meta = (AdvancedDisplay = "1", Keywords = "ar augmentedreality augmented reality tracking tracing linetrace"))
 	static TArray<FARTraceResult> LineTraceTrackedObjects3D(const FVector Start, const FVector End, bool bTestFeaturePoints = true, bool bTestGroundPlane = true, bool bTestPlaneExtents = true, bool bTestPlaneBoundaryPolygon = true);
-
+	
 	/** @return how well the tracking system is performing at the moment */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get AR Tracking Quality", Keywords = "ar augmentedreality augmented reality tracking quality"))
 	static EARTrackingQuality GetTrackingQuality();
+	
+	/** @return The reason for the current limited tracking state */
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get AR Tracking Quality Reason", Keywords = "ar augmentedreality augmented reality tracking quality reason"))
+	static EARTrackingQualityReason GetTrackingQualityReason();
 	
 	/** @return a list of all the real-world geometry as currently seen by the Augmented Reality system */
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Tracking", meta = (DisplayName="Get All AR Geometries", Keywords = "ar augmentedreality augmented reality tracking geometry anchor"))

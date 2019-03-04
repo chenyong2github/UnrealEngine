@@ -48,6 +48,7 @@
 #include "Components/ReflectionCaptureComponent.h"
 #include "GameFramework/GameUserSettings.h"
 #include "GameDelegates.h"
+#include "Misc/EmbeddedCommunication.h"
 #include "Engine/CoreSettings.h"
 #include "EngineAnalytics.h"
 #include "Engine/DemoNetDriver.h"
@@ -738,9 +739,234 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 	DefaultTimecodeFrameRate = FFrameRate(30, 1);
 }
 
+
+
+//@todo kairos: Move this and maybe the above engine handling code to somewhere else. I can't put this into Core
+// with Embedded because of the Json dependency that I don't want/can't? add to Core. Maybe ApplicationCore?
+
+#include "Misc/CoreMisc.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
+#include "Serialization/JsonReader.h"
+
+
+class FEmbeddedCommunicationExec : public FSelfRegisteringExec
+{
+public:
+	FEmbeddedCommunicationExec()
+		: FSelfRegisteringExec()
+	{
+
+		FEmbeddedDelegates::GetNativeToEmbeddedParamsDelegateForSubsystem(TEXT("engine")).AddLambda([](const FEmbeddedCallParamsHelper& Message)
+		{
+			// execute any console commands
+			if (Message.Command == TEXT("console"))
+			{
+				// gather all of the output
+				FStringOutputDevice Output;
+				ULocalPlayer* LocalPlayer = GEngine->GetDebugLocalPlayer();
+				
+				for (auto Pair : Message.Parameters)
+				{
+					if( LocalPlayer )
+					{
+						LocalPlayer->Exec( LocalPlayer->GetWorld(), *Pair.Key, Output );
+					}
+					// and fall back to UEngine otherwise.
+					else
+					{
+						GEngine->Exec( GWorld, *Pair.Key, Output );
+					}
+				}
+				
+				// call the completion delegate with all text output
+				Message.OnCompleteDelegate({ { TEXT("output"), Output } }, TEXT(""));
+			}
+			else if (Message.Command == TEXT("getconfig"))
+			{
+				FString File = Message.Parameters.FindRef(TEXT("file"));
+				FString Section = Message.Parameters.FindRef(TEXT("section"));
+				FString Key = Message.Parameters.FindRef(TEXT("key"));
+				
+				FString ConfigFile = GetConfigFromName(File);
+				
+				FString Value;
+				if (GConfig->GetString(*Section, *Key, Value, ConfigFile))
+				{
+					// send back the value
+					Message.OnCompleteDelegate({ {TEXT("value"), Value} }, TEXT(""));
+				}
+				else
+				{
+					Message.OnCompleteDelegate({ }, FString::Printf(TEXT("Config key [%s] : %s in %s was not found"), *Section, *Key, *File));
+				}
+			}
+			else if (Message.Command == TEXT("setconfig"))
+			{
+				FString File = Message.Parameters.FindRef(TEXT("file"));
+				FString Section = Message.Parameters.FindRef(TEXT("section"));
+				FString Key = Message.Parameters.FindRef(TEXT("key"));
+				FString Value = Message.Parameters.FindRef(TEXT("value"));
+				bool bSkipSave = Message.Parameters.FindRef(TEXT("skipsave")) == TEXT("true");
+
+				FString& ConfigFile = GetConfigFromName(File);
+				
+				GConfig->SetString(*Section, *Key, *Value, ConfigFile);
+				if (!bSkipSave)
+				{
+					GConfig->Flush(false, ConfigFile);
+				}
+					
+				// send back empty reply, nothing to report
+				Message.OnCompleteDelegate({ }, TEXT(""));
+			}
+			else if (Message.Command == TEXT("cvar"))
+			{
+				FString Name = Message.Parameters.FindRef(TEXT("name"));
+				IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Name);
+				if (CVar)
+				{
+					// send back the value
+					Message.OnCompleteDelegate({ {TEXT("value"), CVar->GetString()} }, TEXT(""));
+				}
+				else
+				{
+					Message.OnCompleteDelegate({ }, FString::Printf(TEXT("CVar %s not found"), *Name));
+				}
+			}
+			else if (Message.Command == TEXT("StartUE4Live"))
+			{
+				FName Requester = *Message.Parameters.FindRef(TEXT("requester"));
+				bool bTickOnly = Message.Parameters.FindRef(TEXT("tickonly")) == TEXT("true");
+				
+				FEmbeddedCommunication::KeepAwake(Requester, !bTickOnly);
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else if (Message.Command == TEXT("StopUE4Live"))
+			{
+				FName Requester = *Message.Parameters.FindRef(TEXT("requester"));
+				
+				FEmbeddedCommunication::AllowSleep(Requester);
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else
+			{
+				Message.OnCompleteDelegate({}, TEXT("Unknown command"));
+			}
+		});
+//	#endif
+
+	}
+	
+	static FString& GetConfigFromName(const FString& Name)
+	{
+		if (Name == TEXT("Game"))
+		{
+			return GGameIni;
+		}
+		else if (Name == TEXT("Input"))
+		{
+			return GInputIni;
+		}
+		else if (Name == TEXT("GameUserSettings"))
+		{
+			return GGameUserSettingsIni;
+		}
+		else if (Name == TEXT("Scalability"))
+		{
+			return GScalabilityIni;
+		}
+		else if (Name == TEXT("Hardware"))
+		{
+			return GHardwareIni;
+		}
+		return GEngineIni;
+	}
+
+	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	{
+		if (FParse::Command(&Cmd, TEXT("exitembedded")))
+		{
+			FEmbeddedCallParamsHelper Helper;
+			Helper.Command = TEXT("exitembedded");
+			if (FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).IsBound())
+			{
+				FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
+			}
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("DumpEmbedded")))
+		{
+			UE_LOG(LogEngine, Display, TEXT("Embedded state: %s"), *FEmbeddedCommunication::GetDebugInfo());
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("webcall")))
+		{
+			int CommandIndex = FCString::Atoi(Cmd);
+			FString Key = FString::Printf(TEXT("Calls[%d]"), CommandIndex);
+			FString Command;
+			if (GConfig->GetString(TEXT("WebCalls"), *Key, Command, GEngineIni))
+			{
+				const TSharedRef< TJsonReader<> >& Reader = TJsonReaderFactory<>::Create(Command.Replace(TEXT("'"), TEXT("\"")));
+				TSharedPtr<FJsonObject> CommandObject;
+				if (FJsonSerializer::Deserialize(Reader, CommandObject))
+				{
+					FEmbeddedCallParamsHelper Helper;
+					FString SubsystemString;
+					CommandObject->TryGetStringField(TEXT("Subsystem"), SubsystemString);
+					CommandObject->TryGetStringField(TEXT("Command"), Helper.Command);
+
+					const TSharedPtr<FJsonObject>* Args = nullptr;
+					if (CommandObject->TryGetObjectField(TEXT("Args"), Args))
+					{
+						for (auto It : (*Args)->Values)
+						{
+							FString ValueString;
+							if (!It.Value->TryGetString(ValueString))
+							{
+								// if casual string conversion failed, then encode it as a json string
+								const TArray< TSharedPtr<FJsonValue> >* ValueArray = nullptr;
+								if (It.Value->TryGetArray(ValueArray))
+								{
+									TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&ValueString);
+									FJsonSerializer::Serialize(*ValueArray, Writer);
+								}
+								else
+								{
+									const TSharedPtr<FJsonObject>* ValueObject = nullptr;
+									if (It.Value->TryGetObject(ValueObject))
+									{
+										TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&ValueString);
+										FJsonSerializer::Serialize(ValueObject->ToSharedRef(), Writer);
+									}
+								}
+							}
+
+							// now put whatever string we made into the map
+							Helper.Parameters.Add(It.Key, ValueString);
+						}
+					}
+
+					Helper.OnCompleteDelegate = [](const FEmbeddedCommunicationMap& InReturnValues, FString InError) {};
+					FName Subsystem(*SubsystemString);
+					if (FEmbeddedDelegates::GetNativeToEmbeddedParamsDelegateForSubsystem(Subsystem).IsBound())
+					{
+						FEmbeddedDelegates::GetNativeToEmbeddedParamsDelegateForSubsystem(Subsystem).Broadcast(Helper);
+					}
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+} GEmbeddedCommunicationExec;
+
+
 void UGameEngine::Init(IEngineLoop* InEngineLoop)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UGameEngine Init"), STAT_GameEngineStartup, STATGROUP_LoadTime);
+	
 
 	// Call base.
 	UEngine::Init(InEngineLoop);
@@ -1475,7 +1701,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 	}
 
-	if (!bIdleMode && !IsRunningDedicatedServer() && !IsRunningCommandlet())
+	if (!bIdleMode && !IsRunningDedicatedServer() && !IsRunningCommandlet() && FEmbeddedCommunication::IsAwakeForRendering())
 	{
 		// Render everything.
 		RedrawViewports();

@@ -44,6 +44,9 @@ public:
 					.OnCreateWindow(this, &SLoginFlowImpl::HandleBrowserCreateWindow)
 					.OnCloseWindow(this, &SLoginFlowImpl::HandleBrowserCloseWindow)
 					.OnShowDialog(this, &SLoginFlowImpl::HandleShowDialog)
+					.OnUnhandledKeyDown(this, &SLoginFlowImpl::HandleKey)
+					.OnUnhandledKeyUp(this, &SLoginFlowImpl::HandleKey)
+					.OnUnhandledKeyChar(this, &SLoginFlowImpl::HandleKeyChar)
 					.ContextSettings(ViewModel->GetBrowserContextSettings().IsValid() ? *ViewModel->GetBrowserContextSettings() : TOptional<FBrowserContextSettings>())
 				]
 			]
@@ -440,6 +443,16 @@ private:
 		// @todo: Due to an OS X crash, we continue all dialogs with the default action to prevent them from displaying using native windows.  In the future, we should add custom handlers/ui for these dialogs.
 		EWebBrowserDialogEventResponse WebDialogHandling = EWebBrowserDialogEventResponse::Continue;
 		return WebDialogHandling;
+	}
+
+	bool HandleKey(const FKeyEvent& KeyEvent)
+	{
+		return ViewModel->ShouldConsumeInput();
+	}
+
+	bool HandleKeyChar(const FCharacterEvent& CharacterEvent)
+	{
+		return ViewModel->ShouldConsumeInput();
 	}
 
 private:

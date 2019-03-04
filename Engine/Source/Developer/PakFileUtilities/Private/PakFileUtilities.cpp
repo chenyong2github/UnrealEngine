@@ -2552,6 +2552,13 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 		IFileManager::Get().FindFiles(PakFileList, *PakFileDirectory, *FPaths::GetCleanFilename(InPakFilename));
 	}
 
+	if (PakFileList.Num() == 0)
+	{
+		// No files found
+		return false;
+	}
+
+
 	bool bIncludeDeleted = (OutDeletedEntries != nullptr);
 
 	for (int32 PakFileIndex = 0; PakFileIndex < PakFileList.Num(); PakFileIndex++)

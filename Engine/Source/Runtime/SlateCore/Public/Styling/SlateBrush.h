@@ -196,23 +196,7 @@ public:
 	/**
 	 * Sets the UObject that represents the brush resource.
 	 */
-	void SetResourceObject(class UObject* InResourceObject)
-	{
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
-		if (!ensure(CanRenderResourceObject(InResourceObject)))
-		{
-			// If we can't render the resource return, don't let people use them as brushes, we'll just crash later.
-			return;
-		}
-#endif
-
-		if (ResourceObject != InResourceObject)
-		{
-			ResourceObject = InResourceObject;
-			// Invalidate resource handle
-			ResourceHandle = FSlateResourceHandle();
-		}
-	}
+	void SetResourceObject(class UObject* InResourceObject);
 
 	/**
 	 * Gets the brush's tint color.

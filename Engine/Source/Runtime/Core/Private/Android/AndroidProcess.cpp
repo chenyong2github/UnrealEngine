@@ -154,16 +154,12 @@ FString FAndroidPlatformProcess::GetGameBundleId()
 	JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 	if (nullptr != JEnv)
 	{
-		jclass Class = AndroidJavaEnv::FindJavaClass("com/epicgames/ue4/GameActivity");
+		jclass Class = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
 		if (nullptr != Class)
 		{
 			jmethodID getAppPackageNameMethodId = JEnv->GetStaticMethodID(Class, "getAppPackageName", "()Ljava/lang/String;");
-			jstring JPackageName = (jstring)JEnv->CallStaticObjectMethod(Class, getAppPackageNameMethodId, nullptr);
-			const char * NativePackageNameString = JEnv->GetStringUTFChars(JPackageName, 0);
-			FString PackageName = FString(NativePackageNameString);
-			JEnv->ReleaseStringUTFChars(JPackageName, NativePackageNameString);
-			JEnv->DeleteLocalRef(JPackageName);
-			JEnv->DeleteLocalRef(Class);
+			FString PackageName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->CallStaticObjectMethod(Class, getAppPackageNameMethodId, nullptr));
+			JEnv->DeleteGlobalRef(Class);
 			return PackageName;
 		}
 	}

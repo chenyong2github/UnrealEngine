@@ -27,6 +27,7 @@ namespace AutomationTool
 			{
 				throw new AutomationException("-Description must be defined!");
 			}
+			
 
 			string FileType = ParseParamValue("FileType", null);
 

@@ -1487,7 +1487,14 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// Set constant name for WorldSettings to make a network replication work between new worlds on host and client
 	SpawnInfo.Name = GEngine->WorldSettingsClass->GetFName();
-	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>( GEngine->WorldSettingsClass, SpawnInfo );
+	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>(GEngine->WorldSettingsClass, SpawnInfo );
+
+	// Allow the world creator to override the default game mode in case they do not plan to load a level.
+	if (IVS.DefaultGameMode)
+	{
+		WorldSettings->DefaultGameMode = IVS.DefaultGameMode;
+	}
+
 	PersistentLevel->SetWorldSettings(WorldSettings);
 	check(GetWorldSettings());
 #if WITH_EDITOR
@@ -3752,6 +3759,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
 	check(bIsWorldInitialized);
+	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();
 
 	// Don't reset time for seamless world transitions.
