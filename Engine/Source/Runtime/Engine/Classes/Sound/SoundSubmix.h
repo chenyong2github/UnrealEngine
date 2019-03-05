@@ -117,6 +117,10 @@ class ENGINE_API USoundSubmix : public UObject
 	UPROPERTY()
 	ESubmixChannelFormat ChannelFormat;
 
+	/** Mute this submix when the application is muted or in the background. Used to prevent submix effect tails from continuing when tabbing out of application or if application is muted. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
+	uint8 bMuteWhenBackgrounded : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	TArray<USoundEffectSubmixPreset*> SubmixEffectChain;
 
