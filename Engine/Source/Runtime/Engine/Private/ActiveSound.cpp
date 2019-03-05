@@ -436,7 +436,7 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 	// If the sound is a preview sound, then ignore the transient master volume and application volume
 	if (!bIsPreviewSound)
 	{
-		ParseParams.VolumeApp = AudioDevice->GetTransientMasterVolume() * FApp::GetVolumeMultiplier();
+		ParseParams.VolumeApp = AudioDevice->GetMasterVolume();
 	}
 
 	const float TotalConcurrencyVolumeScale = GetTotalConcurrencyVolumeScale();
