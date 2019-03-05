@@ -6693,22 +6693,30 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 		TArray<FString> RootPaths;
 		FPackageName::QueryRootContentPaths(RootPaths);
+
+		FARFilter Filter;
+		Filter.bRecursivePaths = true;
+		Filter.bIncludeOnlyOnDiskAssets = false;
+		Filter.PackagePaths.Reserve(AllCulturesToCook.Num() * RootPaths.Num());
 		for (const FString& RootPath : RootPaths)
 		{
 			for (const FString& CultureName : AllCulturesToCook)
 			{
-				TArray<FAssetData> AssetDataForCulture;
-				AssetRegistry->GetAssetsByPath(*(RootPath / TEXT("L10N") / CultureName), AssetDataForCulture, true);
-
-				for (const FAssetData& AssetData : AssetDataForCulture)
-				{
-					const FName LocalizedPackageName = AssetData.PackageName;
-					const FName SourcePackageName = *FPackageName::GetSourcePackagePath(LocalizedPackageName.ToString());
-
-					TArray<FName>& LocalizedPackageNames = CookByTheBookOptions->SourceToLocalizedPackageVariants.FindOrAdd(SourcePackageName);
-					LocalizedPackageNames.AddUnique(LocalizedPackageName);
-				}
+				FString LocalizedPackagePath = RootPath / TEXT("L10N") / CultureName;
+				Filter.PackagePaths.Add(*LocalizedPackagePath);
 			}
+		}
+
+		TArray<FAssetData> AssetDataForCultures;
+		AssetRegistry->GetAssets(Filter, AssetDataForCultures);
+
+		for (const FAssetData& AssetData : AssetDataForCultures)
+		{
+			const FName LocalizedPackageName = AssetData.PackageName;
+			const FName SourcePackageName = *FPackageName::GetSourcePackagePath(LocalizedPackageName.ToString());
+
+			TArray<FName>& LocalizedPackageNames = CookByTheBookOptions->SourceToLocalizedPackageVariants.FindOrAdd(SourcePackageName);
+			LocalizedPackageNames.AddUnique(LocalizedPackageName);
 		}
 	}
 
