@@ -56,6 +56,6 @@ private:
 		SConstraintCanvas::FSlot* Slot;
 	};
 
-	TMap<USceneComponent*, FComponentEntry> ComponentMap;
+	TMap<TWeakObjectPtr<USceneComponent>, FComponentEntry> ComponentMap;
 	TSharedPtr<SConstraintCanvas> Canvas;
 };

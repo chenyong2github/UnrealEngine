@@ -350,6 +350,8 @@ public:
 	};
 
 protected:
+	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
+
 	/** Just because the user attempts to receive hardware input does not mean it's possible. */
 	bool CanReceiveHardwareInput() const;
 

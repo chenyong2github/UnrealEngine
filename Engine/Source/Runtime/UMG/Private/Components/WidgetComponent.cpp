@@ -39,14 +39,15 @@ public:
 
 	void AddComponent(UWidgetComponent* Component)
 	{
-		if ( Component )
+		if (Component)
 		{
 			Components.AddUnique(Component);
-			if ( ScreenLayer.IsValid() )
+
+			if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 			{
-				if ( UUserWidget* UserWidget = Component->GetUserWidgetObject() )
+				if (UUserWidget* UserWidget = Component->GetUserWidgetObject())
 				{
-					ScreenLayer.Pin()->AddComponent(Component, UserWidget->TakeWidget());
+					ScreenLayer->AddComponent(Component, UserWidget->TakeWidget());
 				}
 				else if (Component->GetSlateWidget().IsValid())
 				{
@@ -58,26 +59,26 @@ public:
 
 	void RemoveComponent(UWidgetComponent* Component)
 	{
-		if ( Component )
+		if (Component)
 		{
 			Components.RemoveSwap(Component);
 
-			if ( ScreenLayer.IsValid() )
+			if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 			{
-				ScreenLayer.Pin()->RemoveComponent(Component);
+				ScreenLayer->RemoveComponent(Component);
 			}
 		}
 	}
 
 	virtual TSharedRef<SWidget> AsWidget() override
 	{
-		if ( ScreenLayer.IsValid() )
+		if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 		{
-			return ScreenLayer.Pin().ToSharedRef();
+			return ScreenLayer.ToSharedRef();
 		}
 
 		TSharedRef<SWorldWidgetScreenLayer> NewScreenLayer = SNew(SWorldWidgetScreenLayer, OwningPlayer);
-		ScreenLayer = NewScreenLayer;
+		ScreenLayerPtr = NewScreenLayer;
 
 		// Add all the pending user widgets to the surface
 		for ( TWeakObjectPtr<UWidgetComponent>& WeakComponent : Components )
@@ -100,7 +101,7 @@ public:
 
 private:
 	FLocalPlayerContext OwningPlayer;
-	TWeakPtr<SWorldWidgetScreenLayer> ScreenLayer;
+	TWeakPtr<SWorldWidgetScreenLayer> ScreenLayerPtr;
 	TArray<TWeakObjectPtr<UWidgetComponent>> Components;
 };
 
@@ -627,8 +628,20 @@ void UWidgetComponent::BeginPlay()
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ReleaseResources();
 	Super::EndPlay(EndPlayReason);
+
+	ReleaseResources();
+}
+
+void UWidgetComponent::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
+{
+	// If the InLevel is null, it's a signal that the entire world is about to disappear, so
+	// go ahead and remove this widget from the viewport, it could be holding onto too many
+	// dangerous actor references that won't carry over into the next world.
+	if (InLevel == nullptr && InWorld == GetWorld())
+	{
+		ReleaseResources();
+	}
 }
 
 
@@ -793,6 +806,8 @@ void UWidgetComponent::OnRegister()
 	Super::OnRegister();
 
 #if !UE_SERVER
+	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ThisClass::OnLevelRemovedFromWorld);
+
 	if ( !IsRunningDedicatedServer() )
 	{
 		const bool bIsGameWorld = GetWorld()->IsGameWorld();
@@ -873,6 +888,8 @@ void UWidgetComponent::UnregisterHitTesterWithViewport(TSharedPtr<SViewport> Vie
 void UWidgetComponent::OnUnregister()
 {
 #if !UE_SERVER
+	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+
 	if ( GetWorld()->IsGameWorld() )
 	{
 		TSharedPtr<SViewport> GameViewportWidget = GEngine->GetGameViewportWidget();
