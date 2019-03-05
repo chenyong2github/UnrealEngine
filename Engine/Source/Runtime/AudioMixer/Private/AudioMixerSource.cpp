@@ -282,6 +282,10 @@ namespace Audio
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
 			MixerBuffer->InitSampleRate(WaveInstance->WaveData->GetSampleRateForCurrentPlatform());
 
+			// Pass the decompression state off to the mixer source buffer
+			ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(true);
+			MixerSourceBuffer->SetDecoder(Decoder);
+
 			// Hand off the mixer source buffer decoder
 			InitParams.MixerSourceBuffer = MixerSourceBuffer;
 			MixerSourceBuffer = nullptr;
@@ -427,13 +431,14 @@ namespace Audio
 						if (WaveInstance->StartTime > 0.0f || WaveInstance->WaveData->bProcedural || WaveInstance->WaveData->bIsBus || !WaveInstance->WaveData->CachedRealtimeFirstBuffer)
 						{
 							// Before reading more PCMRT data, we first need to seek the buffer
-							if (WaveInstance->StartTime > 0.0f && !WaveInstance->WaveData->bIsBus && !WaveInstance->WaveData->bProcedural)
+							if (WaveInstance->StartTime > 0.0f && !(BufferType == EBufferType::Streaming) && !WaveInstance->WaveData->bIsBus && !WaveInstance->WaveData->bProcedural)
 							{
 								MixerBuffer->Seek(WaveInstance->StartTime);
 							}
 
 							check(MixerSourceBuffer.IsValid());
-							MixerSourceBuffer->ReadMoreRealtimeData(0, EBufferReadMode::Asynchronous);
+							ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(false);
+							MixerSourceBuffer->ReadMoreRealtimeData(Decoder, 0, EBufferReadMode::Asynchronous);
 
 							// not ready
 							return false;
@@ -484,6 +489,11 @@ namespace Audio
 	void FMixerSource::Stop()
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		if (InitializationState == EMixerSourceInitializationState::NotInitialized)
+		{
+			return;
+		}
 
 		if (!MixerSourceVoice)
 		{
@@ -687,10 +697,20 @@ namespace Audio
 		}
 
 		MixerSourceBuffer = nullptr;
-		MixerBuffer = nullptr;
 		Buffer = nullptr;
 		bLoopCallback = false;
 		NumTotalFrames = 0;
+
+		if (MixerBuffer)
+		{
+			EBufferType::Type BufferType = MixerBuffer->GetType();
+			if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
+			{
+				delete MixerBuffer;
+			}
+
+			MixerBuffer = nullptr;
+		}
 
 		// Reset the source's channel maps
 		for (int32 i = 0; i < (int32)ESubmixChannelFormat::Count; ++i)
