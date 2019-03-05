@@ -14,6 +14,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/CoreNetTypes.h"
 #include "UObject/ScriptInterface.h"
+#include "UObject/SparseDelegate.h"
 #include "Templates/Casts.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
@@ -4186,31 +4187,20 @@ public:
 -----------------------------------------------------------------------------*/
 
 /**
- * Describes a pointer to a function bound to an Object.
+ * Describes a list of functions bound to an Object.
  */
-// need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
-typedef TProperty<FMulticastScriptDelegate, UProperty> UMulticastDelegateProperty_Super;
-
-class COREUOBJECT_API UMulticastDelegateProperty : public UMulticastDelegateProperty_Super
+class COREUOBJECT_API UMulticastDelegateProperty : public UProperty
 {
-	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastDelegateProperty, UMulticastDelegateProperty_Super, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastDelegateProperty)
+	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastDelegateProperty, UProperty, CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastDelegateProperty)
 
 	/** Points to the source delegate function (the function declared with the delegate keyword) used in the declaration of this delegate property. */
 	UFunction* SignatureFunction;
+
 public:
 
-	typedef UMulticastDelegateProperty_Super::TTypeFundamentals TTypeFundamentals;
-	typedef TTypeFundamentals::TCppType TCppType;
-
-	UMulticastDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
-		: TProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
-		, SignatureFunction(InSignatureFunction)
-	{
-	}
-
-	UMulticastDelegateProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL )
-		: TProperty( ObjectInitializer, EC_CppProperty, InOffset, InFlags )
-		, SignatureFunction(InSignatureFunction)
+	UMulticastDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags)
+		: UProperty(ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+		, SignatureFunction(nullptr)
 	{
 	}
 
@@ -4223,22 +4213,161 @@ public:
 	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
 	virtual FString GetCPPTypeForwardDeclaration() const override;
 	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
-	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const override;
 	virtual void ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
-	virtual const TCHAR* ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText ) const override;
 	virtual bool ContainsWeakObjectReference() const override;
 	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph ) override;
 	virtual bool SameType(const UProperty* Other) const override;
+	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
 	// End of UProperty interface
+
+	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::GetMulticastDelegate, return nullptr;);
+	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const PURE_VIRTUAL(UMulticastDelegateProperty::SetMulticastDelegate, );
+
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
+	virtual void ClearDelegate(UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
+	virtual void ClearDelegate(UObject* Parent, void* PropertyValue)  const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
 
 protected:
 	friend class UProperty;
 
+	static FMulticastScriptDelegate::FInvocationList EmptyList;
+	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::GetInvocationList, return EmptyList;);
+
+
 	const TCHAR* ImportText_Add( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const;
 	const TCHAR* ImportText_Remove( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const;
+
+	const TCHAR* ImportDelegateFromText(FMulticastScriptDelegate& MulticastDelegate, const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const;
 };
 
+template<class InTCppType>
+class COREUOBJECT_API TProperty_MulticastDelegate : public TProperty<InTCppType, UMulticastDelegateProperty>
+{
+public:
+	typedef TProperty<InTCppType, UMulticastDelegateProperty> Super;
+	typedef InTCppType TCppType;
+	typedef typename Super::TTypeFundamentals TTypeFundamentals;
+	TProperty_MulticastDelegate(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get(), UFunction* InSignatureFunction = nullptr)
+		: Super(ObjectInitializer)
+	{
+		this->SignatureFunction = InSignatureFunction;
+	}
+
+	TProperty_MulticastDelegate(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
+	{
+		this->SignatureFunction = InSignatureFunction;
+	}
+
+	TProperty_MulticastDelegate(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: Super(ObjectInitializer, EC_CppProperty, InOffset, InFlags)
+	{
+		this->SignatureFunction = InSignatureFunction;
+	}
+
+	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
+	TProperty_MulticastDelegate(FVTableHelper& Helper) : Super(Helper) {};
+};
+
+class COREUOBJECT_API UMulticastInlineDelegateProperty : public TProperty_MulticastDelegate<FMulticastScriptDelegate>
+{
+	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastInlineDelegateProperty, TProperty_MulticastDelegate<FMulticastScriptDelegate>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastInlineDelegateProperty)
+
+public:
+
+	UMulticastInlineDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	{
+	}
+
+	UMulticastInlineDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	{
+	}
+
+	// UProperty interface
+	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
+	// End of UProperty interface
+
+	// UMulticastDelegateProperty interface
+	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
+	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
+
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const override
+	{
+		AddDelegate(MoveTemp(ScriptDelegate), Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const override
+	{
+		RemoveDelegate(ScriptDelegate, Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void ClearDelegate(UObject* Parent) const override
+	{
+		ClearDelegate(Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
+	virtual void ClearDelegate(UObject* Parent, void* PropertyValue) const override final;
+protected:
+	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
+	// End of UMulticastDelegateProperty interface
+};
+
+class COREUOBJECT_API UMulticastSparseDelegateProperty : public TProperty_MulticastDelegate<FSparseDelegate> 
+{
+	DECLARE_CASTED_CLASS_INTRINSIC(UMulticastSparseDelegateProperty, TProperty_MulticastDelegate<FSparseDelegate>, 0, TEXT("/Script/CoreUObject"), CASTCLASS_UMulticastSparseDelegateProperty)
+
+public:
+
+	UMulticastSparseDelegateProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	{
+	}
+
+	UMulticastSparseDelegateProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+		: TProperty_MulticastDelegate(ObjectInitializer, EC_CppProperty, InOffset, InFlags, InSignatureFunction)
+	{
+	}
+
+	// UProperty interface
+	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const override;
+	// End of UProperty interface
+
+	// UMulticastDelegateProperty interface
+	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
+	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
+
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const override
+	{
+		AddDelegate(MoveTemp(ScriptDelegate), Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const override
+	{
+		RemoveDelegate(ScriptDelegate, Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void ClearDelegate(UObject* Parent) const override
+	{
+		ClearDelegate(Parent, GetPropertyValuePtr_InContainer(Parent));
+	}
+
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
+	virtual void ClearDelegate(UObject* Parent, void* PropertyValue) const override final;
+protected:
+	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
+	// End of UMulticastDelegateProperty interface
+};
 
 /** Describes a single node in a custom property list. */
 struct COREUOBJECT_API FCustomPropertyListNode

@@ -2232,9 +2232,10 @@ namespace UE4CodeGen_Private
 		Set               = 0x18,
 		Struct            = 0x19,
 		Delegate          = 0x1A,
-		MulticastDelegate = 0x1B,
-		Text              = 0x1C,
-		Enum              = 0x1D,
+		InlineMulticastDelegate = 0x1B,
+		SparseMulticastDelegate = 0x1C,
+		Text              = 0x1D,
+		Enum              = 0x1E,
 
 		// Property-specific flags
 		NativeBool        = 0x20
@@ -2492,6 +2493,8 @@ namespace UE4CodeGen_Private
 		UObject*                          (*OuterFunc)();
 		UFunction*                        (*SuperFunc)();
 		const char*                         NameUTF8;
+		const char*                         OwningClassName;
+		const char*                         DelegateName;
 		SIZE_T                              StructureSize;
 		const FPropertyParamsBase* const*   PropertyArray;
 		int32                               NumProperties;
