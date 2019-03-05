@@ -284,14 +284,24 @@ public:
 	virtual ~IOnlinePartyPendingJoinRequestInfo() {}
 
 	/**
-	* @return id of the sender of this join request
-	*/
+	 * @return id of the sender of this join request
+	 */
 	virtual const TSharedRef<const FUniqueNetId>& GetSenderId() const = 0;
 
 	/**
-	* @return display name of the sender of this join request
-	*/
+	 * @return display name of the sender of this join request
+	 */
 	virtual const FString& GetSenderDisplayName() const = 0;
+
+	/**
+	 * @return platform of the sender of this join request
+	 */
+	virtual const FString& GetSenderPlatform() const = 0;
+
+	/**
+	 * @return join data provided by the sender for htis join request
+	 */
+	virtual TSharedRef<const FOnlinePartyData> GetSenderJoinData() const = 0;
 };
 
 /**
@@ -493,8 +503,27 @@ protected:
 public:
 	virtual ~FOnlineParty() = default;
 
+	/**
+	 * Check if the local user has invite permissions in this party. Based on configuration permissions and party state.
+	 *
+	 * @param LocalUserId the local user's id
+	 * @return true if the local user can invite, false if not
+	 */
 	virtual bool CanLocalUserInvite(const FUniqueNetId& LocalUserId) const = 0;
+
+	/**
+	 * Is this party joinable?
+	 *
+	 * @return true if this party is joinable, false if not
+	 */
 	virtual bool IsJoinable() const = 0;
+
+	/**
+	 * Get the party's configuration
+	 *
+	 * @return the party's configuration
+	 */
+	virtual TSharedRef<const FPartyConfiguration> GetConfiguration() const = 0;
 
 	/** Unique id of the party */
 	TSharedRef<const FOnlinePartyId> PartyId;

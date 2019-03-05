@@ -1526,6 +1526,9 @@ public:
 	float GetTransientMasterVolume() const { check(IsInAudioThread()); return TransientMasterVolume; }
 	void SetTransientMasterVolume(float TransientMasterVolume);
 
+	/** Returns the volume that combines transient master volume and the FApp::GetVolumeMultiplier() value */
+	float GetMasterVolume() const { return MasterVolume; }
+
 	FSoundSource* GetSoundSource(FWaveInstance* WaveInstance) const;
 
 	const FGlobalFocusSettings& GetGlobalFocusSettings() const;
@@ -1630,6 +1633,9 @@ private:
 
 	/** transient master volume multiplier that can be modified at runtime without affecting user settings automatically reset to 1.0 on level change */
 	float TransientMasterVolume;
+
+	/** The master volume of the game combines the FApp::GetVolumeMultipler() value and the TransientMastervolume. */
+	float MasterVolume;
 
 	/** Global dynamic pitch scale parameter */
 	FDynamicParameter GlobalPitchScale;

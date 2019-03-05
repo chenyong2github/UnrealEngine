@@ -172,7 +172,7 @@ struct FSoundParseParameters
 		, ReverbSendMethod(EReverbSendMethod::Linear)
 		, ReverbSendLevelRange(0.0f, 0.0f)
 		, ReverbSendLevelDistanceRange(0.0f, 0.0f)
-		, ManualReverbSendLevel(0.2f)
+		, ManualReverbSendLevel(0.0f)
 		, StereoSpread(0.0f)
 		, SpatializationMethod(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
 		, SpatializationPluginSettings(nullptr)

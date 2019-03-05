@@ -1599,8 +1599,11 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		}
 
 		// Copy reverb send settings
-		WaveInstance->ReverbSendMethod = ParseParams.ReverbSendMethod;
-		WaveInstance->ManualReverbSendLevel = ParseParams.ManualReverbSendLevel;
+		if (!bUseSoundClassDefaultReverb)
+		{
+			WaveInstance->ReverbSendMethod = ParseParams.ReverbSendMethod;
+			WaveInstance->ManualReverbSendLevel = ParseParams.ManualReverbSendLevel;
+		}
 		WaveInstance->CustomRevebSendCurve = ParseParams.CustomReverbSendCurve;
 		WaveInstance->ReverbSendLevelRange = ParseParams.ReverbSendLevelRange;
 		WaveInstance->ReverbSendLevelDistanceRange = ParseParams.ReverbSendLevelDistanceRange;
