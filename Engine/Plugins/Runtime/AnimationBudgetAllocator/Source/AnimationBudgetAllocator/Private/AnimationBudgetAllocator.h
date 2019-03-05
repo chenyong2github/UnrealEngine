@@ -11,10 +11,11 @@
 #include "Engine/EngineTypes.h"
 #include "IAnimationBudgetAllocator.h"
 #include "UObject/GCObject.h"
+#include "AnimationBudgetAllocatorParameters.h"
+#include "DrawDebugHelpers.h"
 
 DECLARE_STATS_GROUP(TEXT("Animation Budget Allocator"), STATGROUP_AnimationBudgetAllocator, STATCAT_Advanced);
 
-#define USE_SKEL_BATCHING 1
 #define WITH_TICK_DEBUG 0
 
 // Enable this define to output more dense CSV stats about the budgeter
@@ -28,6 +29,11 @@ DECLARE_STATS_GROUP(TEXT("Animation Budget Allocator"), STATGROUP_AnimationBudge
 
 class FAnimationBudgetAllocator;
 class USkeletalMeshComponentBudgeted;
+class SAnimationBudgetAllocatorDebug;
+class UGameViewportClient;
+class AHUD;
+class UCanvas;
+class FDebugDisplayInfo;
 
 /** Data for a single component */
 struct FComponentData
@@ -55,7 +61,7 @@ struct FComponentData
 		, bNeverThrottle(true)
 	{}
 
-	FComponentData(USkeletalMeshComponentBudgeted* InComponent);
+	FComponentData(USkeletalMeshComponentBudgeted* InComponent, float InGameThreadLastTickTimeMs, int32 InStateChangeThrottle);
 
 	bool operator==(const FComponentData& InOther) const
 	{
@@ -143,6 +149,7 @@ public:
 	virtual void Update(float DeltaSeconds) override;
 	virtual void SetEnabled(bool bInEnabled) override;
 	virtual bool GetEnabled() const override;
+	virtual void SetParameters(const FAnimationBudgetAllocatorParameters& InParameters) override;
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -169,7 +176,18 @@ protected:
 	/** Helper function to enable/disable ticks */
 	void TickEnableHelper(USkeletalMeshComponent* InComponent, bool bInEnable);
 
+	/** Initializes internal parameters from CVars. */
+	void SetParametersFromCVars();
+
+#if ENABLE_DRAW_DEBUG
+	/** Debug support function */
+	void OnHUDPostRender(AHUD* HUD, UCanvas* Canvas);
+#endif
+
 protected:
+	/** All of the parameters we use */
+	FAnimationBudgetAllocatorParameters Parameters;
+
 	// World we are linked to
 	UWorld* World;
 
@@ -192,6 +210,12 @@ protected:
 	/** All non-rendered components we might tick */
 	TArray<int32> NonRenderedComponentData;
 
+#if ENABLE_DRAW_DEBUG
+	/** Recorded debug times */
+	TArray<FVector2D> DebugTimes;
+	TArray<FVector2D> DebugTimesSmoothed;
+#endif
+
 	/** Average time for a work unit in milliseconds (smoothed). Updated each tick. */
 	float AverageWorkUnitTimeMs;
 
@@ -210,6 +234,17 @@ protected:
 	/** Budget pressure value, smoothed to reduce noise in 'reduced work' calculations */
 	float SmoothedBudgetPressure;
 
+#if ENABLE_DRAW_DEBUG
+	/** Track total time this tick for debug display */
+	float DebugTotalTime;
+
+	/** Display time for debug graph */
+	float CurrentDebugTimeDisplay;
+
+	/** Display scale for debug graph */
+	float DebugSmoothedTotalTime;
+#endif
+
 	/** Throttle counter for delaying reduced work */
 	int32 ReducedComponentWorkCounter;
 
@@ -218,6 +253,12 @@ protected:
 
 	/** Handle used for ticking */
 	FDelegateHandle OnWorldPreActorTickHandle;
+
+	/** Handle used for CVar parameter changes */
+	FDelegateHandle OnCVarParametersChangedHandle;
+
+	/** Handle used for debug drawing */
+	FDelegateHandle OnHUDPostRenderHandle;
 
 	/** Offset used to distribute component ticks */
 	uint32 CurrentFrameOffset;
