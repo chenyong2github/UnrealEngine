@@ -412,7 +412,7 @@ namespace UnrealBuildTool
 				Result += " -fobjc-exceptions";
 			}
 			else
-			{
+		{
 				Result += " -fno-objc-exceptions";
 			}
 
@@ -736,9 +736,9 @@ namespace UnrealBuildTool
 				CompileAction.bShouldOutputStatusDescription = true;
 
 				foreach(UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-			{
+		{
 					if(Framework.ZipFile != null)
-				{
+			{
 						FileItem ExtractedTokenFile = ExtractFramework(Framework, Actions);
 						CompileAction.PrerequisiteItems.Add(ExtractedTokenFile);
 				}
@@ -1422,12 +1422,22 @@ namespace UnrealBuildTool
 				Dictionary<string, DirectoryReference> FrameworkNameToSourceDir = new Dictionary<string, DirectoryReference>();
 				foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
 				{
-					if (Framework.OutputDirectory != null && !String.IsNullOrEmpty(Framework.CopyBundledAssets))
+					if (Framework.OutputDirectory != null)
 					{
-						// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-						DirectoryReference LocalSource = DirectoryReference.Combine(Framework.OutputDirectory, Framework.CopyBundledAssets);
-						string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
-						FrameworkNameToSourceDir[BundleName] = LocalSource;
+						// copy entire framework in for dynamic lib frameworks, not just a bundle
+						// @todo add a bool to the UEBuildFramework class that denotes it as a dylib framework, or possibly use RuntimeDependencies instead?
+						if (Framework.ZipFile.FullName.EndsWith(".framework.zip"))
+						{
+							string BundleName = Framework.OutputDirectory.FullName.Substring(Framework.OutputDirectory.FullName.LastIndexOf('/') + 1);
+							FrameworkNameToSourceDir[BundleName] = Framework.OutputDirectory;
+						}
+						else if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
+						{
+							// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+							DirectoryReference LocalSource = DirectoryReference.Combine(Framework.OutputDirectory, Framework.CopyBundledAssets);
+							string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
+							FrameworkNameToSourceDir[BundleName] = LocalSource;
+						}
 					}
 				}
 
@@ -1785,16 +1795,29 @@ namespace UnrealBuildTool
 				CleanIntermediateDirectory(LocalFrameworkAssets);
 
 				foreach (KeyValuePair<string, DirectoryReference> Pair in Target.FrameworkNameToSourceDir)
-					{
+				{
 					string UnpackedZipPath = Pair.Value.FullName;
 
-					// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-					string LocalDest = LocalFrameworkAssets + "/" + Pair.Key;
-
-					Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
-
-					string ResultsText;
-                    RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
+					// some framework bundles are an entire framework, not a .bundle, so copy them into a Frameworks directory
+					if (Pair.Key.EndsWith(".framework"))
+					{
+						string LocalDest = LocalFrameworkAssets + "/Frameworks";
+						Console.WriteLine("Copying dynamic framework... LocalSource: {0}, LocalDest: {1}", UnpackedZipPath, LocalDest);
+						string ResultsText;
+						// Create the intermediate local directory
+						RunExecutableAndWait("mkdir", String.Format("-p \"{0}\"", LocalDest), out ResultsText);
+						RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
+					}
+					else
+					{
+						// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+						string LocalDest = LocalFrameworkAssets + "/" + Pair.Key;
+	
+						Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
+	
+						string ResultsText;
+						RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
+					}
                 }
             }
 		}
