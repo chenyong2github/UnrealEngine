@@ -579,24 +579,38 @@ void FLevelSequenceEditorToolkit::HandleAddComponentActionExecute(UActorComponen
 
 void FLevelSequenceEditorToolkit::HandleAddComponentMaterialActionExecute(UPrimitiveComponent* Component, int32 MaterialIndex)
 {
-	FGuid ObjectHandle = Sequencer->GetHandleToObject(Component);
 	UMovieScene* FocusedMovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-	FName IndexName( *FString::FromInt(MaterialIndex) );
-	if ( FocusedMovieScene->FindTrack( UMovieSceneComponentMaterialTrack::StaticClass(), ObjectHandle, IndexName ) == nullptr )
+	if (FocusedMovieScene->IsReadOnly())
 	{
-		if (FocusedMovieScene->IsReadOnly())
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("AddComponentMaterialTrack", "Add component material track"));
+
+	FocusedMovieScene->Modify();
+
+	FString ComponentName = Component->GetName();
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = CastChecked<AActor>(*Iter);
+
+		TArray<UActorComponent*> OutComponents;
+		Actor->GetComponents(OutComponents);
+		for (UActorComponent* ActorComponent : OutComponents)
 		{
-			return;
+			if (ActorComponent->GetName() == ComponentName)
+			{
+				FGuid ObjectHandle = Sequencer->GetHandleToObject(ActorComponent);
+				FName IndexName(*FString::FromInt(MaterialIndex));
+				if (FocusedMovieScene->FindTrack(UMovieSceneComponentMaterialTrack::StaticClass(), ObjectHandle, IndexName) == nullptr)
+				{
+					UMovieSceneComponentMaterialTrack* MaterialTrack = FocusedMovieScene->AddTrack<UMovieSceneComponentMaterialTrack>(ObjectHandle);
+					MaterialTrack->Modify();
+					MaterialTrack->SetMaterialIndex(MaterialIndex);
+				}
+			}
 		}
-
-		const FScopedTransaction Transaction( LOCTEXT( "AddComponentMaterialTrack", "Add component material track" ) );
-
-		FocusedMovieScene->Modify();
-
-		UMovieSceneComponentMaterialTrack* MaterialTrack = FocusedMovieScene->AddTrack<UMovieSceneComponentMaterialTrack>( ObjectHandle );
-		MaterialTrack->Modify();
-		MaterialTrack->SetMaterialIndex( MaterialIndex );
-
 		Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 	}
 }

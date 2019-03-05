@@ -394,10 +394,10 @@ public:
 	 * Builds up the track menu for object binding nodes in the outliner
 	 * 
 	 * @param MenuBuilder	The track menu builder to add things to
-	 * @param ObjectBinding	The object binding of the selected node
+	 * @param ObjectBindings The array of object bindings to add tracks to (if there are more than 1 selected)
 	 * @param ObjectClass	The class of the selected object
 	 */
-	void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass);
+	void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass);
 
 	/**
 	 * Builds up the edit buttons for object binding nodes in the outliner

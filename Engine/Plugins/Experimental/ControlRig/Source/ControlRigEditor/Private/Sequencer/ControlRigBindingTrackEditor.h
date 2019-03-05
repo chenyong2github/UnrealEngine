@@ -33,7 +33,7 @@ public:
 
 	// ISequencerTrackEditor interface
 
-	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass) override;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override { return TSharedPtr<SWidget>(); }
 	virtual bool HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid) override { return false; }
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
@@ -41,6 +41,6 @@ public:
 private:
 
 	/** Callback for executing the "Binding Track" menu entry. */
-	void HandleAddBindingTrackMenuEntryExecute(FGuid ObjectBinding);
+	void HandleAddBindingTrackMenuEntryExecute(TArray<FGuid> ObjectBindings);
 	bool CanAddBindingTrack(FGuid ObjectBinding) const;
 };

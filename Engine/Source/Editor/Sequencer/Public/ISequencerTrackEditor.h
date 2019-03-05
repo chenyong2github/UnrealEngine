@@ -81,7 +81,7 @@ public:
 	 * @param ObjectBinding The object binding this is for.
 	 * @param ObjectClass The class of the object this is for.
 	 */
-	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass) = 0;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) = 0;
 
 	/**
 	 * Extend the object binding track menu for the specified binding and class
@@ -90,7 +90,7 @@ public:
 	 * @param ObjectBinding The object binding this is for.
 	 * @param ObjectClass The class of the object this is for.
 	 */
-	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const FGuid& ObjectBinding, const UClass* ObjectClass) { }
+	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) { }
 
 	/**
 	 * Builds an edit widget for the outliner nodes which represent tracks which are edited by this editor.

@@ -215,7 +215,7 @@ void FControlRigTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 	// do nothing
 }
 
-void FControlRigTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FControlRigTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()))
 	{
@@ -225,16 +225,16 @@ void FControlRigTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("AddControlRig", "Animation ControlRig"), NSLOCTEXT("Sequencer", "AddControlRigTooltip", "Adds an animation ControlRig track."),
-			FNewMenuDelegate::CreateRaw(this, &FControlRigTrackEditor::AddControlRigSubMenu, ObjectBinding, Track)
+			FNewMenuDelegate::CreateRaw(this, &FControlRigTrackEditor::AddControlRigSubMenu, ObjectBindings, Track)
 		);
 	}
 }
 
-TSharedRef<SWidget> FControlRigTrackEditor::BuildControlRigSubMenu(FGuid ObjectBinding, UMovieSceneTrack* Track)
+TSharedRef<SWidget> FControlRigTrackEditor::BuildControlRigSubMenu(const TArray<FGuid>& ObjectBindings, UMovieSceneTrack* Track)
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 	
-	AddControlRigSubMenu(MenuBuilder, ObjectBinding, Track);
+	AddControlRigSubMenu(MenuBuilder, ObjectBindings, Track);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -265,14 +265,14 @@ void FControlRigTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, U
 	
 }
 
-void FControlRigTrackEditor::AddControlRigSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding, UMovieSceneTrack* Track)
+void FControlRigTrackEditor::AddControlRigSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track)
 {
 	MenuBuilder.BeginSection(TEXT("ChooseSequence"), LOCTEXT("ChooseSequence", "Choose Sequence"));
 	{
 		FAssetPickerConfig AssetPickerConfig;
 		{
-			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &FControlRigTrackEditor::OnSequencerAssetSelected, ObjectBinding, Track);
-			AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateRaw(this, &FControlRigTrackEditor::OnSequencerAssetEnterPressed, ObjectBinding, Track);
+			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &FControlRigTrackEditor::OnSequencerAssetSelected, ObjectBindings, Track);
+			AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateRaw(this, &FControlRigTrackEditor::OnSequencerAssetEnterPressed, ObjectBindings, Track);
 			AssetPickerConfig.bAllowNullSelection = false;
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 			AssetPickerConfig.Filter.bRecursiveClasses = true;
@@ -293,7 +293,7 @@ void FControlRigTrackEditor::AddControlRigSubMenu(FMenuBuilder& MenuBuilder, FGu
 	MenuBuilder.EndSection();
 }
 
-void FControlRigTrackEditor::OnSequencerAssetSelected(const FAssetData& AssetData, FGuid ObjectBinding, UMovieSceneTrack* Track)
+void FControlRigTrackEditor::OnSequencerAssetSelected(const FAssetData& AssetData, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track)
 {
 	FSlateApplication::Get().DismissAllMenus();
 
@@ -302,15 +302,21 @@ void FControlRigTrackEditor::OnSequencerAssetSelected(const FAssetData& AssetDat
 	if (SelectedObject && SelectedObject->IsA(UControlRigSequence::StaticClass()))
 	{
 		UControlRigSequence* Sequence = CastChecked<UControlRigSequence>(AssetData.GetAsset());
-		AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FControlRigTrackEditor::AddKeyInternal, ObjectBinding, Sequence, Track));
+
+		const FScopedTransaction Transaction(LOCTEXT("AddControlRig_Transaction", "Add Control Rig"));
+
+		for (FGuid ObjectBinding : ObjectBindings)
+		{
+			AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FControlRigTrackEditor::AddKeyInternal, ObjectBinding, Sequence, Track));
+		}
 	}
 }
 
-void FControlRigTrackEditor::OnSequencerAssetEnterPressed(const TArray<FAssetData>& AssetData, FGuid ObjectBinding, UMovieSceneTrack* Track)
+void FControlRigTrackEditor::OnSequencerAssetEnterPressed(const TArray<FAssetData>& AssetData, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track)
 {
 	if (AssetData.Num() > 0)
 	{
-		OnSequencerAssetSelected(AssetData[0].GetAsset(), ObjectBinding, Track);
+		OnSequencerAssetSelected(AssetData[0].GetAsset(), ObjectBindings, Track);
 	}
 }
 
@@ -353,7 +359,10 @@ TSharedRef<SWidget> FControlRigTrackEditor::HandleAddSubSequenceComboButtonGetMe
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	AddControlRigSubMenu(MenuBuilder, ObjectBinding, InTrack);
+	TArray<FGuid> ObjectBindings;
+	ObjectBindings.Add(ObjectBinding);
+
+	AddControlRigSubMenu(MenuBuilder, ObjectBindings, InTrack);
 
 	return MenuBuilder.MakeWidget();
 }
