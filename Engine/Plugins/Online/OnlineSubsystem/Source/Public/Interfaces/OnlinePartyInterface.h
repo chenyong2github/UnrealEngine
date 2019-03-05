@@ -503,8 +503,27 @@ protected:
 public:
 	virtual ~FOnlineParty() = default;
 
+	/**
+	 * Check if the local user has invite permissions in this party. Based on configuration permissions and party state.
+	 *
+	 * @param LocalUserId the local user's id
+	 * @return true if the local user can invite, false if not
+	 */
 	virtual bool CanLocalUserInvite(const FUniqueNetId& LocalUserId) const = 0;
+
+	/**
+	 * Is this party joinable?
+	 *
+	 * @return true if this party is joinable, false if not
+	 */
 	virtual bool IsJoinable() const = 0;
+
+	/**
+	 * Get the party's configuration
+	 *
+	 * @return the party's configuration
+	 */
+	virtual TSharedRef<const FPartyConfiguration> GetConfiguration() const = 0;
 
 	/** Unique id of the party */
 	TSharedRef<const FOnlinePartyId> PartyId;

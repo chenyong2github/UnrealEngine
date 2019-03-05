@@ -374,7 +374,7 @@ void USocialParty::InitializeParty(const TSharedRef<const FOnlineParty>& InOssPa
 		PartyDataReplicator->SetOwningParty(*this);
 
 		OssParty = InOssParty;
-		CurrentConfig = *InOssParty->Config;
+		CurrentConfig = *InOssParty->GetConfiguration();
 		CurrentLeaderId = InOssParty->LeaderId;
 
 		OwningLocalUserId = GetSocialManager().GetFirstLocalUserId(ESocialSubsystem::Primary);
@@ -671,7 +671,7 @@ void USocialParty::HandlePartyConfigChanged(const FUniqueNetId& LocalUserId, con
 {
 	if (PartyId == GetPartyId())
 	{
-		CurrentConfig = *OssParty->Config;
+		CurrentConfig = *OssParty->GetConfiguration();
 		OnPartyConfigurationChanged().Broadcast(CurrentConfig);
 	}
 }
@@ -682,7 +682,7 @@ void USocialParty::HandleUpdatePartyConfigComplete(const FUniqueNetId& LocalUser
 	{
 		UE_LOG(LogParty, Verbose, TEXT("[%s] Party config updated %s"), *PartyId.ToDebugString(), ToString(Result));
 
-		CurrentConfig = *OssParty->Config;
+		CurrentConfig = *OssParty->GetConfiguration();
 		OnPartyConfigurationChanged().Broadcast(CurrentConfig);
 	}
 	else
@@ -982,7 +982,7 @@ void USocialParty::SetPartyMaxSize(int32 NewSize)
 int32 USocialParty::GetPartyMaxSize() const
 {
 	check(OssParty.IsValid());
-	return OssParty->Config->MaxMembers;
+	return OssParty->GetConfiguration()->MaxMembers;
 }
 
 FPartyJoinDenialReason USocialParty::GetPublicJoinability() const
