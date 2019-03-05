@@ -17,6 +17,7 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 
 class FSoundSource;
 class USoundWave;
+class ICompressedAudioInfo;
 struct FAudioStreamingManager;
 struct FWaveInstance;
 
@@ -261,6 +262,8 @@ struct FAudioStreamingManager : public IAudioStreamingManager
 	// IAudioStreamingManager interface
 	virtual void AddStreamingSoundWave(USoundWave* SoundWave) override;
 	virtual void RemoveStreamingSoundWave(USoundWave* SoundWave) override;
+	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
+	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
 	virtual bool IsManagedStreamingSoundWave(const USoundWave* SoundWave) const override;
 	virtual bool IsStreamingInProgress(const USoundWave* SoundWave) override;
 	virtual bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const override;
@@ -301,4 +304,7 @@ protected:
 
 	/** Critical section to protect usage of shared gamethread/audiothread members */
 	mutable FCriticalSection CriticalSection;
+
+	/** Compressed audio info objects which are used to avoid deleting chunks with in-fligth decodes. */
+	TArray<ICompressedAudioInfo*> CompressedAudioInfos;
 };
