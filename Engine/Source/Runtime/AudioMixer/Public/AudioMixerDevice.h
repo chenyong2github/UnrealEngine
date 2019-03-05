@@ -219,6 +219,7 @@ namespace Audio
 	private:
 
 		bool IsMasterSubmixType(USoundSubmix* InSubmix) const;
+		FMixerSubmix* GetMasterSubmixInstance(USoundSubmix* InSubmix);
 
 		// Pushes the command to a audio render thread command queue to be executed on render thread
 		void AudioRenderThreadCommand(TFunction<void()> Command);
@@ -257,6 +258,9 @@ namespace Audio
 
 		/** The audio clock from device initialization, updated at block rate. */
 		double AudioClock;
+
+		/** What the previous master volume was. */
+		float PreviousMasterVolume;
 
 		/** Timing data for audio thread. */
 		FAudioThreadTimingData AudioThreadTimingData;
