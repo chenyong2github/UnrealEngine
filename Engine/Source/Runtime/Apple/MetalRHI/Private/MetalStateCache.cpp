@@ -383,10 +383,6 @@ void FMetalStateCache::SetComputeShader(FMetalComputeShader* InComputeShader)
 		
 		PipelineBits |= EMetalPipelineFlagComputeShader;
 		
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		bUsingTessellation = false;
-#endif
-		
 		DirtyUniformBuffers[EMetalShaderStages::Compute] = 0xffffffff;
 
 		for (const auto& PackedGlobalArray : InComputeShader->Bindings.PackedGlobalArrays)
