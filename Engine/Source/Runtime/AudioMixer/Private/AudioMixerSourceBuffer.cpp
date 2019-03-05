@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerSourceBuffer.h"
+#include "AudioMixerSourceDecode.h"
+#include "ContentStreaming.h"
 
 namespace Audio
 {
@@ -55,10 +57,12 @@ namespace Audio
 	FMixerSourceBuffer::FMixerSourceBuffer()
 		: NumBuffersQeueued(0)
 		, CurrentBuffer(0)
-		, MixerBuffer(nullptr)
 		, SoundWave(nullptr)
 		, AsyncRealtimeAudioTask(nullptr)
+		, DecompressionState(nullptr)
 		, LoopingMode(ELoopingMode::LOOP_Never)
+		, BufferType(Audio::EBufferType::Invalid)
+		, NumChannels(0)
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
@@ -69,16 +73,42 @@ namespace Audio
 
 	FMixerSourceBuffer::~FMixerSourceBuffer()
 	{
+		// Make sure we have completed our async realtime task before deleting the decompression state
+		if (AsyncRealtimeAudioTask)
+		{
+			AsyncRealtimeAudioTask->CancelTask();
+			delete AsyncRealtimeAudioTask;
+			AsyncRealtimeAudioTask = nullptr;
+		}
+
 		OnEndGenerate();
+
+		// Clean up decompression state after things have been finished using it
+		if (DecompressionState)
+		{
+			IStreamingManager::Get().GetAudioStreamingManager().RemoveDecoder(DecompressionState);
+
+			delete DecompressionState;
+			DecompressionState = nullptr;
+		}
 	}
 
 	bool FMixerSourceBuffer::PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		// Mixer source buffer now owns this buffer
-		MixerBuffer = InBuffer;
-		check(MixerBuffer);
+		NumChannels = InBuffer->NumChannels;
+		BufferType = InBuffer->GetType();
+
+		// If this is a PCM buffer type, we need to take ownership of the raw pcm data
+		if (BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview)
+		{
+			check(RawPCMDataBuffer.Data == nullptr);
+			check(RawPCMDataBuffer.DataSize == 0);
+
+			// GetPCMData will retrieve ownership of the raw PCM data
+			InBuffer->GetPCMData(&RawPCMDataBuffer.Data, &RawPCMDataBuffer.DataSize);
+		}
 
 		// May or may not be nullptr
 		SoundWave = InWave;
@@ -89,7 +119,7 @@ namespace Audio
 
 		BufferQueue.Empty();
 
-		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * MixerBuffer->NumChannels;
+		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		for (int32 BufferIndex = 0; BufferIndex < Audio::MAX_BUFFERS_QUEUED; ++BufferIndex)
 		{
 			SourceVoiceBuffers.Add(TSharedPtr<FMixerSourceVoiceBuffer>(new FMixerSourceVoiceBuffer()));
@@ -100,6 +130,15 @@ namespace Audio
 			SourceVoiceBuffers[BufferIndex]->LoopCount = 0;
 		}
 		return true;
+	}
+
+	void FMixerSourceBuffer::SetDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
+	{
+		DecompressionState = InCompressedAudioInfo;
+		if (BufferType == EBufferType::Streaming)
+		{
+			IStreamingManager::Get().GetAudioStreamingManager().AddDecoder(DecompressionState);
+		}
 	}
 
 	bool FMixerSourceBuffer::Init()
@@ -116,7 +155,6 @@ namespace Audio
 		// SoundWave->bIsSoundActive will prevent GC until it is released in audio render thread
 		bInitialized = true;
 
-		const EBufferType::Type BufferType = MixerBuffer->GetType();
 		switch (BufferType)
 		{
 			case EBufferType::PCM:
@@ -158,9 +196,7 @@ namespace Audio
 	{
 		CurrentBuffer = 0;
 
-		RawPCMDataBuffer.Data = nullptr;
-		RawPCMDataBuffer.DataSize = 0;
-		MixerBuffer->GetPCMData(&RawPCMDataBuffer.Data, &RawPCMDataBuffer.DataSize);
+		check(RawPCMDataBuffer.Data != nullptr);
 
 		RawPCMDataBuffer.NumSamples = RawPCMDataBuffer.DataSize / sizeof(int16);
 		RawPCMDataBuffer.CurrentSample = 0;
@@ -174,7 +210,7 @@ namespace Audio
 		RawPCMDataBuffer.LoopCount = (LoopingMode != LOOP_Never) ? Audio::LOOP_FOREVER : 0;
 
 		// Submit the first two format-converted chunks to the source voice
-		const uint32 NumSamplesPerBuffer = MONO_PCM_BUFFER_SAMPLES * MixerBuffer->NumChannels;
+		const uint32 NumSamplesPerBuffer = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		int16* RawPCMBufferDataPtr = (int16*)RawPCMDataBuffer.Data;
 
 		// Prepare the buffer for the PCM submission
@@ -200,7 +236,7 @@ namespace Audio
 			bPlayedCachedBuffer = true;
 
 			const int32 NumPrecacheFrames = SoundWave->NumPrecacheFrames;
-			const uint32 NumSamples = NumPrecacheFrames * MixerBuffer->NumChannels;
+			const uint32 NumSamples = NumPrecacheFrames * NumChannels;
 			const uint32 BufferSize = NumSamples * sizeof(int16);
 
 			// Format convert the first cached buffers
@@ -262,9 +298,9 @@ namespace Audio
 		}
 	}
 
-	bool FMixerSourceBuffer::ReadMoreRealtimeData(const int32 BufferIndex, EBufferReadMode BufferReadMode)
+	bool FMixerSourceBuffer::ReadMoreRealtimeData(ICompressedAudioInfo* InDecoder, const int32 BufferIndex, EBufferReadMode BufferReadMode)
 	{
-		const int32 MaxSamples = MONO_PCM_BUFFER_SAMPLES * MixerBuffer->NumChannels;
+		const int32 MaxSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
 		SourceVoiceBuffers[BufferIndex]->AudioData.Reset();
 		SourceVoiceBuffers[BufferIndex]->AudioData.AddUninitialized(MaxSamples);
 
@@ -274,14 +310,14 @@ namespace Audio
 			NewTaskData.ProceduralSoundWave = SoundWave;
 			NewTaskData.AudioData = SourceVoiceBuffers[BufferIndex]->AudioData.GetData();
 			NewTaskData.NumSamples = MaxSamples;
-			NewTaskData.NumChannels = MixerBuffer->NumChannels;
+			NewTaskData.NumChannels = NumChannels;
 			check(!AsyncRealtimeAudioTask);
 			AsyncRealtimeAudioTask = CreateAudioTask(NewTaskData);
 
 			// Procedural sound waves never loop
 			return false;
 		}
-		else if (!MixerBuffer->IsRealTimeBuffer())
+		else if (BufferType != EBufferType::PCMRealTime && BufferType != EBufferType::Streaming)
 		{
 			check(RawPCMDataBuffer.Data != nullptr);
 
@@ -289,9 +325,13 @@ namespace Audio
 			return RawPCMDataBuffer.GetNextBuffer(SourceVoiceBuffers[BufferIndex].Get(), MaxSamples);
 		}
 
+		check(InDecoder != nullptr);
+
 		FDecodeAudioTaskData NewTaskData;
-		NewTaskData.MixerBuffer = MixerBuffer;
 		NewTaskData.AudioData = SourceVoiceBuffers[BufferIndex]->AudioData.GetData();
+		NewTaskData.DecompressionState = InDecoder;
+		NewTaskData.BufferType = BufferType;
+		NewTaskData.NumChannels = NumChannels;
 		NewTaskData.bLoopingMode = LoopingMode != LOOP_Never;
 		NewTaskData.bSkipFirstBuffer = (BufferReadMode == EBufferReadMode::AsynchronousSkipFirstFrame);
 		NewTaskData.NumFramesToDecode = MONO_PCM_BUFFER_SAMPLES;
@@ -395,7 +435,7 @@ namespace Audio
 				DataReadMode = EBufferReadMode::Asynchronous;
 			}
 
-			const bool bLooped = ReadMoreRealtimeData(CurrentBuffer, DataReadMode);
+			const bool bLooped = ReadMoreRealtimeData(DecompressionState, CurrentBuffer, DataReadMode);
 
 			// If this was a synchronous read, then immediately write it
 			if (AsyncRealtimeAudioTask == nullptr)
@@ -429,7 +469,7 @@ namespace Audio
 	{
 		if (AsyncRealtimeAudioTask) 
 		{ 
-			AsyncRealtimeAudioTask->EnsureCompletion(); 
+			AsyncRealtimeAudioTask->CancelTask(); 
 
 			delete AsyncRealtimeAudioTask;
 			AsyncRealtimeAudioTask = nullptr;
@@ -475,17 +515,6 @@ namespace Audio
 			}
 
 			SoundWave = nullptr;
-		}
-
-		if (MixerBuffer)
-		{
-			EBufferType::Type BufferType = MixerBuffer->GetType();
-			if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
-			{
-				delete MixerBuffer;
-			}
-
-			MixerBuffer = nullptr;
 		}
 	}
 

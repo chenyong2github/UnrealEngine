@@ -13,6 +13,7 @@ class AActor;
 class FSoundSource;
 class UPrimitiveComponent;
 class USoundWave;
+class ICompressedAudioInfo;
 class UTexture2D;
 struct FRenderAssetStreamingManager;
 struct FWaveInstance;
@@ -408,6 +409,12 @@ struct IAudioStreamingManager : public IStreamingManager
 
 	/** Removes a Sound Wave from the streaming manager. */
 	virtual void RemoveStreamingSoundWave(USoundWave* SoundWave) = 0;
+
+	/** Adds the decoder to the streaming manager to prevent stream chunks from getting reaped from underneath it */
+	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) = 0;
+
+	/** Removes the decoder from the streaming manager. */
+	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) = 0;
 
 	/** Returns true if this is a Sound Wave that is managed by the streaming manager. */
 	virtual bool IsManagedStreamingSoundWave(const USoundWave* SoundWave) const = 0;
