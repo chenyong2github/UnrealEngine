@@ -131,7 +131,7 @@ class TMediaObjectPool
 	private:
 
 		/** Critical section for synchronizing access to the free list. */
-		FCriticalSection CriticalSection;
+		mutable FCriticalSection CriticalSection;
 
 		/** List of unused objects. */
 		TArray<ObjectType*> Pool;
