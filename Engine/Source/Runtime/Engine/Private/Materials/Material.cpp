@@ -1145,7 +1145,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1176,7 +1176,7 @@ void UMaterial::OverrideVectorParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1208,13 +1208,13 @@ void UMaterial::OverrideScalarParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
 
-void UMaterial::RecacheUniformExpressions() const
+void UMaterial::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 {
 	bool bUsingNewLoader = EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME && GEventDrivenLoaderEnabled;
 
@@ -1226,7 +1226,7 @@ void UMaterial::RecacheUniformExpressions() const
 
 	if (DefaultMaterialInstance)
 	{
-		DefaultMaterialInstance->CacheUniformExpressions_GameThread(true);
+		DefaultMaterialInstance->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
 }
 
@@ -3125,7 +3125,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(true);
 	}
 }
 
