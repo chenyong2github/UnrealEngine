@@ -56,14 +56,16 @@ void SWorldWidgetScreenLayer::RemoveComponent(USceneComponent* Component)
 {
 	if ( Component )
 	{
-		if ( FComponentEntry* Entry = ComponentMap.Find(Component) )
+		if ( FComponentEntry* EntryPtr = ComponentMap.Find(Component) )
 		{
-			if ( Entry->Widget.IsValid() )
-			{
-				Canvas->RemoveSlot(Entry->ContainerWidget.ToSharedRef());
-			}
-
+			// First remove the component entry, in case someone tries to double delete.
+			FComponentEntry Entry = *EntryPtr;
 			ComponentMap.Remove(Component);
+
+			if (TSharedPtr<SWidget> ContainerWidget = Entry.ContainerWidget)
+			{
+				Canvas->RemoveSlot(ContainerWidget.ToSharedRef());
+			}
 		}
 	}
 }
