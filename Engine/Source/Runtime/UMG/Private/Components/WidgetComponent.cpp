@@ -51,7 +51,7 @@ public:
 				}
 				else if (Component->GetSlateWidget().IsValid())
 				{
-					ScreenLayer.Pin()->AddComponent(Component, Component->GetSlateWidget().ToSharedRef());
+					ScreenLayer->AddComponent(Component, Component->GetSlateWidget().ToSharedRef());
 				}
 			}
 		}
