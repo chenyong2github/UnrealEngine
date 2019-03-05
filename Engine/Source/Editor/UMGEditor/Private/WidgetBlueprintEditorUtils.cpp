@@ -1347,6 +1347,17 @@ void FWidgetBlueprintEditorUtils::ImportWidgetsFromText(UWidgetBlueprint* BP, co
 
 		Widget->SetFlags(RF_Transactional);
 
+		// We don't export parent slot pointers, so each panel will need to point it's children back to itself
+		UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget);
+		if (PanelWidget)
+		{
+			TArray<UPanelSlot*> PanelSlots = PanelWidget->GetSlots();
+			for (int32 i = 0; i < PanelWidget->GetChildrenCount(); i++)
+			{
+				PanelWidget->GetChildAt(i)->Slot = PanelSlots[i];
+			}
+		}
+
 		// If there is an existing widget with the same name, rename the newly placed widget.
 		FString WidgetOldName = Widget->GetName();
 		if ( FindObject<UObject>(BP->WidgetTree, *WidgetOldName) )
