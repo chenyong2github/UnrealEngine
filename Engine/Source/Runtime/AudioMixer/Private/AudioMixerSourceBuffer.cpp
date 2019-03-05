@@ -196,8 +196,6 @@ namespace Audio
 	{
 		CurrentBuffer = 0;
 
-		check(RawPCMDataBuffer.Data != nullptr);
-
 		RawPCMDataBuffer.NumSamples = RawPCMDataBuffer.DataSize / sizeof(int16);
 		RawPCMDataBuffer.CurrentSample = 0;
 
