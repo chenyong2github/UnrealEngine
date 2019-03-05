@@ -849,11 +849,11 @@ public:
 public:
 
 	/** A delegate that is invoked when playback has reached the end of the media. */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnEndReached;
 
 	/** A delegate that is invoked when a media source has been closed. */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnMediaClosed;
 
 	/**
@@ -865,7 +865,7 @@ public:
 	 *
 	 * @see OnMediaOpenFailed, OnTracksChanged
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaOpened OnMediaOpened;
 
 	/**
@@ -877,7 +877,7 @@ public:
 	 *
 	 * @see OnMediaOpened
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaOpenFailed OnMediaOpenFailed;
 
 	/**
@@ -885,7 +885,7 @@ public:
 	 *
 	 * @see OnPlaybackSuspended
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnPlaybackResumed;
 
 	/**
@@ -893,7 +893,7 @@ public:
 	 *
 	 * @see OnPlaybackResumed
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnPlaybackSuspended;
 
 	/**
@@ -903,7 +903,7 @@ public:
 	 * synchronously or asynchronously, this event may be executed before or
 	 * after the call to Seek returns.
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnSeekCompleted;
 
 	/**
@@ -911,7 +911,7 @@ public:
 	 *
 	 * @see OnMediaOpened
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer")
+	UPROPERTY(BlueprintAssignable, Category="Media|MediaPlayer", meta = (HideInDetailPanel))
 	FOnMediaPlayerMediaEvent OnTracksChanged;
 
 public:

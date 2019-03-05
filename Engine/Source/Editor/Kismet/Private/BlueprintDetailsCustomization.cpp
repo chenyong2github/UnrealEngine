@@ -107,9 +107,10 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, U
 					UProperty* Property = *PropertyIt;
 
 					FName PropertyName = ComponentProperty->GetFName();
-
+					static const FName HideInDetailPanelName("HideInDetailPanel");
 					// Check for multicast delegates that we can safely assign
-					if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) )
+					if ( !Property->HasAnyPropertyFlags(CPF_Parm) && Property->HasAllPropertyFlags(CPF_BlueprintAssignable) &&
+						!Property->HasMetaData(HideInDetailPanelName) )
 					{
 						FName EventName = Property->GetFName();
 						FText EventText = Property->GetDisplayNameText();
