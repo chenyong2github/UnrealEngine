@@ -23,7 +23,6 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, LastPCMByteSize(0)
 	, LastPCMOffset(0)
 	, bStoringEndOfFile(false)
-	, StreamingSoundWave(nullptr)
 	, CurrentChunkIndex(0)
 	, bPrintChunkFailMessage(true)
 	, SrcBufferPadding(0)
@@ -142,9 +141,9 @@ void IStreamedCompressedInfo::ExpandFile(uint8* DstBuffer, struct FSoundQualityI
 	}
 }
 
-bool IStreamedCompressedInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool IStreamedCompressedInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
 {
-	StreamingSoundWave = Wave;
+	check(StreamingSoundWave == Wave);
 
 	// Get the first chunk of audio data (should always be loaded)
 	CurrentChunkIndex = 0;
