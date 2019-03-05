@@ -1254,7 +1254,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1289,7 +1289,7 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FMaterialParameterI
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1324,7 +1324,7 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FMaterialParameterI
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -3582,7 +3582,7 @@ void UMaterialInstance::UpdateParameterNames()
 }
 #endif
 
-void UMaterialInstance::RecacheUniformExpressions() const
+void UMaterialInstance::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 {	
 	CacheMaterialInstanceUniformExpressions(this);
 }
