@@ -31,4 +31,3 @@ void UAnimationBudgetBlueprintLibrary::SetAnimationBudgetParameters(UObject* Wor
 		}
 	}
 }
-}
