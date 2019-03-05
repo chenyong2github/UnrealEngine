@@ -8,6 +8,7 @@
 #include "HAL/RunnableThread.h"
 #include "AudioMixerBuffer.h"
 #include "Async/Async.h"
+#include "AudioDecompress.h"
 
 namespace Audio
 {
@@ -222,7 +223,8 @@ public:
 	FDecodeHandle(const FDecodeAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
-		Task->StartBackgroundTask();
+		const bool bUseBackground = ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask();
+		Task->StartBackgroundTask(bUseBackground ? GBackgroundPriorityThreadPool : GThreadPool);
 	}
 
 	virtual EAudioTaskType GetType() const override
