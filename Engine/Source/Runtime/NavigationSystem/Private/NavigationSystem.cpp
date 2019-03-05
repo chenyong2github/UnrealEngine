@@ -654,7 +654,7 @@ bool UNavigationSystemV1::ConditionalPopulateNavOctree()
 					const bool bLegalActor = Actor && !Actor->IsPendingKill();
 					if (bLegalActor)
 					{
-						UpdateActorAndComponentsInNavOctree(*Actor);
+						ConditionalPopulateNavOctreeActor(*Actor);
 					}
 				}
 			}
@@ -2975,6 +2975,11 @@ void UNavigationSystemV1::OnActorUnregistered(AActor* Actor)
 			NavSys->UnregisterNavOctreeElement(Actor, NavInterface, OctreeUpdate_Default);
 		}
 	}
+}
+
+void UNavigationSystemV1::ConditionalPopulateNavOctreeActor(AActor& Actor)
+{
+	UpdateActorAndComponentsInNavOctree(Actor);
 }
 
 void UNavigationSystemV1::FindElementsInNavOctree(const FBox& QueryBox, const FNavigationOctreeFilter& Filter, TArray<FNavigationOctreeElement>& Elements)
