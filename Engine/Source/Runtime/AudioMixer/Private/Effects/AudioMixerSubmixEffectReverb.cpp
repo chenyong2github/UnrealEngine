@@ -6,6 +6,14 @@
 #include "Audio.h"
 #include "AudioMixer.h"
 
+static int32 DisableSubmixReverbCVar = 0;
+FAutoConsoleVariableRef CVarDisableSubmixReverb(
+	TEXT("au.DisableReverbSubmix"),
+	DisableSubmixReverbCVar,
+	TEXT("Disables the reverb submix.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
 class UReverbEffect;
 
 FSubmixEffectReverb::FSubmixEffectReverb()
@@ -77,7 +85,7 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
 	check(InData.NumChannels == 2);
- 	if (OutData.NumChannels < 2 || !bIsEnabled) 
+ 	if (OutData.NumChannels < 2 || !bIsEnabled || DisableSubmixReverbCVar == 1) 
 	{
 		// Not supported
 		return;
@@ -96,9 +104,6 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 		for (int32 SampleIndex = 0; SampleIndex < InData.AudioBuffer->Num(); SampleIndex += OutData.NumChannels)
 		{
 			PlateReverb.ProcessAudioFrame(&AudioData[SampleIndex], InData.NumChannels, &OutAudioData[SampleIndex], OutData.NumChannels);
-
-			OutAudioData[SampleIndex] += DryLevel * AudioData[SampleIndex];
-			OutAudioData[SampleIndex + 1] += DryLevel * AudioData[SampleIndex + 1];
 		}
 	}
 	// 5.1 or higher surround sound. Map stereo output to quad output
@@ -113,10 +118,6 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 			// Using standard speaker map order map the right output to the BackLeft channel
 			OutAudioData[OutSampleIndex + EAudioMixerChannel::BackRight] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft];
 			OutAudioData[OutSampleIndex + EAudioMixerChannel::BackLeft] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight];
-
-			// Copy dry output to output data to stereo fronts
-			OutAudioData[OutSampleIndex] += DryLevel * AudioData[InSampleIndex];
-			OutAudioData[OutSampleIndex + 1] += DryLevel * AudioData[InSampleIndex + 1];
 		}
 	}
 }

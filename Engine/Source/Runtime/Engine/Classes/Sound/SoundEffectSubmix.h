@@ -91,6 +91,9 @@ public:
 	/** Process the input block of audio. Called on audio thread. */
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) {};
 
+	/** Allow effects to supply a drylevel. */
+	virtual float GetDryLevel() const { return 0.0f; }
+
 	/** Processes audio in the submix effect. */
 	void ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
 };

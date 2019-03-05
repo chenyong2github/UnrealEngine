@@ -216,6 +216,7 @@ FAudioDevice::FAudioDevice()
 	, TestAudioComponent(nullptr)
 	, DebugState(DEBUGSTATE_None)
 	, TransientMasterVolume(1.0f)
+	, MasterVolume(1.0f)
 	, GlobalPitchScale(1.0f)
 	, LastUpdateTime(FPlatformTime::Seconds())
 	, NextResourceID(1)
@@ -225,7 +226,7 @@ FAudioDevice::FAudioDevice()
 	, Effects(nullptr)
 	, CurrentReverbEffect(nullptr)
 	, PlatformAudioHeadroom(1.0f)
-	, DefaultReverbSendLevel(0.2f)
+	, DefaultReverbSendLevel(0.0f)
 	, bHRTFEnabledForAll_OnGameThread(false)
 	, bGameWasTicking(true)
 	, bDisableAudioCaching(false)
@@ -3724,6 +3725,9 @@ void FAudioDevice::Update(bool bGameTicking)
 	}
 
 	bIsStoppingVoicesEnabled = !DisableStoppingVoicesCvar;
+
+	// Update the master volume
+	MasterVolume = GetTransientMasterVolume() * FApp::GetVolumeMultiplier();
 
 	UpdateAudioPluginSettingsObjectCache();
 
