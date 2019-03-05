@@ -700,6 +700,9 @@ protected:
 
 	/** spawn new crowd manager */
 	virtual void UpdateAbstractNavData();
+
+	/** Called when ConditionalPopulateNavOctree processes each Actor */
+	virtual void ConditionalPopulateNavOctreeActor(AActor& Actor);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
