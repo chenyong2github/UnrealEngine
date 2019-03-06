@@ -6,8 +6,8 @@
 #include "KismetAnimationTypes.generated.h"
 
 /**
-	An easing type defining how to ease float values.
-*/
+ *	An easing type defining how to ease float values.
+ */
 UENUM(meta = (DocumentationPolicy = "Strict"))
 enum class EEasingFuncType : uint8
 {
@@ -42,11 +42,11 @@ enum class EEasingFuncType : uint8
 };
 
 /**
-	The FPositionHistory is a container to record position changes
-	over time. This is used to calculate velocity of a bone, for example.
-	The FPositionArray also tracks the last index used to allow for 
-	reuse of entries (instead of appending to the array all the time).
-*/
+ *	The FPositionHistory is a container to record position changes
+ *	over time. This is used to calculate velocity of a bone, for example.
+ *	The FPositionArray also tracks the last index used to allow for
+ *	reuse of entries (instead of appending to the array all the time).
+ */
 USTRUCT(BlueprintType, meta = (DocumentationPolicy = "Strict"))
 struct FPositionHistory
 {
