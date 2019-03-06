@@ -3,6 +3,7 @@
 #include "LocalFileNetworkReplayStreaming.h"
 #include "Misc/NetworkVersion.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Async/Async.h"
@@ -2146,6 +2147,8 @@ bool FLocalFileNetworkReplayStreamer::IsFileRequestPendingOrInProgress(const EQu
 
 bool FLocalFileNetworkReplayStreamer::ProcessNextFileRequest()
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	if (IsFileRequestInProgress())
 	{
 		return false;
@@ -2243,6 +2246,8 @@ const TArray<uint8>& FLocalFileNetworkReplayStreamer::GetCachedFileContents(cons
 
 TSharedPtr<FArchive> FLocalFileNetworkReplayStreamer::CreateLocalFileReader(const FString& InFilename) const
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	if (bCacheFileReadsInMemory)
 	{
 		const TArray<uint8>& Data = GetCachedFileContents(InFilename);
@@ -2656,6 +2661,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 		[this, RequestedStreamChunkIndex](TLocalFileRequestCommonData<FStreamingResultBase>& RequestData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadStream);
+			LLM_SCOPE(ELLMTag::Replays);
 
 			if (ReadReplayInfo(CurrentStreamName, RequestData.ReplayInfo))
 			{
@@ -2704,6 +2710,8 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 		},
 		[this, RequestedStreamChunkIndex](TLocalFileRequestCommonData<FStreamingResultBase>& RequestData)
 		{
+			LLM_SCOPE(ELLMTag::Replays);
+
 			// Make sure our stream chunk index didn't change under our feet
 			if (RequestedStreamChunkIndex != StreamChunkIndex)
 			{
@@ -2817,6 +2825,7 @@ void FLocalFileNetworkReplayStreamer::AddRequestToCache(int32 ChunkIndex, const 
 	}
 
 	// Add to cache (or freshen existing entry)
+	LLM_SCOPE(ELLMTag::Replays);
 	RequestCache.Add(ChunkIndex, MakeShareable(new FCachedFileRequest(RequestData, FPlatformTime::Seconds())));
 
 	// Anytime we add something to cache, make sure it's within budget
