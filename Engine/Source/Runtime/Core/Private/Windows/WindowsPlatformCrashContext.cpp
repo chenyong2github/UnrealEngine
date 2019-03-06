@@ -570,7 +570,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 		return;
 	}
 
-	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
+	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Hang, ErrorMessage);
 	CrashContext.SetPortableCallStack(StackFrames, NumStackFrames);
 	CrashContext.SetCrashedThreadId(HungThreadId);
 	CrashContext.CaptureAllThreadContexts();
