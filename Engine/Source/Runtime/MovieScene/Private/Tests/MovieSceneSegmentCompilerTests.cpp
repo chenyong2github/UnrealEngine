@@ -122,6 +122,11 @@ namespace Impl
 		}
 	}
 
+	FORCEINLINE void AssertSegmentAtTime(FAutomationTestBase* Test, FMovieSceneEvaluationTrack& InTrack, FFrameNumber InTime, std::initializer_list<FSectionEvaluationData> ExpectedImpls)
+	{
+		AssertSegmentAtTime(Test, InTrack, InTime, MakeArrayView(ExpectedImpls));
+	}
+
 	FORCEINLINE_DEBUGGABLE void AssertEvaluationTree(FAutomationTestBase* Test, const TMovieSceneEvaluationTree<int32>& Tree, TArrayView<const FEvaluationTreeIteratorResult> Expected)
 	{
 		int32 Index = 0;

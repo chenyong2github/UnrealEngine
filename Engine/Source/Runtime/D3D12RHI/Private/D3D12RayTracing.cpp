@@ -852,7 +852,7 @@ public:
 		// Use hit shaders from initializer or fall back to default if none were provided
 
 		FRayTracingShaderRHIParamRef DefaultHitShader = GetBuildInRayTracingShader<FDefaultMainCHS>();
-		TArrayView<const FRayTracingShaderRHIParamRef> DefaultHitGroupTable = { DefaultHitShader };
+		TArrayView<const FRayTracingShaderRHIParamRef> DefaultHitGroupTable = MakeArrayView(&DefaultHitShader, 1);
 
 		const TArrayView<const FRayTracingShaderRHIParamRef>& InitializerHitGroups = Initializer.GetHitGroupTable().Num()
 			? Initializer.GetHitGroupTable()
