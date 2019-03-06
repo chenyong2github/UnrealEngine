@@ -542,6 +542,7 @@ FPostProcessSettings::FPostProcessSettings()
 	// next value might get overwritten by r.DefaultFeature.MotionBlur
 	MotionBlurAmount = 0.5f;
 	MotionBlurMax = 5.0f;
+	MotionBlurTargetFPS = 30;
 	MotionBlurPerObjectSize = 0.5f;
 	ScreenPercentage = 100.0f;
 	ScreenSpaceReflectionIntensity = 100.0f;
@@ -866,6 +867,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, MotionBlurAmount(Settings.MotionBlurAmount)
 	, MotionBlurMax(Settings.MotionBlurMax)
+	, MotionBlurTargetFPS(Settings.MotionBlurTargetFPS)
 	, MotionBlurPerObjectSize(Settings.MotionBlurPerObjectSize)
 	, LPVIntensity(Settings.LPVIntensity)
 	, LPVVplInjectionBias(Settings.LPVVplInjectionBias)
