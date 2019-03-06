@@ -107,6 +107,7 @@ FSceneViewState::FSceneViewState()
 	LastRenderTime = -FLT_MAX;
 	LastRenderTimeDelta = 0.0f;
 	MotionBlurTimeScale = 1.0f;
+	MotionBlurTargetDeltaTime = 1.0f / 60.0f; // Start with a reasonable default of 60hz.
 	PrevViewMatrixForOcclusionQuery.SetIdentity();
 	PrevViewOriginForOcclusionQuery = FVector::ZeroVector;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
