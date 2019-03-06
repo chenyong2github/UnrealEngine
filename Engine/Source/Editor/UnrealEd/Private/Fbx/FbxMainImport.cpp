@@ -1475,11 +1475,11 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 					if( FEngineAnalytics::IsAvailable() )
 					{
 						const static UEnum* FBXImportTypeEnum = StaticEnum<EFBXImportType>();
-						const static UEnum* FBXAnimationLengthImportTypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFBXAnimationLengthImportType"));
-						const static UEnum* MaterialSearchLocationEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMaterialSearchLocation"));
-						const static UEnum* FBXNormalGenerationMethodEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFBXNormalGenerationMethod"));
-						const static UEnum* FBXNormalImportMethodEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFBXNormalImportMethod"));
-						const static UEnum* VertexColorImportOptionEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EVertexColorImportOption"));
+						const static UEnum* FBXAnimationLengthImportTypeEnum = StaticEnum<EFBXAnimationLengthImportType>();
+						const static UEnum* MaterialSearchLocationEnum = StaticEnum<EMaterialSearchLocation>();
+						const static UEnum* FBXNormalGenerationMethodEnum = StaticEnum<EFBXNormalGenerationMethod::Type>();
+						const static UEnum* FBXNormalImportMethodEnum = StaticEnum<EFBXNormalImportMethod>();
+						const static UEnum* VertexColorImportOptionEnum = StaticEnum<EVertexColorImportOption::Type>();
 						
 						TArray<FAnalyticsEventAttribute> Attribs;
 

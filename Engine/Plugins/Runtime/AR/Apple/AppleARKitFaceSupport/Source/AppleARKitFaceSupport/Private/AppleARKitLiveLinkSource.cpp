@@ -512,7 +512,7 @@ FAppleARKitLiveLinkFileWriterCsv::FAppleARKitLiveLinkFileWriterCsv()
 	check(IsInGameThread());
 
 	CsvFrameHeader = TEXT("Timecode, FrameRate");
-	const UEnum *EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
+	const UEnum *EnumPtr = StaticEnum<EARFaceBlendShape>();
 	if (EnumPtr != nullptr)
 	{
 		// Iterate through all of the enum values generating strings for them for CSV/JSON generation
@@ -560,7 +560,7 @@ FAppleARKitLiveLinkFileWriterJson::FAppleARKitLiveLinkFileWriterJson()
 	// Touching UObjects, so needs to be game thread
 	check(IsInGameThread());
 
-	const UEnum *EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EARFaceBlendShape"), true);
+	const UEnum *EnumPtr = StaticEnum<EARFaceBlendShape>();
 	if (EnumPtr != nullptr)
 	{
 		// Iterate through all of the enum values generating strings for them for CSV/JSON generation
