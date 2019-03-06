@@ -1513,14 +1513,15 @@ private:
 
 		if ( MulticastDelegateProp != NULL )
 		{
-			FMulticastScriptDelegate* MulticastDelegateValue = MulticastDelegateProp->GetPropertyValuePtr(PropertyValueAddress);
-
-			TArray<UObject*> AllObjects = MulticastDelegateValue->GetAllObjects();
-			for( TArray<UObject*>::TConstIterator CurObjectIt( AllObjects ); CurObjectIt; ++CurObjectIt )
+			if (const FMulticastScriptDelegate* MulticastDelegateValue = MulticastDelegateProp->GetMulticastDelegate(PropertyValueAddress))
 			{
-				if ((*CurObjectIt)->IsDefaultSubobject())
+				TArray<UObject*> AllObjects = MulticastDelegateValue->GetAllObjects();
+				for (TArray<UObject*>::TConstIterator CurObjectIt(AllObjects); CurObjectIt; ++CurObjectIt)
 				{
-					Components.AddUnique((*CurObjectIt));
+					if ((*CurObjectIt)->IsDefaultSubobject())
+					{
+						Components.AddUnique((*CurObjectIt));
+					}
 				}
 			}
 
