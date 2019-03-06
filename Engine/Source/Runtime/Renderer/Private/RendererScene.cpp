@@ -1024,7 +1024,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	}
 #endif
 
-	World->UpdateParameterCollectionInstances(false);
+	World->UpdateParameterCollectionInstances(false, false);
 
 	FPersistentUniformBuffers* PersistentUniformBuffers = &UniformBuffers;
 	ENQUEUE_RENDER_COMMAND(InitializeUniformBuffers)(
