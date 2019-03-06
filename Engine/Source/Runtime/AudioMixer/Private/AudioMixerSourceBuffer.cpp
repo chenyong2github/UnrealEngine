@@ -190,7 +190,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::OnBufferEnd()
 	{
-		if ((NumBuffersQeueued == 0 && bBufferFinished) && (bProcedural && !SoundWave))
+		if ((NumBuffersQeueued == 0 && bBufferFinished) || (bProcedural && !SoundWave))
 		{
 			return;
 		}
