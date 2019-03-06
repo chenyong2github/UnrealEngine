@@ -726,7 +726,7 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 	if (Method == EUpdatePositionMethod::Play && ShouldStopOrLoop(NewPosition))
 	{
 		// The actual start time taking into account reverse playback
-		FFrameNumber StartTimeWithReversed = bReversePlayback ? StartTime + Duration : StartTime;
+		FFrameNumber StartTimeWithReversed = bReversePlayback ? GetLastValidTime().FrameNumber : StartTime;
 
 		FFrameTime PositionRelativeToStart = NewPosition.FrameNumber - StartTimeWithReversed;
 
