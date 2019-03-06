@@ -4,6 +4,8 @@
 #include "AudioMixerDevice.h"
 #include "Interfaces/IAudioFormat.h"
 #include "AudioMixerSourceDecode.h"
+#include "AudioStreaming.h"
+
 namespace Audio
 {
 
@@ -42,6 +44,11 @@ namespace Audio
 
 		if (DecompressionState)
 		{
+			if (BufferType == EBufferType::Streaming)
+			{
+				IStreamingManager::Get().GetAudioStreamingManager().RemoveDecoder(DecompressionState);
+			}
+
 			delete DecompressionState;
 			DecompressionState = nullptr;
 		}

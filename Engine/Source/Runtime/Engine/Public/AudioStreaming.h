@@ -128,6 +128,9 @@ struct FStreamingWaveData final
 	FStreamingWaveData();
 	~FStreamingWaveData();
 
+	// Frees streaming wave data resources, blocks pending async IO requests
+	void FreeResources();
+
 	/**
 	 * Sets up the streaming wave data and loads the first chunk of audio for instant play
 	 *
