@@ -319,6 +319,11 @@ struct FTexturePlatformData
 	/** Mip data. */
 	TIndirectArray<struct FTexture2DMipMap> Mips;
 
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+	/** Cached UPackage file name where the owning texture is loaded from */
+	FString CachedPackageFileName;
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** The key associated with this derived data. */
 	FString DerivedDataKey;
