@@ -891,7 +891,15 @@ namespace
 
 			case CPT_MulticastDelegate:
 			{
-				UMulticastDelegateProperty* Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UMulticastDelegateProperty(FObjectInitializer());
+				UMulticastDelegateProperty* Result;
+				if (VarProperty.Function->IsA<USparseDelegateFunction>())
+				{
+					Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UMulticastSparseDelegateProperty(FObjectInitializer());
+				}
+				else
+				{
+					Result = new (EC_InternalUseOnlyConstructor, Scope, Name, ObjectFlags) UMulticastInlineDelegateProperty(FObjectInitializer());
+				}
 				return Result;
 			}
 
@@ -3898,6 +3906,7 @@ void FHeaderParser::GetVarType(
 		{
 			FError::Throwf(TEXT("Nested containers are not supported.") );
 		}
+		// TODO: Prevent sparse delegate types from being used in a container
 
 		if (VarProperty.MetaData.Find(TEXT("NativeConst")))
 		{
@@ -3943,6 +3952,7 @@ void FHeaderParser::GetVarType(
 		{
 			FError::Throwf(TEXT("Nested containers are not supported.") );
 		}
+		// TODO: Prevent sparse delegate types from being used in a container
 
 		if (MapKeyType.Type == CPT_Interface)
 		{
@@ -3965,6 +3975,7 @@ void FHeaderParser::GetVarType(
 		{
 			FError::Throwf(TEXT("Nested containers are not supported.") );
 		}
+		// TODO: Prevent sparse delegate types from being used in a container
 
 		EPropertyFlags InnerFlags = (MapKeyType.PropertyFlags | VarProperty.PropertyFlags) & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the map value, we will fix them later
 		VarType.PropertyFlags = InnerFlags;
@@ -4006,6 +4017,7 @@ void FHeaderParser::GetVarType(
 		{
 			FError::Throwf(TEXT("Nested containers are not supported.") );
 		}
+		// TODO: Prevent sparse delegate types from being used in a container
 
 		if (VarProperty.Type == CPT_Interface)
 		{
@@ -4164,6 +4176,7 @@ void FHeaderParser::GetVarType(
 
 			VarProperty = FPropertyBase(InFunction->HasAnyFunctionFlags(FUNC_MulticastDelegate) ? CPT_MulticastDelegate : CPT_Delegate);
 			VarProperty.DelegateName = *InIdentifierStripped;
+			VarProperty.Function = InFunction;
 
 			if (!(Disallow & CPF_InstancedReference))
 			{
@@ -6246,13 +6259,15 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 	const bool bHasReturnValue = DelegateMacro.Contains(TEXT("_RetVal"));
 	const bool bDeclaredConst  = DelegateMacro.Contains(TEXT("_Const"));
 	const bool bIsMulticast    = DelegateMacro.Contains(TEXT("_MULTICAST"));
+	const bool bIsSparse       = DelegateMacro.Contains(TEXT("_SPARSE"));
 
 	// Determine the parameter count
 	const FString* FoundParamCount = DelegateParameterCountStrings.FindByPredicate([&](const FString& Str){ return DelegateMacro.Contains(Str); });
 
 	// Try reconstructing the string to make sure it matches our expectations
-	FString ExpectedOriginalString = FString::Printf(TEXT("DECLARE_DYNAMIC%s_DELEGATE%s%s%s"),
+	FString ExpectedOriginalString = FString::Printf(TEXT("DECLARE_DYNAMIC%s%s_DELEGATE%s%s%s"),
 		bIsMulticast ? TEXT("_MULTICAST") : TEXT(""),
+		bIsSparse ? TEXT("_SPARSE") : TEXT(""),
 		bHasReturnValue ? TEXT("_RetVal") : TEXT(""),
 		FoundParamCount ? **FoundParamCount : TEXT(""),
 		bDeclaredConst ? TEXT("_Const") : TEXT(""));
@@ -6321,8 +6336,8 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 		FCString::Strcpy( FuncInfo.Function.Identifier, *Name );
 	}
 
-	UDelegateFunction* DelegateSignatureFunction = CreateDelegateFunction(FuncInfo);
-
+	UDelegateFunction* DelegateSignatureFunction = (bIsSparse ? CreateDelegateFunction<USparseDelegateFunction>(FuncInfo) : CreateDelegateFunction<UDelegateFunction>(FuncInfo));
+	
 	FClassMetaData* ClassMetaData = GScriptHelper.AddClassData(DelegateSignatureFunction, CurrentSrcFile);
 
 	DelegateSignatureFunction->FunctionFlags |= FuncInfo.FunctionFlags;
@@ -6340,6 +6355,29 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(FClasses& AllClasse
 	if (bDeclaredConst)
 	{
 		DelegateSignatureFunction->FunctionFlags |= FUNC_Const;
+	}
+
+	if (bIsSparse)
+	{
+		FToken OwningClass;
+
+		RequireSymbol(TEXT(","), TEXT("Delegate Declaration"));
+
+		if (!GetIdentifier(OwningClass))
+		{
+			FError::Throwf(TEXT("Missing OwningClass specifier."));
+		}
+		RequireSymbol(TEXT(","), TEXT("Delegate Declaration"));
+		
+		FToken DelegateName;
+		if (!GetIdentifier(DelegateName))
+		{
+			FError::Throwf(TEXT("Missing Delegate Name."));
+		}
+
+		USparseDelegateFunction* SDF = CastChecked<USparseDelegateFunction>(DelegateSignatureFunction);
+		SDF->OwningClassName = *GetClassNameWithoutPrefix(OwningClass.TokenName.ToString());
+		SDF->DelegateName = DelegateName.Identifier;
 	}
 
 	// Get parameter list.
@@ -9498,10 +9536,11 @@ UFunction* FHeaderParser::CreateFunction(const FFuncInfo &FuncInfo) const
 	return CreateFunctionImpl<UFunction>(FuncInfo, GetCurrentClass(), GetCurrentScope());
 }
 
+template<class T>
 UDelegateFunction* FHeaderParser::CreateDelegateFunction(const FFuncInfo &FuncInfo) const
 {
 	FFileScope* CurrentFileScope = GetCurrentFileScope();
 	FUnrealSourceFile* LocSourceFile = CurrentFileScope ? CurrentFileScope->GetSourceFile() : nullptr;
 	UObject* CurrentPackage = LocSourceFile ? LocSourceFile->GetPackage() : nullptr;
-	return CreateFunctionImpl<UDelegateFunction>(FuncInfo, IsInAClass() ? (UObject*)GetCurrentClass() : CurrentPackage, GetCurrentScope());
+	return CreateFunctionImpl<T>(FuncInfo, IsInAClass() ? (UObject*)GetCurrentClass() : CurrentPackage, GetCurrentScope());
 }

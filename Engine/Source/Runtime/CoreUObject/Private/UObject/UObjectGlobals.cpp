@@ -4215,14 +4215,26 @@ namespace UE4CodeGen_Private
 			}
 			break;
 
-			case EPropertyGenFlags::MulticastDelegate:
+			case EPropertyGenFlags::InlineMulticastDelegate:
 			{
 				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
-				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
+				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastInlineDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
 
 #if WITH_METADATA
 				MetaDataArray = Prop->MetaDataArray;
 				NumMetaData   = Prop->NumMetaData;
+#endif
+			}
+			break;
+
+			case EPropertyGenFlags::SparseMulticastDelegate:
+			{
+				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
+				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastSparseDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
+
+#if WITH_METADATA
+				MetaDataArray = Prop->MetaDataArray;
+				NumMetaData = Prop->NumMetaData;
 #endif
 			}
 			break;
@@ -4318,12 +4330,27 @@ namespace UE4CodeGen_Private
 		UFunction* NewFunction;
 		if (Params.FunctionFlags & FUNC_Delegate)
 		{
-			NewFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UDelegateFunction(
-				FObjectInitializer(),
-				Super,
-				Params.FunctionFlags,
-				Params.StructureSize
-			);
+			if (Params.OwningClassName == nullptr)
+			{
+				NewFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UDelegateFunction(
+					FObjectInitializer(),
+					Super,
+					Params.FunctionFlags,
+					Params.StructureSize
+				);
+			}
+			else
+			{
+				USparseDelegateFunction* NewSparseFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) USparseDelegateFunction(
+					FObjectInitializer(),
+					Super,
+					Params.FunctionFlags,
+					Params.StructureSize
+				);
+				NewSparseFunction->OwningClassName = FName(Params.OwningClassName);
+				NewSparseFunction->DelegateName = FName(Params.DelegateName);
+				NewFunction = NewSparseFunction;
+			}
 		}
 		else
 		{

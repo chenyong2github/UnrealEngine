@@ -1056,7 +1056,7 @@ const TCHAR* UProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 		}
 
 		UArrayProperty* const ArrayProperty = ExactCast<UArrayProperty>(Property);
-		UMulticastDelegateProperty* const MulticastDelegateProperty = ExactCast<UMulticastDelegateProperty>(Property);
+		UMulticastDelegateProperty* const MulticastDelegateProperty = Cast<UMulticastDelegateProperty>(Property);
 		if( MulticastDelegateProperty != NULL && ArrayOp != ADO_None )
 		{
 			// Allow Add(), Remove() and Empty() on multi-cast delegates
@@ -1073,7 +1073,7 @@ const TCHAR* UProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 				if( ArrayOp == ADO_Empty )
 				{
 					// Clear out the delegate
-					MulticastDelegateProperty->GetPropertyValuePtr_InContainer(DestData)->Clear();
+					MulticastDelegateProperty->ClearDelegate(SubobjectOuter, Property->ContainerPtrToValuePtr<void>(DestData));
 				}
 				else
 				{
