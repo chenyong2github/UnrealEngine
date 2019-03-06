@@ -694,6 +694,7 @@ public:
 	float		LastRenderTime;
 	float		LastRenderTimeDelta;
 	float		MotionBlurTimeScale;
+	float		MotionBlurTargetDeltaTime;
 	FMatrix		PrevViewMatrixForOcclusionQuery;
 	FVector		PrevViewOriginForOcclusionQuery;
 
@@ -1082,6 +1083,12 @@ public:
 	}
 
 	void TrimHistoryRenderTargets(const FScene* Scene);
+
+	/**
+	 * Calculates and stores the scale factor to apply to motion vectors based on the current game
+	 * time and view post process settings.
+	 */
+	void UpdateMotionBlurTimeScale(const FViewInfo& View);
 
 	/** 
 	 * Called every frame after UpdateLastRenderTime, sets up the information for the lagged temporal LOD transition
