@@ -349,7 +349,11 @@ void FLwsWebSocketsManager::Tick()
 			}
 			else
 			{
-				SocketsToStop.Enqueue(SocketToStart);
+				// avoid destroying it twice
+				if (!SocketsDestroyedDuringService.Contains(SocketToStart))
+				{
+					SocketsToStop.Enqueue(SocketToStart);
+				}
 			}
 		}
 	}
