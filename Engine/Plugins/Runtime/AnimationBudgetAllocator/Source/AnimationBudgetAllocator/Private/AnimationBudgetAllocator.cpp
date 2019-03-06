@@ -152,24 +152,7 @@ void FAnimationBudgetAllocator::SetComponentSignificance(USkeletalMeshComponentB
 
 void FAnimationBudgetAllocator::TickEnableHelper(USkeletalMeshComponent* InComponent, bool bInEnable)
 {
-	if(bInEnable)
-	{
-		InComponent->PrimaryComponentTick.SetTickFunctionEnable(true);
-		if(InComponent->IsClothingSimulationSuspended())
-		{
-			InComponent->ResumeClothingSimulation();
-			InComponent->ClothBlendWeight = 1.0f;
-		}
-	}
-	else
-	{
-		InComponent->PrimaryComponentTick.SetTickFunctionEnable(false);
-		if(!InComponent->IsClothingSimulationSuspended())
-		{
-			InComponent->SuspendClothingSimulation();
-			InComponent->ClothBlendWeight = 0.0f;
-		}
-	}
+	InComponent->PrimaryComponentTick.SetTickFunctionEnable(bInEnable);
 }
 
 void FAnimationBudgetAllocator::QueueSortedComponentIndices(float InDeltaSeconds)
