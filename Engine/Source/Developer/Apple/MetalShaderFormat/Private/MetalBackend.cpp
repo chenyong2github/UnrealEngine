@@ -4935,12 +4935,8 @@ char* FMetalCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* sta
 	ExpandArrayAssignments(ir, state);
 
 	// Fix any special language extensions (FrameBufferFetchES2() intrinsic)
-	// Only applicable to fragment shaders - this intrinsic is not available elsewhere
-	if (Frequency == HSF_PixelShader)
-	{
-		FixIntrinsics(ir, state);
-	}
-
+	FixIntrinsics(ir, state, Frequency);
+	
 	// Remove half->float->half or float->half->float
 	FixRedundantCasts(ir);
 

@@ -952,13 +952,15 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 	ir_variable* DestColorVar;
 	const glsl_type* DestColorType;
 	ir_variable* DestMRTColorVar[MAX_SIMULTANEOUS_RENDER_TARGETS];
+	EHlslShaderFrequency Frequency;
 
-	FFixIntrinsicsVisitor(_mesa_glsl_parse_state* InState, ir_function_signature* InMainSig) :
+	FFixIntrinsicsVisitor(_mesa_glsl_parse_state* InState, ir_function_signature* InMainSig, EHlslShaderFrequency InFrequency) :
 		State(InState),
 		bUsesFramebufferFetchES2(false),
 		MRTFetchMask(0),
 		DestColorVar(nullptr),
-		DestColorType(glsl_type::error_type)
+		DestColorType(glsl_type::error_type),
+		Frequency(InFrequency)
 	{
 		DestColorType = GetFragColorTypeFromMetalOutputStruct(InMainSig->return_type);
 		memset(DestMRTColorVar, 0, sizeof(DestMRTColorVar));
@@ -1025,7 +1027,7 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 
 	virtual ir_visitor_status visit_leave(ir_call* IR) override
 	{
-		if (IR->use_builtin)
+		if ((Frequency == HSF_PixelShader) && IR->use_builtin)
 		{
 			const char* CalleeName = IR->callee_name();
 			static auto ES2Len = strlen(FRAMEBUFFER_FETCH_ES2);
@@ -1080,12 +1082,12 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 	}
 };
 
-void FMetalCodeBackend::FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state)
+void FMetalCodeBackend::FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency InFrequency)
 {
 	ir_function_signature* MainSig = GetMainFunction(ir);
 	check(MainSig);
 
-	FFixIntrinsicsVisitor Visitor(state,MainSig);
+	FFixIntrinsicsVisitor Visitor(state,MainSig,InFrequency);
 	Visitor.run(&MainSig->body);
 
 	if (Visitor.bUsesFramebufferFetchES2)
