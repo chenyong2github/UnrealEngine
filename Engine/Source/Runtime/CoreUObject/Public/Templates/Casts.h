@@ -353,6 +353,9 @@ DECLARE_CAST_BY_FLAG(UUInt32Property)					\
 DECLARE_CAST_BY_FLAG(UUInt64Property)					\
 DECLARE_CAST_BY_FLAG(UMapProperty)						\
 DECLARE_CAST_BY_FLAG(USetProperty)						\
+DECLARE_CAST_BY_FLAG(USparseDelegateFunction)			\
+DECLARE_CAST_BY_FLAG(UMulticastInlineDelegateProperty)	\
+DECLARE_CAST_BY_FLAG(UMulticastSparseDelegateProperty)	\
 FINISH_DECLARING_CAST_FLAGS		// This is here to hopefully remind people to include the "\" in all declarations above, especially when copy/pasting the final line.
 
 // Now actually declare the flags

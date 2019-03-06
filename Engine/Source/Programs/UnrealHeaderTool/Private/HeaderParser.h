@@ -534,6 +534,7 @@ protected:
 	/**
 	 * Create new delegate function object based on given info structure.
 	 */
+	template<typename T>
 	UDelegateFunction* CreateDelegateFunction(const FFuncInfo &FuncInfo) const;	
 
 	UClass* CompileClassDeclaration(FClasses& AllClasses);
