@@ -211,6 +211,15 @@ static TAutoConsoleVariable<float> CVarMotionBlurMax(
 	TEXT("-1: override (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMotionBlurTargetFPS(
+	TEXT("r.MotionBlur.TargetFPS"),
+	-1,
+	TEXT("Allows to override the postprocess setting (target FPS for motion blur velocity length scaling).\n")
+	TEXT("-1: override (default)")
+	TEXT(" 0: target current frame rate with moving average\n")
+	TEXT("[1,120]: target FPS for motion blur velocity scaling"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarSceneColorFringeMax(
 	TEXT("r.SceneColorFringe.Max"),
 	-1.0f,
@@ -1449,6 +1458,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		{
 			Dest.AmbientOcclusionRadiusInWS = Src.AmbientOcclusionRadiusInWS;
 		}
+
+		if (Src.bOverride_MotionBlurTargetFPS)
+		{
+			Dest.MotionBlurTargetFPS = Src.MotionBlurTargetFPS;
+		}
 	}
 
 	// will be deprecated soon, use the new asset LightPropagationVolumeBlendable instead
@@ -1874,6 +1888,15 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 		if(Value >= 0.0f)
 		{
 			FinalPostProcessSettings.MotionBlurMax = Value;
+		}
+	}
+
+	{
+		int32 TargetFPS = CVarMotionBlurTargetFPS.GetValueOnGameThread();
+
+		if (TargetFPS >= 0)
+		{
+			FinalPostProcessSettings.MotionBlurTargetFPS = TargetFPS;
 		}
 	}
 

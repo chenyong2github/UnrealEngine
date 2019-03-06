@@ -1015,6 +1015,9 @@ struct FPostProcessSettings
 	uint8 bOverride_MotionBlurMax:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_MotionBlurTargetFPS : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_MotionBlurPerObjectSize:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
@@ -1580,6 +1583,15 @@ struct FPostProcessSettings
 	/** max distortion caused by motion blur, in percent of the screen width, 0:off */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Motion Blur", meta=(ClampMin = "0.0", ClampMax = "100.0", editcondition = "bOverride_MotionBlurMax", DisplayName = "Max"))
 	float MotionBlurMax;
+	/**
+	 * Defines the target FPS for motion blur. Makes motion blur independent of actual frame rate and relative
+	 * to the specified target FPS instead. Higher target FPS results in shorter frames, which means shorter
+	 * shutter times and less motion blur. Lower FPS means more motion blur. A value of zero makes the motion
+	 * blur dependent on the actual frame rate.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Motion Blur", meta=(ClampMin = "0", ClampMax = "120", editcondition = "bOverride_MotionBlurTargetFPS", DisplayName = "Target FPS"))
+	int32 MotionBlurTargetFPS;
+
 	/** The minimum projected screen radius for a primitive to be drawn in the velocity pass, percentage of screen width. smaller numbers cause more draw calls, default: 4% */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Motion Blur", meta=(ClampMin = "0.0", UIMax = "100.0", editcondition = "bOverride_MotionBlurPerObjectSize", DisplayName = "Per Object Size"))
 	float MotionBlurPerObjectSize;
