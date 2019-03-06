@@ -79,6 +79,8 @@ struct CORE_API FRenderingObjectVersion
 
 		GeometryCacheFastDecoder,
 
+		LightmapHasShadowmapData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

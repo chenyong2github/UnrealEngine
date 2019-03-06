@@ -2364,6 +2364,21 @@ void FLightMap2D::Serialize(FArchive& Ar)
 
 	Ar << CoordinateScale << CoordinateBias;
 
+	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::LightmapHasShadowmapData)
+	{
+		// In Dev-VT, when VT lightmaps are enabled, baked shadow data is combined with lightmap data, and serialized along with lightmap
+		// This is here as a placeholder
+		FVector4 InvUniformPenumbraSize(ForceInitToZero);
+		bool bShadowChannelValid = false;
+
+		for (int Channel = 0; Channel < 4; Channel++)
+		{
+			Ar << bShadowChannelValid;
+		}
+
+		Ar << InvUniformPenumbraSize;
+	}
+
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::VirtualTexturedLightmaps)
 	{
 		// Don't save VT's if they are disabled for rendering
