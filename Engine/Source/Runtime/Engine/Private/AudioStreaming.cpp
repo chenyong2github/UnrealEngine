@@ -90,6 +90,11 @@ FStreamingWaveData::FStreamingWaveData()
 
 FStreamingWaveData::~FStreamingWaveData()
 {
+	check(IORequestHandle == nullptr);
+}
+
+void FStreamingWaveData::FreeResources()
+{
 	// Make sure there are no pending requests in flight.
 	for (int32 Pass = 0; Pass < 3; Pass++)
 	{
@@ -100,6 +105,7 @@ FStreamingWaveData::~FStreamingWaveData()
 		}
 		check(Pass < 2); // we should be done after two passes. Pass 0 will start anything we need and pass 1 will complete those requests
 	}
+
 	for (FLoadedAudioChunk& LoadedChunk : LoadedChunks)
 	{
 		FreeLoadedChunk(LoadedChunk);
@@ -717,6 +723,25 @@ void FAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
 	if (WaveData)
 	{
 		StreamingSoundWaves.Remove(SoundWave);
+
+		// Free the resources of the streaming wave data. This blocks pending IO requests
+		WaveData->FreeResources();
+
+		{
+			// Then we need to remove any results from those pending requests before we delete so that we don't process them
+			FScopeLock StreamChunkResults(&ChunkResultCriticalSection);
+			for (int32 i = AsyncAudioStreamChunkResults.Num() - 1 ; i >= 0; --i)
+			{
+				FASyncAudioChunkLoadResult* LoadResult = AsyncAudioStreamChunkResults[i];
+				FStreamingWaveData* StreamingWaveData = LoadResult->StreamingWaveData;
+				if (StreamingWaveData == WaveData)
+				{
+					delete LoadResult;
+					
+					AsyncAudioStreamChunkResults.RemoveAtSwap(i, 1, false);
+				}
+			}
+		}
 		delete WaveData;
 	}
 	WaveRequests.Remove(SoundWave);
@@ -725,7 +750,7 @@ void FAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
 void FAudioStreamingManager::AddDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
 {
 	FScopeLock Lock(&CriticalSection);
-	CompressedAudioInfos.Add(InCompressedAudioInfo);
+	CompressedAudioInfos.AddUnique(InCompressedAudioInfo);
 }
 
 void FAudioStreamingManager::RemoveDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
