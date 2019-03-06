@@ -102,7 +102,7 @@ struct FMetalCodeBackend : public FCodeBackend
 	void InsertArgumentBuffers(exec_list* ir, _mesa_glsl_parse_state* state, FBuffers& Buffers);
 	void PackInputsAndOutputs(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency Frequency, exec_list& InputVars);
 	void MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse_state* state, FBuffers& OutBuffers);
-	void FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state);
+	void FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state,EHlslShaderFrequency InFrequency);
 	void RemovePackedVarReferences(exec_list* ir, _mesa_glsl_parse_state* State);
 	void PromoteInputsAndOutputsGlobalHalfToFloat(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency Frequency);
 	void ConvertHalfToFloatUniformsAndSamples(exec_list* ir, _mesa_glsl_parse_state* State, bool bConvertUniforms, bool bConvertSamples);
