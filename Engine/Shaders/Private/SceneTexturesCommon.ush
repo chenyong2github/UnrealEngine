@@ -108,7 +108,11 @@ float CalcSceneDepth(float2 ScreenUV)
 				return DepthbufferFetchES2(SceneW, View.InvDeviceZToWorldZTransform[2], View.InvDeviceZToWorldZTransform[3]);
 			#endif 
 		#elif METAL_PROFILE && !MAC
-			return FramebufferFetchES2().w;
+			#if PIXELSHADER
+				return FramebufferFetchES2().w;
+			#else
+				return ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV, 0).r);
+			#endif
 		#elif COMPILER_GLSL_ES3_1
 			#if OUTPUT_GAMMA_SPACE
 				// Try framebuffer_fetch_depth_stencil to get the depth directly if the extension is available.
