@@ -567,7 +567,6 @@ void FNetworkProfiler::TrackEvent( const FString& EventName, const FString& Even
  */
 void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const FURL& InURL )
 {
-#if ALLOW_DEBUG_FILES
 	if ( bIsTrackingEnabled )
 	{
 		UE_LOG( LogNet, Log, TEXT( "Network Profiler: TrackSessionChange.  InURL: %s" ), *InURL.ToString() );
@@ -591,6 +590,11 @@ void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const F
 
 			// Close file writer so we can rename the file to its final destination.
 			FileWriter->Close();
+
+			if (OnNetworkProfileFinished().IsBound())
+			{
+				OnNetworkProfileFinished().Broadcast(FileWriter->GetArchiveName());
+			}
 
 			// Clean up.
 			delete FileWriter;
@@ -622,7 +626,6 @@ void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const F
 			(*FileWriter) << CurrentHeader;
 		}
 	}
-#endif	//#if ALLOW_DEBUG_FILES
 }
 
 void FNetworkProfiler::TrackSendAck( uint16 NumBits, UNetConnection* Connection )

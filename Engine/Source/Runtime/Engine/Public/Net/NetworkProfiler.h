@@ -19,6 +19,8 @@ struct FURL;
 
 #define NETWORK_PROFILER( x ) if ( GNetworkProfiler.IsTrackingEnabled() ) { x; }
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkProfileFinished, const FString& /*Filename */);
+
 /*=============================================================================
 	Network profiler header.
 =============================================================================*/
@@ -93,6 +95,9 @@ private:
 
 	/** Last known address																			*/
 	TSharedPtr<const FInternetAddr>			LastAddress;
+
+	/** Delegate that's fired when tracking stops on the current network profile */
+	FOnNetworkProfileFinished				OnNetworkProfileFinishedDelegate;
 
 	/** All the data required for writing sent bunches to the profiler stream						*/
 	struct FSendBunchInfo
@@ -393,6 +398,9 @@ public:
 	bool Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice & Ar );
 
 	bool FORCEINLINE IsTrackingEnabled() const { return bIsTrackingEnabled; }
+
+	/** Return the network profile finished delegate */
+	FOnNetworkProfileFinished& OnNetworkProfileFinished() { return OnNetworkProfileFinishedDelegate; }
 };
 
 /** Global network profiler instance. */
