@@ -58,13 +58,20 @@ namespace Audio
 
 		FSoundSource::InitCommon();
 
+		check(WaveInstance->WaveData);
+
+		// Prevent double-triggering procedural soundwaves
+		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGenerating())
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
+			return false;
+		}
+
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
-
-		AUDIO_MIXER_CHECK(WaveInstance->WaveData);
-
 		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)
 		{
+			//NumFrames = MixerBuffer->GetNumFrames();
 			check(!InWaveInstance->WaveData->RawPCMData || InWaveInstance->WaveData->RawPCMDataSize);
 			const int32 NumBytes = WaveInstance->WaveData->RawPCMDataSize;
 			NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
@@ -282,7 +289,34 @@ namespace Audio
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
 			MixerBuffer->InitSampleRate(WaveInstance->WaveData->GetSampleRateForCurrentPlatform());
 
-			// Pass the decompression state off to the mixer source buffer
+			// Retrieve the raw pcm buffer data and the precached buffers before initializing so we can avoid having USoundWave ptrs in audio renderer thread
+			EBufferType::Type BufferType = MixerBuffer->GetType();
+			if (BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview)
+			{
+				FRawPCMDataBuffer RawPCMDataBuffer;
+				MixerBuffer->GetPCMData(&RawPCMDataBuffer.Data, &RawPCMDataBuffer.DataSize);
+				MixerSourceBuffer->SetPCMData(RawPCMDataBuffer);
+			}
+#if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
+			else if (BufferType == EBufferType::PCMRealTime || EBufferType::Streaming)
+			{
+				USoundWave* WaveData = WaveInstance->WaveData;
+				if (WaveData->CachedRealtimeFirstBuffer)
+				{
+					const uint32 NumPrecacheSamples = (uint32)(WaveData->NumPrecacheFrames * WaveData->NumChannels);
+					const uint32 BufferSize = NumPrecacheSamples * sizeof(int16) * PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS;
+
+					TArray<uint8> PrecacheBufferCopy;
+					PrecacheBufferCopy.AddUninitialized(BufferSize);
+
+					FMemory::Memcpy(PrecacheBufferCopy.GetData(), WaveData->CachedRealtimeFirstBuffer, BufferSize);
+
+					MixerSourceBuffer->SetCachedRealtimeFirstBuffers(MoveTemp(PrecacheBufferCopy));
+				}
+			}
+#endif
+
+			// Pass the decompression state off to the mixer source buffer if it hasn't already done so
 			ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(true);
 			MixerSourceBuffer->SetDecoder(Decoder);
 
@@ -437,7 +471,13 @@ namespace Audio
 							}
 
 							check(MixerSourceBuffer.IsValid());
+
 							ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(false);
+							if (BufferType == EBufferType::Streaming)
+							{
+								IStreamingManager::Get().GetAudioStreamingManager().AddDecoder(Decoder);
+							}
+
 							MixerSourceBuffer->ReadMoreRealtimeData(Decoder, 0, EBufferReadMode::Asynchronous);
 
 							// not ready
