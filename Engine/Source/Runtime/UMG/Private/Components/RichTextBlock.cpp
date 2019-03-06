@@ -97,6 +97,16 @@ void URichTextBlock::UpdateStyleData()
 	}
 }
 
+FText URichTextBlock::GetText() const
+{
+	if (MyRichTextBlock.IsValid())
+	{
+		return MyRichTextBlock->GetText();
+	}
+
+	return Text;
+}
+
 void URichTextBlock::SetText(const FText& InText)
 {
 	Text = InText;
