@@ -55,6 +55,7 @@ const FString FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
 const FString FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
 const FString FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
 const FString FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
+const FString FGenericCrashContext::CrashTypeHang = TEXT("Hang");
 
 const FString FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
 const FString FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
@@ -604,6 +605,8 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 {
 	switch (Type)
 	{
+	case ECrashContextType::Hang:
+		return *CrashTypeHang;
 	case ECrashContextType::GPUCrash:
 		return *CrashTypeGPU;
 	case ECrashContextType::Ensure:
