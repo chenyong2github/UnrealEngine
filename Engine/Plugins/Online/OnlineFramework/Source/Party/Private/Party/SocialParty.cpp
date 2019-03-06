@@ -160,6 +160,40 @@ FPartyJoinApproval USocialParty::EvaluateJIPRequest(const FUniqueNetId& PlayerId
 	return JoinApproval;
 }
 
+bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FOnlinePartyData& JoinData) const
+{
+	const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
+	const bool bSenderAllowsCrossplay = !OptedOutOfCrossplay(SenderCrossplayPreference);
+	TArray<FString> MemberPlatforms;
+	for (const UPartyMember* Member : GetPartyMembers())
+	{
+		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
+		if (Platform.IsCrossplayWith(MemberPlatform))
+		{
+			const ECrossplayPreference MemberCrossplayPreference = Member->GetRepData().GetCrossplayPreference();
+			const bool bMemberAllowsCrossplay = !OptedOutOfCrossplay(MemberCrossplayPreference);
+
+			if (!bSenderAllowsCrossplay || !bMemberAllowsCrossplay)
+			{
+				if (SenderCrossplayPreference == ECrossplayPreference::OptedOut)
+				{
+					JoinApproval.SetApprovalAction(EApprovalAction::Deny);
+					JoinApproval.SetDenialReason(EPartyJoinDenialReason::JoinerCrossplayRestricted);
+					//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, true);
+				}
+				else if (MemberCrossplayPreference == ECrossplayPreference::OptedOut)
+				{
+					JoinApproval.SetApprovalAction(EApprovalAction::Deny);
+					JoinApproval.SetDenialReason(EPartyJoinDenialReason::MemberCrossplayRestricted);
+					//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, false);
+				}
+			}
+		}
+	}
+
+	return JoinApproval.DenialReason.HasAnyReason();
+}
+
 FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const
 {
 	FPartyJoinApproval JoinApproval;
@@ -174,33 +208,12 @@ FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerI
 	}
 	else
 	{
-		const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
-		const bool bSenderAllowsCrossplay = !OptedOutOfCrossplay(SenderCrossplayPreference);
-
-		TArray<FString> MemberPlatforms;
-		for (const UPartyMember* Member : GetPartyMembers())
+		bool bAlwaysCheckCrossplatformOnPartyJoin = false;
+		if (GConfig->GetBool(TEXT("Social"), TEXT("bAlwaysEnforceCrossplatformOnPartyJoin"), bAlwaysCheckCrossplatformOnPartyJoin, GGameIni))
 		{
-			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
-			if (Platform.IsCrossplayWith(MemberPlatform))
+			if (bAlwaysCheckCrossplatformOnPartyJoin)
 			{
-				const ECrossplayPreference MemberCrossplayPreference = Member->GetRepData().GetCrossplayPreference();
-				const bool bMemberAllowsCrossplay = !OptedOutOfCrossplay(MemberCrossplayPreference);
-
-				if (!bSenderAllowsCrossplay || !bMemberAllowsCrossplay)
-				{
-					if (SenderCrossplayPreference == ECrossplayPreference::OptedOutRestricted)
-					{
-						JoinApproval.SetApprovalAction(EApprovalAction::Deny);
-						JoinApproval.SetDenialReason(EPartyJoinDenialReason::JoinerCrossplayRestricted);
-						//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, true);
-					}
-					else if (MemberCrossplayPreference == ECrossplayPreference::OptedOutRestricted)
-					{
-						JoinApproval.SetApprovalAction(EApprovalAction::Deny);
-						JoinApproval.SetDenialReason(EPartyJoinDenialReason::MemberCrossplayRestricted);
-						//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, false);
-					}
-				}
+				ApplyCrossplayRestriction(JoinApproval, JoinData);
 			}
 		}
 
