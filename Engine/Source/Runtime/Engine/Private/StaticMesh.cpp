@@ -5251,13 +5251,20 @@ void UStaticMesh::EnforceLightmapRestrictions()
 	{
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
 		{
-			NumUVs = FMath::Min(RenderData->LODResources[LODIndex].GetNumTexCoords(),NumUVs);
+			const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIndex];
+			if (LODResource.GetNumVertices() > 0) // skip LOD that was stripped (eg. MinLOD)
+			{
+				NumUVs = FMath::Min(LODResource.GetNumTexCoords(), NumUVs);
+			}
 		}
 	}
 	else
 	{
 		NumUVs = 1;
 	}
+
+	// do not allow LightMapCoordinateIndex go negative
+	check(NumUVs > 0);
 
 	// Clamp LightMapCoordinateIndex to be valid for all lightmap uvs
 	LightMapCoordinateIndex = FMath::Clamp(LightMapCoordinateIndex, 0, NumUVs - 1);
