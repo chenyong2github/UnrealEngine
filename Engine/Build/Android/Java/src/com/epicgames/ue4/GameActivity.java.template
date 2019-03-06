@@ -2043,7 +2043,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Log.debug("Target SDK is " + targetSdkVersion + ".  This may cause issues if permissions are denied by the user." );				
 		}
 
-
+		Logger.RegisterCallback(this);
 		
 		// Suppress java logs in Shipping builds
 		if (nativeIsShippingBuild())
