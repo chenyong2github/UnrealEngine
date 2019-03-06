@@ -9,7 +9,7 @@
 /**
  * Data table composed of a stack of other data tables.
  */
-UCLASS(MinimalAPI, BlueprintType)
+UCLASS(MinimalAPI, BlueprintType, hideCategories=(ImportOptions,ImportSource))
 class UCompositeDataTable
 	: public UDataTable
 {
