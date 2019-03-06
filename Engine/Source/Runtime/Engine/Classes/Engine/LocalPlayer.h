@@ -53,6 +53,9 @@ struct ENGINE_API FLocalPlayerContext
 	/** Returns the world context. */
 	UWorld* GetWorld() const;
 
+	/** Returns the game instance */
+	UGameInstance* GetGameInstance() const;
+
 	/** Returns the local player. */
 	class ULocalPlayer* GetLocalPlayer() const;
 
