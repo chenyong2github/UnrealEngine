@@ -2182,6 +2182,8 @@ void FMaterialRenderProxy::ReleaseDynamicRHI()
 
 void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 {
+	LLM_SCOPE(ELLMTag::Materials);
+
 	check(IsInRenderingThread());
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateDeferredCachedUniformExpressions);

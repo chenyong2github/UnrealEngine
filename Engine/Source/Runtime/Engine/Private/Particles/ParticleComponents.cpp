@@ -4373,6 +4373,7 @@ void UParticleSystemComponent::ClearDynamicData()
 void UParticleSystemComponent::UpdateDynamicData()
 {
 	//SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_UpdateDynamicData);
+	LLM_SCOPE(ELLMTag::Particles);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
 	if (SceneProxy)
