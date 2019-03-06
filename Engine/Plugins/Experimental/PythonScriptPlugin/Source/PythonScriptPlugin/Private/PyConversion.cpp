@@ -953,7 +953,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const UProperty* Pr
 			{
 				EmitPropertyChangeNotifications(InChangeOwner, [&]()
 				{
-					CastProp->SetPropertyValue(ValueAddr, *PyDelegate->DelegateInstance);
+					CastProp->SetMulticastDelegate(ValueAddr, *PyDelegate->DelegateInstance);
 				});
 			}
 		}
@@ -1113,12 +1113,20 @@ FPyConversionResult PythonizeProperty_Direct(const UProperty* Prop, const void* 
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = Cast<UMulticastDelegateProperty>(Prop))
+	if (auto* CastProp = Cast<UMulticastInlineDelegateProperty>(Prop))
 	{
-		const FMulticastScriptDelegate* Value = CastProp->GetPropertyValuePtr(ValueAddr);
+		const FMulticastScriptDelegate* Value = CastProp->GetMulticastDelegate(ValueAddr);
 		OutPyObj = (PyObject*)FPyWrapperMulticastDelegateFactory::Get().CreateInstance(CastProp->SignatureFunction, (FMulticastScriptDelegate*)Value, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}
+
+	// TODO: We're just not handling sparse delegates at this time
+	/*if (auto* CastProp = Cast<UMulticastSparseDelegateProperty>(Prop))
+	{
+		const FMulticastScriptDelegate* Value = CastProp->GetMulticastDelegate(ValueAddr);
+		OutPyObj = (PyObject*)FPyWrapperMulticastDelegateFactory::Get().CreateInstance(CastProp->SignatureFunction, (FMulticastScriptDelegate*)Value, OwnerContext, ConversionMethod);
+		return FPyConversionResult::Success();
+	}*/
 
 	if (auto* CastProp = Cast<UArrayProperty>(Prop))
 	{

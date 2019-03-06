@@ -1555,6 +1555,23 @@ public:
 	explicit UDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
 };
 
+//
+// Function definition used by sparse dynamic delegate declarations
+//
+class COREUOBJECT_API USparseDelegateFunction : public UDelegateFunction
+{
+	DECLARE_CASTED_CLASS_INTRINSIC(USparseDelegateFunction, UDelegateFunction, 0, TEXT("/Script/CoreUObject"), CASTCLASS_USparseDelegateFunction)
+	DECLARE_WITHIN(UObject)
+public:
+	explicit USparseDelegateFunction(const FObjectInitializer& ObjectInitializer, UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
+	explicit USparseDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
+
+	virtual void Serialize(FArchive& Ar) override;
+
+	FName OwningClassName;
+	FName DelegateName;
+};
+
 /*-----------------------------------------------------------------------------
 	UEnum.
 -----------------------------------------------------------------------------*/

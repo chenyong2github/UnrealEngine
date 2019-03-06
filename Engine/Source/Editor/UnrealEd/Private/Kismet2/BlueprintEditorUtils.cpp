@@ -7352,13 +7352,13 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 				if( LevelScriptActor->FindFunction(TargetFunction) )
 				{
 					// Grab the MC delegate we need to add to
-					FMulticastScriptDelegate* TargetDelegate = EventNode->GetTargetDelegate();
+					UMulticastDelegateProperty* TargetDelegate = EventNode->GetTargetDelegateProperty();
 					if( TargetDelegate != nullptr )
 					{
 						// Create the delegate, and add it if it doesn't already exist
 						FScriptDelegate Delegate;
 						Delegate.BindUFunction(LevelScriptActor, TargetFunction);
-						TargetDelegate->AddUnique(Delegate);
+						TargetDelegate->AddDelegate(MoveTemp(Delegate), EventNode->EventOwner);
 					}
 				}
 			}
@@ -9179,4 +9179,3 @@ void FBlueprintEditorUtils::BuildComponentInstancingData(UActorComponent* Compon
 }
 
 #undef LOCTEXT_NAMESPACE
-
