@@ -602,16 +602,38 @@ void UCharacterMovementComponent::OnRegister()
 
 	// Force linear smoothing for replays.
 	const UWorld* MyWorld = GetWorld();
-	const bool IsReplay = (MyWorld && MyWorld->IsPlayingReplay());
-	if (IsReplay)
+	const bool bIsReplay = (MyWorld && MyWorld->IsPlayingReplay());
+	if (bIsReplay)
 	{
-		if ((CharacterMovementCVars::ReplayUseInterpolation == 1) || (MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT)))
+		// At least one of these conditions will be true
+		const bool bHasInterpolationData = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
+		const bool bHasRepMovement = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
+
+		if (CharacterMovementCVars::ReplayUseInterpolation == 1)
 		{
-			NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			if (bHasInterpolationData)
+			{
+				NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			}
+			else
+			{
+				UE_LOG(LogCharacterMovement, Warning, TEXT("p.ReplayUseInterpolation is enabled, but the replay was not recorded with interpolation data."));
+				ensure(bHasRepMovement);
+				NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			}
 		}
 		else
 		{
-			NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			if (bHasRepMovement)
+			{
+				NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			}
+			else
+			{
+				UE_LOG(LogCharacterMovement, Warning, TEXT("p.ReplayUseInterpolation is disabled, but the replay was not recorded with rep movement data."));
+				ensure(bHasInterpolationData);
+				NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			}
 		}
 	}
 	else if (NetMode == NM_ListenServer)
