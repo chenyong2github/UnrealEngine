@@ -76,6 +76,14 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Behaviour)
 	uint32 bPauseOnImpact:1;
 
+	/** If true, will sweep for blocking collision during movement. If false, it will simply teleport to the next position and ignore collision. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Behaviour)
+	bool bSweep = true;
+
+	/** Physics teleport type. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Behaviour)
+	ETeleportType TeleportType = ETeleportType::None;
+
 	/* Movement behaviour of the component */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Behaviour)
 	EInterpToBehaviourType BehaviourType;
