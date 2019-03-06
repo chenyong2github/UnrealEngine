@@ -186,6 +186,13 @@ struct FAnimExtractContext
 	 */
 	TArray<FPoseCurve> PoseCurves;
 
+	/**
+	 * The BonesRequired array is a list of bool flags to determine
+	 * if a bone is required to be retrieved. This is currently used
+	 * by several animation nodes to optimize evaluation time.
+	 */
+	TArray<bool> BonesRequired;
+
 	FAnimExtractContext()
 		: bExtractRootMotion(false)
 		, CurrentTime(0.f)
@@ -204,6 +211,14 @@ struct FAnimExtractContext
 	{
 	}
 
+	bool IsBoneRequired(int32 BoneIndex) const
+	{
+		if (BoneIndex >= BonesRequired.Num())
+		{
+			return true;
+		}
+		return BonesRequired[BoneIndex];
+	}
 };
 
 //Represent a current play position in an animation
