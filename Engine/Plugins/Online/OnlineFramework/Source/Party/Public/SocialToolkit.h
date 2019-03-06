@@ -67,6 +67,7 @@ public:
 	 *  Default is to execute after initialization and is generally more appropriate.
 	 */
 	void QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit = true);
+	void QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate);
 
 	/**
 	 * Attempts to send a friend invite to another user based on display name or email.
@@ -74,8 +75,7 @@ public:
 	 */
 	void TrySendFriendInvite(const FString& DisplayNameOrEmail) const;
 
-	void QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate);
-	void RequestDisplayPlatformSocialUI() const;
+	bool GetAuthAttribute(ESocialSubsystem SubsystemType, const FString& AttributeKey, FString& OutValue) const;
 
 	const FString& GetRecentPlayerNamespaceToQuery() const { return RecentPlayerNamespaceToQuery; }
 	
