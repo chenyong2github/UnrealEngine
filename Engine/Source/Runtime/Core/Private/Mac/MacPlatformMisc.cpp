@@ -1960,7 +1960,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 	{
 		bReentranceGuard = true;
 
-		FMacCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
+		FMacCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
 		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
 		EnsureContext.GenerateEnsureInfoAndLaunchReporter();
 
