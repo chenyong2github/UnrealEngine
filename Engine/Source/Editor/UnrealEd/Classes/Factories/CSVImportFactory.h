@@ -81,5 +81,9 @@ private:
 
 	UPROPERTY()
 	FCSVImportSettings AutomatedImportSettings;
+
+	/** Temporary data table to use to display import options */
+	UPROPERTY()
+	UDataTable* TempImportDataTable;
 };
 

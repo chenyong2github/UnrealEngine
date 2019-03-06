@@ -493,7 +493,21 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 
 		if (!ParsedPropertyValue.IsValid())
 		{
-			ImportProblems.Add(FString::Printf(TEXT("Row '%s' is missing an entry for '%s'."), *InRowName.ToString(), *ColumnName));
+#if WITH_EDITOR
+			// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
+			// then avoid warning about it
+			static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
+			if (BaseProp->HasMetaData(DataTableImportOptionalMetadataKey))
+			{
+				continue;
+			}
+#endif // WITH_EDITOR
+
+			if (!DataTable->bIgnoreMissingFields)
+			{
+				ImportProblems.Add(FString::Printf(TEXT("Row '%s' is missing an entry for '%s'."), *InRowName.ToString(), *ColumnName));
+			}
+
 			continue;
 		}
 
