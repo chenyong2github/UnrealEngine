@@ -124,6 +124,12 @@ void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContex
 			}
 		}
 	}
+
+	PoseExtractContext.BonesRequired.SetNumZeroed(BoneBlendWeights.Num());
+	for (int32 BoneIndex = 0; BoneIndex < BoneBlendWeights.Num(); BoneIndex++)
+	{
+		PoseExtractContext.BonesRequired[BoneIndex] = BoneBlendWeights[BoneIndex] > SMALL_NUMBER;
+	}
 }
 
 void FAnimNode_PoseDriver::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
