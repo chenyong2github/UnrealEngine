@@ -1221,6 +1221,8 @@ void FThreadStats::FlushRegularStats( bool bHasBrokenCallstacks, bool bForceFlus
 
 void FThreadStats::FlushRawStats( bool bHasBrokenCallstacks /*= false*/, bool bForceFlush /*= false*/ )
 {
+	LLM_SCOPE(ELLMTag::Stats);
+
 	if (bReentranceGuard)
 	{
 		return;
