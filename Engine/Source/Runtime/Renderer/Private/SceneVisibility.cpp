@@ -3158,10 +3158,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				// Clamp DeltaWorldTime to reasonable values for the purposes of motion blur, things like TimeDilation can make it very small
 				if (!ViewFamily.bWorldIsPaused)
 				{
-					const bool bEnableTimeScale = !ViewState->bSequencerIsPaused;
-					const float FixedBlurTimeScale = 2.0f;// 1 / (30 * 1 / 60)
-
-					ViewState->MotionBlurTimeScale = bEnableTimeScale ? (1.0f / (FMath::Max(View.Family->DeltaWorldTime, .00833f) * 30.0f)) : FixedBlurTimeScale;
+					ViewState->UpdateMotionBlurTimeScale(View);
 				}
 			}
 
@@ -3192,6 +3189,43 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		DitherUniformShaderParameters.LODFactor = View.GetTemporalLODTransition() - 1.0f;
 		View.DitherFadeInUniformBuffer = FDitherUniformBufferRef::CreateUniformBufferImmediate(DitherUniformShaderParameters, UniformBuffer_SingleFrame);
 	}
+}
+
+void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
+{
+	const int32 MotionBlurTargetFPS = View.FinalPostProcessSettings.MotionBlurTargetFPS;
+
+	// Frame rates over 120 FPS are clamped to avoid creating huge motion vectors.
+	float DeltaWorldTime = FMath::Max(View.Family->DeltaWorldTime, 1.0f / 120.0f);
+
+	// Track the current FPS by using an exponential moving average of the current delta time.
+	if (MotionBlurTargetFPS <= 0)
+	{
+		// Keep motion vector lengths stable for paused sequencer frames.
+		if (bSequencerIsPaused)
+		{
+			// Reset the moving average to the current delta time.
+			MotionBlurTargetDeltaTime = DeltaWorldTime;
+		}
+		else
+		{
+			// Smooth the target delta time using a moving average.
+			MotionBlurTargetDeltaTime = FMath::Lerp(MotionBlurTargetDeltaTime, DeltaWorldTime, 0.1f);
+		}
+	}
+	else // Track a fixed target FPS.
+	{
+		// Keep motion vector lengths stable for paused sequencer frames. Assumes a 60 FPS tick.
+		// Tuned for content compatibility with existing content when target is the default 30 FPS.
+		if (bSequencerIsPaused)
+		{
+			DeltaWorldTime = 1.0f / 60.0f;
+		}
+
+		MotionBlurTargetDeltaTime = 1.0f / static_cast<float>(MotionBlurTargetFPS);
+	}
+
+	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaWorldTime;
 }
 
 static TAutoConsoleVariable<int32> CVarAlsoUseSphereForFrustumCull(
