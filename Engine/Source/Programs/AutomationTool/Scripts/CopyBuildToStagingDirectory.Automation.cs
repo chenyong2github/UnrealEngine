@@ -2328,6 +2328,11 @@ public partial class Project : CommandUtils
 
 				string OriginalFilename = StagingFile.Key;
 				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
+				if(Path.GetExtension(NoExtension) == ".m")
+				{
+					// Hack around .m.ubulk files having a double extension
+					NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
+				}
 				string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
 				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
