@@ -13,6 +13,7 @@
 #include "ClearQuad.h"
 #include "ShaderParameterUtils.h"
 #include "SkeletalMeshTypes.h"
+#include "HAL/LowLevelMemTracker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalGPUSkinMesh, Warning, All);
 
@@ -248,6 +249,8 @@ void FSkeletalMeshObjectGPUSkin::ReleaseMorphResources()
 
 void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	// make sure morph data has been initialized for each LOD
 	if(InMeshComponent && !bMorphResourcesInitialized && ActiveMorphTargets.Num() > 0 )
 	{
