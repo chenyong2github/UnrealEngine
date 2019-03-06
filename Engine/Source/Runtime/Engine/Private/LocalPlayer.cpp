@@ -119,6 +119,16 @@ UWorld* FLocalPlayerContext::GetWorld() const
 	return GetLocalPlayer()->GetWorld();
 }
 
+UGameInstance* FLocalPlayerContext::GetGameInstance() const
+{
+	if (UWorld* WorldPtr = GetWorld())
+	{
+		return WorldPtr->GetGameInstance();
+	}
+
+	return nullptr;
+}
+
 ULocalPlayer* FLocalPlayerContext::GetLocalPlayer() const
 {
 	ULocalPlayer* LocalPlayerPtr = LocalPlayer.Get();
