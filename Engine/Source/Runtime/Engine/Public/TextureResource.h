@@ -27,7 +27,10 @@ class UTexture2D;
 /** Maximum number of slices in texture source art. */
 #define MAX_TEXTURE_SOURCE_SLICES 6
 
-#define TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA !(WITH_EDITORONLY_DATA)
+#ifndef FORCE_ENABLE_TEXTURE_STREAMING
+#define FORCE_ENABLE_TEXTURE_STREAMING 0
+#endif
+#define TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA (!(WITH_EDITORONLY_DATA) && !(UE_SERVER) && FORCE_ENABLE_TEXTURE_STREAMING && PLATFORM_SUPPORTS_TEXTURE_STREAMING)
 
 /**
  * A 2D texture mip-map.
@@ -61,7 +64,7 @@ struct FTexture2DMipMap
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
 		const void* LockReadOnly() const { return TexelData; }
-		void* Lock(EBulkDataLockFlags LockFlags) { return TexelData; }
+		void* Lock(uint32 LockFlags) { return TexelData; }
 		void Unlock() const;
 		void* Realloc(int32 NumBytes);
 		void GetCopy(void** Dest, bool bDiscardInternalCopy = true);
