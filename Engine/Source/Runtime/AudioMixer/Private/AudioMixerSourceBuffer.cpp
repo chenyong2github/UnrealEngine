@@ -63,11 +63,14 @@ namespace Audio
 		, LoopingMode(ELoopingMode::LOOP_Never)
 		, NumChannels(0)
 		, BufferType(Audio::EBufferType::Invalid)
+		, NumPrecacheFrames(0)
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
 		, bIsSeeking(false)
 		, bLoopCallback(false)
+		, bProcedural(false)
+		, bIsBus(false)
 	{
 	}
 
@@ -86,7 +89,10 @@ namespace Audio
 		// Clean up decompression state after things have been finished using it
 		if (DecompressionState)
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().RemoveDecoder(DecompressionState);
+			if (BufferType == EBufferType::Streaming)
+			{
+				IStreamingManager::Get().GetAudioStreamingManager().RemoveDecoder(DecompressionState);
+			}
 
 			delete DecompressionState;
 			DecompressionState = nullptr;
@@ -96,22 +102,23 @@ namespace Audio
 	bool FMixerSourceBuffer::PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
+		if (!InWave)
+		{
+			return false;
+		}
 
 		NumChannels = InBuffer->NumChannels;
 		BufferType = InBuffer->GetType();
-
-		// If this is a PCM buffer type, we need to take ownership of the raw pcm data
-		if (BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview)
+		bIsBus = InWave->bIsBus;
+		bProcedural = InWave->bProcedural;
+		NumPrecacheFrames = InWave->NumPrecacheFrames;
+		
+		check(SoundWave == nullptr);
+		// Only need to have a handle to a USoundWave for procedural sound waves
+		if (bProcedural)
 		{
-			check(RawPCMDataBuffer.Data == nullptr);
-			check(RawPCMDataBuffer.DataSize == 0);
-
-			// GetPCMData will retrieve ownership of the raw PCM data
-			InBuffer->GetPCMData(&RawPCMDataBuffer.Data, &RawPCMDataBuffer.DataSize);
+			SoundWave = InWave;
 		}
-
-		// May or may not be nullptr
-		SoundWave = InWave;
 
 		LoopingMode = InLoopingMode;
 		bIsSeeking = bInIsSeeking;
@@ -134,22 +141,29 @@ namespace Audio
 
 	void FMixerSourceBuffer::SetDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
 	{
-		DecompressionState = InCompressedAudioInfo;
-		if (BufferType == EBufferType::Streaming)
+		if (DecompressionState == nullptr)
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().AddDecoder(DecompressionState);
+			DecompressionState = InCompressedAudioInfo;
+			if (BufferType == EBufferType::Streaming)
+			{
+				IStreamingManager::Get().GetAudioStreamingManager().AddDecoder(DecompressionState);
+			}
 		}
+	}
+
+	void FMixerSourceBuffer::SetPCMData(const FRawPCMDataBuffer& InPCMDataBuffer)
+	{
+		check(BufferType == EBufferType::PCM || EBufferType::PCMPreview);
+		RawPCMDataBuffer = InPCMDataBuffer;
+	}
+
+	void FMixerSourceBuffer::SetCachedRealtimeFirstBuffers(TArray<uint8>&& InPrecachedBuffers)
+	{
+		CachedRealtimeFirstBuffer = MoveTemp(InPrecachedBuffers);
 	}
 
 	bool FMixerSourceBuffer::Init()
 	{
-		check(SoundWave);
-		if (SoundWave->bProcedural && SoundWave->IsGenerating())
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
-			return false;
-		}
-
 		// We have successfully initialized which means our SoundWave has been flagged as bIsActive
 		// GC can run between PreInit and Init so when cleaning up FMixerSourceBuffer, we don't want to touch SoundWave unless bInitailized is true.
 		// SoundWave->bIsSoundActive will prevent GC until it is released in audio render thread
@@ -176,7 +190,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::OnBufferEnd()
 	{
-		if ((NumBuffersQeueued == 0 && bBufferFinished) || !SoundWave)
+		if ((NumBuffersQeueued == 0 && bBufferFinished) && (bProcedural && !SoundWave))
 		{
 			return;
 		}
@@ -229,11 +243,10 @@ namespace Audio
 		CurrentBuffer = 0;
 
 		bPlayedCachedBuffer = false;
-		if (!bIsSeeking && SoundWave && SoundWave->CachedRealtimeFirstBuffer)
+		if (!bIsSeeking && CachedRealtimeFirstBuffer.Num() > 0)
 		{
 			bPlayedCachedBuffer = true;
 
-			const int32 NumPrecacheFrames = SoundWave->NumPrecacheFrames;
 			const uint32 NumSamples = NumPrecacheFrames * NumChannels;
 			const uint32 BufferSize = NumSamples * sizeof(int16);
 
@@ -247,8 +260,8 @@ namespace Audio
 					SourceVoiceBuffers[i]->AudioData.AddUninitialized(NumSamples);
 				}
 
-				int16* CachedBufferPtr0 = (int16*)SoundWave->CachedRealtimeFirstBuffer;
-				int16* CachedBufferPtr1 = (int16*)(SoundWave->CachedRealtimeFirstBuffer + BufferSize);
+				int16* CachedBufferPtr0 = (int16*)CachedRealtimeFirstBuffer.GetData();
+				int16* CachedBufferPtr1 = (int16*)(CachedRealtimeFirstBuffer.GetData() + BufferSize);
 				float* AudioData0 = SourceVoiceBuffers[0]->AudioData.GetData();
 				float* AudioData1 = SourceVoiceBuffers[1]->AudioData.GetData();
 				for (uint32 Sample = 0; Sample < NumSamples; ++Sample)
@@ -272,7 +285,7 @@ namespace Audio
 				SourceVoiceBuffers[0]->AudioData.Reset();
 				SourceVoiceBuffers[0]->AudioData.AddUninitialized(NumSamples);
 
-				int16* CachedBufferPtr0 = (int16*)SoundWave->CachedRealtimeFirstBuffer;
+				int16* CachedBufferPtr0 = (int16*)CachedRealtimeFirstBuffer.GetData();
 
 				float* AudioData0 = SourceVoiceBuffers[0]->AudioData.GetData();
 				for (uint32 Sample = 0; Sample < NumSamples; ++Sample)
@@ -287,7 +300,7 @@ namespace Audio
 			}
 #endif
 		}
-		else if (SoundWave && !SoundWave->bIsBus)
+		else if (!bIsBus)
 		{
 			// We should have already kicked off and finished a task. 
 			check(AsyncRealtimeAudioTask != nullptr);
@@ -302,8 +315,9 @@ namespace Audio
 		SourceVoiceBuffers[BufferIndex]->AudioData.Reset();
 		SourceVoiceBuffers[BufferIndex]->AudioData.AddUninitialized(MaxSamples);
 
-		if (SoundWave && SoundWave->bProcedural)
+		if (bProcedural)
 		{
+			check(SoundWave && SoundWave->bProcedural);
 			FProceduralAudioTaskData NewTaskData;
 			NewTaskData.ProceduralSoundWave = SoundWave;
 			NewTaskData.AudioData = SourceVoiceBuffers[BufferIndex]->AudioData.GetData();
@@ -333,15 +347,7 @@ namespace Audio
 		NewTaskData.bLoopingMode = LoopingMode != LOOP_Never;
 		NewTaskData.bSkipFirstBuffer = (BufferReadMode == EBufferReadMode::AsynchronousSkipFirstFrame);
 		NewTaskData.NumFramesToDecode = MONO_PCM_BUFFER_SAMPLES;
-
-		if (SoundWave)
-		{
-			NewTaskData.NumPrecacheFrames = SoundWave->NumPrecacheFrames;
-		}
-		else
-		{
-			NewTaskData.NumPrecacheFrames = MONO_PCM_BUFFER_SAMPLES;
-		}
+		NewTaskData.NumPrecacheFrames = NumPrecacheFrames;
 
 		check(!AsyncRealtimeAudioTask);
 		AsyncRealtimeAudioTask = CreateAudioTask(NewTaskData);
@@ -476,7 +482,12 @@ namespace Audio
 
 	bool FMixerSourceBuffer::IsBeginDestroy()
 	{
-		return SoundWave && SoundWave->bIsBeginDestroy;
+		if (bProcedural)
+		{
+			check(SoundWave && SoundWave->bProcedural);
+			return SoundWave->bIsBeginDestroy;
+		}
+		return false;
 	}
 
 	void FMixerSourceBuffer::ClearSoundWave()
@@ -487,14 +498,11 @@ namespace Audio
 
 	void FMixerSourceBuffer::OnBeginGenerate()
 	{
-		if (SoundWave)
+		if (bProcedural)
 		{
-			if (SoundWave->bProcedural)
-			{
-				SoundWave->SetGenerating(true);
-				SoundWave->OnBeginGenerate();
-			}
-
+			check(SoundWave && SoundWave->bProcedural);
+			SoundWave->SetGenerating(true);
+			SoundWave->OnBeginGenerate();
 		}
 	}
 
@@ -504,14 +512,11 @@ namespace Audio
 		EnsureAsyncTaskFinishes();
 
 		// Only need to call OnEndGenerate and access SoundWave here if we successfully initialized
-		if (bInitialized && SoundWave)
+		if (bInitialized && bProcedural)
 		{
-			if (SoundWave->bProcedural)
-			{
-				SoundWave->OnEndGenerate();
-				SoundWave->SetGenerating(false);
-			}
-
+			check(SoundWave && SoundWave->bProcedural);
+			SoundWave->OnEndGenerate();
+			SoundWave->SetGenerating(false);
 			SoundWave = nullptr;
 		}
 	}
