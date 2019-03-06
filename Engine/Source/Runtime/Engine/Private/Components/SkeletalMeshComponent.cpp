@@ -2162,6 +2162,7 @@ void USkeletalMeshComponent::SwapEvaluationContextBuffers()
 
 void USkeletalMeshComponent::DispatchParallelEvaluationTasks(FActorComponentTickFunction* TickFunction)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	SwapEvaluationContextBuffers();
 
 	// start parallel work
