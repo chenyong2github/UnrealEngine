@@ -167,7 +167,6 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, bWantsStaticShadowing(InLightComponent->Mobility == EComponentMobility::Stationary)
 	, bHasStaticLighting(InLightComponent->HasStaticLighting())
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
-	, bCastRayTracedShadow(InLightComponent->bCastRaytracedShadow)
 	, OcclusionCombineMode(InLightComponent->OcclusionCombineMode)
 	, IndirectLightingIntensity(InLightComponent->IndirectLightingIntensity)
 	, VolumetricScatteringIntensity(FMath::Max(InLightComponent->VolumetricScatteringIntensity, 0.0f))
@@ -176,7 +175,6 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, OcclusionExponent(FMath::Clamp(InLightComponent->OcclusionExponent, .1f, 10.0f))
 	, MinOcclusion(FMath::Clamp(InLightComponent->MinOcclusion, 0.0f, 1.0f))
 	, OcclusionTint(InLightComponent->OcclusionTint)
-	, SamplesPerPixel(InLightComponent->SamplesPerPixel)
 #if RHI_RAYTRACING
 	, IsDirtyImportanceSamplingData(true)
 #endif
@@ -228,8 +226,6 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	AverageBrightness = 1.0f;
 	BlendDestinationAverageBrightness = 1.0f;
 	bCastVolumetricShadow = true;
-	bCastRaytracedShadow = false;
-	SamplesPerPixel = 1;
 }
 
 #if RHI_RAYTRACING

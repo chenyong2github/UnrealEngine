@@ -586,6 +586,22 @@ public:
 	}
 };
 
+struct FRayTracingGeometryInstanceCollection
+{
+	enum class TransformMode
+	{
+		InheritFromSceneProxy,
+		Identity,
+		CustomInstances
+	};
+
+	FRayTracingGeometry* Geometry = nullptr;
+	uint32 NumDynamicVertices = 0;
+	FRWBuffer* DynamicVertexPositionBuffer = nullptr;
+	TransformMode InstanceTransformMode;
+	TArray<FMatrix> CustomTransforms;
+};
+
 class RENDERCORE_API FRayTracingScene : public FRenderResource
 {
 public:

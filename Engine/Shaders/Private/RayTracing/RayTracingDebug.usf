@@ -2,10 +2,9 @@
 
 #include "../Common.ush"
 #include "../ShadingCommon.ush"
+#include "RayTracingDebugDefinitions.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
-
-#include "/Engine/Shared/RayTracingDebugDefinitions.h"
 
 RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
@@ -43,9 +42,9 @@ void RayTracingDebugMainRGS()
 	FMaterialClosestHitPayload Payload = TraceRayInternal(
 		TLAS,   // AccelerationStructure
 		RayFlags,
-		RAY_TRACING_MASK_ALL,
-		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
+		0xFF,   // InstanceInclusionMask
+		0,      // RayContributionToHitGroupIndex
+		1,      // MultiplierForGeometryContributionToShaderIndex
 		0,      // MissShaderIndex
 		Ray,    // RayDesc
 		RayCone

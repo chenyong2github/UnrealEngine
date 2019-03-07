@@ -1166,7 +1166,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
-		, DebugName(nullptr)
+		, DebugName(NULL)
 	{}
 
 	// for CreateTexture calls
@@ -1174,7 +1174,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(InBulkData)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
-		, DebugName(nullptr)
+		, DebugName(NULL)
 	{}
 
 	// for CreateVertexBuffer/CreateStructuredBuffer calls
@@ -1182,22 +1182,14 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(InResourceArray)
 		, ClearValueBinding(FLinearColor::Transparent)
-		, DebugName(nullptr)
+		, DebugName(NULL)
 	{}
 
 	FRHIResourceCreateInfo(const FClearValueBinding& InClearValueBinding)
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(InClearValueBinding)
-		, DebugName(nullptr)
-	{
-	}
-
-	FRHIResourceCreateInfo(const TCHAR* InDebugName)
-		: BulkData(nullptr)
-		, ResourceArray(nullptr)
-		, ClearValueBinding(FLinearColor::Transparent)
-		, DebugName(InDebugName)
+		, DebugName(NULL)
 	{
 	}
 

@@ -17,8 +17,7 @@ void PointLight_GenerateLightRay(
 {
 	OutLightRay.Origin = Ray.Origin;
 	OutLightRay.TMin = 0.001;
-	float Radius = GetRadius(LightId);
-	float3 LightDir = GetPosition(LightId) + LightUV * Radius - Ray.Origin;
+	float3 LightDir = GetPosition(LightId) - Ray.Origin;
 	float Length = length(LightDir);
 	OutLightRay.Direction = LightDir / Length;
 	OutLightRay.TMax = Length;
@@ -42,11 +41,9 @@ void PointLight_EvalLight(
 )
 {
 	float3 Color = GetColor(LightId);
-	float Radius = GetRadius(LightId);
-	float3 LightDir = GetPosition(LightId) + LightUV * Radius - Ray.Origin;
+	float3 LightDir = GetPosition(LightId) - Ray.Origin;
 	float DistanceSquared = dot(LightDir, LightDir);
-	float Falloff = ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
-	OutRadiance = Color * Falloff / DistanceSquared;
+	OutRadiance = Color / DistanceSquared;
 }
 
 void PointLight_EstimateLight(
@@ -67,8 +64,7 @@ void PointLight_EstimateLight(
 	float NoL = saturate(dot(SurfaceNormal, LightDirection));
 
 	float LightPower = Luminance(GetColor(LightId));
-	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
-	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
+	OutIrradiance = LightPower * NoL / LightDistanceSquared;
 }
 
 void PointLight_SampleLight(
@@ -80,16 +76,6 @@ void PointLight_SampleLight(
 	out float OutPdf
 )
 {
-	float Radius = GetRadius(LightId);
-	if (Radius > 0.0)
-	{
-		float4 Result = UniformSampleSphere(RandSample.yz);
-		OutLightUV = Result.xyz;
-		OutPdf = Result.w;
-	}
-	else
-	{
-		OutLightUV = 0.0;
-		OutPdf = 1.0;
-	}
+	OutLightUV = 0;
+	OutPdf = 1.0;
 }

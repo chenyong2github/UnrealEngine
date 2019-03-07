@@ -184,23 +184,20 @@ public:
 		const D3D12_HEAP_PROPERTIES& HeapProps,
 		const D3D12_RESOURCE_STATES& InitialUsage,
 		const D3D12_CLEAR_VALUE* ClearValue,
-		FD3D12Resource** ppOutResource,
-		const TCHAR* Name);
+		FD3D12Resource** ppOutResource);
 
 	HRESULT CreatePlacedResource(const D3D12_RESOURCE_DESC& Desc,
 		FD3D12Heap* BackingHeap,
 		uint64 HeapOffset,
 		const D3D12_RESOURCE_STATES& InitialUsage,
 		const D3D12_CLEAR_VALUE* ClearValue,
-		FD3D12Resource** ppOutResource,
-		const TCHAR* Name);
+		FD3D12Resource** ppOutResource);
 
 	HRESULT CreateBuffer(D3D12_HEAP_TYPE HeapType,
 		FRHIGPUMask CreationNode,
 		FRHIGPUMask VisibleNodes,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,
-		const TCHAR* Name,
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
 	HRESULT CreateBuffer(D3D12_HEAP_TYPE HeapType,
@@ -209,14 +206,12 @@ public:
 		D3D12_RESOURCE_STATES InitialState,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,
-		const TCHAR* Name,
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
 	HRESULT CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 		D3D12_RESOURCE_STATES InitialState,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,
-		const TCHAR* Name,
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
 	template <typename BufferType> 

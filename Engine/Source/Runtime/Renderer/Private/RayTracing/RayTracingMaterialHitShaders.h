@@ -8,85 +8,29 @@
 
 #if RHI_RAYTRACING
 
-class FRayTracingMeshProcessor
+class FRayTracingMeshProcessor : public FMeshPassProcessor
 {
 public:
 
-	FRayTracingMeshProcessor(FRayTracingMeshCommandContext* InCommandContext, const FScene* InScene, const FSceneView* InViewIfDynamicMeshCommand)
-		:
-		CommandContext(InCommandContext),
-		Scene(InScene),
-		ViewIfDynamicMeshCommand(InViewIfDynamicMeshCommand),
-		FeatureLevel(InScene->GetFeatureLevel())
-	{}
+	FRayTracingMeshProcessor(const FScene* Scene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
 
-	void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 MeshId = -1) override final;
 
 private:
-	FRayTracingMeshCommandContext* CommandContext;
-	const FScene* Scene;
-	const FSceneView* ViewIfDynamicMeshCommand;
-	ERHIFeatureLevel::Type FeatureLevel;
 
 	void Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
+		int32 MeshId,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
+		EBlendMode BlendMode,
 		EMaterialShadingModel ShadingModel,
 		const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
-		const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData);
-
-	template<typename PassShadersType, typename ShaderElementDataType>
-	void BuildRayTracingMeshCommands(
-		const FMeshBatch& RESTRICT MeshBatch,
-		uint64 BatchElementMask,
-		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
-		const FMaterial& RESTRICT MaterialResource,
-		const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
-		PassShadersType PassShaders,
-		const ShaderElementDataType& ShaderElementData);
-};
-
-class FHiddenMaterialHitGroup : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FHiddenMaterialHitGroup)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FHiddenMaterialHitGroup, FGlobalShader)
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
-class FOpaqueShadowHitGroup : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FOpaqueShadowHitGroup)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FOpaqueShadowHitGroup, FGlobalShader)
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
-};
-
-class FDefaultMaterialMS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDefaultMaterialMS)
-	SHADER_USE_ROOT_PARAMETER_STRUCT(FDefaultMaterialMS, FGlobalShader)
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	using FParameters = FEmptyShaderParameters;
+		const typename FUniformLightMapPolicy::ElementDataType& RESTRICT LightMapElementData,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode);
 };
 
 #endif // RHI_RAYTRACING

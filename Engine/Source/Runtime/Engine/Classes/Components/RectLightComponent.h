@@ -9,8 +9,6 @@
 #include "Components/LocalLightComponent.h"
 #include "RectLightComponent.generated.h"
 
-float ENGINE_API GetRectLightBarnDoorMaxAngle();
-
 class FLightSceneProxy;
 
 /**
@@ -35,18 +33,6 @@ class ENGINE_API URectLightComponent : public ULocalLightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light)
 	float SourceHeight;
 
-	/**
-	 * Angle of barn door attached to the light source rect.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, meta = (UIMin = "0.0", UIMax = "90.0"))
-	float BarnDoorAngle;
-	
-	/**
-	 * Length of barn door attached to the light source rect.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, meta = (UIMin = "0.0"))
-	float BarnDoorLength;
-
 	/** Texture mapped to the light source rectangle */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Light)
 	class UTexture* SourceTexture;
@@ -56,12 +42,6 @@ class ENGINE_API URectLightComponent : public ULocalLightComponent
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetSourceHeight(float NewValue);
-
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetBarnDoorAngle(float NewValue);
-	
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetBarnDoorLength(float NewValue);
 
 public:
 

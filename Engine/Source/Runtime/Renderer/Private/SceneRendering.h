@@ -609,7 +609,7 @@ struct FTemporalAAHistory
 struct FScreenSpaceFilteringHistory
 {
 	// Number of history render target to store.
-	static constexpr int32 RTCount = 3;
+	static constexpr int32 RTCount = 2;
 
 	// Render target specific to the history.
 	TRefCountPtr<IPooledRenderTarget> RT[RTCount];
@@ -662,9 +662,6 @@ struct FPreviousViewInfo
 
 	// History for global illumination
 	FScreenSpaceFilteringHistory GlobalIlluminationHistory;
-
-	// History for sky light
-	FScreenSpaceFilteringHistory SkyLightHistory;
 
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
@@ -835,13 +832,8 @@ public:
 
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
-#if RHI_RAYTRACING
-	TUniquePtr<FRayTracingMeshResourceCollector> RayTracingMeshResourceCollector;
-
-	FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
-
-	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
-#endif
+	FMeshCommandOneFrameArray RaytraycingVisibleMeshDrawCommands;
+	FDynamicMeshDrawCommandStorage RaytraycingDynamicMeshDrawCommandStorage;
 
 	// Used by mobile renderer to determine whether static meshes will be rendered with CSM shaders or not.
 	FMobileCSMVisibilityInfo MobileCSMVisibilityInfo;
@@ -875,9 +867,6 @@ public:
 
 	/** Temporal jitter at the pixel scale. */
 	FVector2D TemporalJitterPixels;
-
-	/** Whether view state may be updated with this view. */
-	uint32 bViewStateIsReadOnly : 1;
 
 	/** true if all PrimitiveVisibilityMap's bits are set to false. */
 	uint32 bHasNoVisiblePrimitive : 1;
@@ -978,12 +967,7 @@ public:
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 
-	// Ray tracing scene specific to this view
-	FRayTracingScene RayTracingScene;
-
-	// Primary pipeline state object to be used with the ray tracing scene for this view.
-	// Material shaders are only available when using this pipeline.
-	FRHIRayTracingPipelineState* RayTracingMaterialPipeline = nullptr;
+	FRayTracingScene PerViewRayTracingScene;
 #endif // RHI_RAYTRACING
 
 	/** 
