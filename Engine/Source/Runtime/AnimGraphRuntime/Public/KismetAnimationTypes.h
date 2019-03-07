@@ -57,6 +57,7 @@ public:
 	/** Default constructor */
 	FPositionHistory()
 		: Positions(TArray<FVector>())
+		, Range(0.f)
 		, Velocities(TArray<float>())
 		, LastIndex(0)
 	{}
