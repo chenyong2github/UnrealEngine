@@ -1468,6 +1468,7 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 	SCOPED_NAMED_EVENT(CollectGarbageInternal, FColor::Red);
 	CSV_EVENT_GLOBAL(TEXT("GC"));
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(GarbageCollection);
+	LLM_SCOPE(ELLMTag::GC);
 
 	FGCCSyncObject::Get().ResetGCIsWaiting();
 
