@@ -2362,6 +2362,8 @@ void UStaticMesh::PostInitProperties()
  */
 void UStaticMesh::InitResources()
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
+
 	bRenderingResourcesInitialized = true;
 
 	UpdateUVChannelData(false);
