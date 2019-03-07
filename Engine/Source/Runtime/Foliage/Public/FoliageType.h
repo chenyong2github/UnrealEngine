@@ -92,6 +92,7 @@ class UFoliageType : public UObject
 	virtual UClass* GetComponentClass() const PURE_VIRTUAL(UFoliageType::GetComponentClass(), return nullptr;);
 	
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 
 	virtual bool IsNotAssetOrBlueprint() const;
 

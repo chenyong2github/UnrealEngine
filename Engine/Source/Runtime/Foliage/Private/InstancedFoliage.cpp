@@ -489,6 +489,16 @@ void UFoliageType::Serialize(FArchive& Ar)
 #endif// WITH_EDITORONLY_DATA
 }
 
+void UFoliageType::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!IsTemplate())
+	{
+		BodyInstance.FixupData(this);
+	}
+}
+
 bool UFoliageType::IsNotAssetOrBlueprint() const
 {
 	return IsAsset() == false && Cast<UBlueprint>(GetClass()->ClassGeneratedBy) == nullptr;
