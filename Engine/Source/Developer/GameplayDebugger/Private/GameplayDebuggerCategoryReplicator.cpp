@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayDebuggerCategoryReplicator.h"
-#include "Editor.h"
-#include "Engine/Selection.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayDebuggerAddonBase.h"
 #include "GameplayDebuggerAddonManager.h"
@@ -10,6 +8,11 @@
 #include "GameplayDebuggerRenderingComponent.h"
 #include "GameplayDebuggerExtension.h"
 #include "Net/UnrealNetwork.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Engine/Selection.h"
+#endif // WITH_EDITOR
 
 //////////////////////////////////////////////////////////////////////////
 // FGameplayDebuggerCategoryReplicatorData
