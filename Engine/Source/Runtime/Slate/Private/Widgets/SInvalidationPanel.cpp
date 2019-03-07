@@ -125,6 +125,7 @@ SInvalidationPanel::~SInvalidationPanel()
 
 	if ( FSlateApplication::IsInitialized() )
 	{
+		FSlateApplicationBase::Get().OnGlobalInvalidate().RemoveAll(this);
 		FSlateApplication::Get().ReleaseResourcesForLayoutCache(this);
 	}
 }
