@@ -160,7 +160,7 @@ FPartyJoinApproval USocialParty::EvaluateJIPRequest(const FUniqueNetId& PlayerId
 	return JoinApproval;
 }
 
-bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FOnlinePartyData& JoinData) const
+bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const
 {
 	const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
 	const bool bSenderAllowsCrossplay = !OptedOutOfCrossplay(SenderCrossplayPreference);
@@ -191,7 +191,7 @@ bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, c
 		}
 	}
 
-	return JoinApproval.DenialReason.HasAnyReason();
+	return JoinApproval.GetDenialReason().HasAnyReason();
 }
 
 FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const
@@ -213,7 +213,7 @@ FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerI
 		{
 			if (bAlwaysCheckCrossplatformOnPartyJoin)
 			{
-				ApplyCrossplayRestriction(JoinApproval, JoinData);
+				ApplyCrossplayRestriction(JoinApproval, Platform, JoinData);
 			}
 		}
 
