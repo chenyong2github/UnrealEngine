@@ -293,8 +293,9 @@ bool FGameplayMediaEncoder::Start()
 
 		VideoEncoder->Start();
 		FSlateRenderer::FOnBackBufferReadyToPresent OnBackBufferReadyDelegate;
-		OnBackBufferReadyDelegate.BindRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
-		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
+		// FIXME
+		//OnBackBufferReadyDelegate.BindRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
+		//FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
 	}
 
 	return true;
@@ -320,7 +321,8 @@ void FGameplayMediaEncoder::Stop()
 
 		if (FSlateApplication::IsInitialized())
 		{
-			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Unbind();
+			// FIXME
+			//FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Unbind();
 		}
 	}
 
