@@ -1434,7 +1434,7 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 	FCoreDelegates::OnFConfigCreated.RemoveAll(this);
 	FCoreDelegates::OnFConfigDeleted.RemoveAll(this);
 
-		delete CookByTheBookOptions;
+	delete CookByTheBookOptions;
 	CookByTheBookOptions = nullptr;
 
 	delete PackageTracker;
@@ -1442,6 +1442,8 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 
 	delete PackageNameCache;
 	PackageNameCache = nullptr;
+
+	ClearHierarchyTimers();
 }
 
 // this tick only happens in the editor cook commandlet directly calls tick on the side
