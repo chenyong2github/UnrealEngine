@@ -230,6 +230,7 @@ protected:
 	/** Override in child classes to specify the type of UPartyMember to create */
 	virtual TSubclassOf<UPartyMember> GetDesiredMemberClass(bool bLocalPlayer) const;
 
+	bool ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FOnlinePartyData& JoinData) const;
 	FName GetGameSessionName() const;
 	bool IsInRestrictedGameSession() const;
 
