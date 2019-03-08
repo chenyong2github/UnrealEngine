@@ -7,6 +7,7 @@
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanLLM.h"
+#include "HAL/LowLevelMemStats.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 

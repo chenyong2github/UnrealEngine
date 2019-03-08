@@ -3,6 +3,7 @@
 #include "MetalLLM.h"
 #include "MetalProfiler.h"
 #include "RenderUtils.h"
+#include "HAL/LowLevelMemStats.h"
 
 #include <objc/runtime.h>
 
