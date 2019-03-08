@@ -1293,7 +1293,7 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType);
 				if (!bCanSplit)
 				{
-					const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeMake"));
+					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
 					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
 					bCanSplit = (Function != NULL);
 				}
@@ -1303,7 +1303,7 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				bCanSplit = UK2Node_BreakStruct::CanBeSplit(StructType);
 				if (!bCanSplit)
 				{
-					const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeBreak"));
+					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
 					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
 					bCanSplit = (Function != NULL);
 				}
@@ -6800,7 +6800,7 @@ UK2Node* UEdGraphSchema_K2::CreateSplitPinNode(UEdGraphPin* Pin, const FCreateSp
 		}
 		else
 		{
-			const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeMake"));
+			const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
 			const UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
 
 			UK2Node_CallFunction* CallFunctionNode;
@@ -6848,7 +6848,7 @@ UK2Node* UEdGraphSchema_K2::CreateSplitPinNode(UEdGraphPin* Pin, const FCreateSp
 		}
 		else
 		{
-			const FString& MetaData = StructType->GetMetaData(TEXT("HasNativeBreak"));
+			const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
 			const UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
 
 			UK2Node_CallFunction* CallFunctionNode;

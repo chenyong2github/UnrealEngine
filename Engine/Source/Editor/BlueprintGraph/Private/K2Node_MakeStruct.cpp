@@ -243,7 +243,7 @@ FLinearColor UK2Node_MakeStruct::GetNodeTitleColor() const
 
 bool UK2Node_MakeStruct::CanBeMade(const UScriptStruct* Struct, const bool bForInternalUse)
 {
-	return (Struct && !Struct->HasMetaData(TEXT("HasNativeMake")) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Struct, bForInternalUse));
+	return (Struct && !Struct->HasMetaData(FBlueprintMetadata::MD_NativeMakeFunction) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Struct, bForInternalUse));
 }
 
 bool UK2Node_MakeStruct::CanBeSplit(const UScriptStruct* Struct)
