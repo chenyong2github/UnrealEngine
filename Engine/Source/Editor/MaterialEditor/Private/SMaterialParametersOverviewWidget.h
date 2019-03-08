@@ -88,6 +88,8 @@ private:
 
 	/** The tree contained in this item */
 	TSharedPtr<class SMaterialParametersOverviewTree> NestedTree;
+
+	TSharedPtr<class SScrollBar> ExternalScrollbar;
 };
 
 // ********* SMaterialParametersOverviewTree *******
@@ -100,10 +102,12 @@ public:
 	SLATE_BEGIN_ARGS(SMaterialParametersOverviewTree)
 		: _InMaterialEditorInstance(nullptr)
 		, _InOwner(nullptr)
+		, _InScrollbar()
 	{}
 
 	SLATE_ARGUMENT(UMaterialEditorPreviewParameters*, InMaterialEditorInstance)
 	SLATE_ARGUMENT(TSharedPtr<SMaterialParametersOverviewPanel>, InOwner)
+	SLATE_ARGUMENT(TSharedPtr<SScrollBar>, InScrollbar)
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
