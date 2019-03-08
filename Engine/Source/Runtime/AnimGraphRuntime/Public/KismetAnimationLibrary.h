@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Components/SceneComponent.h"
+#include "Curves/CurveFloat.h"
 #include "KismetAnimationTypes.h"
 #include "KismetAnimationLibrary.generated.h"
 
@@ -164,18 +165,6 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 		float VelocityMax
 	);
 
-	/**
-	 *	This function perform easing on a float value using a variety of easing types.
-	 *
-	 *	@param Value The float value to ease
-	 *	@param EasingType The easing function to use
-	 */
-	UFUNCTION(BlueprintPure, Category = "Utilities|Animation", meta = (DisplayName = "Scalar Easing", ScriptName = "ScalarEasing", Value = "0.f"))
-	static float K2_ScalarEasing(
-		float Value, 
-		EEasingFuncType EasingType
-	);
-
 	/** 
 	 *	This function calculates the velocity of an offset position on a bone / socket over time.
 	 *	The bone's / socket's motion can be expressed within a reference frame (another bone / socket). 
@@ -192,6 +181,7 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	 *	@param VelocityMin The minimum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
 	 *	@param VelocityMax The maximum velocity to use for normalization (if both min and max are set to 0, normalization is turned off)
 	 *	@param EasingType The easing function to use
+	 *	@param CustomCurve The curve to use if the easing type is "Custom"
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "Calculate Velocity From Sockets", ScriptName = "CalculateVelocityFromSockets", NumberOfSamples = "16", VelocityMin = "0.f", VelocityMax = "128.f"))
 	static float K2_CalculateVelocityFromSockets(
@@ -205,7 +195,9 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 		int32 NumberOfSamples,
 		float VelocityMin,
 		float VelocityMax,
-		EEasingFuncType EasingType
-	);
+		EEasingFuncType EasingType,
+		const FRuntimeFloatCurve& CustomCurve
+		);
+
 };
 
