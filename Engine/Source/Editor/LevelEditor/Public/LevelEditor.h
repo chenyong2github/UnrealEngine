@@ -231,6 +231,7 @@ public:
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarSourceControlMenuExtenders() { return LevelEditorToolbarSourceControlMenuExtenders; }
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarCreateMenuExtenders() { return LevelEditorToolbarCreateMenuExtenders; }
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarPlayMenuExtenders() { return LevelEditorToolbarPlayMenuExtenders; }
+	virtual TArray<TSharedPtr<FExtender>>& GetAllLevelEditorToolbarBlueprintsMenuExtenders() { return LevelEditorToolbarBlueprintsMenuExtenders; }
 	virtual TArray<TSharedPtr<FExtender>>& GetAllLevelEditorToolbarCinematicsMenuExtenders() {return LevelEditorToolbarCinematicsMenuExtenders;}
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorLevelMenuExtenders() { return LevelEditorLevelMenuExtenders; }
 	
@@ -384,6 +385,7 @@ private:
 	TArray<FLevelEditorMenuExtender> LevelEditorToolbarCreateMenuExtenders;
 	TArray<FLevelEditorMenuExtender> LevelEditorToolbarPlayMenuExtenders;
 	TArray<TSharedPtr<FExtender>> LevelEditorToolbarCinematicsMenuExtenders;
+	TArray<TSharedPtr<FExtender>> LevelEditorToolbarBlueprintsMenuExtenders;
 	TArray<FLevelEditorMenuExtender> LevelEditorLevelMenuExtenders;
 
 	/* Pointer to the current level Editor instance */
