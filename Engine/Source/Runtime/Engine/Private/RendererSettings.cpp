@@ -2,6 +2,7 @@
 
 #include "Engine/RendererSettings.h"
 #include "PixelFormat.h"
+#include "RHI.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
