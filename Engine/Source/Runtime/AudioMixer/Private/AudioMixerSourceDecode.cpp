@@ -50,6 +50,8 @@ public:
 				// Make sure we've been flagged as active
 				if (!ProceduralTaskData.ProceduralSoundWave->IsGenerating())
 				{
+					// Act as if we generated audio.
+					ProceduralResult.NumSamplesWritten = ProceduralTaskData.NumSamples;
 					return;
 				}
 
