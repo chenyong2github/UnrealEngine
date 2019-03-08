@@ -642,6 +642,8 @@ public:
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject
 {
 public:
+	virtual void ShutdownModule() override;
+
 	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer();
 
 	/** FTickableGameObject */
