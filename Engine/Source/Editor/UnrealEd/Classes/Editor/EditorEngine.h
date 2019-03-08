@@ -339,7 +339,7 @@ struct FSelectionStateOfLevel
 	TArray<FString> SelectedComponents;
 };
 
-/** Overrides you can pass when starting PIE to temporarily supress the user's options for dedicated server, number of clients..etc. */
+/** Overrides you can pass when starting PIE to temporarily suppress the user's options for dedicated server, number of clients..etc. */
 struct FPlayInEditorOverrides
 {
 	FPlayInEditorOverrides()
@@ -2658,6 +2658,9 @@ public:
 	 * @return	true if world created successfully
 	 */
 	bool CreatePIEWorldFromLogin(FWorldContext& PieWorldContext, EPlayNetMode PlayNetMode, FPieLoginStruct& DataStruct);
+
+	/** Called before creating a PIE server instance. */
+	virtual FGameInstancePIEResult PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances);
 
 	/*
 	 * Handler for when viewport close request is made. 
