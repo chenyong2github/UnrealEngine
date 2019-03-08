@@ -956,14 +956,17 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 #if WITH_EDITOR
 	if (WorldContextHandle != NAME_None)
 	{
-		FWorldContext& WorldContext = GEngine->GetWorldContextFromHandleChecked(WorldContextHandle);
-		check(WorldContext.WorldType == EWorldType::Game || WorldContext.WorldType == EWorldType::PIE);
-		World = WorldContext.World();
-	}
-	else
+		const FWorldContext* WorldContext = GEngine->GetWorldContextFromHandle(WorldContextHandle);
+		if (WorldContext)
+		{
+			check(WorldContext->WorldType == EWorldType::Game || WorldContext->WorldType == EWorldType::PIE);
+			World = WorldContext->World();
+		}		
+	}	
 #endif
+
+	if (!World)
 	{
-		ensure(WorldContextHandle == NAME_None);
 		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
 		if (GameEngine)
 		{
@@ -971,13 +974,11 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 		}
 		else
 		{
-#if WITH_EDITOR
 			// The calling code didn't pass in a world context and really should have
 			if (GIsPlayInEditorWorld)
 			{
 				World = GWorld;
 			}
-#endif
 
 #if !WITH_DEV_AUTOMATION_TESTS
 			// Not having a world to make the right determination is a bad thing
