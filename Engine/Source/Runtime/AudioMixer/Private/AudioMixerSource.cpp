@@ -298,7 +298,7 @@ namespace Audio
 				MixerSourceBuffer->SetPCMData(RawPCMDataBuffer);
 			}
 #if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
-			else if (BufferType == EBufferType::PCMRealTime || EBufferType::Streaming)
+			else if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
 			{
 				USoundWave* WaveData = WaveInstance->WaveData;
 				if (WaveData->CachedRealtimeFirstBuffer)
