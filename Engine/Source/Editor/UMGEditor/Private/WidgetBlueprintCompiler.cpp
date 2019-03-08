@@ -378,6 +378,11 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		}
 	}
 
+	if (WidgetBP == nullptr)
+	{
+		return;
+	}
+	
 	// Add movie scenes variables here
 	for (UWidgetAnimation* Animation : WidgetBP->Animations)
 	{
