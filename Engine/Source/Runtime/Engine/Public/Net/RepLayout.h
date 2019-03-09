@@ -1713,6 +1713,7 @@ private:
 		FRepShadowDataBuffer ShadowData, 
 		FRepObjectDataBuffer Data, 
 		const int32 MaxAbsOffset,
+		bool& bCalledPreNetReceive,
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const;
 
