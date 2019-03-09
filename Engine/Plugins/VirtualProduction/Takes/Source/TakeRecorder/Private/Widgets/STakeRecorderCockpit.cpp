@@ -465,6 +465,14 @@ void STakeRecorderCockpit::UpdateRecordError()
 		RecordErrorText = FText::Format(LOCTEXT("ErrorWidget_InvalidPath", "{0} is not a valid asset path."), FText::FromString(PackageName));
 		return;
 	}
+
+	const int32 MaxLength = 260;
+
+	if (PackageName.Len() > MaxLength)
+	{
+		RecordErrorText = FText::Format(LOCTEXT("ErrorWidget_TooLongth", "The path to the asset is too long '{0}', the maximum is '{1}'\nPlease choose a shorter name for the slate or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(PackageName.Len()), FText::AsNumber(MaxLength));
+		return;
+	}
 }
 
 void STakeRecorderCockpit::UpdateTakeError()
