@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "UObject/CoreOnline.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalFileReplay, Log, All);
 
