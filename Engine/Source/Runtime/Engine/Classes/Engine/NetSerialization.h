@@ -271,7 +271,7 @@ public:
 
 	FNetFastTArrayBaseState():
 		ArrayReplicationKey(INDEX_NONE),
-		ChangelistHistory(INDEX_NONE)
+		ChangelistHistory(0)
 	{}
 
 	virtual bool IsStateEqual(INetDeltaBaseState* OtherState)
@@ -293,7 +293,7 @@ public:
 
 	int32 ArrayReplicationKey;
 
-	int32 ChangelistHistory;
+	uint32 ChangelistHistory;
 };
 
 
@@ -1421,6 +1421,9 @@ struct FFastArrayDeltaSerializeParams
 {
 	FNetDeltaSerializeInfo& DeltaSerializeInfo;
 	FFastArraySerializer& ArraySerializer;
+	const PTRINT PatchedItemOffset;
+	const PTRINT PatchedArrayOffset;
+
 	TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>>* WriteChangedElements = nullptr;
 	FNetFastTArrayBaseState* WriteBaseState = nullptr;
 	TArray<int32, TInlineAllocator<8>>* ReadChangedElements = nullptr;
@@ -1441,10 +1444,16 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		Parms
 	};
 
+#define CALC_PATCH_OFFSET(Base, Derived) ((PTRINT)((Base*)((Derived*)1)) - 1)
+
 	FFastArrayDeltaSerializeParams DeltaSerializeParams{
 		Parms,
-		ArraySerializer
+		ArraySerializer,
+		/*PatchedItemOffset=*/ CALC_PATCH_OFFSET(FFastArraySerializerItem, Type),
+		/*PatchedArrayOffset*/ CALC_PATCH_OFFSET(FFastArraySerializer, SerializerType)
 	};
+
+#undef CALC_PATCH_OFFSET
 
 	//---------------
 	// Build ItemMap if necessary. This maps ReplicationID to our local index into the Items array.
