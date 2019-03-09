@@ -60,5 +60,5 @@ private:
 	/** Callback for executing the "Add Event Track" menu entry. */
 	void HandleAddEventTrackMenuEntryExecute(TArray<FGuid> InObjectBindingIDs, UClass* SectionType);
 
-	void CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex, UClass* SectionType);
+	void CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex, UClass* SectionType, bool bSelect);
 };
