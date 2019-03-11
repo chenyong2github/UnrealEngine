@@ -3010,6 +3010,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			);
 #endif
 		}
+#if WITH_EDITOR
 		else
 		{
 			FMaterialResource LegacyResource;
@@ -3027,6 +3028,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			TrimToOverriddenOnly(StaticParameters.StaticComponentMaskParameters);
 			TrimToOverriddenOnly(StaticParameters.TerrainLayerWeightParameters);
 		}
+#endif // WITH_EDITOR
 	}
 
 	if (Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES )

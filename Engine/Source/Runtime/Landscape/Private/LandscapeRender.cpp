@@ -3711,6 +3711,7 @@ public:
 	{
 		FMaterialResource::GetShaderMapId(Platform, OutId);
 
+#if WITH_EDITOR
 		if (bIsLayerThumbnail || bDisableTessellation)
 		{
 			FSHA1 Hash;
@@ -3722,6 +3723,7 @@ public:
 			Hash.Final();
 			Hash.GetHash(OutId.BasePropertyOverridesHash.Hash);
 		}
+#endif
 	}
 
 	bool IsUsedWithLandscape() const override
