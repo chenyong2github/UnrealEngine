@@ -23,6 +23,8 @@ public:
 	virtual bool IsEnabled() const override;
 	virtual void ShowConsole() override;
 	virtual void TriggerRecompile() override;
+	virtual bool IsCompiling() const override;
+	virtual void Tick() override;
 
 private:
 	bool bEnabled;

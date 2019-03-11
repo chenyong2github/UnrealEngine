@@ -1880,6 +1880,7 @@ FActiveGameplayEffectsContainer::FActiveGameplayEffectsContainer()
 	, PendingGameplayEffectHead(nullptr)
 {
 	PendingGameplayEffectNext = &PendingGameplayEffectHead;
+	bUseDeltaStructSerialization = true;
 }
 
 FActiveGameplayEffectsContainer::~FActiveGameplayEffectsContainer()

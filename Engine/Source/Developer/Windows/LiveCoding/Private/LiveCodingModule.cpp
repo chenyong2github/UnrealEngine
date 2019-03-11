@@ -18,6 +18,7 @@ IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 
 #define LOCTEXT_NAMESPACE "LiveCodingModule"
 
+bool GIsCompileActive = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 
@@ -33,6 +34,11 @@ FLiveCodingModule::FLiveCodingModule()
 
 void FLiveCodingModule::StartupModule()
 {
+	if(FParse::Param(FCommandLine::Get(), TEXT("LiveCoding")))
+	{
+		bEnabled = true;
+	}
+
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
 
 	EnableCommand = ConsoleManager.RegisterConsoleCommand(
@@ -49,7 +55,7 @@ void FLiveCodingModule::StartupModule()
 		ECVF_Cheat
 	);
 
-	EndFrameDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveCodingModule::OnEndFrame);
+	EndFrameDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveCodingModule::Tick);
 
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule != nullptr)
@@ -130,10 +136,27 @@ void FLiveCodingModule::ShowConsole()
 
 void FLiveCodingModule::TriggerRecompile()
 {
-	LppTriggerRecompile();
+	if(!GIsCompileActive)
+	{
+		if (!bStarted)
+		{
+			bShouldStart = true;
+			Tick();
+		}
+		if(bStarted)
+		{
+			LppTriggerRecompile();
+			GIsCompileActive = true;
+		}
+	}
 }
 
-void FLiveCodingModule::OnEndFrame()
+bool FLiveCodingModule::IsCompiling() const
+{
+	return GIsCompileActive;
+}
+
+void FLiveCodingModule::Tick()
 {
 	if (bShouldStart && !bStarted)
 	{

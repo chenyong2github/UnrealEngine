@@ -61,7 +61,7 @@ namespace Audio
 		check(WaveInstance->WaveData);
 
 		// Prevent double-triggering procedural soundwaves
-		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGenerating())
+		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGeneratingAudio())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
 			return false;
@@ -298,7 +298,7 @@ namespace Audio
 				MixerSourceBuffer->SetPCMData(RawPCMDataBuffer);
 			}
 #if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
-			else if (BufferType == EBufferType::PCMRealTime || EBufferType::Streaming)
+			else if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
 			{
 				USoundWave* WaveData = WaveInstance->WaveData;
 				if (WaveData->CachedRealtimeFirstBuffer)

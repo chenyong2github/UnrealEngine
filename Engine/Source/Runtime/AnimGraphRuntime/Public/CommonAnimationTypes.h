@@ -9,7 +9,7 @@
 /**
  *	An easing type defining how to ease float values.
  */
-UENUM(meta = (DocumentationPolicy = "Strict"))
+UENUM()
 enum class EEasingFuncType : uint8
 {
 	// Linear easing (no change to the value)
@@ -45,7 +45,7 @@ enum class EEasingFuncType : uint8
 };
 
 // A rotational component. This is used for retargeting, for example.
-UENUM(meta = (DocumentationPolicy = "Strict"))
+UENUM()
 enum class ERotationComponent : uint8
 {
 	// Using the X component of the Euler rotation
@@ -67,7 +67,7 @@ enum class ERotationComponent : uint8
  *	settings required to perform rotational retargeting on a single
  *	transform.
  */
-USTRUCT(BlueprintType, meta = (DocumentationPolicy = "Strict"))
+USTRUCT(BlueprintType)
 struct FRotationRetargetingInfo
 {
 	GENERATED_BODY()

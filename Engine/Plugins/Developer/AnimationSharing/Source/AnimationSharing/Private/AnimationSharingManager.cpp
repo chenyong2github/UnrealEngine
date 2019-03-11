@@ -771,11 +771,16 @@ void UAnimSharingInstance::Setup(UAnimationSharingManager* AnimationSharingManag
 			const uint8 StateValue = StateEntry.State;
 			const uint32 StateIndex = StateEnum->GetIndexByValue(StateValue);
 
-			checkf(!PerStateData.FindByPredicate([StateValue](const FPerStateData& State) { return State.StateEnumValue == StateValue; }), TEXT("State already defined"));
-
-			FPerStateData& StateData = PerStateData[StateIndex];
-			StateData.StateEnumValue = StateValue;
-			SetupState(StateData, StateEntry, SkeletalMesh, SkeletonSetup, Index);
+			if (!PerStateData.FindByPredicate([StateValue](const FPerStateData& State) { return State.StateEnumValue == StateValue; }))
+			{
+				FPerStateData& StateData = PerStateData[StateIndex];
+				StateData.StateEnumValue = StateValue;
+				SetupState(StateData, StateEntry, SkeletalMesh, SkeletonSetup, Index);
+			}
+			else
+			{
+				UE_LOG(LogAnimationSharing, Error, TEXT("Duplicate entries in Animation Setup for State %s"), *StateEnum->GetDisplayNameTextByValue(StateValue).ToString());
+			}
 		}
 
 		/** Setup blend actors, if enabled*/
@@ -1122,6 +1127,21 @@ void UAnimSharingInstance::TickOnDemandInstances()
 				else
 				{
 					SetupSlaveComponent(NewState, ActorIndex);
+
+					// If we are setting up a slave to an on-demand state that is not in use yet it needs to create a new On Demand Instance which will not be kicked-off yet, so do that directly.
+					if (PerStateData[NewState].bIsOnDemand)
+					{
+						const int32 OnDemandInstanceIndex = PerActorData[ActorIndex].OnDemandInstanceIndex;
+						if (OnDemandInstanceIndex != INDEX_NONE)
+						{
+							FOnDemandInstance& NewOnDemandInstance = OnDemandInstances[OnDemandInstanceIndex];
+							if (!NewOnDemandInstance.bActive)
+							{
+								NewOnDemandInstance.bActive = true;
+								NewOnDemandInstance.StartTime = WorldTime;
+							}
+						}
+					}
 				}
 
 				// Set actor states
@@ -1699,6 +1719,13 @@ void UAnimSharingInstance::SetMasterComponentForActor(uint32 ActorIndex, USkelet
 void UAnimSharingInstance::SetupSlaveComponent(uint8 CurrentState, uint32 ActorIndex)
 {
 	const FPerStateData& StateData = PerStateData[CurrentState];
+
+	if (StateData.Components.Num() == 0)
+	{	
+		UE_LOG(LogAnimationSharing, Warning, TEXT("No Master Components available for state %s, make sure to set up an Animation Sequence/Blueprint "), *StateEnum->GetDisplayNameTextByValue(CurrentState).ToString());
+		return;
+	}
+
 	if (!StateData.bIsOnDemand)
 	{
 		const uint32 PermutationIndex = DeterminePermutationIndex(ActorIndex, CurrentState);

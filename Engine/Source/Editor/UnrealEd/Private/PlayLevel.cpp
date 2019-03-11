@@ -1470,7 +1470,7 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	}
 
 	// launch the game process
-	FString GamePath = FString(FPlatformProcess::BaseDir()) / FString(FPlatformProcess::ExecutableName(false));
+	FString GamePath = FPlatformProcess::ExecutablePath();
 	FPlayOnPCInfo *NewSession = new (PlayOnLocalPCSessions) FPlayOnPCInfo();
 
 	uint32 ProcessID = 0;
@@ -2548,6 +2548,11 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPl
 	FEditorDelegates::PostPIEStarted.Broadcast( bInSimulateInEditor );
 }
 
+FGameInstancePIEResult UEditorEngine::PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances)
+{
+	return FGameInstancePIEResult::Success();
+}
+
 void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bStartInSpectatorMode)
 {
 	double PIEStartTime = FPlatformTime::Seconds();
@@ -2576,6 +2581,12 @@ void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bS
 	// Server
 	if (CanPlayNetDedicated || WillAutoConnectToServer)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, false, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		PlayInSettings->SetPlayNetMode(EPlayNetMode::PIE_ListenServer);
 
 		if (!CanPlayNetDedicated)
@@ -2707,6 +2718,12 @@ void UEditorEngine::LoginPIEInstances(bool bAnyBlueprintErrors, bool bStartInSpe
 	// Server
 	if (WillAutoConnectToServer || CanPlayNetDedicated)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, true, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		FWorldContext &PieWorldContext = CreateNewWorldContext(EWorldType::PIE);
 		PieWorldContext.PIEInstance = PIEInstance++;
 		PieWorldContext.RunAsDedicated = CanPlayNetDedicated;

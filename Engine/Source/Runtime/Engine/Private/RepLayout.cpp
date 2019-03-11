@@ -20,10 +20,13 @@
 #include "Algo/Sort.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Serialization/ArchiveCountMem.h"
+#include "Containers/SortedMap.h"
+#include "Templates/AndOrNot.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout BuildShadowOffsets"), STAT_RepLayout_BuildShadowOffsets, STATGROUP_Game);
+DECLARE_CYCLE_STAT(TEXT("RepLayout DeltaSerializeFastArray"), STAT_RepLayout_DeltaSerializeFastArray, STATGROUP_Game);
 
 // LogRepProperties is very spammy, and the logs are in a very hot code path,
 // so prevent anything less than a warning from even being compiled in on
@@ -118,6 +121,178 @@ FConsoleVariableSinkHandle CreateMaxArrayMemoryCVarAndRegisterSink()
 // This just forces the above to get called.
 FConsoleVariableSinkHandle MaxRepArraySizeHandle = CreateMaxArraySizeCVarAndRegisterSink();
 FConsoleVariableSinkHandle MaxRepArrayMemorySink = CreateMaxArrayMemoryCVarAndRegisterSink();
+
+namespace UE4_RepLayout_Private
+{
+	template<typename OutputType, typename CommandType, typename BufferType>
+	static typename TTranslateConstVolatile<BufferType, OutputType>::Type*
+	GetTypedProperty(const BufferType& Buffer, const CommandType& Cmd)
+	{
+		using ConstOrNotOutputType = typename TTranslateConstVolatile<BufferType, OutputType>::Type;
+
+		using BaseBufferType = typename TRemovePointer<typename TDecay<BufferType>::Type>::Type;
+
+		static_assert(!TIsPointer<OutputType>::Value, "GetTypedProperty invalid OutputType!  Don't specify output as a pointer.");
+		static_assert(TOr<TAreTypesEqual<uint8, BaseBufferType>, TAreTypesEqual<void, BaseBufferType>>::Value, "GetTypedProperty invalid BufferType! Only TRepDataBufferBase, void*, and uint8* are supported!");
+
+		// TODO: Conditionally compilable runtime type validation.
+		return reinterpret_cast<ConstOrNotOutputType *>(Buffer);
+	}
+
+	template<typename OutputType, typename CommandType, enum ERepDataBufferType BufferDataType, typename BufferUnderlyingType>
+	static typename TTranslateConstVolatile<typename TRepDataBufferBase<BufferDataType, BufferUnderlyingType>::ConstOrNotVoid, OutputType>::Type*
+	GetTypedProperty(const TRepDataBufferBase<BufferDataType, BufferUnderlyingType>& Buffer, const CommandType& Cmd)
+	{
+		using ConstOrNotOutputType = typename TTranslateConstVolatile<typename TRepDataBufferBase<BufferDataType, BufferUnderlyingType>::ConstOrNotVoid, OutputType>::Type;
+
+		static_assert(!TIsPointer<OutputType>::Value, "GetTypedProperty invalid OutputType! Don't specify output as a pointer.");
+
+		// TODO: Conditionally compilable runtime type validation.
+		return reinterpret_cast<ConstOrNotOutputType *>((Buffer + Cmd).Data);
+	}
+
+	template<typename CommandType, typename BufferType>
+	FORCEINLINE static FFastArraySerializerItem* GetFastArrayItem(FFastArrayDeltaSerializeParams& Params, const BufferType& Buffer, const CommandType& Cmd)
+	{
+		return (FFastArraySerializerItem*)(Params.PatchedItemOffset + (PTRINT)(GetTypedProperty<FFastArraySerializerItem>(Buffer, Cmd)));
+	}
+
+	template<typename CommandType, typename BufferType>
+	FORCEINLINE static FFastArraySerializer* GetFastArray(FFastArrayDeltaSerializeParams& Params, const BufferType& Buffer, const CommandType& Cmd)
+	{
+		return (FFastArraySerializer*)(Params.PatchedArrayOffset + (PTRINT)(GetTypedProperty<FFastArraySerializer>(Buffer, Cmd)));
+	}
+}
+
+struct FLifetimeCustomDeltaProperty
+{
+	/** If this is a Fast Array Serializer property, this will be the command index for the Fast Array Item array. */
+	int32 FastArrayItemsCommand = INDEX_NONE;
+
+	/**
+	 * If this is a Fast Array Serializer property, this will be the instance number in the class.
+	 * This is used to lookup Changelists.
+	 */
+	int32 FastArrayNumber = INDEX_NONE;
+};
+
+/**
+ * Acceleration tracking which properties are custom delta.
+ * This will ultimately replace the need for FObjectReplicator::LifetimeCustomDeltaProperties.
+ */
+struct FLifetimeCustomDeltaState
+{
+	TSortedMap<uint16, FLifetimeCustomDeltaProperty> LifetimeCustomDeltaProperties;
+	
+	/** The number of valid FFastArraySerializer properties we found. */
+	int32 NumFastArrayItems = 0;
+
+	/**
+	 * This is less than ideal.
+	 * For now, we want a fast way to let users query the list of lifetime custom delta property indices.
+	 * This is mostly to support FObjectReplicator since we're going to remove its (per object per connection!!) cache.
+	 * However, we wouldn't even need this if Custom Delta Properties were more completely handled by RepLayout.
+	 */
+	TArray<uint16> LifetimeCustomDeltaPropertiesParentCache;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		LifetimeCustomDeltaProperties.CountBytes(Ar);
+		LifetimeCustomDeltaPropertiesParentCache.CountBytes(Ar);
+	}
+};
+
+//~ Some of this complexity could go away if we introduced a new Compare step to Custom Delta Serializers
+//~ instead of just relying on the standard serialization stuff. That would be a bigger backwards compatibility
+//~ risk, however.
+
+struct FDeltaArrayHistoryItem
+{
+	/** The set of changelists by element ID.*/
+	TMap<int32, TArray<uint16>> ChangelistByID;
+
+	bool bWasUpdated = false;
+
+	void Reset()
+	{
+		ChangelistByID.Empty();
+		bWasUpdated = false;
+	}
+
+	void CountBytes(FArchive& Ar) const
+	{
+		ChangelistByID.CountBytes(Ar);
+
+		for (const auto& KVP : ChangelistByID)
+		{
+			KVP.Value.CountBytes(Ar);
+		}
+	}
+};
+
+struct FDeltaArrayHistoryState
+{
+	/** The maximum number of individual changelists allowed.*/
+	static const uint32 MAX_CHANGE_HISTORY = FRepChangelistState::MAX_CHANGE_HISTORY;
+
+	//~ TODO: Investigate either making this a Dynamically sized container,
+	//~			or potentially changing ArrayStates to unique pointers / 
+	//~			an indirect array.
+	//~
+	//~			Right now, if a Delta Struct Serialization is disabled for
+	//~			a given Fast Array, this will still use up memory.
+
+	/** Circular buffer of changelists. */
+	FDeltaArrayHistoryItem ChangeHistory[MAX_CHANGE_HISTORY];
+
+	/** The latest ArrayReplicationKey sent to any connection. */
+	int32 ArrayReplicationKey = INDEX_NONE;
+
+	/** Copy of the IDToIndexMap from the array when we last sent it. */
+	TMap<int32, int32> IDToIndexMap;
+
+	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
+	uint32 HistoryStart = 0;
+
+	/** Index in the buffer where changelist history ends (i.e., the Newest changelist). */
+	uint32 HistoryEnd = 0;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		IDToIndexMap.CountBytes(Ar);
+
+		for (const FDeltaArrayHistoryItem& HistoryItem : ChangeHistory)
+		{
+			HistoryItem.CountBytes(Ar);
+		}
+	}
+};
+
+struct FCustomDeltaChangelistState
+{
+	FCustomDeltaChangelistState(const int32 NumArrays)
+	{
+		ArrayStates.SetNum(NumArrays);
+	}
+
+	/** Index used to determine whether or not we've compared already on a given frame. */
+	uint32 CompareIndex = 0;
+
+	/**
+	 * An array tracking the last compared history of Arrays.
+	 * Indices should match FLifetimeCustomDeltaProperty::FastArrayNumber.
+	 */
+	TArray<FDeltaArrayHistoryState> ArrayStates;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		ArrayStates.CountBytes(Ar);
+		for (const FDeltaArrayHistoryState& ArrayState : ArrayStates)
+		{
+			ArrayState.CountBytes(Ar);
+		}
+	}
+};
 
 #define ENABLE_PROPERTY_CHECKSUMS
 
@@ -459,7 +634,12 @@ void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 	);
 }
 
-FRepChangelistState::FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source) :
+FRepChangelistState::FRepChangelistState(
+	const TSharedRef<const FRepLayout>& InRepLayout,
+	const uint8* Source,
+	FCustomDeltaChangelistState* InDeltaChangelistState):
+
+	CustomDeltaChangelistState(InDeltaChangelistState),
 	HistoryStart(0),
 	HistoryEnd(0),
 	CompareIndex(0),
@@ -470,17 +650,40 @@ void FRepChangelistState::CountBytes(FArchive& Ar) const
 {
 	StaticBuffer.CountBytes(Ar);
 	SharedSerialization.CountBytes(Ar);
+
+	if (CustomDeltaChangelistState)
+	{
+		Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
+		CustomDeltaChangelistState->CountBytes(Ar);
+	}
 }
 
-FReplicationChangelistMgr::FReplicationChangelistMgr(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source):
+FReplicationChangelistMgr::FReplicationChangelistMgr(
+	const TSharedRef<const FRepLayout>& InRepLayout,
+	const uint8* Source,
+	FCustomDeltaChangelistState* DeltaChangelistState):
+
 	LastReplicationFrame(0),
-	RepChangelistState(InRepLayout, Source)
+	RepChangelistState(InRepLayout, Source, DeltaChangelistState)
 {
 }
 
 FReceivingRepState::FReceivingRepState(FRepStateStaticBuffer&& InStaticBuffer) :
 	StaticBuffer(MoveTemp(InStaticBuffer))
 {
+}
+
+FRepLayout::FRepLayout() :
+	LayoutState(ERepLayoutState::Uninitialized),
+	RoleIndex(INDEX_NONE),
+	RemoteRoleIndex(-1),
+	Owner(nullptr)
+{}
+
+FRepLayout::~FRepLayout()
+{
+	// This should never happen.
+	check(ERepLayoutState::Uninitialized != LayoutState);
 }
 
 void FRepLayout::UpdateChangelistMgr(
@@ -513,79 +716,120 @@ void FReplicationChangelistMgr::CountBytes(FArchive& Ar) const
 	RepChangelistState.CountBytes(Ar);
 }
 
-uint16 FRepLayout::CompareProperties_r(
-	FSendingRepState* RESTRICT RepState,
-	const int32 CmdStart,
-	const int32 CmdEnd,
+struct FComparePropertiesSharedParams
+{
+	const bool bIsInitial;
+	const bool bForceFail;
+	const int16 RoleIndex;
+	const int16 RemoteRoleIndex;
+	const TArray<FRepParentCmd>& Parents;
+	const TArray<FRepLayoutCmd>& Cmds;
+};
+
+static uint16 CompareProperties_r(
+	const FComparePropertiesSharedParams& SharedParams,
+	const uint16 CmdStart,
+	const uint16 CmdEnd,
 	FRepShadowDataBuffer ShadowData,
 	const FConstRepObjectDataBuffer Data,
 	TArray<uint16>& Changed,
-	uint16 Handle,
-	const bool bIsInitial,
-	const bool bForceFail) const
+	uint16 Handle);
+
+static void CompareProperties_Array_r(
+	const FComparePropertiesSharedParams& SharedParams,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
+	const uint16 CmdIndex,
+	const uint16 Handle);
+
+static void CompareParentProperties(
+	const FComparePropertiesSharedParams& SharedParams,
+	FSendingRepState* RESTRICT RepState,
+	FRepChangelistState* RESTRICT RepChangelistState,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed)
 {
+	FRepShadowDataBuffer ShadowData = RepChangelistState->StaticBuffer.GetData();
 	check(ShadowData);
 
 	FRepChangedPropertyTracker* RepChangedPropertyTracker = (RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr);
-	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; CmdIndex++)
+
+	for (uint16 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 	{
-		const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
-		const FRepParentCmd& ParentCmd = Parents[Cmd.ParentIndex];
+		const FRepParentCmd& Parent = SharedParams.Parents[ParentIndex];
 
-		check(Cmd.Type != ERepLayoutCmdType::Return);
-
-		Handle++;
-
-		const bool bIsLifetime = ((ParentCmd.Flags & ERepParentFlags::IsLifetime) != ERepParentFlags::None);
+		const bool bIsLifetime = EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsLifetime);
 
 		// Active state of a property applies to *all* connections.
 		// If the property is inactive, we can skip comparing it because we know it won't be sent.
 		// Further, this will keep the last active state of the property in the shadow buffer,
 		// meaning the next time the property becomes active it will be sent to all connections.
-		const bool bActive = (RepChangedPropertyTracker == nullptr || RepChangedPropertyTracker->Parents[Cmd.ParentIndex].Active);
+		const bool bIsActive = !RepChangedPropertyTracker || RepChangedPropertyTracker->Parents[ParentIndex].Active;
 
-		const bool bShouldSkip = !bIsLifetime || !bActive || (ParentCmd.Condition == COND_InitialOnly && !bIsInitial);
-
-		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
-		{
-			if (bShouldSkip)
-			{
-				CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
-				continue;
-			}
-
-			// Once we hit an array, start using a stack based approach
-			CompareProperties_Array_r(RepState, ShadowData + Cmd, Data + Cmd, Changed, CmdIndex, Handle, bIsInitial, bForceFail);
-			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
-			continue;
-		}
+		const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
 		if (bShouldSkip)
 		{
 			continue;
 		}
 
+		const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
+		const uint16 Handle = Cmd.RelativeHandle;
+
 		// RepState may be null in the case where a deprecated version of this function is called.
 		// In that case, just allow this to fail and perform the old logic.
-		if (RepState && Cmd.ParentIndex == RoleIndex)
+		if (UNLIKELY(RepState && ParentIndex == SharedParams.RoleIndex))
 		{
-			const ENetRole ObjectRole = *(const ENetRole*)(Data + Cmd).Data;
-			if (bForceFail || RepState->SavedRole != ObjectRole)
+			const ENetRole ObjectRole = *(const ENetRole*)(Data + Parent).Data;
+			if (SharedParams.bForceFail || RepState->SavedRole != ObjectRole)
 			{
 				RepState->SavedRole = ObjectRole;
 				Changed.Add(Handle);
 			}
 		}
-		else if (RepState && Cmd.ParentIndex == RemoteRoleIndex)
+		else if (UNLIKELY(RepState && ParentIndex == SharedParams.RemoteRoleIndex))
 		{
-			const ENetRole ObjectRemoteRole = *(const ENetRole*)(Data + Cmd).Data;
-			if (bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
+			const ENetRole ObjectRemoteRole = *(const ENetRole*)(Data + Parent).Data;
+			if (SharedParams.bForceFail || RepState->SavedRemoteRole != ObjectRemoteRole)
 			{
 				RepState->SavedRemoteRole = ObjectRemoteRole;
 				Changed.Add(Handle);
 			}
 		}
-		else if (bForceFail || !PropertiesAreIdentical(Cmd, (ShadowData + Cmd).Data, (Data + Cmd).Data))
+		else
+		{
+			// Note, Handle - 1 to account for CompareProperties_r incrementing handles.
+			CompareProperties_r(SharedParams, Parent.CmdStart, Parent.CmdEnd, ShadowData, Data, Changed, Handle - 1);
+		}
+	}
+}
+
+static uint16 CompareProperties_r(
+	const FComparePropertiesSharedParams& SharedParams,
+	const uint16 CmdStart,
+	const uint16 CmdEnd,
+	FRepShadowDataBuffer ShadowData,
+	const FConstRepObjectDataBuffer Data,
+	TArray<uint16>& Changed,
+	uint16 Handle)
+{
+	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; ++CmdIndex)
+	{
+		const FRepLayoutCmd& Cmd = SharedParams.Cmds[CmdIndex];
+
+		check(Cmd.Type != ERepLayoutCmdType::Return);
+
+		++Handle;
+
+		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
+		{
+			// Once we hit an array, start using a stack based approach
+			CompareProperties_Array_r(SharedParams, ShadowData + Cmd, Data + Cmd, Changed, CmdIndex, Handle);
+			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
+			continue;
+		}
+		else if (SharedParams.bForceFail || !PropertiesAreIdentical(Cmd, (ShadowData + Cmd).Data, (Data + Cmd).Data))
 		{
 			StoreProperty(Cmd, (ShadowData + Cmd).Data, (Data + Cmd.Offset).Data);
 			Changed.Add(Handle);
@@ -595,17 +839,15 @@ uint16 FRepLayout::CompareProperties_r(
 	return Handle;
 }
 
-void FRepLayout::CompareProperties_Array_r(
-	FSendingRepState* RESTRICT RepState,
+static void CompareProperties_Array_r(
+	const FComparePropertiesSharedParams& SharedParams,
 	FRepShadowDataBuffer ShadowData,
 	const FConstRepObjectDataBuffer Data,
 	TArray<uint16>& Changed,
 	const uint16 CmdIndex,
-	const uint16 Handle,
-	const bool bIsInitial,
-	const bool bForceFail) const
+	const uint16 Handle)
 {
-	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
+	const FRepLayoutCmd& Cmd = SharedParams.Cmds[CmdIndex];
 
 	FScriptArray* ShadowArray = (FScriptArray*)ShadowData.Data;
 	FScriptArray* Array = (FScriptArray*)Data.Data;
@@ -624,12 +866,17 @@ void FRepLayout::CompareProperties_Array_r(
 	const FConstRepObjectDataBuffer ArrayData(Array->GetData());
 	FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
 
-	for (int32 i = 0; i < ArrayNum; i++)
 	{
-		const int32 ArrayElementOffset = i * Cmd.ElementSize;
-		const bool bNewForceFail = bForceFail || i >= ShadowArrayNum;
+		const bool bOldForceFail = SharedParams.bForceFail;
+		bool& bForceFail = const_cast<bool&>(SharedParams.bForceFail);
+		TGuardValue<bool> ForceFailGuard(bForceFail, bForceFail);
 
-		LocalHandle = CompareProperties_r(RepState, CmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset, ArrayData + ArrayElementOffset, ChangedLocal, LocalHandle, bIsInitial, bNewForceFail);
+		for (int32 i = 0; i < ArrayNum; i++)
+		{
+			const int32 ArrayElementOffset = i * Cmd.ElementSize;
+			bForceFail = bOldForceFail || i >= ShadowArrayNum;
+			LocalHandle = CompareProperties_r(SharedParams, CmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset, ArrayData + ArrayElementOffset, ChangedLocal, LocalHandle);
+		}
 	}
 
 	if (ChangedLocal.Num())
@@ -642,7 +889,7 @@ void FRepLayout::CompareProperties_Array_r(
 	else if (ArrayNum != ShadowArrayNum)
 	{
 		// If nothing below us changed, we either shrunk, or we grew and our inner was an array that didn't have any elements
-		check(ArrayNum < ShadowArrayNum || Cmds[CmdIndex + 1].Type == ERepLayoutCmdType::DynamicArray);
+		check(ArrayNum < ShadowArrayNum || SharedParams.Cmds[CmdIndex + 1].Type == ERepLayoutCmdType::DynamicArray);
 
 		// Array got smaller, send the array handle to force array size change
 		Changed.Add(Handle);
@@ -674,7 +921,16 @@ bool FRepLayout::CompareProperties(
 	TArray<uint16>& Changed = NewHistoryItem.Changed;
 	Changed.Empty();
 
-	CompareProperties_r(RepState, 0, Cmds.Num() - 1, RepChangelistState->StaticBuffer.GetData(), Data, Changed, 0, RepFlags.bNetInitial, false);
+	FComparePropertiesSharedParams SharedParams{
+		/*bIsInitial=*/ !!RepFlags.bNetInitial,
+		/*bForceFail=*/ false,
+		RoleIndex,
+		RemoteRoleIndex,
+		Parents,
+		Cmds
+	};
+
+	CompareParentProperties(SharedParams, RepState, RepChangelistState, Data, Changed);
 
 	if (Changed.Num() == 0)
 	{
@@ -1556,14 +1812,15 @@ const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProper
 
 void FRepLayout::SendProperties_r(
 	FSendingRepState* RESTRICT RepState,
-	FRepChangedPropertyTracker* ChangedTracker,
 	FNetBitWriter& Writer,
 	const bool bDoChecksum,
 	FRepHandleIterator& HandleIterator,
 	const FConstRepObjectDataBuffer SourceData,
 	const int32 ArrayDepth,
-	const FRepSerializationSharedInfo& SharedInfo) const
+	const FRepSerializationSharedInfo* const RESTRICT SharedInfo) const
 {
+	const bool bDoSharedSerialization = SharedInfo && !!GNetSharedSerializedData;
+
 	while (HandleIterator.NextHandle())
 	{
 		const FRepLayoutCmd& Cmd = Cmds[HandleIterator.CmdIndex];
@@ -1600,7 +1857,7 @@ void FRepLayout::SendProperties_r(
 			check(ArrayHandleIterator.ArrayElementSize> 0);
 			check(ArrayHandleIterator.NumHandlesPerElement> 0);
 
-			SendProperties_r(RepState, ChangedTracker, Writer, bDoChecksum, ArrayHandleIterator, ArrayData, ArrayDepth + 1, SharedInfo);
+			SendProperties_r(RepState, Writer, bDoChecksum, ArrayHandleIterator, ArrayData, ArrayDepth + 1, SharedInfo);
 
 			check(HandleIterator.ChangelistIterator.ChangedIndex - OldChangedIndex == ArrayChangedCount);				// Make sure we read correct amount
 			check(HandleIterator.ChangelistIterator.Changed[HandleIterator.ChangelistIterator.ChangedIndex] == 0);	// Make sure we are at the end
@@ -1610,7 +1867,7 @@ void FRepLayout::SendProperties_r(
 			WritePropertyHandle(Writer, 0, bDoChecksum);		// Signify end of dynamic array
 			continue;
 		}
-		else
+		else if (RepState)
 		{
 			if (Cmd.ParentIndex == RoleIndex)
 			{
@@ -1631,11 +1888,11 @@ void FRepLayout::SendProperties_r(
 
 		const FRepSerializedPropertyInfo* SharedPropInfo = nullptr;
 
-		if ((GNetSharedSerializedData != 0) && ((Cmd.Flags & ERepLayoutFlags::IsSharedSerialization) != ERepLayoutFlags::None))
+		if (bDoSharedSerialization && EnumHasAnyFlags(Cmd.Flags, ERepLayoutFlags::IsSharedSerialization))
 		{
 			FGuid PropertyGuid(HandleIterator.CmdIndex, HandleIterator.ArrayIndex, ArrayDepth, (int32)((PTRINT)Data.Data & 0xFFFFFFFF));
 
-			SharedPropInfo = SharedInfo.SharedPropertyInfo.FindByPredicate([&](const FRepSerializedPropertyInfo& Info) 
+			SharedPropInfo = SharedInfo->SharedPropertyInfo.FindByPredicate([&](const FRepSerializedPropertyInfo& Info) 
 			{ 
 				return (Info.Guid == PropertyGuid); 
 			});
@@ -1666,7 +1923,7 @@ void FRepLayout::SendProperties_r(
 				BitWriterMark.Copy(Writer, StandardBuffer);
 				BitWriterMark.Pop(Writer);
 
-				Writer.SerializeBitsWithOffset(SharedInfo.SerializedProperties->GetData(), SharedPropInfo->BitOffset, SharedPropInfo->BitLength);
+				Writer.SerializeBitsWithOffset(SharedInfo->SerializedProperties->GetData(), SharedPropInfo->BitOffset, SharedPropInfo->BitLength);
 				
 				TArray<uint8> SharedBuffer;
 				BitWriterMark.Copy(Writer, SharedBuffer);
@@ -1679,7 +1936,7 @@ void FRepLayout::SendProperties_r(
 			else
 #endif
 			{
-				Writer.SerializeBitsWithOffset(SharedInfo.SerializedProperties->GetData(), SharedPropInfo->BitOffset, SharedPropInfo->BitLength);
+				Writer.SerializeBitsWithOffset(SharedInfo->SerializedProperties->GetData(), SharedPropInfo->BitOffset, SharedPropInfo->BitLength);
 			}
 
 			NETWORK_PROFILER(GNetworkProfiler.TrackReplicateProperty(ParentCmd.Property, SharedPropInfo->PropBitLength, nullptr));
@@ -1751,7 +2008,7 @@ void FRepLayout::SendProperties(
 	FChangelistIterator ChangelistIterator(Changed, 0);
 	FRepHandleIterator HandleIterator(ChangelistIterator, Cmds, BaseHandleToCmdIndex, 0, 1, 0, Cmds.Num() - 1);
 
-	SendProperties_r(RepState, ChangedTracker, Writer, bDoChecksum, HandleIterator, Data, 0, SharedInfo);
+	SendProperties_r(RepState, Writer, bDoChecksum, HandleIterator, Data, 0, &SharedInfo);
 
 	if (NumBits != Writer.GetNumBits())
 	{
@@ -2852,7 +3109,7 @@ FGuidReferences::~FGuidReferences()
 }
 
 void FRepLayout::GatherGuidReferences_r(
-	FGuidReferencesMap* GuidReferencesMap,
+	const FGuidReferencesMap* GuidReferencesMap,
 	TSet<FNetworkGUID>& OutReferencedGuids,
 	int32& OutTrackedGuidMemoryBytes) const
 {
@@ -2883,6 +3140,29 @@ void FRepLayout::GatherGuidReferences(
 	if (LayoutState == ERepLayoutState::Normal)
 	{
 		GatherGuidReferences_r(&RepState->GuidReferencesMap, OutReferencedGuids, OutTrackedGuidMemoryBytes);
+	}
+}
+
+void FRepLayout::GatherGuidReferencesForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const
+{
+	if (LifetimeCustomPropertyState)
+	{
+		FRepObjectDataBuffer ObjectData(Params.Object);
+		for (const auto& KVP : LifetimeCustomPropertyState->LifetimeCustomDeltaProperties)
+		{
+			const FRepParentCmd& Parent = Parents[KVP.Key];
+
+			// Static cast is safe here, because this property wouldn't have been marked CustomDelta otherwise.
+			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
+			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
+
+			FNetDeltaSerializeInfo TempParams = Params;
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.PropertyRepIndex = KVP.Key;
+			TempParams.Data = ObjectData + Parent;
+
+			CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data);
+		}
 	}
 }
 
@@ -2918,8 +3198,51 @@ bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferences
 
 bool FRepLayout::MoveMappedObjectToUnmapped(FReceivingRepState* RESTRICT RepState, const FNetworkGUID& GUID) const
 {
-	return MoveMappedObjectToUnmapped_r(&RepState->GuidReferencesMap, GUID);
+	return ERepLayoutState::Normal == LayoutState && MoveMappedObjectToUnmapped_r(&RepState->GuidReferencesMap, GUID);
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FRepLayout::MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const
+{
+	TMap<int32, UStructProperty*> Dummy;
+	return MoveMappedObjectToUnmappedForCustomDeltaProperties(Params, Dummy);
+}
+
+bool FRepLayout::MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params, TMap<int32, UStructProperty*>& UnmappedCustomProperties) const
+{
+	bool bFound = false;
+
+	if (LifetimeCustomPropertyState)
+	{
+		FRepObjectDataBuffer ObjectData(Params.Object);
+		for (const auto& KVP : LifetimeCustomPropertyState->LifetimeCustomDeltaProperties)
+		{
+			const FRepParentCmd& Parent = Parents[KVP.Key];
+
+			// Static cast is safe here, because this property wouldn't have been marked CustomDelta otherwise.
+			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
+			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
+
+			FNetDeltaSerializeInfo TempParams = Params;
+
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.Data = ObjectData + Parent;
+			TempParams.PropertyRepIndex = KVP.Key;
+
+			if (CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data))
+			{
+				UnmappedCustomProperties.Add(Parent.Offset, StructProperty);
+				bFound = true;
+			}
+
+			Params.bOutHasMoreUnmapped |= TempParams.bOutHasMoreUnmapped;
+			Params.bOutSomeObjectsWereMapped |= TempParams.bOutSomeObjectsWereMapped;
+		}
+	}
+
+	return bFound;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FRepLayout::UpdateUnmappedObjects_r(
 	FReceivingRepState* RESTRICT RepState, 
@@ -2929,6 +3252,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 	FRepShadowDataBuffer ShadowData, 
 	FRepObjectDataBuffer Data, 
 	const int32 MaxAbsOffset,
+	bool& bCalledPreNetReceive,
 	bool& bOutSomeObjectsWereMapped,
 	bool& bOutHasMoreUnmapped) const
 {
@@ -2952,15 +3276,26 @@ void FRepLayout::UpdateUnmappedObjects_r(
 		{
 			check(Cmd.Type == ERepLayoutCmdType::DynamicArray);
 			
-			FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + Cmd).Data;
-			FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
-			
-			FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
-			FRepObjectDataBuffer ArrayData(Array->GetData());
-			
-			const int32 NewMaxOffset = FMath::Min(ShadowArray->Num() * Cmd.ElementSize, Array->Num() * Cmd.ElementSize);
+			if (ShadowData)
+			{
+				FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + Cmd).Data;
+				FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
 
-			UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, PackageMap, ShadowArrayData, ArrayData, NewMaxOffset, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+				FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
+				FRepObjectDataBuffer ArrayData(Array->GetData());
+
+				const int32 NewMaxOffset = FMath::Min(ShadowArray->Num() * Cmd.ElementSize, Array->Num() * Cmd.ElementSize);
+
+				UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, PackageMap, ShadowArrayData, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+			}
+			else
+			{
+				FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
+				FRepObjectDataBuffer ArrayData(Array->GetData());
+				const int32 NewMaxOffset = Array->Num() * Cmd.ElementSize;
+
+				UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, PackageMap, nullptr, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+			}
 			continue;
 		}
 
@@ -2998,15 +3333,18 @@ void FRepLayout::UpdateUnmappedObjects_r(
 		// If we resolved some guids, re-deserialize the data which will hook up the object pointer with the property
 		if (bMappedSomeGUIDs)
 		{
-			if (!bOutSomeObjectsWereMapped)
+			if (!bCalledPreNetReceive)
 			{
 				// Call PreNetReceive if we are going to change a value (some game code will need to think this is an actual replicated value)
 				OriginalObject->PreNetReceive();
-				bOutSomeObjectsWereMapped = true;
+				bCalledPreNetReceive = true;
 			}
 
+			bOutSomeObjectsWereMapped = true;
+			const bool bUpdateShadowState = (ShadowData && INDEX_NONE != Parent.RepNotifyNumParams);
+
 			// Copy current value over so we can check to see if it changed
-			if (INDEX_NONE != Parent.RepNotifyNumParams)
+			if (bUpdateShadowState)
 			{
 				StoreProperty(Cmd, ShadowData + Cmd, Data + AbsOffset);
 			}
@@ -3018,8 +3356,14 @@ void FRepLayout::UpdateUnmappedObjects_r(
 			Cmd.Property->NetSerializeItem(Reader, PackageMap, Data + AbsOffset);
 
 			// Check to see if this property changed
-			if (INDEX_NONE != Parent.RepNotifyNumParams)
+			if (bUpdateShadowState)
 			{
+				// I have a sneaking suspicion that this is broken.
+				// AbsOffset could be Cmd.Offset, but we also may be recursing into an Array, and that
+				// would mean it could be Cmd.Offset + (ArrayIndex * ElementOffset)
+				// That could cause us to trigger RepNotifies more often for Dynamic Array properties.
+				// That goes for the above too.
+
 				if (Parent.RepNotifyCondition == REPNOTIFY_Always || !PropertiesAreIdentical(Cmd, ShadowData + Cmd, Data + AbsOffset))
 				{
 					// If this properties needs an OnRep, queue that up to be handled later
@@ -3053,11 +3397,175 @@ void FRepLayout::UpdateUnmappedObjects(
 {
 	bOutSomeObjectsWereMapped = false;
 	bOutHasMoreUnmapped = false;
+	bool bCalledPreNetReceive = false;
 
 	if (LayoutState == ERepLayoutState::Normal)
 	{
-		UpdateUnmappedObjects_r(RepState, &RepState->GuidReferencesMap, OriginalObject, PackageMap, (uint8*)RepState->StaticBuffer.GetData(), (uint8*)OriginalObject, Owner->GetPropertiesSize(), bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+		UpdateUnmappedObjects_r(RepState, &RepState->GuidReferencesMap, OriginalObject, PackageMap, (uint8*)RepState->StaticBuffer.GetData(), (uint8*)OriginalObject, Owner->GetPropertiesSize(), bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 	}
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void FRepLayout::UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const
+{
+	TArray<TPair<int32, UStructProperty*>> Dummy;
+	UpdateUnmappedObjectsForCustomDeltaProperties(Params, Dummy, Dummy);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void FRepLayout::UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializeInfo& Params, TArray<TPair<int32, UStructProperty*>>& CompletelyUpdated, TArray<TPair<int32, UStructProperty*>>& Updated) const
+{
+	if (LifetimeCustomPropertyState)
+	{
+		FRepObjectDataBuffer ObjectData(Params.Object);
+		for (const auto& KVP : LifetimeCustomPropertyState->LifetimeCustomDeltaProperties)
+		{
+			const FRepParentCmd& Parent = Parents[KVP.Key];
+
+			// Static cast is safe here, because this property wouldn't have been marked CustomDelta otherwise.
+			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
+			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
+
+			FNetDeltaSerializeInfo TempParams = Params;
+
+			TempParams.DebugName = Parent.CachedPropertyName.ToString();
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.bOutSomeObjectsWereMapped = false;
+			TempParams.bOutHasMoreUnmapped = false;
+			TempParams.PropertyRepIndex = KVP.Key;
+			TempParams.Data = ObjectData + Parent;
+
+			// Call the custom delta serialize function to handle it
+			CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data);
+
+			if (TempParams.bOutSomeObjectsWereMapped)
+			{
+				Updated.Emplace(Parent.Offset, StructProperty);
+			}
+
+			if (!TempParams.bOutHasMoreUnmapped)
+			{
+				CompletelyUpdated.Emplace(Parent.Offset, StructProperty);
+			}
+
+			Params.bOutSomeObjectsWereMapped |= Params.bOutSomeObjectsWereMapped;
+			Params.bOutHasMoreUnmapped |= Params.bOutHasMoreUnmapped;
+		}
+	}
+}
+
+bool FRepLayout::SendCustomDeltaProperty(
+	FNetDeltaSerializeInfo& Params,
+	UProperty* Property,
+	int32 StaticArrayIndex) const
+{
+	check(Property->ArrayDim > StaticArrayIndex);
+	return SendCustomDeltaProperty(Params, Property->RepIndex + StaticArrayIndex);
+}
+
+bool FRepLayout::SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, uint16 CustomDeltaRepIndex) const
+{
+	const FRepParentCmd& Parent = Parents[CustomDeltaRepIndex];
+	if (!ensure(EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsCustomDelta)))
+	{
+		return false;
+	}
+
+	UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
+	UScriptStruct::ICppStructOps * CppStructOps = StructProperty->Struct->GetCppStructOps();
+
+	check(CppStructOps); // else should not have STRUCT_NetSerializeNative
+
+	FNetDeltaSerializeInfo TempParams = Params;
+	TempParams.DebugName = Parent.CachedPropertyName.ToString();
+	TempParams.Struct = StructProperty->Struct;
+	TempParams.PropertyRepIndex = CustomDeltaRepIndex;
+	TempParams.Data = FRepObjectDataBuffer(Params.Object) + Parent;
+
+	bool bSupportsFastArrayDelta = TempParams.bSupportsFastArrayDeltaStructSerialization;
+
+	if (TempParams.bSupportsFastArrayDeltaStructSerialization &&
+		EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsFastArray) &&
+		!!LifetimeCustomPropertyState->NumFastArrayItems)
+	{
+		const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->LifetimeCustomDeltaProperties.FindChecked(CustomDeltaRepIndex);
+		bSupportsFastArrayDelta = CustomDeltaProperty.FastArrayNumber != INDEX_NONE;
+	}
+
+	TempParams.Writer->WriteBit(bSupportsFastArrayDelta);
+
+	if (Parent.Property->ArrayDim != 1)
+	{
+		uint32 StaticArrayIndex = Parent.ArrayIndex;
+		TempParams.Writer->SerializeIntPacked(StaticArrayIndex);
+	}
+
+	TempParams.bSupportsFastArrayDeltaStructSerialization = bSupportsFastArrayDelta;
+	return CppStructOps->NetDeltaSerialize(Params, Params.Data);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FRepLayout::ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property) const
+{
+	uint32 StaticArrayIndex = 0;
+	int32 Offset = 0;
+	return ReceiveCustomDeltaProperty(Params, Property, StaticArrayIndex, Offset);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FRepLayout::ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property, uint32& StaticArrayIndex, int32& Offset) const
+{
+	FNetDeltaSerializeInfo TempParams = Params;
+	if (TempParams.Connection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_FAST_ARRAY_DELTA_STRUCT)
+	{
+		TempParams.bSupportsFastArrayDeltaStructSerialization = !!TempParams.Reader->ReadBit();
+	}
+	else
+	{
+		TempParams.bSupportsFastArrayDeltaStructSerialization = false;
+	}
+
+	// Receive array index (static sized array, i.e. MemberVariable[4])
+	if (Property->ArrayDim != 1)
+	{
+		check(Property->ArrayDim >= 2);
+
+		TempParams.Reader->SerializeIntPacked(StaticArrayIndex);
+
+		if (StaticArrayIndex >= (uint32)Property->ArrayDim)
+		{
+			UE_LOG(LogRep, Error, TEXT("Element index too large %s in %s"), *Property->GetName(), *Params.Object->GetFullName());
+			return false;
+		}
+	}
+
+	const FRepParentCmd& Parent = Parents[Property->RepIndex + StaticArrayIndex];
+
+	// We should only be receiving custom delta properties (since RepLayout handles the rest)
+	if (!EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsCustomDelta))
+	{
+		UE_LOG(LogNet, Error, TEXT("Client received non custom delta property value %s in %s"), *Parent.CachedPropertyName.ToString(), *Params.Object->GetFullName());
+		return false;
+	}
+
+	Offset = Parent.Offset;
+
+	UScriptStruct* InnerStruct = Property->Struct;
+	UScriptStruct::ICppStructOps* CppStructOps = InnerStruct->GetCppStructOps();
+
+	check(CppStructOps);
+
+	TempParams.DebugName = Parent.CachedPropertyName.ToString();
+	TempParams.Struct = InnerStruct;
+	TempParams.PropertyRepIndex = Property->RepIndex + StaticArrayIndex;
+	TempParams.Data = FRepObjectDataBuffer(Params.Object) + Parent;
+
+	const bool bSuccess = CppStructOps->NetDeltaSerialize(Params, Params.Data);
+
+	Params.bOutHasMoreUnmapped |= TempParams.bOutHasMoreUnmapped;
+	Params.bOutSomeObjectsWereMapped |= TempParams.bOutSomeObjectsWereMapped;
+
+	return bSuccess;
 }
 
 void FRepLayout::CallRepNotifies(FReceivingRepState* RepState, UObject* Object) const
@@ -3385,6 +3893,12 @@ static bool DiffProperties_r(FDiffPropertiesSharedParams& Params, TDiffPropertie
 		const FRepLayoutCmd& Cmd = Params.Cmds[CmdIndex];
 		const FRepParentCmd& Parent = Params.Parents[Cmd.ParentIndex];
 
+		if (EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsCustomDelta))
+		{
+			CmdIndex = Parent.CmdEnd - 1;
+			continue;
+		}
+
 		check(ERepLayoutCmdType::Return != Cmd.Type);
 
 		if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
@@ -3520,7 +4034,7 @@ struct TDiffStablePropertiesStackParams
 };
 
 template<ERepDataBufferType DestinationType, ERepDataBufferType SourceType>
-bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TDiffStablePropertiesStackParams<DestinationType, SourceType>& StackParams)
+static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TDiffStablePropertiesStackParams<DestinationType, SourceType>& StackParams)
 {
 	// Note, it's never possible for the Source or Destination data to be null.
 	// At the top level, both will always be valid (pointing to the memory of each element in each respective buffer).
@@ -3534,6 +4048,12 @@ bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TDiffStab
 	{
 		const FRepLayoutCmd& Cmd = Params.Cmds[CmdIndex];
 		const FRepParentCmd& Parent = Params.Parents[Cmd.ParentIndex];
+
+		if (EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsCustomDelta))
+		{
+			CmdIndex = Parent.CmdEnd - 1;
+			continue;
+		}
 
 		check(ERepLayoutCmdType::Return != Cmd.Type);
 
@@ -3867,7 +4387,7 @@ static int32 InitFromProperty_r(
 		const uint32 ArrayChecksum = AddArrayCmd(Cmds, ArrayProp, Offset + GetOffsetForProperty<BuildType>(*ArrayProp), RelativeHandle, ParentIndex, ParentChecksum, StaticArrayIndex, ServerConnection);
 
 		InitFromProperty_r<BuildType>(Cmds, ArrayProp->Inner, 0, 0, ParentIndex, ArrayChecksum, 0, ServerConnection);
-		
+
 		AddReturnCmd(Cmds);
 
 		Cmds[CmdStart].EndCmd = Cmds.Num();		// Patch in the offset to jump over our array inner elements
@@ -3881,14 +4401,10 @@ static int32 InitFromProperty_r(
 	{
 		UScriptStruct* Struct = StructProp->Struct;
 
-		if (Struct->StructFlags & STRUCT_NetDeltaSerializeNative)
+		if (EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetSerializeNative))
 		{
-			// Custom delta serializers handles outside of FRepLayout
-			return RelativeHandle;
-		}
+			UE_CLOG(EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetDeltaSerializeNative), LogRep, Warning, TEXT("RepLayout InitFromProperty_r: Struct marked both NetSerialize and NetDeltaSerialize: %s"), *StructProp->GetName());
 
-		if (Struct->StructFlags & STRUCT_NetSerializeNative)
-		{
 			RelativeHandle++;
 			AddPropertyCmd(Cmds, Property, Offset + GetOffsetForProperty<BuildType>(*Property), RelativeHandle, ParentIndex, ParentChecksum, StaticArrayIndex, ServerConnection);
 			return RelativeHandle;
@@ -3966,6 +4482,11 @@ static FORCEINLINE void SetupRepStructFlags(FRepParentCmd& Parent, const bool bS
 		if (!bSkipCustomDeltaCheck && EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetDeltaSerializeNative))
 		{
 			Parent.Flags |= ERepParentFlags::IsCustomDelta;
+
+			if (Struct->IsChildOf(FFastArraySerializer::StaticStruct()))
+			{
+				Parent.Flags |= ERepParentFlags::IsFastArray;
+			}
 		}
 
 		if (EnumHasAnyFlags(Struct->StructFlags, STRUCT_NetSerializeNative))
@@ -4194,12 +4715,11 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 	SCOPE_CYCLE_UOBJECT(ObjectClass, InObjectClass);
 
 	const bool bIsObjectActor = InObjectClass->IsChildOf(AActor::StaticClass());
-	RoleIndex = -1;
-	RemoteRoleIndex = -1;
-	FirstNonCustomParent = -1;
+	RoleIndex = INDEX_NONE;
+	RemoteRoleIndex = INDEX_NONE;
 
 	int32 RelativeHandle = 0;
-	int32 LastOffset = -1;
+	int32 LastOffset = INDEX_NONE;
 
 	InObjectClass->SetUpRuntimeReplicationData();
 	Parents.Empty(InObjectClass->ClassReps.Num());
@@ -4216,11 +4736,13 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 		check(ParentHandle == i);
 		check(Parents[i].Property->RepIndex + Parents[i].ArrayIndex == i);
 
+		const int32 ParentOffset = Property->ElementSize * ArrayIdx;
+
 		Parents[ParentHandle].CmdStart = Cmds.Num();
-		RelativeHandle = InitFromProperty_r<ERepBuildType::Class>(Cmds, Property, Property->ElementSize * ArrayIdx, RelativeHandle, ParentHandle, 0, ArrayIdx, ServerConnection);
+		RelativeHandle = InitFromProperty_r<ERepBuildType::Class>(Cmds, Property, ParentOffset, RelativeHandle, ParentHandle, 0, ArrayIdx, ServerConnection);
 		Parents[ParentHandle].CmdEnd = Cmds.Num();
 		Parents[ParentHandle].Flags |= ERepParentFlags::IsConditional;
-		Parents[ParentHandle].Offset = GetOffsetForProperty<ERepBuildType::Class>(*Property);
+		Parents[ParentHandle].Offset = GetOffsetForProperty<ERepBuildType::Class>(*Property) + ParentOffset;
 
 		if (Parents[i].CmdEnd > Parents[i].CmdStart)
 		{
@@ -4234,12 +4756,6 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 		if (Property->GetPropertyFlags() & CPF_Config)
 		{
 			Parents[ParentHandle].Flags |= ERepParentFlags::IsConfig;
-		}
-
-		// Hijack the first non custom property for identifying this as a rep layout block
-		if (FirstNonCustomParent == -1 && Property->ArrayDim == 1 && ((Parents[ParentHandle].Flags & ERepParentFlags::IsCustomDelta) == ERepParentFlags::None))
-		{
-			FirstNonCustomParent = ParentHandle;
 		}
 
 		if (bIsObjectActor)
@@ -4301,9 +4817,68 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 			Parents[ParentIndex].RepNotifyNumParams = RepNotifyFunc->NumParms;
 		}
 
-		if ((Parents[ParentIndex].Flags & ERepParentFlags::IsCustomDelta) != ERepParentFlags::None)
+		if (EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::IsCustomDelta))
 		{
-			// We don't handle custom properties in the FRepLayout class
+			// We'll track all Custom Lifetime Properties here, and we'll handle Fast Array Serialization
+			// specially.
+
+			// Note, there are in engine cases where we aren't using FFastArraySerialize, but are using
+			// Custom Delta (FGameplayDebuggerNetPack).
+
+			// Also note, we still don't mark these properties as Lifetime. This should help maintain behavior
+			// in Diff Properties / Compare Properties.
+
+			if (!LifetimeCustomPropertyState)
+			{
+				LifetimeCustomPropertyState.Reset(new FLifetimeCustomDeltaState());
+			}
+
+			const int32 CustomIndex = LifetimeCustomPropertyState->LifetimeCustomDeltaPropertiesParentCache.Add(ParentIndex);
+			FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->LifetimeCustomDeltaProperties.Add(ParentIndex);
+
+			// If we're a FastArraySerializer, we'll look for our replicated item type.
+			// We do this by looking for an array property whose inner type is an FFastArraySerializerItem.
+			// Note, this isn't perfect. With the way the interface is set up now, there's no technically
+			// enforced requirements that the Array of items lives within the Fast Array Serializer, that the
+			// Array of items is marked up as a UProperty, that the Array of items is not marked RepSkip,
+			// or that there's not multiple arrays of FastArraySerializerItems.
+			//
+			// However, comments imply these, and typically they are true (certainly, any engine cases follow this).
+			// Further, these layouts are only needed for the new Delta Struct Serialization feature, so this won't break backwards compat.
+
+			if (EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::IsFastArray))
+			{
+				int32 FastArrayItemArrayCmd = INDEX_NONE;
+
+				for (int32 CmdIndex = Parents[ParentIndex].CmdStart; CmdIndex < Parents[ParentIndex].CmdEnd; ++CmdIndex)
+				{
+					const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
+					if (ERepLayoutCmdType::DynamicArray == Cmd.Type)
+					{
+						if (UStructProperty* MaybeFastArray = Cast<UStructProperty>(static_cast<UArrayProperty*>(Cmd.Property)->Inner))
+						{
+							if (MaybeFastArray->Struct->IsChildOf(FFastArraySerializerItem::StaticStruct()))
+							{
+								FastArrayItemArrayCmd = CmdIndex;
+								break;
+							}
+						}
+
+						CmdIndex = Cmd.EndCmd - 1;
+					}
+				}
+
+				if (FastArrayItemArrayCmd != INDEX_NONE)
+				{
+					++LifetimeCustomPropertyState->NumFastArrayItems;
+					CustomDeltaProperty.FastArrayItemsCommand = FastArrayItemArrayCmd;
+				}
+				else
+				{
+					UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Unable to find Fast Array Item array in Fast Array Serializer: %s"), *Parents[ParentIndex].CachedPropertyName.ToString());
+				}
+			}
+
 			continue;
 		}
 
@@ -4327,6 +4902,19 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 	if (!ServerConnection || EnumHasAnyFlags(Flags, ECreateRepLayoutFlags::MaySendProperties))
 	{
 		BuildHandleToCmdIndexTable_r(0, Cmds.Num() - 1, BaseHandleToCmdIndex);
+	}
+
+	if (LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->NumFastArrayItems)
+	{
+		int32 Counter = 0;
+		for (auto& KVP : LifetimeCustomPropertyState->LifetimeCustomDeltaProperties)
+		{
+			if (EnumHasAnyFlags(Parents[KVP.Key].Flags, ERepParentFlags::IsFastArray) &&
+				INDEX_NONE != KVP.Value.FastArrayItemsCommand)
+			{
+				KVP.Value.FastArrayNumber = Counter++;
+			}
+		}
 	}
 
 	BuildShadowOffsets<ERepBuildType::Class>(InObjectClass, Parents, Cmds, ShadowDataBufferSize, LayoutState);
@@ -4573,6 +5161,7 @@ void FRepLayout::BuildChangeList_r(
 	const int32 CmdEnd,
 	const FConstRepObjectDataBuffer Data,
 	const int32 HandleOffset,
+	const bool bForceArraySends,
 	TArray<uint16>& Changed) const
 {
 	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd; CmdIndex++)
@@ -4599,7 +5188,7 @@ void FRepLayout::BuildChangeList_r(
 			for (int32 i = 0; i < Array->Num(); i++)
 			{
 				const int32 ArrayElementOffset = Cmd.ElementSize * i;
-				BuildChangeList_r(ArrayHandleToCmdIndex, ArrayCmdStart, ArrayCmdEnd, ArrayData + ArrayElementOffset, i * NumHandlesPerElement, ChangedLocal);
+				BuildChangeList_r(ArrayHandleToCmdIndex, ArrayCmdStart, ArrayCmdEnd, ArrayData + ArrayElementOffset, i * NumHandlesPerElement, bForceArraySends, ChangedLocal);
 			}
 
 			if (ChangedLocal.Num())
@@ -4608,6 +5197,15 @@ void FRepLayout::BuildChangeList_r(
 				Changed.Add(ChangedLocal.Num());				// This is so we can jump over the array if we need to
 				Changed.Append(ChangedLocal);					// Append the change list under the array
 				Changed.Add(0);									// Null terminator
+			}
+			else if (bForceArraySends)
+			{
+				// Note the handle, that there were 0 changed elements, and the terminator.
+				// This will force anyone sending this changelist later to send the array size
+				// (which is most likely 0 in this case).
+				Changed.Add(Cmd.RelativeHandle + HandleOffset);
+				Changed.Add(0);
+				Changed.Add(0);
 			}
 
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
@@ -4656,6 +5254,12 @@ void FRepLayout::BuildSharedSerialization_r(
 		const FRepParentCmd& ParentCmd = Parents[Cmd.ParentIndex];
 
 		const FConstRepObjectDataBuffer Data = SourceData + ArrayOffset + Cmd;
+
+		// Custom Deltas are not supported for shared serialization at this time.
+		if (EnumHasAnyFlags(ParentCmd.Flags, ERepParentFlags::IsCustomDelta))
+		{
+			continue;
+		}
 
 		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
 		{
@@ -4799,7 +5403,7 @@ void FRepLayout::SendPropertiesForRPC(
 			{
 				if (!Parents[i].Property->Identical_InContainer(Data.Data, NULL, Parents[i].ArrayIndex))
 				{
-					BuildChangeList_r(BaseHandleToCmdIndex, Parents[i].CmdStart, Parents[i].CmdEnd, Data, 0, Changed);
+					BuildChangeList_r(BaseHandleToCmdIndex, Parents[i].CmdStart, Parents[i].CmdEnd, Data, 0, false, Changed);
 				}
 			}
 
@@ -5049,7 +5653,16 @@ FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBu
 
 TSharedPtr<FReplicationChangelistMgr> FRepLayout::CreateReplicationChangelistMgr(const UObject* InObject) const
 {
-	return MakeShareable(new FReplicationChangelistMgr(AsShared(), (const uint8*)InObject->GetArchetype()));
+	// ChangelistManager / ChangelistState will hold onto a unique pointer for this
+	// so no need to worry about deleting it here.
+
+	FCustomDeltaChangelistState* DeltaChangelistState = nullptr;
+	if (LifetimeCustomPropertyState && !!LifetimeCustomPropertyState->NumFastArrayItems)
+	{
+		DeltaChangelistState = new FCustomDeltaChangelistState(LifetimeCustomPropertyState->NumFastArrayItems);
+	}
+
+	return MakeShareable(new FReplicationChangelistMgr(AsShared(), (const uint8*)InObject->GetArchetype(), DeltaChangelistState));
 }
 
 TUniquePtr<FRepState> FRepLayout::CreateRepState(
@@ -5152,20 +5765,34 @@ void FRepLayout::DestructProperties(FRepStateStaticBuffer& InShadowData) const
 	InShadowData.Buffer.Empty();
 }
 
-void FRepLayout::GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void FRepLayout::GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions) const
 {
 	OutCustom.Empty();
 	OutConditions.Empty();
 
-	for (int32 i = 0; i < Parents.Num(); i++)
+	if (LifetimeCustomPropertyState)
 	{
-		if ((Parents[i].Flags & ERepParentFlags::IsCustomDelta) != ERepParentFlags::None)
+		for (const auto& KVP : LifetimeCustomPropertyState->LifetimeCustomDeltaProperties)
 		{
-			check(Parents[i].Property->RepIndex + Parents[i].ArrayIndex == i);
-
-			OutCustom.Add(i);
-			OutConditions.Add(Parents[i].Condition);
+			OutCustom.Add(KVP.Key);
+			OutConditions.Add(Parents[KVP.Key].Condition);
 		}
+	}
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+const TArrayView<const uint16> FRepLayout::GetLifetimeCustomDeltaProperties() const
+{
+	if (LifetimeCustomPropertyState)
+	{
+		return LifetimeCustomPropertyState->LifetimeCustomDeltaPropertiesParentCache;
+	}
+	else
+	{
+		return TArrayView<const uint16>();
 	}
 }
 
@@ -5191,6 +5818,790 @@ void FRepLayout::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+// TODO: There's a better way to do this, but it requires more changes.
+//			Ideally, we bring Retirements management, etc., into RepLayout.
+//			What we could do instead of using standard changelists is use individual circular buffers 
+//			for any given array element. Each time we see a new Fast Array Rep ID, we'd add a new element
+//			to the buffer. Once all connections have acked that history, we would remove it from the buffer.
+//			We could still enforce a hard limit to the size of the buffers.
+//
+//			We might technically be able to do that without bringing retirement stuff in,
+//			but it would require us exposing the handles to NetSerialization.h (where fast TArrays live)
+//			and that gets included all over the place, and it'd be better to not.
+
+
+// It's important to note that unlike normal RepLayout properties which require changelists to know
+// what changed and am accumulated "lifetime changelist" to catch up late joiners or people with bad
+// connections, Fast Arrays don't need that.
+//
+// Instead, Fast Arrays track Rep IDs for each individual element, and for the array itself.
+// Initially, all keys start as 0 and are incremented as the items are marked dirty.
+// If we ever receive a NAK, we revert our IDs back to the last ACKed ID state.
+//
+// This means that at any given time, each connection knows what its current state is, and
+// can just compare that against the "real state" stored on the Fast Array.
+//
+// In FastArrayDeltaSerialize (and the DeltaSerializeStructs variant), we use those IDs to determine
+// what items actually need to be sent to a client.
+//
+// We also store the Changelist History ID alongside the Array / Element Rep IDs, and that is reset in the
+// case of NAKs and starts at a designated invalid state initially.
+//
+// Changelists used here are purely accelerations. In ideal scenarios, we do property
+// comparisons once per frame and store those changelists, just like normal rep layouts.
+// Also like normal RepLayouts, that will be shared across all connections.
+//
+// When we go to replicate a Fast Array, we just accumulate the changelists for all of its
+// dirty items, and then send those.
+//
+// On initial send, or if a given connection receives too many NAKs and falls outside of our History Range,
+// we will devolve into sending the full state of the dirty items. At that point we're guaranteed that
+// the connection is up to date (if it receives a NAK on that packet, its state will be reset back to
+// being outside history range, and we try again).
+
+void FRepLayout::PreSendCustomDeltaProperties(
+	UObject* Object,
+	UNetConnection* Connection,
+	FReplicationChangelistMgr& ChangelistMgr,
+	TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
+{
+	using namespace UE4_RepLayout_Private;
+
+	if (!Connection->InternalAck)
+	{
+		const FLifetimeCustomDeltaState& LocalLifetimeCustomPropertyState = *LifetimeCustomPropertyState;
+
+		if (LocalLifetimeCustomPropertyState.NumFastArrayItems)
+		{
+			FRepChangelistState& ChangelistState = *ChangelistMgr.GetRepChangelistState();
+			FCustomDeltaChangelistState& CustomDeltaChangelistState = *ChangelistState.CustomDeltaChangelistState;
+
+			// Check to see whether or not we need to do comparisons this frame.
+			// If we do, then run through our fast array states and generate new history items if needed.
+			if (CustomDeltaChangelistState.CompareIndex != static_cast<uint32>(GFrameCounter))
+			{
+				const bool bIsInitial = (CustomDeltaChangelistState.CompareIndex == 0);
+				CustomDeltaChangelistState.CompareIndex = GFrameCounter;
+
+				const FConstRepObjectDataBuffer ObjectData(Object);
+
+				for (const auto& KVP : LocalLifetimeCustomPropertyState.LifetimeCustomDeltaProperties)
+				{
+					const uint16 RepIndex = KVP.Key;
+					const FLifetimeCustomDeltaProperty& CustomDeltaProperty = KVP.Value;
+
+					// If our Fast Array Items Command is invalid, we can't do anything.
+					// This should have been logged on RepLayout creation.
+					if (INDEX_NONE != CustomDeltaProperty.FastArrayItemsCommand)
+					{
+						const int32 FastArrayNumber = CustomDeltaProperty.FastArrayNumber;
+						const FRepParentCmd& FastArrayCmd = Parents[RepIndex];
+						const FFastArraySerializer& FastArray = *GetTypedProperty<FFastArraySerializer>(ObjectData, FastArrayCmd);
+
+						// Note, we can't rely on FFastArraySerializer::HasBeenSerialized here.
+						// It's possible we're calling PreSendCustomDeltaProperties **before** the first time the struct
+						// was ever serialized, and in that case it would still be false, and prevent us from creating
+						// a history the first time.
+						//
+						// This does mean that Fast Arrays *not* using delta serialization will still have their history
+						// incremented the first time, but that can be fixed in other ways and the history memory
+						// will have already been allocated elsewhere.
+						if (FastArray.IsUsingStructDeltaSerialization())
+						{
+							FDeltaArrayHistoryState& FastArrayHistoryState = CustomDeltaChangelistState.ArrayStates[FastArrayNumber];
+
+							if (FastArrayHistoryState.ArrayReplicationKey != FastArray.ArrayReplicationKey)
+							{
+								const uint32 HistoryDelta = FastArrayHistoryState.HistoryEnd - FastArrayHistoryState.HistoryStart;
+								const uint32 CurrentHistoryIndex = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+								const FDeltaArrayHistoryItem& CurrentHistory = FastArrayHistoryState.ChangeHistory[CurrentHistoryIndex];
+
+								// If we don't have any history items, go ahead and create one.
+								// Otherwise, check to see if our current history was actually updated.
+								// If it wasn't updated, that means that no one tried to replicate it last frame (which can be possible due
+								// to rep conditions), and there's no sense in creating a new one.
+								if (HistoryDelta == 0 || CurrentHistory.bWasUpdated)
+								{
+									// If we've reached our buffer size, then move our start history marker up.
+									// In that case the old start history will become our new history.
+									if (HistoryDelta >= FDeltaArrayHistoryState::MAX_CHANGE_HISTORY)
+									{
+										++FastArrayHistoryState.HistoryStart;
+									}
+
+									++FastArrayHistoryState.HistoryEnd;
+									const uint32 NewHistory = FastArrayHistoryState.HistoryEnd % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+									FastArrayHistoryState.ChangeHistory[NewHistory].Reset();
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void FRepLayout::PostSendCustomDeltaProperties(
+	UObject* Object,
+	UNetConnection* Connection,
+	FReplicationChangelistMgr& ChangelistMgr,
+	TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
+{
+}
+
+bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const
+{
+	using namespace UE4_RepLayout_Private;
+
+	SCOPE_CYCLE_COUNTER(STAT_RepLayout_DeltaSerializeFastArray);
+
+	// A portion of this work could be shared across all Fast Array Properties for a given object,
+	// but that would be easier to do if the Custom Delta Serialization was completely encapsulated in FRepLayout.
+
+	check(LifetimeCustomPropertyState);
+
+	FNetDeltaSerializeInfo& DeltaSerializeInfo = Params.DeltaSerializeInfo;
+	const int32 ParentIndex = DeltaSerializeInfo.PropertyRepIndex;
+	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->LifetimeCustomDeltaProperties.FindChecked(ParentIndex);
+	const FRepParentCmd& Parent = Parents[ParentIndex];
+	const int32 CmdIndex = CustomDeltaProperty.FastArrayItemsCommand;
+
+	if (INDEX_NONE == CmdIndex)
+	{
+		// This should have already been caught by InitFromClass.
+		// So, log with a lower verbosity.
+		UE_LOG(LogRep, Log, TEXT("FRepLayout::DeltaSerializeFastArrayProperty: Invalid fast array items command index! %s"), *Parent.CachedPropertyName.ToString())
+		return false;
+	}
+
+	const FRepLayoutCmd& FastArrayItemCmd = Cmds[CmdIndex];
+	const int32 ElementSize = FastArrayItemCmd.ElementSize;
+
+	const int32 ItemLayoutStart = CmdIndex + 1;
+	const int32 ItemLayoutEnd = FastArrayItemCmd.EndCmd - 1;
+
+	UObject* Object = DeltaSerializeInfo.Object;
+	UPackageMapClient* PackageMap = static_cast<UPackageMapClient*>(DeltaSerializeInfo.Map);
+	UNetConnection* Connection = DeltaSerializeInfo.Connection;
+	const bool bIsWriting = !!DeltaSerializeInfo.Writer;
+	const bool bInternalAck = !!Connection->InternalAck;
+
+	FRepObjectDataBuffer ObjectData(Object);
+	FScriptArray* ObjectArray = GetTypedProperty<FScriptArray>(ObjectData, FastArrayItemCmd);
+	FRepObjectDataBuffer ObjectArrayData(ObjectArray->GetData());
+
+	FFastArraySerializer& ArraySerializer = *GetFastArray(Params, ObjectData, Parent);
+
+	check(&ArraySerializer == &Params.ArraySerializer);
+
+	const int32 ObjectArrayNum = ObjectArray->Num();
+	FNetFieldExportGroup* NetFieldExportGroup = nullptr;
+
+	if (bInternalAck)
+	{
+		// Note, PackageMap should hold onto the strong reference for us, so we use raw pointers where
+		// we can.
+
+		// TODO: This feels like something we could cache in PreSend, but we'd need to add plumbing to hold onto it.
+		const FString OwnerPathName = Owner->GetPathName();
+		TSharedPtr<FNetFieldExportGroup> LocalNetFieldExportGroup = PackageMap->GetNetFieldExportGroup(OwnerPathName);
+
+		if (!LocalNetFieldExportGroup.IsValid())
+		{
+			UE_LOG(LogRepProperties, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Create Netfield Export Group."))
+			LocalNetFieldExportGroup = CreateNetfieldExportGroup();
+			PackageMap->AddNetFieldExportGroup(OwnerPathName, LocalNetFieldExportGroup);
+		}
+
+		NetFieldExportGroup = LocalNetFieldExportGroup.Get();
+	}
+
+	if (bIsWriting)
+	{
+		FNetBitWriter& Writer = static_cast<FNetBitWriter&>(*DeltaSerializeInfo.Writer);
+		auto& ChangedElements = *Params.WriteChangedElements;
+		
+		// This is a list of changelists to send, corresponding to items in ChangedElements.
+		TArray<TArray<uint16>> Changelists;
+
+		const FHandleToCmdIndex& ArrayHandleToCmd = BaseHandleToCmdIndex[FastArrayItemCmd.RelativeHandle - 1];
+		const TArray<FHandleToCmdIndex>& ArrayHandleToCmdIndex = *ArrayHandleToCmd.HandleToCmdIndex;
+
+		// We only need to create changelists if we're not in a demo.
+		// Note, we may change this in the future to also delta structs for replays.
+		if (!bInternalAck)
+		{
+			// First, we'll create our changelists.
+			if (ChangelistMgr)
+			{
+				FRepChangelistState& RepChangelistState = *ChangelistMgr->GetRepChangelistState();
+				FCustomDeltaChangelistState& DeltaChangelistState = *RepChangelistState.CustomDeltaChangelistState;
+
+				const int32 FastArrayNumber = CustomDeltaProperty.FastArrayNumber;
+				FDeltaArrayHistoryState& FastArrayState = DeltaChangelistState.ArrayStates[FastArrayNumber];
+
+
+				// Params.WriteBaseState should be valid, and have the most up to date IDToChangelist map for the Fast Array.
+				// However, it's ChangelistHistory will be to the last History Number sent to the Fast TArray on the specific
+				// connection we're replicating from.
+				TSharedRef<FNetFastTArrayBaseState> NewArrayDeltaState = StaticCastSharedRef<FNetFastTArrayBaseState>(Params.WriteBaseState->AsShared());
+
+				// Cache off the newest history, the last history sent to this connection, and then update the state
+				// to notify that we're going to send it the newest history.
+				const uint32 NewChangelistHistory = FastArrayState.HistoryEnd;
+				const uint32 LastSentHistory = NewArrayDeltaState->ChangelistHistory;
+				const uint32 LastSentChangelistDelta = NewChangelistHistory - LastSentHistory;
+
+				NewArrayDeltaState->ChangelistHistory = NewChangelistHistory;
+
+				// Cache off the shadow array buffers.
+				FRepShadowDataBuffer ShadowData(RepChangelistState.StaticBuffer.GetData());
+				FScriptArray* ShadowArray = GetTypedProperty<FScriptArray>(ShadowData, FastArrayItemCmd);
+				FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
+
+				// Note, we explicitly pass in a 0 handles everywhere below.
+				// This is because each item will be received individually, the receiving side indices won't
+				// necessarily match our indices, and we already track the changelists separately.
+
+				// Check to see whether or not we need to update the global changelist shared between connections.
+				{
+					const uint32 RelativeNewHistory = NewChangelistHistory % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+					const uint32 CompareChangelistDelta = NewChangelistHistory - FastArrayState.HistoryStart;
+					FDeltaArrayHistoryItem& HistoryItem = FastArrayState.ChangeHistory[RelativeNewHistory];
+
+					if (!HistoryItem.bWasUpdated)
+					{
+						HistoryItem.bWasUpdated = true;
+
+						// Update our shadow array, and reset our pointer in case we reallocated.
+						FScriptArrayHelper ShadowArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ShadowArray);
+
+						TBitArray<> ShadowArrayItemIsNew(false, ObjectArrayNum);
+						const bool bIsInitial = (FastArrayState.HistoryEnd - FastArrayState.HistoryStart) == 1;
+
+						// It's possible that elements have been deleted or otherwise reordered, and our shadow state is out of date.
+						// In order to prevent issues, we'll shuffle our shadow state back to the correct order.
+						// Note, we can't just do a lookup in both maps directly below, because we might end up stomping the same
+						// shadow state multiple times.
+						//
+						//	Conceptually, you can imagine this process as having two lines of elements: the Object Line and the Shadow Line.
+						//	The Object Line is always considered authoritative, and we just need to make sure the Shadow Line matches that.
+						//
+						//	If the Shadow Line is empty, the only thing we need to do is add a matching number of elements
+						//	and patch their IDs to match those of the Object Line.
+						//
+						//	If the Object Line is empty, the only thing we need to do is remove all elements from the shadow line.
+						//
+						//	If both lines are non empty, it becomes a fairly straightforward fixup, following these rules.
+						//	It's important to note, that at each step all previously seen elements are guaranteed to have been
+						//	validated, and are generally considered "out of play" or no longer in the line, and because of
+						//	that we should never touch them again.
+						//
+						//	The process stops when either we run out of Shadow Line or Object Line elements.
+						//
+						//		1. If Elements at the front of the line have matching IDs, there's nothing that needs to be done
+						//			and we can move onto the next Element in both lines.
+						//
+						//		2. If Elements at the front of the line have mismatched IDs, then it's either because the Object Element
+						//			was reordered, a previous Object Element was deleted, or a new Object Element was added.
+						//
+						//			a. If we find the Shadow Element in the Shadow Line, it must have been reordered.
+						//				Go ahead and swap the current front of the Shadow Line with the found Shadow Element.
+						//				Now, the elements at the front of the line have mathcing IDs, and we can move onto
+						//				the next Element in both lines.
+						//
+						//			b. If we don't find the Shadow Element in the Shadow Line, the Object Element must be new.
+						//				Go ahead and insert a new item into the Shadow array, fix up its ID, and mark it as new.
+						//				Now, the elements at the front of the line have matching IDs, and we can move onto
+						//				the next Element in both lines.
+						//
+						//		3. If there are elements remaining in both Lines, go back to step 1. Otherwise, continue to step 4.
+						//
+						//		4. At this point, there should be 3 possible outcomes:
+						//
+						//			a. The Object Line and the Shadow Line have the same number of Elements, and all are matching. We're done.
+						//
+						//			b. The Object Line has more elements than the Shadow Line. All missing elements from the Shadow Line
+						//				must be new elements.
+						//
+						//			c. The Shadow Line has more elements than the Object Line. All missing elements from the Object Line
+						//				must have been removed.
+
+						// TODO: Optimize this. Luckily, it only happens once per frame, and only if the array is dirty.
+						//			Maybe this could be merged into the sending code below, the only concern is that
+						//			doesn't tracked deleted elements.
+
+						// Note, this code serves a very similar purpose to FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::BuildChangedAndDeletedBuffers.
+						// The main issue is that we can't rely on that method, because it will be comparing the last state that was replicated to a given particular connection,
+						// and we want to compare the last state that was replicated to *any* connection.
+
+						if (ObjectArrayNum != 0 && ShadowArrayHelper.Num() != 0 && !bIsInitial)
+						{
+							FScriptArrayHelper ObjectArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
+
+							TMap<int32, int32>& ShadowIDToIndex = FastArrayState.IDToIndexMap;
+							const TMap<int32, int32>& ObjectIDToIndex = ArraySerializer.ItemMap;
+
+							for (int32 Index = 0; Index < ObjectArrayNum; ++Index)
+							{
+								// Anything else must be a newly appended element, so we are done.
+								if (Index >= ShadowArrayHelper.Num())
+								{
+									break;
+								}
+
+								FFastArraySerializerItem* ObjectItem = GetFastArrayItem(Params, ObjectArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
+								FFastArraySerializerItem* ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
+
+								if (ObjectItem->ReplicationID != ShadowItem->ReplicationID)
+								{
+									// The IDs didn't match, so this is an insert, delete, or swap.
+									if (int32* FoundShadowIndex = ShadowIDToIndex.Find(ShadowItem->ReplicationID))
+									{
+										// We found the element in the shadow array, so there must have been a swap.
+										// Sanity check that the invalid element can only possibly be later in our lines.
+										check(*FoundShadowIndex > Index);
+
+										ShadowArrayHelper.SwapValues(Index, *FoundShadowIndex);
+									}
+									else
+									{
+										// This item must have been inserted into the array (or appended and then shuffled in).
+										// So, insert it into our shadow array and update its ID.
+
+										ShadowArrayItemIsNew[Index] = true;
+										ShadowArrayHelper.InsertValues(Index);
+
+										ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
+										ShadowItem->ReplicationID = ObjectItem->ReplicationID;
+									}
+								}
+							}
+						}
+
+						// Now we can go ahead and resize the array, to make any other changes we need.
+						ShadowArrayHelper.Resize(ObjectArrayNum);
+						ShadowArrayData = ShadowArray->GetData();
+
+						// Go ahead and fix up IDs for any elements that may have just been appended.
+						// Note, we need to this for all elements on the initial pass.
+						// Deleted elements will have been chopped off by the resize.
+						if (bIsInitial || (ShadowArrayHelper.Num() < ObjectArrayNum))
+						{
+							FScriptArrayHelper ObjectArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
+							for (int32 ObjectIndex = ShadowArrayHelper.Num(); ObjectIndex < ObjectArrayNum; ++ObjectIndex)
+							{
+								FFastArraySerializerItem* ObjectItem = GetFastArrayItem(Params, ObjectArrayHelper.GetRawPtr(ObjectIndex), FastArrayItemCmd);
+								FFastArraySerializerItem* ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(ObjectIndex), FastArrayItemCmd);
+								ShadowItem->ReplicationID = ObjectItem->ReplicationID;
+								ShadowArrayItemIsNew[ObjectIndex] = true;
+							}
+						}
+
+						for (auto& IDIndexPair : ChangedElements)
+						{
+							// Go ahead and do a property compare here, regardless of what we'll actually use below.
+							// This is to prevent issues where someone with an initial / outdated connection doesn't properly
+							// update the changelists in our history, but does update the shadow state inadvertently.
+							FComparePropertiesSharedParams SharedParams{
+								/*bIsInitial=*/ bIsInitial,
+								/*bForceFail=*/ bIsInitial || ShadowArrayItemIsNew[IDIndexPair.Idx],
+								RoleIndex,
+								RemoteRoleIndex,
+								Parents,
+								Cmds
+							};
+
+							const int32 ArrayElementOffset = ElementSize * IDIndexPair.Idx;
+
+							FConstRepObjectDataBuffer ElementData(ObjectArrayData + ArrayElementOffset);
+							FRepShadowDataBuffer ElementShadowData(ShadowArrayData + ArrayElementOffset);
+							TArray<uint16>& HistoryChangelist = HistoryItem.ChangelistByID.Emplace(IDIndexPair.ID);
+							CompareProperties_r(SharedParams, ItemLayoutStart, ItemLayoutEnd, ElementShadowData, ElementData, HistoryChangelist, 0);
+
+							if (HistoryChangelist.Num())
+							{
+								HistoryChangelist.Add(0);
+							}
+						}
+
+						// Copy our replication key, and the IDToIndexMap so we can use them later.
+						FastArrayState.ArrayReplicationKey = NewArrayDeltaState->ArrayReplicationKey;
+						FastArrayState.IDToIndexMap = ArraySerializer.ItemMap;
+					}
+				}
+
+				// Now, merge all of the changelists we need together.
+				// If we're sufficiently far back, or if this is our first transmission, then we'll just force fail
+				// and send all changes (happens in the block below, Changelists.Num() == 0).
+
+				// Note, this won't be all changes since the beginning, but just all changes for the currently dirty items.
+
+				if (LastSentChangelistDelta != 0 && LastSentChangelistDelta < FDeltaArrayHistoryState::MAX_CHANGE_HISTORY)
+				{
+					const FConstRepObjectDataBuffer ConstObjectData(ObjectData);
+					Changelists.SetNum(ChangedElements.Num());
+
+					// Note, we iterate from LastSentHistory + 1, because we don't want to send something if
+					// we think its already been sent.
+					// Similarly, we do <= NewChangelistHistory because we need to send the newest history.
+					for (uint32 ChangelistHistory = LastSentHistory + 1; ChangelistHistory <= NewChangelistHistory; ++ChangelistHistory)
+					{
+						const uint32 RelativeHistory = ChangelistHistory % FDeltaArrayHistoryState::MAX_CHANGE_HISTORY;
+						FDeltaArrayHistoryItem& HistoryItem = FastArrayState.ChangeHistory[RelativeHistory];
+
+						for (int32 i = 0; i < ChangedElements.Num(); ++i)
+						{
+							const auto& IDIndexPair = ChangedElements[i];
+							if (const TArray<uint16>* FoundChangelist = HistoryItem.ChangelistByID.Find(IDIndexPair.ID))
+							{
+								if (FoundChangelist->Num() > 1)
+								{
+									// This is basically the DynamicArray case from MergeChangelists, but specialized.
+									// We could probably just make that more generic.
+									// Might also be worth creating a helper Lambda / Struct to create ChangelistIterators / HandleIterators.
+
+									TArray<uint16>& ElementChangelist = Changelists[i];
+									TArray<uint16> Temp = MoveTemp(ElementChangelist);
+
+									const FConstRepObjectDataBuffer ElementData(ObjectArrayData + (IDIndexPair.Idx * ElementSize));
+
+									FChangelistIterator FoundChangelistIterator(*FoundChangelist, 0);
+									FRepHandleIterator FoundHandleIterator(FoundChangelistIterator, Cmds, ArrayHandleToCmdIndex, ElementSize, 1, ItemLayoutStart, ItemLayoutEnd);
+
+									if (Temp.Num() == 0)
+									{
+										PruneChangeList_r(FoundHandleIterator, ElementData, ElementChangelist);
+									}
+									else
+									{
+										FChangelistIterator ElementChangelistIterator(Temp, 0);
+										FRepHandleIterator ElementHandleIterator(ElementChangelistIterator, Cmds, ArrayHandleToCmdIndex, ElementSize, 1, ItemLayoutStart, ItemLayoutEnd);
+
+										MergeChangeList_r(FoundHandleIterator, ElementHandleIterator, ElementData, ElementChangelist);
+									}
+
+									ElementChangelist.Add(0);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (Changelists.Num() == 0)
+			{
+				// If we didn't end up building changelists earlier for whatever reason, go ahead and just
+				// build a full changelist for all changed elements.
+
+				// This could have happened if we were sending initially, we were outside of history range, or
+				// we didn't have a changelist manager.
+
+				Changelists.SetNum(ChangedElements.Num());
+				for (int32 i = 0; i < ChangedElements.Num(); ++i)
+				{
+					const auto& IDIndexPair = ChangedElements[i];
+					const int32 ArrayElementOffset = ElementSize * IDIndexPair.Idx;
+
+					FConstRepObjectDataBuffer ElementData(ObjectArrayData + ArrayElementOffset);
+
+					TArray<uint16>& Changelist = Changelists[i];
+					BuildChangeList_r(ArrayHandleToCmdIndex, ItemLayoutStart, ItemLayoutEnd, ElementData, 0, true, Changelist);
+
+					if (Changelist.Num())
+					{
+						Changelist.Add(0);
+					}
+				}
+			}
+		}
+
+		// Ignore tracking properties in Network Profiler below.
+		// We will rely on the normal custom delta property tracking which happens elsewhere.
+		NETWORK_PROFILER_IGNORE_PROPERTY_SCOPE
+
+		// Now that we have our changelists setup, we can send the data.
+		for (int32 i = 0; i < ChangedElements.Num(); ++i)
+		{
+			const auto& IDIndexPair = ChangedElements[i];
+			uint32 ID = ChangedElements[i].ID;
+			Writer << ID;
+
+			const int32 ArrayElementOffset = ElementSize * IDIndexPair.Idx;
+			FConstRepObjectDataBuffer ElementData(ObjectArrayData + ArrayElementOffset);
+
+			if (bInternalAck)
+			{
+				SendAllProperties_BackwardsCompatible_r(
+					nullptr,
+					Writer,
+					false,
+					PackageMap,
+					NetFieldExportGroup,
+					ItemLayoutStart,
+					ItemLayoutEnd,
+					ElementData);
+			}
+			else
+			{
+				TArray<uint16>& Changelist = Changelists[i];
+				const bool bAnythingToSend = Changelist.Num() > 1;
+				Writer.WriteBit(!!bAnythingToSend);
+
+				if (bAnythingToSend)
+				{
+					FChangelistIterator ChangelistIterator(Changelist, 0);
+					FRepHandleIterator HandleIterator(
+						ChangelistIterator,
+						Cmds,
+						ArrayHandleToCmdIndex,
+						ElementSize,
+						1,
+						ItemLayoutStart,
+						ItemLayoutEnd);
+
+					SendProperties_r(
+						/*RepState=*/ nullptr,
+						Writer,
+						/*bDoChecksum=*/ false,
+						HandleIterator,
+						ElementData,
+						/*ArrayDepth=*/ 1,
+						/*SharedInfo=*/ nullptr);
+
+					WritePropertyHandle(Writer, 0, false);
+				}
+			}
+			
+		}
+
+		return !Writer.IsError();
+	}
+	else
+	{
+		FNetBitReader& Reader = static_cast<FNetBitReader&>(*DeltaSerializeInfo.Reader);
+		TArray<int32, TInlineAllocator<8>>& ChangedElements = *Params.ReadChangedElements;
+		TArray<int32, TInlineAllocator<8>>& AddedElements = *Params.ReadAddedElements;
+
+		FScriptArrayHelper FastArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
+
+		bool bOutGuidsChanged = false;
+		bool bOutHasUnmapped = false;
+
+		// WARNING! Don't attempt to use ObjectArrayData below, always rely on FastArrayHelper.
+		// The helper may reallocate the array, and invalidate that pointer.
+
+		for (int32 i = 0; i < Params.ReadNumChanged; ++i)
+		{
+			uint32 ID = 0;
+			Reader << ID;
+
+			int32* ElementIndexPtr = ArraySerializer.ItemMap.Find(ID);
+			int32 ElementIndex = 0;
+			FFastArraySerializerItem* ThisElement = nullptr;
+
+			if (!ElementIndexPtr)
+			{
+				UE_LOG(LogNetFastTArray, Log, TEXT("   New. ID: %d. New Element!"), ID);
+
+				ElementIndex = FastArrayHelper.AddValue();
+				ArraySerializer.ItemMap.Add(ID, ElementIndex);
+				AddedElements.Add(ElementIndex);
+
+				ThisElement = GetFastArrayItem(Params, FastArrayHelper.GetRawPtr(ElementIndex), FastArrayItemCmd);
+				ThisElement->ReplicationID = ID;
+			}
+			else
+			{
+				ElementIndex = *ElementIndexPtr;
+				ThisElement = GetFastArrayItem(Params, FastArrayHelper.GetRawPtr(ElementIndex), FastArrayItemCmd);
+				ChangedElements.Add(ElementIndex);
+
+				UE_LOG(LogNetFastTArray, Log, TEXT("   Changed. ID: %d -> Idx: %d"), ID, ElementIndex);
+			}
+
+			// Update this element's most recent array replication key
+			ThisElement->MostRecentArrayReplicationKey = ArraySerializer.ArrayReplicationKey;
+
+			// Update this element's replication key so that a client can re-serialize the array for client replay recording
+			ThisElement->ReplicationKey++;
+
+			FGuidReferencesMap& GuidReferences = ArraySerializer.GuidReferencesMap_StructDelta.FindOrAdd(ID);
+
+			if (bInternalAck)
+			{
+				const bool bSuccess = ReceiveProperties_BackwardsCompatible_r(
+					nullptr,
+					NetFieldExportGroup,
+					Reader,
+					ItemLayoutStart,
+					ItemLayoutEnd,
+					nullptr,
+					FastArrayHelper.GetRawPtr(0),
+					ThisElement,
+					&GuidReferences,
+					bOutHasUnmapped,
+					bOutGuidsChanged);
+
+				if (!bSuccess)
+				{
+					UE_LOG(LogNetFastTArray, Warning, TEXT("FRepLayout::DeltaSerializeFastArrayProperty: Failed to receive backwards compat properties!"));
+					return false;
+				}
+			}
+			else
+			{
+				const bool bAnythingSent = !!Reader.ReadBit();
+				if (!bAnythingSent)
+				{
+					continue;
+				}
+
+				FReceivePropertiesSharedParams SharedParams{
+					/*bDoChecksum=*/ false,
+					/*bSkipRoleSwap=*/ false,
+					/*RepNotifies=*/ nullptr,
+					Reader,
+					bOutHasUnmapped,
+					bOutGuidsChanged,
+					Parents,
+					Cmds
+				};
+
+				FReceivePropertiesStackParams StackParams{
+					ThisElement,
+					nullptr,
+					&GuidReferences,
+					ItemLayoutStart,
+					ItemLayoutEnd
+				};
+
+				// Read the first handle, and then start receiving properties.
+				ReadPropertyHandle(SharedParams);
+				if (ReceiveProperties_r(SharedParams, StackParams))
+				{
+					if (0 != SharedParams.ReadHandle)
+					{
+						UE_LOG(LogRep, Error, TEXT("ReceiveFastArrayItem: Invalid property terminator handle - Handle=%d"), SharedParams.ReadHandle);
+						return false;
+					}
+				}
+				else
+				{
+					UE_LOG(LogNetFastTArray, Warning, TEXT("FRepLayout::DeltaSerializeFastArrayProperty: Failed to received properties"));
+					return false;
+				}
+			}
+
+			if (Reader.IsError())
+			{
+				UE_LOG(LogNetFastTArray, Warning, TEXT("FRepLayout::DeltaSerializeFastArrayProperty: Reader.IsError() == true"));
+				return false;
+			}
+
+			DeltaSerializeInfo.bGuidListsChanged |= bOutGuidsChanged;
+			DeltaSerializeInfo.bOutHasMoreUnmapped |= bOutHasUnmapped;
+		}
+
+		return true;
+	}
+}
+
+void FRepLayout::GatherGuidReferencesForFastArray(FFastArrayDeltaSerializeParams& Params) const
+{
+	using namespace UE4_RepLayout_Private;
+
+	const FConstRepObjectDataBuffer ObjectData(Params.DeltaSerializeInfo.Object);
+	const FRepParentCmd& Parent = Parents[Params.DeltaSerializeInfo.PropertyRepIndex];
+
+	const FFastArraySerializer& ArraySerializer = *GetFastArray(Params, ObjectData, Parent);
+	TSet<FNetworkGUID>& GatherGuids = *Params.DeltaSerializeInfo.GatherGuidReferences;
+	int32 TrackedGuidMemory = 0;
+
+	for (auto& GuidReferencesPair : ArraySerializer.GuidReferencesMap_StructDelta)
+	{
+		GatherGuidReferences_r(&GuidReferencesPair.Value, GatherGuids, TrackedGuidMemory);
+	}
+
+	if (Params.DeltaSerializeInfo.TrackedGuidMemoryBytes)
+	{
+		*Params.DeltaSerializeInfo.TrackedGuidMemoryBytes += TrackedGuidMemory;
+	}
+}
+
+bool FRepLayout::MoveMappedObjectToUnmappedForFastArray(FFastArrayDeltaSerializeParams& Params) const
+{
+	using namespace UE4_RepLayout_Private;
+
+	const FRepObjectDataBuffer ObjectData(Params.DeltaSerializeInfo.Object);
+	const FRepParentCmd& Parent = Parents[Params.DeltaSerializeInfo.PropertyRepIndex];
+
+	FFastArraySerializer& ArraySerializer = *GetFastArray(Params, ObjectData, Parent);
+	const FNetworkGUID& MoveToUnmapped = *Params.DeltaSerializeInfo.MoveGuidToUnmapped;
+
+	bool bFound = false;
+	for (auto& GuidReferencesPair : ArraySerializer.GuidReferencesMap_StructDelta)
+	{
+		bFound |= MoveMappedObjectToUnmapped_r(&GuidReferencesPair.Value, MoveToUnmapped);
+	}
+	return bFound;
+}
+
+void FRepLayout::UpdateUnmappedGuidsForFastArray(FFastArrayDeltaSerializeParams& Params) const
+ {
+	using namespace UE4_RepLayout_Private;
+
+	check(LifetimeCustomPropertyState);
+
+	FNetDeltaSerializeInfo& DeltaSerializeInfo = Params.DeltaSerializeInfo;
+	const int32 ParentIndex = DeltaSerializeInfo.PropertyRepIndex;
+	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->LifetimeCustomDeltaProperties.FindChecked(ParentIndex);
+	const FRepParentCmd& Parent = Parents[ParentIndex];
+	const int32 CmdIndex = CustomDeltaProperty.FastArrayItemsCommand;
+	
+	if (INDEX_NONE == CmdIndex)
+	{
+		// This should have already been caught by InitFromClass.
+		// So, log with a lower verbosity.
+		UE_LOG(LogRep, Log, TEXT("FRepLayout::UpdateUnmappedGuidsForFastArray: Invalid fast array items command index! %s"), *Parent.CachedPropertyName.ToString())
+		return;
+	}
+
+	const FRepLayoutCmd& FastArrayItemCmd = Cmds[CmdIndex];
+	const int32 ElementSize = FastArrayItemCmd.ElementSize;
+
+	UObject* Object = DeltaSerializeInfo.Object;
+	UPackageMap* PackageMap = DeltaSerializeInfo.Map;
+
+	FRepObjectDataBuffer ObjectData(Object);
+	FScriptArray* ScriptArray = GetTypedProperty<FScriptArray>(ObjectData, FastArrayItemCmd);
+	FRepObjectDataBuffer ArrayData(ScriptArray->GetData());
+
+	FFastArraySerializer& ArraySerializer = *GetFastArray(Params, ObjectData, Parent);
+
+	bool bCalledPreNetReceive = Params.DeltaSerializeInfo.bOutSomeObjectsWereMapped;
+	for (auto& GuidReferencesPair : ArraySerializer.GuidReferencesMap_StructDelta)
+	{
+		bool bOutSomeObjectsWereMapped = false;
+		bool bOutHasMoreUnmapped = false;
+
+		const int32 ItemIndex = ArraySerializer.ItemMap[GuidReferencesPair.Key];
+		const int32 ArrayElementOffset = ItemIndex * ElementSize;
+		FRepObjectDataBuffer ElementData(ArrayData + ArrayElementOffset);
+
+		UpdateUnmappedObjects_r(nullptr, &GuidReferencesPair.Value, Object, PackageMap, nullptr, ElementData, ElementSize, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+
+		if (bOutSomeObjectsWereMapped)
+		{
+			((FFastArraySerializerItem*)(ElementData).Data)->PostReplicatedChange(ArraySerializer);
+		}
+
+		DeltaSerializeInfo.bOutHasMoreUnmapped |= bOutHasMoreUnmapped;
+		DeltaSerializeInfo.bOutSomeObjectsWereMapped |= bOutSomeObjectsWereMapped;
+	}
+}
+
 void FRepLayout::CountBytes(FArchive& Ar) const
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepLayout::CountBytes");
@@ -5199,6 +6610,13 @@ void FRepLayout::CountBytes(FArchive& Ar) const
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("BaseHandleToCmdIndex", BaseHandleToCmdIndex.CountBytes(Ar));
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedInfoRPC", SharedInfoRPC.CountBytes(Ar));
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SharedInfoRPCParentsChanged", SharedInfoRPCParentsChanged.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LifetimeCustomPropertyState",
+		if (LifetimeCustomPropertyState)
+		{
+			Ar.CountBytes(sizeof(FLifetimeCustomDeltaState), sizeof(FLifetimeCustomDeltaState));
+			LifetimeCustomPropertyState->CountBytes(Ar);
+		}
+	);
 }
 
 void FReceivingRepState::CountBytes(FArchive& Ar) const

@@ -54,7 +54,7 @@
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #if RHI_RAYTRACING
-#include "RayTracing/RayTracingDynamicGeometryCollection.h"
+#include "RayTracingDynamicGeometryCollection.h"
 #include "RHIGPUReadback.h"
 #endif
 
@@ -806,6 +806,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	}
 
 	AddPrimitiveToUpdateGPU(*this, SourceIndex);
+	bPathTracingNeedsInvalidation = true;
 
 	DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
@@ -932,6 +933,13 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 			const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView.CachedViewUniformShaderParameters));
 		}
+		else
+		{
+			// If we don't render this pass in stereo we simply update the buffer with the same view uniform parameters.
+			// The shader will detect this and it will not attempt to apply ISR while this view is being rendered.
+			// TODO: It's more efficient to change the shader binding to point to ViewUniformBuffer instead of updating InstancedViewUniformBuffer.
+			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
+		}
 
 		CachedView = &View;
 		return true;
@@ -948,6 +956,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	StaticDrawListsEarlyZPassMode(0)
 ,	StaticDrawShaderPipelines(0)
 ,	bScenesPrimitivesNeedStaticMeshElementUpdate(false)
+,	bPathTracingNeedsInvalidation(true)
 ,	SkyLight(NULL)
 ,	SimpleDirectionalLight(NULL)
 ,	SunLight(NULL)

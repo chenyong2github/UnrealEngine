@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Delegates/Delegate.h"

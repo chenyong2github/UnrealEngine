@@ -21,6 +21,8 @@ struct FURL;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkProfileFinished, const FString& /*Filename */);
 
+enum class ENetworkProfilerVersionHistory : uint32;
+
 /*=============================================================================
 	Network profiler header.
 =============================================================================*/
@@ -31,7 +33,7 @@ private:
 	/** Magic to ensure we're opening the right file.	*/
 	uint32	Magic;
 	/** Version number to detect version mismatches.	*/
-	uint32	Version;
+	ENetworkProfilerVersionHistory	Version;
 
 	/** Tag, set via -networkprofiler=TAG				*/
 	FString Tag;
@@ -70,6 +72,9 @@ public:
 class FNetworkProfiler
 {
 private:
+
+	friend struct FNetworkProfilerScopedIgnoreReplicateProperties;
+
 	/** File writer used to serialize data.															*/
 	FArchive*								FileWriter;
 
@@ -130,9 +135,9 @@ private:
 		UObject* TargetObject;
 		uint32 ActorNameIndex;
 		uint32 FunctionNameIndex;
-		uint16 NumHeaderBits;
-		uint16 NumParameterBits;
-		uint16 NumFooterBits;
+		uint32 NumHeaderBits;
+		uint32 NumParameterBits;
+		uint32 NumFooterBits;
 
 		FQueuedRPCInfo()
 			: Connection(nullptr)
@@ -162,6 +167,9 @@ private:
 	*/
 	int32 GetAddressTableIndex( const FString& Address );
 
+	// Used with FScopedIgnoreReplicateProperties.
+	uint32 IgnorePropertyCount;
+
 public:
 	/**
 	 * Constructor, initializing members.
@@ -173,7 +181,7 @@ public:
 	 *
 	 * @param	bShouldEnableTracking	Whether tracking should be enabled or not
 	 */
-	void EnableTracking( bool bShouldEnableTracking );
+	ENGINE_API void EnableTracking( bool bShouldEnableTracking );
 
 	/**
 	 * Marks the beginning of a frame.
@@ -195,7 +203,7 @@ public:
 	 * @param	NumParameterBits	Number of bits serialized into parameters of this RPC
 	 * @param	NumFooterBits		Number of bits serialized into the footer of this RPC (EndContentBlock)
 	 */
-	void TrackSendRPC( const AActor* Actor, const UFunction* Function, uint16 NumHeaderBits, uint16 NumParameterBits, uint16 NumFooterBits, UNetConnection* Connection );
+	void TrackSendRPC(const AActor* Actor, const UFunction* Function, uint32 NumHeaderBits, uint32 NumParameterBits, uint32 NumFooterBits, UNetConnection* Connection);
 	
 	/**
 	 * Tracks queued RPCs (unreliable multicast) being sent.
@@ -208,7 +216,7 @@ public:
 	 * @param	NumParameterBits	Number of bits serialized into parameters of this RPC
 	 * @param	NumFooterBits		Number of bits serialized into the footer of this RPC (EndContentBlock)
 	 */
-	void TrackQueuedRPC( UNetConnection* Connection, UObject* TargetObject, const AActor* Actor, const UFunction* Function, uint16 NumHeaderBits, uint16 NumParameterBits, uint16 NumFooterBits );
+	void TrackQueuedRPC(UNetConnection* Connection, UObject* TargetObject, const AActor* Actor, const UFunction* Function, uint32 NumHeaderBits, uint32 NumParameterBits, uint32 NumFooterBits);
 
 	/**
 	 * Writes all queued RPCs for the connection to the profiler stream
@@ -406,8 +414,33 @@ public:
 /** Global network profiler instance. */
 extern ENGINE_API FNetworkProfiler GNetworkProfiler;
 
+#define NETWORK_PROFILER_IGNORE_PROPERTY_SCOPE const FNetworkProfilerScopedIgnoreReplicateProperties _NetProfilePrivate_IgnoreScope;
+
+/**
+ * Can be used to enforce a scope where we don't want to track properties.
+ * This is useful to prevent cases where we might inadvertently over count properties.
+ */
+struct FNetworkProfilerScopedIgnoreReplicateProperties
+{
+	FNetworkProfilerScopedIgnoreReplicateProperties()
+	{
+		++GNetworkProfiler.IgnorePropertyCount;
+	}
+
+	~FNetworkProfilerScopedIgnoreReplicateProperties()
+	{
+		--GNetworkProfiler.IgnorePropertyCount;
+	}
+
+private:
+
+	FNetworkProfilerScopedIgnoreReplicateProperties(const FNetworkProfilerScopedIgnoreReplicateProperties&) = delete;
+	FNetworkProfilerScopedIgnoreReplicateProperties(FNetworkProfilerScopedIgnoreReplicateProperties&&) = delete;
+};
+
 #else	// USE_NETWORK_PROFILER
 
 #define NETWORK_PROFILER(x)
+#define NETWORK_PROFILER_IGNORE_PROPERTY_SCOPE 
 
 #endif

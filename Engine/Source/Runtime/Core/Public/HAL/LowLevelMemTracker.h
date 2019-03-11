@@ -3,9 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/ScopeLock.h"
-#include "Templates/Atomic.h"
-
 
 // this is currently incompatible with PLATFORM_USES_FIXED_GMalloc_CLASS, because this ends up being included way too early
 // and currently, PLATFORM_USES_FIXED_GMalloc_CLASS is only used in Test/Shipping builds, where we don't have STATS anyway,
@@ -15,7 +12,6 @@
 	#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId)
 	#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API)
 #else
-	#include "Stats/Stats.h"
 
 	#define LLM_SUPPORTED_PLATFORM (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_WINDOWS || PLATFORM_IOS || PLATFORM_MAC || PLATFORM_ANDROID || PLATFORM_SWITCH || PLATFORM_UNIX)
 
@@ -48,32 +44,17 @@
 	#define LLM_AUTO_ENABLE 0
 #endif
 
-	#if STATS
-		#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId) \
-			DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
-			static DEFINE_STAT(StatId)
-		#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-			DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
-			extern API DEFINE_STAT(StatId);
-	#else
-		#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId)
-		#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API)
-	#endif
 #endif	// #if PLATFORM_USES_FIXED_GMalloc_CLASS
 
 
-#if STATS
-	DECLARE_STATS_GROUP(TEXT("LLM FULL"), STATGROUP_LLMFULL, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Platform"), STATGROUP_LLMPlatform, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Summary"), STATGROUP_LLM, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Overhead"), STATGROUP_LLMOverhead, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Assets"), STATGROUP_LLMAssets, STATCAT_Advanced);
-
-	DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Engine"), STAT_EngineSummaryLLM, STATGROUP_LLM, CORE_API);
-#endif
-
-
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+#include "Misc/ScopeLock.h"
+#include "Templates/Atomic.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Misc/CString.h"
+#include "Misc/VarArgs.h"
+#include "UObject/NameTypes.h"
 
 #if DO_CHECK
 
@@ -235,7 +216,6 @@ enum class ELLMTagSet : uint8
 	macro(VideoRecording,						"VideoRecording",				GET_STATFNAME(STAT_VideoRecordingLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Replays,								"Replays",						GET_STATFNAME(STAT_ReplaysLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(MaterialInstance,						"MaterialInstance",				GET_STATFNAME(STAT_MaterialInstanceLLM),					GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
-	macro(VertexData,							"VertexData",					GET_STATFNAME(STAT_VertexDataLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(SkeletalMesh,							"SkeletalMesh",					GET_STATFNAME(STAT_SkeletalMeshLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\
 	macro(InstancedMesh,						"InstancedMesh",				GET_STATFNAME(STAT_InstancedMeshLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\
 	macro(Landscape,							"Landscape",					GET_STATFNAME(STAT_LandscapeLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\

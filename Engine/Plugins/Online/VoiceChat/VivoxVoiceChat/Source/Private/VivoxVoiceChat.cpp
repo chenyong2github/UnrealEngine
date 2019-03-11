@@ -506,6 +506,7 @@ void FVivoxVoiceChat::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& D
 		VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
 		VivoxClientConnection.Disconnect(BackendUri);
 
+		ConnectionState = EConnectionState::Disconnecting;
 		OnVoiceChatDisconnectCompleteDelegates.Add(Delegate);
 	}
 	else

@@ -85,7 +85,7 @@ namespace NetworkProfiler
 					SerializedToken = new TokenSendBunch( BinaryStream, InNetworkStream.GetVersion() );
 					break;
 				case ETokenTypes.SendRPC:
-					SerializedToken = new TokenSendRPC( BinaryStream );
+					SerializedToken = new TokenSendRPC( BinaryStream, InNetworkStream.GetVersion() );
 					break;
 				case ETokenTypes.ReplicateActor:
 					SerializedToken = new TokenReplicateActor( BinaryStream );
@@ -332,20 +332,30 @@ namespace NetworkProfiler
 		/** Name table index of function name. */
 		public int FunctionNameIndex;
 		/** Number of bits serialized/sent for the header. */
-		public UInt16 NumHeaderBits;
+		public int NumHeaderBits;
 		/** Number of bits serialized/sent for the parameters. */
-		public UInt16 NumParameterBits;
+		public int NumParameterBits;
 		/** Number of bits serialized/sent for the footer. */
-		public UInt16 NumFooterBits;
+		public int NumFooterBits;
 
 		/** Constructor, serializing members from passed in stream. */
-		public TokenSendRPC( BinaryReader BinaryStream )
+		public TokenSendRPC(BinaryReader BinaryStream, UInt32 Version)
 		{
-			ActorNameIndex = TokenHelper.LoadPackedInt( BinaryStream );
-			FunctionNameIndex = TokenHelper.LoadPackedInt( BinaryStream );
-			NumHeaderBits = BinaryStream.ReadUInt16(); 					
-			NumParameterBits = BinaryStream.ReadUInt16();
-			NumFooterBits = BinaryStream.ReadUInt16();
+			ActorNameIndex = TokenHelper.LoadPackedInt(BinaryStream);
+			FunctionNameIndex = TokenHelper.LoadPackedInt(BinaryStream);
+
+			if (Version < 13)
+			{
+				NumHeaderBits = BinaryStream.ReadUInt16();
+				NumParameterBits = BinaryStream.ReadUInt16();
+				NumFooterBits = BinaryStream.ReadUInt16();
+			}
+			else
+			{
+				NumHeaderBits = TokenHelper.LoadPackedInt(BinaryStream);
+				NumParameterBits = TokenHelper.LoadPackedInt(BinaryStream);
+				NumFooterBits = TokenHelper.LoadPackedInt(BinaryStream);
+			}
 		}
 
 		/**

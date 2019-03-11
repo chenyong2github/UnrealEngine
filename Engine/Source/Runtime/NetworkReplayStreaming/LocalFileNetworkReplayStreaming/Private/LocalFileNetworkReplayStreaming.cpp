@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "UObject/CoreOnline.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalFileReplay, Log, All);
 
@@ -3055,6 +3056,46 @@ void FLocalFileNetworkReplayStreamingFactory::Tick( float DeltaTime )
 			}
 
 			LocalFileStreamers.RemoveAt(i);
+		}
+	}
+}
+
+void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
+{
+	bool bFlushStreamersOnShutdown = true;
+	GConfig->GetBool(TEXT("LocalFileNetworkReplayStreamingFactory"), TEXT("bFlushStreamersOnShutdown"), bFlushStreamersOnShutdown, GEngineIni);
+
+	if (bFlushStreamersOnShutdown)
+	{
+		double MaxFlushTimeSeconds = -1.0;
+		GConfig->GetDouble(TEXT("LocalFileNetworkReplayStreamingFactory"), TEXT("MaxFlushTimeSeconds"), MaxFlushTimeSeconds, GEngineIni);
+
+		double BeginWaitTime = FPlatformTime::Seconds();
+		double LastTime = BeginWaitTime;
+		while (LocalFileStreamers.Num() > 0)
+		{
+			const double AppTime = FPlatformTime::Seconds();
+			const double TotalWait = AppTime - BeginWaitTime;
+
+			if ((MaxFlushTimeSeconds > 0) && (TotalWait > MaxFlushTimeSeconds))
+			{
+				UE_LOG(LogLocalFileReplay, Display, TEXT("Abandoning streamer flush after waiting %0.2f seconds"), TotalWait);
+				break;
+			}
+
+			Tick(AppTime - LastTime);
+			LastTime = AppTime;
+
+			if (LocalFileStreamers.Num() > 0)
+			{
+				FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+
+				if (FPlatformProcess::SupportsMultithreading())
+				{
+					UE_LOG(LogLocalFileReplay, Display, TEXT("Sleeping 0.1s to wait for outstanding requests."));
+					FPlatformProcess::Sleep(0.1f);
+				}
+			}
 		}
 	}
 }

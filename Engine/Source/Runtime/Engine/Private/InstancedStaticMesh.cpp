@@ -278,6 +278,7 @@ void FStaticMeshInstanceBuffer::InitRHI()
 	if (InstanceData->GetNumInstances() > 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FStaticMeshInstanceBuffer_InitRHI);
+		LLM_SCOPE(ELLMTag::InstancedMesh);
 		auto AccessFlags = BUF_Static;
 		CreateVertexBuffer(InstanceData->GetOriginResourceArray(), AccessFlags | BUF_ShaderResource, 16, PF_A32B32G32R32F, InstanceOriginBuffer.VertexBufferRHI, InstanceOriginSRV);
 		CreateVertexBuffer(InstanceData->GetTransformResourceArray(), AccessFlags | BUF_ShaderResource, InstanceData->GetTranslationUsesHalfs() ? 8 : 16, InstanceData->GetTranslationUsesHalfs() ? PF_FloatRGBA : PF_A32B32G32R32F, InstanceTransformBuffer.VertexBufferRHI, InstanceTransformSRV);
@@ -2238,6 +2239,19 @@ void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 
 	// release InstanceDataBuffers
 	InstanceDataBuffers.Reset();
+
+	if (PerInstanceRenderData.IsValid())
+	{
+		AActor* Owner = GetOwner();
+		ULevel* OwnerLevel = Owner->GetLevel();
+		UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+
+		if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+		{
+			//update the instance data if the lighting scenario isn't the owner level
+			InstanceUpdateCmdBuffer.Edit();
+		}
+	}
 }
 
 void UInstancedStaticMeshComponent::PartialNavigationUpdate(int32 InstanceIdx)
