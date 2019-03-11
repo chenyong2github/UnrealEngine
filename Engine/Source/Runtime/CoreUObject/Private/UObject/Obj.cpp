@@ -38,7 +38,6 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Serialization/ArchiveShowReferences.h"
 #include "Serialization/ArchiveFindCulprit.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Misc/PackageName.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
@@ -2819,16 +2818,6 @@ void UObject::OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* 
 	}
 
 	Ar.Logf(TEXT("\r\n") );
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	Ar.Logf(TEXT("Shortest reachability from root to %s:\r\n"), *GetFullName() );
-	TMap<UObject*,UProperty*> Rt = FArchiveTraceRoute::FindShortestRootPath(this,true,GARBAGE_COLLECTION_KEEPFLAGS);
-
-	FString RootPath = FArchiveTraceRoute::PrintRootPath(Rt, this);
-	Ar.Log(*RootPath);
-
-	Ar.Logf(TEXT("\r\n") );
-#endif
 
 	if (bTempReferencers)
 	{

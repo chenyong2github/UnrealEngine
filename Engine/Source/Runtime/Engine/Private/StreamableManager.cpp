@@ -721,6 +721,7 @@ FStreamableManager::FStreamableManager()
 {
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FStreamableManager::OnPreGarbageCollect);
 	bForceSynchronousLoads = false;
+	ManagerName = TEXT("StreamableManager");
 }
 
 FStreamableManager::~FStreamableManager()
@@ -794,6 +795,21 @@ void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 			Collector.AddReferencedObject(Existing.LoadedRedirector);
 		}
 	}
+}
+
+FString FStreamableManager::GetReferencerName() const
+{
+	return ManagerName;
+}
+
+const FString& FStreamableManager::GetManagerName() const
+{
+	return ManagerName;
+}
+
+void FStreamableManager::SetManagerName(const FString& InName)
+{
+	ManagerName = InName;
 }
 
 FStreamable* FStreamableManager::FindStreamable(const FSoftObjectPath& Target) const
@@ -889,16 +905,6 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 		}
 	}
 	return Existing;
-}
-
-void FStreamableManager::SimpleAsyncLoad(const FSoftObjectPath& Target, TAsyncLoadPriority Priority)
-{
-	RequestAsyncLoad(Target, FStreamableDelegate(), Priority, true);
-}
-
-UObject* FStreamableManager::SynchronousLoad(FSoftObjectPath const& Target)
-{
-	return LoadSynchronous(Target, true);
 }
 
 TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(const TArray<FSoftObjectPath>& TargetsToStream, FStreamableDelegate DelegateToCall, TAsyncLoadPriority Priority, bool bManageActiveHandle, bool bStartStalled, const FString& DebugName)

@@ -16,7 +16,7 @@
 #include "UObject/Package.h"
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
-#include "Serialization/ArchiveTraceRoute.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
 #include "InputCoreTypes.h"
 #include "Layout/Margin.h"
@@ -486,11 +486,10 @@ void UEditorEngine::EndPlayMap()
 				UE_LOG(LogPlayLevel, Error, TEXT("No PIE world was found when attempting to gather references after GC."));
 			}
 
-			TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( Object, true, GARBAGE_COLLECTION_KEEPFLAGS );
-			FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, Object );
+			FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest);
 
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("Path"), FText::FromString(ErrorString));
+			Arguments.Add(TEXT("Path"), FText::FromString(RefChainSearch.GetRootPath()));
 				
 			// We cannot safely recover from this.
 			FMessageLog(NAME_CategoryPIE).CriticalError()

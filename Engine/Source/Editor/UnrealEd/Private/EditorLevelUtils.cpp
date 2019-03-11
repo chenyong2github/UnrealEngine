@@ -10,7 +10,6 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "UObject/GarbageCollection.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -23,6 +22,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "EngineGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/Selection.h"
@@ -713,10 +713,8 @@ bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel)
 			UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
 			if (TheWorld != nullptr)
 			{
-				StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=%s NAME=%s shortest"), *TheWorld->GetClass()->GetName(), *TheWorld->GetPathName()));
-				TMap<UObject*, UProperty*>	Route = FArchiveTraceRoute::FindShortestRootPath(TheWorld, true, GARBAGE_COLLECTION_KEEPFLAGS);
-				FString						ErrorString = FArchiveTraceRoute::PrintRootPath(Route, TheWorld);
-				UE_LOG(LogStreaming, Fatal, TEXT("%s didn't get garbage collected!") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetFullName(), *ErrorString);
+				FReferenceChainSearch RefChainSearch(TheWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				UE_LOG(LogStreaming, Fatal, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
 			}
 		}
 	}
