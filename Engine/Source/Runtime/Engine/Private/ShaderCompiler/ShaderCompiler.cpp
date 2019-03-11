@@ -2732,7 +2732,7 @@ ENGINE_API void GenerateInstancedStereoCode(FString& Result)
 	Result += "}\r\n";
 	
 	// ResolveView definition for metal, this allows us to change the branch to a conditional move in the cross compiler
-	Result += "#if COMPILER_METAL\r\n";
+	Result += "#if COMPILER_METAL && MAX_SHADER_LANGUAGE_VERSION < 6\r\n";
 	Result += "ViewState ResolveView(uint ViewIndex)\r\n";
 	Result += "{\r\n";
 	Result += "\tViewState Result;\r\n";

@@ -37,8 +37,8 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	int32 MinShaderVersion = 3;
     const TCHAR* const Settings = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
 #else
-	int32 DefaultMaxShaderVersion = 0;
-	int32 MinShaderVersion = 0;
+	int32 DefaultMaxShaderVersion = 2;
+	int32 MinShaderVersion = 2;
     const TCHAR* const Settings = TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings");
 #endif
     if(!GConfig->GetInt(Settings, TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
@@ -229,7 +229,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesTextureBuffers;
             }
-            if (MaxShaderVersion >= 5)
+            if (MaxShaderVersion == 5)
             {
                 Features |= EMetalFeaturesIABs;
             }

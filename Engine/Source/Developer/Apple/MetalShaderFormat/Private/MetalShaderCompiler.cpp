@@ -1134,7 +1134,7 @@ void BuildMetalShaderOutput(
 
 	// Then the list of outputs.
 	static const FString TargetPrefix = "FragColor";
-	static const FString GL_FragDepth = "FragDepth";
+	static const FString TargetPrefix2 = "SV_Target";
 	// Only outputs for pixel shaders must be tracked.
 	if (Frequency == SF_Pixel)
 	{
@@ -1146,12 +1146,18 @@ void BuildMetalShaderOutput(
 				uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len());
 				Header.Bindings.InOutMask |= (1 << TargetIndex);
 			}
-			// Handle depth writes.
-			else if (Output.Name.Equals(GL_FragDepth))
+			else if (Output.Name.StartsWith(TargetPrefix2))
 			{
-				Header.Bindings.InOutMask |= 0x8000;
+				uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix2.Len());
+				Header.Bindings.InOutMask |= (1 << TargetIndex);
 			}
         }
+		
+		// For fragment shaders that discard but don't output anything we need at least a depth-stencil surface, so we need a way to validate this at runtime.
+		if (FCStringAnsi::Strstr(USFSource, "[[ depth(") != nullptr || FCStringAnsi::Strstr(USFSource, "[[depth(") != nullptr)
+		{
+			Header.Bindings.InOutMask |= 0x8000;
+		}
         
         // For fragment shaders that discard but don't output anything we need at least a depth-stencil surface, so we need a way to validate this at runtime.
         if (FCStringAnsi::Strstr(USFSource, "discard_fragment()") != nullptr)
@@ -1937,8 +1943,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		AdditionalDefines.SetDefine(TEXT("MAC"), 1);
 	}
 	
-	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1 );
-	AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
+	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1);
 	AdditionalDefines.SetDefine(TEXT("COMPILER_METAL"), 1);
 
 	static FName NAME_SF_METAL(TEXT("SF_METAL"));
@@ -1962,6 +1967,11 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
             LexFromString(VersionEnum, *(*MaxVersion));
         }
     }
+	
+	// The new compiler is only available on Mac or Windows for the moment.
+#if !(PLATFORM_MAC || PLATFORM_WINDOWS)
+	VersionEnum = FMath::Min(VersionEnum, (uint8)5);
+#endif
 	
 	bool bAppleTV = (Input.ShaderFormat == NAME_SF_METAL_TVOS || Input.ShaderFormat == NAME_SF_METAL_MRT_TVOS);
     if (Input.ShaderFormat == NAME_SF_METAL || Input.ShaderFormat == NAME_SF_METAL_TVOS)
@@ -2027,11 +2037,17 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		return;
 	}
 	
+	if (VersionEnum < 6)
+	{
+		AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
+	}
+	
     EMetalTypeBufferMode TypeMode = EMetalTypeBufferModeRaw;
 	FString MinOSVersion;
 	FString StandardVersion;
 	switch(VersionEnum)
     {
+		case 6:
         case 5:
             // Enable full SM5 feature support so tessellation & fragment UAVs compile
             TypeMode = EMetalTypeBufferModeTB;
@@ -2241,12 +2257,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 
 	// This requires removing the HLSLCC_NoPreprocess flag later on!
-    if (VersionEnum < 5)
+    if (VersionEnum < 5 || VersionEnum == 6)
     {
         RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShader);
     }
 
-	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_KeepSamplerAndImageNames;
+	uint32 CCFlags = HLSLCC_NoPreprocess | HLSLCC_PackUniformsIntoUniformBufferWithNames | HLSLCC_FixAtomicReferences | HLSLCC_RetainSizes | HLSLCC_KeepSamplerAndImageNames;
 	if (!bDirectCompile || UE_BUILD_DEBUG)
 	{
 		// Validation is expensive - only do it when compiling directly for debugging

@@ -410,6 +410,8 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 			mtlpp::LanguageVersion MetalVersion;
 			switch(Header.Version)
 			{
+				case 6:
+				case 5:
 				case 4:
 					MetalVersion = mtlpp::LanguageVersion::Version2_1;
 					break;

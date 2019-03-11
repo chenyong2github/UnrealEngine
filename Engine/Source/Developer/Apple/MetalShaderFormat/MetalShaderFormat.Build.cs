@@ -28,6 +28,14 @@ public class MetalShaderFormat : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, 
 			"HLSLCC"
 			);
+
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"ShaderConductor",
+				"SPIRVReflect"
+			);
+		}
 			
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]

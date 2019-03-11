@@ -289,17 +289,12 @@ float Manual1x1PCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 
 float ManualPCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 {
-
 #if SHADOW_QUALITY == 1
 	return ManualNoFiltering(ShadowPosition, Settings);
-#endif
-
-#if SHADOW_QUALITY == 2
+#elif SHADOW_QUALITY == 2
 	// low quality, 2x2 samples, using and not using gather4
 	return Manual1x1PCF(ShadowPosition, Settings);
-#endif
-
-#if SHADOW_QUALITY == 3
+#elif SHADOW_QUALITY == 3
 	// medium quality, 4x4 samples, using and not using gather4
 	{
 		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware
@@ -326,9 +321,7 @@ float ManualPCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 #endif // FEATURE_GATHER4
 		}
 	}
-#endif
-
-#if FEATURE_GATHER4
+#elif FEATURE_GATHER4
 	// high quality, 6x6 samples, using gather4
 	{
 		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware
