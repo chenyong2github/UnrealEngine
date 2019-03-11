@@ -30,6 +30,7 @@
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "IMeshReductionManagerModule.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Engine/AssetUserData.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshImport, Log, All);
 
@@ -534,6 +535,25 @@ ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, 
 					FName MaterialName = ImportMeshLodSectionsData.SectionOriginalMaterialName[SectionIndex];
 					ExistingMeshDataPtr->LastImportMeshLodSectionMaterialData[LodIndex].Add(MaterialName);
 				}
+			}
+		}
+	}
+
+	//Store the user asset data
+	const TArray<UAssetUserData*>* UserData = ExistingSkelMesh->GetAssetUserDataArray();
+	if (UserData)
+	{
+		for (int32 Idx = 0; Idx < UserData->Num(); Idx++)
+		{
+			if ((*UserData)[Idx] != nullptr)
+			{
+				UAssetUserData* DupObject = (UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage());
+				bool bAddDupToRoot = !(DupObject->IsRooted());
+				if (bAddDupToRoot)
+				{
+					DupObject->AddToRoot();
+				}
+				ExistingMeshDataPtr->ExistingAssetUserData.Add(DupObject, bAddDupToRoot);
 			}
 		}
 	}
@@ -1190,6 +1210,19 @@ void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* 
 		{
 			SkeletalMeshImportedModel->OriginalReductionSourceMeshData[ReimportLODIndex]->EmptyBulkData();
 		}
+	}
+
+	// Copy user data to newly created mesh
+	for (auto Kvp : MeshData->ExistingAssetUserData)
+	{
+		UAssetUserData* UserDataObject = Kvp.Key;
+		if (Kvp.Value)
+		{
+			//if the duplicated temporary UObject was add to root, we must remove it from the root
+			UserDataObject->RemoveFromRoot();
+		}
+		UserDataObject->Rename(nullptr, SkeletalMesh, REN_DontCreateRedirectors | REN_DoNotDirty);
+		SkeletalMesh->AddAssetUserData(UserDataObject);
 	}
 }
 #undef LOCTEXT_NAMESPACE

@@ -82,6 +82,8 @@ struct ExistingSkelMeshData
 
 	FSkeletalMeshSamplingInfo				ExistingSamplingInfo;
 	FPerPlatformInt							MinLOD;
+
+	TMap<UAssetUserData*, bool>				ExistingAssetUserData;
 };
 
 /** 
