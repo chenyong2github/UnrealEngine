@@ -15,6 +15,11 @@ FOutputDeviceRedirector.
 /** The type of lines buffered by secondary threads. */
 struct FBufferedLine
 {
+	enum EBufferedLineInit
+	{
+		EMoveCtor = 0
+	};
+
 	const FString Data;
 	const FName Category;
 	const double Time;
@@ -27,6 +32,19 @@ struct FBufferedLine
 		, Time(InTime)
 		, Verbosity(InVerbosity)
 	{}
+
+	/** Default constructor. */
+	FBufferedLine()
+		: Time(0.0)
+		, Verbosity(ELogVerbosity::NoLogging)
+	{}
+
+	FBufferedLine(FBufferedLine& InBufferedLine, EBufferedLineInit Unused)
+		: Data(MoveTemp(const_cast<FString&>(InBufferedLine.Data)))
+		, Category(InBufferedLine.Category)
+		, Time(InBufferedLine.Time)
+		, Verbosity(InBufferedLine.Verbosity)
+	{}
 };
 
 /**
@@ -34,6 +52,10 @@ struct FBufferedLine
 */
 class CORE_API FOutputDeviceRedirector : public FOutputDevice
 {
+public:
+
+	typedef TArray<FOutputDevice*, TInlineAllocator<16> > TLocalOutputDevicesArray;
+
 private:
 	/** A FIFO of lines logged by non-master threads. */
 	TArray<FBufferedLine> BufferedLines;
@@ -53,16 +75,42 @@ private:
 	/** Whether backlogging is enabled. */
 	bool bEnableBacklog;
 
-	/** Object used for synchronization via a scoped lock */
+	/** Objects used for synchronization via a scoped lock */
 	FCriticalSection	SynchronizationObject;
+	FCriticalSection	BufferSynchronizationObject;
+	FCriticalSection	OutputDevicesMutex;
+	FThreadSafeCounter	OutputDevicesLockCounter;
 
 	/**
 	* The unsynchronized version of FlushThreadedLogs.
 	* Assumes that the caller holds a lock on SynchronizationObject.
 	* @param bUseAllDevices - if true this method will use all output devices
 	*/
-	void UnsynchronizedFlushThreadedLogs(bool bUseAllDevices);
+	void InternalFlushThreadedLogs(TLocalOutputDevicesArray& InBufferedDevices, bool bUseAllDevices);
+	void InternalFlushThreadedLogs(bool bUseAllDevices);
 
+	/** Locks OutputDevices arrays so that nothing can be added or removed from them */
+	void LockOutputDevices(TLocalOutputDevicesArray& OutBufferedDevices, TLocalOutputDevicesArray& OutUnbufferedDevices);
+
+	/** Unlocks OutputDevices arrays */
+	void UnlockOutputDevices();
+
+	friend struct FOutputDevicesLock;
+
+	/** Helper struct for scope locking OutputDevices arrays */
+	struct FOutputDevicesLock
+	{
+		FOutputDeviceRedirector* Redirector;
+		FOutputDevicesLock(FOutputDeviceRedirector* InRedirector, TLocalOutputDevicesArray& OutBufferedDevices, TLocalOutputDevicesArray& OutUnbufferedDevices)
+			: Redirector(InRedirector)
+		{
+			Redirector->LockOutputDevices(OutBufferedDevices, OutUnbufferedDevices);
+		}
+		~FOutputDevicesLock()
+		{
+			Redirector->UnlockOutputDevices();
+		}
+	};
 public:
 
 	/** Initialization constructor. */
