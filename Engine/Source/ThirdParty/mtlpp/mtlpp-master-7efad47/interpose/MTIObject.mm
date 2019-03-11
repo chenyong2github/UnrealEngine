@@ -2,6 +2,7 @@
 
 #include <Foundation/NSObject.h>
 #include "MTIObject.hpp"
+#include "MTITrace.hpp"
 
 MTLPP_BEGIN
 
@@ -14,6 +15,24 @@ void MTIObjectTrace::ReleaseImpl(id Object, SEL Selector, void(*ReleasePtr)(id,S
 {
 	ReleasePtr(Object, Selector);
 }
+
+struct MTITraceObjectDeallocCommandHandler : public MTITraceCommandHandler
+{
+	MTITraceObjectDeallocCommandHandler()
+	: MTITraceCommandHandler("NSObject", "dealloc")
+	{
+		
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		id Object = MTITrace::Get().FetchObject(Header.Receiver);
+		
+		[Object release];
+		
+		MTITrace::Get().RegisterObject(Header.Receiver, nullptr);
+	}
+};
 
 void MTIObjectTrace::DeallocImpl(id Object, SEL Selector, void(*DeallocPtr)(id,SEL))
 {
