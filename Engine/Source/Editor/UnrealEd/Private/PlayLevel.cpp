@@ -1629,7 +1629,7 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 	{
 		TGraphTask<FLauncherNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
 			NotificationItemPtr,
-			SNotificationItem::CS_Fail,
+			SNotificationItem::CS_Pending,
 			NotificationText
 		);
 	}
