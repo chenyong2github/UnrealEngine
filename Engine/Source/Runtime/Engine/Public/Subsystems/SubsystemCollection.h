@@ -26,6 +26,7 @@ public:
 
 	/* FGCObject Interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 
 protected:
 	/** protected constructor - for use by the template only(FSubsystemCollection<TBaseType>) */

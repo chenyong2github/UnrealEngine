@@ -5191,6 +5191,11 @@ void FRepLayout::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString FRepLayout::GetReferencerName() const
+{
+	return TEXT("FRepLayout");
+}
+
 void FRepLayout::CountBytes(FArchive& Ar) const
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepLayout::CountBytes");

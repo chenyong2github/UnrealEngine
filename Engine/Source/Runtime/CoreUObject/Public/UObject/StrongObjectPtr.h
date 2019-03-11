@@ -141,6 +141,11 @@ private:
 			Collector.AddReferencedObject(Object);
 		}
 
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("TStrongObjectPtr");
+		}
+
 	private:
 		ObjectType* Object;
 	};

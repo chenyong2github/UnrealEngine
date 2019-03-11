@@ -68,6 +68,12 @@ public:
 		Collector.AddReferencedObject(RenderTarget);
 		Collector.AddReferencedObject(DynamicEffect);
 	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FRetainerWidgetRenderingResources");
+	}
+	
 public:
 	FWidgetRenderer* WidgetRenderer;
 	UTextureRenderTarget2D* RenderTarget;

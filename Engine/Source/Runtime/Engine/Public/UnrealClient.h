@@ -632,6 +632,7 @@ protected:
 
 		/** FGCObject interface */
 		virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+		virtual FString GetReferencerName() const override;
 
 		const FTexture2DRHIRef& GetHitProxyTexture(void) const		{ return HitProxyTexture; }
 		const FTexture2DRHIRef& GetHitProxyCPUTexture(void) const		{ return HitProxyCPUTexture; }

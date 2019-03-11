@@ -256,6 +256,11 @@ void FParticleSystemWorldManager::AddReferencedObjects(FReferenceCollector& Coll
 	}
 }
 
+FString FParticleSystemWorldManager::GetReferencerName() const
+{
+	return TEXT("FParticleSystemWorldManager");
+}
+
 void FParticleSystemWorldManager::HandlePostGarbageCollect()
 {
 	//UE_LOG(LogParticles, Warning, TEXT("| HandlePostGarbageCollect |"));

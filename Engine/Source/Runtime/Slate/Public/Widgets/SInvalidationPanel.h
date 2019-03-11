@@ -43,6 +43,7 @@ public:
 #endif
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 
 	void SetCanCache(bool InCanCache);
 

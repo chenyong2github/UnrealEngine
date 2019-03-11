@@ -1696,7 +1696,8 @@ private:
 
 		void ClearOwner();
 
-		SLATECORE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override;
 
 	private:
 		FSlateWindowElementList* Owner;

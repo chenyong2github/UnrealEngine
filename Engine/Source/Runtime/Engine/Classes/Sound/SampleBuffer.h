@@ -441,7 +441,8 @@ namespace Audio
 		void Update();
 
 		//~ GCObject Interface
-		void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override;
 		//~ GCObject Interface
 
 	private:

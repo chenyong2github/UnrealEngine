@@ -3187,6 +3187,11 @@ void FRecastTileGenerator::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString FRecastTileGenerator::GetReferencerName() const
+{
+	return TEXT("FRecastTileGenerator");
+}
+
 static int32 CaclulateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, float TileSizeinWorldUnits, float AvgLayersPerGridCell)
 {
 	int32 GridCellsCount = 0;

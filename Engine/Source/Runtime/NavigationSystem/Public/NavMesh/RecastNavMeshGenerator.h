@@ -197,7 +197,8 @@ public:
 	uint32 UsedMemoryOnStartup;
 
 	// FGCObject begin
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 	// FGCObject end
 		
 protected:
