@@ -834,13 +834,10 @@ IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleMan
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
 
 		FModuleStatus Status;
-		if (FModuleManager::Get().QueryModule(*ModuleName, Status))
+		Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
+		if (Module)
 		{
-			Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
-			if (Module)
-			{
-				Manager = Module->GetInstallBundleManager();
-			}
+			Manager = Module->GetInstallBundleManager();
 		}
 		bCheckedIni = true;
 	}

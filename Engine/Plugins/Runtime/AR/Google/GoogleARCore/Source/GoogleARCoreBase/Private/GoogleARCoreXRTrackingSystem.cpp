@@ -52,6 +52,11 @@ bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
 
 bool FGoogleARCoreXRTrackingSystem::GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition)
 {
+	if (OnGetARSessionStatus().Status != EARSessionStatus::Running)
+	{
+		return false;
+	}
+	
 	if (DeviceId == IXRTrackingSystem::HMDDeviceId)
 	{
 		OutOrientation = CachedOrientation;
@@ -192,6 +197,17 @@ EARTrackingQuality FGoogleARCoreXRTrackingSystem::OnGetTrackingQuality() const
 	}
 
 	return EARTrackingQuality::OrientationAndPosition;
+}
+
+EARTrackingQualityReason FGoogleARCoreXRTrackingSystem::OnGetTrackingQualityReason() const
+{
+	// Dont return EARTrackingQualityReason::None, which means that the tracking quality is not limited
+	return EARTrackingQualityReason::InsufficientFeatures;
+}
+
+bool FGoogleARCoreXRTrackingSystem::IsARAvailable() const
+{
+	return FGoogleARCoreDevice::GetInstance()->CheckARCoreAPKAvailability() == EGoogleARCoreAvailability::SupportedInstalled;
 }
 
 void FGoogleARCoreXRTrackingSystem::OnStartARSession(UARSessionConfig* SessionConfig)
