@@ -1980,6 +1980,15 @@ void UMaterialExpressionTextureSampleParameter::GetAllParameterInfo(TArray<FMate
 {
 	int32 CurrentSize = OutParameterInfo.Num();
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
+
+#if WITH_EDITOR
+	NewParameter.ParameterLocation = Material;
+	if (Function != nullptr)
+	{
+		NewParameter.ParameterLocation = Function;
+	}
+#endif
+
 	OutParameterInfo.AddUnique(NewParameter);
 
 	if(CurrentSize != OutParameterInfo.Num())
@@ -6186,6 +6195,15 @@ void UMaterialExpressionParameter::GetAllParameterInfo(TArray<FMaterialParameter
 {
 	int32 CurrentSize = OutParameterInfo.Num();
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
+
+#if WITH_EDITOR
+	NewParameter.ParameterLocation = Material;
+	if (Function != nullptr)
+	{
+		NewParameter.ParameterLocation = Function;
+	}
+#endif
+
 	OutParameterInfo.AddUnique(NewParameter);
 	if(CurrentSize != OutParameterInfo.Num())
 	{
@@ -9215,6 +9233,13 @@ void UMaterialExpressionFontSampleParameter::GetAllParameterInfo(TArray<FMateria
 {
 	int32 CurrentSize = OutParameterInfo.Num();
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
+#if WITH_EDITOR
+	NewParameter.ParameterLocation = Material;
+	if (Function != nullptr)
+	{
+		NewParameter.ParameterLocation = Function;
+	}
+#endif
 	OutParameterInfo.AddUnique(NewParameter);
 	if(CurrentSize != OutParameterInfo.Num())
 	{
