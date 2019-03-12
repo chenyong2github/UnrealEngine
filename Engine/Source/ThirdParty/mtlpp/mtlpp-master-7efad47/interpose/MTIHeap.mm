@@ -46,7 +46,7 @@ void MTIHeapTrace::SetLabelImpl(id Obj, SEL Cmd, Super::SetLabelType::DefinedIMP
 struct MTITraceHeapSetPurgeableStateHandler : public MTITraceCommandHandler
 {
 	MTITraceHeapSetPurgeableStateHandler()
-	: MTITraceCommandHandler("MTLHeap", "setLabel")
+	: MTITraceCommandHandler("MTLHeap", "setPurgeableState")
 	{
 		
 	}

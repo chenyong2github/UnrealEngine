@@ -109,8 +109,68 @@ INTERPOSE_DEFINITION(MTITextureTrace, Getbytesbytesperrowbytesperimagefromregion
 	Original(Obj, Cmd, pixelBytes, bytesPerRow, bytesPerImage, region, level, slice);
 }
 
+struct MTITraceTextureReplaceRegion2Handler : public MTITraceCommandHandler
+{
+	MTITraceTextureReplaceRegion2Handler()
+	: MTITraceCommandHandler("MTLBuffer", "Replaceregionmipmaplevelslicewithbytesbytesperrowbytesperimage")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPPRegion region , NSUInteger level , NSUInteger slice , const void * pixelBytes , NSUInteger bytesPerRow , NSUInteger bytesPerImage)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << region.origin.x;
+		fs << region.origin.y;
+		fs << region.origin.z;
+		fs << region.size.width;
+		fs << region.size.height;
+		fs << region.size.depth;
+		fs << level;
+		fs << slice;
+		fs << bytesPerRow;
+		fs << bytesPerImage;
+		
+		MTITraceArray<uint8> Data;
+		Data.Data = (uint8*)pixelBytes;
+		Data.Length = bytesPerImage * region.size.depth;
+		
+		fs << Data;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		MTLRegion region;
+		NSUInteger level;
+		NSUInteger slice;
+		NSUInteger bytesPerRow;
+		NSUInteger bytesPerImage;
+		fs >> region.origin.x;
+		fs >> region.origin.y;
+		fs >> region.origin.z;
+		fs >> region.size.width;
+		fs >> region.size.height;
+		fs >> region.size.depth;
+		fs >> level;
+		fs >> slice;
+		fs >> bytesPerRow;
+		fs >> bytesPerImage;
+		
+		MTITraceArray<uint8> Data;
+		fs >> Data;
+		
+		[(id<MTLTexture>)MTITrace::Get().FetchObject(Header.Receiver) replaceRegion:region mipmapLevel:level slice:slice withBytes:Data.Backing.data() bytesPerRow:bytesPerRow bytesPerImage:bytesPerImage];
+	}
+};
+static MTITraceTextureReplaceRegion2Handler GMTITraceBufferDidModifyRangeHandler;
+
 INTERPOSE_DEFINITION(MTITextureTrace, Replaceregionmipmaplevelslicewithbytesbytesperrowbytesperimage, void, MTLPPRegion region , NSUInteger level , NSUInteger slice , const void * pixelBytes , NSUInteger bytesPerRow , NSUInteger bytesPerImage)
 {
+	GMTITraceBufferDidModifyRangeHandler.Trace(Obj, region, level, slice, pixelBytes, bytesPerRow, bytesPerImage);
 	Original(Obj, Cmd, region, level, slice, pixelBytes, bytesPerRow, bytesPerImage);
 }
 
@@ -119,8 +179,62 @@ INTERPOSE_DEFINITION(MTITextureTrace, Getbytesbytesperrowfromregionmipmaplevel, 
 	Original(Obj, Cmd, pixelBytes, bytesPerRow, region, level);
 }
 
+struct MTITraceTextureReplaceRegionHandler : public MTITraceCommandHandler
+{
+	MTITraceTextureReplaceRegionHandler()
+	: MTITraceCommandHandler("MTLBuffer", "Replaceregionmipmaplevelwithbytesbytesperrow")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPPRegion region , NSUInteger level , const void * pixelBytes , NSUInteger bytesPerRow)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << region.origin.x;
+		fs << region.origin.y;
+		fs << region.origin.z;
+		fs << region.size.width;
+		fs << region.size.height;
+		fs << region.size.depth;
+		fs << level;
+		fs << bytesPerRow;
+		
+		MTITraceArray<uint8> Data;
+		Data.Data = (uint8*)pixelBytes;
+		Data.Length = bytesPerRow * region.size.height * region.size.depth;
+		
+		fs << Data;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		MTLRegion region;
+		NSUInteger level;
+		NSUInteger bytesPerRow;
+		fs >> region.origin.x;
+		fs >> region.origin.y;
+		fs >> region.origin.z;
+		fs >> region.size.width;
+		fs >> region.size.height;
+		fs >> region.size.depth;
+		fs >> level;
+		fs >> bytesPerRow;
+		
+		MTITraceArray<uint8> Data;
+		fs >> Data;
+		
+		[(id<MTLTexture>)MTITrace::Get().FetchObject(Header.Receiver) replaceRegion:region mipmapLevel:level withBytes:Data.Backing.data() bytesPerRow:bytesPerRow];
+	}
+};
+static MTITraceTextureReplaceRegionHandler GMTITraceTextureReplaceRegionHandler;
+
 INTERPOSE_DEFINITION(MTITextureTrace, Replaceregionmipmaplevelwithbytesbytesperrow, void, MTLPPRegion region , NSUInteger level , const void * pixelBytes , NSUInteger bytesPerRow)
 {
+	GMTITraceTextureReplaceRegionHandler.Trace(Obj, region, level, pixelBytes, bytesPerRow);
 	Original(Obj, Cmd, region, level, pixelBytes, bytesPerRow);
 }
 
