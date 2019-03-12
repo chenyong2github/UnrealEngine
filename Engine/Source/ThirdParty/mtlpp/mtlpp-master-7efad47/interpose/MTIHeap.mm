@@ -128,10 +128,10 @@ id<MTLBuffer> MTIHeapTrace::NewBufferWithLengthImpl(id Obj, SEL Cmd, Super::NewB
 }
 
 
-struct MTITraceNewTextureHandler : public MTITraceCommandHandler
+struct MTITraceHeapNewTextureHandler : public MTITraceCommandHandler
 {
-	MTITraceNewTextureHandler()
-	: MTITraceCommandHandler("MTLDevice", "newTextureWithDescriptor")
+	MTITraceHeapNewTextureHandler()
+	: MTITraceCommandHandler("MTLHeap", "newTextureWithDescriptor")
 	{
 		
 	}
@@ -164,10 +164,10 @@ struct MTITraceNewTextureHandler : public MTITraceCommandHandler
 		MTITrace::Get().RegisterObject(Result, Texture);
 	}
 };
-static MTITraceNewTextureHandler GMTITraceNewTextureHandler;
+static MTITraceHeapNewTextureHandler GMTITraceHeapNewTextureHandler;
 id<MTLTexture> MTIHeapTrace::NewTextureWithDescriptorImpl(id Obj, SEL Cmd, Super::NewTextureWithDescriptorType::DefinedIMP Original, MTLTextureDescriptor* D)
 {
-	return GMTITraceNewTextureHandler.Trace(Obj, D, MTITextureTrace::Register(Original(Obj, Cmd, D)));
+	return GMTITraceHeapNewTextureHandler.Trace(Obj, D, MTITextureTrace::Register(Original(Obj, Cmd, D)));
 }
 
 MTLPP_END

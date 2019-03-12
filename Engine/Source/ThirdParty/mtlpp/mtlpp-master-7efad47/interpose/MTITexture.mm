@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#import <Metal/MTLTexture.h>
+#import <Metal/Metal.h>
 #include "MTITexture.hpp"
+#include "MTITrace.hpp"
 
 
 MTLPP_BEGIN
@@ -123,14 +124,96 @@ INTERPOSE_DEFINITION(MTITextureTrace, Replaceregionmipmaplevelwithbytesbytesperr
 	Original(Obj, Cmd, region, level, pixelBytes, bytesPerRow);
 }
 
+struct MTITraceTextureNewTextureViewHandler : public MTITraceCommandHandler
+{
+	MTITraceTextureNewTextureViewHandler()
+	: MTITraceCommandHandler("MTLTexture", "newTextureViewWithPixelFormat")
+	{
+		
+	}
+	
+	id<MTLTexture> Trace(id Object, MTLPixelFormat pixelFormat, id<MTLTexture> Texture)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << pixelFormat;
+		
+		MTITrace::Get().EndWrite();
+		return Texture;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger pixelFormat;
+		fs >> pixelFormat;
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLTexture> Texture = [(id<MTLTexture>)MTITrace::Get().FetchObject(Header.Receiver) newTextureViewWithPixelFormat:(MTLPixelFormat)pixelFormat];
+		assert(Texture);
+		
+		MTITrace::Get().RegisterObject(Result, Texture);
+	}
+};
+static MTITraceTextureNewTextureViewHandler GMTITraceTextureNewTextureViewHandler;
 INTERPOSE_DEFINITION(MTITextureTrace, Newtextureviewwithpixelformat, id<MTLTexture>, MTLPixelFormat pixelFormat)
 {
-	return MTITextureTrace::Register(Original(Obj, Cmd, pixelFormat));
+	return GMTITraceTextureNewTextureViewHandler.Trace(Obj, pixelFormat, MTITextureTrace::Register(Original(Obj, Cmd, pixelFormat)));
 }
 
+struct MTITraceTextureNewTextureViewTypeHandler : public MTITraceCommandHandler
+{
+	MTITraceTextureNewTextureViewTypeHandler()
+	: MTITraceCommandHandler("MTLTexture", "newTextureViewWithPixelFormatAndType")
+	{
+		
+	}
+	
+	id<MTLTexture> Trace(id Object, MTLPixelFormat pixelFormat , MTLTextureType textureType , NSRange levelRange , NSRange sliceRange, id<MTLTexture> Texture)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << pixelFormat;
+		fs << textureType;
+		fs << levelRange.location;
+		fs << levelRange.length;
+		fs << sliceRange.location;
+		fs << sliceRange.length;
+		fs << (uintptr_t)Texture;
+		
+		MTITrace::Get().EndWrite();
+		return Texture;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger pixelFormat;
+		NSUInteger textureType;
+		NSRange levelRange;
+		NSRange sliceRange;
+		fs >> pixelFormat;
+		fs >> textureType;
+		fs >> levelRange.location;
+		fs >> levelRange.length;
+		fs >> sliceRange.location;
+		fs >> sliceRange.length;
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLTexture> Texture = [(id<MTLTexture>)MTITrace::Get().FetchObject(Header.Receiver) newTextureViewWithPixelFormat:(MTLPixelFormat)pixelFormat textureType:(MTLTextureType)textureType levels:(NSRange)levelRange slices:(NSRange)sliceRange];
+		assert(Texture);
+		
+		MTITrace::Get().RegisterObject(Result, Texture);
+	}
+};
+static MTITraceTextureNewTextureViewTypeHandler GMTITraceTextureNewTextureViewTypeHandler;
 INTERPOSE_DEFINITION(MTITextureTrace, Newtextureviewwithpixelformattexturetypelevelsslices, id<MTLTexture>, MTLPixelFormat pixelFormat , MTLTextureType textureType , NSRange levelRange , NSRange sliceRange)
 {
-	return MTITextureTrace::Register(Original(Obj, Cmd, pixelFormat, textureType, levelRange, sliceRange));
+	return GMTITraceTextureNewTextureViewTypeHandler.Trace(Obj, pixelFormat, textureType, levelRange, sliceRange, MTITextureTrace::Register(Original(Obj, Cmd, pixelFormat, textureType, levelRange, sliceRange)));
 }
 
 MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler()
