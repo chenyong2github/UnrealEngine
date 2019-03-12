@@ -244,6 +244,14 @@ public:
 	*/
 	static void FillComponentContextMenuOptions(FMenuBuilder& MenuBuilder, const TArray<UActorComponent*>& SelectedComponents);
 
+	/**
+	 * Tries to find a match for ComponentInstance in the ComponentList. First by name and then if multiple Components have a matching name try to match the SceneComponent hierarchy to find the best match.
+	 * @param ComponentInstance Component we are trying to match in the ComponentList
+	 * @param ComponentList List containing possible matches
+	 * @return Valid Component pointer if match was found. nullptr otherwise.
+	 */
+	static UActorComponent* FindMatchingComponent(UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
+
 private:	
 	static USceneComponent* FindClosestParentInList(UActorComponent* ChildComponent, const TArray<UActorComponent*>& ComponentList);
 

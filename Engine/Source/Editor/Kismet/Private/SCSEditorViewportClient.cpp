@@ -447,7 +447,7 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 						}
 						
 						USceneComponent* SceneComp = Cast<USceneComponent>(SelectedNodePtr->FindComponentInstanceInActor(PreviewActor));
-						USceneComponent* SelectedTemplate = Cast<USceneComponent>(SelectedNodePtr->GetEditableComponentTemplate(BlueprintEditor->GetBlueprintObj()));
+						USceneComponent* SelectedTemplate = Cast<USceneComponent>(SelectedNodePtr->GetOrCreateEditableComponentTemplate(BlueprintEditor->GetBlueprintObj()));
 						if(SceneComp != NULL && SelectedTemplate != NULL)
 						{
 							// Cache the current default values for propagation
@@ -588,31 +588,34 @@ FWidget::EWidgetMode FSCSEditorViewportClient::GetWidgetMode() const
 		if ( BluePrintEditor.IsValid() )
 		{
 			TArray<FSCSEditorTreeNodePtrType> SelectedNodes = BluePrintEditor->GetSelectedSCSEditorTreeNodes();
-			const TArray<FSCSEditorTreeNodePtrType>& RootNodes = BluePrintEditor->GetSCSEditor()->GetRootComponentNodes();
+			if (BluePrintEditor->GetSCSEditor()->GetActorNode().IsValid())
+			{
+				const TArray<FSCSEditorTreeNodePtrType>& RootNodes = BluePrintEditor->GetSCSEditor()->GetActorNode()->GetComponentNodes();
 
-			if (GUnrealEd->ComponentVisManager.IsActive() &&
-				GUnrealEd->ComponentVisManager.IsVisualizingArchetype())
-			{
-				// Component visualizer is active and editing the archetype
-				ReturnWidgetMode = WidgetMode;
-			}
-			else
-			{
-				// if the selected nodes array is empty, or only contains entries from the
-				// root nodes array, or isn't visible in the preview actor, then don't display a transform widget
-				for (int32 CurrentNodeIndex = 0; CurrentNodeIndex < SelectedNodes.Num(); CurrentNodeIndex++)
+				if (GUnrealEd->ComponentVisManager.IsActive() &&
+					GUnrealEd->ComponentVisManager.IsVisualizingArchetype())
 				{
-					FSCSEditorTreeNodePtrType CurrentNodePtr = SelectedNodes[CurrentNodeIndex];
-					if ((CurrentNodePtr.IsValid() &&
-						 ((!RootNodes.Contains(CurrentNodePtr) && !CurrentNodePtr->IsRootComponent()) ||
-							(Cast<UInstancedStaticMeshComponent>(CurrentNodePtr->GetComponentTemplate()) && // show widget if we are editing individual instances even if it is the root component
-							 CastChecked<UInstancedStaticMeshComponent>(CurrentNodePtr->FindComponentInstanceInActor(GetPreviewActor()))->SelectedInstances.Contains(true))) &&
-						 CurrentNodePtr->CanEditDefaults() &&
-						 CurrentNodePtr->FindComponentInstanceInActor(PreviewActor)))
+					// Component visualizer is active and editing the archetype
+					ReturnWidgetMode = WidgetMode;
+				}
+				else
+				{
+					// if the selected nodes array is empty, or only contains entries from the
+					// root nodes array, or isn't visible in the preview actor, then don't display a transform widget
+					for (int32 CurrentNodeIndex = 0; CurrentNodeIndex < SelectedNodes.Num(); CurrentNodeIndex++)
 					{
-						// a non-NULL, non-root item is selected, draw the widget
-						ReturnWidgetMode = WidgetMode;
-						break;
+						FSCSEditorTreeNodePtrType CurrentNodePtr = SelectedNodes[CurrentNodeIndex];
+						if ((CurrentNodePtr.IsValid() &&
+							((!RootNodes.Contains(CurrentNodePtr) && !CurrentNodePtr->IsRootComponent()) ||
+							(Cast<UInstancedStaticMeshComponent>(CurrentNodePtr->GetComponentTemplate()) && // show widget if we are editing individual instances even if it is the root component
+								CastChecked<UInstancedStaticMeshComponent>(CurrentNodePtr->FindComponentInstanceInActor(GetPreviewActor()))->SelectedInstances.Contains(true))) &&
+							CurrentNodePtr->CanEditDefaults() &&
+							CurrentNodePtr->FindComponentInstanceInActor(PreviewActor)))
+						{
+							// a non-NULL, non-root item is selected, draw the widget
+							ReturnWidgetMode = WidgetMode;
+							break;
+						}
 					}
 				}
 			}
@@ -927,7 +930,7 @@ void FSCSEditorViewportClient::BeginTransaction(const FText& Description)
 					}
 
 					// Modify template, any instances will be reconstructed as part of PostUndo:
-					UActorComponent* ComponentTemplate = Node->GetEditableComponentTemplate(PreviewBlueprint);
+					UActorComponent* ComponentTemplate = Node->GetOrCreateEditableComponentTemplate(PreviewBlueprint);
 					if (ComponentTemplate != nullptr)
 					{
 						ComponentTemplate->SetFlags(RF_Transactional);

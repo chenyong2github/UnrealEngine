@@ -5887,7 +5887,7 @@ void FBlueprintComponentDetails::OnBrowseSocket()
 
 		if (ParentFNode.IsValid())
 		{
-			if (USceneComponent* ParentSceneComponent = Cast<USceneComponent>(ParentFNode->GetEditableComponentTemplate(Editor->GetBlueprint())))
+			if (USceneComponent* ParentSceneComponent = Cast<USceneComponent>(ParentFNode->GetOrCreateEditableComponentTemplate(Editor->GetBlueprint())))
 			{
 				if (ParentSceneComponent->HasAnySockets())
 				{
