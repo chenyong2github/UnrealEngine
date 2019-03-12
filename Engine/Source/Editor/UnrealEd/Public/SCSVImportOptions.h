@@ -71,8 +71,8 @@ public:
 	/** Called when import type changes */
 	void OnImportTypeSelected(TSharedPtr<ECSVImportType> Selection, ESelectInfo::Type SelectionType);
 
-	/** Called to create a widget for each struct */
-	TSharedRef<SWidget> MakeRowStructItemWidget(UScriptStruct* Struct);
+	/** Called when datatable row is selected */
+	void OnStructSelected(UScriptStruct* NewStruct);
 
 	FString GetCurveTypeText(CurveInterpModePtr InterpMode) const;
 
@@ -89,8 +89,6 @@ public:
 	FReply OnCancel();
 
 	FText GetSelectedItemText() const;
-
-	FText GetSelectedRowOptionText() const;
 
 	FText GetSelectedCurveTypeText() const;
 
@@ -115,11 +113,8 @@ private:
 
 	// Row type
 
-	/** Array of row struct options */
-	TArray< UScriptStruct* >						RowStructs;
-
 	/** The row struct combo box */
-	TSharedPtr< SComboBox<UScriptStruct*> >			RowStructCombo;
+	TSharedPtr< SWidget >							RowStructCombo;
 
 	/** The selected row struct */
 	UScriptStruct*									SelectedStruct;

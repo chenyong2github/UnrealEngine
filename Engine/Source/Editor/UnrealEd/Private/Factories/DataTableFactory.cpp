@@ -28,26 +28,19 @@ bool UDataTableFactory::ConfigureProperties()
 	class FDataTableFactoryUI : public TSharedFromThis < FDataTableFactoryUI >
 	{
 		TSharedPtr<SWindow> PickerWindow;
-		TSharedPtr<SComboBox<UScriptStruct*>> RowStructCombo;
+		TSharedPtr<SWidget> RowStructCombo;
 		TSharedPtr<SButton> OkButton;
 		UScriptStruct* ResultStruct;
 	public:
 		FDataTableFactoryUI() : ResultStruct(nullptr) {}
 
-		TSharedRef<SWidget> MakeRowStructItemWidget(class UScriptStruct* InStruct) const
+		void OnStructSelected(UScriptStruct* NewStruct)
 		{
-			return SNew(STextBlock).Text(InStruct ? InStruct->GetDisplayNameText() : FText::GetEmpty());
-		}
-
-		FText GetSelectedRowOptionText() const
-		{
-			UScriptStruct* RowStruct = RowStructCombo.IsValid() ? RowStructCombo->GetSelectedItem() : nullptr;
-			return RowStruct ? RowStruct->GetDisplayNameText() : FText::GetEmpty();
+			ResultStruct = NewStruct;
 		}
 
 		FReply OnCreate()
 		{
-			ResultStruct = RowStructCombo.IsValid() ? RowStructCombo->GetSelectedItem() : nullptr;
 			if (PickerWindow.IsValid())
 			{
 				PickerWindow->RequestDestroyWindow();
@@ -67,21 +60,14 @@ bool UDataTableFactory::ConfigureProperties()
 
 		bool IsAnyRowSelected() const
 		{
-			return  RowStructCombo.IsValid() && RowStructCombo->GetSelectedItem();
+			return ResultStruct != nullptr;
 		}
 
 		UScriptStruct* OpenStructSelector()
 		{
 			ResultStruct = nullptr;
-			auto RowStructs = FDataTableEditorUtils::GetPossibleStructs();
 
-			RowStructCombo = SNew(SComboBox<UScriptStruct*>)
-				.OptionsSource(&RowStructs)
-				.OnGenerateWidget(this, &FDataTableFactoryUI::MakeRowStructItemWidget)
-				[
-					SNew(STextBlock)
-					.Text(this, &FDataTableFactoryUI::GetSelectedRowOptionText)
-				];
+			RowStructCombo = FDataTableEditorUtils::MakeRowStructureComboBox(FDataTableEditorUtils::FOnDataTableStructSelected::CreateSP(this, &FDataTableFactoryUI::OnStructSelected));
 
 			PickerWindow = SNew(SWindow)
 				.Title(LOCTEXT("DataTableFactoryOptions", "Pick Row Structure"))

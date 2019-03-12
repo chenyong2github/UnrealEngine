@@ -12,6 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ObjectEditorUtils.h"
+#include "DataTableEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "CSVImportFactory"
 
@@ -26,28 +27,6 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveTable)));
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveFloat)));
 	ImportTypes.Add(MakeShareable(new ECSVImportType(ECSVImportType::ECSV_CurveVector)));
-
-	// Find table row struct info
-	UScriptStruct* TableRowStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, TEXT("TableRowBase"));
-	if (TableRowStruct != nullptr)
-	{
-		// Make combo of table rowstruct options
-		for (TObjectIterator<UScriptStruct> It; It; ++It)
-		{
-			UScriptStruct* Struct = *It;
-			// If a child of the table row struct base, but not itself
-			const bool bBasedOnTableRowBase = Struct->IsChildOf(TableRowStruct) && (Struct != TableRowStruct);
-			const bool bUDStruct = Struct->IsA<UUserDefinedStruct>();
-			const bool bValidStruct = (Struct->GetOutermost() != GetTransientPackage());
-			if ((bBasedOnTableRowBase || bUDStruct) && bValidStruct)
-			{
-				RowStructs.Add(Struct);
-			}
-		}
-
-		// Alphabetically sort the row structs by name
-		RowStructs.Sort([](const UScriptStruct& ElementA, const UScriptStruct& ElementB) { return (ElementA.GetName() < ElementB.GetName()); } );
-	}
 
 	// Create properties view
 	FPropertyEditorModule & EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -68,6 +47,9 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 
 		return false;
 	}));
+
+	RowStructCombo = FDataTableEditorUtils::MakeRowStructureComboBox(FDataTableEditorUtils::FOnDataTableStructSelected::CreateSP(this, &SCSVImportOptions::OnStructSelected));
+	RowStructCombo->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SCSVImportOptions::GetTableRowOptionVis)));
 
 	// Create widget
 	this->ChildSlot
@@ -137,14 +119,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SAssignNew(RowStructCombo, SComboBox<UScriptStruct*>)
-				.OptionsSource( &RowStructs )
-				.OnGenerateWidget( this, &SCSVImportOptions::MakeRowStructItemWidget )
-				.Visibility( this, &SCSVImportOptions::GetTableRowOptionVis )
-				[
-					SNew(STextBlock)
-					.Text(this, &SCSVImportOptions::GetSelectedRowOptionText)
-				]
+				RowStructCombo.ToSharedRef()
 			]
 			// Curve interpolation
 			+SVerticalBox::Slot()
@@ -301,12 +276,9 @@ void SCSVImportOptions::OnImportTypeSelected(TSharedPtr<ECSVImportType> Selectio
 	}
 }
 
-/** Called to create a widget for each struct */
-TSharedRef<SWidget> SCSVImportOptions::MakeRowStructItemWidget(UScriptStruct* Struct)
+void SCSVImportOptions::OnStructSelected(UScriptStruct* NewStruct)
 {
-	check(Struct != nullptr);
-	return	SNew(STextBlock)
-			.Text(FText::FromString(Struct->GetName()));
+	SelectedStruct = NewStruct;
 }
 
 FString SCSVImportOptions::GetCurveTypeText(CurveInterpModePtr InterpMode) const
@@ -340,7 +312,6 @@ TSharedRef<SWidget> SCSVImportOptions::MakeCurveTypeWidget(CurveInterpModePtr In
 /** Called when 'OK' button is pressed */
 FReply SCSVImportOptions::OnImport()
 {
-	SelectedStruct = RowStructCombo->GetSelectedItem();
 	SelectedImportType = *ImportTypeCombo->GetSelectedItem();
 	if (CurveInterpCombo->GetSelectedItem().IsValid())
 	{
@@ -361,7 +332,7 @@ bool SCSVImportOptions::CanImport() const
 	switch (ImportType)
 	{
 	case ECSVImportType::ECSV_DataTable:
-		return RowStructCombo->GetSelectedItem() != nullptr;
+		return SelectedStruct != nullptr;
 		break;
 	case ECSVImportType::ECSV_CurveTable:
 		return CurveInterpCombo->GetSelectedItem().IsValid();
@@ -392,14 +363,6 @@ FText SCSVImportOptions::GetSelectedItemText() const
 
 	return (SelectedType.IsValid())
 		? FText::FromString(GetImportTypeText(SelectedType))
-		: FText::GetEmpty();
-}
-
-FText SCSVImportOptions::GetSelectedRowOptionText() const
-{
-	UScriptStruct* SelectedScript = RowStructCombo->GetSelectedItem();
-	return (SelectedScript)
-		? FText::FromString(SelectedScript->GetName())
 		: FText::GetEmpty();
 }
 
