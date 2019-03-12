@@ -376,9 +376,6 @@ struct MTITraceNewDepthStencilDescHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		uintptr_t Result;
-		fs >> Result;
-		
 		NSUInteger depthCompareFunction;
 		BOOL depthWriteEnabled;
 		NSUInteger frontFaceStencilstencilCompareFunction;
@@ -513,9 +510,6 @@ struct MTITraceNewTextureDescHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		uintptr_t Result;
-		fs >> Result;
-		
 		NSUInteger textureType;
 		NSUInteger pixelFormat;
 		NSUInteger width;
@@ -651,9 +645,6 @@ struct MTITraceNewSamplerDescHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		uintptr_t Result;
-		fs >> Result;
-		
 		NSUInteger minFilter;
 		NSUInteger magFilter;
 		NSUInteger mipFilter;
@@ -912,13 +903,273 @@ void MTIDeviceTrace::NewLibraryWithSourceOptionsCompletionHandlerImpl(id Object,
 		Handler(MTILibraryTrace::Register(library), error);
 	});
 }
+
+
+struct MTITraceNewVertexDescHandler : public MTITraceCommandHandler
+{
+	MTITraceNewVertexDescHandler()
+	: MTITraceCommandHandler("", "newVertexDescriptor")
+	{
+		
+	}
+	
+	MTLVertexDescriptor* Trace(MTLVertexDescriptor* Desc)
+	{
+		if (!MTITrace::Get().FetchObject((uintptr_t)Desc))
+		{
+			std::fstream& fs = MTITrace::Get().BeginWrite();
+			MTITraceCommandHandler::Trace(fs, (uintptr_t)Desc);
+			
+			for (unsigned i = 0; i < 31; i++)
+			{
+				MTLVertexBufferLayoutDescriptor* Buffer = [Desc.layouts objectAtIndexedSubscript:i];
+				fs << Buffer.stride;
+				fs << Buffer.stepFunction;
+				fs << Buffer.stepRate;
+			}
+			
+			for (unsigned i = 0; i < 16; i++)
+			{
+				MTLVertexAttributeDescriptor* Buffer = [Desc.attributes objectAtIndexedSubscript:i];
+				fs << Buffer.format;
+				fs << Buffer.offset;
+				fs << Buffer.bufferIndex;
+			}
+			
+			MTITrace::Get().RegisterObject((uintptr_t)Desc, Desc);
+			MTITrace::Get().EndWrite();
+		}
+		return Desc;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		MTLVertexDescriptor* Desc = [MTLVertexDescriptor new];
+		
+		NSUInteger stride, stepFunction, stepRate;
+		
+		for (unsigned i = 0; i < 31; i++)
+		{
+			fs >> stride;
+			fs >> stepFunction;
+			fs >> stepRate;
+			
+			MTLVertexBufferLayoutDescriptor* Buffer = [Desc.layouts objectAtIndexedSubscript:i];
+			Buffer.stride = stride;
+			Buffer.stepFunction = (MTLVertexStepFunction)stepFunction;
+			Buffer.stepRate = stepRate;
+		}
+		
+		NSUInteger format, offset, bufferIndex;
+		for (unsigned i = 0; i < 16; i++)
+		{
+			fs >> format;
+			fs >> offset;
+			fs >> bufferIndex;
+			
+			MTLVertexAttributeDescriptor* Buffer = [Desc.attributes objectAtIndexedSubscript:i];
+			Buffer.format = (MTLVertexFormat)format;
+			Buffer.offset = offset;
+			Buffer.bufferIndex = bufferIndex;
+		}
+		
+		MTITrace::Get().RegisterObject(Header.Receiver, Desc);
+	}
+};
+static MTITraceNewVertexDescHandler GMTITraceNewVertexDescHandler;
+
+
+
+struct MTITraceNewRenderPipelineWithDescriptorHandler : public MTITraceCommandHandler
+{
+	MTITraceNewRenderPipelineWithDescriptorHandler()
+	: MTITraceCommandHandler("MTLDevice", "newRenderPipelineStateWithDescriptor")
+	{
+		
+	}
+	
+	id<MTLRenderPipelineState> Trace(id Object, MTLRenderPipelineDescriptor* Desc, id<MTLRenderPipelineState> State)
+	{
+		GMTITraceNewVertexDescHandler.Trace(Desc.vertexDescriptor);
+		
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << Desc.label ? [Desc.label UTF8String] : "";
+		fs << (uintptr_t)Desc.vertexFunction;
+		fs << (uintptr_t)Desc.fragmentFunction;
+		fs << (uintptr_t)Desc.vertexDescriptor;
+		fs << Desc.rasterSampleCount;
+		fs << Desc.alphaToCoverageEnabled;
+		fs << Desc.alphaToOneEnabled;
+		fs << Desc.rasterizationEnabled;
+		for (uint i = 0; i < 8; i++)
+		{
+			MTLRenderPipelineColorAttachmentDescriptor* Attachment = [Desc.colorAttachments objectAtIndexedSubscript:i];
+			fs << Attachment.pixelFormat;
+			fs << Attachment.blendingEnabled;
+			fs << Attachment.sourceRGBBlendFactor;
+			fs << Attachment.destinationRGBBlendFactor;
+			fs << Attachment.rgbBlendOperation;
+			fs << Attachment.sourceAlphaBlendFactor;
+			fs << Attachment.destinationAlphaBlendFactor;
+			fs << Attachment.alphaBlendOperation;
+			fs << Attachment.writeMask;
+		}
+		fs << Desc.depthAttachmentPixelFormat;
+		fs << Desc.stencilAttachmentPixelFormat;
+		fs << Desc.inputPrimitiveTopology;
+		fs << Desc.tessellationPartitionMode;
+		fs << Desc.maxTessellationFactor;
+		fs << Desc.tessellationFactorScaleEnabled;
+		fs << Desc.tessellationFactorFormat;
+		fs << Desc.tessellationControlPointIndexType;
+		fs << Desc.tessellationFactorStepFunction;
+		fs << Desc.tessellationOutputWindingOrder;
+		
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.vertexBuffers objectAtIndexedSubscript:i];
+			fs << Buffer.mutability;
+		}
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.fragmentBuffers objectAtIndexedSubscript:i];
+			fs << Buffer.mutability;
+		}
+
+		fs << Desc.supportIndirectCommandBuffers;
+
+		fs << (uintptr_t)State;
+		
+		MTITrace::Get().EndWrite();
+		return State;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		MTLRenderPipelineDescriptor* Desc = [[MTLRenderPipelineDescriptor new] autorelease];
+		
+		std::string label;
+		uintptr_t vertexFunction;
+		uintptr_t fragmentFunction;
+		uintptr_t vertexDescriptor;
+		NSUInteger rasterSampleCount;
+		BOOL alphaToCoverageEnabled;
+		BOOL alphaToOneEnabled;
+		BOOL rasterizationEnabled;
+		
+		fs >> label;
+		fs >> vertexFunction;
+		fs >> fragmentFunction;
+		fs >> vertexDescriptor;
+		fs >> rasterSampleCount;
+		fs >> alphaToCoverageEnabled;
+		fs >> alphaToOneEnabled;
+		fs >> rasterizationEnabled;
+		
+		NSUInteger pixelFormat;
+		NSUInteger blendingEnabled;
+		NSUInteger sourceRGBBlendFactor;
+		NSUInteger destinationRGBBlendFactor;
+		NSUInteger rgbBlendOperation;
+		NSUInteger sourceAlphaBlendFactor;
+		NSUInteger destinationAlphaBlendFactor;
+		NSUInteger alphaBlendOperation;
+		uint32_t   writeMask;
+		for (uint i = 0; i < 8; i++)
+		{
+			fs >> pixelFormat;
+			fs >> blendingEnabled;
+			fs >> sourceRGBBlendFactor;
+			fs >> destinationRGBBlendFactor;
+			fs >> rgbBlendOperation;
+			fs >> sourceAlphaBlendFactor;
+			fs >> destinationAlphaBlendFactor;
+			fs >> alphaBlendOperation;
+			fs >> writeMask;
+			
+			MTLRenderPipelineColorAttachmentDescriptor* Attachment = [Desc.colorAttachments objectAtIndexedSubscript:i];
+			Attachment.pixelFormat = (MTLPixelFormat)pixelFormat;
+			Attachment.blendingEnabled = blendingEnabled;
+			Attachment.sourceRGBBlendFactor = (MTLBlendFactor)sourceRGBBlendFactor;
+			Attachment.destinationRGBBlendFactor = (MTLBlendFactor)destinationRGBBlendFactor;
+			Attachment.rgbBlendOperation = (MTLBlendOperation)rgbBlendOperation;
+			Attachment.sourceAlphaBlendFactor = (MTLBlendFactor)sourceAlphaBlendFactor;
+			Attachment.destinationAlphaBlendFactor = (MTLBlendFactor)destinationAlphaBlendFactor;
+			Attachment.alphaBlendOperation = (MTLBlendOperation)alphaBlendOperation;
+			Attachment.writeMask =  writeMask;
+		}
+		
+		NSUInteger depthAttachmentPixelFormat;
+		NSUInteger stencilAttachmentPixelFormat;
+		NSUInteger inputPrimitiveTopology;
+		NSUInteger tessellationPartitionMode;
+		NSUInteger maxTessellationFactor;
+		BOOL tessellationFactorScaleEnabled;
+		NSUInteger tessellationFactorFormat;
+		NSUInteger tessellationControlPointIndexType;
+		NSUInteger tessellationFactorStepFunction;
+		NSUInteger tessellationOutputWindingOrder;
+		
+		fs >> depthAttachmentPixelFormat;
+		fs >> stencilAttachmentPixelFormat;
+		fs >> inputPrimitiveTopology;
+		fs >> tessellationPartitionMode;
+		fs >> maxTessellationFactor;
+		fs >> tessellationFactorScaleEnabled;
+		fs >> tessellationFactorFormat;
+		fs >> tessellationControlPointIndexType;
+		fs >> tessellationFactorStepFunction;
+		fs >> tessellationOutputWindingOrder;
+		
+		Desc.depthAttachmentPixelFormat = (MTLPixelFormat)depthAttachmentPixelFormat;
+		Desc.stencilAttachmentPixelFormat = (MTLPixelFormat)stencilAttachmentPixelFormat;
+		Desc.inputPrimitiveTopology = (MTLPrimitiveTopologyClass)inputPrimitiveTopology;
+		Desc.tessellationPartitionMode = (MTLTessellationPartitionMode)tessellationPartitionMode;
+		Desc.maxTessellationFactor = maxTessellationFactor;
+		Desc.tessellationFactorScaleEnabled = tessellationFactorScaleEnabled;
+		Desc.tessellationFactorFormat = (MTLTessellationFactorFormat)tessellationFactorFormat;
+		Desc.tessellationControlPointIndexType = (MTLTessellationControlPointIndexType)tessellationControlPointIndexType;
+		Desc.tessellationFactorStepFunction = (MTLTessellationFactorStepFunction)tessellationFactorStepFunction;
+		Desc.tessellationOutputWindingOrder = (MTLWinding)tessellationOutputWindingOrder;
+		
+		NSUInteger mutability;
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.vertexBuffers objectAtIndexedSubscript:i];
+			fs >> mutability;
+			Buffer.mutability = (MTLMutability)mutability;
+		}
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.fragmentBuffers objectAtIndexedSubscript:i];
+			fs >> mutability;
+			Buffer.mutability = (MTLMutability)mutability;
+		}
+		
+		BOOL supportIndirectCommandBuffers;
+		fs >> supportIndirectCommandBuffers;
+		Desc.supportIndirectCommandBuffers = supportIndirectCommandBuffers;
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLRenderPipelineState> State = [(id<MTLDevice>)MTITrace::Get().FetchObject(Header.Receiver) newRenderPipelineStateWithDescriptor:Desc error:nil];
+		assert(State);
+		
+		MTITrace::Get().RegisterObject(Result, State);
+	}
+};
+static MTITraceNewRenderPipelineWithDescriptorHandler GMTITraceNewRenderPipelineWithDescriptorHandler;
+
 id<MTLRenderPipelineState> MTIDeviceTrace::NewRenderPipelineStateWithDescriptorErrorImpl(id Object, SEL Selector, Super::NewRenderPipelineStateWithDescriptorErrorType::DefinedIMP Original, MTLRenderPipelineDescriptor* Desc, NSError** Err)
 {
-	return MTIRenderPipelineStateTrace::Register(Original(Object, Selector, Desc, Err));
+	return GMTITraceNewRenderPipelineWithDescriptorHandler.Trace(Object, Desc, MTIRenderPipelineStateTrace::Register(Original(Object, Selector, Desc, Err)));
 }
 id<MTLRenderPipelineState> MTIDeviceTrace::NewRenderPipelineStateWithDescriptorOptionsReflectionErrorImpl(id Object, SEL Selector, Super::NewRenderPipelineStateWithDescriptorOptionsReflectionErrorType::DefinedIMP Original, MTLRenderPipelineDescriptor* Desc, MTLPipelineOption Opts, MTLAutoreleasedRenderPipelineReflection* Refl, NSError** Err)
 {
-	return MTIRenderPipelineStateTrace::Register(Original(Object, Selector, Desc, Opts, Refl, Err));
+	return GMTITraceNewRenderPipelineWithDescriptorHandler.Trace(Object, Desc, MTIRenderPipelineStateTrace::Register(Original(Object, Selector, Desc, Opts, Refl, Err)));
 }
 void MTIDeviceTrace::NewRenderPipelineStateWithDescriptorCompletionHandlerImpl(id Object, SEL Selector, Super::NewRenderPipelineStateWithDescriptorCompletionHandlerType::DefinedIMP Original, MTLRenderPipelineDescriptor* Desc, MTLNewRenderPipelineStateCompletionHandler Handler)
 {
@@ -934,13 +1185,49 @@ void MTIDeviceTrace::NewRenderPipelineStateWithDescriptorOptionsCompletionHandle
 		Handler(MTIRenderPipelineStateTrace::Register(renderPipelineState), reflection, error);
 	});
 }
+
+struct MTITraceNewComputePipelineHandler : public MTITraceCommandHandler
+{
+	MTITraceNewComputePipelineHandler()
+	: MTITraceCommandHandler("MTLDevice", "newComputePipelineStateWithFunction")
+	{
+		
+	}
+	
+	id<MTLComputePipelineState> Trace(id Object, id<MTLFunction> Func, id<MTLComputePipelineState> State)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << (uintptr_t)Func;
+		fs << (uintptr_t)State;
+		
+		MTITrace::Get().EndWrite();
+		return State;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		uintptr_t Func;
+		fs >> Func;
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLComputePipelineState> State = [(id<MTLDevice>)MTITrace::Get().FetchObject(Header.Receiver) newComputePipelineStateWithFunction:(id<MTLFunction>)MTITrace::Get().FetchObject(Func) error:nil];
+		assert(State);
+		
+		MTITrace::Get().RegisterObject(Result, State);
+	}
+};
+static MTITraceNewComputePipelineHandler GMTITraceNewComputePipelineHandler;
 id<MTLComputePipelineState> MTIDeviceTrace::NewComputePipelineStateWithFunctionErrorImpl(id Object, SEL Selector, Super::NewComputePipelineStateWithFunctionErrorType::DefinedIMP Original, id<MTLFunction> Func, NSError** Err)
 {
-	return MTIComputePipelineStateTrace::Register(Original(Object, Selector, Func, Err));
+	return GMTITraceNewComputePipelineHandler.Trace(Object, Func, MTIComputePipelineStateTrace::Register(Original(Object, Selector, Func, Err)));
 }
 id<MTLComputePipelineState> MTIDeviceTrace::NewComputePipelineStateWithFunctionOptionsReflectionErrorImpl(id Object, SEL Selector, Super::NewComputePipelineStateWithFunctionOptionsReflectionErrorType::DefinedIMP Original, id<MTLFunction> Func, MTLPipelineOption Opts, MTLAutoreleasedComputePipelineReflection * Refl, NSError** Err)
 {
-	return MTIComputePipelineStateTrace::Register(Original(Object, Selector, Func, Opts, Refl, Err));
+	return GMTITraceNewComputePipelineHandler.Trace(Object, Func, MTIComputePipelineStateTrace::Register(Original(Object, Selector, Func, Opts, Refl, Err)));
 }
 void MTIDeviceTrace::NewComputePipelineStateWithFunctionCompletionHandlerImpl(id Object, SEL Selector, Super::NewComputePipelineStateWithFunctionCompletionHandlerType::DefinedIMP Original, id<MTLFunction>  Func, MTLNewComputePipelineStateCompletionHandler Handler)
 {
@@ -954,9 +1241,127 @@ void MTIDeviceTrace::NewComputePipelineStateWithFunctionOptionsCompletionHandler
 		Handler(MTIComputePipelineStateTrace::Register(computePipelineState ), reflection, error);
 	});
 }
+
+struct MTITraceNewComputePipelineWithDescriptorHandler : public MTITraceCommandHandler
+{
+	MTITraceNewComputePipelineWithDescriptorHandler()
+	: MTITraceCommandHandler("MTLDevice", "newComputePipelineStateWithDescriptor")
+	{
+		
+	}
+	
+	id<MTLComputePipelineState> Trace(id Object, MTLComputePipelineDescriptor* Desc, id<MTLComputePipelineState> State)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << Desc.label ? [Desc.label UTF8String] : "";
+		fs << (uintptr_t)Desc.computeFunction;
+		fs << Desc.threadGroupSizeIsMultipleOfThreadExecutionWidth;
+		fs << Desc.maxTotalThreadsPerThreadgroup;
+		
+		for (unsigned i = 0; i < 31; i++)
+		{
+			MTLBufferLayoutDescriptor* Buffer = [Desc.stageInputDescriptor.layouts objectAtIndexedSubscript:i];
+			fs << Buffer.stride;
+			fs << Buffer.stepFunction;
+			fs << Buffer.stepRate;
+		}
+		
+		for (unsigned i = 0; i < 16; i++)
+		{
+			MTLAttributeDescriptor* Buffer = [Desc.stageInputDescriptor.attributes objectAtIndexedSubscript:i];
+			fs << Buffer.format;
+			fs << Buffer.offset;
+			fs << Buffer.bufferIndex;
+		}
+		fs << Desc.stageInputDescriptor.indexType;
+		fs << Desc.stageInputDescriptor.indexBufferIndex;
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.buffers objectAtIndexedSubscript:i];
+			fs << Buffer.mutability;
+		}
+		
+		fs << (uintptr_t)State;
+		
+		MTITrace::Get().EndWrite();
+		return State;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		std::string label;
+		uintptr_t Func;
+		BOOL threadGroupSizeIsMultipleOfThreadExecutionWidth;
+		NSUInteger maxTotalThreadsPerThreadgroup;
+		MTLComputePipelineDescriptor* Desc = [[MTLComputePipelineDescriptor new] autorelease];
+		
+		fs >> label;
+		fs >> Func;
+		fs >> threadGroupSizeIsMultipleOfThreadExecutionWidth;
+		fs >> maxTotalThreadsPerThreadgroup;
+		
+		Desc.label = [NSString stringWithUTF8String:label.c_str()];
+		Desc.computeFunction = MTITrace::Get().FetchObject(Func);
+		Desc.threadGroupSizeIsMultipleOfThreadExecutionWidth = threadGroupSizeIsMultipleOfThreadExecutionWidth;
+		Desc.maxTotalThreadsPerThreadgroup = maxTotalThreadsPerThreadgroup;
+
+		NSUInteger stride, stepFunction, stepRate;
+		for (unsigned i = 0; i < 31; i++)
+		{
+			fs >> stride;
+			fs >> stepFunction;
+			fs >> stepRate;
+			
+			MTLBufferLayoutDescriptor* Buffer = [Desc.stageInputDescriptor.layouts objectAtIndexedSubscript:i];
+			Buffer.stride = stride;
+			Buffer.stepFunction = (MTLStepFunction)stepFunction;
+			Buffer.stepRate = stepRate;
+		}
+		
+		NSUInteger format, offset, bufferIndex;
+		for (unsigned i = 0; i < 16; i++)
+		{
+			fs >> format;
+			fs >> offset;
+			fs >> bufferIndex;
+			
+			MTLAttributeDescriptor* Buffer = [Desc.stageInputDescriptor.attributes objectAtIndexedSubscript:i];
+			Buffer.format = (MTLAttributeFormat)format;
+			Buffer.offset = offset;
+			Buffer.bufferIndex = bufferIndex;
+		}
+		
+		NSUInteger indexType;
+		NSUInteger indexBufferIndex;
+		fs >> indexType;
+		fs >> indexBufferIndex;
+		
+		Desc.stageInputDescriptor.indexType = (MTLIndexType)indexType;
+		Desc.stageInputDescriptor.indexBufferIndex = indexBufferIndex;
+		
+		NSUInteger mutability;
+		for (uint i = 0; i < 31; i++)
+		{
+			MTLPipelineBufferDescriptor* Buffer = [Desc.buffers objectAtIndexedSubscript:i];
+			fs >> mutability;
+			Buffer.mutability = (MTLMutability)mutability;
+		}
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLComputePipelineState> State = [(id<MTLDevice>)MTITrace::Get().FetchObject(Header.Receiver) newComputePipelineStateWithDescriptor:Desc options:MTLPipelineOptionNone reflection:nil error:nil];
+		assert(State);
+		
+		MTITrace::Get().RegisterObject(Result, State);
+	}
+};
+static MTITraceNewComputePipelineWithDescriptorHandler GMTITraceNewComputePipelineWithDescriptorHandler;
 id<MTLComputePipelineState> MTIDeviceTrace::NewComputePipelineStateWithDescriptorOptionsReflectionErrorImpl(id Object, SEL Selector, Super::NewComputePipelineStateWithDescriptorOptionsReflectionErrorType::DefinedIMP Original, MTLComputePipelineDescriptor* Desc, MTLPipelineOption Opts, MTLAutoreleasedComputePipelineReflection * Refl, NSError** Err)
 {
-	return MTIComputePipelineStateTrace::Register(Original(Object, Selector, Desc, Opts, Refl, Err));
+	return GMTITraceNewComputePipelineWithDescriptorHandler.Trace(Object, Desc, MTIComputePipelineStateTrace::Register(Original(Object, Selector, Desc, Opts, Refl, Err)));
 }
 void MTIDeviceTrace::NewComputePipelineStateWithDescriptorOptionsCompletionHandlerImpl(id Object, SEL Selector, Super::NewComputePipelineStateWithDescriptorOptionsCompletionHandlerType::DefinedIMP Original, MTLComputePipelineDescriptor* Desc, MTLPipelineOption Opts, MTLNewComputePipelineStateWithReflectionCompletionHandler Handler)
 {
@@ -1004,10 +1409,81 @@ id<MTLFence> MTIDeviceTrace::NewFenceImpl(id Object, SEL Selector, Super::NewFen
 	return GMTITraceNewFenceHandler.Trace(Object, MTIFenceTrace::Register(Original(Object, Selector)));
 }
 
-
+struct MTITraceNewArgumentEncoderHandler : public MTITraceCommandHandler
+{
+	MTITraceNewArgumentEncoderHandler()
+	: MTITraceCommandHandler("MTLDevice", "newComputePipelineStateWithDescriptor")
+	{
+		
+	}
+	
+	id<MTLArgumentEncoder> Trace(id Object, NSArray <MTLArgumentDescriptor *> * Args, id<MTLArgumentEncoder> State)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << Args.count;
+		for (MTLArgumentDescriptor * Arg : Args)
+		{
+			fs << Arg.dataType;
+			fs << Arg.index;
+			fs << Arg.arrayLength;
+			fs << Arg.access;
+			fs << Arg.textureType;
+			fs << Arg.constantBlockAlignment;
+		}
+		
+		fs << (uintptr_t)State;
+		
+		MTITrace::Get().EndWrite();
+		return State;
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger count;
+		fs >> count;
+		
+		NSUInteger dataType;
+		NSUInteger index;
+		NSUInteger arrayLength;
+		NSUInteger access;
+		NSUInteger textureType;
+		NSUInteger constantBlockAlignment;
+		
+		NSMutableArray* Array = [[NSMutableArray new] autorelease];
+		for (unsigned i = 0; i < count; i++)
+		{
+			fs >> dataType;
+			fs >> index;
+			fs >> arrayLength;
+			fs >> access;
+			fs >> textureType;
+			fs >> constantBlockAlignment;
+			
+			MTLArgumentDescriptor* Arg = [[MTLArgumentDescriptor new] autorelease];
+			Arg.dataType = (MTLDataType)dataType;
+			Arg.index = index;
+			Arg.arrayLength = arrayLength;
+			Arg.access = (MTLArgumentAccess)access;
+			Arg.textureType = (MTLTextureType)textureType;
+			Arg.constantBlockAlignment = constantBlockAlignment;
+			[Array addObject:Arg];
+		}
+		
+		uintptr_t Result;
+		fs >> Result;
+		
+		id<MTLArgumentEncoder> State = [(id<MTLDevice>)MTITrace::Get().FetchObject(Header.Receiver) newArgumentEncoderWithArguments:Array];
+		assert(State);
+		
+		MTITrace::Get().RegisterObject(Result, State);
+	}
+};
+static MTITraceNewArgumentEncoderHandler GMTITraceNewArgumentEncoderHandler;
 id<MTLArgumentEncoder> MTIDeviceTrace::NewArgumentEncoderWithArgumentsImpl(id Object, SEL Selector, Super::NewArgumentEncoderWithArgumentsType::DefinedIMP Original, NSArray <MTLArgumentDescriptor *> * Args)
 {
-	return MTIArgumentEncoderTrace::Register(Original(Object, Selector, Args));
+	return GMTITraceNewArgumentEncoderHandler.Trace(Object, Args, MTIArgumentEncoderTrace::Register(Original(Object, Selector, Args)));
 }
 INTERPOSE_DEFINITION(MTIDeviceTrace, getDefaultSamplePositionscount, void, MTLPPSamplePosition* s, NSUInteger c)
 {
