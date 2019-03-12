@@ -206,6 +206,7 @@ FAppleARKitSystem::FAppleARKitSystem()
 , CameraDepth(nullptr)
 , LastTrackedGeometry_DebugId(0)
 , FaceARSupport(nullptr)
+, TimecodeProvider(nullptr)
 {
 	// See Initialize(), as we need access to SharedThis()
 }
@@ -1702,6 +1703,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UARTrackedGeometry* NewTrackedGeometry = TrackedGeometries.Add( AnchorData->AnchorGUID, NewGeometry );
 	
 	NewTrackedGeometry->SetDebugName( FName(*NewAnchorDebugName) );
+
+	// Trigger the delegate so anyone listening can take action
+	TriggerOnTrackableAddedDelegates(NewTrackedGeometry);
 }
 
 void FAppleARKitSystem::SessionDidUpdateAnchors_Internal( TSharedRef<FAppleARKitAnchorData> AnchorData )
@@ -1816,6 +1820,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				break;
 			}
 		}
+		// Trigger the delegate so anyone listening can take action
+		TriggerOnTrackableUpdatedDelegates(FoundGeometry);
 	}
 }
 
@@ -1839,6 +1845,8 @@ void FAppleARKitSystem::SessionDidRemoveAnchors_Internal( FGuid AnchorGuid )
 		{
 			PinBeingOrphaned->OnTrackingStateChanged(EARTrackingState::StoppedTracking);
 		}
+		// Trigger the delegate so anyone listening can take action
+		TriggerOnTrackableRemovedDelegates(TrackedGeometryBeingRemoved);
 	}
 	
 	TrackedGeometries.Remove(AnchorGuid);

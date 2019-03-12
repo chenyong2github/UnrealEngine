@@ -14,6 +14,16 @@ class UARLightEstimate;
 struct FARTraceResult;
 class UTexture2D;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableAdded, UARTrackedGeometry*);
+typedef FOnTrackableAdded::FDelegate FOnTrackableAddedDelegate;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableUpdated, UARTrackedGeometry*);
+typedef FOnTrackableUpdated::FDelegate FOnTrackableUpdatedDelegate;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableRemoved, UARTrackedGeometry*);
+typedef FOnTrackableRemoved::FDelegate FOnTrackableRemovedDelegate;
+
+
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
 enum class EARTrackingState : uint8
 {

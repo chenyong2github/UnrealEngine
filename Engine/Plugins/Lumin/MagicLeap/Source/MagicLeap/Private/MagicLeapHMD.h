@@ -25,7 +25,6 @@ ML_INCLUDES_START
 ML_INCLUDES_END
 #endif //WITH_MLSDK
 
-class IARSystemSupport;
 class FXRTrackingSystemBase;
 
 /**

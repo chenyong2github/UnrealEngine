@@ -6,12 +6,42 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "ARTypes.h"
+#include "ARSystem.h"
 #include "ARTraceResult.h"
 #include "ARSessionConfig.h"
 #include "ARTrackable.h"
 #include "ARBlueprintLibrary.generated.h"
 
 
+#define DEFINE_AR_BPLIB_DELEGATE_FUNCS(DelegateName) \
+public: \
+	static FDelegateHandle Add##DelegateName##Delegate_Handle(const F##DelegateName##Delegate& Delegate) \
+	{ \
+		auto ARSystem = GetARSystem(); \
+		if (ARSystem.IsValid()) \
+		{ \
+			return ARSystem.Pin()->Add##DelegateName##Delegate_Handle(Delegate); \
+		} \
+		return Delegate.GetHandle(); \
+	} \
+	static void Clear##DelegateName##Delegate_Handle(FDelegateHandle& Handle) \
+	{ \
+		auto ARSystem = GetARSystem(); \
+		if (ARSystem.IsValid()) \
+		{ \
+			ARSystem.Pin()->Clear##DelegateName##Delegate_Handle(Handle); \
+			return; \
+		} \
+		Handle.Reset(); \
+	} \
+	static void Clear##DelegateName##Delegates(void* Object) \
+	{ \
+		auto ARSystem = GetARSystem(); \
+		if (ARSystem.IsValid()) \
+		{ \
+			ARSystem.Pin()->Clear##DelegateName##Delegates(Object); \
+		} \
+	}
 
 UCLASS(meta=(ScriptName="ARLibrary"))
 class AUGMENTEDREALITY_API UARBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -229,6 +259,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Session", meta = (Keywords = "ar augmentedreality augmented reality candidate image"))
 	static UARCandidateImage* AddRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth);
+
+	// Static helpers to create the methods needed to add/remove delegates from the AR system
+	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableAdded)
+	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableUpdated)
+	DEFINE_AR_BPLIB_DELEGATE_FUNCS(OnTrackableRemoved)
+	// End helpers
 
 public:
 	static void RegisterAsARSystem(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& NewArSystem);
