@@ -72,6 +72,8 @@ struct MTLPP_EXPORT IMPTable<CAMetalLayer*, void> : public IMPTableBase<CAMetalL
 	
 	IMPTable(Class C)
 	: IMPTableBase<CAMetalLayer*>(C)
+	, INTERPOSE_CONSTRUCTOR(init, C)
+	, INTERPOSE_CONSTRUCTOR(initWithLayer, C)
 	, INTERPOSE_CONSTRUCTOR(Device, C)
 	, INTERPOSE_CONSTRUCTOR(Setdevice, C)
 	, INTERPOSE_CONSTRUCTOR(PixelFormat, C)
@@ -96,6 +98,8 @@ struct MTLPP_EXPORT IMPTable<CAMetalLayer*, void> : public IMPTableBase<CAMetalL
 	{
 	}
 	
+	INTERPOSE_SELECTOR(CAMetalLayer*, init, init, id);
+	INTERPOSE_SELECTOR(CAMetalLayer*, initWithLayer:, initWithLayer, id, id);
 	INTERPOSE_SELECTOR(CAMetalLayer*, device, Device, id <MTLDevice>);
 	INTERPOSE_SELECTOR(CAMetalLayer*, setDevice:, Setdevice, void, id <MTLDevice>);
 	INTERPOSE_SELECTOR(CAMetalLayer*, pixelFormat, PixelFormat, MTLPixelFormat);
