@@ -133,5 +133,88 @@ INTERPOSE_DEFINITION(MTITextureTrace, Newtextureviewwithpixelformattexturetypele
 	return MTITextureTrace::Register(Original(Obj, Cmd, pixelFormat, textureType, levelRange, sliceRange));
 }
 
+MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler()
+: MTITraceCommandHandler("", "newTextureDescriptor")
+{
+	
+}
+
+MTLTextureDescriptor* MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler::Trace(MTLTextureDescriptor* Desc)
+{
+	if (!MTITrace::Get().FetchObject((uintptr_t)Desc))
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Desc);
+		
+		fs << Desc.textureType;
+		fs << Desc.pixelFormat;
+		fs << Desc.width;
+		fs << Desc.height;
+		fs << Desc.depth;
+		fs << Desc.mipmapLevelCount;
+		fs << Desc.sampleCount;
+		fs << Desc.arrayLength;
+		fs << Desc.resourceOptions;
+		fs << Desc.cpuCacheMode;
+		fs << Desc.storageMode;
+		fs << Desc.usage;
+		fs << Desc.allowGPUOptimizedContents;
+		
+		MTITrace::Get().RegisterObject((uintptr_t)Desc, Desc);
+		MTITrace::Get().EndWrite();
+	}
+	return Desc;
+}
+
+void MTITraceNewTextureDescHandler::MTITraceNewTextureDescHandler::Handle(MTITraceCommand& Header, std::fstream& fs)
+{
+	NSUInteger textureType;
+	NSUInteger pixelFormat;
+	NSUInteger width;
+	NSUInteger height;
+	NSUInteger depth;
+	NSUInteger mipmapLevelCount;
+	NSUInteger sampleCount;
+	NSUInteger arrayLength;
+	NSUInteger resourceOptions;
+	NSUInteger cpuCacheMode;
+	NSUInteger storageMode;
+	NSUInteger usage;
+	BOOL allowGPUOptimizedContents;
+	
+	
+	MTLTextureDescriptor* Desc = [MTLTextureDescriptor new];
+	fs >> textureType;
+	fs >> pixelFormat;
+	fs >> width;
+	fs >> height;
+	fs >> depth;
+	fs >> mipmapLevelCount;
+	fs >> sampleCount;
+	fs >> arrayLength;
+	fs >> resourceOptions;
+	fs >> cpuCacheMode;
+	fs >> storageMode;
+	fs >> usage;
+	fs >> allowGPUOptimizedContents;
+	
+	Desc.textureType = (MTLTextureType)textureType;
+	Desc.pixelFormat = (MTLPixelFormat)pixelFormat;
+	Desc.width = width;
+	Desc.height = height;
+	Desc.depth = depth;
+	Desc.mipmapLevelCount = mipmapLevelCount;
+	Desc.sampleCount = sampleCount;
+	Desc.arrayLength = arrayLength;
+	Desc.resourceOptions = (MTLResourceOptions)resourceOptions;
+	Desc.cpuCacheMode = (MTLCPUCacheMode)cpuCacheMode;
+	Desc.storageMode = (MTLStorageMode)storageMode;
+	Desc.usage = (MTLTextureUsage)usage;
+	Desc.allowGPUOptimizedContents = allowGPUOptimizedContents;
+	
+	MTITrace::Get().RegisterObject(Header.Receiver, Desc);
+}
+MTITraceNewTextureDescHandler GMTITraceNewTextureDescHandler;
+
 MTLPP_END
 
