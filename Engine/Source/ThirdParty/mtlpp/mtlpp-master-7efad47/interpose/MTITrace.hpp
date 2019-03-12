@@ -62,7 +62,7 @@ struct MTITraceArray
 };
 
 template <typename T>
-std::fstream& operator>>(std::fstream& fs, const MTITraceArray<T>& dt)
+std::fstream& operator>>(std::fstream& fs, MTITraceArray<T>& dt)
 {
 	fs >> dt.Length;
 	if (dt.Length)
