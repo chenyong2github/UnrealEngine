@@ -570,6 +570,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LastWidgetRenderTime(0)
 	, bReceiveHardwareInput(false)
 	, bWindowFocusable(true)
+	, WindowVisibility(EWindowVisibility::SelfHitTestInvisible)
 	, bApplyGammaCorrection(false)
 	, BackgroundColor( FLinearColor::Transparent )
 	, TintColorAndOpacity( FLinearColor::White )
@@ -617,6 +618,19 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	Pivot = FVector2D(0.5f, 0.5f);
 
 	bAddedToScreen = false;
+}
+
+void UWidgetComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangedWidgetComponentWindowVisibilityDefault)
+	{
+		// Reset the default value for visibility
+		WindowVisibility = EWindowVisibility::Visible;
+	}
 }
 
 void UWidgetComponent::BeginPlay()
@@ -821,6 +835,38 @@ void UWidgetComponent::OnRegister()
 #endif
 	}
 #endif // !UE_SERVER
+}
+
+void UWidgetComponent::SetWindowFocusable(bool bInWindowFocusable)
+{
+	bWindowFocusable = bInWindowFocusable;
+ 	if (SlateWindow.IsValid())
+ 	{
+ 		SlateWindow->SetIsFocusable(bWindowFocusable);
+ 	}
+};
+
+EVisibility UWidgetComponent::ConvertWindowVisibilityToVisibility(EWindowVisibility visibility)
+{
+	switch (visibility)
+	{
+	case EWindowVisibility::Visible:
+		return EVisibility::Visible;
+	case EWindowVisibility::SelfHitTestInvisible:
+		return EVisibility::SelfHitTestInvisible;
+	default:
+		checkNoEntry();
+		return EVisibility::SelfHitTestInvisible;
+	}	
+}
+
+void UWidgetComponent::SetWindowVisibility(EWindowVisibility InVisibility)
+{
+	WindowVisibility = InVisibility;
+ 	if (SlateWindow.IsValid())
+ 	{		
+ 		SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
+ 	}
 }
 
 bool UWidgetComponent::CanReceiveHardwareInput() const
@@ -1231,6 +1277,7 @@ bool UWidgetComponent::CanEditChange(const UProperty* InProperty) const
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, GeometryMode) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, TimingPolicy) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bWindowFocusable) ||
+			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, WindowVisibility) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bManuallyRedraw) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, RedrawTime) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, BackgroundColor) ||
@@ -1275,6 +1322,8 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		static FName BlendModeName( TEXT( "BlendMode" ) );
 		static FName GeometryModeName( TEXT("GeometryMode") );
 		static FName CylinderArcAngleName( TEXT("CylinderArcAngle") );
+		static FName bWindowFocusableName(TEXT("bWindowFocusable"));
+		static FName WindowVisibilityName(TEXT("WindowVisibility"));
 
 		auto PropertyName = Property->GetFName();
 
@@ -1303,6 +1352,15 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		{
 			MarkRenderStateDirty();
 		}
+		else if (PropertyName == bWindowFocusableName)
+		{
+			SetWindowFocusable(bWindowFocusable);
+		}
+		else if (PropertyName == WindowVisibilityName)
+		{
+			SetWindowVisibility(WindowVisibility);
+		}
+
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -1420,6 +1478,7 @@ void UWidgetComponent::UpdateWidget()
 
 				SlateWindow = SNew(SVirtualWindow).Size(CurrentDrawSize);
 				SlateWindow->SetIsFocusable(bWindowFocusable);
+				SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
 				RegisterWindow();
 
 				bNeededNewWindow = true;

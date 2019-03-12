@@ -71,6 +71,8 @@ struct CORE_API FEditorObjectVersion
 		MeshDescriptionBulkDataGuid,
 		// Change to MeshDescription serialization (removed FMeshPolygon::HoleContours)
 		MeshDescriptionRemovedHoles,
+		// Change to the WidgetCompoent WindowVisibilty default value
+		ChangedWidgetComponentWindowVisibilityDefault,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
