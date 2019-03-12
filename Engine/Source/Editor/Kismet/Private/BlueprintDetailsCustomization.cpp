@@ -3419,7 +3419,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				]
 			];
 		}
-		const bool bShowCallInEditor = IsCustomEvent() || FBlueprintEditorUtils::IsBlutility( GetBlueprintObj() ) || (FunctionEntryNode && FunctionEntryNode->IsEditable());
+		const bool bShowCallInEditor = IsCustomEvent() || FBlueprintEditorUtils::IsEditorUtilityBlueprint( GetBlueprintObj() ) || (FunctionEntryNode && FunctionEntryNode->IsEditable());
 		if( bShowCallInEditor )
 		{
 			Category.AddCustomRow( LOCTEXT( "EditorCallable", "Call In Editor" ) )
