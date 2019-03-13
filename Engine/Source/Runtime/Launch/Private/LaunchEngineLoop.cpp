@@ -3930,12 +3930,15 @@ void FEngineLoop::Tick()
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			UWorld* CurrentWorld = Context.World();
-			FSceneInterface* Scene = CurrentWorld->Scene;
-
-			ENQUEUE_RENDER_COMMAND(SceneStartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
+			if (CurrentWorld)
 			{
-				Scene->StartFrame();
-			});
+				FSceneInterface* Scene = CurrentWorld->Scene;
+
+				ENQUEUE_RENDER_COMMAND(SceneStartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
+				{
+					Scene->StartFrame();
+				});
+			}
 		}
 
 #if !UE_SERVER && WITH_ENGINE
