@@ -100,6 +100,7 @@ FNetworkProfiler::FNetworkProfiler()
 ,	bHasNoticeableNetworkTrafficOccured(false)
 ,	bIsTrackingEnabled(false)
 ,	LastAddress( nullptr )
+,	IgnorePropertyCount(0)
 {
 }
 
@@ -501,7 +502,7 @@ void FNetworkProfiler::TrackReplicateActor( const AActor* Actor, FReplicationFla
  */
 void FNetworkProfiler::TrackReplicateProperty( const UProperty* Property, uint16 NumBits, UNetConnection* Connection )
 {
-	if( bIsTrackingEnabled )
+	if(bIsTrackingEnabled && !!!IgnorePropertyCount)
 	{
 		SCOPE_LOCK_REF(CriticalSection);
 
@@ -708,7 +709,7 @@ void FNetworkProfiler::TrackEndContentBlock( UObject* Object, uint16 NumBits, UN
 
 void FNetworkProfiler::TrackWritePropertyHandle( uint16 NumBits, UNetConnection* Connection )
 {
-	if ( bIsTrackingEnabled )
+	if (bIsTrackingEnabled && !!!IgnorePropertyCount)
 	{
 		SCOPE_LOCK_REF(CriticalSection);
 
