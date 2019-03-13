@@ -87,6 +87,12 @@ static FAutoConsoleVariableRef CVarRayTracingTranslucencyHeightFog(
 	GRayTracingTranslucencyHeightFog,
 	TEXT("Enables height fog in ray traced Translucency (default = 1)"));
 
+static int32 GRayTracingTranslucencyRefraction = -1;
+static FAutoConsoleVariableRef CVarRayTracingTranslucencyRefraction(
+	TEXT("r.RayTracing.Translucency.Refraction"),
+	GRayTracingTranslucencyRefraction,
+	TEXT("Enables refraction in ray traced Translucency (default = 1)"));
+
 DECLARE_GPU_STAT_NAMED(RayTracingTranslucency, TEXT("Ray Tracing Translucency"));
 
 class FRayTracingTranslucencyRGS : public FGlobalShader
@@ -108,13 +114,14 @@ class FRayTracingTranslucencyRGS : public FGlobalShader
 		SHADER_PARAMETER(float, TranslucencyMinRayDistance)
 		SHADER_PARAMETER(float, TranslucencyMaxRayDistance)
 		SHADER_PARAMETER(float, TranslucencyMaxRoughness)
+		SHADER_PARAMETER(int32, TranslucencyRefraction)
 		SHADER_PARAMETER(float, MaxNormalBias)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightData, LightData)
+		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_STRUCT_REF(FFogUniformParameters, FogUniformParameters)
 		SHADER_PARAMETER_STRUCT_REF(FIESLightProfileParameters, IESLightProfileParameters)
@@ -357,11 +364,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 	PassParameters->TranslucencyMinRayDistance = FMath::Min(GRayTracingTranslucencyMinRayDistance, GRayTracingTranslucencyMaxRayDistance);
 	PassParameters->TranslucencyMaxRayDistance = GRayTracingTranslucencyMaxRayDistance;
 	PassParameters->TranslucencyMaxRoughness = FMath::Clamp(GRayTracingTranslucencyMaxRoughness >= 0 ? GRayTracingTranslucencyMaxRoughness : View.FinalPostProcessSettings.RayTracingTranslucencyMaxRoughness, 0.01f, 1.0f);
-	PassParameters->MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
+	PassParameters->TranslucencyRefraction = GRayTracingTranslucencyRefraction >= 0 ? GRayTracingTranslucencyRefraction : View.FinalPostProcessSettings.RayTracingTranslucencyRefraction;
+	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->LightData = CreateLightDataUniformBuffer(Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	PassParameters->LightDataPacked = CreateLightDataPackedUniformBuffer(Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);	
 	PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	PassParameters->FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);

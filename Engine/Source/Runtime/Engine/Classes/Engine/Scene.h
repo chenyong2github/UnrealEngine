@@ -1064,7 +1064,6 @@ struct FPostProcessSettings
 
 	// Ray Tracing
 	
-	// Reflections
 	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_ReflectionsType : 1;
 
@@ -1080,7 +1079,6 @@ struct FPostProcessSettings
 	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_RayTracingReflectionsShadows : 1;
 
-	// Translucency
 	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_TranslucencyType : 1;
 
@@ -1096,6 +1094,10 @@ struct FPostProcessSettings
 	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_RayTracingTranslucencyShadows : 1;
 
+	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint32 bOverride_RayTracingTranslucencyRefraction : 1;
+
+	uint32 bOverride_RayTracingGI : 1;
 
 	UPROPERTY(BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_RayTracingGIMaxBounces : 1;
@@ -1573,7 +1575,11 @@ struct FPostProcessSettings
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Global Illumination", meta=(ClampMin = "0", UIMax = "4.0", editcondition = "bOverride_IndirectLightingIntensity", DisplayName = "Indirect Lighting Intensity"))
 	float IndirectLightingIntensity;
 
-	/** Sets the global illumination maximum bounces. */
+	/** Enables ray tracing global illumination. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (editcondition = "bOverride_RayTracingGI", DisplayName = "Enabled"))
+	uint32 RayTracingGI : 1;
+
+	/** Sets the ray tracing global illumination maximum bounces. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Global Illumination", meta = (ClampMin = "0", ClampMax = "50", editcondition = "bOverride_RayTracingGIMaxBounces", DisplayName = "Max. Bounces"))
 	int32 RayTracingGIMaxBounces;
 
@@ -1785,6 +1791,10 @@ struct FPostProcessSettings
 	/** Sets the translucency shadows type. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyShadows", DisplayName = "Shadows"))
 	EReflectedAndRefractedRayTracedShadows RayTracingTranslucencyShadows;
+
+	/** Sets whether refraction should be enabled or not (if not rays will not scatter and only travel in the same direction as before the intersection event). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering Features|Ray Tracing Translucency", meta = (editcondition = "bOverride_RayTracingTranslucencyRefraction", DisplayName = "Refraction"))
+	uint8 RayTracingTranslucencyRefraction : 1;
 
 
 	// Path Tracing

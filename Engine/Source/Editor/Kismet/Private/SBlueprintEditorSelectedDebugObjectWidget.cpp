@@ -276,6 +276,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames(bool bRe
 
 		if (!WorldName.IsEmpty())
 		{
+			if (FWorldContext* PieContext = GEngine->GetWorldContextFromWorld(TestWorld))
+			{
+				if (!PieContext->CustomDescription.IsEmpty())
+				{
+					WorldName += TEXT(" ") + PieContext->CustomDescription;
+				}
+			}
+
 			// DebugWorlds & DebugWorldNames need to be the same size (we expect
 			// an index in one to correspond to the other) - DebugWorldNames is
 			// what populates the dropdown, so it is the authority (if there's 

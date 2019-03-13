@@ -5,9 +5,12 @@
 #include "ILiveCodingModule.h"
 #include "Delegates/Delegate.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 struct IConsoleCommand;
 class IConsoleVariable;
+class ISettingsSection;
+class ULiveCodingSettings;
 
 class FLiveCodingModule final : public ILiveCodingModule
 {
@@ -19,16 +22,27 @@ public:
 	virtual void ShutdownModule() override;
 
 	// ILiveCodingModule implementation
-	virtual void Enable(bool bInEnabled) override;
-	virtual bool IsEnabled() const override;
+	virtual void EnableByDefault(bool bInEnabled) override;
+	virtual bool IsEnabledByDefault() const override;
+	virtual void EnableForSession(bool bInEnabled) override;
+	virtual bool IsEnabledForSession() const override;
+	virtual bool HasStarted() const override;
 	virtual void ShowConsole() override;
-	virtual void TriggerRecompile() override;
+	virtual void Compile() override;
+	virtual bool IsCompiling() const override;
+	virtual void Tick() override;
 
 private:
-	bool bEnabled;
-	bool bShouldStart;
+	ULiveCodingSettings* Settings;
+	TSharedPtr<ISettingsSection> SettingsSection;
+	bool bEnabledLastTick;
+	bool bEnabledForSession;
 	bool bStarted;
 	TSet<FString> EnabledModules;
+
+	const FString FullEnginePluginsDir;
+	const FString FullProjectDir;
+	const FString FullProjectPluginsDir;
 
 	IConsoleCommand* EnableCommand;
 	IConsoleVariable* ConsolePathVariable;
@@ -37,14 +51,13 @@ private:
 
 	bool StartLiveCoding();
 
-	void OnEndFrame();
 	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
 
 	void UpdateModules();
 	void EnableModule(const FString& FullFilePath);
 	void DisableModule(const FString& FullFilePath);
 
-	void ConfigureModule(const FName& Name, bool bIsProjectModule, const FString& FullFilePath);
-	bool ShouldEnableModule(const FName& Name, bool bIsProjectModule, const FString& FilePath) const;
+	void ConfigureModule(const FName& Name, const FString& FullFilePath);
+	bool ShouldEnableModule(const FName& Name, const FString& FullFilePath) const;
 };
 

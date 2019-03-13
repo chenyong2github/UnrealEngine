@@ -310,12 +310,15 @@ void SkyLightRGS()
 
 		uint RayFlags = 0
 			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+#if !ENABLE_TWO_SIDED_GEOMETRY
+		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
 		FDefaultPayload Payload = (FDefaultPayload)0;
 
 		TraceRay(
 			TLAS,      // AccelerationStructure
 			RayFlags,
-			RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
+			RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
 			RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
 			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 			0,         // MissShaderIndex
@@ -359,7 +362,11 @@ void SkyLightRGS()
 	DiffuseExitantRadiance.g = Albedo.g > 0.0 ? DiffuseExitantRadiance.g / Albedo.g : DiffuseExitantRadiance.g;
 	DiffuseExitantRadiance.b = Albedo.b > 0.0 ? DiffuseExitantRadiance.b / Albedo.b : DiffuseExitantRadiance.b;
 
-	RWOcclusionMaskUAV[PixelCoord] = float4(DiffuseExitantRadiance, AmbientOcclusion);
+#if USE_PREEXPOSURE
+	DiffuseExitantRadiance.rgb *= View.PreExposure;
+#endif
+
+	RWOcclusionMaskUAV[PixelCoord] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
 
 	float HitDistance = -1.0;
 	if (HitCount > 0.0)

@@ -1423,22 +1423,12 @@ namespace UnrealBuildTool
 				Dictionary<string, DirectoryReference> FrameworkNameToSourceDir = new Dictionary<string, DirectoryReference>();
 				foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
 				{
-					if (Framework.OutputDirectory != null)
+					if (Framework.OutputDirectory != null && !String.IsNullOrEmpty(Framework.CopyBundledAssets))
 					{
-						// copy entire framework in for dynamic lib frameworks, not just a bundle
-						// @todo add a bool to the UEBuildFramework class that denotes it as a dylib framework, or possibly use RuntimeDependencies instead?
-						if (Framework.ZipFile.FullName.EndsWith(".framework.zip"))
-						{
-							string BundleName = Framework.OutputDirectory.FullName.Substring(Framework.OutputDirectory.FullName.LastIndexOf('/') + 1);
-							FrameworkNameToSourceDir[BundleName] = Framework.OutputDirectory;
-						}
-						else if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
-						{
-							// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-							DirectoryReference LocalSource = DirectoryReference.Combine(Framework.OutputDirectory, Framework.CopyBundledAssets);
-							string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
-							FrameworkNameToSourceDir[BundleName] = LocalSource;
-						}
+						// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+						DirectoryReference LocalSource = DirectoryReference.Combine(Framework.OutputDirectory, Framework.CopyBundledAssets);
+						string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
+						FrameworkNameToSourceDir[BundleName] = LocalSource;
 					}
 				}
 
@@ -1559,7 +1549,7 @@ namespace UnrealBuildTool
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine));
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine));
 
-				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile);
+				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
 				return Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments);
 			}
 			finally
@@ -1587,7 +1577,13 @@ namespace UnrealBuildTool
 					{
 						throw new BuildException("Unable to find plist for output framework ({0})", PlistSrcLocation);
 					}
+					
 					FileReference PlistDstLocation = FileReference.Combine(Target.OutputPath.Directory, "Info.plist");
+					if (FileReference.Exists(PlistDstLocation))
+					{
+						FileReference.SetAttributes(PlistDstLocation, FileAttributes.Normal);
+					}
+
 					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
 
 					// and do nothing else
@@ -1602,6 +1598,7 @@ namespace UnrealBuildTool
 
             // ensure the plist, entitlements, and provision files are properly copied
             UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+			DeployHandler.ForDistribution = Target.bForDistribution;
             DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA);
 
 			// copy the executable
@@ -1619,12 +1616,12 @@ namespace UnrealBuildTool
 				DirectoryReference XcodeWorkspaceDir;
 				if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk" });
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development") });
 					XcodeWorkspaceDir = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, String.Format("UE4_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
 				else
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", String.Format("-project={0}", Target.ProjectFile), "-game" });
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game" });
 					XcodeWorkspaceDir = DirectoryReference.Combine(Target.ProjectDirectory, String.Format("{0}_{1}.xcworkspace", Target.ProjectFile.GetFileNameWithoutExtension(), (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
 
@@ -1636,6 +1633,7 @@ namespace UnrealBuildTool
 
 				// ensure the plist, entitlements, and provision files are properly copied
 				DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				DeployHandler.ForDistribution = Target.bForDistribution;
 				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, true);
 
 				FileReference SignProjectScript = FileReference.Combine(Target.ProjectIntermediateDirectory, "SignProject.sh");
@@ -1660,7 +1658,7 @@ namespace UnrealBuildTool
 					if(Target.ImportCertificate == null)
 					{
 						// Take it from the standard settings
-						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(Target.ProjectFile);
+						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(Target.ProjectFile, Target.bForDistribution);
 						SigningCertificate = ProvisioningData.SigningCertificate;
 
 						// Set the identity on the command line
@@ -1707,7 +1705,7 @@ namespace UnrealBuildTool
 					string TeamUUID;
 					if(Target.ImportProvision == null)
 					{
-						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(ProjectSettings);
+						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(ProjectSettings, Target.bForDistribution);
 						MobileProvisionFile = ProvisioningData.MobileProvisionFile;
 						MobileProvisionUUID = ProvisioningData.MobileProvisionUUID;
 						TeamUUID = ProvisioningData.TeamUUID;
@@ -1757,6 +1755,7 @@ namespace UnrealBuildTool
 					if(TempKeychain != null)
 					{
 						Writer.WriteLine("security delete-keychain \"{0}\" || true", TempKeychain);
+						Writer.WriteLine("security list-keychain -s login.keychain");
 					}
 				}
 
@@ -1799,26 +1798,13 @@ namespace UnrealBuildTool
 				{
 					string UnpackedZipPath = Pair.Value.FullName;
 
-					// some framework bundles are an entire framework, not a .bundle, so copy them into a Frameworks directory
-					if (Pair.Key.EndsWith(".framework"))
-					{
-						string LocalDest = LocalFrameworkAssets + "/Frameworks";
-						Console.WriteLine("Copying dynamic framework... LocalSource: {0}, LocalDest: {1}", UnpackedZipPath, LocalDest);
-						string ResultsText;
-						// Create the intermediate local directory
-						RunExecutableAndWait("mkdir", String.Format("-p \"{0}\"", LocalDest), out ResultsText);
-						RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
-					}
-					else
-					{
-						// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-						string LocalDest = LocalFrameworkAssets + "/" + Pair.Key;
-	
-						Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
-	
-						string ResultsText;
-						RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
-					}
+					// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+					string LocalDest = LocalFrameworkAssets + "/" + Pair.Key;
+
+					Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
+
+					string ResultsText;
+					RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
                 }
             }
 		}

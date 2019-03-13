@@ -150,6 +150,7 @@ public:
 	/** Gets the expression description of this parameter from the base material */
 	static	FText GetParameterExpressionDescription(class UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance);
 	
+	static FText GetParameterTooltip(class UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance);
 	/**
 	 * Called when a parameter is overridden;
 	 */

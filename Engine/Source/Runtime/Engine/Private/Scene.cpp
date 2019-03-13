@@ -510,6 +510,7 @@ FPostProcessSettings::FPostProcessSettings()
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
 	ColorGradingIntensity = 1.0f;
+	RayTracingGI = 0;
 	RayTracingGIMaxBounces = 1;
 	RayTracingGISamplesPerPixel = 1;
 
@@ -558,11 +559,12 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingReflectionsSamplesPerPixel = 1;
 	RayTracingReflectionsShadows = EReflectedAndRefractedRayTracedShadows::Hard_shadows;
 	
-	TranslucencyType = ETranslucencyType::RayTracing;
+	TranslucencyType = ETranslucencyType::Raster;
 	RayTracingTranslucencyMaxRoughness = 0.6f;
 	RayTracingTranslucencyRefractionRays = 3; // 3 to: first hit surface, second hit back inner surface and a third to fetch the background.
 	RayTracingTranslucencySamplesPerPixel = 1;
 	RayTracingTranslucencyShadows = EReflectedAndRefractedRayTracedShadows::Hard_shadows;
+	RayTracingTranslucencyRefraction = 1;
 
 	PathTracingMaxBounces = 32;
 	PathTracingSamplesPerPixel = 16384;
@@ -753,6 +755,8 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_RayTracingTranslucencyRefractionRays(Settings.bOverride_RayTracingTranslucencyRefractionRays)
 	, bOverride_RayTracingTranslucencySamplesPerPixel(Settings.bOverride_RayTracingTranslucencySamplesPerPixel)
 	, bOverride_RayTracingTranslucencyShadows(Settings.bOverride_RayTracingTranslucencyShadows)
+	, bOverride_RayTracingTranslucencyRefraction(Settings.bOverride_RayTracingTranslucencyRefraction)
+	, bOverride_RayTracingGI(Settings.bOverride_RayTracingGI)
 	, bOverride_RayTracingGIMaxBounces(Settings.bOverride_RayTracingGIMaxBounces)
 	, bOverride_RayTracingGISamplesPerPixel(Settings.bOverride_RayTracingGISamplesPerPixel)
 	, bOverride_PathTracingMaxBounces(Settings.bOverride_PathTracingMaxBounces)
@@ -879,6 +883,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingAOSamplesPerPixel(Settings.RayTracingAOSamplesPerPixel)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
+	, RayTracingGI(Settings.RayTracingGI)
 	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
 	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)
 	, ColorGradingIntensity(Settings.ColorGradingIntensity)
@@ -935,6 +940,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, RayTracingTranslucencyRefractionRays(Settings.RayTracingTranslucencyRefractionRays)
 	, RayTracingTranslucencySamplesPerPixel(Settings.RayTracingTranslucencySamplesPerPixel)
 	, RayTracingTranslucencyShadows(Settings.RayTracingTranslucencyShadows)
+	, RayTracingTranslucencyRefraction(Settings.RayTracingTranslucencyRefraction)
 
 	, PathTracingMaxBounces(Settings.PathTracingMaxBounces)
 	, PathTracingSamplesPerPixel(Settings.PathTracingSamplesPerPixel)

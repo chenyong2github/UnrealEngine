@@ -570,6 +570,16 @@ namespace Gauntlet
 
 			try
 			{
+				// Artifacts have been saved, release devices back to pool for other tests to use
+				UnrealApp.ReleaseDevices();
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Failed to release devices. {0}", Ex);
+			}
+
+			try
+			{
 				CreateReport(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, OutputPath);
 			}
 			catch (Exception Ex)

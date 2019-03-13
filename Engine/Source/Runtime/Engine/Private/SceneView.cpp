@@ -1413,6 +1413,16 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.RayTracingTranslucencyShadows = Src.RayTracingTranslucencyShadows;
 		}
 
+		if (Src.bOverride_RayTracingTranslucencyRefraction)
+		{
+			Dest.RayTracingTranslucencyRefraction = Src.RayTracingTranslucencyRefraction;
+		}
+
+		if (Src.bOverride_RayTracingGI)
+		{
+			Dest.RayTracingGI = Src.RayTracingGI;
+		}
+
 		if (Src.bOverride_RayTracingGIMaxBounces)
 		{
 			Dest.RayTracingGIMaxBounces = Src.RayTracingGIMaxBounces;
@@ -2373,7 +2383,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	ViewModeParam = CVS.ViewModeParam;
 	ViewModeParamName = CVS.ViewModeParamName;
 
-	if (!AllowDebugViewPS(DebugViewShaderMode, GetShaderPlatform()))
+	if (!AllowDebugViewShaderMode(DebugViewShaderMode, GetShaderPlatform(), GetFeatureLevel()))
 	{
 		DebugViewShaderMode = DVSM_None;
 	}

@@ -9,6 +9,11 @@
 #include "GameplayDebuggerExtension.h"
 #include "Net/UnrealNetwork.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Engine/Selection.h"
+#endif // WITH_EDITOR
+
 //////////////////////////////////////////////////////////////////////////
 // FGameplayDebuggerCategoryReplicatorData
 
@@ -503,14 +508,14 @@ void AGameplayDebuggerCategoryReplicator::ServerSetEnabled_Implementation(bool b
 	SetEnabled(bEnable);
 }
 
-bool AGameplayDebuggerCategoryReplicator::ServerSetDebugActor_Validate(AActor* Actor)
+bool AGameplayDebuggerCategoryReplicator::ServerSetDebugActor_Validate(AActor* Actor, bool bSelectInEditor)
 {
 	return true;
 }
 
-void AGameplayDebuggerCategoryReplicator::ServerSetDebugActor_Implementation(AActor* Actor)
+void AGameplayDebuggerCategoryReplicator::ServerSetDebugActor_Implementation(AActor* Actor, bool bSelectInEditor)
 {
-	SetDebugActor(Actor);
+	SetDebugActor(Actor, bSelectInEditor);
 }
 
 bool AGameplayDebuggerCategoryReplicator::ServerSetCategoryEnabled_Validate(int32 CategoryId, bool bEnable)
@@ -610,7 +615,10 @@ void AGameplayDebuggerCategoryReplicator::OnReceivedDataPackPacket(int32 Categor
 void AGameplayDebuggerCategoryReplicator::TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
-	CollectCategoryData();
+	if (OwnerPC)
+	{
+		CollectCategoryData();
+	}
 }
 
 void AGameplayDebuggerCategoryReplicator::PostNetReceive()
@@ -722,7 +730,7 @@ void AGameplayDebuggerCategoryReplicator::SetEnabled(bool bEnable)
 	NotifyExtensionsToolState(bEnableExtensions);
 }
 
-void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor)
+void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor, bool bSelectInEditor)
 {
 	UE_LOG(LogGameplayDebugReplication, Log, TEXT("SetDebugActor %s"), *GetNameSafe(Actor));
 	if (bHasAuthority)
@@ -732,11 +740,23 @@ void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor)
 			DebugActor.Actor = Actor;
 			DebugActor.ActorName = Actor ? Actor->GetFName() : NAME_None;
 			DebugActor.SyncCounter++;
+
+#if WITH_EDITOR
+			if (bSelectInEditor)
+			{
+				USelection* SelectedActors = GEditor ? GEditor->GetSelectedActors() : NULL;
+				if (SelectedActors && Actor)
+				{
+					SelectedActors->DeselectAll();
+					SelectedActors->Select(Actor);
+				}
+			}
+#endif // WITH_EDITOR
 		}
 	}
 	else
 	{
-		ServerSetDebugActor(Actor);
+		ServerSetDebugActor(Actor, bSelectInEditor);
 	}
 }
 

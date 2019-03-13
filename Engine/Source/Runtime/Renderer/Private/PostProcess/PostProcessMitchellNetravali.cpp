@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	PostProcessTemporalAA.cpp: Post process MotionBlur implementation.
@@ -77,7 +77,7 @@ void FRCPassMitchellNetravaliDownsample::Process(FRenderingCompositePassContext&
 		DestRect.Width(), DestRect.Height());
 
 	// Common setup
-	SetRenderTarget(Context.RHICmdList, nullptr, nullptr);
+	UnbindRenderTargets(Context.RHICmdList);
 	Context.SetViewportAndCallRHI(DestRect, 0.0f, 1.0f);
 
 	FTextureRHIRef EyeAdaptationTex = GWhiteTexture->TextureRHI;

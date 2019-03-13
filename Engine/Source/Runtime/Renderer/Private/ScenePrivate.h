@@ -909,6 +909,7 @@ public:
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingIrradianceRT;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSampleCountRT;
+	FIntRect PathTracingRect;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
 
@@ -1312,6 +1313,7 @@ public:
 		PathTracingSampleCountRT.SafeRelease();
 		VarianceMipTreeDimensions = FIntVector(0);
 		TotalRayCount = 0;
+		PathTracingRect = FIntRect(0, 0, 0, 0);
 		IESLightProfileResources.Release();
 #endif 
 	}
@@ -2518,15 +2520,17 @@ public:
 	/** Shadow casting lights that couldn't get a shadowmap channel assigned and therefore won't have valid dynamic shadows, forward renderer only. */
 	TArray<FName> OverflowingDynamicShadowedLights;
 
-	/** The mobile quality level for which static draw lists have been built. */
-	bool bStaticDrawListsMobileHDR;
-	bool bStaticDrawListsMobileHDR32bpp;
+	/** Early Z pass mode. */
+	EDepthDrawingMode EarlyZPassMode;
 
-	/** Whether the early Z pass was force enabled when static draw lists were built. */
-	int32 StaticDrawListsEarlyZPassMode;
+	/** Early Z pass movable. */
+	bool bEarlyZPassMovable;
 
-	/** Whether the ShaderPipelines were enabled when the static draw lists were built. */
-	int32 StaticDrawShaderPipelines;
+	/** Default base pass depth stencil access. */
+	FExclusiveDepthStencil::Type DefaultBasePassDepthStencilAccess;
+
+	/** Default base pass depth stencil access used to cache mesh draw commands. */
+	FExclusiveDepthStencil::Type CachedDefaultBasePassDepthStencilAccess;
 
 	/** True if a change to SkyLight / Lighting has occurred that requires static draw lists to be updated. */
 	bool bScenesPrimitivesNeedStaticMeshElementUpdate;
@@ -2762,6 +2766,8 @@ public:
 	void FindClosestReflectionCaptures(FVector Position, const FReflectionCaptureProxy* (&SortedByDistanceOUT)[FPrimitiveSceneInfo::MaxCachedReflectionCaptureProxies]) const;
 
 	int64 GetCachedWholeSceneShadowMapsSize() const;
+
+	void UpdateEarlyZPassMode();
 
 	/**
 	 * Marks static mesh elements as needing an update if necessary.

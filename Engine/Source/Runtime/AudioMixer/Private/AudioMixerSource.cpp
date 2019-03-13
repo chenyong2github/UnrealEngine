@@ -60,18 +60,10 @@ namespace Audio
 
 		check(WaveInstance->WaveData);
 
-		// Prevent double-triggering procedural soundwaves
-		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGenerating())
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
-			return false;
-		}
-
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
 		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)
 		{
-			//NumFrames = MixerBuffer->GetNumFrames();
 			check(!InWaveInstance->WaveData->RawPCMData || InWaveInstance->WaveData->RawPCMDataSize);
 			const int32 NumBytes = WaveInstance->WaveData->RawPCMDataSize;
 			NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
@@ -95,6 +87,8 @@ namespace Audio
 			MixerSourceVoice = MixerDevice->GetMixerSourceVoice();
 			if (!MixerSourceVoice)
 			{
+				FreeResources();
+				UE_LOG(LogAudioMixer, Warning, TEXT("Failed to get a mixer source voice for sound %s."), *InWaveInstance->GetName());
 				return false;
 			}
 
@@ -298,7 +292,7 @@ namespace Audio
 				MixerSourceBuffer->SetPCMData(RawPCMDataBuffer);
 			}
 #if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
-			else if (BufferType == EBufferType::PCMRealTime || EBufferType::Streaming)
+			else if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
 			{
 				USoundWave* WaveData = WaveInstance->WaveData;
 				if (WaveData->CachedRealtimeFirstBuffer)
@@ -335,8 +329,15 @@ namespace Audio
 			else
 			{
 				InitializationState = EMixerSourceInitializationState::NotInitialized;
+				UE_LOG(LogAudioMixer, Warning, TEXT("Failed to initialize mixer source voice '%s'."), *InWaveInstance->GetName());
 			}
 		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Num channels was 0 for sound buffer '%s'."), *InWaveInstance->GetName());
+		}
+
+		FreeResources();
 		return false;
 	}
 
@@ -758,6 +759,8 @@ namespace Audio
 			ChannelMaps[i].bUsed = false;
 			ChannelMaps[i].ChannelMap.Reset();
 		}
+
+		InitializationState = EMixerSourceInitializationState::NotInitialized;
 	}
 
 	void FMixerSource::UpdatePitch()

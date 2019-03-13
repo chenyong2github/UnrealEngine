@@ -69,6 +69,13 @@ static FAutoConsoleVariableRef CVarRayTracingSkyLightDenoiser(
 	TEXT("Denoising options (default = 1)")
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableTwoSidedGeometry(
+	TEXT("r.RayTracing.SkyLight.EnableTwoSidedGeometry"),
+	0,
+	TEXT("Enables two-sided geometry when tracing shadow rays (default = 0)"),
+	ECVF_RenderThreadSafe
+);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, "SkyLight");
 
 void SetupSkyLightParameters(
@@ -80,7 +87,7 @@ void SetupSkyLightParameters(
 	SkyLightData->SamplesPerPixel = -1;
 	SkyLightData->SamplingStopLevel = 0;
 	SkyLightData->MaxRayDistance = 1.0e27;
-	SkyLightData->MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
+	SkyLightData->MaxNormalBias = GetRaytracingMaxNormalBias();
 
 	if (Scene.SkyLight && Scene.SkyLight->ProcessedTexture)
 	{
@@ -132,13 +139,16 @@ void SetupSkyLightParameters(
 DECLARE_GPU_STAT_NAMED(RayTracingSkyLight, TEXT("Ray Tracing SkyLight"));
 DECLARE_GPU_STAT_NAMED(BuildSkyLightMipTree, TEXT("Build SkyLight Mip Tree"));
 
-class FSkylightRGS : public FGlobalShader
+template<uint32 EnableTwoSidedGeometry>
+class TSkyLightRGS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FSkylightRGS, Global)
+	DECLARE_SHADER_TYPE(TSkyLightRGS, Global)
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), 1);
+		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), EnableTwoSidedGeometry);
 	}
 
 public:
@@ -147,10 +157,10 @@ public:
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
-	FSkylightRGS() {}
-	virtual ~FSkylightRGS() {}
+	TSkyLightRGS() {}
+	virtual ~TSkyLightRGS() {}
 
-	FSkylightRGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	TSkyLightRGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		ViewParameter.Bind(Initializer.ParameterMap, TEXT("View"));
@@ -239,10 +249,14 @@ private:
 	FShaderResourceParameter RayDistanceUAVParameter;
 };
 
-IMPLEMENT_SHADER_TYPE(, FSkylightRGS, TEXT("/Engine/Private/Raytracing/RaytracingSkylightRGS.usf"), TEXT("SkyLightRGS"), SF_RayGen);
+IMPLEMENT_SHADER_TYPE(template<>, TSkyLightRGS<0>, TEXT("/Engine/Private/Raytracing/RaytracingSkylightRGS.usf"), TEXT("SkyLightRGS"), SF_RayGen);
+IMPLEMENT_SHADER_TYPE(template<>, TSkyLightRGS<1>, TEXT("/Engine/Private/Raytracing/RaytracingSkylightRGS.usf"), TEXT("SkyLightRGS"), SF_RayGen);
 
 void FDeferredShadingSceneRenderer::BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, FSkyLightSceneProxy* SkyLight)
 {
+	SCOPED_DRAW_EVENT(RHICmdList, BuildSkyLightMipTree);
+	SCOPED_GPU_STAT(RHICmdList, BuildSkyLightMipTree);
+
 	BuildSkyLightMipTree(RHICmdList, SkyLight->ProcessedTexture->TextureRHI, SkyLight->SkyLightMipTreePosX, SkyLight->SkyLightMipTreeNegX, SkyLight->SkyLightMipTreePosY, SkyLight->SkyLightMipTreeNegY, SkyLight->SkyLightMipTreePosZ, SkyLight->SkyLightMipTreeNegZ, SkyLight->SkyLightMipDimensions);
 	BuildSkyLightMipTreePdf(RHICmdList, SkyLight->SkyLightMipTreePosX, SkyLight->SkyLightMipTreeNegX, SkyLight->SkyLightMipTreePosY, SkyLight->SkyLightMipTreeNegY, SkyLight->SkyLightMipTreePosZ, SkyLight->SkyLightMipTreeNegZ, SkyLight->SkyLightMipDimensions,
 		SkyLight->SkyLightMipTreePdfPosX, SkyLight->SkyLightMipTreePdfNegX, SkyLight->SkyLightMipTreePdfPosY, SkyLight->SkyLightMipTreePdfNegY, SkyLight->SkyLightMipTreePdfPosZ, SkyLight->SkyLightMipTreePdfNegZ);
@@ -307,13 +321,12 @@ public:
 		FRHICommandList& RHICmdList,
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& MipTree,
-		FComputeFenceRHIParamRef Fence)
+		FRWBuffer& MipTree)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
 		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV, Fence);
+		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV);
 	}
 
 	virtual bool Serialize(FArchive& Ar)
@@ -352,9 +365,6 @@ void FDeferredShadingSceneRenderer::BuildSkyLightMipTree(
 	FIntVector& SkyLightMipTreeDimensions
 )
 {
-	SCOPED_DRAW_EVENT(RHICmdList, BuildSkyLightMipTree);
-	SCOPED_GPU_STAT(RHICmdList, BuildSkyLightMipTree);
-
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FBuildMipTreeCS> BuildSkyLightMipTreeComputeShader(ShaderMap);
 	RHICmdList.SetComputeShader(BuildSkyLightMipTreeComputeShader->GetComputeShader());
@@ -382,19 +392,27 @@ void FDeferredShadingSceneRenderer::BuildSkyLightMipTree(
 	for (uint32 FaceIndex = 0; FaceIndex < 6; ++FaceIndex)
 	{
 		MipTrees[FaceIndex]->Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+	}
 
-		// Execute hierarchical build
-		for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
+	// Execute hierarchical build
+	for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
+	{
+		for (uint32 FaceIndex = 0; FaceIndex < 6; ++FaceIndex)
 		{
-			FComputeFenceRHIRef MipLevelFence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTree Build"));
 			BuildSkyLightMipTreeComputeShader->SetParameters(RHICmdList, SkyLightTexture, SkyLightMipTreeDimensions, FaceIndex, MipLevel, *MipTrees[FaceIndex]);
 			FIntVector MipLevelDimensions = FIntVector(SkyLightMipTreeDimensions.X >> MipLevel, SkyLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
 			DispatchComputeShader(RHICmdList, *BuildSkyLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
-			BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTrees[FaceIndex], MipLevelFence);
+			BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTrees[FaceIndex]);
 		}
-		FComputeFenceRHIRef TransitionFence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTree Transition"));
-		BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTrees[FaceIndex], TransitionFence);
+
+		FComputeFenceRHIRef Fence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTree"));
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[0]->UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[1]->UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[2]->UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[3]->UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[4]->UAV);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTrees[5]->UAV, Fence);
 	}
 }
 
@@ -556,13 +574,12 @@ public:
 		FRHICommandList& RHICmdList,
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& MipTreePdf,
-		FComputeFenceRHIParamRef Fence)
+		FRWBuffer& MipTreePdf)
 	{
 		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
 
 		MipTreePdfParameter.UnsetUAV(RHICmdList, ShaderRHI);
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV, Fence);
+		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTreePdf.UAV);
 	}
 
 	virtual bool Serialize(FArchive& Ar)
@@ -631,18 +648,23 @@ void FDeferredShadingSceneRenderer::BuildSkyLightMipTreePdf(
 		MipTreePdfs[FaceIndex]->Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 
 		// Execute hierarchical build
-		for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
+		uint32 MipLevel = 0;
 		{
-			FComputeFenceRHIRef MipLevelFence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTree Build"));
 			BuildSkyLightMipTreePdfComputeShader->SetParameters(RHICmdList, *MipTrees[FaceIndex], SkyLightMipTreeDimensions, MipLevel, *MipTreePdfs[FaceIndex]);
 			FIntVector MipLevelDimensions = FIntVector(SkyLightMipTreeDimensions.X >> MipLevel, SkyLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
 			DispatchComputeShader(RHICmdList, *BuildSkyLightMipTreePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
-			//BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTreePdfs[FaceIndex], MipLevelFence);
 		}
-		FComputeFenceRHIRef TransitionFence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTree Transition"));
-		BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTreePdfs[FaceIndex], TransitionFence);
+		BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, *MipTreePdfs[FaceIndex]);
 	}
+
+	FComputeFenceRHIRef Fence = RHICmdList.CreateComputeFence(TEXT("SkyLightMipTreePdf"));
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[0]->UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[1]->UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[2]->UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[3]->UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[4]->UAV);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, MipTreePdfs[5]->UAV, Fence);
 }
 
 class FVisualizeSkyLightMipTreePS : public FGlobalShader
@@ -849,21 +871,39 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		FViewInfo& View = Views[ViewIndex];
 		FIntPoint ViewSize = View.ViewRect.Size();
 
-		TShaderMapRef<FSkylightRGS> SkyLightRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
 		FSceneTexturesUniformParameters SceneTextures;
 		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 		FUniformBufferRHIRef SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
-		SkyLightRayGenerationShader->Dispatch(
-			RHICmdList,
-			View.RayTracingScene,
-			View.ViewUniformBuffer,
-			SceneTexturesUniformBuffer,
-			SkyLightUniformBuffer,
-			SkyLightRT->GetRenderTargetItem().UAV,
-			HitDistanceRT->GetRenderTargetItem().UAV,
-			ViewSize.X, ViewSize.Y
-		);
+		int32 EnableTwoSidedGeometry = CVarRayTracingSkyLightEnableTwoSidedGeometry.GetValueOnRenderThread();
+		if (EnableTwoSidedGeometry)
+		{
+			TShaderMapRef<TSkyLightRGS<1>> SkyLightRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
+			SkyLightRayGenerationShader->Dispatch(
+				RHICmdList,
+				View.RayTracingScene,
+				View.ViewUniformBuffer,
+				SceneTexturesUniformBuffer,
+				SkyLightUniformBuffer,
+				SkyLightRT->GetRenderTargetItem().UAV,
+				HitDistanceRT->GetRenderTargetItem().UAV,
+				ViewSize.X, ViewSize.Y
+			);
+		}
+		else
+		{
+			TShaderMapRef<TSkyLightRGS<0>> SkyLightRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
+			SkyLightRayGenerationShader->Dispatch(
+				RHICmdList,
+				View.RayTracingScene,
+				View.ViewUniformBuffer,
+				SceneTexturesUniformBuffer,
+				SkyLightUniformBuffer,
+				SkyLightRT->GetRenderTargetItem().UAV,
+				HitDistanceRT->GetRenderTargetItem().UAV,
+				ViewSize.X, ViewSize.Y
+			);
+		}
 	}
 
 	// Transition to graphics pipeline

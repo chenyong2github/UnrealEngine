@@ -1693,6 +1693,17 @@ void UNetDriver::TickDispatch( float DeltaTime )
 
 void UNetDriver::PostTickDispatch()
 {
+	// Flush out of order packet caches for connections that did not receive the missing packets during TickDispatch
+	if (ServerConnection != nullptr)
+	{
+		ServerConnection->FlushPacketOrderCache(true);
+	}
+
+	for (UNetConnection* CurConn : ClientConnections)
+	{
+		CurConn->FlushPacketOrderCache(true);
+	}
+
 	if (ReplicationDriver)
 	{
 		ReplicationDriver->PostTickDispatch();

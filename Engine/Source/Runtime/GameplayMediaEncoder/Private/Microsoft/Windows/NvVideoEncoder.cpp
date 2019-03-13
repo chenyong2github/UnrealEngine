@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NvVideoEncoder.h"
 
@@ -334,7 +334,9 @@ void FNvVideoEncoder::CopyBackBuffer(const FTexture2DRHIRef& SrcBackBuffer, cons
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SetRenderTarget(RHICmdList, DstFrame.ResolvedBackBuffer, FTextureRHIRef());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetViewport(0, 0, 0.0f, DstFrame.ResolvedBackBuffer->GetSizeX(), DstFrame.ResolvedBackBuffer->GetSizeY(), 1.0f);
 	
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

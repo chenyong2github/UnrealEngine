@@ -79,7 +79,7 @@ struct FScopeCycleCounterSWidget
 	{
 	}
 	~FScopeCycleCounterSWidget()
-	{;
+	{
 	}
 };
 
@@ -855,6 +855,8 @@ bool SWidget::IsDirectlyHovered() const
 
 void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
 
 	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
@@ -866,7 +868,6 @@ void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 	}
 
 	LayoutChanged(InvalidateReason);
-
 }
 
 void SWidget::SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor )

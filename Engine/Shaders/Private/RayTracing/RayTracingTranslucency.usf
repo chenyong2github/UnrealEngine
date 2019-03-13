@@ -12,13 +12,13 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 }
 
 #define SUPPORT_CONTACT_SHADOWS		0
-#define USE_SOURCE_TEXTURE			0
-#define USE_SOURCE_TEXTURE_ARRAY	0
+#define USE_SOURCE_TEXTURE			1
+#define USE_SOURCE_TEXTURE_ARRAY	1
 
-#define LTCMatTexture				RaytracingLightsData.LTCMatTexture
-#define LTCMatSampler				RaytracingLightsData.LTCMatSampler
-#define LTCAmpTexture				RaytracingLightsData.LTCAmpTexture
-#define LTCAmpSampler				RaytracingLightsData.LTCAmpSampler
+#define LTCMatTexture				RaytracingLightsDataPacked.LTCMatTexture
+#define LTCMatSampler				RaytracingLightsDataPacked.LTCMatSampler
+#define LTCAmpTexture				RaytracingLightsDataPacked.LTCAmpTexture
+#define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
 #define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
 #define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
 
@@ -47,6 +47,7 @@ uint UpscaleFactor;
 float TranslucencyMinRayDistance;
 float TranslucencyMaxRayDistance;
 float TranslucencyMaxRoughness;
+uint  TranslucencyRefraction;
 float MaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
@@ -174,8 +175,6 @@ void RayTracingTranslucencyRGS()
 			break;
 		}
 		float3 HitPoint = Ray.Origin + Ray.Direction * GetHitT(Payload);
-		bHasScattered = true;
-
 
 		//
 		// Handle surface lighting
@@ -239,19 +238,22 @@ void RayTracingTranslucencyRGS()
 		}
 
 		// Set refraction ray for next iteration
-		float Ior1 = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular)); // Not using Payload.Ior but parameterisation from specular.
-		float Ior2 = LastIor;
-		bHasScattered |= Ior1 != Ior2;
-		float3 RefractedDirection;
-		float ReflectionRefractionEventThroughput;
-		if (!RefractRay(Ray.Direction, Payload.WorldNormal, Ior1, Ior2, RefractedDirection, ReflectionRefractionEventThroughput))
+		float3 RefractedDirection = Ray.Direction;
+		if (TranslucencyRefraction)
 		{
-			//#dxr_todo: handle total internal reflection ray event. We could jsuit continue form this path. And not use the new IOR.
-			// We should combine that step with the one above reflection evaluation. For now we stop tracing.
-			break;
+			float Ior1 = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular)); // Not using Payload.Ior but parameterisation from specular.
+			float Ior2 = LastIor;
+			bHasScattered |= Ior1 != Ior2;
+			float ReflectionRefractionEventThroughput;
+			if (!RefractRay(Ray.Direction, Payload.WorldNormal, Ior1, Ior2, RefractedDirection, ReflectionRefractionEventThroughput))
+			{
+				//#dxr_todo: handle total internal reflection ray event. We could jsuit continue form this path. And not use the new IOR.
+				// We should combine that step with the one above reflection evaluation. For now we stop tracing.
+				break;
+			}
+			LastIor = Ior1;
+			PathThroughput *= ReflectionRefractionEventThroughput;
 		}
-		LastIor = Ior1;
-		PathThroughput *= ReflectionRefractionEventThroughput;
 
 
 		//
@@ -264,14 +266,19 @@ void RayTracingTranslucencyRGS()
 		Ray.Direction = RefractedDirection;
 		float SurfaceCurvature = 0.0f; /* #todo_dxr assume no curvature */
 		RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
-		const float ReflectionMaxNormalBias = 1.0;
 	}
 
 	if (!bHasScattered)
 	{
-		// Use the scene opaque radiance for pixel that has not intersected any transparent.
-		PathRadiance = Texture2DSampleLevel(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, UV, 0).xyz;
+		// Use the scene radiance for ray that has not been scattered/refracted (no surface or IORin=IORout). Still apply the throughtput in case we have traversed surfaces with opacity>0.
+		PathRadiance += PathThroughput * Texture2DSampleLevel(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, UV, 0).xyz;
 	}
+
+#if USE_PREEXPOSURE
+	PathRadiance.rgb *= View.PreExposure;
+#endif
+
+	PathRadiance = ClampToHalfFloatRange(PathRadiance);
 	ColorOutput[DispatchThreadId] = float4(PathRadiance, 0.0f);
 	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
 }

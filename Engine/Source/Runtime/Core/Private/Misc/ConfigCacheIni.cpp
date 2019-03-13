@@ -3168,6 +3168,11 @@ static void GetSourceIniHierarchyFilenames(const TCHAR* InBaseIniName, const TCH
 	if (IsRunningDedicatedServer())
 	{
 		OutHierarchy.Add(EConfigFileHierarchy::GameDirDedicatedServer, FIniFilename(FString::Printf(TEXT("%s/DedicatedServer%s.ini"), SourceConfigDir, InBaseIniName), false));
+
+		// Game/Config/NotForLicensees/DedicatedServer*.ini
+		OutHierarchy.Add(EConfigFileHierarchy::GameDirDedicatedServer_NotForLicensees, FIniFilename(FString::Printf(TEXT("%sNotForLicensees/DedicatedServer%s.ini"), SourceConfigDir, InBaseIniName), false));
+		// Game/Config/NoRedist/DedicatedServer*.ini
+		OutHierarchy.Add(EConfigFileHierarchy::GameDirDedicatedServer_NoRedist, FIniFilename(FString::Printf(TEXT("%sNoRedist/DedicatedServer%s.ini"), SourceConfigDir, InBaseIniName), false));
 	}
 	// Game/Config/NotForLicensees/Default* ini
 	OutHierarchy.Add(EConfigFileHierarchy::GameDirDefault_NotForLicensees, FIniFilename(FString::Printf(TEXT("%sNotForLicensees/Default%s.ini"), SourceConfigDir, InBaseIniName), false));

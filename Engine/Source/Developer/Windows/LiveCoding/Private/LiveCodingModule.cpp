@@ -12,33 +12,37 @@
 #include "Misc/ConfigCacheIni.h"
 #include "LiveCodingSettings.h"
 #include "ISettingsModule.h"
+#include "ISettingsSection.h"
 #include "Windows/WindowsHWrapper.h"
 
 IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 
 #define LOCTEXT_NAMESPACE "LiveCodingModule"
 
+bool GIsCompileActive = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
 
 FLiveCodingModule::FLiveCodingModule()
-	: bEnabled(false)
-	, bShouldStart(false)
+	: bEnabledLastTick(false)
+	, bEnabledForSession(false)
 	, bStarted(false)
+	, FullEnginePluginsDir(FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir()))
+	, FullProjectDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()))
+	, FullProjectPluginsDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir()))
 {
-#if WITH_EDITOR
-	GConfig->GetBool(TEXT("LiveCoding"), TEXT("Enabled"), bEnabled, GEditorPerProjectIni);
-#endif
 }
 
 void FLiveCodingModule::StartupModule()
 {
+	Settings = GetMutableDefault<ULiveCodingSettings>();
+
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
 
 	EnableCommand = ConsoleManager.RegisterConsoleCommand(
 		TEXT("LiveCoding"),
 		TEXT("Enables live coding support"),
-		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::Enable, true),
+		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::EnableForSession, true),
 		ECVF_Cheat
 	);
 
@@ -49,30 +53,41 @@ void FLiveCodingModule::StartupModule()
 		ECVF_Cheat
 	);
 
-	EndFrameDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveCodingModule::OnEndFrame);
+	EndFrameDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveCodingModule::Tick);
 
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule != nullptr)
 	{
-		SettingsModule->RegisterSettings("Project", "Project", "Live Coding",
+		SettingsSection = SettingsModule->RegisterSettings("Editor", "General", "Live Coding",
 			LOCTEXT("LiveCodingSettingsName", "Live Coding"),
 			LOCTEXT("LiveCodintSettingsDescription", "Settings for recompiling C++ code while the engine is running."),
 			GetMutableDefault<ULiveCodingSettings>()
 		);
 	}
 
-	const ULiveCodingSettings* Settings = GetDefault<ULiveCodingSettings>();
-	if (bEnabled && Settings->StartupMode == ELiveCodingStartupMode::Automatic)
+	extern void Startup(Windows::HINSTANCE hInstance);
+	Startup(hInstance);
+
+	if (Settings->bEnabled)
 	{
-		bShouldStart = true;
-		if(!Settings->bShowConsole)
+		if(Settings->Startup == ELiveCodingStartupMode::Automatic)
+		{
+			StartLiveCoding();
+			ShowConsole();
+		}
+		else if(Settings->Startup == ELiveCodingStartupMode::AutomaticButHidden)
 		{
 			GLiveCodingConsoleArguments = L"-Hidden";
+			StartLiveCoding();
 		}
 	}
 
-	extern void Startup(Windows::HINSTANCE hInstance);
-	Startup(hInstance);
+	if(FParse::Param(FCommandLine::Get(), TEXT("LiveCoding")))
+	{
+		StartLiveCoding();
+	}
+
+	bEnabledLastTick = Settings->bEnabled;
 }
 
 void FLiveCodingModule::ShutdownModule()
@@ -87,102 +102,135 @@ void FLiveCodingModule::ShutdownModule()
 	ConsoleManager.UnregisterConsoleObject(EnableCommand);
 }
 
-void FLiveCodingModule::Enable(bool bInEnabled)
+void FLiveCodingModule::EnableByDefault(bool bEnable)
 {
-	if (bEnabled != bInEnabled)
+	if(Settings->bEnabled != bEnable)
 	{
-		bEnabled = bInEnabled;
-#if WITH_EDITOR
-		GConfig->SetBool(TEXT("LiveCoding"), TEXT("Enabled"), bEnabled, GEditorPerProjectIni);
-#endif
-
-		if (bEnabled)
+		Settings->bEnabled = bEnable;
+		if(SettingsSection.IsValid())
 		{
+			SettingsSection->Save();
+		}
+	}
+	EnableForSession(bEnable);
+}
+
+bool FLiveCodingModule::IsEnabledByDefault() const
+{
+	return Settings->bEnabled;
+}
+
+void FLiveCodingModule::EnableForSession(bool bEnable)
+{
+	if (bEnable)
+	{
+		if(!bStarted)
+		{
+			StartLiveCoding();
 			ShowConsole();
 		}
-		else if(bStarted)
+	}
+	else 
+	{
+		if(bStarted)
 		{
 			UE_LOG(LogLiveCoding, Display, TEXT("Console will be hidden but remain running in the background. Restart to disable completely."));
 			LppSetActive(false);
 			LppSetVisible(false);
 		}
 	}
+	bEnabledForSession = bEnable;
 }
 
-bool FLiveCodingModule::IsEnabled() const
+bool FLiveCodingModule::IsEnabledForSession() const
 {
-	return bEnabled;
+	return bEnabledForSession;
+}
+
+bool FLiveCodingModule::HasStarted() const
+{
+	return bStarted;
 }
 
 void FLiveCodingModule::ShowConsole()
 {
 	if (bStarted)
 	{
-		LppSetVisible(bEnabled);
-		LppSetActive(bEnabled);
+		LppSetVisible(true);
+		LppSetActive(true);
 		LppShowConsole();
 	}
-	else
+}
+
+void FLiveCodingModule::Compile()
+{
+	if(!GIsCompileActive)
 	{
-		bShouldStart = true;
+		EnableForSession(true);
+		if(bStarted)
+		{
+			LppTriggerRecompile();
+			GIsCompileActive = true;
+		}
 	}
 }
 
-void FLiveCodingModule::TriggerRecompile()
+bool FLiveCodingModule::IsCompiling() const
 {
-	LppTriggerRecompile();
+	return GIsCompileActive;
 }
 
-void FLiveCodingModule::OnEndFrame()
+void FLiveCodingModule::Tick()
 {
-	if (bShouldStart && !bStarted)
+	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
 	{
-		if(StartLiveCoding())
-		{
-			bStarted = true;
-		}
-		else
-		{
-			bShouldStart = false;
-		}
+		EnableForSession(Settings->bEnabled);
+		bEnabledLastTick = Settings->bEnabled;
 	}
 }
 
 bool FLiveCodingModule::StartLiveCoding()
 {
-	// Setup the console path
-	GLiveCodingConsolePath = ConsolePathVariable->GetString();
-	if (!FPaths::FileExists(GLiveCodingConsolePath))
+	if(!bStarted)
 	{
-		UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Missing executable '%s'. Use the LiveCoding.ConsolePath console variable to modify."), *GLiveCodingConsolePath);
-		return false;
+		// Setup the console path
+		GLiveCodingConsolePath = ConsolePathVariable->GetString();
+		if (!FPaths::FileExists(GLiveCodingConsolePath))
+		{
+			UE_LOG(LogLiveCoding, Error, TEXT("Unable to start live coding session. Missing executable '%s'. Use the LiveCoding.ConsolePath console variable to modify."), *GLiveCodingConsolePath);
+			return false;
+		}
+
+		UE_LOG(LogLiveCoding, Display, TEXT("Starting LiveCoding"));
+
+		// Enable external build system
+		LppUseExternalBuildSystem();
+
+		// Enable the server
+		FString ProcessGroup = FString::Printf(TEXT("UE4_%s_0x%08x"), FApp::GetProjectName(), GetTypeHash(FPaths::ProjectDir()));
+		LppRegisterProcessGroup(TCHAR_TO_ANSI(*ProcessGroup));
+
+		// Build the command line
+		FString Arguments;
+		Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
+		Arguments += FString::Printf(TEXT(" %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
+		Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
+		if(FPaths::IsProjectFilePathSet())
+		{
+			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
+		}
+		LppSetBuildArguments(*Arguments);
+
+		// Configure all the current modules
+		UpdateModules();
+
+		// Register a delegate to listen for new modules loaded from this point onwards
+		ModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FLiveCodingModule::OnModulesChanged);
+
+		// Mark it as started
+		bStarted = true;
+		bEnabledForSession = true;
 	}
-
-	UE_LOG(LogLiveCoding, Display, TEXT("Starting LiveCoding"));
-
-	// Enable external build system
-	LppUseExternalBuildSystem();
-
-	// Enable the server
-	FString ProcessGroup = FString::Printf(TEXT("UE4_%s_0x%08x"), FApp::GetProjectName(), GetTypeHash(FPaths::ProjectDir()));
-	LppRegisterProcessGroup(TCHAR_TO_ANSI(*ProcessGroup));
-
-	// Build the command line
-	FString Arguments;
-	Arguments += FString::Printf(TEXT("%s"), FPlatformMisc::GetUBTPlatform());
-	Arguments += FString::Printf(TEXT(" %s"), EBuildConfigurations::ToString(FApp::GetBuildConfiguration()));
-	Arguments += FString::Printf(TEXT(" -TargetType=%s"), FPlatformMisc::GetUBTTarget());
-	if(FPaths::IsProjectFilePathSet())
-	{
-		Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
-	}
-	LppSetBuildArguments(*Arguments);
-
-	// Configure all the current modules
-	UpdateModules();
-
-	// Register a delegate to listen for new modules loaded from this point onwards
-	ModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FLiveCodingModule::OnModulesChanged);
 	return true;
 }
 
@@ -196,14 +244,20 @@ void FLiveCodingModule::UpdateModules()
 	TArray<FModuleStatus> ModuleStatuses;
 	FModuleManager::Get().QueryModules(ModuleStatuses);
 
+	extern void BeginCommandBatch();
+	BeginCommandBatch();
+
 	for (const FModuleStatus& ModuleStatus : ModuleStatuses)
 	{
 		if (ModuleStatus.bIsLoaded)
 		{
 			FString FullFilePath = FPaths::ConvertRelativePathToFull(ModuleStatus.FilePath);
-			ConfigureModule(FName(*ModuleStatus.Name), ModuleStatus.bIsGameModule, FullFilePath);
+			ConfigureModule(FName(*ModuleStatus.Name), FullFilePath);
 		}
 	}
+
+	extern void EndCommandBatch();
+	EndCommandBatch();
 #endif
 }
 
@@ -234,16 +288,16 @@ void FLiveCodingModule::OnModulesChanged(FName ModuleName, EModuleChangeReason R
 		if (FModuleManager::Get().QueryModule(ModuleName, Status))
 		{
 			FString FullFilePath = FPaths::ConvertRelativePathToFull(Status.FilePath);
-			ConfigureModule(ModuleName, Status.bIsGameModule, FullFilePath);
+			ConfigureModule(ModuleName, FullFilePath);
 		}
 	}
 #endif
 }
 
-void FLiveCodingModule::ConfigureModule(const FName& Name, bool bIsProjectModule, const FString& FullFilePath)
+void FLiveCodingModule::ConfigureModule(const FName& Name, const FString& FullFilePath)
 {
 #if !IS_MONOLITHIC
-	if (ShouldEnableModule(Name, bIsProjectModule, FullFilePath))
+	if (ShouldEnableModule(Name, FullFilePath))
 	{
 		EnableModule(FullFilePath);
 	}
@@ -254,9 +308,8 @@ void FLiveCodingModule::ConfigureModule(const FName& Name, bool bIsProjectModule
 #endif
 }
 
-bool FLiveCodingModule::ShouldEnableModule(const FName& Name, bool bIsProjectModule, const FString& FullFilePath) const
+bool FLiveCodingModule::ShouldEnableModule(const FName& Name, const FString& FullFilePath) const
 {
-	const ULiveCodingSettings* Settings = GetDefault<ULiveCodingSettings>();
 	if (Settings->ExcludeSpecificModules.Contains(Name))
 	{
 		return false;
@@ -266,14 +319,13 @@ bool FLiveCodingModule::ShouldEnableModule(const FName& Name, bool bIsProjectMod
 		return true;
 	}
 
-	if (bIsProjectModule)
+	if (FullFilePath.StartsWith(FullProjectDir))
 	{
 		if (Settings->bIncludeProjectModules == Settings->bIncludeProjectPluginModules)
 		{
 			return Settings->bIncludeProjectModules;
 		}
 
-		FString FullProjectPluginsDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir());
 		if(FullFilePath.StartsWith(FullProjectPluginsDir))
 		{
 			return Settings->bIncludeProjectPluginModules;
@@ -295,7 +347,6 @@ bool FLiveCodingModule::ShouldEnableModule(const FName& Name, bool bIsProjectMod
 			return Settings->bIncludeEngineModules;
 		}
 
-		FString FullEnginePluginsDir = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir());
 		if(FullFilePath.StartsWith(FullEnginePluginsDir))
 		{
 			return Settings->bIncludeEnginePluginModules;

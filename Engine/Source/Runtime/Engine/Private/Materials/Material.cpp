@@ -233,6 +233,7 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);
+#if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
 
@@ -242,19 +243,11 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShader
 	{
 		MaterialInstance->GetBasePropertyOverridesHash(OutId.BasePropertyOverridesHash);
 
-#if !WITH_EDITOR
-		if (FMaterial::GetLoadedCookedShaderMapId() && MaterialInstance->bHasStaticPermutationResource)
-		{
-			OutId.UpdateParameterSet(MaterialInstance->GetStaticParameters());
-		}
-		else
-#endif
-		{
-			FStaticParameterSet CompositedStaticParameters;
-			MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
-			OutId.UpdateParameterSet(CompositedStaticParameters);		
-		}
+		FStaticParameterSet CompositedStaticParameters;
+		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
+		OutId.UpdateParameterSet(CompositedStaticParameters);		
 	}
+#endif // WITH_EDITOR
 }
 
 /**
@@ -3963,6 +3956,14 @@ void UMaterial::PostLoad()
 			{
 				if (Texture)
 				{
+					if (Texture->HasAnyFlags(RF_NeedLoad))
+					{
+						FLinkerLoad* Loader = GetLinker();
+						if (ensure(Loader))
+						{
+							Loader->Preload(Texture);
+						}
+					}
 					Texture->ConditionalPostLoad();
 				}
 			}
@@ -4287,6 +4288,9 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 
 void UMaterial::PreEditChange(UProperty* PropertyThatChanged)
 {
+	// In Editor realtime rendering changing a material connection (or via undo/redo) changes what is rendered on the RT (specifically in FMeshDecalMeshProcessor::AddMeshBatch() Emmissive connection test)
+	// before the Shader Map has been updated in PostEditChangeProperty() below - Viewport render command enqueue has already happenned so we need to flush that before the material change.
+	FlushRenderingCommands();
 	Super::PreEditChange(PropertyThatChanged);
 }
 

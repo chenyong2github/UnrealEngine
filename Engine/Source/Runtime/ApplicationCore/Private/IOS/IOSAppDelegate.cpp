@@ -928,8 +928,8 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	OSVersion = [[[UIDevice currentDevice] systemVersion] floatValue];
 	if (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash)
 	{
-//        FPlatformMisc::SetCrashHandler(EngineCrashHandler);
-        InstallSignalHandlers();
+        FPlatformMisc::SetCrashHandler(EngineCrashHandler);
+//        InstallSignalHandlers();
 	}
 
 	self.savedOpenUrlParameters = [[NSMutableArray alloc] init];

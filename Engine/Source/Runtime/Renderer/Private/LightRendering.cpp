@@ -63,7 +63,7 @@ static TAutoConsoleVariable<int32> CVarShadowUseDenoiser(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMaxShadowDenoisingBatchSize(
-	TEXT("r.Shadow.Denoiser.MaxBatchSize"), 1,
+	TEXT("r.Shadow.Denoiser.MaxBatchSize"), 4,
 	TEXT("Maximum number of shadow to denoise at the same time."),
 	ECVF_RenderThreadSafe);
 
@@ -903,7 +903,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 					// Not worth batching and increase memory pressure if the denoiser do not support this ray tracing config.
 					// TODO: add suport for batch with multiple SPP.
-					if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::ClosestOccluder)
+					if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
 					{
 						continue;
 					}

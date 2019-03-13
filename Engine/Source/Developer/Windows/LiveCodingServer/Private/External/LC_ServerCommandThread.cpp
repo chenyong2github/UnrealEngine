@@ -566,6 +566,23 @@ unsigned int __stdcall ServerCommandThread::CompileThreadProxy(void* context)
 	return instance->CompileThread();
 }
 
+// BEGIN EPIC MOD - Focus application windows on patch complete
+BOOL CALLBACK FocusApplicationWindows(HWND WindowHandle, LPARAM Lparam)
+{
+	DWORD WindowProcessId;
+    GetWindowThreadProcessId(WindowHandle, &WindowProcessId);
+
+	const types::vector<LiveProcess*>& Processes = *(const types::vector<LiveProcess*>*)Lparam;
+	for (LiveProcess* Process : Processes)
+	{
+		if (Process->GetProcessId() == WindowProcessId && IsWindowVisible(WindowHandle))
+		{
+			SetForegroundWindow(WindowHandle);
+		}
+	}
+    return Windows::TRUE;
+}
+// END EPIC MOD
 
 void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 {
@@ -573,14 +590,18 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 	// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(true);
 	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Creating patch...");
 
+	telemetry::Scope scope("Creating patch");
+
+	// EPIC REMOVED: g_theApp.GetMainFrame()->OnCompilationStart();
+
+	LC_LOG_USER("---------- Creating patch ----------");
+
 	// BEGIN EPIC MOD - Hook for the compiler
 	GLiveCodingServer->GetCompileStartedDelegate().ExecuteIfBound();
 
 	const ILiveCodingServer::FCompileDelegate& CompileDelegate = GLiveCodingServer->GetCompileDelegate();
 	if (CompileDelegate.IsBound())
 	{
-		LC_LOG_USER("---------- Starting build ----------");
-
 		TArray<FString> Targets;
 		for (LiveProcess* liveProcess : m_liveProcesses)
 		{
@@ -627,12 +648,6 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Creating patch...");
 	// END EPIC MOD
-
-	telemetry::Scope scope("Creating patch");
-
-	// EPIC REMOVED: g_theApp.GetMainFrame()->OnCompilationStart();
-
-	LC_LOG_USER("---------- Creating patch ----------");
 
 	// recompile files, if any
 	const size_t count = m_liveModules.size();
@@ -765,6 +780,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 		case LiveModule::ErrorType::SUCCESS:
 			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Success, L"Patch creation successful.");
+			EnumWindows(FocusApplicationWindows, (LPARAM)&m_liveProcesses);
 			break;
 
 		default:

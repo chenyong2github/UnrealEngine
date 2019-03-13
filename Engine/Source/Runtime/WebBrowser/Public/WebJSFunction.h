@@ -97,6 +97,7 @@ struct WEBBROWSER_API FWebJSParam
 		}
 	}
 	FWebJSParam(const FWebJSParam& Other);
+	FWebJSParam(FWebJSParam&& Other);
 	~FWebJSParam();
 
 	enum { PTYPE_NULL, PTYPE_BOOL, PTYPE_INT, PTYPE_DOUBLE, PTYPE_STRING, PTYPE_OBJECT, PTYPE_STRUCT, PTYPE_ARRAY, PTYPE_MAP } Tag;

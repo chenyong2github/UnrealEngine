@@ -9,7 +9,7 @@
 
 class UNavigationSystemV1;
 
-UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation))
+UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent))
 class NAVIGATIONSYSTEM_API UNavigationInvokerComponent : public UActorComponent
 {
 	GENERATED_BODY()

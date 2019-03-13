@@ -432,7 +432,7 @@ void FVulkanDynamicRHI::CreateInstance()
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	SetupDebugLayerCallback();
 
-	if (!GRHISupportsRHIThread || GRenderDocFound)
+	if (GRenderDocFound)
 	{
 		EnableIdealGPUCaptureOptions(true);
 	}
@@ -1190,8 +1190,11 @@ void FVulkanDescriptorSetsLayoutInfo::GenerateHash(const TArrayView<const FSampl
 #endif
 }
 
+static FCriticalSection GTypesUsageCS;
 void FVulkanDescriptorSetsLayoutInfo::CompileTypesUsageID()
 {
+	FScopeLock ScopeLock(&GTypesUsageCS);
+
 	static TMap<uint32, uint32> GTypesUsageHashMap;
 	static uint32 GUniqueID = 1;
 

@@ -426,7 +426,9 @@ private:
 	/** What state the precache decompressor is in. */
 	FThreadSafeCounter PrecacheState;
 
-	FThreadSafeBool bGenerating;
+	/** the number of sounds currently playing this sound wave. */
+	FThreadSafeCounter NumSourcesPlaying;
+
 #if !WITH_EDITOR
 	// This is the sample rate gotten from platform settings.
 	float CachedSampleRateOverride;
@@ -599,8 +601,22 @@ public:
 	// Called when the procedural sound wave is done generating on the render thread. Only used in the audio mixer and when bProcedural is true..
 	virtual void OnEndGenerate() {};
 
-	bool IsGenerating() const { return bGenerating; }
-	void SetGenerating(bool bInGenerating) { bGenerating = bInGenerating; }
+	void AddPlayingSource()
+	{
+		NumSourcesPlaying.Increment();
+	}
+
+	void RemovePlayingSource()
+	{
+		check(NumSourcesPlaying.GetValue() > 0);
+		NumSourcesPlaying.Decrement();
+	}
+
+	bool IsGeneratingAudio() const
+	{
+		return NumSourcesPlaying.GetValue() > 0;
+	}
+
 	/**
 	* Overwrite sample rate. Used for procedural soundwaves, as well as sound waves that are resampled on compress/decompress.
 	*/

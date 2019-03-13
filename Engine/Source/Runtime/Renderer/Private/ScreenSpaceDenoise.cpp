@@ -18,6 +18,11 @@
 // ---------------------------------------------------- Cvars
 
 
+static TAutoConsoleVariable<int32> CVarShadowUse1SPPCodePath(
+	TEXT("r.Shadow.Denoiser.Use1SPPCodePath"), 0,
+	TEXT("Whether to use the 1spp code path."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarShadowReconstructionSampleCount(
 	TEXT("r.Shadow.Denoiser.ReconstructionSamples"), 16,
 	TEXT("Maximum number of samples for the reconstruction pass (default = 16)."),
@@ -26,6 +31,11 @@ static TAutoConsoleVariable<int32> CVarShadowReconstructionSampleCount(
 static TAutoConsoleVariable<int32> CVarShadowTemporalAccumulation(
 	TEXT("r.Shadow.Denoiser.TemporalAccumulation"), 1,
 	TEXT(""),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarShadowHistoryConvolutionSampleCount(
+	TEXT("r.Shadow.Denoiser.HistoryConvolutionSamples"), 1,
+	TEXT("Number of samples to use to convolve the history over time."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarReflectionReconstructionSampleCount(
@@ -143,7 +153,9 @@ static bool SignalUsesInjestion(ESignalProcessing SignalProcessing)
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
 static bool SignalUsesRejectionPreConvolution(ESignalProcessing SignalProcessing)
 {
-	return SignalProcessing == ESignalProcessing::Reflections;
+	return (
+		//SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
+		SignalProcessing == ESignalProcessing::Reflections);
 }
 
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
@@ -243,10 +255,10 @@ const TCHAR* const kReconstructionResourceNames[] = {
 
 const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	// Penumbra
-	nullptr,
-	nullptr,
-	nullptr,
-	nullptr,
+	TEXT("ShadowRejectionPreConvolution0"),
+	TEXT("ShadowRejectionPreConvolution1"),
+	TEXT("ShadowRejectionPreConvolution2"),
+	TEXT("ShadowRejectionPreConvolution3"),
 
 	// Reflections
 	TEXT("ReflectionsRejectionPreConvolution0"),
@@ -652,7 +664,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 		return ResourceNames + (int32(Settings.SignalProcessing) * kMaxBufferProcessingCount);
 	};
 
-	const bool bUseMultiInputSPPShaderPath = Settings.MaxInputSPP > 1;
+	const bool bUseMultiInputSPPShaderPath = (
+		Settings.MaxInputSPP > 1 || 
+		(CVarShadowUse1SPPCodePath.GetValueOnRenderThread() == 0 && Settings.SignalProcessing == ESignalProcessing::MonochromaticPenumbra));
 
 	const FIntPoint DenoiseResolution = View.ViewRect.Size();
 	
@@ -674,6 +688,14 @@ static void DenoiseSignalAtConstantPixelDensity(
 	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> HistoryDescs;
 	FRDGTextureDesc DebugDesc;
 	{
+		static const EPixelFormat PixelFormatPerChannel[] = {
+			PF_Unknown,
+			PF_R16F,
+			PF_G16R16F,
+			PF_FloatRGBA, // there is no 16bits float RGB
+			PF_FloatRGBA,
+		};
+
 		FRDGTextureDesc RefDesc = FRDGTextureDesc::Create2DDesc(
 			SceneBlackboard.SceneDepthBuffer->Desc.Extent,
 			PF_Unknown,
@@ -694,30 +716,26 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		if (Settings.SignalProcessing == ESignalProcessing::MonochromaticPenumbra)
 		{
-			static const EPixelFormat InjestPixelFormat[] = {
-				PF_Unknown,
-				PF_R16F,
-				PF_G16R16F,
-				PF_FloatRGBA, // there is no 16bits float RGB
-				PF_FloatRGBA,
-			};
-
 			check(Settings.SignalBatchSize >= 1 && Settings.SignalBatchSize <= IScreenSpaceDenoiser::kMaxBatchSize);
 			if (!bUseMultiInputSPPShaderPath)
-				InjestDescs[0].Format = InjestPixelFormat[Settings.SignalBatchSize];
+			{
+				InjestDescs[0].Format = PixelFormatPerChannel[Settings.SignalBatchSize];
+				InjestTextureCount = 1;
+			}
 
 			for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 			{
 				if (bUseMultiInputSPPShaderPath)
+				{
 					InjestDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_FloatRGBA :  PF_G16R16F;
-
-				ReconstructionDescs[BatchedSignalId / 2].Format = (BatchedSignalId % 2) ? PF_FloatRGBA :  PF_G16R16F;
-				HistoryDescs[BatchedSignalId].Format = PF_G16R16F;
+					InjestTextureCount = BatchedSignalId / 2 + 1;
+				}
+				ReconstructionDescs[BatchedSignalId].Format = PF_FloatRGBA;
+				HistoryDescs[BatchedSignalId].Format = PF_FloatRGBA;
 			}
 
-			InjestTextureCount = 1;
 			HistoryTextureCountPerSignal = 1;
-			ReconstructionTextureCount = FMath::DivideAndRoundUp(Settings.SignalBatchSize, 2);
+			ReconstructionTextureCount = Settings.SignalBatchSize;
 			bHasReconstructionLayoutDifferentFromHistory = true;
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::Reflections)
@@ -876,7 +894,15 @@ static void DenoiseSignalAtConstantPixelDensity(
 					RejectionSignalProcessingDescs[i] = HistoryDescs[i];
 				}
 
-				if (Settings.SignalProcessing == ESignalProcessing::Reflections)
+				if (Settings.SignalProcessing == ESignalProcessing::MonochromaticPenumbra)
+				{
+					for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
+					{
+						RejectionSignalProcessingDescs[BatchedSignalId].Format = PF_FloatRGBA;
+					}
+					RejectionTextureCount = Settings.SignalBatchSize;
+				}
+				else if (Settings.SignalProcessing == ESignalProcessing::Reflections)
 				{
 					RejectionSignalProcessingDescs[0].Format = PF_FloatRGBA;
 					RejectionSignalProcessingDescs[1].Format = PF_G16R16F;
@@ -1128,7 +1154,7 @@ public:
 		const FLightSceneInfo& LightSceneInfo,
 		const FShadowRayTracingConfig& RayTracingConfig) const override
 	{
-		if (RayTracingConfig.RayCountPerPixel != 1)
+		if (RayTracingConfig.RayCountPerPixel != 1 || CVarShadowUse1SPPCodePath.GetValueOnRenderThread() == 0)
 		{
 			check(SignalSupportMultiSPP(ESignalProcessing::MonochromaticPenumbra));
 			return IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder;
@@ -1152,7 +1178,7 @@ public:
 		Settings.InputResolutionFraction = 1.0f;
 		Settings.ReconstructionSamples = CVarShadowReconstructionSampleCount.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarShadowTemporalAccumulation.GetValueOnRenderThread() != 0;
-		Settings.HistoryConvolutionSampleCount = 1;
+		Settings.HistoryConvolutionSampleCount = CVarShadowHistoryConvolutionSampleCount.GetValueOnRenderThread();
 		Settings.SignalBatchSize = InputParameterCount;
 
 		for (int32 BatchedSignalId = 0; BatchedSignalId < InputParameterCount; BatchedSignalId++)
@@ -1169,7 +1195,7 @@ public:
 			ensure(IsSupportedLightType(ELightComponentType(Parameters.LightSceneInfo->Proxy->GetLightType())));
 
 			Settings.LightSceneInfo[BatchedSignalId] = Parameters.LightSceneInfo;
-			if (Settings.MaxInputSPP == 1)
+			if (Settings.MaxInputSPP == 1 && CVarShadowUse1SPPCodePath.GetValueOnRenderThread() != 0)
 			{
 				// Only have it distance in ClosestOccluder.
 				InputSignal.Textures[BatchedSignalId] = Parameters.InputTextures.ClosestOccluder;

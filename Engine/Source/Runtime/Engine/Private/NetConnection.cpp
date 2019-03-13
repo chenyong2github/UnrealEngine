@@ -51,6 +51,14 @@ static TAutoConsoleVariable<int32> CVarMaxChannelSize(TEXT("net.MaxChannelSize")
 static TAutoConsoleVariable<int32> CVarForceNetFlush(TEXT("net.ForceNetFlush"), 0, TEXT("Immediately flush send buffer when written to (helps trace packet writes - WARNING: May be unstable)."));
 #endif
 
+static TAutoConsoleVariable<int32> CVarNetDoPacketOrderCorrection(TEXT("net.DoPacketOrderCorrection"), 0, TEXT("Whether or not to try to fix 'out of order' packet sequences, by caching packets and waiting for the missing sequence."));
+
+static TAutoConsoleVariable<int32> CVarNetPacketOrderCorrectionEnableThreshold(TEXT("net.PacketOrderCorrectionEnableThreshold"), 1, TEXT("The number of 'out of order' packet sequences that need to occur, before correction is enabled."));
+
+static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxMissingPackets(TEXT("net.PacketOrderMaxMissingPackets"), 3, TEXT("The maximum number of missed packet sequences that is allowed, before treating missing packets as lost."));
+
+static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxCachedPackets(TEXT("net.PacketOrderMaxCachedPackets"), 32, TEXT("(NOTE: Must be power of 2!) The maximum number of packets to cache while waiting for missing packet sequences, before treating missing packets as lost."));
+
 extern int32 GNetDormancyValidate;
 
 DECLARE_CYCLE_STAT(TEXT("NetConnection SendAcks"), Stat_NetConnectionSendAck, STATGROUP_Net);
@@ -164,6 +172,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
 ,	bConnectionPendingCloseDueToSocketSendFailure(false)
+,	TotalOutOfOrderPackets(0)
+,	PacketOrderCache()
+,	PacketOrderCacheStartIdx(0)
+,	PacketOrderCacheCount(0)
+,	bFlushingPacketOrderCache(false)
 {
 	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
 	// The allocations could *probably* be moved somewhere else (like InitBase), but that
@@ -647,7 +660,7 @@ void UNetConnection::CleanUp()
 
 	Close();
 
-	if (Driver != NULL)
+	if (Driver != nullptr)
 	{
 		// Remove from driver.
 		if (Driver->ServerConnection)
@@ -1130,6 +1143,9 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 			if (Reader.GetBitsLeft() > 0)
 			{
 				ReceivedPacket(Reader);
+
+				// Check if the out of order packet cache needs flushing
+				FlushPacketOrderCache();
 			}
 		}
 		// MalformedPacket - Received a packet with 0's in the last byte
@@ -1142,6 +1158,48 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 	else 
 	{
 		CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Received zero-size packet"));
+	}
+}
+
+void UNetConnection::FlushPacketOrderCache(bool bFlushWholeCache/*=false*/)
+{
+	if (PacketOrderCache.IsSet() && PacketOrderCacheCount > 0)
+	{
+		TCircularBuffer<TUniquePtr<FBitReader>>& Cache = PacketOrderCache.GetValue();
+		int32 CacheEndIdx = PacketOrderCache->GetPreviousIndex(PacketOrderCacheStartIdx);
+		bool bEndOfCacheSet = Cache[CacheEndIdx].IsValid();
+
+		bFlushingPacketOrderCache = true;
+
+		// If the end of the cache has had its value set, this forces the flushing of the whole cache, no matter how many missing sequences there are.
+		// The reason for this (other than making space in the cache), is that when we receive a sequence that is out of range of the cache,
+		// it is stored at the end, and so the cache index no longer lines up with the sequence number - which it needs to.
+		bFlushWholeCache = bFlushWholeCache || bEndOfCacheSet;
+
+		while (PacketOrderCacheCount > 0)
+		{
+			TUniquePtr<FBitReader>& CurCachePacket = Cache[PacketOrderCacheStartIdx];
+
+			if (CurCachePacket.IsValid())
+			{
+				UE_LOG(LogNet, VeryVerbose, TEXT("'Out of Order' Packet Cache, replaying packet with cache index: %i (bFlushWholeCache: %i)"), PacketOrderCacheStartIdx, (int32)bFlushWholeCache);
+
+				ReceivedPacket(*CurCachePacket.Get());
+
+				CurCachePacket.Reset();
+
+				PacketOrderCacheCount--;
+			}
+			// Advance the cache only up to the first missing packet, unless flushing the whole cache
+			else if (!bFlushWholeCache)
+			{
+				break;
+			}
+
+			PacketOrderCacheStartIdx = PacketOrderCache->GetNextIndex(PacketOrderCacheStartIdx);
+		}
+
+		bFlushingPacketOrderCache = false;
 	}
 }
 
@@ -1583,6 +1641,9 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 		return;
 	}
 
+
+	FBitReaderMark ResetReaderMark(Reader);
+
 	ValidateSendBuffer();
 
 	//Record the packet time to the histogram
@@ -1606,6 +1667,95 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 			CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Failed to read PacketHeader"));
 			return;
 		}
+
+
+		bool bPacketOrderCacheActive = !bFlushingPacketOrderCache && PacketOrderCache.IsSet();
+		bool bCheckForMissingSequence = bPacketOrderCacheActive && PacketOrderCacheCount == 0;
+		bool bFillingPacketOrderCache = bPacketOrderCacheActive && PacketOrderCacheCount > 0;
+		int32 MaxMissingPackets = (bCheckForMissingSequence ? CVarNetPacketOrderMaxMissingPackets.GetValueOnAnyThread() : 0);
+		int32 PacketSequenceDelta = PacketNotify.GetSequenceDelta(Header);
+
+		if (PacketSequenceDelta > 0)
+		{
+			const int32 MissingPacketCount = PacketSequenceDelta - 1;
+
+			// Cache the packet if we are already caching, and begin caching if we just encountered a missing sequence, within range
+			if (bFillingPacketOrderCache || (bCheckForMissingSequence && MissingPacketCount > 0 && MissingPacketCount <= MaxMissingPackets))
+			{
+				int32 LinearCacheIdx = PacketSequenceDelta - 1;
+				int32 CacheCapacity = PacketOrderCache->Capacity();
+				bool bLastCacheEntry = LinearCacheIdx >= (CacheCapacity - 1);
+
+				// The last cache entry is only set, when we've reached capacity or when we receive a sequence which is out of bounds of the cache
+				LinearCacheIdx = bLastCacheEntry ? (CacheCapacity - 1) : LinearCacheIdx;
+
+				int32 CiruclarCacheIdx = PacketOrderCacheStartIdx;
+
+				for (int32 LinearDec=LinearCacheIdx; LinearDec > 0; LinearDec--)
+				{
+					CiruclarCacheIdx = PacketOrderCache->GetNextIndex(CiruclarCacheIdx);
+				}
+
+				TUniquePtr<FBitReader>& CurCachePacket = PacketOrderCache.GetValue()[CiruclarCacheIdx];
+
+				// Reset the reader to its initial position, and cache the packet
+				if (!CurCachePacket.IsValid())
+				{
+					UE_LOG(LogNet, VeryVerbose, TEXT("'Out of Order' Packet Cache, caching sequence order '%i' (capacity: %i)"), LinearCacheIdx, CacheCapacity);
+
+					CurCachePacket = MakeUnique<FBitReader>(Reader);
+					PacketOrderCacheCount++;
+
+					ResetReaderMark.Pop(*CurCachePacket);
+				}
+				else
+				{
+					TotalOutOfOrderPackets++;
+					Driver->InOutOfOrderPackets++;
+				}
+
+				return;
+			}
+
+
+			if (MissingPacketCount > 10)
+			{
+				UE_LOG(LogNetTraffic, Verbose, TEXT("High single frame packet loss. PacketsLost: %i %s" ), MissingPacketCount, *Describe());
+			}
+
+			InPacketsLost += MissingPacketCount;
+			InTotalPacketsLost += MissingPacketCount;
+			Driver->InPacketsLost += MissingPacketCount;
+			Driver->InTotalPacketsLost += MissingPacketCount;
+			InPacketId += PacketSequenceDelta;
+		}
+		else
+		{
+			TotalOutOfOrderPackets++;
+			Driver->InOutOfOrderPackets++;
+
+			if (!PacketOrderCache.IsSet() && CVarNetDoPacketOrderCorrection.GetValueOnAnyThread() != 0)
+			{
+				int32 EnableThreshold = CVarNetPacketOrderCorrectionEnableThreshold.GetValueOnAnyThread();
+
+				if (TotalOutOfOrderPackets >= EnableThreshold)
+				{
+					UE_LOG(LogNet, Verbose, TEXT("Hit threshold of %i 'out of order' packet sequences. Enabling out of order packet correction."), EnableThreshold);
+
+					int32 CacheSize = FMath::RoundUpToPowerOfTwo(CVarNetPacketOrderMaxCachedPackets.GetValueOnAnyThread());
+
+					PacketOrderCache.Emplace(CacheSize);
+				}
+			}
+
+			// Protect against replay attacks
+			// We already protect against this for reliable bunches, and unreliable properties
+			// The only bunch we would process would be unreliable RPC's, which could allow for replay attacks
+			// So rather than add individual protection for unreliable RPC's as well, just kill it at the source, 
+			// which protects everything in one fell swoop
+			return;
+		}
+
 
 		// Lambda to dispatch delivery notifications, 
 		auto HandlePacketNotification = [&Header, this](FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered)
@@ -1632,40 +1782,16 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 
 		// Update incoming sequence data and deliver packet notifications
 		// Packet is only accepted if both the incoming sequence number and incoming ack data are valid
-		int PacketSequenceDelta = PacketNotify.Update(Header, HandlePacketNotification);
-		if (PacketSequenceDelta > 0)
-		{
-			const int32 PacketsLost = PacketSequenceDelta - 1;
-		
-			if ( PacketsLost > 10 )
-			{
-				UE_LOG( LogNetTraffic, Verbose, TEXT( "High single frame packet loss. PacketsLost: %i %s" ), PacketsLost, *Describe() );
-			}
+		PacketNotify.Update(Header, HandlePacketNotification);
 
-			InPacketsLost += PacketsLost;
-			InTotalPacketsLost += PacketsLost;
-			Driver->InPacketsLost += PacketsLost;
-			Driver->InTotalPacketsLost += PacketsLost;
-			InPacketId += PacketSequenceDelta;
-
-			// Extra information associated with the header
-			if (!ReadPacketInfo(Reader))
-			{
-				CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Failed to read PacketHeader"));
-				return;
-			}
-		}
-		else
+		// Extra information associated with the header (read only after acks have been processed)
+		if (PacketSequenceDelta > 0 && !ReadPacketInfo(Reader))
 		{
-			Driver->InOutOfOrderPackets++;
-			// Protect against replay attacks
-			// We already protect against this for reliable bunches, and unreliable properties
-			// The only bunch we would process would be unreliable RPC's, which could allow for replay attacks
-			// So rather than add individual protection for unreliable RPC's as well, just kill it at the source, 
-			// which protects everything in one fell swoop
+			CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(this, ESecurityEvent::Malformed_Packet, TEXT("Failed to read PacketHeader"));
 			return;
 		}
 	}
+
 
 	const bool bIgnoreRPCs = Driver->ShouldIgnoreRPCs();
 

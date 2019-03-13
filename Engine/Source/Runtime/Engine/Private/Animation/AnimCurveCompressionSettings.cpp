@@ -8,20 +8,13 @@
 UAnimCurveCompressionSettings::UAnimCurveCompressionSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	Codec = CreateDefaultSubobject<UAnimCurveCompressionCodec_CompressedRichCurve>(TEXT("CurveCompressionCodec"));
+	Codec->SetFlags(RF_Transactional);
+#endif
 }
 
 #if WITH_EDITORONLY_DATA
-void UAnimCurveCompressionSettings::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (!IsTemplate())
-	{
-		// Ensure we are never null
-		Codec = NewObject<UAnimCurveCompressionCodec_CompressedRichCurve>(this, NAME_None, RF_Public);
-	}
-}
-
 bool UAnimCurveCompressionSettings::AreSettingsValid() const
 {
 	return Codec != nullptr && Codec->IsCodecValid();

@@ -150,6 +150,10 @@ private:
 	void BringToFront()
 	{
 		HWND WindowHandle = (HWND)Window->GetNativeWindow()->GetOSWindowHandle();
+		if (IsIconic(WindowHandle))
+		{
+			ShowWindow(WindowHandle, SW_RESTORE);
+		}
 		::SetWindowPos(WindowHandle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 		::SetWindowPos(WindowHandle, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 	}
@@ -192,7 +196,7 @@ private:
 		}
 
 		FString ManifestFileName = FPaths::ConvertRelativePathToFull(FPaths::EngineIntermediateDir() / TEXT("LiveCoding.json"));
-		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingManifest=\"%s\""), *ManifestFileName);
+		Arguments += FString::Printf(TEXT("-LiveCoding -LiveCodingManifest=\"%s\" -WaitMutex"), *ManifestFileName);
 
 		AppendLogLine(ELiveCodingLogVerbosity::Info, *FString::Printf(TEXT("Running %s %s"), *Executable, *Arguments));
 
@@ -285,6 +289,12 @@ private:
 		}
 	}
 
+	void ShowConsole()
+	{
+		SetVisible(true);
+		BringToFront();
+	}
+
 	void OnCompileStartedAsync()
 	{
 		FScopeLock Lock(&CriticalSection);
@@ -297,11 +307,13 @@ private:
 	{
 		if (!CompileNotification.IsValid())
 		{
+			ShowConsole();
+
 			FNotificationInfo Info(FText::FromString(TEXT("Starting...")));
 			Info.bFireAndForget = false;
 			Info.FadeOutDuration = 0.0f;
 			Info.ExpireDuration = 0.0f;
-			Info.Hyperlink = FSimpleDelegate::CreateRaw(this, &FLiveCodingConsoleApp::BringToFront);
+			Info.Hyperlink = FSimpleDelegate::CreateRaw(this, &FLiveCodingConsoleApp::ShowConsole);
 			Info.HyperlinkText = LOCTEXT("BuildStatusShowConsole", "Show Console");
 			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("BuildStatusCancel", "Cancel"), FText(), FSimpleDelegate::CreateRaw(this, &FLiveCodingConsoleApp::CancelBuild), SNotificationItem::CS_Pending));
 
