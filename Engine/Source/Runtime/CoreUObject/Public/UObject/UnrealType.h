@@ -4224,12 +4224,9 @@ public:
 	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::GetMulticastDelegate, return nullptr;);
 	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const PURE_VIRTUAL(UMulticastDelegateProperty::SetMulticastDelegate, );
 
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
-	virtual void ClearDelegate(UObject* Parent) const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
-	virtual void ClearDelegate(UObject* Parent, void* PropertyValue)  const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(UMulticastDelegateProperty::AddDelegate, );
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const PURE_VIRTUAL(UMulticastDelegateProperty::RemoveDelegate, );
+	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr)  const PURE_VIRTUAL(UMulticastDelegateProperty::ClearDelegate, );
 
 protected:
 	friend class UProperty;
@@ -4305,24 +4302,10 @@ public:
 	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
 	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
 
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const override
-	{
-		AddDelegate(MoveTemp(ScriptDelegate), Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
+	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
 
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const override
-	{
-		RemoveDelegate(ScriptDelegate, Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
-
-	virtual void ClearDelegate(UObject* Parent) const override
-	{
-		ClearDelegate(Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
-
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
-	virtual void ClearDelegate(UObject* Parent, void* PropertyValue) const override final;
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
 	// End of UMulticastDelegateProperty interface
@@ -4353,24 +4336,10 @@ public:
 	virtual const FMulticastScriptDelegate* GetMulticastDelegate(const void* PropertyValue) const override;
 	virtual void SetMulticastDelegate(void* PropertyValue, FMulticastScriptDelegate ScriptDelegate) const override;
 
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent) const override
-	{
-		AddDelegate(MoveTemp(ScriptDelegate), Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
+	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
+	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
+	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
 
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent) const override
-	{
-		RemoveDelegate(ScriptDelegate, Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
-
-	virtual void ClearDelegate(UObject* Parent) const override
-	{
-		ClearDelegate(Parent, GetPropertyValuePtr_InContainer(Parent));
-	}
-
-	virtual void AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
-	virtual void RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const override final;
-	virtual void ClearDelegate(UObject* Parent, void* PropertyValue) const override final;
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
 	// End of UMulticastDelegateProperty interface
