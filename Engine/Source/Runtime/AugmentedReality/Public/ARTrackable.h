@@ -53,7 +53,10 @@ public:
 	
 	UFUNCTION(BlueprintPure, Category="AR AugmentedReality|Tracked Geometry")
 	float GetLastUpdateTimestamp() const;
-	
+
+	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality|Tracked Geometry")
+	FGuid UniqueId;
+
 protected:
 	TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> GetARSystem() const;
 	
@@ -73,12 +76,14 @@ private:
 	TWeakPtr<FARSupportInterface , ESPMode::ThreadSafe> ARSystem;
 	
 	/** The frame number this tracked geometry was last updated on */
-	uint32 LastUpdateFrameNumber;
+	UPROPERTY()
+	int32 LastUpdateFrameNumber;
 	
 	/** The time reported by the AR system that this object was last updated */
 	double LastUpdateTimestamp;
 	
 	/** A unique name that can be used to identify the anchor for debug purposes */
+	UPROPERTY()
 	FName DebugName;
 };
 

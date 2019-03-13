@@ -1701,7 +1701,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	check(NewGeometry != nullptr);
 
 	UARTrackedGeometry* NewTrackedGeometry = TrackedGeometries.Add( AnchorData->AnchorGUID, NewGeometry );
-	
+
+	NewTrackedGeometry->UniqueId = AnchorData->AnchorGUID;
 	NewTrackedGeometry->SetDebugName( FName(*NewAnchorDebugName) );
 
 	// Trigger the delegate so anyone listening can take action
