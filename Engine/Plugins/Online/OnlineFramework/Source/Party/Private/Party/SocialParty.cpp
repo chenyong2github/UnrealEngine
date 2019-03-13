@@ -416,7 +416,7 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberDataReceived));
 	PartyInterface->AddOnPartyMemberPromotedDelegate_Handle(FOnPartyMemberPromotedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberPromoted));
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
-
+	//PartyInterface->AddOnPartyMemberStateChangedDelegate_Handle(FOnPartyMemberStateChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberStateChanged));
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<TSharedRef<FOnlinePartyMember>> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
@@ -424,7 +424,7 @@ void USocialParty::InitializePartyInternal()
 	{
 		GetOrCreatePartyMember(*OssMember->GetUserId());
 	}
-	HandlePartyStateChanged(*OwningLocalUserId, GetPartyId(), OssParty->State);
+	HandlePartyStateChanged(*OwningLocalUserId, GetPartyId(), OssParty->State, OssParty->PreviousState);
 
 	if (IsLocalPlayerPartyLeader())
 	{
@@ -939,6 +939,12 @@ EPartyState USocialParty::GetOssPartyState() const
 	return OssParty->State;
 }
 
+EPartyState USocialParty::GetOssPartyPreviousState() const
+{
+	check(OssParty.IsValid());
+	return OssParty->PreviousState;
+}
+
 bool USocialParty::IsCurrentlyCrossplaying() const
 {
 	TArray<FUserPlatform> AllPlatformsPresent;
@@ -1125,7 +1131,7 @@ TSubclassOf<UPartyMember> USocialParty::GetDesiredMemberClass(bool bLocalPlayer)
 	return UPartyMember::StaticClass();
 }
 
-void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState)
+void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState, EPartyState PreviousPartyState)
 {
 	if (PartyState == EPartyState::Disconnected)
 	{
@@ -1137,7 +1143,7 @@ void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, cons
 		// If we transition to the active state, then we have an XMPP connection
 		SetIsMissingXmppConnection(false);
 	}
-	OnPartyStateChanged().Broadcast(PartyState);
+	OnPartyStateChanged().Broadcast(PartyState, PreviousPartyState);
 }
 
 void USocialParty::ConnectToReservationBeacon()
