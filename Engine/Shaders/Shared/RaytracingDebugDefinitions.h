@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================================
-	RayTracingDebugDefinitions.ush: used in ray tracing debug shaders  and C++ code to define common constants
+	RayTracingDebugDefinitions.ush: used in ray tracing debug shaders and C++ code to define common constants
 	!!! Changing this file requires recompilation of the engine !!!
 =================================================================================================*/
 

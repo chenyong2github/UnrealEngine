@@ -1,22 +1,24 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*************************************************************
-* Changeing this file requires recompillation of the engine! *
-*************************************************************/
+/*================================================================================================
+	RayTracingBuiltInResources.h: used in ray tracing shaders and C++ code to define resources 
+	available in all hit groups, such as root nostants, index and vertex buffers.
+	!!! Changing this file requires recompilation of the engine !!!
+=================================================================================================*/
 
 #pragma once
 
 #ifndef RAYTRACINGBUILTINRESOURCES_USH_INCLUDED
 #define RAYTRACINGBUILTINRESOURCES_USH_INCLUDED // Workarround for UE-66460
 
-#include "RayTracingDefinitions.ush"
+#include "RayTracingDefinitions.h"
 
-#if defined(PLATFORM_WINDOWS) || defined(PLATFORM_XBOXONE)
-	#define INCLUDED_FROM_C_CODE 1
+#if defined(__cplusplus)
+	#define INCLUDED_FROM_CPP_CODE  1
 	#define INCLUDED_FROM_HLSL_CODE 0
 #elif defined(SM5_PROFILE)
 	// #dxr_todo: we should use a built-in macro to detect if this shader is compiled using DXC (depends on https://github.com/Microsoft/DirectXShaderCompiler/issues/1686)
-	#define INCLUDED_FROM_C_CODE 0
+	#define INCLUDED_FROM_CPP_CODE  0
 	#define INCLUDED_FROM_HLSL_CODE 1
 #else
 	#error Unknown Compiler
@@ -24,8 +26,8 @@
 
 #if INCLUDED_FROM_HLSL_CODE
 	#define UINT_TYPE uint
-#elif INCLUDED_FROM_C_CODE
-	#define UINT_TYPE uint32
+#elif INCLUDED_FROM_CPP_CODE
+	#define UINT_TYPE unsigned int
 #endif
 
 struct FHitGroupSystemRootConstants
@@ -57,7 +59,7 @@ struct FHitGroupSystemRootConstants
 		return (Config >> 8) & 0xFF;
 	}
 
-	#if INCLUDED_FROM_C_CODE
+	#if INCLUDED_FROM_CPP_CODE
 		void SetVertexAndIndexStride(UINT_TYPE Vertex, UINT_TYPE Index)
 		{
 			Config = (Index & 0xFF) | ((Vertex & 0xFF) << 8);
@@ -85,7 +87,7 @@ struct FHitGroupSystemRootConstants
 #endif // INCLUDED_FROM_HLSL_CODE
 
 
-#undef INCLUDED_FROM_C_CODE
+#undef INCLUDED_FROM_CPP_CODE
 #undef INCLUDED_FROM_HLSL_CODE
 #undef UINT_TYPE
 

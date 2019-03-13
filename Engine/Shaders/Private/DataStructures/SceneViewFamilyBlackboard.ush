@@ -6,8 +6,10 @@
 
 #pragma once
 
-#include "../SceneTexturesCommon.ush"
-#include "../DeferredShadingCommon.ush"
+#include "SceneTexturesCommon.ush"
+#include "DeferredShadingCommon.ush"
+
+uint bIsSceneLightingChannelsValid;
 
 // Matches FSceneViewFamilyBlackboard
 Texture2D SceneDepthBuffer;
@@ -17,6 +19,7 @@ Texture2D SceneGBufferB;
 Texture2D SceneGBufferC;
 Texture2D SceneGBufferD;
 Texture2D SceneGBufferE;
+Texture2D<uint> SceneLightingChannels;
 
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
@@ -36,4 +39,15 @@ FGBufferData GetGBufferDataFromSceneBlackboard(float2 UV, bool bGetNormalizedNor
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
 	return DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(UV));
+}
+
+/** Returns the light channel mask that should be executed for this pixel. */
+uint GetSceneLightingChannel(uint2 PixelCoord)
+{
+	BRANCH
+	if (bIsSceneLightingChannelsValid)
+	{
+		return SceneLightingChannels.Load(uint3(PixelCoord, 0)).x;
+	}
+	return ~0;
 }
