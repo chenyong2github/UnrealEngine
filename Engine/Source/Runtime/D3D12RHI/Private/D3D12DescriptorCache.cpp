@@ -300,7 +300,9 @@ void FD3D12DescriptorCache::SetVertexBuffers(FD3D12VertexBufferCache& Cache)
 template <EShaderFrequency ShaderStage>
 void FD3D12DescriptorCache::SetUAVs(const FD3D12RootSignature* RootSignature, FD3D12UnorderedAccessViewCache& Cache, const UAVSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot)
 {
-	static_assert(ShaderStage < SF_NumStandardFrequencies, "Unexpected shader frequency.");
+#if D3D12_RHI_RAYTRACING
+	static_assert(ShaderStage != SF_RayGen, "SF_RayGen is expected to share state with SF_Compute and should never be used itself.");
+#endif
 
 	UAVSlotMask& CurrentDirtySlotMask = Cache.DirtySlotMask[ShaderStage];
 	check(CurrentDirtySlotMask != 0);	// All dirty slots for the current shader stage.
@@ -461,7 +463,9 @@ void FD3D12DescriptorCache::SetStreamOutTargets(FD3D12Resource** Buffers, uint32
 template <EShaderFrequency ShaderStage>
 void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature, FD3D12SamplerStateCache& Cache, const SamplerSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot)
 {
-	static_assert(ShaderStage < SF_NumStandardFrequencies, "Unexpected shader frequency.");
+#if D3D12_RHI_RAYTRACING
+	static_assert(ShaderStage != SF_RayGen, "SF_RayGen is expected to share state with SF_Compute and should never be used itself.");
+#endif
 
 	check(CurrentSamplerHeap != &GetParentDevice()->GetGlobalSamplerHeap());
 	check(bUsingGlobalSamplerHeap == false);
@@ -573,7 +577,9 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 template <EShaderFrequency ShaderStage>
 void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD3D12ShaderResourceViewCache& Cache, const SRVSlotMask& SlotsNeededMask, uint32 SlotsNeeded, uint32& HeapSlot)
 {
-	static_assert(ShaderStage < SF_NumStandardFrequencies, "Unexpected shader frequency.");
+#if D3D12_RHI_RAYTRACING
+	static_assert(ShaderStage != SF_RayGen, "SF_RayGen is expected to share state with SF_Compute and should never be used itself.");
+#endif
 
 	SRVSlotMask& CurrentDirtySlotMask = Cache.DirtySlotMask[ShaderStage];
 	check(CurrentDirtySlotMask != 0);	// All dirty slots for the current shader stage.
@@ -661,7 +667,9 @@ void FD3D12DescriptorCache::SetConstantBuffers(const FD3D12RootSignature* RootSi
 void FD3D12DescriptorCache::SetConstantBuffers(const FD3D12RootSignature* RootSignature, FD3D12ConstantBufferCache& Cache, const CBVSlotMask& SlotsNeededMask)
 #endif
 {
-	static_assert(ShaderStage < SF_NumStandardFrequencies, "Unexpected shader frequency.");
+#if D3D12_RHI_RAYTRACING
+	static_assert(ShaderStage != SF_RayGen, "SF_RayGen is expected to share state with SF_Compute and should never be used itself.");
+#endif
 
 	CBVSlotMask& CurrentDirtySlotMask = Cache.DirtySlotMask[ShaderStage];
 	check(CurrentDirtySlotMask != 0);	// All dirty slots for the current shader stage.

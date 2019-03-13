@@ -29,18 +29,11 @@ bool ShouldRenderRayTracingAmbientOcclusion()
 	return IsRayTracingEnabled() && GRayTracingAmbientOcclusion != 0;
 }
 
-static int32 GRayTracingAmbientOcclusionSamplesPerPixel = -1;
+static int32 GRayTracingAmbientOcclusionSamplesPerPixel = 1;
 static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusionSamplesPerPixel(
 	TEXT("r.RayTracing.AmbientOcclusion.SamplesPerPixel"),
 	GRayTracingAmbientOcclusionSamplesPerPixel,
-	TEXT("Sets the samples-per-pixel for ambient occlusion (default = -1 (driven by postprocesing volume))")
-);
-
-static TAutoConsoleVariable<int32> CVarRayTracingAmbientOcclusionEnableTwoSidedGeometry(
-	TEXT("r.RayTracing.AmbientOcclusion.EnableTwoSidedGeometry"),
-	0,
-	TEXT("Enables two-sided geometry when tracing shadow rays (default = 0)"),
-	ECVF_RenderThreadSafe
+	TEXT("Sets the samples-per-pixel for ambient occlusion (default = 1)")
 );
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, )
@@ -54,15 +47,12 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAmbientOcclusionData, "AmbientOcclusio
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
 
-template<uint32 EnableTwoSidedGeometry>
-class TAmbientOcclusionRGS : public FGlobalShader
+class FAmbientOcclusionRGS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TAmbientOcclusionRGS, Global)
+	DECLARE_SHADER_TYPE(FAmbientOcclusionRGS, Global)
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), EnableTwoSidedGeometry);
 	}
 
 public:
@@ -71,10 +61,10 @@ public:
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
-	TAmbientOcclusionRGS() {}
-	virtual ~TAmbientOcclusionRGS() {}
+	FAmbientOcclusionRGS() {}
+	virtual ~FAmbientOcclusionRGS() {}
 
-	TAmbientOcclusionRGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FAmbientOcclusionRGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		ViewParameter.Bind(Initializer.ParameterMap, TEXT("View"));
@@ -124,7 +114,8 @@ public:
 		GlobalResources.Set(OcclusionMaskUAVParameter, OcclusionMaskUAV);
 		GlobalResources.Set(RayDistanceUAVParameter, HitDistanceUAV);
 
-		RHICmdList.RayTraceDispatch(Pipeline, GetRayTracingShader(), RayTracingScene.RayTracingSceneRHI, GlobalResources, Width, Height);
+		const uint32 RayGenShaderIndex = 0;
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResources, Width, Height);
 	}
 
 private:
@@ -139,8 +130,7 @@ private:
 	FShaderResourceParameter RayDistanceUAVParameter;
 };
 
-IMPLEMENT_SHADER_TYPE(template<>, TAmbientOcclusionRGS<0>, TEXT("/Engine/Private/RayTracing/RayTracingAmbientOcclusionRGS.usf"), TEXT("AmbientOcclusionRGS"), SF_RayGen)
-IMPLEMENT_SHADER_TYPE(template<>, TAmbientOcclusionRGS<1>, TEXT("/Engine/Private/RayTracing/RayTracingAmbientOcclusionRGS.usf"), TEXT("AmbientOcclusionRGS"), SF_RayGen)
+IMPLEMENT_SHADER_TYPE(, FAmbientOcclusionRGS, TEXT("/Engine/Private/RayTracing/RayTracingAmbientOcclusionRGS.usf"), TEXT("AmbientOcclusionRGS"), SF_RayGen)
 
 void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	FRHICommandListImmediate& RHICmdList,
@@ -161,51 +151,33 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 
 	// Add ambient occlusion parameters to uniform buffer
 	FAmbientOcclusionData AmbientOcclusionData;
+	AmbientOcclusionData.SamplesPerPixel = GRayTracingAmbientOcclusionSamplesPerPixel;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
 		FIntPoint ViewSize = View.ViewRect.Size();
 
+		TShaderMapRef<FAmbientOcclusionRGS> AmbientOcclusionRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
 		FSceneTexturesUniformParameters SceneTextures;
 		SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
 		FUniformBufferRHIRef SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
-		AmbientOcclusionData.SamplesPerPixel = GRayTracingAmbientOcclusionSamplesPerPixel >= 0 ? GRayTracingAmbientOcclusionSamplesPerPixel : View.FinalPostProcessSettings.RayTracingAOSamplesPerPixel;
 		AmbientOcclusionData.MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
 		AmbientOcclusionData.Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
 		AmbientOcclusionData.MaxNormalBias = GetRaytracingOcclusionMaxNormalBias();
 		FUniformBufferRHIRef AmbientOcclusionUniformBuffer = RHICreateUniformBuffer(&AmbientOcclusionData, FAmbientOcclusionData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
-		int32 EnableTwoSidedGeometry = CVarRayTracingAmbientOcclusionEnableTwoSidedGeometry.GetValueOnRenderThread();
-		if (EnableTwoSidedGeometry)
-		{
-			TShaderMapRef<TAmbientOcclusionRGS<1>> AmbientOcclusionRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
-			AmbientOcclusionRayGenerationShader->Dispatch(
-				RHICmdList,
-				View.RayTracingScene,
-				View.ViewUniformBuffer,
-				SceneTexturesUniformBuffer,
-				AmbientOcclusionUniformBuffer,
-				AmbientOcclusionMask->GetRenderTargetItem().UAV,
-				HitDistance->GetRenderTargetItem().UAV,
-				ViewSize.X, ViewSize.Y
-			);
-		}
-		else
-		{
-			TShaderMapRef<TAmbientOcclusionRGS<0>> AmbientOcclusionRayGenerationShader(GetGlobalShaderMap(FeatureLevel));
-			AmbientOcclusionRayGenerationShader->Dispatch(
-				RHICmdList,
-				View.RayTracingScene,
-				View.ViewUniformBuffer,
-				SceneTexturesUniformBuffer,
-				AmbientOcclusionUniformBuffer,
-				AmbientOcclusionMask->GetRenderTargetItem().UAV,
-				HitDistance->GetRenderTargetItem().UAV,
-				ViewSize.X, ViewSize.Y
-			);
-		}
+		AmbientOcclusionRayGenerationShader->Dispatch(
+			RHICmdList,
+			View.PerViewRayTracingScene,
+			View.ViewUniformBuffer,
+			SceneTexturesUniformBuffer,
+			AmbientOcclusionUniformBuffer,
+			AmbientOcclusionMask->GetRenderTargetItem().UAV,
+			HitDistance->GetRenderTargetItem().UAV,
+			ViewSize.X, ViewSize.Y
+		);
 	}
 
 	FUnorderedAccessViewRHIParamRef UAVs[]

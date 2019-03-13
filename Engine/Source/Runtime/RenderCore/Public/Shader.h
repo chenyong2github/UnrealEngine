@@ -752,11 +752,12 @@ public:
 	struct FResourceParameter
 	{
 		uint16 BaseIndex;
+		uint16 NumResources;
 		uint16 ByteOffset;
 
 		friend FArchive& operator<<(FArchive& Ar, FResourceParameter& ParameterBindingData)
 		{
-			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.ByteOffset;
+			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.NumResources << ParameterBindingData.ByteOffset;
 			return Ar;
 		}
 	};

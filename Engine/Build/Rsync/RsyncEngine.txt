@@ -258,10 +258,6 @@ protect /Programs/UnrealHeaderTool/Saved/
 # Saved
 protect /Saved/
 
-# Shaders
-+ /Shaders/
-+ /Shaders/**
-
 # Source
 + /Source/
 

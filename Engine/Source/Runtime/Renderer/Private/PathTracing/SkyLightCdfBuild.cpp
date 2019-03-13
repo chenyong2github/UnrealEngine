@@ -437,8 +437,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightCdf(FRHICommandListImmediat
 	{
 		OutputRT->GetRenderTargetItem().TargetableTexture
 	};
-	FRHIRenderPassInfo RenderPassInfo(1, RenderTargets, ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("SkyLight Visualization"));
+	SetRenderTargets(RHICmdList, 1, RenderTargets, SceneContext.GetSceneDepthSurface(), ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 	// DEBUG: Inspect render target in isolation
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -465,7 +464,6 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightCdf(FRHICommandListImmediat
 			SceneContext.GetBufferSizeXY(),
 			*VertexShader);
 	}
-	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, OutputRT);
 }
 
