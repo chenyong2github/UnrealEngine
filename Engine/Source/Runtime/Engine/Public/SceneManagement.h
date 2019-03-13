@@ -980,6 +980,7 @@ public:
 	uint8 bWantsStaticShadowing:1;
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
+	uint8 bCastRayTracedShadow:1;
 	TEnumAsByte<EOcclusionCombineMode> OcclusionCombineMode;
 	float AverageBrightness;
 	float IndirectLightingIntensity;
@@ -990,6 +991,7 @@ public:
 	float OcclusionExponent;
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
+	int32 SamplesPerPixel;
 
 #if RHI_RAYTRACING
 	bool IsDirtyImportanceSamplingData;
@@ -1062,6 +1064,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 
 	// Other dimensions of the light source for rect light specifically.
 	SHADER_PARAMETER(float, SourceLength)
+
+	// Barn door angle for rect light
+	SHADER_PARAMETER(float, RectLightBarnCosAngle)
+
+	// Barn door length for rect light
+	SHADER_PARAMETER(float, RectLightBarnLength)
 
 	// Texture of the rect light.
 	SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
@@ -1277,6 +1285,8 @@ public:
 
 	inline bool GetForceCachedShadowsForMovablePrimitives() const { return bForceCachedShadowsForMovablePrimitives; }
 
+	inline uint32 GetSamplesPerPixel() const { return SamplesPerPixel; }
+
 	/**
 	 * Shifts light position and all relevant data by an arbitrary delta.
 	 * Called on world origin changes
@@ -1447,6 +1457,9 @@ protected:
 	
 	/** Modulated shadow color. */
 	FLinearColor ModulatedShadowColor;
+
+	/** Samples per pixel for ray tracing */
+	uint32 SamplesPerPixel;
 
 	/**
 	 * Updates the light proxy's cached transforms.
@@ -2006,7 +2019,7 @@ public:
 		return FeatureLevel;
 	}
 
-private:
+protected:
 
 	ENGINE_API FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel);
 
@@ -2130,9 +2143,55 @@ private:
 	friend class FUniformMeshConverter;
 };
 
+#if RHI_RAYTRACING
+/**
+ * Collector used to gather resources for the material mesh batches.
+ * It is also the actual owner of the temporary, per-frame resources created for each mesh batch.
+ * Mesh batches shall only weak-reference the resources located in the collector.
+ */
+class FRayTracingMeshResourceCollector : public FMeshElementCollector
+{
+public:
+	// No MeshBatch should be allocated from an FRayTracingMeshResourceCollector.
+	inline FMeshBatch& AllocateMesh() = delete;
+	ENGINE_API void AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch) = delete;
+	void RegisterOneFrameMaterialProxy(FMaterialRenderProxy* Proxy) = delete;
+
+	FRayTracingMeshResourceCollector(
+		ERHIFeatureLevel::Type InFeatureLevel,
+		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
+		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
+		FGlobalDynamicReadBuffer* InDynamicReadBuffer)
+		: FMeshElementCollector(InFeatureLevel)
+	{
+		DynamicIndexBuffer = InDynamicIndexBuffer;
+		DynamicVertexBuffer = InDynamicVertexBuffer;
+		DynamicReadBuffer = InDynamicReadBuffer;
+	}
+
+	~FRayTracingMeshResourceCollector()
+	{
+		FMeshElementCollector::~FMeshElementCollector();
+	}
+};
+
+struct FRayTracingMaterialGatheringContext
+{
+	const class FScene* Scene;
+	const FSceneView* ReferenceView;
+	const FSceneViewFamily& ReferenceViewFamily;
+
+	FRayTracingMeshResourceCollector& RayTracingMeshResourceCollector;
+	class FRayTracingDynamicGeometryCollection& DynamicRayTracingGeometriesToUpdate;
+};
+#endif
+
 class FDynamicPrimitiveUniformBuffer : public FOneFrameResource
 {
 public:
+	FDynamicPrimitiveUniformBuffer() = default;
+	// FDynamicPrimitiveUniformBuffer is non-copyable
+	FDynamicPrimitiveUniformBuffer(const FDynamicPrimitiveUniformBuffer&) = delete;
 
 	virtual ~FDynamicPrimitiveUniformBuffer()
 	{
