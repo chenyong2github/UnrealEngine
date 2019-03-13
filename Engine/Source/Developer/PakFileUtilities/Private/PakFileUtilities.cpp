@@ -29,62 +29,55 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 struct FKeyPair
 {
 	/** Public decryption key */
-	FEncryptionKey PublicKey;
+	TPakRSAKey PublicKey;
 	/** Private encryption key */
-	FEncryptionKey PrivateKey;
-
-	friend FArchive& operator<<(FArchive& Ar, FKeyPair& Pair)
-	{
-		Ar << Pair.PublicKey.Exponent;
-		Ar << Pair.PublicKey.Modulus;
-		Ar << Pair.PrivateKey.Exponent;
-		Ar << Pair.PrivateKey.Modulus;
-		return Ar;
-	}
+	TPakRSAKey PrivateKey;
 
 	bool IsValid() const
 	{
-		bool bAllKeysValid = !PrivateKey.Exponent.IsZero()
-			&& !PrivateKey.Modulus.IsZero()
-			&& !PublicKey.Exponent.IsZero()
-			&& !PublicKey.Modulus.IsZero();
-		
-		bool bIsValid = true;
-
-		if (bAllKeysValid)
-		{
-			// Just some random values
-			static TEncryptionInt TestData[] =
-			{
-				11,
-				253,
-				128,
-				234,
-				56,
-				89,
-				34,
-				179,
-				29,
-				1024,
-				(int64)(MAX_int32),
-				(int64)(MAX_uint32)-1
-			};
-
-			for (int32 TestIndex = 0; TestIndex < ARRAY_COUNT(TestData); ++TestIndex)
-			{
-				TEncryptionInt EncryptedData = FEncryption::ModularPow(TestData[TestIndex], PrivateKey.Exponent, PrivateKey.Modulus);
-				TEncryptionInt DecryptedData = FEncryption::ModularPow(EncryptedData, PublicKey.Exponent, PublicKey.Modulus);
-				if (TestData[TestIndex] != DecryptedData)
-				{
-					bIsValid = false;
-					break;
-				}
-			}
-		}
-
-		return bIsValid;
+		return !PrivateKey.Exponent.IsZero() &&
+		!PrivateKey.Modulus.IsZero() &&
+		!PublicKey.Exponent.IsZero() &&
+		!PublicKey.Modulus.IsZero();
 	}
 };
+
+bool TestKeys(FKeyPair& Pair)
+{
+	UE_LOG(LogPakFile, Display, TEXT("Testing signature keys."));
+
+	// Just some random values
+	static TPakRSAKey::TIntType TestData[] =
+	{
+		11,
+		253,
+		128,
+		234,
+		56,
+		89,
+		34,
+		179,
+		29,
+		1024,
+		(int64)(MAX_int32),
+		(int64)(MAX_uint32)-1
+	};
+
+	for (int32 TestIndex = 0; TestIndex < ARRAY_COUNT(TestData); ++TestIndex)
+	{
+		TPakRSAKey::TIntType EncryptedData = FEncryption::ModularPow(TestData[TestIndex], Pair.PrivateKey.Exponent, Pair.PrivateKey.Modulus);
+		TPakRSAKey::TIntType DecryptedData = FEncryption::ModularPow(EncryptedData, Pair.PublicKey.Exponent, Pair.PublicKey.Modulus);
+		if (TestData[TestIndex] != DecryptedData)
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Keys do not properly encrypt/decrypt data (failed test with %lld)"), TestData[TestIndex].ToInt());
+			return false;
+		}
+	}
+
+	UE_LOG(LogPakFile, Display, TEXT("Signature keys check completed successfuly."));
+
+	return true;
+}
 
 struct FNamedAESKey
 {
@@ -1163,6 +1156,26 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 	}
 }
 
+void ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj, TPakRSAKey& OutKey)
+{
+	FString ExponentBase64, ModulusBase64;
+	TArray<uint8> Exponent, Modulus;
+	if (InObj->TryGetStringField("Exponent", ExponentBase64)
+		&& InObj->TryGetStringField("Modulus", ModulusBase64))
+	{
+		FBase64::Decode(ExponentBase64, Exponent);
+		FBase64::Decode(ModulusBase64, Modulus);
+
+		check(Exponent.Num() > 0 && Exponent.Num() <= TPakRSAKey::KeySizeInBytes);
+		check(Modulus.Num() > 0 && Modulus.Num() <= TPakRSAKey::KeySizeInBytes);
+		OutKey = TPakRSAKey(Exponent, Modulus);
+	}
+	else
+	{
+		OutKey = TPakRSAKey();
+	}
+}
+
 void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
 {
 	FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
@@ -1196,10 +1209,8 @@ void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSetting
 		{
 			TSharedPtr<FJsonObject> PublicKey = (*SigningKey)->GetObjectField(TEXT("PublicKey"));
 			TSharedPtr<FJsonObject> PrivateKey = (*SigningKey)->GetObjectField(TEXT("PrivateKey"));
-			OutCryptoSettings.SigningKey.PublicKey.Exponent = ParseEncryptionIntFromJson(PublicKey, TEXT("Exponent"));
-			OutCryptoSettings.SigningKey.PublicKey.Modulus = ParseEncryptionIntFromJson(PublicKey, TEXT("Modulus"));
-			OutCryptoSettings.SigningKey.PrivateKey.Exponent = ParseEncryptionIntFromJson(PrivateKey, TEXT("Exponent"));
-			OutCryptoSettings.SigningKey.PrivateKey.Modulus = ParseEncryptionIntFromJson(PrivateKey, TEXT("Modulus"));
+			ParseRSAKeyFromJson(PublicKey, OutCryptoSettings.SigningKey.PublicKey);
+			ParseRSAKeyFromJson(PrivateKey, OutCryptoSettings.SigningKey.PrivateKey);
 			check(OutCryptoSettings.SigningKey.PublicKey.Modulus == OutCryptoSettings.SigningKey.PrivateKey.Modulus);
 		}
 
@@ -1293,10 +1304,8 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 					FBase64::Decode(PrivateExpBase64, PrivateExp);
 					FBase64::Decode(ModulusBase64, Modulus);
 
-					OutCryptoSettings.SigningKey.PrivateKey.Exponent = TEncryptionInt((uint32*)&PrivateExp[0]);
-					OutCryptoSettings.SigningKey.PrivateKey.Modulus = TEncryptionInt((uint32*)&Modulus[0]);
-					OutCryptoSettings.SigningKey.PublicKey.Exponent = TEncryptionInt((uint32*)&PublicExp[0]);
-					OutCryptoSettings.SigningKey.PublicKey.Modulus = OutCryptoSettings.SigningKey.PrivateKey.Modulus;
+					OutCryptoSettings.SigningKey.PrivateKey = TPakRSAKey(PrivateExp, Modulus);
+					OutCryptoSettings.SigningKey.PublicKey = TPakRSAKey(PublicExp, Modulus);
 
 					UE_LOG(LogPakFile, Display, TEXT("Parsed signature keys from config files."));
 				}
@@ -1402,11 +1411,6 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
 			UE_LOG(LogPakFile, Display, TEXT("Parsed AES encryption key from command line."));
 		}
-	}
-
-	if (!OutCryptoSettings.SigningKey.IsValid())
-	{
-		UE_LOG(LogPakFile, Fatal, TEXT("Pak signing keys are invalid"));
 	}
 
 	FString EncryptionKeyOverrideGuidString;
