@@ -42,6 +42,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static ENetworkConnectionType GetNetworkConnectionType();
 	static bool HasActiveWiFiConnection();
 	static const TCHAR* GamePersistentDownloadDir();
+    static bool HasSeparateChannelForDebugOutput();
 
 	UE_DEPRECATED(4.21, "Use GetDeviceVolume, it is now callable on all platforms.")
 	static int GetAudioVolume();
