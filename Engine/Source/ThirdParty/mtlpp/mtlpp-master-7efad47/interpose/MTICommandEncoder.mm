@@ -19,14 +19,14 @@ struct MTITraceCommandEncoderSetLabelHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Label ? [Label UTF8String] : "";
-		
+		fs << MTIString(Label ? [Label UTF8String] : "");
+
 		MTITrace::Get().EndWrite();
 	}
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		fs >> label;
 		
 		[(id<MTLCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) setLabel:[NSString stringWithUTF8String:label.c_str()]];
@@ -80,14 +80,14 @@ struct MTITraceCommandEncoderInsertDebugSignpostHandler : public MTITraceCommand
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Label ? [Label UTF8String] : "";
-		
+		fs << MTIString(Label ? [Label UTF8String] : "");
+
 		MTITrace::Get().EndWrite();
 	}
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		fs >> label;
 		
 		[(id<MTLCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) insertDebugSignpost:[NSString stringWithUTF8String:label.c_str()]];
@@ -113,14 +113,14 @@ struct MTITraceCommandEncoderPushDebugGroupHandler : public MTITraceCommandHandl
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Label ? [Label UTF8String] : "";
-		
+		fs << MTIString(Label ? [Label UTF8String] : "");
+
 		MTITrace::Get().EndWrite();
 	}
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		fs >> label;
 		
 		[(id<MTLCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) pushDebugGroup:[NSString stringWithUTF8String:label.c_str()]];

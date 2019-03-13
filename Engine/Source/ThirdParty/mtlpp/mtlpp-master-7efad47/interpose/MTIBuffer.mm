@@ -124,7 +124,7 @@ struct MTITraceBufferAddDebugMarkerRangeHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Str ? [Str UTF8String] : "";
+		fs << MTIString(Str ? [Str UTF8String] : "");
 		fs << Range.location;
 		fs << Range.length;
 		
@@ -133,7 +133,7 @@ struct MTITraceBufferAddDebugMarkerRangeHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string Label;
+		MTIString Label;
 		fs >> Label;
 		
 		NSRange Range;

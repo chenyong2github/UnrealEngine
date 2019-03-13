@@ -366,8 +366,8 @@ struct MTITraceNewDepthStencilDescHandler : public MTITraceCommandHandler
 			fs << Desc.backFaceStencil.depthStencilPassOperation;
 			fs << Desc.backFaceStencil.readMask;
 			fs << Desc.backFaceStencil.writeMask;
-			fs << Desc.label ? [Desc.label UTF8String] : "";
-			
+			fs << MTIString(Desc.label ? [Desc.label UTF8String] : "");
+
 			MTITrace::Get().RegisterObject((uintptr_t)Desc, Desc);
 			MTITrace::Get().EndWrite();
 		}
@@ -390,7 +390,7 @@ struct MTITraceNewDepthStencilDescHandler : public MTITraceCommandHandler
 		NSUInteger backFaceStencildepthStencilPassOperation;
 		uint32_t backFaceStencilreadMask;
 		uint32_t backFaceStencilwriteMask;
-		std::string label;
+		MTIString label;
 		
 		MTLDepthStencilDescriptor* Desc = [MTLDepthStencilDescriptor new];
 		fs >> depthCompareFunction;
@@ -549,8 +549,8 @@ struct MTITraceNewSamplerDescHandler : public MTITraceCommandHandler
 			fs << Desc.lodMaxClamp;
 			fs << Desc.compareFunction;
 			fs << Desc.supportArgumentBuffers;
-			fs << Desc.label ? [Desc.label UTF8String] : "";
-			
+			fs << MTIString(Desc.label ? [Desc.label UTF8String] : "");
+
 			MTITrace::Get().RegisterObject((uintptr_t)Desc, Desc);
 			MTITrace::Get().EndWrite();
 		}
@@ -572,7 +572,7 @@ struct MTITraceNewSamplerDescHandler : public MTITraceCommandHandler
 		float lodMaxClamp;
 		NSUInteger compareFunction;
 		BOOL supportArgumentBuffers;
-		std::string label;
+		MTIString label;
 		
 		
 		MTLSamplerDescriptor* Desc = [MTLSamplerDescriptor new];
@@ -681,7 +681,7 @@ struct MTITraceNewLibraryFromPathHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << [Url UTF8String];
+		fs << MTIString([Url UTF8String]);
 		fs << (uintptr_t)Lib;
 		
 		MTITrace::Get().EndWrite();
@@ -690,7 +690,7 @@ struct MTITraceNewLibraryFromPathHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string URL;
+		MTIString URL;
 		fs >> URL;
 		
 		uintptr_t Result;
@@ -725,7 +725,7 @@ struct MTITraceNewLibraryFromURLHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << [[Url path] UTF8String];
+		fs << MTIString([[Url path] UTF8String]);
 		fs << (uintptr_t)Lib;
 		
 		MTITrace::Get().EndWrite();
@@ -734,7 +734,7 @@ struct MTITraceNewLibraryFromURLHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string URL;
+		MTIString URL;
 		fs >> URL;
 		
 		uintptr_t Result;
@@ -909,7 +909,7 @@ struct MTITraceNewRenderPipelineWithDescriptorHandler : public MTITraceCommandHa
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Desc.label ? [Desc.label UTF8String] : "";
+		fs << MTIString(Desc.label ? [Desc.label UTF8String] : "");
 		fs << (uintptr_t)Desc.vertexFunction;
 		fs << (uintptr_t)Desc.fragmentFunction;
 		fs << (uintptr_t)Desc.vertexDescriptor;
@@ -964,7 +964,7 @@ struct MTITraceNewRenderPipelineWithDescriptorHandler : public MTITraceCommandHa
 	{
 		MTLRenderPipelineDescriptor* Desc = [[MTLRenderPipelineDescriptor new] autorelease];
 		
-		std::string label;
+		MTIString label;
 		uintptr_t vertexFunction;
 		uintptr_t fragmentFunction;
 		uintptr_t vertexDescriptor;
@@ -1169,7 +1169,7 @@ struct MTITraceNewComputePipelineWithDescriptorHandler : public MTITraceCommandH
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Desc.label ? [Desc.label UTF8String] : "";
+		fs << MTIString(Desc.label ? [Desc.label UTF8String] : "");
 		fs << (uintptr_t)Desc.computeFunction;
 		fs << Desc.threadGroupSizeIsMultipleOfThreadExecutionWidth;
 		fs << Desc.maxTotalThreadsPerThreadgroup;
@@ -1205,7 +1205,7 @@ struct MTITraceNewComputePipelineWithDescriptorHandler : public MTITraceCommandH
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		uintptr_t Func;
 		BOOL threadGroupSizeIsMultipleOfThreadExecutionWidth;
 		NSUInteger maxTotalThreadsPerThreadgroup;

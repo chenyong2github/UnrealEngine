@@ -14,19 +14,30 @@
 
 MTLPP_BEGIN
 
+struct MTIString : public std::string
+{
+	MTIString() {}
+	MTIString(std::string const& other) : std::string(other) {}
+	MTIString(std::string&& other) : std::string(other) {}
+};
+
+std::fstream& operator>>(std::fstream& fs, MTIString& dt);
+
+std::fstream& operator<<(std::fstream& fs, const MTIString& dt);
+
 struct MTITraceCommand
 {
-	std::string Class;
+	MTIString Class;
 	uintptr_t Thread;
 	uintptr_t Receiver;
-	std::string Cmd;
+	MTIString Cmd;
 };
 
 struct MTITraceCommandHandler
 {
-	std::string Class;
-	std::string Cmd;
-	std::string Id;
+	MTIString Class;
+	MTIString Cmd;
+	MTIString Id;
 	
 	MTITraceCommandHandler(std::string Class, std::string Cmd);
 	
@@ -107,6 +118,8 @@ public:
 	id FetchObject(uintptr_t Original);
 	
 	void RegisterCommandHandler(MTITraceCommandHandler* Handler);
+	
+	void Replay(std::string path);
 	
 private:
 	std::recursive_mutex Mutex;

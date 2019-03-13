@@ -9,6 +9,30 @@
 
 MTLPP_BEGIN
 
+std::fstream& operator>>(std::fstream& fs, MTIString& dt)
+{
+	size_t size;
+	fs >> size;
+	char c;
+	for(unsigned i = 0; i < size; i++)
+	{
+		fs >> c;
+		dt.push_back(c);
+	}
+	return fs;
+}
+
+std::fstream& operator<<(std::fstream& fs, const MTIString& dt)
+{
+	size_t size = dt.length();
+	fs << size;
+	for(unsigned i = 0; i < dt.length(); i++)
+	{
+		fs << dt[i];
+	}
+	return fs;
+}
+
 std::fstream& operator>>(std::fstream& fs, MTITraceCommand& dt)
 {
 	fs >> dt.Class;
@@ -45,9 +69,6 @@ void MTITraceCommandHandler::Trace(std::fstream& fs, uintptr_t Receiver)
 
 MTITrace::MTITrace()
 {
-	Path = [[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]] UTF8String];
-	File.open(Path, std::ios_base::out|std::ios_base::binary);
-	assert(File.is_open());
 }
 
 MTITrace::~MTITrace()
@@ -68,6 +89,12 @@ MTITrace& MTITrace::Get()
 std::fstream& MTITrace::BeginWrite()
 {
 	Mutex.lock();
+	if (!File.is_open())
+	{
+		Path = [[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]] UTF8String];
+		File.open(Path, std::ios_base::out|std::ios_base::binary);
+		assert(File.is_open());
+	}
 	return File;
 }
 
@@ -101,6 +128,24 @@ void MTITrace::RegisterCommandHandler(MTITraceCommandHandler* Handler)
 	Mutex.lock();
 	CommandHandlers[Handler->Id] = Handler;
 	Mutex.unlock();
+}
+
+void MTITrace::Replay(std::string InPath)
+{
+	assert(!File.is_open());
+	Path = InPath;
+	File.open(Path, std::ios_base::in|std::ios_base::binary);
+	assert(File.is_open());
+	
+	MTITraceCommand Command;
+	do {
+		File >> Command;
+		auto it = CommandHandlers.find(Command.Class + Command.Cmd);
+		if (it != CommandHandlers.end())
+		{
+			it->second->Handle(Command, File);
+		}
+	} while (File.good());
 }
 
 MTLPP_END

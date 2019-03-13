@@ -22,14 +22,14 @@ struct MTITraceFunctionSetLabelHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Label ? [Label UTF8String] : "";
-		
+		fs << MTIString(Label ? [Label UTF8String] : "");
+
 		MTITrace::Get().EndWrite();
 	}
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		fs >> label;
 		
 		[(id<MTLFunction>)MTITrace::Get().FetchObject(Header.Receiver) setLabel:[NSString stringWithUTF8String:label.c_str()]];
@@ -101,14 +101,14 @@ struct MTITraceLibrarySetLabelHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << Label ? [Label UTF8String] : "";
-		
+		fs << MTIString(Label ? [Label UTF8String] : "");
+
 		MTITrace::Get().EndWrite();
 	}
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string label;
+		MTIString label;
 		fs >> label;
 		
 		[(id<MTLLibrary>)MTITrace::Get().FetchObject(Header.Receiver) setLabel:[NSString stringWithUTF8String:label.c_str()]];
@@ -134,7 +134,7 @@ struct MTITraceLibraryNewFunctionWithNameHandler : public MTITraceCommandHandler
 		std::fstream& fs = MTITrace::Get().BeginWrite();
 		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
 		
-		fs << functionName ? [functionName UTF8String] : "";
+		fs << MTIString(functionName ? [functionName UTF8String] : "");
 		fs << (uintptr_t)Result;
 		
 		MTITrace::Get().EndWrite();
@@ -143,7 +143,7 @@ struct MTITraceLibraryNewFunctionWithNameHandler : public MTITraceCommandHandler
 	
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
-		std::string name;
+		MTIString name;
 		fs >> name;
 		
 		uintptr_t Result;

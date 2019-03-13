@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #include "MTIDrawable.hpp"
 #include "MTITexture.hpp"
@@ -475,6 +476,27 @@ struct MTITraceLayerInitHandler : public MTITraceCommandHandler
 	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
 	{
 		CAMetalLayer* Layer = [CAMetalLayer new];
+		
+		const NSRect ContentRect = NSMakeRect(0, 0, 800, 600);
+		NSWindow* Window = [[NSWindow alloc] initWithContentRect:ContentRect styleMask:(NSWindowStyleMask)NSWindowStyleMaskResizable|NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+		
+		NSView* View = [[NSView alloc] initWithFrame:ContentRect];
+		[View setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+		[View setWantsLayer:YES];
+		
+		CGFloat bgColor[] = { 0.0, 0.0, 0.0, 0.0 };
+		Layer.edgeAntialiasingMask = 0;
+		Layer.masksToBounds = YES;
+		Layer.backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), bgColor);
+		Layer.presentsWithTransaction = NO;
+		Layer.anchorPoint = CGPointMake(0.5, 0.5);
+		Layer.frame = ContentRect;
+		Layer.magnificationFilter = kCAFilterNearest;
+		Layer.minificationFilter = kCAFilterNearest;
+		[Layer removeAllAnimations];
+		[View setLayer:Layer];
+		[Window setContentView:View];
+		
 		MTITrace::Get().RegisterObject(Header.Receiver, Layer);
 	}
 };
