@@ -9097,6 +9097,12 @@ void FSequencer::SetHotspot(TSharedPtr<ISequencerHotspot> NewHotspot)
 	{
 		Hotspot = MoveTemp(NewHotspot);
 	}
+
+	// Simulate an update-on-hover for the new hotspot to ensure that any hover behavior doesn't have to wait until the next frame
+	if (Hotspot)
+	{
+		Hotspot->UpdateOnHover(*SequencerWidget->GetTrackAreaWidget(), *this);
+	}
 }
 
 void FSequencer::BindCommands()

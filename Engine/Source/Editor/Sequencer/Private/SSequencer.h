@@ -237,6 +237,9 @@ public:
 	/** Generate a helper structure that can be used to transform between phsyical space and virtual space in the track area */
 	FVirtualTrackArea GetVirtualTrackArea() const;
 
+	/** Access this widget's track area widget */
+	TSharedPtr<SSequencerTrackArea> GetTrackAreaWidget() const { return TrackArea; }
+
 	/** Get an array of section handles for the given set of movie scene sections */
 	TArray<FSectionHandle> GetSectionHandles(const TSet<TWeakObjectPtr<UMovieSceneSection>>& DesiredSections) const;
 
