@@ -236,6 +236,7 @@ FVulkanGraphicsPipelineDescriptorState::FVulkanGraphicsPipelineDescriptorState(F
 	}
 #endif
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	uint64 HullShaderKey = InGfxPipeline->GetShaderKey(SF_Hull);
 	if (HullShaderKey)
 	{
@@ -248,7 +249,7 @@ FVulkanGraphicsPipelineDescriptorState::FVulkanGraphicsPipelineDescriptorState(F
 		const FVulkanDomainShader* DomainShader = ShaderFactory.LookupShader<FVulkanDomainShader>(DomainShaderKey);
 		PackedUniformBuffers[ShaderStage::Domain].Init(DomainShader->GetCodeHeader(), PackedUniformBuffersMask[ShaderStage::Domain]);
 	}
-
+#endif
 	CreateDescriptorWriteInfos();
 
 	//UE_LOG(LogVulkanRHI, Warning, TEXT("GfxPSOState %p For PSO %p Writes:%d"), this, InGfxPipeline, DSWriteContainer.DescriptorWrites.Num());
