@@ -523,13 +523,18 @@ namespace EMaterialShaderMapUsage
 class FMaterialShaderMapId
 {
 public:
+#if !WITH_EDITOR
+	FSHAHash CookedShaderMapIdHash;
+#endif
 
+#if WITH_EDITOR
 	/** 
 	 * The base material's StateId.  
 	 * This guid represents all the state of a UMaterial that is not covered by the other members of FMaterialShaderMapId.
 	 * Any change to the UMaterial that modifies that state (for example, adding an expression) must modify this guid.
 	 */
 	FGuid BaseMaterialId;
+#endif
 
 	/** 
 	 * Quality level that this shader map is going to be compiled at.  
@@ -540,6 +545,7 @@ public:
 	/** Feature level that the shader map is going to be compiled for. */
 	ERHIFeatureLevel::Type FeatureLevel;
 
+#if WITH_EDITOR
 	/** 
 	 * Indicates what use case this shader map will be for.
 	 * This allows the same UMaterial / UMaterialInstance to be compiled with multiple FMaterial derived classes,
@@ -577,39 +583,61 @@ public:
 	
 	/** A hash of the base property overrides for this material instance. */
 	FSHAHash BasePropertyOverridesHash;
+#endif // WITH_EDITOR
 	
-
 	FMaterialShaderMapId()
-		: BaseMaterialId(0, 0, 0, 0)
-		, QualityLevel(EMaterialQualityLevel::High)
+		: QualityLevel(EMaterialQualityLevel::High)
 		, FeatureLevel(ERHIFeatureLevel::SM4)
+#if WITH_EDITOR
 		, Usage(EMaterialShaderMapUsage::Default)
+#endif
 	{ }
 
 	~FMaterialShaderMapId()
 	{ }
 
+#if WITH_EDITOR
 	ENGINE_API void SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform);
+#endif
 
 	void Serialize(FArchive& Ar);
 
+	bool IsValid() const
+	{
+#if WITH_EDITOR
+		return BaseMaterialId.IsValid();
+#else
+		return (CookedShaderMapIdHash != FSHAHash());
+#endif
+	}
+
 	friend uint32 GetTypeHash(const FMaterialShaderMapId& Ref)
 	{
+#if WITH_EDITOR
 		return Ref.BaseMaterialId.A;
+#else
+		// Using the hash value directly instead of FSHAHash CRC as fairly uniform distribution
+		return *(uint32*)&Ref.CookedShaderMapIdHash.Hash[0];
+#endif
 	}
 
 	SIZE_T GetSizeBytes() const
 	{
 		return sizeof(*this)
+#if WITH_EDITOR
 			+ ReferencedFunctions.GetAllocatedSize()
 			+ ReferencedParameterCollections.GetAllocatedSize()
 			+ ShaderTypeDependencies.GetAllocatedSize()
 			+ ShaderPipelineTypeDependencies.GetAllocatedSize()
-			+ VertexFactoryTypeDependencies.GetAllocatedSize();
+			+ VertexFactoryTypeDependencies.GetAllocatedSize()
+#endif
+			;
 	}
 
+#if WITH_EDITOR
 	/** Hashes the material-specific part of this shader map Id. */
 	void GetMaterialHash(FSHAHash& OutHash) const;
+#endif
 
 	/** 
 	* Tests this set against another for equality, disregarding override settings.
@@ -624,6 +652,7 @@ public:
 		return !(*this == ReferenceSet);
 	}
 
+#if WITH_EDITOR
 	/** Updates the Id's static parameter set */	
 	void UpdateParameterSet(const FStaticParameterSet& StaticParameters);
 	
@@ -648,6 +677,7 @@ public:
 
 	/** Returns true if the requested vertex factory type is a dependency of this shader map Id. */
 	bool ContainsVertexFactoryType(const FVertexFactoryType* VFType) const;
+#endif // WITH_EDITOR
 };
 
 /**
@@ -694,10 +724,12 @@ public:
 		bool bSilent
 		);
 
+#if WITH_EDITOR
 	void LoadMissingShadersFromMemory(
 		const FSHAHash& MaterialShaderMapHash, 
 		const FMaterial* Material, 
 		EShaderPlatform Platform);
+#endif
 
 	/**
 	 * Removes all entries in the cache with exceptions based on a shader type
@@ -746,11 +778,13 @@ public:
 		const TMap<const FShaderPipelineType*, FString>& ShaderPipelineTypeNames,
 		const TMap<FVertexFactoryType*, FString>& VertexFactoryTypeNames);
 
+#if WITH_EDITOR
 	/** 
 	 * Attempts to load the shader map for the given material from the Derived Data Cache.
 	 * If InOutShaderMap is valid, attempts to load the individual missing shaders instead.
 	 */
 	static void LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap);
+#endif
 
 	inline FMaterialShaderMap() : FMaterialShaderMap(EShaderPlatform::SP_NumPlatforms) {}
 	FMaterialShaderMap(EShaderPlatform InPlatform);
@@ -774,8 +808,10 @@ public:
 		bool bApplyCompletedShaderMapForRendering
 		);
 
+#if WITH_EDITOR
 	/** Sorts the incoming compiled jobs into the appropriate mesh shader maps, and finalizes this shader map so that it can be used for rendering. */
 	bool ProcessCompilationResults(const TArray<FShaderCommonCompileJob*>& InCompilationResults, int32& ResultIndex, float& TimeBudget, TMap<const FVertexFactoryType*, TArray<const FShaderPipelineType*> >& SharedPipelines);
+#endif
 
 	/**
 	 * Checks whether the material shader map is missing any shader types necessary for the given material.
@@ -784,8 +820,10 @@ public:
 	 */
 	bool IsComplete(const FMaterial* Material, bool bSilent);
 
+#if WITH_EDITOR
 	/** Attempts to load missing shaders from memory. */
 	void LoadMissingShadersFromMemory(const FMaterial* Material);
+#endif
 
 	/**
 	 * Checks to see if the shader map is already being compiled for another material, and if so
@@ -842,8 +880,10 @@ public:
 	/** Serializes the shader map. */
 	void Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false);
 
+#if WITH_EDITOR
 	/** Saves this shader map to the derived data cache. */
 	void SaveToDerivedDataCache();
+#endif
 
 	/** Registers all shaders that have been loaded in Serialize */
 	virtual void RegisterSerializedShaders(bool bLoadedByCookedMaterial) override;
