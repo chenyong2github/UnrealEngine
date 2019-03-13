@@ -16,49 +16,38 @@ class COREUOBJECT_API FRedirectCollector
 private:
 	
 	/** Helper struct for soft object path tracking */
-	struct FPackagePropertyPair
+	struct FSoftObjectPathProperty
 	{
-		FPackagePropertyPair() : bReferencedByEditorOnlyProperty(false) {}
-
-		FPackagePropertyPair(const FName& InPackage, const FName& InProperty)
-		: Package(InPackage)
-		, Property(InProperty)
-		, bReferencedByEditorOnlyProperty(false)
+		FSoftObjectPathProperty(FName InAssetPathName, FName InProperty, bool bInReferencedByEditorOnlyProperty)
+			: AssetPathName(InAssetPathName)
+			, PropertyName(InProperty)
+			, bReferencedByEditorOnlyProperty(bInReferencedByEditorOnlyProperty)
 		{}
 
-		bool operator==(const FPackagePropertyPair& Other) const
+		 bool operator==(const FSoftObjectPathProperty& Other) const
+		 {
+		 	return AssetPathName == Other.AssetPathName &&
+		 		PropertyName == Other.PropertyName &&
+		 		bReferencedByEditorOnlyProperty == Other.bReferencedByEditorOnlyProperty;
+		 }
+
+		friend inline uint32 GetTypeHash(const FSoftObjectPathProperty& Key)
 		{
-			return Package == Other.Package &&
-				Property == Other.Property &&
-				bReferencedByEditorOnlyProperty == Other.bReferencedByEditorOnlyProperty;
+			uint32 Hash = 0;
+			Hash = HashCombine(Hash, GetTypeHash(Key.AssetPathName));
+			Hash = HashCombine(Hash, GetTypeHash(Key.PropertyName));
+			Hash = HashCombine(Hash, (uint32)Key.bReferencedByEditorOnlyProperty);
+			return Hash;
 		}
 
-		const FName& GetCachedPackageName() const
+		const FName& GetAssetPathName() const
 		{
-			return Package;
+			return AssetPathName;
 		}
 
-		void SetPackage(const FName& InPackage)
+		const FName& GetPropertyName() const
 		{
-			Package = InPackage;
-		}
-		void SetProperty(const FName& InProperty)
-		{
-			Property = InProperty;
-		}
-		
-		void SetReferencedByEditorOnlyProperty(bool InReferencedByEditorOnlyProperty)
-		{
-			bReferencedByEditorOnlyProperty = InReferencedByEditorOnlyProperty;
-		}
-
-		const FName& GetPackage() const
-		{
-			return Package;
-		}
-		const FName& GetProperty() const
-		{
-			return Property;
+			return PropertyName;
 		}
 
 		bool GetReferencedByEditorOnlyProperty() const
@@ -67,8 +56,8 @@ private:
 		}
 
 	private:
-		FName Package;
-		FName Property;
+		FName AssetPathName;
+		FName PropertyName;
 		bool bReferencedByEditorOnlyProperty;
 	};
 
@@ -127,8 +116,10 @@ public:
 
 private:
 
-	/** A map of assets referenced by soft object paths, with the key being the asset being referenced and the value equal to the package with the reference */
-	TMultiMap<FName, FPackagePropertyPair> SoftObjectPathMap;
+	/** A map of assets referenced by soft object paths, with the key being the package with the reference */
+	typedef TSet<FSoftObjectPathProperty> FSoftObjectPathPropertySet;
+	typedef TMap<FName, FSoftObjectPathPropertySet> FSoftObjectPathMap;
+	FSoftObjectPathMap SoftObjectPathMap;
 
 	/** When saving, apply this remapping to all soft object paths */
 	TMap<FName, FName> AssetPathRedirectionMap;
