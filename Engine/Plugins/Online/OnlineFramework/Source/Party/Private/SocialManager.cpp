@@ -715,7 +715,7 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 		if (NewParty->IsPersistentParty())
 		{
 			NewParty->OnPartyStateChanged().AddUObject(this, &USocialManager::HandlePersistentPartyStateChanged, NewParty);
-			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty);
+			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty->GetOssPartyPreviousState(), NewParty);
 		}
 
 		return NewParty;
@@ -922,13 +922,18 @@ void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, co
 	}
 }
 
-void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, USocialParty* PersistentParty)
+void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty)
 {
 	UE_LOG(LogParty, Verbose, TEXT("Persistent party state changed to %s"), ToString(NewState));
 
 	if (NewState == EPartyState::Disconnected)
 	{
 		bIsConnectedToPartyService = false;
+		
+		if (PreviousState == EPartyState::Active)
+		{
+			PersistentParty->LeaveParty();
+		}
 
 		// If we have other members in our party, then we will try to rejoin this when we come back online
 		if (!RejoinableParty.IsValid() && PersistentParty->ShouldCacheForRejoinOnDisconnect())
