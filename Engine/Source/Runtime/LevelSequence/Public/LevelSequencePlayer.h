@@ -164,7 +164,6 @@ protected:
 	virtual bool CanPlay() const override;
 	virtual void OnStartedPlaying() override;
 	virtual void OnStopped() override;
-	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false) override;
 
 public:
 
@@ -209,8 +208,4 @@ protected:
 
 	/** Set of actors that have been added as tick prerequisites to the parent actor */
 	TSet<FObjectKey> PrerequisiteActors;
-
-private:
-
-	TOptional<FLevelSequencePlayerSnapshot> PreviousSnapshot;
 };

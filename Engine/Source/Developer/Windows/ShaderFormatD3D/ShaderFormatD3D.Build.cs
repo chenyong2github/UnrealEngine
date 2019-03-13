@@ -9,7 +9,7 @@ public class ShaderFormatD3D : ModuleRules
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
 		PrivateIncludePathModuleNames.Add("D3D11RHI");
 
-		PrivateIncludePaths.Add("../Shaders/Shared");
+        PrivateIncludePaths.Add("../Shaders/Private/RayTracing");
 
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -17,17 +17,15 @@ public class ShaderFormatD3D : ModuleRules
 				"RenderCore",
 				"ShaderPreprocessor",
 				"ShaderCompilerCommon",
-				}
+			}
 			);
 
 		//DXC
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string DxDllsPath = "$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/";
-
-            RuntimeDependencies.Add("$(TargetOutputDir)/dxil.dll", DxDllsPath + "dxil.dll");
-            RuntimeDependencies.Add("$(TargetOutputDir)/dxcompiler.dll", DxDllsPath + "dxcompiler.dll");
+            RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/dxil.dll");
+            RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/dxcompiler.dll");
         }
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 	}
 }

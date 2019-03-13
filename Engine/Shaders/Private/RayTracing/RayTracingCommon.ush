@@ -12,8 +12,7 @@
 // Make sure we recompile ray tracing shaders if the main shader version changes
 #include "/Engine/Public/ShaderVersion.ush"
 
-#include "../ShadingCommon.ush"
-#include "/Engine/Shared/RayTracingDefinitions.h"
+#include "RayTracingDefinitions.ush"
 
 struct FBasicRayData
 {
@@ -189,7 +188,7 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	Output.CustomData.zw = 0;
 
 	Output.DiffuseColor  = Output.BaseColor - Output.BaseColor * Output.Metallic;
-	Output.SpecularColor = ComputeF0(Output.Specular, Output.BaseColor, Output.Metallic);
+	Output.SpecularColor = lerp(0.08 * Output.Specular.xxx, Output.BaseColor, Output.Metallic);
 	Output.WorldPos		 = Ray.Origin + Output.HitT * Ray.Direction;
 	return Output;
 }

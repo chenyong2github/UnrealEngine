@@ -11,9 +11,9 @@ public class Renderer : ModuleRules
 				"Runtime/Renderer/Private",
 				"Runtime/Renderer/Private/CompositionLighting",
 				"Runtime/Renderer/Private/PostProcess",
-				"../Shaders/Shared"
-				}
-			);
+				"../Shaders/Private/RayTracing"
+    }
+		);
 
 		PublicDependencyModuleNames.Add("Core");
         PublicDependencyModuleNames.Add("Engine");

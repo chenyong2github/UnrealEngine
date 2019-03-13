@@ -46,9 +46,6 @@
 #include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
-#if RHI_RAYTRACING
-#include "RayTracing/RayTracingIESLightProfiles.h"
-#endif
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -851,6 +848,12 @@ public:
 	// Previous frame's view info to use.
 	FPreviousViewInfo PrevFrameViewInfo;
 
+	// Pending previous frame's view info. When rendering a new view, this must be the PendingPrevFrame that
+	// should be updated. This is the next frame that is only going to set PrevFrame = PendingPrevFrame if
+	// the world is not pause.
+	FPreviousViewInfo PendingPrevFrameViewInfo;
+
+
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
 
 	// TODO: move these guys in FPreviousViewInfo.
@@ -916,12 +919,9 @@ public:
 	uint32 TotalRayCount;
 	FRWBuffer* TotalRayCountBuffer;
 
-	// Ray Count readback:
+	// For Ray Count readback:
 	FRHIGPUMemoryReadback* RayCountGPUReadback;
 	bool bReadbackInitialized = false;
-
-	// IES light profiles
-	FIESLightProfileResource IESLightProfileResources;
 #endif
 
 	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
@@ -1260,6 +1260,7 @@ public:
 		EyeAdaptationRTManager.SafeRelease();
 		CombinedLUTRenderTarget.SafeRelease();
 		PrevFrameViewInfo.SafeRelease();
+		PendingPrevFrameViewInfo.SafeRelease();
 		DOFHistory.SafeRelease();
 		DOFHistory2.SafeRelease();
 		SSRHistory.SafeRelease();
@@ -1312,7 +1313,6 @@ public:
 		PathTracingSampleCountRT.SafeRelease();
 		VarianceMipTreeDimensions = FIntVector(0);
 		TotalRayCount = 0;
-		IESLightProfileResources.Release();
 #endif 
 	}
 
@@ -2431,19 +2431,6 @@ struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,fal
 	}
 };
 
-#if RHI_RAYTRACING
-struct FMeshComputeDispatchCommand
-{
-	FMeshDrawShaderBindings ShaderBindings;
-	class FRayTracingDynamicGeometryConverterCS* MaterialShader;
-
-	uint32 NumMaxVertices;
-	uint32 NumCPUVertices;
-	FRWBuffer* TargetBuffer;
-	FRayTracingGeometry* TargetGeometry;
-};
-#endif
-
 /** 
  * Renderer scene which is private to the renderer module.
  * Ordinarily this is the renderer version of a UWorld, but an FScene can be created for previewing in editors which don't have a UWorld as well.
@@ -2465,10 +2452,6 @@ public:
 	TSet<FMeshDrawCommandStateBucket, MeshDrawCommandKeyFuncs> CachedMeshDrawCommandStateBuckets;
 
 	FCachedPassMeshDrawList CachedDrawLists[EMeshPass::Num];
-
-#if RHI_RAYTRACING
-	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
-#endif
 
 	/**
 	 * The following arrays are densely packed primitive data needed by various
@@ -2530,9 +2513,6 @@ public:
 
 	/** True if a change to SkyLight / Lighting has occurred that requires static draw lists to be updated. */
 	bool bScenesPrimitivesNeedStaticMeshElementUpdate;
-
-	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
-	bool bPathTracingNeedsInvalidation;
 
 	/** The scene's sky light, if any. */
 	FSkyLightSceneProxy* SkyLight;
@@ -2841,7 +2821,7 @@ public:
 
 	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
 	{
-		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !SkyLight->bCastRayTracedShadow;
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;
 
 		if (IsTranslucentBlendMode(BlendMode))
 		{
