@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/SparseDelegate.h"
-#include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "HAL/IConsoleManager.h"
