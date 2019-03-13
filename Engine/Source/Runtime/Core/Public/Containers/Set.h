@@ -126,6 +126,14 @@ private:
 			Range[I] = FSetElementId();
 		}
 	}
+	/** Reset a range of FSetElementIds to invalid */
+	FORCEINLINE static void ResetRange(FSetElementId* Range, int32 Count)
+	{
+		for (int32 I = 0; I < Count; ++I)
+		{
+			Range[I] = FSetElementId();
+		}
+	}
 
 	/** The index of the element in the set's element array. */
 	int32 Index;
