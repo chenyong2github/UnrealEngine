@@ -201,7 +201,7 @@ private:	// Handlers
 	void HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, const TSharedPtr<const FOnlinePartyId>& PartyId, ECreatePartyCompletionResult Result, FOnlinePartyTypeId PartyTypeId, FOnCreatePartyAttemptComplete CompletionDelegate);
 	void HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
 	
-	void HandlePersistentPartyStateChanged(EPartyState NewState, USocialParty* PersistentParty);
+	void HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty);
 	void HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult LeaveResult, USocialParty* LeftParty);
 	void HandlePartyLeaveBegin(EMemberExitedReason Reason, USocialParty* LeavingParty);
 	void HandlePartyLeft(EMemberExitedReason Reason, USocialParty* LeftParty);
