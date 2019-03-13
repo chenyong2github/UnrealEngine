@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Delegates/Delegate.h"
@@ -167,10 +168,9 @@ protected:
 	}
 
 private:
-	template<typename OC=OwningClass>
 	UObject* GetDelegateOwner() const
 	{
-		const size_t OffsetToOwner = DelegateOffsetClass::template GetDelegateOffset<OC>();
+		const size_t OffsetToOwner = DelegateOffsetClass::template GetDelegateOffset<OwningClass>();
 		check(OffsetToOwner);
 		UObject* DelegateOwner = reinterpret_cast<UObject*>((uint8*)this - OffsetToOwner);
 		check(DelegateOwner->IsValidLowLevelFast(false)); // Most likely the delegate is trying to be used on the stack, in an object it wasn't defined for, or for a class member with a different name than it was defined for. It is only valid for a sparse delegate to be used for the exact class/property name it is defined with.
