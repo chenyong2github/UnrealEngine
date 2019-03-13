@@ -83,6 +83,7 @@ struct FSlateDrawWindowCommandParams
 {
 	FSlateRHIRenderer* Renderer;
 	FSlateWindowElementList* WindowElementList;
+	SWindow* Window;
 	float WorldTimeSeconds;
 	float DeltaTimeSeconds;
 	float RealTimeSeconds;
@@ -964,10 +965,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, BackBuffer);
 
 			// Fire delegate to inform bound functions the back buffer is ready to be captured.
-			if (OnBackBufferReadyToPresentDelegate.IsBound())
-			{
-				OnBackBufferReadyToPresentDelegate.Execute(BackBuffer);
-			}
+			OnBackBufferReadyToPresentDelegate.Broadcast(*DrawCommandParams.Window, BackBuffer);
 		}
 	}
 
@@ -1137,6 +1135,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 
 					Params.Renderer = this;
 					Params.WindowElementList = &ElementList;
+					Params.Window = Window;
 					Params.bLockToVsync = bLockToVsync;
 #if ALPHA_BLENDED_WINDOWS
 					Params.bClear = Window->GetTransparencySupport() == EWindowTransparency::PerPixel;
