@@ -39,6 +39,7 @@ struct FReplicatedActorProperty
 {
 	/** offset into the Actor where this reference is located - includes offsets from any outer structs */
 	int32 Offset;
+
 	/** Reference to property object */
 	const class UObjectPropertyBase* Property;
 
@@ -49,7 +50,6 @@ struct FReplicatedActorProperty
 
 /** FObjectReplicator
  *   Generic class that replicates properties for an object.
- *   All delta/diffing work is done in this class. 
  *	 Its primary job is to produce and consume chunks of properties/RPCs:
  *
  *		|----------------|
@@ -75,22 +75,58 @@ public:
 	FNetworkGUID									ObjectNetGUID;
 	UObject*										ObjectPtr;
 
+	//~ Retirement, RecentCustomDeltaState, CDOCustomDeltaState, and CheckpointCustomDeltaState
+	//~ could all be moved to FSendingRepState, as they are not needed when solely receiving.
+
 	TArray<FPropertyRetirement>						Retirement;					// Property retransmission.
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	RecentCustomDeltaState;		// This is the delta state we need to compare with when determining what to send to a client for custom delta properties
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CDOCustomDeltaState;		// Same as RecentCustomDeltaState, but this will always remain as the initial CDO version. We use this to send all properties since channel was first opened (for bResendAllDataSinceOpen)
 	TMap<int32, TSharedPtr<INetDeltaBaseState> >	CheckpointCustomDeltaState;	// Same as RecentCustomDeltaState, but will represent the state at the last checkpoint
 
+	UE_DEPRECATED(4.23, "This property will be removed in future versions. Use FRepLayout::GetLifetimeCustomDeltaProperties instead.")
 	TArray< int32 >									LifetimeCustomDeltaProperties;
+
+	UE_DEPRECATED(4.23, "This property will be removed in future versions. Use FRepLayout::GetRepPropertyCondition instead.")
 	TArray< ELifetimeCondition >					LifetimeCustomDeltaPropertyConditions;
 
-	uint32											bLastUpdateEmpty	: 1;	// True if last update (ReplicateActor) produced no replicated properties
-	uint32											bOpenAckCalled		: 1;
-	uint32											bForceUpdateUnmapped: 1;	// True if we need to do an unmapped check next frame
+	/** True if last update (ReplicateActor) produced no replicated properties */
+	uint32 bLastUpdateEmpty : 1;
 
-	UNetConnection *								Connection;					// Connection this replicator was created on
-	class UActorChannel	*							OwningChannel;
+	/** Whether or not the Actor Channel on which we're replicating has been Opened / Acked by the receiver. */
+	uint32 bOpenAckCalled : 1;
 
+	/** True if we need to do an unmapped check next frame. */
+	uint32 bForceUpdateUnmapped: 1;
+
+	/** Whether or not we've already replicated properties this frame. */
+	uint32 bHasReplicatedProperties : 1;
+	
+private:
+
+	uint32 bSupportsFastArrayDelta : 1;
+
+public:	
+
+	/** Connection this replicator was created on. */
+	UNetConnection* Connection;
+
+	/** The Actor Channel that we're replicating on. This expected to be owned by Connection. */
+	class UActorChannel* OwningChannel;
+
+	//~ This property is only used as an acceleration to avoid GUID tracking / updates when we know there are
+	//~ none unmapped. This will just be removed in future versions, but if the performance hit is unacceptable
+	//~ it could be replaced by a TBitArray in FReceivingRepState, where each bit flags whether or not
+	//~ a given index in FRepLayout::LifetimeCustomDeltaProperties has unmapped guids.
+	//~ That should be both more CPU and Memory efficient than the current approach.
+	//~ TODO: Remove FRepLayout::MoveMappedToUnmappedForCustomDeltaProperties overload when this goes away.
+	//~ TODO: Remove FRepLayout::UpdateUnmappedObjectsForCustomDeltaProperties overload when this goes away.
+	UE_DEPRECATED(4.23, "This property will be removed in future versions.")
 	TMap< int32, UStructProperty* >					UnmappedCustomProperties;
+
+	//~ TODO: RepNotifies here could likely just be removed in favor of using the existing array on FReceivingRepState.
+	//~			In most cases, RepNotifyMetaData isn't really used, but if it is useful, then that should also
+	//~			be moved to FReceivingRepState and we should combine the RepNotify logic here with that in
+	//~			FRepLayout.
 
 	TArray< UProperty*,TInlineAllocator< 32 > >		RepNotifies;
 	TMap< UProperty*, TArray<uint8> >				RepNotifyMetaData;
@@ -152,7 +188,14 @@ public:
 	/** Takes Data, and compares against shadow state to log differences */
 	bool ValidateAgainstState( const UObject* ObjectState );
 
+	UE_DEPRECATED(4.23, "This method will be removed in future versions. Please use SendCustomDeltaProperty instead.")
 	static bool SerializeCustomDeltaProperty( UNetConnection * Connection, void* Src, UProperty * Property, uint32 ArrayIndex, FNetBitWriter & OutBunch, TSharedPtr<INetDeltaBaseState> & NewFullState, TSharedPtr<INetDeltaBaseState> & OldState );
+
+	//~ Both of these should be private, IMO, but we'll leave them public for now for back compat
+	//~ in case anyone was using SerializeCustomDeltaProperty already.
+
+	bool SendCustomDeltaProperty(UObject* InObject, UProperty* Property, uint32 ArrayIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState> & NewFullState, TSharedPtr<INetDeltaBaseState> & OldState);
+	bool SendCustomDeltaProperty(UObject* InObject, uint16 CustomDeltaProperty, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState);
 
 	/** Packet was dropped */
 	void	ReceivedNak( int32 NakPacketId );
@@ -177,8 +220,6 @@ public:
 	void	PostReceivedBunch();
 
 	void	ForceRefreshUnreliableProperties();
-
-	bool bHasReplicatedProperties;
 
 	void QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bunch );
 

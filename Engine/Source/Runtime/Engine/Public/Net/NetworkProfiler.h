@@ -70,6 +70,9 @@ public:
 class FNetworkProfiler
 {
 private:
+
+	friend struct FNetworkProfilerScopedIgnoreReplicateProperties;
+
 	/** File writer used to serialize data.															*/
 	FArchive*								FileWriter;
 
@@ -161,6 +164,9 @@ private:
 	* @return	Index of passed in name
 	*/
 	int32 GetAddressTableIndex( const FString& Address );
+
+	// Used with FScopedIgnoreReplicateProperties.
+	uint32 IgnorePropertyCount;
 
 public:
 	/**
@@ -406,8 +412,33 @@ public:
 /** Global network profiler instance. */
 extern ENGINE_API FNetworkProfiler GNetworkProfiler;
 
+#define NETWORK_PROFILER_IGNORE_PROPERTY_SCOPE const FNetworkProfilerScopedIgnoreReplicateProperties _NetProfilePrivate_IgnoreScope;
+
+/**
+ * Can be used to enforce a scope where we don't want to track properties.
+ * This is useful to prevent cases where we might inadvertently over count properties.
+ */
+struct FNetworkProfilerScopedIgnoreReplicateProperties
+{
+	FNetworkProfilerScopedIgnoreReplicateProperties()
+	{
+		++GNetworkProfiler.IgnorePropertyCount;
+	}
+
+	~FNetworkProfilerScopedIgnoreReplicateProperties()
+	{
+		--GNetworkProfiler.IgnorePropertyCount;
+	}
+
+private:
+
+	FNetworkProfilerScopedIgnoreReplicateProperties(const FNetworkProfilerScopedIgnoreReplicateProperties&) = delete;
+	FNetworkProfilerScopedIgnoreReplicateProperties(FNetworkProfilerScopedIgnoreReplicateProperties&&) = delete;
+};
+
 #else	// USE_NETWORK_PROFILER
 
 #define NETWORK_PROFILER(x)
+#define NETWORK_PROFILER_IGNORE_PROPERTY_SCOPE 
 
 #endif
