@@ -98,8 +98,10 @@ namespace Audio
 			DecompressionState = nullptr;
 		}
 
-		check(SoundWave);
-		SoundWave->RemovePlayingSource();
+		if (SoundWave)
+		{
+			SoundWave->RemovePlayingSource();
+		}
 	}
 
 	bool FMixerSourceBuffer::PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
@@ -116,6 +118,13 @@ namespace Audio
 		bProcedural = InWave->bProcedural;
 		NumPrecacheFrames = InWave->NumPrecacheFrames;
 		
+		// Prevent double-triggering procedural soundwaves
+		if (bProcedural && InWave->IsGeneratingAudio())
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
+			return false;
+		}
+
 		check(SoundWave == nullptr);
 		// Only need to have a handle to a USoundWave for procedural sound waves
 		SoundWave = InWave;
@@ -513,7 +522,6 @@ namespace Audio
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnEndGenerate();
-			SoundWave = nullptr;
 		}
 	}
 
