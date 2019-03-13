@@ -2110,9 +2110,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		_extrasBundle = getIntent().getExtras();
 		if (_extrasBundle != null)
 		{
-			ShouldHideUI = _extrasBundle.getBoolean("ShouldHideUI", false);
-			UseDisplayCutout = _extrasBundle.getBoolean("UseDisplayCutout", false);
-			if (_extrasBundle.getBoolean("UseSplashScreen", false))
+			ShouldHideUI = _extrasBundle.getString("ShouldHideUI") != null;
+			UseDisplayCutout = _extrasBundle.getString("UseDisplayCutout") != null;
+			if (_extrasBundle.getString("UseSplashScreen") != null)
 			{
 				SplashScreenLaunch = true;
 				try {
