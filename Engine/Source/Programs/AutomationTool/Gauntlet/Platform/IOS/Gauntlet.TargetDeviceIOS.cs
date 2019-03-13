@@ -752,7 +752,7 @@ namespace Gauntlet
 		void KillZombies()
 		{
 
-			if (ZombiesKilled)
+			if (Globals.IsWorker || ZombiesKilled)
 			{
 				return;
 			}
