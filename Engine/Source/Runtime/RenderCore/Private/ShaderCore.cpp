@@ -447,23 +447,11 @@ bool CheckVirtualShaderFilePath(const FString& VirtualFilePath, TArray<FShaderCo
 	}
 
 	FString Extension = FPaths::GetExtension(VirtualFilePath);
-	if (VirtualFilePath.StartsWith(TEXT("/Engine/Shared/")))
+	if ((Extension != TEXT("usf") && Extension != TEXT("ush")) || VirtualFilePath.EndsWith(TEXT(".usf.usf")))
 	{
-		if ((Extension != TEXT("h")))
-		{
-			FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .h is allowed for shared headers that are shared between C++ and shader code."), *VirtualFilePath);
-			ReportVirtualShaderFilePathError(CompileErrors, Error);
-			bSuccess = false;
-		}	
-	}
-	else
-	{
-		if ((Extension != TEXT("usf") && Extension != TEXT("ush")) || VirtualFilePath.EndsWith(TEXT(".usf.usf")))
-		{
-			FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .usf or .ush allowed."), *VirtualFilePath);
-			ReportVirtualShaderFilePathError(CompileErrors, Error);
-			bSuccess = false;
-		}
+		FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .usf or .ush allowed."), *VirtualFilePath);
+		ReportVirtualShaderFilePathError(CompileErrors, Error);
+		bSuccess = false;
 	}
 
 	return bSuccess;

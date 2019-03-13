@@ -247,7 +247,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bAlwaysCreatePhysicsState = false;
 	bVisibleInReflectionCaptures = true;
-	bVisibleInRayTracing = true;
 	bRenderInMainPass = true;
 	VisibilityId = INDEX_NONE;
 #if WITH_EDITORONLY_DATA

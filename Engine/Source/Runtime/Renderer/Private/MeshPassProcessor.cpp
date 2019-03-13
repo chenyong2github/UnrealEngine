@@ -261,14 +261,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 }
 
 #if RHI_RAYTRACING
-void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
-	FRHICommandList& RHICmdList, 
-	FRayTracingSceneRHIParamRef Scene, 
-	uint32 InstanceIndex, 
-	uint32 SegmentIndex,
-	FRayTracingPipelineStateRHIParamRef PipelineState, 
-	uint32 HitGroupIndex,
-	uint32 ShaderSlot) const
+void FMeshDrawShaderBindings::SetOnRayTracingStructure(FRHICommandList& RHICmdList, FRayTracingSceneRHIParamRef Scene, uint32 InstanceIndex, uint32 SegmentIndex, FRayTracingPipelineStateRHIParamRef PipelineState, uint32 HitGroupIndex) const
 {
 	check(ShaderLayouts.Num() == 1);
 
@@ -299,6 +292,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 
 	check(SegmentIndex < 0xFF);
 	uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
+	const uint32 ShaderSlot = 0; // Multiple shader slots can be used for different ray types. Slot 0 is the primary material slot.
 	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
 	RHICmdList.SetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, PipelineState, HitGroupIndex, NumUniformBuffersToSet, LocalUniformBuffers, UserData);
 }
@@ -329,16 +323,19 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 
 void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelineStateId Id)
 {
-	check(!Id.bOneFrameId && Id.bValid);
+	check(!Id.bOneFrameId);
 
-	const FSetElementId SetElementId = FSetElementId::FromInteger(Id.SetElementIndex);
-	FRefCountedGraphicsMinimalPipelineStateInitializer& RefCountedStateInitializer = PersistentIdTable[SetElementId];
-
-	check(RefCountedStateInitializer.RefNum > 0);
-	--RefCountedStateInitializer.RefNum;
-	if (RefCountedStateInitializer.RefNum <= 0)
+	if (Id.bValid)
 	{
-		PersistentIdTable.Remove(SetElementId);
+		const FSetElementId SetElementId = FSetElementId::FromInteger(Id.SetElementIndex);
+		FRefCountedGraphicsMinimalPipelineStateInitializer& RefCountedStateInitializer = PersistentIdTable[SetElementId];
+
+		check(RefCountedStateInitializer.RefNum > 0);
+		--RefCountedStateInitializer.RefNum;
+		if (RefCountedStateInitializer.RefNum <= 0)
+		{
+			PersistentIdTable.Remove(SetElementId);
+		}
 	}
 }
 
@@ -682,10 +679,10 @@ void FMeshDrawCommand::SetShaders(FVertexDeclarationRHIParamRef VertexDeclaratio
 }
 
 #if RHI_RAYTRACING
-void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
+void FMeshDrawCommand::SetRayTracingShaders(const FMeshProcessorShaders& Shaders)
 {
 	check(Shaders.RayHitGroupShader)
-	MaterialShaderIndex = Shaders.RayHitGroupShader->GetRayTracingMaterialLibraryIndex();
+	RayTracingMaterialLibraryIndex = Shaders.RayHitGroupShader->GetRayTracingMaterialLibraryIndex();
 	ShaderBindings.Initialize(Shaders);
 }
 #endif // RHI_RAYTRACING
@@ -716,6 +713,9 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 		checkf(BatchElement.IndirectArgsBuffer, TEXT("It is only valid to set BatchElement.NumPrimitives == 0 when a IndirectArgsBuffer is used"));
 		IndirectArgsBuffer = BatchElement.IndirectArgsBuffer;
 	}
+
+	int32 SegmentIndex = MeshBatch.SegmentIndex + BatchElementIndex;
+	RayTracedSegmentIndex = (SegmentIndex < UINT8_MAX) ? uint8(MeshBatch.SegmentIndex + BatchElementIndex) : UINT8_MAX;
 
 	Finalize(PipelineId, ShadersForDebugging);
 }
@@ -1083,7 +1083,7 @@ FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCo
 	DrawList(InDrawList),
 	Scene(InScene)
 {
-	bUseStateBuckets = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	bUseStateBuckets = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel) && InCommandInfo.MeshPass != EMeshPass::RayTracing;
 }
 
 FMeshDrawCommand& FCachedPassMeshDrawListContext::AddCommand(const FMeshDrawCommand& Initializer)
@@ -1112,12 +1112,16 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	FMeshDrawCommandSortKey SortKey,
 	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 	const FMeshProcessorShaders* ShadersForDebugging,
-	FMeshDrawCommand& MeshDrawCommand)
+	FMeshDrawCommand& MeshDrawCommand,
+	bool bDoSetupPsoStateForRasterization)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FinalizeCachedMeshDrawCommand);
 
 	FGraphicsMinimalPipelineStateId PipelineId;
-	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
+	if (bDoSetupPsoStateForRasterization)
+	{
+		PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
+	}
 
 	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
 

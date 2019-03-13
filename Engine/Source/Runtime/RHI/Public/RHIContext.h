@@ -139,15 +139,6 @@ struct FAccelerationStructureUpdateParams
 	FVertexBufferRHIParamRef VertexBuffer;
 };
 
-struct FCopyBufferRegionParams
-{
-	FVertexBufferRHIParamRef DestBuffer;
-	uint64 DstOffset;
-	FVertexBufferRHIParamRef SourceBuffer;
-	uint64 SrcOffset;
-	uint64 NumBytes;
-};
-
 /** The interface RHI command context. Sometimes the RHI handles these. On platforms that can processes command lists in parallel, it is a separate object. */
 class IRHICommandContext : public IRHIComputeContext
 {
@@ -603,17 +594,7 @@ public:
 			}
 		}
 	}
-#if RHI_RAYTRACING
-	virtual void RHICopyBufferRegion(FVertexBufferRHIParamRef DestBuffer, uint64 DstOffset, FVertexBufferRHIParamRef SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
-	{
-		checkNoEntry();
-	}
 
-	virtual void RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-	{
-		checkNoEntry();
-	}
-#endif
 	virtual void RHIBuildAccelerationStructure(FRayTracingGeometryRHIParamRef Geometry)
 	{
 		checkNoEntry();
@@ -650,7 +631,14 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamRef RayTracingPipelineState, FRayTracingShaderRHIParamRef RayGenShader,
+	virtual void RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamRef RayTracingPipelineState, uint32 RayGenShaderIndex,
+		const FRayTracingShaderBindings& GlobalResourceBindings,
+		uint32 Width, uint32 Height)
+	{
+		checkNoEntry();
+	}
+
+	virtual void RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamRef RayTracingPipelineState, uint32 RayGenShaderIndex,
 		FRayTracingSceneRHIParamRef Scene, 
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height)

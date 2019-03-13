@@ -91,16 +91,6 @@ void ULightComponentBase::SetCastRaytracedShadow(bool bNewValue)
 	}
 }
 
-void ULightComponentBase::SetSamplesPerPixel(int NewValue)
-{
-	if (AreDynamicDataChangesAllowed()
-		&& SamplesPerPixel != NewValue)
-	{
-		SamplesPerPixel = NewValue;
-		MarkRenderStateDirty();
-	}
-}
-
 void ULightComponentBase::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -277,7 +267,6 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, LevelName(InLightComponent->GetOutermost()->GetFName())
 	, FarShadowDistance(0)
 	, FarShadowCascadeCount(0)
-	, SamplesPerPixel(1)
 {
 	check(SceneInterface);
 
@@ -324,8 +313,6 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	LightFunctionScale = LightComponent->LightFunctionScale;
 	LightFunctionFadeDistance = LightComponent->LightFunctionFadeDistance;
 	LightFunctionDisabledBrightness = LightComponent->DisabledBrightness;
-
-	SamplesPerPixel = LightComponent->SamplesPerPixel;
 }
 
 bool FLightSceneProxy::ShouldCreatePerObjectShadowsForDynamicObjects() const
@@ -415,8 +402,6 @@ ULightComponent::ULightComponent(const FObjectInitializer& ObjectInitializer)
 	MaxDistanceFadeRange = 0.0f;
 	bAddedToSceneVisible = false;
 	bForceCachedShadowsForMovablePrimitives = false;
-
-	SamplesPerPixel = 1;
 }
 
 bool ULightComponent::AffectsPrimitive(const UPrimitiveComponent* Primitive) const

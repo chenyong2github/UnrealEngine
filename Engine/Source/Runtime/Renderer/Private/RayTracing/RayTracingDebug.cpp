@@ -9,7 +9,7 @@
 #include "SceneRenderTargets.h"
 #include "RenderGraphBuilder.h"
 #include "SceneUtils.h"
-#include "RayTracingDebugDefinitions.h"
+#include "RayTracingDebugDefinitions.ush"
 
 #define LOCTEXT_NAMESPACE "RayTracingDebugVisualizationMenuCommands"
 
@@ -73,15 +73,7 @@ public:
 // Dummy shader permutations to test hit group API
 IMPLEMENT_SHADER_TYPE(, FRayTracingDebugCHS, TEXT("/Engine/Private/RayTracing/RayTracingDebug.usf"), TEXT("RayTracingDebugMainCHS"), SF_RayHitGroup);
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders)
-{
-	// Declare all RayGen shaders that require material closest hit shaders to be bound
-
-	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDebugRGS>();
-	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
-}
-
-void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FDeferredShadingSceneRenderer::RenderRayTracedDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	static TMap<FName, uint32> RayTracingDebugVisualizationModes;
 	if (RayTracingDebugVisualizationModes.Num() == 0)
@@ -111,7 +103,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_BARYCENTRICS)
 	{
-		return RenderRayTracingBarycentrics(RHICmdList, View);
+		return RenderRayTracedBarycentrics(RHICmdList, View);
 	}
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -124,9 +116,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	auto ClosestHitShader = ShaderMap->GetShader<FRayTracingDebugCHS>();
 	auto MissShader = ShaderMap->GetShader<FRayTracingDebugMS>();
 
-	FRHIRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+	FRHIRayTracingPipelineState* Pipeline = BindRayTracingPipeline(RHICmdList, View,
+		RayGenShader->GetRayTracingShader(),
+		MissShader->GetRayTracingShader(),
+		ClosestHitShader->GetRayTracingShader()); // #dxr_todo: this should be done once at load-time and cached
 
-	FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+	FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.PerViewRayTracingScene.RayTracingSceneRHI;
 
 	FRayTracingDebugRGS::FParameters* RayGenParameters = GraphBuilder.AllocParameters<FRayTracingDebugRGS::FParameters>();
 
@@ -148,7 +143,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *RayGenParameters);
 
-		RHICmdList.RayTraceDispatch(Pipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
+		// Dispatch rays using default shader binding table
+		const uint32 RayGenShaderIndex = 0;
+		RHICmdList.RayTraceDispatch(Pipeline, RayGenShaderIndex, RayTracingSceneRHI, GlobalResources, ViewRect.Size().X, ViewRect.Size().Y);
 	});
 
 	GraphBuilder.Execute();

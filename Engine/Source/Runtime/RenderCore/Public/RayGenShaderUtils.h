@@ -39,7 +39,8 @@ struct RENDERCORE_API FRayGenShaderUtils
 			Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 			FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
-			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader->GetRayTracingShader(), GlobalResources, Resolution.X, Resolution.Y);
+			const uint32 RayGenShaderIndex = 0;
+			RHICmdList.RayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResources, Resolution.X, Resolution.Y);
 		});
 	}
 };
