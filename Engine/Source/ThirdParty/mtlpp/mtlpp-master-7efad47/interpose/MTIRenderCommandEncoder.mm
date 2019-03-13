@@ -1288,43 +1288,363 @@ INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, Setstencilstoreactionoptions
 	Original(Obj, Cmd, storeActionOptions);
 }
 
+struct MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawprimitivesVertexstartVertexcountInstancecount")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount,NSUInteger instanceCount)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << vertexStart;
+		fs << vertexCount;
+		fs << instanceCount;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger vertexStart;
+		NSUInteger vertexCount;
+		NSUInteger instanceCount;
+		fs >> primitiveType;
+		fs >> vertexStart;
+		fs >> vertexCount;
+		fs >> instanceCount;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPrimitives:(MTLPrimitiveType)primitiveType vertexStart:vertexStart vertexCount:vertexCount instanceCount:instanceCount];
+	}
+};
+static MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountHandler GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawprimitivesVertexstartVertexcountInstancecount,  void,   MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount,NSUInteger instanceCount)
 {
+	GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountHandler.Trace(Obj, primitiveType, vertexStart, vertexCount, instanceCount);
 	Original(Obj, Cmd, primitiveType,vertexStart,vertexCount,instanceCount);
 }
 
+struct MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawprimitivesVertexstartVertexcount")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << vertexStart;
+		fs << vertexCount;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger vertexStart;
+		NSUInteger vertexCount;
+		fs >> primitiveType;
+		fs >> vertexStart;
+		fs >> vertexCount;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPrimitives:(MTLPrimitiveType)primitiveType vertexStart:vertexStart vertexCount:vertexCount];
+	}
+};
+static MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountHandler GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawprimitivesVertexstartVertexcount,  void,   MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount)
 {
+	GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountHandler.Trace(Obj, primitiveType,vertexStart,vertexCount);
 	Original(Obj, Cmd, primitiveType,vertexStart,vertexCount);
 }
 
+struct MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecount")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,NSUInteger instanceCount)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << indexCount;
+		fs << indexType;
+		fs << (uintptr_t)indexBuffer;
+		fs << indexBufferOffset;
+		fs << instanceCount;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger indexCount;
+		NSUInteger indexType;
+		uintptr_t indexBuffer;
+		NSUInteger indexBufferOffset;
+		NSUInteger instanceCount;
+		fs >> primitiveType;
+		fs >> indexCount;
+		fs >> indexType;
+		fs >> indexBuffer;
+		fs >> indexBufferOffset;
+		fs >> instanceCount;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPrimitives:(MTLPrimitiveType)primitiveType indexCount:indexCount indexType:(MTLIndexType)indexType indexBuffer:MTITrace::Get().FetchObject(indexBuffer) indexBufferOffset:indexBufferOffset instanceCount:instanceCount];
+	}
+};
+static MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountHandler GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecount,  void,   MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,NSUInteger instanceCount)
 {
+	GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountHandler.Trace(Obj, primitiveType, indexCount, indexType, indexBuffer, indexBufferOffset, instanceCount);
 	Original(Obj, Cmd, primitiveType,indexCount,indexType,indexBuffer,indexBufferOffset,instanceCount);
 }
 
+struct MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffset")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << indexCount;
+		fs << indexType;
+		fs << (uintptr_t)indexBuffer;
+		fs << indexBufferOffset;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger indexCount;
+		NSUInteger indexType;
+		uintptr_t indexBuffer;
+		NSUInteger indexBufferOffset;
+		fs >> primitiveType;
+		fs >> indexCount;
+		fs >> indexType;
+		fs >> indexBuffer;
+		fs >> indexBufferOffset;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPrimitives:(MTLPrimitiveType)primitiveType indexCount:indexCount indexType:(MTLIndexType)indexType indexBuffer:MTITrace::Get().FetchObject(indexBuffer) indexBufferOffset:indexBufferOffset];
+	}
+};
+static MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetHandler GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffset,  void,   MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset)
 {
+	GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetHandler.Trace(Obj, primitiveType, indexCount, indexType, indexBuffer, indexBufferOffset);
 	Original(Obj, Cmd, primitiveType,indexCount,indexType,indexBuffer,indexBufferOffset);
 }
 
+struct MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountBaseinstanceHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountBaseinstanceHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawprimitivesVertexstartVertexcountInstancecountBaseinstance")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount,NSUInteger instanceCount,NSUInteger baseInstance)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << vertexStart;
+		fs << vertexCount;
+		fs << instanceCount;
+		fs << baseInstance;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger vertexStart;
+		NSUInteger vertexCount;
+		NSUInteger instanceCount;
+		NSUInteger baseInstance;
+		fs >> primitiveType;
+		fs >> vertexStart;
+		fs >> vertexCount;
+		fs >> instanceCount;
+		fs >> baseInstance;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPrimitives:(MTLPrimitiveType)primitiveType vertexStart:vertexStart vertexCount:vertexCount instanceCount:instanceCount baseInstance:baseInstance];
+	}
+};
+static MTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountBaseinstanceHandler GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountBaseinstanceHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawprimitivesVertexstartVertexcountInstancecountBaseinstance,  void,   MTLPrimitiveType primitiveType,NSUInteger vertexStart,NSUInteger vertexCount,NSUInteger instanceCount,NSUInteger baseInstance)
 {
+	GMTITraceRenderEncoderDrawprimitivesVertexstartVertexcountInstancecountBaseinstanceHandler.Trace(Obj, primitiveType, vertexStart, vertexCount, instanceCount, baseInstance);
 	Original(Obj, Cmd, primitiveType,vertexStart,vertexCount,instanceCount,baseInstance);
 }
 
+struct MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstanceHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstanceHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstance")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,NSUInteger instanceCount,NSInteger baseVertex,NSUInteger baseInstance)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << indexCount;
+		fs << indexType;
+		fs << (uintptr_t)indexBuffer;
+		fs << indexBufferOffset;
+		fs << instanceCount;
+		fs << baseVertex;
+		fs << baseInstance;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger indexCount;
+		NSUInteger indexType;
+		uintptr_t indexBuffer;
+		NSUInteger indexBufferOffset;
+		NSUInteger instanceCount;
+		NSInteger baseVertex;
+		NSUInteger baseInstance;
+		fs >> primitiveType;
+		fs >> indexCount;
+		fs >> indexType;
+		fs >> indexBuffer;
+		fs >> indexBufferOffset;
+		fs >> instanceCount;
+		fs >> baseVertex;
+		fs >> baseInstance;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPrimitives:(MTLPrimitiveType)primitiveType indexCount:indexCount indexType:(MTLIndexType)indexType indexBuffer:MTITrace::Get().FetchObject(indexBuffer) indexBufferOffset:indexBufferOffset instanceCount:instanceCount baseVertex:baseVertex baseInstance:baseInstance];
+	}
+};
+static MTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstanceHandler GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstanceHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstance,  void,   MTLPrimitiveType primitiveType,NSUInteger indexCount,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,NSUInteger instanceCount,NSInteger baseVertex,NSUInteger baseInstance)
 {
+	GMTITraceRenderEncoderDrawindexedprimitivesIndexcountIndextypeIndexbufferIndexbufferoffsetInstancecountBasevertexBaseinstanceHandler.Trace(Obj, primitiveType, indexCount, indexType, indexBuffer, indexBufferOffset, instanceCount, baseVertex, baseInstance);
 	Original(Obj, Cmd, primitiveType,indexCount,indexType,indexBuffer,indexBufferOffset,instanceCount,baseVertex,baseInstance);
 }
 
+struct MTITraceRenderEncoderDrawprimitivesIndirectbufferIndirectbufferoffsetHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawprimitivesIndirectbufferIndirectbufferoffsetHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawprimitivesIndirectbufferIndirectbufferoffset")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << (uintptr_t)indirectBuffer;
+		fs << indirectBufferOffset;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		uintptr_t indirectBuffer;
+		NSUInteger indirectBufferOffset;
+		fs >> primitiveType;
+		fs >> indirectBuffer;
+		fs >> indirectBufferOffset;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPrimitives:(MTLPrimitiveType)primitiveType indirectBuffer:MTITrace::Get().FetchObject(indirectBuffer) indirectBufferOffset:indirectBufferOffset];
+	}
+};
+static MTITraceRenderEncoderDrawprimitivesIndirectbufferIndirectbufferoffsetHandler GMTITraceRenderEncoderDrawprimitivesIndirectbufferIndirectbufferoffsetHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawprimitivesIndirectbufferIndirectbufferoffset,  void,   MTLPrimitiveType primitiveType,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
 {
+	GMTITraceRenderEncoderDrawprimitivesIndirectbufferIndirectbufferoffsetHandler.Trace(Obj, primitiveType, indirectBuffer, indirectBufferOffset);
 	Original(Obj, Cmd, primitiveType,indirectBuffer,indirectBufferOffset);
 }
 
+struct MTITraceRenderEncoderDrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffsetHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffsetHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffset")
+	{
+		
+	}
+	
+	void Trace(id Object, MTLPrimitiveType primitiveType,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << primitiveType;
+		fs << indexType;
+		fs << (uintptr_t)indexBuffer;
+		fs << indexBufferOffset;
+		fs << (uintptr_t)indirectBuffer;
+		fs << indirectBufferOffset;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger primitiveType;
+		NSUInteger indexType;
+		uintptr_t indexBuffer;
+		NSUInteger indexBufferOffset;
+		uintptr_t indirectBuffer;
+		NSUInteger indirectBufferOffset;
+		fs >> primitiveType;
+		fs >> indexType;
+		fs >> indexBuffer;
+		fs >> indexBufferOffset;
+		fs >> indirectBuffer;
+		fs >> indirectBufferOffset;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPrimitives:(MTLPrimitiveType)primitiveType indexType:(MTLIndexType)indexType indexBuffer:MTITrace::Get().FetchObject(indexBuffer) indexBufferOffset:indexBufferOffset indirectBuffer:MTITrace::Get().FetchObject(indirectBuffer) indirectBufferOffset:indirectBufferOffset];
+	}
+};
+static MTITraceRenderEncoderDrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffsetHandler GMTITraceRenderEncoderDrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffsetHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffset,  void,   MTLPrimitiveType primitiveType,MTLIndexType indexType,id <MTLBuffer> indexBuffer,NSUInteger indexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
 {
+	GMTITraceRenderEncoderDrawindexedprimitivesIndextypeIndexbufferIndexbufferoffsetIndirectbufferIndirectbufferoffsetHandler.Trace(Obj, primitiveType, indexType, indexBuffer, indexBufferOffset, indirectBuffer, indirectBufferOffset);
 	Original(Obj, Cmd, primitiveType,indexType,indexBuffer,indexBufferOffset,indirectBuffer,indirectBufferOffset);
 }
 
@@ -1502,23 +1822,207 @@ INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, Settessellationfactorscale, 
 	Original(Obj, Cmd, scale);
 }
 
+struct MTITraceRenderEncoderDrawpatchesHandler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawpatchesHandler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetInstancecountBaseinstance")
+	{
+		
+	}
+	
+	void Trace(id Object, NSUInteger numberOfPatchControlPoints,NSUInteger patchStart,NSUInteger patchCount, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,NSUInteger instanceCount,NSUInteger baseInstance)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << numberOfPatchControlPoints;
+		fs << patchStart;
+		fs << patchCount;
+		fs << (uintptr_t)patchIndexBuffer;
+		fs << patchIndexBufferOffset;
+		fs << instanceCount;
+		fs << baseInstance;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger numberOfPatchControlPoints;
+		NSUInteger patchStart;
+		NSUInteger patchCount;
+		uintptr_t patchIndexBuffer;
+		NSUInteger patchIndexBufferOffset;
+		NSUInteger instanceCount;
+		NSUInteger baseInstance;
+		fs >> numberOfPatchControlPoints;
+		fs >> patchStart;
+		fs >> patchCount;
+		fs >> patchIndexBuffer;
+		fs >> patchIndexBufferOffset;
+		fs >> instanceCount;
+		fs >> baseInstance;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPatches:numberOfPatchControlPoints patchStart:patchStart patchCount:patchCount patchIndexBuffer:MTITrace::Get().FetchObject(patchIndexBuffer) patchIndexBufferOffset:patchIndexBufferOffset instanceCount:instanceCount baseInstance:baseInstance];
+	}
+};
+static MTITraceRenderEncoderDrawpatchesHandler GMTITraceRenderEncoderDrawpatchesHandler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetInstancecountBaseinstance,  void,   NSUInteger numberOfPatchControlPoints,NSUInteger patchStart,NSUInteger patchCount, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,NSUInteger instanceCount,NSUInteger baseInstance)
 {
+	GMTITraceRenderEncoderDrawpatchesHandler.Trace(Obj, numberOfPatchControlPoints, patchStart, patchCount, patchIndexBuffer, patchIndexBufferOffset, instanceCount, baseInstance);
 	Original(Obj, Cmd, numberOfPatchControlPoints,patchStart,patchCount,patchIndexBuffer,patchIndexBufferOffset,instanceCount,baseInstance);
 }
 
+struct MTITraceRenderEncoderDrawpatches2Handler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawpatches2Handler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawpatchesPatchindexbufferPatchindexbufferoffsetIndirectbufferIndirectbufferoffset")
+	{
+		
+	}
+	
+	void Trace(id Object, NSUInteger numberOfPatchControlPoints, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << numberOfPatchControlPoints;
+		fs << (uintptr_t)patchIndexBuffer;
+		fs << patchIndexBufferOffset;
+		fs << (uintptr_t)indirectBuffer;
+		fs << indirectBufferOffset;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger numberOfPatchControlPoints;
+		uintptr_t patchIndexBuffer;
+		NSUInteger patchIndexBufferOffset;
+		uintptr_t indirectBuffer;
+		NSUInteger indirectBufferOffset;
+		fs >> numberOfPatchControlPoints;
+		fs >> patchIndexBuffer;
+		fs >> patchIndexBufferOffset;
+		fs >> indirectBuffer;
+		fs >> indirectBufferOffset;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawPatches:numberOfPatchControlPoints patchIndexBuffer:MTITrace::Get().FetchObject(patchIndexBuffer) patchIndexBufferOffset:patchIndexBufferOffset indirectBuffer:MTITrace::Get().FetchObject(indirectBuffer) indirectBufferOffset:indirectBufferOffset];
+	}
+};
+static MTITraceRenderEncoderDrawpatches2Handler GMTITraceRenderEncoderDrawpatches2Handler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawpatchesPatchindexbufferPatchindexbufferoffsetIndirectbufferIndirectbufferoffset,  void,   NSUInteger numberOfPatchControlPoints, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
 {
+	GMTITraceRenderEncoderDrawpatches2Handler.Trace(Obj, numberOfPatchControlPoints, patchIndexBuffer, patchIndexBufferOffset, indirectBuffer, indirectBufferOffset);
 	Original(Obj, Cmd, numberOfPatchControlPoints,patchIndexBuffer,patchIndexBufferOffset,indirectBuffer,indirectBufferOffset);
 }
 
+struct MTITraceRenderEncoderDrawindexedpatches3Handler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedpatches3Handler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetInstancecountBaseinstance")
+	{
+		
+	}
+	
+	void Trace(id Object, NSUInteger numberOfPatchControlPoints,NSUInteger patchStart,NSUInteger patchCount, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> controlPointIndexBuffer,NSUInteger controlPointIndexBufferOffset,NSUInteger instanceCount,NSUInteger baseInstance)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << numberOfPatchControlPoints;
+		fs << patchStart;
+		fs << patchCount;
+		fs << (uintptr_t)patchIndexBuffer;
+		fs << patchIndexBufferOffset;
+		fs << (uintptr_t)controlPointIndexBuffer;
+		fs << controlPointIndexBufferOffset;
+		fs << instanceCount;
+		fs << baseInstance;
+		
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger numberOfPatchControlPoints;
+		NSUInteger patchStart;
+		NSUInteger patchCount;
+		uintptr_t patchIndexBuffer;
+		NSUInteger patchIndexBufferOffset;
+		uintptr_t controlPointIndexBuffer;
+		NSUInteger controlPointIndexBufferOffset;
+		NSUInteger instanceCount;
+		NSUInteger baseInstance;
+		fs >> numberOfPatchControlPoints;
+		fs >> patchStart;
+		fs >> patchCount;
+		fs >> patchIndexBuffer;
+		fs >> patchIndexBufferOffset;
+		fs >> controlPointIndexBuffer;
+		fs >> controlPointIndexBufferOffset;
+		fs >> instanceCount;
+		fs >> baseInstance;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPatches:numberOfPatchControlPoints patchStart:patchStart patchCount:patchCount patchIndexBuffer:MTITrace::Get().FetchObject(patchIndexBuffer) patchIndexBufferOffset:patchIndexBufferOffset controlPointIndexBuffer:MTITrace::Get().FetchObject(controlPointIndexBuffer) controlPointIndexBufferOffset:controlPointIndexBufferOffset instanceCount:instanceCount baseInstance:baseInstance];
+	}
+};
+static MTITraceRenderEncoderDrawindexedpatches3Handler GMTITraceRenderEncoderDrawindexedpatches3Handler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetInstancecountBaseinstance,  void,   NSUInteger numberOfPatchControlPoints,NSUInteger patchStart,NSUInteger patchCount, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> controlPointIndexBuffer,NSUInteger controlPointIndexBufferOffset,NSUInteger instanceCount,NSUInteger baseInstance)
 {
+	GMTITraceRenderEncoderDrawindexedpatches3Handler.Trace(Obj, numberOfPatchControlPoints, patchStart, patchCount, patchIndexBuffer, patchIndexBufferOffset, controlPointIndexBuffer, controlPointIndexBufferOffset, instanceCount, baseInstance);
 	Original(Obj, Cmd, numberOfPatchControlPoints,patchStart,patchCount,patchIndexBuffer,patchIndexBufferOffset,controlPointIndexBuffer,controlPointIndexBufferOffset,instanceCount,baseInstance);
 }
 
+struct MTITraceRenderEncoderDrawindexedpatches4Handler : public MTITraceCommandHandler
+{
+	MTITraceRenderEncoderDrawindexedpatches4Handler()
+	: MTITraceCommandHandler("MTLRenderCommandEncoder", "DrawindexedpatchesPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetIndirectbufferIndirectbufferoffset")
+	{
+		
+	}
+	
+	void Trace(id Object, NSUInteger numberOfPatchControlPoints, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> controlPointIndexBuffer,NSUInteger controlPointIndexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
+	{
+		std::fstream& fs = MTITrace::Get().BeginWrite();
+		MTITraceCommandHandler::Trace(fs, (uintptr_t)Object);
+		
+		fs << numberOfPatchControlPoints;
+		fs << (uintptr_t)patchIndexBuffer;
+		fs << patchIndexBufferOffset;
+		fs << (uintptr_t)controlPointIndexBuffer;
+		fs << controlPointIndexBufferOffset;
+		fs << (uintptr_t)indirectBuffer;
+		fs << indirectBufferOffset;
+
+		MTITrace::Get().EndWrite();
+	}
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs)
+	{
+		NSUInteger numberOfPatchControlPoints;
+		uintptr_t patchIndexBuffer;
+		NSUInteger patchIndexBufferOffset;
+		uintptr_t controlPointIndexBuffer;
+		NSUInteger controlPointIndexBufferOffset;
+		uintptr_t indirectBuffer;
+		NSUInteger indirectBufferOffset;
+		fs >> numberOfPatchControlPoints;
+		fs >> patchIndexBuffer;
+		fs >> patchIndexBufferOffset;
+		fs >> controlPointIndexBuffer;
+		fs >> controlPointIndexBufferOffset;
+		fs >> indirectBuffer;
+		fs >> indirectBufferOffset;
+		
+		[(id<MTLRenderCommandEncoder>)MTITrace::Get().FetchObject(Header.Receiver) drawIndexedPatches:numberOfPatchControlPoints patchIndexBuffer:MTITrace::Get().FetchObject(patchIndexBuffer) patchIndexBufferOffset:patchIndexBufferOffset controlPointIndexBuffer:MTITrace::Get().FetchObject(controlPointIndexBuffer) controlPointIndexBufferOffset:controlPointIndexBufferOffset indirectBuffer:MTITrace::Get().FetchObject(indirectBuffer) indirectBufferOffset:indirectBufferOffset];
+	}
+};
+static MTITraceRenderEncoderDrawindexedpatches4Handler GMTITraceRenderEncoderDrawindexedpatches4Handler;
 INTERPOSE_DEFINITION( MTIRenderCommandEncoderTrace, DrawindexedpatchesPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetIndirectbufferIndirectbufferoffset,  void,   NSUInteger numberOfPatchControlPoints, id <MTLBuffer> patchIndexBuffer,NSUInteger patchIndexBufferOffset,id <MTLBuffer> controlPointIndexBuffer,NSUInteger controlPointIndexBufferOffset,id <MTLBuffer> indirectBuffer,NSUInteger indirectBufferOffset)
 {
+	GMTITraceRenderEncoderDrawindexedpatches4Handler.Trace(Obj, numberOfPatchControlPoints, patchIndexBuffer, patchIndexBufferOffset, controlPointIndexBuffer, controlPointIndexBufferOffset, indirectBuffer, indirectBufferOffset);
 	Original(Obj, Cmd, numberOfPatchControlPoints,patchIndexBuffer,patchIndexBufferOffset,controlPointIndexBuffer,controlPointIndexBufferOffset,indirectBuffer,indirectBufferOffset);
 }
 
