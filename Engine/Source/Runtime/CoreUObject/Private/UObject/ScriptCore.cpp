@@ -2516,7 +2516,7 @@ DEFINE_FUNCTION(UObject::execAddMulticastDelegate)
 
 	if (DelegateProp && DelegateAddr)
 	{
-		DelegateProp->AddDelegate(MoveTemp(Delegate), Stack.Object, DelegateAddr);
+		DelegateProp->AddDelegate(MoveTemp(Delegate), nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_AddMulticastDelegate, execAddMulticastDelegate );
@@ -2536,7 +2536,7 @@ DEFINE_FUNCTION(UObject::execRemoveMulticastDelegate)
 
 	if (DelegateProp && DelegateAddr)
 	{
-		DelegateProp->RemoveDelegate(Delegate, Stack.Object, DelegateAddr);
+		DelegateProp->RemoveDelegate(Delegate, nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_RemoveMulticastDelegate, execRemoveMulticastDelegate );
@@ -2553,7 +2553,7 @@ DEFINE_FUNCTION(UObject::execClearMulticastDelegate)
 
 	if (DelegateProp && DelegateAddr)
 	{
-		DelegateProp->ClearDelegate(Stack.Object, DelegateAddr);
+		DelegateProp->ClearDelegate(nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_ClearMulticastDelegate, execClearMulticastDelegate );
