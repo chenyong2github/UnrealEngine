@@ -35,6 +35,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "SceneView.h"
 #include "Runtime/Renderer/Private/SceneCore.h"
 #include "LandscapeProxy.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "MeshMaterialShader.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
@@ -850,6 +851,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 {
+	LLM_SCOPE(ELLMTag::Landscape);
+
 	check(HeightmapTexture != nullptr);
 
 	if (IsComponentLevelVisible())

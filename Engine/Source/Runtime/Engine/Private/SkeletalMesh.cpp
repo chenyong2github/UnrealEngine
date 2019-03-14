@@ -613,6 +613,8 @@ bool USkeletalMesh::NeedCPUData(int32 LODIndex)const
 
 void USkeletalMesh::InitResources()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	UpdateUVChannelData(false);
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();

@@ -10,6 +10,7 @@ LandscapeRenderMobile.cpp: Landscape Rendering without using vertex texture fetc
 #include "Serialization/MemoryReader.h"
 #include "PrimitiveSceneInfo.h"
 #include "LandscapeLayerInfoObject.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "MeshMaterialShader.h"
 
 void FLandscapeVertexFactoryMobile::InitRHI()
@@ -378,6 +379,8 @@ SIZE_T FLandscapeComponentSceneProxyMobile::GetTypeHash() const
 
 void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 {
+	LLM_SCOPE(ELLMTag::Landscape);
+
 	if (IsComponentLevelVisible())
 	{
 		RegisterNeighbors();
