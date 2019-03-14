@@ -6,8 +6,6 @@ public class Niagara : ModuleRules
 {
     public Niagara(ReadOnlyTargetRules Target) : base(Target)
     {
-		PrivateIncludePaths.Add("../../../../Shaders/Shared");
-
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "NiagaraCore",

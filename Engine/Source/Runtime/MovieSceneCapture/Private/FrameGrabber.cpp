@@ -92,7 +92,7 @@ void FViewportSurfaceReader::Reset()
 	bQueuedForCapture = false;
 }
 
-void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderToReadback, const FTexture2DRHIRef& SourceBackBuffer, TFunction<void(FColor*, int32, int32)> Callback)
+void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderToReadback, const FViewportRHIRef& ViewportRHI, TFunction<void(FColor*, int32, int32)> Callback)
 {
 	static const FName RendererModuleName( "Renderer" );
 	// @todo: JIRA UE-41879 and UE-43829 - added defensive guards against memory trampling on this render command to try and ascertain why it occasionally crashes
@@ -105,9 +105,7 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 	IRendererModule* RendererModuleDebug = RendererModule;
 
 	bQueuedForCapture = true;
-
-	{
-		FRHICommandListImmediate& RHICmdList = GetImmediateCommandList_ForRenderCommand();
+	auto RenderCommand = [=](FRHICommandListImmediate& RHICmdList, FViewportSurfaceReader* InRenderToReadback){
 
 		// @todo: JIRA UE-41879 and UE-43829. If any of these ensures go off, something has overwritten the memory for this render command (buffer underflow/overflow?)
 		bool bMemoryTrample = !ensureMsgf(RendererModule, TEXT("RendererModule has become null. This indicates a memory trample.")) ||
@@ -118,7 +116,7 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 		if (bMemoryTrample)
 		{
 			// In the hope that 'this' is still ok, triggering the event will prevent a deadlock. If it's not ok, this may crash, but it was going to crash anyway
-			RenderToReadback->AvailableEvent->Trigger();
+			InRenderToReadback->AvailableEvent->Trigger();
 			return;
 		}
 
@@ -175,6 +173,8 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
+			FTexture2DRHIRef SourceBackBuffer = RHICmdList.GetViewportBackBuffer(ViewportRHI);
+
 			const bool bIsSourceBackBufferSameAsWindowSize = SourceBackBuffer->GetSizeX() == WindowSize.X && SourceBackBuffer->GetSizeY() == WindowSize.Y;
 			const bool bIsSourceBackBufferSameAsTargetSize = TargetSize.X == SourceBackBuffer->GetSizeX() && TargetSize.Y == SourceBackBuffer->GetSizeY();
 
@@ -206,25 +206,31 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 		}
 		RHICmdList.EndRenderPass();
 
-		if (RenderToReadback)
+		if (InRenderToReadback)
 		{
 			void* ColorDataBuffer = nullptr;
 
 			int32 Width = 0, Height = 0;
-			RHICmdList.MapStagingSurface(RenderToReadback->ReadbackTexture, ColorDataBuffer, Width, Height);
+			RHICmdList.MapStagingSurface(InRenderToReadback->ReadbackTexture, ColorDataBuffer, Width, Height);
 
 			Callback((FColor*)ColorDataBuffer, Width, Height);
 
-			RHICmdList.UnmapStagingSurface(RenderToReadback->ReadbackTexture);
-			RenderToReadback->AvailableEvent->Trigger();
+			RHICmdList.UnmapStagingSurface(InRenderToReadback->ReadbackTexture);
+			InRenderToReadback->AvailableEvent->Trigger();
 		}
 	};
+
+	ENQUEUE_RENDER_COMMAND(ResolveCaptureFrameTexture)(
+		[RenderCommand, RenderToReadback](FRHICommandListImmediate& RHICmdList)
+		{
+			RenderCommand(RHICmdList, RenderToReadback);
+		}
+	);
 }
 
 FFrameGrabber::FFrameGrabber(TSharedRef<FSceneViewport> Viewport, FIntPoint DesiredBufferSize, EPixelFormat InPixelFormat, uint32 NumSurfaces)
 {
 	State = EFrameGrabberState::Inactive;
-	bIsFirstCaptureFrame = false;
 
 	TargetSize = DesiredBufferSize;
 
@@ -287,9 +293,9 @@ FFrameGrabber::FFrameGrabber(TSharedRef<FSceneViewport> Viewport, FIntPoint Desi
 
 FFrameGrabber::~FFrameGrabber()
 {
-	if (OnBackBufferReadyToPresent.IsValid() && FSlateApplication::IsInitialized())
+	if (OnWindowRendered.IsValid() && FSlateApplication::IsInitialized())
 	{
-		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Remove(OnBackBufferReadyToPresent);
+		FSlateApplication::Get().GetRenderer()->OnSlateWindowRendered().Remove(OnWindowRendered);
 	}
 }
 
@@ -301,9 +307,7 @@ void FFrameGrabber::StartCapturingFrames()
 	}
 
 	State = EFrameGrabberState::Active;
-	bIsFirstCaptureFrame = true;
-
-	OnBackBufferReadyToPresent = FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FFrameGrabber::OnBackBufferReadyToPresentCallback);
+	OnWindowRendered = FSlateApplication::Get().GetRenderer()->OnSlateWindowRendered().AddRaw(this, &FFrameGrabber::OnSlateWindowRendered);
 }
 
 bool FFrameGrabber::IsCapturingFrames() const
@@ -316,15 +320,6 @@ void FFrameGrabber::CaptureThisFrame(FFramePayloadPtr Payload)
 	if (!ensure(State == EFrameGrabberState::Active))
 	{
 		return;
-	}
-
-	// Callbacks to OnBackBufferReadyToPresentCallback() are coming from the RenderThread, which may still be running when we get here, so we need to wait
-	// until it is done before we increment OutstandingFrameCount here and start capturing frames, otherwise we may end up capturing a frame too early.
-	if (bIsFirstCaptureFrame)
-	{
-		bIsFirstCaptureFrame = false;
-
-		FlushRenderingCommands();
 	}
 
 	OutstandingFrameCount.Increment();
@@ -341,8 +336,6 @@ void FFrameGrabber::StopCapturingFrames()
 	}
 
 	State = EFrameGrabberState::PendingShutdown;
-
-	bIsFirstCaptureFrame = false;
 }
 
 void FFrameGrabber::Shutdown()
@@ -356,9 +349,9 @@ void FFrameGrabber::Shutdown()
 
 	if (FSlateApplication::IsInitialized())
 	{
-		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Remove(OnBackBufferReadyToPresent);
+		FSlateApplication::Get().GetRenderer()->OnSlateWindowRendered().Remove(OnWindowRendered);
 	}
-	OnBackBufferReadyToPresent = FDelegateHandle();
+	OnWindowRendered = FDelegateHandle();
 }
 
 bool FFrameGrabber::HasOutstandingFrames() const
@@ -394,7 +387,7 @@ TArray<FCapturedFrameData> FFrameGrabber::GetCapturedFrames()
 	return ReturnFrames;
 }
 
-void FFrameGrabber::OnBackBufferReadyToPresentCallback(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer)
+void FFrameGrabber::OnSlateWindowRendered( SWindow& SlateWindow, void* ViewportRHIPtr )
 {
 	// We only care about our own Slate window
 	TSharedPtr<SWindow> Window = CaptureWindow.Pin();
@@ -445,7 +438,9 @@ void FFrameGrabber::OnBackBufferReadyToPresentCallback(SWindow& SlateWindow, con
 		PrevFrameTarget = nullptr;
 	}
 
-	Surfaces[ThisCaptureIndex].Surface.ResolveRenderTarget(PrevFrameTarget, BackBuffer, [=](FColor* ColorBuffer, int32 Width, int32 Height){
+	const FViewportRHIRef* RHIViewport = (const FViewportRHIRef*)ViewportRHIPtr;
+
+	Surfaces[ThisCaptureIndex].Surface.ResolveRenderTarget(PrevFrameTarget, *RHIViewport, [=](FColor* ColorBuffer, int32 Width, int32 Height){
 		// Handle the frame
 		OnFrameReady(ThisCaptureIndex, ColorBuffer, Width, Height);
 	});

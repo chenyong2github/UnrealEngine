@@ -14,9 +14,6 @@
 #include "LightSceneInfo.h"
 #include "SceneRendering.h"
 #include "DepthRendering.h"
-#include "ScreenSpaceDenoise.h"
-
-class FSceneViewFamilyBlackboard;
 
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
@@ -440,7 +437,7 @@ private:
 
 	bool CanOverlayRayTracingOutput(void) const;
 
-	void RenderRayTracingReflections(
+	void RayTraceReflections(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FRDGTextureRef* OutColorTexture,
@@ -449,28 +446,19 @@ private:
 		int32 HeightFog,
 		float ResolutionFraction);
 
-	void RenderRayTracingShadows(
-		FRDGBuilder& GraphBuilder,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FViewInfo& View,
-		const FLightSceneInfo& LightSceneInfo,
-		const IScreenSpaceDenoiser::FShadowRayTracingConfig& RayTracingConfig,
-		IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements,
-		FRDGTextureRef* OutShadowMask,
-		FRDGTextureRef* OutRayHitDistance);
-
-	void RenderRayTracingStochasticRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
-	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
-
 #if RHI_RAYTRACING
+	void RenderRayTracingOcclusion(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture);
+
 	void VisualizeRectLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& RectLightMipTree, const FIntVector& RectLightMipTreeDimensions);
-	
+	void RenderRayTracingRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& RectLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
+	void RenderRayTracingOcclusionForRectLight(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture);
+	template <int CalcDirectLighting, int EncodeVisibility, int TextureImportanceSampling> void RenderRayTracingRectLightInternal(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& RectLightSceneInfo, TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskTexture, TRefCountPtr<IPooledRenderTarget>& RayDistanceTexture);
+
 	void RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionHitDistanceRT);
 	void CompositeRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT);
-	void RenderRayTracingGlobalIllumination(FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT);
+	void RenderRayTracingGlobalIllumination(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT);
 	void CompositeGlobalIllumination(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& GlobalIlluminationRT);
 
-	void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, FSkyLightSceneProxy* SkyLight);
 	void BuildSkyLightMipTree(FRHICommandListImmediate& RHICmdList, FTextureRHIRef SkyLightTexture, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, FIntVector& SkyLightMipTreeDimensions);
 	void BuildSkyLightMipTreePdf(
 		FRHICommandListImmediate& RHICmdList,
@@ -492,9 +480,10 @@ private:
 
 	void VisualizeSkyLightMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRWBuffer& SkyLightMipTreePosX, FRWBuffer& SkyLightMipTreePosY, FRWBuffer& SkyLightMipTreePosZ, FRWBuffer& SkyLightMipTreeNegX, FRWBuffer& SkyLightMipTreeNegY, FRWBuffer& SkyLightMipTreeNegZ, const FIntVector& SkyLightMipDimensions);
 	void RenderRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
-	
-	void RenderRayTracingTranslucency(FRHICommandListImmediate& RHICmdList);
-	void RenderRayTracingTranslucencyView(
+	void CompositeRayTracingSkyLight(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& SkyLightRT, TRefCountPtr<IPooledRenderTarget>& HitDistanceRT);
+
+	void RayTraceTranslucency(FRHICommandListImmediate& RHICmdList);
+	void RayTraceTranslucencyView(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FRDGTextureRef* OutColorTexture,
@@ -520,23 +509,13 @@ private:
 	void ComputeRayCount(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FTextureRHIParamRef RayCountPerPixelTexture);
 
 	/** Debug ray tracing functions. */
-	void RenderRayTracingDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
-	void RenderRayTracingBarycentrics(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderRayTracedDebug(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderRayTracedBarycentrics(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
 	bool GatherRayTracingWorldInstances(FRHICommandListImmediate& RHICmdList);
 	bool DispatchRayTracingWorldUpdates(FRHICommandListImmediate& RHICmdList);
-	FRHIRayTracingPipelineState* BindRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<const FRayTracingShaderRHIParamRef>& RayGenShaderTable, FRayTracingShaderRHIParamRef MissShader, FRayTracingShaderRHIParamRef DefaultClosestHitShader);
-	FRHIRayTracingPipelineState* BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader);
-
-	// #dxr_todo: register each effect at startup and just loop over them automatically
-	static void PrepareRayTracingReflections(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PrepareRayTracingShadows(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PrepareRayTracingDebug(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-	static void PreparePathTracing(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
-
+	FRHIRayTracingPipelineState* BindRayTracingPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader, FRayTracingShaderRHIParamRef MissShader, FRayTracingShaderRHIParamRef DefaultClosestHitShader);
+	FRHIRayTracingPipelineState* BindRayTracingPipelineForDeferredMaterialGather(FRHICommandList& RHICmdList, const FViewInfo& View, FRayTracingShaderRHIParamRef RayGenShader);
 #endif // RHI_RAYTRACING
 };
 

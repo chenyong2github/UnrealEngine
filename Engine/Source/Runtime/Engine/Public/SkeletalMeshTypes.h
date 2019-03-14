@@ -230,8 +230,7 @@ public:
 	{
 		return bRenderStatic;
 	}
-
-	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) final override;
+	FRayTracingGeometryRHIRef GetDynamicRayTracingGeometryInstance() const final override;
 #endif // RHI_RAYTRACING
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
@@ -365,9 +364,6 @@ protected:
 								   const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector) const;
 
 	void GetMeshElementsConditionallySelectable(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, bool bInSelectable, uint32 VisibilityMap, FMeshElementCollector& Collector) const;
-
-private:
-	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const;
 };
 
 /** Used to recreate all skinned mesh components for a given skeletal mesh */

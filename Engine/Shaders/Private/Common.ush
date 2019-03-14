@@ -1570,14 +1570,6 @@ bool GetGIReplaceState()
 #endif
 }
 
-bool GetRayTracingQualitySwitch()
-{
-#if RAYHITGROUPSHADER
-	return true;
-#else
-	return false;
-#endif
-}
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 struct FWriteToSliceGeometryOutput
@@ -1707,7 +1699,14 @@ uint ReverseBits32( uint bits )
 /** Reverses all the <BitCount> lowest significant bits. */
 uint ReverseBitsN(uint Bitfield, const uint BitCount)
 {
-	return ReverseBits32(Bitfield) >> (32 - BitCount);
+	uint Out = 0;
+	UNROLL
+	for (uint i = 0; i < BitCount; i++)
+	{
+		uint bIsSet = ((Bitfield & (0x1 << i)) >> i);
+		Out |= bIsSet << (BitCount - 1 - i);
+	}
+	return Out;
 }
 
 // see PixelShaderOutputCommon

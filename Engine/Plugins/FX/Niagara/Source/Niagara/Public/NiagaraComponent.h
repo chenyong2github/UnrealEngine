@@ -436,7 +436,7 @@ public:
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
 #if RHI_RAYTRACING
-	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
+	virtual void GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections) override;
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 

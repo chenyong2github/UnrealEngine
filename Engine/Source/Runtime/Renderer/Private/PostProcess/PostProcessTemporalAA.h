@@ -21,7 +21,6 @@ enum class ETAAPassConfig
 	MainUpsampling,
 	DiaphragmDOF,
 	DiaphragmDOFUpsampling,
-	MainSuperSampling,
 
 	MAX
 };
@@ -29,12 +28,12 @@ enum class ETAAPassConfig
 
 static FORCEINLINE bool IsTAAUpsamplingConfig(ETAAPassConfig Pass)
 {
-	return Pass == ETAAPassConfig::MainUpsampling || Pass == ETAAPassConfig::DiaphragmDOFUpsampling || Pass == ETAAPassConfig::MainSuperSampling;
+	return Pass == ETAAPassConfig::MainUpsampling || Pass == ETAAPassConfig::DiaphragmDOFUpsampling;
 }
 
 static FORCEINLINE bool IsMainTAAConfig(ETAAPassConfig Pass)
 {
-	return Pass == ETAAPassConfig::Main || Pass == ETAAPassConfig::MainUpsampling || Pass == ETAAPassConfig::MainSuperSampling;
+	return Pass == ETAAPassConfig::Main || Pass == ETAAPassConfig::MainUpsampling;
 }
 
 static FORCEINLINE bool IsDOFTAAConfig(ETAAPassConfig Pass)

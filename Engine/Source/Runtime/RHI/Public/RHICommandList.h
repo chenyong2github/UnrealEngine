@@ -560,7 +560,6 @@ private:
 	friend class FRHICommandListIterator;
 
 protected:
-	bool bAsyncPSOCompileAllowed;
 	FRHIGPUMask GPUMask;
 	void Reset();
 
@@ -1835,36 +1834,6 @@ struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdat
 };
 
 #if RHI_RAYTRACING
-struct FRHICommandCopyBufferRegion final : public FRHICommand<FRHICommandCopyBufferRegion>
-{
-	FVertexBufferRHIParamRef DestBuffer;
-	uint64 DstOffset;
-	FVertexBufferRHIParamRef SourceBuffer;
-	uint64 SrcOffset;
-	uint64 NumBytes;
-
-	explicit FRHICommandCopyBufferRegion(FVertexBufferRHIParamRef InDestBuffer, uint64 InDstOffset, FVertexBufferRHIParamRef InSourceBuffer, uint64 InSrcOffset, uint64 InNumBytes)
-		: DestBuffer(InDestBuffer)
-		, DstOffset(InDstOffset)
-		, SourceBuffer(InSourceBuffer)
-		, SrcOffset(InSrcOffset)
-		, NumBytes(InNumBytes)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FRHICommandCopyBufferRegions final : public FRHICommand<FRHICommandCopyBufferRegions>
-{
-	const TArrayView<const FCopyBufferRegionParams> Params;
-
-	explicit FRHICommandCopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> InParams)
-		: Params(InParams)
-	{}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHICommandBuildAccelerationStructure>
 {
 	FRayTracingGeometryRHIParamRef Geometry;
@@ -1950,15 +1919,24 @@ struct FRHICommandRayTraceDispatch final : public FRHICommand<FRHICommandRayTrac
 	FRayTracingPipelineStateRHIParamRef Pipeline;
 	FRayTracingSceneRHIParamRef Scene;
 	FRayTracingShaderBindings GlobalResourceBindings;
-	FRayTracingShaderRHIParamRef RayGenShader;
+	uint32 RayGenShaderIndex;
 	uint32 Width;
 	uint32 Height;
 
-	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, FRayTracingShaderRHIParamRef InRayGenShader, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InRayGenShaderIndex, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
+		: Pipeline(InPipeline)
+		, Scene(nullptr)
+		, GlobalResourceBindings(InGlobalResourceBindings)
+		, RayGenShaderIndex(InRayGenShaderIndex)
+		, Width(InWidth)
+		, Height(InHeight)
+	{}
+
+	FRHICommandRayTraceDispatch(FRayTracingPipelineStateRHIParamRef InPipeline, uint32 InRayGenShaderIndex, FRayTracingSceneRHIParamRef InScene, const FRayTracingShaderBindings& InGlobalResourceBindings, uint32 InWidth, uint32 InHeight)
 		: Pipeline(InPipeline)
 		, Scene(InScene)
 		, GlobalResourceBindings(InGlobalResourceBindings)
-		, RayGenShader(InRayGenShader)
+		, RayGenShaderIndex(InRayGenShaderIndex)
 		, Width(InWidth)
 		, Height(InHeight)
 	{}
@@ -2013,11 +1991,6 @@ class RHI_API FRHICommandList : public FRHICommandListBase
 public:
 
 	FORCEINLINE FRHICommandList(FRHIGPUMask GPUMask) : FRHICommandListBase(GPUMask) {}
-
-	bool AsyncPSOCompileAllowed() const
-	{
-		return bAsyncPSOCompileAllowed;
-	}
 
 	/** Custom new/delete with recycling */
 	void* operator new(size_t Size);
@@ -3002,35 +2975,6 @@ public:
 
 #if RHI_RAYTRACING
 	// Ray tracing API
-	FORCEINLINE_DEBUGGABLE void CopyBufferRegion(FVertexBufferRHIParamRef DestBuffer, uint64 DstOffset, FVertexBufferRHIParamRef SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
-	{
-		// No copy/DMA operation inside render passes
-		check(IsOutsideRenderPass());
-
-		if (Bypass())
-		{
-			GetContext().RHICopyBufferRegion(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandCopyBufferRegion)(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes);
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void CopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-	{
-		// No copy/DMA operation inside render passes
-		check(IsOutsideRenderPass());
-
-		if (Bypass())
-		{
-			GetContext().RHICopyBufferRegions(Params);
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandCopyBufferRegions)(AllocArray(Params));
-		}
-	}
 
 	FORCEINLINE_DEBUGGABLE void BuildAccelerationStructure(FRayTracingGeometryRHIParamRef Geometry)
 	{
@@ -3119,15 +3063,27 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, FRayTracingShaderRHIParamRef RayGenShader, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, uint32 RayGenShaderIndex, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
 	{
 		if (Bypass())
 		{
-			GetContext().RHIRayTraceDispatch(Pipeline, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+			GetContext().RHIRayTraceDispatch(Pipeline, RayGenShaderIndex, GlobalResourceBindings, Width, Height);
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShaderIndex, GlobalResourceBindings, Width, Height);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void RayTraceDispatch(FRayTracingPipelineStateRHIParamRef Pipeline, uint32 RayGenShaderIndex, FRayTracingSceneRHIParamRef Scene, const FRayTracingShaderBindings& GlobalResourceBindings, uint32 Width, uint32 Height)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIRayTraceDispatch(Pipeline, RayGenShaderIndex, Scene, GlobalResourceBindings, Width, Height);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandRayTraceDispatch)(Pipeline, RayGenShaderIndex, Scene, GlobalResourceBindings, Width, Height);
 		}
 	}
 
@@ -4388,14 +4344,13 @@ class RHI_API FRHICommandList_RecursiveHazardous : public FRHICommandList
 	FRHICommandList_RecursiveHazardous()
 		: FRHICommandList(FRHIGPUMask::All())
 	{
-		bAsyncPSOCompileAllowed = false;
+
 	}
 public:
 	FRHICommandList_RecursiveHazardous(IRHICommandContext *Context)
 		: FRHICommandList(FRHIGPUMask::All())
 	{
 		SetContext(Context);
-		bAsyncPSOCompileAllowed = false;
 	}
 };
 

@@ -16,8 +16,6 @@ class FRectLightSceneProxy : public FLocalLightSceneProxy
 public:
 	float		SourceWidth;
 	float		SourceHeight;
-	float		BarnDoorAngle;
-	float		BarnDoorLength;
 	UTexture*	SourceTexture;
 #if RHI_RAYTRACING
 	FRWBuffer   RectLightMipTree;

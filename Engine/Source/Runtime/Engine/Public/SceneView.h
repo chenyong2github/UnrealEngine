@@ -26,7 +26,6 @@ class FViewElementDrawer;
 class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
-class FIESLightProfileResource;
 
 // #dxr_todo: share this enum with ray tracing shader code via RayTracingDefinitions.ush
 enum class ERayTracingRenderMode
@@ -1033,10 +1032,6 @@ public:
 	/** Feature level for this scene */
 	const ERHIFeatureLevel::Type FeatureLevel;
 
-#if RHI_RAYTRACING
-	FIESLightProfileResource* IESLightProfileResource;
-#endif
-
 protected:
 	friend class FSceneRenderer;
 
@@ -1217,6 +1212,7 @@ public:
 
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
+
 #endif
 
 	/** Will return custom data associated with the specified primitive index.	*/

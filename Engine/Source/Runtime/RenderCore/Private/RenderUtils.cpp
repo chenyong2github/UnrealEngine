@@ -198,7 +198,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.  		
-		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
+		FRHIResourceCreateInfo CreateInfo;
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		TextureRHI = Texture2D;
 
@@ -290,7 +290,6 @@ public:
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackVolumeTexture");
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = Texture3D;	
 		}
@@ -342,7 +341,6 @@ public:
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackArrayTexture");
 			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = TextureArray;
 
@@ -474,7 +472,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.
-		FRHIResourceCreateInfo CreateInfo(TEXT("SolidColorCube"));
+		FRHIResourceCreateInfo CreateInfo;
 		FTextureCubeRHIRef TextureCube = RHICreateTextureCube(1, PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
 		TextureRHI = TextureCube;
 
@@ -550,7 +548,7 @@ public:
 		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Create the texture RHI.
-			FRHIResourceCreateInfo CreateInfo(TEXT("BlackCubeArray"));
+			FRHIResourceCreateInfo CreateInfo;
 			FTextureCubeRHIRef TextureCubeArray = RHICreateTextureCubeArray(1,1,PF_B8G8R8A8,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = TextureCubeArray;
 

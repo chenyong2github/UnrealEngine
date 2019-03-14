@@ -176,9 +176,7 @@ bool DiaphragmDOF::WireSceneColorPasses(FPostprocessContext& Context, const FRen
 	const bool bSupportGatheringBokehSimulation = FRCPassDiaphragmDOFGather::SupportsBokehSimmulation(ShaderPlatform);
 
 	// Whether should use shade permutation that does lower quality accumulation.
-	// TODO: this is becoming a mess.
 	const bool bUseLowAccumulatorQuality = CVarAccumulatorQuality.GetValueOnRenderThread() == 0;
-	const bool bUseCinematicAccumulatorQuality = CVarAccumulatorQuality.GetValueOnRenderThread() == 2;
 
 	// Setting for scattering budget upper bound.
 	const float MaxScatteringRatio = FMath::Clamp(CVarScatterMaxSpriteRatio.GetValueOnRenderThread(), 0.0f, 1.0f);
@@ -332,7 +330,7 @@ bool DiaphragmDOF::WireSceneColorPasses(FPostprocessContext& Context, const FRen
 		FRenderingCompositePass* NodeTemporalAA = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
 			Context, TAAParameters,
 			Context.View.PrevViewInfo.DOFPreGatherHistory,
-			&ViewState->PrevFrameViewInfo.DOFPreGatherHistory));
+			&ViewState->PendingPrevFrameViewInfo.DOFPreGatherHistory));
 		NodeTemporalAA->SetInput(ePId_Input0, GatherColorSetup0);
 		NodeTemporalAA->SetInput(ePId_Input1, GatherColorSetup1);
 		NodeTemporalAA->SetInput(ePId_Input2, VelocityInput);
@@ -636,14 +634,7 @@ bool DiaphragmDOF::WireSceneColorPasses(FPostprocessContext& Context, const FRen
 			GatherParameters.QualityConfig = FRCPassDiaphragmDOFGather::EQualityConfig::LowQualityAccumulator;
 			if (bBackgroundHybridScattering && BgdHybridScatteringMode == EHybridScatterMode::Occlusion)
 			{
-				if (bUseCinematicAccumulatorQuality)
-				{
-					GatherParameters.QualityConfig = FRCPassDiaphragmDOFGather::EQualityConfig::Cinematic;
-				}
-				else
-				{
-					GatherParameters.QualityConfig = FRCPassDiaphragmDOFGather::EQualityConfig::HighQualityWithHybridScatterOcclusion;
-				}
+				GatherParameters.QualityConfig = FRCPassDiaphragmDOFGather::EQualityConfig::HighQualityWithHybridScatterOcclusion;
 			}
 
 			FRenderingCompositePass* GatherPass = BuildGatherPass(GatherParameters, /* ResolutionDivisor = */ 1);

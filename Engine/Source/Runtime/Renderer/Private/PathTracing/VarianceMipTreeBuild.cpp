@@ -213,8 +213,7 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture, 
 		VarianceMipTreeRT->GetRenderTargetItem().TargetableTexture
 	};
-	FRHIRenderPassInfo RenderPassInfo(2, RenderTargets, ERenderTargetActions::Load_Store);
-	RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("VarianceMipTree Visualization"));
+	SetRenderTargets(RHICmdList, 2, RenderTargets, SceneContext.GetSceneDepthSurface(), ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilNop);
 
 	// PSO definition
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -243,7 +242,6 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 		SceneContext.GetBufferSizeXY(),
 		*VertexShader);
 	ResolveSceneColor(RHICmdList);
-	RHICmdList.EndRenderPass();
 
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, VarianceMipTree.UAV);
 

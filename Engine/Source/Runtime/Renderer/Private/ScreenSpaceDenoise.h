@@ -6,7 +6,6 @@
 
 
 class FViewInfo;
-struct FPreviousViewInfo;
 class FLightSceneInfo;
 class FSceneViewFamilyBlackboard;
 
@@ -15,32 +14,18 @@ class FSceneViewFamilyBlackboard;
 class RENDERER_API IScreenSpaceDenoiser
 {
 public:
-	/** Maximum number a denoiser might be able to denoise at the same time. */
-	static const int32 kMaxBatchSize = 4;
-
-
 	/** What the shadow ray tracing needs to output */
-	enum class EShadowRequirements
+	enum class EShadowRayTracingOutputs
 	{
-		// Denoiser is unable to denoise that configuration.
-		Bailout,
-
-		// Denoiser only need ray hit distance for 1spp.
-		// FShadowPenumbraInputs::Penumbra: non generated
-		// FShadowPenumbraInputs::ClosestOccluder:
-		//   -2: invalid sample,
-		//   -1: miss
-		//   >0: hit distance of occluding geometry
 		ClosestOccluder,
+		PenumbraAndClosestOccluder
+	};
 
-		// Denoiser only need ray hit distance and the diffuse mask of the penumbra.
-		// FShadowPenumbraInputs::Penumbra: average diffuse penumbra mask in [0; 1]
-		// FShadowPenumbraInputs::ClosestOccluder:
-		//   -1: invalid sample
-		//   >0: average hit distance of occluding geometry
-		PenumbraAndAvgOccluder,
-
-		PenumbraAndClosestOccluder,
+	/** What the denoiser would like to have as an input. */
+	struct FShadowRayTracingConfig
+	{
+		// The output the shadow denoiser needs.
+		EShadowRayTracingOutputs Requirements;
 	};
 
 	/** All the inputs of the shadow denoiser. */
@@ -54,13 +39,6 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffusePenumbra)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SpecularPenumbra)
 	END_SHADER_PARAMETER_STRUCT()
-
-	/** The configuration of the reflection ray tracing. */
-	struct FShadowRayTracingConfig
-	{
-		// Number of rays per pixels.
-		int32 RayCountPerPixel = 1;
-	};
 
 	/** The configuration of the reflection ray tracing. */
 	struct FReflectionsRayTracingConfig
@@ -86,29 +64,17 @@ public:
 	virtual const TCHAR* GetDebugName() const = 0;
 
 	/** Returns the ray tracing configuration that should be done for denoiser. */
-	virtual EShadowRequirements GetShadowRequirements(
+	virtual FShadowRayTracingConfig GetShadowRayTracingConfig(
 		const FViewInfo& View,
-		const FLightSceneInfo& LightSceneInfo,
-		const FShadowRayTracingConfig& RayTracingConfig) const = 0;
+		const FLightSceneInfo& LightSceneInfo) const = 0;
 
-	/** Structure that contains all the parameters the denoiser needs to denoise one shadow. */
-	struct FShadowParameters
-	{
-		const FLightSceneInfo* LightSceneInfo = nullptr;
-		FShadowRayTracingConfig RayTracingConfig;
-		FShadowPenumbraInputs InputTextures;
-	};
-
-	/** Entry point to denoise the diffuse mask of a shadow. */
-	// TODO: correct specular.
-	virtual void DenoiseShadows(
+	/** Entry point to denoise a shadow. */
+	virtual FShadowPenumbraOutputs DenoiseShadowPenumbra(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
+		const FLightSceneInfo& LightSceneInfo,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const TStaticArray<FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize>& InputParameters,
-		const int32 InputParameterCount,
-		TStaticArray<FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize>& Outputs) const = 0;
+		const FShadowPenumbraInputs& ShadowInputs) const = 0;
 	
 	/** All the inputs of the reflection denoiser. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FReflectionsInputs, )
@@ -125,7 +91,6 @@ public:
 	virtual FReflectionsOutputs DenoiseReflections(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
 		const FReflectionsInputs& ReflectionInputs,
 		const FReflectionsRayTracingConfig RayTracingConfig) const = 0;
@@ -147,7 +112,6 @@ public:
 	virtual FAmbientOcclusionOutputs DenoiseAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
 		const FAmbientOcclusionInputs& ReflectionInputs,
 		const FAmbientOcclusionRayTracingConfig RayTracingConfig) const = 0;
@@ -169,16 +133,6 @@ public:
 	virtual FGlobalIlluminationOutputs DenoiseGlobalIllumination(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
-		const FSceneViewFamilyBlackboard& SceneBlackboard,
-		const FGlobalIlluminationInputs& Inputs,
-		const FAmbientOcclusionRayTracingConfig Config) const = 0;
-
-	/** Entry point to denoise SkyLight. */
-	virtual FGlobalIlluminationOutputs DenoiseSkyLight(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneViewFamilyBlackboard& SceneBlackboard,
 		const FGlobalIlluminationInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
