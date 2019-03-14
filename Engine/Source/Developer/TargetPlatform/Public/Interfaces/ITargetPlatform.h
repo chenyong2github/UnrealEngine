@@ -84,6 +84,9 @@ enum class ETargetPlatformFeatures
 
 	/* The platform supports memory mapped animation */
 	MemoryMappedAnimation,
+
+	/* The platform supports sparse textures */
+	SparseTextures,
 };
 
 
