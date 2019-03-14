@@ -63,8 +63,8 @@ struct FTexture2DMipMap
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
-		const void* LockReadOnly() const { return TexelData; }
-		void* Lock(uint32 LockFlags) { return TexelData; }
+		const void* LockReadOnly() const;
+		void* Lock(uint32 LockFlags);
 		void Unlock() const;
 		void* Realloc(int32 NumBytes);
 		void GetCopy(void** Dest, bool bDiscardInternalCopy = true);
