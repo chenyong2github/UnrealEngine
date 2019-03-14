@@ -986,7 +986,23 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 #endif
 
 #if WITH_ENGINE && CSV_PROFILER
-static void UpdateCoreCsvStats()
+static void UpdateCoreCsvStats_BeginFrame()
+{
+#if PLATFORM_WINDOWS
+	if (FCsvProfiler::Get()->IsCapturing())
+	{
+		const uint32 ProcessId = (uint32)GetCurrentProcessId();
+		float ProcessUsageFraction = 0.f, OtherUsageFraction = 0.f, IdleUsageFraction = 0.f;
+		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, OtherUsageFraction, IdleUsageFraction);
+
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Process, ProcessUsageFraction, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Other, OtherUsageFraction, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Idle, IdleUsageFraction, ECsvCustomStatOp::Set);
+	}
+#endif
+}
+
+static void UpdateCoreCsvStats_EndFrame()
 {
 	CSV_CUSTOM_STAT_GLOBAL(RenderThreadTime, FPlatformTime::ToMilliseconds(GRenderThreadTime), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_GLOBAL(GameThreadTime, FPlatformTime::ToMilliseconds(GGameThreadTime), ECsvCustomStatOp::Set);
@@ -1676,7 +1692,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 #if WITH_ENGINE && CSV_PROFILER
 	if (!IsRunningDedicatedServer())
 	{
-		FCoreDelegates::OnEndFrame.AddStatic(UpdateCoreCsvStats);
+		FCoreDelegates::OnBeginFrame.AddStatic(UpdateCoreCsvStats_BeginFrame);
+		FCoreDelegates::OnEndFrame.AddStatic(UpdateCoreCsvStats_EndFrame);
 	}
 	FCsvProfiler::Get()->Init();
 #endif
