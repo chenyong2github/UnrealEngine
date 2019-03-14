@@ -6868,9 +6868,13 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 
 void FSlateApplication::OnOSPaint( const TSharedRef< FGenericWindow >& PlatformWindow )
 {
+	// This is only called in a modal move loop and in cooked build, the back buffer already
+	// has UI composited so don't do anything to prevent drawing UI over existing UI (FORT-153543)
+#if WITH_EDITOR
 	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow( SlateWindows, PlatformWindow );
 	PrivateDrawWindows( Window );
 	Renderer->FlushCommands();
+#endif
 }
 
 FWindowSizeLimits FSlateApplication::GetSizeLimitsForWindow(const TSharedRef<FGenericWindow>& Window) const
