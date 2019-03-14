@@ -598,6 +598,11 @@ void UBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	{
 		FBlueprintEditorUtils::PostDuplicateBlueprint(this, bDuplicateForPIE);
 	}
+
+	if (GeneratedClass)
+	{
+		GeneratedClass->GetDefaultObject()->PostDuplicate(bDuplicateForPIE);
+	}
 }
 
 extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
