@@ -1668,6 +1668,8 @@ namespace Audio
 				Audio::DownmixBuffer(DownmixData.NumInputChannels, 8, *DownmixData.PostEffectBuffers, DownmixData.SevenOneSubmixInfo.OutputBuffer, DownmixData.SevenOneSubmixInfo.ChannelMap.ChannelStartGains, DownmixData.SevenOneSubmixInfo.ChannelMap.ChannelDestinationGains);
 			}
 		}
+
+		DownmixData.DeviceSubmixInfo.ChannelMap.CopyDestinationToStart();
 	}
 
 	void FMixerSourceManager::ComputeDownmix2D(FSourceDownmixData& DownmixData)
