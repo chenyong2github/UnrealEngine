@@ -23,7 +23,11 @@ public:
     
     virtual bool IsTaskComplete() const;
 
-    
+    //Used to provide some extra debug information over normal GetRequestID()
+    //Returns string in format of X.Y where X is the underlying Task Identifier if set and Y is what was set in the SetRequestID() call if this reqeust has associated with a task.
+    //Returns the same as GetRequestID() if no task has been associated yet.
+	const FString& GetRequestDebugID() const;
+
 private:
     //Super simple linked list with volatile pointers to next element
     struct FTaskNode
@@ -34,7 +38,7 @@ private:
     
 private:
     const FString& GetURLForRetry(bool bShouldIncrementRetryCountFirst);
-    void AssociateWithTask(NSURLSessionTask* ExistingTask);
+    bool AssociateWithTask(NSURLSessionTask* ExistingTask);
 	void SetRequestAsSuccess(const FString& CompletedTempDownloadLocation);
     void SetRequestAsFailed();
     void CompleteRequest_Internal(bool bWasRequestSuccess, const FString& CompletedTempDownloadLocation);
@@ -60,18 +64,22 @@ private:
 	FThreadSafeCounter ResumeDataRetryCount;
 
 	volatile FTaskNode* FirstTask;
+	
+    volatile int FirstTaskIdentifier;
+    FString CombinedRequestID;
 
     volatile int32 bIsTaskActive;
     volatile int32 bIsTaskPaused;
 	volatile int32 bIsCompleted;
 	volatile int32 bIsFailed;
+	volatile int32 bIsRequestSwitchingTasks;
 	volatile int32 bWasTaskStartedInBG;
     volatile int32 bHasAlreadyFinishedRequest;
     volatile int32 bIsPendingCancel;
     
 	volatile int64 DownloadProgress;
     volatile int64 DownloadProgressSinceLastUpdateSent;
-    
+
     friend class FApplePlatformBackgroundHttpManager;
 };
 
