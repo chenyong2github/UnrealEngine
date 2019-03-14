@@ -157,6 +157,14 @@ public:
 	UFUNCTION(BlueprintGetter)
 	ULevelSequencePlayer* GetSequencePlayer() const;
 
+	/* Hide burnin */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	void HideBurnin();
+
+	/* Show burnin */
+	UFUNCTION(BlueprintCallable, Category = "Game|Cinematic")
+	void ShowBurnin();
+
 	/** Refresh this actor's burn in */
 	void RefreshBurnIn();
 
@@ -272,6 +280,9 @@ private:
 	/** Burn-in widget */
 	UPROPERTY()
 	ULevelSequenceBurnIn* BurnInInstance;
+
+	UPROPERTY()
+	bool bShowBurnin;
 };
 
 
