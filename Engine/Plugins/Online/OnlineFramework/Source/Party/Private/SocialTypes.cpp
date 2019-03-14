@@ -21,7 +21,7 @@ bool FUserPlatform::operator==(const FUserPlatform& Other) const
 	return PlatformStr == Other.PlatformStr;
 }
 
-const FString FUserPlatform::ToPlatformIconKey() const
+const FString FUserPlatform::GetTypeName() const
 {
 	if (IsDesktop())
 	{
