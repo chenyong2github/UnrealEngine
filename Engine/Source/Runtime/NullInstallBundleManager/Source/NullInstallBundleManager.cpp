@@ -45,6 +45,20 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 		return RetInfo;
 	}
 
+	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) override
+	{
+		FInstallBundleContentState State;
+		State.State = EInstallBundleContentState::UpToDate;
+		Callback.ExecuteIfBound(State);
+	}
+
+	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) override
+	{
+		FInstallBundleContentState State;
+		State.State = EInstallBundleContentState::UpToDate;
+		Callback.ExecuteIfBound(State);
+	}
+
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) override
 	{
 
@@ -64,26 +78,8 @@ private:
 	
 };
 
-class FNullInstallBundleManagerModule : public IPlatformInstallBundleManagerModule
-{
-public:
-	virtual void StartupModule() override
-	{
-		InstallBundleManager = MakeUnique<FNullInstallBundleManager>();
-	}
-
-	virtual void PreUnloadCallback() override
-	{
-		InstallBundleManager.Reset();
-	}
-
-	virtual IPlatformInstallBundleManager* GetInstallBundleManager() override
-	{
-		return InstallBundleManager.Get();
-	}
-
-private:
-	TUniquePtr<FNullInstallBundleManager> InstallBundleManager;
+class FNullInstallBundleManagerModule : public TPlatformInstallBundleManagerModule<FNullInstallBundleManager>
+{	
 };
 
 IMPLEMENT_MODULE(FNullInstallBundleManagerModule, NullInstallBundleManager);

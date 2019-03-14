@@ -631,9 +631,11 @@ int32 FMacPlatformMisc::NumberOfCores()
 		else
 		{
 			SIZE_T Size = sizeof(int32);
+			int Result = sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0);
 		
-			if (sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0) != 0)
+			if (Result != 0)
 			{
+				UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.physicalcpu...) failed with error %d. Defaulting to one core"), Result);
 				NumberOfCores = 1;
 			}
 		}
@@ -643,7 +645,19 @@ int32 FMacPlatformMisc::NumberOfCores()
 
 int32 FMacPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
-	return FApplePlatformMisc::NumberOfCores();
+	static int32 NumberOfCores = -1;
+	if (NumberOfCores == -1)
+	{
+		SIZE_T Size = sizeof(int32);
+		int Result = sysctlbyname("hw.logicalcpu", &NumberOfCores, &Size, NULL, 0);
+		
+		if (Result != 0)
+		{
+			UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.logicalcpu...) failed with error %d. Defaulting to one core"), Result);
+			NumberOfCores = 1;
+		}
+	}
+	return NumberOfCores;
 }
 
 void FMacPlatformMisc::NormalizePath(FString& InPath)

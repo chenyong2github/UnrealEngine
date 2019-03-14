@@ -676,6 +676,7 @@ public class IOSPlatform : Platform
             // Set encoding to support unicode filenames
             Zip.AlternateEncodingUsage = ZipOption.Always;
             Zip.AlternateEncoding = Encoding.UTF8;
+			Zip.UseZip64WhenSaving = Zip64Option.AsNecessary;
 
 			// set the compression level
 			bool bUseMaxIPACompression = ShouldUseMaxIPACompression(Params);

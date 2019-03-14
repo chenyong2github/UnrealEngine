@@ -83,6 +83,47 @@ FWebJSParam::FWebJSParam(const FWebJSParam& Other)
 	}
 }
 
+FWebJSParam::FWebJSParam(FWebJSParam&& Other)
+	: Tag(Other.Tag)
+{
+	switch (Other.Tag)
+	{
+	case PTYPE_BOOL:
+		BoolValue = Other.BoolValue;
+		break;
+	case PTYPE_DOUBLE:
+		DoubleValue = Other.DoubleValue;
+		break;
+	case PTYPE_INT:
+		IntValue = Other.IntValue;
+		break;
+	case PTYPE_STRING:
+		StringValue = Other.StringValue;
+		Other.StringValue = nullptr;
+		break;
+	case PTYPE_NULL:
+		break;
+	case PTYPE_OBJECT:
+		ObjectValue = Other.ObjectValue;
+		Other.ObjectValue = nullptr;
+		break;
+	case PTYPE_STRUCT:
+		StructValue = Other.StructValue;
+		Other.StructValue = nullptr;
+		break;
+	case PTYPE_ARRAY:
+		ArrayValue = Other.ArrayValue;
+		Other.ArrayValue = nullptr;
+		break;
+	case PTYPE_MAP:
+		MapValue = Other.MapValue;
+		Other.MapValue = nullptr;
+		break;
+	}
+
+	Other.Tag = PTYPE_NULL;
+}
+
 void FWebJSCallbackBase::Invoke(int32 ArgCount, FWebJSParam Arguments[], bool bIsError) const
 {
 	TSharedPtr<FWebJSScripting> Scripting = ScriptingPtr.Pin();

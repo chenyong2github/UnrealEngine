@@ -762,6 +762,16 @@ public:
 			// execute any console commands
 			if (Message.Command == TEXT("console"))
 			{
+				// executed too early, must fail
+				if (GEngine == nullptr)
+				{
+					// call the completion delegate with all text output
+					TArray<FString> Keys;
+					Message.Parameters.GetKeys(Keys);
+					Message.OnCompleteDelegate({ }, FString::Printf(TEXT("GEngine does not exist yet, unable to execute console command (%s)"), Keys.Num() ? *Keys[0] : TEXT("None")));
+					return;
+				}
+				
 				// gather all of the output
 				FStringOutputDevice Output;
 				ULocalPlayer* LocalPlayer = GEngine->GetDebugLocalPlayer();
