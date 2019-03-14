@@ -909,6 +909,7 @@ public:
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingIrradianceRT;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSampleCountRT;
+	FIntRect PathTracingRect;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
 
@@ -1312,6 +1313,7 @@ public:
 		PathTracingSampleCountRT.SafeRelease();
 		VarianceMipTreeDimensions = FIntVector(0);
 		TotalRayCount = 0;
+		PathTracingRect = FIntRect(0, 0, 0, 0);
 		IESLightProfileResources.Release();
 #endif 
 	}
