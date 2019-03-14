@@ -393,6 +393,7 @@ namespace UnrealBuildTool
 				TaskElement.SetAttribute("Tool", string.Format("Tool{0}", ActionIndex));
 				TaskElement.SetAttribute("WorkingDir", Action.WorkingDirectory.FullName);
 				TaskElement.SetAttribute("SkipIfProjectFailed", "true");
+				TaskElement.SetAttribute("AllowRestartOnLocal", "true");
 
 				// Create a semi-colon separated list of the other tasks this task depends on the results of.
 				List<string> DependencyNames = new List<string>();
@@ -507,8 +508,9 @@ namespace UnrealBuildTool
 				XGEProcess.WaitForExit();
 				return XGEProcess.ExitCode == 0;
 			}
-			catch (Exception)
+			catch (Exception Ex)
 			{
+				Log.WriteException(Ex, null);
 				return false;
 			}
 		}

@@ -48,6 +48,10 @@
 
 namespace Audio
 {
+#if PLATFORM_WINDOWS
+	HMODULE FMixerPlatformXAudio2::XAudio2Dll = nullptr;
+#endif
+
 	void FXAudio2VoiceCallback::OnBufferEnd(void* BufferContext)
 	{
 		check(BufferContext);
@@ -60,8 +64,8 @@ namespace Audio
 		, XAudio2System(nullptr)
 		, OutputAudioStreamMasteringVoice(nullptr)
 		, OutputAudioStreamSourceVoice(nullptr)
-		, bMoveAudioStreamToNewAudioDevice(false)
 		, LastDeviceSwapTime(0.0)
+		, TimeSinceNullDeviceWasLastChecked(0.0f)
 		, bIsComInitialized(false)
 		, bIsInitialized(false)
 		, bIsDeviceOpen(false)
@@ -126,7 +130,7 @@ namespace Audio
 			return false;
 		}
 
-		// Some devices spam device swap notifications, so we want to rate-limit them to prevent double/tripple triggering.
+		// Some devices spam device swap notifications, so we want to rate-limit them to prevent double/triple triggering.
 		static const int32 MinSwapTimeMs = 10;
 		if (CurrentTime - LastDeviceSwapTime > (double)MinSwapTimeMs / 1000.0)
 		{
@@ -134,6 +138,26 @@ namespace Audio
 			return true;
 		}
 		return false;
+	}
+
+	bool FMixerPlatformXAudio2::ResetXAudio2System()
+	{
+		SAFE_RELEASE(XAudio2System);
+
+		uint32 Flags = 0;
+
+#if WITH_XMA2
+		// We need to raise this flag explicitly to prevent initializing SHAPE twice, because we are allocating SHAPE in FXMAAudioInfo
+		Flags |= XAUDIO2_DO_NOT_USE_SHAPE;
+#endif
+
+		if (FAILED(XAudio2Create(&XAudio2System, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask())))
+		{
+			XAudio2System = nullptr;
+			return false;
+		}
+
+		return true;
 	}
 
 	bool FMixerPlatformXAudio2::InitializeHardware()
@@ -154,7 +178,10 @@ namespace Audio
 		// Load the xaudio2 library and keep a handle so we can free it on teardown
 		// Note: windows internally ref-counts the library per call to load library so 
 		// when we call FreeLibrary, it will only free it once the refcount is zero
-		XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
+		if (XAudio2Dll == nullptr)
+		{
+			XAudio2Dll = LoadLibraryA("XAudio2_7.dll");
+		}
 
 		// returning null means we failed to load XAudio2, which means everything will fail
 		if (XAudio2Dll == nullptr)
@@ -173,7 +200,7 @@ namespace Audio
 		Flags |= XAUDIO2_DO_NOT_USE_SHAPE;
 #endif
 
-		if (FAILED(XAudio2Create(&XAudio2System, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask())))
+		if (!XAudio2System && FAILED(XAudio2Create(&XAudio2System, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask())))
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Audio", "XAudio2Error", "Failed to initialize audio. This may be an issue with your installation of XAudio 2.7. XAudio2 is available in the DirectX End-User Runtime (June 2010)."));
 			return false;
@@ -205,12 +232,14 @@ namespace Audio
 #if PLATFORM_WINDOWS
 
 #if PLATFORM_64BITS
-		if (XAudio2Dll)
+		if (XAudio2Dll != nullptr && GIsRequestingExit)
 		{
 			if (!FreeLibrary(XAudio2Dll))
 			{
 				UE_LOG(LogAudio, Warning, TEXT("Failed to free XAudio2 Dll"));
 			}
+
+			XAudio2Dll = nullptr;
 		}
 #endif
 
@@ -487,10 +516,10 @@ namespace Audio
 		{
 			check(!bIsUsingNullDevice);
 
-			AudioStreamInfo.NumOutputFrames = 512;
+			AudioStreamInfo.NumOutputFrames = OpenStreamParams.NumFrames;
 			AudioStreamInfo.DeviceInfo.OutputChannelArray = { EAudioMixerChannel::FrontLeft, EAudioMixerChannel::FrontRight };
 			AudioStreamInfo.DeviceInfo.NumChannels = 2;
-			AudioStreamInfo.DeviceInfo.SampleRate = 48000;
+			AudioStreamInfo.DeviceInfo.SampleRate = OpenStreamParams.SampleRate;
 			AudioStreamInfo.DeviceInfo.Format = EAudioMixerStreamDataFormat::Float;
 		}
 
@@ -591,6 +620,7 @@ namespace Audio
 			// Signal that the thread that is running the update that we're stopping
 			if (OutputAudioStreamSourceVoice)
 			{
+				FScopeLock ScopeLock(&DeviceSwapCriticalSection);
 				OutputAudioStreamSourceVoice->DestroyVoice();
 				OutputAudioStreamSourceVoice = nullptr;
 			}
@@ -618,6 +648,19 @@ namespace Audio
 	{
 #if PLATFORM_WINDOWS
 
+		uint32 NumDevices = 0;
+
+		check(XAudio2System != nullptr);
+		XAUDIO2_RETURN_ON_FAIL(XAudio2System->GetDeviceCount(&NumDevices));
+
+		// If we're running the null device, This function is called every second or so.
+		// Because of this, we early exit from this function if we're running the null device
+		// and there still are no devices.
+		if (bIsUsingNullDevice && !NumDevices)
+		{
+			return true;
+		}
+
 		UE_LOG(LogTemp, Log, TEXT("Resetting audio stream to device id %s"), *InNewDeviceId);
 
 		if (bIsUsingNullDevice)
@@ -632,8 +675,20 @@ namespace Audio
 				return true;
 			}
 
-			// Flag that we're changing audio devices so we stop submitting audio in the callbacks
-			bAudioDeviceChanging = true;
+			// If an XAudio2 callback is in flight,
+			// we have to wait for it here.
+			FScopeLock ScopeLock(&DeviceSwapCriticalSection);
+
+			// Now that we've properly locked, raise the bIsInDeviceSwap flag
+			// in case FlushSourceBuffers() calls OnBufferEnd on this thread,
+			// and DeviceSwapCriticalSection.TryLock() is still returning true
+			bIsInDeviceSwap = true;
+
+			// Flush all buffers. Because we've locked DeviceSwapCriticalSection, ReadNextBuffer will early exit and we will not submit any additional buffers.
+			if (OutputAudioStreamSourceVoice)
+			{
+				OutputAudioStreamSourceVoice->FlushSourceBuffers();
+			}
 
 			if (OutputAudioStreamSourceVoice)
 			{
@@ -649,28 +704,18 @@ namespace Audio
 				OutputAudioStreamMasteringVoice = nullptr;
 			}
 
-			// Stop the engine from generating audio
-			if (XAudio2System)
-			{
-				XAudio2System->StopEngine();
-				SAFE_RELEASE(XAudio2System);
-			}
+			bIsInDeviceSwap = false;
 		}
-		uint32 Flags = 0;
-
-#if WITH_XMA2
-		// We need to raise this flag explicitly to prevent initializing SHAPE twice, because we are allocating SHAPE in FXMAAudioInfo
-		Flags |= XAUDIO2_DO_NOT_USE_SHAPE;
-#endif
-
-		// Create a new xaudio2 system
-		XAUDIO2_RETURN_ON_FAIL(XAudio2Create(&XAudio2System, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask()));
-
-		uint32 NumDevices = 0;
-		XAUDIO2_RETURN_ON_FAIL(XAudio2System->GetDeviceCount(&NumDevices));
 
 		if (NumDevices > 0)
 		{
+			if (!ResetXAudio2System())
+			{
+				// Reinitializing the XAudio2System failed, so we have to exit here.
+				StartRunningNullDevice();
+				return true;
+			}
+
 			// Now get info on the new audio device we're trying to reset to
 			uint32 DeviceIndex = 0;
 			if (!InNewDeviceId.IsEmpty())
@@ -708,24 +753,19 @@ namespace Audio
 			// Create the output source voice
 			XAUDIO2_RETURN_ON_FAIL(XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback));
 
-			// Start the xaudio2 system back up
-			XAudio2System->StartEngine();
+			const int32 NewNumSamples = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels;
+
+			// Clear the output buffers with zero's and submit one
+			for (int32 Index = 0; Index < OutputBuffers.Num(); ++Index)
+			{
+				OutputBuffers[Index].Reset(NewNumSamples);
+			}
 		}
 		else
-		{
+		{	
 			// If we don't have any hardware playback devices available, use the null device callback to render buffers.
 			StartRunningNullDevice();
 		}
-
-		const int32 NewNumSamples = OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels;
-
-		// Clear the output buffers with zero's and submit one
- 		for (int32 Index = 0; Index < OutputBuffers.Num(); ++Index)
- 		{
- 			OutputBuffers[Index].Reset(NewNumSamples);
- 		}
-
-		bAudioDeviceChanging = false;
 
 #endif // #if PLATFORM_WINDOWS
 
@@ -740,6 +780,7 @@ namespace Audio
 			CurrentBufferWriteIndex = 1;
 
 			SubmitBuffer(OutputBuffers[CurrentBufferReadIndex].GetBufferData());
+			check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffers[CurrentBufferReadIndex].GetBuffer().Num());
 
 			AudioRenderEvent->Trigger();
 
@@ -767,6 +808,14 @@ namespace Audio
 	{
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_OPUS(TEXT("OPUS"));
+		static FName NAME_XMA(TEXT("XMA"));
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2)
+		{
+			return NAME_XMA;
+		}
+#endif
 
 		if (InSoundWave->IsStreaming())
 		{
@@ -780,7 +829,6 @@ namespace Audio
 #if WITH_XMA2
 		if (InSoundWave->NumChannels <= 2)
 		{
-			static FName NAME_XMA(TEXT("XMA"));
 			return NAME_XMA;
 		}
 #endif //#if WITH_XMA2
@@ -796,6 +844,13 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
 		check(InSoundWave);
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (InSoundWave->IsStreaming() && InSoundWave->NumChannels <= 2 )
+		{
+			return new FXMAAudioInfo();
+		}
+#endif
 
 		if (InSoundWave->IsStreaming())
 		{
@@ -832,6 +887,19 @@ namespace Audio
 	FAudioPlatformSettings FMixerPlatformXAudio2::GetPlatformSettings() const
 	{
 		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
+	}
+
+	void FMixerPlatformXAudio2::OnHardwareUpdate()
+	{
+		if (bIsUsingNullDevice)
+		{
+			float CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - TimeSinceNullDeviceWasLastChecked > 1.0f)
+			{
+				bMoveAudioStreamToNewAudioDevice = true;
+				TimeSinceNullDeviceWasLastChecked = CurrentTime;
+			}
+		}
 	}
 
 	bool FMixerPlatformXAudio2::DisablePCMAudioCaching() const

@@ -62,7 +62,7 @@
 #include "Engine/ReplicationDriver.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/LevelScriptActor.h"
-#include "Serialization/ArchiveCountMem.h"
+#include "Net/NetworkGranularMemoryLogging.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -328,6 +328,7 @@ void UNetDriver::PostInitProperties()
 	
 		OnLevelRemovedFromWorldHandle = FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNetDriver::OnLevelRemovedFromWorld);
 		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNetDriver::OnLevelAddedToWorld);
+		PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UNetDriver::PostGarbageCollect);
 
 		LoadChannelDefinitions();
 	}
@@ -1692,6 +1693,17 @@ void UNetDriver::TickDispatch( float DeltaTime )
 
 void UNetDriver::PostTickDispatch()
 {
+	// Flush out of order packet caches for connections that did not receive the missing packets during TickDispatch
+	if (ServerConnection != nullptr)
+	{
+		ServerConnection->FlushPacketOrderCache(true);
+	}
+
+	for (UNetConnection* CurConn : ClientConnections)
+	{
+		CurConn->FlushPacketOrderCache(true);
+	}
+
 	if (ReplicationDriver)
 	{
 		ReplicationDriver->PostTickDispatch();
@@ -2237,54 +2249,30 @@ void UNetDriver::Serialize( FArchive& Ar )
 		//		DDoSDetection data
 		// These are probably insignificant, though.
 
-#define WITH_SCOPED_COUNT_LOG 1
+		GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "UNetDriver::Serialize");
 
-#if WITH_SCOPED_COUNT_LOG
-		const bool bIsCountMemArchive = FString(TEXT("FArchiveCountMem")).Equals(Ar.GetArchiveName());
-		auto GetMaxBytes = [bIsCountMemArchive](FArchive& InAr) -> uint64
-		{
-			return bIsCountMemArchive ? ((FArchiveCountMem&)InAr).GetMax() : 0;
-		};
-
-		uint64 BeforeAction = 0;
-		uint64 AfterAction = GetMaxBytes(Ar);
-
-#define SCOPED_COUNT_LOG(SCOPE_NAME, WORK) \
-	{ \
-		BeforeAction = AfterAction; \
-		WORK; \
-		AfterAction = GetMaxBytes(Ar); \
-		UE_LOG(LogNet, Log, TEXT("UNetDriver::Serialize: " SCOPE_NAME " is %d bytes"), AfterAction - BeforeAction); \
-	}
-
-#else
-		
-#define SCOPED_COUNT_LOG(SCOPE_NAME, WORK) WORK;
-
-#endif // WITH_SCOPED_COUNT_LOG
-
-		SCOPED_COUNT_LOG("MappedClientConnection", MappedClientConnections.CountBytes(Ar));
-		SCOPED_COUNT_LOG("RecentlyDisconnectedClients", RecentlyDisconnectedClients.CountBytes(Ar));
-		SCOPED_COUNT_LOG("GuidCache",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("MappedClientConnection", MappedClientConnections.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentlyDisconnectedClients", RecentlyDisconnectedClients.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("GuidCache",
 			if (FNetGUIDCache const * const LocalGuidCache = GuidCache.Get())
 			{
 				LocalGuidCache->CountBytes(Ar);
 			}
 		);
 		
-		SCOPED_COUNT_LOG("LocalNetCache",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LocalNetCache",
 			if (FClassNetCacheMgr const * const LocalNetCache = NetCache.Get())
 			{
 				LocalNetCache->CountBytes(Ar);
 			}
 		);
 
-		SCOPED_COUNT_LOG("LastPrioritizedActors", LastPrioritizedActors.CountBytes(Ar));
-		SCOPED_COUNT_LOG("LastRelevantActors", LastRelevantActors.CountBytes(Ar));
-		SCOPED_COUNT_LOG("LastSentActors", LastSentActors.CountBytes(Ar));
-		SCOPED_COUNT_LOG("LastNonRelevantActors", LastNonRelevantActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastPrioritizedActors", LastPrioritizedActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastRelevantActors", LastRelevantActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastSentActors", LastSentActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("LastNonRelevantActors", LastNonRelevantActors.CountBytes(Ar));
 
-		SCOPED_COUNT_LOG("DestroyedStartupOrDormantActors",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedStartupOrDormantActors",
 			DestroyedStartupOrDormantActors.CountBytes(Ar);
 
 			for (const auto& DestroyedStartupOrDormantActorPair : DestroyedStartupOrDormantActors)
@@ -2292,14 +2280,14 @@ void UNetDriver::Serialize( FArchive& Ar )
 				if (FActorDestructionInfo const * const DestructionInfo = DestroyedStartupOrDormantActorPair.Value.Get())
 				{
 					Ar.CountBytes(sizeof(FActorDestructionInfo), sizeof(FActorDestructionInfo));
-					Ar << const_cast<FString&>(DestructionInfo->PathName);
+					DestructionInfo->PathName.CountBytes(Ar);
 				}
 			}
 		);
 
-		SCOPED_COUNT_LOG("RenamedStartupActors", RenamedStartupActors.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RenamedStartupActors", RenamedStartupActors.CountBytes(Ar));
 
-		SCOPED_COUNT_LOG("RepChangedPropertyTrackerMap",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepChangedPropertyTrackerMap",
 			RepChangedPropertyTrackerMap.CountBytes(Ar);
 
 			for (const auto& RepChangedPropertyTrackerPair : RepChangedPropertyTrackerMap)
@@ -2308,7 +2296,7 @@ void UNetDriver::Serialize( FArchive& Ar )
 			}
 		);
 
-		SCOPED_COUNT_LOG("RepLayoutMap",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepLayoutMap",
 			RepLayoutMap.CountBytes(Ar);
 
 			for (const auto& RepLayoutPair : RepLayoutMap)
@@ -2321,7 +2309,7 @@ void UNetDriver::Serialize( FArchive& Ar )
 			}
 		);
 
-		SCOPED_COUNT_LOG("ReplicationChangeListMap", 
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ReplicationChangeListMap", 
 			ReplicationChangeListMap.CountBytes(Ar);
 
 			for (const auto& ReplicationChangeListPair : ReplicationChangeListMap)
@@ -2330,22 +2318,33 @@ void UNetDriver::Serialize( FArchive& Ar )
 			}
 		);
 
-		SCOPED_COUNT_LOG("GuidToReplicatorMap", GuidToReplicatorMap.CountBytes(Ar));
-		SCOPED_COUNT_LOG("UnmappedReplicators", UnmappedReplicators.CountBytes(Ar));
-		SCOPED_COUNT_LOG("AllOwnedReplicators", AllOwnedReplicators.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("GuidToReplicatorMap", GuidToReplicatorMap.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("UnmappedReplicators", UnmappedReplicators.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("AllOwnedReplicators",
+		
+			// AllOwnedReplicators is the superset of all initialized FObjectReplicators,
+			// including DormantReplicators, Replicators on Channels, and UnmappedReplicators.
+			AllOwnedReplicators.CountBytes(Ar);
+			
+			for (FObjectReplicator const * const OwnedReplicator : AllOwnedReplicators)
+			{
+				if (OwnedReplicator)
+				{
+					Ar.CountBytes(sizeof(FObjectReplicator), sizeof(FObjectReplicator));
+					OwnedReplicator->CountBytes(Ar);
+				}
+			}
+		);
 
 		// Replicators are owned by UActorChannels, and so we don't track them here.
 
-		SCOPED_COUNT_LOG("NetworkObjects",
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetworkObjects",
 			if (FNetworkObjectList const * const NetObjList = NetworkObjects.Get())
 			{
 				Ar.CountBytes(sizeof(FNetworkObjectList), sizeof(FNetworkObjectList));
 				NetworkObjects->CountBytes(Ar);
 			}
 		);
-
-#undef SCOPED_COUNT_LOG
-#undef WITH_SCOPED_COUNT_LOG
 	}
 }
 
@@ -2379,6 +2378,7 @@ void UNetDriver::FinishDestroy()
 
 		FWorldDelegates::LevelRemovedFromWorld.Remove(OnLevelRemovedFromWorldHandle);
 		FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldHandle);
+		FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
 	}
 	else
 	{
@@ -3116,28 +3116,44 @@ UChildConnection* UNetDriver::CreateChild(UNetConnection* Parent)
 	return Child;
 }
 
+void UNetDriver::PostGarbageCollect()
+{
+	// We can't perform this logic in AddReferencedObjects because destroying GCObjects
+	// during Garbage Collection is illegal (@see UGCObjectReferencer::RemoveObject).
+	// FRepLayout's are GC objects, and either map could be holding onto the last reference
+	// to a given RepLayout.
+
+	for (auto It = RepLayoutMap.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = ReplicationChangeListMap.CreateIterator(); It; ++It)
+	{
+		if (!It.Value().IsObjectValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UNetDriver* This = CastChecked<UNetDriver>(InThis);
 	Super::AddReferencedObjects(This, Collector);
 
-	// Compact any invalid entries
+	// TODO: It feels like we could get away without FRepLayout needing to track references.
+	//			E.G., if we detected that FObjectReplicator / FReplicationChangelistMgrs detected
+	//			their associated objects were destroyed, we could destroy the Shadow Buffers
+	//			which should be the last thing referencing the FRepLayout and the Properties.
 	for (auto It = This->RepLayoutMap.CreateIterator(); It; ++It)
 	{
-		if (!It.Value().IsValid())
-		{
-			It.RemoveCurrent();
-		}
+		It.Value()->AddReferencedObjects(Collector);
 	}
-
-	for (auto It = This->ReplicationChangeListMap.CreateIterator(); It; ++It)
-	{
-		if (!It.Value().IsValid())
-		{
-			It.RemoveCurrent();
-		}
-	}
-
+	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
 	{
 		Collector.AddReferencedObject(Replicator->ObjectPtr, This);
@@ -3149,6 +3165,7 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		Collector.AddReferencedObject(It.Value(), This);
 	}
 }
+
 
 #if DO_ENABLE_NET_TEST
 
@@ -5015,10 +5032,7 @@ void UNetDriver::CleanupWorldForSeamlessTravel()
 				// skips over AWorldSettings actors for an unknown reason.
 				if (Level->GetWorldSettings())
 				{
-					if (ServerConnection != nullptr)
-					{
-						NotifyActorLevelUnloaded(Level->GetWorldSettings());
-					}
+					NotifyActorLevelUnloaded(Level->GetWorldSettings());
 				}
 			}
 		}
@@ -5080,7 +5094,7 @@ static void	DumpRelevantActors( UWorld* InWorld )
 
 TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropertyTracker(UObject* Obj)
 {
-	check(IsServer());
+	check(IsServer() || MaySendProperties());
 
 	FRepChangedPropertyTrackerWrapper * GlobalPropertyTrackerPtr = RepChangedPropertyTrackerMap.Find( Obj );
 
@@ -5108,27 +5122,25 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 
 TSharedPtr<FRepLayout> UNetDriver::GetObjectClassRepLayout( UClass * Class )
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Class );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Class);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromObjectClass( Class, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Class, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Class, FRepLayout::CreateFromClass(Class, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
 }
 
-TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout( UFunction * Function )
+TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout(UFunction * Function)
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Function );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Function);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromFunction( Function, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Function, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Function, FRepLayout::CreateFromFunction(Function, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
@@ -5136,13 +5148,12 @@ TSharedPtr<FRepLayout> UNetDriver::GetFunctionRepLayout( UFunction * Function )
 
 TSharedPtr<FRepLayout> UNetDriver::GetStructRepLayout( UStruct * Struct )
 {
-	TSharedPtr<FRepLayout> * RepLayoutPtr = RepLayoutMap.Find( Struct );
+	TSharedPtr<FRepLayout>* RepLayoutPtr = RepLayoutMap.Find(Struct);
 
-	if ( !RepLayoutPtr ) 
+	if (!RepLayoutPtr) 
 	{
-		FRepLayout * RepLayout = new FRepLayout();
-		RepLayout->InitFromStruct( Struct, ServerConnection );
-		RepLayoutPtr = &RepLayoutMap.Add( Struct, TSharedPtr<FRepLayout>( RepLayout ) );
+		ECreateRepLayoutFlags Flags = MaySendProperties() ? ECreateRepLayoutFlags::MaySendProperties : ECreateRepLayoutFlags::None;
+		RepLayoutPtr = &RepLayoutMap.Add(Struct, FRepLayout::CreateFromStruct(Struct, ServerConnection, Flags));
 	}
 
 	return *RepLayoutPtr;
@@ -5150,7 +5161,7 @@ TSharedPtr<FRepLayout> UNetDriver::GetStructRepLayout( UStruct * Struct )
 
 TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr( UObject* Object )
 {
-	check(IsServer());
+	check(IsServer() || MaySendProperties());
 
 	FReplicationChangelistMgrWrapper* ReplicationChangeListMgrPtr = ReplicationChangeListMap.Find(Object);
 
@@ -5163,7 +5174,9 @@ TSharedPtr< FReplicationChangelistMgr > UNetDriver::GetReplicationChangeListMgr(
 
 	if (!ReplicationChangeListMgrPtr)
 	{
-		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, FReplicationChangelistMgrWrapper(Object, TSharedPtr< FReplicationChangelistMgr >(new FReplicationChangelistMgr(this, Object))));
+		const TSharedPtr<const FRepLayout> RepLayout = GetObjectClassRepLayout(Object->GetClass());
+		FReplicationChangelistMgrWrapper Wrapper(Object, RepLayout->CreateReplicationChangelistMgr(Object));
+		ReplicationChangeListMgrPtr = &ReplicationChangeListMap.Add(Object, Wrapper);
 	}
 
 	return ReplicationChangeListMgrPtr->ReplicationChangelistMgr;

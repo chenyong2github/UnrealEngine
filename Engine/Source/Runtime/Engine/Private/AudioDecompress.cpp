@@ -23,7 +23,6 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, LastPCMByteSize(0)
 	, LastPCMOffset(0)
 	, bStoringEndOfFile(false)
-	, StreamingSoundWave(nullptr)
 	, CurrentChunkIndex(0)
 	, bPrintChunkFailMessage(true)
 	, SrcBufferPadding(0)
@@ -142,9 +141,9 @@ void IStreamedCompressedInfo::ExpandFile(uint8* DstBuffer, struct FSoundQualityI
 	}
 }
 
-bool IStreamedCompressedInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool IStreamedCompressedInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
 {
-	StreamingSoundWave = Wave;
+	check(StreamingSoundWave == Wave);
 
 	// Get the first chunk of audio data (should always be loaded)
 	CurrentChunkIndex = 0;
@@ -290,6 +289,12 @@ int32 IStreamedCompressedInfo::DecompressToPCMBuffer(uint16 FrameSize)
 	LastPCMOffset = 0;
 	
 	const FDecodeResult DecodeResult = Decode(SrcPtr, FrameSize, LastDecodedPCM.GetData(), LastDecodedPCM.Num());
+	if (DecodeResult.NumCompressedBytesConsumed != INDEX_NONE )
+	{
+		SrcBufferOffset -= FrameSize;
+		SrcBufferOffset += DecodeResult.NumCompressedBytesConsumed;
+	}
+
 	return DecodeResult.NumAudioFramesProduced;
 }
 
@@ -607,7 +612,6 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 
 void FAsyncAudioDecompressWorker::DoWork()
 {
-	LLM_SCOPE(ELLMTag::Audio);
 	LLM_SCOPE(ELLMTag::AudioDecompress);
 
 	if (AudioInfo)
@@ -686,6 +690,7 @@ void FAsyncAudioDecompressWorker::DoWork()
 
 		if (Wave->DecompressionType == DTYPE_Native)
 		{
+			UE_CLOG(Wave->OwnedBulkDataPtr && Wave->OwnedBulkDataPtr->GetMappedRegion(), LogAudio, Warning, TEXT("Mapped audio (%s) was discarded after decompression. This is not ideal as it takes more load time and doesn't save memory."), *Wave->GetName());
 			// Delete the compressed data
 			Wave->RemoveAudioResource();
 		}

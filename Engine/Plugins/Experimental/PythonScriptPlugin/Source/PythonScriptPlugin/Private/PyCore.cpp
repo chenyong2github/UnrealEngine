@@ -4,6 +4,7 @@
 #include "PyGenUtil.h"
 #include "PyReferenceCollector.h"
 #include "PyWrapperTypeRegistry.h"
+#include "IPythonScriptPlugin.h"
 
 #include "PyWrapperBase.h"
 #include "PyWrapperObject.h"
@@ -1009,13 +1010,35 @@ PyTypeObject PyUFunctionDefType = InitializePyUFunctionDefType();
 namespace PyCore
 {
 
+bool ShouldLog(const FString& InLogMessage)
+{
+	if (InLogMessage.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const TCHAR LogChar : InLogMessage)
+	{
+		if (!FChar::IsWhitespace(LogChar))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 PyObject* Log(PyObject* InSelf, PyObject* InArgs)
 {
 	PyObject* PyObj = nullptr;
 	if (PyArg_ParseTuple(InArgs, "O:log", &PyObj))
 	{
 		const FString LogMessage = PyUtil::PyObjectToUEString(PyObj);
-		UE_LOG(LogPython, Log, TEXT("%s"), *LogMessage);
+		if (ShouldLog(LogMessage))
+		{
+			UE_LOG(LogPython, Log, TEXT("%s"), *LogMessage);
+			GetPythonLogCapture().Broadcast(EPythonLogOutputType::Info, *LogMessage);
+		}
 
 		Py_RETURN_NONE;
 	}
@@ -1026,10 +1049,14 @@ PyObject* Log(PyObject* InSelf, PyObject* InArgs)
 PyObject* LogWarning(PyObject* InSelf, PyObject* InArgs)
 {
 	PyObject* PyObj = nullptr;
-	if (PyArg_ParseTuple(InArgs, "O:log", &PyObj))
+	if (PyArg_ParseTuple(InArgs, "O:log_warning", &PyObj))
 	{
 		const FString LogMessage = PyUtil::PyObjectToUEString(PyObj);
-		UE_LOG(LogPython, Warning, TEXT("%s"), *LogMessage);
+		if (ShouldLog(LogMessage))
+		{
+			UE_LOG(LogPython, Warning, TEXT("%s"), *LogMessage);
+			GetPythonLogCapture().Broadcast(EPythonLogOutputType::Warning, *LogMessage);
+		}
 
 		Py_RETURN_NONE;
 	}
@@ -1040,10 +1067,14 @@ PyObject* LogWarning(PyObject* InSelf, PyObject* InArgs)
 PyObject* LogError(PyObject* InSelf, PyObject* InArgs)
 {
 	PyObject* PyObj = nullptr;
-	if (PyArg_ParseTuple(InArgs, "O:log", &PyObj))
+	if (PyArg_ParseTuple(InArgs, "O:log_error", &PyObj))
 	{
 		const FString LogMessage = PyUtil::PyObjectToUEString(PyObj);
-		UE_LOG(LogPython, Error, TEXT("%s"), *LogMessage);
+		if (ShouldLog(LogMessage))
+		{
+			UE_LOG(LogPython, Error, TEXT("%s"), *LogMessage);
+			GetPythonLogCapture().Broadcast(EPythonLogOutputType::Error, *LogMessage);
+		}
 
 		Py_RETURN_NONE;
 	}
@@ -1644,9 +1675,9 @@ PyMethodDef PyCoreMethods[] = {
 
 void InitializeModule()
 {
-	GPythonPropertyContainer.Reset(NewObject<UStruct>(GetTransientPackage(), TEXT("PythonProperties")));
+	GPythonPropertyContainer.Reset(NewObject<UStruct>(GetTransientPackage(), TEXT("PythonProperties"), RF_Transient));
 
-	GPythonTypeContainer.Reset(NewObject<UPackage>(nullptr, TEXT("/Engine/PythonTypes"), RF_Public));
+	GPythonTypeContainer.Reset(NewObject<UPackage>(nullptr, TEXT("/Engine/PythonTypes"), RF_Public | RF_Transient));
 	GPythonTypeContainer->SetPackageFlags(PKG_ContainsScript);
 
 	PyGenUtil::FNativePythonModule NativePythonModule;
@@ -1715,6 +1746,12 @@ void InitializeModule()
 	InitializePyWrapperMath(NativePythonModule);
 
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
+}
+
+FPythonLogCapture& GetPythonLogCapture()
+{
+	static FPythonLogCapture PythonLogCapture;
+	return PythonLogCapture;
 }
 
 }

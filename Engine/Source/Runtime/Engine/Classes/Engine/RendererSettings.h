@@ -197,6 +197,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileUseLegacyShadingModel : 1;
 
+	UPROPERTY(config, meta = (
+		ConsoleVariable = "r.Mobile.UseHWsRGBEncoding", DisplayName = "Single-pass linear rendering",
+		ToolTip = "If true then mobile single-pass (non mobile HDR) rendering will use HW accelerated sRGB encoding/decoding. Available only on Oculus for now."))
+		uint32 bMobileUseHWsRGBEncoding : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta=(
 		ConsoleVariable="r.Mobile.AllowDitheredLODTransition", DisplayName="Allow Dithered LOD Transition",
 		ToolTip="Whether to support 'Dithered LOD Transition' material option on mobile platforms. Enabling this may degrade performance as rendering will not benefit from Early-Z optimization.",
@@ -442,11 +447,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Whether to use a depth only pass to initialize Z culling for the base pass."))
 	TEnumAsByte<EEarlyZPass::Type> EarlyZPass;
 
-	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
-		ConsoleVariable="r.EarlyZPassMovable",DisplayName="Movables in early Z-pass",
-		ToolTip="Whether to render movable objects in the early Z pass. Need to reload the level!"))
-	uint32 bEarlyZPassMovable:1;
-
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		EditCondition = "EarlyZPass == OpaqueAndMasked && bEarlyZPassMovable",
 		ConsoleVariable = "r.EarlyZPassOnlyMaterialMasking", DisplayName = "Mask material only in early Z-pass",
@@ -545,12 +545,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bMobileMultiViewDirect : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
-		ConsoleVariable = "vr.MonoscopicFarField", DisplayName = "Monoscopic Far Field",
-		ToolTip = "Enable monoscopic far field rendering (only available for mobile).",
-		ConfigRestartRequired = true))
-		uint32 bMonoscopicFarField : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
 		ConsoleVariable = "vr.RoundRobinOcclusion", DisplayName = "Round Robin Occlusion Queries",
 		ToolTip = "Enable round-robin scheduling of occlusion queries for VR.",
 		ConfigRestartRequired = false))
@@ -566,6 +560,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable="r.WireframeCullThreshold",DisplayName="Wireframe Cull Threshold",
 		ToolTip="Screen radius at which wireframe objects are culled. Larger values can improve performance when viewing a scene in wireframe."))
 	float WireframeCullThreshold;
+
+	/**
+	"Ray Tracing settings."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = RayTracing, meta = (
+		ConsoleVariable = "r.RayTracing", DisplayName = "Ray Tracing",
+		ToolTip = "Enable Ray Tracing capabilities.  Requires 'Support Compute Skincache' before project is allowed to set this.",
+		ConfigRestartRequired = true))
+		uint32 bEnableRayTracing : 1;
 
 	/**
 	"Stationary skylight requires permutations of the basepass shaders.  Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
@@ -604,6 +607,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		ConsoleVariable = "r.SkinCache.CompileShaders", DisplayName = "Support Compute Skincache",
+		ToolTip = "Cannot be disabled while Ray Tracing is enabled as it is then required.",
 		ConfigRestartRequired = true))
 		uint32 bSupportSkinCacheShaders : 1;
 
@@ -688,6 +692,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const UProperty* InProperty) const override;
 #endif
 
 	//~ End UObject Interface

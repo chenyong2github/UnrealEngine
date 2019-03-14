@@ -77,12 +77,6 @@ public:
 	/** Attempt to find an existing slot relating to the given node */
 	TSharedPtr<SSequencerTrackLane> FindTrackSlot(const TSharedRef<FSequencerDisplayNode>& InNode);
 
-	/** Access the cached geometry for this track area */
-	const FGeometry& GetCachedGeometry() const
-	{
-		return CachedGeometry;
-	}
-
 	/** Assign a tree view to this track area. */
 	void SetTreeView(const TSharedPtr<SSequencerTreeView>& InTreeView);
 
@@ -128,9 +122,6 @@ private:
 	TPanelChildren<FTrackAreaSlot> Children;
 
 private:
-
-	/** Cached geometry. */
-	FGeometry CachedGeometry;
 
 	/** A map of child slot content that exist in our view. */
 	TMap<TSharedPtr<FSequencerDisplayNode>, TWeakPtr<SSequencerTrackLane>> TrackSlots;

@@ -206,11 +206,11 @@ public:
 struct FNetNameMapping
 {
 public:
-	// Come up with a valid, unique (within the scope of NetNameMap) name based on an existing Net object.
+	// Come up with a valid, unique (within the scope of NetNameMap) name based on an existing Net object and (optional) context.
 	// The resulting name is stable across multiple calls if given the same pointer.
-	FString MakeValidName(const UEdGraphNode* Net) { return MakeValidNameImpl(Net); }
-	FString MakeValidName(const UEdGraphPin* Net) { return MakeValidNameImpl(Net); }
-	FString MakeValidName(const UAnimGraphNode_Base* Net){ return MakeValidNameImpl(Net); }
+	FString MakeValidName(const UEdGraphNode* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
+	FString MakeValidName(const UEdGraphPin* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
+	FString MakeValidName(const UAnimGraphNode_Base* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
 
 private:
 	KISMETCOMPILER_API static FString MakeBaseName(const UEdGraphNode* Net);
@@ -218,7 +218,7 @@ private:
 	KISMETCOMPILER_API static FString MakeBaseName(const UAnimGraphNode_Base* Net);
 
 	template< typename NetType >
-	FString MakeValidNameImpl(NetType Net)
+	FString MakeValidNameImpl(NetType Net, const FString& Context)
 	{
 		// Check to see if this net was already used to generate a name
 		if (FString* Result = NetToName.Find(Net))
@@ -227,7 +227,14 @@ private:
 		}
 		else
 		{
-			FString NetName = GetUniqueName(MakeBaseName(Net));
+			FString BaseName = MakeBaseName(Net);
+			if (!Context.IsEmpty())
+			{
+				BaseName += FString::Printf(TEXT("_%s"), *Context);
+			}
+
+			FString NetName = GetUniqueName(MoveTemp(BaseName));
+
 			NetToName.Add(Net, NetName);
 			NameToNet.Add(NetName, Net);
 			return NetName;
@@ -246,7 +253,7 @@ private:
 		{
 			++Postfix;
 			// Add an integer to the base name and check if it's free:
-			NewNetName = NetName + FString::FromInt(Postfix);
+			NewNetName = NetName + TEXT("_") + FString::FromInt(Postfix);
 			ExistingNet = NameToNet.Find(NewNetName);
 		}
 		return NewNetName;

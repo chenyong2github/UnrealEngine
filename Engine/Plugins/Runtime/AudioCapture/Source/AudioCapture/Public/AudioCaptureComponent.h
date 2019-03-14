@@ -12,6 +12,8 @@ class AUDIOCAPTURE_API UAudioCaptureComponent : public USynthComponent
 {
 	GENERATED_BODY()
 
+protected:
+
 	UAudioCaptureComponent(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin USynthComponent interface
@@ -50,5 +52,5 @@ private:
 	int32 FramesSinceStarting;
 	int32 ReadSampleIndex;
 	FThreadSafeBool bIsDestroying;
-	FThreadSafeBool bIsReadyForForFinishDestroy;
+	FThreadSafeBool bIsNotReadyForForFinishDestroy;
 };

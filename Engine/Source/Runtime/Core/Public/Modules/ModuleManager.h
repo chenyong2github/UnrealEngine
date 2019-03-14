@@ -438,7 +438,8 @@ public:
 	 *
 	 * @return The delegate.
 	 */
-	FSimpleMulticastDelegate& OnProcessLoadedObjectsCallback()
+	DECLARE_EVENT_TwoParams(FModuleManager, ProcessLoadedObjectsEvent, FName, bool);
+	ProcessLoadedObjectsEvent& OnProcessLoadedObjectsCallback()
 	{
 		return ProcessLoadedObjectsCallback;
 	}
@@ -583,7 +584,7 @@ private:
 	FModulesChangedEvent ModulesChangedEvent;
 	
 	/** Multicast delegate called to process any new loaded objects. */
-	FSimpleMulticastDelegate ProcessLoadedObjectsCallback;
+	ProcessLoadedObjectsEvent ProcessLoadedObjectsCallback;
 
 	/** When module manager is linked against an application that supports UObjects, this delegate will be primed
 		at startup to provide information about whether a UObject package is loaded into memory. */
@@ -699,9 +700,8 @@ class FDefaultGameModuleImpl
 	#define IMPLEMENT_MODULE( ModuleImplClass, ModuleName ) \
 		/** Global registrant object for this module when linked statically */ \
 		static FStaticallyLinkedModuleRegistrant< ModuleImplClass > ModuleRegistrant##ModuleName( #ModuleName ); \
-		/** Implement an empty function so that if this module is built as a statically linked lib, */ \
-		/** static initialization for this lib can be forced by referencing this symbol */ \
-		void EmptyLinkFunctionForStaticInitialization##ModuleName(){} \
+		/* Forced reference to this function is added by the linker to check that each module uses IMPLEMENT_MODULE */ \
+		extern "C" void IMPLEMENT_MODULE_##ModuleName() { } \
 		PER_MODULE_BOILERPLATE_ANYLINK(ModuleImplClass, ModuleName)
 
 #else
@@ -717,6 +717,8 @@ class FDefaultGameModuleImpl
 		{ \
 			return new ModuleImplClass(); \
 		} \
+		/* Forced reference to this function is added by the linker to check that each module uses IMPLEMENT_MODULE */ \
+		extern "C" void IMPLEMENT_MODULE_##ModuleName() { } \
 		PER_MODULE_BOILERPLATE \
 		PER_MODULE_BOILERPLATE_ANYLINK(ModuleImplClass, ModuleName)
 

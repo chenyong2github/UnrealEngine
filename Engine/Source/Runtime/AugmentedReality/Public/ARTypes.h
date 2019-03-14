@@ -6,7 +6,6 @@
 #include "HAL/ThreadSafeBool.h"
 #include "ARTypes.generated.h"
 
-class FARSystemBase;
 class USceneComponent;
 class IXRTrackingSystem;
 class UARPin;
@@ -67,6 +66,25 @@ enum class EARTrackingQuality : uint8
 	
 	/** The tracking quality is good. */
 	OrientationAndPosition
+};
+
+UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
+enum class EARTrackingQualityReason : uint8
+{
+	/** Current Tracking is not limited */
+	None,
+	
+	/** The AR session has not yet gathered enough camera or motion data to provide tracking information. */
+	Initializing,
+	
+	/** The AR session is attempting to resume after an interruption. */
+	Relocalizing,
+	
+	/** The device is moving too fast for accurate image-based position tracking. */
+	ExcessiveMotion,
+	
+	/** The scene visible to the camera does not contain enough distinguishable features for image-based position tracking. */
+	InsufficientFeatures
 };
 
 /**
@@ -170,6 +188,19 @@ class AUGMENTEDREALITY_API UARCandidateImage :
 	GENERATED_BODY()
 
 public:
+
+	static UARCandidateImage* CreateNewARCandidateImage(UTexture2D* InCandidateTexture, FString InFriendlyName, float InPhysicalWidth, float InPhysicalHeight, EARCandidateImageOrientation InOrientation)
+	{
+		UARCandidateImage* NewARCandidateImage = NewObject<UARCandidateImage>();
+		NewARCandidateImage->CandidateTexture = InCandidateTexture;
+		NewARCandidateImage->FriendlyName = InFriendlyName;
+		NewARCandidateImage->Width = InPhysicalWidth;
+		NewARCandidateImage->Height = InPhysicalHeight;
+		NewARCandidateImage->Orientation = InOrientation;
+
+		return NewARCandidateImage;
+	}
+
 	/** @see CandidateTexture */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Image Detection")
 	UTexture2D* GetCandidateTexture() const { return CandidateTexture; }

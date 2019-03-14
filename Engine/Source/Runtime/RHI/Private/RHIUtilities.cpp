@@ -10,6 +10,7 @@ RHIUtilities.cpp:
 #include "RHI.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/ScopeLock.h"
 
 #define USE_FRAME_OFFSET_THREAD 1
 
@@ -159,6 +160,16 @@ struct FRHIFrameOffsetThread : public FRunnable
 
 	FEvent* WaitEvent;
 
+#if !UE_BUILD_SHIPPING
+	struct FFrameDebugInfo
+	{
+		uint64 PresentIndex;
+		uint64 FrameIndex;
+		uint64 InputTime;
+	};
+	TArray<FFrameDebugInfo> FrameDebugInfos;
+#endif
+
 	virtual uint32 Run() override
 	{
 		while (bRun)
@@ -180,6 +191,22 @@ struct FRHIFrameOffsetThread : public FRunnable
 				LastFlipFrame.FlipTimeInSeconds = LastFlipFrame.FlipTimeInSeconds + TargetFrameTimeInSeconds - SlackInSeconds;
 				LastFlipFrame.VBlankTimeInSeconds = LastFlipFrame.VBlankTimeInSeconds + TargetFrameTimeInSeconds - SlackInSeconds;
 				LastFlipFrame.PresentIndex++;
+
+#if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
+				for (int32 DebugInfoIndex = FrameDebugInfos.Num() - 1; DebugInfoIndex >= 0; --DebugInfoIndex)
+				{
+					auto const& DebugInfo = FrameDebugInfos[DebugInfoIndex];
+					if (NewFlipFrame.PresentIndex == DebugInfo.PresentIndex)
+					{
+						GInputLatencyTime = (NewFlipFrame.VBlankTimeInSeconds / FPlatformTime::GetSecondsPerCycle64()) - DebugInfo.InputTime;
+					}
+
+					if (DebugInfo.PresentIndex <= NewFlipFrame.PresentIndex)
+					{
+						FrameDebugInfos.RemoveAtSwap(DebugInfoIndex);
+					}
+				}
+#endif
 			}
 
 			WaitEvent->Trigger();
@@ -211,7 +238,14 @@ public:
 	static FRHIFlipDetails WaitForFlip(double Timeout)
 	{
 		check(Singleton.WaitEvent);
-		Singleton.WaitEvent->Wait((uint32)(Timeout * 1000.0));
+		if (Timeout >= 0)
+		{
+			Singleton.WaitEvent->Wait((uint32)(Timeout * 1000.0));
+		}
+		else
+		{
+			Singleton.WaitEvent->Wait();
+		}
 
 		FScopeLock Lock(&Singleton.CS);
 		return Singleton.LastFlipFrame;
@@ -248,6 +282,21 @@ public:
 		}
 
 		Singleton.GetOrInitializeWaitEvent()->Trigger();
+	}
+
+	static void SetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime)
+	{
+#if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
+		FScopeLock Lock(&Singleton.CS);
+		if (Thread)
+		{
+			FFrameDebugInfo DebugInfo;
+			DebugInfo.PresentIndex = PresentIndex;
+			DebugInfo.FrameIndex = FrameIndex;
+			DebugInfo.InputTime = InputTime;
+			Singleton.FrameDebugInfos.Add(DebugInfo);
+		}
+#endif
 	}
 
 private:
@@ -420,6 +469,13 @@ RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPerce
 RHI_API void RHICompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event)
 {
 	FRHIFrameFlipTrackingRunnable::CompleteGraphEventOnFlip(PresentIndex, Event);
+}
+
+RHI_API void RHISetFrameDebugInfo(uint64 PresentIndex, uint64 FrameIndex, uint64 InputTime)
+{
+#if USE_FRAME_OFFSET_THREAD
+	FRHIFrameOffsetThread::SetFrameDebugInfo(PresentIndex, FrameIndex, InputTime);
+#endif
 }
 
 RHI_API void RHIInitializeFlipTracking()

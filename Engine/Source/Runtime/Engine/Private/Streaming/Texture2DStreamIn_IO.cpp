@@ -59,7 +59,11 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 
 		if (MipIndex == PendingFirstMip)
 		{
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 			IOFilename = MipMap.BulkData.GetFilename();
+#else
+			verify(Context.Texture->GetMipDataFilename(MipIndex, IOFilename));
+#endif
 
 			if (GEventDrivenLoaderEnabled)
 			{
@@ -72,12 +76,14 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 				}
 			}
 		}
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 		else if (IOFilename != MipMap.BulkData.GetFilename())
 		{
 			UE_LOG(LogTexture, Error, TEXT("All of the streaming mips must be stored in the same file %s %s."), *IOFilename, *MipMap.BulkData.GetFilename());
 			IOFilename.Reset();
 			break;
 		}
+#endif
 	}
 
 	if (IOFilename.IsEmpty())
@@ -177,9 +183,9 @@ void FTexture2DStreamIn_IO::SetAsyncFileCallback(const FContext& Context)
 
 #if !UE_BUILD_SHIPPING
 		// On some platforms the IO is too fast to test cancelation requests timing issues.
-		if (FTextureStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
+		if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
 		{
-			FPlatformProcess::Sleep(FTextureStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
+			FPlatformProcess::Sleep(FRenderAssetStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
 		}
 #endif
 

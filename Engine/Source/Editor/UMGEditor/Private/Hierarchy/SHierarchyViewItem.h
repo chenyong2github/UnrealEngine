@@ -82,6 +82,8 @@ public:
 		}
 	}
 
+	virtual bool DoesWidgetOverrideFlowDirection() const { return false; }
+
 	virtual bool IsExpanded() const { return true; }
 	virtual void SetExpanded(bool bIsExpanded) { }
 
@@ -100,6 +102,8 @@ protected:
 	virtual void GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children) = 0;
 	virtual void UpdateSelection() = 0;
 	virtual FWidgetReference AsDraggedWidgetReference() const { return FWidgetReference(); }
+	void DetermineDragDropPreviewWidgets(TArray<class UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent);
+	void RemovePreviewWidget(class UWidgetBlueprint* Blueprint, class UWidget* Widget);
 
 private:
 	void InitializeChildren();
@@ -129,6 +133,8 @@ public:
 	virtual FSlateFontInfo GetFont() const override;
 
 	virtual void OnSelection() override;
+
+	virtual bool DoesWidgetOverrideFlowDirection() const override;
 
 	virtual TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) override;
 	virtual FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone) override;
@@ -263,14 +269,33 @@ public:
 		}
 	}
 
+	virtual bool DoesWidgetOverrideFlowDirection() const override
+	{
+		UWidget* TemplateWidget = Item.GetTemplate();
+		if (TemplateWidget)
+		{
+			return TemplateWidget->FlowDirectionPreference != EFlowDirectionPreference::Inherit;
+		}
+
+		return false;
+	}
+
 	virtual bool IsExpanded() const override
 	{
-		return Item.GetTemplate()->bExpandedInDesigner;
+		if (UWidget* Template = Item.GetTemplate())
+		{
+			return Template->bExpandedInDesigner;
+		}
+
+		return false;
 	}
 
 	virtual void SetExpanded(bool bIsExpanded) override
 	{
-		Item.GetTemplate()->bExpandedInDesigner = bIsExpanded;
+		if (UWidget* Template = Item.GetTemplate())
+		{
+			Template->bExpandedInDesigner = bIsExpanded;
+		}
 	}
 
 	virtual bool CanRename() const override;

@@ -48,6 +48,11 @@ template TD3D12Texture2D<FD3D12BaseTextureCube>::TD3D12Texture2D(class FD3D12Dev
 #endif
 	);
 
+template TD3D12Texture2D<FD3D12BaseTexture2D>::~TD3D12Texture2D();
+template TD3D12Texture2D<FD3D12BaseTexture2DArray>::~TD3D12Texture2D();
+template TD3D12Texture2D<FD3D12BaseTextureCube>::~TD3D12Texture2D();
+
+
 /// @cond DOXYGEN_WARNINGS
 
 template void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<FD3D12BaseTexture2D>& Texture);
@@ -572,7 +577,8 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 	FD3D12ResourceLocation* OutTexture2D, 
 	uint8 Format, 
 	uint32 Flags,
-	D3D12_RESOURCE_STATES InitialState)
+	D3D12_RESOURCE_STATES InitialState,
+	const TCHAR* Name)
 {
 
 #if GUARDED_TEXTURE_CREATES
@@ -597,15 +603,7 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 		case D3D12_HEAP_TYPE_READBACK:
 			{
 				FD3D12Resource* Resource = nullptr;
-				VERIFYD3D12CREATETEXTURERESULT(
-					Adapter->CreateBuffer(heapType, pDevice->GetGPUMask(), pDevice->GetVisibilityMask(), MipBytesAligned, &Resource),
-					TextureDesc.Width,
-					TextureDesc.Height,
-					TextureDesc.DepthOrArraySize,
-					TextureDesc.Format,
-					TextureDesc.MipLevels,
-					TextureDesc.Flags
-					);
+				VERIFYD3D12CREATETEXTURERESULT(Adapter->CreateBuffer(heapType, pDevice->GetGPUMask(), pDevice->GetVisibilityMask(), MipBytesAligned, &Resource, Name), TextureDesc);
 				OutTexture2D->AsStandAlone(Resource);
 
 				if (IsCPUWritable(heapType))
@@ -616,16 +614,7 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 			break;
 
 		case D3D12_HEAP_TYPE_DEFAULT:
-			VERIFYD3D12CREATETEXTURERESULT(
-				pDevice->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValue, Format, *OutTexture2D, InitialState),
-				TextureDesc.Width,
-				TextureDesc.Height,
-				TextureDesc.DepthOrArraySize,
-				TextureDesc.Format,
-				TextureDesc.MipLevels,
-				TextureDesc.Flags
-				);
-
+			VERIFYD3D12CREATETEXTURERESULT(pDevice->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValue, Format, *OutTexture2D, InitialState, Name), TextureDesc);
 			break;
 
 		default:
@@ -832,7 +821,8 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 			&Location,
 			Format,
 			Flags,
-			(CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState);
+			(CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState,
+			CreateInfo.DebugName);
 
 		uint32 RTVIndex = 0;
 
@@ -1054,8 +1044,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	{
 		FD3D12Texture3D* Texture3D = new FD3D12Texture3D(Device, SizeX, SizeY, SizeZ, NumMips, Format, Flags, CreateInfo.ClearValueBinding);
 
-		HRESULT hr = Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState);
-		check(SUCCEEDED(hr));
+		Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState, CreateInfo.DebugName);
 
 		if (bCreateRTV)
 		{
@@ -1204,7 +1193,8 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 			&NewTexture->ResourceLocation,
 			Format,
 			Flags,
-			InitialState);
+			InitialState,
+			nullptr);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1571,7 +1561,7 @@ void* TD3D12Texture2D<RHIResourceType>::Lock(class FRHICommandListImmediate* RHI
 		FD3D12Resource* StagingTexture = nullptr;
 
 		const FRHIGPUMask Node = Device->GetGPUMask();
-		VERIFYD3D12RESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, MipBytesAligned, &StagingTexture));
+		VERIFYD3D12RESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, MipBytesAligned, &StagingTexture, nullptr));
 
 		LockedResource->ResourceLocation.AsStandAlone(StagingTexture, MipBytesAligned);
 

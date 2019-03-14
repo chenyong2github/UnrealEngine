@@ -35,39 +35,16 @@ struct IImpl
 
 };
 
-template<typename ChannelType, typename ValueType>
-struct TSetDefaultImpl : IImpl
-{
-	int32 ChannelIndex;
-	ValueType ValueToSet;
-
-	TSetDefaultImpl(int32 InChannelIndex, const ValueType& InValue)
-		: ChannelIndex(InChannelIndex), ValueToSet(InValue)
-	{}
-
-	virtual void ApplyDefault(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy) const override
-	{
-		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
-		if (Channel && Channel->GetData().GetTimes().Num() == 0)
-		{
-			if (Section->TryModify())
-			{
-				using namespace MovieScene;
-				SetChannelDefault(Channel, ValueToSet);
-			}
-		}
-	}
-};
-
 //If this implementation changes need to change the specializations below.
 template<typename ChannelType, typename ValueType>
 struct TAddKeyImpl : IImpl
 {
 	int32 ChannelIndex;
+	bool bAddKey;
 	ValueType ValueToSet;
 
-	TAddKeyImpl(int32 InChannelIndex, const ValueType& InValue)
-		: ChannelIndex(InChannelIndex), ValueToSet(InValue)
+	TAddKeyImpl(int32 InChannelIndex, bool bInAddKey, const ValueType& InValue)
+		: ChannelIndex(InChannelIndex), bAddKey(bInAddKey), ValueToSet(InValue)
 	{}
 
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
@@ -76,7 +53,7 @@ struct TAddKeyImpl : IImpl
 		using namespace MovieScene;
 
 		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
-		if (Channel)
+		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
 			if (!bShouldKeyChannel)
@@ -123,10 +100,11 @@ template<>
 struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 {
 	int32 ChannelIndex;
+	bool bAddKey;
 	float ValueToSet;
 
-	TAddKeyImpl(int32 InChannelIndex, const float& InValue)
-		: ChannelIndex(InChannelIndex), ValueToSet(InValue)
+	TAddKeyImpl(int32 InChannelIndex, bool bInAddKey,  const float& InValue)
+		: ChannelIndex(InChannelIndex), bAddKey(bInAddKey), ValueToSet(InValue)
 	{}
 
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
@@ -135,7 +113,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 		using namespace MovieScene;
 
 		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
-		if (Channel)
+		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
 			if (!bShouldKeyChannel)
@@ -200,10 +178,11 @@ template<>
 struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 {
 	int32 ChannelIndex;
+	bool bAddKey;
 	int32 ValueToSet;
 
-	TAddKeyImpl(int32 InChannelIndex, const int32& InValue)
-		: ChannelIndex(InChannelIndex), ValueToSet(InValue)
+	TAddKeyImpl(int32 InChannelIndex, bool bInAddKey, const int32& InValue)
+		: ChannelIndex(InChannelIndex),bAddKey(bInAddKey), ValueToSet(InValue)
 	{}
 
 	virtual bool Apply(UMovieSceneSection* Section, FMovieSceneChannelProxy& Proxy, FFrameNumber InTime, EMovieSceneKeyInterpolation InterpolationMode, bool bKeyEvenIfUnchanged, bool bKeyEvenIfEmpty) const override
@@ -212,7 +191,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 		using namespace MovieScene;
 
 		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
-		if (Channel)
+		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
 			if (!bShouldKeyChannel)
@@ -286,14 +265,8 @@ struct FMovieSceneChannelValueSetter
 	static FMovieSceneChannelValueSetter Create(int32 ChannelIndex, ValueType InNewValue, bool bAddKey)
 	{
 		FMovieSceneChannelValueSetter NewValue;
-		if (bAddKey)
-		{
-			NewValue.Impl = TAddKeyImpl<ChannelType, typename TDecay<ValueType>::Type>(ChannelIndex, Forward<ValueType>(InNewValue));
-		}
-		else
-		{
-			NewValue.Impl = TSetDefaultImpl<ChannelType, typename TDecay<ValueType>::Type>(ChannelIndex, Forward<ValueType>(InNewValue));
-		}
+		NewValue.Impl = TAddKeyImpl<ChannelType, typename TDecay<ValueType>::Type>(ChannelIndex, bAddKey, Forward<ValueType>(InNewValue));
+		
 		return MoveTemp(NewValue);
 	}
 

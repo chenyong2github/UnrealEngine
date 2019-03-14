@@ -20,6 +20,7 @@
 #include "ContentStreaming.h"
 #include "HAL/LowLevelMemTracker.h"
 
+
 /*------------------------------------------------------------------------------------
 	For muting user soundtracks during cinematics
 ------------------------------------------------------------------------------------*/
@@ -80,6 +81,7 @@ FXAudio2SoundSource::FXAudio2SoundSource(FAudioDevice* InAudioDevice)
 FXAudio2SoundSource::~FXAudio2SoundSource( void )
 {
 	FreeResources();
+	FreeBuffer();
 }
 
 void FXAudio2SoundSource::InitializeSourceEffects(uint32 InVoiceId)
@@ -117,7 +119,11 @@ void FXAudio2SoundSource::FreeResources( void )
 		RealtimeAsyncTask = nullptr;
 		check(bResourcesNeedFreeing);
 	}
+}
 
+
+void FXAudio2SoundSource::FreeBuffer()
+{
 	if (bResourcesNeedFreeing && Buffer)
 	{
 		// If we failed to initialize, then we will have a non-zero resource ID, but still need to delete the buffer
@@ -130,6 +136,7 @@ void FXAudio2SoundSource::FreeResources( void )
 	Buffer = XAudio2Buffer = nullptr;
 	CurrentBuffer = 0;
 }
+
 
 /** 
  * Submit the relevant audio buffers to the system
@@ -552,7 +559,10 @@ bool FXAudio2SoundSource::Init(FWaveInstance* InWaveInstance)
 		SCOPE_CYCLE_COUNTER(STAT_AudioSourceInitTime);
 
 		// Set whether to apply reverb
-		SetReverbApplied(Effects->ReverbEffectVoice != nullptr);
+		if (!FAudioDevice::LegacyReverbDisabled())
+		{
+			SetReverbApplied(Effects->ReverbEffectVoice != nullptr);
+		}
 
 		// Create a new source if we haven't already
 		if (CreateSource())
@@ -637,6 +647,7 @@ bool FXAudio2SoundSource::Init(FWaveInstance* InWaveInstance)
 
 	// Initialization failed.
 	FreeResources();
+	FreeBuffer();
 	return false;
 }
 
@@ -1223,7 +1234,7 @@ int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations
 
 void FXAudio2SoundSourceCallback::OnBufferEnd(void* BufferContext)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (BufferContext)
 	{
@@ -1255,6 +1266,11 @@ void FXAudio2SoundSourceCallback::OnBufferEnd(void* BufferContext)
 				SoundSource->HandleRealTimeSource(SourceState.BuffersQueued < 2);
 				return;
 			}
+		}
+		else if (SoundSource->RealtimeAsyncTask && !SoundSource->RealtimeAsyncTask->IsDone())
+		{
+			// If Playing was set to false in Stop(), we may still have an async decode task in flight:
+			SoundSource->RealtimeAsyncTask->EnsureCompletion(false);
 		}
 	}
 }
@@ -1465,7 +1481,6 @@ void FXAudio2SoundSource::Play()
 void FXAudio2SoundSource::Stop()
 {
 	bInitialized = false;
-	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundSource(this);
 
 	if( WaveInstance )
 	{	
@@ -1474,12 +1489,18 @@ void FXAudio2SoundSource::Stop()
 
 		// Free resources
 		FreeResources();
+	}
 
+	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundSource(this);
+	
+	if (WaveInstance)
+	{
+		FreeBuffer();
 		bBuffersToFlush = false;
 		bLoopCallback = false;
 		bResourcesNeedFreeing = false;
 	}
-
+	
 	FSoundSource::Stop();
 }
 

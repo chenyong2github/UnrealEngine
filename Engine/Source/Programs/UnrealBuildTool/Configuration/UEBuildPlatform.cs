@@ -60,10 +60,18 @@ namespace UnrealBuildTool
 		/// <param name="bIncludeNonInstalledPlatforms">Whether to register platforms that are not installed</param>
 		public static void RegisterPlatforms(bool bIncludeNonInstalledPlatforms)
 		{
-			// Find and register all tool chains and build platforms that are present
-			Assembly UBTAssembly = Assembly.GetExecutingAssembly();
+			// Initialize the installed platform info
+			using(Timeline.ScopeEvent("Initializing InstalledPlatformInfo"))
+			{
+				InstalledPlatformInfo.Initialize();
+			}
 
-			Type[] AllTypes = UBTAssembly.GetTypes();
+			// Find and register all tool chains and build platforms that are present
+			Type[] AllTypes;
+			using(Timeline.ScopeEvent("Querying types"))
+			{
+				AllTypes = Assembly.GetExecutingAssembly().GetTypes();
+			}
 
 			// register all build platforms first, since they implement SDK-switching logic that can set environment variables
 			foreach (Type CheckType in AllTypes)
@@ -73,12 +81,15 @@ namespace UnrealBuildTool
 					if (CheckType.IsSubclassOf(typeof(UEBuildPlatformFactory)))
 					{
 						Log.TraceVerbose("    Registering build platform: {0}", CheckType.ToString());
-						UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)(UBTAssembly.CreateInstance(CheckType.FullName, true));
-
-						// We need all platforms to be registered when we run -validateplatform command to check SDK status of each
-						if (bIncludeNonInstalledPlatforms || InstalledPlatformInfo.IsValidPlatform(TempInst.TargetPlatform))
+						using(Timeline.ScopeEvent(CheckType.Name))
 						{
-							TempInst.RegisterBuildPlatforms();
+							UEBuildPlatformFactory TempInst = (UEBuildPlatformFactory)Activator.CreateInstance(CheckType);
+							
+							// We need all platforms to be registered when we run -validateplatform command to check SDK status of each
+							if (bIncludeNonInstalledPlatforms || InstalledPlatformInfo.IsValidPlatform(TempInst.TargetPlatform))
+							{
+								TempInst.RegisterBuildPlatforms();
+							}
 						}
 					}
 				}
@@ -687,7 +698,7 @@ namespace UnrealBuildTool
 					ProjIni.GetBool(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}
@@ -700,7 +711,7 @@ namespace UnrealBuildTool
 					ProjIni.GetInt32(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}
@@ -713,7 +724,7 @@ namespace UnrealBuildTool
 					ProjIni.GetString(Section, Key, out Project);
 					if (Default != Project)
 					{
-						Log.TraceInformationOnce(Key + " is not set to default. (" + Default + " vs. " + Project + ")");
+						Log.TraceInformationOnce("{0} is not set to default. (Base: {1} vs. {2}: {3})", Key, Default, Path.GetFileName(ProjectDirectoryName.FullName), Project);
 						return false;
 					}
 				}
@@ -817,6 +828,27 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bCreateDebugInfo =
 				!Target.bDisableDebugInfo && ShouldCreateDebugInfo(Target);
 			GlobalLinkEnvironment.bCreateDebugInfo = GlobalCompileEnvironment.bCreateDebugInfo;
+		}
+
+		/// <summary>
+		/// Allows the platform to return various build metadata that is not tracked by other means. If the returned string changes, the makefile will be invalidated.
+		/// </summary>
+		/// <param name="ProjectFile">The project file being built</param>
+		/// <returns>String describing the current build metadata</returns>
+		public string GetExternalBuildMetadata(FileReference ProjectFile)
+		{
+			StringBuilder Result = new StringBuilder();
+			GetExternalBuildMetadata(ProjectFile, Result);
+			return Result.ToString();
+		}
+
+		/// <summary>
+		/// Allows the platform to return various build metadata that is not tracked by other means. If the returned string changes, the makefile will be invalidated.
+		/// </summary>
+		/// <param name="ProjectFile">The project file being built</param>
+		/// <param name="Metadata">String builder to contain build metadata</param>
+		public virtual void GetExternalBuildMetadata(FileReference ProjectFile, StringBuilder Metadata)
+		{
 		}
 
 		/// <summary>

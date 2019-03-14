@@ -541,6 +541,7 @@ namespace BuildPatchServices
 		// Check provided tags are all valid.
 		TSet<FString> ValidTags;
 		Configuration.InstallManifest->GetFileTagList(ValidTags);
+		ValidTags.Add(TEXT(""));
 		if (Configuration.InstallTags.Difference(ValidTags).Num() > 0)
 		{
 			UE_LOG(LogBuildPatchServices, Error, TEXT("Installer configuration: Invalid InstallTags provided."));

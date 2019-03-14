@@ -23,11 +23,31 @@
 #define LOCTEXT_NAMESPACE "PoseDriverDetails"
 
 static const FName ColumnId_Target("Target");
+TArray< TSharedPtr<FName> > SPDD_TargetRow::DistanceMethodOptions;
+TArray< TSharedPtr<FName> > SPDD_TargetRow::FunctionTypeOptions;
 
 void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	TargetInfoPtr = InArgs._TargetInfo;
 	PoseDriverDetailsPtr = InArgs._PoseDriverDetails;
+
+	if (DistanceMethodOptions.Num() == 0)
+	{
+		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFDistanceMethod"));
+		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
+		{
+			DistanceMethodOptions.Add(MakeShareable(new FName(*Enum->GetDisplayNameTextByIndex(i).ToString())));
+		}
+	}
+
+	if (FunctionTypeOptions.Num() == 0)
+	{
+		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFFunctionType"));
+		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
+		{
+			FunctionTypeOptions.Add(MakeShareable(new FName(*Enum->GetDisplayNameTextByIndex(i).ToString())));
+		}
+	}
 
 	// Register delegate so TargetInfo can trigger UI expansion
 	TSharedPtr<FPDD_TargetInfo> TargetInfo = TargetInfoPtr.Pin();
@@ -189,6 +209,84 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.Padding(FMargin(6, 0, 3, 0))
 						[
 							SNew(STextBlock)
+							.Text(LOCTEXT("IsHidden", "Hidden:"))
+						]
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(6, 0, 3, 0))
+						[
+							SNew(SCheckBox)
+							.IsChecked_Lambda([=]() { return IsHidden() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.OnCheckStateChanged(this, &SPDD_TargetRow::OnIsHiddenChanged)
+							.Padding(FMargin(4.0f, 0.0f))
+							.ToolTipText(LOCTEXT("IsHiddenToolTip", "Define if this target should be hidden from debug drawing."))
+						]
+
+						+ SHorizontalBox::Slot()
+						.FillWidth(1)
+						[
+							SNew(SSpacer)
+						]
+
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f)
+					.VAlign(VAlign_Fill)
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(6, 0, 3, 0))
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("Override", "Override:"))
+						]
+					
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(6, 0, 3, 0))
+						[
+							SNew(SComboBox<TSharedPtr<FName>>)
+							.OptionsSource(&DistanceMethodOptions)
+							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
+							.OnSelectionChanged(this, &SPDD_TargetRow::OnDistanceMethodChanged)
+							.Content()
+							[
+								SNew(STextBlock)
+								.Text(this, &SPDD_TargetRow::GetDistanceMethodAsText)
+							]
+						]
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(6, 0, 3, 0))
+						[
+							SNew(SComboBox<TSharedPtr<FName>>)
+							.Visibility_Lambda([=]() { return IsCustomCurveEnabled() ? EVisibility::Collapsed : EVisibility::Visible;  })
+							.OptionsSource(&FunctionTypeOptions)
+							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
+							.OnSelectionChanged(this, &SPDD_TargetRow::OnFunctionTypeChanged)
+							.Content()
+							[
+								SNew(STextBlock)
+								.Text(this, &SPDD_TargetRow::GetFunctionTypeAsText)
+							]
+						]
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						.Padding(FMargin(6, 0, 3, 0))
+						[
+							SNew(STextBlock)
 							.Text(LOCTEXT("CustomCurve", "Curve:"))
 						]
 
@@ -209,8 +307,6 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						[
 							SNew(SSpacer)
 						]
-
-
 					]
 
 					+ SVerticalBox::Slot()
@@ -317,7 +413,12 @@ UAnimGraphNode_PoseDriver* SPDD_TargetRow::GetPoseDriverGraphNode() const
 
 bool SPDD_TargetRow::IsEditingRotation() const
 {
-	return (GetPoseDriverGraphNode()->Node.DriveSource == EPoseDriverSource::Rotation);
+	UAnimGraphNode_PoseDriver* Driver = GetPoseDriverGraphNode();
+	if (Driver)
+	{
+		return (Driver->Node.DriveSource == EPoseDriverSource::Rotation);
+	}
+	return false;
 }
 
 void SPDD_TargetRow::NotifyTargetChanged()
@@ -423,6 +524,80 @@ void SPDD_TargetRow::OnApplyCustomCurveChanged(const ECheckBoxState NewCheckStat
 	}
 }
 
+bool SPDD_TargetRow::IsHidden() const
+{
+	FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		return Target->bIsHidden;
+	}
+	return false;
+}
+
+
+void SPDD_TargetRow::OnIsHiddenChanged(const ECheckBoxState NewCheckState)
+{
+	FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		Target->bIsHidden= (NewCheckState == ECheckBoxState::Checked);
+		NotifyTargetChanged();
+	}
+}
+
+FText SPDD_TargetRow::GetDistanceMethodAsText() const
+{
+	const FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		return FText::FromName(*DistanceMethodOptions[(int32)Target->DistanceMethod]);
+	}
+	return FText();
+}
+
+void SPDD_TargetRow::OnDistanceMethodChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType)
+{
+	FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		for (int32 i = 0; i < DistanceMethodOptions.Num(); i++)
+		{
+			if (InItem->Compare(*DistanceMethodOptions[i]) == 0)
+			{
+				Target->DistanceMethod = (ERBFDistanceMethod)i;
+				NotifyTargetChanged();
+				return;
+			}
+		}
+	}
+}
+
+FText SPDD_TargetRow::GetFunctionTypeAsText() const
+{
+	const FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		return FText::FromName(*FunctionTypeOptions[(int32)Target->FunctionType]);
+	}
+	return FText();
+}
+
+void SPDD_TargetRow::OnFunctionTypeChanged(TSharedPtr<FName> InItem, ESelectInfo::Type SelectionType)
+{
+	FPoseDriverTarget* Target = GetTarget();
+	if (Target)
+	{
+		for (int32 i = 0; i < FunctionTypeOptions.Num(); i++)
+		{
+			if (InItem->Compare(*FunctionTypeOptions[i]) == 0)
+			{
+				Target->FunctionType = (ERBFFunctionType)i;
+				NotifyTargetChanged();
+				return;
+			}
+		}
+	}
+}
 
 FText SPDD_TargetRow::GetDrivenNameText() const
 {
@@ -463,9 +638,13 @@ FText SPDD_TargetRow::GetTargetWeightText() const
 
 FSlateColor SPDD_TargetRow::GetWeightBarColor() const
 {
-	return FMath::Lerp(FLinearColor::White, FLinearColor::Red, GetTargetWeight());
+	UAnimGraphNode_PoseDriver* PoseDriver = GetPoseDriverGraphNode();
+	if (PoseDriver)
+	{
+		return PoseDriver->GetColorFromWeight(GetTargetWeight());
+	}
+	return FLinearColor::Black;
 }
-
 
 void SPDD_TargetRow::SetTranslation(float NewTrans, int32 BoneIndex, EAxis::Type Axis)
 {

@@ -1114,11 +1114,8 @@ void FPropertyValueImpl::AddChild()
 							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 							!FApp::IsGame())
 						{
-							FString OrgContent;
-							NodeProperty->ExportText_Direct(OrgContent, Addr, Addr, nullptr, 0);
-
 							TMap<UObject*, bool> PropagationResult;
-							PropertyNodePin->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Add, -1, &PropagationResult);
+							PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, -1, &PropagationResult);
 							PropagationResultPerObject.Add(MoveTemp(PropagationResult));
 						}
 
@@ -1229,9 +1226,7 @@ void FPropertyValueImpl::ClearChildren()
 							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 							!FApp::IsGame())
 						{
-							FString OrgContent;
-							NodeProperty->ExportText_Direct(OrgContent, Addr, Addr, nullptr, 0);
-							PropertyNodePin->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Clear, -1);
+							PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Clear, -1);
 						}
 
 						TopLevelObjects.Add(Obj);
@@ -1384,11 +1379,8 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 				(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 				!FApp::IsGame())
 			{
-				FString OrgArrayContent;
-				ArrayProperty->ExportText_Direct(OrgArrayContent, Addr, Addr, nullptr, 0);
-
 				TMap<UObject*, bool> PropagationResult;
-				ChildNodePtr->PropagateContainerPropertyChange(Obj, OrgArrayContent, EPropertyArrayChangeType::Insert, Index, &PropagationResult);
+				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Insert, Index, &PropagationResult);
 				PropagationResultPerObject.Add(MoveTemp(PropagationResult));
 			}
 
@@ -1481,11 +1473,8 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 						!FApp::IsGame())
 					{
-						FString OrgContent;
-						Cast<UProperty>(NodeProperty->GetOuter())->ExportText_Direct(OrgContent, Address, Address, nullptr, 0);
-
 						TMap<UObject*, bool> PropagationResult;
-						ChildNodePtr->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Delete, Index, &PropagationResult);
+						ChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Delete, Index, &PropagationResult);
 
 						PropagationResultPerObject.Add(MoveTemp(PropagationResult));
 					}
@@ -1622,9 +1611,7 @@ void FPropertyValueImpl::SwapChildren( TSharedPtr<FPropertyNode> FirstChildNode,
 					if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || (Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) 
 						&& !FApp::IsGame())
 					{
-						FString OrgContent;
-						Cast<UProperty>(FirstNodeProperty->GetOuter())->ExportText_Direct(OrgContent, Address, Address, nullptr, 0);
-						FirstChildNodePtr->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
+						FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
 					}
 
 					TopLevelObjects.Add(Obj);
@@ -1688,53 +1675,48 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 
 
 		FReadAddressList ReadAddresses;
-		void* Addr = nullptr;
 		ParentNode->GetReadAddress(!!ParentNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses);
-		if (ReadAddresses.Num())
+		for (int32 i = 0; i < ReadAddresses.Num(); ++i)
 		{
-			Addr = ReadAddresses.GetAddress(0);
-		}
-
-		if (Addr)
-		{
-			FScriptArrayHelper	ArrayHelper(ArrayProperty, Addr);
-			int32 Index = ChildNodePtr->GetArrayIndex();
-
-			// List of top level objects sent to the PropertyChangedEvent
-			TArray<const UObject*> TopLevelObjects;
-
-			UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
-			if (Obj)
+			void* Addr = ReadAddresses.GetAddress(i);
+			if (Addr)
 			{
-				if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
-					(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
-				{
-					FString OrgArrayContent;
-					ArrayProperty->ExportText_Direct(OrgArrayContent, Addr, Addr, nullptr, 0);
+				FScriptArrayHelper	ArrayHelper(ArrayProperty, Addr);
+				int32 Index = ChildNodePtr->GetArrayIndex();
 
-					ChildNodePtr->PropagateContainerPropertyChange(Obj, OrgArrayContent, EPropertyArrayChangeType::Insert, Index);
+				// List of top level objects sent to the PropertyChangedEvent
+				TArray<const UObject*> TopLevelObjects;
+
+				UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
+				if (Obj)
+				{
+					if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
+						(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
+					{
+						ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Insert, Index);
+					}
+
+					TopLevelObjects.Add(Obj);
 				}
 
-				TopLevelObjects.Add(Obj);
-			}
+				ArrayHelper.InsertValues(Index, 1);
 
-			ArrayHelper.InsertValues(Index, 1);
+				//set up indices for the coming events
+				TArray< TMap<FString, int32> > ArrayIndicesPerObject;
+				for (int32 ObjectIndex = 0; ObjectIndex < ReadAddresses.Num(); ++ObjectIndex)
+				{
+					//add on array index so we can tell which entry just changed
+					ArrayIndicesPerObject.Add(TMap<FString, int32>());
+					FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[ObjectIndex], ChildNodePtr);
+				}
 
-			//set up indices for the coming events
-			TArray< TMap<FString, int32> > ArrayIndicesPerObject;
-			for (int32 ObjectIndex = 0; ObjectIndex < ReadAddresses.Num(); ++ObjectIndex)
-			{
-				//add on array index so we can tell which entry just changed
-				ArrayIndicesPerObject.Add(TMap<FString, int32>());
-				FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[ObjectIndex], ChildNodePtr);
-			}
+				FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, &TopLevelObjects);
+				ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 
-			FPropertyChangedEvent ChangeEvent(ParentNode->GetProperty(), EPropertyChangeType::ArrayAdd, &TopLevelObjects);
-			ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
-
-			if (PropertyUtilities.IsValid())
-			{
-				ChildNodePtr->FixPropertiesInEvent(ChangeEvent);
+				if (PropertyUtilities.IsValid())
+				{
+					ChildNodePtr->FixPropertiesInEvent(ChangeEvent);
+				}
 			}
 		}
 	}
@@ -1779,9 +1761,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 							if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
 								(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
 							{
-								FString OrgContent;
-								NodeProperty->ExportText_Direct(OrgContent, Addr, Addr, nullptr, 0);
-								PropertyNodePin->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Add, -1);
+								PropertyNodePin->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, -1);
 							}
 
 							TopLevelObjects.Add(Obj);
@@ -1854,9 +1834,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 						if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
 							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
 						{
-							FString OrgContent;
-							Cast<UProperty>(FirstNodeProperty->GetOuter())->ExportText_Direct(OrgContent, Address, Address, nullptr, 0);
-							FirstChildNodePtr->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
+							FirstChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Swap, FirstIndex, nullptr, SecondIndex);
 						}
 
 						TopLevelObjects.Add(Obj);
@@ -1933,9 +1911,7 @@ void FPropertyValueImpl::MoveElementTo(int32 OriginalIndex, int32 NewIndex)
 							(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 							!FApp::IsGame())
 						{
-							FString OrgContent;
-							Cast<UProperty>(NodeProperty->GetOuter())->ExportText_Direct(OrgContent, Address, Address, nullptr, 0);
-							ChildNodePtr->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Delete, Index);
+							ChildNodePtr->PropagateContainerPropertyChange(Obj, Address, EPropertyArrayChangeType::Delete, Index);
 						}
 
 						TopLevelObjects.Add(Obj);
@@ -2017,11 +1993,8 @@ void FPropertyValueImpl::DuplicateChild( TSharedPtr<FPropertyNode> ChildNodeToDu
 				(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))) &&
 				!FApp::IsGame())
 			{
-				FString OrgContent;
-				Cast<UProperty>(NodeProperty->GetOuter())->ExportText_Direct(OrgContent, Addr, Addr, nullptr, 0);
-
 				TMap<UObject*, bool> PropagationResult;
-				ChildNodePtr->PropagateContainerPropertyChange(Obj, OrgContent, EPropertyArrayChangeType::Duplicate, Index, &PropagationResult);
+				ChildNodePtr->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Duplicate, Index, &PropagationResult);
 				PropagationResultPerObject.Add(MoveTemp(PropagationResult));
 			}
 

@@ -1,0 +1,395 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+// Light types: should match SceneTypes.h until there is a common header
+#define LIGHT_TYPE_DIRECTIONAL		0 
+#define LIGHT_TYPE_POINT			1 
+#define LIGHT_TYPE_SPOT				2 
+#define LIGHT_TYPE_RECT				3 
+#define LIGHT_TYPE_MAX				4 
+
+float GetHitT(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.HitT;
+}
+
+bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
+{
+	float t = HitInfo.HitT;
+	return t > Ray.TMin && t < Ray.TMax;
+}
+
+float GetRoughnessFade(float Roughness, float MaxRoughness)
+{
+	float RoughnessMaskScale = -2.0 / MaxRoughness;
+	return saturate(Roughness * RoughnessMaskScale + 2.0);
+}
+
+float3 GenerateReflectedRayDirection(
+	float3 IncidentDirection,
+	float3 WorldNormal,
+	float Roughness,
+	float2 RandSample
+)
+{
+	float3 RayDirection;
+	if (Roughness < 0.001) //ReflectionSmoothClamp)
+	{
+		RayDirection = reflect(IncidentDirection, WorldNormal);
+	}
+	else
+	{
+		float3 N = WorldNormal;
+		float3 V = -IncidentDirection;
+		float2 E = RandSample;
+
+		float3x3 TangentBasis = GetTangentBasis(N);
+		float3 TangentV = mul(TangentBasis, V);
+
+		float NoV = saturate(dot(V, WorldNormal));
+
+		float4 Sample = ImportanceSampleVisibleGGX(E, Pow4(Roughness), TangentV);
+
+		float3 H = mul(Sample.xyz, TangentBasis);
+		float3 L = 2 * dot(V, H) * H - V;
+
+		RayDirection = L;
+	}
+
+	return RayDirection;
+}
+
+float TraceShadowRay(
+	in RayDesc Ray,
+	in FRayCone ShadowRayCone)
+{
+	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+
+	FMaterialClosestHitPayload Payload = TraceRayInternal(
+		TLAS,      // AccelerationStructure
+		RayFlags,
+		RAY_TRACING_MASK_SHADOW,
+		RAY_TRACING_SHADER_SLOT_SHADOW, // RayContributionToHitGroupIndex
+		RAY_TRACING_NUM_SHADER_SLOTS,   // MultiplierForGeometryContributionToShaderIndex
+		0,         // MissShaderIndex
+		Ray,       // RayDesc
+		ShadowRayCone
+	);
+
+	return Payload.HitT;
+}
+
+float3 SampleAreaLightDirection(
+	in FDeferredLightData LightData, 
+	in FMaterialClosestHitPayload Payload,
+	in uint LightType, 
+	in RandomSequence RandSequence )
+{
+	float3 ShadowRayDirection;
+	float3 WorldPosition = Payload.WorldPos;
+
+	float3 RayOrigin;
+	uint RayTMin, RayTMax;
+	float RayPdf;
+
+	uint DummyVariable;
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+
+	FLightShaderParameters LightParameters;
+	LightParameters.Position = LightData.Position;
+	LightParameters.SpotAngles = LightData.SpotAngles;
+	LightParameters.SourceRadius = LightData.SourceRadius;
+	LightParameters.SourceLength = LightData.SourceLength;
+	LightParameters.Tangent = LightData.Tangent;
+	LightParameters.Direction = LightData.Direction;
+
+	if (LightType == LIGHT_TYPE_DIRECTIONAL)
+	{
+		GenerateDirectionalLightOcclusionRay(
+			LightParameters,
+			WorldPosition, Payload.WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ ShadowRayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+	else if (LightType == LIGHT_TYPE_SPOT)
+	{
+		GenerateSpotLightOcclusionRay(
+			LightParameters,
+			WorldPosition, Payload.WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ ShadowRayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+	else if (LightType == LIGHT_TYPE_POINT)
+	{
+		if (LightData.SourceRadius == 0)
+		{
+			GeneratePointLightOcclusionRay(
+				LightParameters,
+				WorldPosition, Payload.WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ ShadowRayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax);
+		}
+		else
+		{
+			GenerateSphereLightOcclusionRay(
+				LightParameters,
+				WorldPosition, Payload.WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ ShadowRayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax,
+				/* out */ RayPdf);
+		}
+	}
+	else if (LightType == LIGHT_TYPE_RECT)
+	{
+		GenerateRectLightOcclusionRay(
+			LightParameters,
+			WorldPosition, Payload.WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ ShadowRayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax,
+			/* out */ RayPdf);
+	}
+
+	return ShadowRayDirection;
+}
+
+float3 ComputeDirectLighting(
+	in RayDesc Ray, 
+	in FRayCone RayCone, 
+	in FMaterialClosestHitPayload Payload, 
+	in RandomSequence RandSequence,
+	in bool bReflectedShadows, 
+	in float ShadowMaxNormalBias)
+{
+	float3 DirectLighting = float3(0.0, 0.0, 0.0);
+
+	float3 WorldPosition = Payload.WorldPos;
+	float3 CameraVector = -Ray.Direction;
+	float AmbientOcclusion = 1.0;
+
+	// #dxr_todo: review when interpolants fill the Payload with all the data we need
+	FGBufferData GBufferData = (FGBufferData)0;
+	GBufferData.Depth = 1.f; // Do not use depth
+	GBufferData.WorldNormal = Payload.WorldNormal;
+	GBufferData.BaseColor = Payload.BaseColor;
+	GBufferData.Metallic = Payload.Metallic;
+	GBufferData.Specular = Payload.Specular;
+	GBufferData.Roughness = Payload.Roughness;
+	GBufferData.CustomData = Payload.CustomData;
+	GBufferData.GBufferAO = Payload.GBufferAO;
+	//#dxr_todo: change float3 to float in payload to reduce space?;
+	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f; 
+	GBufferData.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+	GBufferData.SpecularColor = Payload.SpecularColor;
+	GBufferData.DiffuseColor = Payload.DiffuseColor;
+
+	FRectTexture RectTexture;
+	#if USE_SOURCE_TEXTURE_ARRAY 
+	RectTexture.SourceTexture0 = RaytracingLightsData.RectLightTexture0;
+	RectTexture.SourceTexture1 = RaytracingLightsData.RectLightTexture1;
+	RectTexture.SourceTexture2 = RaytracingLightsData.RectLightTexture2;
+	RectTexture.SourceTexture3 = RaytracingLightsData.RectLightTexture3;
+	RectTexture.SourceTexture4 = RaytracingLightsData.RectLightTexture4;
+	RectTexture.SourceTexture5 = RaytracingLightsData.RectLightTexture5;
+	RectTexture.SourceTexture6 = RaytracingLightsData.RectLightTexture6;
+	RectTexture.SourceTexture7 = RaytracingLightsData.RectLightTexture7;
+	RectTexture.SourceTextureIndex = 99;
+	#elif USE_SOURCE_TEXTURE
+	RectTexture = InitRectTexture(RaytracingLightsData.RectLightTexture0);
+	#else
+    RectTexture = (FRectTexture)0;
+	#endif
+
+	//#dxr_todo: think on the more efficient way of iterate through lights (split in light types, etc)
+	for (uint DirIndex = 0; DirIndex < RaytracingLightsData.Count; DirIndex++)
+	{
+		FDeferredLightData LightData = (FDeferredLightData)0;
+
+		uint LightType = RaytracingLightsData.Type[DirIndex];
+		LightData.Position = RaytracingLightsData.LightPosition[DirIndex];
+		LightData.InvRadius = RaytracingLightsData.LightInvRadius[DirIndex];
+		LightData.Color = RaytracingLightsData.LightColor[DirIndex];
+		LightData.FalloffExponent = RaytracingLightsData.LightFalloffExponent[DirIndex];
+		LightData.Direction = RaytracingLightsData.Direction[DirIndex];
+		LightData.Tangent = RaytracingLightsData.Tangent[DirIndex];
+		LightData.SpotAngles = RaytracingLightsData.SpotAngles[DirIndex];
+		LightData.SourceRadius = RaytracingLightsData.SourceRadius[DirIndex];
+		LightData.SourceLength = RaytracingLightsData.SourceLength[DirIndex];
+		LightData.SoftSourceRadius = RaytracingLightsData.SoftSourceRadius[DirIndex];
+		LightData.SpecularScale = RaytracingLightsData.SpecularScale[DirIndex];
+		LightData.RectLightBarnCosAngle = RaytracingLightsData.RectLightBarnCosAngle[DirIndex];
+		LightData.RectLightBarnLength = RaytracingLightsData.RectLightBarnLength[DirIndex];
+		LightData.ContactShadowLength = 0.0;
+		LightData.DistanceFadeMAD = RaytracingLightsData.DistanceFadeMAD[DirIndex];
+		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); // #dxr_todo;
+		LightData.ShadowedBits = 0; // Not lit dynamic shadows 
+		LightData.ContactShadowLengthInWS = false;
+
+		LightData.bRadialLight = (LightType != LIGHT_TYPE_DIRECTIONAL);
+		LightData.bSpotLight = (LightType == LIGHT_TYPE_SPOT);
+		LightData.bRectLight = (LightType == LIGHT_TYPE_RECT);
+
+		#if USE_SOURCE_TEXTURE_ARRAY 
+		RectTexture.SourceTextureIndex = RaytracingLightsData.RectLightTextureIndex[DirIndex];
+		#endif
+
+		if (LightType == LIGHT_TYPE_DIRECTIONAL)
+		{
+			LightData.bInverseSquared = false;
+		}
+		else
+		{
+			LightData.bInverseSquared = LightData.FalloffExponent == 0;
+		}
+		
+		float4 LightAttenuation = 1.0f;
+
+		float LightProfileMultiplier = 1.0;
+		uint LightProfileIndex = RaytracingLightsData.LightProfileIndex[DirIndex];
+		if (LightProfileIndex >= 0)
+		{
+			LightProfileMultiplier = ComputeLightProfileMultiplier(WorldPosition, LightData.Position, LightData.Direction, LightProfileIndex);
+		}
+
+		float3 ShadowRayDirection;
+		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 
+		float3 ToLight = LightData.Position - WorldPosition;
+		float LightMask = 1.0;
+
+		if (LightType == LIGHT_TYPE_DIRECTIONAL)
+		{
+			ShadowRayDirection = LightData.Direction;
+			ToLight = LightData.Direction * 100000.0f;
+		}
+		else
+		{
+			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, ShadowRayDirection);
+			
+			// Skip the light sample that does not contribute anything due to attenuation.
+			if (LightMask <= 0.0)
+			{
+				continue;
+			}
+		}
+
+		// Skip the light sample pointing backwards
+		if (dot(Payload.WorldNormal, normalize(ToLight)) <= 0)
+		{
+			continue;
+		}
+
+		//#dxr_todo: check perf improvements forcing TMin == TMax when bReflectedShadows = false, to avoid tracing rays inside if statements
+		if (bReflectedShadows)
+		{
+			if (ReflectedShadowsType == 2)
+			{
+				ShadowRayDirection = SampleAreaLightDirection(LightData, Payload, LightType, RandSequence);
+			}
+
+			FRayCone ShadowRayCone = RayCone;
+
+			//#dxr_todo: add support for sampling area lights (and perhaps add CVar to enable stocastic shadows?)
+			RayDesc ShadowRay;
+			ShadowRay.Origin = WorldPosition;
+			ShadowRay.Direction = ShadowRayDirection;
+			ShadowRay.TMin = 1e-4f;
+			ShadowRay.TMax = length(ToLight);
+			ApplyPositionBias(ShadowRay, Payload.WorldNormal, ShadowMaxNormalBias);
+
+			float HitT = TraceShadowRay(ShadowRay, ShadowRayCone);
+			AmbientOcclusion = HitT < 0.0f;
+		}
+
+		float3 LightContribution = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, AmbientOcclusion, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), RectTexture).xyz;
+		DirectLighting += LightContribution * LightProfileMultiplier;
+	}
+
+	return DirectLighting;
+}
+
+void ApplyViewDependentMaterialPayloadModifications(RayDesc Ray, inout FMaterialClosestHitPayload Payload)
+{
+	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		float ClearCoat				= Payload.CustomData.x;
+		float ClearCoatRoughness	= Payload.CustomData.y;
+		float MetalSpec = 0.9;
+
+		float NoV = saturate( dot( Payload.WorldNormal, -Ray.Direction ) );
+
+		// Approximation of refraction's effect on EnvBRDF
+		float RefractionScale = ( (NoV * 0.5 + 0.5) * NoV - 1 ) * saturate( 1.25 - 1.25 * Payload.Roughness ) + 1;
+
+		// Approximation of absorption integral, tuned for Roughness=0.4
+		float3 AbsorptionColor = Payload.BaseColor * (1 / MetalSpec);
+		float3 Absorption = AbsorptionColor * ( (NoV - 1) * 0.85 * ( 1 - lerp( AbsorptionColor, Square(AbsorptionColor), -0.78 ) ) + 1 );
+
+		float F0 = 0.04;
+		float Fc = Pow5( 1 - NoV );
+		float F = Fc + (1 - Fc) * F0;
+		float LayerAttenuation = lerp( 1, (1 - F), ClearCoat );
+
+		Payload.BaseColor = lerp( Payload.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, Payload.Metallic * ClearCoat );
+		Payload.Specular *= lerp( 1, RefractionScale, ClearCoat );
+	}
+}
+
+FMaterialClosestHitPayload TraceRayAndAccumulateResults(
+	in RayDesc Ray,
+	in RandomSequence RandSequence,
+	in uint RayFlags,
+	in float ShadowMaxNormalBias,
+	in uint Mask,
+	inout FRayCone RayCone,
+	inout float3 Radiance)
+{
+	FMaterialClosestHitPayload Payload = TraceRayInternal(
+		TLAS,      // AccelerationStructure
+		RayFlags,
+		Mask,
+		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
+		0,         // MissShaderIndex
+		Ray,       // RayDesc
+		RayCone
+	);
+
+	if (IsHit(Ray, Payload))
+	{
+		ApplyViewDependentMaterialPayloadModifications(Ray, Payload);
+
+		Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
+		Payload.SpecularColor = ComputeF0(Payload.Specular, Payload.BaseColor, Payload.Metallic);
+
+		if (ShouldDoDirectLighting)
+		{
+			float3 DirectLighting = ComputeDirectLighting(Ray, RayCone, Payload, RandSequence, ReflectedShadowsType > 0, ShadowMaxNormalBias);
+
+			// Transform NaNs to black, transform negative colors to black.
+			DirectLighting = -min(-DirectLighting, 0.0);
+			Radiance += DirectLighting;
+		}
+
+		if (ShouldDoEmissiveAndIndirectLighting)
+		{
+			// Emissive & indirect contribution
+			Radiance += Payload.Radiance;
+			Radiance += Payload.DiffuseColor * Payload.IndirectIrradiance;
+		}
+	}
+
+	return Payload;
+}

@@ -21,6 +21,7 @@
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/ConfigCacheIni.h"
 #endif
 
 static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
@@ -265,6 +266,91 @@ bool AllowDebugViewmodes(EShaderPlatform Platform)
 #endif
 }
 
+#if WITH_EDITOR
+static void GetShaderCompilerPlatformConfigs(const TCHAR* Key, uint64& OutPlatformFlags)
+{
+	for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+	{
+		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
+		FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
+		if (!PlatformName.IsNone())
+		{
+			FConfigFile EngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName.ToString());
+
+			bool bEnabled = false;
+			if (EngineSettings.GetBool(TEXT("ShaderCompiler"), Key, bEnabled))
+			{
+				uint64 Mask = (uint64)1 << ShaderPlatformIndex;
+				if (bEnabled)
+				{
+					OutPlatformFlags |= Mask;
+				}
+				else
+				{
+					OutPlatformFlags &= ~Mask;
+				}
+			}
+		}
+	}
+}
+#endif
+
+static uint64 GetKeepShaderDebugInfoPlatforms()
+{
+	uint64 KeepDebugInfoPlatforms = 0;
+
+	// First check the global cvars
+	static IConsoleVariable* CVarKeepDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
+	if (CVarKeepDebugInfo && CVarKeepDebugInfo->GetInt())
+	{
+		KeepDebugInfoPlatforms = ~(uint64)0;
+	}
+
+#if WITH_EDITOR
+	// Then load the per platform settings.
+	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.KeepDebugInfo"), KeepDebugInfoPlatforms);
+#endif
+
+	return KeepDebugInfoPlatforms;
+}
+
+bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform)
+{
+	static uint64 KeepShaderDebugInfoPlatforms = GetKeepShaderDebugInfoPlatforms();
+	return (KeepShaderDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+}
+
+static uint64 GetExportShaderDebugInfoPlatforms()
+{
+	uint64 ExportDebugInfoPlatforms = 0;
+
+	// First check the global cvars
+
+	// r.DumpShaderDebugInfo should also turn on ExportShaderDebugInfo
+	// The difference is that r.DumpShaderDebugInfo will also output engine debug files such as converted hlsl or SCW helper files.
+	// Where as r.Shader.ExportDebugInfo is purely to export the graphics debugging tool's debug info files.
+	static IConsoleVariable* CVarExportDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.ExportDebugInfo"));
+	static IConsoleVariable* CVarDumpDebugInfo = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DumpShaderDebugInfo"));
+	if ((CVarExportDebugInfo && CVarExportDebugInfo->GetInt()) || (CVarDumpDebugInfo && CVarDumpDebugInfo->GetInt()))
+	{
+		ExportDebugInfoPlatforms = ~(uint64)0;
+	}
+
+#if WITH_EDITOR
+	// Then load the per platform settings.
+	GetShaderCompilerPlatformConfigs(TEXT("r.Shaders.ExportDebugInfo"), ExportDebugInfoPlatforms);
+#endif
+
+	return ExportDebugInfoPlatforms;
+}
+
+bool ShouldExportShaderDebugInfo(EShaderPlatform Platform)
+{
+	static uint64 GExportDebugInfoPlatforms = GetExportShaderDebugInfoPlatforms();
+	return (GExportDebugInfoPlatforms & (uint64(1) << Platform)) != 0;
+}
+
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const
 {
 	const FParameterAllocation* Allocation = ParameterMap.Find(ParameterName);
@@ -294,12 +380,14 @@ bool FShaderParameterMap::ContainsParameterAllocation(const TCHAR* ParameterName
 	return ParameterMap.Find(ParameterName) != NULL;
 }
 
-void FShaderParameterMap::AddParameterAllocation(const TCHAR* ParameterName,uint16 BufferIndex,uint16 BaseIndex,uint16 Size)
+void FShaderParameterMap::AddParameterAllocation(const TCHAR* ParameterName,uint16 BufferIndex,uint16 BaseIndex,uint16 Size,EShaderParameterType ParameterType)
 {
+	check(ParameterType < EShaderParameterType::Num);
 	FParameterAllocation Allocation;
 	Allocation.BufferIndex = BufferIndex;
 	Allocation.BaseIndex = BaseIndex;
 	Allocation.Size = Size;
+	Allocation.Type = ParameterType;
 	ParameterMap.Add(ParameterName,Allocation);
 }
 
@@ -359,11 +447,23 @@ bool CheckVirtualShaderFilePath(const FString& VirtualFilePath, TArray<FShaderCo
 	}
 
 	FString Extension = FPaths::GetExtension(VirtualFilePath);
-	if ((Extension != TEXT("usf") && Extension != TEXT("ush")) || VirtualFilePath.EndsWith(TEXT(".usf.usf")))
+	if (VirtualFilePath.StartsWith(TEXT("/Engine/Shared/")))
 	{
-		FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .usf or .ush allowed."), *VirtualFilePath);
-		ReportVirtualShaderFilePathError(CompileErrors, Error);
-		bSuccess = false;
+		if ((Extension != TEXT("h")))
+		{
+			FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .h is allowed for shared headers that are shared between C++ and shader code."), *VirtualFilePath);
+			ReportVirtualShaderFilePathError(CompileErrors, Error);
+			bSuccess = false;
+		}	
+	}
+	else
+	{
+		if ((Extension != TEXT("usf") && Extension != TEXT("ush")) || VirtualFilePath.EndsWith(TEXT(".usf.usf")))
+		{
+			FString Error = FString::Printf(TEXT("Extension on virtual shader source file name \"%s\" is wrong. Only .usf or .ush allowed."), *VirtualFilePath);
+			ReportVirtualShaderFilePathError(CompileErrors, Error);
+			bSuccess = false;
+		}
 	}
 
 	return bSuccess;
@@ -421,7 +521,8 @@ static void GetAllVirtualShaderSourcePaths(TArray<FString>& OutVirtualFilePaths,
 
 	//#todo-rco: No need to loop through Shader Pipeline Types (yet)
 
-	// also always add the MaterialTemplate.usf shader file
+	// Always add ShaderVersion.ush, so if shader forgets to include it, it will still won't break DDC.
+	AddShaderSourceFileEntry(OutVirtualFilePaths, FString(TEXT("/Engine/Public/ShaderVersion.ush")), ShaderPlatform);
 	AddShaderSourceFileEntry(OutVirtualFilePaths, FString(TEXT("/Engine/Private/MaterialTemplate.ush")), ShaderPlatform);
 	AddShaderSourceFileEntry(OutVirtualFilePaths, FString(TEXT("/Engine/Private/Common.ush")), ShaderPlatform);
 	AddShaderSourceFileEntry(OutVirtualFilePaths, FString(TEXT("/Engine/Private/Definitions.usf")), ShaderPlatform);

@@ -508,11 +508,29 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 			}
 		}
 
+
 		FPrimaryAssetId PrimaryAssetId = ExtractPrimaryAssetIdFromData(Data, PrimaryAssetType);
 
 		// Remove invalid or wrong type assets
 		if (!PrimaryAssetId.IsValid() || PrimaryAssetId.PrimaryAssetType != PrimaryAssetType)
 		{
+			if (!PrimaryAssetId.IsValid())
+			{
+				UE_LOG(LogAssetManager, Warning, TEXT("Ignoring primary asset %s - PrimaryAssetType %s - invalid primary asset ID"), *Data.AssetName.ToString(), *PrimaryAssetType.ToString());
+			}
+			else
+			{
+				// Warn that 'Foo' conflicts with 'Bar', but only once per conflict
+				static TSet<FString> IssuedWarnings;
+
+				FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
+
+				if (!IssuedWarnings.Contains(ConflictMsg))
+				{
+					UE_LOG(LogAssetManager, Display, TEXT("%s"), *ConflictMsg);
+					IssuedWarnings.Add(ConflictMsg);
+				}
+			}
 			continue;
 		}
 
@@ -2499,6 +2517,7 @@ bool UAssetManager::ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) 
 
 void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 {
+	SCOPED_BOOT_TIMING("UAssetManager::ScanPrimaryAssetTypesFromConfig");
 	IAssetRegistry& AssetRegistry = GetAssetRegistry();
 	const UAssetManagerSettings& Settings = GetSettings();
 

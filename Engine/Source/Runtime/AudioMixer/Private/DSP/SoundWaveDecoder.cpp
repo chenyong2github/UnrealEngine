@@ -65,7 +65,9 @@ namespace Audio
 							MixerBuffer->Seek(SeekTime);
 						}
 
-						MixerSourceBuffer.ReadMoreRealtimeData(0, EBufferReadMode::Asynchronous);
+						ICompressedAudioInfo* CompressedAudioInfo = MixerBuffer->GetDecompressionState(false);
+
+						MixerSourceBuffer.ReadMoreRealtimeData(CompressedAudioInfo, 0, EBufferReadMode::Asynchronous);
 
 						// not ready
 						return false;
@@ -146,7 +148,6 @@ namespace Audio
 
 			if (MixerSourceBuffer.GetNumBuffersQueued() > 0)
 			{
-				check(SourceInfo.CurrentPCMBuffer->AudioData.Num() > 0);
 				SourceInfo.CurrentPCMBuffer = MixerSourceBuffer.GetNextBuffer();
 				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / SourceInfo.NumSourceChannels;
 
@@ -554,4 +555,5 @@ namespace Audio
 
 		return true;
 	}
+
 }

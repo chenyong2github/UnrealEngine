@@ -246,6 +246,12 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
  */
 FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Msg, int NumStackFramesToIgnore)
 {
+	// if time isn't ready yet, we better not continue
+	if (FPlatformTime::GetSecondsPerCycle() == 0.0)
+	{
+		return;
+	}
+	
 #if STATS
 	FString EnsureFailedPerfMessage = FString::Printf(TEXT("FDebug::EnsureFailed"));
 	SCOPE_LOG_TIME_IN_SECONDS(*EnsureFailedPerfMessage, nullptr)

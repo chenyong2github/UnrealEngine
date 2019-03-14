@@ -73,12 +73,13 @@ class FGoogleVRControllerPlugin : public IGoogleVRControllerPlugin
 		JNIEnv* jenv = FAndroidApplication::GetJavaEnv();
 		static jmethodID Method = FJavaWrapper::FindMethod(jenv, FJavaWrapper::GameActivityClassID, "getApplicationContext", "()Landroid/content/Context;", false);
 		static jobject ApplicationContext = FJavaWrapper::CallObjectMethod(jenv, FJavaWrapper::GameActivityThis, Method);
-		jclass MainClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/GameActivity");
+		jclass MainClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
 		jclass classClass = jenv->FindClass("java/lang/Class");
 		jmethodID getClassLoaderMethod = jenv->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
-		jobject classLoader = jenv->CallObjectMethod(MainClass, getClassLoaderMethod);
+		auto classLoader = NewScopedJavaObject(jenv, jenv->CallObjectMethod(MainClass, getClassLoaderMethod));
 
-		success = pController->Init(jenv, ApplicationContext, classLoader, options, GVRAPI);
+		success = pController->Init(jenv, ApplicationContext, *classLoader, options, GVRAPI);
+		jenv->DeleteGlobalRef(MainClass);
 #else
 #if GOOGLEVRCONTROLLER_SUPPORTED_EMULATOR_PLATFORMS
 		success = static_cast<gvr::ControllerEmulatorApi*>(pController)->InitEmulator(options, CONTROLLER_EVENT_FORWARDED_PORT);
@@ -335,6 +336,7 @@ void FGoogleVRController::PollController(float DeltaTime)
 		// Updating the Arm Model requires us to pass in some data in GVR space
 		gvr_arm_model::Controller::UpdateData UpdateData;
 
+		bool recentered = false;
 #if GOOGLEVRCONTROLLER_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 		if (gvr::ControllerConnectionState::GVR_CONTROLLER_CONNECTED == InstantPreviewControllerState.connection_state)
 		{
@@ -367,6 +369,9 @@ void FGoogleVRController::PollController(float DeltaTime)
 
 			// Get connected status
 			UpdateData.connected = ControllerState->GetConnectionState() == gvr::ControllerConnectionState::GVR_CONTROLLER_CONNECTED;
+			
+			// Was the controller recentered?
+			recentered = ControllerState->GetRecentered();
 		}
 
 		// Get head direction and position of the HMD, used for FollowGaze options
@@ -393,9 +398,8 @@ void FGoogleVRController::PollController(float DeltaTime)
 		// Get delta time
 		UpdateData.deltaTimeSeconds = DeltaTime;
 
-
 		// Update the arm model
-		ArmModelController.Update(UpdateData);
+		ArmModelController.Update(UpdateData, recentered);
 	}
 #endif
 }

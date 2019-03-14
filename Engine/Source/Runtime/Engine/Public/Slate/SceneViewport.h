@@ -374,6 +374,10 @@ private:
 	 */
 	void OnPostResizeWindowBackbuffer(void* Backbuffer);
 
+
+	/** @return Returns true if the viewport needs permanent capture. */
+	bool IsInPermanentCapture();
+
 private:
 	/** An intermediate reply state that is reset whenever an input event is generated */
 	FReply CurrentReplyState;

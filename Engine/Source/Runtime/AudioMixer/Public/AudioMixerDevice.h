@@ -73,6 +73,7 @@ namespace Audio
 		~FMixerDevice();
 
 		//~ Begin FAudioDevice
+		virtual void UpdateDeviceDeltaTime() override;
 		virtual void GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const override;
 		virtual bool InitializeHardware() override;
 		virtual void FadeIn() override;
@@ -141,9 +142,9 @@ namespace Audio
 		FMixerSubmixWeakPtr GetSubmixInstance(USoundSubmix* SoundSubmix);
 
 		// Functions which check the thread it's called on and helps make sure functions are called from correct threads
-		void CheckAudioThread();
-		void CheckAudioRenderingThread();
-		bool IsAudioRenderingThread();
+		void CheckAudioThread() const;
+		void CheckAudioRenderingThread() const;
+		bool IsAudioRenderingThread() const;
 
 		// Public Functions
 		FMixerSourceVoice* GetMixerSourceVoice();
@@ -156,8 +157,12 @@ namespace Audio
 
 		int32 GetNumOutputFrames() const { return PlatformSettings.CallbackBufferFrameSize; }
 
+		// Builds a 3D channel map for a spatialized source.
 		void Get3DChannelMap(const ESubmixChannelFormat InSubmixChannelType, const FWaveInstance* InWaveInstance, const float EmitterAzimuth, const float NormalizedOmniRadius, Audio::AlignedFloatBuffer& OutChannelMap);
+
+		// Builds a channel gain matrix for a non-spatialized source. The non-static variation of this function queries AudioMixerDevice->NumOutputChannels directly which may not be thread safe.
 		void Get2DChannelMap(bool bIsVorbis, const ESubmixChannelFormat InSubmixChannelType, const int32 NumSourceChannels, const bool bIsCenterChannelOnly, Audio::AlignedFloatBuffer& OutChannelMap) const;
+		static void Get2DChannelMap(bool bIsVorbis, const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, Audio::AlignedFloatBuffer& OutChannelMap);
 
 		int32 GetDeviceSampleRate() const;
 		int32 GetDeviceOutputChannels() const;
@@ -202,7 +207,7 @@ namespace Audio
 
 		void Get2DChannelMapInternal(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, TArray<float>& OutChannelMap) const;
 		void InitializeChannelMaps();
-		int32 GetChannelMapCacheId(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly) const;
+		static int32 GetChannelMapCacheId(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly);
 		void CacheChannelMap(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly);
 		void InitializeChannelAzimuthMap(const int32 NumChannels);
 
@@ -214,6 +219,7 @@ namespace Audio
 	private:
 
 		bool IsMasterSubmixType(USoundSubmix* InSubmix) const;
+		FMixerSubmix* GetMasterSubmixInstance(USoundSubmix* InSubmix);
 
 		// Pushes the command to a audio render thread command queue to be executed on render thread
 		void AudioRenderThreadCommand(TFunction<void()> Command);
@@ -253,6 +259,9 @@ namespace Audio
 		/** The audio clock from device initialization, updated at block rate. */
 		double AudioClock;
 
+		/** What the previous master volume was. */
+		float PreviousMasterVolume;
+
 		/** Timing data for audio thread. */
 		FAudioThreadTimingData AudioThreadTimingData;
 
@@ -274,10 +283,10 @@ namespace Audio
 		FMixerSourceManager SourceManager;
 
 		/** ThreadId for the game thread (or if audio is running a seperate thread, that ID) */
-		int32 GameOrAudioThreadId;
+		mutable int32 GameOrAudioThreadId;
 
 		/** ThreadId for the low-level platform audio mixer. */
-		int32 AudioPlatformThreadId;
+		mutable int32 AudioPlatformThreadId;
 
 		/** Command queue to send commands to audio render thread from game thread or audio thread. */
 		TQueue<TFunction<void()>> CommandQueue;

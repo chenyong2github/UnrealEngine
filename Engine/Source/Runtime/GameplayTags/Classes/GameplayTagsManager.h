@@ -474,6 +474,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 		return bUseFastReplication;
 	}
 
+	/** Returns the hash of NetworkGameplayTagNodeIndex */
+	uint32 GetNetworkGameplayTagNodeIndexHash() const {	return NetworkGameplayTagNodeIndexHash;	}
+
 	/** Returns a list of the ini files that contain restricted tags */
 	void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
 
@@ -482,6 +485,12 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 
 	/** Returns a list of the owners for a restricted tag config file. May be empty */
 	void GetOwnersForTagSource(const FString& SourceName, TArray<FString>& OutOwners) const;
+
+	/** Notification that a tag container has been loaded via serialize */
+	void GameplayTagContainerLoaded(FGameplayTagContainer& Container, UProperty* SerializingProperty) const;
+
+	/** Notification that a gameplay tag has been loaded via serialize */
+	void SingleGameplayTagLoaded(FGameplayTag& Tag, UProperty* SerializingProperty) const;
 
 	/** Handles redirectors for an entire container, will also error on invalid tags */
 	void RedirectTagsForContainer(FGameplayTagContainer& Container, UProperty* SerializingProperty) const;
@@ -511,6 +520,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	const TArray<TSharedPtr<FGameplayTagNode>>& GetNetworkGameplayTagNodeIndex() const { return NetworkGameplayTagNodeIndex; }
 
 	bool IsNativelyAddedTag(FGameplayTag Tag) const;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGameplayTagLoaded, const FGameplayTag& /*Tag*/)
+	FOnGameplayTagLoaded OnGameplayTagLoadedDelegate;
 
 #if WITH_EDITOR
 	/** Gets a Filtered copy of the GameplayRootTags Array based on the comma delimited filter string passed in */
@@ -703,6 +715,8 @@ private:
 
 	/** Sorted list of nodes, used for network replication */
 	TArray<TSharedPtr<FGameplayTagNode>> NetworkGameplayTagNodeIndex;
+
+	uint32 NetworkGameplayTagNodeIndexHash;
 
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()

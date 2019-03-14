@@ -54,6 +54,12 @@ static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("Debug option: when enabled will fill the buffer contents with 0 when allocating buffer objects, or regions thereof. (Default: 0, Off)"));
 
 #if METAL_DEBUG_OPTIONS
+int32 GMetalResetOnPSOChange = 0; // Deliberately not static
+static FAutoConsoleVariableRef CVarMetalResetOnPSOChange(
+	TEXT("rhi.Metal.ResetOnPSOChange"),
+	GMetalResetOnPSOChange,
+	TEXT("Debug option: when enabled will reset all the resource bindings when the PSO changes to aid debugging unbound resources. (Default: 0, Off)"));
+
 int32 GMetalBufferScribble = 0; // Deliberately not static, see InitFrame_UniformBufferPoolCleanup
 static FAutoConsoleVariableRef CVarMetalBufferScribble(
 	TEXT("rhi.Metal.BufferScribble"),
@@ -460,7 +466,7 @@ void FMetalDeviceContext::ClearFreeList()
 			}
 			for ( FMetalTexture& Texture : Pair->UsedTextures )
 			{
-                if (!(Texture.GetBuffer() || Texture.GetParentTexture()) && (Texture.GetStorageMode() != mtlpp::StorageMode::Private))
+                if (!Texture.GetBuffer() && !Texture.GetParentTexture())
 				{
 #if METAL_DEBUG_OPTIONS
 					if (GMetalResourcePurgeOnDelete && !Texture.GetHeap())
@@ -492,12 +498,6 @@ void FMetalDeviceContext::DrainHeap()
 
 void FMetalDeviceContext::EndFrame()
 {
-	FlushFreeList();
-	
-	ClearFreeList();
-	
-    Heap.Compact(false);
-    
 	// A 'frame' in this context is from the beginning of encoding on the CPU
 	// to the end of all rendering operations on the GPU. So the semaphore is
 	// signalled when the last command buffer finishes GPU execution.
@@ -533,6 +533,12 @@ void FMetalDeviceContext::EndFrame()
 #endif
 	SubmitCommandsHint((uint32)SubmitFlags);
 	
+    FlushFreeList();
+    
+    ClearFreeList();
+    
+    Heap.Compact(false);
+    
 	InitFrame(true, 0, 0);
 }
 
@@ -693,8 +699,15 @@ void FMetalDeviceContext::ReleaseTexture(FMetalTexture& Texture)
         if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
         {
             Heap.ReleaseTexture(nullptr, Texture);
+			
+			// Ensure that the Objective-C handle can't disappear prior to the GPU being done with it without racing with the above
+			if(!ObjectFreeList.Contains(Texture.GetPtr()))
+			{
+				[Texture.GetPtr() retain];
+				ObjectFreeList.Add(Texture.GetPtr());
+			}
         }
-		if(!UsedTextures.Contains(Texture))
+		else if(!UsedTextures.Contains(Texture))
 		{
 			UsedTextures.Add(MoveTemp(Texture));
 		}
@@ -767,7 +780,7 @@ FMetalTexture FMetalDeviceContext::CreateTexture(FMetalSurface* Surface, mtlpp::
 
 FMetalBuffer FMetalDeviceContext::CreatePooledBuffer(FMetalPooledBufferArgs const& Args)
 {
-	FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
+    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, Args.Flags, GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
 	if (GMetalResourcePurgeOnDelete && !Buffer.GetHeap())
@@ -795,10 +808,10 @@ void FMetalDeviceContext::ReleaseBuffer(FMetalBuffer& Buffer)
 
 struct FMetalRHICommandUpdateFence final : public FRHICommand<FMetalRHICommandUpdateFence>
 {
-	FMetalFence* Fence;
+	TRefCountPtr<FMetalFence> Fence;
 	uint32 Num;
 	
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandUpdateFence(FMetalFence* InFence, uint32 InNum)
+	FORCEINLINE_DEBUGGABLE FMetalRHICommandUpdateFence(TRefCountPtr<FMetalFence>& InFence, uint32 InNum)
 	: Fence(InFence)
 	, Num(InNum)
 	{
@@ -839,8 +852,8 @@ FMetalRHICommandContext* FMetalDeviceContext::AcquireContext(int32 NewIndex, int
 	EndLabel = [NSString stringWithFormat:@"End Parallel Context Index %d Num %d", NewIndex, NewNum];
 #endif
 	
-	FMetalFence* StartFence(NewIndex == 0 ? CommandList.GetCommandQueue().CreateFence(StartLabel) : ParallelFences[NewIndex - 1]);
-	FMetalFence* EndFence(CommandList.GetCommandQueue().CreateFence(EndLabel));
+	TRefCountPtr<FMetalFence> StartFence = (NewIndex == 0 ? CommandList.GetCommandQueue().CreateFence(StartLabel) : ParallelFences[NewIndex - 1].GetReference());
+	TRefCountPtr<FMetalFence> EndFence = CommandList.GetCommandQueue().CreateFence(EndLabel);
 	ParallelFences[NewIndex] = EndFence;
 	
 	// Give the context the fences so that we can properly order the parallel contexts.
@@ -1031,12 +1044,12 @@ void FMetalContext::SetParallelPassFences(FMetalFence* Start, FMetalFence* End)
 	EndFence = End;
 }
 
-FMetalFence* FMetalContext::GetParallelPassStartFence(void) const
+TRefCountPtr<FMetalFence> const& FMetalContext::GetParallelPassStartFence(void) const
 {
 	return StartFence;
 }
 
-FMetalFence* FMetalContext::GetParallelPassEndFence(void) const
+TRefCountPtr<FMetalFence> const& FMetalContext::GetParallelPassEndFence(void) const
 {
 	return EndFence;
 }
@@ -1067,7 +1080,6 @@ void FMetalContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32
 	RenderPass.Begin(StartFence);
 	
 	// Unset the start fence, the render-pass owns it and we can consider it encoded now!
-	SafeReleaseMetalFence(StartFence);
 	StartFence = nullptr;
 	
 	// make sure first SetRenderTarget goes through
@@ -1080,7 +1092,6 @@ void FMetalContext::FinishFrame()
 	RenderPass.Update(EndFence);
 	
 	// Unset the end fence, the render-pass owns it and we can consider it encoded now!
-	SafeReleaseMetalFence(EndFence);
 	EndFence = nullptr;
 	
 	// End the render pass
@@ -1646,7 +1657,6 @@ void FMetalDeviceContext::SetParallelRenderPassDescriptor(FRHISetRenderTargetsIn
 	if (!RenderPass.IsWithinParallelPass())
 	{
 		RenderPass.Begin(EndFence);
-		SafeReleaseMetalFence(EndFence);
 		EndFence = nullptr;
 		StateCache.InvalidateRenderTargets();
 		SetRenderTargetsInfo(TargetInfo, false);
@@ -1670,7 +1680,6 @@ void FMetalDeviceContext::EndParallelRenderCommandEncoding(void)
 	{
 		RenderPass.EndRenderPass();
 		RenderPass.Begin(StartFence, true);
-		SafeReleaseMetalFence(StartFence);
 		StartFence = nullptr;
 		FPlatformAtomics::AtomicStore(&NumParallelContextsInPass, 0);
 	}
@@ -1723,7 +1732,7 @@ public:
 			
 			if (Index == (Num - 1))
 			{
-				FMetalFence* Fence = CmdContext->GetInternalContext().GetParallelPassEndFence();
+				TRefCountPtr<FMetalFence> Fence = CmdContext->GetInternalContext().GetParallelPassEndFence();
 				GetMetalDeviceContext().SetParallelPassFences(Fence, nil);
 			}
 

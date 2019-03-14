@@ -404,7 +404,7 @@ void UPoseAsset::GetBaseAnimationPose(struct FCompactPose& OutPose, FBlendedCurv
 
 /*
  * The difference between BlendFromIdentityAndAccumulcate is scale
- * This ADDS scales to the FinalAtom. We use additive identity as final atom, so can't use 
+ * This ADDS scales to the FinalAtom. We use additive identity as final atom, so can't use
  */
 FORCEINLINE void BlendFromIdentityAndAccumulateAdditively(FTransform& FinalAtom, FTransform& SourceAtom, float BlendWeight)
 {
@@ -424,6 +424,102 @@ FORCEINLINE void BlendFromIdentityAndAccumulateAdditively(FTransform& FinalAtom,
 	FinalAtom.DiagnosticCheckNaN_All();
 
 	FinalAtom.NormalizeRotation();
+}
+
+void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float>& InCurveValues, TArray<FName>& OutCurveNames, TArray<float>& OutCurveValues) const
+{
+	// if we have any pose curve
+	if (ensure(InCurveNames.Num() == InCurveValues.Num()) && InCurveNames.Num() > 0)
+	{
+		USkeleton* MySkeleton = GetSkeleton();
+		check(MySkeleton);
+
+		bool bNormalizeWeight = bAdditivePose == false;
+		TMap<const FPoseData*, float> IndexToWeightMap;
+		float TotalWeight = 0.f;
+		// we iterate through to see if we have that corresponding pose
+		for (int32 CurveIndex = 0; CurveIndex < InCurveNames.Num(); ++CurveIndex)
+		{
+			FSmartName PoseSmartName;
+			if (MySkeleton->GetSmartNameByName(USkeleton::AnimCurveMappingName, InCurveNames[CurveIndex], PoseSmartName))
+			{
+				int32 PoseIndex = PoseContainer.PoseNames.Find(PoseSmartName);
+				if (ensure(PoseIndex != INDEX_NONE))
+				{
+					const FPoseData& PoseData = PoseContainer.Poses[PoseIndex];
+					const float Value = InCurveValues[CurveIndex];
+
+					// we only add to the list if it's not additive Or if it's additive, we don't want to add base pose index
+					// and has weight
+					if ((!bAdditivePose || PoseIndex != BasePoseIndex) && FAnimationRuntime::HasWeight(Value))
+					{
+						IndexToWeightMap.Add(&PoseData, Value);
+						TotalWeight += Value;
+					}
+				}
+			}
+		}
+
+		const int32 TotalNumberOfValidPoses = IndexToWeightMap.Num();
+		if (TotalNumberOfValidPoses > 0)
+		{
+			TArray<FBlendedCurve> PoseCurves;
+			TArray<float>	CurveWeights;
+
+			//if full pose, we'll have to normalize by weight
+			if (bNormalizeWeight && TotalWeight > 1.f)
+			{
+				for (TPair<const FPoseData*, float>& WeightPair : IndexToWeightMap)
+				{
+					WeightPair.Value /= TotalWeight;
+				}
+			}
+
+			// collect curves
+			PoseCurves.AddDefaulted(TotalNumberOfValidPoses);
+			CurveWeights.AddUninitialized(TotalNumberOfValidPoses);
+			int32 PoseIndex = 0;
+
+			TArray<uint16> CurveUIDList;
+			CurveUIDList.AddUninitialized(PoseContainer.Curves.Num());
+			for (int32 CurveIndex = 0; CurveIndex < PoseContainer.Curves.Num(); ++CurveIndex)
+			{
+				CurveUIDList[CurveIndex] = PoseContainer.Curves[CurveIndex].Name.UID;
+			}
+
+			for (const TPair<const FPoseData*, float>& ActivePosePair : IndexToWeightMap)
+			{
+				const FPoseData* Pose = ActivePosePair.Key;
+				const float Weight = ActivePosePair.Value;
+
+				CurveWeights[PoseIndex] = Weight;
+				PoseCurves[PoseIndex].InitFrom(&CurveUIDList);
+				PoseContainer.GetPoseCurve(Pose, PoseCurves[PoseIndex]);
+
+				++PoseIndex;
+			}
+
+			// blend curves
+			FBlendedCurve BlendedCurve;
+			BlendCurves(PoseCurves, CurveWeights, BlendedCurve);
+
+			OutCurveNames.Reset();
+			OutCurveValues.Reset();
+			for (int32 Idx = 0; Idx < CurveUIDList.Num(); ++Idx)
+			{
+				USkeleton::AnimCurveUID UID = Idx;
+				if (BlendedCurve.IsEnabled(UID))
+				{
+					FSmartName CurveName;
+					if (MySkeleton->GetSmartNameByUID(USkeleton::AnimCurveMappingName, UID, CurveName))
+					{
+						OutCurveNames.Add(CurveName.DisplayName);
+						OutCurveValues.Add(BlendedCurve.Get(UID));
+					}
+				}
+			}
+		}
+	}
 }
 
 bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
@@ -511,6 +607,11 @@ bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& O
 				const FCompactPoseBoneIndex CompactIndex = BoneIndices[TrackIndex].CompactBoneIndex;
 				if (CompactIndex != INDEX_NONE)
 				{
+					if (!ExtractionContext.IsBoneRequired(CompactIndex.GetInt()))
+					{
+						continue;
+					}
+
 					TArray<FTransform> BlendingTransform;
 					TArray<float> BlendingWeights;
 					float TotalLocalWeight = 0.f;
@@ -589,6 +690,10 @@ bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& O
 				const FBoneIndices& LocalBoneIndices = BoneIndices[TrackIndex];
 				if (LocalBoneIndices.CompactBoneIndex != INDEX_NONE)
 				{
+					if (!ExtractionContext.IsBoneRequired(LocalBoneIndices.CompactBoneIndex.GetInt()))
+					{
+						continue;
+					}
 					FAnimationRuntime::RetargetBoneTransform(MySkeleton, RetargetSource, BlendedBoneTransform[TrackIndex], LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, bAdditivePose);
 					OutPose[LocalBoneIndices.CompactBoneIndex] = BlendedBoneTransform[TrackIndex];
 					OutPose.NormalizeRotations();

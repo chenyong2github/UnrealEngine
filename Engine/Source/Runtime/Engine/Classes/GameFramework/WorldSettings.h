@@ -438,7 +438,8 @@ protected:
 	 *	navigation functionality won't be accessible).
 	 *	This flag is now deprecated. Use NavigationSystemConfig property to 
 	 *	determine navigation system's properties or existence */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, config, Category=World, AdvancedDisplay, meta=(DisplayName = "DEPRECATED_bEnableNavigationSystem"))
+	UE_DEPRECATED(4.22, "This member will be removed. Please use NavigationSystemConfig instead.")
+	UPROPERTY(BlueprintReadOnly, config, Category = World, meta=(DisplayName = "DEPRECATED_bEnableNavigationSystem"))
 	uint8 bEnableNavigationSystem:1;
 
 public:
@@ -681,7 +682,8 @@ public:
 	FBroadphaseSettings BroadphaseSettings;
 
 	// If paused, FName of person pausing the game.
-	UPROPERTY(transient, replicated)
+	UE_DEPRECATED(4.23, "This property is deprecated. Please use Get/SetPauserPlayerState().")
+	UPROPERTY(transient)
 	class APlayerState* Pauser;
 
 	/** valid only during replication - information about the player(s) being replicated to
@@ -701,6 +703,11 @@ public:
 	/** Array of user data stored with the asset */
 	UPROPERTY()
 	TArray<UAssetUserData*> AssetUserData;
+
+private:
+	// If paused, PlayerState of person pausing the game.
+	UPROPERTY(transient, replicated)
+	class APlayerState* PauserPlayerState;
 
 public:
 	//~ Begin UObject Interface.
@@ -776,6 +783,9 @@ public:
 	int32 GetNumHierarchicalLODLevels() const;
 	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
 #endif // WITH EDITOR
+
+	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }
+	FORCEINLINE virtual void SetPauserPlayerState(class APlayerState* PlayerState) { PauserPlayerState = PlayerState; }
 
 private:
 

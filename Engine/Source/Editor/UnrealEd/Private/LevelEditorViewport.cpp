@@ -1769,6 +1769,11 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 	View->SpriteCategoryVisibility = SpriteCategoryVisibility;
 	View->bCameraCut = bEditorCameraCut;
 	View->bHasSelectedComponents = GEditor->GetSelectedComponentCount() > 0;
+
+#if RHI_RAYTRACING
+	View->SetupRayTracedRendering();
+#endif
+
 	return View;
 
 }
@@ -4326,7 +4331,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 				}
 
 				// Allocate the material proxy and register it so it can be deleted properly once the rendering is done with it.
-				FDynamicColoredMaterialRenderProxy* MaterialProxy = new FDynamicColoredMaterialRenderProxy(GEngine->EditorBrushMaterial->GetRenderProxy(false), Brush->GetWireColor());
+				FDynamicColoredMaterialRenderProxy* MaterialProxy = new FDynamicColoredMaterialRenderProxy(GEngine->EditorBrushMaterial->GetRenderProxy(), Brush->GetWireColor());
 				PDI->RegisterDynamicResource(MaterialProxy);
 
 				// Flush the mesh triangles.

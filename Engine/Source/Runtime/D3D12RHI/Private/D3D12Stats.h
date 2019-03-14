@@ -290,9 +290,6 @@ namespace D3D12RHI
 	*/
 	struct FD3DGPUProfiler : public FGPUProfiler, public FD3D12AdapterChild
 	{
-		/** Used to measure GPU time per frame. */
-		FD3D12BufferedGPUTiming FrameTiming;
-
 		/** GPU hitch profile histories */
 		TIndirectArray<FD3D12EventNodeFrame> GPUHitchEventNodeFrames;
 
@@ -328,5 +325,47 @@ namespace D3D12RHI
 		void BeginFrame(class FD3D12DynamicRHI* InRHI);
 
 		void EndFrame(class FD3D12DynamicRHI* InRHI);
+
+		bool CheckGpuHeartbeat() const;
+
+		/**
+		 * Calculate the amount of GPU idle time between two timestamps
+		 * @param StartTime - start timestamp
+		 * @param EndTime - end timestamp
+		 * @return number of idle GPU clock ticks between or 0 if command list execution time isn't tracked
+		 */
+		uint64 CalculateIdleTime(uint64 StartTime, uint64 EndTime);
+
+#if NV_AFTERMATH
+		virtual void PushEvent(const TCHAR* Name, FColor Color, GFSDK_Aftermath_ContextHandle Context);
+
+		void RegisterCommandList(GFSDK_Aftermath_ContextHandle context);
+		void UnregisterCommandList(GFSDK_Aftermath_ContextHandle context);
+
+		TArray<GFSDK_Aftermath_ContextHandle> AftermathContexts;
+		FCriticalSection AftermathLock;
+
+		TArray<uint32> PushPopStack;
+		TMap<uint32, FString> CachedStrings;
+#endif
+
+		/** Used to measure GPU time per frame. */
+		FD3D12BufferedGPUTiming FrameTiming;
+
+	private:
+		/** Flush existing command lists and start command list execution time tracking */
+		void DoPreProfileGPUWork();
+
+		/** Flush existing command lists and obtain timing results of all tracked command lists */
+		void DoPostProfileGPUWork();
+
+		typedef typename FD3D12CommandListManager::FResolvedCmdListExecTime FResolvedCmdListExecTime;
+
+		/** Timstamps marking the beginning of tracked command lists */
+		TArray<uint64> CmdListStartTimestamps;
+		/** Timstamps marking the end of tracked command lists */
+		TArray<uint64> CmdListEndTimestamps;
+		/** Accumulated idle GPU ticks before each corresponding command list */
+		TArray<uint64> IdleTimeCDF;
 	};
 }

@@ -124,6 +124,12 @@ void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContex
 			}
 		}
 	}
+
+	PoseExtractContext.BonesRequired.SetNumZeroed(BoneBlendWeights.Num());
+	for (int32 BoneIndex = 0; BoneIndex < BoneBlendWeights.Num(); BoneIndex++)
+	{
+		PoseExtractContext.BonesRequired[BoneIndex] = BoneBlendWeights[BoneIndex] > SMALL_NUMBER;
+	}
 }
 
 void FAnimNode_PoseDriver::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
@@ -136,6 +142,11 @@ void FAnimNode_PoseDriver::GatherDebugData(FNodeDebugData& DebugData)
 {
 	FAnimNode_PoseHandler::GatherDebugData(DebugData);
 	SourcePose.GatherDebugData(DebugData.BranchFlow(1.f));
+}
+
+float FAnimNode_PoseDriver::GetRadiusForTarget(const FRBFTarget& Target) const
+{
+	return FRBFSolver::GetRadiusForTarget(Target, RBFParams);
 }
 
 bool FAnimNode_PoseDriver::IsBoneDriven(FName BoneName) const
@@ -196,6 +207,8 @@ void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 		RBFTarget.ScaleFactor = PoseTarget.TargetScale;
 		RBFTarget.bApplyCustomCurve = PoseTarget.bApplyCustomCurve;
 		RBFTarget.CustomCurve = PoseTarget.CustomCurve;
+		RBFTarget.DistanceMethod = PoseTarget.DistanceMethod;
+		RBFTarget.FunctionType = PoseTarget.FunctionType;
 	}
 }
 

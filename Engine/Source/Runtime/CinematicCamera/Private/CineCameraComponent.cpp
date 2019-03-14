@@ -483,7 +483,6 @@ void UCineCameraComponent::CreateDebugFocusPlane()
 			DebugFocusPlaneComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 			DebugFocusPlaneComponent->bHiddenInGame = false;
 			DebugFocusPlaneComponent->CastShadow = false;
-			DebugFocusPlaneComponent->PostPhysicsComponentTick.bCanEverTick = false;
 			DebugFocusPlaneComponent->CreationMethod = CreationMethod;
 			DebugFocusPlaneComponent->bSelectable = false;
 

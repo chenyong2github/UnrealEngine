@@ -16,6 +16,7 @@
 #include "Components.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Engine/MeshMerging.h"
+#include "Engine/StreamableRenderAsset.h"
 #include "Templates/UniquePtr.h"
 #include "StaticMeshResources.h"
 #include "PerPlatformProperties.h"
@@ -30,6 +31,7 @@ class FSpeedTreeWind;
 class UAssetUserData;
 class UMaterialInterface;
 class UNavCollisionBase;
+class FStaticMeshUpdate;
 struct FMeshDescriptionBulkData;
 struct FStaticMeshLODResources;
 
@@ -547,7 +549,7 @@ struct FStaticMeshDescriptionAttributeGetter
  * @see AStaticMeshActor, UStaticMeshComponent
  */
 UCLASS(hidecategories=Object, customconstructor, MinimalAPI, BlueprintType, config=Engine)
-class UStaticMesh : public UObject, public IInterface_CollisionDataProvider, public IInterface_AssetUserData
+class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -590,6 +592,13 @@ class UStaticMesh : public UObject, public IInterface_CollisionDataProvider, pub
 	/** The LOD group to which this mesh belongs. */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=LodSettings)
 	FName LODGroup;
+
+	/**
+	 * If non-negative, specify the maximum number of streamed LODs. Only has effect if
+	 * mesh LOD streaming is enabled for the target platform.
+	 */
+	UPROPERTY()
+	FPerPlatformInt NumStreamedLODs;
 
 	/* The last import version */
 	UPROPERTY()
@@ -642,7 +651,7 @@ class UStaticMesh : public UObject, public IInterface_CollisionDataProvider, pub
 	int32 LightMapResolution;
 
 	/** The light map coordinate index */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMesh, meta=(ToolTip="The light map coordinate index"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMesh, meta=(ToolTip="The light map coordinate index", UIMin = "0", UIMax = "3"))
 	int32 LightMapCoordinateIndex;
 
 	/** Useful for reducing self shadowing from distance field methods when using world position offset to animate the mesh's vertices. */
@@ -778,6 +787,11 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = StaticMesh)
 	TArray<UAssetUserData*> AssetUserData;
 
+	FStaticMeshUpdate* PendingUpdate;
+
+	friend struct FStaticMeshUpdateContext;
+	friend class FStaticMeshUpdate;
+
 public:
 	/** The editable mesh representation of this static mesh */
 	// @todo: Maybe we don't want this visible in the details panel in the end; for now, this might aid debugging.
@@ -885,6 +899,18 @@ public:
 	ENGINE_API void SetNumSourceModels(int32 Num);
 	ENGINE_API void RemoveSourceModel(int32 Index);
 
+	/*
+	 * Verify that a specific LOD using a material needing the adjacency buffer have the build option set to create the adjacency buffer.
+	 *
+	 * LODIndex: The LOD to fix
+	 * bPreviewMode: If true the the function will not fix the build option. It will also change the return behavior, return true if the LOD need adjacency buffer, false otherwise
+	 * bPromptUser: if true a dialog will ask the user if he agree changing the build option to allow adjacency buffer
+	 * OutUserCancel: if the value is not null and the bPromptUser is true, the prompt dialog will have a cancel button and the result will be put in the parameter.
+	 *
+	 * The function will return true if any LOD build settings option is fix to add adjacency option. It will return false if no action was done. In case bPreviewMode is true it return true if the LOD need adjacency buffer, false otherwise.
+	 */
+	ENGINE_API bool FixLODRequiresAdjacencyInformation(const int32 LODIndex, const bool bPreviewMode = false, bool bPromptUser = false, bool* OutUserCancel = nullptr);
+	
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
@@ -898,6 +924,33 @@ public:
 	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	ENGINE_API virtual bool CanBeClusterRoot() const override;
 	//~ End UObject Interface.
+
+	//~ Begin UStreamableRenderAsset Interface
+	virtual int32 GetLODGroupForStreaming() const final override;
+	virtual int32 GetNumMipsForStreaming() const final override;
+	virtual int32 GetNumNonStreamingMips() const final override;
+	virtual int32 CalcNumOptionalMips() const final override;
+	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
+	virtual bool GetMipDataFilename(const int32 MipIndex, FString& BulkDataFilename) const final override;
+	virtual bool IsReadyForStreaming() const final override;
+	virtual int32 GetNumResidentMips() const final override;
+	virtual int32 GetNumRequestedMips() const final override;
+	virtual bool CancelPendingMipChangeRequest() final override;
+	virtual bool HasPendingUpdate() const final override;
+	virtual bool IsPendingUpdateLocked() const final override;
+	virtual bool StreamOut(int32 NewMipCount) final override;
+	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
+	//~ End UStreamableRenderAsset Interface
+
+	void LinkStreaming();
+	void UnlinkStreaming();
+
+	/**
+	* Cancels any pending static mesh streaming actions if possible.
+	* Returns when no more async loading requests are in flight.
+	*/
+	ENGINE_API static void CancelAllPendingStreamingActions();
 
 	/**
 	 * Rebuilds renderable data for this static mesh.

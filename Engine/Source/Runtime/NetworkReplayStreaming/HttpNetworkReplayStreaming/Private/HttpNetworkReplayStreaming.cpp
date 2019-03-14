@@ -12,6 +12,8 @@
 #include "Engine/World.h"
 #include "UnrealEngine.h"
 #include "Engine/LocalPlayer.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 DEFINE_LOG_CATEGORY_STATIC( LogHttpReplay, Log, All );
 
@@ -216,6 +218,7 @@ FHttpNetworkReplayStreamer::FHttpNetworkReplayStreamer() :
 	HighPriorityEndTime( 0 ),
 	StreamerLastError( ENetworkReplayError::None ),
 	DownloadCheckpointIndex( -1 ),
+	DeltaDownloadCheckpointIndex( -1 ),
 	LastGotoTimeInMS( -1 ),
 	TotalUploadBytes( 0 ),
 	RefreshViewerFails( 0 )
@@ -758,17 +761,21 @@ bool FQueuedGotoFakeCheckpoint::PreProcess( FHttpNetworkReplayStreamer* Streamer
 	Streamer->CheckpointArchive.Buffer.Empty();
 	Streamer->CheckpointArchive.Pos = 0;
 
-	// Completely reset our stream (we're going to start downloading from the start of the checkpoint)
-	Streamer->StreamArchive.Buffer.Empty();
+	if (!Streamer->IsDataAvailableForTimeRange(0, Streamer->LastGotoTimeInMS))
+	{
+		// Completely reset our stream (we're going to start downloading from the start of the checkpoint)
+		Streamer->StreamArchive.Buffer.Empty();
+
+		// Reset our stream range
+		Streamer->StreamTimeRangeStart	= 0;
+		Streamer->StreamTimeRangeEnd	= 0;
+
+		// Reset chunk index
+		Streamer->StreamChunkIndex		= 0;
+	}
+
 	Streamer->StreamArchive.Pos				= 0;
 	Streamer->StreamArchive.bAtEndOfReplay	= false;
-
-	// Reset our stream range
-	Streamer->StreamTimeRangeStart	= 0;
-	Streamer->StreamTimeRangeEnd	= 0;
-
-	// Reset chunk index
-	Streamer->StreamChunkIndex		= 0;
 
 	FGotoCallback& GotoCheckpointDelegate = Streamer->GotoCheckpointDelegate;
 	if (GotoCheckpointDelegate.IsBound())
@@ -788,9 +795,16 @@ bool FQueuedGotoFakeCheckpoint::PreProcess( FHttpNetworkReplayStreamer* Streamer
 	return true;
 }
 
-void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate )
+void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType )
 {
-	if ( GotoCheckpointDelegate.IsBound() || DownloadCheckpointIndex != -1 )
+	if ( !IsCheckpointTypeSupported(CheckpointType) )
+	{
+		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::GotoCheckpointIndex. Unsupported checkpoint type." ) );
+		Delegate.ExecuteIfBound(FGotoResult());
+		return;
+	}
+
+	if ( GotoCheckpointDelegate.IsBound() || DownloadCheckpointIndex != -1 || DeltaDownloadCheckpointIndex != -1 )
 	{
 		// If we're currently going to a checkpoint now, ignore this request
 		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::GotoCheckpointIndex. Busy processing another checkpoint." ) );
@@ -805,13 +819,11 @@ void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointInde
 		return;
 	}
 
-	check( DownloadCheckpointIndex == -1 );
-
 	if ( CheckpointIndex == -1 )
 	{
 		GotoCheckpointDelegate = Delegate;
 		SetHighPriorityTimeRange( 0, LastGotoTimeInMS );
-		LastChunkTime = 0;		// Force the next chunk to start downloading immediately in case LastGotoTimeInMS is 0 (which would effectively disable high priority mode immediately)
+		LastChunkTime = 0;		// Force the next chunk to start downloading immediately
 		AddCustomRequestToQueue( TSharedPtr< FQueuedHttpRequest >( new FQueuedGotoFakeCheckpoint() ) );
 		return;
 	}
@@ -826,10 +838,22 @@ void FHttpNetworkReplayStreamer::GotoCheckpointIndex( const int32 CheckpointInde
 	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
 
 	// Download the next stream chunk
-	HttpRequest->SetURL( FString::Printf( TEXT( "%sevent/%s" ), *ServerURL,  *CheckpointList.ReplayEvents[CheckpointIndex].ID ) );
 	HttpRequest->SetVerb( TEXT( "GET" ) );
 
-	HttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished );
+	if (CheckpointType == EReplayCheckpointType::Delta)
+	{
+		DeltaDownloadCheckpointIndex = 0;
+
+		HttpRequest->SetURL( FString::Printf( TEXT( "%sevent/%s" ), *ServerURL,  *CheckpointList.ReplayEvents[DeltaDownloadCheckpointIndex].ID ) );
+
+		HttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished );
+	}
+	else
+	{
+		HttpRequest->SetURL( FString::Printf( TEXT( "%sevent/%s" ), *ServerURL,  *CheckpointList.ReplayEvents[CheckpointIndex].ID ) );
+
+		HttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished );
+	}
 
 	GotoCheckpointDelegate	= Delegate;
 	DownloadCheckpointIndex = CheckpointIndex;
@@ -920,8 +944,15 @@ void FHttpNetworkReplayStreamer::HttpRequestEventDataFinished(FHttpRequestPtr Ht
 	RequestEventDataCompleteDelegate.ExecuteIfBound(Result);
 }
 
-void FHttpNetworkReplayStreamer::GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate )
+void FHttpNetworkReplayStreamer::GotoTimeInMS( const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType )
 {
+	if ( !IsCheckpointTypeSupported(CheckpointType) )
+	{
+		UE_LOG( LogHttpReplay, Log, TEXT( "FHttpNetworkReplayStreamer::GotoTimeInMS. Unsupported checkpoint type." ) );
+		Delegate.ExecuteIfBound( FGotoResult() );
+		return;
+	}
+
 	if ( LastGotoTimeInMS != -1 || DownloadCheckpointIndex != -1 )
 	{
 		// If we're processing requests, be on the safe side and cancel the scrub
@@ -968,7 +999,7 @@ void FHttpNetworkReplayStreamer::GotoTimeInMS( const uint32 TimeInMS, const FGot
 		}
 	}
 
-	GotoCheckpointIndex( CheckpointIndex, Delegate );
+	GotoCheckpointIndex(CheckpointIndex, Delegate, CheckpointType);
 }
 
 void FHttpNetworkReplayStreamer::FlushCheckpointInternal( uint32 TimeInMS )
@@ -2516,6 +2547,166 @@ bool FHttpNetworkReplayStreamer::HasPendingHttpRequests() const
 bool FHttpNetworkReplayStreamer::IsStreaming() const
 {
 	return StreamerState != EStreamerState::Idle;
+}
+
+void FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished( FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded )
+{
+	UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished." ) );
+
+	RequestFinished( EStreamerState::StreamingDown, EQueuedHttpRequestType::DownloadingCheckpoint, HttpRequest );
+
+	check( StreamArchive.IsLoading() );
+	check( GotoCheckpointDelegate.IsBound() );
+	check( DownloadCheckpointIndex >= 0 );
+	check( DeltaDownloadCheckpointIndex >= 0);
+
+	// If we get here after StopStreaming was called, then assume this operation should be cancelled
+	// A more correct fix would be to actually cancel this in-flight request when StopStreaming is called
+	// But for now, this is a safe change, and can co-exist with the more proper fix
+	if ( bStopStreamingCalled )
+	{
+		GotoCheckpointDelegate.ExecuteIfBound(FGotoResult());
+		GotoCheckpointDelegate	= FGotoCallback();
+		DownloadCheckpointIndex = -1;
+		DeltaDownloadCheckpointIndex = -1;
+		LastGotoTimeInMS		= -1;
+		return;
+	}
+
+	if ( bSucceeded && HttpResponse->GetResponseCode() == EHttpResponseCodes::Ok )
+	{
+		if ( HttpResponse->GetContent().Num() == 0 )
+		{
+			UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished. Checkpoint empty." ) );
+			GotoCheckpointDelegate.ExecuteIfBound(FGotoResult());
+			GotoCheckpointDelegate = FGotoCallback();
+			DownloadCheckpointIndex = -1;
+			DeltaDownloadCheckpointIndex = -1;
+			LastGotoTimeInMS		= -1;
+			return;
+		}
+
+		// Add response to response cache
+		AddResponseToCache( HttpRequest, HttpResponse );
+
+		// clear archive when receiving first chunk, then append
+		if (DeltaDownloadCheckpointIndex == 0)
+		{
+			CheckpointArchive.Buffer.Empty();
+		}
+
+		uint32 CheckpointSize = 0;
+
+		FMemoryReader ContentAr(HttpResponse->GetContent(), true);
+		ContentAr << CheckpointSize;
+
+		FMemoryWriter CheckpointAr(CheckpointArchive.Buffer, true);
+		CheckpointAr.Seek(CheckpointAr.TotalSize());
+		CheckpointAr << CheckpointSize;
+
+		// Get the checkpoint data
+		if (!DecompressResponse(HttpResponse, CheckpointArchive.Buffer))
+		{
+			GotoCheckpointDelegate.ExecuteIfBound(FGotoResult());
+			GotoCheckpointDelegate	= FGotoCallback();
+			DownloadCheckpointIndex = -1;
+			DeltaDownloadCheckpointIndex = -1;
+			LastGotoTimeInMS		= -1;
+			return;
+		}
+
+		if (DeltaDownloadCheckpointIndex < DownloadCheckpointIndex)
+		{
+			DeltaDownloadCheckpointIndex++;
+			check(CheckpointList.ReplayEvents.IsValidIndex(DeltaDownloadCheckpointIndex));
+
+			TSharedRef<IHttpRequest> NextHttpRequest = FHttpModule::Get().CreateRequest();
+
+			// Download the next stream chunk
+			NextHttpRequest->SetURL( FString::Printf( TEXT( "%sevent/%s" ), *ServerURL,  *CheckpointList.ReplayEvents[DeltaDownloadCheckpointIndex].ID ) );
+			NextHttpRequest->SetVerb( TEXT( "GET" ) );
+
+			NextHttpRequest->OnProcessRequestComplete().BindRaw( this, &FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished );
+
+			AddRequestToQueue( EQueuedHttpRequestType::DownloadingCheckpoint, NextHttpRequest );
+			return;
+		}
+		else
+		{
+			CheckpointArchive.Pos = 0;
+
+			// Completely reset our stream (we're going to start downloading from the start of the checkpoint)
+			StreamArchive.Buffer.Empty();
+			StreamArchive.Pos				= 0;
+			StreamArchive.bAtEndOfReplay	= false;
+
+			// Reset any time we were waiting on in the past
+			HighPriorityEndTime	= 0;
+
+			// Reset our stream range
+			StreamTimeRangeStart	= 0;
+			StreamTimeRangeEnd		= 0;
+
+			// Set the next chunk to be right after this checkpoint (which was stored in the metadata)
+			StreamChunkIndex = FCString::Atoi( *CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Metadata );
+
+			LastChunkTime = 0;		// Force the next chunk to start downloading immediately
+
+			// If we want to fast forward past the end of a stream, clamp to the checkpoint
+			if ( LastGotoTimeInMS >= 0 && StreamChunkIndex >= NumTotalStreamChunks )
+			{
+				UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointFinished. Clamped to checkpoint: %i" ), LastGotoTimeInMS );
+
+				StreamTimeRangeStart	= CheckpointList.ReplayEvents[DownloadCheckpointIndex].Time1;
+				StreamTimeRangeEnd		= CheckpointList.ReplayEvents[DownloadCheckpointIndex].Time1;
+				LastGotoTimeInMS		= -1;
+			}
+
+			if ( LastGotoTimeInMS >= 0 )
+			{
+				// If we are fine scrubbing, make sure to wait on the part of the stream that is needed to do this in one frame
+				SetHighPriorityTimeRange( CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Time1, LastGotoTimeInMS );
+
+				// Subtract off checkpoint time so we pass in the leftover to the engine to fast forward through for the fine scrubbing part
+				LastGotoTimeInMS -= CheckpointList.ReplayEvents[ DownloadCheckpointIndex ].Time1;
+			}
+
+			// Notify game code of success
+			FGotoResult Result;
+			Result.Result = EStreamingOperationResult::Success;
+			Result.ExtraTimeMS = LastGotoTimeInMS;
+			GotoCheckpointDelegate.ExecuteIfBound(Result);
+
+			UE_LOG( LogHttpReplay, Verbose, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished. SUCCESS. StreamChunkIndex: %i" ), StreamChunkIndex );
+		}
+	}
+	else
+	{
+		// Oops, something went wrong, notify game code of failure
+		UE_LOG( LogHttpReplay, Error, TEXT( "FHttpNetworkReplayStreamer::HttpDownloadCheckpointDeltaFinished. FAILED, %s" ), *BuildRequestErrorString( HttpRequest, HttpResponse ) );
+		GotoCheckpointDelegate.ExecuteIfBound(FGotoResult());
+	}
+
+	// Reset things
+	GotoCheckpointDelegate	= FGotoCallback();
+	DownloadCheckpointIndex = -1;
+	DeltaDownloadCheckpointIndex = -1;
+	LastGotoTimeInMS		= -1;
+}
+
+bool FHttpNetworkReplayStreamer::IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const
+{
+	bool bSupported = false;
+
+	switch (CheckpointType)
+	{
+	case EReplayCheckpointType::Full:
+	case EReplayCheckpointType::Delta:
+		bSupported = true;
+		break;
+	}
+
+	return bSupported;
 }
 
 IMPLEMENT_MODULE( FHttpNetworkReplayStreamingFactory, HttpNetworkReplayStreaming )

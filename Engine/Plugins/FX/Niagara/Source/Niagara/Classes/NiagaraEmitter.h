@@ -317,7 +317,7 @@ public:
 #endif
 
 	/** Is this emitter allowed to be enabled by the current system detail level. */
-	bool IsAllowedByDetailLevel()const;
+	bool IsAllowedByDetailLevel(int32 DetailLevel)const;
 	NIAGARA_API bool RequiresPersistantIDs()const;
 
 	NIAGARA_API bool IsValid()const;

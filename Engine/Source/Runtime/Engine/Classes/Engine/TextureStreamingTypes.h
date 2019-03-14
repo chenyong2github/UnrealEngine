@@ -25,23 +25,24 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(TextureStreamingBuild, Log, All);
 
 class UTexture;
 class UTexture2D;
+class UStreamableRenderAsset;
 struct FStreamingTextureBuildInfo;
 struct FMaterialTextureInfo;
 
 // The PackedRelativeBox value that return the bound unaltered
 static const uint32 PackedRelativeBox_Identity = 0xffff0000;
 
-/** Information about a streaming texture that a primitive uses for rendering. */
+/** Information about a streaming texture/mesh that a primitive uses for rendering. */
 USTRUCT()
-struct FStreamingTexturePrimitiveInfo
+struct FStreamingRenderAssetPrimitiveInfo
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	UTexture2D* Texture;
+	UStreamableRenderAsset* RenderAsset;
 
 	/** 
-	 * The streaming bounds of the texture, usually the component material bounds. 
+	 * The streaming bounds of the texture/mesh, usually the component material bounds. 
 	 * Usually only valid for registered component, as component bounds are only updated when the components are registered.
 	 * otherwise only PackedRelativeBox can be used.Irrelevant when the component is not registered, as the component could be moved by ULevel::ApplyWorldOffset()
 	 * In that case, only PackedRelativeBox is meaningful.
@@ -54,23 +55,23 @@ struct FStreamingTexturePrimitiveInfo
 
 	/** 
 	 * When non zero, this represents the relative box used to compute Bounds, using the component bounds as reference.
-	 * If available, this allows the texture streamer to generate the level streaming data before the level gets visible.
+	 * If available, this allows the renderable asset streamer to generate the level streaming data before the level gets visible.
 	 * At that point, the component are not yet registered, and the bounds are unknown, but the precompiled build data is still available.
 	 * Also allows to update the relative bounds after a level get moved around from ApplyWorldOffset.
 	 */
 	UPROPERTY()
 	uint32 PackedRelativeBox;
 
-	FStreamingTexturePrimitiveInfo() : 
-		Texture(nullptr), 
+	FStreamingRenderAssetPrimitiveInfo() : 
+		RenderAsset(nullptr),
 		Bounds(ForceInit), 
 		TexelFactor(1.0f),
 		PackedRelativeBox(0)
 	{
 	}
 
-	FStreamingTexturePrimitiveInfo(UTexture2D* InTexture, const FBoxSphereBounds& InBounds, float InTexelFactor, uint32 InPackedRelativeBox = 0) :
-		Texture(InTexture), 
+	FStreamingRenderAssetPrimitiveInfo(UStreamableRenderAsset* InAsset, const FBoxSphereBounds& InBounds, float InTexelFactor, uint32 InPackedRelativeBox = 0) :
+		RenderAsset(InAsset),
 		Bounds(InBounds), 
 		TexelFactor(InTexelFactor),
 		PackedRelativeBox(InPackedRelativeBox)
@@ -128,7 +129,7 @@ struct FStreamingTextureBuildInfo
 	 *	@param	RefBounds		[in]		The reference bounds used to compute the packed relative box.
 	 *	@param	Info			[in]		The unpacked params.
 	 */
-	ENGINE_API void PackFrom(ULevel* Level, const FBoxSphereBounds& RefBounds, const FStreamingTexturePrimitiveInfo& Info);
+	ENGINE_API void PackFrom(ULevel* Level, const FBoxSphereBounds& RefBounds, const FStreamingRenderAssetPrimitiveInfo& Info);
 
 };
 
@@ -165,7 +166,7 @@ enum ETextureStreamingBuildType
 };
 
 /** 
- * Context used to resolve FStreamingTextureBuildInfo to FStreamingTexturePrimitiveInfo
+ * Context used to resolve FStreamingTextureBuildInfo to FStreamingRenderAssetPrimitiveInfo
  * The context make sure that build data and each texture is only processed once per component (with constant time).
  * It manage internally structures used to accelerate the binding between precomputed data and textures,
  * so that there is only one map lookup per texture per level. 
@@ -223,7 +224,7 @@ public:
 	~FStreamingTextureLevelContext();
 
 	void BindBuildData(const TArray<FStreamingTextureBuildInfo>* PreBuiltData);
-	void ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures);
+	void ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures);
 
 	EMaterialQualityLevel::Type GetQualityLevel() { return QualityLevel; }
 	ERHIFeatureLevel::Type GetFeatureLevel() { return FeatureLevel; }
@@ -249,11 +250,11 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 ENGINE_API void CheckTextureStreamingBuildValidity(UWorld* InWorld);
 
 /**
- * Checks whether a UTexture2D is a texture with streamable mips
- * @param Texture	Texture to check
- * @return			true if the UTexture2D is supposed to be streaming
+ * Checks whether a UStreamableRenderAsset is a texture/mesh with streamable mips
+ * @param Asset		Asset to check
+ * @return			true if the UStreamableRenderAsset is supposed to be streaming
  */
-ENGINE_API bool IsStreamingTexture( const UTexture2D* Texture2D );
+ENGINE_API bool IsStreamingRenderAsset( const UStreamableRenderAsset* Asset );
 
 ENGINE_API uint32 PackRelativeBox(const FVector& RefOrigin, const FVector& RefExtent, const FVector& Origin, const FVector& Extent);
 ENGINE_API uint32 PackRelativeBox(const FBox& RefBox, const FBox& Box);

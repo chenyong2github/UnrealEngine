@@ -38,6 +38,10 @@
 #include "Engine/LODActor.h"
 #endif // WITH_EDITOR
 
+#if DO_CHECK
+#include "Engine/StaticMesh.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "PrimitiveComponent"
 
 //////////////////////////////////////////////////////////////////////////
@@ -213,7 +217,6 @@ private:
 // PRIMITIVE COMPONENT
 ///////////////////////////////////////////////////////////////////////////////
 
-int32 UPrimitiveComponent::CurrentTag = 2147483647 / 4;
 uint32 UPrimitiveComponent::GlobalOverlapEventsCounter = 0;
 
 // 0 is reserved to mean invalid
@@ -222,10 +225,6 @@ FThreadSafeCounter UPrimitiveComponent::NextComponentId;
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
 {
-	PostPhysicsComponentTick.bCanEverTick = false;
-	PostPhysicsComponentTick.bStartWithTickEnabled = true;
-	PostPhysicsComponentTick.TickGroup = TG_PostPhysics;
-
 	LastRenderTime = -1000.0f;
 	LastRenderTimeOnScreen = -1000.0f;
 	BoundsScale = 1.0f;
@@ -248,6 +247,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bAlwaysCreatePhysicsState = false;
 	bVisibleInReflectionCaptures = true;
+	bVisibleInRayTracing = true;
 	bRenderInMainPass = true;
 	VisibilityId = INDEX_NONE;
 #if WITH_EDITORONLY_DATA
@@ -331,7 +331,7 @@ bool UPrimitiveComponent::HasStaticLighting() const
 	return ((Mobility == EComponentMobility::Static) || LightmapType == ELightmapType::ForceSurface) && SupportsStaticLighting();
 }
 
-void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	if (CVarStreamingUseNewMetrics.GetValueOnGameThread() != 0)
 	{
@@ -358,7 +358,7 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 				if (MaterialInterface)
 				{
 					MaterialData.Material = MaterialInterface;
-					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingTextures);
+					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingRenderAssets);
 				}
 				// Remove all instances of this material in case there were duplicates.
 				UsedMaterials.RemoveSwap(MaterialInterface);
@@ -368,26 +368,33 @@ void UPrimitiveComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext&
 }
 
 
-void UPrimitiveComponent::GetStreamingTextureInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	// Ignore components that are fully initialized but have no scene proxy (hidden primitive or non game primitive)
 	if (!IsRegistered() || !IsRenderStateCreated() || SceneProxy)
 	{
-		GetStreamingTextureInfo(LevelContext, OutStreamingTextures);
-		for (int32 Index = 0; Index < OutStreamingTextures.Num(); Index++)
+		GetStreamingRenderAssetInfo(LevelContext, OutStreamingRenderAssets);
+		for (int32 Index = 0; Index < OutStreamingRenderAssets.Num(); Index++)
 		{
-			const FStreamingTexturePrimitiveInfo& Info = OutStreamingTextures[Index];
-			if (!IsStreamingTexture(Info.Texture))
+			const FStreamingRenderAssetPrimitiveInfo& Info = OutStreamingRenderAssets[Index];
+			if (!IsStreamingRenderAsset(Info.RenderAsset))
 			{
-				OutStreamingTextures.RemoveAtSwap(Index--);
+				OutStreamingRenderAssets.RemoveAtSwap(Index--);
 			}
 			else
 			{
+#if DO_CHECK
+				ensure(Info.TexelFactor >= 0.f
+					|| Info.RenderAsset->IsA<UStaticMesh>()
+					|| Info.RenderAsset->IsA<USkeletalMesh>()
+					|| (Info.RenderAsset->IsA<UTexture>() && Info.RenderAsset->GetLODGroupForStreaming() == TEXTUREGROUP_Terrain_Heightmap));
+#endif
+
 				// Other wise check that everything is setup right. If the component is not yet registered, then the bound data is irrelevant.
 				const bool bCanBeStreamedByDistance = Info.TexelFactor > SMALL_NUMBER && (Info.Bounds.SphereRadius > SMALL_NUMBER || !IsRegistered()) && ensure(FMath::IsFinite(Info.TexelFactor));
-				if (!bForceMipStreaming && !bCanBeStreamedByDistance && !(Info.TexelFactor < 0 && Info.Texture->LODGroup == TEXTUREGROUP_Terrain_Heightmap))
+				if (!bForceMipStreaming && !bCanBeStreamedByDistance && Info.TexelFactor >= 0.f)
 				{
-					OutStreamingTextures.RemoveAtSwap(Index--);
+					OutStreamingRenderAssets.RemoveAtSwap(Index--);
 				}
 			}
 		}
@@ -418,74 +425,6 @@ void UPrimitiveComponent::GetUsedTextures(TArray<UTexture*>& OutTextures, EMater
 		}
 	}
 }
-
-/** 
-* Abstract function actually execute the tick. 
-* @param DeltaTime - frame time to advance, in seconds
-* @param TickType - kind of tick for this frame
-* @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
-* @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
-**/
-void FPrimitiveComponentPostPhysicsTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FActorComponentTickFunction::ExecuteTickHelper(Target, /*bTickInEditor=*/ false, DeltaTime, TickType, [this](float DilatedTime){ Target->PostPhysicsTick(*this); });
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-FString FPrimitiveComponentPostPhysicsTickFunction::DiagnosticMessage()
-{
-	return Target->GetFullName() + TEXT("[UPrimitiveComponent::PostPhysicsTick]");
-}
-
-void UPrimitiveComponent::RegisterComponentTickFunctions(bool bRegister)
-{
-	Super::RegisterComponentTickFunctions(bRegister);
-
-	if (bRegister)
-	{
-		if (SetupActorComponentTickFunction(&PostPhysicsComponentTick))
-		{
-			PostPhysicsComponentTick.Target = this;
-
-			// If primary tick is registered, add a prerequisate to it
-			if(PrimaryComponentTick.bCanEverTick)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(this,PrimaryComponentTick); 
-			}
-
-			// Set a prereq for the post physics tick to happen after physics is finished
-			UWorld* World = GetWorld();
-			if (World != nullptr)
-			{
-				PostPhysicsComponentTick.AddPrerequisite(World, World->EndPhysicsTickFunction);
-			}
-		}
-	}
-	else
-	{
-		if(PostPhysicsComponentTick.IsTickFunctionRegistered())
-		{
-			PostPhysicsComponentTick.UnRegisterTickFunction();
-		}
-	}
-}
-
-void UPrimitiveComponent::SetPostPhysicsComponentTickEnabled(bool bEnable)
-{
-	// @todo ticking, James, turn this off when not needed
-	if (PostPhysicsComponentTick.bCanEverTick && !IsTemplate())
-	{
-		PostPhysicsComponentTick.SetTickFunctionEnable(bEnable);
-	}
-}
-
-bool UPrimitiveComponent::IsPostPhysicsComponentTickEnabled() const
-{
-	return PostPhysicsComponentTick.IsTickFunctionEnabled();
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // Render
@@ -627,7 +566,7 @@ void FPrimitiveComponentInstanceData::ApplyToComponent(UActorComponent* Componen
 		PrimitiveComponent->VisibilityId = VisibilityId;
 	}
 
-	if (Component->IsRegistered() && ((VisibilityId != INDEX_NONE) || ContainsSavedProperties()))
+	if (Component->IsRegistered() && ((VisibilityId != INDEX_NONE) || SavedProperties.Num() > 0))
 	{
 		Component->MarkRenderStateDirty();
 	}
@@ -635,12 +574,12 @@ void FPrimitiveComponentInstanceData::ApplyToComponent(UActorComponent* Componen
 
 bool FPrimitiveComponentInstanceData::ContainsData() const
 {
-	return (ContainsSavedProperties() || AttachedInstanceComponents.Num() > 0 || LODParent || (VisibilityId != INDEX_NONE));
+	return (Super::ContainsData() || LODParent || (VisibilityId != INDEX_NONE));
 }
 
 void FPrimitiveComponentInstanceData::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	FSceneComponentInstanceData::AddReferencedObjects(Collector);
+	Super::AddReferencedObjects(Collector);
 
 	// if LOD Parent
 	if (LODParent)
@@ -663,17 +602,9 @@ void FPrimitiveComponentInstanceData::FindAndReplaceInstances(const TMap<UObject
 	}
 }
 
-FActorComponentInstanceData* UPrimitiveComponent::GetComponentInstanceData() const
+TStructOnScope<FActorComponentInstanceData> UPrimitiveComponent::GetComponentInstanceData() const
 {
-	FPrimitiveComponentInstanceData* InstanceData = new FPrimitiveComponentInstanceData(this);
-
-	if (!InstanceData->ContainsData())
-	{
-		delete InstanceData;
-		InstanceData = nullptr;
-	}
-
-	return InstanceData;
+	return MakeStructOnScope<FActorComponentInstanceData, FPrimitiveComponentInstanceData>(this);
 }
 
 void UPrimitiveComponent::OnAttachmentChanged()
@@ -834,11 +765,13 @@ void UPrimitiveComponent::SendRenderDebugPhysics(FPrimitiveSceneProxy* OverrideS
 			}
 		}
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			PrimitiveComponent_SendRenderDebugPhysics, FPrimitiveSceneProxy*, PassedSceneProxy, UseSceneProxy, TArray<FPrimitiveSceneProxy::FDebugMassData>, UseDebugMassData, DebugMassData,
-		{
-				PassedSceneProxy->SetDebugMassData(UseDebugMassData);
-		});
+		FPrimitiveSceneProxy* PassedSceneProxy = UseSceneProxy;
+		TArray<FPrimitiveSceneProxy::FDebugMassData> UseDebugMassData = DebugMassData;
+		ENQUEUE_RENDER_COMMAND(PrimitiveComponent_SendRenderDebugPhysics)(
+			[UseSceneProxy, DebugMassData](FRHICommandList& RHICmdList)
+			{
+					UseSceneProxy->SetDebugMassData(DebugMassData);
+			});
 	}
 }
 #endif
@@ -887,11 +820,14 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		const FName PropertyName = PropertyThatChanged->GetFName();
 
 		// CachedMaxDrawDistance needs to be set as if you have no cull distance volumes affecting this primitive component the cached value wouldn't get updated
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, LDMaxDrawDistance)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bAllowCullDistanceVolume)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bNeverDistanceCull))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, LDMaxDrawDistance))
 		{
 			NewCachedMaxDrawDistance = LDMaxDrawDistance;
+			bCullDistanceInvalidated = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bAllowCullDistanceVolume)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, bNeverDistanceCull))
+		{
 			bCullDistanceInvalidated = true;
 		}
 
@@ -911,11 +847,6 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 	if (bCullDistanceInvalidated)
 	{
-		// Make sure cached cull distance is up-to-date.
-		if (LDMaxDrawDistance > 0)
-		{
-			NewCachedMaxDrawDistance = FMath::Min(LDMaxDrawDistance, CachedMaxDrawDistance);
-		}
 		// Directly use LD cull distance if cull distance volumes are disabled.
 		if (!bAllowCullDistanceVolume)
 		{
@@ -923,7 +854,22 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		}
 		else if (UWorld* World = GetWorld())
 		{
-			World->UpdateCullDistanceVolumes(nullptr, this);
+			const bool bUpdatedDrawDistances = World->UpdateCullDistanceVolumes(nullptr, this);
+
+			// If volumes invalidated the distance, handle the desired distance against other sources
+			if (bUpdatedDrawDistances)
+			{
+				if (LDMaxDrawDistance <= 0)
+				{
+					// Volume is the only controlling source, use directly
+					NewCachedMaxDrawDistance = CachedMaxDrawDistance;
+				}
+				else
+				{
+					// Select the minimum desired value
+					NewCachedMaxDrawDistance = FMath::Min(CachedMaxDrawDistance, LDMaxDrawDistance);
+				}
+			}
 		}
 
 		// Reattach to propagate cull distance change.
@@ -3444,15 +3390,6 @@ void UPrimitiveComponent::SetRenderInMainPass(bool bValue)
 	if (bRenderInMainPass != bValue)
 	{
 		bRenderInMainPass = bValue;
-		MarkRenderStateDirty();
-	}
-}
-
-void UPrimitiveComponent::SetRenderInMono(bool bValue)
-{
-	if (bRenderInMono != bValue)
-	{
-		bRenderInMono = bValue;
 		MarkRenderStateDirty();
 	}
 }

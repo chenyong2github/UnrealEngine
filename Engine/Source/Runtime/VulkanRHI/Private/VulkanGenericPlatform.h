@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "PixelFormat.h"
 #include "Containers/ArrayView.h"
+#include "RHI.h"	// for GShaderPlatformForFeatureLevel and its friends
 
 struct FOptionalVulkanDeviceExtensions;
 
@@ -12,6 +13,7 @@ class FVulkanGenericPlatform
 {
 public:
 	static bool IsSupported() { return true; }
+	static void CheckDeviceDriver(uint32 DeviceIndex) {}
 
 	static bool LoadVulkanLibrary() { return true; }
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance) { return true; }

@@ -7,6 +7,7 @@ public class D3D12RHI : ModuleRules
 	public D3D12RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.Add("Runtime/D3D12RHI/Private");
+		PrivateIncludePaths.Add("../Shaders/Shared");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -15,7 +16,7 @@ public class D3D12RHI : ModuleRules
 				"RHI",
 				"RenderCore",
 				"UtilityShaders",
-			    }
+				}
 			);
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
@@ -38,7 +39,8 @@ public class D3D12RHI : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+            AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+            AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 		}
-	}
+    }
 }

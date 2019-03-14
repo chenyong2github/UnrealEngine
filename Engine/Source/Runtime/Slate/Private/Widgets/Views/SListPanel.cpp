@@ -77,14 +77,15 @@ void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 				if ( ListItemAlignment == EListItemAlignment::RightAligned || ListItemAlignment == EListItemAlignment::CenterAligned )
 				{
 					const float LinePadding = GetLinePadding(AllottedGeometry, ItemIndex);
+					const bool IsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
 					if ( ListItemAlignment == EListItemAlignment::RightAligned )
 					{
-						WidthSoFar += LinePadding;
+						WidthSoFar += IsVisible ? LinePadding : 0;
 					}
 					else
 					{
 						const float HalfLinePadding = LinePadding * 0.5;
-						WidthSoFar += HalfLinePadding;
+						WidthSoFar += IsVisible ? HalfLinePadding : 0;
 					}
 				}
 
@@ -114,10 +115,9 @@ void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 			for( int32 ItemIndex = 0; ItemIndex < Children.Num(); ++ItemIndex )
 			{
 				const FVector2D ItemDesiredSize = Children[ItemIndex].GetWidget()->GetDesiredSize();
-				const float LocalItemHeight = ItemDesiredSize.Y;
+				const bool IsVisible = Children[ItemIndex].GetWidget()->GetVisibility().IsVisible();
+				const float LocalItemHeight = IsVisible ? ItemDesiredSize.Y : 0.f;
 
-				// Note that ListPanel does not respect child Visibility.
-				// It is simply not useful for ListPanels.
 				ArrangedChildren.AddWidget(
 					AllottedGeometry.MakeChild( Children[ItemIndex].GetWidget(), FVector2D(0, HeightSoFar), FVector2D(AllottedGeometry.GetLocalSize().X, LocalItemHeight) )
 					);

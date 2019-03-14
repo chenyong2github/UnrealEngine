@@ -145,7 +145,9 @@ void USimpleConstructionScript::PostLoad()
 	// This pass is not needed during reinstancing.
 	if (!GIsDuplicatingClassForReinstancing)
 	{
-		for (USCS_Node* Node : GetAllNodes())
+		// Use a copy of the array for iterating, as we might have to reposition nodes in the hierarchy below (which can temporarily modify the array).
+		TArray<USCS_Node*> LocalAllNodes = GetAllNodes();
+		for (USCS_Node* Node : LocalAllNodes)
 		{
 			// Fix up any uninitialized category names
 			if (Node->CategoryName.IsEmpty())

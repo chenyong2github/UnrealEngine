@@ -8,6 +8,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
+#include "UObject/ObjectKey.h"
 
 class USceneComponent;
 
@@ -28,7 +29,7 @@ public:
 
 	void SetWidgetPivot(FVector2D Pivot);
 
-	void AddComponent(USceneComponent* Component, TSharedPtr<SWidget> Widget);
+	void AddComponent(USceneComponent* Component, TSharedRef<SWidget> Widget);
 
 	void RemoveComponent(USceneComponent* Component);
 
@@ -41,13 +42,12 @@ private:
 	class FComponentEntry
 	{
 	public:
-		FComponentEntry()
-			: Slot(nullptr)
-		{
-		}
+		FComponentEntry();
+		~FComponentEntry();
 
 	public:
 
+		bool bRemoving = false;
 		TWeakObjectPtr<USceneComponent> Component;
 		class UWidgetComponent* WidgetComponent;
 
@@ -56,6 +56,8 @@ private:
 		SConstraintCanvas::FSlot* Slot;
 	};
 
-	TMap<USceneComponent*, FComponentEntry> ComponentMap;
+	void RemoveEntryFromCanvas(SWorldWidgetScreenLayer::FComponentEntry& Entry);
+
+	TMap<FObjectKey, FComponentEntry> ComponentMap;
 	TSharedPtr<SConstraintCanvas> Canvas;
 };

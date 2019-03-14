@@ -19,7 +19,7 @@
 
 #ifndef AUDIO_MIXER_ENABLE_DEBUG_MODE
 // This define enables a bunch of more expensive debug checks and logging capabilities that are intended to be off most of the time even in debug builds of game/editor.
-#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if (UE_BUILD_SHIPPING || UE_BUILD_TEST || UE_BUILD_DEVELOPMENT)
 #define AUDIO_MIXER_ENABLE_DEBUG_MODE 0
 #else
 #define AUDIO_MIXER_ENABLE_DEBUG_MODE 1
@@ -78,8 +78,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("HRTF"), STAT_AudioMixerHRTF, STATGROUP_AudioMixe
 #define AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(_MixerDevice)
 #endif
 
-#define AUDIO_MIXER_MIN_PITCH						0.1f
-#define AUDIO_MIXER_MAX_PITCH						4.0f
 #define AUDIO_MIXER_MAX_OUTPUT_CHANNELS				8			// Max number of speakers/channels supported (7.1)
 
 #define AUDIO_MIXER_DEFAULT_DEVICE_INDEX			INDEX_NONE
@@ -140,6 +138,12 @@ namespace Audio
 		virtual void OnAudioStreamShutdown() = 0;
 
 		bool IsMainAudioMixer() const { return bIsMainAudioMixer; }
+
+		/** Called by FWindowsMMNotificationClient to bypass notifications for audio device changes: */
+		AUDIOMIXER_API static bool ShouldIgnoreDeviceSwaps();
+
+		/** Called by FWindowsMMNotificationClient to toggle logging for audio device changes: */
+		AUDIOMIXER_API static bool ShouldLogDeviceSwaps();
 
 	protected:
 
@@ -508,8 +512,11 @@ namespace Audio
 		/** The render thread sync event. */
 		FEvent* AudioRenderEvent;
 
-		/** Event for a single buffer render. */
-		FEvent* AudioBufferEvent;
+		/** Critical Section used for times when we need the render loop to halt for the device swap. */
+		FCriticalSection DeviceSwapCriticalSection;
+
+		/** This is used if we are attempting to TryLock on DeviceSwapCriticalSection, but a buffer callback is being called in the current thread. */
+		FThreadSafeBool bIsInDeviceSwap;
 
 		/** Event allows you to block until fadeout is complete. */
 		FEvent* AudioFadeEvent;
@@ -535,13 +542,11 @@ namespace Audio
 		/** Struct used to store render time analysis data. */
 		FAudioRenderTimeAnalysis RenderTimeAnalysis;
 
-		/** Flag if the audio device is in the process of changing. Prevents more buffers from being submitted to platform. */
-		FThreadSafeBool bAudioDeviceChanging;
-
 		FThreadSafeBool bPerformingFade;
 		FThreadSafeBool bFadedOut;
 		FThreadSafeBool bIsDeviceInitialized;
 
+		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
 		FThreadSafeBool bIsUsingNullDevice;
 
 	private:

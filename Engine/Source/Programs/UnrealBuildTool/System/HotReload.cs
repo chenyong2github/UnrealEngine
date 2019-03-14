@@ -19,7 +19,8 @@ namespace UnrealBuildTool
 		Default,
 		Disabled,
 		FromIDE,
-		FromEditor
+		FromEditor,
+		LiveCoding
 	}
 
 	/// <summary>
@@ -137,6 +138,14 @@ namespace UnrealBuildTool
 				return false;
 			}
 
+			// Check if we're using LiveCode instead
+			ConfigHierarchy EditorPerProjectHierarchy = ConfigCache.ReadHierarchy(ConfigHierarchyType.EditorPerProjectUserSettings, DirectoryReference.FromFile(TargetDesc.ProjectFile), TargetDesc.Platform);
+			bool bEnableLiveCode;
+			if(EditorPerProjectHierarchy.GetBool("LiveCode", "Enabled", out bEnableLiveCode) && bEnableLiveCode)
+			{
+				return false;
+			}
+
 			bool bIsRunning = false;
 
 			// @todo ubtmake: Kind of cheating here to figure out if an editor target.  At this point we don't have access to the actual target description, and
@@ -202,7 +211,17 @@ namespace UnrealBuildTool
 								continue;
 							}
 
-							if(!bIsRunning && EditorLocation == new FileReference(RunningProcess.MainModule.FileName))
+							FileReference MainModuleFile;
+							try
+							{
+								MainModuleFile = new FileReference(RunningProcess.MainModule.FileName);
+							}
+							catch
+							{
+								MainModuleFile = null;
+							}
+
+							if(!bIsRunning && EditorLocation == MainModuleFile)
 							{
 								bIsRunning = true;
 							}
@@ -643,7 +662,7 @@ namespace UnrealBuildTool
 					{
 						foreach (KeyValuePair<string, string> Manifest in FileNameToVersionManifest.Value.ModuleNameToFileName)
 						{
-							FileReference OriginalFile = FileReference.Combine(FileNameToVersionManifest.Key.Directory, Manifest.Key);
+							FileReference OriginalFile = FileReference.Combine(FileNameToVersionManifest.Key.Directory, Manifest.Value);
 
 							FileReference HotReloadFile;
 							if(OriginalFileToHotReloadFile.TryGetValue(OriginalFile, out HotReloadFile))
@@ -656,8 +675,12 @@ namespace UnrealBuildTool
 
 					// Write the hot-reload metadata file and update the argument list
 					FileReference HotReloadTargetInfoFile = FileReference.Combine(TargetInfoFile.Directory, "Metadata-HotReload.dat");
-					BinaryFormatterUtils.Save(HotReloadTargetInfoFile, TargetInfo);
-					Arguments = Arguments.Substring(0, FileNameIdx) + HotReloadTargetInfoFile + Arguments.Substring(FileNameEndIdx);
+					BinaryFormatterUtils.SaveIfDifferent(HotReloadTargetInfoFile, TargetInfo);
+
+					Action.PrerequisiteItems.RemoveAll(x => x.Location == TargetInfoFile);
+					Action.PrerequisiteItems.Add(FileItem.GetItemByFileReference(HotReloadTargetInfoFile));
+
+					Action.CommandArguments = Arguments.Substring(0, FileNameIdx) + HotReloadTargetInfoFile + Arguments.Substring(FileNameEndIdx);
 				}
 			}
 		}
@@ -688,6 +711,65 @@ namespace UnrealBuildTool
 					}
 				}
 				HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
+			}
+		}
+
+		/// <summary>
+		/// Writes a manifest containing all the information needed to create a live coding patch
+		/// </summary>
+		/// <param name="ManifestFile">File to write to</param>
+		/// <param name="Actions">List of actions that are part of the graph</param>
+		public static void WriteLiveCodeManifest(FileReference ManifestFile, List<Action> Actions)
+		{
+			// Find all the output object files
+			HashSet<FileItem> ObjectFiles = new HashSet<FileItem>();
+			foreach(Action Action in Actions)
+			{
+				if(Action.ActionType == ActionType.Compile)
+				{
+					ObjectFiles.UnionWith(Action.ProducedItems.Where(x => x.HasExtension(".obj")));
+				}
+			}
+
+			// Write the output manifest
+			using(JsonWriter Writer = new JsonWriter(ManifestFile))
+			{
+				Writer.WriteObjectStart();
+
+				Action LinkAction = Actions.FirstOrDefault(x => x.ActionType == ActionType.Link && x.ProducedItems.Any(y => y.HasExtension(".exe") || y.HasExtension(".dll")));
+				if(LinkAction != null)
+				{
+					Writer.WriteValue("LinkerPath", LinkAction.CommandPath.FullName);
+				}
+
+				Writer.WriteArrayStart("Modules");
+				foreach(Action Action in Actions)
+				{
+					if(Action.ActionType == ActionType.Link)
+					{
+						FileItem OutputFile = Action.ProducedItems.FirstOrDefault(x => x.HasExtension(".exe") || x.HasExtension(".dll"));
+						if(OutputFile != null)
+						{
+							Writer.WriteObjectStart();
+							Writer.WriteValue("Output", OutputFile.Location.FullName);
+
+							Writer.WriteArrayStart("Inputs");
+							foreach(FileItem InputFile in Action.PrerequisiteItems)
+							{
+								if(ObjectFiles.Contains(InputFile))
+								{
+									Writer.WriteValue(InputFile.AbsolutePath);
+								}
+							}
+							Writer.WriteArrayEnd();
+
+							Writer.WriteObjectEnd();
+						}
+					}
+				}
+				Writer.WriteArrayEnd();
+
+				Writer.WriteObjectEnd();
 			}
 		}
 	}

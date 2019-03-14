@@ -90,6 +90,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/LocalPlayer.h"
 #include "Slate/SGameLayerManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -102,6 +103,7 @@
 #include "IVREditorModule.h"
 #include "EditorModeRegistry.h"
 #include "PhysicsManipulationMode.h"
+#include "CookerSettings.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
@@ -1393,6 +1395,15 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 		AdditionalParameters += PlayInSettings->AdditionalLaunchParameters;
 	}
 
+	if (bPlayUsingMobilePreview)
+	{
+		if (PlayInSettings->AdditionalLaunchParametersForMobile.Len() > 0)
+		{
+			AdditionalParameters += TEXT(" ");
+			AdditionalParameters += PlayInSettings->AdditionalLaunchParametersForMobile;
+		}
+	}
+
 	uint16 ServerPort = 0;
 	if (bIsServer && PlayInSettings->GetServerPort(ServerPort))
 	{
@@ -1459,7 +1470,7 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	}
 
 	// launch the game process
-	FString GamePath = FPlatformProcess::GenerateApplicationPath(FApp::GetName(), FApp::GetBuildConfiguration());
+	FString GamePath = FPlatformProcess::ExecutablePath();
 	FPlayOnPCInfo *NewSession = new (PlayOnLocalPCSessions) FPlayOnPCInfo();
 
 	uint32 ProcessID = 0;
@@ -1616,7 +1627,11 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 
 	if (bSetNotification)
 	{
-		NotificationItemPtr.Pin()->SetText(NotificationText);
+		TGraphTask<FLauncherNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
+			NotificationItemPtr,
+			SNotificationItem::CS_Pending,
+			NotificationText
+		);
 	}
 }
 
@@ -1658,8 +1673,6 @@ void UEditorEngine::HandleLaunchCompleted(bool Succeeded, double TotalTime, int3
 			(PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"))) == TEXT("TVOS") && PlayUsingLauncherDeviceName.Contains(DummyTVOSDeviceName)))
 		{
 			CompletionMsg = LOCTEXT("DeploymentTaskCompleted", "Deployment complete! Open the app on your device to launch.");
-			TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
-//			NotificationItem->SetExpireDuration(30.0f);
 		}
 		else
 		{
@@ -1991,6 +2004,11 @@ void UEditorEngine::PlayUsingLauncher()
 		if ( bCanCookOnTheFlyInEditor )
 		{
 			CurrentLauncherCookMode = ELauncherProfileCookModes::OnTheFlyInEditor;
+			bIncrimentalCooking = false;
+		}
+		if ( GetDefault<UCookerSettings>()->bCookOnTheFlyForLaunchOn )
+		{
+			CurrentLauncherCookMode = ELauncherProfileCookModes::OnTheFly;
 			bIncrimentalCooking = false;
 		}
 		LauncherProfile->SetCookMode( CurrentLauncherCookMode );
@@ -2532,6 +2550,11 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPl
 	FEditorDelegates::PostPIEStarted.Broadcast( bInSimulateInEditor );
 }
 
+FGameInstancePIEResult UEditorEngine::PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances)
+{
+	return FGameInstancePIEResult::Success();
+}
+
 void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bStartInSpectatorMode)
 {
 	double PIEStartTime = FPlatformTime::Seconds();
@@ -2560,6 +2583,12 @@ void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bS
 	// Server
 	if (CanPlayNetDedicated || WillAutoConnectToServer)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, false, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		PlayInSettings->SetPlayNetMode(EPlayNetMode::PIE_ListenServer);
 
 		if (!CanPlayNetDedicated)
@@ -2691,6 +2720,12 @@ void UEditorEngine::LoginPIEInstances(bool bAnyBlueprintErrors, bool bStartInSpe
 	// Server
 	if (WillAutoConnectToServer || CanPlayNetDedicated)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, true, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		FWorldContext &PieWorldContext = CreateNewWorldContext(EWorldType::PIE);
 		PieWorldContext.PIEInstance = PIEInstance++;
 		PieWorldContext.RunAsDedicated = CanPlayNetDedicated;
@@ -3230,7 +3265,9 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						static void OnPIEWindowClosed( const TSharedRef< SWindow >& WindowBeingClosed, TWeakPtr< SViewport > PIEViewportWidget, int32 index, bool bRestoreRootWindow )
 						{
 							// Save off the window position
-							const FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
+							FVector2D PIEWindowPos = WindowBeingClosed->GetPositionInScreen();
+							const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(PIEWindowPos.X, PIEWindowPos.Y);
+							PIEWindowPos /= DPIScale;
 
 							ULevelEditorPlaySettings* LevelEditorPlaySettings = ULevelEditorPlaySettings::StaticClass()->GetDefaultObject<ULevelEditorPlaySettings>();
 
@@ -3290,7 +3327,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 				ViewportClient->Viewport->SetPlayInEditorViewport( ViewportClient->bIsPlayInEditorViewport );
 
 				// Ensure the window has a valid size before calling BeginPlay
-				SlatePlayInEditorSession.SlatePlayInEditorWindowViewport->ResizeFrame( NewWindowWidth, NewWindowHeight, EWindowMode::Windowed );
+				PieWindow->ReshapeWindow(PieWindow->GetPositionInScreen(), FVector2D(NewWindowWidth, NewWindowHeight));
 
 				// Change the system resolution to match our window, to make sure game and slate window are kept syncronised
 				FSystemResolution::RequestResolutionChange(NewWindowWidth, NewWindowHeight, EWindowMode::Windowed);
@@ -3421,6 +3458,34 @@ FViewport* UEditorEngine::GetPIEViewport()
 	}
 
 	return nullptr;
+}
+
+bool UEditorEngine::GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const
+{
+	if (bIsSimulatingInEditor)
+	{
+		// The first PIE world context is the one that can toggle between PIE and SIE
+		for (const FWorldContext& WorldContext : WorldList)
+		{
+			if (WorldContext.WorldType == EWorldType::PIE && !WorldContext.RunAsDedicated)
+			{
+				const FSlatePlayInEditorInfo* SlateInfoPtr = SlatePlayInEditorMap.Find(WorldContext.ContextHandle);
+				if (SlateInfoPtr)
+				{
+					// This is only supported inside SLevelEditor viewports currently
+					TSharedPtr<ILevelViewport> LevelViewport = SlateInfoPtr->DestinationSlateViewport.Pin();
+					if (LevelViewport.IsValid())
+					{
+						FLevelEditorViewportClient& EditorViewportClient = LevelViewport->GetLevelViewportClient();
+						OutViewTransform = FTransform(EditorViewportClient.GetViewRotation(), EditorViewportClient.GetViewLocation());
+						return true;
+					}
+				}
+				break;
+			}
+		}
+	}
+	return false;
 }
 
 void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
@@ -3598,15 +3663,15 @@ int32 UEditorEngine::OnSwitchWorldForSlatePieWindow( int32 WorldID )
 	return RestoreID;
 }
 
-void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld )
+void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* OverrideWorld )
 {
 	if( bSwitchToPieWorld )
 	{
-		SetPlayInEditorWorld( PlayWorld );
+		SetPlayInEditorWorld( OverrideWorld ? OverrideWorld : PlayWorld );
 	}
 	else
 	{
-		RestoreEditorWorld( EditorWorld );
+		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
 	}
 }
 
@@ -3804,8 +3869,7 @@ void UEditorEngine::FocusNextPIEWorld(UWorld *CurrentPieWorld, bool previous)
 			FSlateApplication& SlateApp = FSlateApplication::Get();
 			TSharedRef<SViewport> ViewportWidget = SceneViewport->GetViewportWidget().Pin().ToSharedRef();
 
-			FWidgetPath WindowWidgetPath;
-			TSharedPtr<SWindow> ViewportWindow = SlateApp.FindWidgetWindow(ViewportWidget, WindowWidgetPath);
+			TSharedPtr<SWindow> ViewportWindow = SlateApp.FindWidgetWindow(ViewportWidget);
 			check(ViewportWindow.IsValid());
 
 			// Force window to front

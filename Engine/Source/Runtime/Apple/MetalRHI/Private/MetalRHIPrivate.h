@@ -95,6 +95,7 @@ extern FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 #define METAL_DEBUG_OPTIONS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #if METAL_DEBUG_OPTIONS
 #define METAL_DEBUG_OPTION(Code) Code
+extern int32 GMetalResetOnPSOChange;
 #else
 #define METAL_DEBUG_OPTION(Code)
 #endif
@@ -230,6 +231,73 @@ uint32 SafeGetRuntimeDebuggingLevel();
 extern int32 GMetalBufferZeroFill;
 
 mtlpp::LanguageVersion ValidateVersion(uint8 Version);
+
+// Needs to be the same as EShaderFrequency when all stages are supported, but unlike EShaderFrequency you can compile out stages.
+enum EMetalShaderStages
+{
+	Vertex,
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	Hull,
+	Domain,
+#endif
+	Pixel,
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	Geometry,
+#endif
+	Compute,
+	
+	Num,
+};
+
+FORCEINLINE EShaderFrequency GetRHIShaderFrequency(EMetalShaderStages Stage)
+{
+	switch (Stage)
+	{
+		case EMetalShaderStages::Vertex:
+			return SF_Vertex;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case EMetalShaderStages::Hull:
+			return SF_Hull;
+		case EMetalShaderStages::Domain:
+			return SF_Domain;
+#endif
+		case EMetalShaderStages::Pixel:
+			return SF_Pixel;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		case EMetalShaderStages::Geometry:
+			return SF_Geometry;
+#endif
+		case EMetalShaderStages::Compute:
+			return SF_Compute;
+		default:
+			return SF_NumFrequencies;
+	}
+}
+
+FORCEINLINE EMetalShaderStages GetMetalShaderFrequency(EShaderFrequency Stage)
+{
+	switch (Stage)
+	{
+		case SF_Vertex:
+			return EMetalShaderStages::Vertex;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case SF_Hull:
+			return EMetalShaderStages::Hull;
+		case SF_Domain:
+			return EMetalShaderStages::Domain;
+#endif
+		case SF_Pixel:
+			return EMetalShaderStages::Pixel;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		case SF_Geometry:
+			return EMetalShaderStages::Geometry;
+#endif
+		case SF_Compute:
+			return EMetalShaderStages::Compute;
+		default:
+			return EMetalShaderStages::Num;
+	}
+}
 
 #include "MetalStateCache.h"
 #include "MetalContext.h"

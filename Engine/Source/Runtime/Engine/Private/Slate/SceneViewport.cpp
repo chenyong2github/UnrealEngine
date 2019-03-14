@@ -1155,9 +1155,8 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 		ViewportClient->Activated(this, InActivateEvent);
 		
 		// Determine if we're in permanent capture mode.  This cannot be cached as part of bShouldCaptureMouseOnActivate because it could change between window activate and deactivate
-		const bool bPermanentCapture =
-			!GIsEditor && ((ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently) ||
-			(ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown));
+		const bool bPermanentCapture = ViewportClient->IsInPermanentCapture();
+
 
 		// If we are activating and had Mouse Capture on deactivate then we should get focus again
 		// It's important to note in the case of:
@@ -1175,6 +1174,7 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 
 	return FReply::Unhandled();
 }
+
 void FSceneViewport::OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent)
 {
 	// We backup if we have capture for us on activation, however we also maintain "true" if it's already true!
@@ -1233,8 +1233,7 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 	// Resizing the window directly is only supported in the game
 	if( FApp::IsGame() && NewWindowSizeX > 0 && NewWindowSizeY > 0 )
 	{		
-		FWidgetPath WidgetPath;
-		TSharedPtr<SWindow> WindowToResize = FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef(), WidgetPath );
+		TSharedPtr<SWindow> WindowToResize = FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef());
 
 		if( WindowToResize.IsValid() )
 		{
@@ -1591,8 +1590,7 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 			{
 				// Get the viewport for this window from the renderer so we can render directly to the backbuffer
 				FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
-				FWidgetPath WidgetPath;
-				void* ViewportResource = Renderer->GetViewportResource( *FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef(), WidgetPath ) );
+				void* ViewportResource = Renderer->GetViewportResource(*FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef()));
 				if( ViewportResource )
 				{
 					ViewportRHI = *((FViewportRHIRef*)ViewportResource);
@@ -1604,18 +1602,20 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 		else
 		{
 			// Enqueue a render command to delete the handle.  It must be deleted on the render thread after the resource is released
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(DeleteSlateRenderTarget, TArray<FSlateRenderTargetRHI*>&, BufferedSlateHandles, BufferedSlateHandles,
-																				FSlateRenderTargetRHI*&, RenderThreadSlateTexture, RenderThreadSlateTexture,
-			{
-				for (int32 i = 0; i < BufferedSlateHandles.Num(); ++i)
+			FSlateRenderTargetRHI** RenderThreadSlateTexturePtr = &RenderThreadSlateTexture;
+			TArray<FSlateRenderTargetRHI*>* BufferedSlateHandlesPtr = &BufferedSlateHandles;
+			ENQUEUE_RENDER_COMMAND(DeleteSlateRenderTarget)(
+				[BufferedSlateHandlesPtr, RenderThreadSlateTexturePtr](FRHICommandListImmediate& RHICmdList)
 				{
-					delete BufferedSlateHandles[i];
-					BufferedSlateHandles[i] = nullptr;
+					for (int32 i = 0; i < BufferedSlateHandlesPtr->Num(); ++i)
+					{
+						delete (*BufferedSlateHandlesPtr)[i];
+						(*BufferedSlateHandlesPtr)[i] = nullptr;
+					}
 
-					delete RenderThreadSlateTexture;
-					RenderThreadSlateTexture = nullptr;
-				}						
-			});
+					delete *RenderThreadSlateTexturePtr;
+					*RenderThreadSlateTexturePtr = nullptr;
+				});
 
 		}
 	}
@@ -1660,10 +1660,9 @@ void FSceneViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 	{
 		// Get the viewport for this window from the renderer so we can render directly to the backbuffer
 		FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
-		FWidgetPath WidgetPath;
 		if (ViewportWidget.IsValid())
 		{
-			auto WidgetWindow = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef(), WidgetPath);
+			auto WidgetWindow = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
 			if (WidgetWindow.IsValid())
 			{
 				void* ViewportResource = Renderer->GetViewportResource(*WidgetWindow);
@@ -1678,14 +1677,11 @@ void FSceneViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 
 	//set the rendertarget visible to the render thread
 	//must come before any render thread frame handling.
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		SetRenderThreadViewportTarget,
-		FSceneViewport*, Viewport, this,
-		FTexture2DRHIRef, RT, RenderTargetTextureRHI,		
+	ENQUEUE_RENDER_COMMAND(SetRenderThreadViewportTarget)(
+		[Viewport = this, RT = RenderTargetTextureRHI](FRHICommandListImmediate& RHICmdList) mutable
 		{
-
-		Viewport->SetRenderTargetTextureRenderThread(RT);			
-	});		
+			Viewport->SetRenderTargetTextureRenderThread(RT);			
+		});		
 
 	FViewport::EnqueueBeginRenderFrame(bShouldPresent);
 
@@ -1768,8 +1764,7 @@ void FSceneViewport::OnPlayWorldViewportSwapped( const FSceneViewport& OtherView
 	{
 		FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
 
-		FWidgetPath WidgetPath;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow( PinnedViewport.ToSharedRef(), WidgetPath );
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow( PinnedViewport.ToSharedRef() );
 
 		WindowRenderTargetUpdate( Renderer, Window.Get() );
 	}
@@ -1995,8 +1990,7 @@ void FSceneViewport::InitDynamicRHI()
 	if (PinnedViewport.IsValid())
 	{
 
-		FWidgetPath WidgetPath;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(PinnedViewport.ToSharedRef(), WidgetPath);
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(PinnedViewport.ToSharedRef());
 		
 		WindowRenderTargetUpdate(Renderer, Window.Get());
 		if (UseSeparateRenderTarget())

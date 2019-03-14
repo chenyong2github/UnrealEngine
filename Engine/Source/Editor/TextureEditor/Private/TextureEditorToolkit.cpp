@@ -67,7 +67,7 @@ FTextureEditorToolkit::~FTextureEditorToolkit( )
 {
 	FReimportManager::Instance()->OnPreReimport().RemoveAll(this);
 	FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
-	FEditorDelegates::OnAssetPostImport.RemoveAll(this);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 
 	GEditor->UnregisterForUndo(this);
 }
@@ -114,7 +114,7 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 {
 	FReimportManager::Instance()->OnPreReimport().AddRaw(this, &FTextureEditorToolkit::HandleReimportManagerPreReimport);
 	FReimportManager::Instance()->OnPostReimport().AddRaw(this, &FTextureEditorToolkit::HandleReimportManagerPostReimport);
-	FEditorDelegates::OnAssetPostImport.AddRaw(this, &FTextureEditorToolkit::HandleAssetPostImport);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FTextureEditorToolkit::HandleAssetPostImport);
 
 	Texture = CastChecked<UTexture>(ObjectToEdit);
 
@@ -465,7 +465,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	}
 
 	SizeText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_ResourceSize", "Resource Size: {0} Kb"), FText::AsNumber(Size, &SizeOptions)));
-	MethodText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Method", "Method: {0}"), Texture->NeverStream ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodNotStreamed", "Not Streamed") : NSLOCTEXT("TextureEditor", "QuickInfo_MethodStreamed", "Streamed")));
+	MethodText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Method", "Method: {0}"), !Texture->bIsStreamable ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodNotStreamed", "Not Streamed") : NSLOCTEXT("TextureEditor", "QuickInfo_MethodStreamed", "Streamed")));
 	LODBiasText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_LODBias", "Combined LOD Bias: {0}"), FText::AsNumber(Texture->GetCachedLODBias())));
 
 	int32 TextureFormatIndex = PF_MAX;

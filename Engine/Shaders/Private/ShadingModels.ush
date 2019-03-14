@@ -56,7 +56,7 @@ struct FAreaLight
 	float3		FalloffColor;
 
 	FRect		Rect;
-	Texture2D	Texture;
+	FRectTexture Texture;
 	bool		bIsRect;
 };
 
@@ -337,6 +337,7 @@ float ApproximateHG(float cosJ, float g)
 
 void GetProfileDualSpecular(FGBufferData GBuffer, out float AverageToRoughness0, out float AverageToRoughness1, out float LobeMix)
 {
+#if !FORWARD_SHADING
 	// 0..255, which SubSurface profile to pick
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
 
@@ -344,6 +345,12 @@ void GetProfileDualSpecular(FGBufferData GBuffer, out float AverageToRoughness0,
 	AverageToRoughness0 = Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
 	AverageToRoughness1 = Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
 	LobeMix = Data.z;
+#else
+	// Disable dual lobe, as subsurface profile doesn't work with forward.
+	AverageToRoughness0 = 1.f;
+	AverageToRoughness1 = 1.f;
+	LobeMix = 0.f;
+#endif
 }
 
 FDirectLighting SubsurfaceProfileBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, float Falloff, float NoL, FAreaLight AreaLight, FShadowTerms Shadow )
@@ -954,6 +961,7 @@ FDirectLighting EvaluateBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, f
 	AreaLight.FalloffColor = 1;
 	AreaLight.Rect = (FRect)0;
 	AreaLight.bIsRect = false;
+    AreaLight.Texture = InitRectTexture(LTCAmpTexture); // Dummy
 
 	return IntegrateBxDF( GBuffer, N, V, L, 1, NoL, AreaLight, Shadow );
 }

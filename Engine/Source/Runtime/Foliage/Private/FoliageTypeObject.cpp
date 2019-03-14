@@ -6,6 +6,7 @@
 void FFoliageTypeObject::RefreshInstance()
 {
 	//@todo: should verify that the instance is dirty before updating
+	TypeInstance = nullptr;
 
 	// If the foliage type is an asset, use that
 	if (auto FoliageTypeAsAsset = Cast<UFoliageType_InstancedStaticMesh>(FoliageTypeObject))
@@ -19,7 +20,7 @@ void FFoliageTypeObject::RefreshInstance()
 		if (FoliageTypeAsBP->ParentClass->IsChildOf<UFoliageType_InstancedStaticMesh>())
 		{
 			bIsAsset = false;
-			TypeInstance = NewObject<UFoliageType_InstancedStaticMesh>(GetTransientPackage(), *FoliageTypeAsBP->GeneratedClass);
+			TypeInstance = NewObject<UFoliageType_InstancedStaticMesh>(GetTransientPackage(), *FoliageTypeAsBP->GeneratedClass, NAME_None, RF_Transactional);
 		}
 	}
 }

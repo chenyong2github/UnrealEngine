@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "WmfMediaHardwareVideoDecodingRendering.h"
+#if PLATFORM_WINDOWS
 
+#include "WmfMediaHardwareVideoDecodingRendering.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
@@ -26,103 +27,7 @@
 #include "d3d11.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 
-class FWmfMediaHardwareVideoDecodingShader : public FGlobalShader
-{
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	FWmfMediaHardwareVideoDecodingShader() {}
-
-	FWmfMediaHardwareVideoDecodingShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		TextureY.Bind(Initializer.ParameterMap, TEXT("TextureY"));
-		TextureUV.Bind(Initializer.ParameterMap, TEXT("TextureUV"));
-
-		PointClampedSamplerY.Bind(Initializer.ParameterMap, TEXT("PointClampedSamplerY"));
-		BilinearClampedSamplerUV.Bind(Initializer.ParameterMap, TEXT("BilinearClampedSamplerUV"));
-		
-		ColorTransform.Bind(Initializer.ParameterMap, TEXT("ColorTransform"));
-		SrgbToLinear.Bind(Initializer.ParameterMap, TEXT("SrgbToLinear"));
-	}
-
-	template<typename TShaderRHIParamRef>
-	void SetParameters(
-		FRHICommandListImmediate& RHICmdList,
-		const TShaderRHIParamRef ShaderRHI,
-		const FShaderResourceViewRHIRef& InTextureY,
-		const FShaderResourceViewRHIRef& InTextureUV,
-		const bool InIsOutputSrgb
-		)
-	{
-		SetSRVParameter(RHICmdList, ShaderRHI, TextureY, InTextureY);
-		SetSRVParameter(RHICmdList, ShaderRHI, TextureUV, InTextureUV);
-		
-		SetSamplerParameter(RHICmdList, ShaderRHI, PointClampedSamplerY, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SetSamplerParameter(RHICmdList, ShaderRHI, BilinearClampedSamplerUV, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-		SetShaderValue(RHICmdList, ShaderRHI, ColorTransform, MediaShaders::CombineColorTransformAndOffset(MediaShaders::YuvToSrgbDefault, MediaShaders::YUVOffset8bits));
-		SetShaderValue(RHICmdList, ShaderRHI, SrgbToLinear, InIsOutputSrgb);
-	}
-
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureY << TextureUV << PointClampedSamplerY << BilinearClampedSamplerUV << ColorTransform << SrgbToLinear;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FShaderResourceParameter TextureY;
-	FShaderResourceParameter TextureUV;
-	FShaderResourceParameter PointClampedSamplerY;
-	FShaderResourceParameter BilinearClampedSamplerUV;
-	FShaderParameter ColorTransform;
-	FShaderParameter SrgbToLinear;
-};
-
-class FHardwareVideoDecodingVS : public FWmfMediaHardwareVideoDecodingShader
-{
-	DECLARE_SHADER_TYPE(FHardwareVideoDecodingVS, Global);
-
-public:
-
-	/** Default constructor. */
-	FHardwareVideoDecodingVS() {}
-
-	/** Initialization constructor. */
-	FHardwareVideoDecodingVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FWmfMediaHardwareVideoDecodingShader(Initializer)
-	{
-	}
-};
-
-class FHardwareVideoDecodingPS : public FWmfMediaHardwareVideoDecodingShader
-{
-	DECLARE_SHADER_TYPE(FHardwareVideoDecodingPS, Global);
-
-public:
-
-	/** Default constructor. */
-	FHardwareVideoDecodingPS() {}
-
-	/** Initialization constructor. */
-	FHardwareVideoDecodingPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FWmfMediaHardwareVideoDecodingShader(Initializer)
-	{ }
-};
-
-IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingVS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("MainVS"), SF_Vertex)
-IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingPS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("NV12ConvertPS"), SF_Pixel)
+#include "WmfMediaHardwareVideoDecodingShaders.h"
 
 bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread(FWmfMediaHardwareVideoDecodingTextureSample* InSample, FTexture2DRHIRef InDstTexture)
 {
@@ -145,8 +50,8 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-		// Set render target.
-		SetRenderTarget(RHICmdList, InDstTexture, FTextureRHIRef(), ESimpleRenderTargetMode::EClearColorAndDepth, FExclusiveDepthStencil::DepthNop_StencilNop);
+		FRHIRenderPassInfo RPInfo(InDstTexture, ERenderTargetActions::DontLoad_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("ConvertTextureFormat"));
 
 		// Update viewport.
 		RHICmdList.SetViewport(0, 0, 0.f, InSample->GetDim().X, InSample->GetDim().Y, 1.f);
@@ -168,23 +73,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		FTexture2DRHIRef SampleDestinationTexture = InSample->GetDestinationTexture();
-		if (!SampleDestinationTexture.IsValid())
-		{
-			FRHIResourceCreateInfo CreateInfo;
-			const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
-			FTexture2DRHIRef Texture = RHICreateTexture2D(
-				InSample->GetDim().X,
-				InSample->GetDim().Y,
-				PF_NV12,
-				1,
-				1,
-				CreateFlags,
-				CreateInfo);
-
-			InSample->SetDestinationTexture(Texture);
-			SampleDestinationTexture = Texture;
-		}
+		FTexture2DRHIRef SampleDestinationTexture = InSample->GetOrCreateDestinationTexture();
 
 		ID3D11Resource* DestinationTexture = reinterpret_cast<ID3D11Resource*>(SampleDestinationTexture->GetNativeResource());
 		if (DestinationTexture)
@@ -242,9 +131,12 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 		VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
 		PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
 		RHICmdList.DrawPrimitive(0, 2, 1);
+		RHICmdList.EndRenderPass();
 
 		D3D11DeviceContext->Release();
 	}
 
 	return true;
 }
+
+#endif

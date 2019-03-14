@@ -1,0 +1,88 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*==============================================================================
+	NiagaraSortKeyGen.usf: Shader to generate particle sorting keys.
+==============================================================================*/
+
+/*------------------------------------------------------------------------------
+	Compile time parameters:
+		THREAD_COUNT - The number of threads to launch per workgroup.
+		SORT_VIEW_DEPTH
+		SORT_VIEW_DISTANCE
+		SORT_CUSTOM_ASCENDING
+		SORT_CUSTOM_DESCENDING
+------------------------------------------------------------------------------*/
+
+#include "Common.ush"
+
+#define NIAGARA_KEYGEN 1
+#include "NiagaraVFParticleAccess.usf"
+
+Buffer<uint> GPUParticleCountBuffer;
+
+// (ParticleCount, GPUParticleCountOffset)
+uint2 ParticleCountParams;
+
+// (EmitterKey, OutputOffset, SortMode, SortAttributeOffset)
+uint4 SortParams;
+
+float3 CameraPosition;
+float3 CameraDirection;
+
+/** Output key buffer. */
+RWBuffer<uint> OutKeys;
+/** Output indices buffer. */
+RWBuffer<int> OutParticleIndices;
+
+[numthreads(THREAD_COUNT,1,1)]
+void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
+{
+	const uint ParticleCount = ParticleCountParams.x;
+	const uint GPUParticleCountOffset = ParticleCountParams.y;
+
+	const uint GPUParticleCount = GPUParticleCountOffset != -1 ? GPUParticleCountBuffer[GPUParticleCountOffset] : ParticleCount;
+
+	const uint EmitterKey = SortParams.x;
+	const uint OutputOffset = SortParams.y;
+	const uint SortMode = SortParams.z;
+	const uint SortAttributeOffset = SortParams.w;
+
+	if (ParticleIndex < ParticleCount)
+	{
+		float SortValue = 0;
+		uint SortKey = 0xffff; 
+
+		if (ParticleIndex < GPUParticleCount)
+		{
+			if (SortMode == SORT_VIEW_DEPTH || SortMode == SORT_VIEW_DISTANCE)
+			{ 
+				float3 ParticlePosition = GetVec3(SortAttributeOffset, ParticleIndex); 
+				float3 CameraVector = ParticlePosition - CameraPosition;
+				SortValue = SortMode == SORT_VIEW_DEPTH ? dot(CameraVector, CameraDirection) : length(CameraVector);
+				
+				// Render far away first, knowing that SortValue > 0
+				SortKey = (~f32tof16(SortValue)) & 0xffff;
+			}
+			else
+			{
+				SortValue = GetFloat(SortAttributeOffset, ParticleIndex);
+
+				// Convert f32 to uint16. Special handling for negative values.
+				SortKey = f32tof16(SortValue);
+				SortKey = SortValue >= 0 ? (SortKey | 0x8000) : ~SortKey;
+
+				SortKey = (SortMode == SORT_CUSTOM_ASCENDING ? SortKey : ~SortKey) & 0xffff;
+			}
+
+
+			// Clamp to max-1 to make sure that out-of-bound indices are at the end.
+			SortKey = min(SortKey, (uint)0xfffe); // Note that some compiler thread 0xfffe as signed.
+		}
+
+		SortKey |= EmitterKey;
+
+		OutKeys[OutputOffset + ParticleIndex] = SortKey;
+		OutParticleIndices[OutputOffset + ParticleIndex] = ParticleIndex;
+	}
+}
+ 

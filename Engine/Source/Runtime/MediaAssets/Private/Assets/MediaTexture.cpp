@@ -158,9 +158,17 @@ float UMediaTexture::GetSurfaceHeight() const
 
 FGuid UMediaTexture::GetExternalTextureGuid() const
 {
-	return CurrentGuid;
+	FScopeLock Lock(&CriticalSection);
+	return CurrentRenderedGuid;
 }
 
+void UMediaTexture::SetRenderedExternalTextureGuid(const FGuid& InNewGuid)
+{
+	check(IsInRenderingThread());
+
+	FScopeLock Lock(&CriticalSection);
+	CurrentRenderedGuid = InNewGuid;
+}
 
 /* UObject interface
  *****************************************************************************/
@@ -179,12 +187,14 @@ void UMediaTexture::BeginDestroy()
 		ClockSink.Reset();
 	}
 
-	if (CurrentGuid.IsValid())
+	//Unregister the last rendered Guid
+	const FGuid LastRendered = GetExternalTextureGuid();
+	if (LastRendered.IsValid())
 	{
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(MediaTextureUnregisterGuid,
-			FGuid, Guid, CurrentGuid,
+		ENQUEUE_RENDER_COMMAND(MediaTextureUnregisterGuid)(
+			[LastRendered](FRHICommandList& RHICmdList)
 			{
-				FExternalTextureRegistry::Get().UnregisterExternalTexture(Guid);
+				FExternalTextureRegistry::Get().UnregisterExternalTexture(LastRendered);
 			});
 	}
 
@@ -328,11 +338,11 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	RenderParams.SrgbOutput = SRGB;
 
 	// redraw texture resource on render thread
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(MediaTextureResourceRender,
-		FMediaTextureResource*, ResourceParam, (FMediaTextureResource*)Resource,
-		FMediaTextureResource::FRenderParams, RenderParamsParam, RenderParams,
+	FMediaTextureResource* ResourceParam = (FMediaTextureResource*)Resource;
+	ENQUEUE_RENDER_COMMAND(MediaTextureResourceRender)(
+		[ResourceParam, RenderParams](FRHICommandListImmediate& RHICmdList)
 		{
-			ResourceParam->Render(RenderParamsParam);
+			ResourceParam->Render(RenderParams);
 		});
 }
 

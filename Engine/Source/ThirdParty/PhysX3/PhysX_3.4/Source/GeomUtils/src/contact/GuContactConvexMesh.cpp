@@ -470,7 +470,7 @@ static bool triangleConvexTest(	const PolygonalData& polyData0,
 	// to those, we completely avoid all hull projections.
 	bool status = testFacesSepAxesBackface(polyData0, world0, world1, m0to1, groupCenterHull, localPoints,
 		convexScaling, numHullIndices, hullIndices, dmin0, vec0, id0, contactDistance, idtConvexScale);
-	if(!status)
+	if(!status || id0 == PX_INVALID_U32)
 		return false;
 
 	groupAxis = PxVec3(0);

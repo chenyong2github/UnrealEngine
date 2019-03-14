@@ -324,7 +324,6 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 		LaserSplineComponent->SetupAttachment( MotionControllerComponent );
 		LaserSplineComponent->RegisterComponent();
 		LaserSplineComponent->SetVisibility( false );
-		LaserSplineComponent->PostPhysicsComponentTick.bCanEverTick = false;
 		LaserSplineMeshComponents.Empty();
 
 		for (int32 i = 0; i < NumLaserSplinePoints; i++)
@@ -333,7 +332,6 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 			SplineSegment->SetMobility( EComponentMobility::Movable );
 			SplineSegment->SetCollisionEnabled( ECollisionEnabled::NoCollision );
 			SplineSegment->SetSplineUpDir( FVector::UpVector, false );
-			SplineSegment->PostPhysicsComponentTick.bCanEverTick = false;
 
 			UStaticMesh* StaticMesh = nullptr;
 			if (i == 0)

@@ -20,6 +20,8 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/ConfigCacheIni.h"
 #include "MoviePlayer.h"
+#include "Containers/Ticker.h"
+#include "HAL/ThreadManager.h"
 #include "PreLoadScreenManager.h"
 #include "TcpConsoleListener.h"
 #include "Interfaces/IPv4/IPv4Address.h"
@@ -47,65 +49,69 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 		GetMoviePlayer()->Suspend();
 	}
 
-	if (GEngine && GEngine->GetMainAudioDevice())
+	// if background audio is active, then we don't want to do suspend any audio
+	if ([[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio] == false)
 	{
-        FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-        if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
-        {
-            if (FTaskGraphInterface::IsRunning())
-            {
-                FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
-                {
-                    FAudioThread::RunCommandOnAudioThread([AudioDevice]()
-                    {
-                        AudioDevice->SetTransientMasterVolume(0.0f);
-                    }, TStatId());
-                }, TStatId(), NULL, ENamedThreads::GameThread);
-            }
-            else
-            {
-                AudioDevice->SetTransientMasterVolume(0.0f);
-            }
-        }
-        else
-        {
-            if (FTaskGraphInterface::IsRunning())
-            {
-                FGraphEventRef ResignTask = FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
-                {
-                    FAudioThread::RunCommandOnAudioThread([AudioDevice]()
-                    {
-                        AudioDevice->SuspendContext();
-                    }, TStatId());
-                
-                    FAudioCommandFence AudioCommandFence;
-                    AudioCommandFence.BeginFence();
-                    AudioCommandFence.Wait();
-                }, TStatId(), NULL, ENamedThreads::GameThread);
-            
-                // Do not wait forever for this task to complete since the game thread may be stuck on waiting for user input from a modal dialog box
-                double    startTime = FPlatformTime::Seconds();
-                while((FPlatformTime::Seconds() - startTime) < cMaxThreadWaitTime)
-                {
-                    FPlatformProcess::Sleep(0.05f);
-                    if(ResignTask->IsComplete())
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                AudioDevice->SuspendContext();
-            }
-        }
-	}
-	else
-	{
-		int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
-		if (SuspendCounter == 0)
+		if (GEngine && GEngine->GetMainAudioDevice())
 		{
-			FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
+			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
+			{
+				if (FTaskGraphInterface::IsRunning())
+				{
+					FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+					{
+						FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+						{
+							AudioDevice->SetTransientMasterVolume(0.0f);
+						}, TStatId());
+					}, TStatId(), NULL, ENamedThreads::GameThread);
+				}
+				else
+				{
+					AudioDevice->SetTransientMasterVolume(0.0f);
+				}
+			}
+			else
+			{
+				if (FTaskGraphInterface::IsRunning())
+				{
+					FGraphEventRef ResignTask = FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+					{
+						FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+						{
+							AudioDevice->SuspendContext();
+						}, TStatId());
+                
+						FAudioCommandFence AudioCommandFence;
+						AudioCommandFence.BeginFence();
+						AudioCommandFence.Wait();
+					}, TStatId(), NULL, ENamedThreads::GameThread);
+            
+					// Do not wait forever for this task to complete since the game thread may be stuck on waiting for user input from a modal dialog box
+					double    startTime = FPlatformTime::Seconds();
+					while((FPlatformTime::Seconds() - startTime) < cMaxThreadWaitTime)
+					{
+						FPlatformProcess::Sleep(0.05f);
+						if(ResignTask->IsComplete())
+						{
+							break;
+						}
+					}
+				}
+				else
+				{
+					AudioDevice->SuspendContext();
+				}
+			}
+		}
+		else
+		{
+			int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
+			if (SuspendCounter == 0)
+			{
+				FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
+			}
 		}
 	}
 }
@@ -117,51 +123,56 @@ void FAppEntry::Resume(bool bIsInterrupt)
 		GetMoviePlayer()->Resume();
 	}
 
-	if (GEngine && GEngine->GetMainAudioDevice())
+	// if background audio is active, then we don't want to do suspend any audio
+	// @todo: should this check if we were suspended, in case this changes while in the background? (suspend with background off, but resume with background audio on? is that a thing?)
+	if ([[IOSAppDelegate GetDelegate] IsFeatureActive:EAudioFeature::BackgroundAudio] == false)
 	{
-        FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
-        
-        if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
-        {
-            if (FTaskGraphInterface::IsRunning())
-            {
-                FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
-                {
-                    FAudioThread::RunCommandOnAudioThread([AudioDevice]()
-                    {
-                        AudioDevice->SetTransientMasterVolume(1.0f);
-                    }, TStatId());
-                }, TStatId(), NULL, ENamedThreads::GameThread);
-            }
-            else
-            {
-                AudioDevice->SetTransientMasterVolume(1.0f);
-            }
-        }
-        else
-        {
-            if (FTaskGraphInterface::IsRunning())
-            {
-                FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
-                {
-                    FAudioThread::RunCommandOnAudioThread([AudioDevice]()
-                    {
-                        AudioDevice->ResumeContext();
-                    }, TStatId());
-                }, TStatId(), NULL, ENamedThreads::GameThread);
-            }
-            else
-            {
-                AudioDevice->ResumeContext();
-            }
-        }
-	}
-	else
-	{
-		int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
-		if (SuspendCounter > 0)
+		if (GEngine && GEngine->GetMainAudioDevice())
 		{
-			FPlatformAtomics::InterlockedDecrement(&SuspendCounter);
+			FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+        
+			if (bIsInterrupt && DisableAudioSuspendOnAudioInterruptCvar)
+			{
+				if (FTaskGraphInterface::IsRunning())
+				{
+					FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+					{
+						FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+						{
+							AudioDevice->SetTransientMasterVolume(1.0f);
+						}, TStatId());
+					}, TStatId(), NULL, ENamedThreads::GameThread);
+				}
+				else
+				{
+					AudioDevice->SetTransientMasterVolume(1.0f);
+				}
+			}
+			else
+			{
+				if (FTaskGraphInterface::IsRunning())
+				{
+					FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+					{
+						FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+						{
+							AudioDevice->ResumeContext();
+						}, TStatId());
+					}, TStatId(), NULL, ENamedThreads::GameThread);
+				}
+				else
+				{
+					AudioDevice->ResumeContext();
+				}
+			}
+		}
+		else
+		{
+			int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
+			if (SuspendCounter > 0)
+			{
+				FPlatformAtomics::InterlockedDecrement(&SuspendCounter);
+			}
 		}
 	}
 }
@@ -169,29 +180,21 @@ void FAppEntry::Resume(bool bIsInterrupt)
 void FAppEntry::PreInit(IOSAppDelegate* AppDelegate, UIApplication* Application)
 {
 	// make a controller object
-	AppDelegate.IOSController = [[IOSViewController alloc] init];
+	UIViewController* IOSController = [[IOSViewController alloc] init];
 	
 #if PLATFORM_TVOS
 	// @todo tvos: This may need to be exposed to the game so that when you click Menu it will background the app
 	// this is basically the same way Android handles the Back button (maybe we should pass Menu button as back... maybe)
-	AppDelegate.IOSController.controllerUserInteractionEnabled = NO;
+	IOSController.controllerUserInteractionEnabled = NO;
 #endif
 	
-	// property owns it now
-	[AppDelegate.IOSController release];
-
 	// point to the GL view we want to use
-	AppDelegate.RootView = [AppDelegate.IOSController view];
+	AppDelegate.RootView = [IOSController view];
 
-	if (AppDelegate.OSVersion >= 6.0f)
-	{
-		// this probably works back to OS4, but would need testing
-		[AppDelegate.Window setRootViewController:AppDelegate.IOSController];
-	}
-	else
-	{
-		[AppDelegate.Window addSubview:AppDelegate.RootView];
-	}
+	[AppDelegate.Window setRootViewController:IOSController];
+
+	// windows owns it now
+//	[IOSController release];
 
 #if !PLATFORM_TVOS
 	// reset badge count on launch
@@ -207,18 +210,6 @@ static void MainThreadInit()
 	// prior to creating any framebuffers
 	CGRect MainFrame = [[UIScreen mainScreen] bounds];
 
-	// we need to swap if compiled with ios7, or compiled with ios8 and running on 7
-#ifndef __IPHONE_8_0
-	bool bDoLandscapeSwap = true;
-#else
-	bool bDoLandscapeSwap = AppDelegate.OSVersion < 8.0f;
-#endif
-
-	if (bDoLandscapeSwap && !AppDelegate.bDeviceInPortraitMode)
-	{
-		Swap(MainFrame.size.width, MainFrame.size.height);
-	}
-	
 	// @todo: use code similar for presizing for secondary screens
 // 	CGRect FullResolutionRect =
 // 		CGRectMake(
@@ -234,6 +225,10 @@ static void MainThreadInit()
 
 	CGRect FullResolutionRect = MainFrame;
 
+	// embedded apps are embedded inside a UE4 view, so it's already made
+#if BUILD_EMBEDDED_APP
+	// checkf(AppDelegate.IOSView != nil, TEXT("For embedded apps, the UE4EmbeddedView must have been created and set into the AppDelegate as IOSView"));
+#else
 	AppDelegate.IOSView = [[FIOSView alloc] initWithFrame:FullResolutionRect];
 	AppDelegate.IOSView.clearsContextBeforeDrawing = NO;
 #if !PLATFORM_TVOS
@@ -245,6 +240,7 @@ static void MainThreadInit()
 
 	// initialize the backbuffer of the view (so the RHI can use it)
 	[AppDelegate.IOSView CreateFramebuffer:YES];
+#endif
 }
 
 
@@ -265,7 +261,13 @@ void FAppEntry::PlatformInit()
 
 	while (!AppDelegate.IOSView || !AppDelegate.IOSView->bIsInitialized)
 	{
-		FPlatformProcess::Sleep(0.001f);
+#if BUILD_EMBEDDED_APP
+		// while embedded, the native app may be waiting on some processing to happen before showing the view, so we have to let
+		// processing occur here
+		FTicker::GetCoreTicker().Tick(0.005f);
+		FThreadManager::Get().Tick();
+#endif
+		FPlatformProcess::Sleep(0.005f);
 	}
 
 	// set the GL context to this thread
@@ -282,6 +284,8 @@ extern TcpConsoleListener *ConsoleListener;
 
 void FAppEntry::Init()
 {
+	SCOPED_BOOT_TIMING("FAppEntry::Init()");
+
 	FPlatformProcess::SetRealTimeMode();
 
 	//extern TCHAR GCmdLine[16384];
@@ -324,7 +328,8 @@ void FAppEntry::Init()
 
 	// start up the engine
 	GEngineLoop.Init();
-#ifndef UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING
+	UE_LOG(LogInit, Display, TEXT("Initializing TCPConsoleListener."));
 	if (ConsoleListener == nullptr)
 	{
 		FIPv4Endpoint ConsoleTCP(FIPv4Address::InternalLoopback, 8888); //TODO: @csulea read this from some .ini
@@ -377,6 +382,8 @@ int32	FAppEntry::gLaunchLocalNotificationFireDate;
 
 FString GSavedCommandLine;
 
+#if !BUILD_EMBEDDED_APP
+
 int main(int argc, char *argv[])
 {
     for(int Option = 1; Option < argc; Option++)
@@ -407,3 +414,5 @@ int main(int argc, char *argv[])
 	    return UIApplicationMain(argc, argv, nil, NSStringFromClass([IOSAppDelegate class]));
 	}
 }
+
+#endif

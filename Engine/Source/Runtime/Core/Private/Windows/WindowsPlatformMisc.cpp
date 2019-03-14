@@ -529,6 +529,13 @@ void FWindowsPlatformMisc::PlatformPreInit()
 
 	FGenericPlatformMisc::PlatformPreInit();
 
+	// Load the bundled version of dbghelp.dll if necessary
+#if USE_BUNDLED_DBGHELP
+	// Try to load a bundled copy of dbghelp.dll. A bug with Windows 10 version 1709 
+	FString DbgHlpPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/DbgHelp/dbghelp.dll");
+	FPlatformProcess::GetDllHandle(*DbgHlpPath);
+#endif
+
 	// Use our own handler for pure virtuals being called.
 	DefaultPureCallHandler = _set_purecall_handler( PureCallHandler );
 
@@ -659,7 +666,7 @@ void FWindowsPlatformMisc::SetGracefulTerminationHandler()
 		0xc3							// ret
 	};
 	DWORD PrevProtection;
-	if (VirtualProtect(SetCtrlCProc, sizeof(Patch), PAGE_READWRITE, &PrevProtection))
+	if (VirtualProtect(SetCtrlCProc, sizeof(Patch), PAGE_EXECUTE_READWRITE, &PrevProtection))
 	{
 		memcpy(SetCtrlCProc, Patch, sizeof(Patch));
 		VirtualProtect(SetCtrlCProc, sizeof(Patch), PrevProtection, &PrevProtection);
@@ -1678,7 +1685,23 @@ int32 FWindowsPlatformMisc::NumberOfWorkerThreadsToSpawn()
 
 	int32 MaxWorkerThreadsWanted = IsRunningDedicatedServer() ? MaxServerWorkerThreads : MaxWorkerThreads;
 	// need to spawn at least one worker thread (see FTaskGraphImplementation)
-	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 1);
+	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
+}
+
+const TCHAR* FWindowsPlatformMisc::GetPlatformFeaturesModuleName()
+{
+	bool bModuleExists = FModuleManager::Get().ModuleExists(TEXT("WindowsPlatformFeatures"));
+	// If running a dedicated server then we use the default PlatformFeatures
+	if (bModuleExists && !IsRunningDedicatedServer())
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures enabled"));
+		return TEXT("WindowsPlatformFeatures");
+	}
+	else
+	{
+		UE_LOG(LogWindows, Log, TEXT("WindowsPlatformFeatures disabled or dedicated server build"));
+		return nullptr;
+	}
 }
 
 bool FWindowsPlatformMisc::OsExecute(const TCHAR* CommandType, const TCHAR* Command, const TCHAR* CommandLine)

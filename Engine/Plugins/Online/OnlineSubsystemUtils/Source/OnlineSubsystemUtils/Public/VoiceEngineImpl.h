@@ -13,6 +13,7 @@
 #include "OnlineSubsystemUtilsPackage.h"
 #include "VoipListenerSynthComponent.h"
 #include "OnlineSubsystemUtilsPackage.h"
+#include "AudioDevice.h"
 
 #include "VoicePacketImpl.h"
 #include "UObject/CoreOnline.h"
@@ -85,7 +86,7 @@ public:
 /**
  * Generic implementation of voice engine, using Voice module for capture/codec
  */
-class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FSelfRegisteringExec
+class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FSelfRegisteringExec, public IDeviceChangedListener
 {
 	class FVoiceSerializeHelper : public FGCObject
 	{
@@ -152,6 +153,13 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	TArray<uint8> DecompressedVoiceBuffer;
 	/** Serialization helper */
 	FVoiceSerializeHelper* SerializeHelper;
+
+// Get Audio Device Changes on Windows
+#if PLATFORM_WINDOWS
+	FThreadSafeBool bAudioDeviceChanged;
+	double TimeDeviceChaned;
+	const double DeviceChangeDelay = 2.0f;
+#endif
 
 	/**
 	 * Determines if the specified index is the owner or not
@@ -299,6 +307,20 @@ protected:
 	FLocalVoiceData*           GetLocalPlayerVoiceData()    { return PlayerVoiceData; }
 	int32                      GetMaxVoiceRemainderSize();
 	void					   CreateSerializeHelper();
+
+	// Get Audio Device Changes on Windows
+#if PLATFORM_WINDOWS
+	virtual void RegisterDeviceChangedListener();
+	virtual void UnregisterDeviceChangedListener();
+	virtual void HandleDeviceChange();
+
+	//~ Begin IDeviceChangedListener
+	virtual void OnDefaultDeviceChanged() override;
+#else
+	virtual void OnDefaultDeviceChanged() override {}
+#endif
+	virtual void OnDeviceRemoved(FString DeviceID) override {}
+	//~ End IDeviceChangedListener
 };
 
 typedef TSharedPtr<FVoiceEngineImpl, ESPMode::ThreadSafe> FVoiceEngineImplPtr;

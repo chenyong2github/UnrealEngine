@@ -337,6 +337,18 @@
 	#define PLATFORM_USES_ES2					0
 #endif
 
+#ifndef PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#define PLATFORM_SUPPORTS_GEOMETRY_SHADERS		1
+#endif
+
+#ifndef PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	#define PLATFORM_SUPPORTS_TESSELLATION_SHADERS	1
+#endif
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS && !PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	#error Geometry shader support is required by tessellation
+#endif
+
 #ifndef PLATFORM_BUILTIN_VERTEX_HALF_FLOAT
 	#define PLATFORM_BUILTIN_VERTEX_HALF_FLOAT	1
 #endif
@@ -447,6 +459,14 @@
 
 #ifndef PLATFORM_HAS_CRC_INTRINSICS
 	#define PLATFORM_HAS_CRC_INTRINSICS							0
+#endif
+
+#ifndef PLATFORM_NEEDS_RHIRESOURCELIST
+	#define PLATFORM_NEEDS_RHIRESOURCELIST 1
+#endif
+
+#ifndef PLATFORM_SUPPORTS_FLIP_TRACKING
+	#define PLATFORM_SUPPORTS_FLIP_TRACKING 0
 #endif
 
 // deprecated, do not use
@@ -660,6 +680,13 @@
 	#define DLLIMPORT
 #endif
 
+// embedded app is not default (embedding UE4 in a native view, right now just for IOS and Android)
+#ifndef BUILD_EMBEDDED_APP
+	#define BUILD_EMBEDDED_APP  0
+#endif
+#ifndef FAST_BOOT_HACKS
+	#define FAST_BOOT_HACKS  0
+#endif
 
 #ifndef DEPRECATED_FORGAME
 	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")
@@ -800,13 +827,13 @@ namespace TypeTests
 	template <typename A, typename B>
 	struct TAreTypesEqual
 	{
-		enum { Value = false };
+		static const bool Value = false;
 	};
 
 	template <typename T>
 	struct TAreTypesEqual<T, T>
 	{
-		enum { Value = true };
+		static const bool Value = true;
 	};
 
 	static_assert(!PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");
@@ -822,7 +849,7 @@ namespace TypeTests
 	static_assert((!TAreTypesEqual<ANSICHAR, WIDECHAR>::Value), "ANSICHAR and WIDECHAR should be different types.");
 	static_assert((!TAreTypesEqual<ANSICHAR, UCS2CHAR>::Value), "ANSICHAR and CHAR16 should be different types.");
 	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value), "WIDECHAR and CHAR16 should be different types.");
-	static_assert((TAreTypesEqual<TCHAR, ANSICHAR>::Value || TAreTypesEqual<TCHAR, WIDECHAR>::Value), "TCHAR should either be ANSICHAR or WIDECHAR.");
+	static_assert((TAreTypesEqual<TCHAR, ANSICHAR>::Value == true || TAreTypesEqual<TCHAR, WIDECHAR>::Value == true), "TCHAR should either be ANSICHAR or WIDECHAR.");
 
 	static_assert(sizeof(uint8) == 1, "BYTE type size test failed.");
 	static_assert(int32(uint8(-1)) == 0xFF, "BYTE type sign test failed.");

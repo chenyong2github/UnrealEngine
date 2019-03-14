@@ -5,6 +5,7 @@
 #include "Engine/TextureLightProfile.h"
 
 UDatasmithAreaLightActorTemplate::UDatasmithAreaLightActorTemplate()
+	: UDatasmithObjectTemplate(true)
 {
 	Load( ADatasmithAreaLightActor::StaticClass()->GetDefaultObject() );
 }
@@ -12,7 +13,8 @@ UDatasmithAreaLightActorTemplate::UDatasmithAreaLightActorTemplate()
 void UDatasmithAreaLightActorTemplate::Apply( UObject* Destination, bool bForce )
 {
 #if WITH_EDITORONLY_DATA
-	ADatasmithAreaLightActor* AreaLightActor = Cast< ADatasmithAreaLightActor >( Destination );
+	const USceneComponent* SceneComponent = Cast< USceneComponent >( Destination );
+	ADatasmithAreaLightActor* AreaLightActor = Cast< ADatasmithAreaLightActor >( SceneComponent ? SceneComponent->GetOwner() : Destination );
 
 	if ( !AreaLightActor )
 	{

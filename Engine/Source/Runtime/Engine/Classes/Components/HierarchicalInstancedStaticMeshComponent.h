@@ -237,7 +237,7 @@ public:
 	/** Heuristic for the number of leaves in the tree **/
 	int32 DesiredInstancesPerLeaf();
 
-	virtual void ApplyComponentInstanceData(class FInstancedStaticMeshComponentInstanceData* InstancedMeshData) override;
+	virtual void ApplyComponentInstanceData(struct FInstancedStaticMeshComponentInstanceData* InstancedMeshData) override;
 	
 	// Number of instances in the render-side instance buffer
 	virtual int32 GetNumRenderInstances() const { return SortedInstances.Num(); }
@@ -266,6 +266,7 @@ protected:
 
 	virtual void GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const override;
 	virtual void PartialNavigationUpdate(int32 InstanceIdx) override;
+	virtual FBox GetNavigationBounds() const override;
 	void FlushAccumulatedNavigationUpdates();
 	mutable FBox AccumulatedNavigationDirtyArea;
 

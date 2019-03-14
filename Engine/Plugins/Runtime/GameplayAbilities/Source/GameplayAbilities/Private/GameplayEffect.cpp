@@ -58,12 +58,6 @@ UGameplayEffect::UGameplayEffect(const FObjectInitializer& ObjectInitializer)
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
 	bRequireModifierSuccessToTriggerCues = true;
-
-#if WITH_EDITORONLY_DATA
-	ShowAllProperties = true;
-	Template = nullptr;
-#endif
-
 }
 
 void UGameplayEffect::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
@@ -1880,6 +1874,7 @@ FActiveGameplayEffectsContainer::FActiveGameplayEffectsContainer()
 	, PendingGameplayEffectHead(nullptr)
 {
 	PendingGameplayEffectNext = &PendingGameplayEffectHead;
+	bUseDeltaStructSerialization = true;
 }
 
 FActiveGameplayEffectsContainer::~FActiveGameplayEffectsContainer()

@@ -47,6 +47,8 @@ public:
 	/** Clears a UAV to the multi-component value provided. */
 	virtual void RHIClearTinyUAV(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const uint32* Values) final override;
 	
+	virtual void RHICopyTexture(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FRHICopyTextureInfo& CopyInfo) final override;
+	
 	/**
 	 * Resolves from one texture to another.
 	 * @param SourceTexture - texture to resolve from, 0 is silenty ignored
@@ -95,8 +97,6 @@ public:
 	
 	virtual void RHISetStreamSource(uint32 StreamIndex, FVertexBufferRHIParamRef VertexBuffer, uint32 Offset) final override;
 
-	virtual void RHISetRasterizerState(FRasterizerStateRHIParamRef NewState) final override;
-	
 	// @param MinX including like Win32 RECT
 	// @param MinY including like Win32 RECT
 	// @param MaxX excluding like Win32 RECT
@@ -110,12 +110,6 @@ public:
 	// @param MaxX excluding like Win32 RECT
 	// @param MaxY excluding like Win32 RECT
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) final override;
-	
-	/**
-	 * Set bound shader state. This will set the vertex decl/shader, and pixel shader
-	 * @param BoundShaderState - state resource
-	 */
-	virtual void RHISetBoundShaderState(FBoundShaderStateRHIParamRef BoundShaderState) final override;
 	
 	virtual void RHISetGraphicsPipelineState(FGraphicsPipelineStateRHIParamRef GraphicsState) final override;
 	
@@ -227,13 +221,8 @@ public:
 	
 	virtual void RHISetShaderParameter(FComputeShaderRHIParamRef ComputeShader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) final override;
 	
-	virtual void RHISetDepthStencilState(FDepthStencilStateRHIParamRef NewState, uint32 StencilRef) final override;
-
 	virtual void RHISetStencilRef(uint32 StencilRef) final override;
 
-	// Allows to set the blend state, parameter can be created with RHICreateBlendState()
-	virtual void RHISetBlendState(FBlendStateRHIParamRef NewState, const FLinearColor& BlendFactor) final override;
-	
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) final override;
 
 	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs) final override;
@@ -284,12 +273,6 @@ public:
 	 * Draw a primitive using the vertex and index data populated since RHIBeginDrawIndexedPrimitiveUP and clean up any memory as needed
 	 */
 	virtual void RHIEndDrawIndexedPrimitiveUP() final override;
-	
-	/**
-	 * Enabled/Disables Depth Bounds Testing.
-	 * @param bEnable	Enable(non-zero)/disable(zero) the depth bounds test
-	 */
-	virtual void RHIEnableDepthBoundsTest(bool bEnable) final override;
 
 	/**
 	* Sets Depth Bounds Testing with the given min/max depth.

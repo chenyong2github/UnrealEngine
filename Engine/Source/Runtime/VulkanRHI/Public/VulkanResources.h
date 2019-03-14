@@ -38,7 +38,7 @@ enum
 {
 	NUM_OCCLUSION_QUERIES_PER_POOL = 4096,
 
-	NUM_TIMESTAMP_QUERIES_PER_POOL = 10240,
+	NUM_TIMESTAMP_QUERIES_PER_POOL = 1024,
 };
 
 struct FSamplerYcbcrConversionInitializer
@@ -51,6 +51,9 @@ struct FSamplerYcbcrConversionInitializer
 	VkChromaLocation XOffset;
 	VkChromaLocation YOffset;
 };
+
+// Mirror GPixelFormats with format information for buffers
+extern VkFormat GVulkanBufferFormat[PF_MAX];
 
 /** This represents a vertex declaration that hasn't been combined with a specific shader to create a bound shader. */
 class FVulkanVertexDeclaration : public FRHIVertexDeclaration
@@ -105,6 +108,12 @@ public:
 	}
 #endif
 
+	// Name should be pointing to "main_"
+	void GetEntryPoint(ANSICHAR* Name)
+	{
+		FCStringAnsi::Sprintf(Name, "main_%0.8x_%0.8x", Spirv.Num() * sizeof(uint32), CodeHeader.SpirvCRC);
+	}
+
 	FORCEINLINE const FVulkanShaderHeader& GetCodeHeader() const
 	{
 		return CodeHeader;
@@ -116,6 +125,9 @@ public:
 	}
 
 protected:
+#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+	FString							DebugEntryPoint;
+#endif
 	uint64							ShaderKey;
 
 	/** External bindings for this shader. */
@@ -229,8 +241,10 @@ public:
 		switch (Stage)
 		{
 		case ShaderStage::Vertex:		return GetVertexShader();
-		//case ShaderStage::Hull:		return GetHullShader();
-		//case ShaderStage::Domain:		return GetDomainShader();
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case ShaderStage::Hull:			return GetHullShader();
+		case ShaderStage::Domain:		return GetDomainShader();
+#endif
 		case ShaderStage::Pixel:		return GetPixelShader();
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case ShaderStage::Geometry:	return GetGeometryShader();
@@ -719,25 +733,25 @@ inline FVulkanTextureBase* GetVulkanTextureFromRHITexture(FRHITexture* Texture)
 	{
 		return NULL;
 	}
-	else if (Texture->GetTexture2D())
+	else if (FRHITexture2D* Tex2D = Texture->GetTexture2D())
 	{
-		return static_cast<FVulkanTexture2D*>(Texture);
+		return static_cast<FVulkanTexture2D*>(Tex2D);
 	}
-	else if (Texture->GetTextureReference())
+	else if (FRHITextureReference* TexRef = Texture->GetTextureReference())
 	{
-		return static_cast<FVulkanTextureReference*>(Texture);
+		return static_cast<FVulkanTextureReference*>(TexRef);
 	}
-	else if (Texture->GetTexture2DArray())
+	else if (FRHITexture2DArray* Tex2DArray = Texture->GetTexture2DArray())
 	{
-		return static_cast<FVulkanTexture2DArray*>(Texture);
+		return static_cast<FVulkanTexture2DArray*>(Tex2DArray);
 	}
-	else if (Texture->GetTexture3D())
+	else if (FRHITexture3D* Tex3D = Texture->GetTexture3D())
 	{
-		return static_cast<FVulkanTexture3D*>(Texture);
+		return static_cast<FVulkanTexture3D*>(Tex3D);
 	}
-	else if (Texture->GetTextureCube())
+	else if (FRHITextureCube* TexCube = Texture->GetTextureCube())
 	{
-		return static_cast<FVulkanTextureCube*>(Texture);
+		return static_cast<FVulkanTextureCube*>(TexCube);
 	}
 	else
 	{
@@ -769,6 +783,7 @@ public:
 
 protected:
 	VkQueryPool QueryPool;
+	VkEvent ResetEvent;
 	const uint32 MaxQueries;
 	const VkQueryType QueryType;
 	TArray<uint64> QueryOutput;
@@ -1258,11 +1273,17 @@ public:
 class FVulkanUniformBuffer : public FRHIUniformBuffer
 {
 public:
-	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage, bool bCopyIntoConstantData);
+	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation, bool bCopyIntoConstantData);
 
 	TArray<uint8> ConstantData;
 
 	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }
+
+	void UpdateResourceTable(const FRHIUniformBufferLayout& InLayout, const void* Contents, int32 ResourceNum);
+	void UpdateResourceTable(FRHIResource** Resources, int32 ResourceNum);
+
+	virtual void Update(const void* Contents, int32 ContentsSize);
+
 
 private:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
@@ -1271,7 +1292,9 @@ private:
 class FVulkanRealUniformBuffer : public FVulkanUniformBuffer, public FVulkanResourceMultiBuffer
 {
 public:
-	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage);
+	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+
+	virtual void Update(const void* Contents, int32 ContentsSize);
 
 private:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
@@ -1354,6 +1377,9 @@ public:
 	{
 	}
 
+	void Clear();
+
+	void Rename(FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
 
 	void UpdateView();
 

@@ -77,8 +77,8 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 	switch (FlagBits)
 	{
 	case VK_SHADER_STAGE_VERTEX_BIT:					return SF_Vertex;
-	//case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:		return SF_Hull;
-	//case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:		return SF_Domain;
+	case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:		return SF_Hull;
+	case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:	return SF_Domain;
 	case VK_SHADER_STAGE_FRAGMENT_BIT:					return SF_Pixel;
 	case VK_SHADER_STAGE_GEOMETRY_BIT:					return SF_Geometry;
 	case VK_SHADER_STAGE_COMPUTE_BIT:					return SF_Compute;
@@ -603,6 +603,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 		break;
 	//#todo-rco: Temp until we have fully switched to RenderPass system
 	case ERenderTargetStoreAction::ENoAction:
+	case ERenderTargetStoreAction::EMultisampleResolve:
 		OutStoreAction = bRealRenderPass ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
 		break;
 	default:
@@ -614,7 +615,7 @@ static inline VkAttachmentStoreOp RenderTargetStoreActionToVulkan(ERenderTargetS
 	return OutStoreAction;
 }
 
-inline VkFormat UEToVkFormat(EPixelFormat UEFormat, const bool bIsSRGB)
+inline VkFormat UEToVkTextureFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 {
 	VkFormat Format = (VkFormat)GPixelFormats[UEFormat].PlatformFormat;
 	if (bIsSRGB && GMaxRHIFeatureLevel > ERHIFeatureLevel::ES2)
@@ -660,7 +661,7 @@ inline VkFormat UEToVkFormat(EPixelFormat UEFormat, const bool bIsSRGB)
 	return Format;
 }
 
-static inline VkFormat UEToVkFormat(EVertexElementType Type)
+static inline VkFormat UEToVkBufferFormat(EVertexElementType Type)
 {
 	switch (Type)
 	{
@@ -702,28 +703,14 @@ static inline VkFormat UEToVkFormat(EVertexElementType Type)
 		return VK_FORMAT_R32G32B32A32_SFLOAT;
 	case VET_URGB10A2N:
 		return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	case VET_UInt:
+		return VK_FORMAT_R32_UINT;
 	default:
 		break;
 	}
 
 	check(!"Undefined vertex-element format conversion");
 	return VK_FORMAT_UNDEFINED;
-}
-
-static inline VkPrimitiveTopology UEToVulkanType(EPrimitiveType PrimitiveType)
-{
-	switch (PrimitiveType)
-	{
-	case PT_PointList:			return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-	case PT_LineList:			return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-	case PT_TriangleList:		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	case PT_TriangleStrip:		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-	default:
-		break;
-	}
-
-	checkf(false, TEXT("Unsupported primitive type"));
-	return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 }
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT

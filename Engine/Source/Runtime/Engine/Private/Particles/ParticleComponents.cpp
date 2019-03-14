@@ -54,6 +54,7 @@
 #include "ObjectEditorUtils.h"
 #endif
 
+#include "Particles/FXSystemPrivate.h"
 #include "Particles/Camera/ParticleModuleCameraOffset.h"
 #include "Particles/Collision/ParticleModuleCollision.h"
 #include "Particles/Color/ParticleModuleColorOverLife.h"
@@ -3705,13 +3706,6 @@ void UParticleSystemComponent::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-void UParticleSystemComponent::NotifyObjectReferenceEliminated() const
-{
-	UE_LOG(LogParticles, Error, TEXT("Garbage collector eliminated reference from particle system!  Particle system objects should not be cleaned up via MarkPendingKill().\n           ParticleSystem=%s"),
-		*GetPathName());
-}
-
-
 void UParticleSystemComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
@@ -3757,7 +3751,11 @@ void UParticleSystemComponent::OnRegister()
 
 	if (World->Scene)
 	{
-		FXSystem = World->Scene->GetFXSystem();
+		FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
+		if (FXSystemInterface)
+		{
+			FXSystem = static_cast<FFXSystem*>(FXSystemInterface->GetInterface(FFXSystem::Name));
+		}
 	}
 
 	if (bAutoManageAttachment && !IsActive())
@@ -4360,6 +4358,7 @@ void UParticleSystemComponent::SetMaterial(int32 ElementIndex, UMaterialInterfac
 		}
 	}
 	MarkRenderDynamicDataDirty();
+	MarkRenderStateDirty();
 }
 
 void UParticleSystemComponent::ClearDynamicData()
@@ -4375,6 +4374,7 @@ void UParticleSystemComponent::ClearDynamicData()
 void UParticleSystemComponent::UpdateDynamicData()
 {
 	//SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_UpdateDynamicData);
+	LLM_SCOPE(ELLMTag::Particles);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
 	if (SceneProxy)
@@ -5147,7 +5147,7 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	TotalActiveParticles = 0;
 	bNeedsFinalize = true;
 	
-	if (!IsTickManaged())
+	if (!IsTickManaged() || bWarmingUp)
 	{
 		if (!ThisTickFunction || !ThisTickFunction->IsCompletionHandleValid() || !CanTickInAnyThread() || FXConsoleVariables::bFreezeParticleSimulation || !FXConsoleVariables::bAllowAsyncTick || !FApp::ShouldUseThreadingForPerformance() ||
 			GDistributionType == 0) // this may not be absolutely required, however if you are using distributions it will be glacial anyway. If you want to get rid of this, note that some modules use this indirectly as their criteria for CanTickInAnyThread
@@ -7151,7 +7151,7 @@ void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterfa
 		FParticleSysParam& P = InstanceParameters[i];
 		if (P.Name == Name && P.ParamType == PSPT_Material)
 		{
-			bIsViewRelevanceDirty = (P.Material != Param) ? true : false;
+			bIsViewRelevanceDirty = bIsViewRelevanceDirty || (P.Material != Param);
 			P.Material = Param;
 			return;
 		}
@@ -7161,7 +7161,7 @@ void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterfa
 	int32 NewParamIndex = InstanceParameters.AddZeroed();
 	InstanceParameters[NewParamIndex].Name = Name;
 	InstanceParameters[NewParamIndex].ParamType = PSPT_Material;
-	bIsViewRelevanceDirty = (InstanceParameters[NewParamIndex].Material != Param) ? true : false;
+	bIsViewRelevanceDirty = bIsViewRelevanceDirty || (InstanceParameters[NewParamIndex].Material != Param);
 	InstanceParameters[NewParamIndex].Material = Param;
 }
 
@@ -7532,7 +7532,7 @@ void AddMaterials(TArray<FMaterialWithScale, TInlineAllocator<12> >& OutMaterial
 	}
 }
 
-void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const
+void UParticleSystemComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {
 	TArray<FMaterialWithScale, TInlineAllocator<12> > MaterialWithScales;
 
@@ -7575,7 +7575,7 @@ void UParticleSystemComponent::GetStreamingTextureInfo(FStreamingTextureLevelCon
 			for (const FMaterialWithScale& MaterialWithScale : MaterialWithScales)
 			{
 				MaterialData.Material = MaterialWithScale.Key;
-				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingTextures);
+				LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius * MaterialWithScale.Value, OutStreamingRenderAssets);
 			}
 		}
 	}

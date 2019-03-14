@@ -33,6 +33,8 @@
 #include "Android/AndroidStats.h"
 #include "MoviePlayer.h"
 #include "PreLoadScreenManager.h"
+#include "Misc/EmbeddedCommunication.h"
+#include "Async/Async.h"
 #include <jni.h>
 #include <android/sensor.h>
 
@@ -47,6 +49,10 @@ static GetAxesType GetAxes = NULL;
 #if PLATFORM_ANDROID_NDK_VERSION < 140200
 #define AMOTION_EVENT_AXIS_RELATIVE_X 27
 #define AMOTION_EVENT_AXIS_RELATIVE_Y 28
+#endif
+
+#ifndef ANDROID_ALLOWCUSTOMTOUCHEVENT
+#define ANDROID_ALLOWCUSTOMTOUCHEVENT	0
 #endif
 
 // List of default axes to query for each controller
@@ -140,7 +146,8 @@ extern void AndroidThunkCpp_InitHMDs();
 extern void AndroidThunkCpp_ShowConsoleWindow();
 extern bool AndroidThunkCpp_VirtualInputIgnoreClick(int, int);
 extern bool AndroidThunkCpp_IsVirtuaKeyboardShown();
-extern void AndroidThunkCpp_RestartApplication();
+extern bool AndroidThunkCpp_IsWebViewShown();
+extern void AndroidThunkCpp_RestartApplication(const FString& IntentString);
 
 // Base path for file accesses
 extern FString GFilePathBase;
@@ -164,6 +171,7 @@ static const float EventRefreshRate = 1.0f / 20.0f;
 static int32_t HandleInputCB(struct android_app* app, AInputEvent* event); //Touch and key input events
 static void OnAppCommandCB(struct android_app* app, int32_t cmd); //Lifetime events
 
+static bool TryIgnoreClick(AInputEvent* event, size_t actionPointer);
 
 bool GHasInterruptionRequest = false;
 bool GIsInterrupted = false;
@@ -436,10 +444,8 @@ int32 AndroidMain(struct android_app* state)
 
 	FAppEventManager::GetInstance()->SetEmptyQueueHandlerEvent(FPlatformProcess::GetSynchEventFromPool(false));
 
-	{
-		SCOPED_BOOT_TIMING("GEngineLoop.Init()");
-		GEngineLoop.Init();
-	}
+	GEngineLoop.Init();
+
 	bDidCompleteEngineInit = true;
 
 	UE_LOG(LogAndroid, Log, TEXT("Passed GEngineLoop.Init()"));
@@ -522,7 +528,7 @@ struct FChoreographer
 	void SetupChoreographer()
 	{
 		FScopeLock Lock(&ChoreographerSetupLock);
-		check(!AChoreographer_getInstance_);
+		//check(!AChoreographer_getInstance_);
 		if (!AChoreographer_getInstance_)
 		{
 			void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
@@ -696,6 +702,20 @@ void android_main(struct android_app* state)
 }
 
 extern bool GAndroidGPUInfoReady;
+
+static bool TryIgnoreClick(AInputEvent* event, size_t actionPointer)
+{
+	int pointerId = AMotionEvent_getPointerId(event, actionPointer);
+	int32 x = AMotionEvent_getX(event, actionPointer);
+	int32 y = AMotionEvent_getY(event, actionPointer);
+
+	//ignore key down events click was within bounds
+	if (AndroidThunkCpp_VirtualInputIgnoreClick(x, y))
+	{
+		return true;
+	}
+	return false;
+}
 
 //Called from the event process thread
 static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
@@ -873,15 +893,21 @@ static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
 
 			if (AndroidThunkCpp_IsVirtuaKeyboardShown() && (type == TouchBegan || type == TouchMoved))
 			{
-				int pointerId = AMotionEvent_getPointerId(event, actionPointer);
-				int32 x = AMotionEvent_getX(event, actionPointer);
-				int32 y = AMotionEvent_getY(event, actionPointer);
-
 				//ignore key down events when the native input was clicked or when the keyboard animation is playing
-				if (AndroidThunkCpp_VirtualInputIgnoreClick(x, y))
+				if (TryIgnoreClick(event, actionPointer))
 				{
 					return 0;
 				}
+			}
+			else if (AndroidThunkCpp_IsWebViewShown() && (type == TouchBegan || type == TouchMoved || type == TouchEnded))
+			{
+				//ignore key down events when the the a web view is visible
+				if (TryIgnoreClick(event, actionPointer) && ((EventSource & 0x80) != 0x80))
+				{
+					UE_LOG(LogAndroid, Verbose, TEXT("Received touch event %d - Ignored"), type);
+					return 0;
+				}
+				UE_LOG(LogAndroid, Verbose, TEXT("Received touch event %d"), type);
 			}
 			if(isActionTargeted)
 			{
@@ -1168,10 +1194,11 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 		*/
 		if (bShouldRestartFromInterrupt)
 		{
-			AndroidThunkCpp_RestartApplication();
+			AndroidThunkCpp_RestartApplication(TEXT(""));
 		}
 		break;
 	case APP_CMD_PAUSE:
+	{
 		/**
 		 * Command from main thread: the app's activity has been paused.
 		 */
@@ -1179,8 +1206,16 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 		UE_LOG(LogAndroid, Log, TEXT("Case APP_CMD_PAUSE"));
 		FAppEventManager::GetInstance()->EnqueueAppEvent(APP_EVENT_STATE_ON_PAUSE);
 
+		bool bAllowReboot = true;
+#if FAST_BOOT_HACKS
+		if (FEmbeddedDelegates::GetNamedObject(TEXT("LoggedInObject")) == nullptr)
+		{
+			bAllowReboot = false;
+		}
+#endif
+
 		// Restart on resuming if did not complete engine initialization
-		if (!bDidCompleteEngineInit && bDidGainFocus && !bIgnorePauseOnDownloaderStart)
+		if (!bDidCompleteEngineInit && bDidGainFocus  && !bIgnorePauseOnDownloaderStart && bAllowReboot)
 		{
 			// only do this if early startup enabled
 			FString *EarlyRestart = FAndroidMisc::GetConfigRulesVariable(TEXT("earlyrestart"));
@@ -1195,16 +1230,17 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 		 * On the initial loading the pause method must be called immediately
 		 * in order to stop the startup movie's sound
 		*/
-		if (IsPreLoadScreenPlaying())
+		if (IsPreLoadScreenPlaying() && bAllowReboot)
 		{
 			bShouldRestartFromInterrupt = true;
 			GetMoviePlayer()->ForceCompletion();
-        }
+		}
 
         FPreLoadScreenManager::EnableRendering(false);
 
 		bNeedToSync = true;
 		break;
+	}
 	case APP_CMD_STOP:
 		/**
 		 * Command from main thread: the app's activity has been stopped.
@@ -1277,19 +1313,19 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnConfigurationChanged
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeConsoleCommand(String commandString);"
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeConsoleCommand(JNIEnv* jenv, jobject thiz, jstring commandString)
 {
-	const char* javaChars = jenv->GetStringUTFChars(commandString, 0);
-
+	FString Command = FJavaHelper::FStringFromParam(jenv, commandString);
 	if (GEngine != NULL)
 	{
-		new(GEngine->DeferredCommands) FString(UTF8_TO_TCHAR(javaChars));
+		// Run on game thread to avoid race condition with DeferredCommands
+		AsyncTask(ENamedThreads::GameThread, [Command]()
+		{
+			GEngine->DeferredCommands.Add(Command);
+		});
 	}
 	else
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Ignoring console command (too early): %s"), UTF8_TO_TCHAR(javaChars));
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Ignoring console command (too early): %s"), *Command);
 	}
-
-	//Release the string
-	jenv->ReleaseStringUTFChars(commandString, javaChars);
 }
 
 // This is called from the Java UI thread for initializing VR HMDs
@@ -1305,26 +1341,12 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeInitHMDs(JNIEnv* jenv,
 
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetAndroidVersionInformation(JNIEnv* jenv, jobject thiz, jstring androidVersion, jstring phoneMake, jstring phoneModel, jstring phoneBuildNumber, jstring osLanguage )
 {
-	const char *javaAndroidVersion = jenv->GetStringUTFChars(androidVersion, 0 );
-	FString UEAndroidVersion = FString(UTF8_TO_TCHAR( javaAndroidVersion ));
-	jenv->ReleaseStringUTFChars(androidVersion, javaAndroidVersion);
-
-	const char *javaPhoneMake = jenv->GetStringUTFChars(phoneMake, 0 );
-	FString UEPhoneMake = FString(UTF8_TO_TCHAR( javaPhoneMake ));
-	jenv->ReleaseStringUTFChars(phoneMake, javaPhoneMake);
-
-	const char *javaPhoneModel = jenv->GetStringUTFChars(phoneModel, 0 );
-	FString UEPhoneModel = FString(UTF8_TO_TCHAR( javaPhoneModel ));
-	jenv->ReleaseStringUTFChars(phoneModel, javaPhoneModel);
-
-	const char *javaPhoneBuildNumber = jenv->GetStringUTFChars(phoneBuildNumber, 0);
-	FString UEPhoneBuildNumber = FString(UTF8_TO_TCHAR(javaPhoneBuildNumber));
-	jenv->ReleaseStringUTFChars(phoneBuildNumber, javaPhoneBuildNumber);
-
-	const char *javaOSLanguage = jenv->GetStringUTFChars(osLanguage, 0);
-	FString UEOSLanguage = FString(UTF8_TO_TCHAR(javaOSLanguage));
-	jenv->ReleaseStringUTFChars(osLanguage, javaOSLanguage);
-
+	auto UEAndroidVersion = FJavaHelper::FStringFromParam(jenv, androidVersion);
+	auto UEPhoneMake = FJavaHelper::FStringFromParam(jenv, phoneMake);
+	auto UEPhoneModel = FJavaHelper::FStringFromParam(jenv, phoneModel);
+	auto UEPhoneBuildNumber = FJavaHelper::FStringFromParam(jenv, phoneBuildNumber);
+	auto UEOSLanguage = FJavaHelper::FStringFromParam(jenv, osLanguage);
+	
 	FAndroidMisc::SetVersionInfo( UEAndroidVersion, UEPhoneMake, UEPhoneModel, UEPhoneBuildNumber, UEOSLanguage );
 }
 
@@ -1338,6 +1360,43 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnInitialDownloadStart
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnInitialDownloadCompleted(JNIEnv* jenv, jobject thiz)
 {
 	bIgnorePauseOnDownloaderStart = false;
+}
+
+// MERGE-TODO: Anticheat concerns with custom input
+bool GAllowCustomInput = true;
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_HandleCustomTouchEvent(JNIEnv* jenv, jobject thiz, jint deviceId, jint pointerId, jint action, jint soucre, jfloat x, jfloat y)
+{
+#if ANDROID_ALLOWCUSTOMTOUCHEVENT
+	// make sure fake input is allowed, so hacky Java can't run bots
+	if (!GAllowCustomInput)
+	{
+		return;
+	}
+
+	TArray<TouchInput> TouchesArray;
+
+	TouchInput TouchMessage;
+	TouchMessage.DeviceId = deviceId;
+	TouchMessage.Handle = pointerId;
+	switch (action) {
+	case 0: //  MotionEvent.ACTION_DOWN
+		TouchMessage.Type = TouchBegan;
+		break;
+	case 2: // MotionEvent.ACTION_MOVE
+		TouchMessage.Type = TouchMoved;
+		break;
+	default: // MotionEvent.ACTION_UP
+		TouchMessage.Type = TouchEnded;
+		break;
+	}
+	TouchMessage.Position = FVector2D(x, y);
+	TouchMessage.LastPosition = FVector2D(x, y);
+
+	TouchesArray.Add(TouchMessage);
+
+	UE_LOG(LogAndroid, Verbose, TEXT("Handle custom touch event %d (%d) x=%f y=%f"), TouchMessage.Type, action, x, y);
+	FAndroidInputInterface::QueueTouchInput(TouchesArray);
+#endif
 }
 
 bool WaitForAndroidLoseFocusEvent(double TimeoutSeconds)

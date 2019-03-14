@@ -534,7 +534,7 @@ UWorld* NUTNet::CreateUnitTestWorld(bool bHookTick/*=true*/)
 
 				if (PrimState != NULL)
 				{
-					CurSettings->Pauser = PrimState;
+					CurSettings->SetPauserPlayerState(PrimState);
 				}
 			}
 		}

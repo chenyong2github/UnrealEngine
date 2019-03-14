@@ -18,6 +18,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/ScopeExit.h"
 #include "Apple/ApplePlatformCrashContext.h"
 #include "IOS/IOSPlatformCrashContext.h"
 #if !PLATFORM_TVOS
@@ -49,6 +50,10 @@
 #import <UserNotifications/UserNotifications.h>
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
+#endif
+
+#if !defined ENABLE_ADVERTISING_IDENTIFIER
+	#define ENABLE_ADVERTISING_IDENTIFIER 0
 #endif
 
 //#include <libproc.h>
@@ -293,26 +298,31 @@ bool FIOSPlatformMisc::IsInLowPowerMode()
 
 
 #if !PLATFORM_TVOS
-EDeviceScreenOrientation ConvertFromUIDeviceOrientation(UIDeviceOrientation Orientation)
+EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientation Orientation)
 {
 	switch(Orientation)
 	{
 		default:
-		case UIDeviceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
-		case UIDeviceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
-		case UIDeviceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
-		case UIDeviceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
-		case UIDeviceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
-		case UIDeviceOrientationFaceUp : return EDeviceScreenOrientation::FaceUp; break;
-		case UIDeviceOrientationFaceDown : return EDeviceScreenOrientation::FaceDown; break;
+		case UIInterfaceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
+		case UIInterfaceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
+		case UIInterfaceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
+		case UIInterfaceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
+		case UIInterfaceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
 	}
 }
 #endif
 
+UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
+
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
 #if !PLATFORM_TVOS
-	return ConvertFromUIDeviceOrientation([[UIDevice currentDevice] orientation]);
+	if (GInterfaceOrientation == UIInterfaceOrientationUnknown)
+	{
+		GInterfaceOrientation = [[UIApplication sharedApplication] statusBarOrientation];
+	}
+
+	return ConvertFromUIInterfaceOrientation(GInterfaceOrientation);
 #else
 	return EDeviceScreenOrientation::Unknown;
 #endif
@@ -796,7 +806,7 @@ void FIOSPlatformMisc::RequestStoreReview()
 */
 FString FIOSPlatformMisc::GetUniqueAdvertisingId()
 {
-#if !PLATFORM_TVOS
+#if !PLATFORM_TVOS && ENABLE_ADVERTISING_IDENTIFIER
 	// Check to see if this OS has this function
 	if ([[ASIdentifierManager sharedManager] respondsToSelector:@selector(advertisingIdentifier)])
 	{
@@ -1000,6 +1010,63 @@ void FIOSPlatformMisc::ShareURL(const FString& URL, const FText& Description, in
 	});
 }
 
+
+FString FIOSPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
+{
+	FString FilePath = FString([[NSBundle mainBundle] bundlePath]) / RelativePath;
+
+	// read in the command line text file (coming from UnrealFrontend) if it exists
+	int32 File = open(TCHAR_TO_UTF8(*FilePath), O_RDONLY);
+	if (File == -1)
+	{
+		LowLevelOutputDebugStringf(TEXT("No file found at %s") LINE_TERMINATOR, *FilePath);
+		return FString();
+	}
+
+	ON_SCOPE_EXIT
+	{
+		close(File);
+	};
+
+	struct stat FileInfo;
+	FileInfo.st_size = -1;
+
+	if (fstat(File, &FileInfo))
+	{
+		LowLevelOutputDebugStringf(TEXT("Failed to determine file size of %s") LINE_TERMINATOR, *FilePath);
+		return FString();
+	}
+
+	if (FileInfo.st_size > MAX_int32 - 1)
+	{
+		LowLevelOutputDebugStringf(TEXT("File too big %s") LINE_TERMINATOR, *FilePath);
+		return FString();
+	}
+
+	LowLevelOutputDebugStringf(TEXT("Found %s file") LINE_TERMINATOR, *RelativePath);
+
+	int32 FileSize = static_cast<int32>(FileInfo.st_size);
+	TArray<char> FileContents;
+	FileContents.AddUninitialized(FileSize + 1);
+	FileContents[FileSize] = 0;
+
+	int32 NumRead = read(File, FileContents.GetData(), FileSize);
+	if (NumRead != FileSize)
+	{
+		LowLevelOutputDebugStringf(TEXT("Failed to read %s") LINE_TERMINATOR, *FilePath);
+		return FString();
+	}
+
+	// chop off trailing spaces
+	int32 Last = FileSize - 1;
+	while (FileContents[0] && isspace(FileContents[Last]))
+	{
+		FileContents[Last] = 0;
+		--Last;
+	}
+
+	return FString(UTF8_TO_TCHAR(FileContents.GetData()));
+}
 
 void FIOSPlatformMisc::EnableVoiceChat(bool bEnable)
 {
@@ -1527,8 +1594,12 @@ bool FIOSPlatformMisc::GetStoredValue(const FString& InStoreId, const FString& I
 
 bool FIOSPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName)
 {
-	// No Implementation (currently only used by editor code so not needed on iOS)
-	return false;
+	NSUserDefaults* UserSettings = [NSUserDefaults standardUserDefaults];
+	
+	// store it
+	[UserSettings removeObjectForKey:MakeStoredValueKeyName(InSectionName, InKeyName)];
+
+	return true;
 }
 
 void FIOSPlatformMisc::SetGracefulTerminationHandler()
@@ -1592,6 +1663,11 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
         }
     }
 #endif
+}
+
+bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
+{
+    return FPlatformMisc::IsDebuggerPresent();
 }
 
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
@@ -1861,3 +1937,37 @@ void ReportEnsure( const TCHAR* ErrorMessage, int NumStackFramesToIgnore )
     bReentranceGuard = false;
     EnsureLock.Unlock();
 }
+
+
+class FIOSExec : public FSelfRegisteringExec
+{
+public:
+	FIOSExec()
+		: FSelfRegisteringExec()
+	{
+		
+	}
+	
+	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	{
+		if (FParse::Command(&Cmd, TEXT("IOS")))
+		{
+			// commands to override and append commandline options for next boot (see FIOSCommandLineHelper)
+			if (FParse::Command(&Cmd, TEXT("OverrideCL")))
+			{
+				return FPlatformMisc::SetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("ReplacementCL"), Cmd);
+			}
+			else if (FParse::Command(&Cmd, TEXT("AppendCL")))
+			{
+				return FPlatformMisc::SetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("AppendCL"), Cmd);
+			}
+			else if (FParse::Command(&Cmd, TEXT("ClearAllCL")))
+			{
+				return FPlatformMisc::DeleteStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("ReplacementCL")) &&
+						FPlatformMisc::DeleteStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("AppendCL"));
+			}
+		}
+		
+		return false;
+	}
+} GIOSExec;

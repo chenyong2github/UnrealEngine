@@ -119,8 +119,8 @@ int32 FJavaAndroidMediaDataSource::ReadAt(int64 Position, uint8* Buffer, int32 C
 /* JavaAndroidMediaPlayer
 *****************************************************************************/
 
-FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkanRenderer)
-	: FJavaClassObject(GetClassName(), "(ZZ)V", swizzlePixels, vulkanRenderer)
+FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkanRenderer, bool needTrackInfo)
+	: FJavaClassObject(GetClassName(), "(ZZZ)V", swizzlePixels, vulkanRenderer, needTrackInfo)
 	, GetDurationMethod(GetClassMethod("getDuration", "()I"))
 	, ResetMethod(GetClassMethod("reset", "()V"))
 	, GetCurrentPositionMethod(GetClassMethod("getCurrentPosition", "()I"))
@@ -171,9 +171,7 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// get field IDs for FrameUpdateInfo class members
-	jclass localFrameUpdateInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/MediaPlayer14$FrameUpdateInfo");
-	FrameUpdateInfoClass = (jclass)JEnv->NewGlobalRef(localFrameUpdateInfoClass);
-	JEnv->DeleteLocalRef(localFrameUpdateInfoClass);
+	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$FrameUpdateInfo");
 	FrameUpdateInfo_CurrentPosition = FindField(JEnv, FrameUpdateInfoClass, "CurrentPosition", "I", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
 	FrameUpdateInfo_RegionChanged = FindField(JEnv, FrameUpdateInfoClass, "RegionChanged", "Z", false);
@@ -183,9 +181,7 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	FrameUpdateInfo_VOffset = FindField(JEnv, FrameUpdateInfoClass, "VOffset", "F", false);
 
 	// get field IDs for AudioTrackInfo class members
-	jclass localAudioTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/MediaPlayer14$AudioTrackInfo");
-	AudioTrackInfoClass = (jclass)JEnv->NewGlobalRef(localAudioTrackInfoClass);
-	JEnv->DeleteLocalRef(localAudioTrackInfoClass);
+	AudioTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$AudioTrackInfo");
 	AudioTrackInfo_Index = FindField(JEnv, AudioTrackInfoClass, "Index", "I", false);
 	AudioTrackInfo_MimeType = FindField(JEnv, AudioTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	AudioTrackInfo_DisplayName = FindField(JEnv, AudioTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -194,18 +190,14 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	AudioTrackInfo_SampleRate = FindField(JEnv, AudioTrackInfoClass, "SampleRate", "I", false);
 
 	// get field IDs for CaptionTrackInfo class members
-	jclass localCaptionTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/MediaPlayer14$CaptionTrackInfo");
-	CaptionTrackInfoClass = (jclass)JEnv->NewGlobalRef(localCaptionTrackInfoClass);
-	JEnv->DeleteLocalRef(localCaptionTrackInfoClass);
+	CaptionTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$CaptionTrackInfo");
 	CaptionTrackInfo_Index = FindField(JEnv, CaptionTrackInfoClass, "Index", "I", false);
 	CaptionTrackInfo_MimeType = FindField(JEnv, CaptionTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	CaptionTrackInfo_DisplayName = FindField(JEnv, CaptionTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
 	CaptionTrackInfo_Language = FindField(JEnv, CaptionTrackInfoClass, "Language", "Ljava/lang/String;", false);
 
 	// get field IDs for VideoTrackInfo class members
-	jclass localVideoTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/MediaPlayer14$VideoTrackInfo");
-	VideoTrackInfoClass = (jclass)JEnv->NewGlobalRef(localVideoTrackInfoClass);
-	JEnv->DeleteLocalRef(localVideoTrackInfoClass);
+	VideoTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/MediaPlayer14$VideoTrackInfo");
 	VideoTrackInfo_Index = FindField(JEnv, VideoTrackInfoClass, "Index", "I", false);
 	VideoTrackInfo_MimeType = FindField(JEnv, VideoTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	VideoTrackInfo_DisplayName = FindField(JEnv, VideoTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -214,6 +206,17 @@ FJavaAndroidMediaPlayer::FJavaAndroidMediaPlayer(bool swizzlePixels, bool vulkan
 	VideoTrackInfo_Width = FindField(JEnv, VideoTrackInfoClass, "Width", "I", false);
 	VideoTrackInfo_Height = FindField(JEnv, VideoTrackInfoClass, "Height", "I", false);
 	VideoTrackInfo_FrameRate = FindField(JEnv, VideoTrackInfoClass, "FrameRate", "F", false);
+}
+
+FJavaAndroidMediaPlayer::~FJavaAndroidMediaPlayer()
+{
+	if (auto Env = FAndroidApplication::GetJavaEnv())
+	{
+		Env->DeleteGlobalRef(FrameUpdateInfoClass);
+		Env->DeleteGlobalRef(AudioTrackInfoClass);
+		Env->DeleteGlobalRef(CaptionTrackInfoClass);
+		Env->DeleteGlobalRef(VideoTrackInfoClass);
+	}
 }
 
 int32 FJavaAndroidMediaPlayer::GetDuration()
@@ -271,7 +274,7 @@ bool FJavaAndroidMediaPlayer::SetDataSource(const FString & Url)
 {
 	UScale = VScale = 1.0f;
 	UOffset = VOffset = 0.0f;
-	return CallMethod<bool>(SetDataSourceURLMethod, GetJString(Url));
+	return CallMethod<bool>(SetDataSourceURLMethod, *GetJString(Url));
 }
 
 bool FJavaAndroidMediaPlayer::SetDataSource(const TSharedRef<FArchive, ESPMode::ThreadSafe>& Archive)
@@ -289,14 +292,14 @@ bool FJavaAndroidMediaPlayer::SetDataSource(const FString& MoviePathOnDevice, in
 {
 	UScale = VScale = 1.0f;
 	UOffset = VOffset = 0.0f;
-	return CallMethod<bool>(SetDataSourceFileMethod, GetJString(MoviePathOnDevice), offset, size);
+	return CallMethod<bool>(SetDataSourceFileMethod, *GetJString(MoviePathOnDevice), offset, size);
 }
 
 bool FJavaAndroidMediaPlayer::SetDataSource(jobject AssetMgr, const FString& AssetPath, int64 offset, int64 size)
 {
 	UScale = VScale = 1.0f;
 	UOffset = VOffset = 0.0f;
-	return CallMethod<bool>(SetDataSourceAssetMethod, AssetMgr, GetJString(AssetPath), offset, size);
+	return CallMethod<bool>(SetDataSourceAssetMethod, AssetMgr, *GetJString(AssetPath), offset, size);
 }
 
 bool FJavaAndroidMediaPlayer::Prepare()
@@ -371,27 +374,21 @@ bool FJavaAndroidMediaPlayer::GetVideoLastFrameData(void* & outPixels, int64 & o
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject buffer = JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method);
+	auto buffer = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != buffer)
-		{
-			// the CallObjectMethod returns a local ref, but Java will still own the real buffer
-			JEnv->DeleteLocalRef(buffer);
-		}
 		return false;
 	}
-	if (nullptr != buffer)
+	
+	if (buffer)
 	{
-		outPixels = JEnv->GetDirectBufferAddress(buffer);
-		outCount = JEnv->GetDirectBufferCapacity(buffer);
-
-		// the CallObjectMethod returns a local ref, but Java will still own the real buffer
-		JEnv->DeleteLocalRef(buffer);
+		outPixels = JEnv->GetDirectBufferAddress(*buffer);
+		outCount = JEnv->GetDirectBufferCapacity(*buffer);
 	}
-	if (nullptr == buffer || nullptr == outPixels || 0 == outCount)
+	
+	if (!buffer || nullptr == outPixels || 0 == outCount)
 	{
 		return false;
 	}
@@ -422,37 +419,31 @@ bool FJavaAndroidMediaPlayer::UpdateVideoFrame(int32 ExternalTextureId, int32 *C
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != Result)
-		{
-			JEnv->DeleteLocalRef(Result);
-		}
 		*CurrentPosition = -1;
 		*bRegionChanged = false;
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		*CurrentPosition = -1;
 		*bRegionChanged = false;
 		return false;
 	}
 
-	*CurrentPosition = (int32)JEnv->GetIntField(Result, FrameUpdateInfo_CurrentPosition);
-	bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-	*bRegionChanged = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_RegionChanged);
-	UScale = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_UScale);
-	UOffset = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_UOffset);
-	VScale = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_VScale);
-	VOffset = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_VOffset);
-
-	JEnv->DeleteLocalRef(Result);
-
+	*CurrentPosition = (int32)JEnv->GetIntField(*Result, FrameUpdateInfo_CurrentPosition);
+	bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+	*bRegionChanged = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_RegionChanged);
+	UScale = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_UScale);
+	UOffset = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_UOffset);
+	VScale = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_VScale);
+	VOffset = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_VOffset);
+	
 	return bFrameReady;
 }
 
@@ -515,38 +506,19 @@ bool FJavaAndroidMediaPlayer::GetAudioTracks(TArray<FAudioTrack>& AudioTracks)
 
 		for (int Index = 0; Index < ElementCount; ++Index)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, Index);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 			int32 AudioTrackIndex = AudioTracks.AddDefaulted();
 			FAudioTrack& AudioTrack = AudioTracks[AudioTrackIndex];
 
-			AudioTrack.Index = (int32)JEnv->GetIntField(Track, AudioTrackInfo_Index);
+			AudioTrack.Index = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			AudioTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
-
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			AudioTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			AudioTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			AudioTrack.Channels = (int32)JEnv->GetIntField(Track, AudioTrackInfo_Channels);
-			AudioTrack.SampleRate = (int32)JEnv->GetIntField(Track, AudioTrackInfo_SampleRate);
-
-			JEnv->DeleteLocalRef(Track);
+			AudioTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_MimeType));
+			AudioTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_DisplayName));
+			AudioTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_Language));
+			
+			AudioTrack.Channels = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_Channels);
+			AudioTrack.SampleRate = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_SampleRate);
 		}
 		JEnv->DeleteGlobalRef(TrackArray);
 
@@ -568,35 +540,16 @@ bool FJavaAndroidMediaPlayer::GetCaptionTracks(TArray<FCaptionTrack>& CaptionTra
 
 		for (int Index = 0; Index < ElementCount; ++Index)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, Index);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 			int32 CaptionTrackIndex = CaptionTracks.AddDefaulted();
 			FCaptionTrack& CaptionTrack = CaptionTracks[CaptionTrackIndex];
 
-			CaptionTrack.Index = (int32)JEnv->GetIntField(Track, CaptionTrackInfo_Index);
+			CaptionTrack.Index = (int32)JEnv->GetIntField(*Track, CaptionTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			CaptionTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
-
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			CaptionTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			CaptionTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			JEnv->DeleteLocalRef(Track);
+			CaptionTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_MimeType));
+			CaptionTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_DisplayName));
+			CaptionTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_Language));
 		}
 		JEnv->DeleteGlobalRef(TrackArray);
 
@@ -618,39 +571,20 @@ bool FJavaAndroidMediaPlayer::GetVideoTracks(TArray<FVideoTrack>& VideoTracks)
 
 		for (int Index = 0; Index < ElementCount; ++Index)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, Index);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 			int32 VideoTrackIndex = VideoTracks.AddDefaulted();
 			FVideoTrack& VideoTrack = VideoTracks[VideoTrackIndex];
 
-			VideoTrack.Index = (int32)JEnv->GetIntField(Track, VideoTrackInfo_Index);
+			VideoTrack.Index = (int32)JEnv->GetIntField(*Track, VideoTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			VideoTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
+			VideoTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_MimeType));
+			VideoTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_DisplayName));
+			VideoTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_Language));
 
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			VideoTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			VideoTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			VideoTrack.BitRate = (int32)JEnv->GetIntField(Track, VideoTrackInfo_BitRate);
-			VideoTrack.Dimensions = FIntPoint((int32)JEnv->GetIntField(Track, VideoTrackInfo_Width), (int32)JEnv->GetIntField(Track, VideoTrackInfo_Height));
-			VideoTrack.FrameRate = JEnv->GetFloatField(Track, VideoTrackInfo_FrameRate);
-
-			JEnv->DeleteLocalRef(Track);
+			VideoTrack.BitRate = (int32)JEnv->GetIntField(*Track, VideoTrackInfo_BitRate);
+			VideoTrack.Dimensions = FIntPoint((int32)JEnv->GetIntField(*Track, VideoTrackInfo_Width), (int32)JEnv->GetIntField(*Track, VideoTrackInfo_Height));
+			VideoTrack.FrameRate = JEnv->GetFloatField(*Track, VideoTrackInfo_FrameRate);
 		}
 		JEnv->DeleteGlobalRef(TrackArray);
 

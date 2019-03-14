@@ -121,15 +121,15 @@ struct FLocalFileReplayInfo
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileStreamFArchive : public FArchive
 {
 public:
-	FLocalFileStreamFArchive() : Pos( 0 ), bAtEndOfReplay( false ) {}
+	FLocalFileStreamFArchive() : Pos(0), bAtEndOfReplay(false) {}
 
-	virtual void	Serialize( void* V, int64 Length ) override;
+	virtual void	Serialize(void* V, int64 Length) override;
 	virtual int64	Tell() override;
 	virtual int64	TotalSize() override;
-	virtual void	Seek( int64 InPos ) override;
+	virtual void	Seek(int64 InPos) override;
 	virtual bool	AtEnd() override;
 
-	TArray< uint8 >	Buffer;
+	TArray<uint8>	Buffer;
 	int32			Pos;
 	bool			bAtEndOfReplay;
 };
@@ -373,8 +373,8 @@ public:
 
 	virtual bool GetCachedRequest() override
 	{
-		FCachedFileRequest* CachedRequest = this->Streamer->RequestCache.Find(CacheKey);
-		if (CachedRequest != nullptr)
+		TSharedPtr<FCachedFileRequest> CachedRequest = this->Streamer->RequestCache.FindRef(CacheKey);
+		if (CachedRequest.IsValid())
 		{
 			// If we have this response in the cache, process it now
 			CachedRequest->LastAccessTime = FPlatformTime::Seconds();
@@ -405,8 +405,8 @@ public:
 	virtual FArchive* GetStreamingArchive() override;
 	virtual FArchive* GetCheckpointArchive() override;
 	virtual void FlushCheckpoint(const uint32 TimeInMS) override;
-	virtual void GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate) override;
-	virtual void GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate) override;
+	virtual void GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType) override;
+	virtual void GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType) override;
 	virtual void UpdateTotalDemoTime(uint32 TimeInMS) override;
 	virtual uint32 GetTotalDemoTime() const override { return CurrentReplayInfo.LengthInMS; }
 	virtual bool IsDataAvailable() const override;
@@ -442,6 +442,8 @@ public:
 	virtual void SetTimeBufferHintSeconds(const float InTimeBufferHintSeconds) override {}
 	virtual void RefreshHeader() override;
 	virtual void DownloadHeader(const FDownloadHeaderCallback& Delegate) override;
+
+	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override;
 
 	virtual bool SupportsCompression() const { return false; }
 	virtual int32 GetDecompressedSize(FArchive& InCompressed) const { return 0; }
@@ -511,7 +513,10 @@ public:
 	}
 
 	/** Map of chunk index to cached value */
-	TMap<int32, FCachedFileRequest> RequestCache;
+	TMap<int32, TSharedPtr<FCachedFileRequest>> RequestCache;
+
+	/** Map of checkpoint index to cached value */
+	TMap<int32, TSharedPtr<FCachedFileRequest>> DeltaCheckpointCache;
 
 protected:
 
@@ -637,6 +642,8 @@ public:
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject
 {
 public:
+	virtual void ShutdownModule() override;
+
 	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer();
 
 	/** FTickableGameObject */

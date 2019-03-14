@@ -39,7 +39,16 @@ public:
 		ExpandValueInternal();
 	}
 
-	FConfigValue(FString InValue)
+	FConfigValue(const FString& InValue)
+		: SavedValue(InValue)
+#if CONFIG_REMEMBER_ACCESS_PATTERN 
+		, bRead(false)
+#endif
+	{
+		ExpandValueInternal();
+	}
+
+	FConfigValue(FString&& InValue)
 		: SavedValue(MoveTemp(InValue))
 #if CONFIG_REMEMBER_ACCESS_PATTERN 
 		, bRead(false)
@@ -48,14 +57,46 @@ public:
 		ExpandValueInternal();
 	}
 
-	FConfigValue( const FConfigValue& InConfigValue ) 
-		: SavedValue( InConfigValue.SavedValue )
-		, ExpandedValue( InConfigValue.ExpandedValue )
+	FConfigValue(const FConfigValue& InConfigValue)
+		: SavedValue(InConfigValue.SavedValue)
+		, ExpandedValue(InConfigValue.ExpandedValue)
 #if CONFIG_REMEMBER_ACCESS_PATTERN 
-		, bRead( InConfigValue.bRead )
+		, bRead(InConfigValue.bRead)
 #endif
 	{
 		// shouldn't need to expand value it's assumed that the other FConfigValue has done this already
+	}
+
+	FConfigValue(FConfigValue&& InConfigValue)
+		: SavedValue(MoveTemp(InConfigValue.SavedValue))
+		, ExpandedValue(MoveTemp(InConfigValue.ExpandedValue))
+#if CONFIG_REMEMBER_ACCESS_PATTERN 
+		, bRead(InConfigValue.bRead)
+#endif
+	{
+		// shouldn't need to expand value it's assumed that the other FConfigValue has done this already
+	}
+
+	FConfigValue& operator=(FConfigValue&& RHS)
+	{
+		SavedValue = MoveTemp(RHS.SavedValue);
+		ExpandedValue = MoveTemp(RHS.ExpandedValue);
+#if CONFIG_REMEMBER_ACCESS_PATTERN 
+		bRead = RHS.bRead;
+#endif
+
+		return *this;
+	}
+
+	FConfigValue& operator=(const FConfigValue& RHS)
+	{
+		SavedValue = RHS.SavedValue;
+		ExpandedValue = RHS.ExpandedValue;
+#if CONFIG_REMEMBER_ACCESS_PATTERN 
+		bRead = RHS.bRead;
+#endif
+
+		return *this;
 	}
 
 	// Returns the ini setting with any macros expanded out
@@ -153,13 +194,7 @@ public:
 
 private:
 	/** Internal version of ExpandValue that expands SavedValue into ExpandedValue, or produces an empty ExpandedValue if no expansion occurred. */
-	void ExpandValueInternal()
-	{
-		if (!ExpandValue(SavedValue, ExpandedValue))
-		{
-			ExpandedValue.Empty();
-		}
-	}
+	CORE_API void ExpandValueInternal();
 
 	FString SavedValue;
 	FString ExpandedValue;
@@ -186,7 +221,7 @@ public:
 	bool operator!=( const FConfigSection& Other ) const;
 
 	// process the '+' and '.' commands, takingf into account ArrayOfStruct unique keys
-	void CORE_API HandleAddCommand(FName Key, const FString& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed);
+	void CORE_API HandleAddCommand(FName Key, FString&& Value, bool bAppendValueIfNotArrayOfStructsKeyUsed);
 
 	template<typename Allocator> 
 	void MultiFind(const FName Key, TArray<FConfigValue, Allocator>& OutValues, const bool bMaintainOrder = false) const
@@ -265,6 +300,10 @@ enum class EConfigFileHierarchy : uint8
 	GameDirDefault,
 	// Game/Config/DedicatedServer*.ini
 	GameDirDedicatedServer,
+	// Game/Config/NotForLicensees/DedicatedServer*.ini
+	GameDirDedicatedServer_NotForLicensees,
+	// Game/Config/NoRedist/DedicatedServer*.ini
+	GameDirDedicatedServer_NoRedist,
 	// Game/Config/NotForLicensees/*.ini
 	GameDirDefault_NotForLicensees,
 	// Game/Config/NoRedist*.ini

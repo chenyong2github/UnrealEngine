@@ -105,6 +105,26 @@ namespace UnrealBuildTool
 		{
 			this.Name = Name;
 		}
+
+		/// <summary>
+		/// try to get a line using it's name, if the line doesn't exist returns false
+		/// </summary>
+		/// <param name="Name">Name of the line you want to get</param>
+		/// <param name="OutLine">The result of the operation</param>
+		/// <returns>return true if the line is retrieved return false and null OutLine if Name isn't found in this section</returns>
+		public bool TryGetLine(string Name, out ConfigLine OutLine)
+		{
+			foreach ( ConfigLine Line in Lines)
+			{
+				if (Line.Key.Equals(Name))
+				{
+					OutLine = Line;
+					return true;
+				}
+			}
+			OutLine = null;
+			return false;
+		}
 	}
 
 	/// <summary>

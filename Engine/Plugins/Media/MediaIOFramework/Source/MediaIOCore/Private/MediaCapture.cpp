@@ -2,6 +2,7 @@
 
 #include "MediaCapture.h"
 
+#include "Async/Async.h"
 #include "Engine/GameEngine.h"
 #include "Engine/RendererSettings.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -11,13 +12,14 @@
 #include "MediaOutput.h"
 #include "MediaShaders.h"
 #include "Misc/App.h"
+#include "Misc/ScopeLock.h"
 #include "PipelineStateCache.h"
 #include "RendererInterface.h"
 #include "RenderUtils.h"
 #include "RHIStaticStates.h"
 #include "SceneUtils.h"
 #include "Slate/SceneViewport.h"
-#include "Misc/ScopeLock.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -84,9 +86,9 @@ FMediaCaptureOptions::FMediaCaptureOptions()
 
 UMediaCapture::UMediaCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, MediaState(EMediaCaptureState::Stopped)
 	, CurrentResolvedTargetIndex(0)
 	, NumberOfCaptureFrame(2)
+	, MediaState(EMediaCaptureState::Stopped)
 	, DesiredSize(1280, 720)
 	, DesiredPixelFormat(EPixelFormat::PF_A2B10G10R10)
 	, DesiredOutputSize(1280, 720)
@@ -94,13 +96,13 @@ UMediaCapture::UMediaCapture(const FObjectInitializer& ObjectInitializer)
 	, ConversionOperation(EMediaCaptureConversionOperation::NONE)
 	, MediaOutputName(TEXT("[undefined]"))
 	, bResolvedTargetInitialized(false)
-	, bWaitingForResolveCommandExecution(false)
+	, WaitingForResolveCommandExecutionCounter(0)
 {
 }
 
 void UMediaCapture::BeginDestroy()
 {
-	if (MediaState == EMediaCaptureState::Capturing || MediaState == EMediaCaptureState::Preparing)
+	if (GetState() == EMediaCaptureState::Capturing || GetState() == EMediaCaptureState::Preparing)
 	{
 		UE_LOG(LogMediaIOCore, Warning, TEXT("%s will be destroyed and the capture was not stopped."), *GetName());
 	}
@@ -147,7 +149,7 @@ bool UMediaCapture::CaptureSceneViewport(TSharedPtr<FSceneViewport>& InSceneView
 	}
 
 	DesiredCaptureOptions = InCaptureOptions;
-	CacheMediaOutput();
+	CacheMediaOutput(EMediaCaptureSourceType::SCENE_VIEWPORT);
 
 	const bool bCurrentlyCapturing = false;
 	if (!MediaCaptureDetails::ValidateSceneViewport(InSceneViewport, DesiredCaptureOptions, DesiredSize, DesiredPixelFormat, bCurrentlyCapturing))
@@ -156,10 +158,10 @@ bool UMediaCapture::CaptureSceneViewport(TSharedPtr<FSceneViewport>& InSceneView
 		return false;
 	}
 
-	MediaState = EMediaCaptureState::Preparing;
+	SetState(EMediaCaptureState::Preparing);
 	if (!CaptureSceneViewportImpl(InSceneViewport))
 	{
-		MediaState = EMediaCaptureState::Stopped;
+		SetState(EMediaCaptureState::Stopped);
 		MediaCaptureDetails::ShowSlateNotification();
 		return false;
 	}
@@ -187,7 +189,7 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 	}
 
 	DesiredCaptureOptions = CaptureOptions;
-	CacheMediaOutput();
+	CacheMediaOutput(EMediaCaptureSourceType::RENDER_TARGET);
 
 	const bool bCurrentlyCapturing = false;
 	if (!MediaCaptureDetails::ValidateTextureRenderTarget2D(InRenderTarget2D, DesiredCaptureOptions, DesiredSize, DesiredPixelFormat, bCurrentlyCapturing))
@@ -196,10 +198,10 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 		return false;
 	}
 
-	MediaState = EMediaCaptureState::Preparing;
+	SetState(EMediaCaptureState::Preparing);
 	if (!CaptureRenderTargetImpl(InRenderTarget2D))
 	{
-		MediaState = EMediaCaptureState::Stopped;
+		SetState(EMediaCaptureState::Stopped);
 		MediaCaptureDetails::ShowSlateNotification();
 		return false;
 	}
@@ -214,12 +216,12 @@ bool UMediaCapture::CaptureTextureRenderTarget2D(UTextureRenderTarget2D* InRende
 	return true;
 }
 
-void UMediaCapture::CacheMediaOutput()
+void UMediaCapture::CacheMediaOutput(EMediaCaptureSourceType InSourceType)
 {
 	check(MediaOutput);
 	DesiredSize = MediaOutput->GetRequestedSize();
 	DesiredPixelFormat = MediaOutput->GetRequestedPixelFormat();
-	ConversionOperation = MediaOutput->GetConversionOperation();
+	ConversionOperation = MediaOutput->GetConversionOperation(InSourceType);
 	DesiredOutputSize = GetOutputSize(DesiredSize, ConversionOperation);
 	DesiredOutputPixelFormat = GetOutputPixelFormat(DesiredPixelFormat, ConversionOperation);
 	MediaOutputName = *MediaOutput->GetName();
@@ -328,27 +330,27 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 {
 	check(IsInGameThread());
 
-	if (MediaState != EMediaCaptureState::StopRequested && MediaState != EMediaCaptureState::Capturing)
+	if (GetState() != EMediaCaptureState::StopRequested && GetState() != EMediaCaptureState::Capturing)
 	{
 		bAllowPendingFrameToBeProcess = false;
 	}
 
 	if (bAllowPendingFrameToBeProcess)
 	{
-		if (MediaState != EMediaCaptureState::Stopped && MediaState != EMediaCaptureState::StopRequested)
+		if (GetState() != EMediaCaptureState::Stopped && GetState() != EMediaCaptureState::StopRequested)
 		{
-			MediaState = EMediaCaptureState::StopRequested;
+			SetState(EMediaCaptureState::StopRequested);
 		}
 	}
 	else
 	{
-		if (MediaState != EMediaCaptureState::Stopped)
+		if (GetState() != EMediaCaptureState::Stopped)
 		{
-			MediaState = EMediaCaptureState::Stopped;
+			SetState(EMediaCaptureState::Stopped);
 
 			FCoreDelegates::OnEndFrame.RemoveAll(this);
 
-			while (bWaitingForResolveCommandExecution || !bResolvedTargetInitialized)
+			while (WaitingForResolveCommandExecutionCounter != 0 || !bResolvedTargetInitialized)
 			{
 				FlushRenderingCommands();
 			}
@@ -376,11 +378,41 @@ void UMediaCapture::SetMediaOutput(UMediaOutput* InMediaOutput)
 	}
 }
 
+void UMediaCapture::SetState(EMediaCaptureState InNewState)
+{
+	if (MediaState != InNewState)
+	{
+		MediaState = InNewState;
+		if (IsInGameThread())
+		{
+			BroadcastStateChanged();
+		}
+		else
+		{
+			TWeakObjectPtr<UMediaCapture> Self = this;
+			AsyncTask(ENamedThreads::GameThread, [Self]
+			{
+				UMediaCapture* MediaCapture = Self.Get();
+				if (UObjectInitialized() && MediaCapture)
+				{
+					MediaCapture->BroadcastStateChanged();
+				}
+			});
+		}
+	}
+}
+
+void UMediaCapture::BroadcastStateChanged()
+{
+	OnStateChanged.Broadcast();
+	OnStateChangedNative.Broadcast();
+}
+
 bool UMediaCapture::HasFinishedProcessing() const
 {
-	return bWaitingForResolveCommandExecution == false
-		|| MediaState == EMediaCaptureState::Error
-		|| MediaState == EMediaCaptureState::Stopped;
+	return WaitingForResolveCommandExecutionCounter == 0
+		|| GetState() == EMediaCaptureState::Error
+		|| GetState() == EMediaCaptureState::Stopped;
 }
 
 void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
@@ -389,29 +421,24 @@ void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
 	check(CaptureFrames.Num() == 0);
 	CaptureFrames.AddDefaulted(InNumberOfBuffers);
 
-	auto RenderCommand = [this](FRHICommandListImmediate& RHICmdList)
-	{
-		FRHIResourceCreateInfo CreateInfo;
-		for (int32 Index = 0; Index < NumberOfCaptureFrame; ++Index)
+	UMediaCapture* This = this;
+	ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateTexture)(
+		[This](FRHICommandListImmediate& RHICmdList)
 		{
-			CaptureFrames[Index].ReadbackTexture = RHICreateTexture2D(
-				DesiredOutputSize.X,
-				DesiredOutputSize.Y,
-				DesiredOutputPixelFormat,
-				1,
-				1,
-				TexCreate_CPUReadback,
-				CreateInfo
-			);
-		}
-		bResolvedTargetInitialized = true;
-	};
-
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		MediaOutputCaptureFrameCreateTexture,
-		decltype(RenderCommand), InRenderCommand, RenderCommand,
-		{
-			InRenderCommand(RHICmdList);
+			FRHIResourceCreateInfo CreateInfo;
+			for (int32 Index = 0; Index < This->NumberOfCaptureFrame; ++Index)
+			{
+				This->CaptureFrames[Index].ReadbackTexture = RHICreateTexture2D(
+					This->DesiredOutputSize.X,
+					This->DesiredOutputSize.Y,
+					This->DesiredOutputPixelFormat,
+					1,
+					1,
+					TexCreate_CPUReadback,
+					CreateInfo
+				);
+			}
+			This->bResolvedTargetInitialized = true;
 		});
 }
 
@@ -477,91 +504,113 @@ void UMediaCapture::OnEndFrame_GameThread()
 		}
 
 		CapturingFrame->CaptureBaseData.SourceFrameTimecode = FApp::GetTimecode();
+		CapturingFrame->CaptureBaseData.SourceFrameTimecodeFramerate = FApp::GetTimecodeFrameRate();
 		CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread = GFrameNumber;
 		CapturingFrame->UserData = GetCaptureFrameUserData_GameThread();
 	}
 
-	bWaitingForResolveCommandExecution = true;
+	++WaitingForResolveCommandExecutionCounter;
+
+	// Init variables for ENQUEUE_RENDER_COMMAND
+	TWeakPtr<FSceneViewport> InCapturingSceneViewport = CapturingSceneViewport;
+	FTextureRenderTargetResource* InTextureRenderTargetResource = nullptr;
+	FIntPoint InDesiredSize = DesiredSize;
+	FMediaCaptureStateChangedSignature InOnStateChanged = OnStateChanged;
+	UMediaCapture* InMediaCapture = this;
+
+	{
+		FScopeLock Lock(&AccessingCapturingSource);
+		if (CapturingRenderTarget)
+		{
+			InTextureRenderTargetResource = CapturingRenderTarget->GameThread_GetRenderTargetResource();
+		}
+	}
 
 	// RenderCommand to be executed on the RenderThread
-	auto RenderCommand = [this](FRHICommandListImmediate& RHICmdList, FCaptureFrame* InCapturingFrame, FCaptureFrame* InReadyFrame)
+	ENQUEUE_RENDER_COMMAND(FMediaOutputCaptureFrameCreateTexture)(
+		[CapturingFrame, ReadyFrame, InCapturingSceneViewport, InTextureRenderTargetResource, InDesiredSize, InOnStateChanged, InMediaCapture](FRHICommandListImmediate& RHICmdList)
 	{
 		FTexture2DRHIRef SourceTexture;
 		{
-			FScopeLock Lock(&AccessingCapturingSource);
-
-			UTextureRenderTarget2D* InCapturingRenderTarget = CapturingRenderTarget;
-			TSharedPtr<FSceneViewport> InSceneViewportPtr = CapturingSceneViewport.Pin();
-
-			if (InSceneViewportPtr.IsValid())
+			TSharedPtr<FSceneViewport> SceneViewportPtr = InCapturingSceneViewport.Pin();
+			if (SceneViewportPtr)
 			{
-				SourceTexture = InSceneViewportPtr->GetRenderTargetTexture();
-				if (!SourceTexture.IsValid() && InSceneViewportPtr->GetViewportRHI())
+#if WITH_EDITOR
+				if (!IsRunningGame())
 				{
-					SourceTexture = RHICmdList.GetViewportBackBuffer(InSceneViewportPtr->GetViewportRHI());
+					// PIE, PIE in windows, editor viewport
+					SourceTexture = SceneViewportPtr->GetRenderTargetTexture();
+					if (!SourceTexture.IsValid() && SceneViewportPtr->GetViewportRHI())
+					{
+						SourceTexture = RHICmdList.GetViewportBackBuffer(SceneViewportPtr->GetViewportRHI());
+					}
+				}
+				else
+#endif
+				if (SceneViewportPtr->GetViewportRHI())
+				{
+					// Standalone and packaged
+					SourceTexture = RHICmdList.GetViewportBackBuffer(SceneViewportPtr->GetViewportRHI());
 				}
 			}
-			else if (InCapturingRenderTarget)
+			else if (InTextureRenderTargetResource && InTextureRenderTargetResource->GetTextureRenderTarget2DResource())
 			{
-				if (InCapturingRenderTarget->GetRenderTargetResource() != nullptr && InCapturingRenderTarget->GetRenderTargetResource()->GetTextureRenderTarget2DResource() != nullptr)
-				{
-					SourceTexture = InCapturingRenderTarget->GetRenderTargetResource()->GetTextureRenderTarget2DResource()->GetTextureRHI();
-				}
+				SourceTexture = InTextureRenderTargetResource->GetTextureRenderTarget2DResource()->GetTextureRHI();
 			}
 		}
 
 		if (!SourceTexture.IsValid())
 		{
-			MediaState = EMediaCaptureState::Error;
-			UE_LOG(LogMediaIOCore, Error, TEXT("Can't grab the Texture to capture for '%s'."), *MediaOutputName);
+			InMediaCapture->SetState(EMediaCaptureState::Error);
+			UE_LOG(LogMediaIOCore, Error, TEXT("Can't grab the Texture to capture for '%s'."), *InMediaCapture->MediaOutputName);
 		}
-		else if (InCapturingFrame)
+		else if (CapturingFrame)
 		{
-			if (DesiredPixelFormat != SourceTexture->GetFormat())
+			if (InMediaCapture->DesiredPixelFormat != SourceTexture->GetFormat())
 			{
-				MediaState = EMediaCaptureState::Error;
+				InMediaCapture->SetState(EMediaCaptureState::Error);
 				UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source pixel format doesn't match with the user requested pixel format. Requested: %s Source: %s")
-					, *MediaOutputName
-					, GetPixelFormatString(DesiredPixelFormat)
+					, *InMediaCapture->MediaOutputName
+					, GetPixelFormatString(InMediaCapture->DesiredPixelFormat)
 					, GetPixelFormatString(SourceTexture->GetFormat()));
 			}
-			else if (DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
+			else if (InMediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
 			{
-				if (DesiredSize.X != SourceTexture->GetSizeX() || DesiredSize.Y != SourceTexture->GetSizeY())
+				if (InDesiredSize.X != SourceTexture->GetSizeX() || InDesiredSize.Y != SourceTexture->GetSizeY())
 				{
-					MediaState = EMediaCaptureState::Error;
+					InMediaCapture->SetState(EMediaCaptureState::Error);
 					UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-						, *MediaOutputName
-						, DesiredSize.X, DesiredSize.Y
+						, *InMediaCapture->MediaOutputName
+						, InDesiredSize.X, InDesiredSize.Y
 						, SourceTexture->GetSizeX(), SourceTexture->GetSizeY());
 				}
 			}
 			else
 			{
 				FIntPoint StartCapturePoint = FIntPoint::ZeroValue;
-				if (DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::Custom)
+				if (InMediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::Custom)
 				{
-					StartCapturePoint = DesiredCaptureOptions.CustomCapturePoint;
+					StartCapturePoint = InMediaCapture->DesiredCaptureOptions.CustomCapturePoint;
 				}
 
-				if ((uint32)(DesiredSize.X + StartCapturePoint.X) > SourceTexture->GetSizeX() || (uint32)(DesiredSize.Y + StartCapturePoint.Y) > SourceTexture->GetSizeY())
+				if ((uint32)(InDesiredSize.X + StartCapturePoint.X) > SourceTexture->GetSizeX() || (uint32)(InDesiredSize.Y + StartCapturePoint.Y) > SourceTexture->GetSizeY())
 				{
-					MediaState = EMediaCaptureState::Error;
+					InMediaCapture->SetState(EMediaCaptureState::Error);
 					UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-						, *MediaOutputName
-						, DesiredSize.X, DesiredSize.Y
+						, *InMediaCapture->MediaOutputName
+						, InDesiredSize.X, InDesiredSize.Y
 						, SourceTexture->GetSizeX(), SourceTexture->GetSizeY());
 				}
 			}
 		}
 
-		if (InCapturingFrame && MediaState != EMediaCaptureState::Error)
+		if (CapturingFrame && InMediaCapture->GetState() != EMediaCaptureState::Error)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_CopyToResolve);
 
 			FPooledRenderTargetDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
-				DesiredOutputSize,
-				DesiredOutputPixelFormat,
+				InMediaCapture->DesiredOutputSize,
+				InMediaCapture->DesiredOutputPixelFormat,
 				FClearValueBinding::None,
 				TexCreate_None,
 				TexCreate_RenderTargetable,
@@ -576,29 +625,29 @@ void UMediaCapture::OnEndFrame_GameThread()
 			float VTop = 0.0f;
 			float VBottom = 1.0f;
 			FResolveParams ResolveParams;
-			if (DesiredCaptureOptions.Crop != EMediaCaptureCroppingType::None)
+			if (InMediaCapture->DesiredCaptureOptions.Crop != EMediaCaptureCroppingType::None)
 			{
-				switch (DesiredCaptureOptions.Crop)
+				switch (InMediaCapture->DesiredCaptureOptions.Crop)
 				{
 				case EMediaCaptureCroppingType::Center:
-					ResolveParams.Rect = FResolveRect((SourceTexture->GetSizeX() - DesiredSize.X) / 2, (SourceTexture->GetSizeY() - DesiredSize.Y) / 2, 0, 0);
-					ResolveParams.Rect.X2 = ResolveParams.Rect.X1 + DesiredSize.X;
-					ResolveParams.Rect.Y2 = ResolveParams.Rect.Y1 + DesiredSize.Y;
+					ResolveParams.Rect = FResolveRect((SourceTexture->GetSizeX() - InDesiredSize.X) / 2, (SourceTexture->GetSizeY() - InDesiredSize.Y) / 2, 0, 0);
+					ResolveParams.Rect.X2 = ResolveParams.Rect.X1 + InDesiredSize.X;
+					ResolveParams.Rect.Y2 = ResolveParams.Rect.Y1 + InDesiredSize.Y;
 					break;
 				case EMediaCaptureCroppingType::TopLeft:
-					ResolveParams.Rect = FResolveRect(0, 0, DesiredSize.X, DesiredSize.Y);
+					ResolveParams.Rect = FResolveRect(0, 0, InDesiredSize.X, InDesiredSize.Y);
 					break;
 				case EMediaCaptureCroppingType::Custom:
-					ResolveParams.Rect = FResolveRect(DesiredCaptureOptions.CustomCapturePoint.X, DesiredCaptureOptions.CustomCapturePoint.Y, 0, 0);
-					ResolveParams.Rect.X2 = ResolveParams.Rect.X1 + DesiredSize.X;
-					ResolveParams.Rect.Y2 = ResolveParams.Rect.Y1 + DesiredSize.Y;
+					ResolveParams.Rect = FResolveRect(InMediaCapture->DesiredCaptureOptions.CustomCapturePoint.X, InMediaCapture->DesiredCaptureOptions.CustomCapturePoint.Y, 0, 0);
+					ResolveParams.Rect.X2 = ResolveParams.Rect.X1 + InDesiredSize.X;
+					ResolveParams.Rect.Y2 = ResolveParams.Rect.Y1 + InDesiredSize.Y;
 					break;
 				}
 
 				ResolveParams.DestRect.X1 = 0;
-				ResolveParams.DestRect.X2 = DesiredSize.X;
+				ResolveParams.DestRect.X2 = InDesiredSize.X;
 				ResolveParams.DestRect.Y1 = 0;
-				ResolveParams.DestRect.Y2 = DesiredSize.Y;
+				ResolveParams.DestRect.Y2 = InDesiredSize.Y;
 
 				ULeft = (float)ResolveParams.Rect.X1 / (float)SourceTexture->GetSizeX();
 				URight = (float)ResolveParams.Rect.X2 / (float)SourceTexture->GetSizeX();
@@ -609,7 +658,7 @@ void UMediaCapture::OnEndFrame_GameThread()
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MediaCapture, TEXT("MediaCapture"));
 
-				if (ConversionOperation == EMediaCaptureConversionOperation::NONE)
+				if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE)
 				{
 					// Asynchronously copy target from GPU to GPU
 					RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams);
@@ -619,7 +668,9 @@ void UMediaCapture::OnEndFrame_GameThread()
 					// convert the source with a draw call
 					FGraphicsPipelineStateInitializer GraphicsPSOInit;
 					FRHITexture* RenderTarget = DestRenderTarget.TargetableTexture.GetReference();
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					SetRenderTargets(RHICmdList, 1, &RenderTarget, nullptr, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthNop_StencilNop);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -637,14 +688,14 @@ void UMediaCapture::OnEndFrame_GameThread()
 
 					const bool bDoLinearToSRGB = false;
 
-					switch (ConversionOperation)
+					switch (InMediaCapture->ConversionOperation)
 					{
 					case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
 						{
 							TShaderMapRef<FRGB8toUYVY8ConvertPS> ConvertShader(ShaderMap);
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						ConvertShader->SetParameters(RHICmdList, SourceTexture, MediaShaders::RgbToYuvRec709Full, MediaShaders::YUVOffset8bits, bDoLinearToSRGB);
+							ConvertShader->SetParameters(RHICmdList, SourceTexture, MediaShaders::RgbToYuvRec709Full, MediaShaders::YUVOffset8bits, bDoLinearToSRGB);
 						}
 						break;
 					case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
@@ -652,12 +703,20 @@ void UMediaCapture::OnEndFrame_GameThread()
 							TShaderMapRef<FRGB10toYUVv210ConvertPS> ConvertShader(ShaderMap);
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						ConvertShader->SetParameters(RHICmdList, SourceTexture, MediaShaders::RgbToYuvRec709Full, MediaShaders::YUVOffset10bits, bDoLinearToSRGB);
+							ConvertShader->SetParameters(RHICmdList, SourceTexture, MediaShaders::RgbToYuvRec709Full, MediaShaders::YUVOffset10bits, bDoLinearToSRGB);
 						}
 						break;
 					case EMediaCaptureConversionOperation::INVERT_ALPHA:
 						{
 							TShaderMapRef<FInvertAlphaPS> ConvertShader(ShaderMap);
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+							ConvertShader->SetParameters(RHICmdList, SourceTexture);
+						}
+						break;
+					case EMediaCaptureConversionOperation::SET_ALPHA_ONE:
+						{
+							TShaderMapRef<FSetAlphaOnePS> ConvertShader(ShaderMap);
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ConvertShader);
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 							ConvertShader->SetParameters(RHICmdList, SourceTexture);
@@ -670,51 +729,41 @@ void UMediaCapture::OnEndFrame_GameThread()
 					RHICmdList.SetStreamSource(0, VertexBuffer, 0);
 
 					// set viewport to RT size
-					RHICmdList.SetViewport(0, 0, 0.0f, DesiredOutputSize.X, DesiredOutputSize.Y, 1.0f);
+					RHICmdList.SetViewport(0, 0, 0.0f, InMediaCapture->DesiredOutputSize.X, InMediaCapture->DesiredOutputSize.Y, 1.0f);
 					RHICmdList.DrawPrimitive(0, 2, 1);
 					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget.TargetableTexture);
 				}
 			}
 
 			// Asynchronously copy duplicate target from GPU to System Memory
-			RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, InCapturingFrame->ReadbackTexture, FResolveParams());
+			RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, CapturingFrame->ReadbackTexture, FResolveParams());
 
-			InCapturingFrame->bResolvedTargetRequested = true;
+			CapturingFrame->bResolvedTargetRequested = true;
 		}
 
-		if (InReadyFrame && MediaState != EMediaCaptureState::Error)
+		if (ReadyFrame && InMediaCapture->GetState() != EMediaCaptureState::Error)
 		{
-			check(InReadyFrame->ReadbackTexture.IsValid());
+			check(ReadyFrame->ReadbackTexture.IsValid());
 
 			// Lock & read
 			void* ColorDataBuffer = nullptr;
 			int32 Width = 0, Height = 0;
 			{
 				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_MapStaging);
-				RHICmdList.MapStagingSurface(InReadyFrame->ReadbackTexture, ColorDataBuffer, Width, Height);
+				RHICmdList.MapStagingSurface(ReadyFrame->ReadbackTexture, ColorDataBuffer, Width, Height);
 			}
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_Callback);
-				OnFrameCaptured_RenderingThread(InReadyFrame->CaptureBaseData, InReadyFrame->UserData, ColorDataBuffer, Width, Height);
+				InMediaCapture->OnFrameCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ColorDataBuffer, Width, Height);
 			}
-			InReadyFrame->bResolvedTargetRequested = false;
+			ReadyFrame->bResolvedTargetRequested = false;
 
-			RHICmdList.UnmapStagingSurface(InReadyFrame->ReadbackTexture);
+			RHICmdList.UnmapStagingSurface(ReadyFrame->ReadbackTexture);
 		}
 
-		bWaitingForResolveCommandExecution = false;
-	};
-
-
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-		MediaOutputCaptureFrameCreateTexture,
-		FCaptureFrame*, InCapturingFrame, CapturingFrame,
-		FCaptureFrame*, InPreviousFrame, ReadyFrame,
-		decltype(RenderCommand), InRenderCommand, RenderCommand,
-		{
-			InRenderCommand(RHICmdList, InCapturingFrame, InPreviousFrame);
-		});
+		--InMediaCapture->WaitingForResolveCommandExecutionCounter;
+	});
 }
 
 /* namespace MediaCaptureDetails implementation

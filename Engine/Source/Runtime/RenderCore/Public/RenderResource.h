@@ -21,6 +21,8 @@ public:
 	/** @return The global initialized resource list. */
 	static TLinkedList<FRenderResource*>*& GetResourceList();
 
+	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
+
 	/** Default constructor. */
 	FRenderResource()
 		: FeatureLevel(ERHIFeatureLevel::Num)
@@ -93,20 +95,23 @@ public:
 	// Accessors.
 	FORCEINLINE bool IsInitialized() const { return bInitialized; }
 
+	/** Initialize all resources initialized before the RHI was initialized */
+	static void InitPreRHIResources();
+
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel == ERHIFeatureLevel::Num ? GMaxRHIFeatureLevel : FeatureLevel; }
 	FORCEINLINE bool HasValidFeatureLevel() const { return FeatureLevel < ERHIFeatureLevel::Num; }
 
-private:
-
 	ERHIFeatureLevel::Type FeatureLevel;
+
+private:
+	#if PLATFORM_NEEDS_RHIRESOURCELIST
+	TLinkedList<FRenderResource*> ResourceLink;
+	#endif
 
 	/** True if the resource has been initialized. */
 	bool bInitialized;
-
-	/** This resource's link in the global resource list. */
-	TLinkedList<FRenderResource*> ResourceLink;
 };
 
 /**
@@ -501,6 +506,102 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FIndexBuffer"); }
 };
 
+
+FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracingShaders(ShaderPlatform))
+	{
+		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
+		auto GetRayTracingCVarValue = []()
+		{
+			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+			return CVar && CVar->GetInt() > 0;
+		};
+		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
+		return bRayTracingEnabled;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+// Returns `true` when running on RT-capable machine and RT support is enabled for the project.
+// This function is a runtime only function!
+FORCEINLINE bool IsRayTracingEnabled()
+{
+	if (GRHISupportsRayTracing)
+	{
+		// r.RayTracing is a read-only CVar. UE needs to be restarted to effectively change it
+		auto GetRayTracingCVarValue = []()
+		{
+			auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+			return CVar && CVar->GetInt() > 0;
+		};
+		static const bool bRayTracingEnabled = GetRayTracingCVarValue();
+		return bRayTracingEnabled;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+#if RHI_RAYTRACING
+
+/** A ray tracing geometry resource */
+class RENDERCORE_API FRayTracingGeometry : public FRenderResource
+{
+public:
+	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+	FRayTracingGeometryInitializer Initializer;
+
+	/** Default constructor. */
+	FRayTracingGeometry()
+		: RayTracingGeometryRHI(NULL)
+	{}
+
+	/** Destructor. */
+	virtual ~FRayTracingGeometry() {}
+
+	// FRenderResource interface.
+	virtual void ReleaseRHI() override
+	{
+		RayTracingGeometryRHI.SafeRelease();
+	}
+	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
+
+	void SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
+	{
+		Initializer = InInitializer;
+	}
+
+	virtual void InitRHI() override
+	{
+		if (Initializer.IndexBuffer && Initializer.PositionVertexBuffer && IsRayTracingEnabled())
+		{
+			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+			FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+		}
+	}
+};
+
+class RENDERCORE_API FRayTracingScene : public FRenderResource
+{
+public:
+	FRayTracingSceneRHIRef RayTracingSceneRHI = nullptr;
+
+	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingScene"); }
+
+	
+
+	virtual void ReleaseRHI()
+	{
+		RayTracingSceneRHI.SafeRelease();
+	}
+};
+#endif // RHI_RAYTRACING
+
 /**
  * A system for dynamically allocating GPU memory for vertices.
  */
@@ -553,11 +654,6 @@ public:
 	 *		remain valid only until the next call to Allocate!
 	 */
 	void Commit();
-
-	/**
-	 * Obtain a reference to the global dynamic vertex buffer instance.
-	 */
-	static FGlobalDynamicVertexBuffer& Get();
 
 	/** Returns true if log statements should be made because we exceeded GMaxVertexBytesAllocatedPerFrame */
 	bool IsRenderAlarmLoggingEnabled() const;
@@ -634,11 +730,6 @@ public:
 	 *		remain valid only until the next call to Allocate!
 	 */
 	void Commit();
-
-	/**
-	 * Obtain a reference to the global dynamic index buffer instance.
-	 */
-	static FGlobalDynamicIndexBuffer& Get();
 
 private:
 	/** The pool of vertex buffers from which allocations are made. */

@@ -16,6 +16,7 @@ class FLastRenderTimeContainer;
 class FReadSurfaceDataFlags;
 class FRHICommandList;
 class FRHIComputeFence;
+class FRayTracingPipelineState;
 struct FDepthStencilStateInitializerRHI;
 struct FRasterizerStateInitializerRHI;
 struct FRHIResourceCreateInfo;
@@ -73,6 +74,62 @@ struct FRHIFlipDetails
 		, FlipTimeInSeconds(InFlipTimeInSeconds)
 		, VBlankTimeInSeconds(InVBlankTimeInSeconds)
 	{}
+};
+
+struct FRayTracingGeometryInstance
+{
+	FRayTracingGeometryRHIParamRef GeometryRHI = nullptr;
+	FMatrix Transform = FMatrix(EForceInit::ForceInitToZero);
+	uint32 UserData = 0;
+	uint8 Mask = 0;
+
+	// No any-hit shaders will be invoked for this geometry instance (only closest hit)
+	bool bForceOpaque = false;
+
+	// Disabling this will allow ray hits to be registered for front and back faces
+	bool bDoubleSided = false;
+};
+
+struct FRayTracingGeometrySegment
+{
+	uint32 FirstPrimitive = 0;
+	uint32 NumPrimitives = 0;
+
+	// Indicates whether any-hit shader could be invoked when hitting this geometry segment.
+	// Setting this to `false` turns off any-hit shaders, making the section "opaque" and improving ray tracing performance.
+	bool bAllowAnyHitShader = true;
+
+	// Any-hit shader may be invoked multiple times for the same primitive during ray traversal.
+	// Setting this to `false` guarantees that only a single instance of any-hit shader will run per primitive, at some performance cost.
+	bool bAllowDuplicateAnyHitShaderInvocation = true;
+};
+
+struct FRayTracingGeometryInitializer
+{
+	FVertexBufferRHIRef PositionVertexBuffer = nullptr;
+	FIndexBufferRHIRef IndexBuffer = nullptr;
+	uint32 VertexBufferByteOffset = 0;
+	uint32 VertexBufferStride = 0;
+	EVertexElementType VertexBufferElementType = VET_Float3;
+	uint32 BaseVertexIndex = 0;
+	EPrimitiveType PrimitiveType = PT_TriangleList;
+	uint32 TotalPrimitiveCount = 0;
+	TArrayView<FRayTracingGeometrySegment> Segments;
+	bool bFastBuild = false;
+	bool bAllowUpdate = false;
+};
+
+struct FRayTracingSceneInitializer
+{
+	TArrayView<FRayTracingGeometryInstance> Instances;
+	bool bIsDynamic = false;
+
+	// This value controls how many elements will be allocated in the shader binding table per geometry segment.
+	// Changing this value allows different hit shaders to be used for different effects.
+	// For example, setting this to 2 allows one hit shader for regular material evaluation and a different one for shadows.
+	// Desired hit shader can be selected by providing appropriate RayContributionToHitGroupIndex to TraceRay() function.
+	// Use ShaderSlot argument in SetRayTracingHitGroup() to assign shaders and resources for specific part of the shder binding table record.
+	uint32 ShaderSlotsPerGeometrySegment = 1;
 };
 
 /** The interface which is implemented by the dynamically bound RHI. */
@@ -312,7 +369,9 @@ public:
 	* @return The new uniform buffer.
 	*/
 	// FlushType: Thread safe, but varies depending on the RHI
-	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage) = 0;
+	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation) = 0;
+
+	virtual void RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents) = 0;
 
 	// FlushType: Wait RHI Thread
 	virtual FIndexBufferRHIRef RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo) = 0;
@@ -378,6 +437,10 @@ public:
 	/** Creates a shader resource view of the given index buffer. */
 	// FlushType: Wait RHI Thread
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRHIParamRef Buffer) = 0;
+
+	// Must be called on RHI thread timeline
+	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) /*= 0;*/ {}
 
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.
@@ -756,8 +819,17 @@ public:
 	// FlushType: Flush Immediate (seems wrong)
 	virtual void RHIReadSurfaceData(FTextureRHIParamRef Texture, FIntRect Rect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags) = 0;
 
-	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHIReadSurfaceData(FTextureRHIParamRef Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags) {}
+	// Default fallback; will not work for non-8-bit surfaces and it's extremely slow.
+	virtual void RHIReadSurfaceData(FTextureRHIParamRef Texture, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
+	{
+		TArray<FColor> TempData;
+		RHIReadSurfaceData(Texture, Rect, TempData, InFlags);
+		OutData.SetNumUninitialized(TempData.Num());
+		for (int32 Index = 0; Index < TempData.Num(); ++Index)
+		{
+			OutData[Index] = TempData[Index].ReinterpretAsLinear();
+		}
+	}
 
 	/** Watch out for OutData to be 0 (can happen on DXGI_ERROR_DEVICE_REMOVED), don't call RHIUnmapStagingSurface in that case. */
 	// FlushType: Flush Immediate (seems wrong)
@@ -871,9 +943,6 @@ public:
 	virtual bool RHIEnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer) { return false; }
 	virtual bool RHIEnqueueCompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int UnCompressedSize, void* ErrorCodeBuffer) { return false; }
 
-	// FlushType: Flush Immediate
-	virtual void RHIRecreateRecursiveBoundShaderStates() {}
-
 	/**
 	*	Retrieve available screen resolutions.
 	*
@@ -971,7 +1040,6 @@ public:
 	virtual FIndexBufferRHIRef CreateIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo);
 	virtual void* LockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode);
 	virtual void UnlockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer);
-	virtual FVertexDeclarationRHIRef CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements);
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code);
 	virtual FVertexShaderRHIRef CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash);
 	virtual FPixelShaderRHIRef CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code);
@@ -1051,11 +1119,40 @@ public:
 	virtual void RHISignalFlipEvent() { }
 
 	virtual void RHICalibrateTimers() {}
+	virtual void RHIPollRenderQueryResults() {}
 
 	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return true; }
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() { return 8; };
 
+
+#if RHI_RAYTRACING
+	// #dxr_todo: reverted index buffer may be needed to support mirrored meshes
+	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+
+	// This is a placeholder basic interface for the scene. We will likely need to revise this based on real use cases.
+	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+
+	virtual FRayTracingShaderRHIRef RHICreateRayTracingShader(const TArray<uint8>& Code, EShaderFrequency ShaderFrequency)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+
+	virtual FRayTracingPipelineStateRHIRef RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer)
+	{
+		checkNoEntry();
+		return nullptr;
+	}
+#endif // RHI_RAYTRACING
 
 protected:
 	TArray<uint32> PixelFormatBlockBytes;
@@ -1089,9 +1186,16 @@ FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(FVertexDeclaration
 	return GDynamicRHI->RHICreateBoundShaderState(VertexDeclaration, VertexShader, HullShader, DomainShader, PixelShader, GeometryShader);
 }
 
+/** Before using this directly go through PipelineStateCache::GetAndOrCreateGraphicsPipelineState() */
 FORCEINLINE FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 {
 	return GDynamicRHI->RHICreateGraphicsPipelineState(Initializer);
+}
+
+/** Before using this directly go through PipelineStateCache::GetOrCreateVertexDeclaration() */
+FORCEINLINE FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& Elements)
+{
+	return GDynamicRHI->RHICreateVertexDeclaration(Elements);
 }
 
 FORCEINLINE TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
@@ -1099,9 +1203,21 @@ FORCEINLINE TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState
 	return GDynamicRHI->RHICreateComputePipelineState(ComputeShader);
 }
 
-FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage)
+#if RHI_RAYTRACING
+FORCEINLINE TRefCountPtr<FRHIRayTracingPipelineState> RHICreateRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer)
 {
-	return GDynamicRHI->RHICreateUniformBuffer(Contents, Layout, Usage);
+	return GDynamicRHI->RHICreateRayTracingPipelineState(Initializer);
+}
+#endif //RHI_RAYTRACING
+
+FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
+{
+	return GDynamicRHI->RHICreateUniformBuffer(Contents, Layout, Usage, Validation);
+}
+
+FORCEINLINE void RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents)
+{
+	return GDynamicRHI->RHIUpdateUniformBuffer(UniformBufferRHI, Contents);
 }
 
 FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32& OutAlign)
@@ -1228,6 +1344,25 @@ FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int
 {
 	return GDynamicRHI->RHIGetCommandContextContainer(Index, Num, GPUMask);
 }
+
+#if RHI_RAYTRACING
+
+FORCEINLINE FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+{
+	return GDynamicRHI->RHICreateRayTracingGeometry(Initializer);
+}
+
+FORCEINLINE FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
+{
+	return GDynamicRHI->RHICreateRayTracingScene(Initializer);
+}
+
+FORCEINLINE FRayTracingShaderRHIRef RHICreateRayTracingShader(const TArray<uint8>& Code, EShaderFrequency ShaderFrequency)
+{
+	return GDynamicRHI->RHICreateRayTracingShader(Code, ShaderFrequency);
+}
+
+#endif // RHI_RAYTRACING
 
 /**
 * Defragment the texture pool.

@@ -50,7 +50,7 @@ int32 FTextureStreamingNotificationImpl::GetNumStreamingTextures()
 
 	if (StreamingManagerCollection.IsTextureStreamingEnabled())
 	{
-		ITextureStreamingManager& TextureStreamingManager = StreamingManagerCollection.GetTextureStreamingManager();
+		IRenderAssetStreamingManager& TextureStreamingManager = StreamingManagerCollection.GetTextureStreamingManager();
 		return TextureStreamingManager.GetNumWantingResources();
 	}
 

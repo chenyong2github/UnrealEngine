@@ -114,7 +114,9 @@ void FMetalRHICommandContext::RHICopyToResolveTarget(FTextureRHIParamRef SourceT
 
                 FResolveRect ResolveRect = ResolveParams.Rect;
 
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
                 SetRenderTargets(RHICmdList, 0, nullptr, DestTextureRHI, ESimpleRenderTargetMode::EClearColorExistingDepth, FExclusiveDepthStencil::DepthWrite_StencilWrite, true);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
                 FGraphicsPipelineStateInitializer GraphicsPSOInit;
                 RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -331,13 +333,21 @@ static void ConvertSurfaceDataToFColor(EPixelFormat Format, uint32 Width, uint32
 	}
 	else if(Format == PF_B8G8R8A8)
 	{
-		for(uint32 Y = 0; Y < Height; Y++)
+		const auto DestPitch = sizeof(FColor) * Width;
+		if (SrcPitch == DestPitch)
 		{
-			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			
-			// Need to copy row wise since the Pitch might not match the Width.
-			FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
+			FMemory::Memcpy(Out, In, DestPitch * Height);
+		}
+		else
+		{
+			for(uint32 Y = 0; Y < Height; Y++)
+			{
+				FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
+				FColor* DestPtr = Out + Y * Width;
+				
+				// Need to copy row wise since the Pitch might not match the Width.
+				FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
+			}
 		}
 	}
 	else if(Format == PF_A2B10G10R10)
@@ -670,7 +680,7 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 		const uint32 Alignment = PLATFORM_MAC ? 1u : 64u; // Mac permits natural row alignment (tightly-packed) but iOS does not.
 		const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 		const uint32 BytesPerImage = AlignedStride * SizeY;
-		FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), BytesPerImage, mtlpp::StorageMode::Shared));
+        FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), BytesPerImage, BUF_Dynamic, mtlpp::StorageMode::Shared));
 		{
 			// Synchronise the texture with the CPU
 			SCOPE_CYCLE_COUNTER(STAT_MetalTexturePageOffTime);
@@ -771,7 +781,7 @@ void FMetalDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, F
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;
 	int32 FloatBGRADataSize = BytesPerImage;
-	FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), FloatBGRADataSize, mtlpp::StorageMode::Shared));
+    FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), FloatBGRADataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 	{
 		// Synchronise the texture with the CPU
 		SCOPE_CYCLE_COUNTER(STAT_MetalTexturePageOffTime);
@@ -837,7 +847,7 @@ void FMetalDynamicRHI::RHIRead3DSurfaceFloatData(FTextureRHIParamRef TextureRHI,
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;
 	int32 FloatBGRADataSize = BytesPerImage * SizeZ;
-	FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), FloatBGRADataSize, mtlpp::StorageMode::Shared));
+    FMetalBuffer Buffer = ((FMetalDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FMetalPooledBufferArgs(ImmediateContext.Context->GetDevice(), FloatBGRADataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 	{
 		// Synchronise the texture with the CPU
 		SCOPE_CYCLE_COUNTER(STAT_MetalTexturePageOffTime);

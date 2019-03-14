@@ -50,22 +50,6 @@ static FAutoConsoleVariableRef CVarVerboseScriptStats(
 	ECVF_Default
 );
 
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-// Mirror definition of FPointerToUberGraphFrame, it is a UStruct and
-// we cannot easily generate its reflection data here in CoreUObject. The
-// builtins pattern we use for FVector, FQuat etc cannot be used because
-// our only member is a raw pointer and it cannot be a UProperty. This
-// creates difficulty in determining the correct size for the UStruct
-struct FPointerToUberGraphFrameCoreUObject
-{
-	uint8* RawPointer;
-
-#if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
-	uint32 UberGraphFunctionKey;
-#endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
-};
-#endif //USE_UBER_GRAPH_PERSISTENT_FRAME
-
 /*-----------------------------------------------------------------------------
 	Globals.
 -----------------------------------------------------------------------------*/
@@ -324,33 +308,6 @@ FString UnicodeToCPPIdentifier(const FString& InName, bool bDeprecated, const TC
 
 	return bDeprecated ? Ret + TEXT("_DEPRECATED") : Ret;
 }
-
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-/** Returns memory used to store temporary data on an instance, used by blueprints */
-static uint8* GetPersistentUberGraphFrameUnchecked(const UFunction* ForFn, UObject* Obj)
-{
-	const UClass* FromClass = ForFn->GetOuterUClassUnchecked();
-	checkSlow(ForFn->HasAnyFunctionFlags(FUNC_UbergraphFunction));
-	checkSlow(Obj->IsA(FromClass));
-	checkSlow(FromClass->UberGraphFramePointerProperty);
-	FPointerToUberGraphFrameCoreUObject* PointerToUberGraphFrame =
-		FromClass->UberGraphFramePointerProperty->ContainerPtrToValuePtr<FPointerToUberGraphFrameCoreUObject>(
-			(void*)Obj
-		);
-	checkSlow(PointerToUberGraphFrame);
-	checkSlow(PointerToUberGraphFrame->RawPointer);
-	return PointerToUberGraphFrame->RawPointer;
-}
-
-uint8* GetPersistentUberGraphFrame(const UFunction* ForFn, UObject* Obj)
-{
-	if (ForFn->HasAnyFunctionFlags(FUNC_UbergraphFunction))
-	{
-		return GetPersistentUberGraphFrameUnchecked(ForFn, Obj);
-	}
-	return nullptr;
-}
-#endif //USE_UBER_GRAPH_PERSISTENT_FRAME
 
 /*-----------------------------------------------------------------------------
 	FFrame implementation.
@@ -745,7 +702,7 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 	uint8* FrameMemory = nullptr;
 	FFrame NewStack(Context, Function, nullptr, &Stack, Function->Children);
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	FrameMemory = GetPersistentUberGraphFrame(Function, Context);
+	FrameMemory = Function->GetOuterUClassUnchecked()->GetPersistentUberGraphFrame(Context, Function);
 #endif
 	bool bUsePersistentFrame = (nullptr != FrameMemory);
 	if (!bUsePersistentFrame)
@@ -828,13 +785,11 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 		}
 	}
 	Stack.Code++;
-#if UE_BUILD_DEBUG
-	// set the next pointer of the last item to NULL so we'll properly assert if something goes wrong
+	// set the next pointer of the last item to NULL to mark the end of the list
 	if (*LastOut)
 	{
 		(*LastOut)->NextOutParm = NULL;
 	}
-#endif
 
 	if (!bUsePersistentFrame)
 	{
@@ -1432,7 +1387,10 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	{
 		uint8* Frame = NULL;
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-		Frame = GetPersistentUberGraphFrame(Function, this);
+		if (Function->HasAnyFunctionFlags(FUNC_UbergraphFunction))
+		{
+			Frame = Function->GetOuterUClassUnchecked()->GetPersistentUberGraphFrame(this, Function);
+		}
 #endif
 		const bool bUsePersistentFrame = (NULL != Frame);
 		if (!bUsePersistentFrame)
@@ -1483,13 +1441,11 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 				}
 			}
 
-#if UE_BUILD_DEBUG
-			// set the next pointer of the last item to NULL so we'll properly assert if something goes wrong
+			// set the next pointer of the last item to NULL to mark the end of the list
 			if (*LastOut)
 			{
 				(*LastOut)->NextOutParm = NULL;
 			}
-#endif
 		}
 
 		if (!bUsePersistentFrame)
@@ -1968,7 +1924,7 @@ DEFINE_FUNCTION(UObject::execLetValueOnPersistentFrame)
 	checkSlow(DestProperty);
 	UFunction* UberGraphFunction = CastChecked<UFunction>(DestProperty->GetOwnerStruct());
 	checkSlow(Stack.Object->GetClass()->IsChildOf(UberGraphFunction->GetOuterUClassUnchecked()));
-	uint8* FrameBase = GetPersistentUberGraphFrameUnchecked(UberGraphFunction, Stack.Object);
+	uint8* FrameBase = UberGraphFunction->GetOuterUClassUnchecked()->GetPersistentUberGraphFrame(Stack.Object, UberGraphFunction);
 	checkSlow(FrameBase);
 	uint8* DestAddress = DestProperty->ContainerPtrToValuePtr<uint8>(FrameBase);
 
@@ -2293,13 +2249,14 @@ DEFINE_FUNCTION(UObject::execLetMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
 	FMulticastScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		*DelegateAddr = Delegate;
+		DelegateProp->SetMulticastDelegate(DelegateAddr, MoveTemp(Delegate));
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_LetMulticastDelegate, execLetMulticastDelegate );
@@ -2495,7 +2452,8 @@ public:
 		Stack.MostRecentPropertyAddress = NULL;
 		Stack.MostRecentProperty = NULL;
 		Stack.Step( Stack.Object, NULL );
-		const FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+		UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+		const FMulticastScriptDelegate* DelegateAddr = (DelegateProp ? DelegateProp->GetMulticastDelegate(Stack.MostRecentPropertyAddress) : nullptr);
 
 		//Fill parameters
 		uint8* Parameters = (uint8*)FMemory_Alloca(SignatureFunction->ParmsSize);
@@ -2550,13 +2508,15 @@ DEFINE_FUNCTION(UObject::execAddMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
 	FScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->AddUnique(Delegate);
+		DelegateProp->AddDelegate(MoveTemp(Delegate), nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_AddMulticastDelegate, execAddMulticastDelegate );
@@ -2568,13 +2528,15 @@ DEFINE_FUNCTION(UObject::execRemoveMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
 	FScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->Remove(Delegate);
+		DelegateProp->RemoveDelegate(Delegate, nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_RemoveMulticastDelegate, execRemoveMulticastDelegate );
@@ -2586,10 +2548,12 @@ DEFINE_FUNCTION(UObject::execClearMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL );
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
-	if (DelegateAddr != NULL)
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->Clear();
+		DelegateProp->ClearDelegate(nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_ClearMulticastDelegate, execClearMulticastDelegate );

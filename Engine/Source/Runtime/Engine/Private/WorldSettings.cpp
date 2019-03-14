@@ -65,7 +65,9 @@ AWorldSettings::AWorldSettings(const FObjectInitializer& ObjectInitializer)
 	static FConstructorStatics ConstructorStatics;
 
 	bEnableWorldBoundsChecks = true;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bEnableNavigationSystem = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NavigationSystemConfig = nullptr;
 	bEnableAISystem = true;
 	bEnableWorldComposition = false;
@@ -83,7 +85,6 @@ AWorldSettings::AWorldSettings(const FObjectInitializer& ObjectInitializer)
 	KillZDamageType = ConstructorStatics.DmgType_Environmental_Object.Object;
 
 	WorldToMeters = 100.f;
-	MonoCullingDistance = 750.f;
 
 	DefaultPhysicsVolumeClass = ADefaultPhysicsVolume::StaticClass();
 	GameNetworkManagerClass = AGameNetworkManager::StaticClass();
@@ -265,7 +266,7 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
-	DOREPLIFETIME( AWorldSettings, Pauser );
+	DOREPLIFETIME( AWorldSettings, PauserPlayerState );
 	DOREPLIFETIME( AWorldSettings, TimeDilation );
 	DOREPLIFETIME( AWorldSettings, MatineeTimeDilation );
 	DOREPLIFETIME( AWorldSettings, WorldGravityZ );
@@ -450,6 +451,8 @@ void AWorldSettings::PostLoad()
 
 #endif// WITH_EDITOR
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// temporarily using deprecated bEnableNavigationSystem for backwards compatibility
 	if (bEnableNavigationSystem && NavigationSystemConfig == nullptr)
 	{
 		ULevel* Level = GetLevel();
@@ -463,6 +466,7 @@ void AWorldSettings::PostLoad()
 			bEnableNavigationSystem = false;
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool AWorldSettings::IsNavigationSystemEnabled() const
@@ -487,6 +491,12 @@ void AWorldSettings::CheckForErrors()
 	Super::CheckForErrors();
 
 	UWorld* World = GetWorld();
+	// World is nullptr if save is done from a derived AWorldSettings blueprint
+	if (World == nullptr)
+	{
+		return;
+	}
+
 	if ( World->GetWorldSettings() != this )
 	{
 		FMessageLog("MapCheck").Warning()

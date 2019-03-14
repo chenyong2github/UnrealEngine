@@ -17,7 +17,9 @@ public class IOSTargetPlatform : ModuleRules
 				"DesktopPlatform",
 				"LaunchDaemonMessages",
 				"Projects",
-				"AudioPlatformConfiguration"
+				"AudioPlatformConfiguration",
+				"Sockets",
+				"Networking"
 			}
 		);
 
@@ -36,6 +38,7 @@ public class IOSTargetPlatform : ModuleRules
 			{
 				"Runtime/Core/Public/Apple",
 				"Runtime/Core/Public/IOS",
+				"Runtime/Networking/Public",
 			}
 		);
 

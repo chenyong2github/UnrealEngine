@@ -32,11 +32,8 @@ public:
 
 	virtual void StartupModule() override
 	{
-		{
-			SCOPED_BOOT_TIMING("UClassRegisterAllCompiledInClasses");
-			// Register all classes that have been loaded so far. This is required for CVars to work.		
-			UClassRegisterAllCompiledInClasses();
-		}
+		// Register all classes that have been loaded so far. This is required for CVars to work.		
+		UClassRegisterAllCompiledInClasses();
 
 		void InitUObject();
 		FCoreDelegates::OnInit.AddStatic(InitUObject);
@@ -54,11 +51,8 @@ public:
 		FRuntimeErrors::OnRuntimeIssueLogged.BindStatic(&FCoreUObjectModule::RouteRuntimeMessageToBP);
 #endif
 
-		{
-			SCOPED_BOOT_TIMING("FPackageName::EnsureContentPathsAreRegistered");
-			// Make sure that additional content mount points can be registered after CoreUObject loads
-			FPackageName::EnsureContentPathsAreRegistered();
-		}
+		// Make sure that additional content mount points can be registered after CoreUObject loads
+		FPackageName::EnsureContentPathsAreRegistered();
 
 #if DO_BLUEPRINT_GUARD
 		FFrame::InitPrintScriptCallstack();
@@ -197,7 +191,7 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 							{
 								SubobjectOuter = GetInstancedSubobject(SourceSubobject->GetOuter(), SourceSubobject->GetOuter(), CurrentObject, bDoNotCreateNewInstance, bAllowSelfReference);
 
-								checkf(SubobjectOuter, TEXT("No corresponding destination object found for '%s' while attempting to instance component '%s'"), *SourceSubobject->GetOuter()->GetFullName(), *SourceSubobject->GetFullName());
+								checkf(SubobjectOuter && SubobjectOuter != INVALID_OBJECT, TEXT("No corresponding destination object found for '%s' while attempting to instance component '%s'"), *SourceSubobject->GetOuter()->GetFullName(), *SourceSubobject->GetFullName());
 							}
 
 							FName SubobjectName = SourceSubobject->GetFName();

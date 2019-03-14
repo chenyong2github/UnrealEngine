@@ -21,14 +21,6 @@
 #include "AudioEditorModule.h"
 #endif
 
-static int32 DisableSubmixReverbCVar = 0;
-FAutoConsoleVariableRef CVarDisableSubmixReverb(
-	TEXT("au.DisableReverbSubmix"),
-	DisableSubmixReverbCVar,
-	TEXT("Disables the reverb submix.\n")
-	TEXT("0: Not Disabled, 1: Disabled"),
-	ECVF_Default);
-
 static int32 DisableSubmixEffectEQCvar = 0;
 FAutoConsoleVariableRef CVarDisableSubmixEQ(
 	TEXT("au.DisableSubmixEffectEQ"),
@@ -46,6 +38,7 @@ namespace Audio
 		: AudioMixerPlatform(InAudioMixerPlatform)
 		, AudioClockDelta(0.0)
 		, AudioClock(0.0)
+		, PreviousMasterVolume((float)INDEX_NONE)
 		, SourceManager(this)
 		, GameOrAudioThreadId(INDEX_NONE)
 		, AudioPlatformThreadId(INDEX_NONE)
@@ -65,7 +58,7 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::CheckAudioThread()
+	void FMixerDevice::CheckAudioThread() const
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		// "Audio Thread" is the game/audio thread ID used above audio rendering thread.
@@ -81,7 +74,7 @@ namespace Audio
 #endif
 	}
 
-	void FMixerDevice::CheckAudioRenderingThread()
+	void FMixerDevice::CheckAudioRenderingThread() const
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		if (AudioPlatformThreadId == INDEX_NONE)
@@ -93,10 +86,15 @@ namespace Audio
 #endif
 	}
 
-	bool FMixerDevice::IsAudioRenderingThread()
+	bool FMixerDevice::IsAudioRenderingThread() const
 	{
 		int32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 		return CurrentThreadId == AudioPlatformThreadId;
+	}
+
+	void FMixerDevice::UpdateDeviceDeltaTime()
+	{
+		DeviceDeltaTime = GetGameDeltaTime();
 	}
 
 	void FMixerDevice::GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const
@@ -349,6 +347,7 @@ namespace Audio
 			AudioMixerPlatform->ResumePlaybackOnNewDevice();
 		}
 
+#if 0 // Disable touching the listener transforms
 		ListenerTransforms.Reset();
 		for (FListener& Listener : Listeners)
 		{
@@ -357,6 +356,7 @@ namespace Audio
 
 		// Update listener transforms, some effects use the listener transform data
 		SourceManager.SetListenerTransforms(ListenerTransforms);
+#endif
 
 		// Loop through any envelope-following submixes and perform any broadcasting of envelope data if needed
 		TArray<float> SubmixEnvelopeData;
@@ -388,6 +388,35 @@ namespace Audio
 						ThisSubmixPtr->BroadcastEnvelope();
 					}
 				});
+			}
+		}
+
+		// Check if the background mute changed state and update the submixes which are enabled to do background muting
+		const float CurrentMasterVolume = GetMasterVolume();
+		if (!FMath::IsNearlyEqual(PreviousMasterVolume, CurrentMasterVolume))
+		{
+			PreviousMasterVolume = CurrentMasterVolume;
+			bool IsMuted = FMath::IsNearlyZero(CurrentMasterVolume);
+
+			for (TObjectIterator<USoundSubmix> It; It; ++It)
+			{
+				if (*It && It->bMuteWhenBackgrounded)
+				{
+					FMixerSubmix* SubmixInstance = GetMasterSubmixInstance(*It);
+					if (!SubmixInstance)
+					{
+						FMixerSubmixPtr* NonMasterSubmix = Submixes.Find(*It);
+						if (NonMasterSubmix)
+						{
+							SubmixInstance = (*NonMasterSubmix).Get();
+						}
+					}
+
+					if (SubmixInstance)
+					{
+						SubmixInstance->SetBackgroundMuted(IsMuted);
+					}
+				}
 			}
 		}
 	}
@@ -562,28 +591,20 @@ namespace Audio
 			FMixerDevice::MasterSubmixes.Add(MasterSubmix);
 
 			// Master Reverb Plugin
-			if (DisableSubmixReverbCVar)
-			{
-				FMixerDevice::MasterSubmixes.Add(nullptr);
-			}
-			else
-			{
-				USoundSubmix* ReverbPluginSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Plugin Submix"));
-				ReverbPluginSubmix->AddToRoot();
-				FMixerDevice::MasterSubmixes.Add(ReverbPluginSubmix);
-			}
+			USoundSubmix* ReverbPluginSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Plugin Submix"));
+			// Make the master reverb mute when backgrounded
+			ReverbPluginSubmix->bMuteWhenBackgrounded = true;
+
+			ReverbPluginSubmix->AddToRoot();
+			FMixerDevice::MasterSubmixes.Add(ReverbPluginSubmix);
 
 			// Master Reverb
-			if (DisableSubmixReverbCVar)
-			{
-				FMixerDevice::MasterSubmixes.Add(nullptr);
-			}
-			else
-			{
-				USoundSubmix* ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Submix"));
-				ReverbSubmix->AddToRoot();
-				FMixerDevice::MasterSubmixes.Add(ReverbSubmix);
-			}
+			USoundSubmix* ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), TEXT("Master Reverb Submix"));
+			// Make the master reverb mute when backgrounded
+			ReverbSubmix->bMuteWhenBackgrounded = true;
+
+			ReverbSubmix->AddToRoot();
+			FMixerDevice::MasterSubmixes.Add(ReverbSubmix);
 
 			// Master EQ
 			if (DisableSubmixEffectEQCvar)
@@ -698,12 +719,6 @@ namespace Audio
 		// Now register all the non-core submixes.
 
 #if WITH_EDITOR
-		// sanity check the Submixes map to ensure we don't leak any instances of FMixerSubmix.
-		for (auto& Submix : Submixes)
-		{
-			checkf(Submix.Value.IsUnique(), TEXT("Possible leak: please check FMixerSubmix for possible circular references."));
-		}
-
 		Submixes.Reset();
 #endif
 
@@ -938,6 +953,19 @@ namespace Audio
 			}
 		}
 		return false;
+	}
+
+	FMixerSubmix* FMixerDevice::GetMasterSubmixInstance(USoundSubmix* InSubmix)
+	{
+		check(MasterSubmixes.Num() == EMasterSubmixType::Count);
+		for (int32 i = 0; i < EMasterSubmixType::Count; ++i)
+		{
+			if (InSubmix == FMixerDevice::MasterSubmixes[i])
+			{
+				return MasterSubmixInstances[i].Get();
+			}
+		}
+		return nullptr;
 	}
 
 	void FMixerDevice::RegisterSoundSubmix(USoundSubmix* InSoundSubmix, bool bInit)

@@ -19,6 +19,14 @@ class ANIMGRAPH_API UAnimGraphNode_PoseDriver : public UAnimGraphNode_PoseHandle
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_PoseDriver Node;
 
+	/** Length of axis in world units used for debug drawing */
+	UPROPERTY(EditAnywhere, Category = Debugging, meta = (DefaultValue = "20.0", UIMin = "1.0", UIMax = "100.0"))
+	float AxisLength;
+
+	/** Number of subdivisions / lines used when debug drawing a cone */
+	UPROPERTY(EditAnywhere, Category = Debugging, meta = (DefaultValue = "32", UIMin = "6", UIMax = "128"))
+	int32 ConeSubdivision;
+
 	/** Used to indicate selected target to edit mode drawing */
 	int32 SelectedTargetIndex;
 	/** Delegate to call when selection changes */
@@ -40,6 +48,9 @@ public:
 
 	/** Reallocates transforms arrays as necessary to accommodate source bones */
 	void ReserveTargetTransforms();
+
+	/** Return the color for a given weight. Used for Details and EditMode */
+	FLinearColor GetColorFromWeight(float InWeight);
 
 	/** Used to refer back to preview instance in anim tools */
 	UPROPERTY(Transient)

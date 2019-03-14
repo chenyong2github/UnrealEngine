@@ -114,6 +114,19 @@ public class HarfBuzz : ModuleRules
 			PublicAdditionalLibraries.Add("harfbuzz");
 		}
 
+		else if (Target.Platform == UnrealTargetPlatform.Switch)
+		{
+			PublicDefinitions.Add("WITH_HARFBUZZ=1");
+
+			string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+				? "Debug"
+				: "Release";
+			HarfBuzzLibPath += BuildTypeFolderName + "/";
+
+			PublicLibraryPaths.Add(HarfBuzzLibPath);
+			PublicAdditionalLibraries.Add("harfbuzz"); // Automatically transforms to libharfbuzz.a
+		}
+
 		else
 		{
 			PublicDefinitions.Add("WITH_HARFBUZZ=0");

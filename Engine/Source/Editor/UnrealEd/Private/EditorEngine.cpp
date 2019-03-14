@@ -304,6 +304,7 @@ UEditorEngine* GEditor = nullptr;
 
 UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, EditorSubsystemCollection(this)
 {
 	if (!IsRunningCommandlet() && !IsRunningDedicatedServer())
 	{
@@ -633,7 +634,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	GEngine->SetSubduedSelectionOutlineColor(StyleSettings->GetSubduedSelectionColor());
 	GEngine->SelectionHighlightIntensity = ViewportSettings->SelectionHighlightIntensity;
 	GEngine->BSPSelectionHighlightIntensity = ViewportSettings->BSPSelectionHighlightIntensity;
-	GEngine->HoverHighlightIntensity = ViewportSettings->HoverHighlightIntensity;
 
 	// Set navigation system property indicating whether navigation is supposed to rebuild automatically 
 	FWorldContext &EditorContext = GetEditorWorldContext();
@@ -718,6 +718,8 @@ void UEditorEngine::HandleSettingChanged( FName Name )
 
 void UEditorEngine::InitializeObjectReferences()
 {
+	EditorSubsystemCollection.Initialize();
+
 	Super::InitializeObjectReferences();
 
 	if ( PlayFromHerePlayerStartClass == NULL )
@@ -1137,7 +1139,7 @@ void UEditorEngine::RemoveLevelViewportClients(FLevelEditorViewportClient* Viewp
 void UEditorEngine::BroadcastObjectReimported(UObject* InObject)
 {
 	ObjectReimportedEvent.Broadcast(InObject);
-	FEditorDelegates::OnAssetReimport.Broadcast(InObject);
+	GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetReimport(InObject);
 }
 
 void UEditorEngine::FinishDestroy()
@@ -1863,18 +1865,18 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	{
 		// rendering thread commands
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-			TickRenderingTimer,
-			bool, bPauseRenderingRealtimeClock, GPauseRenderingRealtimeClock,
-			float, DeltaTime, DeltaSeconds,
-		{
-			if(!bPauseRenderingRealtimeClock)
+		bool bPauseRenderingRealtimeClock = GPauseRenderingRealtimeClock;
+		float DeltaTime = DeltaSeconds;
+		ENQUEUE_RENDER_COMMAND(TickRenderingTimer)(
+			[bPauseRenderingRealtimeClock, DeltaTime](FRHICommandListImmediate& RHICmdList)
 			{
-				// Tick the GRenderingRealtimeClock, unless it's paused
-				GRenderingRealtimeClock.Tick(DeltaTime);
-			}
-			GetRendererModule().TickRenderTargetPool();
-		});
+				if(!bPauseRenderingRealtimeClock)
+				{
+					// Tick the GRenderingRealtimeClock, unless it's paused
+					GRenderingRealtimeClock.Tick(DeltaTime);
+				}
+				GetRendererModule().TickRenderTargetPool();
+			});
 	}
 
 	// After the play world has ticked, see if a request was made to end pie
@@ -3833,19 +3835,23 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 		}
 	}
 
-	for (ULevel* Level : World->GetLevels())
 	{
-		if (Level->bIsVisible)
-		{
-			if (Level->MapBuildData)
-			{
-				// Remove all existing reflection capture data from visible levels before the build
-				Level->MapBuildData->InvalidateReflectionCaptures(Level->bIsLightingScenario ? &ResourcesToKeep : nullptr);
-			}
+		FGlobalComponentRecreateRenderStateContext Context;
 
-			if (Level->bIsLightingScenario)
+		for (ULevel* Level : World->GetLevels())
+		{
+			if (Level->bIsVisible)
 			{
-				LightingScenarios.Add(Level);
+				if (Level->MapBuildData)
+				{
+					// Remove all existing reflection capture data from visible levels before the build
+					Level->MapBuildData->InvalidateReflectionCaptures(Level->bIsLightingScenario ? &ResourcesToKeep : nullptr);
+				}
+
+				if (Level->bIsLightingScenario)
+				{
+					LightingScenarios.Add(Level);
+				}
 			}
 		}
 	}
@@ -4461,7 +4467,7 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 
 	// If we can get the streaming level, we should remove the editor transform before saving
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel( World->PersistentLevel );
-	if ( LevelStreaming )
+	if ( LevelStreaming && World->PersistentLevel->bAlreadyMovedActors )
 	{
 		FLevelUtils::RemoveEditorTransform(LevelStreaming);
 	}
@@ -4544,7 +4550,7 @@ void UEditorEngine::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 Orig
 
 	// If got the streaming level, we should re-apply the editor transform after saving
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel( World->PersistentLevel );
-	if ( LevelStreaming )
+	if ( LevelStreaming && World->PersistentLevel->bAlreadyMovedActors )
 	{
 		FLevelUtils::ApplyEditorTransform(LevelStreaming);
 	}
@@ -5105,6 +5111,18 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			NewActor->PostEditMove(true);
 			NewActor->MarkPackageDirty();
 
+			TSet<ULevel*> LevelsToRebuildBSP;
+			ABrush* Brush = Cast<ABrush>(OldActor);
+			if (Brush && !FActorEditorUtils::IsABuilderBrush(Brush)) // Track whether or not a brush actor was deleted.
+			{
+				ULevel* BrushLevel = OldActor->GetLevel();
+				if (BrushLevel && !Brush->IsVolumeBrush())
+				{
+					BrushLevel->Model->Modify();
+					LevelsToRebuildBSP.Add(BrushLevel);
+				}
+			}
+
 			// Replace references in the level script Blueprint with the new Actor
 			const bool bDontCreate = true;
 			ULevelScriptBlueprint* LSB = NewActor->GetLevel()->GetLevelScriptBlueprint(bDontCreate);
@@ -5119,6 +5137,17 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				Layers->DisassociateActorFromLayers( OldActor );
 			}
 			World->EditorDestroyActor(OldActor, true);
+
+			// If any brush actors were modified, update the BSP in the appropriate levels
+			if (LevelsToRebuildBSP.Num())
+			{
+				FlushRenderingCommands();
+
+				for (ULevel* LevelToRebuild : LevelsToRebuildBSP)
+				{
+					GEditor->RebuildLevel(*LevelToRebuild);
+				}
+			}
 		}
 		else
 		{
@@ -6773,7 +6802,22 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 		// First strip any source prefix, then add the appropriate prefix for this context
 		FSoftObjectPath Path = UWorld::RemovePIEPrefix(Str);
 		
-		Path.FixupForPIE(Context.PIEInstance);
+		if (bIsReplay)
+		{
+			FString AssetName = Path.GetAssetName();
+			FString ShortName = FPackageName::GetShortName(Path.GetLongPackageName());
+
+			const bool bActorClass = FPackageName::IsValidObjectPath(Path.ToString()) && !AssetName.IsEmpty() && !ShortName.IsEmpty() && (AssetName == (ShortName + TEXT("_C")));
+			if (!bActorClass)
+			{
+				Path.FixupForPIE(Context.PIEInstance);
+			}
+		}
+		else
+		{
+			Path.FixupForPIE(Context.PIEInstance);
+		}
+
 		FString Remapped = Path.ToString();
 		if (!Remapped.Equals(Str, ESearchCase::CaseSensitive))
 		{
@@ -6822,7 +6866,7 @@ void UEditorEngine::VerifyLoadMapWorldCleanup()
 	for( TObjectIterator<UWorld> It; It; ++It )
 	{
 		UWorld* World = *It;
-		if (World->WorldType != EWorldType::EditorPreview && World->WorldType != EWorldType::Editor && World->WorldType != EWorldType::Inactive)
+		if (World->WorldType != EWorldType::EditorPreview && World->WorldType != EWorldType::Editor && World->WorldType != EWorldType::Inactive && World->WorldType != EWorldType::GamePreview)
 		{
 			TArray<UWorld*> OtherEditorWorlds;
 			EditorLevelUtils::GetWorlds(EditorWorld, OtherEditorWorlds, true, false);
@@ -7256,7 +7300,7 @@ bool UEditorEngine::IsOfflineShaderCompilerAvailable(UWorld* World)
 	return FMaterialStatsUtils::IsPlatformOfflineCompilerAvailable(RealPlatform);
 }
 
-void UEditorEngine::UpdateShaderComplexityMaterials()
+void UEditorEngine::UpdateShaderComplexityMaterials(bool bForceUpdate)
 {
 	TSet<UWorld *> WorldSet;
 
@@ -7272,10 +7316,10 @@ void UEditorEngine::UpdateShaderComplexityMaterials()
 	for (auto* SomeWorld : WorldSet)
 	{
 		bool bShadersEmulated = IsEditorShaderPlatformEmulated(SomeWorld);
-		if (bShadersEmulated)
+		if (bShadersEmulated || bForceUpdate)
 		{
 			bool bOfflineCompilerAvailable = IsOfflineShaderCompilerAvailable(SomeWorld);
-			if (bOfflineCompilerAvailable)
+			if (bOfflineCompilerAvailable || bForceUpdate)
 			{
 				FEditorBuildUtils::CompileViewModeShaders(SomeWorld, VMI_ShaderComplexity);
 			}
@@ -7285,7 +7329,7 @@ void UEditorEngine::UpdateShaderComplexityMaterials()
 
 void UEditorEngine::OnSceneMaterialsModified()
 {
-	UpdateShaderComplexityMaterials();
+	UpdateShaderComplexityMaterials(false);
 }
 
 void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel)
@@ -7322,6 +7366,16 @@ void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeat
 
 	SlowTask.EnterProgressFrame(15.0f, NSLOCTEXT("Engine", "SlowTaskFinalizingMessage", "Finalizing"));
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
+
+	PreviewFeatureLevelChanged.Broadcast(InFeatureLevel);
+
+	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
+	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
+	// opportunity to switch to the new feature level first.
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(nullptr);
+
+	UpdateShaderComplexityMaterials(true);
 }
 
 void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel)
@@ -7336,16 +7390,27 @@ void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPrevie
 	}
 }
 
-void UEditorEngine::AllMaterialsCacheResourceShadersForRendering()
+void UEditorEngine::AllMaterialsCacheResourceShadersForRendering(ERHIFeatureLevel::Type InPreviewFeatureLevel)
 {
 	FGlobalComponentRecreateRenderStateContext Recreate;
 	FlushRenderingCommands();
 	UMaterial::AllMaterialsCacheResourceShadersForRendering(true);
 	UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
+	PreviewFeatureLevelChanged.Broadcast(InPreviewFeatureLevel);
 }
 
-void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, const ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings/* = true*/)
+void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings/* = true*/)
 {
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (PreviewFeatureLevel != ERHIFeatureLevel::SM5)
+		{
+			UE_LOG(LogEditor, Warning, TEXT("Preview feature level is incompatible with ray tracing, defaulting to Shader Model 5"));
+			PreviewFeatureLevel = ERHIFeatureLevel::SM5;
+		}
+	}
+#endif
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
 	check(MaterialQualityPlatform.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(MaterialQualityPlatform)) == InPreviewFeatureLevel);
 
@@ -7361,10 +7426,8 @@ void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, cons
 	else if (InitialPreviewPlatform != MaterialQualityPlatform)
 	{
 		// Rebuild materials if we have the same feature level but a different 'material quality platform'
-		AllMaterialsCacheResourceShadersForRendering();
+		AllMaterialsCacheResourceShadersForRendering(InPreviewFeatureLevel);
 	}
-
-	PreviewFeatureLevelChanged.Broadcast(InPreviewFeatureLevel);
 
 	if (bSaveSettings)
 	{
@@ -7378,7 +7441,14 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 	
-	GEditor->OnSceneMaterialsModified();
+	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
+	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
+	// opportunity to switch to the new feature level first.
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(nullptr);
+
+	UpdateShaderComplexityMaterials(true);
+
 	GEditor->RedrawAllViewports();
 }
 

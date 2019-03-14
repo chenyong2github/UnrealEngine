@@ -108,7 +108,8 @@ namespace UnrealBuildTool
 
 		public override bool CanUseXGE()
 		{
-			return !(Environment.GetEnvironmentVariable("IsBuildMachine") == "1");
+			// Disable when building on Linux
+			return BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux && !(Environment.GetEnvironmentVariable("IsBuildMachine") == "1");
 		}
 
 		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)
@@ -276,7 +277,17 @@ namespace UnrealBuildTool
 			{
 				foreach (string GPUArchitecture in GPUArchitectures)
 				{
-					AllBinaries.Add(new FileReference(AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture, GPUArchitecture)));
+					string BinaryPath;
+					if (Target.bShouldCompileAsDLL)
+					{
+						BinaryPath = Path.Combine(BinaryName.Directory.FullName, Target.Configuration.ToString(), "libUE4.so");
+					}
+					else
+					{
+						BinaryPath = AndroidToolChain.InlineArchName(BinaryName.FullName, Architecture, GPUArchitecture);
+					}
+
+					AllBinaries.Add(new FileReference(BinaryPath));
 				}
 			}
 

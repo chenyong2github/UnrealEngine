@@ -88,6 +88,7 @@ enum class ECrashContextType
 	Assert,
 	Ensure,
 	GPUCrash,
+	Hang,
 
 	Max
 };
@@ -119,6 +120,7 @@ public:
 	static const FString CrashContextExtension;
 	static const FString RuntimePropertiesTag;
 	static const FString PlatformPropertiesTag;
+	static const FString GameDataTag;
 	static const FString EnabledPluginsTag;
 	static const FString UE4MinidumpName;
 	static const FString NewLineTag;
@@ -128,10 +130,14 @@ public:
 	static const FString CrashTypeAssert;
 	static const FString CrashTypeEnsure;
 	static const FString CrashTypeGPU;
+	static const FString CrashTypeHang;
 
 	static const FString EngineModeExUnknown;
 	static const FString EngineModeExDirty;
 	static const FString EngineModeExVanilla;
+
+	// A guid that identifies this particular execution. Allows multiple crash reports from the same run of the project to be tied together
+	static const FGuid ExecutionGuid;
 
 	/** Initializes crash context related platform specific data that can be impossible to obtain after a crash. */
 	static void Initialize();
@@ -206,6 +212,12 @@ public:
 
 	/** Helper to clean out old files in the crash report client config folder. */
 	static void PurgeOldCrashConfig();
+
+	/** Clears the game data dictionary */
+	static void ResetGameData();
+
+	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
+	static void SetGameData(const FString& Key, const FString& Value);
 
 	/** Adds a plugin descriptor string to the enabled plugins list in the crash context */
 	static void AddPlugin(const FString& PluginDesc);

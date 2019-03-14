@@ -21,16 +21,20 @@ class UGameViewportClient;
 class UGameInstance;
 class FOnlineSessionSearchResult;
 class FPartyPlatformSessionManager;
+class USocialDebugTools;
 
 enum ETravelType;
 
 /** Singleton manager at the top of the social framework */
 UCLASS(Within = GameInstance, Config = Game)
-class PARTY_API USocialManager : public UObject
+class PARTY_API USocialManager : public UObject, public FExec
 {
 	GENERATED_BODY()
 
 public:
+	// FExec
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
+
 	static bool IsSocialSubsystemEnabled(ESocialSubsystem SubsystemType);
 	static FName GetSocialOssName(ESocialSubsystem SubsystemType);
 	static IOnlineSubsystem* GetSocialOss(UWorld* World, ESocialSubsystem SubsystemType);
@@ -49,6 +53,7 @@ public:
 	USocialToolkit* GetFirstLocalUserToolkit() const;
 	FUniqueNetIdRepl GetFirstLocalUserId(ESocialSubsystem SubsystemType) const;
 	int32 GetFirstLocalUserNum() const;
+	USocialDebugTools* GetDebugTools() const;
 
 	DECLARE_EVENT_OneParam(USocialManager, FOnSocialToolkitCreated, USocialToolkit&)
 	FOnSocialToolkitCreated& OnSocialToolkitCreated() const { return OnSocialToolkitCreatedEvent; }
@@ -188,7 +193,7 @@ private:
 	USocialParty* GetPartyInternal(const FOnlinePartyTypeId& PartyTypeId, bool bIncludeLeavingParties = false) const;
 	USocialParty* GetPartyInternal(const FOnlinePartyId& PartyId, bool bIncludeLeavingParties = false) const;
 
-	TSharedPtr<IOnlinePartyJoinInfo> GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession);
+	TSharedPtr<const IOnlinePartyJoinInfo> GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession);
 
 private:	// Handlers
 	void HandleGameViewportInitialized();
@@ -201,7 +206,7 @@ private:	// Handlers
 	void HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, const TSharedPtr<const FOnlinePartyId>& PartyId, ECreatePartyCompletionResult Result, FOnlinePartyTypeId PartyTypeId, FOnCreatePartyAttemptComplete CompletionDelegate);
 	void HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
 	
-	void HandlePersistentPartyStateChanged(EPartyState NewState, USocialParty* PersistentParty);
+	void HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty);
 	void HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult LeaveResult, USocialParty* LeftParty);
 	void HandlePartyLeaveBegin(EMemberExitedReason Reason, USocialParty* LeavingParty);
 	void HandlePartyLeft(EMemberExitedReason Reason, USocialParty* LeftParty);
@@ -218,6 +223,9 @@ private:
 
 	UPROPERTY()
 	TArray<USocialToolkit*> SocialToolkits;
+
+	UPROPERTY()
+	USocialDebugTools* SocialDebugTools;
 
 	bool bIsConnectedToPartyService = false;
 	

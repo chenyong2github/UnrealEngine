@@ -153,6 +153,11 @@ struct FStreamingLevelActorListCollection
 	/** Lists for streaming levels. Actors that "came from" streaming levels go here. These lists are only returned if the connection has their streaming level loaded. */
 	static const int32 NumInlineAllocations = 4;
 	TArray<FStreamingLevelActors, TInlineAllocator<NumInlineAllocations>> StreamingLevelLists;
+
+	void CountBytes(FArchive& Ar)
+	{
+		StreamingLevelLists.CountBytes(Ar);
+	}
 };
 
 // -----------------------------------
@@ -738,46 +743,40 @@ public:
 	/** The max distance between an FActorDestructionInfo and a connection that we will replicate. */
 	float DestructInfoMaxDistanceSquared = 15000.f * 15000.f;
 
+	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
+	
 	// --------------------------------------------------------------
 
-	virtual void InitForNetDriver(UNetDriver* InNetDriver) override;
-	
+	//~ Begin UReplicationDriver Interface
 	virtual void SetRepDriverWorld(UWorld* InWorld) override;
-
+	virtual void InitForNetDriver(UNetDriver* InNetDriver) override;
 	virtual void InitializeActorsInWorld(UWorld* InWorld) override;
-
 	virtual void ResetGameWorldState() override { }
 
 	/** Called by the NetDriver when the client connection is ready/added to the NetDriver's client connection list */
 	virtual void AddClientConnection(UNetConnection* NetConnection) override;
-
 	virtual void RemoveClientConnection(UNetConnection* NetConnection) override;
-
 	virtual void AddNetworkActor(AActor* Actor) override;
+	virtual void RemoveNetworkActor(AActor* Actor) override;
+	virtual void ForceNetUpdate(AActor* Actor) override;
+	virtual void FlushNetDormancy(AActor* Actor, bool bWasDormInitial) override;
+	virtual void NotifyActorTearOff(AActor* Actor) override;
+	virtual void NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection) override;
+	virtual void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState) override;
+	virtual bool ProcessRemoteFunction(class AActor* Actor, UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack, class UObject* SubObject) override;
+	virtual int32 ServerReplicateActors(float DeltaSeconds) override;
+	virtual void PostTickDispatch() override;
+	//~ End UReplicationDriver Interface
 
 	virtual void RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo);
 
 	virtual void RouteRemoveNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo);
 
-	virtual void RemoveNetworkActor(AActor* Actor) override;
-
-	virtual void ForceNetUpdate(AActor* Actor) override;
-
-	virtual void FlushNetDormancy(AActor* Actor, bool bWasDormInitial) override;
-
-	virtual void NotifyActorTearOff(AActor* Actor) override;
-
-	virtual void NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection) override;
-
-	virtual void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState) override;
-
-	virtual int32 ServerReplicateActors(float DeltaSeconds) override;
-
-	virtual bool ProcessRemoteFunction(class AActor* Actor, UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack, class UObject* SubObject ) override;
-
-	void PostTickDispatch() override;
-
 	bool IsConnectionReady(UNetConnection* Connection);
+
+	void SetActorDiscoveryBudget(int32 ActorDiscoveryBudgetInKBytesPerSec);
 
 	// --------------------------------------------------------------
 
@@ -820,7 +819,7 @@ public:
 	/** Prioritization Constants: these affect how the final priority of an actor is calculated in the prioritize phase */
 	struct FPrioritizationConstants
 	{
-		float MaxDistanceScaling = 3000.f * 3000.f;		// Distance scaling for prioritization scales up to this distance, everything passed this distance is the same or "capped"
+		float MaxDistanceScaling = 60000.f * 60000.f;	// Distance scaling for prioritization scales up to this distance, everything passed this distance is the same or "capped"
 		uint32 MaxFramesSinceLastRep = 20;				// Time since last rep scales up to this
 		
 	};
@@ -839,8 +838,8 @@ public:
 
 	// --------------------------------------------------------------
 
-	int64 ReplicateSingleActor(AActor* Actor, FConnectionReplicationActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalActorInfo, FPerConnectionActorInfoMap& ConnectionActorInfoMap, UNetConnection* NetConnection, const uint32 FrameNum);
-	int64 ReplicateSingleActor_FastShared(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, FGlobalActorReplicationInfo& GlobalActorInfo, UNetConnection* NetConnection, const uint32 FrameNum);
+	int64 ReplicateSingleActor(AActor* Actor, FConnectionReplicationActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalActorInfo, FPerConnectionActorInfoMap& ConnectionActorInfoMap, UNetReplicationGraphConnection& ConnectionManager, const uint32 FrameNum);
+	int64 ReplicateSingleActor_FastShared(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, FGlobalActorReplicationInfo& GlobalActorInfo, UNetReplicationGraphConnection& ConnectionManager, const uint32 FrameNum);
 
 	void UpdateActorChannelCloseFrameNum(AActor* Actor, FConnectionReplicationActorInfo& ConnectionData, const FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum, UNetConnection* NetConnection) const;
 
@@ -892,6 +891,7 @@ protected:
 
 	FOutBunch* FastSharedReplicationBunch = nullptr;
 	class UActorChannel* FastSharedReplicationChannel = nullptr;
+	FName FastSharedReplicationFuncName = NAME_None;
 
 #if REPGRAPH_DETAILS
 	bool bEnableFullActorPrioritizationDetailsAllConnections = false;
@@ -910,6 +910,9 @@ private:
 
 	/** Internal frame counter for replication. This is only updated by us. The one of UNetDriver can be updated by RPC calls and is only used to invalidate shared property CLs/serialiation data. */
 	uint32 ReplicationGraphFrame = 0;
+
+	/** Separate bandwidth cap for traffic used when opening actor channels. Ignored if set to 0 */
+	int32 ActorDiscoveryMaxBitsPerFrame;
 
 	UNetReplicationGraphConnection* CreateClientConnectionManagerInternal(UNetConnection* Connection);
 
@@ -930,8 +933,6 @@ class REPLICATIONGRAPH_API UNetReplicationGraphConnection : public UReplicationC
 public:
 
 	UNetReplicationGraphConnection();
-
-	virtual void TearDown() override;
 
 	UPROPERTY()
 	UNetConnection* NetConnection;
@@ -964,10 +965,20 @@ public:
 
 	FVector LastGatherLocation;
 
+	// Nb of bits sent for actor channel creation when a dedicated budget is allocated for this
+	int32 QueuedBitsForActorDiscovery = 0;
+
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
 	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() { return ConnectionGraphNodes; }
 
 	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
+
+	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
+
+	//~ Begin UReplicationConnectionDriver Interface
+	virtual void TearDown() override;
 
 private:
 
@@ -988,6 +999,7 @@ private:
 	virtual void NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) override;
 
 	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) override { OnClientVisibleLevelNameRemove.Broadcast(LevelName); }
+	//~ End UReplicationConnectionDriver Interface
 
 	// ----------------------------------------
 
@@ -1023,6 +1035,15 @@ private:
 		
 		FActorDestructionInfo* DestructionInfo;
 		FVector CachedPosition;
+
+		void CountBytes(FArchive& Ar) const
+		{
+			if (DestructionInfo)
+			{
+				Ar.CountBytes(sizeof(FActorDestructionInfo), sizeof(FActorDestructionInfo));
+				DestructionInfo->CountBytes(Ar);
+			}
+		}
 	};
 
 	TArray<FCachedDestructInfo> PendingDestructInfoList;

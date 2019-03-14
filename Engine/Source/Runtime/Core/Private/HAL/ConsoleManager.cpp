@@ -414,7 +414,7 @@ template<> TConsoleVariableData<FString>* FConsoleVariable<FString>::AsVariableS
 
 // ----
 
-// T: int32, float
+// T: int32, float, bool
 template <class T>
 class FConsoleVariableRef : public FConsoleVariableBase
 {
@@ -485,7 +485,73 @@ FString FConsoleVariableRef<float>::GetString() const
 	return FString::SanitizeFloat(RefValue);
 }
 
-// ----
+// string version
+
+class FConsoleVariableStringRef : public FConsoleVariableBase
+{
+public:
+	FConsoleVariableStringRef(FString& InRefValue, const TCHAR* Help, EConsoleVariableFlags Flags)
+		: FConsoleVariableBase(Help, Flags)
+		, RefValue(InRefValue)
+		, MainValue(InRefValue)
+	{
+	}
+
+	// interface IConsoleVariable -----------------------------------
+
+	virtual void Release()
+	{
+		delete this;
+	}
+	virtual void Set(const TCHAR* InValue, EConsoleVariableFlags SetBy)
+	{
+		if (CanChange(SetBy))
+		{
+			MainValue = InValue;
+			OnChanged(SetBy);
+		}
+	}
+	virtual int32 GetInt() const
+	{
+		int32 Result;
+		TTypeFromString<int32>::FromString(Result, *MainValue);
+		return Result;
+	}
+	virtual float GetFloat() const
+	{
+		float Result = 0.0f;
+		TTypeFromString<float>::FromString(Result, *MainValue);
+		return Result;
+	}
+	virtual FString GetString() const
+	{
+		return MainValue;
+	}
+
+private: // ----------------------------------------------------
+
+	// reference the the value (should not be changed from outside), if ECVF_RenderThreadSafe this is the render thread version, otherwise same as MainValue
+	FString& RefValue;
+	// main thread version 
+	FString MainValue;
+
+	const FString& Value() const
+	{
+		uint32 Index = GetShadowIndex();
+		checkSlow(Index < 2);
+		return (Index == 0) ? MainValue : RefValue;
+	}
+
+	void OnChanged(EConsoleVariableFlags SetBy)
+	{
+		if (CanChange(SetBy))
+		{
+			// propagate from main thread to render thread or to reference
+			OnCVarChange(RefValue, MainValue, Flags);
+			FConsoleVariableBase::OnChanged(SetBy);
+		}
+	}
+};
 
 class FConsoleVariableBitRef : public FConsoleVariableBase
 {
@@ -856,6 +922,11 @@ IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name,
 IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags)
 {
 	return AddConsoleObject(Name, new FConsoleVariableRef<bool>(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
+}
+
+IConsoleVariable* FConsoleManager::RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags)
+{
+	return AddConsoleObject(Name, new FConsoleVariableStringRef(RefValue, Help, (EConsoleVariableFlags)Flags))->AsVariable();
 }
 
 IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags)

@@ -390,15 +390,18 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		// Helper class to allow setting render target
 		struct FRenderTargetOverride : public FRenderTarget
 		{
-			FRenderTargetOverride(FRHITexture2D* In)
+			FRenderTargetOverride(const FRenderTarget* TargetIn, FRHITexture2D* In)
 			{
 				RenderTargetTextureRHI = In;
+				OriginalTarget = TargetIn;
 			}
 
-			virtual FIntPoint GetSizeXY() const { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
+			virtual FIntPoint GetSizeXY() const override { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
+			virtual float GetDisplayGamma() const override { return OriginalTarget->GetDisplayGamma(); }
 
 			FTexture2DRHIRef GetTextureParamRef() { return RenderTargetTextureRHI; }
-		} FlippedRenderTarget(
+			const FRenderTarget* OriginalTarget;
+		} FlippedRenderTarget(Target, 
 			FlippedPooledRenderTarget.GetReference()
 			? FlippedPooledRenderTarget.GetReference()->GetRenderTargetItem().TargetableTexture->GetTexture2D()
 			: nullptr);
@@ -418,6 +421,10 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			RHICmdList.EndRenderPass();
 		}
 
+		// Register pass for InverseOpacity for this scope
+		extern FMeshPassProcessor* CreateMobileInverseOpacityPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);
+		FRegisterPassProcessorCreateFunction RegisterMobileInverseOpacityPass(&CreateMobileInverseOpacityPassProcessor, EShadingPath::Mobile, EMeshPass::MobileInverseOpacity, EMeshPassFlags::MainView);
+		
 		// Render the scene normally
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, RenderScene);

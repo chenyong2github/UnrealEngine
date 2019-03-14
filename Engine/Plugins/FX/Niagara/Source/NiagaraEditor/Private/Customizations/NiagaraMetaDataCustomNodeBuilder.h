@@ -55,50 +55,35 @@ public:
 			MetaDataGroup.ToggleExpansion(true);
 			TSharedRef<FStructOnScope> StructData = MetadataViewModel->GetValueStruct();
 			
-			IDetailPropertyRow* DescriptionRow = ChildrenBuilder.AddExternalStructureProperty(StructData, FName(TEXT("Description")), "Description");
-
-			if (DescriptionRow)
+			auto AddGroupedPropertyRow = [&ChildrenBuilder, &MetadataViewModel, &MetaDataGroup, &StructData](FName PropertyName, bool bShouldAutoExpand, bool bShouldWatchChildProperties)
 			{
-				DescriptionRow->Visibility(EVisibility::Hidden); // hide it here, show it in groups only
-				MetaDataGroup.AddPropertyRow(DescriptionRow->GetPropertyHandle()->AsShared());
+				IDetailPropertyRow* PropertyRow = ChildrenBuilder.AddExternalStructureProperty(StructData, PropertyName, PropertyName);
+				if (PropertyRow)
+				{
+					if (bShouldAutoExpand)
+					{
+						PropertyRow->ShouldAutoExpand(true);
+					}
+					PropertyRow->Visibility(EVisibility::Hidden);
+					MetaDataGroup.AddPropertyRow(PropertyRow->GetPropertyHandle()->AsShared());
 
-				TSharedPtr<IPropertyHandle> PropertyHandle = DescriptionRow->GetPropertyHandle();
-				PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
-			}
-			IDetailPropertyRow* CategoryRow = ChildrenBuilder.AddExternalStructureProperty(StructData, FName(TEXT("CategoryName")), "CategoryName");
+					TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow->GetPropertyHandle();
+					PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
+					if (bShouldWatchChildProperties)
+					{
+						PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
+					}
+				}
+			};
 
-			if (CategoryRow)
-			{
-				CategoryRow->Visibility(EVisibility::Hidden); // hide it here, show it in groups only
-				MetaDataGroup.AddPropertyRow(CategoryRow->GetPropertyHandle()->AsShared());
-
-				TSharedPtr<IPropertyHandle> PropertyHandle = CategoryRow->GetPropertyHandle();
-				PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
-			}
-
-			IDetailPropertyRow* SortingRow = ChildrenBuilder.AddExternalStructureProperty(StructData, FName(TEXT("EditorSortPriority")), "EditorSortPriority");
-
-			if (SortingRow)
-			{
-				SortingRow->Visibility(EVisibility::Hidden); // hide it here, show it in groups only
-				MetaDataGroup.AddPropertyRow(SortingRow->GetPropertyHandle()->AsShared());
-
-				TSharedPtr<IPropertyHandle> PropertyHandle = SortingRow->GetPropertyHandle();
-				PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
-			}
-
-			IDetailPropertyRow* MetaDataRow = ChildrenBuilder.AddExternalStructureProperty(StructData, FName(TEXT("PropertyMetaData")), "PropertyMetaData");
-			
-			if (MetaDataRow)
-			{
-				MetaDataRow->ShouldAutoExpand(true);
-				MetaDataRow->Visibility(EVisibility::Hidden);
-				MetaDataGroup.AddPropertyRow(MetaDataRow->GetPropertyHandle()->AsShared());
-
-				TSharedPtr<IPropertyHandle> PropertyHandle = MetaDataRow->GetPropertyHandle();
-				PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
-				PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(MetadataViewModel, &FNiagaraMetaDataViewModel::NotifyMetaDataChanged));
-			}
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, Description), false, false);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, CategoryName), false, false);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, bAdvancedDisplay), false, false);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, bInlineEditConditionToggle), false, false);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, EditorSortPriority), false, false);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, EditCondition), false, true);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, VisibleCondition), false, true);
+			AddGroupedPropertyRow(GET_MEMBER_NAME_CHECKED(FNiagaraVariableMetaData, PropertyMetaData), true, true);
 		}
 	}
 

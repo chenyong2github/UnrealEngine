@@ -17,6 +17,7 @@
 #include "LightPropagationVolumeSettings.h"
 #include "DecalRenderingShared.h"
 #include "VisualizeTexture.h"
+#include "RayTracing/RaytracingOptions.h"
 
 /** The global center for all deferred lighting activities. */
 FCompositionLighting GCompositionLighting;
@@ -52,6 +53,12 @@ static TAutoConsoleVariable<int32> CVarSubsurfaceScattering(
 	1,
 	TEXT(" 0: disabled\n")
 	TEXT(" 1: enabled (default)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
+static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
+	TEXT("r.AmbientOcclusion.Compute.Smooth"),
+	1,
+	TEXT("Whether to smooth SSAO output when TAA is disabled"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 bool IsAmbientCubemapPassRequired(const FSceneView& View)
@@ -122,7 +129,9 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 			&& (FSSAOHelper::IsBasePassAmbientOcclusionRequired(View) || IsAmbientCubemapPassRequired(View) || IsReflectionEnvironmentActive(View) || IsSkylightActive(View) || View.Family->EngineShowFlags.VisualizeBuffer)
 			&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
 	}
-
+#if RHI_RAYTRACING
+	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion();
+#endif
 	return bEnabled;
 }
 
@@ -206,11 +215,25 @@ static FRenderingCompositeOutputRef AddPostProcessingAmbientOcclusion(FRHIComman
 		GBufferA = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.GBufferA));
 	}
 
-	FRenderingCompositePass* AmbientOcclusionPassMip0 = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion(Context.View, FullResAOType, false));
+	// If there is no temporal upsampling, we need a smooth pass to get rid of the grid pattern.
+	// PS version has relatively smooth result so no need to do extra work
+	const bool bNeedSmoothingPass = FullResAOType != ESSAOType::EPS && Context.View.AntiAliasingMethod != AAM_TemporalAA && CVarSSAOSmoothPass.GetValueOnRenderThread();
+	const EPixelFormat SmoothingPassInputFormat = bNeedSmoothingPass ? PF_G8 : PF_Unknown;
+
+	FRenderingCompositePass* AmbientOcclusionPassMip0 = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion(Context.View, FullResAOType, false, bNeedSmoothingPass, SmoothingPassInputFormat));
 	AmbientOcclusionPassMip0->SetInput(ePId_Input0, GBufferA);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input1, AmbientOcclusionInMip1);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input2, AmbientOcclusionPassMip1);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input3, HZBInput);
+	FRenderingCompositePass* FinalOutputPass = AmbientOcclusionPassMip0;
+
+	if (bNeedSmoothingPass)
+	{
+		FRenderingCompositePass* SSAOSmoothPass;
+		SSAOSmoothPass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusionSmooth(FullResAOType, true));
+		SSAOSmoothPass->SetInput(ePId_Input0, AmbientOcclusionPassMip0);
+		FinalOutputPass = SSAOSmoothPass;
+	}
 
 	// to make sure this pass is processed as well (before), needed to make process decals before computing AO
 	if(AmbientOcclusionInMip1)
@@ -222,11 +245,11 @@ static FRenderingCompositeOutputRef AddPostProcessingAmbientOcclusion(FRHIComman
 		AmbientOcclusionPassMip0->AddDependency(Context.FinalOutput);
 	}
 
-	Context.FinalOutput = FRenderingCompositeOutputRef(AmbientOcclusionPassMip0);
+	Context.FinalOutput = FRenderingCompositeOutputRef(FinalOutputPass);
 
 	SceneContext.bScreenSpaceAOIsValid = true;
 
-	return FRenderingCompositeOutputRef(AmbientOcclusionPassMip0);
+	return FRenderingCompositeOutputRef(FinalOutputPass);
 }
 
 void FCompositionLighting::ProcessBeforeBasePass(FRHICommandListImmediate& RHICmdList, FViewInfo& View, bool bDBuffer, uint32 SSAOLevels)
@@ -281,7 +304,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferC);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferD);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferE);
-	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GBufferVelocity);
+	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.SceneVelocity);
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.ScreenSpaceAO);
 	
 	// so that the passes can register themselves to the graph
@@ -326,7 +349,12 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 		if (!IsForwardShadingEnabled(View.GetShaderPlatform()))
 		{
 			FRenderingCompositeOutputRef AmbientOcclusion;
-
+#if RHI_RAYTRACING
+			if (ShouldRenderRayTracingAmbientOcclusion() && SceneContext.bScreenSpaceAOIsValid)
+			{
+				AmbientOcclusion = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.ScreenSpaceAO));
+			}
+#endif
 			uint32 SSAOLevels = FSSAOHelper::ComputeAmbientOcclusionPassCount(Context.View);
 			if (SSAOLevels)
 			{
@@ -349,13 +377,14 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 						TEXT("Ambient occlusion decals are not supported with Async compute SSAO."));
 				}
 
-				if (FSSAOHelper::IsBasePassAmbientOcclusionRequired(Context.View))
-				{
-					FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasePassAO());
-					Pass->AddDependency(Context.FinalOutput);
+			}
 
-					Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
-				}
+			if (SceneContext.bScreenSpaceAOIsValid && FSSAOHelper::IsBasePassAmbientOcclusionRequired(Context.View))
+			{
+				FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasePassAO());
+				Pass->AddDependency(Context.FinalOutput);
+
+				Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
 			}
 
 			if (IsAmbientCubemapPassRequired(Context.View))

@@ -27,11 +27,6 @@ void FPoseDriverEditMode::ExitMode()
 	FAnimNodeEditMode::ExitMode();
 }
 
-static FLinearColor GetColorFromWeight(float InWeight)
-{
-	return FMath::Lerp(FLinearColor::White, FLinearColor::Red, InWeight);
-}
-
 /** Hit proxy for selecting targets */
 struct HPDTargetHitProxy : public HHitProxy
 {
@@ -61,9 +56,12 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	GraphNode->LastPreviewComponent = SkelComp;
 
 	static const float DrawLineWidth = 0.1f;
-	static const float DrawAxisLength = 20.f;
 	static const float DrawPosSize = 2.f;
+	float DrawAxisLength = GraphNode->AxisLength;
+	int32 DrawConeSubdivision = GraphNode->ConeSubdivision;
 
+	TArray<FRBFTarget> RBFTargets;
+	RuntimeNode->GetRBFTargets(RBFTargets);
 
 	// Iterate over each bone in the 'source bones' array
 	for (int32 SourceIdx=0; SourceIdx< RuntimeNode->SourceBones.Num(); SourceIdx++)
@@ -103,9 +101,49 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				// Rotation drawing
 				if (RuntimeNode->DriveSource == EPoseDriverSource::Rotation)
 				{
-					FVector LocalVec = SourceBoneTM.TransformVectorNoScale(RuntimeNode->RBFParams.GetTwistAxisVector());
-					FVector WorldVec = EvalSpaceTM.TransformVectorNoScale(LocalVec);
-					PDI->DrawLine(BonePos, BonePos + (WorldVec*DrawAxisLength), FLinearColor::Green, SDPG_Foreground, DrawLineWidth);
+					FVector LocalTwistVec = SourceBoneTM.TransformVectorNoScale(RuntimeNode->RBFParams.GetTwistAxisVector());
+					FVector WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
+					PDI->DrawLine(BonePos, BonePos + (WorldTwistVec*DrawAxisLength), FLinearColor::Green, SDPG_Foreground, DrawLineWidth);
+
+					// draw the median cones
+					if (RuntimeNode->RBFParams.NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian)
+					{
+						const FVector& MedianRot = RuntimeNode->RBFParams.MedianReference;
+						LocalTwistVec = FRotator(MedianRot.X, MedianRot.Y, MedianRot.Z).RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
+						WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
+
+						FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
+						FVector WorldSwingVec = EvalSpaceTM.TransformVectorNoScale(LocalSwingVec);
+						WorldSwingVec.Normalize();
+
+						FQuat WorldTwistQ(WorldTwistVec, PI * 2.0f / float(DrawConeSubdivision));
+						FQuat WorldSwingMinQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMin));
+						FQuat WorldSwingMaxQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMax));
+
+						FVector FirstMinPositionOnCircle = WorldSwingMinQ.RotateVector(WorldTwistVec * DrawAxisLength);
+						FVector FirstMaxPositionOnCircle = WorldSwingMaxQ.RotateVector(WorldTwistVec * DrawAxisLength);
+						FVector LastMinPositionOnCircle = FirstMinPositionOnCircle;
+						FVector LastMaxPositionOnCircle = FirstMaxPositionOnCircle;
+
+						FLinearColor MinColor = FLinearColor::Yellow;
+						FLinearColor MaxColor = MinColor.Desaturate(0.5);
+
+						for (int32 i = 0; i < DrawConeSubdivision; i++)
+						{
+							FVector NextMinPositionOnCircle = WorldTwistQ.RotateVector(LastMinPositionOnCircle);
+							FVector NextMaxPositionOnCircle = WorldTwistQ.RotateVector(LastMaxPositionOnCircle);
+							PDI->DrawLine(BonePos, BonePos + NextMinPositionOnCircle, MinColor, SDPG_Foreground, DrawLineWidth);
+							PDI->DrawLine(BonePos, BonePos + NextMaxPositionOnCircle, MaxColor , SDPG_Foreground, DrawLineWidth);
+							PDI->DrawLine(BonePos + LastMinPositionOnCircle, BonePos + NextMinPositionOnCircle, MinColor, SDPG_Foreground, DrawLineWidth);
+							PDI->DrawLine(BonePos + LastMaxPositionOnCircle, BonePos + NextMaxPositionOnCircle, MaxColor, SDPG_Foreground, DrawLineWidth);
+							PDI->DrawLine(BonePos + NextMinPositionOnCircle, BonePos + NextMaxPositionOnCircle, MaxColor, SDPG_Foreground, DrawLineWidth);
+
+							LastMinPositionOnCircle = NextMinPositionOnCircle;
+							LastMaxPositionOnCircle = NextMaxPositionOnCircle;
+						}
+						PDI->DrawLine(BonePos + LastMinPositionOnCircle, BonePos + FirstMinPositionOnCircle, MinColor, SDPG_Foreground, DrawLineWidth);
+						PDI->DrawLine(BonePos + LastMaxPositionOnCircle, BonePos + FirstMaxPositionOnCircle, MaxColor, SDPG_Foreground, DrawLineWidth);
+					}
 				}
 				// Translation drawing
 				else if (RuntimeNode->DriveSource == EPoseDriverSource::Translation)
@@ -113,13 +151,27 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					FVector LocalPos = SourceBoneTM.GetTranslation();
 					FVector WorldPos = EvalSpaceTM.TransformPosition(LocalPos);
 					DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), DrawPosSize, FLinearColor::Green, SDPG_Foreground);
+
+					// draw the median diamonds
+					if (RuntimeNode->RBFParams.NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian)
+					{
+						WorldPos = EvalSpaceTM.TransformPosition(RuntimeNode->RBFParams.MedianReference);
+
+						FLinearColor MinColor = FLinearColor::Yellow;
+						FLinearColor MaxColor = MinColor.Desaturate(0.5);
+
+						DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), RuntimeNode->RBFParams.MedianMin, MinColor, SDPG_Foreground);
+						DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), RuntimeNode->RBFParams.MedianMax, MaxColor, SDPG_Foreground);
+					}
 				}
 
 				// Build array of weight for every target
+				float TotalWeight = 0.f;
 				TArray<float> PerTargetWeights;
 				PerTargetWeights.AddZeroed(RuntimeNode->PoseTargets.Num());
 				for (const FRBFOutputWeight& Weight : RuntimeNode->OutputWeights)
 				{
+					TotalWeight += Weight.TargetWeight;
 					PerTargetWeights[Weight.TargetIndex] = Weight.TargetWeight;
 				}
 
@@ -128,6 +180,14 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				{
 					// Check we have a target transform for this bone
 					const FPoseDriverTarget& PoseTarget = RuntimeNode->PoseTargets[TargetIdx];
+					const FRBFTarget& RBFTarget = RBFTargets[TargetIdx];
+
+					// skip hidden entries
+					if (PoseTarget.bIsHidden)
+					{
+						continue;
+					}
+
 					if (PoseTarget.BoneTransforms.IsValidIndex(SourceIdx))
 					{
 						const FPoseDriverTransform& TargetTM = PoseTarget.BoneTransforms[SourceIdx];
@@ -135,23 +195,44 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						bool bSelected = (GraphNode->SelectedTargetIndex == TargetIdx);
 						float AxisLength = bSelected ? (DrawAxisLength * 1.5f) : DrawAxisLength;
 						float LineWidth = bSelected ? (DrawLineWidth * 3.f) : DrawLineWidth;
-						float PosSize = bSelected ? (DrawPosSize * 1.5f) : DrawPosSize;
+						float Radius = RuntimeNode->GetRadiusForTarget(RBFTarget);
+						
+						FLinearColor Color = TotalWeight <= 0.f ? FLinearColor::Black : GraphNode->GetColorFromWeight(PerTargetWeights[TargetIdx]);
 
 						PDI->SetHitProxy(new HPDTargetHitProxy(TargetIdx));
 
 						// Rotation drawing
 						if (RuntimeNode->DriveSource == EPoseDriverSource::Rotation)
 						{
-							FVector LocalVec = TargetTM.TargetRotation.RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
-							FVector WorldVec = EvalSpaceTM.TransformVectorNoScale(LocalVec);
-							PDI->DrawLine(BonePos, BonePos + (WorldVec*AxisLength), GetColorFromWeight(PerTargetWeights[TargetIdx]), SDPG_Foreground, LineWidth);
+							FVector LocalTwistVec = TargetTM.TargetRotation.RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
+							FVector WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
+
+							FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
+							FVector WorldSwingVec = EvalSpaceTM.TransformVectorNoScale(LocalSwingVec);
+							WorldSwingVec.Normalize();
+
+							FQuat WorldTwistQ(WorldTwistVec, PI * 2.0f / float(DrawConeSubdivision));
+							FQuat WorldSwingQ(WorldSwingVec, FMath::DegreesToRadians(Radius));
+
+							FVector FirstPositionOnCircle = WorldSwingQ.RotateVector(WorldTwistVec * DrawAxisLength);
+							FVector LastPositionOnCircle = FirstPositionOnCircle;
+
+							for (int32 i = 0; i < DrawConeSubdivision; i++)
+							{
+								FVector NextPositionOnCircle = WorldTwistQ.RotateVector(LastPositionOnCircle);
+								PDI->DrawLine(BonePos, BonePos + NextPositionOnCircle, Color, SDPG_Foreground, DrawLineWidth);
+								PDI->DrawLine(BonePos + LastPositionOnCircle, BonePos + NextPositionOnCircle, Color, SDPG_Foreground, DrawLineWidth);
+
+								LastPositionOnCircle = NextPositionOnCircle;
+							}
+							PDI->DrawLine(BonePos + LastPositionOnCircle, BonePos + FirstPositionOnCircle, Color, SDPG_Foreground, DrawLineWidth);
 						}
 						// Translation drawing
 						else if (RuntimeNode->DriveSource == EPoseDriverSource::Translation)
 						{
 							FVector LocalPos = TargetTM.TargetTranslation;
 							FVector WorldPos = EvalSpaceTM.TransformPosition(LocalPos);
-							DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), PosSize, GetColorFromWeight(PerTargetWeights[TargetIdx]), SDPG_Foreground, LineWidth);
+							DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), Radius, Color, SDPG_Foreground, LineWidth);
 						}
 
 						PDI->SetHitProxy(nullptr);

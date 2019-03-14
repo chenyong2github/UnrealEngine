@@ -121,6 +121,8 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 {
 	check(FVulkanPlatform::SupportsStandardSwapchain());
 
+	NextPresentTargetTime = (FPlatformTime::Seconds() - GStartTime);
+
 	// let the platform create the surface
 	FVulkanPlatform::CreateSurface(WindowHandle, Instance, &Surface);
 
@@ -202,7 +204,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		if (InOutPixelFormat == PF_Unknown)
 		{
 			UE_LOG(LogVulkanRHI, Warning, TEXT("Can't find a proper pixel format for the swapchain, trying to pick up the first available"));
-			VkFormat PlatformFormat = UEToVkFormat(InOutPixelFormat, false);
+			VkFormat PlatformFormat = UEToVkTextureFormat(InOutPixelFormat, false);
 			bool bSupported = false;
 			for (int32 Index = 0; Index < Formats.Num(); ++Index)
 			{
@@ -240,7 +242,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		}
 	}
 
-	VkFormat PlatformFormat = UEToVkFormat(InOutPixelFormat, false);
+	VkFormat PlatformFormat = UEToVkTextureFormat(InOutPixelFormat, false);
 
 	Device.SetupPresentQueue(Surface);
 
@@ -248,7 +250,8 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	VkPresentModeKHR PresentMode = VK_PRESENT_MODE_FIFO_KHR;
 	if (FVulkanPlatform::SupportsQuerySurfaceProperties())
 	{
-		static bool bFirstTimeLog = true;
+		// Only dump the present modes the very first time they are queried
+		static bool bFirstTimeLog = !!VULKAN_HAS_DEBUGGING_ENABLED;
 
 		uint32 NumFoundPresentModes = 0;
 		VERIFYVULKANRESULT(VulkanRHI::vkGetPhysicalDeviceSurfacePresentModesKHR(Device.GetPhysicalHandle(), Surface, &NumFoundPresentModes, nullptr));
@@ -279,6 +282,9 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 			case VK_PRESENT_MODE_FIFO_KHR:
 				bFoundPresentModeFIFO = true;
 				UE_CLOG(bFirstTimeLog, LogVulkanRHI, Display, TEXT("- VK_PRESENT_MODE_FIFO_KHR (%d)"), (int32)VK_PRESENT_MODE_FIFO_KHR);
+				break;
+			case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+				UE_CLOG(bFirstTimeLog, LogVulkanRHI, Display, TEXT("- VK_PRESENT_MODE_FIFO_RELAXED_KHR (%d)"), (int32)VK_PRESENT_MODE_FIFO_RELAXED_KHR);
 				break;
 			default:
 				UE_CLOG(bFirstTimeLog, LogVulkanRHI, Display, TEXT("- VkPresentModeKHR %d"), (int32)FoundPresentModes[i]);
@@ -425,6 +431,9 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
 
+	InternalWidth = FMath::Min(Width, SwapChainInfo.imageExtent.width);
+	InternalHeight = FMath::Min(Height, SwapChainInfo.imageExtent.height);
+
 	uint32 NumSwapChainImages;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkGetSwapchainImagesKHR(Device.GetInstanceHandle(), SwapChain, &NumSwapChainImages, nullptr));
 
@@ -549,6 +558,7 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 	++NumAcquireCalls;
 	*OutSemaphore = ImageAcquiredSemaphore[SemaphoreIndex];
 
+#if VULKAN_HAS_DEBUGGING_ENABLED
 	if (Result == VK_ERROR_VALIDATION_FAILED_EXT)
 	{
 		extern TAutoConsoleVariable<int32> GValidationCvar;
@@ -558,6 +568,7 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 		}
 	}
 	else
+#endif
 	{
 		checkf(Result == VK_SUCCESS || Result == VK_SUBOPTIMAL_KHR, TEXT("vkAcquireNextImageKHR failed Result = %d"), int32(Result));
 	}
@@ -751,25 +762,21 @@ void FVulkanSwapChain::RenderThreadPacing()
 	//very naive CPU side frame pacer.
 	if (GVulkanCPURenderThreadFramePacer && SyncInterval > 0)
 	{
-		static double PreviousFrameCPUTime = 0;
-		static double SampledDeltaTimeMS = 0;
-		static uint32 SampleCount = 0;
-
 		double NowCPUTime = FPlatformTime::Seconds();
-		double DeltaCPUPresentTimeMS = (NowCPUTime - PreviousFrameCPUTime) * 1000.0;
+		double DeltaCPUPresentTimeMS = (NowCPUTime - RTPacingPreviousFrameCPUTime) * 1000.0;
 
 
 		double TargetIntervalWithEpsilonMS = (double)SyncInterval * (1.0 / 60.0) * 1000.0;
 		const double IntervalThresholdMS = TargetIntervalWithEpsilonMS * 0.1;
 
-		SampledDeltaTimeMS += DeltaCPUPresentTimeMS; SampleCount++;
+		RTPacingSampledDeltaTimeMS += DeltaCPUPresentTimeMS; RTPacingSampleCount++;
 
-		double SampledDeltaMS = (SampledDeltaTimeMS / (double)SampleCount) + IntervalThresholdMS;
+		double SampledDeltaMS = (RTPacingSampledDeltaTimeMS / (double)RTPacingSampleCount) + IntervalThresholdMS;
 
-		if (SampleCount > 1000)
+		if (RTPacingSampleCount > 1000)
 		{
-			SampledDeltaTimeMS = SampledDeltaMS;
-			SampleCount = 1;
+			RTPacingSampledDeltaTimeMS = SampledDeltaMS;
+			RTPacingSampleCount = 1;
 		}
 
 		if (SampledDeltaMS < (TargetIntervalWithEpsilonMS))
@@ -793,7 +800,7 @@ void FVulkanSwapChain::RenderThreadPacing()
 				UE_LOG(LogVulkanRHI, Log, TEXT("CPU RT delta: %f"), DeltaCPUPresentTimeMS);
 			}
 		}
-		PreviousFrameCPUTime = NowCPUTime;
+		RTPacingPreviousFrameCPUTime = NowCPUTime;
 	}
 }
 
@@ -839,7 +846,6 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 	if (GVulkanCPURHIFramePacer && SyncInterval > 0)
 	{
 		const double NowCPUTime = (FPlatformTime::Seconds() - GStartTime);
-		static double NextPresentTargetTime = NowCPUTime;
 
 		const double TimeToSleep = (NextPresentTargetTime - NowCPUTime);
 		const double TargetIntervalWithEpsilon = (double)SyncInterval * (1.0 / 60.0);

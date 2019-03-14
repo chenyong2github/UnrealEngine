@@ -23,6 +23,10 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Misc/CompilationResult.h"
+
+#include "EditorSubsystem.h"
+#include "Subsystems/SubsystemCollection.h"
+
 #include "EditorEngine.generated.h"
 
 class AMatineeActor;
@@ -335,7 +339,7 @@ struct FSelectionStateOfLevel
 	TArray<FString> SelectedComponents;
 };
 
-/** Overrides you can pass when starting PIE to temporarily supress the user's options for dedicated server, number of clients..etc. */
+/** Overrides you can pass when starting PIE to temporarily suppress the user's options for dedicated server, number of clients..etc. */
 struct FPlayInEditorOverrides
 {
 	FPlayInEditorOverrides()
@@ -746,6 +750,7 @@ public:
 
 	/** Called when an object is reimported. */
 	DECLARE_EVENT_OneParam( UEditorEngine, FObjectReimported, UObject* );
+	UE_DEPRECATED(4.22, "Use the ImportSubsystem instead. GEditor->GetEditorSubsystem<UImportSubsystem>()")
 	FObjectReimported& OnObjectReimported() { return ObjectReimportedEvent; }
 
 	/** Editor-only event triggered before an actor or component is moved, rotated or scaled by an editor system */
@@ -2654,12 +2659,23 @@ public:
 	 */
 	bool CreatePIEWorldFromLogin(FWorldContext& PieWorldContext, EPlayNetMode PlayNetMode, FPieLoginStruct& DataStruct);
 
+	/** Called before creating a PIE server instance. */
+	virtual FGameInstancePIEResult PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances);
+
 	/*
 	 * Handler for when viewport close request is made. 
 	 *
 	 * @param InViewport the viewport being closed.
 	 */
 	void OnViewportCloseRequested(FViewport* InViewport);
+
+	/*
+	 * Fills level viewport client transform used in simulation mode 
+	 *
+	 * @param OutViewTransform filled view transform used in SIE
+	 * @return true if function succeeded, false if failed
+	 */
+	bool GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const;
 
 private:
 	/** Gets the scene viewport for a viewport client */
@@ -2692,7 +2708,7 @@ private:
 	/**
 	 * Called via a delegate to toggle between the editor and pie world
 	 */
-	void OnSwitchWorldsForPIE( bool bSwitchToPieWorld );
+	void OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* OverrideWorld = nullptr );
 
 	/**
 	 * Gives focus to the server or first PIE client viewport
@@ -3036,7 +3052,7 @@ public:
 	void OnSceneMaterialsModified();
 
 	/** Call this function to change the feature level and to override the material quality platform of the editor and PIE worlds */
-	void SetPreviewPlatform(const FName MaterialQualityPlatform, const ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings = true);
+	void SetPreviewPlatform(const FName MaterialQualityPlatform, ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings = true);
 
 	/** Toggle the feature level preview */
 	void ToggleFeatureLevelPreview();
@@ -3055,10 +3071,10 @@ protected:
 	void SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** call this function to change the feature level for all materials */
-	void SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel);
+	void SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** call this to recompile the materials */
-	void AllMaterialsCacheResourceShadersForRendering();
+	void AllMaterialsCacheResourceShadersForRendering(ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** Function pair used to save and restore the global feature level */
 	void LoadEditorFeatureLevel();
@@ -3068,8 +3084,12 @@ protected:
 	 *  but when displaying the shader complexity we need to be able compile and extract statistics (instruction count) from the real shaders that
 	 *  will be compiled when the game will run on the specific platform. Thus (if compiler available) we perform an 'offline' shader compilation step,
 	 *  extract the needed statistics and transfer them to the emulated editor running shaders.
-	 *  This function will be called from OnSceneMaterialsModified() */
-	void UpdateShaderComplexityMaterials();
+	 *  This function will be called from OnSceneMaterialsModified()
+	 *
+	 * @param	bForceUpdate	When true, view mode shaders are always updated for worlds displaying shader complexity materials.
+	 *                          When false, view mode shaders are rebuilt only when emulating a shader platform.
+	 */
+	void UpdateShaderComplexityMaterials(bool bForceUpdate);
 
 	/** Utility function that can determine whether some input world is using materials who's shaders are emulated in the editor */
 	bool IsEditorShaderPlatformEmulated(UWorld* World);
@@ -3089,6 +3109,41 @@ private:
 
 	/** Delegate handle for game viewport close requests in PIE sessions. */
 	FDelegateHandle ViewportCloseRequestedDelegateHandle;
+
+public:
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	UEditorSubsystem* GetEditorSubsystemBase(TSubclassOf<UEditorSubsystem> SubsystemClass) const
+	{
+		checkSlow(this != nullptr);
+		return EditorSubsystemCollection.GetSubsystem<UEditorSubsystem>(SubsystemClass);
+	}
+
+	/**
+	 * Get a Subsystem of specified type
+	 */
+	template <typename TSubsystemClass>
+	TSubsystemClass* GetEditorSubsystem() const
+	{
+		checkSlow(this != nullptr);
+		return EditorSubsystemCollection.GetSubsystem<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+	/**
+	 * Get all Subsystem of specified type, this is only necessary for interfaces that can have multiple implementations instanced at a time.
+	 *
+	 * Do not hold onto this Array reference unless you are sure the lifetime is less than that of UGameInstance
+	 */
+	template <typename TSubsystemClass>
+	const TArray<TSubsystemClass*>& GetEditorSubsystemArray() const
+	{
+		return EditorSubsystemCollection.GetSubsystemArray<TSubsystemClass>(TSubsystemClass::StaticClass());
+	}
+
+private:
+	FSubsystemCollection<UEditorSubsystem> EditorSubsystemCollection;
+
 };
 
 //////////////////////////////////////////////////////////////////////////

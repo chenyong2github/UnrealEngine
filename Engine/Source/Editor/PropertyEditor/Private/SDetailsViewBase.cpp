@@ -111,14 +111,17 @@ void SDetailsViewBase::HideFilterArea(bool bHide)
 
 static void GetPropertiesInOrderDisplayedRecursive(const TArray< TSharedRef<FDetailTreeNode> >& TreeNodes, TArray< FPropertyPath > &OutLeaves)
 {
-	for (auto& TreeNode : TreeNodes)
+	for( const TSharedRef<FDetailTreeNode>& TreeNode : TreeNodes )
 	{
-		if (TreeNode->IsLeaf())
+		const bool bIsPropertyRoot = TreeNode->IsLeaf() ||
+			(	TreeNode->GetPropertyNode() && 
+				TreeNode->GetPropertyNode()->GetProperty() );
+		if( bIsPropertyRoot )
 		{
 			FPropertyPath Path = TreeNode->GetPropertyPath();
 			// Some leaf nodes are not associated with properties, specifically the collision presets.
 			// @todo doc: investigate what we can do about this, result is that for these fields
-			// we can't highlight hte property in the diff tool.
+			// we can't highlight the property in the diff tool.
 			if( Path.GetNumProperties() != 0 )
 			{
 				OutLeaves.Push(Path);
@@ -646,7 +649,7 @@ EVisibility SDetailsViewBase::GetFilterBoxVisibility() const
 	// Visible if we allow search and we have anything to search otherwise collapsed so it doesn't take up room	
 	if (DetailsViewArgs.bAllowSearch && IsConnected())
 	{
-		if (RootTreeNodes.Num() > 0 || HasActiveSearch() || CurrentFilter.bShowOnlyModifiedProperties || CurrentFilter.bShowOnlyDiffering)
+		if (RootTreeNodes.Num() > 0 || HasActiveSearch() || !CurrentFilter.IsEmptyFilter())
 		{
 			Result = EVisibility::Visible;
 		}

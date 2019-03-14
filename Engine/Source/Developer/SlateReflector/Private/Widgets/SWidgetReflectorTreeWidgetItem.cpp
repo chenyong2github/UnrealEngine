@@ -33,6 +33,7 @@ void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TShared
 	CachedWidgetVisibility = WidgetInfo->GetWidgetVisibilityText();
 	CachedWidgetClipping = WidgetInfo->GetWidgetClippingText();
 	bCachedWidgetFocusable = WidgetInfo->GetWidgetFocusable();
+	bCachedWidgetVisible = WidgetInfo->GetWidgetVisible();
 	CachedReadableLocation = WidgetInfo->GetWidgetReadableLocation();
 	CachedWidgetFile = WidgetInfo->GetWidgetFile();
 	CachedWidgetLineNumber = WidgetInfo->GetWidgetLineNumber();

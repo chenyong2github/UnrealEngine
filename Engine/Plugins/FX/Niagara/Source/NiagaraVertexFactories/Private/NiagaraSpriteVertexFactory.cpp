@@ -5,41 +5,16 @@
 =============================================================================*/
 
 #include "NiagaraSpriteVertexFactory.h"
+#include "NiagaraCutoutVertexBuffer.h"
 #include "ParticleHelper.h"
 #include "ParticleResources.h"
 #include "ShaderParameterUtils.h"
+#include "MeshMaterialShader.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteUniformParameters,"NiagaraSpriteVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, "NiagaraSpriteVFLooseParameters");
 
 TGlobalResource<FNullDynamicParameterVertexBuffer> GNullNiagaraDynamicParameterVertexBuffer;
-
-class FNiagaraNullSubUVCutoutVertexBuffer : public FVertexBuffer
-{
-public:
-	/**
-	 * Initialize the RHI for this rendering resource
-	 */
-	virtual void InitRHI() override
-	{
-		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo;
-		void* BufferData = nullptr;
-		VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector2D) * 4, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
-		FMemory::Memzero(BufferData, sizeof(FVector2D) * 4);
-		RHIUnlockVertexBuffer(VertexBufferRHI);
-		
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
-	}
-	
-	virtual void ReleaseRHI() override
-	{
-		VertexBufferSRV.SafeRelease();
-		FVertexBuffer::ReleaseRHI();
-	}
-	
-	FShaderResourceViewRHIRef VertexBufferSRV;
-};
-TGlobalResource<FNiagaraNullSubUVCutoutVertexBuffer> GFNiagaraNullSubUVCutoutVertexBuffer;
 
 /**
  * Shader parameters for the particle vertex factory.
@@ -99,27 +74,36 @@ public:
 		Ar << SortedIndicesOffset;
 	}
 
-	virtual void SetMesh(FRHICommandList& RHICmdList, FShader* Shader,const FVertexFactory* VertexFactory,const FSceneView& View,const FMeshBatchElement& BatchElement,uint32 DataFlags) const override
+	virtual void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		bool bShaderRequiresPositionOnlyStream,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const override
 	{
 		FNiagaraSpriteVertexFactory* SpriteVF = (FNiagaraSpriteVertexFactory*)VertexFactory;
-		FVertexShaderRHIParamRef VertexShaderRHI = Shader->GetVertexShader();
-		SetUniformBufferParameter(RHICmdList, VertexShaderRHI, Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
-		
-		SetShaderValue(RHICmdList, VertexShaderRHI, NumCutoutVerticesPerFrame, SpriteVF->GetNumCutoutVerticesPerFrame());
-		FShaderResourceViewRHIParamRef NullSRV = GFNiagaraNullSubUVCutoutVertexBuffer.VertexBufferSRV;
-		SetSRVParameter(RHICmdList, VertexShaderRHI, CutoutGeometry, SpriteVF->GetCutoutGeometrySRV() ? SpriteVF->GetCutoutGeometrySRV() : NullSRV);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 
-		SetShaderValue(RHICmdList, VertexShaderRHI, ParticleAlignmentMode, SpriteVF->GetAlignmentMode());
-		SetShaderValue(RHICmdList, VertexShaderRHI, ParticleFacingMode, SpriteVF->GetFacingMode());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteVFLooseParameters>(), SpriteVF->LooseParameterUniformBuffer);
 		
-		SetSRVParameter(RHICmdList, VertexShaderRHI, NiagaraParticleDataFloat, SpriteVF->GetParticleDataFloatSRV());
-		SetShaderValue(RHICmdList, VertexShaderRHI, FloatDataOffset, SpriteVF->GetFloatDataOffset());
-		SetShaderValue(RHICmdList, VertexShaderRHI, FloatDataStride, SpriteVF->GetFloatDataStride());
+		ShaderBindings.Add(NumCutoutVerticesPerFrame, SpriteVF->GetNumCutoutVerticesPerFrame());
+		FShaderResourceViewRHIParamRef NullSRV = GFNiagaraNullCutoutVertexBuffer.VertexBufferSRV;
+		ShaderBindings.Add(CutoutGeometry, SpriteVF->GetCutoutGeometrySRV() ? SpriteVF->GetCutoutGeometrySRV() : NullSRV);
 
-		SetSRVParameter(RHICmdList, VertexShaderRHI, SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV);
-		SetShaderValue(RHICmdList, VertexShaderRHI, SortedIndicesOffset, SpriteVF->GetSortedIndicesOffset());
+		ShaderBindings.Add(ParticleAlignmentMode, SpriteVF->GetAlignmentMode());
+		ShaderBindings.Add(ParticleFacingMode, SpriteVF->GetFacingMode());
+
+		ShaderBindings.Add(NiagaraParticleDataFloat, SpriteVF->GetParticleDataFloatSRV());
+		ShaderBindings.Add(FloatDataOffset, SpriteVF->GetFloatDataOffset());
+		ShaderBindings.Add(FloatDataStride, SpriteVF->GetFloatDataStride());
+
+		ShaderBindings.Add(SortedIndices, SpriteVF->GetSortedIndicesSRV() ? SpriteVF->GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV);
+		ShaderBindings.Add(SortedIndicesOffset, SpriteVF->GetSortedIndicesOffset());
 	}
-
 private:
 	FShaderParameter NumCutoutVerticesPerFrame;
 
@@ -144,11 +128,19 @@ class FNiagaraSpriteVertexFactoryShaderParametersPS : public FNiagaraSpriteVerte
 {
 public:
 
-	virtual void SetMesh(FRHICommandList& RHICmdList, FShader* Shader,const FVertexFactory* VertexFactory,const FSceneView& View,const FMeshBatchElement& BatchElement,uint32 DataFlags) const override
+	virtual void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		bool bShaderRequiresPositionOnlyStream,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const override
 	{
 		FNiagaraSpriteVertexFactory* SpriteVF = (FNiagaraSpriteVertexFactory*)VertexFactory;
-		FPixelShaderRHIParamRef PixelShaderRHI = Shader->GetPixelShader();
-		SetUniformBufferParameter(RHICmdList, PixelShaderRHI, Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraSpriteUniformParameters>(), SpriteVF->GetSpriteUniformBuffer() );
 	}
 };
 
@@ -162,12 +154,7 @@ public:
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
 	// Constructor.
-	FNiagaraSpriteVertexDeclaration(bool bInInstanced, int32 InNumVertsInInstanceBuffer) :
-		bInstanced(bInInstanced),
-		NumVertsInInstanceBuffer(InNumVertsInInstanceBuffer)
-	{
-
-	}
+	FNiagaraSpriteVertexDeclaration() {}
 
 	// Destructor.
 	virtual ~FNiagaraSpriteVertexDeclaration() {}
@@ -190,38 +177,17 @@ public:
 		// Create the vertex declaration for rendering the factory normally.
 		// This is done in InitDynamicRHI instead of InitRHI to allow FParticleSpriteVertexFactory::InitRHI
 		// to rely on it being initialized, since InitDynamicRHI is called before InitRHI.
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	virtual void ReleaseDynamicRHI()
 	{
 		VertexDeclarationRHI.SafeRelease();
 	}
-
-private:
-
-	bool bInstanced;
-	int32 NumVertsInInstanceBuffer;
 };
 
 /** The simple element vertex declaration. */
-static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteVertexDeclarationInstanced(true, 4);
-static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteEightVertexDeclarationInstanced(true, 8);
-static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteVertexDeclarationNonInstanced(false, 4);
-static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteEightVertexDeclarationNonInstanced(false, 8);
-
-inline TGlobalResource<FNiagaraSpriteVertexDeclaration>& GetNiagaraSpriteVertexDeclaration(bool SupportsInstancing, int32 NumVertsInInstanceBuffer)
-{
-	check(NumVertsInInstanceBuffer == 4 || NumVertsInInstanceBuffer == 8);
-	if (SupportsInstancing)
-	{
-		return NumVertsInInstanceBuffer == 4 ? GParticleSpriteVertexDeclarationInstanced : GParticleSpriteEightVertexDeclarationInstanced;
-	}
-	else
-	{
-		return NumVertsInInstanceBuffer == 4 ? GParticleSpriteVertexDeclarationNonInstanced : GParticleSpriteEightVertexDeclarationNonInstanced;
-	}
-}
+static TGlobalResource<FNiagaraSpriteVertexDeclaration> GParticleSpriteVertexDeclaration;
 
 bool FNiagaraSpriteVertexFactory::ShouldCompilePermutation(EShaderPlatform Platform, const class FMaterial* Material, const class FShaderType* ShaderType)
 {
@@ -231,9 +197,9 @@ bool FNiagaraSpriteVertexFactory::ShouldCompilePermutation(EShaderPlatform Platf
 /**
  * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
  */
-void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
 
 	// Set a define so we can tell in MaterialTemplate.usf when we are compiling a sprite vertex factory
 	OutEnvironment.SetDefine(TEXT("PARTICLE_SPRITE_FACTORY"),TEXT("1"));
@@ -245,7 +211,7 @@ void FNiagaraSpriteVertexFactory::ModifyCompilationEnvironment(EShaderPlatform P
 void FNiagaraSpriteVertexFactory::InitRHI()
 {
 	InitStreams();
-	SetDeclaration(GetNiagaraSpriteVertexDeclaration(GRHISupportsInstancing, NumVertsInInstanceBuffer).VertexDeclarationRHI);
+	SetDeclaration(GParticleSpriteVertexDeclaration.VertexDeclarationRHI);
 }
 
 void FNiagaraSpriteVertexFactory::InitStreams()
@@ -256,7 +222,7 @@ void FNiagaraSpriteVertexFactory::InitStreams()
 	if(bInstanced) 
 	{
 		FVertexStream* TexCoordStream = new(Streams) FVertexStream;
-		TexCoordStream->VertexBuffer = &GParticleTexCoordVertexBuffer;
+		TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
 		TexCoordStream->Stride = sizeof(FVector2D);
 		TexCoordStream->Offset = 0;
 	}
@@ -278,6 +244,16 @@ FVertexFactoryShaderParameters* FNiagaraSpriteVertexFactory::ConstructShaderPara
 	{
 		return new FNiagaraSpriteVertexFactoryShaderParametersPS();
 	}
+#if RHI_RAYTRACING
+	else if (ShaderFrequency == SF_Compute)
+	{
+		return new FNiagaraSpriteVertexFactoryShaderParametersVS();
+	}
+	else if (ShaderFrequency == SF_RayHitGroup)
+	{
+		return new FNiagaraSpriteVertexFactoryShaderParametersVS();
+	}
+#endif
 	return NULL;
 }
 

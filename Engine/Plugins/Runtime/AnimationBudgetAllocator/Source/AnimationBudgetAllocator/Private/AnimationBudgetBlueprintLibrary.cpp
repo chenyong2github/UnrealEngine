@@ -18,3 +18,16 @@ void UAnimationBudgetBlueprintLibrary::EnableAnimationBudget(UObject* WorldConte
 		}
 	}
 }
+
+void UAnimationBudgetBlueprintLibrary::SetAnimationBudgetParameters(UObject* WorldContextObject, const FAnimationBudgetAllocatorParameters& InParameters)
+{
+	if(UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		FAnimationBudgetAllocatorModule& AnimationBudgetAllocatorModule = FModuleManager::LoadModuleChecked<FAnimationBudgetAllocatorModule>("AnimationBudgetAllocator");
+		IAnimationBudgetAllocator* AnimationBudgetAllocator = AnimationBudgetAllocatorModule.GetBudgetAllocatorForWorld(World);
+		if(AnimationBudgetAllocator)
+		{
+			AnimationBudgetAllocator->SetParameters(InParameters);
+		}
+	}
+}

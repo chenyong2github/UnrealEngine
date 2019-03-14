@@ -127,6 +127,11 @@ IOnlineChatPtr FOnlineSubsystemIOS::GetChatInterface() const
 	return nullptr;
 }
 
+IOnlineStatsPtr FOnlineSubsystemIOS::GetStatsInterface() const
+{
+	return nullptr;
+}
+
 IOnlineTurnBasedPtr FOnlineSubsystemIOS::GetTurnBasedInterface() const
 {
 	return TurnBasedInterface;
@@ -142,13 +147,7 @@ bool FOnlineSubsystemIOS::Init()
 	bool bSuccessfullyStartedUp = true;
 	UE_LOG_ONLINE(VeryVerbose, TEXT("FOnlineSubsystemIOS::Init()"));
 	
-	bool bIsGameCenterSupported = ([IOSAppDelegate GetDelegate].OSVersion >= 4.1f);
-	if( !bIsGameCenterSupported )
-	{
-		UE_LOG_ONLINE(Warning, TEXT("GameCenter is not supported on systems running IOS 4.0 or earlier."));
-		bSuccessfullyStartedUp = false;
-	}
-	else if( !IsEnabled() )
+	if( !IsEnabled() )
 	{
 		UE_LOG_ONLINE(Warning, TEXT("GameCenter has been disabled in the system settings"));
 		bSuccessfullyStartedUp = false;

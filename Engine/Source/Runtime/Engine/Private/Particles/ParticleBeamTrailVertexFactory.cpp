@@ -7,6 +7,8 @@
 #include "ParticleBeamTrailVertexFactory.h"
 #include "ParticleHelper.h"
 #include "ShaderParameterUtils.h"
+#include "MeshMaterialShader.h"
+#include "PipelineStateCache.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleBeamTrailUniformParameters,"BeamTrailVF");
 
@@ -24,10 +26,19 @@ public:
 	{
 	}
 
-	virtual void SetMesh(FRHICommandList& RHICmdList, FShader* Shader,const FVertexFactory* VertexFactory,const FSceneView& View,const FMeshBatchElement& BatchElement,uint32 DataFlags) const override
+	virtual void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		bool bShaderRequiresPositionOnlyStream,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const override
 	{
 		FParticleBeamTrailVertexFactory* BeamTrailVF = (FParticleBeamTrailVertexFactory*)VertexFactory;
-		SetUniformBufferParameter(RHICmdList, Shader->GetVertexShader(), Shader->GetUniformBufferParameter<FParticleBeamTrailUniformParameters>(), BeamTrailVF->GetBeamTrailUniformBuffer() );
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FParticleBeamTrailUniformParameters>(), BeamTrailVF->GetBeamTrailUniformBuffer() );
 	}
 };
 
@@ -78,7 +89,7 @@ public:
 		// Create the vertex declaration for rendering the factory normally.
 		// This is done in InitDynamicRHI instead of InitRHI to allow FParticleBeamTrailVertexFactory::InitRHI
 		// to rely on it being initialized, since InitDynamicRHI is called before InitRHI.
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	virtual void ReleaseDynamicRHI()
@@ -104,9 +115,9 @@ bool FParticleBeamTrailVertexFactory::ShouldCompilePermutation(EShaderPlatform P
 /**
  * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
  */
-void FParticleBeamTrailVertexFactory::ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+void FParticleBeamTrailVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
 {
-	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
+	FParticleVertexFactoryBase::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("PARTICLE_BEAMTRAIL_FACTORY"),TEXT("1"));
 }
 

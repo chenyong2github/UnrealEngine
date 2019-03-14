@@ -53,6 +53,9 @@ struct ENGINE_API FLocalPlayerContext
 	/** Returns the world context. */
 	UWorld* GetWorld() const;
 
+	/** Returns the game instance */
+	UGameInstance* GetGameInstance() const;
+
 	/** Returns the local player. */
 	class ULocalPlayer* GetLocalPlayer() const;
 
@@ -203,7 +206,6 @@ public:
 private:
 	FSceneViewStateReference ViewState;
 	TArray<FSceneViewStateReference> StereoViewStates;
-	FSceneViewStateReference MonoViewState;
 
 	/** The controller ID which this player accepts input from. */
 	UPROPERTY()
@@ -450,7 +452,8 @@ public:
 	 * @param	OutUpperRight	The Upper Right corner of the pixel space box
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize = NULL);
+	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize = nullptr);
+	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize = nullptr);
 
 	/**
 	 * This function will give you a point in Pixel Space from a World Space position
@@ -459,8 +462,8 @@ public:
 	 * @param	OutPoint	The point in pixel space
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize = NULL);
-
+	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize = nullptr);
+	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize = nullptr);
 
 	/**
 	 * Helper function for deriving various bits of data needed for projection

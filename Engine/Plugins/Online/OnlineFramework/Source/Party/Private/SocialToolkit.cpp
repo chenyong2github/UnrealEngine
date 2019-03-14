@@ -252,6 +252,20 @@ void USocialToolkit::TrySendFriendInvite(const FString& DisplayNameOrEmail) cons
 	}
 }
 
+bool USocialToolkit::GetAuthAttribute(ESocialSubsystem SubsystemType, const FString& AttributeKey, FString& OutValue) const
+{
+	IOnlineSubsystem* SocialOSS = GetSocialOss(SubsystemType);
+	if (IOnlineIdentityPtr IdentityInterface = SocialOSS ? SocialOSS->GetIdentityInterface() : nullptr)
+	{
+		FUniqueNetIdRepl LocalUserId = GetLocalUserNetId(SubsystemType);
+		if (TSharedPtr<FUserOnlineAccount> UserAccount = LocalUserId.IsValid() ? IdentityInterface->GetUserAccount(*LocalUserId) : nullptr)
+		{
+			return UserAccount->GetAuthAttribute(AttributeKey, OutValue);
+		}
+	}
+	return false;
+}
+
 #if PLATFORM_PS4
 void USocialToolkit::NotifyPSNFriendsListRebuilt()
 {
@@ -273,6 +287,15 @@ void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TF
 	if (UserId.IsValid() && NameToSocialSubsystem(UserId.GetType(), CompatibleSubsystem))
 	{
 		QueueUserDependentActionInternal(UserId, CompatibleSubsystem, MoveTemp(UserActionFunc), bExecutePostInit);
+	}
+}
+
+void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate)
+{
+	// MERGE-REVIEW: Was changed from FindOrCreate
+	if (USocialUser* SocialUser = FindUser(SubsystemId))
+	{
+		SocialUser->RegisterInitCompleteHandler(UserActionDelegate);
 	}
 }
 
@@ -352,27 +375,6 @@ void USocialToolkit::HandleControllerIdChanged(int32 NewId, int32 OldId)
 			}
 		}
 	}
-}
-
-void USocialToolkit::RequestDisplayPlatformSocialUI() const
-{
-	//@todo DanH Social: If the local player is on a platform with its own Social overlay, show it #required
-
-	/*if (ShouldShowExternalFriendsUI())
-	{
-		if (IOnlineSubsystem* PlatformOSS = UFortGlobals::GetPlatformOSS(GetWorld()))
-		{
-			IOnlineExternalUIPtr ExternalUI = PlatformOSS->GetExternalUIInterface();
-			if (ExternalUI.IsValid())
-			{
-				const UFortLocalPlayer& LocalPlayer = GetFortLocalPlayer();
-				if (ExternalUI->ShowFriendsUI(LocalPlayer.GetControllerId()))
-				{
-					return;
-				}
-			}
-		}
-	}*/
 }
 
 void USocialToolkit::NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId)
@@ -953,4 +955,9 @@ void USocialToolkit::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, co
 void USocialToolkit::HandleGameDestroyed(const FName SessionName, bool bWasSuccessful)
 {
 	// Update the recent player list whenever a game session ends
+}
+
+void USocialToolkit::HandleUserInvalidated(USocialUser* InvalidUser)
+{
+	AllUsers.Remove(InvalidUser);
 }

@@ -43,6 +43,7 @@
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "ContentStreaming.h"
 
 
 const uint32 MaxHullCount = 64;
@@ -372,8 +373,9 @@ static void FillEnumOptions(TArray<TSharedPtr<FString> >& OutStrings, UEnum& InE
 	}
 }
 
-FMeshBuildSettingsLayout::FMeshBuildSettingsLayout( TSharedRef<FLevelOfDetailSettingsLayout> InParentLODSettings )
+FMeshBuildSettingsLayout::FMeshBuildSettingsLayout( TSharedRef<FLevelOfDetailSettingsLayout> InParentLODSettings, int32 InLODIndex)
 	: ParentLODSettings( InParentLODSettings )
+	, LODIndex(InLODIndex)
 {
 
 }
@@ -862,6 +864,20 @@ void FMeshBuildSettingsLayout::OnBuildAdjacencyBufferChanged(ECheckBoxState NewS
 			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.BuildSettings"), TEXT("bBuildAdjacencyBuffer"), bBuildAdjacencyBuffer ? TEXT("True") : TEXT("False"));
 		}
 		BuildSettings.bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
+		if (!BuildSettings.bBuildAdjacencyBuffer && ParentLODSettings.IsValid())
+		{
+			if (ParentLODSettings.Pin()->PreviewLODRequiresAdjacencyInformation(LODIndex))
+			{
+				//Prompt the user
+				FText ConfirmRequiredAdjacencyText = LOCTEXT("ConfirmRequiredAdjacencyBufferRemove", "This LOD is using at least one tessellation material that required the adjacency buffer to be computed.\nAre you sure to want to remove the adjacency buffer?");
+				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, ConfirmRequiredAdjacencyText);
+				if (Result == EAppReturnType::No)
+				{
+					//Put back the adjacency buffer option to true
+					BuildSettings.bBuildAdjacencyBuffer = true;
+				}
+			}
+		}
 	}
 }
 
@@ -1892,6 +1908,7 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 	FStaticMeshRenderData* RenderData = StaticMesh.RenderData.Get();
 	if (RenderData && RenderData->LODResources.IsValidIndex(LODIndex))
 	{
+		bool bRefreshAll = false;
 		FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 		if (LOD.Sections.IsValidIndex(SectionIndex))
 		{
@@ -1902,9 +1919,22 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 			FScopedTransaction Transaction(LOCTEXT("StaticMeshOnSectionChangedTransaction", "Staticmesh editor: Section material slot changed"));
 			GetStaticMesh().Modify();
 			FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+			int32 CancelOldValue = Info.MaterialIndex;
 			Info.MaterialIndex = NewStaticMaterialIndex;
 			StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+			bool bUserCancel = false;
+			bRefreshAll = StaticMesh.FixLODRequiresAdjacencyInformation(ForLODIndex, false, true, &bUserCancel);
+			if (bUserCancel)
+			{
+				//Revert the section info map change
+				Info.MaterialIndex = CancelOldValue;
+				StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+			}
 			CallPostEditChange();
+		}
+		if (bRefreshAll)
+		{
+			StaticMeshEditor.RefreshTool();
 		}
 	}
 }
@@ -2444,7 +2474,7 @@ void FMeshMaterialsLayout::OnMaterialChanged(UMaterialInterface* NewMaterial, UM
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
 	StaticMesh.SetMaterial(MaterialIndex, NewMaterial);
-	StaticMeshEditor.RefreshViewport();
+	StaticMeshEditor.RefreshTool();
 }
 
 TSharedRef<SWidget> FMeshMaterialsLayout::OnGenerateWidgetsForMaterial(UMaterialInterface* Material, int32 SlotIndex)
@@ -2551,6 +2581,7 @@ void FMeshMaterialsLayout::OnMaterialHighlightedChanged(ECheckBoxState NewState,
 			Component->SelectedEditorMaterial = INDEX_NONE;
 		}
 		Component->MarkRenderStateDirty();
+		Component->PushSelectionToProxy();
 		StaticMeshEditor.RefreshViewport();
 	}
 }
@@ -3040,6 +3071,24 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		.PlatformOverrideNames(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames)
 	];
 
+	LODSettingsCategory.AddCustomRow(LOCTEXT("NumStreamedLODs", "Num Streamed LODs"))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("NumStreamdLODs", "Num Streamed LODs"))
+	]
+	.ValueContent()
+	.MinDesiredWidth((float)(StaticMesh->NumStreamedLODs.PerPlatform.Num() + 1)*125.0f)
+	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
+	[
+		SNew(SPerPlatformPropertiesWidget)
+		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget)
+		.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride)
+		.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride)
+		.PlatformOverrideNames(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames)
+	];
+
 	// Add Number of LODs slider.
 	const int32 MinAllowedLOD = 1;
 	LODSettingsCategory.AddCustomRow( LOCTEXT("NumberOfLODs", "Number of LODs") )
@@ -3237,7 +3286,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 
 				if (StaticMesh->IsMeshDescriptionValid(LODIndex))
 				{
-					BuildSettingsWidgets[LODIndex] = MakeShareable( new FMeshBuildSettingsLayout( AsShared() ) );
+					BuildSettingsWidgets[LODIndex] = MakeShareable( new FMeshBuildSettingsLayout( AsShared(), LODIndex ) );
 					BuildSettingsWidgets[LODIndex]->UpdateSettings(SrcModel.BuildSettings);
 				}
 
@@ -3881,6 +3930,13 @@ void FLevelOfDetailSettingsLayout::ApplyChanges()
 	StaticMeshEditor.RefreshTool();
 }
 
+bool FLevelOfDetailSettingsLayout::PreviewLODRequiresAdjacencyInformation(int32 LODIndex)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	return StaticMesh->FixLODRequiresAdjacencyInformation(LODIndex, true, false, nullptr);
+}
+
 FReply FLevelOfDetailSettingsLayout::OnApply()
 {
 	ApplyChanges();
@@ -4004,6 +4060,121 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames() con
 	StaticMesh->MinLOD.PerPlatform.GenerateKeyArray(KeyArray);
 	KeyArray.Sort();
 	return KeyArray;
+}
+
+/** @return - whether value was different */
+static bool UpdateStaticMeshNumStreamedLODsHelper(UStaticMesh* StaticMesh, int32 NewValue, FName Platform)
+{
+	bool bWasDifferent = false;
+	StaticMesh->Modify();
+	{
+		FStaticMeshComponentRecreateRenderStateContext ReregisterContext(StaticMesh, false);
+		NewValue = FMath::Clamp<int32>(NewValue, -1, MAX_STATIC_MESH_LODS);
+		if (Platform == NAME_None)
+		{
+			bWasDifferent = StaticMesh->NumStreamedLODs.Default != NewValue;
+			StaticMesh->NumStreamedLODs.Default = NewValue;
+		}
+		else
+		{
+			int32* ValuePtr = StaticMesh->NumStreamedLODs.PerPlatform.Find(Platform);
+			if (ValuePtr != nullptr)
+			{
+				bWasDifferent = *ValuePtr != NewValue;
+				*ValuePtr = NewValue;
+			}
+		}
+	}
+	return bWasDifferent;
+}
+
+void FLevelOfDetailSettingsLayout::OnNumStreamedLODsChanged(int32 NewValue, FName Platform)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	UpdateStaticMeshNumStreamedLODsHelper(StaticMesh, NewValue, Platform);
+	StaticMeshEditor.RefreshViewport();
+}
+
+void FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName Platform)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	if (UpdateStaticMeshNumStreamedLODsHelper(StaticMesh, InValue, Platform))
+	{
+		// Make sure FStaticMeshRenderData::CurrentFirstLODIdx is not accessed on other threads
+		IStreamingManager::Get().GetTextureStreamingManager().BlockTillAllRequestsFinished();
+		// Recache derived data and relink streaming
+		ApplyChanges();
+	}
+	StaticMeshEditor.RefreshViewport();
+}
+
+int32 FLevelOfDetailSettingsLayout::GetNumStreamedLODs(FName Platform) const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	int32* ValuePtr = (Platform == NAME_None) ? nullptr : StaticMesh->NumStreamedLODs.PerPlatform.Find(Platform);
+	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->NumStreamedLODs.Default;
+}
+
+TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget(FName PlatformGroupName) const
+{
+	return SNew(SSpinBox<int32>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Value(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODs, PlatformGroupName)
+		.OnValueChanged(this, &FLevelOfDetailSettingsLayout::OnNumStreamedLODsChanged, PlatformGroupName)
+		.OnValueCommitted(this, &FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted, PlatformGroupName)
+		.MinValue(-1)
+		.MaxValue(MAX_STATIC_MESH_LODS)
+		.ToolTipText(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsTooltip)
+		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+}
+
+bool FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride(FName PlatformGroupName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddNumStreamedLODsPlatformOverride", "Add NumStreamdLODs Platform Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+	if (StaticMesh->NumStreamedLODs.PerPlatform.Find(PlatformGroupName) == nullptr)
+	{
+		float Value = StaticMesh->NumStreamedLODs.Default;
+		StaticMesh->NumStreamedLODs.PerPlatform.Add(PlatformGroupName, Value);
+		OnNumStreamedLODsChanged(Value, PlatformGroupName);
+		return true;
+	}
+	return false;
+}
+
+bool FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride(FName PlatformGroupName)
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveNumStreamedLODsPlatformOverride", "Remove NumStreamedLODs Platform Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+	if (StaticMesh->NumStreamedLODs.PerPlatform.Remove(PlatformGroupName) != 0)
+	{
+		OnNumStreamedLODsChanged(StaticMesh->NumStreamedLODs.Default, PlatformGroupName);
+		return true;
+	}
+	return false;
+}
+
+TArray<FName> FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	TArray<FName> KeyArray;
+	StaticMesh->NumStreamedLODs.PerPlatform.GenerateKeyArray(KeyArray);
+	KeyArray.Sort();
+	return KeyArray;
+}
+
+FText FLevelOfDetailSettingsLayout::GetNumStreamedLODsTooltip() const
+{
+	return LOCTEXT("NumStreamedLODsTooltip", "If non-negative, the number of LODs that can be streamed. Only has effect if mesh LOD streaming is enabled on the target platform.");
 }
 
 FText FLevelOfDetailSettingsLayout::GetLODCustomModeNameContent(int32 LODIndex) const
@@ -4205,7 +4376,7 @@ FText FLevelOfDetailSettingsLayout::GetCurrentLodTooltip() const
 {
 	if (StaticMeshEditor.GetStaticMeshComponent() != nullptr && StaticMeshEditor.GetStaticMeshComponent()->ForcedLodModel == 0)
 	{
-		return FText::FromString(TEXT("LOD0 is edit when selecting Auto LOD"));
+		return LOCTEXT("StaticMeshEditorLODPickerCurrentLODTooltip", "With Auto LOD selected, LOD0's properties are visible for editing");
 	}
 	return FText::GetEmpty();
 }

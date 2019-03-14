@@ -101,7 +101,9 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
-		TArray<FShaderCommonCompileJob*>& NewJobs
+		TArray<FShaderCommonCompileJob*>& NewJobs,
+		FString DebugDescription,
+		FString DebugExtension
 		);
 
 	static void BeginCompileShaderPipeline(
@@ -112,7 +114,9 @@ public:
 		FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
 		const TArray<FMeshMaterialShaderType*>& ShaderStages,
-		TArray<FShaderCommonCompileJob*>& NewJobs
+		TArray<FShaderCommonCompileJob*>& NewJobs,
+		FString DebugDescription,
+		FString DebugExtension
 		);
 
 	/**

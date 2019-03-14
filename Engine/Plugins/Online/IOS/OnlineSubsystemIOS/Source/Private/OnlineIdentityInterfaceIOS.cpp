@@ -60,7 +60,7 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 		
 		UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
 	}
-	else if([IOSAppDelegate GetDelegate].OSVersion >= 6.0f)
+	else
 	{
 		// Trigger the login event on the main thread.
 		bStartedLogin = true;
@@ -108,16 +108,11 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 				else
 				{
 					// Game Center has provided a view controller for us to login, we present it.
-					[[IOSAppDelegate GetDelegate].IOSController 
+					[[IOSAppDelegate GetDelegate].IOSController
 						presentViewController:viewcontroller animated:YES completion:nil];
 				}
 			})];
 		});
-	}
-	else
-	{
-		// User is not currently logged into game center
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdIOS(), TEXT("IOS version is not compatible with the game center implementation"));
 	}
 	
 	return bStartedLogin;

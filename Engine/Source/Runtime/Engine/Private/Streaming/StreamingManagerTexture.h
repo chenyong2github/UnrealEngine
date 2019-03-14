@@ -14,7 +14,7 @@ TextureStreamingManager.h: Definitions of classes used for texture streaming.
 #include "Streaming/TextureInstanceTask.h"
 
 class AActor;
-class FAsyncTextureStreamingTask;
+class FRenderAssetStreamingMipCalcTask;
 class UPrimitiveComponent;
 
 template<typename TTask> class FAsyncTask;
@@ -22,18 +22,18 @@ template<typename TTask> class FAsyncTask;
 #define STATS_FAST 0
 
 /*-----------------------------------------------------------------------------
-	Texture streaming.
+	Texture or mesh streaming.
 -----------------------------------------------------------------------------*/
 
 /**
- * Streaming manager dealing with textures.
+ * Streaming manager dealing with textures/meshes.
  */
-struct FStreamingManagerTexture : public ITextureStreamingManager
+struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 {
 	/** Constructor, initializing all members */
-	FStreamingManagerTexture();
+	FRenderAssetStreamingManager();
 
-	virtual ~FStreamingManagerTexture();
+	virtual ~FRenderAssetStreamingManager();
 
 	/** Called before GC to clear pending kill levels. */
 	void OnPreGarbageCollect();
@@ -47,11 +47,11 @@ struct FStreamingManagerTexture : public ITextureStreamingManager
 	virtual void UpdateResourceStreaming( float DeltaTime, bool bProcessEverything=false ) override;
 
 	/**
-	 * Updates streaming for an individual texture, taking into account all view infos.
+	 * Updates streaming for an individual texture/mesh, taking into account all view infos.
 	 *
-	 * @param Texture	Texture to update
+	 * @param RenderAsset	Texture or mesh to update
 	 */
-	virtual void UpdateIndividualTexture( UTexture2D* Texture ) override;
+	virtual void UpdateIndividualRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
 
 	/**
 	 * Blocks till all pending requests are fulfilled.
@@ -76,11 +76,11 @@ struct FStreamingManagerTexture : public ITextureStreamingManager
 	virtual void SetDisregardWorldResourcesForFrames( int32 NumFrames ) override;
 
 	/**
-	 *	Try to stream out texture mip-levels to free up more memory.
+	 *	Try to stream out texture/mesh mip-levels to free up more memory.
 	 *	@param RequiredMemorySize	- Required minimum available texture memory
 	 *	@return						- Whether it succeeded or not
 	 **/
-	virtual bool StreamOutTextureData( int64 RequiredMemorySize ) override;
+	virtual bool StreamOutRenderAssetData( int64 RequiredMemorySize ) override;
 
 	virtual int64 GetMemoryOverBudget() const override { return MemoryOverBudget; }
 
@@ -107,28 +107,33 @@ struct FStreamingManagerTexture : public ITextureStreamingManager
 #if STATS_FAST
 	bool HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif // STATS_FAST
+#if STATS
+	bool HandleListStreamingRenderAssetsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+#endif // STATS
 #if !UE_BUILD_SHIPPING
-	bool HandleListStreamingTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleResetMaxEverRequiredTexturesCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleResetMaxEverRequiredRenderAssetMemoryCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleLightmapStreamingFactorCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleCancelTextureStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleCancelRenderAssetStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleShadowmapStreamingFactorCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleNumStreamedMipsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleTrackTextureCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListTrackedTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDebugTrackedTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleUntrackTextureCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleTrackRenderAssetCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleListTrackedRenderAssetsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleDebugTrackedRenderAssetsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleUntrackRenderAssetCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleStreamOutCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandlePauseTextureStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandlePauseRenderAssetStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	bool HandleStreamingManagerMemoryCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleTextureGroupsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleInvestigateTextureCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	bool HandleLODGroupsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	bool HandleInvestigateRenderAssetCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 #endif // !UE_BUILD_SHIPPING
-	/** Adds a new texture to the streaming manager. */
-	virtual void AddStreamingTexture( UTexture2D* Texture ) override;
 
-	/** Removes a texture from the streaming manager. */
-	virtual void RemoveStreamingTexture( UTexture2D* Texture ) override;
+	/** Adds a new texture/mesh to the streaming manager. */
+	virtual void AddStreamingRenderAsset( UTexture2D* Texture ) override;
+	virtual void AddStreamingRenderAsset(UStaticMesh* StaticMesh) override;
+	virtual void AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh) override;
+
+	/** Removes a texture/mesh from the streaming manager. */
+	virtual void RemoveStreamingRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
 
 	/** Adds a ULevel to the streaming manager. */
 	virtual void AddLevel( class ULevel* Level ) override;
@@ -150,13 +155,13 @@ struct FStreamingManagerTexture : public ITextureStreamingManager
 	/**  Called when a primitive streaming data needs to be updated in the last stage of the frame. */
 	virtual void NotifyPrimitiveUpdated_Concurrent( const UPrimitiveComponent* Primitive ) override;
 
-	/** Returns the corresponding FStreamingTexture for a UTexture2D. */
-	FStreamingTexture* GetStreamingTexture( const UTexture2D* Texture2D );
+	/** Returns the corresponding FStreamingRenderAsset for a texture or mesh. */
+	FStreamingRenderAsset* GetStreamingRenderAsset( const UStreamableRenderAsset* RenderAsset );
 
-	/** Set current pause state for texture streaming */
-	virtual void PauseTextureStreaming(bool bInShouldPause) override
+	/** Set current pause state for texture/mesh streaming */
+	virtual void PauseRenderAssetStreaming(bool bInShouldPause) override
 	{
-		bPauseTextureStreaming = bInShouldPause;
+		bPauseRenderAssetStreaming = bInShouldPause;
 	}
 
 	/** Return all bounds related to the ref object */
@@ -167,25 +172,27 @@ struct FStreamingManagerTexture : public ITextureStreamingManager
 
 private:
 //BEGIN: Thread-safe functions and data
-		friend class FAsyncTextureStreamingTask;
+		friend class FRenderAssetStreamingMipCalcTask;
+		friend class FUpdateStreamingRenderAssetsTask;
 
 		/** Remove any references in level managers to this component */
 		void RemoveStaticReferences(const UPrimitiveComponent* Primitive);
 
 		/**
-		 * Not thread-safe: Updates a portion (as indicated by 'StageIndex') of all streaming textures,
+		 * Not thread-safe: Updates a portion (as indicated by 'StageIndex') of all streaming textures/meshes,
 		 * allowing their streaming state to progress.
 		 *
 		 * @param StageIndex		Current stage index
-		 * @param NumUpdateStages	Number of texture update stages
+		 * @param NumUpdateStages	Number of texture/mesh update stages
 		 */
-		void UpdateStreamingTextures( int32 StageIndex, int32 NumStages, bool bWaitForMipFading );
+		void UpdateStreamingRenderAssets( int32 StageIndex, int32 NumStages, bool bWaitForMipFading );
 
-		void ProcessRemovedTextures();
-		void ProcessAddedTextures();
+		void ProcessRemovedRenderAssets();
+		void ProcessAddedRenderAssets();
 		void ConditionalUpdateStaticData();
+		void ProcessLevelsToReferenceToStreamedTextures();
 
-		/** Adds new textures and level data on the gamethread (while the worker thread isn't active). */
+		/** Adds new textures/meshes and level data on the gamethread (while the worker thread isn't active). */
 		void PrepareAsyncTask( bool bProcessEverything );
 
 		/** Checks for updates in the user settings (CVars, etc). */
@@ -203,11 +210,11 @@ private:
 		void SetOptionalBulkData( UTexture* Texture, bool bHasOptionalBulkData );
 
 		/**
-		 * Stream textures in/out, based on the priorities calculated by the async work.
+		 * Stream textures/meshes in/out, based on the priorities calculated by the async work.
 		 *
 		 * @param bProcessEverything	Whether we're processing all textures in one go
 		 */
-		void StreamTextures( bool bProcessEverything );
+		void StreamRenderAssets( bool bProcessEverything );
 
 		/**
 		 * If new files have loaded this function will return true once
@@ -224,26 +231,46 @@ private:
 			return bResult;
 		}
 
-		/** All streaming UTexture2D objects. */
-		TArray<FStreamingTexture> StreamingTextures;
+		int32 GetNumStreamedMipsArray(FStreamingRenderAsset::EAssetType AssetType, const int32*& OutArray)
+		{
+			switch (AssetType)
+			{
+			case FStreamingRenderAsset::AT_Texture:
+				OutArray = NumStreamedMips_Texture;
+				return TEXTUREGROUP_MAX;
+			case FStreamingRenderAsset::AT_StaticMesh:
+				OutArray = NumStreamedMips_StaticMesh.GetData();
+				return NumStreamedMips_StaticMesh.Num();
+			case FStreamingRenderAsset::AT_SkeletalMesh:
+				OutArray = NumStreamedMips_SkeletalMesh.GetData();
+				return NumStreamedMips_SkeletalMesh.Num();
+			default:
+				check(false);
+				OutArray = nullptr;
+				return -1;
+			}
+		}
 
-		/** All the textures referenced in StreamingTextures. Used to handled deleted textures.  */
-		TSet<const UTexture2D*> ReferencedTextures;
+		/** All streaming texture or mesh objects. */
+		TArray<FStreamingRenderAsset> StreamingRenderAssets;
+
+		/** All the textures/meshes referenced in StreamingRenderAssets. Used to handled deleted textures/meshes.  */
+		TSet<const UStreamableRenderAsset*> ReferencedRenderAssets;
 
 		/** All the currently installed optional bulkdata files */
 		TSet<FString> OptionalBulkDataFiles;
 
-		/** Index of the StreamingTexture that will be updated next by UpdateStreamingTextures(). */
-		int32 CurrentUpdateStreamingTextureIndex;
+		/** Index of the StreamingTexture that will be updated next by UpdateStreamingRenderAssets(). */
+		int32 CurrentUpdateStreamingRenderAssetIndex;
 //END: Thread-safe functions and data
 
 	/**
-	 * Mark the textures with a timestamp. They're about to lose their location-based heuristic and we don't want them to
+	 * Mark the textures/meshes with a timestamp. They're about to lose their location-based heuristic and we don't want them to
 	 * start using LastRenderTime heuristic for a few seconds until they are garbage collected!
 	 *
-	 * @param RemovedTextures	List of removed textures.
+	 * @param RemovedRenderAssets	List of removed textures or meshes.
 	 */
-	void	SetTexturesRemovedTimestamp(const FRemovedTextureArray& RemovedTextures);
+	void	SetRenderAssetsRemovedTimestamp(const FRemovedRenderAssetArray& RemovedRenderAssets);
 
 	void	DumpTextureGroupStats( bool bDetailedStats );
 
@@ -267,10 +294,14 @@ private:
 	 */
 	void	SyncStates(bool bCompleteFullUpdateCycle);
 
-	// Called on game thread when no new elements are added to the StreamingTextures array and
-	// the elements in the array are not removed or reordered. This runs in parrallel with the
-	// async update task so the streaming meta data in each FStreamingTexture can change
+	/**
+	 * Called on game thread when no new elements are added to the StreamingRenderAssets array and
+	 * the elements in the array are not removed or reordered. This runs in parrallel with the
+	 * async update task so the streaming meta data in each FStreamingRenderAsset can change
+	 */
 	void ProcessPendingMipCopyRequests();
+
+	void AddStreamingRenderAsset_Internal(UStreamableRenderAsset* InAsset, FStreamingRenderAsset::EAssetType InType);
 
 	/** Next sync, dump texture group stats. */
 	bool	bTriggerDumpTextureGroupStats;
@@ -279,36 +310,39 @@ private:
 	bool	bDetailedDumpTextureGroupStats;
 
 	/** Cached from the system settings. */
-	int32 NumStreamedMips[TEXTUREGROUP_MAX];
+	int32 NumStreamedMips_Texture[TEXTUREGROUP_MAX];
+	TArray<int32> NumStreamedMips_StaticMesh;
+	TArray<int32> NumStreamedMips_SkeletalMesh;
 
-	FTextureStreamingSettings Settings;
+	FRenderAssetStreamingSettings Settings;
 
-	/** Async work for calculating priorities for all textures. */
-	FAsyncTask<FAsyncTextureStreamingTask>*	AsyncWork;
+	/** Async work for calculating priorities and target number of mips for all textures/meshes. */
+	FAsyncTask<FRenderAssetStreamingMipCalcTask>*	AsyncWork;
 
-	/** Async work for texture instance managers. */
-	TRefCountPtr<TextureInstanceTask::FDoWorkAsyncTask> TextureInstanceAsyncWork;
+	/** Async work for render asset instance managers. */
+	TRefCountPtr<RenderAssetInstanceTask::FDoWorkAsyncTask> RenderAssetInstanceAsyncWork;
 
-	/** Textures from dynamic primitives. Owns the data for all levels. */
-	FDynamicTextureInstanceManager DynamicComponentManager;
+	/** Texture/mesh instances from dynamic primitives. Owns the data for all levels. */
+	FDynamicRenderAssetInstanceManager DynamicComponentManager;
 
-	/** New textures, before they've been added to the thread-safe container. */
-	TArray<UTexture2D*>	PendingStreamingTextures;
+	/** New textures/meshes, before they've been added to the thread-safe container. */
+	TArray<UStreamableRenderAsset*>	PendingStreamingRenderAssets;
+	TArray<typename FStreamingRenderAsset::EAssetType> PendingStreamingRenderAssetTypes;
 
-	/** The list of indices with null texture in StreamingTextures. */
-	TArray<int32>	RemovedTextureIndices;
+	/** The list of indices with null render asset in StreamingRenderAssets. */
+	TArray<int32>	RemovedRenderAssetIndices;
 
-	// Represent a pending request to stream in/out mips to/from GPU for a 2D texture
+	// Represent a pending request to stream in/out mips to/from GPU for a texture or mesh
 	struct FPendingMipCopyRequest
 	{
-		const UTexture2D* Texture;
-		// Used to find the corresponding FStreamingTexture in the StreamingTextures array
+		const UStreamableRenderAsset* RenderAsset;
+		// Used to find the corresponding FStreamingRenderAsset in the StreamingRenderAssets array
 		int32 CachedIdx;
 
 		FPendingMipCopyRequest() = default;
 
-		FPendingMipCopyRequest(const UTexture2D* InTexture, int32 InCachedIdx)
-			: Texture(InTexture)
+		FPendingMipCopyRequest(const UStreamableRenderAsset* InAsset, int32 InCachedIdx)
+			: RenderAsset(InAsset)
 			, CachedIdx(InCachedIdx)
 		{}
 	};
@@ -318,23 +352,23 @@ private:
 	int32 CurrentPendingMipCopyRequestIdx;
 
 	/** Level data */
-	TIndirectArray<FLevelTextureManager> LevelTextureManagers;
+	TArray<FLevelRenderAssetManager*> LevelRenderAssetManagers;
 
 	/** Stages [0,N-2] is non-threaded data collection, Stage N-1 is wait-for-AsyncWork-and-finalize. */
 	int32					ProcessingStage;
 
 	/** Total number of processing stages (N). */
-	int32					NumTextureProcessingStages;
+	int32					NumRenderAssetProcessingStages;
 
-	/** Whether to support texture instance streaming for dynamic (movable/spawned) objects. */
+	/** Whether to support texture/mesh instance streaming for dynamic (movable/spawned) objects. */
 	bool					bUseDynamicStreaming;
 
 	float					BoostPlayerTextures;
 
-	/** Amount of memory to leave free in the texture pool. */
+	/** Amount of memory to leave free in the render asset pool. */
 	int64					MemoryMargin;
 
-	/** The actual memory pool size available to stream textures, excludes non-streaming texture, temp memory (for streaming mips), memory margin (allocator overhead). */
+	/** The actual memory pool size available to stream textures/meshes, excludes non-streaming texture/mesh, temp memory (for streaming mips), memory margin (allocator overhead). */
 	int64					EffectiveStreamingPoolSize;
 
 	// Stats we need to keep across frames as we only iterate over a subset of textures.
@@ -342,18 +376,18 @@ private:
 	int64 MemoryOverBudget;
 	int64 MaxEverRequired;
 
-	/** Whether texture streaming is paused or not. When paused, it won't stream any textures in or out. */
-	bool bPauseTextureStreaming;
+	/** Whether render asset streaming is paused or not. When paused, it won't stream any textures/meshes in or out. */
+	bool bPauseRenderAssetStreaming;
 
 	bool bNewFilesLoaded;
 
 	/** Last time all data were fully updated. Instances are considered visible if they were rendered between that last time and the current time. */
 	float LastWorldUpdateTime;
 
-	FTextureStreamingStats DisplayedStats;
-	FTextureStreamingStats GatheredStats;
+	FRenderAssetStreamingStats DisplayedStats;
+	FRenderAssetStreamingStats GatheredStats;
 
-	TArray<int32> InflightTextures;
+	TArray<int32> InflightRenderAssets;
 
 	TMap<FString, bool> CachedFileExistsChecks;
 	void OnPakFileMounted(const TCHAR* PakFilename);
@@ -369,5 +403,5 @@ private:
 	// A critical section use around code that could be called in parallel with NotifyPrimitiveUpdated() or NotifyPrimitiveUpdated_Concurrent().
 	FCriticalSection CriticalSection;
 
-	friend bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture, bool bForceMipLevelsToBeResident, const FStreamingManagerTexture* Manager);
+	friend bool TrackRenderAssetEvent( FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager);
 };

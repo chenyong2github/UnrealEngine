@@ -61,6 +61,7 @@ private:
 	bool bIsVisible;
 	bool bUseHighPrecisionMode;
 	NSCursor* CurrentCursor;
+	int32 CursorTypeOverride;
 
 	FVector2D CurrentPosition;
 	FVector2D MouseWarpDelta;

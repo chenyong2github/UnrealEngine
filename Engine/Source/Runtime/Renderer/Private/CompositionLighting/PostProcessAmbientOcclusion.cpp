@@ -19,6 +19,7 @@
 DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );
 DECLARE_GPU_STAT_NAMED(BasePassAO, TEXT("BasePass AO") );
+DECLARE_GPU_STAT_NAMED(SSAOSmooth, TEXT("SSAO smooth"));
 
 // Tile size for the AmbientOcclusion compute shader, tweaked for 680 GTX. */
 // see GCN Performance Tip 21 http://developer.amd.com/wordpress/media/2013/05/GCNPerformanceTweets.pdf 
@@ -480,6 +481,167 @@ bool FRCPassPostProcessAmbientOcclusionSetup::IsInitialPass() const
 
 // --------------------------------------------------------
 
+class FPostProcessAmbientOcclusionSmoothCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPostProcessAmbientOcclusionSmoothCS, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		constexpr int32 ThreadGroupSize1D = FRCPassPostProcessAmbientOcclusionSmooth::ThreadGroupSize1D;
+
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSize1D);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSize1D);
+	}
+
+	/** Default constructor. */
+	FPostProcessAmbientOcclusionSmoothCS() {}
+
+public:
+	FPostProcessPassParameters PostprocessParameter;
+	FShaderParameter SSAOSmoothParams;
+	FShaderParameter SSAOSmoothResult;
+
+	/** Initialization constructor. */
+	FPostProcessAmbientOcclusionSmoothCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PostprocessParameter.Bind(Initializer.ParameterMap);
+		SSAOSmoothParams.Bind(Initializer.ParameterMap, TEXT("SSAOSmoothParams"));
+		SSAOSmoothResult.Bind(Initializer.ParameterMap, TEXT("SSAOSmoothResult"));
+	}
+
+	template <typename TRHICmdList>
+	void SetParameters(
+		TRHICmdList& RHICmdList,
+		const FRenderingCompositePassContext& Context,
+		const FIntRect& OutputRect,
+		FUnorderedAccessViewRHIParamRef OutUAV)
+	{
+		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
+
+		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+		FVector4 SSAOSmoothParamsValue(OutputRect.Min.X, OutputRect.Min.Y, OutputRect.Width(), OutputRect.Height());
+		SetShaderValue(RHICmdList, ShaderRHI, SSAOSmoothParams, SSAOSmoothParamsValue);
+
+		RHICmdList.SetUAVParameter(ShaderRHI, SSAOSmoothResult.GetBaseIndex(), OutUAV);
+	}
+
+	template <typename TRHICmdList>
+	void UnsetParameters(TRHICmdList& RHICmdList)
+	{
+		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		RHICmdList.SetUAVParameter(ShaderRHI, SSAOSmoothResult.GetBaseIndex(), nullptr);
+	}
+
+	// FShader interface.
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PostprocessParameter << SSAOSmoothParams << SSAOSmoothResult;
+		return bShaderHasOutdatedParameters;
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/PostProcessAmbientOcclusion.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return TEXT("MainSSAOSmoothCS");
+	}
+};
+
+IMPLEMENT_SHADER_TYPE3(FPostProcessAmbientOcclusionSmoothCS, SF_Compute);
+
+FRCPassPostProcessAmbientOcclusionSmooth::FRCPassPostProcessAmbientOcclusionSmooth(ESSAOType InAOType, bool bInDirectOutput)
+	: AOType(InAOType)
+	, bDirectOutput(bInDirectOutput)
+{}
+
+template <typename TRHICmdList>
+void FRCPassPostProcessAmbientOcclusionSmooth::DispatchCS(
+	TRHICmdList& RHICmdList,
+	const FRenderingCompositePassContext& Context,
+	const FIntRect& OutputRect,
+	FUnorderedAccessViewRHIParamRef OutUAV) const
+{
+	TShaderMapRef<FPostProcessAmbientOcclusionSmoothCS> ComputeShader(Context.GetShaderMap());
+	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	ComputeShader->SetParameters(RHICmdList, Context, OutputRect, OutUAV);
+	const uint32 NumGroupsX = FMath::DivideAndRoundUp(OutputRect.Width(), ThreadGroupSize1D);
+	const uint32 NumGroupsY = FMath::DivideAndRoundUp(OutputRect.Height(), ThreadGroupSize1D);
+	DispatchComputeShader(RHICmdList, *ComputeShader, NumGroupsX, NumGroupsY, 1);
+	ComputeShader->UnsetParameters(RHICmdList);
+}
+
+void FRCPassPostProcessAmbientOcclusionSmooth::Process(FRenderingCompositePassContext& Context)
+{
+	SCOPED_GPU_STAT(Context.RHICmdList, SSAOSmooth);
+
+	UnbindRenderTargets(Context.RHICmdList);
+	Context.SetViewportAndCallRHI(Context.View.ViewRect);
+
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+	const FSceneRenderTargetItem& DestRenderTarget = bDirectOutput ? SceneContext.ScreenSpaceAO->GetRenderTargetItem() : PassOutputs[0].RequestSurface(Context);
+	const FIntPoint OutputExtent = bDirectOutput ? SceneContext.GetBufferSizeXY() : PassOutputs[0].RenderTargetDesc.Extent;
+	const int32 DownSampleFactor = FMath::DivideAndRoundUp(Context.ReferenceBufferSize.X, OutputExtent.X);
+	const FIntRect OutputRect = Context.GetViewport() / DownSampleFactor;
+
+	if (AOType == ESSAOType::EAsyncCS)
+	{
+		FRHIAsyncComputeCommandListImmediate& AsyncComputeCmdList = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+		FComputeFenceRHIRef AsyncStartFence = Context.RHICmdList.CreateComputeFence(TEXT("AsyncStartFence"));
+
+		SCOPED_COMPUTE_EVENTF(AsyncComputeCmdList, SSAOSmooth, TEXT("SSAO smooth %dx%d"), OutputRect.Width(), OutputRect.Height());
+
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV, AsyncStartFence);
+		AsyncComputeCmdList.WaitComputeFence(AsyncStartFence);
+		DispatchCS(AsyncComputeCmdList, Context, OutputRect, DestRenderTarget.UAV);
+	}
+	else
+	{
+		check(AOType == ESSAOType::ECS);
+		SCOPED_DRAW_EVENTF(Context.RHICmdList, SSAOSmooth, TEXT("SSAO smooth %dx%d"), OutputRect.Width(), OutputRect.Height());
+
+		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
+		DispatchCS(Context.RHICmdList, Context, OutputRect, DestRenderTarget.UAV);
+	}
+}
+
+FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusionSmooth::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+{
+	if (bDirectOutput)
+	{
+		FPooledRenderTargetDesc Ret;
+		Ret.DebugName = TEXT("AmbientOcclusionDirect");
+		return Ret;
+	}
+
+	const FPooledRenderTargetDesc* Input0Desc = GetInputDesc(ePId_Input0);
+	check(Input0Desc);
+	FPooledRenderTargetDesc Ret = *Input0Desc;
+	Ret.Reset();
+	Ret.Format = PF_G8;
+	Ret.ClearValue = FClearValueBinding::None;
+	Ret.TargetableFlags &= ~TexCreate_DepthStencilTargetable;
+	Ret.TargetableFlags |= TexCreate_UAV;
+	Ret.DebugName = TEXT("SSAOSmoothResult");
+	return Ret;
+}
+
+// --------------------------------------------------------
+
 FArchive& operator<<(FArchive& Ar, FScreenSpaceAOParameters& This)
 {
 	Ar << This.ScreenSpaceAOParams;
@@ -706,9 +868,11 @@ void FRCPassPostProcessAmbientOcclusion::DispatchCS(TRHICmdList& RHICmdList, con
 
 // --------------------------------------------------------
 
-FRCPassPostProcessAmbientOcclusion::FRCPassPostProcessAmbientOcclusion(const FSceneView& View, ESSAOType InAOType, bool bInAOSetupAsInput)
+FRCPassPostProcessAmbientOcclusion::FRCPassPostProcessAmbientOcclusion(const FSceneView& View, ESSAOType InAOType, bool bInAOSetupAsInput, bool bInForcecIntermediateOutput, EPixelFormat InIntermediateFormatOverride)
 	: AOType(InAOType)
-	, bAOSetupAsInput(bInAOSetupAsInput)	
+	, IntermediateFormatOverride(InIntermediateFormatOverride)
+	, bAOSetupAsInput(bInAOSetupAsInput)
+	, bForceIntermediateOutput(bInForcecIntermediateOutput)
 {
 }
 
@@ -909,7 +1073,7 @@ void FRCPassPostProcessAmbientOcclusion::Process(FRenderingCompositePassContext&
 	const FSceneRenderTargetItem* DestRenderTarget = 0;
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
 
-	if(bAOSetupAsInput)
+	if(bAOSetupAsInput || bForceIntermediateOutput)
 	{
 		DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
 	}
@@ -950,7 +1114,7 @@ void FRCPassPostProcessAmbientOcclusion::Process(FRenderingCompositePassContext&
 
 FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion::ComputeOutputDesc(EPassOutputId InPassOutputId) const
 {
-	if(!bAOSetupAsInput)
+	if(!bAOSetupAsInput && !bForceIntermediateOutput)
 	{
 		FPooledRenderTargetDesc Ret;
 
@@ -977,6 +1141,11 @@ FPooledRenderTargetDesc FRCPassPostProcessAmbientOcclusion::ComputeOutputDesc(EP
 		Ret.TargetableFlags |= TexCreate_RenderTargetable;
 	}
 	Ret.DebugName = TEXT("AmbientOcclusion");
+
+	if (IntermediateFormatOverride != PF_Unknown)
+	{
+		Ret.Format = IntermediateFormatOverride;
+	}
 
 	return Ret;
 }

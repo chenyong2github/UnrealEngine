@@ -190,8 +190,10 @@ VkImage FVulkanSurface::CreateImage(
 	bool bForceLinearTexture)
 {
 	const VkPhysicalDeviceProperties& DeviceProperties = InDevice.GetDeviceProperties();
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[InFormat];
+	VkFormat TextureFormat = (VkFormat)FormatInfo.PlatformFormat;
 
-	checkf(GPixelFormats[InFormat].Supported, TEXT("Format %d"), (int32)InFormat);
+	checkf(TextureFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)InFormat);
 
 	VkImageCreateInfo TmpCreateInfo;
 	VkImageCreateInfo* ImageCreateInfoPtr = OutInfo ? OutInfo : &TmpCreateInfo;
@@ -226,7 +228,7 @@ VkImage FVulkanSurface::CreateImage(
 		break;
 	}
 
-	ImageCreateInfo.format = UEToVkFormat(InFormat, false);
+	ImageCreateInfo.format = UEToVkTextureFormat(InFormat, false);
 
 	checkf(ImageCreateInfo.format != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InFormat);
 	if (OutStorageFormat)
@@ -236,7 +238,7 @@ VkImage FVulkanSurface::CreateImage(
 
 	if (OutViewFormat)
 	{
-		VkFormat ViewFormat = UEToVkFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+		VkFormat ViewFormat = UEToVkTextureFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 		*OutViewFormat = ViewFormat;
 		ImageCreateInfo.format = ViewFormat;
 	}
@@ -442,6 +444,27 @@ struct FRHICommandRegisterImageLayout final : public FRHICommand<FRHICommandRegi
 	}
 };
 
+static void InsertInitialImageLayout(FVulkanDevice& Device, VkImage InImage, VkImageLayout InLayout)
+{
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	const bool bIsInRenderingThread = IsInRenderingThread();
+	if (!bIsInRenderingThread || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
+	{
+		Device.GetImmediateContext().FindOrAddLayout(InImage, InLayout);
+	}
+	else
+	{
+		check(IsInRenderingThread());
+		new (RHICmdList.AllocCommand<FRHICommandRegisterImageLayout>()) FRHICommandRegisterImageLayout(InImage, InLayout);
+	}
+
+	if (bIsInRenderingThread)
+	{
+		// Insert the RHI thread lock fence. This stops any parallel translate tasks running until the command above has completed on the RHI thread.
+		RHICmdList.RHIThreadFence(true);
+	}
+}
+
 struct FRHICommandOnDestroyImage final : public FRHICommand<FRHICommandOnDestroyImage>
 {
 	VkImage Image;
@@ -569,6 +592,8 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 {
 	StorageFormat = (VkFormat)GPixelFormats[PixelFormat].PlatformFormat;
 	check((UEFlags & TexCreate_SRGB) == 0);
+	checkf(PixelFormat == PF_Unknown || StorageFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)PixelFormat);
+
 	ViewFormat = StorageFormat;
 	FullAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, true, true);
 	PartialAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, false, true);
@@ -1254,7 +1279,7 @@ void FVulkanDynamicRHI::InternalUpdateTexture2D(bool bFromRenderingThread, FText
 	const int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
 	const int32 BlockSizeZ = GPixelFormats[PixelFormat].BlockSizeZ;
 	const int32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
-	VkFormat Format = UEToVkFormat(PixelFormat, false);
+	VkFormat Format = UEToVkTextureFormat(PixelFormat, false);
 
 	ensure(BlockSizeZ == 1);
 
@@ -1329,7 +1354,7 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FText
 	const int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
 	const int32 BlockSizeZ = GPixelFormats[PixelFormat].BlockSizeZ;
 	const int32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
-	const VkFormat Format = UEToVkFormat(PixelFormat, false);
+	const VkFormat Format = UEToVkTextureFormat(PixelFormat, false);
 
 	ensure(BlockSizeZ == 1);
 
@@ -1486,6 +1511,7 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	{
 		ensure(ViewInfo.format == VK_FORMAT_UNDEFINED);
 		ViewInfo.format = (VkFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
+		ensure(ViewInfo.format != VK_FORMAT_UNDEFINED);
 		ViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
 	}
 
@@ -1558,8 +1584,8 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	if (Surface.ViewFormat == VK_FORMAT_UNDEFINED)
 	{
-		Surface.StorageFormat = UEToVkFormat(InFormat, false);
-		Surface.ViewFormat = UEToVkFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
+		Surface.StorageFormat = UEToVkTextureFormat(InFormat, false);
+		Surface.ViewFormat = UEToVkTextureFormat(InFormat, (UEFlags & TexCreate_SRGB) == TexCreate_SRGB);
 		checkf(Surface.StorageFormat != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InFormat);
 	}
 
@@ -1593,15 +1619,9 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	if (!CreateInfo.BulkData)
 	{
 		FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		if (!IsInRenderingThread() || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
-		{
-			Device.GetImmediateContext().FindOrAddLayout(Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
-		}
-		else
-		{
-			check(IsInRenderingThread());
-			new (RHICmdList.AllocCommand<FRHICommandRegisterImageLayout>()) FRHICommandRegisterImageLayout(Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
-		}
+
+		// No initial data, so undefined
+		InsertInitialImageLayout(Device, Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
 		return;
 	}
 
@@ -1720,17 +1740,8 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 		PartialView->Create(Device, Surface.Image, Surface.ViewType, Surface.PartialAspectMask, Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, FMath::Max(1u, SizeZ), ConversionInitializer);
 	}
 
-
-	FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	if (!IsInRenderingThread() || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
-	{
-		Device.GetImmediateContext().FindOrAddLayout(InImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	}
-	else
-	{
-		check(IsInRenderingThread());
-		new (RHICmdList.AllocCommand<FRHICommandRegisterImageLayout>()) FRHICommandRegisterImageLayout(InImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	}
+	// Since this is provided from an external image, assume it's ready for read
+	InsertInitialImageLayout(Device, InImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 FVulkanTextureBase::~FVulkanTextureBase()
@@ -2190,6 +2201,7 @@ void FVulkanCommandListContext::RHICopyTexture(FTextureRHIParamRef SourceTexture
 	{
 		VkImageSubresourceRange& Range = Barrier.GetSubresource(SourceBarrierIndex);
 		Range.baseMipLevel = CopyInfo.SourceMipIndex;
+		Range.levelCount = CopyInfo.NumMips;
 		Range.baseArrayLayer = CopyInfo.SourceSliceIndex;
 		Range.layerCount = CopyInfo.NumSlices;
 		Barrier.SetTransition(SourceBarrierIndex, VulkanRHI::GetImageLayoutFromVulkanLayout(SrcLayout), EImageLayoutBarrier::TransferSource);
@@ -2197,6 +2209,7 @@ void FVulkanCommandListContext::RHICopyTexture(FTextureRHIParamRef SourceTexture
 	{
 		VkImageSubresourceRange& Range = Barrier.GetSubresource(DestBarrierIndex);
 		Range.baseMipLevel = CopyInfo.DestMipIndex;
+		Range.levelCount = CopyInfo.NumMips;
 		Range.baseArrayLayer = CopyInfo.DestSliceIndex;
 		Range.layerCount = CopyInfo.NumSlices;
 		Barrier.SetTransition(DestBarrierIndex, EImageLayoutBarrier::Undefined, EImageLayoutBarrier::TransferDest);
@@ -2218,10 +2231,18 @@ void FVulkanCommandListContext::RHICopyTexture(FTextureRHIParamRef SourceTexture
 	Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
 	Region.dstSubresource.layerCount = CopyInfo.NumSlices;
 	Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
-	VulkanRHI::vkCmdCopyImage(CmdBuffer,
-		SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		DstSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1, &Region);
+
+	for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
+	{
+		VulkanRHI::vkCmdCopyImage(CmdBuffer,
+			SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			DstSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &Region);
+		Region.extent.width = FMath::Max(1u, Region.extent.width / 2);
+		Region.extent.height = FMath::Max(1u, Region.extent.height / 2);
+		++Region.srcSubresource.mipLevel;
+		++Region.dstSubresource.mipLevel;
+	}
 
 	Barrier.ResetStages();
 	Barrier.SetTransition(SourceBarrierIndex, EImageLayoutBarrier::TransferSource, VulkanRHI::GetImageLayoutFromVulkanLayout(SrcLayout));

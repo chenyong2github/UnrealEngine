@@ -125,7 +125,9 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		EShaderPlatform Platform,
-		TArray<FShaderCommonCompileJob*>& NewJobs
+		TArray<FShaderCommonCompileJob*>& NewJobs,
+		const FString& DebugDescription,
+		const FString& DebugExtension
 		);
 
 	static void BeginCompileShaderPipeline(
@@ -135,7 +137,10 @@ public:
 		FShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		const TArray<FMaterialShaderType*>& ShaderStages,
-		TArray<FShaderCommonCompileJob*>& NewJobs);
+		TArray<FShaderCommonCompileJob*>& NewJobs,
+		const FString& DebugDescription,
+		const FString& DebugExtension
+	);
 
 	/**
 	 * Either creates a new instance of this type or returns an equivalent existing shader.

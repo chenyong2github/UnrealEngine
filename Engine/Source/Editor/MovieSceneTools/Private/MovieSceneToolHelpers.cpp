@@ -1710,8 +1710,7 @@ private:
 		ImportOptions->bConvertSceneUnit = bConvertSceneUnitBackup;
 		ImportOptions->bForceFrontXAxis = bForceFrontXAxisBackup;
 
-		FWidgetPath WidgetPath;
-		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared(), WidgetPath);
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
 
 		if ( Window.IsValid() )
 		{
@@ -1933,15 +1932,6 @@ bool MovieSceneToolHelpers::HasHiddenMobility(const UClass* ObjectClass)
 FMovieSceneEvaluationTrack* MovieSceneToolHelpers::GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature)
 {
 	FMovieSceneEvaluationTemplate* Template = Sequencer->GetEvaluationTemplate().FindTemplate(Sequencer->GetFocusedTemplateID());
-	if (Template)
-	{
-		if (FMovieSceneEvaluationTrack* EvalTrack = Template->FindTrack(TrackSignature))
-		{
-			return EvalTrack;
-		}
-	}
-	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
-	Template = Sequencer->GetEvaluationTemplate().FindTemplate(Sequencer->GetFocusedTemplateID());
 	if (Template)
 	{
 		if (FMovieSceneEvaluationTrack* EvalTrack = Template->FindTrack(TrackSignature))

@@ -85,7 +85,7 @@ template <> struct TIsPODType<FLinkerIndexPair> { enum { Value = false }; };
  * NOTE: We're currently using dense annotations for linkers to emphasize speed over memory
  * usage, but might want to revisit this decision on platforms that are memory limited.
  */
-static FUObjectAnnotationDense<FLinkerIndexPair,false> LinkerAnnotation;
+static FUObjectAnnotationChunked<FLinkerIndexPair, false> LinkerAnnotation;
 
 /** Remove all annotations on exit. This is to prevent issues with the order of static destruction of singletons. */
 void CleanupLinkerAnnotations()

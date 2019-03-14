@@ -20,6 +20,12 @@ public:
 
 
 	/**
+	 * Is the Take Recorder enabled in the build
+	 */
+	UFUNCTION(BlueprintPure, Category="Take Recorder")
+	static bool IsTakeRecorderEnabled();
+
+	/**
 	 * Start a new recording using the specified parameters. Will fail if a recording is currently in progress
 	 *
 	 * @param LevelSequence         The base level sequence to use for the recording. Will be played back during the recording and duplicated to create the starting point for the resulting asset.
@@ -72,6 +78,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder")
 	static UTakeRecorderPanel* OpenTakeRecorderPanel();
+
+
+	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPanelChanged);
+
+	/** Called when a Take Panel is constructed or destroyed. */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder")
+	static void SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged);
 
 
 	/**

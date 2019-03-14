@@ -39,6 +39,7 @@
 #include "HAL/ThreadHeartBeat.h"
 
 #include "FramePro/FrameProProfiler.h"
+#include "BuildSettings.h"
 
 // define for glibc 2.12.2 and lower (which is shipped with CentOS 6.x and which we target by default)
 #define __secure_getenv getenv
@@ -199,6 +200,7 @@ void FUnixPlatformMisc::PlatformInit()
 		PLATFORM_COMPILER_OPTIMIZATION_PG ? TEXT("yes") : TEXT("no"),
 		PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING ? TEXT("yes") : TEXT("no")
 		);
+	UE_LOG(LogInit, Log, TEXT(" - This is %s build."), BuildSettings::IsLicenseeVersion() ? TEXT("a licensee") : TEXT("an internal"));
 
 	FPlatformTime::PrintCalibrationLog();
 
@@ -210,13 +212,7 @@ void FUnixPlatformMisc::PlatformInit()
 	UE_LOG(LogInit, Log, TEXT(" -useksm - uses kernel same-page mapping (KSM) for mapped memory (%s)"), GUseKSM ? TEXT("ON") : TEXT("OFF"));
 	UE_LOG(LogInit, Log, TEXT(" -ksmmergeall - marks all mmap'd memory pages suitable for KSM (%s)"), GKSMMergeAllPages ? TEXT("ON") : TEXT("OFF"));
 	UE_LOG(LogInit, Log, TEXT(" -preloadmodulesymbols - Loads the main module symbols file into memory (%s)"), bPreloadedModuleSymbolFile ? TEXT("ON") : TEXT("OFF"));
-
-#if UE_SERVER
-	// Defined in UnixPlatformMemory, allows changing the number of 64k buckets used for the memory pool
-	extern float GPoolTableScale;
-
-	UE_LOG(LogInit, Log, TEXT(" -mempoolscale=SCALE - Scale the memory pool by (%lf)"), GPoolTableScale);
-#endif
+	UE_LOG(LogInit, Log, TEXT(" -sigdfl=SIGNAL - Allows a specific signal to be set to its default handler rather then ignoring the signal"));
 
 	// [RCL] FIXME: this should be printed in specific modules, if at all
 	UE_LOG(LogInit, Log, TEXT(" -httpproxy=ADDRESS:PORT - redirects HTTP requests to a proxy (only supported if compiled with libcurl)"));
@@ -952,4 +948,9 @@ void FUnixPlatformMisc::UngrabAllInput()
 	{
 		UngrabAllInputCallback();
 	}
+}
+
+FString FUnixPlatformMisc::GetLoginId()
+{
+	return FString::Printf(TEXT("%s-%08x"), *GetOperatingSystemId(), static_cast<uint32>(geteuid()));
 }

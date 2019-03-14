@@ -126,6 +126,9 @@ protected:
 	// @todo jcf list of logged-in players?
 
 	virtual bool HandleOpenCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
+	virtual bool HandleDisconnectCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
+	virtual bool HandleReconnectCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
+	virtual bool HandleTravelCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
 
 	/** Delegate for handling PS4 play together system events */
 	void OnPlayTogetherEventReceived(int32 UserIndex, const TArray<const FUniqueNetId&>& UserList);
@@ -246,10 +249,10 @@ public:
 	 * Adds a new player.
 	 * @param ControllerId - The controller ID the player should accept input from.
 	 * @param OutError - If no player is returned, OutError will contain a string describing the reason.
-	 * @param SpawnActor - True if an actor should be spawned for the new player.
+	 * @param bSpawnPlayerController - True if a player controller should be spawned immediately for the new player.
 	 * @return The player which was created.
 	 */
-	ULocalPlayer*			CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnActor);
+	ULocalPlayer*			CreateLocalPlayer(int32 ControllerId, FString& OutError, bool bSpawnPlayerController);
 
 	/**
 	 * Adds a LocalPlayer to the local and global list of Players.

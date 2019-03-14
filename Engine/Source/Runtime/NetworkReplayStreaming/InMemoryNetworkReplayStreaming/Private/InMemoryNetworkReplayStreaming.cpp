@@ -425,7 +425,7 @@ void FInMemoryNetworkReplayStreamer::FlushCheckpoint(const uint32 TimeInMS)
 	FoundReplay->StreamChunks.Add(NewChunk);
 }
 
-void FInMemoryNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate)
+void FInMemoryNetworkReplayStreamer::GotoCheckpointIndex(const int32 CheckpointIndex, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	GotoCheckpointIndexInternal(CheckpointIndex, Delegate, -1);
 }
@@ -509,7 +509,7 @@ FInMemoryReplay* FInMemoryNetworkReplayStreamer::GetCurrentReplayChecked() const
 	return FoundReplay;
 }
 
-void FInMemoryNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate)
+void FInMemoryNetworkReplayStreamer::GotoTimeInMS(const uint32 TimeInMS, const FGotoCallback& Delegate, EReplayCheckpointType CheckpointType)
 {
 	int32 CheckpointIndex = -1;
 

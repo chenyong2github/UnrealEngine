@@ -22,6 +22,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "EditorFramework/AssetImportData.h"
 #include "DesktopPlatformModule.h"
+#include "Editor.h"
 
 #if WITH_APEX_CLOTHING
 	#include "ApexClothingUtils.h"
@@ -707,10 +708,23 @@ namespace FbxMeshUtils
 			}
 		}
 
-		if(!bImportSuccess)
+		//If the filename is empty it mean the user cancel the file selection
+		if(!bImportSuccess && !FilenameToImport.IsEmpty())
 		{
 			// Failed to import a LOD, even after retries (if applicable)
 			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("LODImport_Failure", "Failed to import LOD{0}"), FText::AsNumber(LODLevel)));
+		}
+
+		if (bImportSuccess)
+		{
+			if (SkeletalMesh)
+			{
+				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(SkeletalMesh, LODLevel);
+			}				
+			else if(StaticMesh)
+			{
+				GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(StaticMesh, LODLevel);
+			}
 		}
 
 		return bImportSuccess;

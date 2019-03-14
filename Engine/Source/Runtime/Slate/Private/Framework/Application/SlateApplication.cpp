@@ -1392,6 +1392,23 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 	}
 }
 
+static bool DoAnyWindowDescendantsNeedPrepass(TSharedRef<SWindow> WindowToPrepass)
+{
+	for (const TSharedRef<SWindow>& ChildWindow : WindowToPrepass->GetChildWindows())
+	{
+		if (ChildWindow->IsVisible() && !ChildWindow->IsWindowMinimized())
+		{
+			return true;
+		}
+		else
+		{
+			return DoAnyWindowDescendantsNeedPrepass(ChildWindow);
+		}
+	}
+
+	return false;
+}
+
 static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 {
 	if (UNLIKELY(!FApp::CanEverRender()))
@@ -1399,7 +1416,9 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 		return;
 	}
 
-	if ( WindowToPrepass->IsVisible() && !WindowToPrepass->IsWindowMinimized() )
+	const bool bIsWindowVisible = WindowToPrepass->IsVisible() && !WindowToPrepass->IsWindowMinimized();
+
+	if (bIsWindowVisible || DoAnyWindowDescendantsNeedPrepass(WindowToPrepass))
 	{
 		FScopedSwitchWorldHack SwitchWorld(WindowToPrepass);
 		
@@ -1408,7 +1427,7 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 			WindowToPrepass->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * WindowToPrepass->GetNativeWindow()->GetDPIScaleFactor());
 		}
 
-		if ( WindowToPrepass->IsAutosized() )
+		if ( bIsWindowVisible && WindowToPrepass->IsAutosized() )
 		{
 			WindowToPrepass->Resize(WindowToPrepass->GetDesiredSizeDesktopPixels());
 		}
@@ -3086,8 +3105,18 @@ void FSlateApplication::GeneratePathToWidgetChecked( TSharedRef<const SWidget> I
 
 TSharedPtr<SWindow> FSlateApplication::FindWidgetWindow( TSharedRef<const SWidget> InWidget ) const
 {
-	FWidgetPath WidgetPath;
-	return FindWidgetWindow( InWidget, WidgetPath );
+	TSharedPtr<SWidget> TestWidget = ConstCastSharedRef<SWidget>(InWidget);
+	while (TestWidget.IsValid())
+	{
+		if (TestWidget->Advanced_IsWindow())
+		{
+			return StaticCastSharedPtr<SWindow>(TestWidget);
+		}
+
+		TestWidget = TestWidget->GetParentWidget();
+	};
+
+	return nullptr;
 }
 
 
@@ -3632,7 +3661,10 @@ void FSlateApplication::ProcessCursorReply(const FCursorReply& CursorReply)
 		{
 			CursorReply.GetCursorWidget()->SetVisibility(EVisibility::HitTestInvisible);
 			CursorWindowPtr = CursorReply.GetCursorWindow();
-			PlatformApplication->Cursor->SetType(EMouseCursor::Custom);
+			if (!IsFakingTouchEvents())
+			{
+				PlatformApplication->Cursor->SetType(EMouseCursor::Custom);
+			}
 		}
 		else
 		{
@@ -4097,9 +4129,13 @@ void FSlateApplication::EnterDebuggingMode()
 	// Tick slate from here in the event that we should not return until the modal window is closed.
 	while (!bRequestLeaveDebugMode)
 	{
+		Renderer->BeginFrame();
+		
 		// Tick and render Slate
 		Tick();
 
+		Renderer->EndFrame();
+		
 		// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 		Renderer->Sync();
 
@@ -4112,6 +4148,7 @@ void FSlateApplication::EnterDebuggingMode()
 #endif	//WITH_EDITORONLY_DATA
 	}
 
+	Renderer->BeginFrame();
 	bRequestLeaveDebugMode = false;
 	
 	if ( PreviousGameViewport.IsValid() )
@@ -5701,11 +5738,12 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 
 	// User asked us to detect a drag.
 	bool bDragDetected = false;
-	bool bShouldStartDetectingDrag = true;
+	// Currently we can only support one dragged widget at a time.
+	bool bShouldStartDetectingDrag = !DragDropContent.IsValid();
 
 #if WITH_EDITOR
 	//@TODO VREDITOR - Remove and move to interaction component
-	if (OnDragDropCheckOverride.IsBound())
+	if (bShouldStartDetectingDrag && OnDragDropCheckOverride.IsBound())
 	{
 		bShouldStartDetectingDrag = OnDragDropCheckOverride.Execute();
 	}
@@ -6282,13 +6320,15 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 
 bool FSlateApplication::OnMouseMove()
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouched)
+	if (bIsFakingTouched || bIsGameFakingTouch)
 	{
-		return OnTouchMoved(PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0);
-	}
-	else if (!bIsGameFakingTouch && bIsFakingTouch)
-	{
+		// convert to touch event if we are faking it
+		if (bIsFakingTouched)
+		{
+			return OnTouchMoved(PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0);
+		}
+
+		// Throw out the mouse move event if we're faking touch events but the mouse button isn't down.
 		return false;
 	}
 
@@ -6322,11 +6362,18 @@ bool FSlateApplication::OnMouseMove()
 
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
-	if (bIsFakingTouched)
+	if (bIsFakingTouched || bIsGameFakingTouch)
 	{
-		return OnTouchMoved(GetCursorPos(), 1.0f, 0, 0);
+		// convert to touch event if we are faking it
+		if (bIsFakingTouched)
+		{
+			return OnTouchMoved(GetCursorPos(), 1.0f, 0, 0);
+		}
+
+		// Throw out the mouse move event if we're faking touch events but the mouse button isn't down.
+		return false;
 	}
-	
+
 	if ( X != 0 || Y != 0 )
 	{
 		FPointerEvent MouseEvent(
@@ -6580,7 +6627,7 @@ bool FSlateApplication::OnTouchStarted( const TSharedPtr< FGenericWindow >& Plat
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Only log when the touch starts, we don't want to spam the logs.
-		UE_LOG(LogSlate, Warning, TEXT("Maxium Touch Index Exceeded, %d, the maxium index allowed is %d"), TouchIndex, (((int32)ETouchIndex::CursorPointerIndex) - 1));
+		UE_LOG(LogSlate, Warning, TEXT("Maximum Touch Index Exceeded, %d, the maximum index allowed is %d"), TouchIndex, (((int32)ETouchIndex::CursorPointerIndex) - 1));
 #endif
 		return false;
 	}
@@ -6795,7 +6842,10 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 
 		Renderer->RequestResize( Window, Width, Height );
 
-		Renderer->SetSystemResolution(Width, Height);
+		if (FPlatformProperties::HasFixedResolution())
+		{
+			Renderer->SetSystemResolution(Width, Height);
+		}
 		
 		if ( !bWasMinimized && Window->IsRegularWindow() && !Window->HasOSWindowBorder() && Window->IsVisible() && Window->IsDrawingEnabled() )
 		{
@@ -6818,9 +6868,14 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 
 void FSlateApplication::OnOSPaint( const TSharedRef< FGenericWindow >& PlatformWindow )
 {
-	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow( SlateWindows, PlatformWindow );
-	PrivateDrawWindows( Window );
-	Renderer->FlushCommands();
+	// This is only called in a modal move loop and in cooked build, the back buffer already
+	// has UI composited so don't do anything to prevent drawing UI over existing UI (FORT-153543)
+	if (GIsEditor)
+	{
+		TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow(SlateWindows, PlatformWindow);
+		PrivateDrawWindows(Window);
+		Renderer->FlushCommands();
+	}
 }
 
 FWindowSizeLimits FSlateApplication::GetSizeLimitsForWindow(const TSharedRef<FGenericWindow>& Window) const

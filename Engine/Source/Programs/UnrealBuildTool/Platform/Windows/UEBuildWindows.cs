@@ -211,6 +211,12 @@ namespace UnrealBuildTool
 		public bool bClangTimeTrace = false;
 
 		/// <summary>
+		/// Bundle a working version of dbghelp.dll with the application, and use this to generate minidumps. This works around a bug with the Windows 10 Fall Creators Update (1709)
+		/// where rich PE headers larger than a certain size would result in corrupt minidumps.
+		/// </summary>
+		public bool bUseBundledDbgHelp = true;
+
+		/// <summary>
 		/// The Visual C++ environment to use for this target. Only initialized after all the target settings are finalized, in ValidateTarget().
 		/// </summary>
 		internal VCEnvironment Environment;
@@ -237,6 +243,14 @@ namespace UnrealBuildTool
 		public string WindowsSdkDir
 		{
 			get { return (Environment == null)? null : Environment.WindowsSdkDir.FullName; }
+		}
+
+		/// <summary>
+		/// Directory containing the DIA SDK
+		/// </summary>
+		public string DiaSdkDir
+		{
+			get { return WindowsPlatform.FindDiaSdkDirs(Environment.Compiler).Select(x => x.FullName).FirstOrDefault(); }
 		}
 
 		/// <summary>
@@ -392,6 +406,11 @@ namespace UnrealBuildTool
 			return Inner.GetVisualStudioCompilerVersionName();
 		}
 
+		public bool bUseBundledDbgHelp
+		{
+			get { return Inner.bUseBundledDbgHelp; }
+		}
+
 		internal VCEnvironment Environment
 		{
 			get { return Inner.Environment; }
@@ -412,6 +431,11 @@ namespace UnrealBuildTool
 			get { return Inner.WindowsSdkDir; }
 		}
 
+		public string DiaSdkDir
+		{
+			get { return Inner.DiaSdkDir; }
+		}
+
 		#if !__MonoCS__
 		#pragma warning restore CS1591
 		#endif
@@ -428,7 +452,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The default compiler version to be used, if installed. 
 		/// </summary>
-		static readonly VersionNumber DefaultVisualStudioToolChainVersion = VersionNumber.Parse("14.13.26128");
+		static readonly VersionNumber DefaultVisualStudioToolChainVersion = VersionNumber.Parse("14.16.27023");
 
 		/// <summary>
 		/// The default Windows SDK version to be used, if installed.
@@ -444,6 +468,11 @@ namespace UnrealBuildTool
 		/// Cache of Visual C++ installation directories
 		/// </summary>
 		private static Dictionary<WindowsCompiler, Dictionary<VersionNumber, DirectoryReference>> CachedToolChainDirs = new Dictionary<WindowsCompiler, Dictionary<VersionNumber, DirectoryReference>>();
+
+		/// <summary>
+		/// Cache of DIA SDK installation directories
+		/// </summary>
+		private static Dictionary<WindowsCompiler, List<DirectoryReference>> CachedDiaSdkDirs = new Dictionary<WindowsCompiler, List<DirectoryReference>>();
 
 		/// <summary>
 		/// Cache of Windows SDK installation directories
@@ -496,6 +525,7 @@ namespace UnrealBuildTool
 
 			if(Target.Configuration != UnrealTargetConfiguration.Shipping)
 			{
+				Target.bWithLiveCoding = true;
 				Target.WindowsPlatform.bCreateHotPatchableImage = true;
 			}
 		}
@@ -657,7 +687,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("No Visual C++ installation was found. Please download and install Visual Studio 2015 with C++ components.");
+				Log.TraceWarning("No Visual C++ installation was found. Please download and install Visual Studio 2017 with C++ components.");
 			}
 
 			// Finally, default to VS2017 anyway
@@ -1179,6 +1209,51 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines the directory containing the MSVC toolchain
+		/// </summary>
+		/// <param name="Compiler">Major version of the compiler to use</param>
+		/// <returns>Map of version number to directories</returns>
+		public static List<DirectoryReference> FindDiaSdkDirs(WindowsCompiler Compiler)
+		{
+			List<DirectoryReference> DiaSdkDirs;
+			if(!CachedDiaSdkDirs.TryGetValue(Compiler, out DiaSdkDirs))
+			{
+				DiaSdkDirs = new List<DirectoryReference>();
+
+				DirectoryReference PlatformDir;
+				if(UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
+				{
+					DirectoryReference DiaSdkDir = DirectoryReference.Combine(PlatformDir, "Win64", "DIA SDK", (Compiler == WindowsCompiler.VisualStudio2019)? "VS2019" : "VS2017");
+					if(IsValidDiaSdkDir(DiaSdkDir))
+					{
+						DiaSdkDirs.Add(DiaSdkDir);
+					}
+				}
+			
+				List<DirectoryReference> VisualStudioDirs = FindVSInstallDirs(Compiler);
+				foreach(DirectoryReference VisualStudioDir in VisualStudioDirs)
+				{
+					DirectoryReference DiaSdkDir = DirectoryReference.Combine(VisualStudioDir, "DIA SDK");
+					if(IsValidDiaSdkDir(DiaSdkDir))
+					{
+						DiaSdkDirs.Add(DiaSdkDir);
+					}
+				}
+			}
+			return DiaSdkDirs;
+		}
+
+		/// <summary>
+		/// Determines if a directory contains a valid DIA SDK
+		/// </summary>
+		/// <param name="DiaSdkDir">The directory to check</param>
+		/// <returns>True if it contains a valid DIA SDK</returns>
+		static bool IsValidDiaSdkDir(DirectoryReference DiaSdkDir)
+		{
+			return FileReference.Exists(FileReference.Combine(DiaSdkDir, "bin", "amd64", "msdia140.dll"));
+		}
+
+		/// <summary>
 		/// Updates the CachedWindowsSdkDirs and CachedUniversalCrtDirs variables
 		/// </summary>
 		private static void UpdateCachedWindowsSdks()
@@ -1489,52 +1564,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Configures the resource compile environment for the given target
-		/// </summary>
-		/// <param name="ResourceCompileEnvironment">The compile environment</param>
-		/// <param name="Target">The target being built</param>
-		public static void SetupResourceCompileEnvironment(CppCompileEnvironment ResourceCompileEnvironment, ReadOnlyTargetRules Target)
-		{
-			// Figure the icon to use. We can only use a custom icon when compiling to a project-specific intemediate directory (and not for the shared editor executable, for example).
-			FileReference IconFile;
-			if(Target.ProjectFile != null && !ResourceCompileEnvironment.bUseSharedBuildEnvironment)
-			{
-				IconFile = WindowsPlatform.GetApplicationIcon(Target.ProjectFile);
-			}
-			else
-			{
-				IconFile = WindowsPlatform.GetApplicationIcon(null);
-			}
-
-			// Setup the compile environment, setting the icon to use via a macro. This is used in Default.rc2.
-			ResourceCompileEnvironment.Definitions.Add(String.Format("BUILD_ICON_FILE_NAME=\"\\\"{0}\\\"\"", IconFile.FullName.Replace("\\", "\\\\")));
-
-			// Apply the target settings for the resources
-			if(!ResourceCompileEnvironment.bUseSharedBuildEnvironment)
-			{
-				if (!String.IsNullOrEmpty(Target.WindowsPlatform.CompanyName))
-				{
-					ResourceCompileEnvironment.Definitions.Add(String.Format("PROJECT_COMPANY_NAME={0}", SanitizeMacroValue(Target.WindowsPlatform.CompanyName)));
-				}
-
-				if (!String.IsNullOrEmpty(Target.WindowsPlatform.CopyrightNotice))
-				{
-					ResourceCompileEnvironment.Definitions.Add(String.Format("PROJECT_COPYRIGHT_STRING={0}", SanitizeMacroValue(Target.WindowsPlatform.CopyrightNotice)));
-				}
-
-				if (!String.IsNullOrEmpty(Target.WindowsPlatform.ProductName))
-				{
-					ResourceCompileEnvironment.Definitions.Add(String.Format("PROJECT_PRODUCT_NAME={0}", SanitizeMacroValue(Target.WindowsPlatform.ProductName)));
-				}
-
-				if (Target.ProjectFile != null)
-				{
-					ResourceCompileEnvironment.Definitions.Add(String.Format("PROJECT_PRODUCT_IDENTIFIER={0}", SanitizeMacroValue(Target.ProjectFile.GetFileNameWithoutExtension())));
-				}
-			}
-		}
-
-		/// <summary>
 		/// Modify the rules for a newly created module, in a target that's being built for this platform.
 		/// This is not required - but allows for hiding details of a particular platform.
 		/// </summary>
@@ -1611,8 +1640,6 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add(String.Format("_WIN32_WINNT=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			CompileEnvironment.Definitions.Add(String.Format("WINVER=0x{0:X4}", Target.WindowsPlatform.TargetWindowsVersion));
 			CompileEnvironment.Definitions.Add("PLATFORM_WINDOWS=1");
-
-			CompileEnvironment.Definitions.Add("DEPTH_32_BIT_CONVERSION=0");
 
 			FileReference MorpheusShaderPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Shaders", "Private", "Platform", "PS4", "PostProcessHMDMorpheus.usf");
 			if (FileReference.Exists(MorpheusShaderPath))
@@ -1733,25 +1760,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Macros passed via the command line have their quotes stripped, and are tokenized before being re-stringized by the compiler. This conversion
-		/// back and forth is normally ok, but certain characters such as single quotes must always be paired. Remove any such characters here.
-		/// </summary>
-		/// <param name="Value">The macro value</param>
-		/// <returns>The sanitized value</returns>
-		static string SanitizeMacroValue(string Value)
-		{
-			StringBuilder Result = new StringBuilder(Value.Length);
-			for(int Idx = 0; Idx < Value.Length; Idx++)
-			{
-				if(Value[Idx] != '\'' && Value[Idx] != '\"')
-				{
-					Result.Append(Value[Idx]);
-				}
-			}
-			return Result.ToString();
-		}
-
-		/// <summary>
 		/// Setup the configuration environment for building
 		/// </summary>
 		/// <param name="Target"> The target being built</param>
@@ -1836,6 +1844,21 @@ namespace UnrealBuildTool
 			else
 			{
 				return new VCToolChain(CppPlatform, Target);
+			}
+		}
+
+		/// <summary>
+		/// Allows the platform to return various build metadata that is not tracked by other means. If the returned string changes, the makefile will be invalidated.
+		/// </summary>
+		/// <param name="ProjectFile">The project file being built</param>
+		/// <param name="Metadata">String builder to contain build metadata</param>
+		public override void GetExternalBuildMetadata(FileReference ProjectFile, StringBuilder Metadata)
+		{
+			base.GetExternalBuildMetadata(ProjectFile, Metadata);
+
+			if(ProjectFile != null)
+			{
+				Metadata.AppendLine("ICON: {0}", GetApplicationIcon(ProjectFile));
 			}
 		}
 

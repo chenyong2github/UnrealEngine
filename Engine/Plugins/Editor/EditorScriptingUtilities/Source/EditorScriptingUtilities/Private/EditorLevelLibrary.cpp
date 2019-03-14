@@ -310,7 +310,10 @@ bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
 		GEditor->SelectNone(true, true, false);
 	}
 
-	GEditor->Layers->DisassociateActorFromLayers(ToDestroyActor);
+	if (GEditor->Layers)
+	{
+		GEditor->Layers->DisassociateActorFromLayers(ToDestroyActor);
+	}
 	return World->EditorDestroyActor(ToDestroyActor, true);
 }
 
@@ -915,6 +918,11 @@ namespace InternalEditorLevelLibrary
 			{
 				ActorsToTest.RemoveAtSwap(Index);
 			}
+		}
+
+		if (ActorsToTest.Num() == 0)
+		{
+			return false;
 		}
 
 		// All actors need to come from the same World

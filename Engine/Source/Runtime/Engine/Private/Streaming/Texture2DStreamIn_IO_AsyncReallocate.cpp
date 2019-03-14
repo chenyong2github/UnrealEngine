@@ -10,7 +10,7 @@ Texture2DStreamIn_IO_AsyncReallocate.cpp: Default path for streaming in texture 
 FTexture2DStreamIn_IO_AsyncReallocate::FTexture2DStreamIn_IO_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest) 
 	: FTexture2DStreamIn_IO(InTexture, InRequestedMips, InPrioritizedIORequest)
 {
-	PushTask(FContext(InTexture, TT_None), TT_Render, TEXTURE2D_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
+	PushTask(FContext(InTexture, TT_None), TT_Render, SRA_UPDATE_CALLBACK(AsyncReallocate), TT_None, nullptr);
 }
 
 // ****************************
@@ -25,7 +25,7 @@ void FTexture2DStreamIn_IO_AsyncReallocate::AsyncReallocate(const FContext& Cont
 	SetIOFilename(Context);
 	DoAsyncReallocate(Context);
 
-	PushTask(Context, TT_Render, TEXTURE2D_UPDATE_CALLBACK(LockMips), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(LockMips), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_IO_AsyncReallocate::LockMips(const FContext& Context)
@@ -36,7 +36,7 @@ void FTexture2DStreamIn_IO_AsyncReallocate::LockMips(const FContext& Context)
 	RHIFinalizeAsyncReallocateTexture2D(IntermediateTextureRHI, true);
 	DoLockNewMips(Context);
 
-	PushTask(Context, TT_Async, TEXTURE2D_UPDATE_CALLBACK(LoadMips), TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_Async, SRA_UPDATE_CALLBACK(LoadMips), TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_IO_AsyncReallocate::LoadMips(const FContext& Context)
@@ -46,7 +46,7 @@ void FTexture2DStreamIn_IO_AsyncReallocate::LoadMips(const FContext& Context)
 
 	SetIORequests(Context);
 
-	PushTask(Context, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Finalize), TT_Async, TEXTURE2D_UPDATE_CALLBACK(CancelIO));
+	PushTask(Context, TT_Render, SRA_UPDATE_CALLBACK(Finalize), TT_Async, SRA_UPDATE_CALLBACK(CancelIO));
 }
 
 void FTexture2DStreamIn_IO_AsyncReallocate::Finalize(const FContext& Context)
@@ -70,7 +70,7 @@ void FTexture2DStreamIn_IO_AsyncReallocate::CancelIO(const FContext& Context)
 
 	ClearIORequests(Context);
 
-	PushTask(Context, TT_None, nullptr, TT_Render, TEXTURE2D_UPDATE_CALLBACK(Cancel));
+	PushTask(Context, TT_None, nullptr, TT_Render, SRA_UPDATE_CALLBACK(Cancel));
 }
 
 void FTexture2DStreamIn_IO_AsyncReallocate::Cancel(const FContext& Context)

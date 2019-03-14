@@ -15,6 +15,7 @@
 
 class UBlueprint;
 class UEditorUtilityWidget;
+enum class EAssetEditorCloseReason : uint8;
 
 UCLASS()
 class UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
@@ -22,6 +23,8 @@ class UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual void BeginDestroy() override;
+
 	TSharedRef<SDockTab> SpawnEditorUITab(const FSpawnTabArgs& SpawnTabArgs);
 
 	/** Creates the slate widget from the UMG widget */
@@ -40,8 +43,21 @@ public:
 		return CreatedUMGWidget;
 	}
 
+	void SetRegistrationName(FName InRegistrationName)
+	{
+		RegistrationName = InRegistrationName;
+	}
+
+	FName GetRegistrationName() const
+	{
+		return RegistrationName;
+	}
+
 private:
+	FName RegistrationName;
+
 	TWeakPtr<SDockTab> CreatedTab;
 
 	UEditorUtilityWidget* CreatedUMGWidget;
+
 };

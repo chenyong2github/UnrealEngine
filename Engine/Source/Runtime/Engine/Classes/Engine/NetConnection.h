@@ -19,9 +19,11 @@
 #include "Engine/Channel.h"
 #include "ProfilingDebugging/Histogram.h"
 #include "Containers/ArrayView.h"
+#include "Containers/CircularBuffer.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
 #include "PacketTraits.h"
+#include "Net/Util/ResizableCircularQueue.h"
 
 #include "NetConnection.generated.h"
 
@@ -133,6 +135,13 @@ namespace EClientLoginState
 	}
 };
 
+/** Type of property data resend used by replay checkpoints */
+ enum class EResendAllDataState : uint8
+ {
+	 None,
+	 SinceOpen,
+	 SinceCheckpoint
+ };
 
 // Delegates
 #if !UE_BUILD_SHIPPING
@@ -205,6 +214,29 @@ public:
 };
 #endif
 
+/** Record of channels with data written into each outgoing packet. */
+struct FWrittenChannelsRecord
+{
+	enum { DefaultInitialSize = 1024 };
+
+	struct FChannelRecordEntry
+	{
+		uint32 Value : 31;
+		uint32 IsSequence : 1;
+	};
+
+	typedef TResizableCircularQueue<FChannelRecordEntry> FChannelRecordEntryQueue;
+
+	FChannelRecordEntryQueue ChannelRecord;
+	int32 LastPacketId;
+
+public:
+	FWrittenChannelsRecord(size_t InitialSize = DefaultInitialSize)
+		: ChannelRecord(InitialSize)
+		, LastPacketId(-1)
+	{
+	}
+};
 
 UCLASS(customConstructor, Abstract, MinimalAPI, transient, config=Engine)
 class UNetConnection : public UPlayer
@@ -318,7 +350,9 @@ public:
 	uint8					ExpectedClientLoginMsgType;	// Used to determine what the next expected control channel msg type should be from a connecting client
 
 	// CD key authentication
+	UE_DEPRECATED(4.23, "CDKeyHash is deprecated.")
 	FString			CDKeyHash;				// Hash of client's CD key
+	UE_DEPRECATED(4.23, "CDKeyResponse is deprecated.")
 	FString			CDKeyResponse;			// Client's response to CD key challenge
 
 	// Internal.
@@ -589,8 +623,16 @@ public:
 	 *	This will also act as if it needs to re-open all the channels, etc.
 	 *   NOTE - This doesn't force all exports to happen again though, it will only export new stuff, so keep that in mind.
 	 */
+	UE_DEPRECATED(4.23, "Use ResendAllDataState instead.")
 	bool bResendAllDataSinceOpen;
 
+	EResendAllDataState ResendAllDataState;
+
+	/** Set of guids we may need to ignore when processing a delta checkpoint */
+	TSet<FNetworkGUID> IgnoredGuids;
+
+	/** Set of channels we may need to ignore when processing a delta checkpoint */
+	TSet<int32> IgnoredChannels;
 
 #if !UE_BUILD_SHIPPING
 	/** Delegate for hooking ReceivedRawPacket */
@@ -1021,7 +1063,16 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	/**
+	 * Flush the cache of sequenced packets waiting for a missing packet. Will flush only up to the next missing packet, unless bFlushWholeCache is set.
+	 *
+	 * @param bFlushWholeCache	Whether or not the whole cache should be flushed, or only flush up to the next missing packet
+	 */
+	void FlushPacketOrderCache(bool bFlushWholeCache=false);
+
 protected:
+
+	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
 
 	void CleanupDormantActorState();
 
@@ -1084,8 +1135,8 @@ private:
 	/** This is only used in UChannel::SendBunch. It's a member so that we can preserve the allocation between calls, as an optimization, and in a thread-safe way to be compatible with demo.ClientRecordAsyncEndOfFrame */
 	TArray<FOutBunch*> OutgoingBunches;
 
-	/** Bookkeeping for connections using internal ack to avoid acking all open channels */
-	TArray<int32> ChannelsWaitingForInternalAck;
+	/** Per packet bookkeeping of written channelIds */
+	FWrittenChannelsRecord ChannelRecord;
 
 	/** Sequence data used to implement reliability */
 	FNetPacketNotify PacketNotify;
@@ -1098,6 +1149,29 @@ private:
 	
 	/** True if we've hit the actor channel limit and logged a warning about it */
 	bool bHasWarnedAboutChannelLimit;
+
+	/** True if we are pending close due to a socket failure during send */
+	bool bConnectionPendingCloseDueToSocketSendFailure;
+
+	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
+
+
+	/** Out of order packet tracking/correction */
+
+	/** Stat tracking for the total number of out of order packets, for this connection */
+	int32 TotalOutOfOrderPackets;
+
+	/** Buffer of partially read (post-PacketHandler) sequenced packets, which are waiting for a missing packet/sequence */
+	TOptional<TCircularBuffer<TUniquePtr<FBitReader>>> PacketOrderCache;
+
+	/** The current start index for PacketOrderCache */
+	int32 PacketOrderCacheStartIdx;
+
+	/** The current number of valid packets in PacketOrderCache */
+	int32 PacketOrderCacheCount;
+
+	/** Whether or not PacketOrderCache is presently being flushed */
+	bool bFlushingPacketOrderCache;
 };
 
 

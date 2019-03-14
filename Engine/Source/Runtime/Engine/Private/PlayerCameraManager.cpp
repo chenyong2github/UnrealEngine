@@ -20,6 +20,7 @@
 #include "Camera/CameraPhotography.h"
 #include "GameFramework/PlayerState.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
+#include "GameFramework/GameNetworkManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);
 
@@ -875,26 +876,45 @@ void APlayerCameraManager::UpdateCamera(float DeltaTime)
 	{
 		DoUpdateCamera(DeltaTime);
 
-		TimeSinceLastServerUpdateCamera += DeltaTime;
+		const float TimeDilation = FMath::Max(GetActorTimeDilation(), KINDA_SMALL_NUMBER);
+
+		TimeSinceLastServerUpdateCamera += (DeltaTime / TimeDilation);
 
 		if (bShouldSendClientSideCameraUpdate && IsNetMode(NM_Client))
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ServerUpdateCamera);
 
+			const AGameNetworkManager* const GameNetworkManager = GetDefault<AGameNetworkManager>();
+			const float ClientNetCamUpdateDeltaTime = GameNetworkManager->ClientNetCamUpdateDeltaTime;
+			const float ClientNetCamUpdatePositionLimit = GameNetworkManager->ClientNetCamUpdatePositionLimit;
+
 			FMinimalViewInfo CurrentPOV = GetCameraCachePOV();
-			
-			if (!CurrentPOV.Equals(GetLastFrameCameraCachePOV()) || TimeSinceLastServerUpdateCamera > ServerUpdateCameraTimeout)
+			FMinimalViewInfo LastPOV = GetLastFrameCameraCachePOV();
+
+			FVector ClientCameraPosition = FRepMovement::RebaseOntoZeroOrigin(CurrentPOV.Location, this);
+			FVector PrevClientCameraPosition = FRepMovement::RebaseOntoZeroOrigin(LastPOV.Location, this);
+
+			const bool bPositionThreshold = (ClientCameraPosition - PrevClientCameraPosition).SizeSquared() > (ClientNetCamUpdatePositionLimit * ClientNetCamUpdatePositionLimit);
+
+			if (bPositionThreshold || (TimeSinceLastServerUpdateCamera > ClientNetCamUpdateDeltaTime))
 			{
 				// compress the rotation down to 4 bytes
 				int32 const ShortYaw = FRotator::CompressAxisToShort(CurrentPOV.Rotation.Yaw);
 				int32 const ShortPitch = FRotator::CompressAxisToShort(CurrentPOV.Rotation.Pitch);
 				int32 const CompressedRotation = (ShortYaw << 16) | ShortPitch;
 
-				FVector ClientCameraPosition = FRepMovement::RebaseOntoZeroOrigin(CurrentPOV.Location, this);
-				PCOwner->ServerUpdateCamera(ClientCameraPosition, CompressedRotation);
+				int32 const PrevShortYaw = FRotator::CompressAxisToShort(LastPOV.Rotation.Yaw);
+				int32 const PrevShortPitch = FRotator::CompressAxisToShort(LastPOV.Rotation.Pitch);
+				int32 const PrevCompressedRotation = (PrevShortYaw << 16) | PrevShortPitch;
 
-				TimeSinceLastServerUpdateCamera = 0.0f;
+				if ((CompressedRotation != PrevCompressedRotation) || !ClientCameraPosition.Equals(PrevClientCameraPosition) || (TimeSinceLastServerUpdateCamera > ServerUpdateCameraTimeout))
+				{
+					PCOwner->ServerUpdateCamera(ClientCameraPosition, CompressedRotation);
+
+					TimeSinceLastServerUpdateCamera = 0.0f;
+				}
 			}
+
 			bShouldSendClientSideCameraUpdate = false;
 		}
 	}
@@ -1167,7 +1187,8 @@ AEmitterCameraLensEffectBase* APlayerCameraManager::FindCameraLensEffect(TSubcla
 	for (int32 i = 0; i < CameraLensEffects.Num(); ++i)
 	{
 		AEmitterCameraLensEffectBase* LensEffect = CameraLensEffects[i];
-		if ( !LensEffect->IsPendingKill() &&
+		if (LensEffect &&
+			!LensEffect->IsPendingKill() &&
 			( (LensEffect->GetClass() == LensEffectEmitterClass) ||
 			(LensEffect->EmittersToTreatAsSame.Find(LensEffectEmitterClass) != INDEX_NONE) ||
 			(GetDefault<AEmitterCameraLensEffectBase>(LensEffectEmitterClass)->EmittersToTreatAsSame.Find(LensEffect->GetClass()) != INDEX_NONE ) ) )
@@ -1185,7 +1206,8 @@ AEmitterCameraLensEffectBase* APlayerCameraManager::AddCameraLensEffect(TSubclas
 	if (LensEffectEmitterClass != NULL)
 	{
 		AEmitterCameraLensEffectBase* LensEffect = NULL;
-		if (!GetDefault<AEmitterCameraLensEffectBase>(LensEffectEmitterClass)->bAllowMultipleInstances)
+		const AEmitterCameraLensEffectBase* LensEffectClassDefaultObject = GetDefault<AEmitterCameraLensEffectBase>(LensEffectEmitterClass);
+		if (LensEffectClassDefaultObject && !LensEffectClassDefaultObject->bAllowMultipleInstances)
 		{
 			LensEffect = FindCameraLensEffect(LensEffectEmitterClass);
 

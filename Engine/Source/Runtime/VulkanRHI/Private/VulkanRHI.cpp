@@ -48,7 +48,7 @@ static_assert(VK_API_VERSION >= UE_VK_API_VERSION, "Vulkan SDK is older than the
 
 TAutoConsoleVariable<int32> GRHIThreadCvar(
 	TEXT("r.Vulkan.RHIThread"),
-	!(PLATFORM_LUMIN || PLATFORM_LUMINGL4),
+	1,
 	TEXT("0 to only use Render Thread\n")
 	TEXT("1 to use ONE RHI Thread\n")
 	TEXT("2 to use multiple RHI Thread\n")
@@ -432,7 +432,7 @@ void FVulkanDynamicRHI::CreateInstance()
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	SetupDebugLayerCallback();
 
-	if (!GRHISupportsRHIThread || GRenderDocFound)
+	if (GRenderDocFound)
 	{
 		EnableIdealGPUCaptureOptions(true);
 	}
@@ -570,6 +570,8 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	GRHIVendorId = Props.vendorID;
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
 
+	FVulkanPlatform::CheckDeviceDriver(DeviceIndex);
+
 	Device->InitGPU(DeviceIndex);
 
 	if (PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4)
@@ -660,6 +662,8 @@ void FVulkanDynamicRHI::InitInstance()
 
 		// Indicate that the RHI needs to use the engine's deferred deletion queue.
 		GRHINeedsExtraDeletionLatency = true;
+
+		GRHISupportsCopyToTextureMultipleMips = true;
 
 		GMaxShadowDepthBufferSizeX =  FPlatformMath::Min<int32>(Props.limits.maxImageDimension2D, GMaxShadowDepthBufferSizeX);
 		GMaxShadowDepthBufferSizeY =  FPlatformMath::Min<int32>(Props.limits.maxImageDimension2D, GMaxShadowDepthBufferSizeY);
@@ -982,22 +986,26 @@ void FVulkanDynamicRHI::RHISubmitCommandsAndFlushGPU()
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, VkImage Resource, uint32 Flags)
 {
-	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, NumSamplesTileMem, Resource, Flags, FRHIResourceCreateInfo());
+	const FRHIResourceCreateInfo ResourceCreateInfo(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
+	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, NumSamplesTileMem, Resource, Flags, ResourceCreateInfo);
 }
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, FSamplerYcbcrConversionInitializer& ConversionInitializer, uint32 Flags)
 {
-	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, Resource, ConversionInitializer, Flags, FRHIResourceCreateInfo());
+	const FRHIResourceCreateInfo ResourceCreateInfo(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
+	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, Resource, ConversionInitializer, Flags, ResourceCreateInfo);
 }
 
 FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, VkImage Resource, uint32 Flags)
 {
-	return new FVulkanTexture2DArray(*Device, Format, SizeX, SizeY, ArraySize, NumMips, Resource, Flags, nullptr, FClearValueBinding());
+	const FClearValueBinding ClearValueBinding(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
+	return new FVulkanTexture2DArray(*Device, Format, SizeX, SizeY, ArraySize, NumMips, Resource, Flags, nullptr, ClearValueBinding);
 }
 
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, uint32 Flags)
 {
-	return new FVulkanTextureCube(*Device, Format, Size, bArray, ArraySize, NumMips, Resource, Flags, nullptr, FClearValueBinding());
+	const FClearValueBinding ClearValueBinding(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
+	return new FVulkanTextureCube(*Device, Format, Size, bArray, ArraySize, NumMips, Resource, Flags, nullptr, ClearValueBinding);
 }
 
 void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIParamRef DestTextureRHI, FTextureRHIParamRef SrcTextureRHI)
@@ -1312,13 +1320,13 @@ void FVulkanBufferView::Create(FVulkanBuffer& Buffer, EPixelFormat Format, uint3
 	Offset = InOffset;
 	Size = InSize;
 	check(Format != PF_Unknown);
-	const FPixelFormatInfo& FormatInfo = GPixelFormats[Format];
-	check(FormatInfo.Supported);
+	VkFormat BufferFormat = GVulkanBufferFormat[Format];
+	check(BufferFormat != VK_FORMAT_UNDEFINED);
 
 	VkBufferViewCreateInfo ViewInfo;
 	ZeroVulkanStruct(ViewInfo, VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
 	ViewInfo.buffer = Buffer.GetBufferHandle();
-	ViewInfo.format = (VkFormat)FormatInfo.PlatformFormat;
+	ViewInfo.format = BufferFormat;
 	ViewInfo.offset = Offset;
 	ViewInfo.range = Size;
 	Flags = Buffer.GetFlags() & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
@@ -1337,9 +1345,9 @@ void FVulkanBufferView::Create(FVulkanBuffer& Buffer, EPixelFormat Format, uint3
 void FVulkanBufferView::Create(FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize)
 {
 	check(Format != PF_Unknown);
-	const FPixelFormatInfo& FormatInfo = GPixelFormats[Format];
-	check(FormatInfo.Supported);
-	Create((VkFormat)FormatInfo.PlatformFormat, Buffer, InOffset, InSize);
+	VkFormat BufferFormat = GVulkanBufferFormat[Format];
+	check(BufferFormat != VK_FORMAT_UNDEFINED);
+	Create(BufferFormat, Buffer, InOffset, InSize);
 }
 
 void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buffer, uint32 InOffset, uint32 InSize)

@@ -19,10 +19,13 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Stats/Stats.h"
 #include "Internationalization/TextLocalizationManager.h"
+#include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 
 #ifndef NOINITCRASHREPORTER
 #define NOINITCRASHREPORTER 0
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogCrashContext, Display, All);
 
 extern CORE_API bool GIsGPUCrashed;
 
@@ -43,6 +46,7 @@ const FString FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UE4CC-");
 const FString FGenericCrashContext::CrashContextExtension = TEXT(".runtime-xml");
 const FString FGenericCrashContext::RuntimePropertiesTag = TEXT( "RuntimeProperties" );
 const FString FGenericCrashContext::PlatformPropertiesTag = TEXT( "PlatformProperties" );
+const FString FGenericCrashContext::GameDataTag = TEXT( "GameData" );
 const FString FGenericCrashContext::EnabledPluginsTag = TEXT("EnabledPlugins");
 const FString FGenericCrashContext::UE4MinidumpName = TEXT( "UE4Minidump.dmp" );
 const FString FGenericCrashContext::NewLineTag = TEXT( "&nl;" );
@@ -51,6 +55,7 @@ const FString FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
 const FString FGenericCrashContext::CrashTypeAssert = TEXT("Assert");
 const FString FGenericCrashContext::CrashTypeEnsure = TEXT("Ensure");
 const FString FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
+const FString FGenericCrashContext::CrashTypeHang = TEXT("Hang");
 
 const FString FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
 const FString FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
@@ -59,6 +64,8 @@ const FString FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
 bool FGenericCrashContext::bIsInitialized = false;
 FPlatformMemoryStats FGenericCrashContext::CrashMemoryStats = FPlatformMemoryStats();
 int32 FGenericCrashContext::StaticCrashContextIndex = 0;
+
+const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
 
 namespace NCachedCrashContextProperties
 {
@@ -95,6 +102,7 @@ namespace NCachedCrashContextProperties
 	static FString CrashReportClientRichText;
 	static FString GameStateName;
 	static TArray<FString> EnabledPluginsList;
+	static TMap<FString, FString> GameData;
 }
 
 void FGenericCrashContext::Initialize()
@@ -275,6 +283,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 
 	BeginSection( *RuntimePropertiesTag );
 	AddCrashProperty( TEXT( "CrashVersion" ), (int32)ECrashDescVersions::VER_3_CrashContext );
+	AddCrashProperty( TEXT( "ExecutionGuid" ), *ExecutionGuid.ToString() );
 	AddCrashProperty( TEXT( "CrashGUID" ), (const TCHAR*)CrashGUID);
 	AddCrashProperty( TEXT( "ProcessId" ), FPlatformProcess::GetCurrentProcessId() );
 	AddCrashProperty( TEXT( "IsInternalBuild" ), NCachedCrashContextProperties::bIsInternalBuild );
@@ -399,6 +408,14 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	BeginSection( *PlatformPropertiesTag );
 	AddPlatformSpecificProperties();
 	EndSection( *PlatformPropertiesTag );
+
+	// Add the game data
+	BeginSection( *GameDataTag );
+	for (const TPair<FString, FString>& Pair : NCachedCrashContextProperties::GameData)
+	{
+		AddCrashProperty(*Pair.Key, *Pair.Value);
+	}
+	EndSection( *GameDataTag );
 
 	// Writing out the list of plugin JSON descriptors causes us to run out of memory
 	// in GMallocCrash on console, so enable this only for desktop platforms.
@@ -588,6 +605,8 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 {
 	switch (Type)
 	{
+	case ECrashContextType::Hang:
+		return *CrashTypeHang;
 	case ECrashContextType::GPUCrash:
 		return *CrashTypeGPU;
 	case ECrashContextType::Ensure:
@@ -647,6 +666,39 @@ void FGenericCrashContext::PurgeOldCrashConfig()
 				FileManager.DeleteDirectory(*CrashConfigDirectory, false, true);
 			}
 		}
+	}
+}
+
+void FGenericCrashContext::ResetGameData()
+{
+	NCachedCrashContextProperties::GameData.Reset();
+}
+
+void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
+{
+	if (Value.Len() == 0)
+	{
+		// for testing purposes, only log values when they change, but don't pay the lookup price normally.
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (NCachedCrashContextProperties::GameData.Find(Key))
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetGameData(%s, <RemoveKey>)"), *Key);
+			}
+		});
+		NCachedCrashContextProperties::GameData.Remove(Key);
+	}
+	else
+	{
+		FString& OldVal = NCachedCrashContextProperties::GameData.FindOrAdd(Key);
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (OldVal != Value)
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetGameData(%s, %s)"), *Key, *Value);
+			}
+		});
+		OldVal = Value;
 	}
 }
 

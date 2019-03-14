@@ -54,6 +54,14 @@ const TCHAR* GShaderSourceModeDefineName[] =
 	TEXT("SOURCE_MODE_BASE_COLOR")
 };
 
+static TAutoConsoleVariable<int32> CVarEnableViewExtensionsForSceneCapture(
+	TEXT("r.SceneCapture.EnableViewExtensions"),
+	0,
+	TEXT("Whether to enable view extensions when doing scene capture.\n")
+	TEXT("0: Disable view extensions (default).\n")
+	TEXT("1: Enable view extensions.\n"),
+	ECVF_Default);
+
 /**
  * A pixel shader for capturing a component of the rendered scene for a scene capture.
  */
@@ -643,7 +651,12 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		SceneCaptureComponent->ShowFlags)
 		.SetResolveScene(!bCaptureSceneColor)
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
-
+	
+	if (CVarEnableViewExtensionsForSceneCapture.GetValueOnAnyThread() > 0)
+	{
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(nullptr);
+	}
+	
 	SetupViewVamilyForSceneCapture(
 		ViewFamily,
 		SceneCaptureComponent,
@@ -669,14 +682,6 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 	if (CaptureComponent->TextureTarget)
 	{
-		// Only ensure motion blur cache is up to date when doing USceneCaptureComponent2D::CaptureScene(),
-		// but only when bAlwaysPersistRenderingState == true for backward compatibility.
-		if (!CaptureComponent->bCaptureEveryFrame && CaptureComponent->bAlwaysPersistRenderingState)
-		{
-			// We assume the world is not paused since the CaptureScene() has manually been called.
-			EnsureMotionBlurCacheIsUpToDate(/* bWorldIsPaused = */ false);
-		}
-
 		FTransform Transform = CaptureComponent->GetComponentToWorld();
 		FVector ViewLocation = Transform.GetTranslation();
 
@@ -855,7 +860,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 	{
 		UTextureRenderTargetCube* const TextureTarget = TextureTargets[CaptureIter];
 
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM4 && TextureTarget)
+		if (GetFeatureLevel() >= ERHIFeatureLevel::ES3_1 && TextureTarget)
 		{
 			const float FOV = 90 * (float)PI / 360.0f;
 			for (int32 faceidx = 0; faceidx < (int32)ECubeFace::CubeFace_MAX; faceidx++)

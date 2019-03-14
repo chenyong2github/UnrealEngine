@@ -18,8 +18,7 @@
 #include "HAL/PlatformProcess.h"
 
 // platforms which can have runtime threading switches
-#define HAVE_RUNTIME_THREADING_SWITCHES			(PLATFORM_DESKTOP || PLATFORM_ANDROID || PLATFORM_IOS || PLATFORM_HTML5)
-
+#define HAVE_RUNTIME_THREADING_SWITCHES			(!PLATFORM_XBOXONE && !PLATFORM_PS4 && !PLATFORM_ANDROID && !PLATFORM_TVOS && !PLATFORM_SWITCH && !PLATFORM_LUMIN)
 
 /**
  * Provides information about the application.
@@ -64,6 +63,19 @@ public:
 	 * @return Build date string.
 	 */
 	static FString GetBuildDate();
+
+	/**
+	 * Gets the name of the graphics RHI currently in use.
+	 *
+	 * @return name of Graphics RHI
+	 */
+	static FString GetGraphicsRHI();
+
+	/**
+	 * Sets the Graphics RHI currently in use
+	 */
+	static void SetGraphicsRHI(FString RHIString);
+
 
 	/**
 	 * Gets the value of ENGINE_IS_PROMOTED_BUILD.
@@ -710,6 +722,10 @@ private:
 
 	/** Holds the name of the user that launched session. */
 	static FString SessionOwner;
+
+	/** Holds the name the graphics RHI currently in use*/
+	static FString GraphicsRHI;
+
 
 	/** List of authorized session users. */
 	static TArray<FString> SessionUsers;

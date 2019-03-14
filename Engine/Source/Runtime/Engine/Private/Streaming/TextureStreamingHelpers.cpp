@@ -32,6 +32,7 @@ DECLARE_CYCLE_STAT(TEXT("Setup Async Task"), STAT_Streaming01_SetupAsyncTask, ST
 DECLARE_CYCLE_STAT(TEXT("Update Streaming Data"), STAT_Streaming02_UpdateStreamingData, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Streaming Texture"), STAT_Streaming03_StreamTextures, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Notifications"), STAT_Streaming04_Notifications, STATGROUP_Streaming);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Pending 2D Update"), STAT_Streaming05_Pending2DUpdate, STATGROUP_Streaming);
 
 /** Streaming Overview stats */
 
@@ -44,13 +45,13 @@ DECLARE_MEMORY_STAT_POOL(TEXT("     NeverStream"),		STAT_StreamingOverview06_Nev
 DECLARE_MEMORY_STAT_POOL(TEXT("     UI Group"),			STAT_StreamingOverview07_UIGroup, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 DECLARE_MEMORY_STAT_POOL(TEXT("Average Required PoolSize"),	STAT_StreamingOverview08_AverageRequiredPool, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 
-DEFINE_STAT(STAT_TextureStreaming_GameThreadUpdateTime);
+DEFINE_STAT(STAT_RenderAssetStreaming_GameThreadUpdateTime);
 
 CSV_DEFINE_CATEGORY(TextureStreaming, true);
 
 DEFINE_LOG_CATEGORY(LogContentStreaming);
 
-int32 FTextureStreamingSettings::ExtraIOLatency = 0;
+int32 FRenderAssetStreamingSettings::ExtraIOLatency = 0;
 
 ENGINE_API TAutoConsoleVariable<int32> CVarStreamingUseNewMetrics(
 	TEXT("r.Streaming.UseNewMetrics"),
@@ -96,7 +97,7 @@ TAutoConsoleVariable<int32> CVarStreamingUseFixedPoolSize(
 	TEXT("r.Streaming.UseFixedPoolSize"),
 	0,
 	TEXT("If non-zero, do not allow the pool size to change at run time."),
-	ECVF_ReadOnly);
+	ECVF_Scalability);
 
 TAutoConsoleVariable<int32> CVarStreamingPoolSize(
 	TEXT("r.Streaming.PoolSize"),
@@ -221,8 +222,8 @@ TAutoConsoleVariable<int32> CVarStreamingMinMipForSplitRequest(
 	TEXT("If non-zero, the minimum hidden mip for which load requests will first load the visible mip"),
 	ECVF_Default);
 
-TAutoConsoleVariable<float> CVarStreamingMinLevelTextureScreenSize(
-	TEXT("r.Streaming.MinLevelTextureScreenSize"),
+TAutoConsoleVariable<float> CVarStreamingMinLevelRenderAssetScreenSize(
+	TEXT("r.Streaming.MinLevelRenderAssetScreenSize"),
 	100,
 	TEXT("If non-zero, levels only get handled if any of their referenced texture could be required of this size. Using conservative metrics on the level data."),
 	ECVF_Default);
@@ -233,6 +234,12 @@ TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity(
 	TEXT("If non-zero, the max UV density a static entry can have.\n")
 	TEXT("Used to improve level culling from MinLevelTextureScreenSize.\n")
 	TEXT("Component with bigger entries become handled as dynamic component.\n"),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarStreamingMipCalculationEnablePerLevelList(
+	TEXT("r.Streaming.MipCalculationEnablePerLevelList"),
+	1,
+	TEXT("If non-zero, Mip size computation for streamed texture will use levels referenced with it (instead of iterating thorugh every levels).\n"),
 	ECVF_Default);
 
 ENGINE_API TAutoConsoleVariable<int32> CVarFramesForFullUpdate(
@@ -259,7 +266,7 @@ static TAutoConsoleVariable<int32> CVarStreamingStressTestFramesForFullUpdate(
 	TEXT("Num frames to update texture states when doing the stress tests."),
 	ECVF_Cheat);
 
-void FTextureStreamingSettings::Update()
+void FRenderAssetStreamingSettings::Update()
 {
 	MaxEffectiveScreenSize = CVarStreamingScreenSizeEffectiveMax.GetValueOnAnyThread();
 	MaxTempMemoryAllowed = CVarStreamingMaxTempMemoryAllowed.GetValueOnAnyThread();
@@ -274,10 +281,11 @@ void FTextureStreamingSettings::Update()
 	MinMipForSplitRequest = CVarStreamingMinMipForSplitRequest.GetValueOnAnyThread();
 	PerTextureBiasViewBoostThreshold = CVarStreamingPerTextureBiasViewBoostThreshold.GetValueOnAnyThread();
 	MaxHiddenPrimitiveViewBoost = FMath::Max<float>(1.f, CVarStreamingMaxHiddenPrimitiveViewBoost.GetValueOnAnyThread());
-	MinLevelTextureScreenSize = CVarStreamingMinLevelTextureScreenSize.GetValueOnAnyThread();
+	MinLevelRenderAssetScreenSize = CVarStreamingMinLevelRenderAssetScreenSize.GetValueOnAnyThread();
 	MaxTextureUVDensity = CVarStreamingMaxTextureUVDensity.GetValueOnAnyThread();
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
+	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
 
 	MaterialQualityLevel = (int32)GetCachedScalabilityCVars().MaterialQualityLevel;
 
@@ -313,9 +321,6 @@ void FTextureStreamingSettings::Update()
     }
 }
 
-
-extern ENGINE_API UPrimitiveComponent* GDebugSelectedComponent;
-
 /** the float table {-1.0f,1.0f} **/
 float ENGINE_API GNegativeOneOneTable[2] = {-1.0f,1.0f};
 
@@ -329,22 +334,23 @@ float GShadowmapStreamingFactor = 0.09f;
 /** For testing, finding useless textures or special demo purposes. If true, textures will never be streamed out (but they can be GC'd). 
 * Caution: this only applies to unlimited texture pools (i.e. not consoles)
 */
-bool GNeverStreamOutTextures = false;
+bool GNeverStreamOutRenderAssets = false;
 
 #if STATS
 extern int64 GUITextureMemory;
 extern int64 GNeverStreamTextureMemory;
+extern volatile int64 GPending2DUpdateCount;
 
 int64 GRequiredPoolSizeSum = 0;
 int64 GRequiredPoolSizeCount= 0;
 int64 GAverageRequiredPool = 0;
 #endif
 
-void FTextureStreamingStats::Apply()
+void FRenderAssetStreamingStats::Apply()
 {
 	/** Streaming stats */
 
-	SET_MEMORY_STAT(MCR_TexturePool, TexturePool); 
+	SET_MEMORY_STAT(MCR_TexturePool, RenderAssetPool); 
 	SET_MEMORY_STAT(MCR_StreamingPool, StreamingPool);
 	SET_MEMORY_STAT(MCR_UsedStreamingPool, UsedStreamingPool);
 
@@ -368,6 +374,7 @@ void FTextureStreamingStats::Apply()
 	SET_CYCLE_COUNTER(STAT_Streaming02_UpdateStreamingData, UpdateStreamingDataCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming03_StreamTextures, StreamTexturesCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming04_Notifications, CallbacksCycles);
+	INC_DWORD_STAT_BY(STAT_Streaming05_Pending2DUpdate, GPending2DUpdateCount);
 
 	/** Streaming Overview stats */
 

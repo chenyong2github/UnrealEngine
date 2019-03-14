@@ -80,6 +80,8 @@ DEFINE_STAT(STAT_Navigation_GatheringNavigationModifiersSync);
 DEFINE_STAT(STAT_Navigation_ActorsGeometryExportSync);
 DEFINE_STAT(STAT_Navigation_ProcessingActorsForNavMeshBuilding);
 DEFINE_STAT(STAT_Navigation_AdjustingNavLinks);
+DEFINE_STAT(STAT_Navigation_RegisterNavOctreeElement);
+DEFINE_STAT(STAT_Navigation_UnregisterNavOctreeElement);
 DEFINE_STAT(STAT_Navigation_AddingActorsToNavOctree);
 DEFINE_STAT(STAT_Navigation_RecastAddGeneratedTiles);
 DEFINE_STAT(STAT_Navigation_RecastTick);
@@ -416,7 +418,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		SetDefaultObstacleArea(UNavArea_Obstacle::StaticClass());
 		
 		const FTransform RecastToUnrealTransfrom(Recast2UnrealMatrix());
-		SetCoordTransformFrom(ENavigationCoordSystem::Recast, RecastToUnrealTransfrom);
+		SetCoordTransform(ENavigationCoordSystem::Navigation, ENavigationCoordSystem::Unreal, RecastToUnrealTransfrom);
 	}
 
 #if WITH_EDITOR
@@ -652,7 +654,7 @@ bool UNavigationSystemV1::ConditionalPopulateNavOctree()
 					const bool bLegalActor = Actor && !Actor->IsPendingKill();
 					if (bLegalActor)
 					{
-						UpdateActorAndComponentsInNavOctree(*Actor);
+						ConditionalPopulateNavOctreeActor(*Actor);
 					}
 				}
 			}
@@ -906,9 +908,13 @@ void UNavigationSystemV1::RegisterNavigationDataInstances()
 
 void UNavigationSystemV1::CreateCrowdManager()
 {
-	if (CrowdManagerClass)
+	UClass* CrowdManagerClassInstance = CrowdManagerClass.Get();
+	if (CrowdManagerClassInstance)
 	{
-		SetCrowdManager(NewObject<UCrowdManagerBase>(this, CrowdManagerClass));
+		UCrowdManagerBase* ManagerInstance = NewObject<UCrowdManagerBase>(this, CrowdManagerClassInstance);
+		// creating an instance when we have a valid class should never fail
+		check(ManagerInstance);
+		SetCrowdManager(ManagerInstance);
 	}
 }
 
@@ -2382,6 +2388,8 @@ int32 GetDirtyFlagHelper(int32 UpdateFlags, int32 DefaultValue)
 
 FSetElementId UNavigationSystemV1::RegisterNavOctreeElement(UObject* ElementOwner, INavRelevantInterface* ElementInterface, int32 UpdateFlags)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_RegisterNavOctreeElement);
+
 	FSetElementId SetId;
 
 #if WITH_EDITOR
@@ -2525,6 +2533,8 @@ bool UNavigationSystemV1::GetNavOctreeElementData(const UObject& NodeOwner, int3
 
 void UNavigationSystemV1::UnregisterNavOctreeElement(UObject* ElementOwner, INavRelevantInterface* ElementInterface, int32 UpdateFlags)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_UnregisterNavOctreeElement);
+
 #if WITH_EDITOR
 	if (IsNavigationUnregisterLocked())
 	{
@@ -2965,6 +2975,11 @@ void UNavigationSystemV1::OnActorUnregistered(AActor* Actor)
 			NavSys->UnregisterNavOctreeElement(Actor, NavInterface, OctreeUpdate_Default);
 		}
 	}
+}
+
+void UNavigationSystemV1::ConditionalPopulateNavOctreeActor(AActor& Actor)
+{
+	UpdateActorAndComponentsInNavOctree(Actor);
 }
 
 void UNavigationSystemV1::FindElementsInNavOctree(const FBox& QueryBox, const FNavigationOctreeFilter& Filter, TArray<FNavigationOctreeElement>& Elements)
@@ -3874,10 +3889,11 @@ bool UNavigationSystemV1::K2_GetRandomReachablePointInRadius(UObject* WorldConte
 	return bResult;
 }
 
-bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+bool UNavigationSystemV1::K2_GetRandomLocationInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
 {
 	FNavLocation RandomPoint(Origin);
 	bool bResult = false;
+	RandomLocation = Origin;
 
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
@@ -3886,8 +3902,11 @@ bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldConte
 		ANavigationData* UseNavData = NavData ? NavData : NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
 		if (UseNavData)
 		{
-			bResult = NavSys->GetRandomPointInNavigableRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass));
-			RandomLocation = RandomPoint.Location;
+			if (NavSys->GetRandomPointInNavigableRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass)))
+			{
+				bResult = true;
+				RandomLocation = RandomPoint.Location;
+			}
 		}
 	}
 
@@ -4319,6 +4338,11 @@ FVector UNavigationSystemV1::GetRandomPointInNavigableRadius(UObject* WorldConte
 	}
 
 	return RandomPoint.Location;
+}
+
+bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+{
+	return K2_GetRandomLocationInNavigableRadius(WorldContextObject, Origin, RandomLocation, Radius, NavData, FilterClass);
 }
 
 void UNavigationSystemV1::SimpleMoveToActor(AController* Controller, const AActor* Goal)

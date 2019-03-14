@@ -48,12 +48,18 @@ public:
 
 	BLUEPRINTGRAPH_API UProperty* GetProperty() const
 	{
-		return DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode());
+		return DelegateReference.ResolveMember<UMulticastDelegateProperty>(GetBlueprintClassFromNode());
 	}
 
 	BLUEPRINTGRAPH_API FName GetPropertyName() const
 	{
 		return DelegateReference.GetMemberName();
+	}
+
+	BLUEPRINTGRAPH_API FText GetPropertyDisplayName() const
+	{
+		UProperty* Prop = GetProperty();
+		return (Prop ? Prop->GetDisplayNameText() : FText::FromName(GetPropertyName()));
 	}
 
 	BLUEPRINTGRAPH_API UFunction* GetDelegateSignature(bool bForceNotFromSkelClass = false) const;

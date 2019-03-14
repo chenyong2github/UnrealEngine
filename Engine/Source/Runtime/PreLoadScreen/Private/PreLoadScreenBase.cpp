@@ -12,7 +12,9 @@ void FPreLoadScreenBase::Init()
 }
 
 void FPreLoadScreenBase::InitSettingsFromConfig(const FString& ConfigFileName)
-{
+{	
+	SCOPED_BOOT_TIMING("FPreLoadScreenBase::InitSettingsFromConfig");
+
     const FString UIConfigSection = TEXT("PreLoadScreen.UISettings");
 
     //Find plugin content path from name by going through enabled content plugins and see if one matches.

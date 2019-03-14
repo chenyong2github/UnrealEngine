@@ -186,12 +186,14 @@ namespace Gauntlet
 
 		public TargetDeviceIOS(string InName)
 		{
+			KillZombies();
+
+			var DefaultDevices = GetConnectedDeviceUUID();			
+
 			IsDefaultDevice = (String.IsNullOrEmpty(InName) || InName.Equals("default", StringComparison.OrdinalIgnoreCase));
 
 			Name = InName;
 			LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
-
-			var DefaultDevices = GetConnectedDeviceUUID();			
 
 			// If no device name or its 'default' then use the first default device
 			if (IsDefaultDevice)
@@ -422,11 +424,11 @@ namespace Gauntlet
 			if (!File.Exists(LocalExecutable))
 			{
 				throw new AutomationException("Local executable not found for -dev argument: {0}", LocalExecutable);
-			}
-
-			File.WriteAllText(CacheResignedFilename, "The application has been resigned");
-
-			// copy local executable
+			}
+
+			File.WriteAllText(CacheResignedFilename, "The application has been resigned");
+
+			// copy local executable
 			FileInfo SrcInfo = new FileInfo(LocalExecutable);			
 			string DestPath = Path.Combine(CachedAppPath, BundleName);
 			SrcInfo.CopyTo(DestPath, true);
@@ -468,6 +470,9 @@ namespace Gauntlet
 
 		}
 
+		// We need to lock around setting up the IPA
+		static object IPALock = new object();
+
 		public IAppInstall InstallApplication(UnrealAppConfig AppConfig)
 		{            
             IOSBuild Build = AppConfig.Build as IOSBuild;
@@ -476,31 +481,36 @@ namespace Gauntlet
 			if (Build == null)
 			{
 				throw new AutomationException("Invalid build for IOS!");
-			}
+			}	
 
-			Log.Info("Installing using IPA {0}", Build.SourceIPAPath);
-
-			// device artifact path
-			DeviceArtifactPath = string.Format("/Documents/{0}/Saved", AppConfig.ProjectName);
-
-			bool CacheResigned = File.Exists(CacheResignedFilename);
+			bool CacheResigned = false;
 			bool UseLocalExecutable = Globals.Params.ParseParam("dev");
 
-			if (CacheResigned && !UseLocalExecutable)
+			lock(IPALock)
 			{
-				if (File.Exists(IPAHashFilename))
+				Log.Info("Installing using IPA {0}", Build.SourceIPAPath);
+
+				// device artifact path
+				DeviceArtifactPath = string.Format("/Documents/{0}/Saved", AppConfig.ProjectName);
+
+				CacheResigned = File.Exists(CacheResignedFilename);				
+
+				if (CacheResigned && !UseLocalExecutable)
 				{
-					Log.Verbose("App was resigned, invalidating app cache");
-					File.Delete(IPAHashFilename);
-				}								
-			}
+					if (File.Exists(IPAHashFilename))
+					{
+						Log.Verbose("App was resigned, invalidating app cache");
+						File.Delete(IPAHashFilename);
+					}								
+				}
 
-			PrepareIPA(Build);
+				PrepareIPA(Build);
 
-			// local executable support			
-			if (UseLocalExecutable)
-			{					
-				ResignApplication(AppConfig);				
+				// local executable support			
+				if (UseLocalExecutable)
+				{					
+					ResignApplication(AppConfig);				
+				}
 			}
 
 			if (CacheResigned || UseLocalExecutable || !CheckDeployedIPA(Build))
@@ -615,10 +625,52 @@ namespace Gauntlet
 		public bool IsOn { get { return true; } }
 		public bool PowerOn() { return true; }
 		public bool PowerOff() { return true; }
-		public bool Reboot() { return true; }
+		
+		public bool Reboot() 
+		{ 
+			const string Cmd = "/usr/local/bin/idevicediagnostics";
+			if (!File.Exists(Cmd))
+			{
+				Log.Verbose("Rebooting iOS device requires idevicediagnostics binary");
+				return true;
+			}
 
-		// catch attempts to connect multiple iOS devices in parallel, see https://jira.it.epicgames.net/browse/UEATM-219
-		static int ConnectedDeviceCount = 0;
+			var Result = IOSBuild.ExecuteCommand(Cmd, string.Format("restart -u {0}", DeviceName));
+			if (Result.ExitCode != 0)
+			{
+				Log.Warning(string.Format("Failed to reboot iOS device {0}, restart command failed", DeviceName));
+				return true;
+			}
+
+			// initial wait 20 seconds
+			Thread.Sleep(20 * 1000);
+
+			const int WaitPeriod = 10;
+			int WaitTime = 120;
+			bool rebooted = false;
+			do
+			{
+				Result = IOSBuild.ExecuteCommand(Cmd, string.Format("diagnostics WiFi -u {0}", DeviceName));
+				if (Result.ExitCode == 0)
+				{
+					rebooted = true;
+					break;
+				}
+				
+				Thread.Sleep(WaitPeriod * 1000);
+				WaitTime -= WaitPeriod;
+
+			} while (WaitTime > 0);
+
+			if (!rebooted) 
+			{
+				Log.Warning("Failed to reboot iOS device {0}, device didn't come back after restart", DeviceName);
+			}
+
+			return true; 
+		}
+
+		static Dictionary<string, bool> ConnectedDevices = new Dictionary<string, bool>();
 		bool Connected = false;
 
 		public bool Connect() 
@@ -630,22 +682,18 @@ namespace Gauntlet
 					return true;								
 				}
 
-				ConnectedDeviceCount++;
-
-				if (ConnectedDeviceCount > 1)
+				bool ExistingConnection = false;
+				if (ConnectedDevices.TryGetValue(DeviceName, out ExistingConnection))
 				{
-
-					throw new AutomationException("Parallel iOS device connections are not currently supported, see https://jira.it.epicgames.net/browse/UEATM-219");
+					if (ExistingConnection)
+					{
+						throw new AutomationException("Connected to already connected device");
+					}
 				}
 
-				Connected = true;
+				ConnectedDevices[DeviceName] = true;
 
-				// Get rid of any zombies, this needs to be reworked to use tracked process id's when running parallel tests
-				// may need to kill by processid for spawned children
-				IOSBuild.ExecuteCommand("killall", "ios-deploy");
-				Thread.Sleep(2500);
-				IOSBuild.ExecuteCommand("killall", "lldb");			
-				Thread.Sleep(2500);
+				Connected = true;
 			}
 
 			return true; 
@@ -661,12 +709,11 @@ namespace Gauntlet
 
 				Connected = false;
 
-				ConnectedDeviceCount--;
-
-				if (ConnectedDeviceCount < 0)
+				if (ConnectedDevices.ContainsKey(DeviceName))
 				{
-					throw new AutomationException("iOS device connection mismatch");
+					ConnectedDevices.Remove(DeviceName);
 				}
+
 			}
 
 			return true; 
@@ -685,18 +732,37 @@ namespace Gauntlet
 		/// </summary>
 		List<string> GetConnectedDeviceUUID()
 		{
-			var Result = ExecuteIOSDeployCommand("--detect");
+			var Result = ExecuteIOSDeployCommand("--detect", 60, true, false);
 
 			if (Result.ExitCode != 0)
 			{
 				return new List<string>();
 			}
 
-			MatchCollection DeviceMatches = Regex.Matches(Result.Output, @"(.?)Found\ ([a-z0-9]{40})");
+			MatchCollection DeviceMatches = Regex.Matches(Result.Output, @"(.?)Found\ ([a-z0-9]{40}|[A-Z0-9]{8}-[A-Z0-9]{16})");
 
 			return DeviceMatches.Cast<Match>().Select<Match, string>(
 				M => M.Groups[2].ToString()
 			).ToList();
+		}
+
+		static bool ZombiesKilled = false;
+
+		// Get rid of any zombie lldb/iosdeploy processes, this needs to be reworked to use tracked process id's when running parallel tests across multiple AutomationTool.exe processes on test workers
+		void KillZombies()
+		{
+
+			if (Globals.IsWorker || ZombiesKilled)
+			{
+				return;
+			}
+
+			ZombiesKilled = true;
+
+			IOSBuild.ExecuteCommand("killall", "ios-deploy");
+			Thread.Sleep(2500);
+			IOSBuild.ExecuteCommand("killall", "lldb");			
+			Thread.Sleep(2500);
 		}
 		
 		// Gauntlet cache folder for tracking device/ipa state
@@ -821,9 +887,9 @@ namespace Gauntlet
 			return LocalDirectoryMappings;
 		}
 
-		public IProcessResult ExecuteIOSDeployCommand(String CommandLine, int WaitTime = 60, bool WarnOnTimeout = true)
+		public IProcessResult ExecuteIOSDeployCommand(String CommandLine, int WaitTime = 60, bool WarnOnTimeout = true, bool UseDeviceID = true)
 		{
-			if (!IsDefaultDevice)
+			if (UseDeviceID && !IsDefaultDevice)
 			{
 				CommandLine = String.Format("--id {0} {1}", DeviceName, CommandLine);
 			}

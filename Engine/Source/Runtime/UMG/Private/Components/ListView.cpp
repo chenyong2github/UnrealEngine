@@ -34,6 +34,24 @@ void UListView::OnRefreshDesignerItems()
 void UListView::AddItem(UObject* Item)
 {
 	ListItems.Add(Item);
+
+	TArray<UObject*> Added;
+	TArray<UObject*> Removed;
+	Added.Add(Item);
+	OnItemsChanged(Added, Removed);
+
+	RequestRefresh();
+}
+
+void UListView::RemoveItem(UObject* Item)
+{
+	ListItems.Remove(Item);
+
+	TArray<UObject*> Added;
+	TArray<UObject*> Removed;
+	Removed.Add(Item);
+	OnItemsChanged(Added, Removed);
+
 	RequestRefresh();
 }
 
@@ -54,7 +72,13 @@ int32 UListView::GetIndexForItem(UObject* Item) const
 
 void UListView::ClearListItems()
 {
+	TArray<UObject*> Added;
+	TArray<UObject*> Removed = MoveTemp(ListItems);
+
 	ListItems.Reset();
+
+	OnItemsChanged(Added, Removed);
+
 	RequestRefresh();
 }
 
@@ -95,6 +119,12 @@ void UListView::BP_SetListItems(const TArray<UObject*>& InListItems)
 UObject* UListView::BP_GetSelectedItem() const
 {
 	return GetSelectedItem();
+}
+
+void UListView::HandleOnEntryInitializedInternal(UObject* Item, const TSharedRef<ITableRow>& TableRow)
+{
+	UUserWidget* const RowWidget = GetEntryWidgetFromItem(Item);
+	BP_OnEntryInitialized.Broadcast(Item, RowWidget);
 }
 
 bool UListView::BP_GetSelectedItems(TArray<UObject*>& Items) const
@@ -176,6 +206,11 @@ void UListView::BP_SetItemSelection(UObject* Item, bool bSelected)
 void UListView::BP_ClearSelection()
 {
 	ClearSelection();
+}
+
+void UListView::OnItemsChanged(const TArray<UObject*>& AddedItems, const TArray<UObject*>& RemovedItems)
+{
+	// Allow subclasses to do special things when objects are added or removed from the list.
 }
 
 TSharedRef<STableViewBase> UListView::RebuildListWidget()

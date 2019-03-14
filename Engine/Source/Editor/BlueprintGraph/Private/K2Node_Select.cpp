@@ -75,7 +75,7 @@ public:
 				return;
 			}
 
-			FString DefaultTermName = Context.NetNameMap->MakeValidName(Node) + TEXT("_Default");
+			FString DefaultTermName = Context.NetNameMap->MakeValidName(Node, TEXT("Default"));
 			FBPTerminal* DefaultTerm = Context.CreateLocalTerminalFromPinAutoChooseScope(OptionPins[0], DefaultTermName);
 			DefaultTermMap.Add(Node, DefaultTerm);
 		}

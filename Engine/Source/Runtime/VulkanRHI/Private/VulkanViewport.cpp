@@ -96,6 +96,7 @@ FVulkanViewport::~FVulkanViewport()
 			}
 			TextureViews[Index].Destroy(*Device);
 
+			// FIXME: race condition on TransitionAndLayoutManager, could this be called from RT while RHIT is active?
 			Device->NotifyDeletedImage(BackBufferImages[Index]);
 			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
@@ -206,6 +207,9 @@ void FVulkanViewport::AcquireBackBuffer(FRHICommandListBase& CmdList, FVulkanBac
 
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
+		FTransitionAndLayoutManager& LayoutMgr = Context.GetTransitionAndLayoutManager();
+		VkImageLayout& CurrentLayout = LayoutMgr.FindOrAddLayoutRW(BackBufferImages[AcquiredImageIndex], VK_IMAGE_LAYOUT_UNDEFINED);
+		
 		VulkanRHI::ImagePipelineBarrier(CmdBuffer->GetHandle(), BackBufferImages[AcquiredImageIndex],
 			EImageLayoutBarrier::Undefined, EImageLayoutBarrier::ColorAttachment, VulkanRHI::SetupImageSubresourceRange());
 		if (FVulkanPlatform::RequiresSwapchainGeneralInitialLayout())
@@ -216,6 +220,8 @@ void FVulkanViewport::AcquireBackBuffer(FRHICommandListBase& CmdList, FVulkanBac
 			VulkanRHI::ImagePipelineBarrier(CmdBuffer->GetHandle(), BackBufferImages[AcquiredImageIndex],
 				EImageLayoutBarrier::PixelGeneralRW, EImageLayoutBarrier::ColorAttachment, VulkanRHI::SetupImageSubresourceRange());
 		}
+
+		CurrentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	}
 
 	// Submit here so we can add a dependency with the acquired semaphore
@@ -269,7 +275,7 @@ void FVulkanViewport::AdvanceBackBufferFrame()
 {
 	check(IsInRenderingThread());
 
-	if (GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
+	if (FVulkanPlatform::SupportsStandardSwapchain() && GVulkanDelayAcquireImage != EDelayAcquireImageType::DelayAcquire)
 	{
 		RenderingBackBuffer = nullptr;
 		RenderingBackBufferReference = nullptr;
@@ -613,7 +619,7 @@ void FVulkanViewport::CreateSwapchain()
 			FName Name = FName(*FString::Printf(TEXT("BackBuffer%d"), Index));
 			//BackBuffers[Index]->SetName(Name);
 
-			TextureViews[Index].Create(*Device, Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkFormat(PixelFormat, false), 0, 1, 0, 1);
+			TextureViews[Index].Create(*Device, Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1);
 
 			// Clear the swapchain to avoid a validation warning, and transition to ColorAttachment
 			{
@@ -758,8 +764,8 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 			SCOPE_CYCLE_COUNTER(STAT_VulkanAcquireBackBuffer);
 			GetNextImageIndex();
 
-			uint32 WindowSizeX = SizeX;
-			uint32 WindowSizeY = SizeY;
+			uint32 WindowSizeX = FMath::Min(SizeX, SwapChain->InternalWidth);
+			uint32 WindowSizeY = FMath::Min(SizeY, SwapChain->InternalHeight);
 
 			Context->RHIPushEvent(TEXT("CopyImageToBackBuffer"), FColor::Blue);
 			CopyImageToBackBuffer(CmdBuffer, true, RenderingBackBuffer->Surface.Image, BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);

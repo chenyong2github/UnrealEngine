@@ -201,9 +201,9 @@ bool AGameModeBase::SetPause(APlayerController* PC, FCanUnpause CanUnpauseDelega
 
 		// Let the first one in "own" the pause state
 		AWorldSettings * WorldSettings = GetWorldSettings();
-		if (WorldSettings->Pauser == nullptr)
+		if (WorldSettings->GetPauserPlayerState() == nullptr)
 		{
-			WorldSettings->Pauser = PC->PlayerState;
+			WorldSettings->SetPauserPlayerState(PC->PlayerState);
 		}
 		return true;
 	}
@@ -243,7 +243,7 @@ bool AGameModeBase::ClearPause()
 	// Clear the pause state if the list is empty
 	if (Pausers.Num() == 0)
 	{
-		GetWorldSettings()->Pauser = nullptr;
+		GetWorldSettings()->SetPauserPlayerState(nullptr);
 	}
 
 	return bPauseCleared;
@@ -272,9 +272,9 @@ void AGameModeBase::ForceClearUnpauseDelegates(AActor* PauseActor)
 
 		APlayerController* PC = Cast<APlayerController>(PauseActor);
 		AWorldSettings * WorldSettings = GetWorldSettings();
-		if (PC != nullptr && PC->PlayerState != nullptr && WorldSettings != nullptr && WorldSettings->Pauser == PC->PlayerState)
+		if (PC != nullptr && PC->PlayerState != nullptr && WorldSettings != nullptr && WorldSettings->GetPauserPlayerState() == PC->PlayerState)
 		{
-			// Try to find another player to be the worldsettings's Pauser
+			// Try to find another player to be the worldsettings's PauserPlayerState
 			for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 			{
 				APlayerController* Player = Iterator->Get();
@@ -282,15 +282,15 @@ void AGameModeBase::ForceClearUnpauseDelegates(AActor* PauseActor)
 					&&	Player->PlayerState != PC->PlayerState
 					&& !Player->IsPendingKillPending() && !Player->PlayerState->IsPendingKillPending())
 				{
-					WorldSettings->Pauser = Player->PlayerState;
+					WorldSettings->SetPauserPlayerState(Player->PlayerState);
 					break;
 				}
 			}
 
 			// If it's still pointing to the original player's PlayerState, clear it completely
-			if (WorldSettings->Pauser == PC->PlayerState)
+			if (WorldSettings->GetPauserPlayerState() == PC->PlayerState)
 			{
-				WorldSettings->Pauser = nullptr;
+				WorldSettings->SetPauserPlayerState(nullptr);
 			}
 		}
 	}
@@ -671,6 +671,7 @@ APlayerController* AGameModeBase::Login(UPlayer* NewPlayer, ENetRole InRemoteRol
 	ErrorMessage = InitNewPlayer(NewPlayerController, UniqueId, Options, Portal);
 	if (!ErrorMessage.IsEmpty())
 	{
+		NewPlayerController->Destroy();
 		return nullptr;
 	}
 

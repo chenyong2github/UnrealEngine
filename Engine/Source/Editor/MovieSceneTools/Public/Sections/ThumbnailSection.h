@@ -88,6 +88,9 @@ protected:
 	/** Get the total range that thumbnails are to be generated for in the section's time space */
 	TRange<double> GetTotalRange() const;
 
+	/** Get rename visibility */
+	EVisibility GetRenameVisibility() const;
+
 protected:
 
 	/** The section we are visualizing. */
@@ -136,6 +139,6 @@ public:
 	FViewportThumbnailSection(TSharedPtr<ISequencer> InSequencer, TSharedPtr<FTrackEditorThumbnailPool> InThumbnailPool, UMovieSceneSection& InSection);
 
 	//~ IViewportThumbnailClient interface
-	virtual void PreDraw(FTrackEditorThumbnail& Thumbnail, FLevelEditorViewportClient& ViewportClient, FSceneViewport& SceneViewport) override;
-	virtual void PostDraw(FTrackEditorThumbnail& Thumbnail, FLevelEditorViewportClient& ViewportClient, FSceneViewport& SceneViewport) override;
+	virtual void PreDraw(FTrackEditorThumbnail& Thumbnail) override;
+	virtual void PostDraw(FTrackEditorThumbnail& Thumbnail) override;
 };

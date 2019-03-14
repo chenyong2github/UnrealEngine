@@ -26,17 +26,72 @@ TLinkedList<FRenderResource*>*& FRenderResource::GetResourceList()
 	return FirstResourceLink;
 }
 
+/** Initialize all resources initialized before the RHI was initialized */
+void FRenderResource::InitPreRHIResources()
+{	
+	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
+	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
+	{
+		ResourceIt->InitRHI();
+	}
+	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
+	for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
+	{
+		ResourceIt->InitDynamicRHI();
+	}
+
+#if !PLATFORM_NEEDS_RHIRESOURCELIST
+	while (GetResourceList())
+	{
+		TLinkedList<FRenderResource*>* CurrentHead = GetResourceList();
+		CurrentHead->Unlink();
+		delete CurrentHead;
+	}
+#endif
+}
+
+void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
+{
+	ENQUEUE_RENDER_COMMAND(FRenderResourceChangeFeatureLevel)(
+		[NewFeatureLevel](FRHICommandList& RHICmdList)
+	{
+		for (TLinkedList<FRenderResource*>::TIterator It(FRenderResource::GetResourceList()); It; It.Next())
+		{
+			FRenderResource* Resource = *It;
+
+			// Only resources configured for a specific feature level need to be updated
+			if (Resource->HasValidFeatureLevel())
+			{
+				Resource->ReleaseRHI();
+				Resource->ReleaseDynamicRHI();
+				Resource->FeatureLevel = NewFeatureLevel;
+				Resource->InitDynamicRHI();
+				Resource->InitRHI();
+			}
+		}
+	});
+}
+
 void FRenderResource::InitResource()
 {
 	check(IsInRenderingThread());
 	if(!bInitialized)
 	{
+#if PLATFORM_NEEDS_RHIRESOURCELIST
 		ResourceLink = TLinkedList<FRenderResource*>(this);
 		ResourceLink.LinkHead(GetResourceList());
+#endif
 		if(GIsRHIInitialized)
 		{
 			InitDynamicRHI();
 			InitRHI();
+		}
+		else
+		{
+#if !PLATFORM_NEEDS_RHIRESOURCELIST
+		TLinkedList<FRenderResource*>* ListEntry = new TLinkedList<FRenderResource*>(this);
+		ListEntry->LinkHead(GetResourceList());
+#endif
 		}
 		FPlatformMisc::MemoryBarrier(); // there are some multithreaded reads of bInitialized
 		bInitialized = true;
@@ -55,7 +110,9 @@ void FRenderResource::ReleaseResource()
 				ReleaseRHI();
 				ReleaseDynamicRHI();
 			}
+#if PLATFORM_NEEDS_RHIRESOURCELIST
 			ResourceLink.Unlink();
+#endif
 			bInitialized = false;
 		}
 	}
@@ -75,13 +132,14 @@ void FRenderResource::UpdateRHI()
 
 void FRenderResource::InitResourceFromPossiblyParallelRendering()
 {
+	check(IsInParallelRenderingThread());
+
 	if (IsInRenderingThread())
 	{
 		InitResource();
 	}
 	else
 	{
-		check(IsInParallelRenderingThread());
 		class FInitResourceRenderThreadTask
 		{
 			FRenderResource& Resource;
@@ -175,11 +233,11 @@ struct FBatchedReleaseResources
 	{
 		if (NumBatch)
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-				BatchReleaseCommand,
-				FBatchedReleaseResources, BatchedReleaseResources, *this,
+			const FBatchedReleaseResources BatchedReleaseResources = *this;
+			ENQUEUE_RENDER_COMMAND(BatchReleaseCommand)(
+				[BatchedReleaseResources](FRHICommandList& RHICmdList)
 				{
-					BatchedReleaseResources.Execute();
+					((FBatchedReleaseResources&)BatchedReleaseResources).Execute();
 				});
 			Reset();
 		}
@@ -222,9 +280,8 @@ void BeginReleaseResource(FRenderResource* Resource)
 		GBatchedRelease.Add(Resource);
 		return;
 	}
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		ReleaseCommand,
-		FRenderResource*,Resource,Resource,
+	ENQUEUE_RENDER_COMMAND(ReleaseCommand)(
+		[Resource](FRHICommandList& RHICmdList)
 		{
 			Resource->ReleaseResource();
 		});
@@ -233,9 +290,8 @@ void BeginReleaseResource(FRenderResource* Resource)
 void ReleaseResourceAndFlush(FRenderResource* Resource)
 {
 	// Send the release message.
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		ReleaseCommand,
-		FRenderResource*,Resource,Resource,
+	ENQUEUE_RENDER_COMMAND(ReleaseCommand)(
+		[Resource](FRHICommandList& RHICmdList)
 		{
 			Resource->ReleaseResource();
 		});
@@ -471,13 +527,8 @@ void FGlobalDynamicVertexBuffer::Commit()
 	TotalAllocatedSinceLastCommit = 0;
 }
 
-FGlobalDynamicVertexBuffer& FGlobalDynamicVertexBuffer::Get()
-{
-	check(IsInRenderingThread());
-
-	static FGlobalDynamicVertexBuffer GlobalDynamicVertexBuffer;
-	return GlobalDynamicVertexBuffer;
-}
+FGlobalDynamicVertexBuffer InitViewDynamicVertexBuffer;
+FGlobalDynamicVertexBuffer InitShadowViewDynamicVertexBuffer;
 
 /*------------------------------------------------------------------------------
 	FGlobalDynamicIndexBuffer implementation.
@@ -670,14 +721,6 @@ void FGlobalDynamicIndexBuffer::Commit()
 		}
 		Pool->CurrentIndexBuffer = NULL;
 	}
-}
-
-FGlobalDynamicIndexBuffer& FGlobalDynamicIndexBuffer::Get()
-{
-	check(IsInRenderingThread());
-
-	static FGlobalDynamicIndexBuffer GlobalDynamicIndexBuffer;
-	return GlobalDynamicIndexBuffer;
 }
 
 /*=============================================================================

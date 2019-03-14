@@ -35,6 +35,9 @@ class FVertexFactoryParameterRef;
 class FVertexFactoryType;
 class FShaderParametersMetadata;
 
+/** By default most shader source hashes are stripped at cook time so can be discarded
+	to save memory. See implementation of FilterShaderSourceHashForSerialization. */
+#define KEEP_SHADER_SOURCE_HASHES	(WITH_EDITOR)
 
 /** Define a shader permutation uniquely according to its type, and permutation id.*/
 template<typename MetaShaderType>
@@ -177,6 +180,93 @@ public:
 	int32 SpecificPermutationId;
 };
 
+class FShaderParameterInfo
+{
+public:
+	uint16 BaseIndex;
+	uint16 Size;
+
+	FShaderParameterInfo() {}
+
+	FShaderParameterInfo(uint16 InBaseIndex, uint16 InSize)
+	{
+		BaseIndex = InBaseIndex;
+		Size = InSize;
+		checkf(BaseIndex == InBaseIndex && Size == InSize, TEXT("Tweak FShaderParameterInfo type sizes"));
+	}
+
+	friend FArchive& operator<<(FArchive& Ar,FShaderParameterInfo& Info)
+	{
+		Ar << Info.BaseIndex;
+		Ar << Info.Size;
+		return Ar;
+	}
+
+	inline bool operator==(const FShaderParameterInfo& Rhs) const
+	{
+		return BaseIndex == Rhs.BaseIndex
+			&& Size == Rhs.Size;
+	}
+};
+
+class FShaderLooseParameterBufferInfo
+{
+public:
+	uint16 BufferIndex;
+	uint16 BufferSize;
+	TArray<FShaderParameterInfo> Parameters;
+
+	FShaderLooseParameterBufferInfo() {}
+
+	FShaderLooseParameterBufferInfo(uint16 InBufferIndex, uint16 InBufferSize)
+	{
+		BufferIndex = InBufferIndex;
+		BufferSize = InBufferSize;
+		checkf(BufferIndex == InBufferIndex, TEXT("Tweak FShaderLooseParameterBufferInfo type sizes"));
+	}
+
+	friend FArchive& operator<<(FArchive& Ar,FShaderLooseParameterBufferInfo& Info)
+	{
+		Ar << Info.BufferIndex;
+		Ar << Info.BufferSize;
+		Ar << Info.Parameters;
+		return Ar;
+	}
+
+	inline bool operator==(const FShaderLooseParameterBufferInfo& Rhs) const
+	{
+		return BufferIndex == Rhs.BufferIndex
+			&& BufferSize == Rhs.BufferSize
+			&& Parameters == Rhs.Parameters;
+	}
+};
+
+class FShaderParameterMapInfo
+{
+public:
+	TArray<FShaderParameterInfo> UniformBuffers;
+	TArray<FShaderParameterInfo> TextureSamplers;
+	TArray<FShaderParameterInfo> SRVs;
+	TArray<FShaderLooseParameterBufferInfo> LooseParameterBuffers;
+
+	friend FArchive& operator<<(FArchive& Ar,FShaderParameterMapInfo& Info)
+	{
+		Ar << Info.UniformBuffers;
+		Ar << Info.TextureSamplers;
+		Ar << Info.SRVs;
+		Ar << Info.LooseParameterBuffers;
+		return Ar;
+	}
+
+	inline bool operator==(const FShaderParameterMapInfo& Rhs) const
+	{
+		return UniformBuffers == Rhs.UniformBuffers
+			&& TextureSamplers == Rhs.TextureSamplers
+			&& SRVs == Rhs.SRVs
+			&& LooseParameterBuffers == Rhs.LooseParameterBuffers;
+	}
+};
+
 /** 
  * Compiled shader bytecode and its corresponding RHI resource. 
  * This can be shared by multiple FShaders with identical compiled output.
@@ -263,6 +353,46 @@ public:
 		return (FRHIComputeShader*)Shader.GetReference();
 	}
 
+#if RHI_RAYTRACING
+	inline const FRayTracingShaderRHIParamRef GetRayTracingShader()
+	{
+		checkSlow(Target.Frequency == SF_RayGen
+			   || Target.Frequency == SF_RayMiss
+			   || Target.Frequency == SF_RayHitGroup);
+
+		if (!IsInitialized())
+		{
+			InitializeShaderRHI();
+		}
+		return RayTracingShader;
+	}
+
+	inline uint32 GetRayTracingMaterialLibraryIndex()
+	{
+		checkSlow(Target.Frequency == SF_RayGen
+			|| Target.Frequency == SF_RayMiss
+			|| Target.Frequency == SF_RayHitGroup);
+
+		if (!IsInitialized())
+		{
+			InitializeShaderRHI();
+		}
+		return RayTracingMaterialLibraryIndex;
+	}
+
+	RENDERCORE_API static void GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader);
+
+private:
+	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader);
+	RENDERCORE_API static void RemoveFromRayTracingLibrary(uint32 Index);
+
+	static TArray<uint32> GlobalUnusedIndicies;
+	static TArray<FRHIRayTracingShader*> GlobalRayTracingMaterialLibrary;
+	static FCriticalSection GlobalRayTracingMaterialLibraryCS;
+
+public:
+#endif // RHI_RAYTRACING
+
 	RENDERCORE_API FShaderResourceId GetId() const;
 
 	uint32 GetSizeBytes() const
@@ -298,7 +428,7 @@ public:
 	* Passes back a zeroed out hash to serialize when saving out cooked data.
 	* The goal here is to ensure that source hash changes do not cause widespread binary differences in cooked data, resulting in bloated patch diffs.
 	*/
-	RENDERCORE_API static FSHAHash &FilterShaderSourceHashForSerialization(const FArchive& Ar, FSHAHash &HashToSerialize);
+	RENDERCORE_API static FSHAHash& FilterShaderSourceHashForSerialization(const FArchive& Ar, FSHAHash &HashToSerialize);
 
 private:
 	// compression functions
@@ -329,6 +459,11 @@ private:
 	/** Reference to the RHI shader. References the matching shader type of Target.Frequency. */
 	TRefCountPtr<FRHIShader> Shader;
 
+#if RHI_RAYTRACING
+	FRayTracingShaderRHIRef RayTracingShader;
+	uint32 RayTracingMaterialLibraryIndex = UINT_MAX;
+#endif // RHI_RAYTRACING
+
 #if WITH_EDITORONLY_DATA
 	/** Platform specific debug data output by the shader compiler. Discarded in cooked builds. */
 	TArray<uint8> PlatformDebugData;
@@ -354,6 +489,7 @@ private:
 	uint32 NumTextureSamplers;
 #endif
 
+	FShaderParameterMapInfo ParameterMapInfo;
 	/** Whether the shader code is stored in a shader library. */
 	bool bCodeInSharedLocation;
 	/** Whether the shader code was requested (and hence if we need to drop the ref later). */
@@ -361,6 +497,8 @@ private:
 
 	/** Initialize the shader RHI resources. */
 	RENDERCORE_API void InitializeShaderRHI();
+
+	void BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap);
 
 	/** Tracks loaded shader resources by id. */
 	static TMap<FShaderResourceId, FShaderResource*> ShaderResourceIdMap;
@@ -455,11 +593,13 @@ public:
 	 */ 
 	FSHAHash MaterialShaderMapHash;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
 
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	/** Shader platform and frequency. */
 	FShaderTarget Target;
@@ -511,13 +651,15 @@ public:
 		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
 			&& X.ShaderPipeline == Y.ShaderPipeline
 			&& X.VertexFactoryType == Y.VertexFactoryType
-			&& X.VFSourceHash == Y.VFSourceHash
 			&& ((X.VFSerializationHistory == NULL && Y.VFSerializationHistory == NULL)
 				|| (X.VFSerializationHistory != NULL && Y.VFSerializationHistory != NULL &&
 					*X.VFSerializationHistory == *Y.VFSerializationHistory))
 			&& X.ShaderType == Y.ShaderType
 			&& X.PermutationId == Y.PermutationId 
+#if KEEP_SHADER_SOURCE_HASHES
 			&& X.SourceHash == Y.SourceHash 
+			&& X.VFSourceHash == Y.VFSourceHash
+#endif
 			&& X.SerializationHistory == Y.SerializationHistory
 			&& X.Target == Y.Target;
 	}
@@ -539,11 +681,13 @@ public:
 	 */ 
 	FSHAHash MaterialShaderMapHash;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the vertex factory source files. */
 	FSHAHash VFSourceHash;
 
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	/** 
 	 * Name of the vertex factory type that the shader was created for, 
@@ -607,12 +751,11 @@ public:
 	struct FResourceParameter
 	{
 		uint16 BaseIndex;
-		uint16 NumResources;
 		uint16 ByteOffset;
 
 		friend FArchive& operator<<(FArchive& Ar, FResourceParameter& ParameterBindingData)
 		{
-			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.NumResources << ParameterBindingData.ByteOffset;
+			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.ByteOffset;
 			return Ar;
 		}
 	};
@@ -774,6 +917,18 @@ public:
 		return Resource->GetComputeShader();
 	}
 
+#if RHI_RAYTRACING
+	inline const FRayTracingShaderRHIParamRef GetRayTracingShader() const
+	{
+		return Resource->GetRayTracingShader();
+	}
+
+	inline uint32 GetRayTracingMaterialLibraryIndex() const
+	{
+		return Resource->GetRayTracingMaterialLibraryIndex();
+	}
+#endif // RHI_RAYTRACING
+
 	// Accessors.
 	inline FShaderType* GetType() const { return Type; }
 	inline int32 GetPermutationId() const { return PermutationId; }
@@ -784,10 +939,19 @@ public:
 #endif
 	inline const TArray<uint8>& GetCode() const { return Resource->Code; }
 	inline const FShaderTarget GetTarget() const { return Target; }
-	inline FSHAHash GetOutputHash() const { return OutputHash; }
+	inline FSHAHash GetOutputHash() const
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		return OutputHash;
+#else
+		check(Resource);
+		return Resource->OutputHash;
+#endif
+	}
 	FShaderId GetId() const;
 	inline FVertexFactoryType* GetVertexFactoryType() const { return VFType; }
 	inline int32 GetNumRefs() const { return NumRefs; }
+	const FShaderParameterMapInfo& GetParameterMapInfo() const { return Resource->ParameterMapInfo; }
 
 	inline FShaderResourceId GetResourceId() const
 	{
@@ -888,6 +1052,19 @@ public:
 		}
 	}
 
+	const FShaderParametersMetadata* FindAutomaticallyBoundUniformBufferStruct(int32 BaseIndex) const
+	{
+		for (int32 i = 0; i < UniformBufferParameters.Num(); i++)
+		{
+			if (UniformBufferParameters[i]->GetBaseIndex() == BaseIndex)
+			{
+				return UniformBufferParameterStructs[i];
+			}
+		}
+
+		return nullptr;
+	}
+
 	/** Gets the shader. */
 	inline FShader* GetShader()
 	{
@@ -913,25 +1090,26 @@ public:
 protected:
 
 	/** Indexed the same as UniformBufferParameters.  Packed densely for coherent traversal. */
-	TArray<FShaderParametersMetadata*> UniformBufferParameterStructs;
+	TArray<const FShaderParametersMetadata*> UniformBufferParameterStructs;
 	TArray<FShaderUniformBufferParameter*> UniformBufferParameters;
 
 private:
-
-	/** 
-	 * Hash of the compiled output from this shader and the resulting parameter map.  
-	 * This is used to find a matching resource.
-	 */
-	FSHAHash OutputHash;
-
 	/** Hash of the material shader map this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash MaterialShaderMapHash;
+
+#if KEEP_SHADER_SOURCE_HASHES
+	/**
+	* Hash of the compiled output from this shader and the resulting parameter map.
+	* This is used to find a matching resource.
+	*/
+	FSHAHash OutputHash;
 
 	/** Vertex factory source hash, stored so that an FShaderId can be constructed from this shader. */
 	FSHAHash VFSourceHash;
 
 	/** Hash of this shader's source files generated at compile time, and stored to allow creating an FShaderId. */
 	FSHAHash SourceHash;
+#endif
 
 	/** Reference to the shader resource, which stores the compiled bytecode and the RHI shader resource. */
 	TRefCountPtr<FShaderResource> Resource;
@@ -1358,7 +1536,11 @@ public:
 	bool IsGlobalTypePipeline() const { return Stages[0]->GetGlobalShaderType() != nullptr; }
 	bool IsMaterialTypePipeline() const { return Stages[0]->GetMaterialShaderType() != nullptr; }
 	bool IsMeshMaterialTypePipeline() const { return Stages[0]->GetMeshMaterialShaderType() != nullptr; }
-	bool ShouldOptimizeUnusedOutputs() const { return bShouldOptimizeUnusedOutputs; }
+
+	FORCEINLINE bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const
+	{
+		return bShouldOptimizeUnusedOutputs && RHISupportsShaderPipelines(Platform);
+	}
 
 	/** Gets a list of FShaderTypes & PipelineTypes whose source file no longer matches what that type was compiled with */
 	static void GetOutdatedTypes(TArray<FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
@@ -1420,21 +1602,41 @@ public:
 		, PermutationId(0)
 	{}
 
+	FShaderTypeDependency(FShaderType* InShaderType, EShaderPlatform ShaderPlatform)
+		: ShaderType(InShaderType)
+		, PermutationId(0)
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		if (ShaderType)
+		{
+			SourceHash = ShaderType->GetSourceHash(ShaderPlatform);
+		}
+#endif
+	}
+
 	/** Shader type */
 	FShaderType* ShaderType;
 
 	/** Unique permutation identifier of the global shader type. */
 	int32 PermutationId;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the shader source files. */
 	FSHAHash SourceHash;
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar,class FShaderTypeDependency& Ref)
 	{
 		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
 		Ar << Ref.ShaderType;
-		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.SourceHash);
+
+#if KEEP_SHADER_SOURCE_HASHES
+		FSHAHash& Hash = Ref.SourceHash;
+#else
+		FSHAHash Hash;
+#endif
+		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 
 		if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::ShaderPermutationId)
 		{
@@ -1446,7 +1648,16 @@ public:
 
 	bool operator==(const FShaderTypeDependency& Reference) const
 	{
+#if KEEP_SHADER_SOURCE_HASHES
 		return ShaderType == Reference.ShaderType && PermutationId == Reference.PermutationId && SourceHash == Reference.SourceHash;
+#else
+		return ShaderType == Reference.ShaderType && PermutationId == Reference.PermutationId;
+#endif
+	}
+
+	bool operator!=(const FShaderTypeDependency& Reference) const
+	{
+		return !(*this == Reference);
 	}
 };
 
@@ -1458,22 +1669,50 @@ public:
 		ShaderPipelineType(nullptr)
 	{}
 
+	FShaderPipelineTypeDependency(const FShaderPipelineType* InShaderPipelineType, EShaderPlatform ShaderPlatform) :
+		ShaderPipelineType(InShaderPipelineType)
+	{
+#if KEEP_SHADER_SOURCE_HASHES
+		if (ShaderPipelineType)
+		{
+			StagesSourceHash = ShaderPipelineType->GetSourceHash(ShaderPlatform);
+		}
+#endif
+	}
+
 	/** Shader Pipeline type */
 	const FShaderPipelineType* ShaderPipelineType;
 
+#if KEEP_SHADER_SOURCE_HASHES
 	/** Used to detect changes to the shader source files. */
 	FSHAHash StagesSourceHash;
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar, class FShaderPipelineTypeDependency& Ref)
 	{
 		Ar << Ref.ShaderPipelineType;
-		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.StagesSourceHash);
+
+#if KEEP_SHADER_SOURCE_HASHES
+		FSHAHash& Hash = Ref.StagesSourceHash;
+#else
+		FSHAHash Hash;
+#endif
+		Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 		return Ar;
 	}
 
 	bool operator==(const FShaderPipelineTypeDependency& Reference) const
 	{
+#if KEEP_SHADER_SOURCE_HASHES	
 		return ShaderPipelineType == Reference.ShaderPipelineType && StagesSourceHash == Reference.StagesSourceHash;
+#else
+		return ShaderPipelineType == Reference.ShaderPipelineType;
+#endif
+	}
+
+	bool operator!=(const FShaderPipelineTypeDependency& Reference) const
+	{
+		return !(*this == Reference);
 	}
 };
 
@@ -1713,7 +1952,7 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	virtual ~TShaderMap()
 	{
-		EmptyShaderPipelines();
+		Empty();
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
@@ -1819,11 +2058,11 @@ public:
 		for (auto Pair : ShaderPipelines)
 		{
 			FShaderPipeline* Pipeline = Pair.Value;
-			if (Pipeline->PipelineType->ShouldOptimizeUnusedOutputs() && Filter == FShaderPipeline::EOnlyShared)
+			if (Pipeline->PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyShared)
 			{
 				continue;
 			}
-			else if (!Pipeline->PipelineType->ShouldOptimizeUnusedOutputs() && Filter == FShaderPipeline::EOnlyUnique)
+			else if (!Pipeline->PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyUnique)
 			{
 				continue;
 			}
@@ -1953,7 +2192,13 @@ public:
 				check(Type);
 				checkSlow(FName(Type->GetName()) != NAME_None);
 				Ar << Type;
+#if WITH_EDITOR
+				TRefCountPtr<FShader>* Found = Shaders.Find(Key);
+				checkf(Found, TEXT("Unable to find FShaderType %s!"), Type->GetName());
+				FShader* CurrentShader = *Found;
+#else
 				FShader* CurrentShader = Shaders.FindChecked(Key);
+#endif
 				SerializeShaderForSaving(CurrentShader, Ar, bHandleShaderKeyChanges, bInlineShaderResource);
 			}
 

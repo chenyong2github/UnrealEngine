@@ -68,6 +68,7 @@ namespace Audio
 		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* InSoundWave) override;
 		virtual FString GetDefaultDeviceName() override;
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
+		virtual void OnHardwareUpdate() override;
 		//~ End IAudioMixerPlatformInterface
 
 		//~ Begin IAudioMixerDeviceChangedLister
@@ -86,10 +87,16 @@ namespace Audio
 		const TCHAR* GetErrorString(HRESULT Result);
 		bool AllowDeviceSwap();
 
+		// Used to teardown and reinitialize XAudio2.
+		// This must be done to repopulate the playback device list in XAudio 2.7.
+		bool ResetXAudio2System();
+
 		typedef TArray<long> TChannelTypeMap;
 		
+#if PLATFORM_WINDOWS
 		// Handle to XAudio2DLL
-		HMODULE XAudio2Dll;
+		static HMODULE XAudio2Dll;
+#endif //PLATFORM_WINDOWS
 
 		// Bool indicating that the default audio device changed
 		// And that we need to restart the audio device.
@@ -103,8 +110,14 @@ namespace Audio
 		FCriticalSection AudioDeviceSwapCriticalSection;
 		FString OriginalAudioDeviceId;
 		FString NewAudioDeviceId;
-		FThreadSafeBool bMoveAudioStreamToNewAudioDevice;
+
+		// Because certain device drivers tend to spam IMMNotificationClient callbacks,
+		// We rate limit our device swap using time below:
 		double LastDeviceSwapTime;
+
+		// When we are running the null device,
+		// we check whether a new audio device was connected every second or so.
+		float TimeSinceNullDeviceWasLastChecked;
 
 		uint32 bIsComInitialized : 1;
 		uint32 bIsInitialized : 1;

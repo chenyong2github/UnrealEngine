@@ -12,7 +12,6 @@
 #include "NiagaraVertexFactory.h"
 #include "NiagaraDataSet.h"
 #include "SceneView.h"
-#include "NiagaraGlobalReadBuffer.h"
 
 class FMaterial;
 
@@ -57,6 +56,21 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraSpriteUniformParameters> FNiagaraSpriteUniformBufferRef;
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraSpriteVFLooseParameters, NIAGARAVERTEXFACTORIES_API)
+	SHADER_PARAMETER(uint32, NumCutoutVerticesPerFrame)
+	SHADER_PARAMETER(uint32, NiagaraFloatDataOffset)
+	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
+	SHADER_PARAMETER(uint32, ParticleAlignmentMode)
+	SHADER_PARAMETER(uint32, ParticleFacingMode)
+	SHADER_PARAMETER(uint32, SortedIndicesOffset)
+	SHADER_PARAMETER_SRV(Buffer<float2>, CutoutGeometry)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
+	SHADER_PARAMETER_SRV(Buffer<uint>, IndirectArgsBuffer)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FNiagaraSpriteVFLooseParameters> FNiagaraSpriteVFLooseParametersRef;
+
 /**
  * Vertex factory for rendering particle sprites.
  */
@@ -69,19 +83,19 @@ public:
 	/** Default constructor. */
 	FNiagaraSpriteVertexFactory(ENiagaraVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel )
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel),
-		NumVertsInInstanceBuffer(0),
+		LooseParameterUniformBuffer(nullptr),
 		NumCutoutVerticesPerFrame(0),
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
 		FacingMode(0),
 		FloatDataOffset(0),
-		FloatDataStride(0),
+		FloatDataStride(0),		
 		SortedIndicesOffset(0)
 	{}
 
 	FNiagaraSpriteVertexFactory()
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num),
-		NumVertsInInstanceBuffer(0),
+		LooseParameterUniformBuffer(nullptr),
 		NumCutoutVerticesPerFrame(0),
 		CutoutGeometrySRV(nullptr),
 		AlignmentMode(0),
@@ -89,6 +103,7 @@ public:
 		FloatDataOffset(0),
 		FloatDataStride(0),
 		SortedIndicesOffset(0)
+		
 	{}
 
 	// FRenderResource interface.
@@ -104,14 +119,9 @@ public:
 	/**
 	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	 */
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryType* Type, EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment);
 	
 	void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
-
-	inline void SetNumVertsInInstanceBuffer(int32 InNumVertsInInstanceBuffer)
-	{
-		NumVertsInInstanceBuffer = InNumVertsInInstanceBuffer;
-	}
 	
 	/**
 	 * Set the uniform buffer for this vertex factory.
@@ -196,10 +206,17 @@ public:
 		return AlignmentMode;
 	}
 
+	void SetVertexBufferOverride(const FVertexBuffer* InVertexBufferOverride)
+	{
+		VertexBufferOverride = InVertexBufferOverride;
+	}
+
 	/**
 	 * Construct shader parameters for this type of vertex factory.
 	 */
 	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
+
+	FUniformBufferRHIRef LooseParameterUniformBuffer;
 
 protected:
 	/** Initialize streams for this vertex factory. */
@@ -207,13 +224,13 @@ protected:
 
 private:
 
-	int32 NumVertsInInstanceBuffer;
+	const FVertexBuffer* VertexBufferOverride = nullptr;
 
 	/** Uniform buffer with sprite parameters. */
-	FUniformBufferRHIParamRef SpriteUniformBuffer;
+	FUniformBufferRHIRef SpriteUniformBuffer;
 
 	int32 NumCutoutVerticesPerFrame;
-	FShaderResourceViewRHIParamRef CutoutGeometrySRV;
+	FShaderResourceViewRHIRef CutoutGeometrySRV;
 	uint32 AlignmentMode;
 	uint32 FacingMode;
 	

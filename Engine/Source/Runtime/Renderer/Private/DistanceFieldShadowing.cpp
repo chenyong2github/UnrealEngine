@@ -392,14 +392,14 @@ public:
 
 		const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
 
-		FLightParameters LightParameters;
+		FLightShaderParameters LightParameters;
+		LightProxy.GetLightShaderParameters(LightParameters);
 
-		LightProxy.GetParameters(LightParameters);
-
-		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, LightParameters.NormalizedLightDirection);
-		SetShaderValue(RHICmdList, ShaderRHI, LightPositionAndInvRadius, LightParameters.LightPositionAndInvRadius);
+		SetShaderValue(RHICmdList, ShaderRHI, LightDirection, LightParameters.Direction);
+		FVector4 LightPositionAndInvRadiusValue(LightParameters.Position, LightParameters.InvRadius);
+		SetShaderValue(RHICmdList, ShaderRHI, LightPositionAndInvRadius, LightPositionAndInvRadiusValue);
 		// Default light source radius of 0 gives poor results
-		SetShaderValue(RHICmdList, ShaderRHI, LightSourceRadius, LightParameters.LightSourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.LightSourceRadius, .001f, 1.0f / (4 * LightParameters.LightPositionAndInvRadius.W)));
+		SetShaderValue(RHICmdList, ShaderRHI, LightSourceRadius, LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius)));
 
 		SetShaderValue(RHICmdList, ShaderRHI, RayStartOffsetDepthScale, LightProxy.GetRayStartOffsetDepthScale());
 
@@ -1010,21 +1010,16 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(FRHIComma
 	}
 }
 
-void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading) 
+void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FIntRect& ScissorRect, IPooledRenderTarget* ScreenShadowMaskTexture, bool bProjectingForForwardShading)
 {
+	check(ScissorRect.Area() > 0);
+
 	BeginRenderRayTracedDistanceFieldProjection(RHICmdList, View);
 
 	if (RayTracedShadowsRT)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderRayTracedDistanceFieldShadows);
 		SCOPED_DRAW_EVENT(RHICmdList, RayTracedDistanceFieldShadow);
-
-		FIntRect ScissorRect;
-
-		if (!LightSceneInfo->Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
-		{
-			ScissorRect = View.ViewRect;
-		}
 
 		if ( IsTransientResourceBufferAliasingEnabled() )
 		{

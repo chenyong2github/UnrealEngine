@@ -35,6 +35,7 @@ public:
 	virtual int32 OnPaintSection( FSequencerSectionPainter& Painter ) const override;
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override;
 	virtual FReply OnSectionDoubleClicked(const FGeometry& SectionGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FText GetSectionTitle() const override;
 	virtual float GetSectionHeight() const override;
 	virtual FMargin GetContentPadding() const override;
 	virtual void BeginResizeSection() override;
@@ -47,6 +48,7 @@ public:
 	virtual void SetSingleTime(double GlobalTime) override;
 	virtual FText HandleThumbnailTextBlockText() const override;
 	virtual void HandleThumbnailTextBlockTextCommitted(const FText& NewThumbnailName, ETextCommit::Type CommitType) override;
+	virtual UCameraComponent* GetViewCamera() override;
 
 private:
 
@@ -57,9 +59,6 @@ private:
 
 	/** The section we are visualizing */
 	UMovieSceneCinematicShotSection& SectionObject;
-
-	/** Sequencer interface */
-	TWeakPtr<ISequencer> Sequencer;
 
 	/** The cinematic shot track editor that contains this section */
 	TWeakPtr<FCinematicShotTrackEditor> CinematicShotTrackEditor;

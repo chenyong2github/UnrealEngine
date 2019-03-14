@@ -95,8 +95,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );
 	
-	// @todo Zebra This is now supported on all GPUs in Mac Metal, but not on iOS.
-	// we cannot render to a volume texture without geometry shader support
+	// we cannot render to a volume texture without geometry shader or vertex-shader-layer support, so initialise to false and enable based on platform feature availability
 	GSupportsVolumeTextureRendering = false;
 	
 	// Metal always needs a render target to render with fragment shaders!
@@ -367,6 +366,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	{
 		GMetalCommandBufferHasStartEndTimeAPI = true;
 	}
+	
+	GRHISupportsCopyToTextureMultipleMips = true;
 		
 	if(
 	   #if PLATFORM_MAC
@@ -414,9 +415,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 #else
 		GRHISupportsRHIThread = bSupportsRHIThread;
 #endif
-		GRHISupportsParallelRHIExecute = GRHISupportsRHIThread;
+		GRHISupportsParallelRHIExecute = GRHISupportsRHIThread && ((!IsRHIDeviceIntel() && !IsRHIDeviceNVIDIA()) || FParse::Param(FCommandLine::Get(),TEXT("metalparallel")));
 #endif
-		GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && (IsRHIDeviceAMD() || PLATFORM_IOS); // Only AMD currently support async. compute and it requires parallel execution to be useful.
+		GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && (IsRHIDeviceAMD() || PLATFORM_IOS || FParse::Param(FCommandLine::Get(),TEXT("metalasynccompute"))); // Only AMD currently support async. compute and it requires parallel execution to be useful.
 		GSupportsParallelOcclusionQueries = GRHISupportsRHIThread;
 	}
 	else
@@ -429,7 +430,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (FPlatformMisc::IsDebuggerPresent() && UE_BUILD_DEBUG)
 	{
 #if PLATFORM_IOS // @todo zebra : needs a RENDER_API or whatever
-		// Enable GL debug markers if we're running in Xcode
+		// Enable debug markers if we're running in Xcode
 		extern int32 GEmitMeshDrawEvent;
 		GEmitMeshDrawEvent = 1;
 #endif
@@ -607,7 +608,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMetalBufferFormats[PF_PLATFORM_HDR_1		] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_PLATFORM_HDR_2		] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_NV12					] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
-		
+
 	// Initialize the platform pixel format map.
 	GPixelFormats[PF_Unknown			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
 	GPixelFormats[PF_A32B32G32R32F		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA32Float;
@@ -683,7 +684,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		
 	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
 	GPixelFormats[PF_R5G6B5_UNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::B5G6R5Unorm;
-#else // @todo zebra : srgb?
+#else
     GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC1_RGBA;
     GPixelFormats[PF_DXT3				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC2_RGBA;
     GPixelFormats[PF_DXT5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC3_RGBA;
@@ -834,12 +835,28 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			NSString* TempDir = [NSString stringWithFormat:@"%@/../C/%@/com.apple.metal", NSTemporaryDirectory(), [NSBundle mainBundle].bundleIdentifier];
 
 			NSError* Err = nil;
-			BOOL bOK = [[NSFileManager defaultManager] removeItemAtPath:TempDir
-						error:&Err];
-
-			bOK = [[NSFileManager defaultManager] copyItemAtPath:DstPath
-						toPath:TempDir
-						error:&Err];
+			if(![[NSFileManager defaultManager] fileExistsAtPath:TempDir])
+			{
+				[[NSFileManager defaultManager] createDirectoryAtPath:TempDir
+										  withIntermediateDirectories:YES
+														   attributes:nil
+																error:&Err];
+			}
+			
+			NSDirectoryEnumerator<NSString *> * Enum = [[NSFileManager defaultManager] enumeratorAtPath:DstPath];
+			for (NSString* Path in Enum)
+			{
+				[Enum skipDescendents];
+				
+				NSString* Dest = [NSString stringWithFormat:@"%@/%@", TempDir, Path];
+				if(![[NSFileManager defaultManager] fileExistsAtPath:Dest])
+				{
+					NSString* Src = [NSString stringWithFormat:@"%@/%@", DstPath, Path];
+					[[NSFileManager defaultManager] copyItemAtPath:Src
+															toPath:Dest
+															 error:&Err];
+				}
+			}
 		}
 	}
 #endif
@@ -855,18 +872,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (ImmediateContext.Profiler)
 		ImmediateContext.Profiler->BeginFrame();
 #endif
-		
-		
+	
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-	for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-	{
-		ResourceIt->InitRHI();
-	}
-	// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-	for(TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList());ResourceIt;ResourceIt.Next())
-	{
-		ResourceIt->InitDynamicRHI();
-	}
+	FRenderResource::InitPreRHIResources();	
 	
 	AsyncComputeContext = GSupportsEfficientAsyncCompute ? new FMetalRHIComputeContext(ImmediateContext.Profiler, new FMetalContext(ImmediateContext.Context->GetDevice(), ImmediateContext.Context->GetCommandQueue(), true)) : nullptr;
 
@@ -984,7 +992,6 @@ void FMetalRHICommandContext::RHIBeginFrame()
 void FMetalRHIImmediateCommandContext::RHIEndFrame()
 {
 	@autoreleasepool {
-	// @todo zebra: GPUProfilingData.EndFrame();
 #if ENABLE_METAL_GPUPROFILE
 	Profiler->EndFrame();
 #endif
@@ -1024,7 +1031,6 @@ void FMetalRHICommandContext::RHIEndScene()
 void FMetalRHICommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 {
 #if ENABLE_METAL_GPUEVENTS
-	// @todo zebra : this was "[NSString stringWithTCHARString:Name]", an extension only on ios for some reason, it should be on Mac also
 	@autoreleasepool
 	{
 		FPlatformMisc::BeginNamedEvent(Color, Name);

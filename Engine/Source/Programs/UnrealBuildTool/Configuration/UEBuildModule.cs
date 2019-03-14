@@ -474,7 +474,7 @@ namespace UnrealBuildTool
 			{
 				if(Rules.Target.LinkType == TargetLinkType.Monolithic)
 				{
-					if (Rules.Target.bShouldCompileAsDLL && Rules.Target.bHasExports)
+					if (Rules.Target.bShouldCompileAsDLL && (Rules.Target.bHasExports || Rules.ModuleSymbolVisibility == ModuleRules.SymbolVisibility.VisibileForDll))
 					{
 						Definitions.Add(ModuleApiDefine + "=DLLEXPORT");
 					}

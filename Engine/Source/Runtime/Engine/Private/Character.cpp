@@ -1471,78 +1471,26 @@ void ACharacter::PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPro
 {
 	Super::PreReplicationForReplay(ChangedPropertyTracker);
 
-	// If this is a replay, we save out certain values we need to runtime to do smooth interpolation
-	// We'll be able to look ahead in the replay to have these ahead of time for smoother playback
-	FCharacterReplaySample ReplaySample;
-
 	const UWorld* World = GetWorld();
-
-	// If this is a client-recorded replay, use the mesh location and rotation, since these will always
-	// be smoothed - unlike the actor position and rotation.
-	const USkeletalMeshComponent* const MeshComponent = GetMesh();
-	if (MeshComponent && World && World->IsRecordingClientReplay())
-	{
-		FNetworkPredictionData_Client_Character const* const ClientNetworkPredicationData = CharacterMovement->GetPredictionData_Client_Character();
-		if ((Role == ROLE_SimulatedProxy) && ClientNetworkPredicationData)
-		{
-			ReplaySample.Location = GetActorLocation() + ClientNetworkPredicationData->MeshTranslationOffset;
-			if (CharacterMovement->NetworkSmoothingMode == ENetworkSmoothingMode::Exponential)
-			{
-				ReplaySample.Rotation = GetActorRotation() + ClientNetworkPredicationData->MeshRotationOffset.Rotator();
-			}
-			else
-			{
-				ReplaySample.Rotation = ClientNetworkPredicationData->MeshRotationOffset.Rotator();
-			}
-		}
-		else
-		{
-			// Remove the base transform from the mesh's transform, since on playback the base transform
-			// will be stored in the mesh's RelativeLocation and RelativeRotation.
-			const FTransform BaseTransform(GetBaseRotationOffset(), GetBaseTranslationOffset());
-			const FTransform MeshRootTransform = BaseTransform.Inverse() * MeshComponent->GetComponentTransform();
-
-			ReplaySample.Location = MeshRootTransform.GetLocation();
-			ReplaySample.Rotation = MeshRootTransform.GetRotation().Rotator();
-		}
-
-		// On client replays, our view pitch will be set to 0 as by default we do not replicate
-		// pitch for owners, just for simulated. So instead push our rotation into the sampler
-		if (Controller != nullptr && Role == ROLE_AutonomousProxy && GetNetMode() == NM_Client)
-		{
-			SetRemoteViewPitch(Controller->GetControlRotation().Pitch);
-		}
-	}
-	else
-	{
-		ReplaySample.Location = GetActorLocation();
-		ReplaySample.Rotation = GetActorRotation();
-	}
-
-	ReplaySample.Velocity = GetVelocity();
-	ReplaySample.Acceleration = CharacterMovement->GetCurrentAcceleration();
-	ReplaySample.RemoteViewPitch = RemoteViewPitch;
-
 	if (World)
 	{
-		if (World->DemoNetDriver)
+		// On client replays, our view pitch will be set to 0 as by default we do not replicate
+		// pitch for owners, just for simulated. So instead push our rotation into the sampler
+		if (World->IsRecordingClientReplay() && Controller != nullptr && Role == ROLE_AutonomousProxy && GetNetMode() == NM_Client)
 		{
-			ReplaySample.Time = World->DemoNetDriver->DemoCurrentTime;
+			SetRemoteViewPitch(Controller->GetControlRotation().Pitch);
 		}
 
 		ReplayLastTransformUpdateTimeStamp = World->GetTimeSeconds();
 	}
-
-	const uint32 ReserveBits = 1024;
-	FBitWriter Writer(ReserveBits, true);
-	Writer << ReplaySample;
-
-	ChangedPropertyTracker.SetExternalData(Writer.GetData(), Writer.GetNumBits());
 }
 
 void ACharacter::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
+
+	DISABLE_REPLICATED_PROPERTY(ACharacter, JumpMaxHoldTime);
+	DISABLE_REPLICATED_PROPERTY(ACharacter, JumpMaxCount);
 
 	DOREPLIFETIME_CONDITION( ACharacter, RepRootMotion,						COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, ReplicatedBasedMovement,			COND_SimulatedOnly );

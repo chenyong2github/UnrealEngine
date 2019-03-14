@@ -7,6 +7,7 @@
 #include "RenderResource.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 
 
 namespace MediaShaders
@@ -98,7 +99,7 @@ public:
 		uint16 Stride = sizeof(FMediaElementVertex);
 		Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, Position), VET_Float4, 0, Stride));
 		Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, TextureCoordinate), VET_Float2, 1, Stride));
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	virtual void ReleaseRHI() override
@@ -631,6 +632,33 @@ public:
 	FInvertAlphaPS() { }
 
 	FInvertAlphaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
+};
+
+
+/**
+ * Pixel shader to set alpha component to 1.0f
+ *
+ * This shader expects a single texture in RGBA 8 or 10 bits format.
+ */
+class FSetAlphaOnePS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FSetAlphaOnePS, Global, UTILITYSHADERS_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
+	}
+
+	FSetAlphaOnePS() { }
+
+	FSetAlphaOnePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{ }
 

@@ -66,7 +66,7 @@ void FD3D11DynamicRHI::ClearState()
 	FMemory::Memzero(CurrentResourcesBoundAsSRVs, sizeof(CurrentResourcesBoundAsSRVs));
 	FMemory::Memzero(CurrentResourcesBoundAsVBs, sizeof(CurrentResourcesBoundAsVBs));
 	CurrentResourceBoundAsIB = nullptr;
-	for (int32 Frequency = 0; Frequency < SF_NumFrequencies; Frequency++)
+	for (int32 Frequency = 0; Frequency < SF_NumStandardFrequencies; Frequency++)
 	{
 		MaxBoundShaderResourcesIndex[Frequency] = INDEX_NONE;
 	}
@@ -648,21 +648,25 @@ bool FD3DGPUProfiler::CheckGpuHeartbeat() const
 	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
 	{
 		GFSDK_Aftermath_Device_Status Status;
-		auto Result = GFSDK_Aftermath_GetDeviceStatus(&Status);
+		D3D11StallRHIThread();
+		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_GetDeviceStatus(&Status);
+		D3D11UnstallRHIThread();
 		if (Result == GFSDK_Aftermath_Result_Success)
 		{
 			if (Status != GFSDK_Aftermath_Device_Status_Active)
 			{
 				GIsGPUCrashed = true;
 				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Unknown") };
-				check(Status < 5);
+				check(Status < ARRAYSIZE(AftermathReason));
 				UE_LOG(LogRHI, Error, TEXT("[Aftermath] Status: %s"), AftermathReason[Status]);
-				auto AftermathContext = D3D11RHI->GetNVAftermathContext();
+				GFSDK_Aftermath_ContextHandle AftermathContext = D3D11RHI->GetNVAftermathContext();
 
 				if (AftermathContext)
 				{
 					GFSDK_Aftermath_ContextData ContextDataOut;
+					D3D11StallRHIThread();
 					Result = GFSDK_Aftermath_GetData(1, &AftermathContext, &ContextDataOut);
+					D3D11UnstallRHIThread();
 					if (Result == GFSDK_Aftermath_Result_Success)
 					{
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));

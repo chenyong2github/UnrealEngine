@@ -4,21 +4,27 @@ using UnrealBuildTool;
 
 public class AudioEditor : ModuleRules
 {
-    public AudioEditor(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PrivateIncludePaths.AddRange(
-            new string[] {
-                "Editor/AudioEditor/Private",
-                "Editor/AudioEditor/Private/Factories",
-                "Editor/AudioEditor/Private/AssetTypeActions"
-            });
+	public AudioEditor(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"Editor/AudioEditor/Private",
+				"Editor/AudioEditor/Private/Factories",
+				"Editor/AudioEditor/Private/AssetTypeActions"
+			});
 
-        PublicDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "Core",
-                "CoreUObject",
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"AudioMixer"
+			});
+
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
 				"ApplicationCore",
+				"AudioMixer",
                 "InputCore",
                 "Engine",
                 "UnrealEd",
@@ -40,5 +46,14 @@ public class AudioEditor : ModuleRules
 			new string[] {
 				"AssetTools"
 			});
+
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		{
+			PublicDefinitions.Add("WITH_SNDFILE_IO=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_SNDFILE_IO=0");
+		}
 	}
 }

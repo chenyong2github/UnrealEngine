@@ -120,7 +120,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public HtmlBuilder EnsureEndsWithRowClose()
 		{
-			if (SB.Length > 0 && !EndsWithNewLine)
+			if (SB.Length > 0 && !EndsWithRowClose)
 			{
 				SB.Append("</tr>");
 			}
@@ -212,8 +212,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		public HtmlBuilder Hyperlink(string URL, string Text)
 		{
-			EnsureEndsWithNewLine();
-			SB.AppendFormat("<a href=\"{0}\">{1}</h1>", Text);
+			SB.AppendFormat("<a href=\"{0}\">{1}</a>", URL, Text);
 			return this;
 		}
 

@@ -14,6 +14,17 @@
 namespace
 {
 	static UTakeRecorderPanel* CurrentTakeRecorderPanel;
+	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderPanelChanged TakeRecorderPanelChanged;
+}
+
+
+bool UTakeRecorderBlueprintLibrary::IsTakeRecorderEnabled()
+{
+#if WITH_EDITOR
+	return !IsRunningGame();
+#else
+	return false;
+#endif 
 }
 
 UTakeRecorder* UTakeRecorderBlueprintLibrary::StartRecording(ULevelSequence* LevelSequence, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, const FTakeRecorderParameters& Parameters)
@@ -21,6 +32,22 @@ UTakeRecorder* UTakeRecorderBlueprintLibrary::StartRecording(ULevelSequence* Lev
 	if (IsRecording())
 	{
 		// @todo: script error?
+		return nullptr;
+	}
+
+	if (LevelSequence == nullptr)
+	{
+		FFrame::KismetExecutionMessage(TEXT("The LevelSequence is invalid."), ELogVerbosity::Error);
+		return nullptr;
+	}
+	if (Sources == nullptr)
+	{
+		FFrame::KismetExecutionMessage(TEXT("The Sources is invalid."), ELogVerbosity::Error);
+		return nullptr;
+	}
+	if (MetaData == nullptr)
+	{
+		FFrame::KismetExecutionMessage(TEXT("The MetaData is invalid."), ELogVerbosity::Error);
 		return nullptr;
 	}
 
@@ -76,8 +103,15 @@ UTakeRecorderPanel* UTakeRecorderBlueprintLibrary::OpenTakeRecorderPanel()
 		return Existing;
 	}
 
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(ITakeRecorderModule::TakeRecorderTabName);
+	if (!IsRunningGame())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditorModule.GetLevelEditorTabManager()->InvokeTab(ITakeRecorderModule::TakeRecorderTabName);
+	}
+	else
+	{
+		FFrame::KismetExecutionMessage(TEXT("The Take Recorder Panel will not open because the game is running."), ELogVerbosity::Log);
+	}
 
 	return GetTakeRecorderPanel();
 }
@@ -87,20 +121,30 @@ UTakeRecorderPanel* UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel()
 	return CurrentTakeRecorderPanel && CurrentTakeRecorderPanel->IsPanelOpen() ? CurrentTakeRecorderPanel : nullptr;
 }
 
+void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged)
+{
+	TakeRecorderPanelChanged = OnTakeRecorderPanelChanged;
+};
+
 void UTakeRecorderBlueprintLibrary::SetTakeRecorderPanel(UTakeRecorderPanel* InNewPanel)
 {
-	if (CurrentTakeRecorderPanel)
+	if (CurrentTakeRecorderPanel != InNewPanel)
 	{
-		// Old panel is no longer valid
-		CurrentTakeRecorderPanel->ClosePanel();
+		if (CurrentTakeRecorderPanel)
+		{
+			// Old panel is no longer valid
+			CurrentTakeRecorderPanel->ClosePanel();
 
-		CurrentTakeRecorderPanel->RemoveFromRoot();
-		CurrentTakeRecorderPanel = nullptr;
-	}
+			CurrentTakeRecorderPanel->RemoveFromRoot();
+			CurrentTakeRecorderPanel = nullptr;
+		}
 
-	if (InNewPanel && InNewPanel->IsPanelOpen())
-	{
-		InNewPanel->AddToRoot();
-		CurrentTakeRecorderPanel = InNewPanel;
+		if (InNewPanel && InNewPanel->IsPanelOpen())
+		{
+			InNewPanel->AddToRoot();
+			CurrentTakeRecorderPanel = InNewPanel;
+		}
+
+		TakeRecorderPanelChanged.ExecuteIfBound();
 	}
 }

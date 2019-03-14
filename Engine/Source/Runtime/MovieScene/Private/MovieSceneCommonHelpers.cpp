@@ -13,6 +13,7 @@
 #include "Sound/SoundWave.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNodeWavePlayer.h"
+#include "MovieSceneTrack.h"
 
 UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time )
 {
@@ -29,7 +30,6 @@ UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( const TArray<UMovieSce
 
 	return nullptr;
 }
-
 
 UMovieSceneSection* MovieSceneHelpers::FindNearestSectionAtTime( const TArray<UMovieSceneSection*>& Sections, FFrameNumber Time )
 {
@@ -258,6 +258,50 @@ float MovieSceneHelpers::GetSoundDuration(USoundBase* Sound)
 	return Duration == INDEFINITELY_LOOPING_DURATION ? SoundWave->Duration : Duration;
 }
 
+
+float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionToKey, FFrameNumber Time)
+{
+	float Weight = 1.0f;
+	UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
+	FOptionalMovieSceneBlendType BlendType = SectionToKey->GetBlendType();
+	if (Track && BlendType.IsValid() && (BlendType.Get() == EMovieSceneBlendType::Additive || BlendType.Get() == EMovieSceneBlendType::Absolute))
+	{
+		//if additive weight is just the inverse of any weight on it
+		if (BlendType.Get() == EMovieSceneBlendType::Additive)
+		{
+			float TotalWeightValue = SectionToKey->GetTotalWeightValue(Time);
+			Weight = !FMath::IsNearlyZero(TotalWeightValue) ? 1.0f / TotalWeightValue : 0.0f;
+		}
+		else
+		{
+
+			const TArray<UMovieSceneSection*>& Sections = Track->GetAllSections();
+			TArray<UMovieSceneSection*, TInlineAllocator<4>> OverlappingSections;
+			for (UMovieSceneSection* Section : Sections)
+			{
+				if (Section->GetRange().Contains(Time))
+				{
+					OverlappingSections.Add(Section);
+				}
+			}
+			//if absolute need to calculate weight based upon other sections weights (+ implicit absolute weights)
+			int TotalNumOfAbsoluteSections = 1;
+			for (UMovieSceneSection* Section : OverlappingSections)
+			{
+				FOptionalMovieSceneBlendType NewBlendType = Section->GetBlendType();
+
+				if (Section != SectionToKey && NewBlendType.IsValid() && NewBlendType.Get() == EMovieSceneBlendType::Absolute)
+				{
+					++TotalNumOfAbsoluteSections;
+				}
+			}
+			float TotalWeightValue = SectionToKey->GetTotalWeightValue(Time);
+			Weight = !FMath::IsNearlyZero(TotalWeightValue) ? float(TotalNumOfAbsoluteSections) / TotalWeightValue : 0.0f;
+		}
+	}
+	return Weight;
+}
+
 FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath, const FName& InFunctionName, const FName& InNotifyFunctionName )
     : PropertyPath( InPropertyPath )
 	, NotifyFunctionName(InNotifyFunctionName)
@@ -392,10 +436,9 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 void FTrackInstancePropertyBindings::CallFunctionForEnum( UObject& InRuntimeObject, int64 PropertyValue )
 {
 	FPropertyAndFunction PropAndFunction = FindOrAdd(InRuntimeObject);
-	if (UFunction* Setter = PropAndFunction.SetterFunction.Get())
+	if (UFunction* SetterFunction = PropAndFunction.SetterFunction.Get())
 	{
-		// ProcessEvent should really be taking const void*
-		InRuntimeObject.ProcessEvent(Setter, (void*)&PropertyValue);
+		InvokeSetterFunction(&InRuntimeObject, SetterFunction, PropertyValue);
 	}
 	else if (UProperty* Property = PropAndFunction.PropertyAddress.GetProperty())
 	{
@@ -424,11 +467,18 @@ void FTrackInstancePropertyBindings::CacheBinding(const UObject& Object)
 {
 	FPropertyAndFunction PropAndFunction;
 	{
-		PropAndFunction.SetterFunction = Object.FindFunction(FunctionName);
 		PropAndFunction.PropertyAddress = FindProperty(Object, PropertyPath);
-		if (NotifyFunctionName != NAME_None)
+
+		UFunction* SetterFunction = Object.FindFunction(FunctionName);
+		if (SetterFunction && SetterFunction->NumParms >= 1)
 		{
-			PropAndFunction.NotifyFunction = Object.FindFunction(NotifyFunctionName);
+			PropAndFunction.SetterFunction = SetterFunction;
+		}
+		
+		UFunction* NotifyFunction = NotifyFunctionName != NAME_None ? Object.FindFunction(NotifyFunctionName) : nullptr;
+		if (NotifyFunction && NotifyFunction->NumParms == 0 && NotifyFunction->ReturnValueOffset == MAX_uint16)
+		{
+			PropAndFunction.NotifyFunction = NotifyFunction;
 		}
 	}
 
@@ -476,8 +526,7 @@ template<> void FTrackInstancePropertyBindings::CallFunction<bool>(UObject& InRu
 	FPropertyAndFunction PropAndFunction = FindOrAdd(InRuntimeObject);
 	if (UFunction* SetterFunction = PropAndFunction.SetterFunction.Get())
 	{
-		// ProcessEvent should really be taking const void*
-		InRuntimeObject.ProcessEvent(SetterFunction, (void*)&PropertyValue);
+		InvokeSetterFunction(&InRuntimeObject, SetterFunction, PropertyValue);
 	}
 	else if (UProperty* Property = PropAndFunction.PropertyAddress.GetProperty())
 	{
@@ -547,8 +596,7 @@ template<> void FTrackInstancePropertyBindings::CallFunction<UObject*>(UObject& 
 	FPropertyAndFunction PropAndFunction = FindOrAdd(InRuntimeObject);
 	if (UFunction* SetterFunction = PropAndFunction.SetterFunction.Get())
 	{
-		// ProcessEvent should really be taking const void*
-		InRuntimeObject.ProcessEvent(SetterFunction, (void*)&PropertyValue);
+		InvokeSetterFunction(&InRuntimeObject, SetterFunction, PropertyValue);
 	}
 	else if (UObjectPropertyBase* ObjectProperty = Cast<UObjectPropertyBase>(PropAndFunction.PropertyAddress.GetProperty()))
 	{

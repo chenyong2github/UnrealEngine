@@ -61,6 +61,8 @@ FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParen
 {
 	bDumpAfterEvent = false;
 	ParticleDataSet = new FNiagaraDataSet();
+
+	Batcher = ParentSystemInstance ? ParentSystemInstance->GetBatcher() : nullptr;
 }
 
 FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
@@ -75,10 +77,14 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 		/** We defer the deletion of the particle dataset and the compute context to the RT to be sure all in-flight RT commands have finished using it.*/
 		if (GPUExecContext != nullptr)
 		{
-			NiagaraEmitterInstanceBatcher::Get()->Remove(GPUExecContext);
+			if (Batcher)
+			{
+				Batcher->Remove(GPUExecContext);
+			}
 
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(FDeleteComputeContextCommand,
-				FNiagaraComputeExecutionContext*, ExecContext, GPUExecContext,
+			FNiagaraComputeExecutionContext* ExecContext = GPUExecContext;
+			ENQUEUE_RENDER_COMMAND(FDeleteComputeContextCommand)(
+				[ExecContext](FRHICommandListImmediate& RHICmdList)
 				{
 					delete ExecContext;
 				});
@@ -88,8 +94,9 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 
 		if (ParticleDataSet != nullptr)
 		{
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(FDeleteParticleDataSetCommand,
-				FNiagaraDataSet*, DataSet, ParticleDataSet,
+			FNiagaraDataSet* DataSet = ParticleDataSet;
+			ENQUEUE_RENDER_COMMAND(FDeleteParticleDataSetCommand)(
+				[DataSet](FRHICommandListImmediate& RHICmdList)
 				{
 					delete DataSet;
 				});
@@ -156,8 +163,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	checkSlow(CachedEmitter);
 	CachedIDName = EmitterHandle.GetIdName();
 
+	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	if (!EmitterHandle.GetIsEnabled()
-		|| !CachedEmitter->IsAllowedByDetailLevel()
+		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
 		|| (GMaxRHIFeatureLevel != ERHIFeatureLevel::SM5 && GMaxRHIFeatureLevel != ERHIFeatureLevel::ES3_1 && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
 		)
 	{
@@ -331,8 +339,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 	{
-		//Just ensure we've generated the singleton here on the GT as it throws a wobbler if we do this later in parallel.
-		NiagaraEmitterInstanceBatcher::Get();
 	}
 	else
 	{
@@ -353,31 +359,34 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter, Scripts, ScriptDefinedDataInterfaceParameters);
 }
 
-void FNiagaraEmitterInstance::ResetSimulation()
+void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
 {
-	bResetPending = true;
 	Age = 0;
 	Loops = 0;
 	TickCount = 0;
-	TotalSpawnedParticles = 0;
 	CachedBounds.Init();
-
-	ParticleDataSet->ResetBuffers();
-	for (FNiagaraDataSet* SpawnScriptEventDataSet : SpawnScriptEventDataSets)
-	{
-		SpawnScriptEventDataSet->ResetBuffers();
-	}
-	for (FNiagaraDataSet* UpdateScriptEventDataSet : UpdateScriptEventDataSets)
-	{
-		UpdateScriptEventDataSet->ResetBuffers();
-	}
-	
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
-	{
-		GPUExecContext->Reset();
-	}
-
 	SetExecutionState(ENiagaraExecutionState::Active);
+
+	if (bKillExisting)
+	{
+		bResetPending = true;
+		TotalSpawnedParticles = 0;
+
+		ParticleDataSet->ResetBuffers();
+		for (FNiagaraDataSet* SpawnScriptEventDataSet : SpawnScriptEventDataSets)
+		{
+			SpawnScriptEventDataSet->ResetBuffers();
+		}
+		for (FNiagaraDataSet* UpdateScriptEventDataSet : UpdateScriptEventDataSets)
+		{
+			UpdateScriptEventDataSet->ResetBuffers();
+		}
+
+		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+		{
+			GPUExecContext->Reset();
+		}
+	}
 }
 
 void FNiagaraEmitterInstance::CheckForErrors()
@@ -888,16 +897,13 @@ void FNiagaraEmitterInstance::PreTick()
 
 bool FNiagaraEmitterInstance::WaitForDebugInfo()
 {
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && DebugContext)
 	{
-		
-		FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
-
-		ENQUEUE_RENDER_COMMAND(CaptureCommand)([DebugContext](FRHICommandListImmediate& RHICmdList)
-			{
-				NiagaraEmitterInstanceBatcher::Get()->ProcessDebugInfo(RHICmdList, DebugContext);
-			}
-		);
+		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList)
+		{
+			Batcher->ProcessDebugInfo(RHICmdList, GPUExecContext);
+		});
 		return true;
 	}
 	return false;
@@ -1109,7 +1115,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		GPUExecContext->EventHandlerScriptProps = CachedEmitter->GetEventHandlers();
 		GPUExecContext->EventSets = EventSet;
 		GPUExecContext->EventSpawnCounts = EventHandlerSpawnCounts;
-		NiagaraEmitterInstanceBatcher::Get()->Queue(GPUExecContext);
+		if (Batcher)
+		{
+			Batcher->Queue(GPUExecContext);
+		}
 
 		// Need to call post-tick, which calls the copy to previous for interpolated spawning
 		SpawnExecContext.PostTick();

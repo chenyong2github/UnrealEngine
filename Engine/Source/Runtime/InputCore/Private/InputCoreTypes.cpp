@@ -384,12 +384,14 @@ void FKeyDetails::CommonInit(const uint8 InKeyFlags)
 	}
 }
 
+#if !FAST_BOOT_HACKS
 PRAGMA_DISABLE_OPTIMIZATION
+#endif
 void EKeys::Initialize()
 {
 	if (bInitialized) return;
 	bInitialized = true;
-
+	
 	AddMenuCategoryDisplayInfo(NAME_GamepadCategory, LOCTEXT("GamepadSubCategory", "Gamepad"), TEXT("GraphEditor.PadEvent_16x"));
 	AddMenuCategoryDisplayInfo(NAME_MouseCategory, LOCTEXT("MouseSubCategory", "Mouse"), TEXT("GraphEditor.MouseEvent_16x"));
 	AddMenuCategoryDisplayInfo(NAME_KeyboardCategory, LOCTEXT("KeyboardSubCategory", "Keyboard"), TEXT("GraphEditor.KeyEvent_16x"));
@@ -710,7 +712,9 @@ void EKeys::Initialize()
 	// Initialize the input key manager.  This will cause any additional OEM keys to get added
 	FInputKeyManager::Get();
 }
+#if !FAST_BOOT_HACKS
 PRAGMA_ENABLE_OPTIMIZATION
+#endif
 
 void EKeys::AddKey(const FKeyDetails& KeyDetails)
 {
@@ -1188,6 +1192,7 @@ FKey FInputKeyManager::GetKeyFromCodes( const uint32 KeyCode, const uint32 CharC
 	{
 		FKey NewKey(*FString::Printf(TEXT("%s%d"), FKey::SyntheticCharPrefix, CharCode));
 		EKeys::AddKey(FKeyDetails(NewKey, FText::AsCultureInvariant(FString::Chr(CharCode)), FKeyDetails::NotBlueprintBindableKey));
+		const_cast<FInputKeyManager*>(this)->KeyMapCharToEnum.Add(CharCode, NewKey);
 		return NewKey;
 	}
 	return KeyPtr ? *KeyPtr : EKeys::Invalid;

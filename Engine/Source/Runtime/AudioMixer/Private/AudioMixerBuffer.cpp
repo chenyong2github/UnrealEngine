@@ -3,6 +3,8 @@
 #include "AudioMixerBuffer.h"
 #include "AudioMixerDevice.h"
 #include "Interfaces/IAudioFormat.h"
+#include "AudioMixerSourceDecode.h"
+#include "AudioStreaming.h"
 
 namespace Audio
 {
@@ -42,6 +44,11 @@ namespace Audio
 
 		if (DecompressionState)
 		{
+			if (BufferType == EBufferType::Streaming)
+			{
+				IStreamingManager::Get().GetAudioStreamingManager().RemoveDecoder(DecompressionState);
+			}
+
 			delete DecompressionState;
 			DecompressionState = nullptr;
 		}
@@ -151,26 +158,6 @@ namespace Audio
 			return true;
 		}
 		return false;
-	}
-
-	bool FMixerBuffer::ReadCompressedData(uint8* Destination, int32 InNumFrames, bool bLooping)
-	{
-		if (!DecompressionState)
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Attempting to read compressed data without a compression state instance for resource '%s'"), *ResourceName);
-			return false;
-		}
-
-		const int32 kPCMBufferSize = NumChannels * InNumFrames * sizeof(int16);
-
-		if (BufferType == EBufferType::Streaming)
-		{
-			return DecompressionState->StreamCompressedData(Destination, bLooping, kPCMBufferSize);
-		}
-		else
-		{
-			return DecompressionState->ReadCompressedData(Destination, bLooping, kPCMBufferSize);
-		}
 	}
 
 	void FMixerBuffer::Seek(const float SeekTime)
@@ -343,7 +330,10 @@ namespace Audio
 			InWave->DecompressionType = DTYPE_Invalid;
 			InWave->NumChannels = 0;
 
-			InWave->RemoveAudioResource();
+			InWave->RemoveAudioResource(); 
+
+			delete Buffer;
+			Buffer = nullptr;
 		}
 
 		return Buffer;
@@ -382,6 +372,9 @@ namespace Audio
 			InWave->NumChannels = 0;
 
 			InWave->RemoveAudioResource();
+
+			delete Buffer;
+			Buffer = nullptr;
 		}
 
 		return Buffer;
@@ -395,6 +388,16 @@ namespace Audio
 	bool FMixerBuffer::IsRealTimeBuffer() const
 	{
 		return BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming;
+	}
+
+	ICompressedAudioInfo* FMixerBuffer::GetDecompressionState(bool bTakesOwnership)
+	{
+		ICompressedAudioInfo* Output = DecompressionState;
+		if (bTakesOwnership)
+		{
+			DecompressionState = nullptr;
+		}
+		return Output;
 	}
 
 	void FMixerBuffer::GetPCMData(uint8** OutData, uint32* OutDataSize)

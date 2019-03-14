@@ -161,8 +161,13 @@ ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMater
 			LayerParameter.WeightmapIndex = INDEX_NONE;
 		}
 	}
-	MaterialInstance->UpdateStaticPermutation(StaticParameters);
 
+	// Don't recreate the render state of everything, only update the materials context
+	{
+		FMaterialUpdateContext MaterialUpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+		MaterialInstance->UpdateStaticPermutation(StaticParameters, &MaterialUpdateContext);
+	}
+	
 	FLinearColor Mask(1.0f, 0.0f, 0.0f, 0.0f);
 	MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Mask);
 	MaterialInstance->SetTextureParameterValueEditorOnly(FName(TEXT("Weightmap0")), ThumbnailWeightmap);
@@ -208,7 +213,7 @@ FString ULandscapeComponent::GetLayerAllocationKey(const TArray<FWeightmapLayerA
 	return Result;
 }
 
-UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(const TArray<FWeightmapLayerAllocationInfo>& Allocations, int8 InLODIndex, bool bMobile /*= false*/) const
+UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterialUpdateContext* InMaterialUpdateContext, const TArray<FWeightmapLayerAllocationInfo>& Allocations, int8 InLODIndex, bool bMobile /*= false*/) const
 {
 	check(GIsEditor);
 
@@ -272,7 +277,7 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(const TAr
 					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerParameter, Allocation.WeightmapTextureIndex, true, FGuid(), !Allocation.LayerInfo->bNoWeightBlend));
 				}
 			}
-			CombinationMaterialInstance->UpdateStaticPermutation(StaticParameters);
+			CombinationMaterialInstance->UpdateStaticPermutation(StaticParameters, InMaterialUpdateContext);
 
 			CombinationMaterialInstance->PostEditChange();
 		}
@@ -331,7 +336,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		const int8 MaterialLOD = It.Value();
 
 		// Find or set a matching MIC in the Landscape's map.
-		UMaterialInstanceConstant* CombinationMaterialInstance = GetCombinationMaterial(WeightmapLayerAllocations, MaterialLOD, false);
+		UMaterialInstanceConstant* CombinationMaterialInstance = GetCombinationMaterial(&Context, WeightmapLayerAllocations, MaterialLOD, false);
 
 		if (CombinationMaterialInstance != nullptr)
 		{
@@ -412,7 +417,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		{
 			const int8 MaterialLOD = It.Value();
 
-			MobileCombinationMaterialInstances[MobileMaterialIndex] = GetCombinationMaterial(MobileWeightmapLayerAllocations, MaterialLOD, true);
+			MobileCombinationMaterialInstances[MobileMaterialIndex] = GetCombinationMaterial(&Context, MobileWeightmapLayerAllocations, MaterialLOD, true);
 			++MobileMaterialIndex;
 		}
 	}
@@ -434,6 +439,21 @@ void ULandscapeComponent::UpdateMaterialInstances()
 	// Recreate the render state for this component, needed to update the static drawlist which has cached the MaterialRenderProxies
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContext.Reset();
+}
+
+void ULandscapeComponent::UpdateMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext)
+{
+	InOutRecreateRenderStateContext.Add(this);
+	UpdateMaterialInstances_Internal(InOutMaterialContext);
+}
+
+void ALandscapeProxy::UpdateAllComponentMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext)
+{
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		Component->UpdateMaterialInstances(InOutMaterialContext, InOutRecreateRenderStateContext);
+	}
+
 }
 
 void ALandscapeProxy::UpdateAllComponentMaterialInstances()
@@ -2140,6 +2160,8 @@ ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerNa
 }
 
 #define HEIGHTDATA(X,Y) (HeightData[ FMath::Clamp<int32>(Y,0,VertsY) * VertsX + FMath::Clamp<int32>(X,0,VertsX) ])
+ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
+
 LANDSCAPE_API void ALandscapeProxy::Import(
 	const FGuid Guid,
 	const int32 MinX, const int32 MinY, const int32 MaxX, const int32 MaxY,
@@ -2397,14 +2419,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 						}
 					}
 
-					if (TotalWeight == 0)
-					{
-						if (MaxLayerIdx >= 0)
-						{
-							WeightValues[MaxLayerIdx][Idx] = 255;
-						}
-					}
-					else if (TotalWeight != 255)
+					if (TotalWeight > 0 && TotalWeight != 255)
 					{
 						// normalization...
 						float Factor = 255.0f / TotalWeight;
@@ -2704,14 +2719,65 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 		PendingTexturePlatformDataCreation.Add(HeightmapInfo.HeightmapTexture);
 	}
 
-	for (UTexture2D* Texture : PendingTexturePlatformDataCreation)
+	// Build a list of all unique materials the landscape uses
+	TArray<UMaterialInterface*> LandscapeMaterials;
+
+	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		Texture->FinishCachePlatformData();
-		Texture->PostEditChange();
+		int8 MaxLOD = FMath::CeilLogTwo(Component->SubsectionSizeQuads + 1) - 1;
+
+		for (int8 LODIndex = 0; LODIndex < MaxLOD; ++LODIndex)
+		{
+			UMaterialInterface* Material = Component->GetLandscapeMaterial(LODIndex);
+			LandscapeMaterials.AddUnique(Material);
+		}
 	}
 
-	// Update MaterialInstances (must be done after textures are fully initialized)
-	UpdateAllComponentMaterialInstances();
+	// Update all materials and recreate render state of all landscape components
+	TArray<FComponentRecreateRenderStateContext> RecreateRenderStateContexts;
+
+	{
+		// We disable automatic material update context, to manage it manually
+		GDisableAutomaticTextureMaterialUpdateDependencies = true;
+	
+		FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::Default & ~FMaterialUpdateContext::EOptions::RecreateRenderStates);
+
+		for (UTexture2D* Texture : PendingTexturePlatformDataCreation)
+		{
+			Texture->FinishCachePlatformData();
+			Texture->PostEditChange();
+			
+			TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
+
+			for (UMaterialInterface* MaterialInterface : LandscapeMaterials)
+			{
+				if (DoesMaterialUseTexture(MaterialInterface, Texture))
+				{
+					UMaterial* Material = MaterialInterface->GetMaterial();
+					bool MaterialAlreadyCompute = false;
+					BaseMaterialsThatUseThisTexture.Add(Material, &MaterialAlreadyCompute);
+
+					if (!MaterialAlreadyCompute)
+					{
+						if (Material->IsTextureForceRecompileCacheRessource(Texture))
+						{
+							UpdateContext.AddMaterial(Material);
+							Material->UpdateMaterialShaderCacheAndTextureReferences();
+						}
+					}
+				}
+			}
+		}
+		
+		GDisableAutomaticTextureMaterialUpdateDependencies = false;
+
+		// Update MaterialInstances (must be done after textures are fully initialized)
+		UpdateAllComponentMaterialInstances(UpdateContext, RecreateRenderStateContexts);
+	}
+
+	// Recreate the render state for this component, needed to update the static drawlist which has cached the MaterialRenderProxies
+	// Must be after the FMaterialUpdateContext is destroyed
+	RecreateRenderStateContexts.Reset();
 
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 	{
@@ -2982,32 +3048,20 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 							auto AddTriangle = [&OutRawMesh, &EdgeHardnesses, &EdgeCreaseSharpnesses, &PolygonGroupID, &VertexIDs, &VertexInstanceIDs](int32 BaseIndex)
 							{
 								//Create a polygon from this triangle
-								TArray<FMeshDescription::FContourPoint> Contours;
+								TArray<FVertexInstanceID> PerimeterVertexInstances;
+								PerimeterVertexInstances.SetNum(3);
 								for (int32 Corner = 0; Corner < 3; ++Corner)
 								{
-									int32 ContourPointIndex = Contours.AddDefaulted();
-									FMeshDescription::FContourPoint& ContourPoint = Contours[ContourPointIndex];
-									//Find the matching edge ID
-									uint32 CornerIndices[2];
-									CornerIndices[0] = BaseIndex + ((Corner + 0) % 3);
-									CornerIndices[1] = BaseIndex + ((Corner + 1) % 3);
-
-									FVertexID EdgeVertexIDs[2];
-									EdgeVertexIDs[0] = VertexIDs[CornerIndices[0]];
-									EdgeVertexIDs[1] = VertexIDs[CornerIndices[1]];
-
-									FEdgeID MatchEdgeId = OutRawMesh.GetVertexPairEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-									if (MatchEdgeId == FEdgeID::Invalid)
-									{
-										MatchEdgeId = OutRawMesh.CreateEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-										EdgeHardnesses[MatchEdgeId] = false;
-										EdgeCreaseSharpnesses[MatchEdgeId] = 0.0f;
-									}
-									ContourPoint.EdgeID = MatchEdgeId;
-									ContourPoint.VertexInstanceID = VertexInstanceIDs[CornerIndices[0]];
+									PerimeterVertexInstances[Corner] = VertexInstanceIDs[BaseIndex + Corner];
 								}
 								// Insert a polygon into the mesh
-								const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(PolygonGroupID, Contours);
+								TArray<FEdgeID> NewEdgeIDs;
+								const FPolygonID NewPolygonID = OutRawMesh.CreatePolygon(PolygonGroupID, PerimeterVertexInstances, &NewEdgeIDs);
+								for (const FEdgeID NewEdgeID : NewEdgeIDs)
+								{
+									EdgeHardnesses[NewEdgeID] = false;
+									EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
+								}
 								//Triangulate the polygon
 								FMeshPolygon& Polygon = OutRawMesh.GetPolygon(NewPolygonID);
 								OutRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
@@ -5353,7 +5407,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 			const int8 MaterialLOD = It.Value();
 
 			// Find or set a matching MIC in the Landscape's map.
-			MobileCombinationMaterialInstances[MaterialIndex] = GetCombinationMaterial(MobileWeightmapLayerAllocations, MaterialLOD, true);
+			MobileCombinationMaterialInstances[MaterialIndex] = GetCombinationMaterial(nullptr, MobileWeightmapLayerAllocations, MaterialLOD, true);
 			check(MobileCombinationMaterialInstances[MaterialIndex] != nullptr);
 
 			UMaterialInstanceConstant* NewMobileMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(GetOutermost());
@@ -5475,7 +5529,12 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 			}
 		}
 	}
-	check(VertexOrder.Num() == FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections));
+
+	if (VertexOrder.Num() != FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections)) 
+	{
+		UE_LOG(LogLandscape, Warning, TEXT("VertexOrder count of %d did not match expected size of %d"), 
+			VertexOrder.Num(), FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections));
+	}
 
 	int32 NumMobileVerices = FMath::Square(SubsectionSizeVerts * NumSubsections);
 	TArray<FLandscapeMobileVertex> MobileVertices;
@@ -5878,7 +5937,7 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	for (auto& TriangleList : TrianglesPerHeightmap)
 	{
 		FCanvasTriangleItem TriItemList(MoveTemp(TriangleList.Value.TriangleList), nullptr);
-		TriItemList.MaterialRenderProxy = TriangleList.Value.HeightmapMID->GetRenderProxy(false);
+		TriItemList.MaterialRenderProxy = TriangleList.Value.HeightmapMID->GetRenderProxy();
 		TriItemList.BlendMode = SE_BLEND_Opaque;
 		TriItemList.SetColor(FLinearColor::White);
 
@@ -5890,9 +5949,8 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	// Tell the rendering thread to draw any remaining batched elements
 	Canvas.Flush_GameThread(true);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		DrawHeightmapRTCommand,
-		FTextureRenderTargetResource*, RenderTargetResource, RenderTargetResource,
+	ENQUEUE_RENDER_COMMAND(DrawHeightmapRTCommand)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
 			// Copy (resolve) the rendered image from the frame buffer to its render target texture
 			RHICmdList.CopyToResolveTarget(

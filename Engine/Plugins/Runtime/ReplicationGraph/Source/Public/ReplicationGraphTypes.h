@@ -125,6 +125,11 @@ struct REPLICATIONGRAPH_API FActorRepList : FNoncopyable
 	/** For TRefCountPtr usage */
 	void AddRef() { RefCount++; }
 	void Release();
+
+	void CountBytes(FArchive& Ar) const
+	{
+		Ar.CountBytes(Num * sizeof(FActorRepListType), Max * sizeof(FActorRepListType));
+	}
 };
 
 /** This is a base templated type for the list "Views". This provides basic read only access between the two real views. */
@@ -337,7 +342,7 @@ struct REPLICATIONGRAPH_API FActorRepListRawView : public TActorRepListViewBase<
 	void PrintRepListStatsAr(int32 mode, FOutputDevice& Ar=*GLog);	
 #endif
 
-/** To be called by projets to preallocate replication lists. This isn't strictly necessary: lists will be allocated on demand as well. */
+/** To be called by projects to preallocate replication lists. This isn't strictly necessary: lists will be allocated on demand as well. */
 REPLICATIONGRAPH_API void PreAllocateRepList(int32 ListSize, int32 NumLists);
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -353,12 +358,14 @@ struct FClassReplicationInfo
 	float DistancePriorityScale = 1.f;
 	float StarvationPriorityScale = 1.f;
 	float CullDistanceSquared = 0.f;
+	float AccumulatedNetPriorityBias = 0.f;
 	
 	uint8 ReplicationPeriodFrame = 1;
 	uint8 FastPath_ReplicationPeriodFrame = 1;
 	uint8 ActorChannelFrameTimeout = 4;
 
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
+	FName FastSharedReplicationFuncName = NAME_None;
 
 	FString BuildDebugStringDelta() const
 	{
@@ -405,6 +412,11 @@ struct FFastSharedReplicationInfo
 	uint32 LastAttemptBuildFrameNum = 0; // the last frame we called FastSharedReplicationFunc on
 	uint32 LastBunchBuildFrameNum = 0;	// the last frame a new bunch was actually created
 	FOutBunch Bunch;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		Bunch.CountMemory(Ar);
+	}
 };
 
 DECLARE_MULTICAST_DELEGATE_FourParams(FNotifyActorChangeDormancy, FActorRepListType, FGlobalActorReplicationInfo&, ENetDormancy /*NewVlue*/, ENetDormancy /*OldValue*/);
@@ -440,9 +452,6 @@ struct FGlobalActorReplicationInfo
 	/** Mirrors AActor::NetDormany > DORM_Awake */
 	bool bWantsToBeDormant = false;
 
-	/** When this actor replicates, we replicate these actors immediately afterwards (they are not gathered/prioritized/etc) */
-	FActorRepListRefView DependentActorList;
-	
 	/** Class default mirrors: state that is initialized directly from class defaults (and can be later changed on a per-actor basis) */
 	FClassReplicationInfo Settings;
 	
@@ -458,6 +467,27 @@ struct FGlobalActorReplicationInfo
 	FGlobalActorReplicationEvents Events;
 
 	void LogDebugString(FOutputDevice& Ar) const;
+
+	void CountBytes(FArchive& Ar)
+	{
+		// Note, we don't count DependentActorList because it's memory will be cached by the allocator / pooling stuff.
+		if (FastSharedReplicationInfo.IsValid())
+		{
+			Ar.CountBytes(sizeof(FFastSharedReplicationInfo), sizeof(FFastSharedReplicationInfo));
+			FastSharedReplicationInfo->CountBytes(Ar);
+		}
+	}
+
+	const FActorRepListRefView& GetDependentActorList() { return DependentActorList; }
+
+	friend struct FGlobalActorReplicationInfoMap;
+
+private:
+	/** When this actor replicates, we replicate these actors immediately afterwards (they are not gathered/prioritized/etc) */
+	FActorRepListRefView DependentActorList;
+
+	/** When this actor is added to the dependent list of a parent, track the parent here */
+	FActorRepListRefView ParentActorList;
 };
 
 /** Templatd struct for mapping UClasses to some data type. The main things this provides is that if a UClass* was not explicitly added, it will climb the class heirachy and find the best match (and then store this for faster lookup next time) */
@@ -543,6 +573,11 @@ struct TClassMap
 	FORCEINLINE void Reset() { Map.Reset(); }
 
 	TFunction<bool(UClass*, ValueType&)>	InitNewElement;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		Map.CountBytes(Ar);
+	}
 
 private:
 
@@ -635,7 +670,29 @@ struct FGlobalActorReplicationInfoMap
 	}
 
 	/** Removes actor data from map */
-	FORCEINLINE int32 Remove(const FActorRepListType& Actor) { return ActorMap.Remove(Actor); }
+	int32 Remove(const FActorRepListType& Actor)
+	{
+		if (FGlobalActorReplicationInfo* ActorInfo = Find(Actor))
+		{
+			if (ActorInfo->DependentActorList.IsValid())
+			{
+				for (AActor* ChildActor : ActorInfo->DependentActorList)
+				{
+					RemoveDependentActor(Actor, ChildActor);
+				}
+			}
+
+			if (ActorInfo->ParentActorList.IsValid())
+			{
+				for (AActor* ParentActor : ActorInfo->ParentActorList)
+				{
+					RemoveDependentActor(ParentActor, Actor);
+				}
+			}
+		}
+
+		return ActorMap.Remove(Actor);
+	}
 
 	/** Returns ClassInfo for a given class. */
 	FORCEINLINE FClassReplicationInfo& GetClassInfo(UClass* Class) { return ClassMap.GetChecked(Class); }
@@ -649,6 +706,57 @@ struct FGlobalActorReplicationInfoMap
 	int32 Num() const { return ActorMap.Num(); }
 
 	FORCEINLINE void ResetActorMap() { ActorMap.Reset(); }
+
+	void CountBytes(FArchive& Ar) const
+	{
+		ActorMap.CountBytes(Ar);
+		for (const auto& KVP : ActorMap)
+		{
+			if (KVP.Value.IsValid())
+			{
+				Ar.CountBytes(sizeof(FGlobalActorReplicationInfo), sizeof(FGlobalActorReplicationInfo));
+				KVP.Value->CountBytes(Ar);
+			}
+		}
+
+		ClassMap.CountBytes(Ar);
+	}
+
+	void AddDependentActor(AActor* Parent, AActor* Child)
+	{
+		if (Parent && Child)
+		{
+			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
+			{
+				ParentInfo->DependentActorList.PrepareForWrite();
+				ParentInfo->DependentActorList.ConditionalAdd(Child);
+			}
+
+			if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
+			{
+				ChildInfo->ParentActorList.PrepareForWrite();
+				ChildInfo->ParentActorList.ConditionalAdd(Parent);
+			}
+		}
+	}
+
+	void RemoveDependentActor(AActor* Parent, AActor* Child)
+	{
+		if (Parent && Child)
+		{
+			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
+			{
+				ParentInfo->DependentActorList.PrepareForWrite();
+				ParentInfo->DependentActorList.Remove(Child);
+			}
+
+			if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
+			{
+				ChildInfo->ParentActorList.PrepareForWrite();
+				ChildInfo->ParentActorList.Remove(Parent);
+			}
+		}
+	}
 
 private:
 
@@ -778,6 +886,27 @@ struct FPerConnectionActorInfoMap
 
 	int32 Num() const { return ActorMap.Num(); }
 
+	void CountBytes(FArchive& Ar) const
+	{
+		TSet<FConnectionReplicationActorInfo*> UniqueInfos;
+
+		ActorMap.CountBytes(Ar);
+		ChannelMap.CountBytes(Ar);
+
+		for (const auto& KVP : ActorMap)
+		{
+			UniqueInfos.Add(KVP.Value.Get());
+		}
+
+		for (const auto& KVP : ChannelMap)
+		{
+			UniqueInfos.Add(KVP.Value.Get());
+		}
+
+		SIZE_T Size = sizeof(FConnectionReplicationActorInfo) * UniqueInfos.Num();
+		Ar.CountBytes(Size, Size);
+	}
+
 private:
 	TMap<FActorRepListType, TSharedPtr<FConnectionReplicationActorInfo>> ActorMap;
 	TMap<UActorChannel*, TSharedPtr<FConnectionReplicationActorInfo>> ChannelMap;
@@ -863,6 +992,25 @@ struct FPrioritizedRepList
 	};
 
 	TArray<FItem> Items;
+
+	void CountBytes(FArchive& Ar) const
+	{
+		Items.CountBytes(Ar);
+
+#if REPGRAPH_DETAILS
+		if (FullDebugDetails.IsValid())
+		{
+			Ar.CountBytes(sizeof(TArray<FPrioritizedActorFullDebugDetails>), sizeof(TArray<FPrioritizedActorFullDebugDetails>));
+			FullDebugDetails->CountBytes(Ar);
+		}
+
+		if (SkippedDebugDetails.IsValid())
+		{
+			Ar.CountBytes(sizeof(TArray<FSkippedActorFullDebugDetails>), sizeof(TArray<FSkippedActorFullDebugDetails>));
+			SkippedDebugDetails->CountBytes(Ar);
+		}
+#endif
+	}
 
 	void Reset()
 	{
@@ -1090,6 +1238,11 @@ struct FNativeClassAccumulator
 		return Str;
 	}
 
+	void CountBytes(FArchive& Ar) const
+	{
+		Map.CountBytes(Ar);
+	}
+
 	void Reset() { Map.Reset(); }
 	void Sort() { Map.ValueSort(TGreater<int32>()); }
 	TMap<UClass*, int32> Map;
@@ -1259,6 +1412,14 @@ struct FReplicationGraphCSVTracker
 			PushStats(Profiler, EverythingElse_FastPath);
 		}
 #endif
+	}
+
+	void CountBytes(FArchive& Ar) const
+	{
+		ExplicitClassTracker.CountBytes(Ar);
+		ImplicitClassTracker.CountBytes(Ar);
+		UniqueImplicitTrackedData.CountBytes(Ar);
+		ExplicitClassTracker_FastPath.CountBytes(Ar);
 	}
 
 private:

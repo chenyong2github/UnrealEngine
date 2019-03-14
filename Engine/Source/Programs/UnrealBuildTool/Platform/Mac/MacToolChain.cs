@@ -32,12 +32,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Which version of the Mac OS X to allow at run time
 		/// </summary>
-		public string MacOSVersion = "10.12";
+		public string MacOSVersion = "10.13";
 
 		/// <summary>
 		/// Minimum version of Mac OS X to actually run on, running on earlier versions will display the system minimum version error dialog and exit.
 		/// </summary>
-		public string MinMacOSVersion = "10.12.6";
+		public string MinMacOSVersion = "10.13.6";
 
 		/// <summary>
 		/// Directory for the developer binaries
@@ -792,7 +792,13 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
-				LinkCommand += string.Format(" -install_name {0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath));
+				// Add the output file to the command-line.
+				string InstallName = LinkEnvironment.InstallName;
+				if(InstallName == null)
+				{
+					InstallName = string.Format("{0}/{1}", DylibsPath, Path.GetFileName(OutputFile.AbsolutePath));
+				}
+				LinkCommand += string.Format(" -install_name {0}", InstallName);
 			}
 
 			if (!bIsBuildingLibrary)
@@ -801,25 +807,7 @@ namespace UnrealBuildTool
 				{
 					foreach (string Library in EngineAndGameLibraries)
 					{
-						string LibraryPath = Library;
-						if (!File.Exists(Library))
-						{
-							string LibraryDir = Path.GetDirectoryName(Library);
-							string LibraryName = Path.GetFileName(Library);
-							string AppBundleName = "UE4Editor";
-							if (LibraryName.Contains("UE4Editor-Mac-"))
-							{
-								string[] Parts = LibraryName.Split('-');
-								AppBundleName += "-" + Parts[1] + "-" + Parts[2];
-							}
-							AppBundleName += ".app";
-							LibraryPath = LibraryDir + "/" + AppBundleName + "/Contents/MacOS/" + LibraryName;
-							if (!File.Exists(LibraryPath))
-							{
-								LibraryPath = Library;
-							}
-						}
-						LinkCommand += " \"" + LibraryPath + "\"";
+						LinkCommand += " \"" + Library + "\"";
 					}
 				}
 				else

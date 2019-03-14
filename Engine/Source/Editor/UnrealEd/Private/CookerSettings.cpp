@@ -9,6 +9,7 @@ UCookerSettings::UCookerSettings(const FObjectInitializer& ObjectInitializer)
 	, bEnableCookOnTheSide(false)
 	, bEnableBuildDDCInBackground(false)
 	, bIterativeCookingForLaunchOn(false)
+	, bCookOnTheFlyForLaunchOn(false)
 	, CookProgressDisplayMode(ECookProgressDisplayMode::RemainingPackages)
 	, bIgnoreIniSettingsOutOfDateForIteration(false)
 	, bIgnoreScriptPackagesOutOfDateForIteration(false)
@@ -73,6 +74,10 @@ void UCookerSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 				OldProperty->SetPropertyValue_InContainer(this, false);
 				UpdateSinglePropertyInConfigFile(OldProperty, GetDefaultConfigFilename());
 			}
+		}
+		else
+		{
+			ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
 		}
 	}
 }

@@ -10,6 +10,9 @@
 #include "RenderUtils.h"
 #include "mikktspace.h"
 #include "UVMapSettings.h"
+#include "Modules/ModuleManager.h"
+
+IMPLEMENT_MODULE(FDefaultModuleImpl, MeshDescriptionOperations)
 
 DEFINE_LOG_CATEGORY(LogMeshDescriptionOperations);
 
@@ -529,7 +532,8 @@ void FMeshDescriptionOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMes
 			PolygonGroups.Add(PolygonGroupID);
 			MaterialIndexToPolygonGroup.Add(MaterialIndex, PolygonGroupID);
 		}
-		FVertexInstanceID TriangleVertexInstanceIDs[3];
+		TArray<FVertexInstanceID> TriangleVertexInstanceIDs;
+		TriangleVertexInstanceIDs.SetNum(3);
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
 			int32 VerticeIndex = VerticeIndexBase + Corner;
@@ -551,31 +555,7 @@ void FMeshDescriptionOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMes
 			}
 		}
 
-		//Create the polygon edges
-		TArray<FMeshDescription::FContourPoint> Contours;
-		for (uint32 Corner = 0; Corner < 3; ++Corner)
-		{
-			int32 ContourPointIndex = Contours.AddDefaulted();
-			FMeshDescription::FContourPoint& ContourPoint = Contours[ContourPointIndex];
-			//Find the matching edge ID
-			int32 CornerIndices[2];
-			CornerIndices[0] = (Corner + 0) % 3;
-			CornerIndices[1] = (Corner + 1) % 3;
-
-			FVertexID EdgeVertexIDs[2];
-			EdgeVertexIDs[0] = DestinationMeshDescription.GetVertexInstanceVertex(FVertexInstanceID(TriangleVertexInstanceIDs[CornerIndices[0]]));
-			EdgeVertexIDs[1] = DestinationMeshDescription.GetVertexInstanceVertex(FVertexInstanceID(TriangleVertexInstanceIDs[CornerIndices[1]]));
-
-			FEdgeID MatchEdgeId = DestinationMeshDescription.GetVertexPairEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-			if (MatchEdgeId == FEdgeID::Invalid)
-			{
-				MatchEdgeId = DestinationMeshDescription.CreateEdge(EdgeVertexIDs[0], EdgeVertexIDs[1]);
-			}
-			ContourPoint.EdgeID = MatchEdgeId;
-			ContourPoint.VertexInstanceID = FVertexInstanceID(TriangleVertexInstanceIDs[CornerIndices[0]]);
-		}
-
-		const FPolygonID NewPolygonID = DestinationMeshDescription.CreatePolygon(PolygonGroupID, Contours);
+		const FPolygonID NewPolygonID = DestinationMeshDescription.CreatePolygon(PolygonGroupID, TriangleVertexInstanceIDs);
 		int32 NewTriangleIndex = DestinationMeshDescription.GetPolygonTriangles(NewPolygonID).AddDefaulted();
 		FMeshTriangle& NewTriangle = DestinationMeshDescription.GetPolygonTriangles(NewPolygonID)[NewTriangleIndex];
 		for (int32 Corner = 0; Corner < 3; ++Corner)
@@ -762,34 +742,14 @@ void FMeshDescriptionOperations::AppendMeshDescription(const FMeshDescription& S
 		FPolygonGroupID TargetPolygonGroupID = RemapPolygonGroup[SourcePolygon.PolygonGroupID];
 
 		int32 PolygonVertexCount = SourcePolygon.PerimeterContour.VertexInstanceIDs.Num();
-		//Create a contour
-		TArray<FMeshDescription::FContourPoint> Contours;
-		// Add the edges of this polygon
-		for (uint32 PolygonEdgeNumber = 0; PolygonEdgeNumber < (uint32)PolygonVertexCount; ++PolygonEdgeNumber)
+		TArray<FVertexInstanceID> VertexInstanceIDs;
+		VertexInstanceIDs.Reserve(PolygonVertexCount);
+		for (const FVertexInstanceID VertexInstanceID : SourcePolygon.PerimeterContour.VertexInstanceIDs)
 		{
-			int32 ContourPointIndex = Contours.AddDefaulted();
-			FMeshDescription::FContourPoint& ContourPoint = Contours[ContourPointIndex];
-			//Find the matching edge ID
-			uint32 CornerIndices[2];
-			CornerIndices[0] = (PolygonEdgeNumber + 0) % PolygonVertexCount;
-			CornerIndices[1] = (PolygonEdgeNumber + 1) % PolygonVertexCount;
-
-			FVertexID SourceVertexIDs[2];
-			SourceVertexIDs[0] = SourceMesh.GetVertexInstanceVertex(SourcePolygon.PerimeterContour.VertexInstanceIDs[CornerIndices[0]]);
-			SourceVertexIDs[1] = SourceMesh.GetVertexInstanceVertex(SourcePolygon.PerimeterContour.VertexInstanceIDs[CornerIndices[1]]);
-
-			FEdgeID SourceEdgeID = SourceMesh.GetVertexPairEdge(SourceVertexIDs[0], SourceVertexIDs[1]);
-			check(SourceEdgeID != FEdgeID::Invalid)
-			FEdgeID TargetEdgeID = SourceEdgeIDRemap[SourceEdgeID];
-			ContourPoint.EdgeID = TargetEdgeID;
-			ContourPoint.VertexInstanceID = SourceVertexInstanceIDRemap[SourcePolygon.PerimeterContour.VertexInstanceIDs[CornerIndices[0]]];
-
-			TargetEdgeCreaseSharpnesses[TargetEdgeID] = SourceEdgeCreaseSharpnesses[SourceEdgeID];
-			TargetEdgeHardnesses[TargetEdgeID] = SourceEdgeHardnesses[SourceEdgeID];
+			VertexInstanceIDs.Add(SourceVertexInstanceIDRemap[VertexInstanceID]);
 		}
-
 		// Insert a polygon into the mesh
-		const FPolygonID TargetPolygonID = TargetMesh.CreatePolygon(TargetPolygonGroupID, Contours);
+		const FPolygonID TargetPolygonID = TargetMesh.CreatePolygon(TargetPolygonGroupID, VertexInstanceIDs);
 		//Triangulate the polygon
 		FMeshPolygon& Polygon = TargetMesh.GetPolygon(TargetPolygonID);
 		TargetMesh.ComputePolygonTriangulation(TargetPolygonID, Polygon.Triangles);
@@ -1453,7 +1413,16 @@ struct FLayoutUVMeshDescriptionView final : FLayoutUV::IMeshView
 	}
 };
 
-void FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDescription,
+int32 FMeshDescriptionOperations::GetUVChartCount(FMeshDescription& MeshDescription, int32 SrcLightmapIndex, ELightmapUVVersion LightmapUVVersion, const FOverlappingCorners& OverlappingCorners)
+{
+	uint32 UnusedDstIndex = -1;
+	FLayoutUVMeshDescriptionView MeshDescriptionView(MeshDescription, SrcLightmapIndex, UnusedDstIndex);
+	FLayoutUV Packer(MeshDescriptionView);
+	Packer.SetVersion(LightmapUVVersion);
+	return Packer.FindCharts(OverlappingCorners);
+}
+
+bool FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDescription,
 	int32 SrcLightmapIndex,
 	int32 DstLightmapIndex,
 	int32 MinLightmapResolution,
@@ -1461,21 +1430,31 @@ void FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDe
 	const FOverlappingCorners& OverlappingCorners)
 {
 	FLayoutUVMeshDescriptionView MeshDescriptionView(MeshDescription, SrcLightmapIndex, DstLightmapIndex);
-	FLayoutUV Packer(MeshDescriptionView, MinLightmapResolution);
+	FLayoutUV Packer(MeshDescriptionView);
 	Packer.SetVersion(LightmapUVVersion);
 
 	Packer.FindCharts(OverlappingCorners);
-	bool bPackSuccess = Packer.FindBestPacking();
+	bool bPackSuccess = Packer.FindBestPacking(MinLightmapResolution);
 	if (bPackSuccess)
 	{
 		Packer.CommitPackedUVs();
 	}
+	return bPackSuccess;
 }
 
 bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords)
 {
 	// Create a copy of original mesh (only copy necessary data)
 	FMeshDescription DuplicateMeshDescription(MeshDescription);
+	
+	//Make sure we have a destination UV TextureCoordinnate
+	{
+		TVertexInstanceAttributesRef<FVector2D> DuplicateVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		if (DuplicateVertexInstanceUVs.GetNumIndices() < 2)
+		{
+			DuplicateVertexInstanceUVs.SetNumIndices(2);
+		}
+	}
 
 	TMap<FVertexInstanceID, FVertexInstanceID> RemapVertexInstance;
 	//Remove the identical material
@@ -1585,24 +1564,24 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 
 	// Generate new UVs
 	FLayoutUVMeshDescriptionView DuplicateMeshDescriptionView(DuplicateMeshDescription, 0, 1);
-	FLayoutUV Packer(DuplicateMeshDescriptionView, FMath::Clamp(TextureResolution / 4, 32, 512));
+	FLayoutUV Packer(DuplicateMeshDescriptionView);
 	Packer.FindCharts(OverlappingCorners);
 
-	bool bPackSuccess = Packer.FindBestPacking();
+	bool bPackSuccess = Packer.FindBestPacking(FMath::Clamp(TextureResolution / 4, 32, 512));
 	if (bPackSuccess)
 	{
 		Packer.CommitPackedUVs();
 		TVertexInstanceAttributesConstRef<FVector2D> DupVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		// Save generated UVs
-		check(VertexInstanceUVs.GetNumIndices() > 1);
+		check(DupVertexInstanceUVs.GetNumIndices() > 1);
 		OutTexCoords.AddZeroed(VertexInstanceUVs.GetNumElements());
 		int32 TextureCoordIndex = 0;
 		for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 		{
 			FVertexInstanceID RemapID = bMergeIdenticalMaterials ? RemapVertexInstance[VertexInstanceID] : VertexInstanceID;
 			// Save generated UVs
-			OutTexCoords[TextureCoordIndex] = VertexInstanceUVs.Get(RemapID, 1);	// UV1
+			OutTexCoords[TextureCoordIndex] = DupVertexInstanceUVs.Get(RemapID, 1);	// UV1
 			TextureCoordIndex++;
 		}
 	}
@@ -1769,24 +1748,29 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 {
 	FVector Size = Params.Size * Params.Scale;
 	FVector HalfSize = Size / 2.0f;
-	FVector Offset = Params.Position - HalfSize;
-
-	FVector HintU = FVector::UpVector;
-	FVector HintV = FVector::RightVector;
 
 	TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
 	OutTexCoords.AddZeroed(MeshDescription.VertexInstances().Num());
 
+	// Setup the UVs such that the mapping is from top-left to bottom-right when viewed orthographically
+	TArray<TPair<FVector, FVector>> PlaneUVs;
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::ForwardVector, FVector::RightVector));	// Top view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::BackwardVector, FVector::RightVector));	// Bottom view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::ForwardVector, FVector::DownVector));		// Right view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::BackwardVector, FVector::DownVector));	// Left view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::LeftVector, FVector::DownVector));		// Front view
+	PlaneUVs.Add(TPair<FVector, FVector>(FVector::RightVector, FVector::DownVector));		// Back view
+
 	TArray<FPlane> BoxPlanes;
 	const FVector& Center = Params.Position;
 
 	BoxPlanes.Add(FPlane(Center + FVector(0, 0, HalfSize.Z), FVector::UpVector));		// Top plane
-	BoxPlanes.Add(FPlane(Center - FVector(0, 0, HalfSize.Z), -FVector::UpVector));		// Bottom plane
-	BoxPlanes.Add(FPlane(Center + FVector(HalfSize.X, 0, 0), FVector::ForwardVector));	// Right plane
-	BoxPlanes.Add(FPlane(Center - FVector(HalfSize.X, 0, 0), -FVector::ForwardVector));	// Left plane
-	BoxPlanes.Add(FPlane(Center + FVector(0, HalfSize.Y, 0), FVector::RightVector));	// Front plane
-	BoxPlanes.Add(FPlane(Center - FVector(0, HalfSize.Y, 0), -FVector::RightVector));	// Back plane
+	BoxPlanes.Add(FPlane(Center - FVector(0, 0, HalfSize.Z), FVector::DownVector));		// Bottom plane
+	BoxPlanes.Add(FPlane(Center + FVector(0, HalfSize.Y, 0), FVector::RightVector));	// Right plane
+	BoxPlanes.Add(FPlane(Center - FVector(0, HalfSize.Y, 0), FVector::LeftVector));		// Left plane
+	BoxPlanes.Add(FPlane(Center + FVector(HalfSize.X, 0, 0), FVector::ForwardVector));	// Front plane
+	BoxPlanes.Add(FPlane(Center - FVector(HalfSize.X, 0, 0), FVector::BackwardVector));	// Back plane
 
 	// For each polygon, find the box plane that best matches the polygon normal
 	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
@@ -1814,17 +1798,9 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 			}
 		}
 
-		const FPlane& BestPlane = BoxPlanes[BestPlaneIndex];
-
-		FVector U = HintU;
-		FVector V = BestPlane ^ HintU;
-
-		if (V.IsZero())
-		{
-			// Plane normal and U were aligned, so try with V instead
-			U = HintV;
-			V = BestPlane ^ HintV;
-		}
+		FVector U = PlaneUVs[BestPlaneIndex].Key;
+		FVector V = PlaneUVs[BestPlaneIndex].Value;
+		FVector Offset = Params.Position - HalfSize * (U + V);
 
 		for (const FVertexInstanceID& VertexInstanceID : VertexInstances)
 		{

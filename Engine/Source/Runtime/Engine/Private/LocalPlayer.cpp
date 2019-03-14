@@ -119,6 +119,16 @@ UWorld* FLocalPlayerContext::GetWorld() const
 	return GetLocalPlayer()->GetWorld();
 }
 
+UGameInstance* FLocalPlayerContext::GetGameInstance() const
+{
+	if (UWorld* WorldPtr = GetWorld())
+	{
+		return WorldPtr->GetGameInstance();
+	}
+
+	return nullptr;
+}
+
 ULocalPlayer* FLocalPlayerContext::GetLocalPlayer() const
 {
 	ULocalPlayer* LocalPlayerPtr = LocalPlayer.Get();
@@ -228,8 +238,6 @@ void ULocalPlayer::PostInitProperties()
 
 		if( GEngine->StereoRenderingDevice.IsValid() )
 		{
-			MonoViewState.Allocate();
-
 			const int32 NumViews = GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(true);
 			check(NumViews > 0);
 			// ViewState is used for eSSP_LEFT_EYE, so we don't create one for that here.
@@ -378,7 +386,6 @@ void ULocalPlayer::FinishDestroy()
 	if ( !IsTemplate() )
 	{
 		ViewState.Destroy();
-		MonoViewState.Destroy();
 
 		for (FSceneViewStateReference& StereoViewState : StereoViewStates)
 		{
@@ -764,13 +771,9 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 		ViewInitOptions.SceneViewStateInterface = StereoViewStates[0].GetReference();
 		break;
 
-	case eSSP_MONOSCOPIC_EYE:
-		ViewInitOptions.SceneViewStateInterface = MonoViewState.GetReference();
-		break;
-		
 	default:
-		check(StereoPass > eSSP_MONOSCOPIC_EYE);
-		ViewInitOptions.SceneViewStateInterface = StereoViewStates[StereoPass - eSSP_MONOSCOPIC_EYE].GetReference();
+		check(StereoPass > eSSP_RIGHT_EYE);
+		ViewInitOptions.SceneViewStateInterface = StereoViewStates[StereoPass - eSSP_RIGHT_EYE].GetReference();
 		break;
 	}
 
@@ -785,33 +788,6 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	ViewInitOptions.OriginOffsetThisFrame = PlayerController->GetWorld()->OriginOffsetThisFrame;
 
 	return true;
-}
-
-static void SetupMonoParameters(FSceneViewFamily& ViewFamily, const FSceneView& MonoView)
-{
-	// Compute the NDC depths for the far field clip plane. This assumes symmetric projection.
-	const FMatrix& LeftEyeProjection = ViewFamily.Views[0]->ViewMatrices.GetProjectionMatrix();
-
-	// Start with a point on the far field clip plane in eye space. The mono view uses a point slightly biased towards the camera to ensure there's overlap.
-	const FVector4 StereoDepthCullingPointEyeSpace(0.0f, 0.0f, ViewFamily.MonoParameters.CullingDistance, 1.0f);
-	const FVector4 FarFieldDepthCullingPointEyeSpace(0.0f, 0.0f, ViewFamily.MonoParameters.CullingDistance - ViewFamily.MonoParameters.OverlapDistance, 1.0f);
-
-	// Project into clip space
-	const FVector4 ProjectedStereoDepthCullingPointClipSpace = LeftEyeProjection.TransformFVector4(StereoDepthCullingPointEyeSpace);
-	const FVector4 ProjectedFarFieldDepthCullingPointClipSpace = LeftEyeProjection.TransformFVector4(FarFieldDepthCullingPointEyeSpace);
-
-	// Perspective divide for NDC space
-	ViewFamily.MonoParameters.StereoDepthClip = ProjectedStereoDepthCullingPointClipSpace.Z / ProjectedStereoDepthCullingPointClipSpace.W;
-	ViewFamily.MonoParameters.MonoDepthClip = ProjectedFarFieldDepthCullingPointClipSpace.Z / ProjectedFarFieldDepthCullingPointClipSpace.W;
-
-	// We need to determine the stereo disparity difference between the center mono view and an offset stereo view so we can account for it when compositing.
-	// We take a point on a stereo view far field clip plane, unproject it, then reproject it using the mono view. The stereo disparity offset is then
-	// the difference between the original test point and the reprojected point.
-	const FVector4 ProjectedPointAtLimit(0.0f, 0.0f, ViewFamily.MonoParameters.MonoDepthClip, 1.0f);
-	const FVector4 WorldProjectedPoint = ViewFamily.Views[0]->ViewMatrices.GetInvViewProjectionMatrix().TransformFVector4(ProjectedPointAtLimit);
-	FVector4 MonoProjectedPoint = MonoView.ViewMatrices.GetViewProjectionMatrix().TransformFVector4(WorldProjectedPoint / WorldProjectedPoint.W);
-	MonoProjectedPoint = MonoProjectedPoint / MonoProjectedPoint.W;
-	ViewFamily.MonoParameters.LateralOffset = (MonoProjectedPoint.X - ProjectedPointAtLimit.X) / 2.0f;
 }
 
 FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
@@ -897,18 +873,12 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 		ViewFamily->ViewExtensions[ViewExt]->SetupView(*ViewFamily, *View);
 	}
 
-	// Monoscopic far field setup
-	if (ViewFamily->IsMonoscopicFarFieldEnabled() && StereoPass == eSSP_MONOSCOPIC_EYE)
-	{
-		SetupMonoParameters(*ViewFamily, *View);
-	}
-
 	return View;
 }
 
 bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize)
 {
-		//@TODO: CAMERA: This has issues with aspect-ratio constrained cameras
+	//@TODO: CAMERA: This has issues with aspect-ratio constrained cameras
 	if ((ViewportClient != NULL) && (ViewportClient->Viewport != NULL) && (PlayerController != NULL))
 	{
 		// get the projection data
@@ -918,60 +888,7 @@ bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLower
 			return false;
 		}
 
-		// if we passed in an optional size, use it for the viewrect
-		FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
-		if (OptionalAllotedSize != NULL)
-		{
-			ViewRect.Min = FIntPoint(0,0);
-			ViewRect.Max = FIntPoint(OptionalAllotedSize->X, OptionalAllotedSize->Y);
-		}
-
-		// transform the box
-		const int32 NumOfVerts = 8;
-		FVector Vertices[NumOfVerts] =
-		{
-			FVector(ActorBox.Min),
-			FVector(ActorBox.Min.X, ActorBox.Min.Y, ActorBox.Max.Z),
-			FVector(ActorBox.Min.X, ActorBox.Max.Y, ActorBox.Min.Z),
-			FVector(ActorBox.Max.X, ActorBox.Min.Y, ActorBox.Min.Z),
-			FVector(ActorBox.Max.X, ActorBox.Max.Y, ActorBox.Min.Z),
-			FVector(ActorBox.Max.X, ActorBox.Min.Y, ActorBox.Max.Z),
-			FVector(ActorBox.Min.X, ActorBox.Max.Y, ActorBox.Max.Z),
-			FVector(ActorBox.Max)
-		};
-
-		// create the view projection matrix
-		const FMatrix ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();
-
-		int SuccessCount = 0;
-		OutLowerLeft = FVector2D(FLT_MAX, FLT_MAX);
-		OutUpperRight = FVector2D(FLT_MIN, FLT_MIN);
-		for (int i = 0; i < NumOfVerts; ++i)
-		{
-			//grab the point in screen space
-			const FVector4 ScreenPoint = ViewProjectionMatrix.TransformFVector4( FVector4( Vertices[i], 1.0f) );
-
-			if (ScreenPoint.W > 0.0f)
-			{
-				float InvW = 1.0f / ScreenPoint.W;
-				FVector2D PixelPoint = FVector2D( ViewRect.Min.X + (0.5f + ScreenPoint.X * 0.5f * InvW) * ViewRect.Width(),
-												  ViewRect.Min.Y + (0.5f - ScreenPoint.Y * 0.5f * InvW) * ViewRect.Height());
-
-				PixelPoint.X = FMath::Clamp<float>(PixelPoint.X, 0, ViewRect.Width());
-				PixelPoint.Y = FMath::Clamp<float>(PixelPoint.Y, 0, ViewRect.Height());
-
-				OutLowerLeft.X = FMath::Min(OutLowerLeft.X, PixelPoint.X);
-				OutLowerLeft.Y = FMath::Min(OutLowerLeft.Y, PixelPoint.Y);
-
-				OutUpperRight.X = FMath::Max(OutUpperRight.X, PixelPoint.X);
-				OutUpperRight.Y = FMath::Max(OutUpperRight.Y, PixelPoint.Y);
-
-				++SuccessCount;
-			}
-		}
-
-		// make sure we are calculating with more than one point;
-		return SuccessCount >= 2;
+		return ULocalPlayer::GetPixelBoundingBox(ProjectionData, ActorBox, OutLowerLeft, OutUpperRight, OptionalAllotedSize);
 	}
 	else
 	{
@@ -979,10 +896,67 @@ bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLower
 	}
 }
 
+bool ULocalPlayer::GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2D* OptionalAllotedSize)
+{
+	// if we passed in an optional size, use it for the viewrect
+	FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
+	if (OptionalAllotedSize != NULL)
+	{
+		ViewRect.Min = FIntPoint(0, 0);
+		ViewRect.Max = FIntPoint(OptionalAllotedSize->X, OptionalAllotedSize->Y);
+	}
+
+	// transform the box
+	const int32 NumOfVerts = 8;
+	FVector Vertices[NumOfVerts] =
+	{
+		FVector(ActorBox.Min),
+		FVector(ActorBox.Min.X, ActorBox.Min.Y, ActorBox.Max.Z),
+		FVector(ActorBox.Min.X, ActorBox.Max.Y, ActorBox.Min.Z),
+		FVector(ActorBox.Max.X, ActorBox.Min.Y, ActorBox.Min.Z),
+		FVector(ActorBox.Max.X, ActorBox.Max.Y, ActorBox.Min.Z),
+		FVector(ActorBox.Max.X, ActorBox.Min.Y, ActorBox.Max.Z),
+		FVector(ActorBox.Min.X, ActorBox.Max.Y, ActorBox.Max.Z),
+		FVector(ActorBox.Max)
+	};
+
+	// create the view projection matrix
+	const FMatrix ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();
+
+	int SuccessCount = 0;
+	OutLowerLeft = FVector2D(FLT_MAX, FLT_MAX);
+	OutUpperRight = FVector2D(FLT_MIN, FLT_MIN);
+	for (int i = 0; i < NumOfVerts; ++i)
+	{
+		//grab the point in screen space
+		const FVector4 ScreenPoint = ViewProjectionMatrix.TransformFVector4(FVector4(Vertices[i], 1.0f));
+
+		if (ScreenPoint.W > 0.0f)
+		{
+			float InvW = 1.0f / ScreenPoint.W;
+			FVector2D PixelPoint = FVector2D(ViewRect.Min.X + (0.5f + ScreenPoint.X * 0.5f * InvW) * ViewRect.Width(),
+				ViewRect.Min.Y + (0.5f - ScreenPoint.Y * 0.5f * InvW) * ViewRect.Height());
+
+			PixelPoint.X = FMath::Clamp<float>(PixelPoint.X, 0, ViewRect.Width());
+			PixelPoint.Y = FMath::Clamp<float>(PixelPoint.Y, 0, ViewRect.Height());
+
+			OutLowerLeft.X = FMath::Min(OutLowerLeft.X, PixelPoint.X);
+			OutLowerLeft.Y = FMath::Min(OutLowerLeft.Y, PixelPoint.Y);
+
+			OutUpperRight.X = FMath::Max(OutUpperRight.X, PixelPoint.X);
+			OutUpperRight.Y = FMath::Max(OutUpperRight.Y, PixelPoint.Y);
+
+			++SuccessCount;
+		}
+	}
+
+	// make sure we are calculating with more than one point;
+	return SuccessCount >= 2;
+}
+
 bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize)
 {
 	//@TODO: CAMERA: This has issues with aspect-ratio constrained cameras
-	bool bInFrontOfCamera = true;
 	if ((ViewportClient != NULL) && (ViewportClient->Viewport != NULL) && (PlayerController != NULL))
 	{
 		// get the projection data
@@ -992,33 +966,43 @@ bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, co
 			return false;
 		}
 
-		// if we passed in an optional size, use it for the viewrect
-		FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
-		if (OptionalAllotedSize != NULL)
-		{
-			ViewRect.Min = FIntPoint(0,0);
-			ViewRect.Max = FIntPoint(OptionalAllotedSize->X, OptionalAllotedSize->Y);
-		}
-
-		// create the view projection matrix
-		const FMatrix ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();
-
-		//@TODO: CAMERA: Validate this code!
-		// grab the point in screen space
-		FVector4 ScreenPoint = ViewProjectionMatrix.TransformFVector4( FVector4( InPoint, 1.0f) );
-
-		ScreenPoint.W = (ScreenPoint.W == 0) ? KINDA_SMALL_NUMBER : ScreenPoint.W;
-
-		float InvW = 1.0f / ScreenPoint.W;
-		OutPoint = FVector2D(ViewRect.Min.X + (0.5f + ScreenPoint.X * 0.5f * InvW) * ViewRect.Width(),
-				             ViewRect.Min.Y + (0.5f - ScreenPoint.Y * 0.5f * InvW) * ViewRect.Height());
-
-		if (ScreenPoint.W < 0.0f)
-		{
-			bInFrontOfCamera = false;
-			OutPoint = FVector2D(ViewRect.Max) - OutPoint;
-		}
+		return ULocalPlayer::GetPixelPoint(ProjectionData, InPoint, OutPoint, OptionalAllotedSize);
 	}
+
+	return false;
+}
+
+bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2D* OptionalAllotedSize)
+{
+	bool bInFrontOfCamera = true;
+
+	// if we passed in an optional size, use it for the viewrect
+	FIntRect ViewRect = ProjectionData.GetConstrainedViewRect();
+	if (OptionalAllotedSize != NULL)
+	{
+		ViewRect.Min = FIntPoint(0, 0);
+		ViewRect.Max = FIntPoint(OptionalAllotedSize->X, OptionalAllotedSize->Y);
+	}
+
+	// create the view projection matrix
+	const FMatrix ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();
+
+	//@TODO: CAMERA: Validate this code!
+	// grab the point in screen space
+	FVector4 ScreenPoint = ViewProjectionMatrix.TransformFVector4(FVector4(InPoint, 1.0f));
+
+	ScreenPoint.W = (ScreenPoint.W == 0) ? KINDA_SMALL_NUMBER : ScreenPoint.W;
+
+	float InvW = 1.0f / ScreenPoint.W;
+	OutPoint = FVector2D(ViewRect.Min.X + (0.5f + ScreenPoint.X * 0.5f * InvW) * ViewRect.Width(),
+		ViewRect.Min.Y + (0.5f - ScreenPoint.Y * 0.5f * InvW) * ViewRect.Height());
+
+	if (ScreenPoint.W < 0.0f)
+	{
+		bInFrontOfCamera = false;
+		OutPoint = FVector2D(ViewRect.Max) - OutPoint;
+	}
+
 	return bInFrontOfCamera;
 }
 
@@ -1129,7 +1113,6 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 		// calculate the out rect
 		ProjectionData.SetViewRectangle(FIntRect(X, Y, X + SizeX, Y + SizeY));
 	}
-
 
 	return true;
 }
@@ -1651,12 +1634,6 @@ void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 		{
 			StereoRef->AddReferencedObjects(Collector);
 		}
-	}
-
-	FSceneViewStateInterface* MonoRef = This->MonoViewState.GetReference();
-	if (MonoRef)
-	{
-		MonoRef->AddReferencedObjects(Collector);
 	}
 
 	UPlayer::AddReferencedObjects(This, Collector);

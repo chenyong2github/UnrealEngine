@@ -39,18 +39,19 @@ public:
 
 	void AddComponent(UWidgetComponent* Component)
 	{
-		if ( Component )
+		if (Component)
 		{
 			Components.AddUnique(Component);
-			if ( ScreenLayer.IsValid() )
+
+			if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 			{
-				if ( UUserWidget* UserWidget = Component->GetUserWidgetObject() )
+				if (UUserWidget* UserWidget = Component->GetUserWidgetObject())
 				{
-					ScreenLayer.Pin()->AddComponent(Component, UserWidget->TakeWidget());
+					ScreenLayer->AddComponent(Component, UserWidget->TakeWidget());
 				}
 				else if (Component->GetSlateWidget().IsValid())
 				{
-					ScreenLayer.Pin()->AddComponent(Component, Component->GetSlateWidget().ToSharedRef());
+					ScreenLayer->AddComponent(Component, Component->GetSlateWidget().ToSharedRef());
 				}
 			}
 		}
@@ -58,26 +59,26 @@ public:
 
 	void RemoveComponent(UWidgetComponent* Component)
 	{
-		if ( Component )
+		if (Component)
 		{
 			Components.RemoveSwap(Component);
 
-			if ( ScreenLayer.IsValid() )
+			if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 			{
-				ScreenLayer.Pin()->RemoveComponent(Component);
+				ScreenLayer->RemoveComponent(Component);
 			}
 		}
 	}
 
 	virtual TSharedRef<SWidget> AsWidget() override
 	{
-		if ( ScreenLayer.IsValid() )
+		if (TSharedPtr<SWorldWidgetScreenLayer> ScreenLayer = ScreenLayerPtr.Pin())
 		{
-			return ScreenLayer.Pin().ToSharedRef();
+			return ScreenLayer.ToSharedRef();
 		}
 
 		TSharedRef<SWorldWidgetScreenLayer> NewScreenLayer = SNew(SWorldWidgetScreenLayer, OwningPlayer);
-		ScreenLayer = NewScreenLayer;
+		ScreenLayerPtr = NewScreenLayer;
 
 		// Add all the pending user widgets to the surface
 		for ( TWeakObjectPtr<UWidgetComponent>& WeakComponent : Components )
@@ -100,7 +101,7 @@ public:
 
 private:
 	FLocalPlayerContext OwningPlayer;
-	TWeakPtr<SWorldWidgetScreenLayer> ScreenLayer;
+	TWeakPtr<SWorldWidgetScreenLayer> ScreenLayerPtr;
 	TArray<TWeakObjectPtr<UWidgetComponent>> Components;
 };
 
@@ -306,7 +307,7 @@ public:
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 
 		auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
-			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy(IsSelected()) : nullptr,
+			GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : nullptr,
 			FLinearColor(0, 0.5f, 1.f)
 			);
 
@@ -319,10 +320,10 @@ public:
 		}
 		else
 		{
-			ParentMaterialProxy = MaterialInstance->GetRenderProxy(IsSelected());
+			ParentMaterialProxy = MaterialInstance->GetRenderProxy();
 		}
 #else
-		FMaterialRenderProxy* ParentMaterialProxy = MaterialInstance->GetRenderProxy(IsSelected());
+		FMaterialRenderProxy* ParentMaterialProxy = MaterialInstance->GetRenderProxy();
 #endif
 
 		//FSpriteTextureOverrideRenderProxy* TextureOverrideMaterialProxy = new FSpriteTextureOverrideRenderProxy(ParentMaterialProxy,
@@ -479,7 +480,7 @@ public:
 					{
 						// Make a material for drawing solid collision stuff
 						auto SolidMaterialInstance = new FColoredMaterialRenderProxy(
-							GEngine->ShadedLevelColorationUnlitMaterial->GetRenderProxy(IsSelected(), IsHovered()),
+							GEngine->ShadedLevelColorationUnlitMaterial->GetRenderProxy(),
 							GetWireframeColor()
 							);
 
@@ -514,7 +515,9 @@ public:
 		Result.bRenderInMainPass = ShouldRenderInMainPass();
 		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 		Result.bShadowRelevance = IsShadowCast(View);
+		Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
 		Result.bEditorPrimitiveRelevance = false;
+		Result.bVelocityRelevance = IsMovable() && Result.bOpaqueRelevance && Result.bRenderInMainPass;
 
 		return Result;
 	}
@@ -625,8 +628,20 @@ void UWidgetComponent::BeginPlay()
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ReleaseResources();
 	Super::EndPlay(EndPlayReason);
+
+	ReleaseResources();
+}
+
+void UWidgetComponent::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
+{
+	// If the InLevel is null, it's a signal that the entire world is about to disappear, so
+	// go ahead and remove this widget from the viewport, it could be holding onto too many
+	// dangerous actor references that won't carry over into the next world.
+	if (InLevel == nullptr && InWorld == GetWorld())
+	{
+		ReleaseResources();
+	}
 }
 
 
@@ -791,6 +806,8 @@ void UWidgetComponent::OnRegister()
 	Super::OnRegister();
 
 #if !UE_SERVER
+	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ThisClass::OnLevelRemovedFromWorld);
+
 	if ( !IsRunningDedicatedServer() )
 	{
 		const bool bIsGameWorld = GetWorld()->IsGameWorld();
@@ -871,6 +888,8 @@ void UWidgetComponent::UnregisterHitTesterWithViewport(TSharedPtr<SViewport> Vie
 void UWidgetComponent::OnUnregister()
 {
 #if !UE_SERVER
+	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+
 	if ( GetWorld()->IsGameWorld() )
 	{
 		TSharedPtr<SViewport> GameViewportWidget = GEngine->GetGameViewportWidget();
@@ -1176,38 +1195,9 @@ void UWidgetComponent::RemoveWidgetFromScreen()
 #endif // !UE_SERVER
 }
 
-class FWidgetComponentInstanceData : public FSceneComponentInstanceData
+TStructOnScope<FActorComponentInstanceData> UWidgetComponent::GetComponentInstanceData() const
 {
-public:
-	FWidgetComponentInstanceData( const UWidgetComponent* SourceComponent )
-		: FSceneComponentInstanceData(SourceComponent)
-		, WidgetClass ( SourceComponent->GetWidgetClass() )
-		, RenderTarget( SourceComponent->GetRenderTarget() )
-	{}
-
-	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override
-	{
-		FSceneComponentInstanceData::ApplyToComponent(Component, CacheApplyPhase);
-		CastChecked<UWidgetComponent>(Component)->ApplyComponentInstanceData(this);
-	}
-
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
-	{
-		FSceneComponentInstanceData::AddReferencedObjects(Collector);
-
-		UClass* WidgetUClass = *WidgetClass;
-		Collector.AddReferencedObject(WidgetUClass);
-		Collector.AddReferencedObject(RenderTarget);
-	}
-
-public:
-	TSubclassOf<UUserWidget> WidgetClass;
-	UTextureRenderTarget2D* RenderTarget;
-};
-
-FActorComponentInstanceData* UWidgetComponent::GetComponentInstanceData() const
-{
-	return new FWidgetComponentInstanceData( this );
+	return MakeStructOnScope<FActorComponentInstanceData, FWidgetComponentInstanceData>(this);
 }
 
 void UWidgetComponent::ApplyComponentInstanceData(FWidgetComponentInstanceData* WidgetInstanceData)

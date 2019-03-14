@@ -104,6 +104,9 @@ void FPersonaModule::StartupModule()
 	FModuleManager::Get().LoadModuleChecked("AdvancedPreviewScene");
 
 	// Load all blueprint animnotifies from asset registry so they are available from drop downs in anim segment detail views
+	FString Commandline = FCommandLine::Get();
+	bool bIsCookCommandlet = Commandline.Contains(TEXT("cookcommandlet")) || Commandline.Contains(TEXT("run=cook"));
+	if(!bIsCookCommandlet)
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -684,8 +687,6 @@ bool FPersonaModule::ExportToFBX(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequ
 				FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_EXPORT, DestinationFolder);
 			}
 
-			EAppReturnType::Type DialogReturn = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("ExportToFBXExportSkeletalMeshToo", "Would you like to export the current skeletal mesh with the animation(s)?"));
-			bool bSaveSkeletalMesh = EAppReturnType::Yes == DialogReturn;
 
 			const bool bShowCancel = false;
 			const bool bShowProgressDialog = true;
@@ -704,7 +705,7 @@ bool FPersonaModule::ExportToFBX(TArray<TWeakObjectPtr<UAnimSequence>>& AnimSequ
 
 				FString FileName = FString::Printf(TEXT("%s/%s"), *DestinationFolder, *AnimFileNames[i]);
 
-				FbxAnimUtils::ExportAnimFbx(*FileName, AnimSequence, SkeletalMesh, bSaveSkeletalMesh, ExportBatch, ExportAll, ExportCancel);
+				FbxAnimUtils::ExportAnimFbx(*FileName, AnimSequence, SkeletalMesh, ExportBatch, ExportAll, ExportCancel);
 				if (ExportBatch && ExportCancel)
 				{
 					//The user cancel the batch export

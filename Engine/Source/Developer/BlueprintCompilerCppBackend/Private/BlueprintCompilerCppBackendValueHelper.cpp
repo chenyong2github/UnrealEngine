@@ -786,6 +786,10 @@ FString FEmitDefaultValueHelper::HandleSpecialTypes(FEmitterLocalContext& Contex
 	{
 		Result = HandleObjectValueLambda(ObjectProperty->GetPropertyValue(ValuePtr), ObjectProperty->PropertyClass);
 	}
+	else if (const UWeakObjectProperty* WeakObjectProperty = Cast<UWeakObjectProperty>(Property))
+	{
+		Result = HandleObjectValueLambda(WeakObjectProperty->GetObjectPropertyValue(ValuePtr), WeakObjectProperty->PropertyClass);
+	}
 	else if (const UInterfaceProperty* InterfaceProperty = Cast<UInterfaceProperty>(Property))
 	{
 		Result = HandleObjectValueLambda(InterfaceProperty->GetPropertyValue(ValuePtr).GetObject(), InterfaceProperty->InterfaceClass);
@@ -1336,7 +1340,7 @@ void FEmitDefaultValueHelper::AddStaticFunctionsForDependencies(FEmitterLocalCon
 		ensure(InAsset);
 		if (InAsset && IsEditorOnlyObject(InAsset))
 		{
-			UE_LOG(LogK2Compiler, Warning, TEXT("Nativized %d depends on editor only asset: %s")
+			UE_LOG(LogK2Compiler, Warning, TEXT("Nativized %s depends on editor only asset: %s")
 				, (OriginalClass ? *OriginalClass->GetPathName() : *CppTypeName)
 				,*InAsset->GetPathName());
 			OptionalComment = TEXT("Editor Only asset");
@@ -2032,6 +2036,7 @@ FString FEmitDefaultValueHelper::HandleClassSubobject(FEmitterLocalContext& Cont
 		LocalNativeName = Context.GenerateUniqueLocalName();
 		Context.AddClassSubObject_InConstructor(Object, LocalNativeName);
 		UClass* ObjectClass = Object->GetClass();
+		const int32 ObjectFlags = (int32)Object->GetFlags();
 		const FString ActualClass = Context.FindGloballyMappedObject(ObjectClass, UClass::StaticClass());
 		const FString NativeType = FEmitHelper::GetCppName(Context.GetFirstNativeOrConvertedClass(ObjectClass));
 		if(!ObjectClass->IsNative())
@@ -2040,12 +2045,13 @@ FString FEmitDefaultValueHelper::HandleClassSubobject(FEmitterLocalContext& Cont
 			Context.AddLine(FString::Printf(TEXT("%s::StaticClass()->GetDefaultObject();"), *NativeType));
 		}
 		Context.AddLine(FString::Printf(
-			TEXT("auto %s = NewObject<%s>(%s, %s, TEXT(\"%s\"));")
+			TEXT("auto %s = NewObject<%s>(%s, %s, TEXT(\"%s\"), (EObjectFlags)0x%08x);")
 			, *LocalNativeName
 			, *NativeType
 			, *OuterStr
 			, *ActualClass
-			, *Object->GetName().ReplaceCharWithEscapedChar()));
+			, *Object->GetName().ReplaceCharWithEscapedChar()
+			, ObjectFlags));
 		if (bAddAsSubobjectOfClass)
 		{
 			Context.RegisterClassSubobject(Object, ListOfSubobjectsType);

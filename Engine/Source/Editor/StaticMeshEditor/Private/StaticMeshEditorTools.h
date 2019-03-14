@@ -150,7 +150,7 @@ private:
 class FMeshBuildSettingsLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FMeshBuildSettingsLayout>
 {
 public:
-	FMeshBuildSettingsLayout( TSharedRef<FLevelOfDetailSettingsLayout> InParentLODSettings );
+	FMeshBuildSettingsLayout( TSharedRef<FLevelOfDetailSettingsLayout> InParentLODSettings, int32 InLODIndex );
 	virtual ~FMeshBuildSettingsLayout();
 
 	const FMeshBuildSettings& GetSettings() const { return BuildSettings; }
@@ -210,6 +210,7 @@ private:
 private:
 	TWeakPtr<FLevelOfDetailSettingsLayout> ParentLODSettings;
 	FMeshBuildSettings BuildSettings;
+	int32 LODIndex;
 };
 
 class FMeshReductionSettingsLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FMeshReductionSettingsLayout>
@@ -499,6 +500,8 @@ public:
 	/** Apply current LOD settings to the mesh. */
 	void ApplyChanges();
 
+	bool PreviewLODRequiresAdjacencyInformation(int32 LODIndex);
+
 private:
 
 	/** Creates the UI for Current LOD panel */
@@ -519,6 +522,14 @@ private:
 	bool AddMinLODPlatformOverride(FName PlatformGroupName);
 	bool RemoveMinLODPlatformOverride(FName PlatformGroupName);
 	TArray<FName> GetMinLODPlatformOverrideNames() const;
+
+	void OnNumStreamedLODsChanged(int32 NewValue, FName Platform);
+	void OnNumStreamedLODsCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName Platform);
+	int32 GetNumStreamedLODs(FName Platform) const;
+	TSharedRef<SWidget> GetNumStreamedLODsWidget(FName PlatformGroupName) const;
+	bool AddNumStreamedLODsPlatformOverride(FName PlatformGroupName);
+	bool RemoveNumStreamedLODsPlatformOverride(FName PlatformGroupName);
+	TArray<FName> GetNumStreamedLODsPlatformOverrideNames() const;
 
 	bool CanRemoveLOD(int32 LODIndex) const;
 	FReply OnRemoveLOD(int32 LODIndex);
@@ -548,6 +559,7 @@ private:
 	void UpdateLODNames();
 	FText GetLODCountTooltip() const;
 	FText GetMinLODTooltip() const;
+	FText GetNumStreamedLODsTooltip() const;
 
 	FText GetLODCustomModeNameContent(int32 LODIndex) const;
 	ECheckBoxState IsLODCustomModeCheck(int32 LODIndex) const;

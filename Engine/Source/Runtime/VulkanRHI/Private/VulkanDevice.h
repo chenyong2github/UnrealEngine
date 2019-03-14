@@ -143,7 +143,8 @@ public:
 		return TimestampValidBitsMask;
 	}
 
-	bool IsFormatSupported(VkFormat Format) const;
+	bool IsTextureFormatSupported(VkFormat Format) const;
+	bool IsBufferFormatSupported(VkFormat Format) const;
 
 	const VkComponentMapping& GetFormatComponentMapping(EPixelFormat UEFormat) const;
 
@@ -300,6 +301,7 @@ public:
 
 private:
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat);
+	void MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats);
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat, int32 BlockBytes);
 	void SetComponentMapping(EPixelFormat UEFormat, VkComponentSwizzle r, VkComponentSwizzle g, VkComponentSwizzle b, VkComponentSwizzle a);
 

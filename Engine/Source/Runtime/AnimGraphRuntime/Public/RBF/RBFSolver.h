@@ -20,7 +20,10 @@ enum class ERBFFunctionType : uint8
 
 	Cubic,
 
-	Quintic
+	Quintic,
+
+	/** Uses the setting of the parent container */
+	DefaultFunction
 };
 
 /** Method for determining distance from input to targets */
@@ -34,7 +37,33 @@ enum class ERBFDistanceMethod : uint8
 	Quaternion,
 
 	/** Treat inputs as quaternion, and find distance between rotated TwistAxis direction */
-	SwingAngle
+	SwingAngle,
+
+	/** Uses the setting of the parent container */
+	DefaultMethod
+};
+
+/** Method to normalize weights */
+UENUM()
+enum class ERBFNormalizeMethod : uint8
+{
+	/** Only normalize above one */
+	OnlyNormalizeAboveOne,
+
+	/** 
+		Always normalize. 
+		Zero distribution weights stay zero.
+	*/
+	AlwaysNormalize,
+
+	/** 
+		Normalize only within reference median. The median
+		is a cone with a minimum and maximum angle within
+		which the value will be interpolated between 
+		non-normalized and normalized. This helps to define
+		the volume in which normalization is always required.
+	*/
+	NormalizeWithinMedian
 };
 
 /** Struct storing a particular entry within the RBF */
@@ -79,9 +108,17 @@ struct ANIMGRAPHRUNTIME_API FRBFTarget : public FRBFEntry
 	UPROPERTY(EditAnywhere, Category = RBFData)
 	FRichCurve CustomCurve;
 
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	ERBFDistanceMethod DistanceMethod;
+
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	ERBFFunctionType FunctionType;
+
 	FRBFTarget()
 		: ScaleFactor(1.f)
 		, bApplyCustomCurve(false)
+		, DistanceMethod(ERBFDistanceMethod::DefaultMethod)
+		, FunctionType(ERBFFunctionType::DefaultFunction)
 	{}
 };
 
@@ -132,6 +169,22 @@ struct ANIMGRAPHRUNTIME_API FRBFParams
 	UPROPERTY(EditAnywhere, Category = RBFData)
 	float WeightThreshold;
 
+	/** Method to use for normalizing the weight */
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	ERBFNormalizeMethod NormalizeMethod;
+
+	/** Rotation or position of median (used for normalization) */
+	UPROPERTY(EditAnywhere, Category = RBFData)
+	FVector MedianReference;
+
+	/** Minimum distance used for median */
+	UPROPERTY(EditAnywhere, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	float MedianMin;
+
+	/** Maximum distance used for median */
+	UPROPERTY(EditAnywhere, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	float MedianMax;
+
 	FRBFParams();
 
 	/** Util for returning unit direction vector for swing axis */
@@ -148,5 +201,8 @@ struct ANIMGRAPHRUNTIME_API FRBFSolver
 	static bool FindTargetNeighbourDistances(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<float>& NeighbourDists);
 
 	/** Util to find distance between two entries, using provided params */
-	static float FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params);
+	static float FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params, ERBFDistanceMethod OverrideMethod = ERBFDistanceMethod::DefaultMethod);
+
+	/** Returns the radius for a given target */
+	static float GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams& Params);
 };

@@ -135,7 +135,7 @@ public:
 		uint32 Stride = sizeof(FLandscapeProceduralVertex);
 		Elements.Add(FVertexElement(0, STRUCT_OFFSET(FLandscapeProceduralVertex, Position), VET_Float2, 0, Stride));
 		Elements.Add(FVertexElement(0, STRUCT_OFFSET(FLandscapeProceduralVertex, UV), VET_Float2, 1, Stride));
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
 	virtual void ReleaseRHI()
@@ -536,6 +536,9 @@ public:
 		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 
+		FRHIRenderPassInfo RenderPassInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), CurrentMip == 0 ? ERenderTargetActions::Clear_Store : ERenderTargetActions::Load_Store, nullptr, 0, 0);
+		InRHICmdList.BeginRenderPass(RenderPassInfo, TEXT("DrawProceduralHeightmaps"));
+
 		if (CurrentMip == 0)
 		{
 			// Setup Shaders
@@ -546,7 +549,6 @@ public:
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 
 			InRHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
-			SetRenderTarget(InRHICmdList, ViewFamily.RenderTarget->GetRenderTargetTexture(), nullptr, InClearRT ? ESimpleRenderTargetMode::EClearColorAndDepth : ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthWrite_StencilWrite, true);
 
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
@@ -565,7 +567,6 @@ public:
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 
 			InRHICmdList.SetViewport(0.0f, 0.0f, 0.0f, WriteRenderTargetSize.X, WriteRenderTargetSize.Y, 1.0f);
-			SetRenderTarget(InRHICmdList, ViewFamily.RenderTarget->GetRenderTargetTexture(), nullptr, ESimpleRenderTargetMode::EClearColorAndDepth, FExclusiveDepthStencil::DepthWrite_StencilWrite, true);
 
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
@@ -580,6 +581,8 @@ public:
 		InRHICmdList.SetStreamSource(0, VertexBufferResource.VertexBufferRHI, 0);
 
 		InRHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
+
+		InRHICmdList.EndRenderPass();
 
 		VertexDeclaration.ReleaseResource();
 		VertexBufferResource.ReleaseResource();
@@ -997,9 +1000,8 @@ void ALandscape::CopyProceduralTargetToResolveTarget(UTexture* InHeightmapRTRead
 {
 	FLandscapeProceduralCopyResource_RenderThread CopyResource(InHeightmapRTRead, InCopyResolveTarget, InCopyResolveTargetCPUResource, InFirstComponentSectionBase, SubsectionSizeQuads, NumSubsections, InCurrentMip);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		FLandscapeProceduralCopyResultCommand,
-		FLandscapeProceduralCopyResource_RenderThread, CopyResource, CopyResource,
+	ENQUEUE_RENDER_COMMAND(FLandscapeProceduralCopyResultCommand)(
+		[CopyResource](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			CopyResource.CopyToResolveTarget(RHICmdList);
 		});
@@ -1115,13 +1117,11 @@ void ALandscape::DrawHeightmapComponentsToRenderTarget(const FString& InDebugNam
 
 	FLandscapeHeightmapProceduralRender_RenderThread ProceduralRender(InDebugName, InHeightmapRTWrite, HeightmapWriteTextureSize, HeightmapReadTextureSize, ProjectionMatrix, InShaderParams, InMipRender, TriangleList);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		FDrawSceneCommand,
-		FLandscapeHeightmapProceduralRender_RenderThread, ProceduralRender, ProceduralRender,
-		bool, ClearRT, InClearRTWrite,
-	{
-		ProceduralRender.Render(RHICmdList, ClearRT);
-	});
+	ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
+		[ProceduralRender, ClearRT = InClearRTWrite](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			ProceduralRender.Render(RHICmdList, ClearRT);
+		});
 	
 	PrintDebugRTHeightmap(InDebugName, InHeightmapRTWrite, InMipRender, InShaderParams.GenerateNormals);
 }
@@ -1493,9 +1493,9 @@ void ALandscape::PrintDebugRTHeightmap(FString Context, UTextureRenderTarget2D* 
 		return;
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		HeightmapRTCanvasRenderTargetResolveCommand,
-		FTextureRenderTargetResource*, RenderTargetResource, InDebugRT->GameThread_GetRenderTargetResource(),
+	FTextureRenderTargetResource* RenderTargetResource = InDebugRT->GameThread_GetRenderTargetResource();
+	ENQUEUE_RENDER_COMMAND(HeightmapRTCanvasRenderTargetResolveCommand)(
+		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
 			// Copy (resolve) the rendered image from the frame buffer to its render target texture
 			RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());
@@ -1781,15 +1781,15 @@ void ALandscape::ResolveProceduralHeightmapTexture(bool InUpdateDDC)
 				Flags.SetMip(MipIndex);
 				FIntRect Rect(0, 0, MipSizeU, MipSizeV);
 
-				ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
-					ReadSurfaceCommand,
-					FTextureRHIRef, SourceTextureRHI, HeightmapRenderData.HeightmapsCPUReadBack->TextureRHI,
-					FIntRect, Rect, Rect,
-					TArray<FColor>*, OutData, &MipData[MipIndex],
-					FReadSurfaceDataFlags, ReadFlags, Flags,
-					{
-						RHICmdList.ReadSurfaceData(SourceTextureRHI, Rect, *OutData, ReadFlags);
-					});
+				{
+					TArray<FColor>* OutData = &MipData[MipIndex];
+					FTextureRHIRef SourceTextureRHI = HeightmapRenderData.HeightmapsCPUReadBack->TextureRHI;
+					ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)(
+						[SourceTextureRHI, Rect, OutData, Flags](FRHICommandListImmediate& RHICmdList)
+						{
+							RHICmdList.ReadSurfaceData(SourceTextureRHI, Rect, *OutData, Flags);
+						});
+				}
 
 				MipSizeU >>= 1;
 				MipSizeV >>= 1;

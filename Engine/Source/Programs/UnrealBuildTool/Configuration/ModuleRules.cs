@@ -73,6 +73,11 @@ namespace UnrealBuildTool
 			Default,
 
 			/// <summary>
+			/// Never use any PCHs.
+			/// </summary>
+			NoPCHs,
+
+			/// <summary>
 			/// Never use shared PCHs.  Always generate a unique PCH for this module if appropriate
 			/// </summary>
 			NoSharedPCHs,
@@ -118,6 +123,23 @@ namespace UnrealBuildTool
 			/// </summary>
 			Any,
 		}
+
+		/// <summary>
+		/// Control visibility of symbols in this module for special cases
+		/// </summary>
+		public enum SymbolVisibility
+		{
+			/// <summary>
+			/// Standard visibility rules
+			/// </summary>
+			Default,
+
+			/// <summary>
+			/// Make sure symbols in this module are visible in Dll builds
+			/// </summary>
+			VisibileForDll,
+		}
+
 
 		/// <summary>
 		/// Information about a file which is required by the target at runtime, and must be moved around with it.
@@ -688,6 +710,12 @@ namespace UnrealBuildTool
 		public List<string> ExternalDependencies = new List<string>();
 
 		/// <summary>
+		/// Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE4 modules require this, since we use the IMPLEMENT_MODULE macro
+		/// to do other global overloads (eg. operator new/delete forwarding to GMalloc).
+		/// </summary>
+		public bool? bRequiresImplementModule;
+
+		/// <summary>
 		/// Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number
 		/// of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 		/// </summary>
@@ -697,6 +725,11 @@ namespace UnrealBuildTool
 		/// Which stanard to use for compiling this module
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+
+		/// <summary>
+		///  Control visibility of symbols
+		/// </summary>
+		public SymbolVisibility ModuleSymbolVisibility = ModuleRules.SymbolVisibility.Default;
 
 		/// <summary>
 		/// The current engine directory

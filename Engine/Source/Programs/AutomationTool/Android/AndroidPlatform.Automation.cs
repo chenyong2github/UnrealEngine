@@ -295,6 +295,37 @@ public class AndroidPlatform : Platform
 
 		string LocalObbName = SC.StageDirectory.FullName+".obb";
 
+		FileFilter ObbFileFilter = new FileFilter(FileFilterType.Include);
+		ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
+		List<string> ObbFilters;
+		EngineIni.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ObbFilters", out ObbFilters);
+		if (ObbFilters != null)
+		{
+			ObbFileFilter.AddRules(ObbFilters);
+		}
+
+		string StageDirectoryPath = Path.Combine(SC.StageDirectory.FullName, SC.ShortProjectName);
+		List<FileReference> FilesToObb = ObbFileFilter.ApplyToDirectory(new DirectoryReference(StageDirectoryPath), true);
+
+		bool OBBNeedsUpdate = false;
+		System.DateTime OBBTimeStamp = File.GetLastWriteTimeUtc(LocalObbName);
+		foreach (FileReference FileToObb in FilesToObb)
+		{
+			System.DateTime FileTimeStamp = File.GetLastWriteTimeUtc(FileToObb.FullName);
+			if(FileTimeStamp > OBBTimeStamp)
+			{
+				OBBNeedsUpdate = true;
+				break;
+			}
+		}
+
+		if (!OBBNeedsUpdate)
+		{
+			LogInformation("OBB is up to date: " + LocalObbName);
+		}
+		else
+		{
+
 		// Always delete the target OBB file if it exists
 		if (File.Exists(LocalObbName))
 		{
@@ -322,28 +353,12 @@ public class AndroidPlatform : Platform
 					}
 				};
 
-
-
-			FileFilter ObbFileFilter = new FileFilter(FileFilterType.Include);
-			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
-			List<string> ObbFilters;
-			EngineIni.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ObbFilters", out ObbFilters);
-			if (ObbFilters != null)
-			{
-				ObbFileFilter.AddRules(ObbFilters);
-			}
-
-			string StageDirectoryPath = Path.Combine(SC.StageDirectory.FullName, SC.ShortProjectName);
-			List<FileReference> FilesToObb = ObbFileFilter.ApplyToDirectory(new DirectoryReference(StageDirectoryPath), true);
-
 			foreach (FileReference FileToObb in FilesToObb)
 			{
 				string DestinationPath = Path.GetDirectoryName(FileToObb.FullName).Replace(StageDirectoryPath, SC.ShortProjectName);
 				ObbFile.AddFile(FileToObb.FullName, DestinationPath);
 			}
 			
-
-
 			// ObbFile.AddDirectory(SC.StageDirectory+"/"+SC.ShortProjectName, SC.ShortProjectName);
 			try
 			{
@@ -354,6 +369,7 @@ public class AndroidPlatform : Platform
 				LogInformation("Failed to build OBB: " + LocalObbName);
 				throw new AutomationException(ExitCode.Error_AndroidOBBError, "Stage Failed. Could not build OBB {0}. The file may be too big to fit in an OBB (2 GiB limit)", LocalObbName);
 			}
+		}
 		}
 
 		// make sure the OBB is <= 2GiB (or 4GiB if large OBB enabled)
@@ -393,12 +409,34 @@ public class AndroidPlatform : Platform
 					}
 				}
 				
-				              
+				TargetReceipt Receipt = SC.StageTargets[0].Receipt;
+			              
+				// when we make an embedded executable, all we do is output to libUE4.so - we don't need to make an APK at all
+				// however, we still let package go through to make the .obb file
+				string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 				if (!Params.Prebuilt)
 				{
-					string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 					string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
-					Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, false);
+					bool bShouldCompileAsDll = Receipt.HasValueForAdditionalProperty("CompileAsDll", "true");
+					if (bShouldCompileAsDll)
+					{
+						// MakeApk
+						SOName = Receipt.BuildProducts[0].Path.FullName;
+
+						// saving package info, which will allow 
+						TargetType Type = TargetType.Game;
+						if (CookFlavor.EndsWith("Client"))
+						{
+							Type = TargetType.Client;
+						}
+						else if (CookFlavor.EndsWith("Server"))
+						{
+							Type = TargetType.Server;
+						}
+						LogInformation("SavePackageInfo");
+						Deploy.SavePackageInfo(Params.ShortProjectName, SC.ProjectRoot.FullName, Type);
+					}
+					Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, false, bShouldCompileAsDll);
 				}
 
 			    // Create APK specific OBB in case we have a detached OBB.
@@ -554,8 +592,9 @@ public class AndroidPlatform : Platform
 			LogInformation("Writing bat for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
             BatchLines = new string[] {
 						"setlocal",
-                        "set ANDROIDHOME=%ANDROID_HOME%",
-                        "if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
+						"if NOT \"%UE_SDKS_ROOT%\"==\"\" (call %UE_SDKS_ROOT%\\HostWin64\\Android\\SetupEnvironmentVars.bat)",
+						"set ANDROIDHOME=%ANDROID_HOME%",		
+						"if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
 						"set DEVICE=",
                         "if not \"%1\"==\"\" set DEVICE=-s %1",
@@ -631,6 +670,7 @@ public class AndroidPlatform : Platform
 			LogInformation("Writing bat for uninstall with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
 			BatchLines = new string[] {
 						"setlocal",
+						"if NOT \"%UE_SDKS_ROOT%\"==\"\" (call %UE_SDKS_ROOT%\\HostWin64\\Android\\SetupEnvironmentVars.bat)",
 						"set ANDROIDHOME=%ANDROID_HOME%",
 						"if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
@@ -1033,7 +1073,7 @@ public class AndroidPlatform : Platform
                 string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 				string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
 				Deploy.SetAndroidPluginData(AppArchitectures, CollectPluginDataPaths(SC));
-                Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, true);
+                Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, true, false);
             }
 
             // now we can use the apk to get more info
@@ -1470,37 +1510,74 @@ public class AndroidPlatform : Platform
 	/** Run an external exe (and capture the output), given the exe path and the commandline. */
 	public static string GetPackageInfo(string ApkName, bool bRetrieveVersionCode)
 	{
+		string ReturnValue = null;
+
 		// we expect there to be one, so use the first one
 		string AaptPath = GetAaptPath();
 
 		PackageInfoMutex.WaitOne();
 
-		var ExeInfo = new ProcessStartInfo(AaptPath, "dump --include-meta-data badging \"" + ApkName + "\"");
-		ExeInfo.UseShellExecute = false;
-		ExeInfo.RedirectStandardOutput = true;
-		using (var GameProcess = Process.Start(ExeInfo))
+		if (File.Exists(ApkName))
 		{
-			PackageLine = null;
-			LaunchableActivityLine = null;
-			MetaAppTypeLine = null;
-			GameProcess.BeginOutputReadLine();
-			GameProcess.OutputDataReceived += ParsePackageName;
-			GameProcess.WaitForExit();
-		}
-
-		PackageInfoMutex.ReleaseMutex();
-
-		string ReturnValue = null;
-		if (PackageLine != null)
-		{
-			// the line should look like: package: name='com.epicgames.qagame' versionCode='1' versionName='1.0'
-			string[] Tokens = PackageLine.Split("'".ToCharArray());
-			int TokenIndex = bRetrieveVersionCode ? 3 : 1;
-			if (Tokens.Length >= TokenIndex + 1)
+			var ExeInfo = new ProcessStartInfo(AaptPath, "dump --include-meta-data badging \"" + ApkName + "\"");
+			ExeInfo.UseShellExecute = false;
+			ExeInfo.RedirectStandardOutput = true;
+			using (var GameProcess = Process.Start(ExeInfo))
 			{
-				ReturnValue = Tokens[TokenIndex];
+				PackageLine = null;
+				LaunchableActivityLine = null;
+				MetaAppTypeLine = null;
+				GameProcess.BeginOutputReadLine();
+				GameProcess.OutputDataReceived += ParsePackageName;
+				GameProcess.WaitForExit();
 			}
+
+			PackageInfoMutex.ReleaseMutex();
+			
+			if (PackageLine != null)
+			{
+				// the line should look like: package: name='com.epicgames.qagame' versionCode='1' versionName='1.0'
+				string[] Tokens = PackageLine.Split("'".ToCharArray());
+				int TokenIndex = bRetrieveVersionCode ? 3 : 1;
+				if (Tokens.Length >= TokenIndex + 1)
+				{
+					ReturnValue = Tokens[TokenIndex];
+				}
+			}
+			LogInformation("GetPackageInfo ReturnValue: {0}", ReturnValue);
 		}
+
+		if (ReturnValue == null || ReturnValue.Length == 0)
+		{
+			/** If APK does not exist or we cant find package info in apk use the packageInfo file */
+			ReturnValue = GetPackageInfoFromInfoFile(ApkName, bRetrieveVersionCode);
+		}
+
+		return ReturnValue;
+	}
+
+	/** Lookup package info in packageInfo.txt file in same directory as the APK would have been */
+	private static string GetPackageInfoFromInfoFile(string ApkName, bool bRetrieveVersionCode)
+	{
+		string ReturnValue = null;
+		String PackageInfoPath = Path.Combine(Path.GetDirectoryName(ApkName), "packageInfo.txt");
+		Boolean fileExists = File.Exists(PackageInfoPath);
+		if (fileExists)
+		{
+			string[] Lines = File.ReadAllLines(PackageInfoPath);
+			int LineIndex = bRetrieveVersionCode ? 1 : 0;
+			LogInformation("packageInfo line index: {0}", LineIndex);
+			if (Lines.Length >= 2)
+			{
+				ReturnValue = Lines[LineIndex];
+			}
+			// parse extra info that the aapt-based method got
+			MetaAppTypeLine = Lines[3];
+		}
+		LogInformation("packageInfo.txt file exists: {0}", fileExists);
+		LogInformation("packageInfo return MetaAppTypeLine: {0}", MetaAppTypeLine);
+		LogInformation("packageInfo return value: {0}", ReturnValue);
+
 		return ReturnValue;
 	}
 

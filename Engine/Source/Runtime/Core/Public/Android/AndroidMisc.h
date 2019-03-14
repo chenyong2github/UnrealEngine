@@ -36,7 +36,8 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 	static void PlatformInit();
 	static void PlatformTearDown();
 	static void PlatformHandleSplashScreen(bool ShowSplashScreen);
-
+    static EDeviceScreenOrientation GetDeviceOrientation() { return DeviceOrientation; }
+    
 	FORCEINLINE static int32 GetMaxPathLength()
 	{
 		return ANDROID_MAX_PATH;
@@ -158,6 +159,8 @@ public:
 	static void ReleaseMobileHaptics();
 	static void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
 
+	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+
 	// ANDROID ONLY:
 	static void SetVersionInfo(FString AndroidVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
 	static const FString GetAndroidVersion();
@@ -242,6 +245,8 @@ public:
 
 	static bool VolumeButtonsHandledBySystem;
 
+	static bool bNeedsRestartAfterPSOPrecompile;
+
 	enum class ECoreFrequencyProperty
 	{
 		CurrentFrequency,
@@ -250,6 +255,11 @@ public:
 	};
 
 	static uint32 GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty CoreFrequencyProperty);
+    
+    static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation) { DeviceOrientation = NewDeviceOrentation; }
+    
+private:
+    static EDeviceScreenOrientation DeviceOrientation;
 };
 
 #if !PLATFORM_LUMIN

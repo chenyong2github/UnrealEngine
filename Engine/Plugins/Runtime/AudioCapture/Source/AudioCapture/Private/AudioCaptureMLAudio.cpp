@@ -9,8 +9,7 @@ namespace Audio
 {
 
 FAudioCaptureImpl::FAudioCaptureImpl()
-	: Callback(nullptr)
-	, NumChannels(1)
+	: NumChannels(1)
 	, SampleRate(16000)
 	, InputDeviceHandle(ML_INVALID_HANDLE)
 	, bStreamStarted(false)
@@ -41,10 +40,7 @@ static void OnAudioCaptureCallback(MLHandle Handle, void* CallbackContext)
 
 void FAudioCaptureImpl::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, double StreamTime, bool bOverflow)
 {
-	check(Callback);
-
 	FScopeLock ScopeLock(&ApplicationResumeCriticalSection);
-
 	int32 NumSamples = (int32)(InBufferFrames * NumChannels);
 
 	//TODO: Check to see if float conversion is needed:
@@ -59,7 +55,7 @@ void FAudioCaptureImpl::OnAudioCapture(void* InBuffer, uint32 InBufferFrames, do
 		FloatBufferPtr[i] = (((float)InBufferData[i]) / 32767.0f);
 	};
 
-	Callback->OnAudioCapture(FloatBufferPtr, InBufferFrames, NumChannels, StreamTime, bOverflow);
+	OnCapture(FloatBufferPtr, InBufferFrames, NumChannels, StreamTime, bOverflow);
 }
 
 bool FAudioCaptureImpl::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
@@ -88,7 +84,7 @@ bool FAudioCaptureImpl::GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo)
 	return true;
 }
 
-bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam& StreamParams)
+bool FAudioCaptureImpl::OpenDefaultCaptureStream(FOnCaptureFunction InOnCapture, uint32 NumFramesDesired)
 {
 	UE_LOG(LogAudioCapture, Warning, TEXT("OPENING STREAM"));
 	if (MLHandleIsValid(InputDeviceHandle))
@@ -96,7 +92,7 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam&
 		UE_LOG(LogAudioCapture, Error, TEXT("Capture Stream Already Opened"));
 	}
 
-	if (!StreamParams.Callback)
+	if (!InOnCapture)
 	{
 		UE_LOG(LogAudioCapture, Error, TEXT("Need a callback object passed to open a capture stream"));
 		return false;
@@ -106,13 +102,15 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam&
 	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAudioCaptureImpl::OnApplicationResume);
 
 	// set up variables to be populated by ML Audio
+	OnCapture = MoveTemp(InOnCapture);
 	uint32 ChannelCount = NumChannels;
 	MLAudioBufferFormat DefaultBufferFormat;
 	uint32 RecommendedBufferSize = 0;
 	uint32 MinBufferSize = 0;
 	uint32 UnsignedSampleRate = SampleRate;
-	uint32 NumFrames = StreamParams.NumFramesDesired;
-	uint32 BufferSize = StreamParams.NumFramesDesired * NumChannels * sizeof(int16);
+	uint32 BufferSize = NumFramesDesired * NumChannels * sizeof(int16);
+	// MERGE-REVIEW - check logic here
+	uint32 RequestedBufferSize = NumFramesDesired * NumChannels * sizeof(int16);
 
 	MLResult Result = MLAudioGetInputStreamDefaults(ChannelCount, UnsignedSampleRate, &DefaultBufferFormat, &RecommendedBufferSize, &MinBufferSize);
 	if (Result != MLResult_Ok)
@@ -123,8 +121,8 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam&
 
 	if (BufferSize < RecommendedBufferSize)
 	{
-		UE_LOG(LogAudioCapture, Warning, TEXT("Requested buffer size of %u is smaller than the recommended buffer size, reverting to a buffer size of %u"), BufferSize, RecommendedBufferSize);
-		BufferSize = RecommendedBufferSize;
+		BufferSize = NumFramesDesired * NumChannels;
+		UE_LOG(LogAudioCapture, Display, TEXT("Using buffer size of %u"), NumFramesDesired * NumChannels);
 	}
 	UE_LOG(LogAudioCapture, Display, TEXT("Using buffer size of %u"), BufferSize);
 
@@ -133,7 +131,7 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(const FAudioCaptureStreamParam&
 	DefaultBufferFormat.channel_count = ChannelCount;
 	DefaultBufferFormat.samples_per_second = SampleRate;
 
-	Callback = StreamParams.Callback;
+	OnCapture = MoveTemp(InOnCapture);
 
 	// Open up new audio stream
 	Result = MLAudioCreateInputFromVoiceComm(&DefaultBufferFormat, BufferSize, &OnAudioCaptureCallback, this, &InputDeviceHandle);

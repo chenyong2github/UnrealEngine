@@ -80,7 +80,7 @@ namespace UnrealBuildTool
 			{
 				GameProjectFile = OnlyGameProject.FullName;
 				MakeGameProjectFile = "GAMEPROJECTFILE =" + GameProjectFile + "\n";
-				ProjectBuildCommand = "PROJECTBUILD = mono \"$(UNREALROOTPATH)/Engine/Binaries/DotNET/UnrealBuildTool.exe\"\n";
+				ProjectBuildCommand = "PROJECTBUILD = bash \"$(UNREALROOTPATH)/Engine/Build/BatchFiles/Linux/RunMono.sh\" \"$(UNREALROOTPATH)/Engine/Binaries/DotNET/UnrealBuildTool.exe\"\n";
 			}
 
 			BuildCommand = "BUILD = bash \"$(UNREALROOTPATH)/Engine/Build/BatchFiles/Linux/Build.sh\"\n";
@@ -106,7 +106,7 @@ namespace UnrealBuildTool
 					}
 
 					string TargetFileName = TargetFile.TargetFilePath.GetFileNameWithoutExtension();
-					string Basename = TargetFileName.Substring(0, TargetFileName.LastIndexOf(".Target"));
+					string Basename = TargetFileName.Substring(0, TargetFileName.LastIndexOf(".Target", StringComparison.InvariantCultureIgnoreCase));
 
 					foreach (UnrealTargetConfiguration CurConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 					}
 
 					string TargetFileName = TargetFile.TargetFilePath.GetFileNameWithoutExtension();
-					string Basename = TargetFileName.Substring(0, TargetFileName.LastIndexOf(".Target"));
+					string Basename = TargetFileName.Substring(0, TargetFileName.LastIndexOf(".Target", StringComparison.InvariantCultureIgnoreCase));
 
 					if (Basename == GameProjectName || Basename == (GameProjectName + "Editor"))
 					{
@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 			if (!String.IsNullOrEmpty(GameProjectName))
 			{
 				// Make sure UBT is updated.
-				MakefileContent.Append("\txbuild /property:Configuration=Development /property:TargetFrameworkVersion=v4.5 /verbosity:quiet /nologo ");
+				MakefileContent.Append("\txbuild /property:Configuration=Development /verbosity:quiet /nologo ");
 				MakefileContent.Append("\"$(UNREALROOTPATH)/Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj\"\n");
 				MakefileContent.Append("\t$(PROJECTBUILD) -projectfiles -project=\"\\\"$(GAMEPROJECTFILE)\\\"\" -game -engine \n");
 			}

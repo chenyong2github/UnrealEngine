@@ -225,20 +225,15 @@ struct FPropertyRetirement
 
 	FPacketIdRange	OutPacketIdRange;
 
-	uint32			Reliable		: 1;	// Whether it was sent reliably.
-	uint32			CustomDelta		: 1;	// True if this property uses custom delta compression
-	uint32			Config			: 1;
-
 	FPropertyRetirement() :
 #if !UE_BUILD_SHIPPING
 			SanityTag( ExpectedSanityTag ),
 #endif
 			Next( nullptr )
 		,	DynamicState ( nullptr )
-		,   Reliable( 0 )
-		,   CustomDelta( 0 )
-		,	Config( 0 )
 	{}
+
+	void CountBytes(FArchive& Ar) const;
 };
 
 
@@ -360,13 +355,74 @@ public:
 private:
 };
 
+struct FNetDeltaSerializeInfo;
 
-class INetSerializeCB
+/**
+ * An interface for handling serialization of Structs for networking.
+ *
+ * See notes in NetSerialization.h
+ */
+class COREUOBJECT_API INetSerializeCB
 {
+protected:
+
+	using FGuidReferencesMap = TMap<int32, class FGuidReferences>;
+
 public:
+
 	INetSerializeCB() { }
 
-	virtual void NetSerializeStruct( UScriptStruct* Struct, FBitArchive& Ar, UPackageMap* Map, void* Data, bool& bHasUnmapped ) = 0;
+	virtual ~INetSerializeCB() {}
+
+	/**
+	 * Serializes an entire struct to / from the given archive.
+	 * It is up to callers to manage Guid References created during reads.
+	 *
+	 * @param Params		NetDeltaSerialization Params to use.
+	 *						Object must be valid.
+	 *						Data must be valid.
+	 *						Connection must be valid.
+	 *						Map must be valid.
+	 *						Struct must point to the UScriptStruct of Data.
+	 *						Either Reader or Writer (but not both) must be valid.
+	 *						bOutHasMoreUnmapped will be used to return whether or not we have we have unmapped guids.
+	 *						Only used when reading.
+	 */
+	virtual void NetSerializeStruct(FNetDeltaSerializeInfo& Params) = 0;
+
+	UE_DEPRECATED(4.23, "Please use the version of NetSerializeStruct that accepts an FNetDeltaSerializeInfo reference")
+	virtual void NetSerializeStruct(
+		class UScriptStruct* Struct,
+		class FBitArchive& Ar,
+		class UPackageMap* Map,
+		void* Data,
+		bool& bHasUnmapped);
+
+	/**
+	 * Gathers any guid references for a FastArraySerializer.
+	 * @see GuidReferences.h for more info.
+	 */
+	virtual void GatherGuidReferencesForFastArray(struct FFastArrayDeltaSerializeParams& Params) = 0;
+
+	/**
+	 * Moves a previously mapped guid to an unmapped state for a FastArraySerializer.
+	 * @see GuidReferences.h for more info.
+	 *
+	 * @return True if the guid was found and unmapped.
+	 */
+	virtual bool MoveGuidToUnmappedForFastArray(struct FFastArrayDeltaSerializeParams& Params) = 0;
+
+	/**
+	 * Updates any unmapped guid references for a FastArraySerializer.
+	 * @see GuidReferences.h for more info.
+	 */
+	virtual void UpdateUnmappedGuidsForFastArray(struct FFastArrayDeltaSerializeParams& Params) = 0;
+
+	/**
+	 * Similar to NetSerializeStruct, except serializes an entire FastArraySerializer at once
+	 * instead of element by element.
+	 */
+	virtual bool NetDeltaSerializeForFastArray(struct FFastArrayDeltaSerializeParams& Params) = 0;
 };
 
 
@@ -395,62 +451,81 @@ public:
  */
 struct FNetDeltaSerializeInfo
 {
-	FNetDeltaSerializeInfo()
-	{
-		Writer		= NULL;
-		Reader		= NULL;
+	/** Used when writing */
+	FBitWriter* Writer = nullptr;
 
-		NewState	= NULL;
-		OldState	= NULL;
-		Map			= NULL;
-		Data		= NULL;
+	/** Used when reading */
+	FBitReader* Reader = nullptr;
 
-		Struct		= NULL;
+	/** SharedPtr to new base state created by NetDeltaSerialize. Used when writing.*/
+	TSharedPtr<INetDeltaBaseState>* NewState = nullptr;
 
-		NetSerializeCB = NULL;
+	/** Pointer to the previous base state. Used when writing. */
+	INetDeltaBaseState* OldState = nullptr;
 
-		bUpdateUnmappedObjects		= false;
-		bOutSomeObjectsWereMapped	= false;
-		bCalledPreNetReceive		= false;
-		bOutHasMoreUnmapped			= false;
-		bGuidListsChanged			= false;
-		bIsWritingOnClient			= false;
-		Object						= nullptr;
-		GatherGuidReferences		= nullptr;
-		TrackedGuidMemoryBytes		= nullptr;
-		MoveGuidToUnmapped			= nullptr;
-	}
+	/** PackageMap that can be used to serialize objects and track Guid References. Used primarily when reading. */
+	class UPackageMap* Map = nullptr;
 
-	// Used when writing
-	FBitWriter*						Writer;
+	/** Connection that we're currently serializing data for. */
+	class UNetConnection* Connection = nullptr;
 
-	// Used for when reading
-	FBitReader*						Reader;
+	/** Pointer to the struct that we're serializing.*/
+	void* Data = nullptr;
 
-	TSharedPtr<INetDeltaBaseState>*	NewState;		// SharedPtr to new base state created by NetDeltaSerialize.
-	INetDeltaBaseState*				OldState;				// Pointer to the previous base state.
-	UPackageMap*					Map;
-	void*							Data;
+	/** Type of struct that we're serializing. */
+	class UStruct* Struct = nullptr;
 
-	// Only used for fast TArray replication
-	UStruct*						Struct;
+	/** Pointer to a NetSerializeCB implementation that can be used when serializing. */
+	INetSerializeCB* NetSerializeCB = nullptr;
 
-	INetSerializeCB*				NetSerializeCB;
+	/** If true, we are updating unmapped objects */
+	bool bUpdateUnmappedObjects = false;
 
-	bool							bUpdateUnmappedObjects;		// If true, we are wanting to update unmapped objects
-	bool							bOutSomeObjectsWereMapped;
-	bool							bCalledPreNetReceive;
-	bool							bOutHasMoreUnmapped;
-	bool							bGuidListsChanged;
-	bool							bIsWritingOnClient;
-	UObject*						Object;
+	/** If true, then we successfully mapped some unmapped objects. */
+	bool bOutSomeObjectsWereMapped = false;
 
-	TSet< FNetworkGUID >*			GatherGuidReferences;
-	int32*							TrackedGuidMemoryBytes;
-	const FNetworkGUID*				MoveGuidToUnmapped;
+	/** Whether or not PreNetReceive has been called on the owning object. */
+	bool bCalledPreNetReceive = false;
+
+	/** Whether or not there are still some outstanding unmapped objects referenced by the struct. */
+	bool bOutHasMoreUnmapped = false;
+
+	/** Whether or not we changed Guid / Object references. Used when reading. */
+	bool bGuidListsChanged = false;
+
+	/** Whether or not we're sending / writing data from the client. */
+	bool bIsWritingOnClient = false;
+
+	//~ TODO: This feels hacky, and a better alternative might be something like connection specific
+	//~ capabilities.
+
+	/** Whether or not we support FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs */
+	bool bSupportsFastArrayDeltaStructSerialization = false;
+
+	/** The object that owns the struct we're serializing. */
+	UObject* Object = nullptr;
+
+	/**
+	 * When non-null, this indicates that we're gathering Guid References.
+	 * Any Guids the struct is referencing should be added.
+	 * This may contain gathered Guids from other structs, so do not clear this set.
+	 */
+	TSet<FNetworkGUID>* GatherGuidReferences = nullptr;
+
+	/**
+	 * When we're gathering guid references, ny memory used to track Guids can be added to this.
+	 * This may be tracking Guid memory from other structs, so do not reset this.
+	 * Note, this is not guaranteed to be valid when GatherGuidReferences is.
+	 */
+	int32* TrackedGuidMemoryBytes = nullptr;
+
+	/** When non-null, this indicates the given Guid has become unmapped and any references to it should be updated. */
+	const FNetworkGUID* MoveGuidToUnmapped = nullptr;
+
+	int32 PropertyRepIndex = INDEX_NONE;
 
 	// Debugging variables
-	FString							DebugName;
+	FString DebugName;
 };
 
 

@@ -501,39 +501,6 @@ struct TStructOpsTypeTraits<FActorComponentTickFunction> : public TStructOpsType
 		WithCopy = false
 	};
 };
-/** 
-* Tick function that calls UPrimitiveComponent::PostPhysicsTick
-**/
-
-//DEPRECATED: This struct has been deprecated. Please use your own tick functions if you need something other than the primary tick function
-USTRUCT()
-struct FPrimitiveComponentPostPhysicsTickFunction : public FTickFunction
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** PrimitiveComponent component that is the target of this tick **/
-	class UPrimitiveComponent*	Target;
-
-	/** 
-		* Abstract function actually execute the tick. 
-		* @param DeltaTime - frame time to advance, in seconds
-		* @param TickType - kind of tick for this frame
-		* @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
-		* @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
-	**/
-	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) override;
-	/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-	virtual FString DiagnosticMessage() override;
-};
-
-template<>
-struct TStructOpsTypeTraits<FPrimitiveComponentPostPhysicsTickFunction> : public TStructOpsTypeTraitsBase2<FPrimitiveComponentPostPhysicsTickFunction>
-{
-	enum
-	{
-		WithCopy = false
-	};
-};
 
 /** Types of network failures broadcast from the engine */
 UENUM(BlueprintType)
@@ -975,6 +942,13 @@ enum EViewModeIndex
 	VMI_MaterialTextureScaleAccuracy = 25,
 	/** Compare the required texture resolution to the actual resolution. */
 	VMI_RequiredTextureResolution = 26,
+
+	// Ray tracing modes
+
+	/** Run path tracing pipeline */
+	VMI_PathTracing = 27,
+	/** Run ray tracing debug pipeline */
+	VMI_RayTracingDebug = 28,
 
 	VMI_Max UMETA(Hidden),
 

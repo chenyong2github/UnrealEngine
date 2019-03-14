@@ -42,6 +42,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static ENetworkConnectionType GetNetworkConnectionType();
 	static bool HasActiveWiFiConnection();
 	static const TCHAR* GamePersistentDownloadDir();
+    static bool HasSeparateChannelForDebugOutput();
 
 	UE_DEPRECATED(4.21, "Use GetDeviceVolume, it is now callable on all platforms.")
 	static int GetAudioVolume();
@@ -75,7 +76,9 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static void ReleaseMobileHaptics();
 
 	static void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
-    
+
+	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+
 	static void EnableVoiceChat(bool bEnable);
 	static bool IsVoiceChatEnabled();
 

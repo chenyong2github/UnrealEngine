@@ -13,6 +13,8 @@
 #include "Misc/App.h"
 #include "HAL/ExceptionHandling.h"
 
+extern CORE_API bool GIsGPUCrashed;
+
 FUnixErrorOutputDevice::FUnixErrorOutputDevice()
 :	ErrorPos(0)
 {
@@ -50,11 +52,23 @@ void FUnixErrorOutputDevice::Serialize(const TCHAR* Msg, ELogVerbosity::Type Ver
 
 	if( GIsGuarded )
 	{
-		// Propagate error so structured exception handler can perform necessary work.
 #if PLATFORM_EXCEPTIONS_DISABLED
 		UE_DEBUG_BREAK();
 #endif
-		ReportAssert(Msg, 0);
+		// Generate the callstack.
+		// We do not ignore any stack frames since the optimization is
+		// brittle and the risk of trimming the valid frames is too high.
+		// The common frames will be instead filtered out in the web UI
+		const int32 NumStackFramesToIgnore = 0;
+
+		if (GIsGPUCrashed)
+		{
+			ReportGPUCrash(Msg, NumStackFramesToIgnore);
+		}
+		else
+		{
+			ReportAssert(Msg, NumStackFramesToIgnore);
+		}
 	}
 	else
 	{

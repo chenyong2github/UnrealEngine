@@ -756,3 +756,11 @@ FORCEINLINE FVector::FVector( const FVector4& V )
 {
 	DiagnosticCheckNaN();
 }
+
+/* FVector2D inline functions
+ *****************************************************************************/
+
+FORCEINLINE FVector2D::FVector2D(const FVector4& V)
+	: X(V.X), Y(V.Y)
+{
+}

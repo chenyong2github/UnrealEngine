@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
 #include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
@@ -852,6 +853,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Output Alpha"))
 	bool BlendableOutputAlpha;
 
+	/** 
+	 * Selectively execute post process material only for pixels that pass the stencil test against the Custom Depth/Stencil buffer. 
+	 * Pixels that fail the stencil test are filled with the previous post process material output or scene color.
+	 */
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay)
+	uint8 bEnableStencilTest : 1;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	TEnumAsByte<EMaterialStencilCompare> StencilCompare;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	uint8 StencilRefValue = 0;
+
 	/** Controls how the Refraction input is interpreted and how the refraction offset into scene color is computed for this material. */
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	TEnumAsByte<enum ERefractionMode> RefractionMode;
@@ -875,10 +889,9 @@ public:
 #endif
 
 	/** 
-	 * FMaterialRenderProxy derivatives that represent this material to the renderer, when the renderer needs to fetch parameter values. 
-	 * Second instance is used when selected, third when hovered.
+	 * FMaterialRenderProxy derivative that represent this material to the renderer, when the renderer needs to fetch parameter values.
 	 */
-	class FDefaultMaterialInstance* DefaultMaterialInstances[3];
+	class FDefaultMaterialInstance* DefaultMaterialInstance;
 
 #if WITH_EDITORONLY_DATA
 	/** Used to detect duplicate parameters.  Does not contain parameters in referenced functions! */
@@ -938,7 +951,7 @@ public:
 	ENGINE_API virtual bool GetTextureParameterValue(const FMaterialParameterInfo& ParameterInfo,class UTexture*& OutValue, bool bOveriddenOnly = false) const override;
 	ENGINE_API virtual bool GetFontParameterValue(const FMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue,int32& OutFontPage, bool bOveriddenOnly = false) const override;
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const override;
-	ENGINE_API virtual FMaterialRenderProxy* GetRenderProxy(bool Selected, bool bHovered=false) const override;
+	ENGINE_API virtual FMaterialRenderProxy* GetRenderProxy() const override;
 	ENGINE_API virtual UPhysicalMaterial* GetPhysicalMaterial() const override;
 	ENGINE_API virtual void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const override;
 	ENGINE_API virtual void GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const override;
@@ -964,7 +977,7 @@ public:
 		TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
 #endif
-	ENGINE_API virtual void RecacheUniformExpressions() const override;
+	ENGINE_API virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
@@ -1024,7 +1037,6 @@ public:
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 	ENGINE_API virtual void FinishDestroy() override;
-	ENGINE_API virtual void NotifyObjectReferenceEliminated() const override;
 	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	ENGINE_API static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	ENGINE_API virtual bool CanBeClusterRoot() const override;
@@ -1459,13 +1471,13 @@ private:
 	void GetForceRecompileTextureIdsHash(FSHAHash &TextureReferencesHash);
 
 public:
-	bool IsTextureForceRecompileCacheRessource(UTexture *Texture);
+	ENGINE_API bool IsTextureForceRecompileCacheRessource(UTexture *Texture);
 
 #if WITH_EDITOR
 	/* Recompute the ddc cache key and reload the material in case the key is not the same.
 	 * It will also make sure lightmass texture reference are up to date
 	 */
-	void UpdateMaterialShaderCacheAndTextureReferences();
+	ENGINE_API void UpdateMaterialShaderCacheAndTextureReferences();
 #endif
 
 	/**

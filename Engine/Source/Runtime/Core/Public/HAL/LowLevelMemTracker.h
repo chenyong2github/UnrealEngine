@@ -3,9 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/ScopeLock.h"
-#include "Templates/Atomic.h"
-
 
 // this is currently incompatible with PLATFORM_USES_FIXED_GMalloc_CLASS, because this ends up being included way too early
 // and currently, PLATFORM_USES_FIXED_GMalloc_CLASS is only used in Test/Shipping builds, where we don't have STATS anyway,
@@ -15,12 +12,11 @@
 	#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId)
 	#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API)
 #else
-	#include "Stats/Stats.h"
 
 	#define LLM_SUPPORTED_PLATFORM (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_WINDOWS || PLATFORM_IOS || PLATFORM_MAC || PLATFORM_ANDROID || PLATFORM_SWITCH || PLATFORM_UNIX)
 
 #ifndef ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST
-	#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
+#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
 #endif
 
 	// *** enable/disable LLM here ***
@@ -29,7 +25,7 @@
 #endif
 
 	// using asset tagging requires a significantly higher number of per-thread tags, so make it optional
-	// even if this is on, we still need to run with -llmtagsets=assets because of the shear number of stat ids it makes
+	// even if this is on, we still need to run with -llmtagsets=assets because of the sheer number of stat ids it makes
 	// LLM Assets can be viewed in game using 'Stat LLMAssets'
 	#define LLM_ALLOW_ASSETS_TAGS 0
 
@@ -48,32 +44,17 @@
 	#define LLM_AUTO_ENABLE 0
 #endif
 
-	#if STATS
-		#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId) \
-			DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
-			static DEFINE_STAT(StatId)
-		#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-			DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
-			extern API DEFINE_STAT(StatId);
-	#else
-		#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId)
-		#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API)
-	#endif
 #endif	// #if PLATFORM_USES_FIXED_GMalloc_CLASS
 
 
-#if STATS
-	DECLARE_STATS_GROUP(TEXT("LLM FULL"), STATGROUP_LLMFULL, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Platform"), STATGROUP_LLMPlatform, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Summary"), STATGROUP_LLM, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Overhead"), STATGROUP_LLMOverhead, STATCAT_Advanced);
-	DECLARE_STATS_GROUP(TEXT("LLM Assets"), STATGROUP_LLMAssets, STATCAT_Advanced);
-
-	DECLARE_LLM_MEMORY_STAT_EXTERN(TEXT("Engine"), STAT_EngineSummaryLLM, STATGROUP_LLM, CORE_API);
-#endif
-
-
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
+#include "Misc/ScopeLock.h"
+#include "Templates/Atomic.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Misc/CString.h"
+#include "Misc/VarArgs.h"
+#include "UObject/NameTypes.h"
 
 #if DO_CHECK
 
@@ -191,11 +172,14 @@ enum class ELLMTagSet : uint8
 	macro(EngineMisc,							"EngineMisc",					GET_STATFNAME(STAT_EngineMiscLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(TaskGraphTasksMisc,					"TaskGraphMiscTasks",			GET_STATFNAME(STAT_TaskGraphTasksMiscLLM),					GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Audio,								"Audio",						GET_STATFNAME(STAT_AudioLLM),								GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
-	macro(AudioMixer,							"AudioMixer",					GET_STATFNAME(STAT_AudioMixerLLM),							GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
-	macro(AudioPrecache,						"AudioPrecache",				GET_STATFNAME(STAT_AudioPrecacheLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
-	macro(AudioDecompress,						"AudioDecompress",				GET_STATFNAME(STAT_AudioDecompressLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
-	macro(AudioRealtimePrecache,				"AudioRealtimePrecache",		GET_STATFNAME(STAT_AudioRealtimePrecacheLLM),				GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
-	macro(AudioFullDecompress,					"AudioFullDecompress",			GET_STATFNAME(STAT_AudioFullDecompressLLM),					GET_STATFNAME(STAT_AudioSummaryLLM),			-1)\
+	macro(AudioMisc,							"AudioMisc",					GET_STATFNAME(STAT_AudioMiscLLM),							GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioSoundWaves,						"AudioSoundWaves",				GET_STATFNAME(STAT_AudioSoundWavesLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioMixer,							"AudioMixer",					GET_STATFNAME(STAT_AudioMixerLLM),							GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioPrecache,						"AudioPrecache",				GET_STATFNAME(STAT_AudioPrecacheLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioDecompress,						"AudioDecompress",				GET_STATFNAME(STAT_AudioDecompressLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioRealtimePrecache,				"AudioRealtimePrecache",		GET_STATFNAME(STAT_AudioRealtimePrecacheLLM),				GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioFullDecompress,					"AudioFullDecompress",			GET_STATFNAME(STAT_AudioFullDecompressLLM),					GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
+	macro(AudioVoiceChat,						"AudioVoiceChat",				GET_STATFNAME(STAT_AudioVoiceChatLLM),						GET_STATFNAME(STAT_AudioSummaryLLM),			ELLMTag::Audio)\
 	macro(FName,								"FName",						GET_STATFNAME(STAT_FNameLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Networking,							"Networking",					GET_STATFNAME(STAT_NetworkingLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Meshes,								"Meshes",						GET_STATFNAME(STAT_MeshesLLM),								GET_STATFNAME(STAT_MeshesSummaryLLM),			-1)\
@@ -203,12 +187,13 @@ enum class ELLMTagSet : uint8
 	macro(Shaders,								"Shaders",						GET_STATFNAME(STAT_ShadersLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(PSO,									"PSO",							GET_STATFNAME(STAT_PSOLLM),									GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(Textures,								"Textures",						GET_STATFNAME(STAT_TexturesLLM),							GET_STATFNAME(STAT_TexturesSummaryLLM),			-1)\
+	macro(TextureMetaData,						"TextureMetaData",				GET_STATFNAME(STAT_TextureMetaDataLLM),						GET_STATFNAME(STAT_TexturesSummaryLLM),			-1)\
 	macro(RenderTargets,						"RenderTargets",				GET_STATFNAME(STAT_RenderTargetsLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(RHIMisc,								"RHIMisc",						GET_STATFNAME(STAT_RHIMiscLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(AsyncLoading,							"AsyncLoading",					GET_STATFNAME(STAT_AsyncLoadingLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(UObject,								"UObject",						GET_STATFNAME(STAT_UObjectLLM),								GET_STATFNAME(STAT_UObjectSummaryLLM),			-1)\
 	macro(Animation,							"Animation",					GET_STATFNAME(STAT_AnimationLLM),							GET_STATFNAME(STAT_AnimationSummaryLLM),		-1)\
-	macro(StaticMesh,							"StaticMesh",					GET_STATFNAME(STAT_StaticMeshLLM),							GET_STATFNAME(STAT_StaticMeshSummaryLLM),		-1)\
+	macro(StaticMesh,							"StaticMesh",					GET_STATFNAME(STAT_StaticMeshLLM),							GET_STATFNAME(STAT_StaticMeshSummaryLLM),		ELLMTag::Meshes)\
 	macro(Materials,							"Materials",					GET_STATFNAME(STAT_MaterialsLLM),							GET_STATFNAME(STAT_MaterialsSummaryLLM),		-1)\
 	macro(Particles,							"Particles",					GET_STATFNAME(STAT_ParticlesLLM),							GET_STATFNAME(STAT_ParticlesSummaryLLM),		-1)\
 	macro(GC,									"GC",							GET_STATFNAME(STAT_GCLLM),									GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
@@ -229,6 +214,11 @@ enum class ELLMTagSet : uint8
 	macro(ConfigSystem,							"ConfigSystem",					GET_STATFNAME(STAT_ConfigSystemLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(InitUObject,							"InitUObject",					GET_STATFNAME(STAT_InitUObjectLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
 	macro(VideoRecording,						"VideoRecording",				GET_STATFNAME(STAT_VideoRecordingLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
+	macro(Replays,								"Replays",						GET_STATFNAME(STAT_ReplaysLLM),								GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
+	macro(MaterialInstance,						"MaterialInstance",				GET_STATFNAME(STAT_MaterialInstanceLLM),					GET_STATFNAME(STAT_EngineSummaryLLM),			-1)\
+	macro(SkeletalMesh,							"SkeletalMesh",					GET_STATFNAME(STAT_SkeletalMeshLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\
+	macro(InstancedMesh,						"InstancedMesh",				GET_STATFNAME(STAT_InstancedMeshLLM),						GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\
+	macro(Landscape,							"Landscape",					GET_STATFNAME(STAT_LandscapeLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			ELLMTag::Meshes)\
 	macro(CsvProfiler,							"CsvProfiler",					GET_STATFNAME(STAT_CsvProfilerLLM),							GET_STATFNAME(STAT_EngineSummaryLLM),			-1)
 
 /*
@@ -293,6 +283,12 @@ extern FName LLMGetTagStat(ELLMTag Tag);
 #define LLM_SCOPED_PAUSE_TRACKING(AllocType) FLLMPauseScope SCOPE_NAME(NAME_None, 0, ELLMTracker::Max, AllocType);
 #define LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(Tracker, AllocType) FLLMPauseScope SCOPE_NAME(NAME_None, 0, Tracker, AllocType);
 #define LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(Tag, Amount, Tracker, AllocType) FLLMPauseScope SCOPE_NAME(Tag, Amount, Tracker, AllocType);
+
+/**
+ * LLM realloc scope macros. Used when reallocating a pointer and you wish to retain the tagging from the source pointer
+ */
+#define LLM_REALLOC_SCOPE(Ptr) FLLMScopeFromPtr SCOPE_NAME(Ptr, ELLMTracker::Default);
+#define LLM_REALLOC_PLATFORM_SCOPE(Ptr) FLLMScopeFromPtr SCOPE_NAME(Ptr, ELLMTracker::Platform);
 
 /**
  * LLM Stat scope macros (if stats system is enabled)
@@ -464,6 +460,7 @@ private:
 
 	friend class FLLMScope;
 	friend class FLLMPauseScope;
+	friend class FLLMScopeFromPtr;
 
 	FLLMAllocator Allocator;
 	
@@ -522,11 +519,27 @@ protected:
 	ELLMAllocType AllocType;
 };
 
+/*
+* LLM scope for inheriting tag from the given address
+*/
+class CORE_API FLLMScopeFromPtr
+{
+public:
+	FLLMScopeFromPtr(void* Ptr, ELLMTracker Tracker);
+	~FLLMScopeFromPtr();
+protected:
+	ELLMTracker TrackerSet;
+	bool Enabled;
+};
+
+
 #else
 	#define LLM(...)
 	#define LLM_IF_ENABLED(...)
 	#define LLM_SCOPE(...)
 	#define LLM_PLATFORM_SCOPE(...)
+	#define LLM_REALLOC_SCOPE(...)
+	#define LLM_REALLOC_PLATFORM_SCOPE(...)
 	#define LLM_SCOPED_TAG_WITH_STAT(...)
 	#define LLM_SCOPED_TAG_WITH_STAT_IN_SET(...)
 	#define LLM_SCOPED_TAG_WITH_STAT_NAME(...)

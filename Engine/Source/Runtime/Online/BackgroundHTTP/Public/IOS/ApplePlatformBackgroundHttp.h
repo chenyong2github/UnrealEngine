@@ -1,0 +1,74 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "Interfaces/IBackgroundHttpRequest.h"
+#include "Interfaces/IBackgroundHttpManager.h"
+#include "Interfaces/IBackgroundHttpResponse.h"
+
+/**
+ * Apple specific Background Http implementations
+ * Intended usage is to use FPlatformBackgroundHttp
+ */
+class BACKGROUNDHTTP_API FApplePlatformBackgroundHttp
+{
+public:
+	/**
+	 * Platform initialization step
+	 */
+	static void Initialize();
+
+	/**
+	 * Platform shutdown step
+	 */
+	static void Shutdown();
+
+	/**
+	 * Creates a platform-specific Background HTTP manager.
+	 * Un-implemented platforms should create a FGenericPlatformBackgroundHttpManager
+	 */
+	static FBackgroundHttpManagerPtr CreatePlatformBackgroundHttpManager();
+
+	/**
+	 * Creates a new Background Http request instance for the current platform
+	 * that will continue to download when the application is in the background
+	 *
+	 * @return request object
+	 */
+	static FBackgroundHttpRequestPtr ConstructBackgroundRequest();
+
+	/**
+	 * Creates a new Background Http Response instance for the current platform
+	 * This normally is called by the request and associated with itself.
+	 *
+	 * @return response object
+	 */
+	static FBackgroundHttpResponsePtr ConstructBackgroundResponse(int32 ResponseCode, const FString& TempFilePath);
+
+	/**
+	* Function that takes in a URL and figures out the location we should use as the temp storage URL
+	*
+	* @return FString to use as the TempFilePath
+	*/
+	static const FString GetTemporaryFilePathFromURL(const FString& URL);
+
+    /**
+     * Function that returns the root path where all our temporary files are stored on this platform
+     *
+     * @return FString File path that is the root path of our temp files for background http work on this platform.
+     */
+    static const FString& GetTemporaryRootPath();
+    
+	/**
+	* Function that returns how many active BackgroundHttpRequests we should have actively downloading at once.
+	*
+	* @return int Number of downloads we should have active at once.
+	*/
+	static int GetPlatformMaxActiveDownloads();
+};
+
+//Setup Platform Implementation calls to point here at the Apple Implementation
+typedef FApplePlatformBackgroundHttp FPlatformBackgroundHttp;

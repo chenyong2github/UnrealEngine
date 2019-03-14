@@ -19,6 +19,7 @@ class UNiagaraSystem;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class FNiagaraSystemSimulation;
+class NiagaraEmitterInstanceBatcher;
 
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
@@ -277,9 +278,18 @@ public:
 	virtual void PostLoad();
 #if WITH_EDITOR
 	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
-
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject Interface
 
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview detail level scalability"))
+	void SetPreviewDetailLevel(bool bEnablePreviewDetailLevel, int32 PreviewDetailLevel);
+
+	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
+	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance);
+
+#if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
 	bool IsParameterValueOverriddenLocally(const FName& InParamName);
 	void SetParameterValueOverriddenLocally(const FNiagaraVariable& InParam, bool bInOverridden, bool bRequiresSystemInstanceReset);
@@ -355,6 +365,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule);
 
+	UPROPERTY(EditAnywhere, Category = Preview, Transient, meta=(EditCondition=bEnablePreviewDetailLevel))
+	int32 PreviewDetailLevel;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient, meta=(EditCondition= bEnablePreviewLODDistance))
+	float PreviewLODDistance;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient)
+	uint32 bEnablePreviewDetailLevel : 1;
+
+	UPROPERTY(EditAnywhere, Category = Preview, Transient)
+	uint32 bEnablePreviewLODDistance : 1;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Compilation)
 	uint32 bWaitForCompilationOnActivate : 1;
@@ -403,13 +425,20 @@ public:
 	/** Called on render thread to assign new dynamic data */
 	void SetDynamicData_RenderThread(struct FNiagaraDynamicDataBase* NewDynamicData);
 	TArray<class NiagaraRenderer*>& GetEmitterRenderers() { return EmitterRenderers; }
-	void UpdateEmitterRenderers(TArray<NiagaraRenderer*>& InRenderers);
+	void UpdateEmitterRenderers(const TArray<NiagaraRenderer*>& InRenderers);
 
 	/** Gets whether or not this scene proxy should be rendered. */
 	bool GetRenderingEnabled() const;
 
 	/** Sets whether or not this scene proxy should be rendered. */
 	void SetRenderingEnabled(bool bInRenderingEnabled);
+
+	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
+
+#if RHI_RAYTRACING
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
+	virtual bool IsRayTracingRelevant() const override { return true; }
+#endif
 
 private:
 	void ReleaseRenderThreadResources();
@@ -442,6 +471,6 @@ private:
 private:
 	//class NiagaraRenderer* EmitterRenderer;
 	TArray<class NiagaraRenderer*>EmitterRenderers;
-
 	bool bRenderingEnabled;
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

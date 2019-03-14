@@ -51,6 +51,9 @@
 #include "ViewportWorldInteraction.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "ImageWriteQueue.h"
+#include "DebugViewModeHelpers.h"
+#include "Misc/ScopedSlowTask.h"
+#include "UnrealEngine.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
@@ -1003,7 +1006,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	}
 
 	// Allocate our stereo view state on demand, so that only viewports that actually use stereo features have one
-	const int32 ViewStateIndex = (StereoPass > eSSP_MONOSCOPIC_EYE) ? StereoPass - eSSP_MONOSCOPIC_EYE : 0;
+	const int32 ViewStateIndex = (StereoPass > eSSP_RIGHT_EYE) ? StereoPass - eSSP_RIGHT_EYE : 0;
 	if (bStereoRendering)
 	{
 		if (StereoViewStates.Num() <= ViewStateIndex)
@@ -2479,6 +2482,17 @@ bool FEditorViewportClient::IsBufferVisualizationModeSelected( FName InName ) co
 	return IsViewModeEnabled( VMI_VisualizeBuffer ) && CurrentBufferVisualizationMode == InName;	
 }
 
+void FEditorViewportClient::ChangeRayTracingDebugVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_RayTracingDebug);
+	CurrentRayTracingDebugVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsRayTracingDebugVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_RayTracingDebug) && CurrentRayTracingDebugVisualizationMode == InName;
+}
+
 bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 {
 	// Don't do preview screen percentage for some view mode.
@@ -3511,6 +3525,9 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 	}
 
 	View.CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;
+#if RHI_RAYTRACING
+	View.CurrentRayTracingDebugVisualizationMode = CurrentRayTracingDebugVisualizationMode;
+#endif
 
 	//Look if the pixel inspector tool is on
 	View.bUsePixelInspector = false;
@@ -3611,6 +3628,17 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	ViewFamily.EngineShowFlags = EngineShowFlags;
 
+	if (GIsEditor && World && ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
+	{
+		FScopedSlowTask CompileShaderTask(3.f, LOCTEXT("CompileMissingViewModeShaders", "Compiling Missing ViewMode Shaders")); // { Get Used Materials, Sync Pending Shader, Wait for Compilation }
+		// CompileShaderTask.MakeDialog(true);
+		TSet<UMaterialInterface*> Materials;
+		if (GetUsedMaterialsInWorld(World, Materials, CompileShaderTask))
+		{
+			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, CompileShaderTask);
+		}
+	}
+
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{
 		if( !EngineShowFlags.Game )
@@ -3634,8 +3662,12 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		ViewExt->SetupViewFamily(ViewFamily);
 	}
 
-	ViewFamily.ViewMode = GetViewMode();
-	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, CurrentBufferVisualizationMode);
+	EViewModeIndex CurrentViewMode = GetViewMode();
+	ViewFamily.ViewMode = CurrentViewMode;
+	bool bCanDisableTonemapper = (CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None) 
+								|| (CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None);
+
+	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);
 
 	UpdateLightingShowFlags( ViewFamily.EngineShowFlags );
@@ -5054,15 +5086,11 @@ void FEditorViewportClient::SetViewMode(EViewModeIndex InViewModeIndex)
 
 	if (IsPerspective())
 	{
-
 		if (InViewModeIndex == VMI_PrimitiveDistanceAccuracy || InViewModeIndex == VMI_MeshUVDensityAccuracy || InViewModeIndex == VMI_MaterialTextureScaleAccuracy)
 		{
 			FEditorBuildUtils::EditorBuildTextureStreaming(GetWorld(), InViewModeIndex);
 		}
-		else // Otherwise compile any required shader if needed.
-		{
-			FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
-		}
+		FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
 			 
 		PerspViewModeIndex = InViewModeIndex;
 		ApplyViewMode(PerspViewModeIndex, true, EngineShowFlags);

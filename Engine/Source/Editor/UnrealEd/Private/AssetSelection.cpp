@@ -43,6 +43,10 @@
 #include "ObjectEditorUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/LevelBounds.h"
+#include "SourceControlHelpers.h"
+#include "Dialogs/Dialogs.h"
 
 
 namespace AssetSelectionUtils
@@ -212,20 +216,23 @@ namespace AssetSelectionUtils
 
 					for (UActorComponent* Component : CurrentActor->GetComponents())
 					{
-						if( UStaticMeshComponent* SMComp = Cast<UStaticMeshComponent>(Component) )
+						if (Component)
 						{
-							if( SMComp->IsRegistered() )
+							if( UStaticMeshComponent* SMComp = Cast<UStaticMeshComponent>(Component) )
 							{
-								ActorInfo.bHaveStaticMeshComponent = true;
+								if( SMComp->IsRegistered() )
+								{
+									ActorInfo.bHaveStaticMeshComponent = true;
+								}
 							}
+
+							// Check for experimental/early-access classes in the component hierarchy
+							bool bIsExperimental, bIsEarlyAccess;
+							FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess);
+
+							ActorInfo.bHaveExperimentalClass |= bIsExperimental;
+							ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;
 						}
-
-						// Check for experimental/early-access classes in the component hierarchy
-						bool bIsExperimental, bIsEarlyAccess;
-						FObjectEditorUtils::GetClassDevelopmentStatus(Component->GetClass(), bIsExperimental, bIsEarlyAccess);
-
-						ActorInfo.bHaveExperimentalClass |= bIsExperimental;
-						ActorInfo.bHaveEarlyAccessClass |= bIsEarlyAccess;
 					}
 
 					// Check for experimental/early-access classes in the actor hierarchy
@@ -407,6 +414,62 @@ namespace AssetSelectionUtils
 	}
 }
 
+namespace ActorPlacementUtils
+{
+	bool IsLevelValidForActorPlacement(ULevel* InLevel, TArray<FTransform>& InActorTransforms)
+	{
+		if (FLevelUtils::IsLevelLocked(InLevel))
+		{
+			FNotificationInfo Info(NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+			return false;
+		}
+		if (InLevel && InLevel->OwningWorld && InLevel->OwningWorld->GetStreamingLevels().Num() == 0)
+		{
+			// if this is the only level
+			return true;
+		}
+		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelBeforeCheckout && SourceControlHelpers::IsAvailable())
+		{
+			FString FileName = SourceControlHelpers::PackageFilename(InLevel->GetPathName());
+			// Query file state also checks the source control status
+			FSourceControlState SCState = SourceControlHelpers::QueryFileState(FileName, true);
+			if (!InLevel->bLevelOkayForPlacementWhileCheckedIn && !(SCState.bIsCheckedOut || SCState.bIsAdded || SCState.bCanAdd))
+			{
+				if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, NSLOCTEXT("UnrealEd","LevelNotCheckedOutMsg", "This actor will be placed in a level that is is source control but not currently checked out. Continue?"), NSLOCTEXT("UnrealEd", "ActorPlacement_Title", "Actor Placement Warning")))
+				{
+					return false;
+				}
+				else
+				{
+					InLevel->bLevelOkayForPlacementWhileCheckedIn = true;
+				}
+			}
+		}
+		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds)
+		{
+			FBox CurrentLevelBounds = ALevelBounds::CalculateLevelBounds(InLevel);
+			FVector ExpandedScale = FVector(1.0f + (GetDefault<ULevelEditorMiscSettings>()->PercentageThresholdForPrompt / 100.0f));
+			FTransform ExpandedScaleTransform = FTransform::Identity;
+			ExpandedScaleTransform.SetScale3D(ExpandedScale);
+			CurrentLevelBounds.TransformBy(ExpandedScaleTransform);
+			for (int32 ActorTransformIndex = 0; ActorTransformIndex < InActorTransforms.Num(); ++ActorTransformIndex)
+			{
+				FTransform ActorTransform = InActorTransforms[ActorTransformIndex];
+				if (!CurrentLevelBounds.IsInsideOrOn(ActorTransform.GetLocation()))
+				{
+					if (EAppReturnType::Ok != OpenMsgDlgInt(EAppMsgType::OkCancel, NSLOCTEXT("UnrealEd", "LevelBoundsMsg", "The actor will be placed outside the bounds of the current level. Continue?"), NSLOCTEXT("UnrealEd", "ActorPlacement_Title", "Actor Placement Warning")))
+					{
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+}
+
 /**
 * Creates an actor using the specified factory.  
 *
@@ -462,15 +525,16 @@ static AActor* PrivateAddActor( UObject* Asset, UActorFactory* Factory, bool Sel
 	FSnappingUtils::ClearSnappingHelpers( bClearImmediately );
 
 	ULevel* DesiredLevel = GWorld->GetCurrentLevel();
+	bool bSpawnActor = true;
 
-	// Don't spawn the actor if the current level is locked.
-	if (FLevelUtils::IsLevelLocked(DesiredLevel))
+	if ((ObjectFlags & RF_Transactional) != 0)
 	{
-		FNotificationInfo Info(NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));
-		Info.ExpireDuration = 3.0f;
-		FSlateNotificationManager::Get().AddNotification(Info);
+		TArray<FTransform> SpawningActorTransforms;
+		SpawningActorTransforms.Add(ActorTransform);
+		bSpawnActor = ActorPlacementUtils::IsLevelValidForActorPlacement(DesiredLevel, SpawningActorTransforms);
 	}
-	else
+
+	if(bSpawnActor)
 	{
 		FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "CreateActor", "Create Actor"), (ObjectFlags & RF_Transactional) != 0 );
 

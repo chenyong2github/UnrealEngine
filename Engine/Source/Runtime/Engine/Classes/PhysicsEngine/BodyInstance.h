@@ -120,6 +120,8 @@ enum class BodyInstanceSceneState : uint8
 	Removed
 };
 
+#define USE_BODYINSTANCE_DEBUG_NAMES ((WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING)
+
 /** Container for a physics representation of an object */
 USTRUCT(BlueprintType)
 struct ENGINE_API FBodyInstance
@@ -303,6 +305,17 @@ private:
 	UPROPERTY(EditAnywhere, Category=Custom)
 	FName CollisionProfileName;
 
+public:
+
+	/** This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Physics)
+	uint8 PositionSolverIterationCount;
+
+	/** This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics)
+	uint8 VelocitySolverIterationCount;
+
+private:
 	/** Custom Channels for Responses*/
 	UPROPERTY(EditAnywhere, Category = Custom)
 	struct FCollisionResponse CollisionResponses;
@@ -412,14 +425,6 @@ public:
 	UPROPERTY()
 	float PhysicsBlendWeight;
 
-	/** This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Physics)
-	int32 PositionSolverIterationCount;
-
-	/** This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics)
-	int32 VelocitySolverIterationCount;
-
 public:
 
 	FPhysicsActorHandle& GetPhysicsActorHandle();
@@ -429,7 +434,9 @@ public:
 	// Internal physics representation of our body instance
 	FPhysicsActorHandle ActorHandle;
 
+#if USE_BODYINSTANCE_DEBUG_NAMES
 	TSharedPtr<TArray<ANSICHAR>> CharDebugName;
+#endif
 
 	/** PrimitiveComponent containing this body.   */
 	TWeakObjectPtr<class UPrimitiveComponent> OwnerComponent;
@@ -569,6 +576,9 @@ public:
 	/** Utility for copying properties from one BodyInstance to another. */
 	void CopyBodyInstancePropertiesFrom(const FBodyInstance* FromInst);
 
+	/** Utility for copying only the runtime instanced properties from one BodyInstance to another. */
+	void CopyRuntimeBodyInstancePropertiesFrom(const FBodyInstance* FromInst);
+
 	/** Find the correct PhysicalMaterial for simple geometry on this body */
 	UPhysicalMaterial* GetSimplePhysicalMaterial() const;
 
@@ -665,11 +675,62 @@ public:
 	/** Enable/disable Continuous Collidion Detection feature */
 	void SetUseCCD(bool bInUseCCD);
 
-	/** Custom projection for physics (callback to update component transform based on physics data) */
-	FCalculateCustomProjection OnCalculateCustomProjection;
+private:
 
-	/** Called whenever mass properties have been re-calculated. */
-	FRecalculatedMassProperties OnRecalculatedMassProperties;
+	/** Struct of body instance delegates that are rarely bound so that we can only allocate memory if one is actually being used. */
+	struct FBodyInstanceDelegates
+	{
+		/** Custom projection for physics (callback to update component transform based on physics data) */
+		FCalculateCustomProjection OnCalculateCustomProjection;
+
+		/** Called whenever mass properties have been re-calculated. */
+		FRecalculatedMassProperties OnRecalculatedMassProperties;
+	};
+
+	/** Specialization of TUniquePtr for storing body instance delegates as there is a need to copy the contents of the delegate structure. */
+	struct FBodyInstanceDelegatesPtr : public TUniquePtr<FBodyInstanceDelegates>
+	{
+		FBodyInstanceDelegatesPtr() = default;
+		FBodyInstanceDelegatesPtr(const FBodyInstanceDelegatesPtr& Other)
+		{
+			if (Other.IsValid())
+			{
+				Reset(new FBodyInstanceDelegates);
+				*Get() = *Other;
+			}
+		}
+
+		FBodyInstanceDelegatesPtr& operator=(const FBodyInstanceDelegatesPtr& Other)
+		{
+			if (Other.IsValid())
+			{
+				if (!IsValid())
+				{
+					Reset(new FBodyInstanceDelegates);
+				}
+				*Get() = *Other;
+			}
+			else
+			{
+				Reset();
+			}
+
+			return *this;
+		}
+	};
+
+	/** Pointer to lazily created container for the body instance delegates. */
+	FBodyInstanceDelegatesPtr BodyInstanceDelegates;
+
+public:
+	/** Executes the OnCalculateCustomProjection delegate if bound. */
+	void ExecuteOnCalculateCustomProjection(FTransform& WorldTM) const;
+
+	/** Returns reference to the OnCalculateCustomProjection delegate. Will allocate delegate struct if not already created. */
+	FCalculateCustomProjection& OnCalculateCustomProjection();
+
+	/** Returns reference to the OnRecalculatedMassProperties delegate. Will allocate delegate struct if not already created. */
+	FRecalculatedMassProperties& OnRecalculatedMassProperties();
 
 	/** See if this body is valid. */
 	bool IsValidBodyInstance() const;

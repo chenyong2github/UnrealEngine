@@ -12,6 +12,7 @@
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 #include "Internationalization/Text.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Guid.h"
@@ -25,9 +26,11 @@
 #include "HAL/ExceptionHandling.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
+#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Templates/Function.h"
+#include "Modules/ModuleManager.h"
 
 #include "Misc/UProjectInfo.h"
 #include "Internationalization/Culture.h"
@@ -816,6 +819,32 @@ IPlatformChunkInstall* FGenericPlatformMisc::GetPlatformChunkInstall()
 	return &Singleton;
 }
 
+IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleManager()
+{
+	static IPlatformInstallBundleManager* Manager = nullptr;
+	static bool bCheckedIni = false;
+
+	if (Manager)
+		return Manager;
+
+	if (!bCheckedIni && !GEngineIni.IsEmpty())
+	{
+		FString ModuleName;
+		IPlatformInstallBundleManagerModule* Module = nullptr;
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+
+		FModuleStatus Status;
+		Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
+		if (Module)
+		{
+			Manager = Module->GetInstallBundleManager();
+		}
+		bCheckedIni = true;
+	}
+
+	return Manager;
+}
+
 void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)
 {
 	// Here we derive the game path from the project file location.
@@ -1284,4 +1313,12 @@ bool FGenericPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<u
 TArray<FChunkTagID> FGenericPlatformMisc::GetOnDemandChunkTagIDs()
 {
 	return TArray<FChunkTagID>();
+}
+
+FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
+{
+	FString Path = RootDir() / RelativePath;
+	FString Result;
+	FFileHelper::LoadFileToString(Result, *Path);
+	return Result;
 }

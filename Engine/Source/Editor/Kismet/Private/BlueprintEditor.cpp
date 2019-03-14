@@ -3717,6 +3717,7 @@ void FBlueprintEditor::AppendExtraCompilerResults(TSharedPtr<IMessageLogListing>
 
 void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin* InTargetPin, bool bInToMemberVariable )
 {
+	FName PinName = InTargetPin->PinName;
 	UEdGraphNode* PinNode = InTargetPin->GetOwningNode();
 	check(PinNode);
 	UEdGraph* GraphObj = PinNode->GetGraph();
@@ -3750,6 +3751,9 @@ void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin
 
 	if (bWasSuccessful)
 	{
+		// The owning node may have been reconstructed as a result of adding a new variable above, so ensure the pin reference is up-to-date.
+		InTargetPin = PinNode->FindPinChecked(PinName);
+
 		// Create the new setter node
 		FEdGraphSchemaAction_K2NewNode NodeInfo;
 
@@ -5210,7 +5214,7 @@ void FBlueprintEditor::OnAlignBottom()
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 	if (FocusedGraphEd.IsValid())
 	{
-		FocusedGraphEd->OnAlignMiddle();
+		FocusedGraphEd->OnAlignBottom();
 	}
 }
 
@@ -7367,22 +7371,14 @@ FText FBlueprintEditor::GetToolkitName() const
 
 	if( IsEditingSingleBlueprint() )
 	{
-		const bool bDirtyState = GetBlueprintObj()->GetOutermost()->IsDirty();
-
-		FFormatNamedArguments Args;
-		Args.Add( TEXT("DirtyState"), bDirtyState ? FText::FromString( TEXT( "*" ) ) : FText::GetEmpty() );
-
 		if (FBlueprintEditorUtils::IsLevelScriptBlueprint(GetBlueprintObj()))
 		{
 			const FString& LevelName = FPackageName::GetShortFName( GetBlueprintObj()->GetOutermost()->GetFName().GetPlainNameString() ).GetPlainNameString();	
-
-			Args.Add( TEXT("LevelName"), FText::FromString( LevelName ) );
-			return FText::Format( NSLOCTEXT("KismetEditor", "LevelScriptAppLabel", "{LevelName}{DirtyState} - Level Blueprint Editor"), Args );
+			return FText::FromString(LevelName);
 		}
 		else
 		{
-			Args.Add( TEXT("BlueprintName"), FText::FromString( GetBlueprintObj()->GetName() ) );
-			return FText::Format( NSLOCTEXT("KismetEditor", "BlueprintScriptAppLabel", "{BlueprintName}{DirtyState}"), Args );
+			return FText::FromString(GetBlueprintObj()->GetName());
 		}
 	}
 

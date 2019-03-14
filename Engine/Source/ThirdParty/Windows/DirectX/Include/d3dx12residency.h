@@ -296,7 +296,7 @@ namespace D3DX12Residency
 		{
 			pSyncManager = pSyncManagerIn;
 			MaxResidencySetSize = MaxSize;
-
+			
 			if (MaxSize)
 			{
 				ppSet = new ManagedObject*[MaxResidencySetSize];

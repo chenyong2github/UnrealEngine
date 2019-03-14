@@ -262,6 +262,132 @@ void AnimEncodingLegacyBase::GetBoneAtom(FTransform& OutAtom, FAnimSequenceDecom
 }
 
 
+bool AnimEncodingLegacyBase::CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize)
+{
+	bool bHasValidScale = Seq.CompressedScaleOffsets.IsValid();
+	if (Seq.CompressedSegments.Num() != 0 || !bHasValidScale)
+	{
+		return true;
+	}
+	const int32 NumTracks = Seq.CompressedTrackOffsets.Num() / 4;
+
+	bool bIsBackwards = false;
+	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+	{
+		const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
+		const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex * 4 + 0];
+		const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex * 4 + 2];
+		if (OffsetTrans > OffsetScale || OffsetRot > OffsetScale)
+		{
+			bIsBackwards = true;
+			check(OffsetRot < 0 || OffsetTrans < OffsetRot); // trans first
+		}
+		else
+		{
+			check(!bIsBackwards || (OffsetTrans < 0 && OffsetRot < 0) || (OffsetScale < 0)); // if one is backwards, they all are (or they are neither backwards nor forwards)
+		}
+	}
+	if (bIsBackwards)
+	{
+		int32 Offset = 0;
+		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+		{
+			int32 TotalTrackSize = -1;
+			
+			for (int32 Next = TrackIndex + 1; Next < NumTracks; Next++)
+			{
+				const int32 OffsetScaleNext = Seq.CompressedScaleOffsets.GetOffsetData(Next, 0);
+				const int32 OffsetTransNext = Seq.CompressedTrackOffsets[Next * 4 + 0];
+				const int32 OffsetRotNext = Seq.CompressedTrackOffsets[Next * 4 + 2];
+				if (OffsetScaleNext >= 0)
+				{
+					TotalTrackSize = OffsetScaleNext - Offset;
+					break;
+				}
+				if (OffsetTransNext >= 0)
+				{
+					TotalTrackSize = OffsetTransNext - Offset;
+					break;
+				}
+				if (OffsetRotNext >= 0)
+				{
+					TotalTrackSize = OffsetRotNext - Offset;
+					break;
+				}
+			}
+			if (TotalTrackSize == -1)
+			{
+				TotalTrackSize = TotalSize - Offset;
+			}
+			if (TotalTrackSize == 0)
+			{
+				continue; // no data for this track at all, nothing to do
+			}
+
+
+			const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
+			const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex * 4 + 0];
+			const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex * 4 + 2];
+
+			int32 ScaleSize = 0;
+			if (OffsetScale >= 0)
+			{
+				if (OffsetTrans >= 0)
+				{
+					ScaleSize = OffsetTrans - OffsetScale;
+				}
+				else if (OffsetRot >= 0)
+				{
+					ScaleSize = OffsetRot - OffsetScale;
+				}
+				else
+				{
+					ScaleSize = TotalTrackSize;
+				}
+				check(ScaleSize > 0);
+			}
+
+			int32 TransSize = 0;
+			if (OffsetTrans >= 0)
+			{
+				if (OffsetRot >= 0)
+				{
+					TransSize = OffsetRot - OffsetTrans;
+				}
+				else
+				{
+					TransSize = TotalTrackSize - ScaleSize;
+				}
+				check(TransSize > 0);
+			}
+			int32 RotSize = 0;
+			if (OffsetRot >= 0)
+			{
+				RotSize = TotalTrackSize - TransSize - ScaleSize;
+				check(RotSize > 0);
+			}
+
+			if (OffsetTrans >= 0)
+			{
+				Seq.CompressedTrackOffsets[TrackIndex * 4 + 0] = Offset;
+				Offset += TransSize;
+			}
+			if (OffsetRot >= 0)
+			{
+				Seq.CompressedTrackOffsets[TrackIndex * 4 + 2] = Offset;
+				Offset += RotSize;
+			}
+			if (OffsetScale >= 0)
+			{
+				Seq.CompressedScaleOffsets.SetOffsetData(TrackIndex, 0, Offset);
+				Offset += ScaleSize;
+			}
+		}
+		check(Offset == TotalSize);
+	}
+	return true;
+}
+
 /**
  * Handles Byte-swapping incoming animation data from a MemoryReader
  *

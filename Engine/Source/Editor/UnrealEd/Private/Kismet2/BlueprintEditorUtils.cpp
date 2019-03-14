@@ -734,7 +734,7 @@ void FBlueprintEditorUtils::PatchNewCDOIntoLinker(UObject* CDO, FLinkerLoad* Lin
 			FUObjectSerializeContext* LoadContext = InLoadContext ? InLoadContext : Linker->GetSerializeContext();
 
 			// Make sure the new CDO gets PostLoad called on it, so either add it to ObjLoaded list, or replace it if already present.
-			if (!LoadContext->PRIVATE_PatchNewObjectIntoExport(OldCDO, CDO))
+			if (LoadContext && !LoadContext->PRIVATE_PatchNewObjectIntoExport(OldCDO, CDO))
 			{
 				if (OldObjectFlags & RF_NeedPostLoad)
 				{
@@ -3137,13 +3137,13 @@ bool FBlueprintEditorUtils::IsBlueprintConst(const UBlueprint* Blueprint)
 	return Blueprint && Blueprint->BlueprintType == BPTYPE_Const;
 }
 
-bool FBlueprintEditorUtils::IsBlutility(const UBlueprint* Blueprint)
+bool FBlueprintEditorUtils::IsEditorUtilityBlueprint(const UBlueprint* Blueprint)
 {
 	IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
 
 	if (BlutilityModule)
 	{
-		return BlutilityModule->IsBlutility( Blueprint );
+		return BlutilityModule->IsEditorUtilityBlueprint( Blueprint );
 	}
 	return false;
 }
@@ -7352,13 +7352,13 @@ void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* Level
 				if( LevelScriptActor->FindFunction(TargetFunction) )
 				{
 					// Grab the MC delegate we need to add to
-					FMulticastScriptDelegate* TargetDelegate = EventNode->GetTargetDelegate();
+					UMulticastDelegateProperty* TargetDelegate = EventNode->GetTargetDelegateProperty();
 					if( TargetDelegate != nullptr )
 					{
 						// Create the delegate, and add it if it doesn't already exist
 						FScriptDelegate Delegate;
 						Delegate.BindUFunction(LevelScriptActor, TargetFunction);
-						TargetDelegate->AddUnique(Delegate);
+						TargetDelegate->AddDelegate(MoveTemp(Delegate), EventNode->EventOwner);
 					}
 				}
 			}
@@ -9179,4 +9179,3 @@ void FBlueprintEditorUtils::BuildComponentInstancingData(UActorComponent* Compon
 }
 
 #undef LOCTEXT_NAMESPACE
-

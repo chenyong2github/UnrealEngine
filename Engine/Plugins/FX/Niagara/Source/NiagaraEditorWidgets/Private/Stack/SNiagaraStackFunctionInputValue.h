@@ -59,8 +59,8 @@ private:
 
 	FText GetInvalidValueToolTipText() const;
 
-	FReply DynamicInputTextDoubleClicked();
-	FReply OnLinkedInputDoubleClicked();
+	FReply DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
+	FReply OnLinkedInputDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
 
 	class SNiagaraFunctionInputActionMenuExpander: public SExpanderArrow
 	{

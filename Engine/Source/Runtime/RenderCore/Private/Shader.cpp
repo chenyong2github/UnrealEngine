@@ -233,6 +233,7 @@ TMap<FName, FShaderType*>& FShaderType::GetNameToTypeMap()
 inline bool FShaderType::GetOutdatedCurrentType(TArray<FShaderType*>& OutdatedShaderTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const
 {
 	bool bOutdated = false;
+#if WITH_EDITOR
 	for (TMap<FShaderId, FShader*>::TConstIterator ShaderIt(ShaderIdMap);ShaderIt;++ShaderIt)
 	{
 		FShader* Shader = ShaderIt.Value();
@@ -255,7 +256,7 @@ inline bool FShaderType::GetOutdatedCurrentType(TArray<FShaderType*>& OutdatedSh
 			bOutdated = true;
 		}
 	}
-
+#endif // WITH_EDITOR
 	return bOutdated;
 }
 
@@ -390,6 +391,48 @@ void FShaderType::Uninitialize()
 
 TMap<FShaderResourceId, FShaderResource*> FShaderResource::ShaderResourceIdMap;
 
+#if RHI_RAYTRACING
+TArray<uint32> FShaderResource::GlobalUnusedIndicies;
+TArray<FRHIRayTracingShader*> FShaderResource::GlobalRayTracingMaterialLibrary;
+FCriticalSection FShaderResource::GlobalRayTracingMaterialLibraryCS;
+
+void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader)
+{
+	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
+	RayTracingMaterials = GlobalRayTracingMaterialLibrary;
+
+	for (uint32 Index : GlobalUnusedIndicies)
+	{
+		RayTracingMaterials[Index] = DefaultShader;
+	}
+}
+
+uint32 FShaderResource::AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader)
+{
+	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
+
+	if (GlobalUnusedIndicies.Num() != 0)
+	{
+		uint32 Index = GlobalUnusedIndicies.Pop(false);
+		checkSlow(GlobalRayTracingMaterialLibrary[Index] == nullptr);
+		GlobalRayTracingMaterialLibrary[Index] = Shader;
+		return Index;
+	}
+	else
+	{
+		GlobalRayTracingMaterialLibrary.Add(Shader);
+		return GlobalRayTracingMaterialLibrary.Num() - 1;
+	}
+}
+
+void FShaderResource::RemoveFromRayTracingLibrary(uint32 Index)
+{
+	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
+	GlobalUnusedIndicies.Push(Index);
+	GlobalRayTracingMaterialLibrary[Index] = nullptr;
+}
+#endif
+
 FShaderResource::FShaderResource()
 	: SpecificType(NULL)
 	, SpecificPermutationId(0)
@@ -404,7 +447,6 @@ FShaderResource::FShaderResource()
 	INC_DWORD_STAT_BY(STAT_Shaders_NumShaderResourcesLoaded, 1);
 }
 
-
 FShaderResource::FShaderResource(const FShaderCompilerOutput& Output, FShaderType* InSpecificType, int32 InSpecificPermutationId) 
 	: SpecificType(InSpecificType)
 	, SpecificPermutationId(InSpecificPermutationId)
@@ -417,6 +459,8 @@ FShaderResource::FShaderResource(const FShaderCompilerOutput& Output, FShaderTyp
 	, bCodeInSharedLocationRequested(false)
 	
 {
+	BuildParameterMapInfo(Output.ParameterMap.GetParameterMap());
+
 	check(!(SpecificPermutationId != 0 && SpecificType == nullptr));
 
 	Target = Output.Target;
@@ -451,6 +495,92 @@ FShaderResource::~FShaderResource()
 	DEC_DWORD_STAT_BY(STAT_Shaders_NumShaderResourcesLoaded, 1);
 }
 
+void FShaderResource::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap)
+{
+	for (int32 ParameterTypeIndex = 0; ParameterTypeIndex < (int32)EShaderParameterType::Num; ParameterTypeIndex++)
+	{
+		EShaderParameterType CurrentParameterType = (EShaderParameterType)ParameterTypeIndex;
+
+		if (CurrentParameterType == EShaderParameterType::LooseData)
+		{
+			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
+			{
+				const FParameterAllocation& ParamValue = ParameterIt.Value();
+
+				if (ParamValue.Type == CurrentParameterType)
+				{
+					bool bAddedToExistingBuffer = false;
+
+					for (int32 LooseParameterBufferIndex = 0; LooseParameterBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseParameterBufferIndex++)
+					{
+						FShaderLooseParameterBufferInfo& LooseParameterBufferInfo = ParameterMapInfo.LooseParameterBuffers[LooseParameterBufferIndex];
+
+						if (LooseParameterBufferInfo.BufferIndex == ParamValue.BufferIndex)
+						{
+							FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
+							LooseParameterBufferInfo.Parameters.Add(ParameterInfo);
+							LooseParameterBufferInfo.BufferSize += ParamValue.Size;
+							bAddedToExistingBuffer = true;
+						}
+					}
+
+					if (!bAddedToExistingBuffer)
+					{
+						FShaderLooseParameterBufferInfo NewParameterBufferInfo(ParamValue.BufferIndex, ParamValue.Size);
+
+						FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
+						NewParameterBufferInfo.Parameters.Add(ParameterInfo);
+
+						ParameterMapInfo.LooseParameterBuffers.Add(NewParameterBufferInfo);
+					}
+				}
+			}
+		}
+		else if (CurrentParameterType != EShaderParameterType::UAV)
+		{
+			int32 NumParameters = 0;
+
+			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
+			{
+				const FParameterAllocation& ParamValue = ParameterIt.Value();
+
+				if (ParamValue.Type == CurrentParameterType)
+				{
+					NumParameters++;
+				}
+			}
+
+			TArray<FShaderParameterInfo>* ParameterInfoArray = &ParameterMapInfo.UniformBuffers;
+
+			if (CurrentParameterType == EShaderParameterType::Sampler)
+			{
+				ParameterInfoArray = &ParameterMapInfo.TextureSamplers;
+			}
+			else if (CurrentParameterType == EShaderParameterType::SRV)
+			{
+				ParameterInfoArray = &ParameterMapInfo.SRVs;
+			}
+			else
+			{
+				check(CurrentParameterType == EShaderParameterType::UniformBuffer);
+			}
+
+			ParameterInfoArray->Empty(NumParameters);
+		
+			for (TMap<FString, FParameterAllocation>::TConstIterator ParameterIt(ParameterMap); ParameterIt; ++ParameterIt)
+			{
+				const FParameterAllocation& ParamValue = ParameterIt.Value();
+
+				if (ParamValue.Type == CurrentParameterType)
+				{
+					const uint16 BaseIndex = CurrentParameterType == EShaderParameterType::UniformBuffer ? ParamValue.BufferIndex : ParamValue.BaseIndex;
+					FShaderParameterInfo ParameterInfo(BaseIndex, ParamValue.Size);
+					ParameterInfoArray->Add(ParameterInfo);
+				}
+			}
+		}
+	}
+}
 
 void FShaderResource::UncompressCode(TArray<uint8>& UncompressedCode) const
 {
@@ -484,7 +614,7 @@ void FShaderResource::Register()
 	ShaderResourceIdMap.Add(GetId(), this);
 }
 
-
+// Note: this is derived data.  Bump guid in ShaderVersion.ush if changing the format, no backwards compat is necessary
 void FShaderResource::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
 	check(!(SpecificPermutationId != 0 && SpecificType == nullptr));
@@ -504,13 +634,16 @@ void FShaderResource::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	}
 	Ar << OutputHash;
 	Ar << NumInstructions;
+
 #if WITH_EDITORONLY_DATA
-	Ar << NumTextureSamplers;
-#else
-	uint32 Temp = 0;
-	Ar << Temp;
-#endif
-	
+	if ((!Ar.IsCooking() || Ar.CookingTarget()->HasEditorOnlyData()) && !bLoadedByCookedMaterial)
+	{
+		Ar << NumTextureSamplers;
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	Ar << ParameterMapInfo;
+
 	if (Ar.UE4Ver() >= VER_UE4_COMPRESSED_SHADER_RESOURCES)
 	{
 		Ar << UncompressedCodeSize;
@@ -558,8 +691,10 @@ void FShaderResource::SerializeShaderCode(FArchive& Ar)
 		{
 			if (!GRHILazyShaderCodeLoading)
 			{
-				FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar);
-				bCodeInSharedLocationRequested = true;
+				if (FShaderCodeLibrary::RequestShaderCode(OutputHash, &Ar))
+				{
+					bCodeInSharedLocationRequested = true;
+				}
 			}
 			else
 			{
@@ -592,7 +727,7 @@ void FShaderResource::SerializePlatformDebugData(FArchive& Ar)
 				const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName);
 				if (ShaderFormat)
 				{
-					ShaderFormat->NotifyShaderCooked(PlatformDebugData);
+					ShaderFormat->NotifyShaderCooked(PlatformDebugData, FormatName);
 				}
 			}
 		}
@@ -657,7 +792,7 @@ FShaderResource* FShaderResource::FindOrCreateShaderResource(const FShaderCompil
 	{
 		Resource = new FShaderResource(Output, SpecificType, SpecificPermutationId);
 	}
-
+	
 	return Resource;
 }
 
@@ -705,7 +840,11 @@ bool FShaderResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform, ES
 
 FSHAHash &FShaderResource::FilterShaderSourceHashForSerialization(const FArchive& Ar, FSHAHash &HashToSerialize)
 {
+#if KEEP_SHADER_SOURCE_HASHES
 	return (!Ar.IsCooking()) ? HashToSerialize : ShaderSourceDefaultHash;
+#else
+	return ShaderSourceDefaultHash;
+#endif
 }
 
 static void SafeAssignHash(FRHIShader* InShader, const FSHAHash& Hash)
@@ -784,6 +923,25 @@ void FShaderResource::InitRHI()
 		Shader = FShaderCodeLibrary::CreateComputeShader((EShaderPlatform)Target.Platform, OutputHash, UncompressedCode);
 		UE_CLOG((bCodeInSharedLocation && !IsValidRef(Shader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
 	}
+#if RHI_RAYTRACING
+	else if (Target.Frequency == SF_RayGen || Target.Frequency == SF_RayMiss || Target.Frequency == SF_RayHitGroup)
+	{
+		if (GRHISupportsRayTracing)
+		{
+			RayTracingShader = RHICreateRayTracingShader(UncompressedCode, Target.GetFrequency());
+			UE_CLOG((bCodeInSharedLocation && !IsValidRef(RayTracingShader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
+
+			if (Target.Frequency == SF_RayHitGroup)
+			{
+				RayTracingMaterialLibraryIndex = AddToRayTracingLibrary(RayTracingShader);
+			}
+		}
+	}
+#endif // RHI_RAYTRACING
+	else
+	{
+		checkNoEntry(); // Unexpected shader target frequency
+	}
 
 	if (Target.Frequency != SF_Geometry)
 	{
@@ -817,7 +975,19 @@ void FShaderResource::ReleaseRHI()
 {
 	DEC_DWORD_STAT_BY(STAT_Shaders_NumShadersUsedForRendering, 1);
 
+#if RHI_RAYTRACING
+	if (IsInitialized() && Target.Frequency == SF_RayHitGroup)
+	{
+		RemoveFromRayTracingLibrary(RayTracingMaterialLibraryIndex);
+		RayTracingMaterialLibraryIndex = UINT_MAX;
+	}
+#endif
+
 	Shader.SafeRelease();
+
+#if RHI_RAYTRACING
+	RayTracingShader.SafeRelease();
+#endif // RHI_RAYTRACING
 }
 
 void FShaderResource::InitializeShaderRHI() 
@@ -845,7 +1015,9 @@ FShaderResourceId FShaderResource::GetId() const
 
 FShaderId::FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, FShaderType* InShaderType, int32 InPermutationId, FShaderTarget InTarget)
 	: MaterialShaderMapHash(InMaterialShaderMapHash)
+#if KEEP_SHADER_SOURCE_HASHES
 	, SourceHash(InShaderType->GetSourceHash(InTarget.GetPlatform()))
+#endif
 	, Target(InTarget)
 	, ShaderPipeline(InShaderPipeline)
 	, ShaderType(InShaderType)
@@ -856,7 +1028,9 @@ FShaderId::FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipel
 	{
 		VFSerializationHistory = InVertexFactoryType->GetSerializationHistory(InTarget.GetFrequency());
 		VertexFactoryType = InVertexFactoryType;
+#if KEEP_SHADER_SOURCE_HASHES
 		VFSourceHash = InVertexFactoryType->GetSourceHash(InTarget.GetPlatform());
+#endif
 	}
 	else
 	{
@@ -874,11 +1048,13 @@ FSelfContainedShaderId::FSelfContainedShaderId(const FShaderId& InShaderId)
 	MaterialShaderMapHash = InShaderId.MaterialShaderMapHash;
 	VertexFactoryTypeName = InShaderId.VertexFactoryType ? InShaderId.VertexFactoryType->GetName() : TEXT("");
 	ShaderPipelineName = InShaderId.ShaderPipeline ? InShaderId.ShaderPipeline->GetName() : TEXT("");
-	VFSourceHash = InShaderId.VFSourceHash;
 	VFSerializationHistory = InShaderId.VFSerializationHistory ? *InShaderId.VFSerializationHistory : FSerializationHistory();
 	ShaderTypeName = InShaderId.ShaderType->GetName();
 	PermutationId = InShaderId.PermutationId;
+#if KEEP_SHADER_SOURCE_HASHES
 	SourceHash = InShaderId.SourceHash;
+	VFSourceHash = InShaderId.VFSourceHash;
+#endif
 	SerializationHistory = InShaderId.SerializationHistory;
 	Target = InShaderId.Target;
 }
@@ -886,12 +1062,20 @@ FSelfContainedShaderId::FSelfContainedShaderId(const FShaderId& InShaderId)
 bool FSelfContainedShaderId::IsValid()
 {
 	FShaderType** TypePtr = FShaderType::GetNameToTypeMap().Find(FName(*ShaderTypeName));
-	if (TypePtr && SourceHash == (*TypePtr)->GetSourceHash(Target.GetPlatform()) && SerializationHistory == (*TypePtr)->GetSerializationHistory())
+	if (TypePtr
+#if KEEP_SHADER_SOURCE_HASHES
+		&& SourceHash == (*TypePtr)->GetSourceHash(Target.GetPlatform())
+#endif
+		&& SerializationHistory == (*TypePtr)->GetSerializationHistory())
 	{
 		FVertexFactoryType* VFTypePtr = FVertexFactoryType::GetVFByName(VertexFactoryTypeName);
 
 		if (VertexFactoryTypeName == TEXT("") 
-			|| (VFTypePtr && VFSourceHash == VFTypePtr->GetSourceHash(Target.GetPlatform()) && VFSerializationHistory == *VFTypePtr->GetSerializationHistory(Target.GetFrequency())))
+			|| (VFTypePtr
+#if KEEP_SHADER_SOURCE_HASHES
+				&& VFSourceHash == VFTypePtr->GetSourceHash(Target.GetPlatform())
+#endif
+				&& VFSerializationHistory == *VFTypePtr->GetSerializationHistory(Target.GetFrequency())))
 		{
 			return true;
 		}
@@ -904,13 +1088,20 @@ FArchive& operator<<(FArchive& Ar,class FSelfContainedShaderId& Ref)
 {
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
+#if KEEP_SHADER_SOURCE_HASHES
+	FSHAHash& VFHash = Ref.VFSourceHash;
+	FSHAHash& Hash = Ref.SourceHash;
+#else
+	FSHAHash VFHash, Hash;
+#endif
+
 	Ar << Ref.MaterialShaderMapHash 
 		<< Ref.VertexFactoryTypeName
 		<< Ref.ShaderPipelineName
-		<< FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.VFSourceHash)
+		<< FShaderResource::FilterShaderSourceHashForSerialization(Ar, VFHash)
 		<< Ref.VFSerializationHistory
 		<< Ref.ShaderTypeName
-		<< FShaderResource::FilterShaderSourceHashForSerialization(Ar, Ref.SourceHash)
+		<< FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash)
 		<< Ref.SerializationHistory
 		<< Ref.Target;
 
@@ -952,10 +1143,11 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	, Target(Initializer.Target)
 	, NumRefs(0)
 {
+	check(Type);
+
+#if KEEP_SHADER_SOURCE_HASHES
 	OutputHash = Initializer.OutputHash;
 	checkSlow(OutputHash != FSHAHash());
-
-	check(Type);
 
 	// Store off the source hash that this shader was compiled with
 	// This will be used as part of the shader key in order to identify when shader files have been changed and a recompile is needed
@@ -966,6 +1158,7 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 		// Store off the VF source hash that this shader was compiled with
 		VFSourceHash = VFType->GetSourceHash(Target.GetPlatform());
 	}
+#endif
 
 	// Bind uniform buffer parameters automatically 
 	for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
@@ -999,7 +1192,11 @@ FShader::~FShader()
 
 const FSHAHash& FShader::GetHash() const 
 { 
+#if KEEP_SHADER_SOURCE_HASHES
 	return SourceHash;
+#else
+	return ShaderSourceDefaultHash;
+#endif
 }
 
 EShaderPlatform FShader::GetShaderPlatform() const
@@ -1016,17 +1213,24 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
+#if KEEP_SHADER_SOURCE_HASHES
+	FSHAHash& VFHash = VFSourceHash;
+	FSHAHash& Hash = SourceHash;
+#else
+	FSHAHash VFHash, Hash, OutputHash;
+#endif
+
 	Ar << OutputHash;
 	Ar << MaterialShaderMapHash;
 	Ar << ShaderPipeline;
 	Ar << VFType;
-	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, VFSourceHash);
+	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, VFHash);
 	Ar << Type;
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::ShaderPermutationId)
 	{
 		Ar << PermutationId;
 	}
-	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, SourceHash);
+	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 	Ar << Target;
 
 	// TODO(RDG): Kill that once all shaders are refactored.
@@ -1102,6 +1306,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 			// Load the inlined shader resource
 			SerializedResource = new FShaderResource();
 			SerializedResource->Serialize(Ar, bLoadedByCookedMaterial);
+			checkSlow(OutputHash == SerializedResource->OutputHash);
 		}
 	}
 	else
@@ -1151,7 +1356,9 @@ void FShader::Register(bool bLoadedByCookedMaterial)
 {
 	FShaderId ShaderId = GetId();
 	check(ShaderId.MaterialShaderMapHash != FSHAHash());
+#if KEEP_SHADER_SOURCE_HASHES
 	check(ShaderId.SourceHash != FSHAHash() || FPlatformProperties::RequiresCookedData() || bLoadedByCookedMaterial);
+#endif
 	check(Resource);
 	Type->AddToShaderIdMap(ShaderId, this);
 }
@@ -1167,11 +1374,13 @@ FShaderId FShader::GetId() const
 	ShaderId.MaterialShaderMapHash = MaterialShaderMapHash;
 	ShaderId.ShaderPipeline = ShaderPipeline;
 	ShaderId.VertexFactoryType = VFType;
-	ShaderId.VFSourceHash = VFSourceHash;
 	ShaderId.VFSerializationHistory = VFType ? VFType->GetSerializationHistory((EShaderFrequency)GetTarget().Frequency) : NULL;
 	ShaderId.ShaderType = Type;
 	ShaderId.PermutationId = PermutationId;
+#if KEEP_SHADER_SOURCE_HASHES
 	ShaderId.SourceHash = SourceHash;
+	ShaderId.VFSourceHash = VFSourceHash;
+#endif
 	ShaderId.Target = Target;
 	return ShaderId;
 }
@@ -1210,11 +1419,13 @@ void FShader::DumpDebugInfo()
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :Target %s"), GetShaderFrequencyString((EShaderFrequency)Target.Frequency));
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :Target %s"), *LegacyShaderPlatformToShaderFormat(EShaderPlatform(Target.Platform)).ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFType %s"), VFType ? VFType->GetName() : TEXT("null"));
-	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFSourceHash %s"), *VFSourceHash.ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :Type %s"), Type->GetName());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :PermutationId %d"), PermutationId);
+#if KEEP_SHADER_SOURCE_HASHES
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :SourceHash %s"), *SourceHash.ToString());
+	UE_LOG(LogConsoleResponse, Display, TEXT("               :VFSourceHash %s"), *VFSourceHash.ToString());
 	UE_LOG(LogConsoleResponse, Display, TEXT("               :OutputHash %s"), *OutputHash.ToString());
+#endif
 }
 
 void FShader::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, const FStableShaderKeyAndValue& InSaveKeyVal)
@@ -1683,7 +1894,7 @@ void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 					}
 				}
 
-				if (!PipelineType->ShouldOptimizeUnusedOutputs() && bFound)
+				if (!PipelineType->ShouldOptimizeUnusedOutputs(Platform) && bFound)
 				{
 					++NumSharedPipelines;
 				}
@@ -1763,7 +1974,7 @@ void DumpShaderPipelineStats(EShaderPlatform Platform)
 
 		// Write a row for the shader type.
 		ShaderTypeViewer.AddColumn(Type->GetName());
-		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs() ? TEXT("U") : TEXT("S"));
+		ShaderTypeViewer.AddColumn(Type->ShouldOptimizeUnusedOutputs(Platform) ? TEXT("U") : TEXT("S"));
 
 		for (int32 Index = 0; Index < SF_NumFrequencies - 1; ++Index)
 		{
@@ -1866,7 +2077,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		static const auto CVarInstancedStereo = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
 		static const auto CVarMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MultiView"));
 		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-		static const auto CVarMonoscopicFarField = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MonoscopicFarField"));
 		static const auto CVarODSCapture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.ODSCapture"));
 
 		const bool bIsInstancedStereo = (RHISupportsInstancedStereo(Platform) && (CVarInstancedStereo && CVarInstancedStereo->GetValueOnGameThread() != 0));
@@ -1874,8 +2084,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		const bool bIsAndroidGLES = RHISupportsMobileMultiView(Platform);
 		const bool bIsMobileMultiView = (bIsAndroidGLES && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnGameThread() != 0));
-
-		const bool bIsMonoscopicFarField = CVarMonoscopicFarField && (CVarMonoscopicFarField->GetValueOnGameThread() != 0);
 
 		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
 
@@ -1892,11 +2100,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (bIsMobileMultiView)
 		{
 			KeyString += TEXT("_MMVIEW");
-		}
-
-		if (bIsMonoscopicFarField)
-		{
-			KeyString += TEXT("_MONO");
 		}
 
 		if (bIsODSCapture)
@@ -1927,8 +2130,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.KeepDebugInfo"));
-		KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoStrip") : TEXT("");
+		KeyString += ShouldKeepShaderDebugInfo(Platform) ? TEXT("_NoStrip") : TEXT("");
 	}
 
 	{
@@ -2007,6 +2209,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MSPTL") : TEXT("");
 		}
+		
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_HWsRGB") : TEXT("");
+		}
+		
 	}
 
 	if (Platform == SP_PS4)
@@ -2058,15 +2266,18 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		
 		bool bAllowFastIntrinsics = false;
 		bool bEnableMathOptimisations = true;
+		bool bForceFloats = false;
 		if (IsPCPlatform(Platform))
 		{
 			GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("UseFastIntrinsics"), bAllowFastIntrinsics, GEngineIni);
 			GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
+			GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("ForceFloats"), bForceFloats, GEngineIni);
 		}
 		else
 		{
 			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("UseFastIntrinsics"), bAllowFastIntrinsics, GEngineIni);
 			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("EnableMathOptimisations"), bEnableMathOptimisations, GEngineIni);
+			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("ForceFloats"), bForceFloats, GEngineIni);
 		}
 		
 		if (bAllowFastIntrinsics)
@@ -2078,6 +2289,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		if (!bEnableMathOptimisations)
 		{
 			KeyString += TEXT("_NoFastMath");
+		}
+		
+		if (bForceFloats)
+		{
+			KeyString += TEXT("_FP32");
 		}
 		
 		// Shaders built for archiving - for Metal that requires compiling the code in a different way so that we can strip it later

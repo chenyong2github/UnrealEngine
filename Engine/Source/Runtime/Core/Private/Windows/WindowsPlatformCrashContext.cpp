@@ -16,6 +16,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/OutputDeviceFile.h"
 #include "Templates/ScopedPointer.h"
@@ -25,7 +26,7 @@
 #include "Templates/UniquePtr.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/ThreadManager.h"
-
+#include "BuildSettings.h"
 #include <strsafe.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>
@@ -42,6 +43,7 @@
  * Code for an assert exception
  */
 const uint32 AssertExceptionCode = 0x4000;
+const uint32 GPUCrashExceptionCode = 0x8000;
 
 /**
  * Stores information about an assert that can be unpacked in the exception handler.
@@ -305,14 +307,32 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 {
 	// Prevent CrashReportClient from spawning another CrashReportClient.
 	const TCHAR* ExecutableName = FPlatformProcess::ExecutableName();
-	const bool bCanRunCrashReportClient = FCString::Stristr( ExecutableName, TEXT( "CrashReportClient" ) ) == nullptr;
+	bool bCanRunCrashReportClient = FCString::Stristr( ExecutableName, TEXT( "CrashReportClient" ) ) == nullptr;
+
+	// Suppress the user input dialog if we're running in unattended mode
+	bool bNoDialog = FApp::IsUnattended() || ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
+
+	bool bSendUnattendedBugReports = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+	}
+
+	if (bNoDialog && !bSendUnattendedBugReports)
+	{
+		bCanRunCrashReportClient = false;
+	}
+
 	if( bCanRunCrashReportClient )
 	{
 		static const TCHAR CrashReportClientExeName[] = TEXT("CrashReportClient.exe");
 		bool bCrashReporterRan = false;
-
-		// Suppress the user input dialog if we're running in unattended mode
-		bool bNoDialog = FApp::IsUnattended() || ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
 
 		// Generate Crash GUID
 		TCHAR CrashGUID[FGenericCrashContext::CrashGUIDLength];
@@ -530,6 +550,17 @@ FORCENOINLINE void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToI
 	::RaiseException( AssertExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
 }
 
+FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+{
+	/** This is the last place to gather memory stats before exception. */
+	FGenericCrashContext::CrashMemoryStats = FPlatformMemory::GetStats();
+
+	FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
+
+	ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
+	::RaiseException( GPUCrashExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
+}
+
 void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId)
 {
 	if (ReportCrashCallCount > 0 || FDebug::HasAsserted())
@@ -539,7 +570,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 		return;
 	}
 
-	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
+	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Hang, ErrorMessage);
 	CrashContext.SetPortableCallStack(StackFrames, NumStackFrames);
 	CrashContext.SetCrashedThreadId(HungThreadId);
 	CrashContext.CaptureAllThreadContexts();
@@ -762,11 +793,18 @@ private:
 		const TCHAR* ErrorMessage = TEXT("Unhandled exception");
 		int NumStackFramesToIgnore = 0;
 
-		// If it was an assert, allow overriding the info from the exception parameters
+		// If it was an assert or GPU crash, allow overriding the info from the exception parameters
 		if (ExceptionInfo->ExceptionRecord->ExceptionCode == AssertExceptionCode && ExceptionInfo->ExceptionRecord->NumberParameters == 1)
 		{
 			const FAssertInfo& Info = *(const FAssertInfo*)ExceptionInfo->ExceptionRecord->ExceptionInformation[0];
 			Type = ECrashContextType::Assert;
+			ErrorMessage = Info.ErrorMessage;
+			NumStackFramesToIgnore = Info.NumStackFramesToIgnore;
+		}
+		else if (ExceptionInfo->ExceptionRecord->ExceptionCode == GPUCrashExceptionCode && ExceptionInfo->ExceptionRecord->NumberParameters == 1)
+		{
+			const FAssertInfo& Info = *(const FAssertInfo*)ExceptionInfo->ExceptionRecord->ExceptionInformation[0];
+			Type = ECrashContextType::GPUCrash;
 			ErrorMessage = Info.ErrorMessage;
 			NumStackFramesToIgnore = Info.NumStackFramesToIgnore;
 		}

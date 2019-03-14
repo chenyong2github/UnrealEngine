@@ -20,7 +20,7 @@ class NiagaraRenderer;
 struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
-
+class NiagaraEmitterInstanceBatcher;
 /**
 * A Niagara particle simulation.
 */
@@ -33,7 +33,7 @@ public:
 
 	void Init(int32 InEmitterIdx, FName SystemInstanceName);
 
-	void ResetSimulation();
+	void ResetSimulation(bool bKillExisting=true);
 
 	/** Called after all emitters in an System have been initialized, allows emitters to access information from one another. */
 	void PostInitSimulation();
@@ -212,4 +212,6 @@ private:
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
+
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 };

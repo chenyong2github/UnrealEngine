@@ -70,6 +70,8 @@
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FSimpleMulticastDelegate								FEditorDelegates::NewCurrentLevel;
 FEditorDelegates::FOnMapChanged							FEditorDelegates::MapChange;
 FSimpleMulticastDelegate								FEditorDelegates::LayerChange;
@@ -139,6 +141,8 @@ FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenReferenceVi
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenSizeMap;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnOpenAssetAudit;
 FEditorDelegates::FOnViewAssetIdentifiers				FEditorDelegates::OnEditAssetIdentifiers;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -251,11 +255,16 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 		TArray<FString> SourceFilenames;
 
 		FReimportHandler *CanReimportHandler = SpecifiedReimportHandler;
+		if (CanReimportHandler)
+		{
+			CanReimportHandler->SetPreferredReimportPath(PreferredReimportFile);
+		}
 		if (CanReimportHandler == nullptr || !CanReimportHandler->CanReimport(Obj, SourceFilenames))
 		{
 			for (int32 HandlerIndex = 0; HandlerIndex < Handlers.Num(); ++HandlerIndex)
 			{
 				SourceFilenames.Empty();
+				Handlers[HandlerIndex]->SetPreferredReimportPath(PreferredReimportFile);
 				if (Handlers[HandlerIndex]->CanReimport(Obj, SourceFilenames))
 				{
 					CanReimportHandler = Handlers[HandlerIndex];
@@ -420,7 +429,12 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 		{
 			if (SourceFilenames.Num() == 0)
 			{
-				MissingFileSelectedAssets.FindOrAdd(Asset);
+				TArray<int32>& SourceIndexArray = MissingFileSelectedAssets.FindOrAdd(Asset);
+				if (SourceIndexArray.Num() == 0)
+				{
+					// Insert an invalid index to indicate no file
+					SourceIndexArray.Add(INDEX_NONE);
+				}
 			}
 			else
 			{
@@ -475,12 +489,10 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 					MaxListFile--;
 					for (int32 FileIndex : SourceIndexArray)
 					{
-						int32 RemapFileIndex = 0;
 						if (SourceFilenames.IsValidIndex(FileIndex))
 						{
-							RemapFileIndex = FileIndex;
+							AssetToFileListString += FString::Printf(TEXT("Asset %s -> Missing file %s"), *(Asset->GetName()), *(SourceFilenames[FileIndex]));
 						}
-						AssetToFileListString += FString::Printf(TEXT("Asset %s -> Missing file %s"), *(Asset->GetName()), *(SourceFilenames[RemapFileIndex]));
 					}
 				}
 			}
@@ -724,6 +736,11 @@ UWorld* SetPlayInEditorWorld( UWorld* PlayInEditorWorld )
 	GIsPlayInEditorWorld = true;
 	GWorld = PlayInEditorWorld;
 
+	if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayInEditorWorld))
+	{
+		GPlayInEditorID = WorldContext->PIEInstance;
+	}
+
 	return SavedWorld;
 }
 
@@ -738,6 +755,7 @@ void RestoreEditorWorld( UWorld* EditorWorld )
 	check(GIsPlayInEditorWorld);
 	GIsPlayInEditorWorld = false;
 	GWorld = EditorWorld;
+	GPlayInEditorID = -1;
 }
 
 /**

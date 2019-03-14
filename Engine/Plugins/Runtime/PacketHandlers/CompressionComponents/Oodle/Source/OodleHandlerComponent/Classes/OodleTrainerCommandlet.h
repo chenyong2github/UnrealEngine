@@ -266,8 +266,9 @@ private:
 	 *
 	 * @param InputCaptureFiles		As per BeginGenerateDictionary
 	 * @param bMergeAll				As per BeginGenerateDictionary
+	 * @return						Whether or not the capture file packets were read successfully
 	 */
-	void ReadPackets(const TArray<FString>& InputCaptureFiles);
+	bool ReadPackets(const TArray<FString>& InputCaptureFiles);
 
 	/**
 	 * Processes loaded packet data through the Oodle dictionary generation API, and then writes/compresses the result to the final file

@@ -348,14 +348,15 @@ bool FAVPlayerMovieStreamer::LoadMovie(FString InMovieName)
 
 	// Load the Movie with the appropriate URL.
     AVMovie = [[AVURLAsset alloc] initWithURL:nsURL options:nil];
-		
+
+	__block bool bLoadCompleted = false;
+
     // Obtain the tracks asynchronously.
     NSArray* nsTrackKeys = @[@"tracks"];
     [AVMovie loadValuesAsynchronouslyForKeys:nsTrackKeys completionHandler:^()
     {
         // !!! This block will execute asynchronously !!!
         // Once loaded, initialize our reader object to start pulling frames.
-		FScopeLock LockVideoTracksLoading(&VideoTracksLoadingLock);
         bVideoTracksLoaded = FinishLoadingTracks();
 
 		// Play the next movie in the queue
@@ -371,12 +372,18 @@ bool FAVPlayerMovieStreamer::LoadMovie(FString InMovieName)
         }
 
         // !!!
+		bLoadCompleted = true;
     }];
+
+	while (!bLoadCompleted)
+	{
+		FPlatformProcess::Sleep(0);
+	}
 
     // Movie has started.
 		
 	UE_LOG(LogMoviePlayer, Log, TEXT("Started next movie.") );
-	return true;
+	return bVideoTracksLoaded;
 }
 
 bool FAVPlayerMovieStreamer::FinishLoadingTracks()

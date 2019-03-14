@@ -63,7 +63,7 @@ bool FRenderTarget::ReadPixels(TArray< FColor >& OutImageData, FReadSurfaceDataF
 	};
 
 	OutImageData.Reset();
-	FReadSurfaceContext ReadSurfaceContext =
+	FReadSurfaceContext Context =
 	{
 		this,
 		&OutImageData,
@@ -71,17 +71,16 @@ bool FRenderTarget::ReadPixels(TArray< FColor >& OutImageData, FReadSurfaceDataF
 		InFlags
 	};
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		ReadSurfaceCommand,
-		FReadSurfaceContext,Context,ReadSurfaceContext,
-	{
-		RHICmdList.ReadSurfaceData(
-			Context.SrcRenderTarget->GetRenderTargetTexture(),
-			Context.Rect,
-			*Context.OutData,
-			Context.Flags
-			);
-	});
+	ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)(
+		[Context](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ReadSurfaceData(
+				Context.SrcRenderTarget->GetRenderTargetTexture(),
+				Context.Rect,
+				*Context.OutData,
+				Context.Flags
+				);
+		});
 	FlushRenderingCommands();
 
 	return OutImageData.Num() > 0;
@@ -124,7 +123,7 @@ bool FRenderTarget::ReadFloat16Pixels(FFloat16Color* OutImageData,ECubeFace Cube
 	};
 	
 	TArray<FFloat16Color> SurfaceData;
-	FReadSurfaceFloatContext ReadSurfaceFloatContext =
+	FReadSurfaceFloatContext Context =
 	{
 		this,
 		&SurfaceData,
@@ -132,19 +131,18 @@ bool FRenderTarget::ReadFloat16Pixels(FFloat16Color* OutImageData,ECubeFace Cube
 		CubeFace	
 	};
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		ReadSurfaceFloatCommand,
-		FReadSurfaceFloatContext,Context,ReadSurfaceFloatContext,
-	{
-		RHICmdList.ReadSurfaceFloatData(
-			Context.SrcRenderTarget->GetRenderTargetTexture(),
-			Context.Rect,
-			*Context.OutData,
-			Context.CubeFace,
-			0,
-			0
-			);
-	});
+	ENQUEUE_RENDER_COMMAND(ReadSurfaceFloatCommand)(
+		[Context](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ReadSurfaceFloatData(
+				Context.SrcRenderTarget->GetRenderTargetTexture(),
+				Context.Rect,
+				*Context.OutData,
+				Context.CubeFace,
+				0,
+				0
+				);
+		});
 	FlushRenderingCommands();
 
 	// Copy the surface data into the output array.
@@ -202,7 +200,7 @@ bool FRenderTarget::ReadLinearColorPixels(TArray<FLinearColor> &OutImageData, FR
 	};
 
 	OutImageData.Reset();
-	FReadSurfaceContext ReadSurfaceContext =
+	FReadSurfaceContext Context =
 	{
 		this,
 		&OutImageData,
@@ -210,9 +208,8 @@ bool FRenderTarget::ReadLinearColorPixels(TArray<FLinearColor> &OutImageData, FR
 		InFlags
 	};
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		ReadSurfaceCommand,
-		FReadSurfaceContext, Context, ReadSurfaceContext,
+	ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)(
+		[Context](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ReadSurfaceData(
 			Context.SrcRenderTarget->GetRenderTargetTexture(),
@@ -223,7 +220,7 @@ bool FRenderTarget::ReadLinearColorPixels(TArray<FLinearColor> &OutImageData, FR
 		});
 	FlushRenderingCommands();
 
-	return true;
+	return OutImageData.Num() > 0;
 }
 
 /**
@@ -238,6 +235,7 @@ bool FRenderTarget::ReadLinearColorPixelsPtr(FLinearColor* OutImageBytes, FReadS
 	bool bResult = ReadLinearColorPixels(SurfaceData, InFlags, InRect);
 	if (bResult)
 	{
+		check(SurfaceData.Num() != 0);
 		FMemory::Memcpy(OutImageBytes, &SurfaceData[0], SurfaceData.Num() * sizeof(FLinearColor));
 	}
 
@@ -414,6 +412,9 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	RawRHITTime = FPlatformTime::ToMilliseconds(GRHIThreadTime);
 	RHITTime = 0.9 * RHITTime + 0.1 * RawRHITTime;
 
+	RawInputLatencyTime = FPlatformTime::ToMilliseconds64(GInputLatencyTime);
+	InputLatencyTime = 0.9 * InputLatencyTime + 0.1 * RawInputLatencyTime;
+
 	FDynamicResolutionStateInfos DynamicResolutionStateInfos;
 	GEngine->GetDynamicResolutionCurrentStateInfos(/* out */ DynamicResolutionStateInfos);
 
@@ -427,6 +428,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	SET_FLOAT_STAT(STAT_UnitRHIT, RHITTime);
 	SET_FLOAT_STAT(STAT_UnitGame, GameThreadTime);
 	SET_FLOAT_STAT(STAT_UnitGPU, GPUFrameTime);
+	SET_FLOAT_STAT(STAT_InputLatencyTime, InputLatencyTime);
 
 	GEngine->SetAverageUnitTimes(FrameTime, RenderThreadTime, GameThreadTime, GPUFrameTime, RHITTime);
 
@@ -435,6 +437,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	float Max_GPUFrameTime = 0.0f;
 	float Max_FrameTime = 0.0f;
 	float Max_RHITTime = 0.0f;
+	float Max_InputLatencyTime = 0.0f;
 
 	const bool bShowUnitMaxTimes = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("UnitMax")) : false;
 #if !UE_BUILD_SHIPPING
@@ -444,6 +447,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 	GPUFrameTimes[CurrentIndex] = bShowRawUnitTimes ? RawGPUFrameTime : GPUFrameTime;
 	FrameTimes[CurrentIndex] = bShowRawUnitTimes ? RawFrameTime : FrameTime;
 	RHITTimes[CurrentIndex] = bShowRawUnitTimes ? RawRHITTime : RHITTime;
+	InputLatencyTimes[CurrentIndex] = bShowRawUnitTimes ? RawInputLatencyTime : InputLatencyTime;
 	ResolutionFractions[CurrentIndex] = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 	CurrentIndex++;
 	if (CurrentIndex == NumberOfSamples)
@@ -476,6 +480,10 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			{
 				Max_RHITTime = RHITTimes[MaxIndex];
 			}
+			if (Max_InputLatencyTime < InputLatencyTimes[MaxIndex])
+			{
+				Max_InputLatencyTime = InputLatencyTimes[MaxIndex];
+			}
 		}
 	}
 #endif // #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -487,6 +495,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 	const bool bShowUnitTimeGraph = InViewport->GetClient() ? InViewport->GetClient()->IsStatEnabled(TEXT("UnitGraph")) : false;
 	const bool bHaveGPUData = GPUCycles > 0;
+	const bool bHaveInputLatencyData = InputLatencyTime > 0;
 
 	const float AlertResolutionFraction = 0.70f; // Truncation of sqrt(0.5) for easier remembering.
 
@@ -580,6 +589,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			}
 			InY += RowHeight;
 		}
+		if (IsRunningRHIInSeparateThread())
 		{
 			const FColor RenderThreadAverageColor = GEngine->GetFrameTimeDisplayColor(RHITTime);
 			InCanvas->DrawShadowedString(X1, InY, TEXT("RHIT:"), Font, bShowUnitTimeGraph ? FColor(255, 100, 255) : FColor::White);
@@ -588,6 +598,19 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			{
 				const FColor RenderThreadMaxColor = GEngine->GetFrameTimeDisplayColor(Max_RHITTime);
 				InCanvas->DrawShadowedString(X3, InY, *FString::Printf(TEXT("%4.2f ms"), Max_RHITTime), Font, RenderThreadMaxColor);
+			}
+			InY += RowHeight;
+		}
+		if (bHaveInputLatencyData)
+		{
+			const float ReasonableInputLatencyFactor = 2.5f;
+			const FColor InputLatencyAverageColor = GEngine->GetFrameTimeDisplayColor(InputLatencyTime / ReasonableInputLatencyFactor);
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Input:"), Font, bShowUnitTimeGraph ? FColor(255, 255, 100) : FColor::White);
+			InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%3.2f ms"), InputLatencyTime), Font, InputLatencyAverageColor);
+			if (bShowUnitMaxTimes)
+			{
+				const FColor InputLatencyMaxColor = GEngine->GetFrameTimeDisplayColor(Max_InputLatencyTime / ReasonableInputLatencyFactor);
+				InCanvas->DrawShadowedString(X3, InY, *FString::Printf(TEXT("%4.2f ms"), Max_InputLatencyTime), Font, InputLatencyMaxColor);
 			}
 			InY += RowHeight;
 		}
@@ -880,7 +903,8 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 			// If we don't have GPU data to display, then skip this line
 			if ((StatIndex == EGS_GPU && !bHaveGPUData)
-				|| (StatIndex == EGS_Frame && bShowFrameTimeInUnitGraph == false && bHaveGPUData))
+				|| (StatIndex == EGS_Frame && bShowFrameTimeInUnitGraph == false && bHaveGPUData)
+				|| (StatIndex == EGS_RHIT && !IsRunningRHIInSeparateThread()))
 			{
 				continue;
 			}
@@ -1246,14 +1270,12 @@ void FViewport::HighResScreenshot()
 		ForceLODVar->Set(OldForceLOD, ECVF_SetByCode);
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-		EndDrawingCommand,
-		FViewport*,Viewport,DummyViewport,
-		FIntPoint,InRestoreSize,RestoreSize,
-	{
-		Viewport->EndRenderFrame(RHICmdList, false, false);
-		GetRendererModule().SceneRenderTargetsSetBufferSize(InRestoreSize.X, InRestoreSize.Y);
-	});
+	ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(
+		[DummyViewport, RestoreSize](FRHICommandListImmediate& RHICmdList)
+		{
+			DummyViewport->EndRenderFrame(RHICmdList, false, false);
+			GetRendererModule().SceneRenderTargetsSetBufferSize(RestoreSize.X, RestoreSize.Y);
+		});
 
 	BeginReleaseResource(DummyViewport);
 	FlushRenderingCommands();
@@ -1294,7 +1316,7 @@ struct FEndDrawingCommandParams
 };
 
 /**
- * Helper function used in ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER below. Needed to be split out due to
+ * Helper function used in ENQUEUE_RENDER_COMMAND below. Needed to be split out due to
  * use of macro and former already being one.
  *
  * @param Parameters	Parameters passed from the gamethread to the renderthread command.
@@ -1406,23 +1428,22 @@ void UPostProcessComponent::Serialize(FArchive& Ar)
 void FViewport::EnqueueBeginRenderFrame(const bool bShouldPresent)
 {
 	AdvanceFrameRenderPrerequisite();
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		BeginDrawingCommand,
-		FViewport*,Viewport,this,
-	{
-		Viewport->BeginRenderFrame(RHICmdList);
-	});
+	FViewport* Viewport = this;
+	ENQUEUE_RENDER_COMMAND(BeginDrawingCommand)(
+		[Viewport](FRHICommandListImmediate& RHICmdList)
+		{
+			Viewport->BeginRenderFrame(RHICmdList);
+		});
 }
 
 
 void FViewport::EnqueueEndRenderFrame(const bool bLockToVsync, const bool bShouldPresent)
 {
 	FEndDrawingCommandParams Params = { this, (uint32)bLockToVsync, (uint32)GInputLatencyTimer.GameThreadTrigger, (uint32)(PresentAndStopMovieDelay > 0 ? 0 : bShouldPresent) };
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-		EndDrawingCommand,
-		FEndDrawingCommandParams, Parameters, Params,
+	ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(
+		[Params](FRHICommandListImmediate& RHICmdList)
 		{
-			ViewportEndDrawing(RHICmdList, Parameters);
+			ViewportEndDrawing(RHICmdList, Params);
 		});
 }
 
@@ -1518,6 +1539,9 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();
+				
+				UGameViewportClient::OnViewportRendered().Broadcast(this);
+				
 				ViewportClient->ProcessScreenShots(this);
 	
 				// Slate doesn't present immediately. Tag the viewport as requiring vsync so that it happens.
@@ -1604,16 +1628,16 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 	{
 		EnqueueBeginRenderFrame(false);
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			BeginDrawingCommandHitProxy,
-			FViewport*, Viewport, this,
+		FViewport* Viewport = this;
+		ENQUEUE_RENDER_COMMAND(BeginDrawingCommandHitProxy)(
+			[Viewport](FRHICommandListImmediate& RHICmdList)
 			{
-			// Set the hit proxy map's render target.
-			// Clear the hit proxy map to white, which is overloaded to mean no hit proxy.
-			FRHIRenderPassInfo RPInfo(Viewport->HitProxyMap.GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearHitProxyMap"));
-			RHICmdList.EndRenderPass();
-		});
+				// Set the hit proxy map's render target.
+				// Clear the hit proxy map to white, which is overloaded to mean no hit proxy.
+				FRHIRenderPassInfo RPInfo(Viewport->HitProxyMap.GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearHitProxyMap"));
+				RHICmdList.EndRenderPass();
+			});
 
 		// Let the viewport client draw its hit proxies.
 		UWorld* World = ViewportClient->GetWorld();
@@ -1624,18 +1648,17 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 		Canvas.Flush_GameThread();
 
 		//Resolve surface to texture.
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			UpdateHitProxyRTCommand,
-			FHitProxyMap*, HitProxyMap, &HitProxyMap,
-		{
-			// Copy (resolve) the rendered thumbnail from the render target to its texture
-			RHICmdList.CopyToResolveTarget(HitProxyMap->GetRenderTargetTexture(), HitProxyMap->GetHitProxyTexture(), FResolveParams());
-			RHICmdList.CopyToResolveTarget(HitProxyMap->GetRenderTargetTexture(), HitProxyMap->GetHitProxyCPUTexture(), FResolveParams());
-		});
+		FHitProxyMap* HitProxyMapPtr = &HitProxyMap;
+		ENQUEUE_RENDER_COMMAND(UpdateHitProxyRTCommand)(
+			[HitProxyMapPtr](FRHICommandListImmediate& RHICmdList)
+			{
+				// Copy (resolve) the rendered thumbnail from the render target to its texture
+				RHICmdList.CopyToResolveTarget(HitProxyMapPtr->GetRenderTargetTexture(), HitProxyMapPtr->GetHitProxyTexture(), FResolveParams());
+				RHICmdList.CopyToResolveTarget(HitProxyMapPtr->GetRenderTargetTexture(), HitProxyMapPtr->GetHitProxyCPUTexture(), FResolveParams());
+			});
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			EndDrawingCommand,
-			FViewport*, Viewport, this,
+		ENQUEUE_RENDER_COMMAND(EndDrawingCommand)(
+			[Viewport](FRHICommandListImmediate& RHICmdList)
 			{
 				Viewport->EndRenderFrame(RHICmdList, false, false);
 			});
@@ -1654,24 +1677,23 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 			TArray<FColor>* OutData;
 			FIntRect Rect;
 		};
-		FReadSurfaceContext ReadSurfaceContext =
+		FReadSurfaceContext Context =
 		{
 			this,
 			&CachedHitProxyData,
 			ViewportRect
 		};
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-			ReadSurfaceCommand,
-			FReadSurfaceContext, Context, ReadSurfaceContext,
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)(
+			[Context](FRHICommandListImmediate& RHICmdList)
 			{
-			RHICmdList.ReadSurfaceData(
-			Context.Viewport->HitProxyMap.GetHitProxyCPUTexture(),
-			Context.Rect,
-			*Context.OutData,
-			FReadSurfaceDataFlags()
-			);
-		});
+				RHICmdList.ReadSurfaceData(
+				Context.Viewport->HitProxyMap.GetHitProxyCPUTexture(),
+				Context.Rect,
+				*Context.OutData,
+				FReadSurfaceDataFlags()
+				);
+			});
 		FlushRenderingCommands();
 	}
 
@@ -1801,9 +1823,6 @@ void FViewport::GetActorsAndModelsInHitProxy(FIntRect InRect, TSet<AActor*>& Out
 
 void FViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode, EPixelFormat PreferredPixelFormat)
 {
-	// Make sure we're not in the middle of streaming textures.
-	(*GFlushStreamingFunc)();
-
 	{
 		// Temporarily stop rendering thread.
 		SCOPED_SUSPEND_RENDERING_THREAD(true);

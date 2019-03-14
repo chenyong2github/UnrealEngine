@@ -83,6 +83,7 @@
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
+#include "Particles/FXSystemPrivate.h"
 #include "Distributions/DistributionFloatUniformCurve.h"
 #include "Engine/InterpCurveEdSetup.h"
 #include "Engine/RendererSettings.h"
@@ -1218,6 +1219,14 @@ void UParticleModuleRequired::PostLoad()
 	{
 		if (CutoutTexture)
 		{
+			if (CutoutTexture->HasAnyFlags(RF_NeedLoad))
+			{
+				FLinkerLoad* Loader = GetLinker();
+				if (ensure(Loader))
+				{
+					Loader->Preload(CutoutTexture);
+				}
+			}
 			CutoutTexture->ConditionalPostLoad();
 			CacheDerivedData();
 		}	

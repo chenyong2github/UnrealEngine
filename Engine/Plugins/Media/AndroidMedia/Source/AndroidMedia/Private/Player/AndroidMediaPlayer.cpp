@@ -38,9 +38,9 @@ FAndroidMediaPlayer::FAndroidMediaPlayer(IMediaEventSink& InEventSink)
 	, bLooping(false)
 	, EventSink(InEventSink)
 #if WITH_ENGINE
-	, JavaMediaPlayer(MakeShared<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe>(false, FAndroidMisc::ShouldUseVulkan()))
+	, JavaMediaPlayer(MakeShared<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe>(false, FAndroidMisc::ShouldUseVulkan(), true))
 #else
-	, JavaMediaPlayer(MakeShared<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe>(true, FAndroidMisc::ShouldUseVulkan()))
+	, JavaMediaPlayer(MakeShared<FJavaAndroidMediaPlayer, ESPMode::ThreadSafe>(true, FAndroidMisc::ShouldUseVulkan(), true))
 #endif
 	, Samples(MakeShared<FMediaSamples, ESPMode::ThreadSafe>())
 	, SelectedAudioTrack(INDEX_NONE)
@@ -61,6 +61,7 @@ FAndroidMediaPlayer::~FAndroidMediaPlayer()
 
 	if (JavaMediaPlayer.IsValid())
 	{
+#if ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 		if (GSupportsImageExternal && !FAndroidMisc::ShouldUseVulkan())
 		{
 			// Unregister the external texture on render thread
@@ -78,20 +79,21 @@ FAndroidMediaPlayer::~FAndroidMediaPlayer()
 
 			FReleaseVideoResourcesParams ReleaseVideoResourcesParams = { VideoTexture, PlayerGuid };
 
-			ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(AndroidMediaPlayerWriteVideoSample,
-				FReleaseVideoResourcesParams, Params, ReleaseVideoResourcesParams,
+			ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
+				[ReleaseVideoResourcesParams](FRHICommandListImmediate& RHICmdList)
 				{
 					#if ANDROIDMEDIAPLAYER_USE_NATIVELOGGING
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("~FAndroidMediaPlayer: Unregister Guid: %s"), *Params.PlayerGuid.ToString());
+						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("~FAndroidMediaPlayer: Unregister Guid: %s"), *ReleaseVideoResourcesParams.PlayerGuid.ToString());
 					#endif
 
-					FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PlayerGuid);
+					FExternalTextureRegistry::Get().UnregisterExternalTexture(ReleaseVideoResourcesParams.PlayerGuid);
 
 					// @todo: this causes a crash
 //					Params.VideoTexture->Release();
 				});
 		}
 		else
+#endif // ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 		{
 			JavaMediaPlayer->SetVideoTexture(nullptr);
 			JavaMediaPlayer->Reset();
@@ -669,10 +671,10 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 			TSharedRef<FAndroidMediaTextureSample, ESPMode::ThreadSafe> VideoSample;
 			int32 SampleCount;
 		}
-		WriteVideoSampleParams = { JavaMediaPlayer, Samples, VideoSample, (int32)(VideoTrack.Dimensions.X * VideoTrack.Dimensions.Y * sizeof(int32)) };
+		Params = { JavaMediaPlayer, Samples, VideoSample, (int32)(VideoTrack.Dimensions.X * VideoTrack.Dimensions.Y * sizeof(int32)) };
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(AndroidMediaPlayerWriteVideoSample,
-			FWriteVideoSampleParams, Params, WriteVideoSampleParams,
+		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
+			[Params](FRHICommandListImmediate& RHICmdList)
 			{
 				auto PinnedJavaMediaPlayer = Params.JavaMediaPlayerPtr.Pin();
 				auto PinnedSamples = Params.SamplesPtr.Pin();
@@ -706,6 +708,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 				PinnedSamples->AddVideo(Params.VideoSample);
 			});
 	}
+#if ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 	else if (GSupportsImageExternal)
 	{
 		struct FWriteVideoSampleParams
@@ -714,10 +717,10 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 			FGuid PlayerGuid;
 		};
 
-		FWriteVideoSampleParams WriteVideoSampleParams = { JavaMediaPlayer, PlayerGuid };
+		FWriteVideoSampleParams Params = { JavaMediaPlayer, PlayerGuid };
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(AndroidMediaPlayerWriteVideoSample,
-			FWriteVideoSampleParams, Params, WriteVideoSampleParams,
+		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
+			[Params](FRHICommandListImmediate& RHICmdList)
 			{
 				if (IsRunningRHIInSeparateThread())
 				{
@@ -751,6 +754,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 				}
 			});
 	}
+#endif // ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 	else
 	{
 		// create new video sample
@@ -771,10 +775,10 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 			TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> SamplesPtr;
 			TSharedRef<FAndroidMediaTextureSample, ESPMode::ThreadSafe> VideoSample;
 		}
-		WriteVideoSampleParams = { JavaMediaPlayer, Samples, VideoSample };
+		Params = { JavaMediaPlayer, Samples, VideoSample };
 
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(AndroidMediaPlayerWriteVideoSample,
-			FWriteVideoSampleParams, Params, WriteVideoSampleParams,
+		ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
+			[Params](FRHICommandListImmediate& RHICmdList)
 			{
 				if (IsRunningRHIInSeparateThread())
 				{
@@ -809,10 +813,10 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 		int32 SampleCount;
 	};
 
-	FWriteVideoSampleParams WriteVideoSampleParams = { JavaMediaPlayer, Samples, VideoSample, (int32)(VideoTrack.Dimensions.X * VideoTrack.Dimensions.Y * sizeof(int32)) };
+	FWriteVideoSampleParams Params = { JavaMediaPlayer, Samples, VideoSample, (int32)(VideoTrack.Dimensions.X * VideoTrack.Dimensions.Y * sizeof(int32)) };
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(AndroidMediaPlayerWriteVideoSample,
-		FWriteVideoSampleParams, Params, WriteVideoSampleParams,
+	ENQUEUE_RENDER_COMMAND(AndroidMediaPlayerWriteVideoSample)(
+		[Params](FRHICommandListImmediate& RHICmdList)
 		{
 			if (IsRunningRHIInSeparateThread())
 			{

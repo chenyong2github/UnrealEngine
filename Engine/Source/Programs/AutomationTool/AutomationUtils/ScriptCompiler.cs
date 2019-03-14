@@ -60,7 +60,14 @@ namespace AutomationTool
 			bool DoCompile = false;
 			if (GlobalCommandLine.Compile)
 			{
-				DoCompile = true;
+				if(CommandUtils.IsEngineInstalled())
+				{
+					CommandUtils.LogWarning("Ignoring -Compile argument because engine is installed.");
+				}
+				else
+				{
+					DoCompile = true;
+				}
 			}
 
 			// Compile only if not disallowed.
@@ -243,7 +250,7 @@ namespace AutomationTool
 				throw new AutomationException(String.Format("Unable to build Project {0}. Project file not found.", ProjectFile));
 			}
 
-			string CmdLine = String.Format("\"{0}\" /verbosity:quiet /nologo /target:Build /property:Configuration={1} /property:Platform=AnyCPU /property:TargetFrameworkVersion=v4.5 /p:TreatWarningsAsErrors=false /p:NoWarn=\"612,618,672\" /p:BuildProjectReferences=true",
+			string CmdLine = String.Format("\"{0}\" /verbosity:quiet /nologo /target:Build /property:Configuration={1} /property:Platform=AnyCPU /p:TreatWarningsAsErrors=false /p:NoWarn=\"612,618,672\" /p:BuildProjectReferences=true",
 				ProjectFile, BuildConfig);
 
 			// Compile the project

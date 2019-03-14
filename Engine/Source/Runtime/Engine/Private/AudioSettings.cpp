@@ -56,6 +56,9 @@ UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
 
 	bAllowVirtualizedSounds = true;
 	bIsAudioMixerEnabled = false;
+
+	GlobalMinPitchScale = 0.4F;
+	GlobalMaxPitchScale = 2.0F;
 }
 
 void UAudioSettings::AddDefaultSettings()
@@ -65,7 +68,7 @@ void UAudioSettings::AddDefaultSettings()
 	GConfig->GetInt(TEXT("Audio"), TEXT("MaxChannels"), DefaultSettings.MaxChannels, GEngineIni); // for backwards compatibility
 	QualityLevels.Add(DefaultSettings);
 	bAllowVirtualizedSounds = true;
-	DefaultReverbSendLevel = 0.2f;
+	DefaultReverbSendLevel = 0.0f;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	VoipBufferingDelay = 0.2f;
 	MaxWaveInstances = 100;

@@ -324,6 +324,9 @@ public:
 	{
 		if ( !bEmptying )
 		{
+			// NOTE:
+			// We don't do any invalidating here, that's handled by the FSlotBase, which eventually calls ConditionallyDetatchParentWidget
+
 			TIndirectArray< SlotType >::RemoveAt(Index);
 		}
 	}
@@ -332,6 +335,9 @@ public:
 	{
 		if ( !bEmptying )
 		{
+			// NOTE:
+			// We don't do any invalidating here, that's handled by the FSlotBase, which eventually calls ConditionallyDetatchParentWidget
+
 			TGuardValue<bool> GuardEmptying(bEmptying, true);
 			TIndirectArray< SlotType >::Empty();
 		}
@@ -385,6 +391,12 @@ public:
 	void Sort( const PREDICATE_CLASS& Predicate )
 	{
 		::Sort(TIndirectArray< SlotType >::GetData(), TIndirectArray<SlotType>::Num(), Predicate);
+	}
+
+	template <class PREDICATE_CLASS>
+	void StableSort(const PREDICATE_CLASS& Predicate)
+	{
+		::StableSort(TIndirectArray< SlotType >::GetData(), TIndirectArray< SlotType >::Num(), Predicate);
 	}
 
 	void Swap( int32 IndexA, int32 IndexB )

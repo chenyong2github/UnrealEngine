@@ -46,6 +46,8 @@
 	#include "Editor/UnrealEdEngine.h"
 	#include "Editor/TransBuffer.h"
 	#include "LevelEditor.h"
+	#include "FileHelpers.h"
+	#include "GameMapsSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ConcertClientWorkspace"
@@ -268,13 +270,6 @@ void FConcertClientWorkspace::BindSession(const TSharedRef<IConcertClientSession
 	SwitchBeginPIEAndSIEHandle = FEditorDelegates::OnSwitchBeginPIEAndSIE.AddRaw(this, &FConcertClientWorkspace::HandleSwitchBeginPIEAndSIE);
 	EndPIEHandle = FEditorDelegates::EndPIE.AddRaw(this, &FConcertClientWorkspace::HandleEndPIE);
 
-	// Register Map Change Events
-	if (GIsEditor)
-	{
-		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		MapChangedHandle = LevelEditor.OnMapChanged().AddRaw(this, &FConcertClientWorkspace::HandleMapChanged);
-	}
-
 	// Register Object Transaction events
 	if (GUnrealEd)
 	{
@@ -308,12 +303,12 @@ void FConcertClientWorkspace::UnbindSession()
 		SandboxPlatformFile.Reset();
 
 		// Gather file with live transactions that also need to be reloaded, overlaps from the sandbox are filtered directly in ReloadPackages
-		PackagesPendingHotReload.Append(TransactionManager->GetLedger().GetPackagesNamesWithLiveTransactions());
-
-		if (!GIsRequestingExit)
+		for (const FName PackageNameWithLiveTransactions : TransactionManager->GetLedger().GetPackagesNamesWithLiveTransactions())
 		{
-			HotReloadPendingPackages();
-			PurgePendingPackages();
+			if (!PackagesPendingPurge.Contains(PackageNameWithLiveTransactions))
+			{
+				PackagesPendingHotReload.Add(PackageNameWithLiveTransactions);
+			}
 		}
 #endif
 
@@ -375,16 +370,6 @@ void FConcertClientWorkspace::UnbindSession()
 			EndPIEHandle.Reset();
 		}
 
-		// Unregister Map Change Events
-		if (MapChangedHandle.IsValid())
-		{
-			if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
-			{
-				LevelEditor->OnMapChanged().Remove(MapChangedHandle);
-			}
-			MapChangedHandle.Reset();
-		}
-
 		// Unregister Object Transaction events
 		if (GUnrealEd && TransactionStateChangedHandle.IsValid())
 		{
@@ -398,6 +383,33 @@ void FConcertClientWorkspace::UnbindSession()
 		{
 			FCoreUObjectDelegates::OnObjectTransacted.Remove(ObjectTransactedHandle);
 			ObjectTransactedHandle.Reset();
+		}
+
+		if (!GIsRequestingExit)
+		{
+			// Hot reload after unregistering from most delegates to prevent events triggered by hot-reloading (such as asset deleted) to be recorded as transaction.
+			HotReloadPendingPackages();
+
+			// Get the current world edited.
+			if (UWorld* World = GEditor->GetEditorWorldContext().World())
+			{
+				// If the current world package is scheduled to be purged (it doesn't exist outside the session).
+				if (PackagesPendingPurge.Contains(World->GetOutermost()->GetFName()))
+				{
+					// Replace the current world because it doesn't exist outside the session (it cannot be saved anymore, even with 'Save Current As').
+					FString StartupMapPackage = GetDefault<UGameMapsSettings>()->EditorStartupMap.GetLongPackageName();
+					if (FPackageName::DoesPackageExist(StartupMapPackage))
+					{
+						UEditorLoadingAndSavingUtils::NewMapFromTemplate(StartupMapPackage, /*bSaveExistingMap*/ false);
+					}
+					else
+					{
+						UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/ false);
+					}
+				}
+
+				PurgePendingPackages();
+			}
 		}
 #endif
 
@@ -595,20 +607,9 @@ void FConcertClientWorkspace::HandleAssetRenamed(const FAssetData& Data, const F
 
 void FConcertClientWorkspace::HandleAssetLoaded(UObject* InAsset)
 {
-	const FName LoadedPackageName = InAsset->GetOutermost()->GetFName();
-
-	// Skip world assets that are being loaded as the editor world
-	// We handle these via HandleMapChanged instead (which also calls this function, but the entry in UWorld::WorldTypePreLoadMap will have been removed by then)
-	if (const EWorldType::Type* WorldTypePtr = UWorld::WorldTypePreLoadMap.Find(LoadedPackageName))
+	if (TransactionManager.IsValid() && bHasSyncedWorkspace)
 	{
-		if (*WorldTypePtr == EWorldType::Editor)
-		{
-			return;
-		}
-	}
-
-	if (TransactionManager.IsValid())
-	{
+		const FName LoadedPackageName = InAsset->GetOutermost()->GetFName();
 		TransactionManager->ReplayTransactions(LoadedPackageName);
 	}
 }
@@ -667,14 +668,6 @@ void FConcertClientWorkspace::HandleEndPIE(const bool InIsSimulating)
 	}
 }
 
-void FConcertClientWorkspace::HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType)
-{
-	if (InMapChangeType == EMapChangeType::NewMap || InMapChangeType == EMapChangeType::LoadMap)
-	{
-		HandleAssetLoaded(InWorld);
-	}
-}
-
 void FConcertClientWorkspace::HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState)
 {
 	if (TransactionManager.IsValid())
@@ -713,6 +706,9 @@ void FConcertClientWorkspace::OnEndFrame()
 			InitialSyncSlowTask->EnterProgressFrame(0.0f, LOCTEXT("ApplyingSynchronizedTransactions", "Applying Synchronized Transactions..."));
 		}
 		TransactionManager->ReplayAllTransactions();
+
+		// We process all pending transactions we just replayed before finalizing the sync to prevent package being loaded as a result to trigger replaying transactions again
+		TransactionManager->ProcessPending();
 
 		// Finalize the sync
 		bHasSyncedWorkspace = true;

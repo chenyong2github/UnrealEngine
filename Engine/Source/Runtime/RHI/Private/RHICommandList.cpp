@@ -127,6 +127,9 @@ uint32 GWorkingRHIThreadTime = 0;
 uint32 GWorkingRHIThreadStallTime = 0;
 uint32 GWorkingRHIThreadStartCycles = 0;
 
+/** How many cycles the from sampling input to the frame being flipped. */
+uint64 GInputLatencyTime = 0;
+
 RHI_API bool GEnableAsyncCompute = true;
 RHI_API FRHICommandListExecutor GRHICommandList;
 
@@ -573,6 +576,20 @@ void FRHICommandListExecutor::ExecuteInner(FRHICommandListBase& CmdList)
 			}
 		}
 	}
+	else
+	{
+		if (bIsInRenderingThread && CmdList.RTTasks.Num())
+		{
+			ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
+			if (FTaskGraphInterface::Get().IsThreadProcessingTasks(RenderThread_Local))
+			{
+				// this is a deadlock. RT tasks must be done by now or they won't be done. We could add a third queue...
+				UE_LOG(LogRHI, Fatal, TEXT("Deadlock in FRHICommandListExecutor::ExecuteInner (RTTasks)."));
+			}
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(CmdList.RTTasks, RenderThread_Local);
+			CmdList.RTTasks.Reset();
+		}
+	}
 
 	ExecuteInner_DoExecute(CmdList);
 }
@@ -820,6 +837,7 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, Context(nullptr)
 	, ComputeContext(nullptr)
 	, MemManager(0)
+	, bAsyncPSOCompileAllowed(true)
 	, GPUMask(InGPUMask)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();
@@ -1404,11 +1422,11 @@ void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& Ren
 	ALLOC_COMMAND(FRHICommandWaitForAndSubmitRTSubList)(RenderThreadCompletionEvent, CmdList);
 }
 
-void FRHICommandListBase::QueueAsyncPipelineStateCompile(FGraphEventRef& AsyncCompileCompletionEvent)
+void FRHICommandListBase::AddDispatchPrerequisite(const FGraphEventRef& Prereq)
 {
-	if (AsyncCompileCompletionEvent.GetReference())
+	if (Prereq.GetReference())
 	{
-		RTTasks.AddUnique(AsyncCompileCompletionEvent);
+		RTTasks.AddUnique(Prereq);
 	}
 }
 
@@ -1441,7 +1459,7 @@ void FRHICommandList::BeginScene()
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIBeginScene)();
+		GetContext().RHIBeginScene();
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandBeginScene)();
@@ -1457,7 +1475,7 @@ void FRHICommandList::EndScene()
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIEndScene)();
+		GetContext().RHIEndScene();
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandEndScene)();
@@ -1475,7 +1493,7 @@ void FRHICommandList::BeginDrawingViewport(FViewportRHIParamRef Viewport, FTextu
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIBeginDrawingViewport)(Viewport, RenderTargetRHI);
+		GetContext().RHIBeginDrawingViewport(Viewport, RenderTargetRHI);
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandBeginDrawingViewport)(Viewport, RenderTargetRHI);
@@ -1492,7 +1510,7 @@ void FRHICommandList::EndDrawingViewport(FViewportRHIParamRef Viewport, bool bPr
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIEndDrawingViewport)(Viewport, bPresent, bLockToVsync);
+		GetContext().RHIEndDrawingViewport(Viewport, bPresent, bLockToVsync);
 	}
 	else
 	{
@@ -1528,7 +1546,7 @@ void FRHICommandList::BeginFrame()
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIBeginFrame)();
+		GetContext().RHIBeginFrame();
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandBeginFrame)();
@@ -1546,7 +1564,7 @@ void FRHICommandList::EndFrame()
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		CMD_CONTEXT(RHIEndFrame)();
+		GetContext().RHIEndFrame();
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandEndFrame)();
@@ -2118,13 +2136,6 @@ ETextureReallocationStatus FDynamicRHI::CancelAsyncReallocateTexture2D_RenderThr
 	return GDynamicRHI->RHICancelAsyncReallocateTexture2D(Texture2D, bBlockUntilCompleted);
 }
 
-FVertexDeclarationRHIRef FDynamicRHI::CreateVertexDeclaration_RenderThread(class FRHICommandListImmediate& RHICmdList, const FVertexDeclarationElementList& Elements)
-{
-	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexDeclaration_RenderThread);
-	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-	return GDynamicRHI->RHICreateVertexDeclaration(Elements);
-}
-
 FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, const TArray<uint8>& Code)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateVertexShader_RenderThread);
@@ -2471,7 +2482,7 @@ void FRHICommandListImmediate::UpdateTextureReference(FTextureReferenceRHIParamR
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UpdateTextureReference_FlushRHI);
 			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 		}
-		CMD_CONTEXT(RHIUpdateTextureReference)(TextureRef, NewTexture);
+		GetContext().RHIUpdateTextureReference(TextureRef, NewTexture);
 		return;
 	}
 	ALLOC_COMMAND(FRHICommandUpdateTextureReference)(TextureRef, NewTexture);
@@ -2480,6 +2491,28 @@ void FRHICommandListImmediate::UpdateTextureReference(FTextureReferenceRHIParamR
 	{
 		// we could be loading a level or something, lets get this stuff going
 		ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+	}
+}
+
+void FRHICommandListImmediate::UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+{
+	if (this->Bypass())
+	{
+		FRHICommandUpdateRHIResources Cmd(UpdateInfos, Num);
+		Cmd.Execute(*this);
+	}
+	else
+	{
+		const SIZE_T NumBytes = sizeof(FRHIResourceUpdateInfo) * Num;
+		FRHIResourceUpdateInfo* LocalUpdateInfos = reinterpret_cast<FRHIResourceUpdateInfo*>(this->Alloc(NumBytes, alignof(FRHIResourceUpdateInfo)));
+		FMemory::Memcpy(LocalUpdateInfos, UpdateInfos, NumBytes);
+		new (AllocCommand<FRHICommandUpdateRHIResources>()) FRHICommandUpdateRHIResources(LocalUpdateInfos, Num);
+		RHIThreadFence(true);
+		if (GetUsedMemory() > 256 * 1024)
+		{
+			// we could be loading a level or something, lets get this stuff going
+			ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
 	}
 }
 

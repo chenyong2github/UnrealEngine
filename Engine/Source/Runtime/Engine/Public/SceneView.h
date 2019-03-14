@@ -26,6 +26,15 @@ class FViewElementDrawer;
 class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
+class FIESLightProfileResource;
+
+// #dxr_todo: share this enum with ray tracing shader code via RayTracingDefinitions.ush
+enum class ERayTracingRenderMode
+{
+	Disabled			= 0,
+	PathTracing			= 1,
+	RayTracingDebug		= 2,
+};
 
 // Projection data for a FSceneView
 struct FSceneViewProjectionData
@@ -80,27 +89,6 @@ public:
 	}
 };
 
-enum EMonoscopicFarFieldMode
-{
-	// Disabled
-	Off = 0,
-
-	// Enabled
-	On = 1,
-
-	// Render only the stereo views up to the far field clipping plane
-	StereoOnly = 2,
-
-	// Render only the stereo views, but without the far field clipping plane enabled.
-	// This is useful for finding meshes that pass the culling test, but aren't 
-	// actually visible in the stereo view and should be explicitly set to far field.
-	// Like a sky box.
-	StereoNoClipping = 3,
-
-	// Render only the far field view behind the far field clipping plane
-	MonoOnly = 4,
-};
-
 /** Method used for primary screen percentage method. */
 enum class EPrimaryScreenPercentageMethod
 {
@@ -128,41 +116,6 @@ enum class ESecondaryScreenPercentageMethod
 	LowerPixelDensitySimulation,
 
 	// TODO: Same config as primary upscale?
-};
-
-// Parameters defining monoscopic far field VR rendering
-struct FMonoscopicFarFieldParameters
-{
-	// Culling plane in unreal units between stereo and mono far field
-	float CullingDistance;
-
-	// Culling plane distance for stereo views in NDC depth [0:1]
-	float StereoDepthClip;
-
-	// Culling plane distance for the mono far field view in NDC depth [0:1]
-	// This is the same the stereo depth clip, but with the overlap distance bias applied.
-	float MonoDepthClip;
-
-	// Stereo disparity lateral offset between a stereo view and the mono far field view at the culling plane distance for reprojection.
-	float LateralOffset;
-
-	// Distance to overlap the mono and stereo views in unreal units to handle precision artifacts
-	float OverlapDistance;
-
-	EMonoscopicFarFieldMode Mode;
-
-	bool bEnabled;
-
-	FMonoscopicFarFieldParameters() :
-		CullingDistance(0.0f),
-		StereoDepthClip(0.0f),
-		MonoDepthClip(0.0f), 
-		LateralOffset(0.0f),
-		OverlapDistance(50.0f),
-		Mode(EMonoscopicFarFieldMode::Off),
-		bEnabled(false)
-	{
-	}
 };
 
 // Construction parameters for a FSceneView
@@ -673,11 +626,13 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, AdaptiveTessellationFactor) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GameTime) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, RealTime) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, DeltaTime) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaterialTextureMipBias) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaterialTextureDerivativeMultiply) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, Random) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, FrameNumber) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndexMod8) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndex) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, CameraCut, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, UnlitViewmodeMask, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FLinearColor, DirectionalLightColor, EShaderPrecisionModifier::Half) \
@@ -744,7 +699,9 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, VolumetricLightmapIndirectionTextureSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, VolumetricLightmapBrickSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, VolumetricLightmapBrickTexelSize) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, StereoIPD)
+	VIEW_UNIFORM_BUFFER_MEMBER(float, StereoIPD) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, IndirectLightingCacheShowFlag) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, EyeToPixelSpreadAngle)
 
 #define VIEW_UNIFORM_BUFFER_MEMBER(type, identifier) \
 	SHADER_PARAMETER(type, identifier)
@@ -813,6 +770,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SAMPLER(SamplerState, SharedTrilinearClampedSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedBRDF)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedBRDFSampler)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, PrimitiveSceneData)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, LightmapSceneData)
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -1074,6 +1033,10 @@ public:
 	/** Feature level for this scene */
 	const ERHIFeatureLevel::Type FeatureLevel;
 
+#if RHI_RAYTRACING
+	FIESLightProfileResource* IESLightProfileResource;
+#endif
+
 protected:
 	friend class FSceneRenderer;
 
@@ -1193,7 +1156,7 @@ public:
 	 */
 	uint32 GetOcclusionFrameCounter() const;
 
-  void UpdateProjectionMatrix(const FMatrix& NewProjectionMatrix);
+	void UpdateProjectionMatrix(const FMatrix& NewProjectionMatrix);
 
 	/** Allow things like HMD displays to update the view matrix at the last minute, to minimize perceived latency */
 	void UpdateViewMatrix();
@@ -1245,6 +1208,16 @@ public:
 		const FIntRect& InEffectiveViewRect,
 		const FViewMatrices& InViewMatrices,
 		const FViewMatrices& InPrevViewMatrices) const;
+
+#if RHI_RAYTRACING
+	/** Setup ray tracing based rendering */
+	void SetupRayTracedRendering();
+
+	ERayTracingRenderMode RayTracingRenderMode = ERayTracingRenderMode::Disabled;
+
+	/** Current ray tracing debug visualization mode */
+	FName CurrentRayTracingDebugVisualizationMode;
+#endif
 
 	/** Will return custom data associated with the specified primitive index.	*/
 	FORCEINLINE void* GetCustomData(int32 InPrimitiveSceneInfoIndex) const { return PrimitivesCustomData.IsValidIndex(InPrimitiveSceneInfoIndex) ? PrimitivesCustomData[InPrimitiveSceneInfoIndex] : nullptr; }
@@ -1377,7 +1350,6 @@ public:
 		,	DeltaWorldTime(0.0f)
 		,	CurrentRealTime(0.0f)
 		,	GammaCorrection(1.0f)
-		,	MonoFarFieldCullingDistance(0.0f)
 		,	bRealtimeUpdate(false)
 		,	bDeferClear(false)
 		,	bResolveScene(true)			
@@ -1393,7 +1365,6 @@ public:
 					DeltaWorldTime = World->GetDeltaSeconds();
 					CurrentRealTime = World->GetRealTimeSeconds();
 					bTimesSet = true;
-					MonoFarFieldCullingDistance = World->GetMonoFarFieldCullingDistance();
 				}
 			}
 		}
@@ -1422,9 +1393,6 @@ public:
 
 		/** Gamma correction used when rendering this family. Default is 1.0 */
 		float GammaCorrection;
-
-		/** Distance from the camera to set the mono far field culling plane in unreal units. */
-		float MonoFarFieldCullingDistance;
 
 		/** Indicates whether the view family is updated in real-time. */
 		uint32 bRealtimeUpdate:1;
@@ -1471,9 +1439,6 @@ public:
 
 	/** The new show flags for the views (meant to replace the old system). */
 	FEngineShowFlags EngineShowFlags;
-
-	/** Monoscopic rendering parameters for VR */
-	FMonoscopicFarFieldParameters MonoParameters;
 
 	/** The current world time. */
 	float CurrentWorldTime;
@@ -1583,11 +1548,6 @@ public:
 
 	/** Returns whether the screen percentage show flag is supported or not for this view family. */
 	bool SupportsScreenPercentage() const;
-
-	const bool IsMonoscopicFarFieldEnabled() const
-	{
-		return MonoParameters.bEnabled && MonoParameters.Mode != EMonoscopicFarFieldMode::Off;
-	}
 
 	bool AllowTranslucencyAfterDOF() const;
 

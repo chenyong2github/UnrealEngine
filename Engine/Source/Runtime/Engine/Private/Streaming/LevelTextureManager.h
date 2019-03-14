@@ -16,43 +16,45 @@ TextureInstanceManager.h: Definitions of classes used for texture streaming.
 #include "UObject/UObjectHash.h"
 
 // The streaming data of a level.
-class FLevelTextureManager
+class FLevelRenderAssetManager
 {
 public:
 
-	FLevelTextureManager(ULevel* InLevel, TextureInstanceTask::FDoWorkTask& AsyncTask);
+	FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask);
 
 	ULevel* GetLevel() const { return Level; }
 
-	FORCEINLINE bool HasTextureReferences() const { return StaticInstances.HasTextureReferences(); }
+	FORCEINLINE bool HasRenderAssetReferences() const { return StaticInstances.HasRenderAssetReferences(); }
 
-	// Remove the whole level. Optional list of textures referenced
-	void Remove(FRemovedTextureArray* RemovedTextures);
+	// Remove the whole level. Optional list of textures or meshes referenced
+	void Remove(FRemovedRenderAssetArray* RemovedRenderAssets);
 
 	// Invalidate a component reference.
 
 	FORCEINLINE void RemoveActorReferences(const AActor* Actor) {}
 
-	void RemoveComponentReferences(const UPrimitiveComponent* Component, FRemovedTextureArray& RemovedTextures) 
+	void RemoveComponentReferences(const UPrimitiveComponent* Component, FRemovedRenderAssetArray& RemovedRenderAssets)
 	{ 
 		// Check everywhere as the mobility can change in game.
-		StaticInstances.Remove(Component, &RemovedTextures); 
+		StaticInstances.Remove(Component, &RemovedRenderAssets);
 		UnprocessedComponents.RemoveSingleSwap(Component); 
 		PendingComponents.RemoveSingleSwap(Component); 
 	}
 
-	const FStaticTextureInstanceManager& GetStaticInstances() const { return StaticInstances; }
+	const FStaticRenderAssetInstanceManager& GetStaticInstances() const { return StaticInstances; }
 
 	float GetWorldTime() const;
 
-	FORCEINLINE FTextureInstanceAsyncView GetAsyncView() { return FTextureInstanceAsyncView(StaticInstances.GetAsyncView(true)); }
-	FORCEINLINE const FTextureInstanceView* GetRawAsyncView() { return StaticInstances.GetAsyncView(false); }
+	FORCEINLINE FRenderAssetInstanceAsyncView GetAsyncView() { return FRenderAssetInstanceAsyncView(StaticInstances.GetAsyncView(true)); }
+	FORCEINLINE const FRenderAssetInstanceView* GetRawAsyncView() { return StaticInstances.GetAsyncView(false); }
 
-	void IncrementalUpdate(FDynamicTextureInstanceManager& DynamicManager, FRemovedTextureArray& RemovedTextures, int64& NumStepsLeftForIncrementalBuild, float Percentage, bool bUseDynamicStreaming);
+	void IncrementalUpdate(FDynamicRenderAssetInstanceManager& DynamicManager, FRemovedRenderAssetArray& RemovedRenderAssets, int64& NumStepsLeftForIncrementalBuild, float Percentage, bool bUseDynamicStreaming);
 
 	uint32 GetAllocatedSize() const;
 
 	bool IsInitialized() const { return bIsInitialized; }
+	bool HasBeenReferencedToStreamedTextures() const { return bHasBeenReferencedToStreamedTextures; }
+	void SetReferencedToStreamedTextures() { bHasBeenReferencedToStreamedTextures = true; }
 
 	void NotifyLevelOffset(const FVector& Offset);
 
@@ -61,8 +63,9 @@ private:
 	ULevel* Level;
 
 	bool bIsInitialized;
-
-	FStaticTextureInstanceManager StaticInstances;
+	bool bHasBeenReferencedToStreamedTextures;
+	
+	FStaticRenderAssetInstanceManager StaticInstances;
 
 	/** Incremental build implementation. */
 
@@ -87,8 +90,8 @@ private:
 	TMap<FGuid, int32> TextureGuidToLevelIndex;
 
 	bool NeedsIncrementalBuild(int32 NumStepsLeftForIncrementalBuild) const;
-	void IncrementalBuild(FDynamicTextureInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, bool bForceCompletion, int64& NumStepsLeft);
+	void IncrementalBuild(FDynamicRenderAssetInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, bool bForceCompletion, int64& NumStepsLeft);
 
-	FORCEINLINE_DEBUGGABLE void SetAsStatic(FDynamicTextureInstanceManager& DynamicComponentManager, const UPrimitiveComponent* Primitive);
-	FORCEINLINE_DEBUGGABLE void SetAsDynamic(FDynamicTextureInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, const UPrimitiveComponent* Primitive);
+	FORCEINLINE_DEBUGGABLE void SetAsStatic(FDynamicRenderAssetInstanceManager& DynamicComponentManager, const UPrimitiveComponent* Primitive);
+	FORCEINLINE_DEBUGGABLE void SetAsDynamic(FDynamicRenderAssetInstanceManager& DynamicComponentManager, FStreamingTextureLevelContext& LevelContext, const UPrimitiveComponent* Primitive);
 };

@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GoogleVRSplash.h"
 #include "PipelineStateCache.h"
@@ -110,13 +110,14 @@ void FGoogleVRSplash::Show()
 	//SplashScreenRenderingOrientation = FRotator(GVRHMD->CachedFinalHeadRotation);
 
 	RenderThreadTicker = MakeShareable(new FGoogleVRSplashTicker(this));
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(RegisterAsyncTick,
-	FTickableObjectRenderThread*, RenderThreadTicker, RenderThreadTicker.Get(),
-	FGoogleVRSplash*, pGVRSplash, this,
-	{
-		pGVRSplash->AllocateSplashScreenRenderTarget();
-		RenderThreadTicker->Register();
-	});
+	FTickableObjectRenderThread* RenderThreadTickerLocal = RenderThreadTicker.Get();
+	FGoogleVRSplash* pGVRSplash = this;
+	ENQUEUE_RENDER_COMMAND(RegisterAsyncTick)(
+		[RenderThreadTickerLocal, pGVRSplash](FRHICommandListImmediate& RHICmdList)
+		{
+			pGVRSplash->AllocateSplashScreenRenderTarget();
+			RenderThreadTickerLocal->Register();
+		});
 
 	bIsShown = true;
 }
@@ -130,15 +131,16 @@ void FGoogleVRSplash::Hide()
 		return;
 	}
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(UnregisterAsyncTick,
-	TSharedPtr<FGoogleVRSplashTicker>&, RenderThreadTicker, RenderThreadTicker,
-	FGoogleVRSplash*, pGVRSplash, this,
-	{
-		pGVRSplash->SubmitBlackFrame();
+	auto* RenderThreadTickerPtr = &RenderThreadTicker;
+	FGoogleVRSplash* pGVRSplash = this;
+	ENQUEUE_RENDER_COMMAND(UnregisterAsyncTick)(
+		[RenderThreadTickerPtr, pGVRSplash](FRHICommandListImmediate& RHICmdList)
+		{
+			pGVRSplash->SubmitBlackFrame();
 
-		RenderThreadTicker->Unregister();
-		RenderThreadTicker = nullptr;
-	});
+			(*RenderThreadTickerPtr)->Unregister();
+			(*RenderThreadTickerPtr) = nullptr;
+		});
 	FlushRenderingCommands();
 
 	if (!SplashTexturePath.IsEmpty())

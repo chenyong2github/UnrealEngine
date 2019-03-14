@@ -160,13 +160,13 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 #undef LOCTEXT_NAMESPACE
 
 /**
- * Checks whether a UTexture2D is supposed to be streaming.
- * @param Texture	Texture to check
- * @return			true if the UTexture2D is supposed to be streaming
- */
-bool IsStreamingTexture( const UTexture2D* Texture2D )
+* Checks whether a UStreamableRenderAsset is a texture/mesh with streamable mips
+* @param Asset		Asset to check
+* @return			true if the UStreamableRenderAsset is supposed to be streaming
+*/
+bool IsStreamingRenderAsset( const UStreamableRenderAsset* Asset )
 {
-	return Texture2D && Texture2D->bIsStreamable && !Texture2D->NeverStream && Texture2D->GetNumMips() > Texture2D->GetNumNonStreamingMips();
+	return Asset && Asset->bIsStreamable && !Asset->NeverStream && Asset->GetNumMipsForStreaming() > Asset->GetNumNonStreamingMips();
 }
 
 uint32 PackRelativeBox(const FVector& RefOrigin, const FVector& RefExtent, const FVector& Origin, const FVector& Extent)
@@ -246,13 +246,14 @@ void UnpackRelativeBox(const FBoxSphereBounds& InRefBounds, uint32 InPackedRelBo
 	}
 }
 
-void FStreamingTextureBuildInfo::PackFrom(ULevel* Level, const FBoxSphereBounds& RefBounds, const FStreamingTexturePrimitiveInfo& Info)
+void FStreamingTextureBuildInfo::PackFrom(ULevel* Level, const FBoxSphereBounds& RefBounds, const FStreamingRenderAssetPrimitiveInfo& Info)
 {
 	check(Level);
 
 	PackedRelativeBox = PackRelativeBox(RefBounds.Origin, RefBounds.BoxExtent, Info.Bounds.Origin, Info.Bounds.BoxExtent);
 
-	UTexture2D* Texture2D = Info.Texture;
+	UTexture2D* Texture2D = Cast<UTexture2D>(Info.RenderAsset);
+	check(Texture2D);
 	if (Texture2D->LevelIndex == INDEX_NONE)
 	{
 		// If this is the first time this texture gets processed in the packing process, encode it.
@@ -406,7 +407,7 @@ int32* FStreamingTextureLevelContext::GetBuildDataIndexRef(UTexture2D* Texture2D
 	return nullptr;
 }
 
-void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures)
+void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures)
 {
 	ensure(MaterialData.IsValid());
 
@@ -416,7 +417,7 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 	for (UTexture* Texture : Textures)
 	{
 		UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-		if (!IsStreamingTexture(Texture2D))
+		if (!IsStreamingRenderAsset(Texture2D))
 		{
 			continue;
 		}
@@ -426,10 +427,10 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 		{
 			if (*BuildDataIndex != INDEX_NONE)
 			{
-				FStreamingTexturePrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingTexturePrimitiveInfo();
+				FStreamingRenderAssetPrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingRenderAssetPrimitiveInfo();
 				const FStreamingTextureBuildInfo& BuildInfo = (*ComponentBuildData)[*BuildDataIndex];
 
-				Info.Texture = Texture2D;
+				Info.RenderAsset = Texture2D;
 				Info.TexelFactor = BuildInfo.TexelFactor * ComponentScaling;
 				Info.PackedRelativeBox = bUseRelativeBoxes ? BuildInfo.PackedRelativeBox : PackedRelativeBox_Identity;
 				UnpackRelativeBox(ComponentBounds, Info.PackedRelativeBox, Info.Bounds);
@@ -451,9 +452,9 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 
 			if (TextureDensity)
 			{
-				FStreamingTexturePrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingTexturePrimitiveInfo();
+				FStreamingRenderAssetPrimitiveInfo& Info = *new(OutStreamingTextures) FStreamingRenderAssetPrimitiveInfo();
 
-				Info.Texture = Texture2D;
+				Info.RenderAsset = Texture2D;
 				Info.TexelFactor = TextureDensity * ComponentScaling;
 				Info.PackedRelativeBox = bUseRelativeBoxes ? MaterialData.PackedRelativeBox : PackedRelativeBox_Identity;
 				UnpackRelativeBox(ComponentBounds, Info.PackedRelativeBox, Info.Bounds);

@@ -69,15 +69,11 @@
 /** This variable allows forcing full screen of the first player controller viewport, even if there are multiple controllers plugged in and no cinematic playing. */
 bool GForceFullscreen = false;
 
-/** Whether to visualize the lightmap selected by the Debug Camera. */
-extern ENGINE_API bool GShowDebugSelectedLightmap;
-/** The currently selected component in the actor. */
-extern ENGINE_API UPrimitiveComponent* GDebugSelectedComponent;
-/** The lightmap used by the currently selected component, if it's a static mesh component. */
-extern ENGINE_API class FLightMap2D* GDebugSelectedLightmap;
-
 /** Delegate called at the end of the frame when a screenshot is captured */
 FOnScreenshotCaptured UGameViewportClient::ScreenshotCapturedDelegate;
+
+/** Delegate called right after the viewport is rendered */
+FOnViewportRendered UGameViewportClient::ViewportRenderedDelegate;
 
 /** Delegate called when the game viewport is created. */
 FSimpleMulticastDelegate UGameViewportClient::CreatedDelegate;
@@ -117,29 +113,6 @@ static TAutoConsoleVariable<float> CVarSecondaryScreenPercentage( // TODO: make 
 	TEXT(" 0: Compute secondary screen percentage = 100 / DPIScalefactor automaticaly (default);\n")
 	TEXT(" 1: override secondary screen percentage."),
 	ECVF_Default);
-
-/**
- * Draw debug info on a game scene view.
- */
-class FGameViewDrawer : public FViewElementDrawer
-{
-public:
-	/**
-	 * Draws debug info using the given draw interface.
-	 */
-	virtual void Draw(const FSceneView* View,FPrimitiveDrawInterface* PDI)
-	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		// Draw a wireframe sphere around the selected lightmap, if requested.
-		if ( GShowDebugSelectedLightmap && GDebugSelectedComponent && GDebugSelectedLightmap )
-		{
-			float Radius = GDebugSelectedComponent->Bounds.SphereRadius;
-			int32 Sides = FMath::Clamp<int32>( FMath::TruncToInt(Radius*Radius*4.0f*PI/(80.0f*80.0f)), 8, 200 );
-			DrawWireSphere( PDI, GDebugSelectedComponent->Bounds.Origin, FColor(255,130,0), GDebugSelectedComponent->Bounds.SphereRadius, Sides, SDPG_Foreground );
-		}
-#endif
-	}
-};
 
 UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -730,7 +703,7 @@ void UGameViewportClient::MouseEnter(FViewport* InViewport, int32 x, int32 y)
 	Super::MouseEnter(InViewport, x, y);
 
 #if PLATFORM_DESKTOP || PLATFORM_HTML5
-	if (InViewport && GetUseMouseForTouch() && !GetGameViewport()->GetPlayInEditorIsSimulate())
+	if (InViewport && GetUseMouseForTouch() && GetGameViewport() && !GetGameViewport()->GetPlayInEditorIsSimulate())
 	{
 		FSlateApplication::Get().SetGameIsFakingTouchEvents(true);
 	}
@@ -762,7 +735,8 @@ void UGameViewportClient::MouseLeave(FViewport* InViewport)
 			InViewport->GetMousePos(LastViewportCursorPos, false);
 
 #if PLATFORM_DESKTOP || PLATFORM_HTML5
-			if (!GetGameViewportWidget()->HasFocusedDescendants())
+			TSharedPtr<class SViewport> ViewportWidget = GetGameViewportWidget();
+			if (ViewportWidget.IsValid() && !ViewportWidget->HasFocusedDescendants())
 			{
 				FVector2D CursorPos(LastViewportCursorPos.X, LastViewportCursorPos.Y);
 				FSlateApplication::Get().SetGameIsFakingTouchEvents(false, &CursorPos);
@@ -1128,8 +1102,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		SceneCanvas->SetStereoRendering(bStereoRendering);
 	}
 
-	FGameViewDrawer GameViewDrawer;
-
 	UWorld* MyWorld = GetWorld();
 
 	// create the view family for rendering the world scene to the viewport's render target
@@ -1162,7 +1134,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	ESplitScreenType::Type SplitScreenConfig = GetCurrentSplitscreenConfiguration();
 	ViewFamily.ViewMode = EViewModeIndex(ViewModeIndex);
-	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, NAME_None);
+	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
 
 	if (ViewFamily.EngineShowFlags.VisualizeBuffer && AllowDebugViewmodes())
 	{
@@ -1214,7 +1186,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			APlayerController* PlayerController = LocalPlayer->PlayerController;
 
 			const bool bEnableStereo = GEngine->IsStereoscopic3D(InViewport);
-			const int32 NumViews = bStereoRendering ? ((ViewFamily.IsMonoscopicFarFieldEnabled()) ? 3 : GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering)) : 1;
+			const int32 NumViews = bStereoRendering ? GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering) : 1;
 
 			for (int32 i = 0; i < NumViews; ++i)
 			{
@@ -1224,7 +1196,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 				EStereoscopicPass PassType = bStereoRendering ? GEngine->StereoRenderingDevice->GetViewPassForIndex(bStereoRendering, i) : eSSP_FULL;
 
-				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, &GameViewDrawer, PassType);
+				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, PassType);
 
 				if (View)
 				{
@@ -1487,10 +1459,11 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	else
 	{
 		// Make sure RHI resources get flushed if we're not using a renderer
-		ENQUEUE_UNIQUE_RENDER_COMMAND( UGameViewportClient_FlushRHIResources,
-		{ 
-			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-		});
+		ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
+			[](FRHICommandListImmediate& RHICmdList)
+			{ 
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			});
 	}
 
 	// Beyond this point, only UI rendering independent from dynamc resolution.
@@ -1863,6 +1836,16 @@ void UGameViewportClient::Deactivated(FViewport* InViewport, const FWindowActiva
 	LostFocus(InViewport);
 }
 
+bool UGameViewportClient::IsInPermanentCapture()
+{
+	bool bIsInPermanentCapture = FViewportClient::IsInPermanentCapture();
+	if (ViewportConsole)
+	{
+		bIsInPermanentCapture = !ViewportConsole->ConsoleActive() && bIsInPermanentCapture;
+	}
+	return bIsInPermanentCapture;
+}
+
 bool UGameViewportClient::WindowCloseRequested()
 {
 	return !WindowCloseRequestedDelegate.IsBound() || WindowCloseRequestedDelegate.Execute();
@@ -1920,7 +1903,12 @@ void UGameViewportClient::PeekTravelFailureMessages(UWorld* InWorld, ETravelFail
 
 void UGameViewportClient::PeekNetworkFailureMessages(UWorld *InWorld, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
 {
-	UE_LOG(LogNet, Warning, TEXT("Network Failure: %s[%s]: %s"), NetDriver ? *NetDriver->NetDriverName.ToString() : TEXT("NULL"), ENetworkFailure::ToString(FailureType), *ErrorString);
+	static double LastTimePrinted = 0.0f;
+	if (FPlatformTime::Seconds() - LastTimePrinted > GEngine->NetErrorLogInterval)
+	{
+		UE_LOG(LogNet, Warning, TEXT("Network Failure: %s[%s]: %s"), NetDriver ? *NetDriver->NetDriverName.ToString() : TEXT("NULL"), ENetworkFailure::ToString(FailureType), *ErrorString);
+		LastTimePrinted = FPlatformTime::Seconds();
+	}
 }
 
 void UGameViewportClient::SSSwapControllers()
@@ -3068,6 +3056,23 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 		Ar.Logf(TEXT("Debug viewmodes not allowed on consoles by default.  See AllowDebugViewmodes()."));
 		ViewModeIndex = VMI_Lit;
 	}
+
+#if RHI_RAYTRACING
+	if (!GRHISupportsRayTracing)
+	{
+		if (ViewModeIndex == VMI_PathTracing)
+		{
+			Ar.Logf(TEXT("Path Tracing view mode requires ray tracing support. It is not supported on this system."));
+			ViewModeIndex = VMI_Lit;
+		}
+
+		if (ViewModeIndex == VMI_RayTracingDebug)
+		{
+			Ar.Logf(TEXT("Ray tracing view mode requires ray tracing support. It is not supported on this system."));
+			ViewModeIndex = VMI_Lit;
+		}
+	}
+#endif
 
 	ApplyViewMode((EViewModeIndex)ViewModeIndex, true, EngineShowFlags);
 

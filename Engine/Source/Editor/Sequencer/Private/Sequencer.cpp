@@ -612,7 +612,7 @@ void FSequencer::Tick(float InDeltaTime)
 		if (IsAutoScrollEnabled() && GetPlaybackStatus() == EMovieScenePlayerStatus::Playing)
 		{
 			const float ThresholdPercentage = 0.15f;
-			UpdateAutoScroll(GetGlobalTime().Time / GetFocusedTickResolution(), ThresholdPercentage);
+			UpdateAutoScroll(GetLocalTime().Time / GetFocusedTickResolution(), ThresholdPercentage);
 		}
 	}
 	else
@@ -4823,7 +4823,7 @@ void FSequencer::SaveCurrentMovieSceneAs()
 }
 
 
-TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors)
+TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors)
 {
 	TArray<FGuid> PossessableGuids;
 
@@ -4889,22 +4889,25 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 			}
 		}
 
-		// Clear our editor selection so we can make the selection our added actors.
-		// This has to be done after we know if the actor is going to be added to a
-		// folder, otherwise it causes the folder we wanted to pick to be deselected.
-		USelection* SelectedActors = GEditor->GetSelectedActors();
-		SelectedActors->BeginBatchSelectOperation();
-		SelectedActors->Modify();
-		GEditor->SelectNone(false, true);
-		for (TWeakObjectPtr<AActor> WeakActor : InActors)
+		if (bSelectActors)
 		{
-			if (AActor* Actor = WeakActor.Get())
+			// Clear our editor selection so we can make the selection our added actors.
+			// This has to be done after we know if the actor is going to be added to a
+			// folder, otherwise it causes the folder we wanted to pick to be deselected.
+			USelection* SelectedActors = GEditor->GetSelectedActors();
+			SelectedActors->BeginBatchSelectOperation();
+			SelectedActors->Modify();
+			GEditor->SelectNone(false, true);
+			for (TWeakObjectPtr<AActor> WeakActor : InActors)
 			{
-				GEditor->SelectActor(Actor, true, false);
+				if (AActor* Actor = WeakActor.Get())
+				{
+					GEditor->SelectActor(Actor, true, false);
+				}
 			}
+			SelectedActors->EndBatchSelectOperation();
+			GEditor->NoteSelectionChange();
 		}
-		SelectedActors->EndBatchSelectOperation();
-		GEditor->NoteSelectionChange();
 
 		// Add the possessables as children of the first selected folder
 		if (SelectedParentFolders.Num() > 0)
@@ -4916,12 +4919,15 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 		}
 
 		// Now add them all to the selection set to be selected after a tree rebuild.
-		for(const FGuid& Possessable : PossessableGuids)
+		if (bSelectActors)
 		{
-			FString PossessablePath = NewNodePath += Possessable.ToString();
-			
-			// Object Bindings use their FGuid as their unique key.
-			SequencerWidget->AddAdditionalPathToSelectionSet(PossessablePath);
+			for (const FGuid& Possessable : PossessableGuids)
+			{
+				FString PossessablePath = NewNodePath += Possessable.ToString();
+
+				// Object Bindings use their FGuid as their unique key.
+				SequencerWidget->AddAdditionalPathToSelectionSet(PossessablePath);
+			}
 		}
 
 		RefreshTree();
@@ -6585,6 +6591,13 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 				{
 					UMovieSceneTrack* NewTrack = CopyableTrack->Track;
 					NewTrack->ClearFlags(RF_Transient);
+					TArray<UObject*> Subobjects;
+					GetObjectsWithOuter(NewTrack, Subobjects);
+					for (UObject* Subobject : Subobjects)
+					{
+						Subobject->ClearFlags(RF_Transient);
+					}
+
 					if (!GetFocusedMovieSceneSequence()->GetMovieScene()->AddGivenTrack(NewTrack, ObjectGuid))
 					{
 						continue;
@@ -6605,6 +6618,12 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 		{
 			UMovieSceneTrack* NewTrack = CopyableTrack->Track;
 			NewTrack->ClearFlags(RF_Transient);
+			TArray<UObject*> Subobjects;
+			GetObjectsWithOuter(NewTrack, Subobjects);
+			for (UObject* Subobject : Subobjects)
+			{
+				Subobject->ClearFlags(RF_Transient);
+			}
 
 			if (NewTrack->IsA(UMovieSceneCameraCutTrack::StaticClass()))
 			{
@@ -8114,7 +8133,6 @@ void FSequencer::SetMarkedFrame(FFrameNumber FrameNumber, bool bSetMark)
 			{
 				int32 MarkedFrameIndex = FocusedMovieScene->FindMarkedFrameByFrameNumber(FrameNumber);
 				if (MarkedFrameIndex != INDEX_NONE)
-				FocusedMovieScene->RemoveMarkedFrame(MarkedFrameIndex);
 				{
 					FocusedMovieScene->RemoveMarkedFrame(MarkedFrameIndex);
 				}
@@ -8909,6 +8927,12 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 			Exporter->SetKeepHierarchy(true);
 
 			const bool bSelectedOnly = (Selection.GetSelectedTracks().Num() + Bindings.Num()) != 0;
+
+			// Make sure external selection is up to date since export could happen on tracks that have been right clicked but not have their underlying bound objects selected yet since that happens on mouse up.
+			if (bSelectedOnly)
+			{
+				SynchronizeExternalSelectionWithSequencerSelection();
+			}
 
 			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, GetFocusedTemplateID());
 

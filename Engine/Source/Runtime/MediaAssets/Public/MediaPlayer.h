@@ -286,6 +286,22 @@ public:
 	FTimespan GetTime() const;
 
 	/**
+	 * Get time of last audio sample decoded
+	 *
+	 * @return Time of last audio sample decoded.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
+	FTimespan GetLastAudioSampleProcessedTime() const;
+
+	/**
+	 * Get time of last video sample decoded
+	 *
+	 * @return Time of last video sample decoded.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
+	FTimespan GetLastVideoSampleProcessedTime() const;
+
+	/**
 	 * Get the human readable name of the specified track.
 	 *
 	 * @param TrackType The type of track.
@@ -477,6 +493,14 @@ public:
 	bool IsPreparing() const;
 
 	/**
+	 * Whether media is currently closed.
+	 *
+	 * @return true if media is closed, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
+	bool IsClosed() const;
+
+	/**
 	 * Check whether media is ready for playback.
 	 *
 	 * A player is ready for playback if it has a media source opened that
@@ -573,11 +597,11 @@ public:
 	/**
 	 * Open the specified media source with options using a latent action.
 	 *
-	 * A result of true indicates that the player opened the media source successfully.
+	 * A result of true indicates that the player successfully completed all requested operations.
 	 *
 	 * @param MediaSource The media source to open.
 	 * @param Options The media player options to apply.
-	 * @param bSuccess  Player opened the media.
+	 * @param bSuccess  All requested operations have completed successfully.
 	 * @see Close, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject"))
@@ -1138,6 +1162,9 @@ private:
 
 	/** Automatically start playback of next item in play list. */
 	bool PlayOnNext;
+
+	/** Has registered with the media module */
+	bool RegisteredWithMediaModule;
 
 #if WITH_EDITORONLY_DATA
 public:

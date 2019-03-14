@@ -3,11 +3,25 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#include "Misc/EnumClassFlags.h"
 #include "Internationalization/TextKey.h"
 
 class FLocTextHelper;
 class FTextLocalizationMetaDataResource;
 class FTextLocalizationResource;
+
+enum class EGenerateLocResFlags : uint8
+{
+	/** No special behavior */
+	None = 0,
+	/** Should "stale" translations (translations that were made against different source text) still be used? */
+	AllowStaleTranslations = 1<<0,
+	/** Validate that format patterns are valid for the culture being compiled (eg, detect invalid plural rules or broken syntax) */
+	ValidateFormatPatterns = 1<<1,
+	/** Validate that text doesn't contain any unsafe whitespace (leading or trailing whitespace) that could get lost during the translation process */
+	ValidateSafeWhitespace = 1<<2,
+};
+ENUM_CLASS_FLAGS(EGenerateLocResFlags);
 
 /** Utility functions for generating compiled LocMeta (Localization MetaData Resource) and LocRes (Localization Resource) files from source localization data */
 class FTextLocalizationResourceGenerator
@@ -21,10 +35,10 @@ public:
 	/**
 	 * Given a loc text helper, generate a compiled LocRes resource for the given culture.
 	 */
-	LOCALIZATION_API static bool GenerateLocRes(const FLocTextHelper& InLocTextHelper, const FString& InCultureToGenerate, const bool bSkipSourceCheck, const FTextKey& InLocResID, FTextLocalizationResource& OutLocRes, const int32 InPriority = 0);
+	LOCALIZATION_API static bool GenerateLocRes(const FLocTextHelper& InLocTextHelper, const FString& InCultureToGenerate, const EGenerateLocResFlags InGenerateFlags, const FTextKey& InLocResID, FTextLocalizationResource& OutPlatformAgnosticLocRes, TMap<FName, TSharedRef<FTextLocalizationResource>>& OutPerPlatformLocRes, const int32 InPriority = 0);
 
 	/**
 	 * Given a config file, generate a compiled LocRes resource for the active culture and use it to update the live-entries in the localization manager.
 	 */
-	LOCALIZATION_API static bool GenerateLocResAndUpdateLiveEntriesFromConfig(const FString& InConfigFilePath, const bool bSkipSourceCheck);
+	LOCALIZATION_API static bool GenerateLocResAndUpdateLiveEntriesFromConfig(const FString& InConfigFilePath, const EGenerateLocResFlags InGenerateFlags);
 };

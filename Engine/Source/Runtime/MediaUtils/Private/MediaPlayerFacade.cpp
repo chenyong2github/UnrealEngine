@@ -412,6 +412,10 @@ bool FMediaPlayerFacade::IsPreparing() const
 	return Player.IsValid() && (Player->GetControls().GetState() == EMediaState::Preparing);
 }
 
+bool FMediaPlayerFacade::IsClosed() const
+{
+	return Player.IsValid() && (Player->GetControls().GetState() == EMediaState::Closed);
+}
 
 bool FMediaPlayerFacade::IsReady() const
 {
@@ -1063,6 +1067,8 @@ void FMediaPlayerFacade::TickTickable()
 		return;
 	}
 
+	Player->SetLastAudioRenderedSampleTime(LastAudioRenderedSampleTime.Load());
+
 	Player->TickAudio();
 
 	// determine range of valid samples
@@ -1088,7 +1094,6 @@ void FMediaPlayerFacade::TickTickable()
 	ProcessAudioSamples(Samples, AudioTimeRange);
 	ProcessMetadataSamples(Samples, MetadataTimeRange);	
 }
-
 
 /* FMediaPlayerFacade implementation
 *****************************************************************************/

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "KismetAnimationLibrary.h"
-#include "AnimationCoreLibrary.h"
+#include "CommonAnimationLibrary.h"
 #include "AnimationCoreLibrary.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -107,5 +107,113 @@ float UKismetAnimationLibrary::K2_MakePerlinNoiseAndRemap(float Value, float Ran
 	// perlin noise output is always from [-1, 1]
 	return FMath::GetMappedRangeValueClamped(FVector2D(-1.f, 1.f), FVector2D(RangeOutMin, RangeOutMax), FMath::PerlinNoise1D(Value));
 }
+
+float UKismetAnimationLibrary::K2_CalculateVelocityFromPositionHistory(
+	float DeltaSeconds,
+	FVector Position,
+	UPARAM(ref) FPositionHistory& History,
+	int32 NumberOfSamples,
+	float VelocityMin,
+	float VelocityMax
+) {
+	NumberOfSamples = FMath::Max<uint32>(NumberOfSamples, 2);
+	if (DeltaSeconds <= 0.0f)
+	{
+		return 0.f;
+	}
+
+	// if the number of samples changes down clear the history
+	if (History.Positions.Num() > NumberOfSamples)
+	{
+		History.Positions.Reset();
+		History.Velocities.Reset();
+		History.LastIndex = 0;
+	}
+
+	// append to the history until it's full and then loop around when filling it 
+	// to reuse the memory
+	if (History.Positions.Num() == 0)
+	{
+		History.Positions.Reserve(NumberOfSamples);
+		History.Velocities.Reserve(NumberOfSamples);
+		History.Positions.Add(Position);
+		History.Velocities.Add(0.f);
+		History.LastIndex = 0;
+		return 0.f;
+	}
+	else
+	{
+		float LengthOfV = ((Position - History.Positions[History.LastIndex]) / DeltaSeconds).Size();
+
+		if (History.Positions.Num() == NumberOfSamples)
+		{
+			int32 NextIndex = History.LastIndex + 1;
+			if (NextIndex == History.Positions.Num())
+			{
+				NextIndex = 0;
+			}
+			History.Positions[NextIndex] = Position;
+			History.Velocities[NextIndex] = LengthOfV;
+			History.LastIndex = NextIndex;
+		}
+		else
+		{
+			History.LastIndex = History.Positions.Num();
+			History.Positions.Add(Position);
+			History.Velocities.Add(LengthOfV);
+		}
+	}
+
+	// compute average velocity
+	float LengthOfV = 0.0f;
+	for (int32 i = 0; i < History.Velocities.Num(); i++)
+	{
+		LengthOfV += History.Velocities[i];
+	}
+
+	// Avoids NaN due to the FMath::Max instruction above.
+	LengthOfV /= float(History.Velocities.Num());
+
+	if (VelocityMin < 0.0f || VelocityMax < 0.0f || VelocityMax <= VelocityMin)
+	{
+		return LengthOfV;
+	}
+
+	// Avoids NaN due to the condition above.
+	return FMath::Clamp((LengthOfV - VelocityMin) / (VelocityMax - VelocityMin), 0.f, 1.f);
+}
+
+float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
+	float DeltaSeconds,
+	USkeletalMeshComponent * Component,
+	const FName SocketOrBoneName,
+	const FName FrameOfReference,
+	ERelativeTransformSpace SocketSpace,
+	FVector OffsetInBoneSpace,
+	UPARAM(ref) FPositionHistory& History,
+	int32 NumberOfSamples,
+	float VelocityMin,
+	float VelocityMax,
+	EEasingFuncType EasingType,
+	const FRuntimeFloatCurve& CustomCurve
+) {
+	if (Component && SocketOrBoneName != NAME_None)
+	{
+		FTransform SocketTransform = Component->GetSocketTransform(SocketOrBoneName, SocketSpace);
+		if (FrameOfReference != NAME_None)
+		{
+			// make the bone's / socket's transform relative to the frame of reference.
+			FTransform FrameOfReferenceTransform = Component->GetSocketTransform(FrameOfReference, SocketSpace);
+			SocketTransform = SocketTransform.GetRelativeTransform(FrameOfReferenceTransform);
+		}
+
+		FVector Position = SocketTransform.TransformPosition(OffsetInBoneSpace);
+		float Velocity = K2_CalculateVelocityFromPositionHistory(DeltaSeconds, Position, History, NumberOfSamples, VelocityMin, VelocityMax);
+		return CommonAnimationLibrary::ScalarEasing(Velocity, CustomCurve, EasingType);
+	}
+
+	return VelocityMin;
+}
+
 #undef LOCTEXT_NAMESPACE
 

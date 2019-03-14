@@ -7,7 +7,7 @@
 #include "Streaming/DynamicTextureInstanceManager.h"
 #include "Components/PrimitiveComponent.h"
 
-void FDynamicTextureInstanceManager::FTasks::SyncResults()
+void FDynamicRenderAssetInstanceManager::FTasks::SyncResults()
 {
 	// Update the bounds first as we want the async view to be fully up-to-date.
 	RefreshFullTask->TryWork(false);
@@ -17,31 +17,31 @@ void FDynamicTextureInstanceManager::FTasks::SyncResults()
 	CreateViewTask->TrySync();
 }
 
-FDynamicTextureInstanceManager::FDynamicTextureInstanceManager()
+FDynamicRenderAssetInstanceManager::FDynamicRenderAssetInstanceManager()
 	: DirtyIndex(0)
 	, PendingDefragSrcBoundIndex(INDEX_NONE)
 	, PendingDefragDstBoundIndex(INDEX_NONE)
 {
 	FTasks& Tasks = StateSync.GetTasks();
-	Tasks.RefreshFullTask = new FRefreshFullTask(TextureInstanceTask::FRefreshFull::FOnWorkDone::CreateLambda([this](int32 InBeginIndex, int32 InEndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound){ this->OnRefreshVisibilityDone(InBeginIndex, InEndIndex, SkippedIndices, FirstFreeBound, LastUsedBound); }));
-	Tasks.CreateViewTask = new FCreateViewTask(TextureInstanceTask::FCreateViewWithUninitializedBounds::FOnWorkDone::CreateLambda([this](FTextureInstanceView* InView){ this->OnCreateViewDone(InView); }));
+	Tasks.RefreshFullTask = new FRefreshFullTask(RenderAssetInstanceTask::FRefreshFull::FOnWorkDone::CreateLambda([this](int32 InBeginIndex, int32 InEndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound){ this->OnRefreshVisibilityDone(InBeginIndex, InEndIndex, SkippedIndices, FirstFreeBound, LastUsedBound); }));
+	Tasks.CreateViewTask = new FCreateViewTask(RenderAssetInstanceTask::FCreateViewWithUninitializedBounds::FOnWorkDone::CreateLambda([this](FRenderAssetInstanceView* InView){ this->OnCreateViewDone(InView); }));
 }
 
-bool FDynamicTextureInstanceManager::IsReferenced(const UPrimitiveComponent* Component) const
+bool FDynamicRenderAssetInstanceManager::IsReferenced(const UPrimitiveComponent* Component) const
 { 
 	return Component && Component->bAttachedToStreamingManagerAsDynamic && (StateSync.GetState()->HasComponentReferences(Component) || PendingComponents.Contains(Component));
 }
 
-void FDynamicTextureInstanceManager::RegisterTasks(TextureInstanceTask::FDoWorkTask& AsyncTask)
+void FDynamicRenderAssetInstanceManager::RegisterTasks(RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 {
 	FTasks& Tasks = StateSync.GetTasks();
 	AsyncTask.Add(Tasks.RefreshFullTask.GetReference());
 	AsyncTask.Add(Tasks.CreateViewTask.GetReference());
 }
 
-void FDynamicTextureInstanceManager::IncrementalUpdate(FRemovedTextureArray& RemovedTextures, float Percentage)
+void FDynamicRenderAssetInstanceManager::IncrementalUpdate(FRemovedRenderAssetArray& RemovedRenderAssets, float Percentage)
 {
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 
 	// First try to apply the pending defrag.
 	if (PendingDefragSrcBoundIndex != INDEX_NONE && PendingDefragDstBoundIndex != INDEX_NONE)
@@ -59,7 +59,7 @@ void FDynamicTextureInstanceManager::IncrementalUpdate(FRemovedTextureArray& Rem
 	{
 		check(Component);
 
-		State->RemoveComponent(Component, &RemovedTextures);
+		State->RemoveComponent(Component, &RemovedRenderAssets);
 		Component->bAttachedToStreamingManagerAsDynamic = false;
 		// Re-enable updates now that the component is out of the pending list.
 		Component->bIgnoreStreamingManagerUpdate = false;
@@ -87,23 +87,23 @@ void FDynamicTextureInstanceManager::IncrementalUpdate(FRemovedTextureArray& Rem
 	Refresh(Percentage);
 }
 
-void FDynamicTextureInstanceManager::OnCreateViewDone(FTextureInstanceView* InView)
+void FDynamicRenderAssetInstanceManager::OnCreateViewDone(FRenderAssetInstanceView* InView)
 {
 	// Don't call get state here to prevent recursion as this is a task callback.
-	FTextureInstanceState* State = StateSync.GetStateUnsafe();
+	FRenderAssetInstanceState* State = StateSync.GetStateUnsafe();
 	check(DirtyIndex >= State->NumBounds()); // Must be fully valid or the swap will be destructive.
 
 	// The tasks creates dirty bounds, so after sync, move the valid bounds to the view and mark dirty all current bounds.
 	// The incremental update will refresh the bounds within the next update loop.
-	FTextureInstanceView::SwapData(InView, State);
+	FRenderAssetInstanceView::SwapData(InView, State);
 
-	AsyncView = TRefCountPtr<const FTextureInstanceView>(InView);
+	AsyncView = TRefCountPtr<const FRenderAssetInstanceView>(InView);
 }
 
-void FDynamicTextureInstanceManager::OnRefreshVisibilityDone(int32 BeginIndex, int32 EndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound)
+void FDynamicRenderAssetInstanceManager::OnRefreshVisibilityDone(int32 BeginIndex, int32 EndIndex, const TArray<int32>& SkippedIndices, int32 FirstFreeBound, int32 LastUsedBound)
 {
 	// Don't call get state here to prevent recursion as this is a task callback.
-	FTextureInstanceState* State = StateSync.GetStateUnsafe();
+	FRenderAssetInstanceState* State = StateSync.GetStateUnsafe();
 	check(DirtyIndex == BeginIndex);
 
 	for (int32 SkippedIndex : SkippedIndices)
@@ -123,7 +123,7 @@ void FDynamicTextureInstanceManager::OnRefreshVisibilityDone(int32 BeginIndex, i
 	}
 }
 
-void FDynamicTextureInstanceManager::OnPreGarbageCollect(FRemovedTextureArray& RemovedTextures)
+void FDynamicRenderAssetInstanceManager::OnPreGarbageCollect(FRemovedRenderAssetArray& RemovedRenderAssets)
 {
 	for (int32 Index = 0; Index < PendingComponents.Num(); ++Index)
 	{
@@ -131,7 +131,7 @@ void FDynamicTextureInstanceManager::OnPreGarbageCollect(FRemovedTextureArray& R
 		check(Primitive);
 
 		// If the component is not registered anymore, remove it. If it gets registered again it will be reinserted in the pending list.
-		// This allows to remove all unregistered components at once without having to handle each of them in FDynamicTextureInstanceManager::Remove().
+		// This allows to remove all unregistered components at once without having to handle each of them in FDynamicRenderAssetInstanceManager::Remove().
 		// The goal here is to bypass the possibly slow search in PendingComponents.
 		if (!Primitive->IsRegistered() || Primitive->IsPendingKill() || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 		{
@@ -141,7 +141,7 @@ void FDynamicTextureInstanceManager::OnPreGarbageCollect(FRemovedTextureArray& R
 
 			if (StateSync.GetState()->HasComponentReferences(Primitive))
 			{
-				StateSync.SyncAndGetState()->RemoveComponent(Primitive, &RemovedTextures);
+				StateSync.SyncAndGetState()->RemoveComponent(Primitive, &RemovedRenderAssets);
 			}
 			Primitive->bAttachedToStreamingManagerAsDynamic = false;
 		}
@@ -150,22 +150,22 @@ void FDynamicTextureInstanceManager::OnPreGarbageCollect(FRemovedTextureArray& R
 
 
 /*-----------------------------------
------- ITextureInstanceManager ------
+------ IRenderAssetInstanceManager ------
 -----------------------------------*/
 
-bool FDynamicTextureInstanceManager::CanManage(const UPrimitiveComponent* Component) const
+bool FDynamicRenderAssetInstanceManager::CanManage(const UPrimitiveComponent* Component) const
 {
 	return Component && !Component->IsPendingKill() && !Component->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
 }
 
-void FDynamicTextureInstanceManager::Refresh(float Percentage)
+void FDynamicRenderAssetInstanceManager::Refresh(float Percentage)
 {
 	static bool bUseBackgroupTask = true;
 
-	QUICK_SCOPE_CYCLE_COUNTER(FDynamicTextureInstanceManager_Refresh);
+	QUICK_SCOPE_CYCLE_COUNTER(FDynamicRenderAssetInstanceManager_Refresh);
 
 	// Even if the incremental update does not do any allocation, the tasks must be completed in order to udpate the new dirty arrays - see FTasks::SyncResults.
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 
 	if (DirtyIndex < State->NumBounds())
 	{
@@ -174,7 +174,7 @@ void FDynamicTextureInstanceManager::Refresh(float Percentage)
 	}
 }
 
-EAddComponentResult FDynamicTextureInstanceManager::Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity)
+EAddComponentResult FDynamicRenderAssetInstanceManager::Add(const UPrimitiveComponent* Component, FStreamingTextureLevelContext& LevelContext, float MaxAllowedUIDensity)
 {
 	// Don't cull out primitives with no SceneProxy because they need to be removed first (ex: if the primitive got hidden).
 	if (CanManage(Component))
@@ -202,7 +202,7 @@ EAddComponentResult FDynamicTextureInstanceManager::Add(const UPrimitiveComponen
 	return EAddComponentResult::Fail;
 }
 
-void FDynamicTextureInstanceManager::Remove(const UPrimitiveComponent* Component, FRemovedTextureArray* RemovedTextures)
+void FDynamicRenderAssetInstanceManager::Remove(const UPrimitiveComponent* Component, FRemovedRenderAssetArray* RemovedRenderAssets)
 {
 	check(!Component || Component->IsValidLowLevelFast());
 	if (Component && Component->bAttachedToStreamingManagerAsDynamic)
@@ -213,19 +213,19 @@ void FDynamicTextureInstanceManager::Remove(const UPrimitiveComponent* Component
 		// If the component is used, stop any task possibly indirecting it, and clear references.
 		if (StateSync.GetState()->HasComponentReferences(Component))
 		{
-			StateSync.SyncAndGetState()->RemoveComponent(Component, RemovedTextures);
+			StateSync.SyncAndGetState()->RemoveComponent(Component, RemovedRenderAssets);
 		}
 		Component->bAttachedToStreamingManagerAsDynamic = false;
 	}
 }
 
-void FDynamicTextureInstanceManager::PrepareAsyncView()
+void FDynamicRenderAssetInstanceManager::PrepareAsyncView()
 {
 	// Terminate any pending work as we are about to create a new task.
-	const FTextureInstanceState* State = StateSync.SyncAndGetState();
+	const FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 
 	// Update any dirty bounds as everything must be up-do-date before making the view.
-	// Bounds can be dirty even after calling FDynamicTextureInstanceManager::IncrementalUpdate as newly added bounds do not update DirtyIndex.
+	// Bounds can be dirty even after calling FDynamicRenderAssetInstanceManager::IncrementalUpdate as newly added bounds do not update DirtyIndex.
 	Refresh(1.f);
 
 	 // Can only release the old view if no one else is referring it, as the refcount is not threadsafe.
@@ -235,19 +235,19 @@ void FDynamicTextureInstanceManager::PrepareAsyncView()
 	AsyncView.SafeRelease();
 }
 
-const FTextureInstanceView* FDynamicTextureInstanceManager::GetAsyncView(bool bCreateIfNull)
+const FRenderAssetInstanceView* FDynamicRenderAssetInstanceManager::GetAsyncView(bool bCreateIfNull)
 {
-	FTextureInstanceState* State = StateSync.SyncAndGetState();
+	FRenderAssetInstanceState* State = StateSync.SyncAndGetState();
 	if (!AsyncView && bCreateIfNull)
 	{
-		AsyncView = FTextureInstanceView::CreateView(State);
+		AsyncView = FRenderAssetInstanceView::CreateView(State);
 	}
 	DirtyIndex = 0; // Force a full refresh!
 	return AsyncView.GetReference();
 }
 
-uint32 FDynamicTextureInstanceManager::GetAllocatedSize() const
+uint32 FDynamicRenderAssetInstanceManager::GetAllocatedSize() const
 { 
-	const FTextureInstanceState* State = StateSync.GetState();
-	return  State ? (sizeof(FTextureInstanceState) + State->GetAllocatedSize()) : 0;
+	const FRenderAssetInstanceState* State = StateSync.GetState();
+	return  State ? (sizeof(FRenderAssetInstanceState) + State->GetAllocatedSize()) : 0;
 }

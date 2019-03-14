@@ -126,6 +126,17 @@ void UAudioComponent::Serialize(FArchive& Ar)
 			bOverrideSubtitlePriority = true;
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		if (ConcurrencySettings_DEPRECATED != nullptr)
+		{
+			ConcurrencySet.Add(ConcurrencySettings_DEPRECATED);
+			ConcurrencySettings_DEPRECATED = nullptr;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UAudioComponent::PostLoad()
@@ -357,7 +368,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			NewActiveSound.SetWorld(GetWorld());
 			NewActiveSound.SetSound(Sound);
 			NewActiveSound.SetSoundClass(SoundClassOverride);
-			NewActiveSound.ConcurrencySettings = ConcurrencySettings;
+			NewActiveSound.ConcurrencySet = ConcurrencySet;
 
 			NewActiveSound.VolumeMultiplier = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * FMath::SRand())) * VolumeMultiplier;
 			// The priority used for the active sound is the audio component's priority scaled with the sound's priority
@@ -1254,6 +1265,34 @@ bool UAudioComponent::GetCookedFFTData(const TArray<float>& FrequenciesToGet, TA
 	return bHadData;
 }
 
+bool UAudioComponent::GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData)
+{
+	bool bHadData = false;
+	if (IsPlaying() && SoundWavePlaybackTimes.Num() > 0)
+	{
+		OutSoundWaveSpectralData.Reset();
+
+		for (auto& Entry : SoundWavePlaybackTimes)
+		{
+			if (Entry.Value.PlaybackTime > 0.0f && Entry.Value.SoundWave->CookedSpectralTimeData.Num() > 0)
+			{
+				FSoundWaveSpectralDataPerSound NewOutput;
+				NewOutput.SoundWave = Entry.Value.SoundWave;
+				NewOutput.PlaybackTime = Entry.Value.PlaybackTime;
+
+				// Find the point in the spectral data that corresponds to the time
+				Entry.Value.SoundWave->GetInterpolatedCookedFFTDataForTime(Entry.Value.PlaybackTime, Entry.Value.LastFFTCookedIndex, NewOutput.SpectralData, Sound->IsLooping());
+				if (NewOutput.SpectralData.Num())
+				{
+					OutSoundWaveSpectralData.Add(NewOutput);
+					bHadData = true;
+				}
+			}
+		}
+	}
+	return bHadData;
+}
+
 bool UAudioComponent::GetCookedEnvelopeData(float& OutEnvelopeData)
 {
 	bool bHadData = false;
@@ -1286,5 +1325,32 @@ bool UAudioComponent::GetCookedEnvelopeData(float& OutEnvelopeData)
 		}
 	}
 
+	return bHadData;
+}
+
+bool UAudioComponent::GetCookedEnvelopeDataForAllPlayingSounds(TArray<FSoundWaveEnvelopeDataPerSound>& OutEnvelopeData)
+{
+	bool bHadData = false;
+	if (IsPlaying() && SoundWavePlaybackTimes.Num() > 0)
+	{
+		for (auto& Entry : SoundWavePlaybackTimes)
+		{
+			if (Entry.Value.SoundWave->CookedEnvelopeTimeData.Num() > 0 && Entry.Value.PlaybackTime > 0.0f)
+			{
+				// Find the point in the spectral data that corresponds to the time
+				float SoundWaveAmplitude = 0.0f;
+				if (Entry.Value.SoundWave->GetInterpolatedCookedEnvelopeDataForTime(Entry.Value.PlaybackTime, Entry.Value.LastEnvelopeCookedIndex, SoundWaveAmplitude, Sound->IsLooping()))
+				{
+					FSoundWaveEnvelopeDataPerSound NewOutput;
+					NewOutput.SoundWave = Entry.Value.SoundWave;
+					NewOutput.PlaybackTime = Entry.Value.PlaybackTime;
+					NewOutput.Envelope = SoundWaveAmplitude;
+					OutEnvelopeData.Add(NewOutput);
+					bHadData = true;
+				}
+
+			}
+		}
+	}
 	return bHadData;
 }

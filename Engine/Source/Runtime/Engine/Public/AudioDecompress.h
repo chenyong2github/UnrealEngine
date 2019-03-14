@@ -99,7 +99,18 @@ public:
 	* @param	Wave			Wave that will be read from to retrieve necessary chunk
 	* @param	QualityInfo		Quality Info (to be filled out)
 	*/
-	virtual bool StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) {return false;}
+	bool StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+	{
+		StreamingSoundWave = Wave;
+
+		return StreamCompressedInfoInternal(Wave, QualityInfo);
+	}
+
+protected:
+	/** Internal override implemented by subclasses. */
+	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) = 0;
+
+public:
 
 	/**
 	* Decompresses streamed data to raw PCM data.
@@ -121,6 +132,12 @@ public:
 	 * Gets the offset into the chunk that was last read to (for Streaming Manager priority)
 	 */
 	virtual int32 GetCurrentChunkOffset() const {return -1;}
+
+	/** Return the streaming sound wave used by this decoder. Returns nullptr if there is not a streaming sound wave. */
+	virtual USoundWave* GetStreamingSoundWave() { return StreamingSoundWave; }
+
+protected:
+	USoundWave* StreamingSoundWave;
 };
 
 /** Struct used to store the results of a decode operation. **/
@@ -161,7 +178,7 @@ public:
 	virtual bool UsesVorbisChannelOrdering() const override { return false; }
 	virtual int GetStreamBufferSize() const override { return  MONO_PCM_BUFFER_SIZE; }
 	virtual bool SupportsStreaming() const override { return true; }
-	virtual bool StreamCompressedInfo(USoundWave* Wave, FSoundQualityInfo* QualityInfo) override;
+	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, FSoundQualityInfo* QualityInfo) override;
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override { return CurrentChunkIndex; }
 	virtual int32 GetCurrentChunkOffset() const override { return SrcBufferOffset; }
@@ -254,8 +271,6 @@ protected:
 	uint32 LastPCMOffset;
 	/** If we're currently reading the final buffer. */
 	bool bStoringEndOfFile;
-    /** Ptr to the sound wave currently streaming. */
-	USoundWave* StreamingSoundWave;
 	/** The current chunk index in the streamed chunks. */
 	int32 CurrentChunkIndex;
 	/** Whether or not to print the chunk fail message. */
@@ -367,7 +382,7 @@ public:
 
 	void DoWork()
 	{
-		LLM_SCOPE(ELLMTag::Audio);
+		LLM_SCOPE(ELLMTag::AudioMisc);
 
 		switch(TaskType)
 		{
@@ -470,7 +485,8 @@ public:
 	void StartBackgroundTask()
 	{
 		FScopeLock Lock(&CritSect);
-		Task->StartBackgroundTask(ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask() ? GBackgroundPriorityThreadPool : GThreadPool);
+		const bool bUseBackground = ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask() && (Task->GetTask().GetTaskType() != ERealtimeAudioTaskType::Procedural);
+		Task->StartBackgroundTask(bUseBackground ? GBackgroundPriorityThreadPool : GThreadPool);
 	}
 
 	FAsyncRealtimeAudioTaskWorker<T>& GetTask()

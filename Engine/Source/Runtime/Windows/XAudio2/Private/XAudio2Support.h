@@ -32,6 +32,7 @@
 	#include <X3Daudio.h>
 #include "Windows/HideWindowsPlatformAtomics.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#include "XAudio2Device.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -199,6 +200,7 @@ struct FXWMABufferInfo
 	UINT32						XWMASeekDataSize;
 };
 
+class FXAudio2SoundBuffer;
 typedef FAsyncRealtimeAudioTaskProxy<FXAudio2SoundBuffer> FAsyncRealtimeAudioTask;
 
 /**
@@ -409,9 +411,14 @@ public:
 	virtual ~FXAudio2SoundSource();
 
 	/**
-	 * Frees existing resources. Called from destructor and therefore not virtual.
+	 * Frees existing resources except for the buffer. Called from destructor and therefore not virtual.
 	 */
 	void FreeResources();
+
+	/**
+	 * Frees the source's underlying buffer, if neccessary. 
+	 */
+	void FreeBuffer();
 
 	/**
 	* Initializes any effects used with this source voice
@@ -743,7 +750,6 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 	// These variables are non-static to support multiple audio device instances
 	struct IXAudio2*					XAudio2;
 	struct IXAudio2MasteringVoice*		MasteringVoice;
-	HMODULE								XAudio2Dll;
 
 	// These variables are static because they are common across all audio device instances
 	static int32						NumSpeakers;
@@ -754,6 +760,7 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 
 #if PLATFORM_WINDOWS
 	FMMNotificationClient* NotificationClient;
+	static HMODULE XAudio2Dll;
 #endif
 
 	// For calculating speaker maps for 3d audio
@@ -774,7 +781,6 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 	FXAudioDeviceProperties()
 		: XAudio2(nullptr)
 		, MasteringVoice(nullptr)
-		, XAudio2Dll(nullptr)
 		, NumActiveVoices(0)
 		, bDeviceChanged(false)
 		, bAllowNewVoices(true)
@@ -815,12 +821,15 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 		}
 
 #if PLATFORM_WINDOWS && PLATFORM_64BITS
-		if (XAudio2Dll)
+		// Only free the library if we're shutting down
+		if (XAudio2Dll != nullptr && GIsRequestingExit)
 		{
+			UE_LOG(LogAudio, Verbose, TEXT("Freeing XAudio2 dll"));
 			if (!FreeLibrary(XAudio2Dll))
 			{
 				UE_LOG(LogAudio, Warning, TEXT("Failed to free XAudio2 Dll"));
 			}
+			XAudio2Dll = nullptr;
 		}
 #endif
 	}
@@ -924,7 +933,7 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 		{
 			check(XAudio2 != nullptr);
 			bSuccess = Validate(TEXT("GetFreeSourceVoice, XAudio2->CreateSourceVoice"),
-				XAudio2->CreateSourceVoice(Voice, &BufferInfo.PCMFormat, XAUDIO2_VOICE_USEFILTER, MAX_PITCH, &SourceCallback, SendList, EffectChain));
+				XAudio2->CreateSourceVoice(Voice, &BufferInfo.PCMFormat, XAUDIO2_VOICE_USEFILTER, 4.0f, &SourceCallback, SendList, EffectChain));
 		}
 
 		if (bSuccess)

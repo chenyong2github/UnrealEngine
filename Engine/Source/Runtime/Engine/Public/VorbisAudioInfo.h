@@ -14,11 +14,7 @@
  * Whether to use OggVorbis audio format.
  **/
 #ifndef WITH_OGGVORBIS
-	#if PLATFORM_DESKTOP
-		#define WITH_OGGVORBIS 1
-	#else
-		#define WITH_OGGVORBIS 0
-	#endif
+	#define WITH_OGGVORBIS 0
 #endif
 
 namespace VorbisChannelInfo
@@ -95,11 +91,13 @@ public:
 
 	// Additional overrides for streaming
 	virtual bool SupportsStreaming() const override {return true;}
-	virtual bool StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) override;
 	virtual bool StreamCompressedData(uint8* InDestination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override {return CurrentStreamingChunkIndex;}
 	virtual int32 GetCurrentChunkOffset() const override {return BufferOffset % CurrentStreamingChunksSize;}
 	// End of ICompressedAudioInfo Interface
+
+protected:
+	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) override;
 
 private:
 
@@ -112,10 +110,10 @@ private:
 	/** Critical section used to prevent multiple threads accessing same ogg-vorbis file handles at the same time */
 	FCriticalSection VorbisCriticalSection;
 
-	USoundWave* StreamingSoundWave;				// The current sound wave being streamed, this is used to fetch new chunks
 	uint8 const* CurrentStreamingChunkData;
 	int32 CurrentStreamingChunkIndex;
 	int32 NextStreamingChunkIndex;
 	uint32 CurrentStreamingChunksSize;
+	bool bHeaderParsed;
 };
 #endif

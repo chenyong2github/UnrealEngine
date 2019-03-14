@@ -79,7 +79,7 @@ struct FScopeCycleCounterSWidget
 	{
 	}
 	~FScopeCycleCounterSWidget()
-	{;
+	{
 	}
 };
 
@@ -501,17 +501,18 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 		// a function of its children's sizes.
 		FChildren* MyChildren = this->GetChildren();
 		const int32 NumChildren = MyChildren->Num();
-		for ( int32 ChildIndex=0; ChildIndex < NumChildren; ++ChildIndex )
+		for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
 		{
 			const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
 
-			if ( GSlateLayoutCaching || Child->Visibility.Get() != EVisibility::Collapsed )
+			if (GSlateLayoutCaching || Child->Visibility.Get() != EVisibility::Collapsed)
 			{
 				const float ChildLayoutScaleMultiplier = GetRelativeLayoutScale(MyChildren->GetSlotAt(ChildIndex), InLayoutScaleMultiplier);
 				// Recur: Descend down the widget tree.
 				Child->SlatePrepass(InLayoutScaleMultiplier * ChildLayoutScaleMultiplier);
 			}
 		}
+		ensure(NumChildren == MyChildren->Num());
 	}
 
 	if(!GSlateLayoutCaching)
@@ -854,6 +855,8 @@ bool SWidget::IsDirectlyHovered() const
 
 void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
 
 	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
@@ -865,7 +868,6 @@ void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 	}
 
 	LayoutChanged(InvalidateReason);
-
 }
 
 void SWidget::SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor )

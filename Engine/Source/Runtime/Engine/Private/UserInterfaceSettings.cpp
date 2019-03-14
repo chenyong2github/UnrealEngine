@@ -171,21 +171,23 @@ void UUserInterfaceSettings::PostEditChangeProperty(FPropertyChangedEvent& Prope
 
 #endif
 
-void UUserInterfaceSettings::ForceLoadResources()
+void UUserInterfaceSettings::ForceLoadResources(bool bForceLoadEverything)
 {
-	bool bShouldLoadCurors = true;
+	bool bShouldLoadCursors = true;
 
 	if (IsRunningCommandlet())
 	{
-		bShouldLoadCurors = false;
+		bShouldLoadCursors = false;
 	}
 	else if (IsRunningDedicatedServer())
 	{
-		bShouldLoadCurors = bLoadWidgetsOnDedicatedServer;
+		bShouldLoadCursors = bLoadWidgetsOnDedicatedServer;
 	}
 
-	if (bShouldLoadCurors)
+	if (bShouldLoadCursors || bForceLoadEverything)
 	{
+		SCOPED_BOOT_TIMING("UUserInterfaceSettings::ForceLoadResources");
+
 		TArray<UObject*> LoadedClasses;
 		for ( auto& Entry : SoftwareCursors )
 		{
@@ -197,6 +199,10 @@ void UUserInterfaceSettings::ForceLoadResources()
 			UObject* Cursor = LoadedClasses[i];
 			if (Cursor)
 			{
+#if !WITH_EDITOR
+				// Add to root in case this was loaded after disregard for GC closes
+				Cursor->AddToRoot();
+#endif
 				CursorClasses.Add(Cursor);
 			}
 			else

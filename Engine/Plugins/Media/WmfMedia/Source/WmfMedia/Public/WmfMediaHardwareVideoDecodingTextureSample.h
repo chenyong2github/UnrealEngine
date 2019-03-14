@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if PLATFORM_WINDOWS
+
 #include "Player/WmfMediaTextureSample.h"
 #include "RHI.h"
 
@@ -44,7 +46,7 @@ public:
 	 * @param InCreateFlags texture create flag
 	 * @return The texture resource object that will hold the sample data.
 	 */
-	ID3D11Texture2D* InitializeSourceTexture(const TComPtr<ID3D11Device>& InD3D11Device, FTimespan InTime, FTimespan InDuration, const FIntPoint& InDim, uint8 InFormat, EMediaTextureSampleFormat InMediaTextureSampleFormat);
+	ID3D11Texture2D* InitializeSourceTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, FTimespan InTime, FTimespan InDuration, const FIntPoint& InDim, uint8 InFormat, EMediaTextureSampleFormat InMediaTextureSampleFormat);
 
 	/**
 	 * Get media texture sample converter if sample implements it
@@ -75,29 +77,37 @@ public:
 	}
 
 	/**
-	 * Set Destination Texture of rendering device
-	 *
-	 * @param InTexture Destination texture
-	 */
-	void SetDestinationTexture(FTexture2DRHIRef InTexture)
-	{
-		DestinationTexture = InTexture;
-	}
-
-	/**
 	 * Get Destination Texture of render thread device
 	 *
 	 * @return Destination texture 
 	 */
-	FTexture2DRHIRef GetDestinationTexture() const
+	FTexture2DRHIRef GetOrCreateDestinationTexture()
 	{
+		if (DestinationTexture.IsValid() && DestinationTexture->GetSizeX() == Dim.X && DestinationTexture->GetSizeY() == Dim.Y)
+		{
+			return DestinationTexture;
+		}
+
+		FRHIResourceCreateInfo CreateInfo;
+		const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
+		DestinationTexture = RHICreateTexture2D(
+			Dim.X,
+			Dim.Y,
+			PF_NV12,
+			1,
+			1,
+			CreateFlags,
+			CreateInfo);
+
 		return DestinationTexture;
 	}
 
 	/**
 	 * Called the the sample is returned to the pool for cleanup purposes
 	 */
+#if !WITH_SERVER_CODE
 	virtual void ShutdownPoolable() override;
+#endif
 
 private:
 
@@ -105,7 +115,7 @@ private:
 	TComPtr<ID3D11Texture2D> SourceTexture;
 
 	/** D3D11 Device which create the texture, used to release the keyed mutex when the sampled is returned to the pool */
-	TComPtr<ID3D11Device> D3D11Device;
+	TRefCountPtr<ID3D11Device> D3D11Device;
 
 	/** Destination Texture resource (from Rendering device) */
 	FTexture2DRHIRef DestinationTexture;
@@ -113,3 +123,5 @@ private:
 
 /** Implements a pool for WMF texture samples. */
 class FWmfMediaHardwareVideoDecodingTextureSamplePool : public TMediaObjectPool<FWmfMediaHardwareVideoDecodingTextureSample> { };
+
+#endif

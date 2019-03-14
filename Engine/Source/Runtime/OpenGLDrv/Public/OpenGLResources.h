@@ -843,7 +843,7 @@ public:
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::VertexBuffer, InSize, ELLMTracker::Default, ELLMAllocType::None);
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
 
@@ -855,7 +855,7 @@ public:
 		}
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::VertexBuffer, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
 
@@ -919,7 +919,7 @@ public:
 	uint8* PersistentlyMappedBuffer;
 
 	/** Unique ID for state shadowing purposes. */
-	const uint32 UniqueID;
+	uint32 UniqueID;
 
 	/** Resource table containing RHI references. */
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
@@ -952,14 +952,14 @@ public:
 	FOpenGLBaseIndexBuffer(uint32 InStride,uint32 InSize,uint32 InUsage): FRHIIndexBuffer(InStride,InSize,InUsage)
 	{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::IndexBuffer, InSize, ELLMTracker::Default, ELLMAllocType::None);
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
 
 	~FOpenGLBaseIndexBuffer(void)
 	{
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::IndexBuffer, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
+		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
 #endif
 	}
 
@@ -1880,9 +1880,11 @@ public:
 	,	OpenGLRHI(InOpenGLRHI)
 	,	OwnsResource(true)
 	{
-		check(IsValidRef(VertexBuffer));
-		FOpenGLVertexBuffer* VB = (FOpenGLVertexBuffer*)VertexBuffer.GetReference();
-		ModificationVersion = VB->ModificationCount;
+		if (VertexBuffer)
+		{
+			FOpenGLVertexBuffer* VB = (FOpenGLVertexBuffer*)VertexBuffer.GetReference();
+			ModificationVersion = VB->ModificationCount;
+		}
 	}
 
 	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, GLuint Mip, bool InOwnsResource )
@@ -2010,9 +2012,65 @@ private:
 	FCustomPresentRHIRef CustomPresent;
 };
 
+// Fences
+
+// Note that Poll() and WriteInternal() will stall the RHI thread if one is present.
+class FOpenGLGPUFence : public FRHIGPUFence
+{
+public:
+	FOpenGLGPUFence(FName InName)
+		: FRHIGPUFence(InName)
+		, bValidSync(false)
+	{}
+
+	virtual ~FOpenGLGPUFence() final override;
+
+	virtual void Clear() final override;
+	virtual bool Poll() const final override;
+	
+	void WriteInternal();
+private:
+	UGLsync Fence;
+	// We shadow the sync state to know if/when we need to destroy it.
+	bool bValidSync;
+};
+
+class FOpenGLStagingBuffer : public FRHIStagingBuffer
+{
+	friend class FOpenGLDynamicRHI;
+public:
+	FOpenGLStagingBuffer() : FRHIStagingBuffer()
+	{
+		Initialize();
+	}
+
+	virtual ~FOpenGLStagingBuffer() final override;
+
+	// Locks the shadow of VertexBuffer for read. This will stall the RHI thread.
+	virtual void *Lock(uint32 Offset, uint32 NumBytes) final override;
+
+	// Unlocks the shadow. This is an error if it was not locked previously.
+	virtual void Unlock() final override;
+private:
+	void Initialize();
+
+	GLuint ShadowBuffer;
+	uint32 ShadowSize;
+};
+
 template<class T>
 struct TOpenGLResourceTraits
 {
+};
+template<>
+struct TOpenGLResourceTraits<FRHIGPUFence>
+{
+	typedef FOpenGLGPUFence TConcreteType;
+};
+template<>
+struct TOpenGLResourceTraits<FRHIStagingBuffer>
+{
+	typedef FOpenGLStagingBuffer TConcreteType;
 };
 template<>
 struct TOpenGLResourceTraits<FRHIVertexDeclaration>

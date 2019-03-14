@@ -79,7 +79,6 @@ public:
 	 */
 	void ShrinkElements();
 
-
 	/** Calculate the lightmap resolution to be used by the given surface. */
 	ENGINE_API void GetSurfaceLightMapResolution( int32 SurfaceIndex, int32 QualityScale, int32& Width, int32& Height, FMatrix& WorldToMap, TArray<int32>* GatheredNodes=NULL ) const;
 
@@ -100,7 +99,7 @@ public:
 	virtual void AddMapBuildDataGUIDs(TSet<FGuid>& InGUIDs) const override;
 #endif
 	virtual ELightMapInteractionType GetStaticLightingType() const override	{ return LMIT_Texture;	}
-	virtual void GetStreamingTextureInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingTexturePrimitiveInfo>& OutStreamingTextures) const override;
+	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual class UBodySetup* GetBodySetup() override { return ModelBodySetup; };
 	virtual int32 GetNumMaterials() const override;

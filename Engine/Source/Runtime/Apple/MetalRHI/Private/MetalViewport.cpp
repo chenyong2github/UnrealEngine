@@ -177,15 +177,13 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	{
 		// Really need to flush the RHI thread & GPU here...
 		AddRef();
-		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
-									FlushPendingRHICommands,
-									FMetalViewport*, Viewport, this,
-									{
-										GRHICommandList.GetImmediateCommandList().BlockUntilGPUIdle();
-										Viewport->ReleaseDrawable();
-										Viewport->Release();
-									}
-									);
+		ENQUEUE_RENDER_COMMAND(FlushPendingRHICommands)(
+			[Viewport = this](FRHICommandListImmediate& RHICmdList)
+			{
+				GRHICommandList.GetImmediateCommandList().BlockUntilGPUIdle();
+				Viewport->ReleaseDrawable();
+				Viewport->Release();
+			});
 		
 		// Issue a fence command to the rendering thread and wait for it to complete.
 		FRenderCommandFence Fence;
@@ -228,12 +226,6 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		}
 		
 		[IOSView UpdateRenderWidth:InSizeX andHeight:InSizeY];
-
-		// check the size of the window
-		float ScalingFactor = [IOSView contentScaleFactor];
-		CGRect ViewFrame = [IOSView frame];
-		check(FMath::TruncToInt(ScalingFactor * ViewFrame.size.width) == InSizeX &&
-			  FMath::TruncToInt(ScalingFactor * ViewFrame.size.height) == InSizeY);
 	}
 #endif
 
@@ -642,12 +634,12 @@ void FMetalRHIImmediateCommandContext::RHIBeginDrawingViewport(FViewportRHIParam
 	// Set the render target and viewport.
 	if (RenderTargetRHI)
 	{
-		FRHIRenderTargetView RTV(RenderTargetRHI, ERenderTargetLoadAction::ELoad);
+		FRHIRenderTargetView RTV(RenderTargetRHI, GIsEditor ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 		RHISetRenderTargets(1, &RTV, nullptr, 0, NULL);
 	}
 	else
 	{
-		FRHIRenderTargetView RTV(Viewport->GetBackBuffer(EMetalViewportAccessRHI), ERenderTargetLoadAction::ELoad);
+		FRHIRenderTargetView RTV(Viewport->GetBackBuffer(EMetalViewportAccessRHI), GIsEditor ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 		RHISetRenderTargets(1, &RTV, nullptr, 0, NULL);
 	}
 	}

@@ -23,6 +23,9 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"InputCore",
+					"Sockets",
+					"Networking",
+					"Json",
 				}
 			);
 
@@ -34,6 +37,7 @@ namespace UnrealBuildTool.Rules
 						"EditorStyle",
 						"LevelEditor",
 						"UnrealEd",
+						"EditorSubsystem",
 					}
 				);
 			}

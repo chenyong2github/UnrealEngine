@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"D3D11RHI",
                     "Engine",
                     "MediaUtils",
 					"Projects",
@@ -26,6 +25,11 @@ namespace UnrealBuildTool.Rules
 					"UtilityShaders",
                     "WmfMediaFactory",
                 });
+
+            if (Target.Platform != UnrealTargetPlatform.XboxOne)
+            {
+                PrivateDependencyModuleNames.Add("D3D11RHI");
+            }
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {

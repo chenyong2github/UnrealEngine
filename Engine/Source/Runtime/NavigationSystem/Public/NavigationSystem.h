@@ -114,7 +114,7 @@ public:
 
 protected:
 	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category = Navigation)
-	TSubclassOf<UCrowdManagerBase> CrowdManagerClass;
+	TSoftClassPtr<UCrowdManagerBase> CrowdManagerClass;
 
 	/** Should navigation system spawn default Navigation Data when there's none and there are navigation bounds present? */
 	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
@@ -240,8 +240,8 @@ public:
 
 	/** Generates a random location in navigable space within given radius of Origin.
 	 *	@return Return Value represents if the call was successful */
-	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius", ScriptName = "GetRandomPointInNavigableRadius"))
-	static bool K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
+	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomLocationInNavigableRadius", ScriptName = "GetRandomLocationInNavigableRadius"))
+	static bool K2_GetRandomLocationInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
 	
 	/** Potentially expensive. Use with caution. Consider using UPathFollowingComponent::GetRemainingPathCost instead */
 	UFUNCTION(BlueprintPure, Category="AI|Navigation", meta=(WorldContext="WorldContextObject" ) )
@@ -585,22 +585,15 @@ public:
 	const FNavigationOctree* GetNavOctree() const { return NavOctree.Get(); }
 	FNavigationOctree* GetMutableNavOctree() { return NavOctree.Get(); }
 
-	// coppied from GetObjectOuterHash
-	FORCEINLINE static uint64 HashObject(const UObject& Object)
+	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{
-		//return ((Object.GetFName().GetComparisonIndex() ^ Object.GetFName().GetNumber()) ^ (PTRINT(Object.GetOuter()) >> 6));
-		// temp fix for FORT-129586, it seems like the above hashing function is not good enough.
-		return reinterpret_cast<uint64>(&Object);
+		return Object.GetUniqueID();
 	}
 	FORCEINLINE void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId Id) { ObjectToOctreeId.Add(HashObject(Object), Id); }
 	FORCEINLINE const FOctreeElementId* GetObjectsNavOctreeId(const UObject& Object) const { return ObjectToOctreeId.Find(HashObject(Object)); }
 	FORCEINLINE bool HasPendingObjectNavOctreeId(UObject* Object) const { return PendingOctreeUpdates.Contains(FNavigationDirtyElement(Object)); }
-	FORCEINLINE	void RemoveObjectsNavOctreeId(const UObject& Object) { ObjectToOctreeId.Remove(HashObject(Object)); }
+	FORCEINLINE void RemoveObjectsNavOctreeId(const UObject& Object) { ObjectToOctreeId.Remove(HashObject(Object)); }
 
-	/*FORCEINLINE void SetObjectsNavOctreeId(UObject* Object, FOctreeElementId Id) { ObjectToOctreeId.Add(HashObject(Object), Id); }
-	FORCEINLINE const FOctreeElementId* GetObjectsNavOctreeId(const UObject* Object) const { return ObjectToOctreeId.Find(HashObject(Object)); }
-	FORCEINLINE bool HasPendingObjectNavOctreeId(UObject* Object) const { return PendingOctreeUpdates.Contains(FNavigationDirtyElement(Object)); }
-	FORCEINLINE	void RemoveObjectsNavOctreeId(UObject* Object) { ObjectToOctreeId.Remove(HashObject(Object)); }*/
 	void RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags);
 
 	const FNavigationRelevantData* GetDataForObject(const UObject& Object) const;
@@ -707,6 +700,9 @@ protected:
 
 	/** spawn new crowd manager */
 	virtual void UpdateAbstractNavData();
+
+	/** Called when ConditionalPopulateNavOctree processes each Actor */
+	virtual void ConditionalPopulateNavOctreeActor(AActor& Actor);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
@@ -813,7 +809,7 @@ protected:
 
 	TMap<FNavAgentProperties, TWeakObjectPtr<ANavigationData> > AgentToNavDataMap;
 	
-	TMap<uint64, FOctreeElementId> ObjectToOctreeId;
+	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
 
 	/** Map of all objects that are tied to indexed navigation parent */
 	TMultiMap<UObject*, FWeakObjectPtr> OctreeChildNodesMap;
@@ -996,6 +992,9 @@ public:
 	static TSubclassOf<UNavAreaBase> GetDefaultWalkableArea() { return FNavigationSystem::GetDefaultWalkableArea(); }
 	UE_DEPRECATED(4.20, "UNavigationSystem::GetDefaultObstacleArea is deprecated. Use FNavigationSystem::GetDefaultObstacleArea instead")
 	static TSubclassOf<UNavAreaBase> GetDefaultObstacleArea() { return FNavigationSystem::GetDefaultObstacleArea(); }
+	UE_DEPRECATED(4.22, "This version is deprecated.  Please use GetRandomLocationInNavigableRadius instead")
+	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius", ScriptName = "GetRandomPointInNavigableRadius"))
+	static bool K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
 };
 
 //----------------------------------------------------------------------//

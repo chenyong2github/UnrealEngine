@@ -85,6 +85,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	TempUint32 = Settings.DiffuseConvolveMipLevel; Ar << TempUint32;
 	TempUint32 = Settings.SharpenMipKernelSize; Ar << TempUint32;
 	// NOTE: TextureFormatName is not stored in the key here.
+	// NOTE: bHDRSource is not stored in the key here.
 	TempByte = Settings.MipGenSettings; Ar << TempByte;
 	TempByte = Settings.bCubemap; Ar << TempByte;
 	TempByte = Settings.bSRGB ? (Settings.bSRGB | ( Settings.bUseLegacyGamma ? 0 : 0x2 )) : 0; Ar << TempByte;
@@ -273,6 +274,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.bReplicateRed = false;
 	OutBuildSettings.bVolume = false;
 	OutBuildSettings.bCubemap = false;
+	OutBuildSettings.bHDRSource = Texture.HasHDRSource();
 
 	if (Texture.MaxTextureSize > 0)
 	{
@@ -828,7 +830,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 			{
 				OutMipData[MipIndex - FirstMipToLoad] = FMemory::Malloc(Mip.BulkData.GetBulkDataSize());
 
-#if PLATFORM_SUPPORTS_TEXTURE_STREAMING
+#if PLATFORM_SUPPORTS_TEXTURE_STREAMING && !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 				// We want to make sure that any non-streamed mips are coming from the texture asset file, and not from an external bulk file.
 				// But because "r.TextureStreaming" is driven by the project setting as well as the command line option "-NoTextureStreaming", 
 				// is it possible for streaming mips to be loaded in non streaming ways.

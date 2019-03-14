@@ -3,6 +3,7 @@
 #include "SocialManager.h"
 #include "SocialToolkit.h"
 #include "SocialSettings.h"
+#include "SocialDebugTools.h"
 
 #include "Interactions/CoreInteractions.h"
 #include "Interactions/PartyInteractions.h"
@@ -200,6 +201,12 @@ void USocialManager::InitSocialManager()
 	{
 		HandleWorldEstablished(World);
 	}
+
+#if !UE_SERVER && !UE_BUILD_SHIPPING
+	SocialDebugTools = NewObject<USocialDebugTools>(this);
+	check(SocialDebugTools);
+#endif
+
 }
 
 void USocialManager::ShutdownSocialManager()
@@ -226,6 +233,12 @@ void USocialManager::ShutdownSocialManager()
 	ShutdownPartiesFunc(LeavingPartiesByTypeId);
 
 	RejoinableParty.Reset();
+
+	if (SocialDebugTools)
+	{
+		SocialDebugTools->Shutdown();
+		SocialDebugTools = nullptr;
+	}
 
 	// We could have outstanding OSS queries and requests, and we are no longer interested in getting any callbacks triggered
 	MarkPendingKill();
@@ -715,7 +728,7 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 		if (NewParty->IsPersistentParty())
 		{
 			NewParty->OnPartyStateChanged().AddUObject(this, &USocialManager::HandlePersistentPartyStateChanged, NewParty);
-			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty);
+			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty->GetOssPartyPreviousState(), NewParty);
 		}
 
 		return NewParty;
@@ -757,7 +770,7 @@ USocialParty* USocialManager::GetPartyInternal(const FOnlinePartyId& PartyId, bo
 	return nullptr;
 }
 
-TSharedPtr<IOnlinePartyJoinInfo> USocialManager::GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession)
+TSharedPtr<const IOnlinePartyJoinInfo> USocialManager::GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession)
 {
 	static const FName JoinInfoSettingName = PLATFORM_XBOXONE ? SETTING_CUSTOM_JOIN_INFO : SETTING_CUSTOM;
 
@@ -922,13 +935,18 @@ void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, co
 	}
 }
 
-void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, USocialParty* PersistentParty)
+void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty)
 {
 	UE_LOG(LogParty, Verbose, TEXT("Persistent party state changed to %s"), ToString(NewState));
 
 	if (NewState == EPartyState::Disconnected)
 	{
 		bIsConnectedToPartyService = false;
+		
+		if (PreviousState == EPartyState::Active)
+		{
+			PersistentParty->LeaveParty();
+		}
 
 		// If we have other members in our party, then we will try to rejoin this when we come back online
 		if (!RejoinableParty.IsValid() && PersistentParty->ShouldCacheForRejoinOnDisconnect())
@@ -1052,4 +1070,23 @@ void USocialManager::HandleFindSessionForJoinComplete(bool bWasSuccessful, const
 			FinishJoinPartyAttempt(*JoinAttempt, FJoinPartyResult(EPartyJoinDenialReason::TargetUserMissingPlatformSession));
 		}
 	}
+}
+
+bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
+{
+	if (FParse::Command(&Cmd, TEXT("SOCIAL")))
+	{
+		if (SocialDebugTools &&
+			SocialDebugTools->Exec(InWorld, Cmd, Out))
+		{
+			return true;
+		}
+		return true;
+	}
+	return false;
+}
+
+USocialDebugTools* USocialManager::GetDebugTools() const
+{
+	return SocialDebugTools;
 }

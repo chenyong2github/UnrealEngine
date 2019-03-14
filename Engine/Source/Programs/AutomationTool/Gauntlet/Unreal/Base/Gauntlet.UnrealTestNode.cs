@@ -64,6 +64,11 @@ namespace Gauntlet
 		public IEnumerable<UnrealRoleArtifacts> SessionArtifacts { get; private set; }
 
 		/// <summary>
+		/// Whether we submit to the dashboard
+		/// </summary>
+		public virtual bool ShouldSubmitDashboardResult { get { return CommandUtils.IsBuildMachine; } }
+
+		/// <summary>
 		/// Helper class that turns our wishes into reallity
 		/// </summary>
 		protected UnrealSession UnrealApp;
@@ -536,21 +541,23 @@ namespace Gauntlet
 
 			try
 			{
-                // Basic pre-existing directory check.
-                if (!Globals.Params.ParseParam("dev") && Directory.Exists(OutputPath))
-                {
-                    string NewOutputPath = OutputPath;
-                    int i = 0;
-                    while (Directory.Exists(NewOutputPath))
-                    {
-                        i++;
-                        NewOutputPath = string.Format("{0}_{1}", OutputPath, i);
-                    }
-                    Log.Info("Directory already exists at {0}", OutputPath);
-                    OutputPath = NewOutputPath;
-                }
+				// Basic pre-existing directory check.
+				if (CommandUtils.IsBuildMachine && Directory.Exists(OutputPath))
+				{
+					string NewOutputPath = OutputPath;
+					int i = 0;
+					while (Directory.Exists(NewOutputPath))
+					{
+						i++;
+						NewOutputPath = string.Format("{0}_{1}", OutputPath, i);
+					}
+					Log.Info("Directory already exists at {0}", OutputPath);
+					OutputPath = NewOutputPath;
+				}
 				Log.Info("Saving artifacts to {0}", OutputPath);
 				Directory.CreateDirectory(OutputPath);
+				Utils.SystemHelpers.MarkDirectoryForCleanup(OutputPath);
+
 				SessionArtifacts = SaveRoleArtifacts(OutputPath);
 
 				// call legacy version
@@ -563,11 +570,30 @@ namespace Gauntlet
 
 			try
 			{
+				// Artifacts have been saved, release devices back to pool for other tests to use
+				UnrealApp.ReleaseDevices();
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Failed to release devices. {0}", Ex);
+			}
+
+			try
+			{
 				CreateReport(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, OutputPath);
 			}
 			catch (Exception Ex)
 			{
 				Log.Warning("Failed to save completion report. {0}", Ex);
+			}
+
+			try
+			{
+				SubmitToDashboard(GetTestResult(), Context, Context.BuildInfo, SessionArtifacts, OutputPath);
+			}
+			catch (Exception Ex)
+			{
+				Log.Warning("Failed to submit results to dashboard. {0}", Ex);
 			}
 		}
 
@@ -578,6 +604,16 @@ namespace Gauntlet
 		/// <param name="Contex"></param>
 		/// <param name="Build"></param>
 		public virtual void CreateReport(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
+		{
+		}
+
+		/// <summary>
+		/// Optional function that is called on test completion and gives an opportunity to create a report
+		/// </summary>
+		/// <param name="Result"></param>
+		/// <param name="Contex"></param>
+		/// <param name="Build"></param>
+		public virtual void SubmitToDashboard(TestResult Result, UnrealTestContext Contex, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
 		{
 		}
 
@@ -602,7 +638,7 @@ namespace Gauntlet
 		/// <param name="Node"></param>
 		/// <param name="OutputPath"></param>
 		/// <returns></returns>
-		public IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
+		public virtual IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
 		{
 			CachedArtifactPath = OutputPath;
 			return UnrealApp.SaveRoleArtifacts(Context, TestInstance, CachedArtifactPath);
@@ -826,6 +862,23 @@ namespace Gauntlet
 
 			Summary = MB.ToString();
 			return ExitCode;
+		}
+
+		/// <summary>
+		/// Returns the current Pass count for this node
+		/// </summary>
+		public int GetCurrentPass()
+		{
+			return CurrentPass;
+		}
+
+		/// <summary>
+		/// Returns the current total Pass count for this node
+		/// </summary>
+		/// <returns></returns>
+		public int GetNumPasses()
+		{
+			return NumPasses;
 		}
 
 		/// <summary>

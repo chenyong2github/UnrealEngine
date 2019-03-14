@@ -57,6 +57,8 @@ public:
 	*/
 	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
 
+	void SerializeMetaData(FArchive& Ar);
+
 	/**
 	* Export the data to a string, used for editor Copy&Paste.
 	* The method must not be called if there is no data.
@@ -132,6 +134,36 @@ public:
 		InitFromColorArray(&InColor, Count, 0);
 	}
 
+	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateRHIBuffer_Async();
+
+	/** Set whether this buffer is managed by the streamer. Must be set before InitRHI is called */
+	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
+
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	template <int32 MaxNumUpdates>
+	void InitRHIForStreaming(FVertexBufferRHIParamRef IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		check(!VertexBufferRHI);
+		if (IntermediateBuffer)
+		{
+			check(ColorComponentsSRV);
+			VertexBufferRHI = IntermediateBuffer;
+			Batcher.QueueUpdateRequest(ColorComponentsSRV, VertexBufferRHI, 4, PF_R8G8B8A8);
+		}
+	}
+
+	template <int32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (ColorComponentsSRV)
+		{
+			Batcher.QueueUpdateRequest(ColorComponentsSRV, nullptr, 0, 0);
+		}
+		FVertexBuffer::ReleaseRHI();
+	}
+
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
@@ -168,8 +200,13 @@ private:
 
 	bool NeedsCPUAccess = true;
 
+	bool bStreamed;
+
 	/** Allocates the vertex data storage type. */
 	void AllocateData(bool bNeedsCPUAccess = true);
+
+	template <bool bRenderThread>
+	FVertexBufferRHIRef CreateRHIBuffer_Internal();
 
 	/** Purposely hidden */
 	ENGINE_API FColorVertexBuffer(const FColorVertexBuffer &rhs);

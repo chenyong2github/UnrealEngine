@@ -82,7 +82,7 @@ bool FLinkerLoad::ShouldCreateThrottledSlowTask() const
 #endif
 
 
-static int32 GAllowCookedDataInEditorBuilds = 0;
+int32 GAllowCookedDataInEditorBuilds = 0;
 static FAutoConsoleVariableRef CVarAllowCookedDataInEditorBuilds(
 	TEXT("cook.AllowCookedDataInEditorBuilds"),
 		GAllowCookedDataInEditorBuilds,
@@ -554,8 +554,10 @@ void FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* 
 		ObjExport.Object = NewObject;
 
 		// If the object was in the ObjLoaded queue (exported, but not yet serialized), swap out for our new object
-		check(OldObjectLinker->GetSerializeContext());
-		OldObjectLinker->GetSerializeContext()->PRIVATE_PatchNewObjectIntoExport(OldObject, NewObject);
+		if(OldObjectLinker->GetSerializeContext())
+		{
+			OldObjectLinker->GetSerializeContext()->PRIVATE_PatchNewObjectIntoExport(OldObject, NewObject);
+		}
 	}
 }
 
@@ -640,7 +642,15 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 
 void FLinkerLoad::SetSerializeContext(FUObjectSerializeContext* InLoadContext)
 {
+	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
+	{
+		CurrentLoadContext->DetachLinker(this);
+	}
 	CurrentLoadContext = InLoadContext;
+	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
+	{
+		CurrentLoadContext->AttachLinker(this);
+	}
 }
 FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 {
@@ -862,6 +872,12 @@ FLinkerLoad::~FLinkerLoad()
 
 	// Detaches linker.
 	Detach();
+
+	// Detach the serialize context
+	if (GetSerializeContext())
+	{
+		SetSerializeContext(nullptr);
+	}
 
 	DEC_DWORD_STAT(STAT_LiveLinkerCount);
 
@@ -3011,6 +3027,12 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			return true;
 		}
 	}
+
+	if (!GEventDrivenLoaderEnabled && Import.SourceLinker && !Import.SourceLinker->GetSerializeContext())
+	{
+		Import.SourceLinker->SetSerializeContext(GetSerializeContext());
+	}
+
 	return false;
 }
 
@@ -4522,6 +4544,10 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 			{
 				VerifyImportResult = VerifyImport(Index);
 			}
+			else if (!GEventDrivenLoaderEnabled && !Import.SourceLinker->GetSerializeContext())
+			{
+				Import.SourceLinker->SetSerializeContext(GetSerializeContext());
+			}
 			if(Import.SourceIndex != INDEX_NONE)
 			{
 				check(Import.SourceLinker);
@@ -4569,7 +4595,7 @@ UObject* FLinkerLoad::IndexToObject( FPackageIndex Index )
 	{
 		#if PLATFORM_DESKTOP
 			// Show a message box indicating, possible, corrupt data (desktop platforms only)
-			if ( !ExportMap.IsValidIndex( Index.ToExport() ) )
+			if ( !ExportMap.IsValidIndex( Index.ToExport() ) && !FApp::IsUnattended() )
 			{
 				FText ErrorMessage, ErrorCaption;
 				GConfig->GetText(TEXT("/Script/Engine.Engine"),
@@ -4604,7 +4630,7 @@ UObject* FLinkerLoad::IndexToObject( FPackageIndex Index )
 	{
 		#if PLATFORM_DESKTOP
 			// Show a message box indicating, possible, corrupt data (desktop platforms only)
-			if ( !ImportMap.IsValidIndex( Index.ToImport() ) )
+			if ( !ImportMap.IsValidIndex( Index.ToImport() ) && !FApp::IsUnattended() )
 			{
 				FText ErrorMessage, ErrorCaption;
 				GConfig->GetText(TEXT("/Script/Engine.Engine"),
@@ -4709,9 +4735,8 @@ void FLinkerLoad::Detach()
 
 	// Remove from object manager, if it has been added.
 	FLinkerManager::Get().RemoveLoaderFromObjectLoadersAndLoadersWithNewImports(this);
-	if (!FPlatformProperties::HasEditorOnlyData())
+	if (!FPlatformProperties::HasEditorOnlyData() && CurrentLoadContext)
 	{
-		check(CurrentLoadContext);
 		CurrentLoadContext->RemoveDelayedLinkerClosePackage(this);
 	}
 

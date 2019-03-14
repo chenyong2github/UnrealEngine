@@ -105,7 +105,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	}
 	else
 	{
-		VERIFYD3D12RESULT(Device->GetDefaultBufferAllocator().AllocDefaultResource(InDesc, ResourceLocation, Alignment));
+		Device->GetDefaultBufferAllocator().AllocDefaultResource(InDesc, InUsage, ResourceLocation, Alignment, CreateInfo.DebugName);
 		check(ResourceLocation.GetSize() == Size);
 	}
 }
@@ -222,20 +222,50 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 				}
 			};
 			
-			if (RHICmdList && !RHICmdList->Bypass())
+			if (!RHICmdList)
 			{
-				ALLOC_COMMAND_CL(*RHICmdList, FD3D12RHICommandInitializeBuffer)(BufferOut, SrcResourceLoc, Size);
+				// Need to update buffer content on RHI thread (immediate context) because the buffer can be a
+				// sub-allocation and its backing resource may be in a state incompatible with the copy queue.
+				// TODO:
+				// Create static buffers in COMMON state, rely on state promotion/decay to avoid transition barriers,
+				// and initialize them asynchronously on the copy queue. D3D12 buffers always allow simultaneous acess
+				// so it is legal to write to a region on the copy queue while other non-overlapping regions are
+				// being read on the graphics/compute queue. Currently, d3ddebug throws error for such usage.
+				// Once Microsoft (via Windows update) fix the debug layer, async static buffer initialization should
+				// be done on the copy queue.
+				FD3D12ResourceLocation* SrcResourceLoc_Heap = new FD3D12ResourceLocation(SrcResourceLoc.GetParentDevice());
+				FD3D12ResourceLocation::TransferOwnership(*SrcResourceLoc_Heap, SrcResourceLoc);
+				ENQUEUE_RENDER_COMMAND(CmdD3D12InitializeBuffer)(
+					[BufferOut, SrcResourceLoc_Heap, Size](FRHICommandListImmediate& RHICmdList)
+				{
+					if (RHICmdList.Bypass())
+					{
+						FD3D12RHICommandInitializeBuffer Command(BufferOut, *SrcResourceLoc_Heap, Size);
+						Command.ExecuteNoCmdList();
+					}
+					else
+					{
+						new (RHICmdList.AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(BufferOut, *SrcResourceLoc_Heap, Size);
+					}
+					delete SrcResourceLoc_Heap;
+				});
 			}
-			else
+			else if (RHICmdList->Bypass())
 			{
 				FD3D12RHICommandInitializeBuffer Command(BufferOut, SrcResourceLoc, Size);
 				Command.ExecuteNoCmdList();
+			}
+			else
+			{
+				new (RHICmdList->AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(BufferOut, SrcResourceLoc, Size);
 			}
 		}
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
 	}
+
+	UpdateBufferStats<BufferType>(&BufferOut->ResourceLocation, true);
 
 	return BufferOut;
 }
@@ -298,7 +328,7 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, BufferT
 			FD3D12Resource* StagingBuffer = nullptr;
 
 			const FRHIGPUMask Node = Device->GetGPUMask();
-			VERIFYD3D12RESULT(Adapter.CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, Offset + Size, &StagingBuffer));
+			VERIFYD3D12RESULT(Adapter.CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, Offset + Size, &StagingBuffer, nullptr));
 
 			// Copy the contents of the buffer to the staging buffer.
 			{
@@ -307,7 +337,7 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, BufferT
 					FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 
 					FD3D12CommandListHandle& hCommandList = DefaultContext.CommandListHandle;
-					FScopeResourceBarrier ScopeResourceBarrierSource(hCommandList, pResource, pResource->GetDefaultResourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+					FConditionalScopeResourceBarrier ScopeResourceBarrierSource(hCommandList, pResource, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
 					// Don't need to transition upload heaps
 
 					uint64 SubAllocOffset = Buffer->ResourceLocation.GetOffsetFromBaseOfResource();

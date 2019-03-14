@@ -782,12 +782,41 @@ int32 FUnixPlatformStackWalk::GetProcessModuleSignatures(FStackWalkModuleInfo *M
 	return Signatures.Index;
 }
 
-thread_local const TCHAR* GAssertErrorMessage = nullptr;
+thread_local const TCHAR* GCrashErrorMessage = nullptr;
+thread_local ECrashContextType GCrashErrorType = ECrashContextType::Crash;
 
 void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 {
-	GAssertErrorMessage = ErrorMessage;
-	FPlatformMisc::RaiseException(1);
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::Assert;
+
+	// Store NumStackFramesToIgnore in signal data	
+	sigval UserData;
+	UserData.sival_int = NumStackFramesToIgnore + 2; // +2 for this function and sigqueue()
+	sigqueue(getpid(),  SIGSEGV, UserData);
+	
+	// Make sure we never return
+	for (;;)
+	{
+		FPlatformProcess::Sleep(60.0f);
+	}
+}
+
+void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+{
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::GPUCrash;
+
+	// Store NumStackFramesToIgnore in signal data	
+	sigval UserData;
+	UserData.sival_int = NumStackFramesToIgnore + 2; // +2 for this function and sigqueue()
+	sigqueue(getpid(),  SIGSEGV, UserData);
+	
+	// Make sure we never return
+	for (;;)
+	{
+		FPlatformProcess::Sleep(60.0f);
+	}
 }
 
 static FCriticalSection EnsureLock;
@@ -823,7 +852,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 	{
 		bReentranceGuard = true;
 
-		FUnixCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
+		FUnixCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
 		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
 		EnsureContext.GenerateCrashInfoAndLaunchReporter(true);
 

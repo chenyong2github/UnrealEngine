@@ -15,6 +15,7 @@
 #include "KeysAndChannels/MovieSceneScriptingString.h"
 #include "KeysAndChannels/MovieSceneScriptingEvent.h"
 #include "KeysAndChannels/MovieSceneScriptingActorReference.h"
+#include "Sections/MovieSceneSubSection.h"
 
 
 FSequencerScriptingRange UMovieSceneSectionExtensions::GetRange(UMovieSceneSection* Section)
@@ -75,18 +76,47 @@ float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Secti
 	return -1.f;
 }
 
-void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, const FSequencerScriptingRange& InRange)
+void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 StartFrame, int32 EndFrame)
 {
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
-	TRange<FFrameNumber> NewRange = InRange.ToNative(MovieScene->GetTickResolution());
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-	if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
-	{
-		Section->SetRange(NewRange);
+		TRange<FFrameNumber> NewRange;
+		NewRange.SetLowerBound(TRangeBound<FFrameNumber>::Inclusive(ConvertFrameTime(StartFrame, DisplayRate, MovieScene->GetTickResolution()).FrameNumber));
+		NewRange.SetUpperBound(TRangeBound<FFrameNumber>::Exclusive(ConvertFrameTime(EndFrame, DisplayRate, MovieScene->GetTickResolution()).FrameNumber));
+
+		if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
+		{
+			Section->SetRange(NewRange);
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		}
 	}
-	else
+}
+
+void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, float StartTime, float EndTime)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+		TRange<FFrameNumber> NewRange;
+		NewRange.SetLowerBound((StartTime * MovieScene->GetTickResolution()).RoundToFrame());
+		NewRange.SetUpperBound((EndTime * MovieScene->GetTickResolution()).RoundToFrame());
+
+		if (NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue())
+		{
+			Section->SetRange(NewRange);
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+		}
 	}
 }
 
@@ -110,6 +140,28 @@ void UMovieSceneSectionExtensions::SetStartFrameSeconds(UMovieSceneSection* Sect
 	}
 }
 
+void UMovieSceneSectionExtensions::SetStartFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		if (bIsBounded)
+		{
+			int32 NewFrameNumber = 0;
+			if (!MovieScene->GetPlaybackRange().GetLowerBound().IsOpen())
+			{
+				NewFrameNumber = MovieScene->GetPlaybackRange().GetLowerBoundValue().Value;
+			}
+
+			Section->SectionRange.Value.SetLowerBound(TRangeBound<FFrameNumber>(FFrameNumber(NewFrameNumber)));
+		}
+		else
+		{
+			Section->SectionRange.Value.SetLowerBound(TRangeBound<FFrameNumber>());
+		}
+	}
+}
+
 void UMovieSceneSectionExtensions::SetEndFrame(UMovieSceneSection* Section, int32 EndFrame)
 {
 	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
@@ -127,6 +179,28 @@ void UMovieSceneSectionExtensions::SetEndFrameSeconds(UMovieSceneSection* Sectio
 	if (MovieScene)
 	{
 		Section->SetEndFrame((EndTime * MovieScene->GetTickResolution()).RoundToFrame());
+	}
+}
+
+void UMovieSceneSectionExtensions::SetEndFrameBounded(UMovieSceneSection* Section, bool bIsBounded)
+{
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		if (bIsBounded)
+		{
+			int32 NewFrameNumber = 0;
+			if (!MovieScene->GetPlaybackRange().GetUpperBound().IsOpen())
+			{
+				NewFrameNumber = MovieScene->GetPlaybackRange().GetUpperBoundValue().Value;
+			}
+
+			Section->SectionRange.Value.SetUpperBound(TRangeBound<FFrameNumber>(FFrameNumber(NewFrameNumber)));
+		}
+		else
+		{
+			Section->SectionRange.Value.SetUpperBound(TRangeBound<FFrameNumber>());
+		}
 	}
 }
 
@@ -199,4 +273,52 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::FindChannelsB
 
 
 	return Channels;
+}
+
+
+bool GetSubSectionChain(UMovieSceneSubSection* InSubSection, UMovieSceneSequence* ParentSequence, TArray<UMovieSceneSubSection*>& SubSectionChain)
+{
+	UMovieScene* ParentMovieScene = ParentSequence->GetMovieScene();
+	for (UMovieSceneTrack* MasterTrack : ParentMovieScene->GetMasterTracks())
+	{
+		for (UMovieSceneSection* Section : MasterTrack->GetAllSections())
+		{
+			if (Section == InSubSection)
+			{
+				SubSectionChain.Add(InSubSection);
+				return true;
+			}
+			if (Section->IsA(UMovieSceneSubSection::StaticClass()))
+			{
+				UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
+				if (GetSubSectionChain(InSubSection, SubSection->GetSequence(), SubSectionChain))
+				{
+					SubSectionChain.Add(SubSection);
+				}
+			}
+		}
+	}
+	return false;
+}
+
+
+int32 UMovieSceneSectionExtensions::GetParentSequenceFrame(UMovieSceneSubSection* InSubSection, int32 InFrame, UMovieSceneSequence* ParentSequence)
+{
+	TArray<UMovieSceneSubSection*> SubSectionChain;
+	GetSubSectionChain(InSubSection, ParentSequence, SubSectionChain);
+		
+	FFrameRate LocalDisplayRate = InSubSection->GetSequence()->GetMovieScene()->GetDisplayRate();
+	FFrameRate LocalTickResolution = InSubSection->GetSequence()->GetMovieScene()->GetTickResolution();
+	FFrameTime LocalFrameTime = ConvertFrameTime(InFrame, LocalDisplayRate, LocalTickResolution);
+		
+	for (int32 SectionIndex = 0; SectionIndex < SubSectionChain.Num(); ++SectionIndex)
+	{
+		LocalFrameTime = LocalFrameTime * SubSectionChain[SectionIndex]->OuterToInnerTransform().Inverse();
+	}
+
+	FFrameRate ParentDisplayRate = ParentSequence->GetMovieScene()->GetDisplayRate();
+	FFrameRate ParentTickResolution = ParentSequence->GetMovieScene()->GetTickResolution();
+
+	LocalFrameTime = ConvertFrameTime(LocalFrameTime, ParentTickResolution, ParentDisplayRate);
+	return LocalFrameTime.GetFrame().Value;
 }

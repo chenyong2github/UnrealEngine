@@ -20,6 +20,7 @@
 URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	Visibility = ESlateVisibility::SelfHitTestInvisible;
 }
 
 void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
@@ -41,7 +42,7 @@ TSharedRef<SWidget> URichTextBlock::RebuildWidget()
 
 	MyRichTextBlock =
 		SNew(SRichTextBlock)
-		.TextStyle(&DefaultTextStyle)
+		.TextStyle(bOverrideDefaultStyle ? &DefaultTextStyleOverride : &DefaultTextStyle)
 		.Marshaller(Marshaller);
 	
 	return MyRichTextBlock.ToSharedRef();
@@ -112,6 +113,12 @@ const FTextBlockStyle& URichTextBlock::GetDefaultTextStyle() const
 	return DefaultTextStyle;
 }
 
+const FTextBlockStyle& URichTextBlock::GetCurrentDefaultTextStyle() const
+{
+	ensure(StyleInstance.IsValid());
+	return bOverrideDefaultStyle ? DefaultTextStyleOverride : DefaultTextStyle;
+}
+
 URichTextBlockDecorator* URichTextBlock::GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass)
 {
 	for (URichTextBlockDecorator* Decorator : InstanceDecorators)
@@ -150,6 +157,16 @@ TSharedPtr< IRichTextMarkupWriter > URichTextBlock::CreateMarkupWriter()
 	return FDefaultRichTextMarkupWriter::Create();
 }
 
+void URichTextBlock::BeginDefaultStyleOverride()
+{
+	if (!bOverrideDefaultStyle)
+	{
+		// If we aren't already overriding, make sure override style starts off matching the existing default
+		bOverrideDefaultStyle = true;
+		DefaultTextStyleOverride = DefaultTextStyle;
+	}
+}
+
 #if WITH_EDITOR
 
 const FText URichTextBlock::GetPaletteCategory()
@@ -163,6 +180,93 @@ void URichTextBlock::OnCreationFromPalette()
 }
 
 #endif
+
+void URichTextBlock::SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride = InDefaultTextStyle;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+void URichTextBlock::ClearAllDefaultStyleOverrides()
+{
+	if (bOverrideDefaultStyle)
+	{
+		bOverrideDefaultStyle = false;
+		ApplyUpdatedDefaultTextStyle();
+	}
+}
+
+void URichTextBlock::SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.ColorAndOpacity = InColorAndOpacity;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+
+void URichTextBlock::SetDefaultShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.ShadowColorAndOpacity = InShadowColorAndOpacity;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+void URichTextBlock::SetDefaultShadowOffset(FVector2D InShadowOffset)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.ShadowOffset = InShadowOffset;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+void URichTextBlock::SetDefaultFont(FSlateFontInfo InFontInfo)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.Font = InFontInfo;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+void URichTextBlock::SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.StrikeBrush = InStrikeBrush;
+	ApplyUpdatedDefaultTextStyle();
+}
+
+void URichTextBlock::SetJustification(ETextJustify::Type InJustification)
+{
+	Justification = InJustification;
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetJustification(InJustification);
+	}
+}
+
+void URichTextBlock::SetMinDesiredWidth(float InMinDesiredWidth)
+{
+	MinDesiredWidth = InMinDesiredWidth;
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetMinDesiredWidth(InMinDesiredWidth);
+	}
+}
+
+void URichTextBlock::SetAutoWrapText(bool InAutoTextWrap)
+{
+	AutoWrapText = InAutoTextWrap;
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetAutoWrapText(InAutoTextWrap);
+	}
+}
+
+void URichTextBlock::ApplyUpdatedDefaultTextStyle()
+{
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetTextStyle(bOverrideDefaultStyle ? DefaultTextStyleOverride : DefaultTextStyle);
+	}
+}
 
 /////////////////////////////////////////////////////
 

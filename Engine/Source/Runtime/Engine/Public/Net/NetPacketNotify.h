@@ -71,15 +71,30 @@ public:
 	/** Read header from stream */
 	bool ReadHeader(FNotificationHeader& Data, FBitReader& Reader) const;
 
-	/** Update state of PacketNotification based on received header and invoke packet notifications for received acks.
-		InFunc is a function in the format void)(FNetPacketNotify::SequenceNumberT AckedSequence, bool delivered) to handle packetNotifications.
+	/**
+	 * Gets the delta between the present sequence, and the sequence inside the specified header - if the delta is positive
+	 */
+	SequenceNumberT::DifferenceT GetSequenceDelta(const FNotificationHeader& NotificationData)
+	{
+		if (NotificationData.Seq > InSeq && NotificationData.AckedSeq >= OutAckSeq && OutSeq > NotificationData.AckedSeq)
+		{
+			return SequenceNumberT::Diff(NotificationData.Seq, InSeq);
+		}
+		else
+		{
+			return 0;
+		}
+	}
 
-		Returns the positive delta of the incoming seq number if it is within half the sequence number space
-		Returns 0 if the received sequence number is out of the current window or if the acknowledged seq received by the remote is invalid.
+	/**
+	 * Update state of PacketNotification based on received header and invoke packet notifications for received acks.
+	 *
+	 * @param NotificationData			The header to update from
+	 * @param InFunc					A function in the format (void)(FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered) to handle packet notifications.
+	 * @return							The > 0 delta of the incoming seq if within half the seq number space. 0 if the received seq is outside current window ,or the ack seq received is invalid.
 	*/
 	template<class Functor>
 	SequenceNumberT::DifferenceT Update(const FNotificationHeader& NotificationData, Functor&& InFunc);
-
 	/** Get the current SequenceHistory */
 	const SequenceHistoryT& GetInSeqHistory() const { return InSeqHistory; }
 
@@ -138,12 +153,12 @@ private:
 template<class Functor>
 FNetPacketNotify::SequenceNumberT::DifferenceT FNetPacketNotify::Update(const FNotificationHeader& NotificationData, Functor&& InFunc)
 {
-	if (NotificationData.Seq > InSeq && NotificationData.AckedSeq >= OutAckSeq)
+	const SequenceNumberT::DifferenceT InSeqDelta = GetSequenceDelta(NotificationData);
+
+	if (InSeqDelta > 0)
 	{
 		UE_LOG_PACKET_NOTIFY(TEXT("FNetPacketNotify::Update - Seq %u, InSeq %u"), NotificationData.Seq.Get(), InSeq.Get());
-
-		const SequenceNumberT::DifferenceT InSeqDelta = SequenceNumberT::Diff(NotificationData.Seq, InSeq);
-
+	
 		ProcessReceivedAcks(NotificationData, InFunc);
 
 		// accept sequence

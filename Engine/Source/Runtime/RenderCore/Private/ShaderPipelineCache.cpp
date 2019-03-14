@@ -24,6 +24,7 @@
 #include "TickableObjectRenderThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Async/AsyncFileHandle.h"
+#include "Misc/ScopeLock.h"
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Outstanding Tasks"), STAT_ShaderPipelineTaskCount, STATGROUP_PipelineStateCache );
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Waiting Tasks"), STAT_ShaderPipelineWaitingTaskCount, STATGROUP_PipelineStateCache );
@@ -43,6 +44,18 @@ namespace FShaderPipelineCacheConstants
 	static TCHAR const* SortOrderKey = TEXT("SortOrder");
 	static TCHAR const* GameVersionKey = TEXT("GameVersion");
 }
+
+
+static TAutoConsoleVariable<int32> CVarPSOFileCacheStartupMode(
+														  TEXT("r.ShaderPipelineCache.StartupMode"),
+														  1,
+														  TEXT("Sets the startup mode for the PSO cache, determining what the cache does after initialisation:\n")
+														  TEXT("\t0: Precompilation is paused and nothing will compile until a call to ResumeBatching().\n")
+														  TEXT("\t1: Precompilation is enabled in the 'Fast' mode.\n")
+														  TEXT("\t2: Precompilation is enabled in the 'Background' mode.\n")
+														  TEXT("Default is 1."),
+														  ECVF_Default | ECVF_RenderThreadSafe
+														  );
 
 static TAutoConsoleVariable<int32> CVarPSOFileCacheBackgroundBatchSize(
 														  TEXT("r.ShaderPipelineCache.BackgroundBatchSize"),
@@ -528,7 +541,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 	{
 		FGraphicsPipelineStateInitializer GraphicsInitializer;
 		
-		auto VertexDesc = RHICmdList.CreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
+		FRHIVertexDeclaration* VertexDesc = PipelineStateCache::GetOrCreateVertexDeclaration(PSO.GraphicsDesc.VertexDescriptor);
 		GraphicsInitializer.BoundShaderState.VertexDeclarationRHI = VertexDesc;
 		
 		FVertexShaderRHIRef VertexShader;
@@ -538,6 +551,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			GraphicsInitializer.BoundShaderState.VertexShaderRHI = VertexShader;
 		}
 
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		FHullShaderRHIRef HullShader;
 		if (PSO.GraphicsDesc.HullShader != FSHAHash())
 		{
@@ -551,7 +565,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			DomainShader = FShaderCodeLibrary::CreateDomainShader(Platform, PSO.GraphicsDesc.DomainShader, DummyCode);
 			GraphicsInitializer.BoundShaderState.DomainShaderRHI = DomainShader;
 		}
-
+#endif
 		FPixelShaderRHIRef FragmentShader;
 		if (PSO.GraphicsDesc.FragmentShader != FSHAHash())
 		{
@@ -559,13 +573,14 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			GraphicsInitializer.BoundShaderState.PixelShaderRHI = FragmentShader;
 		}
 
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		FGeometryShaderRHIRef GeometryShader;
 		if (PSO.GraphicsDesc.GeometryShader != FSHAHash())
 		{
 			GeometryShader = FShaderCodeLibrary::CreateGeometryShader(Platform, PSO.GraphicsDesc.GeometryShader, DummyCode);
 			GraphicsInitializer.BoundShaderState.GeometryShaderRHI = GeometryShader;
 		}
-		
+#endif
 		auto BlendState = RHICmdList.CreateBlendState(PSO.GraphicsDesc.BlendState);
 		GraphicsInitializer.BlendState = BlendState;
 		
@@ -1054,6 +1069,25 @@ FShaderPipelineCache::FShaderPipelineCache(EShaderPlatform Platform)
 	SET_DWORD_STAT(STAT_ShaderPipelineTaskCount, 0);
     SET_DWORD_STAT(STAT_ShaderPipelineWaitingTaskCount, 0);
     SET_DWORD_STAT(STAT_ShaderPipelineActiveTaskCount, 0);
+	
+	int32 Mode = CVarPSOFileCacheStartupMode.GetValueOnAnyThread();
+	switch (Mode)
+	{
+		case 0:
+			BatchSize = CVarPSOFileCacheBatchSize.GetValueOnAnyThread();
+			BatchTime = CVarPSOFileCacheBatchTime.GetValueOnAnyThread();
+			bPaused = true;
+			break;
+		case 2:
+			BatchSize = CVarPSOFileCacheBackgroundBatchSize.GetValueOnAnyThread();
+			BatchTime = CVarPSOFileCacheBackgroundBatchTime.GetValueOnAnyThread();
+			break;
+		case 1:
+		default:
+			BatchSize = CVarPSOFileCacheBatchSize.GetValueOnAnyThread();
+			BatchTime = CVarPSOFileCacheBatchTime.GetValueOnAnyThread();
+			break;
+	}
 	
 	BatchSize = CVarPSOFileCacheBatchSize.GetValueOnAnyThread();
 	BatchTime = CVarPSOFileCacheBatchTime.GetValueOnAnyThread();

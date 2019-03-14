@@ -37,7 +37,7 @@ FCustomPresent::FCustomPresent(class FOculusHMD* InOculusHMD, ovrpRenderAPIType 
 	CheckInGameThread();
 
 	DefaultOvrpTextureFormat = GetOvrpTextureFormat(GetDefaultPixelFormat());
-	DefaultDepthOvrpTextureFormat = bSupportsDepth ? ovrpTextureFormat_D24_S8 : ovrpTextureFormat_None;
+	DefaultDepthOvrpTextureFormat = bSupportsDepth ? ovrpTextureFormat_D32_S824_FP : ovrpTextureFormat_None;
 
 	// grab a pointer to the renderer module for displaying our mirror window
 	static const FName RendererModuleName("Renderer");
@@ -303,7 +303,7 @@ FTextureSetProxyPtr FCustomPresent::CreateTextureSetProxy_RenderThread(uint32 In
 
 
 void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef DstTexture, FTextureRHIParamRef SrcTexture,
-	FIntRect DstRect, FIntRect SrcRect, bool bAlphaPremultiply, bool bNoAlphaWrite, bool bInvertY) const
+	FIntRect DstRect, FIntRect SrcRect, bool bAlphaPremultiply, bool bNoAlphaWrite, bool bInvertY, bool sRGBSource) const
 {
 	CheckInRenderThread();
 
@@ -398,6 +398,8 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 
 	if (DstTexture2D)
 	{
+		sRGBSource &= ( ( SrcTexture->GetFlags() & TexCreate_SRGB ) != 0);
+
 		FRHIRenderPassInfo RPInfo(DstTexture, ERenderTargetActions::Load_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTexture"));
 		{
@@ -409,12 +411,22 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 			}
 
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-			TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 			FSamplerStateRHIParamRef SamplerState = DstRect.Size() == SrcRect.Size() ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
-			PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI);
+
+			if (!sRGBSource)
+			{
+				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI);
+			}
+			else
+			{
+				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				PixelShader->SetParameters(RHICmdList, SamplerState, SrcTextureRHI);
+			}
 
 			RHICmdList.SetViewport(DstRect.Min.X, DstRect.Min.Y, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
 
@@ -456,7 +468,11 @@ void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdLi
 				RendererModule->DrawRectangle(
 					RHICmdList,
 					0, 0, ViewportWidth, ViewportHeight,
+#if PLATFORM_ANDROID
 					U, V, USize, VSize,
+#else
+					U, 1.0 - V, USize, -VSize,
+#endif
 					TargetSize,
 					FIntPoint(1, 1),
 					*VertexShader,

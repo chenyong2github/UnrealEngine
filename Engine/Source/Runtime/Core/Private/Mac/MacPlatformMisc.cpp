@@ -27,6 +27,8 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 #include "Modules/ModuleManager.h"
+#include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "BuildSettings.h"
 
 #include "Apple/PreAppleSystemHeaders.h"
 #include <dlfcn.h>
@@ -629,9 +631,11 @@ int32 FMacPlatformMisc::NumberOfCores()
 		else
 		{
 			SIZE_T Size = sizeof(int32);
+			int Result = sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0);
 		
-			if (sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0) != 0)
+			if (Result != 0)
 			{
+				UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.physicalcpu...) failed with error %d. Defaulting to one core"), Result);
 				NumberOfCores = 1;
 			}
 		}
@@ -641,7 +645,19 @@ int32 FMacPlatformMisc::NumberOfCores()
 
 int32 FMacPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
-	return FApplePlatformMisc::NumberOfCores();
+	static int32 NumberOfCores = -1;
+	if (NumberOfCores == -1)
+	{
+		SIZE_T Size = sizeof(int32);
+		int Result = sysctlbyname("hw.logicalcpu", &NumberOfCores, &Size, NULL, 0);
+		
+		if (Result != 0)
+		{
+			UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.logicalcpu...) failed with error %d. Defaulting to one core"), Result);
+			NumberOfCores = 1;
+		}
+	}
+	return NumberOfCores;
 }
 
 void FMacPlatformMisc::NormalizePath(FString& InPath)
@@ -910,13 +926,13 @@ public:
 				CFMutableDictionaryRef ServiceInfo;
 				if(IORegistryEntryCreateCFProperties(ServiceEntry, &ServiceInfo, kCFAllocatorDefault, kNilOptions) == kIOReturnSuccess)
 				{
-					// GPUs are class-code 0x30000
+					// GPUs are class-code 0x30000 || 0x38000
 					static CFStringRef ClassCodeRef = CFSTR("class-code");
 					const CFDataRef ClassCode = (const CFDataRef)CFDictionaryGetValue(ServiceInfo, ClassCodeRef);
 					if(ClassCode && CFGetTypeID(ClassCode) == CFDataGetTypeID())
 					{
 						const uint32* ClassCodeValue = reinterpret_cast<const uint32*>(CFDataGetBytePtr(ClassCode));
-						if(ClassCodeValue && *ClassCodeValue == 0x30000)
+						if(ClassCodeValue && (*ClassCodeValue == 0x30000 || *ClassCodeValue == 0x38000))
 						{
 							FMacPlatformMisc::FGPUDescriptor Desc;
 							
@@ -971,13 +987,13 @@ public:
 								CFMutableDictionaryRef ServiceInfo;
 								if(IORegistryEntryCreateCFProperties(ParentEntry, &ServiceInfo, kCFAllocatorDefault, kNilOptions) == kIOReturnSuccess)
 								{
-									// GPUs are class-code 0x30000
+									// GPUs are class-code 0x30000 || 0x38000
 									static CFStringRef ClassCodeRef = CFSTR("class-code");
 									const CFDataRef ClassCode = (const CFDataRef)CFDictionaryGetValue(ServiceInfo, ClassCodeRef);
 									if(ClassCode && CFGetTypeID(ClassCode) == CFDataGetTypeID())
 									{
 										const uint32* ClassCodeValue = reinterpret_cast<const uint32*>(CFDataGetBytePtr(ClassCode));
-										if(ClassCodeValue && *ClassCodeValue == 0x30000)
+										if(ClassCodeValue && (*ClassCodeValue == 0x30000 || *ClassCodeValue == 0x38000))
 										{
 											FScopeLock Lock(&Mutex);
 											
@@ -1477,7 +1493,8 @@ static void DefaultCrashHandler(FMacCrashContext const& Context)
 static uint32 GMacStackIgnoreDepth = 6;
 
 /** Message for the assert triggered on this thread */
-thread_local const TCHAR* GAssertErrorMessage = nullptr;
+thread_local const TCHAR* GCrashErrorMessage = nullptr;
+thread_local ECrashContextType GCrashErrorType = ECrashContextType::Crash;
 
 /** True system-specific crash handler that gets called first */
 static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
@@ -1488,15 +1505,15 @@ static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	ECrashContextType Type;
 	const TCHAR* ErrorMessage;
 
-	if (GAssertErrorMessage == nullptr)
+	if (GCrashErrorMessage == nullptr)
 	{
 		Type = ECrashContextType::Crash;
 		ErrorMessage = TEXT("Caught signal");
 	}
 	else
 	{
-		Type = ECrashContextType::Assert;
-		ErrorMessage = GAssertErrorMessage;
+		Type = GCrashErrorType;
+		ErrorMessage = GCrashErrorMessage;
 	}
 	
 	FMacCrashContext CrashContext(Type, ErrorMessage);
@@ -1771,7 +1788,24 @@ void FMacCrashContext::GenerateInfoInFolder(char const* const InfoFolder) const
 void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 {
 	// Prevent CrashReportClient from spawning another CrashReportClient.
-	const bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
+	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
+
+	bool bSendUnattendedBugReports = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+	}
+
+	if (GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	{
+		bCanRunCrashReportClient = false;
+	}
 
 	if(bCanRunCrashReportClient)
 	{
@@ -1838,8 +1872,25 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 {
 	// Prevent CrashReportClient from spawning another CrashReportClient.
-	const bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
+	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
 	
+	bool bSendUnattendedBugReports = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
+	}
+
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+	{
+		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
+		bSendUnattendedBugReports = false;
+	}
+
+	if(GMacAppInfo.bIsUnattended && !bSendUnattendedBugReports)
+	{
+		bCanRunCrashReportClient = false;
+	}
+
 	if(bCanRunCrashReportClient)
 	{
 		SCOPED_AUTORELEASE_POOL;
@@ -1872,7 +1923,15 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 
 void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 {
-	GAssertErrorMessage = ErrorMessage;
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::Assert;
+	FPlatformMisc::RaiseException(1);
+}
+
+void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+{
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::GPUCrash;
 	FPlatformMisc::RaiseException(1);
 }
 
@@ -1915,7 +1974,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 	{
 		bReentranceGuard = true;
 
-		FMacCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
+		FMacCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
 		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
 		EnsureContext.GenerateEnsureInfoAndLaunchReporter();
 
@@ -2368,4 +2427,38 @@ int FMacPlatformMisc::GetDefaultStackSize()
 #else
 	return 4 * 1024 * 1024;
 #endif
+}
+
+IPlatformChunkInstall* FMacPlatformMisc::GetPlatformChunkInstall()
+{
+	static IPlatformChunkInstall* ChunkInstall = nullptr;
+	static bool bIniChecked = false;
+	if (!ChunkInstall || !bIniChecked)
+	{
+		IPlatformChunkInstallModule* PlatformChunkInstallModule = nullptr;
+		if (!GEngineIni.IsEmpty())
+		{
+			FString InstallModule;
+			GConfig->GetString(TEXT("StreamingInstall"), TEXT("DefaultProviderName"), InstallModule, GEngineIni);
+			FModuleStatus Status;
+			if (FModuleManager::Get().QueryModule(*InstallModule, Status))
+			{
+				PlatformChunkInstallModule = FModuleManager::LoadModulePtr<IPlatformChunkInstallModule>(*InstallModule);
+				if (PlatformChunkInstallModule != nullptr)
+				{
+					// Attempt to grab the platform installer
+					ChunkInstall = PlatformChunkInstallModule->GetPlatformChunkInstall();
+				}
+			}
+			bIniChecked = true;
+		}
+
+		if (PlatformChunkInstallModule == nullptr)
+		{
+			// Placeholder instance
+			ChunkInstall = FGenericPlatformMisc::GetPlatformChunkInstall();
+		}
+	}
+
+	return ChunkInstall;
 }

@@ -368,7 +368,7 @@ public:
 	virtual void MigratePackages(const TArray<FName>& PackageNamesToMigrate) const = 0;
 
 	/* Copy packages and dependencies to another folder */
-	virtual void BeginAdvancedCopyPackages(const TArray<FName>& PackageNamesToCopy, const FString& TargetPath) const = 0;
+	virtual void BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath) const = 0;
 
 	/** Fix up references to the specified redirectors */
 	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects) const = 0;
@@ -392,7 +392,7 @@ public:
 	virtual bool ValidateFlattenedAdvancedCopyDestinations(const TMap<FString, FString>& FlattenedPackagesAndDestinations) const = 0;
 
 	/* Find all the dependencies that also need to be copied in the advanced copy, mapping them to the file that depends on them and excluding any that don't pass the ARFilter stored on CopyParams */
-	virtual void GetAllAdvancedCopySources(FName SelectedPackage, FAdvancedCopyParams& CopyParams, TArray<FName>& OutPackageNamesToCopy, TMap<FName, FName>& DependencyMap) const = 0;
+	virtual void GetAllAdvancedCopySources(FName SelectedPackage, FAdvancedCopyParams& CopyParams, TArray<FName>& OutPackageNamesToCopy, TMap<FName, FName>& DependencyMap, const class UAdvancedCopyCustomization* CopyCustomization) const = 0;
 
 	/* Given a complete set of copy parameters, which includes the selected package set, start the advanced copy process */
 	virtual void InitAdvancedCopyFromCopyParams(FAdvancedCopyParams CopyParams) const = 0;

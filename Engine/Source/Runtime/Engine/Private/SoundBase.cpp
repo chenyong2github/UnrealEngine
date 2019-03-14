@@ -27,6 +27,7 @@ void USoundBase::PostInitProperties()
 		const FSoftObjectPath DefaultSoundClassName = GetDefault<UAudioSettings>()->DefaultSoundClassName;
 		if (DefaultSoundClassName.IsValid())
 		{
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundClass");
 			USoundBase::DefaultSoundClassObject = LoadObject<USoundClass>(nullptr, *DefaultSoundClassName.ToString());
 		}
 	}
@@ -37,10 +38,15 @@ void USoundBase::PostInitProperties()
 		const FSoftObjectPath DefaultSoundConcurrencyName = GetDefault<UAudioSettings>()->DefaultSoundConcurrencyName;
 		if (DefaultSoundConcurrencyName.IsValid())
 		{
+			SCOPED_BOOT_TIMING("USoundBase::LoadSoundConcurrency");
 			USoundBase::DefaultSoundConcurrencyObject = LoadObject<USoundConcurrency>(nullptr, *DefaultSoundConcurrencyName.ToString());
 		}
 	}
-	SoundConcurrencySettings = USoundBase::DefaultSoundConcurrencyObject;
+
+	if (USoundBase::DefaultSoundConcurrencyObject != nullptr)
+	{
+		ConcurrencySet.Add(USoundBase::DefaultSoundConcurrencyObject);
+	}
 }
 
 bool USoundBase::IsPlayable() const
@@ -139,31 +145,28 @@ void USoundBase::GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundS
 	}
 }
 
-const FSoundConcurrencySettings* USoundBase::GetSoundConcurrencySettingsToApply()
+void USoundBase::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const
 {
+	OutConcurrencyHandles.Reset();
 	if (bOverrideConcurrency)
 	{
-		return &ConcurrencyOverrides;
+		OutConcurrencyHandles.Add(ConcurrencyOverrides);
 	}
-	else if (SoundConcurrencySettings)
+	else
 	{
-		return &SoundConcurrencySettings->Concurrency;
+		for (const USoundConcurrency* Concurrency : ConcurrencySet)
+		{
+			if (Concurrency)
+			{
+				OutConcurrencyHandles.Emplace(*Concurrency);
+			}
+		}
 	}
-	return nullptr;
 }
 
 float USoundBase::GetPriority() const
 {
 	return FMath::Clamp(Priority, MIN_SOUND_PRIORITY, MAX_SOUND_PRIORITY);
-}
-
-uint32 USoundBase::GetSoundConcurrencyObjectID() const
-{
-	if (SoundConcurrencySettings != nullptr && !bOverrideConcurrency)
-	{
-		return SoundConcurrencySettings->GetUniqueID();
-	}
-	return 0;
 }
 
 bool USoundBase::GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves)
@@ -197,5 +200,21 @@ bool USoundBase::CanBeClusterRoot() const
 bool USoundBase::CanBeInCluster() const
 {
 	return false;
+}
+
+void USoundBase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading())
+	{
+		if (SoundConcurrencySettings_DEPRECATED != nullptr)
+		{
+			ConcurrencySet.Add(SoundConcurrencySettings_DEPRECATED);
+			SoundConcurrencySettings_DEPRECATED = nullptr;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 

@@ -63,7 +63,7 @@ public:
 	 */
 	void SendControllerEvents();
 
-	static void QueueTouchInput(const TArray<TouchInput>& InTouchEvents);
+	static APPLICATIONCORE_API void QueueTouchInput(const TArray<TouchInput>& InTouchEvents);
 	static void QueueKeyInput(int32 Key, int32 Char);
 
 	//~ Begin Exec Interface
@@ -154,6 +154,9 @@ private:
 #if !PLATFORM_TVOS
 	/** Access to the ios devices motion */
 	CMMotionManager* MotionManager;
+	
+	/** Is motion paused or not? */
+	bool bPauseMotion;
 
 	/** Access to the ios devices tilt information */
 	CMAttitude* ReferenceAttitude;
@@ -182,6 +185,6 @@ private:
 	float LastHapticValue;
 	
 	int HapticFeedbackSupportLevel;
-    
-    TMap<FName, double> NextKeyRepeatTime;
+	
+	TMap<FName, double> NextKeyRepeatTime;
 };

@@ -57,7 +57,7 @@ FMetalQueryBuffer* FMetalQueryBufferPool::GetCurrentQueryBuffer()
 			LLM_PLATFORM_SCOPE_METAL(ELLMTagMetal::Buffers);
 
 			METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), EQueryBufferMaxSize, mtlpp::ResourceOptions::StorageModeShared)));
-			Buffer = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Device, Context->GetDevice(), SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(EQueryBufferMaxSize, GetMetalDeviceContext().GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | mtlpp::ResourceOptions::StorageModeShared)))), false);
+            Buffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(EQueryBufferMaxSize, 16, BUF_Dynamic, Context->GetCommandQueue().GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | mtlpp::ResourceOptions::StorageModeShared)), true);
 			FMemory::Memzero((((uint8*)Buffer.GetContents())), EQueryBufferMaxSize);
 
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -330,6 +330,14 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,
 		uint64 WaitMS = (Query->Type == RQT_AbsoluteTime) ? 2000 : 500;
 		if (bWait)
 		{
+			// RHI thread *must* be flushed at this point if the internal handles we rely upon are not yet valid.
+			// We *CANNOT* have one event per query as it consumes too many pthread objects.
+			if (!FRHICommandListExecutor::GetImmediateCommandList().Bypass() && IsRunningRHIInSeparateThread() && !Query->Buffer.CommandBufferFence.IsValid())
+			{
+				FRHICommandListExecutor::GetImmediateCommandList().RHIThreadFence(true);
+				FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			}
+			
 			uint32 IdleStart = FPlatformTime::Cycles();
 		
 			bOK = Query->Buffer.Wait(WaitMS);

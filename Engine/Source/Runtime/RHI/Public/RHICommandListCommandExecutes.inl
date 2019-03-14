@@ -51,10 +51,7 @@ struct FRHICommandEndRenderQuery;
 struct FRHICommandEndScene;
 struct FRHICommandFlushComputeShaderCache;
 struct FRHICommandSetBlendFactor;
-struct FRHICommandSetBlendState;
 struct FRHICommandSetBoundShaderState;
-struct FRHICommandSetDepthStencilState;
-struct FRHICommandSetLocalBoundShaderState;
 struct FRHICommandSetLocalGraphicsPipelineState;
 struct FRHICommandSetRasterizerState;
 struct FRHICommandSetRenderTargets;
@@ -67,6 +64,12 @@ struct FRHICommandSetViewport;
 struct FRHICommandTransitionTextures;
 struct FRHICommandTransitionTexturesArray;
 struct FRHICommandUpdateTextureReference;
+struct FRHICommandBuildAccelerationStructure;
+struct FRHICommandRayTraceOcclusion;
+struct FRHICommandRayTraceIntersection;
+struct FRHICommandRayTraceDispatch;
+struct FRHICommandSetRayTracingHitGroup;
+
 enum class ECmdList;
 template <typename TShaderRHIParamRef> struct FRHICommandSetLocalUniformBuffer;
 
@@ -92,18 +95,6 @@ void FRHICommandEndUpdateMultiFrameUAV::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EndUpdateMultiFrameUAV);
 	INTERNAL_DECORATOR(RHIEndUpdateMultiFrameResource)(UAV);
-}
-
-void FRHICommandSetRasterizerState::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetRasterizerState);
-	INTERNAL_DECORATOR(RHISetRasterizerState)(State);
-}
-
-void FRHICommandSetDepthStencilState::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetDepthStencilState);
-	INTERNAL_DECORATOR(RHISetDepthStencilState)(State, StencilRef);
 }
 
 void FRHICommandSetStencilRef::Execute(FRHICommandListBase& CmdList)
@@ -230,18 +221,6 @@ void FRHICommandDrawIndexedPrimitive::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(DrawIndexedPrimitive);
 	INTERNAL_DECORATOR(RHIDrawIndexedPrimitive)(IndexBuffer, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
-}
-
-void FRHICommandSetBoundShaderState::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetBoundShaderState);
-	INTERNAL_DECORATOR(RHISetBoundShaderState)(BoundShaderState);
-}
-
-void FRHICommandSetBlendState::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetBlendState);
-	INTERNAL_DECORATOR(RHISetBlendState)(State, BlendFactor);
 }
 
 void FRHICommandSetBlendFactor::Execute(FRHICommandListBase& CmdList)
@@ -501,31 +480,6 @@ void FRHICommandCopyToStagingBuffer<CmdListType>::Execute(FRHICommandListBase& C
 template struct FRHICommandCopyToStagingBuffer<ECmdList::EGfx>;
 template struct FRHICommandCopyToStagingBuffer<ECmdList::ECompute>;
 
-void FRHICommandBuildLocalGraphicsPipelineState::Execute(FRHICommandListBase& CmdList)
-{
-	LLM_SCOPE(ELLMTag::Shaders);
-	RHISTAT(BuildLocalGraphicsPipelineState);
-	check(!IsValidRef(WorkArea.ComputedGraphicsPipelineState->GraphicsPipelineState));
-	if (WorkArea.ComputedGraphicsPipelineState->UseCount)
-	{
-		WorkArea.ComputedGraphicsPipelineState->GraphicsPipelineState =
-			RHICreateGraphicsPipelineState(WorkArea.Args);
-	}
-}
-
-void FRHICommandSetLocalGraphicsPipelineState::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetLocalGraphicsPipelineState);
-	check(LocalGraphicsPipelineState.WorkArea->ComputedGraphicsPipelineState->UseCount > 0 && IsValidRef(LocalGraphicsPipelineState.WorkArea->ComputedGraphicsPipelineState->GraphicsPipelineState)); // this should have been created and should have uses outstanding
-
-	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(LocalGraphicsPipelineState.WorkArea->ComputedGraphicsPipelineState->GraphicsPipelineState);
-
-	if (--LocalGraphicsPipelineState.WorkArea->ComputedGraphicsPipelineState->UseCount == 0)
-	{
-		LocalGraphicsPipelineState.WorkArea->ComputedGraphicsPipelineState->~FComputedGraphicsPipelineState();
-	}
-}
-
 void FRHICommandBuildLocalUniformBuffer::Execute(FRHICommandListBase& CmdList)
 {
 	LLM_SCOPE(ELLMTag::Shaders);
@@ -535,7 +489,7 @@ void FRHICommandBuildLocalUniformBuffer::Execute(FRHICommandListBase& CmdList)
 	check(WorkArea.Contents); 
 	if (WorkArea.ComputedUniformBuffer->UseCount)
 	{
-		WorkArea.ComputedUniformBuffer->UniformBuffer = GDynamicRHI->RHICreateUniformBuffer(WorkArea.Contents, *WorkArea.Layout, UniformBuffer_SingleFrame);
+		WorkArea.ComputedUniformBuffer->UniformBuffer = GDynamicRHI->RHICreateUniformBuffer(WorkArea.Contents, *WorkArea.Layout, UniformBuffer_SingleFrame, EUniformBufferValidation::ValidateResources);
 	}
 	WorkArea.Layout = nullptr;
 	WorkArea.Contents = nullptr;
@@ -586,10 +540,95 @@ void FRHICommandPollOcclusionQueries::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHIPollOcclusionQueries)();
 }
 
+#if RHI_RAYTRACING
+
+void FRHICommandCopyBufferRegion::Execute(FRHICommandListBase& CmdList)
+{
+	INTERNAL_DECORATOR(RHICopyBufferRegion)(DestBuffer, DstOffset, SourceBuffer, SrcOffset, NumBytes);
+}
+
+void FRHICommandCopyBufferRegions::Execute(FRHICommandListBase& CmdList)
+{
+	INTERNAL_DECORATOR(RHICopyBufferRegions)(Params);
+}
+
+void FRHICommandBuildAccelerationStructure::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BuildAccelerationStructure);
+	if (Geometry)
+	{
+		INTERNAL_DECORATOR(RHIBuildAccelerationStructure)(Geometry);
+	}
+	else
+	{
+		INTERNAL_DECORATOR(RHIBuildAccelerationStructure)(Scene);
+	}
+}
+
+void FRHICommandUpdateAccelerationStructures::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(UpdateAccelerationStructure);
+	INTERNAL_DECORATOR(RHIUpdateAccelerationStructures)(UpdateParams);
+}
+
+void FRHICommandBuildAccelerationStructures::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(BuildAccelerationStructure);
+	INTERNAL_DECORATOR(RHIBuildAccelerationStructures)(UpdateParams);
+}
+
+void FRHICommandRayTraceOcclusion::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(RayTraceOcclusion);
+	INTERNAL_DECORATOR(RHIRayTraceOcclusion)(Scene, Rays, Output, NumRays);
+}
+
+void FRHICommandRayTraceIntersection::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(RayTraceIntersection);
+	INTERNAL_DECORATOR(RHIRayTraceIntersection)(Scene, Rays, Output, NumRays);
+}
+
+void FRHICommandRayTraceDispatch::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(RayTraceDispatch);
+	INTERNAL_DECORATOR(RHIRayTraceDispatch)(Pipeline, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
+}
+
+void FRHICommandSetRayTracingHitGroup::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetRayTracingHitGroup);
+	INTERNAL_DECORATOR(RHISetRayTracingHitGroup)(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, UserData);
+}
+
+#endif // RHI_RAYTRACING
+
 void FRHICommandUpdateTextureReference::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(UpdateTextureReference);
 	INTERNAL_DECORATOR(RHIUpdateTextureReference)(TextureRef, NewTexture);
+}
+
+void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(UpdateRHIResources);
+	for (int32 Idx = 0; Idx < Num; ++Idx)
+	{
+		FRHIResourceUpdateInfo& Info = UpdateInfos[Idx];
+		switch (Info.Type)
+		{
+		case FRHIResourceUpdateInfo::UT_VertexBufferSRV:
+			GDynamicRHI->RHIUpdateShaderResourceView(
+				Info.VertexBufferSRV.SRV,
+				Info.VertexBufferSRV.VertexBuffer,
+				Info.VertexBufferSRV.Stride,
+				Info.VertexBufferSRV.Format);
+			break;
+		default:
+			// Unrecognized type, do nothing
+			break;
+		}
+	}
 }
 
 void FRHICommandBeginScene::Execute(FRHICommandListBase& CmdList)

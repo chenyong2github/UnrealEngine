@@ -11,12 +11,11 @@
 #include "IInputDevice.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
-
-FCriticalSection FIOSApplication::CriticalSection;
-bool FIOSApplication::bOrientationChanged = false;
+#include "IOS/IOSAsyncTask.h"
 
 FIOSApplication* FIOSApplication::CreateIOSApplication()
 {
+	SCOPED_BOOT_TIMING("FIOSApplication::CreateIOSApplication");
 	return new FIOSApplication();
 }
 
@@ -82,22 +81,6 @@ void FIOSApplication::PollGameDeviceState( const float TimeDelta )
 		(*DeviceIt)->Tick(TimeDelta);
 		(*DeviceIt)->SendControllerEvents();
 	}
-
-	FScopeLock Lock(&CriticalSection);
-	if(bOrientationChanged && Windows.Num() > 0)
-	{
-		int32 WindowX,WindowY, WindowWidth,WindowHeight;
-		Windows[0]->GetFullScreenInfo(WindowX, WindowY, WindowWidth, WindowHeight);
-
-		GenericApplication::GetMessageHandler()->OnSizeChanged(Windows[0],WindowWidth,WindowHeight, false);
-		GenericApplication::GetMessageHandler()->OnResizingWindow(Windows[0]);
-		CacheDisplayMetrics();
-		FDisplayMetrics DisplayMetrics;
-		FDisplayMetrics::RebuildDisplayMetrics(DisplayMetrics);
-		BroadcastDisplayMetricsChanged(DisplayMetrics);
-		FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
-		bOrientationChanged = false;
-	}
 }
 
 FPlatformRect FIOSApplication::GetWorkArea( const FPlatformRect& CurrentWindow ) const
@@ -132,22 +115,26 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 
 		//we need to set these according to the orientation
 		TAutoConsoleVariable<float>* CVar_Left = nullptr;
-		TAutoConsoleVariable<float>* CVar_Top = &CVarSafeZone_Landscape_Top;
+		TAutoConsoleVariable<float>* CVar_Top = nullptr;
 		TAutoConsoleVariable<float>* CVar_Right = nullptr;
-		TAutoConsoleVariable<float>* CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
+		TAutoConsoleVariable<float>* CVar_Bottom = nullptr;
 
 		//making an assumption that the "normal" landscape mode is Landscape right
 		if (CachedOrientation == UIInterfaceOrientationLandscapeLeft)
 		{
 			CVar_Left = &CVarSafeZone_Landscape_Left;
 			CVar_Right = &CVarSafeZone_Landscape_Right;
+            CVar_Top = &CVarSafeZone_Landscape_Top;
+            CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
 		}
 		else if (CachedOrientation == UIInterfaceOrientationLandscapeRight)
 		{
 			CVar_Left = &CVarSafeZone_Landscape_Right;
 			CVar_Right = &CVarSafeZone_Landscape_Left;
+            CVar_Top = &CVarSafeZone_Landscape_Top;
+            CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
 		}
-
+        
 		// of the CVars are set, use their values. If not, use what comes from iOS
 		const float Inset_Left = (!CVar_Left || CVar_Left->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.left : CVar_Left->AsVariable()->GetFloat();
 		const float Inset_Top = (!CVar_Top || CVar_Top->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.top : CVar_Top->AsVariable()->GetFloat();
@@ -190,10 +177,30 @@ TSharedRef< FGenericWindow > FIOSApplication::MakeWindow()
 }
 
 #if !PLATFORM_TVOS
-void FIOSApplication::OrientationChanged(UIDeviceOrientation orientation)
+void FIOSApplication::OrientationChanged(UIInterfaceOrientation orientation)
 {
-	FScopeLock Lock(&CriticalSection);
-	bOrientationChanged = true;
+	// this is called on the IOS thread. It turns out that it's possible for the resolution to change AGAIN by the time the game
+	// thread processes the resize, so we queue up the current size from the ios thread, send that to the RHI to resize to that
+	// (and no longer checking if it matches current frame size, because it may not). If another resize happens, that new size
+	// will get queued up here and sent to RHI, so eventually the size will be correct
+	FPlatformRect WindowRect = FIOSWindow::GetScreenRect();
+	int32 WindowWidth = WindowRect.Right - WindowRect.Left;
+	int32 WindowHeight = WindowRect.Bottom - WindowRect.Top;
+
+	// queue up the size as we see it now all the way to the RHI 
+	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+	 {
+	 	FIOSApplication* App = [IOSAppDelegate GetDelegate].IOSApplication;
+	 
+		App->GetMessageHandler()->OnSizeChanged(App->Windows[0],WindowWidth,WindowHeight, false);
+		App->GetMessageHandler()->OnResizingWindow(App->Windows[0]);
+		App->CacheDisplayMetrics();
+		FDisplayMetrics DisplayMetrics;
+		FDisplayMetrics::RebuildDisplayMetrics(DisplayMetrics);
+		App->BroadcastDisplayMetricsChanged(DisplayMetrics);
+		FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
+	 	return true;
+	 }];
 }
 #endif
 

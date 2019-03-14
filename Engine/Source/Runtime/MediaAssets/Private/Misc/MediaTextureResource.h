@@ -177,4 +177,7 @@ private:
 
 	/** The current media player facade to get video samples from. */
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;
+
+	/** cached media sample to postpone releasing it until the next sample rendering as it can get overwritten due to asynchronous rendering */
+	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> CachedSample;
 };

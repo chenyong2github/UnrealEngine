@@ -604,15 +604,16 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 
 		if (InputMetaData != nullptr)
 		{
-			SetIsAdvanced(InputMetaData->PropertyMetaData.Contains(FNiagaraEditorModule::FInputMetaDataKeys::AdvancedDisplay));
+			SetIsAdvanced(InputMetaData->bAdvancedDisplay);
 
-			EditCondition.Refresh(InputMetaData->PropertyMetaData.Find(FNiagaraEditorModule::FInputMetaDataKeys::EditCondition));
+			FText EditConditionError;
+			EditCondition.Refresh(InputMetaData->EditCondition, EditConditionError);
 			if (EditCondition.IsValid() && EditCondition.GetConditionInputType() == FNiagaraTypeDefinition::GetBoolDef())
 			{
 				FNiagaraVariableMetaData* EditConditionInputMetadata = EditCondition.GetConditionInputMetaData();
 				if (EditConditionInputMetadata != nullptr)
 				{
-					bShowEditConditionInline = EditConditionInputMetadata->PropertyMetaData.Contains(FNiagaraEditorModule::FInputMetaDataKeys::InlineEditConditionToggle);
+					bShowEditConditionInline = EditConditionInputMetadata->bInlineEditConditionToggle;
 				}
 			}
 			else
@@ -620,10 +621,23 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 				bShowEditConditionInline = false;
 			}
 
-			VisibleCondition.Refresh(InputMetaData->PropertyMetaData.Find(FNiagaraEditorModule::FInputMetaDataKeys::VisibleCondition));
+			if (EditConditionError.IsEmpty() == false)
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Edit condition failed to bind.  Function: %s Input: %s Message: %s"), 
+					*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *EditConditionError.ToString());
+			}
+
+			FText VisibleConditionError;
+			VisibleCondition.Refresh(InputMetaData->VisibleCondition, VisibleConditionError);
+
+			if (VisibleConditionError.IsEmpty() == false)
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Visible condition failed to bind.  Function: %s Input: %s Message: %s"),
+					*OwningFunctionCallNode->GetFunctionName(), *InputParameterHandle.GetName().ToString(), *VisibleConditionError.ToString());
+			}
 
 			bIsInlineEditConditionToggle = InputType == FNiagaraTypeDefinition::GetBoolDef() && 
-				InputMetaData->PropertyMetaData.Contains(FNiagaraEditorModule::FInputMetaDataKeys::InlineEditConditionToggle);
+				InputMetaData->bInlineEditConditionToggle;
 		}
 	}
 }
@@ -836,19 +850,10 @@ UNiagaraNodeCustomHlsl* UNiagaraStackFunctionInput::GetExpressionNode() const
 
 void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs)
 {
-	UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptUsage"), true);
-	FString QualifiedDynamicInputUsageString = NiagaraScriptUsageEnum->GetNameStringByValue(static_cast<uint8>(ENiagaraScriptUsage::DynamicInput));
-	int32 LastColonIndex;
-	QualifiedDynamicInputUsageString.FindLastChar(TEXT(':'), LastColonIndex);
-	FString UnqualifiedDynamicInputUsageString = QualifiedDynamicInputUsageString.RightChop(LastColonIndex + 1);
-
-	FARFilter DynamicInputFilter;
-	DynamicInputFilter.ClassNames.Add(UNiagaraScript::StaticClass()->GetFName());
-	DynamicInputFilter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Usage), UnqualifiedDynamicInputUsageString);
-
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FAssetData> DynamicInputAssets;
-	AssetRegistryModule.Get().GetAssets(DynamicInputFilter, DynamicInputAssets);
+	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions DynamicInputScriptFilterOptions;
+	DynamicInputScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::DynamicInput;
+	FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
 
 	for (const FAssetData& DynamicInputAsset : DynamicInputAssets)
 	{

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 #include "Animation/Skeleton.h"
 #include "IDetailCustomization.h"
 #include "Animation/PoseAsset.h"
@@ -33,7 +33,7 @@ private:
 	TSharedPtr<IPropertyHandle> RetargetSourceNameHandler;
 
 	// retarget source related
-	TSharedPtr<class SComboBox< TSharedPtr<FString> > > RetargetSourceComboBox;
+	TSharedPtr< SSearchableComboBox > RetargetSourceComboBox;
 	TArray< TSharedPtr< FString > >						RetargetSourceComboList;
 
 	TSharedRef<SWidget> MakeRetargetSourceComboWidget( TSharedPtr<FString> InItem );
@@ -53,7 +53,7 @@ private:
 	ECheckBoxState IsAdditiveChecked() const;
 
 	// base pose
-	TSharedPtr<class SComboBox< TSharedPtr<FString> > > BasePoseComboBox;
+	TSharedPtr< SSearchableComboBox > BasePoseComboBox;
 	TArray< TSharedPtr< FString > >						BasePoseComboList;
 
 	TSharedRef<SWidget> MakeBasePoseComboWidget(TSharedPtr<FString> InItem);

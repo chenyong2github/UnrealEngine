@@ -38,6 +38,75 @@ class UMG_API URichTextBlock : public UTextLayoutWidget
 	GENERATED_BODY()
 
 public:
+	/**  
+	 * Sets the color and opacity of the default text in this rich text block
+	 * @param InColorAndOpacity		The new text color and opacity
+	 */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity);
+
+	/**  
+	 * Sets the color and opacity of the default text drop shadow
+	 * Note: if opacity is zero no shadow will be drawn
+	 * @param InShadowColorAndOpacity		The new drop shadow color and opacity
+	 */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetDefaultShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity);
+
+	/**  
+	 * Sets the offset that the default text drop shadow should be drawn at
+	 * @param InShadowOffset		The new offset
+	 */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetDefaultShadowOffset(FVector2D InShadowOffset);
+
+	/**
+	 * Dynamically set the default font info for this rich text block
+	 * @param InFontInfo The new font info
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetDefaultFont(FSlateFontInfo InFontInfo);
+
+	/**
+	 * Dynamically set the default strike brush for this rich text block
+	 * @param InStrikeBrush The new brush to use to strike through text
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush);
+
+	/**
+	 *  Set the text justification for this rich text block
+	 *  @param InJustification new justification
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetJustification(ETextJustify::Type InJustification);
+	
+	/**
+	 *  Set the minimum desired width for this rich text block
+	 *  @param InMinDesiredWidth new minimum desired width
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetMinDesiredWidth(float InMinDesiredWidth);
+	
+	/**
+	 * Set the auto wrap for this rich text block
+	 * @param InAutoTextWrap to turn wrap on or off
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetAutoWrapText(bool InAutoTextWrap);
+
+	/** 
+	 * Wholesale override of the currently established default text style
+	 * @param InDefaultTextStyle The new text style to apply to all default (i.e. undecorated) text in the block
+	 */
+	UFUNCTION(BlueprintCallable, Category = Appearance)
+	void SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle);
+
+	/** Remove all overrides made to the default text style and return to the style specified in the style set data table */
+	UFUNCTION()
+	void ClearAllDefaultStyleOverrides();
+
+public:
 	URichTextBlock(const FObjectInitializer& ObjectInitializer);
 	
 	// UWidget interface
@@ -55,15 +124,31 @@ public:
 	// End UWidget interface
 #endif
 
-	/**  */
+	/**
+	 * Directly sets the widget text.
+	 * Warning: This will wipe any binding created for the Text property!
+	 * @param InText The text to assign to the widget
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetText(const FText& InText);
+	virtual void SetText(const FText& InText);
 
 	const FTextBlockStyle& GetDefaultTextStyle() const;
+	const FTextBlockStyle& GetCurrentDefaultTextStyle() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	URichTextBlockDecorator* GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass);
+
+protected:
+	virtual TSharedRef<SWidget> RebuildWidget() override;
+	
+	virtual void UpdateStyleData();
+	virtual void CreateDecorators(TArray< TSharedRef< class ITextDecorator > >& OutDecorators);
+	virtual TSharedPtr< class IRichTextMarkupParser > CreateMarkupParser();
+	virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();
+
+	void BeginDefaultStyleOverride();
+	void ApplyUpdatedDefaultTextStyle();
 
 protected:
 	/** The text to display */
@@ -78,23 +163,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	TArray<TSubclassOf<URichTextBlockDecorator>> DecoratorClasses;
 
-protected:
-	FTextBlockStyle DefaultTextStyle;
+	/** True to specify the default text style for this rich text inline, overriding any default provided in the style set table */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool bOverrideDefaultStyle = false;
 
-	TSharedPtr<class FSlateStyleSet> StyleInstance;
+	/** Text style to apply by default to text in this block */
+	UPROPERTY(EditAnywhere, Category=Appearance, meta = (EditCondition = bOverrideDefaultStyle))
+	FTextBlockStyle DefaultTextStyleOverride;
+
+	/** The minimum desired size for the text */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	float MinDesiredWidth;
+
+	FTextBlockStyle DefaultTextStyle;
 
 	UPROPERTY(Transient)
 	TArray<URichTextBlockDecorator*> InstanceDecorators;
-
-	/** Native Slate Widget */
+	TSharedPtr<class FSlateStyleSet> StyleInstance;
 	TSharedPtr<SRichTextBlock> MyRichTextBlock;
-
-	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	// End of UWidget interface
-
-	virtual void UpdateStyleData();
-	virtual void CreateDecorators(TArray< TSharedRef< class ITextDecorator > >& OutDecorators);
-	virtual TSharedPtr< class IRichTextMarkupParser > CreateMarkupParser();
-	virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();
 };

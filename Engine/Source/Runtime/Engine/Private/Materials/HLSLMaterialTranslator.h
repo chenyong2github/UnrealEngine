@@ -244,6 +244,7 @@ protected:
 	uint32 bUsesPixelDepthOffset : 1;
 	uint32 bUsesWorldPositionOffset : 1;
 	uint32 bUsesEmissiveColor : 1;
+	uint32 bUsesDistanceCullFade : 1;
 	/** true if the Roughness input evaluates to a constant 1.0 */
 	uint32 bIsFullyRough : 1;
 	/** Tracks the number of texture coordinates used by this material. */
@@ -299,7 +300,8 @@ public:
 	,	bOutputsBasePassVelocities(true)
 	,	bUsesPixelDepthOffset(false)
     ,   bUsesWorldPositionOffset(false)
-	,	bUsesEmissiveColor(0)
+	,	bUsesEmissiveColor(false)
+	,	bUsesDistanceCullFade(false)
 	,	bIsFullyRough(0)
 	,	NumUserTexCoords(0)
 	,	NumUserVertexTexCoords(0)
@@ -710,6 +712,8 @@ public:
 			}
 
 			MaterialCompilationOutput.bUsesSceneDepthLookup = bUsesSceneDepth;
+
+			MaterialCompilationOutput.bUsesDistanceCullFade = bUsesDistanceCullFade;
 
 			if (MaterialCompilationOutput.bRequiresSceneColorCopy)
 			{
@@ -2483,6 +2487,14 @@ protected:
 		return AddInlinedCodeChunk(MCT_Float, TEXT("fmod(View.RealTime,%s)"), *GetParameterCode(PeriodChunk));
 	}
 
+	virtual int32 DeltaTime() override
+	{
+		// explicitly avoid trying to return previous frame's delta time for bCompilingPreviousFrame here
+		// DeltaTime expression is designed to be used when generating custom motion vectors, by using world position offset along with previous frame switch
+		// in this context, we will technically be evaluating the previous frame, but we want to use the current frame's delta tick in order to offset the vector used to create previous position
+		return AddInlinedCodeChunk(MCT_Float, TEXT("View.DeltaTime"));
+	}
+
 	virtual int32 PeriodicHint(int32 PeriodicCode) override
 	{
 		if(PeriodicCode == INDEX_NONE)
@@ -2836,7 +2848,7 @@ protected:
 
 	virtual int32 ReflectionVector() override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -2849,7 +2861,7 @@ protected:
 
 	virtual int32 ReflectionAboutCustomWorldNormal(int32 CustomWorldNormal, int32 bNormalizeCustomWorldNormal) override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -2871,7 +2883,7 @@ protected:
 
 	virtual int32 CameraVector() override
 	{
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -3169,6 +3181,8 @@ protected:
 
 	virtual int32 DistanceCullFade() override
 	{
+		bUsesDistanceCullFade = true;
+
 		return AddInlinedCodeChunk(MCT_Float,TEXT("GetDistanceCullFade()"));		
 	}
 
@@ -3181,11 +3195,11 @@ protected:
 			// material node is used in VS
 			return AddInlinedCodeChunk(
 				MCT_Float3,
-				TEXT("mul(mul(float4(GetActorWorldPosition(), 1), Primitive.WorldToLocal), Parameters.PrevFrameLocalToWorld)"));
+				TEXT("mul(mul(float4(GetActorWorldPosition(Parameters.PrimitiveId), 1), GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal), Parameters.PrevFrameLocalToWorld)"));
 		}
 		else
 		{
-			return AddInlinedCodeChunk(MCT_Float3, TEXT("GetActorWorldPosition()"));
+			return AddInlinedCodeChunk(MCT_Float3, TEXT("GetActorWorldPosition(Parameters.PrimitiveId)"));
 		}
 	}
 
@@ -3580,9 +3594,7 @@ protected:
 
 		FString UVs = CoerceParameter(CoordinateIndex, UVsType);
 
-		const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && 
-			(Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewModeTexCoordScale || Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewModeRequiredTextureResolution);
-
+		const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
 		if (bStoreTexCoordScales)
 		{
 			AddCodeChunk(MCT_Float, TEXT("StoreTexCoordScale(Parameters.TexCoordScalesParams, %s, %d)"), *UVs, (int)TextureReferenceIndex);
@@ -3782,8 +3794,6 @@ protected:
 		else // mobile
 		{
 			int32 UV = BufferUV;
-
-			// On mobile in post process material, there is no need to do ViewportUV->BufferUV conversion because ViewSize == BufferSize.
 			if (Material->GetMaterialDomain() == MD_PostProcess)
 			{
 				int32 BlendableLocation = Material->GetBlendableLocation();
@@ -3797,10 +3807,6 @@ protected:
 				if (ViewportUV == INDEX_NONE)
 				{
 					UV = TextureCoordinate(0, false, false);
-				}
-				else
-				{
-					UV = ViewportUV;
 				}
 			}
 			
@@ -3821,6 +3827,7 @@ protected:
 	void UseSceneTextureId(ESceneTextureId SceneTextureId, bool bTextureLookup)
 	{
 		MaterialCompilationOutput.bNeedsSceneTextures = true;
+		MaterialCompilationOutput.UsedSceneTextures |= (1ull << SceneTextureId);
 
 		if(Material->GetMaterialDomain() == MD_DeferredDecal)
 		{
@@ -3957,7 +3964,7 @@ protected:
 			);
 	}
 
-	virtual int32 Texture(UTexture* InTexture,int32& TextureReferenceIndex,ESamplerSourceMode SamplerSource=SSM_FromTextureAsset, ETextureMipValueMode MipValueMode = TMVM_None) override
+	virtual int32 Texture(UTexture* InTexture,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset, ETextureMipValueMode MipValueMode = TMVM_None) override
 	{
 		if (FeatureLevel == ERHIFeatureLevel::ES2 && ShaderFrequency == SF_Vertex)
 		{
@@ -3990,10 +3997,10 @@ protected:
 #endif
 		checkf(TextureReferenceIndex != INDEX_NONE, TEXT("Material expression called Compiler->Texture() without implementing UMaterialExpression::GetReferencedTexture properly"));
 
-		return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, SamplerSource),ShaderType,TEXT(""));
+		return AddUniformExpression(new FMaterialUniformExpressionTexture(TextureReferenceIndex, SamplerType, SamplerSource),ShaderType,TEXT(""));
 	}
 
-	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultValue,int32& TextureReferenceIndex,ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) override
+	virtual int32 TextureParameter(FName ParameterName,UTexture* DefaultValue,int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource=SSM_FromTextureAsset) override
 	{
 		if (ShaderFrequency != SF_Pixel
 			&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::ES3_1) == INDEX_NONE)
@@ -4007,7 +4014,7 @@ protected:
 
 		FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 		ParameterInfo.Name = ParameterName;
-		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, SamplerSource),ShaderType,TEXT(""));
+		return AddUniformExpression(new FMaterialUniformExpressionTextureParameter(ParameterInfo, TextureReferenceIndex, SamplerType, SamplerSource),ShaderType,TEXT(""));
 	}
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override
@@ -4071,6 +4078,11 @@ protected:
 	virtual int32 GetTextureReferenceIndex(UTexture* TextureValue)
 	{
 		return Material->GetReferencedTextures().Find(TextureValue);
+	}
+
+	virtual UTexture* GetReferencedTexture(int32 Index)
+	{
+		return Material->GetReferencedTextures()[Index];
 	}
 
 	virtual int32 StaticBool(bool bValue) override
@@ -4212,10 +4224,11 @@ protected:
 			else
 			{
 				// Otherwise we sample normally
+				const EMaterialSamplerType SamplerType = SAMPLERTYPE_Masks;
 				FString WeightmapName = FString::Printf(TEXT("Weightmap%d"),WeightmapIndex);
 				int32 TextureReferenceIndex = INDEX_NONE;
-				int32 TextureCodeIndex = TextureParameter(FName(*WeightmapName), GEngine->WeightMapPlaceholderTexture, TextureReferenceIndex);
-				WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SAMPLERTYPE_Masks);
+				int32 TextureCodeIndex = TextureParameter(FName(*WeightmapName), GEngine->WeightMapPlaceholderTexture, TextureReferenceIndex, SamplerType);
+				WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType);
 			}
 
 			FString LayerMaskName = FString::Printf(TEXT("LayerMask_%s"),*ParameterName.ToString());
@@ -4856,9 +4869,16 @@ protected:
 						return INDEX_NONE;
 					}
 
-					// TODO: need Primitive.PrevWorldToLocal
 					// TODO: inconsistent with TransformLocal<TO>World with instancing
-					CodeStr = TEXT("mul(<A>, <MATRIX>(Primitive.WorldToLocal))");
+					if (bCompilingPreviousFrame)
+					{
+						// uses different prefix than other Prev* names, so can't use <PREV> tag here
+						CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters.PrimitiveId).PreviousWorldToLocal))");
+					}
+					else
+					{
+						CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal))");
+					}
 				}
 				else if (DestCoordBasis == MCB_TranslatedWorld)
 				{
@@ -5057,11 +5077,33 @@ protected:
 		return AddCodeChunk(ResultType,TEXT("(GetGIReplaceState() ? (%s) : (%s))"), *GetParameterCode(DynamicIndirect), *GetParameterCode(Direct));
 	}
 
+	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override
+	{
+		if (Default == INDEX_NONE || Shadow == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+
+		EMaterialValueType ResultType = GetArithmeticResultType(Default, Shadow);
+		return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
+	}
+
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
+	{
+		if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+
+		EMaterialValueType ResultType = GetArithmeticResultType(Normal, RayTraced);
+		return AddCodeChunk(ResultType, TEXT("(GetRayTracingQualitySwitch() ? (%s) : (%s))"), *GetParameterCode(RayTraced), *GetParameterCode(Normal));
+	}
+
 	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 
 	virtual int32 ObjectOrientation() override
 	{ 
-		return AddInlinedCodeChunk(MCT_Float3,TEXT("GetObjectOrientation()"));
+		return AddInlinedCodeChunk(MCT_Float3,TEXT("GetObjectOrientation(Parameters.PrimitiveId)"));
 	}
 
 	virtual int32 RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex) override
@@ -5780,14 +5822,14 @@ protected:
 			return INDEX_NONE;
 		}
 
-		return AddInlinedCodeChunk(Type, TEXT("Primitive.%s"), HLSLName);
+		return AddInlinedCodeChunk(Type, TEXT("GetPrimitiveData(Parameters.PrimitiveId).%s"), HLSLName);
 	}
 
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return bCompilingPreviousFrame; }
 
 	virtual bool IsDevelopmentFeatureEnabled(const FName& FeatureName) const override
-	{ 
+	{
 		if (FeatureName == NAME_SelectionColor)
 		{
 			// This is an editor-only feature (see FDefaultMaterialInstance::GetVectorValue).

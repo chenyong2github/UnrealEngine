@@ -12,6 +12,7 @@
 #include "NiagaraRenderer.h"
 #include "GameFramework/PlayerController.h"
 #include "Templates/AlignmentTemplates.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -27,7 +28,7 @@ DECLARE_CYCLE_STAT(TEXT("System PreSimulateTick [CNC]"), STAT_NiagaraSystemPreSi
 DECLARE_CYCLE_STAT(TEXT("System Instance Tick [CNC]"), STAT_NiagaraSystemInstanceTick, STATGROUP_Niagara);
 
  
-/** Safety time to allow for the LastRenderTime coming back from the RT. */
+/** Safety time to allow for the LastRenderTime coming back from the RT. This is overkill but that's ok.*/
 static float GLastRenderTimeSafetyBias = 0.1f;
 static FAutoConsoleVariableRef CVarLastRenderTimeSafetyBias(
 	TEXT("fx.LastRenderTimeSafetyBias"),
@@ -54,6 +55,19 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bDataInterfacesInitialized(false)
 {
 	SystemBounds.Init();
+
+	if (Component)
+	{
+		UWorld* World = Component->GetWorld();
+		if (World && World->Scene)
+		{
+			FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
+			if (FXSystemInterface)
+			{
+				Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
+			}
+		}
+	}
 }
 
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
@@ -504,12 +518,9 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 		return;
 	}
 
-	if (bResetSimulations)
+	for (TSharedRef<FNiagaraEmitterInstance> Simulation : Emitters)
 	{
-		for (TSharedRef<FNiagaraEmitterInstance> Simulation : Emitters)
-		{
-			Simulation->ResetSimulation();
-		}
+		Simulation->ResetSimulation(bResetSimulations);
 	}
 
 #if WITH_EDITOR
@@ -652,7 +663,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_INV_DELTA_TIME, true, false);
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_TIME_SINCE_RENDERED, true, false);
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_EXECUTION_STATE, true, false);
-	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_MIN_DIST_TO_CAMERA, true, false);
+	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_LOD_DISTANCE, true, false);
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, true, false);
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE, true, false);
 	InstanceParameters.AddParameter(SYS_PARAM_ENGINE_SYSTEM_AGE);
@@ -711,7 +722,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	OwnerEngineTimeParam.Init(InstanceParameters, SYS_PARAM_ENGINE_TIME);
 	OwnerEngineRealtimeParam.Init(InstanceParameters, SYS_PARAM_ENGINE_REAL_TIME);
 
-	OwnerMinDistanceToCameraParam.Init(InstanceParameters, SYS_PARAM_ENGINE_MIN_DIST_TO_CAMERA);
+	OwnerLODDistanceParam.Init(InstanceParameters, SYS_PARAM_ENGINE_LOD_DISTANCE);
 	SystemNumEmittersParam.Init(InstanceParameters, SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS);
 	SystemNumEmittersAliveParam.Init(InstanceParameters, SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE);
 
@@ -989,6 +1000,17 @@ bool FNiagaraSystemInstance::GetPerInstanceDataAndOffsets(void*& OutData, uint32
 	return DataInterfaceInstanceDataOffsets.Num() != 0;
 }
 
+int32 FNiagaraSystemInstance::GetDetailLevel()const
+{
+	int32 DetailLevel = INiagaraModule::GetDetailLevel();
+#if WITH_EDITOR
+	if (Component && Component->bEnablePreviewDetailLevel)
+	{
+		DetailLevel = Component->PreviewDetailLevel;
+	}
+#endif
+	return DetailLevel;
+}
 
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
 {
@@ -1024,6 +1046,52 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 	if (bReInitDataInterfaces)
 	{
 		InitDataInterfaces();
+	}
+}
+
+float FNiagaraSystemInstance::GetLODDistance()
+{
+	check(Component);
+	FVector CurrPos = Component->GetComponentLocation();
+#if WITH_EDITOR
+	if (Component->bEnablePreviewLODDistance)
+	{
+		return Component->PreviewLODDistance;
+	}
+	else
+#endif
+	{
+		UWorld* World = Component->GetWorld();
+		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
+		//TODO: Pull this up into the world manager at least. Doing this for every instance each frame is pointless.
+		if (World->GetPlayerControllerIterator())
+		{
+			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			{
+				APlayerController* PlayerController = Iterator->Get();
+				if (PlayerController && PlayerController->IsLocalPlayerController())
+				{
+					FVector* POVLoc = new(PlayerViewLocations) FVector;
+					FRotator POVRotation;
+					PlayerController->GetPlayerViewPoint(*POVLoc, POVRotation);
+				}
+			}
+		}
+		else
+		{
+			PlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
+		}
+
+		float LODDistanceSqr = (PlayerViewLocations.Num() ? FMath::Square(WORLD_MAX) : 0.0f);
+		for (const FVector& ViewLocation : PlayerViewLocations)
+		{
+			const float DistanceToEffectSqr = FVector(ViewLocation - CurrPos).SizeSquared();
+			if (DistanceToEffectSqr < LODDistanceSqr)
+			{
+				LODDistanceSqr = DistanceToEffectSqr;
+			}
+		}
+		return FMath::Sqrt(LODDistanceSqr);
 	}
 }
 
@@ -1064,36 +1132,8 @@ void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
 	UWorld* World = Component->GetWorld();
 	if (World != NULL)
 	{
-		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
-		if (World->GetPlayerControllerIterator())
-		{
-			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-			{
-				APlayerController* PlayerController = Iterator->Get();
-				if (PlayerController && PlayerController->IsLocalPlayerController())
-				{
-					FVector* POVLoc = new(PlayerViewLocations) FVector;
-					FRotator POVRotation;
-					PlayerController->GetPlayerViewPoint(*POVLoc, POVRotation);
-				}
-			}
-		}
-		else
-		{
-			PlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
-		}
-
-		float LODDistanceSqr = (PlayerViewLocations.Num() ? FMath::Square(WORLD_MAX) : 0.0f);
-		for (const FVector& ViewLocation : PlayerViewLocations)
-		{
-			const float DistanceToEffectSqr = FVector(ViewLocation - CurrPos).SizeSquared();
-			if (DistanceToEffectSqr < LODDistanceSqr)
-			{
-				LODDistanceSqr = DistanceToEffectSqr;
-			}
-		}
-		OwnerMinDistanceToCameraParam.SetValue(FMath::Sqrt(LODDistanceSqr));
-
+		float LODDistance = GetLODDistance();
+		OwnerLODDistanceParam.SetValue(LODDistance);
 		OwnerEngineTimeParam.SetValue(World->TimeSeconds);
 		OwnerEngineRealtimeParam.SetValue(World->RealTimeSeconds);
 	}
@@ -1120,7 +1160,9 @@ void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)
 	SystemNumEmittersAliveParam.SetValue(NumAlive);
 
 	check(World);
-	float SafeTimeSinceRendererd = FMath::Max(0.0f, World->GetTimeSeconds() - Component->LastRenderTime - GLastRenderTimeSafetyBias);
+	float WorldTime = World->GetTimeSeconds();
+	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
+	float SafeTimeSinceRendererd = FMath::Max(0.0f, WorldTime - Component->LastRenderTime - GLastRenderTimeSafetyBias);
 	SystemTimeSinceRenderedParam.SetValue(SafeTimeSinceRendererd);
 	
 	OwnerExecutionStateParam.SetValue((int32)RequestedExecutionState);
@@ -1235,12 +1277,11 @@ void FNiagaraSystemInstance::UpdateProxy(TArray<NiagaraRenderer*>& InRenderers)
 		if (Component->GetWorld() != nullptr)
 		{
 			// Tell the scene proxy on the render thread to update its System renderers.
-			ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
-				FChangeNiagaraRenderModule,
-				FNiagaraSceneProxy*, InProxy, NiagaraProxy,
-				TArray<NiagaraRenderer*>, InRendererArray, InRenderers,
+			TArray<NiagaraRenderer*> InRendererArray = InRenderers;
+			ENQUEUE_RENDER_COMMAND(FChangeNiagaraRenderModule)(
+				[NiagaraProxy, InRendererArray](FRHICommandListImmediate& RHICmdList)
 				{
-					InProxy->UpdateEmitterRenderers(InRendererArray);
+					NiagaraProxy->UpdateEmitterRenderers(InRendererArray);
 				}
 			);
 		}
@@ -1301,6 +1342,9 @@ void FNiagaraSystemInstance::PreSimulateTick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemPreSimulateTick);
 	TickInstanceParameters(DeltaSeconds);
+
+	Age += DeltaSeconds;
+	TickCount += 1;
 }
 
 void FNiagaraSystemInstance::PostSimulateTick(float DeltaSeconds)
@@ -1332,9 +1376,6 @@ void FNiagaraSystemInstance::PostSimulateTick(float DeltaSeconds)
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		Inst.Tick(DeltaSeconds);
 	}
-
-	Age += DeltaSeconds;
-	TickCount += 1;
 }
 
 #if WITH_EDITORONLY_DATA

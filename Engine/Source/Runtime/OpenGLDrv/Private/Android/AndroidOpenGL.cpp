@@ -136,9 +136,16 @@ FPlatformOpenGLDevice::FPlatformOpenGLDevice()
 // call out to JNI to see if the application was packaged for Gear VR
 extern bool AndroidThunkCpp_IsGearVRApplication();
 
+
+// RenderDoc
+#define GL_DEBUG_TOOL_EXT	0x6789
+static bool bRunningUnderRenderDoc = false;
+
 void FPlatformOpenGLDevice::Init()
 {
 	extern void InitDebugContext();
+
+	bRunningUnderRenderDoc = glIsEnabled(GL_DEBUG_TOOL_EXT) != GL_FALSE;
 
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("FPlatformOpenGLDevice:Init"));
 	bool bCreateSurface = !AndroidThunkCpp_IsGearVRApplication();
@@ -166,7 +173,7 @@ FPlatformOpenGLDevice* PlatformCreateOpenGLDevice()
 
 bool PlatformCanEnableGPUCapture()
 {
-	return false;
+	return bRunningUnderRenderDoc;
 }
 
 void PlatformReleaseOpenGLContext(FPlatformOpenGLDevice* Device, FPlatformOpenGLContext* Context)
@@ -342,14 +349,16 @@ void FPlatformOpenGLDevice::LoadEXT()
 	eglGetCompositorTimingSupportedANDROID_p = (PFNeglQueryTimestampSupportedANDROID)((void*)eglGetProcAddress("eglGetCompositorTimingSupportedANDROID"));
 	eglGetFrameTimestampsSupportedANDROID_p = (PFNeglQueryTimestampSupportedANDROID)((void*)eglGetProcAddress("eglGetFrameTimestampsSupportedANDROID"));
 
+	const TCHAR* NotAvailable = TEXT("NOT Available");
+	const TCHAR* Present = TEXT("Present");
 
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglPresentationTimeANDROID"), eglPresentationTimeANDROID_p  ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetNextFrameIdANDROID"), eglGetNextFrameIdANDROID_p ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetCompositorTimingANDROID"), eglGetCompositorTimingANDROID_p  ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetFrameTimestampsANDROID"), eglGetFrameTimestampsANDROID_p  ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglQueryTimestampSupportedANDROID"), eglQueryTimestampSupportedANDROID_p ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetCompositorTimingSupportedANDROID"), eglGetCompositorTimingSupportedANDROID_p ? TEXT("Present") : TEXT("Not Present"));
-	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetFrameTimestampsSupportedANDROID"), eglGetFrameTimestampsSupportedANDROID_p ? TEXT("Present") : TEXT("Not Present"));
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglPresentationTimeANDROID"), eglPresentationTimeANDROID_p  ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetNextFrameIdANDROID"), eglGetNextFrameIdANDROID_p ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetCompositorTimingANDROID"), eglGetCompositorTimingANDROID_p  ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetFrameTimestampsANDROID"), eglGetFrameTimestampsANDROID_p  ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglQueryTimestampSupportedANDROID"), eglQueryTimestampSupportedANDROID_p ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetCompositorTimingSupportedANDROID"), eglGetCompositorTimingSupportedANDROID_p ? Present : NotAvailable);
+	UE_LOG(LogRHI, Log, TEXT("Extension %s %s"), TEXT("eglGetFrameTimestampsSupportedANDROID"), eglGetFrameTimestampsSupportedANDROID_p ? Present : NotAvailable);
 
 	glDebugMessageControlKHR = (PFNGLDEBUGMESSAGECONTROLKHRPROC)((void*)eglGetProcAddress("glDebugMessageControlKHR"));
 
@@ -711,6 +720,12 @@ void FAndroidOpenGL::QueryTimestampCounter(GLuint Query)
 
 }
 
+bool FAndroidOpenGL::SupportsFramebufferSRGBEnable()
+{	
+	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseHWsRGBEncoding"));
+	const bool bMobileUseHWsRGBEncoding = (MobileUseHWsRGBEncodingCVAR && MobileUseHWsRGBEncodingCVAR->GetValueOnAnyThread() == 1);
+	return bMobileUseHWsRGBEncoding;
+}
 
 void FAndroidOpenGL::BeginQuery(GLenum QueryType, GLuint Query)
 {

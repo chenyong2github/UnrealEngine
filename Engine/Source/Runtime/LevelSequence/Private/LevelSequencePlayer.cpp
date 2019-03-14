@@ -22,6 +22,7 @@
 #include "LevelSequenceActor.h"
 #include "Modules/ModuleManager.h"
 #include "LevelUtils.h"
+#include "Core/Public/ProfilingDebugging/CsvProfiler.h"
 
 /* ULevelSequencePlayer structors
  *****************************************************************************/
@@ -170,6 +171,22 @@ void ULevelSequencePlayer::OnStopped()
 	LastViewTarget.Reset();
 }
 
+void ULevelSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped)
+{
+	UMovieSceneSequencePlayer::UpdateMovieSceneInstance(InRange, PlayerStatus, bHasJumped);
+
+	FLevelSequencePlayerSnapshot NewSnapshot;
+	TakeFrameSnapshot(NewSnapshot);
+
+	if (!PreviousSnapshot.IsSet() || PreviousSnapshot.GetValue().CurrentShotName != NewSnapshot.CurrentShotName)
+	{
+		CSV_EVENT_GLOBAL(TEXT("%s"), *NewSnapshot.CurrentShotName);
+		//UE_LOG(LogMovieScene, Log, TEXT("Shot evaluated: '%s'"), *NewSnapshot.CurrentShotName);
+	}
+
+	PreviousSnapshot = NewSnapshot;
+}
+
 /* IMovieScenePlayer interface
  *****************************************************************************/
 
@@ -208,6 +225,11 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	}
 
 	CachedCameraComponent = CameraComponent;
+
+	if (!CanUpdateCameraCut())
+	{
+		return;
+	}
 
 	if (CameraObject == ViewTarget)
 	{

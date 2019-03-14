@@ -210,10 +210,14 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 
 	TArray<FString> CompressedChunkWildcards;
 	{
-		FConfigFile PlatformIniFile;
-		FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
-		FString ConfigString;
-		PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("CompressedChunkWildcard"), CompressedChunkWildcards);
+		// never screw with server pak files.  This hack only cares about client platforms
+		if (!TargetPlatform->IsServerOnly())
+		{
+			FConfigFile PlatformIniFile;
+			FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Game"), true, *TargetPlatform->IniPlatformName());
+			FString ConfigString;
+			PlatformIniFile.GetArray(TEXT("/Script/UnrealEd.ProjectPackagingSettings"), TEXT("CompressedChunkWildcard"), CompressedChunkWildcards);
+		}
 	}
 
 	// Add manifests for any staging-time only groups
@@ -278,6 +282,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 				if ( PakChunkFilename.MatchesWildcard(CompressedChunkWildcard) )
 				{
 					PakChunkOptions += " compressed";
+					break;
 				}
 			}
 
@@ -1278,7 +1283,7 @@ void FAssetRegistryGenerator::RemovePackageFromManifest(FName PackageName, int32
 	}
 }
 
-void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node, FChunkPackageSet BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks)
+void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node, const FChunkPackageSet& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks)
 {
 	if (FinalChunkManifests.Num() > Node.ChunkID && FinalChunkManifests[Node.ChunkID])
 	{
@@ -1291,14 +1296,24 @@ void FAssetRegistryGenerator::ResolveChunkDependencyGraph(const FChunkDependency
 				UE_LOG(LogAssetRegistryGenerator, Verbose, TEXT("Removed %s from chunk %i because it is duplicated in another chunk."), *It.Key().ToString(), Node.ChunkID);
 			}
 		}
+		
+		FChunkPackageSet ModifiedAssetSet;
+		
 		// Add the current Chunk's assets
 		for (auto It = FinalChunkManifests[Node.ChunkID]->CreateConstIterator(); It; ++It)//for (const auto It : *(FinalChunkManifests[Node.ChunkID]))
 		{
-			BaseAssetSet.Add(It.Key(), It.Value());
+			if (!ModifiedAssetSet.Num())
+			{
+				ModifiedAssetSet = BaseAssetSet;
+			}
+			
+			ModifiedAssetSet.Add(It.Key(), It.Value());
 		}
+		
+		const auto& AssetSet = ModifiedAssetSet.Num() ? ModifiedAssetSet : BaseAssetSet;
 		for (const auto It : Node.ChildNodes)
 		{
-			ResolveChunkDependencyGraph(It, BaseAssetSet, OutPackagesMovedBetweenChunks);
+			ResolveChunkDependencyGraph(It, AssetSet, OutPackagesMovedBetweenChunks);
 		}
 	}
 }

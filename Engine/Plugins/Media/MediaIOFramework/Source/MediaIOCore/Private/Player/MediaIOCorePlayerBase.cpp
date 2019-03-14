@@ -140,20 +140,10 @@ bool FMediaIOCorePlayerBase::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe
 
 void FMediaIOCorePlayerBase::TickTimeManagement()
 {
-	bool bUseTimecode = false;
 	if (bUseTimeSynchronization)
 	{
-		if (const UTimecodeProvider* Provider = GEngine->GetTimecodeProvider())
-		{
-			bUseTimecode = (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized);
-		}
-	}
-
-	if (bUseTimecode)
-	{
-		FTimecode Timecode = FApp::GetTimecode();
-		FFrameRate FrameRate = FApp::GetTimecodeFrameRate();
-		CurrentTime = FTimespan(0, Timecode.Hours, Timecode.Minutes, Timecode.Seconds, static_cast<int32>((ETimespan::TicksPerSecond * Timecode.Frames) / FrameRate.AsDecimal()) * ETimespan::NanosecondsPerTick);
+		const FTimecode Timecode = FApp::GetTimecode();
+		CurrentTime = Timecode.ToTimespan(FApp::GetTimecodeFrameRate());
 	}
 	else
 	{

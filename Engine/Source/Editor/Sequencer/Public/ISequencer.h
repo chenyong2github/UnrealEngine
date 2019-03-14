@@ -232,9 +232,10 @@ public:
 	 * Add actors as possessable objects to sequencer.
 	 * 
 	 * @param InActors The actors to add to sequencer.
+	 * @param bSelectActors Select the newly added possessable objects in sequencer.
 	 * @return The posssessable guids for the newly added actors.
 	 */
-	virtual TArray<FGuid> AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors) = 0;
+	virtual TArray<FGuid> AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors = true) = 0;
 
 	/**
 	 * Calling this function will add the specified track to the currently selected folder
@@ -293,7 +294,15 @@ public:
 	virtual bool GetAutoSetTrackDefaults() const = 0;
 
 	/** @return Returns whether sequencer will respond to changes and possibly create a key or track */
-	virtual bool IsAllowedToChange() const { return GetAllowEditsMode() != EAllowEditsMode::AllowLevelEditsOnly || GetAutoChangeMode() != EAutoChangeMode::None; }
+	virtual bool IsAllowedToChange() const 
+	{
+		if (GetAllowEditsMode() == EAllowEditsMode::AllowLevelEditsOnly)
+		{
+			return false;
+		}
+
+		return GetAllowEditsMode() != EAllowEditsMode::AllowLevelEditsOnly || GetAutoChangeMode() != EAutoChangeMode::None;
+	}
 
 	/**
 	 * Gets the current time of the time slider relative to the currently focused movie scene

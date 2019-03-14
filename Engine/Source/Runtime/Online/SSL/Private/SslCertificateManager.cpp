@@ -187,25 +187,9 @@ bool FSslCertificateManager::VerifySslCertificates(X509_STORE_CTX* Context, cons
 		return false;
 	}
 
-	const TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>* PinnedKeys = nullptr;
-	for (const TPair<FString, TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>>& PinnedKeyPair: PinnedPublicKeys)
-	{
-		const FString& PinnedDomain = PinnedKeyPair.Key;
-		if ((PinnedDomain[0] == TEXT('.') && Domain.EndsWith(PinnedDomain))
-			|| Domain == PinnedDomain)
-		{
-			PinnedKeys = &PinnedKeyPair.Value;
-			break;
-		}
-	}
-
-	if (!PinnedKeys)
-	{
-		// No keys pinned for this domain
-		return true;
-	}
-
-	bool bFoundMatch = false;
+	TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>> CertDigests;
+    
+    bool bFoundMatch = false;
 	for (int CertIndex = 0; CertIndex < NumCertsInChain; ++CertIndex)
 	{
 		X509* Certificate = sk_X509_value(Chain, CertIndex);
@@ -227,20 +211,55 @@ bool FSslCertificateManager::VerifySslCertificates(X509_STORE_CTX* Context, cons
 		SHA256_Init(&ShaContext);
 		SHA256_Update(&ShaContext, PubKey.GetData(), PubKey.Num());
 		SHA256_Final(Digest.GetData(), &ShaContext);
-
-		if (PinnedKeys->Contains(Digest))
-		{
-			bFoundMatch = true;
-			break;
-		}
+		
+		CertDigests.Add(Digest);
 	}
+    
+    bFoundMatch = VerifySslCertificates(CertDigests, Domain);
+    if (!bFoundMatch)
+    {
+        X509_STORE_CTX_set_error(Context, X509_V_ERR_CERT_UNTRUSTED);
+    }
+    return bFoundMatch;
+}
 
-	if (!bFoundMatch)
-	{
-		X509_STORE_CTX_set_error(Context, X509_V_ERR_CERT_UNTRUSTED);
-	}
-
-	return bFoundMatch;
+bool FSslCertificateManager::VerifySslCertificates(TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>& Digests, const FString& Domain) const
+{
+#if !UE_BUILD_SHIPPING
+    static const bool bPinningDisabled = FParse::Param(FCommandLine::Get(), TEXT("DisableSSLCertificatePinning"));
+    if (bPinningDisabled)
+    {
+        return true;
+    }
+#endif
+    const TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>* PinnedKeys = nullptr;
+    for (const TPair<FString, TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>>& PinnedKeyPair : PinnedPublicKeys)
+    {
+        const FString& PinnedDomain = PinnedKeyPair.Key;
+        if ((PinnedDomain[0] == TEXT('.') && Domain.EndsWith(PinnedDomain))
+            || Domain == PinnedDomain)
+        {
+            PinnedKeys = &PinnedKeyPair.Value;
+            break;
+        }
+    }
+    if (!PinnedKeys)
+    {
+        // No keys pinned for this domain
+        UE_LOG(LogSsl, Verbose, TEXT("no pinned key digests found for domain '%s'"), *Domain);
+        return true;
+    }
+    bool bFoundMatch = false;
+    for (int32 CertIndex = 0; CertIndex < Digests.Num(); ++CertIndex)
+    {
+        if (PinnedKeys->Contains(Digests[CertIndex]))
+        {
+            UE_LOG(LogSsl, Verbose, TEXT("found public key digest in request that matches a pinned key for '%s'"), *Domain);
+            bFoundMatch = true;
+            break;
+        }
+    }
+    return bFoundMatch;
 }
 
 void FSslCertificateManager::BuildRootCertificateArray()
@@ -354,6 +373,18 @@ void FSslCertificateManager::AddPEMFileToRootCertificateArray(const FString& Pat
 	}
 }
 
+namespace
+{
+	FString GetCertificateName(X509* const Certificate)
+	{
+		char StaticBuffer[2048];
+		// We do not have to free the return value of get_subject_name
+		X509_NAME_oneline(X509_get_subject_name(Certificate), StaticBuffer, sizeof(StaticBuffer));
+
+		return FString(ANSI_TO_TCHAR(StaticBuffer));
+	}
+}
+
 void FSslCertificateManager::AddCertificateToRootCertificateArray(X509* Certificate)
 {
 	bool bValidateRootCertificates = true;
@@ -364,13 +395,13 @@ void FSslCertificateManager::AddCertificateToRootCertificateArray(X509* Certific
 		ASN1_TIME* NotAfter = X509_get_notAfter(Certificate);
 		if (X509_cmp_current_time(NotAfter) < 0)
 		{
-			UE_LOG(LogSsl, Log, TEXT("Ignoring expired certificate: %s"), ANSI_TO_TCHAR(Certificate->name));
+			UE_LOG(LogSsl, Log, TEXT("Ignoring expired certificate: %s"), *GetCertificateName(Certificate));
 			X509_free(Certificate);
 			return;
 		}
 		if (X509_cmp_current_time(NotBefore) > 0)
 		{
-			UE_LOG(LogSsl, Log, TEXT("Ignoring not yet valid certificate: %s"), ANSI_TO_TCHAR(Certificate->name));
+			UE_LOG(LogSsl, Log, TEXT("Ignoring not yet valid certificate: %s"), *GetCertificateName(Certificate));
 			X509_free(Certificate);
 			return;
 		}
@@ -384,12 +415,12 @@ void FSslCertificateManager::AddCertificateToRootCertificateArray(X509* Certific
 
 	if (bFound)
 	{
-		UE_LOG(LogSsl, VeryVerbose, TEXT("Ignoring duplicate certificate: %s"), ANSI_TO_TCHAR(Certificate->name));
+		UE_LOG(LogSsl, VeryVerbose, TEXT("Ignoring duplicate certificate: %s"), *GetCertificateName(Certificate));
 		X509_free(Certificate);
 	}
 	else
 	{
-		UE_LOG(LogSsl, Verbose, TEXT("Adding certificate: %s"), ANSI_TO_TCHAR(Certificate->name));
+		UE_LOG(LogSsl, Verbose, TEXT("Adding certificate: %s"), *GetCertificateName(Certificate));
 		RootCertificateArray.Add(Certificate);
 	}
 }

@@ -592,6 +592,9 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* L
 		}
 	}
 
+	// Invalidate landscape grass of modified landscape components
+	ALandscapeProxy::InvalidateGeneratedComponentData(ModifiedComponents);
+
 	return true;
 }
 

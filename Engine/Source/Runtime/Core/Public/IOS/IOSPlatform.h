@@ -63,6 +63,9 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define PLATFORM_UI_NEEDS_TOOLTIPS						0
 #define PLATFORM_UI_NEEDS_FOCUS_OUTLINES				0
 
+#define PLATFORM_NEEDS_RHIRESOURCELIST					0
+#define PLATFORM_SUPPORTS_GEOMETRY_SHADERS				0
+#define PLATFORM_SUPPORTS_TESSELLATION_SHADERS			0
 #if WITH_SIMULATOR
 	#define PLATFORM_BREAK()							__asm__("int $3")
 #elif PLATFORM_64BITS
@@ -120,7 +123,7 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define OPERATOR_DELETE_NOTHROW_SPEC  noexcept
 
 // DLL export and import definitions
-#define DLLEXPORT
+#define DLLEXPORT __attribute__((visibility("default")))
 #define DLLIMPORT
 
 #define IOS_MAX_PATH 1024

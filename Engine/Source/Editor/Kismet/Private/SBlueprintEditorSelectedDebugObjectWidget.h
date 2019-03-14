@@ -55,12 +55,12 @@ private:
 
 	EVisibility IsDebugWorldComboVisible() const;
 
-private:
 	/* Returns the string to indicate no debug object is selected */
 	const FString& GetNoDebugString() const;
 
 	const FString& GetDebugAllWorldsString() const;
 
+	TSharedRef<SWidget> OnGetActiveDetailSlotContent(bool bChangedToHighDetail);
 private:
 	/** Pointer back to the blueprint editor tool that owns us */
 	TWeakPtr<FBlueprintEditor> BlueprintEditor;

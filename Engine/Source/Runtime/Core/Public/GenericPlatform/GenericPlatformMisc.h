@@ -10,6 +10,7 @@
 class Error;
 class GenericApplication;
 class IPlatformChunkInstall;
+class IPlatformInstallBundleManager;
 class IPlatformCompression;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
@@ -848,6 +849,20 @@ public:
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
 
 	/**
+	 * Returns the platform specific Install Bundle Manager
+	 *
+	 * @return	Returns the platform specific Install Bundle Manager implementation
+	 */
+	static IPlatformInstallBundleManager* GetPlatformInstallBundleManager();
+
+	/**
+	 * Returns the platform specific compression interface
+	 *
+	 * @return Returns the platform specific compression interface
+	 */
+	static IPlatformCompression* GetPlatformCompression();
+
+	/**
 	 * Has the OS execute a command and path pair (such as launch a browser)
 	 *
 	 * @param ComandType OS hint as to the type of command 
@@ -1257,7 +1272,13 @@ public:
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
 
 	static TArray<FChunkTagID> GetOnDemandChunkTagIDs();
-	
+
+	/*
+	 * Loads a text file relative to the package root on platforms that distribute apps in package formats.
+	 * For other platforms, the path is relative to the root directory.
+	*/
+	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen

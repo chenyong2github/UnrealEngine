@@ -59,7 +59,7 @@ struct ENGINE_API FNetworkReplayDelegates
 -----------------------------------------------------------------------------*/
 
 /** wrapper to find replicated properties that also makes sure they're valid */
-static UProperty* GetReplicatedProperty(UClass* CallingClass, UClass* PropClass, const FName& PropName)
+static UProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass* PropClass, const FName& PropName)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!CallingClass->IsChildOf(PropClass))
@@ -79,11 +79,8 @@ static UProperty* GetReplicatedProperty(UClass* CallingClass, UClass* PropClass,
 
 #define DOREPLIFETIME(c,v) \
 { \
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	for ( int32 i = 0; i < sp##v->ArrayDim; i++ )							\
-	{																		\
-		OutLifetimeProps.AddUnique( FLifetimeProperty( sp##v->RepIndex + i ) );	\
-	}																		\
+	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, COND_None); \
 }
 
 /** This macro is used by nativized code (DynamicClasses), so the Property may be recreated. */
@@ -104,21 +101,15 @@ static UProperty* GetReplicatedProperty(UClass* CallingClass, UClass* PropClass,
 
 #define DOREPLIFETIME_CONDITION(c,v,cond) \
 { \
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	for ( int32 i = 0; i < sp##v->ArrayDim; i++ )										\
-	{																					\
-		OutLifetimeProps.AddUnique( FLifetimeProperty( sp##v->RepIndex + i, cond ) );	\
-	}																					\
+	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, cond); \
 }
 
 /** Allows gamecode to specify RepNotify condition: REPNOTIFY_OnChanged (default) or REPNOTIFY_Always for when repnotify function is called  */
 #define DOREPLIFETIME_CONDITION_NOTIFY(c,v,cond, rncond) \
 { \
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
-	for ( int32 i = 0; i < sp##v->ArrayDim; i++ )										\
-	{																					\
-		OutLifetimeProps.AddUnique( FLifetimeProperty( sp##v->RepIndex + i, cond, rncond) );	\
-	}																					\
+	UProperty* ReplicatedProperty = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v)); \
+	RegisterReplicatedLifetimeProperty(ReplicatedProperty, OutLifetimeProps, cond, rncond); \
 }
 
 #define DOREPLIFETIME_ACTIVE_OVERRIDE(c,v,active)	\
@@ -130,24 +121,47 @@ static UProperty* GetReplicatedProperty(UClass* CallingClass, UClass* PropClass,
 	}																						\
 }
 
+UE_DEPRECATED(4.30, "Please use the RESET_REPLIFETIME_CONDITION macro")
+ENGINE_API void DeprecatedChangeCondition(UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
+
 #define DOREPLIFETIME_CHANGE_CONDITION(c,v,cond) \
 { \
-	static UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));	\
-	bool bFound = false;																							\
-	for ( int32 i = 0; i < OutLifetimeProps.Num(); i++ )															\
-	{																												\
-		if ( OutLifetimeProps[i].RepIndex == sp##v->RepIndex )														\
-		{																											\
-			for ( int32 j = 0; j < sp##v->ArrayDim; j++ )															\
-			{																										\
-				OutLifetimeProps[i + j].Condition = cond;															\
-			}																										\
-			bFound = true;																							\
-			break;																									\
-		}																											\
-	}																												\
-	check( bFound );																								\
+	UProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
+	DeprecatedChangeCondition(sp##v, OutLifetimeProps, cond);														\
 }
+
+ENGINE_API void RegisterReplicatedLifetimeProperty(const UProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition, ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
+
+/*-----------------------------------------------------------------------------
+	Disable macros.
+	Use these macros to state that properties tagged replicated 
+	are voluntarely not replicated. This silences an error about missing
+	registered properties when class replication is started
+-----------------------------------------------------------------------------*/
+
+/** Use this macro in GetLifetimeReplicatedProps to flag a replicated property as not-replicated */
+#define DISABLE_REPLICATED_PROPERTY(c,v) \
+DisableReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), OutLifetimeProps);
+
+/** Use this macro in GetLifetimeReplicatedProps to flag all replicated properties of a class as not-replicated.
+    Use the EFieldIteratorFlags enum to disable all inherited properties or only those of the class specified
+*/
+#define DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(c, SuperClassBehavior) \
+DisableAllReplicatedPropertiesOfClass(StaticClass(), c::StaticClass(), SuperClassBehavior, OutLifetimeProps);
+
+ENGINE_API void DisableReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, TArray< FLifetimeProperty >& OutLifetimeProps);
+ENGINE_API void DisableAllReplicatedPropertiesOfClass(const UClass* ThisClass, const UClass* ClassToDisable, EFieldIteratorFlags::SuperClassFlags SuperClassBehavior, TArray< FLifetimeProperty >& OutLifetimeProps);
+
+/*-----------------------------------------------------------------------------
+	Reset macros.
+	Use these to change the replication settings of an inherited property
+-----------------------------------------------------------------------------*/
+
+#define RESET_REPLIFETIME(c,v)  ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), COND_None, OutLifetimeProps);
+
+#define RESET_REPLIFETIME_CONDITION(c,v,cond) ResetReplicatedLifetimeProperty(StaticClass(), c::StaticClass(), GET_MEMBER_NAME_CHECKED(c,v), cond, OutLifetimeProps);
+
+ENGINE_API void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, ELifetimeCondition LifetimeCondition, TArray< FLifetimeProperty >& OutLifetimeProps);
 
 /*-----------------------------------------------------------------------------
 	RPC Parameter Validation Helpers

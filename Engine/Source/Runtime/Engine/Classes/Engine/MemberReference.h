@@ -369,8 +369,8 @@ public:
 					MemberParent  = ParentAsClass;
 
 					// Re-evaluate self-ness against the redirect if we were given a valid SelfScope
-					// For functions we don't want to go from not-self to self as we lose the knowledge of overriding
-					if (SelfScope != nullptr && (bSelfContext || TFieldType::StaticClass() != UFunction::StaticClass()))
+					// For functions and multicast delegates we don't want to go from not-self to self as the target pin type should remain consistent
+					if (SelfScope != nullptr && (bSelfContext || (TFieldType::StaticClass() != UFunction::StaticClass() && TFieldType::StaticClass() != UMulticastDelegateProperty::StaticClass())))
 					{
 						SetGivenSelfScope(MemberName, MemberGuid, ParentAsClass, SelfScope);
 					}
@@ -502,7 +502,7 @@ public:
 	}
 
 	template<class TFieldType>
-	static TFieldType* ResolveSimpleMemberReference(const FSimpleMemberReference& Reference)
+	static TFieldType* ResolveSimpleMemberReference(const FSimpleMemberReference& Reference, UClass* SelfScope = nullptr)
 	{
 		FMemberReference TempMemberReference;
 
@@ -511,11 +511,11 @@ public:
 		TempMemberReference.MemberGuid   = Reference.MemberGuid;
 		TempMemberReference.MemberParent = Reference.MemberParent;
 
-		auto Result = TempMemberReference.ResolveMember<TFieldType>();
+		auto Result = TempMemberReference.ResolveMember<TFieldType>(SelfScope);
 		if (!Result && (Name != Reference.MemberName))
 		{
 			TempMemberReference.MemberName = Reference.MemberName;
-			Result = TempMemberReference.ResolveMember<TFieldType>();
+			Result = TempMemberReference.ResolveMember<TFieldType>(SelfScope);
 		}
 
 		return Result;

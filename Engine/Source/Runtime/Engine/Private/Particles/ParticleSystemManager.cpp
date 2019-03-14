@@ -232,7 +232,7 @@ void FParticleSystemWorldManager::AddReferencedObjects(FReferenceCollector& Coll
 	if (World)
 	{
 		//UE_LOG(LogParticles, Warning, TEXT("| AddReferencedObjects - %d - 0x%p - %s |"), ManagedPSCs.Num(), World, *World->GetFullName());
-		Collector.AddReferencedObject(World);
+		// World doesn't need to be added to the reference list. It will be handle via OnWorldInit & OnWorldCleanup & OnPreWorldFinishDestroy
 
 		for (int32 PSCIndex = 0; PSCIndex < ManagedPSCs.Num(); ++PSCIndex)
 		{
@@ -457,6 +457,7 @@ FORCEINLINE void FParticleSystemWorldManager::FlushAsyncTicks(const FGraphEventR
 {
 	if (AsyncTickBatch.Num() > 0)
 	{
+		LLM_SCOPE(ELLMTag::Particles);
 		FGraphEventRef AsyncTask = TGraphTask<FParticleManagerAsyncTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, AsyncTickBatch);
 
 #if PSC_MAN_TG_WAIT_FOR_ASYNC

@@ -5,8 +5,9 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Docking/TabManager.h"
 #include "IBlutilityModule.h"
+#include "EditorUtilityWidget.h"
 #include "EditorUtilityBlueprint.h"
-
+#include "GlobalEditorUtilityBase.h"
 
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
@@ -30,7 +31,9 @@
 #include "LevelEditor.h"
 #include "Editor.h"
 #include "UnrealEdMisc.h"
-
+#include "EditorSupportDelegates.h"
+#include "UObject/PurgingReferenceCollector.h"
+#include "AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -91,33 +94,43 @@ public:
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		LevelEditorModule.OnTabManagerChanged().AddRaw(this, &FBlutilityModule::ReinitializeUIs);
 		LevelEditorModule.OnMapChanged().AddRaw(this, &FBlutilityModule::OnMapChanged);
+		FEditorSupportDelegates::PrepareToCleanseEditorObject.AddRaw(this, &FBlutilityModule::OnPrepareToCleanseEditorObject);
+
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FBlutilityModule::HandleAssetRemoved);
 	}
 
 	void ReinitializeUIs()
 	{
-		EditorUtilityContext = NewObject<UEditorUtilityContext>();
-		if (EditorUtilityContext)
+		if (!EditorUtilityContext)
 		{
-			for (FSoftObjectPath BlueprintPath : EditorUtilityContext->LoadedUIs)
-			{ 
-				UObject* BlueprintObject = BlueprintPath.TryLoad();
-				if (BlueprintObject)
+			EditorUtilityContext = NewObject<UEditorUtilityContext>();
+		}
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		TArray<FSoftObjectPath> CorrectPaths;
+		for (FSoftObjectPath BlueprintPath : EditorUtilityContext->LoadedUIs)
+		{
+			UObject* BlueprintObject = BlueprintPath.TryLoad();
+			if (BlueprintObject && !BlueprintObject->IsPendingKillOrUnreachable())
+			{
+				UEditorUtilityWidgetBlueprint* Blueprint = Cast<UEditorUtilityWidgetBlueprint>(BlueprintObject);
+				const UEditorUtilityWidget* CDO = Blueprint->GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
+				FName RegistrationName = FName(*(Blueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
+				Blueprint->SetRegistrationName(RegistrationName);
+				FText DisplayName = FText::FromString(Blueprint->GetName());
+				if (LevelEditorTabManager && !LevelEditorTabManager->CanSpawnTab(RegistrationName))
 				{
-					UEditorUtilityWidgetBlueprint* Blueprint = Cast<UEditorUtilityWidgetBlueprint>(BlueprintObject);
-					const UEditorUtilityWidget* CDO = Blueprint->GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
-					FName RegistrationName = FName(*CDO->GetPathName());
-					FText DisplayName = FText::FromString(Blueprint->GetName());
-					FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-					TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-					if (LevelEditorTabManager && !LevelEditorTabManager->CanSpawnTab(RegistrationName))
-					{
-						LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(Blueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
-							.SetDisplayName(DisplayName)
-							.SetGroup(GetMenuGroup().ToSharedRef());
-					}
+					LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(Blueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
+						.SetDisplayName(DisplayName)
+						.SetGroup(GetMenuGroup().ToSharedRef());
+					CorrectPaths.Add(BlueprintPath);
 				}
 			}
 		}
+
+		EditorUtilityContext->LoadedUIs = CorrectPaths;
+		EditorUtilityContext->SaveConfig();
 	}
 
 	void OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
@@ -184,13 +197,17 @@ public:
 			PropertyModule.UnregisterCustomClassLayout("GlobalEditorUtilityBase");
 			PropertyModule.NotifyCustomizationModuleChanged();
 		}
+
+		FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
 	}
 
-	virtual bool IsBlutility( const UBlueprint* Blueprint ) const override
+	virtual bool IsEditorUtilityBlueprint( const UBlueprint* Blueprint ) const override
 	{
 		const UClass* BPClass = Blueprint ? Blueprint->GetClass() : nullptr;
 
-		if( BPClass && BPClass->IsChildOf( UEditorUtilityBlueprint::StaticClass() ))
+		if( BPClass && 
+			(BPClass->IsChildOf( UEditorUtilityBlueprint::StaticClass())
+			|| BPClass->IsChildOf(UEditorUtilityWidgetBlueprint::StaticClass())))
 		{
 			return true;
 		}
@@ -211,7 +228,7 @@ public:
 	{
 		if (EditorUtilityContext)
 		{
-			EditorUtilityContext->LoadedUIs.Add(InBlueprint);
+			EditorUtilityContext->LoadedUIs.AddUnique(InBlueprint);
 			EditorUtilityContext->SaveConfig();
 		}
 	}
@@ -244,6 +261,69 @@ protected:
 		}
 	}
 
+	void OnPrepareToCleanseEditorObject(UObject* InObject)
+	{
+		// Gather the list of live Editor Utility instances to purge references from
+		TArray<UObject*> EditorUtilityInstances;
+		ForEachObjectOfClass(UEditorUtilityWidget::StaticClass(), [&EditorUtilityInstances](UObject* InEditorUtilityInstance)
+		{
+			EditorUtilityInstances.Add(InEditorUtilityInstance);
+		});
+		ForEachObjectOfClass(UGlobalEditorUtilityBase::StaticClass(), [&EditorUtilityInstances](UObject* InEditorUtilityInstance)
+		{
+			EditorUtilityInstances.Add(InEditorUtilityInstance);
+		});
+
+		if (EditorUtilityInstances.Num() > 0)
+		{
+			// Build up the complete list of objects to purge
+			FPurgingReferenceCollector PurgingReferenceCollector;
+			PurgingReferenceCollector.AddObjectToPurge(InObject);
+			ForEachObjectWithOuter(InObject, [&PurgingReferenceCollector](UObject* InInnerObject)
+			{
+				PurgingReferenceCollector.AddObjectToPurge(InInnerObject);
+			}, true);
+
+			// Run the purge for each Editor Utility instance
+			FReferenceCollectorArchive& PurgingReferenceCollectorArchive = PurgingReferenceCollector.GetVerySlowReferenceCollectorArchive();
+			for (UObject* EditorUtilityInstance : EditorUtilityInstances)
+			{
+				PurgingReferenceCollectorArchive.SetSerializingObject(EditorUtilityInstance);
+				EditorUtilityInstance->Serialize(PurgingReferenceCollectorArchive);
+				EditorUtilityInstance->CallAddReferencedObjects(PurgingReferenceCollector);
+				PurgingReferenceCollectorArchive.SetSerializingObject(nullptr);
+			}
+		}
+	}
+
+	void HandleAssetRemoved(const FAssetData& InAssetData)
+	{
+		if (EditorUtilityContext)
+		{
+			bool bDeletingLoadedUI = false;
+			for (FSoftObjectPath LoadedUIPath : EditorUtilityContext->LoadedUIs)
+			{
+				if (LoadedUIPath.GetAssetPathName() == InAssetData.ObjectPath)
+				{
+					bDeletingLoadedUI = true;
+					break;
+				}
+			}
+
+			if (bDeletingLoadedUI)
+			{
+				FName UIToCleanup = FName(*(InAssetData.ObjectPath.ToString() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
+				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+				TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+				TSharedPtr<SDockTab> CurrentTab = LevelEditorTabManager->FindExistingLiveTab(UIToCleanup);
+				if (CurrentTab.IsValid())
+				{
+					CurrentTab->RequestCloseTab();
+				}
+			}
+		}
+	}
+protected:
 	/** Scripted Editor Widgets workspace menu item */
 	TSharedPtr<class FWorkspaceItem> ScriptedEditorWidgetsGroup;
 

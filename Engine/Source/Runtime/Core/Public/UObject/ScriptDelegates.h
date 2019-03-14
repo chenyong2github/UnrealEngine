@@ -381,7 +381,7 @@ public:
 	 *
 	 * @param InObject The object to remove bindings for.
 	 */
-	void RemoveAll( UObject* Object )
+	void RemoveAll(const UObject* Object)
 	{
 		for (int32 BindingIndex = InvocationList.Num() - 1; BindingIndex >= 0; --BindingIndex)
 		{
@@ -506,7 +506,7 @@ public:
 	 * For advanced uses only -- you should never need call this function in normal circumstances.
  	 * @return	List of objects bound to this delegate
 	 */
-	TArray< UObject* > GetAllObjects()
+	TArray< UObject* > GetAllObjects() const
 	{
 		TArray< UObject* > OutputList;
 		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
@@ -525,7 +525,7 @@ public:
 	 * For advanced uses only -- you should never need call this function in normal circumstances.
  	 * @return	List of objects bound to this delegate
 	 */
-	TArray< UObject* > GetAllObjectsEvenIfUnreachable()
+	TArray< UObject* > GetAllObjectsEvenIfUnreachable() const
 	{
 		TArray< UObject* > OutputList;
 		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
@@ -609,14 +609,18 @@ protected:
 		});
 	}
 
+public:
+	typedef TArray< TScriptDelegate<TWeakPtr> > FInvocationList;
+
 protected:
 
 	/** Ordered list functions to invoke when the Broadcast function is called */
-	typedef TArray< TScriptDelegate<TWeakPtr> > FInvocationList;
 	mutable FInvocationList InvocationList;		// Mutable so that we can housekeep list even with 'const' broadcasts
 
 	// Declare ourselves as a friend of UMulticastDelegateProperty so that it can access our function list
 	friend class UMulticastDelegateProperty;
+	friend class UMulticastInlineDelegateProperty;
+	friend class UMulticastSparseDelegateProperty;
 
 	// 
 	friend class FCallDelegateHelper;

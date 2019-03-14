@@ -173,6 +173,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 {
 	check(IsInRenderingThread());
 
+	CachedSample.Reset();
+
 	SCOPE_CYCLE_COUNTER(STAT_MediaAssets_MediaTextureResourceRender);
 
 	FLinearColor Rotation(1, 0, 0, 1);
@@ -183,13 +185,14 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 	if (SampleSource.IsValid())
 	{
 		// get the most current sample to be rendered
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> TestSample;
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
 		bool UseSample = false;
 		
-		while (SampleSource->Peek(Sample) && Sample.IsValid())
+		while (SampleSource->Peek(TestSample) && TestSample.IsValid())
 		{
-			const FTimespan StartTime = Sample->GetTime();
-			const FTimespan EndTime = StartTime + Sample->GetDuration();
+			const FTimespan StartTime = TestSample->GetTime();
+			const FTimespan EndTime = StartTime + TestSample->GetDuration();
 
 			if ((Params.Rate >= 0.0f) && (Params.Time < StartTime))
 			{
@@ -296,6 +299,10 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			);
 		}
 #endif
+
+		// We're not done with `Sample` as rendering is asynchronous. 
+		// Hold a reference in a member to postpone recycling `Sample` till the next call
+		CachedSample = Sample;
 	}
 	else if (Params.CanClear)
 	{
@@ -326,6 +333,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PreviousGuid);
 		}
 	}
+	
+	//Update usable Guid for the RenderThread
+	Owner.SetRenderedExternalTextureGuid(Params.CurrentGuid);
 }
 
 
@@ -413,9 +423,11 @@ void FMediaTextureResource::ClearTexture(const FLinearColor& ClearColor, bool Sr
 
 	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || (OutputTarget->GetFormat() != OutputPixelFormat) || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
 	{
-		FRHIResourceCreateInfo CreateInfo = {
-			FClearValueBinding(ClearColor)
-		};
+		FString DebugName = Owner.GetName();
+
+		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.ClearValueBinding = FClearValueBinding(ClearColor);
+		CreateInfo.DebugName = *DebugName;
 
 		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 

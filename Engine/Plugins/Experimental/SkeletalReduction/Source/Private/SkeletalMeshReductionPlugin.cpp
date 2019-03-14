@@ -157,7 +157,7 @@ private:
 		                         FSkeletalMeshLODModel& OutLODModel,
 		                         const FBoxSphereBounds& Bounds,
 		                         const FReferenceSkeleton& RefSkeleton,
-		                         const FSkeletalMeshOptimizationSettings& Settings,
+		                         FSkeletalMeshOptimizationSettings Settings,
 								 const FImportantBones& ImportantBones,
 		                         const TArray<FMatrix>& BoneMatrices,
 		                         const int32 LODIndex ) const;
@@ -448,15 +448,44 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		Vertex.Position   = WeightedPosition;
 	};
 
-	auto CreatSkinningMatrix = [&BoneMatrices](const FSoftSkinVertex& Vertex, const FSkelMeshSection& Section)->FMatrix
+	auto CreateSkinningMatrix = [&BoneMatrices](const FSoftSkinVertex& Vertex, const FSkelMeshSection& Section, bool& bValidBoneWeights)->FMatrix
 	{
-		FMatrix BlendedMatrix(ForceInitToZero);
-		int32 TotalInfluence = 0;
-		int32 ValidInfluenceCount = 0;
+		// Compute the inverse of the total bone influence for this vertex.
+		
+		float InvTotalInfluence = 1.f / 255.f;   // expected default - anything else could indicate a problem with the asset.
+		{
+			int32 TotalInfluence = 0;
 
-		const TArray<uint16>& BoneMap = Section.BoneMap;
+			for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
+			{
+				const uint8 BoneInfluence = Vertex.InfluenceWeights[i];
+				TotalInfluence += BoneInfluence;
+			}
+
+			if (TotalInfluence != 255) // 255 is the expected value.  This logic just allows for graceful failure.
+			{
+				// Not expected value - record that.
+				bValidBoneWeights = false;
+
+				if (TotalInfluence == 0)
+				{
+					InvTotalInfluence = 0.f;
+				}
+				else
+				{
+					InvTotalInfluence = 1.f / float(TotalInfluence);
+				}
+			}
+		}
+
 
 		// Build the blended matrix 
+
+		FMatrix BlendedMatrix(ForceInitToZero);
+
+		int32 ValidInfluenceCount = 0;
+		
+		const TArray<uint16>& BoneMap = Section.BoneMap;
 
 		for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
 		{
@@ -465,13 +494,11 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 
 			// Accumulate the bone influence for this vert into the BlendedMatrix
 
-			TotalInfluence += BoneInfluence;
-
 			if (BoneInfluence > 0)
 			{
 				check(BoneIndex < BoneMap.Num());
 				const uint16 SectionBoneId = BoneMap[BoneIndex]; // Third-party tool uses an additional indirection bode table here 
-				const float  BoneWeight = BoneInfluence / 255.0f;  // convert to [0,1] float
+				const float  BoneWeight = BoneInfluence * InvTotalInfluence;  // convert to [0,1] float
 
 				if (BoneMatrices.IsValidIndex(SectionBoneId))
 				{
@@ -483,12 +510,13 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		}
 
 		// default identity matrix for the special case of the vertex having no valid transforms..
+
 		if (ValidInfluenceCount == 0)
 		{
 			BlendedMatrix = FMatrix::Identity;
 		}
 
-		check(TotalInfluence == 255);
+		
 
 		return BlendedMatrix;
 	};
@@ -548,17 +576,23 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		const FSectionRange VertexRange  = SectionRangeArray[SectionIndex];
 		
 		// Loop over the vertices in this section.
-
+		bool bHasValidBoneWeights = true;
 		for (int32 VertexIndex = VertexRange.Begin; VertexIndex < VertexRange.End; ++VertexIndex)
 		{
 			FSoftSkinVertex& SkinVertex = SoftSkinVertices[VertexIndex];
 
 			// Use the bone weights for this vertex to create a blended matrix 
-			const FMatrix BlendedMatrix = CreatSkinningMatrix(SkinVertex, Section);
+			const FMatrix BlendedMatrix = CreateSkinningMatrix(SkinVertex, Section, bHasValidBoneWeights);
 
 			// Update this Skin Vertex to the correct location, normal, etc.
 			ApplySkinning(BlendedMatrix, SkinVertex);
 
+		}
+
+		// Report any error with invalid bone weights
+		if (!bHasValidBoneWeights && !SkipSection(SectionIndex))
+		{
+			UE_LOG(LogSkeletalMeshReduction, Warning, TEXT("Building LOD %d - Encountered questionable vertex weights in source."), LODIndex);
 		}
 	}
 
@@ -1225,63 +1259,113 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	                                                        FSkeletalMeshLODModel& OutSkeletalMeshLODModel,
 	                                                        const FBoxSphereBounds& Bounds,
 	                                                        const FReferenceSkeleton& RefSkeleton,
-	                                                        const FSkeletalMeshOptimizationSettings& Settings,
+	                                                        FSkeletalMeshOptimizationSettings Settings,
 															const FImportantBones& ImportantBones,
 	                                                        const TArray<FMatrix>& BoneMatrices,
 	                                                        const int32 LODIndex
                                                            ) const
 {
+
+	const int32 SrcNumVerts = SrcModel.NumVertices;
+	
 	// Parameters for Simplification etc
-	const bool bUseVertexCriterion   = (Settings.TerminationCriterion != SMTC_NumOfTriangles && Settings.NumOfVertPercentage < 1.f);
-	const bool bUseTriangleCriterion = (Settings.TerminationCriterion != SMTC_NumOfVerts && Settings.NumOfTrianglesPercentage < 1.f);
-	const bool bProcessGeometry      = (bUseTriangleCriterion || bUseVertexCriterion);
+	const bool bUseVertexPercentCriterion   = ((Settings.TerminationCriterion == SMTC_NumOfVerts     || Settings.TerminationCriterion == SMTC_TriangleOrVert) && Settings.NumOfVertPercentage < 1.f) ;
+	const bool bUseTrianglePercentCriterion = ((Settings.TerminationCriterion == SMTC_NumOfTriangles || Settings.TerminationCriterion == SMTC_TriangleOrVert) && Settings.NumOfTrianglesPercentage < 1.f);
+
+	const bool bUseMaxVertexCriterion   = ((Settings.TerminationCriterion == SMTC_AbsNumOfVerts || Settings.TerminationCriterion == SMTC_AbsTriangleOrVert) && SrcNumVerts);
+	const bool bUseMaxTriangleCriterion = ((Settings.TerminationCriterion == SMTC_AbsNumOfTriangles || Settings.TerminationCriterion == SMTC_AbsTriangleOrVert) && Settings.MaxNumOfTriangles < INT32_MAX);
+
+	const bool bProcessGeometry      = (bUseTrianglePercentCriterion || bUseVertexPercentCriterion || bUseMaxTriangleCriterion || bUseMaxVertexCriterion);
 	const bool bProcessBones         = (Settings.MaxBonesPerVertex < MAX_TOTAL_INFLUENCES);
-	const bool bOptimizeMesh         = (bProcessGeometry || bProcessBones);
+	
+	bool bOptimizeMesh         = (bProcessGeometry || bProcessBones);
 
-
+	if (bOptimizeMesh)
+	{
+		UE_LOG(LogSkeletalMeshReduction, Log, TEXT("Reducing skeletal mesh for LOD %d "), LODIndex);
+	}
 	
 	// Generate a single skinned mesh form the SrcModel.  This mesh has per-vertex tangent space.
 
 	SkeletalSimplifier::FSkinnedSkeletalMesh SkinnedSkeletalMesh;
 	ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh);
 
-	if (bOptimizeMesh)
+	int32 IterationNum = 0;
+
+	do 
 	{
-		if (ImportantBones.Ids.Num() > 0)
+		if (bOptimizeMesh)
 		{
-			// Add specialized weights for verts associated with "important" bones.
-			UpdateSpecializedVertWeights(ImportantBones, SkinnedSkeletalMesh);
+			if (ImportantBones.Ids.Num() > 0)
+			{
+				// Add specialized weights for verts associated with "important" bones.
+				UpdateSpecializedVertWeights(ImportantBones, SkinnedSkeletalMesh);
+			}
+
+			// Capture the UV bounds from the source mesh.
+
+			FVector2D  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
+			ComputeUVBounds(SkinnedSkeletalMesh, UVBounds);
+
+			{
+				// Use the bone-aware simplifier
+
+				SimplifyMesh(Settings, Bounds, SkinnedSkeletalMesh);
+			}
+
+			// Clamp the UVs of the simplified mesh to match the source mesh.
+
+			ClampUVBounds(UVBounds, SkinnedSkeletalMesh);
+
+
+			// Reduce the number of bones per-vert
+
+			const int32 MaxBonesPerVert = FMath::Clamp(Settings.MaxBonesPerVertex, 0, MAX_TOTAL_INFLUENCES);
+
+			if (MaxBonesPerVert < MAX_TOTAL_INFLUENCES)
+			{
+				TrimBonesPerVert(SkinnedSkeletalMesh, MaxBonesPerVert);
+			}
 		}
 
-		// Capture the UV bounds from the source mesh.
+		// Convert to SkeletalMeshLODModel. 
 
-		FVector2D  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
-		ComputeUVBounds(SkinnedSkeletalMesh, UVBounds);
+		ConvertToFSkeletalMeshLODModel(SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel);
 
+		// We may need to do additional simplification if the user specified a hard number limit for verts and
+		// the internal chunking during conversion split some verts.
+
+		if (bUseMaxVertexCriterion && OutSkeletalMeshLODModel.NumVertices > Settings.MaxNumOfVerts)
 		{
-			// Use the bone-aware simplifier
+			const bool bTerminatedOnVertCount = (Settings.TerminationCriterion == SMTC_AbsNumOfVerts) ||
+				                                (Settings.TerminationCriterion == SMTC_AbsTriangleOrVert && !(SkinnedSkeletalMesh.NumIndices() / 3 <= (int32)Settings.MaxNumOfTriangles));
+			  
+			if (bTerminatedOnVertCount)
+			{
+				// Some verts were created by chunking - we need simplify more.
+				int32 ExcessVerts = (int32)OutSkeletalMeshLODModel.NumVertices - (int32)Settings.MaxNumOfVerts + IterationNum;
+				Settings.MaxNumOfVerts = FMath::Max((int32)Settings.MaxNumOfVerts - ExcessVerts, 6);
 
-			SimplifyMesh(Settings, Bounds, SkinnedSkeletalMesh);
+				UE_LOG(LogSkeletalMeshReduction, Log, TEXT("Chunking to limit unique bones per section generated additional vertices - continuing simplification of LOD %d "), LODIndex);
+
+				ConvertToFSkinnedSkeletalMesh(OutSkeletalMeshLODModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh);
+
+				
+			}
+			else
+			{
+				bOptimizeMesh = false;
+			}
+
+			IterationNum++;
 		}
-
-		// Clamp the UVs of the simplified mesh to match the source mesh.
-
-		ClampUVBounds(UVBounds, SkinnedSkeletalMesh);
-
-
-		// Reduce the number of bones per-vert
-
-		const int32 MaxBonesPerVert = FMath::Clamp(Settings.MaxBonesPerVertex, 0, MAX_TOTAL_INFLUENCES);
-
-		if (MaxBonesPerVert < MAX_TOTAL_INFLUENCES)
+		else
 		{
-			TrimBonesPerVert(SkinnedSkeletalMesh, MaxBonesPerVert);
+			bOptimizeMesh = false;
 		}
-	}
+	} 
+	while (bOptimizeMesh && IterationNum < 5);
 
-	// Convert to SkeletalMeshLODModel. 
-		
-	ConvertToFSkeletalMeshLODModel(SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel);
 
 	bool bReturnValue =  (OutSkeletalMeshLODModel.NumVertices > 0);
 	
@@ -1348,7 +1432,12 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	// only allow to set BaseLOD if the LOD is less than this
 	if (Settings.BaseLOD > 0)
 	{
-		if (Settings.BaseLOD <= LODIndex && SkeletalMeshResource.LODModels.IsValidIndex(Settings.BaseLOD))
+		if (Settings.BaseLOD == LODIndex && (!SkelResource->OriginalReductionSourceMeshData.IsValidIndex(Settings.BaseLOD) || SkelResource->OriginalReductionSourceMeshData[Settings.BaseLOD]->IsEmpty()))
+		{
+			//Cannot reduce ourself if we are not imported
+			UE_LOG(LogSkeletalMeshReduction, Warning, TEXT("Building LOD %d - Cannot generate LOD with himself if the LOD do not have imported Data. Using Base LOD 0 instead"), LODIndex);
+		}
+		else if (Settings.BaseLOD <= LODIndex && SkeletalMeshResource.LODModels.IsValidIndex(Settings.BaseLOD))
 		{
 			BaseLOD = Settings.BaseLOD;
 			SrcModel = &SkeletalMeshResource.LODModels[BaseLOD];
@@ -1356,7 +1445,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		else
 		{
 			// warn users
-			UE_LOG(LogSkeletalMeshReduction, Warning, TEXT("Building LOD %d - Invalid Base LOD entered. Using Base LOD 0"), LODIndex);
+			UE_LOG(LogSkeletalMeshReduction, Warning, TEXT("Building LOD %d - Invalid Base LOD entered. Using Base LOD 0 instead"), LODIndex);
 		}
 	}
 	//Reducing Base LOD, we need to use the temporary data so it can be iterative

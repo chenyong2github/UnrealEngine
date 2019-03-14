@@ -1045,6 +1045,14 @@ public:
 	virtual void AddError( const FString& InError, int32 StackOffset = 0 );
 
 	/**
+	 * Adds an error message to this test if the condition is false
+	 *
+	 * @param   bCondition The condition to validate.
+	 * @param   InError	   Error message to add to this test
+	 */
+	virtual void AddErrorIfFalse( bool bCondition, const FString& InError, int32 StackOffset = 0 );
+
+	/**
 	 * Adds an error message to this test
 	 *
 	 * @param	InError	Error message to add to this test
@@ -2031,7 +2039,7 @@ public:
 		: FAutomationTestBase(InName, bInComplexTask)
 		, DefaultTimeout(FTimespan::FromSeconds(30))
 		, bEnableSkipIfError(true)
-		, RootDefinitionScope(MakeShareable(new FSpecDefinitionScope()))
+		, RootDefinitionScope(MakeShareable(new FSpecDefinitionScope()))		
 	{
 		DefinitionScopeStack.Push(RootDefinitionScope.ToSharedRef());
 	}

@@ -6,6 +6,7 @@
 
 #include "ContentStreaming.h"
 #include "Engine/Texture2D.h"
+#include "Engine/StaticMesh.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
@@ -49,14 +50,14 @@ void FlushResourceStreaming()
 	Texture tracking.
 -----------------------------------------------------------------------------*/
 
-/** Turn on ENABLE_TEXTURE_TRACKING and setup GTrackedTextures to track specific textures through the streaming system. */
-#define ENABLE_TEXTURE_TRACKING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#define ENABLE_TEXTURE_LOGGING 1
-#if ENABLE_TEXTURE_TRACKING
-struct FTrackedTextureEvent
+/** Turn on ENABLE_RENDER_ASSET_TRACKING and setup GTrackedTextures to track specific textures/meshes through the streaming system. */
+#define ENABLE_RENDER_ASSET_TRACKING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define ENABLE_RENDER_ASSET_LOGGING 1
+#if ENABLE_RENDER_ASSET_TRACKING
+struct FTrackedRenderAssetEvent
 {
-	FTrackedTextureEvent( TCHAR* InTextureName=NULL )
-	:	TextureName(InTextureName)
+	FTrackedRenderAssetEvent( TCHAR* InAssetName=NULL )
+	:	RenderAssetName(InAssetName)
 	,	NumResidentMips(0)
 	,	NumRequestedMips(0)
 	,	WantedMips(0)
@@ -64,18 +65,17 @@ struct FTrackedTextureEvent
 	,	BoostFactor(1.0f)
 	{
 	}
-	FTrackedTextureEvent( const FString& InTextureNameString )
-	:	NumResidentMips(0)
+	FTrackedRenderAssetEvent( const FString& InAssetNameString )
+	:	RenderAssetName(InAssetNameString)
+	,	NumResidentMips(0)
 	,	NumRequestedMips(0)
 	,	WantedMips(0)
 	,	Timestamp(0.0f)
 	,	BoostFactor(1.0f)
 	{
-		TextureName = new TCHAR[InTextureNameString.Len() + 1];
-		FMemory::Memcpy( TextureName, *InTextureNameString, (InTextureNameString.Len() + 1)*sizeof(TCHAR) );
 	}
-	/** Partial name of the texture (not case-sensitive). */
-	TCHAR*			TextureName;
+	/** Partial name of the texture/mesh (not case-sensitive). */
+	FString			RenderAssetName;
 	/** Number of mip-levels currently in memory. */
 	int32			NumResidentMips;
 	/** Number of mip-levels requested. */
@@ -87,77 +87,96 @@ struct FTrackedTextureEvent
 	/** Currently used boost factor for the streaming distance. */
 	float			BoostFactor;
 };
-/** List of textures to track (using stristr for name comparison). */
-TArray<FString> GTrackedTextureNames;
-bool GTrackedTexturesInitialized = false;
-#define NUM_TRACKEDTEXTUREEVENTS 512
-FTrackedTextureEvent GTrackedTextureEvents[NUM_TRACKEDTEXTUREEVENTS];
-int32 GTrackedTextureEventIndex = -1;
-TArray<FTrackedTextureEvent> GTrackedTextures;
+/** List of textures/meshes to track (using stristr for name comparison). */
+TArray<FString> GTrackedRenderAssetNames;
+bool GTrackedRenderAssetsInitialized = false;
+#define NUM_TRACKEDRENDERASSETEVENTS 512
+FTrackedRenderAssetEvent GTrackedRenderAssetEvents[NUM_TRACKEDRENDERASSETEVENTS];
+int32 GTrackedRenderAssetEventIndex = -1;
+TArray<FTrackedRenderAssetEvent> GTrackedRenderAssets;
 
 /**
- * Initializes the texture tracking. Called when GTrackedTexturesInitialized is false.
+ * Initializes the texture/mesh tracking. Called when GTrackedRenderAssetsInitialized is false.
  */
-void TrackTextureInit()
+void TrackRenderAssetInit()
 {
 	if ( GConfig && GConfig->Num() > 0 )
 	{
-		GTrackedTextureNames.Empty();
-		GTrackedTexturesInitialized = true;
-		GConfig->GetArray( TEXT("TextureTracking"), TEXT("TextureName"), GTrackedTextureNames, GEngineIni );
+		GTrackedRenderAssetNames.Empty();
+		GTrackedRenderAssetsInitialized = true;
+		GConfig->GetArray(TEXT("RenderAssetTracking"), TEXT("RenderAssetName"), GTrackedRenderAssetNames, GEngineIni);
+		TArray<FString> Tmp;
+		GConfig->GetArray( TEXT("TextureTracking"), TEXT("TextureName"), Tmp, GEngineIni );
+		if (Tmp.Num() > 0)
+		{
+			GTrackedRenderAssetNames.Append(MoveTemp(Tmp));
+			check(!Tmp.Num());
+			GConfig->SetArray(TEXT("TextureTracking"), TEXT("TextureName"), Tmp, GEngineIni);
+			GConfig->SetArray(TEXT("RenderAssetTracking"), TEXT("RenderAssetName"), GTrackedRenderAssetNames, GEngineIni);
+		}
 	}
 }
 
+void TrackTextureInit()
+{
+	TrackRenderAssetInit();
+}
+
 /**
- * Adds a (partial) texture name to track in the streaming system and updates the .ini setting.
+ * Adds a (partial) texture/mesh name to track in the streaming system and updates the .ini setting.
  *
- * @param TextureName	Partial name of a new texture to track (not case-sensitive)
+ * @param AssetName		Partial name of a new texture/mesh to track (not case-sensitive)
  * @return				true if the name was added
  */
-bool TrackTexture( const FString& TextureName )
+bool TrackRenderAsset( const FString& AssetName )
 {
-	if ( GConfig && TextureName.Len() > 0 )
+	if ( GConfig && AssetName.Len() > 0 )
 	{
-		for ( int32 TrackedTextureIndex=0; TrackedTextureIndex < GTrackedTextureNames.Num(); ++TrackedTextureIndex )
+		for ( int32 TrackedAssetIndex=0; TrackedAssetIndex < GTrackedRenderAssetNames.Num(); ++TrackedAssetIndex)
 		{
-			const FString& TrackedTextureName = GTrackedTextureNames[TrackedTextureIndex];
-			if ( FCString::Stricmp(*TextureName, *TrackedTextureName) == 0 )
+			const FString& TrackedAssetName = GTrackedRenderAssetNames[TrackedAssetIndex];
+			if ( FCString::Stricmp(*AssetName, *TrackedAssetName) == 0 )
 			{
 				return false;	
 			}
 		}
 
-		GTrackedTextureNames.Add( *TextureName );
-		GConfig->SetArray( TEXT("TextureTracking"), TEXT("TextureName"), GTrackedTextureNames, GEngineIni );
+		GTrackedRenderAssetNames.Add( *AssetName );
+		GConfig->SetArray( TEXT("RenderAssetTracking"), TEXT("RenderAssetName"), GTrackedRenderAssetNames, GEngineIni );
 		return true;
 	}
 	return false;
 }
 
+bool TrackTexture(const FString& TextureName)
+{
+	return TrackRenderAsset(TextureName);
+}
+
 /**
- * Removes a texture name from being tracked in the streaming system and updates the .ini setting.
+ * Removes a texture/mesh name from being tracked in the streaming system and updates the .ini setting.
  * The name must match an existing tracking name, but isn't case-sensitive.
  *
- * @param TextureName	Name of a new texture to stop tracking (not case-sensitive)
- * @return				true if the name was added
+ * @param AssetName		Name of a texture/mesh to stop tracking (not case-sensitive)
+ * @return				true if the name was removed
  */
-bool UntrackTexture( const FString& TextureName )
+bool UntrackRenderAsset( const FString& AssetName )
 {
-	if ( GConfig && TextureName.Len() > 0 )
+	if ( GConfig && AssetName.Len() > 0 )
 	{
-		int32 TrackedTextureIndex = 0;
-		for ( ; TrackedTextureIndex < GTrackedTextureNames.Num(); ++TrackedTextureIndex )
+		int32 TrackedAssetIndex = 0;
+		for ( ; TrackedAssetIndex < GTrackedRenderAssetNames.Num(); ++TrackedAssetIndex)
 		{
-			const FString& TrackedTextureName = GTrackedTextureNames[TrackedTextureIndex];
-			if ( FCString::Stricmp(*TextureName, *TrackedTextureName) == 0 )
+			const FString& TrackedAssetName = GTrackedRenderAssetNames[TrackedAssetIndex];
+			if ( FCString::Stricmp(*AssetName, *TrackedAssetName) == 0 )
 			{
 				break;
 			}
 		}
-		if ( TrackedTextureIndex < GTrackedTextureNames.Num() )
+		if ( TrackedAssetIndex < GTrackedRenderAssetNames.Num() )
 		{
-			GTrackedTextureNames.RemoveAt( TrackedTextureIndex );
-			GConfig->SetArray( TEXT("TextureTracking"), TEXT("TextureName"), GTrackedTextureNames, GEngineIni );
+			GTrackedRenderAssetNames.RemoveAt( TrackedAssetIndex );
+			GConfig->SetArray( TEXT("RenderAssetTracking"), TEXT("RenderAssetName"), GTrackedRenderAssetNames, GEngineIni );
 
 			return true;
 		}
@@ -165,61 +184,71 @@ bool UntrackTexture( const FString& TextureName )
 	return false;
 }
 
-/**
- * Lists all currently tracked texture names in the specified log.
- *
- * @param Ar			Desired output log
- * @param NumTextures	Maximum number of tracked texture names to output. Outputs all if NumTextures <= 0.
- */
-void ListTrackedTextures( FOutputDevice& Ar, int32 NumTextures )
+bool UntrackTexture(const FString& TextureName)
 {
-	NumTextures = (NumTextures > 0) ? FMath::Min(NumTextures, GTrackedTextureNames.Num()) : GTrackedTextureNames.Num();
-	for ( int32 TrackedTextureIndex=0; TrackedTextureIndex < NumTextures; ++TrackedTextureIndex )
-	{
-		const FString& TrackedTextureName = GTrackedTextureNames[TrackedTextureIndex];
-		Ar.Log( TrackedTextureName );
-	}
-	Ar.Logf( TEXT("%d textures are being tracked."), NumTextures );
+	return UntrackRenderAsset(TextureName);
 }
 
 /**
- * Checks a texture and tracks it if its name contains any of the tracked textures names (GTrackedTextureNames).
+ * Lists all currently tracked texture/mesh names in the specified log.
  *
- * @param Texture						Texture to check
- * @param bForceMipLEvelsToBeResident	Whether all mip-levels in the texture are forced to be resident
- * @param Manager                       can be 0
+ * @param Ar			Desired output log
+ * @param NumAssets		Maximum number of tracked texture/mesh names to output. Outputs all if NumAssets <= 0.
  */
-bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture, bool bForceMipLevelsToBeResident, const FStreamingManagerTexture* Manager)
+void ListTrackedRenderAssets( FOutputDevice& Ar, int32 NumAssets )
 {
-	// Whether the texture is currently being destroyed
-	const bool bIsDestroying = (StreamingTexture == 0);
-	const bool bEnableLogging = ENABLE_TEXTURE_LOGGING;
+	NumAssets = (NumAssets > 0) ? FMath::Min(NumAssets, GTrackedRenderAssetNames.Num()) : GTrackedRenderAssetNames.Num();
+	for ( int32 TrackedAssetIndex=0; TrackedAssetIndex < NumAssets; ++TrackedAssetIndex )
+	{
+		const FString& TrackedAssetName = GTrackedRenderAssetNames[TrackedAssetIndex];
+		Ar.Log( TrackedAssetName );
+	}
+	Ar.Logf( TEXT("%d render assets are being tracked."), NumAssets );
+}
+
+void ListTrackedTextures(FOutputDevice& Ar, int32 NumTextures)
+{
+	ListTrackedRenderAssets(Ar, NumTextures);
+}
+
+/**
+ * Checks a texture/mesh and tracks it if its name contains any of the tracked render asset names (GTrackedRenderAssetNames).
+ *
+ * @param RenderAsset					Texture/mesh to check
+ * @param bForceMipLEvelsToBeResident	Whether all mip-levels in the texture/mesh are forced to be resident
+ * @param Manager                       can be null
+ */
+bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager)
+{
+	// Whether the texture/mesh is currently being destroyed
+	const bool bIsDestroying = !StreamingRenderAsset;
+	const bool bEnableLogging = ENABLE_RENDER_ASSET_LOGGING;
 
 	// Initialize the tracking system, if necessary.
-	if ( GTrackedTexturesInitialized == false )
+	if ( !GTrackedRenderAssetsInitialized )
 	{
-		TrackTextureInit();
+		TrackRenderAssetInit();
 	}
 
-	int32 NumTrackedTextures = GTrackedTextureNames.Num();
-	if ( NumTrackedTextures )
+	int32 NumTrackedAssets = GTrackedRenderAssetNames.Num();
+	if ( NumTrackedAssets )
 	{
-		// See if it matches any of the texture names that we're tracking.
-		FString TextureNameString = Texture->GetFullName();
-		const TCHAR* TextureName = *TextureNameString;
-		for ( int32 TrackedTextureIndex=0; TrackedTextureIndex < NumTrackedTextures; ++TrackedTextureIndex )
+		// See if it matches any of the texture/mesh names that we're tracking.
+		FString AssetNameString = RenderAsset->GetFullName();
+		const TCHAR* AssetName = *AssetNameString;
+		for ( int32 TrackedAssetIndex=0; TrackedAssetIndex < NumTrackedAssets; ++TrackedAssetIndex )
 		{
-			const FString& TrackedTextureName = GTrackedTextureNames[TrackedTextureIndex];
-			if ( FCString::Stristr(TextureName, *TrackedTextureName) != NULL )
+			const FString& TrackedAssetName = GTrackedRenderAssetNames[TrackedAssetIndex];
+			if ( FCString::Stristr(AssetName, *TrackedAssetName) != NULL )
 			{
 				if ( bEnableLogging )
 				{
-					// Find the last event for this particular texture.
-					FTrackedTextureEvent* LastEvent = NULL;
-					for ( int32 LastEventIndex=0; LastEventIndex < GTrackedTextures.Num(); ++LastEventIndex )
+					// Find the last event for this particular texture/mesh.
+					FTrackedRenderAssetEvent* LastEvent = NULL;
+					for ( int32 LastEventIndex=0; LastEventIndex < GTrackedRenderAssets.Num(); ++LastEventIndex )
 					{
-						FTrackedTextureEvent* Event = &GTrackedTextures[LastEventIndex];
-						if ( FCString::Strcmp(TextureName, Event->TextureName) == 0 )
+						FTrackedRenderAssetEvent* Event = &GTrackedRenderAssets[LastEventIndex];
+						if ( FCString::Strcmp(AssetName, *Event->RenderAssetName) == 0 )
 						{
 							LastEvent = Event;
 							break;
@@ -228,34 +257,37 @@ bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture
 					// Didn't find any recorded event?
 					if ( LastEvent == NULL )
 					{
-						int32 NewIndex = GTrackedTextures.Add(FTrackedTextureEvent(TextureNameString));
-						LastEvent = &GTrackedTextures[NewIndex];
+						int32 NewIndex = GTrackedRenderAssets.Add(FTrackedRenderAssetEvent(AssetNameString));
+						LastEvent = &GTrackedRenderAssets[NewIndex];
 					}
 
-					int32 WantedMips		= Texture->GetNumRequestedMips();
+					int32 WantedMips		= RenderAsset->GetNumRequestedMips();
 					float BoostFactor		= 1.0f;
-					if ( StreamingTexture )
+					FStreamingRenderAsset::EAssetType AssetType = FStreamingRenderAsset::AT_Num;
+					if ( StreamingRenderAsset )
 					{
-						WantedMips			= StreamingTexture->WantedMips;
-						BoostFactor			= StreamingTexture->BoostFactor;
+						WantedMips			= StreamingRenderAsset->WantedMips;
+						BoostFactor			= StreamingRenderAsset->BoostFactor;
+						AssetType			= StreamingRenderAsset->RenderAssetType;
 					}
 
-					if ( LastEvent->NumResidentMips != Texture->GetNumResidentMips() ||
-						 LastEvent->NumRequestedMips != Texture->GetNumRequestedMips() ||
+					if ( LastEvent->NumResidentMips != RenderAsset->GetNumResidentMips() ||
+						 LastEvent->NumRequestedMips != RenderAsset->GetNumRequestedMips() ||
 						 LastEvent->WantedMips != WantedMips ||
 						 LastEvent->BoostFactor != BoostFactor ||
 						 bIsDestroying )
 					{
-						GTrackedTextureEventIndex		= (GTrackedTextureEventIndex + 1) % NUM_TRACKEDTEXTUREEVENTS;
-						FTrackedTextureEvent& NewEvent	= GTrackedTextureEvents[GTrackedTextureEventIndex];
-						NewEvent.TextureName			= LastEvent->TextureName;
-						NewEvent.NumResidentMips		= LastEvent->NumResidentMips	= Texture->GetNumResidentMips();
-						NewEvent.NumRequestedMips		= LastEvent->NumRequestedMips	= Texture->GetNumRequestedMips();
+						GTrackedRenderAssetEventIndex	= (GTrackedRenderAssetEventIndex + 1) % NUM_TRACKEDRENDERASSETEVENTS;
+						FTrackedRenderAssetEvent& NewEvent	= GTrackedRenderAssetEvents[GTrackedRenderAssetEventIndex];
+						NewEvent.RenderAssetName		= LastEvent->RenderAssetName;
+						NewEvent.NumResidentMips		= LastEvent->NumResidentMips	= RenderAsset->GetNumResidentMips();
+						NewEvent.NumRequestedMips		= LastEvent->NumRequestedMips	= RenderAsset->GetNumRequestedMips();
 						NewEvent.WantedMips				= LastEvent->WantedMips			= WantedMips;
 						NewEvent.Timestamp				= LastEvent->Timestamp			= float(FPlatformTime::Seconds() - GStartTime);
 						NewEvent.BoostFactor			= LastEvent->BoostFactor		= BoostFactor;
-						UE_LOG(LogContentStreaming, Log, TEXT("Texture: \"%s\", ResidentMips: %d/%d, RequestedMips: %d, WantedMips: %d, Boost: %.1f (%s)"),
-							TextureName, LastEvent->NumResidentMips, Texture->GetNumMips(), bIsDestroying ? 0 : LastEvent->NumRequestedMips, LastEvent->WantedMips, 
+						UE_LOG(LogContentStreaming, Log, TEXT("%s: \"%s\", ResidentMips: %d/%d, RequestedMips: %d, WantedMips: %d, Boost: %.1f (%s)"),
+							FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType),
+							AssetName, LastEvent->NumResidentMips, RenderAsset->GetNumMipsForStreaming(), bIsDestroying ? 0 : LastEvent->NumRequestedMips, LastEvent->WantedMips, 
 							BoostFactor, bIsDestroying ? TEXT("DESTROYED") : TEXT("updated") );
 					}
 				}
@@ -265,21 +297,42 @@ bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture
 	}
 	return false;
 }
+
+bool TrackTextureEvent(FStreamingRenderAsset* StreamingTexture, UStreamableRenderAsset* Texture, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager)
+{
+	return TrackRenderAssetEvent(StreamingTexture, Texture, bForceMipLevelsToBeResident, Manager);
+}
 #else
-bool TrackTexture( const FString& /*TextureName*/ )
+bool TrackRenderAsset(const FString& AssetName)
 {
 	return false;
 }
-bool UntrackTexture( const FString& /*TextureName*/ )
+bool TrackTexture( const FString& TextureName )
+{
+	return TrackRenderAsset(TextureName);
+}
+bool UntrackRenderAsset(const FString& AssetName)
 {
 	return false;
 }
-void ListTrackedTextures( FOutputDevice& /*Ar*/, int32 /*NumTextures*/ )
+bool UntrackTexture( const FString& TextureName )
+{
+	return UntrackRenderAsset(TextureName);
+}
+void ListTrackedRenderAssets(FOutputDevice& Ar, int32 NumAssets)
 {
 }
-bool TrackTextureEvent( FStreamingTexture* StreamingTexture, UTexture2D* Texture, bool bForceMipLevelsToBeResident, const FStreamingManagerTexture* Manager )
+void ListTrackedTextures( FOutputDevice& Ar, int32 NumTextures )
+{
+	ListTrackedRenderAssets(Ar, NumTextures);
+}
+bool TrackRenderAssetEvent(FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager)
 {
 	return false;
+}
+bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreamableRenderAsset* Texture, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager )
+{
+	return TrackRenderAssetEvent(StreamingTexture, Texture, bForceMipLevelsToBeResident, Manager);
 }
 #endif
 
@@ -650,6 +703,34 @@ void IStreamingManager::Tick( float DeltaTime, bool bProcessEverything/*=false*/
 	bPendingRemoveViews = true;
 }
 
+/*-----------------------------------------------------------------------------
+	IRenderAssetStreamingManager implementation.
+-----------------------------------------------------------------------------*/
+
+void IRenderAssetStreamingManager::UpdateIndividualTexture(UTexture2D* Texture)
+{
+	UpdateIndividualRenderAsset(Texture);
+}
+
+bool IRenderAssetStreamingManager::StreamOutTextureData(int64 RequiredMemorySize)
+{
+	return StreamOutRenderAssetData(RequiredMemorySize);
+}
+
+void IRenderAssetStreamingManager::AddStreamingTexture(UTexture2D* Texture)
+{
+	AddStreamingRenderAsset(Texture);
+}
+
+void IRenderAssetStreamingManager::RemoveStreamingTexture(UTexture2D* Texture)
+{
+	RemoveStreamingRenderAsset(Texture);
+}
+
+void IRenderAssetStreamingManager::PauseTextureStreaming(bool bInShouldPause)
+{
+	PauseRenderAssetStreaming(bInShouldPause);
+}
 
 /*-----------------------------------------------------------------------------
 	FStreamingManagerCollection implementation.
@@ -859,7 +940,7 @@ bool FStreamingManagerCollection::IsTextureStreamingEnabled() const
 	return TextureStreamingManager != 0;
 }
 
-ITextureStreamingManager& FStreamingManagerCollection::GetTextureStreamingManager() const
+IRenderAssetStreamingManager& FStreamingManagerCollection::GetTextureStreamingManager() const
 {
 	check(TextureStreamingManager != 0);
 	return *TextureStreamingManager;
@@ -1054,6 +1135,17 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		// some code relies on r.TextureStreaming so we're going to disable it here to reflect the hardware capabilities and system needs
 		CVarSetTextureStreaming.AsVariable()->Set(0, ECVF_SetByCode);
 	}
+	else if (!bUseTextureStreaming && TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA)
+	{
+		static bool bWarned;
+		if (!bWarned)
+		{
+			UE_LOG(LogContentStreaming, Warning, TEXT("Texture streaming cannot be disabled when FTexture2DMipMap::FCompactBulkData is used"));
+			bWarned = true;
+		}
+		CVarSetTextureStreaming.AsVariable()->Set(1, ECVF_SetByCode);
+		bUseTextureStreaming = true;
+	}
 #endif
 
 	if ( bUseTextureStreaming )
@@ -1063,7 +1155,7 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		{
 			GConfig->GetFloat( TEXT("TextureStreaming"), TEXT("LoadMapTimeLimit"), LoadMapTimeLimit, GEngineIni );
 			// Create the streaming manager and add the default streamers.
-			TextureStreamingManager = new FStreamingManagerTexture();
+			TextureStreamingManager = new FRenderAssetStreamingManager();
 			AddStreamingManager( TextureStreamingManager );		
 				
 			//Need to work out if all textures should be streamable and added to the texture streaming manager.
@@ -1073,6 +1165,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				for( TObjectIterator<UTexture2D>It; It; ++It )
 				{
 					It->UpdateResource();
+				}
+				for (TObjectIterator<UStaticMesh> It; It; ++It)
+				{
+					if (It->bIsStreamable)
+					{
+						It->LinkStreaming();
+					}
 				}
 			}
 		}
@@ -1093,6 +1192,14 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				if( It->bIsStreamable )
 				{
 					It->UpdateResource();
+				}
+			}
+			for (TObjectIterator<UStaticMesh> It; It; ++It)
+			{
+				if (It->bIsStreamable)
+				{
+					// This will clear StreamingIndex
+					It->LinkStreaming();
 				}
 			}
 		}

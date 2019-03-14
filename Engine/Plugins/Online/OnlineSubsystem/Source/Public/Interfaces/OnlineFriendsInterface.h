@@ -106,6 +106,12 @@ DECLARE_MULTICAST_DELEGATE(FOnFriendsChange);
 typedef FOnFriendsChange::FDelegate FOnFriendsChangeDelegate;
 
 /**
+ * Delegate used in outgoing invite list change notifications
+ */
+DECLARE_MULTICAST_DELEGATE(FOnOutgoingInviteSent);
+typedef FOnOutgoingInviteSent::FDelegate FOnOutgoingInviteSentDelegate;
+
+/**
  * Delegate used when the friends read request has completed
  *
  * @param LocalUserNum the controller number of the associated user that made the request
@@ -113,7 +119,7 @@ typedef FOnFriendsChange::FDelegate FOnFriendsChangeDelegate;
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_DELEGATE_FourParams(FOnReadFriendsListComplete, int32, bool, const FString&, const FString&);
+DECLARE_DELEGATE_FourParams(FOnReadFriendsListComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 /**
  * Delegate used when the friends list delete request has completed
@@ -123,7 +129,7 @@ DECLARE_DELEGATE_FourParams(FOnReadFriendsListComplete, int32, bool, const FStri
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_DELEGATE_FourParams(FOnDeleteFriendsListComplete, int32, bool, const FString&, const FString&);
+DECLARE_DELEGATE_FourParams(FOnDeleteFriendsListComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 /**
  * Delegate used when an invite send request has completed
@@ -134,7 +140,7 @@ DECLARE_DELEGATE_FourParams(FOnDeleteFriendsListComplete, int32, bool, const FSt
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_DELEGATE_FiveParams(FOnSendInviteComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_DELEGATE_FiveParams(FOnSendInviteComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 /**
  * Delegate used when an invite accept request has completed
@@ -145,7 +151,7 @@ DECLARE_DELEGATE_FiveParams(FOnSendInviteComplete, int32, bool, const FUniqueNet
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_DELEGATE_FiveParams(FOnAcceptInviteComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_DELEGATE_FiveParams(FOnAcceptInviteComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 /**
  * Delegate used when an invite reject request has completed
@@ -156,7 +162,7 @@ DECLARE_DELEGATE_FiveParams(FOnAcceptInviteComplete, int32, bool, const FUniqueN
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_MULTICAST_DELEGATE_FiveParams(FOnRejectInviteComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnRejectInviteComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 typedef FOnRejectInviteComplete::FDelegate FOnRejectInviteCompleteDelegate;
 
 /**
@@ -168,7 +174,7 @@ typedef FOnRejectInviteComplete::FDelegate FOnRejectInviteCompleteDelegate;
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_MULTICAST_DELEGATE_FiveParams(FOnDeleteFriendComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnDeleteFriendComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 typedef FOnDeleteFriendComplete::FDelegate FOnDeleteFriendCompleteDelegate;
 
 /**
@@ -180,7 +186,7 @@ typedef FOnDeleteFriendComplete::FDelegate FOnDeleteFriendCompleteDelegate;
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_MULTICAST_DELEGATE_FiveParams(FOnBlockedPlayerComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnBlockedPlayerComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*UniqueID*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 typedef FOnBlockedPlayerComplete::FDelegate FOnBlockedPlayerCompleteDelegate;
 
 /**
@@ -192,7 +198,7 @@ typedef FOnBlockedPlayerComplete::FDelegate FOnBlockedPlayerCompleteDelegate;
  * @param ListName name of the friends list that was operated on
  * @param ErrorStr string representing the error condition
  */
-DECLARE_MULTICAST_DELEGATE_FiveParams(FOnUnblockedPlayerComplete, int32, bool, const FUniqueNetId&, const FString&, const FString&);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnUnblockedPlayerComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FUniqueNetId& /*UniqueID*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 typedef FOnUnblockedPlayerComplete::FDelegate FOnUnblockedPlayerCompleteDelegate;
 
 /**
@@ -241,6 +247,24 @@ typedef FOnRecentPlayersAdded::FDelegate FOnRecentPlayersAddedDelegate;
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnQueryBlockedPlayersComplete, const FUniqueNetId& /*UserId*/, bool /*bWasSuccessful*/, const FString& /*Error*/);
 typedef FOnQueryBlockedPlayersComplete::FDelegate FOnQueryBlockedPlayersCompleteDelegate;
+
+/**
+ * Delegate used when the query for friends settings has completed
+ *
+ * @param UserId the id of the user that made the request
+ * @param bWasSuccessful true if the async action completed without error, false if there was an error
+ * @param ErrorStr string representing the error condition
+ */
+DECLARE_DELEGATE_ThreeParams(FOnQueryFriendSettingsComplete, const FUniqueNetId&, bool, const FString&);
+
+/**
+* Delegate used when the query for friends settings has completed
+*
+* @param UserId the id of the user that made the request
+* @param bWasSuccessful true if the async action completed without error, false if there was an error
+* @param ErrorStr string representing the error condition
+*/
+DECLARE_DELEGATE_ThreeParams(FOnSetFriendSettingsComplete, const FUniqueNetId&, bool, const FString&);
 
 /**
  * Delegate called when remote friend sends an invite
@@ -296,7 +320,7 @@ typedef FOnFriendRemoved::FDelegate FOnFriendRemovedDelegate;
 * @param Settings settings retrieved / updated
 * @param ErrorStr string representing the error condition
 */
-DECLARE_DELEGATE_FiveParams(FOnSettingsOperationComplete, const FUniqueNetId&, bool, bool, const FFriendSettings&, const FString&);
+DECLARE_DELEGATE_FiveParams(FOnSettingsOperationComplete, const FUniqueNetId& /*UserId*/, bool /*bWasSuccessful*/, bool /*bWasUpdate*/, const FFriendSettings& /*Settings*/, const FString& /*ErrorStr*/);
 
 /**
  * Interface definition for the online services friends services 
@@ -314,6 +338,11 @@ public:
      * Delegate used in friends list change notifications
      */
 	DEFINE_ONLINE_PLAYER_DELEGATE(MAX_LOCAL_PLAYERS, OnFriendsChange);
+
+	/**
+	 * Delegate used in outgoing invite list change notifications
+	 */
+	DEFINE_ONLINE_PLAYER_DELEGATE(MAX_LOCAL_PLAYERS, OnOutgoingInviteSent);
 
 	/**
 	 * Delegate called when remote friend sends an invite
@@ -417,7 +446,7 @@ public:
 	 * @param ListName name of the friends list that was operated on
 	 * @param ErrorStr string representing the error condition
 	 */
-	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnRejectInviteComplete, bool, const FUniqueNetId&, const FString&, const FString&);
+	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnRejectInviteComplete, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 	/**
 	 * Starts an async task that deletes a friend from the named friends list
@@ -439,29 +468,29 @@ public:
 	 * @param ListName name of the friends list that was operated on
 	 * @param ErrorStr string representing the error condition
 	 */
-	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnDeleteFriendComplete, bool, const FUniqueNetId&, const FString&, const FString&);
+	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnDeleteFriendComplete, bool /*bWasSuccessful*/, const FUniqueNetId& /*FriendId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 	/**
 	 * Delegate used when a block player request has completed
 	 *
 	 * @param LocalUserNum the controller number of the associated user that made the request
 	 * @param bWasSuccessful true if the async action completed without error, false if there was an error
-	 * @param UniqueIF player that was blocked
+	 * @param UniqueId player that was blocked
 	 * @param ListName name of the friends list that was operated on
 	 * @param ErrorStr string representing the error condition
 	 */
-	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnBlockedPlayerComplete, bool, const FUniqueNetId&, const FString&, const FString&);
+	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnBlockedPlayerComplete, bool /*bWasSuccessful*/, const FUniqueNetId& /*UniqueId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 	/**
-	 * Delegate used when an ublock player request has completed
+	 * Delegate used when an unblock player request has completed
 	 *
 	 * @param LocalUserNum the controller number of the associated user that made the request
 	 * @param bWasSuccessful true if the async action completed without error, false if there was an error
-	 * @param UniqueIF player that was unblocked
+	 * @param UniqueId player that was unblocked
 	 * @param ListName name of the friends list that was operated on
 	 * @param ErrorStr string representing the error condition
 	 */
-	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnUnblockedPlayerComplete, bool, const FUniqueNetId&, const FString&, const FString&);
+	DEFINE_ONLINE_PLAYER_DELEGATE_FOUR_PARAM(MAX_LOCAL_PLAYERS, OnUnblockedPlayerComplete, bool /*bWasSuccessful*/, const FUniqueNetId& /*UniqueId*/, const FString& /*ListName*/, const FString& /*ErrorStr*/);
 
 	/**
      * Delegate used in block list change notifications
@@ -629,7 +658,37 @@ public:
 	 */
 	virtual void UpdateFriendSettings(const FUniqueNetId& LocalUserId, const FFriendSettings& NewSettings, FOnSettingsOperationComplete Delegate) { check(false) }
 
+	/**
+	 * Queries the settings we have stored for a third party source
+	 *
+	 * @param UserId user to retrieve settings for
+	 * @param The source the settings relate to i.e. steam
+	 *
+	 * @return true if query was started
+	 */
+	virtual bool QueryFriendSettings(const FUniqueNetId& UserId, const FString& Source, const FOnQueryFriendSettingsComplete& Delegate = FOnQueryFriendSettingsComplete()) { check(false); return false; }
+
+	/**
+	 * Gets the cached information we have stored from a third party source
+	 *
+	 * @param UserId user to retrieve settings for
+	 * @param OutSettings [out] Map that receives the copied data
+	 *
+	 * @return true if blocked players list was found for the given user
+	 */
+	virtual bool GetFriendSettings(const FUniqueNetId& UserId, TMap<FString, TSharedRef<FOnlineFriendSettingsSourceData> >& OutSettings) { check(false); return false; }
+
+	/**
+	 * Set information we want to store for a third party source
+	 *
+	 * @param UserId user to retrieve settings for
+	 * @param The source the settings relate to i.e. steam
+	 * @param bNeverShowAgain A bool for if we should stop showing call outs for this source, (currently the only setting we store)
+	 *
+	 * @return true if query was started
+	 */
+	virtual bool SetFriendSettings(const FUniqueNetId& UserId, const FString& Source, bool bNeverShowAgain, const FOnSetFriendSettingsComplete& Delegate = FOnSetFriendSettingsComplete()) { check(false); return false; }
+
 };
 
 typedef TSharedPtr<IOnlineFriends, ESPMode::ThreadSafe> IOnlineFriendsPtr;
-

@@ -39,8 +39,10 @@
 #define SYS_PARAM_ENGINE_LOCAL_TO_WORLD_NO_SCALE         INiagaraModule::GetVar_Engine_Owner_SystemLocalToWorldNoScale()
 #define SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE         INiagaraModule::GetVar_Engine_Owner_SystemWorldToLocalNoScale()
 
-#define SYS_PARAM_ENGINE_TIME_SINCE_RENDERED             INiagaraModule::GetVar_Engine_Owner_TimeSinceRendered()
-#define SYS_PARAM_ENGINE_MIN_DIST_TO_CAMERA              INiagaraModule::GetVar_Engine_Owner_MinDistanceToCamera()
+
+#define SYS_PARAM_ENGINE_TIME_SINCE_RENDERED		INiagaraModule::GetVar_Engine_Owner_TimeSinceRendered()
+#define SYS_PARAM_ENGINE_LOD_DISTANCE				INiagaraModule::GetVar_Engine_Owner_LODDistance()
+
 
 #define SYS_PARAM_ENGINE_EXECUTION_STATE                 INiagaraModule::GetVar_Engine_Owner_ExecutionState()
 
