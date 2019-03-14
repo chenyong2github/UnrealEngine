@@ -60,19 +60,10 @@ namespace Audio
 
 		check(WaveInstance->WaveData);
 
-		// Prevent double-triggering procedural soundwaves
-		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGeneratingAudio())
-		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
-			FreeResources();
-			return false;
-		}
-
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
 		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)
 		{
-			//NumFrames = MixerBuffer->GetNumFrames();
 			check(!InWaveInstance->WaveData->RawPCMData || InWaveInstance->WaveData->RawPCMDataSize);
 			const int32 NumBytes = WaveInstance->WaveData->RawPCMDataSize;
 			NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
