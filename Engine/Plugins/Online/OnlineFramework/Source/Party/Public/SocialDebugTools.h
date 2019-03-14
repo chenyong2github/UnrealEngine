@@ -51,8 +51,8 @@ private:
 	struct FInstanceContext
 	{
 		FInstanceContext(const FString& InstanceName, USocialDebugTools& SocialDebugTools)
-			: OnlineSub(nullptr)
-			, Name(InstanceName)
+			: Name(InstanceName)
+			, OnlineSub(nullptr)
 			, Owner(SocialDebugTools)
 		{}
 
