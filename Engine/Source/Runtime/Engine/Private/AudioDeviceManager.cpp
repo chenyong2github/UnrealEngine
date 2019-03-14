@@ -143,7 +143,9 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 					// To transfer mix states, we need to re-base the absolute clocks on the mix states
 					// so the target audio device timing won't result in the mixes suddenly stopping.
-					TMap<USoundMix *, FSoundMixState> MixModifiers = AudioDevice->GetSoundMixModifiers();
+					TMap<USoundMix*, FSoundMixState> MixModifiers = AudioDevice->GetSoundMixModifiers();
+					TArray<USoundMix*> PrevPassiveSoundMixModifiers = AudioDevice->GetPrevPassiveSoundMixModifiers();
+					USoundMix* BaseSoundMix = AudioDevice->GetDefaultBaseSoundMixModifier();
 					double AudioClock = AudioDevice->GetAudioClock();
 
 					for (TPair<USoundMix*, FSoundMixState>& SoundMixPair : MixModifiers)
@@ -181,8 +183,7 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					}
 
 					// Transfer the sound mix modifiers to the new audio engine
-					AudioDevice->SetSoundMixModifiers(MixModifiers);
-
+					AudioDevice->SetSoundMixModifiers(MixModifiers, PrevPassiveSoundMixModifiers, BaseSoundMix);
 					// Setup the mute state of the audio device to be the same that it was
 					if (bIsActive)
 					{
