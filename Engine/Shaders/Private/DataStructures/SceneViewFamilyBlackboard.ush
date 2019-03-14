@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	SceneViewFamilyBlackboard.ush:
+	SceneViewFamilyBlackboard.ush: 
 =============================================================================*/
 
 #pragma once
@@ -45,9 +45,9 @@ FGBufferData GetGBufferDataFromSceneBlackboard(float2 UV, bool bGetNormalizedNor
 uint GetSceneLightingChannel(uint2 PixelCoord)
 {
 	BRANCH
-		if (bIsSceneLightingChannelsValid)
-		{
-			return SceneLightingChannels.Load(uint3(PixelCoord, 0)).x;
-		}
+	if (bIsSceneLightingChannelsValid)
+	{
+		return SceneLightingChannels.Load(uint3(PixelCoord, 0)).x;
+	}
 	return ~0;
 }
