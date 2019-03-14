@@ -293,7 +293,7 @@ bool FGameplayMediaEncoder::Start()
 
 		VideoEncoder->Start();
 		FSlateRenderer::FOnBackBufferReadyToPresent OnBackBufferReadyDelegate;
-		OnBackBufferReadyDelegate.BindRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
+		OnBackBufferReadyDelegate.AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
 		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
 	}
 
@@ -320,7 +320,7 @@ void FGameplayMediaEncoder::Stop()
 
 		if (FSlateApplication::IsInitialized())
 		{
-			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Unbind();
+			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().RemoveAll(this);
 		}
 	}
 
@@ -384,7 +384,7 @@ void FGameplayMediaEncoder::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, 
 	ProcessAudioFrame(AudioData, NumSamples, NumChannels, SampleRate);
 }
 
-void FGameplayMediaEncoder::OnBackBufferReady(const FTexture2DRHIRef& BackBuffer)
+void FGameplayMediaEncoder::OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer)
 {
 	CSV_SCOPED_TIMING_STAT(GameplayMediaEncoder, OnBackBufferReady);
 	check(IsInRenderingThread());

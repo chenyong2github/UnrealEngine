@@ -13,6 +13,7 @@
 
 class FBaseVideoEncoder;
 class FWmfAudioEncoder;
+class SWindow;
 
 class IGameplayMediaEncoderListener
 {
@@ -76,7 +77,7 @@ private:
 	bool OnMediaSampleReady(const FGameplayMediaEncoderSample& Sample);
 
 	// Back buffer capture
-	void OnBackBufferReady(const FTexture2DRHIRef& BackBuffer);
+	void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer);
 	// ISubmixBufferListener interface
 	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 
