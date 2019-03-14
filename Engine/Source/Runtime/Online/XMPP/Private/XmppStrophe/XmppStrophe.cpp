@@ -34,29 +34,7 @@ FString FXmppStrophe::JidToString(const FXmppUserJid& UserJid)
 
 FXmppUserJid FXmppStrophe::JidFromString(const FString& JidString)
 {
-	FString User;
-	FString Domain;
-	FString Resource;
-
-	FString DomainAndResource;
-	if (JidString.Split(TEXT("@"), &User, &DomainAndResource, ESearchCase::CaseSensitive, ESearchDir::FromStart))
-	{
-		if (!DomainAndResource.Split(TEXT("/"), &Domain, &Resource, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
-		{
-			// If we don't have a resource, the domain is all of DomainAndResource
-			Domain = MoveTemp(DomainAndResource);
-		}
-	}
-	else
-	{
-		if (!JidString.Split(TEXT("/"), &Domain, &Resource, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
-		{
-			// If we don't have a resource, we only have the Domain in the JidString
-			Domain = JidString;
-		}
-	}
-
-	return FXmppUserJid(MoveTemp(User), MoveTemp(Domain), MoveTemp(Resource));
+	return FXmppUserJid::FromFullJid(JidString);
 }
 
 FXmppUserJid FXmppStrophe::JidFromStropheString(const char* StropheJidString)
