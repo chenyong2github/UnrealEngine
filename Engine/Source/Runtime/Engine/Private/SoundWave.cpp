@@ -770,8 +770,7 @@ void USoundWave::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Flag that this sound wave is beginning destroying. For procedural sound waves, this will ensure
-	// the audio render thread stops the sound before GC hits.
+	// Flag that this sound wave is beginning destroying. This will ensure that all sounds using this in the audio renderer are stopped before GC finishes.
 	bIsBeginDestroy = true;
 	
 #if WITH_EDITOR
@@ -1427,7 +1426,7 @@ bool USoundWave::IsReadyForFinishDestroy()
 			}, GET_STATID(STAT_AudioFreeResources));
 		}
 	
-	return !bGenerating && ResourceState == ESoundWaveResourceState::Freed;
+	return NumSourcesPlaying.GetValue() == 0 && ResourceState == ESoundWaveResourceState::Freed;
 }
 
 

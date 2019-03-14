@@ -61,7 +61,7 @@ namespace Audio
 		check(WaveInstance->WaveData);
 
 		// Prevent double-triggering procedural soundwaves
-		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGenerating())
+		if (WaveInstance->WaveData->bProcedural && WaveInstance->WaveData->IsGeneratingAudio())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
 			return false;

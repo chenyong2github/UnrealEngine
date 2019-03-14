@@ -48,9 +48,10 @@ public:
 			case EAudioTaskType::Procedural:
 			{
 				// Make sure we've been flagged as active
-				if (!ProceduralTaskData.ProceduralSoundWave->IsGenerating())
+				if (!ProceduralTaskData.ProceduralSoundWave->IsGeneratingAudio())
 				{
-					// Act as if we generated audio.
+					// Act as if we generated audio, but return silence.
+					FMemory::Memzero(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples * sizeof(float));
 					ProceduralResult.NumSamplesWritten = ProceduralTaskData.NumSamples;
 					return;
 				}
