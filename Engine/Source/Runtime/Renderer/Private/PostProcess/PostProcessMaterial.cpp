@@ -387,6 +387,10 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 	FIntRect DestRect = Context.GetSceneColorDestRect(*DestRenderTarget);
 	checkf(DestRect.Size() == SrcRect.Size(), TEXT("Post process material should not be used as upscaling pass."));
 	
+	FIntPoint DestPos(0, 0);
+	FIntPoint DestSize = DestRect.Size();
+	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
+
 	FRHIRenderPassInfo RPInfo;
 	if (CustomDepthStencilTarget)
 	{
@@ -430,6 +434,20 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		const bool bViewSizeMatchesBufferSize = (View.ViewRect == Context.SceneColorViewRect && View.ViewRect.Size() == SrcSize && View.ViewRect.Min == FIntPoint::ZeroValue);
 		if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 		{
+			if (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[Context.GetFeatureLevel()]))
+			{
+				if (EBlendableLocation(Material->GetBlendableLocation()) == EBlendableLocation::BL_AfterTonemapping)
+				{
+					// flip dest rect y axis.
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+					int32 NewDestMaxY = DestSize.Y - DestRect.Min.Y;
+					DestPos.Y = DestRect.Max.Y;
+					DestSize.Y = -DestRect.Max.Y;
+					// triangle optimization currently doesn't work when flipped.
+					DrawRectangleFlags = EDRF_Default;
+				}
+			}
+
 			// use mobile's post process material.
 			if (bViewSizeMatchesBufferSize)
 			{
@@ -449,7 +467,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GPostProcessMaterialVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader_HighEnd);
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_HighEnd);
-
+			
 			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 			Context.RHICmdList.SetStencilRef(StencilRefValue);
 
@@ -477,8 +495,8 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 
 		DrawPostProcessPass(
 			Context.RHICmdList,
-			0, 0,
-			DestRect.Width(), DestRect.Height(),
+			DestPos.X, DestPos.Y,
+			DestSize.X, DestSize.Y,
 			SrcRect.Min.X, SrcRect.Min.Y,
 			SrcRect.Width(), SrcRect.Height(),
 			DestRect.Size(),
@@ -486,7 +504,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			VertexShader,
 			View.StereoPass,
 			Context.HasHmdMesh(),
-			EDRF_UseTriangleOptimization);
+			DrawRectangleFlags);
 	}
 	Context.RHICmdList.EndRenderPass();
 	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget->TargetableTexture, DestRenderTarget->ShaderResourceTexture, FResolveParams());
