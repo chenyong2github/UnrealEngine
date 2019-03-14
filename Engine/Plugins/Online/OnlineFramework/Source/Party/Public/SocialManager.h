@@ -21,16 +21,20 @@ class UGameViewportClient;
 class UGameInstance;
 class FOnlineSessionSearchResult;
 class FPartyPlatformSessionManager;
+class USocialDebugTools;
 
 enum ETravelType;
 
 /** Singleton manager at the top of the social framework */
 UCLASS(Within = GameInstance, Config = Game)
-class PARTY_API USocialManager : public UObject
+class PARTY_API USocialManager : public UObject, public FExec
 {
 	GENERATED_BODY()
 
 public:
+	// FExec
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
+
 	static bool IsSocialSubsystemEnabled(ESocialSubsystem SubsystemType);
 	static FName GetSocialOssName(ESocialSubsystem SubsystemType);
 	static IOnlineSubsystem* GetSocialOss(UWorld* World, ESocialSubsystem SubsystemType);
@@ -49,6 +53,7 @@ public:
 	USocialToolkit* GetFirstLocalUserToolkit() const;
 	FUniqueNetIdRepl GetFirstLocalUserId(ESocialSubsystem SubsystemType) const;
 	int32 GetFirstLocalUserNum() const;
+	USocialDebugTools* GetDebugTools() const;
 
 	DECLARE_EVENT_OneParam(USocialManager, FOnSocialToolkitCreated, USocialToolkit&)
 	FOnSocialToolkitCreated& OnSocialToolkitCreated() const { return OnSocialToolkitCreatedEvent; }
@@ -218,6 +223,9 @@ private:
 
 	UPROPERTY()
 	TArray<USocialToolkit*> SocialToolkits;
+
+	UPROPERTY()
+	USocialDebugTools* SocialDebugTools;
 
 	bool bIsConnectedToPartyService = false;
 	
