@@ -839,6 +839,7 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, Context(nullptr)
 	, ComputeContext(nullptr)
 	, MemManager(0)
+	, bAsyncPSOCompileAllowed(true)
 	, GPUMask(InGPUMask)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();
