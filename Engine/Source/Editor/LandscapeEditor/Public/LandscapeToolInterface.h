@@ -231,6 +231,15 @@ public:
 	virtual FMatrix GetWidgetRotation() const { return FMatrix::Identity; }
 	virtual bool DisallowMouseDeltaTracking() const { return false; }
 
+	/** Get override cursor visibility settings */
+	virtual bool GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const { return false; }
+
+	/** Called before mouse movement is converted to drag/rot */
+	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) { return false; }
+
+	/** Called after mouse movement is converted to drag/rot */
+	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) { return false; }
+
 	virtual void SetCanToolBeActivated(bool Value) { }
 	virtual bool CanToolBeActivated() const { return true;  }
 	virtual void SetExternalModifierPressed(const bool bPressed) {};
