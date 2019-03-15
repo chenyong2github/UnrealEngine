@@ -6443,7 +6443,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 			}
 
 			// Update this element's most recent array replication key
-			ThisElement->MostRecentArrayReplicationKey = ArraySerializer.ArrayReplicationKey;
+			ThisElement->MostRecentArrayReplicationKey = Params.ReadArrayReplicationKey;
 
 			// Update this element's replication key so that a client can re-serialize the array for client replay recording
 			ThisElement->ReplicationKey++;
