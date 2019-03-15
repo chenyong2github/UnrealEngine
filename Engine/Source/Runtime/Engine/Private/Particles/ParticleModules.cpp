@@ -1219,14 +1219,6 @@ void UParticleModuleRequired::PostLoad()
 	{
 		if (CutoutTexture)
 		{
-			if (CutoutTexture->HasAnyFlags(RF_NeedLoad))
-			{
-				FLinkerLoad* Loader = GetLinker();
-				if (ensure(Loader))
-				{
-					Loader->Preload(CutoutTexture);
-				}
-			}
 			CutoutTexture->ConditionalPostLoad();
 			CacheDerivedData();
 		}	
