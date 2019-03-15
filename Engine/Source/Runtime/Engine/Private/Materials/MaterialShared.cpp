@@ -451,34 +451,27 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 
 	Ar << UsedSceneTextures;
 #if WITH_EDITOR
-	Ar << EstimatedNumTextureSamplesVS;
-	Ar << EstimatedNumTextureSamplesPS;
 	Ar << NumUsedUVScalars;
 	Ar << NumUsedCustomInterpolatorScalars;
+	Ar << EstimatedNumTextureSamplesVS;
+	Ar << EstimatedNumTextureSamplesPS;
 #else
 	uint8 Tmp8; uint16 Tmp16;
-	Ar << Tmp16;
-	Ar << Tmp16;
-	Ar << Tmp8;
-	Ar << Tmp8;
+	Ar << Tmp8 << Tmp8;
+	Ar << Tmp16 << Tmp16;
 #endif
 
-	uint8 PackedFlags = 0;
-	PackedFlags |= (bUsesEyeAdaptation			<< 0);
-	PackedFlags |= (bModifiesMeshPosition		<< 1);
-	PackedFlags |= (bUsesWorldPositionOffset	<< 2);
-	PackedFlags |= (bUsesGlobalDistanceField	<< 3);
-	PackedFlags |= (bUsesPixelDepthOffset		<< 4);
-	PackedFlags |= (bUsesDistanceCullFade		<< 5);
-
-	Ar << PackedFlags;
-
-	bUsesEyeAdaptation			= PackedFlags & (1 << 0);
-	bModifiesMeshPosition		= PackedFlags & (1 << 1);
-	bUsesWorldPositionOffset	= PackedFlags & (1 << 2);
-	bUsesGlobalDistanceField	= PackedFlags & (1 << 3);
-	bUsesPixelDepthOffset		= PackedFlags & (1 << 4);
-	bUsesDistanceCullFade		= PackedFlags & (1 << 5);
+	Ar << bRequiresSceneColorCopy;
+	Ar << bNeedsSceneTextures;
+	Ar << bUsesEyeAdaptation;
+	Ar << bModifiesMeshPosition;
+	Ar << bUsesWorldPositionOffset;
+	Ar << bNeedsGBuffer;
+	Ar << bUsesGlobalDistanceField;
+	Ar << bUsesPixelDepthOffset;
+	Ar << bUsesSceneDepthLookup;
+	Ar << bUsesVelocitySceneTexture;
+	Ar << bUsesDistanceCullFade;
 }
 
 void FMaterial::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
