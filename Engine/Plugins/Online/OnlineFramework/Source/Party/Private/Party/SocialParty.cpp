@@ -191,7 +191,7 @@ bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, c
 		}
 	}
 
-	return JoinApproval.GetDenialReason().HasAnyReason();
+	return !JoinApproval.GetDenialReason().HasAnyReason();
 }
 
 FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const
