@@ -36,7 +36,7 @@ public:
 	static NSURLSession* GetBackgroundSession();
 
 	//Gets a path stored in an FString of the working directory any completed temp files will be downloaded
-	static FString GetBackgroundSessionWorkingDirectoryPath();
+	static const FString& GetBackgroundSessionWorkingDirectoryPath();
 
 	/**
 	* Function that takes in a URL and figures out the location we should use as the temp storage URL
