@@ -27,7 +27,13 @@ public:
 
 	void RegisterWithNavigationSystem(UNavigationSystemV1& NavSys);
 
-protected:
+	/** Sets generation/removal ranges. Doesn't force navigation system's update.
+	 *	Will get picked up the next time NavigationSystem::UpdateInvokers gets called */
+	void SetGenerationRadii(const float GenerationRadius, const float RemovalRadius);
+
+	float GetGenerationRadius() const { return TileGenerationRadius; }
+	float GetRemovalRadius() const { return TileRemovalRadius; }
+
 	virtual void Activate(bool bReset = false) override;
 	virtual void Deactivate() override;
 };
