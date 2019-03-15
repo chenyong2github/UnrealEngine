@@ -401,5 +401,10 @@ public:
 	int32 Height;
 
 	bool IsValidFormat() { return FPS > 0 && Width > 0 && Height > 0; }
+
+	friend FArchive& operator<<(FArchive& Ar, FARVideoFormat& Format)
+	{
+		return Ar << Format.FPS << Format.Width << Format.Height;
+	}
 };
 

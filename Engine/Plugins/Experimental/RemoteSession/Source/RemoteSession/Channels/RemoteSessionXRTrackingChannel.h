@@ -4,10 +4,10 @@
 
 #include "RemoteSessionChannel.h"
 #include "XRTrackingSystemBase.h"
+#include "ARSystem.h"
 
 class FBackChannelOSCMessage;
 class FBackChannelOSCDispatch;
-class IARSystemSupport;
 
 class REMOTESESSION_API FXRTrackingProxy :
 	public FXRTrackingSystemBase
