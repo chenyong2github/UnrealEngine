@@ -55,6 +55,12 @@ enum class ERepDataBufferType
 
 namespace UE4_RepLayout_Private
 {
+	// The purpose of this class is to allow us to translate or preserve const volatileness between disparate classes.
+	template<typename T, typename U> struct TTranslateConstVolatile { typedef typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<const T, U> { typedef const typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<volatile T, U> { typedef volatile typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<const volatile T, U> { typedef const volatile typename TRemoveCV<U>::Type Type;  };
+
 	/**
 	 * TRepDataBuffer and TConstRepDataBuffer act as wrapper around internal data
 	 * buffers that FRepLayout may use. This allows FRepLayout to properly interact
@@ -64,17 +70,7 @@ namespace UE4_RepLayout_Private
 	struct TRepDataBufferBase
 	{
 		static constexpr ERepDataBufferType Type = DataType;
-
-	private:
-
-		// To be consistent, we need to match the constness of the base type
-		// to the constness of the void* we use as parameters or as returns.
-		// This bit of code does that. Working inside out:
-		//		1. We remove the const / volatile qualifications from the ConstOrNotType.
-		//		2. We see if the CV-stripped type is the same as the ConstOrNotType.
-		//		3. If they are the same, then we know the input is not const, and so we'll use void*.
-		//			If they aren't the same, assume that ConstOrNotType is const, and use const void*.
-		typedef typename TChooseClass<TAreTypesEqual<ConstOrNotType, typename TRemoveCV<ConstOrNotType>::Type>::Value, void, void const>::Result ConstOrNotVoid;
+		using ConstOrNotVoid = typename TTranslateConstVolatile<ConstOrNotType, void>::Type;
 
 	public:
 
