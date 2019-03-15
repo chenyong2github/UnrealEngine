@@ -28,13 +28,6 @@ static inline bool ShouldCacheMeshShader(const FMeshMaterialShaderType* ShaderTy
 		InVertexFactoryType->ShouldCache(Platform, Material, ShaderType);
 }
 
-#if PLATFORM_WINDOWS && defined(__clang__)
-void FMeshMaterialShader::ValidateAfterBind()
-{
-	checkfSlow(PassUniformBuffer.IsInitialized(), TEXT("FMeshMaterialShader must bind a pass uniform buffer, even if it is just FSceneTexturesUniformParameters: %s"), GetType()->GetName());
-}
-#endif
-
 /**
  * Enqueues a compilation for a new shader of this type.
  * @param Platform - The platform to compile for.
@@ -173,7 +166,7 @@ FShader* FMeshMaterialShaderType::FinishCompileShader(
 	if (!Shader)
 	{
 		Shader = (*ConstructCompiledRef)(CompiledShaderInitializerType(this, CurrentJob.Output, Resource, UniformExpressionSet, MaterialShaderMapHash, InDebugDescription, ShaderPipelineType, CurrentJob.VFType));
-		((FMeshMaterialShader*)Shader)->ValidateAfterBind();
+		ValidateAfterBind((FMeshMaterialShader*)Shader);
 		CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, CurrentJob.VFType);
 	}
 
