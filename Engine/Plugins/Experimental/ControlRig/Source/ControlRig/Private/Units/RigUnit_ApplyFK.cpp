@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_ApplyFK.h"
+#include "Units/RigUnitTest.h"
 #include "Units/RigUnitContext.h"
 #include "HelperUtil.h"
 
@@ -54,3 +55,40 @@ FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 JointIndex, const FRigHierar
 	return UtilityHelpers::GetBaseTransformByMode(ApplyTransformSpace, [CurrentHierarchy](const FName& JointName) { return CurrentHierarchy->GetGlobalTransform(JointName); },
 		CurrentHierarchy->Joints[JointIndex].ParentName, BaseJoint, BaseTransform);
 }
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ApplyFK)
+{
+	Context.State = EControlRigState::Update;
+
+	Hierarchy.AddJoint(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	Hierarchy.AddJoint(TEXT("JointA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
+
+	Unit.HierarchyRef = HierarchyRef;
+	Unit.Joint = TEXT("JointA");
+	Unit.ApplyTransformMode = EApplyTransformMode::Override;
+	Unit.ApplyTransformSpace = ETransformSpaceMode::GlobalSpace;
+	Unit.Transform = FTransform(FVector(0.f, 5.f, 0.f));
+
+	Hierarchy.Initialize();
+	Unit.Execute(Context);
+	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(-1.f, 5.f, 0.f)), TEXT("unexpected local transform"));
+
+	Unit.ApplyTransformMode = EApplyTransformMode::Override;
+	Unit.ApplyTransformSpace = ETransformSpaceMode::LocalSpace;
+
+	Hierarchy.Initialize();
+	Unit.Execute(Context);
+	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 5.f, 0.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected local transform"));
+
+	Unit.ApplyTransformMode = EApplyTransformMode::Additive;
+
+	Hierarchy.Initialize();
+	Unit.Execute(Context);
+	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 7.f, 3.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 7.f, 3.f)), TEXT("unexpected local transform"));
+	return true;
+}
+#endif

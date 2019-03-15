@@ -177,6 +177,8 @@ void UControlRig::Execute(const EControlRigState InState)
 	FRigUnitContext Context;
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
+	Context.HierarchyReference.Container = &Hierarchy;
+	Context.HierarchyReference.bUseBaseHierarchy = true;
 
 #if WITH_EDITORONLY_DATA
 	if (!bExecutionOn)

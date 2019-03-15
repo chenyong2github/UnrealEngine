@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Hierarchy.h"
 
 /** Current state of rig
 *	What  state Control Rig currently is
@@ -23,5 +24,8 @@ struct FRigUnitContext
 
 	/** Current execution context */
 	EControlRigState State;
+
+	/** The current hierarchy being executed */
+	FRigHierarchyRef HierarchyReference;
 };
 
