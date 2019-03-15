@@ -977,7 +977,11 @@ public:
 	
 	EAxisList::Type GetCurrentWidgetAxis() const;
 
+	/** Overrides current cursor. */
 	void SetRequiredCursorOverride( bool WantOverride, EMouseCursor::Type RequiredCursor = EMouseCursor::Default ); 
+
+	/** Overrides current widget mode */
+	void SetWidgetModeOverride(FWidget::EWidgetMode InWidgetMode);
 
 	/** Get the camera speed for this viewport */
 	float GetCameraSpeed() const;

@@ -1055,6 +1055,63 @@ bool FEdModeLandscape::GetCursor(EMouseCursor::Type& OutCursor) const
 	return Result;
 }
 
+bool FEdModeLandscape::GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->GetOverrideCursorVisibility(bWantsOverride, bHardwareCursorVisible, bSoftwareCursorVisible);
+		}
+	}
+
+	return Result;
+}
+
+bool FEdModeLandscape::PreConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->PreConvertMouseMovement(InViewportClient);
+		}
+	}
+
+	return Result;
+}
+
+bool FEdModeLandscape::PostConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->PostConvertMouseMovement(InViewportClient);
+		}
+	}
+
+	return Result;
+}
+
 bool FEdModeLandscape::DisallowMouseDeltaTracking() const
 {
 	// We never want to use the mouse delta tracker while painting
