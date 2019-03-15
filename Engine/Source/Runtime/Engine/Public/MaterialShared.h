@@ -24,7 +24,7 @@
 #include "Misc/Optional.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ArchiveProxy.h"
-#include "Materials/MaterialExpressionSceneTexture.h"
+#include "MaterialSceneTextureId.h"
 
 class FMaterial;
 class FMaterialCompiler;
