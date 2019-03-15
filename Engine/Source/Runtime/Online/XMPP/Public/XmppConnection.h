@@ -103,6 +103,15 @@ public:
 	{
 	}
 
+	/**
+	 * Create an FXmppUserJid from a formatted JID
+	 * e.g., user@domain/resource
+	 *
+	 * @param JidString the formatted JID
+	 * @return FXmppUserJid populated from the formatted JID
+	 */
+	static FXmppUserJid FromFullJid(const FString& JidString);
+
 	/** unique id for the user */
 	FString Id;
 	/** domain user has access to */
