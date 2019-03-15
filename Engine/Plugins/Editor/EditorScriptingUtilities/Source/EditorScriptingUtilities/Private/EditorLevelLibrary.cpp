@@ -29,6 +29,8 @@
 #include "MeshMergeModule.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdGlobals.h"
+#include "LevelEditor.h"
+#include "ILevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "EditorLevelLibrary"
 
@@ -57,6 +59,21 @@ namespace InternalEditorLevelLibrary
 	UWorld* GetEditorWorld()
 	{
 		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+	}
+
+	UWorld* GetGameWorld()
+	{
+		if (GEditor)
+		{
+			if (FWorldContext* WorldContext = GEditor->GetPIEWorldContext())
+			{
+				return WorldContext->World();
+			}
+
+			return nullptr;
+		}
+
+		return GWorld;
 	}
 
 	template<class T>
@@ -181,9 +198,93 @@ void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& Ac
 	{
 		GEditor->SelectNone(true, true, false);
 	}
-
-	return;
 }
+
+void UEditorLevelLibrary::PilotLevelActor(AActor* ActorToPilot)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+
+		LevelViewportClient.SetActorLock(ActorToPilot);
+		if (LevelViewportClient.IsPerspective() && LevelViewportClient.GetActiveActorLock().IsValid())
+		{
+			LevelViewportClient.MoveCameraToLockedActor();
+		}
+	}
+}
+
+void UEditorLevelLibrary::EjectPilotLevelActor()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+
+		if (AActor* LockedActor = LevelViewportClient.GetActiveActorLock().Get())
+		{
+			//// Check to see if the locked actor was previously overriding the camera settings
+			//if (CanGetCameraInformationFromActor(LockedActor))
+			//{
+			//	// Reset the settings
+			//	LevelViewportClient.ViewFOV = LevelViewportClient.FOVAngle;
+			//}
+
+			LevelViewportClient.SetActorLock(nullptr);
+
+			// remove roll and pitch from camera when unbinding from actors
+			GEditor->RemovePerspectiveViewRotation(true, true, false);
+		}
+	}
+}
+
+
+void UEditorLevelLibrary::EditorSetGameView(bool bGameView)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		if (ActiveLevelViewport->IsInGameView() != bGameView)
+		{
+			ActiveLevelViewport->ToggleGameView();
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+void UEditorLevelLibrary::EditorPlaySimulate()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		const bool bSimulateInEditor = true;
+		GUnrealEd->RequestPlaySession(false, ActiveLevelViewport, bSimulateInEditor, NULL, NULL, -1, false);
+	}
+}
+
+void UEditorLevelLibrary::EditorInvalidateViewports()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+		LevelViewportClient.Invalidate();
+	}
+}
+
+#endif
 
 namespace InternalEditorLevelLibrary
 {
@@ -328,6 +429,14 @@ UWorld* UEditorLevelLibrary::GetEditorWorld()
 
 	return InternalEditorLevelLibrary::GetEditorWorld();
 }
+
+UWorld* UEditorLevelLibrary::GetGameWorld()
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	return InternalEditorLevelLibrary::GetGameWorld();
+}
+
 
 /**
  *
