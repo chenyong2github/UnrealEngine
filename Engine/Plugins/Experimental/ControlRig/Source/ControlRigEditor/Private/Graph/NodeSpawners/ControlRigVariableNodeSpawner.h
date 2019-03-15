@@ -17,7 +17,7 @@
 class UControlRigGraphNode;
 
 UCLASS(Transient)
-class UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
+class CONTROLRIGEDITOR_API UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
@@ -49,4 +49,6 @@ public:
 private:
 	/** The pin type we will spawn */
 	FEdGraphPinType EdGraphPinType;
+
+	friend class UEngineTestControlRig;
 };

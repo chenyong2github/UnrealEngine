@@ -121,4 +121,5 @@ private:
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
 	friend class FControlRigEditor;
+	friend class UEngineTestControlRig;
 };

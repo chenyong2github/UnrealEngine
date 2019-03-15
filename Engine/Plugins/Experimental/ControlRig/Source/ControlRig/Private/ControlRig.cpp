@@ -108,7 +108,7 @@ void UControlRig::PreEvaluate_GameThread()
 {
 	// this won't work with procedural rigging
 	// so I wonder this should be just bool option for control rig?
-	Hierarchy.Reset();
+	Hierarchy.ResetTransforms();
 
 	// input delegates
 	OnPreEvaluateGatherInput.ExecuteIfBound(this);

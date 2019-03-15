@@ -17,7 +17,7 @@
 class UControlRigGraphNode;
 
 UCLASS(Transient)
-class UControlRigUnitNodeSpawner : public UBlueprintNodeSpawner
+class CONTROLRIGEDITOR_API UControlRigUnitNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
@@ -41,4 +41,6 @@ private:
 	/** The unit type we will spawn */
 	UPROPERTY(Transient)
 	UStruct* StructTemplate;
+
+	friend class UEngineTestControlRig;
 };

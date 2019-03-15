@@ -30,7 +30,7 @@ struct FRigUnit_ApplyFK : public FRigUnit
 {
 	GENERATED_BODY()
 
-	virtual void Execute(const FRigUnitContext& InContext) override;
+	virtual CONTROLRIG_API void Execute(const FRigUnitContext& InContext) override;
 
 	UPROPERTY(meta = (Input, Output))
 	FRigHierarchyRef HierarchyRef;

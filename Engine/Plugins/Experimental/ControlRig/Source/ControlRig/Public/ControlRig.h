@@ -185,4 +185,5 @@ private:
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
 	friend class SRigHierarchy;
+	friend class UEngineTestControlRig;
 };

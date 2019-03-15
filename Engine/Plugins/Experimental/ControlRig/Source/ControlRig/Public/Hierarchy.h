@@ -338,8 +338,14 @@ struct CONTROLRIG_API FRigHierarchy
 		}
 	}
 
+	// updates all of the internal caches
 	void Initialize();
+
+	// clears the hierarchy and removes all content
 	void Reset();
+
+	// resets all of the transforms back to the initial transform
+	void ResetTransforms();
 
 	int32 GetNum() const
 	{
@@ -412,6 +418,13 @@ struct FRigHierarchyContainer
 
 		// @todo reset whole hierarhcy
 	}
+
+	void ResetTransforms()
+	{
+		BaseHierarchy.ResetTransforms();
+
+		// @todo reset whole hierarhcy
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -478,4 +491,5 @@ private:
 		return nullptr;
 	}
 	friend class UControlRig;
+	friend class FControlRigUnitTestBase;
 };

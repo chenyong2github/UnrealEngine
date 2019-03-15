@@ -101,6 +101,11 @@ void FRigHierarchy::Initialize()
 
 void FRigHierarchy::Reset()
 {
+	Joints.Reset();
+}
+
+void FRigHierarchy::ResetTransforms()
+{
 	// initialize transform
 	for (int32 Index = 0; Index < Joints.Num(); ++Index)
 	{
