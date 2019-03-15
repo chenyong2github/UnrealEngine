@@ -4,6 +4,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "CommonAnimationLibrary.h"
 
 DEFINE_STAT(STAT_AnimDynamicsOverall);
 DEFINE_STAT(STAT_AnimDynamicsWindData);
@@ -152,6 +153,7 @@ FAnimNode_AnimDynamics::FAnimNode_AnimDynamics()
 , bLinearSpring(false)
 , bAngularSpring(false)
 , bChain(false)
+, RetargetingSettings(FRotationRetargetingInfo(false /* enabled */))
 #if ENABLE_ANIM_DRAW_DEBUG
 , FilteredBoneIndex(INDEX_NONE)
 #endif
@@ -349,6 +351,34 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 				FCompactPoseBoneIndex BoneIndex = CurrentChainBone.GetCompactPoseIndex(BoneContainer);
 
 				FTransform NewBoneTransform(CurrentBody.Pose.Orientation, CurrentBody.Pose.Position + CurrentBody.Pose.Orientation.RotateVector(JointOffsets[Idx]));
+
+				if (RetargetingSettings.bEnabled)
+				{
+					FTransform ParentTransform = FTransform::Identity;
+					FCompactPoseBoneIndex ParentBoneIndex = BoneContainer.GetParentBoneIndex(BoneIndex);
+					if (ParentBoneIndex != INDEX_NONE)
+					{
+						ParentTransform = GetBoneTransformInSimSpace(Output, ParentBoneIndex);
+					}
+
+					FQuat RetargetedRotation = CommonAnimationLibrary::RetargetSingleRotation(
+						NewBoneTransform.GetRotation(),
+						RetargetingSettings.Source * ParentTransform,
+						RetargetingSettings.Target * ParentTransform,
+						RetargetingSettings.CustomCurve,
+						RetargetingSettings.EasingType,
+						RetargetingSettings.bFlipEasing,
+						RetargetingSettings.EasingWeight,
+						RetargetingSettings.RotationComponent,
+						RetargetingSettings.TwistAxis,
+						RetargetingSettings.bUseAbsoluteAngle,
+						RetargetingSettings.SourceMinimum,
+						RetargetingSettings.SourceMaximum,
+						RetargetingSettings.TargetMinimum,
+						RetargetingSettings.TargetMaximum);
+
+					NewBoneTransform.SetRotation(RetargetedRotation);
+				}
 
 				NewBoneTransform = GetComponentSpaceTransformFromSimSpace(SimulationSpace, Output, NewBoneTransform);
 
