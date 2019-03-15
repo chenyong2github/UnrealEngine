@@ -153,7 +153,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::SetPCMData(const FRawPCMDataBuffer& InPCMDataBuffer)
 	{
-		check(BufferType == EBufferType::PCM || EBufferType::PCMPreview);
+		check(BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview);
 		RawPCMDataBuffer = InPCMDataBuffer;
 	}
 
