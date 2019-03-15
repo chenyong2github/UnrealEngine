@@ -8,14 +8,13 @@
 #include "DefaultLevelSequenceInstanceData.h"
 #include "Engine/ActorChannel.h"
 #include "Net/UnrealNetwork.h"
+#include "LevelSequenceModule.h"
 
 #if WITH_EDITOR
 	#include "PropertyCustomizationHelpers.h"
 	#include "ActorPickerMode.h"
 	#include "SceneOutlinerFilters.h"
 #endif
-
-DEFINE_LOG_CATEGORY_STATIC(LogLevelSequence, Log, All);
 
 ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 	: Super(Init)
