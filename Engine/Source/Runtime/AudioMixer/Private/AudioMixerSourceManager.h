@@ -163,6 +163,11 @@ namespace Audio
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
 		}
 
+		FORCEINLINE void CopyDestinationToStart()
+		{
+			FMemory::Memcpy(ChannelStartGains, ChannelDestinationGains, CopySize);
+		}
+
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
 			// TODO: See if you can find a way to assign this without going back to memory.
