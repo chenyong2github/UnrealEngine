@@ -1429,6 +1429,7 @@ struct FFastArrayDeltaSerializeParams
 	TArray<int32, TInlineAllocator<8>>* ReadChangedElements = nullptr;
 	TArray<int32, TInlineAllocator<8>>* ReadAddedElements = nullptr;
 	int32 ReadNumChanged = INDEX_NONE;
+	int32 ReadArrayReplicationKey = INDEX_NONE;
 };
 
 template<typename Type, typename SerializerType>
@@ -1566,6 +1567,7 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		DeltaSerializeParams.ReadAddedElements = &AddedIndices;
 		DeltaSerializeParams.ReadChangedElements = &ChangedIndices;
 		DeltaSerializeParams.ReadNumChanged = Header.NumChanged;
+		DeltaSerializeParams.ReadArrayReplicationKey = Header.ArrayReplicationKey;
 
 		if (!Parms.NetSerializeCB->NetDeltaSerializeForFastArray(DeltaSerializeParams))
 		{
