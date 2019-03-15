@@ -3156,11 +3156,12 @@ void FRepLayout::GatherGuidReferencesForCustomDeltaProperties(FNetDeltaSerialize
 			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
 			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
 
-			Params.Struct = StructProperty->Struct;
-			Params.PropertyRepIndex = KVP.Key;
-			Params.Data = ObjectData + Parent;
+			FNetDeltaSerializeInfo TempParams = Params;
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.PropertyRepIndex = KVP.Key;
+			TempParams.Data = ObjectData + Parent;
 
-			CppStructOps->NetDeltaSerialize(Params, Params.Data);
+			CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data);
 		}
 	}
 }
@@ -3222,15 +3223,22 @@ bool FRepLayout::MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSer
 			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
 			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
 
-			Params.Struct = StructProperty->Struct;
-			Params.Data = ObjectData + Parent;
-			Params.PropertyRepIndex = KVP.Key;
+			FNetDeltaSerializeInfo TempParams = Params;
 
-			if (CppStructOps->NetDeltaSerialize(Params, Params.Data))
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.Data = ObjectData + Parent;
+			TempParams.PropertyRepIndex = KVP.Key;
+			TempParams.bOutHasMoreUnmapped = false;
+			TempParams.bOutSomeObjectsWereMapped = false;
+
+			if (CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data))
 			{
 				UnmappedCustomProperties.Add(Parent.Offset, StructProperty);
 				bFound = true;
 			}
+
+			Params.bOutHasMoreUnmapped |= TempParams.bOutHasMoreUnmapped;
+			Params.bOutSomeObjectsWereMapped |= TempParams.bOutSomeObjectsWereMapped;
 		}
 	}
 
@@ -3386,16 +3394,27 @@ void FRepLayout::UpdateUnmappedObjects(
 	FReceivingRepState* RESTRICT RepState,
 	UPackageMap* PackageMap,
 	UObject* OriginalObject,
+	bool& bCalledPreNetReceive,
 	bool& bOutSomeObjectsWereMapped,
 	bool& bOutHasMoreUnmapped) const
 {
 	bOutSomeObjectsWereMapped = false;
 	bOutHasMoreUnmapped = false;
-	bool bCalledPreNetReceive = false;
+	bCalledPreNetReceive = false;
 
 	if (LayoutState == ERepLayoutState::Normal)
 	{
-		UpdateUnmappedObjects_r(RepState, &RepState->GuidReferencesMap, OriginalObject, PackageMap, (uint8*)RepState->StaticBuffer.GetData(), (uint8*)OriginalObject, Owner->GetPropertiesSize(), bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+		UpdateUnmappedObjects_r(
+			RepState,
+			&RepState->GuidReferencesMap,
+			OriginalObject,
+			PackageMap,
+			(uint8*)RepState->StaticBuffer.GetData(),
+			(uint8*)OriginalObject,
+			Owner->GetPropertiesSize(),
+			bCalledPreNetReceive,
+			bOutSomeObjectsWereMapped,
+			bOutHasMoreUnmapped);
 	}
 }
 
@@ -3409,9 +3428,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FRepLayout::UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializeInfo& Params, TArray<TPair<int32, UStructProperty*>>& CompletelyUpdated, TArray<TPair<int32, UStructProperty*>>& Updated) const
 {
-	bool bOutSomeObjectsWereMapped = false;
-	bool bOutHasMoreUnmapped = false;
-
 	if (LifetimeCustomPropertyState)
 	{
 		FRepObjectDataBuffer ObjectData(Params.Object);
@@ -3423,33 +3439,33 @@ void FRepLayout::UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializ
 			UStructProperty* StructProperty = static_cast<UStructProperty*>(Parent.Property);
 			UScriptStruct::ICppStructOps* CppStructOps = StructProperty->Struct->GetCppStructOps();
 
-			Params.DebugName = Parent.CachedPropertyName.ToString();
-			Params.Struct = StructProperty->Struct;
-			Params.bOutSomeObjectsWereMapped = false;
-			Params.bOutHasMoreUnmapped = false;
-			Params.PropertyRepIndex = KVP.Key;
-			Params.Data = ObjectData + Parent;
+			FNetDeltaSerializeInfo TempParams = Params;
+
+			TempParams.DebugName = Parent.CachedPropertyName.ToString();
+			TempParams.Struct = StructProperty->Struct;
+			TempParams.bOutSomeObjectsWereMapped = false;
+			TempParams.bOutHasMoreUnmapped = false;
+			TempParams.PropertyRepIndex = KVP.Key;
+			TempParams.Data = ObjectData + Parent;
 
 			// Call the custom delta serialize function to handle it
-			CppStructOps->NetDeltaSerialize(Params, Params.Data);
+			CppStructOps->NetDeltaSerialize(TempParams, TempParams.Data);
 
-			if (Params.bOutSomeObjectsWereMapped)
+			if (TempParams.bOutSomeObjectsWereMapped)
 			{
 				Updated.Emplace(Parent.Offset, StructProperty);
 			}
 
-			if (!Params.bOutHasMoreUnmapped)
+			if (!TempParams.bOutHasMoreUnmapped)
 			{
 				CompletelyUpdated.Emplace(Parent.Offset, StructProperty);
 			}
 
-			bOutSomeObjectsWereMapped |= Params.bOutSomeObjectsWereMapped;
-			bOutHasMoreUnmapped |= Params.bOutHasMoreUnmapped;
+			Params.bOutSomeObjectsWereMapped |= TempParams.bOutSomeObjectsWereMapped;
+			Params.bOutHasMoreUnmapped |= TempParams.bOutHasMoreUnmapped;
+			Params.bCalledPreNetReceive |= TempParams.bCalledPreNetReceive;
 		}
 	}
-
-	Params.bOutSomeObjectsWereMapped = bOutSomeObjectsWereMapped;
-	Params.bOutHasMoreUnmapped = bOutHasMoreUnmapped;
 }
 
 bool FRepLayout::SendCustomDeltaProperty(
