@@ -593,6 +593,9 @@ void USocialDebugTools::FInstanceContext::Shutdown()
 			OnlineParty.Reset();
 		}
 		OnlineSub->Shutdown();
+
+		const FString OSSName = FName(MCP_SUBSYSTEM).ToString() + TEXT(":") + Name;
+		IOnlineSubsystem::Destroy(*OSSName);
 	}
 }
 
