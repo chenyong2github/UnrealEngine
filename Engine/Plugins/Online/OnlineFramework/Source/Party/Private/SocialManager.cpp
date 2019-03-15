@@ -826,7 +826,7 @@ void USocialManager::HandleWorldEstablished(UWorld* World)
 
 void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 {
-	ULocalPlayer* NewLocalPlayer = GetGameInstance().FindLocalPlayerFromControllerId(LocalUserNum);
+	ULocalPlayer* NewLocalPlayer = GetGameInstance().GetLocalPlayerByIndex(LocalUserNum);
 	check(NewLocalPlayer);
 
 	CreateSocialToolkit(*NewLocalPlayer);
