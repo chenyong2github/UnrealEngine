@@ -91,6 +91,7 @@ public:
 
 	operator const FString&() const { return PlatformStr; }
 	const FString& ToString() const { return PlatformStr; }
+	const FString ToPlatformIconKey() const;
 
 	bool operator==(const FString& OtherStr) const;
 	bool operator!=(const FString& OtherStr) const { return !operator==(OtherStr); }
