@@ -13,11 +13,13 @@
 #include "MetalBackend.h"
 #include "Serialization/MemoryReader.h"
 
+#if 0
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 THIRD_PARTY_INCLUDES_START
 #include "ShaderConductor/ShaderConductor.hpp"
 #include "spirv_reflect.h"
 THIRD_PARTY_INCLUDES_END
+#endif
 #endif
 
 extern bool ExecRemoteProcess(const TCHAR* Command, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr);
@@ -425,8 +427,10 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	bool bUsingTessellation = ((UsingTessellationDefine != nullptr && FString("1") == *UsingTessellationDefine && Frequency == HSF_VertexShader) || Frequency == HSF_HullShader || Frequency == HSF_DomainShader);
 	
 	// Its going to take a while to get dxc+SPIRV working...
+#if 0
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 	if (VersionEnum < 6)
+#endif
 #endif
 	{
 		FMetalCodeBackend MetalBackEnd(Attribs, CCFlags, MetalCompilerTarget, VersionEnum, Semantics, TypeMode, MaxUnrollLoops, bZeroInitialise, bBoundsChecks, bAllowFastIntriniscs, bForceInvariance, bSwizzleSample);
@@ -484,6 +488,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			}
 		}
 	}
+#if 0
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 	else
 	{
@@ -1192,6 +1197,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			ShaderConductor::DestroyBlob(RewriteBlob);
 		}
 	}
+#endif
 #endif
 
 	if (bDumpDebugInfo)
