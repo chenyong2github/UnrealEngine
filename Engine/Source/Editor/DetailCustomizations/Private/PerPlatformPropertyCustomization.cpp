@@ -16,6 +16,7 @@
 #include "SPerPlatformPropertiesWidget.h"
 #include "ScopedTransaction.h"
 #include "IPropertyUtilities.h"
+#include "UObject/MetaData.h"
 
 #define LOCTEXT_NAMESPACE "PerPlatformPropertyCustomization"
 
@@ -25,6 +26,42 @@ void FPerPlatformPropertyCustomization<PerPlatformType>::CustomizeHeader(TShared
 	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
 
 	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
+
+	// Get Forward Property MetaData to PerPlatform Property
+	UProperty* MetaDataProperty = StructPropertyHandle->GetMetaDataProperty();
+	if (MetaDataProperty != nullptr)
+	{
+		TMap<FName, FString>* MetaData = UMetaData::GetMapForObject(MetaDataProperty);
+		if (MetaData != nullptr)
+		{
+			TSharedPtr<IPropertyHandle> ChildPropertyHandle = StructPropertyHandle->GetChildHandle(FName("Default"));
+			if (ChildPropertyHandle.IsValid())
+			{
+				for (const TPair<FName, FString>& Pair : *MetaData)
+				{
+					ChildPropertyHandle->SetInstanceMetaData(Pair.Key, Pair.Value);
+				}
+			}
+
+			TSharedPtr<IPropertyHandle>	MapProperty = StructPropertyHandle->GetChildHandle(FName("PerPlatform"));
+			if (MapProperty.IsValid())
+			{
+				uint32 NumChildren = 0;
+				MapProperty->GetNumChildren(NumChildren);
+				for (uint32 ChildIdx = 0; ChildIdx < NumChildren; ChildIdx++)
+				{
+					TSharedPtr<IPropertyHandle> ChildProperty = MapProperty->GetChildHandle(ChildIdx);
+					if (ChildProperty.IsValid())
+					{
+						for (const TPair<FName, FString>& Pair : *MetaData)
+						{
+							ChildProperty->SetInstanceMetaData(Pair.Key, Pair.Value);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	HeaderRow.NameContent()
 	[
