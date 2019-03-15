@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	MaterialShared.h: Shared material definitions.
@@ -24,6 +24,7 @@
 #include "Misc/Optional.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ArchiveProxy.h"
+#include "Materials/MaterialExpressionSceneTexture.h"
 
 class FMaterial;
 class FMaterialCompiler;
@@ -419,21 +420,16 @@ public:
 	FMaterialCompilationOutput() :
 		UsedSceneTextures(0),
 #if WITH_EDITOR
-		NumUsedUVScalars(0),
-		NumUsedCustomInterpolatorScalars(0),
 		EstimatedNumTextureSamplesVS(0),
 		EstimatedNumTextureSamplesPS(0),
+		NumUsedUVScalars(0),
+		NumUsedCustomInterpolatorScalars(0),
 #endif
-		bRequiresSceneColorCopy(false),
-		bNeedsSceneTextures(false),
 		bUsesEyeAdaptation(false),
 		bModifiesMeshPosition(false),
 		bUsesWorldPositionOffset(false),
-		bNeedsGBuffer(false),
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
-		bUsesSceneDepthLookup(false),
-		bUsesVelocitySceneTexture(false),
 		bUsesDistanceCullFade(false)
 	{}
 
@@ -442,51 +438,74 @@ public:
 	FUniformExpressionSet UniformExpressionSet;
 
 	/** Bitfield of the ESceneTextures used */
-	uint64 UsedSceneTextures;
+	uint32 UsedSceneTextures;
 
 #if WITH_EDITOR
+	/** Number of times SampleTexture is called, excludes custom nodes. */
+	uint16 EstimatedNumTextureSamplesVS;
+	uint16 EstimatedNumTextureSamplesPS;
+
 	/** Number of used custom UV scalars. */
 	uint8 NumUsedUVScalars;
 
 	/** Number of used custom vertex interpolation scalars. */
 	uint8 NumUsedCustomInterpolatorScalars;
-
-	/** Number of times SampleTexture is called, excludes custom nodes. */
-	uint16 EstimatedNumTextureSamplesVS;
-	uint16 EstimatedNumTextureSamplesPS;
 #endif // WITH_EDITOR
 
-	/** Indicates whether the material uses scene color. */
-	bool bRequiresSceneColorCopy;
-
-	/** true if the material needs the scenetexture lookups. */
-	bool bNeedsSceneTextures;
-
 	/** true if the material uses the EyeAdaptationLookup */
-	bool bUsesEyeAdaptation;
+	uint8 bUsesEyeAdaptation : 1;
 
 	/** true if the material modifies the the mesh position. */
-	bool bModifiesMeshPosition;
+	uint8 bModifiesMeshPosition : 1;
 
 	/** Whether the material uses world position offset. */
-	bool bUsesWorldPositionOffset;
-
-	/** true if the material uses any GBuffer textures */
-	bool bNeedsGBuffer;
+	uint8 bUsesWorldPositionOffset : 1;
 
 	/** true if material uses the global distance field */
-	bool bUsesGlobalDistanceField;
+	uint8 bUsesGlobalDistanceField : 1;
 
 	/** true if the material writes a pixel depth offset */
-	bool bUsesPixelDepthOffset;
+	uint8 bUsesPixelDepthOffset : 1;
+
+	/** true if the material uses distance cull fade */
+	uint8 bUsesDistanceCullFade : 1;
+
+	bool IsSceneTextureUsed(ESceneTextureId TexId) const { return UsedSceneTextures & (1 << TexId); }
+	void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
+
+	/** Indicates whether the material uses scene color. */
+	bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
+
+	/** true if the material needs the scenetexture lookups. */
+	bool NeedsSceneTextures() const { return UsedSceneTextures != 0; }
+
+	/** true if the material uses any GBuffer textures */
+	bool NeedsGBuffer() const 
+	{
+		return
+			IsSceneTextureUsed(PPI_DiffuseColor) ||
+			IsSceneTextureUsed(PPI_SpecularColor) ||
+			IsSceneTextureUsed(PPI_SubsurfaceColor) ||
+			IsSceneTextureUsed(PPI_BaseColor) ||
+			IsSceneTextureUsed(PPI_Specular) ||
+			IsSceneTextureUsed(PPI_Metallic) ||
+			IsSceneTextureUsed(PPI_WorldNormal) ||
+			IsSceneTextureUsed(PPI_Opacity) ||
+			IsSceneTextureUsed(PPI_Roughness) ||
+			IsSceneTextureUsed(PPI_MaterialAO) ||
+			IsSceneTextureUsed(PPI_DecalMask) ||
+			IsSceneTextureUsed(PPI_ShadingModelColor) ||
+			IsSceneTextureUsed(PPI_ShadingModelID) ||
+			IsSceneTextureUsed(PPI_StoredBaseColor) ||
+			IsSceneTextureUsed(PPI_StoredSpecular) ||
+			IsSceneTextureUsed(PPI_Velocity);
+	}
 
 	/** true if the material uses the SceneDepth lookup */
-	bool bUsesSceneDepthLookup;
+	bool UsesSceneDepthLookup() const { return IsSceneTextureUsed(PPI_SceneDepth); };	
 
 	/** true if the material uses the Velocity SceneTexture lookup */
-	bool bUsesVelocitySceneTexture;
-	/** true if the material uses distance cull fade */
-	bool bUsesDistanceCullFade;
+	bool UsesVelocitySceneTexture() const { return IsSceneTextureUsed(PPI_Velocity); };
 };
 
 /** 
@@ -930,23 +949,23 @@ public:
 	const FString& GetFriendlyName() const { static FString T; return T; }
 	const FString& GetDebugDescription() const { static FString T; return T; }
 #endif
-	bool RequiresSceneColorCopy() const { return MaterialCompilationOutput.bRequiresSceneColorCopy; }
-	bool NeedsSceneTextures() const { return MaterialCompilationOutput.bNeedsSceneTextures; }
+	bool RequiresSceneColorCopy() const { return MaterialCompilationOutput.RequiresSceneColorCopy(); }
+	bool NeedsSceneTextures() const { return MaterialCompilationOutput.NeedsSceneTextures(); }
 	bool UsesGlobalDistanceField() const { return MaterialCompilationOutput.bUsesGlobalDistanceField; }
 	bool UsesWorldPositionOffset() const { return MaterialCompilationOutput.bUsesWorldPositionOffset; }
-	bool NeedsGBuffer() const { return MaterialCompilationOutput.bNeedsGBuffer; }
+	bool NeedsGBuffer() const { return MaterialCompilationOutput.NeedsGBuffer(); }
 	bool UsesEyeAdaptation() const { return MaterialCompilationOutput.bUsesEyeAdaptation; }
 	bool ModifiesMeshPosition() const { return MaterialCompilationOutput.bModifiesMeshPosition; }
 	bool UsesPixelDepthOffset() const { return MaterialCompilationOutput.bUsesPixelDepthOffset; }
-	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.bUsesSceneDepthLookup; }
-	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.bUsesVelocitySceneTexture; }
+	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.UsesSceneDepthLookup(); }
+	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
 	void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const { VSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesVS; PSSamples = MaterialCompilationOutput.EstimatedNumTextureSamplesPS; }
 #endif
-	bool UsesSceneTexture(uint32 TexId) const { return MaterialCompilationOutput.UsedSceneTextures & (1ull << TexId); }
+	bool UsesSceneTexture(ESceneTextureId TexId) const { return MaterialCompilationOutput.IsSceneTextureUsed(TexId); }
 
 	bool IsValidForRendering(bool bFailOnInvalid = false) const
 	{
