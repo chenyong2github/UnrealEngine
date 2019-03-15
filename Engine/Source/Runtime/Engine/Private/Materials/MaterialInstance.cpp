@@ -484,7 +484,7 @@ void UMaterialInstance::InitResources()
 
 	PropagateDataToMaterialProxy();
 
-	CacheMaterialInstanceUniformExpressions(this);
+	CacheMaterialInstanceUniformExpressions(this, true);
 }
 
 const UMaterial* UMaterialInstance::GetMaterial() const
