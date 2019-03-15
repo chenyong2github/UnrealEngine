@@ -711,14 +711,11 @@ public:
 				Errorf(TEXT("Only transparent or postprocess materials can read from scene depth."));
 			}
 
-			if (bUsesSceneDepth)
-			{
-				MaterialCompilationOutput.SetIsSceneTextureUsed(PPI_SceneDepth);
-			}
+			MaterialCompilationOutput.bUsesSceneDepthLookup = bUsesSceneDepth;
 
 			MaterialCompilationOutput.bUsesDistanceCullFade = bUsesDistanceCullFade;
 
-			if (MaterialCompilationOutput.RequiresSceneColorCopy())
+			if (MaterialCompilationOutput.bRequiresSceneColorCopy)
 			{
 				if (Domain != MD_Surface)
 				{
@@ -772,7 +769,7 @@ public:
 				Errorf(TEXT("Material using the DeferredDecal domain need to use the BlendModel Translucent (this saves performance)"));
 			}
 
-			if (MaterialCompilationOutput.NeedsSceneTextures())
+			if (MaterialCompilationOutput.bNeedsSceneTextures)
 			{
 				if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
 				{
@@ -1054,7 +1051,7 @@ public:
 			OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_SIZE"), TEXT("1"));
 		}
 
-		if( MaterialCompilationOutput.NeedsSceneTextures())
+		if( MaterialCompilationOutput.bNeedsSceneTextures )
 		{
 			OutEnvironment.SetDefine(TEXT("NEEDS_SCENE_TEXTURES"), TEXT("1"));
 		}
@@ -3829,7 +3826,8 @@ protected:
 	// @param bTextureLookup true: texture, false:no texture lookup, usually to get the size
 	void UseSceneTextureId(ESceneTextureId SceneTextureId, bool bTextureLookup)
 	{
-		MaterialCompilationOutput.SetIsSceneTextureUsed(SceneTextureId);
+		MaterialCompilationOutput.bNeedsSceneTextures = true;
+		MaterialCompilationOutput.UsedSceneTextures |= (1ull << SceneTextureId);
 
 		if(Material->GetMaterialDomain() == MD_DeferredDecal)
 		{
@@ -3892,17 +3890,41 @@ protected:
 			bUsesSceneDepth = true;
 		}
 
-		const bool bNeedsGBuffer = MaterialCompilationOutput.NeedsGBuffer();
+		const bool bNeedsGBuffer = SceneTextureId == PPI_DiffuseColor 
+			|| SceneTextureId == PPI_SpecularColor
+			|| SceneTextureId == PPI_SubsurfaceColor
+			|| SceneTextureId == PPI_BaseColor
+			|| SceneTextureId == PPI_Specular
+			|| SceneTextureId == PPI_Metallic
+			|| SceneTextureId == PPI_WorldNormal
+			|| SceneTextureId == PPI_Opacity
+			|| SceneTextureId == PPI_Roughness
+			|| SceneTextureId == PPI_MaterialAO
+			|| SceneTextureId == PPI_DecalMask
+			|| SceneTextureId == PPI_ShadingModelColor
+			|| SceneTextureId == PPI_ShadingModelID
+			|| SceneTextureId == PPI_StoredBaseColor
+			|| SceneTextureId == PPI_StoredSpecular
+			|| SceneTextureId == PPI_Velocity;
 
+
+		MaterialCompilationOutput.bNeedsGBuffer = MaterialCompilationOutput.bNeedsGBuffer || bNeedsGBuffer;
 
 		if (bNeedsGBuffer && IsForwardShadingEnabled(Platform))
 		{
 			Errorf(TEXT("GBuffer scene textures not available with forward shading."));
 		}
 
-		if (SceneTextureId == PPI_Velocity && Material->GetMaterialDomain() != MD_PostProcess)
+		if (SceneTextureId == PPI_Velocity)
 		{
-			Errorf(TEXT("Velocity scene textures are only available in post process materials."));
+			if (Material->GetMaterialDomain() == MD_PostProcess)
+			{
+				MaterialCompilationOutput.bUsesVelocitySceneTexture = true;
+			}
+			else
+			{
+				Errorf(TEXT("Velocity scene textures are only available in post process materials."));
+			}
 		}
 
 		// not yet tracked:
@@ -3931,7 +3953,7 @@ protected:
 			return INDEX_NONE;
 		}
 
-		MaterialCompilationOutput.SetIsSceneTextureUsed(PPI_SceneColor);
+		MaterialCompilationOutput.bRequiresSceneColorCopy = true;
 		AddEstimatedTextureSample();
 
 		int32 ScreenUVCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);

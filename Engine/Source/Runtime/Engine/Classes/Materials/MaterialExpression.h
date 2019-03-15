@@ -6,8 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
-#include "MaterialExpressionIO.h"
 #include "MaterialShared.h"
+#include "MaterialExpressionIO.h"
 
 #include "MaterialExpression.generated.h"
 
