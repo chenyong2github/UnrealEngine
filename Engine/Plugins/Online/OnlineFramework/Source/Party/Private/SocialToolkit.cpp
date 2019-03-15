@@ -607,8 +607,10 @@ void USocialToolkit::HandlePlayerLoginStatusChanged(int32 LocalUserNum, ELoginSt
 	{
 		if (NewStatus == ELoginStatus::LoggedIn)
 		{
-			if (!ensure(AllUsers.Num() == 0))
+			if (AllUsers.Num() != 0)
 			{
+				UE_LOG(LogParty, Error, TEXT("HandlePlayerLoginStatusChanged: Changed login status but we were not informed their status had changed previously"));
+
 				// Nobody told us we logged out! Handle it now just so we're fresh, but not good!
 				OnOwnerLoggedOut();
 			}
