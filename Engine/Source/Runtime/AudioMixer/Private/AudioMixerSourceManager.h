@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -170,8 +170,6 @@ namespace Audio
 
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
-			// TODO: See if you can find a way to assign this without going back to memory.
-			FMemory::Memcpy(ChannelStartGains, ChannelDestinationGains, CopySize);
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
 		}
 
@@ -550,7 +548,6 @@ namespace Audio
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;
-		int32 MaxChannelsSupportedBySpatializationPlugin;
 
 		friend class FMixerSourceVoice;
 	};
