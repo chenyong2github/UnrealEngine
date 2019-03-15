@@ -2058,10 +2058,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			if (bAppleTV)
 			{
 				MinOSVersion = TEXT("-mtvos-version-min=12.0");
+				TypeMode = EMetalTypeBufferModeTBSRV;
 			}
 			else if (bIsMobile)
 			{
 				MinOSVersion = TEXT("-mios-version-min=12.0");
+				TypeMode = EMetalTypeBufferModeTBSRV;
 			}
 			else
 			{
@@ -2076,10 +2078,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			if (bAppleTV)
 			{
 				MinOSVersion = TEXT("-mtvos-version-min=11.0");
+				TypeMode = EMetalTypeBufferMode2DSRV;
 			}
 			else if (bIsMobile)
 			{
 				MinOSVersion = TEXT("-mios-version-min=11.0");
+				TypeMode = EMetalTypeBufferMode2DSRV;
 			}
 			else
 			{
@@ -2094,10 +2098,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			if (bAppleTV)
 			{
 				MinOSVersion = TEXT("-mtvos-version-min=10.0");
+				TypeMode = EMetalTypeBufferMode2DSRV;
 			}
 			else if (bIsMobile)
 			{
 				MinOSVersion = TEXT("-mios-version-min=10.0");
+				TypeMode = EMetalTypeBufferMode2DSRV;
 			}
 			else
 			{
