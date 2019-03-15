@@ -6065,11 +6065,13 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 					{
 						HistoryItem.bWasUpdated = true;
 
+						FastArrayState.ArrayReplicationKey = NewArrayDeltaState->ArrayReplicationKey;
+
 						// Update our shadow array, and reset our pointer in case we reallocated.
 						FScriptArrayHelper ShadowArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ShadowArray);
 
 						TBitArray<> ShadowArrayItemIsNew(false, ObjectArrayNum);
-						const bool bIsInitial = (FastArrayState.HistoryEnd - FastArrayState.HistoryStart) == 1;
+						const bool bIsInitial = CompareChangelistDelta == 1;
 
 						// It's possible that elements have been deleted or otherwise reordered, and our shadow state is out of date.
 						// In order to prevent issues, we'll shuffle our shadow state back to the correct order.
@@ -6099,7 +6101,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 						//
 						//			a. If we find the Shadow Element in the Shadow Line, it must have been reordered.
 						//				Go ahead and swap the current front of the Shadow Line with the found Shadow Element.
-						//				Now, the elements at the front of the line have mathcing IDs, and we can move onto
+						//				Now, the elements at the front of the line have matching IDs, and we can move onto
 						//				the next Element in both lines.
 						//
 						//			b. If we don't find the Shadow Element in the Shadow Line, the Object Element must be new.
@@ -6122,6 +6124,11 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 						// TODO: Optimize this. Luckily, it only happens once per frame, and only if the array is dirty.
 						//			Maybe this could be merged into the sending code below, the only concern is that
 						//			doesn't tracked deleted elements.
+						//
+						//			Alternatively, if Custom Delta code was merged into FRepLayout, we might be able to track
+						//			lists of deleted items on a given frame and merge those together just like changelists.
+						//			This would prevent us from needing to call BuildChangedAndDeletedBuffers on Fast TArrays
+						//			for every connection, unless a specific connection was very out of date.
 
 						// Note, this code serves a very similar purpose to FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::BuildChangedAndDeletedBuffers.
 						// The main issue is that we can't rely on that method, because it will be comparing the last state that was replicated to a given particular connection,
@@ -6131,30 +6138,43 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 						{
 							FScriptArrayHelper ObjectArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
 
-							TMap<int32, int32>& ShadowIDToIndex = FastArrayState.IDToIndexMap;
-							const TMap<int32, int32>& ObjectIDToIndex = ArraySerializer.ItemMap;
+							const int32 EndIndex = FMath::Min(ShadowArrayHelper.Num(), ObjectArrayNum);
+							const TMap<int32, int32> OldShadowIDToIndexMap(MoveTemp(FastArrayState.IDToIndexMap));
+							FastArrayState.IDToIndexMap.Reserve(ObjectArrayNum);
 
-							for (int32 Index = 0; Index < ObjectArrayNum; ++Index)
+							// We track the Appended Shadow Items, because any index we try and use after such
+							// an append needs to be shifted appropriately.
+							// TODO: We may be able to iterate the list backwards instead, but that may break
+							//			some assumptions laid out in the algorithm above.
+							int32 AppendedShadowItems = 0;
+
+							UE_LOG(LogRep, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Fixup Shadow State. Owner=%s, Property=%s, bInitial=%d, ObjecyArrayNum=%d, ShadowArrayNum=%d"),
+								*Owner->GetName(), *Parent.CachedPropertyName.ToString(), !!bIsInitial, ObjectArrayNum, ShadowArrayHelper.Num());
+
+							for (int32 Index = 0; Index < EndIndex; ++Index)
 							{
-								// Anything else must be a newly appended element, so we are done.
-								if (Index >= ShadowArrayHelper.Num())
-								{
-									break;
-								}
-
 								FFastArraySerializerItem* ObjectItem = GetFastArrayItem(Params, ObjectArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
 								FFastArraySerializerItem* ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
 
+								FastArrayState.IDToIndexMap.Emplace(ObjectItem->ReplicationID, Index);
+
+								UE_LOG(LogRep, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Handling Item. ID=%d, Index=%d, ShadowID=%d"), ObjectItem->ReplicationID, Index, ShadowItem->ReplicationID);
+
+								// If our IDs match, there's nothing to do.
 								if (ObjectItem->ReplicationID != ShadowItem->ReplicationID)
 								{
 									// The IDs didn't match, so this is an insert, delete, or swap.
-									if (int32* FoundShadowIndex = ShadowIDToIndex.Find(ShadowItem->ReplicationID))
+									if (int32 const * const FoundShadowIndex = OldShadowIDToIndexMap.Find(ObjectItem->ReplicationID))
 									{
 										// We found the element in the shadow array, so there must have been a swap.
-										// Sanity check that the invalid element can only possibly be later in our lines.
-										check(*FoundShadowIndex > Index);
+										// Sanity check that the invalid element can only possibly later in our lines.
+										const int32 FixedShadowIndex = *FoundShadowIndex + AppendedShadowItems;
 
-										ShadowArrayHelper.SwapValues(Index, *FoundShadowIndex);
+										UE_LOG(LogRep, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Swapped Shadow Item. OldIndex=%d, NewIndex=%d"), Index, FixedShadowIndex);
+
+										check(FixedShadowIndex > Index);
+
+										ShadowArrayHelper.SwapValues(Index, FixedShadowIndex);
 									}
 									else
 									{
@@ -6166,30 +6186,42 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 
 										ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
 										ShadowItem->ReplicationID = ObjectItem->ReplicationID;
+
+										++AppendedShadowItems;
+										UE_LOG(LogRep, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Added Shadow Item. AppendedShadowItems=%d"), AppendedShadowItems);
 									}
 								}
 							}
 						}
 
 						// Now we can go ahead and resize the array, to make any other changes we need.
-						ShadowArrayHelper.Resize(ObjectArrayNum);
-						ShadowArrayData = ShadowArray->GetData();
-
-						// Go ahead and fix up IDs for any elements that may have just been appended.
-						// Note, we need to this for all elements on the initial pass.
-						// Deleted elements will have been chopped off by the resize.
-						if (bIsInitial || (ShadowArrayHelper.Num() < ObjectArrayNum))
 						{
-							FScriptArrayHelper ObjectArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
-							for (int32 ObjectIndex = ShadowArrayHelper.Num(); ObjectIndex < ObjectArrayNum; ++ObjectIndex)
+							const int32 OldShadowArrayNum = ShadowArrayHelper.Num();
+							ShadowArrayHelper.Resize(ObjectArrayNum);
+							ShadowArrayData = ShadowArray->GetData();
+
+							// Go ahead and fix up IDs for any elements that may have just been appended.
+							// Note, we need to this for all elements on the initial pass.
+							// Deleted elements will have been chopped off by the resize.
+							if (bIsInitial || (OldShadowArrayNum < ObjectArrayNum))
 							{
-								FFastArraySerializerItem* ObjectItem = GetFastArrayItem(Params, ObjectArrayHelper.GetRawPtr(ObjectIndex), FastArrayItemCmd);
-								FFastArraySerializerItem* ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(ObjectIndex), FastArrayItemCmd);
-								ShadowItem->ReplicationID = ObjectItem->ReplicationID;
-								ShadowArrayItemIsNew[ObjectIndex] = true;
+								const int32 StartIndex = bIsInitial ? 0 : ShadowArrayHelper.Num();
+								FScriptArrayHelper ObjectArrayHelper((UArrayProperty*)FastArrayItemCmd.Property, ObjectArray);
+								for (int32 Index = StartIndex; Index < ObjectArrayNum; ++Index)
+								{
+									FFastArraySerializerItem* ObjectItem = GetFastArrayItem(Params, ObjectArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
+									FFastArraySerializerItem* ShadowItem = GetFastArrayItem(Params, ShadowArrayHelper.GetRawPtr(Index), FastArrayItemCmd);
+
+									ShadowItem->ReplicationID = ObjectItem->ReplicationID;
+									ShadowArrayItemIsNew[Index] = true;
+
+									UE_LOG(LogRep, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Added Shadow Item. Index=%d, ID=%d"), Index, ShadowItem->ReplicationID);
+									FastArrayState.IDToIndexMap.Emplace(ObjectItem->ReplicationID, Index);
+								}
 							}
 						}
 
+						TArray<uint16> NewChangelist;
 						for (auto& IDIndexPair : ChangedElements)
 						{
 							// Go ahead and do a property compare here, regardless of what we'll actually use below.
@@ -6208,18 +6240,16 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 
 							FConstRepObjectDataBuffer ElementData(ObjectArrayData + ArrayElementOffset);
 							FRepShadowDataBuffer ElementShadowData(ShadowArrayData + ArrayElementOffset);
-							TArray<uint16>& HistoryChangelist = HistoryItem.ChangelistByID.Emplace(IDIndexPair.ID);
-							CompareProperties_r(SharedParams, ItemLayoutStart, ItemLayoutEnd, ElementShadowData, ElementData, HistoryChangelist, 0);
+							NewChangelist.Empty();
 
-							if (HistoryChangelist.Num())
+							CompareProperties_r(SharedParams, ItemLayoutStart, ItemLayoutEnd, ElementShadowData, ElementData, NewChangelist, 0);
+
+							if (NewChangelist.Num())
 							{
-								HistoryChangelist.Add(0);
+								NewChangelist.Add(0);
+								HistoryItem.ChangelistByID.Emplace(IDIndexPair.ID, MoveTemp(NewChangelist));
 							}
 						}
-
-						// Copy our replication key, and the IDToIndexMap so we can use them later.
-						FastArrayState.ArrayReplicationKey = NewArrayDeltaState->ArrayReplicationKey;
-						FastArrayState.IDToIndexMap = ArraySerializer.ItemMap;
 					}
 				}
 
@@ -6229,7 +6259,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 
 				// Note, this won't be all changes since the beginning, but just all changes for the currently dirty items.
 
-				if (LastSentChangelistDelta != 0 && LastSentChangelistDelta < FDeltaArrayHistoryState::MAX_CHANGE_HISTORY)
+				if (LastSentHistory != 0 && LastSentChangelistDelta > 0 && LastSentChangelistDelta < (FDeltaArrayHistoryState::MAX_CHANGE_HISTORY - 1))
 				{
 					const FConstRepObjectDataBuffer ConstObjectData(ObjectData);
 					Changelists.SetNum(ChangedElements.Num());
