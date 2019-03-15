@@ -3956,14 +3956,6 @@ void UMaterial::PostLoad()
 			{
 				if (Texture)
 				{
-					if (Texture->HasAnyFlags(RF_NeedLoad))
-					{
-						FLinkerLoad* Loader = GetLinker();
-						if (ensure(Loader))
-						{
-							Loader->Preload(Texture);
-						}
-					}
 					Texture->ConditionalPostLoad();
 				}
 			}
