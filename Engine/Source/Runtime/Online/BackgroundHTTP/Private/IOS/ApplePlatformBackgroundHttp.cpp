@@ -41,8 +41,7 @@ const FString FApplePlatformBackgroundHttp::GetTemporaryFilePathFromURL(const FS
 
 const FString& FApplePlatformBackgroundHttp::GetTemporaryRootPath()
 {
-    static FString BackgroundHttpDir = FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("BackgroundHttpTemp"));
-    return BackgroundHttpDir;
+    return FBackgroundURLSessionHandler::GetBackgroundSessionWorkingDirectoryPath();
 }
 
 int FApplePlatformBackgroundHttp::GetPlatformMaxActiveDownloads()
