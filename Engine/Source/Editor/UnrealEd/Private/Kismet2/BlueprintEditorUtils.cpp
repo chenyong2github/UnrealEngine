@@ -9174,7 +9174,7 @@ void FBlueprintEditorUtils::BuildComponentInstancingData(UActorComponent* Compon
 		FComponentInstancingDataUtils::RecursivePropertyGather(ComponentTemplateClass, (uint8*)ComponentTemplate, (uint8*)ComponentDefaults, OutData);
 
 		// Flag that cooked data has been built and is now considered to be valid.
-		OutData.bIsValid = true;
+		OutData.bHasValidCookedData = true;
 	}
 }
 
