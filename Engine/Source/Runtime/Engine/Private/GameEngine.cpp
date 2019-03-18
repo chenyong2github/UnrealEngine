@@ -1063,14 +1063,6 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 		UGameViewportClient::OnViewportCreated().Broadcast();
 	}
 
-	// Make sure new back buffers are initialized with scene render results before drawing UI.
-	// This fixes a glitch where only UI is drawn when windows are resized
-	FSlateRenderer* SlateRenderer = FSlateApplication::Get().GetRenderer();
-	if (SlateRenderer)
-	{
-		SlateRenderer->OnPostResizeWindowBackBuffer().AddWeakLambda(this, [this](void*) { RedrawViewports(false); });
-	}
-
 	UE_LOG(LogInit, Display, TEXT("Game Engine Initialized.") );
 
 	// for IsInitialized()
@@ -1120,12 +1112,6 @@ void UGameEngine::PreExit()
 			World->FlushLevelStreaming(EFlushLevelStreamingType::Visibility);
 			World->CleanupWorld();
 		}
-	}
-
-	FSlateRenderer* SlateRenderer = FSlateApplication::Get().GetRenderer();
-	if (SlateRenderer)
-	{
-		SlateRenderer->OnPostResizeWindowBackBuffer().RemoveAll(this);
 	}
 
 	Super::PreExit();
