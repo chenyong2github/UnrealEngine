@@ -233,6 +233,7 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);
+#if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
 
@@ -242,19 +243,11 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShader
 	{
 		MaterialInstance->GetBasePropertyOverridesHash(OutId.BasePropertyOverridesHash);
 
-#if !WITH_EDITOR
-		if (FMaterial::GetLoadedCookedShaderMapId() && MaterialInstance->bHasStaticPermutationResource)
-		{
-			OutId.UpdateParameterSet(MaterialInstance->GetStaticParameters());
-		}
-		else
-#endif
-		{
-			FStaticParameterSet CompositedStaticParameters;
-			MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
-			OutId.UpdateParameterSet(CompositedStaticParameters);		
-		}
+		FStaticParameterSet CompositedStaticParameters;
+		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
+		OutId.UpdateParameterSet(CompositedStaticParameters);		
 	}
+#endif // WITH_EDITOR
 }
 
 /**
