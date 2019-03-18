@@ -539,7 +539,7 @@ struct FFastArraySerializer
 
 	const EFastArraySerializerDeltaFlags GetDeltaSerializationFlags() const
 	{
-		DeltaFlags;
+		return DeltaFlags;
 	}
 
 private:
