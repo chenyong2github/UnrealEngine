@@ -359,6 +359,7 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 
 	ExternalInterpolationAlpha = 0.0f;
 	ExternalDeltaTime = 0.0f;
+	ExternalTickRate = 1;
 	bExternalInterpolate = false;
 	bExternalUpdate = false;
 	bExternalEvaluationRateLimited = false;

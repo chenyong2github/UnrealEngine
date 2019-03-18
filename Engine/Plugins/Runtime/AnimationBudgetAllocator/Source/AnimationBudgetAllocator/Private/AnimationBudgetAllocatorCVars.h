@@ -18,6 +18,16 @@ extern int32 GAnimationBudgetDebugEnabled;
 extern int32 GAnimationBudgetDebugShowAddresses;
 #endif
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+/** Parameters used to force state for debugging */
+extern int32 GAnimationBudgetDebugForce;
+extern int32 GAnimationBudgetDebugForceRate;
+extern int32 GAnimationBudgetDebugForceInterpolation;
+extern int32 GAnimationBudgetDebugForceReducedWork;
+
+#endif
+
 /** CVar-driven parameter block */
 extern FAnimationBudgetAllocatorParameters GBudgetParameters;
 

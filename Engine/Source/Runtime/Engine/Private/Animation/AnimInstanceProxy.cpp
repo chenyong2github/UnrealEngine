@@ -486,17 +486,20 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 	NumUroSkippedFrames_Eval = 0;
 	if(RateParams)
 	{
-		bool bDoUro = SkeletalMeshComponent->ShouldUseUpdateRateOptimizations();
-		bool bDoEvalOptimization = bDoUro && RateParams->DoEvaluationRateOptimizations();
-
+		const bool bDoUro = SkeletalMeshComponent->ShouldUseUpdateRateOptimizations();
 		if(bDoUro)
 		{
 			NumUroSkippedFrames_Update = RateParams->UpdateRate - 1;
-		}
 
-		if(bDoEvalOptimization)
+			const bool bDoEvalOptimization = RateParams->DoEvaluationRateOptimizations();
+			if(bDoEvalOptimization)
+			{
+				NumUroSkippedFrames_Eval = RateParams->EvaluationRate - 1;
+			}
+		}
+		else if(SkeletalMeshComponent->IsUsingExternalTickRateControl())
 		{
-			NumUroSkippedFrames_Eval = RateParams->EvaluationRate - 1;
+			NumUroSkippedFrames_Update = NumUroSkippedFrames_Eval = SkeletalMeshComponent->GetExternalTickRate();
 		}
 	}
 
