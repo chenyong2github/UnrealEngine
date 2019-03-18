@@ -527,7 +527,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 
 				if (!IssuedWarnings.Contains(ConflictMsg))
 				{
-					UE_LOG(LogAssetManager, Warning, TEXT("%s"), *ConflictMsg);
+					UE_LOG(LogAssetManager, Display, TEXT("%s"), *ConflictMsg);
 					IssuedWarnings.Add(ConflictMsg);
 				}
 			}
