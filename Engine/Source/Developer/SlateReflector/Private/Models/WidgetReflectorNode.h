@@ -79,6 +79,9 @@ public:
 	*/
 	virtual bool GetWidgetFocusable() const = 0;
 
+	/** Is the widget visible? */
+	virtual bool GetWidgetVisible() const = 0;
+
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number
 	 * The human readable location for widgets that are defined in UMG is the asset name
@@ -218,6 +221,7 @@ public:
 	virtual FText GetWidgetType() const override;
 	virtual FText GetWidgetTypeAndShortName() const override;
 	virtual FText GetWidgetVisibilityText() const override;
+	virtual bool GetWidgetVisible() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual FText GetWidgetReadableLocation() const override;
@@ -269,6 +273,7 @@ public:
 	virtual FText GetWidgetTypeAndShortName() const override;
 	virtual FText GetWidgetVisibilityText() const override;
 	virtual FText GetWidgetClippingText() const override;
+	virtual bool GetWidgetVisible() const override;
 	virtual bool GetWidgetFocusable() const override;
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
@@ -306,6 +311,9 @@ private:
 
 	/** The visibility string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetVisibilityText;
+
+	/** Is the widget visible? */
+	bool bCachedWidgetVisible;
 
 	/** The focusability of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetFocusable;
@@ -422,7 +430,10 @@ public:
 	 */
 	static FText GetWidgetVisibilityText(const TSharedPtr<SWidget>& InWidget);
 
-/**
+	/** Is the widget visible? */
+	static bool GetWidgetVisibility(const TSharedPtr<SWidget>& InWidget);
+
+	/**
 	 * @return The current clipping string for the given widget
 	 */
 	static FText GetWidgetClippingText(const TSharedPtr<SWidget>& InWidget);
