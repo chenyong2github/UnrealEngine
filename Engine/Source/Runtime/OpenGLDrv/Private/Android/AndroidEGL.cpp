@@ -13,6 +13,7 @@
 #include <android/native_window_jni.h>
 #endif
 #include "OpenGLDrvPrivate.h"
+#include "Misc/ScopeLock.h"
 
 
 AndroidEGL* AndroidEGL::Singleton = NULL;
