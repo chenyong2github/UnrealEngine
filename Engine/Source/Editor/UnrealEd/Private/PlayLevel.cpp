@@ -1627,7 +1627,11 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 
 	if (bSetNotification)
 	{
-		NotificationItemPtr.Pin()->SetText(NotificationText);
+		TGraphTask<FLauncherNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
+			NotificationItemPtr,
+			SNotificationItem::CS_Fail,
+			NotificationText
+		);
 	}
 }
 
@@ -1669,8 +1673,6 @@ void UEditorEngine::HandleLaunchCompleted(bool Succeeded, double TotalTime, int3
 			(PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"))) == TEXT("TVOS") && PlayUsingLauncherDeviceName.Contains(DummyTVOSDeviceName)))
 		{
 			CompletionMsg = LOCTEXT("DeploymentTaskCompleted", "Deployment complete! Open the app on your device to launch.");
-			TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
-//			NotificationItem->SetExpireDuration(30.0f);
 		}
 		else
 		{
