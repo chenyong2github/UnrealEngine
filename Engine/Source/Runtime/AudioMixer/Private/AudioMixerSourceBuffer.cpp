@@ -97,6 +97,11 @@ namespace Audio
 			delete DecompressionState;
 			DecompressionState = nullptr;
 		}
+
+		if (SoundWave)
+		{
+			SoundWave->RemovePlayingSource();
+		}
 	}
 
 	bool FMixerSourceBuffer::PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking)
@@ -113,12 +118,18 @@ namespace Audio
 		bProcedural = InWave->bProcedural;
 		NumPrecacheFrames = InWave->NumPrecacheFrames;
 		
+		// Prevent double-triggering procedural soundwaves
+		if (bProcedural && InWave->IsGeneratingAudio())
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Procedural sound wave is reinitializing even though it is currently actively generating audio. Please stop sound before trying to play it again."));
+			return false;
+		}
+
 		check(SoundWave == nullptr);
 		// Only need to have a handle to a USoundWave for procedural sound waves
-		if (bProcedural)
-		{
-			SoundWave = InWave;
-		}
+		SoundWave = InWave;
+		check(SoundWave);
+		SoundWave->AddPlayingSource();
 
 		LoopingMode = InLoopingMode;
 		bIsSeeking = bInIsSeeking;
@@ -153,7 +164,7 @@ namespace Audio
 
 	void FMixerSourceBuffer::SetPCMData(const FRawPCMDataBuffer& InPCMDataBuffer)
 	{
-		check(BufferType == EBufferType::PCM || EBufferType::PCMPreview);
+		check(BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview);
 		RawPCMDataBuffer = InPCMDataBuffer;
 	}
 
@@ -482,12 +493,8 @@ namespace Audio
 
 	bool FMixerSourceBuffer::IsBeginDestroy()
 	{
-		if (bProcedural)
-		{
-			check(SoundWave && SoundWave->bProcedural);
-			return SoundWave->bIsBeginDestroy;
-		}
-		return false;
+		check(SoundWave);
+		return SoundWave->bIsBeginDestroy;
 	}
 
 	void FMixerSourceBuffer::ClearSoundWave()
@@ -501,7 +508,6 @@ namespace Audio
 		if (bProcedural)
 		{
 			check(SoundWave && SoundWave->bProcedural);
-			SoundWave->SetGenerating(true);
 			SoundWave->OnBeginGenerate();
 		}
 	}
@@ -516,8 +522,6 @@ namespace Audio
 		{
 			check(SoundWave && SoundWave->bProcedural);
 			SoundWave->OnEndGenerate();
-			SoundWave->SetGenerating(false);
-			SoundWave = nullptr;
 		}
 	}
 

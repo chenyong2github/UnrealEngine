@@ -35,6 +35,32 @@ namespace Gauntlet
 		static List<Action> InnerPostAbortHandlers = new List<Action>();
 		public static bool CancelSignalled { get; private set; }
 
+		/// <summary>
+		/// Get the worker id of this Gauntlet instance
+		/// returns -1 if instance is not a member of a worker group
+		/// </summary>
+		public static int WorkerID
+		{
+			get
+			{
+				int Default = -1;
+				return Params.ParseValue("workerid", Default);
+			}
+
+		}
+
+		/// <summary>
+		/// Returns true if Gauntlet instance is a member of a worker group
+		/// </summary>
+		public static bool IsWorker
+		{
+			get
+			{
+				return WorkerID != -1;
+			}
+		}
+
+
 		public static string TempDir
 		{
 			get

@@ -2299,6 +2299,9 @@ void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime)
 
 void FSequencer::SetGlobalTime(FFrameTime NewTime)
 {
+	// Clear focus before setting time in case there's a key editor value selected that gets committed to a newly selected key on UserMovedFocus
+	FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
+
 	NewTime = ConvertFrameTime(NewTime, GetRootTickResolution(), PlayPosition.GetInputRate());
 	if (PlayPosition.GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked)
 	{
@@ -8927,6 +8930,12 @@ void FSequencer::ExportFBXInternal(const FString& ExportFilename, TArray<FGuid>&
 			Exporter->SetKeepHierarchy(true);
 
 			const bool bSelectedOnly = (Selection.GetSelectedTracks().Num() + Bindings.Num()) != 0;
+
+			// Make sure external selection is up to date since export could happen on tracks that have been right clicked but not have their underlying bound objects selected yet since that happens on mouse up.
+			if (bSelectedOnly)
+			{
+				SynchronizeExternalSelectionWithSequencerSelection();
+			}
 
 			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, GetFocusedTemplateID());
 

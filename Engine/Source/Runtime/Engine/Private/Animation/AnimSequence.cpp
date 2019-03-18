@@ -21,6 +21,7 @@
 #include "Animation/AnimCompress.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/BlendSpaceBase.h"
 #include "Animation/Rig.h"
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimCurveCompressionCodec.h"
@@ -302,8 +303,9 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	ImportResampleFramerate = 0;
 	bAllowFrameStripping = true;
 
-	InitCurveCompressionScheme();
 #endif
+
+	InitCurveCompressionScheme();
 }
 
 void UAnimSequence::PostInitProperties()
@@ -401,12 +403,16 @@ static void LoadOldCompressedTrack(FArchive& Ar, FCompressedTrack& Dst, int32 By
 	Ar << Dst.Ranges[0] << Dst.Ranges[1] << Dst.Ranges[2];
 }
 
-#if WITH_EDITORONLY_DATA
 void UAnimSequence::InitCurveCompressionScheme()
 {
 	// Do this is serialize as if the default animation curve compression asset isn't loaded it will
 // fire a warning if we try and load it in post load
-	if ((CurveCompressionSettings == nullptr || !CurveCompressionSettings->AreSettingsValid())
+
+	bool bCurveCompressionSettingsValid = CurveCompressionSettings != nullptr;
+#if WITH_EDITOR
+	bCurveCompressionSettingsValid = bCurveCompressionSettingsValid && CurveCompressionSettings->AreSettingsValid();
+#endif
+	if (!bCurveCompressionSettingsValid
 #if WITH_HOT_RELOAD
 		&& (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint) || !HasAnyFlags(RF_ClassDefaultObject) || !GIsHotReload) // Don't do this to native CDOs during Hot-Reload
 #endif
@@ -415,7 +421,6 @@ void UAnimSequence::InitCurveCompressionScheme()
 		CurveCompressionSettings = FAnimationUtils::GetDefaultAnimationCurveCompressionSettings();
 	}
 }
-#endif
 
 void UAnimSequence::Serialize(FArchive& Ar)
 {
@@ -2537,6 +2542,12 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		return;
 	}
 
+	if (GetOutermost() == GetTransientPackage())
+	{
+		bUseRawDataOnly = true;
+		return; // Skip transient animations, they are most likely the leftovers of previous compression attempts.
+	}
+
 	if (FPlatformProperties::RequiresCookedData())
 	{
 		return;
@@ -2722,23 +2733,10 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 			}
 		}
 		
-#if WITH_EDITOR
-		if (bDDCData)
-		{
-			FString CurveCodecPath;
-			Ar << CurveCodecPath;
+		FString CurveCodecPath;
+		Ar << CurveCodecPath;
 
-			CurveCompressionCodec = CurveCompressionSettings->GetCodec(CurveCodecPath);
-		}
-		else
-#else
-		check(!bDDCData);
-#endif
-		{
-			UAnimCurveCompressionCodec* CurveCodec = nullptr;
-			Ar << CurveCodec;
-			CurveCompressionCodec = CurveCodec;
-		}
+		CurveCompressionCodec = CurveCompressionSettings->GetCodec(CurveCodecPath);
 
 		int32 NumCurveBytes;
 		Ar << NumCurveBytes;
@@ -2856,19 +2854,8 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 		CompressedTrackOffsets = SavedCompressedTrackOffsets;
 		CompressedScaleOffsets = SavedCompressedScaleOffsets;
 
-#if WITH_EDITOR
-		if (bDDCData)
-		{
-			FString CurveCodecPath = CurveCompressionCodec->GetPathName();
-			Ar << CurveCodecPath;
-		}
-		else
-#else
-		check(!bDDCData);
-#endif
-		{
-			Ar << CurveCompressionCodec;
-		}
+		FString CurveCodecPath = CurveCompressionCodec->GetPathName();
+		Ar << CurveCodecPath;
 
 		int32 NumCurveBytes = CompressedCurveByteStream.Num();
 		Ar << NumCurveBytes;
@@ -5369,6 +5356,19 @@ void UAnimSequence::RefreshSyncMarkerDataFromAuthored()
 	{
 		UniqueMarkerNames.Empty();
 	}
+
+#if WITH_EDITOR
+	check(IsInGameThread());
+
+	// Update blend spaces that may be referencing us
+	for(TObjectIterator<UBlendSpaceBase> It; It; ++It)
+	{
+		if(!It->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad))
+		{
+			It->RuntimeValidateMarkerData();
+		}
+	}
+#endif
 }
 
 bool IsMarkerValid(const FAnimSyncMarker* Marker, bool bLooping, const TArray<FName>& ValidMarkerNames)

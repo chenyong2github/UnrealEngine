@@ -74,10 +74,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="Automation")
 	static bool AreAutomatedTestsRunning();
 
+	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (Latent, HidePin = "WorldContextObject", DefaultToSelf = "WorldContextObject", LatentInfo = "LatentInfo"))
+	static void AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo);
+
 	/**
 	* take high res screenshot in editor.
 	*/
-	UFUNCTION(BlueprintPure, Category = "Automation")
+	UFUNCTION(BlueprintCallable, Category = "Automation")
 	static bool TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera = nullptr, bool bMaskEnabled = false, bool bCaptureHDR = false);
 
 	/**

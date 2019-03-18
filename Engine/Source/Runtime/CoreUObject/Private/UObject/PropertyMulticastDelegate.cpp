@@ -374,8 +374,20 @@ const TCHAR* UMulticastInlineDelegateProperty::ImportText_Internal(const TCHAR* 
 	return ImportDelegateFromText(MulticastDelegate, Buffer, PropertyValue, PortFlags, Parent, ErrorText);
 }
 
+void ResolveDelegateReference(const UMulticastInlineDelegateProperty* InlineProperty, UObject*& Parent, void*& PropertyValue)
+{
+	if (PropertyValue == nullptr)
+	{
+		checkf(Parent, TEXT("Must specify at least one of Parent or PropertyValue"));
+		PropertyValue = InlineProperty->GetPropertyValuePtr_InContainer(Parent);
+	}
+	// Owner doesn't matter for inline delegates, so we don't worry about the Owner == nullptr case
+}
+
 void UMulticastInlineDelegateProperty::AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
+
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
 
 	// Remove this delegate to our multicast delegate's invocation list
@@ -384,6 +396,8 @@ void UMulticastInlineDelegateProperty::AddDelegate(FScriptDelegate ScriptDelegat
 
 void UMulticastInlineDelegateProperty::RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
+
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
 
 	// Remove this delegate to our multicast delegate's invocation list
@@ -392,6 +406,8 @@ void UMulticastInlineDelegateProperty::RemoveDelegate(const FScriptDelegate& Scr
 
 void UMulticastInlineDelegateProperty::ClearDelegate(UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
+
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
 	MulticastDelegate.Clear();
 }
@@ -519,17 +535,36 @@ const TCHAR* UMulticastSparseDelegateProperty::ImportText_Internal(const TCHAR* 
 	return Result;
 }
 
+void ResolveDelegateReference(const UMulticastSparseDelegateProperty* SparseProperty, UObject*& Parent, void*& PropertyValue)
+{
+	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SparseProperty->SignatureFunction);
+
+	if (Parent == nullptr)
+	{
+		checkf(PropertyValue, TEXT("Must specify at least one of Parent or PropertyValue"));
+		Parent = FSparseDelegateStorage::ResolveSparseOwner(*(FSparseDelegate*)PropertyValue, SparseDelegateFunc->OwningClassName, SparseDelegateFunc->DelegateName);
+	}
+	else if (PropertyValue)
+	{
+		checkSlow(Parent == FSparseDelegateStorage::ResolveSparseOwner(*(FSparseDelegate*)PropertyValue, SparseDelegateFunc->OwningClassName, SparseDelegateFunc->DelegateName));
+	}
+	else
+	{
+		PropertyValue = SparseProperty->GetPropertyValuePtr_InContainer(Parent);
+	}
+}
 
 void UMulticastSparseDelegateProperty::AddDelegate(FScriptDelegate ScriptDelegate, UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
 	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
 	FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
 	SparseDelegate.__Internal_AddUnique(Parent, SparseDelegateFunc->DelegateName, MoveTemp(ScriptDelegate));
 }
 
-
 void UMulticastSparseDelegateProperty::RemoveDelegate(const FScriptDelegate& ScriptDelegate, UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
 	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
 	FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
 	SparseDelegate.__Internal_Remove(Parent, SparseDelegateFunc->DelegateName, ScriptDelegate);
@@ -537,6 +572,7 @@ void UMulticastSparseDelegateProperty::RemoveDelegate(const FScriptDelegate& Scr
 
 void UMulticastSparseDelegateProperty::ClearDelegate(UObject* Parent, void* PropertyValue) const
 {
+	ResolveDelegateReference(this, Parent, PropertyValue);
 	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
 	FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
 	SparseDelegate.__Internal_Clear(Parent, SparseDelegateFunc->DelegateName);

@@ -83,6 +83,14 @@ public:
 	 */
 	explicit FORCEINLINE FVector2D(const FVector& V);
 
+	/**
+	 * Constructs a vector from an FVector4.
+	 * Copies the X and Y components from the FVector4.
+	 *
+	 * @param V Vector to copy from.
+	 */
+	explicit FORCEINLINE FVector2D(const FVector4& V);
+
 public:
 
 	/**

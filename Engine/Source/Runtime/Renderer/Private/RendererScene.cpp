@@ -54,7 +54,7 @@
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #if RHI_RAYTRACING
-#include "RayTracing/RayTracingDynamicGeometryCollection.h"
+#include "RayTracingDynamicGeometryCollection.h"
 #include "RHIGPUReadback.h"
 #endif
 
@@ -63,6 +63,31 @@
 // while GWorld is the editor world, for example.
 #define CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH	0
 
+/** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
+static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
+	TEXT("r.EarlyZPassOnlyMaterialMasking"),
+	0,
+	TEXT("Whether to compute materials' mask opacity only in early Z pass. Changing this setting requires restarting the editor.\n")
+	TEXT("Note: Needs r.EarlyZPass == 2 && r.EarlyZPassMovable == 1"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+TAutoConsoleVariable<int32> CVarEarlyZPass(
+	TEXT("r.EarlyZPass"),
+	3,
+	TEXT("Whether to use a depth only pass to initialize Z culling for the base pass. Cannot be changed at runtime.\n")
+	TEXT("Note: also look at r.EarlyZPassMovable\n")
+	TEXT("  0: off\n")
+	TEXT("  1: good occluders only: not masked, and large on screen\n")
+	TEXT("  2: all opaque (including masked)\n")
+	TEXT("  x: use built in heuristic (default is 3)"),
+	ECVF_Scalability);
+
+static TAutoConsoleVariable<int32> CVarBasePassWriteDepthEvenWithFullPrepass(
+	TEXT("r.BasePassWriteDepthEvenWithFullPrepass"),
+	0,
+	TEXT("0 to allow a readonly base pass, which skips an MSAA depth resolve, and allows masked materials to get EarlyZ (writing to depth while doing clip() disables EarlyZ) (default)\n")
+	TEXT("1 to force depth writes in the base pass.  Useful for debugging when the prepass and base pass don't match what they render."));
 
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer MotionBlurStartFrame"), STAT_FDeferredShadingSceneRenderer_MotionBlurStartFrame, STATGROUP_SceneRendering);
 
@@ -175,7 +200,7 @@ FSceneViewState::FSceneViewState()
 #if RHI_RAYTRACING
 	VarianceMipTreeDimensions = FIntVector(0);
 	VarianceMipTree = new FRWBuffer;
-
+	PathTracingRect = FIntRect(0, 0, 0, 0);
 	TotalRayCount = 0;
 	TotalRayCountBuffer = new FRWBuffer;
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
@@ -528,8 +553,8 @@ static TAutoConsoleVariable<int32> CVarDoLazyStaticMeshUpdate(
 
 static void DoLazyStaticMeshUpdateCVarSinkFunction()
 {
-	static bool CachedDoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread() && !GIsEditor;
-	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread() && !GIsEditor;
+	static bool CachedDoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread() && !GIsEditor && FApp::CanEverRender();
+	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnGameThread() && !GIsEditor && FApp::CanEverRender();
 
 	if (DoLazyStaticMeshUpdate != CachedDoLazyStaticMeshUpdate)
 	{
@@ -554,7 +579,7 @@ static FAutoConsoleVariableSink CVarDoLazyStaticMeshUpdateSink(FConsoleCommandDe
 
 void FScene::UpdateDoLazyStaticMeshUpdate(FRHICommandListImmediate& CmdList)
 {
-	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnRenderThread() && !GIsEditor;
+	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnRenderThread() && !GIsEditor && FApp::CanEverRender();
 
 	for (int32 PrimitiveIndex = 0; PrimitiveIndex < Primitives.Num(); PrimitiveIndex++)
 	{
@@ -806,6 +831,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	}
 
 	AddPrimitiveToUpdateGPU(*this, SourceIndex);
+	bPathTracingNeedsInvalidation = true;
 
 	DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
@@ -932,6 +958,13 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 			const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
 			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView.CachedViewUniformShaderParameters));
 		}
+		else
+		{
+			// If we don't render this pass in stereo we simply update the buffer with the same view uniform parameters.
+			// The shader will detect this and it will not attempt to apply ISR while this view is being rendered.
+			// TODO: It's more efficient to change the shader binding to point to ViewUniformBuffer instead of updating InstancedViewUniformBuffer.
+			InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(*View.CachedViewUniformShaderParameters));
+		}
 
 		CachedView = &View;
 		return true;
@@ -943,11 +976,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 :	FSceneInterface(InFeatureLevel)
 ,	World(InWorld)
 ,	FXSystem(NULL)
-,	bStaticDrawListsMobileHDR(false)
-,	bStaticDrawListsMobileHDR32bpp(false)
-,	StaticDrawListsEarlyZPassMode(0)
-,	StaticDrawShaderPipelines(0)
 ,	bScenesPrimitivesNeedStaticMeshElementUpdate(false)
+,	bPathTracingNeedsInvalidation(true)
 ,	SkyLight(NULL)
 ,	SimpleDirectionalLight(NULL)
 ,	SunLight(NULL)
@@ -985,17 +1015,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	FeatureLevel = World->FeatureLevel;
 
-	static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-	static auto* MobileHDR32bppModeCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR32bppMode"));
-	bStaticDrawListsMobileHDR = MobileHDRCvar->GetValueOnAnyThread() == 1;
-	bStaticDrawListsMobileHDR32bpp = bStaticDrawListsMobileHDR && (GSupportsRenderTargetFormat_PF_FloatRGBA == false || MobileHDR32bppModeCvar->GetValueOnAnyThread() != 0);
-
-	static auto* EarlyZPassCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EarlyZPass"));
-	StaticDrawListsEarlyZPassMode = EarlyZPassCvar->GetValueOnAnyThread();
-
-	static auto* ShaderPipelinesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-	StaticDrawShaderPipelines = ShaderPipelinesCvar->GetValueOnAnyThread();
-
 	if (World->FXSystem)
 	{
 		FFXSystemInterface::Destroy(World->FXSystem);
@@ -1032,6 +1051,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	{
 		PersistentUniformBuffers->Initialize();
 	});
+
+	UpdateEarlyZPassMode();
 }
 
 FScene::~FScene()
@@ -2991,21 +3012,62 @@ void FScene::Release()
 		});
 }
 
+bool ShouldForceFullDepthPass(EShaderPlatform ShaderPlatform)
+{
+	const bool bDBufferAllowed = IsUsingDBuffers(ShaderPlatform);
+
+	static const auto StencilLODDitherCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
+	const bool bStencilLODDither = StencilLODDitherCVar->GetValueOnAnyThread() != 0;
+
+	const bool bEarlyZMaterialMasking = CVarEarlyZPassOnlyMaterialMasking.GetValueOnAnyThread() != 0;
+
+	// Note: ShouldForceFullDepthPass affects which static draw lists meshes go into, so nothing it depends on can change at runtime, unless you do a FGlobalComponentRecreateRenderStateContext to propagate the cvar change
+	return bDBufferAllowed || bStencilLODDither || bEarlyZMaterialMasking || IsForwardShadingEnabled(ShaderPlatform) || UseSelectiveBasePassOutputs();
+}
+
+void FScene::UpdateEarlyZPassMode()
+{
+	DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+	EarlyZPassMode = DDM_NonMaskedOnly;
+	bEarlyZPassMovable = false;
+
+	if (GetShadingPath(GetFeatureLevel()) == EShadingPath::Deferred)
+	{
+		// developer override, good for profiling, can be useful as project setting
+		{
+			const int32 CVarValue = CVarEarlyZPass.GetValueOnAnyThread();
+
+				switch (CVarValue)
+				{
+				case 0: EarlyZPassMode = DDM_None; break;
+				case 1: EarlyZPassMode = DDM_NonMaskedOnly; break;
+				case 2: EarlyZPassMode = DDM_AllOccluders; break;
+				case 3: break;	// Note: 3 indicates "default behavior" and does not specify an override
+				}
+		}
+
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+		if (ShouldForceFullDepthPass(ShaderPlatform))
+		{
+			// DBuffer decals and stencil LOD dithering force a full prepass
+			EarlyZPassMode = DDM_AllOpaque;
+			bEarlyZPassMovable = true;
+		}
+
+		if (EarlyZPassMode == DDM_AllOpaque
+			&& CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnAnyThread() == 0)
+		{
+			DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
+		}
+	}
+}
+
 void FScene::ConditionalMarkStaticMeshElementsForUpdate()
 {
-	static auto* EarlyZPassCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EarlyZPass"));
-	static auto* ShaderPipelinesCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-
-	bool bMobileHDR = IsMobileHDR();
-	bool bMobileHDR32bpp = IsMobileHDR32bpp();
-	int32 DesiredStaticDrawListsEarlyZPassMode = EarlyZPassCvar->GetValueOnRenderThread();
-	int32 DesiredStaticDrawShaderPipelines = ShaderPipelinesCvar->GetValueOnRenderThread();
+	UpdateEarlyZPassMode();
 
 	if (bScenesPrimitivesNeedStaticMeshElementUpdate
-		|| bStaticDrawListsMobileHDR != bMobileHDR
-		|| bStaticDrawListsMobileHDR32bpp != bMobileHDR32bpp
-		|| StaticDrawShaderPipelines != DesiredStaticDrawShaderPipelines
-		|| StaticDrawListsEarlyZPassMode != DesiredStaticDrawListsEarlyZPassMode)
+		|| CachedDefaultBasePassDepthStencilAccess != DefaultBasePassDepthStencilAccess)
 	{
 		// Mark all primitives as needing an update
 		// Note: Only visible primitives will actually update their static mesh elements
@@ -3015,10 +3077,7 @@ void FScene::ConditionalMarkStaticMeshElementsForUpdate()
 		}
 
 		bScenesPrimitivesNeedStaticMeshElementUpdate = false;
-		bStaticDrawListsMobileHDR = bMobileHDR;
-		bStaticDrawListsMobileHDR32bpp = bMobileHDR32bpp;
-		StaticDrawListsEarlyZPassMode = DesiredStaticDrawListsEarlyZPassMode;
-		StaticDrawShaderPipelines = DesiredStaticDrawShaderPipelines;
+		CachedDefaultBasePassDepthStencilAccess = DefaultBasePassDepthStencilAccess;
 	}
 }
 
@@ -3101,16 +3160,36 @@ void FScene::ApplyWorldOffset(FVector InOffset)
 		});
 }
 
-void FScene::ApplyWorldOffset_RenderThread(FVector InOffset)
+void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SceneApplyWorldOffset);
 	
+	GPUScene.bUpdateAllPrimitives = true;
+
 	// Primitives
-	for (auto It = Primitives.CreateIterator(); It; ++It)
+	for (int32 Idx = 0; Idx < Primitives.Num(); ++Idx)
 	{
-		(*It)->ApplyWorldOffset(InOffset);
+		Primitives[Idx]->ApplyWorldOffset(InOffset);
+	}
+	
+	// Primitive transforms
+	for (int32 Idx = 0; Idx < PrimitiveTransforms.Num(); ++Idx)
+	{
+		PrimitiveTransforms[Idx].SetOrigin(PrimitiveTransforms[Idx].GetOrigin() + InOffset);
 	}
 
+	// Primitive bounds
+	for (int32 Idx = 0; Idx < PrimitiveBounds.Num(); ++Idx)
+	{
+		PrimitiveBounds[Idx].BoxSphereBounds.Origin+= InOffset;
+	}
+
+	// Primitive occlusion bounds
+	for (int32 Idx = 0; Idx < PrimitiveOcclusionBounds.Num(); ++Idx)
+	{
+		PrimitiveOcclusionBounds[Idx].Origin+= InOffset;
+	}
+	
 	// Precomputed light volumes
 	for (const FPrecomputedLightVolume* It : PrecomputedLightVolumes)
 	{
@@ -3128,18 +3207,6 @@ void FScene::ApplyWorldOffset_RenderThread(FVector InOffset)
 
 	// Primitives octree
 	PrimitiveOctree.ApplyOffset(InOffset, /*bGlobalOctee*/ true);
-
-	// Primitive bounds
-	for (auto It = PrimitiveBounds.CreateIterator(); It; ++It)
-	{
-		(*It).BoxSphereBounds.Origin+= InOffset;
-	}
-
-	// Primitive occlusion bounds
-	for (auto It = PrimitiveOcclusionBounds.CreateIterator(); It; ++It)
-	{
-		(*It).Origin+= InOffset;
-	}
 
 	// Lights
 	VectorRegister OffsetReg = VectorLoadFloat3_W0(&InOffset);

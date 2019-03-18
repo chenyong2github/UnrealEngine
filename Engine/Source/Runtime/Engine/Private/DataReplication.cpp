@@ -685,6 +685,100 @@ void FObjectReplicator::StopReplicating( class UActorChannel * InActorChannel )
 	}
 }
 
+/**
+ * Handling NAKs / Property Retransmission.
+ *
+ * Note, NACK handling only occurs on connections that "replicate" data, which is currently
+ * only Servers. RPC retransmission is handled elsewhere.
+ *
+ * RepLayouts:
+ *
+ *		As we send properties through FRepLayout the is a Changelist Manager that is shared
+ *		between all connections tracks sets of properties that were recently changed (history items),
+ *		as well as one aggregate set of all properties that have ever been sent.
+ *
+ *		Each Sending Rep State, which is connection unique, also tracks the set of changed
+ *		properties. These history items will only be created when replicating the object,
+ *		so there will be fewer of them in general, but they will still contain any properties
+ *		that compared differently (not *just* the properties that were actually replicated).
+ *
+ *		Whenever a NAK is received, we will iterate over the SendingRepState changelist
+ *		and mark any of the properties sent in the NAKed packet for retransmission.
+ *
+ *		The next time Properties are replicated for the Object, we will merge in any changelists
+ *		from NAKed history items.
+ *
+ * Custom Delta Properties:
+ *
+ *		For Custom Delta Properties (CDP), we rely primarily on FPropertyRetirements and INetDeltaBaseState
+ *		for tracking property retransmission.
+ *
+ *		INetDeltaBaseStates are used to tracked internal state specific to a given type of CDP.
+ *		For example, Fast Array Replicators will use FNetFastTArrayBaseState, or some type
+ *		derived from that.
+ *
+ *		When an FObjectReplicator is created, we will create an INetDeltaBaseState for every CDP,
+ *		as well as a dummy FPropertyRetirement. This Property Retirement is used as the head
+ *		of a linked list of Retirements, and is generally never populated with any useful information.
+ *
+ *		Every time we replicate a CDP, we will pass in the most recent Base State, and we will be
+ *		returned a new CDP. If data is actually sent, then we will create a new Property Retirement,
+ *		adding it as the tail of our linked list. The new Property Retirement will also hold a reference
+ *		to the old INetDeltaBaseState (i.e., the state of the CDP before it replicated its properties).
+ *
+ *		Just before replicating, we will go through and free any ACKed FPropertyRetirments (see
+ *		UpdateAckedRetirements).
+ *
+ *		After replicating, we will cache off the returned Base State to be used as the "old" state
+ *		the next time the property is replicated.
+ *
+ *		Whenever a NAK is received, we will run through our Property Retirements. Any retirements
+ *		that predate the NACK will be removed and treated as if they were ACKs. The first
+ *		retirement that is found to be within the NAKed range will have its INetDeltaBaseState
+ *		restored (which should be the state before the NAKed packet was sent), and then
+ *		that retirement as well as all remaining will be removed.
+ *
+ *		The onus is then on the CDP to resend any necessary properties based on its current / live
+ *		state and the restored Net Delta Base State.
+ *
+ * Fast Array Properties:
+ *
+ *		Fast Array Properties are implemented as Custom Delta Properties (CDP). Therefore, they mostly
+ *		follow the flow laid out above.
+
+ *		FNetFastTArrayBaseState is the basis for all Fast Array Serializer INetDeltaBaseStates.
+ *		This struct tracks the Replication Key of the Array, the ID to Replication Key map of individual
+ *		Array Items, and a History Number.
+ *
+ *		As we replicate Fast Array Properties, we use the Array Replication key to see if anything
+ *		is possibly dirty in the Array and the ID to Replication map to see which Array Element
+ *		items actually are dirty. A mismatch between the Net Base State Key and the Key stored on
+ *		the live Fast Array (either the Array Replication Key, or any Item Key) is how we determine
+ *		if the Array or Items is dirty.
+ *
+ *		Whenever a NAK is received, our Old Base State will be reset to the last known ACKed value,
+ *		as described in the CDP section above. This means that our Array Replication Key and ID To
+ *		Item Replication Key should be reset to those states, forcing a mismatch the next time we
+ *		replicate if anything has changed.
+ *
+ *		When net.SupportFastArrayDelta is enabled, we perform an additional step in which we actually
+ *		compare the properties of dirty items. This is very similar to normal Property replication
+ *		using RepLayouts, and leverages most of the same code.
+ *
+ *		This includes tracking history items just like Rep Layout. Instead of tracking histories per
+ *		Sending Rep State / Per Connection, we just manage a single set of Histories on the Rep
+ *		Changelist Mgr. Changelists are stored per Fast Array Item, and are referenced via ID.
+ *
+ *		Whenever we go to replicate a Fast Array Item, we will merge together all changelists since
+ *		we last sent that item, and send those accumulated changes.
+ *
+ *		This means that property retransmission for Fast Array Items is an amalgamation of Rep Layout
+ *		retransmission and CDP retransmission.
+ *
+ *		Whenever a NAK is received, our History Number should be reset to the last known  ACKed value,
+ *		and that should be enough to force us to accumulate any of the NAKed item changelists.
+ */
+
 void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 {
 	const UObject* Object = GetObject();
@@ -718,7 +812,7 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 				}
 				else if ( NakPacketId >= Rec->OutPacketIdRange.First && NakPacketId <= Rec->OutPacketIdRange.Last )
 				{
-					UE_LOG(LogNet, Verbose, TEXT("Restoring Previous Base State of dynamic property. Channel: %d, NakId: %d, First: %d, Last: %d, Address: %s)"), OwningChannel->ChIndex, NakPacketId, Rec->OutPacketIdRange.First, Rec->OutPacketIdRange.Last, *Connection->LowLevelGetRemoteAddress(true));
+					UE_LOG(LogNet, Verbose, TEXT("Restoring Previous Base State of dynamic property. Channel: %s, NakId: %d, First: %d, Last: %d, Address: %s)"), *OwningChannel->Describe(), NakPacketId, Rec->OutPacketIdRange.First, Rec->OutPacketIdRange.Last, *Connection->LowLevelGetRemoteAddress(true));
 
 					// The Nack'd packet did update this property, so we need to replace the buffer in RecentDynamic
 					// with the buffer we used to create this update (which was dropped), so that the update will be recreated on the next replicate actor
@@ -861,13 +955,6 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 
 	FNetSerializeCB NetSerializeCB(ConnectionNetDriver);
 
-	FNetDeltaSerializeInfo Parms;
-	Parms.Map = PackageMap;
-	Parms.Reader = &Reader;
-	Parms.NetSerializeCB = &NetSerializeCB;
-	Parms.Connection = Connection;
-	Parms.Object = Object;
-
 	// Read each property/function blob into Reader (so we've safely jumped over this data in the Bunch/stream at this point)
 	while (OwningChannel->ReadFieldHeaderAndPayload(Object, ClassCache, NetFieldExportGroup, Bunch, &FieldCache, Reader))
 	{
@@ -917,6 +1004,14 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 				}
 			}
 #endif
+
+			FNetDeltaSerializeInfo Parms;
+			Parms.Map = PackageMap;
+			Parms.Reader = &Reader;
+			Parms.NetSerializeCB = &NetSerializeCB;
+			Parms.Connection = Connection;
+			Parms.Object = Object;
+
 			uint32 StaticArrayIndex = 0;
 			int32 Offset = 0;
 			if (!FNetSerializeCB::ReceiveCustomDeltaProperty(LocalRepLayout, Parms, ReplicatedProp, StaticArrayIndex, Offset))
@@ -1354,13 +1449,10 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 	{
 		// Get info.
 		FPropertyRetirement& Retire = Retirement[CustomDeltaProperty];
-		FRepRecord* Rep = &ObjectClass->ClassReps[CustomDeltaProperty];
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UProperty* It = LocalRepLayout.GetPropertyForRepIndex(CustomDeltaProperty);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		int32 Index = Rep->Index;
 
 		const ELifetimeCondition RepCondition = LocalRepLayout.GetPropertyLifetimeCondition(CustomDeltaProperty);
 
@@ -1939,6 +2031,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	checkf( bHasQueuedBunches || ReceivingRepState->RepNotifies.Num() == 0, TEXT("Failed RepState RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), ReceivingRepState->RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 	checkf( bHasQueuedBunches || RepNotifies.Num() == 0, TEXT("Failed replicator RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 
+	bool bCalledPreNetReceive = false;
 	bool bSomeObjectsWereMapped = false;
 
 	check(RepLayout);
@@ -1946,7 +2039,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	const FRepLayout& LocalRepLayout = *RepLayout;
 
 	// Let the rep layout update any unmapped properties
-	LocalRepLayout.UpdateUnmappedObjects(ReceivingRepState, Connection->PackageMap, Object, bSomeObjectsWereMapped, bOutHasMoreUnmapped);
+	LocalRepLayout.UpdateUnmappedObjects(ReceivingRepState, Connection->PackageMap, Object, bCalledPreNetReceive, bSomeObjectsWereMapped, bOutHasMoreUnmapped);
 
 	FNetSerializeCB NetSerializeCB(Connection->Driver);
 
@@ -1957,7 +2050,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	Parms.NetSerializeCB = &NetSerializeCB;
 
 	Parms.bUpdateUnmappedObjects = true;
-	Parms.bCalledPreNetReceive = bSomeObjectsWereMapped;	// RepLayout used this to flag whether PreNetReceive was called
+	Parms.bCalledPreNetReceive = bCalledPreNetReceive;
 	
 
 	TArray<TPair<int32, UStructProperty*>> CompletelyMappedProperties;
@@ -1966,6 +2059,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 
 	bSomeObjectsWereMapped |= Parms.bOutSomeObjectsWereMapped;
 	bOutHasMoreUnmapped |= Parms.bOutHasMoreUnmapped;
+	bCalledPreNetReceive |= Parms.bCalledPreNetReceive;
 
 	// This should go away when UnmappedCustomProperties goes away, and when RepNotifies
 	// are merged with RepState RepNotifies.
@@ -1984,7 +2078,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (bSomeObjectsWereMapped)
+	if (bCalledPreNetReceive)
 	{
 		// If we mapped some objects, make sure to call PostNetReceive (some game code will need to think this was actually replicated to work)
 		PostNetReceive();

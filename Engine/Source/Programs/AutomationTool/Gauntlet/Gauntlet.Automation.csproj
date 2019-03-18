@@ -83,6 +83,7 @@
     <Compile Include="Framework\Gauntlet.Exception.cs" />
     <Compile Include="Framework\Gauntlet.Params.cs" />
     <Compile Include="Framework\Gauntlet.TestGroup.cs" />
+    <Compile Include="Framework\Utils\Gauntlet.IniConfigUtil.cs" />
     <Compile Include="Framework\Utils\Gauntlet.MarkdownBuilder.cs" />
     <Compile Include="Framework\Utils\Gauntlet.HtmlBuilder.cs" />
     <Compile Include="Platform\Null\Gauntlet.TargetDeviceNull.cs" />

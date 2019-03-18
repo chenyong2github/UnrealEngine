@@ -11,10 +11,12 @@ FApplePlatformBackgroundHttpRequest::FApplePlatformBackgroundHttpRequest()
     , RetryCount(0)
 	, ResumeDataRetryCount(0)
     , FirstTask(nullptr)
+	, FirstTaskIdentifier(0)
     , bIsTaskActive(false)
     , bIsTaskPaused(false)
     , bIsCompleted(false)
     , bIsFailed(false)
+	, bIsRequestSwitchingTasks(false)
     , bWasTaskStartedInBG(false)
     , bHasAlreadyFinishedRequest(false)
     , bIsPendingCancel(false)
@@ -44,7 +46,7 @@ void FApplePlatformBackgroundHttpRequest::SetRequestAsFailed()
 
 void FApplePlatformBackgroundHttpRequest::CompleteRequest_Internal(bool bWasRequestSuccess, const FString& CompletedTempDownloadLocationIn)
 {
-    UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Marking Request Complete -- RequestID:%s | bWasRequestSuccess:%d | CompletedTempDownloadLocation:%s"), *GetRequestID(), (int)bWasRequestSuccess, *CompletedTempDownloadLocationIn);
+    UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Marking Request Complete -- RequestDebugID:%s | bWasRequestSuccess:%d | CompletedTempDownloadLocation:%s"), *GetRequestDebugID(), (int)bWasRequestSuccess, *CompletedTempDownloadLocationIn);
     
     FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
 	FPlatformAtomics::InterlockedExchange(&bIsCompleted, true);
@@ -66,7 +68,7 @@ const FString& FApplePlatformBackgroundHttpRequest::GetURLForRetry(bool bShouldI
 	//If we are out of Retries, just send an empty string
 	if (NewRetryCount > NumberOfTotalRetries)
 	{
-		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("GetURLForRetry is out of Retries for Request -- RequestID:%s"), *GetRequestID());
+		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("GetURLForRetry is out of Retries for Request -- RequestDebugID:%s"), *GetRequestDebugID());
         
         static FString EmptyResponse = TEXT("");
         return EmptyResponse;
@@ -77,7 +79,7 @@ const FString& FApplePlatformBackgroundHttpRequest::GetURLForRetry(bool bShouldI
 		const int URLIndex = NewRetryCount % URLList.Num();
 		const FString& URLToReturn = URLList[URLIndex];
 
-		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("GetURLForRetry found valid URL for current retry -- RequestID:%s | NewRetryCount:%d | URLToReturn:%s"), *GetRequestID(), NewRetryCount, *URLToReturn);
+		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("GetURLForRetry found valid URL for current retry -- RequestDebugID:%s | NewRetryCount:%d | URLToReturn:%s"), *GetRequestDebugID(), NewRetryCount, *URLToReturn);
         return URLToReturn;
     }
 }
@@ -96,7 +98,9 @@ void FApplePlatformBackgroundHttpRequest::ActivateUnderlyingTask()
         if (ensureAlwaysMsgf((nullptr != UnderlyingTask), TEXT("Call to ActivateUnderlyingTask with an invalid task! Need to create underlying task before activating!")))
         {
             FString TaskURL = [[[UnderlyingTask currentRequest] URL] absoluteString];
-            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Activating Task for Request -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
+            int TaskIdentifier = (int)[UnderlyingTask taskIdentifier];
+            
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Activating Task for Request -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
         
             FPlatformAtomics::InterlockedExchange(&bIsTaskActive, true);
             FPlatformAtomics::InterlockedExchange(&bIsTaskPaused, false);
@@ -119,7 +123,9 @@ void FApplePlatformBackgroundHttpRequest::PauseUnderlyingTask()
         if (ensureAlwaysMsgf((nullptr != UnderlyingTask), TEXT("Call to PauseUnderlyingTask with an invalid task! Need to create underlying task before trying to pause!")))
         {
             FString TaskURL = [[[UnderlyingTask currentRequest] URL] absoluteString];
-            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Task for Request -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
+            int TaskIdentifier = (int)[UnderlyingTask taskIdentifier];
+            
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Pausing Task for Request -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
             
             FPlatformAtomics::InterlockedExchange(&bIsTaskActive, false);
             FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
@@ -154,27 +160,48 @@ void FApplePlatformBackgroundHttpRequest::ResetTimeOutTimer()
     ActiveTimeOutTimer = FApplePlatformBackgroundHttpManager::ActiveTimeOutSetting;
 }
 
-void FApplePlatformBackgroundHttpRequest::AssociateWithTask(NSURLSessionTask* ExistingTask)
+bool FApplePlatformBackgroundHttpRequest::AssociateWithTask(NSURLSessionTask* ExistingTask)
 {
-	if (ensureAlwaysMsgf((nullptr != ExistingTask), TEXT("Call to AssociateWithTask with an invalid Task! RequestID:%s"), *GetRequestID()))
+	bool bDidAssociate = false;
+
+	if (ensureAlwaysMsgf((nullptr != ExistingTask), TEXT("Call to AssociateWithTask with an invalid Task! RequestDebugID:%s"), *GetRequestDebugID()))
 	{
-		volatile FTaskNode* NewNode = new FTaskNode();
-		NewNode->OurTask = ExistingTask;
-		
-		//Add a count to our task's reference list so it doesn't get deleted while in our Request's task list
-		[ExistingTask retain];
-
-        //Swap our new node and the first one in the list
-		NewNode->NextNode = (FTaskNode*)FPlatformAtomics::InterlockedExchangePtr((void**)(&FirstTask), (void*)NewNode);
-
-		FString TaskURL = [[[ExistingTask currentRequest] URL] absoluteString];
-		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Associated Request With New Task -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
+		const FString TaskURL = [[[ExistingTask currentRequest] URL] absoluteString];
+        int TaskIdentifier = (int)[ExistingTask taskIdentifier];
         
-        FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
-        
-        ResetTimeOutTimer();
-        ResetProgressTracking();
+		const bool bWasAlreadySwitching = FPlatformAtomics::InterlockedExchange(&bIsRequestSwitchingTasks, true);
+		if (!bWasAlreadySwitching)
+		{
+			volatile FTaskNode* NewNode = new FTaskNode();
+			NewNode->OurTask = ExistingTask;
+
+			//Add a count to our task's reference list so it doesn't get deleted while in our Request's task list
+			[ExistingTask retain];
+
+			//Swap our new node and the first one in the list
+			NewNode->NextNode = (FTaskNode*)FPlatformAtomics::InterlockedExchangePtr((void**)(&FirstTask), (void*)NewNode);
+
+			//Save off our first task's identifier and our CombinedRequestID that includes it
+			FirstTaskIdentifier = (int)[(FirstTask->OurTask) taskIdentifier];
+            CombinedRequestID = FString::Printf(TEXT("%d.%s"), FirstTaskIdentifier, *RequestID);
+            
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Associated Request With New Task -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
+
+			FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, false);
+
+			ResetTimeOutTimer();
+			ResetProgressTracking();
+
+			bDidAssociate = true;
+            FPlatformAtomics::InterlockedExchange(&bIsRequestSwitchingTasks, false);
+		}
+		else
+		{
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Failed to Associate Request with new Task as there was already a pending AssociateWithTask running! -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
+		}
 	}
+
+	return bDidAssociate;
 }
 
 void FApplePlatformBackgroundHttpRequest::PauseRequest()
@@ -195,7 +222,9 @@ void FApplePlatformBackgroundHttpRequest::CancelActiveTask()
         if (nullptr != TaskNodeWeAreCancelling->OurTask)
         {
             FString TaskURL = [[[TaskNodeWeAreCancelling->OurTask currentRequest] URL] absoluteString];
-            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Cancelling Task -- RequestID:%s | TaskURL:%s"), *GetRequestID(), *TaskURL);
+            int TaskIdentifier = (int)[TaskNodeWeAreCancelling->OurTask taskIdentifier];
+            
+            UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Cancelling Task -- RequestDebugID:%s | TaskIdentifier:%d | TaskURL:%s"), *GetRequestDebugID(), TaskIdentifier, *TaskURL);
             
             FPlatformAtomics::InterlockedExchange(&bIsPendingCancel, true);
             
@@ -206,7 +235,7 @@ void FApplePlatformBackgroundHttpRequest::CancelActiveTask()
 
 void FApplePlatformBackgroundHttpRequest::UpdateDownloadProgress(int64_t TotalDownloaded,int64_t DownloadedSinceLastUpdate)
 {
-    UE_LOG(LogBackgroundHttpRequest, VeryVerbose, TEXT("Request Update Progress -- RequestID:%s | OldProgress:%lld | NewProgress:%lld | ProgressSinceLastUpdate:%lld"), *GetRequestID(), DownloadProgress, TotalDownloaded, DownloadedSinceLastUpdate);
+    UE_LOG(LogBackgroundHttpRequest, VeryVerbose, TEXT("Request Update Progress -- RequestDebugID:%s | OldProgress:%lld | NewProgress:%lld | ProgressSinceLastUpdate:%lld"), *GetRequestDebugID(), DownloadProgress, TotalDownloaded, DownloadedSinceLastUpdate);
 	
     FPlatformAtomics::AtomicStore(&DownloadProgress, TotalDownloaded);
     FPlatformAtomics::InterlockedAdd(&DownloadProgressSinceLastUpdateSent, DownloadedSinceLastUpdate);
@@ -226,6 +255,12 @@ void FApplePlatformBackgroundHttpRequest::SendDownloadProgressUpdate()
         
         OnProgressUpdated().ExecuteIfBound(SharedThis(this), DownloadProgressCopy, DownloadProgressSinceLastUpdateSentCopy);
     }
+}
+
+const FString& FApplePlatformBackgroundHttpRequest::GetRequestDebugID() const
+{
+    //We use CombinedRequestID to append a TaskIdentifier on the end of the RequestID. If we have one, use that. Otherwise fallback on what is already set
+    return CombinedRequestID.IsEmpty() ? RequestID : CombinedRequestID;
 }
 
 bool FApplePlatformBackgroundHttpRequest::IsTaskComplete() const

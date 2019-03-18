@@ -624,7 +624,7 @@ enum class EGameplayEffectStackingExpirationPolicy : uint8
 	/** The current stack count will be decremented by 1 and the duration refreshed. The GE is not "reapplied", just continues to exist with one less stacks. */
 	RemoveSingleStackAndRefreshDuration,
 
-	/** The duration of the gameplay effect is refreshed. This essentially makes the effect infinite in duration. This can be used to manually handle stack decrements via XXX callback */
+	/** The duration of the gameplay effect is refreshed. This essentially makes the effect infinite in duration. This can be used to manually handle stack decrements via OnStackCountChange callback */
 	RefreshDuration,
 };
 
@@ -1879,16 +1879,6 @@ public:
 	void ValidateGameplayEffect();
 
 	// ---------------------------------------------------------------------------------------------------------------------------------
-
-#if WITH_EDITORONLY_DATA
-	/** Template to derive starting values and editing customization from */
-	UPROPERTY()
-	UGameplayEffectTemplate*	Template;
-
-	/** When false, show a limited set of properties for editing, based on the template we are derived from */
-	UPROPERTY()
-	bool ShowAllProperties;
-#endif
 
 	/** Policy for the duration of this effect */
 	UPROPERTY(EditDefaultsOnly, Category=GameplayEffect)

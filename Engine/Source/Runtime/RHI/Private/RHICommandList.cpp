@@ -425,8 +425,6 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		LLM_SCOPE(ELLMTag::RHIMisc);
-
 		check(bRHIThread || IsInRenderingThread());
 		FGraphEventArray Prereq;
 		if (RHIThreadTask.GetReference())
@@ -839,6 +837,7 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, Context(nullptr)
 	, ComputeContext(nullptr)
 	, MemManager(0)
+	, bAsyncPSOCompileAllowed(true)
 	, GPUMask(InGPUMask)
 {
 	GRHICommandList.OutstandingCmdListCount.Increment();

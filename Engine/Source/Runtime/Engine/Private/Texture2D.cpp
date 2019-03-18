@@ -270,6 +270,23 @@ void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Ow
 	}
 }
 
+const void* FTexture2DMipMap::FCompactByteBulkData::LockReadOnly() const
+{
+	return const_cast<FCompactByteBulkData*>(this)->Lock(LOCK_READ_ONLY);
+}
+
+void* FTexture2DMipMap::FCompactByteBulkData::Lock(uint32 LockFlags)
+{
+	ensureMsgf(LockFlags != LOCK_READ_ONLY || TexelData,
+		TEXT("Locking bulk data for read only but no data is available. ")
+		TEXT("A possible cause is that GetCopy has been called with bDiscardInternal copy set. ")
+		TEXT("Note that UTexture's loaded via normal asset loading (e.g. FLinkerLoad) is GPU only ")
+		TEXT("and their CPU copies of texel data are discarded after resource creation. If you ")
+		TEXT("want to manipulate their data, you need to use render commands. For example, to ")
+		TEXT("copy a texture into another, use FRHICommandList::CopyTexture"));
+	return TexelData;
+}
+
 void FTexture2DMipMap::FCompactByteBulkData::Unlock() const
 {
 	if (!!(BulkDataFlags & BULKDATA_SingleUse))

@@ -2237,7 +2237,6 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 	}
 }
 
-#if WITH_EDITOR
 static UAnimCurveCompressionSettings* DefaultCurveCompressionSettings = nullptr;
 
 UAnimCurveCompressionSettings* FAnimationUtils::GetDefaultAnimationCurveCompressionSettings()
@@ -2296,6 +2295,8 @@ UAnimCurveCompressionSettings* FAnimationUtils::GetDefaultAnimationCurveCompress
 
 	return DefaultCurveCompressionSettings;
 }
+
+#if WITH_EDITOR
 
 bool FAnimationUtils::CompressAnimCurves(UAnimSequence& AnimSeq)
 {

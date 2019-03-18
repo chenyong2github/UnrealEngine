@@ -133,16 +133,23 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InitFilePath">The path to the project file on disk</param>
 		/// <param name="InOnlyGameProject"></param>
-		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject)
+		/// <param name="IsForDistribution">True for distribution builds</param>
+		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution)
 			: base(InitFilePath)
 		{
 			OnlyGameProject = InOnlyGameProject;
+			bForDistribution = IsForDistribution;
 		}
 
 		public override string ToString()
 		{
 			return ProjectFilePath.GetFileNameWithoutExtension();
 		}
+
+		/// <summary>
+		///  Used to mark the project for distribution (some platforms require this)
+		/// </summary>
+		bool bForDistribution = false;
 
 		/// <summary>
 		/// Gets Xcode file category based on its extension
@@ -716,15 +723,64 @@ namespace UnrealBuildTool
 			Content.Append("/* End PBXNativeTarget section */" + ProjectFileGenerator.NewLine + ProjectFileGenerator.NewLine);
 		}
 
-		private void AppendShellScriptSection(StringBuilder Content, string ShellScriptGuid)
+		private void AppendShellScriptSection(StringBuilder Content, string ShellScriptGuid, FileReference UProjectPath)
 		{
+			StringBuilder FrameworkScript = new StringBuilder();
+
+			// nothing to do without a project
+			if (UProjectPath == null)
+			{
+				return;
+			}
+			
+			// @todo: look also in Project/Build/Frameworks directory!
+			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
+			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, UProjectPath, Project.AdditionalPluginDirectories);
+
+			// look in each plugin for frameworks
+			// @todo: Cache this kind of things since every target will re-do this work!
+			foreach (PluginInfo PI in AvailablePlugins)
+			{
+				if (!Plugins.IsPluginEnabledForProject(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
+				{
+					continue;
+				}
+
+				// for now, we copy and code sign all *.framework.zip, even if the have no code (non-code frameworks are assumed to be *.embeddedframework.zip
+				DirectoryReference FrameworkDir = DirectoryReference.Combine(PI.Directory, "Source/Frameworks");
+				if (!DirectoryReference.Exists(FrameworkDir))
+				{
+					FrameworkDir = DirectoryReference.Combine(PI.Directory, "Frameworks");
+				}
+				if (DirectoryReference.Exists(FrameworkDir))
+				{
+					// look at each zip
+					foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.framework.zip"))
+					{
+						string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
+						string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+
+						// for FI of foo.framework.zip, this will give us foo.framework
+						string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
+
+						// unzip the framework right into the .app
+						FrameworkScript.AppendFormat("\\techo Unzipping {0}...\\n", FI.FullName);
+						FrameworkScript.AppendFormat("\\tunzip -o -q {0} -d ${{FRAMEWORK_DIR}} -x \\\"__MACOSX/*\\\" \\\"*/.DS_Store\\\"\\n", FI.FullName);
+					}
+				}
+			}
+
 			string ShellScript = "set -e\\n\\n" +
-				"FRAMEWORK_DIR=$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/Frameworks\\n" +
-				"for FRAMEWORK in ${FRAMEWORK_DIR}/*.framework; do\\n" +
-					"\\t[ -d \\\"${FRAMEWORK}\\\" ] || continue\\n" + 
-					"\\techo Codesigning ${FRAMEWORK}\\n" +
-					"\\tcodesign --force --sign ${EXPANDED_CODE_SIGN_IDENTITY} --verbose --preserve-metadata=identifier,entitlements,flags --timestamp=none \\\"${FRAMEWORK}\\\"\\n" +
-				"done";
+				"if [ $PLATFORM_NAME = iphoneos ] || [ $PLATFORM_NAME = tvos ]; then \\n" +
+				"\\tFRAMEWORK_DIR=$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/Frameworks\\n" +
+				FrameworkScript.ToString() + 
+				// and now code sign anything that has been unzipped above
+				"\\tfor FRAMEWORK in ${FRAMEWORK_DIR}/*.framework; do\\n" +
+					"\\t\\t[ -d \\\"${FRAMEWORK}\\\" ] || continue\\n" +
+					"\\t\\techo Codesigning ${FRAMEWORK}\\n" +
+					"\\t\\tcodesign --force --sign ${EXPANDED_CODE_SIGN_IDENTITY} --verbose --preserve-metadata=identifier,entitlements,flags --timestamp=none \\\"${FRAMEWORK}\\\"\\n" +
+				"\\tdone\\n" +
+				"fi\\n";
 
 			Content.Append("/* Begin PBXShellScriptBuildPhase section */" + ProjectFileGenerator.NewLine);
 			Content.Append(string.Format("\t\t{0} /* Sign Frameworks */ = {{" + ProjectFileGenerator.NewLine, ShellScriptGuid));
@@ -779,7 +835,7 @@ namespace UnrealBuildTool
 			{
 				TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 				TVOSProjectSettings ProjectSettings = TVOSPlatform.ReadProjectSettings(ProjectFile);
-				TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings);
+				TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 				bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 			}
 
@@ -931,7 +987,7 @@ namespace UnrealBuildTool
                 {
 					IOSPlatform IOSPlatform = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS));
 					IOSProjectSettings ProjectSettings = IOSPlatform.ReadProjectSettings(ProjectFile);
-					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings);
+					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
 					ValidArchs += " arm64 armv7 armv7s";
@@ -950,7 +1006,7 @@ namespace UnrealBuildTool
 				{
 					TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 					TVOSProjectSettings ProjectSettings = TVOSPlatform.ReadProjectSettings(ProjectFile);
-					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings);
+					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
 					if (!ValidArchs.Contains("arm64"))
@@ -1756,7 +1812,7 @@ namespace UnrealBuildTool
 			AppendXCBuildConfigurationSection(ProjectFileContent, ProjectBuildConfigs, TargetBuildConfigs, BuildTargetBuildConfigs, IndexTargetBuildConfigs, GameProjectPath, AllExtensions);
 			AppendXCConfigurationListSection(ProjectFileContent, TargetName, BuildTargetName, IndexTargetName, ProjectConfigListGuid, ProjectBuildConfigs,
 				TargetConfigListGuid, TargetBuildConfigs, BuildTargetConfigListGuid, BuildTargetBuildConfigs, IndexTargetConfigListGuid, IndexTargetBuildConfigs, AllExtensions);
-			AppendShellScriptSection(ProjectFileContent, ShellScriptSectionGuid);
+			AppendShellScriptSection(ProjectFileContent, ShellScriptSectionGuid, GameProjectPath);
 
 			ProjectFileContent.Append("\t};" + ProjectFileGenerator.NewLine);
 			ProjectFileContent.Append("\trootObject = " + ProjectGuid + " /* Project object */;" + ProjectFileGenerator.NewLine);

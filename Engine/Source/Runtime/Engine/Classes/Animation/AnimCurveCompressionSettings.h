@@ -17,18 +17,16 @@ class ENGINE_API UAnimCurveCompressionSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-#if WITH_EDITORONLY_DATA
 	/** An animation curve compression codec. */
 	UPROPERTY(Category = Compression, Instanced, EditAnywhere, NoClear)
 	UAnimCurveCompressionCodec* Codec;
-#endif
 
 	//////////////////////////////////////////////////////////////////////////
 
-#if WITH_EDITORONLY_DATA
-	// UObject overrides
-	virtual void PostInitProperties() override;
+	/** Allow us to convert DDC serialized path back into codec object */
+	UAnimCurveCompressionCodec* GetCodec(const FString& Path);
 
+#if WITH_EDITORONLY_DATA
 	/** Returns whether or not we can use these settings to compress. */
 	bool AreSettingsValid() const;
 
@@ -38,9 +36,6 @@ class ENGINE_API UAnimCurveCompressionSettings : public UObject
 	 * and the codec used but it is left unchanged if compression fails.
 	 */
 	bool Compress(UAnimSequence& AnimSeq) const;
-
-	/** Allow us to convert DDC serialized path back into codec object */
-	UAnimCurveCompressionCodec* GetCodec(const FString& Path);
 
 	/** Generates a DDC key that takes into account the current settings and selected codec. */
 	FString MakeDDCKey() const;

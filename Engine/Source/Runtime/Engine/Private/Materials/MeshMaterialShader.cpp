@@ -206,8 +206,10 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 		if (ShaderType && ShouldCacheMeshShader(ShaderType, InPlatform, Material, VertexFactoryType))
 		{
 			// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
+#if WITH_EDITOR
 			check(InShaderMapId.ContainsVertexFactoryType(VertexFactoryType));
 			check(InShaderMapId.ContainsShaderType(ShaderType));
+#endif
 
 			NumShadersPerVF++;
 			// only compile the shader if we don't already have it
@@ -256,8 +258,9 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 			if (NumShaderStagesToCompile == StageTypes.Num())
 			{
 				// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
+#if WITH_EDITOR
 				check(InShaderMapId.ContainsShaderPipelineType(Pipeline));
-
+#endif
 				if (Pipeline->ShouldOptimizeUnusedOutputs(InPlatform))
 				{
 					NumShadersPerVF += NumShaderStagesToCompile;
@@ -267,8 +270,10 @@ uint32 FMeshMaterialShaderMap::BeginCompile(
 						const FMeshMaterialShaderType* ShaderType = Shader->GetMeshMaterialShaderType();
 
 						// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
+#if WITH_EDITOR
 						check(InShaderMapId.ContainsVertexFactoryType(VertexFactoryType));
 						check(InShaderMapId.ContainsShaderType(ShaderType));
+#endif
 						ShaderStagesToCompile.Add((FMeshMaterialShaderType*)ShaderType);
 					}
 
@@ -387,6 +392,7 @@ bool FMeshMaterialShaderMap::IsComplete(
 	return true;
 }
 
+#if WITH_EDITOR
 void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 	const FSHAHash& MaterialShaderMapHash, 
 	const FMaterial* Material, 
@@ -456,6 +462,7 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 /**
  * Removes all entries in the cache with exceptions based on a shader type

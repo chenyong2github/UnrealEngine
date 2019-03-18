@@ -25,9 +25,12 @@ public:
 	FUserWidgetPool& operator=(FUserWidgetPool&& Other);
 	~FUserWidgetPool();
 
+	/** In the case that you don't have an owner widget, you should set a world to your pool, or it won't be able to construct widgets. */
+	void SetWorld(UWorld* OwningWorld);
+
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	bool IsInitialized() const { return OwningWidget.IsValid(); }
+	bool IsInitialized() const { return OwningWidget.IsValid() || OwningWorld.IsValid(); }
 	const TArray<UUserWidget*>& GetActiveWidgets() const { return ActiveWidgets; }
 
 	/**
@@ -67,7 +70,7 @@ private:
 	template <typename UserWidgetT = UUserWidget>
 	UserWidgetT* AddActiveWidgetInternal(TSubclassOf<UserWidgetT> WidgetClass, WidgetConstructFunc ConstructWidgetFunc)
 	{
-		if (!IsInitialized())
+		if (!ensure(IsInitialized()))
 		{
 			return nullptr;
 		}
@@ -85,7 +88,14 @@ private:
 
 		if (!WidgetInstance)
 		{
-			WidgetInstance = CreateWidget(OwningWidget.Get(), WidgetClass);
+			if (UWidget* OwnerWidgetPtr = OwningWidget.Get())
+			{
+				WidgetInstance = CreateWidget(OwnerWidgetPtr, WidgetClass);
+			}
+			else
+			{
+				WidgetInstance = CreateWidget(OwningWorld.Get(), WidgetClass);
+			}
 		}
 
 		if (WidgetInstance)
@@ -102,6 +112,7 @@ private:
 	}
 
 	TWeakObjectPtr<UWidget> OwningWidget;
+	TWeakObjectPtr<UWorld> OwningWorld;
 	
 	TArray<UUserWidget*> ActiveWidgets;
 	TArray<UUserWidget*> InactiveWidgets;

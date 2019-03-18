@@ -309,6 +309,12 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		{
 			FPoseContext CurrentPose(Output);
 
+			// clear the value before setting it. 
+			for (int32 PoseIndex = 0; PoseIndex < PoseExtractContext.PoseCurves.Num(); ++PoseIndex)
+			{
+				PoseExtractContext.PoseCurves[PoseIndex].Value = 0.f;
+			}
+
 			// Then fill in weight for any driven poses
 			for (const FRBFOutputWeight& Weight : OutputWeights)
 			{

@@ -34,6 +34,7 @@
 #include "MoviePlayer.h"
 #include "PreLoadScreenManager.h"
 #include "Misc/EmbeddedCommunication.h"
+#include "Async/Async.h"
 #include <jni.h>
 #include <android/sensor.h>
 
@@ -48,6 +49,10 @@ static GetAxesType GetAxes = NULL;
 #if PLATFORM_ANDROID_NDK_VERSION < 140200
 #define AMOTION_EVENT_AXIS_RELATIVE_X 27
 #define AMOTION_EVENT_AXIS_RELATIVE_Y 28
+#endif
+
+#ifndef ANDROID_ALLOWCUSTOMTOUCHEVENT
+#define ANDROID_ALLOWCUSTOMTOUCHEVENT	0
 #endif
 
 // List of default axes to query for each controller
@@ -523,7 +528,7 @@ struct FChoreographer
 	void SetupChoreographer()
 	{
 		FScopeLock Lock(&ChoreographerSetupLock);
-		check(!AChoreographer_getInstance_);
+		//check(!AChoreographer_getInstance_);
 		if (!AChoreographer_getInstance_)
 		{
 			void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
@@ -1308,11 +1313,14 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnConfigurationChanged
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeConsoleCommand(String commandString);"
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeConsoleCommand(JNIEnv* jenv, jobject thiz, jstring commandString)
 {
-	auto Command = FJavaHelper::FStringFromParam(jenv, commandString);
-	
+	FString Command = FJavaHelper::FStringFromParam(jenv, commandString);
 	if (GEngine != NULL)
 	{
-		GEngine->DeferredCommands.Add(Command);
+		// Run on game thread to avoid race condition with DeferredCommands
+		AsyncTask(ENamedThreads::GameThread, [Command]()
+		{
+			GEngine->DeferredCommands.Add(Command);
+		});
 	}
 	else
 	{
@@ -1358,6 +1366,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnInitialDownloadCompl
 bool GAllowCustomInput = true;
 JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_HandleCustomTouchEvent(JNIEnv* jenv, jobject thiz, jint deviceId, jint pointerId, jint action, jint soucre, jfloat x, jfloat y)
 {
+#if ANDROID_ALLOWCUSTOMTOUCHEVENT
 	// make sure fake input is allowed, so hacky Java can't run bots
 	if (!GAllowCustomInput)
 	{
@@ -1387,6 +1396,7 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_HandleCustomTouchEvent(JNIEnv
 
 	UE_LOG(LogAndroid, Verbose, TEXT("Handle custom touch event %d (%d) x=%f y=%f"), TouchMessage.Type, action, x, y);
 	FAndroidInputInterface::QueueTouchInput(TouchesArray);
+#endif
 }
 
 bool WaitForAndroidLoseFocusEvent(double TimeoutSeconds)

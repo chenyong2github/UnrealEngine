@@ -1104,6 +1104,14 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	UWorld* MyWorld = GetWorld();
 
+	// Force path tracing view mode, and extern code set path tracer show flags
+	const bool bForcePathTracing = InViewport->GetClient()->GetEngineShowFlags()->PathTracing;
+	if (bForcePathTracing)
+	{
+		EngineShowFlags.SetPathTracing(true);
+		ViewModeIndex = VMI_PathTracing;
+	}
+
 	// create the view family for rendering the world scene to the viewport's render target
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues( 	
 		InViewport,
@@ -1116,6 +1124,14 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	{
 		// Force enable view family show flag for HighDPI derived's screen percentage.
 		ViewFamily.EngineShowFlags.ScreenPercentage = true;
+	}
+	if (ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
+	{
+		TSet<UMaterialInterface*> Materials;
+		if (GetUsedMaterialsInWorld(MyWorld, Materials, nullptr))
+		{
+			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, nullptr);
+		}
 	}
 #endif
 
@@ -1299,6 +1315,9 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 							}
 						}
 
+					#if RHI_RAYTRACING
+						View->SetupRayTracedRendering();
+					#endif
 					}
 
 					// Add view information for resource streaming. Allow up to 5X boost for small FOV.

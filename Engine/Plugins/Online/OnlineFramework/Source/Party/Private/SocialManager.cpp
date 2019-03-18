@@ -3,6 +3,7 @@
 #include "SocialManager.h"
 #include "SocialToolkit.h"
 #include "SocialSettings.h"
+#include "SocialDebugTools.h"
 
 #include "Interactions/CoreInteractions.h"
 #include "Interactions/PartyInteractions.h"
@@ -200,6 +201,12 @@ void USocialManager::InitSocialManager()
 	{
 		HandleWorldEstablished(World);
 	}
+
+#if !UE_SERVER && !UE_BUILD_SHIPPING
+	SocialDebugTools = NewObject<USocialDebugTools>(this);
+	check(SocialDebugTools);
+#endif
+
 }
 
 void USocialManager::ShutdownSocialManager()
@@ -226,6 +233,12 @@ void USocialManager::ShutdownSocialManager()
 	ShutdownPartiesFunc(LeavingPartiesByTypeId);
 
 	RejoinableParty.Reset();
+
+	if (SocialDebugTools)
+	{
+		SocialDebugTools->Shutdown();
+		SocialDebugTools = nullptr;
+	}
 
 	// We could have outstanding OSS queries and requests, and we are no longer interested in getting any callbacks triggered
 	MarkPendingKill();
@@ -813,7 +826,7 @@ void USocialManager::HandleWorldEstablished(UWorld* World)
 
 void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 {
-	ULocalPlayer* NewLocalPlayer = GetGameInstance().FindLocalPlayerFromControllerId(LocalUserNum);
+	ULocalPlayer* NewLocalPlayer = GetGameInstance().GetLocalPlayerByIndex(LocalUserNum);
 	check(NewLocalPlayer);
 
 	CreateSocialToolkit(*NewLocalPlayer);
@@ -1057,4 +1070,23 @@ void USocialManager::HandleFindSessionForJoinComplete(bool bWasSuccessful, const
 			FinishJoinPartyAttempt(*JoinAttempt, FJoinPartyResult(EPartyJoinDenialReason::TargetUserMissingPlatformSession));
 		}
 	}
+}
+
+bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
+{
+	if (FParse::Command(&Cmd, TEXT("SOCIAL")))
+	{
+		if (SocialDebugTools &&
+			SocialDebugTools->Exec(InWorld, Cmd, Out))
+		{
+			return true;
+		}
+		return true;
+	}
+	return false;
+}
+
+USocialDebugTools* USocialManager::GetDebugTools() const
+{
+	return SocialDebugTools;
 }

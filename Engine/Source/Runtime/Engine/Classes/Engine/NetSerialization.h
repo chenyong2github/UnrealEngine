@@ -271,7 +271,7 @@ public:
 
 	FNetFastTArrayBaseState():
 		ArrayReplicationKey(INDEX_NONE),
-		ChangelistHistory(INDEX_NONE)
+		ChangelistHistory(0)
 	{}
 
 	virtual bool IsStateEqual(INetDeltaBaseState* OtherState)
@@ -293,7 +293,7 @@ public:
 
 	int32 ArrayReplicationKey;
 
-	int32 ChangelistHistory;
+	uint32 ChangelistHistory;
 };
 
 
@@ -395,6 +395,18 @@ struct FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair
 	int32	ID;
 };
 
+UENUM()
+enum class EFastArraySerializerDeltaFlags : uint8
+{
+	None,								//! No flags.
+	HasBeenSerialized = 1 << 0,			//! Set when serialization at least once (i.e., this struct has been written or read).
+	HasDeltaBeenRequested = 1 << 1,		//! Set if users requested Delta Serialization for this struct.
+	IsUsingDeltaSerialization = 1 << 2,	//! This will remain unset until we've serialized at least once.
+										//! At that point, this will be set if delta serialization was requested and
+										//! we support it.
+};
+ENUM_CLASS_FLAGS(EFastArraySerializerDeltaFlags);
+
 /** Base struct for wrapping the array used in Fast TArray Replication */
 USTRUCT()
 struct FFastArraySerializer
@@ -406,9 +418,7 @@ struct FFastArraySerializer
 		, ArrayReplicationKey(0)
 		, CachedNumItems(INDEX_NONE)
 		, CachedNumItemsToConsiderForWriting(INDEX_NONE)
-		, bUseDeltaStructSerialization(false)
-		, bCachedUseDeltaStructSerialization(false)
-		, bHasBeenSerialized(false) { }
+		, DeltaFlags(EFastArraySerializerDeltaFlags::None) { }
 
 	~FFastArraySerializer() {}
 
@@ -419,6 +429,7 @@ struct FFastArraySerializer
 	int32 IDCounter;
 
 	/** Counter used to track array replication. */
+	UPROPERTY(NotReplicated)
 	int32 ArrayReplicationKey;
 
 	/** List of items that need to be re-serialized when the referenced objects are mapped */
@@ -507,14 +518,28 @@ struct FFastArraySerializer
 		return !bIsWritingOnClient || Item.ReplicationID != INDEX_NONE;
 	}
 
-	const bool IsUsingStructDeltaSerialization() const
+	void SetDeltaSerializationEnabled(const bool bEnabled)
 	{
-		return bHasBeenSerialized ? bCachedUseDeltaStructSerialization : bUseDeltaStructSerialization;
+		if (!EnumHasAnyFlags(DeltaFlags, EFastArraySerializerDeltaFlags::HasBeenSerialized))
+		{
+			if (bEnabled)
+			{
+				DeltaFlags |= EFastArraySerializerDeltaFlags::HasDeltaBeenRequested;
+			}
+			else
+			{
+				DeltaFlags &= ~EFastArraySerializerDeltaFlags::HasDeltaBeenRequested;
+			}
+		}
+		else
+		{
+			UE_LOG(LogNetFastTArray, Log, TEXT("FFastArraySerializer::SetDeltaSerializationEnabled - Called after array has been serialized. Ignoring"));
+		}
 	}
 
-	const bool HasBeenSerialized() const
+	const EFastArraySerializerDeltaFlags GetDeltaSerializationFlags() const
 	{
-		return bHasBeenSerialized;
+		return DeltaFlags;
 	}
 
 private:
@@ -641,15 +666,8 @@ private:
 	int32 CachedNumItems;
 	int32 CachedNumItemsToConsiderForWriting;
 
-protected:
-
-	uint32 bUseDeltaStructSerialization : 1;
-
-private:
-
-	uint32 bCachedUseDeltaStructSerialization : 1;
-
-	uint32 bHasBeenSerialized : 1;
+	UPROPERTY(NotReplicated)
+	EFastArraySerializerDeltaFlags DeltaFlags;
 };
 
 template<typename Type, typename SerializerType>
@@ -1040,7 +1058,7 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 	// anything from the server (Net Conditions, Static Actors, etc.)
 	// That should be fine though, because none of the GUID Tracking work should actually do anything
 	// until after we've received.
-	if (ArraySerializer.bHasBeenSerialized && ArraySerializer.bCachedUseDeltaStructSerialization)
+	if (EnumHasAllFlags(ArraySerializer.DeltaFlags, EFastArraySerializerDeltaFlags::IsUsingDeltaSerialization))
 	{
 		return FastArrayDeltaSerialize_DeltaSerializeStructs(Items, Parms, ArraySerializer);
 	}
@@ -1202,13 +1220,12 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 	// If we've made it this far, it means that we're going to be serializing something.
 	// So, it should be safe for us to update our cached state.
 	// Also, make sure that we hit the right path if we need to.
-	if (!ArraySerializer.bHasBeenSerialized)
+	if (!EnumHasAnyFlags(ArraySerializer.DeltaFlags, EFastArraySerializerDeltaFlags::HasBeenSerialized))
 	{
-		ArraySerializer.bHasBeenSerialized = true;
-		ArraySerializer.bCachedUseDeltaStructSerialization = ArraySerializer.bUseDeltaStructSerialization && Parms.bSupportsFastArrayDeltaStructSerialization;
-
-		if (ArraySerializer.bCachedUseDeltaStructSerialization)
+		ArraySerializer.DeltaFlags |= EFastArraySerializerDeltaFlags::HasBeenSerialized;
+		if (Parms.bSupportsFastArrayDeltaStructSerialization && EnumHasAnyFlags(ArraySerializer.DeltaFlags, EFastArraySerializerDeltaFlags::HasDeltaBeenRequested))
 		{
+			ArraySerializer.DeltaFlags |= EFastArraySerializerDeltaFlags::IsUsingDeltaSerialization;
 			return FastArrayDeltaSerialize_DeltaSerializeStructs(Items, Parms, ArraySerializer);
 		}
 	}
@@ -1421,16 +1438,59 @@ struct FFastArrayDeltaSerializeParams
 {
 	FNetDeltaSerializeInfo& DeltaSerializeInfo;
 	FFastArraySerializer& ArraySerializer;
+
+	const TFunction<void(void*, const FFastArrayDeltaSerializeParams&)> PreReplicatedRemove;
+	const TFunction<void(void*, const FFastArrayDeltaSerializeParams&)> PostReplicatedAdd;
+	const TFunction<void(void*, const FFastArrayDeltaSerializeParams&)> PostReplicatedChange;
+	const TFunction<void(void*, const FFastArrayDeltaSerializeParams&, const uint32)> ReceivedItem;
+
 	TArray<FFastArraySerializer_FastArrayDeltaSerialize_FIdxIDPair, TInlineAllocator<8>>* WriteChangedElements = nullptr;
 	FNetFastTArrayBaseState* WriteBaseState = nullptr;
 	TArray<int32, TInlineAllocator<8>>* ReadChangedElements = nullptr;
 	TArray<int32, TInlineAllocator<8>>* ReadAddedElements = nullptr;
 	int32 ReadNumChanged = INDEX_NONE;
+	int32 ReadArrayReplicationKey = INDEX_NONE;
 };
 
 template<typename Type, typename SerializerType>
 bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<Type>& Items, FNetDeltaSerializeInfo& Parms, SerializerType& ArraySerializer)
 {
+	/**
+	 * These methods are exposed on FastArraySerializerItems, but they aren't virtual.
+	 * Further, we may not know the exact type when we want to call them, and won't
+	 * safely be able to cast to the type in non-templated code.
+	 *
+	 * Maybe this defeats the purpose of having them not virtual in the first place.
+	 * However, for now ReceivedItem and PostReplicatedChanged are the only ones that will actually
+	 * be called in this way, whereas PostReplicatedAdd and PreReplicatedRemove will still be called
+	 * from templated code.
+	 */
+	struct FFastArrayItemCallbackHelper
+	{
+		static void PreReplicatedRemove(void* FastArrayItem, const struct FFastArrayDeltaSerializeParams& Params)
+		{
+			reinterpret_cast<Type*>(FastArrayItem)->PreReplicatedRemove(static_cast<SerializerType&>(Params.ArraySerializer));
+		}
+
+		static void PostReplicatedAdd(void* FastArrayItem, const struct FFastArrayDeltaSerializeParams& Params)
+		{
+			reinterpret_cast<Type*>(FastArrayItem)->PostReplicatedAdd(static_cast<SerializerType&>(Params.ArraySerializer));
+		}
+
+		static void PostReplicatedChange(void* FastArrayItem, const struct FFastArrayDeltaSerializeParams& Params)
+		{
+			reinterpret_cast<Type*>(FastArrayItem)->PostReplicatedChange(static_cast<SerializerType&>(Params.ArraySerializer));
+		}
+
+		static void ReceivedItem(void* FastArrayItem, const FFastArrayDeltaSerializeParams& Params, const uint32 ReplicationID)
+		{
+			Type* Item = reinterpret_cast<Type*>(FastArrayItem);
+			Item->ReplicationID = ReplicationID;
+			Item->MostRecentArrayReplicationKey = Params.ReadArrayReplicationKey;
+			Item->ReplicationKey++;
+		}
+	};
+
 	SCOPE_CYCLE_COUNTER(STAT_NetSerializeFastArray_DeltaStruct);
 	class UScriptStruct* InnerStruct = Type::StaticStruct();
 
@@ -1443,7 +1503,11 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 
 	FFastArrayDeltaSerializeParams DeltaSerializeParams{
 		Parms,
-		ArraySerializer
+		ArraySerializer,
+		FFastArrayItemCallbackHelper::PreReplicatedRemove,
+		FFastArrayItemCallbackHelper::PostReplicatedAdd,
+		FFastArrayItemCallbackHelper::PostReplicatedChange,
+		FFastArrayItemCallbackHelper::ReceivedItem,
 	};
 
 	//---------------
@@ -1557,6 +1621,7 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		DeltaSerializeParams.ReadAddedElements = &AddedIndices;
 		DeltaSerializeParams.ReadChangedElements = &ChangedIndices;
 		DeltaSerializeParams.ReadNumChanged = Header.NumChanged;
+		DeltaSerializeParams.ReadArrayReplicationKey = Header.ArrayReplicationKey;
 
 		if (!Parms.NetSerializeCB->NetDeltaSerializeForFastArray(DeltaSerializeParams))
 		{

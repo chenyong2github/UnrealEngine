@@ -945,6 +945,11 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 						SubjectMeshCommandBuildRequests.Add(&StaticMesh);
 					}
 
+					if (StaticMeshRelevance.bRequiresPerElementVisibility)
+					{
+						InCurrentView.StaticMeshBatchVisibility[StaticMesh.BatchVisibilityId] = StaticMesh.VertexFactory->GetStaticBatchElementVisibility(InCurrentView, &StaticMesh);
+					}
+
 					bDrawingStaticMeshes = true;
 				}
 			}
