@@ -450,10 +450,16 @@ void FMaterialCompilationOutput::Serialize(FArchive& Ar)
 	UniformExpressionSet.Serialize(Ar);
 
 	Ar << UsedSceneTextures;
+#if WITH_EDITOR
 	Ar << NumUsedUVScalars;
 	Ar << NumUsedCustomInterpolatorScalars;
 	Ar << EstimatedNumTextureSamplesVS;
 	Ar << EstimatedNumTextureSamplesPS;
+#else
+	uint8 Tmp8; uint16 Tmp16;
+	Ar << Tmp8 << Tmp8;
+	Ar << Tmp16 << Tmp16;
+#endif
 
 	Ar << bRequiresSceneColorCopy;
 	Ar << bNeedsSceneTextures;
@@ -2300,6 +2306,7 @@ int32 FMaterialResource::GetSamplerUsage() const
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void FMaterialResource::GetUserInterpolatorUsage(uint32& NumUsedUVScalars, uint32& NumUsedCustomInterpolatorScalars) const
 {
 	NumUsedUVScalars = NumUsedCustomInterpolatorScalars = 0;
@@ -2319,6 +2326,7 @@ void FMaterialResource::GetEstimatedNumTextureSamples(uint32& VSSamples, uint32&
 		ShaderMap->GetEstimatedNumTextureSamples(VSSamples, PSSamples);
 	}
 }
+#endif // WITH_EDITOR
 
 FString FMaterialResource::GetMaterialUsageDescription() const
 {
