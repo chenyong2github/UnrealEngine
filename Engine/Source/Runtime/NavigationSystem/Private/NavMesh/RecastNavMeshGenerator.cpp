@@ -59,28 +59,6 @@ FORCEINLINE bool DoesBoxContainBox(const FBox& BigBox, const FBox& SmallBox)
 	return DoesBoxContainOrOverlapVector(BigBox, SmallBox.Min) && DoesBoxContainOrOverlapVector(BigBox, SmallBox.Max);
 }
 
-struct FRcTileBox
-{
-	int32 XMin, XMax, YMin, YMax;
-
-	FRcTileBox(const FBox& UnrealBounds, const FVector& RcNavMeshOrigin, const float TileSizeInWorldUnits)
-	{
-		check(TileSizeInWorldUnits > 0);
-
-		const FBox RcAreaBounds = Unreal2RecastBox(UnrealBounds);
-		XMin = FMath::FloorToInt((RcAreaBounds.Min.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
-		XMax = FMath::FloorToInt((RcAreaBounds.Max.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
-		YMin = FMath::FloorToInt((RcAreaBounds.Min.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
-		YMax = FMath::FloorToInt((RcAreaBounds.Max.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
-	}
-
-	FORCEINLINE bool Contains(const FIntPoint& Point) const 
-	{
-		return Point.X >= XMin && Point.X <= XMax
-			&& Point.Y >= YMin && Point.Y <= YMax;
-	}
-};
-
 int32 GetTilesCountHelper(const dtNavMesh* DetourMesh)
 {
 	int32 NumTiles = 0;
@@ -3920,7 +3898,11 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh();
 	const int32 FirstDirtyTileIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 
-	if (DetourMesh != nullptr && IsInActiveSet(FIntPoint(TileX, TileY))
+	if (DetourMesh != nullptr 
+		// no longer testing this here, we can live with a stray unwanted tile here 
+		// and there. It will be removed the next time around the invokers get
+		// updated 
+		// && IsInActiveSet(FIntPoint(TileX, TileY))
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();
@@ -4075,7 +4057,7 @@ static bool IntersectBounds(const FBox& TestBox, const TNavStatArray<FBox>& Boun
 
 namespace 
 {
-	FBox CalculateBoxIntercetion(const FBox& BoxA, const FBox& BoxB)
+	FBox CalculateBoxIntersection(const FBox& BoxA, const FBox& BoxB)
 	{
 		// assumes boxes overlap
 		ensure(BoxA.Intersect(BoxB));
@@ -4165,7 +4147,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				continue;
 			}
 
-			const FBox CutDownArea = CalculateBoxIntercetion(GetTotalBounds(), DirtyArea.Bounds);
+			const FBox CutDownArea = CalculateBoxIntersection(GetTotalBounds(), DirtyArea.Bounds);
 			AdjustedAreaBounds = GrowBoundingBox(CutDownArea, DirtyArea.HasFlag(ENavigationDirtyFlag::UseAgentHeight));
 
 			// @TODO this and the following test share some work in common
@@ -4177,7 +4159,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 			// check if any of inclusion volumes encapsulates this box
 			// using CutDownArea not AdjustedAreaBounds since if the area is on the border of navigable space
 			// then FindInclusionBoundEncapsulatingBox can produce false negative
-			bDoTileInclusionTest = FindInclusionBoundEncapsulatingBox(CutDownArea) == INDEX_NONE;
+			bDoTileInclusionTest = (FindInclusionBoundEncapsulatingBox(CutDownArea) == INDEX_NONE);
 		}
 		
 		const FRcTileBox TileBox(AdjustedAreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
@@ -4191,7 +4173,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 					continue;
 				}
 
-				if (DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds) == false && bDoTileInclusionTest == true)
+				if (bDoTileInclusionTest == true && DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds) == false)
 				{
 					const FBox TileBounds = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
 
@@ -4375,15 +4357,15 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 			}
 
 			// Remove submitted element from pending list
-			PendingDirtyTiles.RemoveAt(ElementIdx);
-
-			// Release memory, list could be quite big after map load
-			if (PendingDirtyTiles.Num() == 0)
-			{
-				PendingDirtyTiles.Empty(32);
-			}
+			PendingDirtyTiles.RemoveAt(ElementIdx, 1, /*bAllowShrinking=*/false);
 			NumProcessedTasks++;
 		}
+	}
+
+	// Release memory, list could be quite big after map load
+	if (NumProcessedTasks > 0 && PendingDirtyTiles.Num() == 0)
+	{
+		PendingDirtyTiles.Empty(32);
 	}
 	
 	// Collect completed tasks and apply generated data to navmesh
