@@ -523,7 +523,7 @@ struct FChoreographer
 	void SetupChoreographer()
 	{
 		FScopeLock Lock(&ChoreographerSetupLock);
-		check(!AChoreographer_getInstance_);
+		//check(!AChoreographer_getInstance_);
 		if (!AChoreographer_getInstance_)
 		{
 			void* lib = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);

@@ -1577,7 +1577,13 @@ namespace UnrealBuildTool
 					{
 						throw new BuildException("Unable to find plist for output framework ({0})", PlistSrcLocation);
 					}
+					
 					FileReference PlistDstLocation = FileReference.Combine(Target.OutputPath.Directory, "Info.plist");
+					if (FileReference.Exists(PlistDstLocation))
+					{
+						FileReference.SetAttributes(PlistDstLocation, FileAttributes.Normal);
+					}
+
 					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
 
 					// and do nothing else

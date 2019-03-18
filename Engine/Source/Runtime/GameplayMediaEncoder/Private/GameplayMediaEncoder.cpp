@@ -199,7 +199,6 @@ bool FGameplayMediaEncoder::Initialize()
 	}
 
 	// Specifying 0 will completely disable frame skipping (therefore encoding as many frames as possible)
-	VideoConfig.Framerate = HardcodedAudioSamplerate;
 	FParse::Value(FCommandLine::Get(), TEXT("GameplayMediaEncoder.FPS="), VideoConfig.Framerate);
 	if (VideoConfig.Framerate == 0)
 	{
