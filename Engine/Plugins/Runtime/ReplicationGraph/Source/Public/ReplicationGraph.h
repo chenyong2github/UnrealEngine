@@ -914,6 +914,9 @@ private:
 	/** Separate bandwidth cap for traffic used when opening actor channels. Ignored if set to 0 */
 	int32 ActorDiscoveryMaxBitsPerFrame;
 
+	/** Internal time used to track when the next update should occur based on frequency settings. */
+	float TimeLeftUntilUpdate = 0.f;
+
 	UNetReplicationGraphConnection* CreateClientConnectionManagerInternal(UNetConnection* Connection);
 
 	friend class AReplicationGraphDebugActor;
