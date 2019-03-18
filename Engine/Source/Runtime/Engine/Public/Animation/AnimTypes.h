@@ -177,6 +177,12 @@ public:
 		SkipFrames = InMaxSkippedFrames;
 	}
 
+	/** Gets the number of expected frames to be skipped by URO */
+	int16 GetMaxSkippedFrames() const
+	{
+		return SkipFrames;
+	}
+
 	/** Clear the internal counters and frame skip */
 	void Reset()
 	{
