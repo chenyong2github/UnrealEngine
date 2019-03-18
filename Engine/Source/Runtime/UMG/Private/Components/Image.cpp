@@ -133,6 +133,20 @@ void UImage::SetBrushTintColor(FSlateColor TintColor)
 	}
 }
 
+void UImage::SetBrushResourceObject(UObject* ResourceObject)
+{
+	if (Brush.GetResourceObject() != ResourceObject)
+	{
+		Brush.SetResourceObject(ResourceObject);
+
+		if (MyImage.IsValid())
+		{
+			MyImage->SetImage(&Brush);
+			MyImage->Invalidate(EInvalidateWidget::PaintAndVolatility);
+		}
+	}
+}
+
 void UImage::SetBrushFromAsset(USlateBrushAsset* Asset)
 {
 	if(!Asset || Brush != Asset->Brush)
