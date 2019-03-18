@@ -35,6 +35,11 @@ struct ENGINE_API FMaterialParameterInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=ParameterInfo)
 	int32 Index;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	FSoftObjectPath ParameterLocation;
+#endif
+
 	FMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
 		: Name(InName)
 		, Association(InAssociation)
