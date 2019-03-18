@@ -906,7 +906,7 @@ void UWorld::MarkActorComponentForNeededEndOfFrameUpdate(UActorComponent* Compon
 			bForceGameThread = !bAllowConcurrentUpdates 
 								// When there is no rendering thread force all updates on game thread,
 								// to avoid modifying scene structures from multiple task threads
-								|| !GRenderingThread;
+								|| !GRenderingThread; 
 		}
 
 		if (bForceGameThread)
