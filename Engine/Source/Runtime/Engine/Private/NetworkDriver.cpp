@@ -1699,9 +1699,14 @@ void UNetDriver::PostTickDispatch()
 		ServerConnection->FlushPacketOrderCache(true);
 	}
 
-	for (UNetConnection* CurConn : ClientConnections)
+	TArray<UNetConnection*> ClientConnCopy = ClientConnections;
+
+	for (UNetConnection* CurConn : ClientConnCopy)
 	{
-		CurConn->FlushPacketOrderCache(true);
+		if (!CurConn->IsPendingKill())
+		{
+			CurConn->FlushPacketOrderCache(true);
+		}
 	}
 
 	if (ReplicationDriver)
