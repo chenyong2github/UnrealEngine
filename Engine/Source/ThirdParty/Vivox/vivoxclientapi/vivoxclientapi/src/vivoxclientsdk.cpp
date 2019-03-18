@@ -103,15 +103,15 @@ static std::string UTF8ToCodePage(const char *uBuf, size_t uBufLen)
 #define _strdup(s) strdup(s)
 #endif
 
-#define CHECK_RET(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return; }
-#define CHECK_RET1(x, y) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return y; }
-#define CHECK(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); }
-#define CHECK_CONT(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); continue; }
-#define CHECK_BREAK(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); break; }
-#define ALWAYS_ASSERT(x) m_app->onAssert(__FUNCTION__, __LINE__, #x)
+#define CHECK_RET(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return; }
+#define CHECK_RET1(x, y) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return y; }
+#define CHECK(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } }
+#define CHECK_CONT(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } continue; }
+#define CHECK_BREAK(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } break; }
+#define ALWAYS_ASSERT(x) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } }
 
-#define CHECK_STATUS_RET(x) if((x) != 0) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return; }
-#define CHECK_STATUS_RETVAL(x) { int RetVal = (x); if(RetVal != 0) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return VCSStatus(RetVal); }}
+#define CHECK_STATUS_RET(x) if((x) != 0) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return; }
+#define CHECK_STATUS_RETVAL(x) { int RetVal = (x); if(RetVal != 0) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return VCSStatus(RetVal); }}
 
 namespace VivoxClientApi {
 
