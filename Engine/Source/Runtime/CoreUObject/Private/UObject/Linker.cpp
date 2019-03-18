@@ -716,7 +716,7 @@ FLinkerLoad* GetPackageLinker
 	if( !Result )
 	{
 		// @todo: RM so never create the context below?
-		check(InExistingContext && InExistingContext->HasStartedLoading());
+		//check(InExistingContext && InExistingContext->HasStartedLoading());
 
 		// we will already have found the filename above
 		check(NewFilename.Len() > 0);
