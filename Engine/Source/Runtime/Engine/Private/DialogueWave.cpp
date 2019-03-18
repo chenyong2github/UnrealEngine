@@ -453,6 +453,9 @@ void UDialogueSoundWaveProxy::Parse(class FAudioDevice* AudioDevice, const UPTRI
 	int OldWaveInstanceCount = WaveInstances.Num();
 	bool bHasSubtitles = (Subtitles.Num() > 0);
 
+	// Check if the wave instance exists before we try to add it...
+	const bool bWaveInstanceAlreadyExisted = (ActiveSound.WaveInstances.Contains(NodeWaveInstanceHash));
+
 	ActiveSound.bHasExternalSubtitles = bHasSubtitles; // Need to set this so the sound will virtualize when silent if necessary.
 	SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
 	int NewWaveInstanceCount = WaveInstances.Num();
@@ -464,9 +467,8 @@ void UDialogueSoundWaveProxy::Parse(class FAudioDevice* AudioDevice, const UPTRI
 	}
 
 	// Only Queue subtitles once per each playback of a wave instance
-	if (NewWaveInstance != nullptr && NewWaveInstance != CurrentWaveInstance)
+	if (NewWaveInstance != nullptr && !bWaveInstanceAlreadyExisted)
 	{
-		CurrentWaveInstance = NewWaveInstance;
 		// Add in the subtitle if they exist
 		if (ActiveSound.bHandleSubtitles && bHasSubtitles)
 		{
@@ -474,7 +476,7 @@ void UDialogueSoundWaveProxy::Parse(class FAudioDevice* AudioDevice, const UPTRI
 			{
 				QueueSubtitleParams.AudioComponentID = ActiveSound.GetAudioComponentID();
 				QueueSubtitleParams.WorldPtr = ActiveSound.GetWeakWorld();
-				QueueSubtitleParams.WaveInstance = (PTRINT)CurrentWaveInstance;
+				QueueSubtitleParams.WaveInstance = (PTRINT)NewWaveInstance;
 				QueueSubtitleParams.SubtitlePriority = ActiveSound.SubtitlePriority;
 				QueueSubtitleParams.Duration = GetDuration();
 				QueueSubtitleParams.bManualWordWrap = false;
