@@ -981,46 +981,49 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 		}
 		INC_FLOAT_STAT_BY(STAT_Navigation_CumulativeBuildTime,(float)ThisTime*1000);
 	}
-	
-	if (bGenerateNavigationOnlyAroundNavigationInvokers)
+		
+	DirtyAreasUpdateTime += DeltaSeconds;
+
+	if (IsNavigationBuildingLocked() == false)
 	{
-		UpdateInvokers();
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Navigation_TickMarkDirty);
-
-		DirtyAreasUpdateTime += DeltaSeconds;
-		const float DirtyAreasUpdateDeltaTime = 1.0f / DirtyAreasUpdateFreq;
-		const bool bCanRebuildNow = (DirtyAreasUpdateTime >= DirtyAreasUpdateDeltaTime) || !bIsGame;
-		const bool bIsLocked = IsNavigationBuildingLocked();
-
-		if (DirtyAreas.Num() > 0 && bCanRebuildNow && !bIsLocked)
+		if (bGenerateNavigationOnlyAroundNavigationInvokers)
 		{
-			for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
+			UpdateInvokers();
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Navigation_TickMarkDirty);
+
+			const float DirtyAreasUpdateDeltaTime = 1.0f / DirtyAreasUpdateFreq;
+			const bool bCanRebuildNow = (DirtyAreasUpdateTime >= DirtyAreasUpdateDeltaTime) || !bIsGame;
+
+			if (DirtyAreas.Num() > 0 && bCanRebuildNow)
 			{
-				ANavigationData* NavData = NavDataSet[NavDataIndex];
+				for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
+				{
+					ANavigationData* NavData = NavDataSet[NavDataIndex];
+					if (NavData)
+					{
+						NavData->RebuildDirtyAreas(DirtyAreas);
+					}
+				}
+
+				DirtyAreasUpdateTime = 0;
+				DirtyAreas.Reset();
+			}
+		}
+
+		// Tick navigation mesh async builders
+		if (bAsyncBuildPaused == false)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Navigation_TickAsyncBuild);
+
+			for (ANavigationData* NavData : NavDataSet)
+			{
 				if (NavData)
 				{
-					NavData->RebuildDirtyAreas(DirtyAreas);
+					NavData->TickAsyncBuild(DeltaSeconds);
 				}
-			}
-
-			DirtyAreasUpdateTime = 0;
-			DirtyAreas.Reset();
-		}
-	}
-
-	// Tick navigation mesh async builders
-	if (!bAsyncBuildPaused)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Navigation_TickAsyncBuild);
-
-		for (ANavigationData* NavData : NavDataSet)
-		{
-			if (NavData)
-			{
-				NavData->TickAsyncBuild(DeltaSeconds);
 			}
 		}
 	}
@@ -3300,6 +3303,13 @@ void UNavigationSystemV1::Build()
 
 	// make sure freshly created navigation instances are registered before we try to build them
 	ProcessRegistrationCandidates();
+	
+	// update invokers in case we're not updating navmesh automatically, in which case
+	// navigation generators wouldn't have up-to-date info.
+	if (bGenerateNavigationOnlyAroundNavigationInvokers)
+	{
+		UpdateInvokers();
+	}
 
 	// and now iterate through all registered and just start building them
 	RebuildAll();
@@ -4211,7 +4221,7 @@ void UNavigationSystemV1::UpdateInvokers()
 	const float CurrentTime = World->GetTimeSeconds();
 	if (CurrentTime >= NextInvokersUpdateTime)
 	{
-		TArray<FNavigationInvokerRaw> InvokerLocations;
+		InvokerLocations.Reset();
 
 		if (Invokers.Num() > 0)
 		{
