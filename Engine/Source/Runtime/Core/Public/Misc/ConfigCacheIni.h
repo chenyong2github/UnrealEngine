@@ -300,6 +300,10 @@ enum class EConfigFileHierarchy : uint8
 	GameDirDefault,
 	// Game/Config/DedicatedServer*.ini
 	GameDirDedicatedServer,
+	// Game/Config/NotForLicensees/DedicatedServer*.ini
+	GameDirDedicatedServer_NotForLicensees,
+	// Game/Config/NoRedist/DedicatedServer*.ini
+	GameDirDedicatedServer_NoRedist,
 	// Game/Config/NotForLicensees/*.ini
 	GameDirDefault_NotForLicensees,
 	// Game/Config/NoRedist*.ini
