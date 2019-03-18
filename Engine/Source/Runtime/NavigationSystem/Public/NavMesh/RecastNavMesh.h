@@ -888,8 +888,8 @@ public:
 	bool ShouldGatherDataOnGameThread() const { return bDoFullyAsyncNavDataGathering == false; }
 	int32 GetTileNumberHardLimit() const { return TileNumberHardLimit; }
 
-	void UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& InvokerLocations);
-	void RemoveTiles(const TArray<FIntPoint>& Tiles);
+	virtual void UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& InvokerLocations);
+	virtual void RemoveTiles(const TArray<FIntPoint>& Tiles);
 	void RebuildTile(const TArray<FIntPoint>& Tiles);
 
 protected:
