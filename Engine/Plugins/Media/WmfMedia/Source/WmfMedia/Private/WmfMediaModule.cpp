@@ -69,6 +69,11 @@ public:
 
 	//~ IWmfMediaModule interface
 
+	virtual bool IsInitialized() const override
+	{
+		return Initialized;
+	}
+
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventSink) override
 	{
 #if WMFMEDIA_SUPPORTED_PLATFORM
