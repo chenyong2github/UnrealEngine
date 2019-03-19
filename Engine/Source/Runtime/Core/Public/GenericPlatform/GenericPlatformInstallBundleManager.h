@@ -50,6 +50,7 @@ enum class EInstallBundleModuleInitResult : int
 	DistributionRootDownloadError,
 	ManifestCreationError,
 	ManifestDownloadError,
+	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
 	Count
 };
@@ -66,6 +67,7 @@ inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleI
 		TEXT("DistributionRootDownloadError"),
 		TEXT("ManifestCreationError"),
 		TEXT("ManifestDownloadError"),
+		TEXT("BackgroundDownloadsIniDownloadError"),
 		TEXT("NoInternetConnectionError"),
 	};
 	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == ARRAY_COUNT(Strings), "");
@@ -143,9 +145,9 @@ enum class EInstallBundleRequestInfoFlags : int32
 	EnqueuedBundlesForRemoval		= (1 << 1),
 	SkippedAlreadyMountedBundles	= (1 << 2),
 	SkippedBundlesQueuedForRemoval	= (1 << 3),
-	SkippedBundlesQueuedForInstall  = (1 << 5), // Only valid for removal requests
-	SkippedUnknownBundles			= (1 << 6),
-	InitializationError				= (1 << 7), // Can't enqueue because the bundle manager failed to initialize
+	SkippedBundlesQueuedForInstall  = (1 << 4), // Only valid for removal requests
+	SkippedUnknownBundles			= (1 << 5),
+	InitializationError				= (1 << 6), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -155,6 +157,13 @@ struct FInstallBundleRequestInfo
 	TArray<FName> BundlesQueuedForInstall;
 	TArray<FName> BundlesQueuedForRemoval;
 };
+
+enum class EInstallBundleCancelFlags : int32
+{
+	None		= 0,
+	Resumable	= (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
 
 enum class EInstallBundleManagerInitErrorHandlerResult
 {
@@ -195,11 +204,15 @@ public:
 
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
 
-	virtual void CancelBundle(FName BundleName) = 0;
+	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
+
+	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
 
 	virtual bool IsNullInterface() const = 0;
+
+	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface

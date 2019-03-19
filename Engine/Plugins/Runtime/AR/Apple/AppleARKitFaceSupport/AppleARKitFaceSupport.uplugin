@@ -13,6 +13,9 @@
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"EnabledByDefault": false,
+	"SupportedTargetPlatforms" : [
+		"IOS"
+	],
 	"Modules":
 	[
 		{
