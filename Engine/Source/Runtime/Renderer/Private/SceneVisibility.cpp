@@ -2918,6 +2918,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 		if (ViewState)
 		{
+			check(View.bViewStateIsReadOnly);
+			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies;
+
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
 		}
 
@@ -3055,13 +3058,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				View.ViewMatrices.HackAddTemporalAAProjectionJitter(FVector2D(SampleX * 2.0f / View.ViewRect.Width(), SampleY * -2.0f / View.ViewRect.Height()));
 			}
 		}
-		else if(ViewState)
+		else if(ViewState && !View.bViewStateIsReadOnly)
 		{
 			// no TemporalAA
 			ViewState->OnFrameRenderingSetup(1, ViewFamily);
 
 			ViewState->PrevFrameViewInfo.TemporalAAHistory.SafeRelease();
-			ViewState->PendingPrevFrameViewInfo.TemporalAAHistory.SafeRelease();
 		}
 
 		// Setup a new FPreviousViewInfo from current frame infos.
@@ -3072,27 +3074,66 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 		if ( ViewState )
 		{
-			if (!ViewFamily.EngineShowFlags.HitProxies)
-			{
-				// If world is not pause, commit pending previous frame info to ViewState.
-				if (!ViewFamily.bWorldIsPaused)
-				{
-					ViewState->PrevFrameViewInfo = ViewState->PendingPrevFrameViewInfo;
-				}
-
-				// Setup new PendingPrevFrameViewInfo for next frame.
-				ViewState->PendingPrevFrameViewInfo = NewPrevViewInfo;
-			}
-
 			// update previous frame matrices in case world origin was rebased on this frame
 			if (!View.OriginOffsetThisFrame.IsZero())
 			{
 				ViewState->PrevFrameViewInfo.ViewMatrices.ApplyWorldOffset(View.OriginOffsetThisFrame);
 			}
-			
+
 			// determine if we are initializing or we should reset the persistent state
 			const float DeltaTime = View.Family->CurrentRealTime - ViewState->LastRenderTime;
 			const bool bFirstFrameOrTimeWasReset = DeltaTime < -0.0001f || ViewState->LastRenderTime < 0.0001f;
+			const bool bIsLargeCameraMovement = IsLargeCameraMovement(
+				View,
+				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(),
+				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
+				45.0f, 10000.0f);
+			const bool bResetCamera = (bFirstFrameOrTimeWasReset || View.bCameraCut || bIsLargeCameraMovement);
+			
+#if RHI_RAYTRACING
+			const bool bInvalidatePathTracer = View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing &&
+			(
+				bResetCamera ||
+				Scene->bPathTracingNeedsInvalidation ||
+				View.ViewRect != ViewState->PathTracingRect ||
+				IsLargeCameraMovement(
+					View, ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(), 
+					ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(), 
+					0.1f, 0.1f)
+			);
+
+			if (bInvalidatePathTracer)
+			{
+				ViewState->PathTracingIrradianceRT.SafeRelease();
+				ViewState->PathTracingSampleCountRT.SafeRelease();
+				ViewState->VarianceMipTreeDimensions = FIntVector(0);
+				ViewState->PathTracingRect = View.ViewRect;
+				ViewState->TotalRayCount = 0;
+				Scene->bPathTracingNeedsInvalidation = false;
+			}
+#endif // RHI_RAYTRACING
+
+			if (bResetCamera)
+			{
+				View.PrevViewInfo = NewPrevViewInfo;
+
+				// PT: If the motion blur shader is the last shader in the post-processing chain then it is the one that is
+				//     adjusting for the viewport offset.  So it is always required and we can't just disable the work the
+				//     shader does.  The correct fix would be to disable the effect when we don't need it and to properly mark
+				//     the uber-postprocessing effect as the last effect in the chain.
+
+				View.bPrevTransformsReset = true;
+			}
+			else
+			{
+				View.PrevViewInfo = ViewState->PrevFrameViewInfo;
+			}
+
+			// Replace previous view info of the view state with this frame, clearing out references over render target.
+			if (!View.bViewStateIsReadOnly)
+			{
+				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
+			}
 
 			// detect conditions where we should reset occlusion queries
 			if (bFirstFrameOrTimeWasReset || 
@@ -3121,49 +3162,26 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			ViewState->PrevViewOriginForOcclusionQuery = View.ViewMatrices.GetViewOrigin();
 				
 			// store old view matrix and detect conditions where we should reset motion blur 
+#if RHI_RAYTRACING
 			{
-				bool bResetCamera = bFirstFrameOrTimeWasReset
-					|| View.bCameraCut
-					|| IsLargeCameraMovement(View, ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(), ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(), 45.0f, 10000.0f)
-#if RHI_RAYTRACING
-					|| (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing && IsLargeCameraMovement(View, ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(), ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(), 0.1f, 0.1f))
-#endif // RHI_RAYTRACING
-					;
-
-				if (bResetCamera)
+				if (bResetCamera || IsLargeCameraMovement(View, ViewState->PrevFrameViewInfo.ViewMatrices.GetViewMatrix(), ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(), 0.1f, 0.1f))
 				{
-					View.PrevViewInfo = NewPrevViewInfo;
-					ViewState->PrevFrameViewInfo = NewPrevViewInfo;
-
-					// PT: If the motion blur shader is the last shader in the post-processing chain then it is the one that is
-					//     adjusting for the viewport offset.  So it is always required and we can't just disable the work the
-					//     shader does.  The correct fix would be to disable the effect when we don't need it and to properly mark
-					//     the uber-postprocessing effect as the last effect in the chain.
-
-					View.bPrevTransformsReset = true;
-
-#if RHI_RAYTRACING
-					ViewState->PathTracingIrradianceRT.SafeRelease();
-					ViewState->PathTracingSampleCountRT.SafeRelease();
-					ViewState->VarianceMipTreeDimensions = FIntVector(0);
-					ViewState->TotalRayCount = 0;
-#endif // RHI_RAYTRACING
+					ViewState->RayTracingNumIterations = 1;
 				}
 				else
 				{
-					View.PrevViewInfo = ViewState->PrevFrameViewInfo;
-				}
-
-				// we don't use DeltaTime as it can be 0 (in editor) and is computed by subtracting floats (loses precision over time)
-				// Clamp DeltaWorldTime to reasonable values for the purposes of motion blur, things like TimeDilation can make it very small
-				if (!ViewFamily.bWorldIsPaused)
-				{
-					const bool bEnableTimeScale = !ViewState->bSequencerIsPaused;
-					const float FixedBlurTimeScale = 2.0f;// 1 / (30 * 1 / 60)
-
-					ViewState->MotionBlurTimeScale = bEnableTimeScale ? (1.0f / (FMath::Max(View.Family->DeltaWorldTime, .00833f) * 30.0f)) : FixedBlurTimeScale;
+					ViewState->RayTracingNumIterations++;
 				}
 			}
+#endif // RHI_RAYTRACING
+
+			// we don't use DeltaTime as it can be 0 (in editor) and is computed by subtracting floats (loses precision over time)
+			// Clamp DeltaWorldTime to reasonable values for the purposes of motion blur, things like TimeDilation can make it very small
+			if (!ViewFamily.bWorldIsPaused)
+			{
+				ViewState->UpdateMotionBlurTimeScale(View);
+			}
+			
 
 			ViewState->PrevFrameNumber = ViewState->PendingPrevFrameNumber;
 			ViewState->PendingPrevFrameNumber = View.Family->FrameNumber;
@@ -3192,6 +3210,43 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 		DitherUniformShaderParameters.LODFactor = View.GetTemporalLODTransition() - 1.0f;
 		View.DitherFadeInUniformBuffer = FDitherUniformBufferRef::CreateUniformBufferImmediate(DitherUniformShaderParameters, UniformBuffer_SingleFrame);
 	}
+}
+
+void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
+{
+	const int32 MotionBlurTargetFPS = View.FinalPostProcessSettings.MotionBlurTargetFPS;
+
+	// Frame rates over 120 FPS are clamped to avoid creating huge motion vectors.
+	float DeltaWorldTime = FMath::Max(View.Family->DeltaWorldTime, 1.0f / 120.0f);
+
+	// Track the current FPS by using an exponential moving average of the current delta time.
+	if (MotionBlurTargetFPS <= 0)
+	{
+		// Keep motion vector lengths stable for paused sequencer frames.
+		if (bSequencerIsPaused)
+		{
+			// Reset the moving average to the current delta time.
+			MotionBlurTargetDeltaTime = DeltaWorldTime;
+		}
+		else
+		{
+			// Smooth the target delta time using a moving average.
+			MotionBlurTargetDeltaTime = FMath::Lerp(MotionBlurTargetDeltaTime, DeltaWorldTime, 0.1f);
+		}
+	}
+	else // Track a fixed target FPS.
+	{
+		// Keep motion vector lengths stable for paused sequencer frames. Assumes a 60 FPS tick.
+		// Tuned for content compatibility with existing content when target is the default 30 FPS.
+		if (bSequencerIsPaused)
+		{
+			DeltaWorldTime = 1.0f / 60.0f;
+		}
+
+		MotionBlurTargetDeltaTime = 1.0f / static_cast<float>(MotionBlurTargetFPS);
+	}
+
+	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaWorldTime;
 }
 
 static TAutoConsoleVariable<int32> CVarAlsoUseSphereForFrustumCull(
@@ -3359,6 +3414,19 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 	const bool bIsInstancedStereo = (Views.Num() > 0) ? (Views[0].IsInstancedStereoPass() || Views[0].bIsMobileMultiViewEnabled) : false;
 	UpdateReflectionSceneData(Scene);
+
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshesWithoutVisibilityCheck);
+
+		Scene->ConditionalMarkStaticMeshElementsForUpdate();
+
+		for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck); It; ++It)
+		{
+			FPrimitiveSceneInfo* Primitive = *It;
+			Primitive->ConditionalUpdateStaticMeshes(RHICmdList);
+		}
+		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
+	}
 
 	uint8 ViewBit = 0x1;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex, ViewBit <<= 1)
@@ -3577,7 +3645,6 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshes);
-			Scene->ConditionalMarkStaticMeshElementsForUpdate();
 
 			for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdate); It; ++It)
 			{
@@ -3762,16 +3829,16 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 			{
 				VisibleLightViewInfo.bInViewFrustum = true;
 
-				static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-				bool bNotMobileMSAA = !(CVarMobileMSAA ? CVarMobileMSAA->GetValueOnRenderThread() > 1 : false);
+				static const auto MobileMSAAVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
+				bool bNotMobileMSAA = !(MobileMSAAVar ? MobileMSAAVar->GetValueOnRenderThread() > 1 : false);
 
 				// Setup single sun-shaft from direction lights for mobile.
 				if(bCheckLightShafts && LightSceneInfo->bEnableLightShaftBloom)
 				{
 					// Find directional light for sun shafts.
 					// Tweaked values from UE3 implementation.
-					const float PointLightFadeDistanceIncrease = 200.0f;
-					const float PointLightRadiusFadeFactor = 5.0f;
+					extern const float PointLightFadeDistanceIncrease;
+					extern const float PointLightRadiusFadeFactor;
 
 					const FVector WorldSpaceBlurOrigin = LightSceneInfo->Proxy->GetPosition();
 					// Transform into post projection space
@@ -3981,6 +4048,9 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 				View.ForwardLightingResources = View.ForwardLightingResourcesStorage.Get();
 			}
 
+#if RHI_RAYTRACING
+			View.IESLightProfileResource = View.ViewState ? &View.ViewState->IESLightProfileResources : nullptr;
+#endif
 			// Set the pre-exposure before initializing the constant buffers.
 			if (View.ViewState)
 			{

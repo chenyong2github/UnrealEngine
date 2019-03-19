@@ -5,6 +5,7 @@
 #include "Engine/TextureLightProfile.h"
 
 UDatasmithAreaLightActorTemplate::UDatasmithAreaLightActorTemplate()
+	: UDatasmithObjectTemplate(true)
 {
 	Load( ADatasmithAreaLightActor::StaticClass()->GetDefaultObject() );
 }
@@ -38,8 +39,6 @@ void UDatasmithAreaLightActorTemplate::Apply( UObject* Destination, bool bForce 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( AttenuationRadius, AreaLightActor, PreviousTemplate );
 
 	FDatasmithObjectTemplateUtils::SetObjectTemplate( AreaLightActor->GetRootComponent(), this );
-	AreaLightActor->RerunConstructionScripts();
-
 #endif // #if WITH_EDITORONLY_DATA
 }
 

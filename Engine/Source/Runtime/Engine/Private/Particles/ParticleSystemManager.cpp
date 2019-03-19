@@ -462,6 +462,7 @@ FORCEINLINE void FParticleSystemWorldManager::FlushAsyncTicks(const FGraphEventR
 {
 	if (AsyncTickBatch.Num() > 0)
 	{
+		LLM_SCOPE(ELLMTag::Particles);
 		FGraphEventRef AsyncTask = TGraphTask<FParticleManagerAsyncTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this, AsyncTickBatch);
 
 #if PSC_MAN_TG_WAIT_FOR_ASYNC

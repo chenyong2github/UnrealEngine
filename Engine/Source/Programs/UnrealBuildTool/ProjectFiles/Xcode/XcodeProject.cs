@@ -133,16 +133,23 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InitFilePath">The path to the project file on disk</param>
 		/// <param name="InOnlyGameProject"></param>
-		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject)
+		/// <param name="IsForDistribution">True for distribution builds</param>
+		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution)
 			: base(InitFilePath)
 		{
 			OnlyGameProject = InOnlyGameProject;
+			bForDistribution = IsForDistribution;
 		}
 
 		public override string ToString()
 		{
 			return ProjectFilePath.GetFileNameWithoutExtension();
 		}
+
+		/// <summary>
+		///  Used to mark the project for distribution (some platforms require this)
+		/// </summary>
+		bool bForDistribution = false;
 
 		/// <summary>
 		/// Gets Xcode file category based on its extension
@@ -333,64 +340,6 @@ namespace UnrealBuildTool
 			}
 
 			PBXFileReferenceSection.Append(string.Format("\t\t{0} /* {1} */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; path = {1}; sourceTree = BUILT_PRODUCTS_DIR; }};" + ProjectFileGenerator.NewLine, TargetAppGuid, TargetName));
-		}
-
-
-		private void GenerateSectionsWithFrameworks(StringBuilder PBXBuildFileSection, StringBuilder PBXFileReferenceSection, StringBuilder PBXCopyFilesBuildPhaseSection, FileReference UProjectPath)
-		{
-			if (UProjectPath != null)
-			{
-				// @todo: look also in Project/Build/Frameworks directory!
-
-				ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
-				List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, UProjectPath, Project.AdditionalPluginDirectories);
-
-				// look in each plugin for frameworks
-				// @todo: Cache this kind of things since every target will re-do this work!
-				foreach (PluginInfo PI in AvailablePlugins)
-				{
-					if (!Plugins.IsPluginEnabledForProject(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
-					{
-						continue;
-					}
-
-					// for now, we copy and code sign all frameworks, even if the have no code
-					DirectoryReference FrameworkDir = DirectoryReference.Combine(PI.Directory, "Source/Frameworks");
-					if (!DirectoryReference.Exists(FrameworkDir))
-					{
-						FrameworkDir = DirectoryReference.Combine(PI.Directory, "Frameworks");
-					}
-					if (DirectoryReference.Exists(FrameworkDir))
-					{
-						// look at each zip
-						foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.zip"))
-						{
-							string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
-							string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-
-							// for FI of foo.framework.zip, this will give us foo.framework
-							string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
-
-							// hunt down in subdirectories for 
-							string FrameworkPath = Path.Combine("../../../Engine/Intermediate/UnzippedFrameworks", PI.Name, "Frameworks", Framework);
-
-							Console.WriteLine("  Plugin {0} has framework {1}, reading from intermediate location {2}!", PI.Name, FI, FrameworkPath);
-
-							PBXBuildFileSection.Append(string.Format("\t\t{0} /* {1} in Embed Frameworks */ = {{isa = PBXBuildFile; fileRef = {2} /* {1} */; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};" + ProjectFileGenerator.NewLine,
-								Guid,
-								Framework,
-								RefGuid));
-
-							PBXFileReferenceSection.Append(string.Format("\t\t{0} /* {1} */ = {{isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = \"{1}\"; path = \"{2}\"; sourceTree = SOURCE_ROOT; }};" + ProjectFileGenerator.NewLine,
-								RefGuid,
-								Framework,
-								FrameworkPath));
-
-							PBXCopyFilesBuildPhaseSection.Append("\t\t\t\t" + Guid + " /* " + Framework + " in Embed Frameworks */," + ProjectFileGenerator.NewLine);
-						}
-					}
-				}
-			}
 		}
 
 		private void GenerateSectionsWithExtensions(StringBuilder PBXBuildFileSection, StringBuilder PBXFileReferenceSection, StringBuilder PBXCopyFilesBuildPhaseSection, StringBuilder PBXResourcesBuildPhaseSection,
@@ -593,23 +542,6 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		private void AppendCopyFrameworksBuildPhaseSection(StringBuilder Content, StringBuilder SectionContent, string CopyFilesBuildPhaseGuid)
-		{
-			Content.Append("/* Begin PBXCopyFilesBuildPhase section */" + ProjectFileGenerator.NewLine);
-			Content.Append(string.Format("\t{0} /* Embed Frameworks */ = {{{1}", CopyFilesBuildPhaseGuid, ProjectFileGenerator.NewLine));
-			Content.Append("\t\tisa = PBXCopyFilesBuildPhase;" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\tbuildActionMask = 2147483647;" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\tdstPath = \"\";" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\tdstSubfolderSpec = 10;" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\tfiles = (" + ProjectFileGenerator.NewLine);
-			Content.Append(SectionContent);
-			Content.Append("\t\t);" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\tname = \"Embed Frameworks\";" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\trunOnlyForDeploymentPostprocessing = 0;" + ProjectFileGenerator.NewLine);
-			Content.Append("\t};" + ProjectFileGenerator.NewLine);
-			Content.Append("/* End PBXCopyFilesBuildPhase section */" + ProjectFileGenerator.NewLine);
-		}
-
 		private void AppendCopyExtensionsBuildPhaseSection(StringBuilder Content, StringBuilder SectionContent, string CopyFilesBuildPhaseGuid)
 		{
 			Content.Append("/* Begin PBXCopyFilesBuildPhase section */" + ProjectFileGenerator.NewLine);
@@ -705,7 +637,8 @@ namespace UnrealBuildTool
 			Content.Append("/* End PBXLegacyTarget section */" + ProjectFileGenerator.NewLine + ProjectFileGenerator.NewLine);
 		}
 
-		private void AppendRunTargetSection(StringBuilder Content, string TargetName, string TargetGuid, string TargetBuildConfigGuid, string TargetDependencyGuid, string TargetAppGuid, string CopyFrameworksBuildPhaseGuid, string CopyExtensionsBuildPhaseGuid, List<XcodeExtensionInfo> AllExtensions)
+		private void AppendRunTargetSection(StringBuilder Content, string TargetName, string TargetGuid, string TargetBuildConfigGuid, string TargetDependencyGuid, 
+				string TargetAppGuid, string CopyExtensionsBuildPhaseGuid, string ShellScriptSectionGuid, List<XcodeExtensionInfo> AllExtensions)
 		{
 			List<string> DependencyGuids = new List<string>();
 			// depends on the Run target if we want one
@@ -721,13 +654,13 @@ namespace UnrealBuildTool
 
 			Dictionary<string, string> BuildPhases = new Dictionary<string, string>();
 			// add optional build phases
-			if (!string.IsNullOrEmpty(CopyFrameworksBuildPhaseGuid))
-			{
-				BuildPhases.Add(CopyFrameworksBuildPhaseGuid, "Embed Frameworks");
-			}
 			if (!string.IsNullOrEmpty(CopyExtensionsBuildPhaseGuid))
 			{
 				BuildPhases.Add(CopyExtensionsBuildPhaseGuid, "Embed App Extensions");
+			}
+			if (!string.IsNullOrEmpty(ShellScriptSectionGuid))
+			{
+				BuildPhases.Add(ShellScriptSectionGuid, "Shell Script");
 			}
 
 			// use generica target section function for an application type
@@ -790,6 +723,83 @@ namespace UnrealBuildTool
 			Content.Append("/* End PBXNativeTarget section */" + ProjectFileGenerator.NewLine + ProjectFileGenerator.NewLine);
 		}
 
+		private void AppendShellScriptSection(StringBuilder Content, string ShellScriptGuid, FileReference UProjectPath)
+		{
+			StringBuilder FrameworkScript = new StringBuilder();
+
+			// nothing to do without a project
+			if (UProjectPath == null)
+			{
+				return;
+			}
+			
+			// @todo: look also in Project/Build/Frameworks directory!
+			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
+			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(UnrealBuildTool.EngineDirectory, UProjectPath, Project.AdditionalPluginDirectories);
+
+			// look in each plugin for frameworks
+			// @todo: Cache this kind of things since every target will re-do this work!
+			foreach (PluginInfo PI in AvailablePlugins)
+			{
+				if (!Plugins.IsPluginEnabledForProject(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
+				{
+					continue;
+				}
+
+				// for now, we copy and code sign all *.framework.zip, even if the have no code (non-code frameworks are assumed to be *.embeddedframework.zip
+				DirectoryReference FrameworkDir = DirectoryReference.Combine(PI.Directory, "Source/Frameworks");
+				if (!DirectoryReference.Exists(FrameworkDir))
+				{
+					FrameworkDir = DirectoryReference.Combine(PI.Directory, "Frameworks");
+				}
+				if (DirectoryReference.Exists(FrameworkDir))
+				{
+					// look at each zip
+					foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.framework.zip"))
+					{
+						string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
+						string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+
+						// for FI of foo.framework.zip, this will give us foo.framework
+						string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
+
+						// unzip the framework right into the .app
+						FrameworkScript.AppendFormat("\\techo Unzipping {0}...\\n", FI.FullName);
+						FrameworkScript.AppendFormat("\\tunzip -o -q {0} -d ${{FRAMEWORK_DIR}} -x \\\"__MACOSX/*\\\" \\\"*/.DS_Store\\\"\\n", FI.FullName);
+					}
+				}
+			}
+
+			string ShellScript = "set -e\\n\\n" +
+				"if [ $PLATFORM_NAME = iphoneos ] || [ $PLATFORM_NAME = tvos ]; then \\n" +
+				"\\tFRAMEWORK_DIR=$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/Frameworks\\n" +
+				FrameworkScript.ToString() + 
+				// and now code sign anything that has been unzipped above
+				"\\tfor FRAMEWORK in ${FRAMEWORK_DIR}/*.framework; do\\n" +
+					"\\t\\t[ -d \\\"${FRAMEWORK}\\\" ] || continue\\n" +
+					"\\t\\techo Codesigning ${FRAMEWORK}\\n" +
+					"\\t\\tcodesign --force --sign ${EXPANDED_CODE_SIGN_IDENTITY} --verbose --preserve-metadata=identifier,entitlements,flags --timestamp=none \\\"${FRAMEWORK}\\\"\\n" +
+				"\\tdone\\n" +
+				"fi\\n";
+
+			Content.Append("/* Begin PBXShellScriptBuildPhase section */" + ProjectFileGenerator.NewLine);
+			Content.Append(string.Format("\t\t{0} /* Sign Frameworks */ = {{" + ProjectFileGenerator.NewLine, ShellScriptGuid));
+			Content.Append("\t\t\tisa = PBXShellScriptBuildPhase;" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tbuildActionMask = 2147483647;" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tfiles = (" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\t);" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tinputPaths = (" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\t);" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\toutputPaths = (" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\t);" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tname = \"Sign Manual Frameworks\";" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\trunOnlyForDeploymentPostprocessing = 0;" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tshellPath = /bin/sh;" + ProjectFileGenerator.NewLine);
+			Content.Append(string.Format("\t\t\tshellScript = \"{0}\";" + ProjectFileGenerator.NewLine, ShellScript));
+			Content.Append("\t\t};" + ProjectFileGenerator.NewLine);
+			Content.Append("/* End PBXShellScriptBuildPhase section */" + ProjectFileGenerator.NewLine);
+		}
+
 		private void AppendExtensionTargetSections(StringBuilder ProjectFileContent, List<XcodeExtensionInfo> AllExtensions)
 		{
 			foreach (XcodeExtensionInfo EI in AllExtensions)
@@ -825,7 +835,7 @@ namespace UnrealBuildTool
 			{
 				TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 				TVOSProjectSettings ProjectSettings = TVOSPlatform.ReadProjectSettings(ProjectFile);
-				TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings);
+				TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 				bAutomaticSigning = ProjectSettings.bAutomaticSigning;
 			}
 
@@ -977,7 +987,7 @@ namespace UnrealBuildTool
                 {
 					IOSPlatform IOSPlatform = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS));
 					IOSProjectSettings ProjectSettings = IOSPlatform.ReadProjectSettings(ProjectFile);
-					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings);
+					IOSProvisioningData ProvisioningData = IOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					IOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					IOSRunTimeDevices = ProjectSettings.RuntimeDevices;
 					ValidArchs += " arm64 armv7 armv7s";
@@ -996,7 +1006,7 @@ namespace UnrealBuildTool
 				{
 					TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 					TVOSProjectSettings ProjectSettings = TVOSPlatform.ReadProjectSettings(ProjectFile);
-					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings);
+					TVOSProvisioningData ProvisioningData = TVOSPlatform.ReadProvisioningData(ProjectSettings, bForDistribution);
 					TVOSRunTimeVersion = ProjectSettings.RuntimeVersion;
 					TVOSRunTimeDevices = ProjectSettings.RuntimeDevices;
 					if (!ValidArchs.Contains("arm64"))
@@ -1719,8 +1729,9 @@ namespace UnrealBuildTool
 			string MainGroupGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string ProductRefGroupGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string SourcesBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-			string CopyFrameworksBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 			string CopyExtensionsBuildPhaseGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+			string ShellScriptSectionGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+
 
 			// Figure out all the desired configurations
 			List<XcodeBuildConfig> BuildConfigs = GetSupportedBuildConfigs(InPlatforms, InConfigurations, PlatformProjectGenerators);
@@ -1761,12 +1772,10 @@ namespace UnrealBuildTool
 			StringBuilder PBXBuildFileSection = new StringBuilder();
 			StringBuilder PBXFileReferenceSection = new StringBuilder();
 			StringBuilder PBXSourcesBuildPhaseSection = new StringBuilder();
-			StringBuilder PBXCopyFrameworksBuildPhaseSection = new StringBuilder();
 			StringBuilder PBXCopyExtensionsBuildPhaseSection = new StringBuilder();
 			StringBuilder PBXResourcesBuildPhaseSection = new StringBuilder();
 			List<XcodeExtensionInfo> AllExtensions = new List<XcodeExtensionInfo>();
 			GenerateSectionsWithSourceFiles(PBXBuildFileSection, PBXFileReferenceSection, PBXSourcesBuildPhaseSection, TargetAppGuid, TargetName);
-			GenerateSectionsWithFrameworks(PBXBuildFileSection, PBXFileReferenceSection, PBXCopyFrameworksBuildPhaseSection, GameProjectPath);
 			GenerateSectionsWithExtensions(PBXBuildFileSection, PBXFileReferenceSection, PBXCopyExtensionsBuildPhaseSection, PBXResourcesBuildPhaseSection, AllExtensions, GameProjectPath, BuildConfigs);
 
 			StringBuilder ProjectFileContent = new StringBuilder();
@@ -1782,7 +1791,6 @@ namespace UnrealBuildTool
 			AppendBuildFileSection(ProjectFileContent, PBXBuildFileSection);
 			AppendFileReferenceSection(ProjectFileContent, PBXFileReferenceSection);
 			AppendSourcesBuildPhaseSection(ProjectFileContent, PBXSourcesBuildPhaseSection, SourcesBuildPhaseGuid);
-			AppendCopyFrameworksBuildPhaseSection(ProjectFileContent, PBXCopyFrameworksBuildPhaseSection, CopyFrameworksBuildPhaseGuid);
 			AppendCopyExtensionsBuildPhaseSection(ProjectFileContent, PBXCopyExtensionsBuildPhaseSection, CopyExtensionsBuildPhaseGuid);
 			ProjectFileContent.Append(PBXResourcesBuildPhaseSection);
 			AppendContainerItemProxySection(ProjectFileContent, BuildTargetName, BuildTargetGuid, TargetProxyGuid, ProjectGuid);
@@ -1797,13 +1805,14 @@ namespace UnrealBuildTool
 			}
 			AppendGroupSection(ProjectFileContent, MainGroupGuid, ProductRefGroupGuid, TargetAppGuid, TargetName, AllExtensions);
 			AppendLegacyTargetSection(ProjectFileContent, BuildTargetName, BuildTargetGuid, BuildTargetConfigListGuid, GameProjectPath, bHasEditorConfiguration);
-			AppendRunTargetSection(ProjectFileContent, TargetName, TargetGuid, TargetConfigListGuid, TargetDependencyGuid, TargetAppGuid, CopyFrameworksBuildPhaseGuid, CopyExtensionsBuildPhaseGuid, AllExtensions);
+			AppendRunTargetSection(ProjectFileContent, TargetName, TargetGuid, TargetConfigListGuid, TargetDependencyGuid, TargetAppGuid, CopyExtensionsBuildPhaseGuid, ShellScriptSectionGuid, AllExtensions);
 			AppendIndexTargetSection(ProjectFileContent, IndexTargetName, IndexTargetGuid, IndexTargetConfigListGuid, SourcesBuildPhaseGuid);
 			AppendExtensionTargetSections(ProjectFileContent, AllExtensions);
 			AppendProjectSection(ProjectFileContent, TargetName, TargetGuid, BuildTargetName, BuildTargetGuid, IndexTargetName, IndexTargetGuid, MainGroupGuid, ProductRefGroupGuid, ProjectGuid, ProjectConfigListGuid, GameProjectPath, AllExtensions);
 			AppendXCBuildConfigurationSection(ProjectFileContent, ProjectBuildConfigs, TargetBuildConfigs, BuildTargetBuildConfigs, IndexTargetBuildConfigs, GameProjectPath, AllExtensions);
 			AppendXCConfigurationListSection(ProjectFileContent, TargetName, BuildTargetName, IndexTargetName, ProjectConfigListGuid, ProjectBuildConfigs,
 				TargetConfigListGuid, TargetBuildConfigs, BuildTargetConfigListGuid, BuildTargetBuildConfigs, IndexTargetConfigListGuid, IndexTargetBuildConfigs, AllExtensions);
+			AppendShellScriptSection(ProjectFileContent, ShellScriptSectionGuid, GameProjectPath);
 
 			ProjectFileContent.Append("\t};" + ProjectFileGenerator.NewLine);
 			ProjectFileContent.Append("\trootObject = " + ProjectGuid + " /* Project object */;" + ProjectFileGenerator.NewLine);

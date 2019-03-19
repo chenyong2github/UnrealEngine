@@ -11,6 +11,7 @@
 #include "SceneCore.h"
 #include "VelocityRendering.h"
 #include "ScenePrivate.h"
+#include "RayTracing/RayTracingMaterialHitShaders.h"
 
 /** An implementation of FStaticPrimitiveDrawInterface that stores the drawn elements for the rendering thread to use. */
 class FBatchingSPDI : public FStaticPrimitiveDrawInterface
@@ -120,10 +121,12 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIsVisibleInReflectionCaptures(InComponent->SceneProxy->IsVisibleInReflectionCaptures()),
 	bIsRayTracingRelevant(InComponent->SceneProxy->IsRayTracingRelevant()),
 	bIsRayTracingStaticRelevant(InComponent->SceneProxy->IsRayTracingStaticRelevant()),
+	bIsVisibleInRayTracing(InComponent->SceneProxy->IsVisibleInRayTracing()),
 #endif
 	PackedIndex(INDEX_NONE),
 	ComponentForDebuggingOnly(InComponent),
 	bNeedsStaticMeshUpdate(false),
+	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
 	LightmapDataOffset(INDEX_NONE),
@@ -198,6 +201,25 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 			++MeshWithCachedCommandsNum;
 		}
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		int MaxLOD = -1;
+
+		for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
+		{
+			FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
+			MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
+		}
+
+		if (StaticMeshes.Num() > 0)
+		{
+			CachedRayTracingMeshCommandIndicesPerLOD.Empty(MaxLOD + 1);
+			CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(MaxLOD + 1);
+		}
+	}
+#endif
 
 	if (MeshWithCachedCommandsNum > 0)
 	{
@@ -282,6 +304,19 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 						}
 					}
 				}
+
+			#if RHI_RAYTRACING
+				if (IsRayTracingEnabled())
+				{
+					FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
+					FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr);
+
+					check(!Mesh.bRequiresPerElementVisibility);
+					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, Proxy);
+					
+					CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
+				}
+			#endif
 			}
 		}
 	}
@@ -321,6 +356,7 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 			// Track the lowest index that might be free for faster AddAtLowestFreeIndex
 			PassDrawList.LowestFreeIndexSearchStart = FMath::Min(PassDrawList.LowestFreeIndexSearchStart, CachedCommand.CommandIndex);
 		}
+
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex < StaticMeshRelevances.Num(); ++MeshIndex)
@@ -332,6 +368,24 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 	}
 
 	StaticMeshCommandInfos.Empty();
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		for (auto& CachedRayTracingMeshCommandIndices : CachedRayTracingMeshCommandIndicesPerLOD)
+		{
+			for (auto CommandIndex : CachedRayTracingMeshCommandIndices)
+			{
+				if (CommandIndex >= 0)
+				{
+					Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands.RemoveAt(CommandIndex);
+				}
+			}
+		}
+
+		CachedRayTracingMeshCommandIndicesPerLOD.Empty();
+	}
+#endif
 }
 
 void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, bool bAddToStaticDrawLists)
@@ -368,54 +422,7 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	{
 		CacheMeshDrawCommands(RHICmdList);
 	}
-
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
-	{
-		UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
-	}
-#endif // RHI_RAYTRACING
 }
-
-#if RHI_RAYTRACING
-void FPrimitiveSceneInfo::UpdateRayTracingLodIndexToMeshDrawCommandIndicies()
-{
-	int MaxLOD = -1;
-
-	for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
-	{
-		FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
-		MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
-	}
-
-	if (StaticMeshes.Num() > 0)
-	{
-		RayTracingLodIndexToMeshDrawCommandIndicies.Empty(MaxLOD + 1);
-		RayTracingLodIndexToMeshDrawCommandIndicies.AddDefaulted(MaxLOD + 1);
-
-		for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
-		{
-			FStaticMeshBatchRelevance& MeshRelevance = StaticMeshRelevances[MeshIndex];
-			FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
-
-			if (Mesh.Elements.Num() > 0)
-			{
-				const int32 RayTracingStaticMeshCommandInfoIndex = MeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::RayTracing);
-
-				if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy) && RayTracingStaticMeshCommandInfoIndex != -1)
-				{
-					const int32 CommandIndex = StaticMeshCommandInfos[RayTracingStaticMeshCommandInfoIndex].CommandIndex;
-					RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, CommandIndex });
-				}
-				else
-				{
-					RayTracingLodIndexToMeshDrawCommandIndicies[Mesh.LODIndex].Add({ MeshIndex, -1 });
-				}
-			}
-		}
-	}
-}
-#endif // RHI_RAYTRACING
 
 void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool bUpdateStaticDrawLists, bool bAddToStaticDrawLists)
 {
@@ -629,6 +636,13 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 		bNeedsStaticMeshUpdate = false;
 	}
 
+	if (bNeedsStaticMeshUpdateWithoutVisibilityCheck)
+	{
+		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Remove(this);
+
+		bNeedsStaticMeshUpdateWithoutVisibilityCheck = false;
+	}
+
 	if (bUpdateStaticDrawLists)
 	{
 		// IndirectLightingCacheUniformBuffer may be cached inside cached mesh draw commands, so we 
@@ -657,18 +671,28 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 		}
 	}
 
+	if (!bNeedsStaticMeshUpdate && bNeedsStaticMeshUpdateWithoutVisibilityCheck)
+	{
+		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Remove(this);
+
+		bNeedsStaticMeshUpdateWithoutVisibilityCheck = false;
+	}
+
 	RemoveCachedMeshDrawCommands();
 	if (bReAddToDrawLists)
 	{
 		CacheMeshDrawCommands(RHICmdList);
 	}
+}
 
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
+void FPrimitiveSceneInfo::ConditionalUpdateStaticMeshesWithoutVisibilityCheckDuringNextInitViews()
+{
+	if (bNeedsStaticMeshUpdate && !bNeedsStaticMeshUpdateWithoutVisibilityCheck)
 	{
-		UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
+		bNeedsStaticMeshUpdateWithoutVisibilityCheck = true;
+
+		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Add(this);
 	}
-#endif // RHI_RAYTRACING
 }
 
 void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList)

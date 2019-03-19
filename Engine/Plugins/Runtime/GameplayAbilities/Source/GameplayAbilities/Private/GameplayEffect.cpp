@@ -58,12 +58,6 @@ UGameplayEffect::UGameplayEffect(const FObjectInitializer& ObjectInitializer)
 	StackDurationRefreshPolicy = EGameplayEffectStackingDurationPolicy::RefreshOnSuccessfulApplication;
 	StackPeriodResetPolicy = EGameplayEffectStackingPeriodPolicy::ResetOnSuccessfulApplication;
 	bRequireModifierSuccessToTriggerCues = true;
-
-#if WITH_EDITORONLY_DATA
-	ShowAllProperties = true;
-	Template = nullptr;
-#endif
-
 }
 
 void UGameplayEffect::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
@@ -1003,7 +997,7 @@ void FGameplayEffectSpec::SetLevel(float InLevel)
 			SetDuration(DefCalcDuration, false);
 		}
 
-		FString ContextString = FString::Printf(TEXT("FGameplayEffectSpec::SetLevel from effect %s"), *Def->GetName());
+		FString ContextString = Def->GetName();
 		Period = Def->Period.GetValueAtLevel(InLevel, &ContextString);
 		ChanceToApplyToTarget = Def->ChanceToApplyToTarget.GetValueAtLevel(InLevel, &ContextString);
 	}
@@ -1880,6 +1874,7 @@ FActiveGameplayEffectsContainer::FActiveGameplayEffectsContainer()
 	, PendingGameplayEffectHead(nullptr)
 {
 	PendingGameplayEffectNext = &PendingGameplayEffectHead;
+	SetDeltaSerializationEnabled(true);
 }
 
 FActiveGameplayEffectsContainer::~FActiveGameplayEffectsContainer()

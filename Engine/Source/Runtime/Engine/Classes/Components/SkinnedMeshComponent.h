@@ -273,6 +273,35 @@ protected:
 	 */
 	TArray<int32> MasterBoneMap;
 
+	/** Cached relative transform for slave bones that are missing in the master */
+	struct FMissingMasterBoneCacheEntry
+	{
+		FMissingMasterBoneCacheEntry()
+			: RelativeTransform(FTransform::Identity)
+			, CommonAncestorBoneIndex(INDEX_NONE)
+		{}
+
+		FMissingMasterBoneCacheEntry(const FTransform& InRelativeTransform, int32 InCommonAncestorBoneIndex)
+			: RelativeTransform(InRelativeTransform)
+			, CommonAncestorBoneIndex(InCommonAncestorBoneIndex)
+		{}
+
+		/** 
+		 * Relative transform of the missing bone's ref pose, based on the earliest common ancestor 
+		 * this will be equivalent to the component space transform of the bone had it existed in the master. 
+		 */
+		FTransform RelativeTransform;
+
+		/** The index of the earliest common ancestor of the master mesh. Index is the bone index in *this* mesh. */
+		int32 CommonAncestorBoneIndex;
+	};
+
+	/**  
+	 * Map of missing bone indices->transforms so that calls to GetBoneTransform() succeed when bones are not
+	 * present in a master mesh when using master-pose. Index key is the bone index of *this* mesh.
+	 */
+	TMap<int32, FMissingMasterBoneCacheEntry> MissingMasterBoneMap;
+
 	/**
 	*	Mapping for socket overrides, key is the Source socket name and the value is the override socket name
 	*/
@@ -400,6 +429,10 @@ public:
 	UE_DEPRECATED(4.21, "MeshComponentUpdateFlag has been renamed VisibilityBasedAnimTickOption")
 	uint8& MeshComponentUpdateFlag = *(uint8*)&VisibilityBasedAnimTickOption;
 #endif
+
+protected:
+	/** Record of the tick rate we are using when externally controlled */
+	uint8 ExternalTickRate;
 
 protected:
 	/** used to cache previous bone transform or not */
@@ -542,6 +575,15 @@ protected:
 public:
 	/** Set whether we have our tick rate externally controlled non-URO-based interpolation */
 	void EnableExternalTickRateControl(bool bInEnable) { bExternalTickRateControlled = bInEnable; }
+
+	/** Check whether we we have our tick rate externally controlled */
+	bool IsUsingExternalTickRateControl() const { return bExternalTickRateControlled; }
+
+	/** Set the external tick rate */
+	void SetExternalTickRate(uint8 InTickRate) { ExternalTickRate = InTickRate; }
+
+	/** Get the external tick rate */
+	uint8 GetExternalTickRate() const { return ExternalTickRate; }
 
 	/** Enable non-URO-based interpolation */
 	void EnableExternalInterpolation(bool bInEnable) { bExternalInterpolate = bInEnable; }
@@ -1340,6 +1382,12 @@ private:
 	* This refresh all morphtarget curves including SetMorphTarget as well as animation curves
 	*/
 	virtual void RefreshMorphTargets() {};
+
+	/**  
+	 * When bones are not resent in a master mesh when using master-pose, we call this to evaluate 
+	 * relative transforms.
+	 */
+	bool GetMissingMasterBoneRelativeTransform(int32 InBoneIndex, FMissingMasterBoneCacheEntry& OutInfo) const;
 
 	// Animation update rate control.
 public:

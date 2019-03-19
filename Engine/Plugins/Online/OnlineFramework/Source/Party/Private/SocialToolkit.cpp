@@ -252,6 +252,20 @@ void USocialToolkit::TrySendFriendInvite(const FString& DisplayNameOrEmail) cons
 	}
 }
 
+bool USocialToolkit::GetAuthAttribute(ESocialSubsystem SubsystemType, const FString& AttributeKey, FString& OutValue) const
+{
+	IOnlineSubsystem* SocialOSS = GetSocialOss(SubsystemType);
+	if (IOnlineIdentityPtr IdentityInterface = SocialOSS ? SocialOSS->GetIdentityInterface() : nullptr)
+	{
+		FUniqueNetIdRepl LocalUserId = GetLocalUserNetId(SubsystemType);
+		if (TSharedPtr<FUserOnlineAccount> UserAccount = LocalUserId.IsValid() ? IdentityInterface->GetUserAccount(*LocalUserId) : nullptr)
+		{
+			return UserAccount->GetAuthAttribute(AttributeKey, OutValue);
+		}
+	}
+	return false;
+}
+
 #if PLATFORM_PS4
 void USocialToolkit::NotifyPSNFriendsListRebuilt()
 {
@@ -361,27 +375,6 @@ void USocialToolkit::HandleControllerIdChanged(int32 NewId, int32 OldId)
 			}
 		}
 	}
-}
-
-void USocialToolkit::RequestDisplayPlatformSocialUI() const
-{
-	//@todo DanH Social: If the local player is on a platform with its own Social overlay, show it #required
-
-	/*if (ShouldShowExternalFriendsUI())
-	{
-		if (IOnlineSubsystem* PlatformOSS = UFortGlobals::GetPlatformOSS(GetWorld()))
-		{
-			IOnlineExternalUIPtr ExternalUI = PlatformOSS->GetExternalUIInterface();
-			if (ExternalUI.IsValid())
-			{
-				const UFortLocalPlayer& LocalPlayer = GetFortLocalPlayer();
-				if (ExternalUI->ShowFriendsUI(LocalPlayer.GetControllerId()))
-				{
-					return;
-				}
-			}
-		}
-	}*/
 }
 
 void USocialToolkit::NotifySubsystemIdEstablished(USocialUser& SocialUser, ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId)
@@ -614,8 +607,10 @@ void USocialToolkit::HandlePlayerLoginStatusChanged(int32 LocalUserNum, ELoginSt
 	{
 		if (NewStatus == ELoginStatus::LoggedIn)
 		{
-			if (!ensure(AllUsers.Num() == 0))
+			if (AllUsers.Num() != 0)
 			{
+				UE_LOG(LogParty, Error, TEXT("HandlePlayerLoginStatusChanged: Changed login status but we were not informed their status had changed previously"));
+
 				// Nobody told us we logged out! Handle it now just so we're fresh, but not good!
 				OnOwnerLoggedOut();
 			}

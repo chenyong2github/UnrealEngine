@@ -1228,11 +1228,11 @@ private:
 	FPhysScene*									PhysicsScene;
 
 	/** Array of components that need updates at the end of the frame */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, NonTransactional)
 	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate;
 
 	/** Array of components that need game thread updates at the end of the frame */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, NonTransactional)
 	TArray<UActorComponent*> ComponentsThatNeedEndOfFrameUpdate_OnGameThread;
 
 	/** The state of async tracing - abstracted into its own object for easier reference */
@@ -2313,8 +2313,9 @@ public:
 	 * Updates cull distance volumes for a specified component or a specified actor or all actors
          * @param ComponentToUpdate If specified just that Component will be updated
 	 * @param ActorToUpdate If specified (and ComponentToUpdate is not specified), all Components owned by this Actor will be updated
+	 * @return True if the passed in actors or components were within a volume
 	 */
-	void UpdateCullDistanceVolumes(AActor* ActorToUpdate = nullptr, UPrimitiveComponent* ComponentToUpdate = nullptr);
+	bool UpdateCullDistanceVolumes(AActor* ActorToUpdate = nullptr, UPrimitiveComponent* ComponentToUpdate = nullptr);
 
 	/**
 	 * Cleans up components, streaming data and assorted other intermediate data.
@@ -2420,7 +2421,7 @@ public:
 	UMaterialParameterCollectionInstance* GetParameterCollectionInstance(const UMaterialParameterCollection* Collection);
 
 	/** Updates this world's scene with the list of instances, and optionally updates each instance's uniform buffer. */
-	void UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers);
+	void UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer);
 
 	/** Gets the canvas object for rendering to a render target.  Will allocate one if needed. */
 	UCanvas* GetCanvasForRenderingToTarget();
@@ -2759,6 +2760,9 @@ public:
 
 	/** Handle Exec/Console Commands related to the World */
 	bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog );
+
+	/** Mark the world as being torn down */
+	void BeginTearingDown();
 
 private:
 	/** Utility function to handle Exec/Console Commands related to the Trace Tags */

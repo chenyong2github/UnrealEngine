@@ -16,6 +16,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/CoreRedirects.h"
 #include "RenderUtils.h"
 #include "ContentStreaming.h"
 #include "EngineUtils.h"
@@ -179,6 +180,170 @@ private:
 	FTexture2DMipMap
 -----------------------------------------------------------------------------*/
 
+FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData()
+{
+	Reset();
+}
+
+void FTexture2DMipMap::FCompactByteBulkData::Reset()
+{
+	OffsetInFile = 0xffffffff;
+	BulkDataSize = 0;
+	BulkDataFlags = 0;
+	TexelData = nullptr;
+}
+
+FTexture2DMipMap::FCompactByteBulkData::~FCompactByteBulkData()
+{
+	FMemory::Free(TexelData);
+	Reset();
+}
+
+FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData(const FCompactByteBulkData& Other)
+{
+	*this = Other;
+}
+
+FTexture2DMipMap::FCompactByteBulkData::FCompactByteBulkData(FCompactByteBulkData&& Other)
+{
+	*this = MoveTemp(Other);
+}
+
+typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteBulkData::operator=(const FCompactByteBulkData& Other)
+{
+	if (TexelData != Other.TexelData)
+	{
+		OffsetInFile = Other.OffsetInFile;
+		BulkDataFlags = Other.BulkDataFlags;
+		Realloc(Other.BulkDataSize);
+		FMemory::Memcpy(TexelData, Other.TexelData, BulkDataSize);
+	}
+	return *this;
+}
+
+typename FTexture2DMipMap::FCompactByteBulkData& FTexture2DMipMap::FCompactByteBulkData::operator=(FCompactByteBulkData&& Other)
+{
+	if (TexelData != Other.TexelData)
+	{
+		FMemory::Free(TexelData);
+		OffsetInFile = Other.OffsetInFile;
+		BulkDataSize = Other.BulkDataSize;
+		BulkDataFlags = Other.BulkDataFlags;
+		TexelData = Other.TexelData;
+		Other.Reset();
+	}
+	return *this;
+}
+
+void FTexture2DMipMap::FCompactByteBulkData::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
+{
+	check(Ar.IsLoading());
+	FMemory::Free(TexelData);
+	TexelData = nullptr;
+
+	FByteBulkData TmpBulkData;
+	TmpBulkData.Serialize(Ar, Owner, MipIdx);
+
+	const int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
+	check(Tmp >= 0 && Tmp <= 0xffffffffll);
+	OffsetInFile = static_cast<uint32>(Tmp);
+	BulkDataSize = static_cast<uint32>(TmpBulkData.GetBulkDataSize());
+	BulkDataFlags = TmpBulkData.GetBulkDataFlags();
+
+	if (IsInlined())
+	{
+		TmpBulkData.GetCopy((void**)&TexelData);
+	}
+
+	if (!MipIdx && !IsInlined())
+	{
+		UTexture2D* OwningTexture2D = Cast<UTexture2D>(Owner);
+		if (OwningTexture2D)
+		{
+			FTexturePlatformData** PlatformDataPtr = OwningTexture2D->GetRunningPlatformData();
+			check(PlatformDataPtr && *PlatformDataPtr);
+			FTexturePlatformData* PlatformData = *PlatformDataPtr;
+#if TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+			PlatformData->CachedPackageFileName = TmpBulkData.GetFilename();
+#endif
+		}
+	}
+}
+
+const void* FTexture2DMipMap::FCompactByteBulkData::LockReadOnly() const
+{
+	return const_cast<FCompactByteBulkData*>(this)->Lock(LOCK_READ_ONLY);
+}
+
+void* FTexture2DMipMap::FCompactByteBulkData::Lock(uint32 LockFlags)
+{
+	ensureMsgf(LockFlags != LOCK_READ_ONLY || TexelData,
+		TEXT("Locking bulk data for read only but no data is available. ")
+		TEXT("A possible cause is that GetCopy has been called with bDiscardInternal copy set. ")
+		TEXT("Note that UTexture's loaded via normal asset loading (e.g. FLinkerLoad) is GPU only ")
+		TEXT("and their CPU copies of texel data are discarded after resource creation. If you ")
+		TEXT("want to manipulate their data, you need to use render commands. For example, to ")
+		TEXT("copy a texture into another, use FRHICommandList::CopyTexture"));
+	return TexelData;
+}
+
+void FTexture2DMipMap::FCompactByteBulkData::Unlock() const
+{
+	if (!!(BulkDataFlags & BULKDATA_SingleUse))
+	{
+		FMemory::Free(TexelData);
+		const_cast<FCompactByteBulkData*>(this)->TexelData = nullptr;
+	}
+}
+
+void* FTexture2DMipMap::FCompactByteBulkData::Realloc(int32 NumBytes)
+{
+	FMemory::Free(TexelData);
+	if (NumBytes > 0)
+	{
+		TexelData = (uint8*)FMemory::Malloc(NumBytes);
+		BulkDataSize = NumBytes;
+	}
+	else
+	{
+		TexelData = nullptr;
+		BulkDataSize = 0;
+	}
+	return TexelData;
+}
+
+void FTexture2DMipMap::FCompactByteBulkData::GetCopy(void** Dest, bool bDiscardInternalCopy)
+{
+	if (!IsInlined())
+	{
+		UE_LOG(LogTexture, Fatal, TEXT("FCompactByteBulkData doesn't support GetCopy if data isn't inlined"));
+	}
+
+	if (!BulkDataSize)
+	{
+		check(!TexelData);
+		return;
+	}
+
+	if (!*Dest)
+	{
+		if (bDiscardInternalCopy)
+		{
+			*Dest = TexelData;
+			TexelData = nullptr;
+			return;
+		}
+		*Dest = FMemory::Malloc(BulkDataSize);
+	}
+
+	FMemory::Memcpy(*Dest, TexelData, BulkDataSize);
+	if (bDiscardInternalCopy)
+	{
+		FMemory::Free(TexelData);
+		TexelData = nullptr;
+	}
+}
+
 void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
 	bool bCooked = Ar.IsCooking();
@@ -230,6 +395,8 @@ bool UTexture2D::GetResourceMemSettings(int32 FirstMipIdx, int32& OutSizeX, int3
 
 void UTexture2D::Serialize(FArchive& Ar)
 {
+	LLM_SCOPE(ELLMTag::TextureMetaData);
+
 	Super::Serialize(Ar);
 
 	FStripDataFlags StripDataFlags(Ar);
@@ -296,6 +463,26 @@ int32 UTexture2D::CalcNumOptionalMips() const
 	}
 	return 0;
 }
+
+bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const
+{
+	if (PlatformData)
+	{
+		if (MipIndex < PlatformData->Mips.Num() && MipIndex >= 0)
+		{
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
+			OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
+#else
+			OutBulkDataFilename = PlatformData->CachedPackageFileName;
+			const int32 NumOptionalMips = CalcNumOptionalMips();
+			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < NumOptionalMips ? TEXT(".uptnl") : TEXT(".ubulk"));
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
 int32 UTexture2D::GetNumResidentMips() const
 {
 	FTexture2DResource* Texture2DResource = (FTexture2DResource*)Resource;

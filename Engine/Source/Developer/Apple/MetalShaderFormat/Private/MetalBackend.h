@@ -76,8 +76,10 @@ enum EMetalGPUSemantics
 enum EMetalTypeBufferMode
 {
 	EMetalTypeBufferModeRaw = 0, // No typed buffers
-    EMetalTypeBufferMode2D = 2, // Buffer<> SRVs & RWBuffer<> UAVs are typed via 2D textures
-    EMetalTypeBufferModeTB = 3, // Buffer<> SRVs & RWBuffer<> UAVs are typed via texture-buffers
+	EMetalTypeBufferMode2DSRV = 1, // Buffer<> SRVs are typed via 2D textures, RWBuffer<> UAVs are raw buffers
+	EMetalTypeBufferModeTBSRV = 2, // Buffer<> SRVs are typed via texture-buffers, RWBuffer<> UAVs are raw buffers
+    EMetalTypeBufferMode2D = 3, // Buffer<> SRVs & RWBuffer<> UAVs are typed via 2D textures
+    EMetalTypeBufferModeTB = 4, // Buffer<> SRVs & RWBuffer<> UAVs are typed via texture-buffers
 };
 
 // Metal supports 16 across all HW
@@ -102,7 +104,7 @@ struct FMetalCodeBackend : public FCodeBackend
 	void InsertArgumentBuffers(exec_list* ir, _mesa_glsl_parse_state* state, FBuffers& Buffers);
 	void PackInputsAndOutputs(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency Frequency, exec_list& InputVars);
 	void MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse_state* state, FBuffers& OutBuffers);
-	void FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state);
+	void FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state,EHlslShaderFrequency InFrequency);
 	void RemovePackedVarReferences(exec_list* ir, _mesa_glsl_parse_state* State);
 	void PromoteInputsAndOutputsGlobalHalfToFloat(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency Frequency);
 	void ConvertHalfToFloatUniformsAndSamples(exec_list* ir, _mesa_glsl_parse_state* State, bool bConvertUniforms, bool bConvertSamples);

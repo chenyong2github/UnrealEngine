@@ -89,7 +89,5 @@ public class WebBrowser : ModuleRules
 		{
 			PrecompileForTargets = ModuleRules.PrecompileTargetsType.None;
 		}
-
-		bEnableShadowVariableWarnings = false;
 	}
 }

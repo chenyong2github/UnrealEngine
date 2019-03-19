@@ -45,23 +45,6 @@ namespace ECompositingSampleCount
 
 
 /**
- * Enumerates different graphics apis
- */
-UENUM()
-namespace EDefaultGraphicsApi
-{
-	enum Type
-	{
-		DefaultGraphicsApi_Default = 0 UMETA(DisplayName = "Default"),
-		DefaultGraphicsApi_DX11 = 1 UMETA(DisplayName = "DirectX 11"),
-		DefaultGraphicsApi_DX12 = 2 UMETA(DisplayName = "DirectX 12"),
-		DefaultGraphicsApi_Vulkan = 3 UMETA(DisplayName = "Vulkan"),
-		DefaultGraphicsApi_OpenGL = 4 UMETA(DisplayName = "OpenGL"),
-	};
-}
-
-
-/**
 * Enumerates available mobile MSAA sample counts.
 */
 UENUM()
@@ -464,11 +447,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip="Whether to use a depth only pass to initialize Z culling for the base pass."))
 	TEnumAsByte<EEarlyZPass::Type> EarlyZPass;
 
-	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
-		ConsoleVariable="r.EarlyZPassMovable",DisplayName="Movables in early Z-pass",
-		ToolTip="Whether to render movable objects in the early Z pass. Need to reload the level!"))
-	uint32 bEarlyZPassMovable:1;
-
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		EditCondition = "EarlyZPass == OpaqueAndMasked && bEarlyZPassMovable",
 		ConsoleVariable = "r.EarlyZPassOnlyMaterialMasking", DisplayName = "Mask material only in early Z-pass",
@@ -705,11 +683,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.SupportMaterialLayers", Tooltip = "Support new material layering system. Disabling it reduces some overhead in place to support the experimental feature",
 		ConfigRestartRequired = true))
 		uint32 bSupportMaterialLayers : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = API, meta = (
-		ConsoleVariable = "r.DefaultGraphicsApi", DisplayName = "Default Graphics Api",
-		ToolTip = "Graphics API to use by default"))
-		TEnumAsByte<EDefaultGraphicsApi::Type> DefaultGraphicsApi;
 
 public:
 

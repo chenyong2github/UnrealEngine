@@ -45,11 +45,11 @@ DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_Mate
  * Cache uniform expressions for the given material.
  * @param MaterialInstance - The material instance for which to cache uniform expressions.
  */
-void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialInstance)
+void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialInstance, bool bRecreateUniformBuffer)
 {
 	if (MaterialInstance->Resource)
 	{
-		MaterialInstance->Resource->CacheUniformExpressions_GameThread(false);
+		MaterialInstance->Resource->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
 }
 
@@ -311,7 +311,7 @@ void FMaterialInstanceResource::GameThread_SetParent(UMaterialInterface* ParentM
 			[Resource, ParentMaterialInterface](FRHICommandListImmediate& RHICmdList)
 			{
 				Resource->Parent = ParentMaterialInterface;
-				Resource->InvalidateUniformExpressionCache(false);
+				Resource->InvalidateUniformExpressionCache(true);
 			});
 
 		if (OldParent)
@@ -1254,7 +1254,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1289,7 +1289,7 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FMaterialParameterI
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1324,7 +1324,7 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FMaterialParameterI
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -3010,6 +3010,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			);
 #endif
 		}
+#if WITH_EDITOR
 		else
 		{
 			FMaterialResource LegacyResource;
@@ -3027,6 +3028,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 			TrimToOverriddenOnly(StaticParameters.StaticComponentMaskParameters);
 			TrimToOverriddenOnly(StaticParameters.TerrainLayerWeightParameters);
 		}
+#endif // WITH_EDITOR
 	}
 
 	if (Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES )
@@ -3545,6 +3547,7 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		StaticParameters = CompareParameters;
 
 		CacheResourceShadersForRendering();
+		RecacheUniformExpressions(true);
 
 		if (MaterialUpdateContext != nullptr)
 		{
@@ -3582,9 +3585,9 @@ void UMaterialInstance::UpdateParameterNames()
 }
 #endif
 
-void UMaterialInstance::RecacheUniformExpressions() const
+void UMaterialInstance::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 {	
-	CacheMaterialInstanceUniformExpressions(this);
+	CacheMaterialInstanceUniformExpressions(this, bRecreateUniformBuffer);
 }
 
 #if WITH_EDITOR

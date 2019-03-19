@@ -1278,6 +1278,31 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 	{
 		struct FPreviewModeFunctionality
 		{
+
+			static FText GetPreviewModeText()
+			{
+				switch (GEditor->PreviewFeatureLevel)
+				{
+					case ERHIFeatureLevel::SM4:
+					{
+						return LOCTEXT("PreviewModeSM4_Text", "SM4 Preview");
+					}
+					case ERHIFeatureLevel::ES2:
+					{
+						return LOCTEXT("PreviewModeES2_Text", "ES2 Preview");
+					}
+					case ERHIFeatureLevel::ES3_1:
+					{
+						return LOCTEXT("PreviewModeES3_1_Text", "ES3.1 Preview");
+					}
+					default:
+					{
+						return LOCTEXT("PreviewModeGeneric", "Preview Mode");
+					}
+				}
+			}
+
+
 			static FText GetPreviewModeTooltip()
 			{
 				UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
@@ -1363,7 +1388,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 		ToolbarBuilder.AddToolBarButton(
 			FLevelEditorCommands::Get().ToggleFeatureLevelPreview,
 			NAME_None,
-			LOCTEXT("PreviewModeActivate", "Preview Mode"),
+			TAttribute<FText>::Create(&FPreviewModeFunctionality::GetPreviewModeText),
         	TAttribute<FText>::Create(&FPreviewModeFunctionality::GetPreviewModeTooltip),
         	TAttribute<FSlateIcon>::Create(&FPreviewModeFunctionality::GetPreviewModeIcon)
 			);
@@ -1421,6 +1446,21 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 				FLevelEditorCommands::Get().RecompileGameCode->GetDescription(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile")
 				);
+
+#if WITH_LIVE_CODING
+			ToolbarBuilder.AddComboButton(
+				FUIAction(
+					FExecuteAction(),
+					FCanExecuteAction(),
+					FIsActionChecked(),
+					FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)), 
+				FOnGetContent::CreateStatic( &FLevelEditorToolBar::GenerateCompileMenuContent, InCommandList ),
+				LOCTEXT( "CompileCombo_Label", "Compile Options" ),
+				LOCTEXT( "CompileComboToolTip", "Compile options menu" ),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
+				true
+				);
+#endif
 		}
 	}
 	ToolbarBuilder.EndSection();
@@ -1840,6 +1880,34 @@ static void MakePreviewSettingsMenu( FMenuBuilder& MenuBuilder )
 	MenuBuilder.EndSection();
 #undef LOCTEXT_NAMESPACE
 }
+
+#if WITH_LIVE_CODING
+TSharedRef< SWidget > FLevelEditorToolBar::GenerateCompileMenuContent( TSharedRef<FUICommandList> InCommandList )
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarCompileMenu"
+
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, InCommandList );
+
+	MenuBuilder.BeginSection("LiveCodingMode", LOCTEXT( "LiveCodingMode", "General" ) );
+	{
+		MenuBuilder.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_Enable );
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("LiveCodingActions", LOCTEXT( "LiveCodingActions", "Actions" ) );
+	{
+		MenuBuilder.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_StartSession );
+		MenuBuilder.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_ShowConsole );
+		MenuBuilder.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_Settings );
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+
+#undef LOCTEXT_NAMESPACE
+}
+#endif
 
 TSharedRef< SWidget > FLevelEditorToolBar::GenerateQuickSettingsMenu( TSharedRef<FUICommandList> InCommandList )
 {

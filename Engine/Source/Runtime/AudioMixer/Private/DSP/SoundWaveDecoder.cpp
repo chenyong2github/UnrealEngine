@@ -65,7 +65,9 @@ namespace Audio
 							MixerBuffer->Seek(SeekTime);
 						}
 
-						MixerSourceBuffer.ReadMoreRealtimeData(0, EBufferReadMode::Asynchronous);
+						ICompressedAudioInfo* CompressedAudioInfo = MixerBuffer->GetDecompressionState(false);
+
+						MixerSourceBuffer.ReadMoreRealtimeData(CompressedAudioInfo, 0, EBufferReadMode::Asynchronous);
 
 						// not ready
 						return false;

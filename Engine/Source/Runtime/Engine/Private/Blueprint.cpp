@@ -571,6 +571,11 @@ void UBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	{
 		FBlueprintEditorUtils::PostDuplicateBlueprint(this, bDuplicateForPIE);
 	}
+
+	if (GeneratedClass)
+	{
+		GeneratedClass->GetDefaultObject()->PostDuplicate(bDuplicateForPIE);
+	}
 }
 
 extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
@@ -1391,7 +1396,7 @@ void UBlueprint::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPl
 					for (auto RecordIt = TargetInheritableComponentHandler->CreateRecordIterator(); RecordIt; ++RecordIt)
 					{
 						// Only generate cooked data if the target platform supports the template class type. Cooked data may already have been generated if the component was inherited from a nativized parent class.
-						if (!RecordIt->CookedComponentInstancingData.bIsValid && ShouldCookBlueprintComponentTemplate(RecordIt->ComponentTemplate))
+						if (!RecordIt->CookedComponentInstancingData.bHasValidCookedData && ShouldCookBlueprintComponentTemplate(RecordIt->ComponentTemplate))
 						{
 							// Note: This will currently block until finished.
 							// @TODO - Make this an async task so we can potentially cook instancing data for multiple components in parallel.

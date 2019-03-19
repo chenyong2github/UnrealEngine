@@ -272,11 +272,11 @@ int FADPCMAudioInfo::GetStreamBufferSize() const
 	return StreamBufferSize;
 }
 
-bool FADPCMAudioInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
 {
 	check(QualityInfo);
 
-	StreamingSoundWave = Wave;
+	check(StreamingSoundWave == Wave);
 
 	// Get the first chunk of audio data (should already be loaded)
 	uint8 const* firstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(Wave, 0, &CurrentChunkDataSize);

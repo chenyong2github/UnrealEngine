@@ -330,7 +330,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 		, ReverbWetLevelMax(0.95f)
 		, ReverbDistanceMin(AttenuationShapeExtents.X)
 		, ReverbDistanceMax(AttenuationShapeExtents.X + FalloffDistance)
-		, ManualReverbSendLevel(0.2f)
+		, ManualReverbSendLevel(0.0f)
 	{
 	}
 

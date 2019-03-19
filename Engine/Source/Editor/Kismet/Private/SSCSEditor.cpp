@@ -396,7 +396,6 @@ FReply FSCSRowDragDropOp::DroppedOnPanel(const TSharedRef< class SWidget >& Pane
 FSCSEditorTreeNode::FSCSEditorTreeNode(FSCSEditorTreeNode::ENodeType InNodeType)
 	: ComponentTemplatePtr(nullptr)
 	, NodeType(InNodeType)
-	, bNonTransactionalRename(false)
 	, FilterFlags((uint8)EFilteredState::Unknown)
 {
 }
@@ -907,14 +906,16 @@ void FSCSEditorTreeNode::RemoveChild(FSCSEditorTreeNodePtrType InChildNodePtr)
 	}
 }
 
-void FSCSEditorTreeNode::OnRequestRename(bool bTransactional)
+void FSCSEditorTreeNode::OnRequestRename(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction)
 {
-	bNonTransactionalRename = !bTransactional;
+	OngoingCreateTransaction = MoveTemp(InOngoingCreateTransaction); // Take responsibility to end the 'create + give initial name' transaction.
 	RenameRequestedDelegate.ExecuteIfBound();
 }
 
 void FSCSEditorTreeNode::OnCompleteRename(const FText& InNewName)
 {
+	// If a 'create + give initial name' transaction exists, end it, the object is expected to have its initial name.
+	OngoingCreateTransaction.Reset();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -995,7 +996,7 @@ FSCSEditorTreeNodeInstancedInheritedComponent::FSCSEditorTreeNodeInstancedInheri
 
 	InstancedComponentOwnerPtr = Owner;
 
-	SetComponentTemplate(ComponentInstance);
+			SetComponentTemplate(ComponentInstance);
 }
 
 bool FSCSEditorTreeNodeInstancedInheritedComponent::IsNative() const
@@ -1127,8 +1128,11 @@ void FSCSEditorTreeNodeInstanceAddedComponent::RemoveMeAsChild()
 
 void FSCSEditorTreeNodeInstanceAddedComponent::OnCompleteRename(const FText& InNewName)
 {
-	bool bIsNonTransactionalRename = GetAndClearNonTransactionalRenameFlag();
-	FScopedTransaction TransactionContext(LOCTEXT("RenameComponentVariable", "Rename Component Variable"), !bIsNonTransactionalRename);
+	// If the 'rename' was part of an ongoing component creation, ensure the transaction is ended when the local object goes out of scope. (Must complete after the rename transaction below)
+	TUniquePtr<FScopedTransaction> ScopedCreateTransaction(MoveTemp(OngoingCreateTransaction));
+
+	// If a 'create' transaction is opened, the rename will be folded into it and will be invisible to the 'undo' as create + give a name is really just one operation from the user point of view.
+	FScopedTransaction TransactionContext(LOCTEXT("RenameComponentVariable", "Rename Component Variable"));
 
 	UActorComponent* ComponentInstance = GetComponentTemplate();
 	if(ComponentInstance == nullptr)
@@ -1137,10 +1141,6 @@ void FSCSEditorTreeNodeInstanceAddedComponent::OnCompleteRename(const FText& InN
 	}
 
 	ERenameFlags RenameFlags = REN_DontCreateRedirectors;
-	if (bIsNonTransactionalRename)
-	{
-		RenameFlags |= REN_NonTransactional;
-	}
 	
 	// name collision could occur due to e.g. our archetype being updated and causing a conflict with our ComponentInstance:
 	FString NewNameAsString = InNewName.ToString();
@@ -1331,18 +1331,13 @@ UActorComponent* FSCSEditorTreeNode::FindComponentInstanceInActor(const AActor* 
 
 void FSCSEditorTreeNodeComponent::OnCompleteRename(const FText& InNewName)
 {
-	FScopedTransaction* TransactionContext = NULL;
-	if (!GetAndClearNonTransactionalRenameFlag())
-	{
-		TransactionContext = new FScopedTransaction(LOCTEXT("RenameComponentVariable", "Rename Component Variable"));
-	}
+	// If the 'rename' was part of the creation process, we need to complete the creation transaction as the component has a user confirmed name. (Must complete after rename transaction below)
+	TUniquePtr<FScopedTransaction> ScopedOngoingCreateTransaction(MoveTemp(OngoingCreateTransaction));
+
+	// If a 'create' transaction is opened, the rename will be folded into it and will be invisible to the 'undo' as 'create + give initial name' means creating an object from the user point of view.
+	FScopedTransaction RenameTransaction(LOCTEXT("RenameComponentVariable", "Rename Component Variable"));
 
 	FBlueprintEditorUtils::RenameComponentMemberVariable(GetBlueprint(), GetSCSNode(), FName(*InNewName.ToString()));
-
-	if (TransactionContext)
-	{
-		delete TransactionContext;
-	}
 }
 
 void FSCSEditorTreeNodeComponent::RemoveMeAsChild()
@@ -1481,6 +1476,9 @@ void FSCSEditorTreeNodeRootActor::OnCompleteRename(const FText& InNewName)
 		const FScopedTransaction Transaction(LOCTEXT("SCSEditorRenameActorTransaction", "Rename Actor"));
 		FActorLabelUtilities::RenameExistingActor(Actor, InNewName.ToString());
 	}
+
+	// Not expected to reach here with an ongoing create transaction, but if it does, end it.
+	OngoingCreateTransaction.Reset();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3525,7 +3523,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 		);
 
 	CommandList->MapAction( FGenericCommands::Get().Rename,
-			FUIAction( FExecuteAction::CreateSP( this, &SSCSEditor::OnRenameComponent, true ), // true = transactional (i.e. undoable)
+			FUIAction( FExecuteAction::CreateSP( this, &SSCSEditor::OnRenameComponent),
 			FCanExecuteAction::CreateSP( this, &SSCSEditor::CanRenameComponent ) ) 
 		);
 
@@ -3817,7 +3815,7 @@ void SSCSEditor::OnLevelComponentRequestRename(const UActorComponent* InComponen
 	FSCSEditorTreeNodePtrType Node = GetNodeFromActorComponent(InComponent);
 	if (SelectedItems.Contains(Node) && CanRenameComponent())
 	{
-		OnRenameComponent(true);
+		OnRenameComponent();
 	}
 }
 
@@ -4540,11 +4538,11 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 			SCSTreeWidget->ClearSelection();
 		}
 		RootNodes.Empty();
-		
+
 		TSharedPtr<FSCSEditorTreeNode> ActorTreeNode = MakeShareable(new FSCSEditorTreeNodeRootActor(GetActorContext(),EditorMode == EComponentEditorMode::ActorInstance));
 		SCSTreeWidget->SetItemExpansion(ActorTreeNode, true);
 		RootNodes.Add(ActorTreeNode);
-				
+
 		// Build the tree data source according to what mode we're in
 		if (EditorMode == EComponentEditorMode::BlueprintSCS)
 		{
@@ -4580,7 +4578,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 				
 				for (UActorComponent* Component : Components)
 				{
-					// Add the rest of the native base class SceneComponent hierarchy
+						// Add the rest of the native base class SceneComponent hierarchy
 					AddTreeNodeFromComponent(Component, FindOrCreateParentForExistingComponent(Component, GetActorNode()));
 				}
 			}
@@ -4631,7 +4629,7 @@ void SSCSEditor::UpdateTree(bool bRegenerateTreeNodes)
 					}
 				}
 			}
-						
+
 			AActor* PreviewActorInstance = PreviewActor.Get();
 			if(PreviewActorInstance != nullptr && !GetDefault<UBlueprintEditorSettings>()->bHideConstructionScriptComponentsInDetailsView)
 			{
@@ -4952,15 +4950,15 @@ FSCSEditorActorNodePtrType SSCSEditor::GetActorNode() const
 }
 
 FSCSEditorTreeNodePtrType SSCSEditor::GetSceneRootNode() const
-{
+	{
 	FSCSEditorActorNodePtrType ActorNode = GetActorNode();
 	if (ActorNode.IsValid())
-	{
+		{
 		return ActorNode->GetSceneRootNode();
-	}
+		}
 
 	return FSCSEditorTreeNodePtrType();
-}
+	}
 
 void SSCSEditor::SetSceneRootNode(FSCSEditorTreeNodePtrType NewSceneRootNode)
 {
@@ -5120,7 +5118,9 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		return nullptr;
 	}
 
-	const FScopedTransaction Transaction( LOCTEXT("AddComponent", "Add Component") );
+	// Begin a transaction. The transaction will end when the component name will be provided/confirmed by the user.
+	check(!OngoingCreateTransaction.IsValid())
+	TUniquePtr<FScopedTransaction> AddTransaction = MakeUnique<FScopedTransaction>( LOCTEXT("AddComponent", "Add Component") );
 
 	UActorComponent* NewComponent = nullptr;
 	UActorComponent* ComponentTemplate = Cast<UActorComponent>(Asset);
@@ -5157,7 +5157,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		{
 			NewVariableName = *FComponentEditorUtils::GenerateValidVariableNameFromAsset(Asset, nullptr);
 		}
-		NewComponent = AddNewNode(Blueprint->SimpleConstructionScript->CreateNode(NewComponentClass, NewVariableName), Asset, bMarkBlueprintModified, bSetFocusToNewItem);
+		NewComponent = AddNewNode(MoveTemp(AddTransaction), Blueprint->SimpleConstructionScript->CreateNode(NewComponentClass, NewVariableName), Asset, bMarkBlueprintModified, bSetFocusToNewItem);
 
 		if (ComponentTemplate)
 		{
@@ -5182,7 +5182,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			// Create a duplicate of the provided template
 			UActorComponent* NewInstanceComponent = FComponentEditorUtils::DuplicateComponent(ComponentTemplate);
 			FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewComponent(NewInstanceComponent);
-			NewComponent = AddNewNodeForInstancedComponent(NewInstanceComponent, ParentNodePtr, nullptr, bSetFocusToNewItem);
+			NewComponent = AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, nullptr, bSetFocusToNewItem);
 		}
 		else if (AActor* ActorInstance = GetActorContext())
 		{
@@ -5212,7 +5212,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			if (USceneComponent* NewSceneComponent = Cast<USceneComponent>(NewInstanceComponent))
 			{
 				if(ParentNodePtr->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
-				{ 
+				{
 					ActorInstance->SetRootComponent(NewSceneComponent);
 				}
 				else
@@ -5252,7 +5252,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			// Rerun construction scripts
 			ActorInstance->RerunConstructionScripts();
 
-			NewComponent = AddNewNodeForInstancedComponent(NewInstanceComponent, ParentNodePtr, Asset, bSetFocusToNewItem);
+			NewComponent = AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, bSetFocusToNewItem);
 		}
 	}
 
@@ -5278,7 +5278,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindOrCreateParentForExistingComponent(UAc
 		// Attempt to find the parent node in the current tree
 		ParentNodePtr = FindTreeNode(SceneComponent->GetAttachParent());
 		if (!ParentNodePtr.IsValid())
-		{
+{
 			// If the actual attach parent wasn't found, attempt to find its archetype.
 			// This handles the BP editor case where we might add UCS component nodes taken
 			// from the preview actor instance, which are not themselves template objects.
@@ -5306,10 +5306,10 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindOrCreateParentForExistingComponent(UAc
 }
 
 FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent* NewComponent) const
-{
+	{
 	// Find Parent to attach to (depending on the new Node type).
 	FSCSEditorTreeNodePtrType TargetParentNode;
-	TArray<FSCSEditorTreeNodePtrType> SelectedTreeNodes;
+		TArray<FSCSEditorTreeNodePtrType> SelectedTreeNodes;
 	if (SCSTreeWidget.IsValid() && SCSTreeWidget->GetSelectedItems(SelectedTreeNodes))
 	{
 		TargetParentNode = SelectedTreeNodes[0];
@@ -5329,9 +5329,9 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 					if (CastTargetToSceneComponent == nullptr || !NewSceneComponent->CanAttachAsChild(CastTargetToSceneComponent, NAME_None))
 					{
 						TargetParentNode = GetSceneRootNode(); // Default to SceneRoot
-					}
 				}
 			}
+		}
 			else if(TargetParentNode->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
 			{
 				USceneComponent* CastTargetToSceneComponent = Cast<USceneComponent>(TargetParentNode->GetComponentTemplate());
@@ -5364,14 +5364,14 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewComponent(UActorComponent*
 	}
 
 	return TargetParentNode;
-}
+	}
 
 FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewNode(USCS_Node* NewNode) const
-{
+	{
 	return FindParentForNewComponent(NewNode->ComponentTemplate);
 }
 
-UActorComponent* SSCSEditor::AddNewNode(USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem)
+UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem)
 {
 	check(NewNode != nullptr);
 
@@ -5386,9 +5386,9 @@ UActorComponent* SSCSEditor::AddNewNode(USCS_Node* NewNode, UObject* Asset, bool
 	UBlueprint* Blueprint = GetBlueprint();
 	check(Blueprint != nullptr && Blueprint->SimpleConstructionScript != nullptr);
 
-	// Add the new node to the editor tree
+		// Add the new node to the editor tree
 	NewNodePtr = AddTreeNode(NewNode, ParentNodePtr, /*bIsInheritedSCS=*/ false);
-	
+
 	// Potentially adjust variable names for any child blueprints
 	const FName VariableName = NewNode->GetVariableName();
 	if(VariableName != NAME_None)
@@ -5400,7 +5400,7 @@ UActorComponent* SSCSEditor::AddNewNode(USCS_Node* NewNode, UObject* Asset, bool
 	{
 		// Select and request a rename on the new component
 		SCSTreeWidget->SetSelection(NewNodePtr);
-		OnRenameComponent(false);
+		OnRenameComponent(MoveTemp(InOngoingCreateTransaction));
 	}
 
 	// Will call UpdateTree as part of OnBlueprintChanged handling
@@ -5416,7 +5416,7 @@ UActorComponent* SSCSEditor::AddNewNode(USCS_Node* NewNode, UObject* Asset, bool
 	return NewNode->ComponentTemplate;
 }
 
-UActorComponent* SSCSEditor::AddNewNodeForInstancedComponent(UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem)
+UActorComponent* SSCSEditor::AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem)
 {
 	check(NewInstanceComponent != nullptr);
 
@@ -5424,12 +5424,12 @@ UActorComponent* SSCSEditor::AddNewNodeForInstancedComponent(UActorComponent* Ne
 
 	// Add the new node to the editor tree
 	NewNodePtr = AddTreeNodeFromComponent(NewInstanceComponent, InParentNodePtr);
-	
+
 	if(bSetFocusToNewItem)
 	{
 		// Select and request a rename on the new component
 		SCSTreeWidget->SetSelection(NewNodePtr);
-		OnRenameComponent(false);
+		OnRenameComponent(MoveTemp(InOngoingCreateTransaction));
 	}
 
 	UpdateTree(false);
@@ -5613,7 +5613,7 @@ void SSCSEditor::PasteNodes()
 			check(NewActorComponent);
 
 			// Create a new SCS node to contain the new component and add it to the tree
-			NewActorComponent = AddNewNode(Blueprint->SimpleConstructionScript->CreateNodeAndRenameComponent(NewActorComponent), nullptr, false, false);
+			NewActorComponent = AddNewNode(TUniquePtr<FScopedTransaction>(), Blueprint->SimpleConstructionScript->CreateNodeAndRenameComponent(NewActorComponent), nullptr, false, false);
 
 			if (NewActorComponent)
 			{
@@ -5954,47 +5954,47 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNode(USCS_Node* InSCSNode, FSCSEdit
 	
 	// Determine whether or not the given node is inherited from a parent Blueprint
 	USimpleConstructionScript* NodeSCS = InSCSNode->GetSCS();
-	
-	// do this first, because we need a FSCSEditorTreeNodePtrType for the new node
+
+			// do this first, because we need a FSCSEditorTreeNodePtrType for the new node
 	NewNodePtr = InParentNodePtr->AddChild(InSCSNode, bIsInheritedSCS);
-	RefreshFilteredState(NewNodePtr, /*bRecursive =*/false);
-	
+			RefreshFilteredState(NewNodePtr, /*bRecursive =*/false);
+
 
 	if( InSCSNode->ComponentTemplate && 
 		InSCSNode->ComponentTemplate->IsA(USceneComponent::StaticClass()) && 
 		InParentNodePtr->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
 	{
 		bool bParentIsEditorOnly = InParentNodePtr->GetComponentTemplate()->IsEditorOnly();
-		// if you can't nest this new node under the proposed parent (then swap the two)
+			// if you can't nest this new node under the proposed parent (then swap the two)
 		if (bParentIsEditorOnly && !InSCSNode->ComponentTemplate->IsEditorOnly() && InParentNodePtr->CanReparent())
-		{
+			{
 			FSCSEditorTreeNodePtrType OldParentPtr = InParentNodePtr;
 			InParentNodePtr = OldParentPtr->GetParent();
 
-			OldParentPtr->RemoveChild(NewNodePtr);
-			NodeSCS->RemoveNode(OldParentPtr->GetSCSNode());
+				OldParentPtr->RemoveChild(NewNodePtr);
+				NodeSCS->RemoveNode(OldParentPtr->GetSCSNode());
 
-			// if the grandparent node is invalid (assuming this means that the parent node was the scene-root)
+				// if the grandparent node is invalid (assuming this means that the parent node was the scene-root)
 			if (!InParentNodePtr.IsValid())
-			{
+				{
 				check(OldParentPtr == GetSceneRootNode());
 				SetSceneRootNode(NewNodePtr);
 				NodeSCS->AddNode(NewNodePtr->GetSCSNode());
-			}
-			else
-			{
+				}
+				else 
+				{
 				InParentNodePtr->AddChild(NewNodePtr);
-			}
+				}
 
-			// move the proposed parent in as a child to the new node
-			NewNodePtr->AddChild(OldParentPtr);
-		} // if bParentIsEditorOnly...
-	}
-	else
-	{	
+				// move the proposed parent in as a child to the new node
+				NewNodePtr->AddChild(OldParentPtr);
+			} // if bParentIsEditorOnly...
+		}
+		else 
+		{
 		// If the SCS root node array does not already contain the given node, this will add it (this should only occur after node creation)
 		if(NodeSCS != nullptr)
-		{
+			{
 			NodeSCS->AddNode(InSCSNode);
 		}
 	}
@@ -6018,14 +6018,14 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromComponent(UActorComponent* 
 
 	FSCSEditorTreeNodePtrType NewNodePtr = InParentTreeNode->FindChild(InActorComponent);
 	if (!NewNodePtr.IsValid())
-	{
+			{
 		NewNodePtr = FSCSEditorTreeNode::FactoryNodeFromComponent(InActorComponent);
 		InParentTreeNode->AddChild(NewNodePtr);
 		RefreshFilteredState(NewNodePtr, false);
-	}
-		
+				}
+
 	SCSTreeWidget->SetItemExpansion(NewNodePtr, true);
-	
+
 	return NewNodePtr;
 }
 
@@ -6155,7 +6155,7 @@ void SSCSEditor::OnItemScrolledIntoView( FSCSEditorTreeNodePtrType InItem, const
 		if(DeferredRenameRequest == ItemName)
 		{
 			DeferredRenameRequest = NAME_None;
-			InItem->OnRequestRename(bIsDeferredRenameRequestTransactional);
+			InItem->OnRequestRename(MoveTemp(OngoingCreateTransaction)); // Transfer responsibility to end the 'create + give initial name' transaction to the tree item if such transaction is ongoing.
 		}
 	}
 }
@@ -6166,7 +6166,12 @@ void SSCSEditor::HandleItemDoubleClicked(FSCSEditorTreeNodePtrType InItem)
 	OnItemDoubleClicked.ExecuteIfBound(InItem);
 }
 
-void SSCSEditor::OnRenameComponent(bool bTransactional)
+void SSCSEditor::OnRenameComponent()
+{
+	OnRenameComponent(nullptr); // null means that the rename is not part of the creation process (create + give initial name).
+}
+
+void SSCSEditor::OnRenameComponent(TUniquePtr<FScopedTransaction> InComponentCreateTransaction)
 {
 	TArray< FSCSEditorTreeNodePtrType > SelectedItems = SCSTreeWidget->GetSelectedItems();
 
@@ -6174,7 +6179,9 @@ void SSCSEditor::OnRenameComponent(bool bTransactional)
 	check(SelectedItems.Num() == 1);
 
 	DeferredRenameRequest = SelectedItems[0]->GetNodeID();
-	bIsDeferredRenameRequestTransactional = bTransactional;
+
+	check(!OngoingCreateTransaction.IsValid()); // If this fails, something in the chain of responsibility failed to end the previous transaction.
+	OngoingCreateTransaction = MoveTemp(InComponentCreateTransaction); // If a 'create + give initial name' transaction is ongoing, take responsibility of ending it until it's transfered to the selected item.
 
 	SCSTreeWidget->RequestScrollIntoView(SelectedItems[0]);
 }
@@ -6633,7 +6640,7 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 	{
 		SelectNode(NewSelection, /*IsCntrlDown =*/false);
 	}
-		
+	
 	UpdateTree(/*bRegenerateTreeNodes =*/false);
 }
 

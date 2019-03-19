@@ -3070,6 +3070,13 @@ UObject* UClass::CreateDefaultObject()
 				check(ClassDefaultObject);
 				// Blueprint CDOs have their properties always initialized.
 				const bool bShouldInitializeProperties = !HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic);
+				// Register the offsets of any sparse delegates this class introduces with the sparse delegate storage
+				for (TFieldIterator<UMulticastSparseDelegateProperty> SparseDelegateIt(this, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated); SparseDelegateIt; ++SparseDelegateIt)
+				{
+					const FSparseDelegate& SparseDelegate = SparseDelegateIt->GetPropertyValue_InContainer(ClassDefaultObject);
+					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
+					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
+				}
 				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, false, bShouldInitializeProperties));
 				if (bDoNotify)
 				{
@@ -4370,7 +4377,7 @@ void UClass::AssembleReferenceTokenStreams()
 				Class->GetDefaultObject(); // Force the default object to be constructed if it isn't already
 			}
 			// Assemble reference token stream for garbage collection/ RTGC.
-			if (!Class->HasAnyClassFlags(CLASS_TokenStreamAssembled))
+			if (!Class->HasAnyFlags(RF_ClassDefaultObject) && !Class->HasAnyClassFlags(CLASS_TokenStreamAssembled))
 			{
 				Class->AssembleReferenceTokenStream();
 			}
@@ -5144,6 +5151,31 @@ UDelegateFunction::UDelegateFunction(UFunction* InSuperFunction, EFunctionFlags 
 }
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDelegateFunction, UFunction,
+	{
+	}
+);
+
+USparseDelegateFunction::USparseDelegateFunction(const FObjectInitializer& ObjectInitializer, UFunction* InSuperFunction, EFunctionFlags InFunctionFlags, SIZE_T ParamsSize)
+	: UDelegateFunction(ObjectInitializer, InSuperFunction, InFunctionFlags, ParamsSize)
+{
+
+}
+
+USparseDelegateFunction::USparseDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags, SIZE_T ParamsSize)
+	: UDelegateFunction(InSuperFunction, InFunctionFlags, ParamsSize)
+{
+
+}
+
+void USparseDelegateFunction::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar << OwningClassName;
+	Ar << DelegateName;
+}
+
+IMPLEMENT_CORE_INTRINSIC_CLASS(USparseDelegateFunction, UDelegateFunction,
 	{
 	}
 );

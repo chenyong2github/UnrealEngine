@@ -834,17 +834,13 @@ EMouseCursor::Type UGameViewportClient::GetCursor(FViewport* InViewport, int32 X
 
 void UGameViewportClient::SetVirtualCursorWidget(EMouseCursor::Type Cursor, UUserWidget* UserWidget)
 {
-	if (ensure(UserWidget))
+	TSharedPtr<SWidget>& ExistingWidget = CursorWidgets.FindOrAdd(Cursor);
+	TSharedPtr<SWidget> NewWidget = UserWidget ? UserWidget->TakeWidget() : TSharedPtr<SWidget>();
+	if (NewWidget != ExistingWidget)
 	{
-		if (CursorWidgets.Contains(Cursor))
-		{
-			TSharedRef<SWidget>* Widget = CursorWidgets.Find(Cursor);
-			(*Widget) = UserWidget->TakeWidget();
-		}
-		else
-		{
-			CursorWidgets.Add(Cursor, UserWidget->TakeWidget());
-		}
+		// Pure safety
+		ExistingWidget.Reset();
+		ExistingWidget = NewWidget;
 	}
 }
 
@@ -852,8 +848,7 @@ void UGameViewportClient::AddSoftwareCursor(EMouseCursor::Type Cursor, const FSo
 {
 	if (CursorClass.IsValid())
 	{
-		UClass* Class = CursorClass.TryLoadClass<UUserWidget>();
-		if (Class)
+		if (UClass* Class = CursorClass.TryLoadClass<UUserWidget>())
 		{
 			UUserWidget* UserWidget = CreateWidget(GetGameInstance(), Class);
 			AddCursorWidget(Cursor, UserWidget);
@@ -888,18 +883,19 @@ TOptional<TSharedRef<SWidget>> UGameViewportClient::MapCursor(FViewport* InViewp
 	{
 		if (CursorReply.GetCursorType() != EMouseCursor::None)
 		{
-			const TSharedRef<SWidget>* CursorWidgetPtr = CursorWidgets.Find(CursorReply.GetCursorType());
+			const TSharedPtr<SWidget> CursorWidgetPtr = CursorWidgets.FindRef(CursorReply.GetCursorType());
 
-			if (CursorWidgetPtr != nullptr)
+			if (CursorWidgetPtr.IsValid())
 			{
-				return *CursorWidgetPtr;
+				return CursorWidgetPtr.ToSharedRef();
 			}
 			else
 			{
-				UE_LOG(LogPlayerManagement, Warning, TEXT("UGameViewportClient::MapCursor: Could not find cursor to map to %d."),int32(CursorReply.GetCursorType()));
+				UE_LOG(LogPlayerManagement, Warning, TEXT("UGameViewportClient::MapCursor: Could not find cursor to map to %d."), int32(CursorReply.GetCursorType()));
 			}
 		}
 	}
+
 	return TOptional<TSharedRef<SWidget>>();
 }
 
@@ -1104,6 +1100,14 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 	UWorld* MyWorld = GetWorld();
 
+	// Force path tracing view mode, and extern code set path tracer show flags
+	const bool bForcePathTracing = InViewport->GetClient()->GetEngineShowFlags()->PathTracing;
+	if (bForcePathTracing)
+	{
+		EngineShowFlags.SetPathTracing(true);
+		ViewModeIndex = VMI_PathTracing;
+	}
+
 	// create the view family for rendering the world scene to the viewport's render target
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues( 	
 		InViewport,
@@ -1116,6 +1120,14 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	{
 		// Force enable view family show flag for HighDPI derived's screen percentage.
 		ViewFamily.EngineShowFlags.ScreenPercentage = true;
+	}
+	if (ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
+	{
+		TSet<UMaterialInterface*> Materials;
+		if (GetUsedMaterialsInWorld(MyWorld, Materials, nullptr))
+		{
+			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, nullptr);
+		}
 	}
 #endif
 
@@ -1299,6 +1311,9 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 							}
 						}
 
+					#if RHI_RAYTRACING
+						View->SetupRayTracedRendering();
+					#endif
 					}
 
 					// Add view information for resource streaming. Allow up to 5X boost for small FOV.

@@ -399,7 +399,7 @@ struct TQuantizedLightSampleBulkData : public FUntypedBulkData
 	 * @param Data			Base pointer to data
 	 * @param ElementIndex	Element index to serialize
 	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int32 ElementIndex );
+	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
 };
 
 /** A 1D array of incident lighting data. */
@@ -613,14 +613,14 @@ class FLightmapResourceCluster : public FRenderResource
 {
 public:
 
-	ENGINE_API void SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel);
-
 	ENGINE_API virtual void InitRHI();
 
 	virtual void ReleaseRHI()
 	{
 		UniformBuffer = nullptr;
 	}
+
+	ENGINE_API void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
 
 	FLightmapClusterResourceInput Input;
 

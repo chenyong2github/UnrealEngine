@@ -810,6 +810,7 @@ void FViewInfo::Init()
 
 	bIsViewInfo = true;
 	
+	bViewStateIsReadOnly = true;
 	bUsesGlobalDistanceField = false;
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;
@@ -2868,32 +2869,28 @@ void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 
 bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 {
-	// If the show flag is enabled
-	if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
-	{
-		return false;
-	}
-
 	if (View.Family->EngineShowFlags.VisualizeHDR || View.Family->UseDebugViewPS())
 	{
 		// certain visualize modes get obstructed too much
 		return false;
 	}
 
-	if (GIsEditor && View.Family->EngineShowFlags.Wireframe)
+	if (View.Family->EngineShowFlags.Wireframe)
 	{
-		// In Editor we want wire frame view modes to be in MSAA
+		// We want wireframe view use MSAA if possible.
 		return true;
 	}
-
-	// Any elements that needed compositing were drawn then compositing should be done
-	if (View.ViewMeshElements.Num() 
-		|| View.TopViewMeshElements.Num() 
-		|| View.BatchedViewElements.HasPrimsToDraw() 
-		|| View.TopBatchedViewElements.HasPrimsToDraw() 
-		|| View.NumVisibleDynamicEditorPrimitives > 0)
+	else if (View.Family->EngineShowFlags.CompositeEditorPrimitives)
 	{
-		return true;
+	    // Any elements that needed compositing were drawn then compositing should be done
+	    if (View.ViewMeshElements.Num() 
+		    || View.TopViewMeshElements.Num() 
+		    || View.BatchedViewElements.HasPrimsToDraw() 
+		    || View.TopBatchedViewElements.HasPrimsToDraw() 
+		    || View.NumVisibleDynamicEditorPrimitives > 0)
+	    {
+		    return true;
+	    }
 	}
 
 	return false;
@@ -3233,11 +3230,8 @@ FRendererModule::FRendererModule()
 	CVarSimpleForwardShading_PreviousValue = CVarSimpleForwardShading.AsVariable()->GetInt();
 	CVarSimpleForwardShading.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeSimpleForwardShading));
 
-	static auto CVarEarlyZPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
-	CVarEarlyZPass->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
-
-	static auto CVarEarlyZPassMovable = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassMovable"));
-	CVarEarlyZPassMovable->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
+	static auto EarlyZPassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
+	EarlyZPassVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void InitDebugViewModeInterfaces();
@@ -3250,7 +3244,9 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	// Create and add the new view
 	FViewInfo* NewView = new FViewInfo(*ViewInitOptions);
 	ViewFamily->Views.Add(NewView);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetRenderTarget(RHICmdList, ViewFamily->RenderTarget->GetRenderTargetTexture(), nullptr, ESimpleRenderTargetMode::EClearColorExistingDepth);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FViewInfo* View = (FViewInfo*)ViewFamily->Views[0];
 	View->ViewRect = View->UnscaledViewRect;
 	View->InitRHIResources();
@@ -3501,7 +3497,9 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 		FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->CurrentRealTime, Family->CurrentWorldTime, Family->DeltaWorldTime, InView.GetFeatureLevel());
 		Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SetRenderTarget(RHICmdList, Family->RenderTarget->GetRenderTargetTexture(), FTextureRHIRef());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// further down to not intersect with "LIGHTING NEEDS TO BE REBUILT"
 		FVector2D Pos(30, 140);

@@ -282,13 +282,13 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 }
 
 #if RHI_RAYTRACING
-void FNiagaraSceneProxy::GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections)
+void FNiagaraSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
 	for (NiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
 		{
-			Renderer->GetRayTracingGeometryInstances(OutInstanceCollections);
+			Renderer->GetDynamicRayTracingInstances(Context, OutRayTracingInstances, this);
 		}
 	}
 }
@@ -296,37 +296,32 @@ void FNiagaraSceneProxy::GetRayTracingGeometryInstances(TArray<FRayTracingGeomet
 
 void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const
 {
-	NiagaraRendererLights *LightRenderer = nullptr;
-	FNiagaraDynamicDataLights *DynamicData = nullptr;
 	for (int32 Idx = 0; Idx < EmitterRenderers.Num(); Idx++)
 	{
 		NiagaraRenderer *Renderer = EmitterRenderers[Idx];
 		if (Renderer && Renderer->GetPropertiesClass() == UNiagaraLightRendererProperties::StaticClass())
 		{
-			LightRenderer = static_cast<NiagaraRendererLights*>(Renderer);
-			DynamicData = static_cast<FNiagaraDynamicDataLights*>(Renderer->GetDynamicData());
-			break;
+			NiagaraRendererLights* LightRenderer = static_cast<NiagaraRendererLights*>(Renderer);
+			FNiagaraDynamicDataLights* DynamicData = static_cast<FNiagaraDynamicDataLights*>(Renderer->GetDynamicData());
+
+			if (DynamicData)
+			{
+				int32 LightCount = DynamicData->LightArray.Num();
+
+				OutParticleLights.InstanceData.Reserve(LightCount + OutParticleLights.InstanceData.Num());
+				OutParticleLights.PerViewData.Reserve(LightCount + OutParticleLights.PerViewData.Num());
+
+				for (NiagaraRendererLights::SimpleLightData &LightData : DynamicData->LightArray)
+				{
+					// When not using camera-offset, output one position for all views to share. 
+					OutParticleLights.PerViewData.Add(LightData.PerViewEntry);
+
+					// Add an entry for the light instance.
+					OutParticleLights.InstanceData.Add(LightData.LightEntry);
+				}
+			}
 		}
 	}
-
-
-	if (DynamicData)
-	{
-		int32 LightCount = DynamicData->LightArray.Num();
-		
-		OutParticleLights.InstanceData.Reserve(LightCount);
-		OutParticleLights.PerViewData.Reserve(LightCount);
-
-		for (NiagaraRendererLights::SimpleLightData &LightData : DynamicData->LightArray)
-		{
-			// When not using camera-offset, output one position for all views to share. 
-			OutParticleLights.PerViewData.Add(LightData.PerViewEntry);
-
-			// Add an entry for the light instance.
-			OutParticleLights.InstanceData.Add(LightData.LightEntry);
-		}
-	}
-
 }
 
 

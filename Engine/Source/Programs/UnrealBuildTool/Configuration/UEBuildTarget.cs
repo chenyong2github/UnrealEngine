@@ -1604,7 +1604,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				CopyAction.CommandArguments = String.Format("-c 'cp -f {0} {1}'", Utils.EscapeShellArgument(SourceFile.FullName), Utils.EscapeShellArgument(TargetFile.FullName));
+				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
 			}
 			CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			CopyAction.PrerequisiteItems.Add(SourceFileItem);
@@ -3158,6 +3158,16 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_CEF3=0");
+			}
+
+			// Set the define for enabling live coding
+			if(Rules.bWithLiveCoding)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=0");
 			}
 
 			if (Rules.bUseXGEController &&

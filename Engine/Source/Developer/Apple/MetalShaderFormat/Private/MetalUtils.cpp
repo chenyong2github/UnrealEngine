@@ -157,6 +157,7 @@ static void CreateNewAssignmentsHalf2Float(_mesa_glsl_parse_state* State, exec_l
 const glsl_type* GetFragColorTypeFromMetalOutputStruct(const glsl_type* OutputType)
 {
 	const glsl_type* FragColorType = glsl_type::error_type;
+	const glsl_type* FragDepthType = glsl_type::error_type;
 	if (OutputType && OutputType->base_type == GLSL_TYPE_STRUCT)
 	{
 		for (unsigned j = 0; j < OutputType->length; j++)
@@ -169,7 +170,15 @@ const glsl_type* GetFragColorTypeFromMetalOutputStruct(const glsl_type* OutputTy
 					FragColorType = OutputType->fields.structure[j].type;
 					break;
 				}
+				else if (!strncmp(OutputType->fields.structure[j].semantic, "[[ depth(", 9))
+				{
+					FragDepthType = OutputType->fields.structure[j].type;
+				}
 			}
+		}
+		if (FragColorType == glsl_type::error_type)
+		{
+			FragColorType = FragDepthType;
 		}
 	}
 	return FragColorType;
@@ -943,13 +952,15 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 	ir_variable* DestColorVar;
 	const glsl_type* DestColorType;
 	ir_variable* DestMRTColorVar[MAX_SIMULTANEOUS_RENDER_TARGETS];
+	EHlslShaderFrequency Frequency;
 
-	FFixIntrinsicsVisitor(_mesa_glsl_parse_state* InState, ir_function_signature* InMainSig) :
+	FFixIntrinsicsVisitor(_mesa_glsl_parse_state* InState, ir_function_signature* InMainSig, EHlslShaderFrequency InFrequency) :
 		State(InState),
 		bUsesFramebufferFetchES2(false),
 		MRTFetchMask(0),
 		DestColorVar(nullptr),
-		DestColorType(glsl_type::error_type)
+		DestColorType(glsl_type::error_type),
+		Frequency(InFrequency)
 	{
 		DestColorType = GetFragColorTypeFromMetalOutputStruct(InMainSig->return_type);
 		memset(DestMRTColorVar, 0, sizeof(DestMRTColorVar));
@@ -1016,7 +1027,7 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 
 	virtual ir_visitor_status visit_leave(ir_call* IR) override
 	{
-		if (IR->use_builtin)
+		if ((Frequency == HSF_PixelShader) && IR->use_builtin)
 		{
 			const char* CalleeName = IR->callee_name();
 			static auto ES2Len = strlen(FRAMEBUFFER_FETCH_ES2);
@@ -1029,6 +1040,11 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 				if (!DestColorVar)
 				{
 					// Generate new input variable for Metal semantics
+					if (DestColorType == glsl_type::error_type)
+					{
+						// When there are no depth writes and no color target writes then use float
+						DestColorType = glsl_type::float_type;
+					}
 					DestColorVar = new(State)ir_variable(glsl_type::get_instance(DestColorType->base_type, 4, 1), "gl_LastFragData", ir_var_in);
 					DestColorVar->semantic = "[[ color(0) ]]";
 				}
@@ -1066,12 +1082,12 @@ struct FFixIntrinsicsVisitor : public ir_rvalue_visitor
 	}
 };
 
-void FMetalCodeBackend::FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state)
+void FMetalCodeBackend::FixIntrinsics(exec_list* ir, _mesa_glsl_parse_state* state, EHlslShaderFrequency InFrequency)
 {
 	ir_function_signature* MainSig = GetMainFunction(ir);
 	check(MainSig);
 
-	FFixIntrinsicsVisitor Visitor(state,MainSig);
+	FFixIntrinsicsVisitor Visitor(state,MainSig,InFrequency);
 	Visitor.run(&MainSig->body);
 
 	if (Visitor.bUsesFramebufferFetchES2)
@@ -1235,6 +1251,12 @@ void FMetalCodeBackend::MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse
 				case EMetalTypeBufferModeRaw:
 				{
 					bIsBuffer = (!Var->type->is_sampler() && !Var->type->is_image()) || Var->type->sampler_buffer;
+					break;
+				}
+				case EMetalTypeBufferMode2DSRV:
+				case EMetalTypeBufferModeTBSRV:
+				{
+					bIsBuffer = (!Var->type->is_sampler() && !Var->type->is_image()) || (Var->type->sampler_buffer && (Var->type->is_image() || OutBuffers.AtomicVariables.find(Var) != OutBuffers.AtomicVariables.end() || bIsStructuredBuffer || bIsInvariant || bIsByteAddressBuffer)) || bIsVec3;
 					break;
 				}
 				case EMetalTypeBufferMode2D:

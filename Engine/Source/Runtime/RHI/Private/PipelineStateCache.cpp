@@ -50,7 +50,7 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 static inline uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
 {
 	return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
-		GetTypeHash(Initializer.HitGroupStride) ^
+		GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
 		GetTypeHash(Initializer.GetRayGenHash()) ^
 		GetTypeHash(Initializer.GetRayMissHash()) ^
 		GetTypeHash(Initializer.GetHitGroupHash());
@@ -582,7 +582,11 @@ FGraphicsPipelineCache GGraphicsPipelineCache;
 FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 	TEXT("TaskGraph.TaskPriorities.CompilePipelineStateTask"),
 	TEXT("Task and thread priority for FCompilePipelineStateTask."),
+#if PLATFORM_MAC
+	ENamedThreads::NormalThreadPriority,	// On Mac, use normal thread priority to not freeze the loading screen for extended period of time
+#else
 	ENamedThreads::HighThreadPriority,		// if we have high priority task threads, then use them...
+#endif
 	ENamedThreads::NormalTaskPriority,		// .. at normal task priority
 	ENamedThreads::HighTaskPriority,		// if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	EPowerSavingEligibility::NotEligible	// Not eligible for downgrade when power saving is requested.
@@ -799,7 +803,7 @@ static bool IsAsyncCompilationAllowed(FRHICommandList& RHICmdList)
 {
 	return !IsOpenGLPlatform(GMaxRHIShaderPlatform) &&  // The PSO cache is a waste of time on OpenGL and async compilation is a double waste of time.
 		!IsSwitchPlatform(GMaxRHIShaderPlatform) &&
-		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread());
+		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread()) && RHICmdList.AsyncPSOCompileAllowed();
 }
 
 FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader)

@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayMediaEncoder.h"
 #include "Engine/GameEngine.h"
@@ -199,7 +199,6 @@ bool FGameplayMediaEncoder::Initialize()
 	}
 
 	// Specifying 0 will completely disable frame skipping (therefore encoding as many frames as possible)
-	VideoConfig.Framerate = HardcodedAudioSamplerate;
 	FParse::Value(FCommandLine::Get(), TEXT("GameplayMediaEncoder.FPS="), VideoConfig.Framerate);
 	if (VideoConfig.Framerate == 0)
 	{
@@ -293,7 +292,7 @@ bool FGameplayMediaEncoder::Start()
 
 		VideoEncoder->Start();
 		FSlateRenderer::FOnBackBufferReadyToPresent OnBackBufferReadyDelegate;
-		OnBackBufferReadyDelegate.BindRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
+		OnBackBufferReadyDelegate.AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
 		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent() = OnBackBufferReadyDelegate;
 	}
 
@@ -320,7 +319,7 @@ void FGameplayMediaEncoder::Stop()
 
 		if (FSlateApplication::IsInitialized())
 		{
-			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().Unbind();
+			FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().RemoveAll(this);
 		}
 	}
 
@@ -384,7 +383,7 @@ void FGameplayMediaEncoder::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, 
 	ProcessAudioFrame(AudioData, NumSamples, NumChannels, SampleRate);
 }
 
-void FGameplayMediaEncoder::OnBackBufferReady(const FTexture2DRHIRef& BackBuffer)
+void FGameplayMediaEncoder::OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer)
 {
 	CSV_SCOPED_TIMING_STAT(GameplayMediaEncoder, OnBackBufferReady);
 	check(IsInRenderingThread());

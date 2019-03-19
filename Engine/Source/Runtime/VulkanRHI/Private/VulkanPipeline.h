@@ -43,6 +43,12 @@ inline uint64 GetShaderKeyForGfxStage(const FBoundShaderStateInput& BSI, ShaderS
 	case ShaderStage::Geometry:
 		return GetShaderKey(BSI.GeometryShaderRHI);
 #endif
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+	case ShaderStage::Hull:
+		return GetShaderKey(BSI.HullShaderRHI);
+	case ShaderStage::Domain:
+		return GetShaderKey(BSI.DomainShaderRHI);
+#endif
 	default:
 		check(0);
 	}
@@ -148,7 +154,8 @@ public:
 		uint32 VertexInputKey;
 		bool bLoaded;
 
-		uint32 RasterizationSamples;
+		uint16 RasterizationSamples;
+		uint16 ControlPoints;
 		uint32 Topology;
 		struct FBlendAttachment
 		{

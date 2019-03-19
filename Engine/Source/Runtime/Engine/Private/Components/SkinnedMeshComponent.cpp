@@ -359,6 +359,7 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 
 	ExternalInterpolationAlpha = 0.0f;
 	ExternalDeltaTime = 0.0f;
+	ExternalTickRate = 1;
 	bExternalInterpolate = false;
 	bExternalUpdate = false;
 	bExternalEvaluationRateLimited = false;
@@ -1132,16 +1133,29 @@ FTransform USkinnedMeshComponent::GetBoneTransform(int32 BoneIdx, const FTransfo
 		}
 		if(BoneIdx < MasterBoneMap.Num())
 		{
-			int32 ParentBoneIndex = MasterBoneMap[BoneIdx];
+			int32 MasterBoneIndex = MasterBoneMap[BoneIdx];
 
 			// If ParentBoneIndex is valid, grab matrix from MasterPoseComponent.
-			if(	ParentBoneIndex != INDEX_NONE && 
-				ParentBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
+			if(	MasterBoneIndex != INDEX_NONE && 
+				MasterBoneIndex < MasterPoseComponentInst->GetNumComponentSpaceTransforms())
 			{
-				return MasterPoseComponentInst->GetComponentSpaceTransforms()[ParentBoneIndex] * LocalToWorld;
+				return MasterPoseComponentInst->GetComponentSpaceTransforms()[MasterBoneIndex] * LocalToWorld;
 			}
 			else
 			{
+				// Is this a missing bone we have cached?
+				FMissingMasterBoneCacheEntry MissingBoneInfo;
+				const FMissingMasterBoneCacheEntry* MissingBoneInfoPtr = MissingMasterBoneMap.Find(BoneIdx);
+				if(MissingBoneInfoPtr != nullptr)
+				{
+					return MissingBoneInfoPtr->RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfoPtr->CommonAncestorBoneIndex] * LocalToWorld;
+				}
+				// Otherwise we might be able to generate the missing transform on the fly (although this is expensive)
+				else if(GetMissingMasterBoneRelativeTransform(BoneIdx, MissingBoneInfo))
+				{
+					return MissingBoneInfo.RelativeTransform * MasterPoseComponentInst->GetComponentSpaceTransforms()[MissingBoneInfo.CommonAncestorBoneIndex] * LocalToWorld;
+				}
+
 				UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("GetBoneTransform : ParentBoneIndex(%d) out of range of MasterPoseComponent->SpaceBases for %s"), BoneIdx, *this->GetFName().ToString() );
 				return FTransform::Identity;
 			}
@@ -1675,32 +1689,85 @@ UMorphTarget* USkinnedMeshComponent::FindMorphTarget( FName MorphTargetName ) co
 	return NULL;
 }
 
+bool USkinnedMeshComponent::GetMissingMasterBoneRelativeTransform(int32 InBoneIndex, FMissingMasterBoneCacheEntry& OutInfo) const
+{
+	const FReferenceSkeleton& SlaveRefSkeleton = SkeletalMesh->RefSkeleton;
+	check(SlaveRefSkeleton.IsValidIndex(InBoneIndex));
+	const TArray<FTransform>& BoneSpaceRefPoseTransforms = SlaveRefSkeleton.GetRefBonePose();
+
+	OutInfo.CommonAncestorBoneIndex = INDEX_NONE;
+	OutInfo.RelativeTransform = FTransform::Identity;
+
+	FTransform RelativeTransform = BoneSpaceRefPoseTransforms[InBoneIndex];
+
+	// we need to find a common base component-space transform in this skeletal mesh as it
+	// isnt present in the master, so run up the hierarchy
+	int32 CommonAncestorBoneIndex = InBoneIndex;
+	while(CommonAncestorBoneIndex != INDEX_NONE)
+	{
+		CommonAncestorBoneIndex = SlaveRefSkeleton.GetParentIndex(CommonAncestorBoneIndex);
+		if(CommonAncestorBoneIndex != INDEX_NONE)
+		{
+			OutInfo.CommonAncestorBoneIndex = MasterBoneMap[CommonAncestorBoneIndex];
+			if(OutInfo.CommonAncestorBoneIndex != INDEX_NONE)
+			{
+				OutInfo.RelativeTransform = RelativeTransform;
+				return true;
+			}
+
+			RelativeTransform = RelativeTransform * BoneSpaceRefPoseTransforms[CommonAncestorBoneIndex];
+		}
+	}
+
+	return false;
+}
 
 void USkinnedMeshComponent::UpdateMasterBoneMap()
 {
 	MasterBoneMap.Reset();
+	MissingMasterBoneMap.Reset();
 
 	if (SkeletalMesh)
 	{
 		if (USkinnedMeshComponent* MasterPoseComponentPtr = MasterPoseComponent.Get())
 		{
-			if (USkeletalMesh* ParentMesh = MasterPoseComponentPtr->SkeletalMesh)
+			if (USkeletalMesh* MasterMesh = MasterPoseComponentPtr->SkeletalMesh)
 			{
-				MasterBoneMap.AddUninitialized(SkeletalMesh->RefSkeleton.GetNum());
-				if (SkeletalMesh == ParentMesh)
+				const FReferenceSkeleton& SlaveRefSkeleton = SkeletalMesh->RefSkeleton;
+				const FReferenceSkeleton& MasterRefSkeleton = MasterMesh->RefSkeleton;
+
+				MasterBoneMap.AddUninitialized(SlaveRefSkeleton.GetNum());
+				if (SkeletalMesh == MasterMesh)
 				{
 					// if the meshes are the same, the indices must match exactly so we don't need to look them up
-					for (int32 i = 0; i < MasterBoneMap.Num(); i++)
+					for (int32 BoneIndex = 0; BoneIndex < MasterBoneMap.Num(); BoneIndex++)
 					{
-						MasterBoneMap[i] = i;
+						MasterBoneMap[BoneIndex] = BoneIndex;
 					}
 				}
 				else
 				{
-					for (int32 i = 0; i < MasterBoneMap.Num(); i++)
+					for (int32 BoneIndex = 0; BoneIndex < MasterBoneMap.Num(); BoneIndex++)
 					{
-						FName BoneName = SkeletalMesh->RefSkeleton.GetBoneName(i);
-						MasterBoneMap[i] = ParentMesh->RefSkeleton.FindBoneIndex(BoneName);
+						const FName BoneName = SlaveRefSkeleton.GetBoneName(BoneIndex);
+						MasterBoneMap[BoneIndex] = MasterRefSkeleton.FindBoneIndex(BoneName);
+					}
+
+					// Cache bones for any SOCKET bones that are missing in the master.
+					// We assume that sockets will be potentially called more often, so we
+					// leave out missing BONE transforms here to try to balance memory & performance.
+					for(USkeletalMeshSocket* Socket : SkeletalMesh->GetActiveSocketList())
+					{
+						int32 BoneIndex = SlaveRefSkeleton.FindBoneIndex(Socket->BoneName);
+						int32 MasterBoneIndex = MasterRefSkeleton.FindBoneIndex(Socket->BoneName);
+						if(BoneIndex != INDEX_NONE && MasterBoneIndex == INDEX_NONE)
+						{
+							FMissingMasterBoneCacheEntry MissingBoneInfo;
+							if(GetMissingMasterBoneRelativeTransform(BoneIndex, MissingBoneInfo))
+							{
+								MissingMasterBoneMap.Add(BoneIndex, MissingBoneInfo);
+							}
+						}
 					}
 				}
 			}

@@ -52,6 +52,10 @@
 #include "Misc/CoreDelegates.h"
 #endif
 
+#if !defined ENABLE_ADVERTISING_IDENTIFIER
+	#define ENABLE_ADVERTISING_IDENTIFIER 0
+#endif
+
 //#include <libproc.h>
 // @pjs commented out to resolve issue with PLATFORM_TVOS being defined by mach-o loader
 //#include <mach-o/dyld.h>
@@ -802,7 +806,7 @@ void FIOSPlatformMisc::RequestStoreReview()
 */
 FString FIOSPlatformMisc::GetUniqueAdvertisingId()
 {
-#if !PLATFORM_TVOS
+#if !PLATFORM_TVOS && ENABLE_ADVERTISING_IDENTIFIER
 	// Check to see if this OS has this function
 	if ([[ASIdentifierManager sharedManager] respondsToSelector:@selector(advertisingIdentifier)])
 	{
@@ -1659,6 +1663,11 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
         }
     }
 #endif
+}
+
+bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
+{
+    return FPlatformMisc::IsDebuggerPresent();
 }
 
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)

@@ -20,6 +20,7 @@
 #include "Engine/EngineTypes.h"
 #include "UObject/GCObject.h"
 #include "Containers/StaticBitArray.h"
+#include "Net/GuidReferences.h"
 
 class FGuidReferences;
 class FNetFieldExportGroup;
@@ -54,6 +55,12 @@ enum class ERepDataBufferType
 
 namespace UE4_RepLayout_Private
 {
+	// The purpose of this class is to allow us to translate or preserve const volatileness between disparate classes.
+	template<typename T, typename U> struct TTranslateConstVolatile { typedef typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<const T, U> { typedef const typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<volatile T, U> { typedef volatile typename TRemoveCV<U>::Type Type; };
+	template<typename T, typename U> struct TTranslateConstVolatile<const volatile T, U> { typedef const volatile typename TRemoveCV<U>::Type Type;  };
+
 	/**
 	 * TRepDataBuffer and TConstRepDataBuffer act as wrapper around internal data
 	 * buffers that FRepLayout may use. This allows FRepLayout to properly interact
@@ -63,17 +70,7 @@ namespace UE4_RepLayout_Private
 	struct TRepDataBufferBase
 	{
 		static constexpr ERepDataBufferType Type = DataType;
-
-	private:
-
-		// To be consistent, we need to match the constness of the base type
-		// to the constness of the void* we use as parameters or as returns.
-		// This bit of code does that. Working inside out:
-		//		1. We remove the const / volatile qualifications from the ConstOrNotType.
-		//		2. We see if the CV-stripped type is the same as the ConstOrNotType.
-		//		3. If they are the same, then we know the input is not const, and so we'll use void*.
-		//			If they aren't the same, assume that ConstOrNotType is const, and use const void*.
-		typedef typename TChooseClass<TAreTypesEqual<ConstOrNotType, typename TRemoveCV<ConstOrNotType>::Type>::Value, void, void const>::Result ConstOrNotVoid;
+		using ConstOrNotVoid = typename TTranslateConstVolatile<ConstOrNotType, void>::Type;
 
 	public:
 
@@ -435,7 +432,10 @@ private:
 
 	friend class FReplicationChangelistMgr;
 
-	FRepChangelistState(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+	FRepChangelistState(
+		const TSharedRef<const FRepLayout>& InRepLayout,
+		const uint8* Source,
+		struct FCustomDeltaChangelistState* CustomDeltaChangelistState);
 
 public:
 
@@ -444,6 +444,9 @@ public:
 
 	/** Circular buffer of changelists. */
 	FRepChangedHistory ChangeHistory[MAX_CHANGE_HISTORY];
+
+	/** Changelist state specific to Custom Delta properties. Only allocated if this RepLayout has Custom Delta Properties. */
+	TUniquePtr<struct FCustomDeltaChangelistState> CustomDeltaChangelistState;
 
 	/** Index in the buffer where changelist history starts (i.e., the Oldest changelist). */
 	int32 HistoryStart;
@@ -476,7 +479,10 @@ private:
 
 	friend class FRepLayout;
 
-	FReplicationChangelistMgr(const TSharedRef<const FRepLayout>& InRepLayout, const uint8* Source);
+	FReplicationChangelistMgr(
+		const TSharedRef<const FRepLayout>& InRepLayout,
+		const uint8* Source,
+		struct FCustomDeltaChangelistState* CustomDeltaChangelistState);
 
 public:
 
@@ -491,87 +497,6 @@ private:
 
 	uint32 LastReplicationFrame;
 	FRepChangelistState RepChangelistState;
-};
-
-class FGuidReferences;
-
-typedef TMap<int32, FGuidReferences> FGuidReferencesMap;
-
-/**
- * References to Objects (including Actors, Components, etc.) are replicated as NetGUIDs, since
- * the literal memory pointers will be different across game instances. In these cases, actual
- * replicated data for the Object will be handled elsewhere (either on its own Actor channel,
- * or on its Owning Actor's channel, as a replicated subobject).
- *
- * This class helps manage those references for specific replicated properties.
- * A FGuidReferences instance will be created for each Replicated Property that is a reference to an object.
- * Note, that in the same way Rep Commands may be nested, FGuidReferences can be nested in the same way.
- */
-class FGuidReferences
-{
-public:
-	FGuidReferences() : NumBufferBits(0), Array(NULL) {}
-
-	FGuidReferences(
-		FBitReader&					InReader,
-		FBitReaderMark&				InMark,
-		const TSet<FNetworkGUID>&	InUnmappedGUIDs,
-		const TSet<FNetworkGUID>&	InMappedDynamicGUIDs,
-		const int32					InParentIndex,
-		const int32					InCmdIndex
-	):
-			UnmappedGUIDs(InUnmappedGUIDs),
-			MappedDynamicGUIDs(InMappedDynamicGUIDs),
-			Array(NULL),
-			ParentIndex(InParentIndex),
-			CmdIndex(InCmdIndex)
-	{
-		NumBufferBits = InReader.GetPosBits() - InMark.GetPos();
-		InMark.Copy(InReader, Buffer);
-	}
-
-	FGuidReferences(
-		FGuidReferencesMap*	InArray,
-		const int32			InParentIndex,
-		const int32			InCmdIndex
-	):
-
-			NumBufferBits(0),
-			Array(InArray),
-			ParentIndex(InParentIndex),
-			CmdIndex(InCmdIndex)
-	{}
-		
-	~FGuidReferences();
-
-	void CountBytes(FArchive& Ar) const
-	{
-		UnmappedGUIDs.CountBytes(Ar);
-		MappedDynamicGUIDs.CountBytes(Ar);
-		Buffer.CountBytes(Ar);
-	}
-
-	/** GUIDs for objects that haven't been loaded / created yet. */
-	TSet<FNetworkGUID> UnmappedGUIDs;
-
-	/** GUIDs for dynamically spawned objects that have already been created. */
-	TSet<FNetworkGUID> MappedDynamicGUIDs;
-
-	/** A copy of the last network data read related to this GUID Reference. */
-	TArray<uint8> Buffer;
-	int32 NumBufferBits;
-
-	/**
-	 * If this FGuidReferences instance is owned by an Array Property that contains nested GUID References,
-	 * then this will be a valid FGuidReferencesMap containing the nested FGuidReferences.
-	 */
-	FGuidReferencesMap* Array;
-
-	/** The Property Command index of the top level property that references the GUID. */
-	int32 ParentIndex;
-
-	/** The Property Command index of the actual property that references the GUID. */
-	int32 CmdIndex;
 };
 
 /** Replication State needed to track received properties. */
@@ -779,7 +704,9 @@ enum class ERepParentFlags : uint32
 	IsCustomDelta		= (1 << 3),	//! This property uses custom delta compression. Mutually exclusive with IsNetSerialize.
 	IsNetSerialize		= (1 << 4), //! This property uses a custom net serializer. Mutually exclusive with IsCustomDelta.
 	IsStructProperty	= (1 << 5),	//! This property is a UStructProperty.
-	IsZeroConstructible	= (1 << 6)	//! This property is ZeroConstructible.
+	IsZeroConstructible	= (1 << 6),	//! This property is ZeroConstructible.
+	IsFastArray			= (1 << 7), //! This property is a FastArraySerializer. This can't be a ERepLayoutCmdType, because
+									//! these Custom Delta structs will have their inner properties tracked.
 };
 
 ENUM_CLASS_FLAGS(ERepParentFlags)
@@ -1142,22 +1069,13 @@ private:
 
 	friend struct FRepStateStaticBuffer;
 	friend class UPackageMapClient;
+	friend class FNetSerializeCB;
 
-	FRepLayout():
-		LayoutState(ERepLayoutState::Uninitialized),
-		FirstNonCustomParent(0),
-		RoleIndex(INDEX_NONE),
-		RemoteRoleIndex(-1),
-		Owner(nullptr)
-	{}
+	FRepLayout();
 
 public:
 
-	~FRepLayout()
-	{
-		// This should never happen.
-		check(ERepLayoutState::Uninitialized != LayoutState);
-	}
+	virtual ~FRepLayout();
 
 	/** Creates a new FRepLayout for the given class. */
 	ENGINE_API static TSharedPtr<FRepLayout> CreateFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection = nullptr, const ECreateRepLayoutFlags Flags = ECreateRepLayoutFlags::None);
@@ -1376,6 +1294,7 @@ public:
 		FReceivingRepState* RESTRICT RepState,
 		UPackageMap* PackageMap,
 		UObject* Object,
+		bool& bCalledPreNetReceive,
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const;
 
@@ -1387,9 +1306,10 @@ public:
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const
 	{
-		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+		bool bCalledPreNetReceive = false;
+		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 	}
-	
+
 	/**
 	 * Fire any RepNotifies that have been queued for an object while receiving properties.
 	 *
@@ -1498,7 +1418,17 @@ public:
 		TRepDataBuffer<DstType> Destination,
 		TConstRepDataBuffer<SrcType> Source) const;
 
-	void GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions);
+	UE_DEPRECATED(4.23, "This method is deprecated. Please use GetLifetimeCustomDeltaProperties that returns an ArrayView and GetPropertyLifetimeCondition instead.")
+	void GetLifetimeCustomDeltaProperties(TArray<int32>& OutCustom, TArray<ELifetimeCondition>& OutConditions) const;
+
+	/** Returns the RepIndices of any Lifetime Custom Delta properties. */
+	const TArrayView<const uint16> GetLifetimeCustomDeltaProperties() const;
+
+	/** Returns the Lifetime Condition for the Replicated property associated with the given RepIndex. */
+	const ELifetimeCondition GetPropertyLifetimeCondition(uint16 RepIndex) const
+	{
+		return Parents[RepIndex].Condition;
+	}
 
 	/** @see SendProperties. */
 	void ENGINE_API SendPropertiesForRPC(
@@ -1607,6 +1537,12 @@ public:
 
 	void CountBytes(FArchive& Ar) const;
 
+	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
+	UProperty* GetPropertyForRepIndex(uint32 RepIndex) const
+	{
+		return Parents[RepIndex].Property;
+	}
+
 private:
 
 	void InitFromClass(UClass* InObjectClass, const UNetConnection* ServerConnection, const ECreateRepLayoutFlags Flags);
@@ -1706,34 +1642,12 @@ private:
 
 	void SendProperties_r(
 		FSendingRepState* RESTRICT RepState,
-		FRepChangedPropertyTracker* ChangedTracker,
 		FNetBitWriter& Writer,
 		const bool bDoChecksum,
 		FRepHandleIterator& HandleIterator,
 		const FConstRepObjectDataBuffer SourceData,
 		const int32	 ArrayDepth,
-		const FRepSerializationSharedInfo& SharedInfo) const;
-
-	uint16 CompareProperties_r(
-		FSendingRepState* RESTRICT RepState,
-		const int32 CmdStart,
-		const int32 CmdEnd,
-		FRepShadowDataBuffer CompareData,
-		const FConstRepObjectDataBuffer Data,
-		TArray<uint16>& Changed,
-		uint16 Handle,
-		const bool bIsInitial,
-		const bool bForceFail) const;
-
-	void CompareProperties_Array_r(
-		FSendingRepState* RESTRICT RepState,
-		FRepShadowDataBuffer ShadowData,
-		const FConstRepObjectDataBuffer Data,
-		TArray<uint16>& Changed,
-		const uint16 CmdIndex,
-		const uint16 Handle,
-		const bool bIsInitial,
-		const bool bForceFail) const;
+		const FRepSerializationSharedInfo* const RESTRICT SharedInfo) const;
 
 	void BuildSharedSerialization(
 		const FConstRepObjectDataBuffer Data,
@@ -1784,7 +1698,7 @@ private:
 		bool& bOutGuidsChanged) const;
 
 	void GatherGuidReferences_r(
-		FGuidReferencesMap* GuidReferencesMap,
+		const FGuidReferencesMap* GuidReferencesMap,
 		TSet<FNetworkGUID>& OutReferencedGuids,
 		int32& OutTrackedGuidMemoryBytes) const;
 
@@ -1798,6 +1712,7 @@ private:
 		FRepShadowDataBuffer ShadowData, 
 		FRepObjectDataBuffer Data, 
 		const int32 MaxAbsOffset,
+		bool& bCalledPreNetReceive,
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const;
 
@@ -1816,24 +1731,6 @@ private:
 		uint16 Handle) const;
 
 	void SanityCheckChangeList(const FConstRepObjectDataBuffer Data, TArray<uint16>& Changed) const;
-
-	uint32 AddPropertyCmd(
-		UProperty* Property,
-		int32 Offset,
-		int32 RelativeHandle,
-		int32 ParentIndex,
-		uint32 ParentChecksum,
-		int32 StaticArrayIndex,
-		const UNetConnection* ServerConnection);
-
-	uint32 AddArrayCmd(
-		UArrayProperty* Property,
-		int32 Offset,
-		int32 RelativeHandle,
-		int32 ParentIndex,
-		uint32 ParentChecksum,
-		int32 StaticArrayIndex,
-		const UNetConnection* ServerConnection);
 
 	void SerializeProperties_DynamicArray_r(
 		FBitArchive& Ar, 
@@ -1892,6 +1789,7 @@ private:
 		const int32 CmdEnd,
 		const FConstRepObjectDataBuffer Data,
 		const int32 HandleOffset,
+		const bool bForceArraySends,
 		TArray<uint16>& Changed) const;
 
 	void BuildHandleToCmdIndexTable_r(
@@ -1904,9 +1802,89 @@ private:
 	void CopyProperties(FRepStateStaticBuffer& ShadowData, const FConstRepObjectDataBuffer Source) const;
 	void DestructProperties(FRepStateStaticBuffer& RepStateStaticBuffer) const;
 
-	ERepLayoutState LayoutState;
+	/**
+	 * Similar to GatherGuidReferences, except works for CustomDeltaProperties.
+	 *
+	 * @param Params	Params that we'll use to gather guids.
+	 *					The GatherGuidReferences member must not be null.
+	 *					The Object member must not be null.
+	 */
+	void GatherGuidReferencesForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
 
-	int16 FirstNonCustomParent;
+	/**
+	 * Similar to MoveMappedObjectToUnmapped, except works for CustomDeltaProperties.
+	 *
+	 * @param Params	Params that we'll use to gather guids.
+	 *					The MoveGuidToUnmapped member must not be null.
+	 *					The Object member must not be null.
+	 */
+	bool MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
+
+	//~ Remove this when FObjectReplicator::UnmappedCustomProperties goes away.
+	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
+	bool MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSerializeInfo& Params, TMap<int32, UStructProperty*>& UnmappedProperties) const;
+
+	/**
+	 * Similar to UpdateUnmappedObjects, except works for CustomDeltaProperties.
+	 *
+	 * @param Params					Params that we'll use to gather guids.
+	 *									The bUpdateUnmappedObjects member must be true.
+	 *									The PackageMap member must be non null.
+	 *									The Object member must be non null.
+	 */
+	void UpdateUnmappedObjectsForCustomDeltaProperties(FNetDeltaSerializeInfo& Params) const;
+
+	//~ Remove this when FObjectReplicator::UnmappedCustomProperties goes away.
+	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
+	void UpdateUnmappedObjectsForCustomDeltaProperties(
+		FNetDeltaSerializeInfo& Params,
+		TArray<TPair<int32, UStructProperty*>>& CompletelyMapped,
+		TArray<TPair<int32, UStructProperty*>>& Updated) const;
+
+	bool SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, uint16 CustomDeltaRepIndex) const;
+
+	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
+	bool SendCustomDeltaProperty(
+		FNetDeltaSerializeInfo& Params,
+		UProperty* Property,
+		int32 StaticArrayIndex) const;
+
+	/**
+	 * Attempts to receive the custom delta property.
+	 *
+	 * @param Params			Params that we'll use to receive.
+	 *							The PackageMap member must be non null.
+	 *							The Object member must be non null.
+	 *							The Reader member must be non null.
+	 * @param Property			The Property that we're trying to received.
+	 *							This is expected to be a valid Replicated property that is a CustomDelta type.
+	 */
+	bool ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property) const;
+
+	UE_DEPRECATED(4.23, "This method is only temporary to support existing behavior, and will be removed in future versions.")
+	bool ReceiveCustomDeltaProperty(FNetDeltaSerializeInfo& Params, UStructProperty* Property, uint32& StaticArrayIndex, int32& Offset) const;
+
+	bool DeltaSerializeFastArrayProperty(struct FFastArrayDeltaSerializeParams& Params, FReplicationChangelistMgr* ChangelistMgr) const;
+
+	void GatherGuidReferencesForFastArray(struct FFastArrayDeltaSerializeParams& Params) const;
+
+	bool MoveMappedObjectToUnmappedForFastArray(struct FFastArrayDeltaSerializeParams& Params) const;
+
+	void UpdateUnmappedGuidsForFastArray(struct FFastArrayDeltaSerializeParams& Params) const;
+
+	void PreSendCustomDeltaProperties(
+		UObject* Object,
+		UNetConnection* Connection,
+		FReplicationChangelistMgr& ChangelistMgr,
+		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+
+	void PostSendCustomDeltaProperties(
+		UObject* Object,
+		UNetConnection* Connection,
+		FReplicationChangelistMgr& ChangelistMgr,
+		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+
+	ERepLayoutState LayoutState;
 
 	/** Index of the Role property in the Parents list. May be INDEX_NONE if Owner doesn't have the property. */
 	int16 RoleIndex;
@@ -1925,6 +1903,12 @@ private:
 
 	/** Converts a relative handle to the appropriate index into the Cmds array */
 	TArray<FHandleToCmdIndex> BaseHandleToCmdIndex;
+
+	/**
+	 * Special state tracking for Lifetime Custom Delta Properties.
+	 * Will only ever be valid if the Layout has Lifetime Custom Delta Properties.
+	 */
+	TUniquePtr<struct FLifetimeCustomDeltaState> LifetimeCustomPropertyState;
 
 	/** UClass, UStruct, or UFunction that this FRepLayout represents.*/
 	UStruct* Owner;

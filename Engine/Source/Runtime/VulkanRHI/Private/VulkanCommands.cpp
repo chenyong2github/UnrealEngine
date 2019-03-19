@@ -188,26 +188,28 @@ void FVulkanCommandListContext::RHISetShaderTexture(FVertexShaderRHIParamRef Ver
 
 void FVulkanCommandListContext::RHISetShaderTexture(FHullShaderRHIParamRef HullShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Hull) == GetShaderKey(HullShaderRHI));
 	FVulkanTextureBase* Texture = GetVulkanTextureFromRHITexture(NewTextureRHI);
 	VkImageLayout Layout = GetLayoutForDescriptor(Texture->Surface);
-	PendingGfxState->SetTexture(ShaderStage::Hull, TextureIndex, Texture, Layout);
+	PendingGfxState->SetTextureForStage(ShaderStage::Hull, TextureIndex, Texture, Layout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
-*/
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderTexture(FDomainShaderRHIParamRef DomainShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Domain) == GetShaderKey(DomainShaderRHI));
 	FVulkanTextureBase* Texture = GetVulkanTextureFromRHITexture(NewTextureRHI);
 	VkImageLayout Layout = GetLayoutForDescriptor(Texture->Surface);
-	PendingGfxState->SetTexture(ShaderStage::Domain, TextureIndex, Texture, Layout);
+	PendingGfxState->SetTextureForStage(ShaderStage::Domain, TextureIndex, Texture, Layout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
-*/
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderTexture(FGeometryShaderRHIParamRef GeometryShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
@@ -252,22 +254,24 @@ void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FVertexShaderR
 
 void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FHullShaderRHIParamRef HullShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Hull) == GetShaderKey(HullShaderRHI));
 	FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
-	PendingGfxState->SetSRV(ShaderStage::Hull, TextureIndex, SRV);
-*/
+	PendingGfxState->SetSRVForStage(ShaderStage::Hull, TextureIndex, SRV);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FDomainShaderRHIParamRef DomainShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Domain) == GetShaderKey(DomainShaderRHI));
 	FVulkanShaderResourceView* SRV = ResourceCast(SRVRHI);
-	PendingGfxState->SetSRV(ShaderStage::Domain, TextureIndex, SRV);
-*/
+	PendingGfxState->SetSRVForStage(ShaderStage::Domain, TextureIndex, SRV);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderResourceViewParameter(FGeometryShaderRHIParamRef GeometryShaderRHI,uint32 TextureIndex,FShaderResourceViewRHIParamRef SRVRHI)
@@ -305,22 +309,24 @@ void FVulkanCommandListContext::RHISetShaderSampler(FVertexShaderRHIParamRef Ver
 
 void FVulkanCommandListContext::RHISetShaderSampler(FHullShaderRHIParamRef HullShaderRHI, uint32 SamplerIndex, FSamplerStateRHIParamRef NewStateRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Hull) == GetShaderKey(HullShaderRHI));
 	FVulkanSamplerState* Sampler = ResourceCast(NewStateRHI);
-	PendingGfxState->SetSamplerState(ShaderStage::Hull, SamplerIndex, Sampler);
-*/
+	PendingGfxState->SetSamplerStateForStage(ShaderStage::Hull, SamplerIndex, Sampler);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderSampler(FDomainShaderRHIParamRef DomainShaderRHI, uint32 SamplerIndex, FSamplerStateRHIParamRef NewStateRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Domain) == GetShaderKey(DomainShaderRHI));
 	FVulkanSamplerState* Sampler = ResourceCast(NewStateRHI);
-	PendingGfxState->SetSamplerState(ShaderStage::Domain, SamplerIndex, Sampler);
-*/
+	PendingGfxState->SetSamplerStateForStage(ShaderStage::Domain, SamplerIndex, Sampler);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderSampler(FGeometryShaderRHIParamRef GeometryShaderRHI, uint32 SamplerIndex, FSamplerStateRHIParamRef NewStateRHI)
@@ -359,22 +365,24 @@ void FVulkanCommandListContext::RHISetShaderParameter(FVertexShaderRHIParamRef V
 
 void FVulkanCommandListContext::RHISetShaderParameter(FHullShaderRHIParamRef HullShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Hull) == GetShaderKey(HullShaderRHI));
 
-	PendingGfxState->SetShaderParameter(ShaderStage::Hull, BufferIndex, BaseIndex, NumBytes, NewValue);
-*/
+	PendingGfxState->SetPackedGlobalShaderParameter(ShaderStage::Hull, BufferIndex, BaseIndex, NumBytes, NewValue);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderParameter(FDomainShaderRHIParamRef DomainShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Domain) == GetShaderKey(DomainShaderRHI));
 
-	PendingGfxState->SetShaderParameter(ShaderStage::Domain, BufferIndex, BaseIndex, NumBytes, NewValue);
-*/
+	PendingGfxState->SetPackedGlobalShaderParameter(ShaderStage::Domain, BufferIndex, BaseIndex, NumBytes, NewValue);
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderParameter(FGeometryShaderRHIParamRef GeometryShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)
@@ -623,7 +631,8 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 		}
 		else
 		{
-			PendingGfxState->SetUniformBufferConstantData(Stage, BufferIndex, UniformBuffer->ConstantData);
+			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
+			PendingGfxState->SetUniformBufferConstantData(Stage, BufferIndex, EmulatedUniformBuffer->ConstantData);
 		}
 	}
 
@@ -646,20 +655,22 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FVertexShaderRHIParamR
 
 void FVulkanCommandListContext::RHISetShaderUniformBuffer(FHullShaderRHIParamRef HullShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
 	SetShaderUniformBuffer(ShaderStage::Hull, UniformBuffer, BufferIndex, ResourceCast(HullShaderRHI));
-*/
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderUniformBuffer(FDomainShaderRHIParamRef DomainShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
 {
-	ensureMsgf(0, TEXT("Tessellation not supported yet!"));
-/*
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
 	SetShaderUniformBuffer(ShaderStage::Domain, UniformBuffer, BufferIndex, ResourceCast(DomainShaderRHI));
-*/
+#else
+	ensureMsgf(0, TEXT("Tessellation not supported on this platform!"));
+#endif
 }
 
 void FVulkanCommandListContext::RHISetShaderUniformBuffer(FGeometryShaderRHIParamRef GeometryShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
@@ -724,7 +735,8 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FComputeShaderRHIParam
 		}
 		else
 		{
-			State.SetUniformBufferConstantData(BufferIndex, UniformBuffer->ConstantData);
+			const FVulkanEmulatedUniformBuffer* EmulatedUniformBuffer = static_cast<const FVulkanEmulatedUniformBuffer*>(UniformBuffer);
+			State.SetUniformBufferConstantData(BufferIndex, EmulatedUniformBuffer->ConstantData);
 		}
 	}
 

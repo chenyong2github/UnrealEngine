@@ -577,7 +577,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 {
 	check(PieWorldContext.WorldType == EWorldType::PIE);
 	PlayWorld = PieWorldContext.World();
-	PlayWorld->bIsTearingDown = true;
+	PlayWorld->BeginTearingDown();
 
 	if (!PieWorldContext.RunAsDedicated)
 	{
@@ -1469,7 +1469,7 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	}
 
 	// launch the game process
-	FString GamePath = FString(FPlatformProcess::BaseDir()) / FString(FPlatformProcess::ExecutableName(false));
+	FString GamePath = FPlatformProcess::ExecutablePath();
 	FPlayOnPCInfo *NewSession = new (PlayOnLocalPCSessions) FPlayOnPCInfo();
 
 	uint32 ProcessID = 0;
@@ -1626,7 +1626,11 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 
 	if (bSetNotification)
 	{
-		NotificationItemPtr.Pin()->SetText(NotificationText);
+		TGraphTask<FLauncherNotificationTask>::CreateTask().ConstructAndDispatchWhenReady(
+			NotificationItemPtr,
+			SNotificationItem::CS_Pending,
+			NotificationText
+		);
 	}
 }
 
@@ -1668,8 +1672,6 @@ void UEditorEngine::HandleLaunchCompleted(bool Succeeded, double TotalTime, int3
 			(PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"))) == TEXT("TVOS") && PlayUsingLauncherDeviceName.Contains(DummyTVOSDeviceName)))
 		{
 			CompletionMsg = LOCTEXT("DeploymentTaskCompleted", "Deployment complete! Open the app on your device to launch.");
-			TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
-//			NotificationItem->SetExpireDuration(30.0f);
 		}
 		else
 		{
@@ -2547,6 +2549,11 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPl
 	FEditorDelegates::PostPIEStarted.Broadcast( bInSimulateInEditor );
 }
 
+FGameInstancePIEResult UEditorEngine::PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances)
+{
+	return FGameInstancePIEResult::Success();
+}
+
 void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bStartInSpectatorMode)
 {
 	double PIEStartTime = FPlatformTime::Seconds();
@@ -2575,6 +2582,12 @@ void UEditorEngine::SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bS
 	// Server
 	if (CanPlayNetDedicated || WillAutoConnectToServer)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, false, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		PlayInSettings->SetPlayNetMode(EPlayNetMode::PIE_ListenServer);
 
 		if (!CanPlayNetDedicated)
@@ -2706,6 +2719,12 @@ void UEditorEngine::LoginPIEInstances(bool bAnyBlueprintErrors, bool bStartInSpe
 	// Server
 	if (WillAutoConnectToServer || CanPlayNetDedicated)
 	{
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(bAnyBlueprintErrors, bStartInSpectatorMode, PIEStartTime, true, NumOnlinePIEInstances);
+		if (!PreCreateResult.IsSuccess())
+		{
+			return;
+		}
+
 		FWorldContext &PieWorldContext = CreateNewWorldContext(EWorldType::PIE);
 		PieWorldContext.PIEInstance = PIEInstance++;
 		PieWorldContext.RunAsDedicated = CanPlayNetDedicated;
@@ -3643,15 +3662,15 @@ int32 UEditorEngine::OnSwitchWorldForSlatePieWindow( int32 WorldID )
 	return RestoreID;
 }
 
-void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld )
+void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* OverrideWorld )
 {
 	if( bSwitchToPieWorld )
 	{
-		SetPlayInEditorWorld( PlayWorld );
+		SetPlayInEditorWorld( OverrideWorld ? OverrideWorld : PlayWorld );
 	}
 	else
 	{
-		RestoreEditorWorld( EditorWorld );
+		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
 	}
 }
 

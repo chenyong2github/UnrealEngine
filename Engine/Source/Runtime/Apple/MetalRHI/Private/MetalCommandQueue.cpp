@@ -90,10 +90,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
 				}
 				
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
@@ -156,12 +152,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				}
 				
 				Features |= EMetalFeaturesPresentMinDuration | EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
-				
-				// Turn on Linear Texture UAVs! Avoids the need to have function-constants which reduces initial runtime shader compile time
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
 				
 				// Turn on Texture Buffers! These are faster on the GPU as we don't need to do out-of-bounds tests but require Metal 2.1 and macOS 10.14
 				if (Vers.majorVersion >= 12)
@@ -261,7 +251,8 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					Features |= EMetalFeaturesFences;
 				}
 				
-				if (!FParse::Param(FCommandLine::Get(),TEXT("nometalheap")) && ([Device.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location == NSNotFound || FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap"))))
+				// There are still too many driver bugs to use MTLHeap on macOS - nothing works without causing random, undebuggable GPU hangs that completely deadlock the Mac and don't generate any validation errors or command-buffer failures
+				if (FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap")))
 				{
 					Features |= EMetalFeaturesHeaps;
 				}

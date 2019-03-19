@@ -98,11 +98,12 @@ struct FLandscapeTargetListInfo
 	{
 	}
 
-	FLandscapeInfoLayerSettings* GetLandscapeInfoLayerSettings() const
+	int32 GetLandscapeInfoLayerIndex() const
 	{
+		int32 Index = INDEX_NONE;
+
 		if (TargetType == ELandscapeToolTargetType::Weightmap)
 		{
-			int32 Index = INDEX_NONE;
 			if (LayerInfoObj.IsValid())
 			{
 				Index = LandscapeInfo->GetLayerInfoIndex(LayerInfoObj.Get(), Owner.Get());
@@ -111,11 +112,20 @@ struct FLandscapeTargetListInfo
 			{
 				Index = LandscapeInfo->GetLayerInfoIndex(LayerName, Owner.Get());
 			}
-			if (ensure(Index != INDEX_NONE))
-			{
-				return &LandscapeInfo->Layers[Index];
-			}
 		}
+
+		return Index;
+	}
+
+	FLandscapeInfoLayerSettings* GetLandscapeInfoLayerSettings() const
+	{
+		int32 Index = GetLandscapeInfoLayerIndex();
+
+		if (Index != INDEX_NONE)
+		{
+			return &LandscapeInfo->Layers[Index];
+		}
+
 		return NULL;
 	}
 
@@ -418,6 +428,15 @@ public:
 
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const override;
 
+	/** Get override cursor visibility settings */	
+	virtual bool GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const override;
+
+	/** Called before mouse movement is converted to drag/rot */
+	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
+
+	/** Called after mouse movement is converted to drag/rot */
+	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
+
 	/** Forces real-time perspective viewports */
 	void ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState);
 
@@ -477,10 +496,14 @@ public:
 	FName GetCurrentProceduralLayerName() const;
 	FName GetProceduralLayerName(int32 InLayerIndex) const;
 	void SetProceduralLayerName(int32 InLayerIndex, const FName& InName);
-	float GetProceduralLayerWeight(int32 InLayerIndex) const;
-	void SetProceduralLayerWeight(float InWeight, int32 InLayerIndex);
+	float GetProceduralLayerAlpha(int32 InLayerIndex) const;
+	void SetProceduralLayerAlpha(float InWeight, int32 InLayerIndex);
 	void SetProceduralLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsProceduralLayerVisible(int32 InLayerIndex) const;
+	struct FProceduralLayer* GetCurrentProceduralLayer() const;
+	bool IsCurrentProceduralLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
+	void SetCurrentProceduralLayerSubstractiveBlendStatus(bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
+	
 	void AddBrushToCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
 	void RemoveBrushFromCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
 	bool AreAllBrushesCommitedToCurrentProceduralLayer(int32 InTargetType);
@@ -488,9 +511,12 @@ public:
 	TArray<int8>& GetBrushesOrderForCurrentProceduralLayer(int32 InTargetType) const;
 	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentProceduralLayer(int32 InTargetType, int8 BrushIndex) const;
 	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentProceduralLayer(int32 InTargetType);
-	struct FProceduralLayer* GetCurrentProceduralLayer() const;
+	
 	void ChangeHeightmapsToCurrentProceduralLayerHeightmaps(bool InResetCurrentEditingHeightmap = false);
-	void RequestProceduralContentUpdate();
+	void ChangeWeightmapsToCurrentProceduralLayerWeightmaps(bool InResetCurrentEditingHeightmap = false);
+
+	bool NeedToFillEmptyLayersForProcedural() const;
+	void RequestProceduralContentUpdate(bool InUpdateAllMaterials = false);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);

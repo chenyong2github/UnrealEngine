@@ -19,9 +19,14 @@ namespace UnrealBuildTool
 	class FileItem
 	{
 		/// <summary>
-		/// The file reference
+		/// The directory containing this file
 		/// </summary>
-		public FileReference Location;
+		DirectoryItem CachedDirectory;
+
+		/// <summary>
+		/// Location of this file
+		/// </summary>
+		public readonly FileReference Location;
 
 		/// <summary>
 		/// The information about the file.
@@ -61,6 +66,21 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the directory that this file is in
+		/// </summary>
+		public DirectoryItem Directory
+		{
+			get
+			{
+				if(CachedDirectory == null)
+				{
+					CachedDirectory = DirectoryItem.GetItemByDirectoryReference(Location.Directory);
+				}
+				return CachedDirectory;
+			}
+		}
+
+		/// <summary>
 		/// Whether the file exists.
 		/// </summary>
 		public bool Exists
@@ -74,6 +94,14 @@ namespace UnrealBuildTool
 		public long Length
 		{
 			get { return Info.Length; }
+		}
+
+		/// <summary>
+		/// The attributes for this file
+		/// </summary>
+		public FileAttributes Attributes
+		{
+			get { return Info.Attributes; }
 		}
 
 		/// <summary>
@@ -100,7 +128,17 @@ namespace UnrealBuildTool
 		/// <returns>DirectoryItem for the directory containing this file</returns>
 		public DirectoryItem GetDirectoryItem()
 		{
-			return DirectoryItem.GetItemByDirectoryInfo(Info.Directory);
+			return Directory;
+		}
+
+		/// <summary>
+		/// Updates the cached directory for this file. Used by DirectoryItem when enumerating files, to avoid having to look this up later.
+		/// </summary>
+		/// <param name="Directory">The directory that this file is in</param>
+		public void UpdateCachedDirectory(DirectoryItem Directory)
+		{
+			Debug.Assert(Directory.Location == Location.Directory);
+			CachedDirectory = Directory;
 		}
 
 		/// <summary>
@@ -326,6 +364,42 @@ namespace UnrealBuildTool
 		public static void WriteFileItem(this BinaryArchiveWriter Writer, FileItem FileItem)
 		{
 			Writer.WriteObjectReference<FileItem>(FileItem, () => Writer.WriteFileReference(FileItem.Location));
+		}
+
+		/// <summary>
+		/// Read a file item as a DirectoryItem and name. This is slower than reading it directly, but results in a significantly smaller archive
+		/// where most files are in the same directories.
+		/// </summary>
+		/// <param name="Reader">Archive to read from</param>
+		/// <returns>FileItem read from the archive</returns>
+		static FileItem ReadCompactFileItemData(this BinaryArchiveReader Reader)
+		{
+			DirectoryItem Directory = Reader.ReadDirectoryItem();
+			string Name = Reader.ReadString();
+
+			FileItem FileItem = FileItem.GetItemByFileReference(FileReference.Combine(Directory.Location, Name));
+            FileItem.UpdateCachedDirectory(Directory);
+            return FileItem;
+		}
+
+		/// <summary>
+		/// Read a file item in a format which de-duplicates directory names.
+		/// </summary>
+		/// <param name="Reader">Reader to serialize data from</param>
+		/// <returns>Instance of the serialized file item</returns>
+		public static FileItem ReadCompactFileItem(this BinaryArchiveReader Reader)
+		{
+			return Reader.ReadObjectReference<FileItem>(() => ReadCompactFileItemData(Reader));
+		}
+
+		/// <summary>
+		/// Writes a file item in a format which de-duplicates directory names.
+		/// </summary>
+		/// <param name="Writer">Writer to serialize data to</param>
+		/// <param name="FileItem">File item to write</param>
+		public static void WriteCompactFileItem(this BinaryArchiveWriter Writer, FileItem FileItem)
+		{
+			Writer.WriteObjectReference<FileItem>(FileItem, () => { Writer.WriteDirectoryItem(FileItem.GetDirectoryItem()); Writer.WriteString(FileItem.Name); });
 		}
 	}
 }

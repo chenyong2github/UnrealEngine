@@ -91,6 +91,7 @@ public:
 
 	operator const FString&() const { return PlatformStr; }
 	const FString& ToString() const { return PlatformStr; }
+	const FString GetTypeName() const;
 
 	bool operator==(const FString& OtherStr) const;
 	bool operator!=(const FString& OtherStr) const { return !operator==(OtherStr); }

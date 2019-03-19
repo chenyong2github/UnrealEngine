@@ -54,6 +54,8 @@
 #include "Misc/NetworkVersion.h"
 #include "Templates/UniquePtr.h"
 
+#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
+
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
 #endif
@@ -215,16 +217,8 @@ class FFeedbackContext;
 	#define RHI_COMMAND_LIST_DEBUG_TRACES 0
 #endif
 
-#ifndef REAPPLY_INI_SETTINGS_AFTER_EARLY_LOADING_SCREEN
-#define REAPPLY_INI_SETTINGS_AFTER_EARLY_LOADING_SCREEN 0
-#endif
-
-#ifndef MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN
-#define MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN 1
-#endif
-
-#ifndef OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN
-#define OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN 1
+#ifndef AUTOMATICALLY_HANDLE_INSTALLED_CONTENT_AFTER_EARLY_STARTUP_SCREEN
+#define AUTOMATICALLY_HANDLE_INSTALLED_CONTENT_AFTER_EARLY_STARTUP_SCREEN 0
 #endif
 
 #if WITH_ENGINE
@@ -956,14 +950,17 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 #if WITH_EDITOR
 	if (WorldContextHandle != NAME_None)
 	{
-		FWorldContext& WorldContext = GEngine->GetWorldContextFromHandleChecked(WorldContextHandle);
-		check(WorldContext.WorldType == EWorldType::Game || WorldContext.WorldType == EWorldType::PIE);
-		World = WorldContext.World();
-	}
-	else
+		const FWorldContext* WorldContext = GEngine->GetWorldContextFromHandle(WorldContextHandle);
+		if (WorldContext)
+		{
+			check(WorldContext->WorldType == EWorldType::Game || WorldContext->WorldType == EWorldType::PIE);
+			World = WorldContext->World();
+		}		
+	}	
 #endif
+
+	if (!World)
 	{
-		ensure(WorldContextHandle == NAME_None);
 		UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
 		if (GameEngine)
 		{
@@ -971,13 +968,11 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 		}
 		else
 		{
-#if WITH_EDITOR
 			// The calling code didn't pass in a world context and really should have
 			if (GIsPlayInEditorWorld)
 			{
 				World = GWorld;
 			}
-#endif
 
 #if !WITH_DEV_AUTOMATION_TESTS
 			// Not having a world to make the right determination is a bad thing
@@ -993,7 +988,23 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 #endif
 
 #if WITH_ENGINE && CSV_PROFILER
-static void UpdateCoreCsvStats()
+static void UpdateCoreCsvStats_BeginFrame()
+{
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+	if (FCsvProfiler::Get()->IsCapturing())
+	{
+		const uint32 ProcessId = (uint32)GetCurrentProcessId();
+		float ProcessUsageFraction = 0.f, OtherUsageFraction = 0.f, IdleUsageFraction = 0.f;
+		FWindowsPlatformProcess::GetPerFrameProcessorUsage(ProcessId, ProcessUsageFraction, OtherUsageFraction, IdleUsageFraction);
+
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Process, ProcessUsageFraction, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Other, OtherUsageFraction, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_GLOBAL(CPUUsage_Idle, IdleUsageFraction, ECsvCustomStatOp::Set);
+	}
+#endif
+}
+
+static void UpdateCoreCsvStats_EndFrame()
 {
 	CSV_CUSTOM_STAT_GLOBAL(RenderThreadTime, FPlatformTime::ToMilliseconds(GRenderThreadTime), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_GLOBAL(GameThreadTime, FPlatformTime::ToMilliseconds(GGameThreadTime), ECsvCustomStatOp::Set);
@@ -1586,16 +1597,6 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 	}
 
-	const bool bShouldReapplyCVarsFromIniAfterLoadScreen = REAPPLY_INI_SETTINGS_AFTER_EARLY_LOADING_SCREEN;
-	if (bShouldReapplyCVarsFromIniAfterLoadScreen)
-	{
-		UE_LOG(LogInit, Verbose, TEXT("Reapplying ini settings after early loading screen."));
-
-		extern CORE_API void RecordApplyCVarSettingsFromIni();
-		SCOPED_BOOT_TIMING("RecordApplyCVarSettingsFromIni");
-		RecordApplyCVarSettingsFromIni();
-	}
-
 #if WITH_ENGINE
 	extern ENGINE_API void InitializeRenderingCVarsCaching();
 	InitializeRenderingCVarsCaching();
@@ -1683,7 +1684,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 #if WITH_ENGINE && CSV_PROFILER
 	if (!IsRunningDedicatedServer())
 	{
-		FCoreDelegates::OnEndFrame.AddStatic(UpdateCoreCsvStats);
+		FCoreDelegates::OnBeginFrame.AddStatic(UpdateCoreCsvStats_BeginFrame);
+		FCoreDelegates::OnEndFrame.AddStatic(UpdateCoreCsvStats_EndFrame);
 	}
 	FCsvProfiler::Get()->Init();
 #endif
@@ -2322,56 +2324,42 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			FEngineFontServices::Create();
 		}
 #endif
-		if (bShouldReapplyCVarsFromIniAfterLoadScreen)
-		{
-			SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterLoadScreen");
 
-			// This can be deleted after ForInstallBundleManager is in Engine
-			const bool bMountPaks = MOUNT_DOWNLOADED_PAKS_AFTER_EARLY_LOADING_SCREEN;
-			if (bMountPaks && FCoreDelegates::OnMountAllPakFiles.IsBound() )
+		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
+		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
+		IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+		if (BundleManager == nullptr || BundleManager->IsNullInterface())
+		{
+			// Mount Paks that were installed during EarlyStartupScreen
+			if (FCoreDelegates::OnMountAllPakFiles.IsBound() )
 			{
-#if 1
+				SCOPED_BOOT_TIMING("MountPaksAfterEarlyStartupScreen");
+
 				FString InstalledGameContentDir = FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("InstalledContent"), FApp::GetProjectName(), TEXT("Content"), TEXT("Paks"));
 				FPlatformMisc::AddAdditionalRootDirectory(FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("InstalledContent")));
 
 				TArray<FString> PakFolders;
 				PakFolders.Add(InstalledGameContentDir);
 				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
-#else
-				TArray<FString> PakFolders;
-				PakFolders.Add(FPaths::Combine(*FPaths::ProjectPersistentDownloadDir(), TEXT("InstalledContent"), FApp::GetProjectName(), TEXT("Content"), TEXT("Paks")));
-				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
-#endif
 			}
 
-			extern CORE_API void ReapplyRecordedCVarSettingsFromIni();
-			extern CORE_API void DeleteRecordedCVarSettingsFromIni();
-
-			ReapplyRecordedCVarSettingsFromIni();
-			DeleteRecordedCVarSettingsFromIni();
-
-		}
-
-		if (FPlatformProperties::RequiresCookedData())
-		{
-			LLM_SCOPE(ELLMTag::Shaders);
-			SCOPED_BOOT_TIMING("FShaderCodeLibrary::OpenLibrary");
-
-			// Open the game library which contains the material shaders.
-			FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
-			for (const FString& RootDir : FPlatformMisc::GetAdditionalRootDirectories())
+			//Handle opening shader library after our EarlyLoadScreen
 			{
-				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(RootDir, FApp::GetProjectName(), TEXT("Content")));
-			}
+				LLM_SCOPE(ELLMTag::Shaders);
+				SCOPED_BOOT_TIMING("FShaderCodeLibrary::OpenLibrary");
 
-			const bool bOpenPSOCache = OPEN_PSO_CACHE_AFTER_EARLY_LOADING_SCREEN;
-			if (bOpenPSOCache)
-			{
+				// Open the game library which contains the material shaders.
+				FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::ProjectContentDir());
+				for (const FString& RootDir : FPlatformMisc::GetAdditionalRootDirectories())
+				{
+					FShaderCodeLibrary::OpenLibrary(FApp::GetProjectName(), FPaths::Combine(RootDir, FApp::GetProjectName(), TEXT("Content")));
+				}
+
 				// Now our shader code main library is opened, kick off the precompile.
 				FShaderPipelineCache::OpenPipelineFileCache(GMaxRHIShaderPlatform);
 			}
 		}
-		
+
 		InitGameTextLocalization();
 
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Initial UObject load"), STAT_InitialUObjectLoad, STATGROUP_LoadTime);
@@ -3907,12 +3895,15 @@ void FEngineLoop::Tick()
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			UWorld* CurrentWorld = Context.World();
-			FSceneInterface* Scene = CurrentWorld->Scene;
-
-			ENQUEUE_RENDER_COMMAND(SceneStartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
+			if (CurrentWorld)
 			{
-				Scene->StartFrame();
-			});
+				FSceneInterface* Scene = CurrentWorld->Scene;
+
+				ENQUEUE_RENDER_COMMAND(SceneStartFrame)([Scene](FRHICommandListImmediate& RHICmdList)
+				{
+					Scene->StartFrame();
+				});
+			}
 		}
 
 #if !UE_SERVER && WITH_ENGINE

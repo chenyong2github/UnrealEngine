@@ -91,9 +91,9 @@ void UK2Node_ActorBoundEvent::DestroyNode()
 				Delegate.BindUFunction(LSA, CustomFunctionName);
 
 				// Attempt to remove it from the target's MC delegate
-				if (FMulticastScriptDelegate* TargetDelegate = GetTargetDelegate())
+				if (UMulticastDelegateProperty* TargetDelegate = GetTargetDelegateProperty())
 				{
-					TargetDelegate->Remove(Delegate);
+					TargetDelegate->RemoveDelegate(Delegate, EventOwner);
 				}
 			}
 		}
@@ -237,20 +237,6 @@ UMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegateProperty()
 UMulticastDelegateProperty* UK2Node_ActorBoundEvent::GetTargetDelegatePropertyFromSkel() const
 {
 	return FindField<UMulticastDelegateProperty>(FBlueprintEditorUtils::GetMostUpToDateClass(DelegateOwnerClass), DelegatePropertyName);
-}
-
-FMulticastScriptDelegate* UK2Node_ActorBoundEvent::GetTargetDelegate() const 
-{
-	if( EventOwner )
-	{
-		UMulticastDelegateProperty* TargetDelegateProp = GetTargetDelegateProperty();
-		if (TargetDelegateProp && ensure(EventOwner->IsA(DelegateOwnerClass)))
-		{
-			return TargetDelegateProp->GetPropertyValuePtr_InContainer(EventOwner);
-		}
-	}
-
-	return NULL;
 }
 
 bool UK2Node_ActorBoundEvent::IsUsedByAuthorityOnlyDelegate() const

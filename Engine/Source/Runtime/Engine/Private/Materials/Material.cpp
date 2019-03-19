@@ -233,6 +233,7 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);
+#if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
 
@@ -242,19 +243,11 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShader
 	{
 		MaterialInstance->GetBasePropertyOverridesHash(OutId.BasePropertyOverridesHash);
 
-#if !WITH_EDITOR
-		if (FMaterial::GetLoadedCookedShaderMapId() && MaterialInstance->bHasStaticPermutationResource)
-		{
-			OutId.UpdateParameterSet(MaterialInstance->GetStaticParameters());
-		}
-		else
-#endif
-		{
-			FStaticParameterSet CompositedStaticParameters;
-			MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
-			OutId.UpdateParameterSet(CompositedStaticParameters);		
-		}
+		FStaticParameterSet CompositedStaticParameters;
+		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
+		OutId.UpdateParameterSet(CompositedStaticParameters);		
 	}
+#endif // WITH_EDITOR
 }
 
 /**
@@ -1145,7 +1138,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1176,7 +1169,7 @@ void UMaterial::OverrideVectorParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1208,13 +1201,13 @@ void UMaterial::OverrideScalarParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
 
-void UMaterial::RecacheUniformExpressions() const
+void UMaterial::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 {
 	bool bUsingNewLoader = EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME && GEventDrivenLoaderEnabled;
 
@@ -1226,7 +1219,7 @@ void UMaterial::RecacheUniformExpressions() const
 
 	if (DefaultMaterialInstance)
 	{
-		DefaultMaterialInstance->CacheUniformExpressions_GameThread(true);
+		DefaultMaterialInstance->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
 }
 
@@ -3125,7 +3118,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(true);
 	}
 }
 

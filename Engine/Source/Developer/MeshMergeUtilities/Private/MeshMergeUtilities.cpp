@@ -1133,6 +1133,10 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	if (ComponentsToMerge.Num() == 0)
 	{
 		UE_LOG(LogMeshMerging, Log, TEXT("No static mesh specified to generate a proxy mesh for"));
+		
+		TArray<UObject*> OutAssetsToSync;
+		InProxyCreatedDelegate.ExecuteIfBound(InGuid, OutAssetsToSync);
+
 		return;
 	}
 
@@ -1456,31 +1460,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 				RemapPolygonGroup.Add(PolygonGroupID, FPolygonGroupID(RemapID));
 				MaxRemapID = FMath::Max(MaxRemapID, RemapID);
 			}
-
-			int32 PolygonGroupRemapCount = FMath::Max(MaxRemapID, RemapPolygonGroup.Num());
-			TSparseArray<int32> PolygonGroupRemap;
-			PolygonGroupRemap.Reserve(PolygonGroupRemapCount);
-			for (int32 Index = 0; Index < PolygonGroupRemapCount; ++Index)
-			{
-				PolygonGroupRemap.AddUninitialized();
-			}
-			//Set the polygon state
-			for (auto Kvp : RemapPolygonGroup)
-			{
-				PolygonGroupRemap[Kvp.Key.GetValue()] = Kvp.Value.GetValue();
-				FMeshPolygonGroup& PolygonGroup = RawMesh.GetPolygonGroup(Kvp.Key);
-				for (FPolygonID PolygonID : PolygonGroup.Polygons)
-				{
-					FMeshPolygon& Polygon = RawMesh.GetPolygon(PolygonID);
-					Polygon.PolygonGroupID = Kvp.Value;
-				}
-			}
-
-			//Remap the polygon groups
-			for (auto Kvp : RemapPolygonGroup)
-			{
-				RawMesh.PolygonGroups().Remap(PolygonGroupRemap);
-			}
+			FMeshDescriptionOperations::RemapPolygonGroups(RawMesh, RemapPolygonGroup);
 		}
 	};
 
@@ -2705,6 +2685,21 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 					FMeshDescriptionOperations::AppendMeshDescription(*RawMeshPtr, MergedMesh, AppendSettings);
 				}
 			}
+
+			//Cleanup the empty material to avoid empty section later
+			TArray<FPolygonGroupID> PolygonGroupToRemove;
+			for (FPolygonGroupID PolygonGroupID : MergedMesh.PolygonGroups().GetElementIDs())
+			{
+				if (MergedMesh.GetPolygonGroupPolygons(PolygonGroupID).Num() < 1)
+				{
+					PolygonGroupToRemove.Add(PolygonGroupID);
+					
+				}
+			}
+			for (FPolygonGroupID PolygonGroupID : PolygonGroupToRemove)
+			{
+				MergedMesh.DeletePolygonGroup(PolygonGroupID);
+			}
 		}
 	}
 	else
@@ -3085,18 +3080,18 @@ UMaterialInterface* FMeshMergeUtilities::CreateProxyMaterial(const FString &InBa
 	if (InBasePackageName.IsEmpty())
 	{
 		MaterialAssetName = FPackageName::GetShortName(MergedAssetPackageName);
-		MaterialPackageName = FPackageName::GetLongPackagePath(MergedAssetPackageName) + TEXT("/") + MaterialAssetName;
+		MaterialPackageName = FPackageName::GetLongPackagePath(MergedAssetPackageName) + TEXT("/");
 	}
 	else
 	{
 		MaterialAssetName = FPackageName::GetShortName(InBasePackageName);
-		MaterialPackageName = FPackageName::GetLongPackagePath(InBasePackageName) + TEXT("/") + MaterialAssetName;
+		MaterialPackageName = FPackageName::GetLongPackagePath(InBasePackageName) + TEXT("/");
 	}
 
 	UPackage* MaterialPackage = InOuter;
 	if (MaterialPackage == nullptr)
 	{
-		MaterialPackage = CreatePackage(nullptr, *MaterialPackageName);
+		MaterialPackage = CreatePackage(nullptr, *(MaterialPackageName + MaterialAssetName));
 		check(MaterialPackage);
 		MaterialPackage->FullyLoad();
 		MaterialPackage->Modify();

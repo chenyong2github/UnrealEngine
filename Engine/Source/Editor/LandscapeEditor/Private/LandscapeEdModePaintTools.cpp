@@ -80,10 +80,17 @@ public:
 			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
 			if (Landscape != nullptr)
 			{
-				Landscape->RequestProceduralContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
+				if (this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap)
+				{
+					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_Render);
+					this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps();
+				}
+				else
+				{
+					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
+					this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
+				}
 			}
-
-			this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps(false);
 		}
 
 		return FLandscapeToolBase<TStrokeClass>::BeginTool(ViewportClient, InTarget, InHitLocation);
@@ -104,7 +111,8 @@ public:
 			}
 			else
 			{
-				// TODO: Activate/Deactivate weightmap layers
+				this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
+
 				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
 				{
 					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
@@ -822,15 +830,15 @@ public:
 								float ScaleZ = LocalToWorld.GetScale3D().Z;
 								float TranslateZ = LocalToWorld.GetTranslation().Z;
 								float TerraceInterval = UISettings->TerraceInterval;
-								float Smoothness = UISettings->TerraceSmooth;								
+								float Smoothness = UISettings->TerraceSmooth;
 								float WorldHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
-								
+
 								//move into world space
 								WorldHeight = (WorldHeight * ScaleZ) + TranslateZ;
 								float CurrentHeight = WorldHeight;
 
 								//smoothing part
-								float CurrentLevel = WorldHeight / TerraceInterval;								
+								float CurrentLevel = WorldHeight / TerraceInterval;
 								Smoothness = 1.0f / FMath::Max(Smoothness, 0.0001f);
 								float CurrentPhase = FMath::Frac(CurrentLevel);
 								float Halfmask = FMath::Clamp(FMath::CeilToFloat(CurrentPhase - 0.5f), 0.0f, 1.0f);
@@ -838,12 +846,34 @@ public:
 								float SCurve = FMath::Lerp(CurrentPhase, (1.0f - CurrentPhase), Halfmask) * 2.0f;
 								SCurve = FMath::Pow(SCurve, Smoothness) * 0.5f;
 								SCurve = FMath::Lerp(SCurve, 1.0f - SCurve, Halfmask) * TerraceInterval;
-								WorldHeight = (CurrentLevel * TerraceInterval)  + SCurve;
+								WorldHeight = (CurrentLevel * TerraceInterval) + SCurve;
 								//end of smoothing part
 
-								float FinalHeight = FMath::Lerp(CurrentHeight, WorldHeight , Strength);
+								float FinalHeight = FMath::Lerp(CurrentHeight, WorldHeight, Strength);
 								FinalHeight = (FinalHeight - TranslateZ) / ScaleZ;
-								DataScanline[X] = LandscapeDataAccess::GetTexHeight(FinalHeight);	
+								DataScanline[X] = LandscapeDataAccess::GetTexHeight(FinalHeight);
+							}
+							break;
+						case ELandscapeToolFlattenMode::Interval:
+							{
+								const FTransform& LocalToWorld = this->Target.LandscapeInfo->GetLandscapeProxy()->ActorToWorld();
+								float ScaleZ = LocalToWorld.GetScale3D().Z;
+								float TranslateZ = LocalToWorld.GetTranslation().Z;
+								float TerraceInterval = UISettings->TerraceInterval;
+								float TargetHeight = LandscapeDataAccess::GetLocalHeight(FlattenHeight);
+								float CurrentHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
+														
+								//move into world space
+								TargetHeight = (TargetHeight * ScaleZ) + TranslateZ;
+								CurrentHeight = (CurrentHeight * ScaleZ) + TranslateZ;
+
+								TargetHeight = (FMath::RoundToFloat(TargetHeight / TerraceInterval)) * TerraceInterval;
+								TargetHeight = FMath::Lerp(CurrentHeight, TargetHeight, BrushValue);
+							
+								//back to local space of landscape object
+								TargetHeight = (TargetHeight - TranslateZ) / ScaleZ;
+								DataScanline[X] = LandscapeDataAccess::GetTexHeight(TargetHeight);
+
 							}
 							break;
 						case ELandscapeToolFlattenMode::Raise:

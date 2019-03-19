@@ -3794,8 +3794,6 @@ protected:
 		else // mobile
 		{
 			int32 UV = BufferUV;
-
-			// On mobile in post process material, there is no need to do ViewportUV->BufferUV conversion because ViewSize == BufferSize.
 			if (Material->GetMaterialDomain() == MD_PostProcess)
 			{
 				int32 BlendableLocation = Material->GetBlendableLocation();
@@ -3809,10 +3807,6 @@ protected:
 				if (ViewportUV == INDEX_NONE)
 				{
 					UV = TextureCoordinate(0, false, false);
-				}
-				else
-				{
-					UV = ViewportUV;
 				}
 			}
 			
@@ -5092,6 +5086,17 @@ protected:
 
 		EMaterialValueType ResultType = GetArithmeticResultType(Default, Shadow);
 		return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
+	}
+
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
+	{
+		if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+
+		EMaterialValueType ResultType = GetArithmeticResultType(Normal, RayTraced);
+		return AddCodeChunk(ResultType, TEXT("(GetRayTracingQualitySwitch() ? (%s) : (%s))"), *GetParameterCode(RayTraced), *GetParameterCode(Normal));
 	}
 
 	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }

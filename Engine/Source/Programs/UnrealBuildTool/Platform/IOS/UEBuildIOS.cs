@@ -36,6 +36,12 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics = false;
 
 		/// <summary>
+		/// Mark the build for distribution
+		/// </summary>
+		[CommandLine("-distribution")]
+		public bool bForDistribution = false;
+
+		/// <summary>
 		/// Manual override for the provision to use. Should be a full path.
 		/// </summary>
 		[CommandLine("-ImportProvision=")]
@@ -98,6 +104,11 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics
 		{
 			get { return Inner.bSkipCrashlytics; }
+		}
+
+		public bool bForDistribution
+		{
+			get { return Inner.bForDistribution; }
 		}
 
 		public string ImportProvision
@@ -283,6 +294,18 @@ namespace UnrealBuildTool
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bDisableForceInline")]
 		public readonly bool bDisableForceInline = false;
 		
+		/// <summary>
+		/// true if IDFA are enabled
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableAdvertisingIdentifier")]
+		public readonly bool bEnableAdvertisingIdentifier = false;
+
+		/// <summary>
+		/// true when building for distribution
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "ForDistribution")]
+		public readonly bool bForDistribution = false;
+
 		/// <summary>
 		/// Returns a list of all the non-shipping architectures which are supported
 		/// </summary>
@@ -987,6 +1010,11 @@ namespace UnrealBuildTool
 				CompileEnvironment.Definitions.Add("WITH_SIMULATOR=0");
 			}
 
+			if (ProjectSettings.bEnableAdvertisingIdentifier)
+			{
+				CompileEnvironment.Definitions.Add("ENABLE_ADVERTISING_IDENTIFIER=1");
+			}
+
 			CompileEnvironment.Definitions.Add("HAS_OPENGL_ES=" + ((Target.IOSPlatform.RuntimeVersion < 12.0) ? "1" : "0"));
 
 			// if the project has an Oodle compression Dll, enable the decompressor on IOS
@@ -1011,6 +1039,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.AdditionalFrameworks.Add(new UEBuildFramework("GameKit"));
 			LinkEnvironment.AdditionalFrameworks.Add(new UEBuildFramework("StoreKit"));
 			LinkEnvironment.AdditionalFrameworks.Add(new UEBuildFramework("DeviceCheck"));
+
 		}
 
 		/// <summary>

@@ -3903,7 +3903,11 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 	dtNavMesh* DetourMesh = DestNavMesh->GetRecastNavMeshImpl()->GetRecastMesh();
 	const int32 FirstDirtyTileIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 
-	if (DetourMesh != nullptr && IsInActiveSet(FIntPoint(TileX, TileY))
+	if (DetourMesh != nullptr 
+		// no longer testing this here, we can live with a stray unwanted tile here 
+		// and there. It will be removed the next time around the invokers get
+		// updated 
+		// && IsInActiveSet(FIntPoint(TileX, TileY))
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();
@@ -4058,7 +4062,7 @@ static bool IntersectBounds(const FBox& TestBox, const TNavStatArray<FBox>& Boun
 
 namespace 
 {
-	FBox CalculateBoxIntercetion(const FBox& BoxA, const FBox& BoxB)
+	FBox CalculateBoxIntersection(const FBox& BoxA, const FBox& BoxB)
 	{
 		// assumes boxes overlap
 		ensure(BoxA.Intersect(BoxB));
@@ -4070,6 +4074,49 @@ namespace
 							, FMath::Min(BoxA.Max.Z, BoxB.Max.Z))
 					);
 	}
+}
+
+bool FRecastNavMeshGenerator::HasDirtyTiles(const FBox& AreaBounds) const
+{
+	if (HasDirtyTiles() == false)
+	{
+		return false;
+	}
+
+	bool bRetDirty = false;
+	const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
+		
+	for (int32 Index = 0; bRetDirty == false && Index < PendingDirtyTiles.Num(); ++Index)
+	{
+		bRetDirty = TileBox.Contains(PendingDirtyTiles[Index].Coord);
+	}
+	for (int32 Index = 0; bRetDirty == false && Index < RunningDirtyTiles.Num(); ++Index)
+	{
+		bRetDirty = TileBox.Contains(RunningDirtyTiles[Index].Coord);
+	}
+
+	return bRetDirty;
+}
+
+int32 FRecastNavMeshGenerator::GetDirtyTilesCount(const FBox& AreaBounds) const
+{
+	const float TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
+
+	int32 DirtyPendingCount = 0;
+	for (const FPendingTileElement& PendingElement : PendingDirtyTiles)
+	{
+		DirtyPendingCount += TileBox.Contains(PendingElement.Coord) ? 1 : 0;
+	}
+
+	int32 RunningCount = 0;
+	for (const FRunningTileElement& RunningElement : RunningDirtyTiles)
+	{
+		RunningCount += TileBox.Contains(RunningElement.Coord) ? 1 : 0;
+	}
+
+	return DirtyPendingCount + RunningCount;
 }
 
 void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas)
@@ -4105,7 +4152,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 				continue;
 			}
 
-			const FBox CutDownArea = CalculateBoxIntercetion(GetTotalBounds(), DirtyArea.Bounds);
+			const FBox CutDownArea = CalculateBoxIntersection(GetTotalBounds(), DirtyArea.Bounds);
 			AdjustedAreaBounds = GrowBoundingBox(CutDownArea, DirtyArea.HasFlag(ENavigationDirtyFlag::UseAgentHeight));
 
 			// @TODO this and the following test share some work in common
@@ -4117,30 +4164,26 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 			// check if any of inclusion volumes encapsulates this box
 			// using CutDownArea not AdjustedAreaBounds since if the area is on the border of navigable space
 			// then FindInclusionBoundEncapsulatingBox can produce false negative
-			bDoTileInclusionTest = FindInclusionBoundEncapsulatingBox(CutDownArea) == INDEX_NONE;
+			bDoTileInclusionTest = (FindInclusionBoundEncapsulatingBox(CutDownArea) == INDEX_NONE);
 		}
-				
-		const FBox RcAreaBounds = Unreal2RecastBox(AdjustedAreaBounds);
-		const int32 XMin = FMath::FloorToInt((RcAreaBounds.Min.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
-		const int32 XMax = FMath::FloorToInt((RcAreaBounds.Max.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
-		const int32 YMin = FMath::FloorToInt((RcAreaBounds.Min.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
-		const int32 YMax = FMath::FloorToInt((RcAreaBounds.Max.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
+		
+		const FRcTileBox TileBox(AdjustedAreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
-		for (int32 TileY = YMin; TileY <= YMax; ++TileY)
+		for (int32 TileY = TileBox.YMin; TileY <= TileBox.YMax; ++TileY)
 		{
-			for (int32 TileX = XMin; TileX <= XMax; ++TileX)
+			for (int32 TileX = TileBox.XMin; TileX <= TileBox.XMax; ++TileX)
 			{
 				if (IsInActiveSet(FIntPoint(TileX, TileY)) == false)
 				{
 					continue;
 				}
 
-				if (DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds) == false && bDoTileInclusionTest == true)
+				if (bDoTileInclusionTest == true && DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds) == false)
 				{
-					const FBox TileBox = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
+					const FBox TileBounds = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
 
 					// do per tile check since we can have lots of tiles inbetween navigable bounds volumes
-					if (IntersectBounds(TileBox, InclusionBounds) == false)
+					if (IntersectBounds(TileBounds, InclusionBounds) == false)
 					{
 						// Skip this tile
 						continue;
@@ -4319,15 +4362,15 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 			}
 
 			// Remove submitted element from pending list
-			PendingDirtyTiles.RemoveAt(ElementIdx);
-
-			// Release memory, list could be quite big after map load
-			if (PendingDirtyTiles.Num() == 0)
-			{
-				PendingDirtyTiles.Empty(32);
-			}
+			PendingDirtyTiles.RemoveAt(ElementIdx, 1, /*bAllowShrinking=*/false);
 			NumProcessedTasks++;
 		}
+	}
+
+	// Release memory, list could be quite big after map load
+	if (NumProcessedTasks > 0 && PendingDirtyTiles.Num() == 0)
+	{
+		PendingDirtyTiles.Empty(32);
 	}
 	
 	// Collect completed tasks and apply generated data to navmesh

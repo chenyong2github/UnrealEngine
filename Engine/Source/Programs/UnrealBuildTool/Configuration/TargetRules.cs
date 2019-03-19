@@ -527,6 +527,12 @@ namespace UnrealBuildTool
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bWithPerfCounters")]
         public bool bWithPerfCounters = false;
 
+		/// <summary>
+		/// Whether to enable support for live coding
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithLiveCoding = false;
+
         /// <summary>
         /// Whether to turn on logging for test/shipping builds.
         /// </summary>
@@ -662,7 +668,7 @@ namespace UnrealBuildTool
 		/// Disables force-included PCHs for files that are in the adaptive non-unity working set.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bAdaptiveUnityDisablesPCH = true;
+		public bool bAdaptiveUnityDisablesPCH = false;
 
 		/// <summary>
 		/// Backing storage for bAdaptiveUnityDisablesProjectPCH.
@@ -1811,6 +1817,11 @@ namespace UnrealBuildTool
         public bool bWithPerfCounters
 		{
 			get { return Inner.bWithPerfCounters; }
+		}
+
+		public bool bWithLiveCoding
+		{
+			get { return Inner.bWithLiveCoding; }
 		}
 
         public bool bUseLoggingInShipping

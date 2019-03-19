@@ -173,6 +173,20 @@ struct FCachedAudioTrackData : IPersistentEvaluationData
 			}
 		}
 	}
+
+	void StopSoundsOnRow(int32 RowIndex)
+	{
+		if (RowIndex >= 0 && RowIndex < AudioComponentsByRow.Num())
+		{
+			for (auto& Pair : AudioComponentsByRow[RowIndex])
+			{
+				if (UAudioComponent* AudioComponent = Pair.Value.Get())
+				{
+					AudioComponent->Stop();
+				}
+			}
+		}
+	}
 };
 
 
@@ -332,7 +346,7 @@ void FMovieSceneAudioSectionTemplateData::EnsureAudioIsPlaying(UAudioComponent& 
 		}
 
 		const float AudioTime = (Context.GetTime() / Context.GetFrameRate()) - SectionStartTimeSeconds + (float)Context.GetFrameRate().AsSeconds(AudioStartOffset);
-		if (AudioTime > 0.f && AudioTime < AudioComponent.Sound->Duration)
+		if (AudioTime >= 0.f && AudioTime < AudioComponent.Sound->GetDuration())
 		{
 			AudioComponent.Play(AudioTime);
 		}
@@ -394,6 +408,6 @@ void FMovieSceneAudioSectionTemplate::TearDown(FPersistentEvaluationData& Persis
 	{
 		FCachedAudioTrackData& TrackData = PersistentData.GetOrAddTrackData<FCachedAudioTrackData>();
 
-		TrackData.StopAllSounds();
+		TrackData.StopSoundsOnRow(AudioData.RowIndex);
 	}
 }

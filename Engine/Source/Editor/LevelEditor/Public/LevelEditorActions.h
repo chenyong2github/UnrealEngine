@@ -106,6 +106,13 @@ public:
 	TSharedPtr< FUICommandInfo > ReloadLevelEditor;
 	TSharedPtr< FUICommandInfo > RecompileGameCode;
 
+#if WITH_LIVE_CODING
+	TSharedPtr< FUICommandInfo > LiveCoding_Enable;
+	TSharedPtr< FUICommandInfo > LiveCoding_StartSession;
+	TSharedPtr< FUICommandInfo > LiveCoding_ShowConsole;
+	TSharedPtr< FUICommandInfo > LiveCoding_Settings;
+#endif
+
 	/**
 	 * Level context menu commands.  These are shared between all viewports
 	 * and rely on GCurrentLevelEditingViewport
@@ -842,6 +849,43 @@ public:
 	 */
 	static void RecompileGameCode_Clicked();
 	static bool Recompile_CanExecute();
+
+#if WITH_LIVE_CODING
+	/**
+	 * Enables live coding mode
+	 */
+	static void LiveCoding_ToggleEnabled();
+
+	/**
+	 * Determines if live coding is enabled
+	 */
+	static bool LiveCoding_IsEnabled();
+
+	/**
+	 * Starts live coding (in manual mode)
+	 */
+	static void LiveCoding_StartSession_Clicked();
+
+	/**
+	 * Determines whether we can manually start live coding for the current session
+	 */
+	static bool LiveCoding_CanStartSession();
+
+	/**
+	 * Shows the console
+	 */
+	static void LiveCoding_ShowConsole_Clicked();
+
+	/**
+	 * Determines whether the console can be shown
+	 */
+	static bool LiveCoding_CanShowConsole();
+
+	/**
+	 * Shows the settings panel
+	 */
+	static void LiveCoding_Settings_Clicked();
+#endif
 
 	/**
 	 * Called when requesting connection to source control

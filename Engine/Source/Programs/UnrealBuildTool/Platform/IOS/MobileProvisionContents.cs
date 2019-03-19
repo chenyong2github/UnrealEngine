@@ -144,5 +144,53 @@ namespace UnrealBuildTool
 				throw new BuildException("No PKCS7-Data section found in {0}", Location);
 			}
 		}
+
+		// return the outerXML of the node's value
+		public string GetNodeXMLValueByName(string InValue)
+		{
+			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
+			for (int i = 0; i < elemList.Count; i++)
+			{
+				if (elemList[i].InnerXml.Equals(InValue))
+				{
+					XmlNode valueNode = elemList[i].NextSibling;
+
+					if (valueNode != null)
+					{
+						return valueNode.OuterXml;
+					}
+				}
+			}
+			return "";
+		}
+
+		// return the innerXML of the node's value
+		public string GetNodeValueByName(string InValue)
+		{
+			XmlNodeList elemList = this.Document.GetElementsByTagName("key");
+			for (int i = 0; i < elemList.Count; i++)
+			{
+				if (elemList[i].InnerXml.Equals(InValue))
+				{
+					XmlNode valueNode = elemList[i].NextSibling;
+					if (valueNode != null)
+					{
+						if (valueNode.Name.Equals("array"))
+						{
+							XmlNode firstChildNode = valueNode.FirstChild;
+							if (firstChildNode != null)
+							{
+								return firstChildNode.InnerXml;
+							}
+						}
+						else
+						{
+							return valueNode.InnerXml;
+						}
+					}
+				}
+			}
+			return "";
+		}
 	}
 }

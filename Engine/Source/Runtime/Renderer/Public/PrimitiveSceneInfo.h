@@ -288,14 +288,15 @@ public:
 	bool bIsVisibleInReflectionCaptures : 1;
 	bool bIsRayTracingRelevant : 1;
 	bool bIsRayTracingStaticRelevant : 1;
+	bool bIsVisibleInRayTracing : 1;
+
+	TArray<TArray<int32, TInlineAllocator<2>>> CachedRayTracingMeshCommandIndicesPerLOD;
 
 	struct FStaticMeshOrCommandIndex
 	{
 		int32 StaticMeshIndex;
 		int32 CommandIndex;
 	};
-	TArray<TArray<FStaticMeshOrCommandIndex, TInlineAllocator<2>>> RayTracingLodIndexToMeshDrawCommandIndicies;
-	void UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
 #endif
 
 	/** Initialization constructor. */
@@ -339,6 +340,9 @@ public:
 			UpdateStaticMeshes(RHICmdList);
 		}
 	}
+
+	/** Will update static meshes during next InitViews, even if it's not visible. */
+	void ConditionalUpdateStaticMeshesWithoutVisibilityCheckDuringNextInitViews();
 
 	/** Updates the primitive's uniform buffer. */
 	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList);
@@ -460,13 +464,16 @@ private:
 	const UPrimitiveComponent* ComponentForDebuggingOnly;
 
 	/** If this is TRUE, this primitive's static meshes needs to be updated before it can be rendered. */
-	bool bNeedsStaticMeshUpdate;
+	bool bNeedsStaticMeshUpdate : 1;
+
+	/** If this is TRUE, this primitive's static meshes will be update even if it's not visible. */
+	bool bNeedsStaticMeshUpdateWithoutVisibilityCheck : 1;
 
 	/** If this is TRUE, this primitive's uniform buffer needs to be updated before it can be rendered. */
-	bool bNeedsUniformBufferUpdate;
+	bool bNeedsUniformBufferUpdate : 1;
 
 	/** If this is TRUE, this primitive's indirect lighting cache buffer needs to be updated before it can be rendered. */
-	bool bIndirectLightingCacheBufferDirty;
+	bool bIndirectLightingCacheBufferDirty : 1;
 
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;

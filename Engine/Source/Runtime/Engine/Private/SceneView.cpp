@@ -211,6 +211,15 @@ static TAutoConsoleVariable<float> CVarMotionBlurMax(
 	TEXT("-1: override (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarMotionBlurTargetFPS(
+	TEXT("r.MotionBlur.TargetFPS"),
+	-1,
+	TEXT("Allows to override the postprocess setting (target FPS for motion blur velocity length scaling).\n")
+	TEXT("-1: override (default)")
+	TEXT(" 0: target current frame rate with moving average\n")
+	TEXT("[1,120]: target FPS for motion blur velocity scaling"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarSceneColorFringeMax(
 	TEXT("r.SceneColorFringe.Max"),
 	-1.0f,
@@ -633,6 +642,9 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, PrimaryScreenPercentageMethod(EPrimaryScreenPercentageMethod::SpatialUpscale)
 	, ForwardLightingResources(nullptr)
 	, FeatureLevel(InitOptions.ViewFamily ? InitOptions.ViewFamily->GetFeatureLevel() : GMaxRHIFeatureLevel)
+#if RHI_RAYTRACING
+	, IESLightProfileResource(nullptr)
+#endif
 {
 	check(UnscaledViewRect.Min.X >= 0);
 	check(UnscaledViewRect.Min.Y >= 0);
@@ -1350,6 +1362,92 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(ScreenSpaceReflectionIntensity);
 		LERP_PP(ScreenSpaceReflectionMaxRoughness);
 
+		// Ray Tracing
+		if (Src.bOverride_ReflectionsType)
+		{
+			Dest.ReflectionsType = Src.ReflectionsType;
+		}
+
+		if (Src.bOverride_RayTracingReflectionsMaxRoughness)
+		{
+			Dest.RayTracingReflectionsMaxRoughness = Src.RayTracingReflectionsMaxRoughness;
+		}
+
+		if (Src.bOverride_RayTracingReflectionsMaxBounces)
+		{
+			Dest.RayTracingReflectionsMaxBounces = Src.RayTracingReflectionsMaxBounces;
+		}
+
+		if (Src.bOverride_RayTracingReflectionsSamplesPerPixel)
+		{
+			Dest.RayTracingReflectionsSamplesPerPixel = Src.RayTracingReflectionsSamplesPerPixel;
+		}
+
+		if (Src.bOverride_RayTracingReflectionsShadows)
+		{
+			Dest.RayTracingReflectionsShadows = Src.RayTracingReflectionsShadows;
+		}
+
+		if (Src.bOverride_TranslucencyType)
+		{
+			Dest.TranslucencyType = Src.TranslucencyType;
+		}
+
+		if (Src.bOverride_RayTracingTranslucencyMaxRoughness)
+		{
+			Dest.RayTracingTranslucencyMaxRoughness = Src.RayTracingTranslucencyMaxRoughness;
+		}
+
+		if (Src.bOverride_RayTracingTranslucencyRefractionRays)
+		{
+			Dest.RayTracingTranslucencyRefractionRays = Src.RayTracingTranslucencyRefractionRays;
+		}
+
+		if (Src.bOverride_RayTracingTranslucencySamplesPerPixel)
+		{
+			Dest.RayTracingTranslucencySamplesPerPixel = Src.RayTracingTranslucencySamplesPerPixel;
+		}
+
+		if (Src.bOverride_RayTracingTranslucencyShadows)
+		{
+			Dest.RayTracingTranslucencyShadows = Src.RayTracingTranslucencyShadows;
+		}
+
+		if (Src.bOverride_RayTracingTranslucencyRefraction)
+		{
+			Dest.RayTracingTranslucencyRefraction = Src.RayTracingTranslucencyRefraction;
+		}
+
+		if (Src.bOverride_RayTracingGI)
+		{
+			Dest.RayTracingGI = Src.RayTracingGI;
+		}
+
+		if (Src.bOverride_RayTracingGIMaxBounces)
+		{
+			Dest.RayTracingGIMaxBounces = Src.RayTracingGIMaxBounces;
+		}
+
+		if (Src.bOverride_RayTracingGISamplesPerPixel)
+		{
+			Dest.RayTracingGISamplesPerPixel = Src.RayTracingGISamplesPerPixel;
+		}
+
+		if (Src.bOverride_RayTracingAOSamplesPerPixel)
+		{
+			Dest.RayTracingAOSamplesPerPixel = Src.RayTracingAOSamplesPerPixel;
+		}
+		if (Src.bOverride_PathTracingMaxBounces)
+		{
+			Dest.PathTracingMaxBounces = Src.PathTracingMaxBounces;
+		}
+
+		if (Src.bOverride_PathTracingSamplesPerPixel)
+		{
+			Dest.PathTracingSamplesPerPixel = Src.PathTracingSamplesPerPixel;
+		}
+
+
 		if (Src.bOverride_DepthOfFieldBladeCount)
 		{
 			Dest.DepthOfFieldBladeCount = Src.DepthOfFieldBladeCount;
@@ -1448,6 +1546,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		if (Src.bOverride_AmbientOcclusionRadiusInWS)
 		{
 			Dest.AmbientOcclusionRadiusInWS = Src.AmbientOcclusionRadiusInWS;
+		}
+
+		if (Src.bOverride_MotionBlurTargetFPS)
+		{
+			Dest.MotionBlurTargetFPS = Src.MotionBlurTargetFPS;
 		}
 	}
 
@@ -1878,6 +1981,15 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	}
 
 	{
+		int32 TargetFPS = CVarMotionBlurTargetFPS.GetValueOnGameThread();
+
+		if (TargetFPS >= 0)
+		{
+			FinalPostProcessSettings.MotionBlurTargetFPS = TargetFPS;
+		}
+	}
+
+	{
 		float Value = CVarSceneColorFringeMax.GetValueOnGameThread();
 
 		if (Value >= 0.0f)
@@ -2133,6 +2245,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.ViewToTranslatedWorld = InViewMatrices.GetOverriddenInvTranslatedViewMatrix();
 	ViewUniformShaderParameters.TranslatedWorldToClip = InViewMatrices.GetTranslatedViewProjectionMatrix();
 	ViewUniformShaderParameters.WorldToClip = InViewMatrices.GetViewProjectionMatrix();
+	ViewUniformShaderParameters.ClipToWorld = InViewMatrices.GetInvViewProjectionMatrix();
 	ViewUniformShaderParameters.TranslatedWorldToView = InViewMatrices.GetOverriddenTranslatedViewMatrix();
 	ViewUniformShaderParameters.TranslatedWorldToCameraView = InViewMatrices.GetTranslatedViewMatrix();
 	ViewUniformShaderParameters.CameraViewToTranslatedWorld = InViewMatrices.GetInvTranslatedViewMatrix();
@@ -2271,7 +2384,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	ViewModeParam = CVS.ViewModeParam;
 	ViewModeParamName = CVS.ViewModeParamName;
 
-	if (!AllowDebugViewPS(DebugViewShaderMode, GetShaderPlatform()))
+	if (!AllowDebugViewShaderMode(DebugViewShaderMode, GetShaderPlatform(), GetFeatureLevel()))
 	{
 		DebugViewShaderMode = DVSM_None;
 	}

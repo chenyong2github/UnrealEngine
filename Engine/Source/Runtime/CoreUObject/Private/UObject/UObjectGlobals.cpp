@@ -1039,6 +1039,10 @@ public:
 
 #endif
 
+// Temporary load counter for the game thread, used mostly for checking if we're still loading
+// @todo: remove this in the new loader
+static int32 GGameThreadLoadCounter = 0;
+
 UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, FUObjectSerializeContext* InLoadContext)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
@@ -1151,30 +1155,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 	}
 	
 	// Set up a load context
-	TRefCountPtr<FUObjectSerializeContext> LoadContext;
-	if (InLoadContext)
-	{
-		// Use the privided context
-		LoadContext = InLoadContext;
-	}
-	else
-	{
-		// Try to get the context from the callstack
-		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-		if (ThreadContext.SerializeContext)
-		{
-			LoadContext = ThreadContext.SerializeContext;
-		}
-		else
-		{
-			// Create a new context
-			LoadContext = new FUObjectSerializeContext();
-			if (!IsInAsyncLoadingThread())
-			{
-				ThreadContext.SerializeContext = LoadContext;
-			}
-		}
-	}
+	TRefCountPtr<FUObjectSerializeContext> LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
 
 	// Try to load.
 	BeginLoad(LoadContext, InLongPackageNameOrFilename);
@@ -1371,10 +1352,10 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 		if (FPlatformProperties::RequiresCookedData())
 		{
 			if (!IsInAsyncLoadingThread())
-			{
-				check(Linker->GetSerializeContext());
-				if (!Linker->GetSerializeContext()->HasStartedLoading())
+			{				
+				if (GGameThreadLoadCounter == 0)
 				{
+					check(!Linker->GetSerializeContext());
 					// Sanity check to make sure that Linker is the linker that loaded our Result package or the linker has already been detached
 					check(!Result || Result->LinkerLoad == Linker || Result->LinkerLoad == nullptr);
 					if (Result && Linker->HasLoader())
@@ -1430,8 +1411,6 @@ UPackage* LoadPackage(UPackage* InOuter, const TCHAR* InLongPackageName, uint32 
 	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ? FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*FakePackageName)).GetName() : NAME_None, ELLMTagSet::Assets, ELLMTracker::Default);
 	return LoadPackageInternal(InOuter, InLongPackageName, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InLoadContext);
 }
-
-static int32 GGameThreadLoadCounter = 0;
 
 /**
  * Returns whether we are currently loading a package (sync or async)
@@ -1756,16 +1735,6 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 		{
 			LoadContext->DetachFromLinkers();
 		}
-
-		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-		if (ThreadContext.SerializeContext == LoadContext)
-		{
-			ThreadContext.SerializeContext = nullptr;
-		}
-		else
-		{
-			check(!ThreadContext.SerializeContext);
-		}
 	}
 }
 
@@ -2071,7 +2040,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		SerializedObjects.Add(Object);
 	};
 
-	TRefCountPtr<FUObjectSerializeContext> LoadContext(new FUObjectSerializeContext());
+	TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 	FDuplicateDataReader Reader(DuplicatedObjectAnnotation, ObjectData, Parameters.PortFlags, Parameters.DestOuter);
 	Reader.SetSerializeContext(LoadContext);
 	for(int32 ObjectIndex = 0;ObjectIndex < SerializedObjects.Num();ObjectIndex++)
@@ -4215,14 +4184,26 @@ namespace UE4CodeGen_Private
 			}
 			break;
 
-			case EPropertyGenFlags::MulticastDelegate:
+			case EPropertyGenFlags::InlineMulticastDelegate:
 			{
 				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
-				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
+				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastInlineDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
 
 #if WITH_METADATA
 				MetaDataArray = Prop->MetaDataArray;
 				NumMetaData   = Prop->NumMetaData;
+#endif
+			}
+			break;
+
+			case EPropertyGenFlags::SparseMulticastDelegate:
+			{
+				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
+				NewProp = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags) UMulticastSparseDelegateProperty(FObjectInitializer(), EC_CppProperty, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
+
+#if WITH_METADATA
+				MetaDataArray = Prop->MetaDataArray;
+				NumMetaData = Prop->NumMetaData;
 #endif
 			}
 			break;
@@ -4318,12 +4299,27 @@ namespace UE4CodeGen_Private
 		UFunction* NewFunction;
 		if (Params.FunctionFlags & FUNC_Delegate)
 		{
-			NewFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UDelegateFunction(
-				FObjectInitializer(),
-				Super,
-				Params.FunctionFlags,
-				Params.StructureSize
-			);
+			if (Params.OwningClassName == nullptr)
+			{
+				NewFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UDelegateFunction(
+					FObjectInitializer(),
+					Super,
+					Params.FunctionFlags,
+					Params.StructureSize
+				);
+			}
+			else
+			{
+				USparseDelegateFunction* NewSparseFunction = new (EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) USparseDelegateFunction(
+					FObjectInitializer(),
+					Super,
+					Params.FunctionFlags,
+					Params.StructureSize
+				);
+				NewSparseFunction->OwningClassName = FName(Params.OwningClassName);
+				NewSparseFunction->DelegateName = FName(Params.DelegateName);
+				NewFunction = NewSparseFunction;
+			}
 		}
 		else
 		{

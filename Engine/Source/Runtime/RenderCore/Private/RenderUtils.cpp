@@ -198,7 +198,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.  		
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		TextureRHI = Texture2D;
 
@@ -290,6 +290,7 @@ public:
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+			CreateInfo.DebugName = TEXT("BlackVolumeTexture");
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = Texture3D;	
 		}
@@ -341,6 +342,7 @@ public:
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+			CreateInfo.DebugName = TEXT("BlackArrayTexture");
 			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = TextureArray;
 
@@ -472,7 +474,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("SolidColorCube"));
 		FTextureCubeRHIRef TextureCube = RHICreateTextureCube(1, PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
 		TextureRHI = TextureCube;
 
@@ -548,7 +550,7 @@ public:
 		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Create the texture RHI.
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("BlackCubeArray"));
 			FTextureCubeRHIRef TextureCubeArray = RHICreateTextureCubeArray(1,1,PF_B8G8R8A8,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = TextureCubeArray;
 
@@ -1038,7 +1040,7 @@ RENDERCORE_API FIndexBufferRHIRef& GetUnitCubeIndexBuffer()
 RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntPoint& OutBufferSize)
 {
 	// Ensure sizes are dividable by the ideal group size for 2d tiles to make it more convenient.
-	const uint32 DividableBy = FComputeShaderUtils::kGolden2DGroupSize;
+	const uint32 DividableBy = 4;
 
 	check(DividableBy % 4 == 0); // A lot of graphic algorithms where previously assuming DividableBy == 4.
 

@@ -245,7 +245,6 @@ public:
 	float FogMaxOpacity;
 	float StartDistance; 
 	float FogCutoffDistance;
-	float LightTerminatorAngle;
 	FLinearColor FogColor;
 	float DirectionalInscatteringExponent; 
 	float DirectionalInscatteringStartDistance;

@@ -87,6 +87,10 @@
 #include "Misc/RuntimeErrors.h"
 #include "PlatformInfo.h"
 
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "SkeltalMesh"
 
 DEFINE_LOG_CATEGORY(LogSkeletalMesh);
@@ -609,6 +613,8 @@ bool USkeletalMesh::NeedCPUData(int32 LODIndex)const
 
 void USkeletalMesh::InitResources()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	UpdateUVChannelData(false);
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
@@ -3710,6 +3716,9 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					MeshElement.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
 					MeshElement.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					MeshElement.CastShadow = SectionElementInfo.bEnableShadowCasting;
+				#if RHI_RAYTRACING
+					MeshElement.CastRayTracedShadow = MeshElement.CastShadow;
+				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
 						
@@ -3834,6 +3843,24 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 #endif
 }
 
+void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const
+{
+	Mesh.VertexFactory = MeshObject->GetSkinVertexFactory(View, LODIndex, SectionIndex);
+	Mesh.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
+#if RHI_RAYTRACING
+	Mesh.SegmentIndex = SectionIndex;
+	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting;
+#endif
+
+	FMeshBatchElement& BatchElement = Mesh.Elements[0];
+	BatchElement.FirstIndex = LODData.RenderSections[SectionIndex].BaseIndex;
+	BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
+	BatchElement.MaxVertexIndex = LODData.GetNumVertices() - 1;
+	BatchElement.VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
+	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+	BatchElement.NumPrimitives = LODData.RenderSections[SectionIndex].NumTriangles;
+}
+
 void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, 
 	const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, bool bSectionSelected,
 	const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector ) const
@@ -3867,13 +3894,8 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			const FSceneView* View = Views[ViewIndex];
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
-			Mesh.SegmentIndex = SectionIndex;
 
-			FMeshBatchElement& BatchElement = Mesh.Elements[0];
-			Mesh.LCI = NULL;
-			Mesh.bWireframe |= bForceWireframe;
-			Mesh.Type = PT_TriangleList;
-			Mesh.VertexFactory = MeshObject->GetSkinVertexFactory(View, LODIndex, SectionIndex);
+			CreateBaseMeshBatch(View, LODData, LODIndex, SectionIndex, SectionElementInfo, Mesh);
 			
 			if(!Mesh.VertexFactory)
 			{
@@ -3881,13 +3903,11 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 				continue;
 			}
 
+			Mesh.bWireframe |= bForceWireframe;
+			Mesh.Type = PT_TriangleList;
 			Mesh.bSelectable = bInSelectable;
-			BatchElement.FirstIndex = Section.BaseIndex;
 
-			BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
-			BatchElement.MaxVertexIndex = LODData.GetNumVertices() - 1;
-			BatchElement.VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
-
+			FMeshBatchElement& BatchElement = Mesh.Elements[0];
 			const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( SectionElementInfo.Material, Mesh.VertexFactory->GetType(), ViewFamily.GetFeatureLevel() );
 			if ( bRequiresAdjacencyInformation )
 			{
@@ -3897,7 +3917,6 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 				BatchElement.FirstIndex *= 4;
 			}
 
-			Mesh.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
 		#if WITH_EDITOR
 			Mesh.BatchHitProxyId = SectionElementInfo.HitProxy ? SectionElementInfo.HitProxy->Id : FHitProxyId();
 
@@ -3910,10 +3929,6 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 				Mesh.bUseSelectionOutline = !bCanHighlightSelectedSections && bIsSelected;
 			}
 		#endif
-
-			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
-
-			BatchElement.NumPrimitives = Section.NumTriangles;
 
 #if WITH_EDITORONLY_DATA
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -3962,7 +3977,6 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			BatchElement.MinVertexIndex = Section.BaseVertexIndex;
 			Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 			Mesh.CastShadow = SectionElementInfo.bEnableShadowCasting;
-
 			Mesh.bCanApplyViewModeOverrides = true;
 			Mesh.bUseWireframeSelectionColoring = bIsSelected;
 
@@ -3986,7 +4000,7 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 }
 
 #if RHI_RAYTRACING
-FRayTracingGeometryRHIRef FSkeletalMeshSceneProxy::GetDynamicRayTracingGeometryInstance() const
+void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext & Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances)
 {
 	if (MeshObject->GetRayTracingGeometry())
 	{
@@ -3995,11 +4009,39 @@ FRayTracingGeometryRHIRef FSkeletalMeshSceneProxy::GetDynamicRayTracingGeometryI
 		{
 			check(MeshObject->GetRayTracingGeometry()->Initializer.PositionVertexBuffer.IsValid());
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
-			return MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI;
+			
+			FRayTracingInstance RayTracingInstance;
+			RayTracingInstance.Geometry = MeshObject->GetRayTracingGeometry();
+			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
+
+			{
+				// Setup materials for each segment
+				const int32 LODIndex = MeshObject->GetLOD();
+				check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
+				const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
+
+				ensure(LODSections.Num() > 0);
+				const FLODSectionElements& LODSection = LODSections[LODIndex];
+				check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
+
+				for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
+				{
+					const FSkelMeshRenderSection& Section = Iter.GetSection();
+					const int32 SectionIndex = Iter.GetSectionElementIndex();
+					const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
+
+					FMeshBatch MeshBatch;
+					CreateBaseMeshBatch(Context.ReferenceView, LODData, LODIndex, SectionIndex, SectionElementInfo, MeshBatch);
+
+					RayTracingInstance.Materials.Add(MeshBatch);
+				}
+			}
+
+			RayTracingInstance.BuildInstanceMaskAndFlags();
+
+			OutRayTracingInstances.Add(RayTracingInstance);
 		}
 	}
-
-	return nullptr;
 }
 #endif // RHI_RAYTRACING
 
@@ -4338,6 +4380,8 @@ void FSkeletalMeshSceneProxy::OnTransformChanged()
 {
 	MeshObject->RefreshClothingTransforms(GetLocalToWorld(), GetScene().GetFrameNumber() + 1);
 }
+
+
 
 FSkinnedMeshComponentRecreateRenderStateContext::FSkinnedMeshComponentRecreateRenderStateContext(USkeletalMesh* InSkeletalMesh, bool InRefreshBounds /*= false*/)
 	: bRefreshBounds(InRefreshBounds)

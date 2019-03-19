@@ -257,8 +257,14 @@ void MainPS_ES2(
 
 	// Grab emissive colour as output
 	half3 EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
-	half4 FullSceneColor = half4(EmissiveColor, Parameters.BackupSceneColorAlpha);
-
+	
+#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	half Alpha = GetMaterialOpacity(PixelMaterialInputs);
+#else
+	half Alpha = Parameters.BackupSceneColorAlpha;
+#endif
+	half4 FullSceneColor = half4(EmissiveColor, Alpha);
+	   
 #if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 #if OUTPUT_GAMMA_SPACE
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);

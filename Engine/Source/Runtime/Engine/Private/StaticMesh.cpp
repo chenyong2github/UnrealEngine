@@ -1876,7 +1876,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define STATICMESH_DERIVEDDATA_VER TEXT("F36ADCAE95C14BAF91F7B137599924AB")
+#define STATICMESH_DERIVEDDATA_VER TEXT("9891BF2FF72141F6921E24E347DB73C1")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2198,7 +2198,7 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 			Args.Add(TEXT("StaticMeshName"), FText::FromString( Owner->GetName() ) );
 			FStaticMeshStatusMessageContext StatusContext( FText::Format( NSLOCTEXT("Engine", "BuildingStaticMeshStatus", "Building static mesh {StaticMeshName}..."), Args ) );
 
-			check(Owner->IsMeshDescriptionValid(0));
+			checkf(Owner->IsMeshDescriptionValid(0), TEXT("Bad MeshDescription on %s"), *GetPathNameSafe(Owner));
 
 			IMeshBuilderModule& MeshBuilderModule = FModuleManager::Get().LoadModuleChecked<IMeshBuilderModule>(TEXT("MeshBuilder"));
 			if (!MeshBuilderModule.BuildMesh(*this, Owner, LODGroup))
@@ -2362,6 +2362,8 @@ void UStaticMesh::PostInitProperties()
  */
 void UStaticMesh::InitResources()
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
+
 	bRenderingResourcesInitialized = true;
 
 	UpdateUVChannelData(false);
@@ -5251,13 +5253,20 @@ void UStaticMesh::EnforceLightmapRestrictions()
 	{
 		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
 		{
-			NumUVs = FMath::Min(RenderData->LODResources[LODIndex].GetNumTexCoords(),NumUVs);
+			const FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIndex];
+			if (LODResource.GetNumVertices() > 0) // skip LOD that was stripped (eg. MinLOD)
+			{
+				NumUVs = FMath::Min(LODResource.GetNumTexCoords(), NumUVs);
+			}
 		}
 	}
 	else
 	{
 		NumUVs = 1;
 	}
+
+	// do not allow LightMapCoordinateIndex go negative
+	check(NumUVs > 0);
 
 	// Clamp LightMapCoordinateIndex to be valid for all lightmap uvs
 	LightMapCoordinateIndex = FMath::Clamp(LightMapCoordinateIndex, 0, NumUVs - 1);

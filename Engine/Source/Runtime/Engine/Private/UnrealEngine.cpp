@@ -764,10 +764,7 @@ void RefreshSamplerStatesCallback()
 			);
 		}
 
-		UMaterialInterface::RecacheAllMaterialUniformExpressions();
-
-		// Need to recache all cached mesh draw commands, as they store pointers to material uniform buffers which we just invalidated.
-		GetRendererModule().UpdateStaticDrawLists();
+		UMaterialInterface::RecacheAllMaterialUniformExpressions(false);
 	}
 }
 
@@ -1564,6 +1561,11 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		FModuleManager::Get().LoadModuleChecked("MovieSceneTracks");
 		FModuleManager::Get().LoadModule("LevelSequence");
 	}
+
+	// Enable the live coding module if it's a developer build
+#if WITH_LIVE_CODING
+	FModuleManager::Get().LoadModule("LiveCoding");
+#endif
 
 	// Finish asset manager loading
 	if (AssetManager)
@@ -8706,7 +8708,6 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	UPackage* PackageToReset = nullptr;
 	FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageName.ToString(), LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
 	{
-		check(InLinker);
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{
 			Result = InLinker->LinkerRoot->GetGuid();
@@ -8714,8 +8715,10 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 		}
 	});
 
-	ResetLoaders(PackageToReset);
-	Linker = nullptr;
+	if (PackageToReset)
+	{
+		ResetLoaders(PackageToReset);
+	}
 
 	return Result;
 }
@@ -10105,9 +10108,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 				Y += 20;
 				Y += Canvas->DrawShadowedString( X, Y, TEXT("[Server]"), GEngine->GetSmallFont(), FLinearColor::Gray);
 				DrawDebugPropertiesForWorld(ServerWorld, X, Y);
-				break;
 			}
-
 		}
 	}
 
@@ -10272,7 +10273,24 @@ FOnSwitchWorldForPIE FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate;
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClient* InViewportClient )
 	: ViewportClient( InViewportClient )
-	, OldWorld( NULL )
+	, OldWorld( nullptr )
+{
+	ConditionalSwitchWorld( ViewportClient, nullptr );
+}
+
+FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
+	: ViewportClient( nullptr )
+	, OldWorld( nullptr )
+{
+	if (InWorld)
+	{
+		ViewportClient = InWorld->GetGameViewport();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
+}
+
+void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* InViewportClient, UWorld* InWorld )
 {
 	if( GIsEditor )
 	{
@@ -10281,31 +10299,44 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
+		}
+		else if ( InWorld && !GIsPlayInEditorWorld )
+		{
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+			// No viewport so set the world directly
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }
 
 FScopedConditionalWorldSwitcher::~FScopedConditionalWorldSwitcher()
 {
-	// Only switch in the editor and if we made a swtich (OldWorld not null)
+	// Only switch in the editor and if we made a switch (OldWorld not null)
 	if( GIsEditor && OldWorld )
 	{
 		if( ViewportClient && ViewportClient == GEngine->GameViewport && GIsPlayInEditorWorld )
 		{
 			const bool bSwitchToPIEWorld = false;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to restore the old world
 			ViewportClient->ConditionalRestoreWorld( OldWorld );
+		}
+		else if( GIsPlayInEditorWorld )
+		{
+			// No viewport so always restore to old world
+			const bool bSwitchToPIEWorld = false;
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, OldWorld );
 		}
 	}
 }
@@ -11987,13 +12018,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	// send a callback message
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
+
 	// make sure there is a matching PostLoadMap() no matter how we exit
 	struct FPostLoadMapCaller
 	{
-		bool bCalled;
 		FPostLoadMapCaller()
 			: bCalled(false)
 		{}
+
 		~FPostLoadMapCaller()
 		{
 			if (!bCalled)
@@ -12001,6 +12033,19 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
 			}
 		}
+
+		void Broadcast(UWorld* World)
+		{
+			if (ensure(!bCalled))
+			{
+				bCalled = true;
+				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
+			}
+		}
+
+	private:
+		bool bCalled;
+
 	} PostLoadMapCaller;
 
 	// Cancel any pending texture streaming requests.  This avoids a significant delay on consoles 
@@ -12043,7 +12088,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Unload the current world
 	if( WorldContext.World() )
 	{
-		WorldContext.World()->bIsTearingDown = true;
+		WorldContext.World()->BeginTearingDown();
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
@@ -12475,8 +12520,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	WorldContext.World()->BeginPlay();
 
 	// send a callback message
-	PostLoadMapCaller.bCalled = true;
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(WorldContext.World());
+	PostLoadMapCaller.Broadcast(WorldContext.World());
 
 	WorldContext.World()->bWorldWasLoadedThisTick = true;
 
@@ -15603,7 +15647,18 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 				{
 					if (WaveInstanceInfo.ActualVolume >= 0.01f)
 					{
-						WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						bool bShouldPrint = true;
+						FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+						const FString& DebugSoloSoundName = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundWave();
+						if (DebugSoloSoundName != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundName))
+						{
+							bShouldPrint = false;
+						}
+
+						if (bShouldPrint == true)
+						{
+							WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						}
 					}
 				}
 			}
@@ -15676,10 +15731,21 @@ int32 UEngine::RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* 
 			{
 				if (WaveInstanceInfo.ActualVolume >= 0.01f)
 				{
-					const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
-					Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
-					Y += 12;
-					break;
+					bool bShouldPrint = true;
+					FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+					const FString& DebugSoloSoundCue = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundCue();
+					if (DebugSoloSoundCue != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundCue))
+					{
+						bShouldPrint = false;
+					}
+
+					if (bShouldPrint == true)
+					{
+						const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
+						Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
+						Y += 12;
+						break;
+					}
 				}
 			}
 		}

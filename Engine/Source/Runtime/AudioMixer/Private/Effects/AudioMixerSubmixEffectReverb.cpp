@@ -6,6 +6,31 @@
 #include "Audio.h"
 #include "AudioMixer.h"
 
+static int32 DisableSubmixReverbCVar = 0;
+FAutoConsoleVariableRef CVarDisableSubmixReverb(
+	TEXT("au.DisableReverbSubmix"),
+	DisableSubmixReverbCVar,
+	TEXT("Disables the reverb submix.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
+static int32 EnableReverbStereoFlipForQuadCvar = 0;
+FAutoConsoleVariableRef CVarReverbStereoFlipForQuad(
+	TEXT("au.EnableReverbStereoFlipForQuad"),
+	EnableReverbStereoFlipForQuadCvar,
+	TEXT("Enables doing a stereo flip for quad reverb when in surround.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
+
+static int32 DisableQuadReverbCVar = 0;
+FAutoConsoleVariableRef CVarDisableQuadReverbCVar(
+	TEXT("au.DisableQuadReverb"),
+	DisableQuadReverbCVar,
+	TEXT("Disables quad reverb in surround.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
 class UReverbEffect;
 
 FSubmixEffectReverb::FSubmixEffectReverb()
@@ -77,7 +102,7 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
 	check(InData.NumChannels == 2);
- 	if (OutData.NumChannels < 2 || !bIsEnabled) 
+ 	if (OutData.NumChannels < 2 || !bIsEnabled || DisableSubmixReverbCVar == 1) 
 	{
 		// Not supported
 		return;
@@ -96,27 +121,48 @@ void FSubmixEffectReverb::OnProcessAudio(const FSoundEffectSubmixInputData& InDa
 		for (int32 SampleIndex = 0; SampleIndex < InData.AudioBuffer->Num(); SampleIndex += OutData.NumChannels)
 		{
 			PlateReverb.ProcessAudioFrame(&AudioData[SampleIndex], InData.NumChannels, &OutAudioData[SampleIndex], OutData.NumChannels);
-
-			OutAudioData[SampleIndex] += DryLevel * AudioData[SampleIndex];
-			OutAudioData[SampleIndex + 1] += DryLevel * AudioData[SampleIndex + 1];
 		}
 	}
 	// 5.1 or higher surround sound. Map stereo output to quad output
 	else if(OutData.NumChannels > 5)
 	{
-		for (int32 InSampleIndex = 0, OutSampleIndex = 0; InSampleIndex < InData.AudioBuffer->Num(); InSampleIndex += InData.NumChannels, OutSampleIndex += OutData.NumChannels)
+		if (DisableQuadReverbCVar == 1)
 		{
-			// Processed downmixed audio frame
-			PlateReverb.ProcessAudioFrame(&AudioData[InSampleIndex], InData.NumChannels, &OutAudioData[OutSampleIndex], InData.NumChannels);
-			// Now do a cross-over to the back-left/back-right speakers from the front-left and front-right
-			
-			// Using standard speaker map order map the right output to the BackLeft channel
-			OutAudioData[OutSampleIndex + EAudioMixerChannel::BackRight] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft];
-			OutAudioData[OutSampleIndex + EAudioMixerChannel::BackLeft] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight];
+			for (int32 InSampleIndex = 0, OutSampleIndex = 0; InSampleIndex < InData.AudioBuffer->Num(); InSampleIndex += InData.NumChannels, OutSampleIndex += OutData.NumChannels)
+			{
+				PlateReverb.ProcessAudioFrame(&AudioData[InSampleIndex], InData.NumChannels, &OutAudioData[OutSampleIndex], InData.NumChannels);
+			}
+		}
+		else if (EnableReverbStereoFlipForQuadCvar == 1)
+		{
+			for (int32 InSampleIndex = 0, OutSampleIndex = 0; InSampleIndex < InData.AudioBuffer->Num(); InSampleIndex += InData.NumChannels, OutSampleIndex += OutData.NumChannels)
+			{
+				PlateReverb.ProcessAudioFrame(&AudioData[InSampleIndex], InData.NumChannels, &OutAudioData[OutSampleIndex], InData.NumChannels);
 
-			// Copy dry output to output data to stereo fronts
-			OutAudioData[OutSampleIndex] += DryLevel * AudioData[InSampleIndex];
-			OutAudioData[OutSampleIndex + 1] += DryLevel * AudioData[InSampleIndex + 1];
+				// Reduce volume of stereo fronts when doing quad reverb to maintain power
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft] *= 0.5f;
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight] *= 0.5f;
+
+				// Using standard speaker map order map the right output to the BackLeft channel
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::BackRight] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft];
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::BackLeft] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight];
+			}
+		}
+		else
+		{
+			for (int32 InSampleIndex = 0, OutSampleIndex = 0; InSampleIndex < InData.AudioBuffer->Num(); InSampleIndex += InData.NumChannels, OutSampleIndex += OutData.NumChannels)
+			{
+				// Processed downmixed audio frame
+				PlateReverb.ProcessAudioFrame(&AudioData[InSampleIndex], InData.NumChannels, &OutAudioData[OutSampleIndex], InData.NumChannels);
+
+				// Reduce volume of stereo fronts when doing quad reverb to maintain power
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft] *= 0.5f;
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight] *= 0.5f;
+
+				// Using standard speaker map order map the right output to the BackLeft channel
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::BackLeft] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontLeft];
+				OutAudioData[OutSampleIndex + EAudioMixerChannel::BackRight] = OutAudioData[OutSampleIndex + EAudioMixerChannel::FrontRight];
+			}
 		}
 	}
 }

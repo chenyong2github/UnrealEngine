@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.zip.Inflater;
+import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.lang.Runnable;
@@ -276,6 +277,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public static final int DOWNLOAD_INVALID = 5;
 	public static final int DOWNLOAD_NO_PLAY_KEY = 6;
 	public static final String DOWNLOAD_RETURN_NAME = "Result";
+
+	private static final int CONFIGRULES_STATE_RUN = 0;
+	private static final int CONFIGRULES_STATE_EXECTRUE = 1;
+	private static final int CONFIGRULES_STATE_FINDELSE = 2;
+	private static final int CONFIGRULES_STATE_EXECFALSE = 3;
+	private static final int CONFIGRULES_STATE_FINDEND = 4;
 
 	public static enum VirtualKeyboardCommand { VK_CMD_NONE, VK_CMD_SHOW, VK_CMD_HIDE };
 	public static VirtualKeyboardCommand lastVirtualKeyboardCommand = VirtualKeyboardCommand.VK_CMD_NONE;
@@ -1251,6 +1258,222 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return Result;
 	}
 
+	private boolean EvaluateConditions(Map<String, String> variables, ArrayList<String> conditions, String PreviousRegexMatch)
+	{
+		boolean bConditionTrue = true;
+		for (String condition : conditions)
+		{
+			String SourceType = "";
+			String CompareType = "";
+			String MatchString = "";
+
+			// deal with condition group (src,cmp,match)
+			ArrayList<String> groups = ParseSegments(RemoveSurrounds(condition, "(", ")"), ",", "\"", "\"");
+			for (String group : groups)
+			{
+				ArrayList<String> keyvalue = ParseSegments(group, "=", "\"", "\"");
+				if (keyvalue.size() == 2)
+				{
+					String key = RemoveSurrounds(keyvalue.get(0), "\"", "\"");
+					String value = RemoveSurrounds(keyvalue.get(1), "\"", "\"");
+
+					if (key.equals("SourceType"))
+					{
+						SourceType = value;
+					}
+					else if (key.equals("CompareType"))
+					{
+						CompareType = value;
+					}
+					else if (key.equals("MatchString"))
+					{
+						MatchString = value;
+					}
+				}
+			}
+
+			String Source = "";
+			boolean bSourceIsCommandLine = false;
+			if (SourceType.equals("SRC_PreviousRegexMatch"))
+			{
+				Source = PreviousRegexMatch;
+			}
+			else if (SourceType.equals("SRC_CommandLine"))
+			{
+				bSourceIsCommandLine = true;
+				Source = CommandLineFull;;
+			}
+			else if (variables.containsKey(SourceType))
+			{
+				Source = variables.get(SourceType);
+			}
+			else if (SourceType.equals("[EXIST]"))
+			{
+				Source = MatchString;
+			}
+			else
+			{
+				bConditionTrue = false;
+				break;
+			}
+
+			// apply operation
+			if (CompareType.equals("CMP_Exist"))
+			{
+				if (!variables.containsKey(Source))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_NotExist"))
+			{
+				if (variables.containsKey(Source))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_Equal"))
+			{
+				if (bSourceIsCommandLine)
+				{
+					if (!CommandLineFlags.containsKey(MatchString))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else if (!Source.equals(MatchString))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_NotEqual"))
+			{
+				if (bSourceIsCommandLine)
+				{
+					if (CommandLineFlags.containsKey(MatchString))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else if (Source.equals(MatchString))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_EqualIgnore"))
+			{
+				if (!Source.toLowerCase().equals(MatchString.toLowerCase()))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_NotEqualIgnore"))
+			{
+				if (Source.toLowerCase().equals(MatchString.toLowerCase()))
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else if (CompareType.equals("CMP_Regex"))
+			{
+				Pattern pattern = Pattern.compile(MatchString);
+				Matcher matcher = pattern.matcher(Source);
+				if (matcher.find())
+				{
+					int groupCount = matcher.groupCount();
+					PreviousRegexMatch = matcher.group(groupCount >= 1 ? 1 : 0);
+				}
+				else
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+			else
+			{
+				boolean bNumericOperands = true;
+				float SourceFloat = 0.0f;
+				float MatchFloat = 0.0f;
+
+				// convert source and match to float if numeric
+				try
+				{
+					SourceFloat = Float.parseFloat(Source);
+				}
+				catch (NumberFormatException ne)
+				{
+					bNumericOperands = false;
+				}
+				try
+				{
+					MatchFloat = Float.parseFloat(MatchString);
+				}
+				catch (NumberFormatException ne)
+				{
+					bNumericOperands = false;
+				}
+
+				// if comparison ends with Ignore, do case-insensitive compare by converting both to lowercase
+				if (CompareType.endsWith("Ignore"))
+				{
+					bNumericOperands = false;
+					CompareType = CompareType.substring(0, CompareType.length() - 6);
+
+					Source = Source.toLowerCase();
+					MatchString = MatchString.toLowerCase();
+				}
+
+				if (CompareType.equals("CMP_Less"))
+				{
+					if ((bNumericOperands && (SourceFloat >= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) >= 0)))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else if (CompareType.equals("CMP_LessEqual"))
+				{
+					if ((bNumericOperands && (SourceFloat > MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) > 0)))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else if (CompareType.equals("CMP_Greater"))
+				{
+					if ((bNumericOperands && (SourceFloat <= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) <= 0)))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else if (CompareType.equals("CMP_GreaterEqual"))
+				{
+					if ((bNumericOperands && (SourceFloat <= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) < 0)))
+					{
+						bConditionTrue = false;
+						break;
+					}
+				}
+				else
+				{
+					bConditionTrue = false;
+					break;
+				}
+			}
+		}
+
+		return bConditionTrue;
+	}
+
 	private boolean processSystemInfo(String ProjectName, String PackageName)
 	{
 		// check OpenGL information
@@ -1395,6 +1618,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// commandline flag may be used to skip dialog if not a shipping build
 		boolean bIgnoreDialog = !nativeIsShippingBuild() && CommandLineFlags.containsKey("noconfigrulesdialog");
 
+//$${gameActivityPreConfigRulesParseAdditions}$$
+		
 		// read the configuration file (configrules.bin.png)
 		int configRulesVersion = 0;
 		BufferedReader reader = null;
@@ -1414,8 +1639,15 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// process the rules
 		if (reader != null)
 		{
+			// convert to lowercase once to check against chipset key
+			String hardwareCheck = hardware.toLowerCase();
+			
 			try
 			{
+				Stack<Integer> StateStack = new Stack<Integer>();
+
+				int currentState = CONFIGRULES_STATE_RUN;
+				int nestDepth = 0;
 				String line;
 				while ((line = reader.readLine()) != null)
 				{
@@ -1441,6 +1673,105 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					}
 					String command = line.substring(0, index).trim();
 					line = line.substring(index + 1).trim();
+
+					// handle states
+					switch (currentState)
+					{
+						case CONFIGRULES_STATE_RUN:
+							if (command.equals("else") || command.equals("elseif") || command.equals("endif"))
+							{
+								Log.debug("ConfigRules: unexpected " + command + " encountered!");
+							}
+							break;
+
+						case CONFIGRULES_STATE_EXECTRUE:
+							if (command.equals("else"))
+							{
+								currentState = CONFIGRULES_STATE_FINDEND;
+								continue;
+							}
+							if (command.equals("endif"))
+							{
+								currentState = StateStack.pop();
+								continue;
+							}
+							break;
+
+						case CONFIGRULES_STATE_FINDELSE:
+							if (command.equals("if"))
+							{
+								nestDepth++;
+								continue;
+							}
+							if (nestDepth > 0)
+							{
+								if (command.equals("endif"))
+								{
+									nestDepth--;
+								}
+								continue;
+							}
+							if (command.equals("endif"))
+							{
+								currentState = StateStack.pop();
+								continue;
+							}
+							if (command.equals("else"))
+							{
+								currentState = CONFIGRULES_STATE_EXECFALSE;
+								continue;
+							}
+							if (command.equals("elseif"))
+							{
+								currentState = CONFIGRULES_STATE_FINDEND;
+
+								ArrayList<String> conditions = ParseSegments(line, ",", "(\"", ")\"");
+								int setsize = conditions.size();
+								if (setsize > 0)
+								{
+									boolean bConditionTrue = EvaluateConditions(variables, conditions, "");
+									currentState = bConditionTrue ? CONFIGRULES_STATE_EXECTRUE : CONFIGRULES_STATE_FINDELSE;
+								}
+							}
+							continue;
+
+						case CONFIGRULES_STATE_EXECFALSE:
+							if (command.equals("endif"))
+							{
+								currentState = StateStack.pop();
+								continue;
+							}
+							if (command.equals("else") || command.equals("elseif"))
+							{
+								Log.debug("ConfigRules: unexpected " + command + " while handling false condition!");
+								continue;
+							}
+							break;
+
+						case CONFIGRULES_STATE_FINDEND:
+							if (command.equals("if"))
+							{
+								nestDepth++;
+								continue;
+							}
+							if (nestDepth > 0)
+							{
+								if (command.equals("endif"))
+								{
+									nestDepth--;
+								}
+								continue;
+							}
+							if (command.equals("endif"))
+							{
+								currentState = StateStack.pop();
+							}
+							continue;
+
+						default:
+							Log.debug("ConfigRules: unknown state!");
+							continue;
+					}
 
 					// handle commands
 					if (command.equals("set"))
@@ -1490,7 +1821,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							if (values.size() == 7)
 							{
 								String key = RemoveSurrounds(values.get(0), "\"", "\"");
-								if (hardware.contains(key))
+								if (hardwareCheck.contains(key.toLowerCase()))
 								{
 									variables.put("useAffinity", RemoveSurrounds(values.get(1), "\"", "\""));
 									variables.put("chipset", RemoveSurrounds(values.get(2), "\"", "\""));
@@ -1505,6 +1836,26 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							}
 						}
 					}
+					else if (command.equals("if"))
+					{
+						// if:(SourceType=SRC_DeviceMake,CompareType=CMP_Equal,MatchString="samsung")
+						// ... commands for true for all conditions
+						// elseif:(SourceType=SRC_DeviceMake,CompareType=CMP_Equal,MatchString="Google")
+						// ... commands for true for all conditions
+						// else:
+						// ... commands for false for any condition
+						// end:
+						StateStack.push(currentState);
+						currentState = CONFIGRULES_STATE_FINDEND;
+
+						ArrayList<String> conditions = ParseSegments(line, ",", "(\"", ")\"");
+						int setsize = conditions.size();
+						if (setsize > 0)
+						{
+							boolean bConditionTrue = EvaluateConditions(variables, conditions, "");
+							currentState = bConditionTrue ? CONFIGRULES_STATE_EXECTRUE : CONFIGRULES_STATE_FINDELSE;
+						}
+					}
 					else if (command.equals("condition"))
 					{
 						// condition:((SourceType=SRC_DeviceMake,CompareType=CMP_Equal,MatchString="samsung")),(SourceType=,CompareType=,MatchString=),...]),(a=b[,c=d,...]),(a[,b,...])
@@ -1517,217 +1868,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							ArrayList<String> sets = ParseSegments(RemoveSurrounds(conditionAndSets.get(1), "(", ")"), ",", "(\"", ")\"");
 							ArrayList<String> clears = (setsize == 3) ? ParseSegments(RemoveSurrounds(conditionAndSets.get(2), "(", ")"), ",", "(\"", ")\"") : new ArrayList<String>();
 
-							String PreviousRegexMatch = "";
-							boolean bConditionTrue = true;
-							for (String condition : conditions)
-							{
-								String SourceType = "";
-								String CompareType = "";
-								String MatchString = "";
-
-								// deal with condition group (src,cmp,match)
-								ArrayList<String> groups = ParseSegments(RemoveSurrounds(condition, "(", ")"), ",", "\"", "\"");
-								for (String group : groups)
-								{
-									ArrayList<String> keyvalue = ParseSegments(group, "=", "\"", "\"");
-									if (keyvalue.size() == 2)
-									{
-										String key = RemoveSurrounds(keyvalue.get(0), "\"", "\"");
-										String value = RemoveSurrounds(keyvalue.get(1), "\"", "\"");
-
-										if (key.equals("SourceType"))
-										{
-											SourceType = value;
-										}
-										else if (key.equals("CompareType"))
-										{
-											CompareType = value;
-										}
-										else if (key.equals("MatchString"))
-										{
-											MatchString = value;
-										}
-									}
-								}
-
-								String Source = "";
-								boolean bSourceIsCommandLine = false;
-								if (SourceType.equals("SRC_PreviousRegexMatch"))
-								{
-									Source = PreviousRegexMatch;
-								}
-								else if (SourceType.equals("SRC_CommandLine"))
-								{
-									bSourceIsCommandLine = true;
-									Source = CommandLineFull;;
-								}
-								else if (variables.containsKey(SourceType))
-								{
-									Source = variables.get(SourceType);
-								}
-								else if (SourceType.equals("[EXIST]"))
-								{
-									Source = MatchString;
-								}
-								else
-								{
-									bConditionTrue = false;
-									break;
-								}
-
-								// apply operation
-								if (CompareType.equals("CMP_Exist"))
-								{
-									if (!variables.containsKey(Source))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_NotExist"))
-								{
-									if (variables.containsKey(Source))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_Equal"))
-								{
-									if (bSourceIsCommandLine)
-									{
-										if (!CommandLineFlags.containsKey(MatchString))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else if (!Source.equals(MatchString))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_NotEqual"))
-								{
-									if (bSourceIsCommandLine)
-									{
-										if (CommandLineFlags.containsKey(MatchString))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else if (Source.equals(MatchString))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_EqualIgnore"))
-								{
-									if (!Source.toLowerCase().equals(MatchString.toLowerCase()))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_NotEqualIgnore"))
-								{
-									if (Source.toLowerCase().equals(MatchString.toLowerCase()))
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else if (CompareType.equals("CMP_Regex"))
-								{
-									Pattern pattern = Pattern.compile(MatchString);
-									Matcher matcher = pattern.matcher(Source);
-									if (matcher.find())
-									{
-										int groupCount = matcher.groupCount();
-										PreviousRegexMatch = matcher.group(groupCount >= 1 ? 1 : 0);
-									}
-									else
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-								else
-								{
-									boolean bNumericOperands = true;
-									float SourceFloat = 0.0f;
-									float MatchFloat = 0.0f;
-
-									// convert source and match to float if numeric
-									try
-									{
-										SourceFloat = Float.parseFloat(Source);
-									}
-									catch (NumberFormatException ne)
-									{
-										bNumericOperands = false;
-									}
-									try
-									{
-										MatchFloat = Float.parseFloat(MatchString);
-									}
-									catch (NumberFormatException ne)
-									{
-										bNumericOperands = false;
-									}
-
-									// if comparison ends with Ignore, do case-insensitive compare by converting both to lowercase
-									if (CompareType.endsWith("Ignore"))
-									{
-										bNumericOperands = false;
-										CompareType = CompareType.substring(0, CompareType.length() - 6);
-
-										Source = Source.toLowerCase();
-										MatchString = MatchString.toLowerCase();
-									}
-
-									if (CompareType.equals("CMP_Less"))
-									{
-										if ((bNumericOperands && (SourceFloat >= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) >= 0)))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else if (CompareType.equals("CMP_LessEqual"))
-									{
-										if ((bNumericOperands && (SourceFloat > MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) > 0)))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else if (CompareType.equals("CMP_Greater"))
-									{
-										if ((bNumericOperands && (SourceFloat <= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) <= 0)))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else if (CompareType.equals("CMP_GreaterEqual"))
-									{
-										if ((bNumericOperands && (SourceFloat <= MatchFloat)) || (!bNumericOperands && (Source.compareTo(MatchString) < 0)))
-										{
-											bConditionTrue = false;
-											break;
-										}
-									}
-									else
-									{
-										bConditionTrue = false;
-										break;
-									}
-								}
-							}
+							boolean bConditionTrue = EvaluateConditions(variables, conditions, "");
 
 							if (bConditionTrue)
 							{
@@ -1933,6 +2074,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		nativeSetConfigRulesVariables(keyValues);
 
 //$${gameActivityPostConfigRulesAdditions}$$
+//$${gameActivityFinalizeConfigRulesAdditions}$$
 
 		return !bForceGameEndWithError;
 	}
@@ -1968,9 +2110,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		_extrasBundle = getIntent().getExtras();
 		if (_extrasBundle != null)
 		{
-			ShouldHideUI = _extrasBundle.getBoolean("ShouldHideUI", false);
-			UseDisplayCutout = _extrasBundle.getBoolean("UseDisplayCutout", false);
-			if (_extrasBundle.getBoolean("UseSplashScreen", false))
+			ShouldHideUI = _extrasBundle.getString("ShouldHideUI") != null;
+			UseDisplayCutout = _extrasBundle.getString("UseDisplayCutout") != null;
+			if (_extrasBundle.getString("UseSplashScreen") != null)
 			{
 				SplashScreenLaunch = true;
 				try {
@@ -2040,7 +2182,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Log.debug("Target SDK is " + targetSdkVersion + ".  This may cause issues if permissions are denied by the user." );				
 		}
 
-
+		Logger.RegisterCallback(this);
 		
 		// Suppress java logs in Shipping builds
 		if (nativeIsShippingBuild())
@@ -4693,8 +4835,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			InputDevice inputDevice = InputDevice.getDevice(deviceIds[deviceIndex]);
 			// is it a joystick, dpad, or gamepad?
 			if (((inputDevice.getSources() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
-                || ((inputDevice.getSources() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)
-				|| ((inputDevice.getSources() & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD))
+                || ((inputDevice.getSources() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK))
 			{
 				return true;
 			}

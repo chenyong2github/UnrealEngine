@@ -2509,7 +2509,7 @@ int32 TQuantizedLightSampleBulkData<QuantizedLightSampleType>::GetElementSize() 
  * @param ElementIndex	Element index to serialize
  */
 template<class QuantizedLightSampleType>
-void TQuantizedLightSampleBulkData<QuantizedLightSampleType>::SerializeElement( FArchive& Ar, void* Data, int32 ElementIndex )
+void TQuantizedLightSampleBulkData<QuantizedLightSampleType>::SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex )
 {
 	QuantizedLightSampleType* QuantizedLightSample = (QuantizedLightSampleType*)Data + ElementIndex;
 	// serialize as colors
@@ -2630,7 +2630,7 @@ bool FQuantizedLightmapData::HasNonZeroData() const
 	return false;
 }
 
-void FLightmapResourceCluster::SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)
+void FLightmapResourceCluster::UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel)
 {
 	FLightmapResourceCluster* Cluster = this;
 
@@ -2638,14 +2638,18 @@ void FLightmapResourceCluster::SetFeatureLevel(ERHIFeatureLevel::Type InFeatureL
 		[Cluster, InFeatureLevel](FRHICommandList& RHICmdList)
 	{
 		Cluster->FeatureLevel = InFeatureLevel;
+
+		FLightmapResourceClusterShaderParameters Parameters;
+		GetLightmapClusterResourceParameters(InFeatureLevel, Cluster->Input, Parameters);
+
+		RHIUpdateUniformBuffer(Cluster->UniformBuffer, &Parameters);
 	});
 }
 
 void FLightmapResourceCluster::InitRHI()
 {
 	FLightmapResourceClusterShaderParameters Parameters;
-	check(FeatureLevel != ERHIFeatureLevel::Num);
-	GetLightmapClusterResourceParameters(FeatureLevel, Input, Parameters);
+	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), Parameters);
 
 	UniformBuffer = FLightmapResourceClusterShaderParameters::CreateUniformBuffer(Parameters, UniformBuffer_MultiFrame);
 }

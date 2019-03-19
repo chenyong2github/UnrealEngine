@@ -1928,6 +1928,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps, 
 	float TimeBudget)
 {
+#if WITH_EDITOR
 	// Keeps shader maps alive as they are passed from the shader compiler and applied to the owning FMaterial
 	TArray<TRefCountPtr<FMaterialShaderMap> > LocalShaderMapReferences;
 	TMap<FMaterial*, FMaterialShaderMap*> MaterialsToUpdate;
@@ -2010,9 +2011,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 					UE_LOG(LogTemp, Display, TEXT("Marking material as finished 0x%08X%08X"), (int)((int64)(Material) >> 32), (int)((int64)(Material)));
 #endif
-#if WITH_EDITOR
 					Material->RemoveOutstandingCompileId(ShaderMap->CompilingId);
-#endif // WITH_EDITOR
 
 					// Only process results that still match the ID which requested a compile
 					// This avoids applying shadermaps which are out of date and a newer one is in the async compiling pipeline
@@ -2020,10 +2019,8 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 					{
 						if (!bSuccess)
 						{
-#if WITH_EDITOR
 							// Propagate error messages
 							Material->CompileErrors = Errors;
-#endif // WITH_EDITOR
 
 							MaterialsToUpdate.Add( Material, NULL );
 
@@ -2128,21 +2125,18 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 		SetShaderMapsOnMaterialResources(MaterialsToApplyToScene);
 
-#if WITH_EDITOR
 		for (TMap<FMaterial*, FMaterialShaderMap*>::TIterator It(MaterialsToUpdate); It; ++It)
 		{
 			FMaterial* Material = It.Key();
 
 			Material->NotifyCompilationFinished();
 		}
-#endif // WITH_EDITOR
 
 		PropagateMaterialChangesToPrimitives(MaterialsToUpdate);
 
-#if WITH_EDITOR
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
-#endif // WITH_EDITOR
 	}
+#endif // WITH_EDITOR
 }
 
 
@@ -3104,7 +3098,16 @@ void GlobalBeginCompileShader(
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_ForceRemoveUnusedInterpolators);
 		}
-	} 
+	}
+
+	if (IsVulkanPlatform((EShaderPlatform)Target.Platform))
+	{
+		static const auto* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.EnableTessellation"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			Input.Environment.SetDefine(TEXT("VULKAN_ENABLE_TESSELLATION"), 1);
+		}
+	}
 	
 	if (IsMetalPlatform((EShaderPlatform)Target.Platform))
 	{
@@ -3478,7 +3481,7 @@ public:
 			}
 
 			// fixup uniform expressions
-			UMaterialInterface::RecacheAllMaterialUniformExpressions();
+			UMaterialInterface::RecacheAllMaterialUniformExpressions(true);
 
 			// Need to recache all cached mesh draw commands, as they store pointers to material uniform buffers which we just invalidated.
 			GetRendererModule().UpdateStaticDrawLists();
@@ -3915,9 +3918,6 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile)
 			// Metal also needs this when using RHI thread because it uses TOneColorVS very early in RHIPostInit()
 			!IsOpenGLPlatform(GMaxRHIShaderPlatform) && !IsVulkanPlatform(GMaxRHIShaderPlatform) &&
 			!IsMetalPlatform(GMaxRHIShaderPlatform) && !IsSwitchPlatform(GMaxRHIShaderPlatform) &&
-#if RHI_RAYTRACING
-			!GRHISupportsRayTracing && //This is here because DXR is caching its BuiltIn Shaders in PostInit (see FD3D12Device::InitRayTracing)
-#endif // RHI_RAYTRACING
 			GShaderCompilingManager->AllowAsynchronousShaderCompiling();
 
 		if (!bAllowAsynchronousGlobalShaderCompiling)

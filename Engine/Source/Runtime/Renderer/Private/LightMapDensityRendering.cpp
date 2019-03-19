@@ -174,6 +174,12 @@ void FLightmapDensityMeshProcessor::Process(
 		else if (PrimitiveSceneProxy)
 		{
 			int32 LightMapResolution = PrimitiveSceneProxy->GetLightMapResolution();
+		#if WITH_EDITOR
+			if (GLightmassDebugOptions.bPadMappings)
+			{
+				LightMapResolution -= 2;
+			}
+		#endif
 			if (PrimitiveSceneProxy->IsStatic() && LightMapResolution > 0)
 			{
 				ShaderElementData.bTextureMapped = true;
@@ -242,8 +248,8 @@ void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		// Force simple lightmaps based on system settings.
 		bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel) && LightMapInteraction.AllowsHighQualityLightmaps();
 
-		static const auto CVarSupportLowQualityLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
-		const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmaps) || (CVarSupportLowQualityLightmaps->GetValueOnAnyThread() != 0);
+		static const auto SupportLowQualityLightmapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
+		const bool bAllowLowQualityLightMaps = (!SupportLowQualityLightmapsVar) || (SupportLowQualityLightmapsVar->GetValueOnAnyThread() != 0);
 
 		if (!bTranslucentBlendMode || ViewIfDynamicMeshCommand->Family->EngineShowFlags.Wireframe)
 		{

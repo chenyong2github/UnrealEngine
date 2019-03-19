@@ -4,17 +4,36 @@
 	RaytracingOptions.h declares ray tracing options for use in rendering
 =============================================================================*/
 
-extern bool IsRayTracingSkyLightSelected();
+#pragma once
+
+#include "RHIDefinitions.h"
+
+
+extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy);
 
 #if RHI_RAYTRACING
-
-extern bool IsRayTracingRectLightSelected();
-
 extern bool ShouldRenderRayTracingAmbientOcclusion();
-extern bool ShouldRenderRayTracingGlobalIllumination();
-extern bool ShouldRenderRayTracingStaticOrStationaryRectLight(const FLightSceneInfo& LightSceneInfo);
-extern bool ShouldRenderRayTracingDynamicRectLight(const FLightSceneInfo& LightSceneInfo);
+extern bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views);
+extern bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightSceneInfo);
 
-extern float GetRaytracingOcclusionMaxNormalBias();
+extern float GetRaytracingMaxNormalBias();
+
+#else
+
+FORCEINLINE bool ShouldRenderRayTracingAmbientOcclusion()
+{
+	return false;
+}
+
+FORCEINLINE bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views)
+{
+	return false;
+}
+
+FORCEINLINE bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightSceneInfo)
+{
+	return false;
+}
+
 
 #endif

@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// ..
 
 #include "MetalBackend.h"
 #include "MetalShaderFormat.h"
@@ -1464,7 +1464,7 @@ protected:
 				{
 					bool bIsStructuredBuffer = (inst->type->inner_type->is_record() || !strncmp(inst->type->name, "RWStructuredBuffer<", 19) || !strncmp(inst->type->name, "StructuredBuffer<", 17));
 					bool bIsByteAddressBuffer = (!strncmp(inst->type->name, "RWByteAddressBuffer", 19) || !strncmp(inst->type->name, "ByteAddressBuffer", 17));
-                	if (Buffers.AtomicVariables.find(inst) != Buffers.AtomicVariables.end() || bIsStructuredBuffer || bIsByteAddressBuffer || inst->invariant || (inst->type->components() == 3) || inst->type->inner_type->components() == 3 || Backend.Version <= 2)
+                	if (Buffers.AtomicVariables.find(inst) != Buffers.AtomicVariables.end() || bIsStructuredBuffer || bIsByteAddressBuffer || inst->invariant || ((inst->type->components() == 3) || (Backend.TypedMode == EMetalTypeBufferMode2DSRV || Backend.TypedMode == EMetalTypeBufferModeTBSRV) && inst->type->is_image()) || inst->type->inner_type->components() == 3 || Backend.Version <= 2)
 					{
 						bInsertSideTable |= true;
 					}
@@ -1483,8 +1483,8 @@ protected:
 		{
 			check(sig->is_main);
             
-            ir_variable* patchCount = new(ParseState)ir_variable(glsl_type::uint_type, "patchCount", ir_var_uniform);
-            patchCount->semantic = "u";
+            ir_variable* patchCount = new(ParseState)ir_variable(glsl_type::uint_type, "patchCount", ir_var_in);
+            patchCount->semantic = "";
             Buffers.Buffers.Add(patchCount);
             
             int32 patchIndex = Buffers.GetIndex(patchCount);
@@ -1502,7 +1502,7 @@ protected:
 				"uint2 thread_position_in_grid [[thread_position_in_grid]],\n"
 				"ushort2 thread_position_in_threadgroup [[thread_position_in_threadgroup]],\n"
 				"uint2 threadgroup_position_in_grid [[threadgroup_position_in_grid]],\n"
-				"constant uint *patchCount [[ buffer(%d) ]],\n"
+				"device const uint *patchCount [[ buffer(%d) ]],\n"
 				"#define METAL_INDEX_BUFFER_ID %d\n"
 				"const device typed_buffer<uint>* indexBuffer [[ buffer(METAL_INDEX_BUFFER_ID) ]]",
                 patchIndex, IndexBufferIndex
@@ -4747,10 +4747,18 @@ public:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 0\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
                 break;
+			case EMetalTypeBufferMode2DSRV:
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 1\n");
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
+				break;
             case EMetalTypeBufferMode2D:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 1\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 1\n");
                 break;
+			case EMetalTypeBufferModeTBSRV:
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 3\n");
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
+				break;
             case EMetalTypeBufferModeTB:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 3\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 3\n");
@@ -4935,8 +4943,8 @@ char* FMetalCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* sta
 	ExpandArrayAssignments(ir, state);
 
 	// Fix any special language extensions (FrameBufferFetchES2() intrinsic)
-	FixIntrinsics(ir, state);
-
+	FixIntrinsics(ir, state, Frequency);
+	
 	// Remove half->float->half or float->half->float
 	FixRedundantCasts(ir);
 
