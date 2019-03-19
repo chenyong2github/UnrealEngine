@@ -342,7 +342,46 @@ public:
 			return false;
 		}
 
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		{
+			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
+			if (Landscape != nullptr)
+			{
+				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
+				this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
+			}
+		}
+
 		return FLandscapeToolBase<FLandscapeToolStrokeVisibility>::BeginTool(ViewportClient, InTarget, InHitLocation);
+	}
+
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
+	{
+		FLandscapeToolBase<FLandscapeToolStrokeVisibility>::Tick(ViewportClient, DeltaTime);
+
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && this->IsToolActive())
+		{
+			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
+			if (Landscape != nullptr)
+			{
+				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
+			}
+		}
+	}
+
+	virtual void EndTool(FEditorViewportClient* ViewportClient) override
+	{
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		{
+			this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
+
+			if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
+			{
+				this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
+			}
+		}
+
+		FLandscapeToolBase<FLandscapeToolStrokeVisibility>::EndTool(ViewportClient);
 	}
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Visibility"); }
@@ -596,7 +635,9 @@ public:
 					FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 					for (ULandscapeComponent* Component : TargetSelectedComponents)
 					{
-						int32 TotalNeededChannels = Component->WeightmapLayerAllocations.Num();
+						TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+
+						int32 TotalNeededChannels = ComponentWeightmapLayerAllocations.Num();
 						int32 CurrentLayer = 0;
 						TArray<UTexture2D*> NewWeightmapTextures;
 
@@ -617,8 +658,8 @@ public:
 								int32 BestDistanceSquared = MAX_int32;
 								for (auto& WeightmapUsagePair : LandscapeProxy->WeightmapUsageMap)
 								{
-									FLandscapeWeightmapUsage* TryWeightmapUsage = &WeightmapUsagePair.Value;
-									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels)
+									FLandscapeWeightmapUsage* TryWeightmapUsage = WeightmapUsagePair.Value;
+									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels) // TODO: handle procedural layer
 									{
 										// See if this candidate is closer than any others we've found
 										for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
@@ -654,7 +695,7 @@ public:
 								CurrentWeightmapTexture->PostEditChange();
 
 								// Store it in the usage map
-								CurrentWeightmapUsage = &LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, FLandscapeWeightmapUsage());
+								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, new FLandscapeWeightmapUsage());
 
 								// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 							}
@@ -668,7 +709,7 @@ public:
 								if (CurrentWeightmapUsage->ChannelUsage[ChanIdx] == nullptr)
 								{
 									// Use this allocation
-									FWeightmapLayerAllocationInfo& AllocInfo = Component->WeightmapLayerAllocations[CurrentLayer];
+									FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[CurrentLayer];
 
 									if (AllocInfo.WeightmapTextureIndex == 255)
 									{
@@ -677,15 +718,20 @@ public:
 									}
 									else
 									{
-										UTexture2D* OldWeightmapTexture = Component->WeightmapTextures[AllocInfo.WeightmapTextureIndex];
+										TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+										UTexture2D* OldWeightmapTexture = ComponentWeightmapTextures[AllocInfo.WeightmapTextureIndex];
 
 										// Copy the data
 										LandscapeEdit.CopyTextureChannel(CurrentWeightmapTexture, ChanIdx, OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
 										LandscapeEdit.ZeroTextureChannel(OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
 
 										// Remove the old allocation
-										FLandscapeWeightmapUsage* OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
-										OldWeightmapUsage->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
+										FLandscapeWeightmapUsage** OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
+
+										if (OldWeightmapUsage != nullptr)
+										{
+											(*OldWeightmapUsage)->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
+										}
 									}
 
 									// Assign the new allocation
@@ -699,10 +745,10 @@ public:
 						}
 
 						// Replace the weightmap textures
-						Component->WeightmapTextures = NewWeightmapTextures;
+						Component->SetWeightmapTextures(NewWeightmapTextures);
 
 						// Update the mipmaps for the textures we edited
-						for (UTexture2D* WeightmapTexture : Component->WeightmapTextures)
+						for (UTexture2D* WeightmapTexture : NewWeightmapTextures)
 						{
 							FLandscapeTextureDataInfo* WeightmapDataInfo = LandscapeEdit.GetTextureDataInfo(WeightmapTexture);
 
