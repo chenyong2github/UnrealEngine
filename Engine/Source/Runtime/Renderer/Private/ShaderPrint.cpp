@@ -156,7 +156,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
 		}
 	};
 
@@ -178,7 +178,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
 		}
 	};
 
@@ -200,7 +200,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
 		}
 	};
 
@@ -221,7 +221,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
 		}
 	};
 
