@@ -74,6 +74,11 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 		return TOptional<FInstallBundleStatus>();
 	}
 
+	virtual bool IsNullInterface() const override
+	{
+		return true;
+	}
+
 private:
 	
 };
