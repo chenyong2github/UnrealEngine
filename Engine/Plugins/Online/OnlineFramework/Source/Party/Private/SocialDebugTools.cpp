@@ -63,56 +63,84 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 		}
 		else
 		{
-			// strip out context to parse next entry
-			FParse::Command(&Cmd, *FString(TEXT("CONTEXT=") + Instance));			
+			bool bAllInstancesRequested = false;
+			TArray<FString> TargetInstances;
 
+			// strip out context to parse next entry
+			FParse::Command(&Cmd, *FString(TEXT("CONTEXT=") + Instance));
+
+			if(Instance.Equals(TEXT("all")))
+			{
+				bAllInstancesRequested = true;
+				GetContextNames(TargetInstances);
+				if(TargetInstances.Num() == 0)
+				{
+					UE_LOG(LogParty, Log, TEXT("CONTEXT=ALL used, but no OSS contexts found!"));
+				}
+			}
 			if (FParse::Command(&Cmd, TEXT("LOGIN")))
 			{
-				const FString Id = FParse::Token(Cmd, false);
-				const FString Auth = FParse::Token(Cmd, false);
-
-				Login(Instance, FOnlineAccountCredentials(TEXT("epic"), Id, Auth), FLoginComplete::CreateLambda([this, Instance](bool bSuccess)
+				if (bAllInstancesRequested)
 				{
-					UE_LOG(LogParty, Display, TEXT("Login OSS context[%s] %s"), *Instance, *LexToString(bSuccess));
-				}));
+					UE_LOG(LogParty, Log, TEXT("CONTEXT=ALL cannot be used for the LOGIN command!"));
+				}
+				else
+				{
+					const FString Id = FParse::Token(Cmd, false);
+					const FString Auth = FParse::Token(Cmd, false);
+
+					Login(Instance, FOnlineAccountCredentials(TEXT("epic"), Id, Auth), FLoginComplete::CreateLambda([this, Instance](bool bSuccess)
+					{
+						UE_LOG(LogParty, Display, TEXT("Login OSS context[%s] %s"), *Instance, *LexToString(bSuccess));
+					}));
+				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("LOGOUT")))
 			{
-				Logout(Instance, FLogoutComplete::CreateLambda([this, Instance](bool bSuccess)
+				for (const FString& TargetInstance : TargetInstances)
 				{
-					UE_LOG(LogParty, Display, TEXT("Logout OSS context[%s] %s"), *Instance, *LexToString(bSuccess));
-				}));
+					Logout(TargetInstance, FLogoutComplete::CreateLambda([this, TargetInstance](bool bSuccess)
+					{
+						UE_LOG(LogParty, Display, TEXT("Logout OSS context[%s] %s"), *TargetInstance, *LexToString(bSuccess));
+					}));
+				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("JOINPARTY")))
 			{
 				const FString Id = FParse::Token(Cmd, false);
 				const FString Auth = FParse::Token(Cmd, false);
 				const FString FriendName = FParse::Token(Cmd, false);
-
-				Login(Instance, FOnlineAccountCredentials(TEXT("epic"), Id, Auth), FLoginComplete::CreateLambda([this, Instance, FriendName](bool bSuccess)
+				
+				for( const FString& TargetInstance : TargetInstances )
 				{
-					UE_LOG(LogParty, Display, TEXT("Login OSS context[%s] %s"), *Instance, *LexToString(bSuccess));
-
-					if (bSuccess)
+					Login(TargetInstance, FOnlineAccountCredentials(TEXT("epic"), Id, Auth), FLoginComplete::CreateLambda([this, TargetInstance, FriendName](bool bSuccess)
 					{
-						LeaveParty(Instance, FLeavePartyComplete::CreateLambda([this, Instance, FriendName](bool bLeavePartySuccess)
-						{
-							UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *Instance, *LexToString(bLeavePartySuccess));
+						UE_LOG(LogParty, Display, TEXT("Login OSS context[%s] %s"), *TargetInstance, *LexToString(bSuccess));
 
-							JoinParty(Instance, FriendName, FJoinPartyComplete::CreateLambda([this, Instance](bool bJoinPartySuccess)
+						if (bSuccess)
+						{
+							LeaveParty(TargetInstance, FLeavePartyComplete::CreateLambda([this, TargetInstance, FriendName](bool bLeavePartySuccess)
 							{
-								UE_LOG(LogParty, Display, TEXT("Join party OSS context[%s] %s"), *Instance, *LexToString(bJoinPartySuccess));
-							}));							
-						}));
-					}
-				}));
+								UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *TargetInstance, *LexToString(bLeavePartySuccess));
+
+								JoinParty(TargetInstance, FriendName, FJoinPartyComplete::CreateLambda([this, TargetInstance](bool bJoinPartySuccess)
+								{
+									UE_LOG(LogParty, Display, TEXT("Join party OSS context[%s] %s"), *TargetInstance, *LexToString(bJoinPartySuccess));
+								}));
+							}));
+						}
+					}));
+				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("LEAVEPARTY")))
 			{
-				LeaveParty(Instance, FLeavePartyComplete::CreateLambda([this, Instance](bool bSuccess)
+				for (const FString& TargetInstance : TargetInstances)
 				{
-					UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *Instance, *LexToString(bSuccess));
-				}));
+					LeaveParty(Instance, FLeavePartyComplete::CreateLambda([this, TargetInstance](bool bSuccess)
+					{
+						UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *TargetInstance, *LexToString(bSuccess));
+					}));
+				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("AUTOACCEPTFRIENDINVITES")))
 			{
@@ -140,11 +168,15 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 			}
 			else if (FParse::Command(&Cmd, TEXT("DUMPPARTY")))
 			{
-				IOnlineSubsystem* OnlineSub = GetContext(Instance).GetOSS();
-				if (OnlineSub &&
-					OnlineSub->GetPartyInterface().IsValid())
+				for (const FString& TargetInstance : TargetInstances)
 				{
-					OnlineSub->GetPartyInterface()->DumpPartyState();
+					UE_LOG(LogParty, Display, TEXT("---DUMPPARTY - party OSS context[%s]"), *TargetInstance);
+					IOnlineSubsystem* OnlineSub = GetContext(TargetInstance).GetOSS();
+					if (OnlineSub &&
+						OnlineSub->GetPartyInterface().IsValid())
+					{
+						OnlineSub->GetPartyInterface()->DumpPartyState();
+					}
 				}
 			}			
 		}

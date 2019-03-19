@@ -203,7 +203,7 @@ void USocialManager::InitSocialManager()
 	}
 
 #if !UE_SERVER && !UE_BUILD_SHIPPING
-	SocialDebugTools = NewObject<USocialDebugTools>(this);
+	SocialDebugTools = NewObject<USocialDebugTools>(this, GetSocialDebugToolsClass());
 	check(SocialDebugTools);
 #endif
 
@@ -300,6 +300,11 @@ void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const 
 		// As in JoinParty, we don't want to call FinishJoinPartyAttempt when the attempt object isn't registered in our map yet
 		OnJoinPartyAttemptCompleteInternal(NewAttempt, ValidationResult);
 	}
+}
+
+TSubclassOf<USocialDebugTools> USocialManager::GetSocialDebugToolsClass() const
+{
+	return USocialDebugTools::StaticClass();
 }
 
 USocialToolkit* USocialManager::GetFirstLocalUserToolkit() const
