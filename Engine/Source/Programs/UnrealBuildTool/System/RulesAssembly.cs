@@ -477,6 +477,13 @@ namespace UnrealBuildTool
 					Rules.BuildEnvironment = TargetBuildEnvironment.Unique;
 				}
 			}
+			else
+			{
+				if(Rules.BuildEnvironment == TargetBuildEnvironment.Unique && UnrealBuildTool.IsEngineInstalled())
+				{
+					throw new BuildException("Targets with a unique build environment cannot be built an installed engine.");
+				}
+			}
 
 			// Automatically include CoreUObject
 			if (Rules.bCompileAgainstEngine)
