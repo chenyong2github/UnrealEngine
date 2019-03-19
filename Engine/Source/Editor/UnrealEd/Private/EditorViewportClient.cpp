@@ -2088,6 +2088,10 @@ void FEditorViewportClient::UpdateMouseDelta()
 			const bool bIsUsingTrackpad = FSlateApplication::Get().IsUsingTrackpad();
 			const bool bIsNonOrbitMiddleMouse = MiddleMouseButtonDown && !IsAltPressed();
 
+			// If a tool is overriding current widget mode behavior, it may need to 
+			// temporarily set a different widget mode while converting mouse movement.
+			ModeTools->PreConvertMouseMovement(this);
+
 			// Convert the movement delta into drag/rotation deltas
 			FVector Drag;
 			FRotator Rot;
@@ -2123,6 +2127,8 @@ void FEditorViewportClient::UpdateMouseDelta()
 					MouseDeltaTracker->ConvertMovementDeltaToDragRot(this, DragDelta, Drag, Rot, Scale);
 				}
 			}
+
+			ModeTools->PostConvertMouseMovement(this);
 
 			const bool bInputHandledByGizmos = InputWidgetDelta( Viewport, CurrentAxis, Drag, Rot, Scale );
 					
@@ -4580,6 +4586,18 @@ void FEditorViewportClient::UpdateRequiredCursorVisibility()
 	bool ShiftDown = IsShiftPressed();
 	bool ControlDown = IsCtrlPressed();
 
+	bool bOverrideCursorVisibility = false;
+	bool bHardwareCursorVisible = false;
+	bool bSoftwareCursorVisible = false;
+	if (ModeTools->GetOverrideCursorVisibility(bOverrideCursorVisibility, bHardwareCursorVisible, bSoftwareCursorVisible))
+	{
+		if (bOverrideCursorVisibility)
+		{
+			SetRequiredCursor(bHardwareCursorVisible, bSoftwareCursorVisible);
+			return;
+		}
+	}
+
 	if (GetViewportType() == LVT_None)
 	{
 		SetRequiredCursor(true, false);
@@ -4678,6 +4696,11 @@ void FEditorViewportClient::SetRequiredCursorOverride( bool WantOverride, EMouse
 {
 	RequiredCursorVisibiltyAndAppearance.bOverrideAppearance = WantOverride;
 	RequiredCursorVisibiltyAndAppearance.RequiredCursor = RequiredCursor;
+}
+
+void FEditorViewportClient::SetWidgetModeOverride(FWidget::EWidgetMode InWidgetMode)
+{
+	ModeTools->SetWidgetModeOverride(InWidgetMode);
 }
 
 EAxisList::Type FEditorViewportClient::GetCurrentWidgetAxis() const
