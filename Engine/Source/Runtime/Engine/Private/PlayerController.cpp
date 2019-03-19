@@ -103,6 +103,9 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	DefaultClickTraceChannel = ECollisionChannel::ECC_Visibility;
 	HitResultTraceDistance = 100000.f;
 
+	LastMovementUpdateTime = 0.f;
+	LastMovementHitch = 0.f;
+
 	bCinemaDisableInputMove = false;
 	bCinemaDisableInputLook = false;
 
@@ -4535,9 +4538,15 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 							}
 						}
 						
+						const float CurrentRealTime = World->GetRealTimeSeconds();
+						const bool bHitch = (CurrentRealTime - LastMovementUpdateTime) > GameNetworkManager->ServerForcedUpdateHitchThreshold && (LastMovementUpdateTime != 0);
+						LastMovementHitch = bHitch ? CurrentRealTime : LastMovementHitch;
+						const bool bRecentHitch = bHitch || (CurrentRealTime - LastMovementHitch < GameNetworkManager->ServerForcedUpdateHitchCooldown);
+						LastMovementUpdateTime = CurrentRealTime;
+
 						// Trigger forced update if allowed
-						if (ForcedUpdateInterval > 0.f && PawnTimeSinceUpdate > FMath::Max<float>(DeltaSeconds+0.06f, ForcedUpdateInterval * GetPawn()->GetActorTimeDilation()))
-						{						
+						if (!bRecentHitch && ForcedUpdateInterval > 0.f && PawnTimeSinceUpdate > FMath::Max<float>(DeltaSeconds+0.06f, ForcedUpdateInterval * GetPawn()->GetActorTimeDilation()))
+						{
 							//UE_LOG(LogPlayerController, Warning, TEXT("ForcedMovementTick. PawnTimeSinceUpdate: %f, DeltaSeconds: %f, DeltaSeconds+: %f"), PawnTimeSinceUpdate, DeltaSeconds, DeltaSeconds+0.06f);
 							const USkeletalMeshComponent* PawnMesh = GetPawn()->FindComponentByClass<USkeletalMeshComponent>();
 							if (!ServerData->bForcedUpdateDurationExceeded && (!PawnMesh || !PawnMesh->IsSimulatingPhysics()))
