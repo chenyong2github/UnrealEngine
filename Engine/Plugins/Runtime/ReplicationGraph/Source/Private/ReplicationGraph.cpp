@@ -731,13 +731,12 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 #endif
 	const float TimeBetweenUpdates = TargetUpdatesPerSecond > 0 ? (1.f / (float)TargetUpdatesPerSecond) : 0.f;
 
-	static float TimeLeft = TimeBetweenUpdates;
-	TimeLeft -= DeltaSeconds;
-	if (TimeLeft > 0.f)
+	TimeLeftUntilUpdate -= DeltaSeconds;
+	if (TimeLeftUntilUpdate > 0.f)
 	{
 		return 0;
 	}
-	TimeLeft = TimeBetweenUpdates;
+	TimeLeftUntilUpdate = TimeBetweenUpdates;
 #endif
 	
 	SCOPED_NAMED_EVENT(UReplicationGraph_ServerReplicateActors, FColor::Green);
