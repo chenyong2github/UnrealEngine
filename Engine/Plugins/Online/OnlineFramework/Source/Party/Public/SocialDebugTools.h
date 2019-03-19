@@ -43,10 +43,7 @@ public:
 	virtual void SetPartyMemberData(const FString& Instance, const UStruct* StructType, const void* StructData, const FSetPartyMemberDataComplete& OnComplete);
 	virtual void SetPartyMemberDataJson(const FString& Instance, const FString& JsonStr, const FSetPartyMemberDataComplete& OnComplete);
 
-private:
-
-	bool bAutoAcceptFriendInvites;
-	bool bAutoAcceptPartyInvites;
+	virtual void GetContextNames(TArray<FString>& OutContextNames) const { Contexts.GenerateKeyArray(OutContextNames); }
 
 	struct FInstanceContext
 	{
@@ -73,10 +70,16 @@ private:
 		FDelegateHandle FriendInviteReceivedDelegateHandle;
 		FDelegateHandle PartyInviteReceivedDelegateHandle;
 	};
+
+	FInstanceContext& GetContext(const FString& Instance);
+	FInstanceContext* GetContextForUser(const FUniqueNetId& UserId);
+private:
+
+	bool bAutoAcceptFriendInvites;
+	bool bAutoAcceptPartyInvites;
+
 	TMap<FString, FInstanceContext> Contexts;
 
-	FInstanceContext& GetContext(const FString& Instance);	
-	FInstanceContext* GetContextForUser(const FUniqueNetId& UserId);
 	TSharedPtr<IOnlinePartyJoinInfo> GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
 	void PrintExecUsage();
