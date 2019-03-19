@@ -955,13 +955,6 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 
 	FNetSerializeCB NetSerializeCB(ConnectionNetDriver);
 
-	FNetDeltaSerializeInfo Parms;
-	Parms.Map = PackageMap;
-	Parms.Reader = &Reader;
-	Parms.NetSerializeCB = &NetSerializeCB;
-	Parms.Connection = Connection;
-	Parms.Object = Object;
-
 	// Read each property/function blob into Reader (so we've safely jumped over this data in the Bunch/stream at this point)
 	while (OwningChannel->ReadFieldHeaderAndPayload(Object, ClassCache, NetFieldExportGroup, Bunch, &FieldCache, Reader))
 	{
@@ -1011,6 +1004,14 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 				}
 			}
 #endif
+
+			FNetDeltaSerializeInfo Parms;
+			Parms.Map = PackageMap;
+			Parms.Reader = &Reader;
+			Parms.NetSerializeCB = &NetSerializeCB;
+			Parms.Connection = Connection;
+			Parms.Object = Object;
+
 			uint32 StaticArrayIndex = 0;
 			int32 Offset = 0;
 			if (!FNetSerializeCB::ReceiveCustomDeltaProperty(LocalRepLayout, Parms, ReplicatedProp, StaticArrayIndex, Offset))
@@ -2030,6 +2031,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	checkf( bHasQueuedBunches || ReceivingRepState->RepNotifies.Num() == 0, TEXT("Failed RepState RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), ReceivingRepState->RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 	checkf( bHasQueuedBunches || RepNotifies.Num() == 0, TEXT("Failed replicator RepNotifies check. Num=%d. Object=%s. Channel QueuedBunches=%d"), RepNotifies.Num(), *Object->GetFullName(), OwningChannel ? OwningChannel->QueuedBunches.Num() : 0 );
 
+	bool bCalledPreNetReceive = false;
 	bool bSomeObjectsWereMapped = false;
 
 	check(RepLayout);
@@ -2037,7 +2039,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	const FRepLayout& LocalRepLayout = *RepLayout;
 
 	// Let the rep layout update any unmapped properties
-	LocalRepLayout.UpdateUnmappedObjects(ReceivingRepState, Connection->PackageMap, Object, bSomeObjectsWereMapped, bOutHasMoreUnmapped);
+	LocalRepLayout.UpdateUnmappedObjects(ReceivingRepState, Connection->PackageMap, Object, bCalledPreNetReceive, bSomeObjectsWereMapped, bOutHasMoreUnmapped);
 
 	FNetSerializeCB NetSerializeCB(Connection->Driver);
 
@@ -2048,7 +2050,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	Parms.NetSerializeCB = &NetSerializeCB;
 
 	Parms.bUpdateUnmappedObjects = true;
-	Parms.bCalledPreNetReceive = bSomeObjectsWereMapped;	// RepLayout used this to flag whether PreNetReceive was called
+	Parms.bCalledPreNetReceive = bCalledPreNetReceive;
 	
 
 	TArray<TPair<int32, UStructProperty*>> CompletelyMappedProperties;
@@ -2057,6 +2059,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 
 	bSomeObjectsWereMapped |= Parms.bOutSomeObjectsWereMapped;
 	bOutHasMoreUnmapped |= Parms.bOutHasMoreUnmapped;
+	bCalledPreNetReceive |= Parms.bCalledPreNetReceive;
 
 	// This should go away when UnmappedCustomProperties goes away, and when RepNotifies
 	// are merged with RepState RepNotifies.
@@ -2075,7 +2078,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (bSomeObjectsWereMapped)
+	if (bCalledPreNetReceive)
 	{
 		// If we mapped some objects, make sure to call PostNetReceive (some game code will need to think this was actually replicated to work)
 		PostNetReceive();
