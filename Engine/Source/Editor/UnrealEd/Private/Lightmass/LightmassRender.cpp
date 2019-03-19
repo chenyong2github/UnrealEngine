@@ -116,6 +116,11 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant3(0,0,0);
 	}
 
+	virtual int32 PreSkinnedLocalBounds() override
+	{
+		return Compiler->Constant3(0, 0, 0);
+	}
+
 	virtual int32 DistanceCullFade() override
 	{
 		return Compiler->Constant(1.0f);

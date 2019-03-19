@@ -489,11 +489,11 @@ public:
 
 	/** Get the extended bounds of this mesh (imported bounds plus bounds extension) */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetBounds();
+	FBoxSphereBounds GetBounds() const;
 
 	/** Get the original imported bounds of the skel mesh */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetImportedBounds();
+	FBoxSphereBounds GetImportedBounds() const;
 
 	/** Set the original imported bounds of the skel mesh, will recalculate extended bounds */
 	void SetImportedBounds(const FBoxSphereBounds& InBounds);

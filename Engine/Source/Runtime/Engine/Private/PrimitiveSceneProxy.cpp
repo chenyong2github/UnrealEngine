@@ -277,6 +277,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				ActorPosition, 
 				Bounds, 
 				LocalBounds, 
+				GetPreSkinnedLocalBounds(),
 				bReceivesDecals, 
 				HasDistanceFieldRepresentation(), 
 				HasDynamicIndirectShadowCasterRepresentation(), 

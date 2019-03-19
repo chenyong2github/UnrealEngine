@@ -48,7 +48,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		PreviousLocalToWorld,
 		Proxy->GetActorPosition(), 
 		Proxy->GetBounds(), 
-		Proxy->GetLocalBounds(), 
+		Proxy->GetLocalBounds(),
+		Proxy->GetPreSkinnedLocalBounds(),
 		Proxy->ReceivesDecals(), 
 		Proxy->HasDistanceFieldRepresentation(), 
 		Proxy->HasDynamicIndirectShadowCasterRepresentation(), 
@@ -107,4 +108,6 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 
 	Data[25] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 	Data[25].X = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
+
+	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBounds, 0.0f); // .w unused
 }

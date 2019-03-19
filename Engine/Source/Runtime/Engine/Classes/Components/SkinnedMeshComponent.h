@@ -794,6 +794,9 @@ public:
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
 
+	/** Get the pre-skinning local space bounds for this component. */
+	FBoxSphereBounds GetPreSkinnedLocalBounds() const;
+
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.
 	 *
