@@ -174,6 +174,8 @@ protected:
 	//@todo DanH: TEMP - for now relying on FN to bind to its game-level UFortOnlineSessionClient instance #required
 	void HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult);
 
+	virtual TSubclassOf<USocialDebugTools> GetSocialDebugToolsClass() const;
+
 	/** Info on the persistent party we were in when losing connection to the party service and want to rejoin when it returns */
 	TSharedPtr<FRejoinableParty> RejoinableParty;
 
