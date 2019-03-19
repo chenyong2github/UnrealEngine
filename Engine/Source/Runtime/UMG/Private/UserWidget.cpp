@@ -2170,6 +2170,15 @@ UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUs
 	}
 #endif
 
+#if !UE_BUILD_SHIPPING
+	// Check if the world is being torn down before we create a widget for it.
+	if (World)
+	{
+		// Look for indications that widgets are being created for a dead and dying world.
+		ensureMsgf(!World->bIsTearingDown, TEXT("Widget Class %s - Attempting to be created while tearing down the world."), *UserWidgetClass->GetName());
+	}
+#endif
+
 	if (!Outer)
 	{
 		FMessageLog("PIE").Error(FText::Format(LOCTEXT("OuterNull", "Unable to create the widget {0}, no outer provided."), FText::FromName(UserWidgetClass->GetFName())));
