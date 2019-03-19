@@ -23,6 +23,12 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 /** Track the last assigned handle globally */
 uint64 FTimerManager::LastAssignedSerialNumber = 0;
 
+static float DumpTimerLogsThreshold = 1000.f;
+static FAutoConsoleVariableRef CVarDumpTimerLogsThreshold(
+	TEXT("TimerManager.DumpTimerLogsThreshold"), DumpTimerLogsThreshold,
+	TEXT("Threshold (in milliseconds) after which we log timer info to try and help track down spikes in the timer code."),
+	ECVF_Default);
+
 namespace
 {
 	void DescribeFTimerDataSafely(FOutputDevice& Ar, const FTimerData& Data)
@@ -154,7 +160,7 @@ FString FTimerUnifiedDelegate::ToString() const
 		FunctionName = NotBoundName;
 	}
 
-	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DELEGATE") : TEXT("DYN DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
+	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
 }
 
 // ---------------------------------
@@ -550,6 +556,8 @@ void FTimerManager::Tick(float DeltaTime)
 		return;
 	}
 
+	const double StartTime = FPlatformTime::Seconds();
+
 	InternalTime += DeltaTime;
 
 	UWorld* const OwningWorld = OwningGameInstance ? OwningGameInstance->GetWorld() : nullptr;
@@ -638,6 +646,14 @@ void FTimerManager::Tick(float DeltaTime)
 			// no need to go further down the heap, we can be finished
 			break;
 		}
+	}
+
+	// help us hunt down outliers that cause our timer manager times to spike.  Recommended that users set meaningful DumpTimerLogsThresholds in appropriate ini files if they are seeing spikes in the timer manager.
+	const double DeltaT = (FPlatformTime::Seconds() - StartTime) * 1000.f;
+	if (DeltaT >= DumpTimerLogsThreshold)
+	{
+		UE_LOG(LogEngine, Log, TEXT("TimerManager's time threshold of %.2fms exceeded with a deltaT of %.4f, dumping list of timers to help identify why it took so long to process the list of timers."), DumpTimerLogsThreshold, DeltaT);
+		ListTimers();
 	}
 
 	// Timer has been ticked.
