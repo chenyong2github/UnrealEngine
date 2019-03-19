@@ -78,6 +78,11 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 					UE_LOG(LogParty, Log, TEXT("CONTEXT=ALL used, but no OSS contexts found!"));
 				}
 			}
+			else
+			{
+				TargetInstances.Add(Instance);
+			}
+
 			if (FParse::Command(&Cmd, TEXT("LOGIN")))
 			{
 				if (bAllInstancesRequested)
