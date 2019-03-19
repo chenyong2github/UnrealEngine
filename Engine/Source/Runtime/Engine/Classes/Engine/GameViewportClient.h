@@ -866,7 +866,7 @@ private:
 	TMap<EMouseCursor::Type, TSharedPtr<FHardwareCursor>> HardwareCursors;
 
 	/** Map of Software Cursor Widgets*/
-	TMap<EMouseCursor::Type, TSharedRef<SWidget>> CursorWidgets;
+	TMap<EMouseCursor::Type, TSharedPtr<SWidget>> CursorWidgets;
 
 	/** Controls if the Map of Software Cursor Widgets is used */
 	bool bUseSoftwareCursorWidgets;

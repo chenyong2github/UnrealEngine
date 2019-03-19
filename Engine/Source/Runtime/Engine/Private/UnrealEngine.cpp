@@ -12018,13 +12018,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	// send a callback message
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
+
 	// make sure there is a matching PostLoadMap() no matter how we exit
 	struct FPostLoadMapCaller
 	{
-		bool bCalled;
 		FPostLoadMapCaller()
 			: bCalled(false)
 		{}
+
 		~FPostLoadMapCaller()
 		{
 			if (!bCalled)
@@ -12032,6 +12033,19 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
 			}
 		}
+
+		void Broadcast(UWorld* World)
+		{
+			if (ensure(!bCalled))
+			{
+				bCalled = true;
+				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
+			}
+		}
+
+	private:
+		bool bCalled;
+
 	} PostLoadMapCaller;
 
 	// Cancel any pending texture streaming requests.  This avoids a significant delay on consoles 
@@ -12074,7 +12088,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Unload the current world
 	if( WorldContext.World() )
 	{
-		WorldContext.World()->bIsTearingDown = true;
+		WorldContext.World()->BeginTearingDown();
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
@@ -12506,8 +12520,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	WorldContext.World()->BeginPlay();
 
 	// send a callback message
-	PostLoadMapCaller.bCalled = true;
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(WorldContext.World());
+	PostLoadMapCaller.Broadcast(WorldContext.World());
 
 	WorldContext.World()->bWorldWasLoadedThisTick = true;
 
