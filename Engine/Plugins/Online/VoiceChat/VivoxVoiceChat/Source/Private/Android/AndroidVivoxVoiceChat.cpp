@@ -86,12 +86,12 @@ bool FAndroidVivoxVoiceChat::Uninitialize()
 {
 	if (ApplicationWillEnterBackgroundHandle.IsValid())
 	{
-		FCoreDelegates::ApplicationWillDeactivateDelegate.Remove(ApplicationWillEnterBackgroundHandle);
+		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(ApplicationWillEnterBackgroundHandle);
 		ApplicationWillEnterBackgroundHandle.Reset();
 	}
 	if (ApplicationDidEnterForegroundHandle.IsValid())
 	{
-		FCoreDelegates::ApplicationHasReactivatedDelegate.Remove(ApplicationDidEnterForegroundHandle);
+		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ApplicationDidEnterForegroundHandle);
 		ApplicationDidEnterForegroundHandle.Reset();
 	}
 
