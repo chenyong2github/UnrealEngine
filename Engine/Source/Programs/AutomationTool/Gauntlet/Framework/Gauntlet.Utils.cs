@@ -768,24 +768,31 @@ namespace Gauntlet
 				{
 					DestDir = Directory.CreateDirectory(DestDir.FullName);
 				}
+				
+				bool IsMirroring = (Options & CopyOptions.Mirror) == CopyOptions.Mirror;
 
 				System.IO.FileInfo[] SourceFiles = SourceDir.GetFiles("*", SearchOption.AllDirectories);
-				System.IO.FileInfo[] DestFiles = DestDir.GetFiles("*", SearchOption.AllDirectories);
+				System.IO.FileInfo[] DestFiles = null;
 
 				// Convert dest into a map of relative paths to absolute
 				Dictionary<string, System.IO.FileInfo> DestStructure = new Dictionary<string, System.IO.FileInfo>();
 
-				foreach (FileInfo Info in DestFiles)
+				if (IsMirroring)
 				{
-					string RelativePath = Info.FullName.Replace(DestDir.FullName, "");
+					DestFiles = DestDir.GetFiles("*", SearchOption.AllDirectories);
 
-					// remove leading seperator
-					if (RelativePath.First() == Path.DirectorySeparatorChar)
+					foreach (FileInfo Info in DestFiles)
 					{
-						RelativePath = RelativePath.Substring(1);
-					}
+						string RelativePath = Info.FullName.Replace(DestDir.FullName, "");
 
-					DestStructure[RelativePath] = Info;
+						// remove leading seperator
+						if (RelativePath.First() == Path.DirectorySeparatorChar)
+						{
+							RelativePath = RelativePath.Substring(1);
+						}
+
+						DestStructure[RelativePath] = Info;
+					}
 				}
 
 				// List of relative-path files to copy to dest
@@ -833,7 +840,7 @@ namespace Gauntlet
 				}
 
 				// If set to mirror, delete all the files that were not in source
-				if ((Options & CopyOptions.Mirror) == CopyOptions.Mirror)
+				if (IsMirroring)
 				{
 					// Now go through the remaining map items and delete them
 					foreach (var Pair in DestStructure)
