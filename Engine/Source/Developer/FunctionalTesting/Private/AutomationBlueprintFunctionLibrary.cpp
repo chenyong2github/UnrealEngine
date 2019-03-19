@@ -40,6 +40,8 @@
 #include "Scalability.h"
 #include "SceneViewExtension.h"
 #include "SceneView.h"
+#include "Engine/GameEngine.h"
+#include "Engine/LevelStreaming.h"
 
 #define LOCTEXT_NAMESPACE "Automation"
 
@@ -492,12 +494,21 @@ void UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot()
 		FModuleManager::GetModuleChecked<IAutomationControllerModule>("AutomationController").GetAutomationController()->ResetAutomationTestTimeout(TEXT("shader compilation"));
 	}
 
+	FlushAsyncLoading();
+
+	// Make sure we finish all level streaming
+	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+	{
+		if (UWorld* GameWorld = GameEngine->GetGameWorld())
+		{
+			GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+		}
+	}
+
 	// Force all mip maps to load before taking the screenshot.
 	UTexture::ForceUpdateTextureStreaming();
 
 	IStreamingManager::Get().StreamAllResources(0.0f);
-
-	//IStreamingManager::Get().
 }
 
 FIntPoint UAutomationBlueprintFunctionLibrary::GetAutomationScreenshotSize(const FAutomationScreenshotOptions& Options)
@@ -795,6 +806,103 @@ float UAutomationBlueprintFunctionLibrary::GetStatCallCount(FName StatName)
 bool UAutomationBlueprintFunctionLibrary::AreAutomatedTestsRunning()
 {
 	return GIsAutomationTesting;
+}
+
+class FWaitForLoadingToFinish : public FPendingLatentAction
+{
+public:
+	FWaitForLoadingToFinish(const FLatentActionInfo& LatentInfo)
+		: ExecutionFunction(LatentInfo.ExecutionFunction)
+		, OutputLink(LatentInfo.Linkage)
+		, CallbackTarget(LatentInfo.CallbackTarget)
+	{
+		WaitingFrames = 0;
+		UAutomationBlueprintFunctionLibrary::FinishLoadingBeforeScreenshot();
+	}
+
+	virtual ~FWaitForLoadingToFinish()
+	{
+	}
+
+	bool AnyLevelStreaming()
+	{
+		// Make sure we finish all level streaming
+		if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+		{
+			if (UWorld* GameWorld = GameEngine->GetGameWorld())
+			{
+				for (ULevelStreaming* LevelStreaming : GameWorld->GetStreamingLevels())
+				{
+					// See whether there's a level with a pending request.
+					if (LevelStreaming)
+					{
+						if (LevelStreaming->HasLoadRequestPending())
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	virtual void UpdateOperation(FLatentResponse& Response) override
+	{
+		bool bResetWaiting = false;
+
+		if (IsAsyncLoading())
+		{
+			bResetWaiting = true;
+		}
+		else if (AnyLevelStreaming())
+		{
+			bResetWaiting = true;
+		}
+
+		if (bResetWaiting)
+		{
+			WaitingFrames = 0;
+		}
+		else
+		{
+			WaitingFrames++;
+		}
+
+		if (WaitingFrames > 60)
+		{
+			Response.FinishAndTriggerIf(true, ExecutionFunction, OutputLink, CallbackTarget);
+		}
+	}
+
+#if WITH_EDITOR
+	// Returns a human readable description of the latent operation's current state
+	virtual FString GetDescription() const override
+	{
+		return TEXT("Waiting For Loading");
+	}
+#endif
+	
+private:
+	FName ExecutionFunction;
+	int32 OutputLink;
+	FWeakObjectPtr CallbackTarget;
+
+	int32 WaitingFrames;
+};
+
+
+void UAutomationBlueprintFunctionLibrary::AutomationWaitForLoading(UObject* WorldContextObject, FLatentActionInfo LatentInfo)
+{
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		FLatentActionManager& LatentActionManager = World->GetLatentActionManager();
+		if (LatentActionManager.FindExistingAction<FWaitForLoadingToFinish>(LatentInfo.CallbackTarget, LatentInfo.UUID) == nullptr)
+		{
+			LatentActionManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, new FWaitForLoadingToFinish(LatentInfo));
+		}
+	}
 }
 
 bool UAutomationBlueprintFunctionLibrary::TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera, bool bMaskEnabled, bool bCaptureHDR)
