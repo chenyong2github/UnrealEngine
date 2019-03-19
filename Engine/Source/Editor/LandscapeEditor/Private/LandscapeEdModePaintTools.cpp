@@ -80,10 +80,17 @@ public:
 			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
 			if (Landscape != nullptr)
 			{
-				Landscape->RequestProceduralContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
+				if (this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap)
+				{
+					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_Render);
+					this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps();
+				}
+				else
+				{
+					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
+					this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
+				}
 			}
-
-			this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps(false);
 		}
 
 		return FLandscapeToolBase<TStrokeClass>::BeginTool(ViewportClient, InTarget, InHitLocation);
@@ -104,7 +111,8 @@ public:
 			}
 			else
 			{
-				// TODO: Activate/Deactivate weightmap layers
+				this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
+
 				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
 				{
 					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
