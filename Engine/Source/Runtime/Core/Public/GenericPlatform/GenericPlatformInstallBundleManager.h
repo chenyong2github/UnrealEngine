@@ -198,6 +198,8 @@ public:
 	virtual void CancelBundle(FName BundleName) = 0;
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
+
+	virtual bool IsNullInterface() const = 0;
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface
