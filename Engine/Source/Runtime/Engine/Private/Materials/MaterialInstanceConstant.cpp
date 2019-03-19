@@ -49,10 +49,10 @@ void UMaterialInstanceConstant::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	ParameterStateId = FGuid::NewGuid();
 }
 
-void UMaterialInstanceConstant::SetParentEditorOnly(UMaterialInterface* NewParent)
+void UMaterialInstanceConstant::SetParentEditorOnly(UMaterialInterface* NewParent, bool RecacheShader)
 {
 	check(GIsEditor || IsRunningCommandlet());
-	SetParentInternal(NewParent, true);
+	SetParentInternal(NewParent, RecacheShader);
 }
 
 void UMaterialInstanceConstant::CopyMaterialUniformParametersEditorOnly(UMaterialInterface* Source, bool bIncludeStaticParams)

@@ -69,8 +69,8 @@ protected:
 	void OnLayerTextCommitted(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
 	FText GetLayerText(int32 InLayerIndex) const;
 
-	TOptional<float> GetLayerWeight(int32 InLayerIndex) const;
-	void SetLayerWeight(float InWeight, int32 InLayerIndex);
+	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
+	void SetLayerAlpha(float InAlpha, int32 InLayerIndex);
 
 	void OnLayerVisibilityChanged(ECheckBoxState NewState, int32 InLayerIndex);
 	ECheckBoxState IsLayerVisible(int32 InLayerIndex) const;
