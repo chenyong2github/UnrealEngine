@@ -204,31 +204,40 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::Generate
 					.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerVisibility", "Visibility"))
 				]
 			]
+
 			+ SHorizontalBox::Slot()
-			.Padding(0)
 			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerWeight", "Weight"))
-			]
-			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.Padding(0, 2)
-			.HAlign(HAlign_Left)
-			.FillWidth(1.0f)
+			.HAlign(HAlign_Right)
 			[
-				SNew(SNumericEntryBox<float>)
-				.AllowSpin(true)
-				.MinValue(0.0f)
-				.MaxValue(65536.0f)
-				.MaxSliderValue(65536.0f)
-				.MinDesiredValueWidth(25.0f)
-				.Value(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerWeight, InLayerIndex)
-				.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerWeight, InLayerIndex)
-				.IsEnabled(true)
-			]			
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0)
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerAlpha", "Alpha"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(0, 2)
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0f)
+				[
+					SNew(SNumericEntryBox<float>)
+					.AllowSpin(true)
+					.MinValue(0.0f)
+					.MaxValue(100.0f)
+					.MaxSliderValue(100.0f)
+					.MinDesiredValueWidth(60.0f)
+					.Value(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerAlpha, InLayerIndex)
+					.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerAlpha, InLayerIndex)
+					.IsEnabled(true)
+				]		
+			]
 		];	
 
 	return RowWidget;
@@ -278,25 +287,25 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerSelectionChanged
 	}
 }
 
-TOptional<float> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerWeight(int32 InLayerIndex) const
+TOptional<float> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerAlpha(int32 InLayerIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode)
 	{
-		return LandscapeEdMode->GetProceduralLayerWeight(InLayerIndex);
+		return LandscapeEdMode->GetProceduralLayerAlpha(InLayerIndex);
 	}
 
 	return 1.0f;
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerWeight(float InWeight, int32 InLayerIndex)
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerAlpha(float InAlpha, int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode)
 	{
-		LandscapeEdMode->SetProceduralLayerWeight(InWeight, InLayerIndex);
+		LandscapeEdMode->SetProceduralLayerAlpha(InAlpha, InLayerIndex);
 	}
 }
 
