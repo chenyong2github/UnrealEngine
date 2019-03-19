@@ -132,6 +132,14 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	/** MaxClientForcedUpdateDuration is the maximum time duration over which the server will force updates, after MAXCLIENTUPDATEINTERVAL is initially exceeded. */
 	UPROPERTY(GlobalConfig)
 	float MaxClientForcedUpdateDuration;
+	
+	/** Ignore forced client movement updates when server hitches for longer than this duration. */
+	UPROPERTY(GlobalConfig)
+	float ServerForcedUpdateHitchThreshold;
+
+	/** Ignore forced client movement updates when server hitch was detected within this amount of time in the past. */
+	UPROPERTY(GlobalConfig)
+	float ServerForcedUpdateHitchCooldown;
 
 	/** MaxMoveDeltaTime is the default maximum time delta of CharacterMovement ServerMoves. Should be less than or equal to MAXCLIENTUPDATEINTERVAL, otherwise server will interfere by forcing position updates. */
 	UPROPERTY(GlobalConfig)
