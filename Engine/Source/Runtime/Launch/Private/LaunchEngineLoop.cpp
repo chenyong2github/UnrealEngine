@@ -988,7 +988,7 @@ bool IsServerDelegateForOSS(FName WorldContextHandle)
 #if WITH_ENGINE && CSV_PROFILER
 static void UpdateCoreCsvStats_BeginFrame()
 {
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
 	if (FCsvProfiler::Get()->IsCapturing())
 	{
 		const uint32 ProcessId = (uint32)GetCurrentProcessId();
