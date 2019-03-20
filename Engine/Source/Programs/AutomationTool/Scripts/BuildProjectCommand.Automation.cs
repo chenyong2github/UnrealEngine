@@ -124,7 +124,10 @@ public partial class Project : CommandUtils
 
 		if (string.IsNullOrEmpty(Params.UbtArgs) == false)
 		{
-			AdditionalArgs += " " + Params.UbtArgs;
+			string Arg = Params.UbtArgs;
+			Arg = Arg.TrimStart(new char[] { '\"' });
+			Arg = Arg.TrimEnd(new char[] { '\"' });
+			AdditionalArgs += " " + Arg;
 		}
 
 		if (Params.MapFile)
