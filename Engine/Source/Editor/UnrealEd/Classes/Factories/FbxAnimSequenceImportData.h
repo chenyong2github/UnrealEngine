@@ -73,9 +73,12 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	/** Import if custom attribute as a curve within the animation */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
 	bool bImportCustomAttribute;
+
+	/** If true, all previous custom attribute curves will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	bool bDeleteExistingCustomAttributeCurves;
 	
 	/** Import bone transform tracks. If false, this will discard any bone transform tracks. (useful for curves only animations)*/
-
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
 	bool bImportBoneTracks;
 
