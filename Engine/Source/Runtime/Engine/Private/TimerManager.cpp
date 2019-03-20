@@ -631,7 +631,7 @@ void FTimerManager::Tick(float DeltaTime)
 				
 				if (Top)
 				{
-					DescribeFTimerDataSafely(Top);
+					DescribeFTimerDataSafely(*Top);
 				}
 				else
 				{
