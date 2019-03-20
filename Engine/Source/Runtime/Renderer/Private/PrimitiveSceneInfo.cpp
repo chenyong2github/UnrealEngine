@@ -683,6 +683,13 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 	{
 		CacheMeshDrawCommands(RHICmdList);
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		UpdateRayTracingLodIndexToMeshDrawCommandIndicies();
+	}
+#endif // RHI_RAYTRACING
 }
 
 void FPrimitiveSceneInfo::ConditionalUpdateStaticMeshesWithoutVisibilityCheckDuringNextInitViews()
