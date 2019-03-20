@@ -3179,6 +3179,11 @@ protected:
 		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectBounds"), TEXT("ObjectBounds.xyz"));
 	}
 
+	virtual int32 PreSkinnedLocalBounds() override
+	{
+		return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBounds.xyz"));
+	}
+
 	virtual int32 DistanceCullFade() override
 	{
 		bUsesDistanceCullFade = true;
