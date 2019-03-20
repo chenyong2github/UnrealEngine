@@ -112,7 +112,7 @@ bool GenerateOcclusionRay(
 		float LightRadius = LightParameters.SourceRadius;
 
 		GenerateDirectionalLightOcclusionRay(
-			WorldPosition, WorldNormal, NormalBias,
+			WorldPosition, WorldNormal,
 			LightDirection, LightRadius,
 			RandSample,
 			/* out */ RayOrigin,
