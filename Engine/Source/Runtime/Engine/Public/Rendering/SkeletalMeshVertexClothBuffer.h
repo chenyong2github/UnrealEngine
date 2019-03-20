@@ -62,6 +62,11 @@ public:
 	virtual void InitRHI() override;
 
 	/**
+	* Release the RHI resource for this vertex buffer
+	*/
+	virtual void ReleaseRHI() override;
+
+	/**
 	* @return text description for the resource type
 	*/
 	virtual FString GetFriendlyName() const override;
