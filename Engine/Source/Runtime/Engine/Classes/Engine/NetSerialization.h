@@ -418,7 +418,10 @@ struct FFastArraySerializer
 		, ArrayReplicationKey(0)
 		, CachedNumItems(INDEX_NONE)
 		, CachedNumItemsToConsiderForWriting(INDEX_NONE)
-		, DeltaFlags(EFastArraySerializerDeltaFlags::None) { }
+		, DeltaFlags(EFastArraySerializerDeltaFlags::None)
+	{
+		SetDeltaSerializationEnabled(true);
+	}
 
 	~FFastArraySerializer() {}
 
