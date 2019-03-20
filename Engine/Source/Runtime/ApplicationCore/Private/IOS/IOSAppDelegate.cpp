@@ -449,6 +449,13 @@ static IOSAppDelegate* CachedDelegate = nil;
 				break;
 
 			case AVAudioSessionInterruptionTypeEnded:
+
+				NSNumber * interruptionOption = [[notification userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
+				if (interruptionOption != nil && interruptionOption.unsignedIntegerValue > 0)
+				{
+					FAppEntry::RestartAudio();
+				}
+
 				FAppEntry::Resume(true);
 				[self ToggleAudioSession:true force:true];
 				break;

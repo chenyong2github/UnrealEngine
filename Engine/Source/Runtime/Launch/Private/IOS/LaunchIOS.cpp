@@ -177,6 +177,37 @@ void FAppEntry::Resume(bool bIsInterrupt)
 	}
 }
 
+void FAppEntry::RestartAudio()
+{
+	if (GEngine && GEngine->GetMainAudioDevice())
+	{
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+
+		if (FTaskGraphInterface::IsRunning())
+		{
+			int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
+
+			//increment the counter, otherwise ResumeContext won't work
+			if (SuspendCounter == 0)
+			{
+				FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
+			}
+
+			FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+			{
+				FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+				{
+					AudioDevice->ResumeContext();
+				}, TStatId());
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+		}
+		else
+		{
+			AudioDevice->ResumeContext();
+		}
+	}
+}
+
 void FAppEntry::PreInit(IOSAppDelegate* AppDelegate, UIApplication* Application)
 {
 	// make a controller object
