@@ -200,8 +200,9 @@ struct FEventTriggerExecutionToken
 				}
 			}
 		}
+
 		// If we have specified event receivers
-		else if (EventReceivers.Num())
+		if (EventReceivers.Num())
 		{
 			EventContexts.Reserve(EventReceivers.Num());
 			for (FMovieSceneObjectBindingID ID : EventReceivers)
@@ -219,8 +220,9 @@ struct FEventTriggerExecutionToken
 				}
 			}
 		}
-		// If we haven't specified event receivers, use the default set defined on the player
-		else
+
+		// If we haven't specified event receivers, use the default set defined on the player		
+		if (EventContexts.Num() == 0)
 		{
 			EventContexts = Player.GetEventContexts();
 		}
