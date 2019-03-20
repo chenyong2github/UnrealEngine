@@ -65,6 +65,7 @@ struct FMetalCommandData
 
 struct FMetalCommandDebug
 {
+    uint32 CmdBufIndex;
 	uint32 Encoder;
 	uint32 Index;
 	FMetalGraphicsPipelineState* PSO;
@@ -79,7 +80,7 @@ public:
 	FMetalCommandBufferMarkers(FMetalCommandBufferDebug* CmdBuf);
 	
 	void AllocateContexts(uint32 NumContexts);
-	uint32 AddCommand(uint32 Encoder, uint32 Context, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data);
+	uint32 AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 Context, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data);
 	TArray<FMetalCommandDebug>* GetCommands(uint32 Context);
 	ns::AutoReleased<FMetalBuffer> GetDebugBuffer(uint32 ContextIndex);
 	uint32 NumContexts() const;

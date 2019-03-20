@@ -107,7 +107,7 @@ void FMetalCommandBufferMarkers::AllocateContexts(uint32 NumContexts)
 	}
 }
 
-uint32 FMetalCommandBufferMarkers::AddCommand(uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data)
+uint32 FMetalCommandBufferMarkers::AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data)
 {
 	uint32 Num = 0;
 	if (m_ptr)
@@ -120,6 +120,7 @@ uint32 FMetalCommandBufferMarkers::AddCommand(uint32 Encoder, uint32 ContextInde
 		Context.PSOs.Add(PSO);
 		Num = Context.Commands.Num();
 		FMetalCommandDebug Command;
+        Command.CmdBufIndex = CmdBufIndex;
 		Command.Encoder = Encoder;
 		Command.Index = Num;
 		Command.PSO = PSO;

@@ -79,6 +79,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 			BrokenDraw.CommandIndex = UINT32_MAX;
 			BrokenDraw.CmdBuffIndex = UINT32_MAX;
 			BrokenDraw.ContextIndex = UINT32_MAX;
+            BrokenDraw.CommandBuffer = 0;
 			uint32 BrokenContext = 0;
 			bool bFoundBrokenDraw = false;
 			for (uint32 i = 0; !bFoundBrokenDraw && i < Markers.NumContexts(); i++)
@@ -127,9 +128,9 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 			if (bFoundBrokenDraw)
 			{
 				id<MTLCommandBuffer> Ptr = reinterpret_cast<id<MTLCommandBuffer>>(BrokenDraw.CommandBuffer);
-				UE_LOG(LogMetal, Error, TEXT("GPU last wrote Command Buffer: %u (%p) Encoder Index: %d Context Index: %d Draw Index: %d PSO: VS: %u_%u, PS: %u_%u."), BrokenDraw.CmdBuffIndex, Ptr, BrokenDraw.EncoderIndex, BrokenDraw.ContextIndex, BrokenDraw.CommandIndex, BrokenDraw.PSOSignature[0], BrokenDraw.PSOSignature[1], BrokenDraw.PSOSignature[2], BrokenDraw.PSOSignature[3]);
+				UE_LOG(LogMetal, Error, TEXT("GPU last wrote Command Buffer: %u (%llx) Encoder Index: %d Context Index: %d Draw Index: %d PSO: VS: %u_%u, PS: %u_%u."), BrokenDraw.CmdBuffIndex, BrokenDraw.CommandBuffer, BrokenDraw.EncoderIndex, BrokenDraw.ContextIndex, BrokenDraw.CommandIndex, BrokenDraw.PSOSignature[0], BrokenDraw.PSOSignature[1], BrokenDraw.PSOSignature[2], BrokenDraw.PSOSignature[3]);
 
-				if (Ptr != CompletedBuffer.GetPtr())
+                if (Ptr && Ptr != CompletedBuffer.GetPtr())
 				{
 					// Have we failed between commands-buffers? Or have our command-buffers been subject to coalescing?
 					ns::AutoReleased<mtlpp::CommandBuffer> PrevCommandBuffer(Ptr);
@@ -156,7 +157,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 								PSSig[1] = Command.PSO->PixelShader->SourceCRC;
 							}
 							
-							UE_LOG(LogMetal, Error, TEXT("Command Buffer: %p Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), Ptr, Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
+                            UE_LOG(LogMetal, Error, TEXT("Command Buffer: %d (%p) Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), Command.CmdBufIndex, Ptr, Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
 						}
 					}
 					
@@ -169,8 +170,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 				{
 					UE_LOG(LogMetal, Error, TEXT("Failed executing following commands:"));
 					uint32 StartIdx = BrokenDraw.CommandIndex;
-					uint32 EndIdx = BrokenDraw.CommandIndex + GMetalDebugOpsCount + 1;
-					for (uint32 CmdIdx = StartIdx; CmdIdx < Commands->Num() && CmdIdx < EndIdx; CmdIdx++)
+					for (uint32 CmdIdx = StartIdx; CmdIdx < Commands->Num(); CmdIdx++)
 					{
 						FMetalCommandDebug& Command = (*Commands)[CmdIdx];
 						FString VSHash = Command.PSO->VertexShader->GetHash().ToString();
@@ -185,7 +185,20 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 							PSSig[1] = Command.PSO->PixelShader->SourceCRC;
 						}
 						
-						UE_LOG(LogMetal, Error, TEXT("Command Buffer: %p Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), CompletedBuffer.GetPtr(), Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
+						UE_LOG(LogMetal, Error, TEXT("Command Buffer: %d (%p) Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), Command.CmdBufIndex, CompletedBuffer.GetPtr(), Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
+					}
+				}
+                if (DebugBuffer)
+                {
+                    uint32 DebugLength = DebugBuffer.GetLength();
+                    uint32 DebugCount = DebugLength / sizeof(FMetalDebugInfo);
+                    check(DebugCount >= 1);
+                    
+                    FMetalDebugInfo* DebugArray = (FMetalDebugInfo*)DebugBuffer.GetContents();
+                    for (uint32 i = 0; i < DebugCount; i++)
+                    {
+                        FMetalDebugInfo& Command = DebugArray[i];
+                        UE_LOG(LogMetal, Error, TEXT("Command Buffer: %d (%p) Debug Buffer: %p Tile: %u Context: %d Encoder: %d Command: %d PSO: VS: %u_%u, PS: %u_%u"), Command.CmdBuffIndex, Command.CommandBuffer, DebugBuffer.GetPtr(), i, Command.ContextIndex, Command.EncoderIndex, Command.CommandIndex, Command.PSOSignature[0], Command.PSOSignature[1], Command.PSOSignature[2], Command.PSOSignature[3]);
 					}
 				}
 			}

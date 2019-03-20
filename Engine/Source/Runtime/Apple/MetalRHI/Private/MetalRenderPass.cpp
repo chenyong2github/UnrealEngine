@@ -1886,7 +1886,7 @@ void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 	{
 		FMetalGraphicsPipelineState* BoundShaderState = State.GetGraphicsPSO();
 		
-		uint32 NumCommands = CurrentEncoder.GetMarkers().AddCommand(GetEncoderIndex(), CmdList.GetParallelIndex(), State.GetDebugBuffer(), BoundShaderState, Data);
+		uint32 NumCommands = CurrentEncoder.GetMarkers().AddCommand(GetCommandBufferIndex(), GetEncoderIndex(), CmdList.GetParallelIndex(), State.GetDebugBuffer(), BoundShaderState, Data);
 		
 		if ((NumCommands % GMetalDebugOpsCount) == 0)
 		{
