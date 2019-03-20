@@ -86,6 +86,16 @@ public:
 #endif
 
 	/**
+	 * Returns the address of the method pointer which can be used to learn the address of the function that will be executed.
+	 * Returns nullptr if this delegate type does not directly invoke a function pointer.
+	 *
+	 * Note: Only intended to be used to aid debugging of delegates.
+	 *
+	 * @return The address of the function pointer that would be executed by this delegate
+	 */
+	virtual void* GetBoundFunctionAddress() const = 0;
+
+	/**
 	 * Returns the UObject that this delegate instance is bound to.
 	 *
 	 * @return Pointer to the UObject, or nullptr if not bound to a UObject.
