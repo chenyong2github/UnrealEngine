@@ -20,12 +20,12 @@ UExpandableArea::UExpandableArea(const FObjectInitializer& ObjectInitializer)
 {
 	bIsVariable = true;
 
-	SExpandableArea::FArguments ExpandableDefaults;
-	Style       = *ExpandableDefaults._Style;
-	BorderColor = ExpandableDefaults._BorderBackgroundColor.Get( FLinearColor::White );
-	BorderBrush = *ExpandableDefaults._BorderImage.Get( FStyleDefaults::GetNoBrush() );
-	AreaPadding = ExpandableDefaults._Padding.Get();
-	HeaderPadding = ExpandableDefaults._HeaderPadding.Get();
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	Style = FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea");
+	BorderColor = FLinearColor::White;
+	BorderBrush = *FCoreStyle::Get().GetBrush("ExpandableArea.Border");
+	AreaPadding = FMargin(1);
+	HeaderPadding = FMargin(4.0f, 2.0f);
 }
 
 bool UExpandableArea::GetIsExpanded() const

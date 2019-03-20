@@ -14,18 +14,17 @@
 UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SCheckBox::FArguments SlateDefaults;
-	WidgetStyle = *SlateDefaults._Style;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FCheckBoxStyle >("Checkbox");
 
 	CheckedState = ECheckBoxState::Unchecked;
 
-	HorizontalAlignment = SlateDefaults._HAlign;
-	Padding_DEPRECATED = SlateDefaults._Padding.Get();
+	HorizontalAlignment = HAlign_Fill;
+	Padding_DEPRECATED = FMargin(0, 0, 0, 0);
 
 	BorderBackgroundColor_DEPRECATED = FLinearColor::White;
 
 	IsFocusable = true;
-
 }
 
 void UCheckBox::ReleaseSlateResources(bool bReleaseChildren)
