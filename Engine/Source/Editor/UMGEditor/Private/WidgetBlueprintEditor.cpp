@@ -50,6 +50,8 @@
 #include "UMGEditorActions.h"
 #include "GameProjectGenerationModule.h"
 
+#include "SPaletteViewModel.h"
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 FWidgetBlueprintEditor::FWidgetBlueprintEditor()
@@ -102,6 +104,10 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 	bRespectLocks = GetDefault<UWidgetDesignerSettings>()->bRespectLocks;
 
 	TSharedPtr<FWidgetBlueprintEditor> ThisPtr(SharedThis(this));
+
+	PaletteViewModel = MakeShareable(new FPaletteViewModel(ThisPtr));
+	PaletteViewModel->RegisterToEvents();
+
 	WidgetToolbar = MakeShareable(new FWidgetBlueprintEditorToolbar(ThisPtr));
 
 	BindToolkitCommands();
@@ -551,6 +557,12 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 	{
 		bPreviewInvalidated = false;
 		RefreshPreview();
+	}
+
+	// Updat the palette view model.
+	if (PaletteViewModel->NeedUpdate())
+	{
+		PaletteViewModel->Update();
 	}
 }
 
