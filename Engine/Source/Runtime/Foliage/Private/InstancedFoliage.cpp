@@ -1,10 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-InstancedFoliageActor.cpp: Instanced foliage implementation.
+InstancedFoliage.cpp: Instanced foliage implementation.
 =============================================================================*/
 
-#include "InstancedFoliageActor.h"
 #include "InstancedFoliage.h"
 #include "Templates/SubclassOf.h"
 #include "HAL/IConsoleManager.h"
