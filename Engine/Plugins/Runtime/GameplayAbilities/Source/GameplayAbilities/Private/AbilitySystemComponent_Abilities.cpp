@@ -1921,6 +1921,14 @@ int32 UAbilitySystemComponent::HandleGameplayEvent(FGameplayTag EventTag, const 
 		{
 			TArray<FGameplayAbilitySpecHandle> TriggeredAbilityHandles = GameplayEventTriggeredAbilities[CurrentTag];
 
+			// FORT-152163 - Tracking cases where GameplayEventTriggeredAbilities has an AbilityHandle that is not in ActivatableAbilities
+			// We suspect that triggering one ability may be causing others in the array to be invalidated
+			// If we do not ensure here, but ensure in TriggerAbilityFromGameplayEvent(), then it will confirm our suspicion
+			for (auto AbilityHandle : TriggeredAbilityHandles)
+			{
+				ensureMsgf(FindAbilitySpecFromHandle(AbilityHandle), TEXT("Stale ability handle in GameplayEventTriggeredAbilities: %s"), *EventTag.ToString());
+			}
+
 			for (auto AbilityHandle : TriggeredAbilityHandles)
 			{
 				if (TriggerAbilityFromGameplayEvent(AbilityHandle, AbilityActorInfo.Get(), EventTag, Payload, *this))
