@@ -241,6 +241,9 @@ public:
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
 	virtual void GetShadowShapes(TArray<FCapsuleShape>& CapsuleShapes) const override;
 
+	/** Return the bounds for the pre-skinned primitive in local space */
+	virtual FBoxSphereBounds GetPreSkinnedLocalBounds() const override { return PreSkinnedLocalBounds; }
+
 	/** Returns a pre-sorted list of shadow capsules's bone indicies */
 	const TArray<uint16>& GetSortedShadowBoneIndices() const
 	{
@@ -264,7 +267,7 @@ public:
 	 */
 	virtual void DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
 
-	/** Render the bones of the skeleton for debug display */
+	/** Render the bones of the skeleton for debug display */ 
 	void DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
 
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
@@ -355,6 +358,9 @@ protected:
 	/** Set of materials used by this scene proxy, safe to access from the game thread. */
 	TSet<UMaterialInterface*> MaterialsInUse_GameThread;
 	
+	/** The primitive's pre-skinned local space bounds. */
+	FBoxSphereBounds PreSkinnedLocalBounds;
+
 #if WITH_EDITORONLY_DATA
 	/** The component streaming distance multiplier */
 	float StreamingDistanceMultiplier;
