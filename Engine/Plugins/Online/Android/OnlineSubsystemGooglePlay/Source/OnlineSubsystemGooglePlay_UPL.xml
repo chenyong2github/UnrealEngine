@@ -8,15 +8,21 @@
 
 	<!-- optional additions to GameActivity onCreate in GameActivity.java -->
 	<gameActivityOnCreateAdditions>
-	  <insert>
-		//Google Play SDK onCreate additions
-		googleClient = new GoogleApiClient.Builder(this)
-		.addConnectionCallbacks(this)
-		.addOnConnectionFailedListener(this)
-		.addApi(Games.API).addScope(Games.SCOPE_GAMES)
-		.addApi(Plus.API).addScope(Plus.SCOPE_PLUS_LOGIN)
-		.build();
-	  </insert>
+		<insert>
+			//Google Play SDK onCreate additions
+			try {
+				GoogleApiClient.Builder gbuilder = new GoogleApiClient.Builder(this);
+				gbuilder.addConnectionCallbacks(this);
+				gbuilder.addOnConnectionFailedListener(this);
+				gbuilder.addApiIfAvailable(Games.API, Games.SCOPE_GAMES);
+				googleClient = gbuilder.build();
+			}
+			catch (Exception e)
+			{
+				Log.debug("GoogleApiClient exception caught: " + e.toString());
+			}
+			Log.debug("googleClient is " + ((googleClient == null) ? "disabled" : "valid"));
+		</insert>
 	</gameActivityOnCreateAdditions>
 
 </root>

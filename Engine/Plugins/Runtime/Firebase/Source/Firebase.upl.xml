@@ -67,7 +67,11 @@ apply plugin: 'com.google.gms.google-services'
 	</buildGradleAdditions>
 
 	<prebuildCopies>
-		<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4"/>
+		<if condition="bEnabled">
+			<true>
+				<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4"/>
+			</true>
+		</if>
 	</prebuildCopies>
 	
 	<gradleCopies>
