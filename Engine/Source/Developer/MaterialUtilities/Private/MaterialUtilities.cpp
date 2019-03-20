@@ -282,6 +282,11 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->ObjectBounds();
 	}
 
+	virtual int32 PreSkinnedLocalBounds() override
+	{
+		return Compiler->PreSkinnedLocalBounds();
+	}
+
 	virtual int32 CameraVector() override
 	{
 		return Compiler->Constant3(0.0f, 0.0f, 1.0f);

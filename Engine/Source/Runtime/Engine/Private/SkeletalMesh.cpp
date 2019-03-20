@@ -321,12 +321,12 @@ void USkeletalMesh::PostInitProperties()
 	Super::PostInitProperties();
 }
 
-FBoxSphereBounds USkeletalMesh::GetBounds()
+FBoxSphereBounds USkeletalMesh::GetBounds() const
 {
 	return ExtendedBounds;
 }
 
-FBoxSphereBounds USkeletalMesh::GetImportedBounds()
+FBoxSphereBounds USkeletalMesh::GetImportedBounds() const
 {
 	return ImportedBounds;
 }
@@ -863,6 +863,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		BuildPhysicsData();
 	}
 
+	bool bHasToReregisterComponent = false;
 	if(UProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
 	{
 		if(MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PositiveBoundsExtension) ||
@@ -871,10 +872,16 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			// If the bounds extensions change, recalculate extended bounds.
 			ValidateBoundsExtension();
 			CalculateExtendedBounds();
+			bHasToReregisterComponent = true;
 		}
 	}
+		
+	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint))
+	{
+		bHasToReregisterComponent = true;
+	}
 
-	if(PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint))
+	if (bHasToReregisterComponent)
 	{
 		TArray<UActorComponent*> ComponentsToReregister;
 		for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
@@ -887,6 +894,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		}
 		FMultiComponentReregisterContext ReregisterContext(ComponentsToReregister);
 	}
+
 
 	if (PropertyThatChanged && PropertyChangedEvent.MemberProperty)
 	{
@@ -3360,6 +3368,9 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Force inset shadows if capsule shadows are requested, as they can't be supported with full scene shadows
 	bCastInsetShadow = bCastInsetShadow || bCastCapsuleDirectShadow;
+
+	// Get the pre-skinned local bounds
+	PreSkinnedLocalBounds = Component->GetPreSkinnedLocalBounds();
 
 	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<const USkinnedMeshComponent>(Component);
 	if(SkinnedMeshComponent && SkinnedMeshComponent->bPerBoneMotionBlur)
