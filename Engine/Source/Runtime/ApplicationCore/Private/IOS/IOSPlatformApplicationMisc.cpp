@@ -208,6 +208,18 @@ bool FIOSPlatformApplicationMisc::IsControllerAssignedToGamepad(int32 Controller
 	return InputInterface->IsControllerAssignedToGamepad(ControllerId);
 }
 
+void FIOSPlatformApplicationMisc::EnableMotionData(bool bEnable)
+{
+	FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->EnableMotionData(bEnable);
+}
+
+bool FIOSPlatformApplicationMisc::IsMotionDataEnabled()
+{
+	const FIOSInputInterface* InputInterface = (const FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->IsMotionDataEnabled();
+}
+
 void FIOSPlatformApplicationMisc::ClipboardCopy(const TCHAR* Str)
 {
 #if !PLATFORM_TVOS
