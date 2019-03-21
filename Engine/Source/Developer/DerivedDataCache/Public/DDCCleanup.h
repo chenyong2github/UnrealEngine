@@ -11,7 +11,7 @@ struct FFilesystemInfo;
 /** 
  * DDC Filesystem Cache cleanup thread.
  */
-class FDDCCleanup : public FRunnable
+class DERIVEDDATACACHE_API FDDCCleanup : public FRunnable
 {
 	/** Singleton instance */
 	static FDDCCleanup* Runnable;
@@ -24,6 +24,8 @@ class FDDCCleanup : public FRunnable
 	TArray< TSharedPtr< struct FFilesystemInfo > > CleanupList;
 	/** Synchronization object */
 	FCriticalSection DataLock;
+	/** If true, work without giving up time to other threads */
+	bool bDontWaitBetweenDeletes;
 
 	/** Constructor */
 	FDDCCleanup();
@@ -74,9 +76,27 @@ public:
 	 */
 	void AddFilesystem( FString& InCachePath, int32 InDaysToDelete, int32 InMaxNumFoldersToCheck, int32 InMaxContinuousFileChecks );
 
-	/** Gets DDC Cleanup singleton instance */
+	/** Gets DDC Cleanup singleton instance, crates one if it doesn't exist already */
 	static FDDCCleanup* Get();
+
+	/** Gets DDC Cleanup singleton instance */
+	static FDDCCleanup* GetNoInit()
+	{
+		return Runnable;
+	}
 
 	/** Shuts down DDC Cleanup thread. */
 	static void Shutdown();
+
+	/** Sets whether cleanup should give up time to other threads between deletes */
+	void WaitBetweenDeletes(bool bWait)
+	{
+		bDontWaitBetweenDeletes = !bWait;
+	}
+
+	/** Checks if the cleanup thread is done deleting files */
+	bool IsFinished() const
+	{
+		return !CleanupList.Num();
+	}
 };
