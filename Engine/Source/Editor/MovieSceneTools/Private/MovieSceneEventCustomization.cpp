@@ -344,7 +344,7 @@ void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuB
 		Functions.Reset();
 		for (UFunction* Function : TFieldRange<UFunction>(SuperClass, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated))
 		{
-			if (Function->HasAllFunctionFlags(FUNC_BlueprintCallable|FUNC_Public) && !Function->HasMetaData(DeprecatedFunctionName))
+			if (Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) && !Function->HasMetaData(DeprecatedFunctionName) && !Function->HasAnyFunctionFlags(FUNC_EditorOnly))
 			{
 				Functions.Add(Function);
 			}
