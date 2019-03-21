@@ -27,6 +27,7 @@ protected:
 	virtual bool CanEditData() const override;
 	virtual void CompareAgainst(const FOnlinePartyRepDataBase& OldData) const override;
 	virtual const USocialParty* GetOwnerParty() const override;
+	virtual const UPartyMember* GetOwningMember() const;
 
 private:
 	TWeakObjectPtr<const UPartyMember> OwnerMember;
