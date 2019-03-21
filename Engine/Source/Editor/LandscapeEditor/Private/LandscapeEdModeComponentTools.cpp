@@ -344,11 +344,11 @@ public:
 
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
 				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
-				this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
+				Landscape->SetCurrentEditingProceduralLayer(this->EdMode->GetCurrentProceduralLayerGuid());
 			}
 		}
 
@@ -361,8 +361,8 @@ public:
 
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && this->IsToolActive())
 		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
 				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
 			}
@@ -373,11 +373,11 @@ public:
 	{
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 		{
-			this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
-
-			if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
-				this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
+				Landscape->SetCurrentEditingProceduralLayer();
+				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
 			}
 		}
 

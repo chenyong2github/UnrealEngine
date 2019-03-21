@@ -77,19 +77,12 @@ public:
 	{
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
-				if (this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap)
-				{
-					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_Render);
-					this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps();
-				}
-				else
-				{
-					Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
-					this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
-				}
+				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
+				Landscape->RequestProceduralContentUpdate(bUpdateHeightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
+				Landscape->SetCurrentEditingProceduralLayer(this->EdMode->GetCurrentProceduralLayerGuid());
 			}
 		}
 
@@ -100,23 +93,12 @@ public:
 	{
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 		{
-			if (this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
-				this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps(true);
-
-				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-				{
-					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_All);
-				}
-			}
-			else
-			{
-				this->EdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
-
-				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-				{
-					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
-				}
+				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
+				Landscape->SetCurrentEditingProceduralLayer();
+				Landscape->RequestProceduralContentUpdate(bUpdateHeightmap ? EProceduralContentUpdateFlag::Heightmap_All : EProceduralContentUpdateFlag::Weightmap_All);
 			}
 		}
 
