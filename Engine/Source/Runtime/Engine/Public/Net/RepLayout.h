@@ -496,6 +496,8 @@ public:
 private:
 
 	uint32 LastReplicationFrame;
+	uint32 LastInitialReplicationFrame;
+
 	FRepChangelistState RepChangelistState;
 };
 
