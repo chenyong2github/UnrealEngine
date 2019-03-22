@@ -1288,7 +1288,7 @@ public:
 	 *
 	 * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
 	 */
-	bool RecalcRequiredBones(int32 LODIndex);
+	void RecalcRequiredBones(int32 LODIndex);
 
 	/** Computes the required bones in this SkeletalMeshComponent based on current SkeletalMesh, LOD and PhysicsAsset
 	  * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
@@ -1300,21 +1300,6 @@ public:
 	* Is called when Skeleton->IsRequiredCurvesUpToDate() = false
 	*/
 	void RecalcRequiredCurves();
-
-private:
-	/**
-	 * Recalculates the RequiredBones array in this SkeletalMeshComponent based on current SkeletalMesh, LOD and PhysicsAsset.
-	 * Only modifies members of the SMC (safe to call while parallel task is in flight
-	 *
-	 * @param	LODIndex	Index of LOD [0-(MaxLOD-1)]
-	 */
-	bool RecalcRequiredBonesInternalSMC(int32 LODIndex);
-
-	/**
-	 * Causes the anim instances this component owns to recalc their required bones.
-	 * RecalcRequiredBonesInternalSMC must be called first
-	 */
-	void RecalcRequiredBonesInternalAnimInstances();
 
 public:
 	//~ Begin UObject Interface.
