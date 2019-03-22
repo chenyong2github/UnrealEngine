@@ -648,7 +648,7 @@ public:
 							// UE_LOG(LogLandscape, Log, TEXT("Still need %d channels"), TotalNeededChannels);
 
 							UTexture2D* CurrentWeightmapTexture = nullptr;
-							FLandscapeWeightmapUsage* CurrentWeightmapUsage = nullptr;
+							ULandscapeWeightmapUsage* CurrentWeightmapUsage = nullptr;
 
 							if (TotalNeededChannels < 4)
 							{
@@ -658,7 +658,7 @@ public:
 								int32 BestDistanceSquared = MAX_int32;
 								for (auto& WeightmapUsagePair : LandscapeProxy->WeightmapUsageMap)
 								{
-									FLandscapeWeightmapUsage* TryWeightmapUsage = WeightmapUsagePair.Value;
+									ULandscapeWeightmapUsage* TryWeightmapUsage = WeightmapUsagePair.Value;
 									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels) // TODO: handle procedural layer
 									{
 										// See if this candidate is closer than any others we've found
@@ -695,7 +695,7 @@ public:
 								CurrentWeightmapTexture->PostEditChange();
 
 								// Store it in the usage map
-								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, new FLandscapeWeightmapUsage());
+								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
 
 								// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 							}
@@ -726,7 +726,7 @@ public:
 										LandscapeEdit.ZeroTextureChannel(OldWeightmapTexture, AllocInfo.WeightmapTextureChannel);
 
 										// Remove the old allocation
-										FLandscapeWeightmapUsage** OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
+										ULandscapeWeightmapUsage** OldWeightmapUsage = Component->GetLandscapeProxy()->WeightmapUsageMap.Find(OldWeightmapTexture);
 
 										if (OldWeightmapUsage != nullptr)
 										{
