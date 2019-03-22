@@ -7,16 +7,12 @@
 #include "Components/DynamicEntryBox.h"
 #include "PropertyCustomizationHelpers.h"
 
-//////////////////////////////////////////////////////////////////////////
-// FDynamicEntryBoxBaseDetails
-//////////////////////////////////////////////////////////////////////////
-
-TSharedRef<IDetailCustomization> FDynamicEntryBoxBaseDetails::MakeInstance()
+TSharedRef<IDetailCustomization> FDynamicEntryBoxDetails::MakeInstance()
 {
-	return MakeShareable(new FDynamicEntryBoxBaseDetails());
+	return MakeShareable(new FDynamicEntryBoxDetails());
 }
 
-void FDynamicEntryBoxBaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+void FDynamicEntryBoxDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailLayout.GetObjectsBeingCustomized(Objects);
@@ -33,56 +29,38 @@ void FDynamicEntryBoxBaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailL
 	IDetailCategoryBuilder& EntryLayoutCategory = DetailLayout.EditCategory(TEXT("EntryLayout"));
 
 	const TAttribute<bool> CanEditAignmentAttribute(this, &FDynamicEntryBoxDetails::CanEditAlignment);
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntryHorizontalAlignment)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, EntryHorizontalAlignment)))
 		.IsEnabled(CanEditAignmentAttribute);
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntryVerticalAlignment)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, EntryVerticalAlignment)))
 		.IsEnabled(CanEditAignmentAttribute);
 
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, MaxElementSize)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, MaxElementSize)))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditMaxElementSize));
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntrySpacing)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, EntrySpacing)))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditEntrySpacing));
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, SpacingPattern)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, SpacingPattern)))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditSpacingPattern));
+
+	AddEntryClassPicker(*EntryBox, EntryLayoutCategory, DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, EntryWidgetClass)));
 }
 
-bool FDynamicEntryBoxBaseDetails::CanEditSpacingPattern() const
+bool FDynamicEntryBoxDetails::CanEditSpacingPattern() const
 {
 	return EntryBox->GetBoxType() == EDynamicBoxType::Overlay;
 }
 
-bool FDynamicEntryBoxBaseDetails::CanEditEntrySpacing() const
+bool FDynamicEntryBoxDetails::CanEditEntrySpacing() const
 {
 	return EntryBox->SpacingPattern.Num() == 0;
 }
 
-bool FDynamicEntryBoxBaseDetails::CanEditAlignment() const
+bool FDynamicEntryBoxDetails::CanEditAlignment() const
 {
 	return EntryBox->GetBoxType() != EDynamicBoxType::Overlay || CanEditEntrySpacing();
 }
 
-bool FDynamicEntryBoxBaseDetails::CanEditMaxElementSize() const
+bool FDynamicEntryBoxDetails::CanEditMaxElementSize() const
 {
 	const EDynamicBoxType BoxType = EntryBox->GetBoxType();
 	return BoxType == EDynamicBoxType::Horizontal || BoxType == EDynamicBoxType::Vertical;
-}
-
-//////////////////////////////////////////////////////////////////////////
-// FDynamicEntryBoxDetails
-//////////////////////////////////////////////////////////////////////////
-
-TSharedRef<IDetailCustomization> FDynamicEntryBoxDetails::MakeInstance()
-{
-	return MakeShareable(new FDynamicEntryBoxDetails());
-}
-
-void FDynamicEntryBoxDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
-{
-	FDynamicEntryBoxBaseDetails::CustomizeDetails(DetailLayout);
-
-	if (EntryBox.IsValid())
-	{
-		IDetailCategoryBuilder& EntryLayoutCategory = DetailLayout.EditCategory(TEXT("EntryLayout"));
-		AddEntryClassPicker(*EntryBox, EntryLayoutCategory, DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBox, EntryWidgetClass)));
-	}
 }

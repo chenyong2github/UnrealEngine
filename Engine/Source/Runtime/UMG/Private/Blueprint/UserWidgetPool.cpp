@@ -68,8 +68,3 @@ void FUserWidgetPool::ResetPool()
 	ActiveWidgets.Reset();
 	CachedSlateByWidgetObject.Reset();
 }
-
-void FUserWidgetPool::ReleaseSlateResources()
-{
-	CachedSlateByWidgetObject.Reset();
-}
