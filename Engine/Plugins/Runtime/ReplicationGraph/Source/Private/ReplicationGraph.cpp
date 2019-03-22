@@ -1533,6 +1533,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 
 	int64 BitsWritten = 0;
 	const double StartingReplicateActorTimeSeconds = GReplicateActorTimeSeconds;
+
+	ensureMsgf(ActorInfo.Channel->Actor != nullptr, TEXT("Invalid ActorChannel for %s | Channel status: pooled:%u closing:%d"), *Actor->GetName(), ActorInfo.Channel->bPooled, ActorInfo.Channel->Closing);
 					
 	if (UNLIKELY(ActorInfo.bTearOff))
 	{
@@ -1560,7 +1562,10 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		}
 	}
 
-	CSVTracker.PostReplicateActor(ActorClass, DeltaReplicateActorTimeSeconds, BitsWritten);
+	const bool bIsTrafficActorDiscovery = ActorDiscoveryMaxBitsPerFrame > 0 && (ActorInfo.Channel && ActorInfo.Channel->SpawnAcked == false);
+	const bool bIsActorDiscoveryBudgetFull = bIsTrafficActorDiscovery && (ConnectionManager.QueuedBitsForActorDiscovery >= ActorDiscoveryMaxBitsPerFrame);
+
+	CSVTracker.PostReplicateActor(ActorClass, DeltaReplicateActorTimeSeconds, BitsWritten, bIsTrafficActorDiscovery && !bIsActorDiscoveryBudgetFull);
 
 	// ----------------------------
 	//	Dependent actors
@@ -1594,16 +1599,13 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	}
 
 	// Optional budget for actor discovery traffic
-	if (ActorDiscoveryMaxBitsPerFrame > 0 && (ActorInfo.Channel && ActorInfo.Channel->SpawnAcked == false) )
+	if (!bIsActorDiscoveryBudgetFull)
 	{
-		if (ConnectionManager.QueuedBitsForActorDiscovery < ActorDiscoveryMaxBitsPerFrame)
-		{
-			ConnectionManager.QueuedBitsForActorDiscovery += BitsWritten;
+		ConnectionManager.QueuedBitsForActorDiscovery += BitsWritten;
 
-			// Remove the discovery traffic from the regular traffic
-			NetConnection->QueuedBits -= BitsWritten;
-			BitsWritten = 0;
-		}
+		// Remove the discovery traffic from the regular traffic
+		NetConnection->QueuedBits -= BitsWritten;
+		BitsWritten = 0;
 	}
 
 	return BitsWritten;
@@ -2193,6 +2195,7 @@ void UNetReplicationGraphConnection::NotifyResetDestructionInfo()
 
 void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) 
 {
+	RG_QUICK_SCOPE_CYCLE_COUNTER(UNetReplicationGraphConnection_NotifyClientVisibleLevelNamesAdd);
 	// Undormant every actor in this world for this connection.
 	if (StreamingWorld && StreamingWorld->PersistentLevel)
 	{
@@ -2290,6 +2293,17 @@ void UReplicationGraphNode::NotifyResetAllNetworkActors()
 	for (UReplicationGraphNode* ChildNode : AllChildNodes)
 	{
 		ChildNode->NotifyResetAllNetworkActors();
+	}
+}
+
+void UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode)
+{
+	ensure(ChildNode != nullptr);
+
+	int32 Removed = AllChildNodes.Remove(ChildNode);
+	if (Removed > 0)
+	{
+		ChildNode->TearDown();
 	}
 }
 
@@ -3615,7 +3629,7 @@ void UReplicationGraphNode_GridCell::ConditionalCopyDormantActors(FActorRepListR
 
 void UReplicationGraphNode_GridCell::OnStaticActorNetDormancyChange(FActorRepListType Actor, FGlobalActorReplicationInfo& GlobalInfo, ENetDormancy NewValue, ENetDormancy OldValue)
 {
-	UE_CLOG(CVar_RepGraph_LogActorRemove>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_Simple2DSpatializationLeaf::OnNetDormancyChange. %s on %s. Old: %d, New: %d"), *Actor->GetPathName(), *GetPathName(), NewValue, OldValue);
+	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_GridCell::OnNetDormancyChange. %s on %s. Old: %d, New: %d"), *Actor->GetPathName(), *GetPathName(), NewValue, OldValue);
 
 	const bool bCurrentDormant = NewValue > DORM_Awake;
 	const bool bPreviousDormant = OldValue > DORM_Awake;
