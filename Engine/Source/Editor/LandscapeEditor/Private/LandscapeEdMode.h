@@ -494,16 +494,22 @@ public:
 	void SetCurrentProceduralLayer(int32 InLayerIndex);
 	int32 GetCurrentProceduralLayerIndex() const;
 	FName GetCurrentProceduralLayerName() const;
+	ALandscape* GetLandscape() const;
+	struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex) const;
 	FName GetProceduralLayerName(int32 InLayerIndex) const;
 	void SetProceduralLayerName(int32 InLayerIndex, const FName& InName);
+	bool CanRenameProceduralLayerTo(int32 InLayerIndex, const FName& InNewName);
 	float GetProceduralLayerAlpha(int32 InLayerIndex) const;
-	void SetProceduralLayerAlpha(float InWeight, int32 InLayerIndex);
+	void SetProceduralLayerAlpha(int32 InLayerIndex, float InAlpha);
 	void SetProceduralLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsProceduralLayerVisible(int32 InLayerIndex) const;
+	bool IsProceduralLayerLocked(int32 InLayerIndex) const;
+	void SetProceduralLayerLocked(int32 InLayerIndex, bool bInLocked);
 	struct FProceduralLayer* GetCurrentProceduralLayer() const;
+	FGuid GetCurrentProceduralLayerGuid() const;
 	bool IsCurrentProceduralLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	void SetCurrentProceduralLayerSubstractiveBlendStatus(bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
-	
+
 	void AddBrushToCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
 	void RemoveBrushFromCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
 	bool AreAllBrushesCommitedToCurrentProceduralLayer(int32 InTargetType);
@@ -512,9 +518,6 @@ public:
 	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentProceduralLayer(int32 InTargetType, int8 BrushIndex) const;
 	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentProceduralLayer(int32 InTargetType);
 	
-	void ChangeHeightmapsToCurrentProceduralLayerHeightmaps(bool InResetCurrentEditingHeightmap = false);
-	void ChangeWeightmapsToCurrentProceduralLayerWeightmaps(bool InResetCurrentEditingHeightmap = false);
-
 	bool NeedToFillEmptyLayersForProcedural() const;
 	void RequestProceduralContentUpdate(bool InUpdateAllMaterials = false);
 
