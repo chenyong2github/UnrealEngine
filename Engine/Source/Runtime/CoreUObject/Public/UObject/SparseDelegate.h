@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "UObject/UObjectAnnotation.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Delegates/Delegate.h"
+#include "Misc/ScopeLock.h"
 
 struct FSparseDelegate;
 
@@ -52,8 +52,8 @@ public:
 	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it. Will be null if no entry exists in the annotation for this object/delegatename. */
 	static FMulticastScriptDelegate* GetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
 
-	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it. Will be created if no entry exists in the annotation for this object/delegatename. */
-	static FMulticastScriptDelegate& GetOrCreateMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
+	/** Directly sets the Multicast Delegate for this object/delegatename pair. If the delegate is unbound it will be assigned/inserted anyways. */
+	static void SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate);
 
 	/** Using the registry of sparse delegates recover the FSparseDelegate address from the UObject and name. */
 	static FSparseDelegate* ResolveSparseDelegate(const UObject* OwningObject, FName DelegateName);
@@ -66,13 +66,29 @@ public:
 
 private:
 
-	struct FSparseDelegateMap : public TMap<FName, TSharedPtr<FMulticastScriptDelegate>>
+	struct FObjectListener : public FUObjectArray::FUObjectDeleteListener
 	{
-		bool IsDefault() const { return Num() == 0; }
+		virtual ~FObjectListener();
+		virtual void NotifyUObjectDeleted(const UObjectBase* Object, int32 Index) override;
+		void EnableListener();
+		void DisableListener();
 	};
 
-	static FUObjectAnnotationSparse<FSparseDelegateMap, true> SparseDelegates;
+	/** Allow the object listener to use the critical section and remove objects from the map */
+	friend struct FObjectListener;
 
+	/** A listener to get notified when objects have been deleted and remove them from the map */
+	static FObjectListener SparseDelegateObjectListener;
+
+	/** Critical Section for locking access to the sparse delegate map */
+	static FCriticalSection SparseDelegateMapCritical;
+
+	/** Delegate map is a map of Delegate names to a shared pointer of the multicast script delegate */
+	typedef TMap<FName, TSharedPtr<FMulticastScriptDelegate>> FSparseDelegateMap;
+
+	/** Map of objects to the map of delegates that are bound to that object */
+	static TMap<const UObjectBase*, FSparseDelegateMap> SparseDelegates;
+	
 	/** Sparse delegate offsets are indexed by ActorClass/DelegateName pair */
 	static TMap<TPair<FName, FName>, size_t> SparseDelegateObjectOffsets;
 };
