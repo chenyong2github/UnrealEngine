@@ -12,7 +12,6 @@
 #include "Misc/TimeGuard.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Transform.h"
-#include "HAL/PlatformStackWalk.h"
 
 DECLARE_CYCLE_STAT(TEXT("SetTimer"), STAT_SetTimer, STATGROUP_Engine);
 DECLARE_CYCLE_STAT(TEXT("SetTimeForNextTick"), STAT_SetTimerForNextTick, STATGROUP_Engine);
@@ -28,12 +27,6 @@ static float DumpTimerLogsThreshold = 0.f;
 static FAutoConsoleVariableRef CVarDumpTimerLogsThreshold(
 	TEXT("TimerManager.DumpTimerLogsThreshold"), DumpTimerLogsThreshold,
 	TEXT("Threshold (in milliseconds) after which we log timer info to try and help track down spikes in the timer code. Disabled when set to 0"),
-	ECVF_Default);
-
-static int32 DumpTimerLogSymbolNames = 1;
-static FAutoConsoleVariableRef CVarDumpTimerLogSymbolNames(
-	TEXT("TimerManager.DumpTimerLogSymbolNames"), DumpTimerLogSymbolNames,
-	TEXT("When logging timer info, symbol names will be included if set to 1."),
 	ECVF_Default);
 
 namespace
@@ -146,59 +139,28 @@ void FTimerManager::OnCrash()
 FString FTimerUnifiedDelegate::ToString() const
 {
 	const UObject* Object = nullptr;
-	FString FunctionNameStr;
+	FName FunctionName = NAME_None;
 	bool bDynDelegate = false;
 
 	if (FuncDelegate.IsBound())
 	{
-		FName FunctionName;
 #if USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
 		FunctionName = FuncDelegate.TryGetBoundFunctionName();
 #endif
-		if (FunctionName.IsNone())
-		{
-			void* FuncPtr = FuncDelegate.GetBoundFunctionAddress();
-			if (FuncPtr)
-			{
-#if PLATFORM_64BITS
-				uint64 ProgramCounter = *((uint64*)FuncPtr);
-#else
-				uint64 ProgramCounter = *((uint32*)FuncPtr);
-#endif
-				FunctionNameStr = FString::Printf(TEXT("0x%llx"), ProgramCounter);
-
-				if (DumpTimerLogSymbolNames)
-				{
-					FProgramCounterSymbolInfo SymbolInfo;
-					SymbolInfo.FunctionName[0] = 0;
-					SymbolInfo.Filename[0] = 0;
-					SymbolInfo.LineNumber = 0;
-					FPlatformStackWalk::ProgramCounterToSymbolInfo(ProgramCounter, SymbolInfo);
-					FunctionNameStr += FString::Printf(TEXT(" %s[%s:%d]"), ANSI_TO_TCHAR(SymbolInfo.FunctionName), ANSI_TO_TCHAR(SymbolInfo.Filename), SymbolInfo.LineNumber);
-				}
-			}
-			else
-			{
-				FunctionNameStr = TEXT("0x0");
-			}
-		}
-		else
-		{
-			FunctionNameStr = FunctionName.ToString();
-		}
 	}
 	else if (FuncDynDelegate.IsBound())
 	{
 		Object = FuncDynDelegate.GetUObject();
-		FunctionNameStr = FuncDynDelegate.GetFunctionName().ToString();
+		FunctionName = FuncDynDelegate.GetFunctionName();
 		bDynDelegate = true;
 	}
 	else
 	{
-		FunctionNameStr = TEXT("NotBound!");
+		static FName NotBoundName(TEXT("NotBound!"));
+		FunctionName = NotBoundName;
 	}
 
-	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionNameStr);
+	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
 }
 
 // ---------------------------------
