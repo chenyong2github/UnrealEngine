@@ -200,6 +200,7 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 		for (int32 Idx = 0; Idx < NumStackFrames; Idx++)
 		{
 			ANSICHAR Buffer[1024];
+			Buffer[0] = '\0';
 			FPlatformStackWalk::ProgramCounterToHumanReadableString(Idx, StackFrames[Idx], Buffer, sizeof(Buffer));
 			StackLines.Add(Buffer);
 		}
@@ -389,12 +390,14 @@ uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
 		if (ConfigHangDuration > 0.0)
 		{
 			// Check heartbeat for all threads and return thread ID of the thread that hung.
+			// Note: We only return a thread id for a thread that has updated since the last hang, i.e. is still alive
+			// This avoids the case where a user may be in a deep and minorly varying callstack and flood us with reports
 			for (TPair<uint32, FHeartBeatInfo>& LastHeartBeat : ThreadHeartBeat)
 			{
 				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
-				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration)
+				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
 				{
-					HeartBeatInfo.LastHeartBeatTime = CurrentTime;
+					HeartBeatInfo.LastHangTime = CurrentTime;
 					OutHangDuration = HeartBeatInfo.HangDuration;
 					return LastHeartBeat.Key;
 				}
