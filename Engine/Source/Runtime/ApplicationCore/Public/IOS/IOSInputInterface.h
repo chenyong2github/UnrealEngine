@@ -82,6 +82,9 @@ public:
 	bool IsControllerAssignedToGamepad(int32 ControllerId) const;
 	bool IsGamepadAttached() const;
 
+	void EnableMotionData(bool bEnable);
+	bool IsMotionDataEnabled() const;
+	
 private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
@@ -151,17 +154,16 @@ private:
 	// should we allow controllers to send input
 	bool bAllowControllers;
 	
+	/** Is motion paused or not? */
+	bool bPauseMotion;
+
 #if !PLATFORM_TVOS
 	/** Access to the ios devices motion */
 	CMMotionManager* MotionManager;
-	
-	/** Is motion paused or not? */
-	bool bPauseMotion;
 
 	/** Access to the ios devices tilt information */
 	CMAttitude* ReferenceAttitude;
 #endif
-	
 
 	/** Last frames roll, for calculating rate */
 	float LastRoll;
