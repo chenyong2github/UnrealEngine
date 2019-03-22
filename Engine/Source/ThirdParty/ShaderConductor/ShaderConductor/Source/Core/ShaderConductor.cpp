@@ -131,7 +131,7 @@ namespace
 #ifdef _WIN32
             const char* dllName = "dxcompiler.dll";
 #elif __APPLE__
-            const char* dllName = "libdxcompiler.dylib";
+            const char* dllName = "libdxcompiler.3.7.dylib";
 #else
             const char* dllName = "libdxcompiler.so";
 #endif

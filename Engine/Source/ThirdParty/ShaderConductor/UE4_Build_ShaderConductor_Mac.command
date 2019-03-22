@@ -26,11 +26,10 @@ cd ShaderConductor
 # compile Mac
 python BuildAll.py ninja clang x64 RelWithDebInfo
 
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib lib/Mac/libdxcompiler.dylib
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib lib/Mac/libShaderConductor.dylib
+cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.3.7.dylib
+cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/Mac/libdxcompiler.dylib
+cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib ../../../../Binaries/Mac/libShaderConductor.dylib
 
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib ../../../../Binaries/ThirdParty/ShaderConductor/Mac/libdxcompiler.dylib
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib ../../../../Binaries/ThirdParty/ShaderConductor/Mac/libShaderConductor.dylib
-
-dsymutil ../../../../Binaries/ThirdParty/ShaderConductor/Mac/libdxcompiler.dylib
-dsymutil ../../../../Binaries/ThirdParty/ShaderConductor/Mac/libShaderConductor.dylib
+dsymutil ../../../../Binaries/Mac/libdxcompiler.dylib
+dsymutil ../../../../Binaries/Mac/libdxcompiler.3.7.dylib
+dsymutil ../../../../Binaries/Mac/libShaderConductor.dylib
