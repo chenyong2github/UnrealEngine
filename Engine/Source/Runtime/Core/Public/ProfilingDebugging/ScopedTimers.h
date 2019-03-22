@@ -72,6 +72,7 @@ class FAutoScopedDurationTimer : public FScopedDurationTimer
 public:
 	FAutoScopedDurationTimer()
 		: FScopedDurationTimer(AccumulatorValue)
+		, AccumulatorValue(0)
 	{
 	}
 
