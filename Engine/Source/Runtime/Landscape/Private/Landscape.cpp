@@ -49,6 +49,7 @@ Landscape.cpp: Terrain rendering
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "LandscapeWeightmapUsage.h"
 
 #if WITH_EDITOR
 #include "MaterialUtilities.h"
@@ -235,7 +236,7 @@ void ULandscapeComponent::AddReferencedObjects(UObject* InThis, FReferenceCollec
 
 	if (This->CurrentEditingWeightmapTexturesUsage != nullptr)
 	{
-		for (FLandscapeWeightmapUsage* TextureUsage : *This->CurrentEditingWeightmapTexturesUsage)
+		for (ULandscapeWeightmapUsage* TextureUsage : *This->CurrentEditingWeightmapTexturesUsage)
 		{
 			if (TextureUsage != nullptr)
 			{
@@ -1215,7 +1216,7 @@ void ULandscapeComponent::BeginDestroy()
 			if (WeightmapTextures.IsValidIndex(WeightmapIndex))
 			{
 				UTexture2D* WeightmapTexture = WeightmapTextures[WeightmapIndex];
-				FLandscapeWeightmapUsage** Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+				ULandscapeWeightmapUsage** Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
 				if (Usage != nullptr && (*Usage) != nullptr)
 				{
 					(*Usage)->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
@@ -1223,7 +1224,6 @@ void ULandscapeComponent::BeginDestroy()
 					if ((*Usage)->FreeChannelCount() == 4)
 					{
 						Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
-						delete (*Usage);
 					}
 				}
 			}
@@ -1464,7 +1464,7 @@ void ULandscapeComponent::SetCurrentEditingWeightmapLayerAllocations(TArray<FWei
 #endif
 }
 
-TArray<FLandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap)
+TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
 	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
@@ -1479,7 +1479,7 @@ TArray<FLandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsag
 	return WeightmapTexturesUsage;
 }
 
-const TArray<FLandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap) const
+const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
 	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
@@ -1494,14 +1494,14 @@ const TArray<FLandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTextur
 	return WeightmapTexturesUsage;
 }
 
-void ULandscapeComponent::SetCurrentEditingWeightmapTexturesUsage(TArray<FLandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage)
+void ULandscapeComponent::SetCurrentEditingWeightmapTexturesUsage(TArray<ULandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage)
 {
 #if WITH_EDITORONLY_DATA
 	CurrentEditingWeightmapTexturesUsage = InNewWeightmapTexturesUsage;
 #endif
 }
 
-void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<FLandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap )
+void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap )
 {
 #if WITH_EDITORONLY_DATA
 	if (InApplyToCurrentEditingWeightmap && CurrentEditingWeightmapTexturesUsage != nullptr)
@@ -1568,21 +1568,6 @@ void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 	Super::UnregisterAllComponents(bForReregister);
 }
 
-// FLandscapeWeightmapUsage serializer
-FArchive& operator<<(FArchive& Ar, FLandscapeWeightmapUsage& U)
-{
-	return Ar << U.ChannelUsage[0] << U.ChannelUsage[1] << U.ChannelUsage[2] << U.ChannelUsage[3];
-}
-
-FArchive& operator<<(FArchive& Ar, FLandscapeWeightmapUsage* U)
-{
-	if (U != nullptr)
-	{
-		return Ar << U->ChannelUsage[0] << U->ChannelUsage[1] << U->ChannelUsage[2] << U->ChannelUsage[3];
-	}
-
-	return Ar;
-}
 
 FArchive& operator<<(FArchive& Ar, FWeightmapLayerAllocationInfo& U)
 {
@@ -1732,13 +1717,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			}
 		}
 	}
-
-#if WITH_EDITOR
-	if (Ar.IsTransacting())
-	{
-		Ar << WeightmapUsageMap;
-	}
-#endif
 }
 
 void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -1750,15 +1728,6 @@ void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 #if WITH_EDITORONLY_DATA
 	Collector.AddReferencedObjects(This->MaterialInstanceConstantMap, This);
 #endif
-
-	for (auto It = This->WeightmapUsageMap.CreateIterator(); It; ++It)
-	{
-		Collector.AddReferencedObject(It.Key(), This);
-		Collector.AddReferencedObject(It.Value()->ChannelUsage[0], This);
-		Collector.AddReferencedObject(It.Value()->ChannelUsage[1], This);
-		Collector.AddReferencedObject(It.Value()->ChannelUsage[2], This);
-		Collector.AddReferencedObject(It.Value()->ChannelUsage[3], This);
-	}
 }
 
 #if WITH_EDITOR
@@ -2853,6 +2822,12 @@ void ULandscapeComponent::PostDuplicate(bool bDuplicateForPIE)
 		// PostDuplicate covers direct calls to StaticDuplicateObject, but not actor duplication (see PostEditImport)
 		FPlatformMisc::CreateGuid(StateId);
 	}
+}
+
+ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	ClearUsage();
 }
 
 // Generate a new guid to force a recache of all landscape derived data
