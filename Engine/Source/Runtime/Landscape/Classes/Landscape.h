@@ -145,17 +145,25 @@ struct FProceduralLayer
 	GENERATED_USTRUCT_BODY()
 
 	FProceduralLayer()
-		: Name(NAME_None)
-		, Visible(true)
+		: Guid(FGuid::NewGuid())
+		, Name(NAME_None)
+		, bVisible(true)
+		, bLocked(false)
 		, HeightmapAlpha(1.0f)
 		, WeightmapAlpha(1.0f)
 	{}
 
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
+	FGuid Guid;
+
 	UPROPERTY()
 	FName Name;
 
+	UPROPERTY(Transient)
+	bool bVisible;
+
 	UPROPERTY()
-	bool Visible;
+	bool bLocked;
 
 	UPROPERTY()
 	float HeightmapAlpha;
@@ -222,6 +230,19 @@ public:
 	// Procedural stuff
 #if WITH_EDITOR
 	LANDSCAPE_API void RequestProceduralContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API void CreateProceduralLayer(FName InName = NAME_None, bool bInUpdateProceduralContent = true);
+	LANDSCAPE_API bool IsProceduralLayerNameUnique(const FName& InName) const;
+	LANDSCAPE_API void SetProceduralLayerName(int32 InLayerIndex, const FName& InName);
+	LANDSCAPE_API void SetProceduralLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
+	LANDSCAPE_API void SetProceduralLayerVisibility(int32 InLayerIndex, bool bInVisible);
+	LANDSCAPE_API struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex);
+	LANDSCAPE_API const struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex) const;
+	LANDSCAPE_API void ClearProceduralLayer(int32 InLayerIndex);
+	LANDSCAPE_API void ClearProceduralLayer(const FGuid& InLayerGuid);
+	LANDSCAPE_API void DeleteProceduralLayer(int32 InLayerIndex);
+	LANDSCAPE_API void SetCurrentEditingProceduralLayer(FGuid InLayerGuid = FGuid());
+	LANDSCAPE_API void ShowOnlySelectedProceduralLayer(int32 InLayerIndex);
+	LANDSCAPE_API void ShowAllProceduralLayers();
 
 private:
 	void TickProcedural(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -237,7 +258,7 @@ private:
 
 	void UpdateProceduralMaterialInstances(const TArray<ULandscapeComponent*>& InComponentsToUpdate, const TMap<ULandscapeComponent*, TArray<ULandscapeLayerInfoObject*>>& InZeroAllocationsPerComponents);
 
-	void PrepareProceduralComponentDataForExtractLayersCS(const FName& InProceduralLayerName, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, class FLandscapeTexture2DResource* InOutTextureData,
+	void PrepareProceduralComponentDataForExtractLayersCS(const FProceduralLayer& InProceduralLayer, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, class FLandscapeTexture2DResource* InOutTextureData,
 														  TArray<struct FLandscapeProceduralWeightmapExtractLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
 	void PrepareProceduralComponentDataForPackLayersCS(int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, 
 													   TArray<UTexture2D*>& InOutProcessedWeightmaps, TArray<class FLandscapeProceduralTexture2DCPUReadBackResource*>& InOutProcessedWeightmapCPUCopy, TArray<struct FLandscapeProceduralWeightmapPackLayersComponentData>& OutComponentData);
@@ -314,4 +335,23 @@ private:
 	// Used in packing the paint layers data contained into CombinedProcLayerWeightmapAllLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;	
 #endif
+
+protected:
+#if WITH_EDITOR
+	FName GenerateUniqueProceduralLayerName(FName InName = NAME_None) const;
+#endif
 };
+
+#if WITH_EDITOR
+class LANDSCAPE_API FScopedSetLandscapeCurrentEditingProceduralLayer
+{
+public:
+	FScopedSetLandscapeCurrentEditingProceduralLayer(ALandscape* InLandscape, const FGuid& InProceduralLayer, TFunction<void()> InCompletionCallback = TFunction<void()>());
+	~FScopedSetLandscapeCurrentEditingProceduralLayer();
+
+private:
+	TWeakObjectPtr<ALandscape> Landscape;
+	const FGuid& ProceduralLayer;
+	TFunction<void()> CompletionCallback;
+};
+#endif

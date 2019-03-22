@@ -1000,6 +1000,9 @@ public:
 	/** Callback for the action trees to get the filter text */
 	FText GetFilterText() const;
 
+	/** Called at the end of each frame. */
+	void OnPostTick(float);
+
 protected:
 	FSCSEditorTreeNodePtrType FindOrCreateParentForExistingComponent(UActorComponent* InActorComponent, FSCSEditorActorNodePtrType ActorRootNode);
 	FSCSEditorTreeNodePtrType FindParentForNewComponent(UActorComponent* NewComponent) const;
@@ -1159,7 +1162,10 @@ public:
 	FName DeferredRenameRequest;
 
 	/** Scope the creation of a component which ends when the initial component 'name' is given/accepted by the user, which can be several frames after the component was actually created. */
-	TUniquePtr<FScopedTransaction> OngoingCreateTransaction;
+	TUniquePtr<FScopedTransaction> DeferredOngoingCreateTransaction;
+
+	/** Used to unregister from the post tick event. */
+	FDelegateHandle PostTickHandle;
 
 	/** Attribute that provides access to the Actor context for which we are viewing/editing the SCS. */
 	TAttribute<class AActor*> ActorContext;

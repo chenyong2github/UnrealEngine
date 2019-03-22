@@ -404,6 +404,8 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	
 	MaxSimulationTimeStep = 0.05f;
 	MaxSimulationIterations = 8;
+	MaxJumpApexAttemptsPerSimulation = 2;
+	NumJumpApexAttempts = 0;
 
 	MaxDepenetrationWithGeometry = 500.f;
 	MaxDepenetrationWithGeometryAsProxy = 100.f;
@@ -2825,6 +2827,10 @@ void UCharacterMovementComponent::StartNewPhysics(float deltaTime, int32 Iterati
 
 	const bool bSavedMovementInProgress = bMovementInProgress;
 	bMovementInProgress = true;
+	if (Iterations == 0)
+	{
+		NumJumpApexAttempts = 0;
+	}
 
 	switch ( MovementMode )
 	{
@@ -4116,7 +4122,6 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 	FVector FallAcceleration = GetFallingLateralAcceleration(deltaTime);
 	FallAcceleration.Z = 0.f;
 	const bool bHasAirControl = (FallAcceleration.SizeSquared2D() > 0.f);
-	int32 NumApexAttempts = 0;
 
 	float remainingTime = deltaTime;
 	while( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) )
@@ -4192,7 +4197,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 		const FVector AirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;
 
 		// See if we need to sub-step to exactly reach the apex. This is important for avoiding "cutting off the top" of the trajectory as framerate varies.
-		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumApexAttempts < 2)
+		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)
 		{
 			const FVector DerivedAccel = (Velocity - OldVelocity) / timeTick;
 			if (!FMath::IsNearlyZero(DerivedAccel.Z))
@@ -4211,7 +4216,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 					remainingTime += (timeTick - TimeToApex);
 					timeTick = TimeToApex;
 					Iterations--;
-					NumApexAttempts++;
+					NumJumpApexAttempts++;
 				}
 			}
 		}

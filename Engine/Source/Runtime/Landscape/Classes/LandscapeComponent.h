@@ -8,6 +8,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "PerPlatformProperties.h"
+#include "LandscapeWeightmapUsage.h"
 
 #include "LandscapeComponent.generated.h"
 
@@ -251,46 +252,6 @@ struct FLandscapeComponentMaterialOverride
 	UMaterialInterface* Material;
 };
 
-/** Structure storing channel usage for weightmap textures */
-USTRUCT(NotBlueprintable)
-struct FLandscapeWeightmapUsage
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	ULandscapeComponent* ChannelUsage[4];
-
-	UPROPERTY()
-	FName ProceduralLayerName;
-
-	FLandscapeWeightmapUsage()
-	{
-		ClearUsage();
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FLandscapeWeightmapUsage& U);
-
-	int32 FreeChannelCount() const
-	{
-		int32 Count = 0;
-
-		for (int8 i = 0; i < 4; ++i)
-		{
-			Count += (ChannelUsage[i] == nullptr) ? 1 : 0;
-		}
-
-		return	Count;
-	}
-
-	void ClearUsage()
-	{
-		for (int8 i = 0; i < 4; ++i)
-		{
-			ChannelUsage[i] = nullptr;
-		}
-	}
-};
-
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -378,10 +339,10 @@ private:
 	UTexture2D* CurrentEditingHeightmapTexture;
 	TArray<FWeightmapLayerAllocationInfo>* CurrentEditingWeightmapLayerAllocations;
 	TArray<UTexture2D*>* CurrentEditingWeightmapTextures;
-	TArray<FLandscapeWeightmapUsage*>* CurrentEditingWeightmapTexturesUsage;
-	FName CurrentProceduralLayerName;
+	TArray<ULandscapeWeightmapUsage*>* CurrentEditingWeightmapTexturesUsage;
+	FGuid CurrentProceduralLayerGuid;
 
-	TArray<FLandscapeWeightmapUsage*> WeightmapTexturesUsage;
+	TArray<ULandscapeWeightmapUsage*> WeightmapTexturesUsage;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -554,21 +515,16 @@ public:
 
 #if WITH_EDITOR
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
-	LANDSCAPE_API void SetCurrentEditingHeightmap(UTexture2D* InNewHeightmap);
 
 	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToCurrentEditingWeightmap = false);
-	LANDSCAPE_API void SetCurrentEditingWeightmaps(TArray<UTexture2D*>* InNewWeightmapTextures);
-	LANDSCAPE_API void SetCurrentProceduralLayerName(const FName& InName);
-	LANDSCAPE_API const FName& GetCurrentProceduralLayerName() const;
+	LANDSCAPE_API const FGuid& GetCurrentProceduralLayerGuid() const;
 
 	LANDSCAPE_API void SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations);
-	LANDSCAPE_API void SetCurrentEditingWeightmapLayerAllocations(TArray<FWeightmapLayerAllocationInfo>* InNewWeightmapLayerAllocations);
-	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<FLandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap = false);
-	LANDSCAPE_API void SetCurrentEditingWeightmapTexturesUsage(TArray<FLandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage);
+	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap = false);
+	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false);
+	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false) const;
 
-	LANDSCAPE_API TArray<FLandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false);
-	LANDSCAPE_API const TArray<FLandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false) const;
-
+	LANDSCAPE_API void SetCurrentEditingProceduralLayer(struct FProceduralLayer* Layer, struct FProceduralLayerData* LayerData);
 #endif 
 
 #if WITH_EDITOR
@@ -841,6 +797,14 @@ public:
 	void SetLOD(bool bForced, int32 InLODValue);
 
 protected:
+
+#if WITH_EDITOR
+	void SetCurrentEditingHeightmap(UTexture2D* InNewHeightmap);
+	void SetCurrentEditingWeightmaps(TArray<UTexture2D*>* InNewWeightmapTextures);
+	void SetCurrentProceduralLayerGuid(const FGuid& InLayerGuid);
+	void SetCurrentEditingWeightmapLayerAllocations(TArray<FWeightmapLayerAllocationInfo>* InNewWeightmapLayerAllocations);
+	void SetCurrentEditingWeightmapTexturesUsage(TArray<ULandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage);
+#endif
 
 	/** Whether the component type supports static lighting. */
 	virtual bool SupportsStaticLighting() const override

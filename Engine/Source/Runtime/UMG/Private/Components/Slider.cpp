@@ -16,11 +16,12 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	SliderBarColor = FLinearColor::White;
 	SliderHandleColor = FLinearColor::White;
 	StepSize = 0.01f;
-	SSlider::FArguments Defaults;
-	WidgetStyle = *Defaults._Style;
 	IsFocusable = true;
 	MouseUsesStep = false;
 	RequiresControllerLock = true;
+
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider");
 }
 
 TSharedRef<SWidget> USlider::RebuildWidget()

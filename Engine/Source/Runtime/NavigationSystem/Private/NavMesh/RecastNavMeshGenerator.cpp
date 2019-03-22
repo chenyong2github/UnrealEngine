@@ -3226,6 +3226,10 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	, bRestrictBuildingToActiveTiles(false)
 	, Version(0)
 {
+#if TIME_SLICE_NAV_REGEN
+	TimeSliceDuration = 0.0025;
+#endif
+
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, sizeof(*this));
 }
 
@@ -4419,10 +4423,9 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 #endif
 
 #if TIME_SLICE_NAV_REGEN
-bool IsTimeSliceDurationExceeded(const double StartTime)
+bool FRecastNavMeshGenerator::IsTimeSliceDurationExceeded(const double StartTime) const
 {
-	const float TimeSliceDuration = 0.0025f;
-	const float	CurTime = FPlatformTime::Seconds();
+	const double CurTime = FPlatformTime::Seconds();
 	
 	return CurTime - StartTime >= TimeSliceDuration;
 }
@@ -4438,7 +4441,6 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksSync(const int32 NumTask
 
 #if TIME_SLICE_NAV_REGEN
 	const double StartTime = FPlatformTime::Seconds();
-	double CurTime = StartTime;
 
 	//if we are time slice processing a tile (ie we have already done some processing on this tile last frame)
 	bool bIsTimeSliceProcessingTile = TileGeneratorSync.Get() != nullptr;

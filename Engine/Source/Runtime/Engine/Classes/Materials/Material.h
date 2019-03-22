@@ -1109,7 +1109,7 @@ private:
 	void SetUsageByFlag(const EMaterialUsage Usage, const bool NewValue);
 
 	/** Sets up transient properties in MaterialResources. */
-	void UpdateResourceAllocations();
+	void UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 	/** to share code for PostLoad() and PostEditChangeProperty(), and UMaterialInstance::InitResources(), needs to be refactored */
 	void PropagateDataToMaterialProxy();

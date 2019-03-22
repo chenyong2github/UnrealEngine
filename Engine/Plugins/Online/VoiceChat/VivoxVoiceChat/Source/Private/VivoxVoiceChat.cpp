@@ -118,39 +118,64 @@ FVivoxVoiceChat::~FVivoxVoiceChat()
 {
 }
 
+#if PLATFORM_IOS
+FCriticalSection Mutex;
+#endif
+
 static void* VivoxMalloc(size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Malloc(bytes);
 }
 
 static void VivoxFree(void* ptr)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	FMemory::Free(ptr);
 }
 
 static void* VivoxRealloc(void* ptr, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Realloc(ptr, bytes);
 }
 
 static void* VivoxCalloc(size_t num, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
-	return FMemory::Malloc(bytes*num);
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
+	const size_t Size = bytes * num;
+	void* Ret = FMemory::Malloc(Size);
+	FMemory::Memzero(Ret, Size);
+	return Ret;
 }
 
 static void* VivoxMallocAligned(size_t alignment, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Malloc(bytes, alignment);
 }
 
 static void VivoxFreeAligned(void* ptr)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	FMemory::Free(ptr);
 }
 
@@ -1148,7 +1173,10 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 
 	ClearLoginSession();
 
-	if (ConnectionState == EConnectionState::Disconnecting)
+	EConnectionState PreviousConnectionState = ConnectionState;
+	ConnectionState = EConnectionState::Disconnected;
+
+	if (PreviousConnectionState == EConnectionState::Disconnecting)
 	{
 		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, ResultSuccess);
 	}
@@ -1156,8 +1184,6 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 	{
 		OnVoiceChatDisconnectedDelegate.Broadcast(ResultFromVivoxStatus(Status));
 	}
-
-	ConnectionState = EConnectionState::Disconnected;
 }
 
 void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& AccountName)

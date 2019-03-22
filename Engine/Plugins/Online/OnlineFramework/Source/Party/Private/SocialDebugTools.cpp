@@ -78,6 +78,11 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 					UE_LOG(LogParty, Log, TEXT("CONTEXT=ALL used, but no OSS contexts found!"));
 				}
 			}
+			else
+			{
+				TargetInstances.Add(Instance);
+			}
+
 			if (FParse::Command(&Cmd, TEXT("LOGIN")))
 			{
 				if (bAllInstancesRequested)
@@ -136,7 +141,7 @@ bool USocialDebugTools::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 			{
 				for (const FString& TargetInstance : TargetInstances)
 				{
-					LeaveParty(Instance, FLeavePartyComplete::CreateLambda([this, TargetInstance](bool bSuccess)
+					LeaveParty(TargetInstance, FLeavePartyComplete::CreateLambda([this, TargetInstance](bool bSuccess)
 					{
 						UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *TargetInstance, *LexToString(bSuccess));
 					}));

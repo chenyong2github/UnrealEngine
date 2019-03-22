@@ -213,11 +213,11 @@ public:
 	/**
 	 * Generates a platform specific asset manifest given an array of FAssetData.
 	 *
-	 * @param ChunkMap A map of asset path to ChunkIDs for all of the assets.
-	 * @param ChunkIDsInUse A set of all ChunkIDs used by this set of assets.
+	 * @param PakchunkMap A map of asset path to Pakchunk file indices for all of the assets.
+	 * @param PakchunkIndicesInUse A set of all Pakchunk file indices used by this set of assets.
 	 * @return true if the manifest was successfully generated, or if the platform doesn't need a manifest .
 	 */
-	virtual bool GenerateStreamingInstallManifest( const TMultiMap<FString, int32>& ChunkMap, const TSet<int32>& ChunkIDsInUse ) const = 0;
+	virtual bool GenerateStreamingInstallManifest( const TMultiMap<FString, int32>& PakchunkMap, const TSet<int32>& PakchunkIndicesInUse) const = 0;
 
 	/**
 	 * Gets the default device.

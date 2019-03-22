@@ -61,6 +61,18 @@ namespace UnrealBuildTool
 			{
 				return PublicKey != null && PrivateKey != null && PublicKey.IsValid() && PrivateKey.IsValid();
 			}
+
+			/// <summary>
+			/// Returns TRUE if this is a short key from the old 256-bit system
+			/// </summary>
+			public bool IsUnsecureLegacyKey()
+			{
+				int LongestKey = PublicKey.Exponent.Length;
+				LongestKey = Math.Max(LongestKey, PublicKey.Modulus.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Exponent.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Modulus.Length);
+				return LongestKey <= 64;
+			}
 		}
 
 		/// <summary>
@@ -136,6 +148,16 @@ namespace UnrealBuildTool
 			public bool bDataCryptoRequired = false;
 
 			/// <summary>
+			/// Config setting to enable pak signing
+			/// </summary>
+			public bool PakEncryptionRequired = true;
+
+			/// <summary>
+			/// Config setting to enable pak encryption
+			/// </summary>
+			public bool PakSigningRequired = true;
+			
+			/// <summary>
 			/// A set of named encryption keys that can be used to encrypt different sets of data with a different key that is delivered dynamically (i.e. not embedded within the game executable)
 			/// </summary>
 			public EncryptionKey[] SecondaryEncryptionKeys;
@@ -205,10 +227,12 @@ namespace UnrealBuildTool
 		public static CryptoSettings ParseCryptoSettings(DirectoryReference InProjectDirectory, UnrealTargetPlatform InTargetPlatform)
 		{
 			CryptoSettings Settings = new CryptoSettings();
-
+			
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, InProjectDirectory, InTargetPlatform);
 			Ini.GetBool("PlatformCrypto", "PlatformRequiresDataCrypto", out Settings.bDataCryptoRequired);
-			
+			Ini.GetBool("PlatformCrypto", "PakSigningRequired", out Settings.PakSigningRequired);
+			Ini.GetBool("PlatformCrypto", "PakEncryptionRequired", out Settings.PakEncryptionRequired);
+
 			{
 				// Start by parsing the legacy encryption.ini settings
 				Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Encryption, InProjectDirectory, InTargetPlatform);
@@ -393,6 +417,27 @@ namespace UnrealBuildTool
 				CryptoSettings NewSettings = new CryptoSettings();
 				NewSettings.SecondaryEncryptionKeys = Settings.SecondaryEncryptionKeys;
 				Settings = NewSettings;
+			}
+			else
+			{
+				if (!Settings.PakSigningRequired)
+				{
+					Settings.bEnablePakSigning = false;
+					Settings.SigningKey = null;
+				}
+
+				if (!Settings.PakEncryptionRequired)
+				{
+					Settings.bEnablePakFullAssetEncryption = false;
+					Settings.bEnablePakIndexEncryption = false;
+					Settings.bEnablePakIniEncryption = false;
+					Settings.EncryptionKey = null;
+					Settings.SigningKey = null;
+				}
+			}
+
+			{
+				//Log.TraceWarningOnce("Project signing keys found in '{0}' are of the old insecure short format. Please regenerate them using the project crypto settings panel in the editor!", InProjectDirectory);
 			}
 
 			// Validate the settings we have read

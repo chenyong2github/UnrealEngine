@@ -13,9 +13,9 @@
 UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SComboBox< TSharedPtr<FString> >::FArguments SlateDefaults;
-	WidgetStyle = *SlateDefaults._ComboBoxStyle;
-	ItemStyle = *SlateDefaults._ItemStyle;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox");
+	ItemStyle = FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row");
 	ItemStyle.SelectorFocusedBrush.TintColor = ItemStyle.SelectorFocusedBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveHoveredBrush.TintColor = ItemStyle.ActiveHoveredBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveBrush.TintColor = ItemStyle.ActiveBrush.TintColor.GetSpecifiedColor();

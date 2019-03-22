@@ -14,6 +14,8 @@
 #include "PerPlatformProperties.h"
 #include "LandscapeBPCustomBrush.h"
 #include "LandscapeComponent.h"
+#include "LandscapeWeightmapUsage.h"
+
 #include "LandscapeProxy.generated.h"
 
 class ALandscape;
@@ -385,7 +387,7 @@ struct FWeightmapLayerData
 	UPROPERTY()
 	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
 
-	TArray<FLandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
+	TArray<ULandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
 };
 
 USTRUCT()
@@ -641,7 +643,7 @@ public:
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
 	UPROPERTY(TextExportTransient)
-	TMap<FName, FProceduralLayerData> ProceduralLayersData;
+	TMap<FGuid, FProceduralLayerData> ProceduralLayersData;
 
 	UPROPERTY()
 	bool HasProceduralContent;
@@ -696,7 +698,8 @@ public:
 #endif
 
 	/** Map of weightmap usage */
-	TMap<UTexture2D*, FLandscapeWeightmapUsage*> WeightmapUsageMap;
+	UPROPERTY(Transient)
+	TMap<UTexture2D*, ULandscapeWeightmapUsage*> WeightmapUsageMap;
 
 	// Blueprint functions
 
