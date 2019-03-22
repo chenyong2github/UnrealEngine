@@ -420,6 +420,11 @@ void USocialParty::InitializePartyInternal()
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<TSharedRef<FOnlinePartyMember>> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
+	// Always initialize the local member first
+	if (ensure(OssPartyMembers.RemoveAll([this](const TSharedRef<FOnlinePartyMember>& Member) { return *Member->GetUserId() == *OwningLocalUserId; } ) > 0))
+	{
+		GetOrCreatePartyMember(*OwningLocalUserId);
+	}
 	for (TSharedRef<FOnlinePartyMember>& OssMember : OssPartyMembers)
 	{
 		GetOrCreatePartyMember(*OssMember->GetUserId());
