@@ -961,7 +961,7 @@ namespace AutomationTool
             if (Result.ExitCode > MaxSuccessCode || Result.ExitCode < 0)
             {
                 throw new CommandFailedException((ExitCode)Result.ExitCode, String.Format("Command failed (Result:{3}): {0} {1}. See logfile for details: '{2}' ",
-                                                App, CommandLine, Path.GetFileName(Logfile), Result.ExitCode));
+                                                App, CommandLine, Path.GetFileName(Logfile), Result.ExitCode)){ OutputFormat = AutomationExceptionOutputFormat.Minimal };
             }
             if (!String.IsNullOrEmpty(Result.Output))
             {
@@ -1050,7 +1050,7 @@ namespace AutomationTool
 			IProcessResult Result = Run(CmdEnv.UATExe, CommandLine, null, ERunOptions.Default, EnvironmentVars, Identifier: Identifier);
 			if (Result.ExitCode != 0)
 			{
-				throw new CommandFailedException(String.Format("Recursive UAT command failed (exit code {0})", Result.ExitCode));
+				throw new CommandFailedException(String.Format("Recursive UAT command failed (exit code {0})", Result.ExitCode)){ OutputFormat = AutomationExceptionOutputFormat.Silent };
 			}
 		}
 
