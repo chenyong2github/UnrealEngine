@@ -1420,16 +1420,6 @@ namespace UnrealBuildTool
 				PrerequisiteItems.Add(InputFile);
 			}
 
-			if (!bBuildImportLibraryOnly)
-			{
-				// Add input libraries as prerequisites, too!
-				foreach (FileItem InputLibrary in LinkEnvironment.InputLibraries)
-				{
-					InputFileNames.Add(string.Format("\"{0}\"", InputLibrary.AbsolutePath));
-					PrerequisiteItems.Add(InputLibrary);
-				}
-			}
-
 			if (!bIsBuildingLibraryOrImportLibrary)
 			{
 				foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
@@ -1577,10 +1567,6 @@ namespace UnrealBuildTool
 			foreach(FileItem InputFile in LinkEnvironment.InputFiles)
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
-			}
-			foreach(FileItem InputLibrary in LinkEnvironment.InputLibraries)
-			{
-				ObjectFileDirectories.Add(InputLibrary.Location.Directory);
 			}
 			foreach(string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
 			{

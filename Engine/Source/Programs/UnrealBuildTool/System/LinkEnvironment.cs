@@ -265,11 +265,6 @@ namespace UnrealBuildTool
 		public List<FileItem> InputFiles = new List<FileItem>();
 
 		/// <summary>
-		/// A list of dependent static or import libraries that need to be linked.
-		/// </summary>
-		public List<FileItem> InputLibraries = new List<FileItem>();
-
-		/// <summary>
 		/// The default resource file to link in to every binary if a custom one is not provided
 		/// </summary>
 		public List<FileItem> DefaultResourceFiles = new List<FileItem>();
@@ -356,7 +351,6 @@ namespace UnrealBuildTool
 			BundleVersion = Other.BundleVersion;
 			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);
-			InputLibraries.AddRange(Other.InputLibraries);
 			DefaultResourceFiles.AddRange(Other.DefaultResourceFiles);
 			CommonResourceFiles.AddRange(Other.CommonResourceFiles);
 			IncludeFunctions.AddRange(Other.IncludeFunctions);
