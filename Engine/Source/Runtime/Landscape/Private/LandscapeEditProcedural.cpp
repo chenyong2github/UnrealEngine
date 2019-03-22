@@ -1621,8 +1621,8 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 			struct FTextureData
 			{
 				UTexture2D* Texture;
-				FLandscapeWeightmapUsage* Usage;
-				FLandscapeWeightmapUsage* OriginalUsage;
+				ULandscapeWeightmapUsage* Usage;
+				ULandscapeWeightmapUsage* OriginalUsage;
 			};
 
 			TMap<UTexture2D*, FTextureData> ProcessedTextures;
@@ -1642,7 +1642,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 
 						const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
 						TArray<FWeightmapLayerAllocationInfo>& ComponentLayerAllocations = Component->GetWeightmapLayerAllocations();
-						TArray<FLandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
+						TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
 
 						NewWeightmapData.Weightmaps.AddDefaulted(ComponentWeightmapTextures.Num());
 						NewWeightmapData.WeightmapTextureUsages.AddDefaulted(ComponentWeightmapTexturesUsage.Num());
@@ -1711,7 +1711,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 								NewWeightmapData.WeightmapTextureUsages[TextureIndex]->ProceduralLayerName = ProceduralLayerName;
 
 								// Create new Usage for the base layer as the other one will now be used by the Layer 1
-								ComponentWeightmapTexturesUsage[TextureIndex] = LandscapeProxy->WeightmapUsageMap.Add(NewWeightmapTexture, new FLandscapeWeightmapUsage());
+								ComponentWeightmapTexturesUsage[TextureIndex] = LandscapeProxy->WeightmapUsageMap.Add(NewWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
 
 								for (FWeightmapLayerAllocationInfo& Allocation : ComponentLayerAllocations)
 								{
@@ -1743,15 +1743,15 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 					{
 						FWeightmapLayerAllocationInfo& Allocation = WeightmapLayer->WeightmapLayerAllocations[LayerIdx];
 						UTexture2D* WeightmapTexture = WeightmapLayer->Weightmaps[Allocation.WeightmapTextureIndex];
-						FLandscapeWeightmapUsage** TempUsage = LandscapeProxy->WeightmapUsageMap.Find(WeightmapTexture);
+						ULandscapeWeightmapUsage** TempUsage = LandscapeProxy->WeightmapUsageMap.Find(WeightmapTexture);
 
 						if (TempUsage == nullptr)
 						{
-							TempUsage = &LandscapeProxy->WeightmapUsageMap.Add(WeightmapTexture, new FLandscapeWeightmapUsage());							
+							TempUsage = &LandscapeProxy->WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
 							(*TempUsage)->ProceduralLayerName = ProceduralLayerName;
 						}
 
-						FLandscapeWeightmapUsage* Usage = *TempUsage;
+						ULandscapeWeightmapUsage* Usage = *TempUsage;
 						WeightmapLayer->WeightmapTextureUsages[Allocation.WeightmapTextureIndex] = Usage; // Keep a ref to it for faster access
 
 						check(Usage->ChannelUsage[Allocation.WeightmapTextureChannel] == nullptr || Usage->ChannelUsage[Allocation.WeightmapTextureChannel] == Component);
@@ -2893,7 +2893,7 @@ void ALandscape::PrepareProceduralComponentDataForExtractLayersCS(const FName& I
 					UTexture2D* Weightmap = WeightLayerData.Weightmaps[InCurrentWeightmapToProcessIndex];
 					check(Weightmap != nullptr);
 
-					const FLandscapeWeightmapUsage* WeightmapUsage = WeightLayerData.WeightmapTextureUsages[InCurrentWeightmapToProcessIndex];
+					const ULandscapeWeightmapUsage* WeightmapUsage = WeightLayerData.WeightmapTextureUsages[InCurrentWeightmapToProcessIndex];
 					check(WeightmapUsage != nullptr);
 
 					CopyProceduralTexture(*Weightmap->GetName(), Weightmap->Resource, InOutputDebugName ? FString::Printf(TEXT("%s WeightmapScratchTexture"), *InProceduralLayerName.ToString()) : TEXT(""), InOutTextureData, nullptr, Component->GetSectionBase(), 0);
@@ -2972,9 +2972,9 @@ void ALandscape::PrepareProceduralComponentDataForPackLayersCS(int32 InCurrentWe
 
 				InOutProcessedWeightmapCPUCopy.Add(*WeightmapCPUCopy);
 
-				const TArray<FLandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
+				const TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
 
-				const FLandscapeWeightmapUsage* WeightmapUsage = WeightmapTexturesUsage[InCurrentWeightmapToProcessIndex];
+				const ULandscapeWeightmapUsage* WeightmapUsage = WeightmapTexturesUsage[InCurrentWeightmapToProcessIndex];
 				check(WeightmapUsage != nullptr);
 
 				TArray<const FWeightmapLayerAllocationInfo*> AlreadyProcessedAllocation;
@@ -3053,30 +3053,29 @@ void ALandscape::ReallocateProceduralWeightmaps(const TArray<ALandscapeProxy*>& 
 	}
 
 	// Copy Previous Usage, to know which texture need updating
-	TMap<UTexture2D*, FLandscapeWeightmapUsage> CurrentWeightmapsUsage;
+	TMap<UTexture2D*, ULandscapeWeightmapUsage*> CurrentWeightmapsUsage;
 
 	for (ULandscapeComponent* Component : AllLandscapeComponents)
 	{
 		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-		TArray<FLandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = Component->GetWeightmapTexturesUsage();
+		TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = Component->GetWeightmapTexturesUsage();
 
 		for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
 		{
 			UTexture2D* ComponentWeightmapTexture = ComponentWeightmapTextures[i];
-			FLandscapeWeightmapUsage* CurrentWeightmapTextureUsage = CurrentWeightmapsUsage.Find(ComponentWeightmapTexture);
+			ULandscapeWeightmapUsage** CurrentWeightmapTextureUsage = CurrentWeightmapsUsage.Find(ComponentWeightmapTexture);
 
 			if (CurrentWeightmapTextureUsage == nullptr)
 			{
-				FLandscapeWeightmapUsage* ComponentWeightmapUsage = ComponentWeightmapTextureUsage[i];
-
-				FLandscapeWeightmapUsage Usage;
+				ULandscapeWeightmapUsage* ComponentWeightmapUsage = ComponentWeightmapTextureUsage[i];
+				ULandscapeWeightmapUsage* Usage = NewObject<ULandscapeWeightmapUsage>(Component->GetLandscapeProxy());
 
 				for (int32 j = 0; j < 4; ++j)
 				{
-					Usage.ChannelUsage[j] = ComponentWeightmapUsage->ChannelUsage[j];
+					Usage->ChannelUsage[j] = ComponentWeightmapUsage->ChannelUsage[j];
 				}
 
-				CurrentWeightmapsUsage.Add(ComponentWeightmapTexture, MoveTemp(Usage));
+				CurrentWeightmapsUsage.Add(ComponentWeightmapTexture, Usage);
 			}
 		}
 	}
@@ -3092,11 +3091,11 @@ void ALandscape::ReallocateProceduralWeightmaps(const TArray<ALandscapeProxy*>& 
 			BaseWeightmapAllocation.WeightmapTextureIndex = 255;
 		}
 		
-		TArray<FLandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
+		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
 
 		for (int32 i = 0; i < WeightmapTexturesUsage.Num(); ++i)
 		{
-			FLandscapeWeightmapUsage* Usage = WeightmapTexturesUsage[i];
+			ULandscapeWeightmapUsage* Usage = WeightmapTexturesUsage[i];
 			check(Usage != nullptr);
 
 			Usage->ClearUsage();
@@ -3207,19 +3206,19 @@ void ALandscape::ReallocateProceduralWeightmaps(const TArray<ALandscapeProxy*>& 
 		}
 
 		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-		TArray<FLandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = Component->GetWeightmapTexturesUsage();
+		TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTextureUsage = Component->GetWeightmapTexturesUsage();
 
 		for (int32 i = 0; i < ComponentWeightmapTextures.Num(); ++i)
 		{
 			UTexture2D* ComponentWeightmapTexture = ComponentWeightmapTextures[i];
-			FLandscapeWeightmapUsage* ComponentWeightmapUsage = ComponentWeightmapTextureUsage[i];
-			FLandscapeWeightmapUsage* CurrentWeightmapTextureUsage = CurrentWeightmapsUsage.Find(ComponentWeightmapTexture);
+			ULandscapeWeightmapUsage* ComponentWeightmapUsage = ComponentWeightmapTextureUsage[i];
+			ULandscapeWeightmapUsage** CurrentWeightmapTextureUsage = CurrentWeightmapsUsage.Find(ComponentWeightmapTexture);
 
 			if (CurrentWeightmapTextureUsage != nullptr)
 			{
 				for (int32 j = 0; j < 4; ++j)
 				{
-					if (ComponentWeightmapUsage->ChannelUsage[j] != CurrentWeightmapTextureUsage->ChannelUsage[j] && ComponentWeightmapUsage->ChannelUsage[j] != nullptr)
+					if (ComponentWeightmapUsage->ChannelUsage[j] != (*CurrentWeightmapTextureUsage)->ChannelUsage[j] && ComponentWeightmapUsage->ChannelUsage[j] != nullptr)
 					{
 						OutComponentThatNeedMaterialRebuild.AddUnique(ComponentWeightmapUsage->ChannelUsage[j]);
 					}
