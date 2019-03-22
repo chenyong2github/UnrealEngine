@@ -7,6 +7,7 @@
 
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+#include "SocialSettings.h"
 
 TSharedRef<FSocialUserList> FSocialUserList::CreateUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
 {
@@ -61,7 +62,7 @@ void FSocialUserList::InitializeList()
 		TryAddUserFast(*User);
 	}
 
-	SetAutoUpdatePeriod(AutoUpdatePeriod);
+	SetAutoUpdatePeriod(USocialSettings::GetUserListAutoUpdateRate());
 }
 
 void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
