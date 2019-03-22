@@ -169,7 +169,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 
 #if WITH_EDITORONLY_DATA
 	EditToolRenderData = FLandscapeEditToolRenderData();
-	CurrentProceduralLayerName = NAME_None;
+	CurrentProceduralLayerGuid.Invalidate();
 #endif
 
 	LpvBiasMultiplier = 0.0f; // Bias is 0 for landscape, since it's single sided
@@ -1416,6 +1416,20 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
+void ULandscapeComponent::SetCurrentEditingProceduralLayer(FProceduralLayer* Layer, FProceduralLayerData* LayerData)
+{
+	// Update Current Heightmap
+	UTexture2D** LayerHeightmap = LayerData ? LayerData->Heightmaps.Find(GetHeightmap()) : nullptr;
+	SetCurrentEditingHeightmap(LayerHeightmap ? *LayerHeightmap : nullptr);
+
+	// Update Current Weightmaps
+	FWeightmapLayerData* WeightmapData = LayerData ? LayerData->WeightmapData.Find(this) : nullptr;
+	SetCurrentEditingWeightmapLayerAllocations(WeightmapData ? &WeightmapData->WeightmapLayerAllocations : nullptr);
+	SetCurrentEditingWeightmaps(WeightmapData ? &WeightmapData->Weightmaps : nullptr);
+	SetCurrentProceduralLayerGuid(WeightmapData && Layer ? Layer->Guid : FGuid());
+	SetCurrentEditingWeightmapTexturesUsage(WeightmapData ? &WeightmapData->WeightmapTextureUsages : nullptr);
+}
+
 void ULandscapeComponent::SetCurrentEditingHeightmap(UTexture2D* InNewHeightmap)
 {
 #if WITH_EDITORONLY_DATA
@@ -1516,14 +1530,14 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 	}
 }
 
-void ULandscapeComponent::SetCurrentProceduralLayerName(const FName& InName)
+void ULandscapeComponent::SetCurrentProceduralLayerGuid(const FGuid& InLayerGuid)
 {
-	CurrentProceduralLayerName = InName;
+	CurrentProceduralLayerGuid = InLayerGuid;
 }
 
-const FName& ULandscapeComponent::GetCurrentProceduralLayerName() const
+const FGuid& ULandscapeComponent::GetCurrentProceduralLayerGuid() const
 {
-	return CurrentProceduralLayerName;
+	return CurrentProceduralLayerGuid;
 }
 #endif
 

@@ -4183,11 +4183,6 @@ void FEdModeLandscape::SetProceduralLayerName(int32 InLayerIndex, const FName& I
 	}
 }
 
-FName FEdModeLandscape::GetCurrentProceduralLayerName() const
-{
-	return GetProceduralLayerName(CurrentToolTarget.CurrentProceduralLayerIndex);
-}
-
 float FEdModeLandscape::GetProceduralLayerAlpha(int32 InLayerIndex) const
 {
 	FProceduralLayer* Layer = GetProceduralLayer(InLayerIndex);
