@@ -114,7 +114,7 @@ public:
 		return NewNode;
 	}
 
-	void ToggleHighFrequencyPawns();
+	void RemoveChildNode(UReplicationGraphNode* OutChildNode);
 
 protected:
 
@@ -972,7 +972,7 @@ public:
 	int32 QueuedBitsForActorDiscovery = 0;
 
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
-	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() { return ConnectionGraphNodes; }
+	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() const { return ConnectionGraphNodes; }
 
 	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
 
