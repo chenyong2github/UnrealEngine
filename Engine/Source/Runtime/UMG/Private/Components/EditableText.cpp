@@ -15,8 +15,8 @@
 UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SEditableText::FArguments Defaults;
-	WidgetStyle = *Defaults._Style;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextStyle >("NormalEditableText");
 
 	ColorAndOpacity_DEPRECATED = FLinearColor::Black;
 
@@ -26,18 +26,17 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 		Font_DEPRECATED = FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold"));
 	}
 
-	// Grab other defaults from slate arguments.
-	IsReadOnly = Defaults._IsReadOnly.Get();
-	IsPassword = Defaults._IsPassword.Get();
-	MinimumDesiredWidth = Defaults._MinDesiredWidth.Get();
-	IsCaretMovedWhenGainFocus = Defaults._IsCaretMovedWhenGainFocus.Get();
-	SelectAllTextWhenFocused = Defaults._SelectAllTextWhenFocused.Get();
-	RevertTextOnEscape = Defaults._RevertTextOnEscape.Get();
-	ClearKeyboardFocusOnCommit = Defaults._ClearKeyboardFocusOnCommit.Get();
-	SelectAllTextOnCommit = Defaults._SelectAllTextOnCommit.Get();
-	AllowContextMenu = Defaults._AllowContextMenu.Get();
-	VirtualKeyboardDismissAction = Defaults._VirtualKeyboardDismissAction.Get();
-	Clipping = Defaults._Clipping;
+	IsReadOnly = false;
+	IsPassword = false;
+	MinimumDesiredWidth = 0.0f;
+	IsCaretMovedWhenGainFocus = true;
+	SelectAllTextWhenFocused = false;
+	RevertTextOnEscape = false;
+	ClearKeyboardFocusOnCommit = true;
+	SelectAllTextOnCommit = false;
+	AllowContextMenu = true;
+	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
+	Clipping = EWidgetClipping::ClipToBounds;
 }
 
 void UEditableText::ReleaseSlateResources(bool bReleaseChildren)

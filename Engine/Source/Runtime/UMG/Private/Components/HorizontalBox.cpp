@@ -12,9 +12,7 @@ UHorizontalBox::UHorizontalBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-
-	SHorizontalBox::FArguments Defaults;
-	Visibility = UWidget::ConvertRuntimeToSerializedVisibility(Defaults._Visibility.Get());
+	Visibility = ESlateVisibility::SelfHitTestInvisible;
 }
 
 void UHorizontalBox::ReleaseSlateResources(bool bReleaseChildren)

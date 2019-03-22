@@ -18,12 +18,13 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 	BackgroundColor_DEPRECATED = FLinearColor::White;
 	ReadOnlyForegroundColor_DEPRECATED = FLinearColor::Black;
 
-	SMultiLineEditableTextBox::FArguments Defaults;
-	bIsReadOnly = Defaults._IsReadOnly.Get();
-	WidgetStyle = *Defaults._Style;
-	TextStyle = *Defaults._TextStyle;
-	AllowContextMenu = Defaults._AllowContextMenu.Get();
-	VirtualKeyboardDismissAction = Defaults._VirtualKeyboardDismissAction.Get();
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+	TextStyle = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+	bIsReadOnly = false;
+	AllowContextMenu = true;
+	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	AutoWrapText = true;
 
 	if (!IsRunningDedicatedServer())
