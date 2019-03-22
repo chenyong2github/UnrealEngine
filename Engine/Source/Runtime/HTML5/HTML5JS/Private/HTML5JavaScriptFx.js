@@ -157,7 +157,7 @@ var UE_JavascriptLibrary = {
         HEAPU8.set(byteArray, buffer);
 
         if (onload)
-          Runtime.dynCall('viiii', onload, [ctx, buffer, byteArray.length, header_buffer]);
+          Runtime.dynCall('viiiii', onload, [ctx, buffer, byteArray.length, header_buffer, xhr.status]);
         if (freeBuffer) // seems POST reqeusts keeps the buffer
           _free(buffer);
         _free(header_buffer);

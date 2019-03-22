@@ -23,7 +23,7 @@
 					const char* headers,
 					int async, // e.g. onBeforeUnload
 					int freeBuffer,
-					void(*onload)(void*, void*, unsigned, void*),
+					void(*onload)(void*, void*, unsigned, void*, int),
 					void(*onerror)(void*, int, const char*),
 					void(*onprogress)(void*, int, int)
 				);
