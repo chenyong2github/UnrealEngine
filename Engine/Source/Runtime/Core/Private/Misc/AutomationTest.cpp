@@ -1086,6 +1086,14 @@ void FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const
 	}
 }
 
+void FAutomationTestBase::TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance)
+{
+	if (!FMath::IsNearlyEqual(Actual, Expected, Tolerance))
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %f, but it was %f within tolerance %f."), What, Expected, Actual, Tolerance), 1);
+	}
+}
+
 void FAutomationTestBase::TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance)
 {
 	if (!Expected.Equals(Actual, Tolerance))
