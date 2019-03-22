@@ -137,6 +137,10 @@ bool UKismetInputLibrary::InputEvent_IsRightCommandDown(const FInputEvent& Input
 	return Input.IsRightCommandDown();
 }
 
+FText UKismetInputLibrary::InputChord_GetDisplayName(const FInputChord& Key) 
+{ 
+	return Key.GetInputText(); 
+}
 
 FKey UKismetInputLibrary::GetKey(const FKeyEvent& Input)
 {

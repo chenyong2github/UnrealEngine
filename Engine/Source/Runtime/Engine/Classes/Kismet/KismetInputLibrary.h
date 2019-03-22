@@ -174,6 +174,9 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Right Command Down" ), Category="Utilities|InputEvent")
 	static bool InputEvent_IsRightCommandDown(const FInputEvent& Input);
 
+	/** @return The display name of the input chord */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Input Chord Display Name"), Category = "Utilities|Key") 
+	static FText InputChord_GetDisplayName(const FInputChord& Key); 
 
 	/**
 	 * Returns the key for this event.
