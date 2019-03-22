@@ -668,6 +668,12 @@ protected:
 	/** Used when throttling "stuck in geometry" logging, to output the number of events we skipped if throttling. */
 	uint32 StuckWarningCountSinceNotify;
 
+	/**
+	 * Used to limit number of jump apex attempts per tick.
+	 * @see MaxJumpApexAttemptsPerSimulation
+	 */
+	int32 NumJumpApexAttempts;
+
 public:
 
 	/** Returns the location at the end of the last tick. */
@@ -720,6 +726,13 @@ public:
 	 */
 	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="1", ClampMax="25", UIMin="1", UIMax="25"))
 	int32 MaxSimulationIterations;
+
+	/**
+	 * Max number of attempts per simulation to attempt to exactly reach the jump apex when falling movement reaches the top of the arc.
+	 * Limiting this prevents deep recursion when special cases cause collision or other conditions which reactivate the apex condition.
+	 */
+	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="1", ClampMax="4", UIMin="1", UIMax="4"))
+	int32 MaxJumpApexAttemptsPerSimulation;
 
 	/**
 	* Max distance we allow simulated proxies to depenetrate when moving out of anything but Pawns.
