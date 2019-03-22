@@ -18,7 +18,6 @@ static TAutoConsoleVariable<float> CVarHapticsKickMedium(TEXT("ios.VibrationHapt
 static TAutoConsoleVariable<float> CVarHapticsKickLight(TEXT("ios.VibrationHapticsKickLightValue"), 0.3f, TEXT("Vibation values higher than this will kick a haptics light Impact"));
 static TAutoConsoleVariable<float> CVarHapticsRest(TEXT("ios.VibrationHapticsRestValue"), 0.2f, TEXT("Vibation values lower than this will allow haptics to Kick again when going over ios.VibrationHapticsKickValue"));
 
-
 //@interface FControllerHelper : NSObject
 //{
 //	FIOSInputInterface
@@ -49,9 +48,10 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
 #if !PLATFORM_TVOS
 	MotionManager = nil;
 	ReferenceAttitude = nil;
-	bPauseMotion = false;
 #endif
-
+	bPauseMotion = false;
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bDisableMotionData"), bPauseMotion, GEngineIni);
+	
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bTreatRemoteAsSeparateController"), bTreatRemoteAsSeparateController, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowRemoteRotation"), bAllowRemoteRotation, GEngineIni);
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bUseRemoteAsVirtualJoystick"), bUseRemoteAsVirtualJoystick, GEngineIni);
@@ -315,29 +315,30 @@ void FIOSInputInterface::SendControllerEvents()
 
 	
 #if !PLATFORM_TVOS // @todo tvos: This needs to come from the Microcontroller rotation
-	// Update motion controls.
-	FVector Attitude;
-	FVector RotationRate;
-	FVector Gravity;
-	FVector Acceleration;
+	if (!bPauseMotion)
+	{
+		// Update motion controls.
+		FVector Attitude;
+		FVector RotationRate;
+		FVector Gravity;
+		FVector Acceleration;
 
-	GetMovementData(Attitude, RotationRate, Gravity, Acceleration);
+		GetMovementData(Attitude, RotationRate, Gravity, Acceleration);
 
-	// Fix-up yaw to match directions
-	Attitude.Y = -Attitude.Y;
-	RotationRate.Y = -RotationRate.Y;
+		// Fix-up yaw to match directions
+		Attitude.Y = -Attitude.Y;
+		RotationRate.Y = -RotationRate.Y;
 
-	// munge the vectors based on the orientation
-	ModifyVectorByOrientation(Attitude, true);
-	ModifyVectorByOrientation(RotationRate, true);
-	ModifyVectorByOrientation(Gravity, false);
-	ModifyVectorByOrientation(Acceleration, false);
+		// munge the vectors based on the orientation
+		ModifyVectorByOrientation(Attitude, true);
+		ModifyVectorByOrientation(RotationRate, true);
+		ModifyVectorByOrientation(Gravity, false);
+		ModifyVectorByOrientation(Acceleration, false);
 
-	MessageHandler->OnMotionDetected(Attitude, RotationRate, Gravity, Acceleration, 0);
+		MessageHandler->OnMotionDetected(Attitude, RotationRate, Gravity, Acceleration, 0);
+	}
 #endif
-	
-	
-	
+		
 	for (GCController* Cont in [GCController controllers])
  	{
 		GCGamepad* Gamepad = Cont.gamepad;
@@ -577,100 +578,118 @@ void FIOSInputInterface::QueueKeyInput(int32 Key, int32 Char)
 	FIOSInputInterface::KeyInputStack.Add(Char);
 }
 
+void FIOSInputInterface::EnableMotionData(bool bEnable)
+{
+	bPauseMotion = !bEnable;
+
+#if !PLATFORM_TVOS
+	if (bPauseMotion && MotionManager != nil)
+	{
+		[ReferenceAttitude release];
+		ReferenceAttitude = nil;
+		
+		[MotionManager release];
+		MotionManager = nil;
+	}
+	// When enabled MotionManager will be initialized on first use
+#endif
+}
+
+bool FIOSInputInterface::IsMotionDataEnabled() const
+{
+	return !bPauseMotion;
+}
 
 void FIOSInputInterface::GetMovementData(FVector& Attitude, FVector& RotationRate, FVector& Gravity, FVector& Acceleration)
 {
 #if !PLATFORM_TVOS
-	if (!bPauseMotion)
+	// initialize on first use
+	if (MotionManager == nil)
 	{
-		// initialize on first use
-		if (MotionManager == nil)
+		// Look to see if we can create the motion manager
+		MotionManager = [[CMMotionManager alloc] init];
+
+		// Check to see if the device supports full motion (gyro + accelerometer)
+		if (MotionManager.deviceMotionAvailable)
 		{
-			// Look to see if we can create the motion manager
-			MotionManager = [[CMMotionManager alloc] init];
+			MotionManager.deviceMotionUpdateInterval = 0.02;
 
-			// Check to see if the device supports full motion (gyro + accelerometer)
-			if (MotionManager.deviceMotionAvailable)
-			{
-				MotionManager.deviceMotionUpdateInterval = 0.02;
-
-				// Start the Device updating motion
-				[MotionManager startDeviceMotionUpdates];
-			}
-			else
-			{
-				[MotionManager startAccelerometerUpdates];
-				CenterPitch = CenterPitch = 0;
-				bIsCalibrationRequested = false;
-			}
-		}
-
-		// do we have full motion data?
-		if (MotionManager.deviceMotionActive)
-		{
-			// Grab the values
-			CMAttitude* CurrentAttitude = MotionManager.deviceMotion.attitude;
-			CMRotationRate CurrentRotationRate = MotionManager.deviceMotion.rotationRate;
-			CMAcceleration CurrentGravity = MotionManager.deviceMotion.gravity;
-			CMAcceleration CurrentUserAcceleration = MotionManager.deviceMotion.userAcceleration;
-
-			// apply a reference attitude if we have been calibrated away from default
-			if (ReferenceAttitude)
-			{
-				[CurrentAttitude multiplyByInverseOfAttitude : ReferenceAttitude];
-			}
-
-			// convert to UE3
-			Attitude = FVector(float(CurrentAttitude.pitch), float(CurrentAttitude.yaw), float(CurrentAttitude.roll));
-			RotationRate = FVector(float(CurrentRotationRate.x), float(CurrentRotationRate.y), float(CurrentRotationRate.z));
-			Gravity = FVector(float(CurrentGravity.x), float(CurrentGravity.y), float(CurrentGravity.z));
-			Acceleration = FVector(float(CurrentUserAcceleration.x), float(CurrentUserAcceleration.y), float(CurrentUserAcceleration.z));
+			// Start the Device updating motion
+			[MotionManager startDeviceMotionUpdates];
 		}
 		else
 		{
-			// get the plain accleration
-			CMAcceleration RawAcceleration = [MotionManager accelerometerData].acceleration;
-			FVector NewAcceleration(RawAcceleration.x, RawAcceleration.y, RawAcceleration.z);
-
-			// storage for keeping the accelerometer values over time (for filtering)
-			static bool bFirstAccel = true;
-
-			// how much of the previous frame's acceleration to keep
-			const float VectorFilter = bFirstAccel ? 0.0f : 0.85f;
-			bFirstAccel = false;
-
-			// apply new accelerometer values to last frames
-			FilteredAccelerometer = FilteredAccelerometer * VectorFilter + (1.0f - VectorFilter) * NewAcceleration;
-
-			// create an normalized acceleration vector
-			FVector FinalAcceleration = -FilteredAccelerometer.GetSafeNormal();
-
-			// calculate Roll/Pitch
-			float CurrentPitch = FMath::Atan2(FinalAcceleration.Y, FinalAcceleration.Z);
-			float CurrentRoll = -FMath::Atan2(FinalAcceleration.X, FinalAcceleration.Z);
-
-			// if we want to calibrate, use the current values as center
-			if (bIsCalibrationRequested)
-			{
-				CenterPitch = CurrentPitch;
-				CenterRoll = CurrentRoll;
-				bIsCalibrationRequested = false;
-			}
-
-			CurrentPitch -= CenterPitch;
-			CurrentRoll -= CenterRoll;
-
-			Attitude = FVector(CurrentPitch, 0, CurrentRoll);
-			RotationRate = FVector(LastPitch - CurrentPitch, 0, LastRoll - CurrentRoll);
-			Gravity = FVector(0, 0, 0);
-
-			// use the raw acceleration for acceleration
-			Acceleration = NewAcceleration;
-
-			// remember for next time (for rotation rate)
-			LastPitch = CurrentPitch;
-			LastRoll = CurrentRoll;
+			[MotionManager startAccelerometerUpdates];
+			CenterPitch = CenterPitch = 0;
+			bIsCalibrationRequested = false;
 		}
+	}
+
+	// do we have full motion data?
+	if (MotionManager.deviceMotionActive)
+	{
+		// Grab the values
+		CMAttitude* CurrentAttitude = MotionManager.deviceMotion.attitude;
+		CMRotationRate CurrentRotationRate = MotionManager.deviceMotion.rotationRate;
+		CMAcceleration CurrentGravity = MotionManager.deviceMotion.gravity;
+		CMAcceleration CurrentUserAcceleration = MotionManager.deviceMotion.userAcceleration;
+
+		// apply a reference attitude if we have been calibrated away from default
+		if (ReferenceAttitude)
+		{
+			[CurrentAttitude multiplyByInverseOfAttitude : ReferenceAttitude];
+		}
+
+		// convert to UE3
+		Attitude = FVector(float(CurrentAttitude.pitch), float(CurrentAttitude.yaw), float(CurrentAttitude.roll));
+		RotationRate = FVector(float(CurrentRotationRate.x), float(CurrentRotationRate.y), float(CurrentRotationRate.z));
+		Gravity = FVector(float(CurrentGravity.x), float(CurrentGravity.y), float(CurrentGravity.z));
+		Acceleration = FVector(float(CurrentUserAcceleration.x), float(CurrentUserAcceleration.y), float(CurrentUserAcceleration.z));
+	}
+	else
+	{
+		// get the plain accleration
+		CMAcceleration RawAcceleration = [MotionManager accelerometerData].acceleration;
+		FVector NewAcceleration(RawAcceleration.x, RawAcceleration.y, RawAcceleration.z);
+
+		// storage for keeping the accelerometer values over time (for filtering)
+		static bool bFirstAccel = true;
+
+		// how much of the previous frame's acceleration to keep
+		const float VectorFilter = bFirstAccel ? 0.0f : 0.85f;
+		bFirstAccel = false;
+
+		// apply new accelerometer values to last frames
+		FilteredAccelerometer = FilteredAccelerometer * VectorFilter + (1.0f - VectorFilter) * NewAcceleration;
+
+		// create an normalized acceleration vector
+		FVector FinalAcceleration = -FilteredAccelerometer.GetSafeNormal();
+
+		// calculate Roll/Pitch
+		float CurrentPitch = FMath::Atan2(FinalAcceleration.Y, FinalAcceleration.Z);
+		float CurrentRoll = -FMath::Atan2(FinalAcceleration.X, FinalAcceleration.Z);
+
+		// if we want to calibrate, use the current values as center
+		if (bIsCalibrationRequested)
+		{
+			CenterPitch = CurrentPitch;
+			CenterRoll = CurrentRoll;
+			bIsCalibrationRequested = false;
+		}
+
+		CurrentPitch -= CenterPitch;
+		CurrentRoll -= CenterRoll;
+
+		Attitude = FVector(CurrentPitch, 0, CurrentRoll);
+		RotationRate = FVector(LastPitch - CurrentPitch, 0, LastRoll - CurrentRoll);
+		Gravity = FVector(0, 0, 0);
+
+		// use the raw acceleration for acceleration
+		Acceleration = NewAcceleration;
+
+		// remember for next time (for rotation rate)
+		LastPitch = CurrentPitch;
+		LastRoll = CurrentRoll;
 	}
 #endif
 }
@@ -680,7 +699,7 @@ void FIOSInputInterface::CalibrateMotion(uint32 PlayerIndex)
 #if !PLATFORM_TVOS
 	// If we are using the motion manager, grab a reference frame.  Note, once you set the Attitude Reference frame
 	// all additional reference information will come from it
-	if (MotionManager.deviceMotionActive)
+	if (MotionManager && MotionManager.deviceMotionActive)
 	{
 		ReferenceAttitude = [MotionManager.deviceMotion.attitude retain];
 	}

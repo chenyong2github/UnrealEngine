@@ -201,6 +201,21 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 		return FString(TEXT("None"));
 	}
 
+	/*
+	* Whether to enable controller motion data polling (by default motion data is enabled)
+	* Some platforms may want to disable it to reduce battery drain
+	*/
+	static void EnableMotionData(bool bEnable)
+	{}
+
+	/*
+	* Whether controller motion data polling is enabled (by default motion data is enabled)
+	*/
+	static bool IsMotionDataEnabled()
+	{
+		return true;
+	}
+				
 	/** Copies text to the operating system clipboard. */
 	static void ClipboardCopy(const TCHAR* Str);
 
