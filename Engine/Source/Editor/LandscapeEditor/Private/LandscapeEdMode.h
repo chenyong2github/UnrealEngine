@@ -493,7 +493,6 @@ public:
 	int32 GetProceduralLayerCount() const;
 	void SetCurrentProceduralLayer(int32 InLayerIndex);
 	int32 GetCurrentProceduralLayerIndex() const;
-	FName GetCurrentProceduralLayerName() const;
 	ALandscape* GetLandscape() const;
 	struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex) const;
 	FName GetProceduralLayerName(int32 InLayerIndex) const;
