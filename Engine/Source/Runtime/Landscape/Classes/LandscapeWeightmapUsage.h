@@ -19,7 +19,7 @@ public:
 	ULandscapeComponent* ChannelUsage[4];
 
 	UPROPERTY()
-	FName ProceduralLayerName;
+	FGuid ProceduralLayerGuid;
 
 	int32 FreeChannelCount() const
 	{
