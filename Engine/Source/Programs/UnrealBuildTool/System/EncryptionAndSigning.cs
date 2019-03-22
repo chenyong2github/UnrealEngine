@@ -61,6 +61,18 @@ namespace UnrealBuildTool
 			{
 				return PublicKey != null && PrivateKey != null && PublicKey.IsValid() && PrivateKey.IsValid();
 			}
+
+			/// <summary>
+			/// Returns TRUE if this is a short key from the old 256-bit system
+			/// </summary>
+			public bool IsUnsecureLegacyKey()
+			{
+				int LongestKey = PublicKey.Exponent.Length;
+				LongestKey = Math.Max(LongestKey, PublicKey.Modulus.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Exponent.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Modulus.Length);
+				return LongestKey <= 64;
+			}
 		}
 
 		/// <summary>
