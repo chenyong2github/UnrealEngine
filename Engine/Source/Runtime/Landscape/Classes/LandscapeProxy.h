@@ -643,7 +643,7 @@ public:
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
 	UPROPERTY(TextExportTransient)
-	TMap<FName, FProceduralLayerData> ProceduralLayersData;
+	TMap<FGuid, FProceduralLayerData> ProceduralLayersData;
 
 	UPROPERTY()
 	bool HasProceduralContent;
