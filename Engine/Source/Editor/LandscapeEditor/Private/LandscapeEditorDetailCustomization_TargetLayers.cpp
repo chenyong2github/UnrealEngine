@@ -22,6 +22,7 @@
 #include "EditorModes.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
+#include "Landscape.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -1079,17 +1080,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnReimportLayer(const TShar
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-		{
-			LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
-			LandscapeEdMode->ReimportData(*Target);
-			LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
-			LandscapeEdMode->RequestProceduralContentUpdate();
-		}
-		else
-		{
-			LandscapeEdMode->ReimportData(*Target);
-		}
+		LandscapeEdMode->ReimportData(*Target);
 	}
 }
 
@@ -1103,17 +1094,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnFillLayer(const TSharedRe
 		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 		if (LandscapeEdMode)
 		{
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-			{
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
-				LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
-				LandscapeEdMode->RequestProceduralContentUpdate(true);
-			}
-			else
-			{
-				LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
-			}
+			FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid(), [&] { LandscapeEdMode->RequestProceduralContentUpdate(true); });
+			LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
 		}
 	}
 }
@@ -1124,14 +1106,13 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::FillEmptyLayers(ULandscapeI
 	if (LandscapeEdMode)
 	{
 		FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-
+		
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 		{
 			if (LandscapeEdMode->NeedToFillEmptyLayersForProcedural())
 			{
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
+				FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid());
 				LandscapeEdit.FillEmptyLayers(LandscapeInfoObject);
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
 			}
 		}
 		else
@@ -1151,19 +1132,9 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnClearLayer(const TSharedR
 		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 		if (LandscapeEdMode)
 		{
+			FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid(), [&] { LandscapeEdMode->RequestProceduralContentUpdate(true); });
 			FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
-
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-			{
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps();
-				LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
-				LandscapeEdMode->ChangeWeightmapsToCurrentProceduralLayerWeightmaps(true);
-				LandscapeEdMode->RequestProceduralContentUpdate(true);
-			}
-			else
-			{
-				LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
-			}
+			LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
 		}
 	}
 }

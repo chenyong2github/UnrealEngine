@@ -108,20 +108,20 @@ void FLandscapeEditorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
 	Customization_AlphaBrush = MakeShareable(new FLandscapeEditorDetailCustomization_AlphaBrush);
 	Customization_AlphaBrush->CustomizeDetails(DetailBuilder);
 
-	// Target Layers:
-	Customization_TargetLayers = MakeShareable(new FLandscapeEditorDetailCustomization_TargetLayers);
-	Customization_TargetLayers->CustomizeDetails(DetailBuilder);
-
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 	{
-		// Brush Stack
-		Customization_ProceduralBrushStack = MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralBrushStack);
-		Customization_ProceduralBrushStack->CustomizeDetails(DetailBuilder);
-
 		// Procedural Layers
 		Customization_ProceduralLayers = MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralLayers);
 		Customization_ProceduralLayers->CustomizeDetails(DetailBuilder);
+
+		// Brush Stack
+		Customization_ProceduralBrushStack = MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralBrushStack);
+		Customization_ProceduralBrushStack->CustomizeDetails(DetailBuilder);
 	}
+
+	// Target Layers:
+	Customization_TargetLayers = MakeShareable(new FLandscapeEditorDetailCustomization_TargetLayers);
+	Customization_TargetLayers->CustomizeDetails(DetailBuilder);
 }
 
 FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
