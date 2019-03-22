@@ -2474,7 +2474,7 @@ FMaterialResource* UMaterialInstance::AllocatePermutationResource()
 	return new FMaterialResource();
 }
 
-void UMaterialInstance::UpdatePermutationAllocations()
+void UMaterialInstance::UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
 {
 	if (bHasStaticPermutationResource)
 	{
@@ -2494,7 +2494,14 @@ void UMaterialInstance::UpdatePermutationAllocations()
 				FMaterialResource*& StaticPermResource = StaticPermutationMaterialResources[Quality][Feature];
 				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
 				{
-					delete StaticPermResource;
+					if (ResourcesToFree)
+					{
+						ResourcesToFree->Add(StaticPermResource);
+					}
+					else
+					{
+						delete StaticPermResource;
+					}
 					StaticPermResource = nullptr;
 				}
 				else
@@ -2535,7 +2542,8 @@ void UMaterialInstance::CacheResourceShadersForRendering()
 {
 	check(IsInGameThread() || IsAsyncLoading());
 
-	UpdatePermutationAllocations();
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	UpdatePermutationAllocations(&ResourcesToFree);
 	UpdateOverridableBaseProperties();
 
 	if (bHasStaticPermutationResource && FApp::CanEverRender())
@@ -2578,6 +2586,18 @@ void UMaterialInstance::CacheResourceShadersForRendering()
 	}
 
 	InitResources();
+
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
+	}
 }
 
 void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources)

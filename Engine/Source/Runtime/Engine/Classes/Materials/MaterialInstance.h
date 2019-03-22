@@ -635,7 +635,7 @@ protected:
 	 * This is a helper used when recompiling MI's with static parameters.  
 	 * Assumes that the rendering thread command queue has been flushed by the caller.
 	 */
-	void UpdatePermutationAllocations();
+	void UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 #if WITH_EDITOR
 	/**
