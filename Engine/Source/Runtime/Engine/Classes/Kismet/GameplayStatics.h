@@ -72,6 +72,15 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	/** Bind the bounds of an array of Actors */
 	UFUNCTION(BlueprintCallable, Category="Collision")
 	static void GetActorArrayBounds(const TArray<AActor*>& Actors, bool bOnlyCollidingComponents, FVector& Center, FVector& BoxExtent);
+	
+	/** 
+	 *	Find the first Actor in the world of the specified class. 
+	 *	This is a slow operation, use with caution e.g. do not use every frame.
+	 *	@param	ActorClass	Class of Actor to find. Must be specified or result will be empty.
+	 *	@return				Actor of the specified class.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Utilities", meta=(WorldContext="WorldContextObject", DeterminesOutputType="ActorClass"))
+	static class AActor* GetActorOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass);
 
 	/** 
 	 *	Find all Actors in the world of the specified class. 
