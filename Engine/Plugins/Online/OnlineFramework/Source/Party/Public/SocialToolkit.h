@@ -30,7 +30,12 @@ class PARTY_API USocialToolkit : public UObject
 	GENERATED_BODY()
 
 public:
-	static USocialToolkit* GetToolkitForPlayer(ULocalPlayer* LocalPlayer);
+	template <typename ToolkitT = USocialToolkit>
+	static ToolkitT* GetToolkitForPlayer(ULocalPlayer* LocalPlayer)
+	{
+		static_assert(TIsDerivedFrom<ToolkitT, USocialToolkit>::IsDerived, "GetToolkitForPlayer only supports getting USocialToolkit type objects");
+		return Cast<ToolkitT>(GetToolkitForPlayerInternal(LocalPlayer));
+	}
 
 	USocialToolkit();
 
@@ -197,6 +202,7 @@ private:	// Handlers
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
 
 private:
+	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
 	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
