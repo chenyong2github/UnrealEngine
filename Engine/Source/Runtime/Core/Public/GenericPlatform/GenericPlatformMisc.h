@@ -1279,6 +1279,8 @@ public:
 	*/
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
 
+	static void ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexRedirects, TMap<int32, int32>& OutMapping);
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen
