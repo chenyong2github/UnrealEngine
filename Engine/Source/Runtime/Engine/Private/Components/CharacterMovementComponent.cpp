@@ -196,7 +196,7 @@ namespace CharacterMovementCVars
 		TEXT( "If 1, remove invalid replay samples that can occur due to oversampling (sampling at higher rate than physics is being ticked)" ),
 		ECVF_Default);
 
-	static int32 ForceJumpPeakSubstep = 1;
+	static int32 ForceJumpPeakSubstep = 0;
 	FAutoConsoleVariableRef CVarForceJumpPeakSubstep(
 		TEXT("p.ForceJumpPeakSubstep"),
 		ForceJumpPeakSubstep,
