@@ -17,8 +17,8 @@ UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	Orientation = Orient_Vertical;
 	Thickness = FVector2D(12.0f, 12.0f);
 
-	SScrollBar::FArguments Defaults;
-	WidgetStyle = *Defaults._Style;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar");
 }
 
 void UScrollBar::ReleaseSlateResources(bool bReleaseChildren)

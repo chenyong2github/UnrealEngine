@@ -12,10 +12,7 @@ UWrapBox::UWrapBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-
-	SWrapBox::FArguments Defaults;
-	Visibility = UWidget::ConvertRuntimeToSerializedVisibility(Defaults._Visibility.Get());
-
+	Visibility = ESlateVisibility::SelfHitTestInvisible;
 	WrapWidth = 500;
 	bExplicitWrapWidth = false;
 }
