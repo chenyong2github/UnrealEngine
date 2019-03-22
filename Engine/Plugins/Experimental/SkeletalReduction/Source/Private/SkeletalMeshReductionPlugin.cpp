@@ -1544,6 +1544,13 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		{
 			delete Old;
 		}
+		else if(bReducingSourceModel)
+		{
+			//In case we reduce the source model we want to keep the original import data
+			FSkeletalMeshImportData RawMesh;
+			SrcModel->RawSkeletalMeshBulkData.LoadRawMesh(RawMesh);
+			LODModels[LODIndex]->RawSkeletalMeshBulkData.SaveRawMesh(RawMesh);
+		}
 	}
 
 	
