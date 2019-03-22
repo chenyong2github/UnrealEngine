@@ -101,24 +101,6 @@ public:
 #endif
 
 	/**
-	 * Returns the address of the method pointer which can be used to learn the address of the function that will be executed.
-	 * Returns nullptr if this delegate type does not directly invoke a function pointer.
-	 *
-	 * Note: Only intended to be used to aid debugging of delegates.
-	 *
-	 * @return The address of the function pointer that would be executed by this delegate
-	 */
-	void* GetBoundFunctionAddress() const
-	{
-		if (IDelegateInstance* Ptr = GetDelegateInstanceProtected())
-		{
-			return Ptr->GetBoundFunctionAddress();
-		}
-
-		return nullptr;
-	}
-
-	/**
 	 * If this is a UFunction or UObject delegate, return the UObject.
 	 *
 	 * @return The object associated with this delegate if there is one.
