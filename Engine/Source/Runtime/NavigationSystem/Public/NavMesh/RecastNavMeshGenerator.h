@@ -535,6 +535,10 @@ public:
 	/** Adds generated tiles to NavMesh, replacing old ones */
 	TArray<uint32> AddGeneratedTiles(FRecastTileGenerator& TileGenerator);
 
+#if TIME_SLICE_NAV_REGEN
+	bool IsTimeSliceDurationExceeded(const double StartTime) const;
+#endif
+
 public:
 	/** Removes all tiles at specified grid location */
 	TArray<uint32> RemoveTileLayers(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
@@ -622,6 +626,10 @@ protected:
 	/** Runtime generator's version, increased every time all tile generators get invalidated
 	 *	like when navmesh size changes */
 	uint32 Version;
+
+#if TIME_SLICE_NAV_REGEN
+	double TimeSliceDuration;
+#endif
 };
 
 #endif // WITH_RECAST
