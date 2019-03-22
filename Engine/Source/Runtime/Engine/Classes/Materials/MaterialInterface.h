@@ -33,6 +33,8 @@ struct FPrimitiveViewRelevance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 
+typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
+
 UENUM(BlueprintType)
 enum EMaterialUsage
 {
