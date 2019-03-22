@@ -3336,6 +3336,8 @@ struct FReplicationFlags
 			uint32 bIgnoreRPCs:1;
 			/** True if we should not swap the role and remote role of this actor when receiving properties. */
 			uint32 bSkipRoleSwap:1;
+			/** True if we should only compare role properties in CompareProperties */
+			uint32 bRolesOnly:1;
 		};
 
 		uint32	Value;
