@@ -469,6 +469,8 @@ void FMovieSceneEventCustomization::SetEventEndpoint(UK2Node_FunctionEntry* NewE
 
 	// Ensure that anything listening for property changed notifications are notified of the new binding
 	PropertyHandle->NotifyFinishedChangingProperties();
+
+	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 }
 
 bool FMovieSceneEventCustomization::CompareCurrentEventEndpoint(UK2Node_FunctionEntry* NewEndpoint)
