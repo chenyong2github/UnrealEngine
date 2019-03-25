@@ -6,20 +6,6 @@ FUserWidgetPool::FUserWidgetPool(UWidget& InOwningWidget)
 	: OwningWidget(&InOwningWidget)
 {}
 
-FUserWidgetPool& FUserWidgetPool::operator=(FUserWidgetPool&& Other)
-{
-	OwningWidget = Other.OwningWidget;
-
-	ActiveWidgets = MoveTemp(Other.ActiveWidgets);
-	InactiveWidgets = MoveTemp(Other.InactiveWidgets);
-	CachedSlateByWidgetObject = MoveTemp(Other.CachedSlateByWidgetObject);
-
-	Other.OwningWidget.Reset();
-	Other.ResetPool();
-
-	return *this;
-}
-
 FUserWidgetPool::~FUserWidgetPool()
 {
 	ResetPool();
@@ -66,5 +52,10 @@ void FUserWidgetPool::ResetPool()
 {
 	InactiveWidgets.Reset();
 	ActiveWidgets.Reset();
+	CachedSlateByWidgetObject.Reset();
+}
+
+void FUserWidgetPool::ReleaseSlateResources()
+{
 	CachedSlateByWidgetObject.Reset();
 }
