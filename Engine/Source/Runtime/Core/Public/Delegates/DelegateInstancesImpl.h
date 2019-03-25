@@ -71,6 +71,11 @@ public:
 
 #endif
 
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return nullptr;
+	}
+
 	virtual UObject* GetUObject( ) const override final
 	{
 		return (UObject*)UserObjectPtr.Get();
@@ -228,6 +233,11 @@ public:
 	}
 
 #endif
+
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&MethodPtr;
+	}
 
 	virtual UObject* GetUObject() const override final
 	{
@@ -410,6 +420,11 @@ public:
 
 #endif
 
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&MethodPtr;
+	}
+
 	virtual UObject* GetUObject( ) const override final
 	{
 		return nullptr;
@@ -562,6 +577,11 @@ public:
 	}
 
 #endif
+
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&MethodPtr;
+	}
 
 	virtual UObject* GetUObject( ) const override final
 	{
@@ -720,6 +740,11 @@ public:
 
 #endif
 
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&StaticFuncPtr;
+	}
+
 	virtual UObject* GetUObject( ) const override final
 	{
 		return nullptr;
@@ -857,6 +882,11 @@ public:
 	}
 
 #endif
+
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&Functor;
+	}
 
 	virtual UObject* GetUObject() const override final
 	{
@@ -1002,6 +1032,11 @@ public:
 	}
 
 #endif
+
+	virtual void* GetBoundFunctionAddress() const override final
+	{
+		return (void*)&Functor;
+	}
 
 	virtual UObject* GetUObject() const override final
 	{
