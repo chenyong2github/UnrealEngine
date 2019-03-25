@@ -2662,7 +2662,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 
 									// Note that at this point UniqueIndex is NOT a material index, but a unique section index!
 								}
-								else
+								
+								if(UniqueIndex == INDEX_NONE)
 								{
 									UniqueIndex = SourcePolygonGroupID.GetValue();
 								}
@@ -2765,7 +2766,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 
 								// Note that at this point UniqueIndex is NOT a material index, but a unique section index!
 							}
-							else
+							
+							if(UniqueIndex == INDEX_NONE)
 							{
 								UniqueIndex = SourcePolygonGroupID.GetValue();
 							}
