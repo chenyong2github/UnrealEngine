@@ -441,6 +441,7 @@ FAppleARKitLiveLinkFileWriter::FAppleARKitLiveLinkFileWriter(const TCHAR* InFile
 {
 	// Read the config values for this
 	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bFaceTrackingWriteEachFrame"), bSavePerFrameOrOnDemand, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bFaceTrackingLogData"), bLogData, GEngineIni);
 }
 
 FAppleARKitLiveLinkFileWriter::~FAppleARKitLiveLinkFileWriter()
@@ -483,6 +484,11 @@ void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const 
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
+	if (!bLogData)
+	{
+		return;
+	}
+
 	DeviceName = DeviceId;
 	// Add to the array for long running save
 	new(FrameHistory) FFaceTrackingFrame(Timecode, FrameRate, FaceBlendShapes);
@@ -495,12 +501,40 @@ void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const 
 
 bool FAppleARKitLiveLinkFileWriter::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	if (FParse::Command(&Cmd, TEXT("FaceAR")) &&
-		FParse::Command(&Cmd, TEXT("WriteCurveFile")))
+	if (FParse::Command(&Cmd, TEXT("FaceAR")))
 	{
-		FScopeLock ScopeLock(&CriticalSection);
-		SaveFileData();
-		return true;
+		if (FParse::Command(&Cmd, TEXT("WriteCurveFile")))
+		{
+			FScopeLock ScopeLock(&CriticalSection);
+			SaveFileData();
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("StartFileWriting")))
+		{
+			FScopeLock ScopeLock(&CriticalSection);
+			FrameHistory.Empty();
+			bLogData = true;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("StopFileWriting")))
+		{
+			FScopeLock ScopeLock(&CriticalSection);
+			FrameHistory.Empty();
+			bLogData = false;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("SavePerFrame")))
+		{
+			FScopeLock ScopeLock(&CriticalSection);
+			bSavePerFrameOrOnDemand = true;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("SaveOnDemand")))
+		{
+			FScopeLock ScopeLock(&CriticalSection);
+			bSavePerFrameOrOnDemand = false;
+			return true;
+		}
 	}
 	return false;
 }

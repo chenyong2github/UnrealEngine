@@ -33,6 +33,7 @@ class APPLEARKIT_API UAppleARKitSettings :
 public:
 	UAppleARKitSettings()
 		: bEnableLiveLinkForFaceTracking(false)
+		, bFaceTrackingLogData(false)
 		, bFaceTrackingWriteEachFrame(false)
 		, FaceTrackingFileWriterType(EARFaceTrackingFileWriterType::None)
 		, bShouldWriteCameraImagePerFrame(false)
@@ -51,6 +52,10 @@ public:
 	/** Whether to publish face blend shapes to LiveLink or not */
 	UPROPERTY(Config, EditAnywhere, Category="AR Settings")
 	bool bEnableLiveLinkForFaceTracking;
+
+	/** Whether file writing is enabled at all or not */
+	UPROPERTY(Config, EditAnywhere, Category="AR Settings")
+	bool bFaceTrackingLogData;
 
 	/** Whether to publish each frame or when the "FaceAR WriteCurveFile */
 	UPROPERTY(Config, EditAnywhere, Category="AR Settings")

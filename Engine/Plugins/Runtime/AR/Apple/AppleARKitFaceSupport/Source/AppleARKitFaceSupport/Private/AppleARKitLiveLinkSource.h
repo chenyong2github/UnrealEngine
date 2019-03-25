@@ -825,6 +825,8 @@ protected:
 	TArray<FFaceTrackingFrame> FrameHistory;
 	/** The name to use when generating the file to save to */
 	FName DeviceName;
+	/** If false, the calls to PublishCurves are ignored */
+	bool bLogData;
 	/** If true, it writes a file each frame. Otherwise, it writes the data upon demand or exit */
 	bool bSavePerFrameOrOnDemand;
 	/**
