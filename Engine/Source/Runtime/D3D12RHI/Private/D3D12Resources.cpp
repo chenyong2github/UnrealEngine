@@ -468,6 +468,14 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 
 	FMemory::Memmove(&Destination, &Source, sizeof(FD3D12ResourceLocation));
 
+	// update tracked allocation
+#if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
+	if (Source.GetType() == ResourceLocationType::eSubAllocation)
+	{
+		FLowLevelMemTracker::Get().OnLowLevelAllocMoved( ELLMTracker::Default, &Destination, &Source );
+	}
+#endif
+
 	// Destroy the source but don't invoke any resource destruction
 	Source.InternalClear<false>();
 }
