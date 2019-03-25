@@ -987,7 +987,7 @@ bool USocialParty::ShouldStayWithPartyOnExit() const
 
 bool USocialParty::IsPartyFunctionalityDegraded() const
 {
-	return bIsMissingXmppConnection || bIsMissingPlatformSession;
+	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession;
 }
 
 int32 USocialParty::GetNumPartyMembers() const
@@ -1413,9 +1413,10 @@ void USocialParty::SetIsMissingPlatformSession(bool bInIsMissingPlatformSession)
 
 void USocialParty::SetIsMissingXmppConnection(bool bInMissingXmppConnection)
 {
-	if (bInMissingXmppConnection != bIsMissingXmppConnection)
+	if (!bIsMissingXmppConnection.IsSet() || 
+		bInMissingXmppConnection != bIsMissingXmppConnection)
 	{
-		UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
+		UE_CLOG(bIsMissingXmppConnection.IsSet(), LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
 
 		const bool bWasPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
 		bIsMissingXmppConnection = bInMissingXmppConnection;
