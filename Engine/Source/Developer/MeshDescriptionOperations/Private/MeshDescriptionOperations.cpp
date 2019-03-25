@@ -1447,6 +1447,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 	// Create a copy of original mesh (only copy necessary data)
 	FMeshDescription DuplicateMeshDescription(MeshDescription);
 	
+
 	//Make sure we have a destination UV TextureCoordinnate
 	{
 		TVertexInstanceAttributesRef<FVector2D> DuplicateVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
