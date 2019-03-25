@@ -14,8 +14,11 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox");
-	ItemStyle = FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row");
+	static const FComboBoxStyle StaticComboboxStyle = FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox");
+	static const FTableRowStyle StaticRowStyle = FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row");
+
+	WidgetStyle = StaticComboboxStyle;
+	ItemStyle = StaticRowStyle;
 	ItemStyle.SelectorFocusedBrush.TintColor = ItemStyle.SelectorFocusedBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveHoveredBrush.TintColor = ItemStyle.ActiveHoveredBrush.TintColor.GetSpecifiedColor();
 	ItemStyle.ActiveBrush.TintColor = ItemStyle.ActiveBrush.TintColor.GetSpecifiedColor();

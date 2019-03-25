@@ -31,7 +31,8 @@ USpinBox::USpinBox(const FObjectInitializer& ObjectInitializer)
 	ForegroundColor = FSlateColor(FLinearColor::Black);
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox");
+	static const FSpinBoxStyle StaticSpinBox = FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox");
+	WidgetStyle = StaticSpinBox;
 }
 
 void USpinBox::ReleaseSlateResources(bool bReleaseChildren)
