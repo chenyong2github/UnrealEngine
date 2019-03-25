@@ -1577,7 +1577,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 
 		for (auto& ItLayerDataPair : LandscapeProxy->ProceduralLayersData)
 		{
-			FName ProceduralLayerName = ItLayerDataPair.Key;
+			FGuid ProceduralLayerGuid = ItLayerDataPair.Key;
 			FProceduralLayerData& ProceduralLayerData = ItLayerDataPair.Value;
 
 			struct FTextureData
@@ -1620,7 +1620,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 
 								NewWeightmapData.Weightmaps[TextureIndex] = TextureData->Texture;
 								NewWeightmapData.WeightmapTextureUsages[TextureIndex] = TextureData->Usage;
-								check(TextureData->Usage->ProceduralLayerName == ProceduralLayerName);
+								check(TextureData->Usage->ProceduralLayerGuid == ProceduralLayerGuid);
 
 								for (int32 ChannelIndex = 0; ChannelIndex < 4; ++ChannelIndex)
 								{
@@ -1670,7 +1670,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 
 								NewWeightmapData.Weightmaps[TextureIndex] = NewWeightmapTexture;
 								NewWeightmapData.WeightmapTextureUsages[TextureIndex] = ComponentWeightmapTexturesUsage[TextureIndex];
-								NewWeightmapData.WeightmapTextureUsages[TextureIndex]->ProceduralLayerName = ProceduralLayerName;
+								NewWeightmapData.WeightmapTextureUsages[TextureIndex]->ProceduralLayerGuid = ProceduralLayerGuid;
 
 								// Create new Usage for the base layer as the other one will now be used by the Layer 1
 								ComponentWeightmapTexturesUsage[TextureIndex] = LandscapeProxy->WeightmapUsageMap.Add(NewWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
@@ -1710,7 +1710,7 @@ void ALandscapeProxy::SetupProceduralLayers(int32 InNumComponentsX, int32 InNumC
 						if (TempUsage == nullptr)
 						{
 							TempUsage = &LandscapeProxy->WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
-							(*TempUsage)->ProceduralLayerName = ProceduralLayerName;
+							(*TempUsage)->ProceduralLayerGuid = ProceduralLayerGuid;
 						}
 
 						ULandscapeWeightmapUsage* Usage = *TempUsage;
@@ -2632,7 +2632,7 @@ void ALandscape::RegenerateProceduralHeightmaps()
 
 			for (ALandscapeProxy* Landscape : AllLandscapes)
 			{
-				FProceduralLayerData* LayerData = Landscape->ProceduralLayersData.Find(Layer.Name);
+				FProceduralLayerData* LayerData = Landscape->ProceduralLayersData.Find(Layer.Guid);
 
 				if (LayerData != nullptr)
 				{
@@ -2834,14 +2834,14 @@ void ALandscape::ResolveProceduralTexture(FLandscapeProceduralTexture2DCPUReadBa
 	}
 }
 
-void ALandscape::PrepareProceduralComponentDataForExtractLayersCS(const FName& InProceduralLayerName, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, FLandscapeTexture2DResource* InOutTextureData,
+void ALandscape::PrepareProceduralComponentDataForExtractLayersCS(const FProceduralLayer& InProceduralLayer, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, FLandscapeTexture2DResource* InOutTextureData,
 																  TArray<FLandscapeProceduralWeightmapExtractLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	
 	for (const ALandscapeProxy* Landscape : InAllLandscape)
 	{
-		const FProceduralLayerData* ProceduralLayerData = Landscape->ProceduralLayersData.Find(InProceduralLayerName);
+		const FProceduralLayerData* ProceduralLayerData = Landscape->ProceduralLayersData.Find(InProceduralLayer.Guid);
 
 		if (ProceduralLayerData != nullptr)
 		{
@@ -2858,8 +2858,8 @@ void ALandscape::PrepareProceduralComponentDataForExtractLayersCS(const FName& I
 					const ULandscapeWeightmapUsage* WeightmapUsage = WeightLayerData.WeightmapTextureUsages[InCurrentWeightmapToProcessIndex];
 					check(WeightmapUsage != nullptr);
 
-					CopyProceduralTexture(*Weightmap->GetName(), Weightmap->Resource, InOutputDebugName ? FString::Printf(TEXT("%s WeightmapScratchTexture"), *InProceduralLayerName.ToString()) : TEXT(""), InOutTextureData, nullptr, Component->GetSectionBase(), 0);
-					PrintProceduralDebugTextureResource(InOutputDebugName ? FString::Printf(TEXT("LS Weight: %s WeightmapScratchTexture %s"), *InProceduralLayerName.ToString(), TEXT("WeightmapScratchTextureResource")) : TEXT(""), InOutTextureData, 0, false);
+					CopyProceduralTexture(*Weightmap->GetName(), Weightmap->Resource, InOutputDebugName ? FString::Printf(TEXT("%s WeightmapScratchTexture"), *InProceduralLayer.Name.ToString()) : TEXT(""), InOutTextureData, nullptr, Component->GetSectionBase(), 0);
+					PrintProceduralDebugTextureResource(InOutputDebugName ? FString::Printf(TEXT("LS Weight: %s WeightmapScratchTexture %s"), *InProceduralLayer.Name.ToString(), TEXT("WeightmapScratchTextureResource")) : TEXT(""), InOutTextureData, 0, false);
 
 					for (const FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : WeightLayerData.WeightmapLayerAllocations)
 					{
@@ -3590,7 +3590,7 @@ void ALandscape::RegenerateProceduralWeightmaps()
 
 				// Prepare compute shader data
 				TArray<FLandscapeProceduralWeightmapExtractLayersComponentData> ComponentsData;	
-				PrepareProceduralComponentDataForExtractLayersCS(ProceduralLayer.Name, CurrentWeightmapToProcessIndex, OutputDebugName, AllLandscapes, WeightmapScratchExtractLayerTextureResource, ComponentsData, LayerInfoObjects);
+				PrepareProceduralComponentDataForExtractLayersCS(ProceduralLayer, CurrentWeightmapToProcessIndex, OutputDebugName, AllLandscapes, WeightmapScratchExtractLayerTextureResource, ComponentsData, LayerInfoObjects);
 
 				HasFoundWeightmapToProcess = ComponentsData.Num() > 0;
 
@@ -4377,16 +4377,7 @@ void ALandscape::SetProceduralLayerName(int32 InLayerIndex, const FName& InName)
 		return;
 	}
 
-	// TODO: ProceduralLayersData should be changed to map GUID to Data
-	FName OldName = ProceduralLayers[InLayerIndex].Name;
 	ProceduralLayers[InLayerIndex].Name = InName;
-	LandscapeInfo->ForAllLandscapeProxies([OldName, InName](ALandscapeProxy* Proxy)
-	{
-		FProceduralLayerData* Value = Proxy->ProceduralLayersData.Find(OldName);
-		check(Value);
-		Proxy->ProceduralLayersData.Add(InName, *Value);
-		Proxy->ProceduralLayersData.Remove(OldName);
-	});
 }
 
 void ALandscape::SetProceduralLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap)
@@ -4448,12 +4439,12 @@ void ALandscape::DeleteProceduralLayer(int32 InLayerIndex)
 	}
 	
 	Modify();
-	FName LayerName = Layer->Name;
+	FGuid LayerGuid = Layer->Guid;
 
 	// Clean up Weightmap usage in LandscapeProxies
-	LandscapeInfo->ForAllLandscapeProxies([LayerName](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForAllLandscapeProxies([LayerGuid](ALandscapeProxy* Proxy)
 	{
-		const FProceduralLayerData* LayerData = Proxy->ProceduralLayersData.Find(LayerName);
+		const FProceduralLayerData* LayerData = Proxy->ProceduralLayersData.Find(LayerGuid);
 		if (LayerData)
 		{
 			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
@@ -4480,9 +4471,9 @@ void ALandscape::DeleteProceduralLayer(int32 InLayerIndex)
 	});
 	
 	// Remove associated layer data of each landscape proxy
-	LandscapeInfo->ForAllLandscapeProxies([LayerName](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForAllLandscapeProxies([LayerGuid](ALandscapeProxy* Proxy)
 	{
-		Proxy->ProceduralLayersData.Remove(LayerName);
+		Proxy->ProceduralLayersData.Remove(LayerGuid);
 	});
 
 	// Remove layer from list
@@ -4614,23 +4605,12 @@ void ALandscape::SetCurrentEditingProceduralLayer(FGuid InLayerGuid)
 
 	LandscapeInfo->ForAllLandscapeProxies([InLayerGuid, this](ALandscapeProxy* Proxy)
 	{
-		// TODO: ProceduralLayersData should be changed to map GUID to Data
 		FProceduralLayer* Layer = ProceduralLayers.FindByPredicate([InLayerGuid](const FProceduralLayer& Other) { return Other.Guid == InLayerGuid; });
-		FProceduralLayerData* CurrentLayerData = Layer ? Proxy->ProceduralLayersData.Find(Layer->Name) : nullptr;
+		FProceduralLayerData* LayerData = Layer ? Proxy->ProceduralLayersData.Find(Layer->Guid) : nullptr;
 
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
-			// Update Current Heightmap
-			UTexture2D** LayerHeightmap = CurrentLayerData ? CurrentLayerData->Heightmaps.Find(Component->GetHeightmap()) : nullptr;
-			Component->SetCurrentEditingHeightmap(LayerHeightmap ? *LayerHeightmap : nullptr);
-
-			// Update Current Weightmaps
-			FWeightmapLayerData* WeightmapData = CurrentLayerData ? CurrentLayerData->WeightmapData.Find(Component) : nullptr;
-			Component->SetCurrentEditingWeightmapLayerAllocations(WeightmapData ? &WeightmapData->WeightmapLayerAllocations : nullptr);
-			Component->SetCurrentEditingWeightmaps(WeightmapData ? &WeightmapData->Weightmaps : nullptr);
-			Component->SetCurrentProceduralLayerName(WeightmapData && Layer ? Layer->Name : NAME_None);
-			Component->SetCurrentEditingWeightmapTexturesUsage(WeightmapData ? &WeightmapData->WeightmapTextureUsages : nullptr);
-
+			Component->SetCurrentEditingProceduralLayer(Layer, LayerData);
 			Component->MarkRenderStateDirty();
 		}
 	});
@@ -4652,7 +4632,7 @@ void ALandscape::CreateProceduralLayer(FName InName, bool bInUpdateProceduralCon
 	// Create associated layer data in each landscape proxy
 	LandscapeInfo->ForAllLandscapeProxies([NewLayer](ALandscapeProxy* Proxy)
 	{
-		Proxy->ProceduralLayersData.Add(NewLayer.Name, FProceduralLayerData());
+		Proxy->ProceduralLayersData.Add(NewLayer.Guid, FProceduralLayerData());
 	});
 
 	if (bInUpdateProceduralContent)
