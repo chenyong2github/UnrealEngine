@@ -227,7 +227,7 @@ bool FDataTableImporterCSV::ReadTable()
 			if(Error.Len() > 0)
 			{
 				FString ColumnName = (ColumnProp != nullptr) 
-					? DataTableUtils::GetPropertyDisplayName(ColumnProp, ColumnProp->GetName())
+					? DataTableUtils::GetPropertyExportName(ColumnProp)
 					: FString(TEXT("NONE"));
 				ImportProblems.Add(FString::Printf(TEXT("Problem assigning string '%s' to property '%s' on row '%s' : %s"), *CellValue, *ColumnName, *RowName.ToString(), *Error));
 			}

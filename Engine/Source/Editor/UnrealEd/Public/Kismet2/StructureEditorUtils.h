@@ -87,11 +87,13 @@ public:
 
 	static bool ChangeVariableDefaultValue(UUserDefinedStruct* Struct, FGuid VarGuid, const FString& NewDefaultValue);
 
-	static bool IsUniqueVariableDisplayName(const UUserDefinedStruct* Struct, const FString& DisplayName);
+	static bool IsUniqueVariableFriendlyName(const UUserDefinedStruct* Struct, const FString& DisplayName);
 
-	static FString GetVariableDisplayName(const UUserDefinedStruct* Struct, FGuid VarGuid);
+	static FString GetVariableFriendlyName(const UUserDefinedStruct* Struct, FGuid VarGuid);
 
-	static UProperty* GetPropertyByDisplayName(const UUserDefinedStruct* Struct, FString DisplayName);
+	static FString GetVariableFriendlyNameForProperty(const UUserDefinedStruct* Struct, const UProperty* Property);
+
+	static UProperty* GetPropertyByFriendlyName(const UUserDefinedStruct* Struct, FString DisplayName);
 
 	static FString GetVariableTooltip(const UUserDefinedStruct* Struct, FGuid VarGuid);
 	

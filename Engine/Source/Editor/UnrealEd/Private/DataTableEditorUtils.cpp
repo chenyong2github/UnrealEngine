@@ -693,7 +693,7 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 	for (int32 Index = 0; Index < StructProps.Num(); ++Index)
 	{
 		const UProperty* Prop = StructProps[Index];
-		const FText PropertyDisplayName = FText::FromString(DataTableUtils::GetPropertyDisplayName(Prop, FName::NameToDisplayString(Prop->GetName(), Prop->IsA<UBoolProperty>())));
+		const FText PropertyDisplayName = DataTableUtils::GetPropertyDisplayName(Prop, FName::NameToDisplayString(Prop->GetName(), Prop->IsA<UBoolProperty>()));
 
 		FDataTableEditorColumnHeaderDataPtr CachedColumnData;
 		

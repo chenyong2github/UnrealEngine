@@ -398,7 +398,7 @@ UProperty* UDataTable::FindTableProperty(const FName& PropertyName) const
 
 			for (TFieldIterator<UProperty> It(RowStruct); It; ++It)
 			{
-				if (PropertyNameStr == RowStruct->PropertyNameToDisplayName(It->GetFName()))
+				if (PropertyNameStr == RowStruct->GetAuthoredNameForField(*It))
 				{
 					Property = *It;
 					break;
@@ -671,7 +671,7 @@ TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 			}
 #endif // WITH_EDITOR
 
-			const FString DisplayName = DataTableUtils::GetPropertyDisplayName(ColumnProp, ExpectedPropNames[PropIdx].ToString());
+			const FString DisplayName = DataTableUtils::GetPropertyExportName(ColumnProp);
 			OutProblems.Add(FString::Printf(TEXT("Expected column '%s' not found in input."), *DisplayName));
 		}
 	}
@@ -754,7 +754,7 @@ TArray<FString> UDataTable::GetColumnTitles() const
 		{
 			UProperty* Prop = *It;
 			check(Prop != nullptr);
-			const FString DisplayName = DataTableUtils::GetPropertyDisplayName(Prop, Prop->GetName());
+			const FString DisplayName = DataTableUtils::GetPropertyExportName(Prop);
 			Result.Add(DisplayName);
 		}
 	}

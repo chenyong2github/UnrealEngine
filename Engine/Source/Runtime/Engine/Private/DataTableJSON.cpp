@@ -479,7 +479,7 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 		UProperty* BaseProp = *It;
 		check(BaseProp);
 
-		const FString ColumnName = DataTableUtils::GetPropertyDisplayName(BaseProp, BaseProp->GetName());
+		const FString ColumnName = DataTableUtils::GetPropertyExportName(BaseProp);
 
 		TSharedPtr<FJsonValue> ParsedPropertyValue;
 		for (const FString& PropertyName : DataTableUtils::GetPropertyImportNames(BaseProp))
