@@ -47,7 +47,7 @@ namespace AutomationTool
 			IProcessResult Result = Run(UBTExecutable, CommandLine, Options: ERunOptions.AllowSpew | ERunOptions.NoStdOutCapture);
 			if(Result.ExitCode != 0)
 			{
-				throw new AutomationException((ExitCode)Result.ExitCode, "UnrealBuildTool failed. See log for more details. ({0})", CommandUtils.CombinePaths(Env.FinalLogFolder, LogName));
+				throw new AutomationException((ExitCode)Result.ExitCode, "UnrealBuildTool failed. See log for more details. ({0})", CommandUtils.CombinePaths(Env.FinalLogFolder, LogName)) { OutputFormat = AutomationExceptionOutputFormat.Minimal };
 			}
 		}
 

@@ -96,7 +96,7 @@ namespace AutomationTool
 				}
 				else if(Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
 				{
-					Log.TraceInformation("{0}", Ex.Message);
+					Log.TraceInformation("{0}", Ex.ToString().Replace("\n", "\n  "));
 					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
 				}
 				else
