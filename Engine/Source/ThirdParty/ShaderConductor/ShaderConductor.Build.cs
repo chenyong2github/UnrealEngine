@@ -42,7 +42,7 @@ public class ShaderConductor : ModuleRules
                 PublicDelayLoadDLLs.Add(LibraryPath);
                 RuntimeDependencies.Add(LibraryPath);
             }
-            string LibPath = BinariesDir + "/ShaderConductor.lib";
+            string LibPath = Target.UEThirdPartyBinariesDirectory + "ShaderConductor/Win64/ShaderConductor.lib";
             PublicAdditionalLibraries.Add(LibPath);
         }
         else
