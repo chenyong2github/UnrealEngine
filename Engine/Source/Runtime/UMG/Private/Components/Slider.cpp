@@ -21,7 +21,8 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	RequiresControllerLock = true;
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider");
+	static const FSliderStyle StaticSlider = FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider");
+	WidgetStyle = StaticSlider;
 }
 
 TSharedRef<SWidget> USlider::RebuildWidget()

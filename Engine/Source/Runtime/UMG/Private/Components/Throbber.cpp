@@ -19,7 +19,8 @@ UThrobber::UThrobber(const FObjectInitializer& ObjectInitializer)
 	bAnimateOpacity = true;
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	Image = *FCoreStyle::Get().GetBrush("Throbber.Chunk");
+	static const FSlateBrush StaticImage = *FCoreStyle::Get().GetBrush("Throbber.Chunk");
+	Image = StaticImage;
 }
 
 void UThrobber::ReleaseSlateResources(bool bReleaseChildren)
