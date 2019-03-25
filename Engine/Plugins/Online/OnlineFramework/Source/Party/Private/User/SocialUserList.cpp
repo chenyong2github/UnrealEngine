@@ -63,7 +63,10 @@ void FSocialUserList::InitializeList()
 		TryAddUserFast(*User);
 	}
 
-	SetAutoUpdatePeriod(USocialSettings::GetUserListAutoUpdateRate());
+	if (ListConfig.bRequireAutoUpdate)
+	{
+		SetAutoUpdatePeriod(USocialSettings::GetUserListAutoUpdateRate());
+	}
 }
 
 void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
@@ -73,7 +76,7 @@ void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FSocialUserList::UpdateNow()
 {
-	HandleAutoUpdateList(0.f);
+	UpdateListInternal();
 }
 
 void FSocialUserList::SetAutoUpdatePeriod(float InAutoUpdatePeriod)
@@ -119,23 +122,25 @@ void FSocialUserList::HandleOwnerToolkitReset()
 void FSocialUserList::HandlePartyInviteReceived(USocialUser& InvitingUser)
 {
 	TryAddUser(InvitingUser);
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandlePartyInviteHandled(USocialUser* InvitingUser)
 {
 	TryRemoveUser(*InvitingUser);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendInviteReceived(USocialUser& User, ESocialSubsystem SubsystemType)
 {
 	TryAddUser(User);
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendInviteRemoved(ESocialSubsystem SubsystemType, USocialUser* User)
 {
 	TryRemoveUser(*User);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendshipEstablished(USocialUser& NewFriend, ESocialSubsystem SubsystemType, bool bIsNewRelationship)
@@ -151,14 +156,14 @@ void FSocialUserList::HandleFriendshipEstablished(USocialUser& NewFriend, ESocia
 	{
 		// Any non-friends list that cares about friendship does so to remove entries (i.e. invites & recent players)
 		TryRemoveUser(NewFriend);
-		UpdateNow();
+		UpdateListInternal();
 	}
 }
 
 void FSocialUserList::HandleFriendRemoved(ESocialSubsystem SubsystemType, USocialUser* User)
 {
 	TryRemoveUser(*User);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleUserBlocked(USocialUser& BlockedUser, ESocialSubsystem SubsystemType, bool bIsNewRelationship)
@@ -173,7 +178,7 @@ void FSocialUserList::HandleUserBlocked(USocialUser& BlockedUser, ESocialSubsyst
 		TryRemoveUser(BlockedUser);
 	}
 	
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleUserBlockStatusChanged(ESocialSubsystem SubsystemType, bool bIsBlocked, USocialUser* User)
@@ -181,7 +186,7 @@ void FSocialUserList::HandleUserBlockStatusChanged(ESocialSubsystem SubsystemTyp
 	if (!bIsBlocked)
 	{
 		TryRemoveUser(*User);
-		UpdateNow();
+		UpdateListInternal();
 	}
 }
 
@@ -394,6 +399,15 @@ struct FUserSortData
 
 bool FSocialUserList::HandleAutoUpdateList(float)
 {
+	if (bAllowAutoUpdate)
+	{
+		UpdateListInternal();
+	}
+	return true;
+}
+
+void FSocialUserList::UpdateListInternal()
+{
 	// Re-evaluate whether each user with dirtied presence is still fit for the list
 	for (TWeakObjectPtr<USocialUser> DirtyUser : UsersWithDirtyPresence)
 	{
@@ -434,12 +448,12 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 		ensure(PendingRemovals.Num() == 0);
 		PendingRemovals.Reset();
 	}
-	
+
 	if (PendingAdds.Num() > 0)
 	{
 		bListChanged = true;
 		Users.Append(PendingAdds);
-		
+
 		for (USocialUser* User : PendingAdds)
 		{
 			OnUserAdded().Broadcast(*User);
@@ -470,6 +484,4 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 		
 		OnUpdateComplete().Broadcast();
 	}
-
-	return true;
 }
