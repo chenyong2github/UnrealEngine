@@ -15,8 +15,6 @@ USizeBoxSlot::USizeBoxSlot(const FObjectInitializer& ObjectInitializer)
 
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
-
-	SBox::FArguments SizeBoxDefaults;
 }
 
 void USizeBoxSlot::ReleaseSlateResources(bool bReleaseChildren)
