@@ -14,8 +14,10 @@ UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitialize
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
-	TextStyle = FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText");
+	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
+	static const FTextBlockStyle StaticNormalTextStyle = FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText");
+	WidgetStyle = StaticButtonStyle;
+	TextStyle = StaticNormalTextStyle;
 
 	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
 	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");
