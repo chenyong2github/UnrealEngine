@@ -544,7 +544,7 @@ namespace
 
         EXPECT_TRUE(result.hasError);
         const char* errorStr = reinterpret_cast<const char*>(result.errorWarningMsg->Data());
-        EXPECT_GE(std::string(errorStr, errorStr + result.errorWarningMsg->Size()).find("fatal error: 'Header.hlsli' file not found"), 0);
+        EXPECT_GE(std::string(errorStr, errorStr + result.errorWarningMsg->Size()).find("fatal error: 'Header.hlsli' file not found"), 0u);
 
         DestroyBlob(result.errorWarningMsg);
         DestroyBlob(result.target);

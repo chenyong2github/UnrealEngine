@@ -394,14 +394,14 @@ namespace
             
             if (options.removeUnusedGlobals)
             {
+				CComPtr<IDxcOperationResult> removeUnusedGlobalsResult;
                 IFT(Dxcompiler::Instance().Rewriter()->RemoveUnusedGlobals(temp, entryPointUtf16.c_str(), dxcDefines.data(),
-                                                                           static_cast<UINT32>(dxcDefines.size()), &rewriteResult));
-                
-                IFT(rewriteResult->GetStatus(&statusRewrite));
+                                                                           static_cast<UINT32>(dxcDefines.size()), &removeUnusedGlobalsResult));
+				IFT(removeUnusedGlobalsResult->GetStatus(&statusRewrite));
                 
                 if (SUCCEEDED(statusRewrite))
                 {
-                    IFT(rewriteResult->GetResult((IDxcBlob**)&rewritten));
+                    IFT(removeUnusedGlobalsResult->GetResult((IDxcBlob**)&rewritten));
 					ret.hasError = false;
 					ret.target = CreateBlob(rewritten->GetBufferPointer(), static_cast<uint32_t>(rewritten->GetBufferSize()));
                 }
@@ -1037,8 +1037,6 @@ namespace ShaderConductor
 	/* UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals */
 	Compiler::ResultDesc Compiler::Rewrite(SourceDesc source, const Compiler::Options& options)
 	{
-		assert(target.language == ShadingLanguage::Hlsl && source.compiler == ShadingCompiler::Dxc);
-		
 		if (source.entryPoint == nullptr)
 		{
 			source.entryPoint = "main";

@@ -5074,18 +5074,18 @@ SpirvInstruction *SpirvEmitter::processBinaryOp(
 	QualType lhsCastType = BinaryOperator::isCompoundAssignmentOp(opcode) ? computationType : lhsType;
 	if (hlsl::IsHLSLVecType(lhsCastType) && isScalarType(rhsType)) {
       QualType lhsElemType = {};
-     isVectorType(lhsCastType, &lhsElemType);
+      bool bIsVector = isVectorType(lhsCastType, &lhsElemType);
 		
-      if (lhsElemType != rhsType)
+      if (bIsVector && lhsElemType != rhsType)
         rhsVal = castToType(rhsVal, rhsType, lhsElemType, rhs->getExprLoc());
 	}
     else if (hlsl::IsHLSLMatType(lhsCastType) && isScalarType(rhsType)) {
       QualType lhsElemType = {};
       uint32_t lhsNumRows = 0, lhsNumCols = 0;
 		
-      isMxNMatrix(lhsType, &lhsElemType, &lhsNumRows, &lhsNumCols);
+      bool isMatrix = isMxNMatrix(lhsType, &lhsElemType, &lhsNumRows, &lhsNumCols);
 	
-      if (lhsElemType != rhsType)
+      if (isMatrix && lhsElemType != rhsType)
         rhsVal = castToType(rhsVal, rhsType, lhsElemType, rhs->getExprLoc());
 	}
     // UE Change End: Hack to make binops cast arguments to necessary types because otherwise (e.g. sqrt(2.)) is treated as double and we fail validation
