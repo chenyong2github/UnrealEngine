@@ -741,6 +741,66 @@ void CompilerMSL::preprocess_op_codes()
 	{
 		add_header_line("#include <metal_atomic>");
 	}
+	
+	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+	// UnsafeArray
+	{
+		add_header_line("	");
+		add_header_line("template <typename T, size_t Num>");
+		add_header_line("struct unsafe_array");
+		add_header_line("{");
+		add_header_line("	T __Elements[Num ? Num : 1];");
+		add_header_line("	");
+		add_header_line("	constexpr size_t size() const thread { return Num; }");
+		add_header_line("	constexpr size_t max_size() const thread { return Num; }");
+		add_header_line("	constexpr bool empty() const thread { return Num == 0; }");
+		add_header_line("	");
+		add_header_line("	constexpr size_t size() const device { return Num; }");
+		add_header_line("	constexpr size_t max_size() const device { return Num; }");
+		add_header_line("	constexpr bool empty() const device { return Num == 0; }");
+		add_header_line("	");
+		add_header_line("	constexpr size_t size() const constant { return Num; }");
+		add_header_line("	constexpr size_t max_size() const constant { return Num; }");
+		add_header_line("	constexpr bool empty() const constant { return Num == 0; }");
+		add_header_line("	");
+		add_header_line("	constexpr size_t size() const threadgroup { return Num; }");
+		add_header_line("	constexpr size_t max_size() const threadgroup { return Num; }");
+		add_header_line("	constexpr bool empty() const threadgroup { return Num == 0; }");
+		add_header_line("	");
+		add_header_line("	thread T &operator[](size_t pos) thread");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	constexpr const thread T &operator[](size_t pos) const thread");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	");
+		add_header_line("	device T &operator[](size_t pos) device");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	constexpr const device T &operator[](size_t pos) const device");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	");
+		add_header_line("	constexpr const constant T &operator[](size_t pos) const constant");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	");
+		add_header_line("	threadgroup T &operator[](size_t pos) threadgroup");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("	constexpr const threadgroup T &operator[](size_t pos) const threadgroup");
+		add_header_line("	{");
+		add_header_line("		return __Elements[pos];");
+		add_header_line("	}");
+		add_header_line("};");
+	}
+	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 
 	// Metal vertex functions that write to resources must disable rasterization and return void.
 	if (preproc.uses_resource_write)
@@ -6688,7 +6748,8 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	{
 	case SPIRType::Struct:
 		// Need OpName lookup here to get a "sensible" name for a struct.
-		return to_name(type.self);
+		type_name = to_name(type.self);
+		break;
 
 	case SPIRType::Image:
 	case SPIRType::SampledImage:
@@ -6760,13 +6821,13 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	if (type.array.empty())
 	{
-	return type_name;
-}
+		return type_name;
+	}
 	else
 	{
 		if (options.flatten_multidimensional_arrays)
 		{
-			string res = "array<";
+			string res = "unsafe_array<";
 			res += type_name;
 			res += ",";
 			for (auto i = uint32_t(type.array.size()); i; i--)
@@ -6794,7 +6855,7 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 			string sizes;
 			for (auto i = uint32_t(type.array.size()); i; i--)
 			{
-				res += "array<";
+				res += "unsafe_array<";
 				sizes += ",";
 				sizes += to_array_size(type, i - 1);
 				sizes += ">";
@@ -6812,7 +6873,6 @@ string CompilerMSL::type_to_array_glsl(const SPIRType &type)
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	switch (type.basetype)
 	{
-		case SPIRType::Struct:
 		case SPIRType::AtomicCounter:
 		case SPIRType::ControlPointArray:
 		{
@@ -7695,7 +7755,7 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 	}
 
 	case OpStore:
-			{
+	{
 		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 		break;
