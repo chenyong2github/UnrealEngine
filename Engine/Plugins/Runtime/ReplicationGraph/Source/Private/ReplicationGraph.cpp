@@ -1481,10 +1481,28 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ReplicateSingleActor: %s. NetConnection: %s"), *Actor->GetName(), *NetConnection->Describe());
 	}
 
-	if (ActorInfo.Channel && ActorInfo.Channel->Closing)
+	// These checks will happen anyway in UActorChannel::ReplicateActor, but we need to be able to detect them to prevent crashes.
+	// We could consider removing the actor from RepGraph if we hit these cases, but we don't have a good way to notify
+	// game code or the Net Driver.
+	if (!ensureMsgf(Actor, TEXT("Null Actor! Channel = %s"), *DescribeSafe(ActorInfo.Channel)))
 	{
-		// We are waiting for the client to ack this actor channel's close bunch.
 		return 0;
+	}
+	else if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication! Actor = %s, Channel = %s"), *Actor->GetFullName(), *DescribeSafe(ActorInfo.Channel)))
+	{
+		return 0;
+	}
+	if (LIKELY(ActorInfo.Channel))
+	{
+		if (UNLIKELY(ActorInfo.Channel->Closing))
+		{
+			// We are waiting for the client to ack this actor channel's close bunch.
+			return 0;
+		}
+		else if (!ensureMsgf(ActorInfo.Channel->Actor == Actor, TEXT("Mismatched channel actors! Channel = %s, Replicating Actor = %s"), *ActorInfo.Channel->Describe(), *Actor->GetFullName()))
+		{
+			return 0;
+		}
 	}
 
 	ActorInfo.LastRepFrameNum = FrameNum;
