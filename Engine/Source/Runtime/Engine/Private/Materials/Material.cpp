@@ -3063,7 +3063,10 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 		FlushResourceShaderMaps();
 	}
 
-	UpdateResourceAllocations();
+	// Resources cannot be deleted before uniform expressions are recached because
+	// UB layouts will be accessed and they are owned by material resources
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	UpdateResourceAllocations(&ResourcesToFree);
 
 	if (FApp::CanEverRender())
 	{
@@ -3118,7 +3121,21 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		RecacheUniformExpressions(true);
+		// Material reload can call this function again. Don't recreate since mesh
+		// draw commands cache a pointer to the uniform buffer
+		RecacheUniformExpressions(!FPlatformProperties::RequiresCookedData());
+	}
+
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeUnusedMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
 	}
 }
 
@@ -3697,7 +3714,7 @@ void UMaterial::GetQualityLevelNodeUsage(TArray<bool, TInlineAllocator<EMaterial
 	}
 }
 
-void UMaterial::UpdateResourceAllocations()
+void UMaterial::UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
 {
 	if (FApp::CanEverRender())
 	{
@@ -3715,7 +3732,14 @@ void UMaterial::UpdateResourceAllocations()
 				FMaterialResource*& Resource = MaterialResources[Quality][Feature];
 				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
 				{
-					delete Resource;
+					if (ResourcesToFree)
+					{
+						ResourcesToFree->Add(Resource);
+					}
+					else
+					{
+						delete Resource;
+					}
 					Resource = nullptr;
 				}
 				else
