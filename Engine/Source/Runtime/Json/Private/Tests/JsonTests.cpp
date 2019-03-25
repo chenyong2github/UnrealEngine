@@ -713,28 +713,28 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 			int64 IntVal;
 			bool bOk = JsonNumberToInt64(9007199254740991.0, IntVal);
 			TestTrue(TEXT("TryGetNumber-Int64 Big Float64 succeeds"), bOk);
-			TestEqual(TEXT("TryGetNumber-Int64 Big Float64"), IntVal, 9007199254740991L);
+			TestEqual(TEXT("TryGetNumber-Int64 Big Float64"), IntVal, 9007199254740991LL);
 		}
 
 		{
 			int64 IntVal;
 			bool bOk = JsonNumberToInt64(-9007199254740991.0, IntVal);
 			TestTrue(TEXT("TryGetNumber-Int64 Small Float64 succeeds"), bOk);
-			TestEqual(TEXT("TryGetNumber-Int64 Small Float64"), IntVal, -9007199254740991L);
+			TestEqual(TEXT("TryGetNumber-Int64 Small Float64"), IntVal, -9007199254740991LL);
 		}
 
 		{
 			int64 IntVal;
 			bool bOk = JsonNumberToInt64(0.4999999999999997, IntVal);
 			TestTrue(TEXT("TryGetNumber-Int64 Lesser than near half succeeds"), bOk);
-			TestEqual(TEXT("TryGetNumber-Int64 Lesser than near half rounds to zero"), IntVal, 0);
+			TestEqual(TEXT("TryGetNumber-Int64 Lesser than near half rounds to zero"), IntVal, 0LL);
 		}
 
 		{
 			int64 IntVal;
 			bool bOk = JsonNumberToInt64(-0.4999999999999997, IntVal);
 			TestTrue(TEXT("TryGetNumber-Int64 Greater than near negative half succeeds"), bOk);
-			TestEqual(TEXT("TryGetNumber-Int64 Greater than near negative half rounds to zero"), IntVal, 0);
+			TestEqual(TEXT("TryGetNumber-Int64 Greater than near negative half rounds to zero"), IntVal, 0LL);
 		}
 
 		{

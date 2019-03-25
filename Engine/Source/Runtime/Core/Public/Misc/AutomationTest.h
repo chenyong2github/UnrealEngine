@@ -1231,6 +1231,7 @@ public:
 public:
 
 	void TestEqual(const TCHAR* What, int32 Actual, int32 Expected);
+	void TestEqual(const TCHAR* What, int64 Actual, int64 Expected);
 	void TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	void TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
 	void TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);

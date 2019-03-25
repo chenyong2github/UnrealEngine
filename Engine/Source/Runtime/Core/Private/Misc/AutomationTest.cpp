@@ -12,7 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Internationalization/Regex.h"
-
+#include <inttypes.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
@@ -1075,6 +1075,15 @@ void FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const
 	if (Actual != Expected)
 	{
 		AddError(FString::Printf(TEXT("Expected '%s' to be %d, but it was %d."), What, Expected, Actual), 1);
+	}
+}
+
+
+void FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
+{
+	if (Actual != Expected)
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRId64 ", but it was %" PRId64 "."), What, Expected, Actual), 1);
 	}
 }
 
