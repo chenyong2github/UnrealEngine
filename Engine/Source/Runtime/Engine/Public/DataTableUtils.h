@@ -93,8 +93,6 @@ namespace DataTableUtils
 	ENGINE_API FText GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName);
 
 	/**
-
-	/**
 	 * Output each row for a specific column/property in the table (doesn't include the title)
 	 */
 	ENGINE_API TArray<FString> GetColumnDataAsString(const UDataTable* InTable, const FName& PropertyName, const EDataTableExportFlags InDTExportFlags);
