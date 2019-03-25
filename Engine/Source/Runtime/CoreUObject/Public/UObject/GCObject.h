@@ -31,6 +31,8 @@ class COREUOBJECT_API UGCObjectReferencer : public UObject
 	FCriticalSection ReferencedObjectsCritical;
 	/** True if we are currently inside AddReferencedObjects */
 	bool bIsAddingReferencedObjects = false;
+	/** Currently serializing FGCObject*, only valid if bIsAddingReferencedObjects */
+	FGCObject* CurrentlySerializingObject = nullptr;
 
 public:
 	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UGCObjectReferencer, UObject, CLASS_Transient, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API);

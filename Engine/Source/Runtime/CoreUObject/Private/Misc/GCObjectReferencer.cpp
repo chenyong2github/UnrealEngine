@@ -27,8 +27,10 @@ void UGCObjectReferencer::AddReferencedObjects(UObject* InThis, FReferenceCollec
 	for (FGCObject* Object : This->ReferencedObjects)
 	{
 		check(Object);
+		This->CurrentlySerializingObject = Object;
 		Object->AddReferencedObjects(Collector);
 	}
+	This->CurrentlySerializingObject = nullptr;
 	Super::AddReferencedObjects( This, Collector );
 	This->bIsAddingReferencedObjects = false;
 }
@@ -52,9 +54,14 @@ void UGCObjectReferencer::RemoveObject(FGCObject* Object)
 
 bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, bool bOnlyIfAddingReferenced) const
 {
-	if (bOnlyIfAddingReferenced && !bIsAddingReferencedObjects)
+	if (bOnlyIfAddingReferenced)
 	{
-		return false;
+		if (!bIsAddingReferencedObjects || !CurrentlySerializingObject)
+		{
+			return false;
+		}
+		OutName = CurrentlySerializingObject->GetReferencerName();
+		return true;
 	}
 
 	// Let each registered object handle its AddReferencedObjects call
