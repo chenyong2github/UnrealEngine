@@ -219,6 +219,8 @@ Optimizer& Optimizer::RegisterSizePasses() {
 
 Optimizer& Optimizer::RegisterWebGPUPasses() {
   return RegisterPass(CreateStripDebugInfoPass())
+      .RegisterPass(CreateStripAtomicCounterMemoryPass())
+      .RegisterPass(CreateEliminateDeadConstantPass())
       .RegisterPass(CreateFlattenDecorationPass())
       .RegisterPass(CreateAggressiveDCEPass())
       .RegisterPass(CreateDeadBranchElimPass());
@@ -266,7 +268,9 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
   //
   // Both Pass::name() and Pass::desc() should be static class members so they
   // can be invoked without creating a pass instance.
-  if (pass_name == "strip-debug") {
+  if (pass_name == "strip-atomic-counter-memory") {
+    RegisterPass(CreateStripAtomicCounterMemoryPass());
+  } else if (pass_name == "strip-debug") {
     RegisterPass(CreateStripDebugInfoPass());
   } else if (pass_name == "strip-reflect") {
     RegisterPass(CreateStripReflectInfoPass());
@@ -383,7 +387,7 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
   } else if (pass_name == "replace-invalid-opcode") {
     RegisterPass(CreateReplaceInvalidOpcodePass());
   } else if (pass_name == "inst-bindless-check") {
-    RegisterPass(CreateInstBindlessCheckPass(7, 23, true));
+    RegisterPass(CreateInstBindlessCheckPass(7, 23, true, true));
     RegisterPass(CreateSimplificationPass());
     RegisterPass(CreateDeadBranchElimPass());
     RegisterPass(CreateBlockMergePass());
@@ -527,6 +531,11 @@ Optimizer& Optimizer::SetTimeReport(std::ostream* out) {
 
 Optimizer::PassToken CreateNullPass() {
   return MakeUnique<Optimizer::PassToken::Impl>(MakeUnique<opt::NullPass>());
+}
+
+Optimizer::PassToken CreateStripAtomicCounterMemoryPass() {
+  return MakeUnique<Optimizer::PassToken::Impl>(
+      MakeUnique<opt::StripAtomicCounterMemoryPass>());
 }
 
 Optimizer::PassToken CreateStripDebugInfoPass() {
@@ -798,10 +807,11 @@ Optimizer::PassToken CreateUpgradeMemoryModelPass() {
 
 Optimizer::PassToken CreateInstBindlessCheckPass(uint32_t desc_set,
                                                  uint32_t shader_id,
-                                                 bool runtime_array_enable) {
+                                                 bool input_length_enable,
+                                                 bool input_init_enable) {
   return MakeUnique<Optimizer::PassToken::Impl>(
-      MakeUnique<opt::InstBindlessCheckPass>(desc_set, shader_id,
-                                             runtime_array_enable));
+      MakeUnique<opt::InstBindlessCheckPass>(
+          desc_set, shader_id, input_length_enable, input_init_enable));
 }
 
 Optimizer::PassToken CreateCodeSinkingPass() {
