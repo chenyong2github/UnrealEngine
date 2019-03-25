@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "HAL/LowLevelMemTracker.h"
 
 namespace ImmediatePhysics
 {
@@ -36,6 +37,7 @@ struct FLinearBlockAllocator
 	
 	FPageStruct* AllocPage()
 	{
+		LLM_SCOPE(ELLMTag::PhysX);
 		FPageStruct* ReturnPage = (FPageStruct*)FMemory::Malloc(sizeof(FPageStruct), 16);
 		new(ReturnPage) FPageStruct();
 		

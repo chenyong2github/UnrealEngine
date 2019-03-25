@@ -11,6 +11,7 @@
 #include "PhysScene_PhysX.h"
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 #include "GenericPhysicsInterface.h"
+#include "HAL/LowLevelMemTracker.h"
 
 struct FConstraintBrokenDelegateData;
 class IPhysicsReplicationFactory;
@@ -174,6 +175,7 @@ class FPhysScene_ImmediatePhysX : public FGenericPhysicsInterface
 	
 		FPageStruct* AllocPage()
 		{
+			LLM_SCOPE(ELLMTag::PhysX);
 			FPageStruct* ReturnPage = (FPageStruct*)FMemory::Malloc(sizeof(FPageStruct), 16);
 			new(ReturnPage) FPageStruct();
 		
