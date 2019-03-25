@@ -243,7 +243,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames(bool bRe
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld *TestWorld = *It;
-		if (!TestWorld || TestWorld->WorldType != EWorldType::PIE)
+
+		// Include only PIE and worlds that own the persistent level (i.e. non-streaming levels).
+		const bool bIsValidDebugWorld = (TestWorld != nullptr)
+			&& TestWorld->WorldType == EWorldType::PIE
+			&& TestWorld->PersistentLevel != nullptr
+			&& TestWorld->PersistentLevel->OwningWorld == TestWorld;
+
+		if (!bIsValidDebugWorld)
 		{
 			continue;
 		}
