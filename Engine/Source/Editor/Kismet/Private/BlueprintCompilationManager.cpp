@@ -88,6 +88,7 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 
 	// FGCObject:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const override;
 
 	void QueueForCompilation(const FBPCompileRequest& CompileJob);
 	void CompileSynchronouslyImpl(const FBPCompileRequest& Request);
@@ -155,6 +156,11 @@ void FBlueprintCompilationManagerImpl::AddReferencedObjects(FReferenceCollector&
 
 	Collector.AddReferencedObjects(ClassesToReinstance);
 	Collector.AddReferencedObjects(OldCDOs);
+}
+
+FString FBlueprintCompilationManagerImpl::GetReferencerName() const
+{
+	return TEXT("FBlueprintCompilationManagerImpl");
 }
 
 void FBlueprintCompilationManagerImpl::QueueForCompilation(const FBPCompileRequest& CompileJob)

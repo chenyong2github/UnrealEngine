@@ -3590,6 +3590,11 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 }
 
+FString FBlueprintEditor::GetReferencerName() const
+{
+	return TEXT("FBlueprintEditor");
+}
+
 bool FBlueprintEditor::IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename)
 {
 	TSharedPtr<SGraphEditor> GraphEditor;

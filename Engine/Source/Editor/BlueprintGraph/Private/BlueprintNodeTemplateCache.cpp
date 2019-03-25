@@ -477,6 +477,11 @@ void FBlueprintNodeTemplateCache::AddReferencedObjects(FReferenceCollector& Coll
 	Collector.AddReferencedObjects(TemplateOuters);
 }
 
+FString FBlueprintNodeTemplateCache::GetReferencerName() const
+{
+	return TEXT("FBlueprintNodeTemplateCache");
+}
+
 //------------------------------------------------------------------------------
 bool FBlueprintNodeTemplateCache::CacheBlueprintOuter(UBlueprint* Blueprint)
 {

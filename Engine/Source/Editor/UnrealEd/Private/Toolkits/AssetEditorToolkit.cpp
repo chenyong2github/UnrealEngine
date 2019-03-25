@@ -1131,6 +1131,10 @@ void FAssetEditorToolkit::FGCEditingObjects::AddReferencedObjects(FReferenceColl
 	}
 }
 
+FString FAssetEditorToolkit::FGCEditingObjects::GetReferencerName() const
+{
+	return TEXT("FAssetEditorToolkit::FGCEditorObjects");
+}
 
 TSharedPtr<FExtender> FExtensibilityManager::GetAllExtenders()
 {

@@ -3071,6 +3071,10 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 	FMovieSceneRootEvaluationTemplateInstance::StaticStruct()->SerializeBin(Collector.GetVerySlowReferenceCollectorArchive(), &RootTemplateInstance);
 }
 
+FString FSequencer::GetReferencerName() const
+{
+	return TEXT("FSequencer");
+}
 
 void FSequencer::ResetPerMovieSceneData()
 {
@@ -9988,6 +9992,5 @@ void FSequencer::RecompileDirtyDirectors()
 		}
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE

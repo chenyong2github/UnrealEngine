@@ -76,6 +76,11 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObjects(ParameterCollections);
 }
 
+FString FNiagaraWorldManager::GetReferencerName() const
+{
+	return TEXT("FNiagaraWorldManager");
+}
+
 UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollection(UNiagaraParameterCollection* Collection)
 {
 	if (!Collection)

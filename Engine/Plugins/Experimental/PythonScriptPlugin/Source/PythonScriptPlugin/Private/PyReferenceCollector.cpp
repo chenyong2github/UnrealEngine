@@ -37,6 +37,11 @@ void FPyReferenceCollector::AddReferencedObjects(FReferenceCollector& InCollecto
 	}
 }
 
+FString FPyReferenceCollector::GetReferencerName() const
+{
+	return TEXT("FPyReferenceCollector");
+}
+
 void FPyReferenceCollector::PurgeUnrealObjectReferences(const UObject* InObject, const bool bIncludeInnerObjects)
 {
 	PurgeUnrealObjectReferences(TArrayView<const UObject*>(&InObject, 1), bIncludeInnerObjects);

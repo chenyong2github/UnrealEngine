@@ -197,6 +197,7 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 	
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override;
