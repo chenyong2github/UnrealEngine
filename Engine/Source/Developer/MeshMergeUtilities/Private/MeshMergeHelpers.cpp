@@ -1303,6 +1303,7 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 
 			// Retrieve mesh data in FMeshDescription form
 			FMeshDescription ImposterMesh;
+			UStaticMesh::RegisterMeshAttributes(ImposterMesh);
 			FMeshMergeHelpers::RetrieveMesh(Component, LODIndex, ImposterMesh, false);
 
 			// Retrieve the sections, we're expect 1 for imposter meshes
