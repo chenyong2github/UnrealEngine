@@ -2426,7 +2426,7 @@ void UDemoNetDriver::TickDemoRecordFrame( float DeltaSeconds )
 	}
 
 	const double RecordFrameStartTime = FPlatformTime::Seconds();
-	const double RecordTimeLimit = (MaxDesiredRecordTimeMS * 1000.f);
+	const double RecordTimeLimit = (MaxDesiredRecordTimeMS / 1000.f);
 
 	// Mark any new streaming levels, so that they are saved out this frame
 	if (!HasLevelStreamingFixes())
