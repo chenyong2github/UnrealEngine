@@ -4017,7 +4017,10 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 			// if the actor is now relevant or was recently relevant
 			const bool bIsRecentlyRelevant = bIsRelevant || ( Channel && Time - Channel->RelevantTime < RelevantTimeout ) || ActorInfo->bForceRelevantNextUpdate;
 
-			ActorInfo->bForceRelevantNextUpdate = false;
+			if (ActorInfo->bForceRelevantNextUpdate)
+			{
+				ProcessedForceRelevantActors.AddUnique(ActorInfo);
+			}
 
 			if ( bIsRecentlyRelevant )
 			{
@@ -4459,6 +4462,12 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 			ConnectionViewers.Reset();
 		}
 	}
+
+	for (FNetworkObjectInfo* ActorInfo : ProcessedForceRelevantActors)
+	{
+		ActorInfo->bForceRelevantNextUpdate = false;
+	}
+	ProcessedForceRelevantActors.Reset();
 
 	// shuffle the list of connections if not all connections were ticked
 	if (NumClientsToTick < ClientConnections.Num())

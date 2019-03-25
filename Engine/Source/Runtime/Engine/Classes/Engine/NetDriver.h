@@ -1259,4 +1259,6 @@ private:
 
 	/** NetDriver time to end packet loss burst simulation. */
 	float PacketLossBurstEndTime;
+
+	TArray<FNetworkObjectInfo*> ProcessedForceRelevantActors;
 };
