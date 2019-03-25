@@ -3799,6 +3799,8 @@ protected:
 		else // mobile
 		{
 			int32 UV = BufferUV;
+
+			// On mobile in post process material, there is no need to do ViewportUV->BufferUV conversion because ViewSize == BufferSize.
 			if (Material->GetMaterialDomain() == MD_PostProcess)
 			{
 				int32 BlendableLocation = Material->GetBlendableLocation();
@@ -3812,6 +3814,10 @@ protected:
 				if (ViewportUV == INDEX_NONE)
 				{
 					UV = TextureCoordinate(0, false, false);
+				}
+				else
+				{
+					UV = ViewportUV;
 				}
 			}
 			
