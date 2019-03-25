@@ -26,9 +26,15 @@ UScrollBox::UScrollBox(const FObjectInitializer& ObjectInitializer)
 	Visibility = ESlateVisibility::Visible;
 	Clipping = EWidgetClipping::ClipToBounds;
 
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox");
-	WidgetBarStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		static const FScrollBoxStyle StaticScrollBoxStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBoxStyle>("ScrollBox");
+		static const FScrollBarStyle StaticScrollBarStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
+
+		WidgetStyle = StaticScrollBoxStyle;
+		WidgetBarStyle = StaticScrollBarStyle;
+	}
+
 	bAllowRightClickDragScrolling = true;
 }
 

@@ -21,9 +21,13 @@ UExpandableArea::UExpandableArea(const FObjectInitializer& ObjectInitializer)
 	bIsVariable = true;
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	Style = FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea");
+	static const FExpandableAreaStyle StaticExpandableArea = FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea");
+	static const FSlateBrush StaticBorderBrush = *FCoreStyle::Get().GetBrush("ExpandableArea.Border");
+
+	Style = StaticExpandableArea;
+	BorderBrush = StaticBorderBrush;
+
 	BorderColor = FLinearColor::White;
-	BorderBrush = *FCoreStyle::Get().GetBrush("ExpandableArea.Border");
 	AreaPadding = FMargin(1);
 	HeaderPadding = FMargin(4.0f, 2.0f);
 }
