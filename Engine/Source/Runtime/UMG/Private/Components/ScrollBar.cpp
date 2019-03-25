@@ -18,7 +18,8 @@ UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	Thickness = FVector2D(12.0f, 12.0f);
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar");
+	static const FScrollBarStyle StaticScrollbar = FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar");
+	WidgetStyle = StaticScrollbar;
 }
 
 void UScrollBar::ReleaseSlateResources(bool bReleaseChildren)

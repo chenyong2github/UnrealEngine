@@ -15,7 +15,8 @@ UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	static const FTextBlockStyle StaticNormalText = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	WidgetStyle = StaticNormalText;
 	
 	bIsReadOnly = false;
 	SelectAllTextWhenFocused = false;

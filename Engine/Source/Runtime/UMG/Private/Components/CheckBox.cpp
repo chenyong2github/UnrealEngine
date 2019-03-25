@@ -15,7 +15,8 @@ UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FCheckBoxStyle >("Checkbox");
+	static const FCheckBoxStyle StaticCheckboxStyle = FCoreStyle::Get().GetWidgetStyle< FCheckBoxStyle >("Checkbox");
+	WidgetStyle = StaticCheckboxStyle;
 
 	CheckedState = ECheckBoxState::Unchecked;
 

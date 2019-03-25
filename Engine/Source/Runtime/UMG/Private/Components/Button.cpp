@@ -15,7 +15,8 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FButtonStyle >("Button");
+	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle< FButtonStyle >("Button");
+	WidgetStyle = StaticButtonStyle;
 
 	ColorAndOpacity = FLinearColor::White;
 	BackgroundColor = FLinearColor::White;
