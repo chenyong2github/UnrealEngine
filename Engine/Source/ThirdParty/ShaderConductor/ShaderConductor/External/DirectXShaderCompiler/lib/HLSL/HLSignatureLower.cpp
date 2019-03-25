@@ -25,8 +25,9 @@
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Transforms/Utils/Local.h"
 
 using namespace llvm;
 using namespace hlsl;
@@ -617,6 +618,7 @@ void replaceDirectInputParameter(Value *param, Function *loadInput,
   if (VectorType *VT = dyn_cast<VectorType>(Ty)) {
     Value *newVec = llvm::UndefValue::get(VT);
     DXASSERT(cols == VT->getNumElements(), "vec size must match");
+
     for (unsigned col = 0; col < cols; col++) {
       Value *colIdx = hlslOP->GetU8Const(col);
       args[DXIL::OperandIndex::kLoadInputColOpIdx] = colIdx;
@@ -624,15 +626,19 @@ void replaceDirectInputParameter(Value *param, Function *loadInput,
           GenerateLdInput(loadInput, args, Builder, zero, bCast, EltTy);
       newVec = Builder.CreateInsertElement(newVec, input, col);
     }
+
     param->replaceAllUsesWith(newVec);
-  } else if (!Ty->isArrayTy() && !dxilutil::IsHLSLMatrixType(Ty)) {
+
+    // THe individual loadInputs are the authoritative source of values for the vector.
+    dxilutil::ScatterDebugValueToVectorElements(newVec);
+  } else if (!Ty->isArrayTy() && !HLMatrixType::isa(Ty)) {
     DXASSERT(cols == 1, "only support scalar here");
     Value *colIdx = hlslOP->GetU8Const(0);
     args[DXIL::OperandIndex::kLoadInputColOpIdx] = colIdx;
     Value *input =
         GenerateLdInput(loadInput, args, Builder, zero, bCast, EltTy);
-    param->replaceAllUsesWith(input);
-  } else if (dxilutil::IsHLSLMatrixType(Ty)) {
+    param->replaceAllUsesWith(input); // Will properly relocate any DbgValueInst
+  } else if (HLMatrixType::isa(Ty)) {
     if (param->use_empty()) return;
     DXASSERT(param->hasOneUse(),
              "matrix arg should only has one use as matrix to vec");

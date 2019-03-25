@@ -16,8 +16,6 @@
 namespace clang {
 namespace spirv {
 
-class SpirvBuilder;
-
 class LiteralTypeVisitor : public Visitor {
 public:
   LiteralTypeVisitor(const ASTContext &ctx, SpirvContext &spvCtx,
@@ -38,7 +36,7 @@ public:
   bool visit(SpirvNonUniformBinaryOp *);
   bool visit(SpirvStore *);
   bool visit(SpirvConstantComposite *);
-  bool visit(SpirvComposite *);
+  bool visit(SpirvCompositeConstruct *);
   bool visit(SpirvCompositeExtract *);
   bool visit(SpirvAccessChain *);
   bool visit(SpirvExtInst *);

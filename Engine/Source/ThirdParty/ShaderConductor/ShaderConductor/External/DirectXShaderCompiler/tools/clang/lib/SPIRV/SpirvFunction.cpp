@@ -9,17 +9,19 @@
 
 #include "clang/SPIRV/SpirvFunction.h"
 #include "BlockReadableOrder.h"
+#include "clang/SPIRV/SpirvBasicBlock.h"
 #include "clang/SPIRV/SpirvVisitor.h"
 
 namespace clang {
 namespace spirv {
 
 SpirvFunction::SpirvFunction(QualType returnType, SpirvType *functionType,
-                             spv::FunctionControlMask control,
-                             SourceLocation loc, llvm::StringRef name)
+                             SourceLocation loc, llvm::StringRef name,
+                             bool isPrecise)
     : functionId(0), astReturnType(returnType), returnType(nullptr),
-      returnTypeId(0), fnType(functionType), fnTypeId(0),
-      functionControl(control), functionLoc(loc), functionName(name) {}
+      fnType(functionType), relaxedPrecision(false), precise(isPrecise),
+      containsAlias(false), rvalue(false), functionLoc(loc),
+      functionName(name) {}
 
 bool SpirvFunction::invokeVisitor(Visitor *visitor, bool reverseOrder) {
   if (!visitor->visit(this, Visitor::Phase::Init))

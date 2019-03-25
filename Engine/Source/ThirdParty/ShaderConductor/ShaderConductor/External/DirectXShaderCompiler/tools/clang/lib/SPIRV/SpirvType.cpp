@@ -213,7 +213,11 @@ operator==(const StructType::FieldInfo &that) const {
           matrixStride.getValue() == that.matrixStride.getValue()) &&
          // Either not have row major value, or have the same value
          (!isRowMajor.hasValue() ||
-          isRowMajor.getValue() == that.isRowMajor.getValue());
+          isRowMajor.getValue() == that.isRowMajor.getValue()) &&
+         // Both should have the same precision
+         isRelaxedPrecision == that.isRelaxedPrecision &&
+         // Both fields should be precise or not precise
+         isPrecise == that.isPrecise;
 }
 
 bool StructType::operator==(const StructType &that) const {

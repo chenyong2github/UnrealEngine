@@ -290,9 +290,11 @@ public:
     FieldInfo(const SpirvType *type_, llvm::StringRef name_ = "",
               llvm::Optional<uint32_t> offset_ = llvm::None,
               llvm::Optional<uint32_t> matrixStride_ = llvm::None,
-              llvm::Optional<bool> isRowMajor_ = llvm::None)
+              llvm::Optional<bool> isRowMajor_ = llvm::None,
+              bool relaxedPrecision = false, bool precise = false)
         : type(type_), name(name_), offset(offset_),
-          matrixStride(matrixStride_), isRowMajor(isRowMajor_) {
+          matrixStride(matrixStride_), isRowMajor(isRowMajor_),
+          isRelaxedPrecision(relaxedPrecision), isPrecise(precise) {
       // A StructType may not contain any hybrid types.
       assert(!isa<HybridType>(type_));
     }
@@ -309,6 +311,10 @@ public:
     llvm::Optional<uint32_t> matrixStride;
     // The majorness of this field (if applicable).
     llvm::Optional<bool> isRowMajor;
+    // Whether this field is a RelaxedPrecision field.
+    bool isRelaxedPrecision;
+    // Whether this field is marked as 'precise'.
+    bool isPrecise;
   };
 
   StructType(
@@ -414,9 +420,10 @@ public:
     FieldInfo(QualType astType_, llvm::StringRef name_ = "",
               clang::VKOffsetAttr *offset = nullptr,
               hlsl::ConstantPacking *packOffset = nullptr,
-              const hlsl::RegisterAssignment *regC = nullptr)
+              const hlsl::RegisterAssignment *regC = nullptr,
+              bool precise = false)
         : astType(astType_), name(name_), vkOffsetAttr(offset),
-          packOffsetAttr(packOffset), registerC(regC) {}
+          packOffsetAttr(packOffset), registerC(regC), isPrecise(precise) {}
 
     // The field's type.
     QualType astType;
@@ -428,6 +435,8 @@ public:
     hlsl::ConstantPacking *packOffsetAttr;
     // :register(c#) annotations associated with this field.
     const hlsl::RegisterAssignment *registerC;
+    // Whether this field is marked as 'precise'.
+    bool isPrecise;
   };
 
   HybridStructType(

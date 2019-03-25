@@ -648,6 +648,30 @@ bool isSameType(const ASTContext &astContext, QualType type1, QualType type2) {
                           arrType2->getElementType());
   }
 
+  { // Two structures with identical fields
+    if (const auto *structType1 = type1->getAs<RecordType>()) {
+      if (const auto *structType2 = type2->getAs<RecordType>()) {
+        llvm::SmallVector<QualType, 4> fieldTypes1;
+        llvm::SmallVector<QualType, 4> fieldTypes2;
+        for (const auto *field : structType1->getDecl()->fields())
+          fieldTypes1.push_back(field->getType());
+        for (const auto *field : structType2->getDecl()->fields())
+          fieldTypes2.push_back(field->getType());
+        // Note: We currently do NOT consider such cases as equal types:
+        // struct s1 { int x; int y; }
+        // struct s2 { int2 x; }
+        // Therefore if two structs have different number of members, we
+        // consider them different.
+        if (fieldTypes1.size() != fieldTypes2.size())
+          return false;
+        for (auto i = 0; i < fieldTypes1.size(); ++i)
+          if (!isSameType(astContext, fieldTypes1[i], fieldTypes2[i]))
+            return false;
+        return true;
+      }
+    }
+  }
+
   // TODO: support other types if needed
 
   return false;
@@ -879,6 +903,9 @@ bool isOpaqueArrayType(QualType type) {
 }
 
 bool isRelaxedPrecisionType(QualType type, const SpirvCodeGenOptions &opts) {
+  if (type.isNull())
+    return false;
+
   // Primitive types
   {
     QualType ty = {};
@@ -909,6 +936,22 @@ bool isRelaxedPrecisionType(QualType type, const SpirvCodeGenOptions &opts) {
     QualType elemType = {};
     if (isVectorType(type, &elemType) || isMxNMatrix(type, &elemType))
       return isRelaxedPrecisionType(elemType, opts);
+  }
+
+  // Images with RelaxedPrecision sampled type.
+  if (const auto *recordType = type->getAs<RecordType>()) {
+    const llvm::StringRef name = recordType->getDecl()->getName();
+    if (name == "Texture1D" || name == "Texture2D" || name == "Texture3D" ||
+        name == "TextureCube" || name == "Texture1DArray" ||
+        name == "Texture2DArray" || name == "Texture2DMS" ||
+        name == "Texture2DMSArray" || name == "TextureCubeArray" ||
+        name == "RWTexture1D" || name == "RWTexture2D" ||
+        name == "RWTexture3D" || name == "RWTexture1DArray" ||
+        name == "RWTexture2DArray" || name == "Buffer" || name == "RWBuffer" ||
+        name == "SubpassInput" || name == "SubpassInputMS") {
+      const auto sampledType = hlsl::GetHLSLResourceResultType(type);
+      return isRelaxedPrecisionType(sampledType, opts);
+    }
   }
 
   return false;

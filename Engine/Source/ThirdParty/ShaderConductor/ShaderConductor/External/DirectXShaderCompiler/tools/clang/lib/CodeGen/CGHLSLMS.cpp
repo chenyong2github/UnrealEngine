@@ -194,7 +194,7 @@ private:
                                    clang::QualType DestType,
                                    llvm::Type *Ty);
 
-  void EmitHLSLFlatConversion(CodeGenFunction &CGF, Value *SrcVal,
+  void EmitHLSLSplat(CodeGenFunction &CGF, Value *SrcVal,
                               llvm::Value *DestPtr,
                               SmallVector<Value *, 4> &idxList,
                               QualType Type, QualType SrcType,
@@ -780,14 +780,9 @@ MatrixOrientation GetMatrixMajor(QualType Ty, bool bDefaultRowMajor) {
                           : MatrixOrientation::ColumnMajor;
 }
 
-QualType GetArrayEltType(QualType Ty) {
-  // Get element type.
-  if (Ty->isArrayType()) {
-    while (isa<clang::ArrayType>(Ty)) {
-      const clang::ArrayType *ATy = dyn_cast<clang::ArrayType>(Ty);
-      Ty = ATy->getElementType();
-    }
-  }
+QualType GetArrayEltType(ASTContext& Context, QualType Ty) {
+  while (const clang::ArrayType *ArrayTy = Context.getAsArrayType(Ty))
+    Ty = ArrayTy->getElementType();
   return Ty;
 }
 
@@ -801,7 +796,7 @@ void CGMSHLSLRuntime::ConstructFieldAttributedAnnotation(
     Ty = Ty.getNonReferenceType();
 
   // Get element type.
-  Ty = GetArrayEltType(Ty);
+  Ty = GetArrayEltType(CGM.getContext(), Ty);
 
   QualType EltTy = Ty;
   if (hlsl::IsHLSLMatType(Ty)) {
@@ -3483,10 +3478,19 @@ static Function *CreateOpFunction(llvm::Module &M, Function *F,
       llvm::Type *idxTy = counterTy;
       llvm::Type *valTy = bAppend ?
           funcTy->getParamType(HLOperandIndex::kAppendValOpIndex):funcTy->getReturnType();
+
+      // Return type for subscript should be pointer type, hence in memory representation
       llvm::Type *subscriptTy = valTy;
-      if (!valTy->isPointerTy()) {
-        // Return type for subscript should be pointer type.
-        subscriptTy = llvm::PointerType::get(valTy, 0);
+      bool isBoolScalarOrVector = false;
+      if (!subscriptTy->isPointerTy()) {
+        if (subscriptTy->getScalarType()->isIntegerTy(1)) {
+          isBoolScalarOrVector = true;
+          llvm::Type *memReprType = llvm::IntegerType::get(subscriptTy->getContext(), 32);
+          subscriptTy = subscriptTy->isVectorTy()
+            ? llvm::VectorType::get(memReprType, subscriptTy->getVectorNumElements())
+            : memReprType;
+        }
+        subscriptTy = llvm::PointerType::get(subscriptTy, 0);
       }
 
       llvm::FunctionType *SubscriptFuncTy =
@@ -3519,8 +3523,14 @@ static Function *CreateOpFunction(llvm::Module &M, Function *F,
         if (valTy->isPointerTy()) {
           unsigned size = M.getDataLayout().getTypeAllocSize(subscript->getType()->getPointerElementType());
           Builder.CreateMemCpy(subscript, valArg, size, 1);
-        } else
-          Builder.CreateStore(valArg, subscript);
+        }
+        else {
+          Value *storedVal = valArg;
+          // Convert to memory representation
+          if (isBoolScalarOrVector)
+            storedVal = Builder.CreateZExt(storedVal, subscriptTy->getPointerElementType(), "frombool");
+          Builder.CreateStore(storedVal, subscript);
+        }
         Builder.CreateRetVoid();
       } else {
         // return Buf[counter];
@@ -3528,6 +3538,9 @@ static Function *CreateOpFunction(llvm::Module &M, Function *F,
           Builder.CreateRet(subscript);
         else {
           Value *retVal = Builder.CreateLoad(subscript);
+          // Convert to register representation
+          if (isBoolScalarOrVector)
+            retVal = Builder.CreateICmpNE(retVal, Constant::getNullValue(retVal->getType()), "tobool");
           Builder.CreateRet(retVal);
         }
       }
@@ -4177,14 +4190,14 @@ static Value * TryEvalIntrinsic(CallInst *CI, IntrinsicOp intriOp) {
     if (Ty->isDoubleTy()) {
       double dV0 = fpV0->getValueAPF().convertToDouble();
       double dV1 = fpV1->getValueAPF().convertToDouble();
-      Value *atanV = ConstantFP::get(CI->getType(), atan(dV0 / dV1));
+      Value *atanV = ConstantFP::get(CI->getType(), atan2(dV0, dV1));
       CI->replaceAllUsesWith(atanV);
       Result = atanV;
     } else {
       DXASSERT_NOMSG(Ty->isFloatTy());
       float fV0 = fpV0->getValueAPF().convertToFloat();
       float fV1 = fpV1->getValueAPF().convertToFloat();
-      Value *atanV = ConstantFP::get(CI->getType(), atanf(fV0 / fV1));
+      Value *atanV = ConstantFP::get(CI->getType(), atan2f(fV0, fV1));
       CI->replaceAllUsesWith(atanV);
       Result = atanV;
     }
@@ -4289,7 +4302,7 @@ static void SimpleTransformForHLDXIR(Instruction *I,
   } break;
   case Instruction::Load: {
     LoadInst *ldInst = cast<LoadInst>(I);
-    DXASSERT(!dxilutil::IsHLSLMatrixType(ldInst->getType()),
+    DXASSERT(!HLMatrixType::isa(ldInst->getType()),
                       "matrix load should use HL LdStMatrix");
     Value *Ptr = ldInst->getPointerOperand();
     if (ConstantExpr *CE = dyn_cast_or_null<ConstantExpr>(Ptr)) {
@@ -4301,7 +4314,7 @@ static void SimpleTransformForHLDXIR(Instruction *I,
   case Instruction::Store: {
     StoreInst *stInst = cast<StoreInst>(I);
     Value *V = stInst->getValueOperand();
-    DXASSERT_LOCALVAR(V, !dxilutil::IsHLSLMatrixType(V->getType()),
+    DXASSERT_LOCALVAR(V, !HLMatrixType::isa(V->getType()),
                       "matrix store should use HL LdStMatrix");
     Value *Ptr = stInst->getPointerOperand();
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ptr)) {
@@ -5280,7 +5293,7 @@ void CGMSHLSLRuntime::FlattenValToInitList(CodeGenFunction &CGF, SmallVector<Val
         valEltTy->isSingleValueType()) {
       Value *ldVal = Builder.CreateLoad(val);
       FlattenValToInitList(CGF, elts, eltTys, Ty, ldVal);
-    } else if (dxilutil::IsHLSLMatrixType(valEltTy)) {
+    } else if (HLMatrixType::isa(valEltTy)) {
       Value *ldVal = EmitHLSLMatrixLoad(Builder, val, Ty);
       FlattenValToInitList(CGF, elts, eltTys, Ty, ldVal);
     } else {
@@ -5767,7 +5780,7 @@ static void FlatConstToList(CodeGenTypes &Types, bool bDefaultRowMajor,
       EltVals.emplace_back(C->getAggregateElement(i));
       EltQualTys.emplace_back(VecElemQualTy);
     }
-  } else if (dxilutil::IsHLSLMatrixType(Ty)) {
+  } else if (HLMatrixType::isa(Ty)) {
     DXASSERT(hlsl::IsHLSLMatType(QualTy), "QualType/Type mismatch!");
     // matrix type is struct { [rowcount x <colcount x T>] };
     // Strip the struct level here.
@@ -6687,7 +6700,7 @@ void CGMSHLSLRuntime::EmitHLSLAggregateCopy(
                           PT->getElementType());
 
     idxList.pop_back();
-  } else if (dxilutil::IsHLSLMatrixType(Ty)) {
+  } else if (HLMatrixType::isa(Ty)) {
     // Use matLd/St for matrix.
     Value *srcGEP = CGF.Builder.CreateInBoundsGEP(SrcPtr, idxList);
     Value *dstGEP = CGF.Builder.CreateInBoundsGEP(DestPtr, idxList);
@@ -6789,8 +6802,8 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversionAggregateCopy(CodeGenFunction &CGF, 
   if (SrcPtrTy == DestPtrTy) {
     bool bMatArrayRotate = false;
     if (HLMatrixType::isMatrixArrayPtr(SrcPtr->getType())) {
-      QualType SrcEltTy = GetArrayEltType(SrcTy);
-      QualType DestEltTy = GetArrayEltType(DestTy);
+      QualType SrcEltTy = GetArrayEltType(CGM.getContext(), SrcTy);
+      QualType DestEltTy = GetArrayEltType(CGM.getContext(), DestTy);
       if (GetMatrixMajor(SrcEltTy, bDefaultRowMajor) !=
           GetMatrixMajor(DestEltTy, bDefaultRowMajor)) {
         bMatArrayRotate = true;
@@ -6873,14 +6886,14 @@ static void SimpleFlatValCopy(CodeGenFunction &CGF,
     CGF.Builder.CreateStore(ResultScalar, DstPtr);
 }
 
-void CGMSHLSLRuntime::EmitHLSLFlatConversion(
+void CGMSHLSLRuntime::EmitHLSLSplat(
     CodeGenFunction &CGF, Value *SrcVal, llvm::Value *DestPtr,
     SmallVector<Value *, 4> &idxList, QualType Type, QualType SrcType,
     llvm::Type *Ty) {
   if (llvm::PointerType *PT = dyn_cast<llvm::PointerType>(Ty)) {
     idxList.emplace_back(CGF.Builder.getInt32(0));
 
-    EmitHLSLFlatConversion(CGF, SrcVal, DestPtr, idxList, Type,
+    EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, Type,
                                       SrcType, PT->getElementType());
 
     idxList.pop_back();
@@ -6922,8 +6935,7 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversion(
           Constant *idx = llvm::Constant::getIntegerValue(
               IntegerType::get(Ty->getContext(), 32), APInt(32, i));
           idxList.emplace_back(idx);
-          EmitHLSLFlatConversion(CGF, SrcVal, DestPtr, idxList,
-                                            parentTy, SrcType, ET);
+          EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, parentTy, SrcType, ET);
           idxList.pop_back();
         }
       }
@@ -6937,8 +6949,7 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversion(
           IntegerType::get(Ty->getContext(), 32), APInt(32, i));
       idxList.emplace_back(idx);
 
-      EmitHLSLFlatConversion(CGF, SrcVal, DestPtr, idxList,
-                                        fieldIter->getType(), SrcType, ET);
+      EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, fieldIter->getType(), SrcType, ET);
 
       idxList.pop_back();
     }
@@ -6953,8 +6964,7 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversion(
           IntegerType::get(Ty->getContext(), 32), APInt(32, i));
       idxList.emplace_back(idx);
 
-      EmitHLSLFlatConversion(CGF, SrcVal, DestPtr, idxList, EltType,
-                                        SrcType, ET);
+      EmitHLSLSplat(CGF, SrcVal, DestPtr, idxList, EltType, SrcType, ET);
 
       idxList.pop_back();
     }
@@ -6969,13 +6979,16 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversion(CodeGenFunction &CGF,
                                              Value *DestPtr,
                                              QualType Ty,
                                              QualType SrcTy) {
-  if (SrcTy->isBuiltinType()) {
-    SmallVector<Value *, 4> idxList;
-    // Add first 0 for DestPtr.
-    idxList.emplace_back(CGF.Builder.getInt32(0));
+  SmallVector<Value *, 4> SrcVals;
+  SmallVector<QualType, 4> SrcQualTys;
+  FlattenValToInitList(CGF, SrcVals, SrcQualTys, SrcTy, Val);
 
-    EmitHLSLFlatConversion(
-        CGF, Val, DestPtr, idxList, Ty, SrcTy,
+  if (SrcVals.size() == 1) {
+    // Perform a splat
+    SmallVector<Value *, 4> GEPIdxStack;
+    GEPIdxStack.emplace_back(CGF.Builder.getInt32(0)); // Add first 0 for DestPtr.
+    EmitHLSLSplat(
+        CGF, SrcVals[0], DestPtr, GEPIdxStack, Ty, SrcQualTys[0],
         DestPtr->getType()->getPointerElementType());
   }
   else {
@@ -6983,10 +6996,6 @@ void CGMSHLSLRuntime::EmitHLSLFlatConversion(CodeGenFunction &CGF,
     SmallVector<Value *, 4> DstPtrs;
     SmallVector<QualType, 4> DstQualTys;
     FlattenAggregatePtrToGepList(CGF, DestPtr, GEPIdxStack, Ty, DestPtr->getType(), DstPtrs, DstQualTys);
-
-    SmallVector<Value *, 4> SrcVals;
-    SmallVector<QualType, 4> SrcQualTys;
-    FlattenValToInitList(CGF, SrcVals, SrcQualTys, SrcTy, Val);
 
     ConvertAndStoreElements(CGF, SrcVals, SrcQualTys, DstPtrs, DstQualTys);
   }
@@ -7181,7 +7190,7 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
         }
 
         llvm::Type *ToTy = tmpArgAddr->getType()->getPointerElementType();
-        if (dxilutil::IsHLSLMatrixType(ToTy)) {
+        if (HLMatrixType::isa(ToTy)) {
           Value *castVal = CGF.Builder.CreateBitCast(outVal, ToTy);
           EmitHLSLMatrixStore(CGF, castVal, tmpArgAddr, ParamTy);
         }
@@ -7250,7 +7259,7 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionCopyBack(
           castVal = ConvertScalarOrVector(CGF,
             outVal, tmpLV.getType(), argLV.getType());
         }
-        if (!dxilutil::IsHLSLMatrixType(ToTy))
+        if (!HLMatrixType::isa(ToTy))
           CGF.EmitStoreThroughLValue(RValue::get(castVal), argLV);
         else {
           Value *destPtr = argLV.getAddress();

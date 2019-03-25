@@ -82,17 +82,17 @@ public:
     // Normal instruction kinds
     // In alphabetical order
 
-    IK_AccessChain,      // OpAccessChain
-    IK_Atomic,           // OpAtomic*
-    IK_Barrier,          // Op*Barrier
-    IK_BinaryOp,         // Binary operations
-    IK_BitFieldExtract,  // OpBitFieldExtract
-    IK_BitFieldInsert,   // OpBitFieldInsert
-    IK_Composite,        // Op*Composite
-    IK_CompositeExtract, // OpCompositeExtract
-    IK_CompositeInsert,  // OpCompositeInsert
-    IK_ExtInst,          // OpExtInst
-    IK_FunctionCall,     // OpFunctionCall
+    IK_AccessChain,        // OpAccessChain
+    IK_Atomic,             // OpAtomic*
+    IK_Barrier,            // Op*Barrier
+    IK_BinaryOp,           // Binary operations
+    IK_BitFieldExtract,    // OpBitFieldExtract
+    IK_BitFieldInsert,     // OpBitFieldInsert
+    IK_CompositeConstruct, // OpCompositeConstruct
+    IK_CompositeExtract,   // OpCompositeExtract
+    IK_CompositeInsert,    // OpCompositeInsert
+    IK_ExtInst,            // OpExtInst
+    IK_FunctionCall,       // OpFunctionCall
 
     IK_EndPrimitive, // OpEndPrimitive
     IK_EmitVertex,   // OpEmitVertex
@@ -147,6 +147,8 @@ public:
   void setDebugName(llvm::StringRef name) { debugName = name; }
   llvm::StringRef getDebugName() const { return debugName; }
 
+  bool isArithmeticInstruction() const;
+
   SpirvLayoutRule getLayoutRule() const { return layoutRule; }
   void setLayoutRule(SpirvLayoutRule rule) { layoutRule = rule; }
 
@@ -161,6 +163,9 @@ public:
 
   void setNonUniform(bool nu = true) { isNonUniform_ = nu; }
   bool isNonUniform() const { return isNonUniform_; }
+
+  void setPrecise(bool p = true) { isPrecise_ = p; }
+  bool isPrecise() const { return isPrecise_; }
 
   /// Legalization-specific code
   ///
@@ -202,6 +207,7 @@ protected:
   bool isRValue_;
   bool isRelaxedPrecision_;
   bool isNonUniform_;
+  bool isPrecise_;
 };
 
 #define DECLARE_INVOKE_VISITOR_FOR_CLASS(cls)                                  \
@@ -450,7 +456,7 @@ public:
   };
 
   SpirvVariable(QualType resultType, SourceLocation loc, spv::StorageClass sc,
-                SpirvInstruction *initializerId = 0);
+                bool isPrecise, SpirvInstruction *initializerId = 0);
 
   // For LLVM-style RTTI
   static bool classof(const SpirvInstruction *inst) {
@@ -471,7 +477,8 @@ private:
 
 class SpirvFunctionParameter : public SpirvInstruction {
 public:
-  SpirvFunctionParameter(QualType resultType, SourceLocation loc);
+  SpirvFunctionParameter(QualType resultType, bool isPrecise,
+                         SourceLocation loc);
 
   // For LLVM-style RTTI
   static bool classof(const SpirvInstruction *inst) {
@@ -1044,9 +1051,6 @@ private:
 
 class SpirvConstantComposite : public SpirvConstant {
 public:
-  SpirvConstantComposite(const SpirvType *type,
-                         llvm::ArrayRef<SpirvConstant *> constituents,
-                         bool isSpecConst = false);
   SpirvConstantComposite(QualType type,
                          llvm::ArrayRef<SpirvConstant *> constituents,
                          bool isSpecConst = false);
@@ -1081,29 +1085,19 @@ public:
   bool operator==(const SpirvConstantNull &that) const;
 };
 
-/// \brief Composition instructions
-///
-/// This class includes OpConstantComposite, OpSpecConstantComposite,
-/// and OpCompositeConstruct.
-class SpirvComposite : public SpirvInstruction {
+/// \brief OpCompositeConstruct instruction
+class SpirvCompositeConstruct : public SpirvInstruction {
 public:
-  SpirvComposite(QualType resultType, SourceLocation loc,
-                 llvm::ArrayRef<SpirvInstruction *> constituentsVec,
-                 bool isConstant = false, bool isSpecConstant = false);
+  SpirvCompositeConstruct(QualType resultType, SourceLocation loc,
+                          llvm::ArrayRef<SpirvInstruction *> constituentsVec);
 
   // For LLVM-style RTTI
   static bool classof(const SpirvInstruction *inst) {
-    return inst->getKind() == IK_Composite;
+    return inst->getKind() == IK_CompositeConstruct;
   }
 
-  DECLARE_INVOKE_VISITOR_FOR_CLASS(SpirvComposite)
+  DECLARE_INVOKE_VISITOR_FOR_CLASS(SpirvCompositeConstruct)
 
-  bool isConstantComposite() const {
-    return getopcode() == spv::Op::OpConstantComposite;
-  }
-  bool isSpecConstantComposite() const {
-    return getopcode() == spv::Op::OpSpecConstantComposite;
-  }
   llvm::ArrayRef<SpirvInstruction *> getConstituents() const {
     return consituents;
   }

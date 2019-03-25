@@ -9,7 +9,7 @@
 
 #include "LiteralTypeVisitor.h"
 #include "clang/SPIRV/AstTypeProbe.h"
-#include "clang/SPIRV/SpirvBuilder.h"
+#include "clang/SPIRV/SpirvFunction.h"
 
 namespace clang {
 namespace spirv {
@@ -317,7 +317,7 @@ bool LiteralTypeVisitor::visit(SpirvConstantComposite *inst) {
   return true;
 }
 
-bool LiteralTypeVisitor::visit(SpirvComposite *inst) {
+bool LiteralTypeVisitor::visit(SpirvCompositeConstruct *inst) {
   const auto resultType = inst->getAstResultType();
   updateTypeForCompositeMembers(resultType, inst->getConstituents());
   return true;

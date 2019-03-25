@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/SPIRV/SpirvModule.h"
+#include "clang/SPIRV/SpirvFunction.h"
 #include "clang/SPIRV/SpirvVisitor.h"
 
 namespace clang {
@@ -29,51 +30,130 @@ bool SpirvModule::invokeVisitor(Visitor *visitor, bool reverseOrder) {
   if (!visitor->visit(this, Visitor::Phase::Init))
     return false;
 
-  for (auto *cap : capabilities)
-    if (!cap->invokeVisitor(visitor))
+  if (reverseOrder) {
+    // Reverse order of a SPIR-V module.
+
+    // Our transformations do not cross function bounaries, therefore the order
+    // of visiting functions is not important.
+    for (auto iter = functions.rbegin(); iter != functions.rend(); ++iter) {
+      auto *fn = *iter;
+      if (!fn->invokeVisitor(visitor, reverseOrder))
+        return false;
+    }
+
+    for (auto iter = variables.rbegin(); iter != variables.rend(); ++iter) {
+      auto *var = *iter;
+      if (!var->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = constants.rbegin(); iter != constants.rend(); ++iter) {
+      auto *constant = *iter;
+      if (!constant->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = decorations.rbegin(); iter != decorations.rend(); ++iter) {
+      auto *decoration = *iter;
+      if (!decoration->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = moduleProcesses.rbegin(); iter != moduleProcesses.rend();
+         ++iter) {
+      auto *moduleProcess = *iter;
+      if (!moduleProcess->invokeVisitor(visitor))
+        return false;
+    }
+
+    if (debugSource)
+      if (!debugSource->invokeVisitor(visitor))
+        return false;
+
+    for (auto iter = executionModes.rbegin(); iter != executionModes.rend();
+         ++iter) {
+      auto *execMode = *iter;
+      if (!execMode->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = entryPoints.rbegin(); iter != entryPoints.rend(); ++iter) {
+      auto *entryPoint = *iter;
+      if (!entryPoint->invokeVisitor(visitor))
+        return false;
+    }
+
+    if (!memoryModel->invokeVisitor(visitor))
       return false;
 
-  for (auto ext : extensions)
-    if (!ext->invokeVisitor(visitor))
+    for (auto iter = extInstSets.rbegin(); iter != extInstSets.rend(); ++iter) {
+      auto *extInstSet = *iter;
+      if (!extInstSet->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = extensions.rbegin(); iter != extensions.rend(); ++iter) {
+      auto *extension = *iter;
+      if (!extension->invokeVisitor(visitor))
+        return false;
+    }
+
+    for (auto iter = capabilities.rbegin(); iter != capabilities.rend();
+         ++iter) {
+      auto *capability = *iter;
+      if (!capability->invokeVisitor(visitor))
+        return false;
+    }
+  }
+  // Traverse the regular order of a SPIR-V module.
+  else {
+    for (auto *cap : capabilities)
+      if (!cap->invokeVisitor(visitor))
+        return false;
+
+    for (auto ext : extensions)
+      if (!ext->invokeVisitor(visitor))
+        return false;
+
+    for (auto extInstSet : extInstSets)
+      if (!extInstSet->invokeVisitor(visitor))
+        return false;
+
+    if (!memoryModel->invokeVisitor(visitor))
       return false;
 
-  for (auto extInstSet : extInstSets)
-    if (!extInstSet->invokeVisitor(visitor))
-      return false;
+    for (auto entryPoint : entryPoints)
+      if (!entryPoint->invokeVisitor(visitor))
+        return false;
 
-  if (!memoryModel->invokeVisitor(visitor))
-    return false;
+    for (auto execMode : executionModes)
+      if (!execMode->invokeVisitor(visitor))
+        return false;
 
-  for (auto entryPoint : entryPoints)
-    if (!entryPoint->invokeVisitor(visitor))
-      return false;
+    if (debugSource)
+      if (!debugSource->invokeVisitor(visitor))
+        return false;
 
-  for (auto execMode : executionModes)
-    if (!execMode->invokeVisitor(visitor))
-      return false;
+    for (auto moduleProcess : moduleProcesses)
+      if (!moduleProcess->invokeVisitor(visitor))
+        return false;
 
-  if (debugSource)
-    if (!debugSource->invokeVisitor(visitor))
-      return false;
+    for (auto decoration : decorations)
+      if (!decoration->invokeVisitor(visitor))
+        return false;
 
-  for (auto moduleProcess : moduleProcesses)
-    if (!moduleProcess->invokeVisitor(visitor))
-      return false;
+    for (auto constant : constants)
+      if (!constant->invokeVisitor(visitor))
+        return false;
 
-  for (auto decoration : decorations)
-    if (!decoration->invokeVisitor(visitor))
-      return false;
+    for (auto var : variables)
+      if (!var->invokeVisitor(visitor))
+        return false;
 
-  for (auto constant : constants)
-    constant->invokeVisitor(visitor);
-
-  for (auto var : variables)
-    if (!var->invokeVisitor(visitor))
-      return false;
-
-  for (auto fn : functions)
-    if (!fn->invokeVisitor(visitor, reverseOrder))
-      return false;
+    for (auto fn : functions)
+      if (!fn->invokeVisitor(visitor, reverseOrder))
+        return false;
+  }
 
   if (!visitor->visit(this, Visitor::Phase::Done))
     return false;
@@ -83,12 +163,22 @@ bool SpirvModule::invokeVisitor(Visitor *visitor, bool reverseOrder) {
 
 void SpirvModule::addFunction(SpirvFunction *fn) {
   assert(fn && "cannot add null function to the module");
-  functions.insert(fn);
+  functions.push_back(fn);
 }
 
 void SpirvModule::addCapability(SpirvCapability *cap) {
   assert(cap && "cannot add null capability to the module");
-  capabilities.push_back(cap);
+  // Only add the capability to the module if it is not already added.
+  // Due to the small number of capabilities, this should not be too expensive.
+  const spv::Capability capability = cap->getCapability();
+  auto found =
+      std::find_if(capabilities.begin(), capabilities.end(),
+                   [capability](SpirvCapability *existingCapability) {
+                     return capability == existingCapability->getCapability();
+                   });
+  if (found == capabilities.end()) {
+    capabilities.push_back(cap);
+  }
 }
 
 void SpirvModule::setMemoryModel(SpirvMemoryModel *model) {
@@ -108,7 +198,17 @@ void SpirvModule::addExecutionMode(SpirvExecutionMode *em) {
 
 void SpirvModule::addExtension(SpirvExtension *ext) {
   assert(ext && "cannot add null extension");
-  extensions.push_back(ext);
+  // Only add the extension to the module if it is not already added.
+  // Due to the small number of extensions, this should not be too expensive.
+  const auto extName = ext->getExtensionName();
+  auto found =
+      std::find_if(extensions.begin(), extensions.end(),
+                   [&extName](SpirvExtension *existingExtension) {
+                     return extName == existingExtension->getExtensionName();
+                   });
+  if (found == extensions.end()) {
+    extensions.push_back(ext);
+  }
 }
 
 void SpirvModule::addExtInstSet(SpirvExtInstImport *set) {

@@ -12,23 +12,24 @@
 #include "EmitVisitor.h"
 #include "LiteralTypeVisitor.h"
 #include "LowerTypeVisitor.h"
+#include "PreciseVisitor.h"
+#include "RelaxedPrecisionVisitor.h"
 #include "clang/SPIRV/AstTypeProbe.h"
 
 namespace clang {
 namespace spirv {
 
 SpirvBuilder::SpirvBuilder(ASTContext &ac, SpirvContext &ctx,
-                           FeatureManager *fm, const SpirvCodeGenOptions &opt)
+                           const SpirvCodeGenOptions &opt)
     : astContext(ac), context(ctx), module(nullptr), function(nullptr),
-      featureManager(fm), spirvOptions(opt) {
+      spirvOptions(opt) {
   module = new (context) SpirvModule;
 }
 
-SpirvFunction *SpirvBuilder::beginFunction(QualType returnType,
-                                           SpirvType *functionType,
-                                           SourceLocation loc,
-                                           llvm::StringRef funcName,
-                                           SpirvFunction *func) {
+SpirvFunction *
+SpirvBuilder::beginFunction(QualType returnType, SpirvType *functionType,
+                            SourceLocation loc, llvm::StringRef funcName,
+                            bool isPrecise, SpirvFunction *func) {
   assert(!function && "found nested function");
   if (func) {
     function = func;
@@ -36,20 +37,21 @@ SpirvFunction *SpirvBuilder::beginFunction(QualType returnType,
     function->setFunctionType(functionType);
     function->setSourceLocation(loc);
     function->setFunctionName(funcName);
+    function->setPrecise(isPrecise);
   } else {
     function = new (context)
-        SpirvFunction(returnType, functionType,
-                      spv::FunctionControlMask::MaskNone, loc, funcName);
+        SpirvFunction(returnType, functionType, loc, funcName, isPrecise);
   }
 
   return function;
 }
 
 SpirvFunctionParameter *SpirvBuilder::addFnParam(QualType ptrType,
+                                                 bool isPrecise,
                                                  SourceLocation loc,
                                                  llvm::StringRef name) {
   assert(function && "found detached parameter");
-  auto *param = new (context) SpirvFunctionParameter(ptrType, loc);
+  auto *param = new (context) SpirvFunctionParameter(ptrType, isPrecise, loc);
   param->setStorageClass(spv::StorageClass::Function);
   param->setDebugName(name);
   function->addParameter(param);
@@ -57,11 +59,11 @@ SpirvFunctionParameter *SpirvBuilder::addFnParam(QualType ptrType,
 }
 
 SpirvVariable *SpirvBuilder::addFnVar(QualType valueType, SourceLocation loc,
-                                      llvm::StringRef name,
+                                      llvm::StringRef name, bool isPrecise,
                                       SpirvInstruction *init) {
   assert(function && "found detached local variable");
-  auto *var = new (context)
-      SpirvVariable(valueType, loc, spv::StorageClass::Function, init);
+  auto *var = new (context) SpirvVariable(
+      valueType, loc, spv::StorageClass::Function, isPrecise, init);
   var->setDebugName(name);
   function->addVariable(var);
   return var;
@@ -105,12 +107,12 @@ void SpirvBuilder::setContinueTarget(SpirvBasicBlock *continueLabel) {
   insertPoint->setContinueTarget(continueLabel);
 }
 
-SpirvComposite *SpirvBuilder::createCompositeConstruct(
+SpirvCompositeConstruct *SpirvBuilder::createCompositeConstruct(
     QualType resultType, llvm::ArrayRef<SpirvInstruction *> constituents,
     SourceLocation loc) {
   assert(insertPoint && "null insert point");
   auto *instruction =
-      new (context) SpirvComposite(resultType, loc, constituents);
+      new (context) SpirvCompositeConstruct(resultType, loc, constituents);
   insertPoint->addInstruction(instruction);
   if (!constituents.empty()) {
     instruction->setLayoutRule(constituents[0]->getLayoutRule());
@@ -118,12 +120,12 @@ SpirvComposite *SpirvBuilder::createCompositeConstruct(
   return instruction;
 }
 
-SpirvComposite *SpirvBuilder::createCompositeConstruct(
+SpirvCompositeConstruct *SpirvBuilder::createCompositeConstruct(
     const SpirvType *resultType,
     llvm::ArrayRef<SpirvInstruction *> constituents, SourceLocation loc) {
   assert(insertPoint && "null insert point");
   auto *instruction =
-      new (context) SpirvComposite(/*QualType*/ {}, loc, constituents);
+      new (context) SpirvCompositeConstruct(/*QualType*/ {}, loc, constituents);
   instruction->setResultType(resultType);
   if (!constituents.empty()) {
     instruction->setLayoutRule(constituents[0]->getLayoutRule());
@@ -340,9 +342,8 @@ SpirvNonUniformElect *SpirvBuilder::createGroupNonUniformElect(
 }
 
 SpirvNonUniformUnaryOp *SpirvBuilder::createGroupNonUniformUnaryOp(
-    spv::Op op, QualType resultType, spv::Scope execScope,
-    SpirvInstruction *operand, llvm::Optional<spv::GroupOperation> groupOp,
-    SourceLocation loc) {
+    SourceLocation loc, spv::Op op, QualType resultType, spv::Scope execScope,
+    SpirvInstruction *operand, llvm::Optional<spv::GroupOperation> groupOp) {
   assert(insertPoint && "null insert point");
   auto *instruction = new (context)
       SpirvNonUniformUnaryOp(op, resultType, loc, execScope, groupOp, operand);
@@ -814,30 +815,17 @@ SpirvBuilder::createRayTracingOpsNV(spv::Op opcode, QualType resultType,
   return inst;
 }
 
-void SpirvBuilder::addExtension(Extension ext, llvm::StringRef target,
-                                SourceLocation loc) {
-  // TODO: The extension management should be removed from here and added as a
-  // separate pass.
-
-  if (existingExtensions.insert(ext)) {
-    assert(featureManager);
-    featureManager->requestExtension(ext, target, loc);
-    // Do not emit OpExtension if the given extension is natively supported in
-    // the target environment.
-    if (featureManager->isExtensionRequiredForTargetEnv(ext))
-      module->addExtension(new (context) SpirvExtension(
-          loc, featureManager->getExtensionName(ext)));
-  }
-}
-
 void SpirvBuilder::addModuleProcessed(llvm::StringRef process) {
   module->addModuleProcessed(new (context) SpirvModuleProcessed({}, process));
 }
 
-SpirvExtInstImport *SpirvBuilder::getGLSLExtInstSet(SourceLocation loc) {
+SpirvExtInstImport *SpirvBuilder::getGLSLExtInstSet() {
   SpirvExtInstImport *glslSet = module->getGLSLExtInstSet();
   if (!glslSet) {
-    glslSet = new (context) SpirvExtInstImport(loc, "GLSL.std.450");
+    // The extended instruction set is likely required for several different
+    // reasons. We can't pinpoint the source location for one specific function.
+    glslSet =
+        new (context) SpirvExtInstImport(/*SourceLocation*/ {}, "GLSL.std.450");
     module->addExtInstSet(glslSet);
   }
   return glslSet;
@@ -845,10 +833,10 @@ SpirvExtInstImport *SpirvBuilder::getGLSLExtInstSet(SourceLocation loc) {
 
 SpirvVariable *SpirvBuilder::addStageIOVar(QualType type,
                                            spv::StorageClass storageClass,
-                                           std::string name,
+                                           std::string name, bool isPrecise,
                                            SourceLocation loc) {
   // Note: We store the underlying type in the variable, *not* the pointer type.
-  auto *var = new (context) SpirvVariable(type, loc, storageClass);
+  auto *var = new (context) SpirvVariable(type, loc, storageClass, isPrecise);
   var->setDebugName(name);
   module->addVariable(var);
   return var;
@@ -857,6 +845,7 @@ SpirvVariable *SpirvBuilder::addStageIOVar(QualType type,
 SpirvVariable *SpirvBuilder::addStageBuiltinVar(QualType type,
                                                 spv::StorageClass storageClass,
                                                 spv::BuiltIn builtin,
+                                                bool isPrecise,
                                                 SourceLocation loc) {
   // If the built-in variable has already been added (via a built-in alias),
   // return the existing variable.
@@ -870,7 +859,7 @@ SpirvVariable *SpirvBuilder::addStageBuiltinVar(QualType type,
   }
 
   // Note: We store the underlying type in the variable, *not* the pointer type.
-  auto *var = new (context) SpirvVariable(type, loc, storageClass);
+  auto *var = new (context) SpirvVariable(type, loc, storageClass, isPrecise);
   module->addVariable(var);
 
   // Decorate with the specified Builtin
@@ -884,25 +873,29 @@ SpirvVariable *SpirvBuilder::addStageBuiltinVar(QualType type,
   return var;
 }
 
-SpirvVariable *SpirvBuilder::addModuleVar(
-    QualType type, spv::StorageClass storageClass, llvm::StringRef name,
-    llvm::Optional<SpirvInstruction *> init, SourceLocation loc) {
+SpirvVariable *
+SpirvBuilder::addModuleVar(QualType type, spv::StorageClass storageClass,
+                           bool isPrecise, llvm::StringRef name,
+                           llvm::Optional<SpirvInstruction *> init,
+                           SourceLocation loc) {
   assert(storageClass != spv::StorageClass::Function);
   // Note: We store the underlying type in the variable, *not* the pointer type.
-  auto *var = new (context) SpirvVariable(
-      type, loc, storageClass, init.hasValue() ? init.getValue() : nullptr);
+  auto *var =
+      new (context) SpirvVariable(type, loc, storageClass, isPrecise,
+                                  init.hasValue() ? init.getValue() : nullptr);
   var->setDebugName(name);
   module->addVariable(var);
   return var;
 }
 
 SpirvVariable *SpirvBuilder::addModuleVar(
-    const SpirvType *type, spv::StorageClass storageClass, llvm::StringRef name,
-    llvm::Optional<SpirvInstruction *> init, SourceLocation loc) {
+    const SpirvType *type, spv::StorageClass storageClass, bool isPrecise,
+    llvm::StringRef name, llvm::Optional<SpirvInstruction *> init,
+    SourceLocation loc) {
   assert(storageClass != spv::StorageClass::Function);
   // Note: We store the underlying type in the variable, *not* the pointer type.
   auto *var =
-      new (context) SpirvVariable(/*QualType*/ {}, loc, storageClass,
+      new (context) SpirvVariable(/*QualType*/ {}, loc, storageClass, isPrecise,
                                   init.hasValue() ? init.getValue() : nullptr);
   var->setResultType(type);
   var->setDebugName(name);
@@ -910,10 +903,11 @@ SpirvVariable *SpirvBuilder::addModuleVar(
   return var;
 }
 
-void SpirvBuilder::decorateLocation(SpirvInstruction *target, uint32_t location,
-                                    SourceLocation srcLoc) {
-  auto *decor = new (context)
-      SpirvDecoration(srcLoc, target, spv::Decoration::Location, {location});
+void SpirvBuilder::decorateLocation(SpirvInstruction *target,
+                                    uint32_t location) {
+  auto *decor =
+      new (context) SpirvDecoration(target->getSourceLocation(), target,
+                                    spv::Decoration::Location, {location});
   module->addDecoration(decor);
 }
 
@@ -926,8 +920,8 @@ void SpirvBuilder::decorateIndex(SpirvInstruction *target, uint32_t index,
 
 void SpirvBuilder::decorateDSetBinding(SpirvInstruction *target,
                                        uint32_t setNumber,
-                                       uint32_t bindingNumber,
-                                       SourceLocation srcLoc) {
+                                       uint32_t bindingNumber) {
+  const SourceLocation srcLoc = target->getSourceLocation();
   auto *dset = new (context) SpirvDecoration(
       srcLoc, target, spv::Decoration::DescriptorSet, {setNumber});
   module->addDecoration(dset);
@@ -956,8 +950,6 @@ void SpirvBuilder::decorateCounterBuffer(SpirvInstruction *mainBuffer,
                                          SpirvInstruction *counterBuffer,
                                          SourceLocation srcLoc) {
   if (spirvOptions.enableReflect) {
-    addExtension(Extension::GOOGLE_hlsl_functionality1, "SPIR-V reflection",
-                 srcLoc);
     auto *decor = new (context) SpirvDecoration(
         srcLoc, mainBuffer, spv::Decoration::HlslCounterBufferGOOGLE,
         {counterBuffer});
@@ -967,14 +959,11 @@ void SpirvBuilder::decorateCounterBuffer(SpirvInstruction *mainBuffer,
 
 void SpirvBuilder::decorateHlslSemantic(SpirvInstruction *target,
                                         llvm::StringRef semantic,
-                                        llvm::Optional<uint32_t> memberIdx,
-                                        SourceLocation srcLoc) {
+                                        llvm::Optional<uint32_t> memberIdx) {
   if (spirvOptions.enableReflect) {
-    addExtension(Extension::GOOGLE_hlsl_functionality1, "SPIR-V reflection",
-                 srcLoc);
-    auto *decor = new (context)
-        SpirvDecoration(srcLoc, target, spv::Decoration::HlslSemanticGOOGLE,
-                        semantic, memberIdx);
+    auto *decor = new (context) SpirvDecoration(
+        target->getSourceLocation(), target,
+        spv::Decoration::HlslSemanticGOOGLE, semantic, memberIdx);
     module->addDecoration(decor);
   }
 }
@@ -1004,20 +993,6 @@ void SpirvBuilder::decorateSample(SpirvInstruction *target,
                                   SourceLocation srcLoc) {
   auto *decor =
       new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Sample);
-  module->addDecoration(decor);
-}
-
-void SpirvBuilder::decorateBlock(SpirvInstruction *target,
-                                 SourceLocation srcLoc) {
-  auto *decor =
-      new (context) SpirvDecoration(srcLoc, target, spv::Decoration::Block);
-  module->addDecoration(decor);
-}
-
-void SpirvBuilder::decorateRelaxedPrecision(SpirvInstruction *target,
-                                            SourceLocation srcLoc) {
-  auto *decor = new (context)
-      SpirvDecoration(srcLoc, target, spv::Decoration::RelaxedPrecision);
   module->addDecoration(decor);
 }
 
@@ -1082,7 +1057,9 @@ std::vector<uint32_t> SpirvBuilder::takeModule() {
   // Run necessary visitor passes first
   LiteralTypeVisitor literalTypeVisitor(astContext, context, spirvOptions);
   LowerTypeVisitor lowerTypeVisitor(astContext, context, spirvOptions);
-  CapabilityVisitor capabilityVisitor(context, spirvOptions, *this);
+  CapabilityVisitor capabilityVisitor(astContext, context, spirvOptions, *this);
+  RelaxedPrecisionVisitor relaxedPrecisionVisitor(context, spirvOptions);
+  PreciseVisitor preciseVisitor(context, spirvOptions);
   EmitVisitor emitVisitor(astContext, context, spirvOptions);
 
   module->invokeVisitor(&literalTypeVisitor, true);
@@ -1092,6 +1069,12 @@ std::vector<uint32_t> SpirvBuilder::takeModule() {
 
   // Add necessary capabilities and extensions
   module->invokeVisitor(&capabilityVisitor);
+
+  // Propagate RelaxedPrecision decorations
+  module->invokeVisitor(&relaxedPrecisionVisitor);
+
+  // Propagate NoContraction decorations
+  module->invokeVisitor(&preciseVisitor, true);
 
   // Emit SPIR-V
   module->invokeVisitor(&emitVisitor);

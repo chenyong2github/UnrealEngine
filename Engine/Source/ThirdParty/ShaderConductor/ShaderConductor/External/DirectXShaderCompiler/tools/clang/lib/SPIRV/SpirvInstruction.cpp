@@ -58,7 +58,7 @@ DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvConstantInteger)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvConstantFloat)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvConstantComposite)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvConstantNull)
-DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvComposite)
+DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCompositeConstruct)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCompositeExtract)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvCompositeInsert)
 DEFINE_INVOKE_VISITOR_FOR_CLASS(SpirvEmitVertex)
@@ -91,7 +91,42 @@ SpirvInstruction::SpirvInstruction(Kind k, spv::Op op, QualType astType,
       debugName(), resultType(nullptr), resultTypeId(0),
       layoutRule(SpirvLayoutRule::Void), containsAlias(false),
       storageClass(spv::StorageClass::Function), isRValue_(false),
-      isRelaxedPrecision_(false), isNonUniform_(false) {}
+      isRelaxedPrecision_(false), isNonUniform_(false), isPrecise_(false) {}
+
+bool SpirvInstruction::isArithmeticInstruction() const {
+  switch (opcode) {
+  case spv::Op::OpSNegate:
+  case spv::Op::OpFNegate:
+  case spv::Op::OpIAdd:
+  case spv::Op::OpFAdd:
+  case spv::Op::OpISub:
+  case spv::Op::OpFSub:
+  case spv::Op::OpIMul:
+  case spv::Op::OpFMul:
+  case spv::Op::OpUDiv:
+  case spv::Op::OpSDiv:
+  case spv::Op::OpFDiv:
+  case spv::Op::OpUMod:
+  case spv::Op::OpSRem:
+  case spv::Op::OpSMod:
+  case spv::Op::OpFRem:
+  case spv::Op::OpFMod:
+  case spv::Op::OpVectorTimesScalar:
+  case spv::Op::OpMatrixTimesScalar:
+  case spv::Op::OpVectorTimesMatrix:
+  case spv::Op::OpMatrixTimesVector:
+  case spv::Op::OpMatrixTimesMatrix:
+  case spv::Op::OpOuterProduct:
+  case spv::Op::OpDot:
+  case spv::Op::OpIAddCarry:
+  case spv::Op::OpISubBorrow:
+  case spv::Op::OpUMulExtended:
+  case spv::Op::OpSMulExtended:
+    return true;
+  default:
+    return false;
+  }
+}
 
 SpirvCapability::SpirvCapability(SourceLocation loc, spv::Capability cap)
     : SpirvInstruction(IK_Capability, spv::Op::OpCapability, QualType(), loc),
@@ -198,17 +233,21 @@ spv::Op SpirvDecoration::getDecorateOpcode(
 }
 
 SpirvVariable::SpirvVariable(QualType resultType, SourceLocation loc,
-                             spv::StorageClass sc,
+                             spv::StorageClass sc, bool precise,
                              SpirvInstruction *initializerInst)
     : SpirvInstruction(IK_Variable, spv::Op::OpVariable, resultType, loc),
       initializer(initializerInst) {
   setStorageClass(sc);
+  setPrecise(precise);
 }
 
 SpirvFunctionParameter::SpirvFunctionParameter(QualType resultType,
+                                               bool isPrecise,
                                                SourceLocation loc)
     : SpirvInstruction(IK_FunctionParameter, spv::Op::OpFunctionParameter,
-                       resultType, loc) {}
+                       resultType, loc) {
+  setPrecise(isPrecise);
+}
 
 SpirvMerge::SpirvMerge(Kind kind, spv::Op op, SourceLocation loc,
                        SpirvBasicBlock *mergeLabel)
@@ -355,15 +394,10 @@ SpirvBitFieldInsert::SpirvBitFieldInsert(QualType resultType,
                     loc, baseInst, offsetInst, countInst),
       insert(insertInst) {}
 
-SpirvComposite::SpirvComposite(
+SpirvCompositeConstruct::SpirvCompositeConstruct(
     QualType resultType, SourceLocation loc,
-    llvm::ArrayRef<SpirvInstruction *> constituentsVec, bool isConstant,
-    bool isSpecConstant)
-    : SpirvInstruction(IK_Composite,
-                       isSpecConstant
-                           ? spv::Op::OpSpecConstantComposite
-                           : isConstant ? spv::Op::OpConstantComposite
-                                        : spv::Op::OpCompositeConstruct,
+    llvm::ArrayRef<SpirvInstruction *> constituentsVec)
+    : SpirvInstruction(IK_CompositeConstruct, spv::Op::OpCompositeConstruct,
                        resultType, loc),
       consituents(constituentsVec.begin(), constituentsVec.end()) {}
 
@@ -395,8 +429,8 @@ SpirvConstantBoolean::SpirvConstantBoolean(const BoolType *type, bool val,
       value(val) {}
 
 bool SpirvConstantBoolean::operator==(const SpirvConstantBoolean &that) const {
-  return resultType == that.resultType && value == that.value &&
-         opcode == that.opcode;
+  return resultType == that.resultType && astResultType == that.astResultType &&
+         value == that.value && opcode == that.opcode;
 }
 
 SpirvConstantInteger::SpirvConstantInteger(QualType type, llvm::APInt val,
@@ -409,8 +443,8 @@ SpirvConstantInteger::SpirvConstantInteger(QualType type, llvm::APInt val,
 }
 
 bool SpirvConstantInteger::operator==(const SpirvConstantInteger &that) const {
-  return resultType == that.resultType && value == that.value &&
-         opcode == that.opcode;
+  return resultType == that.resultType && astResultType == that.astResultType &&
+         value == that.value && opcode == that.opcode;
 }
 
 SpirvConstantFloat::SpirvConstantFloat(QualType type, llvm::APFloat val,
@@ -423,18 +457,9 @@ SpirvConstantFloat::SpirvConstantFloat(QualType type, llvm::APFloat val,
 }
 
 bool SpirvConstantFloat::operator==(const SpirvConstantFloat &that) const {
-  return resultType == that.resultType && value.bitwiseIsEqual(that.value) &&
-         opcode == that.opcode;
+  return resultType == that.resultType && astResultType == that.astResultType &&
+         value.bitwiseIsEqual(that.value) && opcode == that.opcode;
 }
-
-SpirvConstantComposite::SpirvConstantComposite(
-    const SpirvType *type, llvm::ArrayRef<SpirvConstant *> constituentsVec,
-    bool isSpecConst)
-    : SpirvConstant(IK_ConstantComposite,
-                    isSpecConst ? spv::Op::OpSpecConstantComposite
-                                : spv::Op::OpConstantComposite,
-                    type),
-      constituents(constituentsVec.begin(), constituentsVec.end()) {}
 
 SpirvConstantComposite::SpirvConstantComposite(
     QualType type, llvm::ArrayRef<SpirvConstant *> constituentsVec,

@@ -94,6 +94,9 @@ TEST_F(FileTest, StructuredByteBufferArray) {
 TEST_F(FileTest, StructuredByteBufferArrayError) {
   runFileTest("type.structured-buffer.array.error.hlsl", Expect::Failure);
 }
+TEST_F(FileTest, AppendConsumeStructuredBufferTypeCast) {
+  runFileTest("type.append.consume-structured-buffer.cast.hlsl");
+}
 TEST_F(FileTest, AppendStructuredBufferType) {
   runFileTest("type.append-structured-buffer.hlsl");
 }
@@ -126,6 +129,15 @@ TEST_F(FileTest, VectorConstants) { runFileTest("constant.vector.hlsl"); }
 TEST_F(FileTest, MatrixConstants) { runFileTest("constant.matrix.hlsl"); }
 TEST_F(FileTest, StructConstants) { runFileTest("constant.struct.hlsl"); }
 TEST_F(FileTest, ArrayConstants) { runFileTest("constant.array.hlsl"); }
+
+// For literals
+TEST_F(FileTest, UnusedLiterals) { runFileTest("literal.unused.hlsl"); }
+TEST_F(FileTest, LiteralConstantComposite) {
+  runFileTest("literal.constant-composite.hlsl");
+}
+TEST_F(FileTest, LiteralVecTimesScalar) {
+  runFileTest("literal.vec-times-scalar.hlsl");
+}
 
 // For variables
 TEST_F(FileTest, VarInitScalarVector) { runFileTest("var.init.hlsl"); }
@@ -386,6 +398,9 @@ TEST_F(FileTest, CastFlatConversionStruct) {
 TEST_F(FileTest, CastFlatConversionNoOp) {
   runFileTest("cast.flat-conversion.no-op.hlsl");
 }
+TEST_F(FileTest, CastFlatConversionStructToStruct) {
+  runFileTest("cast.flat-conversion.struct-to-struct.hlsl");
+}
 TEST_F(FileTest, CastFlatConversionLiteralInitializer) {
   runFileTest("cast.flat-conversion.literal-initializer.hlsl");
 }
@@ -481,6 +496,14 @@ TEST_F(FileTest, FunctionInOutParamNoNeedToCopy) {
   // Tests that referencing function scope variables as a whole with out/inout
   // annotation does not create temporary variables
   runFileTest("fn.param.inout.no-copy.hlsl");
+}
+TEST_F(FileTest, FunctionParamUnsizedArray) {
+  // Unsized ararys as function params are not supported.
+  runFileTest("fn.param.unsized-array.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, FunctionInOutParamTypeMismatch) {
+  // The type for the inout parameter doesn't match the argument type.
+  runFileTest("fn.param.inout.type-mismatch.hlsl");
 }
 TEST_F(FileTest, FunctionFowardDeclaration) {
   runFileTest("fn.foward-declaration.hlsl");
@@ -968,6 +991,9 @@ TEST_F(FileTest, IntrinsicsLog2) { runFileTest("intrinsics.log2.hlsl"); }
 TEST_F(FileTest, IntrinsicsMin) { runFileTest("intrinsics.min.hlsl"); }
 TEST_F(FileTest, IntrinsicsLit) { runFileTest("intrinsics.lit.hlsl"); }
 TEST_F(FileTest, IntrinsicsModf) { runFileTest("intrinsics.modf.hlsl"); }
+TEST_F(FileTest, IntrinsicsModfWithSwizzling) {
+  runFileTest("intrinsics.modf.swizzle.hlsl");
+}
 TEST_F(FileTest, IntrinsicsMad) { runFileTest("intrinsics.mad.hlsl"); }
 TEST_F(FileTest, IntrinsicsMax) { runFileTest("intrinsics.max.hlsl"); }
 TEST_F(FileTest, IntrinsicsMsad4) { runFileTest("intrinsics.msad4.hlsl"); }
@@ -1808,14 +1834,37 @@ TEST_F(FileTest, RayTracingNVAnyHit) {
 TEST_F(FileTest, RayTracingNVClosestHit) {
   runFileTest("raytracing.nv.closesthit.hlsl");
 }
-TEST_F(FileTest, RayTracingNVMiss) {
-  runFileTest("raytracing.nv.miss.hlsl");
-}
+TEST_F(FileTest, RayTracingNVMiss) { runFileTest("raytracing.nv.miss.hlsl"); }
 TEST_F(FileTest, RayTracingNVCallable) {
   runFileTest("raytracing.nv.callable.hlsl");
 }
 TEST_F(FileTest, RayTracingNVLibrary) {
   runFileTest("raytracing.nv.library.hlsl");
+}
+
+// For RelaxedPrecision decorations
+TEST_F(FileTest, DecorationRelaxedPrecisionBasic) {
+  runFileTest("decoration.relaxed-precision.basic.hlsl");
+}
+TEST_F(FileTest, DecorationRelaxedPrecisionStruct) {
+  runFileTest("decoration.relaxed-precision.struct.hlsl");
+}
+TEST_F(FileTest, DecorationRelaxedPrecisionImage) {
+  runFileTest("decoration.relaxed-precision.image.hlsl");
+}
+
+// For NoContraction decorations
+TEST_F(FileTest, DecorationNoContraction) {
+  runFileTest("decoration.no-contraction.hlsl");
+}
+TEST_F(FileTest, DecorationNoContractionVariableReuse) {
+  runFileTest("decoration.no-contraction.variable-reuse.hlsl");
+}
+TEST_F(FileTest, DecorationNoContractionStruct) {
+  runFileTest("decoration.no-contraction.struct.hlsl");
+}
+TEST_F(FileTest, DecorationNoContractionStageVars) {
+  runFileTest("decoration.no-contraction.stage-vars.hlsl");
 }
 
 } // namespace

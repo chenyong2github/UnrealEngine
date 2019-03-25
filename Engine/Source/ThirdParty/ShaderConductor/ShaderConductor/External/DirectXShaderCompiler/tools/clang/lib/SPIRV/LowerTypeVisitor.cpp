@@ -294,12 +294,15 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
           return spvContext.getUIntType(use16Bit ? 16 : 32);
 
         // All literal types should have been lowered to concrete types before
-        // LowerTypeVisitor is invoked. We should error out if we encounter a
-        // literal type.
+        // LowerTypeVisitor is invoked. However, if there are unused literals,
+        // they will still have 'literal' type when we get to this point. Use
+        // 32-bit width by default for these cases.
+        // Example:
+        // void main() { 1.0; 1; }
         case BuiltinType::LitInt:
-          return spvContext.getUIntType(64);
+          return spvContext.getUIntType(32);
         case BuiltinType::LitFloat: {
-          return spvContext.getFloatType(64);
+          return spvContext.getFloatType(32);
 
         default:
           emitError("primitive type %0 unimplemented", srcLoc)
@@ -375,7 +378,8 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
           field->getType(), field->getName(),
           /*vkoffset*/ field->getAttr<VKOffsetAttr>(),
           /*packoffset*/ getPackOffset(field),
-          /*RegisterAssignment*/ nullptr));
+          /*RegisterAssignment*/ nullptr,
+          /*isPrecise*/ field->hasAttr<HLSLPreciseAttr>()));
     }
 
     auto loweredFields = populateLayoutInformation(fields, rule);
@@ -529,15 +533,19 @@ const SpirvType *LowerTypeVisitor::lowerResourceType(QualType type,
     const auto *raType = spvContext.getRuntimeArrayType(structType, size);
     const bool isReadOnly = (name == "StructuredBuffer");
 
-    // Attach majorness decoration if this is a *StructuredBuffer<matrix>.
-    llvm::Optional<bool> isRowMajor =
-        isMxNMatrix(s) ? llvm::Optional<bool>(isRowMajorMatrix(spvOptions, s))
-                       : llvm::None;
+    // Attach majorness and stride decorations if this is a
+    // *StructuredBuffer<matrix>.
+    llvm::Optional<bool> isRowMajor = llvm::None;
+    llvm::Optional<uint32_t> matrixStride = llvm::None;
+    if (isMxNMatrix(s)) {
+      isRowMajor = isRowMajorMatrix(spvOptions, s);
+      matrixStride = stride;
+    }
 
     const std::string typeName = "type." + name.str() + "." + structName;
     const auto *valType = spvContext.getStructType(
-        {StructType::FieldInfo(raType, /*name*/ "", /*offset*/ 0,
-                               /*matrixStride*/ llvm::None, isRowMajor)},
+        {StructType::FieldInfo(raType, /*name*/ "", /*offset*/ 0, matrixStride,
+                               isRowMajor)},
         typeName, isReadOnly, StructInterfaceType::StorageBuffer);
 
     if (asAlias) {
@@ -715,6 +723,16 @@ LowerTypeVisitor::populateLayoutInformation(
     // majorness information.
     StructType::FieldInfo loweredField(
         lowerType(fieldType, rule, /*isRowMajor*/ llvm::None, {}), field.name);
+
+    // Set RelaxedPrecision information for the lowered field.
+    if (isRelaxedPrecisionType(fieldType, spvOptions)) {
+      loweredField.isRelaxedPrecision = true;
+    }
+
+    // Set 'precise' information for the lowered field.
+    if (field.isPrecise) {
+      loweredField.isPrecise = true;
+    }
 
     // We only need layout information for strcutres with non-void layout rule.
     if (rule == SpirvLayoutRule::Void) {

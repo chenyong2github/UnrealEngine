@@ -19,6 +19,7 @@
 #include "dxc/HLSL/DxilSpanAllocator.h"
 #include "dxc/HLSL/HLMatrixType.h"
 #include "dxc/DXIL/DxilUtil.h"
+#include "dxc/HLSL/HLMatrixType.h"
 #include "dxc/HLSL/HLModule.h"
 
 #include "llvm/IR/Instructions.h"
@@ -446,6 +447,8 @@ public:
     m_bIsLib = DM.GetShaderModel()->IsLib();
     m_bLegalizationFailed = false;
 
+    FailOnPoisonResources();
+
     bool bChanged = false;
     unsigned numResources = DM.GetCBuffers().size() + DM.GetUAVs().size() +
                             DM.GetSRVs().size() + DM.GetSamplers().size();
@@ -505,6 +508,7 @@ public:
   }
 
 private:
+  void FailOnPoisonResources();
   bool RemovePhiOnResource();
   void UpdateResourceSymbols();
   void TranslateDxilResourceUses(DxilResourceBase &res);
@@ -1534,7 +1538,7 @@ Type *UpdateFieldTypeForLegacyLayout(Type *Ty, bool IsCBuf,
       return Ty;
     else
       return ArrayType::get(UpdatedTy, Ty->getArrayNumElements());
-  } else if (dxilutil::IsHLSLMatrixType(Ty)) {
+  } else if (hlsl::HLMatrixType::isa(Ty)) {
     DXASSERT(annotation.HasMatrixAnnotation(), "must a matrix");
     HLMatrixType MatTy = HLMatrixType::cast(Ty);
     unsigned rows = MatTy.getNumRows();
@@ -1592,6 +1596,10 @@ StructType *UpdateStructTypeForLegacyLayout(StructType *ST, bool IsCBuf,
   std::vector<Type *> fieldTypes(fieldsCount);
   DxilStructAnnotation *SA = TypeSys.GetStructAnnotation(ST);
   DXASSERT(SA, "must have annotation for struct type");
+
+  if (SA->IsEmptyStruct()) {
+    return ST;
+  }
 
   for (unsigned i = 0; i < fieldsCount; i++) {
     Type *EltTy = ST->getElementType(i);
@@ -1688,6 +1696,23 @@ void UpdateStructTypeForLegacyLayoutOnDM(DxilModule &DM) {
 }
 
 } // namespace
+
+void DxilLowerCreateHandleForLib::FailOnPoisonResources() {
+  // A previous pass replaced all undef resources with constant zero resources.
+  // If those made it here, the program is malformed.
+  for (Function &Func : this->m_DM->GetModule()->functions()) {
+    hlsl::OP::OpCodeClass OpcodeClass;
+    if (m_DM->GetOP()->GetOpCodeClass(&Func, OpcodeClass)
+      && OpcodeClass == OP::OpCodeClass::CreateHandleForLib) {
+      Type *ResTy = Func.getFunctionType()->getParamType(
+        DXIL::OperandIndex::kCreateHandleForLibResOpIdx);
+      Constant *PoisonRes = ConstantAggregateZero::get(ResTy);
+      for (User *PoisonUser : PoisonRes->users())
+        if (Instruction *PoisonUserInst = dyn_cast<Instruction>(PoisonUser))
+          dxilutil::EmitResMappingError(PoisonUserInst);
+    }
+  }
+}
 
 void DxilLowerCreateHandleForLib::UpdateStructTypeForLegacyLayout() {
   UpdateStructTypeForLegacyLayoutOnDM(*m_DM);
