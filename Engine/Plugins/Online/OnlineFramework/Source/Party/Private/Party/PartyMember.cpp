@@ -38,6 +38,11 @@ const USocialParty* FPartyMemberRepData::GetOwnerParty() const
 	return OwnerMember.IsValid() ? &OwnerMember->GetParty() : nullptr;
 }
 
+const UPartyMember* FPartyMemberRepData::GetOwningMember() const
+{
+	return OwnerMember.IsValid() ? OwnerMember.Get() : nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // PartyMember
 //////////////////////////////////////////////////////////////////////////
