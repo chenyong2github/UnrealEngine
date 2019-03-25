@@ -66,9 +66,6 @@ public:
 	/** Full reset of all created widget objects (and any cached underlying slate) */
 	void ResetPool();
 
-	/** Reset of all cached underlying Slate widgets, but not the active UUserWidget objects */
-	void ReleaseSlateResources();
-
 private:
 	template <typename UserWidgetT = UUserWidget>
 	UserWidgetT* AddActiveWidgetInternal(TSubclassOf<UserWidgetT> WidgetClass, WidgetConstructFunc ConstructWidgetFunc)
