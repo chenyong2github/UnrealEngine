@@ -89,3 +89,33 @@ struct FRigUnit_Clamp_Float: public FRigUnit
 		Result = FMath::Clamp(Value, Min, Max);
 	}
 };
+
+/** Two args and a result of float type */
+USTRUCT(meta = (DisplayName = "MapRange", Category = "Math|Float"))
+struct FRigUnit_MapRange_Float: public FRigUnit
+{
+	GENERATED_BODY()
+
+	UPROPERTY(meta = (Input))
+	float Value;
+
+	UPROPERTY(meta = (Input))
+	float MinIn;
+
+	UPROPERTY(meta = (Input))
+	float MaxIn;
+
+	UPROPERTY(meta = (Input))
+	float MinOut;
+
+	UPROPERTY(meta = (Input))
+	float MaxOut;
+
+	UPROPERTY(meta = (Output))
+	float Result;
+
+	virtual void Execute(const FRigUnitContext& InContext) override
+	{
+		Result = FMath::GetMappedRangeValueClamped(FVector2D(MinIn, MaxIn), FVector2D(MinOut, MaxOut), Value);
+	}
+};
