@@ -253,9 +253,13 @@ struct FUserDefinedStructureCompilerInner
 			}
 			
 			VarProperty->SetPropertyFlags(CPF_Edit | CPF_BlueprintVisible);
-			if (VarDesc.bDontEditoOnInstance)
+			if (VarDesc.bDontEditOnInstance)
 			{
 				VarProperty->SetPropertyFlags(CPF_DisableEditOnInstance);
+			}
+			if (VarDesc.bEnableSaveGame)
+			{
+				VarProperty->SetPropertyFlags(CPF_SaveGame);
 			}
 			if (VarDesc.bEnableMultiLineText)
 			{

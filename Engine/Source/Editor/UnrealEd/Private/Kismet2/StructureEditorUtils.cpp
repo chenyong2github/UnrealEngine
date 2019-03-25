@@ -312,8 +312,6 @@ bool FStructureEditorUtils::AddVariable(UUserDefinedStruct* Struct, const FEdGra
 		NewVar.FriendlyName = DisplayName;
 		NewVar.SetPinType(VarType);
 		NewVar.VarGuid = Guid;
-		NewVar.bDontEditoOnInstance = false;
-		NewVar.bInvalidMember = false;
 		GetVarDesc(Struct).Add(NewVar);
 
 		OnStructureChanged(Struct, EStructureEditorChangeInfo::AddedVariable);
@@ -697,13 +695,29 @@ bool FStructureEditorUtils::ChangeEditableOnBPInstance(UUserDefinedStruct* Struc
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
-	const bool bNewDontEditoOnInstance = !bInIsEditable;
-	if (VarDesc && (bNewDontEditoOnInstance != VarDesc->bDontEditoOnInstance))
+	const bool bNewDontEditOnInstance = !bInIsEditable;
+	if (VarDesc && (bNewDontEditOnInstance != VarDesc->bDontEditOnInstance))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ChangeVariableOnBPInstance", "Change variable editable on BP instance"));
 		ModifyStructData(Struct);
 
-		VarDesc->bDontEditoOnInstance = bNewDontEditoOnInstance;
+		VarDesc->bDontEditOnInstance = bNewDontEditOnInstance;
+		OnStructureChanged(Struct);
+		return true;
+	}
+	return false;
+}
+
+bool FStructureEditorUtils::ChangeSaveGameEnabled(UUserDefinedStruct* Struct, FGuid VarGuid, bool bInSaveGame)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
+	if (VarDesc && (bInSaveGame != VarDesc->bEnableSaveGame))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ChangeSaveGameOnVariable", "Change variable SaveGame flag"));
+		ModifyStructData(Struct);
+
+		VarDesc->bEnableSaveGame = bInSaveGame;
 		OnStructureChanged(Struct);
 		return true;
 	}
