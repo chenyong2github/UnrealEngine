@@ -91,7 +91,7 @@ protected:
 	float HoverDeemphasisDarkFraction;
 	const FSlateRect& ClippingRect;
 	FSlateWindowElementList& DrawElementsList;
-	TMap< UEdGraphPin*, TSharedRef<SGraphPin> > PinToPinWidgetMap;
+	TMap< UEdGraphPin*, TSharedPtr<SGraphPin> > PinToPinWidgetMap;
 	TSet< FEdGraphPinReference > HoveredPins;
 	TMap<TSharedRef<SWidget>, FArrangedWidget>* PinGeometries;
 	double LastHoverTimeEvent;
