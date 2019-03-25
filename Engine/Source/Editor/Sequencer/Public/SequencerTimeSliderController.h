@@ -321,6 +321,9 @@ private:
 	
 	DragType MouseDragType;
 	
+	/** If mouse down was in time scrubbing region, only allow setting time when mouse is pressed down in the region */
+	bool bMouseDownInRegion;
+
 	/** If we are currently panning the panel */
 	bool bPanning;
 
