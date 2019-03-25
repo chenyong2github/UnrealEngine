@@ -1,10 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "BackgroundHttpManagerImpl.h"
 
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformFile.h"
 
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeRWLock.h"
 
 DEFINE_LOG_CATEGORY(LogBackgroundHttpManager);
@@ -24,6 +26,7 @@ FBackgroundHttpManagerImpl::~FBackgroundHttpManagerImpl()
 
 void FBackgroundHttpManagerImpl::Initialize()
 {
+	ClearAnyTempFilesFromTimeOut();
 }
 
 void FBackgroundHttpManagerImpl::Shutdown()
@@ -39,6 +42,38 @@ void FBackgroundHttpManagerImpl::Shutdown()
 		FRWScopeLock ScopeLock(ActiveRequestLock, SLT_Write);
 		ActiveRequests.Empty();
 		NumCurrentlyActiveRequests = 0;
+	}
+}
+
+void FBackgroundHttpManagerImpl::ClearAnyTempFilesFromTimeOut()
+{
+	UE_LOG(LogBackgroundHttpManager, Log, TEXT("Checking for BackgroundHTTP temp files that should be deleted due to time out"));
+
+	TArray<FString> FilesToCheck;
+
+	//Find all files in our temp folder
+	IFileManager::Get().FindFiles(FilesToCheck, *FPlatformBackgroundHttp::GetTemporaryRootPath(), nullptr);
+
+	double FileAgeTimeOutSettings = -1;
+	GConfig->GetDouble(TEXT("BackgroundHttp"), TEXT("BackgroundHttp.TempFileTimeOutSeconds"), FileAgeTimeOutSettings, GEngineIni);
+
+	if (FileAgeTimeOutSettings >= 0)
+	{
+		for (const FString& File : FilesToCheck)
+		{
+			const double FileAge = IFileManager::Get().GetFileAgeSeconds(*File);
+			const bool bShouldDelete = (FileAge > FileAgeTimeOutSettings);
+
+			UE_LOG(LogBackgroundHttpManager, Log, TEXT("FoundTempFile: %s with age %lld -- bShouldDelete:%d"), *File, FileAge, (int)bShouldDelete);
+
+			if (bShouldDelete)
+			{
+				if (!IFileManager::Get().Delete(*File))
+				{
+					UE_LOG(LogBackgroundHttpManager, Error, TEXT("File %s failed to delete, but should have as as it is %lld seconds old!"), *File);
+				}
+			}
+		}
 	}
 }
 
