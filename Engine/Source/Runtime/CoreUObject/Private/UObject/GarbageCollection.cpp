@@ -23,6 +23,7 @@
 #include "UObject/UObjectClusters.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/GarbageCollectionVerification.h"
+#include "UObject/Package.h"
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
