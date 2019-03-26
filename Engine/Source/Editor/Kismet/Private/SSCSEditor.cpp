@@ -6268,7 +6268,7 @@ FText SSCSEditor::OnGetApplyChangesToBlueprintTooltip() const
 		AActor* BlueprintCDO = Actor->GetClass()->GetDefaultObject<AActor>();
 		if(BlueprintCDO != NULL)
 		{
-			const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::PreviewOnly|EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties);
+			const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::PreviewOnly|EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties|EditorUtilities::ECopyOptions::SkipInstanceOnlyProperties);
 			NumChangedProperties += EditorUtilities::CopyActorProperties(Actor, BlueprintCDO, CopyOptions);
 		}
 		NumChangedProperties += Actor->GetInstanceComponents().Num();
@@ -6447,7 +6447,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 				AActor* BlueprintCDO = Actor->GetClass()->GetDefaultObject<AActor>();
 				if (BlueprintCDO != NULL)
 				{
-					const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::PropagateChangesToArchetypeInstances);
+					const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::PropagateChangesToArchetypeInstances | EditorUtilities::ECopyOptions::SkipInstanceOnlyProperties);
 					NumChangedProperties = EditorUtilities::CopyActorProperties(Actor, BlueprintCDO, CopyOptions);
 					if (Actor->GetInstanceComponents().Num() > 0)
 					{
