@@ -415,6 +415,11 @@ private:
 	bool CanUseFixedBounds() const;
 	bool IsUsingFixedBounds() const;
 
+	/** Called to toggle 'pre-skinned' option to preview */
+	void UsePreSkinnedBounds();
+	bool CanUsePreSkinnedBounds() const;
+	bool IsUsingPreSkinnedBounds() const;
+
 	/** Called by UV channel combo box on selection change */
 	void ComboBoxSelectionChanged( TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo );
 
