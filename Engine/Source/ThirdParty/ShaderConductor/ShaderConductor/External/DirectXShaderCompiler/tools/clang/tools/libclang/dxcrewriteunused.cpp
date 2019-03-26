@@ -401,7 +401,7 @@ HRESULT DoRewriteUnused(_In_ DxcLangExtensionsHelper *pHelper,
 
     VarDecl* varDecl = dyn_cast_or_null<VarDecl>(tuDecl);
     /* UE-Change-Begin: Don't elide static const variables */
-    if (varDecl != nullptr && varDecl->getFormalLinkage() == clang::Linkage::InternalLinkage && varDecl->getStorageClass() != SC_Static) {
+    if (varDecl != nullptr && varDecl->getStorageClass() != SC_Static) {
     /* UE-Change-End: Don't elide static const variables */
       unusedGlobals.insert(varDecl);
       if (const RecordType *recordType = varDecl->getType()->getAs<RecordType>()) {
