@@ -12,6 +12,9 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MeshDrawShaderBindings.h"
 #include "Scalability.h"
+#include "Dom/JsonObject.h"
+#include "Engine/Engine.h"
+#include "Misc/FileHelper.h"
 
 
 
