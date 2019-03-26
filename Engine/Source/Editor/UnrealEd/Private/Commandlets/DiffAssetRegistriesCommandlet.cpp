@@ -10,7 +10,6 @@
 #include "HAL/FileManager.h"
 #include "Serialization/ArrayReader.h"
 #include "Misc/FileHelper.h"
-#include "Internationalization/Regex.h"
 
 DEFINE_LOG_CATEGORY(LogDiffAssets);
 
@@ -65,9 +64,9 @@ void UDiffAssetRegistriesCommandlet::PopulateChangelistMap(const FString &Branch
 		// skip the game packages if we're doing engine packages only
 		if (!bEnginePackages)
 		{
-			FillChangelists(Branch, CLRange, TEXT("/FortniteGame/Content/"), TEXT("/Game/"));
+			FillChangelists(Branch, CLRange, P4GameBasePath, P4GameAssetPath);
 		}
-		FillChangelists(Branch, CLRange, TEXT("/Engine/Content/"), TEXT("/Engine/"));			
+		FillChangelists(Branch, CLRange, P4EngineBasePath, P4EngineAssetPath);
 	}
 
 	// save out the new table
@@ -135,7 +134,6 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	const bool bUseSourceGuid = Switches.Contains(TEXT("SOURCEGUID"));
 	const bool bConsistency = Switches.Contains(TEXT("CONSISTENCY"));
 	const bool bEnginePackages = Switches.Contains(TEXT("ENGINEPACKAGES"));
-	bGroupByChunk = Switches.Contains(TEXT("GROUPBYCHUNK"));
 
 	FString SortOrder;
 	FParse::Value(*FullCommandLine, TEXT("Sort="), SortOrder);
@@ -196,15 +194,6 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	if (NewPathVal)
 	{
 		FindAssetRegistryPath(*NewPathVal, NewPath);
-
-		const FRegexPattern CLPattern(TEXT("\\+\\+Fortnite\\+(.*)-CL-(\\d+)"));
-		FRegexMatcher CLMatcher(CLPattern, NewPath);
-
-		if (CLMatcher.FindNext())
-		{
-			Branch = CLMatcher.GetCaptureGroup(1);
-			CL = CLMatcher.GetCaptureGroup(2);
-		}
 	}
 
 	bMatchChangelists = false;
@@ -276,7 +265,7 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 {
 	TArray<FString> Results;
 	int32 ReturnCode = 0;
-	if (LaunchP4(TEXT("files ") + FString(TEXT("//Fortnite/")) + Branch + BasePath + TEXT("....uasset@") + CL, Results, ReturnCode))
+	if (LaunchP4(TEXT("files ") + P4Repository + Branch + BasePath + TEXT("....uasset@") + CL, Results, ReturnCode))
 	{
 		if (ReturnCode == 0)
 		{
@@ -314,7 +303,7 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 			}
 		}
 	}
-	if (LaunchP4(TEXT("files ") + FString(TEXT("//Fortnite/")) + Branch + BasePath + TEXT("....umap@") + CL, Results, ReturnCode))
+	if (LaunchP4(TEXT("files ") + P4Repository + Branch + BasePath + TEXT("....umap@") + CL, Results, ReturnCode))
 	{
 		if (ReturnCode == 0)
 		{
@@ -541,37 +530,6 @@ FName UDiffAssetRegistriesCommandlet::GetClassName(FAssetRegistryState& InRegist
 	return AssetPathToClassName[InAssetPath];
 }
 
-TArray<int32> UDiffAssetRegistriesCommandlet::GetAssetChunks(FAssetRegistryState& InRegistryState, FName InAssetPath)
-{
-	if (ChunkIdByAssetPath.Contains(InAssetPath) == false)
-	{
-		TArray<const FAssetData*> Assets = InRegistryState.GetAssetsByPackageName(InAssetPath);
-
-		if (Assets.Num() > 0 && Assets[0]->ChunkIDs.Num() > 0)
-		{
-			if (Assets[0]->ChunkIDs.Num() > 1)
-			{
-				UE_LOG(LogDiffAssets, Warning, TEXT("Multiple ChunkIds for asset %s"), *InAssetPath.ToString());
-			}
-
-			for (int32 id : Assets[0]->ChunkIDs)
-			{
-				ChangesByChunk.FindOrAdd(id).IncludedAssets.Add(InAssetPath);
-				ChunkIdByAssetPath.Add(InAssetPath, id);
-			}
-		}
-		else
-		{
-			UE_LOG(LogDiffAssets, Log, TEXT("Unable to find chunk ids of asset %s"), *InAssetPath.ToString());
-			ChunkIdByAssetPath.Add(InAssetPath, -1);
-		}
-	}
-
-	TArray<int32> ChunkIds;
-	ChunkIdByAssetPath.MultiFind(InAssetPath, ChunkIds);
-	return ChunkIds;
-}
-
 void UDiffAssetRegistriesCommandlet::RecordAdd(FName InAssetPath, const FAssetPackageData& InNewData)
 {
 	FChangeInfo AssetChange;
@@ -583,17 +541,12 @@ void UDiffAssetRegistriesCommandlet::RecordAdd(FName InAssetPath, const FAssetPa
 	}
 
 	FName ClassName = GetClassName(NewState, InAssetPath);
-	TArray<int32> ChunkIds = GetAssetChunks(NewState, InAssetPath);
 
 	int changelist = AssetPathToChangelist.FindOrAdd(*InAssetPath.ToString());
 
 	ChangeInfoByAsset.FindOrAdd(InAssetPath) = AssetChange;
 	ChangeSummaryByClass.FindOrAdd(ClassName) += AssetChange;
 	ChangeSummaryByChangelist.FindOrAdd(changelist) += AssetChange;
-	for (int32 ChunkId : ChunkIds)
-	{
-		ChangesByChunk.FindOrAdd(ChunkId).ChangesByClass.FindOrAdd(ClassName) += AssetChange;
-	}
 	ChangeSummary += AssetChange;
 }
 
@@ -608,17 +561,12 @@ void UDiffAssetRegistriesCommandlet::RecordEdit(FName InAssetPath, const FAssetP
 	}
 
 	FName ClassName = GetClassName(NewState, InAssetPath);
-	TArray<int32> ChunkIds = GetAssetChunks(NewState, InAssetPath);
 
 	int changelist = AssetPathToChangelist.FindOrAdd(*InAssetPath.ToString());
 
 	ChangeInfoByAsset.FindOrAdd(InAssetPath) = AssetChange;
 	ChangeSummaryByClass.FindOrAdd(ClassName) += AssetChange;
 	ChangeSummaryByChangelist.FindOrAdd(changelist) += AssetChange;
-	for (int32 ChunkId : ChunkIds)
-	{
-		ChangesByChunk.FindOrAdd(ChunkId).ChangesByClass.FindOrAdd(ClassName) += AssetChange;
-	}
 	ChangeSummary += AssetChange;
 }
 
@@ -634,14 +582,9 @@ void UDiffAssetRegistriesCommandlet::RecordDelete(FName InAssetPath, const FAsse
 	}
 
 	FName ClassName = GetClassName(OldState, InAssetPath);
-	TArray<int32> ChunkIds = GetAssetChunks(NewState, InAssetPath);
 
 	ChangeInfoByAsset.FindOrAdd(InAssetPath) = AssetChange;
 	ChangeSummaryByClass.FindOrAdd(ClassName) += AssetChange;
-	for (int32 ChunkId : ChunkIds)
-	{
-		ChangesByChunk.FindOrAdd(ChunkId).ChangesByClass.FindOrAdd(ClassName) += AssetChange;
-	}
 	ChangeSummary += AssetChange;
 }
 
@@ -657,14 +600,9 @@ void UDiffAssetRegistriesCommandlet::RecordNoChange(FName InAssetPath, const FAs
 	}
 
 	FName ClassName = GetClassName(NewState, InAssetPath);
-	TArray<int32> ChunkIds = GetAssetChunks(NewState, InAssetPath);
 
 	ChangeInfoByAsset.FindOrAdd(InAssetPath) = AssetChange;
 	ChangeSummaryByClass.FindOrAdd(ClassName) += AssetChange;
-	for (int32 ChunkId : ChunkIds)
-	{
-		ChangesByChunk.FindOrAdd(ChunkId).ChangesByClass.FindOrAdd(ClassName) += AssetChange;
-	}
 	ChangeSummary += AssetChange;
 }
 
@@ -773,6 +711,16 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 
 	if (CSVFile)
 	{
+		CSVFile->Logf(TEXT("Type Key"));
+		CSVFile->Logf(TEXT("a, file added"));
+		CSVFile->Logf(TEXT("r, file removed"));
+		CSVFile->Logf(TEXT("e, explicit edit (this file specifically has been modified)"));
+		CSVFile->Logf(TEXT("d, dependency edit (this file is different likely because a dependency has also been changed)"));
+		CSVFile->Logf(TEXT("n, indirect non deterministic (a dependency file changed but wasn't changed directly (Indicates the dependency was either non determinisitc or another indirect non deterministic file))"));
+		CSVFile->Logf(TEXT("c, non deterministic (the hashes for all dependencies are the same but this file is not)"));
+		CSVFile->Logf(TEXT("x, no binary change (shouldn't ever happen)"));
+		CSVFile->Logf(TEXT(""));
+
 		CSVFile->Logf(TEXT("Modification,Name,Class,NewSize,OldSize,Changelist"));
 
 		UE_LOG(LogDiffAssets, Display, TEXT("Saving CSV results to %s"), *CSVFilename);
@@ -881,123 +829,6 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 				UE_LOG(LogDiffAssets, Display, TEXT("r %s : (Class=%s,OldSize=%d bytes)"), *AssetPath.ToString(), *ClassName.ToString(), PrevData->DiskSize);
 			}
 		}
-	}
-}
-
-void UDiffAssetRegistriesCommandlet::LogClassSummary(FArchive *CSVFile, const FString& HeaderPrefix, const TMap<FName, FChangeInfo>& InChangeInfoByAsset, bool bDoWarnings)
-{
-	const float InvToMB = 1.0 / (1024 * 1024);
-	FString HeaderSpacer = (HeaderPrefix.Len() ? TEXT(" ") : TEXT(""));
-
-	// show class totals first
-	TArray<FName> ClassNames;
-	InChangeInfoByAsset.GetKeys(ClassNames);
-
-	// Sort keys by the desired order
-	if (ReportedFileOrder == SortOrder::ByName || ReportedFileOrder == SortOrder::ByClass)
-	{
-		ClassNames.Sort([](const FName& Lhs, const FName& Rhs) {
-			return Lhs.ToString() < Rhs.ToString();
-		});
-
-	}
-	else // Default to size for everything else for class list
-	{
-		// sort by size of changes (number can also be a big impact on patch size but depends on datalayout and patch algo..)
-		ClassNames.Sort([this, InChangeInfoByAsset](const FName& Lhs, const FName& Rhs) {
-			const FChangeInfo& LHSChanges = InChangeInfoByAsset[Lhs];
-			const FChangeInfo& RHSChanges = InChangeInfoByAsset[Rhs];
-			return LHSChanges.GetTotalChangeSize() > RHSChanges.GetTotalChangeSize();
-		});
-	}
-
-	//Overall Class Summary
-	bool bChangesPastThreshold = false;
-	for (FName ClassName : ClassNames)
-	{
-		const FChangeInfo& Changes = InChangeInfoByAsset[ClassName];
-
-		if (Changes.GetTotalChangeSize() == 0)
-		{
-			continue;
-		}
-
-		if (Changes.GetTotalChangeCount() < MinChangeCount || Changes.GetTotalChangeSize() < (MinChangeSizeMB * 1024 * 1024))
-		{
-			continue;
-		}
-		else if (!bChangesPastThreshold)
-		{
-			//We'll need to display the header, since this is the first row that has sufficient changes
-			if (CSVFile)
-			{
-				CSVFile->Logf(TEXT(""));
-				CSVFile->Logf(TEXT("%s%sClass Summary"), *HeaderPrefix, *HeaderSpacer);
-				CSVFile->Logf(TEXT("Name,Percentage,TotalSize,Adds,AddedSize,Changes,ChangesSize,Deletes,DeletedSize,Unchanged,UnchangedSize"));
-			}
-
-			bChangesPastThreshold = true;
-		}
-
-		if (CSVFile)
-		{
-			CSVFile->Logf(TEXT("%s,%0.02f,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld"),
-				*ClassName.ToString(),
-				Changes.GetChangePercentage() * 100.0,
-				Changes.GetTotalChangeSize(),
-				Changes.Adds, Changes.AddedBytes,
-				Changes.Changes, Changes.ChangedBytes,
-				Changes.Deletes, Changes.DeletedBytes,
-				Changes.Unchanged, Changes.UnchangedBytes);
-		}
-
-		// log summary & change
-		UE_LOG(LogDiffAssets, Display, TEXT("%s%sClass Summary: "), *HeaderPrefix, *HeaderSpacer);
-
-		UE_LOG(LogDiffAssets, Display, TEXT("%s: %.02f%% changes (%.02f MB Total)"),
-			*ClassName.ToString(), Changes.GetChangePercentage() * 100.0, Changes.GetTotalChangeSize() * InvToMB);
-
-		if (Changes.Adds)
-		{
-			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages added,    %8.3f MB"), Changes.Adds, Changes.AddedBytes * InvToMB);
-		}
-
-		if (Changes.Changes)
-		{
-			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages modified, %8.3f MB"), Changes.Changes, Changes.ChangedBytes * InvToMB);
-		}
-
-		if (Changes.Deletes)
-		{
-			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages removed,  %8.3f MB"), Changes.Deletes, Changes.DeletedBytes * InvToMB);
-		}
-
-		UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages unchanged,  %8.3f MB"), Changes.Unchanged, Changes.UnchangedBytes * InvToMB);
-
-		// Warn on a certain % of changes if that's enabled
-		if (bDoWarnings 
-			&& Changes.Changes >= 10
-			&& (WarnPercentage > 0 || WarnSizeMinMB > 0)
-			&& Changes.ChangedBytes * InvToMB >= WarnSizeMinMB
-			&& Changes.GetChangePercentage() * 100.0 > WarnPercentage)
-		{
-			UE_LOG(LogDiffAssets, Warning, TEXT("\t%s Assets for %s are %.02f%% changed. (%.02f MB of data)"),
-				*TargetPlatform, *ClassName.ToString(), Changes.GetChangePercentage() * 100.0, Changes.ChangedBytes * InvToMB);
-		}
-	}
-
-	//If we didn't find any changes of sufficient size, note as much instead of the header
-	if (!bChangesPastThreshold)
-	{
-		FString SummaryName = (HeaderPrefix.Len() ? FString::Printf(TEXT("%s: "), *HeaderPrefix) : TEXT(""));
-
-		if (CSVFile)
-		{
-			CSVFile->Logf(TEXT(""));
-			CSVFile->Logf(TEXT("%sNo classes had changes past change threshold"), *SummaryName);
-		}
-
-		UE_LOG(LogDiffAssets, Display, TEXT("%sNo classes had changes past thresholds"), *SummaryName);
 	}
 }
 
@@ -1284,27 +1115,92 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 
 	const float InvToMB = 1.0 / (1024 * 1024);
 
-	//Overall Class Summary
-	//Actually do the warnings in this run, since it's the overall one
-	LogClassSummary(CSVFile, TEXT("Overall"), ChangeSummaryByClass, true);
+	// show class totals first
+	TArray<FName> ClassNames;
+	ChangeSummaryByClass.GetKeys(ClassNames);
 
-	//Chunk-by-chunk class summaries
-	if (bGroupByChunk)
+	// Sort keys by the desired order
+	if (ReportedFileOrder == SortOrder::ByName || ReportedFileOrder == SortOrder::ByClass)
 	{
-		TArray<int32> ChunkIDs;
-		ChangesByChunk.GetKeys(ChunkIDs);
-		ChunkIDs.Sort();
-		for (int32 ChunkID : ChunkIDs)
-		{
-			FString ChunkHeader = (ChunkID == -1) ? TEXT("Untagged") : FString::Printf(TEXT("Chunk %d"), ChunkID);
-			if (ChangesByChunk[ChunkID].ChangesByClass.Num())
-			{
-				LogClassSummary(CSVFile, *ChunkHeader, ChangesByChunk[ChunkID].ChangesByClass, false);
-			}
-		}
+		ClassNames.Sort([](const FName& Lhs, const FName& Rhs) {
+			return Lhs.ToString() < Rhs.ToString();
+		});
+		
+	}
+	else // Default to size for everything else for class list
+	{
+		// sort by size of changes (number can also be a big impact on patch size but depends on datalayout and patch algo..)
+		ClassNames.Sort([this](const FName& Lhs, const FName& Rhs) {
+			const FChangeInfo& LHSChanges = ChangeSummaryByClass[Lhs];
+			const FChangeInfo& RHSChanges = ChangeSummaryByClass[Rhs];
+			return LHSChanges.GetTotalChangeSize() > RHSChanges.GetTotalChangeSize();
+		});
+	}
+	
+	if (CSVFile)
+	{
+		CSVFile->Logf(TEXT(""));
+		CSVFile->Logf(TEXT("Class Summary"));
+		CSVFile->Logf(TEXT("Name,Percentage,TotalSize,Adds,AddedSize,Changes,ChangesSize,Deletes,DeletedSize,Unchanged,UnchangedSize"));
 	}
 
+	for (FName ClassName : ClassNames)
+	{
+		const FChangeInfo& Changes = ChangeSummaryByClass[ClassName];
 
+		if (Changes.GetTotalChangeSize() == 0)
+		{
+			continue;
+		}
+
+		if (Changes.GetTotalChangeCount() < MinChangeCount || Changes.GetTotalChangeSize() < (MinChangeSizeMB*1024*1024))
+		{
+			continue;
+		}
+
+		if (CSVFile)
+		{
+			CSVFile->Logf(TEXT("%s,%0.02f,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld"),
+						  *ClassName.ToString(),
+						  Changes.GetChangePercentage() * 100.0,
+						  Changes.GetTotalChangeSize(),
+						  Changes.Adds, Changes.AddedBytes,
+						  Changes.Changes, Changes.ChangedBytes,
+						  Changes.Deletes, Changes.DeletedBytes,
+						  Changes.Unchanged, Changes.UnchangedBytes);
+		}
+
+		// log summary & change
+		UE_LOG(LogDiffAssets, Display, TEXT("%s: %.02f%% changes (%.02f MB Total)"),
+			*ClassName.ToString(), Changes.GetChangePercentage() * 100.0, Changes.GetTotalChangeSize() * InvToMB);
+
+		if (Changes.Adds)
+		{
+			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages added,    %8.3f MB"), Changes.Adds, Changes.AddedBytes * InvToMB);
+		}
+
+		if (Changes.Changes)
+		{
+			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages modified, %8.3f MB"), Changes.Changes, Changes.ChangedBytes * InvToMB);
+		}
+
+		if (Changes.Deletes)
+		{
+			UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages removed,  %8.3f MB"), Changes.Deletes, Changes.DeletedBytes * InvToMB);
+		}
+
+		UE_LOG(LogDiffAssets, Display, TEXT("\t%d packages unchanged,  %8.3f MB"), Changes.Unchanged, Changes.UnchangedBytes * InvToMB);
+		
+		// Warn on a certain % of changes if that's enabled
+		if (Changes.Changes >= 10
+			&& (WarnPercentage > 0 || WarnSizeMinMB > 0)
+			&& Changes.ChangedBytes * InvToMB >= WarnSizeMinMB
+			&& Changes.GetChangePercentage() * 100.0 > WarnPercentage)
+		{
+			UE_LOG(LogDiffAssets, Warning, TEXT("\t%s Assets for %s are %.02f%% changed. (%.02f MB of data)"),
+				   *TargetPlatform, *ClassName.ToString(), Changes.GetChangePercentage() * 100.0, Changes.ChangedBytes * InvToMB);
+		}
+	}
 #if 0
 	TArray<int32> Changelists;
 	ChangeSummaryByChangelist.GetKeys(Changelists);
@@ -1404,13 +1300,8 @@ bool UDiffAssetRegistriesCommandlet::LaunchP4(const FString& Args, TArray<FStrin
 	{
 		while (FPlatformProcess::IsProcRunning(ProcHandle))
 		{
-			FString ThisRead = FPlatformProcess::ReadPipe(PipeRead);
-			StringOutput += ThisRead;
-//			Re-enable waits if constant pipe-querying is somehow damaging, but keep the wait SMALL
-//			if (ThisRead.Len() <= 0)
-//			{
-//				FPlatformProcess::Sleep(0.001f);
-//			}
+			StringOutput += FPlatformProcess::ReadPipe(PipeRead);
+			FPlatformProcess::Sleep(0.1f);
 		}
 
 		StringOutput += FPlatformProcess::ReadPipe(PipeRead);

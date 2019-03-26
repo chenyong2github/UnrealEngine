@@ -204,4 +204,18 @@ private:
 
 	UPROPERTY(config)
 	TArray<FString> AssetRegistrySearchPath;
+
+	UPROPERTY(config)
+	FString P4Repository;
+	UPROPERTY(config)
+	FString P4EngineBasePath;
+	UPROPERTY(config)
+	FString P4EngineAssetPath;
+
+	UPROPERTY(config)
+	FString P4GameBasePath;
+	UPROPERTY(config)
+	FString P4GameAssetPath;
+	UPROPERTY(config)
+	FString RegexBranchCL;
 };
