@@ -44,7 +44,7 @@ void FApplePlatformBackgroundHttpManager::Initialize()
 
 	SetupNSURLSessionResponseDelegates();
 
-	Super::Initialize();
+	FBackgroundHttpManagerImpl::Initialize();
 }
 
 void FApplePlatformBackgroundHttpManager::PopulateUnAssociatedTasks()
