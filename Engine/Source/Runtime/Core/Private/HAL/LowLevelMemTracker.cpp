@@ -928,6 +928,16 @@ int64 FLowLevelMemTracker::GetActiveTag(ELLMTracker Tracker)
     return GetTracker(Tracker)->GetActiveTag();
 }
 
+void FLowLevelMemTracker::DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber )
+{
+	int64 Tag = GetActiveTag(Tracker);
+	const TCHAR* TagName = FindTagName(Tag);
+
+	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("LLM TAG: %s (%lld) @ %s:%d\n"), TagName ? TagName : TEXT("<unknown>"), Tag, FileName ? ANSI_TO_TCHAR(FileName) : TEXT("?"), LineNumber );
+}
+
+
+
 
 FLLMScope::FLLMScope(FName StatIDName, ELLMTagSet Set, ELLMTracker Tracker)
 {
