@@ -423,7 +423,7 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 
 	InPropertyPath.ParseIntoArray(PropertyNames, TEXT("."), true);
 
-	if( PropertyNames.Num() > 0 )
+	if(IsValid(&InObject) && PropertyNames.Num() > 0)
 	{
 		return FindPropertyRecursive( (void*)&InObject, InObject.GetClass(), PropertyNames, 0 );
 	}
