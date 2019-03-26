@@ -16,7 +16,8 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextStyle >("NormalEditableText");
+	static const FEditableTextStyle StaticEditableTextStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextStyle >("NormalEditableText");
+	WidgetStyle = StaticEditableTextStyle;
 
 	ColorAndOpacity_DEPRECATED = FLinearColor::Black;
 
