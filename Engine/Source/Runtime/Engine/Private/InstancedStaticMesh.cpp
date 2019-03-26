@@ -487,18 +487,26 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	// then initialize PositionStream and PositionDeclaration.
 	if(Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
 	{
-		FVertexDeclarationElementList PositionOnlyStreamElements;
-		PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent,0));
-
-		if (bInstanced)
+		auto AddDeclaration = [&Data](EVertexInputStreamType InputStreamType, bool bInstanced, bool bAddNormal)
 		{
-			// toss in the instanced location stream
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceOriginComponent,8));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[0],9));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[1],10));
-			PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[2],11));
-		}
-		InitPositionDeclaration(PositionOnlyStreamElements);
+			FVertexDeclarationElementList StreamElements;
+			StreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent, 0));
+
+			if (bAddNormal)
+				StreamElements.Add(AccessPositionStreamComponent(Data.TangentBasisComponents[2], 2));
+
+			if (bInstanced)
+			{
+				// toss in the instanced location stream
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceOriginComponent, 8));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[0], 9));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[1], 10));
+				StreamElements.Add(AccessPositionStreamComponent(Data.InstanceTransformComponent[2], 11));
+			}
+
+			InitDeclaration(StreamElements, InputStreamType);
+		};
+		AddDeclaration(EVertexInputStreamType::PositionOnly, bInstanced, false);
 	}
 #endif
 
@@ -2437,7 +2445,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	const class FSceneInterface* Scene,
 	const FSceneView* View,
 	const FMeshMaterialShader* Shader,
-	bool bShaderRequiresPositionOnlyStream,
+	const EVertexInputStreamType InputStreamType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FVertexFactory* VertexFactory,
 	const FMeshBatchElement& BatchElement,
@@ -2447,7 +2455,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 {
 	// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
 	FUniformBufferRHIParamRef VertexFactoryUniformBuffer = static_cast<FUniformBufferRHIParamRef>(BatchElement.VertexFactoryUserData);
-	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, bShaderRequiresPositionOnlyStream, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
+	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
 
 	const FInstancingUserData* InstancingUserData = (const FInstancingUserData*)BatchElement.UserData;
 	const auto* InstancedVertexFactory = static_cast<const FInstancedStaticMeshVertexFactory*>(VertexFactory);
@@ -2465,7 +2473,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 	if (GRHISupportsInstancing && InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
 	{
-		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, bShaderRequiresPositionOnlyStream, VertexStreams);
+		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
 	}
 
 	if( InstancingWorldViewOriginOneParameter.IsBound() )
