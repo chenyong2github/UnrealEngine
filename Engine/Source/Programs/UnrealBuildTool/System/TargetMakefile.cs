@@ -414,13 +414,17 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Makefile">The makefile that has been loaded</param>
 		/// <param name="ProjectFile">Path to the project file</param>
+		/// <param name="Platform">The platform being built</param>
 		/// <param name="WorkingSet">The current working set of source files</param>
 		/// <param name="ReasonNotLoaded">If the makefile is not valid, is set to a message describing why</param>
 		/// <returns>True if the makefile is valid, false otherwise</returns>
-		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference ProjectFile, ISourceFileWorkingSet WorkingSet, out string ReasonNotLoaded)
+		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string ReasonNotLoaded)
 		{
 			using(Timeline.ScopeEvent("TargetMakefile.IsValidForSourceFiles()"))
 			{
+				// Get the list of excluded folder names for this platform
+				ReadOnlyHashSet<string> ExcludedFolderNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
+
 				// Check if any source files have been added or removed
 				foreach(KeyValuePair<DirectoryItem, FileItem[]> Pair in Makefile.DirectoryToSourceFiles)
 				{
@@ -442,6 +446,15 @@ namespace UnrealBuildTool
 						{
 							ReasonNotLoaded = "source file modified";
 							return false;
+						}
+
+						foreach(DirectoryItem Directory in InputDirectory.EnumerateDirectories())
+						{
+							if(!Makefile.DirectoryToSourceFiles.ContainsKey(Directory) && ContainsSourceFiles(Directory, ExcludedFolderNames))
+							{
+								ReasonNotLoaded = "directory added";
+								return false;
+							}
 						}
 					}
 				}
@@ -554,6 +567,36 @@ namespace UnrealBuildTool
 
 			ReasonNotLoaded = null;
 			return true;
+		}
+
+		/// <summary>
+		/// Determines if a directory, or any subdirectory of it, contains new source files
+		/// </summary>
+		/// <param name="Directory">Directory to search through</param>
+		/// <param name="ExcludedFolderNames">Set of directory names to exclude</param>
+		/// <returns>True if the directory contains any source files</returns>
+		static bool ContainsSourceFiles(DirectoryItem Directory, ReadOnlyHashSet<string> ExcludedFolderNames)
+		{
+			// Check this directory isn't ignored
+			if(!ExcludedFolderNames.Contains(Directory.Name))
+			{
+				// Check for any source files in this actual directory
+				FileItem[] SourceFiles = UEBuildModuleCPP.GetSourceFiles(Directory);
+				if(SourceFiles.Length > 0)
+				{
+					return true;
+				}
+
+				// Check for any source files in a subdirectory
+				foreach(DirectoryItem SubDirectory in Directory.EnumerateDirectories())
+				{
+					if(ContainsSourceFiles(SubDirectory, ExcludedFolderNames))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
