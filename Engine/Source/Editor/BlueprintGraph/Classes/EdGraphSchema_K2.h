@@ -114,6 +114,9 @@ public:
 	// [FunctionMetadata] Indicates that the function should be drawn with this title over the function name
 	static const FName MD_DisplayName;
 
+	// [FunctionMetadata] Indicates the display name of the return value pin
+	static const FName MD_ReturnDisplayName;
+
 	// [FunctionMetadata] Indicates that a particular function parameter is for internal use only, which means it will be both hidden and not connectible.
 	static const FName MD_InternalUseParam;
 
