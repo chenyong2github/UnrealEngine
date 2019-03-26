@@ -10,22 +10,11 @@
 #include "HAL/IConsoleManager.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-
-// uncomment this to use MemPro (note: MemPro.cpp/need to be added to the project for this to work)
-//#define ENABLE_MEMPRO
+#include "MemPro/MemProProfiler.h"
 
 // There is a little memory and cpu overhead in tracking peak memory but it is generally more useful than current memory.
 // Disable if you need a little more memory or speed
 #define LLM_TRACK_PEAK_MEMORY 0		// currently disabled because there was a problem with tracking peaks from multiple threads.
-
-#ifdef ENABLE_MEMPRO
-namespace MemProProfiler
-{
-	ELLMTag TrackTag = ELLMTag::RHIMisc;		// GenericTagCount to track all allocs
-	bool bStart = true;
-}
-#include "MemPro.hpp"
-#endif //ENABLE_MEMPRO
 
 TAutoConsoleVariable<int32> CVarLLMWriteInterval(
 	TEXT("LLM.LLMWriteInterval"),
@@ -585,6 +574,11 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 		GetTracker(ELLMTracker::Default)->SetTotalTags(ELLMTag::UntaggedTotal, ELLMTag::TrackedTotal);
 
 		bFirstTimeUpdating = false;
+
+#if MEMPRO_ENABLED
+		FMemProProfiler::PostInit();
+#endif
+
 	}
 
 	// update the trackers
@@ -800,8 +794,8 @@ void FLowLevelMemTracker::OnLowLevelAllocMoved(ELLMTracker Tracker, const void* 
 		FPlatformMemory::OnLowLevelMemory_Alloc(Dest, Size, Tag);
 	}
 
-#ifdef ENABLE_MEMPRO
-	if (MemProProfiler::bStart && Tracker == ELLMTracker::Default && (MemProProfiler::TrackTag == ELLMTag::GenericTagCount || MemProProfiler::TrackTag == (ELLMTag)Tag))
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
 	{
 		MEMPRO_TRACK_FREE((void*)Source);
 		MEMPRO_TRACK_ALLOC((void*)Dest, (size_t)Size);
@@ -1611,8 +1605,8 @@ void FLLMTracker::FLLMThreadState::TrackAllocation(const void* Ptr, uint64 Size,
 		FPlatformMemory::OnLowLevelMemory_Alloc(Ptr, Size, Tag);
 	}
 	
-#ifdef ENABLE_MEMPRO
-	if (MemProProfiler::bStart && Tracker == ELLMTracker::Default && (MemProProfiler::TrackTag == ELLMTag::GenericTagCount || MemProProfiler::TrackTag == (ELLMTag)Tag))
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
 	{
 		MEMPRO_TRACK_ALLOC((void*)Ptr, (size_t)Size);
 	}
@@ -1632,8 +1626,8 @@ void FLLMTracker::FLLMThreadState::TrackFree(const void* Ptr, int64 Tag, uint64 
 		FPlatformMemory::OnLowLevelMemory_Free(Ptr, Size, Tag);
 	}
 
-#ifdef ENABLE_MEMPRO
-	if (MemProProfiler::bStart && Tracker == ELLMTracker::Default && (MemProProfiler::TrackTag == ELLMTag::GenericTagCount || MemProProfiler::TrackTag == (ELLMTag)Tag))
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
 	{
 		MEMPRO_TRACK_FREE((void*)Ptr);
 	}
