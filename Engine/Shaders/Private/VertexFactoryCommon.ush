@@ -24,6 +24,17 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 	return float4(RotatedPosition + (Primitive.LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
 }
 
+float3 RotateLocalToWorld(float3 LocalDirection, uint PrimitiveId)
+{
+	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
+	return LocalToWorld[0].xyz * LocalDirection.xxx + LocalToWorld[1].xyz * LocalDirection.yyy + LocalToWorld[2].xyz * LocalDirection.zzz;	
+}
+
+float3 RotateLocalToWorld(float3 LocalDirection)
+{
+	return Primitive.LocalToWorld[0].xyz * LocalDirection.xxx + Primitive.LocalToWorld[1].xyz * LocalDirection.yyy + Primitive.LocalToWorld[2].xyz * LocalDirection.zzz;
+}
+
 // Octahedron Normal Vectors
 // [Cigolle 2014, "A Survey of Efficient Representations for Independent Unit Vectors"]
 //						Mean	Max

@@ -191,6 +191,13 @@ void FGeometryCacheVertexVertexFactory::InitRHI()
 			PositionOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionOnly));
 			InitDeclaration(PositionOnlyStreamElements, EVertexInputStreamType::PositionOnly);
 		}
+
+		{
+			FVertexDeclarationElementList PositionAndNormalOnlyStreamElements;
+			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionAndNormalOnly));
+			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 1, EVertexInputStreamType::PositionAndNormalOnly));
+			InitDeclaration(PositionAndNormalOnlyStreamElements, EVertexInputStreamType::PositionAndNormalOnly);
+		}
 	}
 
 	FVertexDeclarationElementList Elements;

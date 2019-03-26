@@ -81,7 +81,8 @@ enum class EVertexStreamUsage : uint8
 enum class EVertexInputStreamType : uint8
 {
 	Default = 0,
-	PositionOnly
+	PositionOnly,
+	PositionAndNormalOnly
 };
 
 ENUM_CLASS_FLAGS(EVertexStreamUsage);
@@ -518,6 +519,7 @@ public:
 		{
 		case EVertexInputStreamType::Default:				return Declaration;
 		case EVertexInputStreamType::PositionOnly:			return PositionDeclaration;
+		case EVertexInputStreamType::PositionAndNormalOnly:	return PositionAndNormalDeclaration;
 		}
 		return Declaration;
 	}
@@ -526,6 +528,9 @@ public:
 
 	/** Indicates whether the vertex factory supports a position-only stream. */
 	virtual bool SupportsPositionOnlyStream() const { return !!PositionStream.Num(); }
+
+	/** Indicates whether the vertex factory supports a position-and-normal-only stream. */
+	virtual bool SupportsPositionAndNormalOnlyStream() const { return !!PositionAndNormalStream.Num(); }
 
 	/** Indicates whether the vertex factory supports a null pixel shader. */
 	virtual bool SupportsNullPixelShader() const { return true; }
@@ -604,18 +609,20 @@ protected:
 	
 	bool bSupportsManualVertexFetch = false;
 
-	int8 PrimitiveIdStreamIndex[3] = { -1, -1 }; // Need to match entry count of EVertexInputStreamType
+	int8 PrimitiveIdStreamIndex[3] = { -1, -1, -1 }; // Need to match entry count of EVertexInputStreamType
 
 private:
 
 	/** The position only vertex stream used to render the factory during depth only passes. */
 	TArray<FVertexStream,TInlineAllocator<2> > PositionStream;
+	TArray<FVertexStream, TInlineAllocator<3> > PositionAndNormalStream;
 
 	/** The RHI vertex declaration used to render the factory normally. */
 	FVertexDeclarationRHIRef Declaration;
 
 	/** The RHI vertex declaration used to render the factory during depth only passes. */
 	FVertexDeclarationRHIRef PositionDeclaration;
+	FVertexDeclarationRHIRef PositionAndNormalDeclaration;
 };
 
 /**

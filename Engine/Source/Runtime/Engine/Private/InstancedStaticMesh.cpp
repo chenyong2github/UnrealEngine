@@ -482,7 +482,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	check(HasValidFeatureLevel());
 	const bool bInstanced = GRHISupportsInstancing;
 
-#if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position only shaders cannot work with dithered LOD
+#if !ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES // position(and normal) only shaders cannot work with dithered LOD
 	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
 	// then initialize PositionStream and PositionDeclaration.
 	if(Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
@@ -507,6 +507,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 			InitDeclaration(StreamElements, InputStreamType);
 		};
 		AddDeclaration(EVertexInputStreamType::PositionOnly, bInstanced, false);
+		AddDeclaration(EVertexInputStreamType::PositionAndNormalOnly, bInstanced, true);
 	}
 #endif
 

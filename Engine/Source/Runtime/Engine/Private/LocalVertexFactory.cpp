@@ -282,6 +282,7 @@ void FLocalVertexFactory::InitRHI()
 			InitDeclaration(StreamElements, InputStreamType);
 		};
 		AddDeclaration(EVertexInputStreamType::PositionOnly, false);
+		AddDeclaration(EVertexInputStreamType::PositionAndNormalOnly, true);
 	}
 
 	FVertexDeclarationElementList Elements;

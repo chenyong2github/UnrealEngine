@@ -221,6 +221,16 @@ void FVertexFactory::GetStreams(ERHIFeatureLevel::Type InFeatureLevel, EVertexIn
 			OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
 		}
 	}
+	else if (VertexStreamType == EVertexInputStreamType::PositionAndNormalOnly)
+	{
+		// Set the predefined vertex streams.
+		for (int32 StreamIndex = 0; StreamIndex < PositionAndNormalStream.Num(); StreamIndex++)
+		{
+			const FVertexStream& Stream = PositionAndNormalStream[StreamIndex];
+			check(Stream.VertexBuffer->IsInitialized());
+			OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
+		}
+	}
 	else
 	{
 		// NOT_IMPLEMENTED
@@ -231,7 +241,8 @@ void FVertexFactory::OffsetInstanceStreams(uint32 InstanceOffset, EVertexInputSt
 {
 	const TArrayView<const FVertexStream>& StreamArray = 
 		  VertexStreamType == EVertexInputStreamType::PositionOnly ?			MakeArrayView(PositionStream) : 
-		/*VertexStreamType == EVertexInputStreamType::Default*/					MakeArrayView(Streams);
+		( VertexStreamType == EVertexInputStreamType::PositionAndNormalOnly ?	MakeArrayView(PositionAndNormalStream) : 
+		/*VertexStreamType == EVertexInputStreamType::Default*/					MakeArrayView(Streams));
 
 	for (int32 StreamIndex = 0; StreamIndex < StreamArray.Num(); StreamIndex++)
 	{
@@ -254,8 +265,10 @@ void FVertexFactory::ReleaseRHI()
 {
 	Declaration.SafeRelease();
 	PositionDeclaration.SafeRelease();
+	PositionAndNormalDeclaration.SafeRelease();
 	Streams.Empty();
 	PositionStream.Empty();
+	PositionAndNormalStream.Empty();
 }
 
 FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex)
@@ -279,6 +292,8 @@ FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponen
 
 	if (InputStreamType == EVertexInputStreamType::PositionOnly)
 		return FVertexElement(PositionStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	else if (InputStreamType == EVertexInputStreamType::PositionAndNormalOnly)
+		return FVertexElement(PositionAndNormalStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
 	else /* (InputStreamType == EVertexInputStreamType::Default) */
 		return FVertexElement(Streams.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
 }
@@ -289,6 +304,10 @@ void FVertexFactory::InitDeclaration(const FVertexDeclarationElementList& Elemen
 	if (StreamType == EVertexInputStreamType::PositionOnly)
 	{
 		PositionDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	}
+	else if (StreamType == EVertexInputStreamType::PositionAndNormalOnly)
+	{
+		PositionAndNormalDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	else // (StreamType == EVertexInputStreamType::Default)
 	{

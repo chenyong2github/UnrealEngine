@@ -183,6 +183,11 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	return INVARIANT(TransformLocalToTranslatedWorld(GetLocalPosition(Intermediates)));
 }
 
+float3 VertexFactoryGetWorldNormal(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.WorldNormal;
+}
+
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	// Note we still use LocalToWorld. Landscape's transform never changes.
