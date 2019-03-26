@@ -312,7 +312,9 @@ EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientatio
 }
 #endif
 
+#if !PLATFORM_TVOS
 UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
+#endif
 
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
