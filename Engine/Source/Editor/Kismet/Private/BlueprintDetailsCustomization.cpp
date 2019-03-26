@@ -3006,8 +3006,10 @@ ECheckBoxState FBlueprintGraphArgumentLayout::IsRefChecked() const
 
 void FBlueprintGraphArgumentLayout::OnRefCheckStateChanged(ECheckBoxState InState)
 {
+	const FScopedTransaction Transaction(LOCTEXT("ChangeByRef", "Change Pass By Reference"));
+
 	FEdGraphPinType PinType = OnGetPinInfo();
-	PinType.bIsReference = (InState == ECheckBoxState::Checked)? true : false;
+	PinType.bIsReference = (InState == ECheckBoxState::Checked) ? true : false;
 	
 	PinInfoChanged(PinType);
 }
@@ -3038,6 +3040,7 @@ void FBlueprintGraphArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinTyp
 						});
 						if (UDPinPtr)
 						{
+							Node->Modify();
 							(*UDPinPtr)->PinType = PinType;
 
 							// Inputs flagged as pass-by-reference will also be flagged as 'const' here to conform to the expected native C++

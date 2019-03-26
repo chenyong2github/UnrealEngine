@@ -531,6 +531,8 @@ void SPinTypeSelector::OnArrayStateToggled()
 
 void SPinTypeSelector::OnContainerTypeSelectionChanged( EPinContainerType PinContainerType)
 {
+	const FScopedTransaction Transaction(LOCTEXT("ChangeParam", "Change Parameter Type"));
+
 	FEdGraphPinType NewTargetPinType = TargetPinType.Get();
 	NewTargetPinType.ContainerType = PinContainerType;
 
