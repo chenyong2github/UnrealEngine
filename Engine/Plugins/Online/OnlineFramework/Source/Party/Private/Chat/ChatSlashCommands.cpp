@@ -119,7 +119,7 @@ bool FRegisteredSlashCommands::NotifyUserTextChanged(const FText& InText)
 					{
 						if (Cmd->RequiresUserForExecution())
 						{
-							if (!AutoCompleteDatum->OptionalTargetUser.IsValid())
+							if (AutoCompleteDatum->OptionalTargetUser.IsValid())
 							{
 								Cmd->ExecuteSlashCommand(AutoCompleteDatum->OptionalTargetUser.Get());
 								return true;
