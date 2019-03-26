@@ -431,6 +431,7 @@ void ULevel::CreateReplicatedDestructionInfo(AActor* const Actor)
 	{
 		FReplicatedStaticActorDestructionInfo NewInfo;
 		NewInfo.PathName = Actor->GetFName();
+		NewInfo.FullName = Actor->GetFullName();
 		NewInfo.DestroyedPosition = Actor->GetActorLocation();
 		NewInfo.ObjOuter = Actor->GetOuter();
 		NewInfo.ObjClass = Actor->GetClass();

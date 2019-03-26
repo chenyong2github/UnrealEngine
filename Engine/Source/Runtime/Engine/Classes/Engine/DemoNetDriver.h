@@ -608,6 +608,8 @@ public:
 	virtual void ProcessLocalServerPackets() override {}
 	virtual void ProcessLocalClientPackets() override {}
 
+	virtual void InitDestroyedStartupActors() override;
+
 protected:
 	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
 
@@ -930,7 +932,7 @@ private:
 
 	// Levels that are currently pending for fast forward.
 	// Using raw pointers, because we manually keep when levels are added and removed.
-	TMap<class ULevel*, TSet<TWeakObjectPtr<class AActor>>> LevelsPendingFastForward;
+	TSet<class ULevel*> LevelsPendingFastForward;
 
 	// Only used during recording.
 	uint32 NumLevelsAddedThisFrame;
