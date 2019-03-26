@@ -307,7 +307,8 @@ void CompilerGLSL::reset()
 
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) { var.dependees.clear(); });
 
-	ir.reset_all_of_type<SPIRExpression>();
+    /* UE Change Begin: Track write-throughs for loop variables - dxc likes to generate them */
+    /* UE Change End: Track write-throughs for loop variables - dxc likes to generate them */
 	ir.reset_all_of_type<SPIRAccessChain>();
 
 	statement_count = 0;
@@ -6847,11 +6848,6 @@ void CompilerGLSL::emit_store_statement(uint32_t lhs_expression, uint32_t rhs_ex
 		handle_store_to_invariant_variable(lhs_expression, rhs_expression);
 
 		auto lhs = to_dereferenced_expression(lhs_expression);
-
-        /* UE Change Begin: Track write-throughs for loop variables - dxc likes to generate them */
-        if (forced_temporaries.find(lhs_expression) != forced_temporaries.end())
-            lhs = join(to_name(lhs_expression), " = ", lhs);
-        /* UE Change End: Track write-throughs for loop variables - dxc likes to generate them */
 
 		// We might need to bitcast in order to store to a builtin.
 		bitcast_to_builtin_store(lhs_expression, rhs, expression_type(rhs_expression));

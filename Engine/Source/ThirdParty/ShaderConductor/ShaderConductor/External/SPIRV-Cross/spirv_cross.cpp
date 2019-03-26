@@ -2900,27 +2900,19 @@ bool Compiler::AnalyzeVariableScopeAccessHandler::handle(spv::Op op, const uint3
 
 		uint32_t ptr = args[0];
 		auto *var = compiler.maybe_get_backing_variable(ptr);
-
-		/* UE Change Begin: Track write-throughs for loop variables - dxc likes to generate them */
+		
 		// If we store through an access chain, we have a partial write.
 		if (var)
 		{
 			accessed_variables_to_block[var->self].insert(current_block->self);
 			if (var->self == ptr)
-			{
-				complete_write_variables_to_block[var->self].insert(current_block->self);
-			}
+			complete_write_variables_to_block[var->self].insert(current_block->self);
 			else
-			{
-				partial_write_variables_to_block[var->self].insert(current_block->self);
-				partial_write_variables_to_block[ptr].insert(current_block->self);
-			}
+			partial_write_variables_to_block[var->self].insert(current_block->self);
 		}
-
+		
 		// Might try to store a Phi variable here.
-		notify_variable_access(args[0], current_block->self);
 		notify_variable_access(args[1], current_block->self);
-		/* UE Change End: Track write-throughs for loop variables - dxc likes to generate them */
 		break;
 	}
 
@@ -2935,11 +2927,6 @@ bool Compiler::AnalyzeVariableScopeAccessHandler::handle(spv::Op op, const uint3
 		auto *var = compiler.maybe_get<SPIRVariable>(ptr);
 		if (var)
 			accessed_variables_to_block[var->self].insert(current_block->self);
-
-		/* UE Change Begin: Track write-throughs for loop variables - dxc likes to generate them */
-		for (uint32_t i = 0; i < length; i++)
-			notify_variable_access(args[i], current_block->self);
-		/* UE Change End: Track write-throughs for loop variables - dxc likes to generate them */
 
 		// The result of an access chain is a fixed expression and is not really considered a temporary.
 		auto &e = compiler.set<SPIRExpression>(args[1], "", args[0], true);
@@ -3001,9 +2988,6 @@ bool Compiler::AnalyzeVariableScopeAccessHandler::handle(spv::Op op, const uint3
 
 		// Loaded value is a temporary.
 		notify_variable_access(args[1], current_block->self);
-		/* UE Change Begin: Track write-throughs for loop variables - dxc likes to generate them */
-		notify_variable_access(args[2], current_block->self);
-		/* UE Change End: Track write-throughs for loop variables - dxc likes to generate them */
 		break;
 	}
 
