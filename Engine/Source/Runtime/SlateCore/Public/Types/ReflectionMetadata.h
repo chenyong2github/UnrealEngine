@@ -41,6 +41,7 @@ public:
 public:
 
 	static FString GetWidgetDebugInfo(const SWidget* InWidget);
+	static FString GetWidgetDebugInfo(const SWidget& InWidget);
 
 	static TSharedPtr<FReflectionMetaData> GetWidgetOrParentMetaData(const SWidget* InWidget);
 };
