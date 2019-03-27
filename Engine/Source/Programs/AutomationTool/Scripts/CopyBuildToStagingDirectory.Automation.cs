@@ -891,7 +891,21 @@ public partial class Project : CommandUtils
 		}
 
 		// Remap all the non-ufs files if not using a PAK file
-		SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		if (Params.HasIterateSharedCookedBuild)
+		{
+			// Shared NonUFS files are staged in their remapped location, and may be duplicated in the to-stage list.
+			Dictionary<StagedFileReference, FileReference> NonUFSToStage = new Dictionary<StagedFileReference, FileReference>();
+			foreach (KeyValuePair<StagedFileReference, FileReference> StagedFilePair in SC.FilesToStage.NonUFSFiles)
+			{
+				NonUFSToStage[SC.StageTargetPlatform.Remap(StagedFilePair.Key)] = StagedFilePair.Value;
+			}
+			SC.FilesToStage.NonUFSFiles = NonUFSToStage;
+		}
+		else
+		{
+			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		}
+
 		if (!Params.UsePak(SC.StageTargetPlatform))
 		{
 			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
@@ -1351,6 +1365,8 @@ public partial class Project : CommandUtils
 		List<PakFileRules> RulesList = new List<PakFileRules>();
 		foreach (string SectionName in PakRulesConfig.SectionNames)
 		{
+			//LogInformation("Building PakFileRules for Section {0}", SectionName);
+
 			string PlatformString, TargetString, PakString;
 
 			if (PakRulesConfig.TryGetValue(SectionName, "Platforms", out PlatformString))
@@ -1361,12 +1377,12 @@ public partial class Project : CommandUtils
 				// Check platform string
 				foreach (string Platform in PlatformStrings)
 				{
-					if (SC.StageTargetPlatform.PlatformType.ToString() == Platform)
+					if (SC.StageTargetPlatform.PlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
 					}
-					else if (SC.StageTargetPlatform.IniPlatformType.ToString() == Platform)
+					else if (SC.StageTargetPlatform.IniPlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
@@ -1375,6 +1391,7 @@ public partial class Project : CommandUtils
 
 				if (!bMatches)
 				{
+					//LogInformation("No matching platform for PakFileRules for Section {0} : {1}, {2}", SectionName, SC.StageTargetPlatform.PlatformType.ToString(), SC.StageTargetPlatform.IniPlatformType.ToString());
 					continue;
 				}
 			}
@@ -1441,6 +1458,7 @@ public partial class Project : CommandUtils
 				PakRules.Filter = new FileFilter();
 				foreach (string FileFilter in FilesEnumberable)
 				{
+					//LogInformation("Adding to PakFileRules for Section {0} : {1}", SectionName, FileFilter);
 					PakRules.Filter.AddRule(FileFilter);
 				}
 
@@ -1927,9 +1945,16 @@ public partial class Project : CommandUtils
                                 }
                             }
                         }
-                    }
+					}
 
-					Commands.Add(GetUnrealPakArguments(PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+					string PatchSeekOptMaxGapSizeOption = String.Empty;
+					string PatchSeekOptMaxGapSize = String.Empty;
+					if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
+					{
+						PatchSeekOptMaxGapSizeOption = String.Format(" -patchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
+					}
+
+					Commands.Add(GetUnrealPakArguments(PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + PatchSeekOptMaxGapSizeOption + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}

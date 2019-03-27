@@ -277,6 +277,7 @@ void FControlRigEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> G
 
 void FControlRigEditor::Compile()
 {
+	GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 	ClearDetailObject();
 	FBlueprintEditor::Compile();
 }
@@ -729,6 +730,9 @@ void FControlRigEditor::UpdateControlRig()
 			{
 				ControlRig->SetObjectBinding(MakeShared<FControlRigSkeletalMeshBinding>());
 			}
+			
+			// Make sure the object being debugged is the preview instance
+			GetBlueprintObj()->SetObjectBeingDebugged(ControlRig);
 
 			// initialize is moved post reinstance
 			FInputBlendPose Filter;

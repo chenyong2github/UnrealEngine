@@ -197,6 +197,13 @@ FRCPassPostProcessMaterial::FRCPassPostProcessMaterial(UMaterialInterface* InMat
 	{
 		MaterialInterface = UMaterial::GetDefaultMaterial(MD_PostProcess);
 	}
+
+	if (Material && (Material->IsStencilTestEnabled() || Material->GetBlendableOutputAlpha()))
+	{
+		// Only allowed to have blend/stencil test if output format is compatible with ePId_Input0. 
+		// PF_Unknown implies output format is that of EPId_Input0
+		ensure(OutputFormat == PF_Unknown);
+	}
 }
 		
 /** The filter vertex declaration resource type. */
@@ -224,7 +231,7 @@ public:
 TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVertexDeclaration;
 
 template<typename TPixelShader>
-FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphicsPipelineStateInitializer &GraphicsPSOInit, FRenderingCompositePassContext &Context, FMaterialRenderProxy* Proxy, uint32 StencilRefValue)
+FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphicsPipelineStateInitializer &GraphicsPSOInit, FRenderingCompositePassContext &Context, FMaterialRenderProxy* Proxy)
 {
 	TPixelShader* PixelShader_Mobile = MaterialShaderMap->GetShader<TPixelShader>();
 	FPostProcessMaterialVS_Mobile* VertexShader_Mobile = MaterialShaderMap->GetShader<FPostProcessMaterialVS_Mobile>();
@@ -234,7 +241,6 @@ FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphics
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_Mobile);
 
 	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-	Context.RHICmdList.SetStencilRef(StencilRefValue);
 
 	VertexShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
 	PixelShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
@@ -268,12 +274,12 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			bool AllowStencilTestWithCopy = AllowStencilTest == 2;
 
 			// do the stencil test if 
-			// >= SM5 
+			// not SM4 
 			//   OR 
 			// reads DS but allowed make DS copy 
 			//   OR 
 			// DS not read at all.
-			bDoStencilTest = (FeatureLevel >= ERHIFeatureLevel::SM5) || 
+			bDoStencilTest = (FeatureLevel != ERHIFeatureLevel::SM4) || 
 				((bReadsCustomDepthStencil == AllowStencilTestWithCopy) || AllowStencilTestWithCopy);
 		}
 		else
@@ -290,8 +296,6 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 	// Copy of custom depth/stencil buffer if HW does not support simultaneously a texture bound as DepthRead_StencilRead and SRV
 	TRefCountPtr<IPooledRenderTarget> CustomDepthStencilCopy;
 
-	// The PP target - either from the render target pool or the ePId_Input0
-	const FSceneRenderTargetItem* DestRenderTarget = nullptr;
 	const FSceneRenderTargetItem* CustomDepthStencilTarget = nullptr;
 
 	FDepthStencilStateRHIParamRef DepthStencilState;
@@ -302,7 +306,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		CustomDepthStencilTarget = &SceneContext.CustomDepth->GetRenderTargetItem();
 
 		// SM4 HW lacks support for texture bound as DepthRead_StencilRead and SRV simultaneously thus make a copy of DS buffer
-		if (FeatureLevel < ERHIFeatureLevel::SM5 && bReadsCustomDepthStencil)
+		if (FeatureLevel == ERHIFeatureLevel::SM4 && bReadsCustomDepthStencil)
 		{
 			// Dest param of CopyResource() call can only be an SRV (No render target flags) on DX10.0 (SM4)
 			FPooledRenderTargetDesc DSCopyDesc = SceneContext.CustomDepth->GetDesc();
@@ -323,27 +327,6 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			Swap(SceneContext.CustomDepth, CustomDepthStencilCopy);
 		}
 
-		// essentially only care about format and dimensions
-		FPooledRenderTargetDesc TargetDesc = PassOutputs[0].RenderTargetDesc;
-		TargetDesc.AutoWritable = InputDesc->AutoWritable;
-
-		// write directly into PPI0 if material does not read from it, otherwise make a copy of PPI0.
-		if (InputDesc->Compare(TargetDesc, false) && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
-		{
-			PassOutputs[0].PooledRenderTarget = GetInput(ePId_Input0)->GetOutput()->RequestInput();
-			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
-		}
-		else
-		{
-			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
-
-			Context.RHICmdList.CopyTexture(
-				GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture,
-				DestRenderTarget->TargetableTexture,
-				FRHICopyTextureInfo()
-				);
-		}
-
 		static const FDepthStencilStateRHIParamRef StencilStates[] =
 		{
 			TStaticDepthStencilState<false, CF_Always, true, CF_Less>::GetRHI(),
@@ -362,12 +345,12 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 	}
 	else
 	{
-		DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
 		DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	}
 
 	FBlendStateRHIParamRef BlendState = TStaticBlendState<>::GetRHI();
-	if (Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0)
+	bool bDoOutputBlend = Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0;
+	if (bDoOutputBlend)
 	{
 		static const FBlendStateRHIParamRef BlendStates[] =
 		{
@@ -383,6 +366,36 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		BlendState = BlendStates[Material->GetBlendMode()];
 	}
 
+	// The PP target - either from the render target pool or the ePId_Input0
+	const FSceneRenderTargetItem* DestRenderTarget = nullptr;
+	ERenderTargetLoadAction DestRenderTargetLoadAction = ERenderTargetLoadAction::Num;
+		
+	if (bDoStencilTest || bDoOutputBlend)
+	{
+		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
+		{
+			PassOutputs[0].PooledRenderTarget = GetInput(ePId_Input0)->GetOutput()->RequestInput();
+			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
+		}
+		else
+		{
+			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
+
+			Context.RHICmdList.CopyTexture(
+				GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture,
+				DestRenderTarget->TargetableTexture,
+				FRHICopyTextureInfo()
+				);
+		}
+
+		DestRenderTargetLoadAction = ERenderTargetLoadAction::ELoad;
+	}
+	else
+	{
+		DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
+		DestRenderTargetLoadAction = Context.GetLoadActionForRenderTarget(*DestRenderTarget);
+	}
+
 	FIntRect SrcRect = Context.SceneColorViewRect;
 	FIntRect DestRect = Context.GetSceneColorDestRect(*DestRenderTarget);
 	checkf(DestRect.Size() == SrcRect.Size(), TEXT("Post process material should not be used as upscaling pass."));
@@ -396,7 +409,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 	{
 		RPInfo = FRHIRenderPassInfo(
 			DestRenderTarget->TargetableTexture,
-			MakeRenderTargetActions(Context.GetLoadActionForRenderTarget(*DestRenderTarget), ERenderTargetStoreAction::EStore),
+			MakeRenderTargetActions(DestRenderTargetLoadAction, ERenderTargetStoreAction::EStore),
 			CustomDepthStencilTarget->TargetableTexture,
 			MakeDepthStencilTargetActions(
 				MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction),
@@ -451,12 +464,13 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			// use mobile's post process material.
 			if (bViewSizeMatchesBufferSize)
 			{
-				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile0>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy, StencilRefValue);
+				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile0>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
 			}
 			else
 			{
-				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile1>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy, StencilRefValue);
+				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile1>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
 			}
+			Context.RHICmdList.SetStencilRef(StencilRefValue);
 		}
 		// Uses highend post process material that assumed ViewSize == BufferSize.
 		else if (bViewSizeMatchesBufferSize)

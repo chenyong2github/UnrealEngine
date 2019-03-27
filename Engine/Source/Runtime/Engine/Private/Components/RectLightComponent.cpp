@@ -25,6 +25,7 @@ float GetRectLightBarnDoorMaxAngle()
 
 URectLightComponent::URectLightComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, RayTracingData(new FRectLightRayTracingData())
 {
 #if WITH_EDITORONLY_DATA
 	if (!IsRunningCommandlet())
@@ -44,11 +45,24 @@ URectLightComponent::URectLightComponent(const FObjectInitializer& ObjectInitial
 	SourceTexture = nullptr;
 	BarnDoorAngle = GetRectLightBarnDoorMaxAngle();
 	BarnDoorLength = 20.0f;
+	// RayTracingData will be initialised on the render thread.
 }
 
 FLightSceneProxy* URectLightComponent::CreateSceneProxy() const
 {
 	return new FRectLightSceneProxy(this);
+}
+
+void URectLightComponent::SetSourceTexture(UTexture* NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& SourceTexture != NewValue)
+	{
+		SourceTexture = NewValue;
+
+		// This will trigger a recreation of the LightSceneProxy and update RayTracingData accordingly if the texture has changed.
+		MarkRenderStateDirty();
+	}
 }
 
 void URectLightComponent::SetSourceWidth(float NewValue)
@@ -153,6 +167,18 @@ float URectLightComponent::GetUniformPenumbraSize() const
 	}
 }
 
+void URectLightComponent::BeginDestroy()
+{
+	FRectLightRayTracingData* DeletedRenderData = RayTracingData;
+	RayTracingData = nullptr;
+	ENQUEUE_RENDER_COMMAND(DeleteBuildRectLightMipTree)(
+		[DeletedRenderData](FRHICommandListImmediate& RHICmdList)
+	{
+		delete DeletedRenderData;
+	});
+	Super::BeginDestroy();
+}
+
 #if WITH_EDITOR
 /**
  * Called after property has changed via e.g. property window or set command.
@@ -174,18 +200,9 @@ FRectLightSceneProxy::FRectLightSceneProxy(const URectLightComponent* Component)
 	, SourceHeight(Component->SourceHeight)
 	, BarnDoorAngle(FMath::Clamp(Component->BarnDoorAngle, 0.f, GetRectLightBarnDoorMaxAngle()))
 	, BarnDoorLength(FMath::Max(0.1f, Component->BarnDoorLength))
+	, RayTracingData(Component->RayTracingData)
 	, SourceTexture(Component->SourceTexture)
 {
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
-	{
-		ENQUEUE_RENDER_COMMAND(BuildRectLightMipTree)(
-			[this](FRHICommandListImmediate& RHICmdList)
-		{
-			BuildRectLightMipTree(RHICmdList);
-		});
-	}
-#endif
 }
 
 FRectLightSceneProxy::~FRectLightSceneProxy() {}
@@ -248,130 +265,3 @@ bool FRectLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FSceneV
 
 	return false;
 }
-
-#if RHI_RAYTRACING
-
-class FBuildRectLightMipTreeCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FBuildRectLightMipTreeCS, Global)
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	static uint32 GetGroupSize()
-	{
-		return 16;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-
-	FBuildRectLightMipTreeCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		TextureParameter.Bind(Initializer.ParameterMap, TEXT("RectLightTexture"));
-		TextureSamplerParameter.Bind(Initializer.ParameterMap, TEXT("TextureSampler"));
-		DimensionsParameter.Bind(Initializer.ParameterMap, TEXT("Dimensions"));
-		MipLevelParameter.Bind(Initializer.ParameterMap, TEXT("MipLevel"));
-		MipTreeParameter.Bind(Initializer.ParameterMap, TEXT("MipTree"));
-	}
-
-	FBuildRectLightMipTreeCS() {}
-
-	void SetParameters(
-		FRHICommandList& RHICmdList,
-		FTextureRHIRef Texture,
-		const FIntVector& Dimensions,
-		uint32 MipLevel,
-		FRWBuffer& MipTree
-	)
-	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-
-		SetShaderValue(RHICmdList, ShaderRHI, DimensionsParameter, Dimensions);
-		SetShaderValue(RHICmdList, ShaderRHI, MipLevelParameter, MipLevel);
-		SetTextureParameter(RHICmdList, ShaderRHI, TextureParameter, TextureSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), Texture);
-
-		check(MipTreeParameter.IsBound());
-		MipTreeParameter.SetBuffer(RHICmdList, ShaderRHI, MipTree);
-	}
-
-	void UnsetParameters(
-		FRHICommandList& RHICmdList,
-		EResourceTransitionAccess TransitionAccess,
-		EResourceTransitionPipeline TransitionPipeline,
-		FRWBuffer& MipTree,
-		FComputeFenceRHIParamRef Fence)
-	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
-
-		MipTreeParameter.UnsetUAV(RHICmdList, ShaderRHI);
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, MipTree.UAV, Fence);
-	}
-
-	virtual bool Serialize(FArchive& Ar)
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << TextureParameter;
-		Ar << TextureSamplerParameter;
-		Ar << DimensionsParameter;
-		Ar << MipLevelParameter;
-		Ar << MipTreeParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FShaderResourceParameter TextureParameter;
-	FShaderResourceParameter TextureSamplerParameter;
-
-	FShaderParameter DimensionsParameter;
-	FShaderParameter MipLevelParameter;
-	FRWShaderParameter MipTreeParameter;
-};
-
-IMPLEMENT_SHADER_TYPE(, FBuildRectLightMipTreeCS, TEXT("/Engine/Private/Raytracing/BuildMipTreeCS.usf"), TEXT("BuildRectLightMipTreeCS"), SF_Compute)
-
-void FRectLightSceneProxy::BuildRectLightMipTree(FRHICommandListImmediate& RHICmdList)
-{
-	check(IsInRenderingThread());
-
-	const auto ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-	TShaderMapRef<FBuildRectLightMipTreeCS> BuildRectLightMipTreeComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(BuildRectLightMipTreeComputeShader->GetComputeShader());
-
-	// Allocate MIP tree
-	FLightShaderParameters LightParameters;
-	GetLightShaderParameters(LightParameters);
-	FIntVector TextureSize = LightParameters.SourceTexture->GetSizeXYZ();
-	uint32 MipLevelCount = FMath::Min(FMath::CeilLogTwo(TextureSize.X), FMath::CeilLogTwo(TextureSize.Y));
-	RectLightMipTreeDimensions = FIntVector(1 << MipLevelCount, 1 << MipLevelCount, 1);
-	uint32 NumElements = RectLightMipTreeDimensions.X * RectLightMipTreeDimensions.Y;
-	for (uint32 MipLevel = 1; MipLevel <= MipLevelCount; ++MipLevel)
-	{
-		uint32 NumElementsInLevel = (RectLightMipTreeDimensions.X >> MipLevel) * (RectLightMipTreeDimensions.Y >> MipLevel);
-		NumElements += NumElementsInLevel;
-	}
-
-	RectLightMipTree.Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
-
-	// Execute hierarchical build
-	for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
-	{
-		FComputeFenceRHIRef MipLevelFence = RHICmdList.CreateComputeFence(TEXT("RectLightMipTree Build"));
-		BuildRectLightMipTreeComputeShader->SetParameters(RHICmdList, LightParameters.SourceTexture, RectLightMipTreeDimensions, MipLevel, RectLightMipTree);
-		FIntVector MipLevelDimensions = FIntVector(RectLightMipTreeDimensions.X >> MipLevel, RectLightMipTreeDimensions.Y >> MipLevel, 1);
-		FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildRectLightMipTreeCS::GetGroupSize());
-		DispatchComputeShader(RHICmdList, *BuildRectLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
-		BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, RectLightMipTree, MipLevelFence);
-	}
-	FComputeFenceRHIRef TransitionFence = RHICmdList.CreateComputeFence(TEXT("RectLightMipTree Transition"));
-	BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, RectLightMipTree, TransitionFence);
-}
-
-#endif // RHI_RAYTRACING

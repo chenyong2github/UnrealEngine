@@ -98,14 +98,14 @@ public:
 class FHeightfieldComponentDescription
 {
 public:
-	FVector4 HeightfieldScaleBias;
-	FVector4 MinMaxUV;
-	FMatrix LocalToWorld;
-	FVector2D LightingAtlasLocation;
-	FIntRect HeightfieldRect;
+	FVector4 HeightfieldScaleBias = FVector4(ForceInit);
+	FVector4 MinMaxUV = FVector4(ForceInit);
+	FMatrix LocalToWorld = FMatrix::Identity;
+	FVector2D LightingAtlasLocation = FVector2D(ForceInit);
+	FIntRect HeightfieldRect; // Default initialized
 
-	int32 NumSubsections;
-	FVector4 SubsectionScaleAndBias;
+	int32 NumSubsections = 0;
+	FVector4 SubsectionScaleAndBias = FVector4(ForceInit);
 
 	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld) :
 		LocalToWorld(InLocalToWorld)
@@ -425,6 +425,7 @@ public:
 	inline bool IsLocalToWorldDeterminantNegative() const { return bIsLocalToWorldDeterminantNegative; }
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 	inline const FBoxSphereBounds& GetLocalBounds() const { return LocalBounds; }
+	virtual FBoxSphereBounds GetPreSkinnedLocalBounds() const { return LocalBounds; }
 	inline FName GetOwnerName() const { return OwnerName; }
 	inline FName GetResourceName() const { return ResourceName; }
 	inline FName GetLevelName() const { return LevelName; }

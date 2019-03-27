@@ -3063,7 +3063,10 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 		FlushResourceShaderMaps();
 	}
 
-	UpdateResourceAllocations();
+	// Resources cannot be deleted before uniform expressions are recached because
+	// UB layouts will be accessed and they are owned by material resources
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	UpdateResourceAllocations(&ResourcesToFree);
 
 	if (FApp::CanEverRender())
 	{
@@ -3118,7 +3121,21 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		RecacheUniformExpressions(true);
+		// Material reload can call this function again. Don't recreate since mesh
+		// draw commands cache a pointer to the uniform buffer
+		RecacheUniformExpressions(!FPlatformProperties::RequiresCookedData());
+	}
+
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeUnusedMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
 	}
 }
 
@@ -3697,7 +3714,7 @@ void UMaterial::GetQualityLevelNodeUsage(TArray<bool, TInlineAllocator<EMaterial
 	}
 }
 
-void UMaterial::UpdateResourceAllocations()
+void UMaterial::UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
 {
 	if (FApp::CanEverRender())
 	{
@@ -3715,7 +3732,14 @@ void UMaterial::UpdateResourceAllocations()
 				FMaterialResource*& Resource = MaterialResources[Quality][Feature];
 				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
 				{
-					delete Resource;
+					if (ResourcesToFree)
+					{
+						ResourcesToFree->Add(Resource);
+					}
+					else
+					{
+						delete Resource;
+					}
 					Resource = nullptr;
 				}
 				else
@@ -3956,14 +3980,6 @@ void UMaterial::PostLoad()
 			{
 				if (Texture)
 				{
-					if (Texture->HasAnyFlags(RF_NeedLoad))
-					{
-						FLinkerLoad* Loader = GetLinker();
-						if (ensure(Loader))
-						{
-							Loader->Preload(Texture);
-						}
-					}
 					Texture->ConditionalPostLoad();
 				}
 			}
@@ -4112,6 +4128,9 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 
 void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 	if ( CachedMaterialResourcesForPlatform != NULL )
 	{
@@ -4125,6 +4144,9 @@ void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlat
 
 void UMaterial::ClearAllCachedCookedPlatformData()
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	for ( auto It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
@@ -4288,9 +4310,6 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 
 void UMaterial::PreEditChange(UProperty* PropertyThatChanged)
 {
-	// In Editor realtime rendering changing a material connection (or via undo/redo) changes what is rendered on the RT (specifically in FMeshDecalMeshProcessor::AddMeshBatch() Emmissive connection test)
-	// before the Shader Map has been updated in PostEditChangeProperty() below - Viewport render command enqueue has already happenned so we need to flush that before the material change.
-	FlushRenderingCommands();
 	Super::PreEditChange(PropertyThatChanged);
 }
 

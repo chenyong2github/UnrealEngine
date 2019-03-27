@@ -3179,6 +3179,11 @@ protected:
 		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectBounds"), TEXT("ObjectBounds.xyz"));
 	}
 
+	virtual int32 PreSkinnedLocalBounds() override
+	{
+		return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBounds.xyz"));
+	}
+
 	virtual int32 DistanceCullFade() override
 	{
 		bUsesDistanceCullFade = true;
@@ -3802,11 +3807,6 @@ protected:
 					// SceneDepth lookups are not available when using MSAA, but we can access depth stored in SceneColor.A channel
 					// SceneColor.A channel holds depth till BeforeTonemapping location, then it's gets overwritten
 					return Errorf(TEXT("SceneDepth lookups are only available when BlendableLocation is BeforeTranslucency or BeforeTonemapping"));
-				}
-				
-				if (ViewportUV == INDEX_NONE)
-				{
-					UV = TextureCoordinate(0, false, false);
 				}
 			}
 			

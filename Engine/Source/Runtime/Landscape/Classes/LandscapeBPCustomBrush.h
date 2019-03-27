@@ -20,6 +20,9 @@ private:
 	UPROPERTY(Category= "Settings", EditAnywhere, NonTransactional)
 	bool AffectWeightmap;
 
+	UPROPERTY(Category = "Settings", EditAnywhere, NonTransactional)
+	TArray<FName> AffectedWeightmapLayers;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(NonTransactional, DuplicateTransient)
 	class ALandscape* OwningLandscape;
@@ -43,6 +46,7 @@ public:
 
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
+	bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult);

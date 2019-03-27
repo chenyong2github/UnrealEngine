@@ -33,3 +33,9 @@ int32 USocialSettings::GetDefaultMaxPartySize()
 	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.DefaultMaxPartySize;
 }
+
+float USocialSettings::GetUserListAutoUpdateRate()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.UserListAutoUpdateRate;
+}

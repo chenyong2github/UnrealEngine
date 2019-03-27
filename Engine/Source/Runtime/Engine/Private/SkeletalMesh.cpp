@@ -321,12 +321,12 @@ void USkeletalMesh::PostInitProperties()
 	Super::PostInitProperties();
 }
 
-FBoxSphereBounds USkeletalMesh::GetBounds()
+FBoxSphereBounds USkeletalMesh::GetBounds() const
 {
 	return ExtendedBounds;
 }
 
-FBoxSphereBounds USkeletalMesh::GetImportedBounds()
+FBoxSphereBounds USkeletalMesh::GetImportedBounds() const
 {
 	return ImportedBounds;
 }
@@ -863,6 +863,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		BuildPhysicsData();
 	}
 
+	bool bHasToReregisterComponent = false;
 	if(UProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
 	{
 		if(MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PositiveBoundsExtension) ||
@@ -871,10 +872,16 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			// If the bounds extensions change, recalculate extended bounds.
 			ValidateBoundsExtension();
 			CalculateExtendedBounds();
+			bHasToReregisterComponent = true;
 		}
 	}
+		
+	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint))
+	{
+		bHasToReregisterComponent = true;
+	}
 
-	if(PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USkeletalMesh, PostProcessAnimBlueprint))
+	if (bHasToReregisterComponent)
 	{
 		TArray<UActorComponent*> ComponentsToReregister;
 		for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
@@ -887,6 +894,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		}
 		FMultiComponentReregisterContext ReregisterContext(ComponentsToReregister);
 	}
+
 
 	if (PropertyThatChanged && PropertyChangedEvent.MemberProperty)
 	{
@@ -3133,6 +3141,15 @@ void USkeletalMesh::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeIte
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+FText USkeletalMesh::GetSourceFileLabelFromIndex(int32 SourceFileIndex)
+{
+	int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
+	return RealSourceFileIndex == 0 ? NSSkeletalMeshSourceFileLabels::GeoAndSkinningText() : RealSourceFileIndex == 1 ? NSSkeletalMeshSourceFileLabels::GeometryText() : NSSkeletalMeshSourceFileLabels::SkinningText();
+}
+#endif //WITH_EDITOR
+
 /*-----------------------------------------------------------------------------
 USkeletalMeshSocket
 -----------------------------------------------------------------------------*/
@@ -3360,6 +3377,9 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Force inset shadows if capsule shadows are requested, as they can't be supported with full scene shadows
 	bCastInsetShadow = bCastInsetShadow || bCastCapsuleDirectShadow;
+
+	// Get the pre-skinned local bounds
+	PreSkinnedLocalBounds = Component->GetPreSkinnedLocalBounds();
 
 	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<const USkinnedMeshComponent>(Component);
 	if(SkinnedMeshComponent && SkinnedMeshComponent->bPerBoneMotionBlur)
@@ -3727,8 +3747,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					BatchElement.MaxVertexIndex = LODData.GetNumVertices() - 1;
 					BatchElement.NumPrimitives = Section.NumTriangles;
 					BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
-					BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
-								
+													
 					PDI->DrawMesh(MeshElement, ScreenSize);
 				}
 			}

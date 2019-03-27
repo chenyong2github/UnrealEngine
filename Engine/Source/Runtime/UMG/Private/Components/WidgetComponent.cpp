@@ -1175,18 +1175,21 @@ void UWidgetComponent::RemoveWidgetFromScreen()
 	{
 		bAddedToScreen = false;
 
-		if ( UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport() )
+		if (UWorld* World = GetWorld())
 		{
-			TSharedPtr<IGameLayerManager> LayerManager = ViewportClient->GetGameLayerManager();
-			if ( LayerManager.IsValid() )
+			if (UGameViewportClient* ViewportClient = World->GetGameViewport())
 			{
 				if (ULocalPlayer* TargetPlayer = GetOwnerPlayer())
 				{
-					TSharedPtr<IGameLayer> Layer = LayerManager->FindLayerForPlayer(TargetPlayer, SharedLayerName);
-					if (Layer.IsValid())
+					TSharedPtr<IGameLayerManager> LayerManager = ViewportClient->GetGameLayerManager();
+					if (LayerManager.IsValid())
 					{
-						TSharedPtr<FWorldWidgetScreenLayer> ScreenLayer = StaticCastSharedPtr<FWorldWidgetScreenLayer>(Layer);
-						ScreenLayer->RemoveComponent(this);
+						TSharedPtr<IGameLayer> Layer = LayerManager->FindLayerForPlayer(TargetPlayer, SharedLayerName);
+						if (Layer.IsValid())
+						{
+							TSharedPtr<FWorldWidgetScreenLayer> ScreenLayer = StaticCastSharedPtr<FWorldWidgetScreenLayer>(Layer);
+							ScreenLayer->RemoveComponent(this);
+						}
 					}
 				}
 			}

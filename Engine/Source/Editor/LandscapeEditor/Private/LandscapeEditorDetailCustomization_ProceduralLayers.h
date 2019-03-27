@@ -7,6 +7,7 @@
 #include "Layout/Visibility.h"
 #include "Layout/Margin.h"
 #include "Styling/SlateColor.h"
+#include "Styling/SlateBrush.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
@@ -65,13 +66,28 @@ protected:
 
 	bool IsLayerSelected(int32 LayerIndex);
 	void OnLayerSelectionChanged(int32 LayerIndex);
-
-	void OnLayerTextCommitted(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
+	TSharedPtr<SWidget> OnLayerContextMenuOpening(int32 InLayerIndex);
+	void CreateLayer();
+	void ClearLayer(int32 InLayerIndex);
+	void RenameLayer(int32 InLayerIndex);
+	void DeleteLayer(int32 InLayerIndex);
+	void ShowOnlySelectedLayer(int32 InLayerIndex);
+	void ShowAllLayers();
+	bool CanRenameProceduralLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);
+	void SetProceduralLayerName(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
 	FText GetLayerText(int32 InLayerIndex) const;
 
-	TOptional<float> GetLayerWeight(int32 InLayerIndex) const;
-	void SetLayerWeight(float InWeight, int32 InLayerIndex);
+	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
+	void SetLayerAlpha(float InAlpha, int32 InLayerIndex);
 
-	void OnLayerVisibilityChanged(ECheckBoxState NewState, int32 InLayerIndex);
-	ECheckBoxState IsLayerVisible(int32 InLayerIndex) const;
+	FReply OnToggleVisibility(int32 InLayerIndex);
+	const FSlateBrush* GetVisibilityBrushForLayer(int32 InLayerIndex) const;
+	
+	FReply OnToggleLock(int32 InLayerIndex);
+	const FSlateBrush* GetLockBrushForLayer(int32 InLayerIndex) const;
+
+private:
+
+	/** Widgets for displaying and editing the layer name */
+	TArray< TSharedPtr< SInlineEditableTextBlock > > InlineTextBlocks;
 };

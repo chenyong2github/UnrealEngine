@@ -16,7 +16,7 @@
 class AActor;
 class UEditorPerProjectUserSettings;
 
-UCLASS(Abstract, config = Editor)
+UCLASS(Abstract, meta = (ShowWorldContextPin), config = Editor)
 class BLUTILITY_API UEditorUtilityWidget : public UUserWidget
 {
 	GENERATED_UCLASS_BODY()

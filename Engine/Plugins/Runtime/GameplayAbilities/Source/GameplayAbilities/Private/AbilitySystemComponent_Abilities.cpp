@@ -443,7 +443,8 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 
 		auto& TriggeredAbilityMap = (TriggerData.TriggerSource == EGameplayAbilityTriggerSource::GameplayEvent) ? GameplayEventTriggeredAbilities : OwnedTagTriggeredAbilities;
 
-		if (TriggeredAbilityMap.Contains(EventTag))
+		if (ensureMsgf(TriggeredAbilityMap.Contains(EventTag), 
+			TEXT("%s::%s not found in TriggeredAbilityMap while removing, TriggerSource: %d"), *Spec.Ability->GetName(), *EventTag.ToString(), (int32)TriggerData.TriggerSource))
 		{
 			TriggeredAbilityMap[EventTag].Remove(Spec.Handle);
 			if (TriggeredAbilityMap[EventTag].Num() == 0)
@@ -1919,6 +1920,14 @@ int32 UAbilitySystemComponent::HandleGameplayEvent(FGameplayTag EventTag, const 
 		if (GameplayEventTriggeredAbilities.Contains(CurrentTag))
 		{
 			TArray<FGameplayAbilitySpecHandle> TriggeredAbilityHandles = GameplayEventTriggeredAbilities[CurrentTag];
+
+			// FORT-152163 - Tracking cases where GameplayEventTriggeredAbilities has an AbilityHandle that is not in ActivatableAbilities
+			// We suspect that triggering one ability may be causing others in the array to be invalidated
+			// If we do not ensure here, but ensure in TriggerAbilityFromGameplayEvent(), then it will confirm our suspicion
+			for (auto AbilityHandle : TriggeredAbilityHandles)
+			{
+				ensureMsgf(FindAbilitySpecFromHandle(AbilityHandle), TEXT("Stale ability handle in GameplayEventTriggeredAbilities: %s"), *EventTag.ToString());
+			}
 
 			for (auto AbilityHandle : TriggeredAbilityHandles)
 			{

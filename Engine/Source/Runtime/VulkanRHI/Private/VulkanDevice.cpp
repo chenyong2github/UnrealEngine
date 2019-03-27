@@ -968,14 +968,10 @@ void FVulkanDevice::Destroy()
 		delete Pool;
 	}
 	FreeOcclusionQueryPools.SetNum(0, false);
-/*
-	delete TimestampQueryPool;
-*/
 
 	delete PipelineStateCache;
 	PipelineStateCache = nullptr;
 	StagingManager.Deinit();
-
 
 	if (GGPUCrashDebuggingEnabled)
 	{
@@ -998,10 +994,10 @@ void FVulkanDevice::Destroy()
 #endif
 	}
 
-	ResourceHeapManager.Deinit();
-
 	FRHIResource::FlushPendingDeletes();
 	DeferredDeletionQueue.Clear();
+
+	ResourceHeapManager.Deinit();
 
 	delete TransferQueue;
 	delete ComputeQueue;

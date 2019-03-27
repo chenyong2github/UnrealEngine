@@ -33,6 +33,54 @@ static FAutoConsoleVariableRef CVarSkelBatch_ShowAddresses(
 	ECVF_Scalability);
 #endif
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+int32 GAnimationBudgetDebugForce = 0;
+
+static FAutoConsoleVariableRef CVarSkelBatch_Force(
+	TEXT("a.Budget.Debug.Force"),
+	GAnimationBudgetDebugForce,
+	TEXT("Values: 0/1\n")
+	TEXT("Default: 0\n")
+	TEXT("Turns on forced rate/interp/reduced controls. These override any budget-driven values."),
+	ECVF_Scalability);
+
+int32 GAnimationBudgetDebugForceRate = 4;
+
+static FAutoConsoleVariableRef CVarSkelBatch_ForceRate(
+	TEXT("a.Budget.Debug.Force.Rate"),
+	GAnimationBudgetDebugForceRate,
+	TEXT("Values: >= 1\n")
+	TEXT("Default: 4\n")
+	TEXT("Forces all components to update at the specifed rate when a.Budget.Debug.Force is enabled."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		GAnimationBudgetDebugForceRate = FMath::Max(GAnimationBudgetDebugForceRate, 1);
+	}),
+	ECVF_Scalability);
+
+int32 GAnimationBudgetDebugForceInterpolation = 0;
+
+static FAutoConsoleVariableRef CVarSkelBatch_ForceInterpolation(
+	TEXT("a.Budget.Debug.Force.Interp"),
+	GAnimationBudgetDebugForceInterpolation,
+	TEXT("Values: 0/1\n")
+	TEXT("Default: 0\n")
+	TEXT("Forces interpolation on when a.Budget.Debug.Force is enabled."),
+	ECVF_Scalability);
+
+int32 GAnimationBudgetDebugForceReducedWork = 0;
+
+static FAutoConsoleVariableRef CVarSkelBatch_ForceReducedWork(
+	TEXT("a.Budget.Debug.Force.Reduced"),
+	GAnimationBudgetDebugForceReducedWork,
+	TEXT("Values: 0/1\n")
+	TEXT("Default: 0\n")
+	TEXT("Forces reduced work on when a.Budget.Debug.Force is enabled."),
+	ECVF_Scalability);
+
+#endif
+
 /** CVar-driven parameter block */
 FAnimationBudgetAllocatorParameters GBudgetParameters;
 

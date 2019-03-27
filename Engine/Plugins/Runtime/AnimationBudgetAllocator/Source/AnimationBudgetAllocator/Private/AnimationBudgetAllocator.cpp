@@ -368,6 +368,7 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 			InComponentData.Component->EnableExternalUpdate(bTickThisFrame);
 			InComponentData.Component->EnableExternalEvaluationRateLimiting(InComponentData.TickRate > 1);
 			InComponentData.Component->SetExternalDeltaTime(InComponentData.AccumulatedDeltaTime);
+			InComponentData.Component->SetExternalTickRate(InComponentData.TickRate);
 
 			InComponentData.AccumulatedDeltaTime = bTickThisFrame ? 0.0f : InComponentData.AccumulatedDeltaTime;
 
@@ -394,224 +395,254 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 		}
 	};
 
-	const int32 TotalIdealWorkUnits = AllSortedComponentData.Num();
-
-	SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Demand, TotalIdealWorkUnits);
-
-	if(TotalIdealWorkUnits > 0)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if(GAnimationBudgetDebugForce)
 	{
-		// Calc smoothed average of last frames' work units
-		const float AverageTickTimeMs = TotalEstimatedTickTimeMs / NumWorkUnitsForAverage;
-		AverageWorkUnitTimeMs = FMath::FInterpTo(AverageWorkUnitTimeMs, AverageTickTimeMs, InDeltaSeconds, Parameters.WorkUnitSmoothingSpeed);
-
-		SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_AverageWorkUnitTime, AverageWorkUnitTimeMs);
-		CSV_CUSTOM_STAT(AnimationBudget, AverageWorkUnitTimeMs, AverageTickTimeMs, ECsvCustomStatOp::Set);
-
-		// Want to map the remaining (non-fixed) work units so that we only execute N work units per frame.
-		// If we can go over budget to keep quality then we use that value
-		const float WorkUnitBudget = FMath::Max(Parameters.BudgetInMs / AverageWorkUnitTimeMs, (float)TotalIdealWorkUnits * Parameters.MinQuality);
-
-		SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_Budget, WorkUnitBudget);
-
-		// Ramp-off work units that we tick every frame once required ticks start exceeding budget
-		const float WorkUnitsExcess = FMath::Max(0.0f, TotalIdealWorkUnits - WorkUnitBudget);
-		const float WorkUnitsToRunInFull = FMath::Clamp(WorkUnitBudget - (WorkUnitsExcess * Parameters.AlwaysTickFalloffAggression), (float)NumComponentsToNotSkip, (float)TotalIdealWorkUnits);
-		SET_DWORD_STAT(STAT_AnimationBudgetAllocator_AlwaysTick, WorkUnitsToRunInFull);
-		BUDGET_CSV_STAT(AnimationBudget, NumAlwaysTicked, WorkUnitsToRunInFull, ECsvCustomStatOp::Set);
-		const int32 FullIndexEnd = (int32)WorkUnitsToRunInFull;
-
-		// Account for the actual time that we think the fixed ticks will take
-		// This works better when budget to work unit ratio is low
-		float FullTickTime = 0.0f;
-		int32 SortedComponentIndex;
-		for (SortedComponentIndex = 0; SortedComponentIndex < FullIndexEnd; ++SortedComponentIndex)
+		for(int32 SortedComponentIndex : AllSortedComponentData)
 		{
-			FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-			FullTickTime += ComponentData.GameThreadLastCompletionTimeMs + ComponentData.GameThreadLastTickTimeMs;
-		}
-
-		float FullTickWorkUnits = FMath::Min(FullTickTime / AverageWorkUnitTimeMs, WorkUnitsToRunInFull);
-
-		float RemainingBudget = FMath::Max(0.0f, WorkUnitBudget - FullTickWorkUnits);
-		float RemainingWorkUnitsToRun = FMath::Max(0.0f, TotalIdealWorkUnits - FullTickWorkUnits);
-
-		// Ramp off interpolated units in a similar way
-		const float WorkUnitsToInterpolate = FMath::Min(FMath::Max(RemainingBudget - (WorkUnitsExcess * Parameters.InterpolationFalloffAggression), (float)FMath::Min(Parameters.MaxInterpolatedComponents, NumComponentsToNotThrottle)), RemainingWorkUnitsToRun);
-		SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Interpolated, WorkUnitsToInterpolate);
-
-		const int32 InterpolationIndexEnd = FMath::Min((int32)WorkUnitsToInterpolate + (int32)WorkUnitsToRunInFull, TotalIdealWorkUnits);
-
-		const float MaxInterpolationRate = (float)Parameters.InterpolationMaxRate;
-
-		// Calc remaining (throttled) work units
-		RemainingBudget = FMath::Max(0.0f, RemainingBudget - (WorkUnitsToInterpolate * Parameters.InterpolationTickMultiplier));
-		RemainingWorkUnitsToRun = FMath::Max(0.0f, RemainingWorkUnitsToRun - (WorkUnitsToInterpolate * Parameters.InterpolationTickMultiplier));
-
-		SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Throttled, RemainingWorkUnitsToRun);
-
-		// Midpoint of throttle gradient is RemainingWorkUnitsToRun / RemainingBudget.
-		// If we distributed this as a constant we would get each component ticked
-		// at the same rate. However we want to tick more significant meshes more often,
-		// so we keep the area under the curve constant and intercept the line with this centroid.
-		// Care must be taken with rounding to keep workload in-budget.
-		const float ThrottleRateDenominator = RemainingBudget > 1.0f ? RemainingBudget : 1.0f;
-		const float MaxThrottleRate = FMath::Min(FMath::CeilToFloat(FMath::Max(1.0f, RemainingWorkUnitsToRun / ThrottleRateDenominator) * 2.0f), (float)Parameters.MaxTickRate);
-		const float ThrottleDenominator = RemainingWorkUnitsToRun > 0.0f ? RemainingWorkUnitsToRun : 1.0f;
-
-		// Bucket 1: always ticked
-		for (SortedComponentIndex = 0; SortedComponentIndex < FullIndexEnd; ++SortedComponentIndex)
-		{
-			FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-
-			// not skipping frames here as we can either match demand or these components need a full update
-			ComponentData.TickRate = 1;
-			ComponentData.DesiredTickRate = 1;
-			ComponentData.bInterpolate = false;
-		}
-
-		// Bucket 2: interpolated
-		int32 NumInterpolated = 0;
-		for (SortedComponentIndex = FullIndexEnd; SortedComponentIndex < InterpolationIndexEnd; ++SortedComponentIndex)
-		{
-			FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-
-			const float Alpha = (((float)SortedComponentIndex - FullIndexEnd) / WorkUnitsToInterpolate);
-			ComponentData.DesiredTickRate = FMath::Min((int32)FMath::FloorToFloat(FMath::Lerp(2.0f, MaxInterpolationRate, Alpha) + 0.5f), 255);
-			ComponentData.bInterpolate = true;
-			NumInterpolated++;
-		}
-
-		// Bucket 3: Rate limited
-		int32 NumThrottled = 0;
-		for (SortedComponentIndex = InterpolationIndexEnd; SortedComponentIndex < TotalIdealWorkUnits; ++SortedComponentIndex)
-		{
-			FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-
-			const float Alpha = (((float)SortedComponentIndex - InterpolationIndexEnd) / ThrottleDenominator);
-			ComponentData.DesiredTickRate = FMath::Min((int32)FMath::FloorToFloat(FMath::Lerp(2.0f, MaxThrottleRate, Alpha) + 0.5f), 255);
-			ComponentData.bInterpolate = false;
-			NumThrottled++;
-		}
-
-		BUDGET_CSV_STAT(AnimationBudget, NumInterpolated, NumInterpolated, ECsvCustomStatOp::Set);
-		BUDGET_CSV_STAT(AnimationBudget, NumThrottled, RemainingWorkUnitsToRun, ECsvCustomStatOp::Set);
-
-		const float BudgetPressure = (float)TotalIdealWorkUnits / WorkUnitBudget;
-		SmoothedBudgetPressure = FMath::FInterpTo(SmoothedBudgetPressure, BudgetPressure, InDeltaSeconds, Parameters.BudgetPressureSmoothingSpeed);
-
-		float BudgetPressureInterpAlpha = FMath::Clamp((SmoothedBudgetPressure - Parameters.BudgetFactorBeforeAggressiveReducedWork) * 0.5f, 0.0f, 1.0f);
-		int32 StateChangeThrottleInFrames = (int32)FMath::Lerp(4.0f, (float)Parameters.StateChangeThrottleInFrames, BudgetPressureInterpAlpha);
-
-		SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_SmoothedBudgetPressure, SmoothedBudgetPressure);
-
-		// Queue for tick
-		for (SortedComponentIndex = 0; SortedComponentIndex < TotalIdealWorkUnits; ++SortedComponentIndex)
-		{
-			FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-
-			// Ensure that root prerequisite doesnt end up with a lower (or different) tick rate than dependencies
-			if(ComponentData.RootPrerequisite != nullptr)
+			FComponentData& ComponentData = AllComponentData[SortedComponentIndex];
+			ComponentData.TickRate = ComponentData.DesiredTickRate = GAnimationBudgetDebugForceRate;
+			ComponentData.bInterpolate = !!GAnimationBudgetDebugForceInterpolation;
+			if(ComponentData.Component->OnReduceWork().IsBound())
 			{
-				const int32 PrerequisiteHandle = ComponentData.RootPrerequisite->GetAnimationBudgetHandle();
-				if(PrerequisiteHandle != INDEX_NONE)
+				if(ComponentData.bReducedWork && !GAnimationBudgetDebugForceReducedWork)
 				{
-					FComponentData& RootPrerequisiteComponentData = AllComponentData[PrerequisiteHandle];
-					RootPrerequisiteComponentData.TickRate = ComponentData.TickRate = FMath::Min(ComponentData.TickRate, RootPrerequisiteComponentData.TickRate);
-					RootPrerequisiteComponentData.DesiredTickRate = ComponentData.DesiredTickRate = FMath::Min(ComponentData.DesiredTickRate, RootPrerequisiteComponentData.DesiredTickRate);
-					RootPrerequisiteComponentData.StateChangeThrottle = ComponentData.StateChangeThrottle = FMath::Min(ComponentData.StateChangeThrottle, RootPrerequisiteComponentData.StateChangeThrottle);
+					ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, false);
+					ComponentData.bReducedWork = false;
+				}
+				else if(!ComponentData.bReducedWork && GAnimationBudgetDebugForceReducedWork)
+				{
+					ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, true);
+					ComponentData.bReducedWork = true;
 				}
 			}
+			ComponentData.StateChangeThrottle = -1;
 
-			QueueForTick(ComponentData, StateChangeThrottleInFrames);
-		}
-
-		// If any components are not longer allowed to perform reduced work, force them back out
-		for(int32 DisallowedReducedWorkComponentIndex : DisallowedReducedWorkComponentData)
-		{
-			FComponentData& ComponentData = AllComponentData[DisallowedReducedWorkComponentIndex];
-			if(ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
-			{
-#if WITH_TICK_DEBUG
-				UE_LOG(LogTemp, Warning, TEXT("Force-increasing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
-#endif
-				ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, false);
-				ComponentData.bReducedWork = false;
-			}
-		}
-
-		if(--ReducedComponentWorkCounter <= 0)
-		{
-			const bool bEmergencyReducedWork = SmoothedBudgetPressure >= Parameters.BudgetPressureBeforeEmergencyReducedWork;
-
-			// Scale num components to switch based on budget pressure
-			const int32 NumComponentsToSwitch = (int32)FMath::Lerp(1.0f, (float)Parameters.ReducedWorkThrottleMaxPerFrame, BudgetPressureInterpAlpha);
-			int32 ComponentsSwitched = 0;
-
-			// If we have any components running reduced work when we have an excess, then move them out of the 'reduced' pool per tick
-			if (ReducedWorkComponentData.Num() > 0 && SmoothedBudgetPressure < Parameters.BudgetFactorBeforeReducedWork - Parameters.BudgetFactorBeforeReducedWorkEpsilon)
-			{
-				for(int32 ReducedWorkComponentIndex : ReducedWorkComponentData)
-				{
-					FComponentData& ComponentData = AllComponentData[ReducedWorkComponentIndex];
-					if(ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
-					{
-#if WITH_TICK_DEBUG
-						UE_LOG(LogTemp, Warning, TEXT("Increasing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
-#endif
-						ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, false);
-						ComponentData.bReducedWork = false;
-
-						ComponentsSwitched++;
-						if(ComponentsSwitched >= NumComponentsToSwitch)
-						{
-							break;	
-						}
-					}
-				}
-			}
-			else if(SmoothedBudgetPressure > Parameters.BudgetFactorBeforeReducedWork)
-			{
-				// Any work units that we interpolate or throttle should also be eligible for work reduction (which can involve disabling other ticks), so set them all now if needed
-				for (SortedComponentIndex = TotalIdealWorkUnits - 1; SortedComponentIndex >= FullIndexEnd; --SortedComponentIndex)
-				{
-					FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
-
-					const bool bAllowReducedWork = (ComponentData.bAllowReducedWork || bEmergencyReducedWork) && !ComponentData.bAlwaysTick;
-
-					if(bAllowReducedWork && !ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
-					{
-#if WITH_TICK_DEBUG
-						UE_LOG(LogTemp, Warning, TEXT("Reducing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
-#endif
-						ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, true);
-						ComponentData.bReducedWork = true;
-
-						ComponentsSwitched++;
-						if(ComponentsSwitched >= NumComponentsToSwitch)
-						{
-							break;	
-						}
-					}
-				}
-			}
-
-			// Scale the rate at which we consider reducing component work based on budget pressure
-			ReducedComponentWorkCounter = (int32)FMath::Lerp((float)Parameters.ReducedWorkThrottleMaxInFrames, (float)Parameters.ReducedWorkThrottleMinInFrames, BudgetPressureInterpAlpha);
+			QueueForTick(ComponentData, -1);
 		}
 	}
+	else
+#endif
+	{
+		const int32 TotalIdealWorkUnits = AllSortedComponentData.Num();
+
+		SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Demand, TotalIdealWorkUnits);
+
+		if(TotalIdealWorkUnits > 0)
+		{
+			// Calc smoothed average of last frames' work units
+			const float AverageTickTimeMs = TotalEstimatedTickTimeMs / NumWorkUnitsForAverage;
+			AverageWorkUnitTimeMs = FMath::FInterpTo(AverageWorkUnitTimeMs, AverageTickTimeMs, InDeltaSeconds, Parameters.WorkUnitSmoothingSpeed);
+
+			SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_AverageWorkUnitTime, AverageWorkUnitTimeMs);
+			CSV_CUSTOM_STAT(AnimationBudget, AverageWorkUnitTimeMs, AverageTickTimeMs, ECsvCustomStatOp::Set);
+
+			// Want to map the remaining (non-fixed) work units so that we only execute N work units per frame.
+			// If we can go over budget to keep quality then we use that value
+			const float WorkUnitBudget = FMath::Max(Parameters.BudgetInMs / AverageWorkUnitTimeMs, (float)TotalIdealWorkUnits * Parameters.MinQuality);
+
+			SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_Budget, WorkUnitBudget);
+
+			// Ramp-off work units that we tick every frame once required ticks start exceeding budget
+			const float WorkUnitsExcess = FMath::Max(0.0f, TotalIdealWorkUnits - WorkUnitBudget);
+			const float WorkUnitsToRunInFull = FMath::Clamp(WorkUnitBudget - (WorkUnitsExcess * Parameters.AlwaysTickFalloffAggression), (float)NumComponentsToNotSkip, (float)TotalIdealWorkUnits);
+			SET_DWORD_STAT(STAT_AnimationBudgetAllocator_AlwaysTick, WorkUnitsToRunInFull);
+			BUDGET_CSV_STAT(AnimationBudget, NumAlwaysTicked, WorkUnitsToRunInFull, ECsvCustomStatOp::Set);
+			const int32 FullIndexEnd = (int32)WorkUnitsToRunInFull;
+
+			// Account for the actual time that we think the fixed ticks will take
+			// This works better when budget to work unit ratio is low
+			float FullTickTime = 0.0f;
+			int32 SortedComponentIndex;
+			for (SortedComponentIndex = 0; SortedComponentIndex < FullIndexEnd; ++SortedComponentIndex)
+			{
+				FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+				FullTickTime += ComponentData.GameThreadLastCompletionTimeMs + ComponentData.GameThreadLastTickTimeMs;
+			}
+
+			float FullTickWorkUnits = FMath::Min(FullTickTime / AverageWorkUnitTimeMs, WorkUnitsToRunInFull);
+
+			float RemainingBudget = FMath::Max(0.0f, WorkUnitBudget - FullTickWorkUnits);
+			float RemainingWorkUnitsToRun = FMath::Max(0.0f, TotalIdealWorkUnits - FullTickWorkUnits);
+
+			// Ramp off interpolated units in a similar way
+			const float WorkUnitsToInterpolate = FMath::Min(FMath::Max(RemainingBudget - (WorkUnitsExcess * Parameters.InterpolationFalloffAggression), (float)FMath::Min(Parameters.MaxInterpolatedComponents, NumComponentsToNotThrottle)), RemainingWorkUnitsToRun);
+			SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Interpolated, WorkUnitsToInterpolate);
+
+			const int32 InterpolationIndexEnd = FMath::Min((int32)WorkUnitsToInterpolate + (int32)WorkUnitsToRunInFull, TotalIdealWorkUnits);
+
+			const float MaxInterpolationRate = (float)Parameters.InterpolationMaxRate;
+
+			// Calc remaining (throttled) work units
+			RemainingBudget = FMath::Max(0.0f, RemainingBudget - (WorkUnitsToInterpolate * Parameters.InterpolationTickMultiplier));
+			RemainingWorkUnitsToRun = FMath::Max(0.0f, RemainingWorkUnitsToRun - (WorkUnitsToInterpolate * Parameters.InterpolationTickMultiplier));
+
+			SET_DWORD_STAT(STAT_AnimationBudgetAllocator_Throttled, RemainingWorkUnitsToRun);
+
+			// Midpoint of throttle gradient is RemainingWorkUnitsToRun / RemainingBudget.
+			// If we distributed this as a constant we would get each component ticked
+			// at the same rate. However we want to tick more significant meshes more often,
+			// so we keep the area under the curve constant and intercept the line with this centroid.
+			// Care must be taken with rounding to keep workload in-budget.
+			const float ThrottleRateDenominator = RemainingBudget > 1.0f ? RemainingBudget : 1.0f;
+			const float MaxThrottleRate = FMath::Min(FMath::CeilToFloat(FMath::Max(1.0f, RemainingWorkUnitsToRun / ThrottleRateDenominator) * 2.0f), (float)Parameters.MaxTickRate);
+			const float ThrottleDenominator = RemainingWorkUnitsToRun > 0.0f ? RemainingWorkUnitsToRun : 1.0f;
+
+			// Bucket 1: always ticked
+			for (SortedComponentIndex = 0; SortedComponentIndex < FullIndexEnd; ++SortedComponentIndex)
+			{
+				FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+
+				// not skipping frames here as we can either match demand or these components need a full update
+				ComponentData.TickRate = 1;
+				ComponentData.DesiredTickRate = 1;
+				ComponentData.bInterpolate = false;
+			}
+
+			// Bucket 2: interpolated
+			int32 NumInterpolated = 0;
+			for (SortedComponentIndex = FullIndexEnd; SortedComponentIndex < InterpolationIndexEnd; ++SortedComponentIndex)
+			{
+				FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+
+				const float Alpha = (((float)SortedComponentIndex - FullIndexEnd) / WorkUnitsToInterpolate);
+				ComponentData.DesiredTickRate = FMath::Min((int32)FMath::FloorToFloat(FMath::Lerp(2.0f, MaxInterpolationRate, Alpha) + 0.5f), 255);
+				ComponentData.bInterpolate = true;
+				NumInterpolated++;
+			}
+
+			// Bucket 3: Rate limited
+			int32 NumThrottled = 0;
+			for (SortedComponentIndex = InterpolationIndexEnd; SortedComponentIndex < TotalIdealWorkUnits; ++SortedComponentIndex)
+			{
+				FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+
+				const float Alpha = (((float)SortedComponentIndex - InterpolationIndexEnd) / ThrottleDenominator);
+				ComponentData.DesiredTickRate = FMath::Min((int32)FMath::FloorToFloat(FMath::Lerp(2.0f, MaxThrottleRate, Alpha) + 0.5f), 255);
+				ComponentData.bInterpolate = false;
+				NumThrottled++;
+			}
+
+			BUDGET_CSV_STAT(AnimationBudget, NumInterpolated, NumInterpolated, ECsvCustomStatOp::Set);
+			BUDGET_CSV_STAT(AnimationBudget, NumThrottled, RemainingWorkUnitsToRun, ECsvCustomStatOp::Set);
+
+			const float BudgetPressure = (float)TotalIdealWorkUnits / WorkUnitBudget;
+			SmoothedBudgetPressure = FMath::FInterpTo(SmoothedBudgetPressure, BudgetPressure, InDeltaSeconds, Parameters.BudgetPressureSmoothingSpeed);
+
+			float BudgetPressureInterpAlpha = FMath::Clamp((SmoothedBudgetPressure - Parameters.BudgetFactorBeforeAggressiveReducedWork) * 0.5f, 0.0f, 1.0f);
+			int32 StateChangeThrottleInFrames = (int32)FMath::Lerp(4.0f, (float)Parameters.StateChangeThrottleInFrames, BudgetPressureInterpAlpha);
+
+			SET_FLOAT_STAT(STAT_AnimationBudgetAllocator_SmoothedBudgetPressure, SmoothedBudgetPressure);
+
+			// Queue for tick
+			for (SortedComponentIndex = 0; SortedComponentIndex < TotalIdealWorkUnits; ++SortedComponentIndex)
+			{
+				FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+
+				// Ensure that root prerequisite doesnt end up with a lower (or different) tick rate than dependencies
+				if(ComponentData.RootPrerequisite != nullptr)
+				{
+					const int32 PrerequisiteHandle = ComponentData.RootPrerequisite->GetAnimationBudgetHandle();
+					if(PrerequisiteHandle != INDEX_NONE)
+					{
+						FComponentData& RootPrerequisiteComponentData = AllComponentData[PrerequisiteHandle];
+						RootPrerequisiteComponentData.TickRate = ComponentData.TickRate = FMath::Min(ComponentData.TickRate, RootPrerequisiteComponentData.TickRate);
+						RootPrerequisiteComponentData.DesiredTickRate = ComponentData.DesiredTickRate = FMath::Min(ComponentData.DesiredTickRate, RootPrerequisiteComponentData.DesiredTickRate);
+						RootPrerequisiteComponentData.StateChangeThrottle = ComponentData.StateChangeThrottle = FMath::Min(ComponentData.StateChangeThrottle, RootPrerequisiteComponentData.StateChangeThrottle);
+					}
+				}
+
+				QueueForTick(ComponentData, StateChangeThrottleInFrames);
+			}
+
+			// If any components are not longer allowed to perform reduced work, force them back out
+			for(int32 DisallowedReducedWorkComponentIndex : DisallowedReducedWorkComponentData)
+			{
+				FComponentData& ComponentData = AllComponentData[DisallowedReducedWorkComponentIndex];
+				if(ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
+				{
+#if WITH_TICK_DEBUG
+					UE_LOG(LogTemp, Warning, TEXT("Force-increasing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
+#endif
+					ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, false);
+					ComponentData.bReducedWork = false;
+				}
+			}
+
+			if(--ReducedComponentWorkCounter <= 0)
+			{
+				const bool bEmergencyReducedWork = SmoothedBudgetPressure >= Parameters.BudgetPressureBeforeEmergencyReducedWork;
+
+				// Scale num components to switch based on budget pressure
+				const int32 NumComponentsToSwitch = (int32)FMath::Lerp(1.0f, (float)Parameters.ReducedWorkThrottleMaxPerFrame, BudgetPressureInterpAlpha);
+				int32 ComponentsSwitched = 0;
+
+				// If we have any components running reduced work when we have an excess, then move them out of the 'reduced' pool per tick
+				if (ReducedWorkComponentData.Num() > 0 && SmoothedBudgetPressure < Parameters.BudgetFactorBeforeReducedWork - Parameters.BudgetFactorBeforeReducedWorkEpsilon)
+				{
+					for(int32 ReducedWorkComponentIndex : ReducedWorkComponentData)
+					{
+						FComponentData& ComponentData = AllComponentData[ReducedWorkComponentIndex];
+						if(ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
+						{
+#if WITH_TICK_DEBUG
+							UE_LOG(LogTemp, Warning, TEXT("Increasing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
+#endif
+							ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, false);
+							ComponentData.bReducedWork = false;
+
+							ComponentsSwitched++;
+							if(ComponentsSwitched >= NumComponentsToSwitch)
+							{
+								break;	
+							}
+						}
+					}
+				}
+				else if(SmoothedBudgetPressure > Parameters.BudgetFactorBeforeReducedWork)
+				{
+					// Any work units that we interpolate or throttle should also be eligible for work reduction (which can involve disabling other ticks), so set them all now if needed
+					for (SortedComponentIndex = TotalIdealWorkUnits - 1; SortedComponentIndex >= FullIndexEnd; --SortedComponentIndex)
+					{
+						FComponentData& ComponentData = AllComponentData[AllSortedComponentData[SortedComponentIndex]];
+
+						const bool bAllowReducedWork = (ComponentData.bAllowReducedWork || bEmergencyReducedWork) && !ComponentData.bAlwaysTick;
+
+						if(bAllowReducedWork && !ComponentData.bReducedWork && ComponentData.Component->OnReduceWork().IsBound())
+						{
+#if WITH_TICK_DEBUG
+							UE_LOG(LogTemp, Warning, TEXT("Reducing component work (mesh %s) (actor %llx)"), ComponentData.Component->SkeletalMesh ? *ComponentData.Component->SkeletalMesh->GetName() : TEXT("null"), (uint64)ComponentData.Component->GetOwner());
+#endif
+							ComponentData.Component->OnReduceWork().Execute(ComponentData.Component, true);
+							ComponentData.bReducedWork = true;
+
+							ComponentsSwitched++;
+							if(ComponentsSwitched >= NumComponentsToSwitch)
+							{
+								break;	
+							}
+						}
+					}
+				}
+
+				// Scale the rate at which we consider reducing component work based on budget pressure
+				ReducedComponentWorkCounter = (int32)FMath::Lerp((float)Parameters.ReducedWorkThrottleMaxInFrames, (float)Parameters.ReducedWorkThrottleMinInFrames, BudgetPressureInterpAlpha);
+			}
+		}
 
 #if CSV_PROFILER
-	if(AllSortedComponentData.Num() > 0)
-	{
-		for (int32 ComponentDataIndex : AllSortedComponentData)
+		if(AllSortedComponentData.Num() > 0)
 		{
-			FComponentData& ComponentData = AllComponentData[ComponentDataIndex];
-			OutAverageTickRate += (float)ComponentData.TickRate;
-		}
+			for (int32 ComponentDataIndex : AllSortedComponentData)
+			{
+				FComponentData& ComponentData = AllComponentData[ComponentDataIndex];
+				OutAverageTickRate += (float)ComponentData.TickRate;
+			}
 
-		OutAverageTickRate /= (float)AllSortedComponentData.Num();
-	}
+			OutAverageTickRate /= (float)AllSortedComponentData.Num();
+		}
 #endif
+	}
 
 	return NumTicked;
 }

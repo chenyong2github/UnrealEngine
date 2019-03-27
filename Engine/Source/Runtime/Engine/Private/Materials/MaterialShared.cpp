@@ -2068,6 +2068,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 		{
 			check(OutUniformExpressionCache.UniformBuffer->GetLayout() == UniformBufferStruct.GetLayout());
 			RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
+			OutUniformExpressionCache.UniformBuffer->UpdateLayoutReference(&UniformBufferStruct.GetLayout());
 		}
 		else
 		{
@@ -2779,6 +2780,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 			}
 		}
 
+		MI->RecacheUniformExpressions(true);
 		MI->InitStaticPermutation();//bHasStaticPermutation can change.
 		if (MI->bHasStaticPermutationResource)
 		{

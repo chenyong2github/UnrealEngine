@@ -196,7 +196,7 @@ namespace CharacterMovementCVars
 		TEXT( "If 1, remove invalid replay samples that can occur due to oversampling (sampling at higher rate than physics is being ticked)" ),
 		ECVF_Default);
 
-	static int32 ForceJumpPeakSubstep = 0;
+	static int32 ForceJumpPeakSubstep = 1;
 	FAutoConsoleVariableRef CVarForceJumpPeakSubstep(
 		TEXT("p.ForceJumpPeakSubstep"),
 		ForceJumpPeakSubstep,
@@ -404,6 +404,8 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	
 	MaxSimulationTimeStep = 0.05f;
 	MaxSimulationIterations = 8;
+	MaxJumpApexAttemptsPerSimulation = 2;
+	NumJumpApexAttempts = 0;
 
 	MaxDepenetrationWithGeometry = 500.f;
 	MaxDepenetrationWithGeometryAsProxy = 100.f;
@@ -498,6 +500,7 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	bImpartBaseVelocityZ = true;
 	bImpartBaseAngularVelocity = true;
 	bIgnoreClientMovementErrorChecksAndCorrection = false;
+	bServerAcceptClientAuthoritativePosition = false;
 	bAlwaysCheckFloor = true;
 
 	// default character can jump, walk, and swim
@@ -1635,6 +1638,7 @@ void UCharacterMovementComponent::SimulateRootMotion(float DeltaSeconds, const F
 			bNetworkMovementModeChanged = false;
 		}
 
+		NumJumpApexAttempts = 0;
 		StartNewPhysics(DeltaSeconds, 0);
 		// fixme laurent - simulate movement seems to have step up issues? investigate as that would be cheaper to use.
 		// 		SimulateMovement(DeltaSeconds);
@@ -2355,6 +2359,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 
 		// Clear jump input now, to allow movement events to trigger it for next update.
 		CharacterOwner->ClearJumpInput(DeltaSeconds);
+		NumJumpApexAttempts = 0;
 
 		// change position
 		StartNewPhysics(DeltaSeconds, 0);
@@ -4115,7 +4120,6 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 	FVector FallAcceleration = GetFallingLateralAcceleration(deltaTime);
 	FallAcceleration.Z = 0.f;
 	const bool bHasAirControl = (FallAcceleration.SizeSquared2D() > 0.f);
-	int32 NumApexAttempts = 0;
 
 	float remainingTime = deltaTime;
 	while( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) )
@@ -4191,7 +4195,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 		const FVector AirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;
 
 		// See if we need to sub-step to exactly reach the apex. This is important for avoiding "cutting off the top" of the trajectory as framerate varies.
-		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumApexAttempts < 2)
+		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)
 		{
 			const FVector DerivedAccel = (Velocity - OldVelocity) / timeTick;
 			if (!FMath::IsNearlyZero(DerivedAccel.Z))
@@ -4210,7 +4214,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 					remainingTime += (timeTick - TimeToApex);
 					timeTick = TimeToApex;
 					Iterations--;
-					NumApexAttempts++;
+					NumJumpApexAttempts++;
 				}
 			}
 		}
@@ -7651,17 +7655,6 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 		return false;
 	}
 
-	if (bIgnoreClientMovementErrorChecksAndCorrection)
-	{
-#if !UE_BUILD_SHIPPING
-		if (CharacterMovementCVars::NetShowCorrections != 0)
-		{
-			UE_LOG(LogNetPlayerMovement, Warning, TEXT("*** Client: %s is set to ignore error checks and corrections with %d saved moves in queue."), *GetNameSafe(CharacterOwner), ClientData->SavedMoves.Num());
-		}
-#endif // !UE_BUILD_SHIPPING
-		return false;
-	}
-
 	ClientData->bUpdatePosition = false;
 
 	// Don't do any network position updates on things running PHYS_RigidBody
@@ -8753,8 +8746,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 	}
 	else
 	{
-		const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
-		if (GameNetworkManager->ClientAuthorativePosition)
+		if (ServerShouldUseAuthoritativePosition(ClientTimeStamp, DeltaTime, Accel, ClientLoc, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))
 		{
 			const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientLoc; //-V595
 			if (!LocDiff.IsZero() || ClientMovementMode != PackNetworkMovementMode() || GetMovementBase() != ClientMovementBase || (CharacterOwner && CharacterOwner->GetBasedMovement().BoneName != ClientBaseBoneName))
@@ -8805,12 +8797,21 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 			RootMotionSourceDebug::PrintOnScreen(*CharacterOwner, AdjustedDebugString);
 		}
 #endif
+
 		const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
 		if (GameNetworkManager->ExceedsAllowablePositionError(LocDiff))
 		{
 			bNetworkLargeClientCorrection = (LocDiff.SizeSquared() > FMath::Square(NetworkLargeClientCorrectionDistance));
 			return true;
 		}
+
+		// Check for disagreement in movement mode
+		const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
+		if (CurrentPackedMovementMode != ClientMovementMode)
+		{
+			return true;
+		}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (CharacterMovementCVars::NetForceClientAdjustmentPercent > SMALL_NUMBER)
 		{
@@ -8832,16 +8833,25 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 #endif // !UE_BUILD_SHIPPING
 	}
 
-	// Check for disagreement in movement mode
-	const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
-	if (CurrentPackedMovementMode != ClientMovementMode)
+	return false;
+}
+
+
+bool UCharacterMovementComponent::ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
+{
+	if (bServerAcceptClientAuthoritativePosition)
+	{
+		return true;
+	}
+
+	const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
+	if (GameNetworkManager->ClientAuthorativePosition)
 	{
 		return true;
 	}
 
 	return false;
 }
-
 
 bool UCharacterMovementComponent::ServerMove_Validate(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 MoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {

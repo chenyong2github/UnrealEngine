@@ -276,9 +276,10 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 		if(CanReimportHandler != nullptr)
 		{
 			TArray<int32> MissingFileIndex;
+
 			// Check all filenames for missing files
 			bool bMissingFiles = false;
-			if (SourceFilenames.Num() > 0)
+			if (!bForceNewFile && SourceFilenames.Num() > 0)
 			{
 				for (int32 FileIndex = 0; FileIndex < SourceFilenames.Num(); ++FileIndex)
 				{
@@ -294,7 +295,22 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 			}
 			else
 			{
-				MissingFileIndex.AddUnique(SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex);
+				int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
+				if (bForceNewFile)
+				{
+					if (SourceFilenames.IsValidIndex(RealSourceFileIndex))
+					{
+						SourceFilenames[RealSourceFileIndex].Empty();
+					}
+					else
+					{
+						//Add the missing entries
+						SourceFilenames.AddDefaulted(RealSourceFileIndex - (SourceFilenames.Num() - 1));
+					}
+					bAskForNewFileIfMissing = true;
+				}
+
+				MissingFileIndex.AddUnique(RealSourceFileIndex);
 				bMissingFiles = true;
 			}
 

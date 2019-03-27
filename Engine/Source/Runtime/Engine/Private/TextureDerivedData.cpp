@@ -1047,7 +1047,7 @@ static void SerializePlatformData(
 #endif
 		}
 
-		for (int32 MipIndex = 0; MipIndex < NumMips && MipIndex < OptionalMips; ++MipIndex )
+		for (int32 MipIndex = 0; MipIndex < NumMips && MipIndex < OptionalMips; ++MipIndex ) //-V654
 		{
 			PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload| BULKDATA_OptionalPayload);
 		}

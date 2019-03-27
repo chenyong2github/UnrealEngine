@@ -44,3 +44,9 @@ void UNavigationInvokerComponent::RegisterWithNavigationSystem(UNavigationSystem
 		}
 	}
 }
+
+void UNavigationInvokerComponent::SetGenerationRadii(const float GenerationRadius, const float RemovalRadius)
+{
+	TileGenerationRadius = GenerationRadius;
+	TileRemovalRadius = RemovalRadius;
+}

@@ -23,6 +23,12 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 /** Track the last assigned handle globally */
 uint64 FTimerManager::LastAssignedSerialNumber = 0;
 
+static float DumpTimerLogsThreshold = 0.f;
+static FAutoConsoleVariableRef CVarDumpTimerLogsThreshold(
+	TEXT("TimerManager.DumpTimerLogsThreshold"), DumpTimerLogsThreshold,
+	TEXT("Threshold (in milliseconds) after which we log timer info to try and help track down spikes in the timer code. Disabled when set to 0"),
+	ECVF_Default);
+
 namespace
 {
 	void DescribeFTimerDataSafely(FOutputDevice& Ar, const FTimerData& Data)
@@ -154,7 +160,7 @@ FString FTimerUnifiedDelegate::ToString() const
 		FunctionName = NotBoundName;
 	}
 
-	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DELEGATE") : TEXT("DYN DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
+	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
 }
 
 // ---------------------------------
@@ -547,6 +553,9 @@ void FTimerManager::Tick(float DeltaTime)
 		return;
 	}
 
+	const double StartTime = FPlatformTime::Seconds();
+	bool bDumpTimerLogsThresholdExceeded = false;
+
 	InternalTime += DeltaTime;
 
 	UWorld* const OwningWorld = OwningGameInstance ? OwningGameInstance->GetWorld() : nullptr;
@@ -570,6 +579,11 @@ void FTimerManager::Tick(float DeltaTime)
 		if (InternalTime > Top->ExpireTime)
 		{
 			// Timer has expired! Fire the delegate, then handle potential looping.
+
+			if (bDumpTimerLogsThresholdExceeded)
+			{
+				DescribeFTimerDataSafely(*GLog, *Top);
+			}
 
 			// Set the relevant level context for this timer
 			const int32 LevelCollectionIndex = OwningWorld ? OwningWorld->FindCollectionIndexByType(Top->LevelCollection) : INDEX_NONE;
@@ -607,6 +621,26 @@ void FTimerManager::Tick(float DeltaTime)
 				if (!Top || Top->Status != ETimerStatus::Executing)
 				{
 					break;
+				}
+			}
+
+			if (DumpTimerLogsThreshold > 0.f && !bDumpTimerLogsThresholdExceeded)
+			{
+				// help us hunt down outliers that cause our timer manager times to spike.  Recommended that users set meaningful DumpTimerLogsThresholds in appropriate ini files if they are seeing spikes in the timer manager.
+				const double DeltaT = (FPlatformTime::Seconds() - StartTime) * 1000.f;
+				if (DeltaT >= DumpTimerLogsThreshold)
+				{
+					bDumpTimerLogsThresholdExceeded = true;
+					UE_LOG(LogEngine, Log, TEXT("TimerManager's time threshold of %.2fms exceeded with a deltaT of %.4f, dumping current timer data."), DumpTimerLogsThreshold, DeltaT);
+
+					if (Top)
+					{
+						DescribeFTimerDataSafely(*GLog, *Top);
+					}
+					else
+					{
+						UE_LOG(LogEngine, Log, TEXT("There was no timer data for the first timer after exceeding the time threshold!"));
+					}
 				}
 			}
 

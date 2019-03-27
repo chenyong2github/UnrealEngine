@@ -36,6 +36,12 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics = false;
 
 		/// <summary>
+		/// Mark the build for distribution
+		/// </summary>
+		[CommandLine("-distribution")]
+		public bool bForDistribution = false;
+
+		/// <summary>
 		/// Manual override for the provision to use. Should be a full path.
 		/// </summary>
 		[CommandLine("-ImportProvision=")]
@@ -98,6 +104,11 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics
 		{
 			get { return Inner.bSkipCrashlytics; }
+		}
+
+		public bool bForDistribution
+		{
+			get { return Inner.bForDistribution; }
 		}
 
 		public string ImportProvision
@@ -288,6 +299,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableAdvertisingIdentifier")]
 		public readonly bool bEnableAdvertisingIdentifier = false;
+
+		/// <summary>
+		/// true when building for distribution
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "ForDistribution")]
+		public readonly bool bForDistribution = false;
 
 		/// <summary>
 		/// Returns a list of all the non-shipping architectures which are supported

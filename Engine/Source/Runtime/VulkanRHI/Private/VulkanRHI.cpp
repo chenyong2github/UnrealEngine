@@ -570,7 +570,7 @@ void FVulkanDynamicRHI::SelectAndInitDevice()
 	GRHIVendorId = Props.vendorID;
 	GRHIAdapterName = ANSI_TO_TCHAR(Props.deviceName);
 
-	FVulkanPlatform::CheckDeviceDriver(DeviceIndex);
+	FVulkanPlatform::CheckDeviceDriver(DeviceIndex, Props);
 
 	Device->InitGPU(DeviceIndex);
 
@@ -1190,8 +1190,11 @@ void FVulkanDescriptorSetsLayoutInfo::GenerateHash(const TArrayView<const FSampl
 #endif
 }
 
+static FCriticalSection GTypesUsageCS;
 void FVulkanDescriptorSetsLayoutInfo::CompileTypesUsageID()
 {
+	FScopeLock ScopeLock(&GTypesUsageCS);
+
 	static TMap<uint32, uint32> GTypesUsageHashMap;
 	static uint32 GUniqueID = 1;
 

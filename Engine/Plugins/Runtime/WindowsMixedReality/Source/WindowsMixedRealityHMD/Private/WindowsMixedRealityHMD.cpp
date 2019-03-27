@@ -19,8 +19,9 @@
 #include "Windows/WindowsPlatformMisc.h"
 #include "Misc/MessageDialog.h"
 
-// Holographic Remoting is only supported in Windows 10 version 1803 or better
-#define MIN_WIN_10_VERSION_FOR_WMR 1803
+// Holographic Remoting is only supported in Windows 10 version 1809 or better
+// Originally we were supporting 1803, but there were rendering issues specific to that version so for now we only support 1809
+#define MIN_WIN_10_VERSION_FOR_WMR 1809
 
 //---------------------------------------------------
 // Windows Mixed Reality HMD Plugin
@@ -108,28 +109,34 @@ namespace WindowsMixedReality
 			// Get the base directory of this plugin
 			FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
 
-			// Add on the relative location of the third party dll and load it
-			FString LibraryPath;
+			FString EngineDir = FPaths::EngineDir();
+			FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();
 
-#if PLATFORM_64BITS
-			LibraryPath = FPaths::Combine(*BaseDir, TEXT("Binaries/ThirdParty/MixedRealityInteropLibrary/Win64/MixedRealityInterop.dll"));
-#else 
-			LibraryPath = FPaths::Combine(*BaseDir, TEXT("Binaries/ThirdParty/MixedRealityInteropLibrary/Win32/MixedRealityInterop.dll"));
-#endif // PLATFORM_64BITS
+			FString PerceptionSimulationDLLPath = EngineDir / "Binaries" / BinariesSubDir / "Microsoft.Perception.Simulation.dll";
+			FString HolographicStreamerDesktopDLLPath = EngineDir / "Binaries" / BinariesSubDir / "HolographicStreamerDesktop.dll";
+			FString MRInteropLibraryPath = BaseDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / "MixedRealityInterop.dll";
 
-			void* MixedRealityInteropLibraryHandle = !LibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*LibraryPath) : nullptr;
+			// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
+			void* PerceptionSimulationDLLHandle = FPlatformProcess::GetDllHandle(*PerceptionSimulationDLLPath);
+			void* HolographicStreamerDesktopDLLHandle = FPlatformProcess::GetDllHandle(*HolographicStreamerDesktopDLLPath);
 
-			if (MixedRealityInteropLibraryHandle)
+			// Then finally try to load the WMR Interop Library
+			void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
+
+			FString OSVersionLabel;
+			FString OSSubVersionLabel;
+			FWindowsPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
+			// GetOSVersion returns the Win10 release version in the OSVersion rather than the OSSubVersion, so parse it out ourselves
+			OSSubVersionLabel = OSVersionLabel;
+			bool bHasSupportedWindowsVersion = OSSubVersionLabel.RemoveFromStart("Windows 10 (Release ") && OSSubVersionLabel.RemoveFromEnd(")") && (FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR);
+			if (MixedRealityInteropLibraryHandle && bHasSupportedWindowsVersion)
 			{
 				HMD = new MixedRealityInterop();
 			}
 			else
 			{
-				FString OSVersionLabel;
-				FString OSSubVersionLabel;
-				FWindowsPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
 				FText ErrorText = FText::Format(FTextFormat(NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError", 
-					"Failed to load Windows Mixed Reality Interop Library.\nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
+					"Failed to load Windows Mixed Reality Interop Library, or this version of Windows is not supported. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
 					FText::FromString(FString::FromInt(MIN_WIN_10_VERSION_FOR_WMR)), FText::FromString(OSVersionLabel));
 				FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
 				UE_LOG(LogCore, Error, TEXT("%s"), *ErrorText.ToString());
@@ -395,33 +402,28 @@ namespace WindowsMixedReality
 
 				gameWindowWidth = windowRect.right - windowRect.left;
 				gameWindowHeight = windowRect.bottom - windowRect.top;
-			}
-		}
 
-		// Restore windows focus to game window to preserve keyboard/mouse input.
-		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine)
-		{
-			HWND gameHWND = (HWND)GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
+				// Restore windows focus to game window to preserve keyboard/mouse input.
+				if ((currentWornState == EHMDWornState::Type::Worn) && GEngine)
+				{
+					// Set mouse focus to center of game window so any clicks interact with the game.
+					if (mouseLockedToCenter)
+					{
+						CenterMouse(windowRect);
+					}
 
-			// Set mouse focus to center of game window so any clicks interact with the game.
-			if (mouseLockedToCenter)
-			{
-				RECT windowRect;
-				GetWindowRect(gameHWND, &windowRect);
+					if (GetCapture() != gameHWND)
+					{
+						// Keyboard input
+						SetForegroundWindow(gameHWND);
 
-				CenterMouse(windowRect);
-			}
+						// Mouse input
+						SetCapture(gameHWND);
+						SetFocus(gameHWND);
 
-			if (GetCapture() != gameHWND)
-			{
-				// Keyboard input
-				SetForegroundWindow(gameHWND);
-
-				// Mouse input
-				SetCapture(gameHWND);
-				SetFocus(gameHWND);
-
-				FSlateApplication::Get().SetAllUserFocusToGameViewport();
+						FSlateApplication::Get().SetAllUserFocusToGameViewport();
+					}
+				}
 			}
 		}
 

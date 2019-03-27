@@ -1372,8 +1372,8 @@ uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const T
 		CompilerFlags.Contains(CFLAG_UseEmulatedUB))
 	{
 		CCFlags |= HLSLCC_FlattenUniformBuffers | HLSLCC_FlattenUniformBufferStructures;
-		// Do not use this flag as it adds too many uniforms.
-		//CCFlags |= HLSLCC_GroupFlattenedUniformBuffers;
+		// Enabling HLSLCC_GroupFlattenedUniformBuffers, see FORT-159483.
+		CCFlags |= HLSLCC_GroupFlattenedUniformBuffers;
 		CCFlags |= HLSLCC_ExpandUBMemberArrays;
 	}
 

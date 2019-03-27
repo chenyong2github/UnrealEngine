@@ -139,6 +139,8 @@ void FWindowsPlatformCrashContext::AddPlatformSpecificProperties() const
 	AddCrashProperty(TEXT("PlatformIsRunningWindows"), 1);
 	// On windows track the crash type
 	AddCrashProperty(TEXT("PlatformCallbackResult"), GetCrashType());
+
+	AddCrashProperty(TEXT("IsRunningOnBattery"), FPlatformMisc::IsRunningOnBattery());
 }
 
 bool FWindowsPlatformCrashContext::GetPlatformAllThreadContextsString(FString& OutStr) const
@@ -318,11 +320,13 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
-	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+#if !UE_EDITOR
+	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
 	}
+#endif
 
 	if (bNoDialog && !bSendUnattendedBugReports)
 	{

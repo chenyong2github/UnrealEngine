@@ -12,7 +12,6 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.text.TextUtils;
 
-import com.epicgames.fortnite.R;
 import com.epicgames.ue4.GameActivity;
 import com.epicgames.ue4.GameApplication;
 import com.epicgames.ue4.LocalNotificationReceiver;

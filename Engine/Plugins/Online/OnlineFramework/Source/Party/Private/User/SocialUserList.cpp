@@ -7,6 +7,8 @@
 
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+#include "SocialSettings.h"
+#include "Algo/Transform.h"
 
 TSharedRef<FSocialUserList> FSocialUserList::CreateUserList(USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& InConfig)
 {
@@ -61,7 +63,10 @@ void FSocialUserList::InitializeList()
 		TryAddUserFast(*User);
 	}
 
-	SetAutoUpdatePeriod(AutoUpdatePeriod);
+	if (ListConfig.bRequireAutoUpdate)
+	{
+		SetAutoUpdatePeriod(USocialSettings::GetUserListAutoUpdateRate());
+	}
 }
 
 void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
@@ -71,7 +76,7 @@ void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FSocialUserList::UpdateNow()
 {
-	HandleAutoUpdateList(0.f);
+	UpdateListInternal();
 }
 
 void FSocialUserList::SetAutoUpdatePeriod(float InAutoUpdatePeriod)
@@ -117,23 +122,25 @@ void FSocialUserList::HandleOwnerToolkitReset()
 void FSocialUserList::HandlePartyInviteReceived(USocialUser& InvitingUser)
 {
 	TryAddUser(InvitingUser);
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandlePartyInviteHandled(USocialUser* InvitingUser)
 {
 	TryRemoveUser(*InvitingUser);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendInviteReceived(USocialUser& User, ESocialSubsystem SubsystemType)
 {
 	TryAddUser(User);
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendInviteRemoved(ESocialSubsystem SubsystemType, USocialUser* User)
 {
 	TryRemoveUser(*User);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleFriendshipEstablished(USocialUser& NewFriend, ESocialSubsystem SubsystemType, bool bIsNewRelationship)
@@ -149,14 +156,14 @@ void FSocialUserList::HandleFriendshipEstablished(USocialUser& NewFriend, ESocia
 	{
 		// Any non-friends list that cares about friendship does so to remove entries (i.e. invites & recent players)
 		TryRemoveUser(NewFriend);
-		UpdateNow();
+		UpdateListInternal();
 	}
 }
 
 void FSocialUserList::HandleFriendRemoved(ESocialSubsystem SubsystemType, USocialUser* User)
 {
 	TryRemoveUser(*User);
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleUserBlocked(USocialUser& BlockedUser, ESocialSubsystem SubsystemType, bool bIsNewRelationship)
@@ -171,7 +178,7 @@ void FSocialUserList::HandleUserBlocked(USocialUser& BlockedUser, ESocialSubsyst
 		TryRemoveUser(BlockedUser);
 	}
 	
-	UpdateNow();
+	UpdateListInternal();
 }
 
 void FSocialUserList::HandleUserBlockStatusChanged(ESocialSubsystem SubsystemType, bool bIsBlocked, USocialUser* User)
@@ -179,7 +186,7 @@ void FSocialUserList::HandleUserBlockStatusChanged(ESocialSubsystem SubsystemTyp
 	if (!bIsBlocked)
 	{
 		TryRemoveUser(*User);
-		UpdateNow();
+		UpdateListInternal();
 	}
 }
 
@@ -356,7 +363,50 @@ bool FSocialUserList::EvaluatePresenceFlag(bool bPresenceValue, ESocialUserState
 	return true;
 }
 
+// encapsulates UserList sorting comparator and supporting data needed
+struct FUserSortData
+{
+	FUserSortData(USocialUser* InUser, EOnlinePresenceState::Type InStatus, bool InPlayingThisGame, FString InDisplayName)
+		: User(InUser), OnlineStatus(InStatus), PlayingThisGame(InPlayingThisGame), DisplayName(MoveTemp(InDisplayName))
+	{ }
+
+	USocialUser* User;
+	EOnlinePresenceState::Type OnlineStatus;
+	bool PlayingThisGame;
+	FString DisplayName;
+
+	bool operator<(const FUserSortData& OtherSortData) const
+	{
+		// Goes from if online, then alphabetical
+		if (OnlineStatus == OtherSortData.OnlineStatus)
+		{
+			if (PlayingThisGame == OtherSortData.PlayingThisGame)
+			{
+				return DisplayName < OtherSortData.DisplayName;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			// @todo StephanJ: note Online < Offline < Away, but it's okay for now since we show offline in a separate list #future
+			return OnlineStatus < OtherSortData.OnlineStatus;
+		}
+	}
+};
+
 bool FSocialUserList::HandleAutoUpdateList(float)
+{
+	if (bAllowAutoUpdate)
+	{
+		UpdateListInternal();
+	}
+	return true;
+}
+
+void FSocialUserList::UpdateListInternal()
 {
 	// Re-evaluate whether each user with dirtied presence is still fit for the list
 	for (TWeakObjectPtr<USocialUser> DirtyUser : UsersWithDirtyPresence)
@@ -385,24 +435,25 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 		Users.RemoveAllSwap(
 			[this] (USocialUser* User)
 			{
-				return PendingRemovals.Contains(User);
+				if (PendingRemovals.Contains(User))
+				{
+					PendingRemovals.Remove(User);
+					OnUserRemoved().Broadcast(*User);
+					return true;
+				}
+
+				return false;
 			});
 
-		for (TWeakObjectPtr<const USocialUser> User : PendingRemovals)
-		{
-			if (User.IsValid())
-			{
-				OnUserRemoved().Broadcast(*User.Get());
-			}
-		}
+		ensure(PendingRemovals.Num() == 0);
 		PendingRemovals.Reset();
 	}
-	
+
 	if (PendingAdds.Num() > 0)
 	{
 		bListChanged = true;
 		Users.Append(PendingAdds);
-		
+
 		for (USocialUser* User : PendingAdds)
 		{
 			OnUserAdded().Broadcast(*User);
@@ -414,43 +465,23 @@ bool FSocialUserList::HandleAutoUpdateList(float)
 	{
 		bNeedsSort = false;
 
-		Users.Sort([](USocialUser& UserA, USocialUser& UserB)
-			{
-				const UPartyMember* PartyMemberA = UserA.GetPartyMember(IOnlinePartySystem::GetPrimaryPartyTypeId());
-				const UPartyMember* PartyMemberB = UserB.GetPartyMember(IOnlinePartySystem::GetPrimaryPartyTypeId());
+		const int32 NumUsers = Users.Num();
+		TArray<FUserSortData> SortedData;
+		SortedData.Reserve(NumUsers);
 
-				// Put party members at the top
-				if (PartyMemberA && !PartyMemberB)
-				{
-					return true;
-				}
-				else if (PartyMemberB && !PartyMemberA)
-				{
-					return false;
-				}
+		Algo::Transform(Users, SortedData, [](USocialUser* const User) -> FUserSortData
+		{
+			return FUserSortData(User, User->GetOnlineStatus(), User->IsPlayingThisGame(), User->GetDisplayName());
+		});
 
-				// Goes from if online, then alphabetical
-				if (UserA.GetOnlineStatus() == UserB.GetOnlineStatus())
-				{
-					if (UserA.IsPlayingThisGame() == UserB.IsPlayingThisGame())
-					{
-						return UserA.GetDisplayName() < UserB.GetDisplayName();
-					}
-					else
-					{
-						return UserA.IsPlayingThisGame() > UserB.IsPlayingThisGame();
-					}
-				}
-				else
-				{
-					// @todo StephanJ: note Online < Offline < Away, but it's okay for now since we show offline in a separate list #future
-					return UserA.GetOnlineStatus() < UserB.GetOnlineStatus();
-				}
-				
-			});
+		Algo::Sort(SortedData);
 
+		// replace contents of Users from SortedData array
+		for (int Index = 0; Index < NumUsers; Index++)
+		{
+			Users[Index] = SortedData[Index].User;
+		}
+		
 		OnUpdateComplete().Broadcast();
 	}
-
-	return true;
 }

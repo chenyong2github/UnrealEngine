@@ -165,13 +165,27 @@ namespace UnrealBuildTool
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
-			DirectoryReference AutoSdkDir;
-			if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir))
+			string DsymutilVersionString = Utils.RunLocalProcessAndReturnStdOut(DsymutilLocation.FullName, "-version");
+
+			// dsymutil 10.0.0 has a bug that causes issues, it's fixed in autosdks but not everyone has those set up so for the timebeing we have
+			// a version in P4...
+			if (DsymutilVersionString.StartsWith("Apple LLVM version 10.0.0", StringComparison.Ordinal))
 			{
-				FileReference AutoSdkDsymutilLocation = FileReference.Combine(AutoSdkDir, "Mac", "LLVM", "bin", "dsymutil");
-				if (FileReference.Exists(AutoSdkDsymutilLocation))
+				FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries/Mac/NotForLicensees/LLVM/bin/dsymutil");
+
+				if (File.Exists(PatchedDsymutilLocation.FullName))
 				{
-					DsymutilLocation = AutoSdkDsymutilLocation;
+					DsymutilLocation = PatchedDsymutilLocation;
+				}
+
+				DirectoryReference AutoSdkDir;
+				if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir))
+				{
+					FileReference AutoSdkDsymutilLocation = FileReference.Combine(AutoSdkDir, "Mac", "LLVM", "bin", "dsymutil");
+					if (FileReference.Exists(AutoSdkDsymutilLocation))
+					{
+						DsymutilLocation = AutoSdkDsymutilLocation;
+					}
 				}
 			}
 

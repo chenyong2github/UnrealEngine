@@ -260,7 +260,7 @@ public:
 	 * @param	NewPlayer	the player to add
 	 * @param	ControllerId id of the controller associated with the player
 	 */
-	int32					AddLocalPlayer(ULocalPlayer * NewPlayer, int32 ControllerId);
+	virtual int32			AddLocalPlayer(ULocalPlayer* NewPlayer, int32 ControllerId);
 
 
 	/**

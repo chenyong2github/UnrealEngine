@@ -194,7 +194,7 @@ void UMulticastDelegateProperty::ExportTextItem( FString& ValueStr, const void* 
 	ValueStr += TEXT( ")" );
 }
 
-const TCHAR* UMulticastDelegateProperty::ImportDelegateFromText( FMulticastScriptDelegate& MulticastDelegate, const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* UMulticastDelegateProperty::ImportDelegateFromText( FMulticastScriptDelegate& MulticastDelegate, const TCHAR* Buffer, UObject* Parent, FOutputDevice* ErrorText ) const
 {
 	// Multi-cast delegates always expect an opening parenthesis when using assignment syntax, so that
 	// users don't accidentally blow away already-bound delegates in DefaultProperties.  This also helps
@@ -371,7 +371,7 @@ void UMulticastInlineDelegateProperty::SerializeItem(FStructuredArchive::FSlot S
 const TCHAR* UMulticastInlineDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
 {
 	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
-	return ImportDelegateFromText(MulticastDelegate, Buffer, PropertyValue, PortFlags, Parent, ErrorText);
+	return ImportDelegateFromText(MulticastDelegate, Buffer, Parent, ErrorText);
 }
 
 void ResolveDelegateReference(const UMulticastInlineDelegateProperty* InlineProperty, UObject*& Parent, void*& PropertyValue)
@@ -436,14 +436,16 @@ void UMulticastSparseDelegateProperty::SetMulticastDelegate(void* PropertyValue,
 
 	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
 	UObject* OwningObject = FSparseDelegateStorage::ResolveSparseOwner(SparseDelegate, SparseDelegateFunc->OwningClassName, SparseDelegateFunc->DelegateName);
-	FMulticastScriptDelegate& Delegate = FSparseDelegateStorage::GetOrCreateMulticastDelegate(OwningObject, SparseDelegateFunc->DelegateName);
 
-	Delegate = MoveTemp(ScriptDelegate);
-
-	SparseDelegate.bIsBound = Delegate.IsBound();
-	if (!SparseDelegate.bIsBound)
+	if (ScriptDelegate.IsBound())
+	{
+		FSparseDelegateStorage::SetMulticastDelegate(OwningObject, SparseDelegateFunc->DelegateName, MoveTemp(ScriptDelegate));
+		SparseDelegate.bIsBound = true;
+	}
+	else if (SparseDelegate.bIsBound)
 	{
 		FSparseDelegateStorage::Clear(OwningObject, SparseDelegateFunc->DelegateName);
+		SparseDelegate.bIsBound = false;
 	}
 }
 
@@ -480,8 +482,7 @@ void UMulticastSparseDelegateProperty::SerializeItem(FStructuredArchive::FSlot S
 		{
 			USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
 			UObject* OwningObject = FSparseDelegateStorage::ResolveSparseOwner(SparseDelegate, SparseDelegateFunc->OwningClassName, SparseDelegateFunc->DelegateName);
-			FMulticastScriptDelegate& BoundDelegate = FSparseDelegateStorage::GetOrCreateMulticastDelegate(OwningObject, SparseDelegateFunc->DelegateName);
-			BoundDelegate = MoveTemp(Delegate);
+			FSparseDelegateStorage::SetMulticastDelegate(OwningObject, SparseDelegateFunc->DelegateName, MoveTemp(Delegate));
 			SparseDelegate.bIsBound = true;
 		}
 		else if (SparseDelegate.bIsBound)
@@ -516,19 +517,23 @@ void UMulticastSparseDelegateProperty::SerializeItem(FStructuredArchive::FSlot S
 
 const TCHAR* UMulticastSparseDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
 {
-	FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
-
-	USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
-	FMulticastScriptDelegate& Delegate = FSparseDelegateStorage::GetOrCreateMulticastDelegate(Parent, SparseDelegateFunc->DelegateName);
-
-	const TCHAR* Result = ImportDelegateFromText(Delegate, Buffer, PropertyValue, PortFlags, Parent, ErrorText);
+	FMulticastScriptDelegate Delegate;
+	const TCHAR* Result = ImportDelegateFromText(Delegate, Buffer, Parent, ErrorText);
 
 	if (Result)
 	{
-		SparseDelegate.bIsBound = Delegate.IsBound();
-		if (!SparseDelegate.bIsBound)
+		FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
+		USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
+
+		if (Delegate.IsBound())
+		{
+			FSparseDelegateStorage::SetMulticastDelegate(Parent, SparseDelegateFunc->DelegateName, MoveTemp(Delegate));
+			SparseDelegate.bIsBound = true;
+		}
+		else
 		{
 			FSparseDelegateStorage::Clear(Parent, SparseDelegateFunc->DelegateName);
+			SparseDelegate.bIsBound = false;
 		}
 	}
 

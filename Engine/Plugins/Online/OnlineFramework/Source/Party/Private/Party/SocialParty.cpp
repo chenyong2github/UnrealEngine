@@ -416,10 +416,15 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberDataReceived));
 	PartyInterface->AddOnPartyMemberPromotedDelegate_Handle(FOnPartyMemberPromotedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberPromoted));
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
-	//PartyInterface->AddOnPartyMemberStateChangedDelegate_Handle(FOnPartyMemberStateChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberStateChanged));
+	
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<TSharedRef<FOnlinePartyMember>> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
+	// Always initialize the local member first
+	if (ensure(OssPartyMembers.RemoveAll([this](const TSharedRef<FOnlinePartyMember>& Member) { return *Member->GetUserId() == *OwningLocalUserId; } ) > 0))
+	{
+		GetOrCreatePartyMember(*OwningLocalUserId);
+	}
 	for (TSharedRef<FOnlinePartyMember>& OssMember : OssPartyMembers)
 	{
 		GetOrCreatePartyMember(*OssMember->GetUserId());
@@ -535,9 +540,7 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 					PartyMembersById.Add(MemberIdRepl, PartyMember);
 					PartyMember->InitializePartyMember(OssPartyMember.ToSharedRef(), FSimpleDelegate::CreateUObject(this, &USocialParty::HandleMemberInitialized, PartyMember));
 
-					RefreshPublicJoinability();
-
-					OnPartyMemberCreated().Broadcast(*PartyMember);
+					OnMemberCreatedInternal(*PartyMember);
 				}
 				else
 				{
@@ -864,6 +867,12 @@ void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& New
 	RefreshPublicJoinability();
 }
 
+void USocialParty::OnMemberCreatedInternal(UPartyMember& NewMember)
+{
+	RefreshPublicJoinability();
+	OnPartyMemberCreated().Broadcast(NewMember);
+}
+
 void USocialParty::HandlePartyLeft(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId)
 {
 	// this function is called when a party is left due to unintentional leave (e.g. disconnect)
@@ -978,7 +987,7 @@ bool USocialParty::ShouldStayWithPartyOnExit() const
 
 bool USocialParty::IsPartyFunctionalityDegraded() const
 {
-	return bIsMissingXmppConnection || bIsMissingPlatformSession;
+	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession;
 }
 
 int32 USocialParty::GetNumPartyMembers() const
@@ -1404,9 +1413,10 @@ void USocialParty::SetIsMissingPlatformSession(bool bInIsMissingPlatformSession)
 
 void USocialParty::SetIsMissingXmppConnection(bool bInMissingXmppConnection)
 {
-	if (bInMissingXmppConnection != bIsMissingXmppConnection)
+	if (!bIsMissingXmppConnection.IsSet() || 
+		bInMissingXmppConnection != bIsMissingXmppConnection)
 	{
-		UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
+		UE_CLOG(bIsMissingXmppConnection.IsSet(), LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
 
 		const bool bWasPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
 		bIsMissingXmppConnection = bInMissingXmppConnection;

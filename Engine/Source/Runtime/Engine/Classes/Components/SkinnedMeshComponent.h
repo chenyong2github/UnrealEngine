@@ -431,6 +431,10 @@ public:
 #endif
 
 protected:
+	/** Record of the tick rate we are using when externally controlled */
+	uint8 ExternalTickRate;
+
+protected:
 	/** used to cache previous bone transform or not */
 	uint8 bHasValidBoneTransform:1;
 
@@ -571,6 +575,15 @@ protected:
 public:
 	/** Set whether we have our tick rate externally controlled non-URO-based interpolation */
 	void EnableExternalTickRateControl(bool bInEnable) { bExternalTickRateControlled = bInEnable; }
+
+	/** Check whether we we have our tick rate externally controlled */
+	bool IsUsingExternalTickRateControl() const { return bExternalTickRateControlled; }
+
+	/** Set the external tick rate */
+	void SetExternalTickRate(uint8 InTickRate) { ExternalTickRate = InTickRate; }
+
+	/** Get the external tick rate */
+	uint8 GetExternalTickRate() const { return ExternalTickRate; }
 
 	/** Enable non-URO-based interpolation */
 	void EnableExternalInterpolation(bool bInEnable) { bExternalInterpolate = bInEnable; }
@@ -780,6 +793,9 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual int32 GetNumMaterials() const override;
 	//~ End UPrimitiveComponent Interface
+
+	/** Get the pre-skinning local space bounds for this component. */
+	FBoxSphereBounds GetPreSkinnedLocalBounds() const;
 
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.

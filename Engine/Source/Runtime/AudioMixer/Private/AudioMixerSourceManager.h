@@ -152,6 +152,7 @@ namespace Audio
 		{
 			checkSlow(InNumInChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 			checkSlow(InNumOutChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+			FMemory::Memzero(ChannelStartGains, CopySize);
 		}
 
 		FORCEINLINE void Reset(int32 InNumInChannels, int32 InNumOutChannels)
@@ -160,6 +161,7 @@ namespace Audio
 			checkSlow(InNumOutChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
 			CopySize = InNumInChannels * InNumOutChannels * sizeof(float);
+			FMemory::Memzero(ChannelStartGains, CopySize);
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
 		}
 
@@ -170,8 +172,6 @@ namespace Audio
 
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
-			// TODO: See if you can find a way to assign this without going back to memory.
-			FMemory::Memcpy(ChannelStartGains, ChannelDestinationGains, CopySize);
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
 		}
 
@@ -550,7 +550,9 @@ namespace Audio
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;
-		int32 MaxChannelsSupportedBySpatializationPlugin;
+
+		// Set to true when the audio source manager should pump the command queue
+		FThreadSafeBool bPumpQueue;
 
 		friend class FMixerSourceVoice;
 	};

@@ -2498,6 +2498,7 @@ public:
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
 
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdate;
+	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
 
 	struct FTypeOffsetTableEntry
 	{
@@ -2973,7 +2974,7 @@ private:
 	 * 
 	 * @param	InOffset	Delta to shift scene by
 	 */
-	void ApplyWorldOffset_RenderThread(FVector InOffset);
+	void ApplyWorldOffset_RenderThread(const FVector& InOffset);
 
 	/**
 	 * Notification from game thread that level was added to a world

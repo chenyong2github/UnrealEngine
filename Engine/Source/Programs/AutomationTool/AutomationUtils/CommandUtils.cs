@@ -129,29 +129,6 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[Obsolete("CommandUtils.Log() has been deprecated. Use CommandUtils.LogInformation() instead.", false)]
-		public static void Log(string Format, params object[] Args)
-		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Format, Args);
-		}
-
-		/// <summary>
-		/// Writes formatted text to log (with LogEventType.Console).
-		/// </summary>
-		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[Obsolete("CommandUtils.Log() has been deprecated. Use CommandUtils.LogInformation() instead.", false)]
-		public static void Log(string Message)
-		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Message);
-		}
-
-		/// <summary>
-		/// Writes formatted text to log (with LogEventType.Console).
-		/// </summary>
-		/// <param name="Format">Format string</param>
-		/// <param name="Args">Parameters</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Format, params object[] Args)
 		{
 			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Format, Args);

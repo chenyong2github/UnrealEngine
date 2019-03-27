@@ -2408,6 +2408,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 #endif // PERF_TRACK_DETAILED_ASYNC_STATS
 }
 
+void UWorld::BeginTearingDown()
+{
+	bIsTearingDown = true;
+	UE_LOG(LogWorld, Log, TEXT("BeginTearingDown for %s"), *GetOutermost()->GetName());
+}
+
 void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 {
 	SCOPE_CYCLE_COUNTER(STAT_RemoveFromWorldTime);
@@ -2422,6 +2428,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	// If the level may be removed incrementally then there must also be no level pending visibility
 	if ( ((CurrentLevelPendingVisibility == nullptr) || (!bAllowIncrementalRemoval && (CurrentLevelPendingVisibility != Level))) && Level->bIsVisible )
 	{
+		UE_LOG(LogWorld, Log, TEXT("UWorld::RemoveFromWorld for %s"), *Level->GetOutermost()->GetName());
+
 		// Keep track of timing.
 		double StartTime = FPlatformTime::Seconds();	
 
@@ -5835,8 +5843,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 				CurrentWorld->GetGameState()->SeamlessTravelTransitionCheckpoint(!bSwitchedToDefaultMap);
 			}
 			
-
-			CurrentWorld->bIsTearingDown = true;
+			CurrentWorld->BeginTearingDown();
 
 			// If it's not still playing, destroy the demo net driver before we start renaming actors.
 			if ( CurrentWorld->DemoNetDriver && !CurrentWorld->DemoNetDriver->IsPlaying() && !CurrentWorld->DemoNetDriver->bRecordMapChanges)

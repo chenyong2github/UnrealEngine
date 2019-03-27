@@ -1447,6 +1447,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 	// Create a copy of original mesh (only copy necessary data)
 	FMeshDescription DuplicateMeshDescription(MeshDescription);
 	
+
 	//Make sure we have a destination UV TextureCoordinnate
 	{
 		TVertexInstanceAttributesRef<FVector2D> DuplicateVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
@@ -1552,9 +1553,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 			{
 				DuplicateMeshDescription.DeleteVertex(VertexID);
 			}
-			//Compact and Remap IDs so we have clean ID from 0 to n since we just erase some polygons
-			FElementIDRemappings RemappingInfos;
-			DuplicateMeshDescription.Compact(RemappingInfos);
+			//Avoid compacting the DuplicateMeshDescription, since the remap of the VertexInstaceID will not be good anymore
 		}
 	}
 	// Find overlapping corners for UV generator. Allow some threshold - this should not produce any error in a case if resulting

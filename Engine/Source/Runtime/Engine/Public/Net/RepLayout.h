@@ -496,6 +496,8 @@ public:
 private:
 
 	uint32 LastReplicationFrame;
+	uint32 LastInitialReplicationFrame;
+
 	FRepChangelistState RepChangelistState;
 };
 
@@ -1294,6 +1296,7 @@ public:
 		FReceivingRepState* RESTRICT RepState,
 		UPackageMap* PackageMap,
 		UObject* Object,
+		bool& bCalledPreNetReceive,
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const;
 
@@ -1305,7 +1308,8 @@ public:
 		bool& bOutSomeObjectsWereMapped,
 		bool& bOutHasMoreUnmapped) const
 	{
-		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+		bool bCalledPreNetReceive = false;
+		UpdateUnmappedObjects(RepState->GetReceivingRepState(), PackageMap, Object, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 	}
 
 	/**

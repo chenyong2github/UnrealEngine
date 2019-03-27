@@ -1253,6 +1253,12 @@ void FMetalCodeBackend::MovePackedUniformsToMain(exec_list* ir, _mesa_glsl_parse
 					bIsBuffer = (!Var->type->is_sampler() && !Var->type->is_image()) || Var->type->sampler_buffer;
 					break;
 				}
+				case EMetalTypeBufferMode2DSRV:
+				case EMetalTypeBufferModeTBSRV:
+				{
+					bIsBuffer = (!Var->type->is_sampler() && !Var->type->is_image()) || (Var->type->sampler_buffer && (Var->type->is_image() || OutBuffers.AtomicVariables.find(Var) != OutBuffers.AtomicVariables.end() || bIsStructuredBuffer || bIsInvariant || bIsByteAddressBuffer)) || bIsVec3;
+					break;
+				}
 				case EMetalTypeBufferMode2D:
 				case EMetalTypeBufferModeTB:
 				{
@@ -3381,7 +3387,7 @@ struct FDeReferencePackedVarsVisitor final : public ir_rvalue_visitor
 			{
 				if (SwizzleValDeRefRecord->type->vector_elements > 1 && SwizzleValDeRefRecord->type->vector_elements < 4)
 				{
-					auto* Var = GetVar(SwizzleValDeRefRecord);
+					auto* Var = GetVar(StructVar, SwizzleValDeRefRecord);
 					Swizzle->val = new(State)ir_dereference_variable(Var);
 				}
 			}
@@ -3393,7 +3399,7 @@ struct FDeReferencePackedVarsVisitor final : public ir_rvalue_visitor
 			{
 				if (DeRefRecord->type->vector_elements > 1 && DeRefRecord->type->vector_elements < 4)
 				{
-					auto* Var = GetVar(DeRefRecord);
+					auto* Var = GetVar(StructVar, DeRefRecord);
 					*RValuePtr = new(State)ir_dereference_variable(Var);
 				}
             }
@@ -3401,7 +3407,7 @@ struct FDeReferencePackedVarsVisitor final : public ir_rvalue_visitor
             {
                 if (DeRefRecord->type->vector_elements > 1 && DeRefRecord->type->vector_elements < 4)
                 {
-                    auto* Var = GetVar(DeRefRecord);
+                    auto* Var = GetVar(StructVar, DeRefRecord);
                     *RValuePtr = new(State)ir_dereference_variable(Var);
                 }
             }
@@ -3409,8 +3415,9 @@ struct FDeReferencePackedVarsVisitor final : public ir_rvalue_visitor
 	}
 
 	std::map<ir_dereference_record*, ir_variable*, ir_type_compare<ir_dereference_record>> Replaced;
+	std::map<ir_variable*, ir_variable*, ir_type_compare<ir_variable>> Replacements;
 
-	ir_variable* GetVar(ir_dereference_record* ir)
+	ir_variable* GetVar(ir_variable* Orig, ir_dereference_record* ir)
 	{
 		ir_variable* Var = nullptr;
 		for (auto& Pair : Replaced)
@@ -3426,6 +3433,7 @@ struct FDeReferencePackedVarsVisitor final : public ir_rvalue_visitor
 		{
 			Var = new(State)ir_variable(ir->type, nullptr, ir_var_temporary);
 			Replaced[ir] = Var;
+			Replacements[Var] = Orig;
 		}
 		return Var;
 	}
@@ -3440,15 +3448,28 @@ void FMetalCodeBackend::RemovePackedVarReferences(exec_list* ir, _mesa_glsl_pars
 	{
 		return;
 	}
-
+	
 	ir_function_signature* Main = GetMainFunction(ir);
+	for (auto& Pair : Visitor.Replacements)
+	{
+		auto* NewVar = Pair.first;
+		auto* OldVar = Pair.second;
+		if (OldVar->mode == ir_var_uniform || OldVar->mode == ir_var_in || OldVar->mode == ir_var_out)
+		{
+			Main->body.push_head(NewVar);
+		}
+		else
+		{
+			OldVar->insert_after(NewVar);
+		}
+	}
+
 	for (auto& OuterPair : Visitor.Replaced)
 	{
 		auto* NewVar = OuterPair.second;
 		auto* DeRefRecord = OuterPair.first;
 		auto* NewAssignment = new(State)ir_assignment(new(State)ir_dereference_variable(NewVar), DeRefRecord);
-		Main->body.push_head(NewAssignment);
-		Main->body.push_head(NewVar);
+		NewVar->insert_after(NewAssignment);
 	}
 }
 

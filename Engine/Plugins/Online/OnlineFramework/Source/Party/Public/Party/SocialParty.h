@@ -218,6 +218,7 @@ protected:
 	virtual FPartyPrivacySettings GetDesiredPrivacySettings() const;
 	virtual void OnLocalPlayerIsLeaderChanged(bool bIsLeader);
 	virtual void HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings);
+	virtual void OnMemberCreatedInternal(UPartyMember& NewMember);
 	virtual void OnLeftPartyInternal(EMemberExitedReason Reason);
 
 	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful);
@@ -300,7 +301,6 @@ private:	// Handlers
 	void HandlePartyMemberJIP(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success);
 	void HandlePartyMemberPromoted(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& NewLeaderId);
 	void HandlePartyPromotionLockoutChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool bArePromotionsLocked);
-	void HandlePartyMemberConnectionStatusChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EMemberConnectionStatus MemberConnectionStatus);
 
 	void HandleMemberInitialized(UPartyMember* Member);
 	void HandleMemberSessionIdChanged(const FSessionId& NewSessionId, UPartyMember* Member);
@@ -348,7 +348,7 @@ private:
 	
 	/** Reservation beacon client instance while getting approval for new party members*/
 	UPROPERTY()
-		APartyBeaconClient* ReservationBeaconClient = nullptr;
+	APartyBeaconClient* ReservationBeaconClient = nullptr;
 	
 	/**
 	* Last known spectator beacon client net driver name
@@ -359,13 +359,13 @@ private:
 	
 	/** Spectator beacon client instance while getting approval for spectator*/
 	UPROPERTY()
-		ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
+	ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
 
 	/**
 	 * True when we have limited functionality due to lacking an xmpp connection.
 	 * Don't set directly, use the private setter to trigger events appropriately.
 	 */
-	bool bIsMissingXmppConnection = false;
+	TOptional<bool> bIsMissingXmppConnection;
 	bool bIsMissingPlatformSession = false;
 
 	bool bIsLeavingParty = false;

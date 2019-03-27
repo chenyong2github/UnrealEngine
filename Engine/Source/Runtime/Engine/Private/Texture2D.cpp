@@ -33,6 +33,9 @@
 #include "Streaming/Texture2DStreamIn_IO_AsyncReallocate.h"
 #include "Streaming/Texture2DStreamIn_IO_Virtual.h"
 #include "Async/AsyncFileHandle.h"
+#if WITH_EDITOR
+#include "Settings/EditorExperimentalSettings.h"
+#endif
 
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1162,10 +1165,12 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 		return true;
 	}
 
-	if (GIsEditor && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
+#if WITH_EDITOR
+	if (GIsEditor && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
 	{
 		return true;
 	}
+#endif
 
 	return false;
 }
@@ -1304,8 +1309,13 @@ void UTexture2D::UpdateTextureRegions(int32 MipIndex, uint32 NumRegions, const F
 							);
 					}
 				}
-				DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
-				delete RegionData;
+
+				// The deletion of source data may need to be deferred to the RHI thread after the updates occur
+				RHICmdList.EnqueueLambda([RegionData, DataCleanupFunc](FRHICommandList&)
+				{
+					DataCleanupFunc(RegionData->SrcData, RegionData->Regions);
+					delete RegionData;
+				});
 			});
 	}
 }

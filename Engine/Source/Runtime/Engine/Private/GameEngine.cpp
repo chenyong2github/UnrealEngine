@@ -1102,7 +1102,7 @@ void UGameEngine::PreExit()
 		UWorld* const World = WorldList[WorldIndex].World();
 		if ( World != NULL )
 		{
-			World->bIsTearingDown = true;
+			World->BeginTearingDown();
 
 			// Cancel any pending connection to a server
 			CancelPending(World);

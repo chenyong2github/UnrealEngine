@@ -5,8 +5,39 @@
 #include "UObject/Package.h"
 #include "HAL/IConsoleManager.h"
 
-FUObjectAnnotationSparse<FSparseDelegateStorage::FSparseDelegateMap, true> FSparseDelegateStorage::SparseDelegates;
+FSparseDelegateStorage::FObjectListener FSparseDelegateStorage::SparseDelegateObjectListener;
+FCriticalSection FSparseDelegateStorage::SparseDelegateMapCritical;
+TMap<const UObjectBase*, FSparseDelegateStorage::FSparseDelegateMap> FSparseDelegateStorage::SparseDelegates;
 TMap<TPair<FName,FName>, size_t> FSparseDelegateStorage::SparseDelegateObjectOffsets;
+
+FSparseDelegateStorage::FObjectListener::~FObjectListener()
+{
+	// Destroy order might result in GUObjectArray or its critical section being invalid so don't disable since we're shutting down anyways
+	if (!GIsRequestingExit)
+	{
+		DisableListener();
+	}
+}
+
+void FSparseDelegateStorage::FObjectListener::NotifyUObjectDeleted(const UObjectBase* Object, int32 Index)
+{
+	FScopeLock SparseDelegateMapLock(&FSparseDelegateStorage::SparseDelegateMapCritical);
+	FSparseDelegateStorage::SparseDelegates.Remove(Object);
+	if (FSparseDelegateStorage::SparseDelegates.Num() == 0)
+	{
+		DisableListener();
+	}
+}
+
+void FSparseDelegateStorage::FObjectListener::EnableListener()
+{
+	GUObjectArray.AddUObjectDeleteListener(this);
+}
+
+void FSparseDelegateStorage::FObjectListener::DisableListener()
+{
+	GUObjectArray.RemoveUObjectDeleteListener(this);
+}
 
 void FSparseDelegateStorage::RegisterDelegateOffset(const UObject* OwningObject, const FName DelegateName, const size_t DelegateOffsetToOwner)
 {
@@ -45,27 +76,36 @@ UObject* FSparseDelegateStorage::ResolveSparseOwner(const FSparseDelegate& Spars
 
 FMulticastScriptDelegate* FSparseDelegateStorage::GetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName)
 {
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
-	{
-		return MulticastDelegatePtr->Get();
-	}
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
 
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
+	{
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
+		{
+			return MulticastDelegatePtr->Get();
+		}
+	}
 	return nullptr;
 }
 
-FMulticastScriptDelegate& FSparseDelegateStorage::GetOrCreateMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName)
+void FSparseDelegateStorage::SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate)
 {
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (SparseDelegates.Num() == 0)
+	{
+		SparseDelegateObjectListener.EnableListener();
+	}
+
+	FSparseDelegateMap& DelegateMap = SparseDelegates.FindOrAdd(DelegateOwner);
 	TSharedPtr<FMulticastScriptDelegate>& MulticastDelegate = DelegateMap.FindOrAdd(DelegateName);
 
 	if (!MulticastDelegate.IsValid())
 	{
 		MulticastDelegate = MakeShared<FMulticastScriptDelegate>();
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 	}
 
-	return *MulticastDelegate;
+	*MulticastDelegate = MoveTemp(Delegate);
 }
 
 bool FSparseDelegateStorage::Add(const UObject* DelegateOwner, const FName DelegateName, FScriptDelegate Delegate)
@@ -73,7 +113,14 @@ bool FSparseDelegateStorage::Add(const UObject* DelegateOwner, const FName Deleg
 	bool bDelegateWasBound = false;
 	if (Delegate.IsBound())
 	{
-		FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
+		FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+		if (SparseDelegates.Num() == 0)
+		{
+			SparseDelegateObjectListener.EnableListener();
+		}
+
+		FSparseDelegateMap& DelegateMap = SparseDelegates.FindOrAdd(DelegateOwner);
 		TSharedPtr<FMulticastScriptDelegate>& MulticastDelegate = DelegateMap.FindOrAdd(DelegateName);
 
 		if (!MulticastDelegate.IsValid())
@@ -82,7 +129,6 @@ bool FSparseDelegateStorage::Add(const UObject* DelegateOwner, const FName Deleg
 		}
 
 		MulticastDelegate->Add(MoveTemp(Delegate));
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 		bDelegateWasBound = true;
 	}
 	return bDelegateWasBound;
@@ -93,7 +139,14 @@ bool FSparseDelegateStorage::AddUnique(const UObject* DelegateOwner, const FName
 	bool bDelegateWasBound = false;
 	if (Delegate.IsBound())
 	{
-		FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
+		FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+		if (SparseDelegates.Num() == 0)
+		{
+			SparseDelegateObjectListener.EnableListener();
+		}
+
+		FSparseDelegateMap& DelegateMap = SparseDelegates.FindOrAdd(DelegateOwner);
 		TSharedPtr<FMulticastScriptDelegate>& MulticastDelegate = DelegateMap.FindOrAdd(DelegateName);
 
 		if (!MulticastDelegate.IsValid())
@@ -102,7 +155,6 @@ bool FSparseDelegateStorage::AddUnique(const UObject* DelegateOwner, const FName
 		}
 
 		MulticastDelegate->AddUnique(MoveTemp(Delegate));
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 		bDelegateWasBound = true;
 	}
 	return bDelegateWasBound;
@@ -111,12 +163,16 @@ bool FSparseDelegateStorage::AddUnique(const UObject* DelegateOwner, const FName
 bool FSparseDelegateStorage::Contains(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate)
 {
 	bool bContainsDelegate = false;
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			bContainsDelegate = MulticastDelegate->Contains(Delegate);
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+			{
+				bContainsDelegate = MulticastDelegate->Contains(Delegate);
+			}
 		}
 	}
 
@@ -126,12 +182,16 @@ bool FSparseDelegateStorage::Contains(const UObject* DelegateOwner, const FName 
 bool FSparseDelegateStorage::Contains(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName)
 {
 	bool bContainsDelegate = false;
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			bContainsDelegate = MulticastDelegate->Contains(InObject, InFunctionName);
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+			{
+				bContainsDelegate = MulticastDelegate->Contains(InObject, InFunctionName);
+			}
 		}
 	}
 	return bContainsDelegate;
@@ -140,30 +200,34 @@ bool FSparseDelegateStorage::Contains(const UObject* DelegateOwner, const FName 
 bool FSparseDelegateStorage::Remove(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate)
 {
 	bool bSparseDelegateBound = false;
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			MulticastDelegate->Remove(Delegate);
-			bSparseDelegateBound = MulticastDelegate->IsBound();
-			if (!bSparseDelegateBound)
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
 			{
-				DelegateMap.Remove(DelegateName);
+				MulticastDelegate->Remove(Delegate);
+				bSparseDelegateBound = MulticastDelegate->IsBound();
+				if (!bSparseDelegateBound)
+				{
+					DelegateMap->Remove(DelegateName);
+				}
+			}
+			else
+			{
+				DelegateMap->Remove(DelegateName);
 			}
 		}
-		else
+		if (DelegateMap->Num() == 0)
 		{
-			DelegateMap.Remove(DelegateName);
+			SparseDelegates.Remove(DelegateOwner);
+			if (SparseDelegates.Num() == 0)
+			{
+				SparseDelegateObjectListener.DisableListener();
+			}
 		}
-	}
-	if (DelegateMap.IsDefault())
-	{
-		SparseDelegates.RemoveAnnotation(DelegateOwner);
-	}
-	else
-	{
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 	}
 
 	return bSparseDelegateBound;
@@ -172,30 +236,34 @@ bool FSparseDelegateStorage::Remove(const UObject* DelegateOwner, const FName De
 bool FSparseDelegateStorage::Remove(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName)
 {
 	bool bSparseDelegateBound = false;
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			MulticastDelegate->Remove(InObject, InFunctionName);
-			bSparseDelegateBound = MulticastDelegate->IsBound();
-			if (!bSparseDelegateBound)
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
 			{
-				DelegateMap.Remove(DelegateName);
+				MulticastDelegate->Remove(InObject, InFunctionName);
+				bSparseDelegateBound = MulticastDelegate->IsBound();
+				if (!bSparseDelegateBound)
+				{
+					DelegateMap->Remove(DelegateName);
+				}
+			}
+			else
+			{
+				DelegateMap->Remove(DelegateName);
 			}
 		}
-		else
+		if (DelegateMap->Num() == 0)
 		{
-			DelegateMap.Remove(DelegateName);
+			SparseDelegates.Remove(DelegateOwner);
+			if (SparseDelegates.Num() == 0)
+			{
+				SparseDelegateObjectListener.DisableListener();
+			}
 		}
-	}
-	if (DelegateMap.IsDefault())
-	{
-		SparseDelegates.RemoveAnnotation(DelegateOwner);
-	}
-	else
-	{
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 	}
 
 	return bSparseDelegateBound;
@@ -204,52 +272,59 @@ bool FSparseDelegateStorage::Remove(const UObject* DelegateOwner, const FName De
 bool FSparseDelegateStorage::RemoveAll(const UObject* DelegateOwner, const FName DelegateName, const UObject* UserObject)
 {
 	bool bSparseDelegateBound = false;
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			MulticastDelegate->RemoveAll(UserObject);
-			bSparseDelegateBound = MulticastDelegate->IsBound();
-			if (!bSparseDelegateBound)
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
 			{
-				DelegateMap.Remove(DelegateName);
+				MulticastDelegate->RemoveAll(UserObject);
+				bSparseDelegateBound = MulticastDelegate->IsBound();
+				if (!bSparseDelegateBound)
+				{
+					DelegateMap->Remove(DelegateName);
+				}
+			}
+			else
+			{
+				DelegateMap->Remove(DelegateName);
 			}
 		}
-		else
+		if (DelegateMap->Num() == 0)
 		{
-			DelegateMap.Remove(DelegateName);
+			SparseDelegates.Remove(DelegateOwner);
+			if (SparseDelegates.Num() == 0)
+			{
+				SparseDelegateObjectListener.DisableListener();
+			}
 		}
-	}
-	if (DelegateMap.IsDefault())
-	{
-		SparseDelegates.RemoveAnnotation(DelegateOwner);
-	}
-	else
-	{
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
 	}
 	return bSparseDelegateBound;
 }
 
 void FSparseDelegateStorage::Clear(const UObject* DelegateOwner, const FName DelegateName)
 {
-	FSparseDelegateMap DelegateMap = SparseDelegates.GetAnnotation(DelegateOwner);
-	if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap.Find(DelegateName))
+	FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+	if (FSparseDelegateMap* DelegateMap = SparseDelegates.Find(DelegateOwner))
 	{
-		if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+		if (TSharedPtr<FMulticastScriptDelegate>* MulticastDelegatePtr = DelegateMap->Find(DelegateName))
 		{
-			MulticastDelegate->Clear();
+			if (FMulticastScriptDelegate* MulticastDelegate = MulticastDelegatePtr->Get())
+			{
+				MulticastDelegate->Clear();
+			}
+			DelegateMap->Remove(DelegateName);
 		}
-		DelegateMap.Remove(DelegateName);
-	}
-	if (DelegateMap.IsDefault())
-	{
-		SparseDelegates.RemoveAnnotation(DelegateOwner);
-	}
-	else
-	{
-		SparseDelegates.AddAnnotation(DelegateOwner, MoveTemp(DelegateMap));
+		if (DelegateMap->Num() == 0)
+		{
+			SparseDelegates.Remove(DelegateOwner);
+			if (SparseDelegates.Num() == 0)
+			{
+				SparseDelegateObjectListener.DisableListener();
+			}
+		}
 	}
 }
 
@@ -316,32 +391,36 @@ void FSparseDelegateStorage::SparseDelegateReport(const TArray<FString>& Args, U
 	TArray<FString> Details;
 	uint32 BoundObjects = 0;
 	uint32 BoundDelegates = 0;
-	for (const TPair<const UObjectBase*, FSparseDelegateMap>& ObjectAnnotation : SparseDelegates.GetAnnotationMap())
+
 	{
-		const UObject* Object = static_cast<const UObject*>(ObjectAnnotation.Key);
-		if (ObjectName.IsNone() || Object->GetFName() == ObjectName)
+		FScopeLock SparseDelegateMapLock(&SparseDelegateMapCritical);
+		for (const TPair<const UObjectBase*, FSparseDelegateMap>& ObjectAnnotation : SparseDelegates)
 		{
-			if (ObjectType == nullptr || Object->IsA(ObjectType))
+			const UObject* Object = static_cast<const UObject*>(ObjectAnnotation.Key);
+			if (ObjectName.IsNone() || Object->GetFName() == ObjectName)
 			{
-				if (!bSummary)
+				if (ObjectType == nullptr || Object->IsA(ObjectType))
 				{
-					Details.Add(FString::Printf(TEXT("%s"), *Object->GetPathName()));
-				}
-				++BoundObjects;
-				if (DelegateName.IsNone())
-				{
-					BoundDelegates += ObjectAnnotation.Value.Num();
 					if (!bSummary)
 					{
-						for (const TPair<FName, TSharedPtr<FMulticastScriptDelegate>>& BoundDelegate : ObjectAnnotation.Value)
+						Details.Add(FString::Printf(TEXT("%s"), *Object->GetPathName()));
+					}
+					++BoundObjects;
+					if (DelegateName.IsNone())
+					{
+						BoundDelegates += ObjectAnnotation.Value.Num();
+						if (!bSummary)
 						{
-							Details.Add(FString::Printf(TEXT("   %s"), *BoundDelegate.Key.ToString()));
+							for (const TPair<FName, TSharedPtr<FMulticastScriptDelegate>>& BoundDelegate : ObjectAnnotation.Value)
+							{
+								Details.Add(FString::Printf(TEXT("   %s"), *BoundDelegate.Key.ToString()));
+							}
 						}
 					}
-				}
-				else if (ObjectAnnotation.Value.Contains(DelegateName))
-				{
-					++BoundDelegates;
+					else if (ObjectAnnotation.Value.Contains(DelegateName))
+					{
+						++BoundDelegates;
+					}
 				}
 			}
 		}

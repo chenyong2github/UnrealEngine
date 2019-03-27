@@ -23,69 +23,6 @@
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
-/**
- * Encryption keys: public and private
- */
-struct FKeyPair
-{
-	/** Public decryption key */
-	FEncryptionKey PublicKey;
-	/** Private encryption key */
-	FEncryptionKey PrivateKey;
-
-	friend FArchive& operator<<(FArchive& Ar, FKeyPair& Pair)
-	{
-		Ar << Pair.PublicKey.Exponent;
-		Ar << Pair.PublicKey.Modulus;
-		Ar << Pair.PrivateKey.Exponent;
-		Ar << Pair.PrivateKey.Modulus;
-		return Ar;
-	}
-
-	bool IsValid() const
-	{
-		bool bAllKeysValid = !PrivateKey.Exponent.IsZero()
-			&& !PrivateKey.Modulus.IsZero()
-			&& !PublicKey.Exponent.IsZero()
-			&& !PublicKey.Modulus.IsZero();
-		
-		bool bIsValid = true;
-
-		if (bAllKeysValid)
-		{
-			// Just some random values
-			static TEncryptionInt TestData[] =
-			{
-				11,
-				253,
-				128,
-				234,
-				56,
-				89,
-				34,
-				179,
-				29,
-				1024,
-				(int64)(MAX_int32),
-				(int64)(MAX_uint32)-1
-			};
-
-			for (int32 TestIndex = 0; TestIndex < ARRAY_COUNT(TestData); ++TestIndex)
-			{
-				TEncryptionInt EncryptedData = FEncryption::ModularPow(TestData[TestIndex], PrivateKey.Exponent, PrivateKey.Modulus);
-				TEncryptionInt DecryptedData = FEncryption::ModularPow(EncryptedData, PublicKey.Exponent, PublicKey.Modulus);
-				if (TestData[TestIndex] != DecryptedData)
-				{
-					bIsValid = false;
-					break;
-				}
-			}
-		}
-
-		return bIsValid;
-	}
-};
-
 struct FNamedAESKey
 {
 	FString Name;
@@ -100,7 +37,7 @@ struct FNamedAESKey
 
 struct FKeyChain
 {
-	FKeyPair SigningKey;
+	FRSA::TKeyPtr SigningKey;
 	TMap<FGuid, FNamedAESKey> EncryptionKeys;
 	const FNamedAESKey* MasterEncryptionKey = nullptr;
 };
@@ -1163,6 +1100,33 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 	}
 }
 
+FRSA::TKeyPtr ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
+{
+	TSharedPtr<FJsonObject> PublicKey = InObj->GetObjectField(TEXT("PublicKey"));
+	TSharedPtr<FJsonObject> PrivateKey = InObj->GetObjectField(TEXT("PrivateKey"));
+
+	FString PublicExponentBase64, PrivateExponentBase64, PublicModulusBase64, PrivateModulusBase64;
+
+	if (   PublicKey->TryGetStringField("Exponent", PublicExponentBase64)
+		&& PublicKey->TryGetStringField("Modulus", PublicModulusBase64)
+		&& PrivateKey->TryGetStringField("Exponent", PrivateExponentBase64)
+		&& PrivateKey->TryGetStringField("Modulus", PrivateModulusBase64))
+	{
+		check(PublicModulusBase64 == PrivateModulusBase64);
+
+		TArray<uint8> PublicExponent, PrivateExponent, Modulus;
+		FBase64::Decode(PublicExponentBase64, PublicExponent);
+		FBase64::Decode(PrivateExponentBase64, PrivateExponent);
+		FBase64::Decode(PublicModulusBase64, Modulus);
+
+		return FRSA::CreateKey(PublicExponent, PrivateExponent, Modulus);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
 {
 	FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
@@ -1194,13 +1158,7 @@ void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSetting
 		const TSharedPtr<FJsonObject>* SigningKey = nullptr;
 		if (RootObject->TryGetObjectField(TEXT("SigningKey"), SigningKey))
 		{
-			TSharedPtr<FJsonObject> PublicKey = (*SigningKey)->GetObjectField(TEXT("PublicKey"));
-			TSharedPtr<FJsonObject> PrivateKey = (*SigningKey)->GetObjectField(TEXT("PrivateKey"));
-			OutCryptoSettings.SigningKey.PublicKey.Exponent = ParseEncryptionIntFromJson(PublicKey, TEXT("Exponent"));
-			OutCryptoSettings.SigningKey.PublicKey.Modulus = ParseEncryptionIntFromJson(PublicKey, TEXT("Modulus"));
-			OutCryptoSettings.SigningKey.PrivateKey.Exponent = ParseEncryptionIntFromJson(PrivateKey, TEXT("Exponent"));
-			OutCryptoSettings.SigningKey.PrivateKey.Modulus = ParseEncryptionIntFromJson(PrivateKey, TEXT("Modulus"));
-			check(OutCryptoSettings.SigningKey.PublicKey.Modulus == OutCryptoSettings.SigningKey.PrivateKey.Modulus);
+			OutCryptoSettings.SigningKey = ParseRSAKeyFromJson(*SigningKey);
 		}
 
 		const TArray<TSharedPtr<FJsonValue>>* SecondaryEncryptionKeyArray = nullptr;
@@ -1229,10 +1187,7 @@ void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSetting
 
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
-	OutCryptoSettings.SigningKey.PrivateKey.Exponent.Zero();
-	OutCryptoSettings.SigningKey.PrivateKey.Modulus.Zero();
-	OutCryptoSettings.SigningKey.PublicKey.Exponent.Zero();
-	OutCryptoSettings.SigningKey.PublicKey.Modulus.Zero();
+	OutCryptoSettings.SigningKey.Reset();
 	OutCryptoSettings.EncryptionKeys.Empty();
 
 	// First, try and parse the keys from a supplied crypto key cache file
@@ -1250,6 +1205,8 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			&& FParse::Value(CmdLine, TEXT("enginedir="), EngineDir, false)
 			&& FParse::Value(CmdLine, TEXT("platform="), Platform, false))
 		{
+			UE_LOG(LogPakFile, Warning, TEXT("A legacy command line syntax is being used for crypto config. Please update to using the -cryptokey parameter as soon as possible as this mode is deprecated"));
+
 			FConfigFile EngineConfig;
 
 			FConfigCacheIni::LoadExternalIniFile(EngineConfig, TEXT("Engine"), *FPaths::Combine(EngineDir, TEXT("Config\\")), *FPaths::Combine(ProjectDir, TEXT("Config/")), true, *Platform);
@@ -1293,10 +1250,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 					FBase64::Decode(PrivateExpBase64, PrivateExp);
 					FBase64::Decode(ModulusBase64, Modulus);
 
-					OutCryptoSettings.SigningKey.PrivateKey.Exponent = TEncryptionInt((uint32*)&PrivateExp[0]);
-					OutCryptoSettings.SigningKey.PrivateKey.Modulus = TEncryptionInt((uint32*)&Modulus[0]);
-					OutCryptoSettings.SigningKey.PublicKey.Exponent = TEncryptionInt((uint32*)&PublicExp[0]);
-					OutCryptoSettings.SigningKey.PublicKey.Modulus = OutCryptoSettings.SigningKey.PrivateKey.Modulus;
+					OutCryptoSettings.SigningKey = FRSA::CreateKey(PublicExp, PrivateExp, Modulus);
 
 					UE_LOG(LogPakFile, Display, TEXT("Parsed signature keys from config files."));
 				}
@@ -1337,10 +1291,11 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 					ConfigFile.GetString(SectionName, TEXT("rsa.privateexp"), RSAPrivateExp);
 					ConfigFile.GetString(SectionName, TEXT("rsa.modulus"), RSAModulus);
 
-					OutCryptoSettings.SigningKey.PrivateKey.Exponent.Parse(RSAPrivateExp);
-					OutCryptoSettings.SigningKey.PrivateKey.Modulus.Parse(RSAModulus);
-					OutCryptoSettings.SigningKey.PublicKey.Exponent.Parse(RSAPublicExp);
-					OutCryptoSettings.SigningKey.PublicKey.Modulus = OutCryptoSettings.SigningKey.PrivateKey.Modulus;
+					//TODO: Fix me!
+					//OutSigningKey.PrivateKey.Exponent.Parse(RSAPrivateExp);
+					//OutSigningKey.PrivateKey.Modulus.Parse(RSAModulus);
+					//OutSigningKey.PublicKey.Exponent.Parse(RSAPublicExp);
+					//OutSigningKey.PublicKey.Modulus = OutSigningKey.PrivateKey.Modulus;
 
 					UE_LOG(LogPakFile, Display, TEXT("Parsed signature keys from config files."));
 				}
@@ -1374,6 +1329,8 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 
 		if (EncryptionKeyString.Len() > 0)
 		{
+			UE_LOG(LogPakFile, Warning, TEXT("A legacy command line syntax is being used for crypto config. Please update to using the -cryptokey parameter as soon as possible as this mode is deprecated"));
+
 			FNamedAESKey NewKey;
 			NewKey.Name = TEXT("Default");
 			NewKey.Guid = FGuid();
@@ -1402,11 +1359,6 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
 			UE_LOG(LogPakFile, Display, TEXT("Parsed AES encryption key from command line."));
 		}
-	}
-
-	if (!OutCryptoSettings.SigningKey.IsValid())
-	{
-		UE_LOG(LogPakFile, Fatal, TEXT("Pak signing keys are invalid"));
 	}
 
 	FString EncryptionKeyOverrideGuidString;
@@ -1447,7 +1399,7 @@ FArchive* CreatePakWriter(const TCHAR* Filename, const FKeyChain& InKeyChain, bo
 		if (bSign)
 		{
 			UE_LOG(LogPakFile, Display, TEXT("Creating signed pak %s."), Filename);
-			Writer = new FSignedArchiveWriter(*Writer, Filename, InKeyChain.SigningKey.PublicKey, InKeyChain.SigningKey.PrivateKey);
+			Writer = new FSignedArchiveWriter(*Writer, Filename, InKeyChain.SigningKey);
 		}
 		else
 		{

@@ -311,7 +311,7 @@ void FMaterialInstanceResource::GameThread_SetParent(UMaterialInterface* ParentM
 			[Resource, ParentMaterialInterface](FRHICommandListImmediate& RHICmdList)
 			{
 				Resource->Parent = ParentMaterialInterface;
-				Resource->InvalidateUniformExpressionCache(false);
+				Resource->InvalidateUniformExpressionCache(true);
 			});
 
 		if (OldParent)
@@ -2474,7 +2474,7 @@ FMaterialResource* UMaterialInstance::AllocatePermutationResource()
 	return new FMaterialResource();
 }
 
-void UMaterialInstance::UpdatePermutationAllocations()
+void UMaterialInstance::UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
 {
 	if (bHasStaticPermutationResource)
 	{
@@ -2494,7 +2494,14 @@ void UMaterialInstance::UpdatePermutationAllocations()
 				FMaterialResource*& StaticPermResource = StaticPermutationMaterialResources[Quality][Feature];
 				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
 				{
-					delete StaticPermResource;
+					if (ResourcesToFree)
+					{
+						ResourcesToFree->Add(StaticPermResource);
+					}
+					else
+					{
+						delete StaticPermResource;
+					}
 					StaticPermResource = nullptr;
 				}
 				else
@@ -2535,7 +2542,8 @@ void UMaterialInstance::CacheResourceShadersForRendering()
 {
 	check(IsInGameThread() || IsAsyncLoading());
 
-	UpdatePermutationAllocations();
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	UpdatePermutationAllocations(&ResourcesToFree);
 	UpdateOverridableBaseProperties();
 
 	if (bHasStaticPermutationResource && FApp::CanEverRender())
@@ -2578,6 +2586,18 @@ void UMaterialInstance::CacheResourceShadersForRendering()
 	}
 
 	InitResources();
+
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
+	}
 }
 
 void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources)
@@ -2926,6 +2946,9 @@ bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform*
 
 void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 	if ( CachedMaterialResourcesForPlatform != NULL )
 	{
@@ -2940,6 +2963,9 @@ void UMaterialInstance::ClearCachedCookedPlatformData( const ITargetPlatform *Ta
 
 void UMaterialInstance::ClearAllCachedCookedPlatformData()
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	for ( auto It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;
@@ -3127,14 +3153,6 @@ void UMaterialInstance::PostLoad()
 		UTexture* Texture = TextureParameterValues[ValueIndex].ParameterValue;
 		if( Texture )
 		{
-			if (Texture->HasAnyFlags(RF_NeedLoad))
-			{
-				FLinkerLoad* Loader = GetLinker();
-				if (ensure(Loader))
-				{
-					Loader->Preload(Texture);
-				}
-			}
 			Texture->ConditionalPostLoad();
 		}
 	}

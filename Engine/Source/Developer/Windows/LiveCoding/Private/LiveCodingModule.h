@@ -26,6 +26,7 @@ public:
 	virtual bool IsEnabledByDefault() const override;
 	virtual void EnableForSession(bool bInEnabled) override;
 	virtual bool IsEnabledForSession() const override;
+	virtual bool CanEnableForSession() const override;
 	virtual bool HasStarted() const override;
 	virtual void ShowConsole() override;
 	virtual void Compile() override;
@@ -38,7 +39,7 @@ private:
 	bool bEnabledLastTick;
 	bool bEnabledForSession;
 	bool bStarted;
-	TSet<FString> EnabledModules;
+	TSet<FName> ConfiguredModules;
 
 	const FString FullEnginePluginsDir;
 	const FString FullProjectDir;
@@ -54,10 +55,8 @@ private:
 	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
 
 	void UpdateModules();
-	void EnableModule(const FString& FullFilePath);
-	void DisableModule(const FString& FullFilePath);
 
 	void ConfigureModule(const FName& Name, const FString& FullFilePath);
-	bool ShouldEnableModule(const FName& Name, const FString& FullFilePath) const;
+	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
 };
 

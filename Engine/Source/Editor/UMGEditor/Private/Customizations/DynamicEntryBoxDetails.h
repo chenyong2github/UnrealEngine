@@ -4,11 +4,14 @@
 
 #include "DynamicEntryWidgetDetailsBase.h"
 
-
 class IPropertyHandle;
-class UDynamicEntryBox;
+class UDynamicEntryBoxBase;
 
-class FDynamicEntryBoxDetails : public FDynamicEntryWidgetDetailsBase
+//////////////////////////////////////////////////////////////////////////
+// FDynamicEntryBoxBaseDetails
+//////////////////////////////////////////////////////////////////////////
+
+class FDynamicEntryBoxBaseDetails : public FDynamicEntryWidgetDetailsBase
 {
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -16,11 +19,25 @@ public:
 	/* Main customization of details */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
+protected:
+	TWeakObjectPtr<UDynamicEntryBoxBase> EntryBox;
+
 private:
 	bool CanEditSpacingPattern() const;
 	bool CanEditEntrySpacing() const;
 	bool CanEditAlignment() const;
 	bool CanEditMaxElementSize() const;
+};
 
-	TWeakObjectPtr<UDynamicEntryBox> EntryBox;
+//////////////////////////////////////////////////////////////////////////
+// FDynamicEntryBoxDetails
+//////////////////////////////////////////////////////////////////////////
+
+class FDynamicEntryBoxDetails : public FDynamicEntryBoxBaseDetails
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	/* Main customization of details */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 };

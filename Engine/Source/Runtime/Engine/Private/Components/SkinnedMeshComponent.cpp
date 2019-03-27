@@ -359,6 +359,7 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 
 	ExternalInterpolationAlpha = 0.0f;
 	ExternalDeltaTime = 0.0f;
+	ExternalTickRate = 1;
 	bExternalInterpolate = false;
 	bExternalUpdate = false;
 	bExternalEvaluationRateLimited = false;
@@ -1055,6 +1056,26 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset,
 	return NewBounds;
 }
 
+FBoxSphereBounds USkinnedMeshComponent::GetPreSkinnedLocalBounds() const 
+{
+	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
+
+	if (SkeletalMesh)
+	{
+		// Get the Pre-skinned bounds from the skeletal mesh. Note that these bounds are the "ExtendedBounds", so they can be tweaked on the SkeletalMesh   
+		return SkeletalMesh->GetBounds();
+	}
+	else if(MasterPoseComponentInst && MasterPoseComponentInst->SkeletalMesh)
+	{
+		// Get the bounds from the master pose if ther is no skeletal mesh
+		return MasterPoseComponentInst->SkeletalMesh->GetBounds();
+	}
+	else
+	{
+		// Fall back
+		return FBoxSphereBounds(ForceInitToZero);
+	}
+}
 
 FMatrix USkinnedMeshComponent::GetBoneMatrix(int32 BoneIdx) const
 {

@@ -65,6 +65,10 @@ public:
 	void CreateParty(const FOnlinePartyTypeId& PartyTypeId, const FPartyConfiguration& PartyConfig, const FOnCreatePartyAttemptComplete& OnCreatePartyComplete);
 	void CreatePersistentParty(const FOnCreatePartyAttemptComplete& OnCreatePartyComplete = FOnCreatePartyAttemptComplete());
 
+	/** Attempt to restore our party state from the party system */
+	DECLARE_DELEGATE_OneParam(FOnRestorePartyStateFromPartySystemComplete, bool /*bSucceeded*/)
+	void RestorePartyStateFromPartySystem(const FOnRestorePartyStateFromPartySystemComplete& OnRestoreComplete);
+
 	bool IsPartyJoinInProgress(const FOnlinePartyTypeId& TypeId) const;
 	bool IsPersistentPartyJoinInProgress() const;
 
@@ -174,6 +178,8 @@ protected:
 	//@todo DanH: TEMP - for now relying on FN to bind to its game-level UFortOnlineSessionClient instance #required
 	void HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult);
 
+	virtual TSubclassOf<USocialDebugTools> GetSocialDebugToolsClass() const;
+
 	/** Info on the persistent party we were in when losing connection to the party service and want to rejoin when it returns */
 	TSharedPtr<FRejoinableParty> RejoinableParty;
 
@@ -201,7 +207,8 @@ private:	// Handlers
 	void HandleWorldEstablished(UWorld* World);
 	void HandleLocalPlayerAdded(int32 LocalUserNum);
 	void HandleLocalPlayerRemoved(int32 LocalUserNum);
-
+	
+	void OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, const FOnlineError& Result, const FOnRestorePartyStateFromPartySystemComplete OnRestoreComplete);
 	void HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
 	void HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, const TSharedPtr<const FOnlinePartyId>& PartyId, ECreatePartyCompletionResult Result, FOnlinePartyTypeId PartyTypeId, FOnCreatePartyAttemptComplete CompletionDelegate);
 	void HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
