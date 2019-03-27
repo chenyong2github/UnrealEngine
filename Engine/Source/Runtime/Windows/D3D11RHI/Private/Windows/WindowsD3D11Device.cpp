@@ -1676,6 +1676,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 void FD3D11DynamicRHI::RHIPerFrameRHIFlushComplete()
 {
+	RHIPollRenderQueryResults();
+
 	extern void D3D11RHIQueryBatcherPerFrameCleanup();
 
 	D3D11RHIQueryBatcherPerFrameCleanup();
