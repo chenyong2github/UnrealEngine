@@ -264,13 +264,14 @@ public:
 
 	bool GatherQueryResults(FRHICommandListImmediate& RHICmdList)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_SceneUtils_GatherQueryResults);
 		// Get the query results which are still outstanding
 		check(GFrameNumberRenderThread != FrameNumber);
 		if ( HasQueriesAllocated() )
 		{
 			if (StartResultMicroseconds == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(StartQuery, StartResultMicroseconds, true))
+				if (!RHICmdList.GetRenderQueryResult(StartQuery, StartResultMicroseconds, false))
 				{
 					StartResultMicroseconds = InvalidQueryResult;
 				}
@@ -278,7 +279,7 @@ public:
 			}
 			if (EndResultMicroseconds == InvalidQueryResult)
 			{
-				if (!RHICmdList.GetRenderQueryResult(EndQuery, EndResultMicroseconds, true))
+				if (!RHICmdList.GetRenderQueryResult(EndQuery, EndResultMicroseconds, false))
 				{
 					EndResultMicroseconds = InvalidQueryResult;
 				}
