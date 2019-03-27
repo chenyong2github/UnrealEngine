@@ -1041,6 +1041,9 @@ private:
 		FArchivePos			CheckpointOffset;
 		uint32				GuidCacheSize;
 
+		TSet<FString>		DeltaDeletedNetStartupActors;
+		TSet<FNetworkGUID>	DeltaDeletedActorGuids;
+
 		void CountBytes(FArchive& Ar) const
 		{
 			CheckpointAckState.CountBytes(Ar);

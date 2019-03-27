@@ -1856,6 +1856,12 @@ void UDemoNetDriver::SaveCheckpoint()
 	CheckpointSaveContext.TotalCheckpointSaveFrames = 0;
 	LastCheckpointTime = DemoCurrentTime;
 
+	if (bDeltaCheckpoint)
+	{
+		CheckpointSaveContext.DeltaDeletedActorGuids = MoveTemp(DeltaDeletedActorGuids);
+		CheckpointSaveContext.DeltaDeletedNetStartupActors = MoveTemp(DeltaDeletedNetStartupActors);
+	}
+
 	UE_LOG( LogDemo, Log, TEXT( "Starting checkpoint. Actors: %i" ), GetNetworkObjectList().GetActiveObjects().Num() );
 
 	// Do the first checkpoint tick now if we're not amortizing
@@ -2023,11 +2029,11 @@ void UDemoNetDriver::TickCheckpoint()
 						// Save deleted startup actors
 						if (bDeltaCheckpoint)
 						{
-							*CheckpointArchive << DeltaDeletedNetStartupActors;
-							DeltaDeletedNetStartupActors.Empty();
+							*CheckpointArchive << CheckpointSaveContext.DeltaDeletedNetStartupActors;
+							CheckpointSaveContext.DeltaDeletedNetStartupActors.Empty();
 
-							*CheckpointArchive << DeltaDeletedActorGuids;
-							DeltaDeletedActorGuids.Empty();
+							*CheckpointArchive << CheckpointSaveContext.DeltaDeletedActorGuids;
+							CheckpointSaveContext.DeltaDeletedActorGuids.Empty();
 						}
 						else
 						{
