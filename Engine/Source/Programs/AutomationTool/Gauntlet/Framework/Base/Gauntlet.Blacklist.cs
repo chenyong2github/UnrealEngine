@@ -59,7 +59,7 @@ namespace Gauntlet
 			BlacklistEntries = new BlacklistEntry[0] { };
 
 			// temp, pass in
-			LoadBlacklist(@"P:\Builds\Fortnite\Automation\Config\blacklist.json");
+			LoadBlacklist(@"P:\Builds\Automation\Fortnite\Config\blacklist.json");
 		}
 
 		/// <summary>
