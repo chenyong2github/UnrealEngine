@@ -505,6 +505,8 @@ void USkinnedMeshComponent::OnUnregister()
 
 void USkinnedMeshComponent::CreateRenderState_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	if( SkeletalMesh )
 	{
 		// Attempting to track down UE-45505, where it looks as if somehow a skeletal mesh component's mesh has only been partially loaded, causing a mismatch in the LOD arrays
