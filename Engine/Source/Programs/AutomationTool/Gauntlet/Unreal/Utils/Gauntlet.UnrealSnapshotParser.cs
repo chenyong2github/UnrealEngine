@@ -21,6 +21,7 @@ namespace Gauntlet
 		public float AvgFps;
 		public float Hitches;
 		public float AvgHitches;
+		public float DynamicRes;
 		public float GTTime;
 		public float RTTime;
 		public float GPUTime;
@@ -49,6 +50,7 @@ namespace Gauntlet
 				SB.AppendFormat("AvgFps:\t\t{0:0.00}\n", AvgFps);
 				SB.AppendFormat("HPM:\t\t{0:0.00}\n", Hitches);
 				SB.AppendFormat("AvgH:\t\t{0:0.00}ms\n", AvgHitches);
+				SB.AppendFormat("DynRes:\t\t{0:0.00}\n", DynamicRes);
 				SB.AppendFormat("GT:\t\t{0:0.00}ms\n", GTTime);
 				SB.AppendFormat("RT:\t\t{0:0.00}ms\n", RTTime);
 				SB.AppendFormat("GPU:\t\t{0:0.00}ms\n", GPUTime);
@@ -71,7 +73,6 @@ namespace Gauntlet
 			{
 				Name = Groups[1];
 			});
-
 
 			RegexUtil.MatchAndApplyGroups(InContent, @"CPU Memory:[\s\w]+?([\d\.]+)MB,[\s\w]+?([\d\.]+)MB", (Groups) =>
 			{
@@ -118,9 +119,14 @@ namespace Gauntlet
 				FTTime = Convert.ToSingle(Groups[1]);
 			});
 
-			RegexUtil.MatchAndApplyGroups(InContent, @"RHIT:Avg\s([\d\.]+)ms,", (Groups) =>
+			RegexUtil.MatchAndApplyGroups(InContent, @"RHIT:.* Avg\s([\d\.]+)ms,", (Groups) =>
 			{
 				RHIT = Convert.ToSingle(Groups[1]);
+			});
+
+			RegexUtil.MatchAndApplyGroups(InContent, @"DynRes:.* Avg:\s([\d\.]+)%,", (Groups) =>
+			{
+				DynamicRes = Convert.ToSingle(Groups[1]);
 			});
 
 			RegexUtil.MatchAndApplyGroups(InContent, @"DrawCalls:[\w\s:]+?([\d\.]+),[\w\s:]+?([\d\.]+),[\w\s:]+?([\d\.]+)", (Groups) =>
@@ -150,6 +156,7 @@ namespace Gauntlet
 		public List<float> AvgFps;
 		public List<float> Hitches;
 		public List<float> AvgHitches;
+		public List<float> DynamicRes;
 		public List<float> GTTime;
 		public List<float> RTTime;
 		public List<float> GPUTime;
@@ -170,6 +177,7 @@ namespace Gauntlet
 			AvgFps = new List<float>();
 			Hitches = new List<float>();
 			AvgHitches = new List<float>();
+			DynamicRes = new List<float>();
 			GTTime = new List<float>();
 			RTTime = new List<float>();
 			GPUTime = new List<float>();
@@ -221,6 +229,11 @@ namespace Gauntlet
 
 					Hitches.Add(Snap.Hitches);
 					AvgHitches.Add(Snap.AvgHitches);
+
+					if (Snap.DynamicRes > 0)
+					{
+						DynamicRes.Add(Snap.DynamicRes);
+					}
 
 					if (Snap.GTTime > 0)
 					{
@@ -310,18 +323,32 @@ namespace Gauntlet
 				{
 					SB.AppendFormat("AvgH:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", AvgHitches.Average(), AvgHitches.Min(), AvgHitches.Max());
 				}
+
+				if (DynamicRes.Count > 0)
+				{
+					SB.AppendFormat("DynRes:\t{0:0.00} (Min: {1:0.00}, Max: {2:0.00})\n", DynamicRes.Average(), DynamicRes.Min(), DynamicRes.Max());
+				}
+
 				if (GTTime.Count > 0)
 				{
 					SB.AppendFormat("GT:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", GTTime.Average(), GTTime.Min(), GTTime.Max());
 				}
+
 				if (RTTime.Count > 0)
 				{
 					SB.AppendFormat("RT:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", RTTime.Average(), RTTime.Min(), RTTime.Max());
 				}
+
 				if (GPUTime.Count > 0)
 				{
 					SB.AppendFormat("GPU:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", GPUTime.Average(), GPUTime.Min(), GPUTime.Max());
 				}
+
+				if (FTTime.Count > 0)
+				{
+					SB.AppendFormat("FT:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", FTTime.Average(), FTTime.Min(), FTTime.Max());
+				}
+
 				if (RHIT.Count > 0)
 				{
 					SB.AppendFormat("RHIT:\t{0:0.00}ms (Min: {1:0.00}ms, Max: {2:0.00}ms)\n", RHIT.Average(), RHIT.Min(), RHIT.Max());

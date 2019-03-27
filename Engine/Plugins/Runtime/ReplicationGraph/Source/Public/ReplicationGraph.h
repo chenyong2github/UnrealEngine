@@ -114,7 +114,7 @@ public:
 		return NewNode;
 	}
 
-	void ToggleHighFrequencyPawns();
+	void RemoveChildNode(UReplicationGraphNode* OutChildNode);
 
 protected:
 
@@ -914,6 +914,9 @@ private:
 	/** Separate bandwidth cap for traffic used when opening actor channels. Ignored if set to 0 */
 	int32 ActorDiscoveryMaxBitsPerFrame;
 
+	/** Internal time used to track when the next update should occur based on frequency settings. */
+	float TimeLeftUntilUpdate = 0.f;
+
 	UNetReplicationGraphConnection* CreateClientConnectionManagerInternal(UNetConnection* Connection);
 
 	friend class AReplicationGraphDebugActor;
@@ -969,7 +972,7 @@ public:
 	int32 QueuedBitsForActorDiscovery = 0;
 
 	/** Returns connection graph nodes. This is const so that you do not mutate the array itself. You should use AddConnectionGraphNode/RemoveConnectionGraphNode.  */
-	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() { return ConnectionGraphNodes; }
+	const TArray<UReplicationGraphNode*>& GetConnectionGraphNodes() const { return ConnectionGraphNodes; }
 
 	virtual void NotifyAddDormantDestructionInfo(AActor* Actor) override;
 

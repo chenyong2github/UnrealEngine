@@ -978,6 +978,21 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 			}
 		}
 	}
+	else if (Format == DXGI_FORMAT_R8_UNORM)
+	{
+		// Read the data out of the buffer, converting it from ABGR to ARGB.
+		for (uint32 Y = 0; Y < Height; Y++)
+		{
+			uint8* SrcPtr = (uint8*)(In + Y * SrcPitch);
+			FColor* DestPtr = Out + Y * Width;
+			for (uint32 X = 0; X < Width; X++)
+			{
+				*DestPtr = FColor(*SrcPtr, 0, 0, 0);
+				++SrcPtr;
+				++DestPtr;
+			}
+		}
+	}
 	else
 	{
 		// not supported yet

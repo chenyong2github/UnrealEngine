@@ -281,6 +281,7 @@ namespace UnrealBuildTool
 		/// Whether this target should be compiled as a DLL.  Requires LinkType to be set to TargetLinkType.Monolithic.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CompileAsDll")]
 		public bool bShouldCompileAsDLL = false;
 		
 		/// <summary>
@@ -526,6 +527,12 @@ namespace UnrealBuildTool
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bWithPerfCounters")]
         public bool bWithPerfCounters = false;
 
+		/// <summary>
+		/// Whether to enable support for live coding
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithLiveCoding = false;
+
         /// <summary>
         /// Whether to turn on logging for test/shipping builds.
         /// </summary>
@@ -661,7 +668,7 @@ namespace UnrealBuildTool
 		/// Disables force-included PCHs for files that are in the adaptive non-unity working set.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bAdaptiveUnityDisablesPCH = true;
+		public bool bAdaptiveUnityDisablesPCH = false;
 
 		/// <summary>
 		/// Backing storage for bAdaptiveUnityDisablesProjectPCH.
@@ -1100,6 +1107,12 @@ namespace UnrealBuildTool
 		[CommandLine("-SharedBuildEnvironment", Value = "Shared")]
 		[CommandLine("-UniqueBuildEnvironment", Value = "Unique")]
 		public TargetBuildEnvironment BuildEnvironment = TargetBuildEnvironment.Default;
+
+		/// <summary>
+		/// Whether to ignore violations to the shared build environment (eg. editor targets modifying definitions)
+		/// </summary>
+		[CommandLine("-OverrideBuildEnvironment")]
+		public bool bOverrideBuildEnvironment = false;
 
 		/// <summary>
 		/// Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell.
@@ -1806,6 +1819,11 @@ namespace UnrealBuildTool
 			get { return Inner.bWithPerfCounters; }
 		}
 
+		public bool bWithLiveCoding
+		{
+			get { return Inner.bWithLiveCoding; }
+		}
+
         public bool bUseLoggingInShipping
 		{
 			get { return Inner.bUseLoggingInShipping; }
@@ -2205,6 +2223,11 @@ namespace UnrealBuildTool
 		public TargetBuildEnvironment BuildEnvironment
 		{
 			get { return Inner.BuildEnvironment; }
+		}
+
+		public bool bOverrideBuildEnvironment
+		{
+			get { return Inner.bOverrideBuildEnvironment; }
 		}
 
 		public IReadOnlyList<string> PreBuildSteps

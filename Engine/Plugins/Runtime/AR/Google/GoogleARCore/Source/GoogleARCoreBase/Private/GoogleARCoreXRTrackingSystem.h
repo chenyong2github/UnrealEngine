@@ -48,8 +48,12 @@ public:
 
 protected:
 	// IARSystemSupport
+	/** todo - reenable once base changes make their way up - Returns true/false based on whether AR features are available */
+	//virtual bool IsARAvailable() const override;
 	virtual void OnARSystemInitialized() override;
 	virtual EARTrackingQuality OnGetTrackingQuality() const override;
+	/** todo - reenable once base changes make their way up */
+	//virtual EARTrackingQualityReason OnGetTrackingQualityReason() const override;
 	virtual void OnStartARSession(UARSessionConfig* SessionConfig) override;
 	virtual void OnPauseARSession() override;
 	virtual void OnStopARSession() override;

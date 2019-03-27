@@ -98,13 +98,14 @@ public:
 class FHeightfieldComponentDescription
 {
 public:
-	FVector4 HeightfieldScaleBias;
-	FVector4 MinMaxUV;
-	FMatrix LocalToWorld;
-	FVector2D LightingAtlasLocation;
-	FIntRect HeightfieldRect;
-	int32 NumSubsections;
-	FVector4 SubsectionScaleAndBias;
+	FVector4 HeightfieldScaleBias = FVector4(ForceInit);
+	FVector4 MinMaxUV = FVector4(ForceInit);
+	FMatrix LocalToWorld = FMatrix::Identity;
+	FVector2D LightingAtlasLocation = FVector2D(ForceInit);
+	FIntRect HeightfieldRect; // Default initialized
+
+	int32 NumSubsections = 0;
+	FVector4 SubsectionScaleAndBias = FVector4(ForceInit);
 	int32 VisibilityChannel;
 
 	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld) :
@@ -191,9 +192,10 @@ public:
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const { return false; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
+
 	/** Gathers dynamic ray tracing instances from this proxy. */
-	ENGINE_API virtual FRayTracingGeometryRHIRef GetDynamicRayTracingGeometryInstance() const { return nullptr; }
-	virtual void GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections) {}
+	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) {}
+
 	TArray<FRayTracingGeometryRHIRef>&& MoveRayTracingGeometries()
 	{
 		return static_cast<TArray<FRayTracingGeometryRHIRef>&&>(RayTracingGeometries);
@@ -427,6 +429,7 @@ public:
 	inline bool IsLocalToWorldDeterminantNegative() const { return bIsLocalToWorldDeterminantNegative; }
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 	inline const FBoxSphereBounds& GetLocalBounds() const { return LocalBounds; }
+	virtual FBoxSphereBounds GetPreSkinnedLocalBounds() const { return LocalBounds; }
 	inline FName GetOwnerName() const { return OwnerName; }
 	inline FName GetResourceName() const { return ResourceName; }
 	inline FName GetLevelName() const { return LevelName; }
@@ -470,6 +473,7 @@ public:
 		return (LightingChannelMask & 0x6) | (~LightingChannelMask & 0x1); 
 	}
 	inline bool IsVisibleInReflectionCaptures() const { return bVisibleInReflectionCaptures; }
+	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
 	inline bool IsCollisionEnabled() const { return bCollisionEnabled; }
 	inline bool IsHovered() const { return bHovered; }
@@ -791,6 +795,9 @@ private:
 	/** True if the primitive should be visible in reflection captures. */
 	uint8 bVisibleInReflectionCaptures : 1;
 
+	/** If true, this component will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
+	uint8 bVisibleInRayTracing : 1;
+
 	/** If true this primitive Renders in the mainPass */
 	uint8 bRenderInMainPass : 1;
 
@@ -1059,3 +1066,9 @@ protected:
  * Returns if specified mesh command can be cached, or needs to be recreated every frame.
  */
 ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+
+/**
+ * Returns if specified mesh command can be cached, or needs to be recreated every frame; this is a slightly slower version
+ * used for materials with external textures that need invalidating their PSOs.
+ */
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const class FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel);

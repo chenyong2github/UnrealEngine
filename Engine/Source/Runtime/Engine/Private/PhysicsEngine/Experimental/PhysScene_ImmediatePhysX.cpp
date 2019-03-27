@@ -276,6 +276,8 @@ struct FPhysXCPUDispatcher : public PxCpuDispatcher
 
 	virtual void submitTask(PxBaseTask& Task) override
 	{
+		LLM_SCOPE(ELLMTag::PhysX);
+
 		if (IsInGameThread())
 		{
 			//Game thread enqueues on task graph

@@ -503,6 +503,19 @@ enum EMaterialSamplerType
 	SAMPLERTYPE_MAX,
 };
 
+UENUM()
+enum EMaterialStencilCompare
+{
+	MSC_Less			UMETA(DisplayName = "Less Than"),
+	MSC_LessEqual		UMETA(DisplayName = "Less Than or Equal"),
+	MSC_Greater			UMETA(DisplayName = "Greater Than"),
+	MSC_GreaterEqual	UMETA(DisplayName = "Greater Than or Equal"),
+	MSC_Equal			UMETA(DisplayName = "Equal"),
+	MSC_NotEqual		UMETA(DisplayName = "Not Equal"),
+	MSC_Never			UMETA(DisplayName = "Never"),
+	MSC_Always			UMETA(DisplayName = "Always"),
+	MSC_Count			UMETA(Hidden),
+};
 /**	Lighting build quality enumeration */
 UENUM()
 enum ELightingBuildQuality
@@ -3324,6 +3337,8 @@ struct FReplicationFlags
 			uint32 bIgnoreRPCs:1;
 			/** True if we should not swap the role and remote role of this actor when receiving properties. */
 			uint32 bSkipRoleSwap:1;
+			/** True if we should only compare role properties in CompareProperties */
+			uint32 bRolesOnly:1;
 		};
 
 		uint32	Value;

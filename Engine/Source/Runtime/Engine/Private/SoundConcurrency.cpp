@@ -577,9 +577,9 @@ void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 		FConcurrencyGroup* ConcurrencyGroup = ConcurrencyGroups.Find(ConcurrencyGroupID);
 		if (!ConcurrencyGroup)
 		{
-			UE_LOG(LogAudio, Fatal, TEXT("Attempting to remove stopped sound '%s' from inactive concurrency group."),
+			UE_LOG(LogAudio, Error, TEXT("Attempting to remove stopped sound '%s' from inactive concurrency group."),
 				ActiveSound->GetSound() ? *ActiveSound->GetSound()->GetName(): TEXT("Unset"));
-			return;
+			continue;
 		}
 
 		check(!ConcurrencyGroup->IsEmpty());

@@ -31,7 +31,7 @@ FConsoleSlateDebugger::FConsoleSlateDebugger()
 	, StopDebuggingCommand(
 		TEXT("SlateDebugger.Stop"),
 		*LOCTEXT("StopDebugger", "Stops the debugger.").ToString(),
-		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebugger::StartDebugging))
+		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebugger::StopDebugging))
 	, CaptureStackVariable(
 		TEXT("SlateDebugger.CaptureStack"),
 		bCaptureStack,

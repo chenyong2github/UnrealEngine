@@ -11,16 +11,25 @@
 #include "LocalLightSceneProxy.h"
 #include "SceneManagement.h"
 
+struct FRectLightRayTracingData
+{
+#if RHI_RAYTRACING
+	FRWBuffer   RectLightMipTree;
+	FIntVector  RectLightMipTreeDimensions;
+	FGuid		TextureLightingGuid;
+	bool		bInitialised = false;
+#endif
+};
+
 class FRectLightSceneProxy : public FLocalLightSceneProxy
 {
 public:
 	float		SourceWidth;
 	float		SourceHeight;
+	float		BarnDoorAngle;
+	float		BarnDoorLength;
+	FRectLightRayTracingData* RayTracingData; // Render thread data only
 	UTexture*	SourceTexture;
-#if RHI_RAYTRACING
-	FRWBuffer   RectLightMipTree;
-	FIntVector  RectLightMipTreeDimensions;
-#endif
 
 	FRectLightSceneProxy(const URectLightComponent* Component);
 	virtual ~FRectLightSceneProxy();
@@ -37,8 +46,4 @@ public:
 	* @return True if the whole-scene projected shadow should be used.
 	*/
 	virtual bool GetWholeSceneProjectedShadowInitializer(const FSceneViewFamily& ViewFamily, TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> >& OutInitializers) const;
-
-#if RHI_RAYTRACING
-	void BuildRectLightMipTree(FRHICommandListImmediate& RHICmdList);
-#endif
 };

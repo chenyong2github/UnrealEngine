@@ -63,7 +63,7 @@ public:
 	 */
 	void SendControllerEvents();
 
-	static void QueueTouchInput(const TArray<TouchInput>& InTouchEvents);
+	static APPLICATIONCORE_API void QueueTouchInput(const TArray<TouchInput>& InTouchEvents);
 	static void QueueKeyInput(int32 Key, int32 Char);
 
 	//~ Begin Exec Interface
@@ -82,6 +82,9 @@ public:
 	bool IsControllerAssignedToGamepad(int32 ControllerId) const;
 	bool IsGamepadAttached() const;
 
+	void EnableMotionData(bool bEnable);
+	bool IsMotionDataEnabled() const;
+	
 private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
@@ -151,6 +154,9 @@ private:
 	// should we allow controllers to send input
 	bool bAllowControllers;
 	
+	/** Is motion paused or not? */
+	bool bPauseMotion;
+
 #if !PLATFORM_TVOS
 	/** Access to the ios devices motion */
 	CMMotionManager* MotionManager;
@@ -158,7 +164,6 @@ private:
 	/** Access to the ios devices tilt information */
 	CMAttitude* ReferenceAttitude;
 #endif
-	
 
 	/** Last frames roll, for calculating rate */
 	float LastRoll;

@@ -160,6 +160,40 @@ FPartyJoinApproval USocialParty::EvaluateJIPRequest(const FUniqueNetId& PlayerId
 	return JoinApproval;
 }
 
+bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const
+{
+	const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
+	const bool bSenderAllowsCrossplay = !OptedOutOfCrossplay(SenderCrossplayPreference);
+	TArray<FString> MemberPlatforms;
+	for (const UPartyMember* Member : GetPartyMembers())
+	{
+		const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
+		if (Platform.IsCrossplayWith(MemberPlatform))
+		{
+			const ECrossplayPreference MemberCrossplayPreference = Member->GetRepData().GetCrossplayPreference();
+			const bool bMemberAllowsCrossplay = !OptedOutOfCrossplay(MemberCrossplayPreference);
+
+			if (!bSenderAllowsCrossplay || !bMemberAllowsCrossplay)
+			{
+				if (SenderCrossplayPreference == ECrossplayPreference::OptedOut)
+				{
+					JoinApproval.SetApprovalAction(EApprovalAction::Deny);
+					JoinApproval.SetDenialReason(EPartyJoinDenialReason::JoinerCrossplayRestricted);
+					//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, true);
+				}
+				else if (MemberCrossplayPreference == ECrossplayPreference::OptedOut)
+				{
+					JoinApproval.SetApprovalAction(EApprovalAction::Deny);
+					JoinApproval.SetDenialReason(EPartyJoinDenialReason::MemberCrossplayRestricted);
+					//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, false);
+				}
+			}
+		}
+	}
+
+	return !JoinApproval.GetDenialReason().HasAnyReason();
+}
+
 FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const
 {
 	FPartyJoinApproval JoinApproval;
@@ -174,33 +208,12 @@ FPartyJoinApproval USocialParty::EvaluateJoinRequest(const FUniqueNetId& PlayerI
 	}
 	else
 	{
-		const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
-		const bool bSenderAllowsCrossplay = !OptedOutOfCrossplay(SenderCrossplayPreference);
-
-		TArray<FString> MemberPlatforms;
-		for (const UPartyMember* Member : GetPartyMembers())
+		bool bAlwaysCheckCrossplatformOnPartyJoin = false;
+		if (GConfig->GetBool(TEXT("Social"), TEXT("bAlwaysEnforceCrossplatformOnPartyJoin"), bAlwaysCheckCrossplatformOnPartyJoin, GGameIni))
 		{
-			const FUserPlatform& MemberPlatform = Member->GetRepData().GetPlatform();
-			if (Platform.IsCrossplayWith(MemberPlatform))
+			if (bAlwaysCheckCrossplatformOnPartyJoin)
 			{
-				const ECrossplayPreference MemberCrossplayPreference = Member->GetRepData().GetCrossplayPreference();
-				const bool bMemberAllowsCrossplay = !OptedOutOfCrossplay(MemberCrossplayPreference);
-
-				if (!bSenderAllowsCrossplay || !bMemberAllowsCrossplay)
-				{
-					if (SenderCrossplayPreference == ECrossplayPreference::OptedOutRestricted)
-					{
-						JoinApproval.SetApprovalAction(EApprovalAction::Deny);
-						JoinApproval.SetDenialReason(EPartyJoinDenialReason::JoinerCrossplayRestricted);
-						//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, true);
-					}
-					else if (MemberCrossplayPreference == ECrossplayPreference::OptedOutRestricted)
-					{
-						JoinApproval.SetApprovalAction(EApprovalAction::Deny);
-						JoinApproval.SetDenialReason(EPartyJoinDenialReason::MemberCrossplayRestricted);
-						//UFortAnalytics::FireEvent_AutoRejectedFromCrossPlatformParty(FPC, SenderPlatform, false);
-					}
-				}
+				ApplyCrossplayRestriction(JoinApproval, Platform, JoinData);
 			}
 		}
 
@@ -374,7 +387,7 @@ void USocialParty::InitializeParty(const TSharedRef<const FOnlineParty>& InOssPa
 		PartyDataReplicator->SetOwningParty(*this);
 
 		OssParty = InOssParty;
-		CurrentConfig = *InOssParty->Config;
+		CurrentConfig = *InOssParty->GetConfiguration();
 		CurrentLeaderId = InOssParty->LeaderId;
 
 		OwningLocalUserId = GetSocialManager().GetFirstLocalUserId(ESocialSubsystem::Primary);
@@ -403,15 +416,20 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberDataReceived));
 	PartyInterface->AddOnPartyMemberPromotedDelegate_Handle(FOnPartyMemberPromotedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberPromoted));
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
-
+	
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<TSharedRef<FOnlinePartyMember>> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
+	// Always initialize the local member first
+	if (ensure(OssPartyMembers.RemoveAll([this](const TSharedRef<FOnlinePartyMember>& Member) { return *Member->GetUserId() == *OwningLocalUserId; } ) > 0))
+	{
+		GetOrCreatePartyMember(*OwningLocalUserId);
+	}
 	for (TSharedRef<FOnlinePartyMember>& OssMember : OssPartyMembers)
 	{
 		GetOrCreatePartyMember(*OssMember->GetUserId());
 	}
-	HandlePartyStateChanged(*OwningLocalUserId, GetPartyId(), OssParty->State);
+	HandlePartyStateChanged(*OwningLocalUserId, GetPartyId(), OssParty->State, OssParty->PreviousState);
 
 	if (IsLocalPlayerPartyLeader())
 	{
@@ -522,9 +540,7 @@ UPartyMember* USocialParty::GetOrCreatePartyMember(const FUniqueNetId& MemberId)
 					PartyMembersById.Add(MemberIdRepl, PartyMember);
 					PartyMember->InitializePartyMember(OssPartyMember.ToSharedRef(), FSimpleDelegate::CreateUObject(this, &USocialParty::HandleMemberInitialized, PartyMember));
 
-					RefreshPublicJoinability();
-
-					OnPartyMemberCreated().Broadcast(*PartyMember);
+					OnMemberCreatedInternal(*PartyMember);
 				}
 				else
 				{
@@ -671,7 +687,7 @@ void USocialParty::HandlePartyConfigChanged(const FUniqueNetId& LocalUserId, con
 {
 	if (PartyId == GetPartyId())
 	{
-		CurrentConfig = *OssParty->Config;
+		CurrentConfig = *OssParty->GetConfiguration();
 		OnPartyConfigurationChanged().Broadcast(CurrentConfig);
 	}
 }
@@ -682,7 +698,7 @@ void USocialParty::HandleUpdatePartyConfigComplete(const FUniqueNetId& LocalUser
 	{
 		UE_LOG(LogParty, Verbose, TEXT("[%s] Party config updated %s"), *PartyId.ToDebugString(), ToString(Result));
 
-		CurrentConfig = *OssParty->Config;
+		CurrentConfig = *OssParty->GetConfiguration();
 		OnPartyConfigurationChanged().Broadcast(CurrentConfig);
 	}
 	else
@@ -851,6 +867,12 @@ void USocialParty::HandlePrivacySettingsChanged(const FPartyPrivacySettings& New
 	RefreshPublicJoinability();
 }
 
+void USocialParty::OnMemberCreatedInternal(UPartyMember& NewMember)
+{
+	RefreshPublicJoinability();
+	OnPartyMemberCreated().Broadcast(NewMember);
+}
+
 void USocialParty::HandlePartyLeft(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId)
 {
 	// this function is called when a party is left due to unintentional leave (e.g. disconnect)
@@ -926,6 +948,12 @@ EPartyState USocialParty::GetOssPartyState() const
 	return OssParty->State;
 }
 
+EPartyState USocialParty::GetOssPartyPreviousState() const
+{
+	check(OssParty.IsValid());
+	return OssParty->PreviousState;
+}
+
 bool USocialParty::IsCurrentlyCrossplaying() const
 {
 	TArray<FUserPlatform> AllPlatformsPresent;
@@ -959,7 +987,7 @@ bool USocialParty::ShouldStayWithPartyOnExit() const
 
 bool USocialParty::IsPartyFunctionalityDegraded() const
 {
-	return bIsMissingXmppConnection || bIsMissingPlatformSession;
+	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession;
 }
 
 int32 USocialParty::GetNumPartyMembers() const
@@ -982,7 +1010,7 @@ void USocialParty::SetPartyMaxSize(int32 NewSize)
 int32 USocialParty::GetPartyMaxSize() const
 {
 	check(OssParty.IsValid());
-	return OssParty->Config->MaxMembers;
+	return OssParty->GetConfiguration()->MaxMembers;
 }
 
 FPartyJoinDenialReason USocialParty::GetPublicJoinability() const
@@ -1112,7 +1140,7 @@ TSubclassOf<UPartyMember> USocialParty::GetDesiredMemberClass(bool bLocalPlayer)
 	return UPartyMember::StaticClass();
 }
 
-void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState)
+void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState, EPartyState PreviousPartyState)
 {
 	if (PartyState == EPartyState::Disconnected)
 	{
@@ -1124,7 +1152,7 @@ void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, cons
 		// If we transition to the active state, then we have an XMPP connection
 		SetIsMissingXmppConnection(false);
 	}
-	OnPartyStateChanged().Broadcast(PartyState);
+	OnPartyStateChanged().Broadcast(PartyState, PreviousPartyState);
 }
 
 void USocialParty::ConnectToReservationBeacon()
@@ -1385,9 +1413,10 @@ void USocialParty::SetIsMissingPlatformSession(bool bInIsMissingPlatformSession)
 
 void USocialParty::SetIsMissingXmppConnection(bool bInMissingXmppConnection)
 {
-	if (bInMissingXmppConnection != bIsMissingXmppConnection)
+	if (!bIsMissingXmppConnection.IsSet() || 
+		bInMissingXmppConnection != bIsMissingXmppConnection)
 	{
-		UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
+		UE_CLOG(bIsMissingXmppConnection.IsSet(), LogParty, VeryVerbose, TEXT("Party [%s] is %s missing XMPP connection"), *ToDebugString(), bInMissingXmppConnection ? TEXT("now") : TEXT("no longer"));
 
 		const bool bWasPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
 		bIsMissingXmppConnection = bInMissingXmppConnection;

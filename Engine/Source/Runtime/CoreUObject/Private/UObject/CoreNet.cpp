@@ -10,9 +10,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogCoreNet, Log, All);
 
-DEFINE_STAT(STAT_NetSerializeFastArray);
-DEFINE_STAT(STAT_NetSerializeFastArray_BuildMap);
-
 /*-----------------------------------------------------------------------------
 	FClassNetCache implementation.
 -----------------------------------------------------------------------------*/
@@ -537,4 +534,29 @@ const TCHAR* LexToString(const EChannelCloseReason Value)
 	}
 
 	return TEXT("Unknown");
+}
+
+void INetSerializeCB::NetSerializeStruct(
+	class UScriptStruct* Struct,
+	class FBitArchive& Ar,
+	class UPackageMap* Map,
+	void* Data,
+	bool& bHasUnmapped)
+{
+	FNetDeltaSerializeInfo Params;
+	Params.Struct = Struct;
+	Params.Map = Map;
+	Params.Data = Data;
+
+	if (Ar.IsSaving())
+	{
+		Params.Writer = static_cast<FBitWriter*>(&Ar);
+	}
+	else
+	{
+		Params.Reader = static_cast<FBitReader*>(&Ar);
+	}
+
+	NetSerializeStruct(Params);
+	bHasUnmapped = Params.bOutHasMoreUnmapped;
 }

@@ -105,9 +105,6 @@ FSlateEditableTextLayout::FSlateEditableTextLayout(ISlateEditableTextWidget& InO
 		const FText& InitialTextToSet = BoundText.Get(FText::GetEmpty());
 		SetEditableText(InitialTextToSet, true);
 
-		// treat the initial text as uncommitted
-		bHasUncommittedText = true;
-
 		// Update the cached BoundText value to prevent it triggering another SetEditableText update again next Tick
 		BoundTextLastTick = FTextSnapshot(InitialTextToSet);
 		bWasPasswordLastTick = bIsPassword;
@@ -222,7 +219,6 @@ FSlateEditableTextLayout::~FSlateEditableTextLayout()
 	{
 		FSlateApplication::Get().ShowVirtualKeyboard(false, 0);
 	}
-
 }
 
 void FSlateEditableTextLayout::SetText(const TAttribute<FText>& InText)
@@ -264,6 +260,8 @@ void FSlateEditableTextLayout::SetText(const TAttribute<FText>& InText)
 
 FText FSlateEditableTextLayout::GetText() const
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	return BoundText.Get(FText::GetEmpty());
 }
 
@@ -332,6 +330,8 @@ void FSlateEditableTextLayout::SetCompositionBrush(const TAttribute<const FSlate
 
 FText FSlateEditableTextLayout::GetPlainText() const
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
 
 	const int32 NumberOfLines = Lines.Num();
@@ -349,6 +349,8 @@ FText FSlateEditableTextLayout::GetPlainText() const
 
 bool FSlateEditableTextLayout::SetEditableText(const FText& TextToSet, const bool bForce)
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	bool bHasTextChanged = bForce;
 	if (!bHasTextChanged)
 	{
@@ -521,6 +523,8 @@ bool FSlateEditableTextLayout::Refresh()
 
 bool FSlateEditableTextLayout::RefreshImpl(const FText* InTextToSet, const bool bForce)
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	bool bHasSetText = false;
 
 	const bool bIsPassword = OwnerWidget->IsTextPassword();
@@ -779,7 +783,16 @@ bool FSlateEditableTextLayout::HandleFocusLost(const FFocusEvent& InFocusEvent)
 		break;
 	}
 
-	CommitTextChanges(TextAction);
+	// Always clear the local undo chain on commit
+	ClearUndoStates();
+
+	const FText EditedText = GetEditableText();
+
+	OwnerWidget->OnTextCommitted(EditedText, TextAction);
+
+	// Reload underlying value now it is committed  (commit may alter the value) 
+	// so it can be re-displayed in the edit box
+	LoadText();
 
 	UpdateCursorHighlight();
 
@@ -791,38 +804,6 @@ bool FSlateEditableTextLayout::HandleFocusLost(const FFocusEvent& InFocusEvent)
 	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
 
 	return true;
-}
-
-void FSlateEditableTextLayout::CommitTextChanges(ETextCommit::Type CommitReason)
-{
-	// don't try to commit changes if we haven't changed anything
-	if (bHasUncommittedText)
-	{
-		bHasUncommittedText = false;
-
-		// Always clear the local undo chain on commit
-		ClearUndoStates();
-
-		const FText EditedText = GetEditableText();
-
-		OwnerWidget->OnTextCommitted(EditedText, CommitReason);
-
-		// Reload underlying value now it is committed  (commit may alter the value) 
-		// so it can be re-displayed in the edit box
-		LoadText();
-
-		// Select all text?
-		if (OwnerWidget->ShouldSelectAllTextOnCommit())
-		{
-			SelectAllText();
-		}
-
-		// Release input focus?
-		if (CommitReason == ETextCommit::OnEnter && OwnerWidget->ShouldClearKeyboardFocusOnCommit())
-		{
-			FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
-		}
-	}
 }
 
 FReply FSlateEditableTextLayout::HandleKeyChar(const FCharacterEvent& InCharacterEvent)
@@ -1468,7 +1449,29 @@ bool FSlateEditableTextLayout::HandleCarriageReturn()
 	}
 	else
 	{
-		CommitTextChanges(ETextCommit::OnEnter);
+		// Always clear the local undo chain on commit.
+		ClearUndoStates();
+
+		const FText EditedText = GetEditableText();
+
+		// When enter is pressed text is committed.  Let anyone interested know about it.
+		OwnerWidget->OnTextCommitted(EditedText, ETextCommit::OnEnter);
+
+		// Reload underlying value now it is committed  (commit may alter the value) 
+		// so it can be re-displayed in the edit box if it retains focus
+		LoadText();
+
+		// Select all text?
+		if (OwnerWidget->ShouldSelectAllTextOnCommit())
+		{
+			SelectAllText();
+		}
+
+		// Release input focus?
+		if (OwnerWidget->ShouldClearKeyboardFocusOnCommit())
+		{
+			FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::Cleared);
+		}
 	}
 
 	return true;
@@ -2897,7 +2900,6 @@ void FSlateEditableTextLayout::RestoreOriginalText()
 
 		// Let outsiders know that the text content has been changed
 		OwnerWidget->OnTextCommitted(OriginalText.Text, ETextCommit::OnCleared);
-		bHasUncommittedText = false;
 	}
 }
 
@@ -2944,8 +2946,6 @@ void FSlateEditableTextLayout::EndEditTransaction()
 	const bool bHasTextChanged = !EditedText.ToString().Equals(StateBeforeChangingText.GetValue().Text.ToString(), ESearchCase::CaseSensitive);
 	if (bHasTextChanged)
 	{
-		bHasUncommittedText = true;
-
 		// Save text state
 		SaveText(EditedText);
 
@@ -3153,6 +3153,8 @@ bool FSlateEditableTextLayout::ComputeVolatility() const
 
 void FSlateEditableTextLayout::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	check(IsInGameThread());
+
 	if (bTextChangedByVirtualKeyboard)
 	{
 		SetEditableText(VirtualKeyboardText);
@@ -3166,7 +3168,6 @@ void FSlateEditableTextLayout::Tick(const FGeometry& AllottedGeometry, const dou
 		// Let outsiders know that the text content has been changed
 		OwnerWidget->OnTextCommitted(GetEditableText(), VirtualKeyboardTextCommitType);
 		bTextCommittedByVirtualKeyboard = false;
-		bHasUncommittedText = false;
 	}
 
 	if (TextInputMethodChangeNotifier.IsValid() && TextInputMethodContext.IsValid() && TextInputMethodContext->UpdateCachedGeometry(AllottedGeometry))
@@ -3351,6 +3352,8 @@ void FSlateEditableTextLayout::CacheDesiredSize(float LayoutScaleMultiplier)
 
 FVector2D FSlateEditableTextLayout::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
+	check(IsInGameThread());
+
 	const float FontMaxCharHeight = FTextEditHelper::GetFontHeight(TextStyle.Font);
 	const float CaretWidth = FTextEditHelper::CalculateCaretWidth(FontMaxCharHeight);
 
@@ -3475,7 +3478,6 @@ bool FSlateEditableTextLayout::HasActiveContextMenu() const
 	return ActiveContextMenu.IsValid();
 }
 
-
 TSharedRef<FSlateEditableTextLayout::FVirtualKeyboardEntry> FSlateEditableTextLayout::FVirtualKeyboardEntry::Create(FSlateEditableTextLayout& InOwnerLayout)
 {
 	return MakeShareable(new FVirtualKeyboardEntry(InOwnerLayout));
@@ -3488,14 +3490,14 @@ FSlateEditableTextLayout::FVirtualKeyboardEntry::FVirtualKeyboardEntry(FSlateEdi
 
 void FSlateEditableTextLayout::FVirtualKeyboardEntry::SetTextFromVirtualKeyboard(const FText& InNewText, ETextEntryType TextEntryType)
 {
+	check(IsInGameThread());
+
 	// Only set the text if the text attribute doesn't have a getter binding (otherwise it would be blown away).
 	// If it is bound, we'll assume that OnTextCommitted will handle the update.
 	if (!OwnerLayout->BoundText.IsBound())
 	{
 		OwnerLayout->BoundText.Set(InNewText);
 	}
-
-	OwnerLayout->bHasUncommittedText = true;
 
 	// Update the internal editable text
 	// This method is called from the main thread (i.e. not the game thread) of the device with the virtual keyboard
@@ -3524,6 +3526,8 @@ void FSlateEditableTextLayout::FVirtualKeyboardEntry::SetTextFromVirtualKeyboard
 
 void FSlateEditableTextLayout::FVirtualKeyboardEntry::SetSelectionFromVirtualKeyboard(int InSelStart, int InSelEnd)
 {
+	check(IsInGameThread());
+
 	// Update the text selection and the cursor position
 	// This method is called externally (eg. on Android from the native virtual keyboard implementation) 
 	// The text may also change on the same frame, so the external selection must happen in Tick after the text update
@@ -3535,26 +3539,36 @@ void FSlateEditableTextLayout::FVirtualKeyboardEntry::SetSelectionFromVirtualKey
 
 FText FSlateEditableTextLayout::FVirtualKeyboardEntry::GetText() const
 {
+	check(IsInGameThread());
+
 	return OwnerLayout->GetText();
 }
 
 FText FSlateEditableTextLayout::FVirtualKeyboardEntry::GetHintText() const
 {
+	check(IsInGameThread());
+
 	return OwnerLayout->GetHintText();
 }
 
 EKeyboardType FSlateEditableTextLayout::FVirtualKeyboardEntry::GetVirtualKeyboardType() const
 {
+	check(IsInGameThread());
+
 	return (OwnerLayout->OwnerWidget->IsTextPassword()) ? Keyboard_Password : OwnerLayout->OwnerWidget->GetVirtualKeyboardType();
 }
 
 FVirtualKeyboardOptions FSlateEditableTextLayout::FVirtualKeyboardEntry::GetVirtualKeyboardOptions() const
 {
+	check(IsInGameThread());
+
 	return OwnerLayout->OwnerWidget->GetVirtualKeyboardOptions();
 }
 
 bool FSlateEditableTextLayout::FVirtualKeyboardEntry::IsMultilineEntry() const
 {
+	check(IsInGameThread());
+
 	return OwnerLayout->OwnerWidget->IsMultiLineTextEdit();
 }
 

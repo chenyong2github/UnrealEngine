@@ -23,7 +23,7 @@ class COREUOBJECT_API UObjectBase
 	friend struct Z_Construct_UClass_UObject_Statics;
 	friend class FUObjectArray; // for access to InternalIndex without revealing it to anyone else
 	friend class FUObjectAllocator; // for access to destructor without revealing it to anyone else
-	friend COREUOBJECT_API void UObjectForceRegistration(UObjectBase* Object);
+	friend COREUOBJECT_API void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease);
 	friend COREUOBJECT_API void InitializePrivateStaticClass(
 		class UClass* TClass_Super_StaticClass,
 		class UClass* TClass_PrivateStaticClass,
@@ -290,7 +290,7 @@ FORCEINLINE bool UObjectInitialized() { return Internal::GObjInitialized; }
 /**
  * Force a pending registrant to register now instead of in the natural order
  */
-COREUOBJECT_API void UObjectForceRegistration(UObjectBase* Object);
+COREUOBJECT_API void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease = true);
 
 /** 
  * Base class for deferred native class registration
@@ -416,7 +416,7 @@ COREUOBJECT_API class UScriptStruct* FindExistingStructIfHotReloadOrDynamic(UObj
 COREUOBJECT_API class UEnum* FindExistingEnumIfHotReloadOrDynamic(UObject* Outer, const TCHAR* EnumName, SIZE_T Size, uint32 Crc, bool bIsDynamic);
 
 /** Must be called after a module has been loaded that contains UObject classes */
-COREUOBJECT_API void ProcessNewlyLoadedUObjects();
+COREUOBJECT_API void ProcessNewlyLoadedUObjects(FName Package = NAME_None, bool bCanProcessNewlyLoadedObjects = true);
 
 #if WITH_HOT_RELOAD
 /** Map of duplicated CDOs for reinstancing during hot-reload purposes. */

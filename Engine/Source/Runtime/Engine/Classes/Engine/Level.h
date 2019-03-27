@@ -342,6 +342,7 @@ struct FReplicatedStaticActorDestructionInfo
 	GENERATED_BODY()
 
 	FName PathName;
+	FString FullName;
 	FVector	DestroyedPosition;
 	TWeakObjectPtr<UObject> ObjOuter;
 	UPROPERTY()
@@ -591,6 +592,9 @@ public:
 
 	float FixupOverrideVertexColorsTime;
 	int32 FixupOverrideVertexColorsCount;
+
+	UPROPERTY(transient)
+	bool bLevelOkayForPlacementWhileCheckedIn;
 #endif //WITH_EDITORONLY_DATA
 
 	/** Actor which defines level logical bounding box				*/

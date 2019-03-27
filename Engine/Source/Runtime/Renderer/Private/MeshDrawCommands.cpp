@@ -645,6 +645,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 	bool bReverseCulling,
 	bool bRenderSceneTwoSided,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
+	FExclusiveDepthStencil::Type DefaultBasePassDepthStencilAccess,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FMeshCommandOneFrameArray& TempVisibleMeshDrawCommands
@@ -655,8 +656,6 @@ void ApplyViewOverridesToMeshDrawCommands(
 
 	if ((FPassProcessorManager::GetPassFlags(ShadingPath, PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None)
 	{
-		const FExclusiveDepthStencil::Type DefaultBasePassDepthStencilAccess = GetDefaultBasePassDepthStencilAccess(ShadingPath);
-
 		if (bReverseCulling || bRenderSceneTwoSided || (BasePassDepthStencilAccess != DefaultBasePassDepthStencilAccess && PassType == EMeshPass::BasePass))
 		{
 			for (int32 MeshCommandIndex = 0; MeshCommandIndex < VisibleMeshDrawCommands.Num(); MeshCommandIndex++)
@@ -791,6 +790,7 @@ public:
 					Context.bReverseCulling,
 					Context.bRenderSceneTwoSided,
 					Context.BasePassDepthStencilAccess,
+					Context.DefaultBasePassDepthStencilAccess,
 					Context.MeshDrawCommands,
 					Context.MeshDrawCommandStorage,
 					Context.TempVisibleMeshDrawCommands
@@ -939,6 +939,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	TaskContext.bReverseCulling = View.bReverseCulling;
 	TaskContext.bRenderSceneTwoSided = View.bRenderSceneTwoSided;
 	TaskContext.BasePassDepthStencilAccess = BasePassDepthStencilAccess;
+	TaskContext.DefaultBasePassDepthStencilAccess = Scene->DefaultBasePassDepthStencilAccess;
 	TaskContext.NumDynamicMeshElements = NumDynamicMeshElements;
 	TaskContext.NumDynamicMeshCommandBuildRequestElements = NumDynamicMeshCommandBuildRequestElements;
 
@@ -1012,7 +1013,7 @@ void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
 	}
 }
 
-void FParallelMeshDrawCommandPass::Empty()
+void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty()
 {
 	// Need to wait in case if someone dispatched sort and draw merge task, but didn't draw it.
 	WaitForMeshPassSetupTask();
@@ -1043,6 +1044,7 @@ void FParallelMeshDrawCommandPass::Empty()
 	TaskContext.DynamicMeshElements = nullptr;
 	TaskContext.DynamicMeshElementsPassRelevance = nullptr;
 	TaskContext.MeshDrawCommands.Empty();
+	TaskContext.MeshDrawCommandStorage.MeshDrawCommands.Empty();
 	TaskContext.MobileBasePassCSMMeshDrawCommands.Empty();
 	TaskContext.DynamicMeshCommandBuildRequests.Empty();
 	TaskContext.TempVisibleMeshDrawCommands.Empty();
@@ -1052,7 +1054,7 @@ void FParallelMeshDrawCommandPass::Empty()
 
 FParallelMeshDrawCommandPass::~FParallelMeshDrawCommandPass()
 {
-	Empty();
+	check(TaskEventRef == nullptr);
 }
 
 class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask

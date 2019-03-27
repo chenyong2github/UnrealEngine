@@ -7,6 +7,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "Math/NumericLimits.h"
 #include "HAL/ThreadSingleton.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "HAL/PlatformTime.h"
@@ -1347,6 +1348,7 @@ public:
 
 	FORCEINLINE_STATS void AddStatMessage( const FStatMessage& StatMessage )
 	{
+		LLM_SCOPE(ELLMTag::Stats);
 		FStatMessageLock MessageLock(MemoryMessageScope);
 		Packet.StatMessages.AddElement(StatMessage);
 	}

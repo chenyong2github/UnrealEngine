@@ -23,10 +23,6 @@ bool FIOSPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults, bo
 
 	// display 0 is max size
 	CGRect MainFrame = [[UIScreen mainScreen] bounds];
-	if ([IOSAppDelegate GetDelegate].OSVersion < 8.0f && ![IOSAppDelegate GetDelegate].bDeviceInPortraitMode)
-	{
-		Swap(MainFrame.size.width, MainFrame.size.height);
-	}
 	float Scale = [[UIScreen mainScreen] scale];
 	OutResults.Displays[0].CurrentModeWidth = MainFrame.size.width * Scale;
 	OutResults.Displays[0].CurrentModeHeight = MainFrame.size.height * Scale;

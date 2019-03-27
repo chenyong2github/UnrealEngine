@@ -104,7 +104,7 @@ FMacApplication::FMacApplication()
 		
 		CacheKeyboardInputSource();
 
-		WindowUnderCursor = FindSlateWindowUnderCursor();
+		WindowUnderCursor = [FindSlateWindowUnderCursor() retain];
 	}, NSDefaultRunLoopMode, true);
 
 #if WITH_EDITOR
@@ -170,6 +170,8 @@ FMacApplication::~FMacApplication()
 			[KeyBoardLayoutData release];
 			KeyBoardLayoutData = nil;
 		}
+		
+		[WindowUnderCursor release];
 	}, NSDefaultRunLoopMode, true);
 
 	if (TextInputMethodSystem.IsValid())
@@ -366,7 +368,12 @@ void FMacApplication::DeferEvent(NSObject* Object)
 {
 	FDeferredMacEvent DeferredEvent;
 
-	WindowUnderCursor = FindSlateWindowUnderCursor();
+	FCocoaWindow* CursorWindow = FindSlateWindowUnderCursor();
+	if (WindowUnderCursor != CursorWindow)
+	{
+		[WindowUnderCursor release];
+		WindowUnderCursor = [CursorWindow retain];
+	}
 
 	if (Object && [Object isKindOfClass:[NSEvent class]])
 	{
@@ -1951,16 +1958,20 @@ TCHAR FMacApplication::TranslateCharCode(TCHAR CharCode, uint32 KeyCode) const
 
 void FMacApplication::CloseQueuedWindows()
 {
+	// OnWindowClose may call PumpMessages, which would reenter this function, so make a local copy of SlateWindowsToClose array to avoid infinite recursive calls
+	TArray<TSharedRef<FMacWindow>> LocalWindowsToClose;
+
 	{
 		FScopeLock Lock(&WindowsToCloseMutex);
+		LocalWindowsToClose = SlateWindowsToClose;
+		SlateWindowsToClose.Empty();
+	}
 
-		if (SlateWindowsToClose.Num() > 0)
+	if (LocalWindowsToClose.Num() > 0)
+	{
+		for (TSharedRef<FMacWindow> Window : LocalWindowsToClose)
 		{
-			for (TSharedRef<FMacWindow> Window : SlateWindowsToClose)
-			{
-				MessageHandler->OnWindowClose(Window);
-			}
-			SlateWindowsToClose.Empty();
+			MessageHandler->OnWindowClose(Window);
 		}
 	}
 

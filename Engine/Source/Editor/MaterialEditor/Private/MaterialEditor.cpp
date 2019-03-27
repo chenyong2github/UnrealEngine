@@ -3098,9 +3098,6 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 		MaterialsToOverride.Add(OriginalMaterial);
 	}
 
-
-	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
-
 	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
@@ -3108,7 +3105,6 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
 
 		CurrentMaterial->OverrideVectorParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
-		UpdateContext.AddMaterial(CurrentMaterial);
 	}
 
 	// Update MI's that reference any of the materials affected
@@ -3178,9 +3174,6 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 		MaterialsToOverride.Add(OriginalMaterial);
 	}
 
-
-	FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
-
 	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
@@ -3188,7 +3181,6 @@ void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName Parame
 		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
 
 		CurrentMaterial->OverrideScalarParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
-		UpdateContext.AddMaterial(CurrentMaterial);
 	}
 
 	// Update MI's that reference any of the materials affected
@@ -3935,6 +3927,8 @@ FText FMaterialEditor::GetOriginalObjectName() const
 
 void FMaterialEditor::UpdateMaterialAfterGraphChange()
 {
+	FlushRenderingCommands();
+	
 	Material->MaterialGraph->LinkMaterialExpressionsFromGraph();
 
 	// Update the current preview material.
@@ -3959,6 +3953,8 @@ FMaterialRenderProxy* FMaterialEditor::GetExpressionPreview(UMaterialExpression*
 
 void FMaterialEditor::UndoGraphAction()
 {
+	FlushRenderingCommands();
+	
 	int32 NumExpressions = Material->Expressions.Num();
 	GEditor->UndoTransaction();
 
@@ -3970,6 +3966,8 @@ void FMaterialEditor::UndoGraphAction()
 
 void FMaterialEditor::RedoGraphAction()
 {
+	FlushRenderingCommands();
+	
 	// Clear selection, to avoid holding refs to nodes that go away
 	GraphEditor->ClearSelectionSet();
 

@@ -10,6 +10,7 @@ RHIUtilities.cpp:
 #include "RHI.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Misc/ScopeLock.h"
 
 #define USE_FRAME_OFFSET_THREAD 1
 

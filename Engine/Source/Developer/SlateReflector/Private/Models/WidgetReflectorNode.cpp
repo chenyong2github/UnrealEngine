@@ -121,6 +121,11 @@ FText FLiveWidgetReflectorNode::GetWidgetVisibilityText() const
 	return FWidgetReflectorNodeUtils::GetWidgetVisibilityText(Widget.Pin());
 }
 
+bool FLiveWidgetReflectorNode::GetWidgetVisible() const
+{
+	return FWidgetReflectorNodeUtils::GetWidgetVisibility(Widget.Pin());
+}
+
 FText FLiveWidgetReflectorNode::GetWidgetClippingText() const
 {
 	return FWidgetReflectorNodeUtils::GetWidgetClippingText(Widget.Pin());
@@ -198,6 +203,7 @@ FSnapshotWidgetReflectorNode::FSnapshotWidgetReflectorNode(const FArrangedWidget
 	, CachedWidgetType(FWidgetReflectorNodeUtils::GetWidgetType(InArrangedWidget.Widget))
 	, CachedWidgetTypeAndShortName(FWidgetReflectorNodeUtils::GetWidgetTypeAndShortName(InArrangedWidget.Widget))
 	, CachedWidgetVisibilityText(FWidgetReflectorNodeUtils::GetWidgetVisibilityText(InArrangedWidget.Widget))
+	, bCachedWidgetVisible(FWidgetReflectorNodeUtils::GetWidgetVisibility(InArrangedWidget.Widget))
 	, bCachedWidgetFocusable(FWidgetReflectorNodeUtils::GetWidgetFocusable(InArrangedWidget.Widget))
 	, CachedWidgetClippingText(FWidgetReflectorNodeUtils::GetWidgetClippingText(InArrangedWidget.Widget))
 	, CachedWidgetReadableLocation(FWidgetReflectorNodeUtils::GetWidgetReadableLocation(InArrangedWidget.Widget))
@@ -237,6 +243,11 @@ FText FSnapshotWidgetReflectorNode::GetWidgetVisibilityText() const
 }
 
 bool FSnapshotWidgetReflectorNode::GetWidgetFocusable() const
+{
+	return bCachedWidgetFocusable;
+}
+
+bool FSnapshotWidgetReflectorNode::GetWidgetVisible() const
 {
 	return bCachedWidgetFocusable;
 }
@@ -563,13 +574,28 @@ TSharedRef<FWidgetReflectorNodeBase> FWidgetReflectorNodeUtils::NewNodeTreeFrom(
 {
 	TSharedRef<FWidgetReflectorNodeBase> NewNodeInstance = NewNode(InNodeType, InWidgetGeometry);
 
-	FArrangedChildren ArrangedChildren(EVisibility::All);
-	InWidgetGeometry.Widget->ArrangeChildren(InWidgetGeometry.Geometry, ArrangedChildren);
-	
-	for (int32 WidgetIndex = 0; WidgetIndex < ArrangedChildren.Num(); ++WidgetIndex)
+	TSharedRef<SWidget> CurWidgetParent = InWidgetGeometry.Widget;
+	if (FChildren* Children = CurWidgetParent->GetChildren())
 	{
-		// Note that we include both visible and invisible children!
-		NewNodeInstance->AddChildNode(NewNodeTreeFrom(InNodeType, ArrangedChildren[WidgetIndex]));
+		for (int32 ChildIndex = 0; ChildIndex < Children->Num(); ++ChildIndex)
+		{
+			TSharedRef<SWidget> ChildWidget = Children->GetChildAt(ChildIndex);
+			FGeometry ChildGeometry = ChildWidget->GetCachedGeometry();
+			const EVisibility CurWidgetVisibility = ChildWidget->GetVisibility();
+
+			// Don't add geometry for completely collapsed stuff
+			if (CurWidgetVisibility == EVisibility::Collapsed)
+			{
+				ChildGeometry = FGeometry();
+			}
+			else if (!CurWidgetParent->ValidatePathToChild(&ChildWidget.Get()))
+			{
+				ChildGeometry = FGeometry();
+			}
+
+			// Note that we include both visible and invisible children!
+			NewNodeInstance->AddChildNode(NewNodeTreeFrom(InNodeType, FArrangedWidget(ChildWidget, ChildGeometry)));
+		}
 	}
 
 	return NewNodeInstance;
@@ -622,6 +648,11 @@ FText FWidgetReflectorNodeUtils::GetWidgetTypeAndShortName(const TSharedPtr<SWid
 FText FWidgetReflectorNodeUtils::GetWidgetVisibilityText(const TSharedPtr<SWidget>& InWidget)
 {
 	return (InWidget.IsValid()) ? FText::FromString(InWidget->GetVisibility().ToString()) : FText::GetEmpty();
+}
+
+bool FWidgetReflectorNodeUtils::GetWidgetVisibility(const TSharedPtr<SWidget>& InWidget)
+{
+	return InWidget.IsValid() ? InWidget->GetVisibility().IsVisible() : false;
 }
 
 bool FWidgetReflectorNodeUtils::GetWidgetFocusable(const TSharedPtr<SWidget>& InWidget)

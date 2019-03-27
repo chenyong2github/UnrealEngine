@@ -11,8 +11,10 @@
 UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SProgressBar::FArguments SlateDefaults;
-	WidgetStyle = *SlateDefaults._Style;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	static const FProgressBarStyle StaticProgressBar = FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar");
+
+	WidgetStyle = StaticProgressBar;
 	WidgetStyle.FillImage.TintColor = FLinearColor::White;
 
 	BarFillType = EProgressBarFillType::LeftToRight;

@@ -4358,6 +4358,7 @@ void UParticleSystemComponent::SetMaterial(int32 ElementIndex, UMaterialInterfac
 		}
 	}
 	MarkRenderDynamicDataDirty();
+	MarkRenderStateDirty();
 }
 
 void UParticleSystemComponent::ClearDynamicData()
@@ -4373,6 +4374,7 @@ void UParticleSystemComponent::ClearDynamicData()
 void UParticleSystemComponent::UpdateDynamicData()
 {
 	//SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_UpdateDynamicData);
+	LLM_SCOPE(ELLMTag::Particles);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
 	if (SceneProxy)
@@ -5145,7 +5147,7 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	TotalActiveParticles = 0;
 	bNeedsFinalize = true;
 	
-	if (!IsTickManaged())
+	if (!IsTickManaged() || bWarmingUp)
 	{
 		if (!ThisTickFunction || !ThisTickFunction->IsCompletionHandleValid() || !CanTickInAnyThread() || FXConsoleVariables::bFreezeParticleSimulation || !FXConsoleVariables::bAllowAsyncTick || !FApp::ShouldUseThreadingForPerformance() ||
 			GDistributionType == 0) // this may not be absolutely required, however if you are using distributions it will be glacial anyway. If you want to get rid of this, note that some modules use this indirectly as their criteria for CanTickInAnyThread
@@ -7149,7 +7151,7 @@ void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterfa
 		FParticleSysParam& P = InstanceParameters[i];
 		if (P.Name == Name && P.ParamType == PSPT_Material)
 		{
-			bIsViewRelevanceDirty = (P.Material != Param) ? true : false;
+			bIsViewRelevanceDirty = bIsViewRelevanceDirty || (P.Material != Param);
 			P.Material = Param;
 			return;
 		}
@@ -7159,7 +7161,7 @@ void UParticleSystemComponent::SetMaterialParameter(FName Name, UMaterialInterfa
 	int32 NewParamIndex = InstanceParameters.AddZeroed();
 	InstanceParameters[NewParamIndex].Name = Name;
 	InstanceParameters[NewParamIndex].ParamType = PSPT_Material;
-	bIsViewRelevanceDirty = (InstanceParameters[NewParamIndex].Material != Param) ? true : false;
+	bIsViewRelevanceDirty = bIsViewRelevanceDirty || (InstanceParameters[NewParamIndex].Material != Param);
 	InstanceParameters[NewParamIndex].Material = Param;
 }
 

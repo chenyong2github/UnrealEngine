@@ -93,7 +93,6 @@ FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-
 DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
 
 static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
@@ -811,6 +810,7 @@ void FViewInfo::Init()
 
 	bIsViewInfo = true;
 	
+	bViewStateIsReadOnly = true;
 	bUsesGlobalDistanceField = false;
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;
@@ -901,6 +901,11 @@ FViewInfo::~FViewInfo()
 	if (CustomVisibilityQuery)
 	{
 		CustomVisibilityQuery->Release();
+	}
+
+	for (int32 MeshDrawIndex = 0; MeshDrawIndex < EMeshPass::Num; MeshDrawIndex++)
+	{
+		ParallelMeshDrawCommandPasses[MeshDrawIndex].WaitForTasksAndEmpty();
 	}
 
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
@@ -1567,7 +1572,7 @@ void FViewInfo::DestroyAllSnapshots()
 
 		for (int32 Index = 0; Index < Snapshot->ParallelMeshDrawCommandPasses.Num(); ++Index)
 		{
-			Snapshot->ParallelMeshDrawCommandPasses[Index].Empty();
+			Snapshot->ParallelMeshDrawCommandPasses[Index].WaitForTasksAndEmpty();
 		}
 
 		FreeViewInfoSnapshots.Add(Snapshot);
@@ -1678,6 +1683,16 @@ float FViewInfo::GetLastEyeAdaptationExposure() const
 		return EffectiveViewState->GetLastEyeAdaptationExposure();
 	}
 	return 0.f; // Invalid exposure
+}
+
+float FViewInfo::GetLastAverageSceneLuminance() const
+{
+	const FSceneViewState* EffectiveViewState = GetEffectiveViewState();
+	if (EffectiveViewState)
+	{
+		return EffectiveViewState->GetLastAverageSceneLuminance();
+	}
+	return 0.f; // Invalid scene luminance
 }
 
 void FViewInfo::SetValidTonemappingLUT() const
@@ -2321,7 +2336,7 @@ FSceneRenderer::~FSceneRenderer()
 {
 	// To prevent keeping persistent references to single frame buffers, clear any such reference at this point.
 	ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
-
+	
 	if(Scene)
 	{
 		// Destruct the projected shadow infos.
@@ -2854,32 +2869,28 @@ void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 
 bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 {
-	// If the show flag is enabled
-	if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
-	{
-		return false;
-	}
-
 	if (View.Family->EngineShowFlags.VisualizeHDR || View.Family->UseDebugViewPS())
 	{
 		// certain visualize modes get obstructed too much
 		return false;
 	}
 
-	if (GIsEditor && View.Family->EngineShowFlags.Wireframe)
+	if (View.Family->EngineShowFlags.Wireframe)
 	{
-		// In Editor we want wire frame view modes to be in MSAA
+		// We want wireframe view use MSAA if possible.
 		return true;
 	}
-
-	// Any elements that needed compositing were drawn then compositing should be done
-	if (View.ViewMeshElements.Num() 
-		|| View.TopViewMeshElements.Num() 
-		|| View.BatchedViewElements.HasPrimsToDraw() 
-		|| View.TopBatchedViewElements.HasPrimsToDraw() 
-		|| View.NumVisibleDynamicEditorPrimitives > 0)
+	else if (View.Family->EngineShowFlags.CompositeEditorPrimitives)
 	{
-		return true;
+	    // Any elements that needed compositing were drawn then compositing should be done
+	    if (View.ViewMeshElements.Num() 
+		    || View.TopViewMeshElements.Num() 
+		    || View.BatchedViewElements.HasPrimsToDraw() 
+		    || View.TopBatchedViewElements.HasPrimsToDraw() 
+		    || View.NumVisibleDynamicEditorPrimitives > 0)
+	    {
+		    return true;
+	    }
 	}
 
 	return false;
@@ -2894,12 +2905,10 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 		RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 	}
 
-
-	// Destroy cached preshadow transient arrays (allocated with SceneRenderingAllocator).
-	TArray<TRefCountPtr<FProjectedShadowInfo>>& CachedPreshadows = SceneRenderer->Scene->CachedPreshadows;
-	for (int32 CachedShadowIndex = 0; CachedShadowIndex < CachedPreshadows.Num(); ++CachedShadowIndex)
+	// Wait for all dispatched shadow mesh draw tasks.
+	for (int32 PassIndex = 0; PassIndex < SceneRenderer->DispatchedShadowDepthPasses.Num(); ++PassIndex)
 	{
-		CachedPreshadows[CachedShadowIndex]->ClearTransientArrays();
+		SceneRenderer->DispatchedShadowDepthPasses[PassIndex]->WaitForTasksAndEmpty();
 	}
 
 	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots
@@ -3221,11 +3230,8 @@ FRendererModule::FRendererModule()
 	CVarSimpleForwardShading_PreviousValue = CVarSimpleForwardShading.AsVariable()->GetInt();
 	CVarSimpleForwardShading.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeSimpleForwardShading));
 
-	static auto CVarEarlyZPass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
-	CVarEarlyZPass->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
-
-	static auto CVarEarlyZPassMovable = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassMovable"));
-	CVarEarlyZPassMovable->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
+	static auto EarlyZPassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
+	EarlyZPassVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void InitDebugViewModeInterfaces();
@@ -3238,7 +3244,9 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	// Create and add the new view
 	FViewInfo* NewView = new FViewInfo(*ViewInitOptions);
 	ViewFamily->Views.Add(NewView);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetRenderTarget(RHICmdList, ViewFamily->RenderTarget->GetRenderTargetTexture(), nullptr, ESimpleRenderTargetMode::EClearColorExistingDepth);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FViewInfo* View = (FViewInfo*)ViewFamily->Views[0];
 	View->ViewRect = View->UnscaledViewRect;
 	View->InitRHIResources();
@@ -3489,7 +3497,9 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 		FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->CurrentRealTime, Family->CurrentWorldTime, Family->DeltaWorldTime, InView.GetFeatureLevel());
 		Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SetRenderTarget(RHICmdList, Family->RenderTarget->GetRenderTargetTexture(), FTextureRHIRef());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// further down to not intersect with "LIGHTING NEEDS TO BE REBUILT"
 		FVector2D Pos(30, 140);

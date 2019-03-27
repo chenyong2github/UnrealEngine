@@ -849,3 +849,120 @@ struct FJsonSerializable
 	 */
 	virtual void Serialize(FJsonSerializerBase& Serializer, bool bFlatObject) = 0;
 };
+
+/**
+ * Useful if you just want access to the underlying FJsonObject (for cases where the schema is loose or an outer system will do further de/serialization)
+ */
+struct FJsonDataBag
+	: public FJsonSerializable
+{
+	virtual void Serialize(FJsonSerializerBase& Serializer, bool bFlatObject) override
+	{
+		if (Serializer.IsLoading())
+		{
+			// just grab a reference to the underlying JSON object
+			JsonObject = Serializer.GetObject();
+		}
+		else
+		{
+			if (!bFlatObject)
+			{
+				Serializer.StartObject();
+			}
+
+			if (JsonObject.IsValid())
+			{
+				for (const auto& It : JsonObject->Values)
+				{
+					TSharedPtr<FJsonValue> JsonValue = It.Value;
+					if (JsonValue.IsValid())
+					{
+						switch (JsonValue->Type)
+						{
+							case EJson::Boolean:
+							{
+								auto Value = JsonValue->AsBool();
+								Serializer.Serialize(*It.Key, Value);
+								break;
+							}
+							case EJson::Number:
+							{
+								auto Value = JsonValue->AsNumber();
+								Serializer.Serialize(*It.Key, Value);
+								break;
+							}
+							case EJson::String:
+							{
+								auto Value = JsonValue->AsString();
+								Serializer.Serialize(*It.Key, Value);
+								break;
+							}
+							case EJson::Array:
+							case EJson::Object:
+							{
+								// if we have an object, serialize to string and write raw
+								FString JsonStr;
+								auto Writer = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonStr);
+								FJsonSerializer::Serialize(JsonValue->AsObject().ToSharedRef(), Writer);
+								// too bad there's no JsonObject serialization method on FJsonSerializerBase directly :-/
+								Serializer.WriteIdentifierPrefix(*It.Key);
+								Serializer.WriteRawJSONValue(*JsonStr);
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (!bFlatObject)
+			{
+				Serializer.EndObject();
+			}
+		}
+	}
+
+	double GetDouble(const FString& Key) const
+	{
+		const auto Json = GetField(Key);
+		return Json.IsValid() ? Json->AsNumber() : 0.0;
+	}
+
+	FString GetString(const FString& Key) const
+	{
+		const auto Json = GetField(Key);
+		return Json.IsValid() ? Json->AsString() : FString();
+	}
+
+	bool GetBool(const FString& Key) const
+	{
+		const auto Json = GetField(Key);
+		return Json.IsValid() ? Json->AsBool() : false;
+	}
+
+	TSharedPtr<const FJsonValue> GetField(const FString& Key) const
+	{
+		if (JsonObject.IsValid())
+		{
+			return JsonObject->TryGetField(Key);
+		}
+		return TSharedPtr<const FJsonValue>();
+	}
+
+	template<typename JSON_TYPE, typename Arg>
+	void SetField(const FString& Key, Arg&& Value)
+	{
+		SetFieldJson(Key, MakeShared<JSON_TYPE>(MoveTempIfPossible(Value)));
+	}
+
+	void SetFieldJson(const FString& Key, const TSharedPtr<FJsonValue>& Value)
+	{
+		if (!JsonObject.IsValid())
+		{
+			JsonObject = MakeShared<FJsonObject>();
+		}
+		JsonObject->SetField(Key, Value);
+	}
+
+public:
+	TSharedPtr<FJsonObject> JsonObject;
+};

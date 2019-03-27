@@ -17,14 +17,20 @@ public class WebBrowser : ModuleRules
 				"ApplicationCore",
 				"RHI",
 				"InputCore",
-				"Slate",
-				"SlateCore",
 				"Serialization",
 				"HTTP"
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Android ||
+        PublicDependencyModuleNames.AddRange(
+            new string[]
+            {
+				"Slate",
+				"SlateCore"
+            }
+        );
+
+        if (Target.Platform == UnrealTargetPlatform.Android ||
 		    Target.Platform == UnrealTargetPlatform.IOS ||
 		    Target.Platform == UnrealTargetPlatform.TVOS)
 		{
@@ -83,7 +89,5 @@ public class WebBrowser : ModuleRules
 		{
 			PrecompileForTargets = ModuleRules.PrecompileTargetsType.None;
 		}
-
-		bEnableShadowVariableWarnings = false;
 	}
 }

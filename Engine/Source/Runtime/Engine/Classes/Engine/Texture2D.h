@@ -115,7 +115,7 @@ public:
 	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
 	virtual void UpdateResource() override;
 	virtual float GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale) override;
-	virtual FTexturePlatformData** GetRunningPlatformData() override { return &PlatformData; }
+	virtual FTexturePlatformData** GetRunningPlatformData() final override { return &PlatformData; }
 #if WITH_EDITOR
 	virtual TMap<FString,FTexturePlatformData*>* GetCookedPlatformData() override { return &CookedPlatformData; }
 #endif
@@ -127,18 +127,7 @@ public:
 	virtual int32 CalcNumOptionalMips() const final override;
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
 
-	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override
-	{
-		if (PlatformData)
-		{
-			if (MipIndex < PlatformData->Mips.Num() && MipIndex >= 0)
-			{
-				OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
-				return true;
-			}
-		}
-		return false;
-	}
+	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
 
 	/**
 	* Returns whether the texture is ready for streaming aka whether it has had InitRHI called on it.

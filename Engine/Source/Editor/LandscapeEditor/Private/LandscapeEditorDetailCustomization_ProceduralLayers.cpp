@@ -22,6 +22,7 @@
 #include "EditorModes.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
+#include "Landscape.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -44,6 +45,8 @@
 #include "LandscapeEditorDetailCustomization_TargetLayers.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "LandscapeEditorCommands.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
@@ -60,12 +63,7 @@ void FLandscapeEditorDetailCustomization_ProceduralLayers::CustomizeDetails(IDet
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentToolMode != nullptr)
 	{
-		const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
-
-		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0)
-		{
-			LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_ProceduralLayers(DetailBuilder.GetThumbnailPool().ToSharedRef())));
-		}
+		LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_ProceduralLayers(DetailBuilder.GetThumbnailPool().ToSharedRef())));
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -103,7 +101,7 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GenerateHeaderRowConten
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(FText::FromString(TEXT("")))
+			.Text(FText::FromString(TEXT("Layers")))
 		];
 }
 
@@ -127,6 +125,8 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GenerateChildContent(ID
 				LayerList.ToSharedRef()
 			];
 
+		InlineTextBlocks.Empty();
+		InlineTextBlocks.AddDefaulted(LandscapeEdMode->GetProceduralLayerCount());
 		for (int32 i = 0; i < LandscapeEdMode->GetProceduralLayerCount(); ++i)
 		{
 			TSharedPtr<SWidget> GeneratedRowWidget = GenerateRow(i);
@@ -151,105 +151,100 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::Generate
 	TSharedPtr<SWidget> RowWidget = SNew(SLandscapeEditorSelectableBorder)
 		.Padding(0)
 		.VAlign(VAlign_Center)
-		//.OnContextMenuOpening_Static(&FLandscapeEditorCustomNodeBuilder_Layers::OnTargetLayerContextMenuOpening, Target)
+		.OnContextMenuOpening(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerContextMenuOpening, InLayerIndex)
 		.OnSelected(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerSelectionChanged, InLayerIndex)
 		.IsSelected(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::IsLayerSelected, InLayerIndex)))
 		.Visibility(EVisibility::Visible)
 		[
 			SNew(SHorizontalBox)
 			
-			/*+ SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(FMargin(2))
 			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush(TEXT("LandscapeEditor.Target_Heightmap")))
-			]
-			*/
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.FillWidth(1.0f)
-			.Padding(4, 0)
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(0, 2)
-				.HAlign(HAlign_Left)				
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnToggleLock, InLayerIndex)
+				.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerLock", "Locks the current layer"))
 				[
-					SNew(SEditableText)
-					.SelectAllTextWhenFocused(true)
-					.IsReadOnly(true)
-					.Text(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerText, InLayerIndex)
-					.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayers_tooltip", "Name of the Layer"))
-					.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerTextCommitted, InLayerIndex))
+					SNew(SImage)
+					.Image(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLockBrushForLayer, InLayerIndex)
 				]
 			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(0, 2)
-			.HAlign(HAlign_Center)				
 			[
-				SNew(SCheckBox)
-				.OnCheckStateChanged(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerVisibilityChanged, InLayerIndex)
-				.IsChecked(TAttribute<ECheckBoxState>::Create(TAttribute<ECheckBoxState>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::IsLayerVisible, InLayerIndex)))
-				.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerVisibility_Tooltips", "Is layer visible"))
+				SNew(SButton)
+				.ContentPadding(0)
+				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnToggleVisibility, InLayerIndex)
+				.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerVisibility", "Toggle Layer Visibility"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				.Content()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerVisibility", "Visibility"))
+					SNew(SImage)
+					.Image(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetVisibilityBrushForLayer, InLayerIndex)
 				]
 			]
+
 			+ SHorizontalBox::Slot()
-			.Padding(0)
-			.FillWidth(1.0f)
+			.FillWidth(1.0)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.Padding(4, 0)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerWeight", "Weight"))
+				SAssignNew(InlineTextBlocks[InLayerIndex], SInlineEditableTextBlock)
+				.Text(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerText, InLayerIndex)
+				.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayers_tooltip", "Name of the Layer"))
+				.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::CanRenameProceduralLayerTo, InLayerIndex))
+				.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetProceduralLayerName, InLayerIndex))
 			]
+
 			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
 			.Padding(0, 2)
-			.HAlign(HAlign_Left)
-			.FillWidth(1.0f)
+			.HAlign(HAlign_Right)
 			[
-				SNew(SNumericEntryBox<float>)
-				.AllowSpin(true)
-				.MinValue(0.0f)
-				.MaxValue(65536.0f)
-				.MaxSliderValue(65536.0f)
-				.MinDesiredValueWidth(25.0f)
-				.Value(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerWeight, InLayerIndex)
-				.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerWeight, InLayerIndex)
-				.IsEnabled(true)
-			]			
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0)
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_ProceduralLayerAlpha", "Alpha"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(0, 2)
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0f)
+				[
+					SNew(SNumericEntryBox<float>)
+					.AllowSpin(true)
+					.MinValue(0.0f)
+					.MaxValue(100.0f)
+					.MaxSliderValue(100.0f)
+					.MinDesiredValueWidth(60.0f)
+					.Value(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerAlpha, InLayerIndex)
+					.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerAlpha, InLayerIndex)
+					.IsEnabled(true)
+				]		
+			]
 		];	
 
 	return RowWidget;
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerTextCommitted(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex)
-{
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
-	if (LandscapeEdMode != nullptr)
-	{
-		LandscapeEdMode->SetProceduralLayerName(InLayerIndex, *InText.ToString());
-	}
-}
-
 FText FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerText(int32 InLayerIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
-	if (LandscapeEdMode != nullptr)
+	if (LandscapeEdMode)
 	{
 		return FText::FromName(LandscapeEdMode->GetProceduralLayerName(InLayerIndex));
 	}
@@ -268,6 +263,186 @@ bool FLandscapeEditorCustomNodeBuilder_ProceduralLayers::IsLayerSelected(int32 I
 	return false;
 }
 
+bool FLandscapeEditorCustomNodeBuilder_ProceduralLayers::CanRenameProceduralLayerTo(const FText& InNewText, FText& OutErrorMessage, int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		if (!LandscapeEdMode->CanRenameProceduralLayerTo(InLayerIndex, *InNewText.ToString()))
+		{
+			OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This layer already exists");
+			return false;
+		}
+	}
+	return true;
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetProceduralLayerName(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_ProceduralLayers_Rename", "Rename Procedural Layer"));
+		LandscapeEdMode->SetProceduralLayerName(InLayerIndex, *InText.ToString());
+	}
+}
+
+TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerContextMenuOpening(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (LandscapeEdMode && Landscape)
+	{
+		FProceduralLayer* Layer = LandscapeEdMode->GetProceduralLayer(InLayerIndex);
+		TSharedRef<FLandscapeEditorCustomNodeBuilder_ProceduralLayers> SharedThis = AsShared();
+		FMenuBuilder MenuBuilder(true, NULL);
+		MenuBuilder.BeginSection("LandscapeEditorProceduralLayerActions", LOCTEXT("LandscapeEditorProceduralLayerActions.Heading", "Layers"));
+		{
+			// Create Layer
+			FUIAction CreateLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis] { SharedThis->CreateLayer(); }));
+			MenuBuilder.AddMenuEntry(LOCTEXT("CreateLayer", "Create"), LOCTEXT("CreateLayerTooltip", "Create Layer"), FSlateIcon(), CreateLayerAction);
+
+			if (Layer)
+			{
+				// Rename Layer
+				FUIAction RenameLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->RenameLayer(InLayerIndex); }));
+				MenuBuilder.AddMenuEntry(LOCTEXT("RenameLayer", "Rename..."), LOCTEXT("RenameLayerTooltip", "Rename Layer"), FSlateIcon(), RenameLayerAction);
+
+				if (!Layer->bLocked)
+				{
+					// Clear Layer
+					FUIAction ClearLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->ClearLayer(InLayerIndex); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("ClearLayer", "Clear..."), LOCTEXT("ClearLayerTooltip", "Clear Layer"), FSlateIcon(), ClearLayerAction);
+
+					if (Landscape->ProceduralLayers.Num() > 1)
+					{
+						// Delete Layer
+						FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); } ));
+						MenuBuilder.AddMenuEntry(LOCTEXT("DeleteLayer", "Delete..."), LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
+					}
+				}
+			}
+		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection("LandscapeEditorProceduralLayerVisibility", LOCTEXT("LandscapeEditorProceduralLayerVisibility.Heading", "Visibility"));
+		{
+			if (Layer)
+			{
+				if (Layer->bVisible)
+				{
+					// Hide Selected Layer
+					FUIAction HideSelectedLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->OnToggleVisibility(InLayerIndex); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("HideSelectedLayer", "Hide Selected"), LOCTEXT("HideSelectedLayerTooltip", "Hide Selected Layer"), FSlateIcon(), HideSelectedLayerAction);
+				}
+				else
+				{
+					// Show Selected Layer
+					FUIAction ShowSelectedLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->OnToggleVisibility(InLayerIndex); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("ShowSelectedLayer", "Show Selected"), LOCTEXT("ShowSelectedLayerTooltip", "Show Selected Layer"), FSlateIcon(), ShowSelectedLayerAction);
+				}
+
+				// Show Only Selected Layer
+				FUIAction ShowOnlySelectedLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->ShowOnlySelectedLayer(InLayerIndex); }));
+				MenuBuilder.AddMenuEntry(LOCTEXT("ShowOnlySelectedLayer", "Show Only Selected"), LOCTEXT("ShowOnlySelectedLayerTooltip", "Show Only Selected Layer"), FSlateIcon(), ShowOnlySelectedLayerAction);
+			}
+
+			// Show All Layers
+			FUIAction ShowAllLayersAction = FUIAction(FExecuteAction::CreateLambda([SharedThis] { SharedThis->ShowAllLayers(); }));
+			MenuBuilder.AddMenuEntry(LOCTEXT("ShowAllLayers", "Show All Layers"), LOCTEXT("ShowAllLayersTooltip", "Show All Layers"), FSlateIcon(), ShowAllLayersAction);
+		}
+		MenuBuilder.EndSection();
+
+		return MenuBuilder.MakeWidget();
+	}
+	return NULL;
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::RenameLayer(int32 InLayerIndex)
+{
+	if (InlineTextBlocks.IsValidIndex(InLayerIndex) && InlineTextBlocks[InLayerIndex].IsValid())
+	{
+		InlineTextBlocks[InLayerIndex]->EnterEditingMode();
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::ClearLayer(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		FProceduralLayer* Layer = LandscapeEdMode->GetProceduralLayer(InLayerIndex);
+		if (Layer)
+		{
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("LandscapeMode_Message", "The layer {0} content will be completely cleared.  Continue?"), FText::FromName(Layer->Name)));
+			if (Result == EAppReturnType::Yes)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Landscape_ProceduralLayers_Clean", "Clean Procedural Layer"));
+				Landscape->ClearProceduralLayer(InLayerIndex);
+			}
+		}
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::DeleteLayer(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape && Landscape->ProceduralLayers.Num() > 1)
+	{
+		FProceduralLayer* Layer = LandscapeEdMode->GetProceduralLayer(InLayerIndex);
+		if (Layer)
+		{
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("LandscapeMode_Message", "The layer {0} will be deleted.  Continue?"), FText::FromName(Layer->Name)));
+			if (Result == EAppReturnType::Yes)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Landscape_ProceduralLayers_Delete", "Delete Procedural Layer"));
+				Landscape->DeleteProceduralLayer(InLayerIndex);
+				int32 NewLayerSelectionIndex = Landscape->GetProceduralLayer(InLayerIndex) ? InLayerIndex : 0;
+				OnLayerSelectionChanged(NewLayerSelectionIndex);
+				LandscapeEdMode->RefreshDetailPanel();
+			}
+		}
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::ShowOnlySelectedLayer(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ShowOnlySelectedLayer", "Show Only Selected Layer"));
+		Landscape->ShowOnlySelectedProceduralLayer(InLayerIndex);
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::ShowAllLayers()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ShowAllLayers", "Show All Layers"));
+		Landscape->ShowAllProceduralLayers();
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::CreateLayer()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Landscape_ProceduralLayers_Create", "Create Procedural Layer"));
+			Landscape->CreateProceduralLayer();
+		}
+		LandscapeEdMode->RefreshDetailPanel();
+	}
+}
+
 void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerSelectionChanged(int32 InLayerIndex)
 {	
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -278,48 +453,61 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerSelectionChanged
 	}
 }
 
-TOptional<float> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerWeight(int32 InLayerIndex) const
+TOptional<float> FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLayerAlpha(int32 InLayerIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode)
 	{
-		return LandscapeEdMode->GetProceduralLayerWeight(InLayerIndex);
+		return LandscapeEdMode->GetProceduralLayerAlpha(InLayerIndex);
 	}
 
 	return 1.0f;
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerWeight(float InWeight, int32 InLayerIndex)
+void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::SetLayerAlpha(float InAlpha, int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode)
 	{
-		LandscapeEdMode->SetProceduralLayerWeight(InWeight, InLayerIndex);
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_ProceduralLayers_SetAlpha", "Set Procedural Layer Alpha"));
+		LandscapeEdMode->SetProceduralLayerAlpha(InLayerIndex, InAlpha);
 	}
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnLayerVisibilityChanged(ECheckBoxState NewState, int32 InLayerIndex)
+FReply FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnToggleVisibility(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
 	if (LandscapeEdMode)
 	{
-		LandscapeEdMode->SetProceduralLayerVisibility(NewState == ECheckBoxState::Checked, InLayerIndex);
+		LandscapeEdMode->SetProceduralLayerVisibility(!LandscapeEdMode->IsProceduralLayerVisible(InLayerIndex), InLayerIndex);
 	}
+	return FReply::Handled();
 }
 
-ECheckBoxState FLandscapeEditorCustomNodeBuilder_ProceduralLayers::IsLayerVisible(int32 InLayerIndex) const
+const FSlateBrush* FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetVisibilityBrushForLayer(int32 InLayerIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	bool bIsVisible = LandscapeEdMode && LandscapeEdMode->IsProceduralLayerVisible(InLayerIndex);
+	return bIsVisible ? FEditorStyle::GetBrush("Level.VisibleIcon16x") : FEditorStyle::GetBrush("Level.NotVisibleIcon16x");
+}
 
+FReply FLandscapeEditorCustomNodeBuilder_ProceduralLayers::OnToggleLock(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
-		return LandscapeEdMode->IsProceduralLayerVisible(InLayerIndex) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		LandscapeEdMode->SetProceduralLayerLocked(InLayerIndex, !LandscapeEdMode->IsProceduralLayerLocked(InLayerIndex));
+	}
+	return FReply::Handled();
 	}
 
-	return ECheckBoxState::Unchecked;
+const FSlateBrush* FLandscapeEditorCustomNodeBuilder_ProceduralLayers::GetLockBrushForLayer(int32 InLayerIndex) const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	bool bIsLocked = LandscapeEdMode && LandscapeEdMode->IsProceduralLayerLocked(InLayerIndex);
+	return bIsLocked ? FEditorStyle::GetBrush(TEXT("PropertyWindow.Locked")) : FEditorStyle::GetBrush(TEXT("PropertyWindow.Unlocked"));
 }
 
 FReply FLandscapeEditorCustomNodeBuilder_ProceduralLayers::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)

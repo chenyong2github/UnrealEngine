@@ -47,9 +47,8 @@ void AndroidThunkCpp_Adjust_SetPushToken(const FString& Token)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, " AndroidThunkJava_Adjust_SetPushToken", "(Ljava/lang/String;)V", false);
-		jstring TokenJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Token));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, TokenJava);
-		Env->DeleteLocalRef(TokenJava);
+		auto TokenJava = FJavaHelper::ToJavaString(Env, Token);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *TokenJava);
 	}
 }
 
@@ -58,11 +57,9 @@ void AndroidThunkCpp_Adjust_AddSessionPartnerParameter(const FString& Key, const
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_AddSessionPartnerParameter", "(Ljava/lang/String;Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		jstring ValueJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Value));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava, ValueJava);
-		Env->DeleteLocalRef(KeyJava);
-		Env->DeleteLocalRef(ValueJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		auto ValueJava = FJavaHelper::ToJavaString(Env, Value);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava, *ValueJava);
 	}
 }
 
@@ -71,9 +68,8 @@ void AndroidThunkCpp_Adjust_RemoveSessionPartnerParameter(const FString& Key)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_RemoveSessionPartnerParameter", "(Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava);
-		Env->DeleteLocalRef(KeyJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava);
 	}
 }
 
@@ -91,11 +87,9 @@ void AndroidThunkCpp_Adjust_Event_AddCallbackParameter(const FString& Key, const
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_Event_AddCallbackParameter", "(Ljava/lang/String;Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		jstring ValueJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Value));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava, ValueJava);
-		Env->DeleteLocalRef(KeyJava);
-		Env->DeleteLocalRef(ValueJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		auto ValueJava = FJavaHelper::ToJavaString(Env, Value);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava, *ValueJava);
 	}
 }
 
@@ -104,9 +98,8 @@ void AndroidThunkCpp_Adjust_Event_RemoveCallbackParameter(const FString& Key)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_Event_RemoveCallbackParameter", "(Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava);
-		Env->DeleteLocalRef(KeyJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava);
 	}
 }
 
@@ -124,11 +117,9 @@ void AndroidThunkCpp_Adjust_Event_AddPartnerParameter(const FString& Key, const 
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_Event_AddPartnerParameter", "(Ljava/lang/String;Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		jstring ValueJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Value));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava, ValueJava);
-		Env->DeleteLocalRef(KeyJava);
-		Env->DeleteLocalRef(ValueJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		auto ValueJava = FJavaHelper::ToJavaString(Env, Value);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava, *ValueJava);
 	}
 }
 
@@ -137,9 +128,8 @@ void AndroidThunkCpp_Adjust_Event_RemovePartnerParameter(const FString& Key)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_Event_RemovePartnerParameter", "(Ljava/lang/String;)V", false);
-		jstring KeyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Key));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, KeyJava);
-		Env->DeleteLocalRef(KeyJava);
+		auto KeyJava = FJavaHelper::ToJavaString(Env, Key);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *KeyJava);
 	}
 }
 
@@ -157,9 +147,8 @@ void AndroidThunkCpp_Adjust_SendEvent(const FString& Token)
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_SendEvent", "(Ljava/lang/String;)V", false);
-		jstring TokenJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Token));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, TokenJava);
-		Env->DeleteLocalRef(TokenJava);
+		auto TokenJava = FJavaHelper::ToJavaString(Env, Token);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *TokenJava);
 	}
 }
 
@@ -168,13 +157,10 @@ void AndroidThunkCpp_Adjust_SendRevenueEvent(const FString& Token, const FString
 	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
 	{
 		static jmethodID Method = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Adjust_SendRevenueEvent", "(Ljava/lang/String;Ljava/lang/String;DLjava/lang/String;)V", false);
-		jstring TokenJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Token));
-		jstring OrderIdJava = Env->NewStringUTF(TCHAR_TO_UTF8(*OrderId));
-		jstring CurrencyJava = Env->NewStringUTF(TCHAR_TO_UTF8(*Currency));
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, TokenJava, OrderIdJava, Amount, CurrencyJava);
-		Env->DeleteLocalRef(TokenJava);
-		Env->DeleteLocalRef(OrderIdJava);
-		Env->DeleteLocalRef(CurrencyJava);
+		auto TokenJava = FJavaHelper::ToJavaString(Env, Token);
+		auto OrderIdJava = FJavaHelper::ToJavaString(Env, OrderId);
+		auto CurrencyJava = FJavaHelper::ToJavaString(Env, Currency);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, Method, *TokenJava, *OrderIdJava, Amount, *CurrencyJava);
 	}
 }
 

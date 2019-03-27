@@ -19,6 +19,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "RenderingThread.h"
 #include "SceneView.h"
 #include "NiagaraComponent.h"
+#include "NiagaraCutoutVertexBuffer.h"
 
 class FNiagaraDataSet;
 
@@ -83,7 +84,7 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const = 0;
 
 #if RHI_RAYTRACING
-	virtual void GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections) {};
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) {}
 #endif
 
 	virtual void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData) = 0;
@@ -184,6 +185,7 @@ protected:
 
 
 
+struct FNiagaraDynamicDataSprites;
 
 /**
 * NiagaraRendererSprites renders an FNiagaraEmitterInstance as sprite particles
@@ -206,7 +208,7 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 #if RHI_RAYTRACING
-	virtual void GetRayTracingGeometryInstances(TArray<FRayTracingGeometryInstanceCollection>& OutInstanceCollections) override;
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
 #endif
 	virtual bool SetMaterialUsage() override;
 	virtual void TransformChanged() override;
@@ -229,6 +231,30 @@ public:
 #endif
 
 private:
+
+	struct FCPUSimParticleDataAllocation
+	{
+		FGlobalDynamicReadBuffer& DynamicReadBuffer;
+		FGlobalDynamicReadBuffer::FAllocation ParticleData;
+	};
+
+	void ConditionalInitPrimitiveUniformBuffer(const FNiagaraSceneProxy *SceneProxy) const;
+	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
+	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy) const;
+	void SetVertexFactoryParticleData(
+		class FNiagaraSpriteVertexFactory& VertexFactory,
+		FNiagaraDynamicDataSprites *DynamicDataSprites,
+		FCPUSimParticleDataAllocation& CPUSimParticleDataAllocation,
+		const FSceneView* View,
+		const FNiagaraSceneProxy *SceneProxy) const;
+	void CreateMeshBatchForView(
+		const FSceneView* View,
+		const FSceneViewFamily& ViewFamily,
+		const FNiagaraSceneProxy *SceneProxy,
+		FNiagaraDynamicDataSprites *DynamicDataSprites,
+		FMeshBatch& OutMeshBatch,
+		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources) const;
+
 	UNiagaraSpriteRendererProperties *Properties;
 	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;
 	class FNiagaraSpriteVertexFactory* VertexFactory;
@@ -253,6 +279,9 @@ private:
 	int32 CustomSortingOffset;
 
 	int32 LastSyncId;
+
+	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
+	int32 NumCutoutVertexPerSubImage = 0;
 };
 
 

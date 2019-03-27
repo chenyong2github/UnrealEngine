@@ -110,26 +110,36 @@ public:
 
 	virtual FText GetText() const override
 	{
+		check(IsInGameThread());
+
 		return Text.Get();
 	}
 
 	virtual FText GetHintText() const override
 	{
+		check(IsInGameThread());
+
 		return HintText.Get();
 	}
 
 	virtual EKeyboardType GetVirtualKeyboardType() const override
 	{
+		check(IsInGameThread());
+
 		return KeyboardType.Get();
 	}
 
 	virtual FVirtualKeyboardOptions GetVirtualKeyboardOptions() const override
 	{
+		check(IsInGameThread());
+
 		return VirtualKeyboardOptions;
 	}
 
 	virtual bool IsMultilineEntry() const override
 	{
+		check(IsInGameThread());
+
 		return false;
 	}
 	//~ End IVirtualKeyboardEntry Interface

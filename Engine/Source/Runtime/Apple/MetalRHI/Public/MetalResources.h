@@ -1103,6 +1103,9 @@ private:
 	
 private:
 	TArray<mtlpp::Library> Library;
+#if !UE_BUILD_SHIPPING
+	class FMetalShaderDebugZipFile* DebugFile;
+#endif
 	FMetalShaderMap Map;
 	FString ShaderLibraryFilename;
 };

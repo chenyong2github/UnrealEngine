@@ -104,3 +104,22 @@ bool FSlateBrush::CanRenderResourceObject(UObject* InResourceObject) const
 
 	return true;
 }
+
+void FSlateBrush::SetResourceObject(class UObject* InResourceObject)
+{
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+	// This check is not safe to run from all threads, and would crash in debug
+	if (!ensure(!IsThreadSafeForSlateRendering() || CanRenderResourceObject(InResourceObject)))
+	{
+		// If we can't render the resource return, don't let people use them as brushes, we'll just crash later.
+		return;
+	}
+#endif
+
+	if (ResourceObject != InResourceObject)
+	{
+		ResourceObject = InResourceObject;
+		// Invalidate resource handle
+		ResourceHandle = FSlateResourceHandle();
+	}
+}

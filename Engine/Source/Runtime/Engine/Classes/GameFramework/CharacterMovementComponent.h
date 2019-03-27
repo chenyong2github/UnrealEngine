@@ -668,6 +668,12 @@ protected:
 	/** Used when throttling "stuck in geometry" logging, to output the number of events we skipped if throttling. */
 	uint32 StuckWarningCountSinceNotify;
 
+	/**
+	 * Used to limit number of jump apex attempts per tick.
+	 * @see MaxJumpApexAttemptsPerSimulation
+	 */
+	int32 NumJumpApexAttempts;
+
 public:
 
 	/** Returns the location at the end of the last tick. */
@@ -720,6 +726,13 @@ public:
 	 */
 	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="1", ClampMax="25", UIMin="1", UIMax="25"))
 	int32 MaxSimulationIterations;
+
+	/**
+	 * Max number of attempts per simulation to attempt to exactly reach the jump apex when falling movement reaches the top of the arc.
+	 * Limiting this prevents deep recursion when special cases cause collision or other conditions which reactivate the apex condition.
+	 */
+	UPROPERTY(Category="Character Movement (General Settings)", EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(ClampMin="1", ClampMax="4", UIMin="1", UIMax="4"))
+	int32 MaxJumpApexAttemptsPerSimulation;
 
 	/**
 	* Max distance we allow simulated proxies to depenetrate when moving out of anything but Pawns.
@@ -908,13 +921,24 @@ public:
 	uint8 bNetworkMovementModeChanged:1;
 
 	/** 
-	 * True when we should ignore server location difference checks for client error on this movement component 
+	 * If true, we should ignore server location difference checks for client error on this movement component.
 	 * This can be useful when character is moving at extreme speeds for a duration and you need it to look
-	 * smooth on clients. Make sure to disable when done, as this would break this character's server-client
-	 * movement correction.
+	 * smooth on clients without the server correcting the client. Make sure to disable when done, as this would
+	 * break this character's server-client movement correction.
+	 * @see bServerAcceptClientAuthoritativePosition, ServerCheckClientError()
 	 */
 	UPROPERTY(Transient, Category="Character Movement", EditAnywhere, BlueprintReadWrite)
 	uint8 bIgnoreClientMovementErrorChecksAndCorrection:1;
+
+	/**
+	 * If true, and server does not detect client position error, server will copy the client movement location/velocity/etc after simulating the move.
+	 * This can be useful for short bursts of movement that are difficult to sync over the network.
+	 * Note that if bIgnoreClientMovementErrorChecksAndCorrection is used, this means the server will not detect an error.
+	 * Also see GameNetworkManager->ClientAuthorativePosition which permanently enables this behavior.
+	 * @see bIgnoreClientMovementErrorChecksAndCorrection, ServerShouldUseAuthoritativePosition()
+	 */
+	UPROPERTY(Transient, Category="Character Movement", EditAnywhere, BlueprintReadWrite)
+	uint8 bServerAcceptClientAuthoritativePosition : 1;
 
 	/**
 	 * If true, event NotifyJumpApex() to CharacterOwner's controller when at apex of jump. Is cleared when event is triggered.
@@ -2150,6 +2174,11 @@ protected:
 	 * @see ServerMoveHandleClientError()
 	 */
 	virtual bool ServerCheckClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+
+	/**
+	 * If ServerCheckClientError() does not find an error, this determines if the server should also copy the client's movement params rather than keep the server sim result.
+	 */
+	virtual bool ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/* Process a move at the given time stamp, given the compressed flags representing various events that occurred (ie jump). */
 	virtual void MoveAutonomous( float ClientTimeStamp, float DeltaTime, uint8 CompressedFlags, const FVector& NewAccel);

@@ -52,6 +52,15 @@ namespace Audio
 		bool PreInit(FMixerBuffer* InBuffer, USoundWave* InWave, ELoopingMode InLoopingMode, bool bInIsSeeking);
 		bool Init();
 
+		// Sets the decoder to use for realtime async decoding
+		void SetDecoder(ICompressedAudioInfo* InCompressedAudioInfo);
+
+		// Sets the raw PCM data buffer to use for the source buffer
+		void SetPCMData(const FRawPCMDataBuffer& InPCMDataBuffer);
+
+		// Sets the precached buffers
+		void SetCachedRealtimeFirstBuffers(TArray<uint8>&& InPrecachedBuffer);
+
 		// Called by source manager when needing more buffers
 		void OnBufferEnd();
 
@@ -68,7 +77,7 @@ namespace Audio
 		bool DidBufferFinish() const { return bBufferFinished; }
 
 		// Called to start an async task to read more data
-		bool ReadMoreRealtimeData(const int32 BufferIndex, EBufferReadMode BufferReadMode);
+		bool ReadMoreRealtimeData(ICompressedAudioInfo* InDecoder, int32 BufferIndex, EBufferReadMode BufferReadMode);
 
 		// Returns true if async task is in progress
 		bool IsAsyncTaskInProgress() const;
@@ -104,15 +113,23 @@ namespace Audio
 		TArray<TSharedPtr<FMixerSourceVoiceBuffer>> SourceVoiceBuffers;
 		TQueue<TSharedPtr<FMixerSourceVoiceBuffer>> BufferQueue;
 		int32 CurrentBuffer;
-		FMixerBuffer* MixerBuffer;
+		// SoundWaves are only set for procedural sound waves
 		USoundWave* SoundWave;
 		IAudioTask* AsyncRealtimeAudioTask;
+		ICompressedAudioInfo* DecompressionState;
 		ELoopingMode LoopingMode;
-		bool bInitialized;
-		bool bBufferFinished;
-		bool bPlayedCachedBuffer;
-		bool bIsSeeking;
-		bool bLoopCallback;
+		int32 NumChannels;
+		Audio::EBufferType::Type BufferType;
+		int32 NumPrecacheFrames;
+		TArray<uint8> CachedRealtimeFirstBuffer;
+
+		uint32 bInitialized : 1;
+		uint32 bBufferFinished : 1;
+		uint32 bPlayedCachedBuffer : 1;
+		uint32 bIsSeeking : 1;
+		uint32 bLoopCallback : 1;
+		uint32 bProcedural : 1;
+		uint32 bIsBus : 1;
 
 	};
 }

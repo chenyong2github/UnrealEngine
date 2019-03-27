@@ -37,6 +37,7 @@ protected:
 	virtual bool CheckForExistingCompletedDownload(const FBackgroundHttpRequestPtr Request, FString& ExistingFilePathOut, int64& ExistingFileSizeOut);
 	virtual void ActivatePendingRequests();
 
+	virtual void ClearAnyTempFilesFromTimeOut();
 protected:
 
 	/** List of Background Http requests that we have called AddRequest on, but have not yet started due to platform active download limits **/

@@ -478,7 +478,7 @@ void UK2Node_GetEngineSubsystem::ExpandNode(class FKismetCompilerContext& Compil
 
 	// Choose appropriate underlying Getter
 	FName Get_FunctionName;
-	if (CustomClass->IsChildOf<ULocalPlayerSubsystem>())
+	if (CustomClass->IsChildOf<UEngineSubsystem>())
 	{
 		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(USubsystemBlueprintLibrary, GetEngineSubsystem);
 	}
@@ -600,7 +600,7 @@ void UK2Node_GetEditorSubsystem::ExpandNode(class FKismetCompilerContext& Compil
 
 	// Choose appropriate underlying Getter
 	FName Get_FunctionName;
-	if (CustomClass->IsChildOf<ULocalPlayerSubsystem>())
+	if (CustomClass->IsChildOf<UEditorSubsystem>())
 	{
 		Get_FunctionName = GET_FUNCTION_NAME_CHECKED(UEditorSubsystemBlueprintLibrary, GetEditorSubsystem);
 	}
@@ -686,7 +686,7 @@ bool UK2Node_GetEditorSubsystem::IsActionFilteredOut(class FBlueprintActionFilte
 {
 	for(UBlueprint* BP : Filter.Context.Blueprints)
 	{
-		if (!FBlueprintEditorUtils::IsBlutility(BP))
+		if (!FBlueprintEditorUtils::IsEditorUtilityBlueprint(BP))
 		{
 			return true;
 		}
@@ -700,7 +700,7 @@ void UK2Node_GetEditorSubsystem::ValidateNodeDuringCompilation(class FCompilerRe
 
 	const UBlueprint* BP = FBlueprintEditorUtils::FindBlueprintForNodeChecked(this);
 
-	if (!FBlueprintEditorUtils::IsBlutility(BP))
+	if (!FBlueprintEditorUtils::IsEditorUtilityBlueprint(BP))
 	{
 		const FText ErrorText = NSLOCTEXT("K2Node", "GetEditorSubsystem_Error", "Editor Subsystems can only be used in Editor Utilities / Blutilities");
 		MessageLog.Error(*ErrorText.ToString(), this);

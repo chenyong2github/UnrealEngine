@@ -90,7 +90,7 @@ public:
 	void SetCategoryEnabled(int32 CategoryId, bool bEnable);
 
 	/** [ALL] set actor for debugging */
-	void SetDebugActor(AActor* Actor);
+	void SetDebugActor(AActor* Actor, bool bSelectInEditor = false);
 
 	/** [ALL] send input event to category */
 	void SendCategoryInputEvent(int32 CategoryId, int32 HandlerId);
@@ -183,7 +183,7 @@ protected:
 	void ServerSetEnabled(bool bEnable);
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
-	void ServerSetDebugActor(AActor* Actor);
+	void ServerSetDebugActor(AActor* Actor, bool bSelectInEditor);
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSetCategoryEnabled(int32 CategoryId, bool bEnable);

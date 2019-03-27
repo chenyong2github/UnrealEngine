@@ -255,6 +255,11 @@ namespace UnrealBuildTool
 		public string BundleVersion;
 
 		/// <summary>
+		/// When building a dynamic library on Apple platforms, specifies the installed name for other binaries that link against it.
+		/// </summary>
+		public string InstallName;
+
+		/// <summary>
 		/// A list of the object files to be linked.
 		/// </summary>
 		public List<FileItem> InputFiles = new List<FileItem>();
@@ -349,6 +354,7 @@ namespace UnrealBuildTool
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
 			BundleVersion = Other.BundleVersion;
+			InstallName = Other.InstallName;
 			InputFiles.AddRange(Other.InputFiles);
 			InputLibraries.AddRange(Other.InputLibraries);
 			DefaultResourceFiles.AddRange(Other.DefaultResourceFiles);

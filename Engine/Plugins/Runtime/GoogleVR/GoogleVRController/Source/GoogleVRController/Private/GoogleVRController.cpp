@@ -73,12 +73,13 @@ class FGoogleVRControllerPlugin : public IGoogleVRControllerPlugin
 		JNIEnv* jenv = FAndroidApplication::GetJavaEnv();
 		static jmethodID Method = FJavaWrapper::FindMethod(jenv, FJavaWrapper::GameActivityClassID, "getApplicationContext", "()Landroid/content/Context;", false);
 		static jobject ApplicationContext = FJavaWrapper::CallObjectMethod(jenv, FJavaWrapper::GameActivityThis, Method);
-		jclass MainClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/GameActivity");
+		jclass MainClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/GameActivity");
 		jclass classClass = jenv->FindClass("java/lang/Class");
 		jmethodID getClassLoaderMethod = jenv->GetMethodID(classClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
-		jobject classLoader = jenv->CallObjectMethod(MainClass, getClassLoaderMethod);
+		auto classLoader = NewScopedJavaObject(jenv, jenv->CallObjectMethod(MainClass, getClassLoaderMethod));
 
-		success = pController->Init(jenv, ApplicationContext, classLoader, options, GVRAPI);
+		success = pController->Init(jenv, ApplicationContext, *classLoader, options, GVRAPI);
+		jenv->DeleteGlobalRef(MainClass);
 #else
 #if GOOGLEVRCONTROLLER_SUPPORTED_EMULATOR_PLATFORMS
 		success = static_cast<gvr::ControllerEmulatorApi*>(pController)->InitEmulator(options, CONTROLLER_EVENT_FORWARDED_PORT);

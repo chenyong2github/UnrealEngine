@@ -72,6 +72,14 @@ FAutoConsoleVariableRef CVarForceRealtimeDecompression(
 	TEXT("0: Allow full decompression on load, 1: force realtime decompression."),
 	ECVF_Default);
 
+static int32 DisableAutomaticPrecacheCvar = 0;
+FAutoConsoleVariableRef CVarDisableAutomaticPrecache(
+	TEXT("au.DisableAutomaticPrecache"),
+	DisableAutomaticPrecacheCvar,
+	TEXT("When set to 1, this disables precaching on load or startup, it will only precache synchronously when playing.\n")
+	TEXT("0: Use normal precaching logic, 1: disables all precaching except for synchronous calls."),
+	ECVF_Default);
+
 static float DecompressionThresholdCvar = 0.0f;
 FAutoConsoleVariableRef CVarDecompressionThreshold(
 	TEXT("au.DecompressionThreshold"),
@@ -208,6 +216,7 @@ FAudioDevice::FAudioDevice()
 	, TestAudioComponent(nullptr)
 	, DebugState(DEBUGSTATE_None)
 	, TransientMasterVolume(1.0f)
+	, MasterVolume(1.0f)
 	, GlobalPitchScale(1.0f)
 	, LastUpdateTime(FPlatformTime::Seconds())
 	, NextResourceID(1)
@@ -217,7 +226,7 @@ FAudioDevice::FAudioDevice()
 	, Effects(nullptr)
 	, CurrentReverbEffect(nullptr)
 	, PlatformAudioHeadroom(1.0f)
-	, DefaultReverbSendLevel(0.2f)
+	, DefaultReverbSendLevel(0.0f)
 	, bHRTFEnabledForAll_OnGameThread(false)
 	, bGameWasTicking(true)
 	, bDisableAudioCaching(false)
@@ -267,6 +276,8 @@ FAudioQualitySettings FAudioDevice::GetQualityLevelSettings()
 
 bool FAudioDevice::Init(int32 InMaxChannels)
 {
+	SCOPED_BOOT_TIMING("FAudioDevice::Init");
+
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
 	if (bIsInitialized)
@@ -295,11 +306,6 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 
 	// If this is true, skip the initial startup precache so we can do it later in the flow
 	GConfig->GetBool(TEXT("Audio"), TEXT("DeferStartupPrecache"), bDeferStartupPrecache, GEngineIni);
-
-	// Hack: Make sure that Android defers startup sounds.
-#if PLATFORM_ANDROID
-	bDeferStartupPrecache = true;
-#endif
 
 	// Get an optional engine ini setting for platform headroom.
 	float Headroom = 0.0f; // in dB
@@ -457,7 +463,7 @@ float FAudioDevice::GetLowPassFilterResonance() const
 void FAudioDevice::PrecacheStartupSounds()
 {
 	// Iterate over all already loaded sounds and precache them. This relies on Super::Init in derived classes to be called last.
-	if (!GIsEditor && GEngine && GEngine->UseSound() )
+	if (!GIsEditor && GEngine && GEngine->UseSound() && DisableAutomaticPrecacheCvar == 0)
 	{
 		for (TObjectIterator<USoundWave> It; It; ++It)
 		{
@@ -3628,7 +3634,9 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 					// This can happen if e.g. the USoundWave pointed to by the WaveInstance is not a valid sound file.
 					// If we don't stop the wave file, it will continue to try initializing the file every frame, which is a perf hit
 					UE_LOG(LogAudio, Log, TEXT("Failed to start sound source for %s"), (WaveInstance->ActiveSound && WaveInstance->ActiveSound->Sound) ? *WaveInstance->ActiveSound->Sound->GetName() : TEXT("UNKNOWN") );
-					Source->Stop();
+					WaveInstance->StopWithoutNotification();
+					Source->WaveInstance = nullptr;
+					FreeSources.Add(Source);
 				}
 			}
 			else if (Source)
@@ -3719,6 +3727,9 @@ void FAudioDevice::Update(bool bGameTicking)
 	}
 
 	bIsStoppingVoicesEnabled = !DisableStoppingVoicesCvar;
+
+	// Update the master volume
+	MasterVolume = GetTransientMasterVolume() * FApp::GetVolumeMultiplier();
 
 	UpdateAudioPluginSettingsObjectCache();
 
@@ -3901,6 +3912,11 @@ void FAudioDevice::Update(bool bGameTicking)
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 #if !UE_BUILD_SHIPPING
+	if (FirstActiveIndex == INDEX_NONE)
+	{
+		return;
+	}
+
 	TArray<FAudioStats::FStatSoundInfo> StatSoundInfos;
 	TArray<FAudioStats::FStatSoundMix> StatSoundMixes;
 	const FVector ListenerPosition = Listeners[0].Transform.GetTranslation();
@@ -4127,7 +4143,7 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 	}
 
 	USoundWave* SoundWave = Cast<USoundWave>(Sound);
-	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGenerating())
+	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
@@ -5114,6 +5130,12 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 
 	if (!bSynchronous && SoundWave->GetPrecacheState() == ESoundWavePrecacheState::NotStarted)
 	{
+		if (!bForceFullDecompression && DisableAutomaticPrecacheCvar == 1)
+		{
+			// Don't schedule a precache for a normal async request because it is currently disabled
+			return;
+		}
+
 		if (IsInGameThread())
 		{
 			// On the game thread, add this sound wave to the referenced sound wave nodes so that it doesn't get GC'd

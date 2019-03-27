@@ -340,6 +340,8 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient.Info;
 		}
 	}
 
+	private GetAdvertisingIdTask AdTask = null;
+
 	private class GetAdvertisingIdTask extends android.os.AsyncTask<String, Integer, String>
 	{
 		@Override
@@ -371,6 +373,15 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient.Info;
 
 	public String AndroidThunkJava_GetAdvertisingId()
 	{
+		try
+		{
+			AdTask.get();
+		}
+		catch (Exception e)
+		{
+			advertisingID = null;
+		}
+
 		return advertisingID;
 	}
 ]]>
@@ -425,11 +436,8 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient.Info;
 			{
 				if (GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this) == 0)
 				{
-					GetAdvertisingIdTask task = new GetAdvertisingIdTask();
-					task.execute();
-
-					// wait for up to 2 seconds (if we don't wait another plugin may request it and cause us to fail)
-					task.get(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
+					AdTask = new GetAdvertisingIdTask();
+					AdTask.execute();
 				}
 			}
 			catch (Exception e)

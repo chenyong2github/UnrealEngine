@@ -223,8 +223,7 @@ public:
 	 *
 	 */
 	void OnRequeueBufferCallback( SLAndroidSimpleBufferQueueItf InQueueInterface );
-
-
+	
 protected:
 
 	enum class EDataReadMode : uint8
@@ -270,6 +269,8 @@ protected:
 
 	/** Decompress through FSLESSoundBuffer, or call USoundWave procedure to generate more PCM data. Returns true/false: did audio loop? */
 	bool ReadMorePCMData( const int32 BufferIndex, EDataReadMode DataReadMode );
+	
+	void NotifySoundBufferEnqueued(const void* Data, int32 DataSize) const;
 };
 
 /**
@@ -352,4 +353,29 @@ protected:
 	
 	friend class FSLESSoundBuffer;
 	friend class FSLESSoundSource;
+};
+
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnAndroidSoundBufferEnqueued,
+									  const void* /**Data*/,
+									  int32 /**Data Size*/,
+									  int32 /**Sample Rate*/,
+									  int32 /**Num Channels*/);
+
+/**
+ Thread-safe wrapper on top of FOnAndroidSoundBufferEnqueued
+ */
+class FAndroidSoundBufferNotification
+{
+public:
+	static FAndroidSoundBufferNotification& Get();
+	
+	FDelegateHandle AddDelegate(const FOnAndroidSoundBufferEnqueued::FDelegate& InNewDelegate);
+	
+	void RemoveDelegate(const FDelegateHandle& Handle);
+	
+	void Broadcast(const void* AudioData, int32 DataSize, int32 SampleRate, int32 NumChannels);
+	
+private:
+	FCriticalSection DelegateLock;
+	FOnAndroidSoundBufferEnqueued InternalDelegate;
 };

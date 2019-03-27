@@ -12,15 +12,16 @@
 // UCircularThrobber
 
 UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer),
-	  bEnableRadius(true)
+	: Super(ObjectInitializer)
+	, bEnableRadius(true)
 {
-	SCircularThrobber::FArguments DefaultArgs;
-	Image = *DefaultArgs._PieceImage;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	static const FSlateBrush StaticBrushStyle = *FCoreStyle::Get().GetBrush("Throbber.CircleChunk");
+	Image = StaticBrushStyle;
 
-	NumberOfPieces = DefaultArgs._NumPieces;
-	Period = DefaultArgs._Period;
-	Radius = DefaultArgs._Radius;
+	NumberOfPieces = 6;
+	Period = 0.75f;
+	Radius = 16.f;
 }
 
 void UCircularThrobber::ReleaseSlateResources(bool bReleaseChildren)
@@ -32,8 +33,6 @@ void UCircularThrobber::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UCircularThrobber::RebuildWidget()
 {
-	SCircularThrobber::FArguments DefaultArgs;
-
 	MyCircularThrobber = SNew(SCircularThrobber)
 		.PieceImage(&Image)
 		.NumPieces(FMath::Clamp(NumberOfPieces, 1, 25))

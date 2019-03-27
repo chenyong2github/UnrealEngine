@@ -37,6 +37,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/EngineVersion.h"
 #include "Stats/Stats2.h"
+#include "Engine/ChildConnection.h"
 
 DEFINE_LOG_CATEGORY( LogDemo );
 
@@ -749,6 +750,7 @@ void UDemoNetDriver::FinishDestroy()
 		}
 	}
 
+	CleanUpSplitscreenConnections(true);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	Super::FinishDestroy();
 }
@@ -1205,6 +1207,7 @@ bool UDemoNetDriver::ContinueListen(FURL& ListenURL)
 		{
 			SpectatorController->Player = nullptr;		// Force APlayerController::DestroyNetworkActorHandled to return false
 			World->DestroyActor(SpectatorController, true);
+			SpectatorControllers.Empty();
 			SpectatorController = nullptr;
 		}
 
@@ -1466,24 +1469,29 @@ void UDemoNetDriver::TickDispatch( float DeltaSeconds )
 
 	// Update time dilation on spectator pawn to compensate for any demo dilation 
 	//	(we want to continue to fly around in real-time)
-	if ( SpectatorController != nullptr )
+	for (APlayerController* CurSpectatorController : SpectatorControllers)
 	{
+		if (CurSpectatorController == nullptr)
+		{
+			continue;
+		}
+
 		if ( World->GetWorldSettings()->DemoPlayTimeDilation > KINDA_SMALL_NUMBER )
 		{
-			SpectatorController->CustomTimeDilation = 1.0f / World->GetWorldSettings()->DemoPlayTimeDilation;
+			CurSpectatorController->CustomTimeDilation = 1.0f / World->GetWorldSettings()->DemoPlayTimeDilation;
 		}
 		else
 		{
-			SpectatorController->CustomTimeDilation = 1.0f;
+			CurSpectatorController->CustomTimeDilation = 1.0f;
 		}
 
-		if ( SpectatorController->GetSpectatorPawn() != nullptr )
+		if (CurSpectatorController->GetSpectatorPawn() != nullptr)
 		{
-			SpectatorController->GetSpectatorPawn()->CustomTimeDilation = SpectatorController->CustomTimeDilation;
-					
-			SpectatorController->GetSpectatorPawn()->PrimaryActorTick.bTickEvenWhenPaused = true;
+			CurSpectatorController->GetSpectatorPawn()->CustomTimeDilation = CurSpectatorController->CustomTimeDilation;
 
-			USpectatorPawnMovement* SpectatorMovement = Cast<USpectatorPawnMovement>(SpectatorController->GetSpectatorPawn()->GetMovementComponent());
+			CurSpectatorController->GetSpectatorPawn()->PrimaryActorTick.bTickEvenWhenPaused = true;
+
+			USpectatorPawnMovement* SpectatorMovement = Cast<USpectatorPawnMovement>(CurSpectatorController->GetSpectatorPawn()->GetMovementComponent());
 
 			if ( SpectatorMovement )
 			{
@@ -2426,7 +2434,7 @@ void UDemoNetDriver::TickDemoRecordFrame( float DeltaSeconds )
 	}
 
 	const double RecordFrameStartTime = FPlatformTime::Seconds();
-	const double RecordTimeLimit = (MaxDesiredRecordTimeMS * 1000.f);
+	const double RecordTimeLimit = (MaxDesiredRecordTimeMS / 1000.f);
 
 	// Mark any new streaming levels, so that they are saved out this frame
 	if (!HasLevelStreamingFixes())
@@ -2927,12 +2935,7 @@ void UDemoNetDriver::PauseChannels( const bool bPause )
 
 		ActorChannel->CustomTimeDilation = bPause ? 0.0f : 1.0f;
 
-		if ( ActorChannel->GetActor() == SpectatorController )
-		{
-			continue;
-		}
-
-		if ( ActorChannel->GetActor() == nullptr )
+		if (ActorChannel->GetActor() == nullptr || SpectatorControllers.Contains(ActorChannel->GetActor()) )
 		{
 			continue;
 		}
@@ -3189,6 +3192,13 @@ void UDemoNetDriver::ProcessSeamlessTravel(int32 LevelIndex)
 		Controllers.Add(Iterator->Get());
 	}
 
+	// Clean up any splitscreen spectators if we have them.
+	// Let the destroy below handle deletion of the objects.
+	if (SpectatorControllers.Num() > 1)
+	{
+		CleanUpSplitscreenConnections(false);
+	}
+
 	for (int i = 0; i < Controllers.Num(); i++)
 	{
 		if (Controllers[i])
@@ -3196,8 +3206,13 @@ void UDemoNetDriver::ProcessSeamlessTravel(int32 LevelIndex)
 			// bNetForce is true so that the replicated spectator player controller will
 			// be destroyed as well.
 			Controllers[i]->Destroy(true);
+
+			// If we can, remove the spectator here as well.
+			SpectatorControllers.Remove(Cast<APlayerController>(Controllers[i]));
 		}
 	}
+
+	SpectatorControllers.Empty();
 
 	// Set this to nullptr since we just destroyed it.
 	SpectatorController = nullptr;
@@ -3914,21 +3929,15 @@ void UDemoNetDriver::FinalizeFastForward( const double StartTime )
 	UE_LOG( LogDemo, Log, TEXT( "Fast forward took %.2f seconds." ), FastForwardTotalSeconds );
 }
 
-void UDemoNetDriver::SpawnDemoRecSpectator( UNetConnection* Connection, const FURL& ListenURL )
+APlayerController* UDemoNetDriver::CreateDemoPlayerController(UNetConnection* Connection, const FURL& ListenURL)
 {
-	// Optionally skip spawning the demo spectator if requested via the URL option
-	if (ListenURL.HasOption(TEXT("SkipSpawnSpectatorController")))
-	{
-		return;
-	}
-
-	check( Connection != nullptr );
+	check(Connection != nullptr);
 
 	// Get the replay spectator controller class from the default game mode object,
 	// since the game mode instance isn't replicated to clients of live games.
 	AGameStateBase* GameState = GetWorld() != nullptr ? GetWorld()->GetGameState() : nullptr;
 	TSubclassOf<AGameModeBase> DefaultGameModeClass = GameState != nullptr ? GameState->GameModeClass : nullptr;
-	
+
 	// If we don't have a game mode class from the world, try to get it from the URL option.
 	// This may be true on clients who are recording a replay before the game mode class was replicated to them.
 	if (DefaultGameModeClass == nullptr)
@@ -3946,53 +3955,162 @@ void UDemoNetDriver::SpawnDemoRecSpectator( UNetConnection* Connection, const FU
 
 	if ( C == nullptr )
 	{
-		UE_LOG( LogDemo, Error, TEXT( "UDemoNetDriver::SpawnDemoRecSpectator: Failed to load demo spectator class." ) );
-		return;
+		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::CreateDemoPlayerController: Failed to load demo spectator class."));
+		return nullptr;
 	}
 
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want these to save into a map
-	SpectatorController = World->SpawnActor<APlayerController>( C, SpawnInfo );
+	APlayerController* NewDemoController = World->SpawnActor<APlayerController>(C, SpawnInfo);
 
-	if ( SpectatorController == nullptr )
+	if (NewDemoController == nullptr)
 	{
-		UE_LOG( LogDemo, Error, TEXT( "UDemoNetDriver::SpawnDemoRecSpectator: Failed to spawn demo spectator." ) );
-		return;
+		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::CreateDemoPlayerController: Failed to spawn demo spectator."));
+		return nullptr;
 	}
 
 	// Streaming volumes logic must not be affected by replay spectator camera
-	SpectatorController->bIsUsingStreamingVolumes = false;
+	NewDemoController->bIsUsingStreamingVolumes = false;
 
-	// Make sure SpectatorController->GetNetDriver returns this driver. Ensures functions that depend on it,
+	// Make sure the player controller GetNetDriver returns this driver. Ensures functions that depend on it,
 	// such as IsLocalController, work as expected.
-	SpectatorController->SetNetDriverName(NetDriverName);
+	NewDemoController->SetNetDriverName(NetDriverName);
 
 	// If the controller doesn't have a player state, we are probably recording on a client.
 	// Spawn one manually.
-	if ( SpectatorController->PlayerState == nullptr && GetWorld() != nullptr && GetWorld()->IsRecordingClientReplay())
+	if (NewDemoController->PlayerState == nullptr && GetWorld() != nullptr && GetWorld()->IsRecordingClientReplay())
 	{
-		SpectatorController->InitPlayerState();
+		NewDemoController->InitPlayerState();
 	}
 
 	// Tell the game that we're spectator and not a normal player
-	if (SpectatorController->PlayerState)
+	if (NewDemoController->PlayerState)
 	{
-		SpectatorController->PlayerState->bOnlySpectator = true;
+		NewDemoController->PlayerState->bOnlySpectator = true;
 	}
 
-	for ( FActorIterator It( World ); It; ++It)
+	for (FActorIterator It(World); It; ++It)
 	{
-		if ( It->IsA( APlayerStart::StaticClass() ) )
+		if (It->IsA(APlayerStart::StaticClass()))
 		{
-			SpectatorController->SetInitialLocationAndRotation( It->GetActorLocation(), It->GetActorRotation() );
+			NewDemoController->SetInitialLocationAndRotation(It->GetActorLocation(), It->GetActorRotation());
 			break;
 		}
 	}
-	
-	SpectatorController->SetReplicates( true );
-	SpectatorController->SetAutonomousProxy( true );
 
-	SpectatorController->SetPlayer( Connection );
+	NewDemoController->SetReplicates(true);
+	NewDemoController->SetAutonomousProxy(true);
+	NewDemoController->SetPlayer(Connection);
+
+	return NewDemoController;
+}
+
+void UDemoNetDriver::SpawnDemoRecSpectator( UNetConnection* Connection, const FURL& ListenURL )
+{
+	// Optionally skip spawning the demo spectator if requested via the URL option
+	if (ListenURL.HasOption(TEXT("SkipSpawnSpectatorController")))
+	{
+		return;
+	}
+
+	SpectatorController = CreateDemoPlayerController(Connection, ListenURL);
+	SpectatorControllers.Add(SpectatorController);
+}
+
+bool UDemoNetDriver::SpawnSplitscreenViewer(ULocalPlayer* NewPlayer, UWorld* InWorld)
+{
+	if (NewPlayer == nullptr || InWorld == nullptr)
+	{
+		UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::SpawnSplitscreenViewer: Local Player or World is invalid!"));
+		return false;
+	}
+
+	if (ClientConnections.Num() == 0 && ServerConnection == nullptr)
+	{
+		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::SpawnSplitscreenViewer: This netdriver has no demo connection data"));
+		return false;
+	}
+
+	UNetConnection* ChildConnection = CreateChild((ClientConnections.Num() > 0) ? ClientConnections[0] : ServerConnection);
+
+	APlayerController* NewSplitscreenController = CreateDemoPlayerController(ChildConnection, TEXT(""));
+	if (NewSplitscreenController == nullptr)
+	{
+		UE_LOG(LogDemo, Warning, TEXT("UDemoNetDriver::SpawnSplitscreenViewer: Unable to create new splitscreen controller"));
+		return false;
+	}
+
+	// Link this spectator to the given local player, as this will facilitate spectator pawn creation 
+	// (spectator pawns only create if the controller is linked to a local player)
+	NewSplitscreenController->Player = NewPlayer;
+	NewSplitscreenController->NetPlayerIndex = GEngine->GetGamePlayers(InWorld).Find(NewPlayer);
+
+	// Create the Pawn
+	NewSplitscreenController->ChangeState(NAME_Spectating);
+	NewPlayer->CurrentNetSpeed = 0;
+
+	// Link the local player to the player controller as the localplayer has been marked as active
+	// but without a playercontroller, the player will never be considered "ready" by other systems.
+	NewPlayer->PlayerController = NewSplitscreenController;
+
+	// This would typically be set via SetPlayer, but we need to call SetPlayer with the LocalPlayer
+	// and not with the child connection, otherwise we never create the input controls we need.
+	ChildConnection->PlayerController = NewSplitscreenController;
+	ChildConnection->OwningActor = NewSplitscreenController;
+	
+	// Create input control
+	NewSplitscreenController->SetPlayer(NewPlayer);
+
+	// Add to the list
+	SpectatorControllers.Add(NewSplitscreenController);
+
+	return true;
+}
+
+bool UDemoNetDriver::RemoveSplitscreenViewer(APlayerController* RemovePlayer, bool bMarkOwnerForDeletion)
+{
+	UE_LOG(LogDemo, Log, TEXT("Attempting to remove splitscreen viewer!"));
+	if (RemovePlayer && SpectatorControllers.Contains(RemovePlayer) && RemovePlayer != SpectatorController)
+	{
+		SpectatorControllers.Remove(RemovePlayer);
+		UNetConnection* RemovedNetConnection = RemovePlayer->NetConnection;
+		if (!bMarkOwnerForDeletion)
+		{
+			RemovedNetConnection->OwningActor = nullptr;
+		}
+		RemovedNetConnection->Close();
+		RemovedNetConnection->CleanUp();
+		RemovePlayer->NetConnection = nullptr;
+		return true;
+	}
+
+	return false;
+}
+
+int32 UDemoNetDriver::CleanUpSplitscreenConnections(bool bDeleteOwner)
+{
+	int32 NumSplitscreenConnectionsCleaned = 0;
+
+	for (APlayerController* CurController : SpectatorControllers)
+	{
+		UNetConnection* ControllerNetConnection = CurController->NetConnection;
+		if (ControllerNetConnection && ControllerNetConnection->IsA(UChildConnection::StaticClass()))
+		{
+			++NumSplitscreenConnectionsCleaned;
+			// With this toggled, this prevents actor deletion (which we don't want to do when scrubbing)
+			if (!bDeleteOwner)
+			{
+				ControllerNetConnection->OwningActor = nullptr;
+			}
+			ControllerNetConnection->Close();
+			ControllerNetConnection->CleanUp();
+			CurController->NetConnection = nullptr;
+		}
+	}
+
+	FString OwnerDeletionStr(bDeleteOwner ? TEXT("with") : TEXT("without"));
+	UE_LOG(LogDemo, Log, TEXT("Cleaned up %d splitscreen connections %s owner deletion"), NumSplitscreenConnectionsCleaned, *OwnerDeletionStr);
+	return NumSplitscreenConnectionsCleaned;
 }
 
 void UDemoNetDriver::ReplayStreamingReady( const FStartStreamingResult& Result )
@@ -4252,44 +4370,20 @@ void UDemoNetDriver::PrepFastForwardLevels()
 				continue;
 			}
 
-			TSet<TWeakObjectPtr<AActor>> LevelActors;
+			bool bStartupActors = false;
+
 			for (AActor* Actor : Level->Actors)
 			{
-				if (Actor == nullptr || !Actor->IsNetStartupActor())
+				if (Actor != nullptr && Actor->IsNetStartupActor())
 				{
-					continue;
-				}
-				else if (DeletedNetStartupActors.Contains(Actor->GetFullName()))
-				{
-					// Put this actor on the rollback list so we can undelete it during future scrubbing,
-					// then delete it.
-					QueueNetStartupActorForRollbackViaDeletion(Actor);
-					LocalWorld->DestroyActor(Actor, true);
-				}
-				else
-				{
-					if (RollbackNetStartupActors.Contains(Actor->GetFullName()))
-					{
-						LocalWorld->DestroyActor(Actor, true);
-					}
-					else
-					{
-					LevelActors.Add(Actor);
+					bStartupActors = true;
+					break;
 				}
 			}
-			}
 
-			TArray<AActor*> SpawnedActors;
-			RespawnNecessaryNetStartupActors(SpawnedActors, Level);
-
-			for(AActor* Actor : SpawnedActors)
+			if (bStartupActors)
 			{
-				LevelActors.Add(Actor);
-			}
-
-			if (LevelActors.Num() > 0)
-			{
-				LevelsPendingFastForward.Emplace(Level, MoveTemp(LevelActors));
+				LevelsPendingFastForward.Add(Level);
 			}
 		}
 	}
@@ -4339,32 +4433,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 	LevelIndices.Reserve(LevelsPendingFastForward.Num());
 	StartupActors.Reserve(LevelsPendingFastForward.Num() * 4);
 
-	for (auto It = LevelsPendingFastForward.CreateIterator(); It; ++It)
-	{
-		// Track the appropriate level, and mark it as ready.
-		FLevelStatus& LevelStatus = GetLevelStatus(GetLevelPackageName(*It.Key()));
-		LevelIndices.Add(LevelStatus.LevelIndex);
-		LevelStatus.bIsReady = true;
-
-		// Quick sanity check to make sure the actors are still valid
-		// NOTE: The only way any of these should not be valid is if the level was unloaded,
-		//			or something in the demo caused the actor to be destroyed *before*
-		//			the level was ready. Either case seems bad if we've made it this far.
-		TSet<TWeakObjectPtr<AActor>>& LevelStartupActors = It.Value();
-		for (auto ActorIt = LevelStartupActors.CreateIterator(); ActorIt; ++ActorIt)
-		{
-			if (!ensure((*ActorIt).IsValid()))
-			{
-				ActorIt.RemoveCurrent();
-			}
-		}
-
-		LocalLevels.Add(It.Key());
-		StartupActors.Append(MoveTemp(LevelStartupActors));
-	}
-
-	LevelsPendingFastForward.Reset();
-
 	struct FLocalReadPacketsHelper
 	{
 		FLocalReadPacketsHelper(UDemoNetDriver& InDriver, const float InLastPacketTime):
@@ -4391,9 +4459,9 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			{
 				Ar.Seek(PreFramePos);
 				if (ensure(NumPackets != 0))
-	{
+				{
 					Packets.RemoveAt(NumPackets, Packets.Num() - NumPackets);
-	}
+				}
 				return false;
 			}
 
@@ -4401,9 +4469,9 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 		}
 
 		bool IsError() const
-	{
+		{
 			return bErrorOccurred;
-	}
+		}
 
 		TArray<FPlaybackPacket> Packets;
 
@@ -4412,15 +4480,18 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 		UDemoNetDriver& Driver;
 		const float LastPacketTime;
 
-	// We only want to process packets that are before anything we've currently processed.
-	// Further, we want to make sure that we leave the archive in a good state for later use.
-	int32 NumPackets = 0;
-	float LastReadTime = 0;
-	FArchivePos PreFramePos = 0;
+		// We only want to process packets that are before anything we've currently processed.
+		// Further, we want to make sure that we leave the archive in a good state for later use.
+		int32 NumPackets = 0;
+		float LastReadTime = 0;
+		FArchivePos PreFramePos = 0;
 
 		bool bErrorOccurred = false;
 
 	} ReadPacketsHelper(*this, LastProcessedPacketTime);
+
+	DeletedNetStartupActors.Empty();
+	DeletedActorGuids.Empty();
 
 	{
 		auto IgnoreReceivedExportGUIDs = ((UPackageMapClient*)ServerConnection->PackageMap)->ScopedIgnoreReceivedExportGUIDs();
@@ -4451,7 +4522,39 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 				FArchivePos PacketOffset = 0;
 				*CheckpointArchive << PacketOffset;
-				CheckpointArchive->Seek(PacketOffset + CheckpointArchive->Tell());
+
+				PacketOffset += CheckpointArchive->Tell();
+
+				if (PlaybackDemoHeader.Version >= HISTORY_MULTIPLE_LEVELS)
+				{
+					int32 LevelIndex;
+					*CheckpointArchive << LevelIndex;
+				}
+
+				if (PlaybackDemoHeader.Version >= HISTORY_DELETED_STARTUP_ACTORS)
+				{
+					if (bDeltaCheckpoint)
+					{
+						TSet<FString> DeltaActors;
+						*CheckpointArchive << DeltaActors;
+
+						DeletedNetStartupActors.Append(DeltaActors);
+
+						TSet<FNetworkGUID> DeltaGuids;
+						*CheckpointArchive << DeltaGuids;
+
+						DeletedActorGuids.Append(DeltaGuids);
+					}
+					else
+					{
+						DeletedNetStartupActors.Empty();
+						DeletedActorGuids.Empty();
+
+						*CheckpointArchive << DeletedNetStartupActors;
+					}
+				}
+
+				CheckpointArchive->Seek(PacketOffset);
 
 				if (!ReadPacketsHelper.ReadPackets(*CheckpointArchive) && ReadPacketsHelper.IsError())
 				{
@@ -4481,6 +4584,54 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 	// If we've gotten this far, it means we should have something to process.
 	check(ReadPacketsHelper.Packets.Num() > 0);
+
+	UWorld* LocalWorld = GetWorld();
+	for (ULevel* Level : LevelsPendingFastForward)
+	{
+		// Track the appropriate level, and mark it as ready.
+		FLevelStatus& LevelStatus = GetLevelStatus(GetLevelPackageName(*Level));
+		LevelIndices.Add(LevelStatus.LevelIndex);
+		LevelStatus.bIsReady = true;
+
+		TSet<TWeakObjectPtr<AActor>> LevelActors;
+		for (AActor* Actor : Level->Actors)
+		{
+			if (Actor == nullptr || !Actor->IsNetStartupActor())
+			{
+				continue;
+			}
+			else if (DeletedNetStartupActors.Contains(Actor->GetFullName()))
+			{
+				// Put this actor on the rollback list so we can undelete it during future scrubbing,
+				// then delete it.
+				QueueNetStartupActorForRollbackViaDeletion(Actor);
+				LocalWorld->DestroyActor(Actor, true);
+			}
+			else
+			{
+				if (RollbackNetStartupActors.Contains(Actor->GetFullName()))
+				{
+					LocalWorld->DestroyActor(Actor, true);
+				}
+				else
+				{
+					StartupActors.Add(Actor);
+				}
+			}
+		}
+
+		TArray<AActor*> SpawnedActors;
+		RespawnNecessaryNetStartupActors(SpawnedActors, Level);
+
+		for (AActor* Actor : SpawnedActors)
+		{
+			StartupActors.Add(Actor);
+		}
+
+		LocalLevels.Add(Level);
+	}
+
+	LevelsPendingFastForward.Reset();
 
 	// It's possible that the level we're streaming in may spawn Dynamic Actors.
 	// In that case, we want to make sure we track them so we can process them below.
@@ -4702,6 +4853,9 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		// Clean package map to prepare to restore it to the checkpoint state
 		GuidCache->ResetCacheForDemo();
 
+		// Since we only count the number of sub-spectators, add one more slot for main spectator
+		// Very small optimization. We do want to clear this so that we don't end up doing during ProcessSeamlessTravel
+		SpectatorControllers.Empty(CleanUpSplitscreenConnections(true) + 1);
 		SpectatorController = nullptr;
 
 		ServerConnection->Close();
@@ -4776,6 +4930,21 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 #if 1
 	TSet<const AActor*> KeepAliveActors;
 
+	// Determine if an Actor has a reference to a spectator in some way.
+	// This prevents garbage collection on splitscreen playercontrollers
+	auto HasPlayerSpectatorRef = [this](const FActorIterator& InActorIterator) {
+		for (const APlayerController* CurSpectator : SpectatorControllers)
+		{
+			if (*InActorIterator == CurSpectator || *InActorIterator == CurSpectator->GetSpectatorPawn()
+				|| InActorIterator->GetOwner() == CurSpectator)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+
 	// Destroy all non startup actors. They will get restored with the checkpoint
 	for ( FActorIterator It( GetWorld() ); It; ++It )
 	{
@@ -4789,7 +4958,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			AddNonQueuedActorForScrubbing(*It);
 		}
 		
-		const bool bShouldPreserveForPlayerController = (SpectatorController != nullptr && (*It == SpectatorController || *It == SpectatorController->GetSpectatorPawn() || It->GetOwner() == SpectatorController));
+		const bool bShouldPreserveForPlayerController = HasPlayerSpectatorRef(It);
 		const bool bShouldPreserveForRewindability = (It->bReplayRewindable && !It->IsNetStartupActor());										
 
 		if (bShouldPreserveForPlayerController || bShouldPreserveForRewindability)
@@ -4868,6 +5037,8 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
 
+	// Going to be recreating the splitscreen connections, but keep around the player controller.
+	CleanUpSplitscreenConnections(false);
 	ServerConnection->Close();
 	ServerConnection->CleanUp();
 
@@ -4898,6 +5069,15 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	// Create fake control channel
 	CreateInitialClientChannels();
+
+	// Respawn child connections as the parent connection has been recreated.
+	for (APlayerController* CurController : SpectatorControllers)
+	{
+		if (CurController != SpectatorController)
+		{
+			RestoreConnectionPostScrub(CurController, CreateChild(ServerConnection));
+		}
+	}
 
 	// Catch a rare case where the spectator controller is null, but a valid GUID is
 	// found on the GuidCache. The weak pointers in the NetGUIDLookup map are probably
@@ -5321,6 +5501,30 @@ bool UDemoNetDriver::ComparePropertyState(const FDemoSavedPropertyState& State) 
 	return bWasDifferent;
 }
 
+void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConnection* NetConnection)
+{
+	check(NetConnection != nullptr);
+	check(PC != nullptr);
+
+	PC->Role = ROLE_AutonomousProxy;
+	PC->NetConnection = NetConnection;
+	NetConnection->LastReceiveTime = Time;
+	NetConnection->LastReceiveRealtime = FPlatformTime::Seconds();
+	NetConnection->LastGoodPacketRealtime = FPlatformTime::Seconds();
+	NetConnection->State = USOCK_Open;
+	NetConnection->PlayerController = PC;
+	NetConnection->OwningActor = PC;
+}
+
+void UDemoNetDriver::SetSpectatorController(APlayerController* PC)
+{
+	SpectatorController = PC;
+	if (PC != nullptr)
+	{
+		SpectatorControllers.AddUnique(PC);
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	UDemoNetConnection.
 -----------------------------------------------------------------------------*/
@@ -5411,39 +5615,39 @@ void UDemoNetConnection::FlushNet( bool bIgnoreSimulation )
 
 void UDemoNetConnection::HandleClientPlayer( APlayerController* PC, UNetConnection* NetConnection )
 {
+	UDemoNetDriver* DemoDriver = GetDriver();
 	// If the spectator is the same, assume this is for scrubbing, and we are keeping the old one
 	// (so don't set the position, since we want to persist all that)
-	if ( GetDriver()->SpectatorController == PC )
+	if (DemoDriver->SpectatorController == PC )
 	{
-		PC->Role			= ROLE_AutonomousProxy;
-		PC->NetConnection	= NetConnection;
-		LastReceiveTime		= Driver->Time;
-		LastReceiveRealtime = FPlatformTime::Seconds();
-		LastGoodPacketRealtime = FPlatformTime::Seconds();
-		State				= USOCK_Open;
-		PlayerController	= PC;
-		OwningActor			= PC;
+		DemoDriver->RestoreConnectionPostScrub(PC, NetConnection);
+		DemoDriver->SetSpectatorController(PC);
 		return;
 	}
 
 	ULocalPlayer* LocalPlayer = nullptr;
-	for (FLocalPlayerIterator It(GEngine, Driver->GetWorld()); It; ++It)
+	uint8 PlayerIndex = 0;
+	// Attempt to find the player that doesn't already have a connection.
+	for (FLocalPlayerIterator It(GEngine, Driver->GetWorld()); It; ++It, PlayerIndex++)
 	{
-		LocalPlayer = *It;
-		break;
+		if (PC->NetPlayerIndex == PlayerIndex)
+		{
+			LocalPlayer = *It;
+			break;
+		}
 	}
 	int32 SavedNetSpeed = LocalPlayer ? LocalPlayer->CurrentNetSpeed : 0;
 
 	Super::HandleClientPlayer( PC, NetConnection );
 	
 	// Restore the netspeed if we're a local replay
-	if (GetDriver()->bIsLocalReplay && LocalPlayer)
+	if (DemoDriver->bIsLocalReplay && LocalPlayer)
 	{
 		LocalPlayer->CurrentNetSpeed = SavedNetSpeed;
 	}
 
-	// Assume this is our special spectator controller
-	GetDriver()->SpectatorController = PC;
+	// This is very likely our main demo controller.
+	DemoDriver->SetSpectatorController(PC);
 
 	for ( FActorIterator It( Driver->World ); It; ++It)
 	{
@@ -5570,6 +5774,32 @@ void UDemoNetDriver::OnSeamlessTravelStartDuringRecording(const FString& LevelNa
 	WriteNetworkDemoHeader(Error);
 
 	ReplayStreamer->RefreshHeader();
+}
+
+void UDemoNetDriver::InitDestroyedStartupActors()
+{
+	Super::InitDestroyedStartupActors();
+
+	if (World)
+	{
+		check(DeletedNetStartupActors.Num() == 0);
+		check(DeltaDeletedNetStartupActors.Num() == 0);
+
+		// add startup actors destroyed before the creation of this net driver
+		for (auto LevelIt(World->GetLevelIterator()); LevelIt; ++LevelIt)
+		{
+			ULevel* Level = *LevelIt;
+			if (Level)
+			{
+				const TArray<FReplicatedStaticActorDestructionInfo>& DestroyedReplicatedStaticActors = Level->GetDestroyedReplicatedStaticActors();
+				for(const FReplicatedStaticActorDestructionInfo& Info : DestroyedReplicatedStaticActors)
+				{
+					DeletedNetStartupActors.Add(Info.FullName);
+					DeltaDeletedNetStartupActors.Add(Info.FullName);
+				}
+			}
+		}
+	}
 }
 
 void UDemoNetDriver::NotifyActorDestroyed( AActor* Actor, bool IsSeamlessTravel )

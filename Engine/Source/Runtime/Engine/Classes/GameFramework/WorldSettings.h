@@ -683,7 +683,7 @@ public:
 
 	// If paused, FName of person pausing the game.
 	UE_DEPRECATED(4.23, "This property is deprecated. Please use Get/SetPauserPlayerState().")
-	UPROPERTY(transient, replicated)
+	UPROPERTY(transient)
 	class APlayerState* Pauser;
 
 	/** valid only during replication - information about the player(s) being replicated to

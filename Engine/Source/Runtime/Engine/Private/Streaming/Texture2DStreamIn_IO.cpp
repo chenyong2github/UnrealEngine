@@ -59,7 +59,11 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 
 		if (MipIndex == PendingFirstMip)
 		{
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 			IOFilename = MipMap.BulkData.GetFilename();
+#else
+			verify(Context.Texture->GetMipDataFilename(MipIndex, IOFilename));
+#endif
 
 			if (GEventDrivenLoaderEnabled)
 			{
@@ -72,12 +76,14 @@ void FTexture2DStreamIn_IO::SetIOFilename(const FContext& Context)
 				}
 			}
 		}
+#if !TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA
 		else if (IOFilename != MipMap.BulkData.GetFilename())
 		{
 			UE_LOG(LogTexture, Error, TEXT("All of the streaming mips must be stored in the same file %s %s."), *IOFilename, *MipMap.BulkData.GetFilename());
 			IOFilename.Reset();
 			break;
 		}
+#endif
 	}
 
 	if (IOFilename.IsEmpty())

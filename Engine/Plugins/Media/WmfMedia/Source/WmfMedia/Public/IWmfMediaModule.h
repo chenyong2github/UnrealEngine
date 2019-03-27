@@ -18,6 +18,12 @@ class IWmfMediaModule
 public:
 
 	/**
+	 * Is the Wmf media module initialized?
+	 @return True if the module is initialized.
+	 */
+	virtual bool IsInitialized() const = 0;
+
+	/**
 	 * Creates a Windows Media Foundation based media player.
 	 *
 	 * @param EventSink The object that receives media events from the player.

@@ -55,6 +55,12 @@ static TAutoConsoleVariable<int32> CVarSubsurfaceScattering(
 	TEXT(" 1: enabled (default)"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
+	TEXT("r.AmbientOcclusion.Compute.Smooth"),
+	1,
+	TEXT("Whether to smooth SSAO output when TAA is disabled"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 bool IsAmbientCubemapPassRequired(const FSceneView& View)
 {
 	FScene* Scene = (FScene*)View.Family->Scene;
@@ -209,11 +215,25 @@ static FRenderingCompositeOutputRef AddPostProcessingAmbientOcclusion(FRHIComman
 		GBufferA = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.GBufferA));
 	}
 
-	FRenderingCompositePass* AmbientOcclusionPassMip0 = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion(Context.View, FullResAOType, false));
+	// If there is no temporal upsampling, we need a smooth pass to get rid of the grid pattern.
+	// PS version has relatively smooth result so no need to do extra work
+	const bool bNeedSmoothingPass = FullResAOType != ESSAOType::EPS && Context.View.AntiAliasingMethod != AAM_TemporalAA && CVarSSAOSmoothPass.GetValueOnRenderThread();
+	const EPixelFormat SmoothingPassInputFormat = bNeedSmoothingPass ? PF_G8 : PF_Unknown;
+
+	FRenderingCompositePass* AmbientOcclusionPassMip0 = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbientOcclusion(Context.View, FullResAOType, false, bNeedSmoothingPass, SmoothingPassInputFormat));
 	AmbientOcclusionPassMip0->SetInput(ePId_Input0, GBufferA);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input1, AmbientOcclusionInMip1);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input2, AmbientOcclusionPassMip1);
 	AmbientOcclusionPassMip0->SetInput(ePId_Input3, HZBInput);
+	FRenderingCompositePass* FinalOutputPass = AmbientOcclusionPassMip0;
+
+	if (bNeedSmoothingPass)
+	{
+		FRenderingCompositePass* SSAOSmoothPass;
+		SSAOSmoothPass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusionSmooth(FullResAOType, true));
+		SSAOSmoothPass->SetInput(ePId_Input0, AmbientOcclusionPassMip0);
+		FinalOutputPass = SSAOSmoothPass;
+	}
 
 	// to make sure this pass is processed as well (before), needed to make process decals before computing AO
 	if(AmbientOcclusionInMip1)
@@ -225,11 +245,11 @@ static FRenderingCompositeOutputRef AddPostProcessingAmbientOcclusion(FRHIComman
 		AmbientOcclusionPassMip0->AddDependency(Context.FinalOutput);
 	}
 
-	Context.FinalOutput = FRenderingCompositeOutputRef(AmbientOcclusionPassMip0);
+	Context.FinalOutput = FRenderingCompositeOutputRef(FinalOutputPass);
 
 	SceneContext.bScreenSpaceAOIsValid = true;
 
-	return FRenderingCompositeOutputRef(AmbientOcclusionPassMip0);
+	return FRenderingCompositeOutputRef(FinalOutputPass);
 }
 
 void FCompositionLighting::ProcessBeforeBasePass(FRHICommandListImmediate& RHICmdList, FViewInfo& View, bool bDBuffer, uint32 SSAOLevels)

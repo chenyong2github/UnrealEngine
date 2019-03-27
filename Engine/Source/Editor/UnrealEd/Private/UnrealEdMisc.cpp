@@ -635,7 +635,9 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 	// allow a little bit of slop in the timing in case the event is only firing slightly too soon, even though that is technically impossible.
 	if (Now <= LastHeartbeatTime + HeartbeatInvervalSec*0.9)
 	{
-		UE_LOG(LogUnrealEdMisc, Warning, TEXT("Heartbeat event firing too frequently (%.3f sec). This should never happen. Something is wrong with the timer delegate!"), (float)(Now - LastHeartbeatTime) );
+		// This can happen too often with editor hitches and long-running tasks, which cause the timer manager to flush many events at once.
+		// UE-62403 is tracking a deeeper fix.
+		//UE_LOG(LogUnrealEdMisc, Warning, TEXT("Heartbeat event firing too frequently (%.3f sec). This should never happen. Something is wrong with the timer delegate!"), (float)(Now - LastHeartbeatTime) );
 		return;
 	}
 
@@ -1790,7 +1792,7 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const
 {
-	FString ExecutableName = FPlatformProcess::ExecutableName(false);
+	FString ExecutableName = FString(FPlatformProcess::ExecutablePath());
 #if PLATFORM_WINDOWS
 	// turn UE4editor into UE4editor-cmd
 	if(ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))

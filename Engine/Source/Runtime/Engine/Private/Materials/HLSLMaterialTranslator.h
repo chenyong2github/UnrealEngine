@@ -1698,7 +1698,9 @@ protected:
 					FMaterialUniformExpressionVectorParameter* VectorParameterA = (FMaterialUniformExpressionVectorParameter*)TestExpression;
 					FMaterialUniformExpressionVectorParameter* VectorParameterB = (FMaterialUniformExpressionVectorParameter*)UniformExpression;
 
-					if (!VectorParameterA->GetParameterInfo().Name.IsNone() && VectorParameterA->GetParameterInfo() == VectorParameterB->GetParameterInfo())
+					// Note: Skipping NAME_SelectionColor here as this behavior is relied on for editor materials
+					if (!VectorParameterA->GetParameterInfo().Name.IsNone() && VectorParameterA->GetParameterInfo() == VectorParameterB->GetParameterInfo()
+						&& VectorParameterA->GetParameterInfo().Name != NAME_SelectionColor)
 					{
 						delete UniformExpression;
 						return Errorf(TEXT("Invalid vector parameter '%s' found. Identical parameters must have the same value."), *(VectorParameterA->GetParameterInfo().Name.ToString()));
@@ -3188,6 +3190,11 @@ protected:
 		return GetPrimitiveProperty(MCT_Float3, TEXT("ObjectBounds"), TEXT("ObjectBounds.xyz"));
 	}
 
+	virtual int32 PreSkinnedLocalBounds() override
+	{
+		return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBounds.xyz"));
+	}
+
 	virtual int32 DistanceCullFade() override
 	{
 		bUsesDistanceCullFade = true;
@@ -3807,8 +3814,6 @@ protected:
 		else // mobile
 		{
 			int32 UV = BufferUV;
-
-			// On mobile in post process material, there is no need to do ViewportUV->BufferUV conversion because ViewSize == BufferSize.
 			if (Material->GetMaterialDomain() == MD_PostProcess)
 			{
 				int32 BlendableLocation = Material->GetBlendableLocation();
@@ -3817,15 +3822,6 @@ protected:
 					// SceneDepth lookups are not available when using MSAA, but we can access depth stored in SceneColor.A channel
 					// SceneColor.A channel holds depth till BeforeTonemapping location, then it's gets overwritten
 					return Errorf(TEXT("SceneDepth lookups are only available when BlendableLocation is BeforeTranslucency or BeforeTonemapping"));
-				}
-				
-				if (ViewportUV == INDEX_NONE)
-				{
-					UV = TextureCoordinate(0, false, false);
-				}
-				else
-				{
-					UV = ViewportUV;
 				}
 			}
 			
@@ -3846,6 +3842,7 @@ protected:
 	void UseSceneTextureId(ESceneTextureId SceneTextureId, bool bTextureLookup)
 	{
 		MaterialCompilationOutput.bNeedsSceneTextures = true;
+		MaterialCompilationOutput.UsedSceneTextures |= (1ull << SceneTextureId);
 
 		if(Material->GetMaterialDomain() == MD_DeferredDecal)
 		{
@@ -5106,6 +5103,17 @@ protected:
 		return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 	}
 
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
+	{
+		if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+
+		EMaterialValueType ResultType = GetArithmeticResultType(Normal, RayTraced);
+		return AddCodeChunk(ResultType, TEXT("(GetRayTracingQualitySwitch() ? (%s) : (%s))"), *GetParameterCode(RayTraced), *GetParameterCode(Normal));
+	}
+
 	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 
 	virtual int32 ObjectOrientation() override
@@ -5834,6 +5842,30 @@ protected:
 
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return bCompilingPreviousFrame; }
+
+	virtual bool IsDevelopmentFeatureEnabled(const FName& FeatureName) const override
+	{
+		if (FeatureName == NAME_SelectionColor)
+		{
+			// This is an editor-only feature (see FDefaultMaterialInstance::GetVectorValue).
+
+			// Determine if we're sure the editor will never run using the target shader platform.
+			// The list below may not be comprehensive enough, but it definitely includes platforms which won't use selection color for sure.
+			const bool bEditorMayUseTargetShaderPlatform = IsPCPlatform(Platform);
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.CompileShadersForDevelopment"));
+			const bool bCompileShadersForDevelopment = (CVar && CVar->GetValueOnAnyThread() != 0);
+
+			return
+				// Does the material explicitly forbid development features?
+				Material->GetAllowDevelopmentShaderCompile()
+				// Can the editor run using the current shader platform?
+				&& bEditorMayUseTargetShaderPlatform
+				// Are shader development features globally disabled?
+				&& bCompileShadersForDevelopment;
+		}
+
+		return true;
+	}
 };
 
 #endif

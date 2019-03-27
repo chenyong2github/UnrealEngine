@@ -165,6 +165,15 @@ namespace UnrealBuildTool
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
+			// Default dsymutil has a bug that causes issues, it's fixed in autosdks but not everyone has those set up so for the timebeing we have
+			// a version in P4...
+			FileReference PatchedDsymutilLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries/Mac/NotForLicensees/LLVM/bin/dsymutil");
+			
+			if (File.Exists(PatchedDsymutilLocation.FullName))
+			{
+				DsymutilLocation = PatchedDsymutilLocation;
+			}
+			
 			DirectoryReference AutoSdkDir;
 			if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir))
 			{

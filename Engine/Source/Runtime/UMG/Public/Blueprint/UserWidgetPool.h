@@ -6,28 +6,37 @@
 #include "WidgetTree.h"
 #include "Slate/SObjectWidget.h"
 
-/** 
- * Pools UUserWidget instances to minimize UObject allocations for UMG elements with dynamic entries. Optionally retains the underlying slate instances of each UUserWidget as well.
- * 
- * Note that if underlying Slate instances are released when a UserWidget instance becomes inactive, NativeConstruct & NativeDestruct will be called when UUserWidget 
+#include "UserWidgetPool.generated.h"
+
+/**
+ * Pools UUserWidget instances to minimize UObject and SWidget allocations for UMG elements with dynamic entries.
+ *
+ * Note that if underlying Slate instances are released when a UserWidget instance becomes inactive, NativeConstruct & NativeDestruct will be called when UUserWidget
  * instances are made active or inactive, respectively, provided the widget isn't actively referenced in the Slate hierarchy (i.e. if the shared reference count on the widget goes from/to 0).
  *
- * WARNING: Be sure to fully reset the pool within the owning widget's ReleaseSlateResources call to prevent leaking due to circular references (since the pool caches hard references to both the UUserWidget and SObjectWidget instances)
+ * WARNING: Be sure to release the pool's Slate widgets within the owning widget's ReleaseSlateResources call to prevent leaking due to circular references
+ *		Otherwise the cached references to SObjectWidgets will keep the UUserWidgets - and all that they reference - alive
  *
  * @see UListView
  * @see UDynamicEntryBox
  */
-class UMG_API FUserWidgetPool : public FGCObject
+USTRUCT()
+struct UMG_API FUserWidgetPool
 {
+	GENERATED_BODY();
+
 public:
 	FUserWidgetPool() = default;
 	FUserWidgetPool(UWidget& InOwningWidget);
-	FUserWidgetPool& operator=(FUserWidgetPool&& Other);
 	~FUserWidgetPool();
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	/** In the case that you don't have an owner widget, you should set a world to your pool, or it won't be able to construct widgets. */
+	void SetWorld(UWorld* OwningWorld);
 
-	bool IsInitialized() const { return OwningWidget.IsValid(); }
+	/** Report any references to UObjects to the reference collector (only necessary if this is not already a UPROPERTY) */
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	bool IsInitialized() const { return OwningWidget.IsValid() || OwningWorld.IsValid(); }
 	const TArray<UUserWidget*>& GetActiveWidgets() const { return ActiveWidgets; }
 
 	/**
@@ -63,11 +72,14 @@ public:
 	/** Full reset of all created widget objects (and any cached underlying slate) */
 	void ResetPool();
 
+	/** Reset of all cached underlying Slate widgets, but not the active UUserWidget objects */
+	void ReleaseSlateResources();
+
 private:
 	template <typename UserWidgetT = UUserWidget>
 	UserWidgetT* AddActiveWidgetInternal(TSubclassOf<UserWidgetT> WidgetClass, WidgetConstructFunc ConstructWidgetFunc)
 	{
-		if (!IsInitialized())
+		if (!ensure(IsInitialized()))
 		{
 			return nullptr;
 		}
@@ -85,7 +97,14 @@ private:
 
 		if (!WidgetInstance)
 		{
-			WidgetInstance = CreateWidget(OwningWidget.Get(), WidgetClass);
+			if (UWidget* OwnerWidgetPtr = OwningWidget.Get())
+			{
+				WidgetInstance = CreateWidget(OwnerWidgetPtr, WidgetClass);
+			}
+			else
+			{
+				WidgetInstance = CreateWidget(OwningWorld.Get(), WidgetClass);
+			}
 		}
 
 		if (WidgetInstance)
@@ -101,9 +120,13 @@ private:
 		return Cast<UserWidgetT>(WidgetInstance);
 	}
 
-	TWeakObjectPtr<UWidget> OwningWidget;
-	
+	UPROPERTY(Transient)
 	TArray<UUserWidget*> ActiveWidgets;
+	
+	UPROPERTY(Transient)
 	TArray<UUserWidget*> InactiveWidgets;
+
+	TWeakObjectPtr<UWidget> OwningWidget;
+	TWeakObjectPtr<UWorld> OwningWorld;
 	TMap<UUserWidget*, TSharedPtr<SWidget>> CachedSlateByWidgetObject;
 };

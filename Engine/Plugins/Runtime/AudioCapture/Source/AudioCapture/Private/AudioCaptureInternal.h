@@ -25,7 +25,7 @@ namespace Audio
 		FAudioCaptureImpl();
 
 		bool GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo);
-		bool OpenDefaultCaptureStream(const FAudioCaptureStreamParam& StreamParams);
+		bool OpenDefaultCaptureStream(FOnCaptureFunction InOnCapture, uint32 NumFramesDesired);
 		bool CloseStream();
 		bool StartStream();
 		bool StopStream();
@@ -47,7 +47,7 @@ namespace Audio
 #endif
 
 	private:
-		IAudioCaptureCallback* Callback;
+		FOnCaptureFunction OnCapture;
 		int32 NumChannels;
 		int32 SampleRate;
 #if PLATFORM_WINDOWS
@@ -67,7 +67,7 @@ namespace Audio
 		FAudioCaptureImpl() {}
 
 		bool GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo) { return false; }
-		bool OpenDefaultCaptureStream(const FAudioCaptureStreamParam& StreamParams) { return false; }
+		bool OpenDefaultCaptureStream(FOnCaptureFunction OnCapture, uint32 NumFramesDesired) { return false; }
 		bool CloseStream() { return false; }
 		bool StartStream() { return false; }
 		bool StopStream() { return false; }

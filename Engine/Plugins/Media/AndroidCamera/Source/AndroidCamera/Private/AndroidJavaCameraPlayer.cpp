@@ -80,9 +80,7 @@ FJavaAndroidCameraPlayer::FJavaAndroidCameraPlayer(bool swizzlePixels, bool vulk
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
 	// get field IDs for FrameUpdateInfo class members
-	jclass localFrameUpdateInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/CameraPlayer14$FrameUpdateInfo");
-	FrameUpdateInfoClass = (jclass)JEnv->NewGlobalRef(localFrameUpdateInfoClass);
-	JEnv->DeleteLocalRef(localFrameUpdateInfoClass);
+	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/CameraPlayer14$FrameUpdateInfo");
 	FrameUpdateInfo_Buffer = FindField(JEnv, FrameUpdateInfoClass, "Buffer", "Ljava/nio/Buffer;", false);
 	FrameUpdateInfo_CurrentPosition = FindField(JEnv, FrameUpdateInfoClass, "CurrentPosition", "I", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
@@ -95,9 +93,7 @@ FJavaAndroidCameraPlayer::FJavaAndroidCameraPlayer(bool swizzlePixels, bool vulk
 	FrameUpdateInfo_VOffset = FindField(JEnv, FrameUpdateInfoClass, "VOffset", "F", false);
 
 	// get field IDs for AudioTrackInfo class members
-	jclass localAudioTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/CameraPlayer14$AudioTrackInfo");
-	AudioTrackInfoClass = (jclass)JEnv->NewGlobalRef(localAudioTrackInfoClass);
-	JEnv->DeleteLocalRef(localAudioTrackInfoClass);
+	AudioTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/CameraPlayer14$AudioTrackInfo");
 	AudioTrackInfo_Index = FindField(JEnv, AudioTrackInfoClass, "Index", "I", false);
 	AudioTrackInfo_MimeType = FindField(JEnv, AudioTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	AudioTrackInfo_DisplayName = FindField(JEnv, AudioTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -106,18 +102,14 @@ FJavaAndroidCameraPlayer::FJavaAndroidCameraPlayer(bool swizzlePixels, bool vulk
 	AudioTrackInfo_SampleRate = FindField(JEnv, AudioTrackInfoClass, "SampleRate", "I", false);
 
 	// get field IDs for CaptionTrackInfo class members
-	jclass localCaptionTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/CameraPlayer14$CaptionTrackInfo");
-	CaptionTrackInfoClass = (jclass)JEnv->NewGlobalRef(localCaptionTrackInfoClass);
-	JEnv->DeleteLocalRef(localCaptionTrackInfoClass);
+	CaptionTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/CameraPlayer14$CaptionTrackInfo");
 	CaptionTrackInfo_Index = FindField(JEnv, CaptionTrackInfoClass, "Index", "I", false);
 	CaptionTrackInfo_MimeType = FindField(JEnv, CaptionTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	CaptionTrackInfo_DisplayName = FindField(JEnv, CaptionTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
 	CaptionTrackInfo_Language = FindField(JEnv, CaptionTrackInfoClass, "Language", "Ljava/lang/String;", false);
 
 	// get field IDs for VideoTrackInfo class members
-	jclass localVideoTrackInfoClass = FAndroidApplication::FindJavaClass("com/epicgames/ue4/CameraPlayer14$VideoTrackInfo");
-	VideoTrackInfoClass = (jclass)JEnv->NewGlobalRef(localVideoTrackInfoClass);
-	JEnv->DeleteLocalRef(localVideoTrackInfoClass);
+	VideoTrackInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/ue4/CameraPlayer14$VideoTrackInfo");
 	VideoTrackInfo_Index = FindField(JEnv, VideoTrackInfoClass, "Index", "I", false);
 	VideoTrackInfo_MimeType = FindField(JEnv, VideoTrackInfoClass, "MimeType", "Ljava/lang/String;", false);
 	VideoTrackInfo_DisplayName = FindField(JEnv, VideoTrackInfoClass, "DisplayName", "Ljava/lang/String;", false);
@@ -128,6 +120,17 @@ FJavaAndroidCameraPlayer::FJavaAndroidCameraPlayer(bool swizzlePixels, bool vulk
 	VideoTrackInfo_FrameRate = FindField(JEnv, VideoTrackInfoClass, "FrameRate", "F", false);
 	VideoTrackInfo_FrameRateLow = FindField(JEnv, VideoTrackInfoClass, "FrameRateLow", "F", false);
 	VideoTrackInfo_FrameRateHigh = FindField(JEnv, VideoTrackInfoClass, "FrameRateHigh", "F", false);
+}
+
+FJavaAndroidCameraPlayer::~FJavaAndroidCameraPlayer()
+{
+	if (auto Env = FAndroidApplication::GetJavaEnv())
+	{
+		Env->DeleteGlobalRef(FrameUpdateInfoClass);
+		Env->DeleteGlobalRef(AudioTrackInfoClass);
+		Env->DeleteGlobalRef(CaptionTrackInfoClass);
+		Env->DeleteGlobalRef(VideoTrackInfoClass);
+	}
 }
 
 int32 FJavaAndroidCameraPlayer::GetDuration()
@@ -193,8 +196,8 @@ bool FJavaAndroidCameraPlayer::SetDataSource(const FString & Url)
 	ScaleRotation.W = 1.0f;
 	Offset.X = 0.0f;
 	Offset.Y = 0.0f;
-
-	bool Result = CallMethod<bool>(SetDataSourceURLMethod, GetJString(Url));
+	
+	bool Result = CallMethod<bool>(SetDataSourceURLMethod, *GetJString(Url));
 
 	if (Result)
 	{
@@ -280,50 +283,40 @@ bool FJavaAndroidCameraPlayer::GetVideoLastFrameData(void* & outPixels, int64 & 
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameDataMethod.Method));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != Result)
-		{
-			JEnv->DeleteLocalRef(Result);
-		}
 		*CurrentPosition = -1;
 		*bRegionChanged = false;
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		return false;
 	}
 
-	jobject buffer = JEnv->GetObjectField(Result, FrameUpdateInfo_Buffer);
-	if (nullptr != buffer)
+	auto buffer = NewScopedJavaObject(JEnv, JEnv->GetObjectField(*Result, FrameUpdateInfo_Buffer));
+	if (buffer)
 	{
-		*CurrentPosition = (int32)JEnv->GetIntField(Result, FrameUpdateInfo_CurrentPosition);
-		bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-		*bRegionChanged = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_RegionChanged);
-		ScaleRotation.X = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation00);
-		ScaleRotation.Y = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation01);
-		ScaleRotation.Z = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation10);
-		ScaleRotation.W = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation11);
-		Offset.X = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_UOffset);
-		Offset.Y = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_VOffset);
+		*CurrentPosition = (int32)JEnv->GetIntField(*Result, FrameUpdateInfo_CurrentPosition);
+		bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+		*bRegionChanged = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_RegionChanged);
+		ScaleRotation.X = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation00);
+		ScaleRotation.Y = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation01);
+		ScaleRotation.Z = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation10);
+		ScaleRotation.W = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation11);
+		Offset.X = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_UOffset);
+		Offset.Y = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_VOffset);
 
-		outPixels = JEnv->GetDirectBufferAddress(buffer);
-		outCount = JEnv->GetDirectBufferCapacity(buffer);
-
-		// the GetObjectField returns a local ref, but Java will still own the real buffer
-		JEnv->DeleteLocalRef(buffer);
-
-		JEnv->DeleteLocalRef(Result);
+		outPixels = JEnv->GetDirectBufferAddress(*buffer);
+		outCount = JEnv->GetDirectBufferCapacity(*buffer);
 
 		return !(nullptr == outPixels || 0 == outCount);
 	}
-
-	JEnv->DeleteLocalRef(Result);
+	
 	return false;
 }
 
@@ -351,38 +344,32 @@ bool FJavaAndroidCameraPlayer::UpdateVideoFrame(int32 ExternalTextureId, int32 *
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, UpdateVideoFrameMethod.Method, ExternalTextureId));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
 		JEnv->ExceptionClear();
-		if (nullptr != Result)
-		{
-			JEnv->DeleteLocalRef(Result);
-		}
 		*CurrentPosition = -1;
 		*bRegionChanged = false;
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		*CurrentPosition = -1;
 		*bRegionChanged = false;
 		return false;
 	}
 
-	*CurrentPosition = (int32)JEnv->GetIntField(Result, FrameUpdateInfo_CurrentPosition);
-	bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-	*bRegionChanged = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_RegionChanged);
-	ScaleRotation.X = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation00);
-	ScaleRotation.Y = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation01);
-	ScaleRotation.Z = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation10);
-	ScaleRotation.W = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation11);
-	Offset.X = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_UOffset);
-	Offset.Y = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_VOffset);
-
-	JEnv->DeleteLocalRef(Result);
+	*CurrentPosition = (int32)JEnv->GetIntField(*Result, FrameUpdateInfo_CurrentPosition);
+	bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+	*bRegionChanged = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_RegionChanged);
+	ScaleRotation.X = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation00);
+	ScaleRotation.Y = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation01);
+	ScaleRotation.Z = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation10);
+	ScaleRotation.W = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation11);
+	Offset.X = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_UOffset);
+	Offset.Y = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_VOffset);
 
 	return bFrameReady;
 }
@@ -391,7 +378,7 @@ bool FJavaAndroidCameraPlayer::GetVideoLastFrame(int32 destTexture)
 {
 	// This can return an exception in some cases
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
-	jobject Result = JEnv->CallObjectMethod(Object, GetVideoLastFrameMethod.Method, destTexture);
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameMethod.Method, destTexture));
 	if (JEnv->ExceptionCheck())
 	{
 		JEnv->ExceptionDescribe();
@@ -399,21 +386,19 @@ bool FJavaAndroidCameraPlayer::GetVideoLastFrame(int32 destTexture)
 		return false;
 	}
 
-	if (nullptr == Result)
+	if (!Result)
 	{
 		return false;
 	}
 
-	bool bFrameReady = (bool)JEnv->GetBooleanField(Result, FrameUpdateInfo_FrameReady);
-	ScaleRotation.X = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation00);
-	ScaleRotation.Y = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation01);
-	ScaleRotation.Z = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation10);
-	ScaleRotation.W = (float)(float)JEnv->GetFloatField(Result, FrameUpdateInfo_ScaleRotation11);
-	Offset.X = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_UOffset);
-	Offset.Y = (float)JEnv->GetFloatField(Result, FrameUpdateInfo_VOffset);
-
-	JEnv->DeleteLocalRef(Result);
-
+	bool bFrameReady = (bool)JEnv->GetBooleanField(*Result, FrameUpdateInfo_FrameReady);
+	ScaleRotation.X = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation00);
+	ScaleRotation.Y = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation01);
+	ScaleRotation.Z = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation10);
+	ScaleRotation.W = (float)(float)JEnv->GetFloatField(*Result, FrameUpdateInfo_ScaleRotation11);
+	Offset.X = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_UOffset);
+	Offset.Y = (float)JEnv->GetFloatField(*Result, FrameUpdateInfo_VOffset);
+	
 	return bFrameReady;
 }
 
@@ -424,7 +409,7 @@ bool FJavaAndroidCameraPlayer::TakePicture(const FString& Filename)
 
 bool FJavaAndroidCameraPlayer::TakePicture(const FString& Filename, int32 Width, int32 Height)
 {
-	return CallMethod<bool>(TakePictureMethod, GetJString(Filename), Width, Height);
+	return CallMethod<bool>(TakePictureMethod, *GetJString(Filename), Width, Height);
 }
 
 FName FJavaAndroidCameraPlayer::GetClassName()
@@ -472,38 +457,19 @@ bool FJavaAndroidCameraPlayer::GetAudioTracks(TArray<FAudioTrack>& AudioTracks)
 
 		for (int Index = 0; Index < ElementCount; ++Index)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, Index);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 			int32 AudioTrackIndex = AudioTracks.AddDefaulted();
 			FAudioTrack& AudioTrack = AudioTracks[AudioTrackIndex];
 
-			AudioTrack.Index = (int32)JEnv->GetIntField(Track, AudioTrackInfo_Index);
+			AudioTrack.Index = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			AudioTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
-
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			AudioTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, AudioTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			AudioTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			AudioTrack.Channels = (int32)JEnv->GetIntField(Track, AudioTrackInfo_Channels);
-			AudioTrack.SampleRate = (int32)JEnv->GetIntField(Track, AudioTrackInfo_SampleRate);
-
-			JEnv->DeleteLocalRef(Track);
+			AudioTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_MimeType));
+			AudioTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_DisplayName));
+			AudioTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, AudioTrackInfo_Language));
+			
+			AudioTrack.Channels = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_Channels);
+			AudioTrack.SampleRate = (int32)JEnv->GetIntField(*Track, AudioTrackInfo_SampleRate);
 		}
 		JEnv->DeleteGlobalRef(TrackArray);
 
@@ -525,35 +491,16 @@ bool FJavaAndroidCameraPlayer::GetCaptionTracks(TArray<FCaptionTrack>& CaptionTr
 
 		for (int Index = 0; Index < ElementCount; ++Index)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, Index);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 			int32 CaptionTrackIndex = CaptionTracks.AddDefaulted();
 			FCaptionTrack& CaptionTrack = CaptionTracks[CaptionTrackIndex];
 
-			CaptionTrack.Index = (int32)JEnv->GetIntField(Track, CaptionTrackInfo_Index);
+			CaptionTrack.Index = (int32)JEnv->GetIntField(*Track, CaptionTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			CaptionTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
-
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			CaptionTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, CaptionTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			CaptionTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			JEnv->DeleteLocalRef(Track);
+			CaptionTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_MimeType));
+			CaptionTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_DisplayName));
+			CaptionTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, CaptionTrackInfo_Language));
 		}
 		JEnv->DeleteGlobalRef(TrackArray);
 
@@ -575,54 +522,33 @@ bool FJavaAndroidCameraPlayer::GetVideoTracks(TArray<FVideoTrack>& VideoTracks)
 
 		if (ElementCount > 0)
 		{
-			jobject Track = JEnv->GetObjectArrayElement(TrackArray, 0);
+			auto Track = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, 0));
 
 			int32 VideoTrackIndex = VideoTracks.AddDefaulted();
 			FVideoTrack& VideoTrack = VideoTracks[VideoTrackIndex];
 
-			VideoTrack.Index = (int32)JEnv->GetIntField(Track, VideoTrackInfo_Index);
+			VideoTrack.Index = (int32)JEnv->GetIntField(*Track, VideoTrackInfo_Index);
 
-			jstring jsMimeType = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_MimeType);
-			CHECK_JNI_RESULT(jsMimeType);
-			const char * nativeMimeType = JEnv->GetStringUTFChars(jsMimeType, 0);
-			VideoTrack.MimeType = FString(nativeMimeType);
-			JEnv->ReleaseStringUTFChars(jsMimeType, nativeMimeType);
-			JEnv->DeleteLocalRef(jsMimeType);
+			VideoTrack.MimeType = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_MimeType));
+			VideoTrack.DisplayName = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_DisplayName));
+			VideoTrack.Language = FJavaHelper::FStringFromLocalRef(JEnv, (jstring)JEnv->GetObjectField(*Track, VideoTrackInfo_Language));
 
-			jstring jsDisplayName = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_DisplayName);
-			CHECK_JNI_RESULT(jsDisplayName);
-			const char * nativeDisplayName = JEnv->GetStringUTFChars(jsDisplayName, 0);
-			VideoTrack.DisplayName = FString(nativeDisplayName);
-			JEnv->ReleaseStringUTFChars(jsDisplayName, nativeDisplayName);
-			JEnv->DeleteLocalRef(jsDisplayName);
-
-			jstring jsLanguage = (jstring)JEnv->GetObjectField(Track, VideoTrackInfo_Language);
-			CHECK_JNI_RESULT(jsLanguage);
-			const char * nativeLanguage = JEnv->GetStringUTFChars(jsLanguage, 0);
-			VideoTrack.Language = FString(nativeLanguage);
-			JEnv->ReleaseStringUTFChars(jsLanguage, nativeLanguage);
-			JEnv->DeleteLocalRef(jsLanguage);
-
-			VideoTrack.BitRate = (int32)JEnv->GetIntField(Track, VideoTrackInfo_BitRate);
+			VideoTrack.BitRate = (int32)JEnv->GetIntField(*Track, VideoTrackInfo_BitRate);
 			VideoTrack.Dimensions = FIntPoint(GetVideoWidth(), GetVideoHeight());
 			VideoTrack.FrameRate = GetFrameRate();
-			VideoTrack.FrameRates = TRange<float>(JEnv->GetFloatField(Track, VideoTrackInfo_FrameRateLow), JEnv->GetFloatField(Track, VideoTrackInfo_FrameRateHigh));
+			VideoTrack.FrameRates = TRange<float>(JEnv->GetFloatField(*Track, VideoTrackInfo_FrameRateLow), JEnv->GetFloatField(*Track, VideoTrackInfo_FrameRateHigh));
 			VideoTrack.Format = 0;
-
-			JEnv->DeleteLocalRef(Track);
 
 			for (int Index = 0; Index < ElementCount; ++Index)
 			{
-				jobject Format = JEnv->GetObjectArrayElement(TrackArray, Index);
+				auto Format = NewScopedJavaObject(JEnv, JEnv->GetObjectArrayElement(TrackArray, Index));
 
 				int32 VideoFormatIndex = VideoTrack.Formats.AddDefaulted();
 				FVideoFormat& VideoFormat = VideoTrack.Formats[VideoFormatIndex];
 
-				VideoFormat.Dimensions = FIntPoint((int32)JEnv->GetIntField(Format, VideoTrackInfo_Width), (int32)JEnv->GetIntField(Format, VideoTrackInfo_Height));
-				VideoFormat.FrameRate = JEnv->GetFloatField(Format, VideoTrackInfo_FrameRateHigh);
-				VideoFormat.FrameRates = TRange<float>(JEnv->GetFloatField(Format, VideoTrackInfo_FrameRateLow), JEnv->GetFloatField(Format, VideoTrackInfo_FrameRateHigh));
-
-				JEnv->DeleteLocalRef(Format);
+				VideoFormat.Dimensions = FIntPoint((int32)JEnv->GetIntField(*Format, VideoTrackInfo_Width), (int32)JEnv->GetIntField(*Format, VideoTrackInfo_Height));
+				VideoFormat.FrameRate = JEnv->GetFloatField(*Format, VideoTrackInfo_FrameRateHigh);
+				VideoFormat.FrameRates = TRange<float>(JEnv->GetFloatField(*Format, VideoTrackInfo_FrameRateLow), JEnv->GetFloatField(*Format, VideoTrackInfo_FrameRateHigh));
 
 				if (VideoTrack.Dimensions == VideoFormat.Dimensions)
 				{

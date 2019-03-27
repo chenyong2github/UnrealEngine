@@ -125,6 +125,8 @@ struct FAudioThreadSuspendContext
 class ENGINE_API FAudioCommandFence
 {
 public:
+	FAudioCommandFence();
+	~FAudioCommandFence();
 
 	/**
 	* Adds a fence command to the audio command queue.
@@ -145,5 +147,7 @@ public:
 private:
 	/** Graph event that represents completion of this fence **/
 	mutable FGraphEventRef CompletionEvent;
+	/** Event that fires when CompletionEvent is done. **/
+	mutable FEvent* FenceDoneEvent;
 };
 

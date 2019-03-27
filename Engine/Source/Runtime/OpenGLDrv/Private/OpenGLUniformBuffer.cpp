@@ -11,6 +11,7 @@
 #include "RHI.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
+#include "Misc/ScopeLock.h"
 
 
 namespace OpenGLConsoleVariables

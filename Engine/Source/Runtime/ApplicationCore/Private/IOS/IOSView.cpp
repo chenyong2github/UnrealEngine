@@ -3,8 +3,6 @@
 #include "IOS/IOSView.h"
 #include "IOS/IOSAppDelegate.h"
 #include "IOS/IOSApplication.h"
-#include "IOS/IOSInputInterface.h"
-#include "Delegates/Delegate.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
@@ -15,6 +13,8 @@
 #import <QuartzCore/QuartzCore.h>
 #import <OpenGLES/EAGLDrawable.h>
 #import <UIKit/UIGeometry.h>
+
+#include "IOS/IOSCommandLineHelper.h"
 
 #if HAS_METAL
 id<MTLDevice> GMetalDevice = nil;
@@ -83,11 +83,48 @@ id<MTLDevice> GMetalDevice = nil;
 @synthesize secureTextEntry = bSecureTextEntry;
 @synthesize SwapCount, OnScreenColorRenderBuffer, OnScreenColorRenderBufferMSAA, markedTextStyle;
 
+
+
+
+#if BUILD_EMBEDDED_APP
+
++(void)StartupEmbeddedUnreal
+{
+	// special initialization code for embedded view
+	
+	//// LaunchIOS replacement ///
+	FIOSCommandLineHelper::InitCommandArgs(TEXT(""));
+	
+	//#if !PLATFORM_TVOS
+	//		// reset badge count on launch
+	//		Application.applicationIconBadgeNumber = 0;
+	//#endif
+	
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+
+	[AppDelegate NoUrlCommandLine];
+	[AppDelegate StartGameThread];
+}
+
+#endif
+
+
+
+#if !HAS_METAL && !HAS_OPENGL_ES
+#error One of HAS_METAL or HAS_OPENGL_ES must be defined
+#endif
+
 /**
  * @return The Layer Class for the window
  */
 + (Class)layerClass
 {
+#if BUILD_EMBEDDED_APP
+	SCOPED_BOOT_TIMING("MetalLayer class");
+	GMetalDevice = MTLCreateSystemDefaultDevice();
+	return [CAMetalLayer class];
+#endif
+	
 #if HAS_METAL
 	// make sure the project setting has enabled Metal support (per-project user settings in the editor)
 	bool bSupportsMetal = false;
@@ -97,12 +134,13 @@ id<MTLDevice> GMetalDevice = nil;
 
 	// does commandline override?
 	bool bForceES2 = FParse::Param(FCommandLine::Get(), TEXT("ES2"));
-
+	
 	bool bTriedToInit = false;
 
 	// the check for the function pointer itself is to determine if the Metal framework exists, before calling it
 	if ((bSupportsMetal || bSupportsMetalMRT) && !bForceES2 && MTLCreateSystemDefaultDevice != NULL)
 	{
+		SCOPED_BOOT_TIMING("CreateMetalDevice");
 		// if the device is unable to run with Metal (pre-A7), this will return nil
 		GMetalDevice = MTLCreateSystemDefaultDevice();
 
@@ -128,73 +166,119 @@ id<MTLDevice> GMetalDevice = nil;
 	else
 #endif
 	{
+#if HAS_OPENGL_ES
 		return [CAEAGLLayer class];
+#else
+		return nil;
+#endif
 	}
 }
 
+- (id)initInternal:(CGRect)Frame
+{
+	SCOPED_BOOT_TIMING("[FIOSView initInternal]");
+
+	// figure out if we should start up GL or Metal
+#if HAS_METAL
+	// if the device is valid, we know Metal is usable (see +layerClass)
+	MetalDevice = GMetalDevice;
+	if (MetalDevice != nil)
+	{
+		bIsUsingMetal = true;
+		
+		// grab the MetalLayer and typecast it to match what's in layerClass
+		CAMetalLayer* MetalLayer = (CAMetalLayer*)self.layer;
+		MetalLayer.presentsWithTransaction = NO;
+		MetalLayer.drawsAsynchronously = YES;
+		
+		// set a background color to make sure the layer appears
+		CGFloat components[] = { 0.0, 0.0, 0.0, 1 };
+		MetalLayer.backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), components);
+		
+		// set the device on the rendering layer and provide a pixel format
+		MetalLayer.device = MetalDevice;
+		MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+		MetalLayer.framebufferOnly = NO;
+		
+	}
+	else
+#endif
+	{
+#if HAS_OPENGL_ES
+		bIsUsingMetal = false;
+		
+		// Get the layer
+		CAEAGLLayer *EaglLayer = (CAEAGLLayer *)self.layer;
+		EaglLayer.opaque = YES;
+		NSMutableDictionary* Dict = [NSMutableDictionary dictionary];
+		[Dict setValue : [NSNumber numberWithBool : NO] forKey : kEAGLDrawablePropertyRetainedBacking];
+		[Dict setValue : kEAGLColorFormatRGBA8 forKey : kEAGLDrawablePropertyColorFormat];
+		EaglLayer.drawableProperties = Dict;
+		
+		// Initialize a single, static OpenGL ES 2.0 context, shared by all EAGLView objects
+		Context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+		
+		// delete this on failure
+		if (!Context || ![EAGLContext setCurrentContext : Context])
+		{
+			[self release];
+			return nil;
+		}
+#endif
+	}
+	
+	NSLog(@"::: Created a UIView that will support %@ :::", bIsUsingMetal ? @"Metal" : @"@GLES");
+	
+	// Initialize some variables
+	SwapCount = 0;
+
+//	self.userInteractionEnabled = YES;
+//	self.clearsContextBeforeDrawing = NO;
+#if !PLATFORM_TVOS
+	self.multipleTouchEnabled = YES;
+#endif
+
+	FMemory::Memzero(AllTouches, sizeof(AllTouches));
+	[self setAutoresizingMask: UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
+	bIsInitialized = false;
+	
+	
+	[self InitKeyboard];
+
+#if BUILD_EMBEDDED_APP
+	//// FAppEntry::PreInit replacement ///
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+	
+	AppDelegate.RootView = self;
+	while (AppDelegate.RootView.superview != nil)
+	{
+		AppDelegate.RootView = AppDelegate.RootView.superview;
+	}
+	AppDelegate.IOSView = self;
+	
+	// initialize the backbuffer of the view (so the RHI can use it)
+	[self CreateFramebuffer:YES];
+	
+#endif
+	
+
+	return self;
+}
+
+- (id)initWithCoder:(NSCoder*)Decoder
+{
+	if ((self = [super initWithCoder:Decoder]))
+	{
+		self = [self initInternal:self.frame];
+	}
+	return self;
+}
 
 - (id)initWithFrame:(CGRect)Frame
 {
 	if ((self = [super initWithFrame:Frame]))
 	{
-		// figure out if we should start up GL or Metal
-#if HAS_METAL
-		// if the device is valid, we know Metal is usable (see +layerClass)
-		MetalDevice = GMetalDevice;
-		if (MetalDevice != nil)
-		{
-			bIsUsingMetal = true;
-
-			// grab the MetalLayer and typecast it to match what's in layerClass
-			CAMetalLayer* MetalLayer = (CAMetalLayer*)self.layer;
-			MetalLayer.presentsWithTransaction = NO;
-			MetalLayer.drawsAsynchronously = YES;
-
-			// set a background color to make sure the layer appears
-			CGFloat components[] = { 0.0, 0.0, 0.0, 1 };
-			MetalLayer.backgroundColor = CGColorCreate(CGColorSpaceCreateDeviceRGB(), components);
-
-			// set the device on the rendering layer and provide a pixel format
-			MetalLayer.device = MetalDevice;
-			MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-			MetalLayer.framebufferOnly = NO;
-		
-		}
-		else
-#endif
-		{
-			bIsUsingMetal = false;
-
-			// Get the layer
-			CAEAGLLayer *EaglLayer = (CAEAGLLayer *)self.layer;
-			EaglLayer.opaque = YES;
-			NSMutableDictionary* Dict = [NSMutableDictionary dictionary];
-			[Dict setValue : [NSNumber numberWithBool : NO] forKey : kEAGLDrawablePropertyRetainedBacking];
-			[Dict setValue : kEAGLColorFormatRGBA8 forKey : kEAGLDrawablePropertyColorFormat];
-			EaglLayer.drawableProperties = Dict;
-
-			// Initialize a single, static OpenGL ES 2.0 context, shared by all EAGLView objects
-			Context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
-
-			// delete this on failure
-			if (!Context || ![EAGLContext setCurrentContext : Context])
-			{
-				[self release];
-				return nil;
-			}
-		}
-
-		NSLog(@"::: Created a UIView that will support %@ :::", bIsUsingMetal ? @"Metal" : @"@GLES");
-
-		// Initialize some variables
-		SwapCount = 0;
-
-		FMemory::Memzero(AllTouches, sizeof(AllTouches));
-		[self setAutoresizingMask: UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
-		bIsInitialized = false;
-		
-
-		[self InitKeyboard];
+		self = [self initInternal:self.frame];
 	}
 	return self;
 }
@@ -258,6 +342,7 @@ id<MTLDevice> GMetalDevice = nil;
 		else
 #endif
 		{
+#if HAS_OPENGL_ES
 			// make sure this is current
 			[self MakeCurrent];
 
@@ -300,6 +385,7 @@ id<MTLDevice> GMetalDevice = nil;
 
 			UE_LOG(LogIOS, Log, TEXT("IPhone Back Buffer Size: %i MB"), (IPhoneBackBufferMemSize / 1024) / 1024.f);
 #endif
+#endif
 		}
 
 		bIsInitialized = true;
@@ -313,7 +399,7 @@ id<MTLDevice> GMetalDevice = nil;
 - (void)layoutSubviews
 {
 #if !PLATFORM_TVOS
-	UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+	auto orientation = [[UIApplication sharedApplication] statusBarOrientation];
 	FIOSApplication::OrientationChanged(orientation);
 #endif
 }
@@ -325,20 +411,15 @@ id<MTLDevice> GMetalDevice = nil;
 	{
 		if (MetalDevice != nil)
 		{
-			// grab the MetalLayer and typecast it to match what's in layerClass
+			// grab the MetalLayer and typecast it to match what's in layerClass, then set the new size
 			CAMetalLayer* MetalLayer = (CAMetalLayer*)self.layer;
-			CGSize drawableSize = CGSizeMake(Width, Height);
-			checkf( FMath::TruncToInt(drawableSize.width) == FMath::TruncToInt(self.bounds.size.width * self.contentScaleFactor) && 
-				   FMath::TruncToInt(drawableSize.height) == FMath::TruncToInt(self.bounds.size.height * self.contentScaleFactor),
-				TEXT("[IOSView UpdateRenderWidth:andHeight:] passed in size doesn't match what we expected. Width: %d, Expected Width = %d (%.2f * %.2f). Height = %d, Expected Height = %d (%.2f * %.2f)"),
-				FMath::TruncToInt(drawableSize.width), FMath::TruncToInt(self.bounds.size.width * self.contentScaleFactor), (float)self.bounds.size.width, self.contentScaleFactor,
-				FMath::TruncToInt(drawableSize.height), FMath::TruncToInt(self.bounds.size.height * self.contentScaleFactor), (float)self.bounds.size.height, self.contentScaleFactor);
-			MetalLayer.drawableSize = drawableSize;
+			MetalLayer.drawableSize = CGSizeMake(Width, Height);;
 		}
 		return;
 	}
 #endif
 
+#if HAS_OPENGL_ES
 	// Allocate color buffer based on the current layer size
 	glBindRenderbuffer(GL_RENDERBUFFER, OnScreenColorRenderBuffer);
 	check(glGetError() == 0);
@@ -348,6 +429,7 @@ id<MTLDevice> GMetalDevice = nil;
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, OnScreenColorRenderBuffer);
 	check(glGetError() == 0);
 	check(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+#endif
 }
 
 #if HAS_METAL
@@ -364,6 +446,7 @@ id<MTLDevice> GMetalDevice = nil;
 		// nothing to do here for Metal
 		if (!bIsUsingMetal)
 		{
+#if HAS_OPENGL_ES
 			// toss framebuffers
 			if(ResolveFrameBuffer)
 			{
@@ -382,7 +465,8 @@ id<MTLDevice> GMetalDevice = nil;
 // 					glDeleteRenderbuffers(1, &OnScreenColorRenderBufferMSAA);
 // 					OnScreenColorRenderBufferMSAA = 0;
 // 				}
-//			}
+//
+#endif
  		}
 
 		// we are ready to be re-initialized
@@ -394,7 +478,9 @@ id<MTLDevice> GMetalDevice = nil;
 {
 	if (!bIsUsingMetal)
 	{
+#if HAS_OPENGL_ES
 		[EAGLContext setCurrentContext:Context];
+#endif
 	}
 }
 
@@ -402,7 +488,9 @@ id<MTLDevice> GMetalDevice = nil;
 {
 	if (!bIsUsingMetal)
 	{
+#if HAS_OPENGL_ES
 		[EAGLContext setCurrentContext:nil];
+#endif
 	}
 }
 
@@ -410,6 +498,7 @@ id<MTLDevice> GMetalDevice = nil;
 {
 	if (!bIsUsingMetal)
 	{
+#if HAS_OPENGL_ES
 // 		// We may need this in the MSAA case
 // 		GLint CurrentFramebuffer = 0;
 // 		// @todo-mobile: Fix this when we have MSAA support
@@ -442,6 +531,7 @@ id<MTLDevice> GMetalDevice = nil;
 // 			// Restore the DRAW framebuffer object
 // 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER_APPLE, CurrentFramebuffer);
 // 		}
+#endif
 	}
 
 	// increment our swap counter
@@ -476,6 +566,100 @@ id<MTLDevice> GMetalDevice = nil;
 	return -1;
 }
 
+
+-(void)HandleTouchAtLoc:(CGPoint)Loc PrevLoc:(CGPoint)PrevLoc TouchIndex:(int)TouchIndex Force:(float)Force Type:(TouchType)Type TouchesArray:(TArray<TouchInput>&)TouchesArray
+{
+	const CGFloat Scale = self.contentScaleFactor;
+
+	// init some things on begin
+	if (Type == TouchBegan)
+	{
+		PreviousForces[TouchIndex] = -1.0;
+		HasMoved[TouchIndex] = 0;
+		
+		NumActiveTouches++;
+	}
+	
+	float PreviousForce = PreviousForces[TouchIndex];
+	
+	// make a new touch event struct
+	TouchInput TouchMessage;
+	TouchMessage.Handle = TouchIndex;
+	TouchMessage.Type = Type;
+	TouchMessage.Position = FVector2D(FMath::Min<float>(self.frame.size.width - 1, Loc.x), FMath::Min<float>(self.frame.size.height - 1, Loc.y)) * Scale;
+	TouchMessage.LastPosition = FVector2D(FMath::Min<float>(self.frame.size.width - 1, PrevLoc.x), FMath::Min<float>(self.frame.size.height - 1, PrevLoc.y)) * Scale;
+	TouchMessage.Force = Type != TouchEnded ? Force : 0.0f;
+	
+	// skip moves that didn't actually move - this will help input handling to skip over the first
+	// move since it is likely a big pop from the TouchBegan location (iOS filters out small movements
+	// on first press)
+	if (Type != TouchMoved || (PrevLoc.x != Loc.x || PrevLoc.y != Loc.y))
+	{
+		// track first move event, for helping with "pop" on the filtered small movements
+		if (HasMoved[TouchIndex] == 0 && Type == TouchMoved)
+		{
+			TouchInput FirstMoveMessage = TouchMessage;
+			FirstMoveMessage.Type = FirstMove;
+			HasMoved[TouchIndex] = 1;
+			
+			TouchesArray.Add(FirstMoveMessage);
+		}
+		
+		TouchesArray.Add(TouchMessage);
+	}
+	
+	// if the force changed, send an event!
+	if (PreviousForce != Force)
+	{
+		TouchInput ForceMessage = TouchMessage;
+		ForceMessage.Type = ForceChanged;
+		PreviousForces[TouchIndex] = Force;
+		
+		TouchesArray.Add(ForceMessage);
+	}
+	
+	// clear out the touch when it ends
+	if (Type == TouchEnded)
+	{
+		AllTouches[TouchIndex] = nil;
+		NumActiveTouches--;
+	}
+
+#if !UE_BUILD_SHIPPING
+#if WITH_SIMULATOR
+	// use 2 on the simulator so that Option-Click will bring up console (option-click is for doing pinch gestures, which we don't care about, atm)
+	if( NumActiveTouches >= 2 )
+#else
+		// If there are 3 active touches, bring up the console
+		if( NumActiveTouches >= 4 )
+#endif
+		{
+			bool bShowConsole = true;
+			GConfig->GetBool(TEXT("/Script/Engine.InputSettings"), TEXT("bShowConsoleOnFourFingerTap"), bShowConsole, GInputIni);
+			
+			if (bShowConsole)
+			{
+				// disable the integrated keyboard when launching the console
+				/*			if (bIsUsingIntegratedKeyboard)
+				 {
+				 // press the console key twice to get the big one up
+				 // @todo keyboard: Find a direct way to bering this up (it can get into a bad state where two presses won't do it correctly)
+				 // and also the ` key could be changed via .ini
+				 FIOSInputInterface::QueueKeyInput('`', '`');
+				 FIOSInputInterface::QueueKeyInput('`', '`');
+				 
+				 [self ActivateKeyboard:true];
+				 }
+				 else*/
+				{
+					// Route the command to the main iOS thread (all UI must go to the main thread)
+					[[IOSAppDelegate GetDelegate] performSelectorOnMainThread:@selector(ShowConsole) withObject:nil waitUntilDone:NO];
+				}
+			}
+		}
+#endif
+}
+
 /**
  * Pass touch events to the input queue for slate to pull off of, and trigger the debug console.
  *
@@ -484,15 +668,13 @@ id<MTLDevice> GMetalDevice = nil;
  */
 -(void) HandleTouches:(NSSet*)Touches ofType:(TouchType)Type
 {
-	CGFloat Scale = self.contentScaleFactor;
-
 	TArray<TouchInput> TouchesArray;
 	for (UITouch* Touch in Touches)
 	{
 		// get info from the touch
 		CGPoint Loc = [Touch locationInView:self];
 		CGPoint PrevLoc = [Touch previousLocationInView:self];
-	
+		
 		// convert TOuch pointer to a unique 0 based index
 		int32 TouchIndex = [self GetTouchIndex:Touch];
 		if (TouchIndex < 0)
@@ -500,70 +682,21 @@ id<MTLDevice> GMetalDevice = nil;
 			continue;
 		}
 
-		// init some things on begin
-		if (Type == TouchBegan)
-		{
-			PreviousForces[TouchIndex] = -1.0;
-			HasMoved[TouchIndex] = 0;
-		}
-
-
 		float Force = Touch.force;
-		float PreviousForce = PreviousForces[TouchIndex];
-
+		
 		// map larger values to 1..10, so 10 is a max across platforms
 		if (Force > 1.0f)
 		{
 			Force = 10.0f * Force / Touch.maximumPossibleForce;
 		}
-
-		// Handle devices without force touch 
+		
+		// Handle devices without force touch
 		if ((Type == TouchBegan || Type == TouchMoved) && Force == 0.f)
 		{
 			Force = 1.f;
 		}
-		
-		// make a new touch event struct
-		TouchInput TouchMessage;
-		TouchMessage.Handle = TouchIndex;
-		TouchMessage.Type = Type;
-		TouchMessage.Position = FVector2D(FMath::Min<float>(self.frame.size.width - 1, Loc.x), FMath::Min<float>(self.frame.size.height - 1, Loc.y)) * Scale;
-		TouchMessage.LastPosition = FVector2D(FMath::Min<float>(self.frame.size.width - 1, PrevLoc.x), FMath::Min<float>(self.frame.size.height - 1, PrevLoc.y)) * Scale;
-        TouchMessage.Force = Type != TouchEnded ? Force : 0.0f;
 
-		// skip moves that didn't actually move - this will help input handling to skip over the first
-		// move since it is likely a big pop from the TouchBegan location (iOS filters out small movements
-		// on first press)
-		if (Type != TouchMoved || (PrevLoc.x != Loc.x || PrevLoc.y != Loc.y))
-		{
-			// track first move event, for helping with "pop" on the filtered small movements
-			if (HasMoved[TouchIndex] == 0 && Type == TouchMoved)
-			{
-				TouchInput FirstMoveMessage = TouchMessage;
-				FirstMoveMessage.Type = FirstMove;
-				HasMoved[TouchIndex] = 1;
-
-				TouchesArray.Add(FirstMoveMessage);
-			}
-            
-            TouchesArray.Add(TouchMessage);
-		}
-
-		// if the force changed, send an event!
-		if (PreviousForce != Force)
-		{
-			TouchInput ForceMessage = TouchMessage;
-			ForceMessage.Type = ForceChanged;
-			PreviousForces[TouchIndex] = Force;
-
-			TouchesArray.Add(ForceMessage);
-		}
-		
-		// clear out the touch when it ends
-		if (Type == TouchEnded)
-		{
-			AllTouches[TouchIndex] = nil;
-		}
+		[self  HandleTouchAtLoc:Loc PrevLoc:PrevLoc TouchIndex:TouchIndex Force:Force Type:Type TouchesArray:TouchesArray];
 	}
 
 	FIOSInputInterface::QueueTouchInput(TouchesArray);
@@ -577,43 +710,8 @@ id<MTLDevice> GMetalDevice = nil;
  */
 - (void) touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event 
 {
-	NumActiveTouches += touches.count;
 	[self HandleTouches:touches ofType:TouchBegan];
-
-#if !UE_BUILD_SHIPPING
-#if WITH_SIMULATOR
-	// use 2 on the simulator so that Option-Click will bring up console (option-click is for doing pinch gestures, which we don't care about, atm)
-	if( NumActiveTouches >= 2 )
-#else
-	// If there are 3 active touches, bring up the console
-	if( NumActiveTouches >= 4 )
-#endif
-	{
-		bool bShowConsole = true;
-		GConfig->GetBool(TEXT("/Script/Engine.InputSettings"), TEXT("bShowConsoleOnFourFingerTap"), bShowConsole, GInputIni);
-
-		if (bShowConsole)
-		{
-			// disable the integrated keyboard when launching the console
-/*			if (bIsUsingIntegratedKeyboard)
-			{
-				// press the console key twice to get the big one up
-				// @todo keyboard: Find a direct way to bering this up (it can get into a bad state where two presses won't do it correctly)
-				// and also the ` key could be changed via .ini
-				FIOSInputInterface::QueueKeyInput('`', '`');
-				FIOSInputInterface::QueueKeyInput('`', '`');
-				
-				[self ActivateKeyboard:true];
-			}
-			else*/
-			{
-				// Route the command to the main iOS thread (all UI must go to the main thread)
-				[[IOSAppDelegate GetDelegate] performSelectorOnMainThread:@selector(ShowConsole) withObject:nil waitUntilDone:NO];
-			}
-		}
 	}
-#endif
-}
 
 - (void) touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event
 {
@@ -622,13 +720,11 @@ id<MTLDevice> GMetalDevice = nil;
 
 - (void) touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event
 {
-	NumActiveTouches -= touches.count;
 	[self HandleTouches:touches ofType:TouchEnded];
 }
 
 - (void) touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event
 {
-	NumActiveTouches -= touches.count;
 	[self HandleTouches:touches ofType:TouchEnded];
 }
 
@@ -1028,9 +1124,6 @@ id<MTLDevice> GMetalDevice = nil;
 }
 
 
-
-
-
 @end
 
 
@@ -1053,12 +1146,7 @@ id<MTLDevice> GMetalDevice = nil;
 	self.view = [[UIView alloc] initWithFrame:Frame];
 
 	// settings copied from InterfaceBuilder
-#if defined(__IPHONE_7_0)
-	if ([IOSAppDelegate GetDelegate].OSVersion >= 7.0)
-	{
-		self.edgesForExtendedLayout = UIRectEdgeNone;
-	}
-#endif
+	self.edgesForExtendedLayout = UIRectEdgeNone;
 
 	self.view.clearsContextBeforeDrawing = NO;
 #if !PLATFORM_TVOS

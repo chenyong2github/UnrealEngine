@@ -14,29 +14,16 @@ FString convertReceiptToString(const SKPaymentTransaction* transaction)
 {
 	FString ReceiptData;
 	
-#ifdef __IPHONE_7_0
-	if ([IOSAppDelegate GetDelegate].OSVersion >= 7.0)
+	NSURL* nsReceiptUrl = [[NSBundle mainBundle] appStoreReceiptURL];
+	NSData* nsReceiptData = [NSData dataWithContentsOfURL : nsReceiptUrl];
+	if (nsReceiptData)
 	{
-		NSURL* nsReceiptUrl = [[NSBundle mainBundle] appStoreReceiptURL];
-		NSData* nsReceiptData = [NSData dataWithContentsOfURL : nsReceiptUrl];
-		if (nsReceiptData)
-		{
-			NSString* nsEncodedReceiptData = [nsReceiptData base64EncodedStringWithOptions : NSDataBase64EncodingEndLineWithLineFeed];
-			ReceiptData = nsEncodedReceiptData;
-		}
-		else
-		{
-			UE_LOG_ONLINE_STORE(Log, TEXT("No receipt data found for transaction"));
-		}
+		NSString* nsEncodedReceiptData = [nsReceiptData base64EncodedStringWithOptions : NSDataBase64EncodingEndLineWithLineFeed];
+		ReceiptData = nsEncodedReceiptData;
 	}
 	else
-#endif
 	{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-		// If earlier than IOS 7, we will need to use the transactionReceipt
-		NSString* nsEncodedReceiptData = [transaction.transactionReceipt base64EncodedStringWithOptions : NSDataBase64EncodingEndLineWithLineFeed];
-		ReceiptData = nsEncodedReceiptData;
-#endif
+		UE_LOG_ONLINE_STORE(Log, TEXT("No receipt data found for transaction"));
 	}
 	
 	UE_LOG_ONLINE_STORE(VeryVerbose, TEXT("FStoreKitHelper::convertReceiptToString %s"), *ReceiptData);
@@ -384,20 +371,9 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)restorePurchases
 {
-#ifdef __IPHONE_7_0
-	if ([IOSAppDelegate GetDelegate].OSVersion >= 7.0)
-	{
-		Request = [[SKReceiptRefreshRequest alloc] init];
-		Request.delegate = self;
-		[Request start];
-	}
-	else
-#endif
-	{
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_7_0
-		[[SKPaymentQueue defaultQueue] restoreCompletedTransactions];
-#endif
-	}
+	Request = [[SKReceiptRefreshRequest alloc] init];
+	Request.delegate = self;
+	[Request start];
 }
 
 @end
@@ -465,10 +441,8 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	{
 		SKMutablePayment* Payment = [SKMutablePayment paymentWithProduct:Product];
 		Payment.quantity = 1;
-		if ([IOSAppDelegate GetDelegate].OSVersion >= 8.3)
-		{
-			Payment.simulatesAskToBuyInSandbox = bAskToBuy;
-		}
+		Payment.simulatesAskToBuyInSandbox = bAskToBuy;
+
 		if (!userId.IsEmpty())
 		{
 			// hash of username to detect irregular activity

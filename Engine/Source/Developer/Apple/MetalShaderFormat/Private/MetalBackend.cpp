@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// ..
 
 #include "MetalBackend.h"
 #include "MetalShaderFormat.h"
@@ -1359,7 +1359,7 @@ protected:
 				{
 					bool bIsStructuredBuffer = (inst->type->inner_type->is_record() || !strncmp(inst->type->name, "RWStructuredBuffer<", 19) || !strncmp(inst->type->name, "StructuredBuffer<", 17));
 					bool bIsByteAddressBuffer = (!strncmp(inst->type->name, "RWByteAddressBuffer", 19) || !strncmp(inst->type->name, "ByteAddressBuffer", 17));
-                	if (Buffers.AtomicVariables.find(inst) != Buffers.AtomicVariables.end() || bIsStructuredBuffer || bIsByteAddressBuffer || inst->invariant || (inst->type->components() == 3) || inst->type->inner_type->components() == 3 || Backend.Version <= 2)
+                	if (Buffers.AtomicVariables.find(inst) != Buffers.AtomicVariables.end() || bIsStructuredBuffer || bIsByteAddressBuffer || inst->invariant || ((inst->type->components() == 3) || (Backend.TypedMode == EMetalTypeBufferMode2DSRV || Backend.TypedMode == EMetalTypeBufferModeTBSRV) && inst->type->is_image()) || inst->type->inner_type->components() == 3 || Backend.Version <= 2)
 					{
 						bInsertSideTable |= true;
 					}
@@ -1379,8 +1379,8 @@ protected:
 		{
 			check(sig->is_main);
             
-            ir_variable* patchCount = new(ParseState)ir_variable(glsl_type::uint_type, "patchCount", ir_var_uniform);
-            patchCount->semantic = "u";
+            ir_variable* patchCount = new(ParseState)ir_variable(glsl_type::uint_type, "patchCount", ir_var_in);
+            patchCount->semantic = "";
             Buffers.Buffers.Add(patchCount);
             
             int32 patchIndex = Buffers.GetIndex(patchCount);
@@ -1398,7 +1398,7 @@ protected:
 				"uint2 thread_position_in_grid [[thread_position_in_grid]],\n"
 				"ushort2 thread_position_in_threadgroup [[thread_position_in_threadgroup]],\n"
 				"uint2 threadgroup_position_in_grid [[threadgroup_position_in_grid]],\n"
-				"constant uint *patchCount [[ buffer(%d) ]],\n"
+				"device const uint *patchCount [[ buffer(%d) ]],\n"
 				"#define METAL_INDEX_BUFFER_ID %d\n"
 				"const device typed_buffer<uint>* indexBuffer [[ buffer(METAL_INDEX_BUFFER_ID) ]]",
                 patchIndex, IndexBufferIndex
@@ -1938,7 +1938,8 @@ protected:
 				}
 				break;
 			case ir_txs:
-				ralloc_asprintf_append(buffer, "int2((int)");
+				print_type_pre(tex->type);
+				ralloc_asprintf_append(buffer, "((int)");
 				break;
 			default:
 				break;
@@ -2230,7 +2231,57 @@ protected:
 			{
 				tex->sampler->accept(this);
 				ralloc_asprintf_append(buffer, ".read(");
-				tex->coordinate->accept(this);
+				
+				if (tex->sampler->type->sampler_array)
+				{
+					// Need to split the coordinate
+					char const* CoordSwizzle = "";
+					char const* IndexSwizzle = "y";
+					switch(tex->sampler->type->sampler_dimensionality)
+					{
+						case GLSL_SAMPLER_DIM_1D:
+						{
+							break;
+						}
+						case GLSL_SAMPLER_DIM_2D:
+						case GLSL_SAMPLER_DIM_RECT:
+						{
+							CoordSwizzle = "y";
+							IndexSwizzle = "z";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_3D:
+						{
+							CoordSwizzle = "yz";
+							IndexSwizzle = "w";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_CUBE:
+						{
+							CoordSwizzle = "yz";
+							IndexSwizzle = "w";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_BUF:
+						case GLSL_SAMPLER_DIM_EXTERNAL:
+						default:
+						{
+							check(0);
+							break;
+						}
+					}
+					
+					ralloc_asprintf_append(buffer, "(");
+					tex->coordinate->accept(this);
+					
+					ralloc_asprintf_append(buffer, ").x%s, (uint)(", CoordSwizzle);
+					tex->coordinate->accept(this);
+					ralloc_asprintf_append(buffer, ").%s", IndexSwizzle);
+				}
+				else
+				{
+					tex->coordinate->accept(this);
+				}
 				
 				if (tex->sampler->type->sampler_ms)
 				{
@@ -2406,6 +2457,7 @@ protected:
 			{
 				ralloc_asprintf_append(buffer, tex->sampler->type->sampler_shadow ? "depth_cube_array::" : "texture_cube_array::");
 			}
+			else
 			{
 				tex->sampler->accept(this);
 				ralloc_asprintf_append(buffer, ".");
@@ -2422,6 +2474,65 @@ protected:
 				tex->lod_info.lod->accept(this);
 			}
 			ralloc_asprintf_append(buffer, ")");
+			
+			if (tex->type->vector_elements == 3)
+			{
+				switch(tex->sampler->type->sampler_dimensionality)
+				{
+					case GLSL_SAMPLER_DIM_1D:
+					{
+						break;
+					}
+					case GLSL_SAMPLER_DIM_2D:
+					case GLSL_SAMPLER_DIM_RECT:
+					{
+						if (tex->sampler->type->sampler_array)
+						{
+							ralloc_asprintf_append(buffer, ", (int)");
+							tex->sampler->accept(this);
+							ralloc_asprintf_append(buffer, ".get_array_size()");
+						}
+						else
+						{
+							check(0);
+						}
+						break;
+					}
+					case GLSL_SAMPLER_DIM_3D:
+					{
+						ralloc_asprintf_append(buffer, ", (int)");
+						tex->sampler->accept(this);
+						ralloc_asprintf_append(buffer, ".get_depth(");
+						if (tex->lod_info.lod)
+						{
+							tex->lod_info.lod->accept(this);
+						}
+						ralloc_asprintf_append(buffer, ")");
+						break;
+					}
+					case GLSL_SAMPLER_DIM_CUBE:
+					{
+						if (tex->sampler->type->sampler_array)
+						{
+							ralloc_asprintf_append(buffer, tex->sampler->type->sampler_shadow ? ", depth_cube_array::get_array_size(" : ", texture_cube_array::get_array_size(");
+							tex->sampler->accept(this);
+							ralloc_asprintf_append(buffer, ")");
+						}
+						else
+						{
+							check(0);
+						}
+						break;
+					}
+					case GLSL_SAMPLER_DIM_BUF:
+					case GLSL_SAMPLER_DIM_EXTERNAL:
+					default:
+					{
+						check(0);
+						break;
+					}
+				}
+			}
 		}
 			break;
 
@@ -2644,7 +2755,59 @@ protected:
 					ralloc_asprintf_append(buffer, "(");
 					deref->image->accept(this);
 					ralloc_asprintf_append(buffer, ".read(");
-					deref->image_index->accept(this);
+					
+					if (bIsArray)
+					{
+						// Need to split the coordinate
+						char const* CoordSwizzle = "";
+						char const* IndexSwizzle = "y";
+						switch(deref->image->type->sampler_dimensionality)
+						{
+							case GLSL_SAMPLER_DIM_1D:
+							{
+								break;
+							}
+							case GLSL_SAMPLER_DIM_2D:
+							case GLSL_SAMPLER_DIM_RECT:
+							{
+								CoordSwizzle = "y";
+								IndexSwizzle = "z";
+								break;
+							}
+							case GLSL_SAMPLER_DIM_3D:
+							{
+								CoordSwizzle = "yz";
+								IndexSwizzle = "w";
+								break;
+							}
+							case GLSL_SAMPLER_DIM_CUBE:
+							{
+								CoordSwizzle = "yz";
+								IndexSwizzle = "w";
+								break;
+							}
+							case GLSL_SAMPLER_DIM_BUF:
+							case GLSL_SAMPLER_DIM_EXTERNAL:
+							default:
+							{
+								check(0);
+								break;
+							}
+						}
+						
+						ralloc_asprintf_append(buffer, "(");
+						deref->image_index->accept(this);
+						
+						ralloc_asprintf_append(buffer, ").x%s, (uint)(", CoordSwizzle);
+						deref->image_index->accept(this);
+						ralloc_asprintf_append(buffer, ").%s", IndexSwizzle);
+					}
+					else
+					{
+						deref->image_index->accept(this);
+					}
+					
+					
 					ralloc_asprintf_append(buffer, ")");
 					switch(dst_elements)
 					{
@@ -2900,7 +3063,8 @@ protected:
 			//		Temp = textureSize(T{, lod});
 			// Metal
 			//		int2 Temp = int2((int)T.get_width({lod}), (int)T.get_height({lod}));
-			ralloc_asprintf_append(buffer, "int2(");
+			print_type_pre(deref->type);
+			ralloc_asprintf_append(buffer, "((int)");
 			deref->image->accept(this);
 			ralloc_asprintf_append(buffer, ".get_width(");
 			
@@ -2916,7 +3080,67 @@ protected:
 			{
 				deref->image_index->accept(this);
 			}
-			ralloc_asprintf_append(buffer, "))");
+			ralloc_asprintf_append(buffer, ")");
+			
+			if (deref->type->vector_elements == 3)
+			{
+				switch(deref->image->type->sampler_dimensionality)
+				{
+					case GLSL_SAMPLER_DIM_1D:
+					{
+						break;
+					}
+					case GLSL_SAMPLER_DIM_2D:
+					case GLSL_SAMPLER_DIM_RECT:
+					{
+						if (deref->image->type->sampler_array)
+						{
+							ralloc_asprintf_append(buffer, ", (int)");
+							deref->image->accept(this);
+							ralloc_asprintf_append(buffer, ".get_array_size()");
+						}
+						else
+						{
+							check(0);
+						}
+						break;
+					}
+					case GLSL_SAMPLER_DIM_3D:
+					{
+						ralloc_asprintf_append(buffer, ", (int)");
+						deref->image->accept(this);
+						ralloc_asprintf_append(buffer, ".get_depth(");
+						if (deref->image_index)
+						{
+							deref->image_index->accept(this);
+						}
+						ralloc_asprintf_append(buffer, ")");
+						break;
+					}
+					case GLSL_SAMPLER_DIM_CUBE:
+					{
+						if (deref->image->type->sampler_array)
+						{
+							ralloc_asprintf_append(buffer, deref->image->type->sampler_shadow ? ", depth_cube_array::get_array_size(" : ", texture_cube_array::get_array_size(");
+							deref->image->accept(this);
+							ralloc_asprintf_append(buffer, ")");
+						}
+						else
+						{
+							check(0);
+						}
+						break;
+					}
+					case GLSL_SAMPLER_DIM_BUF:
+					case GLSL_SAMPLER_DIM_EXTERNAL:
+					default:
+					{
+						check(0);
+						break;
+					}
+				}
+			}
+			ralloc_asprintf_append(buffer, ")");
 		}
 		else
 		{
@@ -4660,10 +4884,18 @@ public:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 0\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
                 break;
+			case EMetalTypeBufferMode2DSRV:
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 1\n");
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
+				break;
             case EMetalTypeBufferMode2D:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 1\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 1\n");
                 break;
+			case EMetalTypeBufferModeTBSRV:
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 3\n");
+				ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 0\n");
+				break;
             case EMetalTypeBufferModeTB:
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_READ_IMPL__ 3\n");
                 ralloc_asprintf_append(buffer, "#define __METAL_TYPED_BUFFER_RW_IMPL__ 3\n");
@@ -4848,8 +5080,8 @@ char* FMetalCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* sta
 	ExpandArrayAssignments(ir, state);
 
 	// Fix any special language extensions (FrameBufferFetchES2() intrinsic)
-	FixIntrinsics(ir, state);
-
+	FixIntrinsics(ir, state, Frequency);
+	
 	// Remove half->float->half or float->half->float
 	FixRedundantCasts(ir);
 

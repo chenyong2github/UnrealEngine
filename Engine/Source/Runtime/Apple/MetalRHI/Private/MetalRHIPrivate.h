@@ -119,9 +119,11 @@ extern bool GMetalCommandBufferDebuggingEnabled;
 #endif
 
 #if METAL_STATISTICS
-#define METAL_STATISTIC(Code) Code
+#define METAL_STATISTIC(Code) if (GIsMetalInitialized) { Code; }
+#define METAL_STATISTICS_ONLY(Code) Code
 #else
 #define METAL_STATISTIC(Code)
+#define METAL_STATISTICS_ONLY(Code)
 #endif
 
 #define UNREAL_TO_METAL_BUFFER_INDEX(Index) ((MaxMetalStreams - 1) - Index)

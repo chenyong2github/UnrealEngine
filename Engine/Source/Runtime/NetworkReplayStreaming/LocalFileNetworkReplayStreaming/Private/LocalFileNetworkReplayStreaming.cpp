@@ -3,6 +3,7 @@
 #include "LocalFileNetworkReplayStreaming.h"
 #include "Misc/NetworkVersion.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Async/Async.h"
@@ -12,6 +13,7 @@
 #include "Engine/World.h"
 #include "UObject/CoreOnline.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalFileReplay, Log, All);
 
@@ -2146,6 +2148,8 @@ bool FLocalFileNetworkReplayStreamer::IsFileRequestPendingOrInProgress(const EQu
 
 bool FLocalFileNetworkReplayStreamer::ProcessNextFileRequest()
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	if (IsFileRequestInProgress())
 	{
 		return false;
@@ -2243,6 +2247,8 @@ const TArray<uint8>& FLocalFileNetworkReplayStreamer::GetCachedFileContents(cons
 
 TSharedPtr<FArchive> FLocalFileNetworkReplayStreamer::CreateLocalFileReader(const FString& InFilename) const
 {
+	LLM_SCOPE(ELLMTag::Replays);
+
 	if (bCacheFileReadsInMemory)
 	{
 		const TArray<uint8>& Data = GetCachedFileContents(InFilename);
@@ -2656,6 +2662,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 		[this, RequestedStreamChunkIndex](TLocalFileRequestCommonData<FStreamingResultBase>& RequestData)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_LocalReplay_ReadStream);
+			LLM_SCOPE(ELLMTag::Replays);
 
 			if (ReadReplayInfo(CurrentStreamName, RequestData.ReplayInfo))
 			{
@@ -2704,6 +2711,8 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 		},
 		[this, RequestedStreamChunkIndex](TLocalFileRequestCommonData<FStreamingResultBase>& RequestData)
 		{
+			LLM_SCOPE(ELLMTag::Replays);
+
 			// Make sure our stream chunk index didn't change under our feet
 			if (RequestedStreamChunkIndex != StreamChunkIndex)
 			{
@@ -2817,6 +2826,7 @@ void FLocalFileNetworkReplayStreamer::AddRequestToCache(int32 ChunkIndex, const 
 	}
 
 	// Add to cache (or freshen existing entry)
+	LLM_SCOPE(ELLMTag::Replays);
 	RequestCache.Add(ChunkIndex, MakeShareable(new FCachedFileRequest(RequestData, FPlatformTime::Seconds())));
 
 	// Anytime we add something to cache, make sure it's within budget
@@ -3046,6 +3056,46 @@ void FLocalFileNetworkReplayStreamingFactory::Tick( float DeltaTime )
 			}
 
 			LocalFileStreamers.RemoveAt(i);
+		}
+	}
+}
+
+void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
+{
+	bool bFlushStreamersOnShutdown = true;
+	GConfig->GetBool(TEXT("LocalFileNetworkReplayStreamingFactory"), TEXT("bFlushStreamersOnShutdown"), bFlushStreamersOnShutdown, GEngineIni);
+
+	if (bFlushStreamersOnShutdown)
+	{
+		double MaxFlushTimeSeconds = -1.0;
+		GConfig->GetDouble(TEXT("LocalFileNetworkReplayStreamingFactory"), TEXT("MaxFlushTimeSeconds"), MaxFlushTimeSeconds, GEngineIni);
+
+		double BeginWaitTime = FPlatformTime::Seconds();
+		double LastTime = BeginWaitTime;
+		while (LocalFileStreamers.Num() > 0)
+		{
+			const double AppTime = FPlatformTime::Seconds();
+			const double TotalWait = AppTime - BeginWaitTime;
+
+			if ((MaxFlushTimeSeconds > 0) && (TotalWait > MaxFlushTimeSeconds))
+			{
+				UE_LOG(LogLocalFileReplay, Display, TEXT("Abandoning streamer flush after waiting %0.2f seconds"), TotalWait);
+				break;
+			}
+
+			Tick(AppTime - LastTime);
+			LastTime = AppTime;
+
+			if (LocalFileStreamers.Num() > 0)
+			{
+				FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+
+				if (FPlatformProcess::SupportsMultithreading())
+				{
+					UE_LOG(LogLocalFileReplay, Display, TEXT("Sleeping 0.1s to wait for outstanding requests."));
+					FPlatformProcess::Sleep(0.1f);
+				}
+			}
 		}
 	}
 }

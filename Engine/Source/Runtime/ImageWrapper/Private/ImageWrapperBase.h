@@ -88,8 +88,19 @@ public:
 		return Width;
 	}
 
+	virtual int32 GetNumFrames() const override
+	{
+		return NumFrames;
+	}
+	
+	virtual int32 GetFramerate() const override
+	{
+		return Framerate;
+	}
+
 	virtual bool SetCompressed(const void* InCompressedData, int32 InCompressedSize) override;
 	virtual bool SetRaw(const void* InRawData, int32 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
+	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
 
 protected:
 
@@ -110,6 +121,10 @@ protected:
 	/** Width/Height of the image data */
 	int32 Width;
 	int32 Height;
+	
+	/** Animation information */
+	int32 NumFrames;
+	int32 Framerate;
 
 	/** Last Error Message. */
 	FString LastError;

@@ -16,6 +16,7 @@ class FJavaAndroidWebBrowser : public FJavaClassObject
 {
 public:
 	FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRenderer, int32 width, int32 height, jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency);
+	virtual ~FJavaAndroidWebBrowser();
 	void Release();
 	bool GetVideoLastFrameData(void* & outPixels, int64 & outCount, bool *bRegionChanged);
 	bool GetVideoLastFrame(int32 destTexture);

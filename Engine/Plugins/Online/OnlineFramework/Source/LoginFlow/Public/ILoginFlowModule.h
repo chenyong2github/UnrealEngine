@@ -89,9 +89,12 @@ public:
 		FOnLoginFlowError ErrorCallback;
 		/** Delegate to fire for every URL redirect */
 		FOnLoginFlowRedirectURL RedirectCallback;
+		/** Whether or not the widget should consume input not handled by the browser */
+		bool bConsumeInput;
 
 		FCreateSettings()
 			: StyleSet(nullptr)
+			, bConsumeInput(false)
 		{}
 	};
 

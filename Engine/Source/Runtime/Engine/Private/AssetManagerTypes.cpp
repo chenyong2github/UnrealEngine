@@ -107,6 +107,13 @@ void FPrimaryAssetRules::PropagateCookRules(const FPrimaryAssetRules& ParentRule
 	}
 }
 
+void UAssetManagerSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
+{
+	Super::PostReloadConfig(PropertyThatWasLoaded);
+
+	UAssetManager::Get().LoadRedirectorMaps();
+}
+
 #if WITH_EDITOR
 void UAssetManagerSettings::PostInitProperties()
 {

@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Misc/ScopeLock.h"
 #include "LowLevelMemoryUtils.h"
 #include "HAL/FileManager.h"
@@ -9,22 +10,11 @@
 #include "HAL/IConsoleManager.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-
-// uncomment this to use MemPro (note: MemPro.cpp/need to be added to the project for this to work)
-//#define ENABLE_MEMPRO
+#include "MemPro/MemProProfiler.h"
 
 // There is a little memory and cpu overhead in tracking peak memory but it is generally more useful than current memory.
 // Disable if you need a little more memory or speed
 #define LLM_TRACK_PEAK_MEMORY 0		// currently disabled because there was a problem with tracking peaks from multiple threads.
-
-#ifdef ENABLE_MEMPRO
-namespace MemProProfiler
-{
-	ELLMTag TrackTag = ELLMTag::RHIMisc;		// GenericTagCount to track all allocs
-	bool bStart = true;
-}
-#include "MemPro.hpp"
-#endif //ENABLE_MEMPRO
 
 TAutoConsoleVariable<int32> CVarLLMWriteInterval(
 	TEXT("LLM.LLMWriteInterval"),
@@ -78,6 +68,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Stats"), STAT_StatsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Shaders"), STAT_ShadersLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PSO"), STAT_PSOLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Textures"), STAT_TexturesLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("TextureMetaData"), STAT_TextureMetaDataLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Render Targets"), STAT_RenderTargetsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("RHIMisc"), STAT_RHIMiscLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysX TriMesh"), STAT_PhysXTriMeshLLM, STATGROUP_LLMFULL);
@@ -106,6 +97,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("AssetRegistry"), STAT_AssetRegistryLLM, STATGROUP_
 DECLARE_LLM_MEMORY_STAT(TEXT("ConfigSystem"), STAT_ConfigSystemLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("InitUObject"), STAT_InitUObjectLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("VideoRecording"), STAT_VideoRecordingLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("Replays"), STAT_ReplaysLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("CsvProfiler"), STAT_CsvProfilerLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("MaterialInstance"), STAT_MaterialInstanceLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("SkeletalMesh"), STAT_SkeletalMeshLLM, STATGROUP_LLMFULL);
@@ -307,7 +299,7 @@ public:
 #endif
 	void TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType);
 	void TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType AllocType);
-	void OnAllocMoved(const void* Dest, const void* Source);
+	void OnAllocMoved(const void* Dest, const void* Source, uint64& OutSize, int64& OutTag);
 
 	void TrackMemory(int64 Tag, int64 Amount);
 
@@ -535,6 +527,9 @@ FLowLevelMemTracker::FLowLevelMemTracker()
 
 FLowLevelMemTracker::~FLowLevelMemTracker()
 {
+	// Ensure that we skip any further tracking since it will fail after this destructor
+	bIsDisabled = true;
+	
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		Trackers[TrackerIndex]->~FLLMTracker();
@@ -579,6 +574,11 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 		GetTracker(ELLMTracker::Default)->SetTotalTags(ELLMTag::UntaggedTotal, ELLMTag::TrackedTotal);
 
 		bFirstTimeUpdating = false;
+
+#if MEMPRO_ENABLED
+		FMemProProfiler::PostInit();
+#endif
+
 	}
 
 	// update the trackers
@@ -622,7 +622,7 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	// remove the Overhead from the default LLM as it's not something anyone needs to investigate when finding what to reduce
 	// the platform LLM will have the info 
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Total, PlatformProcessMemory - Overhead, false);
-	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - TrackedTotal, false);
+	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - (TrackedTotal + Overhead), false);
 
 #if PLATFORM_WINDOWS
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::WorkingSetSize, PlatformStats.UsedPhysical, false);
@@ -777,12 +777,31 @@ FLLMTracker* FLowLevelMemTracker::GetTracker(ELLMTracker Tracker)
 
 void FLowLevelMemTracker::OnLowLevelAllocMoved(ELLMTracker Tracker, const void* Dest, const void* Source)
 {
-	if (bIsDisabled)
+	if (bIsDisabled || GIsRequestingExit)
 	{
 		return;
 	}
 
-	GetTracker(Tracker)->OnAllocMoved(Dest, Source);
+	//update the allocation map
+	uint64 Size;
+	int64 Tag;
+	GetTracker(Tracker)->OnAllocMoved(Dest, Source, Size, Tag);
+
+	// update external memory trackers (ideally would want a proper 'move' option on these)
+	if (Tracker == ELLMTracker::Default)
+	{
+		FPlatformMemory::OnLowLevelMemory_Free(Source, Size, Tag);
+		FPlatformMemory::OnLowLevelMemory_Alloc(Dest, Size, Tag);
+	}
+
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
+	{
+		MEMPRO_TRACK_FREE((void*)Source);
+		MEMPRO_TRACK_ALLOC((void*)Dest, (size_t)Size);
+	}
+#endif
+
 }
 
 bool FLowLevelMemTracker::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
@@ -908,6 +927,16 @@ int64 FLowLevelMemTracker::GetActiveTag(ELLMTracker Tracker)
 {
     return GetTracker(Tracker)->GetActiveTag();
 }
+
+void FLowLevelMemTracker::DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber )
+{
+	int64 Tag = GetActiveTag(Tracker);
+	const TCHAR* TagName = FindTagName(Tag);
+
+	FPlatformMisc::LowLevelOutputDebugStringf( TEXT("LLM TAG: %s (%lld) @ %s:%d\n"), TagName ? TagName : TEXT("<unknown>"), Tag, FileName ? ANSI_TO_TCHAR(FileName) : TEXT("?"), LineNumber );
+}
+
+
 
 
 FLLMScope::FLLMScope(FName StatIDName, ELLMTagSet Set, ELLMTracker Tracker)
@@ -1251,10 +1280,20 @@ void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType 
 #endif
 }
 
-void FLLMTracker::OnAllocMoved(const void* Dest, const void* Source)
+void FLLMTracker::OnAllocMoved(const void* Dest, const void* Source, uint64& OutSize, int64& OutTag)
 {
 	LLMMap::Values Values = GetAllocationMap().Remove(Source);
 	GetAllocationMap().Add(Dest, Values.Value1, Values.Value2);
+
+
+	const FLLMTracker::FLowLevelAllocInfo& AllocInfo = Values.Value2;
+#if LLM_USE_ALLOC_INFO_STRUCT
+	OutTag = AllocInfo.Tag;
+#else
+	OutTag = (int64)AllocInfo;
+#endif
+
+	OutSize = Values.Value1;
 }
 
 void FLLMTracker::TrackMemory(int64 Tag, int64 Amount)
@@ -1576,8 +1615,8 @@ void FLLMTracker::FLLMThreadState::TrackAllocation(const void* Ptr, uint64 Size,
 		FPlatformMemory::OnLowLevelMemory_Alloc(Ptr, Size, Tag);
 	}
 	
-#ifdef ENABLE_MEMPRO
-	if (MemProProfiler::bStart && Tracker == ELLMTracker::Default && (MemProProfiler::TrackTag == ELLMTag::GenericTagCount || MemProProfiler::TrackTag == (ELLMTag)Tag))
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
 	{
 		MEMPRO_TRACK_ALLOC((void*)Ptr, (size_t)Size);
 	}
@@ -1597,8 +1636,8 @@ void FLLMTracker::FLLMThreadState::TrackFree(const void* Ptr, int64 Tag, uint64 
 		FPlatformMemory::OnLowLevelMemory_Free(Ptr, Size, Tag);
 	}
 
-#ifdef ENABLE_MEMPRO
-	if (MemProProfiler::bStart && Tracker == ELLMTracker::Default && (MemProProfiler::TrackTag == ELLMTag::GenericTagCount || MemProProfiler::TrackTag == (ELLMTag)Tag))
+#if MEMPRO_ENABLED
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
 	{
 		MEMPRO_TRACK_FREE((void*)Ptr);
 	}

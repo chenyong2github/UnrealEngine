@@ -52,6 +52,10 @@
 #include "Misc/CoreDelegates.h"
 #endif
 
+#if !defined ENABLE_ADVERTISING_IDENTIFIER
+	#define ENABLE_ADVERTISING_IDENTIFIER 0
+#endif
+
 //#include <libproc.h>
 // @pjs commented out to resolve issue with PLATFORM_TVOS being defined by mach-o loader
 //#include <mach-o/dyld.h>
@@ -294,26 +298,33 @@ bool FIOSPlatformMisc::IsInLowPowerMode()
 
 
 #if !PLATFORM_TVOS
-EDeviceScreenOrientation ConvertFromUIDeviceOrientation(UIDeviceOrientation Orientation)
+EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientation Orientation)
 {
 	switch(Orientation)
 	{
 		default:
-		case UIDeviceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
-		case UIDeviceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
-		case UIDeviceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
-		case UIDeviceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
-		case UIDeviceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
-		case UIDeviceOrientationFaceUp : return EDeviceScreenOrientation::FaceUp; break;
-		case UIDeviceOrientationFaceDown : return EDeviceScreenOrientation::FaceDown; break;
+		case UIInterfaceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
+		case UIInterfaceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
+		case UIInterfaceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
+		case UIInterfaceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
+		case UIInterfaceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
 	}
 }
+#endif
+
+#if !PLATFORM_TVOS
+UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
 #endif
 
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
 #if !PLATFORM_TVOS
-	return ConvertFromUIDeviceOrientation([[UIDevice currentDevice] orientation]);
+	if (GInterfaceOrientation == UIInterfaceOrientationUnknown)
+	{
+		GInterfaceOrientation = [[UIApplication sharedApplication] statusBarOrientation];
+	}
+
+	return ConvertFromUIInterfaceOrientation(GInterfaceOrientation);
 #else
 	return EDeviceScreenOrientation::Unknown;
 #endif
@@ -797,7 +808,7 @@ void FIOSPlatformMisc::RequestStoreReview()
 */
 FString FIOSPlatformMisc::GetUniqueAdvertisingId()
 {
-#if !PLATFORM_TVOS
+#if !PLATFORM_TVOS && ENABLE_ADVERTISING_IDENTIFIER
 	// Check to see if this OS has this function
 	if ([[ASIdentifierManager sharedManager] respondsToSelector:@selector(advertisingIdentifier)])
 	{
@@ -1585,8 +1596,12 @@ bool FIOSPlatformMisc::GetStoredValue(const FString& InStoreId, const FString& I
 
 bool FIOSPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName)
 {
-	// No Implementation (currently only used by editor code so not needed on iOS)
-	return false;
+	NSUserDefaults* UserSettings = [NSUserDefaults standardUserDefaults];
+	
+	// store it
+	[UserSettings removeObjectForKey:MakeStoredValueKeyName(InSectionName, InKeyName)];
+
+	return true;
 }
 
 void FIOSPlatformMisc::SetGracefulTerminationHandler()
@@ -1650,6 +1665,11 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
         }
     }
 #endif
+}
+
+bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
+{
+    return FPlatformMisc::IsDebuggerPresent();
 }
 
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
@@ -1919,3 +1939,37 @@ void ReportEnsure( const TCHAR* ErrorMessage, int NumStackFramesToIgnore )
     bReentranceGuard = false;
     EnsureLock.Unlock();
 }
+
+
+class FIOSExec : public FSelfRegisteringExec
+{
+public:
+	FIOSExec()
+		: FSelfRegisteringExec()
+	{
+		
+	}
+	
+	virtual bool Exec(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override
+	{
+		if (FParse::Command(&Cmd, TEXT("IOS")))
+		{
+			// commands to override and append commandline options for next boot (see FIOSCommandLineHelper)
+			if (FParse::Command(&Cmd, TEXT("OverrideCL")))
+			{
+				return FPlatformMisc::SetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("ReplacementCL"), Cmd);
+			}
+			else if (FParse::Command(&Cmd, TEXT("AppendCL")))
+			{
+				return FPlatformMisc::SetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("AppendCL"), Cmd);
+			}
+			else if (FParse::Command(&Cmd, TEXT("ClearAllCL")))
+			{
+				return FPlatformMisc::DeleteStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("ReplacementCL")) &&
+						FPlatformMisc::DeleteStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("AppendCL"));
+			}
+		}
+		
+		return false;
+	}
+} GIOSExec;

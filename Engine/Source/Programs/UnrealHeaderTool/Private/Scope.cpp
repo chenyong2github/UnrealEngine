@@ -49,7 +49,7 @@ void DispatchType(UField* Type, TArray<UEnum*> &Enums, TArray<UScriptStruct*> &S
 		UScriptStruct* Struct = (UScriptStruct*)Type;
 		Structs.Add(Struct);
 	}
-	else if (TypeClass == UDelegateFunction::StaticClass())
+	else if (TypeClass == UDelegateFunction::StaticClass() || TypeClass == USparseDelegateFunction::StaticClass())
 	{
 		bool bAdded = false;
 		UDelegateFunction* Function = (UDelegateFunction*)Type;

@@ -606,6 +606,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		ns::Array<mtlpp::RenderPipelineColorAttachmentDescriptor> ColorAttachments = RenderPipelineDesc.GetColorAttachments();
 		auto DebugColorAttachements = DebugPipelineDesc.GetColorAttachments();
 
+		uint32 TargetWidth = 0;
 		for (uint32 i = 0; i < NumActiveTargets; i++)
         {
             EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
@@ -614,6 +615,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 				UE_LOG(LogMetal, Fatal, TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
                 continue;
             }
+			TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
             
             mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
             uint32 Flags = Init.RenderTargetFlags[i];
@@ -668,6 +670,12 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #endif
             }
         }
+		
+		// don't allow a PSO that is too wide
+		if (!GSupportsWideMRT && TargetWidth > 16)
+		{
+			return nil;
+		}
         
         switch(Init.DepthStencilTargetFormat)
         {
@@ -954,10 +962,10 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 				}
 #endif
 #if METAL_DEBUG_OPTIONS
-				if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTIC(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+				if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
 				{
 					mtlpp::AutoReleasedComputePipelineReflection Reflection;
-					ComputeOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTIC(|NSUInteger(EMTLPipelineStats));
+					ComputeOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
 					Pipeline->ComputePipelineState = Device.NewComputePipelineState(ComputePipelineDesc, (mtlpp::PipelineOption)ComputeOption, &Reflection, &AutoError);
 					Pipeline->ComputePipelineReflection = Reflection;
 				}
@@ -1081,9 +1089,9 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #if METAL_DEBUG_OPTIONS
 		mtlpp::AutoReleasedRenderPipelineReflection OutReflection;
 		Reflection = &OutReflection;
-        if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTIC(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+        if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
         {
-        	RenderOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTIC(|NSUInteger(EMTLPipelineStats));
+        	RenderOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
         }
 #endif
 

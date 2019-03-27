@@ -65,6 +65,19 @@ public:
 	static FString GetBuildDate();
 
 	/**
+	 * Gets the name of the graphics RHI currently in use.
+	 *
+	 * @return name of Graphics RHI
+	 */
+	static FString GetGraphicsRHI();
+
+	/**
+	 * Sets the Graphics RHI currently in use
+	 */
+	static void SetGraphicsRHI(FString RHIString);
+
+
+	/**
 	 * Gets the value of ENGINE_IS_PROMOTED_BUILD.
 	 */
 	static int32 GetEngineIsPromotedBuild();
@@ -709,6 +722,10 @@ private:
 
 	/** Holds the name of the user that launched session. */
 	static FString SessionOwner;
+
+	/** Holds the name the graphics RHI currently in use*/
+	static FString GraphicsRHI;
+
 
 	/** List of authorized session users. */
 	static TArray<FString> SessionUsers;

@@ -3074,6 +3074,13 @@ UObject* UClass::CreateDefaultObject()
 				check(ClassDefaultObject);
 				// Blueprint CDOs have their properties always initialized.
 				const bool bShouldInitializeProperties = !HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic);
+				// Register the offsets of any sparse delegates this class introduces with the sparse delegate storage
+				for (TFieldIterator<UMulticastSparseDelegateProperty> SparseDelegateIt(this, EFieldIteratorFlags::ExcludeSuper, EFieldIteratorFlags::ExcludeDeprecated); SparseDelegateIt; ++SparseDelegateIt)
+				{
+					const FSparseDelegate& SparseDelegate = SparseDelegateIt->GetPropertyValue_InContainer(ClassDefaultObject);
+					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
+					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
+				}
 				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, false, bShouldInitializeProperties));
 				if (bDoNotify)
 				{
@@ -3948,10 +3955,6 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	}
 #endif
 
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-	UberGraphFramePointerProperty = NULL;
-#endif//USE_UBER_GRAPH_PERSISTENT_FRAME
-
 	ClassDefaultObject = NULL;
 
 	Interfaces.Empty();
@@ -4032,9 +4035,6 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin( UObject::StaticClass() )
 ,	ClassGeneratedBy(nullptr)
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-,	UberGraphFramePointerProperty(nullptr)
-#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
 ,	ClassDefaultObject(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
@@ -4053,9 +4053,6 @@ UClass::UClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
 ,	ClassCastFlags(CASTCLASS_None)
 ,	ClassWithin(UObject::StaticClass())
 ,	ClassGeneratedBy(nullptr)
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-,	UberGraphFramePointerProperty(nullptr)
-#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
 ,	ClassDefaultObject(nullptr)
 {
 	// If you add properties here, please update the other constructors and PurgeClass()
@@ -4369,6 +4366,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 
 void UClass::AssembleReferenceTokenStreams()
 {
+	SCOPED_BOOT_TIMING("AssembleReferenceTokenStreams (can be optimized)");
 	// Iterate over all class objects and force the default objects to be created. Additionally also
 	// assembles the token reference stream at this point. This is required for class objects that are
 	// not taken into account for garbage collection but have instances that are.
@@ -4383,7 +4381,7 @@ void UClass::AssembleReferenceTokenStreams()
 				Class->GetDefaultObject(); // Force the default object to be constructed if it isn't already
 			}
 			// Assemble reference token stream for garbage collection/ RTGC.
-			if (!Class->HasAnyClassFlags(CLASS_TokenStreamAssembled))
+			if (!Class->HasAnyFlags(RF_ClassDefaultObject) && !Class->HasAnyClassFlags(CLASS_TokenStreamAssembled))
 			{
 				Class->AssembleReferenceTokenStream();
 			}
@@ -5157,6 +5155,31 @@ UDelegateFunction::UDelegateFunction(UFunction* InSuperFunction, EFunctionFlags 
 }
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDelegateFunction, UFunction,
+	{
+	}
+);
+
+USparseDelegateFunction::USparseDelegateFunction(const FObjectInitializer& ObjectInitializer, UFunction* InSuperFunction, EFunctionFlags InFunctionFlags, SIZE_T ParamsSize)
+	: UDelegateFunction(ObjectInitializer, InSuperFunction, InFunctionFlags, ParamsSize)
+{
+
+}
+
+USparseDelegateFunction::USparseDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags, SIZE_T ParamsSize)
+	: UDelegateFunction(InSuperFunction, InFunctionFlags, ParamsSize)
+{
+
+}
+
+void USparseDelegateFunction::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar << OwningClassName;
+	Ar << DelegateName;
+}
+
+IMPLEMENT_CORE_INTRINSIC_CLASS(USparseDelegateFunction, UDelegateFunction,
 	{
 	}
 );

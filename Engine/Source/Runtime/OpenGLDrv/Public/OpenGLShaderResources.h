@@ -485,10 +485,10 @@ public:
 	static void CompilePendingShaders(const FOpenGLLinkedProgramConfiguration& Config);
 	
 	/** Try to find and load program binary from cache */
-	static bool UseCachedProgram(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey);
+	static bool UseCachedProgram(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT);
 	
 	/** Store program binary on disk in case ProgramBinaryCache is enabled */
-	static void CacheProgram(GLuint Program, const FOpenGLProgramKey& ProgramKey);
+	static void CacheProgram(GLuint Program, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT);
 
 	static void OnShaderLibraryRequestShaderCode(const FSHAHash& Hash, FArchive* Ar);
 
@@ -545,11 +545,13 @@ private:
 	void OpenAsyncReadHandle();
 	void CloseAsyncReadHandle();
 
-	bool OpenWriteHandle(bool bTruncate = false);
+	bool OpenWriteHandle();
 	void CloseWriteHandle();
 
-	void AppendProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program);
-	void AddUniqueProgramToBinaryCache(FArchive* FileWriter, const FOpenGLProgramKey& ProgramKey, GLuint Program);
+	void AppendGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT);
+	void AddUniqueGLProgramToBinaryCache(FArchive* FileWriter, const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT);
+
+	void AddProgramBinaryDataToBinaryCache(FArchive& Ar, TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey);
 
 	void ReleaseGLProgram_internal(FOpenGLLinkedProgramConfiguration& Config, GLuint Program);
 
@@ -558,6 +560,8 @@ private:
 		const FGLShaderToPrograms* FoundShaderToBinary = CachePtr->ShaderToProgramsMap.Find(Hash);
 		return FoundShaderToBinary && FoundShaderToBinary->bLoaded;
 	}
+
+	bool UseCachedProgram_internal(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT);
 
 	void OnShaderLibraryRequestShaderCode_internal(const FSHAHash& Hash, FArchive* Ar);
 
@@ -602,6 +606,7 @@ private:
 		TArray<FGLProgramBinaryFileCacheEntry*> AssociatedPrograms;
 	};
 
+	// Map of shader hash to a list of programs which reference it.
 	TMap<FSHAHash, FGLShaderToPrograms> ShaderToProgramsMap;
 
 	// programs loaded via async and now ready for creation on GL context owning thread.
@@ -613,10 +618,33 @@ private:
 
 	enum class EBinaryFileState : uint8
 	{
-		Uninitialized,		// No binary file is yet established and we should not read or write to it.
-		BuildingCacheFile,	// We are precompiling shaders from the PSO and storing them in a new binary cache. Do not attempt to read.
-		ValidCacheFile,		// We have a valid cache file we can use for reading. Do not attempt to write.
+		Uninitialized,					// No binary file is yet established and we should not read or write to it.
+		BuildingCacheFile,				// We are precompiling shaders from the PSO and storing them in a new binary cache. Do not attempt to read.
+		BuildingCacheFileWithMove,		// We are precompiling shaders from the PSO and storing them in a new binary cache, shaders matching from the existing cache are moved to the new file. Do not attempt to read.
+		ValidCacheFile,					// We have a valid cache file we can use for reading. Do not attempt to write.
 	};
+
+	bool IsBuildingCache_internal() const
+	{
+		return BinaryFileState == EBinaryFileState::BuildingCacheFile || BinaryFileState == EBinaryFileState::BuildingCacheFileWithMove;
+	}
+
+	struct FPreviousGLProgramBinaryCacheInfo
+	{
+		FPreviousGLProgramBinaryCacheInfo();
+		FPreviousGLProgramBinaryCacheInfo(FPreviousGLProgramBinaryCacheInfo&&);
+		FPreviousGLProgramBinaryCacheInfo& operator=(FPreviousGLProgramBinaryCacheInfo&&);
+		~FPreviousGLProgramBinaryCacheInfo();
+
+
+		FString OldCacheFilename;
+		TUniquePtr<FArchive> OldCacheArchive;
+		TMap<FOpenGLProgramKey, TUniquePtr<FGLProgramBinaryFileCacheEntry> > ProgramToOldBinaryCacheMap; // program key to program entry for old cache used when generating new cache.
+
+		// for logging
+		uint32 NumberOfOldEntriesReused;
+	};
+	FPreviousGLProgramBinaryCacheInfo PreviousBinaryCacheInfo;
 
 	EBinaryFileState BinaryFileState;
 };

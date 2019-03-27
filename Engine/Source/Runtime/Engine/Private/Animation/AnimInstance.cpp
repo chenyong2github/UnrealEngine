@@ -247,7 +247,10 @@ void UAnimInstance::UninitializeAnimation()
 		for(int32 Index=0; Index<ActiveAnimNotifyState.Num(); Index++)
 		{
 			const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
-			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+			if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+			{
+				AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+			}
 		}
 	}
 
@@ -1270,13 +1273,19 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	// Send end notification to AnimNotifyState not active anymore.
 	for(const FAnimNotifyEvent& AnimNotifyEvent : ActiveAnimNotifyState)
 	{
-		AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+		{
+			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+		}
 	}
 
 	// Call 'NotifyBegin' event on freshly added AnimNotifyState.
 	for (const FAnimNotifyEvent* AnimNotifyEvent : NotifyStateBeginEvent)
 	{
-		AnimNotifyEvent->NotifyStateClass->NotifyBegin(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent->NotifyStateClass->GetOuter()), AnimNotifyEvent->GetDuration());
+		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent->NotifyStateClass))
+		{
+			AnimNotifyEvent->NotifyStateClass->NotifyBegin(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent->NotifyStateClass->GetOuter()), AnimNotifyEvent->GetDuration());
+		}
 	}
 
 	// Switch our arrays.
@@ -1285,7 +1294,10 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	// Tick currently active AnimNotifyState
 	for(const FAnimNotifyEvent& AnimNotifyEvent : ActiveAnimNotifyState)
 	{
-		AnimNotifyEvent.NotifyStateClass->NotifyTick(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), DeltaSeconds);
+		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+		{
+			AnimNotifyEvent.NotifyStateClass->NotifyTick(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), DeltaSeconds);
+		}
 	}
 }
 
@@ -1553,7 +1565,10 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 
 			if (NotifyMontage && (NotifyMontage == MontageEndedEvent.Montage))
 			{
-				AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, NotifyMontage);
+				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
+				{
+					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, NotifyMontage);
+				}
 				ActiveAnimNotifyState.RemoveAtSwap(Index);
 			}
 		}

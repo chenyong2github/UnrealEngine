@@ -704,7 +704,7 @@ FText FMaterialPropertyHelpers::GetParameterExpressionDescription(UDEditorParame
 	UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
 	if (MaterialInstanceEditor)
 	{
-		BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();;
+		BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
 	}
 	UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
 	if (MaterialEditor)
@@ -725,6 +725,41 @@ FText FMaterialPropertyHelpers::GetParameterExpressionDescription(UDEditorParame
 
 	return FText::GetEmpty();
 }
+
+FText FMaterialPropertyHelpers::GetParameterTooltip(UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance)
+{
+	UMaterial* BaseMaterial = nullptr;
+	FText FoundInLocationText = FText::FromString(FPaths::GetBaseFilename(Parameter->ParameterInfo.ParameterLocation.GetAssetPathName().ToString()));
+	UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
+	if (MaterialInstanceEditor)
+	{
+		BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
+	}
+	UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
+	if (MaterialEditor)
+	{
+		BaseMaterial = MaterialEditor->OriginalMaterial;
+	}
+
+	// TODO: This needs to support functions added by SourceInstance layers
+	if (BaseMaterial)
+	{
+		UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
+
+		if (MaterialExpression)
+		{
+			FText TooltipText = FText::Format(LOCTEXT("ParameterInfoLocationOnly", "Found in: {0}"), FoundInLocationText);
+			if (!MaterialExpression->Desc.IsEmpty())
+			{
+				TooltipText = FText::Format(LOCTEXT("ParameterInfoDescAndLocation", "{0} \nFound in: {1}"), FText::FromString(MaterialExpression->Desc), FoundInLocationText);
+			}
+			return TooltipText;
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
 
 void FMaterialPropertyHelpers::ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle, class UDEditorParameterValue* Parameter, UMaterialEditorInstanceConstant* MaterialEditorInstance)
 {

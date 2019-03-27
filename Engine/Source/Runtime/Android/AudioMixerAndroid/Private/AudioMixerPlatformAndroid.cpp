@@ -368,10 +368,11 @@ namespace Audio
 
 	void FMixerPlatformAndroid::SubmitBuffer(const uint8* Buffer)
 	{
-		SLresult Result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, Buffer, AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels * sizeof(int16));
+		const auto BufferSize = AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels * sizeof(int16);
+		SLresult Result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, Buffer, BufferSize);
 		OPENSLES_LOG_ON_FAIL(Result);
 	}
-
+	
 	FName FMixerPlatformAndroid::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
 #if WITH_OGGVORBIS

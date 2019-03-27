@@ -213,8 +213,8 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 	else if (!GDisableAutomaticTextureMaterialUpdateDependencies)
 	{
-		FMaterialUpdateContext UpdateContext;
 		// Update any material that uses this texture and must force a recompile of cache ressource
+		TArray<UMaterial*> MaterialsToUpdate;
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
 		for (TObjectIterator<UMaterialInterface> It; It; ++It)
 		{
@@ -228,10 +228,20 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 				{
 					if (Material->IsTextureForceRecompileCacheRessource(this))
 					{
-						UpdateContext.AddMaterial(Material);
+						MaterialsToUpdate.Add(Material);
 						Material->UpdateMaterialShaderCacheAndTextureReferences();
 					}
 				}
+			}
+		}
+
+		if (MaterialsToUpdate.Num())
+		{
+			FMaterialUpdateContext UpdateContext;
+
+			for (UMaterial* MaterialToUpdate: MaterialsToUpdate)
+			{
+				UpdateContext.AddMaterial(MaterialToUpdate);
 			}
 		}
 	}

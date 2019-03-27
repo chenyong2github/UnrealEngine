@@ -61,9 +61,19 @@ namespace UnrealBuildTool
 		/// <param name="EngineDirectory"></param>
 		/// <param name="bForDistribution"></param>
 		/// <param name="CookFlavor"></param>
+		/// <param name="Configuration"></param>
 		/// <param name="bIsDataDeploy"></param>
+		/// <param name="bSkipGradleBuild"></param>
 		/// <returns></returns>
-		bool PrepForUATPackageOrDeploy(FileReference ProjectFile, string ProjectName, DirectoryReference ProjectDirectory, string ExecutablePath, string EngineDirectory, bool bForDistribution, string CookFlavor, bool bIsDataDeploy);
+		bool PrepForUATPackageOrDeploy(FileReference ProjectFile, string ProjectName, DirectoryReference ProjectDirectory, string ExecutablePath, string EngineDirectory, bool bForDistribution, string CookFlavor, UnrealTargetConfiguration Configuration, bool bIsDataDeploy, bool bSkipGradleBuild);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="ProjectName"></param>
+		/// <param name="ProjectDirectoryFullName"></param>
+		/// <param name="Type"></param>
+		bool SavePackageInfo(string ProjectName, string ProjectDirectoryFullName, TargetType Type);
 	}
 
 	/// <summary>

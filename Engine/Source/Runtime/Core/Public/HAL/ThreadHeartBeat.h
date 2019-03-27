@@ -47,12 +47,15 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	{
 		FHeartBeatInfo()
 			: LastHeartBeatTime(0.0)
+			, LastHangTime(0.0)
 			, SuspendedCount(0)
 			, HangDuration(0)
 		{}
 
 		/** Time we last received a heartbeat for the current thread */
 		double LastHeartBeatTime;
+		/** Time we last detected a hang due to lack of heartbeats for the current thread */
+		double LastHangTime;
 		/** Suspended counter */
 		int32 SuspendedCount;
 		/** The timeout for this thread */

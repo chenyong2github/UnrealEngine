@@ -220,9 +220,14 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 	//SCOPED_NAMED_EVENT_TEXT("FAnimNode_Ragdoll::EvaluateSkeletalControl_AnyThread", FColor::Magenta);
 
 	// Update our eval counter, and decide whether we need to reset simulated bodies, if our anim instance hasn't updated in a while.
-	if(EvalCounter.HasEverBeenUpdated() && !EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()))
+	if(EvalCounter.HasEverBeenUpdated())
 	{
-		ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
+		// Always propagate skip rate as it can go up and down between updates
+		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
+		if(!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter()))
+		{
+			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
+		}
 	}
 	EvalCounter.SynchronizeWith(Output.AnimInstanceProxy->GetEvaluationCounter());
 

@@ -4129,9 +4129,13 @@ void FSlateApplication::EnterDebuggingMode()
 	// Tick slate from here in the event that we should not return until the modal window is closed.
 	while (!bRequestLeaveDebugMode)
 	{
+		Renderer->BeginFrame();
+		
 		// Tick and render Slate
 		Tick();
 
+		Renderer->EndFrame();
+		
 		// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 		Renderer->Sync();
 
@@ -4144,6 +4148,7 @@ void FSlateApplication::EnterDebuggingMode()
 #endif	//WITH_EDITORONLY_DATA
 	}
 
+	Renderer->BeginFrame();
 	bRequestLeaveDebugMode = false;
 	
 	if ( PreviousGameViewport.IsValid() )
@@ -5733,11 +5738,12 @@ bool FSlateApplication::RoutePointerMoveEvent(const FWidgetPath& WidgetsUnderPoi
 
 	// User asked us to detect a drag.
 	bool bDragDetected = false;
-	bool bShouldStartDetectingDrag = true;
+	// Currently we can only support one dragged widget at a time.
+	bool bShouldStartDetectingDrag = !DragDropContent.IsValid();
 
 #if WITH_EDITOR
 	//@TODO VREDITOR - Remove and move to interaction component
-	if (OnDragDropCheckOverride.IsBound())
+	if (bShouldStartDetectingDrag && OnDragDropCheckOverride.IsBound())
 	{
 		bShouldStartDetectingDrag = OnDragDropCheckOverride.Execute();
 	}
@@ -6862,9 +6868,14 @@ bool FSlateApplication::OnSizeChanged( const TSharedRef< FGenericWindow >& Platf
 
 void FSlateApplication::OnOSPaint( const TSharedRef< FGenericWindow >& PlatformWindow )
 {
-	TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow( SlateWindows, PlatformWindow );
-	PrivateDrawWindows( Window );
-	Renderer->FlushCommands();
+	// This is only called in a modal move loop and in cooked build, the back buffer already
+	// has UI composited so don't do anything to prevent drawing UI over existing UI (FORT-153543)
+	if (GIsEditor)
+	{
+		TSharedPtr< SWindow > Window = FSlateWindowHelper::FindWindowByPlatformWindow(SlateWindows, PlatformWindow);
+		PrivateDrawWindows(Window);
+		Renderer->FlushCommands();
+	}
 }
 
 FWindowSizeLimits FSlateApplication::GetSizeLimitsForWindow(const TSharedRef<FGenericWindow>& Window) const

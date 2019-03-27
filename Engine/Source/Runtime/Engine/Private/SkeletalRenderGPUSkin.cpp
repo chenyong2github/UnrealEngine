@@ -13,6 +13,7 @@
 #include "ClearQuad.h"
 #include "ShaderParameterUtils.h"
 #include "SkeletalMeshTypes.h"
+#include "HAL/LowLevelMemTracker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalGPUSkinMesh, Warning, All);
 
@@ -248,6 +249,8 @@ void FSkeletalMeshObjectGPUSkin::ReleaseMorphResources()
 
 void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	// make sure morph data has been initialized for each LOD
 	if(InMeshComponent && !bMorphResourcesInitialized && ActiveMorphTargets.Num() > 0 )
 	{
@@ -337,10 +340,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				// which is expected to be detected inside USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 				// and instance updates are sent there
 
-				check(FGPUSkinCache::GetUnderlyingPositionBuffer(SkinCacheEntry));
-
 				FSkeletalMeshLODRenderData& LODModel = this->SkeletalMeshRenderData->LODRenderData[DynamicData->LODIndex];
-				FVertexBufferRHIRef VertexBufferRHI = FGPUSkinCache::GetUnderlyingPositionBuffer(SkinCacheEntry)->Buffer;
 				FIndexBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
 				uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
 
@@ -353,7 +353,10 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 				}
 
 				FRayTracingGeometryInitializer Initializer;
-				Initializer.PositionVertexBuffer = VertexBufferRHI;
+
+				FRHIResourceCreateInfo CreateInfo;
+				Initializer.PositionVertexBuffer = RHICreateVertexBuffer(LODModel.GetNumVertices() * sizeof(FVector), BUF_ShaderResource, CreateInfo);
+				FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, Initializer.PositionVertexBuffer);
 				Initializer.IndexBuffer = IndexBufferRHI;
 				Initializer.BaseVertexIndex = 0;
 				Initializer.VertexBufferStride = VertexBufferStride;
@@ -381,7 +384,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 			else
 			{
 				// Refit BLAS with new vertex buffer data
-				RayTracingGeometry.Initializer.PositionVertexBuffer = FGPUSkinCache::GetUnderlyingPositionBuffer(SkinCacheEntry)->Buffer;
+				FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, RayTracingGeometry.Initializer.PositionVertexBuffer);
 				GPUSkinCache->AddRayTracingGeometryToUpdate(&RayTracingGeometry);
 			}
 		}
@@ -429,7 +432,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 
 	bool bDataPresent = false;
 
-	bool bGPUSkinCacheEnabled = GEnableGPUSkinCache && (FeatureLevel >= ERHIFeatureLevel::SM5);
+	bool bGPUSkinCacheEnabled = GPUSkinCache && GEnableGPUSkinCache && (FeatureLevel >= ERHIFeatureLevel::SM5);
 
 	if (LOD.MorphVertexBuffer.bNeedsInitialClear && !(bMorph && bMorphNeedsUpdate))
 	{

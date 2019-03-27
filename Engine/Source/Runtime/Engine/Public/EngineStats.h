@@ -114,6 +114,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Sync queries"),STAT_Navigation_QueriesTimeSync,S
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Sync meta nav area preparation"),STAT_Navigation_MetaAreaTranslation,STATGROUP_Navigation, ); 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Async nav areas sorting"),STAT_Navigation_TileNavAreaSorting,STATGROUP_Navigation, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num update nav octree"),STAT_Navigation_UpdateNavOctree,STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Registering Nav Octree Element"), STAT_Navigation_RegisterNavOctreeElement, STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Unregistering Nav Octree Element"), STAT_Navigation_UnregisterNavOctreeElement, STATGROUP_Navigation, )
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Adding actors to navoctree"),STAT_Navigation_AddingActorsToNavOctree,STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Adjusting nav links"),STAT_Navigation_AdjustingNavLinks,STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: sync add generated tiles"), STAT_Navigation_RecastAddGeneratedTiles,STATGROUP_Navigation, );

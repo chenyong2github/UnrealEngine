@@ -35,8 +35,8 @@ TSharedPtr<SAndroidWebBrowserWidget> SAndroidWebBrowserWidget::GetWidgetPtr(JNIE
 {
 	FScopeLock L(&WebControlsCS);
 
-	jclass Class = JEnv->GetObjectClass(Jobj);
-	jmethodID JMethod = JEnv->GetMethodID(Class, "GetNativePtr", "()J");
+	auto Class = NewScopedJavaObject(JEnv, JEnv->GetObjectClass(Jobj));
+	jmethodID JMethod = JEnv->GetMethodID(*Class, "GetNativePtr", "()J");
 	check(JMethod != nullptr);
 
 	int64 ObjAddr = JEnv->CallLongMethod(Jobj, JMethod);
@@ -310,9 +310,9 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 					if (VideoTexture == nullptr)
 					{
 						FRHIResourceCreateInfo CreateInfo;
-						FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-						FIntPoint Size = Params.Size;
-						VideoTexture = RHICmdList.CreateTextureExternal2D(Size.X, Size.Y, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
+						FRHICommandListImmediate& LocalCmdList = FRHICommandListExecutor::GetImmediateCommandList();
+						FIntPoint LocalSize = Params.Size;
+						VideoTexture = LocalCmdList.CreateTextureExternal2D(LocalSize.X, LocalSize.Y, PF_R8G8B8A8, 1, 1, 0, CreateInfo);
 						PinnedJavaWebBrowser->SetVideoTexture(VideoTexture);
 
 						if (VideoTexture == nullptr)
@@ -322,7 +322,7 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 						}
 
 						PinnedJavaWebBrowser->SetVideoTextureValid(false);
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: Created VideoTexture: %d - %s (%d, %d)"), *reinterpret_cast<int32*>(VideoTexture->GetNativeResource()), *Params.PlayerGuid.ToString(), Size.X, Size.Y);
+						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: Created VideoTexture: %d - %s (%d, %d)"), *reinterpret_cast<int32*>(VideoTexture->GetNativeResource()), *Params.PlayerGuid.ToString(), LocalSize.X, LocalSize.Y);
 					}
 
 					int32 TextureId = *reinterpret_cast<int32*>(VideoTexture->GetNativeResource());
@@ -478,9 +478,7 @@ jbyteArray SAndroidWebBrowserWidget::HandleShouldInterceptRequest(jstring JUrl)
 {
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 
-	const char* JUrlChars = JEnv->GetStringUTFChars(JUrl, 0);
-	FString Url = UTF8_TO_TCHAR(JUrlChars);
-	JEnv->ReleaseStringUTFChars(JUrl, JUrlChars);
+	FString Url = FJavaHelper::FStringFromParam(JEnv, JUrl);
 
 	FString Response;
 	bool bOverrideResponse = false;
@@ -546,9 +544,7 @@ bool SAndroidWebBrowserWidget::HandleShouldOverrideUrlLoading(jstring JUrl)
 {
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 
-	const char* JUrlChars = JEnv->GetStringUTFChars(JUrl, 0);
-	FString Url = UTF8_TO_TCHAR(JUrlChars);
-	JEnv->ReleaseStringUTFChars(JUrl, JUrlChars);
+	FString Url = FJavaHelper::FStringFromParam(JEnv, JUrl);
 	bool Retval = false;
 
 	if (WebBrowserWindowPtr.IsValid())
@@ -605,9 +601,7 @@ void SAndroidWebBrowserWidget::HandleReceivedTitle(jstring JTitle)
 {
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 
-	const char* JTitleChars = JEnv->GetStringUTFChars(JTitle, 0);
-	FString Title = UTF8_TO_TCHAR(JTitleChars);
-	JEnv->ReleaseStringUTFChars(JTitle, JTitleChars);
+	FString Title = FJavaHelper::FStringFromParam(JEnv, JTitle);
 
 	if (WebBrowserWindowPtr.IsValid())
 	{
@@ -626,9 +620,7 @@ void SAndroidWebBrowserWidget::HandlePageLoad(jstring JUrl, bool bIsLoading, int
 
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 
-	const char* JUrlChars = JEnv->GetStringUTFChars(JUrl, 0);
-	FString Url = UTF8_TO_TCHAR(JUrlChars);
-	JEnv->ReleaseStringUTFChars(JUrl, JUrlChars);
+	FString Url = FJavaHelper::FStringFromParam(JEnv, JUrl);
 	if (WebBrowserWindowPtr.IsValid())
 	{
 		TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();
@@ -643,9 +635,7 @@ void SAndroidWebBrowserWidget::HandleReceivedError(jint ErrorCode, jstring /* ig
 {
 	JNIEnv*	JEnv = FAndroidApplication::GetJavaEnv();
 
-	const char* JUrlChars = JEnv->GetStringUTFChars(JUrl, 0);
-	FString Url = UTF8_TO_TCHAR(JUrlChars);
-	JEnv->ReleaseStringUTFChars(JUrl, JUrlChars);
+	FString Url = FJavaHelper::FStringFromParam(JEnv, JUrl);
 	if (WebBrowserWindowPtr.IsValid())
 	{
 		TSharedPtr<FAndroidWebBrowserWindow> BrowserWindow = WebBrowserWindowPtr.Pin();

@@ -6,7 +6,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 
-
 static const TCHAR* GLoadedRHIModuleName;
 
 static bool ShouldPreferD3D12()
@@ -50,6 +49,42 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
+	
+	if(!(bForceVulkan||bForceOpenGL||bForceD3D10||bForceD3D11||bForceD3D12))
+	{
+		//Default graphics RHI is only used if no command line option is specified
+		FConfigFile EngineSettings;
+		FString PlatformNameString = FPlatformProperties::PlatformName();
+		const TCHAR* PlatformName = *PlatformNameString;
+		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, PlatformName);
+		FString DefaultGraphicsRHI;
+		if(EngineSettings.GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI))
+		{
+			static FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
+			static FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
+			static FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
+			static FString NAME_OPENGL(TEXT("DefaultGraphicsRHI_OpenGL"));
+			if(DefaultGraphicsRHI == NAME_DX11)
+			{
+				bForceD3D11 = true;
+			}
+			else if (DefaultGraphicsRHI == NAME_DX12)
+			{
+				bForceD3D12 = true;
+			}
+			else if (DefaultGraphicsRHI == NAME_VULKAN)
+			{
+				bForceVulkan = true;
+			}
+			else if (DefaultGraphicsRHI == NAME_OPENGL)
+			{
+				bForceOpenGL = true;
+			}
+		}
+	}
+
+
+
 	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceD3D10 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
 
 	if (bForceSM5 && bForceSM4)
@@ -111,6 +146,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = SwitchRHIModuleName;
+		FApp::SetGraphicsRHI(TEXT("Switch"));
 	}
 	else
 #endif
@@ -127,6 +163,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = OpenGLRHIModuleName;
+		FApp::SetGraphicsRHI(TEXT("OpenGL"));
 	}
 	else if (bForceVulkan)
 	{
@@ -139,6 +176,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = VulkanRHIModuleName;
+		FApp::SetGraphicsRHI(TEXT("Vulkan"));
 	}
 	else if (bForceD3D12 || bPreferD3D12)
 	{
@@ -163,6 +201,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoder", "Fraps has been known to crash D3D12. Please use Microsoft Expression Encoder instead for capturing."));
 		}
+		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 	}
 
 	// Fallback to D3D11RHI if nothing is selected
@@ -182,6 +221,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoderDX11", "Fraps has been known to crash D3D11. Please use Microsoft Expression Encoder instead for capturing."));
 		}
 		LoadedRHIModuleName = D3D11RHIModuleName;
+		FApp::SetGraphicsRHI(TEXT("DirectX 11"));
 	}
 	return DynamicRHIModule;
 }

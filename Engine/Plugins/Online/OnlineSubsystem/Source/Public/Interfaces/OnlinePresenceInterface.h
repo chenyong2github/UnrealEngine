@@ -82,6 +82,39 @@ namespace EOnlinePresenceState
 		return TEXT("");
 	}
 
+	/**
+	 * @return EOnlinePresenceState from the string passed in
+	 */
+	inline EOnlinePresenceState::Type FromString(const TCHAR* StringVal)
+	{
+		if (FCString::Stricmp(StringVal, TEXT("Online")) == 0)
+		{
+			return EOnlinePresenceState::Online;
+		}
+		else if (FCString::Stricmp(StringVal, TEXT("Offline")) == 0)
+		{
+			return EOnlinePresenceState::Offline;
+		}
+		else if (FCString::Stricmp(StringVal, TEXT("Away")) == 0)
+		{
+			return EOnlinePresenceState::Away;
+		}
+		else if (FCString::Stricmp(StringVal, TEXT("ExtendedAway")) == 0)
+		{
+			return EOnlinePresenceState::ExtendedAway;
+		}
+		else if (FCString::Stricmp(StringVal, TEXT("DoNotDisturb")) == 0)
+		{
+			return EOnlinePresenceState::DoNotDisturb;
+		}
+		else if (FCString::Stricmp(StringVal, TEXT("Chat")) == 0)
+		{
+			return EOnlinePresenceState::Chat;
+		}
+		// Default to Offline / generally unavailable
+		return EOnlinePresenceState::Offline;
+	}
+
 	static FText OnlineText =  NSLOCTEXT("OnlinePresence", "Online", "Online");
 	static FText OfflineText =  NSLOCTEXT("OnlinePresence", "Offline", "Offline");
 	static FText AwayText =  NSLOCTEXT("OnlinePresence", "Away", "Away");

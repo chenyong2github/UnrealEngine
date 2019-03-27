@@ -22,6 +22,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Particles"), STAT_NiagaraGPUSorted
 DECLARE_DWORD_COUNTER_STAT(TEXT("# GPU Sorted Buffers"), STAT_NiagaraGPUSortedBuffers, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Readback latency (frames)"), STAT_NiagaraReadbackLatency, STATGROUP_Niagara);
 
+DECLARE_GPU_STAT_NAMED(NiagaraGPU, TEXT("Niagara"));
 DECLARE_GPU_STAT_NAMED(NiagaraGPUSimulation, TEXT("Niagara GPU Simulation"));
 DECLARE_GPU_STAT_NAMED(NiagaraGPUSorting, TEXT("Niagara GPU sorting"));
 
@@ -51,12 +52,14 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 
 void NiagaraEmitterInstanceBatcher::Queue(FNiagaraComputeExecutionContext *ExecContext)
 {
-	//UE_LOG(LogNiagara, Warning, TEXT("Submitted!"));
-	//SimulationQueue[CurQueueIndex]->Add(InContext);
-	TArray<FNiagaraComputeExecutionContext*>* Queue = &SimulationQueue[0];
-	uint32 QueueIndex = CurQueueIndex;
-	ENQUEUE_RENDER_COMMAND(QueueNiagaraDispatch)(
-		[Queue, QueueIndex, ExecContext](FRHICommandListImmediate& RHICmdList)
+	if (!IsPendingKill())
+	{
+		//UE_LOG(LogNiagara, Warning, TEXT("Submitted!"));
+		//SimulationQueue[CurQueueIndex]->Add(InContext);
+		TArray<FNiagaraComputeExecutionContext*>* Queue = &SimulationQueue[0];
+		uint32 QueueIndex = CurQueueIndex;
+		ENQUEUE_RENDER_COMMAND(QueueNiagaraDispatch)(
+			[Queue, QueueIndex, ExecContext](FRHICommandListImmediate& RHICmdList)
 		{
 			const uint32 QueueIndexMask = (1 << QueueIndex);
 			//Don't queue the same context for execution multiple times. TODO: possibly try to combine/accumulate the tick info if we happen to have > 1 before it's executed.
@@ -66,13 +69,16 @@ void NiagaraEmitterInstanceBatcher::Queue(FNiagaraComputeExecutionContext *ExecC
 				ExecContext->PendingExecutionQueueMask |= QueueIndexMask;
 			}
 		});
+	}
 }
 
 void NiagaraEmitterInstanceBatcher::Remove(FNiagaraComputeExecutionContext *ExecContext)
 {
-	TArray<FNiagaraComputeExecutionContext*>* Queue = &SimulationQueue[0];
-	ENQUEUE_RENDER_COMMAND(RemoveNiagaraDispatch)(
-		[Queue, ExecContext](FRHICommandListImmediate& RHICmdList)
+	if (!IsPendingKill())
+	{
+		TArray<FNiagaraComputeExecutionContext*>* Queue = &SimulationQueue[0];
+		ENQUEUE_RENDER_COMMAND(RemoveNiagaraDispatch)(
+			[Queue, ExecContext](FRHICommandListImmediate& RHICmdList)
 		{
 			for (int32 i = 0; i < SIMULATION_QUEUE_COUNT; i++)
 			{
@@ -80,11 +86,13 @@ void NiagaraEmitterInstanceBatcher::Remove(FNiagaraComputeExecutionContext *Exec
 			}
 			ExecContext->PendingExecutionQueueMask = 0;
 		});
+	}
 }
 
 void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FUniformBufferRHIParamRef ViewUniformBuffer)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraEmitterInstanceBatcher_ExecuteAll);
+	SCOPED_GPU_STAT(RHICmdList, NiagaraGPU);
 
 	const uint32 TickedQueueIndex = (CurQueueIndex ^ 0x1);
 	const uint32 TickedQueueIndexMask = (1 << TickedQueueIndex);

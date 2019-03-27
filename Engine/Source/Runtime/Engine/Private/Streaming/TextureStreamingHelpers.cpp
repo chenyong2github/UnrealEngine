@@ -97,7 +97,7 @@ TAutoConsoleVariable<int32> CVarStreamingUseFixedPoolSize(
 	TEXT("r.Streaming.UseFixedPoolSize"),
 	0,
 	TEXT("If non-zero, do not allow the pool size to change at run time."),
-	ECVF_ReadOnly);
+	ECVF_Scalability);
 
 TAutoConsoleVariable<int32> CVarStreamingPoolSize(
 	TEXT("r.Streaming.PoolSize"),

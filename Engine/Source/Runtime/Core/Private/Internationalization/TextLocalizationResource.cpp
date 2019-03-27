@@ -7,11 +7,11 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/Optional.h"
+#include "Templates/UniquePtr.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/FileHelper.h"
 #include "Misc/CommandLine.h"
 #include "Serialization/MemoryReader.h"
-#include "Templates/UniquePtr.h"
-#include "Internationalization/Internationalization.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextLocalizationResource, Log, All);
 

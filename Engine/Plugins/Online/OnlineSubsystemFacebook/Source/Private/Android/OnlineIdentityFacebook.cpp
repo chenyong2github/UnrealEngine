@@ -254,13 +254,8 @@ FString AndroidThunkCpp_Facebook_GetAccessToken()
 		const bool bIsOptional = false;
 		static jmethodID FacebookGetAccessTokenMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_Facebook_GetAccessToken", "()Ljava/lang/String;", bIsOptional);
 		CHECK_JNI_METHOD(FacebookGetAccessTokenMethod);
-
-		jstring accessToken = (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, FacebookGetAccessTokenMethod);
-
-		const char* charsAccessToken = Env->GetStringUTFChars(accessToken, 0);
-		AccessToken = FString(UTF8_TO_TCHAR(charsAccessToken));
-		Env->ReleaseStringUTFChars(accessToken, charsAccessToken);
-		Env->DeleteLocalRef(accessToken);
+		
+		AccessToken = FJavaHelper::FStringFromLocalRef(Env, (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, FacebookGetAccessTokenMethod));
 	}
 	
 	return AccessToken;
@@ -277,18 +272,15 @@ bool AndroidThunkCpp_Facebook_Login(const TArray<FString>& InScopeFields)
 		CHECK_JNI_METHOD(FacebookLoginMethod);
 
 		// Convert scope array into java fields
-		jobjectArray ScopeIDArray = (jobjectArray)Env->NewObjectArray(InScopeFields.Num(), FJavaWrapper::JavaStringClass, nullptr);
+		auto ScopeIDArray = NewScopedJavaObject(Env, (jobjectArray)Env->NewObjectArray(InScopeFields.Num(), FJavaWrapper::JavaStringClass, nullptr));
 		for (uint32 Param = 0; Param < InScopeFields.Num(); Param++)
 		{
-			jstring StringValue = Env->NewStringUTF(TCHAR_TO_UTF8(*InScopeFields[Param]));
-			Env->SetObjectArrayElement(ScopeIDArray, Param, StringValue);
-			Env->DeleteLocalRef(StringValue);
+			auto StringValue = FJavaHelper::ToJavaString(Env, InScopeFields[Param]);
+			Env->SetObjectArrayElement(*ScopeIDArray, Param, *StringValue);
 		}
 
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookLoginMethod, ScopeIDArray);
-
-		// clean up references
-		Env->DeleteLocalRef(ScopeIDArray);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookLoginMethod, *ScopeIDArray);
+		
 		bSuccess = true;
 	}
 
@@ -299,10 +291,8 @@ JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeLoginComplete(JNIEnv*
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 
-	const char* charsAccessToken = jenv->GetStringUTFChars(accessToken, 0);
-	FString AccessToken = FString(UTF8_TO_TCHAR(charsAccessToken));
-	jenv->ReleaseStringUTFChars(accessToken, charsAccessToken);
-
+	auto AccessToken = FJavaHelper::FStringFromParam(jenv, accessToken);
+	
 	UE_LOG_ONLINE_IDENTITY(VeryVerbose, TEXT("nativeLoginComplete Response: %d Token: %s"), (int)LoginResponse, *AccessToken);
 
 	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessFacebookLogin"), STAT_FSimpleDelegateGraphTask_ProcessFacebookLogin, STATGROUP_TaskGraphTasks);

@@ -123,7 +123,7 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define OPERATOR_DELETE_NOTHROW_SPEC  noexcept
 
 // DLL export and import definitions
-#define DLLEXPORT
+#define DLLEXPORT __attribute__((visibility("default")))
 #define DLLIMPORT
 
 #define IOS_MAX_PATH 1024

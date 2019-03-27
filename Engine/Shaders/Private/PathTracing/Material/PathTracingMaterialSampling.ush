@@ -35,15 +35,17 @@ void SampleMaterial(
 	float4 RandSample,
 	out float3 OutDirection,
 	out float3 OutThroughput,
-	out float OutPdf)
+	out float OutPdf,
+	out float OutPositionBiasSign)
 {
+	OutPositionBiasSign = 1;
 	if (IsPureSpecularReflection(Payload))
 	{
 		SpecularReflection_SampleMaterial(RayDirection, Payload, OutDirection, OutThroughput, OutPdf);
 	}
 	else if (IsPureSpecularTransmission(Payload))
 	{
-		SpecularRefraction_SampleMaterial(RayDirection, Payload, OutDirection, OutThroughput, OutPdf);
+		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf, OutPositionBiasSign);
 	}
 	else if(IsLambert(Payload))
 	{

@@ -46,6 +46,9 @@
 #include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
+#if RHI_RAYTRACING
+#include "RayTracing/RayTracingIESLightProfiles.h"
+#endif
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -694,6 +697,7 @@ public:
 	float		LastRenderTime;
 	float		LastRenderTimeDelta;
 	float		MotionBlurTimeScale;
+	float		MotionBlurTargetDeltaTime;
 	FMatrix		PrevViewMatrixForOcclusionQuery;
 	FVector		PrevViewOriginForOcclusionQuery;
 
@@ -786,6 +790,9 @@ private:
 		/** Get the last frame exposure value (used to compute pre-exposure) */
 		float GetLastExposure() const { return LastExposure; }
 
+		/** Get the last frame average scene luminance (used for exposure compensation curve) */
+		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
+
 	private:
 
 		/** Return one of two two render targets */
@@ -796,6 +803,8 @@ private:
 		int32 CurrentBuffer;
 
 		float LastExposure;
+		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
+
 		int32 CurrentStagingBuffer;
 		static const int32 NUM_STAGING_BUFFERS = 3;
 
@@ -841,12 +850,6 @@ public:
 
 	// Previous frame's view info to use.
 	FPreviousViewInfo PrevFrameViewInfo;
-
-	// Pending previous frame's view info. When rendering a new view, this must be the PendingPrevFrame that
-	// should be updated. This is the next frame that is only going to set PrevFrame = PendingPrevFrame if
-	// the world is not pause.
-	FPreviousViewInfo PendingPrevFrameViewInfo;
-
 
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
 
@@ -906,6 +909,7 @@ public:
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingIrradianceRT;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSampleCountRT;
+	FIntRect PathTracingRect;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
 
@@ -913,9 +917,12 @@ public:
 	uint32 TotalRayCount;
 	FRWBuffer* TotalRayCountBuffer;
 
-	// For Ray Count readback:
+	// Ray Count readback:
 	FRHIGPUMemoryReadback* RayCountGPUReadback;
 	bool bReadbackInitialized = false;
+
+	// IES light profiles
+	FIESLightProfileResource IESLightProfileResources;
 #endif
 
 	// cache for stencil reads to a avoid reallocations of the SRV, Key is to detect if the object has changed
@@ -1078,6 +1085,12 @@ public:
 
 	void TrimHistoryRenderTargets(const FScene* Scene);
 
+	/**
+	 * Calculates and stores the scale factor to apply to motion vectors based on the current game
+	 * time and view post process settings.
+	 */
+	void UpdateMotionBlurTimeScale(const FViewInfo& View);
+
 	/** 
 	 * Called every frame after UpdateLastRenderTime, sets up the information for the lagged temporal LOD transition
 	 */
@@ -1171,6 +1184,11 @@ public:
 		return EyeAdaptationRTManager.GetLastExposure();
 	}
 
+	float GetLastAverageSceneLuminance() const
+	{
+		return EyeAdaptationRTManager.GetLastAverageSceneLuminance();
+	}
+
 	bool HasValidTonemappingLUT() const
 	{
 		return bValidTonemappingLUT;
@@ -1243,7 +1261,6 @@ public:
 		EyeAdaptationRTManager.SafeRelease();
 		CombinedLUTRenderTarget.SafeRelease();
 		PrevFrameViewInfo.SafeRelease();
-		PendingPrevFrameViewInfo.SafeRelease();
 		DOFHistory.SafeRelease();
 		DOFHistory2.SafeRelease();
 		SSRHistory.SafeRelease();
@@ -1296,6 +1313,8 @@ public:
 		PathTracingSampleCountRT.SafeRelease();
 		VarianceMipTreeDimensions = FIntVector(0);
 		TotalRayCount = 0;
+		PathTracingRect = FIntRect(0, 0, 0, 0);
+		IESLightProfileResources.Release();
 #endif 
 	}
 
@@ -2183,6 +2202,8 @@ public:
 	 */
 	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix LocalToWorld, FMatrix PreviousLocalToWorld)
 	{
+		check(PrimitiveSceneInfo->Proxy->IsMovable());
+
 		FComponentVelocityData& VelocityData = ComponentData.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 		VelocityData.LocalToWorld = LocalToWorld;
 		VelocityData.LastFrameUsed = InternalFrameIndex;
@@ -2412,6 +2433,19 @@ struct MeshDrawCommandKeyFuncs : DefaultKeyFuncs<FMeshDrawCommandStateBucket,fal
 	}
 };
 
+#if RHI_RAYTRACING
+struct FMeshComputeDispatchCommand
+{
+	FMeshDrawShaderBindings ShaderBindings;
+	class FRayTracingDynamicGeometryConverterCS* MaterialShader;
+
+	uint32 NumMaxVertices;
+	uint32 NumCPUVertices;
+	FRWBuffer* TargetBuffer;
+	FRayTracingGeometry* TargetGeometry;
+};
+#endif
+
 /** 
  * Renderer scene which is private to the renderer module.
  * Ordinarily this is the renderer version of a UWorld, but an FScene can be created for previewing in editors which don't have a UWorld as well.
@@ -2433,6 +2467,10 @@ public:
 	TSet<FMeshDrawCommandStateBucket, MeshDrawCommandKeyFuncs> CachedMeshDrawCommandStateBuckets;
 
 	FCachedPassMeshDrawList CachedDrawLists[EMeshPass::Num];
+
+#if RHI_RAYTRACING
+	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
+#endif
 
 	/**
 	 * The following arrays are densely packed primitive data needed by various
@@ -2460,6 +2498,7 @@ public:
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
 
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdate;
+	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
 
 	struct FTypeOffsetTableEntry
 	{
@@ -2482,18 +2521,23 @@ public:
 	/** Shadow casting lights that couldn't get a shadowmap channel assigned and therefore won't have valid dynamic shadows, forward renderer only. */
 	TArray<FName> OverflowingDynamicShadowedLights;
 
-	/** The mobile quality level for which static draw lists have been built. */
-	bool bStaticDrawListsMobileHDR;
-	bool bStaticDrawListsMobileHDR32bpp;
+	/** Early Z pass mode. */
+	EDepthDrawingMode EarlyZPassMode;
 
-	/** Whether the early Z pass was force enabled when static draw lists were built. */
-	int32 StaticDrawListsEarlyZPassMode;
+	/** Early Z pass movable. */
+	bool bEarlyZPassMovable;
 
-	/** Whether the ShaderPipelines were enabled when the static draw lists were built. */
-	int32 StaticDrawShaderPipelines;
+	/** Default base pass depth stencil access. */
+	FExclusiveDepthStencil::Type DefaultBasePassDepthStencilAccess;
+
+	/** Default base pass depth stencil access used to cache mesh draw commands. */
+	FExclusiveDepthStencil::Type CachedDefaultBasePassDepthStencilAccess;
 
 	/** True if a change to SkyLight / Lighting has occurred that requires static draw lists to be updated. */
 	bool bScenesPrimitivesNeedStaticMeshElementUpdate;
+
+	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
+	bool bPathTracingNeedsInvalidation;
 
 	/** The scene's sky light, if any. */
 	FSkyLightSceneProxy* SkyLight;
@@ -2724,6 +2768,8 @@ public:
 
 	int64 GetCachedWholeSceneShadowMapsSize() const;
 
+	void UpdateEarlyZPassMode();
+
 	/**
 	 * Marks static mesh elements as needing an update if necessary.
 	 */
@@ -2802,7 +2848,7 @@ public:
 
 	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
 	{
-		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !SkyLight->bCastRayTracedShadow;
 
 		if (IsTranslucentBlendMode(BlendMode))
 		{
@@ -2928,7 +2974,7 @@ private:
 	 * 
 	 * @param	InOffset	Delta to shift scene by
 	 */
-	void ApplyWorldOffset_RenderThread(FVector InOffset);
+	void ApplyWorldOffset_RenderThread(const FVector& InOffset);
 
 	/**
 	 * Notification from game thread that level was added to a world

@@ -77,6 +77,8 @@ public class Launch : ModuleRules
 					"D3D11RHI",
 					"D3D12RHI",
 					"XAudio2",
+					"WindowsPlatformFeatures",
+					"GameplayMediaEncoder",
 				});
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -206,26 +208,6 @@ public class Launch : ModuleRules
 			}
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.IOS ||
-			Target.Platform == UnrealTargetPlatform.TVOS)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[] {
-				"AudioMixerAudioUnit",
-				"IOSAudio",
-				"LaunchDaemonMessages",
-				"OpenGLDrv",
-			});
-
-			DynamicallyLoadedModuleNames.AddRange(new string[] {
-				"IOSLocalNotification",
-				"IOSRuntimeSettings",
-			});
-
-			PublicFrameworks.Add("OpenGLES");
-			// this is weak for IOS8 support for CAMetalLayer that is in QuartzCore
-			PublicWeakFrameworks.Add("QuartzCore");
-		}
-
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			PrivateDependencyModuleNames.Add("OpenGLDrv");
@@ -244,6 +226,29 @@ public class Launch : ModuleRules
 			{
 				DynamicallyLoadedModuleNames.Add("LuminRuntimeSettings");
 			}
+		}
+		
+		if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] {
+				"AudioMixerAudioUnit",
+				"IOSAudio",
+				"LaunchDaemonMessages",
+			});
+			
+			DynamicallyLoadedModuleNames.AddRange(new string[] {
+				"IOSLocalNotification",
+				"IOSRuntimeSettings",
+			});
+
+			// no longer build GL for apps requiring iOS 12 or later
+			if (Target.IOSPlatform.RuntimeVersion < 12.0)
+			{
+				PublicFrameworks.Add("OpenGLES");
+				PrivateDependencyModuleNames.Add("OpenGLDrv");
+			}
+			// needed for Metal layer
+			PublicFrameworks.Add("QuartzCore");
 		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win32) ||

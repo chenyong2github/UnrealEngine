@@ -68,6 +68,25 @@ enum class EARTrackingQuality : uint8
 	OrientationAndPosition
 };
 
+UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
+enum class EARTrackingQualityReason : uint8
+{
+	/** Current Tracking is not limited */
+	None,
+	
+	/** The AR session has not yet gathered enough camera or motion data to provide tracking information. */
+	Initializing,
+	
+	/** The AR session is attempting to resume after an interruption. */
+	Relocalizing,
+	
+	/** The device is moving too fast for accurate image-based position tracking. */
+	ExcessiveMotion,
+	
+	/** The scene visible to the camera does not contain enough distinguishable features for image-based position tracking. */
+	InsufficientFeatures
+};
+
 /**
  * Describes the current status of the AR session.
  */

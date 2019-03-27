@@ -17,7 +17,9 @@
 #include "RendererInterface.h"
 
 #if WITH_WINDOWS_MIXED_REALITY
+#include "Windows/AllowWindowsPlatformTypes.h"
 #include "MixedRealityInterop.h"
+#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 namespace WindowsMixedReality
@@ -126,7 +128,9 @@ namespace WindowsMixedReality
 		void CreateHMDDepthTexture(FRHICommandListImmediate& RHICmdList);
 
 	public:
-		FWindowsMixedRealityHMD(const FAutoRegister&);
+#if WITH_WINDOWS_MIXED_REALITY
+		FWindowsMixedRealityHMD(const FAutoRegister&, MixedRealityInterop* InHMD);
+#endif
 		virtual ~FWindowsMixedRealityHMD();
 		bool IsInitialized() const;
 
@@ -139,6 +143,9 @@ namespace WindowsMixedReality
 		void StartCustomPresent();
 
 		TRefCountPtr<ID3D11Device> InternalGetD3D11Device();
+#if WITH_WINDOWS_MIXED_REALITY
+		MixedRealityInterop* HMD = nullptr;
+#endif
 
 		bool bIsStereoEnabled = false;
 		bool bIsStereoDesired = true;
@@ -230,7 +237,7 @@ namespace WindowsMixedReality
 		bool IsAvailable();
 		bool SupportsSpatialInput();
 #if WITH_WINDOWS_MIXED_REALITY
-		static MixedRealityInterop::HMDTrackingStatus GetControllerTrackingStatus(MixedRealityInterop::HMDHand hand);
+		MixedRealityInterop::HMDTrackingStatus GetControllerTrackingStatus(MixedRealityInterop::HMDHand hand);
 		bool GetControllerOrientationAndPosition(MixedRealityInterop::HMDHand hand, FRotator & OutOrientation, FVector & OutPosition);
 		bool PollInput();
 

@@ -126,7 +126,6 @@ private:
 			Range[I] = FSetElementId();
 		}
 	}
-
 	/** The index of the element in the set's element array. */
 	int32 Index;
 

@@ -27,6 +27,7 @@ FWebMMovieStreamer::FWebMMovieStreamer()
 	, VideoFramesCurrentlyProcessing(0)
 	, StartTime(0)
 	, bPlaying(false)
+	, TicksLeftToWaitPostCompletion(0)
 {
 }
 
@@ -94,8 +95,8 @@ bool FWebMMovieStreamer::StartNextMovie()
 		}
 
 		Samples = MakeShareable(new FMediaSamples());
-		AudioDecoder.Reset(new FWebMAudioDecoder(Samples));
-		VideoDecoder.Reset(new FWebMVideoDecoder(Samples));
+		AudioDecoder.Reset(new FWebMAudioDecoder(*this));
+		VideoDecoder.Reset(new FWebMVideoDecoder(*this));
 
 		FWebMAudioTrackInfo DefaultAudioTrack = Container->GetCurrentAudioTrackInfo();
 		check(DefaultAudioTrack.bIsValid);
@@ -134,6 +135,17 @@ bool FWebMMovieStreamer::Tick(float InDeltaTime)
 {
 	if (bPlaying)
 	{
+		if (TicksLeftToWaitPostCompletion)
+		{
+			if (--TicksLeftToWaitPostCompletion <= 0)
+			{
+				TicksLeftToWaitPostCompletion = 0;
+				return !StartNextMovie();
+			}
+
+			return false;
+		}
+
 		bool bHaveThingsToDo = false;
 
 		bHaveThingsToDo |= DisplayFrames(InDeltaTime);
@@ -141,16 +153,13 @@ bool FWebMMovieStreamer::Tick(float InDeltaTime)
 
 		bHaveThingsToDo |= ReadMoreFrames();
 
-		if (bHaveThingsToDo)
+		if (!bHaveThingsToDo)
 		{
-			// We're still playing this movie
-			return false;
+			// we're done playing this movie, make sure we can safely remove the textures next frame
+			TicksLeftToWaitPostCompletion = 1;
+			Viewport->SetTexture(nullptr);
 		}
-		else
-		{
-			// Try to start next movie from the queue
-			return !StartNextMovie();
-		}
+		return false;
 	}
 	else
 	{
@@ -181,9 +190,9 @@ void FWebMMovieStreamer::ForceCompletion()
 
 void FWebMMovieStreamer::ReleaseAcquiredResources()
 {
-	Samples.Reset();
 	VideoDecoder.Reset();
 	AudioDecoder.Reset();
+	Samples.Reset();
 	Container.Reset();
 
 	SlateVideoTexture.Reset();
@@ -272,6 +281,16 @@ bool FWebMMovieStreamer::ReadMoreFrames()
 	}
 
 	return VideoFrames.Num() > 0 || AudioFrames.Num() > 0;
+}
+
+void FWebMMovieStreamer::AddVideoSampleFromDecodingThread(TSharedRef<FWebMMediaTextureSample, ESPMode::ThreadSafe> Sample)
+{
+	Samples->AddVideo(Sample);
+}
+
+void FWebMMovieStreamer::AddAudioSampleFromDecodingThread(TSharedRef<FWebMMediaAudioSample, ESPMode::ThreadSafe> Sample)
+{
+	Samples->AddAudio(Sample);
 }
 
 #endif // WITH_WEBM_LIBS

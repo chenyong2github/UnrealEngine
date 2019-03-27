@@ -180,18 +180,15 @@ bool AndroidThunkCpp_Facebook_RequestReadPermissions(const TArray<FSharingPermis
 		CHECK_JNI_METHOD(FacebookRequestReadMethod);
 
 		// Convert scope array into java fields
-		jobjectArray PermsIDArray = (jobjectArray)Env->NewObjectArray(InNewPermissions.Num(), FJavaWrapper::JavaStringClass, nullptr);
+		auto PermsIDArray = NewScopedJavaObject(Env, (jobjectArray)Env->NewObjectArray(InNewPermissions.Num(), FJavaWrapper::JavaStringClass, nullptr));
 		for (uint32 Param = 0; Param < InNewPermissions.Num(); Param++)
 		{
-			jstring StringValue = Env->NewStringUTF(TCHAR_TO_UTF8(*InNewPermissions[Param].Name));
-			Env->SetObjectArrayElement(PermsIDArray, Param, StringValue);
-			Env->DeleteLocalRef(StringValue);
+			auto StringValue = FJavaHelper::ToJavaString(Env, InNewPermissions[Param].Name);
+			Env->SetObjectArrayElement(*PermsIDArray, Param, *StringValue);
 		}
 
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookRequestReadMethod, PermsIDArray);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookRequestReadMethod, *PermsIDArray);
 
-		// clean up references
-		Env->DeleteLocalRef(PermsIDArray);
 		bSuccess = true;
 	}
 
@@ -201,11 +198,9 @@ bool AndroidThunkCpp_Facebook_RequestReadPermissions(const TArray<FSharingPermis
 JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeRequestReadPermissionsComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring accessToken)
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
-
-	const char* charsAccessToken = jenv->GetStringUTFChars(accessToken, 0);
-	FString AccessToken = FString(UTF8_TO_TCHAR(charsAccessToken));
-	jenv->ReleaseStringUTFChars(accessToken, charsAccessToken);
-
+	
+	auto AccessToken = FJavaHelper::FStringFromParam(jenv, accessToken);
+	
 	UE_LOG_ONLINE_SHARING(VeryVerbose, TEXT("nativeRequestReadPermissionsComplete Response: %d Token: %s"), (int)LoginResponse, *AccessToken);
 
 	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessFacebookReadPermissions"), STAT_FSimpleDelegateGraphTask_ProcessFacebookReadPermissions, STATGROUP_TaskGraphTasks);
@@ -239,18 +234,15 @@ bool AndroidThunkCpp_Facebook_RequestPublishPermissions(const TArray<FSharingPer
 		CHECK_JNI_METHOD(FacebookRequestPublishMethod);
 
 		// Convert scope array into java fields
-		jobjectArray PermsIDArray = (jobjectArray)Env->NewObjectArray(InNewPermissions.Num(), FJavaWrapper::JavaStringClass, nullptr);
+		auto PermsIDArray = NewScopedJavaObject(Env, (jobjectArray)Env->NewObjectArray(InNewPermissions.Num(), FJavaWrapper::JavaStringClass, nullptr));
 		for (uint32 Param = 0; Param < InNewPermissions.Num(); Param++)
 		{
-			jstring StringValue = Env->NewStringUTF(TCHAR_TO_UTF8(*InNewPermissions[Param].Name));
-			Env->SetObjectArrayElement(PermsIDArray, Param, StringValue);
-			Env->DeleteLocalRef(StringValue);
+			auto StringValue = FJavaHelper::ToJavaString(Env, InNewPermissions[Param].Name);
+			Env->SetObjectArrayElement(*PermsIDArray, Param, *StringValue);
 		}
 
-		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookRequestPublishMethod, PermsIDArray);
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FacebookRequestPublishMethod, *PermsIDArray);
 
-		// clean up references
-		Env->DeleteLocalRef(PermsIDArray);
 		bSuccess = true;
 	}
 
@@ -261,10 +253,8 @@ JNI_METHOD void Java_com_epicgames_ue4_FacebookLogin_nativeRequestPublishPermiss
 {
 	EFacebookLoginResponse LoginResponse = (EFacebookLoginResponse)responseCode;
 
-	const char* charsAccessToken = jenv->GetStringUTFChars(accessToken, 0);
-	FString AccessToken = FString(UTF8_TO_TCHAR(charsAccessToken));
-	jenv->ReleaseStringUTFChars(accessToken, charsAccessToken);
-
+	auto AccessToken = FJavaHelper::FStringFromParam(jenv, accessToken);
+	
 	UE_LOG_ONLINE_SHARING(VeryVerbose, TEXT("nativeRequestPublishPermissionsComplete Response: %d Token: %s"), (int)LoginResponse, *AccessToken);
 
 	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessFacebookPublishPermissions"), STAT_FSimpleDelegateGraphTask_ProcessFacebookPublishPermissions, STATGROUP_TaskGraphTasks);

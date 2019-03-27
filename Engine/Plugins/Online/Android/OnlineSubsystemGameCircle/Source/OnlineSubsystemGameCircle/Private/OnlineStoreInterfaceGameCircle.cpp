@@ -5,6 +5,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include <jni.h>
 #include "Android/AndroidPlatform.h"
+#include "Android/AndroidJavaEnv.h"
 
 ////////////////////////////////////////////////////////////////////
 /// Amazon Store Helper Request Response Codes
@@ -86,30 +87,11 @@ JNI_METHOD void Java_com_epicgames_ue4_AmazonStoreHelper_nativeQueryComplete(JNI
 
 			FInAppPurchaseProductInfo NewProductInfo;
 
-			jstring NextId = (jstring)jenv->GetObjectArrayElement(productIDs, Idx);
-			const char* charsId = jenv->GetStringUTFChars(NextId, 0);
-			NewProductInfo.Identifier = FString(UTF8_TO_TCHAR(charsId));
-			jenv->ReleaseStringUTFChars(NextId, charsId);
-			jenv->DeleteLocalRef(NextId);
-
-			jstring NextTitle = (jstring)jenv->GetObjectArrayElement(titles, Idx);
-			const char* charsTitle = jenv->GetStringUTFChars(NextTitle, 0);
-			NewProductInfo.DisplayName = FString(UTF8_TO_TCHAR(charsTitle));
-			jenv->ReleaseStringUTFChars(NextTitle, charsTitle);
-			jenv->DeleteLocalRef(NextTitle);
-
-			jstring NextDesc = (jstring)jenv->GetObjectArrayElement(descriptions, Idx);
-			const char* charsDesc = jenv->GetStringUTFChars(NextDesc, 0);
-			NewProductInfo.DisplayDescription = FString(UTF8_TO_TCHAR(charsDesc));
-			jenv->ReleaseStringUTFChars(NextDesc, charsDesc);
-			jenv->DeleteLocalRef(NextDesc);
-
-			jstring NextPrice = (jstring)jenv->GetObjectArrayElement(prices, Idx);
-			const char* charsPrice = jenv->GetStringUTFChars(NextPrice, 0);
-			NewProductInfo.DisplayPrice = FString(UTF8_TO_TCHAR(charsPrice));
-			jenv->ReleaseStringUTFChars(NextPrice, charsPrice);
-			jenv->DeleteLocalRef(NextPrice);
-
+			NewProductInfo.Identifier = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(productIDs, Idx));
+			NewProductInfo.DisplayName = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(titles, Idx));
+			NewProductInfo.DisplayDescription = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(descriptions, Idx));
+			NewProductInfo.DisplayPrice = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(prices, Idx));
+			
 			LexFromString(NewProductInfo.RawPrice, *NewProductInfo.DisplayPrice);
 
 			ProvidedProductInformation.Add(NewProductInfo);
@@ -206,17 +188,9 @@ JNI_METHOD void Java_com_epicgames_ue4_AmazonStoreHelper_nativePurchaseComplete(
 
 	if (Result == EInAppPurchaseState::Success)
 	{
-		const char* charsId = jenv->GetStringUTFChars(productId, 0);
-		ProductId = FString(UTF8_TO_TCHAR(charsId));
-		jenv->ReleaseStringUTFChars(productId, charsId);
-
-		const char* charsReceipt = jenv->GetStringUTFChars(receiptData, 0);
-		ReceiptData = FString(UTF8_TO_TCHAR(charsReceipt));
-		jenv->ReleaseStringUTFChars(receiptData, charsReceipt);
-
-		const char* charsSignature = jenv->GetStringUTFChars(signature, 0);
-		Signature = FString(UTF8_TO_TCHAR(charsSignature));
-		jenv->ReleaseStringUTFChars(signature, charsSignature);
+		ProductId = FJavaHelper::FStringFromParam(jenv, productId);
+		ReceiptData = FJavaHelper::FStringFromParam(jenv, receiptData);
+		Signature = FJavaHelper::FStringFromParam(jenv, signature);
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessIapResult"), STAT_FSimpleDelegateGraphTask_ProcessIapResult, STATGROUP_TaskGraphTasks);
@@ -306,18 +280,9 @@ JNI_METHOD void Java_com_epicgames_ue4_AmazonStoreHelper_nativeRestorePurchasesC
 			// Build the restore product information strings.
 			FInAppPurchaseRestoreInfo RestoreInfo;
 
-			jstring NextId = (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx);
-			const char* charsId = jenv->GetStringUTFChars(NextId, 0);
-			RestoreInfo.Identifier = FString(UTF8_TO_TCHAR(charsId));
-			jenv->ReleaseStringUTFChars(NextId, charsId);
-			jenv->DeleteLocalRef(NextId);
-
-			jstring NextReceipt = (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx);
-			const char* charsReceipt = jenv->GetStringUTFChars(NextReceipt, 0);
-			RestoreInfo.ReceiptData = FString(UTF8_TO_TCHAR(charsReceipt));
-			jenv->ReleaseStringUTFChars(NextReceipt, charsReceipt);
-			jenv->DeleteLocalRef(NextReceipt);
-
+			RestoreInfo.Identifier = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			RestoreInfo.ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			
 			RestoredPurchaseInfo.Add(RestoreInfo);
 
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\nRestored Product Identifier: %s\n"), *RestoreInfo.Identifier);

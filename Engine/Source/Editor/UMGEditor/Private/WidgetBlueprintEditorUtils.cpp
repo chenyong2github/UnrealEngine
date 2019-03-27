@@ -216,9 +216,12 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 			WidgetPreview->Rename(*NewNameStr);
 		}
 
-		// Find and update all variable references in the graph
-		Widget->SetDisplayLabel(NewDisplayName);
-		Widget->Rename(*NewNameStr);
+		if (!WidgetPreview || WidgetPreview != Widget)
+		{
+			// Find and update all variable references in the graph
+			Widget->SetDisplayLabel(NewDisplayName);
+			Widget->Rename(*NewNameStr);
+		}
 
 		// Update Variable References and
 		// Update Event References to member variables
@@ -1127,7 +1130,25 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 		// automatically.
 		if ( NewWidget->GetParent() == nullptr )
 		{
-			RootPasteWidgets.Add(NewWidget);
+			// Check to see if this widget is content of another widget holding it in a named slot.
+			bool bIsNamedSlot = false;
+			for (UWidget* ContainerWidget : PastedWidgets)
+			{
+				if (INamedSlotInterface* NamedSlotContainer = Cast<INamedSlotInterface>(ContainerWidget))
+				{
+					if (NamedSlotContainer->ContainsContent(NewWidget))
+					{
+						bIsNamedSlot = true;
+						break;
+					}
+				}
+			}
+
+			// It's a Root widget only if it's not not in a named slot.
+			if (!bIsNamedSlot)
+			{
+				RootPasteWidgets.Add(NewWidget);
+			}
 		}
 	}
 

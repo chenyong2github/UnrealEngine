@@ -474,6 +474,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 		return bUseFastReplication;
 	}
 
+	/** Returns the hash of NetworkGameplayTagNodeIndex */
+	uint32 GetNetworkGameplayTagNodeIndexHash() const {	return NetworkGameplayTagNodeIndexHash;	}
+
 	/** Returns a list of the ini files that contain restricted tags */
 	void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
 
@@ -712,6 +715,8 @@ private:
 
 	/** Sorted list of nodes, used for network replication */
 	TArray<TSharedPtr<FGameplayTagNode>> NetworkGameplayTagNodeIndex;
+
+	uint32 NetworkGameplayTagNodeIndexHash;
 
 	/** Holds all of the valid gameplay-related tags that can be applied to assets */
 	UPROPERTY()

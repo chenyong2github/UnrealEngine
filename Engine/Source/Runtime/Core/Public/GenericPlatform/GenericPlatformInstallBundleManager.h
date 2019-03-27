@@ -3,13 +3,16 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Logging/LogMacros.h"
 #include "Internationalization/Text.h"
 
 enum class EInstallBundleResult : int
 {
 	OK,
+	FailedPrereqRequiresLatestClient,
 	InstallError,
 	InstallerOutOfDiskSpaceError,
 	OnCellularNetworkError,
@@ -25,6 +28,7 @@ inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("OK"),
+		TEXT("FailedPrereqRequiresLatestClient"),
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
 		TEXT("OnCellularNetworkError"),
@@ -46,6 +50,7 @@ enum class EInstallBundleModuleInitResult : int
 	DistributionRootDownloadError,
 	ManifestCreationError,
 	ManifestDownloadError,
+	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
 	Count
 };
@@ -62,6 +67,7 @@ inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleI
 		TEXT("DistributionRootDownloadError"),
 		TEXT("ManifestCreationError"),
 		TEXT("ManifestDownloadError"),
+		TEXT("BackgroundDownloadsIniDownloadError"),
 		TEXT("NoInternetConnectionError"),
 	};
 	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == ARRAY_COUNT(Strings), "");
@@ -119,6 +125,19 @@ struct FInstallBundleResultInfo
 	FString OptionalErrorCode;
 };
 
+enum class EInstallBundleContentState : int
+{
+	InitializationError,
+	NeedsUpdate,
+	UpToDate,
+};
+
+struct FInstallBundleContentState
+{
+	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
+	uint64 DownloadSize = 0;
+};
+
 enum class EInstallBundleRequestInfoFlags : int32
 {
 	None							= 0,
@@ -126,9 +145,9 @@ enum class EInstallBundleRequestInfoFlags : int32
 	EnqueuedBundlesForRemoval		= (1 << 1),
 	SkippedAlreadyMountedBundles	= (1 << 2),
 	SkippedBundlesQueuedForRemoval	= (1 << 3),
-	SkippedBundlesQueuedForInstall  = (1 << 5), // Only valid for removal requests
-	SkippedUnknownBundles			= (1 << 6),
-	InitializationError				= (1 << 7), // Can't enqueue because the bundle manager failed to initialize
+	SkippedBundlesQueuedForInstall  = (1 << 4), // Only valid for removal requests
+	SkippedUnknownBundles			= (1 << 5),
+	InitializationError				= (1 << 6), // Can't enqueue because the bundle manager failed to initialize
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -138,6 +157,13 @@ struct FInstallBundleRequestInfo
 	TArray<FName> BundlesQueuedForInstall;
 	TArray<FName> BundlesQueuedForRemoval;
 };
+
+enum class EInstallBundleCancelFlags : int32
+{
+	None		= 0,
+	Resumable	= (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleCancelFlags);
 
 enum class EInstallBundleManagerInitErrorHandlerResult
 {
@@ -149,6 +175,8 @@ enum class EInstallBundleManagerInitErrorHandlerResult
 DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FInstallBundleManagerInitErrorHandler, EInstallBundleModuleInitResult);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleResultInfo);
+
+DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
 
 class CORE_API IPlatformInstallBundleManager
 {
@@ -169,17 +197,54 @@ public:
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
+	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) = 0;
+	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) = 0;
+
 	virtual FInstallBundleRequestInfo RequestRemoveBundle(FName BundleName) = 0;
 
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
 
-	virtual void CancelBundle(FName BundleName) = 0;
+	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
+
+	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
+
+	virtual bool IsNullInterface() const = 0;
+
+	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface
 {
 public:
-	virtual IPlatformInstallBundleManager* GetInstallBundleManager() = 0;
+	virtual void PreUnloadCallback() override
+	{
+		InstallBundleManager.Reset();
+	}
+
+	IPlatformInstallBundleManager* GetInstallBundleManager()
+	{
+		return InstallBundleManager.Get();
+	}
+
+protected:
+	TUniquePtr<IPlatformInstallBundleManager> InstallBundleManager;
+};
+
+template<class PlatformInstallBundleManagerImpl>
+class TPlatformInstallBundleManagerModule : public IPlatformInstallBundleManagerModule
+{
+public:
+	virtual void StartupModule() override
+	{
+		// Only instantiate the bundle manager if this is the version the game has been configured to use
+		FString ModuleName;
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+
+		if (FModuleManager::Get().GetModule(*ModuleName) == this)
+		{
+			InstallBundleManager = MakeUnique<PlatformInstallBundleManagerImpl>();
+		}
+	}
 };

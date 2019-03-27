@@ -429,25 +429,40 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		// Keep a set of all the plugin names that have been configured. We read configuration data from different places, but only configure a plugin from the first place that it's referenced.
 		TSet<FString> ConfiguredPluginNames;
 
-		// Check if we want to enable all plugins
-		if (FParse::Param(FCommandLine::Get(), TEXT("EnableAllPlugins")))
+		// Check which plugins have been enabled or excluded via the command line
 		{
-			TArray<FString> ExceptPlugins;
+			auto ParsePluginsList = [](const TCHAR* InListKey) -> TArray<FString>
 			{
-				FString ExceptPluginsStr;
-				FParse::Value(FCommandLine::Get(), TEXT("ExceptPlugins="), ExceptPluginsStr, false);
-				ExceptPluginsStr.ParseIntoArray(ExceptPlugins, TEXT(","));
-			}
+				TArray<FString> PluginsList;
+				FString PluginsListStr;
+				FParse::Value(FCommandLine::Get(), InListKey, PluginsListStr, false);
+				PluginsListStr.ParseIntoArray(PluginsList, TEXT(","));
+				return PluginsList;
+			};
 
-			for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
+			// Which extra plugins should be enabled?
+			TArray<FString> ExtraPluginsToEnable;
+			if (FParse::Param(FCommandLine::Get(), TEXT("EnableAllPlugins")))
 			{
-				if (!ConfiguredPluginNames.Contains(PluginPair.Key) && !ExceptPlugins.Contains(PluginPair.Key))
+				AllPlugins.GenerateKeyArray(ExtraPluginsToEnable);
+			}
+			else
+			{
+				ExtraPluginsToEnable = ParsePluginsList(TEXT("EnablePlugins="));
+			}
+			if (ExtraPluginsToEnable.Num() > 0)
+			{
+				const TArray<FString> ExceptPlugins = ParsePluginsList(TEXT("ExceptPlugins="));
+				for (const FString& EnablePluginName : ExtraPluginsToEnable)
 				{
-					if (!ConfigureEnabledPlugin(FPluginReferenceDescriptor(PluginPair.Key, true), EnabledPluginNames))
+					if (!ConfiguredPluginNames.Contains(EnablePluginName) && !ExceptPlugins.Contains(EnablePluginName))
 					{
-						return false;
+						if (!ConfigureEnabledPlugin(FPluginReferenceDescriptor(EnablePluginName, true), EnabledPluginNames))
+						{
+							return false;
+						}
+						ConfiguredPluginNames.Add(EnablePluginName);
 					}
-					ConfiguredPluginNames.Add(PluginPair.Key);
 				}
 			}
 		}
@@ -589,7 +604,8 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					for (const FString& ConfigFile : PluginConfigs)
 					{
 						FString PlaformName = FPlatformProperties::PlatformName();
-						PluginConfigFilename = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), *PlaformName, *FPaths::GetBaseFilename(ConfigFile));
+						// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
+						PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlaformName, *FPaths::GeneratedConfigDir());
 						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename, false);
 						if (FoundConfig != nullptr)
 						{
@@ -1178,7 +1194,7 @@ void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)
 				{
 					if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
 					{
-						CoreSystemSection->AddUnique("Paths", Plugin->GetContentDir());
+						CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
 					}
 				}
 			}
@@ -1209,5 +1225,26 @@ void FPluginManager::MountNewlyCreatedPlugin(const FString& PluginName)
 		}
 	}
 }
+
+FName FPluginManager::PackageNameFromModuleName(FName ModuleName)
+{
+	FName Result = ModuleName;
+	for (TMap<FString, TSharedRef<FPlugin>>::TIterator Iter(AllPlugins); Iter; ++Iter)
+	{
+		const TSharedRef<FPlugin>& Plugin = Iter.Value();
+		const TArray<FModuleDescriptor>& Modules = Plugin->Descriptor.Modules;
+		for (int Idx = 0; Idx < Modules.Num(); Idx++)
+		{
+			const FModuleDescriptor& Descriptor = Modules[Idx];
+			if (Descriptor.Name == ModuleName)
+			{
+				UE_LOG(LogPluginManager, Log, TEXT("Module %s belongs to Plugin %s and we assume that is the name of the package with the UObjects is /Script/%s"), *ModuleName.ToString(), *Plugin->Name, *Plugin->Name);
+				return FName(*Plugin->Name);
+			}
+		}
+	}
+	return Result;
+}
+
 
 #undef LOCTEXT_NAMESPACE

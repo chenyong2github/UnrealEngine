@@ -90,36 +90,13 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 
 UWidgetBlueprintGeneratedClass* UUserWidget::GetWidgetTreeOwningClass()
 {
-	UWidgetBlueprintGeneratedClass* RootBGClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass());
-	UWidgetBlueprintGeneratedClass* BGClass = RootBGClass;
-
-	while ( BGClass )
+	UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass());
+	if (WidgetClass != nullptr)
 	{
-		//TODO NickD: This conditional post load shouldn't be needed any more once the Fast Widget creation path is the only path!
-		// Force post load on the generated class so all subobjects are done (specifically the widget tree).
-		BGClass->ConditionalPostLoad();
-
-		const bool bNoRootWidget = ( nullptr == BGClass->WidgetTree ) || ( nullptr == BGClass->WidgetTree->RootWidget );
-
-		if ( bNoRootWidget )
-		{
-			UWidgetBlueprintGeneratedClass* SuperBGClass = Cast<UWidgetBlueprintGeneratedClass>(BGClass->GetSuperClass());
-			if ( SuperBGClass )
-			{
-				BGClass = SuperBGClass;
-				continue;
-			}
-			else
-			{
-				// If we reach a super class that isn't a UWidgetBlueprintGeneratedClass, return the root class.
-				return RootBGClass;
-			}
-		}
-
-		return BGClass;
+		WidgetClass = WidgetClass->FindWidgetTreeOwningClass();
 	}
 
-	return nullptr;
+	return WidgetClass;
 }
 
 void UUserWidget::TemplateInit()
@@ -2167,6 +2144,15 @@ UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUs
 		{
 			ensureMsgf(BPClass->bAllowDynamicCreation, TEXT("This Widget Blueprint's 'Support Dynamic Creation' option either defaults to Off or was explictly turned off.  If you need to create this widget at runtime, turn this option on."));
 		}
+	}
+#endif
+
+#if !UE_BUILD_SHIPPING
+	// Check if the world is being torn down before we create a widget for it.
+	if (World)
+	{
+		// Look for indications that widgets are being created for a dead and dying world.
+		ensureMsgf(!World->bIsTearingDown, TEXT("Widget Class %s - Attempting to be created while tearing down the world."), *UserWidgetClass->GetName());
 	}
 #endif
 

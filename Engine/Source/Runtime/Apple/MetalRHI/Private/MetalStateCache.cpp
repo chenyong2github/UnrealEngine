@@ -383,10 +383,6 @@ void FMetalStateCache::SetComputeShader(FMetalComputeShader* InComputeShader)
 		
 		PipelineBits |= EMetalPipelineFlagComputeShader;
 		
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		bUsingTessellation = false;
-#endif
-		
 		DirtyUniformBuffers[EMetalShaderStages::Compute] = 0xffffffff;
 
 		for (const auto& PackedGlobalArray : InComputeShader->Bindings.PackedGlobalArrays)
@@ -538,28 +534,42 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 				ERenderTargetStoreAction HighLevelStoreAction = GetStoreAction(RenderTargetView.Action);
 				ERenderTargetLoadAction HighLevelLoadAction = GetLoadAction(RenderTargetView.Action);
 				
-				if (Surface.MSAATexture)
+				// on iOS with memory-less MSAA textures we can't load them
+                // in case high level code wants to load and render to MSAA target, set attachment to a resolved texture
+				bool bUseResolvedTexture = false;
+#if PLATFORM_IOS
+				bUseResolvedTexture = (
+					Surface.MSAATexture && 
+					Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless && 
+					HighLevelLoadAction == ERenderTargetLoadAction::ELoad);
+#endif
+				
+				if (Surface.MSAATexture && !bUseResolvedTexture)
 				{
-					// set up an MSAA attachment
-					ColorAttachment.SetTexture(Surface.MSAATexture);
-					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve);
-					ColorAttachment.SetStoreAction(GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
-					ColorAttachment.SetResolveTexture(Surface.MSAAResolveTexture ? Surface.MSAAResolveTexture : Surface.Texture);
-					SampleCount = Surface.MSAATexture.GetSampleCount();
+					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
+						bMemoryless = true;
 						HighLevelLoadAction = ERenderTargetLoadAction::EClear;
 					}
 #endif
+					// set up an MSAA attachment
+					ColorAttachment.SetTexture(Surface.MSAATexture);
+					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve);
+					ColorAttachment.SetStoreAction(!bMemoryless && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
+					ColorAttachment.SetResolveTexture(Surface.MSAAResolveTexture ? Surface.MSAAResolveTexture : Surface.Texture);
+					SampleCount = Surface.MSAATexture.GetSampleCount();
 					// only allow one MRT with msaa
 					checkf(NumColorRenderTargets == 1, TEXT("Only expected one MRT when using MSAA"));
 				}
 				else
 				{
+					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
+						bMemoryless = true;
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 						HighLevelLoadAction = ERenderTargetLoadAction::EClear;
 					}
@@ -567,7 +577,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 					// set up non-MSAA attachment
 					ColorAttachment.SetTexture(Surface.Texture);
 					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(HighLevelStoreAction);
-					ColorAttachment.SetStoreAction(mtlpp::StoreAction::Unknown);
+					ColorAttachment.SetStoreAction(!bMemoryless ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
                     SampleCount = 1;
 				}
 				
@@ -813,7 +823,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
                 //needed to quiet the metal validation that runs when you end renderpass. (it requires some kind of 'resolve' for an msaa target)
 				//But with deferredstore we don't set the real one until submit time.
 				NewDepthStore = !Surface.MSAATexture || bSupportsMSAADepthResolve ? GetMetalRTStoreAction(HighLevelStoreAction) : mtlpp::StoreAction::DontCare;
-				DepthAttachment.SetStoreAction(Surface.MSAATexture && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewDepthStore);
+				DepthAttachment.SetStoreAction(!bDepthTextureMemoryless && Surface.MSAATexture && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewDepthStore);
 				DepthAttachment.SetClearDepth(DepthClearValue);
 				check(SampleCount > 0);
 
@@ -867,9 +877,11 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 					HighLevelStoreAction = ERenderTargetStoreAction::EStore;
 				}
 				
+					bool bStencilMemoryless = false;
 #if PLATFORM_IOS
 				if (StencilTexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 				{
+						bStencilMemoryless = true;
 					HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 					StencilAttachment.SetLoadAction(mtlpp::LoadAction::Clear);
 				}
@@ -878,7 +890,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 				// For the case where Depth+Stencil is MSAA we can't Resolve depth and Store stencil - we can only Resolve + DontCare or StoreResolve + Store (on newer H/W and iOS).
 				// We only allow use of StoreResolve in the Desktop renderers as the mobile renderer does not and should not assume hardware support for it.
 				NewStencilStore = (StencilTexture.GetSampleCount() == 1  || GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve) == mtlpp::StoreAction::StoreAndMultisampleResolve) ? GetMetalRTStoreAction(HighLevelStoreAction) : mtlpp::StoreAction::DontCare;
-				StencilAttachment.SetStoreAction(StencilTexture.GetSampleCount() > 1 && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewStencilStore);
+				StencilAttachment.SetStoreAction(!bStencilMemoryless && StencilTexture.GetSampleCount() > 1 && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewStencilStore);
 				StencilAttachment.SetClearStencil(StencilClearValue);
 
 				if (SampleCount == 0)

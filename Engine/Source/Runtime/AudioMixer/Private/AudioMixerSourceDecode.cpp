@@ -8,6 +8,7 @@
 #include "HAL/RunnableThread.h"
 #include "AudioMixerBuffer.h"
 #include "Async/Async.h"
+#include "AudioDecompress.h"
 
 namespace Audio
 {
@@ -47,8 +48,11 @@ public:
 			case EAudioTaskType::Procedural:
 			{
 				// Make sure we've been flagged as active
-				if (!ProceduralTaskData.ProceduralSoundWave->IsGenerating())
+				if (!ProceduralTaskData.ProceduralSoundWave->IsGeneratingAudio())
 				{
+					// Act as if we generated audio, but return silence.
+					FMemory::Memzero(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples * sizeof(float));
+					ProceduralResult.NumSamplesWritten = ProceduralTaskData.NumSamples;
 					return;
 				}
 
@@ -93,7 +97,7 @@ public:
 
 			case EAudioTaskType::Decode:
 			{
-				int32 NumChannels = DecodeTaskData.MixerBuffer->GetNumChannels();
+				int32 NumChannels = DecodeTaskData.NumChannels;
 				int32 ByteSize = NumChannels * DecodeTaskData.NumFramesToDecode * sizeof(int16);
 
 				// Create a buffer to decode into that's of the appropriate size
@@ -103,13 +107,32 @@ public:
 				// skip the first buffers if we've already decoded them during Precache:
 				if (DecodeTaskData.bSkipFirstBuffer)
 				{
-					for (int32 NumberOfBuffersToSkip = 0; NumberOfBuffersToSkip < PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS; NumberOfBuffersToSkip++)
+					const int32 kPCMBufferSize = NumChannels * DecodeTaskData.NumPrecacheFrames * sizeof(int16);
+					if (DecodeTaskData.BufferType == EBufferType::Streaming)
 					{
-						DecodeTaskData.MixerBuffer->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.NumPrecacheFrames, DecodeTaskData.bLoopingMode);
+						for (int32 NumberOfBuffersToSkip = 0; NumberOfBuffersToSkip < PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS; NumberOfBuffersToSkip++)
+						{
+							DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+						}
+					}
+					else
+					{
+						for (int32 NumberOfBuffersToSkip = 0; NumberOfBuffersToSkip < PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS; NumberOfBuffersToSkip++)
+						{
+							DecodeTaskData.DecompressionState->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+						}
 					}
 				}
 
-				DecodeResult.bLooped = DecodeTaskData.MixerBuffer->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.NumFramesToDecode, DecodeTaskData.bLoopingMode);
+				const int32 kPCMBufferSize = NumChannels * DecodeTaskData.NumFramesToDecode * sizeof(int16);
+				if (DecodeTaskData.BufferType == EBufferType::Streaming)
+				{
+					DecodeResult.bLooped = DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+				}
+				else
+				{
+					DecodeResult.bLooped = DecodeTaskData.DecompressionState->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+				}
 
 				// Convert the decoded PCM data into a float buffer while still in the async task
 				int32 SampleIndex = 0;
@@ -174,6 +197,18 @@ public:
 		}
 	}
 
+	virtual void CancelTask() override
+	{
+		if (Task)
+		{
+			// If Cancel returns false, it means we weren't able to cancel. So lets then fallback to ensure complete.
+			if (!Task->Cancel())
+			{
+				Task->EnsureCompletion();
+			}
+		}
+	}
+
 protected:
 
 	FAsyncTask<FAsyncDecodeWorker>* Task;
@@ -222,7 +257,8 @@ public:
 	FDecodeHandle(const FDecodeAudioTaskData& InJobData)
 	{
 		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
-		Task->StartBackgroundTask();
+		const bool bUseBackground = ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask();
+		Task->StartBackgroundTask(bUseBackground ? GBackgroundPriorityThreadPool : GThreadPool);
 	}
 
 	virtual EAudioTaskType GetType() const override

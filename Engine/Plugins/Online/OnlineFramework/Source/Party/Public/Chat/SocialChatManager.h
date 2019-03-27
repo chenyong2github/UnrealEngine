@@ -9,6 +9,8 @@
 #include "SocialReadOnlyChatChannel.h"
 #include "SocialPrivateMessageChannel.h"
 #include "SocialChatRoom.h"
+#include "SocialGroupChannel.h"
+#include "Interfaces/OnlineGroupsInterface.h"
 #include "SocialChatManager.generated.h"
 
 class USocialChatRoom;
@@ -101,6 +103,7 @@ public:
 	virtual TSubclassOf<USocialChatChannel> GetClassForReadOnlyChannel() const { return USocialReadOnlyChatChannel::StaticClass(); }
 
 	virtual bool IsChatRestricted() const;
+	virtual TSubclassOf<USocialGroupChannel> GetClassForGroupChannel() const { return USocialGroupChannel::StaticClass(); }
 
 	USocialToolkit& GetOwningToolkit() const;
 
@@ -108,6 +111,31 @@ public:
 
 	USocialChatChannel* GetChatRoomForType(ESocialChannelType Key);
 
+
+
+
+	//----------------------------------------------------------------------
+	// KIAROS GROUP MANAGEMENT, tbd channels?
+
+public:
+
+	virtual void GetGroupChannels(TArray<USocialGroupChannel*>& JoinedChannels) const;
+
+	//DECLARE_EVENT_OneParam(USocialChatManager, FOnChatChannelFocusRequested, USocialChatChannel&);
+	//FOnChatChannelFocusRequested& OnGroupsChanged() const { return OnChannelFocusRequestedEvent; }
+
+protected:
+	virtual void InitializeGroupChannels();
+	void LocalUserInitialized(USocialUser& LocalUser);
+	void RefreshGroupsRequestCompleted(FGroupsResult Result);
+
+	IOnlineGroupsPtr GetOnlineGroupInterface(ESocialSubsystem InSocialSubsystem = ESocialSubsystem::Primary) const;
+	USocialGroupChannel& FindOrCreateGroupChannel(IOnlineGroupsPtr InGroupInterface, const FUniqueNetId& GroupId);
+
+	void OnGroupUpdated(const FUniqueNetId& GroupId);
+
+	// END KIAROS GROUP MANAGEMENT
+	//----------------------------------------------------------------------
 
 protected:
 	IOnlineChatPtr GetOnlineChatInterface(ESocialSubsystem InSocialSubsystem = ESocialSubsystem::Primary) const;
@@ -154,6 +182,9 @@ private:
 
 	UPROPERTY(config)
 	bool bEnableChatSlashCommands = true;
+	
+	UPROPERTY()
+	TMap<FUniqueNetIdRepl, USocialGroupChannel*> GroupChannels;
 
 	mutable FOnChatChannelCreated OnChannelCreatedEvent;
 	mutable FOnChatChannelLeft OnChannelLeftEvent;

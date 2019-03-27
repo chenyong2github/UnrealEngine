@@ -66,6 +66,7 @@ void Blend(const TArray<Type>& A, const TArray<Type>& B, TArray<Type>& Output, f
 	}
 }
 
+// MERGE-REVIEW - left as source
 void FLiveLinkSubject::AddFrame(const FLiveLinkFrameData& FrameData, FGuid FrameSource, bool bSaveFrame)
 {
 	LastModifier = FrameSource;
@@ -849,6 +850,20 @@ const FLiveLinkSubjectFrame* FLiveLinkClient::GetSubjectData(FName SubjectName)
 	return nullptr;
 }
 
+const TArray<FLiveLinkFrame>*	FLiveLinkClient::GetSubjectRawFrames(FName SubjectName)
+{
+	FLiveLinkSubject* Subject;
+	FScopeLock Lock(&SubjectDataAccessCriticalSection);
+
+	Subject = LiveSubjectData.Find(SubjectName);
+	TArray<FLiveLinkFrame>*  Frames = nullptr;
+	if (Subject != nullptr)
+	{
+		Frames = &Subject->Frames;
+	}
+	return Frames;
+}
+
 const FLiveLinkSubjectFrame* FLiveLinkClient::GetSubjectDataAtWorldTime(FName SubjectName, double WorldTime)
 {
 	FLiveLinkSubjectFrame* OutFrame = nullptr;
@@ -896,20 +911,6 @@ const FLiveLinkSubjectFrame* FLiveLinkClient::GetSubjectDataAtSceneTime(FName Su
 	}
 
 	return OutFrame;
-}
-
-const TArray<FLiveLinkFrame>* FLiveLinkClient::GetSubjectRawFrames(FName SubjectName)
-{
-	FLiveLinkSubject* Subject;
-	FScopeLock Lock(&SubjectDataAccessCriticalSection);
-
-	Subject = LiveSubjectData.Find(SubjectName);
-	TArray<FLiveLinkFrame>*  Frames = nullptr;
-	if (Subject != nullptr)
-	{
-		Frames = &Subject->Frames;
-	}
-	return Frames;
 }
 
 FGuid FLiveLinkClient::StartRecordingLiveLink(const FName& SubjectName)
@@ -1374,7 +1375,6 @@ void FLiveLinkClient::RemoveSourceFromSubjectWhiteList(FName SubjectName, FGuid 
 		}
 	}
 }
-
 void FLiveLinkClient::ClearSourceWhiteLists()
 {
 	FScopeLock Lock(&SubjectDataAccessCriticalSection);

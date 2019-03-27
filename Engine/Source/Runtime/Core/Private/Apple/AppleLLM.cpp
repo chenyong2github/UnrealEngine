@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Apple/AppleLLM.h"
+#include "HAL/LowLevelMemStats.h"
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 

@@ -131,11 +131,12 @@ bool FAndroidPlatformStackWalk::SymbolInfoToHumanReadableString(const FProgramCo
 	const int32 MAX_TEMP_SPRINTF = 256;
 
 	//
-	// Callstack lines should be written in this standard format
+	// Callstack lines should be written in this standard format. These are parsed by tools so it is important that
+	// extra elements are not inserted!
 	//
 	//	0xaddress module!func [file]
 	// 
-	// E.g. 0x045C8D01 (0x00009034) OrionClient.self!UEngine::PerformError() [D:\Epic\Orion\Engine\Source\Runtime\Engine\Private\UnrealEngine.cpp:6481]
+	// E.g. 0x045C8D01 OrionClient.self(0x00009034)!UEngine::PerformError() [D:\Epic\Orion\Engine\Source\Runtime\Engine\Private\UnrealEngine.cpp:6481]
 	//
 	// Module may be omitted, everything else should be present, or substituted with a string that conforms to the expected type
 	//
@@ -156,16 +157,17 @@ bool FAndroidPlatformStackWalk::SymbolInfoToHumanReadableString(const FProgramCo
 		ANSICHAR PCAddress[MAX_TEMP_SPRINTF] = { 0 };
 		FCStringAnsi::Snprintf(PCAddress, MAX_TEMP_SPRINTF, "0x%016llX ", SymbolInfo.ProgramCounter);
 		FCStringAnsi::Strncat(StackLine, PCAddress, MAX_SPRINTF);
-		FCStringAnsi::Snprintf(PCAddress, MAX_TEMP_SPRINTF, "(0x%016llX) ", SymbolInfo.OffsetInModule);
-		FCStringAnsi::Strncat(StackLine, PCAddress, MAX_SPRINTF);
 
 		// Module if it's present
 		const bool bHasValidModuleName = FCStringAnsi::Strlen(StrippedModuleName) > 0;
 		if (bHasValidModuleName)
 		{
 			FCStringAnsi::Strncat(StackLine, StrippedModuleName, MAX_SPRINTF);
-			FCStringAnsi::Strncat(StackLine, "!", MAX_SPRINTF);
 		}
+
+		FCStringAnsi::Snprintf(PCAddress, MAX_TEMP_SPRINTF, "(0x%016llX)", SymbolInfo.OffsetInModule);
+		FCStringAnsi::Strncat(StackLine, PCAddress, MAX_SPRINTF);
+		FCStringAnsi::Strncat(StackLine, "!", MAX_SPRINTF);
 
 		// Function if it's available, unknown if it's not
 		const bool bHasValidFunctionName = FCStringAnsi::Strlen(SymbolInfo.FunctionName) > 0;

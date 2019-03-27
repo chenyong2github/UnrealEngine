@@ -13,14 +13,17 @@
 UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	SInputKeySelector::FArguments InputKeySelectorDefaults;
-	WidgetStyle = *InputKeySelectorDefaults._ButtonStyle;
-	TextStyle = *InputKeySelectorDefaults._TextStyle;
-	KeySelectionText = InputKeySelectorDefaults._KeySelectionText;
-	NoKeySpecifiedText = InputKeySelectorDefaults._NoKeySpecifiedText;
-	SelectedKey = InputKeySelectorDefaults._SelectedKey.Get();
-	bAllowModifierKeys = InputKeySelectorDefaults._AllowModifierKeys;
-	bAllowGamepadKeys = InputKeySelectorDefaults._AllowGamepadKeys;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	static const FButtonStyle StaticButtonStyle = FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
+	static const FTextBlockStyle StaticNormalTextStyle = FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText");
+	WidgetStyle = StaticButtonStyle;
+	TextStyle = StaticNormalTextStyle;
+
+	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
+	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");
+	SelectedKey = FInputChord(EKeys::Invalid);
+	bAllowModifierKeys = true;
+	bAllowGamepadKeys = false;
 
 	EscapeKeys.AddUnique(EKeys::Gamepad_Special_Right); // In most (if not all) cases this is going to be the menu button
 

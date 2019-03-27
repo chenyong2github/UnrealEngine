@@ -641,6 +641,12 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsUsingFixedBounds));
 
 	CommandList.MapAction(
+		ViewportShowMenuCommands.UsePreSkinnedBounds,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::UsePreSkinnedBounds),
+		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanUsePreSkinnedBounds),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsUsingPreSkinnedBounds));
+
+	CommandList.MapAction(
 		ViewportShowMenuCommands.ShowPreviewMesh,
 		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::ToggleShowPreviewMesh),
 		FCanExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::CanShowPreviewMesh),
@@ -1388,6 +1394,27 @@ bool SAnimationEditorViewportTabBody::IsUsingFixedBounds() const
 	return PreviewComponent != NULL && PreviewComponent->bComponentUseFixedSkelBounds;
 }
 
+void SAnimationEditorViewportTabBody::UsePreSkinnedBounds()
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	if (PreviewComponent != NULL)
+	{
+		PreviewComponent->UsePreSkinnedBounds(!PreviewComponent->IsUsingPreSkinnedBounds());
+	}
+}
+
+bool SAnimationEditorViewportTabBody::CanUsePreSkinnedBounds() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent != NULL && IsShowBoundEnabled();
+}
+
+bool SAnimationEditorViewportTabBody::IsUsingPreSkinnedBounds() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent != NULL && PreviewComponent->IsUsingPreSkinnedBounds();
+}
+
 void SAnimationEditorViewportTabBody::HandlePreviewMeshChanged(class USkeletalMesh* OldSkeletalMesh, class USkeletalMesh* NewSkeletalMesh)
 {
 	PopulateNumUVChannels();
@@ -1564,20 +1591,23 @@ int32 SAnimationEditorViewportTabBody::GetLODSelection() const
 
 	if (PreviewComponent)
 	{
-		return PreviewComponent->ForcedLodModel;
+		// If we are forcing a LOD level, report the actual LOD level we are displaying
+		// as the mesh can potentially change LOD count under the viewport.
+		if(PreviewComponent->ForcedLodModel > 0)
+		{
+			return PreviewComponent->PredictedLODLevel + 1;
+		}
+		else
+		{
+			return PreviewComponent->ForcedLodModel;
+		}
 	}
 	return 0;
 }
 
 bool SAnimationEditorViewportTabBody::IsLODModelSelected(int32 LODSelectionType) const
 {
-	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
-
-	if (PreviewComponent)
-	{
-		return (PreviewComponent->ForcedLodModel == LODSelectionType) ? true : false;
-	}
-	return false;
+	return GetLODSelection() == LODSelectionType;
 }
 
 void SAnimationEditorViewportTabBody::OnSetLODModel(int32 LODSelectionType)

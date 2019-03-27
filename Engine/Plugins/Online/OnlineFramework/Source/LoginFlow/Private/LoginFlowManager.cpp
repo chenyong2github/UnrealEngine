@@ -97,7 +97,7 @@ void FLoginFlowManager::Reset()
 	OnlineSubsystemsMap.Empty();
 }
 
-bool FLoginFlowManager::AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies)
+bool FLoginFlowManager::AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies, bool bConsumeInput)
 {
 	bool bSuccess = false;
 
@@ -121,6 +121,7 @@ bool FLoginFlowManager::AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPop
 				NewParams.BrowserContextSettings = MakeShared<FBrowserContextSettings>(ContextName);
 				NewParams.BrowserContextSettings->bPersistSessionCookies = bPersistCookies;
 				NewParams.bRegisteredContext = false;
+				NewParams.bConsumeInput = bConsumeInput;
 
 				NewParams.LoginFlowLogoutDelegateHandle = OnlineIdentity->AddOnLoginFlowLogoutDelegate_Handle(FOnLoginFlowLogoutDelegate::CreateSP(this, &FLoginFlowManager::OnLoginFlowLogout, OnlineIdentifier));
 				
@@ -213,6 +214,7 @@ void FLoginFlowManager::OnLoginFlowStarted(const FString& RequestedURL, const FO
 		// generate a login flow chromium widget
 		ILoginFlowModule::FCreateSettings CreateSettings;
 		CreateSettings.Url = RequestedURL;
+		CreateSettings.bConsumeInput = Params->bConsumeInput;
 		CreateSettings.BrowserContextSettings = Params->BrowserContextSettings;
 
 		// Setup will allow login flow module events to trigger passed in delegates

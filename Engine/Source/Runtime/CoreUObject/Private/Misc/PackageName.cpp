@@ -1273,6 +1273,7 @@ void FPackageName::QueryRootContentPaths( TArray<FString>& OutRootContentPaths )
 
 void FPackageName::EnsureContentPathsAreRegistered()
 {
+	SCOPED_BOOT_TIMING("FPackageName::EnsureContentPathsAreRegistered");
 	FLongPackagePathsSingleton::Get();
 }
 
