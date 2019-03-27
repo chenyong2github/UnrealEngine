@@ -1249,6 +1249,12 @@ struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FU
 		}
 	}
 
+	virtual void OnUObjectArrayShutdown() override
+	{
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+		GUObjectArray.RemoveUObjectCreateListener(this);
+	}
+
 	// This is the set of packages which have already had PostLoadFixup called 
 	TSet<UPackage*>			PostLoadFixupPackages;
 

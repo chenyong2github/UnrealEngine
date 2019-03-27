@@ -29,6 +29,13 @@ void FSparseDelegateStorage::FObjectListener::NotifyUObjectDeleted(const UObject
 	}
 }
 
+void FSparseDelegateStorage::FObjectListener::OnUObjectArrayShutdown()
+{
+	FScopeLock SparseDelegateMapLock(&FSparseDelegateStorage::SparseDelegateMapCritical);
+	FSparseDelegateStorage::SparseDelegates.Empty();
+	DisableListener();
+}
+
 void FSparseDelegateStorage::FObjectListener::EnableListener()
 {
 	GUObjectArray.AddUObjectDeleteListener(this);

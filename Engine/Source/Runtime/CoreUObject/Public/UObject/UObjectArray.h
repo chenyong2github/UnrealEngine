@@ -561,6 +561,11 @@ public:
 		 * @param Index	index of object that is being deleted
 		 */
 		virtual void NotifyUObjectCreated(const class UObjectBase *Object, int32 Index)=0;
+
+		/**
+		 * Called when UObject Array is being shut down, this is where all listeners should be removed from it 
+		 */
+		virtual void OnUObjectArrayShutdown()=0;
 	};
 
 	/**
@@ -578,6 +583,11 @@ public:
 		 * @param Index	index of object that is being deleted
 		 */
 		virtual void NotifyUObjectDeleted(const class UObjectBase *Object, int32 Index)=0;
+
+		/**
+		 * Called when UObject Array is being shut down, this is where all listeners should be removed from it
+		 */
+		virtual void OnUObjectArrayShutdown() = 0;
 	};
 
 	/**

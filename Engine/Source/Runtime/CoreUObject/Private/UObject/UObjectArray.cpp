@@ -335,4 +335,23 @@ int32 FUObjectArray::AllocateSerialNumber(int32 Index)
  */
 void FUObjectArray::ShutdownUObjectArray()
 {
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock UObjectDeleteListenersLock(&UObjectDeleteListenersCritical);
+#endif
+		for (int32 Index = UObjectDeleteListeners.Num() - 1; Index >= 0; --Index)
+		{
+			FUObjectDeleteListener* Listener = UObjectDeleteListeners[Index];
+			Listener->OnUObjectArrayShutdown();
+		}
+		UE_CLOG(UObjectDeleteListeners.Num(), LogUObjectArray, Fatal, TEXT("All UObject delete listeners should be unregistered when shutting down the UObject array"));
+	}
+	{
+		for (int32 Index = UObjectCreateListeners.Num() - 1; Index >= 0; --Index)
+		{
+			FUObjectCreateListener* Listener = UObjectCreateListeners[Index];
+			Listener->OnUObjectArrayShutdown();
+		}
+		UE_CLOG(UObjectCreateListeners.Num(), LogUObjectArray, Fatal, TEXT("All UObject delete listeners should be unregistered when shutting down the UObject array"));
+	}
 }
