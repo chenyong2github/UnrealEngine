@@ -25,6 +25,7 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 		return;
 	}
 
+	FPackagePropertyPair ContainingPackageAndProperty;
 	FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
 
 	FName PackageName, PropertyName;
@@ -39,12 +40,20 @@ void FRedirectCollector::OnSoftObjectPathLoaded(const FSoftObjectPath& InPath, F
 		return;
 	}
 
-	const bool bReferencedByEditorOnlyProperty = (CollectType == ESoftObjectPathCollectType::EditorOnlyCollect);
-	FSoftObjectPathProperty SoftObjectPathProperty(InPath.GetAssetPathName(), PropertyName, bReferencedByEditorOnlyProperty);
+	if (PackageName != NAME_None)
+	{
+		ContainingPackageAndProperty.SetPackage(PackageName);
+		if (PropertyName != NAME_None)
+		{
+			ContainingPackageAndProperty.SetProperty(PropertyName);
+		}	
+	}
+
+	ContainingPackageAndProperty.SetReferencedByEditorOnlyProperty(CollectType == ESoftObjectPathCollectType::EditorOnlyCollect);
 
 	FScopeLock ScopeLock(&CriticalSection);
 
-	SoftObjectPathMap.FindOrAdd(PackageName).Add(SoftObjectPathProperty);
+	SoftObjectPathMap.AddUnique(InPath.GetAssetPathName(), ContainingPackageAndProperty);
 }
 
 void FRedirectCollector::OnStringAssetReferenceLoaded(const FString& InString)
@@ -68,79 +77,69 @@ FString FRedirectCollector::OnStringAssetReferenceSaved(const FString& InString)
 
 void FRedirectCollector::ResolveAllSoftObjectPaths(FName FilterPackage)
 {	
-	auto LoadSoftObjectPathLambda = [this](const FSoftObjectPathProperty& SoftObjectPathProperty)
-	{
-		const FName& ToLoadFName = SoftObjectPathProperty.GetAssetPathName();
-		const FString ToLoad = ToLoadFName.ToString();
-
-		if (ToLoad.Len() > 0 )
-		{
-			UE_LOG(LogRedirectors, Verbose, TEXT("Resolving Soft Object Path '%s'"), *ToLoad);
-			UE_CLOG(SoftObjectPathProperty.GetPropertyName().ToString().Len(), LogRedirectors, Verbose, TEXT("    Referenced by '%s'"), *SoftObjectPathProperty.GetPropertyName().ToString());
-
-			int32 DotIndex = ToLoad.Find(TEXT("."));
-			FString PackageName = DotIndex != INDEX_NONE ? ToLoad.Left(DotIndex) : ToLoad;
-
-			// If is known missing don't try
-			if (FLinkerLoad::IsKnownMissingPackage(FName(*PackageName)))
-			{
-				return;
-			}
-
-			UObject *Loaded = LoadObject<UObject>(NULL, *ToLoad, NULL, SoftObjectPathProperty.GetReferencedByEditorOnlyProperty() ? LOAD_EditorOnly | LOAD_NoWarn : LOAD_NoWarn, NULL);
-
-			if (Loaded)
-			{
-				FString Dest = Loaded->GetPathName();
-				UE_LOG(LogRedirectors, Verbose, TEXT("    Resolved to '%s'"), *Dest);
-				if (Dest != ToLoad)
-				{
-					AssetPathRedirectionMap.Add(ToLoadFName, FName(*Dest));
-				}
-			}
-			else
-			{
-				const FString Referencer = SoftObjectPathProperty.GetPropertyName().ToString().Len() ? SoftObjectPathProperty.GetPropertyName().ToString() : TEXT("Unknown");
-				UE_LOG(LogRedirectors, Warning, TEXT("Soft Object Path '%s' was not found when resolving paths! (Referencer '%s')"), *ToLoad, *Referencer);
-			}
-		}
-	};
-
 	FScopeLock ScopeLock(&CriticalSection);
 
-	FSoftObjectPathMap KeepSoftObjectPathMap;
-	KeepSoftObjectPathMap.Reserve(SoftObjectPathMap.Num());
+	TMultiMap<FName, FPackagePropertyPair> SkippedReferences;
+	SkippedReferences.Empty(SoftObjectPathMap.Num());
 	while (SoftObjectPathMap.Num())
 	{
-		FSoftObjectPathMap LocalSoftObjectPathMap;
-		Swap(SoftObjectPathMap, LocalSoftObjectPathMap);
+		TMultiMap<FName, FPackagePropertyPair> CurrentReferences;
+		Swap(SoftObjectPathMap, CurrentReferences);
 
-		for (TPair<FName, FSoftObjectPathPropertySet>& CurrentPackage : LocalSoftObjectPathMap)
+		for (const TPair<FName, FPackagePropertyPair>& CurrentReference : CurrentReferences)
 		{
-			const FName& CurrentPackageName = CurrentPackage.Key;
-			FSoftObjectPathPropertySet& SoftObjectPathProperties = CurrentPackage.Value;
+			const FName& ToLoadFName = CurrentReference.Key;
+			const FPackagePropertyPair& RefFilenameAndProperty = CurrentReference.Value;
 
 			if ((FilterPackage != NAME_None) && // not using a filter
-				(FilterPackage != CurrentPackageName) && // this is the package we are looking for
-				(CurrentPackageName != NAME_None) // if we have an empty package name then process it straight away
+				(FilterPackage != RefFilenameAndProperty.GetCachedPackageName()) && // this is the package we are looking for
+				(RefFilenameAndProperty.GetCachedPackageName() != NAME_None) // if we have an empty package name then process it straight away
 				)
 			{
-				// If we have a valid filter and it doesn't match, skip processing of this package and keep it
-				KeepSoftObjectPathMap.FindOrAdd(CurrentPackageName).Append(MoveTemp(SoftObjectPathProperties));
+				// If we have a valid filter and it doesn't match, skip this reference
+				SkippedReferences.Add(ToLoadFName, RefFilenameAndProperty);
 				continue;
 			}
 
-			// This will call LoadObject which may trigger OnSoftObjectPathLoaded and add new soft object paths to the SoftObjectPathMap
-			for (const FSoftObjectPathProperty& SoftObjecPathProperty : SoftObjectPathProperties)
+			const FString ToLoad = ToLoadFName.ToString();
+
+			if (ToLoad.Len() > 0 )
 			{
-				LoadSoftObjectPathLambda(SoftObjecPathProperty);
+				UE_LOG(LogRedirectors, Verbose, TEXT("Resolving Soft Object Path '%s'"), *ToLoad);
+				UE_CLOG(RefFilenameAndProperty.GetProperty().ToString().Len(), LogRedirectors, Verbose, TEXT("    Referenced by '%s'"), *RefFilenameAndProperty.GetProperty().ToString());
+
+				int32 DotIndex = ToLoad.Find(TEXT("."));
+				FString PackageName = DotIndex != INDEX_NONE ? ToLoad.Left(DotIndex) : ToLoad;
+
+				// If is known missing don't try
+				if (FLinkerLoad::IsKnownMissingPackage(FName(*PackageName)))
+				{
+					continue;
+				}
+
+				UObject *Loaded = LoadObject<UObject>(NULL, *ToLoad, NULL, RefFilenameAndProperty.GetReferencedByEditorOnlyProperty() ? LOAD_EditorOnly | LOAD_NoWarn : LOAD_NoWarn, NULL);
+
+				if (Loaded)
+				{
+					FString Dest = Loaded->GetPathName();
+					UE_LOG(LogRedirectors, Verbose, TEXT("    Resolved to '%s'"), *Dest);
+					if (Dest != ToLoad)
+					{
+						AssetPathRedirectionMap.Add(ToLoadFName, FName(*Dest));
+					}
+				}
+				else
+				{
+					const FString Referencer = RefFilenameAndProperty.GetProperty().ToString().Len() ? RefFilenameAndProperty.GetProperty().ToString() : TEXT("Unknown");
+					UE_LOG(LogRedirectors, Warning, TEXT("Soft Object Path '%s' was not found when resolving paths! (Referencer '%s')"), *ToLoad, *Referencer);
+				}
 			}
 		}
 	}
 
 	check(SoftObjectPathMap.Num() == 0);
-	// Add any non processed packages back into the global map for the next time this is called
-	Swap(SoftObjectPathMap, KeepSoftObjectPathMap);
+	// Add any skipped references back into the map for the next time this is called
+	Swap(SoftObjectPathMap, SkippedReferences);
 	// we shouldn't have any references left if we decided to resolve them all
 	check((SoftObjectPathMap.Num() == 0) || (FilterPackage != NAME_None));
 }
@@ -149,26 +148,24 @@ void FRedirectCollector::ProcessSoftObjectPathPackageList(FName FilterPackage, b
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	TSet<FSoftObjectPathProperty>* SoftObjectPathProperties = SoftObjectPathMap.Find(FilterPackage);
-	if (!SoftObjectPathProperties)
+	// Iterate map, remove all matching and potentially add to OutReferencedPackages
+	for (auto It = SoftObjectPathMap.CreateIterator(); It; ++It)
 	{
-		return;
-	}
+		const FName& ToLoadFName = It->Key;
+		const FPackagePropertyPair& RefFilenameAndProperty = It->Value;
 
-	// potentially add soft object path package names to OutReferencedPackages
-	OutReferencedPackages.Reserve(SoftObjectPathProperties->Num());
-	for (const FSoftObjectPathProperty& SoftObjecPathProperty : *SoftObjectPathProperties)
-	{
-		if (!SoftObjecPathProperty.GetReferencedByEditorOnlyProperty() || bGetEditorOnly)
+		// Package name may be null, if so return the set of things not associated with a package
+		if (FilterPackage == RefFilenameAndProperty.GetCachedPackageName())
 		{
-			const FName& ToLoadFName = SoftObjecPathProperty.GetAssetPathName();
-			FString PackageNameString = FPackageName::ObjectPathToPackageName(ToLoadFName.ToString());
-			OutReferencedPackages.Add(FName(*PackageNameString));
+			if (!RefFilenameAndProperty.GetReferencedByEditorOnlyProperty() || bGetEditorOnly)
+			{
+				FString PackageNameString = FPackageName::ObjectPathToPackageName(ToLoadFName.ToString());
+				OutReferencedPackages.Add(FName(*PackageNameString));
+			}
+
+			It.RemoveCurrent();
 		}
 	}
-
-	// always remove all data for the processed FilterPackage
-	SoftObjectPathMap.Remove(FilterPackage);
 }
 
 void FRedirectCollector::AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath)
