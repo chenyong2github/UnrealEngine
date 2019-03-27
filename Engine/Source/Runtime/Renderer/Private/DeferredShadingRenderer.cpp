@@ -36,6 +36,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
+#include "ShaderPrint.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("r.StencilForLODDither"),

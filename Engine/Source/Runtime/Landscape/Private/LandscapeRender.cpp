@@ -631,7 +631,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, SectionBase(InComponent->GetSectionBase())
 	, LandscapeComponent(InComponent)
 	, WeightmapScaleBias(InComponent->WeightmapScaleBias)
-	, WeightmapTextures(InComponent->>GetWeightmapTextures())
+	, WeightmapTextures(InComponent->GetWeightmapTextures())
 	, VisibilityWeightmapTexture(nullptr)
 	, VisibilityWeightmapChannel(-1)
 	, NormalmapTexture(InComponent->GetHeightmap())
