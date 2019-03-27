@@ -109,7 +109,7 @@ void FDependsNode::RemoveDependency(FDependsNode* InDependency)
 {
 	IterateOverDependencyArrays([InDependency](TArray<FDependsNode*>& InArray, EAssetRegistryDependencyType::Type)
 	{
-		InArray.RemoveSingleSwap(InDependency, false);
+		InArray.Remove(InDependency);
 	});
 }
 
