@@ -684,7 +684,7 @@ public:
 	virtual void CreateRenderThreadResources() override;
 	virtual void OnLevelAddedToWorld() override;
 	virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) override;
-	virtual void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const override;
+	void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const;
 	virtual bool IsUsingCustomLODRules() const override;
 	virtual FLODMask GetCustomLOD(const FSceneView& InView, float InViewLODScale, int32 InForcedLODLevel, float& OutScreenSizeSquared) const override;
 	virtual bool IsUsingCustomWholeSceneShadowLODRules() const override;

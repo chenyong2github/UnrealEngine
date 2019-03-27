@@ -1731,9 +1731,6 @@ void FViewInfo::SetCustomData(const FPrimitiveSceneInfo* InPrimitiveSceneInfo, v
 	{
 		check(PrimitivesCustomData.IsValidIndex(InPrimitiveSceneInfo->GetIndex()));
 		PrimitivesCustomData[InPrimitiveSceneInfo->GetIndex()] = InCustomData;
-
-		check(!PrimitivesWithCustomData.Contains(InPrimitiveSceneInfo));
-		PrimitivesWithCustomData.Add(InPrimitiveSceneInfo);
 	}
 }
 

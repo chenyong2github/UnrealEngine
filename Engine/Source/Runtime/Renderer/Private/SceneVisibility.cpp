@@ -3451,7 +3451,6 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
 
 		View.PrimitivesCustomData.Init(nullptr, Scene->Primitives.Num());
-		View.PrimitivesWithCustomData.Reserve(Scene->Primitives.Num());
 
 		// We must reserve to prevent realloc otherwise it will cause memory leak if we Execute In Parallel
 		const bool WillExecuteInParallel = FApp::ShouldUseThreadingForPerformance() && CVarParallelInitViews.GetValueOnRenderThread() > 0;
