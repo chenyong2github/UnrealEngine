@@ -697,7 +697,7 @@ void CompilerMSL::preprocess_op_codes()
 	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 	
 	add_pragma_line("#pragma clang diagnostic ignored \"-Wunused-variable\"");
-	
+
 	if (preproc.uses_atomics)
 	{
 		add_header_line("#include <metal_atomic>");
@@ -2579,10 +2579,10 @@ void CompilerMSL::emit_custom_functions()
 			statement("T sign(T x)");
 			begin_scope();
 			statement("return select(select(select(x, T(0), x == T(0)), T(1), x > T(0)), T(-1), x < T(0));");
-				end_scope();
-				statement("");
+			end_scope();
+			statement("");
 			break;
-		
+
 		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 
@@ -2591,16 +2591,16 @@ void CompilerMSL::emit_custom_functions()
 			/* UE Change Begin: Add support for Metal 2.1's new texture_buffer type. */
 			if (msl_options.texel_buffer_texture_width > 0)
 			{
-			string tex_width_str = convert_to_string(msl_options.texel_buffer_texture_width);
-			statement("// Returns 2D texture coords corresponding to 1D texel buffer coords");
+                string tex_width_str = convert_to_string(msl_options.texel_buffer_texture_width);
+                statement("// Returns 2D texture coords corresponding to 1D texel buffer coords");
 				/* UE Change Begin: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 				statement("static inline __attribute__((always_inline))");
 				/* UE Change End: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
-			statement("uint2 spvTexelBufferCoord(uint tc)");
-			begin_scope();
-			statement(join("return uint2(tc % ", tex_width_str, ", tc / ", tex_width_str, ");"));
-			end_scope();
-			statement("");
+                statement("uint2 spvTexelBufferCoord(uint tc)");
+                begin_scope();
+                statement(join("return uint2(tc % ", tex_width_str, ", tc / ", tex_width_str, ");"));
+                end_scope();
+                statement("");
 			}
 			else
 			{
@@ -2863,13 +2863,17 @@ void CompilerMSL::emit_custom_functions()
 			statement("template<typename T> struct spvRemoveReference { typedef T type; };");
 			statement("template<typename T> struct spvRemoveReference<thread T&> { typedef T type; };");
 			statement("template<typename T> struct spvRemoveReference<thread T&&> { typedef T type; };");
+            /* UE Change Begin: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 			statement("template<typename T> static inline __attribute__((always_inline)) constexpr thread T&& spvForward(thread typename "
 			          "spvRemoveReference<T>::type& x)");
+            /* UE Change End: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 			begin_scope();
 			statement("return static_cast<thread T&&>(x);");
 			end_scope();
+            /* UE Change Begin: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 			statement("template<typename T> static inline __attribute__((always_inline)) constexpr thread T&& spvForward(thread typename "
 			          "spvRemoveReference<T>::type&& x)");
+            /* UE Change End: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 			begin_scope();
 			statement("return static_cast<thread T&&>(x);");
 			end_scope();
@@ -3006,7 +3010,9 @@ void CompilerMSL::declare_undefined_values()
 	bool emitted = false;
 	ir.for_each_typed_id<SPIRUndef>([&](uint32_t, SPIRUndef &undef) {
 		auto &type = this->get<SPIRType>(undef.basetype);
+        /* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 		statement("", variable_decl(type, to_name(undef.self), undef.self), " = {};");
+        /* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 		emitted = true;
 	});
 
@@ -3027,14 +3033,11 @@ void CompilerMSL::declare_constant_arrays()
 		auto &type = this->get<SPIRType>(c.constant_type);
 		if (!type.array.empty())
 		{
-			if (!type.array.empty())
-			{
 			auto name = to_name(c.self);
-				/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
-				statement(variable_decl(type, name), " = ", constant_expression(c), ";");
-				/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+            /* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+            statement(variable_decl(type, name), " = ", constant_expression(c), ";");
+            /* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 			emitted = true;
-		}
 		}
 	});
 
@@ -3440,7 +3443,20 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 
 	switch (opcode)
 	{
-
+	/* UE Change Begin: Sample mask input for Metal is not an array */
+	case OpLoad:
+	{
+		uint32_t id = ops[1];
+		uint32_t ptr = ops[2];
+		if (ir.meta[ptr].decoration.builtin_type == BuiltInSampleMask)
+		{
+			ir.meta[id].decoration.builtin_type = BuiltInSampleMask;
+		}
+		CompilerGLSL::emit_instruction(instruction);
+		break;
+	}
+	/* UE Change End: Sample mask input for Metal is not an array */
+		
 	// Comparisons
 	case OpIEqual:
 		MSL_BOP_CAST(==, int_type);
@@ -4034,197 +4050,228 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 	previous_instruction_opcode = opcode;
 }
 
+/* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
 /* UE Change Begin: If the underlying resource has been used for comparison then duplicate loads of that resource must be too */
-void CompilerMSL::emit_texture_op(const Instruction &i)
+static inline bool image_opcode_is_sample_no_dref(Op op)
 {
-	auto *ops = stream(i);
-	auto op = static_cast<Op>(i.op);
-	uint32_t length = i.length;
-	
-	vector<uint32_t> inherited_expressions;
-	
-	uint32_t result_type = ops[0];
-	uint32_t id = ops[1];
-	uint32_t img = ops[2];
-	uint32_t coord = ops[3];
-	uint32_t dref = 0;
-	uint32_t comp = 0;
-	bool gather = false;
-	bool proj = false;
-	bool fetch = false;
-	const uint32_t *opt = nullptr;
-	
-	inherited_expressions.push_back(coord);
-	
 	switch (op)
 	{
-		case OpImageSampleDrefImplicitLod:
-		case OpImageSampleDrefExplicitLod:
-			dref = ops[4];
-			opt = &ops[5];
-			length -= 5;
-			break;
-			
-		case OpImageSampleProjDrefImplicitLod:
-		case OpImageSampleProjDrefExplicitLod:
-			dref = ops[4];
-			opt = &ops[5];
-			length -= 5;
-			proj = true;
-			break;
-			
-		case OpImageDrefGather:
-			dref = ops[4];
-			opt = &ops[5];
-			length -= 5;
-			gather = true;
-			break;
-			
-		case OpImageGather:
-			comp = ops[4];
-			opt = &ops[5];
-			length -= 5;
-			gather = true;
-			break;
-			
-		case OpImageFetch:
-		case OpImageRead: // Reads == fetches in Metal (other langs will not get here)
-			opt = &ops[4];
-			length -= 4;
-			fetch = true;
-			break;
-			
-		case OpImageSampleProjImplicitLod:
-		case OpImageSampleProjExplicitLod:
-			opt = &ops[4];
-			length -= 4;
-			proj = true;
-			break;
-			
-		default:
-			opt = &ops[4];
-			length -= 4;
-			break;
-	}
-	
-	// Bypass pointers because we need the real image struct
-	auto &type = expression_type(img);
-	auto &imgtype = get<SPIRType>(type.self);
-	
-	uint32_t coord_components = 0;
-	switch (imgtype.image.dim)
-	{
-		case spv::Dim1D:
-			coord_components = 1;
-			break;
-		case spv::Dim2D:
-			coord_components = 2;
-			break;
-		case spv::Dim3D:
-			coord_components = 3;
-			break;
-		case spv::DimCube:
-			coord_components = 3;
-			break;
-		case spv::DimBuffer:
-			coord_components = 1;
-			break;
-		default:
-			coord_components = 2;
-			break;
-	}
-	
-	if (dref)
-		inherited_expressions.push_back(dref);
-	
-	if (proj)
-		coord_components++;
-	if (imgtype.image.arrayed)
-		coord_components++;
-	
-	uint32_t bias = 0;
-	uint32_t lod = 0;
-	uint32_t grad_x = 0;
-	uint32_t grad_y = 0;
-	uint32_t coffset = 0;
-	uint32_t offset = 0;
-	uint32_t coffsets = 0;
-	uint32_t sample = 0;
-	uint32_t flags = 0;
-	
-	if (length)
-	{
-		flags = *opt++;
-		length--;
-	}
-	
-	auto test = [&](uint32_t &v, uint32_t flag) {
-		if (length && (flags & flag))
-		{
-			v = *opt++;
-			inherited_expressions.push_back(v);
-			length--;
-		}
-	};
-	
-	test(bias, ImageOperandsBiasMask);
-	test(lod, ImageOperandsLodMask);
-	test(grad_x, ImageOperandsGradMask);
-	test(grad_y, ImageOperandsGradMask);
-	test(coffset, ImageOperandsConstOffsetMask);
-	test(offset, ImageOperandsOffsetMask);
-	test(coffsets, ImageOperandsConstOffsetsMask);
-	test(sample, ImageOperandsSampleMask);
-	
-	string expr;
-	bool forward = false;
-	bool depth = !dref && image_is_comparison(type, img);
-	if (depth)
-	{
-		auto &res_type = get<SPIRType>(result_type);
-		expr += type_to_glsl(res_type);
-		expr += "(";
-	}
-	
-	expr += to_function_name(img, imgtype, !!fetch, !!gather, !!proj, !!coffsets, (!!coffset || !!offset),
-							 (!!grad_x || !!grad_y), !!dref, lod);
-	expr += "(";
-	expr += to_function_args(img, imgtype, fetch, gather, proj, coord, coord_components, dref, grad_x, grad_y, lod,
-							 coffset, offset, bias, comp, sample, &forward);
-	expr += ")";
-	if (depth)
-	{
-		expr += ")";
-	}
-
-	// texture(samplerXShadow) returns float. shadowX() returns vec4. Swizzle here.
-	if (is_legacy() && image_is_comparison(imgtype, img))
-		expr += ".r";
-	
-	/* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
-	if (imgtype.image.dim == DimSubpassData && msl_options.ios_use_framebuffer_fetch_subpasses)
-	{
-		expr = to_expression(img);
-	}
-	/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
-
-	emit_op(result_type, id, expr, forward);
-	for (auto &inherit : inherited_expressions)
-		inherit_expression_dependencies(id, inherit);
-	
-	switch (op)
-	{
-		case OpImageSampleDrefImplicitLod:
+		case OpImageSampleExplicitLod:
 		case OpImageSampleImplicitLod:
+		case OpImageSampleProjExplicitLod:
 		case OpImageSampleProjImplicitLod:
-		case OpImageSampleProjDrefImplicitLod:
-			register_control_dependent_expression(id);
-			break;
-			
+		case OpImageFetch:
+		case OpImageRead:
+		case OpImageSparseSampleExplicitLod:
+		case OpImageSparseSampleImplicitLod:
+		case OpImageSparseSampleProjExplicitLod:
+		case OpImageSparseSampleProjImplicitLod:
+		case OpImageSparseFetch:
+		case OpImageSparseRead:
+		return true;
+		
 		default:
-			break;
+		return false;
 	}
 }
+
+void CompilerMSL::emit_texture_op(const Instruction &i)
+{
+    auto *ops = stream(i);
+    auto op = static_cast<Op>(i.op);
+    uint32_t length = i.length;
+    
+    vector<uint32_t> inherited_expressions;
+    
+    uint32_t result_type = ops[0];
+    uint32_t id = ops[1];
+    uint32_t img = ops[2];
+    uint32_t coord = ops[3];
+    uint32_t dref = 0;
+    uint32_t comp = 0;
+    bool gather = false;
+    bool proj = false;
+    bool fetch = false;
+    const uint32_t *opt = nullptr;
+    
+    inherited_expressions.push_back(coord);
+    
+    switch (op)
+    {
+        case OpImageSampleDrefImplicitLod:
+        case OpImageSampleDrefExplicitLod:
+            dref = ops[4];
+            opt = &ops[5];
+            length -= 5;
+            break;
+            
+        case OpImageSampleProjDrefImplicitLod:
+        case OpImageSampleProjDrefExplicitLod:
+            dref = ops[4];
+            opt = &ops[5];
+            length -= 5;
+            proj = true;
+            break;
+            
+        case OpImageDrefGather:
+            dref = ops[4];
+            opt = &ops[5];
+            length -= 5;
+            gather = true;
+            break;
+            
+        case OpImageGather:
+            comp = ops[4];
+            opt = &ops[5];
+            length -= 5;
+            gather = true;
+            break;
+            
+        case OpImageFetch:
+        case OpImageRead: // Reads == fetches in Metal (other langs will not get here)
+            opt = &ops[4];
+            length -= 4;
+            fetch = true;
+            break;
+            
+        case OpImageSampleProjImplicitLod:
+        case OpImageSampleProjExplicitLod:
+            opt = &ops[4];
+            length -= 4;
+            proj = true;
+            break;
+            
+        default:
+            opt = &ops[4];
+            length -= 4;
+            break;
+    }
+    
+    // Bypass pointers because we need the real image struct
+    auto &type = expression_type(img);
+    auto &imgtype = get<SPIRType>(type.self);
+    
+    uint32_t coord_components = 0;
+    switch (imgtype.image.dim)
+    {
+        case spv::Dim1D:
+            coord_components = 1;
+            break;
+        case spv::Dim2D:
+            coord_components = 2;
+            break;
+        case spv::Dim3D:
+            coord_components = 3;
+            break;
+        case spv::DimCube:
+            coord_components = 3;
+            break;
+        case spv::DimBuffer:
+            coord_components = 1;
+            break;
+        default:
+            coord_components = 2;
+            break;
+    }
+    
+    if (dref)
+        inherited_expressions.push_back(dref);
+    
+    if (proj)
+        coord_components++;
+    if (imgtype.image.arrayed)
+        coord_components++;
+    
+    uint32_t bias = 0;
+    uint32_t lod = 0;
+    uint32_t grad_x = 0;
+    uint32_t grad_y = 0;
+    uint32_t coffset = 0;
+    uint32_t offset = 0;
+    uint32_t coffsets = 0;
+    uint32_t sample = 0;
+    uint32_t flags = 0;
+    
+    if (length)
+    {
+        flags = *opt++;
+        length--;
+    }
+    
+    auto test = [&](uint32_t &v, uint32_t flag) {
+        if (length && (flags & flag))
+        {
+            v = *opt++;
+            inherited_expressions.push_back(v);
+            length--;
+        }
+    };
+    
+    test(bias, ImageOperandsBiasMask);
+    test(lod, ImageOperandsLodMask);
+    test(grad_x, ImageOperandsGradMask);
+    test(grad_y, ImageOperandsGradMask);
+    test(coffset, ImageOperandsConstOffsetMask);
+    test(offset, ImageOperandsOffsetMask);
+    test(coffsets, ImageOperandsConstOffsetsMask);
+    test(sample, ImageOperandsSampleMask);
+    
+    string expr;
+    bool forward = false;
+    expr += to_function_name(img, imgtype, !!fetch, !!gather, !!proj, !!coffsets, (!!coffset || !!offset),
+                             (!!grad_x || !!grad_y), !!dref, lod);
+    expr += "(";
+    expr += to_function_args(img, imgtype, fetch, gather, proj, coord, coord_components, dref, grad_x, grad_y, lod,
+                             coffset, offset, bias, comp, sample, &forward);
+    expr += ")";
+    
+    // texture(samplerXShadow) returns float. shadowX() returns vec4. Swizzle here.
+    if (is_legacy() && image_is_comparison(imgtype, img))
+        expr += ".r";
+    
+    // Sampling from a texture which was deduced to be a depth image, might actually return 1 component here.
+    // Remap back to 4 components as sampling opcodes expect.
+    bool image_is_depth;
+    const auto *combined = maybe_get<SPIRCombinedImageSampler>(img);
+    if (combined)
+        image_is_depth = image_is_comparison(imgtype, combined->image);
+    else
+        image_is_depth = image_is_comparison(imgtype, img);
+    
+    if (image_is_depth && backend.comparison_image_samples_scalar && image_opcode_is_sample_no_dref(op))
+    {
+        expr = remap_swizzle(get<SPIRType>(result_type), 1, expr);
+    }
+    
+    // Deals with reads from MSL. We might need to downconvert to fewer components.
+    if (op == OpImageRead)
+        expr = remap_swizzle(get<SPIRType>(result_type), 4, expr);
+    
+    /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
+    if (imgtype.image.dim == DimSubpassData && msl_options.ios_use_framebuffer_fetch_subpasses)
+    {
+        expr = to_expression(img);
+    }
+    /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
+    
+    emit_op(result_type, id, expr, forward);
+    for (auto &inherit : inherited_expressions)
+        inherit_expression_dependencies(id, inherit);
+    
+    switch (op)
+    {
+        case OpImageSampleDrefImplicitLod:
+        case OpImageSampleImplicitLod:
+        case OpImageSampleProjImplicitLod:
+        case OpImageSampleProjDrefImplicitLod:
+            register_control_dependent_expression(id);
+            break;
+            
+        default:
+            break;
+    }
+}
+/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
 /* UE Change End: If the underlying resource has been used for comparison then duplicate loads of that resource must be too */
 
 void CompilerMSL::emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uint32_t id_mem_sem)
@@ -4287,7 +4334,7 @@ void CompilerMSL::emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uin
 }
 
 void CompilerMSL::emit_array_copy(const string &lhs, uint32_t rhs_id)
-	{
+{
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	statement(lhs, " = ", to_expression(rhs_id), ";");
 	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
@@ -4354,7 +4401,7 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 	}
 	else
 	{
-	exp += get_argument_address_space(*var);
+        exp += get_argument_address_space(*var);
 	}
 	/* UE Change End: Emulate texture2D atomic operations */
 	exp += " atomic_";
@@ -4595,8 +4642,10 @@ void CompilerMSL::emit_function_prototype(SPIRFunction &func, const Bitset &)
 
 	processing_entry_point = (func.self == ir.default_entry_point);
 
+    /* UE Change Begin: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 	if (!processing_entry_point)
 		statement("static inline __attribute__((always_inline))");
+    /* UE Change End: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 
 	auto &type = get<SPIRType>(func.return_type);
 
@@ -4787,7 +4836,7 @@ string CompilerMSL::to_function_args(uint32_t img, const SPIRType &imgtype, bool
 
 	case DimBuffer:
 		if (coord_type.vecsize > 1)
-			tex_coords += ".x";
+			tex_coords = enclose_expression(tex_coords) + ".x";
 
 		/* UE Change Begin: Add support for Metal 2.1's new texture_buffer type. */
 		// Metal texel buffer textures are 2D prior to Metal 2.1, so convert 1D coord to 2D.
@@ -6135,10 +6184,10 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
 			ep_args += " [[sampler(" + convert_to_string(r.index) + ")]]";
 			break;
                 
-        case SPIRType::Image:
+		case SPIRType::Image:
         {
-            if (!ep_args.empty())
-                ep_args += ", ";
+			if (!ep_args.empty())
+				ep_args += ", ";
                 
             /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
             const auto &basetype = get<SPIRType>(var.basetype);
@@ -6163,7 +6212,7 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
             }
             /* UE Change End: Emulate texture2D atomic operations */
                 
-            break;
+			break;
         }
 		default:
 			SPIRV_CROSS_THROW("Unexpected resource type");
@@ -6840,8 +6889,10 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	{
 	case SPIRType::Struct:
 		// Need OpName lookup here to get a "sensible" name for a struct.
+        /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 		type_name = to_name(type.self);
 		break;
+        /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 
 	case SPIRType::Image:
 	case SPIRType::SampledImage:
@@ -6913,8 +6964,8 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	if (type.array.empty())
 	{
-	return type_name;
-}
+        return type_name;
+    }
 	else
 	{
 		if (options.flatten_multidimensional_arrays)
@@ -7090,12 +7141,12 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
 				break;
 			}
 			/* UE Change End: Add support for Metal 2.1's new texture_buffer type. */
-		/* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
-		case DimSubpassData:
-			if (msl_options.ios_use_framebuffer_fetch_subpasses)
-				return type_to_glsl(get<SPIRType>(img_type.type));
-		case Dim2D:
-		/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
+        /* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
+        case DimSubpassData:
+            if (msl_options.ios_use_framebuffer_fetch_subpasses)
+                return type_to_glsl(get<SPIRType>(img_type.type));
+        case Dim2D:
+        /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
 			if (img_type.ms && img_type.arrayed)
 			{
 				if (!msl_options.supports_msl_version(2, 1))
@@ -7847,10 +7898,10 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 	}
 
 	case OpStore:
-			{
-		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
-		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
-		break;
+    {
+        /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+        /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+        break;
 	}
 
 	/* UE Change Begin: Emulate texture2D atomic operations */
@@ -7914,8 +7965,8 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 
 	case OpCompositeConstruct:
 	{
-		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
-		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+        /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+        /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 		break;
 	}
 
