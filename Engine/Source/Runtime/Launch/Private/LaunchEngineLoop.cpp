@@ -3403,11 +3403,16 @@ int32 FEngineLoop::Init()
 	// Ready to measure thread heartbeat
 	FThreadHeartBeat::Get().Start();
 
+    {
 #if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
-    void CheckImageIntegrity();
-    CheckImageIntegrity();
+        FShaderPipelineCache::PauseBatching();
+        void CheckImageIntegrity();
+        CheckImageIntegrity();
+        FShaderPipelineCache::ResumeBatching();
 #endif
-	{
+    }
+    
+    {
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnFEngineLoopInitComplete.Broadcast()");
 		FCoreDelegates::OnFEngineLoopInitComplete.Broadcast();
 	}
