@@ -418,10 +418,6 @@ std::string CompilerMSL::get_tess_factor_struct_name()
 void CompilerMSL::emit_entry_point_declarations()
 {
 	// FIXME: Get test coverage here ...
-	/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
-	declare_constant_arrays();
-	declare_undefined_values();
-	/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 
 	// Emit constexpr samplers here.
 	for (auto &samp : constexpr_samplers)
@@ -3010,9 +3006,7 @@ void CompilerMSL::declare_undefined_values()
 	bool emitted = false;
 	ir.for_each_typed_id<SPIRUndef>([&](uint32_t, SPIRUndef &undef) {
 		auto &type = this->get<SPIRType>(undef.basetype);
-        /* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
-		statement("", variable_decl(type, to_name(undef.self), undef.self), " = {};");
-        /* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+		statement("constant ", variable_decl(type, to_name(undef.self), undef.self), " = {};");
 		emitted = true;
 	});
 
@@ -3034,9 +3028,7 @@ void CompilerMSL::declare_constant_arrays()
 		if (!type.array.empty())
 		{
 			auto name = to_name(c.self);
-            /* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
-            statement(variable_decl(type, name), " = ", constant_expression(c), ";");
-            /* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+			statement("constant ", variable_decl(type, name), " = ", constant_expression(c), ";");
 			emitted = true;
 		}
 	});
@@ -3047,8 +3039,8 @@ void CompilerMSL::declare_constant_arrays()
 
 void CompilerMSL::emit_resources()
 {
-	/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
-	/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+	declare_constant_arrays();
+	declare_undefined_values();
 
 	// Emit the special [[stage_in]] and [[stage_out]] interface blocks which we created.
 	emit_interface_block(stage_out_var_id);
