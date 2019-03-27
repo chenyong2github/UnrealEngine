@@ -119,7 +119,7 @@ void FRemoteSessionFrameBufferChannel::ReleaseFrameGrabber()
 {
 	if (FrameGrabber.IsValid())
 	{
-		FrameGrabber->StopCapturingFrames();
+		FrameGrabber->Shutdown();
 		FrameGrabber = nullptr;
 	}
 }
