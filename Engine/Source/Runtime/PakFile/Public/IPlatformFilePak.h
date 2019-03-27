@@ -282,6 +282,15 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FPakCompressedBlock& Block)
 
 /**
  * Struct holding info about a single file stored in pak file.
+ *
+ * CHANGE THIS FILE RARELY AND WITH GREAT CARE. MODIFICATIONS
+ * WILL RESULT IN EVERY PAK ENTRY IN AN EXISTING INSTALL HAVING TO
+ * TO BE PATCHED.
+ *
+*  On Fortnite that would be 15GB of data 
+* (250k pak entries * 64kb patch block) just to add/change/remove 
+ * a field.
+ * 
  */
 struct FPakEntry
 {
