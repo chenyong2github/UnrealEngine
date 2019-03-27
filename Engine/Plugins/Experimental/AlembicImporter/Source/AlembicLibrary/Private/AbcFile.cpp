@@ -16,12 +16,21 @@
 
 #include "HAL/Platform.h"
 
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcGeom/All.h>
 #include "Materials/MaterialInstance.h"
 THIRD_PARTY_INCLUDES_END
-PRAGMA_DEFAULT_VISIBILITY_START
+PRAGMA_DEFAULT_VISIBILITY_END
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AbcFile"
 

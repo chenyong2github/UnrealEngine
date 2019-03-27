@@ -243,7 +243,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames(bool bRe
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld *TestWorld = *It;
-		if (!TestWorld || TestWorld->WorldType != EWorldType::PIE)
+
+		// Include only PIE and worlds that own the persistent level (i.e. non-streaming levels).
+		const bool bIsValidDebugWorld = (TestWorld != nullptr)
+			&& TestWorld->WorldType == EWorldType::PIE
+			&& TestWorld->PersistentLevel != nullptr
+			&& TestWorld->PersistentLevel->OwningWorld == TestWorld;
+
+		if (!bIsValidDebugWorld)
 		{
 			continue;
 		}
@@ -276,6 +283,14 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames(bool bRe
 
 		if (!WorldName.IsEmpty())
 		{
+			if (FWorldContext* PieContext = GEngine->GetWorldContextFromWorld(TestWorld))
+			{
+				if (!PieContext->CustomDescription.IsEmpty())
+				{
+					WorldName += TEXT(" ") + PieContext->CustomDescription;
+				}
+			}
+
 			// DebugWorlds & DebugWorldNames need to be the same size (we expect
 			// an index in one to correspond to the other) - DebugWorldNames is
 			// what populates the dropdown, so it is the authority (if there's 

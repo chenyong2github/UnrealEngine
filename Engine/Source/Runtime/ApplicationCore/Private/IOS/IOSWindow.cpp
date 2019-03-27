@@ -70,7 +70,7 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 FPlatformRect FIOSWindow::GetScreenRect()
 {
 	// get the main view's frame
-	IOSAppDelegate* AppDelegate = (IOSAppDelegate*)[[UIApplication sharedApplication] delegate];
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
 	UIView* View = AppDelegate.IOSView;
 	CGRect Frame = [View frame];
 	CGFloat Scale = View.contentScaleFactor;

@@ -278,6 +278,7 @@ void FStaticMeshInstanceBuffer::InitRHI()
 	if (InstanceData->GetNumInstances() > 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FStaticMeshInstanceBuffer_InitRHI);
+		LLM_SCOPE(ELLMTag::InstancedMesh);
 		auto AccessFlags = BUF_Static;
 		CreateVertexBuffer(InstanceData->GetOriginResourceArray(), AccessFlags | BUF_ShaderResource, 16, PF_A32B32G32R32F, InstanceOriginBuffer.VertexBufferRHI, InstanceOriginSRV);
 		CreateVertexBuffer(InstanceData->GetTransformResourceArray(), AccessFlags | BUF_ShaderResource, InstanceData->GetTranslationUsesHalfs() ? 8 : 16, InstanceData->GetTranslationUsesHalfs() ? PF_FloatRGBA : PF_A32B32G32R32F, InstanceTransformBuffer.VertexBufferRHI, InstanceTransformSRV);
@@ -780,6 +781,55 @@ int32 FInstancedStaticMeshSceneProxy::GetNumMeshBatches() const
 		const uint32 NumBatches = FMath::DivideAndRoundUp(NumInstances, MaxInstancesPerBatch);
 		return NumBatches;
 	}
+}
+
+void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* InComponent)
+{
+#if WITH_EDITOR
+	if (bHasSelectedInstances)
+	{
+		// if we have selected indices, mark scene proxy as selected.
+		SetSelection_GameThread(true);
+	}
+#endif
+	// Make sure all the materials are okay to be rendered as an instanced mesh.
+	for (int32 LODIndex = 0; LODIndex < LODs.Num(); LODIndex++)
+	{
+		FStaticMeshSceneProxy::FLODInfo& LODInfo = LODs[LODIndex];
+		for (int32 SectionIndex = 0; SectionIndex < LODInfo.Sections.Num(); SectionIndex++)
+		{
+			FStaticMeshSceneProxy::FLODInfo::FSectionInfo& Section = LODInfo.Sections[SectionIndex];
+			if (!Section.Material->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
+			{
+				Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+		}
+	}
+
+	const bool bInstanced = GRHISupportsInstancing;
+
+	// Copy the parameters for LOD - all instances
+	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->RenderData.Get();
+	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
+	UserData_AllInstances.EndCullDistance = InComponent->InstanceEndCullDistance;
+	UserData_AllInstances.MinLOD = ClampedMinLOD;
+	UserData_AllInstances.bRenderSelected = true;
+	UserData_AllInstances.bRenderUnselected = true;
+	UserData_AllInstances.RenderData = bInstanced ? nullptr : &InstancedRenderData;
+
+	FVector MinScale(0);
+	FVector MaxScale(0);
+	InComponent->GetInstancesMinMaxScale(MinScale, MaxScale);
+
+	UserData_AllInstances.AverageInstancesScale = MinScale + (MaxScale - MinScale) / 2.0f;
+
+	// selected only
+	UserData_SelectedInstances = UserData_AllInstances;
+	UserData_SelectedInstances.bRenderUnselected = false;
+
+	// unselected only
+	UserData_DeselectedInstances = UserData_AllInstances;
+	UserData_DeselectedInstances.bRenderSelected = false;
 }
 
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
@@ -2100,6 +2150,29 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 	return false;
 }
 
+void UInstancedStaticMeshComponent::GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const
+{
+	if (PerInstanceSMData.Num() > 0)
+	{
+		MinScale = FVector(MAX_flt);
+		MaxScale = FVector(-MAX_flt);
+
+		for (int32 i = 0; i < PerInstanceSMData.Num(); ++i)
+		{
+			const FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[i];
+			FVector ScaleVector = InstanceData.Transform.GetScaleVector();
+
+			MinScale = MinScale.ComponentMin(ScaleVector);
+			MaxScale = MaxScale.ComponentMax(ScaleVector);
+		}
+	}
+	else
+	{
+		MinScale = FVector(1.0f);
+		MaxScale = FVector(1.0f);
+	}
+}
+
 void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFromCurrentData, FStaticMeshInstanceData* InSharedInstanceBufferData, bool InRequireCPUAccess)
 {
 	if (PerInstanceRenderData.IsValid())
@@ -2174,6 +2247,19 @@ void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 
 	// release InstanceDataBuffers
 	InstanceDataBuffers.Reset();
+
+	if (PerInstanceRenderData.IsValid())
+	{
+		AActor* Owner = GetOwner();
+		ULevel* OwnerLevel = Owner->GetLevel();
+		UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+
+		if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+		{
+			//update the instance data if the lighting scenario isn't the owner level
+			InstanceUpdateCmdBuffer.Edit();
+		}
+	}
 }
 
 void UInstancedStaticMeshComponent::PartialNavigationUpdate(int32 InstanceIdx)
@@ -2484,7 +2570,8 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 				FirstLOD = FMath::Max(FirstLOD, DebugMin);
 			}
 
-			float SphereRadius = InstancingUserData->MeshRenderData->Bounds.SphereRadius;
+			FBoxSphereBounds ScaledBounds = InstancingUserData->MeshRenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, InstancingUserData->AverageInstancesScale));
+			float SphereRadius = ScaledBounds.SphereRadius;
 			float MinSize = View->ViewMatrices.IsPerspectiveProjection() ? CVarFoliageMinimumScreenSize.GetValueOnRenderThread() : 0.0f;
 			float LODScale = CVarFoliageLODDistanceScale.GetValueOnRenderThread();
 			float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();

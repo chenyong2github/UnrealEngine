@@ -98,7 +98,6 @@ FVorbisAudioInfo::FVorbisAudioInfo()
 	, SrcBufferDataSize(0)
 	, BufferOffset(0)
 	, CurrentBufferChunkOffset(0)
-	, StreamingSoundWave(NULL)
 	, CurrentStreamingChunkData(nullptr)
 	, CurrentStreamingChunkIndex(INDEX_NONE)
 	, NextStreamingChunkIndex(0)
@@ -529,11 +528,11 @@ void FVorbisAudioInfo::EnableHalfRate( bool HalfRate )
 	ov_halfrate(&VFWrapper->vf, int32(HalfRate));
 }
 
-bool FVorbisAudioInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
+bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo)
 {
 	if (!bDllLoaded)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfo failed to parse header due to vorbis DLL not being loaded for sound '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header due to vorbis DLL not being loaded for sound '%s'."), *Wave->GetName());
 		return false;
 	}
 
@@ -543,7 +542,7 @@ bool FVorbisAudioInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQuali
 
 	if (!VFWrapper)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfo failed due to no vorbis wrapper for sound '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed due to no vorbis wrapper for sound '%s'."), *Wave->GetName());
 		return false;
 	}
 
@@ -562,7 +561,7 @@ bool FVorbisAudioInfo::StreamCompressedInfo(USoundWave* Wave, struct FSoundQuali
 	bHeaderParsed = GetCompressedInfoCommon(&Callbacks, QualityInfo);
 	if (!bHeaderParsed)
 	{
-		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfo failed to parse header for '%s'."), *Wave->GetName());
+		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed to parse header for '%s'."), *Wave->GetName());
 	}
 	
 

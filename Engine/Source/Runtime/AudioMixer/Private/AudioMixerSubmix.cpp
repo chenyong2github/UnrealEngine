@@ -23,6 +23,7 @@ namespace Audio
 		, SubmixAmbisonicsDecoderID(INDEX_NONE)
 		, EnvelopeNumChannels(0)
 		, bIsRecording(false)
+		, bIsBackgroundMuted(false)
 		, OwningSubmixObject(nullptr)
 	{
 	}
@@ -292,6 +293,14 @@ namespace Audio
 		}
 
 		EffectSubmixChain.Reset();
+	}
+
+	void FMixerSubmix::SetBackgroundMuted(bool bInMuted)
+	{
+		SubmixCommand([this, bInMuted]()
+		{
+			bIsBackgroundMuted = bInMuted;
+		});
 	}
 
 	void FMixerSubmix::FormatChangeBuffer(const ESubmixChannelFormat InNewChannelType, AlignedFloatBuffer& InBuffer, AlignedFloatBuffer& OutNewBuffer)
@@ -673,9 +682,21 @@ namespace Audio
 					SubmixEffect->ProcessAudio(InputData, OutputData);
 				}
 
+				// Mix in the dry signal directly
+				const float DryLevel = SubmixEffect->GetDryLevel();
+				if (DryLevel > 0.0f)
+				{
+					Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
+				}
+
 				FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)*NumSamples);
 			}
+		}
 
+		// If we're muted, memzero the buffer. Note we are still doing all the work to maintain buffer state between mutings.
+		if (bIsBackgroundMuted)
+		{
+			FMemory::Memzero((void*)BufferPtr, sizeof(float)*NumSamples);
 		}
 
 		// If we are recording, Add out buffer to the RecordingData buffer:
@@ -775,10 +796,6 @@ namespace Audio
 			return EffectSubmixChain[InIndex].EffectInstance;
 		}
 		return nullptr;
-	}
-
-	void FMixerSubmix::Update()
-	{
 	}
 
 	void FMixerSubmix::OnAmbisonicsSettingsChanged(UAmbisonicsSubmixSettingsBase* InAmbisonicsSettings)

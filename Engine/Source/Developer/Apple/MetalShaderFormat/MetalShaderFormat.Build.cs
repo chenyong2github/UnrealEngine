@@ -20,7 +20,8 @@ public class MetalShaderFormat : ModuleRules
 				"Core",
 				"RenderCore",
 				"ShaderCompilerCommon",
-				"ShaderPreprocessor"
+				"ShaderPreprocessor",
+				"FileUtilities"
 			}
 			);
 

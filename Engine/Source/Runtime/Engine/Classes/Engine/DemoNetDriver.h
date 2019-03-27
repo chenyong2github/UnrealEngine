@@ -109,6 +109,7 @@ enum ENetworkVersionHistory
 	HISTORY_SAVE_FULL_ENGINE_VERSION		= 11,			// Now saving the entire FEngineVersion including branch name
 	HISTORY_HEADER_GUID						= 12,			// Save guid to demo header
 	HISTORY_CHARACTER_MOVEMENT				= 13,			// Change to using replicated movement and not interpolation
+	HISTORY_CHARACTER_MOVEMENT_NOINTERP		= 14,			// No longer recording interpolated movement samples
 	
 	// -----<new versions can be added before this line>-------------------------------------------------
 	HISTORY_PLUS_ONE,

@@ -98,6 +98,7 @@
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionGIReplace.h"
+#include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionLightmapUVs.h"
@@ -122,6 +123,7 @@
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionPanner.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionPreSkinnedLocalBounds.h"
 #include "Materials/MaterialExpressionPreviousFrameSwitch.h"
 #include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -9446,6 +9448,47 @@ void UMaterialExpressionObjectBounds::GetCaption(TArray<FString>& OutCaptions) c
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionPreSkinnedLocalBounds
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionPreSkinnedLocalBounds::UMaterialExpressionPreSkinnedLocalBounds(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Vectors;
+		FConstructorStatics()
+			: NAME_Vectors(LOCTEXT("Vectors", "Vectors"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Vectors);
+
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionPreSkinnedLocalBounds::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (Material && Material->MaterialDomain == MD_DeferredDecal)
+	{
+		return CompilerError(Compiler, TEXT("Expression not available in the deferred decal material domain."));
+	}
+
+	return Compiler->PreSkinnedLocalBounds();
+}
+
+void UMaterialExpressionPreSkinnedLocalBounds::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Pre-Skinned Local Bounds"));
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionDistanceCullFade
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionDistanceCullFade::UMaterialExpressionDistanceCullFade(const FObjectInitializer& ObjectInitializer)
@@ -12683,6 +12726,82 @@ int32 UMaterialExpressionGIReplace::Compile(class FMaterialCompiler* Compiler, i
 void UMaterialExpressionGIReplace::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("GIReplace"));
+}
+#endif // WITH_EDITOR
+//
+// UMaterialExpressionRayTracingQualitySwitch
+//
+UMaterialExpressionRayTracingQualitySwitch::UMaterialExpressionRayTracingQualitySwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionRayTracingQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing RayTraceQualitySwitch input 'Normal'"));
+	}
+	else if (!RayTraced.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing RayTraceQualitySwitch input 'RayTraced'"));
+	}
+	else
+	{
+		int32 Arg1 = Normal.Compile(Compiler);
+		int32 Arg2 = RayTraced.Compile(Compiler);
+
+		//only when both of these are real expressions do the actual code.  otherwise various output pins will
+		//end up considered 'set' when really we just want a default.  This can cause us to force depth output when we don't want it for example.
+		if (Arg1 != INDEX_NONE && Arg2 != INDEX_NONE)
+		{
+			return Compiler->RayTracingQualitySwitchReplace(Arg1, Arg2);
+		}
+		else if (Arg1 != INDEX_NONE)
+		{
+			return Arg1;
+		}
+		else if (Arg2 != INDEX_NONE)
+		{
+			return Arg2;
+		}
+		return INDEX_NONE;
+	}
+}
+
+bool UMaterialExpressionRayTracingQualitySwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	if (Normal.Expression)
+	{
+		return Normal.Expression->IsResultMaterialAttributes(OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionRayTracingQualitySwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("RayTracingQualitySwitchReplace"));
+}
+
+uint32 UMaterialExpressionRayTracingQualitySwitch::GetInputType(int32 InputIndex)
+{
+	return MCT_Unknown;
 }
 #endif // WITH_EDITOR
 

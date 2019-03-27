@@ -120,6 +120,7 @@ private:
 	FText CachedWidgetVisibility;
 	FText CachedWidgetClipping;
 	bool bCachedWidgetFocusable;
+	bool bCachedWidgetVisible;
 	FText CachedReadableLocation;
 	FString CachedWidgetFile;
 	int32 CachedWidgetLineNumber;

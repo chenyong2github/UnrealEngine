@@ -26,12 +26,12 @@ namespace ShaderStage
 		Pixel			= 1,
 
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
-		// We don't support tessellation on desktop currently
-		//Hull			= 3,
-		//Domain		= 4,
 		Geometry		= 2,
-
-		NumStages		= 3,
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		Hull			= 3,
+		Domain			= 4,
+#endif
+		NumStages,
 
 		MaxNumSets		= 8,
 #else
@@ -51,8 +51,10 @@ namespace ShaderStage
 		switch (Stage)
 		{
 		case SF_Vertex:		return Vertex;
-		//case SF_Hull:		return Hull;
-		//case SF_Domain:		return Domain;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case SF_Hull:		return Hull;
+		case SF_Domain:		return Domain;
+#endif
 		case SF_Pixel:		return Pixel;
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case SF_Geometry:	return Geometry;
@@ -71,8 +73,10 @@ namespace ShaderStage
 		switch (Stage)
 		{
 		case EStage::Vertex:	return SF_Vertex;
-		//case EStage::Hull:		return SF_Hull;
-		//case EStage::Domain:	return SF_Domain;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case EStage::Hull:		return SF_Hull;
+		case EStage::Domain:	return SF_Domain;
+#endif
 		case EStage::Pixel:		return SF_Pixel;
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case EStage::Geometry:	return SF_Geometry;

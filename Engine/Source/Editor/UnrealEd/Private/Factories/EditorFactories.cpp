@@ -5633,7 +5633,17 @@ void UReimportFbxSkeletalMeshFactory::SetReimportPaths( UObject* Obj, const FStr
 	{
 		SkeletalMesh->Modify();
 		UFbxSkeletalMeshImportData* ImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, ImportUI->SkeletalMeshImportData);
-		ImportData->UpdateFilenameOnly(NewReimportPath, SourceFileIndex);
+		int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
+		if (RealSourceFileIndex < ImportData->GetSourceFileCount())
+		{
+			ImportData->UpdateFilenameOnly(NewReimportPath, SourceFileIndex);
+		}
+		else
+		{
+			//Create a source file entry, this case happen when user import a specific content for the first time
+			FString SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(RealSourceFileIndex).ToString();
+			ImportData->AddFileName(NewReimportPath, RealSourceFileIndex, SourceIndexLabel);
+		}
 	}
 }
 
@@ -5728,9 +5738,9 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 				AbsoluteFilenames.Reset();
 				ImportDataPtr->ExtractFilenames(AbsoluteFilenames);
 				//Set both geo and skinning filepath. Reuse existing file path if possible. Use the first filename(geo and skin) if it has to be create.
-				FString FilenameToAdd = SourceIndex == 1 ? OutFilename : AbsoluteFilenames.Num() > SourceIndex ? AbsoluteFilenames[1] : AbsoluteFilenames[0];
+				FString FilenameToAdd = SourceIndex == 1 ? OutFilename : AbsoluteFilenames.IsValidIndex(1) ? AbsoluteFilenames[1] : AbsoluteFilenames[0];
 				ImportDataPtr->AddFileName(FilenameToAdd, 1, NSSkeletalMeshSourceFileLabels::GeometryText().ToString());
-				FilenameToAdd = SourceIndex == 2 ? OutFilename : AbsoluteFilenames.Num() > SourceIndex ? AbsoluteFilenames[2] : AbsoluteFilenames[0];
+				FilenameToAdd = SourceIndex == 2 ? OutFilename : AbsoluteFilenames.IsValidIndex(2) ? AbsoluteFilenames[2] : AbsoluteFilenames[0];
 				ImportDataPtr->AddFileName(FilenameToAdd, 2, NSSkeletalMeshSourceFileLabels::SkinningText().ToString());
 			}
 			return true;

@@ -54,6 +54,7 @@
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "EdGraphUtilities.h"
 #include "ControlRigGraphPanelNodeFactory.h"
@@ -889,6 +890,25 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				}
 			}
 			MenuBuilder->EndSection();
+
+			// Add the watch pin / unwatch pin menu items
+			MenuBuilder->BeginSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+			{
+				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
+				{
+					const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
+					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+					}
+					else
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+					}
+				}
+			}
+			MenuBuilder->EndSection();
+
 		}
 	}
 }

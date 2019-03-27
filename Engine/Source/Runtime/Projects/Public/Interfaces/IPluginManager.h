@@ -289,6 +289,11 @@ public:
 	 */
 	virtual void MountNewlyCreatedPlugin(const FString& PluginName) = 0;
 
+	/**
+	* Does a reverse lookup to try to figure out what the UObject package name is for a plugin
+	*/
+	virtual FName PackageNameFromModuleName(FName ModuleName) = 0;
+
 public:
 
 	/**

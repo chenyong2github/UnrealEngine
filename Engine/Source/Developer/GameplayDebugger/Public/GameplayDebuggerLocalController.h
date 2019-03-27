@@ -112,6 +112,7 @@ protected:
 
 	/** event for simulate in editor mode */
 	void OnSelectionChanged(UObject* Object);
+	void OnSelectedObject(UObject* Object);
 
 	FString GetKeyDescriptionShort(const FKey& KeyBind) const;
 	FString GetKeyDescriptionLong(const FKey& KeyBind) const;

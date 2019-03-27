@@ -7,6 +7,8 @@ public class Engine : ModuleRules
 {
 	public Engine(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.Add("../Shaders/Shared");
+
 		PrivatePCHHeaderFile = "Private/EnginePrivatePCH.h";
 
 		SharedPCHHeaderFile = "Public/EngineSharedPCH.h";
@@ -102,16 +104,16 @@ public class Engine : ModuleRules
 		);
 
 		if((Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.HTML5))
-        {
-            // Cross platform Audio Codecs:
-            AddEngineThirdPartyPrivateStaticDependencies(Target,
+		{
+			// Cross platform Audio Codecs:
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
                     "UEOgg",
                     "Vorbis",
                     "VorbisFile",
                     "libOpus"
                     );
         }
-		
+        
 
 		DynamicallyLoadedModuleNames.Add("EyeTracker");
 
@@ -189,7 +191,7 @@ public class Engine : ModuleRules
 		// The AnimGraphRuntime module is not needed by Engine proper, but it is loaded in LaunchEngineLoop.cpp,
 		// and needs to be listed in an always-included module in order to be compiled into standalone games
 		DynamicallyLoadedModuleNames.Add("AnimGraphRuntime");
-		
+        
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
@@ -306,6 +308,11 @@ public class Engine : ModuleRules
 				"Advertising"
 			}
 		);
+
+		if(Target.bWithLiveCoding)
+		{
+			DynamicallyLoadedModuleNames.Add("LiveCoding");
+		}
 
 		if (Target.Type != TargetType.Server)
 		{

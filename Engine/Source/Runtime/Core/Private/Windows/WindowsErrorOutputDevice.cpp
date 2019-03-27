@@ -21,6 +21,8 @@
 #include "HAL/ExceptionHandling.h"
 #include "Windows/WindowsHWrapper.h"
 
+extern CORE_API bool GIsGPUCrashed;
+
 FWindowsErrorOutputDevice::FWindowsErrorOutputDevice()
 {
 }
@@ -60,12 +62,19 @@ void FWindowsErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type
 		UE_DEBUG_BREAK();
 #endif
 		// Generate the portable callstack. For asserts, we ignore the following frames:
-		//     FDebug::AssertFailed()
-		//   [ FOutputDevice::Logf() ] - force-inlined; ignored
-		//     FOutputDevice::LogfImpl()
-		//     FWindowsErrorOutputDevice::Serialize()
-		const int32 NumStackFramesToIgnore = 3;
-		ReportAssert(Msg, NumStackFramesToIgnore);
+		// We do not ignore any stack frames since the optimization is
+		// brittle and the risk of trimming the valid frames is too high.
+		// The common frames will be instead filtered out in the web UI
+		const int32 NumStackFramesToIgnore = 0;
+
+		if (GIsGPUCrashed)
+		{
+			ReportGPUCrash(Msg, NumStackFramesToIgnore);
+		}
+		else
+		{
+			ReportAssert(Msg, NumStackFramesToIgnore);
+		}
 	}
 	else
 	{

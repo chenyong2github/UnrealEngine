@@ -428,7 +428,7 @@ bool FOpusEncoder::EncodeChunk(const TArray<float>& InAudio, TArray<uint8>& OutB
 
 		return true;
 	}
-#endif
+#endif // PLATFORM_IOS
 }
 
 bool FOpusEncoder::EndFile(TArray<uint8>& OutBytes)

@@ -770,8 +770,7 @@ void USoundWave::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// Flag that this sound wave is beginning destroying. For procedural sound waves, this will ensure
-	// the audio render thread stops the sound before GC hits.
+	// Flag that this sound wave is beginning destroying. This will ensure that all sounds using this in the audio renderer are stopped before GC finishes.
 	bIsBeginDestroy = true;
 	
 #if WITH_EDITOR
@@ -1427,7 +1426,7 @@ bool USoundWave::IsReadyForFinishDestroy()
 			}, GET_STATID(STAT_AudioFreeResources));
 		}
 	
-	return !bGenerating && ResourceState == ESoundWaveResourceState::Freed;
+	return NumSourcesPlaying.GetValue() == 0 && ResourceState == ESoundWaveResourceState::Freed;
 }
 
 
@@ -1509,9 +1508,6 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 
 		bool bAlwaysPlay = false;
 
-		// Ensure that a Sound Class's default reverb level is used if we enabled reverb through a sound class and not from the active sound.
-		bool bUseSoundClassDefaultReverb = false;
-
 		// Properties from the sound class
 		WaveInstance->SoundClass = ParseParams.SoundClass;
 		if (ParseParams.SoundClass)
@@ -1534,15 +1530,6 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 			WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
 			WaveInstance->bEQFilterApplied = ActiveSound.bEQFilterApplied || SoundClassProperties->bApplyEffects;
 			WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
-
-			bUseSoundClassDefaultReverb = SoundClassProperties->bReverb && !ActiveSound.bReverb;
-
-			if (bUseSoundClassDefaultReverb)
-			{
-				WaveInstance->ReverbSendMethod = EReverbSendMethod::Manual;
-				WaveInstance->ManualReverbSendLevel = SoundClassProperties->Default2DReverbSendAmount;
-			}
-
 			WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
 
 			if (SoundClassProperties->bApplyAmbientVolumes)

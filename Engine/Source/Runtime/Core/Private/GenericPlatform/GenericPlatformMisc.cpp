@@ -834,13 +834,10 @@ IPlatformInstallBundleManager* FGenericPlatformMisc::GetPlatformInstallBundleMan
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
 
 		FModuleStatus Status;
-		if (FModuleManager::Get().QueryModule(*ModuleName, Status))
+		Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
+		if (Module)
 		{
-			Module = FModuleManager::LoadModulePtr<IPlatformInstallBundleManagerModule>(*ModuleName);
-			if (Module)
-			{
-				Manager = Module->GetInstallBundleManager();
-			}
+			Manager = Module->GetInstallBundleManager();
 		}
 		bCheckedIni = true;
 	}
@@ -1324,4 +1321,41 @@ FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Rel
 	FString Result;
 	FFileHelper::LoadFileToString(Result, *Path);
 	return Result;
+}
+
+void FGenericPlatformMisc::ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexMappingData, TMap<int32, int32>& OutMapping)
+{
+	OutMapping.Empty();
+
+	const TCHAR* PropertyOldChunkIndex = TEXT("Old");
+	const TCHAR* PropertyNewChunkIndex = TEXT("New");
+	for (const FString& Entry : ChunkIndexMappingData)
+	{
+		// Remove parentheses
+		FString EntryContent = Entry.Mid(1, Entry.Len() - 2);
+		TArray<FString> EntryProperties;
+		EntryContent.ParseIntoArray(EntryProperties, TEXT(","));
+
+		int32 ChunkId = -1;
+		int32 PakchunkIndex = -1;
+		for (const FString EntryProperty : EntryProperties)
+		{
+			TArray<FString> MappingKeyValue;
+			EntryProperty.ParseIntoArray(MappingKeyValue, TEXT("="));
+
+			if (MappingKeyValue[0].Equals(PropertyOldChunkIndex, ESearchCase::IgnoreCase))
+			{
+				LexTryParseString(ChunkId, *MappingKeyValue[1]);
+			}
+			else if (MappingKeyValue[0].Equals(PropertyNewChunkIndex, ESearchCase::IgnoreCase))
+			{
+				LexTryParseString(PakchunkIndex, *MappingKeyValue[1]);
+			}
+		}
+
+		if (ChunkId != -1 && PakchunkIndex != -1 && ChunkId != PakchunkIndex && !OutMapping.Contains(ChunkId))
+		{
+			OutMapping.Add(ChunkId, PakchunkIndex);
+		}
+	}
 }

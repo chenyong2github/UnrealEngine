@@ -129,29 +129,6 @@ namespace AutomationTool
 		/// <param name="Format">Format string</param>
 		/// <param name="Args">Parameters</param>
 		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[Obsolete("CommandUtils.Log() has been deprecated. Use CommandUtils.LogInformation() instead.", false)]
-		public static void Log(string Format, params object[] Args)
-		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Format, Args);
-		}
-
-		/// <summary>
-		/// Writes formatted text to log (with LogEventType.Console).
-		/// </summary>
-		/// <param name="Message">Text</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
-		[Obsolete("CommandUtils.Log() has been deprecated. Use CommandUtils.LogInformation() instead.", false)]
-		public static void Log(string Message)
-		{
-			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Message);
-		}
-
-		/// <summary>
-		/// Writes formatted text to log (with LogEventType.Console).
-		/// </summary>
-		/// <param name="Format">Format string</param>
-		/// <param name="Args">Parameters</param>
-		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public static void LogInformation(string Format, params object[] Args)
 		{
 			Tools.DotNETCommon.Log.WriteLine(1, Tools.DotNETCommon.LogEventType.Console, Format, Args);
@@ -591,6 +568,16 @@ namespace AutomationTool
 
 		/// <summary>
 		/// Deletes a directory(or directories) including its contents (recursively, will delete read-only files).
+		/// If the deletion of the directory fails, this function throws an Exception.
+		/// </summary>
+        /// <param name="Directories">Directories</param>
+        public static void DeleteDirectory(DirectoryReference Directory)
+		{
+			DeleteDirectory(Directory.FullName);
+		}
+
+		/// <summary>
+		/// Deletes a directory(or directories) including its contents (recursively, will delete read-only files).
 		/// If the deletion of the directory fails, prints a warning.
 		/// </summary>
 		/// <param name="bQuiet">Suppresses log output if true</param>
@@ -652,6 +639,17 @@ namespace AutomationTool
 			{
 				CommandUtils.DeleteDirectory_NoExceptions(bQuiet, SubDirectoryName);
 			}
+		}
+
+		/// <summary>
+		/// Attempts to delete a directory, if that fails deletes all files and folder from the specified directory.
+		/// This works around the issue when the user has a file open in a notepad from that directory. Somehow deleting the file works but
+		/// deleting the directory with the file that's open, doesn't.
+		/// </summary>
+		/// <param name="DirectoryName"></param>
+		public static void DeleteDirectoryContents(DirectoryReference DirectoryName)
+		{
+			DeleteDirectoryContents(DirectoryName.FullName);
 		}
 
 		/// <summary>
@@ -1637,6 +1635,11 @@ namespace AutomationTool
             var SourceFiles = Directory.EnumerateFiles(SourceDirectory, "*", SearchOption.AllDirectories).ToList();
             var DestFiles = SourceFiles.Select(SourceFile => CommandUtils.MakeRerootedFilePath(SourceFile, SourceDirectory, DestDirectory)).ToList();
 			ThreadedCopyFiles(SourceFiles, DestFiles, MaxThreads);
+		}
+
+		public static void ThreadedCopyFiles(DirectoryReference SourceDirectory, DirectoryReference DestDirectory, int MaxThreads = 64)
+		{
+			ThreadedCopyFiles(SourceDirectory.FullName, DestDirectory.FullName, MaxThreads);
 		}
 
 		/// <summary>

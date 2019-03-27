@@ -641,7 +641,7 @@ void FTranslationDataManager::PreviewAllTranslationsInEditor(ULocalizationTarget
 	{
 		const FString ConfigFilePath = LocalizationConfigurationScript::GetRegenerateResourcesConfigPath(LocalizationTarget);
 		LocalizationConfigurationScript::GenerateRegenerateResourcesConfigFile(LocalizationTarget).Write(ConfigFilePath);
-		FTextLocalizationResourceGenerator::GenerateLocResAndUpdateLiveEntriesFromConfig(ConfigFilePath, /*bSkipSourceCheck*/false);
+		FTextLocalizationResourceGenerator::GenerateLocResAndUpdateLiveEntriesFromConfig(ConfigFilePath, EGenerateLocResFlags::None);
 	}
 	else
 	{

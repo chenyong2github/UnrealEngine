@@ -437,15 +437,9 @@ public:	\
 	FOn##Property##ChangedDif& On##Property##ChangedDif() const { return On##Property##ChangedDifEvent; }	\
 	\
 	Property##ArgType Get##Property() const { return Property; }	\
-	\
-	bool Has##Property##InitiallyReplicated() const { return b##Property##InitiallyReplicated; }	\
 private:	\
 	void Compare##Property(const Owner& OldData) const	\
 	{	\
-		if(!b##Property##InitiallyReplicated) \
-		{ \
-			b##Property##InitiallyReplicated = true; \
-		} \
 		if (Property != OldData.Property)	\
 		{	\
 			LogPropertyChanged(TEXT(#Owner), TEXT(#Property), true);	\
@@ -454,8 +448,7 @@ private:	\
 		}	\
 	}	\
 	mutable FOn##Property##Changed On##Property##ChangedEvent;	\
-	mutable FOn##Property##ChangedDif On##Property##ChangedDifEvent; \
-	mutable bool b##Property##InitiallyReplicated
+	mutable FOn##Property##ChangedDif On##Property##ChangedDifEvent
 
 /**
  * Exposes a rep data property and provides a default property setter.

@@ -363,9 +363,9 @@ FKismetConnectionDrawingPolicy::FTimePair const* FKismetConnectionDrawingPolicy:
 
 bool FKismetConnectionDrawingPolicy::FindPinCenter(UEdGraphPin* Pin, FVector2D& OutCenter) const
 {
-	if (const TSharedRef<SGraphPin>* pPinWidget = PinToPinWidgetMap.Find(Pin))
+	if (const TSharedPtr<SGraphPin>* pPinWidget = PinToPinWidgetMap.Find(Pin))
 	{
-		if (FArrangedWidget* pPinEntry = PinGeometries->Find(*pPinWidget))
+		if (FArrangedWidget* pPinEntry = PinGeometries->Find((*pPinWidget).ToSharedRef()))
 		{
 			OutCenter = FGeometryHelper::CenterOf(pPinEntry->Geometry);
 			return true;

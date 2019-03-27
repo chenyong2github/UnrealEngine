@@ -857,6 +857,7 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.Depth = MaterialParameters.ScreenPosition.w;
 	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(Interpolants, MaterialParameters.PrimitiveId, MaterialParameters.AbsoluteWorldPosition, VolumetricLightmapBrickTextureUVs);
 
+	const float GBufferDither = InterleavedGradientNoise(MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8);
 	SetGBufferForShadingModel(
 		GBuffer, 
 		MaterialParameters, 
@@ -866,7 +867,8 @@ void FPixelShaderInOut_MainPS(
 		Specular, 
 		Roughness, 
 		SubsurfaceColor,
-		SubsurfaceProfile);
+		SubsurfaceProfile,
+		GBufferDither);
 
 #if USES_GBUFFER
 	GBuffer.SelectiveOutputMask = GetSelectiveOutputMask();
@@ -889,7 +891,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	// So that the following code can still use DiffuseColor and SpecularColor.
-	GBuffer.SpecularColor = lerp(0.08 * Specular.xxx, BaseColor, Metallic.xxx);
+	GBuffer.SpecularColor = ComputeF0(Specular, BaseColor, Metallic);
 
 #if MATERIAL_NORMAL_CURVATURE_TO_ROUGHNESS
 	// Curvature-to-roughness uses derivatives of the WorldVertexNormal, which is incompatible with centroid interpolation because

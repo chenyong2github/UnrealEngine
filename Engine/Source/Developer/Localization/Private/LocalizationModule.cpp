@@ -7,9 +7,9 @@
 class FLocalizationModule : public ILocalizationModule
 {
 public:
-	virtual bool HandleRegenLocCommand(const FString& InConfigFilePath, const bool bSkipSourceCheck) override
+	virtual bool HandleRegenLocCommand(const FString& InConfigFilePath) override
 	{
-		return FTextLocalizationResourceGenerator::GenerateLocResAndUpdateLiveEntriesFromConfig(InConfigFilePath, bSkipSourceCheck);
+		return FTextLocalizationResourceGenerator::GenerateLocResAndUpdateLiveEntriesFromConfig(InConfigFilePath, EGenerateLocResFlags::None);
 	}
 
 	virtual ULocalizationTarget* GetLocalizationTargetByName(FString TargetName, bool bIsEngineTarget) override

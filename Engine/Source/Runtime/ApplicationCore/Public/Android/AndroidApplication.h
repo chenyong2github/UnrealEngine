@@ -65,6 +65,10 @@ public:
 	{
 		return AndroidJavaEnv::FindJavaClass(name);
 	}
+	static FORCEINLINE jclass FindJavaClassGlobalRef(const char* name)
+	{
+		return AndroidJavaEnv::FindJavaClassGlobalRef(name);
+	}
 	static FORCEINLINE void DetachJavaEnv()
 	{
 		AndroidJavaEnv::DetachJavaEnv();
@@ -117,6 +121,9 @@ private:
 	static bool bWindowSizeChanged;
 
 	static FAndroidApplication* _application;
+
+    EDeviceScreenOrientation DeviceOrientation;
+    void HandleDeviceOrientation();
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

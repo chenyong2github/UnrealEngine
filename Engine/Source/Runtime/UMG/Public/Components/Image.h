@@ -81,6 +81,10 @@ public:
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetBrushTintColor(FSlateColor TintColor);
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetBrushResourceObject(UObject* ResourceObject);
 	
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")

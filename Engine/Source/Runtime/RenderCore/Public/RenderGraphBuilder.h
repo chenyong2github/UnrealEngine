@@ -203,14 +203,15 @@ public:
 	~FRDGBuilder();
 
 	/** Register a external texture to be tracked by the render graph. */
-	inline FRDGTextureRef RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* Name = TEXT("External"))
+	inline FRDGTextureRef RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* DebugName = TEXT("External"))
 	{
 		#if RENDER_GRAPH_DEBUGGING
 		{
-			ensureMsgf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
+			ensureMsgf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), DebugName);
+			checkf(DebugName, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
 		}
 		#endif
-		FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc());
+		FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(DebugName, ExternalPooledTexture->GetDesc());
 		OutTexture->PooledRenderTarget = ExternalPooledTexture;
 		OutTexture->CachedRHI.Texture = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 		AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
@@ -232,6 +233,8 @@ public:
 		#if RENDER_GRAPH_DEBUGGING
 		{
 			ensureMsgf(!bHasExecuted, TEXT("Render graph texture %s needs to be created before the builder execution."), DebugName);
+			checkf(DebugName, TEXT("Creating a render graph texture requires a valid debug name."));
+			checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), DebugName);
 		}
 		#endif
 		FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(DebugName, Desc);
@@ -250,6 +253,7 @@ public:
 		#if RENDER_GRAPH_DEBUGGING
 		{
 			ensureMsgf(!bHasExecuted, TEXT("Render graph buffer %s needs to be created before the builder execution."), DebugName);
+			checkf(DebugName, TEXT("Creating a render graph buffer requires a valid debug name."));
 		}
 		#endif
 		FRDGBuffer* Buffer = AllocateForRHILifeTime<FRDGBuffer>(DebugName, Desc);
@@ -349,7 +353,7 @@ public:
 		return OutParameterPtr;
 	}
 
-	/** Adds a lambda pass to the graph.
+	/** Adds a hard coded lambda pass to the graph.
 	 *
 	 * The Name of the pass should be generated with enough information to identify it's purpose and GPU cost, to be clear
 	 * for GPU profiling tools.
@@ -389,6 +393,31 @@ public:
 			{ ParameterStruct, &ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayout() },
 			Flags,
 			static_cast<ExecuteLambdaType&&>(ExecuteLambda) );
+		Passes.Emplace(NewPass);
+
+		#if RENDER_GRAPH_DEBUGGING || SUPPORTS_VISUALIZE_TEXTURE
+		{
+			DebugPass(NewPass);
+		}
+		#endif
+	}
+
+	/** Adds a procedurally created pass to the render graph.
+	 *
+	 * Note: You want to use this only when the layout of the pass might be procedurally generated from data driven, as opose to AddPass() that have,
+	 * constant hard coded pass layout.
+	 *
+	 * Caution: You are on your own to have correct memory lifetime of the FRenderGraphPass.
+	 */
+	void AddProcedurallyCreatedPass(FRenderGraphPass* NewPass)
+	{
+		#if RENDER_GRAPH_DEBUGGING
+		{
+			checkf(!bHasExecuted, TEXT("Render graph pass %s needs to be added before the builder execution."), NewPass->GetName());
+		}
+		#endif
+
+		// TODO(RDG): perhaps the CurrentScope could be set here instead of GetCurrentScope(), to not allow user code to start adding pass to random scopes. 
 		Passes.Emplace(NewPass);
 
 		#if RENDER_GRAPH_DEBUGGING || SUPPORTS_VISUALIZE_TEXTURE
@@ -447,6 +476,11 @@ public:
 	 */
 	void Execute();
 
+	/** Returns the draw event scope, where passes are currently being added in. */
+	const FRDGEventScope* GetCurrentScope() const
+	{
+		return CurrentScope;
+	}
 
 public:
 	/** The RHI command list used for the render graph. */

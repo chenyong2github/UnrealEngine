@@ -163,10 +163,13 @@ namespace Audio
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
 		}
 
+		FORCEINLINE void CopyDestinationToStart()
+		{
+			FMemory::Memcpy(ChannelStartGains, ChannelDestinationGains, CopySize);
+		}
+
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
-			// TODO: See if you can find a way to assign this without going back to memory.
-			FMemory::Memcpy(ChannelStartGains, ChannelDestinationGains, CopySize);
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
 		}
 
@@ -545,10 +548,7 @@ namespace Audio
 
 		uint8 bInitialized : 1;
 		uint8 bUsingSpatializationPlugin : 1;
-		int32 MaxChannelsSupportedBySpatializationPlugin;
 
 		friend class FMixerSourceVoice;
-		// Set to true when the audio source manager should pump the command queue
-		FThreadSafeBool bPumpQueue;
 	};
 }

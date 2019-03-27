@@ -10,6 +10,7 @@
 #include "IOS/IOSView.h"
 #include "IOS/IOSInputInterface.h"
 #include "IOS/IOSErrorOutputDevice.h"
+#include "IOS/IOSFeedbackContext.h"
 
 FIOSApplication* FIOSPlatformApplicationMisc::CachedApplication = nullptr;
 
@@ -152,6 +153,12 @@ void FIOSPlatformApplicationMisc::LoadPreInitModules()
 	FModuleManager::Get().LoadModule(TEXT("AudioMixerAudioUnit"));
 }
 
+class FFeedbackContext* FIOSPlatformApplicationMisc::GetFeedbackContext()
+{
+	static FIOSFeedbackContext Singleton;
+	return &Singleton;
+}
+
 class FOutputDeviceError* FIOSPlatformApplicationMisc::GetErrorOutputDevice()
 {
 	static FIOSErrorOutputDevice Singleton;
@@ -199,6 +206,18 @@ bool FIOSPlatformApplicationMisc::IsControllerAssignedToGamepad(int32 Controller
 {
 	FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface();
 	return InputInterface->IsControllerAssignedToGamepad(ControllerId);
+}
+
+void FIOSPlatformApplicationMisc::EnableMotionData(bool bEnable)
+{
+	FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->EnableMotionData(bEnable);
+}
+
+bool FIOSPlatformApplicationMisc::IsMotionDataEnabled()
+{
+	const FIOSInputInterface* InputInterface = (const FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->IsMotionDataEnabled();
 }
 
 void FIOSPlatformApplicationMisc::ClipboardCopy(const TCHAR* Str)

@@ -21,26 +21,6 @@ enum EFBXImportContentType
 	FBXICT_MAX,
 };
 
-namespace NSSkeletalMeshSourceFileLabels
-{
-	static FText GeoAndSkinningText()
-	{
-		static FText GeoAndSkinningText = (NSLOCTEXT("FBXReimport", "ImportContentTypeAll", "Geometry and Skinning Weights"));
-		return GeoAndSkinningText;
-	}
-
-	static FText GeometryText()
-	{
-		static FText GeometryText = (NSLOCTEXT("FBXReimport", "ImportContentTypeGeometry", "Geometry"));
-		return GeometryText;
-	}
-	static FText SkinningText()
-	{
-		static FText SkinningText = (NSLOCTEXT("FBXReimport", "ImportContentTypeSkinning", "Skinning Weights"));
-		return SkinningText;
-	}
-}
-
 /**
  * Import data and options used when importing a static mesh from fbx
  */

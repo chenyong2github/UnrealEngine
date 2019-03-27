@@ -184,6 +184,21 @@ public:
 	{
 		return DragWindowDelegate;
 	}
+	
+	virtual FOnUnhandledKeyDown& OnUnhandledKeyDown() override
+	{
+		return UnhandledKeyDownDelegate;
+	}
+
+	virtual FOnUnhandledKeyUp& OnUnhandledKeyUp() override
+	{
+		return UnhandledKeyUpDelegate;
+	}
+
+	virtual FOnUnhandledKeyChar& OnUnhandledKeyChar() override
+	{
+		return UnhandledKeyCharDelegate;
+	}
 
 public:
 
@@ -273,6 +288,15 @@ private:
 
 	/** Delegate for suppressing context menu */
 	FOnSuppressContextMenu SuppressContextMenuDelgate;
+	
+	/** Delegate for handling key down events not handled by the browser. */
+	FOnUnhandledKeyDown UnhandledKeyDownDelegate;
+
+	/** Delegate for handling key up events not handled by the browser. */
+	FOnUnhandledKeyUp UnhandledKeyUpDelegate;
+
+	/** Delegate for handling key char events not handled by the browser. */
+	FOnUnhandledKeyChar UnhandledKeyCharDelegate;
 
 	/** Delegate that is executed when a drag event is detected in an area of the web page tagged as a drag region. */
 	FOnDragWindow DragWindowDelegate;

@@ -69,10 +69,11 @@ public:
 		FVector4 LastRenderTime; //(FApp::GetCurrentTime() - Component->LastRenderTime);
 
 
-		void Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float LastRenderTime, const FVector& RangeOrigin, float MinDistance, float MinRange, float MaxRange);
+		void Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float LastRenderTime, const FVector& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq);
 		void UnpackBounds(int32 Index, const UPrimitiveComponent* Component);
 		void FullUpdate(int32 Index, const FBoxSphereBounds& Bounds, float LastRenderTime);
 		FORCEINLINE void UpdateLastRenderTime(int32 Index, float LastRenderTime);
+		FORCEINLINE void UpdateMaxDrawDistanceSquared(int32 Index, float InMaxRangeSq);
 
 		// Clears entry between 0 and 4
 		FORCEINLINE void Clear(int32 Index);
@@ -198,7 +199,9 @@ public:
 
 	float GetMaxTexelFactor() const { return MaxTexelFactor; }
 
-	static void GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistance, float& MinRange, float& MaxRange);
+	static float GetMaxDrawDistSqWithLODParent(const FVector& Origin, const FVector& ParentOrigin, float ParentMinDrawDist, float ParentBoundingSphereRadius);
+
+	static void GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistanceSq, float& MinRangeSq, float& MaxRangeSq);
 
 protected:
 

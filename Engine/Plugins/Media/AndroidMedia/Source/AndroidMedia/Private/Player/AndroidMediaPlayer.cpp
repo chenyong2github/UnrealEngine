@@ -61,6 +61,7 @@ FAndroidMediaPlayer::~FAndroidMediaPlayer()
 
 	if (JavaMediaPlayer.IsValid())
 	{
+#if ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 		if (GSupportsImageExternal && !FAndroidMisc::ShouldUseVulkan())
 		{
 			// Unregister the external texture on render thread
@@ -92,6 +93,7 @@ FAndroidMediaPlayer::~FAndroidMediaPlayer()
 				});
 		}
 		else
+#endif // ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 		{
 			JavaMediaPlayer->SetVideoTexture(nullptr);
 			JavaMediaPlayer->Reset();
@@ -706,6 +708,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 				PinnedSamples->AddVideo(Params.VideoSample);
 			});
 	}
+#if ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 	else if (GSupportsImageExternal)
 	{
 		struct FWriteVideoSampleParams
@@ -751,6 +754,7 @@ void FAndroidMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan /*Timecode*/)
 				}
 			});
 	}
+#endif // ANDROIDMEDIAPLAYER_USE_EXTERNALTEXTURE
 	else
 	{
 		// create new video sample

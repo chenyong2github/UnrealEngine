@@ -8411,6 +8411,12 @@ FText FBlueprintEditor::GetPIEStatus() const
 	}
 	else if (NetMode == NM_Client)
 	{
+		FWorldContext* PIEContext = GEngine->GetWorldContextFromWorld(DebugWorld);
+		if (PIEContext && PIEContext->PIEInstance > 1)
+		{
+			return FText::Format(LOCTEXT("PIEStatusClientSimulatingFormat", "CLIENT {0} - SIMULATING"), FText::AsNumber(PIEContext->PIEInstance - 1));
+		}
+		
 		return LOCTEXT("PIEStatusClientSimulating", "CLIENT - SIMULATING");
 	}
 

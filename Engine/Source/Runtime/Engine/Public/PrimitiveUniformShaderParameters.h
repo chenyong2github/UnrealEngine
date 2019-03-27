@@ -33,6 +33,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER_EX(FVector4,NonUniformScale,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
+	SHADER_PARAMETER(FVector, PreSkinnedLocalBounds)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(uint32,LightingChannelMask)
 	SHADER_PARAMETER(uint32,LightmapDataIndex)
 	SHADER_PARAMETER(int32, SingleCaptureIndex)
@@ -45,6 +46,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	FVector ActorPosition,
 	const FBoxSphereBounds& WorldBounds,
 	const FBoxSphereBounds& LocalBounds,
+	const FBoxSphereBounds& PreSkinnedLocalBounds,
 	bool bReceivesDecals,
 	bool bHasDistanceFieldRepresentation,
 	bool bHasCapsuleRepresentation,
@@ -66,6 +68,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.ObjectBounds = WorldBounds.BoxExtent;
 	Result.LocalObjectBoundsMin = LocalBounds.GetBoxExtrema(0); // 0 == minimum
 	Result.LocalObjectBoundsMax = LocalBounds.GetBoxExtrema(1); // 1 == maximum
+	Result.PreSkinnedLocalBounds = PreSkinnedLocalBounds.BoxExtent;
 	Result.ObjectOrientation = LocalToWorld.GetUnitAxis( EAxis::Z );
 	Result.ActorWorldPosition = ActorPosition;
 	Result.LightingChannelMask = LightingChannelMask;
@@ -97,10 +100,35 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	return Result;
 }
 
+/** Initializes the primitive uniform shader parameters. Pre-skinned local bounds default to LocalBounds */
+inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
+	const FMatrix& LocalToWorld,
+	const FMatrix& PreviousLocalToWorld,
+	FVector ActorPosition,
+	const FBoxSphereBounds& WorldBounds,
+	const FBoxSphereBounds& LocalBounds,
+	bool bReceivesDecals,
+	bool bHasDistanceFieldRepresentation,
+	bool bHasCapsuleRepresentation,
+	bool bUseSingleSampleShadowFromStationaryLights,
+	bool bUseVolumetricLightmap,
+	bool bUseEditorDepthTest,
+	uint32 LightingChannelMask,
+	float LpvBiasMultiplier,
+	uint32 LightmapDataIndex,
+	int32 SingleCaptureIndex
+)
+{
+	// Pass through call
+	return GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, ActorPosition, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasDistanceFieldRepresentation, bHasCapsuleRepresentation, 
+		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bUseEditorDepthTest, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex);
+}
+
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
 	const FMatrix& LocalToWorld,
 	const FBoxSphereBounds& WorldBounds,
 	const FBoxSphereBounds& LocalBounds,
+	const FBoxSphereBounds& PreSkinnedLocalBounds,
 	bool bReceivesDecals,
 	bool bUseEditorDepthTest,
 	float LpvBiasMultiplier = 1.0f
@@ -108,7 +136,7 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 {
 	check(IsInRenderingThread());
 	return TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE),
+		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE),
 		UniformBuffer_MultiFrame
 		);
 }
@@ -156,7 +184,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { PrimitiveDataStrideInFloat4s = 26 };
+	enum { PrimitiveDataStrideInFloat4s = 27 };
 
 	FVector4 Data[PrimitiveDataStrideInFloat4s];
 

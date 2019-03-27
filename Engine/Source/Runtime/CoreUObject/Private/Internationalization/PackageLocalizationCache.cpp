@@ -34,6 +34,7 @@ void FPackageLocalizationCultureCache::ConditionalUpdateCache_NoLock()
 		return;
 	}
 
+	SCOPED_BOOT_TIMING("FPackageLocalizationCultureCache::ConditionalUpdateCache_NoLock");
 	const double CacheStartTime = FPlatformTime::Seconds();
 
 	for (const FString& SourceRootPath : PendingSourceRootPathsToSearch)

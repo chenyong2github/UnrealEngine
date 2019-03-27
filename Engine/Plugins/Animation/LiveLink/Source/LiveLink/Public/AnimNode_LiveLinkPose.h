@@ -15,6 +15,9 @@ struct LIVELINK_API FAnimNode_LiveLinkPose : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
+	FPoseLink InputPose;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SourceData, meta = (PinShownByDefault))
 	FName SubjectName;
 
@@ -28,12 +31,10 @@ struct LIVELINK_API FAnimNode_LiveLinkPose : public FAnimNode_Base
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override {}
-
+	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext & Context) override;
-
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	void OnLiveLinkClientRegistered(const FName& Type, class IModularFeature* ModularFeature);

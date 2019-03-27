@@ -1960,7 +1960,7 @@ void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPacka
 	{
 		UWorld* RemainingWorld = *It;
 		const bool bIsNewWorld = (NewWorld && RemainingWorld == NewWorld);
-		const bool bIsPersistantWorldType = (RemainingWorld->WorldType == EWorldType::Inactive) || (RemainingWorld->WorldType == EWorldType::EditorPreview);
+		const bool bIsPersistantWorldType = (RemainingWorld->WorldType == EWorldType::Inactive) || (RemainingWorld->WorldType == EWorldType::EditorPreview) || (RemainingWorld->WorldType == EWorldType::GamePreview);
 		if(!bIsNewWorld && !bIsPersistantWorldType && !WorldHasValidContext(RemainingWorld))
 		{
 			StaticExec(RemainingWorld, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *RemainingWorld->GetPathName()));
@@ -2075,6 +2075,14 @@ void UEditorEngine::EditorDestroyWorld( FWorldContext & Context, const FText& Cl
 	}
 
 	FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(ContextWorld);
+	for (ULevel* Level : ContextWorld->GetLevels())
+	{
+		UWorld* LevelWorld = Level->GetTypedOuter<UWorld>();
+		if (ensureAlways(LevelWorld) && LevelWorld != ContextWorld && LevelWorld != NewWorld)
+		{
+			FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(LevelWorld);
+		}
+	}
 
 	ContextWorld->DestroyWorld( true, NewWorld );
 	Context.SetCurrentWorld(NULL);

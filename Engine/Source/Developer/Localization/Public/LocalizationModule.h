@@ -14,7 +14,7 @@ public:
 	/**
 	 * Given a config file, generate a compiled LocRes file for the active culture and use it to update the live-entries in the localization manager.
 	 */
-	virtual bool HandleRegenLocCommand(const FString& InConfigFilePath, const bool bSkipSourceCheck) = 0;
+	virtual bool HandleRegenLocCommand(const FString& InConfigFilePath) = 0;
 
 	virtual ULocalizationTarget* GetLocalizationTargetByName(FString TargetName, bool bIsEngineTarget) = 0;
 

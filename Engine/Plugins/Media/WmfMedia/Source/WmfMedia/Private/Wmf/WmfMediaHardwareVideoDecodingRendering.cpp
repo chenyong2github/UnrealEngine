@@ -1,11 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#if PLATFORM_WINDOWS
+
 #include "WmfMediaHardwareVideoDecodingRendering.h"
-
-#include "WmfMediaPrivate.h"
-
-#if WMFMEDIA_SUPPORTED_PLATFORM
-
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"

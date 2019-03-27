@@ -376,6 +376,9 @@ struct FWorldContext
 	/** Handle to this world context's audio device.*/
 	uint32 AudioDeviceHandle;
 
+	/** Custom description to be display in blueprint debugger UI */
+	FString CustomDescription;
+
 	/**************************************************************/
 
 	/** Outside pointers to CurrentWorld that should be kept in sync if current world changes  */

@@ -106,6 +106,9 @@ NSMutableArray* RunningTasks;
 				// and remove from the list
 				[RunningTasks removeObjectAtIndex:TaskIndex];
 				TaskIndex--;
+				
+				// do one at once
+				break;
 			}
 		}
 	}

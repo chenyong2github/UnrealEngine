@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 #include "Misc/ScopeLock.h"
 #include "LowLevelMemoryUtils.h"
 #include "HAL/FileManager.h"
@@ -78,6 +79,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("Stats"), STAT_StatsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Shaders"), STAT_ShadersLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PSO"), STAT_PSOLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Textures"), STAT_TexturesLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("TextureMetaData"), STAT_TextureMetaDataLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Render Targets"), STAT_RenderTargetsLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("RHIMisc"), STAT_RHIMiscLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("PhysX TriMesh"), STAT_PhysXTriMeshLLM, STATGROUP_LLMFULL);
@@ -106,6 +108,7 @@ DECLARE_LLM_MEMORY_STAT(TEXT("AssetRegistry"), STAT_AssetRegistryLLM, STATGROUP_
 DECLARE_LLM_MEMORY_STAT(TEXT("ConfigSystem"), STAT_ConfigSystemLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("InitUObject"), STAT_InitUObjectLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("VideoRecording"), STAT_VideoRecordingLLM, STATGROUP_LLMFULL);
+DECLARE_LLM_MEMORY_STAT(TEXT("Replays"), STAT_ReplaysLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("CsvProfiler"), STAT_CsvProfilerLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("MaterialInstance"), STAT_MaterialInstanceLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("SkeletalMesh"), STAT_SkeletalMeshLLM, STATGROUP_LLMFULL);
@@ -535,6 +538,9 @@ FLowLevelMemTracker::FLowLevelMemTracker()
 
 FLowLevelMemTracker::~FLowLevelMemTracker()
 {
+	// Ensure that we skip any further tracking since it will fail after this destructor
+	bIsDisabled = true;
+	
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		Trackers[TrackerIndex]->~FLLMTracker();
@@ -622,7 +628,7 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	// remove the Overhead from the default LLM as it's not something anyone needs to investigate when finding what to reduce
 	// the platform LLM will have the info 
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Total, PlatformProcessMemory - Overhead, false);
-	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - TrackedTotal, false);
+	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::Untracked, PlatformProcessMemory - (TrackedTotal + Overhead), false);
 
 #if PLATFORM_WINDOWS
 	GetTracker(ELLMTracker::Default)->SetTagAmount(ELLMTag::WorkingSetSize, PlatformStats.UsedPhysical, false);

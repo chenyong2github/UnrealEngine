@@ -118,39 +118,64 @@ FVivoxVoiceChat::~FVivoxVoiceChat()
 {
 }
 
+#if PLATFORM_IOS
+FCriticalSection Mutex;
+#endif
+
 static void* VivoxMalloc(size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Malloc(bytes);
 }
 
 static void VivoxFree(void* ptr)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	FMemory::Free(ptr);
 }
 
 static void* VivoxRealloc(void* ptr, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Realloc(ptr, bytes);
 }
 
 static void* VivoxCalloc(size_t num, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
-	return FMemory::Malloc(bytes*num);
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
+	const size_t Size = bytes * num;
+	void* Ret = FMemory::Malloc(Size);
+	FMemory::Memzero(Ret, Size);
+	return Ret;
 }
 
 static void* VivoxMallocAligned(size_t alignment, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	return FMemory::Malloc(bytes, alignment);
 }
 
 static void VivoxFreeAligned(void* ptr)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
+#if PLATFORM_IOS
+	FScopeLock Lock(&Mutex);
+#endif
 	FMemory::Free(ptr);
 }
 
@@ -506,6 +531,7 @@ void FVivoxVoiceChat::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& D
 		VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
 		VivoxClientConnection.Disconnect(BackendUri);
 
+		ConnectionState = EConnectionState::Disconnecting;
 		OnVoiceChatDisconnectCompleteDelegates.Add(Delegate);
 	}
 	else
@@ -1147,7 +1173,10 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 
 	ClearLoginSession();
 
-	if (ConnectionState == EConnectionState::Disconnecting)
+	EConnectionState PreviousConnectionState = ConnectionState;
+	ConnectionState = EConnectionState::Disconnected;
+
+	if (PreviousConnectionState == EConnectionState::Disconnecting)
 	{
 		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, ResultSuccess);
 	}
@@ -1155,8 +1184,6 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 	{
 		OnVoiceChatDisconnectedDelegate.Broadcast(ResultFromVivoxStatus(Status));
 	}
-
-	ConnectionState = EConnectionState::Disconnected;
 }
 
 void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& AccountName)
@@ -1281,7 +1308,18 @@ void FVivoxVoiceChat::onChannelExited(const VivoxClientApi::AccountName& Account
 
 void FVivoxVoiceChat::onCallStatsUpdated(const VivoxClientApi::AccountName& AccountName, vx_call_stats_t& Stats, bool bIsFinal)
 {
+	const int TotalPacketsLost = Stats.incoming_packetloss + Stats.incoming_discarded + Stats.incoming_out_of_time;
+	const int TotalPackets = TotalPacketsLost + Stats.incoming_received;
 
+	FVoiceChatCallStats CallStats;
+	CallStats.CallLength = Stats.sample_interval_end - Stats.sample_interval_begin;
+	CallStats.LatencyMinMeasuredSeconds = Stats.min_latency;
+	CallStats.LatencyMaxMeasuredSeconds = Stats.max_latency;
+	CallStats.LatencyAverageMeasuredSeconds = Stats.latency_measurement_count > 0 ? Stats.latency_sum / Stats.latency_measurement_count : 0.0;
+	CallStats.PacketsNumLost = TotalPacketsLost;
+	CallStats.PacketsNumTotal = TotalPackets;
+
+	OnVoiceChatCallStatsUpdatedDelegate.Broadcast(CallStats);
 }
 
 void FVivoxVoiceChat::onParticipantAdded(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::Uri& ParticipantUri, bool bIsLoggedInUser)

@@ -7,6 +7,10 @@
 // FUserPlatform
 //////////////////////////////////////////////////////////////////////////
 
+#define PLATFORM_NAME_PC		TEXT("PC")
+#define PLATFORM_NAME_CONSOLE	TEXT("CONSOLE")
+#define PLATFORM_NAME_MOBILE	TEXT("MOBILE")
+
 bool FUserPlatform::operator==(const FString& OtherStr) const
 {
 	return PlatformStr == OtherStr;
@@ -15,6 +19,26 @@ bool FUserPlatform::operator==(const FString& OtherStr) const
 bool FUserPlatform::operator==(const FUserPlatform& Other) const
 {
 	return PlatformStr == Other.PlatformStr;
+}
+
+const FString FUserPlatform::GetTypeName() const
+{
+	if (IsDesktop())
+	{
+		return PLATFORM_NAME_PC;
+	}
+
+	if (IsMobile())
+	{
+		return PLATFORM_NAME_MOBILE;
+	}
+
+	FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
+	if (IsConsole() && LocalPlatform.IsConsole() && PlatformStr != LocalPlatform)
+	{
+		return PLATFORM_NAME_CONSOLE;
+	}
+	return PlatformStr;
 }
 
 bool FUserPlatform::IsValid() const

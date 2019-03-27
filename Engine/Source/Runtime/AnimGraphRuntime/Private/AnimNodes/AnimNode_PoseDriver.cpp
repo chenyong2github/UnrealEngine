@@ -124,6 +124,12 @@ void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContex
 			}
 		}
 	}
+
+	PoseExtractContext.BonesRequired.SetNumZeroed(BoneBlendWeights.Num());
+	for (int32 BoneIndex = 0; BoneIndex < BoneBlendWeights.Num(); BoneIndex++)
+	{
+		PoseExtractContext.BonesRequired[BoneIndex] = BoneBlendWeights[BoneIndex] > SMALL_NUMBER;
+	}
 }
 
 void FAnimNode_PoseDriver::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
@@ -302,6 +308,12 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 			Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()) )
 		{
 			FPoseContext CurrentPose(Output);
+
+			// clear the value before setting it. 
+			for (int32 PoseIndex = 0; PoseIndex < PoseExtractContext.PoseCurves.Num(); ++PoseIndex)
+			{
+				PoseExtractContext.PoseCurves[PoseIndex].Value = 0.f;
+			}
 
 			// Then fill in weight for any driven poses
 			for (const FRBFOutputWeight& Weight : OutputWeights)

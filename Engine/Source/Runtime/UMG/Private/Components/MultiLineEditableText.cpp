@@ -14,18 +14,20 @@
 UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SMultiLineEditableText::FArguments Defaults;
-	WidgetStyle = *Defaults._TextStyle;
-	bIsReadOnly = Defaults._IsReadOnly.Get();
-	SelectAllTextWhenFocused = Defaults._SelectAllTextWhenFocused.Get();
-	ClearTextSelectionOnFocusLoss = Defaults._ClearTextSelectionOnFocusLoss.Get();
-	RevertTextOnEscape = Defaults._RevertTextOnEscape.Get();
-	ClearKeyboardFocusOnCommit = Defaults._ClearKeyboardFocusOnCommit.Get();
-	AllowContextMenu = Defaults._AllowContextMenu.Get();
-	Clipping = Defaults._Clipping;
-	VirtualKeyboardDismissAction = Defaults._VirtualKeyboardDismissAction.Get();
-	AutoWrapText = true;
+	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+	static const FTextBlockStyle StaticNormalText = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	WidgetStyle = StaticNormalText;
 	
+	bIsReadOnly = false;
+	SelectAllTextWhenFocused = false;
+	ClearTextSelectionOnFocusLoss = true;
+	RevertTextOnEscape = false;
+	ClearKeyboardFocusOnCommit = true;
+	AllowContextMenu = true;
+	Clipping = EWidgetClipping::ClipToBounds;
+	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
+	AutoWrapText = true;
+
 	if (!IsRunningDedicatedServer())
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());

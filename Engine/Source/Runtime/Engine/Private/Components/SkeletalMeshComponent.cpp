@@ -1490,7 +1490,13 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	}
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
-	check(SkelMeshRenderData);
+	if (!SkelMeshRenderData)
+	{
+		//No Render Data?
+		// Jira UE-64409
+		UE_LOG(LogAnimation, Warning, TEXT("Skeletal Mesh asset '%s' has no render data"), *SkeletalMesh->GetName());
+		return;
+	}
 
 	// Make sure we access a valid LOD
 	// @fixme jira UE-30028 Avoid crash when called with partially loaded asset
@@ -1643,33 +1649,18 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	FAnimationRuntime::EnsureParentsPresent(OutFillComponentSpaceTransformsRequiredBones, SkeletalMesh->RefSkeleton);
 }
 
-bool USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
-{
-	bool bSuccess = RecalcRequiredBonesInternalSMC(LODIndex);
-	RecalcRequiredBonesInternalAnimInstances();
-	return bSuccess;
-}
-
-bool USkeletalMeshComponent::RecalcRequiredBonesInternalSMC(int32 LODIndex)
+void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 {
 	if (!SkeletalMesh)
 	{
-		return false;
+		return;
 	}
 
 	ComputeRequiredBones(RequiredBones, FillComponentSpaceTransformsRequiredBones, LODIndex, /*bIgnorePhysicsAsset=*/ false);
 
 	BoneSpaceTransforms = SkeletalMesh->RefSkeleton.GetRefBonePose();
 
-	// Invalidate cached bones.
-	CachedBoneSpaceTransforms.Empty();
-	CachedComponentSpaceTransforms.Empty();
-	CachedCurve.Empty();
-	return true;
-}
-
-void USkeletalMeshComponent::RecalcRequiredBonesInternalAnimInstances()
-{
+	// make sure animation requiredBone to mark as dirty
 	if (AnimScriptInstance)
 	{
 		AnimScriptInstance->RecalcRequiredBones();
@@ -1689,6 +1680,11 @@ void USkeletalMeshComponent::RecalcRequiredBonesInternalAnimInstances()
 	// this should always happen
 	MarkRequiredCurveUpToDate();
 	bRequiredBonesUpToDate = true;
+
+	// Invalidate cached bones.
+	CachedBoneSpaceTransforms.Empty();
+	CachedComponentSpaceTransforms.Empty();
+	CachedCurve.Empty();
 }
 
 void USkeletalMeshComponent::MarkRequiredCurveUpToDate()
@@ -1958,7 +1954,13 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 	if (!bRequiredBonesUpToDate)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_USkeletalMeshComponent_RefreshBoneTransforms_RecalcRequiredBones);
-		RecalcRequiredBonesInternalSMC(PredictedLODLevel);
+		RecalcRequiredBones(PredictedLODLevel);
+	}
+	// if curves have to be refreshed
+	else if (!AreRequiredCurvesUpToDate())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_USkeletalMeshComponent_RefreshBoneTransforms_RecalcRequiredCurves);
+		RecalcRequiredCurves();
 	}
 
 	const bool bCachedShouldUseUpdateRateOptimizations = ShouldUseUpdateRateOptimizations() && AnimUpdateRateParams != nullptr;
@@ -2003,22 +2005,6 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 	{
 		return;
 	}
-
-	// Recalculate the RequiredBones array, if necessary
-	if (!bRequiredBonesUpToDate)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_USkeletalMeshComponent_RefreshBoneTransforms_RecalcRequiredBones);
-		RecalcRequiredBonesInternalAnimInstances();
-	}
-	// if curves have to be refreshed
-	else if (!AreRequiredCurvesUpToDate())
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_USkeletalMeshComponent_RefreshBoneTransforms_RecalcRequiredCurves);
-		RecalcRequiredCurves();
-	}
-	
-	//Refresh UID list now curves have been updated
-	CurrentAnimCurveUIDFinder = (AnimScriptInstance) ? &AnimScriptInstance->GetRequiredBones().GetUIDToArrayLookupTable() : nullptr;
 
 	AnimEvaluationContext.SkeletalMesh = SkeletalMesh;
 	AnimEvaluationContext.AnimInstance = AnimScriptInstance;
@@ -2162,6 +2148,7 @@ void USkeletalMeshComponent::SwapEvaluationContextBuffers()
 
 void USkeletalMeshComponent::DispatchParallelEvaluationTasks(FActorComponentTickFunction* TickFunction)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	SwapEvaluationContextBuffers();
 
 	// start parallel work

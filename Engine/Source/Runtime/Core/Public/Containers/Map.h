@@ -418,6 +418,23 @@ private:
 		return Add(Forward<ArgType>(Arg));
 	}
 
+	/**
+	 * Find the value associated with a specified key, or if none exists,
+	 * adds the value
+	 *
+	 * @param Key The key to search for.
+	 * @param Value The value to associate with the key.
+	 * @return A reference to the value associated with the specified key.
+	 */
+	template <typename InitKeyType, typename InitValueType>
+	FORCEINLINE ValueType& FindOrAddImpl(InitKeyType&& Key, InitValueType&& Value)
+	{
+		if (auto* Pair = Pairs.Find(Key))
+			return Pair->Value;
+
+		return Add(Forward<InitKeyType>(Key), Forward<InitValueType>(Value));
+	}
+
 public:
 
 	/**
@@ -429,6 +446,19 @@ public:
 	 */
 	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key) { return FindOrAddImpl(                   Key ); }
 	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key) { return FindOrAddImpl(MoveTempIfPossible(Key)); }
+
+	/**
+	 * Find the value associated with a specified key, or if none exists, 
+	 * adds a value using the default constructor.
+	 *
+	 * @param Key The key to search for.
+	 * @param Value The value to associate with the key.
+	 * @return A reference to the value associated with the specified key.
+	 */
+	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, const ValueType&  Value) { return FindOrAddImpl(                   Key ,                    Value  ); }
+	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, ValueType&&       Value) { return FindOrAddImpl(                   Key , MoveTempIfPossible(Value) ); }
+	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, const ValueType&  Value) { return FindOrAddImpl(MoveTempIfPossible(Key),                    Value  ); }
+	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, ValueType&&       Value) { return FindOrAddImpl(MoveTempIfPossible(Key), MoveTempIfPossible(Value) ); }
 
 	/**
 	 * Find the value associated with a specified key, or if none exists, 

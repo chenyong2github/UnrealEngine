@@ -11,7 +11,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
 
-void FRenderAssetInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float InLastRenderTime, const FVector& RangeOrigin, float InMinDistance, float InMinRange, float InMaxRange)
+void FRenderAssetInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds& Bounds, uint32 InPackedRelativeBox, float InLastRenderTime, const FVector& RangeOrigin, float InMinDistanceSq, float InMinRangeSq, float InMaxRangeSq)
 {
 	check(Index >= 0 && Index < 4);
 
@@ -26,9 +26,9 @@ void FRenderAssetInstanceView::FBounds4::Set(int32 Index, const FBoxSphereBounds
 	ExtentZ.Component(Index) = Bounds.BoxExtent.Z;
 	Radius.Component(Index) = Bounds.SphereRadius;
 	PackedRelativeBox[Index] = InPackedRelativeBox;
-	MinDistanceSq.Component(Index) = InMinDistance * InMinDistance;
-	MinRangeSq.Component(Index) = InMinRange * InMinRange;
-	MaxRangeSq.Component(Index) = InMaxRange != FLT_MAX ? (InMaxRange * InMaxRange) : FLT_MAX;
+	MinDistanceSq.Component(Index) = InMinDistanceSq;
+	MinRangeSq.Component(Index) = InMinRangeSq;
+	MaxRangeSq.Component(Index) = InMaxRangeSq;
 	LastRenderTime.Component(Index) = InLastRenderTime;
 }
 
@@ -43,8 +43,8 @@ void FRenderAssetInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimit
 		UnpackRelativeBox(Component->Bounds, PackedRelativeBox[Index], SubBounds);
 
 		// Update the visibility range once we have the bounds.
-		float MinDistance = 0, MinRange = 0, MaxRange = FLT_MAX;
-		FRenderAssetInstanceView::GetDistanceAndRange(Component, SubBounds, MinDistance, MinRange, MaxRange);
+		float MinDistance2 = 0, MinRange2 = 0, MaxRange2 = FLT_MAX;
+		FRenderAssetInstanceView::GetDistanceAndRange(Component, SubBounds, MinDistance2, MinRange2, MaxRange2);
 
 		OriginX.Component(Index) = SubBounds.Origin.X;
 		OriginY.Component(Index) = SubBounds.Origin.Y;
@@ -57,9 +57,9 @@ void FRenderAssetInstanceView::FBounds4::UnpackBounds(int32 Index, const UPrimit
 		ExtentZ.Component(Index) = SubBounds.BoxExtent.Z;
 		Radius.Component(Index) = SubBounds.SphereRadius;
 		PackedRelativeBox[Index] = PackedRelativeBox_Identity;
-		MinDistanceSq.Component(Index) = MinDistance * MinDistance;
-		MinRangeSq.Component(Index) = MinRange * MinRange;
-		MaxRangeSq.Component(Index) = MaxRange != FLT_MAX ? (MaxRange * MaxRange) : FLT_MAX;
+		MinDistanceSq.Component(Index) = MinDistance2;
+		MinRangeSq.Component(Index) = MinRange2;
+		MaxRangeSq.Component(Index) = MaxRange2;
 	}
 }
 
@@ -223,11 +223,17 @@ TRefCountPtr<FRenderAssetInstanceView> FRenderAssetInstanceView::CreateViewWithU
 	return NewView;
 }
 
-void FRenderAssetInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistance, float& MinRange, float& MaxRange)
+float FRenderAssetInstanceView::GetMaxDrawDistSqWithLODParent(const FVector& Origin, const FVector& ParentOrigin, float ParentMinDrawDist, float ParentBoundingSphereRadius)
+{
+	const float Result = ParentMinDrawDist + ParentBoundingSphereRadius + (Origin - ParentOrigin).Size();
+	return Result * Result;
+}
+
+void FRenderAssetInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistanceSq, float& MinRangeSq, float& MaxRangeSq)
 {
 	check(Component && Component->IsRegistered());
 
-	// In the engine, the MinDistance is computed from the component bound center to the viewpoint.
+	// In the engine, the MinDistance is computed from the component bound center to the viewpoint (except for HLODs).
 	// The streaming computes the distance as the distance from viewpoint to the edge of the texture bound box.
 	// The implementation also handles MinDistance by bounding the distance to it so that if the viewpoint gets closer the screen size will stop increasing at some point.
 	// The fact that the primitive will disappear is not so relevant as this will be handled by the visibility logic, normally streaming one less mip than requested.
@@ -235,10 +241,12 @@ void FRenderAssetInstanceView::GetDistanceAndRange(const UPrimitiveComponent* Co
 
 	const UPrimitiveComponent* LODParent = Component->GetLODParentPrimitive();
 
-	MinDistance = FMath::Max<float>(0, Component->MinDrawDistance - (RenderAssetInstanceBounds.Origin - Component->Bounds.Origin).Size() - RenderAssetInstanceBounds.SphereRadius);
-	MinRange = FMath::Max<float>(0, Component->MinDrawDistance);
+	MinDistanceSq = FMath::Max<float>(0, Component->MinDrawDistance - (RenderAssetInstanceBounds.Origin - Component->Bounds.Origin).Size() - RenderAssetInstanceBounds.SphereRadius);
+	MinDistanceSq *= MinDistanceSq;
+	MinRangeSq = FMath::Max<float>(0, Component->MinDrawDistance);
+	MinRangeSq *= MinRangeSq;
 	// Max distance when HLOD becomes visible.
-	MaxRange = LODParent ? (LODParent->MinDrawDistance + (Component->Bounds.Origin - LODParent->Bounds.Origin).Size()) : FLT_MAX;
+	MaxRangeSq = LODParent ? GetMaxDrawDistSqWithLODParent(Component->Bounds.Origin, LODParent->Bounds.Origin, LODParent->MinDrawDistance, LODParent->Bounds.SphereRadius) : FLT_MAX;
 }
 
 void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAssetInstanceView* Rhs)

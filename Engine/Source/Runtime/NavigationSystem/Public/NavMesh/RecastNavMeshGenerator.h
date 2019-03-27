@@ -11,6 +11,7 @@
 #include "Async/AsyncWork.h"
 #include "UObject/GCObject.h"
 #include "AI/NavDataGenerator.h"
+#include "NavMesh/RecastHelpers.h"
 
 #if WITH_RECAST
 
@@ -148,6 +149,28 @@ struct FRecastAreaNavModifierElement
 	// Per instance transformations in unreal coords
 	// When empty areas are in world space
 	TArray<FTransform>	PerInstanceTransform;
+};
+
+struct FRcTileBox
+{
+	int32 XMin, XMax, YMin, YMax;
+
+	FRcTileBox(const FBox& UnrealBounds, const FVector& RcNavMeshOrigin, const float TileSizeInWorldUnits)
+	{
+		check(TileSizeInWorldUnits > 0);
+
+		const FBox RcAreaBounds = Unreal2RecastBox(UnrealBounds);
+		XMin = FMath::FloorToInt((RcAreaBounds.Min.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
+		XMax = FMath::FloorToInt((RcAreaBounds.Max.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
+		YMin = FMath::FloorToInt((RcAreaBounds.Min.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
+		YMax = FMath::FloorToInt((RcAreaBounds.Max.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
+	}
+
+	FORCEINLINE bool Contains(const FIntPoint& Point) const
+	{
+		return Point.X >= XMin && Point.X <= XMax
+			&& Point.Y >= YMin && Point.Y <= YMax;
+	}
 };
 
 enum class ETimeSliceWorkResult : uint8
@@ -451,6 +474,8 @@ public:
 	const FRecastNavMeshCachedData& GetAdditionalCachedData() const { return AdditionalCachedData; }
 
 	bool HasDirtyTiles() const;
+	bool HasDirtyTiles(const FBox& AreaBounds) const;
+	int32 GetDirtyTilesCount(const FBox& AreaBounds) const;
 
 	bool GatherGeometryOnGameThread() const;
 
@@ -483,7 +508,7 @@ protected:
 	void UpdateNavigationBounds();
 		
 	// Sorts pending build tiles by proximity to player, so tiles closer to player will get generated first
-	void SortPendingBuildTiles();
+	virtual void SortPendingBuildTiles();
 
 	/** Instantiates dtNavMesh and configures it for tiles generation. Returns false if failed */
 	bool ConstructTiledNavMesh();
@@ -492,7 +517,7 @@ protected:
 	void CalcNavMeshProperties(int32& MaxTiles, int32& MaxPolys);
 	
 	/** Marks grid tiles affected by specified areas as dirty */
-	void MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas);
+	virtual void MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas);
 
 	void RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles);
 	
@@ -509,6 +534,10 @@ protected:
 public:
 	/** Adds generated tiles to NavMesh, replacing old ones */
 	TArray<uint32> AddGeneratedTiles(FRecastTileGenerator& TileGenerator);
+
+#if TIME_SLICE_NAV_REGEN
+	bool IsTimeSliceDurationExceeded(const double StartTime) const;
+#endif
 
 public:
 	/** Removes all tiles at specified grid location */
@@ -528,7 +557,7 @@ public:
 
 protected:
 	bool IsInActiveSet(const FIntPoint& Tile) const;
-	void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles);
+	virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles);
 	
 	/** Blocks until build for specified list of tiles is complete and discard results */
 	void DiscardCurrentBuildingTasks();
@@ -597,6 +626,10 @@ protected:
 	/** Runtime generator's version, increased every time all tile generators get invalidated
 	 *	like when navmesh size changes */
 	uint32 Version;
+
+#if TIME_SLICE_NAV_REGEN
+	double TimeSliceDuration;
+#endif
 };
 
 #endif // WITH_RECAST

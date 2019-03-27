@@ -139,7 +139,8 @@ public:
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) = 0;
 	virtual int32 ObjectWorldPosition() = 0;
 	virtual int32 ObjectRadius() = 0;
-	virtual int32 ObjectBounds() = 0;	
+	virtual int32 ObjectBounds() = 0;
+	virtual int32 PreSkinnedLocalBounds() = 0;
 	virtual int32 DistanceCullFade() = 0;
 	virtual int32 ActorWorldPosition() = 0;
 	virtual int32 ParticleMacroUV() = 0;
@@ -259,6 +260,7 @@ public:
 	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) = 0;
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) = 0;
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) = 0;
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) = 0;
 	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) = 0;
 
 	virtual int32 ObjectOrientation() = 0;
@@ -390,6 +392,7 @@ public:
 	virtual int32 ObjectWorldPosition() override { return Compiler->ObjectWorldPosition(); }
 	virtual int32 ObjectRadius() override { return Compiler->ObjectRadius(); }
 	virtual int32 ObjectBounds() override { return Compiler->ObjectBounds(); }
+	virtual int32 PreSkinnedLocalBounds() override { return Compiler->PreSkinnedLocalBounds(); }
 	virtual int32 DistanceCullFade() override { return Compiler->DistanceCullFade(); }
 	virtual int32 ActorWorldPosition() override { return Compiler->ActorWorldPosition(); }
 	virtual int32 ParticleMacroUV() override { return Compiler->ParticleMacroUV(); }
@@ -478,6 +481,7 @@ public:
 	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override { return Compiler->GIReplace(Direct, StaticIndirect, DynamicIndirect); }
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override { return Compiler->ShadowReplace(Default, Shadow); }
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) override { return Compiler->RayTracingQualitySwitchReplace(Normal, RayTraced); }
 	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 	virtual int32 ObjectOrientation() override { return Compiler->ObjectOrientation(); }
 	virtual int32 RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex) override

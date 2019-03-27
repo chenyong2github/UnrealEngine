@@ -24,7 +24,7 @@ public:
 	~FLoginFlowManager();
 
 	//~ Begin ILoginFlowManager interface
-	virtual bool AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies) override;
+	virtual bool AddLoginFlow(FName OnlineIdentifier, const FOnDisplayPopup& InPopupDelegate, const FOnDisplayPopup& InCreationFlowPopupDelegate, bool bPersistCookies, bool bConsumeInput) override;
 	virtual bool HasLoginFlow(FName OnlineIdentifier) override;
 	virtual void CancelLoginFlow() override;
 	virtual void CancelAccountCreationFlow() override;
@@ -91,6 +91,8 @@ private:
 		TSharedPtr<FBrowserContextSettings> BrowserContextSettings;
 		/** Has this context been registered */
 		bool bRegisteredContext = false;
+		/** Whether or not keyboard input, not handled by the browser, should be consumed */
+		bool bConsumeInput = false;
 	};
 
 	/**

@@ -78,7 +78,7 @@ void FPyReferenceCollector::AddReferencedObjectsFromDelegate(FReferenceCollector
 	}
 }
 
-void FPyReferenceCollector::AddReferencedObjectsFromMulticastDelegate(FReferenceCollector& InCollector, FMulticastScriptDelegate& InDelegate)
+void FPyReferenceCollector::AddReferencedObjectsFromMulticastDelegate(FReferenceCollector& InCollector, const FMulticastScriptDelegate& InDelegate)
 {
 	// Keep the delegate objects alive if they're using a Python proxy instance
 	// We have to use the EvenIfUnreachable variant here as the objects are speculatively marked as unreachable during GC
@@ -192,8 +192,10 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 		{
 			for (int32 ArrIndex = 0; ArrIndex < InProp->ArrayDim; ++ArrIndex)
 			{
-				FMulticastScriptDelegate* Value = CastProp->GetPropertyValuePtr(CastProp->ContainerPtrToValuePtr<void>(InBaseAddr, ArrIndex));
-				AddReferencedObjectsFromMulticastDelegate(InCollector, *Value);
+				if (const FMulticastScriptDelegate* Value = CastProp->GetMulticastDelegate(CastProp->ContainerPtrToValuePtr<void>(InBaseAddr, ArrIndex)))
+				{
+					AddReferencedObjectsFromMulticastDelegate(InCollector, *Value);
+				}
 			}
 		}
 		return;

@@ -13,13 +13,16 @@ public class Logger
 	private String mTag;
 	
 	private static boolean bAllowLogging			= true;
+	@SuppressWarnings({"FieldCanBeLocal", "unused"})
 	private static boolean bAllowExceptionLogging	= true;
 
+	@SuppressWarnings("unused")
 	public static void RegisterCallback(ILoggerCallback callback)
 	{
 		mCallback = callback;
 	}
 
+	@SuppressWarnings("WeakerAccess")
 	public static void SuppressLogs ()
 	{
 		bAllowLogging = bAllowExceptionLogging = false;
@@ -29,7 +32,19 @@ public class Logger
 	{
 		mTag = Tag;
 	}
-	
+
+	public void verbose(String Message)
+	{
+		if (bAllowLogging)
+		{
+			Log.v(mTag, Message);
+		}
+		if (mCallback != null)
+		{
+			mCallback.LoggerCallback("V/", mTag, Message);
+		}
+	}
+
 	public void debug(String Message)
 	{
 		if (bAllowLogging)
@@ -59,6 +74,18 @@ public class Logger
 		if (bAllowLogging)
 		{
 			Log.e(mTag, Message);
+		}
+		if (mCallback != null)
+		{
+			mCallback.LoggerCallback("E/", mTag, Message);
+		}
+	}
+
+	public void error(String Message, Throwable Throwable)
+	{
+		if (bAllowLogging)
+		{
+			Log.e(mTag, Message, Throwable);
 		}
 		if (mCallback != null)
 		{

@@ -7,6 +7,7 @@ import android.content.Context;
 
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
@@ -1680,6 +1681,14 @@ class WebViewControl
             transport.setWebView(newView);
             resultMsg.sendToTarget();
             return true;
+		}
+
+		@Override
+		public boolean onConsoleMessage(ConsoleMessage cm) {
+			GameActivity.Log.warn(cm.message() + " -- From line "
+				+ cm.lineNumber() + " of "
+				+ cm.sourceId() );
+			return true;
 		}
 	}
 	public long GetNativePtr()

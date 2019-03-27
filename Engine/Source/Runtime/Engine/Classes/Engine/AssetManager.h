@@ -393,6 +393,9 @@ public:
 	/** Get the encryption key guid attached to this primary asset. Can be invalid if the asset is not encrypted */
 	virtual void GetCachedPrimaryAssetEncryptionKeyGuid(FPrimaryAssetId InPrimaryAssetId, FGuid& OutGuid);
 
+	/** Loads the redirector maps */
+	virtual void LoadRedirectorMaps();
+
 #if WITH_EDITOR
 	// EDITOR ONLY FUNCTIONALITY
 
@@ -507,9 +510,6 @@ protected:
 	/** Returns the NameData for a specific type/name pair */
 	FPrimaryAssetData* GetNameData(const FPrimaryAssetId& PrimaryAssetId, bool bCheckRedirector = true);
 	const FPrimaryAssetData* GetNameData(const FPrimaryAssetId& PrimaryAssetId, bool bCheckRedirector = true) const;
-
-	/** Loads the redirector maps */
-	virtual void LoadRedirectorMaps();
 
 	/** Rebuilds the ObjectReferenceList, needed after global object state has changed */
 	virtual void RebuildObjectReferenceList();

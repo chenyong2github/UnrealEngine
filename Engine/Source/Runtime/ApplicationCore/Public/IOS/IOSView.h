@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "IOS/IOSInputInterface.h"
+
 #import <UIKit/UIKit.h>
 #import <OpenGLES/EAGL.h>
 
@@ -25,6 +28,8 @@ struct FKeyboardConfig
 		bSecureTextEntry(NO) {}
 };
 
+
+APPLICATIONCORE_API
 @interface FIOSView : UIView  <UIKeyInput, UITextInput>
 {
 @public
@@ -42,13 +47,14 @@ struct FKeyboardConfig
 	bool HasMoved[10];
 
 
+#if HAS_OPENGL_ES
 	//// GL MEMBERS
 	// the GL context
 	EAGLContext* Context;
 
 	// the internal MSAA FBO used to resolve the color buffer at present-time
 	GLuint ResolveFrameBuffer;
-
+#endif
 
 	//// METAL MEMBERS
 #if HAS_METAL
@@ -75,6 +81,8 @@ struct FKeyboardConfig
 	BOOL bSecureTextEntry;
 	
 	volatile int32 KeyboardShowCount;
+
+
 }
 
 
@@ -99,12 +107,20 @@ struct FKeyboardConfig
 - (id<CAMetalDrawable>)MakeDrawable;
 #endif
 
-
 //// KEYBOARD FUNCTIONALITY
 -(void)InitKeyboard;
 -(void)ActivateKeyboard:(bool)bInSendEscapeOnClose;
 -(void)ActivateKeyboard:(bool)bInSendEscapeOnClose keyboardConfig:(FKeyboardConfig)KeyboardConfig;
 -(void)DeactivateKeyboard;
+
+// callable from outside to fake locations
+-(void)HandleTouchAtLoc:(CGPoint)Loc PrevLoc:(CGPoint)PrevLoc TouchIndex:(int)TouchIndex Force:(float)Force Type:(TouchType)Type TouchesArray:(TArray<TouchInput>&)TouchesArray;
+
+#if BUILD_EMBEDDED_APP
+// startup UE before we have a view - so that we don't need block on Metal device creation, which can take .5-1.5 seconds!
++(void)StartupEmbeddedUnreal;
+#endif
+
 @end
 
 

@@ -81,6 +81,16 @@ void FSkeletalMeshVertexClothBuffer::InitRHI()
 }
 
 /**
+* Release the RHI resource for this vertex buffer
+*/
+void FSkeletalMeshVertexClothBuffer::ReleaseRHI()
+{
+	VertexBufferSRV.SafeRelease();
+	// call the base class's ReleaseRHI() since we overrode it
+	FVertexBuffer::ReleaseRHI();
+}
+
+/**
 * Serializer for this class
 * @param Ar - archive to serialize to
 * @param B - data to serialize

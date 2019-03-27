@@ -2171,7 +2171,9 @@ void FPImplRecastNavMesh::GetDebugGeometry(FRecastDebugGeometry& OutGeometry, in
 
 	const FRecastNavMeshGenerator* Generator = static_cast<const FRecastNavMeshGenerator*>(NavMeshOwner->GetGenerator());
 
-	if (Generator && Generator->IsBuildingRestrictedToActiveTiles())
+	if (Generator && Generator->IsBuildingRestrictedToActiveTiles()
+		// if not active tiles try drawing all tiles
+		&& NavMeshOwner->GetActiveTiles().Num() > 0)
 	{
 		const TArray<FIntPoint>& ActiveTiles = NavMeshOwner->GetActiveTiles();
 		for (const FIntPoint& TileLocation : ActiveTiles)

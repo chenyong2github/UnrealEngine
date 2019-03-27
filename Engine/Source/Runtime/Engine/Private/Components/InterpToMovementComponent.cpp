@@ -106,13 +106,13 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
  		if ((bPauseOnImpact == false ) && (BehaviourType != EInterpToBehaviourType::OneShot))
  		{
  			// If we can bounce, we are allowed to move out of penetrations, so use SafeMoveUpdatedComponent which does that automatically.
- 			SafeMoveUpdatedComponent(MoveDelta, CurrentRotation, true, Hit);
+ 			SafeMoveUpdatedComponent(MoveDelta, CurrentRotation, bSweep, Hit, TeleportType);
  		}
  		else
 		{
 			// If we can't bounce, then we shouldn't adjust if initially penetrating, because that should be a blocking hit that causes a hit event and stop simulation.
 			TGuardValue<EMoveComponentFlags> ScopedFlagRestore(MoveComponentFlags, MoveComponentFlags | MOVECOMP_NeverIgnoreBlockingOverlaps);
-			MoveUpdatedComponent(MoveDelta, CurrentRotation, true, &Hit);
+			MoveUpdatedComponent(MoveDelta, CurrentRotation, bSweep, &Hit, TeleportType);
 		}
 		//DrawDebugPoint(GetWorld(), UpdatedComponent->GetComponentLocation(), 16, FColor::White,true,5.0f);
 		// If we hit a trigger that destroyed us, abort.
@@ -379,6 +379,10 @@ bool UInterpToMovementComponent::CheckStillInWorld()
 	if (!IsValid(ActorOwner))
 	{
 		return false;
+	}
+	if (!bCheckIfStillInWorld)
+	{
+		return true;
 	}
 	if (ActorOwner->GetActorLocation().Z < WorldSettings->KillZ)
 	{

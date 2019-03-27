@@ -24,6 +24,7 @@
 #include "TickableObjectRenderThread.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Async/AsyncFileHandle.h"
+#include "Misc/ScopeLock.h"
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Outstanding Tasks"), STAT_ShaderPipelineTaskCount, STATGROUP_PipelineStateCache );
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Waiting Tasks"), STAT_ShaderPipelineWaitingTaskCount, STATGROUP_PipelineStateCache );

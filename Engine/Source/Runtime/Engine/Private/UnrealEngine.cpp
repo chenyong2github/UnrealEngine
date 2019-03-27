@@ -764,10 +764,7 @@ void RefreshSamplerStatesCallback()
 			);
 		}
 
-		UMaterialInterface::RecacheAllMaterialUniformExpressions();
-
-		// Need to recache all cached mesh draw commands, as they store pointers to material uniform buffers which we just invalidated.
-		GetRendererModule().UpdateStaticDrawLists();
+		UMaterialInterface::RecacheAllMaterialUniformExpressions(false);
 	}
 }
 
@@ -1565,6 +1562,11 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		FModuleManager::Get().LoadModule("LevelSequence");
 	}
 
+	// Enable the live coding module if it's a developer build
+#if WITH_LIVE_CODING
+	FModuleManager::Get().LoadModule("LiveCoding");
+#endif
+
 	// Finish asset manager loading
 	if (AssetManager)
 	{
@@ -2303,6 +2305,7 @@ UEngineCustomTimeStep* InitializeCustomTimeStep(UEngine* InEngine, FSoftClassPat
 */
 void UEngine::InitializeObjectReferences()
 {
+	SCOPED_BOOT_TIMING("UEngine::InitializeObjectReferences");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UEngine::InitializeObjectReferences"), STAT_InitializeObjectReferences, STATGROUP_LoadTime);
 
 	// This initializes the tag data if it hasn't been already, we need to do this before loading any game data
@@ -3323,6 +3326,7 @@ struct FSortedSkeletalMesh
 	int32		ResKBIncMobile;
 	int32		LodCount;
 	int32		MobileMinLOD;
+	int32		MeshDisablesMinLODStripping;
 	int32		VertexCountLod0;
 	int32		VertexCountLod1;
 	int32		VertexCountLod2;
@@ -3332,7 +3336,7 @@ struct FSortedSkeletalMesh
 	FString		Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
-	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InVertexCountLod0, 
+	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InMeshDisablesMinLODStripping, int32 InVertexCountLod0,
 		int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
@@ -3341,6 +3345,7 @@ struct FSortedSkeletalMesh
 		, ResKBIncMobile(InResKBIncMobile)
 		, LodCount(InLodCount)
 		, MobileMinLOD(InMobileMinLOD)
+		, MeshDisablesMinLODStripping(InMeshDisablesMinLODStripping)
 		, VertexCountLod0(InVertexCountLod0)
 		, VertexCountLod1(InVertexCountLod1)
 		, VertexCountLod2(InVertexCountLod2)
@@ -3711,7 +3716,7 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		FString ConfigFilePath;
 		if (FParse::Value(Cmd, TEXT("REGENLOC="), ConfigFilePath))
 		{
-			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath, /*bSkipSourceCheck*/false);
+			ILocalizationModule::Get().HandleRegenLocCommand(ConfigFilePath);
 		}
 	}
 #endif
@@ -5211,11 +5216,17 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		int32 LodCount = 0;
 		int32 MobileMinLOD = -1;
-
+		int32 MeshDisablesMinLODStripping = 0;
 #if WITH_EDITORONLY_DATA
 		if (Mesh->MinLod.PerPlatform.Find(("Mobile")) != nullptr)
 		{
 			MobileMinLOD = *Mesh->MinLod.PerPlatform.Find(("Mobile"));
+		}
+
+		MeshDisablesMinLODStripping = Mesh->DisableBelowMinLodStripping.Default ? 1 : 0;
+		if (Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) != nullptr)
+		{
+			MeshDisablesMinLODStripping = *Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) ? 1 : 0;
 		}
 #endif
 
@@ -5237,7 +5248,7 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			for(int32 i = 0; i < LodCount; i++)
 			{
 				VertexCountTotal += LodRenderData[i].GetNumVertices();
-				VertexCountTotalMobile += i >= MobileMinLOD ? LodRenderData[i].GetNumVertices() : 0;
+				VertexCountTotalMobile += i >= MobileMinLOD || MeshDisablesMinLODStripping == 1 ? LodRenderData[i].GetNumVertices() : 0;
 			}
 		}
 
@@ -5263,6 +5274,7 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			ResKBIncMobile,
 			LodCount,
 			MobileMinLOD,
+			MeshDisablesMinLODStripping,
 			VertexCountLod0,
 			VertexCountLod1,
 			VertexCountLod2,
@@ -5286,11 +5298,11 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 	if (bCSV)
 	{
-		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
+		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
 	}
 	else
 	{
-		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
+		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex<SortedMeshes.Num(); MeshIndex++)
@@ -5299,15 +5311,15 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		if (bCSV)
 		{
-			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
 		else
 		{
-			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %10i %11i %11i %12i %17i %10i  %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %10i %11i %11i %12i %17i %10i  %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
@@ -8696,7 +8708,6 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	UPackage* PackageToReset = nullptr;
 	FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageName.ToString(), LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
 	{
-		check(InLinker);
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{
 			Result = InLinker->LinkerRoot->GetGuid();
@@ -8704,8 +8715,10 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 		}
 	});
 
-	ResetLoaders(PackageToReset);
-	Linker = nullptr;
+	if (PackageToReset)
+	{
+		ResetLoaders(PackageToReset);
+	}
 
 	return Result;
 }
@@ -10095,9 +10108,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 				Y += 20;
 				Y += Canvas->DrawShadowedString( X, Y, TEXT("[Server]"), GEngine->GetSmallFont(), FLinearColor::Gray);
 				DrawDebugPropertiesForWorld(ServerWorld, X, Y);
-				break;
 			}
-
 		}
 	}
 
@@ -10182,10 +10193,10 @@ void FFrameEndSync::Sync( bool bAllowOneFrameThreadLag )
 #if !UE_BUILD_SHIPPING && PLATFORM_SUPPORTS_FLIP_TRACKING
 	// Set the FrameDebugInfo on platforms that have accurate frame tracking.
 	ENQUEUE_RENDER_COMMAND(FrameDebugInfo)(
-		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandList&)
+		[CurrentFrameCounter = GFrameCounter, CurrentInputTime = GInputTime](FRHICommandListImmediate& RHICmdList)
 	{
-		GRHICommandList.GetImmediateCommandList().EnqueueLambda(
-			[CurrentFrameCounter, CurrentInputTime](FRHICommandList&)
+		RHICmdList.EnqueueLambda(
+			[CurrentFrameCounter, CurrentInputTime](FRHICommandListImmediate&)
 		{
 			// Set the FrameCount and InputTime for input latency stats and flip debugging.
 			RHISetFrameDebugInfo(GRHIPresentCounter - 1, CurrentFrameCounter - 1, CurrentInputTime);
@@ -10262,7 +10273,24 @@ FOnSwitchWorldForPIE FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate;
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClient* InViewportClient )
 	: ViewportClient( InViewportClient )
-	, OldWorld( NULL )
+	, OldWorld( nullptr )
+{
+	ConditionalSwitchWorld( ViewportClient, nullptr );
+}
+
+FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
+	: ViewportClient( nullptr )
+	, OldWorld( nullptr )
+{
+	if (InWorld)
+	{
+		ViewportClient = InWorld->GetGameViewport();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
+}
+
+void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* InViewportClient, UWorld* InWorld )
 {
 	if( GIsEditor )
 	{
@@ -10271,31 +10299,44 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
+		}
+		else if ( InWorld && !GIsPlayInEditorWorld )
+		{
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+			// No viewport so set the world directly
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }
 
 FScopedConditionalWorldSwitcher::~FScopedConditionalWorldSwitcher()
 {
-	// Only switch in the editor and if we made a swtich (OldWorld not null)
+	// Only switch in the editor and if we made a switch (OldWorld not null)
 	if( GIsEditor && OldWorld )
 	{
 		if( ViewportClient && ViewportClient == GEngine->GameViewport && GIsPlayInEditorWorld )
 		{
 			const bool bSwitchToPIEWorld = false;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to restore the old world
 			ViewportClient->ConditionalRestoreWorld( OldWorld );
+		}
+		else if( GIsPlayInEditorWorld )
+		{
+			// No viewport so always restore to old world
+			const bool bSwitchToPIEWorld = false;
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, OldWorld );
 		}
 	}
 }
@@ -11977,13 +12018,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	// send a callback message
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
+
 	// make sure there is a matching PostLoadMap() no matter how we exit
 	struct FPostLoadMapCaller
 	{
-		bool bCalled;
 		FPostLoadMapCaller()
 			: bCalled(false)
 		{}
+
 		~FPostLoadMapCaller()
 		{
 			if (!bCalled)
@@ -11991,6 +12033,19 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
 			}
 		}
+
+		void Broadcast(UWorld* World)
+		{
+			if (ensure(!bCalled))
+			{
+				bCalled = true;
+				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
+			}
+		}
+
+	private:
+		bool bCalled;
+
 	} PostLoadMapCaller;
 
 	// Cancel any pending texture streaming requests.  This avoids a significant delay on consoles 
@@ -12033,7 +12088,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Unload the current world
 	if( WorldContext.World() )
 	{
-		WorldContext.World()->bIsTearingDown = true;
+		WorldContext.World()->BeginTearingDown();
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
@@ -12465,8 +12520,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	WorldContext.World()->BeginPlay();
 
 	// send a callback message
-	PostLoadMapCaller.bCalled = true;
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(WorldContext.World());
+	PostLoadMapCaller.Broadcast(WorldContext.World());
 
 	WorldContext.World()->bWorldWasLoadedThisTick = true;
 
@@ -15592,7 +15646,18 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 				{
 					if (WaveInstanceInfo.ActualVolume >= 0.01f)
 					{
-						WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						bool bShouldPrint = true;
+						FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+						const FString& DebugSoloSoundName = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundWave();
+						if (DebugSoloSoundName != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundName))
+						{
+							bShouldPrint = false;
+						}
+
+						if (bShouldPrint == true)
+						{
+							WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						}
 					}
 				}
 			}
@@ -15665,10 +15730,21 @@ int32 UEngine::RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* 
 			{
 				if (WaveInstanceInfo.ActualVolume >= 0.01f)
 				{
-					const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
-					Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
-					Y += 12;
-					break;
+					bool bShouldPrint = true;
+					FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+					const FString& DebugSoloSoundCue = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundCue();
+					if (DebugSoloSoundCue != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundCue))
+					{
+						bShouldPrint = false;
+					}
+
+					if (bShouldPrint == true)
+					{
+						const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
+						Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
+						Y += 12;
+						break;
+					}
 				}
 			}
 		}

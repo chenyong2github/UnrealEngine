@@ -74,9 +74,12 @@ LANDSCAPE_API void FLandscapeComponentDataInterface::GetHeightmapTextureData(TAr
 LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULandscapeLayerInfoObject* LayerInfo, TArray<uint8>& OutData)
 {
 	int32 LayerIdx = INDEX_NONE;
-	for (int32 Idx = 0; Idx < Component->WeightmapLayerAllocations.Num(); Idx++)
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+
+	for (int32 Idx = 0; Idx < ComponentWeightmapLayerAllocations.Num(); Idx++)
 	{
-		if (Component->WeightmapLayerAllocations[Idx].LayerInfo == LayerInfo)
+		if (ComponentWeightmapLayerAllocations[Idx].LayerInfo == LayerInfo)
 		{
 			LayerIdx = Idx;
 			break;
@@ -86,11 +89,11 @@ LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULa
 	{
 		return false;
 	}
-	if (Component->WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex >= Component->WeightmapTextures.Num())
+	if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex >= ComponentWeightmapTextures.Num())
 	{
 		return false;
 	}
-	if (Component->WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel >= 4)
+	if (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel >= 4)
 	{
 		return false;
 	}
@@ -99,19 +102,19 @@ LANDSCAPE_API bool FLandscapeComponentDataInterface::GetWeightmapTextureData(ULa
 	OutData.Empty(FMath::Square(WeightmapSize));
 	OutData.AddUninitialized(FMath::Square(WeightmapSize));
 
-	FColor* WeightMipData = (FColor*)DataInterface.LockMip(Component->WeightmapTextures[Component->WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex], MipLevel);
+	FColor* WeightMipData = (FColor*)DataInterface.LockMip(ComponentWeightmapTextures[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex], MipLevel);
 
 	// Channel remapping
 	int32 ChannelOffsets[4] = { (int32)STRUCT_OFFSET(FColor, R), (int32)STRUCT_OFFSET(FColor, G), (int32)STRUCT_OFFSET(FColor, B), (int32)STRUCT_OFFSET(FColor, A) };
 
-	uint8* SrcTextureData = (uint8*)WeightMipData + ChannelOffsets[Component->WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel];
+	uint8* SrcTextureData = (uint8*)WeightMipData + ChannelOffsets[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel];
 
 	for (int32 i = 0; i < FMath::Square(WeightmapSize); i++)
 	{
 		OutData[i] = SrcTextureData[i * 4];
 	}
 
-	DataInterface.UnlockMip(Component->WeightmapTextures[Component->WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex], MipLevel);
+	DataInterface.UnlockMip(ComponentWeightmapTextures[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex], MipLevel);
 	return true;
 }
 

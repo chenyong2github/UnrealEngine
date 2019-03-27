@@ -2346,14 +2346,7 @@ void UEditorEngine::CloseEditedWorldAssets(UWorld* InWorld)
 
 		if (AssetWorld && ClosingWorlds.Contains(AssetWorld))
 		{
-			const TArray<IAssetEditorInstance*> AssetEditors = EditorManager.FindEditorsForAsset(Asset);
-			for (IAssetEditorInstance* EditorInstance : AssetEditors )
-			{
-				if (EditorInstance != NULL)
-				{
-					EditorInstance->CloseWindow();
-				}
-			}
+			EditorManager.CloseAllEditorsForAsset(Asset);
 		}
 	}
 }
@@ -4467,7 +4460,7 @@ void UEditorEngine::OnPreSaveWorld(uint32 SaveFlags, UWorld* World)
 
 	// If we can get the streaming level, we should remove the editor transform before saving
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel( World->PersistentLevel );
-	if ( LevelStreaming )
+	if ( LevelStreaming && World->PersistentLevel->bAlreadyMovedActors )
 	{
 		FLevelUtils::RemoveEditorTransform(LevelStreaming);
 	}
@@ -4550,7 +4543,7 @@ void UEditorEngine::OnPostSaveWorld(uint32 SaveFlags, UWorld* World, uint32 Orig
 
 	// If got the streaming level, we should re-apply the editor transform after saving
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel( World->PersistentLevel );
-	if ( LevelStreaming )
+	if ( LevelStreaming && World->PersistentLevel->bAlreadyMovedActors )
 	{
 		FLevelUtils::ApplyEditorTransform(LevelStreaming);
 	}
@@ -6866,7 +6859,7 @@ void UEditorEngine::VerifyLoadMapWorldCleanup()
 	for( TObjectIterator<UWorld> It; It; ++It )
 	{
 		UWorld* World = *It;
-		if (World->WorldType != EWorldType::EditorPreview && World->WorldType != EWorldType::Editor && World->WorldType != EWorldType::Inactive)
+		if (World->WorldType != EWorldType::EditorPreview && World->WorldType != EWorldType::Editor && World->WorldType != EWorldType::Inactive && World->WorldType != EWorldType::GamePreview)
 		{
 			TArray<UWorld*> OtherEditorWorlds;
 			EditorLevelUtils::GetWorlds(EditorWorld, OtherEditorWorlds, true, false);
@@ -7300,7 +7293,7 @@ bool UEditorEngine::IsOfflineShaderCompilerAvailable(UWorld* World)
 	return FMaterialStatsUtils::IsPlatformOfflineCompilerAvailable(RealPlatform);
 }
 
-void UEditorEngine::UpdateShaderComplexityMaterials()
+void UEditorEngine::UpdateShaderComplexityMaterials(bool bForceUpdate)
 {
 	TSet<UWorld *> WorldSet;
 
@@ -7316,10 +7309,10 @@ void UEditorEngine::UpdateShaderComplexityMaterials()
 	for (auto* SomeWorld : WorldSet)
 	{
 		bool bShadersEmulated = IsEditorShaderPlatformEmulated(SomeWorld);
-		if (bShadersEmulated)
+		if (bShadersEmulated || bForceUpdate)
 		{
 			bool bOfflineCompilerAvailable = IsOfflineShaderCompilerAvailable(SomeWorld);
-			if (bOfflineCompilerAvailable)
+			if (bOfflineCompilerAvailable || bForceUpdate)
 			{
 				FEditorBuildUtils::CompileViewModeShaders(SomeWorld, VMI_ShaderComplexity);
 			}
@@ -7329,7 +7322,7 @@ void UEditorEngine::UpdateShaderComplexityMaterials()
 
 void UEditorEngine::OnSceneMaterialsModified()
 {
-	UpdateShaderComplexityMaterials();
+	UpdateShaderComplexityMaterials(false);
 }
 
 void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel)
@@ -7368,6 +7361,14 @@ void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeat
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
 
 	PreviewFeatureLevelChanged.Broadcast(InFeatureLevel);
+
+	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
+	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
+	// opportunity to switch to the new feature level first.
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(nullptr);
+
+	UpdateShaderComplexityMaterials(true);
 }
 
 void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel)
@@ -7433,7 +7434,14 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 	
-	GEditor->OnSceneMaterialsModified();
+	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
+	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
+	// opportunity to switch to the new feature level first.
+	void ClearDebugViewMaterials(UMaterialInterface*);
+	ClearDebugViewMaterials(nullptr);
+
+	UpdateShaderComplexityMaterials(true);
+
 	GEditor->RedrawAllViewports();
 }
 

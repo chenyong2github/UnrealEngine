@@ -29,7 +29,7 @@ void FRefreshVisibility::operator()(bool bAsync)
 {
 	for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
 	{
-		State->UpdateLastRenderTime(Index);
+		State->UpdateLastRenderTimeAndMaxDrawDistance(Index);
 	}
 }
 

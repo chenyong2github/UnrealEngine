@@ -289,6 +289,9 @@ public class UnrealEd : ModuleRules
 			PublicDependencyModuleNames.Add("XAudio2");
 			PublicDependencyModuleNames.Add("AudioMixerXAudio2");
 
+			PrivateDependencyModuleNames.Add("WindowsPlatformFeatures");
+			PrivateDependencyModuleNames.Add("GameplayMediaEncoder");
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"UEOgg",
 				"Vorbis",

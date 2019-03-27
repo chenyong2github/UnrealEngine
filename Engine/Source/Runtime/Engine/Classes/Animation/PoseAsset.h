@@ -16,6 +16,7 @@
 
 class UAnimSequence;
 class USkeletalMeshComponent;
+struct FLiveLinkCurveElement;
 
 /** 
  * Pose data 
@@ -169,6 +170,10 @@ public:
 	ENGINE_API void GetBaseAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve) const;
 	virtual bool HasRootMotion() const { return false; }
 	virtual bool IsValidAdditive() const { return bAdditivePose; }
+
+	// this is utility function that just cares by names to be used by live link
+	// this isn't fast. Use it at your caution
+	ENGINE_API void GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float>& InCurveValues, TArray<FName>& OutCurveNames, TArray<float>& OutCurveValues) const;
 
 	//Begin UObject Interface
 	virtual void PostLoad() override;

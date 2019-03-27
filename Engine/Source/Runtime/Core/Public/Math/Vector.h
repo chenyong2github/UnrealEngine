@@ -2074,7 +2074,7 @@ inline FVector FMath::VRand()
 
 FORCEINLINE FVector2D::FVector2D( const FVector& V )
 	: X(V.X), Y(V.Y)
-{ 
+{
 }
 
 inline FVector FVector2D::SphericalToUnitCartesian() const

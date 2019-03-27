@@ -74,7 +74,7 @@ enum class EActorRepListTypeFlags : uint8
 };
 
 // Tests if an actor is valid for replication: not pending kill, etc. Says nothing about wanting to replicate or should replicate, etc.
-FORCEINLINE bool IsActorValidForReplication(const FActorRepListType& In) { return !In->IsPendingKill() && !In->IsPendingKillPending(); }
+FORCEINLINE bool IsActorValidForReplication(const FActorRepListType& In) { return !In->IsActorBeingDestroyed() && !In->IsPendingKillOrUnreachable(); }
 
 // Tests if an actor is valid for replication gathering. Meaning, it can be gathered from the replication graph and considered for replication.
 FORCEINLINE bool IsActorValidForReplicationGather(const FActorRepListType& In)
@@ -1140,14 +1140,17 @@ struct FNewReplicatedActorInfo
 {
 	explicit FNewReplicatedActorInfo(const FActorRepListType& InActor) : Actor(InActor), Class(InActor->GetClass())
 	{
-		ULevel* Level = Cast<ULevel>(GetActor()->GetOuter());
-		if (Level && Level->IsPersistentLevel() == false)
-		{
-			StreamingLevelName = Level->GetOutermost()->GetFName();
-		}
+		StreamingLevelName = GetStreamingLevelNameOfActor(Actor);
 	}
 
 	AActor* GetActor() const { return Actor; }
+
+	static FORCEINLINE FName GetStreamingLevelNameOfActor(const AActor* Actor)
+	{
+		ULevel* Level = Actor ? Cast<ULevel>(Actor->GetOuter()) : nullptr;
+		return (Level && Level->IsPersistentLevel() == false) ? Level->GetOutermost()->GetFName() : NAME_None;
+	}
+
 
 	FActorRepListType Actor;
 	FName StreamingLevelName;
@@ -1273,7 +1276,10 @@ CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphNumReps);
 /** Helper struct for tracking finer grained ReplicationGraph stats through the CSV profiler. Intention is that it is setup/configured in the UReplicationGraph subclasses */
 struct FReplicationGraphCSVTracker
 {
-	FReplicationGraphCSVTracker() : EverythingElse(TEXT("Other")), EverythingElse_FastPath(TEXT("OtherFastPath"))
+	FReplicationGraphCSVTracker() 
+		: EverythingElse(TEXT("Other"))
+		, EverythingElse_FastPath(TEXT("OtherFastPath"))
+		, ActorDiscovery(TEXT("ActorDiscovery"))
 	{
 		ResetTrackedClasses();
 	}
@@ -1299,7 +1305,7 @@ struct FReplicationGraphCSVTracker
 		ImplicitClassTracker.Set(BaseActorClass, NewData);
 	}
 
-	void PostReplicateActor(UClass* ActorClass, const double Time, const int64 Bits)
+	void PostReplicateActor(UClass* ActorClass, const double Time, const int64 Bits, const bool bIsActorDiscovery)
 	{
 #if REPGRAPH_CSV_TRACKER
 		if (!bIsCapturing)
@@ -1307,23 +1313,35 @@ struct FReplicationGraphCSVTracker
 			return;
 		}
 
+		FTrackedData* TrackedData(nullptr);
+
 		if (FTrackerItem* Item = ExplicitClassTracker.FindByKey(ActorClass))
 		{
-			Item->Data.BitsAccumulated += Bits;
-			Item->Data.CPUTimeAccumulated += Time;
-			Item->Data.NumReplications++;
+			TrackedData = &Item->Data;
 		}
 		else if (FTrackedData* Data = ImplicitClassTracker.GetChecked(ActorClass).Get())
 		{
-			Data->BitsAccumulated += Bits;
-			Data->CPUTimeAccumulated += Time;
-			Data->NumReplications++;
+			TrackedData = Data;
 		}
 		else
 		{
-			EverythingElse.BitsAccumulated += Bits;
-			EverythingElse.CPUTimeAccumulated += Time;
-			EverythingElse.NumReplications++;
+			TrackedData = &EverythingElse;
+		}
+
+		// When opening actor channels keep all traffic in a separate bucket
+		if (bIsActorDiscovery)
+		{
+			ActorDiscovery.BitsAccumulated += Bits;
+			ActorDiscovery.CPUTimeAccumulated += Time;
+
+			// But keep the number of replicated classes unique
+			TrackedData->NumReplications++;
+		}
+		else
+		{
+			TrackedData->BitsAccumulated += Bits;
+			TrackedData->CPUTimeAccumulated += Time;
+			TrackedData->NumReplications++;
 		}
 #endif	
 	}
@@ -1381,6 +1399,7 @@ struct FReplicationGraphCSVTracker
 		ImplicitClassTracker.Set(AActor::StaticClass(), TSharedPtr<FTrackedData>()); // forces caching of "no tracking" for all other classes
 		EverythingElse.Reset();
 		EverythingElse_FastPath.Reset();
+		ActorDiscovery.Reset();
 	}
 
 	void EndReplicationFrame()
@@ -1410,6 +1429,7 @@ struct FReplicationGraphCSVTracker
 
 			PushStats(Profiler, EverythingElse);
 			PushStats(Profiler, EverythingElse_FastPath);
+			PushStats(Profiler, ActorDiscovery);
 		}
 #endif
 	}
@@ -1464,13 +1484,16 @@ private:
 
 	TArray<FTrackerItem, TInlineAllocator<1>> ExplicitClassTracker_FastPath;
 	FTrackedData EverythingElse_FastPath;
+
+	FTrackedData ActorDiscovery;
+
 	bool bIsCapturing = false;
 
 #if REPGRAPH_CSV_TRACKER
 	void PushStats(FCsvProfiler* Profiler, FTrackedData& Data)
 	{
 		const float Bytes = (float)((Data.BitsAccumulated+7) >> 3);
-		const float KBytes = Bytes / 1024.f;
+		const float KBytes = Bytes / 1000.f;
 
 		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphKBytes), KBytes, ECsvCustomStatOp::Set);
 		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphMS), static_cast<float>(Data.CPUTimeAccumulated) * 1000.f, ECsvCustomStatOp::Set);

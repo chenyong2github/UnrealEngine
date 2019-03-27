@@ -127,6 +127,10 @@ void FHealthSnapshot::CapturePerformanceStats(const FPerformanceTrackingChart* G
 		FrameTime.Max = GameplayFPSChart->FrametimeHistogram.GetMaxOfAllMeasures();
 		FrameTime.Avg = GameplayFPSChart->FrametimeHistogram.GetAverageOfAllMeasures();
 
+		DynamicResolution.Min = GameplayFPSChart->DynamicResHistogram.GetMinOfAllMeasures();
+		DynamicResolution.Max = GameplayFPSChart->DynamicResHistogram.GetMaxOfAllMeasures();
+		DynamicResolution.Avg = GameplayFPSChart->DynamicResHistogram.GetAverageOfAllMeasures();
+
 		// What % of frames were bound
 		GameThread.PercentFramesBound = FramesCounted > 0 ? (GameplayFPSChart->NumFramesBound_GameThread * 100.0) / FramesCounted : 0;
 
@@ -174,10 +178,11 @@ void FHealthSnapshot::DumpStats(FOutputDevice& Ar, FName CategoryName)
 	{
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("MeasuredPerfTime: %.02f secs"), MeasuredPerfTime);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("MVP: %.02f%%, AvgFPS:%.2f, HitchesPerMinute: %.2f, Avg Hitch %.02fms"), MVP, AvgFPS, HitchesPerMinute, AvgHitchTime * 1000);
+		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("DynRes: Avg: %.02f%%, Max: %.02f%%, Min: %.02f%%"), DynamicResolution.Avg, DynamicResolution.Max, DynamicResolution.Min);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("FT: Avg: %.02fms, Max: %.02fms, Min: %.02fms"), FrameTime.Avg * 1000, FrameTime.Max * 1000, FrameTime.Min * 1000);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("GT:  Avg %.02fms, Hitches/Min: %.02f, Bound Frames: %.02f%%"), GameThread.AvgTime * 1000, GameThread.HitchesPerMinute, GameThread.PercentFramesBound);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("RT:  Avg %.02fms, Hitches/Min: %.02f, Bound Frames: %.02f%%"), RenderThread.AvgTime * 1000, RenderThread.HitchesPerMinute, RenderThread.PercentFramesBound);
-		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("RHIT:Avg %.02fms, Hitches/Min: %.02f, Bound Frames: %.02f%%"), RHIThread.AvgTime * 1000, RHIThread.HitchesPerMinute, RHIThread.PercentFramesBound);
+		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("RHIT: Avg %.02fms, Hitches/Min: %.02f, Bound Frames: %.02f%%"), RHIThread.AvgTime * 1000, RHIThread.HitchesPerMinute, RHIThread.PercentFramesBound);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("GPU: Avg %.02fms, Hitches/Min: %.02f, Bound Frames: %.02f%%"), GPU.AvgTime * 1000, GPU.HitchesPerMinute, GPU.PercentFramesBound);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("DrawCalls: Avg: %d, Max: %d, Min: %d"), DrawCalls.Avg, DrawCalls.Max, DrawCalls.Min);
 		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("DrawnPrims: Avg: %d, Max: %d, Min: %d"), PrimitivesDrawn.Avg, PrimitivesDrawn.Max, PrimitivesDrawn.Min);

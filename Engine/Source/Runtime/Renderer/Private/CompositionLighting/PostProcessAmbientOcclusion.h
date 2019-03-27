@@ -66,6 +66,30 @@ private:
 	bool IsInitialPass() const;
 };
 
+// ePId_Input0: Lower resolution AO result buffer
+class FRCPassPostProcessAmbientOcclusionSmooth : public TRenderingCompositePassBase<1, 1>
+{
+public:
+	static constexpr int32 ThreadGroupSize1D = 8;
+
+	FRCPassPostProcessAmbientOcclusionSmooth(ESSAOType InAOType, bool bInDirectOutput = false);
+
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) final override;
+	virtual void Release() final override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const final override;
+
+private:
+	template <typename TRHICmdList>
+	void DispatchCS(
+		TRHICmdList& RHICmdList,
+		const FRenderingCompositePassContext& Context,
+		const FIntRect& OutputRect,
+		FUnorderedAccessViewRHIParamRef OutUAV) const;
+
+	const ESSAOType AOType;
+	const bool bDirectOutput;
+};
 
 // ePId_Input0: defines the resolution we compute AO and provides the normal (only needed if bInAOSetupAsInput)
 // ePId_Input1: setup in same resolution as ePId_Input1 for depth expect when running in full resolution, then it's half (only needed if bInAOSetupAsInput)
@@ -76,7 +100,7 @@ class FRCPassPostProcessAmbientOcclusion : public TRenderingCompositePassBase<4,
 {
 public:
 	// @param bInAOSetupAsInput true:use AO setup as input, false: use GBuffer normal and native z depth
-	FRCPassPostProcessAmbientOcclusion(const FSceneView& View, ESSAOType InAOType, bool bInAOSetupAsInput = true);
+	FRCPassPostProcessAmbientOcclusion(const FSceneView& View, ESSAOType InAOType, bool bInAOSetupAsInput = true, bool bInForcecIntermediateOutput = false, EPixelFormat InIntermediateFormatOverride = PF_Unknown);
 
 	// interface FRenderingCompositePass ---------
 	virtual void Process(FRenderingCompositePassContext& Context) override;
@@ -95,7 +119,9 @@ private:
 	void DispatchCS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& TexSize, FUnorderedAccessViewRHIParamRef OutTextureUAV);
 	
 	const ESSAOType AOType;
+	const EPixelFormat IntermediateFormatOverride;
 	const bool bAOSetupAsInput;
+	const bool bForceIntermediateOutput;
 };
 
 // apply the AO to the SceneColor (lightmapped object), extra pas that is not always needed

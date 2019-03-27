@@ -10,6 +10,10 @@
 #include "Windows/WindowsHWrapper.h"
 #endif
 
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#endif
+
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreHDF5/All.h>
@@ -22,6 +26,10 @@ THIRD_PARTY_INCLUDES_START
 #include <Alembic/Abc/IObject.h>
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
+
+#if PLATFORM_WINDOWS
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #include "Rendering/SkeletalMeshLODModel.h"
 

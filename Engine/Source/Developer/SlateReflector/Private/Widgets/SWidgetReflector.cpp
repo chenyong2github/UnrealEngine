@@ -240,6 +240,9 @@ private:
 	 */
 	int32 VisualizeSelectedNodesAsRectangles( const TArray<TSharedRef<FWidgetReflectorNodeBase>>& InNodesToDraw, const TSharedRef<SWindow>& VisualizeInWindow, FSlateWindowElementList& OutDrawElements, int32 LayerId );
 
+	/** Draw the actual highlight */
+	void DrawWidgetVisualization(const FPaintGeometry& WidgetGeometry, FLinearColor Color, FSlateWindowElementList& OutDrawElements, int32& LayerId);
+
 	/** Callback for changing the application scale slider. */
 	void HandleAppScaleSliderChanged( float NewValue )
 	{
@@ -293,6 +296,7 @@ private:
 			{
 				VisualCapture.Reset();
 				SInvalidationPanel::SetEnableWidgetCaching(false);
+				VisualCapture.Reset();
 			}
 			// If we're using the drawing picking mode enable it!
 			else if (PickingMode == EWidgetPickingMode::Drawable)
@@ -1258,25 +1262,18 @@ int32 SWidgetReflector::VisualizePickAsRectangles( const FWidgetPath& InWidgetsT
 		FPaintGeometry WindowSpaceGeometry = WidgetGeometry.Geometry.ToPaintGeometry();
 		WindowSpaceGeometry.AppendTransform(TransformCast<FSlateLayoutTransform>(Inverse(InWidgetsToVisualize.TopLevelWindow->GetPositionInScreen())));
 
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			++LayerId,
-			WindowSpaceGeometry,
-			FCoreStyle::Get().GetBrush(TEXT("Debug.Border")),
-			ESlateDrawEffect::None,
-			FMath::Lerp(TopmostWidgetColor, LeafmostWidgetColor, ColorFactor)
-		);
+		FLinearColor Color = FMath::Lerp(TopmostWidgetColor, LeafmostWidgetColor, ColorFactor);
+		DrawWidgetVisualization(WindowSpaceGeometry, Color, OutDrawElements, LayerId);
 	}
 
 	return LayerId;
 }
 
-
 int32 SWidgetReflector::VisualizeSelectedNodesAsRectangles( const TArray<TSharedRef<FWidgetReflectorNodeBase>>& InNodesToDraw, const TSharedRef<SWindow>& VisualizeInWindow, FSlateWindowElementList& OutDrawElements, int32 LayerId )
 {
 	for (int32 NodeIndex = 0; NodeIndex < InNodesToDraw.Num(); ++NodeIndex)
 	{
-		const auto& NodeToDraw = InNodesToDraw[NodeIndex];
+		const TSharedRef<FWidgetReflectorNodeBase>& NodeToDraw = InNodesToDraw[NodeIndex];
 		const FLinearColor Tint(0.0f, 1.0f, 0.0f);
 
 		// The FGeometry we get is from a WidgetPath, so it's rooted in desktop space.
@@ -1287,17 +1284,50 @@ int32 SWidgetReflector::VisualizeSelectedNodesAsRectangles( const TArray<TShared
 		FPaintGeometry WindowSpaceGeometry(NodeToDraw->GetAccumulatedLayoutTransform(), NodeToDraw->GetAccumulatedRenderTransform(), NodeToDraw->GetLocalSize(), NodeToDraw->GetGeometry().HasRenderTransform());
 		WindowSpaceGeometry.AppendTransform(TransformCast<FSlateLayoutTransform>(Inverse(VisualizeInWindow->GetPositionInScreen())));
 
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			++LayerId,
-			WindowSpaceGeometry,
-			FCoreStyle::Get().GetBrush(TEXT("Debug.Border")),
-			ESlateDrawEffect::None,
-			NodeToDraw->GetTint()
-		);
+		DrawWidgetVisualization(WindowSpaceGeometry, NodeToDraw->GetTint(), OutDrawElements, LayerId);
 	}
 
 	return LayerId;
+}
+
+void SWidgetReflector::DrawWidgetVisualization(const FPaintGeometry& WidgetGeometry, FLinearColor Color, FSlateWindowElementList& OutDrawElements, int32& LayerId)
+{
+	WidgetGeometry.CommitTransformsIfUsingLegacyConstructor();
+	const FVector2D LocalSize = WidgetGeometry.GetLocalSize();
+
+	// If the size is 0 in any dimension, we're going to draw a line to represent the widget, since it's going to take up
+	// padding space since it's visible, even though it's zero sized.
+	if (FMath::IsNearlyZero(LocalSize.X) || FMath::IsNearlyZero(LocalSize.Y))
+	{
+		TArray<FVector2D> LinePoints;
+		LinePoints.SetNum(2);
+
+		LinePoints[0] = FVector2D::ZeroVector;
+		LinePoints[1] = LocalSize;
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			++LayerId,
+			WidgetGeometry,
+			LinePoints,
+			ESlateDrawEffect::None,
+			Color,
+			true,
+			2
+		);
+	}
+	else
+	{
+		// Draw a normal box border around the geometry
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			++LayerId,
+			WidgetGeometry,
+			FCoreStyle::Get().GetBrush(TEXT("Debug.Border")),
+			ESlateDrawEffect::None,
+			Color
+		);
+	}
 }
 
 

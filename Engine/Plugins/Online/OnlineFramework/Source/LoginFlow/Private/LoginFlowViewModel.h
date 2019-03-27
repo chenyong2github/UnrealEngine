@@ -42,6 +42,9 @@ public:
 
 	/** @return the context settings for the underlying browser */
 	virtual const TSharedPtr<FBrowserContextSettings>& GetBrowserContextSettings() const = 0;
+
+	/** @return whether or not the login flow should consume any input not handled by the browser window */
+	virtual bool ShouldConsumeInput() const = 0;
 };
 
 FACTORY(TSharedRef<FLoginFlowViewModel>, FLoginFlowViewModel,
@@ -49,4 +52,5 @@ FACTORY(TSharedRef<FLoginFlowViewModel>, FLoginFlowViewModel,
 		 const TSharedPtr<FBrowserContextSettings>& BrowserContextSettings,
 		 const FOnLoginFlowRequestClose& OnRequestClose,
 		 const FOnLoginFlowError& OnError,
-	     const FOnLoginFlowRedirectURL& OnRedirectURL);
+	     const FOnLoginFlowRedirectURL& OnRedirectURL,
+	     const bool bConsumeInput);

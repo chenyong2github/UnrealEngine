@@ -25,6 +25,11 @@ FUserWidgetPool::~FUserWidgetPool()
 	ResetPool();
 }
 
+void FUserWidgetPool::SetWorld(UWorld* InOwningWorld)
+{
+	OwningWorld = InOwningWorld;
+}
+
 void FUserWidgetPool::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects<UUserWidget>(ActiveWidgets, OwningWidget.Get());

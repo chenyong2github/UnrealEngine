@@ -338,15 +338,13 @@ DECLARE_DELEGATE_OneParam(FOnGroupsRequestCompleted, FGroupsResult);
  */
 struct FFindGroupsResult
 {
-	int32 HttpStatus;
+	bool bDidSucceed;
 	TArray< TSharedPtr<const IGroupInfo> > MatchingGroups;
 	FPagedQuery Paging;
 	FString ErrorContent;
 
-	inline bool DidSucceed() const { return EHttpResponseCodes::IsOk(HttpStatus); }
-
 	FFindGroupsResult()
-		: HttpStatus(0)
+		: bDidSucceed(false)
 	{
 	}
 };

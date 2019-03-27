@@ -49,6 +49,7 @@ Landscape.cpp: Terrain rendering
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "LandscapeWeightmapUsage.h"
 
 #if WITH_EDITOR
 #include "MaterialUtilities.h"
@@ -75,10 +76,17 @@ DEFINE_STAT(STAT_LandscapeComponentUsingSubSectionDrawCalls);
 DEFINE_STAT(STAT_LandscapeDrawCalls);
 DEFINE_STAT(STAT_LandscapeTriangles);
 
+DEFINE_STAT(STAT_LandscapeRegenerateProcedural_RenderThread);
+DEFINE_STAT(STAT_LandscapeRegenerateProceduralDrawCalls);
+
 DEFINE_STAT(STAT_LandscapeRegenerateProceduralHeightmaps);
-DEFINE_STAT(STAT_LandscapeRegenerateProceduralHeightmaps_RenderThread);
 DEFINE_STAT(STAT_LandscapeResolveProceduralHeightmap);
-DEFINE_STAT(STAT_LandscapeRegenerateProceduralHeightmapsDrawCalls);
+
+DEFINE_STAT(STAT_LandscapeProceduralUpdateMaterialInstance);
+DEFINE_STAT(STAT_LandscapeReallocateProceduralWeightmaps);
+
+DEFINE_STAT(STAT_LandscapeResolveProceduralWeightmap);
+DEFINE_STAT(STAT_LandscapeRegenerateProceduralWeightmaps);
 
 DEFINE_STAT(STAT_LandscapeVertexMem);
 DEFINE_STAT(STAT_LandscapeOccluderMem);
@@ -161,6 +169,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 
 #if WITH_EDITORONLY_DATA
 	EditToolRenderData = FLandscapeEditToolRenderData();
+	CurrentProceduralLayerGuid.Invalidate();
 #endif
 
 	LpvBiasMultiplier = 0.0f; // Bias is 0 for landscape, since it's single sided
@@ -213,6 +222,41 @@ UMaterialInstanceDynamic* ULandscapeComponent::GetMaterialInstanceDynamic(int32 
 void ULandscapeComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	ULandscapeComponent* This = CastChecked<ULandscapeComponent>(InThis);
+
+#if WITH_EDITORONLY_DATA
+	Collector.AddReferencedObject(This->CurrentEditingHeightmapTexture);
+
+	if (This->CurrentEditingWeightmapLayerAllocations != nullptr)
+	{
+		for (FWeightmapLayerAllocationInfo& WeightmapLayerAllocation : *This->CurrentEditingWeightmapLayerAllocations)
+		{
+			Collector.AddReferencedObject(WeightmapLayerAllocation.LayerInfo);
+		}
+	}
+
+	if (This->CurrentEditingWeightmapTexturesUsage != nullptr)
+	{
+		for (ULandscapeWeightmapUsage* TextureUsage : *This->CurrentEditingWeightmapTexturesUsage)
+		{
+			if (TextureUsage != nullptr)
+			{
+				for (int32 i = 0; i < 4; ++i)
+				{
+					Collector.AddReferencedObject(TextureUsage->ChannelUsage[i]);
+				}
+			}
+		}
+	}	
+
+	if (This->CurrentEditingWeightmapTextures != nullptr)
+	{
+		for (UTexture2D* Weightmap : *This->CurrentEditingWeightmapTextures)
+		{
+			Collector.AddReferencedObject(Weightmap);
+		}
+	}
+#endif
+
 	Super::AddReferencedObjects(This, Collector);
 }
 
@@ -537,21 +581,23 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 			if (LayerStruct.DebugColorChannel > 0
 				&& LayerStruct.LayerInfoObj)
 			{
-				for (int32 LayerIdx = 0; LayerIdx < WeightmapLayerAllocations.Num(); LayerIdx++)
+				const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(true);
+
+				for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 				{
-					if (WeightmapLayerAllocations[LayerIdx].LayerInfo == LayerStruct.LayerInfoObj)
+					if (ComponentWeightmapLayerAllocations[LayerIdx].LayerInfo == LayerStruct.LayerInfoObj)
 					{
 						if (LayerStruct.DebugColorChannel & 1) // R
 						{
-							R = (WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
+							R = (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
 						}
 						if (LayerStruct.DebugColorChannel & 2) // G
 						{
-							G = (WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
+							G = (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
 						}
 						if (LayerStruct.DebugColorChannel & 4) // B
 						{
-							B = (WeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
+							B = (ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex * 4 + ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel);
 						}
 						break;
 					}
@@ -942,7 +988,12 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	bLockLocation = false;
 	PreviousExperimentalLandscapeProcedural = false;
+	WasCompilingShaders = false;
 	ProceduralContentUpdateFlags = 0;
+	CombinedProcLayerWeightmapAllLayersResource = nullptr;
+	CurrentProcLayerWeightmapAllLayersResource = nullptr;
+	WeightmapScratchExtractLayerTextureResource = nullptr;
+	WeightmapScratchPackLayerTextureResource = nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -1037,9 +1088,9 @@ void ULandscapeComponent::GetGeneratedTexturesAndMaterialInstances(TArray<UObjec
 		OutTexturesAndMaterials.Add(CurrentEditingHeightmapTexture);
 	}
 
-	for (auto* Tex : WeightmapTextures)
+	for (UTexture2D* Weightmap : WeightmapTextures)
 	{
-		OutTexturesAndMaterials.Add(Tex);
+		OutTexturesAndMaterials.Add(Weightmap);
 	}
 
 	if (XYOffsetmapTexture)
@@ -1165,18 +1216,20 @@ void ULandscapeComponent::BeginDestroy()
 			if (WeightmapTextures.IsValidIndex(WeightmapIndex))
 			{
 				UTexture2D* WeightmapTexture = WeightmapTextures[WeightmapIndex];
-				FLandscapeWeightmapUsage* Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
-				if (Usage != nullptr)
+				ULandscapeWeightmapUsage** Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+				if (Usage != nullptr && (*Usage) != nullptr)
 				{
-					Usage->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
+					(*Usage)->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
-					if (Usage->FreeChannelCount() == 4)
+					if ((*Usage)->FreeChannelCount() == 4)
 					{
 						Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
 					}
 				}
 			}
 		}
+
+		WeightmapTexturesUsage.Reset();
 	}
 #endif
 }
@@ -1301,20 +1354,192 @@ UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnCurrentEditingHeightm
 	return HeightmapTexture;
 }
 
+const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnCurrentEditingWeightmap) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapTextures != nullptr)
+		{
+			return *CurrentEditingWeightmapTextures;
+		}
+	}
+#endif
+
+	return WeightmapTextures;
+}
+
+TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnCurrentEditingWeightmap)
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapTextures != nullptr)
+		{
+			return *CurrentEditingWeightmapTextures;
+		}
+	}
+#endif
+
+	return WeightmapTextures;
+}
+
+const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapLayerAllocations != nullptr)
+		{
+			return *CurrentEditingWeightmapLayerAllocations;
+		}
+	}
+#endif
+
+	return WeightmapLayerAllocations;
+}
+
+TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnCurrentEditingWeightmap)
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapLayerAllocations != nullptr)
+		{
+			return *CurrentEditingWeightmapLayerAllocations;
+		}
+	}
+#endif
+
+	return WeightmapLayerAllocations;
+}
+
 #if WITH_EDITOR
+
+void ULandscapeComponent::SetCurrentEditingProceduralLayer(FProceduralLayer* Layer, FProceduralLayerData* LayerData)
+{
+	// Update Current Heightmap
+	UTexture2D** LayerHeightmap = LayerData ? LayerData->Heightmaps.Find(GetHeightmap()) : nullptr;
+	SetCurrentEditingHeightmap(LayerHeightmap ? *LayerHeightmap : nullptr);
+
+	// Update Current Weightmaps
+	FWeightmapLayerData* WeightmapData = LayerData ? LayerData->WeightmapData.Find(this) : nullptr;
+	SetCurrentEditingWeightmapLayerAllocations(WeightmapData ? &WeightmapData->WeightmapLayerAllocations : nullptr);
+	SetCurrentEditingWeightmaps(WeightmapData ? &WeightmapData->Weightmaps : nullptr);
+	SetCurrentProceduralLayerGuid(WeightmapData && Layer ? Layer->Guid : FGuid());
+	SetCurrentEditingWeightmapTexturesUsage(WeightmapData ? &WeightmapData->WeightmapTextureUsages : nullptr);
+}
+
 void ULandscapeComponent::SetCurrentEditingHeightmap(UTexture2D* InNewHeightmap)
 {
 #if WITH_EDITORONLY_DATA
 	CurrentEditingHeightmapTexture = InNewHeightmap;
 #endif
 }
-#endif
 
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
 {
 	check(NewHeightmap != nullptr);
 	HeightmapTexture = NewHeightmap;
 }
+
+void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToCurrentEditingWeightmap)
+{
+#if WITH_EDITORONLY_DATA
+	if (InApplyToCurrentEditingWeightmap && CurrentEditingWeightmapTextures != nullptr)
+	{
+		CurrentEditingWeightmapTextures->Reset(InNewWeightmapTextures.Num());
+		CurrentEditingWeightmapTextures->Append(InNewWeightmapTextures);
+	}
+	else
+#endif
+	{
+		WeightmapTextures = InNewWeightmapTextures;
+	}
+}
+
+void ULandscapeComponent::SetCurrentEditingWeightmaps(TArray<UTexture2D*>* InNewWeightmapTextures)
+{
+#if WITH_EDITORONLY_DATA
+	CurrentEditingWeightmapTextures = InNewWeightmapTextures;
+#endif
+}
+
+void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations)
+{
+	WeightmapLayerAllocations = InNewWeightmapLayerAllocations;
+}
+
+
+void ULandscapeComponent::SetCurrentEditingWeightmapLayerAllocations(TArray<FWeightmapLayerAllocationInfo>* InNewWeightmapLayerAllocations)
+{
+#if WITH_EDITORONLY_DATA
+	CurrentEditingWeightmapLayerAllocations = InNewWeightmapLayerAllocations;
+#endif
+}
+
+TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap)
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapTexturesUsage != nullptr)
+		{
+			return *CurrentEditingWeightmapTexturesUsage;
+		}
+	}
+#endif
+
+	return WeightmapTexturesUsage;
+}
+
+const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InReturnCurrentEditingWeightmap && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	{
+		if (CurrentEditingWeightmapTexturesUsage != nullptr)
+		{
+			return *CurrentEditingWeightmapTexturesUsage;
+		}
+	}
+#endif
+
+	return WeightmapTexturesUsage;
+}
+
+void ULandscapeComponent::SetCurrentEditingWeightmapTexturesUsage(TArray<ULandscapeWeightmapUsage*>* InNewWeightmapTexturesUsage)
+{
+#if WITH_EDITORONLY_DATA
+	CurrentEditingWeightmapTexturesUsage = InNewWeightmapTexturesUsage;
+#endif
+}
+
+void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToCurrentEditingWeightmap )
+{
+#if WITH_EDITORONLY_DATA
+	if (InApplyToCurrentEditingWeightmap && CurrentEditingWeightmapTexturesUsage != nullptr)
+	{
+		CurrentEditingWeightmapTexturesUsage->Reset(InNewWeightmapTexturesUsage.Num());
+		CurrentEditingWeightmapTexturesUsage->Append(InNewWeightmapTexturesUsage);
+	}
+	else
+#endif
+	{
+		WeightmapTexturesUsage = InNewWeightmapTexturesUsage;
+	}
+}
+
+void ULandscapeComponent::SetCurrentProceduralLayerGuid(const FGuid& InLayerGuid)
+{
+	CurrentProceduralLayerGuid = InLayerGuid;
+}
+
+const FGuid& ULandscapeComponent::GetCurrentProceduralLayerGuid() const
+{
+	return CurrentProceduralLayerGuid;
+}
+#endif
 
 void ALandscapeProxy::PostRegisterAllComponents()
 {
@@ -1357,10 +1582,10 @@ void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 	Super::UnregisterAllComponents(bForReregister);
 }
 
-// FLandscapeWeightmapUsage serializer
-FArchive& operator<<(FArchive& Ar, FLandscapeWeightmapUsage& U)
+
+FArchive& operator<<(FArchive& Ar, FWeightmapLayerAllocationInfo& U)
 {
-	return Ar << U.ChannelUsage[0] << U.ChannelUsage[1] << U.ChannelUsage[2] << U.ChannelUsage[3];
+	return Ar << U.LayerInfo << U.WeightmapTextureChannel << U.WeightmapTextureIndex;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1435,29 +1660,10 @@ void ALandscape::PostLoad()
 				break;
 			}
 		}
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-		{
-			FEditorDelegates::PreSaveWorld.AddUObject(this, &ALandscape::OnPreSaveWorld);
-			FEditorDelegates::PostSaveWorld.AddUObject(this, &ALandscape::OnPostSaveWorld);
-		}
 #endif
 	}
 
 	Super::PostLoad();
-}
-
-void ALandscape::BeginDestroy()
-{
-#if WITH_EDITOR
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-	{
-		FEditorDelegates::PreSaveWorld.RemoveAll(this);
-		FEditorDelegates::PostSaveWorld.RemoveAll(this);
-	}
-#endif
-
-	Super::BeginDestroy();
 }
 
 #if WITH_EDITOR
@@ -1525,13 +1731,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			}
 		}
 	}
-
-#if WITH_EDITOR
-	if (Ar.IsTransacting())
-	{
-		Ar << WeightmapUsageMap;
-	}
-#endif
 }
 
 void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -1543,15 +1742,6 @@ void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 #if WITH_EDITORONLY_DATA
 	Collector.AddReferencedObjects(This->MaterialInstanceConstantMap, This);
 #endif
-
-	for (auto It = This->WeightmapUsageMap.CreateIterator(); It; ++It)
-	{
-		Collector.AddReferencedObject(It.Key(), This);
-		Collector.AddReferencedObject(It.Value().ChannelUsage[0], This);
-		Collector.AddReferencedObject(It.Value().ChannelUsage[1], This);
-		Collector.AddReferencedObject(It.Value().ChannelUsage[2], This);
-		Collector.AddReferencedObject(It.Value().ChannelUsage[3], This);
-	}
 }
 
 #if WITH_EDITOR
@@ -1706,9 +1896,11 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
 						}
 					}
 
-					for (int32 AllocationIndex = 0; AllocationIndex < Component->WeightmapLayerAllocations.Num(); AllocationIndex++)
+					TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+
+					for (int32 AllocationIndex = 0; AllocationIndex < ComponentWeightmapLayerAllocations.Num(); AllocationIndex++)
 					{
-						ULandscapeLayerInfoObject* LayerInfo = Component->WeightmapLayerAllocations[AllocationIndex].LayerInfo;
+						ULandscapeLayerInfoObject* LayerInfo = ComponentWeightmapLayerAllocations[AllocationIndex].LayerInfo;
 						if (LayerInfo)
 						{
 							int32 LayerInfoIndex = GetLayerInfoIndex(LayerInfo);
@@ -2646,6 +2838,12 @@ void ULandscapeComponent::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
+ULandscapeWeightmapUsage::ULandscapeWeightmapUsage(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	ClearUsage();
+}
+
 // Generate a new guid to force a recache of all landscape derived data
 #define LANDSCAPE_FULL_DERIVEDDATA_VER			TEXT("016D326F3A954BBA9CCDFA00CEFA31E9")
 
@@ -2757,47 +2955,9 @@ void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunct
 	Super::TickActor(DeltaTime, TickType, ThisTickFunction);
 
 #if WITH_EDITOR
-	UWorld* World = GetWorld();
-	if (GIsEditor && World && !World->IsPlayInEditor())
+	if (GIsEditor)
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-		{
-			if (PreviousExperimentalLandscapeProcedural != GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-			{
-				PreviousExperimentalLandscapeProcedural = GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape;
-
-				RequestProceduralContentUpdate(EProceduralContentUpdateFlag::All_Setup);
-			}
-
-			RegenerateProceduralContent();
-		}
-		else
-		{
-			if (PreviousExperimentalLandscapeProcedural != GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-			{
-				PreviousExperimentalLandscapeProcedural = GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape;
-
-				for (auto& ItPair : RenderDataPerHeightmap)
-				{
-					FRenderDataPerHeightmap& HeightmapRenderData = ItPair.Value;
-
-					if (HeightmapRenderData.HeightmapsCPUReadBack != nullptr)
-					{
-						BeginReleaseResource(HeightmapRenderData.HeightmapsCPUReadBack);
-					}
-				}
-
-				FlushRenderingCommands();
-
-				for (auto& ItPair : RenderDataPerHeightmap)
-				{
-					FRenderDataPerHeightmap& HeightmapRenderData = ItPair.Value;
-
-					delete HeightmapRenderData.HeightmapsCPUReadBack;
-					HeightmapRenderData.HeightmapsCPUReadBack = nullptr;
-				}
-			}
-		}
+		TickProcedural(DeltaTime, TickType, ThisTickFunction);
 	}
 #endif
 }

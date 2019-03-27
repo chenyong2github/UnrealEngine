@@ -14,6 +14,11 @@ extern bool GShowSplashScreen;
  */
 - (void)ShowConsole
 {
+	if (self.ConsoleAlertController != nil)
+	{
+		return;
+	}
+	
 	// start at the end of the list for history
 	self.ConsoleHistoryValuesIndex = [self.ConsoleHistoryValues count];
 
@@ -36,6 +41,8 @@ extern bool GShowSplashScreen;
 										// we clicked Ok (not Cancel at index 0), submit the console command
                                         UITextField* AlertTextField = self.ConsoleAlertController.textFields.firstObject;
 										[self HandleConsoleCommand:AlertTextField.text];
+
+										self.ConsoleAlertController = nil;
 									}
 		];
 		UIAlertAction* cancelAction = [UIAlertAction
@@ -45,6 +52,7 @@ extern bool GShowSplashScreen;
 										{
 											self.AlertResponse = 0;
 											[self.ConsoleAlertController dismissViewControllerAnimated : YES completion : nil];
+											self.ConsoleAlertController = nil;
 										}
 		];
 
@@ -160,9 +168,9 @@ extern bool GShowSplashScreen;
 {
 	if (GShowSplashScreen)
 	{
-		if ([[IOSAppDelegate GetDelegate].Window viewWithTag : 2] != nil)
+		if ([[IOSAppDelegate GetDelegate].Window viewWithTag : 200] != nil)
 		{
-			[[[IOSAppDelegate GetDelegate].Window viewWithTag : 2] removeFromSuperview];
+			[[[IOSAppDelegate GetDelegate].Window viewWithTag : 200] removeFromSuperview];
 		}
 		GShowSplashScreen = false;
 	}

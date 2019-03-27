@@ -22,6 +22,7 @@
 #include "EditorModes.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
+#include "Landscape.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -41,6 +42,7 @@
 #include "IDetailGroup.h"
 #include "Widgets/SBoxPanel.h"
 #include "Editor/EditorStyle/Private/SlateEditorStyle.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.TargetLayers"
 
@@ -700,6 +702,24 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::GetProceduralLayerSubstractiveBlendVisibility, Target)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(0, 2, 2, 2)
+						[
+							SNew(SCheckBox)
+							.IsChecked_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::ProceduralLayerSubstractiveBlendIsChecked, Target)
+							.OnCheckStateChanged_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnProceduralLayerSubstractiveBlendChanged, Target)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("ViewMode.Debug_None", "Substractive Blend"))
+							]
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
 						.Visibility_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeColorChannelVisibility, Target)
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -919,7 +939,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLaye
 
 				// Rebuild material instances
 				FUIAction RebuildAction = FUIAction(FExecuteAction::CreateStatic(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnRebuildMICs, Target));
-				MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Rebuild", "Rebuild Materials"), LOCTEXT("LayerContextMenu.Rebuild_Tooltip", "Rebuild material instances used for this landscape."), FSlateIcon(), ClearAction);
+				MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Rebuild", "Rebuild Materials"), LOCTEXT("LayerContextMenu.Rebuild_Tooltip", "Rebuild material instances used for this landscape."), FSlateIcon(), RebuildAction);
 			}
 			else if (Target->TargetType == ELandscapeToolTargetType::Visibility)
 			{
@@ -1070,14 +1090,37 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnFillLayer(const TSharedRe
 	if (Target->LandscapeInfo.IsValid() && Target->LayerInfoObj.IsValid())
 	{
 		FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
-		LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
+
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		if (LandscapeEdMode)
+		{
+			FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid(), [&] { LandscapeEdMode->RequestProceduralContentUpdate(true); });
+			LandscapeEdit.FillLayer(Target->LayerInfoObj.Get());
+		}
 	}
 }
 
 void FLandscapeEditorCustomNodeBuilder_TargetLayers::FillEmptyLayers(ULandscapeInfo* LandscapeInfo, ULandscapeLayerInfoObject* LandscapeInfoObject)
 {
-	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-	LandscapeEdit.FillEmptyLayers(LandscapeInfoObject);
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
+		
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		{
+			if (LandscapeEdMode->NeedToFillEmptyLayersForProcedural())
+			{
+				FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid());
+				LandscapeEdit.FillEmptyLayers(LandscapeInfoObject);
+			}
+		}
+		else
+		{
+			LandscapeEdit.FillEmptyLayers(LandscapeInfoObject);
+		}
+	}
+
 }
 
 
@@ -1086,8 +1129,13 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnClearLayer(const TSharedR
 	FScopedTransaction Transaction(LOCTEXT("Undo_ClearLayer", "Clearing Landscape Layer"));
 	if (Target->LandscapeInfo.IsValid() && Target->LayerInfoObj.IsValid())
 	{
-		FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
-		LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		if (LandscapeEdMode)
+		{
+			FScopedSetLandscapeCurrentEditingProceduralLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentProceduralLayerGuid(), [&] { LandscapeEdMode->RequestProceduralContentUpdate(true); });
+			FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
+			LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
+		}
 	}
 }
 
@@ -1375,6 +1423,36 @@ EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeLayerUsa
 	}
 
 	return EVisibility::Visible;
+}
+
+EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetProceduralLayerSubstractiveBlendVisibility(const TSharedRef<FLandscapeTargetListInfo> Target)
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && Target->TargetType != ELandscapeToolTargetType::Heightmap && Target->LayerInfoObj.IsValid())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+ECheckBoxState FLandscapeEditorCustomNodeBuilder_TargetLayers::ProceduralLayerSubstractiveBlendIsChecked(const TSharedRef<FLandscapeTargetListInfo> Target)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		return LandscapeEdMode->IsCurrentProceduralLayerBlendSubstractive(Target.Get().LayerInfoObj) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	return ECheckBoxState::Unchecked;
+}
+
+void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnProceduralLayerSubstractiveBlendChanged(ECheckBoxState NewCheckedState, const TSharedRef<FLandscapeTargetListInfo> Target)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		LandscapeEdMode->SetCurrentProceduralLayerSubstractiveBlendStatus(NewCheckedState == ECheckBoxState::Checked, Target.Get().LayerInfoObj);
+	}
 }
 
 EVisibility FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeColorChannelVisibility(const TSharedRef<FLandscapeTargetListInfo> Target)

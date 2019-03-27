@@ -42,7 +42,10 @@ void FSslModule::StartupModule()
 	SslManagerPtr = new FSslManager();
 
 	CertificateManagerPtr = new FPlatformSslCertificateManager();
-	static_cast<FPlatformSslCertificateManager*>(CertificateManagerPtr)->BuildRootCertificateArray();
+	{
+		SCOPED_BOOT_TIMING("BuildRootCertificateArray");
+		static_cast<FPlatformSslCertificateManager*>(CertificateManagerPtr)->BuildRootCertificateArray();
+	}
 
 	// Load pinned public keys from Engine.ini. For example to pin epicgames.com and its subdomains to require Amazon Root CA 1 or Starfield Services Root Certificate Authority - G2 in the cert chain,
 	// [SSL]

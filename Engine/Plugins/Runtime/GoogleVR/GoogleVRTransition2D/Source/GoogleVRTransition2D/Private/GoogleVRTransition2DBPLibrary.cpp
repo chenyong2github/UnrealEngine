@@ -16,7 +16,7 @@ void UGoogleVRTransition2DBPLibrary::Initialize()
 {
 #if PLATFORM_ANDROID
 	JNIEnv* env = FAndroidApplication::GetJavaEnv();
-	_TransitionHelperClass = (jclass)env->NewGlobalRef(FAndroidApplication::FindJavaClass("com/google/vr/sdk/samples/transition/GVRTransitionHelper"));
+	_TransitionHelperClass = FAndroidApplication::FindJavaClassGlobalRef("com/google/vr/sdk/samples/transition/GVRTransitionHelper");
 	_TransitionTo2DMethodId = env->GetStaticMethodID(_TransitionHelperClass, "transitionTo2D", "(Landroid/app/Activity;)V");
 	_TransitionToVRMethodId = env->GetStaticMethodID(_TransitionHelperClass, "transitionToVR", "()V");
 #endif

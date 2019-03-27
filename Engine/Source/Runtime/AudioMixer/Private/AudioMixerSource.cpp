@@ -58,16 +58,18 @@ namespace Audio
 
 		FSoundSource::InitCommon();
 
+		check(WaveInstance->WaveData);
+
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
-
-		AUDIO_MIXER_CHECK(WaveInstance->WaveData);
-
 		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)
 		{
 			check(!InWaveInstance->WaveData->RawPCMData || InWaveInstance->WaveData->RawPCMDataSize);
 			const int32 NumBytes = WaveInstance->WaveData->RawPCMDataSize;
-			NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
+			if (WaveInstance->WaveData->NumChannels > 0)
+			{
+				NumFrames = NumBytes / (WaveInstance->WaveData->NumChannels * sizeof(int16));
+			}
 		}
 
 		// Unfortunately, we need to know if this is a vorbis source since channel maps are different for 5.1 vorbis files
@@ -88,6 +90,8 @@ namespace Audio
 			MixerSourceVoice = MixerDevice->GetMixerSourceVoice();
 			if (!MixerSourceVoice)
 			{
+				FreeResources();
+				UE_LOG(LogAudioMixer, Warning, TEXT("Failed to get a mixer source voice for sound %s."), *InWaveInstance->GetName());
 				return false;
 			}
 
@@ -282,6 +286,37 @@ namespace Audio
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
 			MixerBuffer->InitSampleRate(WaveInstance->WaveData->GetSampleRateForCurrentPlatform());
 
+			// Retrieve the raw pcm buffer data and the precached buffers before initializing so we can avoid having USoundWave ptrs in audio renderer thread
+			EBufferType::Type BufferType = MixerBuffer->GetType();
+			if (BufferType == EBufferType::PCM || BufferType == EBufferType::PCMPreview)
+			{
+				FRawPCMDataBuffer RawPCMDataBuffer;
+				MixerBuffer->GetPCMData(&RawPCMDataBuffer.Data, &RawPCMDataBuffer.DataSize);
+				MixerSourceBuffer->SetPCMData(RawPCMDataBuffer);
+			}
+#if PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS > 0
+			else if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
+			{
+				USoundWave* WaveData = WaveInstance->WaveData;
+				if (WaveData->CachedRealtimeFirstBuffer)
+				{
+					const uint32 NumPrecacheSamples = (uint32)(WaveData->NumPrecacheFrames * WaveData->NumChannels);
+					const uint32 BufferSize = NumPrecacheSamples * sizeof(int16) * PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS;
+
+					TArray<uint8> PrecacheBufferCopy;
+					PrecacheBufferCopy.AddUninitialized(BufferSize);
+
+					FMemory::Memcpy(PrecacheBufferCopy.GetData(), WaveData->CachedRealtimeFirstBuffer, BufferSize);
+
+					MixerSourceBuffer->SetCachedRealtimeFirstBuffers(MoveTemp(PrecacheBufferCopy));
+				}
+			}
+#endif
+
+			// Pass the decompression state off to the mixer source buffer if it hasn't already done so
+			ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(true);
+			MixerSourceBuffer->SetDecoder(Decoder);
+
 			// Hand off the mixer source buffer decoder
 			InitParams.MixerSourceBuffer = MixerSourceBuffer;
 			MixerSourceBuffer = nullptr;
@@ -297,8 +332,15 @@ namespace Audio
 			else
 			{
 				InitializationState = EMixerSourceInitializationState::NotInitialized;
+				UE_LOG(LogAudioMixer, Warning, TEXT("Failed to initialize mixer source voice '%s'."), *InWaveInstance->GetName());
 			}
 		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Num channels was 0 for sound buffer '%s'."), *InWaveInstance->GetName());
+		}
+
+		FreeResources();
 		return false;
 	}
 
@@ -427,13 +469,20 @@ namespace Audio
 						if (WaveInstance->StartTime > 0.0f || WaveInstance->WaveData->bProcedural || WaveInstance->WaveData->bIsBus || !WaveInstance->WaveData->CachedRealtimeFirstBuffer)
 						{
 							// Before reading more PCMRT data, we first need to seek the buffer
-							if (WaveInstance->StartTime > 0.0f && !WaveInstance->WaveData->bIsBus && !WaveInstance->WaveData->bProcedural)
+							if (WaveInstance->StartTime > 0.0f && !(BufferType == EBufferType::Streaming) && !WaveInstance->WaveData->bIsBus && !WaveInstance->WaveData->bProcedural)
 							{
 								MixerBuffer->Seek(WaveInstance->StartTime);
 							}
 
 							check(MixerSourceBuffer.IsValid());
-							MixerSourceBuffer->ReadMoreRealtimeData(0, EBufferReadMode::Asynchronous);
+
+							ICompressedAudioInfo* Decoder = MixerBuffer->GetDecompressionState(false);
+							if (BufferType == EBufferType::Streaming)
+							{
+								IStreamingManager::Get().GetAudioStreamingManager().AddDecoder(Decoder);
+							}
+
+							MixerSourceBuffer->ReadMoreRealtimeData(Decoder, 0, EBufferReadMode::Asynchronous);
 
 							// not ready
 							return false;
@@ -484,6 +533,11 @@ namespace Audio
 	void FMixerSource::Stop()
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
+
+		if (InitializationState == EMixerSourceInitializationState::NotInitialized)
+		{
+			return;
+		}
 
 		if (!MixerSourceVoice)
 		{
@@ -687,10 +741,20 @@ namespace Audio
 		}
 
 		MixerSourceBuffer = nullptr;
-		MixerBuffer = nullptr;
 		Buffer = nullptr;
 		bLoopCallback = false;
 		NumTotalFrames = 0;
+
+		if (MixerBuffer)
+		{
+			EBufferType::Type BufferType = MixerBuffer->GetType();
+			if (BufferType == EBufferType::PCMRealTime || BufferType == EBufferType::Streaming)
+			{
+				delete MixerBuffer;
+			}
+
+			MixerBuffer = nullptr;
+		}
 
 		// Reset the source's channel maps
 		for (int32 i = 0; i < (int32)ESubmixChannelFormat::Count; ++i)
@@ -698,6 +762,8 @@ namespace Audio
 			ChannelMaps[i].bUsed = false;
 			ChannelMaps[i].ChannelMap.Reset();
 		}
+
+		InitializationState = EMixerSourceInitializationState::NotInitialized;
 	}
 
 	void FMixerSource::UpdatePitch()
@@ -739,6 +805,7 @@ namespace Audio
 			CurrentVolume = WaveInstance->GetVolume();
 			CurrentVolume *= WaveInstance->GetVolumeApp();
 			CurrentVolume *= AudioDevice->GetPlatformAudioHeadroom();
+			CurrentVolume *= WaveInstance->GetDynamicVolume();
 			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
 		}
 

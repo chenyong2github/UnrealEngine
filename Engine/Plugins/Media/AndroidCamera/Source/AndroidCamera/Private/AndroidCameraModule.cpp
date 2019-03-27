@@ -43,17 +43,11 @@ public:
 			static jmethodID QueryMethod = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_AndroidCamera_GetCameraUrl", "(I)Ljava/lang/String;", false);
 			for (int CameraIndex = 0; CameraIndex < CountCameras; ++CameraIndex)
 			{
-
-				jstring JavaString = (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, QueryMethod, CameraIndex);
-				if (JavaString != NULL)
+				const auto CameraUrl = FJavaHelper::FStringFromLocalRef(Env, (jstring)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, QueryMethod, CameraIndex));
+				if (CameraUrl.Len())
 				{
 					FMediaCaptureDeviceInfo DeviceInfo;
-
-					const char* JavaChars = Env->GetStringUTFChars(JavaString, 0);
-					DeviceInfo.Url = FString(UTF8_TO_TCHAR(JavaChars));
-					Env->ReleaseStringUTFChars(JavaString, JavaChars);
-					Env->DeleteLocalRef(JavaString);
-
+					DeviceInfo.Url = CameraUrl;
 					if (DeviceInfo.Url.Contains("front"))
 					{
 						DeviceInfo.Type = EMediaCaptureDeviceType::WebcamFront;

@@ -619,7 +619,7 @@ void FVulkanViewport::CreateSwapchain()
 			FName Name = FName(*FString::Printf(TEXT("BackBuffer%d"), Index));
 			//BackBuffers[Index]->SetName(Name);
 
-			TextureViews[Index].Create(*Device, Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkFormat(PixelFormat, false), 0, 1, 0, 1);
+			TextureViews[Index].Create(*Device, Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1);
 
 			// Clear the swapchain to avoid a validation warning, and transition to ColorAttachment
 			{
@@ -764,8 +764,8 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 			SCOPE_CYCLE_COUNTER(STAT_VulkanAcquireBackBuffer);
 			GetNextImageIndex();
 
-			uint32 WindowSizeX = SizeX;
-			uint32 WindowSizeY = SizeY;
+			uint32 WindowSizeX = FMath::Min(SizeX, SwapChain->InternalWidth);
+			uint32 WindowSizeY = FMath::Min(SizeY, SwapChain->InternalHeight);
 
 			Context->RHIPushEvent(TEXT("CopyImageToBackBuffer"), FColor::Blue);
 			CopyImageToBackBuffer(CmdBuffer, true, RenderingBackBuffer->Surface.Image, BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);

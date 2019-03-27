@@ -88,6 +88,7 @@ enum class ECrashContextType
 	Assert,
 	Ensure,
 	GPUCrash,
+	Hang,
 
 	Max
 };
@@ -129,6 +130,7 @@ public:
 	static const FString CrashTypeAssert;
 	static const FString CrashTypeEnsure;
 	static const FString CrashTypeGPU;
+	static const FString CrashTypeHang;
 
 	static const FString EngineModeExUnknown;
 	static const FString EngineModeExDirty;

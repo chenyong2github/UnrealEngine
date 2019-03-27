@@ -1135,6 +1135,17 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		// some code relies on r.TextureStreaming so we're going to disable it here to reflect the hardware capabilities and system needs
 		CVarSetTextureStreaming.AsVariable()->Set(0, ECVF_SetByCode);
 	}
+	else if (!bUseTextureStreaming && TEXTURE2DMIPMAP_USE_COMPACT_BULKDATA)
+	{
+		static bool bWarned;
+		if (!bWarned)
+		{
+			UE_LOG(LogContentStreaming, Warning, TEXT("Texture streaming cannot be disabled when FTexture2DMipMap::FCompactBulkData is used"));
+			bWarned = true;
+		}
+		CVarSetTextureStreaming.AsVariable()->Set(1, ECVF_SetByCode);
+		bUseTextureStreaming = true;
+	}
 #endif
 
 	if ( bUseTextureStreaming )

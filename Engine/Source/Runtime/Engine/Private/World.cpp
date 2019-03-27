@@ -1039,7 +1039,7 @@ void UWorld::SetupParameterCollectionInstances()
 		AddParameterCollectionInstance(CurrentCollection, false);
 	}
 
-	UpdateParameterCollectionInstances(false);
+	UpdateParameterCollectionInstances(false, false);
 }
 
 void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene)
@@ -1071,14 +1071,14 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 
 	// Ensure the new instance creates initial render thread resources
 	// This needs to happen right away, so they can be picked up by any cached shader bindings
-	NewInstance->DeferredUpdateRenderState(false);
+	NewInstance->UpdateRenderState(true);
 
 	if (bUpdateScene)
 	{
 		// Update the scene's list of instances, needs to happen to prevent a race condition with GC 
 		// (rendering thread still uses the FMaterialParameterCollectionInstanceResource when GC deletes the UMaterialParameterCollectionInstance)
 		// However, if UpdateParameterCollectionInstances is going to be called after many AddParameterCollectionInstance's, this can be skipped for now.
-		UpdateParameterCollectionInstances(false);
+		UpdateParameterCollectionInstances(false, false);
 	}
 }
 
@@ -1097,7 +1097,7 @@ UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(con
 	return NULL;
 }
 
-void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers)
+void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer)
 {
 	if (Scene)
 	{
@@ -1109,7 +1109,11 @@ void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffe
 
 			if (bUpdateInstanceUniformBuffers)
 			{
-				Instance->UpdateRenderState();
+				Instance->UpdateRenderState(bRecreateUniformBuffer);
+			}
+			else
+			{
+				checkf(!bRecreateUniformBuffer, TEXT("Recreate Uniform Buffer was requested but cannot be executed because bUpdateInstanceUniformBuffers was false"));
 			}
 
 			InstanceResources.Add(Instance->GetResource());
@@ -1465,14 +1469,19 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 	PersistentLevel->Model->Initialize(nullptr, 1);
 	PersistentLevel->OwningWorld = this;
 
+	// Create the WorldInfo actor.
+	FActorSpawnParameters SpawnInfo; 
+
 	// Mark objects are transactional for undo/ redo.
 	if (IVS.bTransactional)
 	{
+		SpawnInfo.ObjectFlags |= RF_Transactional;
 		PersistentLevel->SetFlags( RF_Transactional );
 		PersistentLevel->Model->SetFlags( RF_Transactional );
 	}
 	else
 	{
+		SpawnInfo.ObjectFlags &= ~RF_Transactional;
 		PersistentLevel->ClearFlags( RF_Transactional );
 		PersistentLevel->Model->ClearFlags( RF_Transactional );
 	}
@@ -1482,12 +1491,17 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 	CurrentLevel = PersistentLevel;
 #endif
 
-	// Create the WorldInfo actor.
-	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// Set constant name for WorldSettings to make a network replication work between new worlds on host and client
 	SpawnInfo.Name = GEngine->WorldSettingsClass->GetFName();
-	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>( GEngine->WorldSettingsClass, SpawnInfo );
+	AWorldSettings* WorldSettings = SpawnActor<AWorldSettings>(GEngine->WorldSettingsClass, SpawnInfo );
+
+	// Allow the world creator to override the default game mode in case they do not plan to load a level.
+	if (IVS.DefaultGameMode)
+	{
+		WorldSettings->DefaultGameMode = IVS.DefaultGameMode;
+	}
+
 	PersistentLevel->SetWorldSettings(WorldSettings);
 	check(GetWorldSettings());
 #if WITH_EDITOR
@@ -1730,10 +1744,11 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 }
 
 
-void UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponent* ComponentToUpdate)
+bool UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponent* ComponentToUpdate)
 {
 	// Map that will store new max draw distance for every primitive
 	TMap<UPrimitiveComponent*,float> CompToNewMaxDrawMap;
+	bool bUpdatedDrawDistances = false;
 
 	// Keep track of time spent.
 	double Duration = 0.0;
@@ -1804,6 +1819,8 @@ void UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 				{
 					CullDistanceVolume->GetPrimitiveMaxDrawDistances(CompToNewMaxDrawMap);
 				}
+
+				bUpdatedDrawDistances = true;
 			}
 
 			// Finally, go over all primitives, and see if they need to change.
@@ -1822,6 +1839,8 @@ void UWorld::UpdateCullDistanceVolumes(AActor* ActorToUpdate, UPrimitiveComponen
 	{
 		UE_LOG(LogWorld, Log, TEXT("Updating cull distance volumes took %5.2f seconds"),Duration);
 	}
+
+	return bUpdatedDrawDistances;
 }
 
 
@@ -2389,6 +2408,12 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 #endif // PERF_TRACK_DETAILED_ASYNC_STATS
 }
 
+void UWorld::BeginTearingDown()
+{
+	bIsTearingDown = true;
+	UE_LOG(LogWorld, Log, TEXT("BeginTearingDown for %s"), *GetOutermost()->GetName());
+}
+
 void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 {
 	SCOPE_CYCLE_COUNTER(STAT_RemoveFromWorldTime);
@@ -2403,6 +2428,8 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	// If the level may be removed incrementally then there must also be no level pending visibility
 	if ( ((CurrentLevelPendingVisibility == nullptr) || (!bAllowIncrementalRemoval && (CurrentLevelPendingVisibility != Level))) && Level->bIsVisible )
 	{
+		UE_LOG(LogWorld, Log, TEXT("UWorld::RemoveFromWorld for %s"), *Level->GetOutermost()->GetName());
+
 		// Keep track of timing.
 		double StartTime = FPlatformTime::Seconds();	
 
@@ -3752,6 +3779,7 @@ bool UWorld::SetGameMode(const FURL& InURL)
 void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 {
 	check(bIsWorldInitialized);
+	SCOPED_BOOT_TIMING("UWorld::InitializeActorsForPlay");
 	double StartTime = FPlatformTime::Seconds();
 
 	// Don't reset time for seamless world transitions.
@@ -5815,8 +5843,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 				CurrentWorld->GetGameState()->SeamlessTravelTransitionCheckpoint(!bSwitchedToDefaultMap);
 			}
 			
-
-			CurrentWorld->bIsTearingDown = true;
+			CurrentWorld->BeginTearingDown();
 
 			// If it's not still playing, destroy the demo net driver before we start renaming actors.
 			if ( CurrentWorld->DemoNetDriver && !CurrentWorld->DemoNetDriver->IsPlaying() && !CurrentWorld->DemoNetDriver->bRecordMapChanges)
@@ -5850,10 +5877,12 @@ UWorld* FSeamlessTravelHandler::Tick()
 			{
 				for( FConstControllerIterator Iterator = CurrentWorld->GetControllerIterator(); Iterator; ++Iterator )
 				{
-					AController* Player = Iterator->Get();
-					if (Player->PlayerState || Cast<APlayerController>(Player) != nullptr)
+					if (AController* Player = Iterator->Get())
 					{
-						KeepAnnotation.Set(Player);
+						if (Player->PlayerState || Cast<APlayerController>(Player) != nullptr)
+						{
+							KeepAnnotation.Set(Player);
+						}
 					}
 				}
 			}

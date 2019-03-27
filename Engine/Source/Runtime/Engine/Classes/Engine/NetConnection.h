@@ -19,6 +19,7 @@
 #include "Engine/Channel.h"
 #include "ProfilingDebugging/Histogram.h"
 #include "Containers/ArrayView.h"
+#include "Containers/CircularBuffer.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
 #include "PacketTraits.h"
@@ -1062,7 +1063,16 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	/**
+	 * Flush the cache of sequenced packets waiting for a missing packet. Will flush only up to the next missing packet, unless bFlushWholeCache is set.
+	 *
+	 * @param bFlushWholeCache	Whether or not the whole cache should be flushed, or only flush up to the next missing packet
+	 */
+	void FlushPacketOrderCache(bool bFlushWholeCache=false);
+
 protected:
+
+	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
 
 	void CleanupDormantActorState();
 
@@ -1140,7 +1150,28 @@ private:
 	/** True if we've hit the actor channel limit and logged a warning about it */
 	bool bHasWarnedAboutChannelLimit;
 
+	/** True if we are pending close due to a socket failure during send */
+	bool bConnectionPendingCloseDueToSocketSendFailure;
+
 	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
+
+
+	/** Out of order packet tracking/correction */
+
+	/** Stat tracking for the total number of out of order packets, for this connection */
+	int32 TotalOutOfOrderPackets;
+
+	/** Buffer of partially read (post-PacketHandler) sequenced packets, which are waiting for a missing packet/sequence */
+	TOptional<TCircularBuffer<TUniquePtr<FBitReader>>> PacketOrderCache;
+
+	/** The current start index for PacketOrderCache */
+	int32 PacketOrderCacheStartIdx;
+
+	/** The current number of valid packets in PacketOrderCache */
+	int32 PacketOrderCacheCount;
+
+	/** Whether or not PacketOrderCache is presently being flushed */
+	bool bFlushingPacketOrderCache;
 };
 
 

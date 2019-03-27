@@ -9,11 +9,15 @@ namespace UnrealBuildTool.Rules
 		public Firebase(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] {
-				// "Core",
-				// "CoreUObject"
-			});
+                    "Core",
+                    "CoreUObject",
+                    "Engine",
+                    "Launch"
+            });
 
-			if (Target.Platform == UnrealTargetPlatform.Android)
+            PublicDefinitions.Add("WITH_FIREBASE=1");
+
+            if (Target.Platform == UnrealTargetPlatform.Android)
 			{
 				PrivateDependencyModuleNames.Add("Launch");
 

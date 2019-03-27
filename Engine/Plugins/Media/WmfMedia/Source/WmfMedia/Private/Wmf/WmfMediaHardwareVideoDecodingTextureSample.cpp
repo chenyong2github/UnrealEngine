@@ -46,6 +46,7 @@ ID3D11Texture2D* FWmfMediaHardwareVideoDecodingTextureSample::InitializeSourceTe
 	return SourceTexture;
 }
 
+#if !UE_SERVER
 void FWmfMediaHardwareVideoDecodingTextureSample::ShutdownPoolable()
 {
 	FWmfMediaTextureSample::ShutdownPoolable();
@@ -84,5 +85,6 @@ void FWmfMediaHardwareVideoDecodingTextureSample::ShutdownPoolable()
 		}
 	}
 }
+#endif
 
 #endif

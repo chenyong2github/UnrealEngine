@@ -52,7 +52,7 @@ enum EOpacitySourceMode
 	OSM_BlueChannel
 };
 
-class FSubUVDerivedData
+class ENGINE_API FSubUVDerivedData
 {
 public:
 	TArray<FVector2D> BoundingGeometry;

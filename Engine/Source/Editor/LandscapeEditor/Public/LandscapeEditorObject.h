@@ -29,8 +29,11 @@ enum class ELandscapeToolFlattenMode : int8
 	/** Flatten may only lower values, values below the clicked point will be left unchanged */
 	Lower = 2,
 
+	/** Flatten to closest specific terrace interval at the clicked point */
+	Interval = 3,
+
 	/** Flatten to specific terrace height intervals */
-	Terrace = 3
+	Terrace = 4
 };
 
 UENUM()

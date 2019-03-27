@@ -41,7 +41,7 @@ USoundWave* FFacialAnimationImportItem::ImportSoundWave(const FString& InSoundWa
 
 	// We set the correct options in the constructor, so run the import silently
 	USoundFactory* SoundWaveFactory = NewObject<USoundFactory>();
-	SoundWaveFactory->SuppressImportOverwriteDialog();
+	SoundWaveFactory->SuppressImportDialogs();
 
 	// Perform the actual import
 	USoundWave* const SoundWave = ImportObject<USoundWave>(SoundWavePackage, *InSoundWaveAssetName, RF_Public | RF_Standalone, *InWavFilename, nullptr, SoundWaveFactory);
@@ -89,7 +89,7 @@ bool FFacialAnimationImportItem::ImportCurvesEmbeddedInSoundWave()
 		if (FbxAnimUtils::ImportCurveTableFromNode(FbxFile, GetDefault<UFacialAnimationBulkImporterSettings>()->CurveNodeName, NewCurveTable, PreRollTime))
 		{
 			// we will need to add a curve to tell us the time we want to start playing audio
-			FSimpleCurve& AudioCurve = NewCurveTable->AddSimpleCurve(TEXT("Audio"));
+			FRichCurve& AudioCurve = NewCurveTable->AddRichCurve(TEXT("Audio"));
 			AudioCurve.AddKey(PreRollTime, 1.0f);
 
 			return true;

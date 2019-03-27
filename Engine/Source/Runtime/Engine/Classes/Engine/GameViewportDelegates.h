@@ -20,6 +20,14 @@ class FViewport;
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnScreenshotCaptured, int32 /*Width*/, int32 /*Height*/, const TArray<FColor>& /*Colors*/);
 
 /**
+ * Delegate type used by UGameViewportClient when a viewport is rendered
+ *
+ * The first parameter is the viewport.
+ * @see UGameViewportClient
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnViewportRendered, FViewport*);
+
+/**
  * Delegate type used by UGameViewportClient when the top level window associated
  * with the viewport has been requested to close.
  * At this point, the viewport has not been closed and the operation may be canceled.

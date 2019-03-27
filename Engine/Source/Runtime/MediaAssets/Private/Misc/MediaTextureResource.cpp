@@ -185,14 +185,14 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 	if (SampleSource.IsValid())
 	{
 		// get the most current sample to be rendered
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> TestSample;
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
-		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> PeekSample;
 		bool UseSample = false;
 		
-		while (SampleSource->Peek(PeekSample) && PeekSample.IsValid())
+		while (SampleSource->Peek(TestSample) && TestSample.IsValid())
 		{
-			const FTimespan StartTime = PeekSample->GetTime();
-			const FTimespan EndTime = StartTime + PeekSample->GetDuration();
+			const FTimespan StartTime = TestSample->GetTime();
+			const FTimespan EndTime = StartTime + TestSample->GetDuration();
 
 			if ((Params.Rate >= 0.0f) && (Params.Time < StartTime))
 			{
@@ -333,6 +333,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			FExternalTextureRegistry::Get().UnregisterExternalTexture(Params.PreviousGuid);
 		}
 	}
+	
+	//Update usable Guid for the RenderThread
+	Owner.SetRenderedExternalTextureGuid(Params.CurrentGuid);
 }
 
 
@@ -420,9 +423,11 @@ void FMediaTextureResource::ClearTexture(const FLinearColor& ClearColor, bool Sr
 
 	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || (OutputTarget->GetFormat() != OutputPixelFormat) || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
 	{
-		FRHIResourceCreateInfo CreateInfo = {
-			FClearValueBinding(ClearColor)
-		};
+		FString DebugName = Owner.GetName();
+
+		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.ClearValueBinding = FClearValueBinding(ClearColor);
+		CreateInfo.DebugName = *DebugName;
 
 		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 

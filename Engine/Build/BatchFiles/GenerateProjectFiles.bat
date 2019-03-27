@@ -22,7 +22,7 @@ if not exist ..\Build\BatchFiles\GenerateProjectFiles.bat goto Error_BatchFileIn
 
 rem ## Check to make sure that we have a Binaries directory with at least one dependency that we know that UnrealBuildTool will need
 rem ## in order to run.  It's possible the user acquired source but did not download and unpack the other prerequiste binaries.
-if not exist ..\Binaries\DotNET\SwarmAgent.exe goto Error_MissingBinaryPrerequisites
+if not exist ..\Build\BinaryPrerequisitesMarker.dat goto Error_MissingBinaryPrerequisites
 
 rem ## Get the path to MSBuild
 call "%~dp0GetMSBuildPath.bat"
@@ -96,7 +96,7 @@ goto Exit
 
 :Error_NoVisualStudioEnvironment
 echo.
-echo GenerateProjectFiles ERROR: We couldn't find a valid installation of Visual Studio.  This program requires Visual Studio 2015.  Please check that you have Visual Studio installed, then verify that the HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\VisualStudio\14.0\InstallDir (or HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\14.0\InstallDir on 32-bit machines) registry value is set.  Visual Studio configures this value when it is installed, and this program expects it to be set to the '\Common7\IDE\' sub-folder under a valid Visual Studio installation directory.
+echo GenerateProjectFiles ERROR: We couldn't find a valid installation of Visual Studio.  This program requires Visual Studio 2017.  Please check that you have Visual Studio installed, then verify that the HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\VisualStudio\14.0\InstallDir (or HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\14.0\InstallDir on 32-bit machines) registry value is set.  Visual Studio configures this value when it is installed, and this program expects it to be set to the '\Common7\IDE\' sub-folder under a valid Visual Studio installation directory.
 echo.
 pause
 goto Exit

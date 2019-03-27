@@ -8,7 +8,7 @@
 #define IOS_MAX_PATH 1024
 #define CMD_LINE_MAX 16384
 
-extern FString GSavedCommandLine;
+extern APPLICATIONCORE_API FString GSavedCommandLine;
 
 class FIOSCommandLineHelper
 {
@@ -53,11 +53,15 @@ class FIOSCommandLineHelper
 
 		static bool TryReadCommandLineFile(const FString& CommandLineFilePath)
 		{
+			bool bHasFile = false;
+			
+			// initialize the commandline
+			// read in the command line text file (coming from UnrealFrontend) if it exists
 			FILE* CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
-			if (CommandLineFile)
+			if(CommandLineFile)
 			{
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking for command line in %s... FOUND!") LINE_TERMINATOR, *CommandLineFilePath);
-				char CommandLine[CMD_LINE_MAX] = { 0 };
+				char CommandLine[CMD_LINE_MAX] = {0};
 				char* DataExists = fgets(CommandLine, ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
 				if (DataExists)
 				{
@@ -70,13 +74,14 @@ class FIOSCommandLineHelper
 					FCommandLine::Append(UTF8_TO_TCHAR(CommandLine));
 				}
 				fclose(CommandLineFile);
-				return true;
+				bHasFile = true;
 			}
 			else
 			{
 				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking for command line in %s... NOT FOUND!") LINE_TERMINATOR, *CommandLineFilePath);
-				return false;
 			}
+			
+			return bHasFile;
 		}
 
 		static void InitCommandArgs(FString AdditionalCommandArgs)
@@ -96,13 +101,29 @@ class FIOSCommandLineHelper
 				TryReadCommandLineFile(BundleCommandLineFilePath);
 			}
 
+			FString ReplacementCL, AppendCL;
+			bool bHasReplacementCL = FPlatformMisc::GetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("ReplacementCL"), ReplacementCL);
+			bool bHasAppendCL = FPlatformMisc::GetStoredValue(TEXT(""), TEXT("IOSCommandLine"), TEXT("AppendCL"), AppendCL);
+			
+			if (bHasReplacementCL)
+			{
+				FCommandLine::Set(*ReplacementCL);
+			}
+			
+			if (bHasAppendCL)
+			{
+				FCommandLine::Append(TEXT(" "));
+				FCommandLine::Append(*AppendCL);
+			}
+
 			if (!AdditionalCommandArgs.IsEmpty() && !FChar::IsWhitespace(AdditionalCommandArgs[0]))
 			{
 				FCommandLine::Append(TEXT(" "));
+				FCommandLine::Append(*AdditionalCommandArgs);
 			}
-			FCommandLine::Append(*AdditionalCommandArgs);
-
+			
 			// now merge the GSavedCommandLine with the rest
+			FCommandLine::Append(TEXT(" "));
 			FCommandLine::Append(*GSavedCommandLine);
 
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Combined iOS Commandline: %s") LINE_TERMINATOR, FCommandLine::Get());

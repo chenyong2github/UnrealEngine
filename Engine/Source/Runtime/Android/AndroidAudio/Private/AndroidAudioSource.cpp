@@ -18,8 +18,6 @@ static double GLastRealizeErrorTimeSec = 0.0;
 int32 GCVarAndroidRealizeErrorWaitThresholdMs = 35;
 TAutoConsoleVariable<int32> CVarAndroidRealizeErrorWaitThresholdMs(TEXT("au.AndroidRealizeErrorWaitThresholdMs"), GCVarAndroidRealizeErrorWaitThresholdMs, TEXT("Sets number of ms to wait before allowing new player request after realize buffer error (default: 35)"), ECVF_Default);
 
-
-
 // Callback that is registered if the source needs to loop
 void OpenSLBufferQueueCallback( SLAndroidSimpleBufferQueueItf InQueueInterface, void* pContext ) 
 {
@@ -36,9 +34,13 @@ void FSLESSoundSource::OnRequeueBufferCallback( SLAndroidSimpleBufferQueueItf In
 	if (!bStreamedSound)
 	{
 		SLresult result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, SLESBuffer->AudioData, SLESBuffer->GetSize() );
-		if(result != SL_RESULT_SUCCESS) 
+		if (result != SL_RESULT_SUCCESS)
 		{ 
 			UE_LOG( LogAndroidAudio, Warning, TEXT("FAILED OPENSL BUFFER Enqueue SL_PlayerBufferQueue (Requeing)"));  
+		}
+		else
+		{
+			NotifySoundBufferEnqueued(SLESBuffer->AudioData, SLESBuffer->GetSize());
 		}
 		bHasLooped = true;
 	}
@@ -74,11 +76,15 @@ void FSLESSoundSource::OnRequeueBufferCallback( SLAndroidSimpleBufferQueueItf In
 		}
 
 		SLresult result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, AudioBuffers[BufferInUse].AudioData, AudioBuffers[BufferInUse].AudioDataSize );
-		if(result != SL_RESULT_SUCCESS) 
+		if (result != SL_RESULT_SUCCESS)
 		{ 
 			UE_LOG( LogAndroidAudio, Warning, TEXT("FAILED OPENSL BUFFER Enqueue SL_PlayerBufferQueue (Requeing)"));  
 		}
-
+		else
+		{
+			NotifySoundBufferEnqueued(AudioBuffers[BufferInUse].AudioData, AudioBuffers[BufferInUse].AudioDataSize);
+		}
+		
 		// Switch to the next buffer and decode for the next time the callback fires if we didn't just get the last buffer
 		BufferInUse = !BufferInUse;
 		if (bHasLooped == false || WaveInstance->LoopingMode != LOOP_Never)
@@ -90,6 +96,14 @@ void FSLESSoundSource::OnRequeueBufferCallback( SLAndroidSimpleBufferQueueItf In
 				bHasLooped = true;
 			}
 		}
+	}
+}
+
+void FSLESSoundSource::NotifySoundBufferEnqueued(const void* Data, int32 DataSize) const
+{
+	if (SLESBuffer)
+	{
+		FAndroidSoundBufferNotification::Get().Broadcast(Data, DataSize, SLESBuffer->SampleRate, SLESBuffer->NumChannels);
 	}
 }
 
@@ -207,7 +221,9 @@ bool FSLESSoundSource::EnqueuePCMBuffer( bool bLoop)
 		}
 		return false;
 	}
-
+	
+	NotifySoundBufferEnqueued(SLESBuffer->AudioData, SLESBuffer->GetSize());
+	
 	bStreamedSound = false;
 	bHasLooped = false;
 	bHasPositionUpdated = false;
@@ -293,6 +309,8 @@ bool FSLESSoundSource::EnqueuePCMRTBuffer( bool bLoop )
 	{
 		result = (*SL_PlayerBufferQueue)->Enqueue(SL_PlayerBufferQueue, AudioBuffers[0].AudioData, AudioBuffers[0].AudioDataSize );
 		if (result != SL_RESULT_SUCCESS) { UE_LOG(LogAndroidAudio, Warning, TEXT("FAILED OPENSL BUFFER Enqueue SL_PlayerBufferQueue 0x%x params( %p, %d)"), result, SLESBuffer->AudioData, int32(SLESBuffer->GetSize())); return false; }
+		
+		NotifySoundBufferEnqueued(AudioBuffers[0].AudioData, AudioBuffers[0].AudioDataSize);
 	}
 	else
 	{

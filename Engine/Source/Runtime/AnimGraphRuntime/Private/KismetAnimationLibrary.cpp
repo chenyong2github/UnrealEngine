@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "KismetAnimationLibrary.h"
-#include "AnimationCoreLibrary.h"
+#include "CommonAnimationLibrary.h"
 #include "AnimationCoreLibrary.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -183,28 +183,6 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromPositionHistory(
 	return FMath::Clamp((LengthOfV - VelocityMin) / (VelocityMax - VelocityMin), 0.f, 1.f);
 }
 
-float UKismetAnimationLibrary::K2_ScalarEasing(float Value, EEasingFuncType EasingType)
-{
-	switch(EasingType)
-	{
-		case EEasingFuncType::Linear:			return FMath::Clamp<float>(Value, 0.f, 1.f);
-		case EEasingFuncType::Sinusoidal:		return FMath::Clamp<float>((FMath::Sin(Value * PI - HALF_PI) + 1.f) / 2.f, 0.f, 1.f);
-		case EEasingFuncType::Cubic:			return FMath::Clamp<float>(FMath::CubicInterp<float>(0.f, 0.f, 1.f, 0.f, Value), 0.f, 1.f);
-		case EEasingFuncType::QuadraticInOut:	return FMath::Clamp<float>(FMath::InterpEaseInOut<float>(0.f, 1.f, Value, 2), 0.f, 1.f);
-		case EEasingFuncType::CubicInOut:		return FMath::Clamp<float>(FMath::InterpEaseInOut<float>(0.f, 1.f, Value, 3), 0.f, 1.f);
-		case EEasingFuncType::HermiteCubic:		return FMath::Clamp<float>(FMath::SmoothStep(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::QuarticInOut:		return FMath::Clamp<float>(FMath::InterpEaseInOut<float>(0.f, 1.f, Value, 4), 0.f, 1.f);
-		case EEasingFuncType::QuinticInOut:		return FMath::Clamp<float>(FMath::InterpEaseInOut<float>(0.f, 1.f, Value, 5), 0.f, 1.f);
-		case EEasingFuncType::CircularIn:		return FMath::Clamp<float>(FMath::InterpCircularIn<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::CircularOut:		return FMath::Clamp<float>(FMath::InterpCircularOut<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::CircularInOut:	return FMath::Clamp<float>(FMath::InterpCircularInOut<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::ExpIn:			return FMath::Clamp<float>(FMath::InterpExpoIn<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::ExpOut:			return FMath::Clamp<float>(FMath::InterpExpoOut<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-		case EEasingFuncType::ExpInOut:			return FMath::Clamp<float>(FMath::InterpExpoInOut<float>(0.0f, 1.0f, Value), 0.0f, 1.0f);
-	}
-	return FMath::Clamp<float>(Value, 0.f, 1.f);;
-}
-
 float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
 	float DeltaSeconds,
 	USkeletalMeshComponent * Component,
@@ -216,7 +194,8 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
 	int32 NumberOfSamples,
 	float VelocityMin,
 	float VelocityMax,
-	EEasingFuncType EasingType
+	EEasingFuncType EasingType,
+	const FRuntimeFloatCurve& CustomCurve
 ) {
 	if (Component && SocketOrBoneName != NAME_None)
 	{
@@ -230,7 +209,7 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromSockets(
 
 		FVector Position = SocketTransform.TransformPosition(OffsetInBoneSpace);
 		float Velocity = K2_CalculateVelocityFromPositionHistory(DeltaSeconds, Position, History, NumberOfSamples, VelocityMin, VelocityMax);
-		return K2_ScalarEasing(Velocity, EasingType);
+		return CommonAnimationLibrary::ScalarEasing(Velocity, CustomCurve, EasingType);
 	}
 
 	return VelocityMin;

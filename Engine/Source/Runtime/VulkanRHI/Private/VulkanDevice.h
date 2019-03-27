@@ -173,6 +173,11 @@ public:
 		return MemoryManager;
 	}
 
+	inline const VkPhysicalDeviceMemoryProperties& GetDeviceMemoryProperties() const
+	{
+		return MemoryManager.GetMemoryProperties();
+	}
+
 	inline VulkanRHI::FResourceHeapManager& GetResourceHeapManager()
 	{
 		return ResourceHeapManager;
@@ -299,8 +304,11 @@ public:
 	VkSamplerYcbcrConversion CreateSamplerColorConversion(const VkSamplerYcbcrConversionCreateInfo& CreateInfo);
 #endif
 
+	void*	Hotfix;
+
 private:
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat);
+	void MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats);
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat, int32 BlockBytes);
 	void SetComponentMapping(EPixelFormat UEFormat, VkComponentSwizzle r, VkComponentSwizzle g, VkComponentSwizzle b, VkComponentSwizzle a);
 

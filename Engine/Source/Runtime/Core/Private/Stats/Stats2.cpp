@@ -321,6 +321,7 @@ void FStartupMessages::AddThreadMetadata( const FName InThreadName, uint32 InThr
 
 void FStartupMessages::AddMetadata( FName InStatName, const TCHAR* InStatDesc, const char* InGroupName, const char* InGroupCategory, const TCHAR* InGroupDesc, bool bShouldClearEveryFrame, EStatDataType::Type InStatType, bool bCycleStat, bool bSortByName, FPlatformMemory::EMemoryCounterRegion InMemoryRegion /*= FPlatformMemory::MCR_Invalid*/ )
 {
+	LLM_SCOPE(ELLMTag::Stats);
 	FScopeLock Lock( &CriticalSection );
 
 	new (DelayedMessages)FStatMessage( InGroupName, EStatDataType::ST_None, "Groups", InGroupCategory, InGroupDesc, false, false, bSortByName );
@@ -333,6 +334,7 @@ FStartupMessages& FStartupMessages::Get()
 	static FStartupMessages* Messages = NULL;
 	if( !Messages )
 	{
+		LLM_SCOPE(ELLMTag::Stats);
 		check( IsInGameThread() );
 		Messages = new FStartupMessages;
 	}
@@ -1056,6 +1058,7 @@ public:
 
 FThreadStatsPool::FThreadStatsPool()
 {
+	LLM_SCOPE(ELLMTag::Stats);
 	for( int32 Index = 0; Index < NUM_ELEMENTS_IN_POOL; ++Index )
 	{
 		Pool.Push( new FThreadStats(EConstructor::FOR_POOL) );
@@ -1064,6 +1067,7 @@ FThreadStatsPool::FThreadStatsPool()
 
 FThreadStats* FThreadStatsPool::GetFromPool()
 {
+	LLM_SCOPE(ELLMTag::Stats);
 	FPlatformMisc::MemoryBarrier();
 	FThreadStats* Address = Pool.Pop();
 	while (!Address)
@@ -1221,6 +1225,8 @@ void FThreadStats::FlushRegularStats( bool bHasBrokenCallstacks, bool bForceFlus
 
 void FThreadStats::FlushRawStats( bool bHasBrokenCallstacks /*= false*/, bool bForceFlush /*= false*/ )
 {
+	LLM_SCOPE(ELLMTag::Stats);
+
 	if (bReentranceGuard)
 	{
 		return;

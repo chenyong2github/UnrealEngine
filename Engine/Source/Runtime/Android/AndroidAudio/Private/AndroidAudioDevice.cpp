@@ -204,3 +204,27 @@ bool FSLESAudioDevice::IsExernalBackgroundSoundActive()
 #endif
 
 }
+
+FAndroidSoundBufferNotification& FAndroidSoundBufferNotification::Get()
+{
+	static FAndroidSoundBufferNotification Instance;
+	return Instance;
+}
+
+FDelegateHandle FAndroidSoundBufferNotification::AddDelegate(const FOnAndroidSoundBufferEnqueued::FDelegate& InNewDelegate)
+{
+	FScopeLock Lock(&DelegateLock);
+	return InternalDelegate.Add(InNewDelegate);
+}
+
+void FAndroidSoundBufferNotification::RemoveDelegate(const FDelegateHandle& Handle)
+{
+	FScopeLock Lock(&DelegateLock);
+	InternalDelegate.Remove(Handle);
+}
+
+void FAndroidSoundBufferNotification::Broadcast(const void* AudioData, int32 DataSize, int32 SampleRate, int32 NumChannels)
+{
+	FScopeLock Lock(&DelegateLock);
+	InternalDelegate.Broadcast(AudioData, DataSize, SampleRate, NumChannels);
+}

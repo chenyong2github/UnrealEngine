@@ -924,6 +924,36 @@ bool FEditorModeTools::GetCursor(EMouseCursor::Type& OutCursor) const
 	return bHandled;
 }
 
+bool FEditorModeTools::GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const
+{
+	bool bHandled = false;
+	for (const auto& Mode : Modes)
+	{
+		bHandled |= Mode->GetOverrideCursorVisibility(bWantsOverride, bHardwareCursorVisible, bSoftwareCursorVisible);
+	}
+	return bHandled;
+}
+
+bool FEditorModeTools::PreConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	bool bHandled = false;
+	for (const auto& Mode : Modes)
+	{
+		bHandled |= Mode->PreConvertMouseMovement(InViewportClient);
+	}
+	return bHandled;
+}
+
+bool FEditorModeTools::PostConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	bool bHandled = false;
+	for (const auto& Mode : Modes)
+	{
+		bHandled |= Mode->PostConvertMouseMovement(InViewportClient);
+	}
+	return bHandled;
+}
+
 /**
  * Used to cycle widget modes
  */

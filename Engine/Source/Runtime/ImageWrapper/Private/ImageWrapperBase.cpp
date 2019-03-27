@@ -13,6 +13,8 @@ FImageWrapperBase::FImageWrapperBase()
 	, BitDepth(0)
 	, Width(0)
 	, Height(0)
+	, NumFrames(1)
+	, Framerate(0)
 { }
 
 
@@ -29,6 +31,8 @@ void FImageWrapperBase::Reset()
 	BitDepth = 0;
 	Width = 0;
 	Height = 0;
+	NumFrames = 1;
+	Framerate = 0;
 }
 
 
@@ -102,5 +106,13 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int32 InRawSize, const int
 	Width = InWidth;
 	Height = InHeight;
 
+	return true;
+}
+
+bool FImageWrapperBase::SetAnimationInfo(int32 InNumFrames, int32 InFramerate)
+{
+	NumFrames = InNumFrames;
+	Framerate = InFramerate;
+	
 	return true;
 }

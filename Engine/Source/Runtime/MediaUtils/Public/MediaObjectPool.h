@@ -131,7 +131,7 @@ class TMediaObjectPool
 	private:
 
 		/** Critical section for synchronizing access to the free list. */
-		FCriticalSection CriticalSection;
+		mutable FCriticalSection CriticalSection;
 
 		/** List of unused objects. */
 		TArray<ObjectType*> Pool;
@@ -222,23 +222,6 @@ public:
 	}
 
 	/**
-	 * Acquire a tracked unique object from the pool.
-	 *
-	 * Unique objects do not need to be returned to the pool. They'll be
-	 * reclaimed automatically when the unique pointer is destroyed.
-	 *
-	 * @return The object.
-	 * @see Acquire, AcquireShared, Reset, ToUnique
-	 */
-	TUniquePtr<ObjectType> AcquireUnique()
-	{
-		ObjectType* Object = Acquire();
-		check(Object != nullptr);
-
-		return MakeUnique(Object, TDeleter(Storage));
-	}
-
-	/**
 	 * Get the number of objects available in the pool.
 	 *
 	 * @return Number of available objects.
@@ -258,18 +241,6 @@ public:
 	TSharedRef<ObjectType, ESPMode::ThreadSafe> ToShared(ObjectType* Object)
 	{
 		return MakeShareable(Object, TDeleter(Storage));
-	}
-
-	/**
-	 * Convert an object to a unique pooled object.
-	 *
-	 * @param Object The object to convert.
-	 * @return The unique object.
-	 * @see AcquireUnique, ToShared
-	 */
-	TUniquePtr<ObjectType> ToUnique(ObjectType* Object)
-	{
-		return MakeUnique(Object, TDeleter(Storage));
 	}
 
 	/**

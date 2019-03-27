@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PyOnlineDocsWriter.h"
-#include "PythonScriptPlugin.h"
+#include "IPythonScriptPlugin.h"
+#include "PyUtil.h"
 #include "PyGenUtil.h"
 #include "HAL/FileManager.h"
 #include "Logging/MessageLog.h"
@@ -328,7 +329,7 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 		//   https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
 
 		FString PyCommandStr;
-		FString PythonPath = FPaths::ConvertRelativePathToFull(FPaths::EngineSourceDir()) / TEXT("ThirdParty/Python/Win64/python.exe");
+		FString PythonPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir()) / TEXT("Binaries/ThirdParty/Python/Win64/python.exe");
 
 		PyCommandStr += TEXT(
 			"import sys\n"
@@ -380,7 +381,7 @@ void FPyOnlineDocsWriter::GenerateFiles(const FString& InPythonStubPath)
 #endif // !NO_LOGGING
 
 		// Run the Python commands
-		bool PyRunSuccess = FPythonScriptPlugin::Get()->RunString(*PyCommandStr);
+		bool PyRunSuccess = IPythonScriptPlugin::Get()->ExecPythonCommand(*PyCommandStr);
 
 #if !NO_LOGGING
 		if (!bLogSphinx)

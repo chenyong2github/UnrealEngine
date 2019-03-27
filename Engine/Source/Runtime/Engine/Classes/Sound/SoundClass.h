@@ -128,7 +128,7 @@ struct FSoundClassProperties
 		, bIsUISound(false)
 		, bIsMusic(false)
 		, bReverb(true)
-		, Default2DReverbSendAmount(0.5f)
+		, Default2DReverbSendAmount(0.0f)
 		, bCenterChannelOnly(false)
 		, bApplyAmbientVolumes(false)
 		, OutputTarget(EAudioOutputTarget::Speaker)

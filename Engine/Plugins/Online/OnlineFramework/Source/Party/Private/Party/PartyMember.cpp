@@ -38,6 +38,11 @@ const USocialParty* FPartyMemberRepData::GetOwnerParty() const
 	return OwnerMember.IsValid() ? &OwnerMember->GetParty() : nullptr;
 }
 
+const UPartyMember* FPartyMemberRepData::GetOwningMember() const
+{
+	return OwnerMember.IsValid() ? OwnerMember.Get() : nullptr;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // PartyMember
 //////////////////////////////////////////////////////////////////////////
@@ -64,6 +69,7 @@ void UPartyMember::InitializePartyMember(const TSharedRef<FOnlinePartyMember>& I
 	if (ensure(!OssPartyMember.IsValid()))
 	{
 		OssPartyMember = InOssMember;
+		OssPartyMember->OnMemberConnectionStatusChangedDelegates.AddUObject(this, &ThisClass::HandleMemberConnectionStatusChanged);
 		USocialToolkit* OwnerToolkit = GetParty().GetSocialManager().GetFirstLocalUserToolkit();
 		check(OwnerToolkit);
 
@@ -253,4 +259,18 @@ void UPartyMember::HandleSocialUserInitialized(USocialUser& InitializedUser)
 	{
 		FinishInitializing();
 	}
+}
+
+EMemberConnectionStatus UPartyMember::GetMemberConnectionStatus() const
+{
+	if (OssPartyMember.IsValid())
+	{
+		return OssPartyMember->MemberConnectionStatus;
+	}
+	return EMemberConnectionStatus::Uninitialized;
+}
+
+void UPartyMember::HandleMemberConnectionStatusChanged(const FUniqueNetId& ChangedUserId, const EMemberConnectionStatus NewMemberConnectionStatus, const EMemberConnectionStatus PreviousMemberConnectionStatus)
+{
+	OnMemberConnectionStatusChanged().Broadcast();
 }

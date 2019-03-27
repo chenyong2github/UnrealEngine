@@ -903,7 +903,10 @@ void UWorld::MarkActorComponentForNeededEndOfFrameUpdate(UActorComponent* Compon
 		{
 			bool bAllowConcurrentUpdates = FApp::ShouldUseThreadingForPerformance() && 
 				(GIsEditor ? !!CVarAllowAsyncRenderThreadUpdatesEditor.GetValueOnGameThread() : !!CVarAllowAsyncRenderThreadUpdates.GetValueOnGameThread());
-			bForceGameThread = !bAllowConcurrentUpdates;
+			bForceGameThread = !bAllowConcurrentUpdates 
+								// When there is no rendering thread force all updates on game thread,
+								// to avoid modifying scene structures from multiple task threads
+								|| !GRenderingThread; 
 		}
 
 		if (bForceGameThread)
@@ -1051,7 +1054,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 	{
 		if (ParameterCollectionInstance)
 		{
-			ParameterCollectionInstance->DeferredUpdateRenderState();
+			ParameterCollectionInstance->DeferredUpdateRenderState(false);
 		}
 	}
 	bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;

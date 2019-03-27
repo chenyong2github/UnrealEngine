@@ -417,6 +417,29 @@ struct FSkeletalMaterial
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostMeshCache, class USkeletalMesh*);
 #endif
 
+#if WITH_EDITORONLY_DATA
+namespace NSSkeletalMeshSourceFileLabels
+{
+	static FText GeoAndSkinningText()
+	{
+		static FText GeoAndSkinningText = (NSLOCTEXT("FBXReimport", "ImportContentTypeAll", "Geometry and Skinning Weights"));
+		return GeoAndSkinningText;
+	}
+
+	static FText GeometryText()
+	{
+		static FText GeometryText = (NSLOCTEXT("FBXReimport", "ImportContentTypeGeometry", "Geometry"));
+		return GeometryText;
+	}
+	static FText SkinningText()
+	{
+		static FText SkinningText = (NSLOCTEXT("FBXReimport", "ImportContentTypeSkinning", "Skinning Weights"));
+		return SkinningText;
+	}
+}
+#endif
+
+
 /**
  * SkeletalMesh is geometry bound to a hierarchical skeleton of bones which can be animated for the purpose of deforming the mesh.
  * Skeletal Meshes are built up of two parts; a set of polygons composed to make up the surface of the mesh, and a hierarchical skeleton which can be used to animate the polygons.
@@ -489,11 +512,11 @@ public:
 
 	/** Get the extended bounds of this mesh (imported bounds plus bounds extension) */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetBounds();
+	FBoxSphereBounds GetBounds() const;
 
 	/** Get the original imported bounds of the skel mesh */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetImportedBounds();
+	FBoxSphereBounds GetImportedBounds() const;
 
 	/** Set the original imported bounds of the skel mesh, will recalculate extended bounds */
 	void SetImportedBounds(const FBoxSphereBounds& InBounds);
@@ -564,6 +587,10 @@ public:
 	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
 	UPROPERTY(EditAnywhere, Category = LODSettings, meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLod;
+
+	/** when true all lods below minlod will still be cooked */
+	UPROPERTY(EditAnywhere, Category = LODSettings)
+	FPerPlatformBool DisableBelowMinLodStripping;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
@@ -639,6 +666,8 @@ public:
 	/** Importing data and options used for this mesh */
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)
 	class UAssetImportData* AssetImportData;
+
+	static FText GetSourceFileLabelFromIndex(int32 SourceFileIndex);
 
 	/** Path to the resource used to construct this skeletal mesh */
 	UPROPERTY()

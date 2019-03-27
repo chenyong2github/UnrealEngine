@@ -16,17 +16,17 @@ FJavaAndroidMessageBox::FJavaAndroidMessageBox()
 
 void FJavaAndroidMessageBox::SetCaption(const FString & Text)
 {
-	CallMethod<void>(SetCaptionMethod, GetJString(Text));
+	CallMethod<void>(SetCaptionMethod, *GetJString(Text));
 }
 
 void FJavaAndroidMessageBox::SetText(const FString & Text)
 {
-	CallMethod<void>(SetTextMethod, GetJString(Text));
+	CallMethod<void>(SetTextMethod, *GetJString(Text));
 }
 
 void FJavaAndroidMessageBox::AddButton(const FString & Text)
 {
-	CallMethod<void>(AddButtonMethod, GetJString(Text));
+	CallMethod<void>(AddButtonMethod, *GetJString(Text));
 }
 
 void FJavaAndroidMessageBox::Clear()

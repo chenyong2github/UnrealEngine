@@ -20,6 +20,7 @@
 URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	Visibility = ESlateVisibility::SelfHitTestInvisible;
 }
 
 void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)

@@ -322,20 +322,97 @@ namespace iPhonePackager
 				{
 					List<string> ServicesGroups = XCentPList.GetArray("com.apple.developer.icloud-services", "string");
 
-					if (ServicesGroups.Count == 0 || !ServicesGroups[0].StartsWith("Cloud"))
+					if (ServicesGroups.Count == 0 || !ServicesGroups[0].Contains("*"))
 					{
 						ServicesGroups.Clear();
 
 						string ServicesString;
 						XCentPList.GetString("com.apple.developer.icloud-services", out ServicesString);
 
-						if (ServicesString.Equals("*"))
+						if (ServicesString.Contains("*"))
 						{
 							ServicesGroups.Add("CloudKit");
 							ServicesGroups.Add("CloudDocuments");
 						}
 					}
 					XCentPList.SetValueForKey("com.apple.developer.icloud-services", ServicesGroups);
+				}
+
+				// For distribution builds, the entitlements from mobileprovisioning have a modified syntax
+				if (Config.bForDistribution)
+				{
+					// remove the wildcards from the ubiquity-kvstore-identifier string
+					if (XCentPList.HasKey("com.apple.developer.ubiquity-kvstore-identifier"))
+					{
+						string UbiquityKvstoreString;
+						XCentPList.GetString("com.apple.developer.ubiquity-kvstore-identifier", out UbiquityKvstoreString);
+
+						int DotPosition = UbiquityKvstoreString.LastIndexOf("*");
+						if (DotPosition >= 0)
+						{
+							string TeamPrefix = DotPosition > 1 ? UbiquityKvstoreString.Substring(0, DotPosition - 1) : TeamIdentifier;
+							string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
+							XCentPList.SetValueForKey("com.apple.developer.ubiquity-kvstore-identifier", NewUbiquityKvstoreIdentifier);
+						}
+					}
+
+					// remove the wildcards from the ubiquity-container-identifiers array
+					if (XCentPList.HasKey("com.apple.developer.ubiquity-container-identifiers"))
+					{
+						List<string> UbiquityContainerIdentifiersGroups = XCentPList.GetArray("com.apple.developer.ubiquity-container-identifiers", "string");
+
+						for (int i = 0; i < UbiquityContainerIdentifiersGroups.Count; i++)
+						{
+							int DotPosition = UbiquityContainerIdentifiersGroups[i].LastIndexOf("*");
+							if (DotPosition >= 0)
+							{
+								string TeamPrefix = DotPosition > 1 ? UbiquityContainerIdentifiersGroups[i].Substring(0, DotPosition - 1) : TeamIdentifier;
+								string NewUbiquityContainerIdentifier = String.Format("{0}.{1}", TeamPrefix, CFBundleIdentifier);
+								UbiquityContainerIdentifiersGroups[i] = NewUbiquityContainerIdentifier;
+							}
+						}
+
+						if (UbiquityContainerIdentifiersGroups.Count == 0)
+						{
+							string NewUbiquityKvstoreIdentifier = String.Format("{0}.{1}", TeamIdentifier, CFBundleIdentifier);
+							UbiquityContainerIdentifiersGroups.Add(NewUbiquityKvstoreIdentifier);
+						}
+
+						XCentPList.SetValueForKey("com.apple.developer.ubiquity-container-identifiers", UbiquityContainerIdentifiersGroups);
+					}
+
+					// remove the wildcards from the developer.associated-domains array or string
+					if (XCentPList.HasKey("com.apple.developer.associated-domains"))
+					{
+						List<string> AssociatedDomainsGroup = XCentPList.GetArray("com.apple.developer.associated-domains", "string");
+
+						if (AssociatedDomainsGroup.Count == 0 || AssociatedDomainsGroup[0].Contains("*"))
+						{
+							string AssociatedDomainsString;
+							XCentPList.GetString("com.apple.developer.associated-domains", out AssociatedDomainsString);
+
+							if (AssociatedDomainsString.Contains("*"))
+							{
+								XCentPList.RemoveKeyValue("com.apple.developer.associated-domains");
+							}
+						}
+					}
+
+					// remove development keys - generated when the cloudkit container is in development mode
+					XCentPList.RemoveKeyValue("com.apple.developer.icloud-container-development-container-identifiers");
+				}
+
+				// set the icloud-container-environment accordign to project settings
+				if (XCentPList.HasKey("com.apple.developer.icloud-container-environment"))
+				{
+					List<string> ContainerEnvironmentGroup = XCentPList.GetArray("com.apple.developer.icloud-container-environment", "string");
+
+					if (ContainerEnvironmentGroup.Count != 0)
+					{
+						ContainerEnvironmentGroup.Clear();
+						ContainerEnvironmentGroup.Add(Config.bForDistribution ? "Production" : "Development");
+						XCentPList.SetValueForKey("com.apple.developer.icloud-container-environment", ContainerEnvironmentGroup);
+					}
 				}
 			}
 

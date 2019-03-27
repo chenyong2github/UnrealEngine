@@ -982,14 +982,21 @@ namespace UnrealBuildTool
 			// Create the receipt
 			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
 
-			// Set the launch executable if there is one
-			foreach(KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
+			if (!Rules.bShouldCompileAsDLL)
 			{
-				if(Pair.Value == BuildProductType.Executable)
+				// Set the launch executable if there is one
+				foreach (KeyValuePair<FileReference, BuildProductType> Pair in BuildProducts)
 				{
-					Receipt.Launch = Pair.Key;
-					break;
+					if (Pair.Value == BuildProductType.Executable)
+					{
+						Receipt.Launch = Pair.Key;
+						break;
+					}
 				}
+			}
+			else
+			{
+				Receipt.AdditionalProperties.Add(new ReceiptProperty("CompileAsDll", "true"));
 			}
 
 			// Find all the build products and modules from this binary
@@ -1307,10 +1314,6 @@ namespace UnrealBuildTool
 				foreach (UEBuildBinary Binary in Binaries)
 				{
 					List<FileItem> BinaryOutputItems = Binary.Build(Rules, TargetToolChain, GlobalCompileEnvironment, GlobalLinkEnvironment, WorkingSet, ExeDir, Makefile);
-					if(!bCompileMonolithic)
-					{
-						Makefile.ModuleNameToOutputItems[Binary.PrimaryModule.Name] = BinaryOutputItems.ToArray();
-					}
 					Makefile.OutputItems.AddRange(BinaryOutputItems);
 				}
 			}
@@ -1597,7 +1600,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				CopyAction.CommandArguments = String.Format("-c 'cp -f {0} {1}'", Utils.EscapeShellArgument(SourceFile.FullName), Utils.EscapeShellArgument(TargetFile.FullName));
+				CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
 			}
 			CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			CopyAction.PrerequisiteItems.Add(SourceFileItem);
@@ -2616,6 +2619,7 @@ namespace UnrealBuildTool
 						ReferencedNames.Add(Plugin.Name);
 
 						PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(Plugin.Name, null, true);
+						PluginReference.SupportedTargetPlatforms = Plugin.Descriptor.SupportedTargetPlatforms;
 						PluginReference.bOptional = true;
 
 						AddPlugin(PluginReference, "default plugins", ExcludeFolders, NameToInstance, NameToInfo);
@@ -2720,8 +2724,7 @@ namespace UnrealBuildTool
 				// Disable any plugin which does not support the target platform. The editor should update such references in the .uproject file on load.
 				if (!Rules.bIncludePluginsForTargetPlatforms && !Info.Descriptor.SupportsTargetPlatform(Platform))
 				{
-					Log.TraceLog("Ignoring plugin '{0}' (referenced via {1}) due to target platform not supported by descriptor.", Reference.Name, ReferenceChain);
-					return null;
+					throw new BuildException("{0} is referenced via {1} with a mismatched 'SupportedTargetPlatforms' field. This will cause problems in packaged builds, because the .uplugin file will not be staged. Launch the editor to update references from your project file, or update references from other plugins manually.", Info.File.GetFileName(), ReferenceChain);
 				}
 
 				// Disable any plugin that requires the build platform
@@ -3153,6 +3156,16 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_CEF3=0");
 			}
 
+			// Set the define for enabling live coding
+			if(Rules.bWithLiveCoding)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=0");
+			}
+
 			if (Rules.bUseXGEController &&
 				Rules.Type == TargetType.Editor &&
 				(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64))
@@ -3270,7 +3283,7 @@ namespace UnrealBuildTool
 				}
 
 				// If we can't use a shared PCH, check there's a private PCH set
-				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
+				if(RulesObject.PCHUsage != ModuleRules.PCHUsageMode.NoPCHs && RulesObject.PCHUsage != ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs && RulesObject.PrivatePCHHeaderFile == null)
 				{
 					// Try to figure out the legacy PCH file
 					FileReference CppFile = DirectoryReference.EnumerateFiles(RulesObject.Directory, "*.cpp", SearchOption.AllDirectories).FirstOrDefault();

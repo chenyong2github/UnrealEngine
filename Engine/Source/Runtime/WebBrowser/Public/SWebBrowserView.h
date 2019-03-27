@@ -6,8 +6,8 @@
 #include "Input/PopupMethodReply.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/SlateDelegates.h"
 #include "Framework/Application/IMenu.h"
+#include "Framework/SlateDelegates.h"
 #include "Widgets/SViewport.h"
 #include "IWebBrowserSingleton.h"
 
@@ -40,6 +40,9 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(EWebBrowserDialogEventResponse, FOnShowDialog, const TWeakPtr<IWebBrowserDialog>&);
 	DECLARE_DELEGATE_RetVal(bool, FOnSuppressContextMenu);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDragWindow, const FPointerEvent& /* MouseEvent */);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyDown, const FKeyEvent& /*KeyEvent*/);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyUp, const FKeyEvent& /*KeyEvent*/);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyChar, const FCharacterEvent& /*CharacterEvent*/);
 
 	SLATE_BEGIN_ARGS(SWebBrowserView)
 		: _InitialURL(TEXT("https://www.google.com"))
@@ -122,6 +125,7 @@ public:
 		/** Called to dismiss any dialogs shown via OnShowDialog. */
 		SLATE_EVENT(FSimpleDelegate, OnDismissAllDialogs)
 
+		/** Called to allow supression of the browser context menu. */
 		SLATE_EVENT(FOnSuppressContextMenu, OnSuppressContextMenu);
 
 		/** Called to allow overriding of ToolTip widget construction. */
@@ -129,6 +133,15 @@ public:
 
 		/** Called when drag is detected in a web page area tagged as a drag region. */
 		SLATE_EVENT(FOnDragWindow, OnDragWindow)
+		
+		/** Called to allow the handling of any key down events not handled by the browser. */
+		SLATE_EVENT(FOnUnhandledKeyDown, OnUnhandledKeyDown)
+
+		/** Called to allow the handling of any key up events not handled by the browser. */
+		SLATE_EVENT(FOnUnhandledKeyUp, OnUnhandledKeyUp)
+
+		/** Called to allow the handling of any key char events not handled by the browser. */
+		SLATE_EVENT(FOnUnhandledKeyChar, OnUnhandledKeyChar)
 
 	SLATE_END_ARGS()
 
@@ -317,6 +330,9 @@ private:
 
 	void HandleWindowDeactivated();
 	void HandleWindowActivated();
+	bool UnhandledKeyDown(const FKeyEvent& KeyEvent);
+	bool UnhandledKeyUp(const FKeyEvent& KeyEvent);
+	bool UnhandledKeyChar(const FCharacterEvent& CharacterEvent);
 
 	bool HandleDrag(const FPointerEvent& MouseEvent);
 
@@ -390,6 +406,15 @@ private:
 
 	/** A delegate that is invoked when the browser detects drag event in within drag region */
 	FOnDragWindow OnDragWindow;
+	
+		/** A delegate for handling key down events not handled by browser. */
+	FOnUnhandledKeyDown OnUnhandledKeyDown;
+
+	/** A delegate for handling key up events not handled by browser. */
+	FOnUnhandledKeyUp OnUnhandledKeyUp;
+
+	/** A delegate for handling key char events not handled by browser. */
+	FOnUnhandledKeyChar OnUnhandledKeyChar;
 
 protected:
 	bool HandleSuppressContextMenu();

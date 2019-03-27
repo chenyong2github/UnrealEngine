@@ -4272,10 +4272,11 @@ void FFbxExporter::ExportLandscapeToFbx(ALandscapeProxy* Landscape, const TCHAR*
 		FLandscapeComponentDataInterface CDI(Component, Landscape->ExportLOD);
 		const int32 BaseVertIndex = SelectedComponentIndex++ * VertexCountPerComponent;
 
+		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
 		TArray<uint8> CompVisData;
-		for (int32 AllocIdx = 0; AllocIdx < Component->WeightmapLayerAllocations.Num(); AllocIdx++)
+		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
 		{
-			FWeightmapLayerAllocationInfo& AllocInfo = Component->WeightmapLayerAllocations[AllocIdx];
+			FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
 			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
 			{
 				CDI.GetWeightmapTextureData(AllocInfo.LayerInfo, CompVisData);

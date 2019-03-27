@@ -648,7 +648,7 @@ void FAssetTypeActions_SkeletalMesh::GetSourceFileLabels(const TArray<UObject*>&
 		SkeletalMesh->AssetImportData->ExtractFilenames(SourceFilePaths);
 		for (int32 SourceIndex = 0; SourceIndex < SourceFilePaths.Num(); ++SourceIndex)
 		{
-			FText SourceIndexLabel = SourceIndex == 0 ? NSSkeletalMeshSourceFileLabels::GeoAndSkinningText() : SourceIndex == 1 ? NSSkeletalMeshSourceFileLabels::GeometryText() : NSSkeletalMeshSourceFileLabels::SkinningText();
+			FText SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(SourceIndex);
 			OutSourceFileLabels.Add(SourceIndexLabel.ToString());
 		}
 	}

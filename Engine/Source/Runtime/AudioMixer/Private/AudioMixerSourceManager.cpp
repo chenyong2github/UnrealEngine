@@ -106,9 +106,10 @@ namespace Audio
 		, NumSourceWorkers(4)
 		, bInitialized(false)
 		, bUsingSpatializationPlugin(false)
-		, MaxChannelsSupportedBySpatializationPlugin(1)
 	{
-		CommandsProcessedEvent = FPlatformProcess::GetSynchEventFromPool();
+		// Get a manual resetable event
+		const bool bIsManualReset = true;
+		CommandsProcessedEvent = FPlatformProcess::GetSynchEventFromPool(bIsManualReset);
 		check(CommandsProcessedEvent != nullptr);
 	}
 
@@ -260,11 +261,9 @@ namespace Audio
 		if (SpatializationPlugin.IsValid())
 		{
 			bUsingSpatializationPlugin = true;
-			MaxChannelsSupportedBySpatializationPlugin = MixerDevice->MaxChannelsSupportedBySpatializationPlugin;
 		}
 
 		bInitialized = true;
-		bPumpQueue = false;
 	}
 
 	void FMixerSourceManager::Update()
@@ -282,22 +281,21 @@ namespace Audio
 		}
 #endif
 
-		int32 CurrentRenderIndex = RenderThreadCommandBufferIndex.GetValue();
-		int32 CurrentGameIndex = AudioThreadCommandBufferIndex.GetValue();
-		check(CurrentGameIndex == 0 || CurrentGameIndex == 1);
-		check(CurrentRenderIndex == 0 || CurrentRenderIndex == 1);
-
-		// If these values are the same, that means the audio render thread has finished the last buffer queue so is ready for the next block
-		if (CurrentRenderIndex == CurrentGameIndex)
+		// If the command was triggered, then we want to do a swap of command buffers
+		if (CommandsProcessedEvent->Wait(0))
 		{
+			int32 CurrentGameIndex = AudioThreadCommandBufferIndex.GetValue();
+
 			// This flags the audio render thread to be able to pump the next batch of commands
 			// And will allow the audio thread to write to a new command slot
-			const int32 NextIndex = !CurrentGameIndex;
+			const int32 NextIndex = (CurrentGameIndex + 1) & 1;
 
 			// Make sure we've actually emptied the command queue from the render thread before writing to it
 			check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
 			AudioThreadCommandBufferIndex.Set(NextIndex);
-			bPumpQueue = true;
+			RenderThreadCommandBufferIndex.Set(CurrentGameIndex);
+
+			CommandsProcessedEvent->Reset();
 		}
 	}
 
@@ -652,14 +650,14 @@ namespace Audio
 					if (Bus)
 					{
 						// If this bus is already registered, add this as a source id
-						Bus->AddInstanceId(SourceId);
+						Bus->AddInstanceId(SourceId, InitParams.NumInputChannels);
 					}
 					else
 					{
 						// If the bus is not registered, make a new entry
 						FMixerBus NewBusData(this, InitParams.NumInputChannels, NumOutputFrames);
 
-						NewBusData.AddInstanceId(SourceId);
+						NewBusData.AddInstanceId(SourceId, InitParams.NumInputChannels);
 
 						Buses.Add(InitParams.BusId, NewBusData);
 					}
@@ -1175,7 +1173,7 @@ namespace Audio
 			}
 
 			// If we have audio in our queue, we're still playing
-			if (SourceInfo.MixerSourceBuffer->GetNumBuffersQueued() > 0)
+			if (SourceInfo.MixerSourceBuffer->GetNumBuffersQueued() > 0 && NumChannels > 0)
 			{
 				SourceInfo.CurrentPCMBuffer = SourceInfo.MixerSourceBuffer->GetNextBuffer();
 				SourceInfo.CurrentAudioChunkNumFrames = SourceInfo.CurrentPCMBuffer->AudioData.Num() / NumChannels;
@@ -1517,7 +1515,7 @@ namespace Audio
 			SCOPE_CYCLE_COUNTER(STAT_AudioMixerHRTF);
 
 			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
-			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels <= MaxChannelsSupportedBySpatializationPlugin);
+			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels == 1);
 
 			FAudioPluginSourceInputData AudioPluginInputData;
 			AudioPluginInputData.AudioBuffer = &SourceInfo.SourceBuffer;
@@ -1668,6 +1666,8 @@ namespace Audio
 				Audio::DownmixBuffer(DownmixData.NumInputChannels, 8, *DownmixData.PostEffectBuffers, DownmixData.SevenOneSubmixInfo.OutputBuffer, DownmixData.SevenOneSubmixInfo.ChannelMap.ChannelStartGains, DownmixData.SevenOneSubmixInfo.ChannelMap.ChannelDestinationGains);
 			}
 		}
+
+		DownmixData.DeviceSubmixInfo.ChannelMap.CopyDestinationToStart();
 	}
 
 	void FMixerSourceManager::ComputeDownmix2D(FSourceDownmixData& DownmixData)
@@ -2315,11 +2315,7 @@ namespace Audio
 		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceManagerUpdate);
 
 		// Get the this blocks commands before rendering audio
-		if (bPumpQueue)
-		{
-			bPumpQueue = false;
-			PumpCommandQueue();
-		}
+		PumpCommandQueue();
 
 		// Update pending tasks and release them if they're finished
 		UpdatePendingReleaseData();
@@ -2387,6 +2383,12 @@ namespace Audio
 
 	void FMixerSourceManager::PumpCommandQueue()
 	{
+		// If we're already triggered, we need to wait for the audio thread to reset it before pumping
+		if (CommandsProcessedEvent->Wait(0))
+		{
+			return;
+		}
+
 		int32 CurrentRenderThreadIndex = RenderThreadCommandBufferIndex.GetValue();
 
 		FCommands& Commands = CommandBuffers[CurrentRenderThreadIndex];
@@ -2399,8 +2401,6 @@ namespace Audio
 		}
 
 		Commands.SourceCommandQueue.Reset();
-
-		RenderThreadCommandBufferIndex.Set(!CurrentRenderThreadIndex);
 
 		check(CommandsProcessedEvent != nullptr);
 		CommandsProcessedEvent->Trigger();

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "Engine/EngineTypes.h"
 #include "RenderCommandFence.h"
 #include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
@@ -852,6 +853,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Output Alpha"))
 	bool BlendableOutputAlpha;
 
+	/** 
+	 * Selectively execute post process material only for pixels that pass the stencil test against the Custom Depth/Stencil buffer. 
+	 * Pixels that fail the stencil test are filled with the previous post process material output or scene color.
+	 */
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay)
+	uint8 bEnableStencilTest : 1;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	TEnumAsByte<EMaterialStencilCompare> StencilCompare;
+
+	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
+	uint8 StencilRefValue = 0;
+
 	/** Controls how the Refraction input is interpreted and how the refraction offset into scene color is computed for this material. */
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	TEnumAsByte<enum ERefractionMode> RefractionMode;
@@ -963,7 +977,7 @@ public:
 		TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
 #endif
-	ENGINE_API virtual void RecacheUniformExpressions() const override;
+	ENGINE_API virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
@@ -1095,7 +1109,7 @@ private:
 	void SetUsageByFlag(const EMaterialUsage Usage, const bool NewValue);
 
 	/** Sets up transient properties in MaterialResources. */
-	void UpdateResourceAllocations();
+	void UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 	/** to share code for PostLoad() and PostEditChangeProperty(), and UMaterialInstance::InitResources(), needs to be refactored */
 	void PropagateDataToMaterialProxy();

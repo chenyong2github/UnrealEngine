@@ -426,6 +426,13 @@ public:
 	bool FromJson(const TSharedRef<class FJsonObject>& JsonObject);
 
 	/**
+	 * Combine the type suffix given this variant's type
+	 *
+	 * @return the the type suffix
+	 */
+	FString GetTypeSuffix() const;
+	
+	/**
 	* Insert variant data into json object
 	*
 	* @param JsonObject json object to insert data into

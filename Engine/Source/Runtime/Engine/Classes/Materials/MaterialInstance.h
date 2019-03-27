@@ -450,7 +450,7 @@ public:
 		TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
 #endif
-	virtual ENGINE_API void RecacheUniformExpressions() const override;
+	virtual ENGINE_API void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 	virtual ENGINE_API bool GetRefractionSettings(float& OutBiasValue) const override;
 
 #if WITH_EDITOR
@@ -635,7 +635,7 @@ protected:
 	 * This is a helper used when recompiling MI's with static parameters.  
 	 * Assumes that the rendering thread command queue has been flushed by the caller.
 	 */
-	void UpdatePermutationAllocations();
+	void UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 #if WITH_EDITOR
 	/**

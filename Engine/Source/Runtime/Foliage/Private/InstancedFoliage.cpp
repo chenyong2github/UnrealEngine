@@ -1382,7 +1382,7 @@ void FFoliageMeshInfo::ReapplyInstancesToComponent()
 		}
 
 		Component->bAutoRebuildTreeOnInstanceChanges = true;
-		Component->BuildTreeIfOutdated(true, true);
+		Component->BuildTreeIfOutdated(false, true);
 
 		Component->ClearInstanceSelection();
 

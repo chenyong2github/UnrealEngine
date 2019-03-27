@@ -491,7 +491,13 @@ public:
 	{
 		return ScreenshotCapturedDelegate;
 	}
-
+	
+	/** Accessor for delegate called when a viewport is rendered */
+	static FOnViewportRendered& OnViewportRendered()
+	{
+		return ViewportRenderedDelegate;
+	}
+	
 	/* Accessor for the delegate called when a viewport is asked to close. */
 	FOnCloseRequested& OnCloseRequested()
 	{
@@ -860,7 +866,7 @@ private:
 	TMap<EMouseCursor::Type, TSharedPtr<FHardwareCursor>> HardwareCursors;
 
 	/** Map of Software Cursor Widgets*/
-	TMap<EMouseCursor::Type, TSharedRef<SWidget>> CursorWidgets;
+	TMap<EMouseCursor::Type, TSharedPtr<SWidget>> CursorWidgets;
 
 	/** Controls if the Map of Software Cursor Widgets is used */
 	bool bUseSoftwareCursorWidgets;
@@ -882,6 +888,9 @@ private:
 
 	/** Delegate called at the end of the frame when a screenshot is captured */
 	static FOnScreenshotCaptured ScreenshotCapturedDelegate;
+	
+	/** Delegate called right after the viewport is rendered */
+	static FOnViewportRendered ViewportRenderedDelegate;
 
 	/** Delegate called when a request to close the viewport is received */
 	FOnCloseRequested CloseRequestedDelegate;

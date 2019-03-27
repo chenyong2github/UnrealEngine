@@ -50,8 +50,13 @@ public:
 	FVisualTreeCapture();
 	~FVisualTreeCapture();
 
+	/** Enables visual tree capture */
 	void Enable();
+
+	/** Disables visual tree capture */
 	void Disable();
+
+	/** Resets the visual tree capture to a pre-capture state and destroys the cached visual tree captured last. */
 	void Reset();
 
 	TSharedPtr<FVisualTreeSnapshot> GetVisualTreeForWindow(SWindow* InWindow);

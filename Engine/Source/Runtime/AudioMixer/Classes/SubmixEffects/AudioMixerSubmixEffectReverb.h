@@ -96,6 +96,9 @@ public:
 	// We want to receive downmixed submix audio to stereo input for the reverb effect
 	virtual uint32 GetDesiredInputChannelCountOverride() const override { return 2; }
 
+	// Returns the drylevel of the effect
+	virtual float GetDryLevel() const override { return DryLevel; }
+
 	// Process the input block of audio. Called on audio thread.
 	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 

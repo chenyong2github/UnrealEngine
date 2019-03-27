@@ -119,6 +119,10 @@ protected:
 	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups, meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLod;
 
+	/** When true LODs below MinLod will not be stripped during cook. */
+	UPROPERTY(globalconfig, EditAnywhere, Category = LODGroups)
+	FPerPlatformBool DisableBelowMinLodStripping;
+
 	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups)
 	TArray<FSkeletalMeshLODGroupSettings> LODGroups;
 

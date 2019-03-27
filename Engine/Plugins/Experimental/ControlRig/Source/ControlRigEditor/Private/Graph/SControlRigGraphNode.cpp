@@ -13,6 +13,11 @@
 #include "GraphEditorSettings.h"
 #include "ControlRigEditorStyle.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Engine/Engine.h"
+#include "KismetNodes/KismetNodeInfoContext.h"
+#include "Kismet2/KismetDebugUtilities.h"
+#include "PropertyPathHelpers.h"
+#include "UObject/PropertyPortFlags.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphNode"
 
@@ -636,6 +641,60 @@ FReply SControlRigGraphNode::HandleAddArrayElement(TWeakPtr<FControlRigField> In
 	}
 
 	return FReply::Handled();
+}
+
+void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const
+{
+	FKismetNodeInfoContext* K2Context = (FKismetNodeInfoContext*)Context;
+
+	const FLinearColor LatentBubbleColor(1.f, 0.5f, 0.25f);
+	const FLinearColor PinnedWatchColor(0.35f, 0.25f, 0.25f);
+
+	// Display any pending latent actions
+	if (UObject* ActiveObject = K2Context->ActiveObjectBeingDebugged)
+	{
+		// Display pinned watches
+		if (K2Context->WatchedNodeSet.Contains(GraphNode))
+		{
+			UBlueprint* Blueprint = K2Context->SourceBlueprint;
+			const UEdGraphSchema* Schema = GraphNode->GetSchema();
+
+			FString PinnedWatchText;
+			int32 ValidWatchCount = 0;
+			for (int32 PinIndex = 0; PinIndex < GraphNode->Pins.Num(); ++PinIndex)
+			{
+				UEdGraphPin* WatchPin = GraphNode->Pins[PinIndex];
+				if (K2Context->WatchedPinSet.Contains(WatchPin))
+				{
+					if (ValidWatchCount > 0)
+					{
+						PinnedWatchText += TEXT("\n");
+					}
+
+					FString PinName = UEdGraphSchema_K2::TypeToText(WatchPin->PinType).ToString();
+					PinName += TEXT(" ");
+					PinName += Schema->GetPinDisplayName(WatchPin).ToString();
+
+					FString WatchText;
+					if (PropertyPathHelpers::GetPropertyValueAsString(ActiveObject, WatchPin->PinName.ToString(), WatchText))
+					{
+						PinnedWatchText += FText::Format(LOCTEXT("WatchingAndValidFmt", "Watching {0}\n\t{1}"), FText::FromString(PinName), FText::FromString(WatchText)).ToString();//@TODO: Print out object being debugged name?
+					}
+					else
+					{
+						PinnedWatchText += FText::Format(LOCTEXT("WatchingAndValidFmt", "Invalid Property {0}"), FText::FromString(PinName)).ToString();//@TODO: Print out object being debugged name?
+					}
+
+					ValidWatchCount++;
+				}
+			}
+
+			if (ValidWatchCount)
+			{
+				new (Popups) FGraphInformationPopupInfo(NULL, PinnedWatchColor, PinnedWatchText);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

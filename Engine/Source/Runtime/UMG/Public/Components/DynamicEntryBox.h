@@ -39,9 +39,13 @@ public:
 	const FVector2D& GetEntrySpacing() const { return EntrySpacing; }
 	
 	template <typename WidgetT = UUserWidget>
-	WidgetT* CreateEntry()
+	WidgetT* CreateEntry(const TSubclassOf<WidgetT>& ExplicitEntryClass = nullptr)
 	{
-		if (EntryWidgetClass && EntryWidgetClass->IsChildOf<WidgetT>())
+		if (ExplicitEntryClass && ExplicitEntryClass->IsChildOf(WidgetT::StaticClass()))
+		{
+			return Cast<WidgetT>(CreateEntryInternal(ExplicitEntryClass));
+		}
+		if (EntryWidgetClass && EntryWidgetClass->IsChildOf(WidgetT::StaticClass()))
 		{
 			return Cast<WidgetT>(CreateEntryInternal(EntryWidgetClass));
 		}

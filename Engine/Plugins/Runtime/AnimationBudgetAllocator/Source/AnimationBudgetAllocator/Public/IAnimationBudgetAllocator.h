@@ -4,6 +4,7 @@
 
 class USkeletalMeshComponentBudgeted;
 class UWorld;
+struct FAnimationBudgetAllocatorParameters;
 
 /**
  * Dynamically manages skeletal mesh component tick rates to try to maintain a specified budget.
@@ -66,4 +67,7 @@ public:
 
 	/** Get whether this budget allocator is enabled */
 	virtual bool GetEnabled() const = 0;
+
+	/** Set the various parameters */
+	virtual void SetParameters(const FAnimationBudgetAllocatorParameters& InParameters) = 0;
 };

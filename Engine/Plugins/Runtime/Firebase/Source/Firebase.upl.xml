@@ -16,6 +16,29 @@
 		</if>
 	</init>
 
+	<androidManifestUpdates>
+		<if condition="bEnabled">
+			<true>
+				<addElements tag="application">
+					<service
+					  android:name="com.epicgames.ue4.notifications.EpicFirebaseInstanceIDService"
+					  android:exported="false" >
+						<intent-filter>
+							<action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
+						</intent-filter>
+					</service>
+					<service
+					  android:name="com.epicgames.ue4.notifications.EpicFirebaseMessagingService"
+					  android:exported="false">
+						<intent-filter>
+							<action android:name="com.google.firebase.MESSAGING_EVENT"/>
+						</intent-filter>
+					</service>
+				</addElements>
+			</true>
+		</if>
+	</androidManifestUpdates>
+
 	<buildscriptGradleAdditions>
 		<if condition="bEnabled">
 			<true>
@@ -43,6 +66,14 @@ apply plugin: 'com.google.gms.google-services'
 		</if>
 	</buildGradleAdditions>
 
+	<prebuildCopies>
+		<if condition="bEnabled">
+			<true>
+				<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4"/>
+			</true>
+		</if>
+	</prebuildCopies>
+	
 	<gradleCopies>
 		<if condition="bEnabled">
 			<true>
@@ -51,4 +82,5 @@ apply plugin: 'com.google.gms.google-services'
 			</true>
 		</if>
 	</gradleCopies>
+
 </root>

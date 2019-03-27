@@ -71,8 +71,16 @@ namespace Gauntlet
 
 				Match Info = Regex.Match(Fi.Name, RegEx, RegexOptions.IgnoreCase);
 
-				if (Info.Success == false)
+				bool TestInstall = Fi.Name.EndsWith("_TEST.bat", StringComparison.OrdinalIgnoreCase);
+
+				// filter out non-matching or test installation batch files
+				// test installation scripts are intended to be manually invoked
+				if (Info.Success == false || TestInstall)
 				{
+					if (TestInstall)
+					{
+						Log.Verbose("Ignoring test installation batch file {0}", Fi.Name);
+					}
 					continue;
 				}
 

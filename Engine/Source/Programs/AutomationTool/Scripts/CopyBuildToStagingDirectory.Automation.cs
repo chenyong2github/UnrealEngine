@@ -137,14 +137,22 @@ public partial class Project : CommandUtils
 		{
 			CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
 		}
-		if (CryptoSettings != null && CryptoSettings.bEnablePakIndexEncryption)
+		if (CryptoSettings != null && CryptoSettings.bDataCryptoRequired)
 		{
-			CmdLine.AppendFormat(" -encryptindex");
+			if (CryptoSettings.bEnablePakIndexEncryption)
+			{
+				CmdLine.AppendFormat(" -encryptindex");
+			}
+			if (!string.IsNullOrEmpty(EncryptionKeyGuid))
+			{
+				CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
+			}
+			if (CryptoSettings.bDataCryptoRequired && CryptoSettings.bEnablePakSigning && CryptoSettings.SigningKey.IsValid())
+			{
+				CmdLine.AppendFormat(" -sign");
+			}
 		}
-		if (!string.IsNullOrEmpty(EncryptionKeyGuid))
-		{
-			CmdLine.AppendFormat(" -EncryptionKeyOverrideGuid={0}", EncryptionKeyGuid);
-		}
+		
 		CmdLine.Append(PlatformOptions);
 
 		return CmdLine.ToString();
@@ -883,7 +891,21 @@ public partial class Project : CommandUtils
 		}
 
 		// Remap all the non-ufs files if not using a PAK file
-		SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		if (Params.HasIterateSharedCookedBuild)
+		{
+			// Shared NonUFS files are staged in their remapped location, and may be duplicated in the to-stage list.
+			Dictionary<StagedFileReference, FileReference> NonUFSToStage = new Dictionary<StagedFileReference, FileReference>();
+			foreach (KeyValuePair<StagedFileReference, FileReference> StagedFilePair in SC.FilesToStage.NonUFSFiles)
+			{
+				NonUFSToStage[SC.StageTargetPlatform.Remap(StagedFilePair.Key)] = StagedFilePair.Value;
+			}
+			SC.FilesToStage.NonUFSFiles = NonUFSToStage;
+		}
+		else
+		{
+			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		}
+
 		if (!Params.UsePak(SC.StageTargetPlatform))
 		{
 			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
@@ -1262,11 +1284,6 @@ public partial class Project : CommandUtils
 	{
 		CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "NonUFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
 
-		if (!Params.NoDebugInfo)
-		{
-			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
-		}
-
 		bool bStageUnrealFileSystemFiles = !Params.CookOnTheFly && !Params.UsePak(SC.StageTargetPlatform) && !Params.FileServer;
 		if (bStageUnrealFileSystemFiles)
 		{
@@ -1284,6 +1301,13 @@ public partial class Project : CommandUtils
 				}
 			}
 			CopyManifestFilesToStageDir(UFSFiles, SC.StageDirectory, SC.DebugStageDirectory, "UFSFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
+		}
+
+		// Copy debug files last
+		// they do not respect the DeployLowerCaseFilenames() setting, but if copied to a case-insensitive staging directory first they determine the casing for outer directories (like Engine/Content) 
+		if (!Params.NoDebugInfo)
+		{
+			CopyManifestFilesToStageDir(SC.FilesToStage.NonUFSDebugFiles, SC.DebugStageDirectory, SC.DebugStageDirectory, "DebugFiles", SC.StageTargetPlatform.GetFilesForCRCCheck(), SC.StageTargetPlatform.PlatformType.ToString());
 		}
 	}
 
@@ -1341,6 +1365,8 @@ public partial class Project : CommandUtils
 		List<PakFileRules> RulesList = new List<PakFileRules>();
 		foreach (string SectionName in PakRulesConfig.SectionNames)
 		{
+			//LogInformation("Building PakFileRules for Section {0}", SectionName);
+
 			string PlatformString, TargetString, PakString;
 
 			if (PakRulesConfig.TryGetValue(SectionName, "Platforms", out PlatformString))
@@ -1351,12 +1377,12 @@ public partial class Project : CommandUtils
 				// Check platform string
 				foreach (string Platform in PlatformStrings)
 				{
-					if (SC.StageTargetPlatform.PlatformType.ToString() == Platform)
+					if (SC.StageTargetPlatform.PlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
 					}
-					else if (SC.StageTargetPlatform.IniPlatformType.ToString() == Platform)
+					else if (SC.StageTargetPlatform.IniPlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
@@ -1365,6 +1391,7 @@ public partial class Project : CommandUtils
 
 				if (!bMatches)
 				{
+					//LogInformation("No matching platform for PakFileRules for Section {0} : {1}, {2}", SectionName, SC.StageTargetPlatform.PlatformType.ToString(), SC.StageTargetPlatform.IniPlatformType.ToString());
 					continue;
 				}
 			}
@@ -1431,6 +1458,7 @@ public partial class Project : CommandUtils
 				PakRules.Filter = new FileFilter();
 				foreach (string FileFilter in FilesEnumberable)
 				{
+					//LogInformation("Adding to PakFileRules for Section {0} : {1}", SectionName, FileFilter);
 					PakRules.Filter.AddRule(FileFilter);
 				}
 
@@ -1726,17 +1754,20 @@ public partial class Project : CommandUtils
 		List<string> Commands = new List<string>();
 		List<string> LogNames = new List<string>();
 
-		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
-		foreach (CreatePakParams PakParams in PakParamsList)
+		// Calculate target patch index by iterating all pak files in source build
+		int TargetPatchIndex = 0;
+		int NumPakFiles = 0;
+		if (bShouldGeneratePatch)
 		{
-			string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
-			if (bShouldGeneratePatch)
+			foreach (CreatePakParams PakParams in PakParamsList)
 			{
-				int TargetPatchIndex = 0;
+				string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
 				string ExistingPatchSearchPath = SC.StageTargetPlatform.GetReleasePakFilePath(SC, Params, null);
 				if (Directory.Exists(ExistingPatchSearchPath))
 				{
 					IEnumerable<string> PakFileSet = Directory.EnumerateFiles(ExistingPatchSearchPath, OutputFilename + "*" + PostFix + OutputFilenameExtension);
+					NumPakFiles += PakFileSet.Count();
+
 					foreach (string PakFilePath in PakFileSet)
 					{
 						string PakFileName = Path.GetFileName(PakFilePath);
@@ -1755,11 +1786,21 @@ public partial class Project : CommandUtils
 							}
 						}
 					}
-					if (Params.ShouldAddPatchLevel && PakFileSet.Count() > 0)
-					{
-						TargetPatchIndex++;
-					}
 				}
+			}
+
+			if (Params.ShouldAddPatchLevel && NumPakFiles > 0)
+			{
+				TargetPatchIndex++;
+			}
+		}
+
+		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
+		foreach (CreatePakParams PakParams in PakParamsList)
+		{
+			string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
+			if (bShouldGeneratePatch)
+			{
 				OutputFilename = OutputFilename + "_" + TargetPatchIndex;
 			}
 			OutputFilename = OutputFilename + PostFix;
@@ -2316,10 +2357,15 @@ public partial class Project : CommandUtils
 				bool bExcludeFromPaks = false;
 				List<string> PakList = new List<string>();
 
-					string OriginalFilename = StagingFile.Key;
-					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
-					string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
-					string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
+				string OriginalFilename = StagingFile.Key;
+				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
+				if(Path.GetExtension(NoExtension) == ".m")
+				{
+					// Hack around .m.ubulk files having a double extension
+					NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
+				}
+				string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
+				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
 				// First read manifest
 				for (int ChunkIndex = 0; ChunkIndex < ChunkDefinitions.Count; ++ChunkIndex)
@@ -2327,9 +2373,9 @@ public partial class Project : CommandUtils
 					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
 
 					if (Chunk.Manifest.Contains(OriginalFilename) ||
-								Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-								Chunk.Manifest.Contains(NoExtension) ||
-								Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
+							Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
+							Chunk.Manifest.Contains(NoExtension) ||
+							Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
 					{
 						PakList.Add(Chunk.ChunkName);
 					}

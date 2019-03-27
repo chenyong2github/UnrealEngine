@@ -63,6 +63,19 @@ public:
 	ENGINE_API static void ImageResize(int32 SrcWidth, int32 SrcHeight, const TArray<FColor> &SrcData,  int32 DstWidth, int32 DstHeight, TArray<FColor> &DstData, bool bLinearSpace );
 
 	/**
+	 * Resizes the given image using a simple average filter and stores it in the destination array.  This version constrains aspect ratio.
+	 * Accepts TArrayViews but requires that DstData be pre-sized appropriately
+	 *
+	 * @param SrcWidth	Source image width.
+	 * @param SrcHeight	Source image height.
+	 * @param SrcData	Source image data.
+	 * @param DstWidth	Destination image width.
+	 * @param DstHeight Destination image height.
+	 * @param DstData	Destination image data. (must already be sized to DstWidth*DstHeight)
+	 */
+	ENGINE_API static void ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<const FColor> &SrcData, int32 DstWidth, int32 DstHeight, const TArrayView<FColor> &DstData, bool bLinearSpace);
+
+	/**
 	 * Creates a 2D texture from a array of raw color data.
 	 *
 	 * @param SrcWidth		Source image width.

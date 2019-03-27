@@ -57,6 +57,9 @@ namespace PyUtil
 	/** Given a Python string/unicode object, extract the string value into an FString */
 	FString PyStringToUEString(PyObject* InPyStr);
 
+	/** Given a Python object, convert it to its string representation (repr) and extract the string value into an FString */
+	FString PyObjectToUEStringRepr(PyObject* InPyObj);
+
 	/** Given two values, perform a rich-comparison and return the result */
 	template <typename T, typename U>
 	PyObject* PyRichCmp(const T& InLHS, const U& InRHS, const int InOp)
@@ -368,11 +371,17 @@ namespace PyUtil
 	/** Enable developer warnings (eg, deprecation warnings) */
 	bool EnableDeveloperWarnings();
 
-	/** Log any pending Python error (will also clear the error) */
-	void LogPythonError(const bool bInteractive = false);
+	/**
+	 * Log any pending Python error (will also clear the error).
+	 * @return The error text that was logged.
+	 */
+	FString LogPythonError(const bool bInteractive = false);
 
-	/** Re-throw any pending Python error via FFrame::KismetExecutionMessage (will also clear the error) */
-	void ReThrowPythonError();
+	/**
+	 * Re-throw any pending Python error via FFrame::KismetExecutionMessage (will also clear the error).
+	 * @return The error text that was thrown.
+	 */
+	FString ReThrowPythonError();
 }
 
 #endif	// WITH_PYTHON

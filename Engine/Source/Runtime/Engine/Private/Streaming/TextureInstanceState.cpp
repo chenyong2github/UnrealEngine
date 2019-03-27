@@ -19,7 +19,7 @@ int32 FRenderAssetInstanceState::AddBounds(const UPrimitiveComponent* Component)
 	return AddBounds(Component->Bounds, PackedRelativeBox_Identity, Component, Component->LastRenderTimeOnScreen, Component->Bounds.Origin, 0, 0, FLT_MAX);
 }
 
-int32 FRenderAssetInstanceState::AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* InComponent, float LastRenderTime, const FVector4& RangeOrigin, float MinDistance, float MinRange, float MaxRange)
+int32 FRenderAssetInstanceState::AddBounds(const FBoxSphereBounds& Bounds, uint32 PackedRelativeBox, const UPrimitiveComponent* InComponent, float LastRenderTime, const FVector4& RangeOrigin, float MinDistanceSq, float MinRangeSq, float MaxRangeSq)
 {
 	check(InComponent);
 
@@ -46,7 +46,7 @@ int32 FRenderAssetInstanceState::AddBounds(const FBoxSphereBounds& Bounds, uint3
 		FreeBoundIndices.Push(BoundsIndex + 1);
 	}
 
-	Bounds4[BoundsIndex / 4].Set(BoundsIndex % 4, Bounds, PackedRelativeBox, LastRenderTime, RangeOrigin, MinDistance, MinRange, MaxRange);
+	Bounds4[BoundsIndex / 4].Set(BoundsIndex % 4, Bounds, PackedRelativeBox, LastRenderTime, RangeOrigin, MinDistanceSq, MinRangeSq, MaxRangeSq);
 	Bounds4Components[BoundsIndex] = InComponent;
 
 	return BoundsIndex;
@@ -355,7 +355,7 @@ EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComp
 		});
 
 		int32* ComponentLink = ComponentMap.Find(Component);
-		float MinDistance = 0, MinRange = 0, MaxRange = FLT_MAX;
+		float MinDistanceSq = 0, MinRangeSq = 0, MaxRangeSq = FLT_MAX;
 
 		// Loop for each bound.
 		for (int32 InfoIndex = 0; InfoIndex < RenderAssetInstanceInfos.Num();)
@@ -368,8 +368,8 @@ EAddComponentResult FRenderAssetInstanceState::AddComponent(const UPrimitiveComp
 				++NumOfBoundReferences;
 			}
 
-			GetDistanceAndRange(Component, Info.Bounds, MinDistance, MinRange, MaxRange);
-			const int32 BoundsIndex = AddBounds(Info.Bounds, PackedRelativeBox_Identity, Component, Component->LastRenderTimeOnScreen, Component->Bounds.Origin, MinDistance, MinRange, MaxRange);
+			GetDistanceAndRange(Component, Info.Bounds, MinDistanceSq, MinRangeSq, MaxRangeSq);
+			const int32 BoundsIndex = AddBounds(Info.Bounds, PackedRelativeBox_Identity, Component, Component->LastRenderTimeOnScreen, Component->Bounds.Origin, MinDistanceSq, MinRangeSq, MaxRangeSq);
 			AddRenderAssetElements(Component, TArrayView<FStreamingRenderAssetPrimitiveInfo>(RenderAssetInstanceInfos.GetData() + InfoIndex, NumOfBoundReferences), BoundsIndex, ComponentLink);
 
 			InfoIndex += NumOfBoundReferences;
@@ -539,12 +539,26 @@ bool FRenderAssetInstanceState::ConditionalUpdateBounds(int32 BoundIndex)
 }
 
 
-void FRenderAssetInstanceState::UpdateLastRenderTime(int32 BoundIndex)
+void FRenderAssetInstanceState::UpdateLastRenderTimeAndMaxDrawDistance(int32 BoundIndex)
 {
 	const UPrimitiveComponent* Component = ensure(Bounds4Components.IsValidIndex(BoundIndex)) ? Bounds4Components[BoundIndex] : nullptr;
 	if (Component)
 	{
-		Bounds4[BoundIndex / 4].UpdateLastRenderTime(BoundIndex % 4, Component->LastRenderTimeOnScreen);
+		const int32 Bounds4Idx = BoundIndex / 4;
+		const int32 SubIdx = BoundIndex & 3;
+		Bounds4[Bounds4Idx].UpdateLastRenderTime(SubIdx, Component->LastRenderTimeOnScreen);
+		// The min draw distances of HLODs can change dynamically (see Tick, PauseDitherTransition,
+		// and StartDitherTransition methods of ALODActor)
+		const UPrimitiveComponent* LODParent = Component->GetLODParentPrimitive();
+		if (LODParent)
+		{
+			const float MaxRangeSq = FRenderAssetInstanceView::GetMaxDrawDistSqWithLODParent(
+				Component->Bounds.Origin,
+				LODParent->Bounds.Origin,
+				LODParent->MinDrawDistance,
+				LODParent->Bounds.SphereRadius);
+			Bounds4[Bounds4Idx].UpdateMaxDrawDistanceSquared(SubIdx, MaxRangeSq);
+		}
 	}
 }
 

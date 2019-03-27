@@ -24,6 +24,7 @@ public:
 			: LightRotation(-40.f,-67.5f,0.f)
 			, SkyBrightness(1.0f)
 			, LightBrightness(PI)
+			, bDefaultLighting(true)
 			, bAllowAudioPlayback(false)
 			, bForceMipsResident(true)
 			, bCreatePhysicsScene(true)
@@ -36,22 +37,29 @@ public:
 		FRotator LightRotation;
 		float SkyBrightness;
 		float LightBrightness;
+		uint32 bDefaultLighting : 1;
 		uint32 bAllowAudioPlayback:1;
 		uint32 bForceMipsResident:1;
 		uint32 bCreatePhysicsScene:1;
 		uint32 bShouldSimulatePhysics:1;
 		uint32 bTransactional:1;
 		uint32 bEditor:1;
-		
+
+		TSubclassOf<class AGameModeBase> DefaultGameMode;
+
+		ConstructionValues& SetCreateDefaultLighting(const bool bDefault) { bDefaultLighting = bDefault; return *this; }
 		ConstructionValues& SetLightRotation(const FRotator& Rotation) { LightRotation = Rotation; return *this; }
 		ConstructionValues& SetSkyBrightness(const float Brightness) { SkyBrightness = Brightness; return *this; }
 		ConstructionValues& SetLightBrightness(const float Brightness) { LightBrightness = Brightness; return *this; }
+
 		ConstructionValues& AllowAudioPlayback(const bool bAllow) { bAllowAudioPlayback = bAllow; return *this; }
 		ConstructionValues& SetForceMipsResident(const bool bForce) { bForceMipsResident = bForce; return *this; }
 		ConstructionValues& SetCreatePhysicsScene(const bool bCreate) { bCreatePhysicsScene = bCreate; return *this; }
 		ConstructionValues& ShouldSimulatePhysics(const bool bInShouldSimulatePhysics) { bShouldSimulatePhysics = bInShouldSimulatePhysics; return *this; }
 		ConstructionValues& SetTransactional(const bool bInTransactional) { bTransactional = bInTransactional; return *this; }
 		ConstructionValues& SetEditor(const bool bInEditor) { bEditor = bInEditor; return *this; }
+
+		ConstructionValues& SetDefaultGameMode(TSubclassOf<class AGameModeBase> GameMode) { DefaultGameMode = GameMode; return *this; }
 	};
 
 	// for physical correct light computations we multiply diffuse and specular lights by PI (see LABEL_RealEnergy)

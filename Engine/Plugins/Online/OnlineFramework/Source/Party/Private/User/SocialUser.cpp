@@ -442,7 +442,8 @@ const FOnlineUserPresence* USocialUser::GetFriendPresenceInfo(ESocialSubsystem S
 		if (IOnlinePresencePtr PresenceInterface = SocialOss ? SocialOss->GetPresenceInterface() : nullptr)
 		{
 			TSharedPtr<FOnlineUserPresence> LocalUserPresence;
-			if (PresenceInterface->GetCachedPresence(*GetUserId(SubsystemType), LocalUserPresence) == EOnlineCachedResult::Success)
+			const FUniqueNetIdRepl& UserId = GetUserId(SubsystemType);
+			if (UserId.IsValid() && PresenceInterface->GetCachedPresence(*UserId, LocalUserPresence) == EOnlineCachedResult::Success)
 			{
 				return LocalUserPresence.Get();
 			}
@@ -671,7 +672,7 @@ bool USocialUser::CanSendFriendInvite(ESocialSubsystem SubsystemType) const
 		}
 	}
 
-	return HasSubsystemInfo(SubsystemType) && !IsFriend(SubsystemType) && !IsBlocked(SubsystemType) && !IsFriendshipPending(SubsystemType);
+	return HasSubsystemInfo(SubsystemType) && !IsLocalUser() && !IsFriend(SubsystemType) && !IsBlocked(SubsystemType) && !IsFriendshipPending(SubsystemType);
 }
 
 void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId) const
@@ -684,7 +685,7 @@ void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId) const
 	if (bHasSentInvite)
 	{
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		PartyInterface->AcceptInvitation(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), *GetUserId(ESocialSubsystem::Primary));
+		PartyInterface->ClearInvitations(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), *GetUserId(ESocialSubsystem::Primary), nullptr);
 		OnPartyInviteAccepted().Broadcast();
 	}
 }

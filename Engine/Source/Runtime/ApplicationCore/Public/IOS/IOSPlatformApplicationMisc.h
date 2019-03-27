@@ -8,6 +8,7 @@ struct APPLICATIONCORE_API FIOSPlatformApplicationMisc : public FGenericPlatform
 {
 	static void LoadPreInitModules();
 
+	static class FFeedbackContext* GetFeedbackContext();
 	static class FOutputDeviceError* GetErrorOutputDevice();
 	static class GenericApplication* CreateApplication();
 	static bool IsScreensaverEnabled();
@@ -17,6 +18,9 @@ struct APPLICATIONCORE_API FIOSPlatformApplicationMisc : public FGenericPlatform
 	static void ResetGamepadAssignments();
 	static void ResetGamepadAssignmentToController(int32 ControllerId);
 	static bool IsControllerAssignedToGamepad(int32 ControllerId);
+
+	static void EnableMotionData(bool bEnable);
+	static bool IsMotionDataEnabled();
 
 	static void ClipboardCopy(const TCHAR* Str);
 	static void ClipboardPaste(class FString& Dest);

@@ -111,6 +111,9 @@ void FProxyGenerationProcessor::ProxyGenerationFailed(const FGuid OutJobGUID, co
 	{
 		UE_LOG(LogMeshMerging, Log, TEXT("Failed to generate proxy mesh for cluster %s, %s"), *(*FindData)->ProxyBasePackageName, *ErrorMessage);
 		ProxyMeshJobs.Remove(OutJobGUID);
+		
+		TArray<UObject*> OutAssetsToSync;
+		(*FindData)->CallbackDelegate.ExecuteIfBound(OutJobGUID, OutAssetsToSync);
 	}
 }
 
@@ -205,7 +208,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	const bool bContainsImposters = Data->MergeData->ImposterComponents.Num() > 0;
 	FBox ImposterBounds(EForceInit::ForceInit);
 
-	auto RemoveVertexColorAndCommitMeshDescription = [&StaticMesh, &Data]()
+	auto RemoveVertexColorAndCommitMeshDescription = [&StaticMesh, &Data, &ProxyMaterial]()
 	{
 		if (!Data->MergeData->InProxySettings.bAllowVertexColors)
 		{
@@ -224,6 +227,16 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		if (ensure(MeshDescription))
 		{
 			*MeshDescription = Data->RawMesh;
+
+			// material index / name mapping
+			TPolygonGroupAttributesConstRef<FName> PolygonGroupMaterialSlotName = MeshDescription->PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
+			for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+			{
+				FStaticMaterial NewMaterial(ProxyMaterial);
+				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[PolygonGroupID];
+				StaticMesh->StaticMaterials.Add(NewMaterial);
+			}
+
 			StaticMesh->CommitMeshDescription(SourceModelIndex);
 		}
 	};
@@ -236,7 +249,6 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		// The base material index is always one here as we assume we only have one HLOD material
 		FMeshMergeHelpers::MergeImpostersToRawMesh(Data->MergeData->ImposterComponents, Data->RawMesh, FVector::ZeroVector, 1, ImposterMaterials);
 
-		
 		for (const UStaticMeshComponent* Component : Data->MergeData->ImposterComponents)
 		{
 			if (Component->GetStaticMesh())
@@ -246,8 +258,6 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		}
 		RemoveVertexColorAndCommitMeshDescription();
 
-		StaticMesh->StaticMaterials.Add(FStaticMaterial(ProxyMaterial));
-
 		for (UMaterialInterface* Material : ImposterMaterials)
 		{
 			StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
@@ -256,9 +266,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	else
 	{
 		RemoveVertexColorAndCommitMeshDescription();
-
-		StaticMesh->StaticMaterials.Add(FStaticMaterial(ProxyMaterial));
-	}	
+	}
 
 	//Set the Imported version before calling the build
 	StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;

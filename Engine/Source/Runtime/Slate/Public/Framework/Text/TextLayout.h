@@ -262,7 +262,8 @@ public:
 
 		TSharedRef< IRun > Run;
 		TArray< FTextRange > MeasuredRanges;
-		TArray< FVector2D > MeasuredRangeSizes;
+		// HACK: This should be a Vector2D, but changing to a FVector4 to overcome a compiler issue with vectorization running off the end of the array.
+		TArray< FVector4 > MeasuredRangeSizes;
 	};
 
 	struct ELineModelDirtyState

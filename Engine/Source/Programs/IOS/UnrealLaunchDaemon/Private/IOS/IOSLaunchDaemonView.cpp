@@ -177,12 +177,7 @@
 	self.view = [[IOSLaunchDaemonView alloc] initWithFrame:Frame];
 
 	// settings copied from InterfaceBuilder
-#if defined(__IPHONE_7_0)
-	if ([IOSAppDelegate GetDelegate].OSVersion >= 7.0)
-	{
-		self.edgesForExtendedLayout = UIRectEdgeNone;
-	}
-#endif
+	self.edgesForExtendedLayout = UIRectEdgeNone;
 
     self.wantsFullScreenLayout = YES;
 	self.view.clearsContextBeforeDrawing = NO;

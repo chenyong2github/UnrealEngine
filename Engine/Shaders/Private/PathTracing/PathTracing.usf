@@ -86,7 +86,7 @@ void PathTracingMainRG()
 		FMaterialClosestHitPayload Payload = TraceRayInternal(
 			TLAS,   // AccelerationStructure
 			RayFlags,
-			0xFF,   // InstanceInclusionMask
+			RAY_TRACING_MASK_ALL,
 			0,      // RayContributionToHitGroupIndex
 			1,      // MultiplierForGeometryContributionToShaderIndex #dxr_todo: we currently only support shader binding per mesh instance
 			0,      // MissShaderIndex
@@ -97,8 +97,7 @@ void PathTracingMainRG()
 
 		float MaterialPdf = 0.0;
 		uint Bounces = 0;
-		uint BouncesMax = 32;
-		while (Bounces < BouncesMax)
+		while (Bounces < PathTracingData.MaxBounces)
 		{
 			// Environment contribution
 			if (!IsHit(Ray, Payload))
@@ -191,9 +190,9 @@ void PathTracingMainRG()
 					FMaterialClosestHitPayload NeePayload = TraceRayInternal(
 						TLAS,      // AccelerationStructure
 						RayFlags,
-						0xFF,      // InstanceInclusionMask
-						0,         // RayContributionToHitGroupIndex
-						1,         // MultiplierForGeometryContributionToShaderIndex #dxr_todo: we currently only support shader binding per mesh instance
+						RAY_TRACING_MASK_ALL,
+						RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+						RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 						0,         // MissShaderIndex
 						LightRay,
 						LightRayCone
@@ -249,7 +248,8 @@ void PathTracingMainRG()
 			float3 Direction;
 			float3 Throughput;
 			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
-			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Direction, Throughput, MaterialPdf);
+			float SignedPositionBias;
+			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Direction, Throughput, MaterialPdf, SignedPositionBias);
 			if (MaterialPdf == 0.0)
 			{
 				break;
@@ -257,7 +257,7 @@ void PathTracingMainRG()
 
 			// Update ray
 			Ray.Direction = Direction;
-			ApplyPositionBias(Ray, Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
+			ApplyPositionBias(Ray, SignedPositionBias * Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
 			RayThroughput *= Throughput;
 			RayPdf *= MaterialPdf;
 
@@ -288,9 +288,9 @@ void PathTracingMainRG()
 			//#dxr-todo: check ray flags when hit shaders are supported
 			Payload = TraceRayInternal(TLAS,
 				RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-				0xFF, // InstanceInclusionMask
-				0,    // RayContributionToHitGroupIndex
-				1,    // MultiplierForGeometryContributionToShaderIndex
+				RAY_TRACING_MASK_ALL,
+				RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 				0,    // MissShaderIndex
 				Ray,
 				RayCone /* propagated by the material CHS */

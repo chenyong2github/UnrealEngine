@@ -1555,6 +1555,23 @@ public:
 	explicit UDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
 };
 
+//
+// Function definition used by sparse dynamic delegate declarations
+//
+class COREUOBJECT_API USparseDelegateFunction : public UDelegateFunction
+{
+	DECLARE_CASTED_CLASS_INTRINSIC(USparseDelegateFunction, UDelegateFunction, 0, TEXT("/Script/CoreUObject"), CASTCLASS_USparseDelegateFunction)
+	DECLARE_WITHIN(UObject)
+public:
+	explicit USparseDelegateFunction(const FObjectInitializer& ObjectInitializer, UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
+	explicit USparseDelegateFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags = FUNC_None, SIZE_T ParamsSize = 0);
+
+	virtual void Serialize(FArchive& Ar) override;
+
+	FName OwningClassName;
+	FName DelegateName;
+};
+
 /*-----------------------------------------------------------------------------
 	UEnum.
 -----------------------------------------------------------------------------*/
@@ -2203,16 +2220,6 @@ public:
 	/** This is the blueprint that caused the generation of this class, or null if it is a native compiled-in class */
 	UObject* ClassGeneratedBy;
 
-#if USE_UBER_GRAPH_PERSISTENT_FRAME
-	/**
-	 * Property that points to the ubergraph frame, this is a blueprint specific structure that has been hoisted
-	 * to UClass so that the interpreter (ScriptCore.cpp) can access it efficiently. The uber graph frame is a struct
-	 * owned by a UObject but allocated separately that has a layout that corresponds to a specific UFunction (the
-	 * UberGraphFunction) in a blueprint.
-	 */
-	UStructProperty* UberGraphFramePointerProperty;
-#endif //USE_UBER_GRAPH_PERSISTENT_FRAME
-
 #if WITH_EDITOR
 	/**
 	 * Conditionally recompiles the class after loading, in case any dependencies were also newly loaded
@@ -2505,6 +2512,12 @@ public:
 	 * @return The name of the CDO
 	 */
 	FName GetDefaultObjectName();
+
+	/** Returns memory used to store temporary data on an instance, used by blueprints */
+	virtual uint8* GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const
+	{
+		return nullptr;
+	}
 
 	/** Creates memory to store temporary data */
 	virtual void CreatePersistentUberGraphFrame(UObject* Obj, bool bCreateOnlyIfEmpty = false, bool bSkipSuperClass = false, UClass* OldClass = nullptr) const

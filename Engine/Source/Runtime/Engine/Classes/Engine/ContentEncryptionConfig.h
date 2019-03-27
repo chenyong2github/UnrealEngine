@@ -40,6 +40,18 @@ public:
 		return ReleasedKeys;
 	}
 
+	void DissolveGroups(const TSet<FName>& InGroupsToDissolve)
+	{
+		for (FName GroupName : InGroupsToDissolve)
+		{
+			if (PackageGroups.Contains(GroupName))
+			{
+				PackageGroups.FindOrAdd(NAME_None).PackageNames.Append(PackageGroups.Find(GroupName)->PackageNames);
+				PackageGroups.Remove(GroupName);
+			}
+		}
+	}
+
 private:
 
 	TGroupMap PackageGroups;
