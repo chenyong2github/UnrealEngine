@@ -3840,6 +3840,7 @@ void UParticleSystemComponent::OnUnregister()
 
 void UParticleSystemComponent::CreateRenderState_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::Particles);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
