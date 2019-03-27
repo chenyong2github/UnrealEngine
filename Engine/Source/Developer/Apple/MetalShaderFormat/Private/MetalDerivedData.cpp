@@ -620,7 +620,12 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				check(ThreadSizeIdx != std::string::npos);
 				char const* String = SourceData.c_str() + ThreadSizeIdx;
 				uint32 WorkgroupSize[3];
+
+#if !PLATFORM_WINDOWS
 				size_t Found = sscanf(String, "numthreads(%d, %d, %d)", &WorkgroupSize[0], &WorkgroupSize[1], &WorkgroupSize[2]);
+#else
+				size_t Found = sscanf_s(String, "numthreads(%d, %d, %d)", &WorkgroupSize[0], &WorkgroupSize[1], &WorkgroupSize[2]);
+#endif
 				check(Found == 3);
 				for (uint32 i = 0; i < Found; i++)
 				{
