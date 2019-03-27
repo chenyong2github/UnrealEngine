@@ -279,6 +279,7 @@ namespace UnrealBuildTool
 					{
 						// Always depend on the CLR System assembly
 						CompileParams.ReferencedAssemblies.Add("System.dll");
+						CompileParams.ReferencedAssemblies.Add("System.Core.dll");
 					}
 					else
 					{
