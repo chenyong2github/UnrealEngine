@@ -174,6 +174,8 @@ public:
 
 	void ScrollToEnd();
 
+	void EndInertialScrolling();
+
 	/** 
 	 * Attempt to scroll a widget into view, will safely handle non-descendant widgets 
 	 *
@@ -284,8 +286,6 @@ private:
 	bool CanUseInertialScroll(float ScrollAmount) const;
 
 	void BeginInertialScrolling();
-
-	void EndInertialScrolling();
 
 	TSharedPtr<SWidget> GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget);
 
