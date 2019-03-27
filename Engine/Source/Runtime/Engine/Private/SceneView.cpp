@@ -49,6 +49,13 @@ static TAutoConsoleVariable<float> CVarSSRMaxRoughness(
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
+static TAutoConsoleVariable<int32> CVarFreezeMouseCursor(
+	TEXT("r.FreezeMouseCursor"),
+	0,
+	TEXT("Free the mouse cursor position, for passes which use it to display debug information.\n")
+	TEXT("0: default\n")
+	TEXT("1: freeze mouse cursor position at current location"),
+	ECVF_Cheat);
 
 static TAutoConsoleVariable<int32> CVarShadowFreezeCamera(
 	TEXT("r.Shadow.FreezeCamera"),
@@ -2219,6 +2226,12 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.GameTime = Family->CurrentWorldTime;
 	ViewUniformShaderParameters.RealTime = Family->CurrentRealTime;
 	ViewUniformShaderParameters.DeltaTime = Family->DeltaWorldTime;
+	static FIntPoint LockedCursorPos = CursorPos;
+	if (CVarFreezeMouseCursor.GetValueOnRenderThread() == 0 && CursorPos.X >= 0 && CursorPos.Y >= 0)
+	{
+		LockedCursorPos = CursorPos;
+	}
+	ViewUniformShaderParameters.CursorPosition = LockedCursorPos;
 	ViewUniformShaderParameters.Random = FMath::Rand();
 	ViewUniformShaderParameters.FrameNumber = Family->FrameNumber;
 

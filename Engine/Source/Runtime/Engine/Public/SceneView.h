@@ -688,6 +688,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeDimension) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeTexelSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MaxGlobalDistance) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FIntPoint, CursorPosition) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, bCheckerboardSubsurfaceProfileRendering) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, VolumetricFogInvGridSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, VolumetricFogGridZParams) \
