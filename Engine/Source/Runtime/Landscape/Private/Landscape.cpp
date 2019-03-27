@@ -2965,6 +2965,7 @@ void ALandscape::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunct
 void ALandscapeProxy::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
+	LLM_SCOPE(ELLMTag::Landscape);
 #if WITH_EDITOR
 	// editor-only
 	UWorld* World = GetWorld();
