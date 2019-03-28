@@ -2436,7 +2436,14 @@ string CompilerMSL::to_dereferenced_expression(uint32_t id, bool register_expres
 	
 	return CompilerGLSL::to_dereferenced_expression(id, register_expression_read);
 }
-/* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
+
+static bool expression_ends_with(string const& expr_str, std::string const& ending)
+{
+	if (expr_str.length() >= ending.length())
+		return (0 == expr_str.compare(expr_str.length() - ending.length(), ending.length(), ending));
+	else
+		return false;
+}
 
 // Converts the format of the current expression from packed to unpacked,
 // by wrapping the expression in a constructor of the appropriate type.
@@ -2447,13 +2454,14 @@ string CompilerMSL::unpack_expression_type(string expr_str, const SPIRType &type
 		packed_type = &get<SPIRType>(packed_type_id);
 
 	// float[] and float2[] cases are really just padding, so directly swizzle from the backing float4 instead.
-	if (packed_type && is_array(*packed_type) && is_scalar(*packed_type))
+	if (packed_type && is_array(*packed_type) && is_scalar(*packed_type) && !expression_ends_with(expr_str, ".x"))
 		return enclose_expression(expr_str) + ".x";
-	else if (packed_type && is_array(*packed_type) && is_vector(*packed_type) && packed_type->vecsize == 2)
+	else if (packed_type && is_array(*packed_type) && is_vector(*packed_type) && packed_type->vecsize == 2 && !expression_ends_with(expr_str, ".xy"))
 		return enclose_expression(expr_str) + ".xy";
 	else
 		return join(type_to_glsl(type), "(", expr_str, ")");
 }
+/* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
 
 // Emits the file header info
 void CompilerMSL::emit_header()
