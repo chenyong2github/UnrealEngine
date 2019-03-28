@@ -70,7 +70,7 @@ struct FPakInfo
 		/** Length of a compression format name */
 		CompressionMethodNameLen = 32,
 		/** Number of allowed different methods */
-		MaxNumCompressionMethods=4,
+		MaxNumCompressionMethods=5, // when we remove patchcompatibilitymode421 we can reduce this to 4
 	};
 
 	/** Version numbers. */
@@ -311,7 +311,7 @@ struct FPakEntry
 	/** Size of a compressed block in the file. */
 	uint32 CompressionBlockSize;
 	/** Index into the compression methods in this pakfile. */
-	uint8 CompressionMethodIndex;
+	uint32 CompressionMethodIndex;
 	/** Pak entry flags. */
 	uint8 Flags;
 	/** Flag is set to true when FileHeader has been checked against PakHeader. It is not serialized. */
