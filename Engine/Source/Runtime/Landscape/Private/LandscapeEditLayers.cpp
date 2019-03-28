@@ -21,6 +21,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 
 #if WITH_EDITOR
 #include "LandscapeEditorModule.h"
+#include "LandscapeToolInterface.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "LandscapeBPCustomBrush.h"
@@ -30,7 +31,6 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "ShaderCompiler.h"
 #include "Algo/Count.h"
 #endif
-#include "LandscapeToolInterface.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
