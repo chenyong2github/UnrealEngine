@@ -4,7 +4,7 @@
 
 uint ComponentSize;
 
-struct FLandscapeProceduralWeightmapExtractLayersComponentData
+struct FLandscapeLayerWeightmapExtractMaterialLayersComponentData
 {
 	int2 ComponentVertexPosition;		// Section Base of the component converted to vertex
 	uint DestinationPaintLayerIndex;	// correspond to which layer info object index the data should be stored in the texture 2d array
@@ -12,7 +12,7 @@ struct FLandscapeProceduralWeightmapExtractLayersComponentData
 	int2 AtlasTexturePositionOutput;	// This represent the location we will write layer information
 };
 
-StructuredBuffer<FLandscapeProceduralWeightmapExtractLayersComponentData> InExtractLayersComponentsData;
+StructuredBuffer<FLandscapeLayerWeightmapExtractMaterialLayersComponentData> InExtractLayersComponentsData;
 Texture2D<float4> InComponentWeightMaps;
 RWTexture2DArray<float> OutAtlasPaintLayers;
 
@@ -21,7 +21,7 @@ void ComputeWeightmapPerPaintLayer(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x < ComponentSize && DispatchThreadId.y < ComponentSize)
 	{
-		FLandscapeProceduralWeightmapExtractLayersComponentData ComponentData = InExtractLayersComponentsData[DispatchThreadId.z];
+		FLandscapeLayerWeightmapExtractMaterialLayersComponentData ComponentData = InExtractLayersComponentsData[DispatchThreadId.z];
 		int2 CurrentTexel = DispatchThreadId.xy + ComponentData.ComponentVertexPosition;
 
 		float4 LayerBlend = InComponentWeightMaps.Load(int3(CurrentTexel, 0));
@@ -29,7 +29,7 @@ void ComputeWeightmapPerPaintLayer(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
-struct FLandscapeProceduralWeightmapPackLayersComponentData
+struct FLandscapeLayerWeightmapPackMaterialLayersComponentData
 {
 	int4 ComponenVertexPositionX;	// Section Base of the component converted to vertex for each rgba value (as a texture can contain data from different component)
 	int4 ComponenVertexPositionY;	// Section Base of the component converted to vertex for each rgba value (as a texture can contain data from different component)
@@ -37,7 +37,7 @@ struct FLandscapeProceduralWeightmapPackLayersComponentData
 	int4 WeightmapChannelToProcess;	// correspond to which RGBA channel to process
 };
 
-StructuredBuffer<FLandscapeProceduralWeightmapPackLayersComponentData> InPackLayersComponentsData;
+StructuredBuffer<FLandscapeLayerWeightmapPackMaterialLayersComponentData> InPackLayersComponentsData;
 Buffer<float> InWeightmapWeightBlendMode;
 Buffer<float2> InWeightmapTextureOutputOffset;
 Texture2DArray<float> InAtlasPaintLayers;
@@ -75,7 +75,7 @@ void PackPaintLayerToWeightmap(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x < ComponentSize && DispatchThreadId.y < ComponentSize)
 	{
-		FLandscapeProceduralWeightmapPackLayersComponentData ComponentData = InPackLayersComponentsData[DispatchThreadId.z];
+		FLandscapeLayerWeightmapPackMaterialLayersComponentData ComponentData = InPackLayersComponentsData[DispatchThreadId.z];
 
 		float4 Channels;
 

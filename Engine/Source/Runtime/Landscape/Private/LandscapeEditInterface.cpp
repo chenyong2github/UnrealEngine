@@ -1769,9 +1769,9 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 		ComponentWeightmapLayerAllocations.Add(FWeightmapLayerAllocationInfo(LayerInfo));
 		Component->ReallocateWeightmaps(&LandscapeEdit);
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			GetLandscapeActor()->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_Render);
+			GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_Render);
 		}
 	}
 
