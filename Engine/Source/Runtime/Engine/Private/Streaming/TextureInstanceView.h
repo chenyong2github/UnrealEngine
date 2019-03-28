@@ -206,13 +206,15 @@ public:
 	static void GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistanceSq, float& MinRangeSq, float& MaxRangeSq);
 
 	// FORT-159677
-	FORCEINLINE void VerifyElementIdx_DebuggingOnly(int32 Idx, bool bAdd, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr = nullptr, TArray<int32>* FreeIndicesPtr = nullptr) const
+	FORCEINLINE void VerifyElementIdx_DebuggingOnly(int32 Idx, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr = nullptr, TArray<int32>* FreeIndicesPtr = nullptr) const
 	{
+#if PLATFORM_WINDOWS
 		const bool bInRange = Idx >= 0 && Idx < Elements.Num();
-		if (!bInRange || (!bAdd && !RenderAssetMap.Find(Elements[Idx].RenderAsset)))
+		if (!bInRange)
 		{
-			OnVerifyElementIdxFailed(Idx, bInRange, bAdd, IterationCount, ComponentMapPtr, FreeIndicesPtr);
+			OnVerifyElementIdxFailed(Idx, bInRange, IterationCount, ComponentMapPtr, FreeIndicesPtr);
 		}
+#endif
 	}
 
 protected:
@@ -230,7 +232,7 @@ protected:
 	float MaxTexelFactor;
 
 private:
-	FORCENOINLINE void OnVerifyElementIdxFailed(int32 Idx, bool bInRange, bool bAdd, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const;
+	FORCENOINLINE void OnVerifyElementIdxFailed(int32 Idx, bool bInRange, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const;
 };
 
 struct FStreamingViewInfoExtra
