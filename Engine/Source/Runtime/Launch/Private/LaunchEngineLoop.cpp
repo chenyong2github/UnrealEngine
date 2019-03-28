@@ -4283,9 +4283,9 @@ void FEngineLoop::Tick()
 #if BUILD_EMBEDDED_APP
 	static double LastSleepTime = FPlatformTime::Seconds();
 	double TimeNow = FPlatformTime::Seconds();
-	if (LastSleepTime - TimeNow >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
+	if (LastSleepTime > 0 && TimeNow - LastSleepTime >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
 	{
-		LastSleepTime = TimeNow;
+		LastSleepTime = 0;
 		FEmbeddedCommunication::AllowSleep(TEXT("FirstTicks"));
 	}
 #endif
