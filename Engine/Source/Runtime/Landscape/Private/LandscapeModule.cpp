@@ -114,13 +114,13 @@ void GetLandscapeTexturesAndMaterials(ULevel* Level, TArray<UObject*>& OutTextur
 			LandscapeComponent->GetGeneratedTexturesAndMaterialInstances(OutTexturesAndMaterials);
 		}
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
 			ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(ObjInLevel);
 
 			if (Landscape != nullptr)
 			{
-				for (auto& ItLayerDataPair : Landscape->ProceduralLayersData)
+				for (auto& ItLayerDataPair : Landscape->LandscapeLayersData)
 				{
 					for (auto& ItHeightmapPair : ItLayerDataPair.Value.Heightmaps)
 					{

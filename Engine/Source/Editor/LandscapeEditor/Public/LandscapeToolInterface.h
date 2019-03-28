@@ -176,14 +176,14 @@ struct FLandscapeToolTarget
 	ELandscapeToolTargetType::Type TargetType;
 	TWeakObjectPtr<ULandscapeLayerInfoObject> LayerInfo;
 	FName LayerName;
-	int32 CurrentProceduralLayerIndex;
+	int32 CurrentLayerIndex;
 
 	FLandscapeToolTarget()
 		: LandscapeInfo()
 		, TargetType(ELandscapeToolTargetType::Heightmap)
 		, LayerInfo()
 		, LayerName(NAME_None)
-		, CurrentProceduralLayerIndex(INDEX_NONE)
+		, CurrentLayerIndex(INDEX_NONE)
 	{
 	}
 };

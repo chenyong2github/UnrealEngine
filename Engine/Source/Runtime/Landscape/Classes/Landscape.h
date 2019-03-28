@@ -72,7 +72,7 @@ enum EWeightmapRTType : uint8
 	WeightmapRT_Count
 };
 
-enum EProceduralContentUpdateFlag : uint32
+enum ELandscapeLayersContentUpdateFlag : uint32
 {
 	Heightmap_Setup					= 0x00000001u,
 	Heightmap_Render				= 0x00000002u,
@@ -94,15 +94,15 @@ enum EProceduralContentUpdateFlag : uint32
 };
 
 USTRUCT()
-struct FLandscapeProceduralLayerBrush
+struct FLandscapeLayerBrush
 {
 	GENERATED_USTRUCT_BODY()
 
-	FLandscapeProceduralLayerBrush()
+	FLandscapeLayerBrush()
 		: BPCustomBrush(nullptr)
 	{}
 
-	FLandscapeProceduralLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
+	FLandscapeLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
 		: BPCustomBrush(InBrush)
 	{}
 
@@ -140,11 +140,11 @@ struct FLandscapeProceduralLayerBrush
 };
 
 USTRUCT()
-struct FProceduralLayer
+struct FLandscapeLayer
 {
 	GENERATED_USTRUCT_BODY()
 
-	FProceduralLayer()
+	FLandscapeLayer()
 		: Guid(FGuid::NewGuid())
 		, Name(NAME_None)
 		, bVisible(true)
@@ -172,7 +172,7 @@ struct FProceduralLayer
 	float WeightmapAlpha;
 
 	UPROPERTY()
-	TArray<FLandscapeProceduralLayerBrush> Brushes;
+	TArray<FLandscapeLayerBrush> Brushes;
 
 	UPROPERTY()
 	TArray<int8> HeightmapBrushOrderIndices;
@@ -227,81 +227,93 @@ public:
 	//~ End UObject Interface
 
 
-	// Procedural stuff
+	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestProceduralContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
-	LANDSCAPE_API void CreateProceduralLayer(FName InName = NAME_None, bool bInUpdateProceduralContent = true);
-	LANDSCAPE_API bool IsProceduralLayerNameUnique(const FName& InName) const;
-	LANDSCAPE_API void SetProceduralLayerName(int32 InLayerIndex, const FName& InName);
-	LANDSCAPE_API void SetProceduralLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
-	LANDSCAPE_API void SetProceduralLayerVisibility(int32 InLayerIndex, bool bInVisible);
-	LANDSCAPE_API struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex);
-	LANDSCAPE_API const struct FProceduralLayer* GetProceduralLayer(int32 InLayerIndex) const;
-	LANDSCAPE_API void ClearProceduralLayer(int32 InLayerIndex);
-	LANDSCAPE_API void ClearProceduralLayer(const FGuid& InLayerGuid);
-	LANDSCAPE_API void DeleteProceduralLayer(int32 InLayerIndex);
-	LANDSCAPE_API void SetCurrentEditingProceduralLayer(FGuid InLayerGuid = FGuid());
-	LANDSCAPE_API void ShowOnlySelectedProceduralLayer(int32 InLayerIndex);
-	LANDSCAPE_API void ShowAllProceduralLayers();
+	LANDSCAPE_API void RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
+	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
+	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
+	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
+	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
+	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
+	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
+	LANDSCAPE_API void ClearLayer(int32 InLayerIndex);
+	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid);
+	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
+	LANDSCAPE_API void SetEditingLayer(FGuid InLayerGuid = FGuid());
+	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
+	LANDSCAPE_API void ShowAllLayers();
+
+	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
+	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
+
+	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API bool AreAllBrushesCommitedToLayer(int32 InLayerIndex, int32 InTargetType);
+	LANDSCAPE_API void SetBrushesCommitStateForLayer(int32 InLayerIndex, int32 InTargetType, bool InCommited);
+	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
+	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
+	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
+		
 
 private:
-	void TickProcedural(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
-	void RegenerateProceduralContent();
-	void RegenerateProceduralHeightmaps();
-	void ResolveProceduralHeightmapTexture(const TArray<ALandscapeProxy*>& InAllLandscapes);
-	void ResolveProceduralWeightmapTexture(const TArray<ALandscapeProxy*>& InAllLandscapes);
-	void ResolveProceduralTexture(FLandscapeProceduralTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOriginalTexture);
-	void RegenerateProceduralWeightmaps();
+	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
+	void RegenerateLayersContent();
+	void RegenerateLayersHeightmaps();
+	void RegenerateLayersWeightmaps();
+	void ResolveLayersHeightmapTexture(const TArray<ALandscapeProxy*>& InAllLandscapes);
+	void ResolveLayersWeightmapTexture(const TArray<ALandscapeProxy*>& InAllLandscapes);
+	void ResolveLayersTexture(FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOriginalTexture);
 
-	bool AreHeightmapTextureResourcesReady(const TArray<ALandscapeProxy*>& InAllLandscapes) const;
-	bool AreWeightmapTextureResourcesReady(const TArray<ALandscapeProxy*>& InAllLandscapes) const;
+	bool AreLayersHeightmapTextureResourcesReady(const TArray<ALandscapeProxy*>& InAllLandscapes) const;
+	bool AreLayersWeightmapTextureResourcesReady(const TArray<ALandscapeProxy*>& InAllLandscapes) const;
 
-	void UpdateProceduralMaterialInstances(const TArray<ULandscapeComponent*>& InComponentsToUpdate, const TMap<ULandscapeComponent*, TArray<ULandscapeLayerInfoObject*>>& InZeroAllocationsPerComponents);
+	void UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*>& InComponentsToUpdate, const TMap<ULandscapeComponent*, TArray<ULandscapeLayerInfoObject*>>& InZeroAllocationsPerComponents);
 
-	void PrepareProceduralComponentDataForExtractLayersCS(const FProceduralLayer& InProceduralLayer, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, class FLandscapeTexture2DResource* InOutTextureData,
-														  TArray<struct FLandscapeProceduralWeightmapExtractLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
-	void PrepareProceduralComponentDataForPackLayersCS(int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, 
-													   TArray<UTexture2D*>& InOutProcessedWeightmaps, TArray<class FLandscapeProceduralTexture2DCPUReadBackResource*>& InOutProcessedWeightmapCPUCopy, TArray<struct FLandscapeProceduralWeightmapPackLayersComponentData>& OutComponentData);
-	void ReallocateProceduralWeightmaps(const TArray<ALandscapeProxy*>& InAllLandscape, const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations, TArray<ULandscapeComponent*>& OutComponentThatNeedMaterialRebuild);
-	void InitProceduralWeightmapResources(uint8 InLayerCount);
+	void PrepareComponentDataToExtractMaterialLayersCS(const FLandscapeLayer& InLayer, int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ALandscapeProxy*>& InAllLandscape, class FLandscapeTexture2DResource* InOutTextureData,
+														  TArray<struct FLandscapeLayerWeightmapExtractMaterialLayersComponentData>& OutComponentData, TMap<ULandscapeLayerInfoObject*, int32>& OutLayerInfoObjects);
+	void PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeightmapToProcessIndex, bool InOutputDebugName, const TArray<ULandscapeComponent*>& InAllLandscapeComponents, 
+													   TArray<UTexture2D*>& InOutProcessedWeightmaps, TArray<class FLandscapeLayersTexture2DCPUReadBackResource*>& InOutProcessedWeightmapCPUCopy, TArray<struct FLandscapeLayerWeightmapPackMaterialLayersComponentData>& OutComponentData);
+	void ReallocateLayersWeightmaps(const TArray<ALandscapeProxy*>& InAllLandscape, const TArray<ULandscapeLayerInfoObject*>& InBrushRequiredAllocations, TArray<ULandscapeComponent*>& OutComponentThatNeedMaterialRebuild);
+	void InitLayersWeightmapResources(uint8 InLayerCount);
 	bool GenerateZeroAllocationPerComponents(const TArray<ALandscapeProxy*>& InAllLandscape, const TMap<ULandscapeLayerInfoObject*, bool>& InWeightmapLayersBlendSubstractive, TMap<ULandscapeComponent*, TArray<ULandscapeLayerInfoObject*>>& OutZeroAllocationsPerComponents);
 
-	void GenerateProceduralRenderQuad(const FIntPoint& InVertexPosition, float InVertexSize, const FVector2D& InUVStart, const FVector2D& InUVSize, TArray<struct FLandscapeProceduralTriangle>& OutTriangles) const;
-	void GenerateProceduralRenderQuadsAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeProceduralTriangle>& OutTriangles) const;
-	void GenerateProceduralRenderQuadsAtlasToNonAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeProceduralTriangle>& OutTriangles) const;
-	void GenerateProceduralRenderQuadsNonAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeProceduralTriangle>& OutTriangles) const;
-	void GenerateProceduralRenderQuadsNonAtlasToAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeProceduralTriangle>& OutTriangles) const;
-	void GenerateProceduralRenderQuadsMip(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, uint8 InCurrentMip, TArray<FLandscapeProceduralTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuad(const FIntPoint& InVertexPosition, float InVertexSize, const FVector2D& InUVStart, const FVector2D& InUVSize, TArray<struct FLandscapeLayersTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuadsAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeLayersTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuadsAtlasToNonAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeLayersTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuadsNonAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeLayersTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuadsNonAtlasToAtlas(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, TArray<struct FLandscapeLayersTriangle>& OutTriangles) const;
+	void GenerateLayersRenderQuadsMip(const FIntPoint& InSectionBase, const FVector2D& InScaleBias, float InSubSectionSizeQuad, const FIntPoint& InReadSize, const FIntPoint& InWriteSize, uint8 InCurrentMip, TArray<FLandscapeLayersTriangle>& OutTriangles) const;
 
-	void ClearWeightmapTextureResource(const FString& InDebugName, FTextureRenderTargetResource* InTextureResourceToClear);
+	void ClearLayersWeightmapTextureResource(const FString& InDebugName, FTextureRenderTargetResource* InTextureResourceToClear);
 	void DrawHeightmapComponentsToRenderTarget(const FString& InDebugName, const TArray<ULandscapeComponent*>& InComponentsToDraw, UTexture* InHeightmapRTRead, UTextureRenderTarget2D* InOptionalHeightmapRTRead2, UTextureRenderTarget2D* InHeightmapRTWrite, ERTDrawingType InDrawType,
-											   bool InClearRTWrite, struct FLandscapeHeightmapProceduralShaderParameters& InShaderParams, uint8 InMipRender = 0) const;
+											   bool InClearRTWrite, struct FLandscapeLayersHeightmapShaderParameters& InShaderParams, uint8 InMipRender = 0) const;
 
 	void DrawWeightmapComponentsToRenderTarget(const FString& InDebugName, const TArray<ULandscapeComponent*>& InComponentsToDraw, UTexture* InWeightmapRTRead, UTextureRenderTarget2D* InOptionalWeightmapRTRead2, UTextureRenderTarget2D* InWeightmapRTWrite,
-											   bool InClearRTWrite, struct FLandscapeWeightmapProceduralShaderParameters& InShaderParams, uint8 InMipRender) const;
+											   bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams, uint8 InMipRender) const;
 
 	void DrawWeightmapComponentsToRenderTarget(const FString& InDebugName, const FIntPoint& InSectionBase, const FVector2D& InScaleBias, UTexture* InWeightmapRTRead, UTextureRenderTarget2D* InOptionalWeightmapRTRead2, UTextureRenderTarget2D* InWeightmapRTWrite,
-									 		   bool InClearRTWrite, struct FLandscapeWeightmapProceduralShaderParameters& InShaderParams, uint8 InMipRender) const;
+									 		   bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams, uint8 InMipRender) const;
 
-	void DrawHeightmapComponentsToRenderTargetMips(TArray<ULandscapeComponent*>& InComponentsToDraw, UTexture* InReadHeightmap, bool InClearRTWrite, struct FLandscapeHeightmapProceduralShaderParameters& InShaderParams) const;
-	void DrawWeightmapComponentToRenderTargetMips(const FIntPoint& TopLeftTexturePosition, UTexture* InReadWeightmap, bool InClearRTWrite, struct FLandscapeWeightmapProceduralShaderParameters& InShaderParams) const;
+	void DrawHeightmapComponentsToRenderTargetMips(TArray<ULandscapeComponent*>& InComponentsToDraw, UTexture* InReadHeightmap, bool InClearRTWrite, struct FLandscapeLayersHeightmapShaderParameters& InShaderParams) const;
+	void DrawWeightmapComponentToRenderTargetMips(const FIntPoint& TopLeftTexturePosition, UTexture* InReadWeightmap, bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams) const;
 
-	void CopyProceduralTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InFirstComponentSectionBase = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
+	void CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InFirstComponentSectionBase = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
 							   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
-	void CopyProceduralTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InFirstComponentSectionBase = FIntPoint(0, 0),
+	void CopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InFirstComponentSectionBase = FIntPoint(0, 0),
 							   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 uInDestArrayIndex = 0) const;
 
-	void PrintProceduralDebugRT(const FString& InContext, UTextureRenderTarget2D* InDebugRT, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
-	void PrintProceduralDebugTextureResource(const FString& InContext, FTextureResource* InTextureResource, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
-	void PrintProceduralDebugHeightData(const FString& InContext, const TArray<FColor>& InHeightmapData, const FIntPoint& InDataSize, uint8 InMipRender, bool InOutputNormals = false) const;
-	void PrintProceduralDebugWeightData(const FString& InContext, const TArray<FColor>& InWeightmapData, const FIntPoint& InDataSize, uint8 InMipRender) const;
+	void PrintLayersDebugRT(const FString& InContext, UTextureRenderTarget2D* InDebugRT, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
+	void PrintLayersDebugTextureResource(const FString& InContext, FTextureResource* InTextureResource, uint8 InMipRender = 0, bool InOutputHeight = true, bool InOutputNormals = false) const;
+	void PrintLayersDebugHeightData(const FString& InContext, const TArray<FColor>& InHeightmapData, const FIntPoint& InDataSize, uint8 InMipRender, bool InOutputNormals = false) const;
+	void PrintLayersDebugWeightData(const FString& InContext, const TArray<FColor>& InWeightmapData, const FIntPoint& InDataSize, uint8 InMipRender) const;
 #endif
 
 public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(TextExportTransient)
-	TArray<FProceduralLayer> ProceduralLayers;
+	TArray<FLandscapeLayer> LandscapeLayers;
 
 	UPROPERTY(Transient)
 	TArray<UTextureRenderTarget2D*> HeightmapRTList;
@@ -310,7 +322,7 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 	UPROPERTY(Transient)
-	bool PreviousExperimentalLandscapeProcedural;
+	bool PreviousExperimentalLandscapeLayers;
 
 private:
 
@@ -318,40 +330,40 @@ private:
 	bool WasCompilingShaders;
 
 	UPROPERTY(Transient)
-	uint32 ProceduralContentUpdateFlags;
+	uint32 LayersContentUpdateFlags;
 
 	UPROPERTY(Transient)
-	bool ProceduralUpdateAllMaterials;
+	bool LayersUpdateAllMaterials;
 
-	// Represent all the resolved paint layer, from all procedural layer blended together (size of the landscape x paint layer count)
-	class FLandscapeTexture2DArrayResource* CombinedProcLayerWeightmapAllLayersResource;
+	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
+	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
 	
-	// Represent all the resolved paint layer, from the current procedual layer only (size of the landscape x paint layer count)
-	class FLandscapeTexture2DArrayResource* CurrentProcLayerWeightmapAllLayersResource;	
+	// Represent all the resolved paint layer, from the current layer only (size of the landscape x material layer count)
+	class FLandscapeTexture2DArrayResource* CurrentLayersWeightmapAllMaterialLayersResource;	
 	
-	// Used in extracting the paint layers data from procedural layer weightmaps (size of the landscape)
+	// Used in extracting the material layers data from layer weightmaps (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchExtractLayerTextureResource;	
 	
-	// Used in packing the paint layers data contained into CombinedProcLayerWeightmapAllLayersResource to be set again for each component weightmap (size of the landscape)
+	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;	
 #endif
 
 protected:
 #if WITH_EDITOR
-	FName GenerateUniqueProceduralLayerName(FName InName = NAME_None) const;
+	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
 #endif
 };
 
 #if WITH_EDITOR
-class LANDSCAPE_API FScopedSetLandscapeCurrentEditingProceduralLayer
+class LANDSCAPE_API FScopedSetLandscapeEditingLayer
 {
 public:
-	FScopedSetLandscapeCurrentEditingProceduralLayer(ALandscape* InLandscape, const FGuid& InProceduralLayer, TFunction<void()> InCompletionCallback = TFunction<void()>());
-	~FScopedSetLandscapeCurrentEditingProceduralLayer();
+	FScopedSetLandscapeEditingLayer(ALandscape* InLandscape, const FGuid& InLayerGUID, TFunction<void()> InCompletionCallback = TFunction<void()>());
+	~FScopedSetLandscapeEditingLayer();
 
 private:
 	TWeakObjectPtr<ALandscape> Landscape;
-	const FGuid& ProceduralLayer;
+	const FGuid& LayerGUID;
 	TFunction<void()> CompletionCallback;
 };
 #endif
