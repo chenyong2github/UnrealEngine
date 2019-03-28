@@ -143,6 +143,8 @@ public:
 
 		FBoxSphereBounds GetBounds() const;
 
+		int32 GetCurElementIdx_ForDebuggingOnly() const { return CurrElementIndex; }
+
 	protected:
 
 		FORCEINLINE const UPrimitiveComponent* GetComponent() const { return State.Elements[CurrElementIndex].Component; }
@@ -203,6 +205,16 @@ public:
 
 	static void GetDistanceAndRange(const UPrimitiveComponent* Component, const FBoxSphereBounds& RenderAssetInstanceBounds, float& MinDistanceSq, float& MinRangeSq, float& MaxRangeSq);
 
+	// FORT-159677
+	FORCEINLINE void VerifyElementIdx_DebuggingOnly(int32 Idx, bool bAdd, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr = nullptr, TArray<int32>* FreeIndicesPtr = nullptr) const
+	{
+		const bool bInRange = Idx >= 0 && Idx < Elements.Num();
+		if (!bInRange || (!bAdd && !RenderAssetMap.Find(Elements[Idx].RenderAsset)))
+		{
+			OnVerifyElementIdxFailed(Idx, bInRange, bAdd, IterationCount, ComponentMapPtr, FreeIndicesPtr);
+		}
+	}
+
 protected:
 
 	TArray<FBounds4> Bounds4;
@@ -216,6 +228,9 @@ protected:
 
 	/** Max texel factor across all elements. Used for early culling */
 	float MaxTexelFactor;
+
+private:
+	FORCENOINLINE void OnVerifyElementIdxFailed(int32 Idx, bool bInRange, bool bAdd, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const;
 };
 
 struct FStreamingViewInfoExtra
