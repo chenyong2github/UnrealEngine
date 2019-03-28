@@ -4457,9 +4457,19 @@ bool FSequencer::MatchesContext(const FTransactionContext& InContext, const TArr
 	// Check if we care about the undo/redo
 	for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
 	{
-		if (TransactionObjectPair.Value.HasPendingKillChange() || TransactionObjectPair.Key->GetClass()->IsChildOf(UMovieSceneSignedObject::StaticClass()))
+		if (TransactionObjectPair.Value.HasPendingKillChange())
 		{
 			return true;
+		}
+
+		UObject* Object = TransactionObjectPair.Key;
+		while (Object != nullptr)
+		{
+			if (Object->GetClass()->IsChildOf(UMovieSceneSignedObject::StaticClass()))
+			{
+				return true;
+			}
+			Object = Object->GetOuter();
 		}
 	}
 	return false;
