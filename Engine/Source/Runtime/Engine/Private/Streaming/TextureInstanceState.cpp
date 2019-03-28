@@ -109,7 +109,7 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 		Elements.Push(FElement());
 	}
 
-	VerifyElementIdx_DebuggingOnly(ElementIndex, true, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
+	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
 
 	FElement& Element = Elements[ElementIndex];
 
@@ -157,7 +157,7 @@ void FRenderAssetInstanceState::AddElement(const UPrimitiveComponent* InComponen
 
 void FRenderAssetInstanceState::RemoveElement(int32 ElementIndex, int32& NextComponentLink, int32& BoundsIndex, const UStreamableRenderAsset*& Asset, int32 IterationCount_DebuggingOnly)
 {
-	VerifyElementIdx_DebuggingOnly(ElementIndex, false, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
+	VerifyElementIdx_DebuggingOnly(ElementIndex, IterationCount_DebuggingOnly, &ComponentMap, &FreeElementIndices);
 
 	FElement& Element = Elements[ElementIndex];
 	NextComponentLink = Element.NextComponentLink; 
