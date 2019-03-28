@@ -3849,11 +3849,16 @@ public:
 	
 	FORCEINLINE void CopySharedMips(FTexture2DRHIParamRef DestTexture2D, FTexture2DRHIParamRef SrcTexture2D)
 	{
-		LLM_SCOPE(ELLMTag::Textures);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopySharedMips_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
-		 
-		return GDynamicRHI->RHICopySharedMips(DestTexture2D, SrcTexture2D);
+		DestTexture2D->AddRef();
+		SrcTexture2D->AddRef();
+		EnqueueLambda([DestTexture2D, SrcTexture2D](FRHICommandList&)
+		{
+			LLM_SCOPE(ELLMTag::Textures);
+			GDynamicRHI->RHICopySharedMips(DestTexture2D, SrcTexture2D);
+			DestTexture2D->Release();
+			SrcTexture2D->Release();
+		});
 	}
 
 	FORCEINLINE void TransferTexture(FTexture2DRHIParamRef Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
