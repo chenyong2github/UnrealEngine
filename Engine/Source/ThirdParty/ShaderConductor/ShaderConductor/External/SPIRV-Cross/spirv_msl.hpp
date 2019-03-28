@@ -401,6 +401,9 @@ protected:
 	                             uint32_t grad_y, uint32_t lod, uint32_t coffset, uint32_t offset, uint32_t bias,
 	                             uint32_t comp, uint32_t sample, bool *p_forward) override;
 	std::string to_initializer_expression(const SPIRVariable &var) override;
+	/* UE Change Begin: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
+	virtual std::string to_dereferenced_expression(uint32_t id, bool register_expression_read = true) override;
+	/* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
 	std::string unpack_expression_type(std::string expr_str, const SPIRType &type, uint32_t packed_type_id) override;
 	std::string bitcast_glsl_op(const SPIRType &result_type, const SPIRType &argument_type) override;
 	bool skip_argument(uint32_t id) const override;

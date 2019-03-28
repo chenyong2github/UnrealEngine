@@ -2419,6 +2419,25 @@ void CompilerMSL::emit_store_statement(uint32_t lhs_expression, uint32_t rhs_exp
 	}
 }
 
+/* UE Change Begin: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
+string CompilerMSL::to_dereferenced_expression(uint32_t id, bool register_expression_read)
+{
+	auto &type = expression_type(id);
+	if (!type.pointer || !should_dereference(id))
+	{
+		uint32_t packed_type_id = get_extended_decoration(id, SPIRVCrossDecorationPackedType);
+		const SPIRType *packed_type = nullptr;
+		if (packed_type_id)
+			packed_type = &get<SPIRType>(packed_type_id);
+		
+		if (packed_type && is_array(*packed_type) && is_scalar(*packed_type))
+			return to_unpacked_expression(id, register_expression_read);
+	}
+	
+	return CompilerGLSL::to_dereferenced_expression(id, register_expression_read);
+}
+/* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
+
 // Converts the format of the current expression from packed to unpacked,
 // by wrapping the expression in a constructor of the appropriate type.
 string CompilerMSL::unpack_expression_type(string expr_str, const SPIRType &type, uint32_t packed_type_id)

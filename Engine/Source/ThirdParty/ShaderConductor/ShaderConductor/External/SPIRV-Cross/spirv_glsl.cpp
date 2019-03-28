@@ -2568,9 +2568,8 @@ string CompilerGLSL::to_dereferenced_expression(uint32_t id, bool register_expre
 	auto &type = expression_type(id);
 	if (type.pointer && should_dereference(id))
 		return dereference_expression(to_enclosed_expression(id, register_expression_read));
-	else /* UE Change Begin: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack here */
-		return to_unpacked_expression(id, register_expression_read);
-		 /* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack here */
+	else
+		return to_expression(id, register_expression_read);
 }
 
 string CompilerGLSL::to_pointer_expression(uint32_t id, bool register_expression_read)
