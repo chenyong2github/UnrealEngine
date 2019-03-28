@@ -537,6 +537,10 @@ void FRDGBuilder::WalkGraphDependencies()
 	{
 		Query.Texture->ReferenceCount++;
 	}
+	for (const auto& Query : DeferredInternalBufferQueries)
+	{
+		Query.Buffer->ReferenceCount++;
+	}
 
 	// Release external texture that have ReferenceCount == 0 and yet are already allocated.
 	for (auto Pair : AllocatedTextures)
@@ -545,6 +549,17 @@ void FRDGBuilder::WalkGraphDependencies()
 		{
 			Pair.Value = nullptr;
 			Pair.Key->PooledRenderTarget = nullptr;
+			Pair.Key->CachedRHI.Resource = nullptr;
+		}
+	}
+
+	// Release external buffers that have ReferenceCount == 0 and yet are already allocated.
+	for (auto Pair : AllocatedBuffers)
+	{
+		if (Pair.Key->ReferenceCount == 0)
+		{
+			Pair.Value = nullptr;
+			Pair.Key->PooledBuffer = nullptr;
 			Pair.Key->CachedRHI.Resource = nullptr;
 		}
 	}
@@ -1293,7 +1308,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 		
 		#if RENDER_GRAPH_DEBUGGING
 		{
-			// Increment the number of time the texture has been accessed to avoid warning on produced but never used resources that were produced
+			// Increment the number of times the texture has been accessed to avoid warning on produced but never used resources that were produced
 			// only to be extracted for the graph.
 			Query.Texture->DebugPassAccessCount += 1;
 		}
@@ -1303,6 +1318,25 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 		if (!GRenderGraphImmediateMode)
 		{
 			ReleaseRHITextureIfPossible(Query.Texture);
+		}
+	}
+
+	for (const auto& Query : DeferredInternalBufferQueries)
+	{
+		*Query.OutBufferPtr = AllocatedBuffers.FindChecked(Query.Buffer);
+
+#if RENDER_GRAPH_DEBUGGING
+		{
+			// Increment the number of times the buffer has been accessed to avoid warning on produced but never used resources that were produced
+			// only to be extracted for the graph.
+			Query.Buffer->DebugPassAccessCount += 1;
+		}
+#endif
+
+		// No need to manually release in immediate mode, since it is done directly when emptying AllocatedBuffer in DestructPasses().
+		if (!GRenderGraphImmediateMode)
+		{
+			ReleaseRHIBufferIfPossible(Query.Buffer);
 		}
 	}
 }
@@ -1349,7 +1383,9 @@ void FRDGBuilder::DestructPasses()
 
 	Passes.Empty();
 	DeferredInternalTextureQueries.Empty();
+	DeferredInternalBufferQueries.Empty();
 	AllocatedTextures.Empty();
+	AllocatedBuffers.Empty();
 }
 
 FRDGBuilder::~FRDGBuilder()

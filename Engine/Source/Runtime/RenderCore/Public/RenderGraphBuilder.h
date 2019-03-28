@@ -224,6 +224,27 @@ public:
 		return OutTexture;
 	}
 
+	/** Register a external buffer to be tracked by the render graph. */
+	inline FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name = TEXT("External"))
+	{
+#if RENDER_GRAPH_DEBUGGING
+		{
+			ensureMsgf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
+		}
+#endif
+		FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc);
+		OutBuffer->PooledBuffer = ExternalPooledBuffer;
+		AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
+#if RENDER_GRAPH_DEBUGGING
+		{
+			OutBuffer->bHasEverBeenProduced = true;
+			Resources.Add(OutBuffer);
+		}
+#endif
+		return OutBuffer;
+	}
+
+
 	/** Create graph tracked resource from a descriptor with a debug name.
 	 *
 	 * The debug name is the name used for GPU debugging tools, but also for the VisualizeTexture/Vis command.
@@ -429,7 +450,7 @@ public:
 
 	/** Queue a texture extraction. This will set *OutTexturePtr with the internal pooled render target at the Execute().
 	 *
-	 * Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the texture extrations
+	 * Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the texture extractions
 	 * will still happen in the Execute(), to ensure there is no bug caused in code outside the render graph on whether this mode is used or not.
 	 */
 	inline void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, bool bTransitionToRead = true)
@@ -452,6 +473,32 @@ public:
 		Query.OutTexturePtr = OutTexturePtr;
 		Query.bTransitionToRead = bTransitionToRead;
 		DeferredInternalTextureQueries.Emplace(Query);
+	}
+
+	/** Queue a buffer extraction. This will set *OutBufferPtr with the internal pooled buffer at the Execute().
+	 *
+	 * Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the buffer extractions
+	 * will still happen in the Execute(), to ensure there is no bug caused in code outside the render graph on whether this mode is used or not.
+	 */
+	inline void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr)
+	{
+		check(Buffer);
+		check(OutBufferPtr);
+#if RENDER_GRAPH_DEBUGGING
+		{
+			checkf(!bHasExecuted,
+				TEXT("Accessing render graph internal buffer %s with QueueBufferExtraction() needs to happen before the builder's execution."),
+				Buffer->Name);
+
+			checkf(Buffer->bHasEverBeenProduced,
+				TEXT("Unable to queue the extraction of the buffer %s because it has not been produced by any pass."),
+				Buffer->Name);
+		}
+#endif
+		FDeferredInternalBufferQuery Query;
+		Query.Buffer = Buffer;
+		Query.OutBufferPtr = OutBufferPtr;
+		DeferredInternalBufferQueries.Emplace(Query);
 	}
 
 	/** Flag a texture that is only produced by only 1 pass, but never used or extracted, to avoid generating a warning at runtime. */
@@ -507,6 +554,14 @@ private:
 		bool bTransitionToRead;
 	};
 	TArray<FDeferredInternalTextureQuery, SceneRenderingAllocator> DeferredInternalTextureQueries;
+
+	/** Array of all deferred access to internal buffers. */
+	struct FDeferredInternalBufferQuery
+	{
+		const FRDGBuffer* Buffer;
+		TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr;
+	};
+	TArray<FDeferredInternalBufferQuery, SceneRenderingAllocator> DeferredInternalBufferQueries;
 
 	#if RENDER_GRAPH_DRAW_EVENTS == 2
 		/** All scopes allocated that needs to be arround to call destructors. */

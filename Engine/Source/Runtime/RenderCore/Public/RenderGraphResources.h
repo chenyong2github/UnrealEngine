@@ -408,7 +408,21 @@ struct FPooledRDGBuffer
 		return ++RefCount;
 	}
 
-	uint32 Release();
+	uint32 Release()
+	{
+		RefCount--;
+
+		if (RefCount == 0)
+		{
+			VertexBuffer.SafeRelease();
+			IndexBuffer.SafeRelease();
+			StructuredBuffer.SafeRelease();
+			UAVs.Empty();
+			SRVs.Empty();
+		}
+
+		return RefCount;
+	}
 
 	inline uint32 GetRefCount()
 	{
