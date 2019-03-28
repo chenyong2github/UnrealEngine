@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "LandscapeEditorDetailCustomization_ProceduralBrushStack.h"
+#include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 #include "IDetailChildrenBuilder.h"
 #include "Framework/Commands/UIAction.h"
 #include "Widgets/Text/STextBlock.h"
@@ -29,13 +29,13 @@
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
-TSharedRef<IDetailCustomization> FLandscapeEditorDetailCustomization_ProceduralBrushStack::MakeInstance()
+TSharedRef<IDetailCustomization> FLandscapeEditorDetailCustomization_LayersBrushStack::MakeInstance()
 {
-	return MakeShareable(new FLandscapeEditorDetailCustomization_ProceduralBrushStack);
+	return MakeShareable(new FLandscapeEditorDetailCustomization_LayersBrushStack);
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FLandscapeEditorDetailCustomization_ProceduralBrushStack::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FLandscapeEditorDetailCustomization_LayersBrushStack::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	IDetailCategoryBuilder& LayerCategory = DetailBuilder.EditCategory("Current Layer Brushes");
 
@@ -46,7 +46,7 @@ void FLandscapeEditorDetailCustomization_ProceduralBrushStack::CustomizeDetails(
 
 		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName == TEXT("BPCustom"))
 		{
-			LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack(DetailBuilder.GetThumbnailPool().ToSharedRef())));
+			LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_LayersBrushStack(DetailBuilder.GetThumbnailPool().ToSharedRef())));
 		}
 	}
 }
@@ -54,26 +54,26 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 //////////////////////////////////////////////////////////////////////////
 
-FEdModeLandscape* FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetEditorMode()
+FEdModeLandscape* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetEditorMode()
 {
 	return (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
 }
 
-FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack(TSharedRef<FAssetThumbnailPool> InThumbnailPool)
+FLandscapeEditorCustomNodeBuilder_LayersBrushStack::FLandscapeEditorCustomNodeBuilder_LayersBrushStack(TSharedRef<FAssetThumbnailPool> InThumbnailPool)
 	: ThumbnailPool(InThumbnailPool)
 {
 }
 
-FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::~FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack()
+FLandscapeEditorCustomNodeBuilder_LayersBrushStack::~FLandscapeEditorCustomNodeBuilder_LayersBrushStack()
 {
 	
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
 {
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	
@@ -91,15 +91,15 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateHeaderRowCo
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != NULL)
 	{
 		TSharedPtr<SDragAndDropVerticalBox> BrushesList = SNew(SDragAndDropVerticalBox)
-			.OnCanAcceptDrop(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleCanAcceptDrop)
-			.OnAcceptDrop(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleAcceptDrop)
-			.OnDragDetected(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleDragDetected);
+			.OnCanAcceptDrop(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleCanAcceptDrop)
+			.OnAcceptDrop(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop)
+			.OnDragDetected(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleDragDetected);
 
 		BrushesList->SetDropIndicator_Above(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Above"));
 		BrushesList->SetDropIndicator_Below(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Below"));
@@ -129,16 +129,16 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateChildConten
 					//.Padding(4, 0)
 					[
 						SNew(SButton)
-						.Text(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetCommitBrushesButtonText)
-						.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::ToggleCommitBrushes)
-						.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::IsCommitBrushesButtonEnabled)
+						.Text(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetCommitBrushesButtonText)
+						.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::ToggleCommitBrushes)
+						.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsCommitBrushesButtonEnabled)
 					]
 				]
 			];
 
 		if (LandscapeEdMode->CurrentToolMode != nullptr)
 		{
-			const TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+			const TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 			for (int32 i = 0; i < BrushOrderStack.Num(); ++i)
 			{
@@ -159,14 +159,14 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateChildConten
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GenerateRow(int32 InBrushIndex)
+TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GenerateRow(int32 InBrushIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	TSharedPtr<SWidget> RowWidget = SNew(SLandscapeEditorSelectableBorder)
 		.Padding(0)
 		.VAlign(VAlign_Center)
-		.OnSelected(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::OnBrushSelectionChanged, InBrushIndex)
-		.IsSelected(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::IsBrushSelected, InBrushIndex)))
+		.OnSelected(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushSelectionChanged, InBrushIndex)
+		.IsSelected(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushSelected, InBrushIndex)))
 		[	
 			SNew(SHorizontalBox)
 
@@ -181,8 +181,8 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::Gene
 				.Padding(0, 2)
 				[
 					SNew(STextBlock)
-					.ColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushTextColor, InBrushIndex)))
-					.Text(this, &FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushText, InBrushIndex)
+					.ColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushTextColor, InBrushIndex)))
+					.Text(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushText, InBrushIndex)
 				]
 			]
 		];
@@ -191,18 +191,18 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::Gene
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-bool FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::IsBrushSelected(int32 InBrushIndex) const
+bool FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushSelected(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
 
 	return Brush != nullptr ? Brush->IsSelected() : false;
 }
 
-void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::OnBrushSelectionChanged(int32 InBrushIndex)
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushSelectionChanged(int32 InBrushIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
-	if (LandscapeEdMode != nullptr && LandscapeEdMode->AreAllBrushesCommitedToCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType))
+	if (LandscapeEdMode != nullptr && LandscapeEdMode->AreAllBrushesCommitedToCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType))
 	{
 		return;
 	}
@@ -216,7 +216,7 @@ void FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::OnBrushSelectionCha
 	}
 }
 
-FText FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushText(int32 InBrushIndex) const
+FText FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushText(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
 
@@ -228,7 +228,7 @@ FText FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushText(int32
 	return FText::FromName(NAME_None);
 }
 
-FSlateColor FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushTextColor(int32 InBrushIndex) const
+FSlateColor FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushTextColor(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
 
@@ -240,29 +240,29 @@ FSlateColor FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrushText
 	return FSlateColor::UseSubduedForeground();
 }
 
-ALandscapeBlueprintCustomBrush* FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetBrush(int32 InBrushIndex) const
+ALandscapeBlueprintCustomBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrush(int32 InBrushIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode != nullptr)
 	{
-		return LandscapeEdMode->GetBrushForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType, InBrushIndex);
+		return LandscapeEdMode->GetBrushForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType, InBrushIndex);
 	}
 
 	return nullptr;
 }
 
-FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::ToggleCommitBrushes()
+FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::ToggleCommitBrushes()
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode != nullptr)
 	{
-		bool CommitBrushes = !LandscapeEdMode->AreAllBrushesCommitedToCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+		bool CommitBrushes = !LandscapeEdMode->AreAllBrushesCommitedToCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 		if (CommitBrushes)
 		{
-			TArray<ALandscapeBlueprintCustomBrush*> BrushStack = LandscapeEdMode->GetBrushesForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+			TArray<ALandscapeBlueprintCustomBrush*> BrushStack = LandscapeEdMode->GetBrushesForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 			for (ALandscapeBlueprintCustomBrush* Brush : BrushStack)
 			{
@@ -270,19 +270,19 @@ FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::ToggleCommitBrush
 			}
 		}
 
-		LandscapeEdMode->SetCurrentProceduralLayerBrushesCommitState(LandscapeEdMode->CurrentToolTarget.TargetType, CommitBrushes);
+		LandscapeEdMode->SetBrushesCommitStateForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType, CommitBrushes);
 	}
 
 	return FReply::Handled();
 }
 
-bool FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::IsCommitBrushesButtonEnabled() const
+bool FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsCommitBrushesButtonEnabled() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode != nullptr)
 	{
-		TArray<ALandscapeBlueprintCustomBrush*> BrushStack = LandscapeEdMode->GetBrushesForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+		TArray<ALandscapeBlueprintCustomBrush*> BrushStack = LandscapeEdMode->GetBrushesForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 		return BrushStack.Num() > 0;
 	}
@@ -290,25 +290,25 @@ bool FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::IsCommitBrushesButt
 	return false;
 }
 
-FText FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::GetCommitBrushesButtonText() const
+FText FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetCommitBrushesButtonText() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode != nullptr)
 	{
-		return LandscapeEdMode->AreAllBrushesCommitedToCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType) ? LOCTEXT("UnCommitBrushesText", "Uncommit") : LOCTEXT("CommitBrushesText", "Commit");
+		return LandscapeEdMode->AreAllBrushesCommitedToCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType) ? LOCTEXT("UnCommitBrushesText", "Uncommit") : LOCTEXT("CommitBrushesText", "Commit");
 	}
 
 	return FText::FromName(NAME_None);
 }
 
-FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
+FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
 	if (LandscapeEdMode != nullptr)
 	{
-		const TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+		const TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 		if (BrushOrderStack.IsValidIndex(SlotIndex))
 		{
@@ -324,7 +324,7 @@ FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleDragDetecte
 	return FReply::Unhandled();
 }
 
-TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot)
+TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot)
 {
 	TSharedPtr<FLandscapeBrushDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeBrushDragDropOp>();
 
@@ -336,7 +336,7 @@ TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuil
 	return TOptional<SDragAndDropVerticalBox::EItemDropZone>();
 }
 
-FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot)
+FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	TSharedPtr<FLandscapeBrushDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeBrushDragDropOp>();
 
@@ -346,7 +346,7 @@ FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleAcceptDrop(
 
 		if (LandscapeEdMode != nullptr)
 		{
-			TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentProceduralLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
+			TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
 
 			if (BrushOrderStack.IsValidIndex(DragDropOperation->SlotIndexBeingDragged) && BrushOrderStack.IsValidIndex(SlotIndex))
 			{
@@ -361,7 +361,7 @@ FReply FLandscapeEditorCustomNodeBuilder_ProceduralBrushStack::HandleAcceptDrop(
 					BrushOrderStack.Insert(MovingBrushIndex, DestinationLayerIndex);
 
 					LandscapeEdMode->RefreshDetailPanel();
-					LandscapeEdMode->RequestProceduralContentUpdate();
+					LandscapeEdMode->RequestLayersContentUpdate();
 
 					return FReply::Handled();
 				}
