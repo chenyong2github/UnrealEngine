@@ -492,7 +492,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			uint64 TotalDiskSpace = 0;
 			uint64 TotalDiskFreeSpace = 0;
 			bool bLowDriveSpace = false;
-			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*LogDstAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
+			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*CrashInfoAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
 			{
 				if (TotalDiskFreeSpace < MinDriveSpaceForCrashLog)
 				{
