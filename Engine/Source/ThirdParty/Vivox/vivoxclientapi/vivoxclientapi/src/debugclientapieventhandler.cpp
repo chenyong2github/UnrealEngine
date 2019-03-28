@@ -14,9 +14,10 @@
 */
 #include "vivoxclientapi/debugclientapieventhandler.h"
 
-//#include <sstream>
+#include <sstream>
 #include <vector>
 #include "vivoxclientapi/types.h"
+#include "allocator_utils.h"
 
 #if defined(WIN32) || defined(_XBOX_ONE)
 #include <Windows.h>
@@ -25,9 +26,11 @@
 #define UNREFERENCED_PARAMETER(x) (void)x
 #endif
 
-using namespace std;
-
 namespace VivoxClientApi {
+
+	using stringstream = std::basic_stringstream<char, std::char_traits<char>, custom_allocator<char>>;
+	template<class T>
+	using vector = std::vector<T, custom_allocator<T>>;
 
     static const char *PREFIX = ">>> ";
 
@@ -107,7 +110,7 @@ namespace VivoxClientApi {
 
         sprintf_s(buf, sizeof(buf), "%02d:%02d:%02d.%03d",t->tm_hour, t->tm_min, t->tm_sec, tv.tv_usec/1000);
 #endif
-        std::stringstream ss;
+        stringstream ss;
         ss << buf << " " << LogLevelToString(level) << " " << threadId << " " << logMessage;
 #ifdef WIN32
         ss << "\r\n";
@@ -124,7 +127,7 @@ namespace VivoxClientApi {
 		UNREFERENCED_PARAMETER(filename);
 
 		/*
-        std::stringstream ss;
+        stringstream ss;
         ss << filename << "(" << line << "): " << message << "\r\n";
 		*/
         debugPrint(message);

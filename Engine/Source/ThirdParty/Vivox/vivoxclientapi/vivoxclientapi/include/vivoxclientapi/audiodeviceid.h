@@ -27,8 +27,9 @@ namespace VivoxClientApi {
     class AudioDeviceId {
     public:
         AudioDeviceId();
+		~AudioDeviceId();
+		AudioDeviceId(const AudioDeviceId& other);
 
-        explicit AudioDeviceId(const std::string &device_id, const std::string &device_name);
         explicit AudioDeviceId(const char *device_id, const char *device_name);
 
         bool operator == (const AudioDeviceId &RHS) const;
@@ -37,16 +38,16 @@ namespace VivoxClientApi {
         bool operator < (const AudioDeviceId &RHS) const;
         bool IsValid() const;
 
-        const std::string & GetAudioDeviceId() const;
+        const char* const GetAudioDeviceId() const;
 
         ///
         /// This is the value that is shown to the user.
         ///
-        const std::string & GetAudioDeviceDisplayName() const;
+        const char* const GetAudioDeviceDisplayName() const;
 
-        const char *ToString() const { return m_displayName.c_str(); }
+        const char* const ToString() const { return GetAudioDeviceDisplayName(); }
     private:
-        std::string m_deviceId;
-        std::string m_displayName;
+        const char* m_deviceId;
+        const char* m_displayName;
     };
 }
