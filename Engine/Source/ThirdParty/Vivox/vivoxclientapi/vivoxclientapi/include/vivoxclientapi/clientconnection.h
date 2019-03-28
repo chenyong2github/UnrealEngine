@@ -18,8 +18,6 @@
 #include "vivoxclientapi/uri.h"
 #include "vivoxclientapi/accountname.h"
 #include "vivoxclientapi/iclientapieventhandler.h"
-#include <set>
-#include <vector>
 
 ///
 /// All entities in the vivoxclientapi library are in the VivoxClientApi namespace.
@@ -202,22 +200,24 @@ namespace VivoxClientApi {
         /// after Login() is called in order to restore the list of blocked users.
         ///
         /// @param accountName - the Vivox account for the user
-        /// @param usersToBlock - a set of users to add to the block list
+        /// @param usersToBlock - an array of users to add to the block list
+		/// @param numUsersToBlock - number of users in the array
         ///
         /// @return - 0 on success, non-zero on error. Error Codes can be translated to string by the function VivoxClientApi::GetErrorString(), which is located in util.h
         ///
-        VCSStatus BlockUsers(const AccountName &accountName, const std::set<Uri> &usersToBlock);
+        VCSStatus BlockUsers(const AccountName &accountName, const Uri* usersToBlock, int numUsersToBlock);
 
         ///
         /// This method will allow a particular user from either hearing any voice from another set of users, or being heard by those set of users, if
         /// the any of those users had been blocked before.
         ///
         /// @param accountName - the Vivox account for the user
-        /// @param usersToBlock - a set of users to remove from the block list
+		/// @param usersToBlock - an array of users to add to the block list
+		/// @param numUsersToBlock - number of users in the array
         ///
         /// @return - 0 on success, non-zero on error. Error Codes can be translated to string by the function VivoxClientApi::GetErrorString(), which is located in util.h
         ///
-        VCSStatus UnblockUsers(const AccountName &accountName, const std::set<Uri> &usersToBlock);
+        VCSStatus UnblockUsers(const AccountName &accountName, const Uri* usersToBlock, int numUsersToBlock);
 
         ///
         /// This function plays a file into any currently connected channels for the specified account.
@@ -290,7 +290,7 @@ namespace VivoxClientApi {
         ///
         /// Returns the full list of audio input devices
         ///
-        const std::vector<AudioDeviceId> &GetAvailableAudioInputDevices() const;
+        void GetAvailableAudioInputDevices(const AudioDeviceId* &deviceIds, int& numDeviceIds) const;
 
         ///
         /// This function tells the voice subsystem to the use the operating system chose audio input device for 
@@ -336,7 +336,7 @@ namespace VivoxClientApi {
         ///
         /// Returns the full list of audio output devices
         ///
-        const std::vector<AudioDeviceId> &GetAvailableAudioOutputDevices() const;
+        void GetAvailableAudioOutputDevices(const AudioDeviceId* &deviceIds, int& numDeviceIds) const;
 
         ///
         /// This function tells the voice subsystem to the use the operating system chose audio output device for 
