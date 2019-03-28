@@ -46,6 +46,7 @@ const FString FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UE4CC-");
 const FString FGenericCrashContext::CrashContextExtension = TEXT(".runtime-xml");
 const FString FGenericCrashContext::RuntimePropertiesTag = TEXT( "RuntimeProperties" );
 const FString FGenericCrashContext::PlatformPropertiesTag = TEXT( "PlatformProperties" );
+const FString FGenericCrashContext::EngineDataTag = TEXT( "EngineData" );
 const FString FGenericCrashContext::GameDataTag = TEXT( "GameData" );
 const FString FGenericCrashContext::EnabledPluginsTag = TEXT("EnabledPlugins");
 const FString FGenericCrashContext::UE4MinidumpName = TEXT( "UE4Minidump.dmp" );
@@ -102,6 +103,7 @@ namespace NCachedCrashContextProperties
 	static FString CrashReportClientRichText;
 	static FString GameStateName;
 	static TArray<FString> EnabledPluginsList;
+	static TMap<FString, FString> EngineData;
 	static TMap<FString, FString> GameData;
 }
 
@@ -409,6 +411,14 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddPlatformSpecificProperties();
 	EndSection( *PlatformPropertiesTag );
 
+	// Add the engine data
+	BeginSection( *EngineDataTag );
+	for (const TPair<FString, FString>& Pair : NCachedCrashContextProperties::EngineData)
+	{
+		AddCrashProperty(*Pair.Key, *Pair.Value);
+	}
+	EndSection( *EngineDataTag );
+
 	// Add the game data
 	BeginSection( *GameDataTag );
 	for (const TPair<FString, FString>& Pair : NCachedCrashContextProperties::GameData)
@@ -666,6 +676,39 @@ void FGenericCrashContext::PurgeOldCrashConfig()
 				FileManager.DeleteDirectory(*CrashConfigDirectory, false, true);
 			}
 		}
+	}
+}
+
+void FGenericCrashContext::ResetEngineData()
+{
+	NCachedCrashContextProperties::EngineData.Reset();
+}
+
+void FGenericCrashContext::SetEngineData(const FString& Key, const FString& Value)
+{
+	if (Value.Len() == 0)
+	{
+		// for testing purposes, only log values when they change, but don't pay the lookup price normally.
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (NCachedCrashContextProperties::EngineData.Find(Key))
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetEngineData(%s, <RemoveKey>)"), *Key);
+			}
+		});
+		NCachedCrashContextProperties::EngineData.Remove(Key);
+	}
+	else
+	{
+		FString& OldVal = NCachedCrashContextProperties::EngineData.FindOrAdd(Key);
+		UE_SUPPRESS(LogCrashContext, VeryVerbose, 
+		{
+			if (OldVal != Value)
+			{
+				UE_LOG(LogCrashContext, VeryVerbose, TEXT("FGenericCrashContext::SetEngineData(%s, %s)"), *Key, *Value);
+			}
+		});
+		OldVal = Value;
 	}
 }
 
