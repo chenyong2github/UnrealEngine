@@ -78,7 +78,7 @@ void ALandscapeBlueprintCustomBrush::PostEditMove(bool bFinished)
 
 	if (OwningLandscape != nullptr)
 	{
-		OwningLandscape->RequestProceduralContentUpdate(bFinished ? EProceduralContentUpdateFlag::All : EProceduralContentUpdateFlag::All_Render);
+		OwningLandscape->RequestLayersContentUpdate(bFinished ? ELandscapeLayersContentUpdateFlag::All : ELandscapeLayersContentUpdateFlag::All_Render);
 	}
 }
 
@@ -103,7 +103,7 @@ void ALandscapeBlueprintCustomBrush::PostEditChangeProperty(FPropertyChangedEven
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectHeightmap)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectWeightmap))
 	{
-		for (FProceduralLayer& Layer : OwningLandscape->ProceduralLayers)
+		for (FLandscapeLayer& Layer : OwningLandscape->LandscapeLayers)
 		{
 			for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 			{
@@ -157,7 +157,7 @@ void ALandscapeBlueprintCustomBrush::PostEditChangeProperty(FPropertyChangedEven
 
 	if (OwningLandscape != nullptr)
 	{
-		OwningLandscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::All, true); // For now since we dont have brush bounds, we have to force an update of all components, otherwise we will have not right layer being rendered as materials are not updated
+		OwningLandscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true); // For now since we dont have brush bounds, we have to force an update of all components, otherwise we will have not right layer being rendered as materials are not updated
 	}
 }
 #endif
