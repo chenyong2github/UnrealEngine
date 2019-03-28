@@ -1879,7 +1879,7 @@ namespace UnrealBuildTool
 
 				// We'll keep track of whether this is an "engine" or "external" module.  This is determined below while loading module rules.
 				bool IsEngineModule = UnrealBuildTool.IsUnderAnEngineDirectory(CurModuleFile.Directory);
-				bool IsThirdPartyModule = CurModuleFile.IsUnderDirectory(UnrealBuildTool.EngineSourceThirdPartyDirectory);
+				bool IsThirdPartyModule = CurModuleFile.ContainsName("ThirdParty", UnrealBuildTool.RootDirectory);
 
 				if( IsEngineModule && !bIncludeEngineSource )
 				{
