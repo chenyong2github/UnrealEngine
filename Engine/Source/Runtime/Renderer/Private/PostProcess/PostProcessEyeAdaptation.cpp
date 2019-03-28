@@ -12,7 +12,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "ScenePrivate.h"
 #include "Curves/CurveFloat.h"
-
+#include "RHIGPUReadback.h"
 
 RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform);
 
@@ -828,15 +828,17 @@ FPooledRenderTargetDesc FRCPassPostProcessBasicEyeAdaptation::ComputeOutputDesc(
 	return Ret;
 }
 
+//
+FSceneViewState::FEyeAdaptationRTManager::~FEyeAdaptationRTManager()
+{
+}
+
 void FSceneViewState::FEyeAdaptationRTManager::SafeRelease()
 {
 	PooledRenderTarget[0].SafeRelease();
 	PooledRenderTarget[1].SafeRelease();
 
-	for (int32 i = 0; i < NUM_STAGING_BUFFERS; ++i)
-	{
-		StagingBuffers[i].SafeRelease();
-	}
+	ExposureTextureReadback = nullptr;
 }
 
 void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposure)
@@ -846,33 +848,28 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid())
 	{
-		if (!StagingBuffers[CurrentStagingBuffer].IsValid())
+		if (!ExposureTextureReadback)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, TexCreate_None, false));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, StagingBuffers[CurrentStagingBuffer], TEXT("EyeAdaptationCPUReadBack"), true, ERenderTargetTransience::NonTransient);
+			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
+			ExposureTextureReadback.Reset(new FRHIGPUTextureReadback(ExposureValueName));
+			// Send the first request.
+			ExposureTextureReadback->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
 		}
-
-		// Transfer memory GPU -> CPU
-		RHICmdList.CopyToResolveTarget(PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture, StagingBuffers[CurrentStagingBuffer]->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-
-		// Take the oldest buffer and read it
-		const int32 NextStagingBuffer = (CurrentStagingBuffer + 1) % NUM_STAGING_BUFFERS;
-		if (StagingBuffers[NextStagingBuffer].IsValid())
+		else if (ExposureTextureReadback->IsReady())
 		{
-			const float* ResultsBuffer = nullptr;
-			int32 BufferWidth = 0, BufferHeight = 0;
-			RHICmdList.MapStagingSurface(StagingBuffers[NextStagingBuffer]->GetRenderTargetItem().ShaderResourceTexture, *(void**)&ResultsBuffer, BufferWidth, BufferHeight);
-
-			if (ResultsBuffer)
+			// Read the last request results.
+			FVector4* ReadbackData = (FVector4*)ExposureTextureReadback->Lock(sizeof(FVector4));
+			if (ReadbackData)
 			{
-				LastExposure = ResultsBuffer[0];
-				LastAverageSceneLuminance = ResultsBuffer[2];
-			}
-			RHICmdList.UnmapStagingSurface(StagingBuffers[NextStagingBuffer]->GetRenderTargetItem().ShaderResourceTexture);
-		}
+				LastExposure = ReadbackData->X;
+				LastAverageSceneLuminance = ReadbackData->Z;
 
-		// Update indices
-		CurrentStagingBuffer = NextStagingBuffer;
+				ExposureTextureReadback->Unlock();
+			}
+
+			// Send the request for next update.
+			ExposureTextureReadback->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
+		}
 	}
 
 	CurrentBuffer = 1 - CurrentBuffer;

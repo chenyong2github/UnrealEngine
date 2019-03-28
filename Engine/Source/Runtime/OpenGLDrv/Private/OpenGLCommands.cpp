@@ -3593,13 +3593,12 @@ void FOpenGLDynamicRHI::RHIInvalidateCachedState()
 	SharedContextState.InitializeResources(FOpenGL::GetMaxCombinedTextureImageUnits(), OGL_MAX_COMPUTE_STAGE_UAV_UNITS);
 }
 
-void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes, FGPUFenceRHIParamRef FenceRHI)
+void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
 {
 #if OPENGL_GL3
 	VERIFY_GL_SCOPE();
 	FOpenGLVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FOpenGLStagingBuffer* DestinationBuffer = ResourceCast(DestinationStagingBufferRHI);
-	FOpenGLGPUFence* CopyFence = ResourceCast(FenceRHI);
 
 	check(DestinationBuffer->ShadowBuffer != 0);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, DestinationBuffer->ShadowBuffer);
@@ -3614,12 +3613,18 @@ void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBu
 	FOpenGL::CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, InOffset, 0, InNumBytes);
 	glBindBuffer(GL_COPY_READ_BUFFER, 0);
 	glBindBuffer(GL_COPY_WRITE_BUFFER, 0);
-
-	CopyFence->WriteInternal();
 #else
 	UE_LOG(LogRHI, Fatal, TEXT("Only OpenGL3 or higher supports CopyToStagingBuffer"));
 #endif
 }
+
+void FOpenGLDynamicRHI::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+{
+	check(FenceRHI);
+	FOpenGLGPUFence* CopyFence = ResourceCast(FenceRHI);
+	CopyFence->WriteInternal();
+}
+
 
 #if PLATFORM_USES_FIXED_RHI_CLASS
 #define INTERNAL_DECORATOR(Method) ((FOpenGLDynamicRHI&)CmdList.GetContext()).FOpenGLDynamicRHI::Method

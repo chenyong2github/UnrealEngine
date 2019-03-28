@@ -871,7 +871,7 @@ void FMetalGPUFence::WriteInternal(mtlpp::CommandBuffer& CmdBuffer)
 	check(Fence);
 }
 
-void FMetalRHICommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef FenceRHI)
+void FMetalRHICommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	@autoreleasepool {
 		check(DestinationStagingBufferRHI);
@@ -895,12 +895,15 @@ void FMetalRHICommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef So
 
 		// Inline copy from the actual buffer to the shadow
 		GetMetalDeviceContext().CopyFromBufferToBuffer(SourceBuffer->Buffer, Offset, ReadbackBuffer, 0, NumBytes);
+	}
+}
 
-		if (FenceRHI)
-		{
-			FMetalGPUFence* Fence = ResourceCast(FenceRHI);
-			Fence->WriteInternal(Context->GetCurrentCommandBuffer());
-		}
+void FMetalRHICommandContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+{
+	@autoreleasepool {
+		check(FenceRHI);
+		FMetalGPUFence* Fence = ResourceCast(FenceRHI);
+		Fence->WriteInternal(Context->GetCurrentCommandBuffer());
 	}
 }
 

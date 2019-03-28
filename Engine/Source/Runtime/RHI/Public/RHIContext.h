@@ -125,12 +125,21 @@ public:
 	 * @param DestinationStagingBuffer The the host-visible destination buffer
 	 * @param Offset The start of the data in 'SourceBuffer'
 	 * @param NumBytes The number of bytes to copy out of 'SourceBuffer'
-	 * @param Fence (optional) A GPU fence that will be inserted into the GPU timeline and which must then be tested on the CPU to know when the Copy was completed. Can be NULL, though that implies you will not have any guarantees as to when it is safe to read from 'DestinationStagingBuffer'
 	 */
-	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes, FGPUFenceRHIParamRef FenceRHI = nullptr)
+	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes)
 	{
 		check(false);
 	}
+
+	/**
+	 * Write the fence in the GPU timeline. The fence can then be tested on the CPU to know if the previous GPU commands are completed.
+	 * @param Fence 
+	 */
+	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+	{
+		check(false);
+	}
+
 };
 
 struct FAccelerationStructureUpdateParams

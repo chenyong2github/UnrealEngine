@@ -55,8 +55,8 @@
 #include "GPUScene.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
-#include "RHIGPUReadback.h"
 #endif
+#include "RHIGPUReadback.h"
 
 // Enable this define to do slow checks for components being added to the wrong
 // world's scene, when using PIE. This can happen if a PIE component is reattached
@@ -212,7 +212,7 @@ FSceneViewState::FSceneViewState()
 			});
 	}
 	bReadbackInitialized = false;
-	RayCountGPUReadback = new FRHIGPUMemoryReadback(TEXT("Ray Count Readback"));
+	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
 #endif
 }
 

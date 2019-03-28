@@ -1185,14 +1185,10 @@ void FVulkanCommandListContext::PrepareParallelFromBase(const FVulkanCommandList
 	TransitionAndLayoutManager.TempCopy(BaseContext.TransitionAndLayoutManager);
 }
 
-void FVulkanCommandListContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef FenceRHI)
+void FVulkanCommandListContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-
 	FVulkanVertexBuffer* VertexBuffer = ResourceCast(SourceBufferRHI);
-	FVulkanGPUFence* Fence = ResourceCast(FenceRHI);
-	Fence->CmdBuffer = CmdBuffer;
-	Fence->FenceSignaledCounter = CmdBuffer->GetFenceSignaledCounter();
 
 	ensure(CmdBuffer->IsOutsideRenderPass());
 	FVulkanStagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
@@ -1217,6 +1213,15 @@ void FVulkanCommandListContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef 
 	Region.srcOffset = Offset + VertexBuffer->GetOffset();
 	//Region.dstOffset = 0;
 	VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), VertexBuffer->GetHandle(), StagingBuffer->StagingBuffer->GetHandle(), 1, &Region);
+}
+
+void FVulkanCommandListContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+{
+	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
+	FVulkanGPUFence* Fence = ResourceCast(FenceRHI);
+
+	Fence->CmdBuffer = CmdBuffer;
+	Fence->FenceSignaledCounter = CmdBuffer->GetFenceSignaledCounter();
 }
 
 

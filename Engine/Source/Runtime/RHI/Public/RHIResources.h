@@ -881,6 +881,8 @@ public:
 	 */
 	virtual bool Poll() const = 0;
 
+	const FName& GetFName() const { return FenceName; }
+
 protected:
 	FName FenceName;
 };

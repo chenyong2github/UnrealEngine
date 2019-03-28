@@ -267,7 +267,7 @@ public:
 	TArray< FNiagaraDataInterfaceGPUParamInfo >  DIParamInfo;
 #endif
 
-	FRHIGPUMemoryReadback *GPUDataReadback;
+	FRHIGPUBufferReadback *GPUDataReadback;
 	uint32 AccumulatedSpawnRate;
 	uint32 NumIndicesPerInstance;	// how many vtx indices per instance the renderer is going to have for its draw call
 
@@ -280,9 +280,9 @@ public:
 
 
 #if WITH_EDITORONLY_DATA
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackInt;
-	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
+	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackFloat;
+	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackInt;
+	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackCounts;
 	mutable int32 GPUDebugDataCurrBufferIdx;
 	mutable uint32 GPUDebugDataFloatSize;
 	mutable uint32 GPUDebugDataIntSize;

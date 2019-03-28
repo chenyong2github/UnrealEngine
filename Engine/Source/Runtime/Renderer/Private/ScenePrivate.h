@@ -74,7 +74,8 @@ class UStaticMesh;
 class UStaticMeshComponent;
 class UTextureCube;
 class UWindDirectionalSourceComponent;
-class FRHIGPUMemoryReadback;
+class FRHIGPUBufferReadback;
+class FRHIGPUTextureReadback;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -763,7 +764,8 @@ private:
 	{
 	public:
 
-		FEyeAdaptationRTManager() :	CurrentBuffer(0), LastExposure(0.f), CurrentStagingBuffer(0) {}
+		// Allows forward declaration of FRHIGPUTextureReadback
+		~FEyeAdaptationRTManager();
 
 		void SafeRelease();
 
@@ -800,16 +802,14 @@ private:
 
 	private:
 
-		int32 CurrentBuffer;
+		int32 CurrentBuffer = 0;
 
-		float LastExposure;
+		float LastExposure = 0;
 		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
 
-		int32 CurrentStagingBuffer;
-		static const int32 NUM_STAGING_BUFFERS = 3;
-
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[2];
-		TRefCountPtr<IPooledRenderTarget> StagingBuffers[NUM_STAGING_BUFFERS];
+		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback;
+
 	} EyeAdaptationRTManager;
 
 	// eye adaptation is only valid after it has been computed, not on allocation of the RT
@@ -918,7 +918,7 @@ public:
 	FRWBuffer* TotalRayCountBuffer;
 
 	// Ray Count readback:
-	FRHIGPUMemoryReadback* RayCountGPUReadback;
+	FRHIGPUBufferReadback* RayCountGPUReadback;
 	bool bReadbackInitialized = false;
 
 	// IES light profiles

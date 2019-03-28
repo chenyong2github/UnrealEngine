@@ -393,7 +393,7 @@ void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess Tran
 }
 
 
-void FD3D12CommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef FenceRHI)
+void FD3D12CommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FD3D12StagingBuffer* StagingBuffer = FD3D12DynamicRHI::ResourceCast(StagingBufferRHI);
 	check(StagingBuffer);
@@ -432,14 +432,16 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef Sourc
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
 	}
+}
 
-	if (FenceRHI)
-	{
-		// @todo-mattc we don't want to flush here. That should be the caller's responsibility.
-		RHISubmitCommandsHint();
-		FD3D12GPUFence* Fence = FD3D12DynamicRHI::ResourceCast(FenceRHI);
-		Fence->WriteInternal(ED3D12CommandQueueType::Default);
-	}
+void FD3D12CommandContext::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+{
+	check(FenceRHI)
+
+	// @todo-mattc we don't want to flush here. That should be the caller's responsibility.
+	RHISubmitCommandsHint();
+	FD3D12GPUFence* Fence = FD3D12DynamicRHI::ResourceCast(FenceRHI);
+	Fence->WriteInternal(ED3D12CommandQueueType::Default);
 }
 
 void FD3D12CommandContext::RHISetViewport(uint32 MinX, uint32 MinY, float MinZ, uint32 MaxX, uint32 MaxY, float MaxZ)

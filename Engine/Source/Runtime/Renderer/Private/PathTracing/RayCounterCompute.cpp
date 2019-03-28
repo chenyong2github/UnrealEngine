@@ -108,7 +108,7 @@ void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RH
 	int32 NumGroups = FMath::DivideAndRoundUp<int32>(ViewSize.Y, FRayCounterCS::GetGroupSize());
 	DispatchComputeShader(RHICmdList, *RayCounterComputeShader, NumGroups, 1, 1);
 
-	FRHIGPUMemoryReadback* RayCountGPUReadback = ViewState->RayCountGPUReadback;
+	FRHIGPUBufferReadback* RayCountGPUReadback = ViewState->RayCountGPUReadback;
 
 	// Read read count data from the GPU using a stage buffer to avoid stalls
 	if (!ViewState->bReadbackInitialized)

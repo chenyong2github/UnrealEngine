@@ -1456,16 +1456,26 @@ struct FRHICommandCopyToStagingBuffer final : public FRHICommand<FRHICommandCopy
 {
 	FVertexBufferRHIParamRef SourceBuffer;
 	FStagingBufferRHIParamRef DestinationStagingBuffer;
-	FGPUFenceRHIParamRef Fence;
 	uint32 Offset;
 	uint32 NumBytes;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandCopyToStagingBuffer(FVertexBufferRHIParamRef InSourceBuffer, FStagingBufferRHIParamRef InDestinationStagingBuffer, uint32 InOffset, uint32 InNumBytes, FGPUFenceRHIParamRef InFence = nullptr)
+	FORCEINLINE_DEBUGGABLE FRHICommandCopyToStagingBuffer(FVertexBufferRHIParamRef InSourceBuffer, FStagingBufferRHIParamRef InDestinationStagingBuffer, uint32 InOffset, uint32 InNumBytes)
 		: SourceBuffer(InSourceBuffer)
 		, DestinationStagingBuffer(InDestinationStagingBuffer)
-		, Fence(InFence)
 		, Offset(InOffset)
 		, NumBytes(InNumBytes)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+template<ECmdList CmdListType>
+struct FRHICommandWriteGPUFence final : public FRHICommand<FRHICommandWriteGPUFence<CmdListType>>
+{
+	FGPUFenceRHIParamRef Fence;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandWriteGPUFence(FGPUFenceRHIParamRef InFence)
+		: Fence(InFence)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2857,14 +2867,24 @@ public:
 		ALLOC_COMMAND(FRHICommandWaitComputeFence<ECmdList::EGfx>)(WaitFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef Fence)
+	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
 	{
 		if (Bypass())
 		{
-			GetContext().RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes, Fence);
+			GetContext().RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::EGfx>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes, Fence);
+		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::EGfx>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
+	}
+
+	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FGPUFenceRHIParamRef Fence)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIWriteGPUFence(Fence);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandWriteGPUFence<ECmdList::EGfx>)(Fence);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* Name)
@@ -3413,14 +3433,24 @@ public:
 		ALLOC_COMMAND(FRHICommandWaitComputeFence<ECmdList::ECompute>)(WaitFence);
 	}
 
-	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef Fence = nullptr)
+	FORCEINLINE_DEBUGGABLE void CopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuffer, FStagingBufferRHIParamRef DestinationStagingBuffer, uint32 Offset, uint32 NumBytes)
 	{
 		if (Bypass())
 		{
-			GetComputeContext().RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes, Fence);
+			GetComputeContext().RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::ECompute>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes, Fence);
+		ALLOC_COMMAND(FRHICommandCopyToStagingBuffer<ECmdList::ECompute>)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
+	}
+
+	FORCEINLINE_DEBUGGABLE void WriteGPUFence(FGPUFenceRHIParamRef Fence)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIWriteGPUFence(Fence);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandWriteGPUFence<ECmdList::ECompute>)(Fence);
 	}
 };
 

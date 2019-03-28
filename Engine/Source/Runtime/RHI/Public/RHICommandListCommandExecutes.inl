@@ -475,10 +475,20 @@ template<ECmdList CmdListType>
 void FRHICommandCopyToStagingBuffer<CmdListType>::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EnqueueStagedRead);
-	INTERNAL_DECORATOR_CONTEXT(RHICopyToStagingBuffer)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes, Fence);
+	INTERNAL_DECORATOR_CONTEXT(RHICopyToStagingBuffer)(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes);
 }
 template struct FRHICommandCopyToStagingBuffer<ECmdList::EGfx>;
 template struct FRHICommandCopyToStagingBuffer<ECmdList::ECompute>;
+
+template<ECmdList CmdListType>
+void FRHICommandWriteGPUFence<CmdListType>::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(WriteGPUFence);
+	INTERNAL_DECORATOR_CONTEXT(RHIWriteGPUFence)(Fence);
+}
+template struct FRHICommandWriteGPUFence<ECmdList::EGfx>;
+template struct FRHICommandWriteGPUFence<ECmdList::ECompute>;
+
 
 void FRHICommandBuildLocalUniformBuffer::Execute(FRHICommandListBase& CmdList)
 {

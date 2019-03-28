@@ -2176,7 +2176,7 @@ FStagingBufferRHIRef FD3D11DynamicRHI::RHICreateStagingBuffer()
 	return new FD3D11StagingBuffer();
 }
 
-void FD3D11DynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes, FGPUFenceRHIParamRef FenceRHI)
+void FD3D11DynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FD3D11VertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 	FD3D11StagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
@@ -2217,15 +2217,15 @@ void FD3D11DynamicRHI::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBuf
 			Direct3DDeviceIMContext->CopySubresourceRegion(StagingBuffer->StagedRead, 0, 0, 0, 0, SourceBuffer->Resource, 0, &SourceBox);
 		}
 	}
+}
 
+void FD3D11DynamicRHI::RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI)
+{
 	// @todo-staging Implement real fences for D3D11
 	// D3D11 only has the generic fence for now.
 	FGenericRHIGPUFence* Fence = ResourceCast(FenceRHI);
-
-	if (Fence)
-	{
-		Fence->WriteInternal();
-	}
+	check(Fence);
+	Fence->WriteInternal();
 }
 
 void* FD3D11DynamicRHI::RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 SizeRHI)
