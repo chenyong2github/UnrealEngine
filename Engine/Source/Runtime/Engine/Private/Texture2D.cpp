@@ -1166,7 +1166,7 @@ bool UTexture2D::ShouldMipLevelsBeForcedResident() const
 	}
 
 #if WITH_EDITOR
-	if (GIsEditor && GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
+	if (GIsEditor && GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && (LODGroup == TEXTUREGROUP_Terrain_Heightmap || LODGroup == TEXTUREGROUP_Terrain_Weightmap))
 	{
 		return true;
 	}

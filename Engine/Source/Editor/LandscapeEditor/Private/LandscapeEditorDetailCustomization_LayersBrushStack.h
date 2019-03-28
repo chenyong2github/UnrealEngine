@@ -7,7 +7,6 @@
 #include "Layout/Visibility.h"
 #include "Layout/Margin.h"
 #include "Styling/SlateColor.h"
-#include "Styling/SlateBrush.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
@@ -28,7 +27,7 @@ class SDragAndDropVerticalBox;
  * Slate widgets customizer for the layers list in the Landscape Editor
  */
 
-class FLandscapeEditorDetailCustomization_ProceduralLayers : public FLandscapeEditorDetailCustomization_Base
+class FLandscapeEditorDetailCustomization_LayersBrushStack : public FLandscapeEditorDetailCustomization_Base
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
@@ -38,11 +37,11 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 };
 
-class FLandscapeEditorCustomNodeBuilder_ProceduralLayers : public IDetailCustomNodeBuilder, public TSharedFromThis<FLandscapeEditorCustomNodeBuilder_ProceduralLayers>
+class FLandscapeEditorCustomNodeBuilder_LayersBrushStack : public IDetailCustomNodeBuilder, public TSharedFromThis<FLandscapeEditorCustomNodeBuilder_LayersBrushStack>
 {
 public:
-	FLandscapeEditorCustomNodeBuilder_ProceduralLayers(TSharedRef<FAssetThumbnailPool> ThumbnailPool);
-	~FLandscapeEditorCustomNodeBuilder_ProceduralLayers();
+	FLandscapeEditorCustomNodeBuilder_LayersBrushStack(TSharedRef<FAssetThumbnailPool> ThumbnailPool);
+	~FLandscapeEditorCustomNodeBuilder_LayersBrushStack();
 
 	virtual void SetOnRebuildChildren( FSimpleDelegate InOnRegenerateChildren ) override;
 	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override;
@@ -50,7 +49,7 @@ public:
 	virtual void Tick( float DeltaTime ) override {}
 	virtual bool RequiresTick() const override { return false; }
 	virtual bool InitiallyCollapsed() const override { return false; }
-	virtual FName GetName() const override { return "Layers"; }
+	virtual FName GetName() const override { return "Brush Stack"; }
 
 protected:
 	TSharedRef<FAssetThumbnailPool> ThumbnailPool;
@@ -59,35 +58,33 @@ protected:
 
 	TSharedPtr<SWidget> GenerateRow(int32 InLayerIndex);
 
+	bool IsBrushSelected(int32 InBrushIndex) const;
+	void OnBrushSelectionChanged(int32 InBrushIndex);
+	FText GetBrushText(int32 InBrushIndex) const;
+	FSlateColor GetBrushTextColor(int32 InBrushIndex) const;
+	ALandscapeBlueprintCustomBrush* GetBrush(int32 InBrushIndex) const;
+
+	FReply ToggleCommitBrushes();
+	bool IsCommitBrushesButtonEnabled() const;
+	FText GetCommitBrushesButtonText() const;
+
 	// Drag/Drop handling
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);
 	TOptional<SDragAndDropVerticalBox::EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot);
 	FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot);
+};
 
-	bool IsLayerSelected(int32 LayerIndex);
-	void OnLayerSelectionChanged(int32 LayerIndex);
-	TSharedPtr<SWidget> OnLayerContextMenuOpening(int32 InLayerIndex);
-	void CreateLayer();
-	void ClearLayer(int32 InLayerIndex);
-	void RenameLayer(int32 InLayerIndex);
-	void DeleteLayer(int32 InLayerIndex);
-	void ShowOnlySelectedLayer(int32 InLayerIndex);
-	void ShowAllLayers();
-	bool CanRenameProceduralLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);
-	void SetProceduralLayerName(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
-	FText GetLayerText(int32 InLayerIndex) const;
+class FLandscapeBrushDragDropOp : public FDragAndDropVerticalBoxOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FLandscapeBrushDragDropOp, FDragAndDropVerticalBoxOp)
 
-	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
-	void SetLayerAlpha(float InAlpha, int32 InLayerIndex);
+	TSharedPtr<SWidget> WidgetToShow;
 
-	FReply OnToggleVisibility(int32 InLayerIndex);
-	const FSlateBrush* GetVisibilityBrushForLayer(int32 InLayerIndex) const;
-	
-	FReply OnToggleLock(int32 InLayerIndex);
-	const FSlateBrush* GetLockBrushForLayer(int32 InLayerIndex) const;
+	static TSharedRef<FLandscapeBrushDragDropOp> New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> InWidgetToShow);
 
-private:
+public:
+	virtual ~FLandscapeBrushDragDropOp();
 
-	/** Widgets for displaying and editing the layer name */
-	TArray< TSharedPtr< SInlineEditableTextBlock > > InlineTextBlocks;
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 };
