@@ -263,7 +263,7 @@ void FRenderAssetInstanceView::SwapData(FRenderAssetInstanceView* Lfs, FRenderAs
 	FMemory::Memswap(&Lfs->MaxTexelFactor , &Rhs->MaxTexelFactor, sizeof(Lfs->MaxTexelFactor));
 }
 
-void FRenderAssetInstanceView::OnVerifyElementIdxFailed(int32 Idx, bool bInRange, bool bAdd, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const
+void FRenderAssetInstanceView::OnVerifyElementIdxFailed(int32 Idx, bool bInRange, int32 IterationCount, TMap<const UPrimitiveComponent*, int32>* ComponentMapPtr, TArray<int32>* FreeIndicesPtr) const
 {
 	const UStreamableRenderAsset* AssetPtr = bInRange ? Elements[Idx].RenderAsset : nullptr;
 	const UPrimitiveComponent* CompPtr = bInRange ? Elements[Idx].Component : nullptr;
@@ -580,7 +580,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 			int32 IterationCount_DebuggingOnly = 0;
 			for (auto It = View->GetElementIterator(InAsset); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
 			{
-				View->VerifyElementIdx_DebuggingOnly(It.GetCurElementIdx_ForDebuggingOnly(), false, IterationCount_DebuggingOnly);
+				View->VerifyElementIdx_DebuggingOnly(It.GetCurElementIdx_ForDebuggingOnly(), IterationCount_DebuggingOnly);
 				// Only handle elements that are in bounds.
 				if (ensure(BoundsViewInfo.IsValidIndex(It.GetBoundsIndex())))
 				{
