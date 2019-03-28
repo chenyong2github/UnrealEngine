@@ -180,6 +180,7 @@ struct FPakCommandLineParameters
 		, EncryptIndex(false)
 		, UseCustomCompressor(false)
 		, bSign(false)
+		, bPatchCompatibilityMode421(false)
 	{
 	}
 
@@ -197,6 +198,7 @@ struct FPakCommandLineParameters
 	bool UseCustomCompressor;
 	FGuid EncryptionKeyGuid;
 	bool bSign;
+	bool bPatchCompatibilityMode421;
 };
 
 struct FPakEntryPair
@@ -627,6 +629,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	// List of all items to add to pak file
 	FString ResponseFile;
 	FString ClusterSizeString;
+
+	if (FParse::Param(CmdLine, TEXT("patchcompatibilitymode421")))
+	{
+		CmdLineParameters.bPatchCompatibilityMode421 = true;
+	}
 
 	if (FParse::Value(CmdLine, TEXT("-blocksize="), ClusterSizeString) && 
 		FParse::Value(CmdLine, TEXT("-blocksize="), CmdLineParameters.FileSystemBlockSize))
@@ -1425,6 +1432,19 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	FPakInfo Info;
 	Info.bEncryptedIndex = (InKeyChain.MasterEncryptionKey && CmdLineParameters.EncryptIndex);
 	Info.EncryptionKeyGuid = InKeyChain.MasterEncryptionKey ? InKeyChain.MasterEncryptionKey->Guid : FGuid();
+
+
+	if (CmdLineParameters.bPatchCompatibilityMode421)
+	{
+		// for old versions, put in some known names that we may have used
+		Info.GetCompressionMethodIndex(NAME_None);
+		Info.GetCompressionMethodIndex(NAME_Zlib);
+		Info.GetCompressionMethodIndex(NAME_Gzip);
+		Info.GetCompressionMethodIndex(TEXT("Bogus"));
+		Info.GetCompressionMethodIndex(TEXT("Oodle"));
+		
+	}
+
 
 	if (InKeyChain.MasterEncryptionKey)
 	{
