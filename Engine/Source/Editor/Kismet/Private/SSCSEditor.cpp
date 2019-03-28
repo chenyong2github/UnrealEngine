@@ -71,8 +71,6 @@
 #include "Algo/Find.h"
 #include "ActorEditorUtils.h"
 
-#pragma optimize("", off)
-
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSCSEditor, Log, All);
