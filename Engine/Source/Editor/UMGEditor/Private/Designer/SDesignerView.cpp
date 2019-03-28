@@ -70,6 +70,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/DPICustomScalingRule.h"
+#include "UMGEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -354,6 +355,15 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 	Register(MakeShareable(new FCanvasSlotExtension()));
 	Register(MakeShareable(new FUniformGridSlotExtension()));
 	Register(MakeShareable(new FGridSlotExtension()));
+
+	//Register External Extensions
+	IUMGEditorModule& UMGEditorInterface = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+
+	TSharedPtr<FDesignerExtensibilityManager>DesignerExtensibilityManager = UMGEditorInterface.GetDesignerExtensibilityManager();
+	for (const auto& Extension : DesignerExtensibilityManager->GetExternalDesignerExtensions())
+	{
+		Register(Extension);
+	}
 
 	GEditor->OnBlueprintReinstanced().AddRaw(this, &SDesignerView::OnPreviewNeedsRecreation);
 
