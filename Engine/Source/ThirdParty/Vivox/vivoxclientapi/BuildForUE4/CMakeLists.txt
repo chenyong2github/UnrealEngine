@@ -14,6 +14,7 @@ add_definitions(-DUSE_ACCESS_TOKENS)
 include_directories(../vivoxclientapi/include ${VIVOXSDK_PATH})
 
 set(SOURCES ../vivoxclientapi/src/accountname.cpp
+			../vivoxclientapi/src/allocator_utils.cpp
 			../vivoxclientapi/src/audiodeviceid.cpp
 			../vivoxclientapi/src/clientconnection.cpp
 			../vivoxclientapi/src/debugclientapieventhandler.cpp
