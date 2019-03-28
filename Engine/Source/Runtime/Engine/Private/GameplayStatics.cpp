@@ -374,6 +374,34 @@ bool UGameplayStatics::GetEnableWorldRendering(const UObject* WorldContextObject
 	return false;
 }
 
+EMouseCaptureMode UGameplayStatics::GetViewportMouseCaptureMode(const UObject* WorldContextObject)
+{
+	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			return GameViewportClient->CaptureMouseOnClick();
+		}
+	}
+
+	return EMouseCaptureMode::NoCapture;
+}
+
+void UGameplayStatics::SetViewportMouseCaptureMode(const UObject* WorldContextObject, const EMouseCaptureMode MouseCaptureMode)
+{
+	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			GameViewportClient->SetCaptureMouseOnClick(MouseCaptureMode);
+		}
+	}
+}
+
 /** @RETURN True if weapon trace from Origin hits component VictimComp.  OutHitResult will contain properties of the hit. */
 static bool ComponentIsDamageableFrom(UPrimitiveComponent* VictimComp, FVector const& Origin, AActor const* IgnoredActor, const TArray<AActor*>& IgnoreActors, ECollisionChannel TraceChannel, FHitResult& OutHitResult)
 {

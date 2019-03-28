@@ -267,6 +267,18 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (WorldContext = "WorldContextObject"))
 	static bool GetEnableWorldRendering(const UObject* WorldContextObject);
 
+	/**
+	 * Returns the current viewport mouse capture mode
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (WorldContext = "WorldContextObject"))
+	static EMouseCaptureMode GetViewportMouseCaptureMode(const UObject* WorldContextObject);
+
+	/**
+	 * Sets the current viewport mouse capture mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities", meta = (WorldContext = "WorldContextObject"))
+	static void SetViewportMouseCaptureMode(const UObject* WorldContextObject, const EMouseCaptureMode MouseCaptureMode);
+
 	/** Hurt locally authoritative actors within the radius. Will only hit components that block the Visibility channel.
 	 * @param BaseDamage - The base damage to apply, i.e. the damage at the origin.
 	 * @param Origin - Epicenter of the damage area.
