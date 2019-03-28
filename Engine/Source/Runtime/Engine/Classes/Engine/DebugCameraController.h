@@ -32,6 +32,10 @@ class ENGINE_API ADebugCameraController
 	UPROPERTY()
 	uint32 bIsFrozenRendering:1;
 
+	/** Whether to orbit selected actor. */
+	UPROPERTY()
+	uint32 bIsOrbitingSelectedActor : 1;
+
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
 	class UDrawFrustumComponent* DrawFrustum;
@@ -67,6 +71,18 @@ class ENGINE_API ADebugCameraController
 	 * turning on/off FreezeRendering command.
 	 */
 	virtual void ToggleFreezeRendering();
+
+	/**
+	 * Updates the rotation of player, based on ControlRotation after RotationInput has been applied.
+	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
+	 */
+	virtual void UpdateRotation(float DeltaTime) override;
+
+	/** Gets pivot to use when orbiting */
+	bool GetPivotForOrbit(FVector& PivotLocation) const;
+
+	/** Toggles camera orbit using current hit point as pivot */
+	virtual void ToggleOrbit();
 
 public:
 
@@ -182,6 +198,12 @@ private:
 
 	/** The normalized screen location when a drag starts */
 	FVector2D LastTouchDragLocation;
+
+	/** Last position for orbit */
+	FVector LastOrbitPawnLocation;
+
+	/** Current orbit pivot, if pivot is enabled. */
+	FVector OrbitPivot;
 
 	void OnTouchBegin(ETouchIndex::Type FingerIndex, FVector Location);
 	void OnTouchEnd(ETouchIndex::Type FingerIndex, FVector Location);
