@@ -45,7 +45,6 @@ int32 USocialSettings::GetDefaultMaxPartySize()
 		return MaxPartySizeOverride;
 	}
 
-	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	static FString CommandLineOverridePartySize;
 	if (FParse::Value(FCommandLine::Get(), TEXT("MaxPartySize="), CommandLineOverridePartySize))
 	{
