@@ -53,6 +53,8 @@ class FVulkanGfxPipeline;
 class FVulkanRenderPass;
 class FVulkanCommandBufferManager;
 struct FInputAttachmentData;
+class FValidationContext;
+
 
 inline VkShaderStageFlagBits UEFrequencyToVKStageBit(EShaderFrequency InStage)
 {
@@ -89,6 +91,7 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 
 	return SF_NumFrequencies;
 }
+
 
 class FVulkanRenderTargetLayout
 {
@@ -287,6 +290,9 @@ private:
 	uint32						NumUsedClearValues;
 	FVulkanDevice&				Device;
 };
+
+extern class FValidationRHI*	GValidationRHI;
+
 
 namespace VulkanRHI
 {
@@ -829,6 +835,18 @@ namespace VulkanRHI
 		}
 #endif
 	}
+
+	FVulkanCommandListContext& GetVulkanContext(FValidationContext& CmdContext);
+
+	inline FVulkanCommandListContext& GetVulkanContext(IRHICommandContext& CmdContext)
+	{
+		if (GValidationRHI)
+		{
+			return GetVulkanContext((FValidationContext&)CmdContext);
+		}
+
+		return (FVulkanCommandListContext&)CmdContext;
+	}
 }
 
 extern int32 GVulkanSubmitAfterEveryEndRenderPass;
@@ -840,3 +858,5 @@ extern bool GRenderDocFound;
 #endif
 
 const int GMaxCrashBufferEntries = 2048;
+
+extern class FVulkanDynamicRHI*	GVulkanRHI;

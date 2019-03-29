@@ -18,6 +18,10 @@
 #include "VulkanLLM.h"
 #include "Misc/EngineVersion.h"
 #include "GlobalShader.h"
+#include "ValidationRHI.h"
+
+
+FValidationRHI*		GValidationRHI = nullptr;
 
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
@@ -91,7 +95,18 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	// VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS=0 requires separate MSAA and resolve textures
 	check(RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform) == (!VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS));
 
-	return new FVulkanDynamicRHI();
+	GVulkanRHI = new FVulkanDynamicRHI();
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		GValidationRHI = new FValidationRHI(GVulkanRHI);
+	}
+	else
+	{
+		check(!GValidationRHI);
+	}
+
+	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GVulkanRHI;
 }
 
 IMPLEMENT_MODULE(FVulkanDynamicRHIModule, VulkanRHI);
@@ -683,7 +698,7 @@ void FVulkanDynamicRHI::InitInstance()
 
 		GUseTexture3DBulkDataRHI = true;
 
-		GDynamicRHI = this;
+		GDynamicRHI = GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)this;
 
 		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())
@@ -1541,24 +1556,21 @@ void FVulkanDynamicRHI::SavePipelineCache()
 {
 	FString CacheFile = GetPipelineCacheFilename();
 
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	RHI->Device->PipelineStateCache->Save(CacheFile);
+	GVulkanRHI->Device->PipelineStateCache->Save(CacheFile);
 }
 
 void FVulkanDynamicRHI::RebuildPipelineCache()
 {
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	RHI->Device->PipelineStateCache->RebuildCache();
+	GVulkanRHI->Device->PipelineStateCache->RebuildCache();
 }
 
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 void FVulkanDynamicRHI::SaveValidationCache()
 {
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	VkValidationCacheEXT ValidationCache = RHI->Device->GetValidationCache();
+	VkValidationCacheEXT ValidationCache = GVulkanRHI->Device->GetValidationCache();
 	if (ValidationCache != VK_NULL_HANDLE)
 	{
-		VkDevice Device = RHI->Device->GetInstanceHandle();
+		VkDevice Device = GVulkanRHI->Device->GetInstanceHandle();
 		PFN_vkGetValidationCacheDataEXT vkGetValidationCacheData = (PFN_vkGetValidationCacheDataEXT)(void*)VulkanRHI::vkGetDeviceProcAddr(Device, "vkGetValidationCacheDataEXT");
 		check(vkGetValidationCacheData);
 		size_t CacheSize = 0;
@@ -1595,10 +1607,9 @@ void FVulkanDynamicRHI::SaveValidationCache()
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 void FVulkanDynamicRHI::DumpMemory()
 {
-	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	RHI->Device->GetMemoryManager().DumpMemory();
-	RHI->Device->GetResourceHeapManager().DumpMemory();
-	RHI->Device->GetStagingManager().DumpMemory();
+	GVulkanRHI->Device->GetMemoryManager().DumpMemory();
+	GVulkanRHI->Device->GetResourceHeapManager().DumpMemory();
+	GVulkanRHI->Device->GetStagingManager().DumpMemory();
 }
 #endif
 
@@ -1607,8 +1618,7 @@ void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 	if (NewNativeWindow)
 	{
 		FlushRenderingCommands();
-		FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-		TArray<FVulkanViewport*> Viewports = RHI->Viewports;
+		TArray<FVulkanViewport*> Viewports = GVulkanRHI->Viewports;
 		ENQUEUE_RENDER_COMMAND(VulkanRecreateSwapChain)(
 			[Viewports, NewNativeWindow](FRHICommandListImmediate& RHICmdList)
 			{

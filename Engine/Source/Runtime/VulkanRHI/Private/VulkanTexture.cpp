@@ -170,7 +170,7 @@ struct FRHICommandLockWriteTexture final : public FRHICommand<FRHICommandLockWri
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		FVulkanSurface::InternalLockWrite((FVulkanCommandListContext&)RHICmdList.GetContext(), Surface, SubresourceRange, Region, StagingBuffer);
+		FVulkanSurface::InternalLockWrite(VulkanRHI::GetVulkanContext(RHICmdList.GetContext()), Surface, SubresourceRange, Region, StagingBuffer);
 	}
 };
 
@@ -423,7 +423,7 @@ struct FRHICommandInitialClearTexture final : public FRHICommand<FRHICommandInit
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		Surface->InitialClear((FVulkanCommandListContext&)CmdList.GetContext(), ClearValueBinding, bTransitionToPresentable);
+		Surface->InitialClear(VulkanRHI::GetVulkanContext(CmdList.GetContext()), ClearValueBinding, bTransitionToPresentable);
 	}
 };
 
@@ -440,7 +440,8 @@ struct FRHICommandRegisterImageLayout final : public FRHICommand<FRHICommandRegi
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		((FVulkanCommandListContext&)RHICmdList.GetContext()).FindOrAddLayout(Image, ImageLayout);
+		auto& Context = RHICmdList.GetContext();
+		VulkanRHI::GetVulkanContext(Context).FindOrAddLayout(Image, ImageLayout);
 	}
 };
 

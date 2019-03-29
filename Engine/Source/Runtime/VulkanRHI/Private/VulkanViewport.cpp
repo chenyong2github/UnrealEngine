@@ -870,7 +870,7 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	AcquiredImageIndex = -1;
 
 	++PresentCount;
-	++((FVulkanDynamicRHI*)GDynamicRHI)->TotalPresentCount;
+	++GVulkanRHI->TotalPresentCount;
 
 	return bResult;
 }

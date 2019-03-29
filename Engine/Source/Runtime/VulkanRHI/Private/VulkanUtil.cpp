@@ -10,7 +10,9 @@
 #include "VulkanContext.h"
 #include "VulkanMemory.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "ValidationContext.h"
 
+FVulkanDynamicRHI*	GVulkanRHI = nullptr;
 
 extern CORE_API bool GIsGPUCrashed;
 
@@ -585,10 +587,21 @@ namespace VulkanRHIBridge
 #include "RHIStaticStates.h"
 #include "OneColorShader.h"
 #include "VulkanRHI.h"
+#include "ValidationRHI.h"
 #include "StaticBoundShaderState.h"
 
 namespace VulkanRHI
 {
+	FVulkanCommandListContext& GetVulkanContext(class FValidationContext& CmdContext)
+	{
+		if (GValidationRHI && GValidationRHI->Context == &CmdContext)
+		{
+			return (FVulkanCommandListContext&)*CmdContext.RHIContext;
+		}
+
+		return (FVulkanCommandListContext&)CmdContext;
+	}
+
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)
 	{
 		VkDevice Device = InDevice->GetInstanceHandle();
@@ -665,8 +678,7 @@ namespace VulkanRHI
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 		if (GIsGPUCrashed && GGPUCrashDebuggingEnabled)
 		{
-			FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-			FVulkanDevice* Device = RHI->GetDevice();
+			FVulkanDevice* Device = GVulkanRHI->GetDevice();
 			if (Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
 			{
 				Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
