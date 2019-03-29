@@ -31,6 +31,7 @@ enum EShowFlagInitMode
 	ESFIM_Game,
 	ESFIM_Editor,
 	ESFIM_VREditing,
+	ESFIM_Canvas,
 	ESFIM_All0
 };
 
@@ -396,6 +397,7 @@ private:
 		SetOcclusionMeshes(false);
 		SetPathTracing(false);
 		SetRayTracingDebug(false);
+		SetDecals(InitMode != ESFIM_Canvas);
 	}
 
 

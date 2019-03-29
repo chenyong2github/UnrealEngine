@@ -637,6 +637,7 @@ private:
 
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;
+	const bool bEnableReceiveDecalOutput;
 	EDepthDrawingMode EarlyZPassMode;
 };
 
