@@ -20,6 +20,8 @@ enum ESourceType
 	SRC_UsingHoudini,
 	SRC_VulkanAvailable,
 	SRC_CommandLine,
+	SRC_Hardware,
+	SRC_Chipset,
 	SRC_MAX,
 };
 

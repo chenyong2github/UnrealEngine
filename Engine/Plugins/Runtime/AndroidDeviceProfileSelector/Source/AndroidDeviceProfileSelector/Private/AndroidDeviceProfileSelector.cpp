@@ -30,7 +30,7 @@ static UAndroidDeviceProfileMatchingRules* GetAndroidDeviceProfileMatchingRules(
 	return Rules;
 }
 
-FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFamily, const FString& GLVersion, const FString& AndroidVersion, const FString& DeviceMake, const FString& DeviceModel, const FString& DeviceBuildNumber, const FString& VulkanAvailable, const FString& VulkanVersion, const FString& UsingHoudini, const FString& ProfileName)
+FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFamily, const FString& GLVersion, const FString& AndroidVersion, const FString& DeviceMake, const FString& DeviceModel, const FString& DeviceBuildNumber, const FString& VulkanAvailable, const FString& VulkanVersion, const FString& UsingHoudini, const FString& Hardware, const FString& Chipset, const FString& ProfileName)
 {
 	FString OutProfileName = ProfileName;
 	FString CommandLine = FCommandLine::Get();
@@ -76,6 +76,12 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFam
 				break;
 			case SRC_CommandLine:
 				SourceString = &CommandLine;
+				break;
+			case SRC_Hardware:
+				SourceString = &Hardware;
+				break;
+			case SRC_Chipset:
+				SourceString = &Chipset;
 				break;
 			default:
 				continue;
