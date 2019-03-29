@@ -65,7 +65,6 @@ FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 S
 	{
 		if (IndexBuffer->UsePrivateMemory())
 		{
-			LLM_SCOPE(ELLMTag::IndexBuffer);
 			SafeReleaseMetalBuffer(IndexBuffer->CPUBuffer);
 			IndexBuffer->CPUBuffer = nil;
 		}
@@ -124,7 +123,6 @@ struct FMetalRHICommandInitialiseIndexBuffer : public FRHICommand<FMetalRHIComma
 			GetMetalDeviceContext().AsyncCopyFromBufferToBuffer(Buffer->CPUBuffer, 0, Buffer->Buffer, 0, Buffer->Buffer.GetLength());
 			if (Buffer->UsePrivateMemory())
 			{
-				LLM_SCOPE(ELLMTag::IndexBuffer);
 				SafeReleaseMetalBuffer(Buffer->CPUBuffer);
 			}
 			else
@@ -188,7 +186,6 @@ FIndexBufferRHIRef FMetalDynamicRHI::CreateIndexBuffer_RenderThread(class FRHICo
 		{
 			if (IndexBuffer->UsePrivateMemory())
 			{
-				LLM_SCOPE(ELLMTag::IndexBuffer);
 				SafeReleaseMetalBuffer(IndexBuffer->CPUBuffer);
 				IndexBuffer->CPUBuffer = nil;
 			}
