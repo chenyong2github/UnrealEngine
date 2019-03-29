@@ -10577,6 +10577,14 @@ void UEngine::WorldDestroyed( UWorld* InWorld )
 	WorldDestroyedEvent.Broadcast( InWorld );
 }
 
+void UEngine::BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString /* = TEXT("") */)
+{
+	UE_LOG(LogNet, Error, TEXT("UEngine::BroadcastNetworkFailure: FailureType = %s, ErrorString = %s, Driver = %s"),
+		ENetworkFailure::ToString(FailureType), *ErrorString, (NetDriver ? *NetDriver->GetDescription() : TEXT("NONE")));
+
+	NetworkFailureEvent.Broadcast(World, NetDriver, FailureType, ErrorString);
+}
+
 UWorld* UEngine::GetWorldFromContextObject(const UObject* Object, EGetWorldErrorMode ErrorMode) const
 {
 	if (Object == nullptr)
