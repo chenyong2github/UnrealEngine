@@ -454,6 +454,8 @@ FString FPIEPreviewDevice::GetProfile() const
 				DeviceParameters.Add("DeviceModel", AndroidProperties.DeviceModel);
 				DeviceParameters.Add("DeviceBuildNumber", AndroidProperties.DeviceBuildNumber);
 				DeviceParameters.Add("UsingHoudini", AndroidProperties.UsingHoudini ? "true" : "false");
+				DeviceParameters.Add("Hardware", AndroidProperties.Hardware);
+				DeviceParameters.Add("Chipset", AndroidProperties.Chipset);
 
 				FString PIEProfileName = AndroidDeviceProfileSelector->GetDeviceProfileName(DeviceParameters);
 				if (!PIEProfileName.IsEmpty())
