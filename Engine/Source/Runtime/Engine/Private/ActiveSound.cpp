@@ -18,6 +18,14 @@ FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
 	ECVF_Default);
 
+static int32 AudioDisableConcurrencyStopSilentForLoopsCvar = 0;
+FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
+	TEXT("au.DisableConcurrencyStopSilentForLoops"),
+	AudioDisableConcurrencyStopSilentForLoopsCvar,
+	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
+	ECVF_Default);
+
+
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
 
@@ -346,14 +354,29 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 	if (!ConcurrencySet.Num() && Sound)
 	{
 		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
-		return;
+	}
+	else
+	{
+		for (const USoundConcurrency* Concurrency : ConcurrencySet)
+		{
+			if (Concurrency)
+			{
+				OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			}
+		}
 	}
 
-	for (const USoundConcurrency* Concurrency : ConcurrencySet)
+	if (IsLooping() && AudioDisableConcurrencyStopSilentForLoopsCvar)
 	{
-		if (Concurrency)
+		for (int32 i = OutConcurrencyHandles.Num() - 1; i >= 0; --i)
 		{
-			OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			if (OutConcurrencyHandles[i].Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest)
+			{
+				UE_LOG(LogAudio, Warning,
+					TEXT("Concurrency not observed for '%s': StopQuietest concurrency disabled for looping sounds"),
+					Sound ? *Sound->GetName() : TEXT("N/A"));
+				OutConcurrencyHandles.RemoveAtSwap(i, 1, false);
+			}
 		}
 	}
 }
