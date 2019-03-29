@@ -1077,13 +1077,13 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			{
 				MetaData += FString::Printf(TEXT("// @Samplers: %s\n"), *SRVString);
 			}
-			if (SMPString.Len())
-			{
-				MetaData += FString::Printf(TEXT("// @SamplerStates: %s\n"), *SMPString);
-			}
 			if (UAVString.Len())
 			{
 				MetaData += FString::Printf(TEXT("// @UAVs: %s\n"), *UAVString);
+			}
+			if (SMPString.Len())
+			{
+				MetaData += FString::Printf(TEXT("// @SamplerStates: %s\n"), *SMPString);
 			}
 			if (WKGString.Len())
 			{
@@ -1247,7 +1247,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		{
 			const FString& Line = ErrorLines[LineIndex];
 			Output.Errors.Add(FShaderCompilerError(*Line));
-			CrossCompiler::ParseHlslccError(Output.Errors, Line, true);
+			CrossCompiler::ParseHlslccError(Output.Errors, Line, false);
 			if (bDirectCompile)
 			{
 				UE_LOG(LogShaders, Error, TEXT("%s"), *Line);
