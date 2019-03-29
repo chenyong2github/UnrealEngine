@@ -173,3 +173,119 @@ bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> 
 	EVP_DigestVerifyUpdate(Context.Get(), Message.GetData(), Message.Num());
 	return EVP_DigestVerifyFinal(Context.Get(), const_cast<uint8*>(Signature.GetData()), Signature.Num()) == 1;
 }
+
+// Some platforms were upgraded to OpenSSL 1.1.1 while the others were left on a previous version. There are some minor differences we have to account for
+// in the older version, so declare a handy define that we can use to gate the code
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
+#define USE_LEGACY_OPENSSL 1
+#else
+#define USE_LEGACY_OPENSSL 0
+#endif
+
+static void LoadBinaryIntoBigNum(const uint8* InData, int64 InDataSize, BIGNUM* InBigNum)
+{
+#if USE_LEGACY_OPENSSL
+	TArray<uint8> Bytes(InData, InDataSize);
+	Algo::Reverse(Bytes);
+	BN_bin2bn(Bytes.GetData(), Bytes.Num(), InBigNum);
+#else
+	BN_lebin2bn(InData, InDataSize, InBigNum);
+#endif
+}
+
+TPlatformCryptoRSAKey FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const uint8> PublicExponent, const TArrayView<const uint8> PrivateExponent, const TArrayView<const uint8> Modulus)
+{
+	RSA* NewKey = RSA_new();
+
+	BIGNUM* BN_PublicExponent = PublicExponent.Num() > 0 ? BN_new() : nullptr;
+	BIGNUM* BN_PrivateExponent = PrivateExponent.Num() > 0 ? BN_new() : nullptr;
+	BIGNUM* BN_Modulus = BN_new();
+
+	if (PublicExponent.Num())
+	{
+		LoadBinaryIntoBigNum(PublicExponent.GetData(), PublicExponent.Num(), BN_PublicExponent);
+	}
+
+	if (PrivateExponent.Num())
+	{
+		LoadBinaryIntoBigNum(PrivateExponent.GetData(), PrivateExponent.Num(), BN_PrivateExponent);
+	}
+
+	LoadBinaryIntoBigNum(Modulus.GetData(), Modulus.Num(), BN_Modulus);
+#if USE_LEGACY_OPENSSL
+	NewKey->n = BN_Modulus;
+	NewKey->e = BN_PublicExponent;
+	NewKey->d = BN_PrivateExponent;
+#else
+	RSA_set0_key(NewKey, BN_Modulus, BN_PublicExponent, BN_PrivateExponent);
+#endif
+
+	return NewKey;
+}
+
+void FEncryptionContextOpenSSL::DestroyKey_RSA(TPlatformCryptoRSAKey Key)
+{
+	RSA_free((RSA*)Key);
+}
+
+int32 FEncryptionContextOpenSSL::GetKeySize_RSA(TPlatformCryptoRSAKey Key)
+{
+	return RSA_size((RSA*)Key);
+}
+
+int32 FEncryptionContextOpenSSL::GetMaxDataSize_RSA(TPlatformCryptoRSAKey Key)
+{
+	return (GetKeySize_RSA(Key)) - RSA_PKCS1_PADDING_SIZE;
+}
+
+int32 FEncryptionContextOpenSSL::EncryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+{
+	Dest.SetNum(GetKeySize_RSA(Key));
+	int NumEncryptedBytes = RSA_public_encrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
+	if (NumEncryptedBytes == -1)
+	{
+		Dest.Empty(0);
+	}
+	return NumEncryptedBytes;
+}
+
+int32 FEncryptionContextOpenSSL::EncryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+{
+	Dest.SetNum(GetKeySize_RSA(Key));
+	int NumEncryptedBytes = RSA_private_encrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
+	if (NumEncryptedBytes == -1)
+	{
+		Dest.Empty(0);
+	}
+	return NumEncryptedBytes;
+}
+
+int32 FEncryptionContextOpenSSL::DecryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+{
+	Dest.SetNum(GetKeySize_RSA(Key) - RSA_PKCS1_PADDING_SIZE);
+	int NumDecryptedBytes = RSA_public_decrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
+	if (NumDecryptedBytes == -1)
+	{
+		Dest.Empty(0);
+	}
+	else
+	{
+		Dest.SetNum(NumDecryptedBytes);
+	}
+	return NumDecryptedBytes;
+}
+
+int32 FEncryptionContextOpenSSL::DecryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+{
+	Dest.SetNum(GetKeySize_RSA(Key) - RSA_PKCS1_PADDING_SIZE);
+	int NumDecryptedBytes = RSA_private_decrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
+	if (NumDecryptedBytes == -1)
+	{
+		Dest.Empty(0);
+	}
+	else
+	{
+		Dest.SetNum(NumDecryptedBytes);
+	}
+	return NumDecryptedBytes;
+}
