@@ -525,24 +525,6 @@ public:
 	}
 	void MaybeDispatchToRHIThreadInner();
 
-	struct FDrawUpData
-	{
-		uint32 NumPrimitives;
-		uint32 NumVertices;
-		uint32 VertexDataStride;
-		void* OutVertexData;
-		uint32 MinVertexIndex;
-		uint32 NumIndices;
-		uint32 IndexDataStride;
-		void* OutIndexData;
-
-		FDrawUpData()
-			: OutVertexData(nullptr)
-			, OutIndexData(nullptr)
-		{
-		}
-	};
-
 	FORCEINLINE const FRHIGPUMask& GetGPUMask() const { return GPUMask; }
 
 private:
@@ -621,8 +603,6 @@ public:
 	{
 		return RenderThreadContexts[int32(Slot)];
 	}
-
-	FDrawUpData DrawUPData; 
 
 	struct FCommonData
 	{
@@ -1149,49 +1129,6 @@ struct FRHICommandBindClearMRTValues final : public FRHICommand<FRHICommandBindC
 	{
 	}	
 
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FRHICommandEndDrawPrimitiveUP final : public FRHICommand<FRHICommandEndDrawPrimitiveUP>
-{
-	uint32 NumPrimitives;
-	uint32 NumVertices;
-	uint32 VertexDataStride;
-	void* OutVertexData;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandEndDrawPrimitiveUP(uint32 InNumPrimitives, uint32 InNumVertices, uint32 InVertexDataStride, void* InOutVertexData)
-		: NumPrimitives(InNumPrimitives)
-		, NumVertices(InNumVertices)
-		, VertexDataStride(InVertexDataStride)
-		, OutVertexData(InOutVertexData)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-
-struct FRHICommandEndDrawIndexedPrimitiveUP final : public FRHICommand<FRHICommandEndDrawIndexedPrimitiveUP>
-{
-	uint32 NumPrimitives;
-	uint32 NumVertices;
-	uint32 VertexDataStride;
-	void* OutVertexData;
-	uint32 MinVertexIndex;
-	uint32 NumIndices;
-	uint32 IndexDataStride;
-	void* OutIndexData;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandEndDrawIndexedPrimitiveUP(uint32 InNumPrimitives, uint32 InNumVertices, uint32 InVertexDataStride, void* InOutVertexData, uint32 InMinVertexIndex, uint32 InNumIndices, uint32 InIndexDataStride, void* InOutIndexData)
-		: NumPrimitives(InNumPrimitives)
-		, NumVertices(InNumVertices)
-		, VertexDataStride(InVertexDataStride)
-		, OutVertexData(InOutVertexData)
-		, MinVertexIndex(InMinVertexIndex)
-		, NumIndices(InNumIndices)
-		, IndexDataStride(InIndexDataStride)
-		, OutIndexData(InOutIndexData)
-	{
-	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
@@ -2453,86 +2390,6 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandBindClearMRTValues)(bClearColor, bClearDepth, bClearStencil);
 	}	
-
-	UE_DEPRECATED(4.21, "This function is deprecated and will be removed in future releases.")
-	FORCEINLINE_DEBUGGABLE void BeginDrawPrimitiveUP(uint32 PrimitiveType, uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBeginDrawPrimitiveUP(NumPrimitives, NumVertices, VertexDataStride, OutVertexData);
-			return;
-		}
-		checkf(!DrawUPData.OutVertexData && NumVertices * VertexDataStride > 0,
-			TEXT("Data: 0x%x, NumVerts:%i, Stride:%i"), (void*)DrawUPData.OutVertexData, NumVertices, VertexDataStride);
-
-		OutVertexData = Alloc(NumVertices * VertexDataStride, 16);
-
-		DrawUPData.NumPrimitives = NumPrimitives;
-		DrawUPData.NumVertices = NumVertices;
-		DrawUPData.VertexDataStride = VertexDataStride;
-		DrawUPData.OutVertexData = OutVertexData;
-	}
-
-	UE_DEPRECATED(4.21, "This function is deprecated and will be removed in future releases.")
-	FORCEINLINE_DEBUGGABLE void EndDrawPrimitiveUP()
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIEndDrawPrimitiveUP();
-			return;
-		}
-		check(DrawUPData.OutVertexData && DrawUPData.NumVertices);
-		ALLOC_COMMAND(FRHICommandEndDrawPrimitiveUP)(DrawUPData.NumPrimitives, DrawUPData.NumVertices, DrawUPData.VertexDataStride, DrawUPData.OutVertexData);
-
-		DrawUPData.OutVertexData = nullptr;
-		DrawUPData.NumVertices = 0;
-	}
-
-	UE_DEPRECATED(4.21, "This function is deprecated and will be removed in future releases.")
-	FORCEINLINE_DEBUGGABLE void BeginDrawIndexedPrimitiveUP(uint32 PrimitiveType, uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBeginDrawIndexedPrimitiveUP(NumPrimitives, NumVertices, VertexDataStride, OutVertexData, MinVertexIndex, NumIndices, IndexDataStride, OutIndexData);
-			return;
-		}
-		check(!DrawUPData.OutVertexData && !DrawUPData.OutIndexData && NumVertices * VertexDataStride > 0 && NumIndices * IndexDataStride > 0);
-
-		OutVertexData = Alloc(NumVertices * VertexDataStride, 16);
-		OutIndexData = Alloc(NumIndices * IndexDataStride, 16);
-
-		DrawUPData.NumPrimitives = NumPrimitives;
-		DrawUPData.NumVertices = NumVertices;
-		DrawUPData.VertexDataStride = VertexDataStride;
-		DrawUPData.OutVertexData = OutVertexData;
-		DrawUPData.MinVertexIndex = MinVertexIndex;
-		DrawUPData.NumIndices = NumIndices;
-		DrawUPData.IndexDataStride = IndexDataStride;
-		DrawUPData.OutIndexData = OutIndexData;
-
-	}
-
-	UE_DEPRECATED(4.21, "This function is deprecated and will be removed in future releases.")
-	FORCEINLINE_DEBUGGABLE void EndDrawIndexedPrimitiveUP()
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIEndDrawIndexedPrimitiveUP();
-			return;
-		}
-		check(DrawUPData.OutVertexData && DrawUPData.OutIndexData && DrawUPData.NumIndices && DrawUPData.NumVertices);
-
-		ALLOC_COMMAND(FRHICommandEndDrawIndexedPrimitiveUP)(DrawUPData.NumPrimitives, DrawUPData.NumVertices, DrawUPData.VertexDataStride, DrawUPData.OutVertexData, DrawUPData.MinVertexIndex, DrawUPData.NumIndices, DrawUPData.IndexDataStride, DrawUPData.OutIndexData);
-
-		DrawUPData.OutVertexData = nullptr;
-		DrawUPData.OutIndexData = nullptr;
-		DrawUPData.NumIndices = 0;
-		DrawUPData.NumVertices = 0;
-	}
 
 	FORCEINLINE_DEBUGGABLE void SetComputeShader(FComputeShaderRHIParamRef ComputeShader)
 	{

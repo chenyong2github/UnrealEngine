@@ -239,40 +239,6 @@ public:
 	virtual void RHIDrawIndexedPrimitive(FIndexBufferRHIParamRef IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	
 	virtual void RHIDrawIndexedPrimitiveIndirect(FIndexBufferRHIParamRef IndexBuffer, FVertexBufferRHIParamRef ArgumentBuffer, uint32 ArgumentOffset) final override;
-	
-	/**
-	 * Preallocate memory or get a direct command stream pointer to fill up for immediate rendering . This avoids memcpys below in DrawPrimitiveUP
-	 * @param PrimitiveType The type (triangles, lineloop, etc) of primitive to draw
-	 * @param NumPrimitives The number of primitives in the VertexData buffer
-	 * @param NumVertices The number of vertices to be written
-	 * @param VertexDataStride Size of each vertex
-	 * @param OutVertexData Reference to the allocated vertex memory
-	 */
-	virtual void RHIBeginDrawPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData) final override;
-	
-	/**
-	 * Draw a primitive using the vertex data populated since RHIBeginDrawPrimitiveUP and clean up any memory as needed
-	 */
-	virtual void RHIEndDrawPrimitiveUP() final override;
-	
-	/**
-	 * Preallocate memory or get a direct command stream pointer to fill up for immediate rendering . This avoids memcpys below in DrawIndexedPrimitiveUP
-	 * @param PrimitiveType The type (triangles, lineloop, etc) of primitive to draw
-	 * @param NumPrimitives The number of primitives in the VertexData buffer
-	 * @param NumVertices The number of vertices to be written
-	 * @param VertexDataStride Size of each vertex
-	 * @param OutVertexData Reference to the allocated vertex memory
-	 * @param MinVertexIndex The lowest vertex index used by the index buffer
-	 * @param NumIndices Number of indices to be written
-	 * @param IndexDataStride Size of each index (either 2 or 4 bytes)
-	 * @param OutIndexData Reference to the allocated index memory
-	 */
-	virtual void RHIBeginDrawIndexedPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData) final override;
-	
-	/**
-	 * Draw a primitive using the vertex and index data populated since RHIBeginDrawIndexedPrimitiveUP and clean up any memory as needed
-	 */
-	virtual void RHIEndDrawIndexedPrimitiveUP() final override;
 
 	/**
 	* Sets Depth Bounds Testing with the given min/max depth.

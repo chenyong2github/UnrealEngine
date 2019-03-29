@@ -213,10 +213,6 @@ public:
 	virtual void RHIDrawIndexedIndirect(FIndexBufferRHIParamRef IndexBufferRHI, FStructuredBufferRHIParamRef ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances) final override;
 	virtual void RHIDrawIndexedPrimitive(FIndexBufferRHIParamRef IndexBuffer, int32 BaseVertexIndex, uint32 FirstInstance, uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	virtual void RHIDrawIndexedPrimitiveIndirect(FIndexBufferRHIParamRef IndexBuffer, FVertexBufferRHIParamRef ArgumentBuffer, uint32 ArgumentOffset) final override;
-	virtual void RHIBeginDrawPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData) final override;
-	virtual void RHIEndDrawPrimitiveUP() final override;
-	virtual void RHIBeginDrawIndexedPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData) final override;
-	virtual void RHIEndDrawIndexedPrimitiveUP() final override;
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override;
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) final override;
 	virtual void RHIPopEvent() final override;
@@ -385,20 +381,6 @@ protected:
 	void EndOcclusionQueryBatch(FVulkanCmdBuffer* CmdBuffer);
 
 	void SetShaderUniformBuffer(ShaderStage::EStage Stage, const FVulkanUniformBuffer* UniformBuffer, int32 ParameterIndex, const FVulkanShader* Shader);
-
-	struct
-	{
-		VulkanRHI::FTempFrameAllocationBuffer::FTempAllocInfo VertexAllocInfo;
-		uint32 NumVertices = 0;
-		uint32 VertexDataStride = 0;
-
-		VulkanRHI::FTempFrameAllocationBuffer::FTempAllocInfo IndexAllocInfo;
-		VkIndexType IndexType = VK_INDEX_TYPE_MAX_ENUM;
-		uint32 NumPrimitives = 0;
-		uint32 MinVertexIndex = 0;
-		uint32 IndexDataStride = 0;
-	} UserPrimitive;
-
 
 	VulkanRHI::FTempFrameAllocationBuffer TempFrameAllocationBuffer;
 

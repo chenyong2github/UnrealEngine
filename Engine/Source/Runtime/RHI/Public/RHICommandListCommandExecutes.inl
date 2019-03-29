@@ -42,9 +42,7 @@ struct FRHICommandDrawIndexedPrimitiveIndirect;
 struct FRHICommandDrawPrimitive;
 struct FRHICommandDrawPrimitiveIndirect;
 struct FRHICommandSetDepthBounds;
-struct FRHICommandEndDrawIndexedPrimitiveUP;
 struct FRHICommandEndDrawingViewport;
-struct FRHICommandEndDrawPrimitiveUP;
 struct FRHICommandEndFrame;
 struct FRHICommandEndOcclusionQueryBatch;
 struct FRHICommandEndRenderQuery;
@@ -302,34 +300,6 @@ void FRHICommandBindClearMRTValues::Execute(FRHICommandListBase& CmdList)
 		bClearDepth,
 		bClearStencil		
 		);
-}
-
-void FRHICommandEndDrawPrimitiveUP::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(EndDrawPrimitiveUP);
-	void* Buffer = NULL;
-	INTERNAL_DECORATOR(RHIBeginDrawPrimitiveUP)(NumPrimitives, NumVertices, VertexDataStride, Buffer);
-	FMemory::Memcpy(Buffer, OutVertexData, NumVertices * VertexDataStride);
-	INTERNAL_DECORATOR(RHIEndDrawPrimitiveUP)();
-}
-
-void FRHICommandEndDrawIndexedPrimitiveUP::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(EndDrawIndexedPrimitiveUP);
-	void* VertexBuffer = nullptr;
-	void* IndexBuffer = nullptr;
-	INTERNAL_DECORATOR(RHIBeginDrawIndexedPrimitiveUP)(
-		NumPrimitives,
-		NumVertices,
-		VertexDataStride,
-		VertexBuffer,
-		MinVertexIndex,
-		NumIndices,
-		IndexDataStride,
-		IndexBuffer);
-	FMemory::Memcpy(VertexBuffer, OutVertexData, NumVertices * VertexDataStride);
-	FMemory::Memcpy(IndexBuffer, OutIndexData, NumIndices * IndexDataStride);
-	INTERNAL_DECORATOR(RHIEndDrawIndexedPrimitiveUP)();
 }
 
 template<ECmdList CmdListType>

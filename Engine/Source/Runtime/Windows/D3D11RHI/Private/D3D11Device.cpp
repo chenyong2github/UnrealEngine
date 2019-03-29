@@ -67,12 +67,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
 	bDiscardSharedConstants(false),
 	bUsingTessellation(false),
-	PendingNumVertices(0),
-	PendingVertexDataStride(0),
-	PendingNumPrimitives(0),
-	PendingMinVertexIndex(0),
-	PendingNumIndices(0),
-	PendingIndexDataStride(0),
 	GPUProfilingData(this),
 	ChosenAdapter(InChosenAdapter),
 	ChosenDescription(InChosenDescription)

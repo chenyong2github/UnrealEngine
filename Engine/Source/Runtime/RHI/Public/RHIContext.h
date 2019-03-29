@@ -55,7 +55,7 @@ public:
 
 	virtual void RHIDispatchIndirectComputeShader(FVertexBufferRHIParamRef ArgumentBuffer, uint32 ArgumentOffset) = 0;
 
-	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) = 0;
+	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
 	/**
 	* Explicitly transition a UAV from readable -> writable by the GPU or vice versa.
@@ -117,7 +117,7 @@ public:
 	 * Some RHI implementations (OpenGL) cache render state internally
 	 * Signal to RHI that cached state is no longer valid
 	 */
-	virtual void RHIInvalidateCachedState() {};
+	virtual void RHIInvalidateCachedState() {}
 
 	/**
 	 * Performs a copy of the data in 'SourceBuffer' to 'DestinationStagingBuffer.' This will occur inline on the GPU timeline. This is a mechanism to perform nonblocking readback of a buffer at a point in time.
@@ -139,7 +139,6 @@ public:
 	{
 		check(false);
 	}
-
 };
 
 struct FAccelerationStructureUpdateParams
@@ -176,19 +175,9 @@ public:
 		}
 	}
 
-	/**
-	*Sets the current compute shader.  Mostly for compliance with platforms
-	*that require shader setting before resource binding.
-	*/
-	virtual void RHISetComputeShader(FComputeShaderRHIParamRef ComputeShader) = 0;
-
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) = 0;
 
 	virtual void RHIDispatchIndirectComputeShader(FVertexBufferRHIParamRef ArgumentBuffer, uint32 ArgumentOffset) = 0;
-
-	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) override
-	{
-	}
 
 	virtual void RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) = 0;
 
@@ -259,8 +248,6 @@ public:
 
 	virtual void RHIEndRenderQuery(FRenderQueryRHIParamRef RenderQuery) = 0;
 
-	virtual void RHISubmitCommandsHint() = 0;
-
 	// Used for OpenGL to check and see if any occlusion queries can be read back on the RHI thread. If they aren't ready when we need them, then we end up stalling.
 	virtual void RHIPollOcclusionQueries()
 	{
@@ -268,7 +255,7 @@ public:
 	}
 
 	// Not all RHIs need this (Mobile specific)
-	virtual void RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32 ColorBitMask) {};
+	virtual void RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32 ColorBitMask) {}
 
 	// This method is queued with an RHIThread, otherwise it will flush after it is queued; without an RHI thread there is no benefit to queuing this frame advance commands
 	virtual void RHIBeginDrawingViewport(FViewportRHIParamRef Viewport, FTextureRHIParamRef RenderTargetRHI) = 0;
@@ -484,48 +471,12 @@ public:
 	virtual void RHIDrawIndexedPrimitiveIndirect(FIndexBufferRHIParamRef IndexBuffer, FVertexBufferRHIParamRef ArgumentBuffer, uint32 ArgumentOffset) = 0;
 
 	/**
-	* Preallocate memory or get a direct command stream pointer to fill up for immediate rendering . This avoids memcpys below in DrawPrimitiveUP
-	* @param NumPrimitives The number of primitives in the VertexData buffer
-	* @param NumVertices The number of vertices to be written
-	* @param VertexDataStride Size of each vertex
-	* @param OutVertexData Reference to the allocated vertex memory
-	*/
-	virtual void RHIBeginDrawPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData) = 0;
-
-	/**
-	* Draw a primitive using the vertex data populated since RHIBeginDrawPrimitiveUP and clean up any memory as needed
-	*/
-	virtual void RHIEndDrawPrimitiveUP() = 0;
-
-	/**
-	* Preallocate memory or get a direct command stream pointer to fill up for immediate rendering . This avoids memcpys below in DrawIndexedPrimitiveUP
-	* @param NumPrimitives The number of primitives in the VertexData buffer
-	* @param NumVertices The number of vertices to be written
-	* @param VertexDataStride Size of each vertex
-	* @param OutVertexData Reference to the allocated vertex memory
-	* @param MinVertexIndex The lowest vertex index used by the index buffer
-	* @param NumIndices Number of indices to be written
-	* @param IndexDataStride Size of each index (either 2 or 4 bytes)
-	* @param OutIndexData Reference to the allocated index memory
-	*/
-	virtual void RHIBeginDrawIndexedPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData) = 0;
-
-	/**
-	* Draw a primitive using the vertex and index data populated since RHIBeginDrawIndexedPrimitiveUP and clean up any memory as needed
-	*/
-	virtual void RHIEndDrawIndexedPrimitiveUP() = 0;
-
-	/**
 	* Sets Depth Bounds range with the given min/max depth.
 	* @param MinDepth	The minimum depth for depth bounds test
 	* @param MaxDepth	The maximum depth for depth bounds test.
 	*					The valid values for fMinDepth and fMaxDepth are such that 0 <= fMinDepth <= fMaxDepth <= 1
 	*/
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) = 0;
-
-	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) = 0;
-
-	virtual void RHIPopEvent() = 0;
 
 	virtual void RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture) = 0;
 

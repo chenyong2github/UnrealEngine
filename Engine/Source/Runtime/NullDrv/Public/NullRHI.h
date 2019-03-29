@@ -757,22 +757,6 @@ public:
 
 	}
 
-	virtual void RHIBeginDrawPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData) final override
-	{ 
-		OutVertexData = GetStaticBuffer(); 
-	}
-	virtual void RHIEndDrawPrimitiveUP()
-	{
-
-	}
-	virtual void RHIBeginDrawIndexedPrimitiveUP(uint32 NumPrimitives, uint32 NumVertices, uint32 VertexDataStride, void*& OutVertexData, uint32 MinVertexIndex, uint32 NumIndices, uint32 IndexDataStride, void*& OutIndexData) final override
-	{ 
-		OutVertexData = GetStaticBuffer(); 
-		OutIndexData = GetStaticBuffer(); 
-	}
-	virtual void RHIEndDrawIndexedPrimitiveUP() final override
-	{
-	}
 	virtual void RHIBlockUntilGPUIdle() final override
 	{
 	}
