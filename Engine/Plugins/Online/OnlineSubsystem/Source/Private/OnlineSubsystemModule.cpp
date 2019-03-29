@@ -167,6 +167,8 @@ void FOnlineSubsystemModule::LoadDefaultSubsystem()
 void FOnlineSubsystemModule::ReloadDefaultSubsystem()
 {
 	DestroyOnlineSubsystem(DefaultPlatformService);
+	// Clear our InstanceNames cache so we can re-establish it in case the DefaultPlatformService
+	InstanceNames.Empty();
 	LoadDefaultSubsystem();
 }
 
@@ -233,14 +235,6 @@ void FOnlineSubsystemModule::EnumerateOnlineSubsystems(FEnumerateOnlineSubsystem
 
 FName FOnlineSubsystemModule::ParseOnlineSubsystemName(const FName& FullName, FName& SubsystemName, FName& InstanceName) const
 {
-	struct FInstanceNameEntry
-	{
-		FName SubsystemName;
-		FName InstanceName;
-		FName FullPath;
-	};
-	static TMap<FName, FInstanceNameEntry> InstanceNames;
-
 	FInstanceNameEntry* Entry = InstanceNames.Find(FullName);
 	if (Entry)
 	{
