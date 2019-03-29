@@ -30,7 +30,7 @@ public:
 protected:
 
 	/** Get the transform from which all absolute component transform sections should be relative. Scale is ignored. */
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Sequencer", DisplayName = "GetTransformOrigin", meta=(CallInEditor="true"))
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Sequence", DisplayName = "GetTransformOrigin", meta=(CallInEditor="true"))
 	FTransform BP_GetTransformOrigin() const;
 	virtual FTransform NativeGetTransformOrigin() const { return BP_GetTransformOrigin(); }
 };
