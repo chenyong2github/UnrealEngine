@@ -44,7 +44,8 @@ FName FGoogleARCoreXRTrackingSystem::GetSystemName() const
 bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
 {
 #if PLATFORM_ANDROID
-	return true;
+	return FGoogleARCoreDevice::GetInstance()->GetSessionStatus().Status == EARSessionStatus::Running &&
+		FGoogleARCoreDevice::GetInstance()->GetARSystem()->GetSessionConfig().ShouldEnableCameraTracking();
 #else
 	return false;
 #endif
