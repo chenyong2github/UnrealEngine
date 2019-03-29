@@ -1156,6 +1156,7 @@ public:
 
 protected:
 	TArray<uint32> PixelFormatBlockBytes;
+	friend class FValidationRHI;
 };
 
 /** A global pointer to the dynamically bound RHI implementation. */
