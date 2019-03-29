@@ -15,6 +15,11 @@ enum class EPlatformCryptoResult
 };
 
 /**
+ * Generic handle to an RSA key
+ */
+typedef void* TPlatformCryptoRSAKey;
+
+/**
  * Stat group for implementations to use.
  */
 DECLARE_STATS_GROUP(TEXT("PlatformCrypto"), STATGROUP_PlatformCrypto, STATCAT_Advanced);
