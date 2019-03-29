@@ -427,7 +427,7 @@ static void InvertRemapTable( TSparseArray<int32>& InvertedRemapTable, const TSp
 }
 
 
-class FCompactChange : public FChange
+class FCompactChange : public FSwapChange
 {
 public:
 
@@ -459,7 +459,7 @@ struct FUncompactChangeInput
 };
 
 
-class FUncompactChange : public FChange
+class FUncompactChange : public FSwapChange
 {
 public:
 

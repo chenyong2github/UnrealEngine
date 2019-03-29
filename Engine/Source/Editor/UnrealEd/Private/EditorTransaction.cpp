@@ -233,8 +233,24 @@ void FTransaction::FObjectRecord::Load(FTransaction* Owner)
 
 		if (CustomChange.IsValid())
 		{
-			TUniquePtr<FChange> InvertedChange = CustomChange->Execute( Object.Get() );
-			CustomChange = MoveTemp( InvertedChange );
+			if (CustomChange->GetChangeType() == FChange::EChangeStyle::InPlaceSwap)
+			{
+				TUniquePtr<FChange> InvertedChange = CustomChange->Execute(Object.Get());
+				ensure(InvertedChange->GetChangeType() == FChange::EChangeStyle::InPlaceSwap);
+				CustomChange = MoveTemp(InvertedChange);
+			}
+			else
+			{
+				bool bIsRedo = (Owner->Inc == 1);
+				if (bIsRedo)
+				{
+					CustomChange->Apply(Object.Get());
+				}
+				else
+				{
+					CustomChange->Revert(Object.Get());
+				}
+			}
 		}
 		else
 		{

@@ -22,7 +22,7 @@ struct FDeleteOrphanVerticesChangeInput
 };
 
 
-class FDeleteOrphanVerticesChange : public FChange
+class FDeleteOrphanVerticesChange : public FSwapChange
 {
 
 public:
@@ -67,7 +67,7 @@ struct FDeleteVertexInstancesChangeInput
 };
 
 
-class FDeleteVertexInstancesChange : public FChange
+class FDeleteVertexInstancesChange : public FSwapChange
 {
 
 public:
@@ -111,7 +111,7 @@ struct FDeleteEdgesChangeInput
 };
 
 
-class FDeleteEdgesChange : public FChange
+class FDeleteEdgesChange : public FSwapChange
 {
 
 public:
@@ -153,7 +153,7 @@ struct FCreateVerticesChangeInput
 };
 
 
-class FCreateVerticesChange : public FChange
+class FCreateVerticesChange : public FSwapChange
 {
 
 public:
@@ -195,7 +195,7 @@ struct FCreateVertexInstancesChangeInput
 };
 
 
-class FCreateVertexInstancesChange : public FChange
+class FCreateVertexInstancesChange : public FSwapChange
 {
 
 public:
@@ -237,7 +237,7 @@ struct FCreateEdgesChangeInput
 };
 
 
-class FCreateEdgesChange : public FChange
+class FCreateEdgesChange : public FSwapChange
 {
 
 public:
@@ -279,7 +279,7 @@ struct FCreatePolygonsChangeInput
 };
 
 
-class FCreatePolygonsChange : public FChange
+class FCreatePolygonsChange : public FSwapChange
 {
 
 public:
@@ -337,7 +337,7 @@ struct FDeletePolygonsChangeInput
 };
 
 
-class FDeletePolygonsChange : public FChange
+class FDeletePolygonsChange : public FSwapChange
 {
 
 public:
@@ -376,7 +376,7 @@ struct FFlipPolygonsChangeInput
 	}
 };
 
-class FFlipPolygonsChange : public FChange
+class FFlipPolygonsChange : public FSwapChange
 {
 public:
 	FFlipPolygonsChange( const FFlipPolygonsChangeInput& InitInput )
@@ -400,7 +400,7 @@ struct FSetVerticesAttributesChangeInput
 };
 
 
-class FSetVerticesAttributesChange : public FChange
+class FSetVerticesAttributesChange : public FSwapChange
 {
 
 public:
@@ -435,7 +435,7 @@ struct FSetVertexInstancesAttributesChangeInput
 };
 
 
-class FSetVertexInstancesAttributesChange : public FChange
+class FSetVertexInstancesAttributesChange : public FSwapChange
 {
 
 public:
@@ -477,7 +477,7 @@ struct FSetEdgesAttributesChangeInput
 };
 
 
-class FSetEdgesAttributesChange : public FChange
+class FSetEdgesAttributesChange : public FSwapChange
 {
 
 public:
@@ -519,7 +519,7 @@ struct FSetPolygonsVertexAttributesChangeInput
 };
 
 
-class FSetPolygonsVertexAttributesChange : public FChange
+class FSetPolygonsVertexAttributesChange : public FSwapChange
 {
 
 public:
@@ -561,7 +561,7 @@ struct FChangePolygonsVertexInstancesChangeInput
 };
 
 
-class FChangePolygonsVertexInstancesChange : public FChange
+class FChangePolygonsVertexInstancesChange : public FSwapChange
 {
 
 public:
@@ -603,7 +603,7 @@ struct FSetEdgesVerticesChangeInput
 };
 
 
-class FSetEdgesVerticesChange : public FChange
+class FSetEdgesVerticesChange : public FSwapChange
 {
 
 public:
@@ -654,7 +654,7 @@ struct FInsertPolygonPerimeterVerticesChangeInput
 };
 
 
-class FInsertPolygonPerimeterVerticesChange : public FChange
+class FInsertPolygonPerimeterVerticesChange : public FSwapChange
 {
 
 public:
@@ -709,7 +709,7 @@ struct FRemovePolygonPerimeterVerticesChangeInput
 };
 
 
-class FRemovePolygonPerimeterVerticesChange : public FChange
+class FRemovePolygonPerimeterVerticesChange : public FSwapChange
 {
 
 public:
@@ -755,7 +755,7 @@ struct FStartOrEndModificationChangeInput
 };
 
 
-class FStartOrEndModificationChange : public FChange
+class FStartOrEndModificationChange : public FSwapChange
 {
 
 public:
@@ -792,7 +792,7 @@ struct FSetSubdivisionCountChangeInput
 };
 
 
-class FSetSubdivisionCountChange : public FChange
+class FSetSubdivisionCountChange : public FSwapChange
 {
 
 public:
@@ -829,7 +829,7 @@ struct FCreatePolygonGroupsChangeInput
 };
 
 
-class FCreatePolygonGroupsChange : public FChange
+class FCreatePolygonGroupsChange : public FSwapChange
 {
 
 public:
@@ -870,7 +870,7 @@ struct FDeletePolygonGroupsChangeInput
 };
 
 
-class FDeletePolygonGroupsChange : public FChange
+class FDeletePolygonGroupsChange : public FSwapChange
 {
 
 public:
@@ -915,7 +915,7 @@ struct FAssignPolygonsToPolygonGroupChangeInput
 };
 
 
-class FAssignPolygonsToPolygonGroupChange : public FChange
+class FAssignPolygonsToPolygonGroupChange : public FSwapChange
 {
 
 public:
