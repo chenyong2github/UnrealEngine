@@ -71,7 +71,7 @@ void UGameplayTagsManager::LoadGameplayTagTables(bool bAllowAsyncLoad)
 
 		return;
 	}
-#endif
+#endif // !WITH_EDITOR
 
 	SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::LoadGameplayTagTables"));
 	for (FSoftObjectPath DataTablePath : MutableDefault->GameplayTagTableList)
