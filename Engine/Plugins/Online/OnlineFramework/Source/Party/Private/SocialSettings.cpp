@@ -53,6 +53,7 @@ int32 USocialSettings::GetDefaultMaxPartySize()
 	}
 #endif
 
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.DefaultMaxPartySize;
 }
 
