@@ -569,7 +569,9 @@ private:
 	int32 NumDesignerPreviewEntries = 5;
 #endif
 
+	UPROPERTY(Transient)
 	FUserWidgetPool EntryWidgetPool;
+
 	FTimerHandle EntryGenAnnouncementTimerHandle;
 	TArray<TWeakObjectPtr<UUserWidget>> GeneratedEntriesToAnnounce;
 
