@@ -5,21 +5,21 @@
 namespace Audio
 {
 	FWhiteNoise::FWhiteNoise(const float InScale, const float InAdd)
-		: Scale(InScale)
-		, Add(InAdd)
 	{
-
+		SetScaleAdd(InScale, InAdd);
 	}
 
 	void FWhiteNoise::SetScaleAdd(const float InScale, const float InAdd)
 	{
 		Scale = InScale;
 		Add = InAdd;
+
+		RandomStream.Initialize(HashCombine(GetTypeHash(Scale), GetTypeHash(Add)));
 	}
 
 	float FWhiteNoise::Generate()
 	{
-		return Add + Scale * FMath::SRand() * 2 - 1.0f;
+		return Add + Scale * RandomStream.FRand() * 2 - 1.0f;
 	}
 
 	FPinkNoise::FPinkNoise(const float InScale, const float InAdd)

@@ -31,7 +31,7 @@ void USoundNodeDelay::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeW
 	{
 		*RequiresInitialization = false;
 
-		const float ActualDelay = FMath::Max(0.f, DelayMax + ( ( DelayMin - DelayMax ) * FMath::SRand() ));
+		const float ActualDelay = FMath::Max(0.f, DelayMax + ( ( DelayMin - DelayMax ) * RandomStream.FRand() ));
 
 		if (ActualDelay > 0.0f && ParseParams.StartTime >= ActualDelay)
 		{

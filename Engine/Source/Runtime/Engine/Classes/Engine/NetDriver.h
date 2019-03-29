@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -1214,6 +1215,9 @@ public:
 protected:
 
 	bool bMaySendProperties;
+
+	/** Stream of random numbers to be used by this instance of UNetDriver */
+	FRandomStream UpdateDelayRandomStream;
 
 private:
 

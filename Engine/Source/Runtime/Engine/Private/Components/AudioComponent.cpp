@@ -10,6 +10,7 @@
 #include "Sound/SoundCue.h"
 #include "Components/BillboardComponent.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "Misc/App.h"
 
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
@@ -66,6 +67,8 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 
 	AudioDeviceHandle = INDEX_NONE;
 	AudioComponentID = FPlatformAtomics::InterlockedIncrement(reinterpret_cast<volatile int64*>(&AudioComponentIDCounter));
+
+	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 
 	// TODO: Consider only putting played/active components in to the map
 	FScopeLock Lock(&AudioIDToComponentMapLock);
@@ -370,7 +373,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			NewActiveSound.SetSoundClass(SoundClassOverride);
 			NewActiveSound.ConcurrencySet = ConcurrencySet;
 
-			NewActiveSound.VolumeMultiplier = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * FMath::SRand())) * VolumeMultiplier;
+			NewActiveSound.VolumeMultiplier = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * RandomStream.FRand())) * VolumeMultiplier;
 			// The priority used for the active sound is the audio component's priority scaled with the sound's priority
 			if (bOverridePriority)
 			{
@@ -381,7 +384,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 				NewActiveSound.Priority = Sound->Priority;
 			}
 
-			NewActiveSound.PitchMultiplier = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * FMath::SRand())) * PitchMultiplier;
+			NewActiveSound.PitchMultiplier = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * RandomStream.FRand())) * PitchMultiplier;
 			NewActiveSound.bEnableLowPassFilter = bEnableLowPassFilter;
 			NewActiveSound.LowPassFilterFrequency = LowPassFilterFrequency;
 			NewActiveSound.RequestedStartTime = FMath::Max(0.f, StartTime);
