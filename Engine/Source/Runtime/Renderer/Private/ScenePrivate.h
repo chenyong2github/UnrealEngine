@@ -1166,7 +1166,7 @@ public:
 	/** Swaps the double-buffer targets used in eye adaptation */
 	void SwapEyeAdaptationRTs()
 	{
-		EyeAdaptationRTManager.SwapRTs(bUpdateLastExposure);
+		EyeAdaptationRTManager.SwapRTs(bUpdateLastExposure && bValidEyeAdaptation);
 	}
 
 	bool HasValidEyeAdaptation() const

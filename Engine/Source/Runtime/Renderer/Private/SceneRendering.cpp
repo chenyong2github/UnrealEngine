@@ -163,8 +163,8 @@ static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
 
 static TAutoConsoleVariable<int32> CVarUsePreExposure(
 	TEXT("r.UsePreExposure"),
-	0,
-	TEXT("0 to disable pre-exposure (default), 1 to enable."),
+	1,
+	TEXT("0 to disable pre-exposure, 1 to enable (default)."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarODSCapture(

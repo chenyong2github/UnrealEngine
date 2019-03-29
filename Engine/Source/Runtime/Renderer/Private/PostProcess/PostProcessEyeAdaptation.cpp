@@ -445,6 +445,7 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 	// volumetric lighting enabled, which makes the view be flagged as rich, and not updating 
 	// the pre-exposition value.
 	const bool bIsPreExposureRelevant =
+		ViewFamily.EngineShowFlags.EyeAdaptation && // Controls whether scene luminance is computed at all.
 		ViewFamily.EngineShowFlags.Lighting &&
 		ViewFamily.EngineShowFlags.PostProcessing &&
 		ViewFamily.bResolveScene &&
