@@ -177,14 +177,14 @@ void URendererSettings::SanatizeReflectionCaptureResolution()
 	ReflectionCaptureResolution = FMath::Clamp(int32(FMath::RoundUpToPowerOfTwo(ReflectionCaptureResolution)), MinCubemapResolution, MaxCubemapResolution);
 
 #if WITH_EDITOR
-	if (FApp::CanEverRender())
+	if (FApp::CanEverRender() && !FApp::IsUnattended())
 	{
 		SIZE_T TexMemRequired = CalcTextureSize(ReflectionCaptureResolution, ReflectionCaptureResolution, PF_FloatRGBA, FMath::CeilLogTwo(ReflectionCaptureResolution) + 1) * CubeFace_MAX;
 
 		FTextureMemoryStats TextureMemStats;
 		RHIGetTextureMemoryStats(TextureMemStats);
 
-		if (TexMemRequired > SIZE_T(TextureMemStats.DedicatedVideoMemory / 4))
+		if (TextureMemStats.DedicatedVideoMemory > 0 && TexMemRequired > SIZE_T(TextureMemStats.DedicatedVideoMemory / 8))
 		{
 			FNumberFormattingOptions FmtOpts = FNumberFormattingOptions()
 				.SetUseGrouping(false)
