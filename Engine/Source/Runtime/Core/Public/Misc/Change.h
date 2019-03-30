@@ -78,7 +78,7 @@ class CORE_API FSwapChange : public FChange
 {
 
 public:
-	virtual EChangeStyle GetChangeType()
+	virtual EChangeStyle GetChangeType() override
 	{
 		return FChange::EChangeStyle::InPlaceSwap;
 	}
@@ -106,7 +106,7 @@ class CORE_API FCommandChange : public FChange
 {
 
 public:
-	virtual EChangeStyle GetChangeType()
+	virtual EChangeStyle GetChangeType() override
 	{
 		return FChange::EChangeStyle::CommandPattern;
 	}
