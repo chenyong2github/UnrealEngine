@@ -1985,6 +1985,7 @@ uint32 FMetalRenderPass::GetCommandBufferIndex(void) const
 
 void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 {
+#if !PLATFORM_TVOS
 	if (GMetalCommandBufferDebuggingEnabled)
 	{
 		FMetalGraphicsPipelineState* BoundShaderState = State.GetGraphicsPSO();
@@ -2039,10 +2040,12 @@ void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 			CurrentEncoder.GetRenderCommandEncoder().SetRenderPipelineState(PSO->RenderPipelineState);
 		}
 	}
+#endif
 }
 
 void FMetalRenderPass::InsertDebugDispatch(FMetalCommandData& Data)
 {
+#if !PLATFORM_TVOS
 	if (GMetalCommandBufferDebuggingEnabled)
 	{
 		FMetalComputeShader* BoundShaderState = State.GetComputeShader();
@@ -2082,4 +2085,5 @@ void FMetalRenderPass::InsertDebugDispatch(FMetalCommandData& Data)
 			CurrentEncoder.GetComputeCommandEncoder().SetComputePipelineState(Pipeline->ComputePipelineState);
 		}
 	}
+#endif
 }
