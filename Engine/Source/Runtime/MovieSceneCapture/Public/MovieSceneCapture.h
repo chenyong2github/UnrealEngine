@@ -20,7 +20,7 @@ class FSceneViewport;
 /** Structure used to cache various metrics for our capture */
 struct FCachedMetrics
 {
-	FCachedMetrics() : Width(0), Height(0), Frame(0), ElapsedSeconds(0.f) {}
+	FCachedMetrics() : Width(0), Height(0), Frame(0), ElapsedSeconds(0.f), PreviousFrame(INDEX_NONE) {}
 
 	/** The width/Height of the frame */
 	int32 Width, Height;
@@ -28,6 +28,8 @@ struct FCachedMetrics
 	int32 Frame;
 	/** The number of seconds that have elapsed */
 	float ElapsedSeconds;
+	/** The previous frame number */
+	int32 PreviousFrame;
 };
 
 /** Class responsible for capturing scene data */
