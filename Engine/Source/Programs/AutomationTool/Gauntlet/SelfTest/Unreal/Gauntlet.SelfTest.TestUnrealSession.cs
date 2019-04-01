@@ -22,8 +22,6 @@ namespace Gauntlet.SelfTest
 	{
 		public override void TickTest()
 		{
-			AccountPool.Initialize();
-
 			AccountPool.Instance.RegisterAccount(new EpicAccount("Foo", "Bar"));
 
 			// Add three devices to the pool
