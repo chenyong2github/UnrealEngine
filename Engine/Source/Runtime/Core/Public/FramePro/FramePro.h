@@ -1033,7 +1033,9 @@ namespace FramePro
 namespace FramePro
 {
 	// callbacks
-	typedef void(*ConnectionChangedCallback)(bool connected, void* user_data);
+	// START EPIC
+	typedef void(*ConnectionChangedCallback)(bool connected, const FString& ProfileName, void* user_data);
+	// END EPIC
 	typedef bool(*ConditionalParentScopeCallback)(const char* p_name, int64 start_time, int64 end_time, int64 ticks_per_second);
 
 	FRAMEPRO_API extern RelaxedAtomic<bool> g_Connected;
