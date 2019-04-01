@@ -175,20 +175,13 @@ namespace EpicGame
 					// if this is a client, and there is a server role, find our PC's IP address and tell it to connect to us
 					if (AppConfig.ProcessType.IsClient() &&
 							(RequiredRoles.ContainsKey(UnrealTargetRole.Server) || RequiredRoles.ContainsKey(UnrealTargetRole.EditorServer)))
-					{
+					{						
 						McpString += string.Format(" -ExecCmds=\"open {0}:{1}\"", ServerIP, ServerPort);
-					}
+					}					
 				}
 				else
 				{
-					if (Globals.Params.ParseParam("nobuildid"))
-					{
-						McpString += string.Format(" -epicapp={0} ", EpicApp);
-					}
-					else
-					{
-						McpString += string.Format(" -epicapp={0} -buildidoverride={1}", EpicApp, BuildIDOverride);
-					}
+					McpString += string.Format(" -epicapp={0} -buildidoverride={1}", EpicApp, BuildIDOverride);
 				}
 
 				if (FastCook)
