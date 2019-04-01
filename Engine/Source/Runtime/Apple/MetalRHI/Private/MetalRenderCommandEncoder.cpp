@@ -260,12 +260,6 @@ void FMetalRenderCommandEncoderDebugging::SetPipeline(FMetalShaderPipeline* Pipe
 		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.SetPipeline(Pipeline->RenderPipelineState.GetLabel());
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackState(Pipeline->RenderPipelineState);
-		}
 		default:
 		{
 			break;
@@ -287,11 +281,6 @@ void FMetalRenderCommandEncoderDebugging::SetBytes(EMetalShaderFrequency Freq, c
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Buffers[index] = nil;
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Bytes[index] = bytes;
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Offsets[index] = length;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
-		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask = bytes ? (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask | (1 << (index))) : (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask & ~(1 << (index)));
 		}
 		default:
@@ -314,14 +303,6 @@ void FMetalRenderCommandEncoderDebugging::SetBuffer(EMetalShaderFrequency Freq, 
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Buffers[index] = buffer;
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Bytes[index] = nil;
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Offsets[index] = offset;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(buffer);
-		}
-		case EMetalDebugLevelFastValidation:
-		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask = buffer ? (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask | (1 << (index))) : (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask & ~(1 << (index)));
 		}
 		default:
@@ -342,11 +323,6 @@ void FMetalRenderCommandEncoderDebugging::SetBufferOffset(EMetalShaderFrequency 
 		case EMetalDebugLevelValidation:
 		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderBuffers[Freq].Offsets[index] = offset;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
-		{
 			check(((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].BufferMask & (1 << (index)));
 		}
 		default:
@@ -368,14 +344,6 @@ void FMetalRenderCommandEncoderDebugging::SetTexture(EMetalShaderFrequency Freq,
 		case EMetalDebugLevelValidation:
 		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderTextures[Freq].Textures[index] = texture;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(texture);
-		}
-		case EMetalDebugLevelFastValidation:
-		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].TextureMask = texture ? (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].TextureMask | (1 << (index))) : (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].TextureMask & ~(1 << (index)));
 		}
 		default:
@@ -397,14 +365,6 @@ void FMetalRenderCommandEncoderDebugging::SetSamplerState(EMetalShaderFrequency 
 		case EMetalDebugLevelValidation:
 		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderSamplers[Freq].Samplers[index] = sampler;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackState(sampler);
-		}
-		case EMetalDebugLevelFastValidation:
-		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask = sampler ? (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask | (1 << (index))) : (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask & ~(1 << (index)));
 		}
 		default:
@@ -426,14 +386,6 @@ void FMetalRenderCommandEncoderDebugging::SetSamplerState(EMetalShaderFrequency 
 		case EMetalDebugLevelValidation:
 		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ShaderSamplers[Freq].Samplers[index] = sampler;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackState(sampler);
-		}
-		case EMetalDebugLevelFastValidation:
-		{
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask = sampler ? (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask | (1 << (index))) : (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Freq].SamplerMask & ~(1 << (index)));
 		}
 		default:
@@ -446,12 +398,6 @@ void FMetalRenderCommandEncoderDebugging::SetSamplerState(EMetalShaderFrequency 
 
 void FMetalRenderCommandEncoderDebugging::SetDepthStencilState( mtlpp::DepthStencilState const& depthStencilState)
 {
-#if METAL_DEBUG_OPTIONS
-	if (((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.GetPtr()->DebugLevel >= EMetalDebugLevelTrackResources)
-	{
-		((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackState(depthStencilState);
-	}
-#endif
 }
 
 void FMetalRenderCommandEncoderDebugging::Draw(mtlpp::PrimitiveType primitiveType, NSUInteger vertexStart, NSUInteger vertexCount, NSUInteger instanceCount)
@@ -466,9 +412,6 @@ void FMetalRenderCommandEncoderDebugging::Draw(mtlpp::PrimitiveType primitiveTyp
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -492,9 +435,6 @@ void FMetalRenderCommandEncoderDebugging::Draw(mtlpp::PrimitiveType primitiveTyp
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -518,12 +458,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexed(mtlpp::PrimitiveType primi
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indexBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -547,12 +481,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexed(mtlpp::PrimitiveType primi
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indexBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -576,9 +504,6 @@ void FMetalRenderCommandEncoderDebugging::Draw(mtlpp::PrimitiveType primitiveTyp
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s:%u,%u,%u,%u,%u", __PRETTY_FUNCTION__, (uint32)primitiveType, (uint32)vertexStart, (uint32)vertexCount, (uint32)instanceCount, (uint32)baseInstance]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -602,12 +527,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexed(mtlpp::PrimitiveType primi
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s:%u,%u,%u,%u,%u,%u,%u", __PRETTY_FUNCTION__, (uint32)primitiveType, (uint32)indexCount, (uint32)indexType, (uint32)indexBufferOffset, (uint32)instanceCount, (uint32)baseVertex, (uint32)baseInstance]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indexBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -631,12 +550,6 @@ void FMetalRenderCommandEncoderDebugging::Draw(mtlpp::PrimitiveType primitiveTyp
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indirectBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -660,13 +573,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexed(mtlpp::PrimitiveType primi
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indexBuffer);
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indirectBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -680,12 +586,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexed(mtlpp::PrimitiveType primi
 
 void FMetalRenderCommandEncoderDebugging::SetTessellationFactorBuffer( FMetalBuffer const& buffer, NSUInteger offset, NSUInteger instanceStride)
 {
-#if METAL_DEBUG_OPTIONS
-	if (((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.GetPtr()->DebugLevel >= EMetalDebugLevelTrackResources)
-	{
-		((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(buffer);
-	}
-#endif
 }
 
 void FMetalRenderCommandEncoderDebugging::DrawPatches(NSUInteger numberOfPatchControlPoints, NSUInteger patchStart, NSUInteger patchCount,  FMetalBuffer const& patchIndexBuffer, NSUInteger patchIndexBufferOffset, NSUInteger instanceCount, NSUInteger baseInstance)
@@ -700,12 +600,6 @@ void FMetalRenderCommandEncoderDebugging::DrawPatches(NSUInteger numberOfPatchCo
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(patchIndexBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -729,13 +623,6 @@ void FMetalRenderCommandEncoderDebugging::DrawPatches(NSUInteger numberOfPatchCo
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(patchIndexBuffer);
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indirectBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -759,13 +646,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexedPatches(NSUInteger numberOf
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(patchIndexBuffer);
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(controlPointIndexBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -789,14 +669,6 @@ void FMetalRenderCommandEncoderDebugging::DrawIndexedPatches(NSUInteger numberOf
 			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.Draw([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
 		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(patchIndexBuffer);
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(controlPointIndexBuffer);
-			((FMetalDebugRenderCommandEncoder*)m_ptr)->Buffer.TrackResource(indirectBuffer);
-		}
-		case EMetalDebugLevelFastValidation:
 		{
 			Validate();
 		}
@@ -893,53 +765,6 @@ bool FMetalRenderCommandEncoderDebugging::ValidateFunctionBindings(EMetalShaderF
 						break;
 				}
 			}
-			break;
-		}
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		case EMetalDebugLevelFastValidation:
-		{
-			check(((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline);
-			
-			FMetalTextureMask TextureMask = (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Frequency].TextureMask & ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].TextureMask);
-			if (TextureMask != ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].TextureMask)
-			{
-				bOK = false;
-				for (uint32 i = 0; i < ML_MaxTextures; i++)
-				{
-					if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].TextureMask & (1 < i)) && ((TextureMask & (1 < i)) != (((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].TextureMask & (1 < i))))
-					{
-						UE_LOG(LogMetal, Warning, TEXT("Unbound texture at Metal index %u which will crash the driver"), i);
-					}
-				}
-			}
-			
-			FMetalBufferMask BufferMask = (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Frequency].BufferMask & ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].BufferMask);
-			if (BufferMask != ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].BufferMask)
-			{
-				bOK = false;
-				for (uint32 i = 0; i < ML_MaxBuffers; i++)
-				{
-					if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].BufferMask & (1 < i)) && ((BufferMask & (1 < i)) != (((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].BufferMask & (1 < i))))
-					{
-						UE_LOG(LogMetal, Warning, TEXT("Unbound buffer at Metal index %u which will crash the driver"), i);
-					}
-				}
-			}
-			
-			FMetalSamplerMask SamplerMask = (((FMetalDebugRenderCommandEncoder*)m_ptr)->ResourceMask[Frequency].SamplerMask & ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].SamplerMask);
-			if (SamplerMask != ((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].SamplerMask)
-			{
-				bOK = false;
-				for (uint32 i = 0; i < ML_MaxSamplers; i++)
-				{
-					if ((((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].SamplerMask & (1 < i)) && ((SamplerMask & (1 < i)) != (((FMetalDebugRenderCommandEncoder*)m_ptr)->Pipeline->ResourceMask[Frequency].SamplerMask & (1 < i))))
-					{
-						UE_LOG(LogMetal, Warning, TEXT("Unbound sampler at Metal index %u which will crash the driver"), i);
-					}
-				}
-			}
-			
 			break;
 		}
 		default:
@@ -1042,8 +867,6 @@ void FMetalParallelRenderCommandEncoderDebugging::EndEncoder()
 	{
 		FMetalDebugCommandBuffer* CmdBuffer = ((FMetalDebugRenderCommandEncoder*)EncoderDebug.GetPtr())->Buffer.GetPtr();
 		[CommandBuffer->DebugGroup addObjectsFromArray:CmdBuffer->DebugGroup];
-		CommandBuffer->Resources.Append(CmdBuffer->Resources);
-		CommandBuffer->States.Append(CmdBuffer->States);
 		CommandBuffer->DebugCommands.Append(CmdBuffer->DebugCommands);
 	}
 	m_ptr->Buffer.EndCommandEncoder();

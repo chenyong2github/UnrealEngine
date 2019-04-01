@@ -69,7 +69,7 @@ static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 		FMessageDialog::Open(EAppMsgType::Ok, LocalizedMsg, &Title);
 		FPlatformMisc::RequestExit(true);
 		
-		UE_LOG(LogMetal, Fatal, TEXT("Shader platform: %s was not cooked! Please enable this shader platform in the project's target settings."), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+		METAL_FATAL_ERROR(TEXT("Shader platform: %s was not cooked! Please enable this shader platform in the project's target settings."), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
 	}
 }
 
