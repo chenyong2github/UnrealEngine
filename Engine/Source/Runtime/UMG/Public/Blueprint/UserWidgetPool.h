@@ -33,6 +33,9 @@ public:
 	/** In the case that you don't have an owner widget, you should set a world to your pool, or it won't be able to construct widgets. */
 	void SetWorld(UWorld* OwningWorld);
 
+	/** Triggers RebuildWidget on all currently active UserWidget instances */
+	void RebuildWidgets();
+
 	/** Report any references to UObjects to the reference collector (only necessary if this is not already a UPROPERTY) */
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
@@ -95,11 +98,12 @@ private:
 			}
 		}
 
+		UWidget* OwningWidgetPtr = OwningWidget.Get();
 		if (!WidgetInstance)
 		{
-			if (UWidget* OwnerWidgetPtr = OwningWidget.Get())
+			if (OwningWidgetPtr)
 			{
-				WidgetInstance = CreateWidget(OwnerWidgetPtr, WidgetClass);
+				WidgetInstance = CreateWidget(OwningWidgetPtr, WidgetClass);
 			}
 			else
 			{
@@ -109,12 +113,17 @@ private:
 
 		if (WidgetInstance)
 		{
-			TSharedPtr<SWidget>& CachedSlateWidget = CachedSlateByWidgetObject.FindOrAdd(WidgetInstance);
-			if (!CachedSlateWidget.IsValid())
-			{
-				CachedSlateWidget = WidgetInstance->TakeDerivedWidget(ConstructWidgetFunc);
-			}
 			ActiveWidgets.Add(WidgetInstance);
+			
+			// For pools owned by a widget, we never want to construct Slate widgets before the owning widget itself has built any Slate
+			if (!OwningWidgetPtr || OwningWidgetPtr->GetCachedWidget().IsValid())
+			{
+				TSharedPtr<SWidget>& CachedSlateWidget = CachedSlateByWidgetObject.FindOrAdd(WidgetInstance);
+				if (!CachedSlateWidget.IsValid())
+				{
+					CachedSlateWidget = WidgetInstance->TakeDerivedWidget(ConstructWidgetFunc);
+				}
+			}
 		}
 
 		return Cast<UserWidgetT>(WidgetInstance);
