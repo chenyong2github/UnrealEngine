@@ -1352,7 +1352,7 @@ void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponen
 				VertexInstanceUVs.Set(VertexInstanceID, UVOneIndex, UVOne);
 
 				UVTwo.X = ActorPosition.Z;
-				UVTwo.Y = ActorToWorld.GetScale3D().X;
+				UVTwo.Y = FMath::Abs(ActorToWorld.GetScale3D().X);
 				VertexInstanceUVs.Set(VertexInstanceID, UVTwoIndex, UVTwo);
 			}
 
