@@ -351,11 +351,8 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 					RenderTarget.GetTexture()->Name);
 
 				// TODO(RDG): should only be done when there is a store action.
-				if (!Texture->bHasEverBeenProduced)
-				{
-					Texture->bHasEverBeenProduced = true;
-					Texture->DebugFirstProducer = Pass;
-				}
+				Texture->bHasEverBeenProduced = true;
+				Texture->DebugFirstProducer = Pass;
 			}
 
 			bFoundRTBound = bFoundRTBound || IsBoundAsReadable(RenderTarget.GetTexture(), ParameterStruct);
@@ -951,7 +948,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				#if RENDER_GRAPH_DEBUGGING
 				{
 					check(Buffer->bHasEverBeenProduced);
-				}	
+				}
 				#endif
 				check(Buffer->PooledBuffer);
 
@@ -978,7 +975,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				#if RENDER_GRAPH_DEBUGGING
 				{
 					check(SRV->Desc.Buffer->bHasEverBeenProduced);
-				}	
+				}
 				#endif
 				check(SRV->Desc.Buffer->PooledBuffer);
 				

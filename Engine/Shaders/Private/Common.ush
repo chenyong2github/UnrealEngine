@@ -1597,7 +1597,11 @@ struct FWriteToSliceGeometryOutput
 #define USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS	(NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1)
 
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
-void DrawRectangle( in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
+void DrawRectangle(
+	in float4 InPosition,
+	in float2 InTexCoord,
+	out float4 OutPosition,
+	out float2 OutTexCoord)
 {
 	OutPosition = InPosition;
 	OutPosition.xy = -1.0f + 2.0f * (DrawRectangleParameters.PosScaleBias.zw + (InPosition.xy * DrawRectangleParameters.PosScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.xy;
@@ -1605,8 +1609,19 @@ void DrawRectangle( in float4 InPosition, in float2 InTexCoord, out float4 OutPo
 	OutTexCoord.xy = (DrawRectangleParameters.UVScaleBias.zw + (InTexCoord.xy * DrawRectangleParameters.UVScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.zw;
 }
 
+/** Helper variant for vertex shaders which need a separate output for SV_POSITION and packed UV / Screen position */
+void DrawRectangle(
+	in float4 InPosition,
+	in float2 InTexCoord,
+	out float4 OutPosition,
+	out float4 OutUVAndScreenPos)
+{
+	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos.xy);
+	OutUVAndScreenPos.zw = OutPosition.xy;
+}
+
 /** Used for calculating vertex positions when drawing with DrawRectangle */
-void DrawRectangle( in float4 InPosition, out float4 OutPosition)
+void DrawRectangle(in float4 InPosition, out float4 OutPosition)
 {
 	OutPosition = InPosition;
 	OutPosition.xy = -1.0f + 2.0f * (DrawRectangleParameters.PosScaleBias.zw + (InPosition.xy * DrawRectangleParameters.PosScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.xy;

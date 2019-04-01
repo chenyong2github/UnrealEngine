@@ -338,6 +338,24 @@ struct FRenderingCompositePass
 	FString ConstructDebugName();
 
 	/**
+	 * Registers a RDG texture for the provided input. Returns a fallback color if the requested
+	 * input is null. Used for compatibility when porting to RDG.
+	 */
+	FRDGTextureRef CreateRDGTextureForInput(
+		FRDGBuilder& GraphBuilder,
+		EPassInputId InputId,
+		const TCHAR* InputName,
+		EFallbackColor FallbackColor);
+
+	/**
+	 * Registers a RDG texture to be extracted to the assigned output during graph execution.
+	 */
+	void ExtractRDGTextureForOutput(
+		FRDGBuilder& GraphBuilder,
+		EPassOutputId OutputId,
+		FRDGTextureRef Texture);
+
+	/**
 	 * Convenience method, is using other virtual methods.
 	 * @return 0 if there is an error
 	 */

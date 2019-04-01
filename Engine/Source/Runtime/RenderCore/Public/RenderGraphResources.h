@@ -42,7 +42,7 @@ using FRDGBufferUAVRef = const FRDGBufferUAV*;
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
 {
-private:
+protected:
 	/** Pointer on the RHI resource once allocated, that the RHI can dereferenced according to IsUniformBufferResourceIndirectionType(). */
 	union
 	{
@@ -89,8 +89,6 @@ private:
 #endif
 
 	friend class FRDGBuilder;
-
-
 	/** Friendship over parameter settings for bIsActuallyUsedByPass. It means only this parameter settings can be
 	 * used for render graph resource, to force the useless dependency tracking to just work.
 	 */
@@ -117,10 +115,8 @@ using FRDGTextureDesc = FPooledRenderTargetDesc;
 class RENDERCORE_API FRDGTexture : public FRDGResource
 {
 public:
-	//TODO(RDG): using FDesc = FPooledRenderTargetDesc;
-
 	/** Descriptor of the graph tracked texture. */
-	const FPooledRenderTargetDesc Desc;
+	const FRDGTextureDesc Desc;
 
 	/** Returns the allocated pooled render target. Must only be called within a pass's lambda. */
 	inline IPooledRenderTarget* GetPooledRenderTarget() const
@@ -129,11 +125,12 @@ public:
 		return PooledRenderTarget;
 	}
 
+
 	/** Returns the allocated RHI texture. Must only be called within a pass's lambda. */
 	inline FTextureRHIParamRef GetRHITexture() const
 	{
-		check(PooledRenderTarget);
-		return PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+		check(CachedRHI.Texture);
+		return CachedRHI.Texture;
 	}
 
 private:
@@ -145,7 +142,7 @@ private:
 	FRDGTexture(const TCHAR* DebugName, const FPooledRenderTargetDesc& InDesc)
 		: FRDGResource(DebugName)
 		, Desc(InDesc)
-	{ }
+	{}
 
 	friend class FRDGBuilder;
 
@@ -158,7 +155,7 @@ private:
 #endif
 };
 
-/** Decsriptor for render graph tracked SRV. */
+/** Descriptor for render graph tracked SRV. */
 class RENDERCORE_API FRDGTextureSRVDesc
 {
 public:
@@ -189,7 +186,7 @@ private:
 	friend class FRDGBuilder;
 };
 
-/** Decsriptor for render graph tracked UAV. */
+/** Descriptor for render graph tracked UAV. */
 class RENDERCORE_API FRDGTextureUAVDesc
 {
 public:

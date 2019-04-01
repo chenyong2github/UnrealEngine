@@ -72,7 +72,6 @@ float4 ViewportSize;
 uint4 ViewportRect;
 
 SamplerState BilinearTextureSampler0;
-SamplerState BilinearTextureSampler1;
 
 // transforms ScreenPos to the screen pixel position, not the viewport local position (*xy +wz)
 // (0,0) left top, (width-1,height-1) at right bottom, in pixels (without offset to reach the pixel center)

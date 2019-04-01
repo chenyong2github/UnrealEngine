@@ -270,8 +270,10 @@ public:
 	* Sends a message to the rendering thread to draw the batched elements.
 	* @param RHICmdList - command list to use
 	* @param bForce - force the flush even if Allow_Flush is not enabled
+	* @param bInsideRenderPass - Set to true if flushing inside a render pass (e.g. Render Graph pass).
+	*	This will skip creating a render pass internally, and assert if the command list is not in a render pass.
 	*/
-	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false);
+	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false, bool bInsideRenderPass = false);
 
 	/**
 	* Sends a message to the rendering thread to draw the batched elements.

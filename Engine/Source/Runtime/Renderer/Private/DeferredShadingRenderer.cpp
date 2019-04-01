@@ -11,6 +11,7 @@
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/ScreenSpaceReflections.h"
+#include "PostProcess/PostProcessSubsurface.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "FXSystem.h"
 #include "OneColorShader.h"
@@ -1766,13 +1767,41 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		ServiceLocalQueue();
 
-		// Post-lighting composition lighting stage
-		// e.g. ScreenSpaceSubsurfaceScattering
-		for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{	
-			SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView,Views.Num() > 1, TEXT("View%d"), ViewIndex);
-			GCompositionLighting.ProcessAfterLighting(RHICmdList, Views[ViewIndex]);
+		{
+			FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+
+			FRDGBuilder GraphBuilder(RHICmdList);
+
+			FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneRenderTargets.GetSceneColor(), TEXT("SceneColor"));
+
+			// Post-lighting composition lighting stage
+			// e.g. ScreenSpaceSubsurfaceScattering
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			{
+				RDG_EVENT_SCOPE(GraphBuilder, "SubsurfaceScattering(ViewId=%d)", ViewIndex);
+
+				const FViewInfo& View = Views[ViewIndex];
+
+				if (IsSubsurfaceRequiredForView(View))
+				{
+					FScreenPassContext* Context = FScreenPassContext::Create(RHICmdList, View);
+
+					SceneColorTexture = ComputeSubsurface(GraphBuilder, Context, SceneColorTexture);
+				}
+			}
+
+			// Extract the result texture out and re-assign it to the scene render targets blackboard.
+			TRefCountPtr<IPooledRenderTarget> SceneColorTarget;
+			GraphBuilder.QueueTextureExtraction(SceneColorTexture, &SceneColorTarget, false);
+			GraphBuilder.Execute();
+
+			SceneRenderTargets.SetSceneColor(SceneColorTarget);
+
+			// The RT should be released as early as possible to allow sharing of that memory for other purposes.
+			// This becomes even more important with some limited VRam (XBoxOne).
+			SceneRenderTargets.SetLightAttenuation(nullptr);
 		}
+
 #if RHI_RAYTRACING
 		if (SkyLightRT)
 		{

@@ -43,18 +43,18 @@
 #include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
 #include "PostProcess/PostProcessShaderPrint.h"
-#include "CompositionLighting/PostProcessPassThrough.h"
 #include "PostProcess/PostProcessTestImage.h"
-#include "HighResScreenshot.h"
+#include "PostProcess/PostProcessFFTBloom.h"
+#include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/PostProcessMorpheus.h"
+#include "CompositionLighting/PostProcessPassThrough.h"
+#include "CompositionLighting/PostProcessLpvIndirect.h"
+#include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "BufferVisualizationData.h"
-#include "CompositionLighting/PostProcessLpvIndirect.h"
-#include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "DeferredShadingRenderer.h"
-#include "PostProcess/PostProcessFFTBloom.h"
 #include "MobileSeparateTranslucencyPass.h"
 #include "MobileDistortionPass.h"
 
@@ -177,7 +177,7 @@ static TAutoConsoleVariable<int32> CVarAlphaChannel(
 	TEXT(" 1: enabled in linear color space;\n")
 	TEXT(" 2: same as 1, but also enable it through the tonemapper. Compositing after the tonemapper is incorrect, as their is no meaning to tonemap the alpha channel. This is only meant to be use exclusively for broadcasting hardware that does not support linear color space compositing and tonemapping."),
 	ECVF_ReadOnly);
-	
+
 static TAutoConsoleVariable<int32> CVarPostProcessingPreferCompute(
 	TEXT("r.PostProcessing.PreferCompute"),
 	0,
@@ -227,9 +227,6 @@ static TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
 	TEXT("Size of temporal AA's history."),
 	ECVF_RenderThreadSafe
 );
-
-
-IMPLEMENT_SHADER_TYPE(,FPostProcessVS,TEXT("/Engine/Private/PostProcessBloom.usf"),TEXT("MainPostprocessCommonVS"),SF_Vertex);
 
 static bool HasPostProcessMaterial(FPostprocessContext& Context, EBlendableLocation InLocation);
 
@@ -2136,7 +2133,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			ensureMsgf(!bUnscaledFinalOutput, TEXT("VisualizeSSS is incompatible with unscaled output."));
 
 			// the setup pass also does visualization, based on EngineShowFlags.VisualizeSSS
-			FRenderingCompositePass* PassVisualize = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurfaceVisualize(RHICmdList));
+			FRenderingCompositePass* PassVisualize = Context.Graph.RegisterPass(new(FMemStack::Get()) FSubsurfaceVisualizeCompositePass(Context.RHICmdList));
 			PassVisualize->SetInput(ePId_Input0, Context.FinalOutput);
 			Context.FinalOutput = FRenderingCompositeOutputRef(PassVisualize);
 		}

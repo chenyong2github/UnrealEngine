@@ -18,6 +18,7 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "SceneRendering.h"
 #include "VisualizeTexture.h"
+#include "ScreenPass.h"
 
 #include "IImageWrapper.h"
 #include "ImageWriteQueue.h"
@@ -161,6 +162,34 @@ void CompositionGraph_OnStartFrame()
 #endif
 }
 
+const TRefCountPtr<IPooledRenderTarget>& GetFallbackTarget(EFallbackColor FallbackColor)
+{
+	switch (FallbackColor)
+	{
+	case eFC_0000: return GSystemTextures.BlackDummy;
+	case eFC_0001: return GSystemTextures.BlackAlphaOneDummy;
+	case eFC_1111: return GSystemTextures.WhiteDummy;
+	default:
+		ensure(!"Unhandled enum in EFallbackColor");
+		static const TRefCountPtr<IPooledRenderTarget> NullTarget;
+		return NullTarget;
+	}
+}
+
+const FTextureRHIRef& GetFallbackTexture(EFallbackColor FallbackColor)
+{
+	const TRefCountPtr<IPooledRenderTarget>& Target = GetFallbackTarget(FallbackColor);
+	if (Target)
+	{
+		return Target->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	else
+	{
+		static const FTextureRHIRef NullTexture;
+		return NullTexture;
+	}
+}
+
 FRenderingCompositePassContext::FRenderingCompositePassContext(FRHICommandListImmediate& InRHICmdList, const FViewInfo& InView)
 	: View(InView)
 	, SceneColorViewRect(InView.ViewRect)
@@ -197,14 +226,7 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 	check(!bWasProcessed);
 
 	bWasProcessed = true;
-
-	// query if we have a custom HMD post process mesh to use
-	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
-	bHasHmdMesh = (HiddenAreaMaskCVar != nullptr &&
-		HiddenAreaMaskCVar->GetValueOnRenderThread() == 1 &&
-		GEngine &&
-		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
-		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh());
+	bHasHmdMesh = IsHMDHiddenAreaMaskActive();
 
 	if (TargetedRoots.Num() == 0)
 	{
@@ -945,16 +967,7 @@ void FPostProcessPassParameters::Set(
 		SetShaderValue(RHICmdList, ShaderRHI, SceneColorBufferUVViewport, SceneColorBufferUVViewportValue);
 	}
 
-	IPooledRenderTarget* FallbackTexture = 0;
-	
-	switch(FallbackColor)
-	{
-		case eFC_0000: FallbackTexture = GSystemTextures.BlackDummy; break;
-		case eFC_0001: FallbackTexture = GSystemTextures.BlackAlphaOneDummy; break;
-		case eFC_1111: FallbackTexture = GSystemTextures.WhiteDummy; break;
-		default:
-			ensure(!"Unhandled enum in EFallbackColor");
-	}
+	const FTextureRHIRef& FallbackTexture = GetFallbackTexture(FallbackColor);
 
 	// ePId_Input0, ePId_Input1, ...
 	for(uint32 Id = 0; Id < (uint32)ePId_Input_MAX; ++Id)
@@ -1011,7 +1024,7 @@ void FPostProcessPassParameters::Set(
 		{
 			// if the input is not there but the shader request it we give it at least some data to avoid d3ddebug errors and shader permutations
 			// to make features optional we use default black for additive passes without shader permutations
-			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter[Id], PostprocessInputParameterSampler[Id], LocalFilter, FallbackTexture->GetRenderTargetItem().TargetableTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter[Id], PostprocessInputParameterSampler[Id], LocalFilter, FallbackTexture);
 
 			FVector4 Dummy(1, 1, 1, 1);
 			SetShaderValue(RHICmdList, ShaderRHI, PostprocessInputSizeParameter[Id], Dummy);
@@ -1148,4 +1161,38 @@ FString FRenderingCompositePass::ConstructDebugName()
 	}
 
 	return Name;
+}
+
+FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInput(
+	FRDGBuilder& GraphBuilder,
+	EPassInputId InputId,
+	const TCHAR* InputName,
+	EFallbackColor FallbackColor)
+{
+	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+
+	if (const FRenderingCompositeOutputRef* OutputRef = GetInput(InputId))
+	{
+		if (FRenderingCompositeOutput* Input = OutputRef->GetOutput())
+		{
+			RenderTarget = Input->RequestInput();
+		}
+	}
+
+	return RegisterExternalTextureWithFallback(
+		GraphBuilder,
+		RenderTarget,
+		GetFallbackTarget(FallbackColor),
+		InputName);
+}
+
+void FRenderingCompositePass::ExtractRDGTextureForOutput(
+	FRDGBuilder& GraphBuilder,
+	EPassOutputId OutputId,
+	FRDGTextureRef Texture)
+{
+	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
+	{
+		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget, false);
+	}
 }

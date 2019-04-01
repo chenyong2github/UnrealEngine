@@ -528,12 +528,9 @@ public:
 	{
 		return CurrentScope;
 	}
-
 public:
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
-
-
 private:
 	static constexpr int32 kMaxScopeCount = 8;
 
