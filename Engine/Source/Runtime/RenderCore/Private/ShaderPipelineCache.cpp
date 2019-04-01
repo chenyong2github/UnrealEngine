@@ -65,11 +65,7 @@ static TAutoConsoleVariable<int32> CVarPSOFileCacheBackgroundBatchSize(
 														  );
 static TAutoConsoleVariable<int32> CVarPSOFileCacheBatchSize(
 														   TEXT("r.ShaderPipelineCache.BatchSize"),
-#if PLATFORM_MAC
-														   16, // On Mac, where we have many more PSOs to preload due to different video settings 16 works better than 50
-#else
 														   50,
-#endif
 														   TEXT("Set the number of PipelineStateObjects to compile in a single batch operation when compiling takes priority. Defaults to a maximum of 50 per frame, due to async. file IO it is less in practice."),
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
