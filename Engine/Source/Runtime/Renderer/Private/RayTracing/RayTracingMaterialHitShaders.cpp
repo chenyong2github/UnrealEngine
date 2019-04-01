@@ -516,7 +516,7 @@ FRHIRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMateri
 			else
 			{
 				// Masked materials require full material evaluation with any-hit shader.
-				// #dxr_todo: we need to generate a shadow-specific closest hit shader for this!
+				// #dxr_todo UE-72029: we need to generate a shadow-specific closest hit shader for this!
 				MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(RHICmdList,
 					View.RayTracingScene.RayTracingSceneRHI,
 					VisibleMeshCommand.InstanceIndex,

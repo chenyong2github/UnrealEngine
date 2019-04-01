@@ -50,7 +50,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 FD3D12Device::~FD3D12Device()
 {
 #if D3D12_RHI_RAYTRACING
-	DestroyRayTracingDescriptorCache(); // #dxr_todo: unify RT descriptor cache with main FD3D12DescriptorCache
+	DestroyRayTracingDescriptorCache(); // #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 #endif
 
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs

@@ -1127,14 +1127,12 @@ public:
 
 
 #if RHI_RAYTRACING
-	// #dxr_todo: reverted index buffer may be needed to support mirrored meshes
 	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
 	{
 		checkNoEntry();
 		return nullptr;
 	}
 
-	// This is a placeholder basic interface for the scene. We will likely need to revise this based on real use cases.
 	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
 	{
 		checkNoEntry();

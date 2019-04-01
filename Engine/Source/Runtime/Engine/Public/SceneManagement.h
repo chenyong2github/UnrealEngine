@@ -2744,8 +2744,8 @@ struct FLODMask
 		return DitheredLODIndices[0] == LODIndex || DitheredLODIndices[1] == LODIndex;
 	}
 
-	//#dxr_todo  We should probably add both LoDs but mask them based on their 
-	//LodFace value within the BVH based on the LodFadeMask in the GBuffer
+	//#dxr_todo UE-72106: We should probably add both LoDs but mask them based on their 
+	//LodFade value within the BVH based on the LodFadeMask in the GBuffer
 	bool ContainsRayTracedLOD(int32 LODIndex) const
 	{
 		return DitheredLODIndices[0] == LODIndex;

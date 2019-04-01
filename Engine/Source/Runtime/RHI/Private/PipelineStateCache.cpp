@@ -598,7 +598,7 @@ FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 // This cache uses a single internal lock and therefore is not designed for highly concurrent operations.
 class FRayTracingPipelineCache
 {
-	// #dxr_todo: This needs to support fully asynchronous, non-blocking pipeline creation with explicit completion query mechanism.
+	// #dxr_todo UE-68234: This needs to support fully asynchronous, non-blocking pipeline creation with explicit completion query mechanism.
 	// #dxr_todo: Could move this to a separate cpp file.
 	// #dxr_todo: Should support eviction of stale pipelines.
 	// #dxr_todo: we will likely also need an explicit ray tracing pipeline sub-object cache to hold closest hit shaders
@@ -918,8 +918,8 @@ FRHIRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelin
 
 	if (bWasFound == false)
 	{
-		// #dxr_todo: RT PSO disk caching
-		// #dxr_todo: asynchronous PSO creation
+		// #dxr_todo UE-68235: RT PSO disk caching
+		// #dxr_todo UE-68234: asynchronous PSO creation
 
 		OutCachedState = new FRayTracingPipelineState();
 

@@ -1371,7 +1371,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 				// Handy place for a breakpoint for debugging...
 				++GBreakpoint;
 
-				// #dxr_todo: strip DXIL debug and reflection data
+				// #dxr_todo UE-68236: strip DXIL debug and reflection data
 				CompressedData = Shader;
 			}
 			else if (D3DStripShaderFunc)

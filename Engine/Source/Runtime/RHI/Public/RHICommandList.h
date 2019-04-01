@@ -121,7 +121,6 @@ struct FRayTracingShaderBindings
 };
 
 // C++ counter-part of FBasicRayData declared in RayTracingCommon.ush
-// #dxr_todo: ideally this should be shared with shaders by including a common header
 struct FBasicRayData
 {
 	float Origin[3];
@@ -131,7 +130,6 @@ struct FBasicRayData
 };
 
 // C++ counter-part of FBasicRayIntersectionData declared in RayTracingCommon.ush
-// #dxr_todo: ideally this should be shared with shaders by including a common header
 struct FBasicRayIntersectionData
 {
 	float  Distance;

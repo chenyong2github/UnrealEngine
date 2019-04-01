@@ -271,7 +271,7 @@ static TRefCountPtr<ID3D12StateObject> CreateRayTracingStateObject(
 	return Result;
 }
 
-// #dxr_todo: FD3D12Device::GlobalViewHeap/GlobalSamplerHeap should be used instead of ad-hoc heaps here.
+// #dxr_todo UE-72158: FD3D12Device::GlobalViewHeap/GlobalSamplerHeap should be used instead of ad-hoc heaps here.
 // Unfortunately, this requires a major refactor of how global heaps work.
 // FD3D12CommandContext-s should not get static chunks of the global heap, but instead should dynamically allocate
 // chunks on as-needed basis and release them when possible.
@@ -348,7 +348,7 @@ public:
 		Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		Desc.Type = Type;
 		Desc.NumDescriptors = NumDescriptors;
-		Desc.NodeMask = 1; // #dxr_todo: handle mGPU
+		Desc.NodeMask = 1; // #dxr_todo UE-72157: handle mGPU
 
 		ID3D12DescriptorHeap* D3D12Heap = nullptr;
 
@@ -578,7 +578,7 @@ public:
 		HitRecordStride = RoundUpToNextMultiple(HitRecordSizeUnaligned, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 
 		// Minimum number of descriptors required to support binding global resources (arbitrarily chosen)
-		// #dxr_todo: Remove this when RT descriptors are sub-allocated from the global view descriptor heap.
+		// #dxr_todo UE-72158: Remove this when RT descriptors are sub-allocated from the global view descriptor heap.
 		const uint32 MinNumViewDescriptors = 1024;
 		const uint32 ApproximateDescriptorsPerRecord = 32; // #dxr_todo: calculate this based on shader reflection data
 
@@ -694,7 +694,7 @@ public:
 		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.ResourceArray = &Data;
 
-		checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo: implement mGPU support
+		checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo UE-72157: implement mGPU support
 		Buffer = Adapter->CreateRHIBuffer<FD3D12MemBuffer>(
 			nullptr, BufferDesc, BufferDesc.Alignment,
 			0, BufferDesc.Width, BUF_Static, CreateInfo,
@@ -768,7 +768,7 @@ public:
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 	// A set of all resources referenced by this shader table for the purpose of updating residency before ray tracing work dispatch.
-	// #dxr_todo: remove resources from this set when SBT slot entries are replaced
+	// #dxr_todo UE-72159: remove resources from this set when SBT slot entries are replaced
 	TSet<FD3D12Resource*> ReferencedD3D12Resources;
 	TArray<TRefCountPtr<FRHIResource>> ReferencedResources;
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource)
@@ -921,7 +921,7 @@ public:
 		const uint32 HitShaderRootSignatureBaseIndex = LocalRootSignatures.Num();
 
 		// Initialize hit group shader libraries
-		// #dxr_todo: hit group libraries *also* could come from precompiled pipeline sub-objects, when those are supported in the future
+
 		HitGroupShaders.Reserve(InitializerHitGroups.Num());
 
 		// Each shader within RTPSO must have a unique name, therefore we must rename original shader entry points.
@@ -1267,7 +1267,7 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	checkf(Initializer.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
 	checkf(Initializer.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
 
-	// #dxr_todo VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
+	// #dxr_todo UE-72160: VET_Half4 (DXGI_FORMAT_R16G16B16A16_FLOAT) is also supported by DXR. Should we support it?
 	check(Initializer.VertexBufferElementType == VET_Float3 || Initializer.VertexBufferElementType == VET_Float2 || Initializer.VertexBufferElementType == VET_Half2);
 	if (Initializer.IndexBuffer)
 	{
@@ -1276,12 +1276,11 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 
 	checkf(Initializer.PrimitiveType == EPrimitiveType::PT_TriangleList, TEXT("Only TriangleList primitive type is currently supported."));
 
-	// #dxr_todo: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
-	checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo: support other vertex buffer formats
-	checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo: support interleaved vertex buffers
-	checkf(Initializer.BaseVertexIndex == 0, TEXT("BaseVertexIndex is not currently implemented")); // #dxr_todo: implement base vertex index for custom vertex fetch
+	// #dxr_todo UE-72160: temporary constraints on vertex and index buffer formats (this will be relaxed when more flexible vertex/index fetching is implemented)
+	checkf(Initializer.VertexBufferElementType == VET_Float3, TEXT("Only float3 vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support other vertex buffer formats
+	checkf(Initializer.VertexBufferStride == 12, TEXT("Only deinterleaved float3 position vertex buffers are currently implemented.")); // #dxr_todo UE-72160: support interleaved vertex buffers
 
-	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo: implement mGPU support
+	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo UE-72157: implement mGPU support
 	FD3D12RayTracingGeometry* Result = GetAdapter().CreateLinkedObject<FD3D12RayTracingGeometry>(FRHIGPUMask::All(), [&](FD3D12Device* Device)
 	{
 		FD3D12RayTracingGeometry* Mesh = new FD3D12RayTracingGeometry(Device);
@@ -1411,7 +1410,7 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 
 	SetName(AccelerationStructureBuffer->GetResource(), TEXT("Acceleration structure"));
 
-	// #dxr_todo: scratch buffers can be pooled and reused for different scenes and geometries
+	// #dxr_todo UE-72161: scratch buffers can be pooled and reused for different scenes and geometries
 	D3D12_RESOURCE_DESC ScratchBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		FMath::Max(PrebuildInfo.UpdateScratchDataSizeInBytes, PrebuildInfo.ScratchDataSizeInBytes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
@@ -1425,7 +1424,7 @@ static void CreateAccelerationStructureBuffers(TRefCountPtr<FD3D12MemBuffer>& Ac
 
 void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, bool bIsUpdate)
 {
-	check(GNumExplicitGPUsForRendering == 1); // #dxr_todo: ensure that mGPU case is handled correctly!
+	check(GNumExplicitGPUsForRendering == 1); // #dxr_todo UE-72157: ensure that mGPU case is handled correctly!
 
 	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
 
@@ -1501,9 +1500,9 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		Descs.Add(Desc);
 	}
 
-	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo: implement mGPU support
+	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo UE-72157: implement mGPU support
 
-	const uint32 GPUIndex = CommandContext.GetGPUIndex(); // #dxr_todo: ensure that mGPU case is handled correctly!
+	const uint32 GPUIndex = CommandContext.GetGPUIndex(); // #dxr_todo UE-72157: ensure that mGPU case is handled correctly!
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
 
 	ID3D12Device5* RayTracingDevice = CommandContext.GetParentDevice()->GetRayTracingDevice();
@@ -1536,7 +1535,7 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 
 		CreateAccelerationStructureBuffers(AccelerationStructureBuffer, ScratchBuffer, Adapter, GPUIndex, PrebuildInfo);
 
-		// #dxr_todo: scratch buffers should be created in UAV state from the start
+		// #dxr_todo UE-72161: scratch buffers should be created in UAV state from the start
 		FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, ScratchBuffer.GetReference()->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0);
 	}
 
@@ -1578,12 +1577,12 @@ FD3D12RayTracingScene::~FD3D12RayTracingScene()
 
 void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags)
 {
-	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo: implement mGPU support
+	checkf(GNumExplicitGPUsForRendering == 1, TEXT("Ray tracing is not implemented for mGPU")); // #dxr_todo UE-72157: implement mGPU support
 
 	TRefCountPtr<FD3D12MemBuffer> InstanceBuffer;
 	TRefCountPtr<FD3D12MemBuffer> ScratchBuffer;
 
-	const uint32 GPUIndex = CommandContext.GetGPUIndex(); // #dxr_todo: ensure that mGPU case is handled correctly!
+	const uint32 GPUIndex = CommandContext.GetGPUIndex(); // #dxr_todo UE-72157: ensure that mGPU case is handled correctly!
 	FD3D12Adapter* Adapter = CommandContext.GetParentAdapter();
 	ID3D12Device5* RayTracingDevice = CommandContext.GetParentDevice()->GetRayTracingDevice();
 
@@ -1599,7 +1598,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	CreateAccelerationStructureBuffers(AccelerationStructureBuffer, ScratchBuffer, Adapter, GPUIndex, PrebuildInfo);
 
-	// #dxr_todo: scratch buffers should be created in UAV state from the start
+	// #dxr_todo UE-72161: scratch buffers should be created in UAV state from the start
 	FD3D12DynamicRHI::TransitionResource(CommandContext.CommandListHandle, ScratchBuffer.GetReference()->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 0);
 
 	if (bAccelerationStructureViewInitialized)
@@ -1699,7 +1698,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	// Build the actual acceleration structure
 
-	const bool bIsUpdateMode = false; // #dxr_todo: we need an explicit public API to perform a refit/update
+	const bool bIsUpdateMode = false; // Top level acceleration structure is always built from scratch
 
 	AccelerationStructureBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 	ScratchBuffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
@@ -1808,7 +1807,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 				SystemParameters.IndexBuffer = IndexBufferAddress;
 				SystemParameters.VertexBuffer = VertexBufferAddress;
 
-				// #dxr_todo: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
+				// #dxr_todo UE-72160: support various vertex buffer layouts (fetch/decode based on vertex stride and format)
 				checkf(Geometry->VertexElemType == VET_Float3, TEXT("Only VET_Float3 is currently implemented and tested. Other formats will be supported in the future."));
 				SystemParameters.RootConstants.SetVertexAndIndexStride(Geometry->VertexStrideInBytes, IndexStride);
 				SystemParameters.RootConstants.IndexBufferOffsetInBytes = IndexStride * Segment.FirstPrimitive * IndicesPerPrimitive;
@@ -2255,7 +2254,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 {
 	// Setup state for RT dispatch
 	
-	// #dxr_todo: RT and non-RT descriptors should use the same global heap that's dynamically sub-allocated.
+	// #dxr_todo UE-72158: RT and non-RT descriptors should use the same global heap that's dynamically sub-allocated.
 	// This requires a major refactor of descriptor heap management. In the short term, RT work uses a dedicated heap
 	// that's temporarily set for the duration of RT dispatch.
 	ID3D12DescriptorHeap* PreviousHeaps[2] =
@@ -2277,7 +2276,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		FD3D12RayTracingGlobalResourceBinder ResourceBinder(CommandContext);
 		SetRayTracingShaderResources(CommandContext, RayGenShader, GlobalBindings, OptShaderTable->DescriptorCache, ResourceBinder);
 
-		// #dxr_todo: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
+		// #dxr_todo UE-72159: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
 		OptShaderTable->UpdateResidency(CommandContext);
 	}
 	else
@@ -2399,7 +2398,7 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRayTracingPipelineStateRHIParamR
 		ShaderTable->CopyToGPU();
 	}
 
-	// #dxr_todo: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
+	// #dxr_todo UE-72159: avoid updating residency if this scene was already used on the current command list (i.e. multiple ray dispatches are performed back-to-back)
 	Scene->UpdateResidency(*this);
 
 	FD3D12RayTracingShader* RayGenShader = FD3D12DynamicRHI::ResourceCast(RayGenShaderRHI);

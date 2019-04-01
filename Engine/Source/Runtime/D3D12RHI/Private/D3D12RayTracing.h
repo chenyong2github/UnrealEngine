@@ -9,7 +9,6 @@
 class FD3D12RayTracingPipelineState;
 class FD3D12RayTracingShaderTable;
 
-// #dxr_todo: perhaps FD3D12VertexBuffer in the core RHI should be generalized
 typedef FD3D12VertexBuffer FD3D12MemBuffer; // Generic GPU memory buffer
 
 class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12RayTracingGeometry>
@@ -56,12 +55,11 @@ public:
 
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags);
 
-	// #dxr_todo: only GPU resources should be managed as LinkedAdapterObjects
+	// #dxr_todo UE-72157: only GPU resources should be managed as LinkedAdapterObjects
 	TRefCountPtr<FD3D12MemBuffer> AccelerationStructureBuffer;
 	TRefCountPtr<FD3D12ShaderResourceView> AccelerationStructureView;
 	bool bAccelerationStructureViewInitialized = false;
 
-	// #dxr_todo: add API to update geometries and instances
 	TArray<FRayTracingGeometryInstance> Instances;
 
 	// Scene keeps track of child acceleration structures to manage their residency
@@ -75,7 +73,7 @@ public:
 	uint32 NumTotalSegments = 0;
 	uint32 GetHitRecordBaseIndex(uint32 InstanceIndex, uint32 SegmentIndex) const { return (SegmentPrefixSum[InstanceIndex] + SegmentIndex) * ShaderSlotsPerGeometrySegment; }
 
-	// #dxr_todo: shader tables should be explicitly registered and unregistered with the scene
+	// #dxr_todo UE-68230: shader tables should be explicitly registered and unregistered with the scene
 	FD3D12RayTracingShaderTable* FindOrCreateShaderTable(const FD3D12RayTracingPipelineState* Pipeline);
 	FD3D12RayTracingShaderTable* FindExistingShaderTable(const FD3D12RayTracingPipelineState* Pipeline) const;
 
