@@ -409,13 +409,20 @@ void FInEditorCapture::Start()
 			CVarStreamingPoolSize->Set(UndefinedTexturePoolSize, ECVF_SetByConsole);
 		}
 
-			IConsoleVariable* CVarUseFixedPoolSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.UseFixedPoolSize"));
-			if (CVarUseFixedPoolSize)
-			{
-				BackedUpUseFixedPoolSize = CVarUseFixedPoolSize->GetInt(); 
-				CVarUseFixedPoolSize->Set(0, ECVF_SetByConsole);
-			}
+		IConsoleVariable* CVarUseFixedPoolSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.UseFixedPoolSize"));
+		if (CVarUseFixedPoolSize)
+		{
+			BackedUpUseFixedPoolSize = CVarUseFixedPoolSize->GetInt(); 
+			CVarUseFixedPoolSize->Set(0, ECVF_SetByConsole);
 		}
+
+		IConsoleVariable* CVarTextureStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureStreaming"));
+		if (CVarTextureStreaming)
+		{
+			BackedUpTextureStreaming = CVarTextureStreaming->GetInt();
+			CVarTextureStreaming->Set(0, ECVF_SetByConsole);
+		}
+	}
 
 	FObjectWriter(PlayInEditorSettings, BackedUpPlaySettings);
 	OverridePlaySettings(PlayInEditorSettings);
@@ -559,6 +566,12 @@ void FInEditorCapture::Shutdown()
 		if (CVarUseFixedPoolSize)
 		{
 			CVarUseFixedPoolSize->Set(BackedUpUseFixedPoolSize, ECVF_SetByConsole);
+		}
+
+		IConsoleVariable* CVarTextureStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureStreaming"));
+		if (CVarTextureStreaming)
+		{
+			CVarTextureStreaming->Set(BackedUpTextureStreaming, ECVF_SetByConsole);
 		}
 	}
 
