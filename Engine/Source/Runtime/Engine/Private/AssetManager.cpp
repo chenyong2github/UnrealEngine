@@ -17,6 +17,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
+#include "Settings/ProjectPackagingSettings.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -3042,23 +3043,28 @@ void UAssetManager::UpdateManagementDatabase(bool bForceRefresh)
 		AssetRegistry.SetManageReferences(PrimaryAssetIdManagementMap, false, EAssetRegistryDependencyType::None);
 	}
 
-	// Update chunk package list for all chunks
-	for (FName PackageName : PackagesToUpdateChunksFor)
+	UProjectPackagingSettings* ProjectPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
+	if (ProjectPackagingSettings && ProjectPackagingSettings->bGenerateChunks)
 	{
-		ChunkList.Reset();
-		OverrideChunkList.Reset();
-		GetPackageChunkIds(PackageName, nullptr, ExistingChunkList, ChunkList, &OverrideChunkList);
-
-		if (ChunkList.Num() > 0)
+		// Update the editor preview chunk package list for all chunks, but only if we actually care about chunks
+		// bGenerateChunks is settable per platform, but should be enabled on the default platform for preview to work
+		for (FName PackageName : PackagesToUpdateChunksFor)
 		{
-			for (int32 ChunkId : ChunkList)
-			{
-				CachedChunkMap.FindOrAdd(ChunkId).AllAssets.Add(PackageName);
+			ChunkList.Reset();
+			OverrideChunkList.Reset();
+			GetPackageChunkIds(PackageName, nullptr, ExistingChunkList, ChunkList, &OverrideChunkList);
 
-				if (OverrideChunkList.Contains(ChunkId))
+			if (ChunkList.Num() > 0)
+			{
+				for (int32 ChunkId : ChunkList)
 				{
-					// This was in the override list, so add an explicit dependency
-					CachedChunkMap.FindOrAdd(ChunkId).ExplicitAssets.Add(PackageName);
+					CachedChunkMap.FindOrAdd(ChunkId).AllAssets.Add(PackageName);
+
+					if (OverrideChunkList.Contains(ChunkId))
+					{
+						// This was in the override list, so add an explicit dependency
+						CachedChunkMap.FindOrAdd(ChunkId).ExplicitAssets.Add(PackageName);
+					}
 				}
 			}
 		}
