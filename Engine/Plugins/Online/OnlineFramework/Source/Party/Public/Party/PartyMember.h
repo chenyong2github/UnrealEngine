@@ -119,6 +119,8 @@ protected:
 	FPartyMemberDataReplicator MemberDataReplicator;
 	void SetMemberConnectionStatus(EMemberConnectionStatus InMemberConnectionStatus);
 
+	TSharedPtr<const FOnlinePartyMember> GetOSSPartyMember() const { return OssPartyMember; }
+
 private:
 	void HandleSocialUserInitialized(USocialUser& InitializedUser);
 	void HandleMemberConnectionStatusChanged(const FUniqueNetId& ChangedUserId, const EMemberConnectionStatus NewMemberConnectionStatus, const EMemberConnectionStatus PreviousMemberConnectionStatus);
