@@ -206,7 +206,9 @@ TSharedRef<SWidget> UDynamicEntryBoxBase::RebuildWidget()
 
 	if (!IsDesignTime())
 	{
-		// Populate now with all the entries that have been created so far
+		// Populate with all the entries that have been created so far
+		// Avoided during design time because we manage the pool a little differently for designer previews (see SynchronizeProperties)
+		EntryWidgetPool.RebuildWidgets();
 		for (UUserWidget* ActiveWidget : EntryWidgetPool.GetActiveWidgets())
 		{
 			AddEntryChild(*ActiveWidget);
