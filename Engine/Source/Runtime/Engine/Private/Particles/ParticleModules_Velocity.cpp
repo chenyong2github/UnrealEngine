@@ -73,7 +73,7 @@ void UParticleModuleVelocity::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 void UParticleModuleVelocity::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleVelocity::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -122,22 +122,6 @@ UParticleModuleVelocity_Seeded::UParticleModuleVelocity_Seeded(const FObjectInit
 	bSpawnModule = true;
 	bSupportsRandomSeed = true;
 	bRequiresLoopingNotification = true;
-}
-
-void UParticleModuleVelocity_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleVelocity_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleVelocity_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
 }
 
 void UParticleModuleVelocity_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
@@ -415,7 +399,7 @@ void UParticleModuleVelocityCone::PostEditChangeProperty(FPropertyChangedEvent& 
 
 void UParticleModuleVelocityCone::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleVelocityCone::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -440,7 +424,7 @@ void UParticleModuleVelocityCone::SpawnEx(FParticleEmitterInstance* Owner, int32
 		// Calculate the default position (prior to the Direction vector being factored in)
 		const float SpawnAngle = Angle.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		const float SpawnVelocity = Velocity.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
-		const float LatheAngle = FMath::SRand() * TwoPI;
+		const float LatheAngle = InRandomStream->FRand() * TwoPI;
 		const FRotator DefaultDirectionRotater((int32)(SpawnAngle * ToRads * UUPerRad), (int32)(LatheAngle * UUPerRad), 0);
 		const FRotationMatrix DefaultDirectionRotation(DefaultDirectionRotater);
 		const FVector DefaultSpawnDirection = DefaultDirectionRotation.TransformVector(DefaultDirection);
