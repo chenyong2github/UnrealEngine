@@ -49,6 +49,7 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	bOverrideSubtitlePriority = false;
 	bIsPreviewSound = false;
 	bIsPaused = false;
+	ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
 	Priority = 1.f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
 	PitchMultiplier = 1.f;
@@ -70,6 +71,12 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	// TODO: Consider only putting played/active components in to the map
 	FScopeLock Lock(&AudioIDToComponentMapLock);
 	AudioIDToComponentMap.Add(AudioComponentID, this);
+
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_DuringPhysics;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.SetTickFunctionEnable(false);
+	bTickInEditor = true;
 }
 
 UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentID)
@@ -230,9 +237,9 @@ const UObject* UAudioComponent::AdditionalStatObject() const
 	return Sound;
 }
 
-void UAudioComponent::SetSound( USoundBase* NewSound )
+void UAudioComponent::SetSound(USoundBase* NewSound)
 {
-	const bool bPlay = IsPlaying();
+	const bool bPlay = IsPlaying() || ReplayWhenInAudibleRange != EReplayWhenInAudibleRange::Disabled;
 
 	// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
 	const bool bWasAutoDestroy = bAutoDestroy;
@@ -253,13 +260,43 @@ bool UAudioComponent::IsReadyForOwnerToAutoDestroy() const
 	return !IsPlaying();
 }
 
+void UAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, TickFunction);
+
+	if (bIsActive)
+	{
+		if (ReplayWhenInAudibleRange != EReplayWhenInAudibleRange::Disabled && !IsInAudibleRange())
+		{
+			// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
+			bool bCurrentAutoDestroy = bAutoDestroy;
+			bAutoDestroy = false;
+			StopInternal();
+			bAutoDestroy = bCurrentAutoDestroy;
+		}
+	}
+	else 
+	{
+		if (ReplayWhenInAudibleRange != EReplayWhenInAudibleRange::Disabled && IsInAudibleRange())
+		{
+			Play(); // Play refreshes ReplayWhenInAudibleRange internally
+		}
+	}
+}
+
+
 void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 
-	if (bIsActive && !bPreviewComponent)
+	if (bPreviewComponent)
 	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
+		return;
+	}
+
+	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	{
+		if (bIsActive)
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UpdateAudioComponentTransform"), STAT_AudioUpdateComponentTransform, STATGROUP_AudioThreadCommands);
 
@@ -299,6 +336,22 @@ void UAudioComponent::CancelAutoAttachment(bool bDetachFromParent)
 	}
 }
 
+bool UAudioComponent::IsInAudibleRange() const
+{
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	float MaxDistance = 0.0f;
+	float FocusFactor = 0.0f;
+	const FVector Location = GetComponentTransform().GetLocation();
+	const FSoundAttenuationSettings* AttenuationSettingsToApply = GetAttenuationSettingsToApply();
+
+	AudioDevice->GetMaxDistanceAndFocusFactor(Sound, GetWorld(), Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+	return AudioDevice->SoundIsAudible(Sound, GetWorld(), Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+}
 
 void UAudioComponent::Play(float StartTime)
 {
@@ -355,7 +408,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			}
 
 			// Create / configure new ActiveSound
-			const FSoundAttenuationSettings* AttenuationSettingsToApply = (bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr);
+			const FSoundAttenuationSettings* AttenuationSettingsToApply = GetAttenuationSettingsToApply();
 
 			float MaxDistance = 0.0f;
 			float FocusFactor = 0.0f;
@@ -461,6 +514,19 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			++ActiveCount;
 
 			AudioDevice->AddNewActiveSound(NewActiveSound);
+
+			const bool bCanVirtualize = Sound && Sound->IsVirtualizeWhenSilent() && AudioDevice->VirtualSoundsEnabled();
+			if (!bIsPreviewSound && NewActiveSound.bHasAttenuationSettings && !bCanVirtualize)
+			{
+				const bool bLooping = NewActiveSound.IsLooping();
+				ReplayWhenInAudibleRange = bLooping ? EReplayWhenInAudibleRange::Enabled : EReplayWhenInAudibleRange::Disabled;
+				PrimaryComponentTick.SetTickFunctionEnable(bLooping);
+			}
+			else
+			{
+				ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
+			}
+
 			bIsActive = true;
 		}
 	}
@@ -500,6 +566,12 @@ void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
 	{
 		if (FadeOutDuration > 0.0f)
 		{
+			if (FadeVolumeLevel == 0.0f)
+			{
+				ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::EnabledFadingOut;
+				PrimaryComponentTick.SetTickFunctionEnable(false);
+			}
+
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
 				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.FadeOut"), STAT_AudioFadeOut, STATGROUP_AudioThreadCommands);
@@ -530,6 +602,12 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
+			if (ReplayWhenInAudibleRange == EReplayWhenInAudibleRange::EnabledFadingOut)
+			{
+				ReplayWhenInAudibleRange= EReplayWhenInAudibleRange::Enabled;
+				PrimaryComponentTick.SetTickFunctionEnable(true);
+			}
+
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
 
 			const uint64 MyAudioComponentID = AudioComponentID;
@@ -557,6 +635,15 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 }
 
 void UAudioComponent::Stop()
+{
+	PrimaryComponentTick.SetTickFunctionEnable(false);
+
+	ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
+
+	StopInternal();
+}
+
+void UAudioComponent::StopInternal()
 {
 	if (bIsActive)
 	{
@@ -621,6 +708,12 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 
 	if (!bIsActive)
 	{
+		if (bFailedToStart)
+		{
+			ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
+			PrimaryComponentTick.SetTickFunctionEnable(false);
+		}
+
 		if (!bFailedToStart && GetWorld() != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
 		{
 			INC_DWORD_STAT(STAT_AudioFinishedDelegatesCalled);
