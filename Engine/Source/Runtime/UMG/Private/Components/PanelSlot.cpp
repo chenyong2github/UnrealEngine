@@ -11,10 +11,12 @@ UPanelSlot::UPanelSlot(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+#if WITH_EDITOR
 bool UPanelSlot::IsDesignTime() const
 {
 	return Parent->IsDesignTime();
 }
+#endif
 
 void UPanelSlot::ReleaseSlateResources(bool bReleaseChildren)
 {
