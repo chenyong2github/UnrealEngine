@@ -66,10 +66,11 @@ bool FGoogleARCoreXRCamera::GetPassthroughCameraUVs_RenderThread(TArray<FVector2
 		GoogleARCoreTrackingSystem.ARCoreDeviceInstance->GetPassthroughCameraImageUVs(PassthroughRenderer->OverlayQuadUVs, TransformedUVs);
 		PassthroughRenderer->UpdateOverlayUVCoordinate_RenderThread(TransformedUVs, FGoogleARCoreAndroidHelper::GetDisplayRotation());
 		OutUVs.SetNumUninitialized(4);
-		OutUVs[0] = FVector2D(TransformedUVs[0], TransformedUVs[1]);
-		OutUVs[1] = FVector2D(TransformedUVs[2], TransformedUVs[3]);
-		OutUVs[2] = FVector2D(TransformedUVs[4], TransformedUVs[5]);
-		OutUVs[3] = FVector2D(TransformedUVs[6], TransformedUVs[7]);
+
+		OutUVs[0] = FVector2D(TransformedUVs[4], TransformedUVs[5]);
+		OutUVs[1] = FVector2D(TransformedUVs[6], TransformedUVs[7]);
+		OutUVs[2] = FVector2D(TransformedUVs[0], TransformedUVs[1]);
+		OutUVs[3] = FVector2D(TransformedUVs[2], TransformedUVs[3]);
 		return true;
 	}
 	else

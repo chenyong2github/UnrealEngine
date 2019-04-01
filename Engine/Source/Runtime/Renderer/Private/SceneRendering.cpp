@@ -50,6 +50,9 @@
 #include "VisualizeTexturePresent.h"
 #include "MeshDrawCommands.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "IXRTrackingSystem.h"
+#include "IXRCamera.h"
+#include "IXRCamera.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1429,7 +1432,22 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.StereoPassIndex = GEngine->StereoRenderingDevice ? GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass) : 0;
 	ViewUniformShaderParameters.StereoIPD = StereoIPD;
-	
+
+	{
+		auto XRCamera = GEngine->XRSystem ? GEngine->XRSystem->GetXRCamera() : nullptr;
+		TArray<FVector2D> CameraUVs;
+		if (XRCamera.IsValid() && XRCamera->GetPassthroughCameraUVs_RenderThread(CameraUVs) && CameraUVs.Num() == 4)
+		{
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(CameraUVs[0], CameraUVs[1]);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(CameraUVs[2], CameraUVs[3]);
+		}
+		else
+		{
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(0, 0, 0, 1);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(1, 0, 1, 1);
+		}
+	}
+
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
