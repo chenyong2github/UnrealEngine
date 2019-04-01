@@ -377,6 +377,9 @@ namespace Gauntlet
 		/// <returns></returns>
 		protected virtual void SetupAccounts()
 		{
+			// Set up account manager before we set up accounts.
+			AccountPool.Initialize();
+
 			string Username = Globals.Params.ParseValue("username", null);
 			string Password = Globals.Params.ParseValue("password", null);
 
