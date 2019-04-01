@@ -19,6 +19,8 @@ class PARTY_API USocialDebugTools : public UObject, public FExec
 	static const int32 LocalUserNum = 0;
 
 public:
+	USocialManager& GetSocialManager() const;
+
 	// FExec
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
 
