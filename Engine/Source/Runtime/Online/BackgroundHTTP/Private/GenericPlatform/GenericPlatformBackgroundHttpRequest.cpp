@@ -115,7 +115,7 @@ const FString FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundH
 	int URLIndexToUse = CurrentRetryNumber;
 
 	//Don't find a valid URL if we are already passed our retry count
-	if (URLIndexToUse <= MaxRetries)
+	if (HasRetriesRemaining())
 	{
 		const TArray<FString>& RequestURLList = OriginalRequest.IsValid() ? OriginalRequest.Pin()->GetURLList() : TArray<FString>();
 		if (RequestURLList.Num() > 0)
@@ -149,7 +149,7 @@ void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrappe
 		UE_LOG(LogBackgroundHttpRequest, Display, TEXT("Underlying HttpRequest complete - RequestID:%s | bRequestWasSuccessfull:%d | CurrentRetryNumber:%d | MaxRetries:%d"), *OriginalRequest.Pin()->GetRequestID(), (int)(bRequestWasSuccessful), CurrentRetryNumber, MaxRetries);
 
 		//Attempt a retry on failure
-		if (!bRequestWasSuccessful)
+		if (!bRequestWasSuccessful && HasRetriesRemaining())
 		{
 			++CurrentRetryNumber;
 			MakeRequest();
@@ -160,6 +160,11 @@ void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrappe
 			OriginalRequest.Pin()->CompleteWithExistingResponseData(ConstructedResponse);
 		}
 	}
+}
+
+bool FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::HasRetriesRemaining() const
+{
+	return (CurrentRetryNumber <= MaxRetries);
 }
 
 void FGenericPlatformBackgroundHttpRequest::FGenericPlatformBackgroundHttpWrapper::UpdateHttpProgress(FHttpRequestPtr UnderlyingHttpRequest, int32 BytesSent, int32 BytesReceived)

@@ -38,6 +38,8 @@ protected:
 		void HttpRequestComplete(FHttpRequestPtr HttpRequestIn, FHttpResponsePtr HttpResponse, bool bSuccess);
 
 	private:
+		
+		bool HasRetriesRemaining() const;
 		void UpdateHttpProgress(FHttpRequestPtr UnderlyingHttpRequest, int32 BytesSent, int32 BytesReceived);
 
 		void CleanUpHttpRequest();
