@@ -160,6 +160,13 @@ public:
 	virtual void RegisterAppInstallation(IBuildManifestRef AppManifest, const FString AppInstallDirectory) = 0;
 
 	/**
+	 * Unregisters an installation on this machine
+	 * @param AppManifest			Ref to the manifest for this installation (used for verification of removed manifest only)
+	 * @param AppInstallDirectory	The install location which RegisterAppInstallation was executed with
+	 */
+	virtual bool UnregisterAppInstallation(const FString AppInstallDirectory) = 0;
+
+	/**
 	 * Call to force the exit out of all current installers, optionally blocks until threads have exited and complete delegates are called.
 	 * @param WaitForThreads		If true, will block on threads exit and completion delegates
 	 */
