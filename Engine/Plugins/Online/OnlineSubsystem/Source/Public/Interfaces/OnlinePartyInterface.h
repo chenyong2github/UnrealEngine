@@ -73,9 +73,12 @@ public:
 
 	void SetMemberConnectionStatus(EMemberConnectionStatus NewMemberConnectionStatus)
 	{
-		PreviousMemberConnectionStatus = MemberConnectionStatus;
-		MemberConnectionStatus = NewMemberConnectionStatus;
-		TriggerOnMemberConnectionStatusChangedDelegates(*GetUserId(), MemberConnectionStatus, PreviousMemberConnectionStatus);
+		if (NewMemberConnectionStatus != MemberConnectionStatus)
+		{
+			PreviousMemberConnectionStatus = MemberConnectionStatus;
+			MemberConnectionStatus = NewMemberConnectionStatus;
+			TriggerOnMemberConnectionStatusChangedDelegates(*GetUserId(), MemberConnectionStatus, PreviousMemberConnectionStatus);
+		}
 	}
 };
 
