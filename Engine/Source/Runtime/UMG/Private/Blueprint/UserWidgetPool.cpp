@@ -16,6 +16,14 @@ void FUserWidgetPool::SetWorld(UWorld* InOwningWorld)
 	OwningWorld = InOwningWorld;
 }
 
+void FUserWidgetPool::RebuildWidgets()
+{
+	for (UUserWidget* Widget : ActiveWidgets)
+	{
+		CachedSlateByWidgetObject.Add(Widget, Widget->TakeWidget());
+	}
+}
+
 void FUserWidgetPool::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects<UUserWidget>(ActiveWidgets, OwningWidget.Get());
