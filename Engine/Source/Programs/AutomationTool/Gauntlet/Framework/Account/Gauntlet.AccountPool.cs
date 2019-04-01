@@ -3,88 +3,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace Gauntlet
 {
-
-	public class AccountPool
-	{
-
-		/// <summary>
-		/// Singleton
-		/// </summary>
-		private static IManagedAccountPool _Instance;
-
-		public static void Initialize()
-		{
-			Initialize <ManagedAccountPool> ();
-		}
-
-		~AccountPool()
-		{
-			if (_Instance != null)
-			{
-				_Instance.Dispose();
-			}
-		}
-
-		public static void Initialize<T>()
-		{
-			object PossiblePool = Activator.CreateInstance(typeof(T));
-			if (PossiblePool is IManagedAccountPool)
-			{
-				if (_Instance != null)
-				{
-					_Instance.Dispose();
-				}
-				_Instance = (IManagedAccountPool)PossiblePool;
-			}
-		}
-
-		public static IManagedAccountPool Instance
-		{
-			get
-			{
-				if (_Instance == null)
-				{
-					Initialize();
-				}
-				return _Instance;
-			}
-		}
-
-		public static void Shutdown()
-		{
-			if (_Instance != null)
-			{
-				_Instance.Dispose();
-				_Instance = null;
-			}
-		}
-
-	}
-
-	public interface IManagedAccountPool: IDisposable
-	{
-		void RegisterAccount(Account InAccount);
-
-		void ReleaseAccount(Account InAccount);
-
-		Account ReserveAccount();
-	}
-
 	/// <summary>
 	/// A pool of accounts for tests to use. The pool should be filled by the project-specific script that derives from
 	/// RunUnrealTests
 	/// </summary>
-	public class ManagedAccountPool : IManagedAccountPool
+	public class AccountPool : IDisposable
 	{
-
 		/// <summary>
 		/// Object used for locking access to internal data
 		/// </summary>
-		protected Object LockObject = new Object();
+		private Object LockObject = new Object();
 
 		/// <summary>
 		/// List of all registered accounts
@@ -101,13 +32,47 @@ namespace Gauntlet
 		/// </summary>
 		protected List<Account> RandomlyOrderedList = new List<Account>();
 
+		/// <summary>
+		/// Singleton
+		/// </summary>
+		private static AccountPool _Instance;
 
-		~ManagedAccountPool()
+		/// <summary>
+		/// 
+		/// </summary>
+		protected AccountPool()
+		{
+			if (_Instance == null)
+			{
+				_Instance = this;
+			}
+		}
+
+		~AccountPool()
 		{
 			Dispose(false);
 		}
 
+		public static AccountPool Instance
+		{
+			get
+			{
+				if (_Instance == null)
+				{
+					new AccountPool();
+				}
+				return _Instance;
+			}
+		}
 
+		public static void Shutdown()
+		{
+			if (_Instance != null)
+			{
+				_Instance.Dispose();
+				_Instance = null;
+			}
+		}
 
 		public void Dispose()
 		{
@@ -115,12 +80,11 @@ namespace Gauntlet
 			GC.SuppressFinalize(this);
 		}
 
-
 		/// <summary>
 		/// Perform actual dispose behavior
 		/// </summary>
 		/// <param name="disposing"></param>
-		protected void Dispose(bool disposing)
+		protected virtual void Dispose(bool disposing)
 		{
 			lock (LockObject)
 			{
@@ -159,7 +123,7 @@ namespace Gauntlet
 			}
 		}
 
-		virtual public Account ReserveAccount()
+		public Account ReserveAccount()
 		{
 			lock (LockObject)
 			{
