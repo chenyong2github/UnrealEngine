@@ -621,23 +621,14 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 		{
 			if (!GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering))
 			{
-				if (ArrayRenderLayers != 1)
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("Layered rendering is unsupported on this device."));
-				}
+				METAL_FATAL_ASSERT(ArrayRenderLayers != 1, TEXT("Layered rendering is unsupported on this device (%d)."), ArrayRenderLayers);
 			}
 #if PLATFORM_MAC
 			else
 			{
-				if (ArrayTargets == BoundTargets)
-				{
-					RenderTargetArraySize = ArrayRenderLayers;
-					RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
-				}
-				else
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("All color render targets must be layered when performing multi-layered rendering under Metal."));
-				}
+				METAL_FATAL_ASSERT(ArrayTargets == BoundTargets, TEXT("All color render targets must be layered when performing multi-layered rendering under Metal (%d != %d)."), ArrayTargets, BoundTargets);
+				RenderTargetArraySize = ArrayRenderLayers;
+				RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
 			}
 #endif
 		}
@@ -664,16 +655,10 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 			}
 			if(!ArrayTargets && ArrayRenderLayers > 1)
 			{
-				if (!GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering))
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("Layered rendering is unsupported on this device."));
-				}
+				METAL_FATAL_ASSERT(GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering), TEXT("Layered rendering is unsupported on this device (%d)."), ArrayRenderLayers);
 #if PLATFORM_MAC
-				else
-				{
-					RenderTargetArraySize = ArrayRenderLayers;
-					RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
-				}
+				RenderTargetArraySize = ArrayRenderLayers;
+				RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
 #endif
 			}
 			
@@ -1157,8 +1142,7 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 		
 		PipelineBits |= EMetalPipelineFlagPipelineState;
 		
-#if METAL_DEBUG_OPTIONS
-        if (GMetalResetOnPSOChange >= 4)
+        if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelResetOnBind)
         {
             for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
             {
@@ -1174,7 +1158,6 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
                 ShaderSamplers[i].Bound = UINT16_MAX;
             }
         }
-#endif
 		
 		SetDepthStencilState(State->DepthStencilState);
 		SetRasterizerState(State->RasterizerState);
@@ -1998,6 +1981,11 @@ void FMetalStateCache::SetStateDirty(void)
 	}
 }
 
+void FMetalStateCache::SetShaderBufferDirty(EMetalShaderStages const Frequency, NSUInteger const Index)
+{
+	ShaderBuffers[Frequency].Bound |= (1 << Index);
+}
+
 void FMetalStateCache::SetRenderStoreActions(FMetalCommandEncoder& CommandEncoder, bool const bConditionalSwitch)
 {
 	check(CommandEncoder.IsRenderCommandEncoderActive())
@@ -2126,6 +2114,157 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
         
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }
+	
+	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+	{
+		FMetalShaderPipeline* Pipeline = GetPipelineState();
+		EMetalShaderStages VertexStage = EMetalShaderStages::Vertex;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		if (GraphicsPSO->DomainShader)
+		{
+			VertexStage = EMetalShaderStages::Domain;
+			
+			FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
+			TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
+			while(ComputeMask.BufferMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
+				ComputeMask.BufferMask &= ~(1 << Index);
+				
+				FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Vertex].Buffers[Index];
+				FMetalBufferBinding const& HullBinding = ShaderBuffers[EMetalShaderStages::Hull].Buffers[Index];
+				ensure(Binding.Buffer || Binding.Bytes || HullBinding.Buffer || HullBinding.Bytes);
+				ensure(MinComputeBufferSizes.Num() > Index);
+				ensure(Binding.Length >= MinComputeBufferSizes[Index] || HullBinding.Length >= MinComputeBufferSizes[Index]);
+			}
+#if PLATFORM_MAC
+			{
+				uint64 LoTextures = (uint64)ComputeMask.TextureMask;
+				while(LoTextures)
+				{
+					uint32 Index = __builtin_ctzll(LoTextures);
+					LoTextures &= ~(uint64(1) << uint64(Index));
+					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
+				}
+				
+				uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
+				while(HiTextures)
+				{
+					uint32 Index = __builtin_ctzll(HiTextures);
+					HiTextures &= ~(uint64(1) << uint64(Index));
+					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index + 64] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
+				}
+			}
+#else
+			while(ComputeMask.TextureMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
+				ComputeMask.TextureMask &= ~(1 << Index);
+				
+				ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index]);
+			}
+#endif
+			while(ComputeMask.SamplerMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.SamplerMask);
+				ComputeMask.SamplerMask &= ~(1 << Index);
+				ensure(ShaderSamplers[EMetalShaderStages::Vertex].Samplers[Index] || ShaderSamplers[EMetalShaderStages::Hull].Samplers[Index]);
+			}
+		}
+#endif
+		
+		FMetalDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EMetalShaderVertex];
+		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EMetalShaderVertex];
+		while(VertexMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
+			VertexMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[VertexStage].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinVertexBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinVertexBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)VertexMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[VertexStage].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(VertexMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[VertexStage].Textures[Index + 64]);
+			}
+		}
+#else
+		while(VertexMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.TextureMask);
+			VertexMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[VertexStage].Textures[Index]);
+		}
+#endif
+		while(VertexMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.SamplerMask);
+			VertexMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[VertexStage].Samplers[Index]);
+		}
+		
+		FMetalDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[EMetalShaderFragment];
+		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[EMetalShaderFragment];
+		while(FragmentMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.BufferMask);
+			FragmentMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Pixel].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinFragmentBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinFragmentBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)FragmentMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(FragmentMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64]);
+			}
+		}
+#else
+		while(FragmentMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.TextureMask);
+			FragmentMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
+		}
+#endif
+		while(FragmentMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.SamplerMask);
+			FragmentMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[EMetalShaderStages::Pixel].Samplers[Index]);
+		}
+	}
 }
 
 void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEncoder)
@@ -2138,6 +2277,58 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
         
         PipelineBits &= EMetalPipelineFlagRasterMask;
     }
+	
+	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+	{
+		FMetalShaderPipeline* Pipeline = ComputeShader->GetPipeline();
+		check(Pipeline);
+		
+		FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
+		TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
+		while(ComputeMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
+			ComputeMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Compute].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinComputeBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinComputeBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)ComputeMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index + 64]);
+			}
+		}
+#else
+		while(ComputeMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
+			ComputeMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
+		}
+#endif
+		while(ComputeMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.SamplerMask);
+			ComputeMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[EMetalShaderStages::Compute].Samplers[Index]);
+		}
+	}
 }
 
 void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, mtlpp::FunctionType const Type, FMetalCommandEncoder& CommandEncoder)
@@ -2284,6 +2475,17 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 			CommandEncoder.UseIndirectArgumentResource(Buffer->Buffer, mtlpp::ResourceUsage::Read);
 		}
 	}
+}
+
+FMetalBuffer& FMetalStateCache::GetDebugBuffer()
+{
+    if (!DebugBuffer)
+    {
+        // Assume worst case tiling (16x16) and render-target size (4096x4096) on iOS for now
+        uint32 NumTiles = PLATFORM_MAC ? 1 : 65536;
+        DebugBuffer = GetMetalDeviceContext().CreatePooledBuffer(FMetalPooledBufferArgs(GetMetalDeviceContext().GetDevice(), NumTiles * sizeof(FMetalDebugInfo), BUF_Dynamic, mtlpp::StorageMode::Shared));
+    }
+    return DebugBuffer;
 }
 
 FTexture2DRHIRef FMetalStateCache::CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height)
