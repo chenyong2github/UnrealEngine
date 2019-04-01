@@ -649,6 +649,11 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	}
 
 	UpdateVisibleRows(InCachedSelection, bUpdateEvenIfValid);
+
+	if (PropertyView.IsValid())
+	{
+		PropertyView->SetObject(const_cast<UDataTable*>(Table));
+	}
 }
 
 void FDataTableEditor::UpdateVisibleRows(const FName InCachedSelection, const bool bUpdateEvenIfValid)
