@@ -11,6 +11,7 @@
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Party/SocialParty.h"
 #include "Party/PartyMember.h"
+#include "SocialManager.h"
 
 USocialDebugTools::USocialDebugTools()
 	: bAutoAcceptFriendInvites(true)
@@ -424,6 +425,13 @@ IOnlineSubsystem* USocialDebugTools::GetDefaultOSS() const
 		return IOnlineSubsystem::Get(MCP_SUBSYSTEM);
 	}
 	
+}
+
+USocialManager& USocialDebugTools::GetSocialManager() const
+{
+	USocialManager* OuterSocialManager = GetTypedOuter<USocialManager>();
+	check(OuterSocialManager);
+	return *OuterSocialManager;
 }
 
 TSharedPtr<IOnlinePartyJoinInfo> USocialDebugTools::GetDefaultPartyJoinInfo() const
