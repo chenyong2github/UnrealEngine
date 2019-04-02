@@ -178,7 +178,7 @@ namespace WindowsMixedReality
 
 #endif
 
-		bool bIsRemotingEnabledForEditor = true;
+		bool bIsRemotingEnabledForEditor = false;
 	};
 
 	TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FWindowsMixedRealityHMDPlugin::CreateTrackingSystem()
