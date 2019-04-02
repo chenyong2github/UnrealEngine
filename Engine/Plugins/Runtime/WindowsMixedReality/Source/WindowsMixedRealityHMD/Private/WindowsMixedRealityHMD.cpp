@@ -106,6 +106,8 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 			IHeadMountedDisplayModule::StartupModule();
 
+			GConfig->GetBool(TEXT("/Script/WindowsMixedRealityRuntimeSettings.WindowsMixedRealityRuntimeSettings"), TEXT("bEnableRemotingForEditor"), bIsRemotingEnabledForEditor, GEngineIni);
+
 			// Get the base directory of this plugin
 			FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
 
@@ -173,11 +175,21 @@ namespace WindowsMixedReality
 
 #if WITH_WINDOWS_MIXED_REALITY
 		MixedRealityInterop* HMD = nullptr;
+
 #endif
+
+		bool bIsRemotingEnabledForEditor = true;
 	};
 
 	TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FWindowsMixedRealityHMDPlugin::CreateTrackingSystem()
 	{
+#if WITH_EDITOR
+		if (GIsEditor && !bIsRemotingEnabledForEditor)
+		{
+			return nullptr;
+		}
+#endif
+
 #if WITH_WINDOWS_MIXED_REALITY
 		if (HMD)
 		{
