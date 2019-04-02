@@ -621,13 +621,13 @@ namespace PropertyEditorHelpers
 		return (NodeProperty->IsA<UObjectPropertyBase>() || NodeProperty->IsA<UInterfaceProperty>()) && (!bUsingAssetPicker || !SPropertyEditorAsset::Supports(NodeProperty));
 	}
 	
-	static bool IsSoftObjectPath( const UProperty* Property )
+	bool IsSoftObjectPath( const UProperty* Property )
 	{
 		const UStructProperty* StructProp = Cast<const UStructProperty>( Property );
 		return StructProp && StructProp->Struct == TBaseStructure<FSoftObjectPath>::Get();
 	}
 
-	static bool IsSoftClassPath( const UProperty* Property )
+	bool IsSoftClassPath( const UProperty* Property )
 	{
 		const UStructProperty* StructProp = Cast<const UStructProperty>(Property);
 		return StructProp && StructProp->Struct == TBaseStructure<FSoftClassPath>::Get();
@@ -733,16 +733,29 @@ namespace PropertyEditorHelpers
 		// Handle a class property.
 
 		UClassProperty* ClassProp = Cast<UClassProperty>(NodeProperty);
-		if( ClassProp || IsSoftClassPath(NodeProperty))
+		USoftClassProperty* SoftClassProp = Cast<USoftClassProperty>(NodeProperty);
+		if( ClassProp || SoftClassProp || IsSoftClassPath(NodeProperty))
 		{
 			OutRequiredButtons.Add( EPropertyButton::Use );			
 			OutRequiredButtons.Add( EPropertyButton::Browse );
 
-			UClass* Class = (ClassProp ? ClassProp->MetaClass : FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass")));
+			UClass* Class = nullptr;
+			if (ClassProp)
+			{
+				Class = ClassProp->MetaClass;
+			}
+			else if (SoftClassProp)
+			{
+				Class = SoftClassProp->MetaClass;
+			}
+			else
+			{
+				Class = NodeProperty->GetOwnerProperty()->GetClassMetaData(TEXT("MetaClass"));
+			}
 
 			if (Class && FKismetEditorUtilities::CanCreateBlueprintOfClass(Class) && !NodeProperty->HasMetaData("DisallowCreateNew"))
 			{
-				OutRequiredButtons.Add( EPropertyButton::NewBlueprint );
+				OutRequiredButtons.Add(EPropertyButton::NewBlueprint);
 			}
 
 			if( !(NodeProperty->PropertyFlags & CPF_NoClear) )
@@ -750,18 +763,7 @@ namespace PropertyEditorHelpers
 				OutRequiredButtons.Add( EPropertyButton::Clear );
 			}
 		}
-		else if (NodeProperty->IsA<USoftClassProperty>() )
-		{
-			OutRequiredButtons.Add( EPropertyButton::Use );
-			
-			OutRequiredButtons.Add( EPropertyButton::Browse );
-
-			if( !(NodeProperty->PropertyFlags & CPF_NoClear) )
-			{
-				OutRequiredButtons.Add( EPropertyButton::Clear );
-			}
-		}
-
+		
 		if( OuterArrayProp )
 		{
 			if( PropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly) && !(OuterArrayProp->PropertyFlags & CPF_EditFixedSize) )
@@ -793,6 +795,11 @@ namespace PropertyEditorHelpers
 	{
 		const TSharedRef<FPropertyEditor> PropertyEditor = FPropertyEditor::Create( PropertyNode, PropertyUtilities );
 		PropertyEditorHelpers::MakeRequiredPropertyButtons( PropertyEditor, OutButtons, ButtonsToIgnore, bUsingAssetPicker );
+	}
+
+	static bool IsPropertyButtonEnabled(TWeakPtr<FPropertyNode> PropertyNode)
+	{
+		return PropertyNode.IsValid() ? !PropertyNode.Pin()->IsEditConst() : false;
 	}
 
 	TSharedRef<SWidget> MakePropertyReorderHandle(const TSharedRef<FPropertyNode>& PropertyNode, TSharedPtr<SDetailSingleItemRow> InParentRow)
@@ -891,12 +898,6 @@ namespace PropertyEditorHelpers
 		}
 
 		return SelectionPathName;
-	}
-
-	
-	static bool IsPropertyButtonEnabled( TWeakPtr<FPropertyNode> PropertyNode )
-	{
-		return PropertyNode.IsValid() ? !PropertyNode.Pin()->IsEditConst() : false;
 	}
 
 	/**
