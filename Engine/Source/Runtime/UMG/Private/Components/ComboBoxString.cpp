@@ -235,6 +235,10 @@ void UComboBoxString::SetSelectedIndex(const int32 Index)
 			{
 				MyComboBox->SetSelectedItem(CurrentOptionPtr);
 				UpdateOrGenerateWidget(CurrentOptionPtr);
+			}		
+			else
+			{
+				HandleSelectionChanged(CurrentOptionPtr, ESelectInfo::Direct);
 			}
 		}
 	}
