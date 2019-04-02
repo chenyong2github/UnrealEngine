@@ -498,7 +498,13 @@ public:
 	float		CellSize;
 	FVector2D	SpatialBias;
 	float		ConnectionMaxZ = WORLD_MAX; // Connection locations have to be <= to this to pull from the grid
-	
+
+	/** When the GridBounds is set we limit the creation of cells to be exclusively inside the passed region.
+	    Viewers who gather nodes outside this region will be clamped to the closest cell inside the box.
+		Actors whose location is outside the box will be clamped to the closest cell inside the box.
+	*/
+	void SetBiasAndGridBounds(const FBox& GridBox);
+
 	// Allow graph to override function for creating cell nodes in this grid.
 	TFunction<UReplicationGraphNode_GridCell*(UReplicationGraphNode_GridSpatialization2D* Parent)>	CreateCellNodeOverride;
 
@@ -522,8 +528,13 @@ protected:
 
 private:
 
+	bool WillActorLocationGrowSpatialBounds(const FVector& Location) const;
+
 	/** Called when an actor is out of spatial bounds */
 	void HandleActorOutOfSpatialBounds(AActor* Actor, const FVector& Location3D, const bool bStaticActor);
+
+	// Optional value to limit the grid to a specific region
+	FBox GridBounds;
 
 	// Classmap of actor classes which CANNOT force a rebuild of the spatialization tree. They will be clamped instead. E.g, projectiles.
 	TClassMap<bool> RebuildSpatialBlacklistMap;

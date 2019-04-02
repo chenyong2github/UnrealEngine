@@ -6,20 +6,6 @@ FUserWidgetPool::FUserWidgetPool(UWidget& InOwningWidget)
 	: OwningWidget(&InOwningWidget)
 {}
 
-FUserWidgetPool& FUserWidgetPool::operator=(FUserWidgetPool&& Other)
-{
-	OwningWidget = Other.OwningWidget;
-
-	ActiveWidgets = MoveTemp(Other.ActiveWidgets);
-	InactiveWidgets = MoveTemp(Other.InactiveWidgets);
-	CachedSlateByWidgetObject = MoveTemp(Other.CachedSlateByWidgetObject);
-
-	Other.OwningWidget.Reset();
-	Other.ResetPool();
-
-	return *this;
-}
-
 FUserWidgetPool::~FUserWidgetPool()
 {
 	ResetPool();
@@ -28,6 +14,14 @@ FUserWidgetPool::~FUserWidgetPool()
 void FUserWidgetPool::SetWorld(UWorld* InOwningWorld)
 {
 	OwningWorld = InOwningWorld;
+}
+
+void FUserWidgetPool::RebuildWidgets()
+{
+	for (UUserWidget* Widget : ActiveWidgets)
+	{
+		CachedSlateByWidgetObject.Add(Widget, Widget->TakeWidget());
+	}
 }
 
 void FUserWidgetPool::AddReferencedObjects(FReferenceCollector& Collector)
@@ -66,5 +60,10 @@ void FUserWidgetPool::ResetPool()
 {
 	InactiveWidgets.Reset();
 	ActiveWidgets.Reset();
+	CachedSlateByWidgetObject.Reset();
+}
+
+void FUserWidgetPool::ReleaseSlateResources()
+{
 	CachedSlateByWidgetObject.Reset();
 }

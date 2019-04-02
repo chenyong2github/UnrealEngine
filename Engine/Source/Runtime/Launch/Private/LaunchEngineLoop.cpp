@@ -3403,11 +3403,16 @@ int32 FEngineLoop::Init()
 	// Ready to measure thread heartbeat
 	FThreadHeartBeat::Get().Start();
 
+    {
 #if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
-    void CheckImageIntegrity();
-    CheckImageIntegrity();
+        FShaderPipelineCache::PauseBatching();
+        void CheckImageIntegrity();
+        CheckImageIntegrity();
+        FShaderPipelineCache::ResumeBatching();
 #endif
-	{
+    }
+    
+    {
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnFEngineLoopInitComplete.Broadcast()");
 		FCoreDelegates::OnFEngineLoopInitComplete.Broadcast();
 	}
@@ -4278,9 +4283,9 @@ void FEngineLoop::Tick()
 #if BUILD_EMBEDDED_APP
 	static double LastSleepTime = FPlatformTime::Seconds();
 	double TimeNow = FPlatformTime::Seconds();
-	if (LastSleepTime - TimeNow >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
+	if (LastSleepTime > 0 && TimeNow - LastSleepTime >= CVarSecondsBeforeEmbeddedAppSleeps.GetValueOnAnyThread())
 	{
-		LastSleepTime = TimeNow;
+		LastSleepTime = 0;
 		FEmbeddedCommunication::AllowSleep(TEXT("FirstTicks"));
 	}
 #endif

@@ -442,8 +442,8 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRawRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRawRefBonePose();
+		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
+		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
@@ -498,8 +498,8 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		ControlRigBlueprint->Modify();
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRawRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRawRefBonePose();
+		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
+		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{

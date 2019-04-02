@@ -218,6 +218,23 @@ class APlayerController* UGameplayStatics::GetPlayerController(const UObject* Wo
 	return nullptr;
 }
 
+class APlayerController* UGameplayStatics::GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID)
+{
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			APlayerController* PlayerController = Iterator->Get();
+			int32 PlayerControllerID = GetPlayerControllerID(PlayerController);
+			if (PlayerControllerID != INDEX_NONE && PlayerControllerID == ControllerID)
+			{
+				return PlayerController;
+			}
+		}
+	}
+	return nullptr;
+}
+
 ACharacter* UGameplayStatics::GetPlayerCharacter(const UObject* WorldContextObject, int32 PlayerIndex)
 {
 	APlayerController* PC = GetPlayerController(WorldContextObject, PlayerIndex);
@@ -1217,7 +1234,12 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, class USou
 
 		NewActiveSound.bIsUISound = true;
 		NewActiveSound.bAllowSpatialization = false;
-		NewActiveSound.ConcurrencySet.Add(ConcurrencySettings);
+
+		if (ConcurrencySettings)
+		{
+			NewActiveSound.ConcurrencySet.Add(ConcurrencySettings);
+		}
+
 		NewActiveSound.Priority = Sound->Priority;
 		NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
 
@@ -1378,7 +1400,11 @@ UAudioComponent* UGameplayStatics::SpawnSoundAttached(USoundBase* Sound, USceneC
 	Params.SetLocation(TestLocation);
 	Params.bStopWhenOwnerDestroyed = bStopWhenAttachedToDestroyed;
 	Params.AttenuationSettings = AttenuationSettings;
-	Params.ConcurrencySet.Add(ConcurrencySettings);
+
+	if (ConcurrencySettings)
+	{
+		Params.ConcurrencySet.Add(ConcurrencySettings);
+	}
 
 	UAudioComponent* AudioComponent = FAudioDevice::CreateComponent(Sound, Params);
 	if (AudioComponent)

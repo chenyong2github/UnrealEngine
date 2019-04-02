@@ -167,6 +167,8 @@ void FOnlineSubsystemModule::LoadDefaultSubsystem()
 void FOnlineSubsystemModule::ReloadDefaultSubsystem()
 {
 	DestroyOnlineSubsystem(DefaultPlatformService);
+	// Clear our InstanceNames cache so we can re-establish it in case the DefaultPlatformService
+	InstanceNames.Empty();
 	LoadDefaultSubsystem();
 }
 
@@ -233,14 +235,6 @@ void FOnlineSubsystemModule::EnumerateOnlineSubsystems(FEnumerateOnlineSubsystem
 
 FName FOnlineSubsystemModule::ParseOnlineSubsystemName(const FName& FullName, FName& SubsystemName, FName& InstanceName) const
 {
-	struct FInstanceNameEntry
-	{
-		FName SubsystemName;
-		FName InstanceName;
-		FName FullPath;
-	};
-	static TMap<FName, FInstanceNameEntry> InstanceNames;
-
 	FInstanceNameEntry* Entry = InstanceNames.Find(FullName);
 	if (Entry)
 	{
@@ -311,7 +305,7 @@ IOnlineSubsystem* FOnlineSubsystemModule::GetOnlineSubsystem(const FName InSubsy
 
 				if (OSSFactory != nullptr)
 				{
-					UE_LOG_ONLINE(Verbose, TEXT("Creating online subsystem instance for: %s"), *InSubsystemName.ToString());
+					UE_LOG_ONLINE(Log, TEXT("Creating online subsystem instance for: %s"), *InSubsystemName.ToString());
 						
 					IOnlineSubsystemPtr NewSubsystemInstance = (*OSSFactory)->CreateSubsystem(InstanceName);
 					if (NewSubsystemInstance.IsValid())

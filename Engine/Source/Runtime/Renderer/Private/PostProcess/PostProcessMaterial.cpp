@@ -231,7 +231,7 @@ public:
 TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVertexDeclaration;
 
 template<typename TPixelShader>
-FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphicsPipelineStateInitializer &GraphicsPSOInit, FRenderingCompositePassContext &Context, FMaterialRenderProxy* Proxy, uint32 StencilRefValue)
+FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphicsPipelineStateInitializer &GraphicsPSOInit, FRenderingCompositePassContext &Context, FMaterialRenderProxy* Proxy)
 {
 	TPixelShader* PixelShader_Mobile = MaterialShaderMap->GetShader<TPixelShader>();
 	FPostProcessMaterialVS_Mobile* VertexShader_Mobile = MaterialShaderMap->GetShader<FPostProcessMaterialVS_Mobile>();
@@ -241,7 +241,6 @@ FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphics
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_Mobile);
 
 	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-	Context.RHICmdList.SetStencilRef(StencilRefValue);
 
 	VertexShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
 	PixelShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
@@ -447,12 +446,13 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			// use mobile's post process material.
 			if (bViewSizeMatchesBufferSize)
 			{
-				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile0>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy, StencilRefValue);
+				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile0>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
 			}
 			else
 			{
-				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile1>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy, StencilRefValue);
+				VertexShader = SetMobileShaders< FPostProcessMaterialPS_Mobile1>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
 			}
+			Context.RHICmdList.SetStencilRef(StencilRefValue);
 		}
 		// Uses highend post process material that assumed ViewSize == BufferSize.
 		else if (bViewSizeMatchesBufferSize)

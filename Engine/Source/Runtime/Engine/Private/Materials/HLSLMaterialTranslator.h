@@ -3808,11 +3808,6 @@ protected:
 					// SceneColor.A channel holds depth till BeforeTonemapping location, then it's gets overwritten
 					return Errorf(TEXT("SceneDepth lookups are only available when BlendableLocation is BeforeTranslucency or BeforeTonemapping"));
 				}
-				
-				if (ViewportUV == INDEX_NONE)
-				{
-					UV = TextureCoordinate(0, false, false);
-				}
 			}
 			
 			return AddCodeChunk(MCT_Float4,	TEXT("MobileSceneTextureLookup(Parameters, %d, %s)"), (int32)SceneTextureId, *CoerceParameter(UV, MCT_Float2));

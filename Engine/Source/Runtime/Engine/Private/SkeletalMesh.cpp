@@ -771,6 +771,8 @@ FArchive &operator<<( FArchive& Ar, FSkeletalMeshLODInfo& I )
 	}
 #endif
 
+	// fortnite version
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
 	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::RemoveTriangleSorting)
 	{
@@ -1339,7 +1341,7 @@ void USkeletalMesh::CalculateInvRefMatrices()
 #if WITH_EDITORONLY_DATA
 		if(RetargetBasePose.Num() == 0)
 		{
-			RetargetBasePose = RefSkeleton.GetRawRefBonePose();
+			RetargetBasePose = RefSkeleton.GetRefBonePose();
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
@@ -1687,6 +1689,40 @@ void USkeletalMesh::PostLoad()
 	if (RetargetBasePose.Num() == 0 && !GetOutermost()->bIsCookedForEditor)
 	{
 		RetargetBasePose = RefSkeleton.GetRefBonePose();
+	}
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SupportVirtualBoneInRetargeting)
+	{
+		// if we have virtual joints, we make sure Retarget Base Pose matches
+		const int32 VBNum = RefSkeleton.GetVirtualBoneRefData().Num();
+		if (VBNum > 0)
+		{
+			if (ensure(RefSkeleton.GetRawBoneNum() + VBNum == RefSkeleton.GetNum()))
+			{
+				// we're expecting current RetargetBasePose matches raw bone count
+				if (ensure(RetargetBasePose.Num() == RefSkeleton.GetRawBoneNum()))
+				{
+					// attach VB transform, we don't want to destroy the current retarget base pose
+					RetargetBasePose.AddUninitialized(VBNum);
+					const int32 RawBoneNum = RefSkeleton.GetRawBoneNum();
+					const TArray<FTransform>& RawBonePose = RefSkeleton.GetRefBonePose();
+					check(RetargetBasePose.GetTypeSize() == RawBonePose.GetTypeSize());
+					const int32 ElementSize = RetargetBasePose.GetTypeSize();
+					FMemory::Memcpy(RetargetBasePose.GetData() + RawBoneNum, RawBonePose.GetData() + RawBoneNum, ElementSize*VBNum);
+				}
+				else
+				{
+					// we override current RetargetBasePose
+					ensureMsgf(false, TEXT("The retarget base pose size doesn't match as expected with virtual bone. This will be overriden."));
+					RetargetBasePose = RefSkeleton.GetRefBonePose();
+				}
+			}
+			else // this is odd, this shouldn't happen
+			{
+				ensureMsgf(false, TEXT("The retarget base pose size doesn't match as expected with virtual bone. This will be overriden."));
+				RetargetBasePose = RefSkeleton.GetRefBonePose();
+			}
+		}
 	}
 #endif
 
@@ -2158,7 +2194,7 @@ FString USkeletalMesh::GetDetailedInfoInternal() const
 
 FMatrix USkeletalMesh::GetRefPoseMatrix( int32 BoneIndex ) const
 {
-	check( BoneIndex >= 0 && BoneIndex < RefSkeleton.GetRawBoneNum() );
+ 	check( BoneIndex >= 0 && BoneIndex < RefSkeleton.GetRawBoneNum() );
 	FTransform BoneTransform = RefSkeleton.GetRawRefBonePose()[BoneIndex];
 	// Make sure quaternion is normalized!
 	BoneTransform.NormalizeRotation();
@@ -3111,12 +3147,7 @@ void USkeletalMesh::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeIte
 	FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, RefSkeleton.GetRefBonePose(), ComponentSpaceRefPose);
 #endif // 
 
-	// @todo: for now we support raw bones, no virtual bone
-	// arggg this is for retarget manager, not for control rig 
-	ensureMsgf(RefSkeleton.GetRawBoneNum() == RefSkeleton.GetNum(), TEXT("We don't support virtual bone for retargeting yet"));
-	check(ComponentSpaceRefPose.Num() == RefSkeleton.GetRawBoneNum());
-
-	const int32 NumJoint = RefSkeleton.GetRawBoneNum();
+	const int32 NumJoint = RefSkeleton.GetNum();
 	// allocate buffer
 	OutNames.Reset(NumJoint);
 	OutNodeItems.Reset(NumJoint);

@@ -60,6 +60,13 @@ namespace Audio
 
 		check(WaveInstance->WaveData);
 
+		if (WaveInstance->WaveData->NumChannels == 0)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Soundwave %s has invalid compressed data."), *(WaveInstance->WaveData->GetName()));
+			FreeResources();
+			return false;
+		}
+
 		// Get the number of frames before creating the buffer
 		int32 NumFrames = INDEX_NONE;
 		if (WaveInstance->WaveData->DecompressionType != DTYPE_Procedural)

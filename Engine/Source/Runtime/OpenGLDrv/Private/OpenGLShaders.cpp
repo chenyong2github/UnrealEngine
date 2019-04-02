@@ -2150,8 +2150,9 @@ class FGLProgramCacheLRU
 			}
 			else
 			{
+				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *LinkedProgram->Config.ProgramKey.ToString(), LinkedProgram->Program, GetProgramBinary().Num() );
 				RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreate"));
-				UE_LOG(LogRHI, Fatal, TEXT("RestoreGLProgramFromBinary : Failed to restore GL program from binary data!"));
+				UE_LOG(LogRHI, Fatal, TEXT("RestoreGLProgramFromBinary : Failed to restore GL program from binary data! [%s]"), *LinkedProgram->Config.ProgramKey.ToString());
 			}
 		}
 
@@ -3748,7 +3749,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 #endif //DEBUG_GL_SHADERS
 					FName LinkFailurePanic = bFromPSOFileCache ? FName("FailedProgramLinkDuringPrecompile") : FName("FailedProgramLink");
 					RHIGetPanicDelegate().ExecuteIfBound(LinkFailurePanic);
-					UE_LOG(LogRHI, Fatal, TEXT("Failed to link program. Current total programs: %d, precompile: %d"), GNumPrograms, (uint32)bFromPSOFileCache);
+					UE_LOG(LogRHI, Fatal, TEXT("Failed to link program [%s]. Current total programs: %d, precompile: %d"), *Config.ProgramKey.ToString(), GNumPrograms, (uint32)bFromPSOFileCache);
 				}
 
 				GetOpenGLProgramsCache().Add(Config.ProgramKey, LinkedProgram);
@@ -5120,8 +5121,9 @@ bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, co
 			bool bSuccess = CreateGLProgramFromBinary(ProgramOUT, CachedProgramBinaryOUT);
 			if (!bSuccess)
 			{
+				UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *ProgramKey.ToString(), ProgramOUT, CachedProgramBinaryOUT.Num());
 				RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreateFromOldCache"));
-				UE_LOG(LogRHI, Fatal, TEXT("UseCachedProgram : Failed to create GL program from binary data while BuildingCacheFileWithMove!"));
+				UE_LOG(LogRHI, Fatal, TEXT("UseCachedProgram : Failed to create GL program from binary data while BuildingCacheFileWithMove! [%s]"), *ProgramKey.ToString());
 			}
 			SetNewProgramStats(ProgramOUT);
 			// Now write to new cache, we're returning true here so no attempt will be made to add it back to the cache later.
@@ -5263,8 +5265,9 @@ void FOpenGLProgramBinaryCache::CompleteLoadedGLProgramRequest_internal(FGLProgr
 		bool bSuccess = CreateGLProgramFromBinary(PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData);
 		if(!bSuccess)
 		{
-			RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreate"));
-			UE_LOG(LogRHI, Fatal, TEXT("CompleteLoadedGLProgramRequest_internal : Failed to create GL program from binary data!"));
+			UE_LOG(LogRHI, Log, TEXT("[%s, %d, %d]"), *ProgramKey.ToString(), PendingGLCreate->GLProgramId, PendingGLCreate->ProgramBinaryData.Num() );
+			RHIGetPanicDelegate().ExecuteIfBound(FName("FailedBinaryProgramCreateLoadRequest"));
+			UE_LOG(LogRHI, Fatal, TEXT("CompleteLoadedGLProgramRequest_internal : Failed to create GL program from binary data! [%s]"), *ProgramKey.ToString());
 		}
 		VerifyProgramPipeline(PendingGLCreate->GLProgramId);
 		FOpenGLLinkedProgram* NewLinkedProgram = new FOpenGLLinkedProgram(ProgramKey, PendingGLCreate->GLProgramId);

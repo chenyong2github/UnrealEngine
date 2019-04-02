@@ -37,7 +37,8 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	WidgetStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
+	static const FEditableTextBoxStyle StaticNormalEditableTextBox = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
+	WidgetStyle = StaticNormalEditableTextBox;
 }
 
 void UEditableTextBox::ReleaseSlateResources(bool bReleaseChildren)

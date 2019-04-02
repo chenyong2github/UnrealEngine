@@ -35,6 +35,7 @@ public:
 	ESocialUserStateFlags RequiredPresenceFlags = ESocialUserStateFlags::None;
 	ESocialUserStateFlags ForbiddenPresenceFlags = ESocialUserStateFlags::None;
 	FOnCustomFilterUser OnCustomFilterUser;
+	bool bRequireAutoUpdate = false;
 };
 
 class ISocialUserList
@@ -56,6 +57,9 @@ public:
 
 	/** Trigger an update of the list immediately, regardless of auto update period */
 	virtual void UpdateNow() = 0;
+
+	/** Give external overwrite to disable list auto update for perf */
+	virtual void SetAllowAutoUpdate(bool bIsEnabled) = 0;
 
 	/** Sets the period at which to update the list with all users that  */
 	virtual void SetAutoUpdatePeriod(float InAutoUpdatePeriod) = 0;

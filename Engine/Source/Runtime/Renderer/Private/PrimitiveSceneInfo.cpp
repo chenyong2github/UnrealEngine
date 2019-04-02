@@ -11,6 +11,7 @@
 #include "SceneCore.h"
 #include "VelocityRendering.h"
 #include "ScenePrivate.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 
 /** An implementation of FStaticPrimitiveDrawInterface that stores the drawn elements for the rendering thread to use. */
@@ -390,6 +391,8 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 
 void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, bool bAddToStaticDrawLists)
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
+
 	// Cache the primitive's static mesh elements.
 	FBatchingSPDI BatchingSPDI(this);
 	BatchingSPDI.SetHitProxy(DefaultDynamicHitProxy);

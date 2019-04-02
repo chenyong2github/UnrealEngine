@@ -10,6 +10,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/UnrealType.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
@@ -4953,6 +4954,8 @@ FParticleEmitterInstance* UParticleModuleTypeDataGpu::CreateInstance(UParticleEm
 	FParticleEmitterInstance* Instance = NULL;
 	if (World->Scene && RHISupportsGPUParticles())
 	{
+		LLM_SCOPE(ELLMTag::Particles);
+
 		check( InComponent && InComponent->FXSystem );
 		Instance = InComponent->FXSystem->CreateGPUSpriteEmitterInstance( EmitterInfo );
 		Instance->InitParameters( InEmitterParent, InComponent );

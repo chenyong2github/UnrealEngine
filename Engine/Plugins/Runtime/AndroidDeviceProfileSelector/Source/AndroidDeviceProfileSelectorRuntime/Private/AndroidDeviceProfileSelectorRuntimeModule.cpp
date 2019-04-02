@@ -57,6 +57,19 @@ FString const FAndroidDeviceProfileSelectorRuntimeModule::GetRuntimeDeviceProfil
 		FString DeviceMake = FAndroidMisc::GetDeviceMake();
 		FString DeviceModel = FAndroidMisc::GetDeviceModel();
 		FString DeviceBuildNumber = FAndroidMisc::GetDeviceBuildNumber();
+		
+		FString Hardware = FString(TEXT("unknown"));
+		FString Chipset = FString(TEXT("unknown"));
+		FString *HardwareLookup = FAndroidMisc::GetConfigRulesVariable(TEXT("hardware"));
+		if (HardwareLookup != nullptr)
+		{
+			Hardware = *HardwareLookup;
+		}
+		FString *ChipsetLookup = FAndroidMisc::GetConfigRulesVariable(TEXT("chipset"));
+		if (ChipsetLookup != nullptr)
+		{
+			Chipset = *ChipsetLookup;
+		}
 
 #if !(PLATFORM_ANDROID_X86 || PLATFORM_ANDROID_X64)
 		// Not running an Intel libUE4.so with Houdini library present means we're emulated
@@ -77,6 +90,8 @@ FString const FAndroidDeviceProfileSelectorRuntimeModule::GetRuntimeDeviceProfil
 		UE_LOG(LogAndroid, Log, TEXT("  DeviceModel: %s"), *DeviceModel);
 		UE_LOG(LogAndroid, Log, TEXT("  DeviceBuildNumber: %s"), *DeviceBuildNumber);
 		UE_LOG(LogAndroid, Log, TEXT("  UsingHoudini: %s"), *UsingHoudini);
+		UE_LOG(LogAndroid, Log, TEXT("  Hardware: %s"), *Hardware);
+		UE_LOG(LogAndroid, Log, TEXT("  Chipset: %s"), *Chipset);
 
 		CheckForJavaSurfaceViewWorkaround(DeviceMake, DeviceModel);
 
@@ -90,7 +105,7 @@ FString const FAndroidDeviceProfileSelectorRuntimeModule::GetRuntimeDeviceProfil
 		else
 		{
 			// Find a match with the DeviceProfiles matching rules
-			ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, ProfileName);
+			ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, Hardware, Chipset, ProfileName);
 			UE_LOG(LogAndroid, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
 		}
 	}

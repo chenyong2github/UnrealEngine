@@ -13,42 +13,50 @@
 * SOFTWARE.
 */
 #include "vivoxclientapi/audiodeviceid.h"
-#include <string.h>
+#include "allocator_utils.h"
 
 namespace VivoxClientApi {
+	AudioDeviceId::~AudioDeviceId()
+	{
+		Deallocate((void*)m_deviceId);
+		Deallocate((void*)m_displayName);
+	}
     AudioDeviceId::AudioDeviceId() {
-        m_deviceId = "";
-        m_displayName = "";
-    }
-    AudioDeviceId::AudioDeviceId(const std::string &device_id, const std::string &display_name) {
-        m_deviceId = device_id;
-        m_displayName = display_name;
+        m_deviceId = StrDup("");
+		m_displayName = StrDup("");
     }
     AudioDeviceId::AudioDeviceId(const char *device_id, const char *display_name) {
-        m_deviceId = device_id;
-        m_displayName = display_name;
+		m_deviceId = StrDup(device_id);
+		m_displayName = StrDup(display_name);
     }
-    const std::string & AudioDeviceId::GetAudioDeviceId() const {
+	AudioDeviceId::AudioDeviceId(const AudioDeviceId& other)
+	{
+		m_deviceId = StrDup(other.m_deviceId);
+		m_displayName = StrDup(other.m_displayName);
+	}
+    const char* const AudioDeviceId::GetAudioDeviceId() const {
         return m_deviceId;
     }
-    const std::string & AudioDeviceId::GetAudioDeviceDisplayName() const {
+    const char* const AudioDeviceId::GetAudioDeviceDisplayName() const {
         return m_displayName;
     }
-    bool AudioDeviceId::operator == (const AudioDeviceId &RHS) const {
-        return m_deviceId == RHS.m_deviceId;
+    bool AudioDeviceId::operator==(const AudioDeviceId &RHS) const {
+        return strcmp(m_deviceId,RHS.m_deviceId) == 0;
     }
-    bool AudioDeviceId::operator != (const AudioDeviceId &RHS) const {
+    bool AudioDeviceId::operator!=(const AudioDeviceId &RHS) const {
         return !operator==(RHS);
     }
-    AudioDeviceId & AudioDeviceId::operator =(const AudioDeviceId &RHS) {
-        m_deviceId = RHS.m_deviceId;
-        m_displayName = RHS.m_displayName;
+    AudioDeviceId & AudioDeviceId::operator=(const AudioDeviceId &RHS) {
+		Deallocate((void*)m_deviceId);
+        m_deviceId = StrDup(RHS.m_deviceId);
+		Deallocate((void*)m_displayName);
+        m_displayName = StrDup(RHS.m_displayName);
         return *this;
     }
-    bool AudioDeviceId::operator < (const AudioDeviceId &RHS) const {
-        return m_deviceId < RHS.m_deviceId;
+    bool AudioDeviceId::operator<(const AudioDeviceId &RHS) const {
+        return strcmp(m_deviceId, RHS.m_deviceId) < 0;
     }
     bool AudioDeviceId::IsValid() const {
-        return m_deviceId != "";
+        return m_deviceId[0] != 0;
     }
 }

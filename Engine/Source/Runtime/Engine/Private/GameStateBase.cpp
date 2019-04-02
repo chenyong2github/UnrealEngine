@@ -12,6 +12,8 @@
 
 DEFINE_LOG_CATEGORY(LogGameState);
 
+DEFINE_STAT(STAT_GetPlayerStateFromUniqueId);
+
 AGameStateBase::AGameStateBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer
 		.DoNotCreateDefaultSubobject(TEXT("Sprite")) )
@@ -219,4 +221,19 @@ void AGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 	DOREPLIFETIME( AGameStateBase, ReplicatedWorldTimeSeconds );
 	DOREPLIFETIME( AGameStateBase, bReplicatedHasBegunPlay );
+}
+
+APlayerState* AGameStateBase::GetPlayerStateFromUniqueNetId(const FUniqueNetIdWrapper& InPlayerId) const
+{
+	SCOPE_CYCLE_COUNTER(STAT_GetPlayerStateFromUniqueId);
+	const TArray<APlayerState*>& Players = PlayerArray;
+	for (APlayerState* Player : Players)
+	{
+		if (Player->UniqueId == InPlayerId)
+		{
+			return Player;
+		}
+	}
+
+	return nullptr;
 }

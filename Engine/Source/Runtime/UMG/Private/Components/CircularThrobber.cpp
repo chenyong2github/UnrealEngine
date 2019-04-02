@@ -16,7 +16,8 @@ UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer
 	, bEnableRadius(true)
 {
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	Image = *FCoreStyle::Get().GetBrush("Throbber.CircleChunk");
+	static const FSlateBrush StaticBrushStyle = *FCoreStyle::Get().GetBrush("Throbber.CircleChunk");
+	Image = StaticBrushStyle;
 
 	NumberOfPieces = 6;
 	Period = 0.75f;

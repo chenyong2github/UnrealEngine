@@ -43,6 +43,8 @@ void FApplePlatformBackgroundHttpManager::Initialize()
 	GConfig->GetInt(TEXT("BackgroundHttp.iOSSettings"), TEXT("BackgroundHttp.RetryResumeDataLimit"), RetryResumeDataLimitSetting, GEngineIni);
 
 	SetupNSURLSessionResponseDelegates();
+
+	FBackgroundHttpManagerImpl::Initialize();
 }
 
 void FApplePlatformBackgroundHttpManager::PopulateUnAssociatedTasks()

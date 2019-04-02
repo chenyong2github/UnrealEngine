@@ -97,12 +97,6 @@ void FMetalBlitCommandEncoderDebugging::Synchronize(mtlpp::Resource const& resou
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(resource);
-		}
 		default:
 		{
 			break;
@@ -121,12 +115,6 @@ void FMetalBlitCommandEncoderDebugging::Synchronize(FMetalTexture const& texture
 		case EMetalDebugLevelLogOperations:
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
-		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(texture);
 		}
 		default:
 		{
@@ -148,13 +136,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalTexture const& sourceTexture,
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceTexture);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationTexture);
-		}
 		default:
 		{
 			break;
@@ -173,13 +154,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalBuffer const& sourceBuffer, N
 		case EMetalDebugLevelLogOperations:
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
-		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceBuffer);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationTexture);
 		}
 		default:
 		{
@@ -200,13 +174,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalBuffer const& sourceBuffer, N
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceBuffer);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationTexture);
-		}
 		default:
 		{
 			break;
@@ -225,13 +192,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalTexture const& sourceTexture,
 		case EMetalDebugLevelLogOperations:
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
-		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceTexture);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationBuffer);
 		}
 		default:
 		{
@@ -252,13 +212,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalTexture const& sourceTexture,
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceTexture);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationBuffer);
-		}
 		default:
 		{
 			break;
@@ -277,12 +230,6 @@ void FMetalBlitCommandEncoderDebugging::GenerateMipmaps(FMetalTexture const& tex
 		case EMetalDebugLevelLogOperations:
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
-		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(texture);
 		}
 		default:
 		{
@@ -303,12 +250,6 @@ void FMetalBlitCommandEncoderDebugging::Fill(FMetalBuffer const& buffer, ns::Ran
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
 		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(buffer);
-		}
 		default:
 		{
 			break;
@@ -327,13 +268,6 @@ void FMetalBlitCommandEncoderDebugging::Copy(FMetalBuffer const& sourceBuffer, N
 		case EMetalDebugLevelLogOperations:
 		{
 			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.Blit([NSString stringWithFormat:@"%s", __PRETTY_FUNCTION__]);
-		}
-		case EMetalDebugLevelValidation:
-		case EMetalDebugLevelResetOnBind:
-		case EMetalDebugLevelTrackResources:
-		{
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(sourceBuffer);
-			((FMetalDebugBlitCommandEncoder*)m_ptr)->Buffer.TrackResource(destinationBuffer);
 		}
 		default:
 		{

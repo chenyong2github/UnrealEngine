@@ -3114,7 +3114,12 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 	uint16 PakIndex;
 	FSHAHash MasterSignatureHash;
 	static const int64 MaxHashesToCache = 16;
+
+#if PAKHASH_USE_CRC
+	TPakChunkHash HashCache[MaxHashesToCache] = { 0 };
+#else
 	TPakChunkHash HashCache[MaxHashesToCache];
+#endif
 
 	{
 		// Try and keep lock for as short a time as possible. Find our request and copy out the data we need
@@ -3284,6 +3289,8 @@ public:
 	}
 	virtual IAsyncReadRequest* ReadRequest(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags = AIOP_Normal, FAsyncFileCallBack* CompleteCallback = nullptr, uint8* UserSuppliedMemory = nullptr) override
 	{
+		LLM_SCOPE(ELLMTag::FileSystem);
+
 		if (BytesToRead == MAX_int64)
 		{
 			BytesToRead = UncompressedFileSize - Offset;

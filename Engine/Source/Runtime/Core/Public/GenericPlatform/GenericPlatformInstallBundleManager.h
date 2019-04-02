@@ -78,7 +78,10 @@ inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleI
 enum class EInstallBundleRequestFlags : uint32
 {
 	None = 0,
-	CheckForCellularDataUsage = (1 << 0),
+	CheckForInternetConnection = (1 << 0),
+	CheckForCellularDataUsage = (1 << 1),
+	UseBackgroundDownloads = (1 << 2),
+	Defaults = CheckForInternetConnection | UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
@@ -136,6 +139,8 @@ struct FInstallBundleContentState
 {
 	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
 	uint64 DownloadSize = 0;
+	uint64 InstallSize = 0;	
+	uint64 FreeSpace = 0;
 };
 
 enum class EInstallBundleRequestInfoFlags : int32
@@ -210,9 +215,14 @@ public:
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
 
+	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
+
 	virtual bool IsNullInterface() const = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
+
+	// return true if we actually cleaned up a migration directory
+	virtual bool CleanupMigrationDirectory() { return false;  }
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface

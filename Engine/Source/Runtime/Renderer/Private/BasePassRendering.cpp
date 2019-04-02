@@ -944,7 +944,6 @@ void FBasePassMeshProcessor::Process(
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
 
-	const bool bEnableReceiveDecalOutput = Scene != nullptr;
 	SetDepthStencilStateForBasePass(DrawRenderState, FeatureLevel, MeshBatch, PrimitiveSceneProxy, bEnableReceiveDecalOutput, false, nullptr);
 
 	if (bTranslucentBasePass)
@@ -1509,6 +1508,8 @@ FBasePassMeshProcessor::FBasePassMeshProcessor(const FScene* Scene, ERHIFeatureL
 	, PassDrawRenderState(InDrawRenderState)
 	, TranslucencyPassType(InTranslucencyPassType)
 	, bTranslucentBasePass(InTranslucencyPassType != ETranslucencyPass::TPT_MAX)
+	  // Defaults to true for cached mesh draw commands, which can't use view and view ptr is nullptr.
+	, bEnableReceiveDecalOutput(InViewIfDynamicMeshCommand ? (InViewIfDynamicMeshCommand->Family->EngineShowFlags.Decals == 1) : true) 
 	, EarlyZPassMode(Scene ? Scene->EarlyZPassMode : DDM_None)
 {
 }

@@ -421,7 +421,10 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		{
 			const int8 MaterialLOD = It.Value();
 
-			MobileCombinationMaterialInstances[MobileMaterialIndex] = GetCombinationMaterial(&Context, MobileWeightmapLayerAllocations, MaterialLOD, true);
+			UMaterialInstanceConstant* MobileCombinationMaterialInstance = GetCombinationMaterial(&Context, MobileWeightmapLayerAllocations, MaterialLOD, true);
+			MobileCombinationMaterialInstances[MobileMaterialIndex] = MobileCombinationMaterialInstance;
+			Context.AddMaterialInstance(MobileCombinationMaterialInstance);
+						
 			++MobileMaterialIndex;
 		}
 	}
@@ -651,7 +654,7 @@ void ULandscapeComponent::FixupWeightmaps()
 				if (TempUsage == nullptr)
 				{
 					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
-					(*TempUsage)->ProceduralLayerGuid.Invalidate();
+					(*TempUsage)->LayerGuid.Invalidate();
 				}
 
 				ULandscapeWeightmapUsage* Usage = *TempUsage;
@@ -2814,9 +2817,9 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 	// Must be after the FMaterialUpdateContext is destroyed
 	RecreateRenderStateContexts.Reset();
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		SetupProceduralLayers(NumComponentsX, NumComponentsY);
+		SetupLayers(NumComponentsX, NumComponentsY);
 	}
 
 	if (GetLevel()->bIsVisible)
@@ -4654,9 +4657,9 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			{
 				ULandscapeWeightmapUsage* TryWeightmapUsage = ItPair.Value;
 				//
-				FGuid ProceduralLayerGuidToSeek = InCanUseCurrentEditingWeightmap ? CurrentProceduralLayerGuid : FGuid();
+				FGuid LayerGuidToSeek = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
 
-				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->ProceduralLayerGuid == ProceduralLayerGuidToSeek)
+				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == LayerGuidToSeek)
 				{
 					if (TryWeightmapUsage->FreeChannelCount() == 4)
 					{
@@ -4717,7 +4720,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 			// Store it in the usage map
 			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
-			CurrentWeightmapUsage->ProceduralLayerGuid = InCanUseCurrentEditingWeightmap ? CurrentProceduralLayerGuid : FGuid();
+			CurrentWeightmapUsage->LayerGuid = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
 
@@ -5047,7 +5050,7 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 	LODIndexToMaterialIndex.Empty(1);
 	LODIndexToMaterialIndex.Add(0);
 
-	//  TODO: need to update procedural?
+	//  TODO: need to update layer system?
 }
 
 #define MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM		16
