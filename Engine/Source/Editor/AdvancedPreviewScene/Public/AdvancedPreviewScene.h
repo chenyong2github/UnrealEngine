@@ -73,7 +73,6 @@ protected:
 
 protected:
 	UStaticMeshComponent* SkyComponent;
-	USphereReflectionCaptureComponent* SphereReflectionComponent;
 	UMaterialInstanceConstant* InstancedSkyMaterial;
 	UPostProcessComponent* PostProcessComponent;
 	UStaticMeshComponent* FloorMeshComponent;
@@ -85,8 +84,6 @@ protected:
 
 	bool bSkyChanged;
 	bool bPostProcessing;
-
-	bool bUseSkylight;
 
 	int32 CurrentProfileIndex;
 
