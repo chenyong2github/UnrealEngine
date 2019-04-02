@@ -3,10 +3,13 @@
 #pragma once
 
 #include "EdGraph/EdGraph.h"
+#include "Graph/ControlRigGraphNode.h"
+#include "Hierarchy.h"
 #include "ControlRigGraph.generated.h"
 
 class UControlRigBlueprint;
 class UControlRigGraphSchema;
+class UControlRig;
 
 UCLASS()
 class CONTROLRIGDEVELOPER_API UControlRigGraph : public UEdGraph
@@ -21,5 +24,24 @@ public:
 
 	/** Get the skeleton graph schema */
 	const UControlRigGraphSchema* GetControlRigGraphSchema();
+
+#if WITH_EDITORONLY_DATA
+	/** Customize blueprint changes based on backwards compatibility */
+	virtual void Serialize(FArchive& Ar) override;
+#endif
+#if WITH_EDITOR
+	virtual void PostLoad() override;
+	void OnBlueprintCompiledPostLoad(UBlueprint*);
+	FDelegateHandle BlueprintOnCompiledHandle;
+	void CacheBoneNameList(const FRigHierarchy& Hierarchy);
+	const TArray<TSharedPtr<FString>>& GetBoneNameList() const;
+
+private:
+
+	TArray<UControlRigGraphNode*> FoundHierarchyRefVariableNodes;
+	TArray<UControlRigGraphNode*> FoundHierarchyRefMutableNodes;
+	TMap<UControlRigGraphNode*, TArray<UControlRigGraphNode*>> FoundHierarchyRefConnections;
+	TArray<TSharedPtr<FString>> BoneNameList;
+#endif
 };
 

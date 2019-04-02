@@ -17,7 +17,7 @@
 class UControlRigGraphNode;
 
 UCLASS(Transient)
-class UControlRigPropertyNodeSpawner : public UBlueprintFieldNodeSpawner
+class CONTROLRIGEDITOR_API UControlRigPropertyNodeSpawner : public UBlueprintFieldNodeSpawner
 {
 	GENERATED_BODY()
 
