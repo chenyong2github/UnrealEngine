@@ -2866,6 +2866,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
         	}
         });
 
+//$${gameActivityAfterMainViewCreatedAdditions}$$
+
 		clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
 
 //$${gameActivityOnCreateAdditions}$$
