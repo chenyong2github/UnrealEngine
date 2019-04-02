@@ -147,6 +147,11 @@ public:
 		RHIContext->RHIPopEvent();
 	}
 
+	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) override final
+	{
+		RHIContext->RHIWriteGPUFence(FenceRHI);
+	}
+
 	IRHIComputeContext* RHIContext;
 	FValidationRHI*		RHI;
 
@@ -774,6 +779,11 @@ public:
 		checkf(State.bInsideComputePass, TEXT("Can't end a compute pass without a Begin!"), *State.ComputePassName);
 		RHIContext->RHIEndComputePass();
 		State.bInsideComputePass = false;
+	}
+
+	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) override final
+	{
+		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}
 
 	virtual void RHICopyTexture(FTextureRHIParamRef SourceTexture, FTextureRHIParamRef DestTexture, const FRHICopyTextureInfo& CopyInfo) override final
