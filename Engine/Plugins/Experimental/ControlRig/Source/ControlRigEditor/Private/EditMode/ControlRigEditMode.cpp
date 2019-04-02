@@ -26,7 +26,7 @@
 #include "ControlRigEditorModule.h"
 #include "ControlUnitProxy.h"
 #include "Constraint.h"
-#include "Units/RigUnit_Control.h"
+#include "Units/Control/RigUnit_Control.h"
 #include "ControlRigControl.h"
 #include "EngineUtils.h"
 #include "ControlRigBlueprintGeneratedClass.h"
@@ -52,7 +52,7 @@ enum class ETransformComponent
 FControlRigEditMode::FControlRigEditMode()
 	: bIsTransacting(false)
 	, bManipulatorMadeChange(false)
-	, bSelectedJoint(false)
+	, bSelectedBone(false)
 	, bSelecting(false)
 	, bSelectingByPath(false)
 	, PivotTransform(FTransform::Identity)
@@ -278,7 +278,7 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 
 	if(UControlRig* ControlRig = WeakControlRig.Get())
 	{
-		if (bSelectedJoint)
+		if (bSelectedBone)
 		{
 			if(AreControlsSelected())
 			{
@@ -307,7 +307,7 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		}
 
 		ViewportClient->Invalidate();
-		bSelectedJoint = false;
+		bSelectedBone = false;
 
 		// If we have detached from sequencer, unbind the settings UI
 		if (!WeakSequencer.IsValid() && Settings->Sequence != nullptr)
@@ -370,16 +370,16 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
 				FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
 
-				// each base hierarchy Joint
+				// each base hierarchy Bone
 				const FRigHierarchy& BaseHierarchy = ControlRig->GetBaseHierarchy();
-				for (int32 JointIndex = 0; JointIndex < BaseHierarchy.Joints.Num(); ++JointIndex)
+				for (int32 BoneIndex = 0; BoneIndex < BaseHierarchy.Bones.Num(); ++BoneIndex)
 				{
-					const FRigJoint& CurrentJoint = BaseHierarchy.Joints[JointIndex];
-					const FTransform Transform = BaseHierarchy.GetGlobalTransform(JointIndex);
+					const FRigBone& CurrentBone = BaseHierarchy.Bones[BoneIndex];
+					const FTransform Transform = BaseHierarchy.GetGlobalTransform(BoneIndex);
 
-					if (CurrentJoint.ParentIndex != INDEX_NONE)
+					if (CurrentBone.ParentIndex != INDEX_NONE)
 					{
-						const FTransform ParentTransform = BaseHierarchy.GetGlobalTransform(CurrentJoint.ParentIndex);
+						const FTransform ParentTransform = BaseHierarchy.GetGlobalTransform(CurrentBone.ParentIndex);
 
 						PDI->DrawLine(Transform.GetLocation(), ParentTransform.GetLocation(), FLinearColor::White, SDPG_Foreground);
 					}
@@ -388,7 +388,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				}
 			}
 
-			// @TODO: debug drawing per rig Joint (like details customizations) for this
+			// @TODO: debug drawing per rig Bone (like details customizations) for this
 
 // 			if (Settings->bDisplayTrajectories)
 // 			{
@@ -487,7 +487,7 @@ bool FControlRigEditMode::UsesTransformWidget() const
 		}
 	}
 
-	if (AreJointSelectedAndMovable())
+	if (AreBoneSelectedAndMovable())
 	{
 		return true;
 	}
@@ -510,7 +510,7 @@ bool FControlRigEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) co
 			}
 		}
 
-		if (AreJointSelectedAndMovable())
+		if (AreBoneSelectedAndMovable())
 		{
 			return true;
 		}
@@ -536,9 +536,9 @@ FVector FControlRigEditMode::GetWidgetLocation() const
 
 		// @todo: we only supports the first ast one for now
 		// later we support multi select
-		if (AreJointSelectedAndMovable())
+		if (AreBoneSelectedAndMovable())
 		{
-			return ComponentTransform.TransformPosition(OnGetJointTransformDelegate.Execute(SelectedJoints[0], false).GetLocation());
+			return ComponentTransform.TransformPosition(OnGetBoneTransformDelegate.Execute(SelectedBones[0], false).GetLocation());
 		}
 	}
 
@@ -558,12 +558,12 @@ bool FControlRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, v
 			}
 		}
 
-		if (AreJointSelectedAndMovable())
+		if (AreBoneSelectedAndMovable())
 		{
 			USceneComponent* Component = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
 			FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
-			FTransform JointTransform = OnGetJointTransformDelegate.Execute(SelectedJoints[0], false)*ComponentTransform;
-			OutMatrix = JointTransform.ToMatrixWithScale().RemoveTranslation();
+			FTransform BoneTransform = OnGetBoneTransformDelegate.Execute(SelectedBones[0], false)*ComponentTransform;
+			OutMatrix = BoneTransform.ToMatrixWithScale().RemoveTranslation();
 			return true;
 		}
 	}
@@ -681,7 +681,7 @@ void FControlRigEditMode::SelectNone()
 {
 	ClearControlSelection();
 
-	SelectedJoints.Reset();
+	SelectedBones.Reset();
 
 	FEdMode::SelectNone();
 }
@@ -791,12 +791,12 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 
 				return true;
 			}
-			else if (AreJointSelectedAndMovable())
+			else if (AreBoneSelectedAndMovable())
 			{
-				// set joint transform
-				// that will set initial joint transform
-				const FName CurrentJoint = SelectedJoints[0];
-				FTransform NewWorldTransform = OnGetJointTransformDelegate.Execute(CurrentJoint, false) * ComponentTransform;
+				// set Bone transform
+				// that will set initial Bone transform
+				const FName CurrentBone = SelectedBones[0];
+				FTransform NewWorldTransform = OnGetBoneTransformDelegate.Execute(CurrentBone, false) * ComponentTransform;
 				bool bTransformChanged = false;
 				if (bDoRotation)
 				{
@@ -825,7 +825,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 				if (bTransformChanged)
 				{
 					FTransform NewComponentTransform = NewWorldTransform.GetRelativeTransform(ComponentTransform);
-					OnSetJointTransformDelegate.Execute(CurrentJoint, NewComponentTransform);
+					OnSetBoneTransformDelegate.Execute(CurrentBone, NewComponentTransform);
 				}
 
 				return true;
@@ -838,7 +838,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 
 bool FControlRigEditMode::ShouldDrawWidget() const
 {
-	if (AreControlsSelected() || AreJointSelectedAndMovable())
+	if (AreControlsSelected() || AreBoneSelectedAndMovable())
 	{
 		return true;
 	}
@@ -876,7 +876,7 @@ void FControlRigEditMode::ClearControlSelection()
 			UnitProxy.SetSelected(false);
 		}
 
-		bSelectedJoint = true;
+		bSelectedBone = true;
 		OnControlsSelectedDelegate.Broadcast(TArray<FString>());
 	}
 }
@@ -897,7 +897,7 @@ void FControlRigEditMode::SetControlSelection(const FString& InControlPropertyPa
 			}
 		}
 
-		bSelectedJoint = true;
+		bSelectedBone = true;
 		OnControlsSelectedDelegate.Broadcast(SelectedPropertyPaths);
 	}
 }
@@ -922,7 +922,7 @@ void FControlRigEditMode::SetControlSelection(const TArray<FString>& InControlPr
 			}
 		}
 
-		bSelectedJoint = true;
+		bSelectedBone = true;
 		OnControlsSelectedDelegate.Broadcast(SelectedPropertyPaths);
 	}
 }
@@ -1113,13 +1113,13 @@ void FControlRigEditMode::RecalcPivotTransform()
 
 			if (NumSelectedControls == 1)
 			{
-				// A single Joint just uses its own transform
+				// A single Bone just uses its own transform
 				FTransform WorldTransform = LastTransform * ComponentTransform;
 				PivotTransform.SetRotation(WorldTransform.GetRotation());
 			}
 			else if (NumSelectedControls > 1)
 			{
-				// If we have more than one Joint selected, use the coordinate space of the component
+				// If we have more than one Bone selected, use the coordinate space of the component
 				PivotTransform.SetRotation(ComponentTransform.GetRotation());
 			}
 		}
@@ -1362,29 +1362,29 @@ void FControlRigEditMode::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldT
 	}
 }
 
-bool FControlRigEditMode::AreJointSelectedAndMovable() const
+bool FControlRigEditMode::AreBoneSelectedAndMovable() const
 {
 	if (UControlRig* ControlRig = WeakControlRig.Get())
 	{
-		return (!ControlRig->bExecutionOn && OnGetJointTransformDelegate.IsBound() && OnSetJointTransformDelegate.IsBound() && SelectedJoints.Num() > 0);
+		return (!ControlRig->bExecutionOn && OnGetBoneTransformDelegate.IsBound() && OnSetBoneTransformDelegate.IsBound() && SelectedBones.Num() > 0);
 	}
 
 	return false;
 }
 
-bool FControlRigEditMode::AreJointSelected() const
+bool FControlRigEditMode::AreBoneSelected() const
 {
-	return (SelectedJoints.Num() > 0);
+	return (SelectedBones.Num() > 0);
 }
 
-void FControlRigEditMode::SelectJoint(const FName& InJoint)
+void FControlRigEditMode::SelectBone(const FName& InBone)
 {
 	ClearControlSelection();
 
-	SelectedJoints.Reset();
-	if (InJoint != NAME_None)
+	SelectedBones.Reset();
+	if (InBone != NAME_None)
 	{
-		SelectedJoints.Add(InJoint);
+		SelectedBones.Add(InBone);
 	}
 }
 #undef LOCTEXT_NAMESPACE
