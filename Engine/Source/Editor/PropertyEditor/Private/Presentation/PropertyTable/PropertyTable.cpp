@@ -3,14 +3,13 @@
 #include "Presentation/PropertyTable/PropertyTable.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-
+#include "Editor.h"
 
 #include "Presentation/PropertyTable/PropertyTableColumn.h"
 #include "Presentation/PropertyTable/PropertyTableRow.h"
 #include "Presentation/PropertyTable/PropertyTableRowHeaderColumn.h"
 #include "Presentation/PropertyTable/PropertyTableObjectNameColumn.h"
 #include "Presentation/PropertyTable/PropertyTablePropertyNameColumn.h"
-
 
 #define LOCTEXT_NAMESPACE "PropertyTable"
 
