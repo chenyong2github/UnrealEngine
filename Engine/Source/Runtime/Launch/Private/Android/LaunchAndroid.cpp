@@ -173,6 +173,7 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd); //Lifetime eve
 
 static bool TryIgnoreClick(AInputEvent* event, size_t actionPointer);
 
+bool GAllowJavaBackButtonEvent = false;
 bool GHasInterruptionRequest = false;
 bool GIsInterrupted = false;
 
@@ -1029,6 +1030,12 @@ static int32_t HandleInputCB(struct android_app* app, AInputEvent* event)
 					return 0;
 				}
 			}
+
+			// optionally forward back button
+			if (keyCode == AKEYCODE_BACK && GAllowJavaBackButtonEvent)
+			{
+				return 0;
+			}
 		}
 
 		return 1;
@@ -1397,6 +1404,11 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_HandleCustomTouchEvent(JNIEnv
 	UE_LOG(LogAndroid, Verbose, TEXT("Handle custom touch event %d (%d) x=%f y=%f"), TouchMessage.Type, action, x, y);
 	FAndroidInputInterface::QueueTouchInput(TouchesArray);
 #endif
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_AllowJavaBackButtonEvent(JNIEnv* jenv, jobject thiz, jboolean allow)
+{
+	GAllowJavaBackButtonEvent = (allow == JNI_TRUE);
 }
 
 bool WaitForAndroidLoseFocusEvent(double TimeoutSeconds)
