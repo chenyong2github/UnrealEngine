@@ -282,6 +282,8 @@ private:
 	void BeginLeavingParty(EMemberExitedReason Reason);
 	void FinalizePartyLeave(EMemberExitedReason Reason);
 
+	void SetIsRequestingShutdown(bool bInRequestingShutdown);
+
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
@@ -313,6 +315,8 @@ private:	// Handlers
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 	
+	void HandlePartySystemStateChange(const FUniqueNetId& LocalUserId, EPartySystemState NewState);
+
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -373,6 +377,7 @@ private:
 
 	bool bIsLeavingParty = false;
 	bool bIsInitialized = false;
+	TOptional<bool> bIsRequestingShutdown;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
 	mutable FLeavePartyEvent OnPartyLeftEvent;
