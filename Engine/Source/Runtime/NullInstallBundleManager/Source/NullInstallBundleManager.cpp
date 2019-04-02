@@ -79,6 +79,11 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 		return TOptional<FInstallBundleStatus>();
 	}
 
+	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) override
+	{
+
+	}
+
 	virtual bool IsNullInterface() const override
 	{
 		return true;
