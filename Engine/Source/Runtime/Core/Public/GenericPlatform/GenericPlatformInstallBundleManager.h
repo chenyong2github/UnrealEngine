@@ -218,6 +218,8 @@ public:
 	virtual bool IsNullInterface() const = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
+
+	virtual void CleanupMigrationDirectory() const {}
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface
