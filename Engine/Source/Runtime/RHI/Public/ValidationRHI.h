@@ -1660,7 +1660,7 @@ inline TDynamicRHI* GetDynamicRHI()
 template <typename TDynamicRHI>
 inline TDynamicRHI* GetDynamicRHI()
 {
-	return static_cast<TDynamicRHI*>GDynamicRHI;
+	return static_cast<TDynamicRHI*>(GDynamicRHI);
 }
 
 #endif	// ENABLE_RHI_VALIDATION
