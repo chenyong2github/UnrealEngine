@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CommonRenderResources.h"
 #include "GlobalShader.h"
+#include "PipelineStateCache.h"
 #include "RenderGraph.h"
 #include "PostProcess/SceneFilterRendering.h"
 
