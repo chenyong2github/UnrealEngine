@@ -219,7 +219,8 @@ public:
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
 
-	virtual void CleanupMigrationDirectory() const {}
+	// return true if we actually cleaned up a migration directory
+	virtual bool CleanupMigrationDirectory() { return false;  }
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface
