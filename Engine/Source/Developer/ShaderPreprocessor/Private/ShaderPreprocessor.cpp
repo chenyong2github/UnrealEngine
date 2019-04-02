@@ -34,7 +34,7 @@ public:
 		, ShaderOutput(InShaderOutput)
 	{
 		FString InputShaderSource;
-		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, InputShaderSource, nullptr))
+		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, &InputShaderSource, nullptr))
 		{
 			InputShaderSource = FString::Printf(TEXT("%s\n#line 1\n%s"), *ShaderInput.SourceFilePrefix, *InputShaderSource);
 			CachedFileContents.Add(InShaderInput.VirtualSourceFilePath, StringToArray<ANSICHAR>(*InputShaderSource, InputShaderSource.Len() + 1));
@@ -53,13 +53,14 @@ public:
 private:
 	/** Holder for shader contents (string + size). */
 	typedef TArray<ANSICHAR> FShaderContents;
-
+	
 	/** MCPP callback for retrieving file contents. */
 	static int GetFileContents(void* InUserData, const ANSICHAR* InVirtualFilePath, const ANSICHAR** OutContents, size_t* OutContentSize)
 	{
 		FMcppFileLoader* This = (FMcppFileLoader*)InUserData;
 
-		FString VirtualFilePath = (ANSI_TO_TCHAR(InVirtualFilePath));
+		FUTF8ToTCHAR UTF8Converter(InVirtualFilePath);
+		FString VirtualFilePath = UTF8Converter.Get();
 		
 		// Collapse any relative directories to allow #include "../MyFile.ush"
 		FPaths::CollapseRelativeDirectories(VirtualFilePath);
@@ -81,7 +82,7 @@ private:
 			{
 				CheckShaderHashCacheInclude(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
 
-				LoadShaderSourceFile(*VirtualFilePath, FileContents, &This->ShaderOutput.Errors);
+				LoadShaderSourceFile(*VirtualFilePath, &FileContents, &This->ShaderOutput.Errors);
 			}
 
 			if (FileContents.Len() > 0)

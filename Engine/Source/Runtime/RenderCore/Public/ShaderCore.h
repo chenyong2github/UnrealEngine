@@ -1084,10 +1084,10 @@ extern RENDERCORE_API FString ParseVirtualShaderFilename(const FString& InFilena
 /**
  * Loads the shader file with the given name.
  * @param VirtualFilePath - The virtual path of shader file to load.
- * @param OutFileContents - If true is returned, will contain the contents of the shader file.
+ * @param OutFileContents - If true is returned, will contain the contents of the shader file. Can be null.
  * @return True if the file was successfully loaded.
  */
-extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString& OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
+extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
 
 /** Loads the shader file with the given name.  If the shader file couldn't be loaded, throws a fatal error. */
 extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, FString& OutFileContents);
