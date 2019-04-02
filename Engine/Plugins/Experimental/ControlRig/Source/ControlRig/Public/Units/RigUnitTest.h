@@ -19,11 +19,13 @@ public:
 		HierarchyRef.Container = &HierarchyContainer;
 		HierarchyRef.bUseBaseHierarchy = true;
 		Context.HierarchyReference = HierarchyRef;
+		ExecuteContext.HierarchyReference = HierarchyRef;
 	}
 
 	FRigHierarchyContainer HierarchyContainer;
 	FRigHierarchyRef HierarchyRef;
 	FRigHierarchy& Hierarchy;
+	FControlRigExecuteContext ExecuteContext;
 	FRigUnitContext Context;
 };
 
@@ -43,20 +45,32 @@ public:
 	protected: \
 		virtual void GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const override \
 		{ \
-			OutBeautifiedNames.Add(TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.##TUnitStruct))); \
+			OutBeautifiedNames.Add(TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.TUnitStruct))); \
 			OutTestCommands.Add(FString()); \
 		} \
+		TUnitStruct Unit; \
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
 			Hierarchy.Reset(); \
-			TUnitStruct Unit; \
-			return RunControlRigUnitTest(Unit, Parameters); \
+			Unit = TUnitStruct(); \
+			return RunControlRigUnitTest(Parameters); \
 		} \
-		virtual bool RunControlRigUnitTest(TUnitStruct& Unit, const FString& Parameters); \
-		virtual FString GetBeautifiedTestName() const override { return TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.##TUnitStruct)); } \
+		virtual bool RunControlRigUnitTest(const FString& Parameters); \
+		virtual FString GetBeautifiedTestName() const override { return TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.TUnitStruct)); } \
+		void Init() \
+		{ \
+			Context.State = EControlRigState::Init; \
+			Unit.Execute(Context); \
+		} \
+		void Execute() \
+		{ \
+			Context.State = EControlRigState::Update; \
+			Unit.Execute(Context); \
+		} \
+		void InitAndExecute() { Init(); Execute(); } \
 	}; \
 	namespace\
 	{\
 		TUnitStruct##Test TUnitStruct##AutomationTestInstance(TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(TUnitStruct##Test))); \
 	} \
-	bool TUnitStruct##Test::RunControlRigUnitTest(TUnitStruct& Unit, const FString& Parameters)
+	bool TUnitStruct##Test::RunControlRigUnitTest(const FString& Parameters)

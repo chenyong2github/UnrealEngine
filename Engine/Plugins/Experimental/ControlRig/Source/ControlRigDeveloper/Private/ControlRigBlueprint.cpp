@@ -37,9 +37,9 @@ void UControlRigBlueprint::LoadModulesRequiredForCompilation()
 {
 }
 
-void UControlRigBlueprint::MakePropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath)
+void UControlRigBlueprint::MakePropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath, int32 InSourceLinkIndex, int32 InDestLinkIndex)
 {
-	PropertyLinks.AddUnique(FControlRigBlueprintPropertyLink(InSourcePropertyPath, InDestPropertyPath));
+	PropertyLinks.AddUnique(FControlRigBlueprintPropertyLink(InSourcePropertyPath, InDestPropertyPath, InSourceLinkIndex, InDestLinkIndex));
 }
 
 USkeletalMesh* UControlRigBlueprint::GetPreviewMesh() const

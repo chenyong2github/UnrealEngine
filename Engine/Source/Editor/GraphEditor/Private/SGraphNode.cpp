@@ -576,12 +576,17 @@ FSlateColor SGraphNode::GetNodeTitleColor() const
 
 FSlateColor SGraphNode::GetNodeBodyColor() const
 {
-	FLinearColor ReturnBodyColor = FLinearColor::White;
+	FLinearColor ReturnBodyColor = GraphNode->GetNodeBodyTintColor();
 	if(!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced())
 	{
 		ReturnBodyColor *= FLinearColor(1.0f, 1.0f, 1.0f, 0.5f); 
 	}
 	return ReturnBodyColor;
+}
+
+const FSlateBrush *  SGraphNode::GetNodeBodyBrush() const
+{
+	return FEditorStyle::GetBrush("Graph.Node.Body");
 }
 
 FSlateColor SGraphNode::GetNodeTitleIconColor() const
@@ -927,7 +932,7 @@ void SGraphNode::UpdateGraphNode()
 				.Padding(Settings->GetNonPinNodeBodyPadding())
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Graph.Node.Body"))
+					.Image(GetNodeBodyBrush())
 					.ColorAndOpacity(this, &SGraphNode::GetNodeBodyColor)
 				]
 				+SOverlay::Slot()

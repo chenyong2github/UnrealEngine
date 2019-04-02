@@ -35,6 +35,7 @@ public:
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
 	virtual FBlueprintActionUiSpec GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const override;
 	virtual UEdGraphNode* Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const override;
+	virtual bool IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const override;
 	// End UBlueprintNodeSpawner interface
 
 private:
@@ -42,5 +43,8 @@ private:
 	UPROPERTY(Transient)
 	UStruct* StructTemplate;
 
+	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UStruct* StructTemplate, FVector2D const Location);
+
 	friend class UEngineTestControlRig;
+	friend class FControlRigEditor;
 };
