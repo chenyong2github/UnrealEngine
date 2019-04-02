@@ -428,6 +428,15 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 		}
 	}
+
+	IUnknown* IntelGPA;
+	static const IID IntelGPAID = { 0xCCFFEF16, 0x7B69, 0x468F, {0xBC, 0xE3, 0xCD, 0x95, 0x33, 0x69, 0xA3, 0x9A} };
+
+	if (SUCCEEDED(Direct3DDevice->QueryInterface(IntelGPAID, (void**)(&IntelGPA))))
+	{
+		// Running under Intel GPA, so enable capturing mode
+		GDynamicRHI->EnableIdealGPUCaptureOptions(true);
+	}
 #endif
 
 	// Check for typed UAV load support

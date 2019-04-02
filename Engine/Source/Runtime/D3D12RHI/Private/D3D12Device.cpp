@@ -182,6 +182,18 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		}
 	}
 
+	// Intel GPA
+	{
+		TRefCountPtr<IUnknown> IntelGPA;
+		static const IID IntelGPAID = { 0xCCFFEF16, 0x7B69, 0x468F, {0xBC, 0xE3, 0xCD, 0x95, 0x33, 0x69, 0xA3, 0x9A} };
+
+		if (SUCCEEDED(Direct3DDevice->QueryInterface(IntelGPAID, (void**)(IntelGPA.GetInitReference()))))
+		{
+			// Running under Intel GPA, so enable capturing mode
+			bUnderGPUCapture = true;
+		}
+	}
+
 	// AMD RGP profiler
 	if (GEmitRgpFrameMarkers && GetOwningRHI()->GetAmdAgsContext())
 	{
