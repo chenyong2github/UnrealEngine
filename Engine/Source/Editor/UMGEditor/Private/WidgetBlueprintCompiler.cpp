@@ -278,6 +278,11 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 	Super::CreateClassVariablesFromBlueprint();
 
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
+	if (WidgetBP == nullptr)
+	{
+		return;
+	}
+
 	UClass* ParentClass = WidgetBP->ParentClass;
 
 	ValidateWidgetNames();
@@ -378,11 +383,6 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		}
 	}
 
-	if (WidgetBP == nullptr)
-	{
-		return;
-	}
-	
 	// Add movie scenes variables here
 	for (UWidgetAnimation* Animation : WidgetBP->Animations)
 	{
