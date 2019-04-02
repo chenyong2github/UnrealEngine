@@ -6,6 +6,9 @@
 #include "KismetCompiler.h"
 
 struct FControlRigBlueprintPropertyLink;
+class UControlRigGraph;
+class UControlRigGraphNode;
+class UControlRigBlueprint;
 class UControlRigBlueprintGeneratedClass;
 
 class CONTROLRIGDEVELOPER_API FControlRigBlueprintCompiler : public IBlueprintCompiler
@@ -35,10 +38,11 @@ public:
 	virtual void CleanAndSanitizeClass(UBlueprintGeneratedClass* ClassToClean, UObject*& InOldCDO) override;
 
 private:
-	// utility function to add root property to links 
-	void AddRootPropertyLinks(TArray<FControlRigBlueprintPropertyLink>& InLinks, TArray<FName>& OutSourceArray, TArray<FName>& OutDestArray) const;
 
-	// utility funciton to build property links from the ubergraphs
+	// used to fail a compilation and mark the blueprint in error
+	void MarkCompilationFailed(const FString& Message);
+
+	// utility function to build property links from the ubergraphs
 	void BuildPropertyLinks();
 
 private:
