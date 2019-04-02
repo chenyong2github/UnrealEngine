@@ -122,6 +122,7 @@ class FTonemapperGrainIntensityDim : SHADER_PERMUTATION_BOOL("USE_GRAIN_INTENSIT
 class FTonemapperVignetteDim       : SHADER_PERMUTATION_BOOL("USE_VIGNETTE");
 class FTonemapperSharpenDim        : SHADER_PERMUTATION_BOOL("USE_SHARPEN");
 class FTonemapperGrainJitterDim    : SHADER_PERMUTATION_BOOL("USE_GRAIN_JITTER");
+class FTonemapperUseVolumeLut      : SHADER_PERMUTATION_BOOL("USE_VOLUME_LUT");
 
 using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperBloomDim,
@@ -129,7 +130,8 @@ using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperGrainIntensityDim,
 	FTonemapperVignetteDim,
 	FTonemapperSharpenDim,
-	FTonemapperGrainJitterDim>;
+	FTonemapperGrainJitterDim,
+	FTonemapperUseVolumeLut>;
 
 FORCEINLINE bool ShouldCompileCommonPermutation(const FCommonDomain& PermutationVector)
 {
@@ -167,6 +169,8 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 	PermutationVector.Set<FTonemapperBloomDim>(Settings.BloomIntensity > 0.0);
 	PermutationVector.Set<FTonemapperGrainJitterDim>(Settings.GrainJitter > 0.0f);
 	PermutationVector.Set<FTonemapperSharpenDim>(CVarTonemapperSharpen.GetValueOnRenderThread() > 0.0f);
+
+	PermutationVector.Set<FTonemapperUseVolumeLut>(RuntimeVolumeTextureLUTSupported(View.GetShaderPlatform()));
 
 	return PermutationVector;
 }
@@ -217,7 +221,7 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector)
 	return PermutationVector;
 }
 
-bool ShouldCompileDesktopPermutation(FDesktopDomain PermutationVector)
+bool ShouldCompileDesktopPermutation(EShaderPlatform Platform, FDesktopDomain PermutationVector)
 {
 	auto CommonPermutationVector = PermutationVector.Get<FCommonDomain>();
 
@@ -236,6 +240,9 @@ bool ShouldCompileDesktopPermutation(FDesktopDomain PermutationVector)
 		return !PermutationVector.Get<FTonemapperColorFringeDim>() &&
 			!PermutationVector.Get<FTonemapperGrainQuantizationDim>();
 	}
+
+	if (!PipelineVolumeTextureLUTMayBeSupportedAtRuntime(Platform) && CommonPermutationVector.Get<FTonemapperUseVolumeLut>())
+		return false; // We know that this platform does not support volume textures feature needed for our post process, so do not compile the permutation.
 
 	return true;
 }
@@ -694,12 +701,11 @@ class FPostProcessTonemapPS : public FGlobalShader
 		{
 			return false;
 		}
-		return TonemapperPermutation::ShouldCompileDesktopPermutation(FPermutationDomain(Parameters.PermutationId));
+		return TonemapperPermutation::ShouldCompileDesktopPermutation(Parameters.Platform, FPermutationDomain(Parameters.PermutationId));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeTextureLUT(Parameters.Platform));
 	}
 
 	/** Default constructor. */
@@ -769,14 +775,13 @@ class FPostProcessTonemapCS : public FGlobalShader
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		return TonemapperPermutation::ShouldCompileDesktopPermutation(PermutationVector.Get<TonemapperPermutation::FDesktopDomain>());
+		return TonemapperPermutation::ShouldCompileDesktopPermutation(Parameters.Platform, PermutationVector.Get<TonemapperPermutation::FDesktopDomain>());
 	}	
 	
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GTonemapComputeTileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GTonemapComputeTileSizeY);
-		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeTextureLUT(Parameters.Platform));
 	}
 
 	/** Default constructor. */
