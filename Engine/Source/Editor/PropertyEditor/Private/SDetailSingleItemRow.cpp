@@ -438,7 +438,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			}
 			else
 			{
-				Row.WholeRowWidget.Widget->SetEnabled(IsPropertyEditingEnabled);
+				InternalLeftColumnRowBox->SetEnabled(IsPropertyEditingEnabled);
 				InternalLeftColumnRowBox->AddSlot()
 					.HAlign(Row.WholeRowWidget.HorizontalAlignment)
 					.VAlign(Row.WholeRowWidget.VerticalAlignment)
