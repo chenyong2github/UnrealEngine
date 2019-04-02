@@ -17,13 +17,13 @@
 #include "HAL/PlatformFilemanager.h"
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
-#include "Settings/ProjectPackagingSettings.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Commandlets/ChunkDependencyInfo.h"
+#include "Settings/ProjectPackagingSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetManager"
