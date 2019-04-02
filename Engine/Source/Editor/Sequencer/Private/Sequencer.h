@@ -927,7 +927,7 @@ protected:
 	void UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewportClient& InViewportClient, UObject* InCameraObject, bool bJumpCut) const;
 
 	/** Internal conversion function that doesn't perform expensive reset/update tasks */
-	FMovieSceneSpawnable* ConvertToSpawnableInternal(FGuid PossessableGuid);
+	TArray<FMovieSceneSpawnable*> ConvertToSpawnableInternal(FGuid PossessableGuid);
 
 	/** Internal conversion function that doesn't perform expensive reset/update tasks */
 	FMovieScenePossessable* ConvertToPossessableInternal(FGuid SpawnableGuid);
