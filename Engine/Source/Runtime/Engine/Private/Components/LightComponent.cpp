@@ -1121,12 +1121,14 @@ void ULightComponent::ApplyComponentInstanceData(FPrecomputedLightInstanceData* 
 {
 	check(LightMapData);
 
+	LightGuid = LightMapData->LightGuid;
+
 	if (!LightMapData->Transform.Equals(GetComponentTransform()))
 	{
+		++LightGuid.D;
 		return;
 	}
 
-	LightGuid = LightMapData->LightGuid;
 	PreviewShadowMapChannel = LightMapData->PreviewShadowMapChannel;
 
 	MarkRenderStateDirty();
