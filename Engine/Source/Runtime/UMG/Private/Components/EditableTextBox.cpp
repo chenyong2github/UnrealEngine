@@ -231,7 +231,7 @@ void UEditableTextBox::PostLoad()
 
 const FText UEditableTextBox::GetPaletteCategory()
 {
-	return LOCTEXT("Common", "Common");
+	return LOCTEXT("Input", "Input");
 }
 
 #endif
