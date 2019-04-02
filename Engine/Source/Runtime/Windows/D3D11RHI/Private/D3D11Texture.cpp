@@ -1930,7 +1930,7 @@ void FD3D11DynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImme
 		RunOnRHIThread(
 			[UpdateData]()
 		{
-			static_cast<FD3D11DynamicRHI*>(GDynamicRHI)->RHIUpdateTexture3D(
+			GD3D11RHI->RHIUpdateTexture3D(
 				UpdateData.Texture,
 				UpdateData.MipIndex,
 				UpdateData.UpdateRegion,

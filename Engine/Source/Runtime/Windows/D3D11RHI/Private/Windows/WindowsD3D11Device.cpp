@@ -19,6 +19,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 
 #include "dxgi1_3.h"
+#include "ValidationRHI.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
@@ -28,6 +29,8 @@ bool GNVAftermathModuleLoaded = false;
 #if INTEL_METRICSDISCOVERY
 bool GDX11IntelMetricsDiscoveryEnabled = false;
 #endif
+
+FD3D11DynamicRHI*	GD3D11RHI = nullptr;
 
 extern bool D3D11RHI_ShouldCreateWithD3DDebug();
 extern bool D3D11RHI_ShouldAllowAsyncResourceCreation();
@@ -907,7 +910,22 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
 	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
 	check(DXGIFactory1);
-	return new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+
+	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+#if ENABLE_RHI_VALIDATION
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		GValidationRHI = new FValidationRHI(GD3D11RHI);
+	}
+	else
+	{
+		check(!GValidationRHI);
+	}
+
+	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GD3D11RHI;
+#else
+	return GD3D11RHI;
+#endif
 }
 
 void FD3D11DynamicRHI::Init()

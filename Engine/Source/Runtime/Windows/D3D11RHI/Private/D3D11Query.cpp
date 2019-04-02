@@ -55,8 +55,6 @@ public:
 	void PollQueryResults()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PollQueryResults);
-		FD3D11DynamicRHI* D3D11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-
 		for (int32 BatchIdx = 0; BatchIdx < ActiveBatches.Num(); ++BatchIdx)
 		{
 			TArray<FRenderQueryRHIRef>& Queries = ActiveBatches[BatchIdx].Queries;
@@ -69,7 +67,7 @@ public:
 				{
 					Queries.RemoveAtSwap(QueryIdx--);
 				}
-				else if (D3D11RHI->GetQueryData(Query->Resource, &Query->Result, sizeof(Query->Result), Query->QueryType, false, false))
+				else if (GD3D11RHI->GetQueryData(Query->Resource, &Query->Result, sizeof(Query->Result), Query->QueryType, false, false))
 				{
 					Query->bResultIsCached = true;
 					Queries.RemoveAtSwap(QueryIdx--);

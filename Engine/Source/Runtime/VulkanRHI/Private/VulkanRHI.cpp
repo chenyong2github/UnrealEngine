@@ -21,8 +21,6 @@
 #include "ValidationRHI.h"
 
 
-FValidationRHI*		GValidationRHI = nullptr;
-
 extern RHI_API bool GUseTexture3DBulkDataRHI;
 
 TAtomic<uint64> GVulkanBufferHandleIdCounter{ 0 };
@@ -96,7 +94,7 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	check(RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform) == (!VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS));
 
 	GVulkanRHI = new FVulkanDynamicRHI();
-
+#if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
 	{
 		GValidationRHI = new FValidationRHI(GVulkanRHI);
@@ -107,6 +105,9 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	}
 
 	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GVulkanRHI;
+#else
+	return GVulkanRHI;
+#endif
 }
 
 IMPLEMENT_MODULE(FVulkanDynamicRHIModule, VulkanRHI);
@@ -697,8 +698,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
 
 		GUseTexture3DBulkDataRHI = true;
-
-		GDynamicRHI = GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)this;
 
 		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 		for (TLinkedList<FRenderResource*>::TIterator ResourceIt(FRenderResource::GetResourceList()); ResourceIt; ResourceIt.Next())

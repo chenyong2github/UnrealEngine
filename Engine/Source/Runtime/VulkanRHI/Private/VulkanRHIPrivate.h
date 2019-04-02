@@ -11,6 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "RHI.h"
 #include "RenderUtils.h"
+#include "ValidationRHI.h"
 
 // let the platform set up the headers and some defines
 #include "VulkanPlatform.h"
@@ -290,8 +291,6 @@ private:
 	uint32						NumUsedClearValues;
 	FVulkanDevice&				Device;
 };
-
-extern class FValidationRHI*	GValidationRHI;
 
 
 namespace VulkanRHI
@@ -840,11 +839,12 @@ namespace VulkanRHI
 
 	inline FVulkanCommandListContext& GetVulkanContext(IRHICommandContext& CmdContext)
 	{
+#if ENABLE_RHI_VALIDATION
 		if (GValidationRHI)
 		{
 			return GetVulkanContext((FValidationContext&)CmdContext);
 		}
-
+#endif
 		return (FVulkanCommandListContext&)CmdContext;
 	}
 }

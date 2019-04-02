@@ -27,8 +27,8 @@
 
 #endif
 
-#define D3D11RHI_IMMEDIATE_CONTEXT (static_cast<FD3D11DynamicRHI*>(GDynamicRHI)->GetDeviceContext())
-#define D3D11RHI_DEVICE (static_cast<FD3D11DynamicRHI*>(GDynamicRHI)->GetDevice())
+#define D3D11RHI_IMMEDIATE_CONTEXT	(GD3D11RHI->GetDeviceContext())
+#define D3D11RHI_DEVICE				(GD3D11RHI->GetDevice())
 
 /**
  * Checks that the given result isn't a failure.  If it is, the application exits with an appropriate error message.

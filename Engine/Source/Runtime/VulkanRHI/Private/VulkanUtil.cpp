@@ -592,6 +592,7 @@ namespace VulkanRHIBridge
 
 namespace VulkanRHI
 {
+#if ENABLE_RHI_VALIDATION
 	FVulkanCommandListContext& GetVulkanContext(class FValidationContext& CmdContext)
 	{
 		if (GValidationRHI && GValidationRHI->Context == &CmdContext)
@@ -601,7 +602,7 @@ namespace VulkanRHI
 
 		return (FVulkanCommandListContext&)CmdContext;
 	}
-
+#endif
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)
 	{
 		VkDevice Device = InDevice->GetInstanceHandle();
