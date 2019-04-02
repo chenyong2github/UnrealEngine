@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = 458545C3-5894-4AAB-9E80-65235AA26706
+// GUID = 8D333468-602F-411C-A224-381A04952654
   
 #pragma once
 
