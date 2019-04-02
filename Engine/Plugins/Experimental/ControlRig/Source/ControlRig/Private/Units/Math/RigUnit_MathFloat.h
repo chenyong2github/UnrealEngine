@@ -16,6 +16,11 @@ struct FRigUnit_MathFloatConstant : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
 
+	FRigUnit_MathFloatConstant()
+	{
+		Value = 0.f;
+	}
+
 	UPROPERTY(meta=(Output, Constant))
 	float Value;
 };
@@ -24,6 +29,11 @@ USTRUCT(meta=(Abstract))
 struct FRigUnit_MathFloatUnaryOp : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatUnaryOp()
+	{
+		Value = Result = 0.f;
+	}
 
 	UPROPERTY(meta=(Input))
 	float Value;
@@ -36,6 +46,11 @@ USTRUCT(meta=(Abstract))
 struct FRigUnit_MathFloatBinaryOp : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatBinaryOp()
+	{
+		A = B = Result = 0.f;
+	}
 
 	UPROPERTY(meta=(Input))
 	float A;
@@ -97,12 +112,6 @@ struct FRigUnit_MathFloatAdd : public FRigUnit_MathFloatBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatAdd()
-	{
-		A = 0.f;
-		B = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -113,12 +122,6 @@ USTRUCT(meta=(DisplayName="Subtract", PrototypeName="Subtract", Keywords="-"))
 struct FRigUnit_MathFloatSub : public FRigUnit_MathFloatBinaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatSub()
-	{
-		A = 0.f;
-		B = 0.f;
-	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -150,7 +153,6 @@ struct FRigUnit_MathFloatDiv : public FRigUnit_MathFloatBinaryOp
 
 	FRigUnit_MathFloatDiv()
 	{
-		A = 0.f;
 		B = 1.f;
 	}
 
@@ -165,12 +167,6 @@ struct FRigUnit_MathFloatMin : public FRigUnit_MathFloatBinaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatMin()
-	{
-		A = 0.f;
-		B = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -181,12 +177,6 @@ USTRUCT(meta=(DisplayName="Maximum", PrototypeName="Maximum"))
 struct FRigUnit_MathFloatMax : public FRigUnit_MathFloatBinaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatMax()
-	{
-		A = 0.f;
-		B = 0.f;
-	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -216,11 +206,6 @@ struct FRigUnit_MathFloatSqrt : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatSqrt()
-	{
-		Value = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -231,11 +216,6 @@ USTRUCT(meta=(DisplayName="Negate", PrototypeName="Negate", Keywords="-,Abs"))
 struct FRigUnit_MathFloatNegate : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatNegate()
-	{
-		Value = 0.f;
-	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -248,11 +228,6 @@ struct FRigUnit_MathFloatAbs : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatAbs()
-	{
-		Value = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -263,11 +238,6 @@ USTRUCT(meta=(DisplayName="Floor", PrototypeName="Floor", Keywords="Round"))
 struct FRigUnit_MathFloatFloor : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatFloor()
-	{
-		Value = 0.f;
-	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -280,11 +250,6 @@ struct FRigUnit_MathFloatCeil : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatCeil()
-	{
-		Value = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -296,11 +261,6 @@ struct FRigUnit_MathFloatRound : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatRound()
-	{
-		Value = 0.f;
-	}
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -311,11 +271,6 @@ USTRUCT(meta=(DisplayName="Sign", PrototypeName="Sign"))
 struct FRigUnit_MathFloatSign : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatSign()
-	{
-		Value = 0.f;
-	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -330,8 +285,7 @@ struct FRigUnit_MathFloatClamp : public FRigUnit_MathFloatBase
 
 	FRigUnit_MathFloatClamp()
 	{
-		Minimum = 0.f;
-		Maximum = 1.f;
+		Value = Minimum = Maximum = Result = 0.f;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -359,7 +313,7 @@ struct FRigUnit_MathFloatLerp : public FRigUnit_MathFloatBase
 
 	FRigUnit_MathFloatLerp()
 	{
-		A = 0.f;
+		A = B = T = Result = 0.f;
 		B = 1.f;
 	}
 
@@ -388,10 +342,9 @@ struct FRigUnit_MathFloatRemap : public FRigUnit_MathFloatBase
 
 	FRigUnit_MathFloatRemap()
 	{
-		SourceMinimum = 0.f;
-		SourceMaximum = 1.f;
-		TargetMinimum = 0.f;
-		TargetMaximum = 1.f;
+		Value = SourceMinimum = TargetMinimum = Result = 0.f;
+		SourceMaximum = TargetMaximum = 1.f;
+		bClamp = false;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -428,6 +381,12 @@ struct FRigUnit_MathFloatEquals : public FRigUnit_MathFloatBase
 	GENERATED_BODY()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
+	FRigUnit_MathFloatEquals()
+	{
+		A = B = 0.f;
+		Result = true;
+	}
+
 	UPROPERTY(meta=(Input))
 	float A;
 
@@ -447,6 +406,12 @@ struct FRigUnit_MathFloatNotEquals : public FRigUnit_MathFloatBase
 	GENERATED_BODY()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
+	FRigUnit_MathFloatNotEquals()
+	{
+		A = B = 0.f;
+		Result = false;
+	}
+
 	UPROPERTY(meta=(Input))
 	float A;
 
@@ -464,6 +429,13 @@ USTRUCT(meta=(DisplayName="Greater", PrototypeName="Greater", Keywords="Larger,B
 struct FRigUnit_MathFloatGreater : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatGreater()
+	{
+		A = B = 0.f;
+		Result = false;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -483,6 +455,13 @@ USTRUCT(meta=(DisplayName="Less", PrototypeName="Less", Keywords="Smaller,<"))
 struct FRigUnit_MathFloatLess : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+	
+	FRigUnit_MathFloatLess()
+	{
+		A = B = 0.f;
+		Result = false;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -502,6 +481,13 @@ USTRUCT(meta=(DisplayName="Greater Equal", PrototypeName="GreaterEqual", Keyword
 struct FRigUnit_MathFloatGreaterEqual : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatGreaterEqual()
+	{
+		A = B = 0.f;
+		Result = true;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -521,6 +507,13 @@ USTRUCT(meta=(DisplayName="Less Equal", PrototypeName="LessEqual", Keywords="Sma
 struct FRigUnit_MathFloatLessEqual : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatLessEqual()
+	{
+		A = B = 0.f;
+		Result = true;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -543,7 +536,8 @@ struct FRigUnit_MathFloatIsNearlyZero : public FRigUnit_MathFloatBase
 	
 	FRigUnit_MathFloatIsNearlyZero()
 	{
-		Tolerance = 0.f;
+		Value = Tolerance = 0.f;
+		Result = true;
 	}
 	
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -568,7 +562,8 @@ struct FRigUnit_MathFloatIsNearlyEqual : public FRigUnit_MathFloatBase
 
 	FRigUnit_MathFloatIsNearlyEqual()
 	{
-		Tolerance = 0.f;
+		A = B = Tolerance = 0.f;
+		Result = true;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -593,6 +588,13 @@ USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If"))
 struct FRigUnit_MathFloatSelectBool : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathFloatSelectBool()
+	{
+		Condition = false;
+		IfTrue = IfFalse = Result = 0.f;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -616,12 +618,6 @@ struct FRigUnit_MathFloatDeg : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatDeg()
-	{
-		Value = 0.f;
-	}
-
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -632,12 +628,6 @@ USTRUCT(meta=(DisplayName="Radians", PrototypeName="Radians"))
 struct FRigUnit_MathFloatRad : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatRad()
-	{
-		Value = 0.f;
-	}
-
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -650,12 +640,6 @@ struct FRigUnit_MathFloatSin : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatSin()
-	{
-		Value = 0.f;
-	}
-
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -666,12 +650,6 @@ USTRUCT(meta=(DisplayName="Cos", PrototypeName="Cos"))
 struct FRigUnit_MathFloatCos : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatCos()
-	{
-		Value = 0.f;
-	}
-
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -684,12 +662,6 @@ struct FRigUnit_MathFloatTan : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatTan()
-	{
-		Value = 0.f;
-	}
-
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -700,12 +672,6 @@ USTRUCT(meta=(DisplayName="Asin", PrototypeName="Asin", Keywords="Arcsin"))
 struct FRigUnit_MathFloatAsin : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatAsin()
-	{
-		Value = 0.f;
-	}
-
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
@@ -718,12 +684,6 @@ struct FRigUnit_MathFloatAcos : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 
-	FRigUnit_MathFloatAcos()
-	{
-		Value = 0.f;
-	}
-
-
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -734,12 +694,6 @@ USTRUCT(meta=(DisplayName="Atan", PrototypeName="Atan", Keywords="Arctan"))
 struct FRigUnit_MathFloatAtan : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
-
-	FRigUnit_MathFloatAtan()
-	{
-		Value = 0.f;
-	}
-
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 };

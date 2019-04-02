@@ -18,7 +18,7 @@ struct FRigUnit_MathQuaternionUnaryOp : public FRigUnit_MathQuaternionBase
 
 	FRigUnit_MathQuaternionUnaryOp()
 	{
-		Value = FQuat::Identity;
+		Value = Result = FQuat::Identity;
 	}
 
 	UPROPERTY(meta=(Input))
@@ -35,7 +35,7 @@ struct FRigUnit_MathQuaternionBinaryOp : public FRigUnit_MathQuaternionBase
 
 	FRigUnit_MathQuaternionBinaryOp()
 	{
-		A = B = FQuat::Identity;
+		A = B = Result = FQuat::Identity;
 	}
 
 	UPROPERTY(meta=(Input))
@@ -59,6 +59,8 @@ struct FRigUnit_MathQuaternionFromAxisAndAngle : public FRigUnit_MathQuaternionB
 	FRigUnit_MathQuaternionFromAxisAndAngle()
 	{
 		Axis = FVector(1.f, 0.f, 0.f);
+		Angle = 0.f;
+		Result = FQuat::Identity;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -80,6 +82,13 @@ USTRUCT(meta=(DisplayName="From Euler", PrototypeName="FromEuler", Keywords="Mak
 struct FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionFromEuler()
+	{
+		Euler = FVector();
+		Result = FQuat::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -96,6 +105,13 @@ USTRUCT(meta=(DisplayName="From Rotator", PrototypeName="FromRotator", Keywords=
 struct FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
+	
+	FRigUnit_MathQuaternionFromRotator()
+	{
+		Rotator = FRotator();
+		Result = FQuat::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -116,6 +132,7 @@ struct FRigUnit_MathQuaternionFromTwoVectors : public FRigUnit_MathQuaternionBas
 	FRigUnit_MathQuaternionFromTwoVectors()
 	{
 		A = B = FVector(1.f, 0.f, 0.f);
+		Result = FQuat::Identity;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -142,6 +159,7 @@ struct FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBas
 	{
 		Value = FQuat::Identity;
 		Axis = FVector(1.f, 0.f, 0.f);
+		Angle = 0.f;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -167,6 +185,7 @@ struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionToEuler()
 	{
 		Value = FQuat::Identity;
+		Result = FVector();
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -189,6 +208,7 @@ struct FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionToRotator()
 	{
 		Value = FQuat::Identity;
+		Result = FRotator();
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -230,7 +250,8 @@ struct FRigUnit_MathQuaternionSlerp : public FRigUnit_MathQuaternionBase
 
 	FRigUnit_MathQuaternionSlerp()
 	{
-		A = B = FQuat::Identity;
+		A = B = Result = FQuat::Identity;
+		T = 0.f;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -259,7 +280,8 @@ struct FRigUnit_MathQuaternionEquals : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionEquals()
 	{
 		A = B = FQuat::Identity;
-	}
+		Result = true;
+	}	
 
 	virtual void Execute(const FRigUnitContext& Context) override;
 
@@ -284,6 +306,7 @@ struct FRigUnit_MathQuaternionNotEquals : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionNotEquals()
 	{
 		A = B = FQuat::Identity;
+		Result = false;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -308,7 +331,8 @@ struct FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQuaternionBase
 
 	FRigUnit_MathQuaternionSelectBool()
 	{
-		IfTrue = IfFalse = FQuat::Identity;
+		IfTrue = IfFalse = Result = FQuat::Identity;
+		Condition = true;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -337,6 +361,7 @@ struct FRigUnit_MathQuaternionDot : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionDot()
 	{
 		A = B = FQuat::Identity;
+		Result = 0.f;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -372,6 +397,7 @@ struct FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionRotateVector()
 	{
 		Quaternion = FQuat::Identity;
+		Vector = Result = FVector();
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -398,6 +424,7 @@ struct FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuaternionBase
 	{
 		Quaternion = FQuat::Identity;
 		Axis = EAxis::X;
+		Result = FVector(1.f, 0.f, 0.f);
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
