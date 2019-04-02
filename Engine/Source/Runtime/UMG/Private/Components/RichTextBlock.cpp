@@ -149,7 +149,7 @@ void URichTextBlock::CreateDecorators(TArray< TSharedRef< class ITextDecorator >
 
 TSharedPtr< IRichTextMarkupParser > URichTextBlock::CreateMarkupParser()
 {
-	return FDefaultRichTextMarkupParser::Get();
+	return FDefaultRichTextMarkupParser::GetStaticInstance();
 }
 
 TSharedPtr< IRichTextMarkupWriter > URichTextBlock::CreateMarkupWriter()

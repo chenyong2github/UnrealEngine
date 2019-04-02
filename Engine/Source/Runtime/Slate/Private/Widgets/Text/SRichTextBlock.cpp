@@ -36,7 +36,7 @@ void SRichTextBlock::Construct( const FArguments& InArgs )
 		TSharedPtr<IRichTextMarkupParser> Parser = InArgs._Parser;
 		if ( !Parser.IsValid() )
 		{
-			Parser = FDefaultRichTextMarkupParser::Get();
+			Parser = FDefaultRichTextMarkupParser::GetStaticInstance();
 		}
 
 		TSharedPtr<FRichTextLayoutMarshaller> Marshaller = InArgs._Marshaller;
