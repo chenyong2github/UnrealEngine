@@ -1652,7 +1652,7 @@ extern RHI_API FValidationRHI* GValidationRHI;
 template <typename TDynamicRHI>
 inline TDynamicRHI* GetDynamicRHI()
 {
-	return GValidationRHI ? static_cast<TDynamicRHI*>GValidationRHI->RHI : static_cast<TDynamicRHI*>GDynamicRHI;
+	return GValidationRHI ? static_cast<TDynamicRHI*>(GValidationRHI->RHI) : static_cast<TDynamicRHI*>(GDynamicRHI);
 }
 
 #else
