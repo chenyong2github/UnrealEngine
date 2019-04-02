@@ -47,6 +47,46 @@ IRHIComputeContext* FValidationRHI::RHIGetDefaultAsyncComputeContext()
 	return AsyncComputeContext;
 }
 
+void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& PSOInitializer)
+{
+	{
+		// Verify depth/stencil access/usage
+		bool bHasDepth = IsDepthOrStencilFormat(PSOInitializer.DepthStencilTargetFormat);
+		bool bHasStencil = IsStencilFormat(PSOInitializer.DepthStencilTargetFormat);
+		const FDepthStencilStateInitializerRHI& Initializer = GValidationRHI->DepthStencilStates.FindChecked(PSOInitializer.DepthStencilState);
+		if (bHasDepth)
+		{
+			if (!bHasStencil)
+			{
+				ensureMsgf(!Initializer.bEnableFrontFaceStencil
+					&& Initializer.FrontFaceStencilTest == CF_Always
+					&& Initializer.FrontFaceStencilFailStencilOp == SO_Keep
+					&& Initializer.FrontFaceDepthFailStencilOp == SO_Keep
+					&& Initializer.FrontFacePassStencilOp == SO_Keep
+					&& !Initializer.bEnableBackFaceStencil
+					&& Initializer.BackFaceStencilTest == CF_Always
+					&& Initializer.BackFaceStencilFailStencilOp == SO_Keep
+					&& Initializer.BackFaceDepthFailStencilOp == SO_Keep
+					&& Initializer.BackFacePassStencilOp == SO_Keep, TEXT("No stencil render target set, yet PSO wants to use stencil operations!"));
+				ensureMsgf(PSOInitializer.StencilTargetLoadAction == ERenderTargetLoadAction::ENoAction,
+					TEXT("No stencil target set, yet PSO wants to load from it!"));
+				ensureMsgf(PSOInitializer.StencilTargetStoreAction == ERenderTargetStoreAction::ENoAction,
+					TEXT("No stencil target set, yet PSO wants to store into it!"));
+			}
+		}
+		else
+		{
+			ensureMsgf(!Initializer.bEnableDepthWrite && Initializer.DepthTest == CF_Always, TEXT("No depth render target set, yet PSO wants to use depth operations!"));
+			ensureMsgf(PSOInitializer.DepthTargetLoadAction == ERenderTargetLoadAction::ENoAction
+				&& PSOInitializer.StencilTargetLoadAction == ERenderTargetLoadAction::ENoAction,
+				TEXT("No depth/stencil target set, yet PSO wants to load from it!"));
+			ensureMsgf(PSOInitializer.DepthTargetStoreAction == ERenderTargetStoreAction::ENoAction
+				&& PSOInitializer.StencilTargetStoreAction == ERenderTargetStoreAction::ENoAction,
+				TEXT("No depth/stencil target set, yet PSO wants to store into it!"));
+		}
+	}
+}
+
 
 FValidationComputeContext::FValidationComputeContext(FValidationRHI* InRHI)
 	: RHIContext(nullptr)

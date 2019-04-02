@@ -40,6 +40,21 @@ static inline bool IsDepthOrStencilFormat(EPixelFormat Format)
 	return false;
 }
 
+static inline bool IsStencilFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_DepthStencil:
+	case PF_X24_G8:
+		return true;
+
+	default:
+		break;
+	}
+
+	return false;
+}
+
 
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */
 struct FRWBuffer

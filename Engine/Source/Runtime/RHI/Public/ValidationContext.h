@@ -152,6 +152,12 @@ public:
 		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}
 
+	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final
+	{
+		RHIContext->RHICopyToStagingBuffer(SourceBufferRHI, DestinationStagingBufferRHI, InOffset, InNumBytes);
+	}
+
+
 	IRHIComputeContext* RHIContext;
 	FValidationRHI*		RHI;
 
@@ -784,6 +790,11 @@ public:
 	virtual void RHIWriteGPUFence(FGPUFenceRHIParamRef FenceRHI) override final
 	{
 		RHIContext->RHIWriteGPUFence(FenceRHI);
+	}
+
+	virtual void RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FStagingBufferRHIParamRef DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final
+	{
+		RHIContext->RHICopyToStagingBuffer(SourceBufferRHI, DestinationStagingBufferRHI, InOffset, InNumBytes);
 	}
 
 	virtual void RHICopyTexture(FTextureRHIParamRef SourceTexture, FTextureRHIParamRef DestTexture, const FRHICopyTextureInfo& CopyInfo) override final

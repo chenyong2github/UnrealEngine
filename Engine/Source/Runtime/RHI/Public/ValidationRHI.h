@@ -62,7 +62,9 @@ public:
 	// FlushType: Thread safe
 	virtual FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer) override final
 	{
-		return RHI->RHICreateDepthStencilState(Initializer);
+		FDepthStencilStateRHIRef State = RHI->RHICreateDepthStencilState(Initializer);
+		DepthStencilStates.FindOrAdd(State.GetReference()) = Initializer;
+		return State;
 	}
 
 	// FlushType: Thread safe
@@ -284,6 +286,7 @@ public:
 	// TODO: [PSO API] Make pure virtual
 	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer) override final
 	{
+		ValidatePipeline(Initializer);
 		return RHI->RHICreateGraphicsPipelineState(Initializer);
 	}
 
@@ -294,6 +297,7 @@ public:
 
 	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer, FRHIPipelineBinaryLibrary* PipelineBinary) override final
 	{
+		ValidatePipeline(Initializer);
 		return RHI->RHICreateGraphicsPipelineState(Initializer);
 	}
 
@@ -1643,8 +1647,12 @@ public:
 	FValidationContext*			Context;
 	FValidationComputeContext*	AsyncComputeContext;
 
+	TMap<FRHIDepthStencilState*, FDepthStencilStateInitializerRHI> DepthStencilStates;
+
 private:
 	FString						RHIName;
+
+	void ValidatePipeline(const FGraphicsPipelineStateInitializer& Initializer);
 };
 
 extern RHI_API FValidationRHI* GValidationRHI;
