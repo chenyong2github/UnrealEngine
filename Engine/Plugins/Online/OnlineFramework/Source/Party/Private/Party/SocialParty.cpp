@@ -920,7 +920,7 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 	}
 }
 
-void USocialParty::HandlePartySystemStateChange(const FUniqueNetId& LocalUserId, EPartySystemState NewState)
+void USocialParty::HandlePartySystemStateChange(EPartySystemState NewState)
 {
 	UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] received notification of a party system state change to [%d]"), *ToDebugString(), (int32)NewState);
 	if (NewState == EPartySystemState::RequestingShutdown)
