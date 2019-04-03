@@ -96,6 +96,7 @@ struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResourc
 					}
 				}
 			}
+			D3D11DeviceContext->Release();
 		}
 	}
 };
