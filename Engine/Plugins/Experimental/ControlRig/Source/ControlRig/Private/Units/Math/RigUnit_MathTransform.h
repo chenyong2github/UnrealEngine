@@ -17,6 +17,11 @@ struct FRigUnit_MathTransformUnaryOp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
+	FRigUnit_MathTransformUnaryOp()
+	{
+		Value = Result = FTransform::Identity;
+	}
+
 	UPROPERTY(meta=(Input))
 	FTransform Value;
 
@@ -28,6 +33,11 @@ USTRUCT(meta=(Abstract))
 struct FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformBinaryOp()
+	{
+		A = B = Result = FTransform::Identity;
+	}
 
 	UPROPERTY(meta=(Input))
 	FTransform A;
@@ -46,6 +56,13 @@ USTRUCT(meta=(DisplayName="From Euler Transform", PrototypeName="FromEulerTransf
 struct FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformFromEulerTransform()
+	{
+		EulerTransform = FEulerTransform::Identity;
+		Result = FTransform::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -62,6 +79,13 @@ USTRUCT(meta=(DisplayName="To Euler Transform", PrototypeName="ToEulerTransform"
 struct FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformToEulerTransform()
+	{
+		Value = FTransform::Identity;
+		Result = FEulerTransform::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -88,6 +112,12 @@ USTRUCT(meta=(DisplayName="Make Relative", PrototypeName="MakeRelative", Keyword
 struct FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformMakeRelative()
+	{
+		Global = Parent = Local = FTransform::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -117,6 +147,13 @@ USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="
 struct FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformLerp()
+	{
+		A = B = Result = FTransform::Identity;
+		T = 0.f;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -139,6 +176,13 @@ USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If"))
 struct FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformSelectBool()
+	{
+		Condition = false;
+		IfTrue = IfFalse = Result = FTransform::Identity;
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -161,6 +205,13 @@ USTRUCT(meta=(DisplayName="Transform Direction", PrototypeName="Rotate", Keyword
 struct FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformRotateVector()
+	{
+		Transform = FTransform::Identity;
+		Direction = Result = FVector();
+	}
+
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -180,6 +231,13 @@ USTRUCT(meta=(DisplayName="Transform Location", PrototypeName="Multiply"))
 struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
+
+	FRigUnit_MathTransformTransformVector()
+	{
+		Transform = FTransform::Identity;
+		Location = Result = FVector();
+	}
+	
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
