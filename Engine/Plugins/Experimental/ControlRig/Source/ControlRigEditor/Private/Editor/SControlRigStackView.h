@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Graph/ControlRigGraph.h"
 #include "ControlRig.h"
-#include "ControlRigblueprint.h"
+#include "ControlRigBlueprint.h"
 #include "Widgets/Views/STreeView.h"
 
 class FControlRigEditor;
