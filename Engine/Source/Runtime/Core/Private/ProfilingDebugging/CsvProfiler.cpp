@@ -2587,12 +2587,7 @@ void FCsvProfiler::FinalizeCsvFile()
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Frames : %d"), CaptureEndFrameCount);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Peak memory usage  : %.2fMB"), float(MemoryBytesAtEndOfCapture) / (1024.0f * 1024.0f));
 
-	if (EnumHasAnyFlags(CurrentFlags, ECsvProfilerFlags::WriteCompletionFile))
-	{
-		// Create a zero-byte file to signal completion.
-		FString CompletionFilename = OutputFilename + TEXT(".complete");
-		delete IFileManager::Get().CreateFileWriter(*CompletionFilename);
-	}
+	OnCSVProfileFinished().Broadcast(OutputFilename);
 
 	float FinalizeDuration = float(FPlatformTime::Seconds() - FinalizeStartTime);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  CSV finalize time : %.3f seconds"), FinalizeDuration);
