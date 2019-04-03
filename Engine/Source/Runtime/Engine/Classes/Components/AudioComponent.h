@@ -196,12 +196,11 @@ class ENGINE_API UAudioComponent : public USceneComponent
 		/** Sound lifetime is not managed by listener proximity. */
 		Disabled,
 
+		/** Loop replay is enabled and disable has been requested. */
+		DisableRequested,
+
 		/** Sound lifetime is managed by listener proximity (in case of sound being looping and non-virtualized) */
 		Enabled,
-
-		/** Sound lifetime was managed by listener proximity (in case of sound being looping and non-virtualized),
-		  * but is fading out.*/
-		EnabledFadingOut,
 
 		Count
 	};
