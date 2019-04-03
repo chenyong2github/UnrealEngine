@@ -213,7 +213,7 @@ class FMetalShaderFormat : public IShaderFormat
 public:
 	enum
 	{
-		HEADER_VERSION = 64,
+		HEADER_VERSION = 65,
 	};
 	
 	struct FVersion
