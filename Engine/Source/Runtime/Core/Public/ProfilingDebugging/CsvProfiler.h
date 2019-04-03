@@ -249,6 +249,9 @@ public:
 
 	CORE_API FString GetOutputFilename() const { return OutputFilename; }
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCSVProfileFinished, const FString& /*Filename */);
+	FOnCSVProfileFinished& OnCSVProfileFinished() { return OnCSVProfileFinishedDelegate; }
+
 private:
 	CORE_API static void VARARGS RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...);
 
@@ -283,6 +286,8 @@ private:
 	class FCsvStreamWriter* CsvWriter;
 
 	ECsvProfilerFlags CurrentFlags;
+
+	FOnCSVProfileFinished OnCSVProfileFinishedDelegate;
 };
 
 class FScopedCsvStat
