@@ -47,8 +47,12 @@ struct FEscapeSequenceRegexPatternString
 	}
 };
 
+TSharedRef< FDefaultRichTextMarkupParser > FDefaultRichTextMarkupParser::Create()
+{
+	return MakeShareable(new FDefaultRichTextMarkupParser());
+}
 
-TSharedRef< FDefaultRichTextMarkupParser > FDefaultRichTextMarkupParser::Get()
+TSharedRef< FDefaultRichTextMarkupParser > FDefaultRichTextMarkupParser::GetStaticInstance()
 {
 	static TSharedRef< FDefaultRichTextMarkupParser > Parser = MakeShareable( new FDefaultRichTextMarkupParser() );
 	return Parser;
