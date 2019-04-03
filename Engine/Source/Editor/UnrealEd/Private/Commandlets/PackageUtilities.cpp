@@ -1473,7 +1473,13 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 	FPkgInfoReporter* Reporter = new FPkgInfoReporter_Log(InfoFlags, bHideOffsets);
 
 	TArray<FString> FilesInPath;
-	if( Switches.Contains(TEXT("AllPackages")) )
+
+	FString PathWithPackages;
+	if (FParse::Value(*Params, TEXT("AllPackagesIn="), PathWithPackages))
+	{
+		FPackageName::FindPackagesInDirectory(FilesInPath, *PathWithPackages);
+	}
+	else if( Switches.Contains(TEXT("AllPackages")) )
 	{
 		FEditorFileUtils::FindAllPackageFiles(FilesInPath);
 	}
@@ -1553,6 +1559,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 		if (!bDumpProperties)
 		{
 			TGuardValue<bool> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, true);
+			TGuardValue<int32> GuardAllowCookedContentInEditor(GAllowCookedDataInEditorBuilds, 1);
 			TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 			BeginLoad(LoadContext);
 			Linker = CreateLinkerForFilename(LoadContext, Filename);
