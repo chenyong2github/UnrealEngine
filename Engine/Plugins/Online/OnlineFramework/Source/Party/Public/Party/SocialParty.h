@@ -315,7 +315,7 @@ private:	// Handlers
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 	
-	void HandlePartySystemStateChange(const FUniqueNetId& LocalUserId, EPartySystemState NewState);
+	void HandlePartySystemStateChange(EPartySystemState NewState);
 
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
