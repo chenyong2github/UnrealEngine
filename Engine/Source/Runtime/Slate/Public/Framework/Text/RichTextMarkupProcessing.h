@@ -14,7 +14,8 @@
 class SLATE_API FDefaultRichTextMarkupParser : public IRichTextMarkupParser
 {
 public:
-	static TSharedRef< FDefaultRichTextMarkupParser > Get();
+	static TSharedRef< FDefaultRichTextMarkupParser > Create();
+	static TSharedRef< FDefaultRichTextMarkupParser > GetStaticInstance();
 
 public:
 	virtual void Process(TArray<FTextLineParseResults>& Results, const FString& Input, FString& Output) override;
