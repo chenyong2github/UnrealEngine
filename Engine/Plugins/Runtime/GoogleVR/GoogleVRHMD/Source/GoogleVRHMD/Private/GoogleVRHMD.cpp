@@ -16,6 +16,7 @@
 #include "GlobalShader.h"
 #include "ScreenRendering.h"
 #include "PipelineStateCache.h"
+#include "RenderTargetPool.h"
 
 #include "instant_preview_server.h"
 #include "GoogleVRInstantPreviewGetServer.h"
@@ -1224,7 +1225,7 @@ void FGoogleVRHMD::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& R
 		FPooledRenderTargetDesc OutputDesc(FPooledRenderTargetDesc::Create2DDesc(ReadbackTextureSizes[textureIndex], PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
 		const auto FeatureLevel = GMaxRHIFeatureLevel;
 		TRefCountPtr<IPooledRenderTarget> ResampleTexturePooledRenderTarget;
-		RendererModule->RenderTargetPoolFindFreeElement(RHICmdList, OutputDesc, ResampleTexturePooledRenderTarget, TEXT("ResampleTexture"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, OutputDesc, ResampleTexturePooledRenderTarget, TEXT("ResampleTexture"));
 		check(ResampleTexturePooledRenderTarget);
 		const FSceneRenderTargetItem& DestRenderTarget = ResampleTexturePooledRenderTarget->GetRenderTargetItem();
 

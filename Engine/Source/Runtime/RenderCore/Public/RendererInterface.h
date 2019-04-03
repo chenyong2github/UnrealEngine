@@ -691,14 +691,6 @@ public:
 	/** Draws a tile mesh element with the specified view. */
 	virtual void DrawTileMesh(FRHICommandListImmediate& RHICmdList, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId) = 0;
 
-	/** Render thread side, use TRefCountPtr<IPooledRenderTarget>, allows to use sharing and VisualizeTexture */
-	// TODO(RDG): Kill that guy.
-	virtual void RenderTargetPoolFindFreeElement(FRHICommandListImmediate& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName) = 0;
-	
-	/** Render thread side, to age the pool elements so they get released at some point */
-	// TODO(RDG): Kill that guy.
-	virtual void TickRenderTargetPool() = 0;
-
 	virtual const TSet<FSceneInterface*>& GetAllocatedScenes() = 0;
 
 	/** Renderer gets a chance to log some useful crash data */

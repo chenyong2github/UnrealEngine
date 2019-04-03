@@ -58,6 +58,7 @@
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "RenderTargetPool.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -1766,8 +1767,8 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				// Tick the GRenderingRealtimeClock, unless it's paused
 				GRenderingRealtimeClock.Tick(DeltaSeconds);
 			}
-
-			GetRendererModule().TickRenderTargetPool();
+			
+			GRenderTargetPool.TickPoolElements();
 		});
 	}
 

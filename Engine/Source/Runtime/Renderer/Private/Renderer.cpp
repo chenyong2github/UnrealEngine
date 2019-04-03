@@ -328,16 +328,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 	}
 }
 
-void FRendererModule::RenderTargetPoolFindFreeElement(FRHICommandListImmediate& RHICmdList, const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName)
-{
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, Out, InDebugName);
-}
-
-void FRendererModule::TickRenderTargetPool()
-{
-	GRenderTargetPool.TickPoolElements();
-}
-
 void FRendererModule::DebugLogOnCrash()
 {
 	GVisualizeTexture.SortOrder = 1;
