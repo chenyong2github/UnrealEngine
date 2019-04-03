@@ -358,7 +358,7 @@ namespace MobileBasePass
 
 	const FLightSceneInfo* GetDirectionalLightInfo(const FScene* Scene, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
 	int32 CalcNumMovablePointLights(const FMaterial& InMaterial, const FPrimitiveSceneProxy* InPrimitiveSceneProxy);
-		
+
 	bool StaticCanReceiveCSM(const FLightSceneInfo* LightSceneInfo, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
 
 	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput);
@@ -446,13 +446,24 @@ public:
 class FMobileBasePassMeshProcessor : public FMeshPassProcessor
 {
 public:
+	enum class EFlags
+	{
+		None = 0,
+
+		// Informs the processor whether a depth-stencil target is bound when processed draw commands are issued.
+		CanUseDepthStencil = (1 << 0),
+
+		// Informs the processor whether primitives can receive shadows from cascade shadow maps.
+		CanReceiveCSM =  (1 << 1)
+	};
+
 	FMobileBasePassMeshProcessor(
 		const FScene* InScene, 
 		ERHIFeatureLevel::Type InFeatureLevel, 
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		const FMeshPassProcessorRenderState& InDrawRenderState, 
 		FMeshPassDrawListContext* InDrawListContext,
-		bool bInCanReceiveCSM,
+		EFlags Flags,
 		ETranslucencyPass::Type InTranslucencyPassType = ETranslucencyPass::TPT_MAX);
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
@@ -475,4 +486,7 @@ private:
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const bool bTranslucentBasePass;
 	const bool bCanReceiveCSM;
+	const bool bEnableReceiveDecalOutput;
 };
+
+ENUM_CLASS_FLAGS(FMobileBasePassMeshProcessor::EFlags);
