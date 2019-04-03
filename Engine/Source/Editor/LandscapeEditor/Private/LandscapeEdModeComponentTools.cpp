@@ -577,21 +577,6 @@ public:
 					}
 				}
 
-				// Changing Heightmap format for selected components
-				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
-				{
-					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value);
-				}
-
-				// Delete if it is no referenced textures...
-				for (UTexture2D* Texture : OldHeightmapTextures)
-				{
-					Texture->SetFlags(RF_Transactional);
-					Texture->Modify();
-					Texture->MarkPackageDirty();
-					Texture->ClearFlags(RF_Standalone);
-				}
-
 				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetCurrentLevelLandscapeProxy(false);
 				if (!LandscapeProxy)
 				{
@@ -612,6 +597,21 @@ public:
 					}
 				}
 
+				// Changing Heightmap format for selected components
+				for (const auto& HeightmapUpdateComponentPair : HeightmapUpdateComponents)
+				{
+					ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value ? LandscapeProxy : nullptr);
+				}
+
+				// Delete if it is no referenced textures...
+				for (UTexture2D* Texture : OldHeightmapTextures)
+				{
+					Texture->SetFlags(RF_Transactional);
+					Texture->Modify();
+					Texture->MarkPackageDirty();
+					Texture->ClearFlags(RF_Standalone);
+				}
+
 				for (ALandscapeProxy* Proxy : SelectProxies)
 				{
 					Proxy->Modify();
@@ -626,7 +626,7 @@ public:
 					if (Component->XYOffsetmapTexture)
 					{
 						Component->XYOffsetmapTexture->Modify();
-						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy->GetOutermost());
+						Component->XYOffsetmapTexture->Rename(nullptr, LandscapeProxy->GetOuter());
 					}
 				}
 
