@@ -423,6 +423,11 @@ void UOnlineHotfixManager::CheckAvailability(FOnHotfixAvailableComplete& InCompl
 	}
 }
 
+void UOnlineHotfixManager::OnHotfixAvailablityCheck(const TArray<FCloudFileHeader>& PendingChangedFiles, const TArray<FCloudFileHeader>& PendingRemoveFiles)
+{
+	// empty in base class
+}
+
 void UOnlineHotfixManager::OnEnumerateFilesForAvailabilityComplete(bool bWasSuccessful, const FString& ErrorStr, FOnHotfixAvailableComplete InCompletionDelegate)
 {
 	if (OnlineTitleFile.IsValid())
@@ -459,6 +464,8 @@ void UOnlineHotfixManager::OnEnumerateFilesForAvailabilityComplete(bool bWasSucc
 			UE_LOG(LogHotfixManager, Display, TEXT("Returned hotfix data is the same as last application, returning nothing to do"));
 			Result = EHotfixResult::SuccessNoChange;
 		}
+
+		OnHotfixAvailablityCheck(ChangedHotfixFileList, RemovedHotfixFileList);
 
 		// Restore state to before the check
 		RemovedHotfixFileList.Empty();
