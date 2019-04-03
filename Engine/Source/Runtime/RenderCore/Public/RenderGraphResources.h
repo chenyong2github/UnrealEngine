@@ -30,13 +30,13 @@ struct FRayTracingShaderBindingsWriter;
 
 
 /** Defines the RDG resource references for user code not forgetting the const every time. */
-using FRDGResourceRef = const FRDGResource*;
-using FRDGTextureRef = const FRDGTexture*;
-using FRDGTextureSRVRef = const FRDGTextureSRV*;
-using FRDGTextureUAVRef = const FRDGTextureUAV*;
-using FRDGBufferRef = const  FRDGBuffer*;
-using FRDGBufferSRVRef = const FRDGBufferSRV*;
-using FRDGBufferUAVRef = const FRDGBufferUAV*;
+using FRDGResourceRef = FRDGResource*;
+using FRDGTextureRef = FRDGTexture*;
+using FRDGTextureSRVRef = FRDGTextureSRV*;
+using FRDGTextureUAVRef = FRDGTextureUAV*;
+using FRDGBufferRef = FRDGBuffer*;
+using FRDGBufferSRVRef = FRDGBufferSRV*;
+using FRDGBufferUAVRef = FRDGBufferUAV*;
 
 
 /** Generic graph resource. */
@@ -46,10 +46,10 @@ protected:
 	/** Pointer on the RHI resource once allocated, that the RHI can dereferenced according to IsUniformBufferResourceIndirectionType(). */
 	union
 	{
-		mutable FRHIResource* Resource;
-		mutable FTextureRHIParamRef Texture;
-		mutable FShaderResourceViewRHIParamRef SRV;
-		mutable FUnorderedAccessViewRHIParamRef UAV;
+		FRHIResource* Resource;
+		FTextureRHIParamRef Texture;
+		FShaderResourceViewRHIParamRef SRV;
+		FUnorderedAccessViewRHIParamRef UAV;
 	} CachedRHI;
 
 public:
@@ -67,25 +67,25 @@ public:
 	void operator = (const FRDGResource&) = delete;
 
 	/** Boolean to track at runtime whether a ressource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
-	mutable bool bIsActuallyUsedByPass = false;
+	bool bIsActuallyUsedByPass = false;
 
 private:
 	/** Number of references in passes and deferred queries. */
-	mutable int32 ReferenceCount = 0;
+	int32 ReferenceCount = 0;
 
 	// Used for tracking resource state during execution
-	mutable bool bWritable = false;
-	mutable bool bCompute = false;
+	bool bWritable = false;
+	bool bCompute = false;
 
 #if RENDER_GRAPH_DEBUGGING
 	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
-	mutable bool bHasEverBeenProduced = false;
+	bool bHasEverBeenProduced = false;
 
 	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
-	mutable const FRenderGraphPass* DebugFirstProducer = nullptr;
+	const FRenderGraphPass* DebugFirstProducer = nullptr;
 
 	/** Count the number of times it has been used by a pass. */
-	mutable int32 DebugPassAccessCount = 0;
+	int32 DebugPassAccessCount = 0;
 #endif
 
 	friend class FRDGBuilder;

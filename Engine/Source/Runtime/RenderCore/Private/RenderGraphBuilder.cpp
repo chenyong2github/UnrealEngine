@@ -336,7 +336,7 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 		for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
 		{
 			const FRenderTargetBinding& RenderTarget = RenderTargets->Output[i];
-			const FRDGTexture* Texture = RenderTarget.GetTexture();
+			FRDGTexture* Texture = RenderTarget.GetTexture();
 
 			if (!Texture)
 			{
@@ -364,7 +364,7 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 		}
 		ensureMsgf(!bGeneratingMips || bFoundRTBound, TEXT("GenerateMips enabled but no RT found as source!"));
 
-		const FRDGTexture* Texture = RenderTargets->DepthStencil.Texture;
+		FRDGTexture* Texture = RenderTargets->DepthStencil.Texture;
 		if (Texture && !Texture->bHasEverBeenProduced)
 		{
 			checkf(RenderTargets->DepthStencil.DepthLoadAction != ERenderTargetLoadAction::ELoad,
@@ -562,7 +562,7 @@ void FRDGBuilder::WalkGraphDependencies()
 	}
 }
 
-void FRDGBuilder::AllocateRHITextureIfNeeded(const FRDGTexture* Texture, bool bComputePass)
+void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture, bool bComputePass)
 {
 	check(Texture);
 
@@ -582,7 +582,7 @@ void FRDGBuilder::AllocateRHITextureIfNeeded(const FRDGTexture* Texture, bool bC
 	check(Texture->CachedRHI.Resource);
 }
 
-void FRDGBuilder::AllocateRHITextureUAVIfNeeded(const FRDGTextureUAV* UAV, bool bComputePass)
+void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV, bool bComputePass)
 {
 	check(UAV);
 
@@ -596,7 +596,7 @@ void FRDGBuilder::AllocateRHITextureUAVIfNeeded(const FRDGTextureUAV* UAV, bool 
 	UAV->CachedRHI.UAV = UAV->Desc.Texture->PooledRenderTarget->GetRenderTargetItem().MipUAVs[UAV->Desc.MipLevel];
 }
 
-void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(const FRDGBufferSRV* SRV, bool bComputePass)
+void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bComputePass)
 {
 	check(SRV);
 
@@ -638,7 +638,7 @@ void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(const FRDGBufferSRV* SRV, bool bC
 	SRV->Desc.Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
 }
 
-void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(const FRDGBufferUAV* UAV, bool bComputePass)
+void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bComputePass)
 {
 	check(UAV);
 
@@ -705,7 +705,7 @@ static EResourceTransitionPipeline CalcTransitionPipeline(bool bCurrentCompute, 
 	return static_cast< EResourceTransitionPipeline >( Table[ Bits ] );
 }
 
-void FRDGBuilder::TransitionTexture( const FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
+void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute) const
 {
 	const bool bRequiredWritable = TransitionAccess != EResourceTransitionAccess::EReadable;
 
@@ -717,7 +717,7 @@ void FRDGBuilder::TransitionTexture( const FRDGTexture* Texture, EResourceTransi
 	}
 }
 
-void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, const FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
+void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
 {
 	const bool bRequiredWritable = true;
 
@@ -1160,7 +1160,7 @@ void FRDGBuilder::WarnForUselessPassDependencies(const FRenderGraphPass* Pass)
 		if (!IsRDGResourceReferenceShaderParameterType(Type))
 			continue;
 
-		const FRDGResource* Resource = *ParameterStruct.GetMemberPtrAtOffset<const FRDGResource*>(Offset);
+		FRDGResource* Resource = *ParameterStruct.GetMemberPtrAtOffset<FRDGResource*>(Offset);
 
 		if (!Resource)
 			continue;
@@ -1169,7 +1169,7 @@ void FRDGBuilder::WarnForUselessPassDependencies(const FRenderGraphPass* Pass)
 	}
 }
 
-void FRDGBuilder::ReleaseRHITextureIfPossible(const FRDGTexture* Texture)
+void FRDGBuilder::ReleaseRHITextureIfPossible(FRDGTexture* Texture)
 {
 	check(Texture->ReferenceCount > 0);
 	Texture->ReferenceCount--;
@@ -1182,7 +1182,7 @@ void FRDGBuilder::ReleaseRHITextureIfPossible(const FRDGTexture* Texture)
 	}
 }
 
-void FRDGBuilder::ReleaseRHIBufferIfPossible(const FRDGBuffer* Buffer)
+void FRDGBuilder::ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer)
 {
 	check(Buffer->ReferenceCount > 0);
 	Buffer->ReferenceCount--;

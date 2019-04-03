@@ -89,12 +89,12 @@ void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FVi
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get( RHICmdList );
 
-	const FRDGTexture* SceneColor	= GraphBuilder.RegisterExternalTexture( SceneContext.GetSceneColor() );
-	const FRDGTexture* ScreenSpaceAO= GraphBuilder.RegisterExternalTexture( SceneContext.ScreenSpaceAO );
-	const FRDGTexture* HZBTexture	= GraphBuilder.RegisterExternalTexture( View.HZB );
-	const FRDGTexture* ColorTexture	= GraphBuilder.RegisterExternalTexture( TemporalAAHistory.RT[0] );
+	FRDGTexture* SceneColor	= GraphBuilder.RegisterExternalTexture( SceneContext.GetSceneColor() );
+	FRDGTexture* ScreenSpaceAO= GraphBuilder.RegisterExternalTexture( SceneContext.ScreenSpaceAO );
+	FRDGTexture* HZBTexture	= GraphBuilder.RegisterExternalTexture( View.HZB );
+	FRDGTexture* ColorTexture	= GraphBuilder.RegisterExternalTexture( TemporalAAHistory.RT[0] );
 
-	const FRDGTexture* VelocityTexture;
+	FRDGTexture* VelocityTexture;
 	if( VelocityRT && !View.bCameraCut )
 	{
 		VelocityTexture = GraphBuilder.RegisterExternalTexture( VelocityRT );

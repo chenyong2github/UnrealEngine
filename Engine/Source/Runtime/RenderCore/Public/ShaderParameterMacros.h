@@ -149,26 +149,26 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBinding
 	 *
 	 * Notes: Load and store action are on purpose without default values, to force the user to not forget one of these.
 	 */
-	FRenderTargetBinding(const FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, uint8 InMipIndex = 0)
+	FRenderTargetBinding(FRDGTexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, uint8 InMipIndex = 0)
 		: Texture(InTexture)
 		, LoadAction(InLoadAction)
 		, StoreAction(InStoreAction)
 		, MipIndex(InMipIndex)
 	{}
 
-	inline const FRDGTexture* GetTexture() const
+	FORCEINLINE FRDGTexture* GetTexture() const
 	{
 		return Texture;
 	}
-	inline ERenderTargetLoadAction GetLoadAction() const
+	FORCEINLINE ERenderTargetLoadAction GetLoadAction() const
 	{
 		return LoadAction;
 	}
-	inline ERenderTargetStoreAction GetStoreAction() const
+	FORCEINLINE ERenderTargetStoreAction GetStoreAction() const
 	{
 		return StoreAction;
 	}
-	inline uint8 GetMipIndex() const
+	FORCEINLINE uint8 GetMipIndex() const
 	{
 		return MipIndex;
 	}
@@ -177,7 +177,7 @@ private:
 	/** All parameters required to bind a render target deferred. This are purposefully private to
 	 * force the user to call FRenderTargetBinding() constructor, forcing him to specify the load and store action.
 	 */
-	TAlignedShaderParameterPtr<const FRDGTexture*> Texture;
+	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
 	ERenderTargetLoadAction		LoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	StoreAction		= ERenderTargetStoreAction::ENoAction;
 	uint8						MipIndex		= 0;
@@ -192,7 +192,7 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 	{ }
 	FDepthStencilBinding(const FDepthStencilBinding&) = default;
 
-	TAlignedShaderParameterPtr<const FRDGTexture*> Texture;
+	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
 	ERenderTargetLoadAction		DepthLoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	DepthStoreAction	= ERenderTargetStoreAction::ENoAction;
 	ERenderTargetLoadAction		StencilLoadAction	= ERenderTargetLoadAction::ENoAction;

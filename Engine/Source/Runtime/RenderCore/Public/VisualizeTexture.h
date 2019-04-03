@@ -104,7 +104,7 @@ private:
 	bool ShouldCapture(const TCHAR* DebugName);
 
 	/** Create a pass capturing a texture. */
-	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef Texture);
+	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
 #endif
 
 	friend class FRDGBuilder;

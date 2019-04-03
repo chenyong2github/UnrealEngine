@@ -203,7 +203,7 @@ public:
 	~FRDGBuilder();
 
 	/** Register a external texture to be tracked by the render graph. */
-	inline FRDGTextureRef RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* DebugName = TEXT("External"))
+	FORCEINLINE_DEBUGGABLE FRDGTextureRef RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* DebugName = TEXT("External"))
 	{
 		#if RENDER_GRAPH_DEBUGGING
 		{
@@ -225,7 +225,7 @@ public:
 	}
 
 	/** Register a external buffer to be tracked by the render graph. */
-	inline FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name = TEXT("External"))
+	FORCEINLINE_DEBUGGABLE FRDGBufferRef RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name = TEXT("External"))
 	{
 #if RENDER_GRAPH_DEBUGGING
 		{
@@ -249,7 +249,7 @@ public:
 	 *
 	 * The debug name is the name used for GPU debugging tools, but also for the VisualizeTexture/Vis command.
 	 */
-	inline FRDGTextureRef CreateTexture(const FPooledRenderTargetDesc& Desc, const TCHAR* DebugName)
+	FORCEINLINE_DEBUGGABLE FRDGTextureRef CreateTexture(const FPooledRenderTargetDesc& Desc, const TCHAR* DebugName)
 	{
 		#if RENDER_GRAPH_DEBUGGING
 		{
@@ -269,7 +269,7 @@ public:
 	 *
 	 * The debug name is the name used for GPU debugging tools, but also for the VisualizeTexture/Vis command.
 	 */
-	inline FRDGBufferRef CreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* DebugName)
+	FORCEINLINE_DEBUGGABLE FRDGBufferRef CreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* DebugName)
 	{
 		#if RENDER_GRAPH_DEBUGGING
 		{
@@ -285,7 +285,7 @@ public:
 	}
 
 	/** Create graph tracked SRV for a texture from a descriptor. */
-	inline FRDGTextureSRVRef CreateSRV(const FRDGTextureSRVDesc& Desc)
+	FORCEINLINE_DEBUGGABLE FRDGTextureSRVRef CreateSRV(const FRDGTextureSRVDesc& Desc)
 	{
 		check(Desc.Texture);
 		#if RENDER_GRAPH_DEBUGGING
@@ -303,7 +303,7 @@ public:
 	}
 
 	/** Create graph tracked SRV for a buffer from a descriptor. */
-	inline FRDGBufferSRVRef CreateSRV(const FRDGBufferSRVDesc& Desc)
+	FORCEINLINE_DEBUGGABLE FRDGBufferSRVRef CreateSRV(const FRDGBufferSRVDesc& Desc)
 	{
 		check(Desc.Buffer);
 		#if RENDER_GRAPH_DEBUGGING
@@ -320,7 +320,7 @@ public:
 	}
 
 	/** Create graph tracked UAV for a texture from a descriptor. */
-	inline FRDGTextureUAVRef CreateUAV(const FRDGTextureUAVDesc& Desc)
+	FORCEINLINE_DEBUGGABLE FRDGTextureUAVRef CreateUAV(const FRDGTextureUAVDesc& Desc)
 	{
 		check(Desc.Texture);
 		#if RENDER_GRAPH_DEBUGGING
@@ -338,7 +338,7 @@ public:
 	}
 
 	/** Create graph tracked UAV for a buffer from a descriptor. */
-	inline FRDGBufferUAVRef CreateUAV(const FRDGBufferUAVDesc& Desc)
+	FORCEINLINE_DEBUGGABLE FRDGBufferUAVRef CreateUAV(const FRDGBufferUAVDesc& Desc)
 	{
 		check(Desc.Buffer);
 		#if RENDER_GRAPH_DEBUGGING
@@ -354,14 +354,14 @@ public:
 		return UAV;
 	}
 
-	inline FRDGBufferUAVRef CreateUAV(FRDGBufferRef Buffer, EPixelFormat Format)
+	FORCEINLINE_DEBUGGABLE FRDGBufferUAVRef CreateUAV(FRDGBufferRef Buffer, EPixelFormat Format)
 	{
 		return CreateUAV( FRDGBufferUAVDesc(Buffer, Format) );
 	}
 
 	/** Allocates parameter struct specifically to survive through the life time of the render graph. */
 	template< typename ParameterStructType >
-	inline ParameterStructType* AllocParameters()
+	FORCEINLINE_DEBUGGABLE ParameterStructType* AllocParameters()
 	{
 		// TODO(RDG): could allocate using AllocateForRHILifeTime() to avoid the copy done when using FRHICommandList::BuildLocalUniformBuffer()
 		ParameterStructType* OutParameterPtr = new(FMemStack::Get()) ParameterStructType;
@@ -430,7 +430,7 @@ public:
 	 *
 	 * Caution: You are on your own to have correct memory lifetime of the FRenderGraphPass.
 	 */
-	void AddProcedurallyCreatedPass(FRenderGraphPass* NewPass)
+	FORCEINLINE_DEBUGGABLE void AddProcedurallyCreatedPass(FRenderGraphPass* NewPass)
 	{
 		#if RENDER_GRAPH_DEBUGGING
 		{
@@ -453,7 +453,7 @@ public:
 	 * Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the texture extractions
 	 * will still happen in the Execute(), to ensure there is no bug caused in code outside the render graph on whether this mode is used or not.
 	 */
-	inline void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, bool bTransitionToRead = true)
+	FORCEINLINE_DEBUGGABLE void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, bool bTransitionToRead = true)
 	{
 		check(Texture);
 		check(OutTexturePtr);
@@ -480,7 +480,7 @@ public:
 	 * Note: even when the render graph uses the immediate debugging mode (executing passes as they get added), the buffer extractions
 	 * will still happen in the Execute(), to ensure there is no bug caused in code outside the render graph on whether this mode is used or not.
 	 */
-	inline void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr)
+	FORCEINLINE_DEBUGGABLE void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr)
 	{
 		check(Buffer);
 		check(OutBufferPtr);
@@ -528,9 +528,12 @@ public:
 	{
 		return CurrentScope;
 	}
+
 public:
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
+
+
 private:
 	static constexpr int32 kMaxScopeCount = 8;
 
@@ -538,15 +541,15 @@ private:
 	TArray<FRenderGraphPass*, SceneRenderingAllocator> Passes;
 
 	/** Keep the references over the pooled render target, since FRDGTexture is allocated on FMemStack. */
-	TMap<const FRDGTexture*, TRefCountPtr<IPooledRenderTarget>, SceneRenderingSetAllocator> AllocatedTextures;
+	TMap<FRDGTexture*, TRefCountPtr<IPooledRenderTarget>, SceneRenderingSetAllocator> AllocatedTextures;
 
 	/** Keep the references over the pooled render target, since FRDGTexture is allocated on FMemStack. */
-	TMap<const FRDGBuffer*, TRefCountPtr<FPooledRDGBuffer>, SceneRenderingSetAllocator> AllocatedBuffers;
+	TMap<FRDGBuffer*, TRefCountPtr<FPooledRDGBuffer>, SceneRenderingSetAllocator> AllocatedBuffers;
 
 	/** Array of all deferred access to internal textures. */
 	struct FDeferredInternalTextureQuery
 	{
-		const FRDGTexture* Texture;
+		FRDGTexture* Texture;
 		TRefCountPtr<IPooledRenderTarget>* OutTexturePtr;
 		bool bTransitionToRead;
 	};
@@ -555,7 +558,7 @@ private:
 	/** Array of all deferred access to internal buffers. */
 	struct FDeferredInternalBufferQuery
 	{
-		const FRDGBuffer* Buffer;
+		FRDGBuffer* Buffer;
 		TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr;
 	};
 	TArray<FDeferredInternalBufferQuery, SceneRenderingAllocator> DeferredInternalBufferQueries;
@@ -605,22 +608,22 @@ private:
 		}
 	}
 
-	void AllocateRHITextureIfNeeded(const FRDGTexture* Texture, bool bComputePass);
-	void AllocateRHITextureUAVIfNeeded(const FRDGTextureUAV* UAV, bool bComputePass);
-	void AllocateRHIBufferSRVIfNeeded(const FRDGBufferSRV* SRV, bool bComputePass);
-	void AllocateRHIBufferUAVIfNeeded(const FRDGBufferUAV* UAV, bool bComputePass);
+	void AllocateRHITextureIfNeeded(FRDGTexture* Texture, bool bComputePass);
+	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV, bool bComputePass);
+	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV, bool bComputePass);
+	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV, bool bComputePass);
 
 
-	void TransitionTexture( const FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
-	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, const FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
+	void TransitionTexture(FRDGTexture* Texture, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute) const;
+	void TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const;
 
 	void PushDrawEventStack(const FRenderGraphPass* Pass);
 	void ExecutePass( const FRenderGraphPass* Pass );
 	void AllocateAndTransitionPassResources(const FRenderGraphPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
 	static void WarnForUselessPassDependencies(const FRenderGraphPass* Pass);
 
-	void ReleaseRHITextureIfPossible(const FRDGTexture* Texture);
-	void ReleaseRHIBufferIfPossible(const FRDGBuffer* Buffer);
+	void ReleaseRHITextureIfPossible(FRDGTexture* Texture);
+	void ReleaseRHIBufferIfPossible(FRDGBuffer* Buffer);
 	void ReleaseUnecessaryResources(const FRenderGraphPass* Pass);
 
 	void ProcessDeferredInternalResourceQueries();
@@ -645,7 +648,7 @@ public:
 	FStackRDGEventScopeRef(FStackRDGEventScopeRef&&) = delete;
 	void operator = (const FStackRDGEventScopeRef&) = delete;
 
-	inline FStackRDGEventScopeRef(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName)
+	FORCEINLINE_DEBUGGABLE FStackRDGEventScopeRef(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName)
 		: GraphBuilder(InGraphBuilder)
 	{
 		checkf(!GraphBuilder.bHasExecuted, TEXT("Render graph bulider has already been executed."));
@@ -661,7 +664,7 @@ public:
 		GraphBuilder.CurrentScope = NewScope;
 	}
 
-	inline ~FStackRDGEventScopeRef()
+	FORCEINLINE_DEBUGGABLE ~FStackRDGEventScopeRef()
 	{
 		check(GraphBuilder.CurrentScope != nullptr);
 		GraphBuilder.CurrentScope = GraphBuilder.CurrentScope->ParentScope;

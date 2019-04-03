@@ -103,7 +103,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 	FIntVector VolumetricFogGridSize,
 	float VolumetricFogMaxDistance,
 	FMatrix& OutLightFunctionWorldToShadow,
-	const FRDGTexture*& OutLightFunctionTexture,
+	FRDGTexture*& OutLightFunctionTexture,
 	bool& bOutUseDirectionalLightShadowing)
 {
 	OutLightFunctionWorldToShadow = FMatrix::Identity;

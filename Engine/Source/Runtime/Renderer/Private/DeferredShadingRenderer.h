@@ -390,7 +390,7 @@ private:
 		FIntVector VolumetricFogGridSize,
 		FVector GridZParams,
 		const FPooledRenderTargetDesc& VolumeDesc,
-		const FRDGTexture*& OutLocalShadowedLightScattering);
+		FRDGTexture*& OutLocalShadowedLightScattering);
 
 	void RenderLightFunctionForVolumetricFog(
 		FRDGBuilder& GraphBuilder,
@@ -398,7 +398,7 @@ private:
 		FIntVector VolumetricFogGridSize,
 		float VolumetricFogMaxDistance,
 		FMatrix& OutLightFunctionWorldToShadow,
-		const FRDGTexture*& OutLightFunctionTexture,
+		FRDGTexture*& OutLightFunctionTexture,
 		bool& bOutUseDirectionalLightShadowing);
 
 	void VoxelizeFogVolumePrimitives(
