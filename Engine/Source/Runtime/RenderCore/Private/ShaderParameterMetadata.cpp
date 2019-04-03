@@ -213,7 +213,7 @@ void FShaderParametersMetadata::InitializeLayout()
 		}
 	} // for (int32 i = 0; i < MemberStack.Num(); ++i)
 
-#if 0
+#if 0 // TODO(RDG)
 	/** Sort the resource on MemberType first to avoid CPU miss predictions when iterating over the resources. Then based on ascending offset
 	 * to still allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
 	 */
