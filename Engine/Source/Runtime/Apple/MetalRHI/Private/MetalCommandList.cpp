@@ -206,7 +206,12 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 
         FMetalCommandBufferDebugHelpers::DumpResources(CompletedBuffer.GetPtr());
 		
+#if PLATFORM_IOS
+        UE_LOG(LogMetal, Warning, TEXT("Command Buffer %s Failed with %s Error! Error Domain: %s Code: %d Description %s %s %s"), *LabelString, ErrorType, *DomainString, Code, *ErrorString, *FailureString, *RecoveryString);
+        FIOSPlatformMisc::GPUAssert();
+#else
 		UE_LOG(LogMetal, Fatal, TEXT("Command Buffer %s Failed with %s Error! Error Domain: %s Code: %d Description %s %s %s"), *LabelString, ErrorType, *DomainString, Code, *ErrorString, *FailureString, *RecoveryString);
+#endif
     }
 }
 

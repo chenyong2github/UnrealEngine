@@ -137,7 +137,11 @@ extern bool GMetalSupportsTileShaders;
 
 #define METAL_NEW_NONNULL_DECL (__clang_major__ >= 9)
 
+#if PLATFORM_IOS
+#define METAL_FATAL_ERROR(Format, ...)  { UE_LOG(LogMetal, Warning, Format, __VA_ARGS__); FIOSPlatformMisc::MetalAssert(); }
+#else
 #define METAL_FATAL_ERROR(Format, ...)	UE_LOG(LogMetal, Fatal, Format, __VA_ARGS__)
+#endif
 #define METAL_FATAL_ASSERT(Condition, Format, ...) if (!(Condition)) { METAL_FATAL_ERROR(Format, __VA_ARGS__); }
 
 struct FMetalDebugInfo
