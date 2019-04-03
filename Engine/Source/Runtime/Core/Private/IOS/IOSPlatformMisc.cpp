@@ -494,7 +494,17 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 				DeviceType = IOS_IPadPro3_129;
 			}
 		}
-
+        else if (Major == 11)
+        {
+            if (Minor <= 2)
+            {
+                DeviceType = IOS_IPadMini5;
+            }
+            else
+            {
+                DeviceType = IOS_IPadAir3;
+            }
+        }
 		// Default to highest settings currently available for any future device
 		else if (Major >= 9)
 		{
