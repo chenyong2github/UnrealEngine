@@ -19,6 +19,7 @@
 #include "UObject/LinkerManager.h"
 #include "Misc/PackageName.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/UObjectGlobals.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveDiff, Log, All);
 
@@ -1286,8 +1287,6 @@ static void DumpTableDifferences(
 		*HumanReadableString);
 #endif // !NO_LOGGING
 }
-
-extern int32 GAllowCookedDataInEditorBuilds;
 
 void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackage, const FPackageData& DestPackage, const FString& AssetFilename, const int32 MaxDiffsToLog)
 {
