@@ -41,6 +41,7 @@ enum ECompareType
 	CMP_GreaterIgnore,
 	CMP_GreaterEqualIgnore,
 	CMP_NotEqualIgnore,
+	CMP_Hash,
 	CMP_MAX,
 };
 
