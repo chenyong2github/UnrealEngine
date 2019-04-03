@@ -2213,6 +2213,13 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 		OutputPayload = AddPayload(MulPayload(History, Weights.x), MulPayload(IntermediaryResult.Filtered, Weights.y));
 	}
 
+	// Ensure that alpha values that are expected to be opaque (but are only close to opaque) are forced to be opaque.
+	// (0.995 chosen to accomodate handling of 254/255)
+	if (OutputPayload.Color.a > 0.995)
+	{
+		OutputPayload.Color.a = 1;
+	}
+
 	OutputPayload.Color = TransformBackToRawLinearSceneColor(OutputPayload.Color);
 	
 	#if USE_PREEXPOSURE

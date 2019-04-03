@@ -1049,6 +1049,13 @@ void RecombineMainCS(
 	// Convert alpha channel from opacity back to translucency.
 	OutputFinalSceneColor.a = 1 - OutputFinalSceneColor.a;
 
+	// Ensure that alpha values that are expected to be opaque (but are only close to opaque) are forced to be opaque.
+	// (0.005 chosen to accomodate handling of 1/255)
+	if (OutputFinalSceneColor.a < 0.005)
+	{
+		OutputFinalSceneColor.a = 0;
+	}
+	
 	// Debug optimisation colors.
 	#if DEBUG_FAST_PATHS
 	{
