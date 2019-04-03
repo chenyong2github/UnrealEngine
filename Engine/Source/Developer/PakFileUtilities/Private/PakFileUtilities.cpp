@@ -1529,6 +1529,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	}
 
+	TArray<FName> UsedCompressionFormats; // List of compression formats we actually used in this pak file (used for logging only)
 
 	if (InKeyChain.MasterEncryptionKey)
 	{
@@ -1810,6 +1811,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			}
 			if (FilesToAdd[FileIndex].bNeedsCompression && CompressionMethod != NAME_None)
 			{
+				UsedCompressionFormats.AddUnique(CompressionMethod); // used for logging only
 				FinalizeCopyCompressedFileToPak(Info, CompressedFileBuffer, NewEntry);
 			}
 
@@ -1948,6 +1950,14 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	{
 		float PercentLess = ((float)TotalCompressedSize / (TotalUncompressedSize / 100.f));
 		UE_LOG(LogPakFile, Display, TEXT("Compression summary: %.2f%% of original size. Compressed Size %lld bytes, Original Size %lld bytes. "), PercentLess, TotalCompressedSize, TotalUncompressedSize);
+
+		FString UsedCompressionFormatsString;
+		for (FName CompressionFormat : UsedCompressionFormats)
+		{
+			UsedCompressionFormatsString.Append( CompressionFormat.ToString() + TEXT(", ") );
+		}
+
+		UE_LOG(LogPakFile, Display, TEXT("Used compression formats (in priority order) '%s'"), *UsedCompressionFormatsString);
 	}
 
 	if (TotalEncryptedDataSize)
