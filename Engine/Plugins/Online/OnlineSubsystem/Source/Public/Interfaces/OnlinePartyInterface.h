@@ -937,10 +937,9 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyAnalyticsEvent);
 
 /**
 * Notification of party system state change
-* @param LocalUserId - id associated with this event
 * @param NewState - new state this partysystem is in
 */
-DECLARE_MULTICAST_DELEGATE_TwoParams(F_PREFIX(OnPartySystemStateChange), const FUniqueNetId& /*LocalUserId*/, EPartySystemState /*NewState*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(F_PREFIX(OnPartySystemStateChange), EPartySystemState /*NewState*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartySystemStateChange);
 
 /**
@@ -1595,10 +1594,9 @@ public:
 
 	/**
 	* Notification of party system state change
-	* @param LocalUserId - id associated with this event
 	* @param NewState - new state this partysystem is in
 	*/
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPartySystemStateChange, const FUniqueNetId& /*LocalUserId*/, EPartySystemState /*NewState*/);
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnPartySystemStateChange, EPartySystemState /*NewState*/);
 
 	/**
 	 * Dump out party state for all known parties
