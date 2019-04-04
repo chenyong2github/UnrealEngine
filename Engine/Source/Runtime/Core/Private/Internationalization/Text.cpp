@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/Text.h"
+#include "Algo/Transform.h"
 #include "Misc/Parse.h"
 #include "UObject/ObjectVersion.h"
 #include "UObject/DebugSerializationFlags.h"
@@ -468,6 +469,58 @@ FText FText::FormatNamedImpl(FTextFormat&& Fmt, FFormatNamedArguments&& InArgume
 FText FText::FormatOrderedImpl(FTextFormat&& Fmt, FFormatOrderedArguments&& InArguments)
 {
 	return FTextFormatter::Format(MoveTemp(Fmt), MoveTemp(InArguments), false, false);
+}
+
+template <typename T>
+FText TextJoinImpl(const FText& Delimiter, const TArray<T>& Args)
+{
+	if (Args.Num() > 0)
+	{
+		FText NamedFmtPattern;
+		FFormatNamedArguments NamedArgs;
+		{
+			FString FmtPattern;
+
+			const int32 ArgsCount = Args.Num();
+			NamedArgs.Reserve(ArgsCount + 1);
+			NamedArgs.Add(TEXT("Delimiter"), Delimiter);
+
+			for (int32 ArgIndex = 0; ArgIndex < ArgsCount; ++ArgIndex)
+			{
+				const T& Arg = Args[ArgIndex];
+				NamedArgs.Add(FString::Printf(TEXT("%d"), ArgIndex), Arg);
+
+				FmtPattern += TEXT('{');
+				FmtPattern.AppendInt(ArgIndex);
+				FmtPattern += TEXT('}');
+
+				if (ArgIndex + 1 < ArgsCount)
+				{
+					FmtPattern += TEXT("{Delimiter}");
+				}
+			}
+
+			NamedFmtPattern = FText::AsCultureInvariant(MoveTemp(FmtPattern));
+		}
+
+		return FTextFormatter::Format(MoveTemp(NamedFmtPattern), MoveTemp(NamedArgs), false, false);
+	}
+
+	return FText::GetEmpty();
+}
+
+FText FText::Join(const FText& Delimiter, const FFormatOrderedArguments& Args)
+{
+	return TextJoinImpl(Delimiter, Args);
+}
+
+FText FText::Join(const FText& Delimiter, const TArray<FText>& Args)
+{
+	if (Args.Num() == 1)
+	{
+		return Args[0];
+	}
+	return TextJoinImpl(Delimiter, Args);
 }
 
 FText FText::FromTextGenerator(const TSharedRef<ITextGenerator>& TextGenerator)
@@ -1706,6 +1759,99 @@ bool FTextStringHelper::IsComplexText(const TCHAR* Buffer)
 		|| FTextHistory_Transform::StaticShouldReadFromBuffer(Buffer)
 		|| FTextHistory_StringTableEntry::StaticShouldReadFromBuffer(Buffer);
 #undef LOC_DEFINE_REGION
+}
+
+void FTextBuilder::Indent()
+{
+	++IndentCount;
+}
+
+void FTextBuilder::Unindent()
+{
+	--IndentCount;
+}
+
+void FTextBuilder::AppendLine()
+{
+	BuildAndAppendLine(FText());
+}
+
+void FTextBuilder::AppendLine(const FText& Text)
+{
+	BuildAndAppendLine(CopyTemp(Text));
+}
+
+void FTextBuilder::AppendLine(const FString& String)
+{
+	BuildAndAppendLine(CopyTemp(String));
+}
+
+void FTextBuilder::AppendLine(const FName& Name)
+{
+	BuildAndAppendLine(Name.ToString());
+}
+
+void FTextBuilder::AppendLineFormat(const FTextFormat& Pattern, const FFormatNamedArguments& Arguments)
+{
+	BuildAndAppendLine(FText::Format(Pattern, Arguments));
+}
+
+void FTextBuilder::AppendLineFormat(const FTextFormat& Pattern, const FFormatOrderedArguments& Arguments)
+{
+	BuildAndAppendLine(FText::Format(Pattern, Arguments));
+}
+
+void FTextBuilder::Clear()
+{
+	Lines.Reset();
+}
+
+bool FTextBuilder::IsEmpty()
+{
+	return Lines.Num() == 0;
+}
+
+FText FTextBuilder::ToText() const
+{
+	return FText::Join(FText::AsCultureInvariant(LINE_TERMINATOR), Lines);
+}
+
+void FTextBuilder::BuildAndAppendLine(FString&& Data)
+{
+	if (IndentCount <= 0)
+	{
+		Lines.Emplace(FText::AsCultureInvariant(MoveTemp(Data)));
+	}
+	else
+	{
+		FString IndentedLine;
+		IndentedLine.Reserve((4 * IndentCount) + Data.Len());
+		for (int32 Index = 0; Index < IndentCount; ++Index)
+		{
+			IndentedLine += TEXT("    ");
+		}
+		IndentedLine += Data;
+		Lines.Emplace(FText::AsCultureInvariant(MoveTemp(IndentedLine)));
+	}
+}
+
+void FTextBuilder::BuildAndAppendLine(FText&& Data)
+{
+	if (IndentCount <= 0)
+	{
+		Lines.Emplace(MoveTemp(Data));
+	}
+	else
+	{
+		FString IndentedFmtPattern;
+		IndentedFmtPattern.Reserve((4 * IndentCount) + 3);
+		for (int32 Index = 0; Index < IndentCount; ++Index)
+		{
+			IndentedFmtPattern += TEXT("    ");
+		}
+		IndentedFmtPattern += TEXT("{0}");
+		Lines.Emplace(FText::Format(FText::AsCultureInvariant(MoveTemp(IndentedFmtPattern)), MoveTemp(Data)));
+	}
 }
 
 bool LexTryParseString(ETextGender& OutValue, const TCHAR* Buffer)
