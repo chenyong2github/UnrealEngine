@@ -4115,6 +4115,8 @@ void FSlateApplication::EnterDebuggingMode()
 		PreviousGameViewport->SetActive(false);
 		GameViewportWidget.Reset();
 	}
+	
+	Renderer->EndFrame();
 
 	Renderer->FlushCommands();
 	
@@ -4135,6 +4137,8 @@ void FSlateApplication::EnterDebuggingMode()
 		Tick();
 
 		Renderer->EndFrame();
+		
+		Renderer->FlushCommands();
 		
 		// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 		Renderer->Sync();
