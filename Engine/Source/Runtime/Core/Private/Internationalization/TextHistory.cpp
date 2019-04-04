@@ -2577,7 +2577,7 @@ void FTextHistory_StringTableEntry::FStringTableReferenceData::Initialize(uint16
 		LoadingPhase = EStringTableLoadingPhase::Loaded;
 		ResolveStringTableEntry();
 	}
-	else if (InLoadingPolicy == EStringTableLoadingPolicy::FindOrFullyLoad && IsInGameThread())
+	else if (InLoadingPolicy == EStringTableLoadingPolicy::FindOrFullyLoad && IStringTableEngineBridge::CanFindOrLoadStringTableAsset())
 	{
 		// Forced synchronous load
 		LoadingPhase = EStringTableLoadingPhase::Loaded;
@@ -2667,7 +2667,7 @@ FStringTableEntryConstPtr FTextHistory_StringTableEntry::FStringTableReferenceDa
 
 void FTextHistory_StringTableEntry::FStringTableReferenceData::ConditionalBeginAssetLoad()
 {
-	if (!IsInGameThread())
+	if (!IStringTableEngineBridge::CanFindOrLoadStringTableAsset())
 	{
 		return;
 	}
