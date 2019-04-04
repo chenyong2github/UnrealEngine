@@ -269,6 +269,9 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 
 		Scene->GetPrimitiveUniformShaderParameters_RenderThread(PrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex);
 
+		FBoxSphereBounds PreSkinnedLocalBounds;
+		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+
 		// Update the uniform shader parameters.
 		const FPrimitiveUniformShaderParameters PrimitiveUniformShaderParameters = 
 			GetPrimitiveUniformShaderParameters(
@@ -277,7 +280,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				ActorPosition, 
 				Bounds, 
 				LocalBounds, 
-				GetPreSkinnedLocalBounds(),
+				PreSkinnedLocalBounds,
 				bReceivesDecals, 
 				HasDistanceFieldRepresentation(), 
 				HasDynamicIndirectShadowCasterRepresentation(), 
