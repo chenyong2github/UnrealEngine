@@ -171,7 +171,7 @@ public:
 	void StopQuietSoundsDueToMaxConcurrency();
 };
 
-typedef TMap<FConcurrencyGroupID, FConcurrencyGroup> FConcurrencyGroups;
+typedef TMap<FConcurrencyGroupID, FConcurrencyGroup*> FConcurrencyGroups;
 
 struct FSoundInstanceEntry
 {
