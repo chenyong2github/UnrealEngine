@@ -475,23 +475,27 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	}
 	MarkIndirectLightingCacheBufferDirty();
 
-	FPrimitiveSceneProxy::FLCIArray LCIs;
-	Proxy->GetLCIs(LCIs);
-	for (int32 i = 0; i < LCIs.Num(); ++i)
+	const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
+	if (bAllowStaticLighting)
 	{
-		FLightCacheInterface* LCI = LCIs[i];
-
-		if (LCI) 
+		FPrimitiveSceneProxy::FLCIArray LCIs;
+		Proxy->GetLCIs(LCIs);
+		for (int32 i = 0; i < LCIs.Num(); ++i)
 		{
-			LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+			FLightCacheInterface* LCI = LCIs[i];
+
+			if (LCI)
+			{
+				LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+			}
 		}
-	}
 
-	NumLightmapDataEntries = LCIs.Num();
+		NumLightmapDataEntries = LCIs.Num();
 
-	if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
-	{
-		LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
+		if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
+		{
+			LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
+		}
 	}
 
 	// Cache the nearest reflection proxy if needed
