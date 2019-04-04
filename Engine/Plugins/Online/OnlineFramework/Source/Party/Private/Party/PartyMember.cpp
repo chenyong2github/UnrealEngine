@@ -147,10 +147,6 @@ USocialUser& UPartyMember::GetSocialUser() const
 
 FString UPartyMember::GetDisplayName() const
 {
-	if (SocialUser->IsInitialized())
-	{ 
-		SocialUser->GetDisplayName();
-	}
 	return OssPartyMember->GetDisplayName(GetRepData().GetPlatform());
 }
 
