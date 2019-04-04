@@ -165,6 +165,7 @@ void NiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneView
 				false,
 				false,
 				false,
+				SceneProxy->DrawsVelocity(),
 				SceneProxy->GetLightingChannelMask(),
 				0,
 				INDEX_NONE,

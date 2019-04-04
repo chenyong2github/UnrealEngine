@@ -883,7 +883,7 @@ void FPixelShaderInOut_MainPS(
 	#endif
 
 		// Make sure not to touch 0,0 which is clear color
-		GBuffer.Velocity = float4(EncodeVelocityToTexture(Velocity), 0, 0);
+		GBuffer.Velocity = float4(EncodeVelocityToTexture(Velocity) * GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity, 0, 0);
 	}
 	#else
 		GBuffer.Velocity = 0;

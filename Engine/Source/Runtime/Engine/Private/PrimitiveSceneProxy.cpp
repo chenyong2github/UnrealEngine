@@ -282,6 +282,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				HasDynamicIndirectShadowCasterRepresentation(), 
 				UseSingleSampleShadowFromStationaryLights(),
 				bHasPrecomputedVolumetricLightmap,
+				DrawsVelocity(), 
 				GetLightingChannelMask(),
 				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,

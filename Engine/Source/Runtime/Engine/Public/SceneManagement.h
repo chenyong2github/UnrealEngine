@@ -2203,7 +2203,8 @@ public:
 		const FBoxSphereBounds& LocalBounds,
 		const FBoxSphereBounds& PreSkinnedLocalBounds,
 		bool bReceivesDecals,
-		bool bHasPrecomputedVolumetricLightmap);
+		bool bHasPrecomputedVolumetricLightmap,
+		bool bDrawsVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
 	ENGINE_API void Set(
@@ -2212,7 +2213,8 @@ public:
 		const FBoxSphereBounds& WorldBounds,
 		const FBoxSphereBounds& LocalBounds,
 		bool bReceivesDecals,
-		bool bHasPrecomputedVolumetricLightmap);
+		bool bHasPrecomputedVolumetricLightmap,
+		bool bDrawsVelocity);
 };
 
 //

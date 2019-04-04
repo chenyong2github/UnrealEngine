@@ -7271,6 +7271,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			false,
 			UseSingleSampleShadowFromStationaryLights(),
 			GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
+			DrawsVelocity(),
 			GetLightingChannelMask(),
 			0,
 			INDEX_NONE,

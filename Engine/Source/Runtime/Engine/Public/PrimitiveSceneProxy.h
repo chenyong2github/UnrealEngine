@@ -522,6 +522,11 @@ public:
 	inline bool IsStaticPathAvailable() const { return !bHasMobileMovablePointLightInteraction; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
 
+	/** Returns whether draws velocity in base pass. */
+	inline bool DrawsVelocity() const {
+		return IsMovable();
+	}
+
 #if WITH_EDITOR
 	inline int32 GetNumUncachedStaticLightingInteractions() { return NumUncachedStaticLightingInteractions; }
 

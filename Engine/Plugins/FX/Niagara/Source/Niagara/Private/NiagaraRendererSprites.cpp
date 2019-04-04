@@ -130,6 +130,7 @@ void NiagaraRendererSprites::ConditionalInitPrimitiveUniformBuffer(const FNiagar
 			false,
 			SceneProxy->UseSingleSampleShadowFromStationaryLights(),
 			SceneProxy->GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
+			SceneProxy->DrawsVelocity(),
 			SceneProxy->GetLightingChannelMask(),
 			0,
 			INDEX_NONE,
