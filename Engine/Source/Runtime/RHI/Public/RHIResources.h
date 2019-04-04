@@ -2337,6 +2337,9 @@ struct FRHIRenderPassInfo
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
 
+	// TODO: Remove once FORT-162640 is solved
+	bool bTooManyUAVs = false;
+
 	//#RenderPasses
 	int32 UAVIndex = -1;
 	int32 NumUAVs = 0;
@@ -2520,6 +2523,12 @@ struct FRHIRenderPassInfo
 
 	explicit FRHIRenderPassInfo(int32 InNumUAVs, FUnorderedAccessViewRHIParamRef* InUAVs)
 	{
+		if (InNumUAVs > MaxSimultaneousUAVs)
+		{
+			OnVerifyNumUAVsFailed(InNumUAVs);
+			InNumUAVs = MaxSimultaneousUAVs;
+		}
+
 		FMemory::Memzero(*this);
 		NumUAVs = InNumUAVs;
 		for (int32 Index = 0; Index < InNumUAVs; Index++)
@@ -2560,11 +2569,16 @@ struct FRHIRenderPassInfo
 #endif
 	RHI_API void ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const;
 
+#if 0 // FORT-162640
 	FRHIRenderPassInfo& operator = (const FRHIRenderPassInfo& In)
 	{
 		FMemory::Memcpy(*this, In);
 		return *this;
 	}
+#endif
 
 	bool bIsMSAA = false;
+
+private:
+	FORCENOINLINE void OnVerifyNumUAVsFailed(int32 InNumUAVs);
 };
