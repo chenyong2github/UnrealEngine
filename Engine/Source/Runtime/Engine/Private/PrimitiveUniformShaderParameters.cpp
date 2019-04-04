@@ -55,7 +55,6 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->HasDynamicIndirectShadowCasterRepresentation(), 
 		Proxy->UseSingleSampleShadowFromStationaryLights(),
 		bHasPrecomputedVolumetricLightmap,
-		Proxy->UseEditorDepthTest(), 
 		Proxy->GetLightingChannelMask(),
 		Proxy->GetLpvBiasMultiplier(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
@@ -95,7 +94,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 		PrimitiveUniformShaderParameters.DecalReceiverMask, 
 		PrimitiveUniformShaderParameters.PerObjectGBufferData, 
 		PrimitiveUniformShaderParameters.UseVolumetricLightmapShadowFromStationaryLights, 
-		PrimitiveUniformShaderParameters.UseEditorDepthTest);
+		1.0f);
 	Data[21] = PrimitiveUniformShaderParameters.ObjectOrientation;
 	Data[22] = PrimitiveUniformShaderParameters.NonUniformScale;
 

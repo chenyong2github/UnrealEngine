@@ -120,7 +120,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
 ,	bAlwaysHasVelocity(false)
-,	bUseEditorDepthTest(true)
 ,	bSupportsDistanceFieldRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
 ,	bNeedsLevelAddedToWorldNotification(false)
@@ -283,7 +282,6 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				HasDynamicIndirectShadowCasterRepresentation(), 
 				UseSingleSampleShadowFromStationaryLights(),
 				bHasPrecomputedVolumetricLightmap,
-				UseEditorDepthTest(), 
 				GetLightingChannelMask(),
 				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
