@@ -607,6 +607,11 @@ bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& O
 				const FCompactPoseBoneIndex CompactIndex = BoneIndices[TrackIndex].CompactBoneIndex;
 				if (CompactIndex != INDEX_NONE)
 				{
+					if (!ExtractionContext.IsBoneRequired(CompactIndex.GetInt()))
+					{
+						continue;
+					}
+
 					TArray<FTransform> BlendingTransform;
 					TArray<float> BlendingWeights;
 					float TotalLocalWeight = 0.f;
@@ -685,6 +690,10 @@ bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& O
 				const FBoneIndices& LocalBoneIndices = BoneIndices[TrackIndex];
 				if (LocalBoneIndices.CompactBoneIndex != INDEX_NONE)
 				{
+					if (!ExtractionContext.IsBoneRequired(LocalBoneIndices.CompactBoneIndex.GetInt()))
+					{
+						continue;
+					}
 					FAnimationRuntime::RetargetBoneTransform(MySkeleton, RetargetSource, BlendedBoneTransform[TrackIndex], LocalBoneIndices.SkeletonBoneIndex, LocalBoneIndices.CompactBoneIndex, RequiredBones, bAdditivePose);
 					OutPose[LocalBoneIndices.CompactBoneIndex] = BlendedBoneTransform[TrackIndex];
 					OutPose.NormalizeRotations();

@@ -38,12 +38,48 @@ enum class EUpdateConfigCompletionResult;
 
 struct FAnalyticsEventAttribute;
 
+enum class EMemberConnectionStatus
+{
+	Uninitialized,
+	Disconnected,
+	Initializing,
+	Connected
+};
+
+/**
+* notification when a party member's data status has changed
+* @param ChangedUserId - id associated with this notification
+* @param NewMemberConnectionStatus - new member data status
+*/
+DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnMemberConnectionStatusChanged), const FUniqueNetId& /*ChangedUserId*/, const EMemberConnectionStatus /*NewMemberDataStatus*/, const EMemberConnectionStatus /*PreviousMemberDataStatus*/);
+PARTY_DECLARE_DELEGATETYPE(OnMemberConnectionStatusChanged);
+
 /**
  * Party member user info returned by IOnlineParty interface
  */
 class FOnlinePartyMember : public FOnlineUser
 {
 public:
+	EMemberConnectionStatus MemberConnectionStatus = EMemberConnectionStatus::Uninitialized;
+	EMemberConnectionStatus PreviousMemberConnectionStatus = EMemberConnectionStatus::Uninitialized;
+
+	/**
+	* notification when a party member's data status has changed
+	* @param ChangedUserId - id associated with this notification
+	* @param NewMemberConnectionStatus - new member data status
+	* @param PreviousMemberConnectionStatus - previous member data status
+	*/
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnMemberConnectionStatusChanged, const FUniqueNetId& /*ChangedUserId*/, const EMemberConnectionStatus /*NewMemberConnectionStatus*/, const EMemberConnectionStatus /*PreviousMemberConnectionStatus*/);
+
+	void SetMemberConnectionStatus(EMemberConnectionStatus NewMemberConnectionStatus)
+	{
+		if (NewMemberConnectionStatus != MemberConnectionStatus)
+		{
+			PreviousMemberConnectionStatus = MemberConnectionStatus;
+			MemberConnectionStatus = NewMemberConnectionStatus;
+			TriggerOnMemberConnectionStatusChangedDelegates(*GetUserId(), MemberConnectionStatus, PreviousMemberConnectionStatus);
+		}
+	}
 };
 
 /**
@@ -272,6 +308,7 @@ private:
 
 	/** set of which fields are dirty and need to transmitted */
 	TSet<FString> DirtyKeys;
+
 };
 
 /**
@@ -497,6 +534,7 @@ protected:
 		: PartyId(InPartyId)
 		, PartyTypeId(InPartyTypeId)
 		, State(EPartyState::None)
+		, PreviousState(EPartyState::None)
 		, Config(InConfig)
 	{}
 
@@ -517,6 +555,11 @@ public:
 	 * @return true if this party is joinable, false if not
 	 */
 	virtual bool IsJoinable() const = 0;
+	virtual void SetState(EPartyState InState)
+	{
+		PreviousState = State;
+		State = InState;
+	}
 
 	/**
 	 * Get the party's configuration
@@ -533,6 +576,8 @@ public:
 	TSharedPtr<const FUniqueNetId> LeaderId;
 	/** The current state of the party */
 	EPartyState State;
+	/** The current state of the party */
+	EPartyState PreviousState;
 	/** Current state of configuration */
 	TSharedRef<FPartyConfiguration> Config;
 	/** id of chat room associated with the party */
@@ -569,7 +614,7 @@ struct FPartyInvitationRecipient
 	FString ONLINESUBSYSTEM_API ToDebugString() const;
 };
 
-
+struct FOnlineError;
 enum class ECreatePartyCompletionResult;
 enum class EJoinPartyCompletionResult;
 enum class ELeavePartyCompletionResult;
@@ -582,9 +627,24 @@ enum class EKickMemberCompletionResult;
 enum class EPromoteMemberCompletionResult;
 enum class EInvitationResponse;
 
+enum class EPartySystemState
+{
+	Initializing = 0,
+	Initialized,
+	RequestingShutdown,
+	ShutDown,
+};
+
 ///////////////////////////////////////////////////////////////////
 // Completion delegates
 ///////////////////////////////////////////////////////////////////
+/**
+ * Restore parties async task completed callback
+ *
+ * @param LocalUserId id of user that initiated the request
+ * @param Result Result of the operation
+ */
+DECLARE_DELEGATE_TwoParams(FOnRestorePartiesComplete, const FUniqueNetId& /*LocalUserId*/, const FOnlineError& /*Result*/);
 /**
  * Party creation async task completed callback
  *
@@ -710,8 +770,9 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyExited);
  * @param LocalUserId - id associated with this notification
  * @param PartyId - id associated with the party
  * @param State - state of the party
+ * @param PreviousState - previous state of the party
  */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyStateChanged), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, EPartyState /*State*/);
+DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyStateChanged), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, EPartyState /*State*/, EPartyState /*PreviousState*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyStateChanged);
 
 /**
@@ -875,6 +936,13 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyAnalyticsEvent), const FU
 PARTY_DECLARE_DELEGATETYPE(OnPartyAnalyticsEvent);
 
 /**
+* Notification of party system state change
+* @param NewState - new state this partysystem is in
+*/
+DECLARE_MULTICAST_DELEGATE_OneParam(F_PREFIX(OnPartySystemStateChange), EPartySystemState /*NewState*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartySystemStateChange);
+
+/**
  * Interface definition for the online party services 
  * Allows for forming a party and communicating with party members
  */
@@ -886,6 +954,14 @@ protected:
 public:
 	virtual ~IOnlinePartySystem() {};
 
+	/**
+	 * Restore party memberships. Intended to be called once during login to restore state from other running instances.
+	 *
+	 * @param LocalUserId the user to restore the party membership for
+	 * @param CompletionDelegate the delegate to trigger on completion
+	 */
+	virtual void RestoreParties(const FUniqueNetId& LocalUserId, const FOnRestorePartiesComplete& CompletionDelegate) = 0;
+	
 	/**
 	 * Create a new party
 	 *
@@ -1364,8 +1440,9 @@ public:
 	 * @param LocalUserId - id associated with this notification
 	 * @param PartyId - id associated with the party
 	 * @param State - state of the party
+	 * @param PreviousState - previous state of the party
 	*/
-	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyStateChanged, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, EPartyState /*State*/);
+	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyStateChanged, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, EPartyState /*State*/, EPartyState /*PreviousState*/);
 
 	/**
 	* notification of when a player had been approved to Join In Progress
@@ -1514,6 +1591,12 @@ public:
 	 * @param Attributes - attributes for the event
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyAnalyticsEvent, const FUniqueNetId& /*LocalUserId*/, const FString& /*EventName*/, const TArray<FAnalyticsEventAttribute>& /*Attributes*/);
+
+	/**
+	* Notification of party system state change
+	* @param NewState - new state this partysystem is in
+	*/
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnPartySystemStateChange, EPartySystemState /*NewState*/);
 
 	/**
 	 * Dump out party state for all known parties
@@ -1711,562 +1794,44 @@ enum class EInvitationResponse
 };
 
 /** @return the stringified version of the enum passed in */
-inline const TCHAR* ToString(const EPartyState Value)
-{
-	switch (Value)
-	{
-	case EPartyState::None:
-	{
-		return TEXT("None");
-	}
-	case EPartyState::CreatePending:
-	{
-		return TEXT("CreatePending");
-	}
-	case EPartyState::JoinPending:
-	{
-		return TEXT("JoinPending");
-	}
-	case EPartyState::LeavePending:
-	{
-		return TEXT("LeavePending");
-	}
-	case EPartyState::Active:
-	{
-		return TEXT("Active");
-	}
-	case EPartyState::Disconnected:
-	{
-		return TEXT("Disconnected");
-	}
-	case EPartyState::CleanUp:
-	{
-		return TEXT("CleanUp");
-	}
-	}
-	return TEXT("Unknown");
-}
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EPartyState Value);
+/** @return the enum version of the string passed in */
+ONLINESUBSYSTEM_API EPartyState EPartyStateFromString(const TCHAR* Value);
 
-inline const TCHAR* ToString(const EMemberExitedReason Value)
-{
-	switch (Value)
-	{
-	case EMemberExitedReason::Unknown:
-	{
-		return TEXT("Unknown");
-	}
-	case EMemberExitedReason::Left:
-	{
-		return TEXT("Left");
-	}
-	case EMemberExitedReason::Removed:
-	{
-		return TEXT("Removed");
-	}
-	case EMemberExitedReason::Kicked:
-	{
-		return TEXT("Kicked");
-	}
-	}
-	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information
-}
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EMemberExitedReason Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const ECreatePartyCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const ESendPartyInvitationCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EJoinPartyCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const ELeavePartyCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EUpdateConfigCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EKickMemberCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EPromoteMemberCompletionResult Value);
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EInvitationResponse Value);
 
-inline const TCHAR* ToString(const ECreatePartyCompletionResult Value)
-{
-	switch (Value)
-	{
-	case ECreatePartyCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case ECreatePartyCompletionResult::AlreadyCreatingParty:
-	{
-		return TEXT("AlreadyCreatingParty");
-	}
-	case ECreatePartyCompletionResult::AlreadyInParty:
-	{
-		return TEXT("AlreadyInParty");
-	}
-	case ECreatePartyCompletionResult::FailedToCreateMucRoom:
-	{
-		return TEXT("FailedToCreateMucRoom");
-	}
-	case ECreatePartyCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case ECreatePartyCompletionResult::LoggedOut:
-	{
-		return TEXT("LoggedOut");
-	}
-	case ECreatePartyCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case ECreatePartyCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const PartySystemPermissions::EPermissionType Value);
+/** @return the enum version of the string passed in */
+ONLINESUBSYSTEM_API PartySystemPermissions::EPermissionType PartySystemPermissionTypeFromString(const TCHAR* Value);
 
-inline const TCHAR* ToString(const ESendPartyInvitationCompletionResult Value)
-{
-	switch (Value)
-	{
-	case ESendPartyInvitationCompletionResult::NotLoggedIn:
-	{
-		return TEXT("NotLoggedIn");
-	}
-	case ESendPartyInvitationCompletionResult::InvitePending:
-	{
-		return TEXT("InvitePending");
-	}
-	case ESendPartyInvitationCompletionResult::AlreadyInParty:
-	{
-		return TEXT("AlreadyInParty");
-	}
-	case ESendPartyInvitationCompletionResult::PartyFull:
-	{
-		return TEXT("PartyFull");
-	}
-	case ESendPartyInvitationCompletionResult::NoPermission:
-	{
-		return TEXT("NoPermission");
-	}
-	case ESendPartyInvitationCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case ESendPartyInvitationCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
+/** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EJoinRequestAction Value);
+/** @return the enum version of the string passed in */
+ONLINESUBSYSTEM_API EJoinRequestAction JoinRequestActionFromString(const TCHAR* Value);
 
-inline const TCHAR* ToString(const EJoinPartyCompletionResult Value)
-{
-	switch (Value)
-	{
-	case EJoinPartyCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case EJoinPartyCompletionResult::BadBuild:
-	{
-		return TEXT("BadBuild");
-	}
-	case EJoinPartyCompletionResult::InvalidAccessKey:
-	{
-		return TEXT("InvalidAccessKey");
-	}
-	case EJoinPartyCompletionResult::AlreadyInLeadersJoiningList:
-	{
-		return TEXT("AlreadyInLeadersJoiningList");
-	}
-	case EJoinPartyCompletionResult::AlreadyInLeadersPartyRoster:
-	{
-		return TEXT("AlreadyInLeadersPartyRoster");
-	}
-	case EJoinPartyCompletionResult::NoSpace:
-	{
-		return TEXT("NoSpace");
-	}
-	case EJoinPartyCompletionResult::NotApproved:
-	{
-		return TEXT("NotApproved");
-	}
-	case EJoinPartyCompletionResult::RequesteeNotMember:
-	{
-		return TEXT("RequesteeNotMember");
-	}
-	case EJoinPartyCompletionResult::RequesteeNotLeader:
-	{
-		return TEXT("RequesteeNotLeader");
-	}
-	case EJoinPartyCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case EJoinPartyCompletionResult::LoggedOut:
-	{
-		return TEXT("LoggedOut");
-	}
-	case EJoinPartyCompletionResult::UnableToRejoin:
-	{
-		return TEXT("UnableToRejoin");
-	}
-	case EJoinPartyCompletionResult::IncompatiblePlatform:
-	{
-		return TEXT("IncompatiblePlatform");
-	}
-	case EJoinPartyCompletionResult::AlreadyJoiningParty:
-	{
-		return TEXT("AlreadyJoiningParty");
-	}
-	case EJoinPartyCompletionResult::AlreadyInParty:
-	{
-		return TEXT("AlreadyInParty");
-	}
-	case EJoinPartyCompletionResult::JoinInfoInvalid:
-	{
-		return TEXT("JoinInfoInvalid");
-	}
-	case EJoinPartyCompletionResult::AlreadyInPartyOfSpecifiedType:
-	{
-		return TEXT("AlreadyInPartyOfSpecifiedType");
-	}
-	case EJoinPartyCompletionResult::MessagingFailure:
-	{
-		return TEXT("MessagingFailure");
-	}
-	case EJoinPartyCompletionResult::GameSpecificReason:
-	{
-		return TEXT("GameSpecificReason");
-	}
-	case EJoinPartyCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	case EJoinPartyCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("DeprecatedUnknownInternalFailure");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const ELeavePartyCompletionResult Value)
-{
-	switch (Value)
-	{
-	case ELeavePartyCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case ELeavePartyCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case ELeavePartyCompletionResult::LoggedOut:
-	{
-		return TEXT("LoggedOut");
-	}
-	case ELeavePartyCompletionResult::UnknownParty:
-	{
-		return TEXT("UnknownParty");
-	}
-	case ELeavePartyCompletionResult::LeavePending:
-	{
-		return TEXT("LeavePending");
-	}
-	case ELeavePartyCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	case ELeavePartyCompletionResult::UnknownLocalUser:
-	{
-		return TEXT("DeprecatedUnknownLocalUser");
-	}
-	case ELeavePartyCompletionResult::NotMember:
-	{
-		return TEXT("DeprecatedNotMember");
-	}
-	case ELeavePartyCompletionResult::MessagingFailure:
-	{
-		return TEXT("DeprecatedMessagingFailure");
-	}
-	case ELeavePartyCompletionResult::UnknownTransportFailure:
-	{
-		return TEXT("DeprecatedUnknownTransportFailure");
-	}
-	case ELeavePartyCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("DeprecatedUnknownInternalFailure");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const EUpdateConfigCompletionResult Value)
-{
-	switch (Value)
-	{
-	case EUpdateConfigCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case EUpdateConfigCompletionResult::UnknownParty:
-	{
-		return TEXT("UnknownParty");
-	}
-	case EUpdateConfigCompletionResult::LocalMemberNotMember:
-	{
-		return TEXT("LocalMemberNotMember");
-	}
-	case EUpdateConfigCompletionResult::LocalMemberNotLeader:
-	{
-		return TEXT("LocalMemberNotLeader");
-	}
-	case EUpdateConfigCompletionResult::RemoteMemberNotMember:
-	{
-		return TEXT("RemoteMemberNotMember");
-	}
-	case EUpdateConfigCompletionResult::MessagingFailure:
-	{
-		return TEXT("MessagingFailure");
-	}
-	case EUpdateConfigCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case EUpdateConfigCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case EUpdateConfigCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const EKickMemberCompletionResult Value)
-{
-	switch (Value)
-	{
-	case EKickMemberCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case EKickMemberCompletionResult::UnknownParty:
-	{
-		return TEXT("UnknownParty");
-	}
-	case EKickMemberCompletionResult::LocalMemberNotMember:
-	{
-		return TEXT("LocalMemberNotMember");
-	}
-	case EKickMemberCompletionResult::LocalMemberNotLeader:
-	{
-		return TEXT("LocalMemberNotLeader");
-	}
-	case EKickMemberCompletionResult::RemoteMemberNotMember:
-	{
-		return TEXT("RemoteMemberNotMember");
-	}
-	case EKickMemberCompletionResult::MessagingFailure:
-	{
-		return TEXT("MessagingFailure");
-	}
-	case EKickMemberCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case EKickMemberCompletionResult::LoggedOut:
-	{
-		return TEXT("LoggedOut");
-	}
-	case EKickMemberCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case EKickMemberCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const EPromoteMemberCompletionResult Value)
-{
-	switch (Value)
-	{
-	case EPromoteMemberCompletionResult::UnknownClientFailure:
-	{
-		return TEXT("UnknownClientFailure");
-	}
-	case EPromoteMemberCompletionResult::UnknownParty:
-	{
-		return TEXT("UnknownParty");
-	}
-	case EPromoteMemberCompletionResult::LocalMemberNotMember:
-	{
-		return TEXT("LocalMemberNotMember");
-	}
-	case EPromoteMemberCompletionResult::LocalMemberNotLeader:
-	{
-		return TEXT("LocalMemberNotLeader");
-	}
-	case EPromoteMemberCompletionResult::TargetIsSelf:
-	{
-		return TEXT("TargetIsSelf");
-	}
-	case EPromoteMemberCompletionResult::TargetNotMember:
-	{
-		return TEXT("TargetNotMember");
-	}
-	case EPromoteMemberCompletionResult::MessagingFailure:
-	{
-		return TEXT("MessagingFailure");
-	}
-	case EPromoteMemberCompletionResult::NoResponse:
-	{
-		return TEXT("NoResponse");
-	}
-	case EPromoteMemberCompletionResult::LoggedOut:
-	{
-		return TEXT("LoggedOut");
-	}
-	case EPromoteMemberCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case EPromoteMemberCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const PartySystemPermissions::EPermissionType Value)
-{
-	switch (Value)
-	{
-	case PartySystemPermissions::EPermissionType::Noone:
-	{
-		return TEXT("Noone");
-	}
-	case PartySystemPermissions::EPermissionType::Leader:
-	{
-		return TEXT("Leader");
-	}
-	case PartySystemPermissions::EPermissionType::Friends:
-	{
-		return TEXT("Friends");
-	}
-	case PartySystemPermissions::EPermissionType::Anyone:
-	{
-		return TEXT("Anyone");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const EJoinRequestAction Value)
-{
-	switch (Value)
-	{
-	case EJoinRequestAction::Manual:
-	{
-		return TEXT("Manual");
-	}
-	case EJoinRequestAction::AutoApprove:
-	{
-		return TEXT("AutoApprove");
-	}
-	case EJoinRequestAction::AutoReject:
-	{
-		return TEXT("AutoReject");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline const TCHAR* ToString(const EInvitationResponse Value)
-{
-	switch (Value)
-	{
-	case EInvitationResponse::UnknownFailure:
-	{
-		return TEXT("UnknownFailure");
-	}
-	case EInvitationResponse::BadBuild:
-	{
-		return TEXT("BadBuild");
-	}
-	case EInvitationResponse::Rejected:
-	{
-		return TEXT("Rejected");
-	}
-	case EInvitationResponse::Accepted:
-	{
-		return TEXT("Accepted");
-	}
-	}
-	return TEXT("Unknown");
-}
-
-inline FString ToDebugString(const FPartyConfiguration& PartyConfiguration)
-{
-	return FString::Printf(TEXT("JoinRequestAction(%s) RemoveOnDisconnect(%d) Publish(%s) Chat(%d) Invite(%s) Accepting(%d) Not Accepting Reason(%d) MaxMembers: %d Nickname: %s Description: %s Password: %s"),
-			ToString(PartyConfiguration.JoinRequestAction),
-			PartyConfiguration.bShouldRemoveOnDisconnection,
-			ToString(PartyConfiguration.PresencePermissions),
-			PartyConfiguration.bChatEnabled,
-			ToString(PartyConfiguration.InvitePermissions),
-			PartyConfiguration.bIsAcceptingMembers,
-			PartyConfiguration.NotAcceptingMembersReason,
-			PartyConfiguration.MaxMembers,
-			*PartyConfiguration.Nickname,
-			*PartyConfiguration.Description,
-			PartyConfiguration.Password.IsEmpty() ? TEXT("not set") : *PartyConfiguration.Password
-		);
-}
-
-inline FString ToDebugString(const IOnlinePartyJoinInfo& JoinInfo)
-{
-	return FString::Printf(TEXT("SourceUserId(%s) SourceDisplayName(%s) PartyId(%s) HasKey(%d) HasPassword(%d) IsAcceptingMembers(%d) NotAcceptingReason(%d)"),
-			*(JoinInfo.GetSourceUserId()->ToDebugString()),
-			*(JoinInfo.GetSourceDisplayName()),
-			*(JoinInfo.GetPartyId()->ToDebugString()),
-			JoinInfo.HasKey() ? 1 : 0,
-			JoinInfo.HasPassword() ? 1 : 0,
-			JoinInfo.IsAcceptingMembers() ? 1 : 0,
-			JoinInfo.GetNotAcceptingReason()
-		);
-}
-
-/**
- * Dump key/value pairs for debugging
- */
-inline FString ToDebugString(const FOnlineKeyValuePairs<FString, FVariantData>& KeyValAttrs)
-{
-	FString Result;
-	bool bPrintedAny = false;
-	for (const TPair<FString, FVariantData>& Iterator : KeyValAttrs)
-	{
-		if (bPrintedAny)
-		{
-			Result += TEXT(",");
-		}
-		Result += FString::Printf(TEXT("[%s=%s]"), *Iterator.Key, *Iterator.Value.ToString());
-		bPrintedAny = true;
-	}
-	return Result;
-}
-
-/**
-* Dump state about the party data for debugging
-*/
-inline FString ToDebugString(const FOnlinePartyData& PartyData)
-{
-	FString Result;
-	
-	int32 TotalBytesPerSec = PartyData.TotalPackets ? (PartyData.TotalBytes / PartyData.TotalPackets) : 0;
-	int32 TotalEffectiveBytesPerSec = PartyData.TotalPackets ? (PartyData.TotalEffectiveBytes / PartyData.TotalPackets) : 0;
-
-	Result += FString::Printf(TEXT("%dB [%d B/pkt], %dB [%d B/pkt], Rev: %d,"), 
-		PartyData.TotalBytes, TotalBytesPerSec,
-		PartyData.TotalEffectiveBytes, TotalEffectiveBytesPerSec, 
-		PartyData.RevisionCount);
-
-	Result += ToDebugString(PartyData.GetKeyValAttrs());
-	return Result;
-}
+/** Dump party configuration for debugging */
+ONLINESUBSYSTEM_API FString ToDebugString(const FPartyConfiguration& PartyConfiguration);
+/** Dump join info for debugging */
+ONLINESUBSYSTEM_API FString ToDebugString(const IOnlinePartyJoinInfo& JoinInfo);
+/** Dump key/value pairs for debugging */
+ONLINESUBSYSTEM_API FString ToDebugString(const FOnlineKeyValuePairs<FString, FVariantData>& KeyValAttrs);
+/** Dump state about the party data for debugging */
+ONLINESUBSYSTEM_API FString ToDebugString(const FOnlinePartyData& PartyData);

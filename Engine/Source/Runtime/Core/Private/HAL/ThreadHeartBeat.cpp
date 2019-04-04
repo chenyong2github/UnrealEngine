@@ -16,6 +16,9 @@
 #include "Stats/Stats.h"
 #include "Async/TaskGraphInterfaces.h"
 
+#if PLATFORM_SWITCH
+#include "Switch/SwitchPlatformCrashContext.h"
+#endif
 // When enabled, the heart beat thread will call abort() when a hang
 // is detected, rather than performing stack back-traces and logging.
 #define MINIMAL_FATAL_HANG_DETECTION	((PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_SWITCH) && 1)
@@ -67,7 +70,7 @@ FThreadHeartBeat::FThreadHeartBeat()
 	, CurrentPresentDuration(0)
 	, HangDurationMultiplier(1.0)
 	, LastHangCallstackCRC(0)
-	, LastHungThreadId(0)
+	, LastHungThreadId(InvalidThreadId)
 	, Clock(HangDetectorClock_MaxTimeStep_MS / 1000)
 {
 	// Start with the frame-present based hang detection disabled. This will be automatically enabled on
@@ -149,7 +152,9 @@ void FORCENOINLINE FThreadHeartBeat::OnPresentHang(double HangDuration)
 #if MINIMAL_FATAL_HANG_DETECTION
 
 	LastHungThreadId = FThreadHeartBeat::PresentThreadId;
-
+#if PLATFORM_SWITCH
+	FPlatformCrashContext::UpdateDynamicData();
+#endif
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
 
@@ -171,7 +176,9 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 #if MINIMAL_FATAL_HANG_DETECTION
 
 	LastHungThreadId = ThreadThatHung;
-
+#if PLATFORM_SWITCH
+	FPlatformCrashContext::UpdateDynamicData();
+#endif
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
 
@@ -200,6 +207,7 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 		for (int32 Idx = 0; Idx < NumStackFrames; Idx++)
 		{
 			ANSICHAR Buffer[1024];
+			Buffer[0] = '\0';
 			FPlatformStackWalk::ProgramCounterToHumanReadableString(Idx, StackFrames[Idx], Buffer, sizeof(Buffer));
 			StackLines.Add(Buffer);
 		}
@@ -389,12 +397,14 @@ uint32 FThreadHeartBeat::CheckHeartBeat(double& OutHangDuration)
 		if (ConfigHangDuration > 0.0)
 		{
 			// Check heartbeat for all threads and return thread ID of the thread that hung.
+			// Note: We only return a thread id for a thread that has updated since the last hang, i.e. is still alive
+			// This avoids the case where a user may be in a deep and minorly varying callstack and flood us with reports
 			for (TPair<uint32, FHeartBeatInfo>& LastHeartBeat : ThreadHeartBeat)
 			{
 				FHeartBeatInfo& HeartBeatInfo = LastHeartBeat.Value;
-				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration)
+				if (HeartBeatInfo.SuspendedCount == 0 && (CurrentTime - HeartBeatInfo.LastHeartBeatTime) > HeartBeatInfo.HangDuration && HeartBeatInfo.LastHeartBeatTime >= HeartBeatInfo.LastHangTime)
 				{
-					HeartBeatInfo.LastHeartBeatTime = CurrentTime;
+					HeartBeatInfo.LastHangTime = CurrentTime;
 					OutHangDuration = HeartBeatInfo.HangDuration;
 					return LastHeartBeat.Key;
 				}

@@ -262,6 +262,15 @@ public:
 	/** Get a cursor to override the default with, if any */
 	bool GetCursor(EMouseCursor::Type& OutCursor) const;
 
+	/** Get override cursor visibility settings */
+	bool GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const;
+
+	/** Called before converting mouse movement to drag/rot */
+	bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient);
+
+	/** Called after converting mouse movement to drag/rot */
+	bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient);
+
 	/**
 	 * Returns a good location to draw the widget at.
 	 */

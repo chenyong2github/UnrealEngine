@@ -43,6 +43,7 @@
  * Code for an assert exception
  */
 const uint32 AssertExceptionCode = 0x4000;
+const uint32 GPUCrashExceptionCode = 0x8000;
 
 /**
  * Stores information about an assert that can be unpacked in the exception handler.
@@ -138,6 +139,8 @@ void FWindowsPlatformCrashContext::AddPlatformSpecificProperties() const
 	AddCrashProperty(TEXT("PlatformIsRunningWindows"), 1);
 	// On windows track the crash type
 	AddCrashProperty(TEXT("PlatformCallbackResult"), GetCrashType());
+
+	AddCrashProperty(TEXT("IsRunningOnBattery"), FPlatformMisc::IsRunningOnBattery());
 }
 
 bool FWindowsPlatformCrashContext::GetPlatformAllThreadContextsString(FString& OutStr) const
@@ -317,11 +320,13 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
-	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
+#if !UE_EDITOR
+	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
 	}
+#endif
 
 	if (bNoDialog && !bSendUnattendedBugReports)
 	{
@@ -549,6 +554,17 @@ FORCENOINLINE void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToI
 	::RaiseException( AssertExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
 }
 
+FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+{
+	/** This is the last place to gather memory stats before exception. */
+	FGenericCrashContext::CrashMemoryStats = FPlatformMemory::GetStats();
+
+	FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
+
+	ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
+	::RaiseException( GPUCrashExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
+}
+
 void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId)
 {
 	if (ReportCrashCallCount > 0 || FDebug::HasAsserted())
@@ -558,7 +574,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 		return;
 	}
 
-	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
+	FWindowsPlatformCrashContext CrashContext(ECrashContextType::Hang, ErrorMessage);
 	CrashContext.SetPortableCallStack(StackFrames, NumStackFrames);
 	CrashContext.SetCrashedThreadId(HungThreadId);
 	CrashContext.CaptureAllThreadContexts();
@@ -781,11 +797,18 @@ private:
 		const TCHAR* ErrorMessage = TEXT("Unhandled exception");
 		int NumStackFramesToIgnore = 0;
 
-		// If it was an assert, allow overriding the info from the exception parameters
+		// If it was an assert or GPU crash, allow overriding the info from the exception parameters
 		if (ExceptionInfo->ExceptionRecord->ExceptionCode == AssertExceptionCode && ExceptionInfo->ExceptionRecord->NumberParameters == 1)
 		{
 			const FAssertInfo& Info = *(const FAssertInfo*)ExceptionInfo->ExceptionRecord->ExceptionInformation[0];
 			Type = ECrashContextType::Assert;
+			ErrorMessage = Info.ErrorMessage;
+			NumStackFramesToIgnore = Info.NumStackFramesToIgnore;
+		}
+		else if (ExceptionInfo->ExceptionRecord->ExceptionCode == GPUCrashExceptionCode && ExceptionInfo->ExceptionRecord->NumberParameters == 1)
+		{
+			const FAssertInfo& Info = *(const FAssertInfo*)ExceptionInfo->ExceptionRecord->ExceptionInformation[0];
+			Type = ECrashContextType::GPUCrash;
 			ErrorMessage = Info.ErrorMessage;
 			NumStackFramesToIgnore = Info.NumStackFramesToIgnore;
 		}

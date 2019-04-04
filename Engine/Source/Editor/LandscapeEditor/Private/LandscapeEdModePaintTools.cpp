@@ -63,27 +63,27 @@ public:
 	{
 		FLandscapeToolBase<TStrokeClass>::Tick(ViewportClient, DeltaTime);
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && this->IsToolActive())
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && this->IsToolActive())
 		{
 			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
 			if (Landscape != nullptr)
 			{
-				Landscape->RequestProceduralContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
+				Landscape->RequestLayersContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
 			}
 		}
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
-				Landscape->RequestProceduralContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
+				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
+				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
+				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
 			}
-
-			this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps(false);
 		}
 
 		return FLandscapeToolBase<TStrokeClass>::BeginTool(ViewportClient, InTarget, InHitLocation);
@@ -91,24 +91,14 @@ public:
 
 	virtual void EndTool(FEditorViewportClient* ViewportClient) override
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			if (this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap)
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
 			{
-				this->EdMode->ChangeHeightmapsToCurrentProceduralLayerHeightmaps(true);
-
-				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-				{
-					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_All);
-				}
-			}
-			else
-			{
-				// TODO: Activate/Deactivate weightmap layers
-				if (this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-				{
-					this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Weightmap_All);
-				}
+				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
+				Landscape->SetEditingLayer();
+				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All);
 			}
 		}
 
@@ -313,9 +303,9 @@ public:
 
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -556,9 +546,9 @@ public:
 
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -690,9 +680,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -822,15 +812,15 @@ public:
 								float ScaleZ = LocalToWorld.GetScale3D().Z;
 								float TranslateZ = LocalToWorld.GetTranslation().Z;
 								float TerraceInterval = UISettings->TerraceInterval;
-								float Smoothness = UISettings->TerraceSmooth;								
+								float Smoothness = UISettings->TerraceSmooth;
 								float WorldHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
-								
+
 								//move into world space
 								WorldHeight = (WorldHeight * ScaleZ) + TranslateZ;
 								float CurrentHeight = WorldHeight;
 
 								//smoothing part
-								float CurrentLevel = WorldHeight / TerraceInterval;								
+								float CurrentLevel = WorldHeight / TerraceInterval;
 								Smoothness = 1.0f / FMath::Max(Smoothness, 0.0001f);
 								float CurrentPhase = FMath::Frac(CurrentLevel);
 								float Halfmask = FMath::Clamp(FMath::CeilToFloat(CurrentPhase - 0.5f), 0.0f, 1.0f);
@@ -838,12 +828,34 @@ public:
 								float SCurve = FMath::Lerp(CurrentPhase, (1.0f - CurrentPhase), Halfmask) * 2.0f;
 								SCurve = FMath::Pow(SCurve, Smoothness) * 0.5f;
 								SCurve = FMath::Lerp(SCurve, 1.0f - SCurve, Halfmask) * TerraceInterval;
-								WorldHeight = (CurrentLevel * TerraceInterval)  + SCurve;
+								WorldHeight = (CurrentLevel * TerraceInterval) + SCurve;
 								//end of smoothing part
 
-								float FinalHeight = FMath::Lerp(CurrentHeight, WorldHeight , Strength);
+								float FinalHeight = FMath::Lerp(CurrentHeight, WorldHeight, Strength);
 								FinalHeight = (FinalHeight - TranslateZ) / ScaleZ;
-								DataScanline[X] = LandscapeDataAccess::GetTexHeight(FinalHeight);	
+								DataScanline[X] = LandscapeDataAccess::GetTexHeight(FinalHeight);
+							}
+							break;
+						case ELandscapeToolFlattenMode::Interval:
+							{
+								const FTransform& LocalToWorld = this->Target.LandscapeInfo->GetLandscapeProxy()->ActorToWorld();
+								float ScaleZ = LocalToWorld.GetScale3D().Z;
+								float TranslateZ = LocalToWorld.GetTranslation().Z;
+								float TerraceInterval = UISettings->TerraceInterval;
+								float TargetHeight = LandscapeDataAccess::GetLocalHeight(FlattenHeight);
+								float CurrentHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
+														
+								//move into world space
+								TargetHeight = (TargetHeight * ScaleZ) + TranslateZ;
+								CurrentHeight = (CurrentHeight * ScaleZ) + TranslateZ;
+
+								TargetHeight = (FMath::RoundToFloat(TargetHeight / TerraceInterval)) * TerraceInterval;
+								TargetHeight = FMath::Lerp(CurrentHeight, TargetHeight, BrushValue);
+							
+								//back to local space of landscape object
+								TargetHeight = (TargetHeight - TranslateZ) / ScaleZ;
+								DataScanline[X] = LandscapeDataAccess::GetTexHeight(TargetHeight);
+
 							}
 							break;
 						case ELandscapeToolFlattenMode::Raise:
@@ -910,9 +922,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -1140,9 +1152,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 

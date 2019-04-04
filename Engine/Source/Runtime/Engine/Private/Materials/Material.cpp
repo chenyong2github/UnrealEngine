@@ -233,6 +233,7 @@ void FMaterialResource::GatherExpressionsForCustomInterpolators(TArray<UMaterial
 void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShaderMapId& OutId) const
 {
 	FMaterial::GetShaderMapId(Platform, OutId);
+#if WITH_EDITOR
 	Material->AppendReferencedFunctionIdsTo(OutId.ReferencedFunctions);
 	Material->AppendReferencedParameterCollectionIdsTo(OutId.ReferencedParameterCollections);
 
@@ -242,19 +243,11 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, FMaterialShader
 	{
 		MaterialInstance->GetBasePropertyOverridesHash(OutId.BasePropertyOverridesHash);
 
-#if !WITH_EDITOR
-		if (FMaterial::GetLoadedCookedShaderMapId() && MaterialInstance->bHasStaticPermutationResource)
-		{
-			OutId.UpdateParameterSet(MaterialInstance->GetStaticParameters());
-		}
-		else
-#endif
-		{
-			FStaticParameterSet CompositedStaticParameters;
-			MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
-			OutId.UpdateParameterSet(CompositedStaticParameters);		
-		}
+		FStaticParameterSet CompositedStaticParameters;
+		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
+		OutId.UpdateParameterSet(CompositedStaticParameters);		
 	}
+#endif // WITH_EDITOR
 }
 
 /**
@@ -1145,7 +1138,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1176,7 +1169,7 @@ void UMaterial::OverrideVectorParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
@@ -1208,13 +1201,13 @@ void UMaterial::OverrideScalarParameterDefault(const FMaterialParameterInfo& Par
 
 	if (bShouldRecacheMaterialExpressions)
 	{
-		RecacheUniformExpressions();
+		RecacheUniformExpressions(false);
 		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
 
-void UMaterial::RecacheUniformExpressions() const
+void UMaterial::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 {
 	bool bUsingNewLoader = EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME && GEventDrivenLoaderEnabled;
 
@@ -1226,7 +1219,7 @@ void UMaterial::RecacheUniformExpressions() const
 
 	if (DefaultMaterialInstance)
 	{
-		DefaultMaterialInstance->CacheUniformExpressions_GameThread(true);
+		DefaultMaterialInstance->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
 }
 
@@ -3070,7 +3063,10 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 		FlushResourceShaderMaps();
 	}
 
-	UpdateResourceAllocations();
+	// Resources cannot be deleted before uniform expressions are recached because
+	// UB layouts will be accessed and they are owned by material resources
+	FMaterialResourceDeferredDeletionArray ResourcesToFree;
+	UpdateResourceAllocations(&ResourcesToFree);
 
 	if (FApp::CanEverRender())
 	{
@@ -3125,7 +3121,21 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			}
 		}
 
-		RecacheUniformExpressions();
+		// Material reload can call this function again. Don't recreate since mesh
+		// draw commands cache a pointer to the uniform buffer
+		RecacheUniformExpressions(!FPlatformProperties::RequiresCookedData());
+	}
+
+	if (ResourcesToFree.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(CmdFreeUnusedMaterialResources)(
+			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
+		{
+			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
+			{
+				delete ResourcesToFreeRT[Idx];
+			}
+		});
 	}
 }
 
@@ -3704,7 +3714,7 @@ void UMaterial::GetQualityLevelNodeUsage(TArray<bool, TInlineAllocator<EMaterial
 	}
 }
 
-void UMaterial::UpdateResourceAllocations()
+void UMaterial::UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
 {
 	if (FApp::CanEverRender())
 	{
@@ -3722,7 +3732,14 @@ void UMaterial::UpdateResourceAllocations()
 				FMaterialResource*& Resource = MaterialResources[Quality][Feature];
 				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
 				{
-					delete Resource;
+					if (ResourcesToFree)
+					{
+						ResourcesToFree->Add(Resource);
+					}
+					else
+					{
+						delete Resource;
+					}
 					Resource = nullptr;
 				}
 				else
@@ -4111,6 +4128,9 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 
 void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 	if ( CachedMaterialResourcesForPlatform != NULL )
 	{
@@ -4124,6 +4144,9 @@ void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlat
 
 void UMaterial::ClearAllCachedCookedPlatformData()
 {
+	// Make sure that all CacheShaders render thead commands are finished before we destroy FMaterialResources.
+	FlushRenderingCommands();
+
 	for ( auto It : CachedMaterialResourcesForCooking )
 	{
 		TArray<FMaterialResource*> &CachedMaterialResourcesForPlatform = It.Value;

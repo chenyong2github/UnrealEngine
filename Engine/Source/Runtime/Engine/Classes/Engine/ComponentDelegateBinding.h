@@ -48,8 +48,4 @@ class ENGINE_API UComponentDelegateBinding
 	virtual void UnbindDynamicDelegates(UObject* InInstance) const override;
 	virtual void UnbindDynamicDelegatesForProperty(UObject* InInstance, const UObjectProperty* InObjectProperty) const override;
 	//~ End DynamicBlueprintBinding Interface
-
-private:
-	// Utility method used to find the target delegate given an instance and a binding descriptor
-	static FMulticastScriptDelegate* FindComponentTargetDelegate(const UObject* InInstance, const FBlueprintComponentDelegateBinding& InBinding, const UObjectProperty* InObjectProperty = nullptr);
 };

@@ -508,11 +508,29 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 			}
 		}
 
+
 		FPrimaryAssetId PrimaryAssetId = ExtractPrimaryAssetIdFromData(Data, PrimaryAssetType);
 
 		// Remove invalid or wrong type assets
 		if (!PrimaryAssetId.IsValid() || PrimaryAssetId.PrimaryAssetType != PrimaryAssetType)
 		{
+			if (!PrimaryAssetId.IsValid())
+			{
+				UE_LOG(LogAssetManager, Warning, TEXT("Ignoring primary asset %s - PrimaryAssetType %s - invalid primary asset ID"), *Data.AssetName.ToString(), *PrimaryAssetType.ToString());
+			}
+			else
+			{
+				// Warn that 'Foo' conflicts with 'Bar', but only once per conflict
+				static TSet<FString> IssuedWarnings;
+
+				FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
+
+				if (!IssuedWarnings.Contains(ConflictMsg))
+				{
+					UE_LOG(LogAssetManager, Display, TEXT("%s"), *ConflictMsg);
+					IssuedWarnings.Add(ConflictMsg);
+				}
+			}
 			continue;
 		}
 
@@ -2761,7 +2779,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (PackageName.Contains(AlreadyScanned))
+				if (PackageName == AlreadyScanned || PackageName.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;
@@ -2787,7 +2805,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 		{
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (Path.Contains(AlreadyScanned))
+				if (Path == AlreadyScanned || Path.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;

@@ -30,7 +30,12 @@ class PARTY_API USocialToolkit : public UObject
 	GENERATED_BODY()
 
 public:
-	static USocialToolkit* GetToolkitForPlayer(ULocalPlayer* LocalPlayer);
+	template <typename ToolkitT = USocialToolkit>
+	static ToolkitT* GetToolkitForPlayer(ULocalPlayer* LocalPlayer)
+	{
+		static_assert(TIsDerivedFrom<ToolkitT, USocialToolkit>::IsDerived, "GetToolkitForPlayer only supports getting USocialToolkit type objects");
+		return Cast<ToolkitT>(GetToolkitForPlayerInternal(LocalPlayer));
+	}
 
 	USocialToolkit();
 
@@ -67,6 +72,7 @@ public:
 	 *  Default is to execute after initialization and is generally more appropriate.
 	 */
 	void QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit = true);
+	void QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate);
 
 	/**
 	 * Attempts to send a friend invite to another user based on display name or email.
@@ -74,8 +80,7 @@ public:
 	 */
 	void TrySendFriendInvite(const FString& DisplayNameOrEmail) const;
 
-	void QueueUserDependentAction(const FUniqueNetIdRepl& SubsystemId, FUserDependentAction UserActionDelegate);
-	void RequestDisplayPlatformSocialUI() const;
+	bool GetAuthAttribute(ESocialSubsystem SubsystemType, const FString& AttributeKey, FString& OutValue) const;
 
 	const FString& GetRecentPlayerNamespaceToQuery() const { return RecentPlayerNamespaceToQuery; }
 	
@@ -197,6 +202,7 @@ private:	// Handlers
 	void HandleGameDestroyed(const FName SessionName, bool bWasSuccessful);
 
 private:
+	static USocialToolkit* GetToolkitForPlayerInternal(ULocalPlayer* LocalPlayer);
 	static TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()

@@ -386,9 +386,8 @@ private:
 	RENDERCORE_API static uint32 AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader);
 	RENDERCORE_API static void RemoveFromRayTracingLibrary(uint32 Index);
 
-	static uint32 GlobalMaxIndex;
 	static TArray<uint32> GlobalUnusedIndicies;
-	static TMap<uint32, FRayTracingShaderRHIParamRef> GlobalRayTracingMaterialLibrary;
+	static TArray<FRHIRayTracingShader*> GlobalRayTracingMaterialLibrary;
 	static FCriticalSection GlobalRayTracingMaterialLibraryCS;
 
 public:
@@ -752,12 +751,11 @@ public:
 	struct FResourceParameter
 	{
 		uint16 BaseIndex;
-		uint16 NumResources;
 		uint16 ByteOffset;
 
 		friend FArchive& operator<<(FArchive& Ar, FResourceParameter& ParameterBindingData)
 		{
-			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.NumResources << ParameterBindingData.ByteOffset;
+			Ar << ParameterBindingData.BaseIndex << ParameterBindingData.ByteOffset;
 			return Ar;
 		}
 	};
@@ -2194,13 +2192,7 @@ public:
 				check(Type);
 				checkSlow(FName(Type->GetName()) != NAME_None);
 				Ar << Type;
-#if WITH_EDITOR
-				TRefCountPtr<FShader>* Found = Shaders.Find(Key);
-				checkf(Found, TEXT("Unable to find FShaderType %s!"), Type->GetName());
-				FShader* CurrentShader = *Found;
-#else
 				FShader* CurrentShader = Shaders.FindChecked(Key);
-#endif
 				SerializeShaderForSaving(CurrentShader, Ar, bHandleShaderKeyChanges, bInlineShaderResource);
 			}
 

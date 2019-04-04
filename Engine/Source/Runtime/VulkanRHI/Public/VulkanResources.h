@@ -241,8 +241,10 @@ public:
 		switch (Stage)
 		{
 		case ShaderStage::Vertex:		return GetVertexShader();
-		//case ShaderStage::Hull:		return GetHullShader();
-		//case ShaderStage::Domain:		return GetDomainShader();
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		case ShaderStage::Hull:			return GetHullShader();
+		case ShaderStage::Domain:		return GetDomainShader();
+#endif
 		case ShaderStage::Pixel:		return GetPixelShader();
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 		case ShaderStage::Geometry:	return GetGeometryShader();
@@ -877,38 +879,28 @@ protected:
 	uint32 FrameNumber = UINT32_MAX;
 };
 
-
-class FVulkanTimestampQueryPool final : public FVulkanQueryPool
+class FVulkanTimingQueryPool : public FVulkanQueryPool
 {
-/*
-	FRenderQueryRHIRef AllocateQuery() override;
-	virtual void ReleaseQuery(TRefCountPtr<FRHIRenderQuery> &Query) override;
-*/
-
-	uint32 QueueHead = 0;
-	uint32 QueueTail = 0;
-	TArray<class FVulkanTimingQuery*> QueryAllocation;
-
 public:
-	FVulkanTimestampQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries)
-		: FVulkanQueryPool(InDevice, InMaxQueries, VK_QUERY_TYPE_TIMESTAMP)
+	FVulkanTimingQueryPool(FVulkanDevice* InDevice, uint32 InBufferSize)
+		: FVulkanQueryPool(InDevice, InBufferSize * 2, VK_QUERY_TYPE_TIMESTAMP)
+		, BufferSize(InBufferSize)
 	{
-		QueryAllocation.AddDefaulted(InMaxQueries);
+		TimestampListHandles.AddZeroed(InBufferSize * 2);
 	}
 
-	uint32 AcquireIndex(class FVulkanTimingQuery* Query)
+	uint32 CurrentTimestamp = 0;
+	uint32 NumIssuedTimestamps = 0;
+	const uint32 BufferSize;
+
+	struct FCmdBufferFence
 	{
-		uint32 QueueIndex = QueueHead++;
-		QueueHead = (QueueHead < MaxQueries) ? QueueHead : 0;
-		ensure(QueueHead != QueueTail);
-		QueryAllocation[QueueIndex] = Query;
-		return QueueIndex;
-	}
+		FVulkanCmdBuffer* CmdBuffer;
+		uint64 FenceCounter;
+	};
+	TArray<FCmdBufferFence> TimestampListHandles;
 
-	bool TryGetResults(class FVulkanTimingQuery* Query, uint32 QueryIndex, bool bWait, uint64& OutResult);
-
-private:
-	VkResult InternalGetQueryPoolResults(class FVulkanTimingQuery* Query, uint32 QueryIndex, uint64& OutResults);
+	VulkanRHI::FStagingBuffer* ResultsBuffer = nullptr;
 };
 
 class FVulkanRenderQuery : public FRHIRenderQuery
@@ -952,70 +944,11 @@ public:
 class FVulkanTimingQuery : public FVulkanRenderQuery
 {
 public:
-	FVulkanTimingQuery()
-		: FVulkanRenderQuery(RQT_AbsoluteTime)
-	{
-	}
+	FVulkanTimingQuery(FVulkanDevice* InDevice);
+	virtual ~FVulkanTimingQuery();
 
-	virtual ~FVulkanTimingQuery()
-	{
-	}
-
-	enum EState : uint8
-	{
-		Unused,
-		Written,
-		HasResult,
-	};
-
-	bool GetResult(uint64& OutTime, bool bWait)
-	{
-		if (State == EState::HasResult)
-		{
-			OutTime = Result;
-			return true;
-		}
-		else if (State != EState::Unused)
-		{
-			return InternalGetResult(OutTime, bWait);
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-#if VULKAN_QUERY_CALLSTACK
-	uint64 StackFrames[16];
-#endif
-
-protected:
-	/*TRefCountPtr<*/FVulkanTimestampQueryPool* /*>*/ Pool;
-	EState State = EState::Unused;
-	bool IsPooledAtHighLevel = false;
-
-	bool InternalGetResult(uint64& OutTime, bool bWait);
-
-	friend class FVulkanTimestampQueryPool;
-	friend class FVulkanCommandListContext;
+	FVulkanTimingQueryPool Pool;
 };
-/*
-class FVulkanRenderQuery : public FRHIRenderQuery
-{
-public:
-	FVulkanRenderQuery(FVulkanDevice* Device, ERenderQueryType InQueryType);
-	virtual ~FVulkanRenderQuery();
-
-	inline bool HasQueryBeenEmitted() const
-	{
-		return State == EState::InEnd;
-	}
-
-	uint32 LastPoolReset = 0;
-
-private:
-};
-*/
 
 struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 {
@@ -1271,28 +1204,33 @@ public:
 class FVulkanUniformBuffer : public FRHIUniformBuffer
 {
 public:
-	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation, bool bCopyIntoConstantData);
-
-	TArray<uint8> ConstantData;
+	FVulkanUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
 
 	const TArray<TRefCountPtr<FRHIResource>>& GetResourceTable() const { return ResourceTable; }
 
 	void UpdateResourceTable(const FRHIUniformBufferLayout& InLayout, const void* Contents, int32 ResourceNum);
 	void UpdateResourceTable(FRHIResource** Resources, int32 ResourceNum);
 
-	virtual void Update(const void* Contents, int32 ContentsSize);
-
-
-private:
+protected:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+};
+
+class FVulkanEmulatedUniformBuffer : public FVulkanUniformBuffer
+{
+public:
+	FVulkanEmulatedUniformBuffer(const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
+
+	TArray<uint8> ConstantData;
+
+	void UpdateConstantData(const void* Contents, int32 ContentsSize);
 };
 
 class FVulkanRealUniformBuffer : public FVulkanUniformBuffer, public FVulkanResourceMultiBuffer
 {
 public:
-	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
 
-	virtual void Update(const void* Contents, int32 ContentsSize);
+	void Update(const void* Contents, int32 ContentsSize);
 
 private:
 	TArray<TRefCountPtr<FRHIResource>> ResourceTable;

@@ -189,6 +189,25 @@ class ENGINE_API UAudioComponent : public USceneComponent
 	/** Whether or not this audio component has been paused */
 	uint8 bIsPaused:1;
 
+	/** How AudioComponent is managing playback based on whether a listener is within 
+	  * proximity (sound's MaxDistance) or not. */
+	enum class EReplayWhenInAudibleRange : uint8
+	{
+		/** Sound lifetime is not managed by listener proximity. */
+		Disabled,
+
+		/** Loop replay is enabled and disable has been requested. */
+		DisableRequested,
+
+		/** Sound lifetime is managed by listener proximity (in case of sound being looping and non-virtualized) */
+		Enabled,
+
+		Count
+	};
+
+	/** Whether or not the audio component can restart when listener is in proximity */
+	EReplayWhenInAudibleRange ReplayWhenInAudibleRange;
+
 	/**
 	* True if we should automatically attach to AutoAttachParent when Played, and detach from our parent when playback is completed.
 	* This overrides any current attachment that may be present at the time of activation (deferring initial attachment until activation, if AutoAttachParent is null).
@@ -479,6 +498,9 @@ private:
 	/** Called by the ActiveSound to inform the component that playback is finished */
 	void PlaybackCompleted(bool bFailedToStart);
 
+	/** Whether or not the sound is audible */
+	bool IsInAudibleRange() const;
+
 public:
 
 	/** Sets the sound instance parameter. */
@@ -505,6 +527,7 @@ public:
 	virtual void OnUnregister() override;
 	virtual const UObject* AdditionalStatObject() const override;
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
 	//~ End ActorComponent Interface.
 
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
@@ -589,7 +612,8 @@ protected:
 	void PlayInternal(const float StartTime = 0.f, const float FadeInDuration = 0.f, const float FadeVolumeLevel = 1.f);
 
 private:
-	
+	void StopInternal();
+
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
 	void UpdateSpriteTexture();

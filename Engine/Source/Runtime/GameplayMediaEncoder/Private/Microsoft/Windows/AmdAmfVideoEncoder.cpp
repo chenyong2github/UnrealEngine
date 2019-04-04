@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AmdAmfVideoEncoder.h"
 
@@ -365,7 +365,9 @@ void FAmdAmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, 
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SetRenderTarget(RHICmdList, ResolvedBackBuffer, FTextureRHIRef());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetViewport(0, 0, 0.0f, ResolvedBackBuffer->GetSizeX(), ResolvedBackBuffer->GetSizeY(), 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -402,7 +404,7 @@ void FAmdAmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, 
 			*VertexShader,
 			EDRF_Default);
 
-		SetRenderTarget(RHICmdList, FTextureRHIRef(), FTextureRHIRef());
+		UnbindRenderTargets(RHICmdList);
 	}
 }
 

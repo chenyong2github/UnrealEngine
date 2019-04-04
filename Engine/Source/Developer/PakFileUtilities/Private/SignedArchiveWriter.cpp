@@ -5,14 +5,13 @@
 #include "Misc/SecureHash.h"
 #include "HAL/FileManager.h"
 
-FSignedArchiveWriter::FSignedArchiveWriter(FArchive& InPak, const FString& InPakFilename, const FEncryptionKey& InPublicKey, const FEncryptionKey& InPrivateKey)
+FSignedArchiveWriter::FSignedArchiveWriter(FArchive& InPak, const FString& InPakFilename, FRSA::TKeyPtr InSigningKey)
 : BufferArchive(Buffer)
 	, PakWriter(InPak)
 	, PakSignaturesFilename(FPaths::ChangeExtension(InPakFilename, TEXT("sig")))
 	, SizeOnDisk(0)
 	, PakSize(0)
-	, PublicKey(InPublicKey)
-	, PrivateKey(InPrivateKey)
+	, SigningKey(InSigningKey)
 {
 	Buffer.Reserve(FPakInfo::MaxChunkDataSize);
 }
@@ -44,14 +43,10 @@ bool FSignedArchiveWriter::Close()
 		SerializeBufferAndSign();
 	}
 
-	FEncryptedSignature EncryptedMasterHash;
-	FDecryptedSignature DecryptedMasterHash;
-	DecryptedMasterHash.Data = ComputePakChunkHash((const uint8*)&ChunkHashes[0], ChunkHashes.Num() * sizeof(TPakChunkHash));
-	FEncryption::EncryptSignature(DecryptedMasterHash, EncryptedMasterHash, PrivateKey);
-
 	FArchive* SignatureWriter = IFileManager::Get().CreateFileWriter(*PakSignaturesFilename);
-	*SignatureWriter << EncryptedMasterHash;
-	*SignatureWriter << ChunkHashes;
+	FPakSignatureFile SignatureFile;
+	SignatureFile.SetChunkHashesAndSign(ChunkHashes, SigningKey);
+	SignatureFile.Serialize(*SignatureWriter);
 	delete SignatureWriter;
 
 	return FArchive::Close();

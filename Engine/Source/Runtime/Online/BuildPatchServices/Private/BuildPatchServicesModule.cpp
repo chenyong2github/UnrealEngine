@@ -381,6 +381,17 @@ void FBuildPatchServicesModule::RegisterAppInstallation(IBuildManifestRef AppMan
 	AvailableInstallations.Add(MoveTemp(AppInstallDirectory), MoveTemp(InternalRef));
 }
 
+bool FBuildPatchServicesModule::UnregisterAppInstallation(FString AppInstallDirectory)
+{
+	FPaths::NormalizeDirectoryName(AppInstallDirectory);
+	FPaths::CollapseRelativeDirectories(AppInstallDirectory);
+	if (AvailableInstallations.Remove(AppInstallDirectory) == 1)
+	{
+		return true;
+	}
+	return false;
+}
+
 void FBuildPatchServicesModule::CancelAllInstallers(bool WaitForThreads)
 {
 	// Using a local bool for this check will improve the assert message that gets displayed

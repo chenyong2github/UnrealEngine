@@ -50,7 +50,7 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 static inline uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
 {
 	return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
-		GetTypeHash(Initializer.HitGroupStride) ^
+		GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
 		GetTypeHash(Initializer.GetRayGenHash()) ^
 		GetTypeHash(Initializer.GetRayMissHash()) ^
 		GetTypeHash(Initializer.GetHitGroupHash());
@@ -697,6 +697,11 @@ public:
 		}
 		else
 		{
+			if (!Initializer.BoundShaderState.VertexShaderRHI)
+			{
+				UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+			}
+
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
 			GfxPipeline->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
 			
@@ -737,7 +742,9 @@ public:
 
 	ENamedThreads::Type GetDesiredThread()
 	{
-		return CPrio_FCompilePipelineStateTask.Get();
+		// On Mac the compilation is handled using external processes, so engine threads have very little work to do
+		// and it's better to leave more CPU time to these extrenal processes and other engine threads.
+		return PLATFORM_MAC ? ENamedThreads::AnyBackgroundThreadNormalTask : CPrio_FCompilePipelineStateTask.Get();
 	}
 };
 
@@ -799,7 +806,7 @@ static bool IsAsyncCompilationAllowed(FRHICommandList& RHICmdList)
 {
 	return !IsOpenGLPlatform(GMaxRHIShaderPlatform) &&  // The PSO cache is a waste of time on OpenGL and async compilation is a double waste of time.
 		!IsSwitchPlatform(GMaxRHIShaderPlatform) &&
-		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread());
+		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread()) && RHICmdList.AsyncPSOCompileAllowed();
 }
 
 FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader)

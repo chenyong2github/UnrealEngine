@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "WmfVideoEncoder.h"
 
@@ -480,7 +480,9 @@ void FWmfVideoEncoder::ResolveBackBuffer(const FTexture2DRHIRef& BackBuffer, con
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SetRenderTarget(RHICmdList, ResolvedBackBuffer, FTextureRHIRef());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.SetViewport(0, 0, 0.0f, ResolvedBackBuffer->GetSizeX(), ResolvedBackBuffer->GetSizeY(), 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

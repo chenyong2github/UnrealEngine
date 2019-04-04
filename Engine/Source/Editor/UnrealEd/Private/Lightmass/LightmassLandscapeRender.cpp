@@ -195,7 +195,9 @@ void GetLandscapeOpacityData(const FLandscapeStaticLightingMesh* LandscapeMesh, 
 			ULandscapeComponent* Component = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(ComponentX, ComponentY));
 			if (Component)
 			{
-				if (Component->WeightmapLayerAllocations.ContainsByPredicate([](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer; }))
+				TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
+
+				if (ComponentWeightmapLayerAllocations.ContainsByPredicate([](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer; }))
 				{
 					// filled by GetWeightDataFast()
 				}

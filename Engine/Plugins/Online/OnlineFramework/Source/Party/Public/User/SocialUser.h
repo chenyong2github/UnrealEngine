@@ -127,15 +127,16 @@ PARTY_SCOPE:
 
 protected:
 	virtual void OnPresenceChangedInternal(ESocialSubsystem SubsystemType);
+	virtual void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
+	int32 NumPendingQueries = 0;
 
+	void TryBroadcastInitializationComplete();
 private:
-	void SetSubsystemId(ESocialSubsystem SubsystemType, const FUniqueNetIdRepl& SubsystemId);
 	
 	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
 	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
 	
 private:
-	void TryBroadcastInitializationComplete();
 
 	struct FSubsystemUserInfo
 	{
@@ -162,7 +163,6 @@ private:
 	};
 	FSubsystemUserInfo& FindOrCreateSubsystemInfo(const FUniqueNetIdRepl& SubsystemId, ESocialSubsystem SubsystemType);
 
-	int32 NumPendingQueries = 0;
 	bool bIsInitialized = false;
 
 	TSharedPtr<const IOnlinePartyJoinInfo> PersistentPartyInfo;

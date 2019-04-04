@@ -42,6 +42,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static ENetworkConnectionType GetNetworkConnectionType();
 	static bool HasActiveWiFiConnection();
 	static const TCHAR* GamePersistentDownloadDir();
+    static bool HasSeparateChannelForDebugOutput();
 
 	UE_DEPRECATED(4.21, "Use GetDeviceVolume, it is now callable on all platforms.")
 	static int GetAudioVolume();
@@ -140,6 +141,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 		IOS_IPad6,
 		IOS_IPadPro_11,
 		IOS_IPadPro3_129,
+        IOS_IPadAir3,
+        IOS_IPadMini5,
 		IOS_Unknown,
 	};
 
@@ -187,6 +190,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 			TEXT("IPad6"),
 			TEXT("IPadPro11"),
 			TEXT("IPadPro3_129"),
+            TEXT("IPadAir3"),
+            TEXT("IPadMini5"),
 			TEXT("Unknown"),
 		};
 		static_assert((sizeof(IOSDeviceNames) / sizeof(IOSDeviceNames[0])) == ((int32)IOS_Unknown + 1), "Mismatched IOSDeviceNames and EIOSDevice.");
@@ -209,6 +214,10 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	}
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
+    
+    // added these for now because Crashlytics doesn't properly break up different callstacks all ending in UE_LOG(LogXXX, Fatal, ...)
+    static CA_NO_RETURN void GPUAssert();
+    static CA_NO_RETURN void MetalAssert();
 };
 
 typedef FIOSPlatformMisc FPlatformMisc;

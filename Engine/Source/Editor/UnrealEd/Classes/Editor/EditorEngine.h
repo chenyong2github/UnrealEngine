@@ -339,7 +339,7 @@ struct FSelectionStateOfLevel
 	TArray<FString> SelectedComponents;
 };
 
-/** Overrides you can pass when starting PIE to temporarily supress the user's options for dedicated server, number of clients..etc. */
+/** Overrides you can pass when starting PIE to temporarily suppress the user's options for dedicated server, number of clients..etc. */
 struct FPlayInEditorOverrides
 {
 	FPlayInEditorOverrides()
@@ -2659,6 +2659,9 @@ public:
 	 */
 	bool CreatePIEWorldFromLogin(FWorldContext& PieWorldContext, EPlayNetMode PlayNetMode, FPieLoginStruct& DataStruct);
 
+	/** Called before creating a PIE server instance. */
+	virtual FGameInstancePIEResult PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances);
+
 	/*
 	 * Handler for when viewport close request is made. 
 	 *
@@ -2705,7 +2708,7 @@ private:
 	/**
 	 * Called via a delegate to toggle between the editor and pie world
 	 */
-	void OnSwitchWorldsForPIE( bool bSwitchToPieWorld );
+	void OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* OverrideWorld = nullptr );
 
 	/**
 	 * Gives focus to the server or first PIE client viewport
@@ -3081,8 +3084,12 @@ protected:
 	 *  but when displaying the shader complexity we need to be able compile and extract statistics (instruction count) from the real shaders that
 	 *  will be compiled when the game will run on the specific platform. Thus (if compiler available) we perform an 'offline' shader compilation step,
 	 *  extract the needed statistics and transfer them to the emulated editor running shaders.
-	 *  This function will be called from OnSceneMaterialsModified() */
-	void UpdateShaderComplexityMaterials();
+	 *  This function will be called from OnSceneMaterialsModified()
+	 *
+	 * @param	bForceUpdate	When true, view mode shaders are always updated for worlds displaying shader complexity materials.
+	 *                          When false, view mode shaders are rebuilt only when emulating a shader platform.
+	 */
+	void UpdateShaderComplexityMaterials(bool bForceUpdate);
 
 	/** Utility function that can determine whether some input world is using materials who's shaders are emulated in the editor */
 	bool IsEditorShaderPlatformEmulated(UWorld* World);

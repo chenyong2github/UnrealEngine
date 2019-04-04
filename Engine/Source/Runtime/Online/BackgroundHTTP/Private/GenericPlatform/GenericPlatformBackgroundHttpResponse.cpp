@@ -16,6 +16,8 @@ FGenericPlatformBackgroundHttpResponse::FGenericPlatformBackgroundHttpResponse(i
 
 FGenericPlatformBackgroundHttpResponse::FGenericPlatformBackgroundHttpResponse(FHttpRequestPtr HttpRequestIn, FHttpResponsePtr HttpResponse, bool bSuccess)
 {
+	ResponseCode = EHttpResponseCodes::Unknown;
+
 	//Don't bother making a response out of a failed HttpRequest
 	if (bSuccess && HttpResponse.IsValid())
 	{

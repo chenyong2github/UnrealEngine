@@ -113,6 +113,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static void SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect);
 
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	static void PilotLevelActor(AActor* ActorToPilot);
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	static void EjectPilotLevelActor();
+
+#if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	static void EditorPlaySimulate();
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	static void EditorInvalidateViewports();
+
+#endif
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	static void EditorSetGameView(bool bGameView);
+
 	/**
 	 * Create an actor and place it in the world editor. The Actor can be created from a Factory, Archetype, Blueprint, Class or an Asset.
 	 * The actor will be created in the current level and will be selected.
@@ -147,6 +166,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static UWorld* GetEditorWorld();
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static UWorld* GetGameWorld();
 
 public:
 	/**

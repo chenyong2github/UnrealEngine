@@ -631,9 +631,11 @@ int32 FMacPlatformMisc::NumberOfCores()
 		else
 		{
 			SIZE_T Size = sizeof(int32);
+			int Result = sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0);
 		
-			if (sysctlbyname("hw.physicalcpu", &NumberOfCores, &Size, NULL, 0) != 0)
+			if (Result != 0)
 			{
+				UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.physicalcpu...) failed with error %d. Defaulting to one core"), Result);
 				NumberOfCores = 1;
 			}
 		}
@@ -643,7 +645,19 @@ int32 FMacPlatformMisc::NumberOfCores()
 
 int32 FMacPlatformMisc::NumberOfCoresIncludingHyperthreads()
 {
-	return FApplePlatformMisc::NumberOfCores();
+	static int32 NumberOfCores = -1;
+	if (NumberOfCores == -1)
+	{
+		SIZE_T Size = sizeof(int32);
+		int Result = sysctlbyname("hw.logicalcpu", &NumberOfCores, &Size, NULL, 0);
+		
+		if (Result != 0)
+		{
+			UE_LOG(LogMac, Error,  TEXT("sysctlbyname(hw.logicalcpu...) failed with error %d. Defaulting to one core"), Result);
+			NumberOfCores = 1;
+		}
+	}
+	return NumberOfCores;
 }
 
 void FMacPlatformMisc::NormalizePath(FString& InPath)
@@ -1479,7 +1493,9 @@ static void DefaultCrashHandler(FMacCrashContext const& Context)
 static uint32 GMacStackIgnoreDepth = 6;
 
 /** Message for the assert triggered on this thread */
-thread_local const TCHAR* GAssertErrorMessage = nullptr;
+thread_local const TCHAR* GCrashErrorMessage = nullptr;
+thread_local ECrashContextType GCrashErrorType = ECrashContextType::Crash;
+thread_local uint8* GCrashContextMemory[sizeof(FMacCrashContext)];
 
 /** True system-specific crash handler that gets called first */
 static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
@@ -1490,33 +1506,33 @@ static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	ECrashContextType Type;
 	const TCHAR* ErrorMessage;
 
-	if (GAssertErrorMessage == nullptr)
+	if (GCrashErrorMessage == nullptr)
 	{
 		Type = ECrashContextType::Crash;
 		ErrorMessage = TEXT("Caught signal");
 	}
 	else
 	{
-		Type = ECrashContextType::Assert;
-		ErrorMessage = GAssertErrorMessage;
+		Type = GCrashErrorType;
+		ErrorMessage = GCrashErrorMessage;
 	}
-	
-	FMacCrashContext CrashContext(Type, ErrorMessage);
-	CrashContext.IgnoreDepth = GMacStackIgnoreDepth;
-	CrashContext.InitFromSignal(Signal, Info, Context);
-	
+
+	FMacCrashContext* CrashContext = new (GCrashContextMemory) FMacCrashContext(Type, ErrorMessage);
+	CrashContext->IgnoreDepth = GMacStackIgnoreDepth;
+	CrashContext->InitFromSignal(Signal, Info, Context);
+
 	// Switch to crash handler malloc to avoid malloc reentrancy
 	check(GCrashMalloc);
-	GCrashMalloc->Enable(&CrashContext, FPlatformTLS::GetCurrentThreadId());
-	
+	GCrashMalloc->Enable(CrashContext, FPlatformTLS::GetCurrentThreadId());
+
 	if (GCrashHandlerPointer)
 	{
-		GCrashHandlerPointer(CrashContext);
+		GCrashHandlerPointer(*CrashContext);
 	}
 	else
 	{
 		// call default one
-		DefaultCrashHandler(CrashContext);
+		DefaultCrashHandler(*CrashContext);
 	}
 }
 
@@ -1908,7 +1924,15 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 
 void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 {
-	GAssertErrorMessage = ErrorMessage;
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::Assert;
+	FPlatformMisc::RaiseException(1);
+}
+
+void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+{
+	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorType = ECrashContextType::GPUCrash;
 	FPlatformMisc::RaiseException(1);
 }
 
@@ -1951,7 +1975,7 @@ void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumS
 	{
 		bReentranceGuard = true;
 
-		FMacCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
+		FMacCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
 		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
 		EnsureContext.GenerateEnsureInfoAndLaunchReporter();
 

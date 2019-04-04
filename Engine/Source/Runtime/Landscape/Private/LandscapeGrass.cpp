@@ -1857,7 +1857,7 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 		{
 			TArray<int32> SortedInstances;
 			TArray<int32> InstanceReorderTable;
-			UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(InstanceTransforms, MeshBox, ClusterTree, SortedInstances, InstanceReorderTable, OutOcclusionLayerNum, DesiredInstancesPerLeaf);
+			UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(InstanceTransforms, MeshBox, ClusterTree, SortedInstances, InstanceReorderTable, OutOcclusionLayerNum, DesiredInstancesPerLeaf, false);
 
 			// in-place sort the instances
 			
@@ -2120,7 +2120,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSyn
 						{
 							CurrentForcedStreamedTextures.Add(Heightmap);
 						}
-						for (auto WeightmapTexture : Component->WeightmapTextures)
+						TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+
+						for (auto WeightmapTexture : ComponentWeightmapTextures)
 						{
 							if (WeightmapTexture->bForceMiplevelsToBeResident)
 							{
@@ -2353,7 +2355,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSyn
 											{
 												// we're ready to generate but our textures need streaming in
 												DesiredForceStreamedTextures.Add(Component->GetHeightmap());
-												for (auto WeightmapTexture : Component->WeightmapTextures)
+												TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+												
+												for (auto WeightmapTexture : ComponentWeightmapTextures)
 												{
 													DesiredForceStreamedTextures.Add(WeightmapTexture);
 												}
@@ -2526,7 +2530,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, bool bForceSyn
 								// Force stream in other heightmaps but only if we're not waiting for the textures 
 								// near the camera to stream in
 								DesiredForceStreamedTextures.Add(Component->GetHeightmap());
-								for (auto WeightmapTexture : Component->WeightmapTextures)
+								TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+								
+								for (auto WeightmapTexture : ComponentWeightmapTextures)
 								{
 									DesiredForceStreamedTextures.Add(WeightmapTexture);
 								}

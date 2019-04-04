@@ -33,6 +33,48 @@ uint32 SafeGetRuntimeDebuggingLevel()
 	return GIsRHIInitialized ? GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() : GMetalRuntimeDebugLevel;
 }
 
+@implementation FMetalResourceTracker
+
+APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalResourceTracker)
+
+-(instancetype)init
+{
+	id Self = [super init];
+	return Self;
+}
+
+-(void)dealloc
+{
+	for (id Entry : Resources)
+	{
+		FMetalResourceTrackCount* TrackCount = ((NSObject*)Entry).resourceTrackCount;
+		FPlatformAtomics::InterlockedDecrement((int64*)&TrackCount->RetainCount);
+		
+		[Entry release];
+	}
+	Resources.Empty();
+	[super dealloc];
+}
+
+@end
+
+@implementation FMetalResourceTrackCount
+
+APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalResourceTrackCount)
+
+-(instancetype)init
+{
+	id Self = [super init];
+	return Self;
+}
+
+-(void)dealloc
+{
+	[super dealloc];
+}
+
+@end
+
 @implementation NSObject (IMetalDebugGroupAssociation)
 @dynamic debugGroups;
 - (void)setDebugGroups:(NSMutableArray<NSString*>*)Data
@@ -44,7 +86,102 @@ uint32 SafeGetRuntimeDebuggingLevel()
 {
 	return (NSMutableArray<NSString*>*)objc_getAssociatedObject(self, @selector(debugGroups));
 }
+@dynamic resourceTracker;
+- (void)setResourceTracker:(FMetalResourceTracker*)resourceTracker
+{
+	objc_setAssociatedObject(self, @selector(resourceTracker), resourceTracker, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (FMetalResourceTracker*)resourceTracker
+{
+	return (FMetalResourceTracker*)objc_getAssociatedObject(self, @selector(resourceTracker));
+}
+@dynamic resourceTrackCount;
+- (void)setResourceTrackCount:(FMetalResourceTrackCount*)resourceTracker
+{
+	// OBJC_ASSOCIATION_RETAIN_ATOMIC -> 1
+	objc_setAssociatedObject(self, @selector(resourceTrackCount), resourceTracker, (objc_AssociationPolicy)1);
+}
+
+- (FMetalResourceTrackCount*)resourceTrackCount
+{
+	return (FMetalResourceTrackCount*)objc_getAssociatedObject(self, @selector(resourceTrackCount));
+}
 @end
+
+namespace FMetalCommandBufferDebugHelpers
+{
+	void TrackResource(id<MTLCommandBuffer> Buffer, id Ptr)
+	{
+		if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelTrackResources)
+		{
+			FMetalResourceTracker* ResourceTracker = ((NSObject<MTLCommandBuffer>*)Buffer).resourceTracker;
+			if (ResourceTracker)
+			{
+#if PLATFORM_MAC
+				if (GRHISupportsParallelRHIExecute)
+				{
+					FScopeLock Lock(&ResourceTracker->Mutex);
+					if (!ResourceTracker->Resources.Contains(Ptr))
+					{
+						ResourceTracker->Resources.Add(Ptr);
+						[Ptr retain];
+						
+						FMetalResourceTrackCount* TrackCount = ((NSObject*)Ptr).resourceTrackCount;
+						if (!TrackCount)
+						{
+							((NSObject*)Ptr).resourceTrackCount = [[FMetalResourceTrackCount new] autorelease];;
+							TrackCount = ((NSObject*)Ptr).resourceTrackCount;
+						}
+						FPlatformAtomics::InterlockedIncrement((int64*)&TrackCount->RetainCount);
+					}
+				}
+				else
+#endif
+				{
+					if (!ResourceTracker->Resources.Contains(Ptr))
+					{
+						ResourceTracker->Resources.Add(Ptr);
+						[Ptr retain];
+						
+						FMetalResourceTrackCount* TrackCount = ((NSObject*)Ptr).resourceTrackCount;
+						if (!TrackCount)
+						{
+							((NSObject*)Ptr).resourceTrackCount = [[FMetalResourceTrackCount new] autorelease];
+							TrackCount = ((NSObject*)Ptr).resourceTrackCount;
+						}
+						FPlatformAtomics::InterlockedIncrement((int64*)&TrackCount->RetainCount);
+					}
+				}
+			}
+		}
+	}
+	
+	void DumpResources(id<MTLCommandBuffer> Buffer)
+	{
+		if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelTrackResources)
+		{
+			FMetalResourceTracker* ResourceTracker = ((NSObject<MTLCommandBuffer>*)Buffer).resourceTracker;
+			if (ResourceTracker)
+			{
+				UE_LOG(LogMetal, Error, TEXT("Resources:"));
+				for (auto& Entry : ResourceTracker->Resources)
+				{
+					FMetalResourceTrackCount* TrackCount = ((NSObject*)Entry).resourceTrackCount;
+
+					if ([Entry retainCount] <= TrackCount->RetainCount)
+					{
+						UE_LOG(LogMetal, Error, TEXT("**** OVER-RELEASED RESOURCE **** : %s"), *FString([Entry debugDescription]));
+					}
+					else
+					{
+						UE_LOG(LogMetal, Error, TEXT("\t%s"), *FString([Entry debugDescription]));
+					}
+				}
+			}
+		}
+    }
+}
 
 #if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
 
@@ -142,36 +279,7 @@ ns::AutoReleased<ns::String> FMetalCommandBufferDebugging::GetDebugDescription()
 		}
 	}
 	
-	[String appendFormat:@"\nResources:"];
-	
-	for (id<MTLResource> Resource : m_ptr->Resources)
-	{
-		[String appendFormat:@"\n\t%@ (%d): %@", Resource.label, (uint32)[Resource retainCount], [Resource description]];
-	}
-	
-	[String appendFormat:@"\nStates:"];
-	
-	for (id State : m_ptr->States)
-	{
-		[String appendFormat:@"\n\t%@ (%d): %@", ([State respondsToSelector:@selector(label)] ? [State label] : @"(null)"), (uint32)[State retainCount], [State description]];
-	}
-	
 	return ns::AutoReleased<ns::String>(String);
-}
-
-void FMetalCommandBufferDebugging::TrackResource(mtlpp::Resource const& Resource)
-{
-	if (m_ptr->DebugLevel >= EMetalDebugLevelValidation)
-	{
-		m_ptr->Resources.Add(Resource.GetPtr());
-	}
-}
-void FMetalCommandBufferDebugging::TrackState(id State)
-{
-	if (m_ptr->DebugLevel >= EMetalDebugLevelValidation)
-	{
-		m_ptr->States.Add(State);
-	}
 }
 
 void FMetalCommandBufferDebugging::BeginRenderCommandEncoder(ns::String const& Label, mtlpp::RenderPassDescriptor const& Desc)
@@ -187,30 +295,6 @@ void FMetalCommandBufferDebugging::BeginRenderCommandEncoder(ns::String const& L
 			Command->Label = [Label.GetPtr() retain];
 			Command->PassDesc = [Desc.GetPtr() retain];
 			m_ptr->DebugCommands.Add(Command);
-		}
-		
-		ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttach = Desc.GetColorAttachments();
-		if(ColorAttach)
-		{
-			for(uint i = 0; i < 8; i++)
-			{
-				if(ColorAttach[i])
-				{
-					TrackResource(ColorAttach[i].GetTexture());
-				}
-			}
-		}
-		if(Desc.GetDepthAttachment())
-		{
-			TrackResource(Desc.GetDepthAttachment().GetTexture());
-		}
-		if(Desc.GetStencilAttachment())
-		{
-			TrackResource(Desc.GetStencilAttachment().GetTexture());
-		}
-		if(Desc.GetVisibilityResultBuffer())
-		{
-			TrackResource(Desc.GetVisibilityResultBuffer());
 		}
 	}
 }
@@ -301,7 +385,7 @@ void FMetalCommandBufferDebugging::Blit(ns::String const& Desc)
 
 void FMetalCommandBufferDebugging::InsertDebugSignpost(ns::String const& Label)
 {
-	if (m_ptr->DebugLevel >= EMetalDebugLevelLogDebugGroups)
+	if (m_ptr->DebugLevel >= EMetalDebugLevelLogOperations)
 	{
 		FMetalDebugCommand* Command = new FMetalDebugCommand;
 		Command->Type = EMetalDebugCommandTypeSignpost;
@@ -312,7 +396,7 @@ void FMetalCommandBufferDebugging::InsertDebugSignpost(ns::String const& Label)
 }
 void FMetalCommandBufferDebugging::PushDebugGroup(ns::String const& Group)
 {
-	if (m_ptr->DebugLevel >= EMetalDebugLevelLogDebugGroups)
+	if (m_ptr->DebugLevel >= EMetalDebugLevelLogOperations)
 	{
 		[m_ptr->DebugGroup addObject:Group.GetPtr()];
 		FMetalDebugCommand* Command = new FMetalDebugCommand;
@@ -324,7 +408,7 @@ void FMetalCommandBufferDebugging::PushDebugGroup(ns::String const& Group)
 }
 void FMetalCommandBufferDebugging::PopDebugGroup()
 {
-	if (m_ptr->DebugLevel >= EMetalDebugLevelLogDebugGroups)
+	if (m_ptr->DebugLevel >= EMetalDebugLevelLogOperations)
 	{
 		if (m_ptr->DebugGroup.lastObject)
 		{

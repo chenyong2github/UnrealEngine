@@ -23,7 +23,9 @@ static TAutoConsoleVariable<float> CVarVoiceSilenceDetectionThreshold(TEXT("voic
 
 int32 UVOIPStatics::GetVoiceSampleRate()
 {
-#if USE_DEFAULT_VOICE_SAMPLE_RATE
+#if PLATFORM_UNIX
+	return PLATFORM_LINUX ? 16000 : 48000;
+#elif USE_DEFAULT_VOICE_SAMPLE_RATE
 	return (int32) 16000;
 #else
 	static bool bRetrievedSampleRate = false;
@@ -152,13 +154,9 @@ int32 UVOIPStatics::GetNumBufferedPackets()
 APlayerState* UVOIPStatics::GetPlayerStateFromUniqueNetId(UWorld* InWorld, const FUniqueNetIdWrapper& InPlayerId)
 {
 	AGameStateBase* InBase = InWorld->GetGameState();
-	TArray<APlayerState*>& Players = InBase->PlayerArray;
-	for (APlayerState* Player : Players)
+	if (InBase)
 	{
-		if (Player->UniqueId == InPlayerId)
-		{
-			return Player;
-		}
+		return InBase->GetPlayerStateFromUniqueNetId(InPlayerId);
 	}
 
 	return nullptr;

@@ -534,6 +534,7 @@ void FMovieSceneEventRepeaterTemplate::EvaluateSwept(const FMovieSceneEvaluation
 		return;
 	}
 
+	
 	if ((!bBackwards && bFireEventsWhenForwards) || (bBackwards && bFireEventsWhenBackwards))
 	{
 		TArray<FName> Events = { EventToTrigger };

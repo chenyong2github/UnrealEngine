@@ -102,9 +102,9 @@ NSURLSession* FBackgroundURLSessionHandler::GetBackgroundSession()
 
 void FBackgroundURLSessionHandler::CreateBackgroundSessionWorkingDirectory()
 {
-	const FString DirectoryPath = GetBackgroundSessionWorkingDirectoryPath();
+	const FString& DirectoryPath = GetBackgroundSessionWorkingDirectoryPath();
     
-	if (!DirectoryPath.IsEmpty())
+	if (ensureAlwaysMsgf(!DirectoryPath.IsEmpty(), TEXT("Invalid empty BackgroundSessionWorkingDirectoryPath!")))
 	{
         IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
         PlatformFile.CreateDirectory(*DirectoryPath);
@@ -113,19 +113,20 @@ void FBackgroundURLSessionHandler::CreateBackgroundSessionWorkingDirectory()
         {
             NSString* PathAsNSString = DirectoryPath.GetNSString();
             //May not yet have UE_Log
-            NSLog(@"Warning: Error in CreateBackgroundSessionWorkingDirectory: %s", [PathAsNSString UTF8String]);
+            ensureAlwaysMsgf(false, TEXT("Warning: Error in CreateBackgroundSessionWorkingDirectory: %s"), [PathAsNSString UTF8String]);
         }
 	}
 }
 
-FString FBackgroundURLSessionHandler::GetBackgroundSessionWorkingDirectoryPath()
+const FString& FBackgroundURLSessionHandler::GetBackgroundSessionWorkingDirectoryPath()
 {
-	return FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("BackgroundHttp"));
+    static FString BackgroundHttpDir = FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("BackgroundHttp"));
+	return BackgroundHttpDir;
 }
 
 const FString FBackgroundURLSessionHandler::GetTemporaryFilePathFromURL(const FString& URL)
 {
-	static FString BackgroundHttpDir = GetBackgroundSessionWorkingDirectoryPath();
+	const FString& BackgroundHttpDir = GetBackgroundSessionWorkingDirectoryPath();
 	const FString FileName = FPaths::MakeValidFileName(URL);
 
 	return FPaths::Combine(BackgroundHttpDir, FileName);

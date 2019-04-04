@@ -126,6 +126,7 @@ public:
 	const FOnlinePartyId& GetPartyId() const;
 
 	EPartyState GetOssPartyState() const;
+	EPartyState GetOssPartyPreviousState() const;
 
 	bool IsCurrentlyCrossplaying() const;
 	void StayWithPartyOnExit(bool bInStayWithParty);
@@ -167,7 +168,7 @@ public:
 	DECLARE_EVENT_OneParam(USocialParty, FOnPartyConfigurationChanged, const FPartyConfiguration&);
 	FOnPartyConfigurationChanged& OnPartyConfigurationChanged() const { return OnPartyConfigurationChangedEvent; }
 
-	DECLARE_EVENT_OneParam(USocialParty, FOnPartyStateChanged, EPartyState);
+	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyStateChanged, EPartyState, EPartyState);
 	FOnPartyStateChanged& OnPartyStateChanged() const { return OnPartyStateChangedEvent; }
 
 	DECLARE_EVENT_OneParam(USocialParty, FOnPartyFunctionalityDegradedChanged, bool /*bFunctionalityDegraded*/);
@@ -178,6 +179,9 @@ public:
 
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyJIPApproved, const FOnlinePartyId&, bool /* Success*/);
 	FOnPartyJIPApproved& OnPartyJIPApproved() const { return OnPartyJIPApprovedEvent; }
+
+	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
+	FOnPartyMemberConnectionStatusChanged& OnPartyMemberConnectionStatusChanged() const { return OnPartyMemberConnectionStatusChangedEvent; }
 
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
@@ -208,13 +212,21 @@ PARTY_SCOPE:
 
 protected:
 	virtual void InitializePartyInternal();
-	
+
+	FPartyConfiguration& GetCurrentConfiguration() { return CurrentConfig; }
+
 	/** Only called when a new party is being created by the local player and they are responsible for the rep data. Otherwise we just wait to receive it from the leader. */
 	virtual void InitializePartyRepData();
 	virtual FPartyPrivacySettings GetDesiredPrivacySettings() const;
 	virtual void OnLocalPlayerIsLeaderChanged(bool bIsLeader);
 	virtual void HandlePrivacySettingsChanged(const FPartyPrivacySettings& NewPrivacySettings);
+	virtual void OnMemberCreatedInternal(UPartyMember& NewMember);
 	virtual void OnLeftPartyInternal(EMemberExitedReason Reason);
+
+	/** Virtual versions of the package-scoped "CanX" methods above, as a virtual declared within package scoping cannot link (exported public, imported protected) */
+	virtual bool CanInviteUserInternal(const USocialUser& User) const;
+	virtual bool CanPromoteMemberInternal(const UPartyMember& PartyMember) const;
+	virtual bool CanKickMemberInternal(const UPartyMember& PartyMember) const;
 
 	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful);
 	
@@ -230,6 +242,7 @@ protected:
 	/** Override in child classes to specify the type of UPartyMember to create */
 	virtual TSubclassOf<UPartyMember> GetDesiredMemberClass(bool bLocalPlayer) const;
 
+	bool ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const;
 	FName GetGameSessionName() const;
 	bool IsInRestrictedGameSession() const;
 
@@ -263,6 +276,9 @@ protected:
 	UPROPERTY()
 		TSubclassOf<ASpectatorBeaconClient> SpectatorBeaconClientClass;
 
+	/** Apply local party configuration to the OSS party, optionally resetting the access key to the party in the process */
+	void UpdatePartyConfig(bool bResetAccessKey = false);
+
 private:
 	UPartyMember* GetOrCreatePartyMember(const FUniqueNetId& MemberId);
 	void PumpApprovalQueue();
@@ -271,17 +287,17 @@ private:
 	void BeginLeavingParty(EMemberExitedReason Reason);
 	void FinalizePartyLeave(EMemberExitedReason Reason);
 
+	void SetIsRequestingShutdown(bool bInRequestingShutdown);
+
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 
-	/** Apply local party configuration to the OSS party, optionally resetting the access key to the party in the process */
-	void UpdatePartyConfig(bool bResetAccessKey = false);
 
 	UPartyMember* GetMemberInternal(const FUniqueNetIdRepl& MemberId) const;
 
 private:	// Handlers
-	void HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState);
+	void HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState, EPartyState PreviousPartyState);
 	void HandlePartyConfigChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const TSharedRef<FPartyConfiguration>& PartyConfig);
 	void HandleUpdatePartyConfigComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EUpdateConfigCompletionResult Result);
 	void HandlePartyDataReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const TSharedRef<FOnlinePartyData>& PartyData);
@@ -304,6 +320,8 @@ private:	// Handlers
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 	
+	void HandlePartySystemStateChange(EPartySystemState NewState);
+
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -342,7 +360,7 @@ private:
 	
 	/** Reservation beacon client instance while getting approval for new party members*/
 	UPROPERTY()
-		APartyBeaconClient* ReservationBeaconClient = nullptr;
+	APartyBeaconClient* ReservationBeaconClient = nullptr;
 	
 	/**
 	* Last known spectator beacon client net driver name
@@ -353,23 +371,25 @@ private:
 	
 	/** Spectator beacon client instance while getting approval for spectator*/
 	UPROPERTY()
-		ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
+	ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
 
 	/**
 	 * True when we have limited functionality due to lacking an xmpp connection.
 	 * Don't set directly, use the private setter to trigger events appropriately.
 	 */
-	bool bIsMissingXmppConnection = false;
+	TOptional<bool> bIsMissingXmppConnection;
 	bool bIsMissingPlatformSession = false;
 
 	bool bIsLeavingParty = false;
 	bool bIsInitialized = false;
+	TOptional<bool> bIsRequestingShutdown;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
 	mutable FLeavePartyEvent OnPartyLeftEvent;
 	mutable FOnPartyMemberCreated OnPartyMemberCreatedEvent;
 	mutable FOnPartyConfigurationChanged OnPartyConfigurationChangedEvent;
 	mutable FOnPartyStateChanged OnPartyStateChangedEvent;
+	mutable FOnPartyMemberConnectionStatusChanged OnPartyMemberConnectionStatusChangedEvent;
 	mutable FOnPartyFunctionalityDegradedChanged OnPartyFunctionalityDegradedChangedEvent;
 	mutable FOnInviteSent OnInviteSentEvent;
 	mutable FOnPartyJIPApproved OnPartyJIPApprovedEvent;

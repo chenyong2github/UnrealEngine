@@ -655,6 +655,30 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Recompile_CanExecute )
 		);
 
+#if WITH_LIVE_CODING
+	ActionList.MapAction( 
+		Commands.LiveCoding_Enable, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_ToggleEnabled ),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_IsEnabled ) );
+
+	ActionList.MapAction( 
+		Commands.LiveCoding_StartSession, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_StartSession_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_CanStartSession ) );
+
+	ActionList.MapAction( 
+		Commands.LiveCoding_ShowConsole, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_ShowConsole_Clicked ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_CanShowConsole ) );
+
+	ActionList.MapAction( 
+		Commands.LiveCoding_Settings, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::LiveCoding_Settings_Clicked ),
+		FCanExecuteAction());
+
+#endif
+
 	ActionList.MapAction( 
 		FGlobalEditorCommonCommands::Get().FindInContentBrowser, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::FindInContentBrowser_Clicked )

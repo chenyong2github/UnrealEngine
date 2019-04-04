@@ -42,6 +42,10 @@
 #include "Misc/ScopeExit.h"
 #include "Algo/Transform.h"
 
+#if WITH_LIVE_CODING
+#include "ILiveCodingModule.h"
+#endif
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -200,7 +204,7 @@ private:
 	void ReplaceReferencesToReconstructedCDOs();
 
 #if WITH_ENGINE
-	void RegisterForReinstancing(UClass* OldClass, UClass* NewClass);
+	void RegisterForReinstancing(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags);
 	void ReinstanceClasses();
 
 	/**
@@ -601,6 +605,16 @@ FString FHotReloadModule::GetModuleCompileMethod(FName InModuleName)
 bool FHotReloadModule::RecompileModule(const FName InModuleName, const bool bReloadAfterRecompile, FOutputDevice &Ar, bool bFailIfGeneratedCodeChanges, bool bForceCodeProject)
 {
 #if WITH_HOT_RELOAD
+
+#if WITH_LIVE_CODING
+	ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
+	if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
+	{
+		UE_LOG(LogHotReload, Error, TEXT("Unable to hot-reload modules while Live Coding is enabled."));
+		return false;
+	}
+#endif
+
 	UE_LOG(LogHotReload, Log, TEXT("Recompiling module %s..."), *InModuleName.ToString());
 
 	// This is an internal request for hot-reload (not from IDE)
@@ -1205,15 +1219,23 @@ namespace {
 	}
 }
 
-void FHotReloadModule::RegisterForReinstancing(UClass* OldClass, UClass* NewClass)
+void FHotReloadModule::RegisterForReinstancing(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags)
 {
 	TPair<UClass*, UClass*> Pair;
 	
 	Pair.Key = OldClass;
 	Pair.Value = NewClass;
 
-	TArray<TPair<UClass*, UClass*> >& ClassesToReinstance = GetClassesToReinstance();
-	ClassesToReinstance.Add(MoveTemp(Pair));
+	// Don't allow reinstancing of UEngine classes
+	if (!OldClass->IsChildOf(UEngine::StaticClass()) || !(Flags & EHotReloadedClassFlags::Changed))
+	{
+		TArray<TPair<UClass*, UClass*> >& ClassesToReinstance = GetClassesToReinstance();
+		ClassesToReinstance.Add(MoveTemp(Pair));
+	}
+	else
+	{
+		UE_LOG(LogHotReload, Warning, TEXT("Engine class '%s' has changed but will be ignored for hot reload"), *NewClass->GetName());
+	}
 }
 
 void FHotReloadModule::ReinstanceClasses()
@@ -1230,13 +1252,6 @@ void FHotReloadModule::ReinstanceClasses()
 	TMap<UClass*, UClass*> OldToNewClassesMap;
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
 	{
-		// Don't allow reinstancing of UEngine classes
-		if (Pair.Key->IsChildOf(UEngine::StaticClass()))
-		{
-			UE_LOG(LogHotReload, Warning, TEXT("Engine class '%s' has changed but will be ignored for hot reload"), *Pair.Key->GetName());
-			continue;
-		}
-
 		if (Pair.Value != nullptr)
 		{
 			OldToNewClassesMap.Add(Pair.Key, Pair.Value);
@@ -1245,11 +1260,7 @@ void FHotReloadModule::ReinstanceClasses()
 
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
 	{
-		// Don't allow reinstancing of UEngine classes
-		if (!Pair.Key->IsChildOf(UEngine::StaticClass()))
-		{
-			ReinstanceClass(Pair.Key, Pair.Value, OldToNewClassesMap);
-		}
+		ReinstanceClass(Pair.Key, Pair.Value, OldToNewClassesMap);
 	}
 
 	ClassesToReinstance.Empty();
@@ -1422,6 +1433,15 @@ bool FHotReloadModule::Tick(float DeltaTime)
 	{
 		return true;
 	}
+
+	// Early out if live coding is enabled
+#if WITH_LIVE_CODING
+	ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
+	if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
+	{
+        return false;
+	}
+#endif
 
 #if WITH_EDITOR
 	if (GEditor)

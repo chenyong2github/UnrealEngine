@@ -260,7 +260,7 @@ void FSlateEditableTextLayout::SetText(const TAttribute<FText>& InText)
 
 FText FSlateEditableTextLayout::GetText() const
 {
-	check(IsInGameThread());
+	SLATE_CROSS_THREAD_CHECK();
 
 	return BoundText.Get(FText::GetEmpty());
 }
@@ -330,7 +330,7 @@ void FSlateEditableTextLayout::SetCompositionBrush(const TAttribute<const FSlate
 
 FText FSlateEditableTextLayout::GetPlainText() const
 {
-	check(IsInGameThread());
+	SLATE_CROSS_THREAD_CHECK();
 
 	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
 
@@ -349,7 +349,7 @@ FText FSlateEditableTextLayout::GetPlainText() const
 
 bool FSlateEditableTextLayout::SetEditableText(const FText& TextToSet, const bool bForce)
 {
-	check(IsInGameThread());
+	SLATE_CROSS_THREAD_CHECK();
 
 	bool bHasTextChanged = bForce;
 	if (!bHasTextChanged)
@@ -523,7 +523,7 @@ bool FSlateEditableTextLayout::Refresh()
 
 bool FSlateEditableTextLayout::RefreshImpl(const FText* InTextToSet, const bool bForce)
 {
-	check(IsInGameThread());
+	SLATE_CROSS_THREAD_CHECK();
 
 	bool bHasSetText = false;
 

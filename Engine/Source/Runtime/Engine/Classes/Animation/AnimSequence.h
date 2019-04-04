@@ -688,10 +688,11 @@ public:
 	UPROPERTY(Category = Compression, EditAnywhere)
 	bool bAllowFrameStripping;
 
+#endif
+
 	/** The curve compression settings used to compress curves in this sequence. */
 	UPROPERTY(Category=Compression, EditAnywhere)
 	class UAnimCurveCompressionSettings* CurveCompressionSettings;
-#endif // WITH_EDITORONLY_DATA
 
 	/** The codec used by the compressed data as determined by the compression settings. */
 	class UAnimCurveCompressionCodec* CurveCompressionCodec;
@@ -1064,7 +1065,10 @@ public:
 	 */
 	int32 GetApproxCompressedSize() const;
 
-	/** 
+	// Initialize curve compression settings, does nothing if scheme already valid
+	void InitCurveCompressionScheme();
+
+	/**
 	 *  Utility function for lossless compression of a FRawAnimSequenceTrack 
 	 *  @return true if keys were removed.
 	 **/

@@ -20,6 +20,8 @@ enum ESourceType
 	SRC_UsingHoudini,
 	SRC_VulkanAvailable,
 	SRC_CommandLine,
+	SRC_Hardware,
+	SRC_Chipset,
 	SRC_MAX,
 };
 
@@ -39,6 +41,7 @@ enum ECompareType
 	CMP_GreaterIgnore,
 	CMP_GreaterEqualIgnore,
 	CMP_NotEqualIgnore,
+	CMP_Hash,
 	CMP_MAX,
 };
 

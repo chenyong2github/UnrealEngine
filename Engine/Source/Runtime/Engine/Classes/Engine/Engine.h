@@ -376,6 +376,9 @@ struct FWorldContext
 	/** Handle to this world context's audio device.*/
 	uint32 AudioDeviceHandle;
 
+	/** Custom description to be display in blueprint debugger UI */
+	FString CustomDescription;
+
 	/**************************************************************/
 
 	/** Outside pointers to CurrentWorld that should be kept in sync if current world changes  */
@@ -1908,10 +1911,7 @@ public:
 	/** Event triggered after a network failure of any kind has occurred */
 	FOnNetworkFailure& OnNetworkFailure() { return NetworkFailureEvent; }
 	/** Called by internal engine systems after a network failure has occurred */
-	void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""))
-	{
-		NetworkFailureEvent.Broadcast(World, NetDriver, FailureType, ErrorString);
-	}
+	void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""));
 
 	/** Event triggered after network lag is being experienced or lag has ended */
 	FOnNetworkLagStateChanged& OnNetworkLagStateChanged() { return NetworkLagStateChangedEvent; }

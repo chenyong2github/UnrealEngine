@@ -159,6 +159,7 @@ public:
 	FMmaStat<int> DrawCalls;
 	FMmaStat<int> PrimitivesDrawn;
 	FMmaStat<double> FrameTime;
+	FMmaStat<double> DynamicResolution;
 
 	/** Title of the Snapshot */
 	FString Title;

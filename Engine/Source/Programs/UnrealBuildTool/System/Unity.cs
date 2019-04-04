@@ -211,7 +211,7 @@ namespace UnrealBuildTool
 						++CandidateWorkingSetSourceFileCount;
 
 						// Don't include writable source files into unity blobs
-						if (WorkingSet.Contains(CPPFile.Location))
+						if (WorkingSet.Contains(CPPFile))
 						{
 							++WorkingSetSourceFileCount;
 
@@ -316,7 +316,7 @@ namespace UnrealBuildTool
 				// Add source files to the unity file
 				foreach (FileItem CPPFile in UnityFile.Files)
 				{
-					OutputUnityCPPWriter.WriteLine("#include \"{0}\"", CPPFile.AbsolutePath);
+					OutputUnityCPPWriter.WriteLine("#include \"{0}\"", CPPFile.AbsolutePath.Replace('\\', '/'));
 				}
 
 				// Determine unity file path name

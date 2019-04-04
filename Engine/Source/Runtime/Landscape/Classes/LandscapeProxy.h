@@ -13,6 +13,9 @@
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
 #include "LandscapeBPCustomBrush.h"
+#include "LandscapeComponent.h"
+#include "LandscapeWeightmapUsage.h"
+
 #include "LandscapeProxy.generated.h"
 
 class ALandscape;
@@ -34,32 +37,6 @@ struct FAsyncGrassBuilder;
 struct FLandscapeInfoLayerSettings;
 struct FMeshDescription;
 enum class ENavDataGatheringMode : uint8;
-
-/** Structure storing channel usage for weightmap textures */
-USTRUCT()
-struct FLandscapeWeightmapUsage
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	ULandscapeComponent* ChannelUsage[4];
-
-	FLandscapeWeightmapUsage()
-	{
-		ChannelUsage[0] = nullptr;
-		ChannelUsage[1] = nullptr;
-		ChannelUsage[2] = nullptr;
-		ChannelUsage[3] = nullptr;
-	}
-	friend FArchive& operator<<( FArchive& Ar, FLandscapeWeightmapUsage& U );
-	int32 FreeChannelCount() const
-	{
-		return	((ChannelUsage[0] == nullptr) ? 1 : 0) +
-				((ChannelUsage[1] == nullptr) ? 1 : 0) +
-				((ChannelUsage[2] == nullptr) ? 1 : 0) +
-				((ChannelUsage[3] == nullptr) ? 1 : 0);
-	}
-};
 
 USTRUCT()
 struct FLandscapeEditorLayerSettings
@@ -346,10 +323,10 @@ struct FLandscapeProxyMaterialOverride
 	UMaterialInterface* Material;
 };
 
-class FLandscapeProceduralTexture2DCPUReadBackResource : public FTextureResource
+class FLandscapeLayersTexture2DCPUReadBackResource : public FTextureResource
 {
 public:
-	FLandscapeProceduralTexture2DCPUReadBackResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips)
+	FLandscapeLayersTexture2DCPUReadBackResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips)
 		: SizeX(InSizeX)
 		, SizeY(InSizeY)
 		, Format(InFormat)
@@ -390,7 +367,7 @@ struct FRenderDataPerHeightmap
 	UPROPERTY(Transient)
 	UTexture2D* OriginalHeightmap;
 
-	FLandscapeProceduralTexture2DCPUReadBackResource* HeightmapsCPUReadBack;
+	FLandscapeLayersTexture2DCPUReadBackResource* HeightmapsCPUReadBack;
 
 	UPROPERTY(Transient)
 	TArray<ULandscapeComponent*> Components;
@@ -400,17 +377,32 @@ struct FRenderDataPerHeightmap
 };
 
 USTRUCT()
-struct FProceduralLayerData
+struct FWeightmapLayerData
 {
 	GENERATED_USTRUCT_BODY()
 
-	FProceduralLayerData()
+	UPROPERTY()
+	TArray<UTexture2D*> Weightmaps;
+
+	UPROPERTY()
+	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
+
+	TArray<ULandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
+};
+
+USTRUCT()
+struct FLandscapeLayerData
+{
+	GENERATED_USTRUCT_BODY()
+
+	FLandscapeLayerData()
 	{}
 
 	UPROPERTY()
-	TMap<UTexture2D*, UTexture2D*> Heightmaps;
+	TMap<UTexture2D*, UTexture2D*> Heightmaps; // Mapping between Original Heightmap -> Layer Heightmap
 
-	// TODO: add weightmap data
+	UPROPERTY()
+	TMap<ULandscapeComponent*, FWeightmapLayerData> WeightmapData; // Weightmaps per components
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
@@ -651,13 +643,15 @@ public:
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
 	UPROPERTY(TextExportTransient)
-	TMap<FName, FProceduralLayerData> ProceduralLayersData;
+	TMap<FGuid, FLandscapeLayerData> LandscapeLayersData;
 
 	UPROPERTY()
-	bool HasProceduralContent;
+	bool HasLayersContent;
 
 	UPROPERTY(Transient)
 	TMap<UTexture2D*, FRenderDataPerHeightmap> RenderDataPerHeightmap; // Mapping between Original heightmap and general render data
+
+	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapCPUReadBackTextures; // Mapping between Original weightmap and tyhe CPU readback resource
 
 	FRenderCommandFence ReleaseResourceFence;
 #endif
@@ -704,7 +698,8 @@ public:
 #endif
 
 	/** Map of weightmap usage */
-	TMap<UTexture2D*, FLandscapeWeightmapUsage> WeightmapUsageMap;
+	UPROPERTY(Transient)
+	TMap<UTexture2D*, ULandscapeWeightmapUsage*> WeightmapUsageMap;
 
 	// Blueprint functions
 
@@ -991,6 +986,6 @@ public:
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 	
-	LANDSCAPE_API void SetupProceduralLayers(int32 InNumComponentsX = INDEX_NONE, int32 InNumComponentsY = INDEX_NONE);
+	LANDSCAPE_API void SetupLayers(int32 InNumComponentsX = INDEX_NONE, int32 InNumComponentsY = INDEX_NONE);
 #endif
 };

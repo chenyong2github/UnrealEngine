@@ -3879,6 +3879,7 @@ void FSlateEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "Graph.Node.NodeBackground", new BOX_BRUSH( "Old/Graph/NodeBackground", FMargin(12.0f/64) ) );
 
 		Set( "Graph.Node.Body", new BOX_BRUSH( "/Graph/RegularNode_body", FMargin(16.f/64.f, 25.f/64.f, 16.f/64.f, 16.f/64.f) ) );
+		Set( "Graph.Node.TintedBody", new BOX_BRUSH( "/Graph/TintedNode_body", FMargin(16.f/64.f, 25.f/64.f, 16.f/64.f, 16.f/64.f) ) );
 		Set( "Graph.Node.DisabledBanner", new IMAGE_BRUSH( "/Graph/GraphPanel_StripesBackground", FVector2D(64, 64), FLinearColor(0.5f, 0.5f, 0.5f, 0.3f), ESlateBrushTileType::Both ) );
 		Set( "Graph.Node.DevelopmentBanner", new IMAGE_BRUSH( "/Graph/GraphPanel_StripesBackground", FVector2D(64, 64), FLinearColor::Yellow * FLinearColor(1.f, 1.f, 1.f, 0.3f), ESlateBrushTileType::Both ) );
 		Set( "Graph.Node.TitleGloss", new BOX_BRUSH( "/Graph/RegularNode_title_gloss", FMargin(12.0f/64.0f) ) );
@@ -4776,8 +4777,8 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set("LevelEditor.PreviewMode.SM5.Disabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM5_Enabled_40x", Icon20x20));
 		Set("LevelEditor.PreviewMode.SM4.Enabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Enabled_40x", Icon40x40));
 		Set("LevelEditor.PreviewMode.SM4.Enabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Enabled_40x", Icon20x20));
-		Set("LevelEditor.PreviewMode.SM4.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Enabled_40x", Icon40x40));
-		Set("LevelEditor.PreviewMode.SM4.Disabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Enabled_40x", Icon20x20));
+		Set("LevelEditor.PreviewMode.SM4.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Disabled_40x", Icon40x40));
+		Set("LevelEditor.PreviewMode.SM4.Disabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_SM4_Disabled_40x", Icon20x20));
 		Set("LevelEditor.PreviewMode.AndroidES2.Enabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_AndroidES2_Enabled_40x", Icon40x40));
 		Set("LevelEditor.PreviewMode.AndroidES2.Enabled.Small", new IMAGE_BRUSH("Icons/icon_PreviewMode_AndroidES2_Enabled_40x", Icon20x20));
 		Set("LevelEditor.PreviewMode.AndroidES2.Disabled", new IMAGE_BRUSH("Icons/icon_PreviewMode_AndroidES2_Disabled_40x", Icon40x40));

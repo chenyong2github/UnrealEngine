@@ -109,9 +109,10 @@ public partial class Project : CommandUtils
 		return Result;
 	}
 
-	static public string GetUnrealPakArguments(Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
+	static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, FileReference PakOrderFileLocation, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, FileReference SecondaryPakOrderFileLocation=null)
 	{
-		StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
+		StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(ProjectPath.FullName));
+		CmdLine.AppendFormat(" {0}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
 
 		// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
 		// implementation we will just assume that we require maximum security for this data.
@@ -177,7 +178,7 @@ public partial class Project : CommandUtils
 			return;
 		}
 
-		string Arguments = GetUnrealPakArguments(UnrealPakResponseFile, OutputLocation, PakOrderFileLocation, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocation);
+		string Arguments = GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PakOrderFileLocation, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocation);
 		RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, Arguments, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 	}
 
@@ -891,7 +892,21 @@ public partial class Project : CommandUtils
 		}
 
 		// Remap all the non-ufs files if not using a PAK file
-		SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		if (Params.HasIterateSharedCookedBuild)
+		{
+			// Shared NonUFS files are staged in their remapped location, and may be duplicated in the to-stage list.
+			Dictionary<StagedFileReference, FileReference> NonUFSToStage = new Dictionary<StagedFileReference, FileReference>();
+			foreach (KeyValuePair<StagedFileReference, FileReference> StagedFilePair in SC.FilesToStage.NonUFSFiles)
+			{
+				NonUFSToStage[SC.StageTargetPlatform.Remap(StagedFilePair.Key)] = StagedFilePair.Value;
+			}
+			SC.FilesToStage.NonUFSFiles = NonUFSToStage;
+		}
+		else
+		{
+			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
+		}
+
 		if (!Params.UsePak(SC.StageTargetPlatform))
 		{
 			SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
@@ -1351,6 +1366,8 @@ public partial class Project : CommandUtils
 		List<PakFileRules> RulesList = new List<PakFileRules>();
 		foreach (string SectionName in PakRulesConfig.SectionNames)
 		{
+			//LogInformation("Building PakFileRules for Section {0}", SectionName);
+
 			string PlatformString, TargetString, PakString;
 
 			if (PakRulesConfig.TryGetValue(SectionName, "Platforms", out PlatformString))
@@ -1361,12 +1378,12 @@ public partial class Project : CommandUtils
 				// Check platform string
 				foreach (string Platform in PlatformStrings)
 				{
-					if (SC.StageTargetPlatform.PlatformType.ToString() == Platform)
+					if (SC.StageTargetPlatform.PlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
 					}
-					else if (SC.StageTargetPlatform.IniPlatformType.ToString() == Platform)
+					else if (SC.StageTargetPlatform.IniPlatformType.ToString().Equals(Platform, StringComparison.OrdinalIgnoreCase))
 					{
 						bMatches = true;
 						break;
@@ -1375,6 +1392,7 @@ public partial class Project : CommandUtils
 
 				if (!bMatches)
 				{
+					//LogInformation("No matching platform for PakFileRules for Section {0} : {1}, {2}", SectionName, SC.StageTargetPlatform.PlatformType.ToString(), SC.StageTargetPlatform.IniPlatformType.ToString());
 					continue;
 				}
 			}
@@ -1441,6 +1459,7 @@ public partial class Project : CommandUtils
 				PakRules.Filter = new FileFilter();
 				foreach (string FileFilter in FilesEnumberable)
 				{
+					//LogInformation("Adding to PakFileRules for Section {0} : {1}", SectionName, FileFilter);
 					PakRules.Filter.AddRule(FileFilter);
 				}
 
@@ -1736,17 +1755,20 @@ public partial class Project : CommandUtils
 		List<string> Commands = new List<string>();
 		List<string> LogNames = new List<string>();
 
-		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
-		foreach (CreatePakParams PakParams in PakParamsList)
+		// Calculate target patch index by iterating all pak files in source build
+		int TargetPatchIndex = 0;
+		int NumPakFiles = 0;
+		if (bShouldGeneratePatch)
 		{
-			string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
-			if (bShouldGeneratePatch)
+			foreach (CreatePakParams PakParams in PakParamsList)
 			{
-				int TargetPatchIndex = 0;
+				string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
 				string ExistingPatchSearchPath = SC.StageTargetPlatform.GetReleasePakFilePath(SC, Params, null);
 				if (Directory.Exists(ExistingPatchSearchPath))
 				{
 					IEnumerable<string> PakFileSet = Directory.EnumerateFiles(ExistingPatchSearchPath, OutputFilename + "*" + PostFix + OutputFilenameExtension);
+					NumPakFiles += PakFileSet.Count();
+
 					foreach (string PakFilePath in PakFileSet)
 					{
 						string PakFileName = Path.GetFileName(PakFilePath);
@@ -1765,11 +1787,21 @@ public partial class Project : CommandUtils
 							}
 						}
 					}
-					if (Params.ShouldAddPatchLevel && PakFileSet.Count() > 0)
-					{
-						TargetPatchIndex++;
-					}
 				}
+			}
+
+			if (Params.ShouldAddPatchLevel && NumPakFiles > 0)
+			{
+				TargetPatchIndex++;
+			}
+		}
+
+		List<Tuple<FileReference, StagedFileReference, string>> Outputs = new List<Tuple<FileReference, StagedFileReference, string>>();
+		foreach (CreatePakParams PakParams in PakParamsList)
+		{
+			string OutputFilename = PakParams.PakName + "-" + SC.FinalCookPlatform;
+			if (bShouldGeneratePatch)
+			{
 				OutputFilename = OutputFilename + "_" + TargetPatchIndex;
 			}
 			OutputFilename = OutputFilename + PostFix;
@@ -1914,9 +1946,34 @@ public partial class Project : CommandUtils
                                 }
                             }
                         }
-                    }
+					}
 
-					Commands.Add(GetUnrealPakArguments(PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
+					string PatchSeekOptArgs = String.Empty;
+					if (bShouldGeneratePatch)
+					{
+						string PatchSeekOptMode = String.Empty;
+						string PatchSeekOptMaxGapSize = String.Empty;
+						string PatchSeekOptMaxInflationPercent = String.Empty;
+						string PatchSeekOptMaxAdjacentOrderDiff = String.Empty;
+						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMode", out PatchSeekOptMode))
+						{
+							PatchSeekOptArgs += String.Format(" -PatchSeekOptMode={0}", PatchSeekOptMode);
+						}
+						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxGapSize", out PatchSeekOptMaxGapSize))
+						{
+							PatchSeekOptArgs += String.Format(" -PatchSeekOptMaxGapSize={0}", PatchSeekOptMaxGapSize);
+						}
+						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxInflationPercent", out PatchSeekOptMaxInflationPercent))
+						{
+							PatchSeekOptArgs += String.Format(" -PatchSeekOptMaxInflationPercent={0}", PatchSeekOptMaxInflationPercent);
+						}
+						if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PatchSeekOptMaxAdjacentOrderDiff", out PatchSeekOptMaxAdjacentOrderDiff))
+						{
+							PatchSeekOptArgs += String.Format(" -PatchSeekOptMaxAdjacentOrderDiff={0}", PatchSeekOptMaxAdjacentOrderDiff);
+						}
+					}
+
+					Commands.Add(GetUnrealPakArguments(Params.RawProjectPath, PakParams.UnrealPakResponseFile, OutputLocation, PrimaryOrderFile, SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + PatchSeekOptArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions, PakParams.bCompressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, PakParams.EncryptionKeyGuid, SecondaryOrderFile));
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 				}
 			}
@@ -1927,7 +1984,7 @@ public partial class Project : CommandUtils
 		// Actually execute UnrealPak
 		if (Commands.Count > 0)
 		{
-			RunUnrealPakInParallel(Params.RawProjectPath, Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
+			RunUnrealPakInParallel( Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
 		}
 
 		// Do any additional processing on the command output
@@ -2063,7 +2120,7 @@ public partial class Project : CommandUtils
 		}
 	}
 
-	private static void RunUnrealPakInParallel(FileReference ProjectFile, List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
+	private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
 	{
 		LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1)? "s" : "");
 
@@ -2075,7 +2132,7 @@ public partial class Project : CommandUtils
 			for(int Idx = 0; Idx < Commands.Count; Idx++)
 			{
 				string LogFile = LogUtils.GetUniqueLogName(CombinePaths(CmdEnv.LogFolder, String.Format("UnrealPak-{0}", LogNames[Idx])));
-				string Arguments = Commands[Idx] = String.Format("{0} {1} -multiprocess -abslog={2} {3}", Commands[Idx], MakePathSafeToUseWithCommandLine(ProjectFile.FullName), MakePathSafeToUseWithCommandLine(LogFile), AdditionalCompressionOptionsOnCommandLine);
+				string Arguments = Commands[Idx] = String.Format("{0} -multiprocess -abslog={1} {2}", Commands[Idx], MakePathSafeToUseWithCommandLine(LogFile), AdditionalCompressionOptionsOnCommandLine);
 
 				int LocalIdx = Idx;
 				Queue.Enqueue(() => Results[LocalIdx] = Run(UnrealPakExe, Arguments, Options: ERunOptions.AppMustExist | ERunOptions.NoLoggingOfRunCommand));
@@ -2328,6 +2385,11 @@ public partial class Project : CommandUtils
 
 				string OriginalFilename = StagingFile.Key;
 				string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
+				if(Path.GetExtension(NoExtension) == ".m")
+				{
+					// Hack around .m.ubulk files having a double extension
+					NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
+				}
 				string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
 				string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 

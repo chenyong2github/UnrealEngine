@@ -2249,13 +2249,14 @@ DEFINE_FUNCTION(UObject::execLetMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
 	FMulticastScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		*DelegateAddr = Delegate;
+		DelegateProp->SetMulticastDelegate(DelegateAddr, MoveTemp(Delegate));
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_LetMulticastDelegate, execLetMulticastDelegate );
@@ -2451,7 +2452,8 @@ public:
 		Stack.MostRecentPropertyAddress = NULL;
 		Stack.MostRecentProperty = NULL;
 		Stack.Step( Stack.Object, NULL );
-		const FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+		UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+		const FMulticastScriptDelegate* DelegateAddr = (DelegateProp ? DelegateProp->GetMulticastDelegate(Stack.MostRecentPropertyAddress) : nullptr);
 
 		//Fill parameters
 		uint8* Parameters = (uint8*)FMemory_Alloca(SignatureFunction->ParmsSize);
@@ -2506,13 +2508,15 @@ DEFINE_FUNCTION(UObject::execAddMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
 	FScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->AddUnique(Delegate);
+		DelegateProp->AddDelegate(MoveTemp(Delegate), nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_AddMulticastDelegate, execAddMulticastDelegate );
@@ -2524,13 +2528,15 @@ DEFINE_FUNCTION(UObject::execRemoveMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
 	FScriptDelegate Delegate;
 	Stack.Step( Stack.Object, &Delegate );
 
-	if (DelegateAddr != NULL)
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->Remove(Delegate);
+		DelegateProp->RemoveDelegate(Delegate, nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_RemoveMulticastDelegate, execRemoveMulticastDelegate );
@@ -2542,10 +2548,12 @@ DEFINE_FUNCTION(UObject::execClearMulticastDelegate)
 	Stack.MostRecentProperty = NULL;
 	Stack.Step( Stack.Object, NULL );
 
-	FMulticastScriptDelegate* DelegateAddr = (FMulticastScriptDelegate*)Stack.MostRecentPropertyAddress;
-	if (DelegateAddr != NULL)
+	UMulticastDelegateProperty* DelegateProp = CastChecked<UMulticastDelegateProperty>(Stack.MostRecentProperty, ECastCheckedType::NullAllowed);
+	void* DelegateAddr = Stack.MostRecentPropertyAddress;
+
+	if (DelegateProp && DelegateAddr)
 	{
-		DelegateAddr->Clear();
+		DelegateProp->ClearDelegate(nullptr, DelegateAddr);
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_ClearMulticastDelegate, execClearMulticastDelegate );

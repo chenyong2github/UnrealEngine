@@ -42,7 +42,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Builds a target
 	/// </summary>
-	[ToolMode("Build", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.StartPrefetchingEngine)]
+	[ToolMode("Build", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.StartPrefetchingEngine | ToolModeOptions.ShowExecutionTime)]
 	class BuildMode : ToolMode
 	{
 		/// <summary>
@@ -77,7 +77,6 @@ namespace UnrealBuildTool
 		/// <returns>One of the values of ECompilationResult</returns>
 		public override int Execute(CommandLineArguments Arguments)
 		{
-			Stopwatch BuildTimer = Stopwatch.StartNew();
 			Arguments.ApplyTo(this);
 
 			// Initialize the log system, buffering the output until we can create the log file
@@ -204,9 +203,6 @@ namespace UnrealBuildTool
 				SourceFileMetadataCache.SaveAll();
 				CppDependencyCache.SaveAll();
 			}
-
-			// Figure out how long we took to execute.
-			Log.TraceInformation("Total build time: {0:0.00} seconds", BuildTimer.Elapsed.TotalSeconds);
 			return 0;
 		}
 
@@ -225,6 +221,15 @@ namespace UnrealBuildTool
 			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 			{
 				Makefiles[TargetIdx] = CreateMakefile(BuildConfiguration, TargetDescriptors[TargetIdx], WorkingSet);
+			}
+
+			// Output the manifest
+			for(int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+			{
+				if(TargetDescriptors[TargetIdx].LiveCodingManifest != null)
+				{
+					HotReload.WriteLiveCodeManifest(TargetDescriptors[TargetIdx].LiveCodingManifest, Makefiles[TargetIdx].Actions);
+				}
 			}
 
 			// Execute the build
@@ -558,10 +563,18 @@ namespace UnrealBuildTool
 				TargetActionsToExecute = new HashSet<Action>(PrerequisiteActions);
 			}
 			
-			// Patch action history for hot reload when running in assembler mode.  In assembler mode, the suffix on the output file will be
-			// the same for every invocation on that makefile, but we need a new suffix each time.
-			if (HotReloadMode != HotReloadMode.Disabled)
+			// Additional processing for hot reload
+			if (HotReloadMode == HotReloadMode.LiveCoding)
 			{
+				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
+				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+			}
+			else if (HotReloadMode == HotReloadMode.FromEditor || HotReloadMode == HotReloadMode.FromIDE)
+			{
+				// Patch action history for hot reload when running in assembler mode.  In assembler mode, the suffix on the output file will be
+				// the same for every invocation on that makefile, but we need a new suffix each time.
+
 				// For all the hot-reloadable modules that may need a unique suffix appended, build a mapping from output item to all the output items in that module. We can't 
 				// apply a suffix to one without applying a suffix to all of them.
 				Dictionary<FileItem, FileItem[]> HotReloadItemToDependentItems = new Dictionary<FileItem, FileItem[]>();

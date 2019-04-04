@@ -10,6 +10,7 @@
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "KismetAnimationTypes.h"
 #include "AnimNode_AnimDynamics.generated.h"
 
 class UAnimInstance;
@@ -399,6 +400,10 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 	/** Set to true to use the solver to simulate a connected chain */
 	UPROPERTY(EditAnywhere, Category = Setup, meta=(DisplayAfter="RelativeSpaceBone"))
 	uint8 bChain:1;
+
+	/** The settings for rotation retargeting */
+	UPROPERTY(EditAnywhere, Category = Retargeting)
+	FRotationRetargetingInfo RetargetingSettings;
 
 	// FAnimNode_SkeletalControlBase interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;

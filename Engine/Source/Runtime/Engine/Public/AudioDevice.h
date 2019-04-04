@@ -1397,14 +1397,26 @@ public:
 		return Effects;
 	}
 
-	TMap<USoundMix *, FSoundMixState> GetSoundMixModifiers()
+	const TMap<USoundMix*, FSoundMixState>& GetSoundMixModifiers() const
 	{
 		return SoundMixModifiers;
 	}
 
-	void SetSoundMixModifiers(TMap<USoundMix *, FSoundMixState>& InSoundMixModifiers)
+	const TArray<USoundMix*>& GetPrevPassiveSoundMixModifiers() const
+	{
+		return PrevPassiveSoundMixModifiers;
+	}
+
+	USoundMix* GetDefaultBaseSoundMixModifier()
+	{
+		return DefaultBaseSoundMix;
+	}
+
+	void SetSoundMixModifiers(const TMap<USoundMix*, FSoundMixState>& InSoundMixModifiers, const TArray<USoundMix*>& InPrevPassiveSoundMixModifiers, USoundMix* InDefaultBaseSoundMix)
 	{
 		SoundMixModifiers = InSoundMixModifiers;
+		PrevPassiveSoundMixModifiers = InPrevPassiveSoundMixModifiers;
+		DefaultBaseSoundMix = InDefaultBaseSoundMix;
 	}
 
 private:

@@ -13,6 +13,7 @@
 #include "Containers/Queue.h"
 #include "Physics/PhysicsFiltering.h"
 #include "PhysXPublic.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class UBodySetup;
 class UPhysicalMaterial;
@@ -294,6 +295,7 @@ public:
 
 	virtual void* allocate(size_t size, const char* typeName, const char* filename, int line) override
 	{
+		LLM_SCOPE(ELLMTag::PhysX);
 #if PHYSX_MEMORY_STATS
 		INC_DWORD_STAT_BY(STAT_MemoryPhysXTotalAllocationSize, size);
 

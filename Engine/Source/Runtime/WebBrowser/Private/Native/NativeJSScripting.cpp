@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "NativeJSScripting.h"
 
@@ -484,7 +484,7 @@ bool FNativeJSScripting::HandleExecuteUObjectMethodMessage(const TArray<FString>
 
 FString FNativeJSScripting::GetInitializeScript()
 {
-	const FString ScriptingInit =
+	const FString NativeScriptingInit =
 		TEXT("(function() {")
 			TEXT("var util = Object.create({")
 
@@ -611,7 +611,7 @@ FString FNativeJSScripting::GetInitializeScript()
 		TEXT("})();")
 	;
 
-	return ScriptingInit;
+	return NativeScriptingInit;
 }
 
 void FNativeJSScripting::PageLoaded()

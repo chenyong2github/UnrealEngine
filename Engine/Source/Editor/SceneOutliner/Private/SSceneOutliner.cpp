@@ -2967,6 +2967,7 @@ namespace SceneOutliner
 		// Refresh our tree in case any changes have been made to the scene that might effect our actor list
 		if( !bIsReentrant )
 		{
+            bDisableIntermediateSorting = true;
 			FullRefresh();
 		}
 	}

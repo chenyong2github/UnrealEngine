@@ -27,9 +27,27 @@ namespace UnrealBuildTool
 		// always seed the random number the same, so multiple runs of the generator will generate the same project
 		static Random Rand = new Random(0);
 
-		public XcodeProjectFileGenerator(FileReference InOnlyGameProject)
+		/// <summary>
+		/// Mark for distribution builds
+		/// </summary>
+		bool bForDistribution = false;
+
+		/// <summary>
+		/// Override BundleID
+		/// </summary>
+		string BundleIdentifier = "";
+
+		public XcodeProjectFileGenerator(FileReference InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
+			if (CommandLine.HasOption("-distribution"))
+			{
+				bForDistribution = true;
+			}
+			if (CommandLine.HasValue("-bundleID="))
+			{
+				BundleIdentifier = CommandLine.GetString("-bundleID=");
+			}
 		}
 
 		/// <summary>
@@ -90,7 +108,7 @@ namespace UnrealBuildTool
 		/// <returns>The newly allocated project file object</returns>
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath)
 		{
-			return new XcodeProjectFile(InitFilePath, OnlyGameProject);
+			return new XcodeProjectFile(InitFilePath, OnlyGameProject, bForDistribution, BundleIdentifier);
 		}
 
 		/// ProjectFileGenerator interface

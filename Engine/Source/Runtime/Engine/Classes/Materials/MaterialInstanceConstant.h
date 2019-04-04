@@ -52,8 +52,9 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	 * Set the parent of this material instance. This function may only be called in the Editor!
 	 *   WARNING: You MUST call PostEditChange afterwards to propagate changes to other materials in the chain!
 	 * @param NewParent - The new parent for this material instance.
+ 	 * @param RecacheShader - Will recache required shaders.
 	 */
-	ENGINE_API void SetParentEditorOnly(class UMaterialInterface* NewParent);
+	ENGINE_API void SetParentEditorOnly(class UMaterialInterface* NewParent, bool RecacheShader = true);
 
 	/**
 	* Copies the uniform parameters (scalar, vector and texture) from a material or instance hierarchy.

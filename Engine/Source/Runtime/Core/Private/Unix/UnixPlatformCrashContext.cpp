@@ -395,15 +395,20 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		CrashGuid = FGuid::NewGuid().ToString();
 	}
 
-	/* Table showing the desired behavior when wanting to show a pop up or not. As well as avoiding starting CRC
-	 *  based on an *.ini setting bSendUnattendedBugReports and whether or not we are unattended
+
+	/* Table showing the desired behavior when wanting to start the CRC or not.
+	 *  based on an *.ini setting for bSendUnattendedBugReports or bAgreeToCrashUpload and whether or not we are unattended
 	 *
-	 *  Unattended | AgreeToUpload || Show Popup | Start CRC
-	 *  ----------------------------------------------------
-	 *      1      |       1       ||     0      |    1
-	 *      1      |       0       ||     0      |    0
-	 *      0      |       1       ||     0      |    1
-	 *      0      |       0       ||     1      |    1
+	 *  Unattended | AgreeToUpload | SendUnattendedBug || Start CRC
+	 *  ------------------------------------------------------------
+	 *      1      |       1       |         1         ||     1
+	 *      1      |       1       |         0         ||     1
+	 *      1      |       0       |         1         ||     1
+	 *      1      |       0       |         0         ||     0
+	 *      0      |       1       |         1         ||     1
+	 *      0      |       1       |         0         ||     1
+	 *      0      |       0       |         1         ||     1
+	 *      0      |       0       |         0         ||     1
 	 */
 
 	// Suppress the user input dialog if we're running in unattended mode
@@ -428,13 +433,21 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	// If we are not an editor but still want to agree to upload for non-licensee check the settings
+	bool bAgreeToCrashUpload = false;
+	if (!UE_EDITOR && GConfig)
+	{
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bAgreeToCrashUpload"), bAgreeToCrashUpload, GEngineIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bAgreeToCrashUpload = false;
 	}
 
-	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports;
+	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports && !bAgreeToCrashUpload;
 
 	if (!bSkipCRC)
 	{
@@ -479,7 +492,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			uint64 TotalDiskSpace = 0;
 			uint64 TotalDiskFreeSpace = 0;
 			bool bLowDriveSpace = false;
-			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*LogDstAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
+			if (FPlatformMisc::GetDiskTotalAndFreeSpace(*CrashInfoAbsolute, TotalDiskSpace, TotalDiskFreeSpace))
 			{
 				if (TotalDiskFreeSpace < MinDriveSpaceForCrashLog)
 				{
@@ -671,7 +684,8 @@ void (* GCrashHandlerPointer)(const FGenericCrashContext & Context) = NULL;
 
 extern int32 CORE_API GMaxNumberFileMappingCache;
 
-extern thread_local const TCHAR* GAssertErrorMessage;
+extern thread_local const TCHAR* GCrashErrorMessage;
+extern thread_local ECrashContextType GCrashErrorType;
 
 /** True system-specific crash handler that gets called first */
 void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
@@ -690,15 +704,15 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	ECrashContextType Type;
 	const TCHAR* ErrorMessage;
 
-	if (GAssertErrorMessage == nullptr)
+	if (GCrashErrorMessage == nullptr)
 	{
 		Type = ECrashContextType::Crash;
 		ErrorMessage = TEXT("Caught signal");
 	}
 	else
 	{
-		Type = ECrashContextType::Assert;
-		ErrorMessage = GAssertErrorMessage;
+		Type = GCrashErrorType;
+		ErrorMessage = GCrashErrorMessage;
 	}
 
 	FUnixCrashContext CrashContext(Type, ErrorMessage);
@@ -733,6 +747,9 @@ void FUnixPlatformMisc::SetGracefulTerminationHandler()
 
 // reserve stack for the main thread in BSS
 char FRunnableThreadUnix::MainThreadSignalHandlerStack[FRunnableThreadUnix::EConstants::CrashHandlerStackSize];
+
+// Defined in UnixPlatformMemory.cpp. Allows settings a specific signal to maintain its default handler rather then ignoring it
+extern int32 GSignalToDefault;
 
 void FUnixPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext & Context))
 {
@@ -793,6 +810,11 @@ void FUnixPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCras
 				bSignalShouldBeIgnored = false;
 				break;
 			}
+		}
+
+		if (GSignalToDefault && Signal == GSignalToDefault)
+		{
+			bSignalShouldBeIgnored = false;
 		}
 
 		if (bSignalShouldBeIgnored)

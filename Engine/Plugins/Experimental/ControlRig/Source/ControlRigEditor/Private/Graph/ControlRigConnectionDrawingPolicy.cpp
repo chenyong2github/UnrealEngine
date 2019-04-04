@@ -11,24 +11,25 @@ void FControlRigConnectionDrawingPolicy::BuildPinToPinWidgetMap(TMap<TSharedRef<
 	{
 		struct Local
 		{
-			static void AddSubPins_Recursive(UEdGraphPin* PinObj, TMap<UEdGraphPin*, TSharedRef<SGraphPin>>& InPinToPinWidgetMap, TSharedRef<SGraphPin>& InGraphPinWidget)
+			static void AddSubPins_Recursive(UEdGraphPin* PinObj, TMap<UEdGraphPin*, TSharedPtr<SGraphPin>>& InPinToPinWidgetMap, TSharedPtr<SGraphPin>& InGraphPinWidget)
 			{
 				for(UEdGraphPin* SubPin : PinObj->SubPins)
 				{
 					// Only add to the pin-to-pin widget map if the sub-pin widget is not there already
-					TSharedRef<SGraphPin>* SubPinWidgetPtr = InPinToPinWidgetMap.Find(SubPin);
+					TSharedPtr<SGraphPin>* SubPinWidgetPtr = InPinToPinWidgetMap.Find(SubPin);
 					if(SubPinWidgetPtr == nullptr)
 					{
 						SubPinWidgetPtr = &InGraphPinWidget;
 					}
 
-					InPinToPinWidgetMap.Add(SubPin, *SubPinWidgetPtr);
-					AddSubPins_Recursive(SubPin, InPinToPinWidgetMap, *SubPinWidgetPtr);
+					TSharedPtr<SGraphPin> PinWidgetPtr = *SubPinWidgetPtr;
+					InPinToPinWidgetMap.Add(SubPin, PinWidgetPtr);
+					AddSubPins_Recursive(SubPin, InPinToPinWidgetMap, PinWidgetPtr);
 				}
 			}
 		};
 
-		TSharedRef<SGraphPin> GraphPinWidget = StaticCastSharedRef<SGraphPin>(ConnectorIt.Key());
+		TSharedPtr<SGraphPin> GraphPinWidget = StaticCastSharedRef<SGraphPin>(ConnectorIt.Key());
 		Local::AddSubPins_Recursive(GraphPinWidget->GetPinObj(), PinToPinWidgetMap, GraphPinWidget);
 	}
 }
@@ -89,13 +90,13 @@ void FControlRigConnectionDrawingPolicy::DetermineLinkGeometry(
 	/*out*/ FArrangedWidget*& EndWidgetGeometry
 	)
 {
-	if (TSharedRef<SGraphPin>* pOutputWidget = PinToPinWidgetMap.Find(OutputPin))
+	if (TSharedPtr<SGraphPin>* pOutputWidget = PinToPinWidgetMap.Find(OutputPin))
 	{
-		StartWidgetGeometry = PinGeometries->Find(*pOutputWidget);
+		StartWidgetGeometry = PinGeometries->Find((*pOutputWidget).ToSharedRef());
 	}
 	
-	if (TSharedRef<SGraphPin>* pInputWidget = PinToPinWidgetMap.Find(InputPin))
+	if (TSharedPtr<SGraphPin>* pInputWidget = PinToPinWidgetMap.Find(InputPin))
 	{
-		EndWidgetGeometry = PinGeometries->Find(*pInputWidget);
+		EndWidgetGeometry = PinGeometries->Find((*pInputWidget).ToSharedRef());
 	}
 }

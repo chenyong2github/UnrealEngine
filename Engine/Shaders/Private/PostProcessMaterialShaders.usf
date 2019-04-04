@@ -215,7 +215,11 @@ void MainVS_ES2(
 	UNROLL
 	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
 	{
+#if POST_PROCESS_AR_PASSTHROUGH
 		SetUV(Output, CoordinateIndex, OutUV);
+#else
+		SetUV(Output, CoordinateIndex, InPosition.xy);
+#endif
 	}
 	UNROLL
 	for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
@@ -257,8 +261,14 @@ void MainPS_ES2(
 
 	// Grab emissive colour as output
 	half3 EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
-	half4 FullSceneColor = half4(EmissiveColor, Parameters.BackupSceneColorAlpha);
-
+	
+#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	half Alpha = GetMaterialOpacity(PixelMaterialInputs);
+#else
+	half Alpha = Parameters.BackupSceneColorAlpha;
+#endif
+	half4 FullSceneColor = half4(EmissiveColor, Alpha);
+	   
 #if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 #if OUTPUT_GAMMA_SPACE
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);

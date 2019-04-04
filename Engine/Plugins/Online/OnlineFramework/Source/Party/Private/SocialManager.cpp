@@ -3,6 +3,7 @@
 #include "SocialManager.h"
 #include "SocialToolkit.h"
 #include "SocialSettings.h"
+#include "SocialDebugTools.h"
 
 #include "Interactions/CoreInteractions.h"
 #include "Interactions/PartyInteractions.h"
@@ -200,6 +201,12 @@ void USocialManager::InitSocialManager()
 	{
 		HandleWorldEstablished(World);
 	}
+
+#if !UE_SERVER && !UE_BUILD_SHIPPING
+	SocialDebugTools = NewObject<USocialDebugTools>(this, GetSocialDebugToolsClass());
+	check(SocialDebugTools);
+#endif
+
 }
 
 void USocialManager::ShutdownSocialManager()
@@ -226,6 +233,12 @@ void USocialManager::ShutdownSocialManager()
 	ShutdownPartiesFunc(LeavingPartiesByTypeId);
 
 	RejoinableParty.Reset();
+
+	if (SocialDebugTools)
+	{
+		SocialDebugTools->Shutdown();
+		SocialDebugTools = nullptr;
+	}
 
 	// We could have outstanding OSS queries and requests, and we are no longer interested in getting any callbacks triggered
 	MarkPendingKill();
@@ -289,6 +302,11 @@ void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const 
 	}
 }
 
+TSubclassOf<USocialDebugTools> USocialManager::GetSocialDebugToolsClass() const
+{
+	return USocialDebugTools::StaticClass();
+}
+
 USocialToolkit* USocialManager::GetFirstLocalUserToolkit() const
 {
 	if (SocialToolkits.Num() > 0)
@@ -334,7 +352,7 @@ void USocialManager::CreateParty(const FOnlinePartyTypeId& PartyTypeId, const FP
 		}
 		else
 		{
-			UE_LOG(LogParty, Warning, TEXT("Cannot create party of type [%d] - no PartyInterface available on the primary OSS [%s]"), PartyTypeId.GetValue(), *GetSocialOssName(ESocialSubsystem::Primary).ToString());
+			UE_LOG(LogParty, Warning, TEXT("Cannot create party of type [%d] - PartyInterface.IsValid=%s PrimaryLocalUserId.IsValid=%s primary OSS [%s]"), PartyTypeId.GetValue(), *LexToString(PartyInterface.IsValid()), *LexToString(PrimaryLocalUserId.IsValid()), *GetSocialOssName(ESocialSubsystem::Primary).ToString());
 			OnCreatePartyComplete.ExecuteIfBound(ECreatePartyCompletionResult::UnknownClientFailure);
 		}
 	}
@@ -715,7 +733,7 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 		if (NewParty->IsPersistentParty())
 		{
 			NewParty->OnPartyStateChanged().AddUObject(this, &USocialManager::HandlePersistentPartyStateChanged, NewParty);
-			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty);
+			HandlePersistentPartyStateChanged(NewParty->GetOssPartyState(), NewParty->GetOssPartyPreviousState(), NewParty);
 		}
 
 		return NewParty;
@@ -813,7 +831,7 @@ void USocialManager::HandleWorldEstablished(UWorld* World)
 
 void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 {
-	ULocalPlayer* NewLocalPlayer = GetGameInstance().FindLocalPlayerFromControllerId(LocalUserNum);
+	ULocalPlayer* NewLocalPlayer = GetGameInstance().GetLocalPlayerByIndex(LocalUserNum);
 	check(NewLocalPlayer);
 
 	CreateSocialToolkit(*NewLocalPlayer);
@@ -826,6 +844,47 @@ void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 		SocialToolkits.Remove(Toolkit);
 		Toolkit->MarkPendingKill();
 	}
+}
+
+void USocialManager::RestorePartyStateFromPartySystem(const FOnRestorePartyStateFromPartySystemComplete& OnRestoreComplete)
+{
+	UE_LOG(LogParty, Verbose, TEXT("RestorePartyStateFromPartySystem"));
+	FUniqueNetIdRepl LocalUserId = GetFirstLocalUserId(ESocialSubsystem::Primary);
+
+	// If the player has any parties, do not try to restore
+	if (LocalUserId.IsValid() &&
+		bCanCreatePartyObjects &&
+		JoinedPartiesByTypeId.Num() == 0 &&
+		JoinAttemptsByTypeId.Num() == 0)
+	{
+		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+		PartyInterface->RestoreParties(*LocalUserId, FOnRestorePartiesComplete::CreateUObject(this, &USocialManager::OnRestorePartiesComplete, OnRestoreComplete));
+	}
+	else
+	{
+		OnRestoreComplete.ExecuteIfBound(false);
+	}
+}
+
+void USocialManager::OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, const FOnlineError& Result, const FOnRestorePartyStateFromPartySystemComplete OnRestoreComplete)
+{
+	if (Result.WasSuccessful())
+	{
+		// Restore our parties
+		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+		TArray<TSharedRef<const FOnlinePartyId>> JoinedParties;
+		PartyInterface->GetJoinedParties(LocalUserId, JoinedParties);
+		for (const TSharedRef<const FOnlinePartyId>& PartyId : JoinedParties)
+		{
+			TSharedPtr<const FOnlineParty> Party = PartyInterface->GetParty(LocalUserId, *PartyId);
+			check(Party.IsValid());
+			if (!EstablishNewParty(LocalUserId, *PartyId, Party->PartyTypeId))
+			{
+				UE_LOG(LogParty, Warning, TEXT("OnRestorePartiesComplete: User=[%s] Party=[%s] Type=%d failed to establish party"), *LocalUserId.ToDebugString(), *PartyId->ToDebugString(), Party->PartyTypeId.GetValue());
+			}
+		}
+	}
+	OnRestoreComplete.ExecuteIfBound(Result.WasSuccessful());
 }
 
 void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
@@ -922,13 +981,18 @@ void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, co
 	}
 }
 
-void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, USocialParty* PersistentParty)
+void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty)
 {
 	UE_LOG(LogParty, Verbose, TEXT("Persistent party state changed to %s"), ToString(NewState));
 
 	if (NewState == EPartyState::Disconnected)
 	{
 		bIsConnectedToPartyService = false;
+		
+		if (PreviousState == EPartyState::Active)
+		{
+			PersistentParty->LeaveParty();
+		}
 
 		// If we have other members in our party, then we will try to rejoin this when we come back online
 		if (!RejoinableParty.IsValid() && PersistentParty->ShouldCacheForRejoinOnDisconnect())
@@ -1052,4 +1116,23 @@ void USocialManager::HandleFindSessionForJoinComplete(bool bWasSuccessful, const
 			FinishJoinPartyAttempt(*JoinAttempt, FJoinPartyResult(EPartyJoinDenialReason::TargetUserMissingPlatformSession));
 		}
 	}
+}
+
+bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
+{
+	if (FParse::Command(&Cmd, TEXT("SOCIAL")))
+	{
+		if (SocialDebugTools &&
+			SocialDebugTools->Exec(InWorld, Cmd, Out))
+		{
+			return true;
+		}
+		return true;
+	}
+	return false;
+}
+
+USocialDebugTools* USocialManager::GetDebugTools() const
+{
+	return SocialDebugTools;
 }

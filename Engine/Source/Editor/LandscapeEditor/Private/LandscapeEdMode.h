@@ -69,9 +69,9 @@ struct FLandscapeTargetListInfo
 	TWeakObjectPtr<class UMaterialInstanceConstant> ThumbnailMIC;	// ignored for heightmap
 	int32 DebugColorChannel;										// ignored for heightmap
 	uint32 bValid : 1;												// ignored for heightmap
-	int32 ProceduralLayerIndex;
+	int32 LayerIndex;
 
-	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, const FLandscapeInfoLayerSettings& InLayerSettings, int32 InProceduralLayerIndex)
+	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, const FLandscapeInfoLayerSettings& InLayerSettings, int32 InLayerIndex)
 		: TargetName(InTargetName)
 		, TargetType(InTargetType)
 		, LandscapeInfo(InLayerSettings.Owner->GetLandscapeInfo())
@@ -81,11 +81,11 @@ struct FLandscapeTargetListInfo
 		, ThumbnailMIC(InLayerSettings.ThumbnailMIC)
 		, DebugColorChannel(InLayerSettings.DebugColorChannel)
 		, bValid(InLayerSettings.bValid)
-		, ProceduralLayerIndex (InProceduralLayerIndex)
+		, LayerIndex(InLayerIndex)
 	{
 	}
 
-	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, ULandscapeInfo* InLandscapeInfo, int32 InProceduralLayerIndex)
+	FLandscapeTargetListInfo(FText InTargetName, ELandscapeToolTargetType::Type InTargetType, ULandscapeInfo* InLandscapeInfo, int32 InLayerIndex)
 		: TargetName(InTargetName)
 		, TargetType(InTargetType)
 		, LandscapeInfo(InLandscapeInfo)
@@ -94,15 +94,16 @@ struct FLandscapeTargetListInfo
 		, Owner(NULL)
 		, ThumbnailMIC(NULL)
 		, bValid(true)
-		, ProceduralLayerIndex(InProceduralLayerIndex)
+		, LayerIndex(InLayerIndex)
 	{
 	}
 
-	FLandscapeInfoLayerSettings* GetLandscapeInfoLayerSettings() const
+	int32 GetLandscapeInfoLayerIndex() const
 	{
+		int32 Index = INDEX_NONE;
+
 		if (TargetType == ELandscapeToolTargetType::Weightmap)
 		{
-			int32 Index = INDEX_NONE;
 			if (LayerInfoObj.IsValid())
 			{
 				Index = LandscapeInfo->GetLayerInfoIndex(LayerInfoObj.Get(), Owner.Get());
@@ -111,11 +112,20 @@ struct FLandscapeTargetListInfo
 			{
 				Index = LandscapeInfo->GetLayerInfoIndex(LayerName, Owner.Get());
 			}
-			if (ensure(Index != INDEX_NONE))
-			{
-				return &LandscapeInfo->Layers[Index];
-			}
 		}
+
+		return Index;
+	}
+
+	FLandscapeInfoLayerSettings* GetLandscapeInfoLayerSettings() const
+	{
+		int32 Index = GetLandscapeInfoLayerIndex();
+
+		if (Index != INDEX_NONE)
+		{
+			return &LandscapeInfo->Layers[Index];
+		}
+
 		return NULL;
 	}
 
@@ -418,6 +428,15 @@ public:
 
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const override;
 
+	/** Get override cursor visibility settings */	
+	virtual bool GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const override;
+
+	/** Called before mouse movement is converted to drag/rot */
+	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
+
+	/** Called after mouse movement is converted to drag/rot */
+	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) override;
+
 	/** Forces real-time perspective viewports */
 	void ForceRealTimeViewports(const bool bEnable, const bool bStoreCurrentState);
 
@@ -470,27 +489,36 @@ public:
 	void OnLandscapeMaterialChangedDelegate();
 	void RefreshDetailPanel();
 
-	// Procedural Layers
-	int32 GetProceduralLayerCount() const;
-	void SetCurrentProceduralLayer(int32 InLayerIndex);
-	int32 GetCurrentProceduralLayerIndex() const;
-	FName GetCurrentProceduralLayerName() const;
-	FName GetProceduralLayerName(int32 InLayerIndex) const;
-	void SetProceduralLayerName(int32 InLayerIndex, const FName& InName);
-	float GetProceduralLayerWeight(int32 InLayerIndex) const;
-	void SetProceduralLayerWeight(float InWeight, int32 InLayerIndex);
-	void SetProceduralLayerVisibility(bool InVisible, int32 InLayerIndex);
-	bool IsProceduralLayerVisible(int32 InLayerIndex) const;
-	void AddBrushToCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	void RemoveBrushFromCurrentProceduralLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	bool AreAllBrushesCommitedToCurrentProceduralLayer(int32 InTargetType);
-	void SetCurrentProceduralLayerBrushesCommitState(int32 InTargetType, bool InCommited);
-	TArray<int8>& GetBrushesOrderForCurrentProceduralLayer(int32 InTargetType) const;
-	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentProceduralLayer(int32 InTargetType, int8 BrushIndex) const;
-	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentProceduralLayer(int32 InTargetType);
-	struct FProceduralLayer* GetCurrentProceduralLayer() const;
-	void ChangeHeightmapsToCurrentProceduralLayerHeightmaps(bool InResetCurrentEditingHeightmap = false);
-	void RequestProceduralContentUpdate();
+	// Layers
+	int32 GetLayerCount() const;
+	void SetCurrentLayer(int32 InLayerIndex);
+	int32 GetCurrentLayerIndex() const;
+	ALandscape* GetLandscape() const;
+	struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
+	FName GetLayerName(int32 InLayerIndex) const;
+	void SetLayerName(int32 InLayerIndex, const FName& InName);
+	bool CanRenameLayerTo(int32 InLayerIndex, const FName& InNewName);
+	float GetLayerAlpha(int32 InLayerIndex) const;
+	void SetLayerAlpha(int32 InLayerIndex, float InAlpha);
+	void SetLayerVisibility(bool InVisible, int32 InLayerIndex);
+	bool IsLayerVisible(int32 InLayerIndex) const;
+	bool IsLayerLocked(int32 InLayerIndex) const;
+	void SetLayerLocked(int32 InLayerIndex, bool bInLocked);
+	struct FLandscapeLayer* GetCurrentLayer() const;
+	FGuid GetCurrentLayerGuid() const;
+	bool IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
+	void SetCurrentLayerSubstractiveBlendStatus(bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
+
+	void AddBrushToCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
+	void RemoveBrushFromCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
+	bool AreAllBrushesCommitedToCurrentLayer(int32 InTargetType);
+	void SetBrushesCommitStateForCurrentLayer(int32 InTargetType, bool InCommited);
+	TArray<int8>& GetBrushesOrderForCurrentLayer(int32 InTargetType) const;
+	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentLayer(int32 InTargetType, int8 BrushIndex) const;
+	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer(int32 InTargetType);
+	
+	bool NeedToFillEmptyMaterialLayers() const;
+	void RequestLayersContentUpdate(bool InUpdateAllMaterials = false);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorRemoved(AActor* InActor);

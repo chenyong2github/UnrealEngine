@@ -35,13 +35,6 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("~UObject"),STAT_DestroyObject,STATGROUP_Object, 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObject"),STAT_FindObject,STATGROUP_ObjectVerbose, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STATGROUP_ObjectVerbose, );
 
-/**
- * Network stats counters
- */
-
-DECLARE_CYCLE_STAT_EXTERN(TEXT("NetSerializeFast Array"),STAT_NetSerializeFastArray,STATGROUP_ServerCPU, COREUOBJECT_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("NetSerializeFast Array BuildMap"),STAT_NetSerializeFastArray_BuildMap,STATGROUP_ServerCPU, COREUOBJECT_API);
-
 #define	INVALID_OBJECT	(UObject*)-1
 
 
@@ -189,8 +182,8 @@ COREUOBJECT_API FString ResolveIniObjectsReference(const FString& ObjectReferenc
  */
 COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, FUObjectSerializeContext* InLoadContext = nullptr);
 
-/** Internal function used to possibly output an error message, taking into account the outer and LoadFlags */
-COREUOBJECT_API void SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage);
+/** Internal function used to possibly output an error message, taking into account the outer and LoadFlags. Returns true if a log message was emitted. */
+COREUOBJECT_API bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage);
 
 /** Internal function used to update the suffix to be given to the next newly-created unnamed object. */
 COREUOBJECT_API int32 UpdateSuffixForNextNewObject(UObject* Parent, UClass* Class, TFunctionRef<void(int32&)> IndexMutator);
@@ -1965,6 +1958,16 @@ class FPackageReloadedEvent;
 
 class FGarbageCollectionTracer;
 
+enum class EHotReloadedClassFlags
+{
+	None = 0,
+
+	// Set when the hot reloaded class has been detected as changed
+	Changed = 0x01
+};
+
+ENUM_CLASS_FLAGS(EHotReloadedClassFlags)
+
 /**
  * Global CoreUObject delegates
  */
@@ -2030,7 +2033,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	static FRegisterHotReloadAddedClassesDelegate RegisterHotReloadAddedClassesDelegate;
 
 	/** Delegate for registering hot-reloaded classes that changed after hot-reload for reinstancing */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FRegisterClassForHotReloadReinstancingDelegate, UClass*, UClass*);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FRegisterClassForHotReloadReinstancingDelegate, UClass*, UClass*, EHotReloadedClassFlags);
 	static FRegisterClassForHotReloadReinstancingDelegate RegisterClassForHotReloadReinstancingDelegate;
 
 	/** Delegate for reinstancing hot-reloaded classes */
@@ -2232,9 +2235,10 @@ namespace UE4CodeGen_Private
 		Set               = 0x18,
 		Struct            = 0x19,
 		Delegate          = 0x1A,
-		MulticastDelegate = 0x1B,
-		Text              = 0x1C,
-		Enum              = 0x1D,
+		InlineMulticastDelegate = 0x1B,
+		SparseMulticastDelegate = 0x1C,
+		Text              = 0x1D,
+		Enum              = 0x1E,
 
 		// Property-specific flags
 		NativeBool        = 0x20
@@ -2492,6 +2496,8 @@ namespace UE4CodeGen_Private
 		UObject*                          (*OuterFunc)();
 		UFunction*                        (*SuperFunc)();
 		const char*                         NameUTF8;
+		const char*                         OwningClassName;
+		const char*                         DelegateName;
 		SIZE_T                              StructureSize;
 		const FPropertyParamsBase* const*   PropertyArray;
 		int32                               NumProperties;

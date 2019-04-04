@@ -494,7 +494,7 @@ namespace Gauntlet
 		}
 		#endregion
 
-		void ReleaseDevices()
+		public void ReleaseDevices()
 		{
 			if (ReservedDevices.Count() > 0)
 			{

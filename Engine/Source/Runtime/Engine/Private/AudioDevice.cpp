@@ -2086,14 +2086,14 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 		}
 	}
 
-	for (int32 i = 0; i < ActiveSoundsCopy.Num(); ++i)
+	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
 	{
 		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
 		{
 			if (ActiveSound->bShouldStopDueToMaxConcurrency)
 			{
-				ActiveSound->Stop(false);
-				ConcurrencyManager.StopActiveSound(ActiveSound);
+				AddSoundToStop(ActiveSound);
+				ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
 			}
 		}
 	}
@@ -3634,7 +3634,9 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 					// This can happen if e.g. the USoundWave pointed to by the WaveInstance is not a valid sound file.
 					// If we don't stop the wave file, it will continue to try initializing the file every frame, which is a perf hit
 					UE_LOG(LogAudio, Log, TEXT("Failed to start sound source for %s"), (WaveInstance->ActiveSound && WaveInstance->ActiveSound->Sound) ? *WaveInstance->ActiveSound->Sound->GetName() : TEXT("UNKNOWN") );
-					Source->Stop();
+					WaveInstance->StopWithoutNotification();
+					Source->WaveInstance = nullptr;
+					FreeSources.Add(Source);
 				}
 			}
 			else if (Source)
@@ -3910,6 +3912,11 @@ void FAudioDevice::Update(bool bGameTicking)
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
 #if !UE_BUILD_SHIPPING
+	if (FirstActiveIndex == INDEX_NONE)
+	{
+		return;
+	}
+
 	TArray<FAudioStats::FStatSoundInfo> StatSoundInfos;
 	TArray<FAudioStats::FStatSoundMix> StatSoundMixes;
 	const FVector ListenerPosition = Listeners[0].Transform.GetTranslation();
@@ -4136,7 +4143,7 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 	}
 
 	USoundWave* SoundWave = Cast<USoundWave>(Sound);
-	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGenerating())
+	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
@@ -4383,12 +4390,18 @@ void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
 	check(IsInAudioThread());
 
 	// Perform the notification
-	if (ActiveSound->GetAudioComponentID() > 0)
+	const int32 ComponentID = ActiveSound->GetAudioComponentID();
+	if (ComponentID > 0)
 	{
-		UAudioComponent::PlaybackCompleted(ActiveSound->GetAudioComponentID(), false);
+		UAudioComponent::PlaybackCompleted(ComponentID, false);
 	}
 
 	const int32 NumRemoved = ActiveSounds.RemoveSwap(ActiveSound);
+	if (!ensureMsgf(NumRemoved > 0, TEXT("Attempting to remove an already removed ActiveSound '%s'"), ActiveSound->Sound ? *ActiveSound->Sound->GetName() : TEXT("N/A")))
+	{
+		return;
+	}
+
 	check(NumRemoved == 1);
 }
 

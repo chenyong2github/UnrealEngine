@@ -208,6 +208,18 @@ bool FIOSPlatformApplicationMisc::IsControllerAssignedToGamepad(int32 Controller
 	return InputInterface->IsControllerAssignedToGamepad(ControllerId);
 }
 
+void FIOSPlatformApplicationMisc::EnableMotionData(bool bEnable)
+{
+	FIOSInputInterface* InputInterface = (FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->EnableMotionData(bEnable);
+}
+
+bool FIOSPlatformApplicationMisc::IsMotionDataEnabled()
+{
+	const FIOSInputInterface* InputInterface = (const FIOSInputInterface*)CachedApplication->GetInputInterface();
+	return InputInterface->IsMotionDataEnabled();
+}
+
 void FIOSPlatformApplicationMisc::ClipboardCopy(const TCHAR* Str)
 {
 #if !PLATFORM_TVOS
@@ -239,7 +251,7 @@ void FIOSPlatformApplicationMisc::ClipboardPaste(class FString& Result)
 EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensity(int32& ScreenDensity)
 {
 	FPlatformMisc::EIOSDevice Device = FPlatformMisc::GetIOSDeviceType();
-	static_assert( FPlatformMisc::EIOSDevice::IOS_Unknown == 38, "Every device needs to be handled here." );
+	static_assert( FPlatformMisc::EIOSDevice::IOS_Unknown == 40, "Every device needs to be handled here." );
 
 	ScreenDensity = 0;
 	EScreenPhysicalAccuracy Accuracy = EScreenPhysicalAccuracy::Unknown;
@@ -277,6 +289,7 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_IPadMini:
 	case FPlatformMisc::IOS_IPadMini2: // also the iPadMini3
 	case FPlatformMisc::IOS_IPadMini4:
+    case FPlatformMisc::IOS_IPadMini5:
 		ScreenDensity = 401;
 		Accuracy = EScreenPhysicalAccuracy::Truth;
 		break;
@@ -287,6 +300,7 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 	case FPlatformMisc::IOS_IPad6:
 	case FPlatformMisc::IOS_IPadAir:
 	case FPlatformMisc::IOS_IPadAir2:
+    case FPlatformMisc::IOS_IPadAir3:
 	case FPlatformMisc::IOS_IPadPro_97:
 		ScreenDensity = 264;
 		Accuracy = EScreenPhysicalAccuracy::Truth;

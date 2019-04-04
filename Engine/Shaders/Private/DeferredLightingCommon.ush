@@ -46,6 +46,8 @@ struct FDeferredLightData
 	bool bRectLight;
 	/** Whether the light should apply shadowing. */
 	uint ShadowedBits;
+	float RectLightBarnCosAngle;
+	float RectLightBarnLength;
 };
 
 /** Data about a single light to be shaded with the simple shading model, designed for speed and limited feature set. */
@@ -91,7 +93,7 @@ float ShadowRayCast(
 
 	const float Step = 1.0 / NumSteps;
 
-	// *2 to get less morie pattern in extreme cases, larger values make object appear not grounded in reflections
+	// *2 to get less moire pattern in extreme cases, larger values make object appear not grounded in reflections
 	const float CompareTolerance = abs( RayDepthScreen.z - RayStartScreen.z ) * Step * 2;
 
 	float SampleTime = StepOffset * Step + Step;
@@ -241,18 +243,19 @@ float GetLocalLightAttenuation(
 	return LightMask;
 }
 
-FRect GetRect( float3 ToLight, FDeferredLightData LightData )
+#define RECLIGHT_BARNDOOR 1
+// Wrapper for FDeferredLightData for computing visible rect light (i.e., unoccluded by barn doors)
+FRect GetRect(float3 ToLight, FDeferredLightData LightData)
 {
-	FRect Rect;
-	Rect.Origin = ToLight;
-	Rect.Axis[1] = LightData.Tangent;
-	Rect.Axis[2] = LightData.Direction;
-	Rect.Axis[0] = cross( Rect.Axis[1], Rect.Axis[2] );
-	Rect.Extent = float2(
-		LightData.SourceRadius,
-		LightData.SourceLength
-	);
-	return Rect;
+	return GetRect(
+		ToLight, 
+		LightData.Direction, 
+		LightData.Tangent, 
+		LightData.SourceRadius, 
+		LightData.SourceLength, 
+		LightData.RectLightBarnCosAngle, 
+		LightData.RectLightBarnLength,
+		RECLIGHT_BARNDOOR);
 }
 
 FCapsuleLight GetCapsule( float3 ToLight, FDeferredLightData LightData )
@@ -268,7 +271,7 @@ FCapsuleLight GetCapsule( float3 ToLight, FDeferredLightData LightData )
 }
 
 /** Calculates lighting for a given position, normal, etc with a fully featured lighting model designed for quality. */
-float4 GetDynamicLighting(float3 WorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, Texture2D SourceTexture)
+float4 GetDynamicLighting(float3 WorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, FRectTexture SourceTexture)
 {
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 

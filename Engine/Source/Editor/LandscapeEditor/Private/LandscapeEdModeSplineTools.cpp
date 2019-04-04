@@ -49,6 +49,8 @@ public:
 		, SelectedSplineControlPoints()
 		, SelectedSplineSegments()
 		, DraggingTangent_Segment(NULL)
+		, DraggingTangent_Length(0.0f)
+		, DraggingTangent_CacheCoordSpace(ECoordSystem::COORD_None)
 		, DraggingTangent_End(false)
 		, bMovingControlPoint(false)
 		, bAutoRotateOnJoin(true)
@@ -450,7 +452,7 @@ public:
 			}
 			else
 			{
-				FVector NewSegmentDirection = (NewControlPoint->Location - FirstPoint->Location) * (FirstPoint->ConnectedSegments[0].End ? 1.0f : -1.0f);
+				FVector NewSegmentDirection = (NewControlPoint->Location - FirstPoint->Location) * (FirstPoint->ConnectedSegments.Num() == 0 || FirstPoint->ConnectedSegments[0].End ? 1.0f : -1.0f);
 				NewControlPoint->Rotation = NewSegmentDirection.Rotation();
 			}
 
@@ -469,7 +471,7 @@ public:
 
 			for (ULandscapeSplineControlPoint* ControlPoint : SelectedSplineControlPoints)
 			{
-				if (ControlPoint->ConnectedSegments[0].End)
+				if (ControlPoint->ConnectedSegments.Num() == 0 || ControlPoint->ConnectedSegments[0].End)
 				{
 					AddSegment(ControlPoint, NewControlPoint, bAutoRotateOnJoin, !bDuplicatingControlPoint);
 				}
@@ -698,6 +700,7 @@ public:
 
 	bool UpdateSplitSegment(ULandscapeSplineControlPoint* ControlPoint, const FVector& LocalLocation)
 	{
+		check(ControlPoint->ConnectedSegments.Num() == 2);
 		ULandscapeSplineSegment* Segment0 = ControlPoint->ConnectedSegments[0].Segment;
 		ULandscapeSplineSegment* Segment1 = ControlPoint->ConnectedSegments[1].Segment;
 		ULandscapeSplineSegment *Segment, *NewSegment;
@@ -1441,6 +1444,12 @@ public:
 						HLandscapeSplineProxy_Tangent* SplineProxy = (HLandscapeSplineProxy_Tangent*)HitProxy;
 						DraggingTangent_Segment = SplineProxy->SplineSegment;
 						DraggingTangent_End = SplineProxy->End;
+						DraggingTangent_Length = DraggingTangent_Segment->Connections[DraggingTangent_End].TangentLen;
+
+						// Coord system MUST be set here, even if widget coord system space claims to already be in local space.
+						DraggingTangent_CacheCoordSpace = InViewportClient->GetWidgetCoordSystemSpace();
+						InViewportClient->SetWidgetCoordSystemSpace(ECoordSystem::COORD_Local);
+						InViewportClient->SetRequiredCursorOverride(true, EMouseCursor::GrabHandClosed);
 
 						GEditor->BeginTransaction(LOCTEXT("LandscapeSpline_ModifyTangent", "Modify Landscape Spline Tangent"));
 						ULandscapeSplinesComponent* SplinesComponent = DraggingTangent_Segment->GetOuterULandscapeSplinesComponent();
@@ -1478,6 +1487,9 @@ public:
 					DraggingTangent_Segment->UpdateSplinePoints(true);
 
 					DraggingTangent_Segment = NULL;
+
+					InViewportClient->SetWidgetCoordSystemSpace(DraggingTangent_CacheCoordSpace);
+					InViewportClient->SetRequiredCursorOverride(false);
 
 					GEditor->EndTransaction();
 
@@ -1592,23 +1604,69 @@ public:
 		return UpdateSplitSegment(SelectedControlPoint, Location);
 	}
 
+	virtual bool GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const override
+	{
+		if (DraggingTangent_Segment)
+		{
+			bWantsOverride = true;
+			bHardwareCursorVisible = true;
+			bSoftwareCursorVisible = false;
+			return true;
+		}
+
+		bWantsOverride = false;
+		
+		return false;
+	}
+
+	virtual bool PreConvertMouseMovement(FEditorViewportClient* InViewportClient) override
+	{
+		if (DraggingTangent_Segment)
+		{
+			InViewportClient->SetWidgetModeOverride(FWidget::WM_Translate);
+			InViewportClient->SetCurrentWidgetAxis(EAxisList::X);
+			return true;
+		}
+
+		return false;
+	}
+
+	virtual bool PostConvertMouseMovement(FEditorViewportClient* InViewportClient) override
+	{
+		if (DraggingTangent_Segment)
+		{
+			InViewportClient->SetWidgetModeOverride(FWidget::WM_Scale);
+			InViewportClient->SetCurrentWidgetAxis(EAxisList::None);
+			return true;
+		}
+
+		return false;
+	}
+
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override
 	{
 		FVector Drag = InDrag;
 
 		if (DraggingTangent_Segment)
 		{
+			InViewportClient->SetRequiredCursorOverride(true, EMouseCursor::GrabHandClosed);
+
 			const ULandscapeSplinesComponent* SplinesComponent = DraggingTangent_Segment->GetOuterULandscapeSplinesComponent();
 			FLandscapeSplineSegmentConnection& Connection = DraggingTangent_Segment->Connections[DraggingTangent_End];
 
 			FVector StartLocation; FRotator StartRotation;
 			Connection.ControlPoint->GetConnectionLocationAndRotation(Connection.SocketName, StartLocation, StartRotation);
+			FVector ForwardVector = FQuatRotationMatrix(StartRotation.Quaternion()).TransformVector(FVector(1.0f, 0.0f, 0.0f));
 
+			FVector DragLocal = SplinesComponent->GetComponentTransform().InverseTransformVector(Drag);
+			float Angle = FMath::Acos(FVector::DotProduct(DragLocal, ForwardVector) / DragLocal.Size());
 			float OldTangentLen = Connection.TangentLen;
-			Connection.TangentLen += SplinesComponent->GetComponentTransform().InverseTransformVector(Drag) | StartRotation.Vector();
+			Connection.TangentLen = DraggingTangent_Length + (Angle < HALF_PI ? 2.0 : -2.0) * DragLocal.Size();
 
-			// Disallow a tangent of exactly 0
-			if (Connection.TangentLen == 0)
+			// Disallow a tangent of exactly 0 and don't allow tangents to flip
+			if ((Connection.TangentLen > 0 && OldTangentLen < 0) || 
+				(Connection.TangentLen < 0 && OldTangentLen > 0) ||
+				 Connection.TangentLen == 0)
 			{
 				if (OldTangentLen > 0)
 				{
@@ -1789,7 +1847,7 @@ public:
 				FVector HandlePos1 = SplinesComponent->GetComponentTransform().TransformPosition(ControlPoint->Location + ControlPoint->Rotation.Vector() * 20);
 				DrawDashedLine(PDI, HandlePos0, HandlePos1, FColor::White, 20, SDPG_Foreground);
 
-				if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale)
+				if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale && !Viewport->GetClient()->IsOrtho())
 				{
 					for (const FLandscapeSplineConnection& Connection : ControlPoint->ConnectedSegments)
 					{
@@ -1798,16 +1856,17 @@ public:
 
 						FVector StartPos = SplinesComponent->GetComponentTransform().TransformPosition(StartLocation);
 						FVector HandlePos = SplinesComponent->GetComponentTransform().TransformPosition(StartLocation + StartRotation.Vector() * Connection.GetNearConnection().TangentLen / 2);
-						PDI->DrawLine(StartPos, HandlePos, FColor::White, SDPG_Foreground);
 
+						FColor TangentColor = (Connection.Segment == DraggingTangent_Segment && Connection.End == DraggingTangent_End) ? FColor::Yellow : FColor::White;
+						PDI->DrawLine(StartPos, HandlePos, TangentColor, SDPG_Foreground);
 						if (PDI->IsHitTesting()) PDI->SetHitProxy(new HLandscapeSplineProxy_Tangent(Connection.Segment, Connection.End));
-						PDI->DrawPoint(HandlePos, FColor::White, 10.0f, SDPG_Foreground);
+						PDI->DrawPoint(HandlePos, TangentColor, 10.0f, SDPG_Foreground);
 						if (PDI->IsHitTesting()) PDI->SetHitProxy(NULL);
 					}
 				}
 			}
 
-			if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale)
+			if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale && !Viewport->GetClient()->IsOrtho())
 			{
 				for (ULandscapeSplineSegment* Segment : SelectedSplineSegments)
 				{
@@ -1822,9 +1881,10 @@ public:
 						FVector EndPos = SplinesComponent->GetComponentTransform().TransformPosition(StartLocation);
 						FVector EndHandlePos = SplinesComponent->GetComponentTransform().TransformPosition(StartLocation + StartRotation.Vector() * Connection.TangentLen / 2);
 
-						PDI->DrawLine(EndPos, EndHandlePos, FColor::White, SDPG_Foreground);
+						FColor TangentColor = (Segment == DraggingTangent_Segment && End == DraggingTangent_End) ? FColor::Yellow : FColor::White;
+						PDI->DrawLine(EndPos, EndHandlePos, TangentColor, SDPG_Foreground);
 						if (PDI->IsHitTesting()) PDI->SetHitProxy(new HLandscapeSplineProxy_Tangent(Segment, !!End));
-						PDI->DrawPoint(EndHandlePos, FColor::White, 10.0f, SDPG_Foreground);
+						PDI->DrawPoint(EndHandlePos, TangentColor, 10.0f, SDPG_Foreground);
 						if (PDI->IsHitTesting()) PDI->SetHitProxy(NULL);
 					}
 				}
@@ -1850,7 +1910,7 @@ public:
 
 	virtual bool UsesTransformWidget() const override
 	{
-		if (SelectedSplineControlPoints.Num() > 0)
+		if (SelectedSplineControlPoints.Num() > 0 || DraggingTangent_Segment)
 		{
 			// The editor can try to render the transform widget before the landscape editor ticks and realizes that the landscape has been hidden/deleted
 			const ALandscapeProxy* LandscapeProxy = EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
@@ -1888,10 +1948,22 @@ public:
 
 	virtual FVector GetWidgetLocation() const override
 	{
-		if (SelectedSplineControlPoints.Num() > 0)
+		const ALandscapeProxy* LandscapeProxy = EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		if (LandscapeProxy)
 		{
-			const ALandscapeProxy* LandscapeProxy = EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			if (LandscapeProxy)
+			if (DraggingTangent_Segment)
+			{
+				const FLandscapeSplineSegmentConnection& Connection = DraggingTangent_Segment->Connections[DraggingTangent_End];
+				ULandscapeSplineControlPoint* ControlPoint = Connection.ControlPoint;
+				ULandscapeSplinesComponent* SplinesComponent = ControlPoint->GetOuterULandscapeSplinesComponent();
+				FVector StartLocation; FRotator StartRotation;
+				ControlPoint->GetConnectionLocationAndRotation(Connection.SocketName, StartLocation, StartRotation);
+
+				// Return tangent handle location.
+				return SplinesComponent->GetComponentTransform().TransformPosition(StartLocation + StartRotation.Vector() * DraggingTangent_Length / 2);
+
+			}
+			else if (SelectedSplineControlPoints.Num() > 0)
 			{
 				ULandscapeSplineControlPoint* FirstPoint = *SelectedSplineControlPoints.CreateConstIterator();
 				ULandscapeSplinesComponent* SplinesComponent = FirstPoint->GetOuterULandscapeSplinesComponent();
@@ -1904,10 +1976,18 @@ public:
 
 	virtual FMatrix GetWidgetRotation() const override
 	{
-		if (SelectedSplineControlPoints.Num() > 0)
+		const ALandscapeProxy* LandscapeProxy = EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		if (LandscapeProxy)
 		{
-			const ALandscapeProxy* LandscapeProxy = EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			if (LandscapeProxy)
+			if (DraggingTangent_Segment)
+			{
+				const FLandscapeSplineSegmentConnection& Connection = DraggingTangent_Segment->Connections[DraggingTangent_End];
+				ULandscapeSplinesComponent* SplinesComponent = Connection.ControlPoint->GetOuterULandscapeSplinesComponent();
+				FVector StartLocation; FRotator StartRotation;
+				Connection.ControlPoint->GetConnectionLocationAndRotation(Connection.SocketName, StartLocation, StartRotation);
+				return FQuatRotationTranslationMatrix(StartRotation.Quaternion() * SplinesComponent->GetComponentTransform().GetRotation(), FVector::ZeroVector);
+			}
+			else if (SelectedSplineControlPoints.Num() > 0)
 			{
 				ULandscapeSplineControlPoint* FirstPoint = *SelectedSplineControlPoints.CreateConstIterator();
 				ULandscapeSplinesComponent* SplinesComponent = FirstPoint->GetOuterULandscapeSplinesComponent();
@@ -2149,6 +2229,8 @@ protected:
 	TSet<ULandscapeSplineSegment*> SelectedSplineSegments;
 
 	ULandscapeSplineSegment* DraggingTangent_Segment;
+	float DraggingTangent_Length;
+	ECoordSystem DraggingTangent_CacheCoordSpace;
 	uint32 DraggingTangent_End : 1;
 
 	uint32 bMovingControlPoint : 1;

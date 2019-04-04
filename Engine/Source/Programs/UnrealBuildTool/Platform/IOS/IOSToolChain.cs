@@ -9,6 +9,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Security.AccessControl;
 using System.Xml;
+using System.Xml.Linq;
 using System.Text;
 using Ionic.Zip;
 using Ionic.Zlib;
@@ -1240,25 +1241,21 @@ namespace UnrealBuildTool
 				}
 				// copy the icons from the game directory if it has any
 				string[][] Images = {
-					new string []{ "Icon_Large_Back-1280x768.png", "AppIcon.brandassets/App Icon - Large.imagestack/Back.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Large_Front-1280x768.png", "AppIcon.brandassets/App Icon - Large.imagestack/Front.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Large_Middle-1280x768.png", "AppIcon.brandassets/App Icon - Large.imagestack/Middle.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Back-400x240.png", "AppIcon.brandassets/App Icon - Small.imagestack/Back.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Back-800x480.png", "AppIcon.brandassets/App Icon - Small.imagestack/Back.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Front-400x240.png", "AppIcon.brandassets/App Icon - Small.imagestack/Front.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Front-800x480.png", "AppIcon.brandassets/App Icon - Small.imagestack/Front.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Middle-400x240.png", "AppIcon.brandassets/App Icon - Small.imagestack/Middle.imagestacklayer/Content.imageset" },
-					new string []{ "Icon_Small_Middle-800x480.png", "AppIcon.brandassets/App Icon - Small.imagestack/Middle.imagestacklayer/Content.imageset" },
-					//new string []{ "TopShelfMarketWide.png", "AppIcon.brandassets/Top Shelf Image Wide.imageset" },
-					//new string []{ "TopShelfMarketWide@2x.png", "AppIcon.brandassets/Top Shelf Image Wide.imageset" },
-					new string []{ "TopShelfWide-1920x720@2x.png", "AppIcon.brandassets/Top Shelf Image Wide.imageset" },
-					new string []{ "TopShelfWide-1920x720.png", "AppIcon.brandassets/Top Shelf Image Wide.imageset" },
-					//new string []{ "TopShelfMarket.png", "AppIcon.brandassets/Top Shelf Image.imageset" },
-					//new string []{ "TopShelfMarket@2x.png", "AppIcon.brandassets/Top Shelf Image.imageset" },
-					new string []{ "TopShelf.png", "AppIcon.brandassets/Top Shelf Image.imageset" },
-					new string []{ "TopShelf@2x.png", "AppIcon.brandassets/Top Shelf Image.imageset" },
-					new string []{ "Launch.png", "LaunchImage.launchimage" },
-					new string []{ "Launch@2x.png", "LaunchImage.launchimage" },
+					new string []{ "Icon_Large_Back-1280x768.png", "App Icon & Top Shelf Image.brandassets/App Icon - Large.imagestack/Back.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Large_Front-1280x768.png", "App Icon & Top Shelf Image.brandassets/App Icon - Large.imagestack/Front.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Large_Middle-1280x768.png", "App Icon & Top Shelf Image.brandassets/App Icon - Large.imagestack/Middle.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Back-400x240.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Back-800x480.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Front-400x240.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Front-800x480.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Middle-400x240.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset" },
+					new string []{ "Icon_Small_Middle-800x480.png", "App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset" },
+					new string []{ "TopShelfWide-1920x720@2x.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image Wide.imageset" },
+					new string []{ "TopShelfWide-1920x720.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image Wide.imageset" },
+					new string []{ "TopShelf.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset" },
+					new string []{ "TopShelf@2x.png", "App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset" },
+					new string []{ "Launch.png", "Launch Image.launchimage" },
+					new string []{ "Launch@2x.png", "Launch Image.launchimage" },
 				};
 				Dir = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets");
 
@@ -1353,7 +1350,7 @@ namespace UnrealBuildTool
         {
             List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Executable, BinaryLinkEnvironment, Actions));
 
-			if (BinaryLinkEnvironment.bIsBuildingLibrary)
+            if (BinaryLinkEnvironment.bIsBuildingLibrary)
             {
                 return OutputFiles;
             }
@@ -1373,10 +1370,13 @@ namespace UnrealBuildTool
 			{
 				FileItem StripCompleteFile = FileItem.GetItemByFileReference(FileReference.Combine(BinaryLinkEnvironment.IntermediateDirectory, Executable.Location.GetFileName() + ".stripped"));
 
+				// If building a framework we can only strip local symbols, need to leave global in place
+				string StripArguments = BinaryLinkEnvironment.bIsBuildingDLL ? "-x" : "";
+
 				Action StripAction = new Action(ActionType.CreateAppBundle);
 				StripAction.WorkingDirectory = GetMacDevSrcRoot();
 				StripAction.CommandPath = BuildHostPlatform.Current.Shell;
-				StripAction.CommandArguments = String.Format("-c '\"{0}strip\" \"{1}\" && touch \"{2}\"'", Settings.Value.ToolchainDir, Executable.Location, StripCompleteFile);
+				StripAction.CommandArguments = String.Format("-c '\"{0}strip\" {1} \"{2}\" && touch \"{3}\"'", Settings.Value.ToolchainDir, StripArguments, Executable.Location, StripCompleteFile);
 				StripAction.PrerequisiteItems.Add(Executable);
 				StripAction.PrerequisiteItems.AddRange(OutputFiles);
 				StripAction.ProducedItems.Add(StripCompleteFile);
@@ -1509,12 +1509,20 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			public void OutputReceivedDataEventLogger(Object Sender, DataReceivedEventArgs Line)
+			{
+				if ((Line != null) && (Line.Data != null))
+				{
+					Log.TraceInformation(Line.Data);
+				}
+			}
 		}
 
 		private static void GenerateCrashlyticsData(string ExecutableDirectory, string ExecutableName, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
-            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/ThirdPartyFrameworks/Fabric.embeddedframework";
+            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
             if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
@@ -1549,22 +1557,172 @@ namespace UnrealBuildTool
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine));
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine));
 
-				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile);
+				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
 				return Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments);
 			}
 			finally
 			{
 				ProjectFileGenerator.bGenerateProjectFiles = false;
 			}
-		}
+			}
 
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
 		{
 			return FileReference.Combine(Executable.Directory, "Payload", TargetName + ".app", TargetName);
 		}
 
-        public static void PostBuildSync(IOSPostBuildSyncTarget Target)
+
+		private static void WriteEntitlements(IOSPostBuildSyncTarget Target)
 		{
+			// get some info from the mobileprovisioning file
+			// the iCloud identifier and the bundle id may differ
+			string AppName = Target.TargetName;
+			FileReference MobileProvisionFile;
+			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
+
+			if (Target.ImportProvision == null)
+			{
+				IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(ProjectSettings, Target.bForDistribution);
+				MobileProvisionFile = ProvisioningData.MobileProvisionFile;
+			}
+			else
+			{
+				MobileProvisionFile = new FileReference(Target.ImportProvision);
+			}
+
+			string iCloudContainerIdentifiersXML = "";
+			string iCloudContainerIdentifier = "";
+			string UbiquityContainerIdentifiersXML = "";
+			if (MobileProvisionFile!= null && File.Exists(MobileProvisionFile.FullName))
+			{
+				MobileProvisionContents MobileProvisionContent = MobileProvisionContents.Read(MobileProvisionFile);
+
+				iCloudContainerIdentifier = MobileProvisionContent.GetNodeValueByName("com.apple.developer.icloud-container-identifiers");
+				iCloudContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.icloud-container-identifiers");
+				UbiquityContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.ubiquity-container-identifiers");
+			}
+			// create the entitlements file
+			string IntermediateDir = (((Target.ProjectFile != null) ? Target.ProjectFile.Directory.ToString() :
+				UnrealBuildTool.EngineDirectory.ToString())) + "/Intermediate/" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS");
+			WriteEntitlementsFile(Path.Combine(IntermediateDir, AppName + ".entitlements"), Target.ProjectFile, Target.bForDistribution, iCloudContainerIdentifiersXML, UbiquityContainerIdentifiersXML);
+
+			// create a pList key named ICloudContainerIdentifier
+			// to be used at run-time when intializing the CloudKit services
+			if (iCloudContainerIdentifier != "")
+			{
+				string PListFile = IntermediateDir + "/" + AppName + "-Info.plist";
+				if (File.Exists(PListFile))
+				{
+					string OldPListData = File.ReadAllText(PListFile);
+					XDocument XDoc;
+					try
+					{
+						XDoc = XDocument.Parse(OldPListData);
+						if (XDoc.DocumentType != null)
+						{
+							XDoc.DocumentType.InternalSubset = null;
+						}
+
+						XElement dictElement = XDoc.Root.Element("dict");
+						if (dictElement != null)
+						{
+							dictElement.Add(new XElement("key", "ICloudContainerIdentifier"));
+							dictElement.Add(new XElement("string", iCloudContainerIdentifier));
+
+							XDoc.Save(PListFile);
+						}
+					}
+					catch (Exception e)
+					{
+						throw new BuildException("plist is invalid {0}\n{1}", e, OldPListData);
+					}
+
+				}
+			}
+		}
+
+		private static void WriteEntitlementsFile(string OutputFilename, FileReference ProjectFile, bool bForDistribution, string iCloudContainerIdentifiersXML, string UbiquityContainerIdentifiersXML)
+		{
+			// get the settings from the ini file
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			bool bCloudKitSupported = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableCloudKitSupport", out bCloudKitSupported);
+			Directory.CreateDirectory(Path.GetDirectoryName(OutputFilename));
+			// we need to have something so Xcode will compile, so we just set the get-task-allow, since we know the value,
+			// which is based on distribution or not (true means debuggable)
+			StringBuilder Text = new StringBuilder();
+			Text.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+			Text.AppendLine("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
+			Text.AppendLine("<plist version=\"1.0\">");
+			Text.AppendLine("<dict>");
+			Text.AppendLine("\t<key>get-task-allow</key>");
+			Text.AppendLine(string.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
+			if (bCloudKitSupported)
+			{
+				Text.AppendLine("\t<key>com.apple.developer.icloud-container-identifiers</key>");
+				if (iCloudContainerIdentifiersXML == "")
+				{
+					Text.AppendLine("\t<array>");
+					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
+					Text.AppendLine("\t</array>");
+				}
+				else
+				{
+					Text.AppendLine(iCloudContainerIdentifiersXML);
+				}
+				Text.AppendLine("\t<key>com.apple.developer.icloud-services</key>");
+				Text.AppendLine("\t<array>");
+				Text.AppendLine("\t\t<string>CloudKit</string>");
+				Text.AppendLine("\t\t<string>CloudDocuments</string>");
+				Text.AppendLine("\t</array>");
+				Text.AppendLine("\t<key>com.apple.developer.ubiquity-container-identifiers</key>");
+				if (UbiquityContainerIdentifiersXML == "")
+				{
+					Text.AppendLine("\t<array>");
+					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
+					Text.AppendLine("\t</array>");
+				}
+				else
+				{
+					Text.AppendLine(UbiquityContainerIdentifiersXML);
+				}
+				Text.AppendLine("\t<key>com.apple.developer.ubiquity-kvstore-identifier</key>");
+				Text.AppendLine("\t<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>");
+			}
+
+			bool bRemoteNotificationsSupported = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableRemoteNotificationsSupport", out bRemoteNotificationsSupported);
+			if (bRemoteNotificationsSupported)
+			{
+				Text.AppendLine("\t<key>aps-environment</key>");
+				Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
+			}
+			Text.AppendLine("</dict>");
+			Text.AppendLine("</plist>");
+
+			if (File.Exists(OutputFilename))
+			{
+				// read existing file
+				string ExisitingFileContents = File.ReadAllText(OutputFilename);
+				bool bFileChanged = !ExisitingFileContents.Equals(Text.ToString(), StringComparison.Ordinal);
+				// overwrite file if there are content changes
+				if (bFileChanged)
+				{
+					File.WriteAllText(OutputFilename, Text.ToString());
+				}
+			}
+			else
+			{
+				File.WriteAllText(OutputFilename, Text.ToString());
+			}
+		}
+
+        public static void PostBuildSync(IOSPostBuildSyncTarget Target)
+			{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
+			string BundleID;
+			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID);
+
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
@@ -1577,7 +1735,13 @@ namespace UnrealBuildTool
 					{
 						throw new BuildException("Unable to find plist for output framework ({0})", PlistSrcLocation);
 					}
+					
 					FileReference PlistDstLocation = FileReference.Combine(Target.OutputPath.Directory, "Info.plist");
+					if (FileReference.Exists(PlistDstLocation))
+					{
+						FileReference.SetAttributes(PlistDstLocation, FileAttributes.Normal);
+					}
+
 					FileReference.Copy(PlistSrcLocation, PlistDstLocation, true);
 
 					// and do nothing else
@@ -1589,10 +1753,6 @@ namespace UnrealBuildTool
 
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
-
-            // ensure the plist, entitlements, and provision files are properly copied
-            UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
-            DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA);
 
 			// copy the executable
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
@@ -1609,24 +1769,15 @@ namespace UnrealBuildTool
 				DirectoryReference XcodeWorkspaceDir;
 				if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk" });
 					XcodeWorkspaceDir = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, String.Format("UE4_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
 				else
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", String.Format("-project={0}", Target.ProjectFile), "-game" });
 					XcodeWorkspaceDir = DirectoryReference.Combine(Target.ProjectDirectory, String.Format("{0}_{1}.xcworkspace", Target.ProjectFile.GetFileNameWithoutExtension(), (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
 
-				// Make sure it exists
-				if (!DirectoryReference.Exists(XcodeWorkspaceDir))
-				{
-					throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
-				}
-
-				// ensure the plist, entitlements, and provision files are properly copied
-				DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, true);
+				// Path to the temporary keychain. When -ImportCertificate is specified, we will temporarily add this to the list of keychains to search, and remove it later.
+				FileReference TempKeychain = FileReference.Combine(Target.ProjectIntermediateDirectory, "TempKeychain.keychain");
 
 				FileReference SignProjectScript = FileReference.Combine(Target.ProjectIntermediateDirectory, "SignProject.sh");
 				using(StreamWriter Writer = new StreamWriter(SignProjectScript.FullName))
@@ -1642,15 +1793,12 @@ namespace UnrealBuildTool
 						Writer.WriteLine("cp -f {0} ~/Library/MobileDevice/Provisioning\\ Profiles/", Utils.EscapeShellArgument(Target.ImportProvision));
 					}
 
-					// Path to the temporary keychain. When -ImportCertificate is specified, we will temporarily add this to the list of keychains to search, and remove it later.
-					FileReference TempKeychain = null;
-
 					// Get the signing certificate to use
 					string SigningCertificate;
 					if(Target.ImportCertificate == null)
 					{
 						// Take it from the standard settings
-						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(Target.ProjectFile);
+						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(Target.ProjectFile, Target.bForDistribution);
 						SigningCertificate = ProvisioningData.SigningCertificate;
 
 						// Set the identity on the command line
@@ -1673,9 +1821,6 @@ namespace UnrealBuildTool
 						}
 						SigningCertificate = Certificate.GetNameInfo(X509NameType.SimpleName, false);
 
-						// Set the path to the temporary keychain
-						TempKeychain = FileReference.Combine(Target.ProjectIntermediateDirectory, "TempKeychain.keychain");//(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.UserProfile), "Library", "Keychains/UE4TempKeychain.keychain";
-
 						// Install a certificate given on the command line to a temporary keychain
 						Writer.WriteLine("security delete-keychain \"{0}\" || true", TempKeychain);
 						Writer.WriteLine("security create-keychain -p \"A\" \"{0}\"", TempKeychain);
@@ -1697,10 +1842,11 @@ namespace UnrealBuildTool
 					string TeamUUID;
 					if(Target.ImportProvision == null)
 					{
-						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(ProjectSettings);
+						IOSProvisioningData ProvisioningData = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProvisioningData(ProjectSettings, Target.bForDistribution);
 						MobileProvisionFile = ProvisioningData.MobileProvisionFile;
 						MobileProvisionUUID = ProvisioningData.MobileProvisionUUID;
 						TeamUUID = ProvisioningData.TeamUUID;
+						BundleID = ProvisioningData.BundleIdentifier;
 					}
 					else
 					{
@@ -1709,6 +1855,7 @@ namespace UnrealBuildTool
 						MobileProvisionContents MobileProvision = MobileProvisionContents.Read(MobileProvisionFile);
 						MobileProvisionUUID = MobileProvision.GetUniqueId();
 						MobileProvision.TryGetTeamUniqueId(out TeamUUID);
+						BundleID = MobileProvision.GetBundleIdentifier();
 					}
 
 					string ConfigName = Target.Configuration.ToString();
@@ -1743,14 +1890,31 @@ namespace UnrealBuildTool
 					}
 					Writer.WriteLine("/usr/bin/xcrun {0}", CmdLine);
 
-					// Remove the temporary keychain from the search list
-					if(TempKeychain != null)
-					{
-						Writer.WriteLine("security delete-keychain \"{0}\" || true", TempKeychain);
-					}
 				}
 
+				if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+				{
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID });
+				}
+				else
+				{
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID });
+				}
+				// Make sure it exists
+				if (!DirectoryReference.Exists(XcodeWorkspaceDir))
+				{
+					throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
+				}
+
+				// ensure the plist, entitlements, and provision files are properly copied
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				DeployHandler.ForDistribution = Target.bForDistribution;
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+
 				Log.TraceInformation("Executing {0}", SignProjectScript);
+
+				// write the entitlements file (building remotely)
+				WriteEntitlements(Target);
 
 				Process SignProcess = new Process();
 				SignProcess.StartInfo.WorkingDirectory = RemoteShadowDirectoryMac;
@@ -1761,10 +1925,36 @@ namespace UnrealBuildTool
 
 				SignProcess.OutputDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
 				SignProcess.ErrorDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
-
+				
 				Output.OutputReceivedDataEventHandlerEncounteredError = false;
 				Output.OutputReceivedDataEventHandlerEncounteredErrorMessage = "";
 				Utils.RunLocalProcess(SignProcess);
+
+				// cleanup
+				if (Target.ImportCertificate != null)
+				{
+					FileReference CleanProjectScript = FileReference.Combine(Target.ProjectIntermediateDirectory, "CleanProject.sh");
+					using (StreamWriter CleanWriter = new StreamWriter(CleanProjectScript.FullName))
+					{
+						// Remove the temporary keychain from the search list
+						CleanWriter.WriteLine("security delete-keychain \"{0}\" || true", TempKeychain);
+						CleanWriter.WriteLine("security list-keychain -s login.keychain");
+					}
+					
+					Log.TraceInformation("Executing {0}", CleanProjectScript);
+
+					Process CleanProcess = new Process();
+					CleanProcess.StartInfo.WorkingDirectory = RemoteShadowDirectoryMac;
+					CleanProcess.StartInfo.FileName = "/bin/sh";
+					CleanProcess.StartInfo.Arguments = CleanProjectScript.FullName;
+
+					ProcessOutput CleanOutput = new ProcessOutput();
+
+					SignProcess.OutputDataReceived += new DataReceivedEventHandler(CleanOutput.OutputReceivedDataEventLogger);
+					SignProcess.ErrorDataReceived += new DataReceivedEventHandler(CleanOutput.OutputReceivedDataEventLogger);
+
+					Utils.RunLocalProcess(CleanProcess);
+				}
 
 				// delete the temp project
 				DirectoryReference.Delete(XcodeWorkspaceDir, true);
@@ -1777,6 +1967,17 @@ namespace UnrealBuildTool
 				// Package the stub
 				PackageStub(RemoteShadowDirectoryMac, AppName, Target.OutputPath.GetFileNameWithoutExtension());
 			}
+			else
+			{
+				// ensure the plist, entitlements, and provision files are properly copied
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				DeployHandler.ForDistribution = Target.bForDistribution;
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+
+				// write the entitlements file (building on Mac)
+				WriteEntitlements(Target);
+			}
+			
 
 			{
 				// Copy bundled assets from additional frameworks to the intermediate assets directory (so they can get picked up during staging)

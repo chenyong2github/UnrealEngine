@@ -52,6 +52,7 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	if (GIsEditor)
 	{
 		USelection::SelectionChangedEvent.AddUObject(this, &UGameplayDebuggerLocalController::OnSelectionChanged);
+		USelection::SelectObjectEvent.AddUObject(this, &UGameplayDebuggerLocalController::OnSelectedObject);
 	}
 #endif
 
@@ -102,6 +103,7 @@ void UGameplayDebuggerLocalController::Cleanup()
 {
 #if WITH_EDITOR
 	USelection::SelectionChangedEvent.RemoveAll(this);
+	USelection::SelectObjectEvent.RemoveAll(this);
 
 	if (bSimulateMode)
 	{
@@ -653,7 +655,7 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 		if (DebugActorCandidate != BestCandidate)
 		{
 			DebugActorCandidate = BestCandidate;
-			CachedReplicator->SetDebugActor(BestCandidate);
+			CachedReplicator->SetDebugActor(BestCandidate, true);
 		}
 	}
 }
@@ -701,7 +703,21 @@ void UGameplayDebuggerLocalController::OnSelectionChanged(UObject* Object)
 			}
 		}
 
-		CachedReplicator->SetDebugActor(SelectedPawn);
+		if (SelectedPawn)
+		{
+			CachedReplicator->SetDebugActor(SelectedPawn, false);
+			CachedReplicator->CollectCategoryData(/*bForce=*/true);
+		}
+	}
+}
+
+void UGameplayDebuggerLocalController::OnSelectedObject(UObject* Object)
+{
+	AController* SelectedController = Cast<AController>(Object);
+	APawn* SelectedPawn = SelectedController ? SelectedController->GetPawn() : Cast<APawn>(Object);
+	if (CachedReplicator && SelectedPawn && SelectedPawn->IsSelected())
+	{
+		CachedReplicator->SetDebugActor(SelectedPawn, false);
 		CachedReplicator->CollectCategoryData(/*bForce=*/true);
 	}
 }

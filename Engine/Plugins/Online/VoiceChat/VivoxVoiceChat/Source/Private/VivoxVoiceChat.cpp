@@ -139,7 +139,10 @@ static void* VivoxRealloc(void* ptr, size_t bytes)
 static void* VivoxCalloc(size_t num, size_t bytes)
 {
 	LLM_SCOPE( ELLMTag::AudioVoiceChat );
-	return FMemory::Malloc(bytes*num);
+	const size_t Size = bytes * num;
+	void* Ret = FMemory::Malloc(Size);
+	FMemory::Memzero(Ret, Size);
+	return Ret;
 }
 
 static void* VivoxMallocAligned(size_t alignment, size_t bytes)
@@ -338,11 +341,16 @@ bool FVivoxVoiceChat::GetAudioOutputDeviceMuted() const
 TArray<FString> FVivoxVoiceChat::GetAvailableInputDevices() const
 {
 	TArray<FString> InputDevices;
-	const std::vector<VivoxClientApi::AudioDeviceId>& AudioInputDevices = VivoxClientConnection.GetAvailableAudioInputDevices();
-	InputDevices.Reserve(AudioInputDevices.size());
-	for (const VivoxClientApi::AudioDeviceId& DeviceId : AudioInputDevices)
+	const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
+	int NumAudioDevices = 0;
+	VivoxClientConnection.GetAvailableAudioInputDevices(AudioDevices, NumAudioDevices);
+	InputDevices.Reserve(NumAudioDevices);
+	if (AudioDevices)
 	{
-		InputDevices.Add(UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str()));
+		for (int DeviceIndex = 0; DeviceIndex < NumAudioDevices; ++DeviceIndex)
+		{
+			InputDevices.Add(UTF8_TO_TCHAR(AudioDevices[DeviceIndex].GetAudioDeviceDisplayName()));
+		}
 	}
 	return InputDevices;
 }
@@ -350,11 +358,16 @@ TArray<FString> FVivoxVoiceChat::GetAvailableInputDevices() const
 TArray<FString> FVivoxVoiceChat::GetAvailableOutputDevices() const
 {
 	TArray<FString> OutputDevices;
-	const std::vector<VivoxClientApi::AudioDeviceId>& AudioOutputDevices = VivoxClientConnection.GetAvailableAudioOutputDevices();
-	OutputDevices.Reserve(AudioOutputDevices.size());
-	for (const VivoxClientApi::AudioDeviceId& DeviceId : AudioOutputDevices)
+	const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
+	int NumAudioDevices = 0;
+	VivoxClientConnection.GetAvailableAudioOutputDevices(AudioDevices, NumAudioDevices);
+	OutputDevices.Reserve(NumAudioDevices);
+	if (AudioDevices)
 	{
-		OutputDevices.Add(UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str()));
+		for (int DeviceIndex = 0; DeviceIndex < NumAudioDevices; ++DeviceIndex)
+		{
+			OutputDevices.Add(UTF8_TO_TCHAR(AudioDevices[DeviceIndex].GetAudioDeviceDisplayName()));
+		}
 	}
 	return OutputDevices;
 }
@@ -365,13 +378,19 @@ void FVivoxVoiceChat::SetInputDevice(const FString& InputDevice)
 
 	if (!InputDevice.IsEmpty())
 	{
-		const std::vector<VivoxClientApi::AudioDeviceId>& AudioInputDevices = VivoxClientConnection.GetAvailableAudioInputDevices();
-		for (const VivoxClientApi::AudioDeviceId& DeviceId : AudioInputDevices)
+		const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
+		int NumAudioDevices = 0;
+		VivoxClientConnection.GetAvailableAudioInputDevices(AudioDevices, NumAudioDevices);
+		if (AudioDevices)
 		{
-			if (InputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str()))
+			for (int DeviceIndex = 0; DeviceIndex < NumAudioDevices; ++DeviceIndex)
 			{
-				VivoxClientConnection.SetApplicationChosenAudioInputDevice(DeviceId);
-				return;
+				const VivoxClientApi::AudioDeviceId& DeviceId = AudioDevices[DeviceIndex];
+				if (InputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName()))
+				{
+					VivoxClientConnection.SetApplicationChosenAudioInputDevice(DeviceId);
+					return;
+				}
 			}
 		}
 	}
@@ -385,13 +404,19 @@ void FVivoxVoiceChat::SetOutputDevice(const FString& OutputDevice)
 
 	if (!OutputDevice.IsEmpty())
 	{
-		const std::vector<VivoxClientApi::AudioDeviceId>& AudioOutputDevices = VivoxClientConnection.GetAvailableAudioOutputDevices();
-		for (const VivoxClientApi::AudioDeviceId& DeviceId : AudioOutputDevices)
+		const VivoxClientApi::AudioDeviceId* AudioDevices = nullptr;
+		int NumAudioDevices = 0;
+		VivoxClientConnection.GetAvailableAudioOutputDevices(AudioDevices, NumAudioDevices);
+		if (AudioDevices)
 		{
-			if (OutputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str()))
+			for (int DeviceIndex = 0; DeviceIndex < NumAudioDevices; ++DeviceIndex)
 			{
-				VivoxClientConnection.SetApplicationChosenAudioOutputDevice(DeviceId);
-				return;
+				const VivoxClientApi::AudioDeviceId& DeviceId = AudioDevices[DeviceIndex];
+				if (OutputDevice == UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName()))
+				{
+					VivoxClientConnection.SetApplicationChosenAudioOutputDevice(DeviceId);
+					return;
+				}
 			}
 		}
 	}
@@ -404,12 +429,12 @@ FString FVivoxVoiceChat::GetInputDevice() const
 	if (VivoxClientConnection.IsUsingOperatingSystemChosenAudioInputDevice())
 	{
 		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioInputDevice();
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 	}
 	else
 	{
 		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetApplicationChosenAudioInputDevice();
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 	}
 }
 
@@ -418,25 +443,25 @@ FString FVivoxVoiceChat::GetOutputDevice() const
 	if (VivoxClientConnection.IsUsingOperatingSystemChosenAudioOutputDevice())
 	{
 		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioOutputDevice();
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 	}
 	else
 	{
 		VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetApplicationChosenAudioOutputDevice();
-		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+		return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 	}
 }
 
 FString FVivoxVoiceChat::GetDefaultInputDevice() const
 {
 	VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioInputDevice();
-	return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+	return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 }
 
 FString FVivoxVoiceChat::GetDefaultOutputDevice() const
 {
 	VivoxClientApi::AudioDeviceId DeviceId = VivoxClientConnection.GetOperatingSystemChosenAudioOutputDevice();
-	return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName().c_str());
+	return UTF8_TO_TCHAR(DeviceId.GetAudioDeviceDisplayName());
 }
 
 void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate)
@@ -506,6 +531,7 @@ void FVivoxVoiceChat::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& D
 		VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
 		VivoxClientConnection.Disconnect(BackendUri);
 
+		ConnectionState = EConnectionState::Disconnecting;
 		OnVoiceChatDisconnectCompleteDelegates.Add(Delegate);
 	}
 	else
@@ -654,31 +680,45 @@ FString FVivoxVoiceChat::GetLoggedInPlayerName() const
 
 void FVivoxVoiceChat::BlockPlayers(const TArray<FString>& PlayerNames)
 {
-	std::set<VivoxClientApi::Uri> UsersToBlock;
+	TArray<VivoxClientApi::Uri> UsersToBlock;
 	for (const FString& PlayerName : PlayerNames)
 	{
-		UsersToBlock.insert(CreateUserUri(PlayerName));
+		UsersToBlock.Add(CreateUserUri(PlayerName));
 	}
 
-	VivoxClientApi::VCSStatus Status = VivoxClientConnection.BlockUsers(LoginSession.AccountName, UsersToBlock);
+	VivoxClientApi::VCSStatus Status = VivoxClientConnection.BlockUsers(LoginSession.AccountName, UsersToBlock.GetData(), UsersToBlock.Num());
 	if (Status.IsError())
 	{
 		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("BlockPlayers failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
+	}
+	else
+	{
+		for (const FString& PlayerName : PlayerNames)
+		{
+			UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("Player blocked: [%s]"), *PlayerName);
+		}
 	}
 }
 
 void FVivoxVoiceChat::UnblockPlayers(const TArray<FString>& PlayerNames)
 {
-	std::set<VivoxClientApi::Uri> UsersToUnblock;
+	TArray<VivoxClientApi::Uri> UsersToUnblock;
 	for (const FString& PlayerName : PlayerNames)
 	{
-		UsersToUnblock.insert(CreateUserUri(PlayerName));
+		UsersToUnblock.Add(CreateUserUri(PlayerName));
 	}
 
-	VivoxClientApi::VCSStatus Status = VivoxClientConnection.UnblockUsers(LoginSession.AccountName, UsersToUnblock);
+	VivoxClientApi::VCSStatus Status = VivoxClientConnection.UnblockUsers(LoginSession.AccountName, UsersToUnblock.GetData(), UsersToUnblock.Num());
 	if (Status.IsError())
 	{
 		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("UnblockPlayers failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
+	}
+	else
+	{
+		for (const FString& PlayerName : PlayerNames)
+		{
+			UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("Player unblocked: [%s]"), *PlayerName);
+		}
 	}
 }
 
@@ -1147,7 +1187,10 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 
 	ClearLoginSession();
 
-	if (ConnectionState == EConnectionState::Disconnecting)
+	EConnectionState PreviousConnectionState = ConnectionState;
+	ConnectionState = EConnectionState::Disconnected;
+
+	if (PreviousConnectionState == EConnectionState::Disconnecting)
 	{
 		TriggerCompletionDelegates(OnVoiceChatDisconnectCompleteDelegates, ResultSuccess);
 	}
@@ -1155,8 +1198,6 @@ void FVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const Vi
 	{
 		OnVoiceChatDisconnectedDelegate.Broadcast(ResultFromVivoxStatus(Status));
 	}
-
-	ConnectionState = EConnectionState::Disconnected;
 }
 
 void FVivoxVoiceChat::onLoginCompleted(const VivoxClientApi::AccountName& AccountName)
@@ -1796,18 +1837,18 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				const FString DefaultInputDevice = GetDefaultInputDevice();
 				if (InputDevice == DefaultInputDevice)
 				{
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Selected) (Default)"), *DefaultInputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Selected) (Default)"), *DefaultInputDevice);
 				}
 				else
 				{
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Selected)"), *InputDevice);
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Default)"), *DefaultInputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Selected)"), *InputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Default)"), *DefaultInputDevice);
 				}
 				for (const FString& Device : GetAvailableInputDevices())
 				{
 					if (Device != DefaultInputDevice && Device != InputDevice)
 					{
-						UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s"), *Device);
+						UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s]"), *Device);
 					}
 				}
 
@@ -1816,18 +1857,18 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				const FString DefaultOutputDevice = GetDefaultOutputDevice();
 				if (OutputDevice == DefaultOutputDevice)
 				{
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Selected) (Default)"), *DefaultOutputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Selected) (Default)"), *DefaultOutputDevice);
 				}
 				else
 				{
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Selected)"), *OutputDevice);
-					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s (Default)"), *DefaultOutputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Selected)"), *OutputDevice);
+					UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s] (Default)"), *DefaultOutputDevice);
 				}
 				for (const FString& Device : GetAvailableOutputDevices())
 				{
 					if (Device != DefaultOutputDevice && Device != OutputDevice)
 					{
-						UE_LOG(LogVivoxVoiceChat, Log, TEXT("    %s"), *Device);
+						UE_LOG(LogVivoxVoiceChat, Log, TEXT("    [%s]"), *Device);
 					}
 				}
 

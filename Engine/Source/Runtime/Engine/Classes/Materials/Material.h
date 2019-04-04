@@ -977,7 +977,7 @@ public:
 		TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality) override;
 #endif
-	ENGINE_API virtual void RecacheUniformExpressions() const override;
+	ENGINE_API virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
@@ -1109,7 +1109,7 @@ private:
 	void SetUsageByFlag(const EMaterialUsage Usage, const bool NewValue);
 
 	/** Sets up transient properties in MaterialResources. */
-	void UpdateResourceAllocations();
+	void UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 	/** to share code for PostLoad() and PostEditChangeProperty(), and UMaterialInstance::InitResources(), needs to be refactored */
 	void PropagateDataToMaterialProxy();

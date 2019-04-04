@@ -144,7 +144,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 
 #if WITH_EDITORONLY_DATA
 		// TODO: There is a bug here with updating the mip regions
-		/*if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		/*if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
 			// Add component to new heightmap
 			FRenderDataPerHeightmap* RenderData = Landscape->RenderDataPerHeightmap.Find(HeightmapTexture);
@@ -155,7 +155,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, bool bMoveToCurrentLe
 				NewData.Components.Add(Comp);
 				NewData.TopLeftSectionBase = Comp->GetSectionBase();
 				NewData.HeightmapKey = HeightmapTexture;
-				NewData.HeightmapsCPUReadBack = new FLandscapeProceduralTexture2DCPUReadBackResource(HeightmapTexture->Source.GetSizeX(), HeightmapTexture->Source.GetSizeY(), Comp->GetHeightmap(false)->GetPixelFormat(), HeightmapTexture->Source.GetNumMips());
+				NewData.HeightmapsCPUReadBack = new FLandscapeLayersTexture2DCPUReadBackResource(HeightmapTexture->Source.GetSizeX(), HeightmapTexture->Source.GetSizeY(), Comp->GetHeightmap(false)->GetPixelFormat(), HeightmapTexture->Source.GetNumMips());
 				BeginInitResource(NewData.HeightmapsCPUReadBack);
 
 				Landscape->RenderDataPerHeightmap.Add(HeightmapTexture, NewData);
@@ -479,7 +479,7 @@ void FEdModeLandscape::InitializeToolModes()
 	ToolMode_Sculpt->ValidTools.Add(TEXT("Retopologize"));
 	ToolMode_Sculpt->ValidTools.Add(TEXT("Visibility"));
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		ToolMode_Sculpt->ValidTools.Add(TEXT("BPCustom"));
 	}
@@ -495,7 +495,7 @@ void FEdModeLandscape::InitializeToolModes()
 	ToolMode_Paint->ValidTools.Add(TEXT("Noise"));
 	ToolMode_Paint->ValidTools.Add(TEXT("Visibility"));
 
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		ToolMode_Paint->ValidTools.Add(TEXT("BPCustom"));
 	}
@@ -559,13 +559,12 @@ void FEdModeLandscape::Enter()
 		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-			if (Landscape != nullptr)
+			ALandscape* Landscape = GetLandscape();
+			if (Landscape)
 			{
-				Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::All_Render);
+				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render);
 			}
 		}
 	}
@@ -1055,6 +1054,63 @@ bool FEdModeLandscape::GetCursor(EMouseCursor::Type& OutCursor) const
 	return Result;
 }
 
+bool FEdModeLandscape::GetOverrideCursorVisibility(bool& bWantsOverride, bool& bHardwareCursorVisible, bool bSoftwareCursorVisible) const
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->GetOverrideCursorVisibility(bWantsOverride, bHardwareCursorVisible, bSoftwareCursorVisible);
+		}
+	}
+
+	return Result;
+}
+
+bool FEdModeLandscape::PreConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->PreConvertMouseMovement(InViewportClient);
+		}
+	}
+
+	return Result;
+}
+
+bool FEdModeLandscape::PostConvertMouseMovement(FEditorViewportClient* InViewportClient)
+{
+	if (!IsEditingEnabled())
+	{
+		return false;
+	}
+
+	bool Result = false;
+	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool)
+		{
+			Result = CurrentTool->PostConvertMouseMovement(InViewportClient);
+		}
+	}
+
+	return Result;
+}
+
 bool FEdModeLandscape::DisallowMouseDeltaTracking() const
 {
 	// We never want to use the mouse delta tracker while painting
@@ -1494,18 +1550,17 @@ bool FEdModeLandscape::ProcessEditCopy()
 
 		if (!Result)
 		{
-			TArray<ALandscapeBlueprintCustomBrush*> CurrentlySelectedBPBrush;
+			ALandscapeBlueprintCustomBrush* CurrentlySelectedBPBrush = nullptr;
 			for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 			{
-				ALandscapeBlueprintCustomBrush* Actor = StaticCast<ALandscapeBlueprintCustomBrush*>(*It);
-
-				if (Actor != nullptr)
+				CurrentlySelectedBPBrush = Cast<ALandscapeBlueprintCustomBrush>(*It);
+				if (CurrentlySelectedBPBrush)
 				{
-					CurrentlySelectedBPBrush.Add(Actor);
+					break;
 				}
 			}
 
-			if (CurrentlySelectedBPBrush.Num() == 0)
+			if (!CurrentlySelectedBPBrush)
 			{
 				bool IsSlowTask = IsSlowSelect(CurrentGizmoActor->TargetLandscapeInfo);
 				if (IsSlowTask)
@@ -1550,18 +1605,17 @@ bool FEdModeLandscape::ProcessEditPaste()
 
 		if (!Result)
 		{
-			TArray<ALandscapeBlueprintCustomBrush*> CurrentlySelectedBPBrush;
+			ALandscapeBlueprintCustomBrush* CurrentlySelectedBPBrush = nullptr;
 			for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 			{
-				ALandscapeBlueprintCustomBrush* Actor = StaticCast<ALandscapeBlueprintCustomBrush*>(*It);
-
-				if (Actor != nullptr)
+				CurrentlySelectedBPBrush = Cast<ALandscapeBlueprintCustomBrush>(*It);
+				if (CurrentlySelectedBPBrush)
 				{
-					CurrentlySelectedBPBrush.Add(Actor);
+					break;
 				}
 			}
 
-			if (CurrentlySelectedBPBrush.Num() == 0)
+			if (!CurrentlySelectedBPBrush)
 			{
 				bool IsSlowTask = IsSlowSelect(CurrentGizmoActor->TargetLandscapeInfo);
 				if (IsSlowTask)
@@ -1842,7 +1896,19 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 					FVector HitLocation;
 					if (LandscapeMouseTrace(ViewportClient, HitLocation))
 					{
-						if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL)
+						const FName CurrentToolName = CurrentTool->GetToolName();
+						ALandscape* Landscape = GetLandscape();
+						bool bLandscapeLayerSystem = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
+
+						if (bLandscapeLayerSystem && GetCurrentLayer() && !GetCurrentLayer()->bVisible)
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting in a hidden layer is not allowed."));
+						}
+						else if (bLandscapeLayerSystem && GetCurrentLayer() && GetCurrentLayer()->bLocked)
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer."));
+						}
+						else if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentToolName != TEXT("BPCustom"))
 						{
 							FMessageDialog::Open(EAppMsgType::Ok,
 								NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer."));
@@ -2333,7 +2399,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 			CurrentToolTarget.LandscapeInfo = LandscapeList[0].Info;
 			CurrentIndex = 0;
 
-			SetCurrentProceduralLayer(0);
+			SetCurrentLayer(0);
 
 			// Init UI to saved value
 			ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
@@ -2380,7 +2446,7 @@ void FEdModeLandscape::UpdateTargetList()
 			bool bFoundSelected = false;
 
 			// Add heightmap
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), CurrentToolTarget.CurrentProceduralLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), CurrentToolTarget.CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap)
 			{
@@ -2389,7 +2455,7 @@ void FEdModeLandscape::UpdateTargetList()
 
 			// Add visibility
 			FLandscapeInfoLayerSettings VisibilitySettings(ALandscapeProxy::VisibilityLayer, LandscapeProxy);
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, CurrentToolTarget.CurrentProceduralLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, CurrentToolTarget.CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 			{
@@ -2440,7 +2506,7 @@ void FEdModeLandscape::UpdateTargetList()
 				}
 
 				// Add the layer
-				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, CurrentToolTarget.CurrentProceduralLayerIndex)));
+				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, CurrentToolTarget.CurrentLayerIndex)));
 			}
 
 			if (!bFoundSelected)
@@ -3284,6 +3350,7 @@ void FEdModeLandscape::ReimportData(const FLandscapeTargetListInfo& TargetInfo)
 	const FString& SourceFilePath = TargetInfo.ReimportFilePath();
 	if (SourceFilePath.Len())
 	{
+		FScopedSetLandscapeEditingLayer Scope(GetLandscape(), GetCurrentLayerGuid(), [&] { RequestLayersContentUpdate(); });
 		ImportData(TargetInfo, SourceFilePath);
 	}
 	else
@@ -3388,42 +3455,34 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 				return;
 			}
 
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
 			{
-				ChangeHeightmapsToCurrentProceduralLayerHeightmaps();
-			}
+				ALandscape* Landscape = GetLandscape();
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Heightmap_All); });
 
-			TArray<uint16> Data;
-			if (ImportResolution != LandscapeResolution)
-			{
-				// Cloned from FLandscapeEditorDetailCustomization_NewLandscape.OnCreateButtonClicked
-				// so that reimports behave the same as the initial import :)
+				TArray<uint16> Data;
+				if (ImportResolution != LandscapeResolution)
+				{
+					// Cloned from FLandscapeEditorDetailCustomization_NewLandscape.OnCreateButtonClicked
+					// so that reimports behave the same as the initial import :)
 
-				const int32 OffsetX = (int32)(LandscapeResolution.Width - ImportResolution.Width) / 2;
-				const int32 OffsetY = (int32)(LandscapeResolution.Height - ImportResolution.Height) / 2;
+					const int32 OffsetX = (int32)(LandscapeResolution.Width - ImportResolution.Width) / 2;
+					const int32 OffsetY = (int32)(LandscapeResolution.Height - ImportResolution.Height) / 2;
 
-				Data.SetNumUninitialized(LandscapeResolution.Width * LandscapeResolution.Height * sizeof(uint16));
+					Data.SetNumUninitialized(LandscapeResolution.Width * LandscapeResolution.Height * sizeof(uint16));
 
-				LandscapeEditorUtils::ExpandData<uint16>(Data.GetData(), ImportData.Data.GetData(),
-					0, 0, ImportResolution.Width - 1, ImportResolution.Height - 1,
-					-OffsetX, -OffsetY, LandscapeResolution.Width - OffsetX - 1, LandscapeResolution.Height - OffsetY - 1);
-			}
-			else
-			{
-				Data = MoveTemp(ImportData.Data);
-			}
+					LandscapeEditorUtils::ExpandData<uint16>(Data.GetData(), ImportData.Data.GetData(),
+						0, 0, ImportResolution.Width - 1, ImportResolution.Height - 1,
+						-OffsetX, -OffsetY, LandscapeResolution.Width - OffsetX - 1, LandscapeResolution.Height - OffsetY - 1);
+				}
+				else
+				{
+					Data = MoveTemp(ImportData.Data);
+				}
 
-			FScopedTransaction Transaction(LOCTEXT("Undo_ImportHeightmap", "Importing Landscape Heightmap"));
+				FScopedTransaction Transaction(LOCTEXT("Undo_ImportHeightmap", "Importing Landscape Heightmap"));
 
-			FHeightmapAccessor<false> HeightmapAccessor(LandscapeInfo);
-			HeightmapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData());
-
-			if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-			{
-				ChangeHeightmapsToCurrentProceduralLayerHeightmaps(true);
-
-				check(CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid());
-				CurrentToolTarget.LandscapeInfo->LandscapeActor.Get()->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_All);
+				FHeightmapAccessor<false> HeightmapAccessor(LandscapeInfo);
+				HeightmapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData());
 			}
 		}
 		else
@@ -3512,30 +3571,35 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 				return;
 			}
 
-			TArray<uint8> Data;
-			if (ImportResolution != LandscapeResolution)
 			{
-				// Cloned from FLandscapeEditorDetailCustomization_NewLandscape.OnCreateButtonClicked
-				// so that reimports behave the same as the initial import :)
+				ALandscape* Landscape = GetLandscape();
+				FScopedSetLandscapeEditingLayer Scope(Landscape, GetCurrentLayerGuid(), [&] { check(Landscape); Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_All); });
 
-				const int32 OffsetX = (int32)(LandscapeResolution.Width - ImportResolution.Width) / 2;
-				const int32 OffsetY = (int32)(LandscapeResolution.Height - ImportResolution.Height) / 2;
+				TArray<uint8> Data;
+				if (ImportResolution != LandscapeResolution)
+				{
+					// Cloned from FLandscapeEditorDetailCustomization_NewLandscape.OnCreateButtonClicked
+					// so that reimports behave the same as the initial import :)
 
-				Data.SetNumUninitialized(LandscapeResolution.Width * LandscapeResolution.Height * sizeof(uint8));
+					const int32 OffsetX = (int32)(LandscapeResolution.Width - ImportResolution.Width) / 2;
+					const int32 OffsetY = (int32)(LandscapeResolution.Height - ImportResolution.Height) / 2;
 
-				LandscapeEditorUtils::ExpandData<uint8>(Data.GetData(), ImportData.Data.GetData(),
-					0, 0, ImportResolution.Width - 1, ImportResolution.Height - 1,
-					-OffsetX, -OffsetY, LandscapeResolution.Width - OffsetX - 1, LandscapeResolution.Height - OffsetY - 1);
+					Data.SetNumUninitialized(LandscapeResolution.Width * LandscapeResolution.Height * sizeof(uint8));
+
+					LandscapeEditorUtils::ExpandData<uint8>(Data.GetData(), ImportData.Data.GetData(),
+						0, 0, ImportResolution.Width - 1, ImportResolution.Height - 1,
+						-OffsetX, -OffsetY, LandscapeResolution.Width - OffsetX - 1, LandscapeResolution.Height - OffsetY - 1);
+				}
+				else
+				{
+					Data = MoveTemp(ImportData.Data);
+				}
+
+				FScopedTransaction Transaction(LOCTEXT("Undo_ImportWeightmap", "Importing Landscape Layer"));
+
+				FAlphamapAccessor<false, false> AlphamapAccessor(LandscapeInfo, TargetInfo.LayerInfoObj.Get());
+				AlphamapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData(), ELandscapeLayerPaintingRestriction::None);
 			}
-			else
-			{
-				Data = MoveTemp(ImportData.Data);
-			}
-
-			FScopedTransaction Transaction(LOCTEXT("Undo_ImportWeightmap", "Importing Landscape Layer"));
-
-			FAlphamapAccessor<false, false> AlphamapAccessor(LandscapeInfo, TargetInfo.LayerInfoObj.Get());
-			AlphamapAccessor.SetData(MinX, MinY, MaxX, MaxY, Data.GetData(), ELandscapeLayerPaintingRestriction::None);
 		}
 	}
 }
@@ -3665,12 +3729,14 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			HeightmapTexture->ClearFlags(RF_Standalone); // Remove when there is no reference for this Heightmap...
 		}
 
-		for (int32 i = 0; i < Component->WeightmapTextures.Num(); ++i)
+		TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
+
+		for (UTexture2D* WeightmapTexture : ComponentWeightmapTextures)
 		{
-			Component->WeightmapTextures[i]->SetFlags(RF_Transactional);
-			Component->WeightmapTextures[i]->Modify();
-			Component->WeightmapTextures[i]->MarkPackageDirty();
-			Component->WeightmapTextures[i]->ClearFlags(RF_Standalone);
+			WeightmapTexture->SetFlags(RF_Transactional);
+			WeightmapTexture->Modify();
+			WeightmapTexture->MarkPackageDirty();
+			WeightmapTexture->ClearFlags(RF_Standalone);
 		}
 
 		if (Component->XYOffsetmapTexture)
@@ -3873,6 +3939,22 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			Landscape->bUsedForNavigation = OldLandscapeProxy->bUsedForNavigation;
 			Landscape->MaxPaintedLayersPerComponent = OldLandscapeProxy->MaxPaintedLayersPerComponent;
 
+			if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+			{
+				ALandscape* OldLandscapeActor = Cast<ALandscape>(OldLandscapeProxy);
+				ALandscape* NewLandscapeActor = Cast<ALandscape>(Landscape);
+
+				NewLandscapeActor->PreviousExperimentalLandscapeLayers = OldLandscapeActor->PreviousExperimentalLandscapeLayers;
+
+				// Moves specific config including brushes to new landscape actor
+				for (const FLandscapeLayer& Layer : OldLandscapeActor->LandscapeLayers)
+				{
+					FLandscapeLayer* NewLayer = NewLandscapeActor->LandscapeLayers.FindByPredicate( [&](const FLandscapeLayer& NewLayer)	{ return NewLayer.Name == Layer.Name; }	);
+					check(NewLayer != nullptr);
+					*NewLayer = Layer;
+				}
+			}
+
 			Landscape->CreateLandscapeInfo();
 
 			// Clone landscape splines
@@ -4040,417 +4122,245 @@ ELandscapeEditingState FEdModeLandscape::GetEditingState() const
 	return ELandscapeEditingState::Enabled;
 }
 
-int32 FEdModeLandscape::GetProceduralLayerCount() const
+int32 FEdModeLandscape::GetLayerCount() const
 {
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return 0;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr)
-	{
-		return 0;
-	}
-
-	return Landscape->ProceduralLayers.Num();
+	ALandscape* Landscape = GetLandscape();
+	return Landscape ? Landscape->LandscapeLayers.Num() : 0;
 }
 
-void FEdModeLandscape::SetCurrentProceduralLayer(int32 InLayerIndex)
+void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
-	CurrentToolTarget.CurrentProceduralLayerIndex = InLayerIndex;
+	CurrentToolTarget.CurrentLayerIndex = InLayerIndex;
 
 	RefreshDetailPanel();
 }
 
-int32 FEdModeLandscape::GetCurrentProceduralLayerIndex() const
+int32 FEdModeLandscape::GetCurrentLayerIndex() const
 {
-	return CurrentToolTarget.CurrentProceduralLayerIndex;
+	return CurrentToolTarget.CurrentLayerIndex;
 }
 
-FName FEdModeLandscape::GetProceduralLayerName(int32 InLayerIndex) const
+ALandscape* FEdModeLandscape::GetLandscape() const
 {
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return NAME_None;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return NAME_None;
-	}
-
-	return Landscape->ProceduralLayers[InLayerIndex].Name;
+	return CurrentToolTarget.LandscapeInfo.IsValid() ? CurrentToolTarget.LandscapeInfo->LandscapeActor.Get() : nullptr;
 }
 
-FName FEdModeLandscape::GetCurrentProceduralLayerName() const
+FLandscapeLayer* FEdModeLandscape::GetLayer(int32 InLayerIndex) const
 {
-	return GetProceduralLayerName(CurrentToolTarget.CurrentProceduralLayerIndex);
+	ALandscape* Landscape = GetLandscape();
+	return Landscape ? Landscape->GetLayer(InLayerIndex) : nullptr;
 }
 
-void FEdModeLandscape::SetProceduralLayerName(int32 InLayerIndex, const FName& InName)
+FName FEdModeLandscape::GetLayerName(int32 InLayerIndex) const
 {
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return;
-	}
-
-	Landscape->ProceduralLayers[InLayerIndex].Name = InName;
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	return Layer ? Layer->Name : NAME_None;
 }
 
-float FEdModeLandscape::GetProceduralLayerWeight(int32 InLayerIndex) const
+bool FEdModeLandscape::CanRenameLayerTo(int32 InLayerIndex, const FName& InNewName)
 {
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
 	{
-		return 1.0f;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return 1.0f;
-	}
-
-	return Landscape->ProceduralLayers[InLayerIndex].Weight;
-}
-
-void FEdModeLandscape::SetProceduralLayerWeight(float InWeight, int32 InLayerIndex)
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return;
-	}
-
-	Landscape->ProceduralLayers[InLayerIndex].Weight = InWeight;
-
-	Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_All);
-}
-
-void FEdModeLandscape::SetProceduralLayerVisibility(bool InVisible, int32 InLayerIndex)
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return;
-	}
-
-	Landscape->ProceduralLayers[InLayerIndex].Visible = InVisible;
-
-	Landscape->RequestProceduralContentUpdate(EProceduralContentUpdateFlag::Heightmap_All);
-}
-
-bool FEdModeLandscape::IsProceduralLayerVisible(int32 InLayerIndex) const
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr)
-	{
-		return true;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	if (Landscape == nullptr || !Landscape->ProceduralLayers.IsValidIndex(InLayerIndex))
-	{
-		return true;
-	}
-
-	return Landscape->ProceduralLayers[InLayerIndex].Visible;
-}
-
-void FEdModeLandscape::AddBrushToCurrentProceduralLayer(int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr || !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
-
-	if (Layer == nullptr)
-	{
-		return;
-	}
-
-	int32 AddedIndex = Layer->Brushes.Add(FLandscapeProceduralLayerBrush(InBrush));
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		Layer->HeightmapBrushOrderIndices.Add(AddedIndex);
-	}
-	else
-	{
-		Layer->WeightmapBrushOrderIndices.Add(AddedIndex);
-	}
-
-	InBrush->SetOwningLandscape(Landscape);
-
-	Landscape->RequestProceduralContentUpdate(InTargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_All : EProceduralContentUpdateFlag::Weightmap_All);
-}
-
-void FEdModeLandscape::RequestProceduralContentUpdate()
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr || !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	Landscape->RequestProceduralContentUpdate(CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_All : EProceduralContentUpdateFlag::Weightmap_All);	
-}
-
-void FEdModeLandscape::RemoveBrushFromCurrentProceduralLayer(int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
-{
-	if (CurrentToolTarget.LandscapeInfo == nullptr || !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
-	{
-		return;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
-
-	if (Layer == nullptr)
-	{
-		return;
-	}
-
-	int32 IndexToRemove = INDEX_NONE;
-	for (int32 i = 0; i < Layer->Brushes.Num(); ++i)
-	{
-		if (Layer->Brushes[i].BPCustomBrush == InBrush)
+		int32 LayerCount = GetLayerCount();
+		for (int32 LayerIdx = 0; LayerIdx < LayerCount; ++LayerIdx)
 		{
-			IndexToRemove = i;
-			break;
-		}
-	}
-
-	if (IndexToRemove != INDEX_NONE)
-	{
-		Layer->Brushes.RemoveAt(IndexToRemove);
-
-		if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-		{
-			for (int32 i = 0; i < Layer->HeightmapBrushOrderIndices.Num(); ++i)
+			if (LayerIdx != InLayerIndex && GetLayerName(LayerIdx) == InNewName)
 			{
-				if (Layer->HeightmapBrushOrderIndices[i] == IndexToRemove)
-				{
-					// Update the value of the index of all the one after the one we removed, so index still correctly match actual brushes list
-					for (int32 j = 0; j < Layer->HeightmapBrushOrderIndices.Num(); ++j)
-					{
-						if (Layer->HeightmapBrushOrderIndices[j] > IndexToRemove)
-						{
-							--Layer->HeightmapBrushOrderIndices[j];
-						}
-					}
-
-					Layer->HeightmapBrushOrderIndices.RemoveAt(i);
-					break;
-				}
+				return false;
 			}
 		}
-		else
-		{
-			for (int32 i = 0; i < Layer->WeightmapBrushOrderIndices.Num(); ++i)
-			{
-				if (Layer->WeightmapBrushOrderIndices[i] == IndexToRemove)
-				{
-					// Update the value of the index of all the one after the one we removed, so index still correctly match actual brushes list
-					for (int32 j = 0; j < Layer->WeightmapBrushOrderIndices.Num(); ++j)
-					{
-						if (Layer->WeightmapBrushOrderIndices[j] > IndexToRemove)
-						{
-							--Layer->HeightmapBrushOrderIndices[j];
-						}
-					}
-
-					Layer->WeightmapBrushOrderIndices.RemoveAt(i);
-					break;
-				}
-			}
-		}
-
-		InBrush->SetOwningLandscape(nullptr);
 	}
-
-	Landscape->RequestProceduralContentUpdate(InTargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_All : EProceduralContentUpdateFlag::Weightmap_All);
+	return true;
 }
 
-bool FEdModeLandscape::AreAllBrushesCommitedToCurrentProceduralLayer(int32 InTargetType)
+void FEdModeLandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 {
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
+	{
+		Landscape->SetLayerName(InLayerIndex, InName);
+	}
+}
 
-	if (Layer == nullptr)
+float FEdModeLandscape::GetLayerAlpha(int32 InLayerIndex) const
+{
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (Layer)
+	{
+		return (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap) ? Layer->HeightmapAlpha : Layer->WeightmapAlpha;
+	}
+	return 1.0f;
+}
+
+void FEdModeLandscape::SetLayerAlpha(int32 InLayerIndex, float InAlpha)
+{
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
+	{
+		Landscape->SetLayerAlpha(InLayerIndex, InAlpha, CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap);
+	}
+}
+
+bool FEdModeLandscape::IsLayerVisible(int32 InLayerIndex) const
+{
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	return Layer ? Layer->bVisible : false;
+}
+
+void FEdModeLandscape::SetLayerVisibility(bool bInVisible, int32 InLayerIndex)
+{
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
+	{
+		Landscape->SetLayerVisibility(InLayerIndex, bInVisible);
+	}
+}
+
+bool FEdModeLandscape::IsLayerLocked(int32 InLayerIndex) const
+{
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	return Layer ? Layer->bLocked : false;
+}
+
+void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
+{
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (Layer)
+	{
+		Layer->bLocked = bInLocked;
+	}
+}
+
+void FEdModeLandscape::RequestLayersContentUpdate(bool InUpdateAllMaterials)
+{
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
+	{
+		Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Render, InUpdateAllMaterials);
+	}
+}
+
+void FEdModeLandscape::AddBrushToCurrentLayer(int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
+{
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape == nullptr)
+	{
+		return;
+	}
+
+	Landscape->AddBrushToLayer(GetCurrentLayerIndex(), InTargetType, InBrush);
+}
+
+void FEdModeLandscape::RemoveBrushFromCurrentLayer(int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
+{
+	ALandscape* Landscape = GetLandscape();
+
+	if (Landscape == nullptr)
+	{
+		return;
+	}
+
+	Landscape->RemoveBrushFromLayer(GetCurrentLayerIndex(), InTargetType, InBrush);
+}
+
+bool FEdModeLandscape::AreAllBrushesCommitedToCurrentLayer(int32 InTargetType)
+{
+	ALandscape* Landscape = GetLandscape();
+
+	if (Landscape == nullptr)
 	{
 		return false;
 	}
 
-	for (FLandscapeProceduralLayerBrush& Brush : Layer->Brushes)
-	{
-		if (!Brush.BPCustomBrush->IsCommited() 
-			&& ((InTargetType == ELandscapeToolTargetType::Type::Heightmap && Brush.BPCustomBrush->IsAffectingHeightmap()) || (InTargetType == ELandscapeToolTargetType::Type::Weightmap && Brush.BPCustomBrush->IsAffectingWeightmap())))
-		{
-			return false;
-		}
-	}
-
-	return true;	
+	return Landscape->AreAllBrushesCommitedToLayer(GetCurrentLayerIndex(), InTargetType);
 }
 
-void FEdModeLandscape::SetCurrentProceduralLayerBrushesCommitState(int32 InTargetType, bool InCommited)
+void FEdModeLandscape::SetBrushesCommitStateForCurrentLayer(int32 InTargetType, bool InCommited)
 {
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
+	ALandscape* Landscape = GetLandscape();
 
-	if (Layer == nullptr)
+	if (Landscape == nullptr)
 	{
 		return;
 	}
 
-	for (FLandscapeProceduralLayerBrush& Brush : Layer->Brushes)
-	{
-		Brush.BPCustomBrush->SetCommitState(InCommited);
-	}
-
+	Landscape->SetBrushesCommitStateForLayer(GetCurrentLayerIndex(), InTargetType, InCommited);
+	
 	GEngine->BroadcastLevelActorListChanged();
 }
 
-TArray<int8>& FEdModeLandscape::GetBrushesOrderForCurrentProceduralLayer(int32 InTargetType) const
+TArray<int8>& FEdModeLandscape::GetBrushesOrderForCurrentLayer(int32 InTargetType) const
 {
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
-	check(Layer);
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		return Layer->HeightmapBrushOrderIndices;
-	}
-	else
-	{
-		return Layer->WeightmapBrushOrderIndices;
-	}
+	ALandscape* Landscape = GetLandscape();
+	check(Landscape);
+	return Landscape->GetBrushesOrderForLayer(GetCurrentLayerIndex(), InTargetType);
 }
 
-ALandscapeBlueprintCustomBrush* FEdModeLandscape::GetBrushForCurrentProceduralLayer(int32 InTargetType, int8 InBrushIndex) const
+ALandscapeBlueprintCustomBrush* FEdModeLandscape::GetBrushForCurrentLayer(int32 InTargetType, int8 InBrushIndex) const
 {
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
-
-	if (Layer == nullptr)
-	{
-		return nullptr;
-	}
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		if (Layer->HeightmapBrushOrderIndices.IsValidIndex(InBrushIndex))
-		{
-			int8 ActualBrushIndex = Layer->HeightmapBrushOrderIndices[InBrushIndex];
-			if (Layer->Brushes.IsValidIndex(ActualBrushIndex))
-			{
-				return Layer->Brushes[ActualBrushIndex].BPCustomBrush;
-			}
-		}
-	}
-	else
-	{
-		if (Layer->WeightmapBrushOrderIndices.IsValidIndex(InBrushIndex))
-		{
-			int8 ActualBrushIndex = Layer->WeightmapBrushOrderIndices[InBrushIndex];
-			if (Layer->Brushes.IsValidIndex(ActualBrushIndex))
-			{
-				return Layer->Brushes[ActualBrushIndex].BPCustomBrush;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-TArray<ALandscapeBlueprintCustomBrush*> FEdModeLandscape::GetBrushesForCurrentProceduralLayer(int32 InTargetType)
-{
-	TArray<ALandscapeBlueprintCustomBrush*> Brushes;
-
-	FProceduralLayer* Layer = GetCurrentProceduralLayer();
-
-	if (Layer == nullptr)
-	{
-		return Brushes;
-	}
-
-	Brushes.Reserve(Layer->Brushes.Num());
-
-	for (const FLandscapeProceduralLayerBrush& Brush : Layer->Brushes)
-	{
-		if ((Brush.BPCustomBrush->IsAffectingHeightmap() && InTargetType == ELandscapeToolTargetType::Type::Heightmap) 
-			|| (Brush.BPCustomBrush->IsAffectingWeightmap() && InTargetType == ELandscapeToolTargetType::Type::Weightmap))
-		{
-			Brushes.Add(Brush.BPCustomBrush);
-		}
-	}
-
-	return Brushes;
-}
-
-FProceduralLayer* FEdModeLandscape::GetCurrentProceduralLayer() const
-{
-	if (!CurrentToolTarget.LandscapeInfo.IsValid())
-	{
-		return nullptr;
-	}
-
-	ALandscape* Landscape = CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
+	ALandscape* Landscape = GetLandscape();
 
 	if (Landscape == nullptr)
 	{
 		return nullptr;
 	}
 
-	FName CurrentLayerName = GetCurrentProceduralLayerName();
-
-	if (CurrentLayerName == NAME_None)
-	{
-		return nullptr;
-	}
-
-	for (FProceduralLayer& Layer : Landscape->ProceduralLayers)
-	{
-		if (Layer.Name == CurrentLayerName)
-		{
-			return &Layer;
-		}
-	}
-
-	return nullptr;
+	return Landscape->GetBrushForLayer(GetCurrentLayerIndex(), InTargetType, InBrushIndex);
 }
 
-void FEdModeLandscape::ChangeHeightmapsToCurrentProceduralLayerHeightmaps(bool InResetCurrentEditingHeightmap)
+TArray<ALandscapeBlueprintCustomBrush*> FEdModeLandscape::GetBrushesForCurrentLayer(int32 InTargetType)
+{
+	ALandscape* Landscape = GetLandscape();
+	TArray<ALandscapeBlueprintCustomBrush*> Brushes;
+
+	if (Landscape == nullptr)
+	{
+		return Brushes;
+	}
+
+	Brushes = Landscape->GetBrushesForLayer(GetCurrentLayerIndex(), InTargetType);
+	return Brushes;
+}
+
+bool FEdModeLandscape::IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const
+{
+	ALandscape* Landscape = GetLandscape();
+
+	if (Landscape != nullptr)
+	{
+		return Landscape->IsLayerBlendSubstractive(GetCurrentLayerIndex(), InLayerInfoObj);
+	}
+
+	return false;
+}
+
+void FEdModeLandscape::SetCurrentLayerSubstractiveBlendStatus(bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj)
+{
+	ALandscape* Landscape = GetLandscape();
+
+	if (Landscape != nullptr)
+	{
+		return Landscape->SetLayerSubstractiveBlendStatus(GetCurrentLayerIndex(), InStatus, InLayerInfoObj);
+	}
+}
+
+FLandscapeLayer* FEdModeLandscape::GetCurrentLayer() const
+{
+	return GetLayer(GetCurrentLayerIndex());
+}
+
+FGuid FEdModeLandscape::GetCurrentLayerGuid() const
+{
+	FLandscapeLayer* CurrentLayer = GetCurrentLayer();
+	return CurrentLayer ? CurrentLayer->Guid : FGuid();
+}
+
+bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 {
 	if (!CurrentToolTarget.LandscapeInfo.IsValid() || !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	TArray<ALandscapeProxy*> AllLandscapes;
@@ -4461,41 +4371,28 @@ void FEdModeLandscape::ChangeHeightmapsToCurrentProceduralLayerHeightmaps(bool I
 		AllLandscapes.Add(It);
 	}
 
-	FName CurrentLayerName = GetCurrentProceduralLayerName();
-
-	if (CurrentLayerName == NAME_None)
+	for (const ALandscapeProxy* LandscapeProxy : AllLandscapes)
 	{
-		return;
-	}
-
-	for (ALandscapeProxy* LandscapeProxy : AllLandscapes)
-	{
-		FProceduralLayerData* CurrentLayerData = LandscapeProxy->ProceduralLayersData.Find(CurrentLayerName);
-
-		if (CurrentLayerData == nullptr)
+		for (const auto& ItLayerPair : LandscapeProxy->LandscapeLayersData)
 		{
-			continue;
-		}
+			const FLandscapeLayerData& LayerData = ItLayerPair.Value;
 
-		for (ULandscapeComponent* Component : LandscapeProxy->LandscapeComponents)
-		{
-			if (InResetCurrentEditingHeightmap)
+			for (const auto& ItWeightmapPair : LayerData.WeightmapData)
 			{
-				Component->SetCurrentEditingHeightmap(nullptr);
-			}
-			else
-			{
-				UTexture2D** LayerHeightmap = CurrentLayerData->Heightmaps.Find(Component->GetHeightmap());
+				const FWeightmapLayerData& WeightmapData = ItWeightmapPair.Value;
 
-				if (LayerHeightmap != nullptr)
+				for (const FWeightmapLayerAllocationInfo& Alloc : WeightmapData.WeightmapLayerAllocations)
 				{
-					Component->SetCurrentEditingHeightmap(*LayerHeightmap);
+					if (Alloc.LayerInfo != nullptr)
+					{
+						return false;
+					}
 				}
 			}
-
-			Component->MarkRenderStateDirty();
 		}
 	}
+
+	return true;
 }
 
 void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
@@ -4504,7 +4401,7 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
-		AddBrushToCurrentProceduralLayer(CurrentToolTarget.TargetType, Brush);
+		AddBrushToCurrentLayer(CurrentToolTarget.TargetType, Brush);
 		RefreshDetailPanel();
 	}
 }
@@ -4515,7 +4412,7 @@ void FEdModeLandscape::OnLevelActorRemoved(AActor* InActor)
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
-		RemoveBrushFromCurrentProceduralLayer(CurrentToolTarget.TargetType, Brush);
+		RemoveBrushFromCurrentLayer(CurrentToolTarget.TargetType, Brush);
 		RefreshDetailPanel();
 	}
 }

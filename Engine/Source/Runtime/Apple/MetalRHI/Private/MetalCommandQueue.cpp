@@ -19,6 +19,7 @@
 #pragma mark - Private C++ Statics -
 uint64 FMetalCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GMetalFColorVertexFormat;
+bool GMetalCommandBufferDebuggingEnabled = 0;
 
 #pragma mark - Public C++ Boilerplate -
 
@@ -90,10 +91,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					GMetalFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
 				}
 				
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
@@ -157,12 +154,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				
 				Features |= EMetalFeaturesPresentMinDuration | EMetalFeaturesGPUCaptureManager | EMetalFeaturesBufferSubAllocation | EMetalFeaturesParallelRenderEncoders | EMetalFeaturesPipelineBufferMutability;
 				
-				// Turn on Linear Texture UAVs! Avoids the need to have function-constants which reduces initial runtime shader compile time
-				if (MaxShaderVersion >= 3)
-				{
-					Features |= EMetalFeaturesLinearTextureUAVs;
-				}
-				
 				// Turn on Texture Buffers! These are faster on the GPU as we don't need to do out-of-bounds tests but require Metal 2.1 and macOS 10.14
 				if (Vers.majorVersion >= 12)
 				{
@@ -173,7 +164,17 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					if (MaxShaderVersion >= 4)
 					{
 						Features |= EMetalFeaturesTextureBuffers;
-					}
+                    }
+                    
+                    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1))
+                    {
+                        Features |= EMetalFeaturesTileShaders;
+                        
+                        // The below implies tile shaders which are necessary to order the draw calls and generate a buffer that shows what PSOs/draws ran on each tile.
+                        IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+                        GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
+                    }
+                    
 					if (Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily5_v1))
 					{
 						Features |= EMetalFeaturesLayeredRendering;
@@ -244,6 +245,9 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			if (MaxShaderVersion >= 4)
 			{
 				Features |= EMetalFeaturesTextureBuffers;
+            
+                IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+                GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
             }
             if (MaxShaderVersion >= 5)
             {
@@ -261,7 +265,8 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					Features |= EMetalFeaturesFences;
 				}
 				
-				if (!FParse::Param(FCommandLine::Get(),TEXT("nometalheap")) && ([Device.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location == NSNotFound || FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap"))))
+				// There are still too many driver bugs to use MTLHeap on macOS - nothing works without causing random, undebuggable GPU hangs that completely deadlock the Mac and don't generate any validation errors or command-buffer failures
+				if (FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap")))
 				{
 					Features |= EMetalFeaturesHeaps;
 				}
@@ -387,14 +392,15 @@ mtlpp::CommandBuffer FMetalCommandQueue::CreateCommandBuffer(void)
 	{
 		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBufferWithUnretainedReferences()) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer());
 		
-		if (RuntimeDebuggingLevel > EMetalDebugLevelLogDebugGroups)
+		if (RuntimeDebuggingLevel >= EMetalDebugLevelLogDebugGroups)
 		{			
+			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).debugGroups = [[NSMutableArray new] autorelease];
 			METAL_DEBUG_ONLY(FMetalCommandBufferDebugging AddDebugging(CmdBuffer));
 			MTLPP_VALIDATION(mtlpp::CommandBufferValidationTable ValidatedCommandBuffer(CmdBuffer));
 		}
-		else if (RuntimeDebuggingLevel == EMetalDebugLevelLogDebugGroups)
+		if (RuntimeDebuggingLevel >= EMetalDebugLevelTrackResources)
 		{
-			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).debugGroups = [[NSMutableArray new] autorelease];
+			((NSObject<MTLCommandBuffer>*)CmdBuffer.GetPtr()).resourceTracker = [[FMetalResourceTracker new] autorelease];
 		}
 	}
 	CommandBufferFences.Push(new mtlpp::CommandBufferFence(CmdBuffer.GetCompletionFence()));

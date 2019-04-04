@@ -133,6 +133,8 @@ static bool GCsvProfilerIsCapturing = false;
 static bool GCsvProfilerIsCapturingRT = false; // Renderthread version of the above
 
 static bool GCsvProfilerIsWritingFile = false;
+static FString GCsvFileName = FString();
+static bool GCsvExitOnCompletion = false;
 
 bool IsContinuousWriteEnabled(bool bGameThread)
 {
@@ -254,21 +256,30 @@ static void HandleCSVProfileCommand(const TArray<FString>& Args)
 	{
 		return;
 	}
+
 	FString Param = Args[0];
+
 	if (Param == TEXT("START"))
 	{
-		FCsvProfiler::Get()->BeginCapture();
+		FCsvProfiler::Get()->BeginCapture(-1, FString(), GCsvFileName);
 	}
 	else if (Param == TEXT("STOP"))
 	{
 		FCsvProfiler::Get()->EndCapture();
+	}
+	else if (FParse::Value(*Param, TEXT("STARTFILE="), GCsvFileName))
+	{
+	}
+	else if (Param == TEXT("EXITONCOMPLETION"))
+	{
+		GCsvExitOnCompletion = true;
 	}
 	else
 	{
 		int32 CaptureFrames = 0;
 		if (FParse::Value(*Param, TEXT("FRAMES="), CaptureFrames))
 		{
-			FCsvProfiler::Get()->BeginCapture(CaptureFrames);
+			FCsvProfiler::Get()->BeginCapture(CaptureFrames, FString(), GCsvFileName);
 		}
 		int32 RepeatCount = 0;
 		if (FParse::Value(*Param, TEXT("REPEAT="), RepeatCount))
@@ -2002,7 +2013,9 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 
 	if (ThreadMarkers.Num() > 0)
 	{
+#if !UE_BUILD_SHIPPING
 		ensure(ThreadMarkers[0].GetTimestamp() >= LastProcessedTimestamp);
+#endif
 		LastProcessedTimestamp = ThreadMarkers.Last().GetTimestamp();
 	}
 
@@ -2097,8 +2110,10 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 				// AEnd would be missing 
 				if (FrameNumber >= 0 && bFoundStart)
 				{
+#if !UE_BUILD_SHIPPING
 					ensure(Marker.RawStatID == StartMarker.RawStatID);
 					ensure(Marker.GetTimestamp() >= StartMarker.GetTimestamp());
+#endif
 					if (Marker.GetTimestamp() > StartMarker.GetTimestamp())
 					{
 						uint64 ElapsedCycles = Marker.GetTimestamp() - StartMarker.GetTimestamp();
@@ -2454,7 +2469,7 @@ void FCsvProfiler::EndFrame()
 				}
 			}
 
-			if (bCaptureEnded && FParse::Param(FCommandLine::Get(), TEXT("ExitAfterCsvProfiling")))
+			if (bCaptureEnded && (GCsvExitOnCompletion || FParse::Param(FCommandLine::Get(), TEXT("ExitAfterCsvProfiling"))))
 			{
 				FPlatformMisc::RequestExit(false);
 			}
@@ -2576,12 +2591,7 @@ void FCsvProfiler::FinalizeCsvFile()
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Frames : %d"), CaptureEndFrameCount);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Peak memory usage  : %.2fMB"), float(MemoryBytesAtEndOfCapture) / (1024.0f * 1024.0f));
 
-	if (EnumHasAnyFlags(CurrentFlags, ECsvProfilerFlags::WriteCompletionFile))
-	{
-		// Create a zero-byte file to signal completion.
-		FString CompletionFilename = OutputFilename + TEXT(".complete");
-		delete IFileManager::Get().CreateFileWriter(*CompletionFilename);
-	}
+	OnCSVProfileFinished().Broadcast(OutputFilename);
 
 	float FinalizeDuration = float(FPlatformTime::Seconds() - FinalizeStartTime);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  CSV finalize time : %.3f seconds"), FinalizeDuration);

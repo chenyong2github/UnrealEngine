@@ -93,10 +93,33 @@ namespace Gauntlet
 		private const float ScreenshotScale = 1.0f / 3.0f;
 		private const int ScreenshotQuality = 30;
 		protected string ScreenshotDirectory;
+		protected bool ResultsGathered = false;
 
 		public override void TickTest()
 		{
 			base.TickTest();
+
+			if (GetTestStatus() == TestStatus.Complete || ResultsGathered)
+			{
+				if (!ResultsGathered)
+				{
+					ResultsGathered = true;
+
+					try
+					{
+						// Gather results and merge PGO data
+						Log.Info("Gathering profiling results to {0}", TestInstance.ClientApps[0].ArtifactPath);
+						PGOPlatform.GatherResults(TestInstance.ClientApps[0].ArtifactPath);
+					}
+					catch (Exception Ex)
+					{
+						Log.Error("Error getting PGO results: {0}", Ex);
+					}
+
+				}
+
+				return;
+			}
 
 			// Handle device screenshot update
 			TimeSpan Delta = DateTime.Now - ScreenshotTime;
@@ -125,18 +148,6 @@ namespace Gauntlet
 				}
 			}
 
-		}
-
-		public override void CreateReport(TestResult Result, UnrealTestContext Context, UnrealBuildSource Build, IEnumerable<UnrealRoleArtifacts> Artifacts, string ArtifactPath)
-		{
-			if (Result != TestResult.Passed)
-			{
-				return;
-			}
-
-			// Gather results and merge PGO data
-			Log.Info("Gathering profiling results...");
-			PGOPlatform.GatherResults(TestInstance.ClientApps[0].ArtifactPath);
 		}
 	}
 

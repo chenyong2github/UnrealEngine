@@ -1133,6 +1133,10 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	if (ComponentsToMerge.Num() == 0)
 	{
 		UE_LOG(LogMeshMerging, Log, TEXT("No static mesh specified to generate a proxy mesh for"));
+		
+		TArray<UObject*> OutAssetsToSync;
+		InProxyCreatedDelegate.ExecuteIfBound(InGuid, OutAssetsToSync);
+
 		return;
 	}
 
@@ -1433,12 +1437,15 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			OutputMaterialsMap.MultiFind(MeshIndex, SectionAndOutputIndices);
 
 			TArray<int32> Remap;
+			TArray<int32> UniqueMaterialIndexes;
 			// Reorder loops 
 			for (const TPair<uint32, uint32>& IndexPair : SectionAndOutputIndices)
 			{
-				const int32 SectionIndex = IndexPair.Key;
+				//We are not using the IndexPair.Key since we want to keep the polygon group
+				//We instead find the section index by looking at unique IndexPair.Value
 				const int32 NewIndex = IndexPair.Value;
 
+				const int32 SectionIndex = UniqueMaterialIndexes.AddUnique(NewIndex);
 				if (Remap.Num() < (SectionIndex + 1))
 				{
 					Remap.SetNum(SectionIndex + 1);
@@ -1448,39 +1455,13 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			}
 			
 			TMap<FPolygonGroupID, FPolygonGroupID> RemapPolygonGroup;
-			int32 MaxRemapID = 0;
 			for (const FPolygonGroupID& PolygonGroupID : RawMesh.PolygonGroups().GetElementIDs())
 			{
 				checkf(Remap.IsValidIndex(PolygonGroupID.GetValue()), TEXT("Missing material bake output index entry for mesh(section)"));
 				int32 RemapID = Remap[PolygonGroupID.GetValue()];
 				RemapPolygonGroup.Add(PolygonGroupID, FPolygonGroupID(RemapID));
-				MaxRemapID = FMath::Max(MaxRemapID, RemapID);
 			}
-
-			int32 PolygonGroupRemapCount = FMath::Max(MaxRemapID, RemapPolygonGroup.Num());
-			TSparseArray<int32> PolygonGroupRemap;
-			PolygonGroupRemap.Reserve(PolygonGroupRemapCount);
-			for (int32 Index = 0; Index < PolygonGroupRemapCount; ++Index)
-			{
-				PolygonGroupRemap.AddUninitialized();
-			}
-			//Set the polygon state
-			for (auto Kvp : RemapPolygonGroup)
-			{
-				PolygonGroupRemap[Kvp.Key.GetValue()] = Kvp.Value.GetValue();
-				FMeshPolygonGroup& PolygonGroup = RawMesh.GetPolygonGroup(Kvp.Key);
-				for (FPolygonID PolygonID : PolygonGroup.Polygons)
-				{
-					FMeshPolygon& Polygon = RawMesh.GetPolygon(PolygonID);
-					Polygon.PolygonGroupID = Kvp.Value;
-				}
-			}
-
-			//Remap the polygon groups
-			for (auto Kvp : RemapPolygonGroup)
-			{
-				RawMesh.PolygonGroups().Remap(PolygonGroupRemap);
-			}
+			FMeshDescriptionOperations::RemapPolygonGroups(RawMesh, RemapPolygonGroup);
 		}
 	};
 
@@ -2682,7 +2663,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 
 									// Note that at this point UniqueIndex is NOT a material index, but a unique section index!
 								}
-								else
+								
+								if(UniqueIndex == INDEX_NONE)
 								{
 									UniqueIndex = SourcePolygonGroupID.GetValue();
 								}
@@ -2704,6 +2686,21 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 					AppendSettings.MergedAssetPivot = InMergedAssetPivot;
 					FMeshDescriptionOperations::AppendMeshDescription(*RawMeshPtr, MergedMesh, AppendSettings);
 				}
+			}
+
+			//Cleanup the empty material to avoid empty section later
+			TArray<FPolygonGroupID> PolygonGroupToRemove;
+			for (FPolygonGroupID PolygonGroupID : MergedMesh.PolygonGroups().GetElementIDs())
+			{
+				if (MergedMesh.GetPolygonGroupPolygons(PolygonGroupID).Num() < 1)
+				{
+					PolygonGroupToRemove.Add(PolygonGroupID);
+					
+				}
+			}
+			for (FPolygonGroupID PolygonGroupID : PolygonGroupToRemove)
+			{
+				MergedMesh.DeletePolygonGroup(PolygonGroupID);
 			}
 		}
 	}
@@ -2770,7 +2767,8 @@ void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTra
 
 								// Note that at this point UniqueIndex is NOT a material index, but a unique section index!
 							}
-							else
+							
+							if(UniqueIndex == INDEX_NONE)
 							{
 								UniqueIndex = SourcePolygonGroupID.GetValue();
 							}
@@ -3085,18 +3083,18 @@ UMaterialInterface* FMeshMergeUtilities::CreateProxyMaterial(const FString &InBa
 	if (InBasePackageName.IsEmpty())
 	{
 		MaterialAssetName = FPackageName::GetShortName(MergedAssetPackageName);
-		MaterialPackageName = FPackageName::GetLongPackagePath(MergedAssetPackageName) + TEXT("/") + MaterialAssetName;
+		MaterialPackageName = FPackageName::GetLongPackagePath(MergedAssetPackageName) + TEXT("/");
 	}
 	else
 	{
 		MaterialAssetName = FPackageName::GetShortName(InBasePackageName);
-		MaterialPackageName = FPackageName::GetLongPackagePath(InBasePackageName) + TEXT("/") + MaterialAssetName;
+		MaterialPackageName = FPackageName::GetLongPackagePath(InBasePackageName) + TEXT("/");
 	}
 
 	UPackage* MaterialPackage = InOuter;
 	if (MaterialPackage == nullptr)
 	{
-		MaterialPackage = CreatePackage(nullptr, *MaterialPackageName);
+		MaterialPackage = CreatePackage(nullptr, *(MaterialPackageName + MaterialAssetName));
 		check(MaterialPackage);
 		MaterialPackage->FullyLoad();
 		MaterialPackage->Modify();

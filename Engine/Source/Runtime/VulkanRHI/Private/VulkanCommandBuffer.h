@@ -63,6 +63,11 @@ public:
 		return State == EState::Submitted;
 	}
 
+	inline bool IsAllocated() const
+	{
+		return State != EState::NotAllocated;
+	}
+
 	inline VkCommandBuffer GetHandle()
 	{
 		return CommandBufferHandle;
@@ -169,14 +174,8 @@ public:
 
 	bool AcquirePoolSetAndDescriptorsIfNeeded(const class FVulkanDescriptorSetsLayout& Layout, bool bNeedDescriptors, VkDescriptorSet* OutDescriptors);
 
-	/*TRefCountPtr<*/FVulkanTimestampQueryPool* /*>*/ PrepareTimestampQueryPool()
-	{
-		return TimestampQueryPool;
-	}
-
 private:
 	FVulkanDevice* Device;
-	/*TRefCountPtr<*/FVulkanTimestampQueryPool* /*>*/ TimestampQueryPool = nullptr;
 	VkCommandBuffer CommandBufferHandle;
 	double SubmittedTime = 0.0f;
 

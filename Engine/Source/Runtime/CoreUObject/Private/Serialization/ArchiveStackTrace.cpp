@@ -1287,6 +1287,7 @@ static void DumpTableDifferences(
 #endif // !NO_LOGGING
 }
 
+extern int32 GAllowCookedDataInEditorBuilds;
 
 void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackage, const FPackageData& DestPackage, const FString& AssetFilename, const int32 MaxDiffsToLog)
 {
@@ -1297,22 +1298,23 @@ void FArchiveStackTrace::DumpPackageHeaderDiffs(const FPackageData& SourcePackag
 
 	TGuardValue<bool> GuardIsSavingPackage(GIsSavingPackage, false);
 	TGuardValue<bool> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, true);
+	TGuardValue<int32> GuardAllowCookedDataInEditorBuilds(GAllowCookedDataInEditorBuilds, 1);
 
 	FLinkerLoad* SourceLinker = nullptr;
 	FLinkerLoad* DestLinker = nullptr;
 	// Create linkers. Note there's no need to clean them up here since they will be removed by the package associated with them
 	{
-		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(new FUObjectSerializeContext());
+		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 		BeginLoad(LinkerLoadContext);
 		SourceLinker = CreateLinkerForPackage(LinkerLoadContext, SourceAssetPackageName, AssetFilename, SourcePackage);
-		EndLoad(SourceLinker->GetSerializeContext());
+		EndLoad(SourceLinker ? SourceLinker->GetSerializeContext() : LinkerLoadContext.GetReference());
 	}
 	
 	{
-		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(new FUObjectSerializeContext());
+		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 		BeginLoad(LinkerLoadContext);
 		DestLinker = CreateLinkerForPackage(LinkerLoadContext, DestAssetPackageName, AssetFilename, DestPackage);
-		EndLoad(DestLinker->GetSerializeContext());
+		EndLoad(DestLinker ? DestLinker->GetSerializeContext() : LinkerLoadContext.GetReference());
 	}
 
 	if (SourceLinker && DestLinker)
@@ -1354,8 +1356,7 @@ FArchiveStackTraceReader::FArchiveStackTraceReader(const TCHAR* InFilename, cons
 void FArchiveStackTraceReader::Serialize(void* OutData, int64 Num)
 {
 	bool bAddData = true;
-	check(GetSerializeContext());
-	FSerializeData NewData(Tell(), Num, GetSerializeContext()->SerializedObject, GetSerializedProperty());
+	FSerializeData NewData(Tell(), Num, ThreadContext.GetSerializeContext()->SerializedObject, GetSerializedProperty());
 	if (SerializeTrace.Num())
 	{
 		FSerializeData& Last = SerializeTrace.Last();

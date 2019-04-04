@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "AudioDecompress.h"
+#include "AudioMixerBuffer.h"
 
 namespace Audio
 {
@@ -36,11 +38,17 @@ namespace Audio
 	// Data needed for a decode audio task
 	struct FDecodeAudioTaskData
 	{
-		// The mixer buffer buffer object which holds state to use for the decode operation
-		FMixerBuffer* MixerBuffer;
-
 		// A pointer to a buffer of audio which will be decoded to
 		float* AudioData;
+
+		// Decompression state for decoder
+		ICompressedAudioInfo* DecompressionState;
+
+		// The buffer type for the decoder
+		Audio::EBufferType::Type BufferType;
+
+		// Number of channels of the decoder
+		int32 NumChannels;
 
 		// The number of frames which are precached
 		int32 NumPrecacheFrames;
@@ -55,8 +63,10 @@ namespace Audio
 		bool bSkipFirstBuffer;
 
 		FDecodeAudioTaskData()
-			: MixerBuffer(nullptr)
-			, AudioData(nullptr)
+			: AudioData(nullptr)
+			, DecompressionState(nullptr)
+			, BufferType(Audio::EBufferType::Invalid)
+			, NumChannels(0)
 			, NumPrecacheFrames(0)
 			, NumFramesToDecode(0)
 			, bLoopingMode(false)
@@ -130,6 +140,9 @@ namespace Audio
 
 		// Ensures the completion of the decode operation.
 		virtual void EnsureCompletion() = 0;
+
+		// Cancel the decode operation
+		virtual void CancelTask() = 0;
 
 		// Returns the result of a procedural sound generate job
 		virtual void GetResult(FProceduralAudioTaskResults& OutResult) {};

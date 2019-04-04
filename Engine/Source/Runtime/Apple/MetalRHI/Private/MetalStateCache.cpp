@@ -363,6 +363,12 @@ void FMetalStateCache::SetDepthStencilState(FMetalDepthStencilState* InDepthSten
 	{
 		DepthStencilState = InDepthStencilState;
 		RasterBits |= EMetalRenderFlagDepthStencilState;
+		
+		if (DepthStencilState && SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+		{
+			METAL_FATAL_ASSERT(RenderPassDesc.GetDepthAttachment().GetTexture() || DepthStencilState->bIsDepthWriteEnabled == false, TEXT("Attempting to set a depth-stencil state that writes depth but no depth texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State.GetPtr() description]), *FString([RenderPassDesc.GetPtr() description]));
+			METAL_FATAL_ASSERT(RenderPassDesc.GetStencilAttachment().GetTexture() || DepthStencilState->bIsStencilWriteEnabled == false, TEXT("Attempting to set a depth-stencil state that writes stencil but no stencil texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State.GetPtr() description]), *FString([RenderPassDesc.GetPtr() description]));
+		}
 	}
 }
 
@@ -382,10 +388,6 @@ void FMetalStateCache::SetComputeShader(FMetalComputeShader* InComputeShader)
 		ComputeShader = InComputeShader;
 		
 		PipelineBits |= EMetalPipelineFlagComputeShader;
-		
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		bUsingTessellation = false;
-#endif
 		
 		DirtyUniformBuffers[EMetalShaderStages::Compute] = 0xffffffff;
 
@@ -537,29 +539,44 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 	
 				ERenderTargetStoreAction HighLevelStoreAction = RenderTargetView.StoreAction;
 				ERenderTargetLoadAction HighLevelLoadAction = RenderTargetView.LoadAction;
+
+				// on iOS with memory-less MSAA textures we can't load them
+                // in case high level code wants to load and render to MSAA target, set attachment to a resolved texture
+				bool bUseResolvedTexture = false;
+#if PLATFORM_IOS
+				bUseResolvedTexture = (
+					Surface.MSAATexture && 
+					Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless && 
+					HighLevelLoadAction == ERenderTargetLoadAction::ELoad);
+#endif
 				
-				if (Surface.MSAATexture)
+				if (Surface.MSAATexture && !bUseResolvedTexture)
 				{
-					// set up an MSAA attachment
-					ColorAttachment.SetTexture(Surface.MSAATexture);
-					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve);
-					ColorAttachment.SetStoreAction(bSupportsDeferredStore && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
-					ColorAttachment.SetResolveTexture(Surface.MSAAResolveTexture ? Surface.MSAAResolveTexture : Surface.Texture);
-					SampleCount = Surface.MSAATexture.GetSampleCount();
+					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
+						bMemoryless = true;
 						HighLevelLoadAction = ERenderTargetLoadAction::EClear;
 					}
 #endif
+					// set up an MSAA attachment
+					ColorAttachment.SetTexture(Surface.MSAATexture);
+					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve);
+					
+					ColorAttachment.SetStoreAction(bSupportsDeferredStore && !bMemoryless && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
+					ColorAttachment.SetResolveTexture(Surface.MSAAResolveTexture ? Surface.MSAAResolveTexture : Surface.Texture);
+					SampleCount = Surface.MSAATexture.GetSampleCount();
 					// only allow one MRT with msaa
 					checkf(RenderTargetsInfo.NumColorRenderTargets == 1, TEXT("Only expected one MRT when using MSAA"));
 				}
 				else
 				{
+					bool bMemoryless = false;
 #if PLATFORM_IOS
 					if (Surface.Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
+						bMemoryless = true;
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 						HighLevelLoadAction = ERenderTargetLoadAction::EClear;
 					}
@@ -567,7 +584,7 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 					// set up non-MSAA attachment
 					ColorAttachment.SetTexture(Surface.Texture);
 					NewColorStore[RenderTargetIndex] = GetMetalRTStoreAction(HighLevelStoreAction);
-					ColorAttachment.SetStoreAction(bSupportsDeferredStore ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
+					ColorAttachment.SetStoreAction(bSupportsDeferredStore && !bMemoryless ? mtlpp::StoreAction::Unknown : NewColorStore[RenderTargetIndex]);
                     SampleCount = 1;
 				}
 				
@@ -610,23 +627,14 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 		{
 			if (!GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering))
 			{
-				if (ArrayRenderLayers != 1)
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("Layered rendering is unsupported on this device."));
-				}
+				METAL_FATAL_ASSERT(ArrayRenderLayers != 1, TEXT("Layered rendering is unsupported on this device (%d)."), ArrayRenderLayers);
 			}
 #if PLATFORM_MAC
 			else
 			{
-				if (ArrayTargets == BoundTargets)
-				{
-					RenderTargetArraySize = ArrayRenderLayers;
-					RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
-				}
-				else
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("All color render targets must be layered when performing multi-layered rendering under Metal."));
-				}
+				METAL_FATAL_ASSERT(ArrayTargets == BoundTargets, TEXT("All color render targets must be layered when performing multi-layered rendering under Metal (%d != %d)."), ArrayTargets, BoundTargets);
+				RenderTargetArraySize = ArrayRenderLayers;
+				RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
 			}
 #endif
 		}
@@ -653,16 +661,10 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 			}
 			if(!ArrayTargets && ArrayRenderLayers > 1)
 			{
-				if (!GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering))
-				{
-					UE_LOG(LogMetal, Fatal, TEXT("Layered rendering is unsupported on this device."));
-				}
+				METAL_FATAL_ASSERT(GetMetalDeviceContext().SupportsFeature(EMetalFeaturesLayeredRendering), TEXT("Layered rendering is unsupported on this device (%d)."), ArrayRenderLayers);
 #if PLATFORM_MAC
-				else
-				{
-					RenderTargetArraySize = ArrayRenderLayers;
-					RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
-				}
+				RenderTargetArraySize = ArrayRenderLayers;
+				RenderPass.SetRenderTargetArrayLength(ArrayRenderLayers);
 #endif
 			}
 			
@@ -760,10 +762,8 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 				DepthClearValue = 1.0f;
 			}
 
-            static bool const bUsingValidation = FMetalCommandQueue::SupportsFeature(EMetalFeaturesValidation) && !FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 14, 0}, (uint32[]){12, 0, 0}, (uint32[]){12, 0, 0});
-            
-            bool const bCombinedDepthStencilUsingStencil = (DepthTexture && (mtlpp::PixelFormat)DepthTexture.GetPixelFormat() != mtlpp::PixelFormat::Depth32Float && RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingStencil());			
-			bool const bUsingDepth = (RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingDepth() || (bUsingValidation && bCombinedDepthStencilUsingStencil));
+            bool const bCombinedDepthStencilUsingStencil = (DepthTexture && (mtlpp::PixelFormat)DepthTexture.GetPixelFormat() != mtlpp::PixelFormat::Depth32Float && RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingStencil());
+			bool const bUsingDepth = (RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingDepth() || (bCombinedDepthStencilUsingStencil));
 			if (DepthTexture && bUsingDepth)
 			{
 				mtlpp::RenderPassDepthAttachmentDescriptor DepthAttachment;
@@ -810,7 +810,7 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
                 //needed to quiet the metal validation that runs when you end renderpass. (it requires some kind of 'resolve' for an msaa target)
 				//But with deferredstore we don't set the real one until submit time.
 				NewDepthStore = !Surface.MSAATexture || bSupportsMSAADepthResolve ? GetMetalRTStoreAction(HighLevelStoreAction) : mtlpp::StoreAction::DontCare;
-				DepthAttachment.SetStoreAction(bSupportsDeferredStore && Surface.MSAATexture && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewDepthStore);
+				DepthAttachment.SetStoreAction(bSupportsDeferredStore && !bDepthTextureMemoryless && Surface.MSAATexture && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewDepthStore);
 				DepthAttachment.SetClearDepth(DepthClearValue);
 				check(SampleCount > 0);
 
@@ -841,7 +841,7 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
             //doesn't have an autoresolve target to use.
 			
 			bool const bCombinedDepthStencilUsingDepth = (StencilTexture && StencilTexture.GetPixelFormat() != mtlpp::PixelFormat::Stencil8 && RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingDepth());
-			bool const bUsingStencil = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingStencil() || (bUsingValidation && bCombinedDepthStencilUsingDepth);
+			bool const bUsingStencil = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess().IsUsingStencil() || (bCombinedDepthStencilUsingDepth);
 			if (StencilTexture && bUsingStencil && (FMetalCommandQueue::SupportsFeature(EMetalFeaturesCombinedDepthStencil) || !bDepthStencilSampleCountMismatchFixup))
 			{
                 if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesCombinedDepthStencil) && bDepthStencilSampleCountMismatchFixup)
@@ -866,9 +866,11 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 						HighLevelStoreAction = ERenderTargetStoreAction::EStore;
 					}
 					
+					bool bStencilMemoryless = false;
 #if PLATFORM_IOS
 					if (StencilTexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 					{
+						bStencilMemoryless = true;
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 						StencilAttachment.SetLoadAction(mtlpp::LoadAction::Clear);
 					}
@@ -877,7 +879,7 @@ bool FMetalStateCache::SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRe
 					// For the case where Depth+Stencil is MSAA we can't Resolve depth and Store stencil - we can only Resolve + DontCare or StoreResolve + Store (on newer H/W and iOS).
 					// We only allow use of StoreResolve in the Desktop renderers as the mobile renderer does not and should not assume hardware support for it.
 					NewStencilStore = (StencilTexture.GetSampleCount() == 1  || GetMetalRTStoreAction(ERenderTargetStoreAction::EMultisampleResolve) == mtlpp::StoreAction::StoreAndMultisampleResolve) ? GetMetalRTStoreAction(HighLevelStoreAction) : mtlpp::StoreAction::DontCare;
-					StencilAttachment.SetStoreAction(bSupportsDeferredStore && StencilTexture.GetSampleCount() > 1 && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewStencilStore);
+					StencilAttachment.SetStoreAction(bSupportsDeferredStore && !bStencilMemoryless && StencilTexture.GetSampleCount() > 1 && GRHIDeviceId > 2 ? mtlpp::StoreAction::Unknown : NewStencilStore);
                     StencilAttachment.SetClearStencil(StencilClearValue);
 
                     if (SampleCount == 0)
@@ -1144,8 +1146,7 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
 		
 		PipelineBits |= EMetalPipelineFlagPipelineState;
 		
-#if METAL_DEBUG_OPTIONS
-        if (GMetalResetOnPSOChange >= 4)
+        if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelResetOnBind)
         {
             for (uint32 i = 0; i < EMetalShaderStages::Num; i++)
             {
@@ -1161,7 +1162,6 @@ void FMetalStateCache::SetGraphicsPipelineState(FMetalGraphicsPipelineState* Sta
                 ShaderSamplers[i].Bound = UINT16_MAX;
             }
         }
-#endif
 		
 		SetDepthStencilState(State->DepthStencilState);
 		SetRasterizerState(State->RasterizerState);
@@ -1985,6 +1985,11 @@ void FMetalStateCache::SetStateDirty(void)
 	}
 }
 
+void FMetalStateCache::SetShaderBufferDirty(EMetalShaderStages const Frequency, NSUInteger const Index)
+{
+	ShaderBuffers[Frequency].Bound |= (1 << Index);
+}
+
 void FMetalStateCache::SetRenderStoreActions(FMetalCommandEncoder& CommandEncoder, bool const bConditionalSwitch)
 {
 	check(CommandEncoder.IsRenderCommandEncoderActive())
@@ -2113,6 +2118,157 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
         
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }
+	
+	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+	{
+		FMetalShaderPipeline* Pipeline = GetPipelineState();
+		EMetalShaderStages VertexStage = EMetalShaderStages::Vertex;
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		if (GraphicsPSO->DomainShader)
+		{
+			VertexStage = EMetalShaderStages::Domain;
+			
+			FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
+			TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
+			while(ComputeMask.BufferMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
+				ComputeMask.BufferMask &= ~(1 << Index);
+				
+				FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Vertex].Buffers[Index];
+				FMetalBufferBinding const& HullBinding = ShaderBuffers[EMetalShaderStages::Hull].Buffers[Index];
+				ensure(Binding.Buffer || Binding.Bytes || HullBinding.Buffer || HullBinding.Bytes);
+				ensure(MinComputeBufferSizes.Num() > Index);
+				ensure(Binding.Length >= MinComputeBufferSizes[Index] || HullBinding.Length >= MinComputeBufferSizes[Index]);
+			}
+#if PLATFORM_MAC
+			{
+				uint64 LoTextures = (uint64)ComputeMask.TextureMask;
+				while(LoTextures)
+				{
+					uint32 Index = __builtin_ctzll(LoTextures);
+					LoTextures &= ~(uint64(1) << uint64(Index));
+					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
+				}
+				
+				uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
+				while(HiTextures)
+				{
+					uint32 Index = __builtin_ctzll(HiTextures);
+					HiTextures &= ~(uint64(1) << uint64(Index));
+					ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index + 64] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index + 64]);
+				}
+			}
+#else
+			while(ComputeMask.TextureMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
+				ComputeMask.TextureMask &= ~(1 << Index);
+				
+				ensure(ShaderTextures[EMetalShaderStages::Vertex].Textures[Index] || ShaderTextures[EMetalShaderStages::Hull].Textures[Index]);
+			}
+#endif
+			while(ComputeMask.SamplerMask)
+			{
+				uint32 Index = __builtin_ctz(ComputeMask.SamplerMask);
+				ComputeMask.SamplerMask &= ~(1 << Index);
+				ensure(ShaderSamplers[EMetalShaderStages::Vertex].Samplers[Index] || ShaderSamplers[EMetalShaderStages::Hull].Samplers[Index]);
+			}
+		}
+#endif
+		
+		FMetalDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EMetalShaderVertex];
+		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EMetalShaderVertex];
+		while(VertexMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
+			VertexMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[VertexStage].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinVertexBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinVertexBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)VertexMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[VertexStage].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(VertexMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[VertexStage].Textures[Index + 64]);
+			}
+		}
+#else
+		while(VertexMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.TextureMask);
+			VertexMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[VertexStage].Textures[Index]);
+		}
+#endif
+		while(VertexMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(VertexMask.SamplerMask);
+			VertexMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[VertexStage].Samplers[Index]);
+		}
+		
+		FMetalDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[EMetalShaderFragment];
+		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[EMetalShaderFragment];
+		while(FragmentMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.BufferMask);
+			FragmentMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Pixel].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinFragmentBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinFragmentBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)FragmentMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(FragmentMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index + 64]);
+			}
+		}
+#else
+		while(FragmentMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.TextureMask);
+			FragmentMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[EMetalShaderStages::Pixel].Textures[Index]);
+		}
+#endif
+		while(FragmentMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(FragmentMask.SamplerMask);
+			FragmentMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[EMetalShaderStages::Pixel].Samplers[Index]);
+		}
+	}
 }
 
 void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEncoder)
@@ -2125,6 +2281,58 @@ void FMetalStateCache::SetComputePipelineState(FMetalCommandEncoder& CommandEnco
         
         PipelineBits &= EMetalPipelineFlagRasterMask;
     }
+	
+	if (SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+	{
+		FMetalShaderPipeline* Pipeline = ComputeShader->GetPipeline();
+		check(Pipeline);
+		
+		FMetalDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EMetalShaderCompute];
+		TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EMetalShaderCompute];
+		while(ComputeMask.BufferMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
+			ComputeMask.BufferMask &= ~(1 << Index);
+			
+			FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Compute].Buffers[Index];
+			ensure(Binding.Buffer || Binding.Bytes);
+			ensure(MinComputeBufferSizes.Num() > Index);
+			ensure(Binding.Length >= MinComputeBufferSizes[Index]);
+		}
+#if PLATFORM_MAC
+		{
+			uint64 LoTextures = (uint64)ComputeMask.TextureMask;
+			while(LoTextures)
+			{
+				uint32 Index = __builtin_ctzll(LoTextures);
+				LoTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
+			}
+			
+			uint64 HiTextures = (uint64)(ComputeMask.TextureMask >> FMetalTextureMask(64));
+			while(HiTextures)
+			{
+				uint32 Index = __builtin_ctzll(HiTextures);
+				HiTextures &= ~(uint64(1) << uint64(Index));
+				ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index + 64]);
+			}
+		}
+#else
+		while(ComputeMask.TextureMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.TextureMask);
+			ComputeMask.TextureMask &= ~(1 << Index);
+			
+			ensure(ShaderTextures[EMetalShaderStages::Compute].Textures[Index]);
+		}
+#endif
+		while(ComputeMask.SamplerMask)
+		{
+			uint32 Index = __builtin_ctz(ComputeMask.SamplerMask);
+			ComputeMask.SamplerMask &= ~(1 << Index);
+			ensure(ShaderSamplers[EMetalShaderStages::Compute].Samplers[Index]);
+		}
+	}
 }
 
 void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, mtlpp::FunctionType const Type, FMetalCommandEncoder& CommandEncoder)
@@ -2271,6 +2479,17 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 			CommandEncoder.UseIndirectArgumentResource(Buffer->Buffer, mtlpp::ResourceUsage::Read);
 		}
 	}
+}
+
+FMetalBuffer& FMetalStateCache::GetDebugBuffer()
+{
+    if (!DebugBuffer)
+    {
+        // Assume worst case tiling (16x16) and render-target size (4096x4096) on iOS for now
+        uint32 NumTiles = PLATFORM_MAC ? 1 : 65536;
+        DebugBuffer = GetMetalDeviceContext().CreatePooledBuffer(FMetalPooledBufferArgs(GetMetalDeviceContext().GetDevice(), NumTiles * sizeof(FMetalDebugInfo), BUF_Dynamic, mtlpp::StorageMode::Shared));
+    }
+    return DebugBuffer;
 }
 
 FTexture2DRHIRef FMetalStateCache::CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height)

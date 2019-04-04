@@ -312,7 +312,9 @@ EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientatio
 }
 #endif
 
+#if !PLATFORM_TVOS
 UIInterfaceOrientation GInterfaceOrientation = UIInterfaceOrientationUnknown;
+#endif
 
 EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 {
@@ -492,7 +494,17 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 				DeviceType = IOS_IPadPro3_129;
 			}
 		}
-
+        else if (Major == 11)
+        {
+            if (Minor <= 2)
+            {
+                DeviceType = IOS_IPadMini5;
+            }
+            else
+            {
+                DeviceType = IOS_IPadAir3;
+            }
+        }
 		// Default to highest settings currently available for any future device
 		else if (Major >= 9)
 		{
@@ -1663,6 +1675,25 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
         }
     }
 #endif
+}
+
+bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
+{
+    return FPlatformMisc::IsDebuggerPresent();
+}
+
+void FIOSPlatformMisc::GPUAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)13 = 123;
+}
+
+void FIOSPlatformMisc::MetalAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)7 = 123;
 }
 
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)

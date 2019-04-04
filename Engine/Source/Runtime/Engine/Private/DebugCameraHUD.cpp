@@ -155,7 +155,11 @@ void ADebugCameraHUD::PostRender()
 					yl += Y;
 					Canvas->DrawText(RenderFont, "Material: NULL", X + Y, yl, 1.f, 1.f, FontRenderInfo );
 				}
-				DrawDebugLine( GetWorld(), Hit.Location, Hit.Location+Hit.Normal*30.f, FColor::White );
+
+				if (!DCC->bIsOrbitingSelectedActor)
+				{
+					DrawDebugLine(GetWorld(), Hit.Location, Hit.Location + Hit.Normal*30.f, FColor::White);
+				}
 			}
 			else
 			{
@@ -163,11 +167,20 @@ void ADebugCameraHUD::PostRender()
 				Canvas->DrawText( RenderFont, TEXT("No trace Hit"), X, yl, 1.f, 1.f, FontRenderInfo);
 			}
 
-			if ( DCC->bShowSelectedInfo && DCC->SelectedActor != NULL )
+			if (DCC->bShowSelectedInfo && DCC->SelectedActor != NULL)
 			{
-				yl += Y;
-				Canvas->DrawText(RenderFont,  FString::Printf(TEXT("Selected actor: '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
-				DisplayMaterials( X, yl, Y, Cast<UMeshComponent>(DCC->SelectedComponent) );
+				if (DCC->bIsOrbitingSelectedActor)
+				{
+					yl += Y;
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("Orbiting actor: '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
+					DisplayMaterials(X, yl, Y, Cast<UMeshComponent>(DCC->SelectedComponent));
+				}
+				else
+				{
+					yl += Y;
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("Selected actor: '%s'"), *DCC->SelectedActor->GetFName().ToString()), X, yl, 1.f, 1.f, FontRenderInfo);
+					DisplayMaterials(X, yl, Y, Cast<UMeshComponent>(DCC->SelectedComponent));
+				}
 			}
 
 
@@ -190,6 +203,10 @@ void ADebugCameraHUD::PostRender()
 			
 			Canvas->DrawText(RenderFont, TEXT("Toggle Display: BackSpace or XButton"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
+
+			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: O"), X, yl, 1.f, 1.f, FontRenderInfo);
+			yl += Y;
+
 		}
 	}
 #endif

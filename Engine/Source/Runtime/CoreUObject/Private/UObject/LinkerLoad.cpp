@@ -82,7 +82,7 @@ bool FLinkerLoad::ShouldCreateThrottledSlowTask() const
 #endif
 
 
-static int32 GAllowCookedDataInEditorBuilds = 0;
+int32 GAllowCookedDataInEditorBuilds = 0;
 static FAutoConsoleVariableRef CVarAllowCookedDataInEditorBuilds(
 	TEXT("cook.AllowCookedDataInEditorBuilds"),
 		GAllowCookedDataInEditorBuilds,
@@ -642,19 +642,11 @@ FLinkerLoad* FLinkerLoad::CreateLinkerAsync(FUObjectSerializeContext* LoadContex
 
 void FLinkerLoad::SetSerializeContext(FUObjectSerializeContext* InLoadContext)
 {
-	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
-	{
-		CurrentLoadContext->DetachLinker(this);
-	}
-	CurrentLoadContext = InLoadContext;
-	if (!GEventDrivenLoaderEnabled && CurrentLoadContext)
-	{
-		CurrentLoadContext->AttachLinker(this);
-	}
 }
+
 FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 {
-	return CurrentLoadContext;
+	return FUObjectThreadContext::Get().GetSerializeContext();
 }
 
 /**
@@ -2429,6 +2421,8 @@ FLinkerLoad::EVerifyResult FLinkerLoad::VerifyImport(int32 ImportIndex)
 	// these checks find out if the VerifyImportInner was successful or not 
 	if (Import.SourceLinker && Import.SourceIndex == INDEX_NONE && Import.XObject == NULL && !Import.OuterIndex.IsNull() && Import.ObjectName != NAME_ObjectRedirector)
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
+
 		// if we found the package, but not the object, look for a redirector
 		FObjectImport OriginalImport = Import;
 		Import.ClassName = NAME_ObjectRedirector;
@@ -2723,7 +2717,8 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// Get the linker if the package hasn't been fully loaded already.
 		if (!bWasFullyLoaded)
 		{
-			Import.SourceLinker = GetPackageLinker( TmpPkg, NULL, InternalLoadFlags, NULL, NULL );
+			FUObjectSerializeContext* SerializeContext = GetSerializeContext();
+			Import.SourceLinker = GetPackageLinker( TmpPkg, nullptr, InternalLoadFlags, nullptr, nullptr, nullptr, &SerializeContext);
 #if WITH_EDITORONLY_DATA
 			if (Import.SourceLinker && !TmpPkg->HasAnyFlags(RF_WasLoaded))
 			{
@@ -2949,6 +2944,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			{
 				// except if we are looking for _the_ package...in which case we are looking for TmpPkg, so we are done
 				Import.XObject = TmpPkg;
+				FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 				check(CurrentLoadContext);
 				CurrentLoadContext->IncrementImportCount();
 				FLinkerManager::Get().AddLoaderWithNewImports(this);
@@ -3003,6 +2999,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 				if (FindObject != NULL && ((LoadFlags & LOAD_FindIfFail) || bIsInMemoryOnlyOrNativeTransient))
 				{
 					Import.XObject = FindObject;
+					FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 					check(CurrentLoadContext);
 					CurrentLoadContext->IncrementImportCount();
 					FLinkerManager::Get().AddLoaderWithNewImports(this);
@@ -3424,6 +3421,8 @@ void FLinkerLoad::Preload( UObject* Object )
 	// Preload the object if necessary.
 	if (Object->HasAnyFlags(RF_NeedLoad))
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
+
 		if (Object->GetLinker() == this)
 		{
 			check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
@@ -3556,7 +3555,7 @@ void FLinkerLoad::Preload( UObject* Object )
 							return;
 						}
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-
+						
 						check(CurrentLoadContext);
 						// Maintain the current SerializedObjects.
 						UObject* PrevSerializedObject = CurrentLoadContext->SerializedObject;
@@ -3853,6 +3852,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	if( !Export.Object && !FilterExport(Export) ) // for some acceptable position, it was not "not for" 
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 		check(Export.ObjectName!=NAME_None || !(Export.ObjectFlags&RF_Public));
 		check(IsLoading());
@@ -4453,6 +4453,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 	// Imports can have no name if they were filtered out due to package redirects, skip in that case
 	if (Import.XObject == nullptr && Import.ObjectName != NAME_None)
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		if (!GIsEditor && !IsRunningCommandlet())
 		{
 			// Try to find existing version in memory first.
@@ -4595,7 +4596,7 @@ UObject* FLinkerLoad::IndexToObject( FPackageIndex Index )
 	{
 		#if PLATFORM_DESKTOP
 			// Show a message box indicating, possible, corrupt data (desktop platforms only)
-			if ( !ExportMap.IsValidIndex( Index.ToExport() ) )
+			if ( !ExportMap.IsValidIndex( Index.ToExport() ) && !FApp::IsUnattended() )
 			{
 				FText ErrorMessage, ErrorCaption;
 				GConfig->GetText(TEXT("/Script/Engine.Engine"),
@@ -4630,7 +4631,7 @@ UObject* FLinkerLoad::IndexToObject( FPackageIndex Index )
 	{
 		#if PLATFORM_DESKTOP
 			// Show a message box indicating, possible, corrupt data (desktop platforms only)
-			if ( !ImportMap.IsValidIndex( Index.ToImport() ) )
+			if ( !ImportMap.IsValidIndex( Index.ToImport() ) && !FApp::IsUnattended() )
 			{
 				FText ErrorMessage, ErrorCaption;
 				GConfig->GetText(TEXT("/Script/Engine.Engine"),
@@ -4737,6 +4738,7 @@ void FLinkerLoad::Detach()
 	FLinkerManager::Get().RemoveLoaderFromObjectLoadersAndLoadersWithNewImports(this);
 	if (!FPlatformProperties::HasEditorOnlyData())
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(CurrentLoadContext);
 		CurrentLoadContext->RemoveDelayedLinkerClosePackage(this);
 	}
@@ -4835,7 +4837,6 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 		return *this;
 	}
 
-	check(CurrentLoadContext != nullptr);
 	UObject* Temporary = NULL;
 	Temporary = IndexToObject( Index );
 
@@ -4947,6 +4948,7 @@ UObject* FLinkerLoad::GetArchetypeFromLoader(const UObject* Obj)
 {
 	if (GEventDrivenLoaderEnabled)
 	{
+		FUObjectSerializeContext* CurrentLoadContext = GetSerializeContext();
 		check(CurrentLoadContext);
 		check(!TemplateForGetArchetypeFromLoader || CurrentLoadContext->SerializedObject == Obj);
 		return TemplateForGetArchetypeFromLoader;

@@ -757,6 +757,12 @@ protected:
 	 */
 	UMaterialInterface* GetCurrentMaterial();
 
+
+	/**
+	 * Fixup particle indices to only have valid entries.
+	 */
+	void FixupParticleIndices();
+
 };
 
 #if STATS

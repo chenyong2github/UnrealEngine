@@ -47,12 +47,15 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	{
 		FHeartBeatInfo()
 			: LastHeartBeatTime(0.0)
+			, LastHangTime(0.0)
 			, SuspendedCount(0)
 			, HangDuration(0)
 		{}
 
 		/** Time we last received a heartbeat for the current thread */
 		double LastHeartBeatTime;
+		/** Time we last detected a hang due to lack of heartbeats for the current thread */
+		double LastHangTime;
 		/** Suspended counter */
 		int32 SuspendedCount;
 		/** The timeout for this thread */
@@ -156,6 +159,12 @@ public:
 	 * Can be used to extend the duration during loading screens etc.
 	 */
 	void SetDurationMultiplier(double NewMultiplier);
+
+	/*
+	* Get the Id of the last thread to trigger the hang detector.
+	* Returns InvalidThreadId if hang detector has not been triggered.
+	*/
+	uint32 GetLastHungThreadId() const { return LastHungThreadId; }
 
 	//~ Begin FRunnable Interface.
 	virtual bool Init();

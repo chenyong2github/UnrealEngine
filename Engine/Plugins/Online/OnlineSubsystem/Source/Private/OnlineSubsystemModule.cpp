@@ -167,6 +167,8 @@ void FOnlineSubsystemModule::LoadDefaultSubsystem()
 void FOnlineSubsystemModule::ReloadDefaultSubsystem()
 {
 	DestroyOnlineSubsystem(DefaultPlatformService);
+	// Clear our InstanceNames cache so we can re-establish it in case the DefaultPlatformService
+	InstanceNames.Empty();
 	LoadDefaultSubsystem();
 }
 
@@ -233,47 +235,47 @@ void FOnlineSubsystemModule::EnumerateOnlineSubsystems(FEnumerateOnlineSubsystem
 
 FName FOnlineSubsystemModule::ParseOnlineSubsystemName(const FName& FullName, FName& SubsystemName, FName& InstanceName) const
 {
-#if !(UE_GAME || UE_SERVER)
-	SubsystemName = DefaultPlatformService;
-	InstanceName = FOnlineSubsystemImpl::DefaultInstanceName;
-
-	if (!FullName.IsNone())
+	FInstanceNameEntry* Entry = InstanceNames.Find(FullName);
+	if (Entry)
 	{
-		FString FullNameStr = FullName.ToString();
-
-		int32 DelimIdx = INDEX_NONE;
-		static const TCHAR InstanceDelim = ':';
-		if (FullNameStr.FindChar(InstanceDelim, DelimIdx))
-		{
-			if (DelimIdx > 0)
-			{
-				SubsystemName = FName(*FullNameStr.Left(DelimIdx));
-			}
-
-			if ((DelimIdx + 1) < FullNameStr.Len())
-			{
-				InstanceName = FName(*FullNameStr.RightChop(DelimIdx + 1));
-			}
-		}
-		else
-		{
-			SubsystemName = FName(*FullNameStr);
-		}
+		SubsystemName = Entry->SubsystemName;
+		InstanceName = Entry->InstanceName;	
 	}
+	else
+	{
+		SubsystemName = DefaultPlatformService;
+		InstanceName = FOnlineSubsystemImpl::DefaultInstanceName;
 
-	return FName(*FString::Printf(TEXT("%s:%s"), *SubsystemName.ToString(), *InstanceName.ToString()));
-#else	
-	
-	SubsystemName = FullName.IsNone() ? DefaultPlatformService : FullName;
-	InstanceName = FOnlineSubsystemImpl::DefaultInstanceName;
+		if (!FullName.IsNone())
+		{
+			FString FullNameStr = FullName.ToString();
 
-#if !UE_BUILD_SHIPPING
-	int32 DelimIdx = INDEX_NONE;
-	static const TCHAR InstanceDelim = ':';
-	ensure(!FullName.ToString().FindChar(InstanceDelim, DelimIdx) && DelimIdx == INDEX_NONE);
-#endif
-	return SubsystemName;
-#endif // !(UE_GAME || UE_SERVER)
+			int32 DelimIdx = INDEX_NONE;
+			static const TCHAR InstanceDelim = ':';
+			if (FullNameStr.FindChar(InstanceDelim, DelimIdx))
+			{
+				if (DelimIdx > 0)
+				{
+					SubsystemName = FName(*FullNameStr.Left(DelimIdx));
+				}
+
+				if ((DelimIdx + 1) < FullNameStr.Len())
+				{
+					InstanceName = FName(*FullNameStr.RightChop(DelimIdx + 1));
+				}
+			}
+			else
+			{
+				SubsystemName = FName(*FullNameStr);
+			}			
+		}
+
+		Entry = &InstanceNames.Add(FullName);
+		Entry->SubsystemName = SubsystemName;
+		Entry->InstanceName = InstanceName;
+		Entry->FullPath = FName(*FString::Printf(TEXT("%s:%s"), *SubsystemName.ToString(), *InstanceName.ToString()));
+	}
+	return Entry->FullPath;
 }
 
 IOnlineSubsystem* FOnlineSubsystemModule::GetOnlineSubsystem(const FName InSubsystemName)
@@ -303,7 +305,7 @@ IOnlineSubsystem* FOnlineSubsystemModule::GetOnlineSubsystem(const FName InSubsy
 
 				if (OSSFactory != nullptr)
 				{
-					UE_LOG_ONLINE(Verbose, TEXT("Creating online subsystem instance for: %s"), *InSubsystemName.ToString());
+					UE_LOG_ONLINE(Log, TEXT("Creating online subsystem instance for: %s"), *InSubsystemName.ToString());
 						
 					IOnlineSubsystemPtr NewSubsystemInstance = (*OSSFactory)->CreateSubsystem(InstanceName);
 					if (NewSubsystemInstance.IsValid())

@@ -105,7 +105,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	}
 	else
 	{
-		Device->GetDefaultBufferAllocator().AllocDefaultResource(InDesc, InUsage, ResourceLocation, Alignment);
+		Device->GetDefaultBufferAllocator().AllocDefaultResource(InDesc, InUsage, ResourceLocation, Alignment, CreateInfo.DebugName);
 		check(ResourceLocation.GetSize() == Size);
 	}
 }
@@ -222,7 +222,7 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 				}
 			};
 			
-			if (!RHICmdList)
+			if (!IsInRHIThread() && !IsInRenderingThread())
 			{
 				// Need to update buffer content on RHI thread (immediate context) because the buffer can be a
 				// sub-allocation and its backing resource may be in a state incompatible with the copy queue.
@@ -250,13 +250,15 @@ BufferType* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 					delete SrcResourceLoc_Heap;
 				});
 			}
-			else if (RHICmdList->Bypass())
+			else if (!RHICmdList || RHICmdList->Bypass())
 			{
+				// On RHIT or RT (when bypassing), we can access immediate context directly
 				FD3D12RHICommandInitializeBuffer Command(BufferOut, SrcResourceLoc, Size);
 				Command.ExecuteNoCmdList();
 			}
 			else
 			{
+				// On RT but not bypassing
 				new (RHICmdList->AllocCommand<FD3D12RHICommandInitializeBuffer>()) FD3D12RHICommandInitializeBuffer(BufferOut, SrcResourceLoc, Size);
 			}
 		}
@@ -328,7 +330,7 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, BufferT
 			FD3D12Resource* StagingBuffer = nullptr;
 
 			const FRHIGPUMask Node = Device->GetGPUMask();
-			VERIFYD3D12RESULT(Adapter.CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, Offset + Size, &StagingBuffer));
+			VERIFYD3D12RESULT(Adapter.CreateBuffer(D3D12_HEAP_TYPE_READBACK, Node, Node, Offset + Size, &StagingBuffer, nullptr));
 
 			// Copy the contents of the buffer to the staging buffer.
 			{

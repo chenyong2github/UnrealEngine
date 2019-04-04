@@ -764,10 +764,7 @@ void RefreshSamplerStatesCallback()
 			);
 		}
 
-		UMaterialInterface::RecacheAllMaterialUniformExpressions();
-
-		// Need to recache all cached mesh draw commands, as they store pointers to material uniform buffers which we just invalidated.
-		GetRendererModule().UpdateStaticDrawLists();
+		UMaterialInterface::RecacheAllMaterialUniformExpressions(false);
 	}
 }
 
@@ -1564,6 +1561,11 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		FModuleManager::Get().LoadModuleChecked("MovieSceneTracks");
 		FModuleManager::Get().LoadModule("LevelSequence");
 	}
+
+	// Enable the live coding module if it's a developer build
+#if WITH_LIVE_CODING
+	FModuleManager::Get().LoadModule("LiveCoding");
+#endif
 
 	// Finish asset manager loading
 	if (AssetManager)
@@ -3244,9 +3246,14 @@ struct FCompareFSortedTexture
 	FCompareFSortedTexture( bool InAlphaSort )
 		: bAlphaSort( InAlphaSort )
 	{}
-	FORCEINLINE bool operator()( const FSortedTexture& A, const FSortedTexture& B ) const
+	FORCEINLINE bool operator()(const FSortedTexture& A, const FSortedTexture& B) const
 	{
-		return bAlphaSort ? ( A.Name < B.Name ) : ( B.CurrentSize < A.CurrentSize );
+		if (bAlphaSort || A.CurrentSize == B.CurrentSize)
+		{
+			return A.Name < B.Name;
+		}
+
+		return B.CurrentSize < A.CurrentSize;
 	}
 };
 
@@ -3308,7 +3315,13 @@ struct FCompareFSortedStaticMesh
 		{
 			return ((B.VertexCountTotalMobile) < (A.VertexCountTotalMobile));
 		}
-		return bAlphaSort ? (A.Name < B.Name) : ((B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc));
+
+		if (bAlphaSort || (B.NumKB + B.ResKBExc) == (A.NumKB + A.ResKBExc))
+		{
+			return A.Name < B.Name;
+		}
+
+		return (B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc);
 	}
 };
 
@@ -3367,7 +3380,13 @@ struct FCompareFSortedSkeletalMesh
 		{
 			return ((B.VertexCountTotalMobile) < (A.VertexCountTotalMobile));
 		}
-		return bAlphaSort ? (A.Name < B.Name) : ((B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc));
+
+		if (bAlphaSort || (B.NumKB + B.ResKBExc) == (A.NumKB + A.ResKBExc))
+		{
+			return A.Name < B.Name;
+		}
+
+		return (B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc);
 	}
 };
 
@@ -3414,7 +3433,12 @@ struct FCompareFSortedAnimAsset
 	{}
 	FORCEINLINE bool operator()(const FSortedAnimAsset& A, const FSortedAnimAsset& B) const
 	{
-		return bAlphaSort ? (A.Name < B.Name) : ((B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc));
+		if (bAlphaSort || (B.NumKB + B.ResKBExc) == (A.NumKB + A.ResKBExc))
+		{
+			return A.Name < B.Name;
+		}
+
+		return (B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc);
 	}
 };
 
@@ -3438,7 +3462,12 @@ struct FCompareFSortedSet
 	{}
 	FORCEINLINE bool operator()( const FSortedSet& A, const FSortedSet& B ) const
 	{
-		return bAlphaSort ? ( A.Name < B.Name ) : ( B.Size < A.Size );
+		if (bAlphaSort || A.Size == B.Size)
+		{
+			return A.Name < B.Name;
+		}
+
+		return B.Size < A.Size;
 	}
 };
 
@@ -3505,7 +3534,12 @@ struct FCompareFSortedParticleSet
 	{}
 	FORCEINLINE bool operator()( const FSortedParticleSet& A, const FSortedParticleSet& B ) const
 	{
-		return bAlphaSort ? ( A.Name < B.Name ) : ( B.Size < A.Size );
+		if (bAlphaSort || A.Size == B.Size)
+		{
+			return A.Name < B.Name;
+		}
+
+		return B.Size < A.Size;
 	}
 };
 
@@ -4741,27 +4775,55 @@ bool UEngine::HandleKismetEventCommand(UWorld* InWorld, const TCHAR* Cmd, FOutpu
 	if (ObjectName == TEXT("*"))
 	{
 		// Send the command to everything in the world we're dealing with...
+		int32 NumInstanceCallsSucceeded = 0;
 		for (TObjectIterator<UObject> It; It; ++It)
 		{
 			UObject* const Obj = *It;
 			UWorld const* const ObjWorld = Obj->GetWorld();
 			if (ObjWorld == InWorld)
 			{
-				Obj->CallFunctionByNameWithArguments(Cmd, Ar, NULL, true);
+				const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
+				NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
 			}
 		}
+
+		Ar.Logf(TEXT("Called '%s' on everything in the world and %d instances succeeded"), Cmd, NumInstanceCallsSucceeded);
 	}
 	else
 	{
 		UObject* ObjectToMatch = FindObject<UObject>(ANY_PACKAGE, *ObjectName);
 
-		if (ObjectToMatch == NULL)
+		if (ObjectToMatch == nullptr)
 		{
-			Ar.Logf(TEXT("Failed to find object named '%s'.  Specify a valid name or *"), *ObjectName);
+			Ar.Logf(TEXT("Failed to find an object named '%s'.  Specify a valid object name, class name, or * (if using a class name for a BP, don't forget the _C)"), *ObjectName);
 		}
 		else
 		{
-			ObjectToMatch->CallFunctionByNameWithArguments(Cmd, Ar, NULL, true);
+			if (UClass* ClassToMatch = Cast<UClass>(ObjectToMatch))
+			{
+				// Call it on all instances of the class
+				int32 NumInstancesFound = 0;
+				int32 NumInstanceCallsSucceeded = 0;
+				for (FObjectIterator It(ClassToMatch); It; ++It)
+				{
+					UObject* const Obj = *It;
+					UWorld const* const ObjWorld = Obj->GetWorld();
+					if (ObjWorld == InWorld)
+					{
+						const bool bSucceeded = Obj->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
+						++NumInstancesFound;
+						NumInstanceCallsSucceeded += bSucceeded ? 1 : 0;
+					}
+				}
+
+				Ar.Logf(TEXT("Called '%s' on %d instance(s) of class '%s' (%d succeeded)"), Cmd, NumInstancesFound, *ClassToMatch->GetPathName(), NumInstanceCallsSucceeded);
+			}
+			else
+			{
+				// Call it on the specific instance specified
+				const bool bSucceeded = ObjectToMatch->CallFunctionByNameWithArguments(Cmd, Ar, nullptr, true);
+				Ar.Logf(TEXT("Called '%s' on instance '%s' (call %s)"), Cmd, *ObjectToMatch->GetPathName(), bSucceeded ? TEXT("succeeded") : TEXT("failed"));
+			}
 		}
 	}
 
@@ -7236,7 +7298,12 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 				FORCEINLINE bool operator()( const FSubItem& A, const FSubItem& B ) const
 				{
-					return bAlphaSort ? (A.Object->GetPathName() < B.Object->GetPathName()) : (B.Max < A.Max);
+					if (bAlphaSort || A.Max == B.Max)
+					{
+						return A.Object->GetPathName() < B.Object->GetPathName();
+					}
+
+					return B.Max < A.Max;
 				}
 			};
 			Objects.Sort( FCompareFSubItem( bAlphaSort ) );
@@ -8706,7 +8773,6 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	UPackage* PackageToReset = nullptr;
 	FLinkerLoad* Linker = LoadPackageLinker(nullptr, *PackageName.ToString(), LoadFlags, nullptr, nullptr, nullptr, [&PackageToReset, &Result](FLinkerLoad* InLinker)
 	{
-		check(InLinker);
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{
 			Result = InLinker->LinkerRoot->GetGuid();
@@ -8714,8 +8780,10 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 		}
 	});
 
-	ResetLoaders(PackageToReset);
-	Linker = nullptr;
+	if (PackageToReset)
+	{
+		ResetLoaders(PackageToReset);
+	}
 
 	return Result;
 }
@@ -10105,9 +10173,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 				Y += 20;
 				Y += Canvas->DrawShadowedString( X, Y, TEXT("[Server]"), GEngine->GetSmallFont(), FLinearColor::Gray);
 				DrawDebugPropertiesForWorld(ServerWorld, X, Y);
-				break;
 			}
-
 		}
 	}
 
@@ -10272,7 +10338,24 @@ FOnSwitchWorldForPIE FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate;
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClient* InViewportClient )
 	: ViewportClient( InViewportClient )
-	, OldWorld( NULL )
+	, OldWorld( nullptr )
+{
+	ConditionalSwitchWorld( ViewportClient, nullptr );
+}
+
+FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
+	: ViewportClient( nullptr )
+	, OldWorld( nullptr )
+{
+	if (InWorld)
+	{
+		ViewportClient = InWorld->GetGameViewport();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
+}
+
+void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* InViewportClient, UWorld* InWorld )
 {
 	if( GIsEditor )
 	{
@@ -10281,31 +10364,44 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
+		}
+		else if ( InWorld && !GIsPlayInEditorWorld )
+		{
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+			// No viewport so set the world directly
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }
 
 FScopedConditionalWorldSwitcher::~FScopedConditionalWorldSwitcher()
 {
-	// Only switch in the editor and if we made a swtich (OldWorld not null)
+	// Only switch in the editor and if we made a switch (OldWorld not null)
 	if( GIsEditor && OldWorld )
 	{
 		if( ViewportClient && ViewportClient == GEngine->GameViewport && GIsPlayInEditorWorld )
 		{
 			const bool bSwitchToPIEWorld = false;
 			// Delegate must be valid
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld );
-		} 
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
+		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to restore the old world
 			ViewportClient->ConditionalRestoreWorld( OldWorld );
+		}
+		else if( GIsPlayInEditorWorld )
+		{
+			// No viewport so always restore to old world
+			const bool bSwitchToPIEWorld = false;
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, OldWorld );
 		}
 	}
 }
@@ -10544,6 +10640,14 @@ void UEngine::WorldAdded( UWorld* InWorld )
 void UEngine::WorldDestroyed( UWorld* InWorld )
 {
 	WorldDestroyedEvent.Broadcast( InWorld );
+}
+
+void UEngine::BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString /* = TEXT("") */)
+{
+	UE_LOG(LogNet, Error, TEXT("UEngine::BroadcastNetworkFailure: FailureType = %s, ErrorString = %s, Driver = %s"),
+		ENetworkFailure::ToString(FailureType), *ErrorString, (NetDriver ? *NetDriver->GetDescription() : TEXT("NONE")));
+
+	NetworkFailureEvent.Broadcast(World, NetDriver, FailureType, ErrorString);
 }
 
 UWorld* UEngine::GetWorldFromContextObject(const UObject* Object, EGetWorldErrorMode ErrorMode) const
@@ -11987,13 +12091,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	// send a callback message
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
+
 	// make sure there is a matching PostLoadMap() no matter how we exit
 	struct FPostLoadMapCaller
 	{
-		bool bCalled;
 		FPostLoadMapCaller()
 			: bCalled(false)
 		{}
+
 		~FPostLoadMapCaller()
 		{
 			if (!bCalled)
@@ -12001,6 +12106,19 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
 			}
 		}
+
+		void Broadcast(UWorld* World)
+		{
+			if (ensure(!bCalled))
+			{
+				bCalled = true;
+				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
+			}
+		}
+
+	private:
+		bool bCalled;
+
 	} PostLoadMapCaller;
 
 	// Cancel any pending texture streaming requests.  This avoids a significant delay on consoles 
@@ -12043,7 +12161,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	// Unload the current world
 	if( WorldContext.World() )
 	{
-		WorldContext.World()->bIsTearingDown = true;
+		WorldContext.World()->BeginTearingDown();
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
@@ -12475,8 +12593,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	WorldContext.World()->BeginPlay();
 
 	// send a callback message
-	PostLoadMapCaller.bCalled = true;
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(WorldContext.World());
+	PostLoadMapCaller.Broadcast(WorldContext.World());
 
 	WorldContext.World()->bWorldWasLoadedThisTick = true;
 
@@ -15602,7 +15719,18 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 				{
 					if (WaveInstanceInfo.ActualVolume >= 0.01f)
 					{
-						WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						bool bShouldPrint = true;
+						FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+						const FString& DebugSoloSoundName = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundWave();
+						if (DebugSoloSoundName != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundName))
+						{
+							bShouldPrint = false;
+						}
+
+						if (bShouldPrint == true)
+						{
+							WaveInstances.Emplace(&WaveInstanceInfo, &StatSoundInfo);
+						}
 					}
 				}
 			}
@@ -15675,10 +15803,21 @@ int32 UEngine::RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* 
 			{
 				if (WaveInstanceInfo.ActualVolume >= 0.01f)
 				{
-					const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
-					Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
-					Y += 12;
-					break;
+					bool bShouldPrint = true;
+					FString WaveInstanceName = WaveInstanceInfo.WaveInstanceName.ToString();
+					const FString& DebugSoloSoundCue = GEngine->GetAudioDeviceManager()->GetDebugSoloSoundCue();
+					if (DebugSoloSoundCue != TEXT("") && !WaveInstanceName.Contains(DebugSoloSoundCue))
+					{
+						bShouldPrint = false;
+					}
+
+					if (bShouldPrint == true)
+					{
+						const FString TheString = FString::Printf(TEXT("%4i. %s %s"), ActiveSoundCount++, *StatSoundInfo.SoundName, *StatSoundInfo.SoundClassName.ToString());
+						Canvas->DrawShadowedString(X, Y, *TheString, GetSmallFont(), FColor::White);
+						Y += 12;
+						break;
+					}
 				}
 			}
 		}

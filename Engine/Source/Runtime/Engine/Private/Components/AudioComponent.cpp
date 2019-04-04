@@ -21,6 +21,7 @@ FAutoConsoleVariableRef CVarBackedAnalysisTimeShift(
 	TEXT("Value: The time in seconds to shift the timeline."),
 	ECVF_Default);
 
+#define REPLAY_LOOPS_ENABLED 0
 
 /*-----------------------------------------------------------------------------
 UAudioComponent implementation.
@@ -49,6 +50,7 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	bOverrideSubtitlePriority = false;
 	bIsPreviewSound = false;
 	bIsPaused = false;
+	ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
 	Priority = 1.f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
 	PitchMultiplier = 1.f;
@@ -70,6 +72,12 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	// TODO: Consider only putting played/active components in to the map
 	FScopeLock Lock(&AudioIDToComponentMapLock);
 	AudioIDToComponentMap.Add(AudioComponentID, this);
+
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_DuringPhysics;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.SetTickFunctionEnable(false);
+	bTickInEditor = true;
 }
 
 UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentID)
@@ -230,7 +238,7 @@ const UObject* UAudioComponent::AdditionalStatObject() const
 	return Sound;
 }
 
-void UAudioComponent::SetSound( USoundBase* NewSound )
+void UAudioComponent::SetSound(USoundBase* NewSound)
 {
 	const bool bPlay = IsPlaying();
 
@@ -253,13 +261,47 @@ bool UAudioComponent::IsReadyForOwnerToAutoDestroy() const
 	return !IsPlaying();
 }
 
+void UAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, TickFunction);
+
+	const bool bIsReplayEnabled = ReplayWhenInAudibleRange == EReplayWhenInAudibleRange::Enabled;
+	if (bIsReplayEnabled)
+	{
+		if (ActiveCount > 0)
+		{
+			if (!IsInAudibleRange())
+			{
+				// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
+				bool bCurrentAutoDestroy = bAutoDestroy;
+				bAutoDestroy = false;
+				StopInternal();
+				bAutoDestroy = bCurrentAutoDestroy;
+			}
+		}
+		else
+		{
+			if (IsInAudibleRange())
+			{
+				Play(); // Play refreshes ReplayWhenInAudibleRange internally
+			}
+		}
+	}
+}
+
+
 void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 
-	if (bIsActive && !bPreviewComponent)
+	if (bPreviewComponent)
 	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
+		return;
+	}
+
+	if (FAudioDevice* AudioDevice = GetAudioDevice())
+	{
+		if (bIsActive)
 		{
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.UpdateAudioComponentTransform"), STAT_AudioUpdateComponentTransform, STATGROUP_AudioThreadCommands);
 
@@ -299,6 +341,22 @@ void UAudioComponent::CancelAutoAttachment(bool bDetachFromParent)
 	}
 }
 
+bool UAudioComponent::IsInAudibleRange() const
+{
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return false;
+	}
+
+	float MaxDistance = 0.0f;
+	float FocusFactor = 0.0f;
+	const FVector Location = GetComponentTransform().GetLocation();
+	const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
+
+	AudioDevice->GetMaxDistanceAndFocusFactor(Sound, GetWorld(), Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+	return AudioDevice->SoundIsAudible(Sound, GetWorld(), Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+}
 
 void UAudioComponent::Play(float StartTime)
 {
@@ -355,7 +413,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			}
 
 			// Create / configure new ActiveSound
-			const FSoundAttenuationSettings* AttenuationSettingsToApply = (bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr);
+			const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
 
 			float MaxDistance = 0.0f;
 			float FocusFactor = 0.0f;
@@ -461,6 +519,17 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			++ActiveCount;
 
 			AudioDevice->AddNewActiveSound(NewActiveSound);
+
+#if REPLAY_LOOPS_ENABLED
+			// Only allow replay if this is the first sound to play
+			const bool bCanVirtualize = Sound && Sound->IsVirtualizeWhenSilent() && AudioDevice->VirtualSoundsEnabled();
+			if (!bIsPreviewSound && NewActiveSound.bHasAttenuationSettings && !bCanVirtualize && !bAutoDestroy)
+			{
+				const bool bLooping = NewActiveSound.IsLooping();
+				ReplayWhenInAudibleRange = bLooping ? EReplayWhenInAudibleRange::Enabled : EReplayWhenInAudibleRange::Disabled;
+				PrimaryComponentTick.SetTickFunctionEnable(bLooping);
+			}
+#endif // REPLAY_LOOPS_ENABLED
 			bIsActive = true;
 		}
 	}
@@ -500,6 +569,14 @@ void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
 	{
 		if (FadeOutDuration > 0.0f)
 		{
+#if REPLAY_LOOPS_ENABLED
+			if (FadeVolumeLevel == 0.0f)
+			{
+				ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::DisableRequested;
+				PrimaryComponentTick.SetTickFunctionEnable(false);
+			}
+#endif // REPLAY_LOOPS_ENABLED
+
 			if (FAudioDevice* AudioDevice = GetAudioDevice())
 			{
 				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.FadeOut"), STAT_AudioFadeOut, STATGROUP_AudioThreadCommands);
@@ -530,6 +607,14 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
+#if REPLAY_LOOPS_ENABLED
+			if (AdjustVolumeLevel > 0.0f && ReplayWhenInAudibleRange == EReplayWhenInAudibleRange::DisableRequested)
+			{
+				ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Enabled;
+				PrimaryComponentTick.SetTickFunctionEnable(true);
+			}
+#endif // REPLAY_LOOPS_ENABLED
+
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
 
 			const uint64 MyAudioComponentID = AudioComponentID;
@@ -557,6 +642,16 @@ void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolu
 }
 
 void UAudioComponent::Stop()
+{
+#if REPLAY_LOOPS_ENABLED
+	ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::DisableRequested;
+	PrimaryComponentTick.SetTickFunctionEnable(false);
+#endif // REPLAY_LOOPS_ENABLED
+
+	StopInternal();
+}
+
+void UAudioComponent::StopInternal()
 {
 	if (bIsActive)
 	{
@@ -616,30 +711,41 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	check(ActiveCount > 0);
 	--ActiveCount;
 
-	// Mark inactive before calling destroy to avoid recursion
-	bIsActive = (ActiveCount > 0);
-
-	if (!bIsActive)
+	if (ActiveCount > 0)
 	{
-		if (!bFailedToStart && GetWorld() != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
-		{
-			INC_DWORD_STAT(STAT_AudioFinishedDelegatesCalled);
-			SCOPE_CYCLE_COUNTER(STAT_AudioFinishedDelegates);
+		return;
+	}
 
-			OnAudioFinished.Broadcast();
-			OnAudioFinishedNative.Broadcast(this);
-		}
+	// Mark inactive before calling destroy to avoid recursion
+	if (bIsActive)
+	{
+		bIsActive = false;
+	}
 
-		// Auto destruction is handled via marking object for deletion.
-		if (bAutoDestroy)
-		{
-			DestroyComponent();
-		}
-		// Otherwise see if we should detach ourself and wait until we're needed again
-		else if (bAutoManageAttachment)
-		{
-			CancelAutoAttachment(true);
-		}
+	if (bFailedToStart)
+	{
+		ReplayWhenInAudibleRange = EReplayWhenInAudibleRange::Disabled;
+		PrimaryComponentTick.SetTickFunctionEnable(false);
+	}
+
+	if (!bFailedToStart && GetWorld() != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
+	{
+		INC_DWORD_STAT(STAT_AudioFinishedDelegatesCalled);
+		SCOPE_CYCLE_COUNTER(STAT_AudioFinishedDelegates);
+
+		OnAudioFinished.Broadcast();
+		OnAudioFinishedNative.Broadcast(this);
+	}
+
+	// Auto destruction is handled via marking object for deletion.
+	if (bAutoDestroy)
+	{
+		DestroyComponent();
+	}
+	// Otherwise see if we should detach ourself and wait until we're needed again
+	else if (bAutoManageAttachment)
+	{
+		CancelAutoAttachment(true);
 	}
 }
 

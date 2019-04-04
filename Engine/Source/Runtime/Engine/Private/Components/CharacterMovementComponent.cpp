@@ -196,6 +196,13 @@ namespace CharacterMovementCVars
 		TEXT( "If 1, remove invalid replay samples that can occur due to oversampling (sampling at higher rate than physics is being ticked)" ),
 		ECVF_Default);
 
+	static int32 ForceJumpPeakSubstep = 1;
+	FAutoConsoleVariableRef CVarForceJumpPeakSubstep(
+		TEXT("p.ForceJumpPeakSubstep"),
+		ForceJumpPeakSubstep,
+		TEXT("If 1, force a jump substep to always reach the peak position of a jump, which can often be cut off as framerate lowers."),
+		ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 
 	int32 NetShowCorrections = 0;
@@ -397,6 +404,8 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	
 	MaxSimulationTimeStep = 0.05f;
 	MaxSimulationIterations = 8;
+	MaxJumpApexAttemptsPerSimulation = 2;
+	NumJumpApexAttempts = 0;
 
 	MaxDepenetrationWithGeometry = 500.f;
 	MaxDepenetrationWithGeometryAsProxy = 100.f;
@@ -491,6 +500,7 @@ UCharacterMovementComponent::UCharacterMovementComponent(const FObjectInitialize
 	bImpartBaseVelocityZ = true;
 	bImpartBaseAngularVelocity = true;
 	bIgnoreClientMovementErrorChecksAndCorrection = false;
+	bServerAcceptClientAuthoritativePosition = false;
 	bAlwaysCheckFloor = true;
 
 	// default character can jump, walk, and swim
@@ -602,16 +612,38 @@ void UCharacterMovementComponent::OnRegister()
 
 	// Force linear smoothing for replays.
 	const UWorld* MyWorld = GetWorld();
-	const bool IsReplay = (MyWorld && MyWorld->IsPlayingReplay());
-	if (IsReplay)
+	const bool bIsReplay = (MyWorld && MyWorld->IsPlayingReplay());
+	if (bIsReplay)
 	{
-		if ((CharacterMovementCVars::ReplayUseInterpolation == 1) || (MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT)))
+		// At least one of these conditions will be true
+		const bool bHasInterpolationData = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
+		const bool bHasRepMovement = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
+
+		if (CharacterMovementCVars::ReplayUseInterpolation == 1)
 		{
-			NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			if (bHasInterpolationData)
+			{
+				NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			}
+			else
+			{
+				UE_LOG(LogCharacterMovement, Warning, TEXT("p.ReplayUseInterpolation is enabled, but the replay was not recorded with interpolation data."));
+				ensure(bHasRepMovement);
+				NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			}
 		}
 		else
 		{
-			NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			if (bHasRepMovement)
+			{
+				NetworkSmoothingMode = ENetworkSmoothingMode::Linear;
+			}
+			else
+			{
+				UE_LOG(LogCharacterMovement, Warning, TEXT("p.ReplayUseInterpolation is disabled, but the replay was not recorded with rep movement data."));
+				ensure(bHasInterpolationData);
+				NetworkSmoothingMode = ENetworkSmoothingMode::Replay;
+			}
 		}
 	}
 	else if (NetMode == NM_ListenServer)
@@ -1606,6 +1638,7 @@ void UCharacterMovementComponent::SimulateRootMotion(float DeltaSeconds, const F
 			bNetworkMovementModeChanged = false;
 		}
 
+		NumJumpApexAttempts = 0;
 		StartNewPhysics(DeltaSeconds, 0);
 		// fixme laurent - simulate movement seems to have step up issues? investigate as that would be cheaper to use.
 		// 		SimulateMovement(DeltaSeconds);
@@ -2326,6 +2359,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 
 		// Clear jump input now, to allow movement events to trigger it for next update.
 		CharacterOwner->ClearJumpInput(DeltaSeconds);
+		NumJumpApexAttempts = 0;
 
 		// change position
 		StartNewPhysics(DeltaSeconds, 0);
@@ -4091,7 +4125,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 	while( (remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) )
 	{
 		Iterations++;
-		const float timeTick = GetSimulationTimeStep(remainingTime, Iterations);
+		float timeTick = GetSimulationTimeStep(remainingTime, Iterations);
 		remainingTime -= timeTick;
 		
 		const FVector OldLocation = UpdatedComponent->GetComponentLocation();
@@ -4134,11 +4168,12 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 			}
 		}
 
-		// Apply gravity
+		// Compute current gravity
 		const FVector Gravity(0.f, 0.f, GetGravityZ());
 		float GravityTime = timeTick;
 
 		// If jump is providing force, gravity may be affected.
+		bool bEndingJumpForce = false;
 		if (CharacterOwner->JumpForceTimeRemaining > 0.0f)
 		{
 			// Consume some of the force time. Only the remaining time (if any) is affected by gravity when bApplyGravityWhileJumping=false.
@@ -4150,26 +4185,64 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 			if (CharacterOwner->JumpForceTimeRemaining <= 0.0f)
 			{
 				CharacterOwner->ResetJumpState();
+				bEndingJumpForce = true;
 			}
 		}
 
+		// Apply gravity
 		Velocity = NewFallVelocity(Velocity, Gravity, GravityTime);
 		VelocityNoAirControl = bHasAirControl ? NewFallVelocity(VelocityNoAirControl, Gravity, GravityTime) : Velocity;
 		const FVector AirControlAccel = (Velocity - VelocityNoAirControl) / timeTick;
 
+		// See if we need to sub-step to exactly reach the apex. This is important for avoiding "cutting off the top" of the trajectory as framerate varies.
+		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocity.Z > 0.f && Velocity.Z <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)
+		{
+			const FVector DerivedAccel = (Velocity - OldVelocity) / timeTick;
+			if (!FMath::IsNearlyZero(DerivedAccel.Z))
+			{
+				const float TimeToApex = -OldVelocity.Z / DerivedAccel.Z;
+				
+				// The time-to-apex calculation should be precise, and we want to avoid adding a substep when we are basically already at the apex from the previous iteration's work.
+				const float ApexTimeMinimum = 0.0001f;
+				if (TimeToApex >= ApexTimeMinimum && TimeToApex < timeTick)
+				{
+					const FVector ApexVelocity = OldVelocity + DerivedAccel * TimeToApex;
+					Velocity = ApexVelocity;
+					Velocity.Z = 0.f; // Should be nearly zero anyway, but this makes apex notifications consistent.
+
+					// We only want to move the amount of time it takes to reach the apex, and refund the unused time for next iteration.
+					remainingTime += (timeTick - TimeToApex);
+					timeTick = TimeToApex;
+					Iterations--;
+					NumJumpApexAttempts++;
+				}
+			}
+		}
+
+		//UE_LOG(LogCharacterMovement, Log, TEXT("dt=(%.6f) OldLocation=(%s) OldVelocity=(%s) NewVelocity=(%s)"), timeTick, *(UpdatedComponent->GetComponentLocation()).ToString(), *OldVelocity.ToString(), *Velocity.ToString());
 		ApplyRootMotionToVelocity(timeTick);
 
-		if( bNotifyApex && (Velocity.Z <= 0.f) )
+		if (bNotifyApex && (Velocity.Z < 0.f))
 		{
 			// Just passed jump apex since now going down
 			bNotifyApex = false;
 			NotifyJumpApex();
 		}
 
+		// Compute change in position (using midpoint integration method).
+		FVector Adjusted = 0.5f*(OldVelocity + Velocity) * timeTick;
+		
+		// Special handling if ending the jump force where we didn't apply gravity during the jump.
+		if (bEndingJumpForce && !bApplyGravityWhileJumping)
+		{
+			// We had a portion of the time at constant speed then a portion with acceleration due to gravity.
+			// Account for that here with a more correct change in position.
+			const float NonGravityTime = FMath::Max(0.f, timeTick - GravityTime);
+			Adjusted = (OldVelocity * NonGravityTime) + (0.5f*(OldVelocity + Velocity) * GravityTime);
+		}
 
 		// Move
 		FHitResult Hit(1.f);
-		FVector Adjusted = 0.5f*(OldVelocity + Velocity) * timeTick;
 		SafeMoveUpdatedComponent( Adjusted, PawnRotation, true, Hit);
 		
 		if (!HasValidData())
@@ -7582,17 +7655,6 @@ bool UCharacterMovementComponent::ClientUpdatePositionAfterServerUpdate()
 		return false;
 	}
 
-	if (bIgnoreClientMovementErrorChecksAndCorrection)
-	{
-#if !UE_BUILD_SHIPPING
-		if (CharacterMovementCVars::NetShowCorrections != 0)
-		{
-			UE_LOG(LogNetPlayerMovement, Warning, TEXT("*** Client: %s is set to ignore error checks and corrections with %d saved moves in queue."), *GetNameSafe(CharacterOwner), ClientData->SavedMoves.Num());
-		}
-#endif // !UE_BUILD_SHIPPING
-		return false;
-	}
-
 	ClientData->bUpdatePosition = false;
 
 	// Don't do any network position updates on things running PHYS_RigidBody
@@ -7704,7 +7766,7 @@ bool UCharacterMovementComponent::ForcePositionUpdate(float DeltaTime)
 	const bool bServerMoveHasOccurred = (ServerData->ServerTimeStampLastServerMove != 0.f);
 	if (bServerMoveHasOccurred)
 	{
-		UE_LOG(LogNetPlayerMovement, Warning, TEXT("ForcePositionUpdate %s (DeltaTime %.2f)"), *CharacterOwner->GetName(), DeltaTime);
+		UE_LOG(LogNetPlayerMovement, Log, TEXT("ForcePositionUpdate %s (DeltaTime %.2f)"), *CharacterOwner->GetName(), DeltaTime);
 	}
 #endif
 
@@ -8684,8 +8746,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 	}
 	else
 	{
-		const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
-		if (GameNetworkManager->ClientAuthorativePosition)
+		if (ServerShouldUseAuthoritativePosition(ClientTimeStamp, DeltaTime, Accel, ClientLoc, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))
 		{
 			const FVector LocDiff = UpdatedComponent->GetComponentLocation() - ClientLoc; //-V595
 			if (!LocDiff.IsZero() || ClientMovementMode != PackNetworkMovementMode() || GetMovementBase() != ClientMovementBase || (CharacterOwner && CharacterOwner->GetBasedMovement().BoneName != ClientBaseBoneName))
@@ -8736,12 +8797,21 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 			RootMotionSourceDebug::PrintOnScreen(*CharacterOwner, AdjustedDebugString);
 		}
 #endif
+
 		const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
 		if (GameNetworkManager->ExceedsAllowablePositionError(LocDiff))
 		{
 			bNetworkLargeClientCorrection = (LocDiff.SizeSquared() > FMath::Square(NetworkLargeClientCorrectionDistance));
 			return true;
 		}
+
+		// Check for disagreement in movement mode
+		const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
+		if (CurrentPackedMovementMode != ClientMovementMode)
+		{
+			return true;
+		}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (CharacterMovementCVars::NetForceClientAdjustmentPercent > SMALL_NUMBER)
 		{
@@ -8763,16 +8833,25 @@ bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, 
 #endif // !UE_BUILD_SHIPPING
 	}
 
-	// Check for disagreement in movement mode
-	const uint8 CurrentPackedMovementMode = PackNetworkMovementMode();
-	if (CurrentPackedMovementMode != ClientMovementMode)
+	return false;
+}
+
+
+bool UCharacterMovementComponent::ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
+{
+	if (bServerAcceptClientAuthoritativePosition)
+	{
+		return true;
+	}
+
+	const AGameNetworkManager* GameNetworkManager = (const AGameNetworkManager*)(AGameNetworkManager::StaticClass()->GetDefaultObject());
+	if (GameNetworkManager->ClientAuthorativePosition)
 	{
 		return true;
 	}
 
 	return false;
 }
-
 
 bool UCharacterMovementComponent::ServerMove_Validate(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 MoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)
 {

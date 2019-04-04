@@ -105,7 +105,9 @@ public:
 	/**
 	 * Called the the sample is returned to the pool for cleanup purposes
 	 */
+#if !UE_SERVER
 	virtual void ShutdownPoolable() override;
+#endif
 
 private:
 

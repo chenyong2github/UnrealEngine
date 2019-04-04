@@ -22,14 +22,14 @@ public:
 	
 	/** Animation Sequence to play for this particular setup */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<UAnimSequence> AnimSequence;
+	UAnimSequence* AnimSequence;
 
 	/** Animation blueprint to use for playing back the Animation Sequence */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = AnimationSharing)
 	TSubclassOf<UAnimSharingStateInstance> AnimBlueprint;	
 
 	/** The number of randomized instances created from this setup, it will create instance with different start time offsets (Length / Number of Instance) * InstanceIndex */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing)
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (ClampMin = "1", UIMin = "1"))
 	FPerPlatformInt NumRandomizedInstances;
 
 	/** Whether or not this setup is enabled for specific platforms */
@@ -61,7 +61,7 @@ public:
 	bool bAdditive;
 
 	/** Duration of blending when blending to this state */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "!bAdditive"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "!bAdditive", UIMin = "0.0", ClampMin = "0.0"))
 	float BlendTime;
 
 	/** Flag whether or not we should return to the previous state, only used when this state is an on-demand one*/
@@ -76,12 +76,12 @@ public:
 	uint8 NextState;
 
 	/** Number of instances that will be created for this state (platform-specific) */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta=(EditCondition="bOnDemand"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta=(EditCondition="bOnDemand", ClampMin = "0", UIMin = "0"))
 	FPerPlatformInt MaximumNumberOfConcurrentInstances;
 
 	/** Percentage of 'wiggle' frames, this is used when we run out of available entries in Components, if one of the on-demand animations has started SequenceLength * WiggleFramePercentage ago or earlier,
 	it is used instead of a brand new one */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bOnDemand", UIMin="0.0", UIMax="1.0"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bOnDemand", UIMin="0.0", UIMax="1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float WiggleTimePercentage;
 	
 	/** Whether or not this animation requires curves or morphtargets to function correctly for slave components */
@@ -132,11 +132,11 @@ public:
 
 	/** Skeleton compatible with the animation sharing setup */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<USkeleton> Skeleton;
+	USkeleton* Skeleton;
 
 	/** Skeletal mesh used to setup skeletal mesh components */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
+	USkeletalMesh* SkeletalMesh;
 
 	/** Animation blueprint used to perform the blending between states */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (DisplayName="Animation Blueprint for Blending"))
@@ -160,22 +160,22 @@ struct FAnimationSharingScalability
 {
 	GENERATED_BODY()
 public:
-	FAnimationSharingScalability() : UseBlendTransitions(true), BlendSignificanceValue(0.5f), MaximumNumberConcurrentBlends(1) {}
+	FAnimationSharingScalability() : UseBlendTransitions(true), BlendSignificanceValue(0.0f), MaximumNumberConcurrentBlends(1) {}
 
 	/** Flag whether or not to use blend transitions between states */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
 	FPerPlatformBool UseBlendTransitions;
 
 	/** Significance value tied to whether or not a transition should be blended */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions", ClampMin="0.0", UIMin="0.0"))
 	FPerPlatformFloat BlendSignificanceValue;
 
 	/** Maximum number of blends which can be running concurrently */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions", ClampMin = "1", UIMin = "1"))
 	FPerPlatformInt MaximumNumberConcurrentBlends;
 
 	/** Significance value tied to whether or not the master pose components should be ticking */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (EditCondition = "bBlendTransitions", ClampMin = "0.0", UIMin = "0.0"))
 	FPerPlatformFloat TickSignificanceValue;
 };
 

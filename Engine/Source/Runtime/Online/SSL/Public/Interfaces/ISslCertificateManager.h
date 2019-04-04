@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
 #include "CoreFwd.h"
 

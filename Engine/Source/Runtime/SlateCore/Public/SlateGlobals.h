@@ -58,3 +58,7 @@ extern SLATECORE_API int32 GSlateFastWidgetPath;
 *****************************************************************************/
 class FActiveTimerHandle;
 enum class EActiveTimerReturnType : uint8;
+
+
+/** Used to guard access across slate to specific threads */
+#define SLATE_CROSS_THREAD_CHECK() checkf(IsInGameThread() || IsInSlateThread(), TEXT("Slate can only be accessed from the GameThread or the SlateLoadingThread!"));

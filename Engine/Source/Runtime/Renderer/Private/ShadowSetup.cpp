@@ -917,7 +917,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 
 			// Don't cache if it requires per view per mesh state for distance cull fade.
 			const bool bIsPrimitiveDistanceCullFading = InCurrentView.PotentiallyFadingPrimitiveMap[InPrimitiveSceneInfo->GetIndex()];
-			const bool bCanCache = !bIsPrimitiveDistanceCullFading;
+			const bool bCanCache = !bIsPrimitiveDistanceCullFading && !InPrimitiveSceneInfo->NeedsUpdateStaticMeshes();
 
 			for (int32 MeshIndex = 0; MeshIndex < InPrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
 			{
@@ -943,6 +943,11 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, bool
 					{
 						NumSubjectMeshCommandBuildRequestElements += StaticMeshRelevance.NumElements;
 						SubjectMeshCommandBuildRequests.Add(&StaticMesh);
+					}
+
+					if (StaticMeshRelevance.bRequiresPerElementVisibility)
+					{
+						InCurrentView.StaticMeshBatchVisibility[StaticMesh.BatchVisibilityId] = StaticMesh.VertexFactory->GetStaticBatchElementVisibility(InCurrentView, &StaticMesh);
 					}
 
 					bDrawingStaticMeshes = true;
@@ -1074,16 +1079,23 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			// Update the primitive component's last render time. Allows the component to update when using bCastWhenHidden.
 			const float CurrentWorldTime = Views[0]->Family->CurrentWorldTime;
 			*(PrimitiveSceneInfo->ComponentLastRenderTime) = CurrentWorldTime;
-			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate() || PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+
+			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
 			{
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 				{
-					// Main view visible primitives are processed on parallel tasks, updating them here will cause a race condition.
+					// Main view visible primitives are processed on parallel tasks, updating uniform buffer them here will cause a race condition.
 					check(!Views[ViewIndex]->PrimitiveVisibilityMap[PrimitiveSceneInfo->GetIndex()]);
 				}
 
-				PrimitiveSceneInfo->ConditionalUpdateStaticMeshes(FRHICommandListExecutor::GetImmediateCommandList());
 				PrimitiveSceneInfo->ConditionalUpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
+			}
+
+			if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+			{
+				// Need to defer to next InitViews, as main view visible primitives are processed on parallel tasks and calling 
+				// CacheMeshDrawCommands may resize CachedDrawLists/CachedMeshDrawCommandStateBuckets causing a crash.
+				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
 			}
 		}
 
@@ -2139,11 +2151,19 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 	}
 }
 
+static bool CanFallbackToOldShadowMapCache(const FShadowMapRenderTargetsRefCounted& CachedShadowMap, const FIntPoint& MaxShadowResolution)
+{
+	return CachedShadowMap.IsValid()
+		&& CachedShadowMap.GetSize().X <= MaxShadowResolution.X
+		&& CachedShadowMap.GetSize().Y <= MaxShadowResolution.Y;
+}
+
 void ComputeWholeSceneShadowCacheModes(
 	const FLightSceneInfo* LightSceneInfo,
 	bool bCubeShadowMap,
 	float RealTime,
 	float ActualDesiredResolution,
+	const FIntPoint& MaxShadowResolution,
 	FScene* Scene,
 	FWholeSceneProjectedShadowInitializer& InOutProjectedShadowInitializer,
 	FIntPoint& InOutShadowMapSize,
@@ -2202,7 +2222,7 @@ void ComputeWholeSceneShadowCacheModes(
 						++*NumCachesUpdatedThisFrame;
 						
 						// Check if update is caused by resolution change
-						if (CachedShadowMapData->ShadowMap.IsValid())
+						if (CanFallbackToOldShadowMapCache(CachedShadowMapData->ShadowMap, MaxShadowResolution))
 						{
 							FIntPoint ExistingShadowMapSize = CachedShadowMapData->ShadowMap.GetSize();
 							bool bOverBudget = *NumCachesUpdatedThisFrame > MaxCacheUpdatesAllowed;
@@ -2544,6 +2564,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						ProjectedShadowInitializer.bOnePassPointLightShadow,
 						ViewFamily.CurrentRealTime,
 						MaxDesiredResolution,
+						FIntPoint(MaxShadowResolution, MaxShadowResolutionY),
 						Scene,
 						// Below are in-out or out parameters. They can change
 						ProjectedShadowInitializer,

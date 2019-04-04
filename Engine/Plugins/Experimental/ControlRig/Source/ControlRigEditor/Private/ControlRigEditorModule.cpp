@@ -54,6 +54,7 @@
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "EdGraphUtilities.h"
 #include "ControlRigGraphPanelNodeFactory.h"
@@ -61,10 +62,11 @@
 #include "ControlRigBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
 #include "ControlRigHierarchyCommands.h"
+#include "ControlRigStackCommands.h"
 #include "Animation/AnimSequence.h"
 #include "ControlRigEditorEditMode.h"
 #include "ControlRigDetails.h"
-#include "Units/RigUnitEditor_TwoBoneIKFK.h"
+#include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
 #include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
@@ -78,6 +80,7 @@ void FControlRigEditorModule::StartupModule()
 	FControlRigEditModeCommands::Register();
 	FControlRigBlueprintCommands::Register();
 	FControlRigHierarchyCommands::Register();
+	FControlRigStackCommands::Register();
 	FControlRigEditorStyle::Get();
 
 	CommandBindings = MakeShareable(new FUICommandList());
@@ -743,8 +746,16 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 	// Add all rig units
 	FControlRigBlueprintUtils::ForAllRigUnits([&](UStruct* InStruct)
 	{
-		FText NodeCategory = FText::FromString(InStruct->GetMetaData(TEXT("Category")));
-		FText MenuDesc = FText::FromString(InStruct->GetMetaData(TEXT("DisplayName")));
+		FString CategoryMetadata, DisplayNameMetadata, MenuDescSuffixMetadata;
+		InStruct->GetStringMetaDataHierarchical(UControlRig::CategoryMetaName, &CategoryMetadata);
+		InStruct->GetStringMetaDataHierarchical(UControlRig::DisplayNameMetaName, &DisplayNameMetadata);
+		InStruct->GetStringMetaDataHierarchical(UControlRig::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
+		if (!MenuDescSuffixMetadata.IsEmpty())
+		{
+			MenuDescSuffixMetadata = TEXT(" ") + MenuDescSuffixMetadata;
+		}
+		FText NodeCategory = FText::FromString(CategoryMetadata);
+		FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
 		FText ToolTip = InStruct->GetToolTipText();
 
 		UBlueprintNodeSpawner* NodeSpawner = UControlRigUnitNodeSpawner::CreateFromStruct(InStruct, MenuDesc, NodeCategory, ToolTip);
@@ -889,6 +900,25 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				}
 			}
 			MenuBuilder->EndSection();
+
+			// Add the watch pin / unwatch pin menu items
+			MenuBuilder->BeginSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+			{
+				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
+				{
+					const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
+					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+					}
+					else
+					{
+						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+					}
+				}
+			}
+			MenuBuilder->EndSection();
+
 		}
 	}
 }

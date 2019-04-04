@@ -14,9 +14,7 @@ UUniformGridPanel::UUniformGridPanel(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 	bIsVariable = false;
-
-	SUniformGridPanel::FArguments Defaults;
-	Visibility = UWidget::ConvertRuntimeToSerializedVisibility(Defaults._Visibility.Get());
+	Visibility = ESlateVisibility::SelfHitTestInvisible;
 }
 
 void UUniformGridPanel::ReleaseSlateResources(bool bReleaseChildren)

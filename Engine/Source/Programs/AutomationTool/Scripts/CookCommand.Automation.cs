@@ -247,8 +247,6 @@ public partial class Project : CommandUtils
 				}
 
                 CookCommandlet(Params.RawProjectPath, Params.UE4Exe, Maps, Dirs, InternationalizationPreset, CulturesToCook, CombineCommandletParams(PlatformsToCook.ToArray()), CommandletParams);
-
-				SharedCookedBuild.WaitForCopy();
             }
 			catch (Exception Ex)
 			{

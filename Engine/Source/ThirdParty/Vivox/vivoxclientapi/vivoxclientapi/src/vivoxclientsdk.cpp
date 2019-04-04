@@ -31,22 +31,78 @@
 #include <map>
 #include <vector>
 #include "vivoxclientapi/types.h"
+#include "allocator_utils.h"
 #ifdef __APPLE__
 #include <pthread.h>
 #endif
+
+namespace VivoxClientApi {
+	// overrides for using custom allocators
+
+	using string = std::basic_string<char, std::char_traits<char>, custom_allocator<char>>;
+
+	template <class T>
+	using vector = std::vector<T, custom_allocator<T>>;
+
+	using stringstream = std::basic_stringstream<char, std::char_traits<char>, custom_allocator<char>>;
+
+	template <class Key, class T>
+	using map = std::map<Key, T, std::less<Key>, custom_allocator<std::pair<const Key, T>>>;
+
+	template <class T>
+	using set = std::set<T, std::less<T>, custom_allocator<T>>;
+
+	template <class T, class... Args>
+	T* custom_new(Args&&... args)
+	{
+		T* p = (T*)Allocate(sizeof(T));
+		new (p) T(std::forward<Args>(args)...);
+
+		return p;
+	}
+
+	template <class T>
+	void custom_delete(T* p)
+	{
+		if (p != nullptr)
+		{
+			p->~T();
+			Deallocate(p);
+		}
+	}
+
+
+	template <class T>
+	struct CustomDeleter
+	{
+		void operator()(T* p)
+		{
+			custom_delete(p);
+		}
+	};
+
+	template <class T>
+	using unique_ptr = std::unique_ptr<T, CustomDeleter<T>>;
+
+	template <class T, class... Args>
+	unique_ptr<T> custom_make_unique(Args&&... args)
+	{
+		return unique_ptr<T>(custom_new<T>(std::forward<Args>(args)...));
+	}
+}
 
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif
 
-static std::string CodePageToUTF8(const char *cpBuf, size_t cpBufLen)
+static VivoxClientApi::string CodePageToUTF8(const char *cpBuf, size_t cpBufLen)
 {
     if (cpBuf == 0 || cpBufLen == 0 || cpBuf[0] == 0)
         return "";
 #if defined(WIN32) && !defined(_XBOX_ONE) && !defined(_UAP)
-    std::string uBuf;
+	VivoxClientApi::string uBuf;
     size_t wLen = cpBufLen * 2;
-    WCHAR *wideBuf = new WCHAR[wLen];
+    WCHAR *wideBuf = (WCHAR*)VivoxClientApi::Allocate(wLen * sizeof(WCHAR));
     if (wideBuf != 0) {
         memset(wideBuf, 0, wLen);
         int wideCount = MultiByteToWideChar(GetACP(), 0, cpBuf, (int)cpBufLen, wideBuf, (int)wLen);
@@ -60,22 +116,22 @@ static std::string CodePageToUTF8(const char *cpBuf, size_t cpBufLen)
                 uBuf = "";
             }
         }
-        delete[]wideBuf;
+        VivoxClientApi::Deallocate(wideBuf);
     }
     return uBuf;
 #else
-    return std::string(cpBuf, cpBufLen);
+    return VivoxClientApi::string(cpBuf, cpBufLen);
 #endif
 }
 
-static std::string UTF8ToCodePage(const char *uBuf, size_t uBufLen)
+static VivoxClientApi::string UTF8ToCodePage(const char *uBuf, size_t uBufLen)
 {
     if (uBuf == 0 || uBufLen == 0 || uBuf[0] == 0)
         return "";
 #if defined(WIN32) && !defined(_XBOX_ONE) && !defined(_UAP)
-    std::string cpBuf;
+	VivoxClientApi::string cpBuf;
     size_t wLen = uBufLen * 2;
-    WCHAR *wideBuf = new WCHAR[wLen];
+    WCHAR *wideBuf = (WCHAR*)VivoxClientApi::Allocate(wLen * sizeof(WCHAR));
     if (wideBuf != 0) {
         memset(wideBuf, 0, wLen);
         int wideCount = MultiByteToWideChar(CP_UTF8, 0, uBuf, (int)uBufLen, wideBuf, (int)wLen);
@@ -89,26 +145,28 @@ static std::string UTF8ToCodePage(const char *uBuf, size_t uBufLen)
                 cpBuf = "";
             }
         }
-        delete[]wideBuf;
+		VivoxClientApi::Deallocate(wideBuf);
     }
     return cpBuf;
 #else
-    return std::string(uBuf, uBufLen);
+    return VivoxClientApi::string(uBuf, uBufLen);
 #endif
 }
 
 #if !defined(WIN32) && !defined(_XBOX)
 #define strcmpi(a,b) strcasecmp(a,b)
 #define _strcmpi(a,b) strcasecmp(a,b)
-#define _strdup(s) strdup(s)
 #endif
 
-#define CHECK_RET(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return; }
-#define CHECK_RET1(x, y) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); return y; }
-#define CHECK(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); }
-#define CHECK_CONT(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); continue; }
-#define CHECK_BREAK(x) if(!(x)) { m_app->onAssert(__FUNCTION__, __LINE__, #x); break; }
-#define ALWAYS_ASSERT(x) m_app->onAssert(__FUNCTION__, __LINE__, #x)
+#define CHECK_RET(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return; }
+#define CHECK_RET1(x, y) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return y; }
+#define CHECK(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } }
+#define CHECK_CONT(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } continue; }
+#define CHECK_BREAK(x) if(!(x)) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } break; }
+#define ALWAYS_ASSERT(x) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } }
+
+#define CHECK_STATUS_RET(x) if((x) != 0) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return; }
+#define CHECK_STATUS_RETVAL(x) { int RetVal = (x); if(RetVal != 0) { if (m_app) { m_app->onAssert(__FUNCTION__, __LINE__, #x); } return VCSStatus(RetVal); }}
 
 namespace VivoxClientApi {
 
@@ -116,12 +174,12 @@ namespace VivoxClientApi {
 
     static AudioDeviceId AudioDeviceIdFromCodePage(const char *device_id, const char *device_name)
     {
-        return AudioDeviceId(CodePageToUTF8(device_id, strlen(device_id)), CodePageToUTF8(device_name, strlen(device_name)));
+        return AudioDeviceId(CodePageToUTF8(device_id, strlen(device_id)).c_str(), CodePageToUTF8(device_name, strlen(device_name)).c_str());
     }
 
-    static std::string AudioDeviceIdToCodePage(const AudioDeviceId &id)
+    static string AudioDeviceIdToCodePage(const AudioDeviceId &id)
     {
-        return UTF8ToCodePage(id.GetAudioDeviceId().c_str(), id.GetAudioDeviceId().size());
+        return UTF8ToCodePage(id.GetAudioDeviceId(), strlen(id.GetAudioDeviceId()));
     }
 
     static VCSStatus issueRequest(vx_req_base_t *request)
@@ -142,7 +200,7 @@ namespace VivoxClientApi {
     }
 
 #ifdef _DEBUG
-    std::string NowString() {
+    string NowString() {
         char buf[80];
     #ifdef WIN32
         SYSTEMTIME lt;
@@ -173,16 +231,16 @@ namespace VivoxClientApi {
     #endif
     }
 
-    std::vector<std::string> split(const char *s)
+    vector<string> split(const char *s)
     {
-        std::vector<std::string> ss;
-        std::string t = s;
+        vector<string> ss;
+        string t = s;
         size_t lastpos = 0;
         for(;;) {
             size_t pos = t.find("\n", lastpos);
             if (pos > lastpos && pos != 0)
             {
-                if(pos == std::string::npos) {
+                if(pos == string::npos) {
                     if(lastpos < t.size()) {
                         ss.push_back(t.substr(lastpos, t.size() - lastpos));
                     }
@@ -208,7 +266,7 @@ namespace VivoxClientApi {
     static char *GetNextRequestId(const char *parent, const char *prefix)
     {
         static int lastRequestId = 0;
-        std::stringstream ss;
+        stringstream ss;
         if(parent && parent[0]) {
             ss << parent << "." << prefix << lastRequestId++;
             return vx_strdup(ss.str().c_str());
@@ -232,11 +290,11 @@ namespace VivoxClientApi {
             m_mutedForMeRequestInProgress = false;
             m_mutedForAll = false;
         }
-        void NextState(const std::string &sessionHandle, const Uri &channelUri) {
+        void NextState(const string &sessionHandle, const Uri &channelUri) {
             (void)channelUri;
             if (!m_volumeRequestInProgress && m_currentVolume != m_desiredVolume) {
-                vx_req_session_set_participant_volume_for_me_t *req;
-                vx_req_session_set_participant_volume_for_me_create(&req);
+                vx_req_session_set_participant_volume_for_me_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_session_set_participant_volume_for_me_create(&req));
                 req->session_handle = vx_strdup(sessionHandle.c_str());
                 req->participant_uri = vx_strdup(m_uri.ToString());
                 req->volume = m_desiredVolume;
@@ -244,8 +302,8 @@ namespace VivoxClientApi {
                 m_volumeRequestInProgress = true;
             }
             if (!m_mutedForMeRequestInProgress && m_currentMutedForMe != m_desiredMutedForMe) {
-                vx_req_session_set_participant_mute_for_me_t *req;
-                vx_req_session_set_participant_mute_for_me_create(&req);
+                vx_req_session_set_participant_mute_for_me_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_session_set_participant_mute_for_me_create(&req));
                 req->session_handle = vx_strdup(sessionHandle.c_str());
                 req->participant_uri = vx_strdup(m_uri.ToString());
                 req->mute = m_desiredMutedForMe ? 1 : 0;
@@ -339,17 +397,17 @@ namespace VivoxClientApi {
             m_desiredState = ChannelStateDisconnected;
         }
 
-        void NextState(const std::string &sessionGroupHandle, const AccountName &accountName)
+        void NextState(const string &sessionGroupHandle, const AccountName &accountName)
         {
             CHECK_RET(!sessionGroupHandle.empty());
             m_accountName = accountName;
-			m_self_sip_uri = (std::string)"sip:" + m_accountName.ToString() + g_domain_with_at;  // Useful when using access tokens
+			m_self_sip_uri = (string)"sip:" + m_accountName.ToString() + g_domain_with_at;  // Useful when using access tokens
 			
             if(m_currentState == ChannelStateDisconnected && m_desiredState == ChannelStateConnected) {
                 CHECK_RET(m_channelUri.IsValid());
                 {
-                    vx_req_sessiongroup_add_session *req;
-                    vx_req_sessiongroup_add_session_create(&req);
+                    vx_req_sessiongroup_add_session_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_sessiongroup_add_session_create(&req));
                     req->connect_audio = 1;
                     req->connect_text = 0;
                     req->uri = vx_strdup(m_channelUri.ToString());
@@ -365,8 +423,8 @@ namespace VivoxClientApi {
                     issueRequest(&req->base);
                 }
             } else if((m_currentState == ChannelStateConnecting || m_currentState == ChannelStateConnected) && m_desiredState == ChannelStateDisconnected) {
-                vx_req_sessiongroup_remove_session *req;
-                vx_req_sessiongroup_remove_session_create(&req);
+                vx_req_sessiongroup_remove_session_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_sessiongroup_remove_session_create(&req));
                 req->session_handle = vx_strdup(m_sessionHandle.c_str());
                 req->sessiongroup_handle = vx_strdup(sessionGroupHandle.c_str());
                 m_currentState = ChannelStateDisconnecting;
@@ -374,8 +432,8 @@ namespace VivoxClientApi {
 			}
 			else if (m_currentState == ChannelStateConnected) {
 				if (!m_volumeRequestInProgress && m_currentVolume != m_desiredVolume && !m_sessionMuted) {
-                    vx_req_session_set_local_speaker_volume_t *req;
-                    vx_req_session_set_local_speaker_volume_create(&req);
+                    vx_req_session_set_local_speaker_volume_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_session_set_local_speaker_volume_create(&req));
                     req->session_handle = vx_strdup(m_sessionHandle.c_str());
                     req->volume = m_desiredVolume;
                     issueRequest(&req->base);
@@ -406,7 +464,7 @@ namespace VivoxClientApi {
         void SetVolumeRequestInProgress(bool value) { m_volumeRequestInProgress = value; }
 
         const Uri &GetUri() const { return m_channelUri; }
-        const std::string &GetSessionHandle() const { return m_sessionHandle; }
+        const string &GetSessionHandle() const { return m_sessionHandle; }
 
         int GetParticipantAudioOutputDeviceVolumeForMe(const Uri &target)
         {
@@ -453,16 +511,16 @@ namespace VivoxClientApi {
         }
 
         VCSStatus SetTransmissionToThisChannel(){
-            vx_req_sessiongroup_set_tx_session_t *req;
-            vx_req_sessiongroup_set_tx_session_create(&req);
+            vx_req_sessiongroup_set_tx_session_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_sessiongroup_set_tx_session_create(&req));
             req->session_handle = vx_strdup(m_sessionHandle.c_str());
             return issueRequest(&req->base);
         }
 
 		VCSStatus Set3DPosition(const Vector &speakerPosition, const Vector &listenerPosition, const Vector &listenerForward, const Vector &listenerUp)
 		{
-			vx_req_session_set_3d_position_t *req;
-			vx_req_session_set_3d_position_create(&req);
+			vx_req_session_set_3d_position_t *req = nullptr;
+			CHECK_STATUS_RETVAL(vx_req_session_set_3d_position_create(&req));
 			req->req_disposition_type = req_disposition_no_reply_required;
 			req->session_handle = vx_strdup(m_sessionHandle.c_str());
 
@@ -584,33 +642,28 @@ namespace VivoxClientApi {
 			if (p != NULL) {
                 m_app->onParticipantLeft(m_accountName, m_channelUri, p->GetUri(), evt->is_current_user != 0 ? true : false, (IClientApiEventHandler::ParticipantLeftReason)evt->reason);
                 m_participants.erase(p->GetUri());
-                delete p;
             }
 		}
 
     private:
         void ClearParticipants()
         {
-            for (std::map<Uri, Participant *>::const_iterator i = m_participants.begin(); i != m_participants.end(); ++i) {
-                delete i->second;
-            }
             m_participants.clear();
         }
         Participant *FindParticipantByUri(const Uri &uri, bool create = false) {
-            std::map<Uri, Participant *>::const_iterator i = m_participants.find(uri);
+            map<Uri, unique_ptr<Participant>>::const_iterator i = m_participants.find(uri);
             if(i == m_participants.end()) {
                 if(create) {
-                    Participant *p = new Participant(m_app, uri);
-                    m_participants[uri] = p;
-                    return p;
+					auto participant = m_participants.emplace(uri, custom_make_unique<Participant>(m_app, uri)).first;
+                    return participant->second.get();
                 } else {
                     return NULL;
                 }
             } else {
-                return i->second;
+                return i->second.get();
             }
         }
-        std::map<Uri, Participant *> m_participants;
+        map<Uri, unique_ptr<Participant>> m_participants;
 
         ChannelState m_desiredState;
         ChannelState m_currentState;
@@ -620,11 +673,11 @@ namespace VivoxClientApi {
 		bool m_sessionMuted;
 
         Uri m_channelUri;
-        std::string m_access_token;
-        std::string m_sessionHandle;
+        string m_access_token;
+        string m_sessionHandle;
         IClientApiEventHandler *m_app;
         AccountName m_accountName;
-		std::string m_self_sip_uri;		// my sip uri in this channel
+		string m_self_sip_uri;		// my sip uri in this channel
     };
 
     class MultiChannelSessionGroup {
@@ -642,9 +695,6 @@ namespace VivoxClientApi {
         {
             m_sessionGroupHandle.clear();
             m_accountHandle.clear();
-            for (std::map<Uri, Channel *>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
-                delete i->second;
-            }
             m_channels.clear();
         }
 
@@ -654,12 +704,11 @@ namespace VivoxClientApi {
                 return VCSStatus(VX_E_INVALID_ARGUMENT);
             Channel *c = FindChannel(channelUri);
             if(c == NULL) {
-                c = new Channel(m_app, channelUri);
-                m_channels[channelUri] = c;
+				c = m_channels.emplace(channelUri, custom_make_unique<Channel>(m_app, channelUri)).first->second.get();
             }
             if (!multiChannel) {
-                for (std::map<Uri, Channel *>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
-                    if (i->second != c) {
+                for (map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
+                    if (i->second.get() != c) {
                         i->second->Leave();
                     }
                 }
@@ -680,7 +729,7 @@ namespace VivoxClientApi {
 
         VCSStatus LeaveAll()
         {
-            for(std::map<Uri, Channel *>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
+            for(map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
                 i->second->SetDesiredState(Channel::ChannelStateDisconnected);
             }
             return VCSStatus(0);
@@ -706,8 +755,8 @@ namespace VivoxClientApi {
             fclose(fp);
 
             if(HasConnectedChannel()) {
-                vx_req_sessiongroup_control_audio_injection_t *req;
-                vx_req_sessiongroup_control_audio_injection_create(&req);
+                vx_req_sessiongroup_control_audio_injection_t *req = nullptr;
+                CHECK_STATUS_RETVAL(vx_req_sessiongroup_control_audio_injection_create(&req));
                 req->audio_injection_control_type = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_RESTART;
                 req->sessiongroup_handle = vx_strdup(m_sessionGroupHandle.c_str());
                 req->filename = vx_strdup(filename);
@@ -718,8 +767,8 @@ namespace VivoxClientApi {
 
         void StopPlayFileIntoChannels()
         {
-            vx_req_sessiongroup_control_audio_injection_t *req;
-            vx_req_sessiongroup_control_audio_injection_create(&req);
+            vx_req_sessiongroup_control_audio_injection_t *req = nullptr;
+            CHECK_STATUS_RET(vx_req_sessiongroup_control_audio_injection_create(&req));
             req->audio_injection_control_type = VX_SESSIONGROUP_AUDIO_INJECTION_CONTROL_STOP;
             req->sessiongroup_handle = vx_strdup(m_sessionGroupHandle.c_str());
             issueRequest(&req->base);
@@ -749,7 +798,7 @@ namespace VivoxClientApi {
             return VCSStatus(0);
         }
 
-		// Set the output session volume for one particular session independently of 
+		// set the output session volume for one particular session independently of 
 		// any other session that might be active.  Setting the volume to zero effectly 
 		// mutes the session.  Audio traffic is still being recieved, but not rendered.
 		VCSStatus SetSessionVolume(const Uri &channel, int volume)
@@ -766,8 +815,8 @@ namespace VivoxClientApi {
 			if (volume == 100) { s->SetSessionMuted(false); volume=s->GetDesiredVolume(); }
 
 			// issue the request,  there is no state information to worry about if it fails.
-			vx_req_session_set_local_speaker_volume_t *req;
-			vx_req_session_set_local_speaker_volume_create(&req);
+			vx_req_session_set_local_speaker_volume_t *req = nullptr;
+			CHECK_STATUS_RETVAL(vx_req_session_set_local_speaker_volume_create(&req));
 			req->session_handle = vx_strdup(s->GetSessionHandle().c_str());
 			req->volume = volume;
 			
@@ -801,9 +850,8 @@ namespace VivoxClientApi {
             Channel *s = FindChannel(channel);
             if (s == NULL)
                 return VCSStatus(VX_E_NO_EXIST);
-            vx_req_channel_mute_user_t *req;
-
-            vx_req_channel_mute_user_create(&req);
+            vx_req_channel_mute_user_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_channel_mute_user_create(&req));
             req->account_handle = vx_strdup(m_accountHandle.c_str());
             req->channel_uri = vx_strdup(channel.ToString());
             req->participant_uri = vx_strdup(target.ToString());
@@ -877,29 +925,29 @@ namespace VivoxClientApi {
             return VCSStatus(0);
         }
 
-        void NextState(const AccountName &accountName, const std::string &accountHandle)
+        void NextState(const AccountName &accountName, const string &accountHandle)
         {
-            std::set<Channel *> channelsToDisconnect;
-            std::set<Channel *> channelsToConnect;
-            std::set<Channel *> connectedChannels;
-			std::set<Channel *> channelsDisconnecting;
+            set<Channel *> channelsToDisconnect;
+            set<Channel *> channelsToConnect;
+            set<Channel *> connectedChannels;
+			set<Channel *> channelsDisconnecting;
             bool currentlyConnectingChannel = false;
 
             SetSessionGroupHandle(accountName, accountHandle);
 
-            for(std::map<Uri, Channel *>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
+            for(map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
                 if(i->second->GetDesiredState() == Channel::ChannelStateDisconnected && (i->second->GetCurrentState() == Channel::ChannelStateConnected)) {
-                    channelsToDisconnect.insert(i->second);
-					channelsDisconnecting.insert(i->second); // this channel will be moving to the disconnecting state before the check below.
+                    channelsToDisconnect.insert(i->second.get());
+					channelsDisconnecting.insert(i->second.get()); // this channel will be moving to the disconnecting state before the check below.
                 }
                 if(i->second->GetDesiredState() == Channel::ChannelStateConnected && (i->second->GetCurrentState() == Channel::ChannelStateDisconnected)) {
-                    channelsToConnect.insert(i->second);
+                    channelsToConnect.insert(i->second.get());
                 }
                 if(i->second->GetDesiredState() == Channel::ChannelStateConnected && i->second->GetCurrentState() == Channel::ChannelStateConnected) {
-                    connectedChannels.insert(i->second);
+                    connectedChannels.insert(i->second.get());
                 }
 				if (i->second->GetCurrentState() == Channel::ChannelStateDisconnecting) {
-					channelsDisconnecting.insert(i->second);
+					channelsDisconnecting.insert(i->second.get());
 				}
                 currentlyConnectingChannel |= i->second->GetCurrentState() == Channel::ChannelStateConnecting;
             }
@@ -913,12 +961,12 @@ namespace VivoxClientApi {
             }
 
 			//Disconnect from channels before joining any new channels.
-			for (std::set<Channel *>::const_iterator i = channelsToDisconnect.begin(); i != channelsToDisconnect.end(); ++i) {
+			for (set<Channel *>::const_iterator i = channelsToDisconnect.begin(); i != channelsToDisconnect.end(); ++i) {
 				(*i)->NextState(m_sessionGroupHandle, m_accountName);
 			}
 			// Wait for disconnecting channel to completely disconnect before adding more channels to a session group
 			if (channelsDisconnecting.empty() && !connectedChannels.empty()) {
-                for(std::set<Channel *>::const_iterator i = channelsToConnect.begin();i!=channelsToConnect.end();++i) {
+                for(set<Channel *>::const_iterator i = channelsToConnect.begin();i!=channelsToConnect.end();++i) {
                     (*i)->NextState(m_sessionGroupHandle, m_accountName);
                 }
             }
@@ -934,18 +982,22 @@ namespace VivoxClientApi {
                         }
                         break;
                     case ChannelTransmissionPolicy::vx_channel_transmission_policy_all:
-						m_channelTransmissionPolicyRequestInProgress = true;
-                        vx_req_sessiongroup_set_tx_all_sessions_t *req_all;
-                        vx_req_sessiongroup_set_tx_all_sessions_create(&req_all);
+                    {
+                        m_channelTransmissionPolicyRequestInProgress = true;
+                        vx_req_sessiongroup_set_tx_all_sessions_t *req_all = nullptr;
+                        CHECK_STATUS_RET(vx_req_sessiongroup_set_tx_all_sessions_create(&req_all));
                         req_all->sessiongroup_handle = vx_strdup(m_sessionGroupHandle.c_str());
                         issueRequest(&req_all->base);
+                    }
                         break;
                     case ChannelTransmissionPolicy::vx_channel_transmission_policy_none:
-						m_channelTransmissionPolicyRequestInProgress = true;
-                        vx_req_sessiongroup_set_tx_no_session_t *req_none;
-                        vx_req_sessiongroup_set_tx_no_session_create(&req_none);
+                    {
+                        m_channelTransmissionPolicyRequestInProgress = true;
+                        vx_req_sessiongroup_set_tx_no_session_t *req_none = nullptr;
+                        CHECK_STATUS_RET(vx_req_sessiongroup_set_tx_no_session_create(&req_none));
                         req_none->sessiongroup_handle = vx_strdup(m_sessionGroupHandle.c_str());
                         issueRequest(&req_none->base);
+                    }
                         break;
                     default:
                         break;
@@ -963,12 +1015,12 @@ namespace VivoxClientApi {
             }
 
 			// now step through each of the channels connected for any media state changes.
-			for (std::set<Channel *>::const_iterator i = connectedChannels.begin(); i != connectedChannels.end(); ++i) {
+			for (set<Channel *>::const_iterator i = connectedChannels.begin(); i != connectedChannels.end(); ++i) {
 				(*i)->NextState(m_sessionGroupHandle, m_accountName);
 			}
         }
 
-        const std::string &GetSessionGroupHandle() const { return m_sessionGroupHandle; }
+        const string &GetSessionGroupHandle() const { return m_sessionGroupHandle; }
 
         void HandleResponse(vx_resp_sessiongroup_add_session *resp)
         {
@@ -980,7 +1032,6 @@ namespace VivoxClientApi {
                 if(c->GetDesiredState() == Channel::ChannelStateConnected) {
                     m_app->onChannelJoinFailed(m_accountName, c->GetUri(), VCSStatus(resp->base.status_code, resp->base.status_string));
                     m_channels.erase(c->GetUri());
-                    delete c;
                 }
             }
         }
@@ -995,7 +1046,6 @@ namespace VivoxClientApi {
                 if(c->GetDesiredState() == Channel::ChannelStateConnected) {
                     m_app->onChannelJoinFailed(m_accountName, c->GetUri(), VCSStatus(resp->base.status_code, resp->base.status_string));
                     m_channels.erase(c->GetUri());
-                    delete c;
                 }
             }
         }
@@ -1109,7 +1159,6 @@ namespace VivoxClientApi {
 				m_app->onChannelExited(m_accountName, c->GetUri(), VCSStatus(evt->status_code, evt->status_string));
 				// delete the channel from the map of channels.
 				m_channels.erase(c->GetUri());
-				delete c;
 			}
 			else if (evt->state == session_media_disconnecting) {
 				// Not much of anything to do,  might consider moving the DesiredState to Disconnected
@@ -1129,7 +1178,6 @@ namespace VivoxClientApi {
 
 				// delete the channel from the map of channels.
 				m_channels.erase(c->GetUri());
-				delete c;
 			}
 
 			// no else for 'connected' event,  DesiredState changed to connected with the ParticipantAdded event arrives 
@@ -1159,8 +1207,8 @@ namespace VivoxClientApi {
 
         VCSStatus IssueGetStats(bool reset)
         {
-            vx_req_sessiongroup_get_stats *req;
-            vx_req_sessiongroup_get_stats_create(&req);
+            vx_req_sessiongroup_get_stats_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_sessiongroup_get_stats_create(&req));
             req->sessiongroup_handle = vx_strdup(GetSessionGroupHandle().c_str());
             req->reset_stats = reset ? 1 : 0;
             return issueRequest(&req->base);
@@ -1176,7 +1224,7 @@ namespace VivoxClientApi {
 
 		bool HasConnectedChannel() const
 		{
-			for (std::map<Uri, Channel *>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
+			for (map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
 				if (i->second->GetDesiredState() == Channel::ChannelStateConnected && i->second->GetCurrentState() == Channel::ChannelStateConnected) {
 					return true;
 				}
@@ -1188,22 +1236,22 @@ namespace VivoxClientApi {
         {
             CHECK_RET1(handle != NULL, NULL);
             CHECK_RET1(handle[0] != 0, NULL);
-            for(std::map<Uri, Channel *>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
+            for(map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin();i!=m_channels.end();++i) {
                 if(i->second->GetSessionHandle() == handle)
-                    return i->second;
+                    return i->second.get();
             }
             return NULL;
         }
 
 		Channel * FindActiveSession() const
 		{
-			for (std::map<Uri, Channel *>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
+			for (map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.begin(); i != m_channels.end(); ++i) {
 				if (i->second->GetCurrentState() == Channel::ChannelStateConnected)
-					return i->second;
+					return i->second.get();
 			}
 			return NULL;
 		}
-        void SetSessionGroupHandle(const AccountName &accountName, const std::string &accountHandle)
+        void SetSessionGroupHandle(const AccountName &accountName, const string &accountHandle)
         {
             CHECK_RET(!accountHandle.empty());
             if(m_sessionGroupHandle.empty()) {
@@ -1211,8 +1259,8 @@ namespace VivoxClientApi {
                 CHECK(!m_accountName.IsValid() || m_accountName == accountName);
                 m_accountHandle = accountHandle;
                 m_accountName = accountName;
-                vx_req_sessiongroup_create *req;
-                vx_req_sessiongroup_create_create(&req);
+                vx_req_sessiongroup_create_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_sessiongroup_create_create(&req));
                 req->account_handle = vx_strdup(accountHandle.c_str());
                 req->base.cookie = GetNextRequestId(NULL, "G");
                 req->sessiongroup_handle = vx_strdup(req->base.cookie);
@@ -1224,20 +1272,20 @@ namespace VivoxClientApi {
 
         Channel *FindChannel(const Uri &channelUri) const
         {
-            std::map<Uri, Channel *>::const_iterator i = m_channels.find(channelUri);
+            map<Uri, unique_ptr<Channel>>::const_iterator i = m_channels.find(channelUri);
             if(i == m_channels.end())
                 return NULL;
-            return i->second;
+            return i->second.get();
         }
 
-        std::string m_sessionGroupHandle;
-        std::string m_accountHandle;
+        string m_sessionGroupHandle;
+        string m_accountHandle;
         AccountName m_accountName;
         ChannelTransmissionPolicy m_currentChannelTransmissionPolicy;
         ChannelTransmissionPolicy m_desiredChannelTransmissionPolicy;
         bool m_channelTransmissionPolicyRequestInProgress;
 
-        std::map<Uri, Channel *> m_channels;
+        map<Uri, unique_ptr<Channel>> m_channels;
         IClientApiEventHandler *m_app;
     };
 
@@ -1281,7 +1329,7 @@ namespace VivoxClientApi {
         } LoginState;
 
         SingleLoginMultiChannelManager(IClientApiEventHandler *app,
-            const std::string &connectorHandle,
+            const string &connectorHandle,
             const AccountName &name,
             const char *captureDevice,
             const char *renderDevice,
@@ -1293,18 +1341,15 @@ namespace VivoxClientApi {
             m_connectorHandle = connectorHandle;
             m_currentLoginState = LoginStateLoggedOut;
             m_desiredLoginState = LoginStateLoggedOut;
-            m_captureDevice = _strdup(captureDevice ? captureDevice : "");
-            m_renderDevice = _strdup(renderDevice ? renderDevice : "");
+            m_captureDevice = StrDup(captureDevice ? captureDevice : "");
+            m_renderDevice = StrDup(renderDevice ? renderDevice : "");
             m_multichannel = multichannel;
         }
 
         ~SingleLoginMultiChannelManager()
         {
-            for(std::map<Uri, UserBlockPolicy *>::const_iterator i = m_userBlockPolicy.begin();i!=m_userBlockPolicy.end();++i) {
-                delete i->second;
-            }
-            if(m_captureDevice) free(m_captureDevice);
-            if(m_renderDevice) free(m_renderDevice);
+            if(m_captureDevice) Deallocate(m_captureDevice);
+            if(m_renderDevice) Deallocate(m_renderDevice);
         }
 
         VCSStatus Login(const char *password)
@@ -1325,8 +1370,8 @@ namespace VivoxClientApi {
         {
 			
             if(m_currentLoginState == LoginStateLoggedOut && m_desiredLoginState == LoginStateLoggedIn) {
-                vx_req_account_anonymous_login_t *req;
-                vx_req_account_anonymous_login_create(&req);
+                vx_req_account_anonymous_login_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_account_anonymous_login_create(&req));
                 req->connector_handle = vx_strdup(m_connectorHandle.c_str());
                 req->base.cookie = GetNextRequestId(NULL, "A");
                 req->account_handle = vx_strdup(req->base.cookie);
@@ -1339,7 +1384,7 @@ namespace VivoxClientApi {
                 req->acct_name = vx_strdup(m_name.ToString());
 
 #ifdef USE_ACCESS_TOKENS
-				m_sip_uri = std::string("sip:") + m_name.ToString() + g_domain_with_at;
+				m_sip_uri = string("sip:") + m_name.ToString() + g_domain_with_at;
 				req->access_token = vx_debug_generate_token("demo-iss", time(0L)+180L, "login", m_serial++, NULL, m_sip_uri.c_str(), NULL, (unsigned char *)("demo-key"), sizeof("demo-key"));
 #endif
 				// PLK use password to store the access token
@@ -1349,18 +1394,18 @@ namespace VivoxClientApi {
                 //m_currentPassword = m_desiredPassword;
                 issueRequest(&req->base);
             } else if((m_currentLoginState == LoginStateLoggedIn || m_currentLoginState == LoginStateLoggingIn) && m_desiredLoginState == LoginStateLoggedOut) {
-                vx_req_account_logout_t *req;
-                vx_req_account_logout_create(&req);
+                vx_req_account_logout_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_account_logout_create(&req));
                 req->account_handle = vx_strdup(m_accountHandle.c_str());
                 m_currentLoginState = LoginStateLoggingOut;
                 issueRequest(&req->base);
             }
             if(m_desiredLoginState == LoginStateLoggedIn && m_currentLoginState == LoginStateLoggedIn) {
-                std::stringstream blocked;
-                std::stringstream unblocked;
+                stringstream blocked;
+                stringstream unblocked;
                 const char *blockSep = "";
                 const char *unblockSep = "";
-                for(std::map<Uri, UserBlockPolicy *>::const_iterator i = m_userBlockPolicy.begin();i!=m_userBlockPolicy.end();++i) {
+                for(map<Uri, unique_ptr<UserBlockPolicy>>::const_iterator i = m_userBlockPolicy.begin();i!=m_userBlockPolicy.end();++i) {
                     if(i->second->GetCurrentBlock() && !i->second->GetDesiredBlock()) {
                         unblocked << unblockSep << i->first.ToString();
                         unblockSep = "\n";
@@ -1370,11 +1415,11 @@ namespace VivoxClientApi {
                     }
                     i->second->SetCurrentBlock(i->second->GetDesiredBlock());
                 }
-                std::string blockedStr = blocked.str();
-                std::string unblockedStr = unblocked.str();
+                string blockedStr = blocked.str();
+                string unblockedStr = unblocked.str();
                 if(!blockedStr.empty()) {
-                    vx_req_account_control_communications_t *req;
-                    vx_req_account_control_communications_create(&req);
+                    vx_req_account_control_communications_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_account_control_communications_create(&req));
                     req->account_handle = vx_strdup(m_accountHandle.c_str());
                     req->user_uris = vx_strdup(blockedStr.c_str());
                     req->operation = vx_control_communications_operation_block;
@@ -1382,8 +1427,8 @@ namespace VivoxClientApi {
                 }
 
                 if(!unblockedStr.empty()) {
-                    vx_req_account_control_communications_t *req;
-                    vx_req_account_control_communications_create(&req);
+                    vx_req_account_control_communications_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_account_control_communications_create(&req));
                     req->account_handle = vx_strdup(m_accountHandle.c_str());
                     req->user_uris = vx_strdup(unblockedStr.c_str());
                     req->operation = vx_control_communications_operation_unblock;
@@ -1415,26 +1460,27 @@ namespace VivoxClientApi {
             return m_sg.LeaveAll();
         }
 
-        VCSStatus BlockUsers(const std::set<Uri> &usersToBlock)
+        VCSStatus BlockUsers(const Uri* usersToBlock, int numUsersToBlock)
         {
-            for(std::set<Uri>::const_iterator i = usersToBlock.begin();i!=usersToBlock.end();++i) {
-                std::map<Uri, UserBlockPolicy *>::const_iterator k = m_userBlockPolicy.find(*i);
+			for (int userIndex = 0; userIndex < numUsersToBlock; ++userIndex) {
+				const Uri& userToBlock = usersToBlock[userIndex];
+                map<Uri, unique_ptr<UserBlockPolicy>>::const_iterator k = m_userBlockPolicy.find(userToBlock);
                 UserBlockPolicy *ubp;
                 if(k == m_userBlockPolicy.end()) {
-                    ubp = new UserBlockPolicy(*i);
-                    m_userBlockPolicy[*i] = ubp;
+					ubp = m_userBlockPolicy.emplace(userToBlock, custom_make_unique<UserBlockPolicy>(userToBlock)).first->second.get();
                 } else {
-                    ubp = k->second;
+                    ubp = k->second.get();
                 }
                 ubp->SetDesiredBlock(true);
             }
             return VCSStatus(0);
         }
 
-        VCSStatus UnblockUsers(const std::set<Uri> &usersToUnblock)
+        VCSStatus UnblockUsers(const Uri* usersToUnblock, int numUsersToUnblock)
         {
-            for(std::set<Uri>::const_iterator i = usersToUnblock.begin();i!=usersToUnblock.end();++i) {
-                std::map<Uri, UserBlockPolicy *>::const_iterator k = m_userBlockPolicy.find(*i);
+			for (int userIndex = 0; userIndex < numUsersToUnblock; ++userIndex) {
+				const Uri& userToUnblock = usersToUnblock[userIndex];
+                map<Uri, unique_ptr<UserBlockPolicy>>::const_iterator k = m_userBlockPolicy.find(userToUnblock);
                 if(k == m_userBlockPolicy.end()) {
                     continue;
                 }
@@ -1466,7 +1512,7 @@ namespace VivoxClientApi {
         VCSStatus KickUser(const Uri &channel, const Uri &userUri)
         {
             vx_req_channel_kick_user_t *req;
-            vx_req_channel_kick_user_create(&req);
+            CHECK_STATUS_RETVAL(vx_req_channel_kick_user_create(&req));
             req->account_handle = vx_strdup(m_accountHandle.c_str());
             req->channel_uri = vx_strdup(channel.ToString());
             req->participant_uri = vx_strdup(userUri.ToString());
@@ -1556,13 +1602,13 @@ namespace VivoxClientApi {
             if(resp->base.return_code == 0) {
                 vx_req_account_control_communications_t *req = reinterpret_cast<vx_req_account_control_communications_t *>(resp->base.request);
                 if(req->operation == vx_control_communications_operation_block) {
-                    std::vector<std::string> blocked = split(req->user_uris);
-                    for(std::vector<std::string>::const_iterator i = blocked.begin();i!=blocked.end();++i) {
+                    vector<string> blocked = split(req->user_uris);
+                    for(vector<string>::const_iterator i = blocked.begin();i!=blocked.end();++i) {
                         m_actualBlockedPolicy.insert(Uri(i->c_str()));
                     }
                 } else if(req->operation == vx_control_communications_operation_unblock) {
-                    std::vector<std::string> blocked = split(req->user_uris);
-                    for(std::vector<std::string>::const_iterator i = blocked.begin();i!=blocked.end();++i) {
+                    vector<string> blocked = split(req->user_uris);
+                    for(vector<string>::const_iterator i = blocked.begin();i!=blocked.end();++i) {
                         m_actualBlockedPolicy.erase(Uri(i->c_str()));
                     }
                 } else if(req->operation == vx_control_communications_operation_clear) {
@@ -1708,30 +1754,30 @@ namespace VivoxClientApi {
             }
         }
 
-        const std::string &GetAccountHandle() const { return m_accountHandle; }
-        const std::string &GetSessionGroupHandle() const { return m_sg.GetSessionGroupHandle(); }
+        const string &GetAccountHandle() const { return m_accountHandle; }
+        const string &GetSessionGroupHandle() const { return m_sg.GetSessionGroupHandle(); }
         bool IsUsingSessionHandle(const char *handle) const { return m_sg.IsUsingSessionHandle(handle); }
 		bool HasConnectedChannel() const { return m_sg.HasConnectedChannel(); }
     private:
 
         AccountName m_name;
-        std::string m_sip_uri;  // Access Token uses this field,  set at login time
+        string m_sip_uri;  // Access Token uses this field,  set at login time
         int m_serial;           // Used by access token generator
-        std::string m_accountHandle;
-        std::string m_connectorHandle;
+        string m_accountHandle;
+        string m_connectorHandle;
 
         LoginState m_desiredLoginState;
-        std::string m_desiredPassword;
+        string m_desiredPassword;
 
         LoginState m_currentLoginState;
-        std::string m_currentPassword;
-        std::string m_playingFile;
+        string m_currentPassword;
+        string m_playingFile;
         IClientApiEventHandler *m_app;
 
         MultiChannelSessionGroup m_sg;
 
-        std::map<Uri, UserBlockPolicy *> m_userBlockPolicy;
-        std::set<Uri> m_actualBlockedPolicy;
+        map<Uri, unique_ptr<UserBlockPolicy>> m_userBlockPolicy;
+        set<Uri> m_actualBlockedPolicy;
 
         char *m_captureDevice;
         char *m_renderDevice;
@@ -1855,8 +1901,8 @@ namespace VivoxClientApi {
             CHECK_RET1(fp, VCSStatus(VX_E_FILE_OPEN_FAILED));
 #endif
             fclose(fp);
-            vx_req_aux_render_audio_start_t *req;
-            vx_req_aux_render_audio_start_create(&req);
+            vx_req_aux_render_audio_start_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_aux_render_audio_start_create(&req));
             req->sound_file_path = vx_strdup(filename);
             req->loop = 1;
             issueRequest(&req->base);
@@ -1867,8 +1913,8 @@ namespace VivoxClientApi {
         void StopAudioOutputDeviceTest()
         {
             if (m_audioOutputDeviceTestIsRunning) {
-                vx_req_aux_render_audio_stop_t *req;
-                vx_req_aux_render_audio_stop_create(&req);
+                vx_req_aux_render_audio_stop_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_aux_render_audio_stop_create(&req));
                 issueRequest(&req->base);
                 m_audioOutputDeviceTestIsRunning = false;
             }
@@ -1884,8 +1930,8 @@ namespace VivoxClientApi {
             CHECK_RET1(m_audioOutputDeviceTestIsRunning == false, VCSStatus(VX_E_FAILED));
             CHECK_RET1(m_audioInputDeviceTestIsPlayingBack == false, VCSStatus(VX_E_FAILED));
             CHECK_RET1(m_audioInputDeviceTestIsRecording == false, VCSStatus(VX_E_FAILED));
-            vx_req_aux_start_buffer_capture *req;
-            vx_req_aux_start_buffer_capture_create(&req);
+            vx_req_aux_start_buffer_capture_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_aux_start_buffer_capture_create(&req));
             issueRequest(&req->base);
             m_audioInputDeviceTestIsRecording = true;
             return VCSStatus(0);
@@ -1894,8 +1940,8 @@ namespace VivoxClientApi {
         void StopAudioInputDeviceTestRecord()
         {
             if (m_audioInputDeviceTestIsRecording) {
-                vx_req_aux_capture_audio_stop_t *req;
-                vx_req_aux_capture_audio_stop_create(&req);
+                vx_req_aux_capture_audio_stop_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_aux_capture_audio_stop_create(&req));
                 issueRequest(&req->base);
                 m_audioInputDeviceTestIsRecording = false;
                 m_audioInputDeviceTestHasAudioToPlayback = true;
@@ -1907,8 +1953,8 @@ namespace VivoxClientApi {
             CHECK_RET1(m_audioOutputDeviceTestIsRunning == false, VCSStatus(VX_E_FAILED));
             CHECK_RET1(m_audioInputDeviceTestIsPlayingBack == false, VCSStatus(VX_E_FAILED));
             CHECK_RET1(m_audioInputDeviceTestIsRecording == false, VCSStatus(VX_E_FAILED));
-            vx_req_aux_play_audio_buffer_t *req;
-            vx_req_aux_play_audio_buffer_create(&req);
+            vx_req_aux_play_audio_buffer_t *req = nullptr;
+            CHECK_STATUS_RETVAL(vx_req_aux_play_audio_buffer_create(&req));
             issueRequest(&req->base);
             m_audioInputDeviceTestIsPlayingBack = true;
             return VCSStatus(0);
@@ -1917,8 +1963,8 @@ namespace VivoxClientApi {
         void StopAudioInputDeviceTestPlayback()
         {
             if (m_audioInputDeviceTestIsPlayingBack) {
-                vx_req_aux_render_audio_stop_t *req;
-                vx_req_aux_render_audio_stop_create(&req);
+                vx_req_aux_render_audio_stop_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_aux_render_audio_stop_create(&req));
                 issueRequest(&req->base);
                 m_audioInputDeviceTestIsPlayingBack = false;
             }
@@ -1962,13 +2008,12 @@ namespace VivoxClientApi {
 
             SingleLoginMultiChannelManager *s = FindLogin(accountName);
             if(s == NULL) {
-                s = new SingleLoginMultiChannelManager(m_app, m_connectorHandle, accountName, captureDevice, renderDevice, m_multiChannel);
-                m_logins[accountName] = s;
+				s = m_logins.emplace(accountName, custom_make_unique<SingleLoginMultiChannelManager>(m_app, m_connectorHandle, accountName, captureDevice, renderDevice, m_multiChannel)).first->second.get();
             }
             if (m_multiLogin == false) {
                 // logout everyone else
-                for (std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.begin(); i != m_logins.end(); ++i) {
-                    if (i->second != s) {
+                for (map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.begin(); i != m_logins.end(); ++i) {
+                    if (i->second.get() != s) {
                         i->second->Logout();
                     }
                 }
@@ -2016,18 +2061,18 @@ namespace VivoxClientApi {
 			return VCSStatus(VX_E_NO_EXIST);
 		}
 
-        VCSStatus BlockUsers(const AccountName &accountName, const std::set<Uri> &usersToBlock) {
+        VCSStatus BlockUsers(const AccountName &accountName, const Uri* usersToBlock, int numUsersToBlock) {
             SingleLoginMultiChannelManager *s = FindLogin(accountName);
             if(s) {
-                return NextState(s->BlockUsers(usersToBlock));
+                return NextState(s->BlockUsers(usersToBlock, numUsersToBlock));
             }
             return VCSStatus(VX_E_NO_EXIST);
         }
 
-        VCSStatus UnblockUsers(const AccountName &accountName, const std::set<Uri> &usersToUnblock) {
+        VCSStatus UnblockUsers(const AccountName &accountName, const Uri* usersToUnblock, int numUsersToUnblock) {
             SingleLoginMultiChannelManager *s = FindLogin(accountName);
             if(s) {
-                return NextState(s->UnblockUsers(usersToUnblock));
+                return NextState(s->UnblockUsers(usersToUnblock, numUsersToUnblock));
             }
             return VCSStatus(VX_E_NO_EXIST);
         }
@@ -2076,19 +2121,19 @@ namespace VivoxClientApi {
 
         void RequestAudioInputDevices()
         {
-            vx_req_aux_get_capture_devices_t *capture_req;
-            vx_req_aux_get_capture_devices_create(&capture_req);
+            vx_req_aux_get_capture_devices_t *capture_req = nullptr;
+            CHECK_STATUS_RET(vx_req_aux_get_capture_devices_create(&capture_req));
             issueRequest(&capture_req->base);
         }
 
         void RequestAudioOutputDevices()
         {
-            vx_req_aux_get_render_devices_t *render_req;
-            vx_req_aux_get_render_devices_create(&render_req);
+            vx_req_aux_get_render_devices_t *render_req = nullptr;
+            CHECK_STATUS_RET(vx_req_aux_get_render_devices_create(&render_req));
             issueRequest(&render_req->base);
         }
 
-        const std::vector<AudioDeviceId> &GetAudioInputDevices() const
+        const vector<AudioDeviceId> &GetAudioInputDevices() const
         {
             return m_audioInputDeviceList;
         }
@@ -2118,7 +2163,7 @@ namespace VivoxClientApi {
             CHECK_RET1(deviceName.IsValid(), VCSStatus(VX_E_INVALID_ARGUMENT));
             /// find in vector or return device not found
             AudioDeviceId validDevice;
-            for(std::vector<AudioDeviceId>::const_iterator i =  m_audioInputDeviceList.begin();i!=m_audioInputDeviceList.end();++i) {
+            for(vector<AudioDeviceId>::const_iterator i =  m_audioInputDeviceList.begin();i!=m_audioInputDeviceList.end();++i) {
                 if (*i == deviceName) {
                     validDevice = *i;
                     break;
@@ -2148,7 +2193,7 @@ namespace VivoxClientApi {
             return m_desiredAudioInputDevicePolicy.GetAudioDevicePolicy() == AudioDevicePolicy::vx_audio_device_policy_default_system;
         }
 
-        const std::vector<AudioDeviceId> &GetAudioOutputDevices() const
+        const vector<AudioDeviceId> &GetAudioOutputDevices() const
         {
             return m_audioOutputDeviceList;
         }
@@ -2178,7 +2223,7 @@ namespace VivoxClientApi {
             CHECK_RET1(deviceName.IsValid(), VCSStatus(VX_E_INVALID_ARGUMENT));
             /// find in vector or return device not found
             AudioDeviceId validDevice;
-            for (std::vector<AudioDeviceId>::const_iterator i = m_audioOutputDeviceList.begin();i!=m_audioOutputDeviceList.end();++i) {
+            for (vector<AudioDeviceId>::const_iterator i = m_audioOutputDeviceList.begin();i!=m_audioOutputDeviceList.end();++i) {
                 if (*i == deviceName) {
                     validDevice = *i;
                     break;
@@ -2405,8 +2450,8 @@ namespace VivoxClientApi {
                     if(m_currentState == ConnectorStateUninitialized) {
                         CHECK_RET(m_connectorHandle.empty());
                         CHECK_RET(!m_currentServer.IsValid());
-                        vx_req_connector_create_t *req;
-                        vx_req_connector_create_create(&req);
+                        vx_req_connector_create_t *req = nullptr;
+                        CHECK_STATUS_RET(vx_req_connector_create_create(&req));
                         req->acct_mgmt_server = vx_strdup(m_desiredServer.ToString());
                         req->application = vx_strdup(m_application.c_str());
                         req->base.cookie = GetNextRequestId(NULL, "C");
@@ -2422,8 +2467,8 @@ namespace VivoxClientApi {
                     if(m_currentState == ConnectorStateInitialized) {
                         CHECK_RET(m_currentServer.IsValid());
                         CHECK_RET(!m_connectorHandle.empty());
-                        vx_req_connector_initiate_shutdown *req;
-                        vx_req_connector_initiate_shutdown_create(&req);
+                        vx_req_connector_initiate_shutdown *req = nullptr;
+                        CHECK_STATUS_RET(vx_req_connector_initiate_shutdown_create(&req));
                         req->connector_handle = vx_strdup(m_connectorHandle.c_str());
                         m_currentState = ConnectorStateUninitializing;
                         issueRequest(&req->base);
@@ -2432,17 +2477,17 @@ namespace VivoxClientApi {
             }
             // if we are connected to the right backend...
             if(m_desiredState == ConnectorStateInitialized && m_currentState == ConnectorStateInitialized && m_desiredServer == m_currentServer) {
-                for(std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.begin();i!=m_logins.end();++i) {
+                for(map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.begin();i!=m_logins.end();++i) {
                     i->second->NextState();
                 }
             }
             // audio device and master volume states
             if (!(m_currentAudioInputDevicePolicy == m_desiredAudioInputDevicePolicy)) {
                 /// This only puts in a change request if the effective device would change
-                vx_req_aux_set_capture_device_t *req;
-                vx_req_aux_set_capture_device_create(&req);
+                vx_req_aux_set_capture_device_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_aux_set_capture_device_create(&req));
 
-                req->base.vcookie = new AudioDevicePolicy(m_desiredAudioInputDevicePolicy);
+				req->base.vcookie = custom_new<AudioDevicePolicy>(m_desiredAudioInputDevicePolicy);
 
                 req->capture_device_specifier = vx_strdup(AudioDeviceIdToCodePage(m_desiredAudioInputDevicePolicy.GetSpecificAudioDevice()).c_str());
                 issueRequest(&req->base);
@@ -2450,10 +2495,10 @@ namespace VivoxClientApi {
             }
             if (!(m_currentAudioOutputDevicePolicy == m_desiredAudioOutputDevicePolicy)) {
                 /// This only puts in a change request if the effective device would change
-                vx_req_aux_set_render_device_t *req;
-                vx_req_aux_set_render_device_create(&req);
+                vx_req_aux_set_render_device_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_aux_set_render_device_create(&req));
 
-                req->base.vcookie = new AudioDevicePolicy(m_desiredAudioOutputDevicePolicy);
+				req->base.vcookie = custom_new<AudioDevicePolicy>(m_desiredAudioOutputDevicePolicy);
 
                 req->render_device_specifier = vx_strdup(AudioDeviceIdToCodePage(m_desiredAudioOutputDevicePolicy.GetSpecificAudioDevice()).c_str());
                 issueRequest(&req->base);
@@ -2461,8 +2506,8 @@ namespace VivoxClientApi {
             }
             if (m_masterAudioInputDeviceVolume != m_desiredAudioInputDeviceVolume) {
                 if (!m_masterAudioInputDeviceVolumeRequestInProgress) {
-                    vx_req_connector_set_local_mic_volume_t *req;
-                    vx_req_connector_set_local_mic_volume_create(&req);
+                    vx_req_connector_set_local_mic_volume_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_connector_set_local_mic_volume_create(&req));
                     req->volume = m_desiredAudioInputDeviceVolume;
                     issueRequest(&req->base);
                     m_masterAudioInputDeviceVolumeRequestInProgress = true;
@@ -2471,8 +2516,8 @@ namespace VivoxClientApi {
 			}
             if (m_masterAudioOutputDeviceVolume != m_desiredAudioOutputDeviceVolume) {
                 if (!m_masterAudioOutputDeviceVolumeRequestInProgress) {
-                    vx_req_connector_set_local_speaker_volume_t *req;
-                    vx_req_connector_set_local_speaker_volume_create(&req);
+                    vx_req_connector_set_local_speaker_volume_t *req = nullptr;
+                    CHECK_STATUS_RET(vx_req_connector_set_local_speaker_volume_create(&req));
                     req->volume = m_desiredAudioOutputDeviceVolume;
                     issueRequest(&req->base);
                     m_masterAudioOutputDeviceVolumeRequestInProgress = true;
@@ -2481,8 +2526,8 @@ namespace VivoxClientApi {
 			}
 			if (m_autoVad != m_desiredAutoVad || (!m_autoVad && m_masterVadSensitivity != m_desiredVadSensitivity)) {
 				if (!m_masterVoiceActivateDetectionRequestInProgress) {
-					vx_req_aux_set_vad_properties *req;
-					vx_req_aux_set_vad_properties_create(&req);
+					vx_req_aux_set_vad_properties_t *req = nullptr;
+					CHECK_STATUS_RET(vx_req_aux_set_vad_properties_create(&req));
 					req->vad_sensitivity = m_desiredVadSensitivity;
 					req->vad_noise_floor = 576;
 					req->vad_hangover = 2000;
@@ -2498,33 +2543,31 @@ namespace VivoxClientApi {
 
         SingleLoginMultiChannelManager *FindLogin(const AccountName &name) const
         {
-            std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.find(name);
+            map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.find(name);
             if (i == m_logins.end()) {
                 return NULL;
             }
-            return i->second;
+            return i->second.get();
         }
 
         SingleLoginMultiChannelManager *FindLogin(const AccountName &name, const char *access_token)
         {
-            std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.find(name);
+            map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.find(name);
             if(i == m_logins.end()) {
                 if(access_token) {  
-                    SingleLoginMultiChannelManager *s = new SingleLoginMultiChannelManager(m_app, m_connectorHandle, name, NULL, NULL, m_multiChannel);
-                    m_logins[name] = s;
-                    return s;
+                    return m_logins.emplace(name, custom_make_unique<SingleLoginMultiChannelManager>(m_app, m_connectorHandle, name, nullptr, nullptr, m_multiChannel)).first->second.get();
                 } else {
                     return NULL;
                 }
             }
-            return i->second;
+            return i->second.get();
         }
 
         SingleLoginMultiChannelManager *FindLoginBySessionHandle(const char *sessionHandle)
         {
-            for (std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.begin(); i != m_logins.end(); ++i) {
+            for (map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.begin(); i != m_logins.end(); ++i) {
                 if (i->second->IsUsingSessionHandle(sessionHandle)) {
-                    return i->second;
+                    return i->second.get();
                 }
             }
             return NULL;
@@ -2532,9 +2575,9 @@ namespace VivoxClientApi {
 
         SingleLoginMultiChannelManager *FindLoginBySessionGroupHandle(const char *sessionGroupHandle)
         {
-            for(std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.begin(); i!=m_logins.end();++i) {
+            for(map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.begin(); i!=m_logins.end();++i) {
                 if(i->second->GetSessionGroupHandle() == sessionGroupHandle) {
-                    return i->second;
+                    return i->second.get();
                 }
             }
             return NULL;
@@ -2542,9 +2585,9 @@ namespace VivoxClientApi {
 
         SingleLoginMultiChannelManager *FindLogin(const char *accountHandle) const
         {
-            for(std::map<AccountName, SingleLoginMultiChannelManager *>::const_iterator i = m_logins.begin(); i!=m_logins.end();++i) {
+            for(map<AccountName, unique_ptr<SingleLoginMultiChannelManager>>::const_iterator i = m_logins.begin(); i!=m_logins.end();++i) {
                 if(i->second->GetAccountHandle() == accountHandle) {
-                    return i->second;
+                    return i->second.get();
                 }
             }
             return NULL;
@@ -2564,7 +2607,7 @@ namespace VivoxClientApi {
 
         void OnLogMessage(vx_log_level level, const char *source, const char* message)
         {
-            std::stringstream ss;
+            stringstream ss;
             ss << source << " - " << message;
 #ifdef WIN32
             FILETIME ft;
@@ -2788,7 +2831,7 @@ namespace VivoxClientApi {
         {
             if (resp->base.status_code == 0)
             {
-                std::vector<AudioDeviceId> oldDevices = m_audioInputDeviceList;
+                vector<AudioDeviceId> oldDevices = m_audioInputDeviceList;
                 bool osChosenDeviceChanged = false;
                 bool deviceListChanged = false;
                 m_audioInputDeviceList.clear();
@@ -2820,7 +2863,7 @@ namespace VivoxClientApi {
         {
             if (resp->base.status_code == 0)
             {
-                std::vector<AudioDeviceId> oldDevices = m_audioOutputDeviceList;
+                vector<AudioDeviceId> oldDevices = m_audioOutputDeviceList;
                 bool osChosenDeviceChanged = false;
                 bool deviceListChanged = false;
                 m_audioOutputDeviceList.clear();
@@ -2867,7 +2910,7 @@ namespace VivoxClientApi {
                 }
             }
             NextState();
-            delete requestedDevicePolicy;
+            custom_delete(requestedDevicePolicy);
         }
 
         void HandleResponse(vx_resp_aux_set_render_device *resp)
@@ -2889,7 +2932,7 @@ namespace VivoxClientApi {
                 }
             }
             NextState();
-            delete requestedDevicePolicy;
+            custom_delete(requestedDevicePolicy);
         }
 
 		void HandleResponse(vx_resp_aux_set_vad_properties *resp)
@@ -3186,8 +3229,8 @@ namespace VivoxClientApi {
         {
             if (value != m_audioOutputDeviceMuted) {
                 m_audioOutputDeviceMuted = value;
-                vx_req_connector_mute_local_speaker_t *req;
-                vx_req_connector_mute_local_speaker_create(&req);
+                vx_req_connector_mute_local_speaker_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_connector_mute_local_speaker_create(&req));
                 req->mute_level = value ? 1 : 0;
                 vx_issue_request(&req->base);
             }
@@ -3202,8 +3245,8 @@ namespace VivoxClientApi {
         {
             if (value != m_audioInputDeviceMuted) {
                 m_audioInputDeviceMuted = value;
-                vx_req_connector_mute_local_mic_t *req;
-                vx_req_connector_mute_local_mic_create(&req);
+                vx_req_connector_mute_local_mic_t *req = nullptr;
+                CHECK_STATUS_RET(vx_req_connector_mute_local_mic_create(&req));
                 req->mute_level = value ? 1 : 0;
                 vx_issue_request(&req->base);
             }
@@ -3221,8 +3264,8 @@ namespace VivoxClientApi {
         ///
         void EnteredBackground()
         {
-            vx_req_aux_notify_application_state_change *req;
-            vx_req_aux_notify_application_state_change_create(&req);
+            vx_req_aux_notify_application_state_change_t *req = nullptr;
+            CHECK_STATUS_RET(vx_req_aux_notify_application_state_change_create(&req));
             req->notification_type = vx_application_state_notification_type_before_background;
             issueRequest(&req->base);
         }
@@ -3234,8 +3277,8 @@ namespace VivoxClientApi {
         ///
         void WillEnterForeground()
         {
-            vx_req_aux_notify_application_state_change *req;
-            vx_req_aux_notify_application_state_change_create(&req);
+            vx_req_aux_notify_application_state_change_t *req = nullptr;
+            CHECK_STATUS_RET(vx_req_aux_notify_application_state_change_create(&req));
             req->notification_type = vx_application_state_notification_type_after_foreground;
             issueRequest(&req->base);
         }
@@ -3247,8 +3290,8 @@ namespace VivoxClientApi {
         ///
         void OnBackgroundIdleTimeout()
         {
-            vx_req_aux_notify_application_state_change *req;
-            vx_req_aux_notify_application_state_change_create(&req);
+            vx_req_aux_notify_application_state_change_t *req = nullptr;
+            CHECK_STATUS_RET(vx_req_aux_notify_application_state_change_create(&req));
             req->notification_type = vx_application_state_notification_type_periodic_background_idle;
             issueRequest(&req->base);
         }
@@ -3273,7 +3316,7 @@ namespace VivoxClientApi {
 
         IClientApiEventHandler *m_app;
 
-        std::string m_application;
+        string m_application;
 
         Uri m_desiredServer;
         ConnectorState m_desiredState;
@@ -3281,16 +3324,16 @@ namespace VivoxClientApi {
         Uri m_currentServer;
         ConnectorState m_currentState;
 
-        std::string m_connectorHandle;
+        string m_connectorHandle;
 
-        std::map<AccountName, SingleLoginMultiChannelManager *> m_logins;
+        map<AccountName, unique_ptr<SingleLoginMultiChannelManager>> m_logins;
 
         bool m_multiChannel;
         bool m_multiLogin;
         IClientApiEventHandler::LogLevel m_loglevel;
 
-        std::vector<AudioDeviceId> m_audioOutputDeviceList;
-        std::vector<AudioDeviceId> m_audioInputDeviceList;
+        vector<AudioDeviceId> m_audioOutputDeviceList;
+        vector<AudioDeviceId> m_audioInputDeviceList;
 
         bool m_audioInputDeviceListPopulated;
         bool m_audioOutputDeviceListPopulated;
@@ -3332,8 +3375,12 @@ namespace VivoxClientApi {
             m_app = NULL;
             m_desiredState = ConnectorStateUninitialized;
             m_currentState = ConnectorStateUninitialized;
+            m_connectorHandle.clear();
+            m_logins.clear();
             m_multiChannel = false;
             m_multiLogin = false;
+            m_audioOutputDeviceList.clear();
+            m_audioInputDeviceList.clear();
             m_audioInputDeviceListPopulated = false;
             m_audioOutputDeviceListPopulated = false;
             m_masterAudioInputDeviceVolume = 50;
@@ -3360,12 +3407,12 @@ namespace VivoxClientApi {
 
     ClientConnection::ClientConnection()
     {
-        m_pImpl = new ClientConnectionImpl();
+        m_pImpl = custom_new<ClientConnectionImpl>();
     }
 
     ClientConnection::~ClientConnection()
     {
-        delete m_pImpl;
+        custom_delete(m_pImpl);
     }
 
     VCSStatus ClientConnection::Initialize(IClientApiEventHandler *app, IClientApiEventHandler::LogLevel logLevel, bool multiChannel, bool multiLogin, vx_sdk_config_t *configHints, size_t configSize)
@@ -3436,14 +3483,14 @@ namespace VivoxClientApi {
         return m_pImpl->Disconnect(server);
     }
 
-    VCSStatus ClientConnection::BlockUsers(const AccountName &accountName, const std::set<Uri> &usersToBlock)
+    VCSStatus ClientConnection::BlockUsers(const AccountName &accountName, const Uri* usersToBlock, int numUsersToBlock)
     {
-        return m_pImpl->BlockUsers(accountName, usersToBlock);
+        return m_pImpl->BlockUsers(accountName, usersToBlock, numUsersToBlock);
     }
 
-    VCSStatus ClientConnection::UnblockUsers(const AccountName &accountName, const std::set<Uri> &usersToUnblock)
+    VCSStatus ClientConnection::UnblockUsers(const AccountName &accountName, const Uri* usersToUnblock, int numUsersToUnblock)
     {
-        return m_pImpl->UnblockUsers(accountName, usersToUnblock);
+        return m_pImpl->UnblockUsers(accountName, usersToUnblock, numUsersToUnblock);
     }
 
     //VCSStatus ClientConnection::IssueGetStats(const AccountName &accountName, bool reset)
@@ -3466,9 +3513,11 @@ namespace VivoxClientApi {
 
     // Audio Input Functions
 
-    const std::vector<AudioDeviceId> &ClientConnection::GetAvailableAudioInputDevices() const
+    void ClientConnection::GetAvailableAudioInputDevices(const AudioDeviceId* &deviceIds, int& numDeviceIds) const
     {
-        return m_pImpl->GetAudioInputDevices();
+        const vector<AudioDeviceId>& InputDevices = m_pImpl->GetAudioInputDevices();
+		deviceIds = InputDevices.data();
+		numDeviceIds = static_cast<int>(InputDevices.size());
     }
 
     AudioDeviceId ClientConnection::GetApplicationChosenAudioInputDevice() const
@@ -3498,9 +3547,11 @@ namespace VivoxClientApi {
 
     // Audio Output Devices
 
-    const std::vector<AudioDeviceId> &ClientConnection::GetAvailableAudioOutputDevices() const
+    void ClientConnection::GetAvailableAudioOutputDevices(const AudioDeviceId* &deviceIds, int& numDeviceIds) const
     {
-        return m_pImpl->GetAudioOutputDevices();
+		const vector<AudioDeviceId>& OutputDevices = m_pImpl->GetAudioOutputDevices();
+		deviceIds = OutputDevices.data();
+		numDeviceIds = static_cast<int>(OutputDevices.size());
     }
 
     AudioDeviceId ClientConnection::GetApplicationChosenAudioOutputDevice() const

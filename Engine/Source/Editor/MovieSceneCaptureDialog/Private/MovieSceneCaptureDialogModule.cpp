@@ -536,6 +536,12 @@ void FInEditorCapture::OnPIEViewportStarted()
 					CapturingFromWorld->GetWorldSettings()->DefaultGameMode = CaptureObject->Settings.GameModeOverride;
 				}
 
+				CachedEngineShowFlags = SlatePlayInEditorSession->SlatePlayInEditorWindowViewport->GetClient()->GetEngineShowFlags();
+				if (CachedEngineShowFlags && Settings.bUsePathTracer)
+				{
+					CachedPathTracingMode = CachedEngineShowFlags->PathTracing;
+					CachedEngineShowFlags->SetPathTracing(true);
+				}
 				CaptureObject->Initialize(SlatePlayInEditorSession->SlatePlayInEditorWindowViewport, Context.PIEInstance);
 				OnCaptureStarted();
 			}
@@ -578,6 +584,11 @@ void FInEditorCapture::Shutdown()
 	if (CaptureObject->Settings.GameModeOverride != nullptr && CapturingFromWorld != nullptr)
 	{
 		CapturingFromWorld->GetWorldSettings()->DefaultGameMode = CachedGameMode;
+	}
+	
+	if (CachedEngineShowFlags)
+	{
+		CachedEngineShowFlags->SetPathTracing(CachedPathTracingMode);
 	}
 
 	FObjectReader(GetMutableDefault<ULevelEditorPlaySettings>(), BackedUpPlaySettings);

@@ -7,6 +7,8 @@ public class Engine : ModuleRules
 {
 	public Engine(ReadOnlyTargetRules Target) : base(Target)
 	{
+		PrivateIncludePaths.Add("../Shaders/Shared");
+
 		PrivatePCHHeaderFile = "Private/EnginePrivatePCH.h";
 
 		SharedPCHHeaderFile = "Public/EngineSharedPCH.h";
@@ -306,6 +308,11 @@ public class Engine : ModuleRules
 				"Advertising"
 			}
 		);
+
+		if(Target.bWithLiveCoding)
+		{
+			DynamicallyLoadedModuleNames.Add("LiveCoding");
+		}
 
 		if (Target.Type != TargetType.Server)
 		{

@@ -131,6 +131,8 @@ private:
 	int32 BackedUpTextureStreaming;
 	TArray<uint8> BackedUpPlaySettings;
 
+	bool CachedPathTracingMode = false;
+	struct FEngineShowFlags* CachedEngineShowFlags = nullptr;
 	TSubclassOf<AGameModeBase> CachedGameMode;
 };
 

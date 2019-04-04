@@ -69,7 +69,7 @@ static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 		FMessageDialog::Open(EAppMsgType::Ok, LocalizedMsg, &Title);
 		FPlatformMisc::RequestExit(true);
 		
-		UE_LOG(LogMetal, Fatal, TEXT("Shader platform: %s was not cooked! Please enable this shader platform in the project's target settings."), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+		METAL_FATAL_ERROR(TEXT("Shader platform: %s was not cooked! Please enable this shader platform in the project's target settings."), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
 	}
 }
 
@@ -835,12 +835,28 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			NSString* TempDir = [NSString stringWithFormat:@"%@/../C/%@/com.apple.metal", NSTemporaryDirectory(), [NSBundle mainBundle].bundleIdentifier];
 
 			NSError* Err = nil;
-			BOOL bOK = [[NSFileManager defaultManager] removeItemAtPath:TempDir
-						error:&Err];
-
-			bOK = [[NSFileManager defaultManager] copyItemAtPath:DstPath
-						toPath:TempDir
-						error:&Err];
+			if(![[NSFileManager defaultManager] fileExistsAtPath:TempDir])
+			{
+				[[NSFileManager defaultManager] createDirectoryAtPath:TempDir
+										  withIntermediateDirectories:YES
+														   attributes:nil
+																error:&Err];
+			}
+			
+			NSDirectoryEnumerator<NSString *> * Enum = [[NSFileManager defaultManager] enumeratorAtPath:DstPath];
+			for (NSString* Path in Enum)
+			{
+				[Enum skipDescendents];
+				
+				NSString* Dest = [NSString stringWithFormat:@"%@/%@", TempDir, Path];
+				if(![[NSFileManager defaultManager] fileExistsAtPath:Dest])
+				{
+					NSString* Src = [NSString stringWithFormat:@"%@/%@", DstPath, Path];
+					[[NSFileManager defaultManager] copyItemAtPath:Src
+															toPath:Dest
+															 error:&Err];
+				}
+			}
 		}
 	}
 #endif

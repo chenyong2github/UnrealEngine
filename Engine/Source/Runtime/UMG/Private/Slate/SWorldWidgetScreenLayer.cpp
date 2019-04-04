@@ -8,6 +8,17 @@
 #include "Widgets/SViewport.h"
 #include "Slate/SGameLayerManager.h"
 
+SWorldWidgetScreenLayer::FComponentEntry::FComponentEntry()
+	: Slot(nullptr)
+{
+}
+
+SWorldWidgetScreenLayer::FComponentEntry::~FComponentEntry()
+{
+	Widget.Reset();
+	ContainerWidget.Reset();
+}
+
 void SWorldWidgetScreenLayer::Construct(const FArguments& InArgs, const FLocalPlayerContext& InPlayerContext)
 {
 	PlayerContext = InPlayerContext;
@@ -32,11 +43,11 @@ void SWorldWidgetScreenLayer::SetWidgetPivot(FVector2D InPivot)
 	Pivot = InPivot;
 }
 
-void SWorldWidgetScreenLayer::AddComponent(USceneComponent* Component, TSharedPtr<SWidget> Widget)
+void SWorldWidgetScreenLayer::AddComponent(USceneComponent* Component, TSharedRef<SWidget> Widget)
 {
-	if ( Component && Widget.IsValid() )
+	if ( Component )
 	{
-		FComponentEntry& Entry = ComponentMap.FindOrAdd(Component);
+		FComponentEntry& Entry = ComponentMap.FindOrAdd(FObjectKey(Component));
 		Entry.Component = Component;
 		Entry.WidgetComponent = Cast<UWidgetComponent>(Component);
 		Entry.Widget = Widget;
@@ -46,7 +57,7 @@ void SWorldWidgetScreenLayer::AddComponent(USceneComponent* Component, TSharedPt
 		[
 			SAssignNew(Entry.ContainerWidget, SBox)
 			[
-				Widget.ToSharedRef()
+				Widget
 			]
 		];
 	}
@@ -54,16 +65,15 @@ void SWorldWidgetScreenLayer::AddComponent(USceneComponent* Component, TSharedPt
 
 void SWorldWidgetScreenLayer::RemoveComponent(USceneComponent* Component)
 {
-	if ( Component )
+	if (ensure(Component))
 	{
-		if ( FComponentEntry* Entry = ComponentMap.Find(Component) )
+		if (FComponentEntry* EntryPtr = ComponentMap.Find(Component))
 		{
-			if ( Entry->Widget.IsValid() )
+			if (!EntryPtr->bRemoving)
 			{
-				Canvas->RemoveSlot(Entry->ContainerWidget.ToSharedRef());
+				RemoveEntryFromCanvas(*EntryPtr);
+				ComponentMap.Remove(Component);
 			}
-
-			ComponentMap.Remove(Component);
 		}
 	}
 }
@@ -71,8 +81,6 @@ void SWorldWidgetScreenLayer::RemoveComponent(USceneComponent* Component)
 void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SWorldWidgetScreenLayer_Tick);
-
-	TArray<USceneComponent*, TInlineAllocator<1>> DeadComponents;
 
 	if ( APlayerController* PlayerController = PlayerContext.GetPlayerController() )
 	{
@@ -87,6 +95,8 @@ void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const doub
 				if ( USceneComponent* SceneComponent = Entry.Component.Get() )
 				{
 					FVector WorldLocation = SceneComponent->GetComponentLocation();
+
+					//TODO NDarnell Perf This can be improved, if we get the projection matrix and do all of them in one go, instead of calling the library.
 
 					FVector ViewportPosition;
 					const bool bProjected = UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPositionWithDistance(PlayerController, WorldLocation, ViewportPosition);
@@ -128,16 +138,22 @@ void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const doub
 				}
 				else
 				{
-					DeadComponents.Add(SceneComponent);
+					RemoveEntryFromCanvas(Entry);
+					It.RemoveCurrent();
+					continue;
 				}
 			}
 		}
 	}
+}
 
-	// Normally components should be removed by someone calling remove component, but just in case it was 
-	// deleted in a way where they didn't happen, this is our backup solution to ensure we remove stale widgets.
-	for ( int32 Index = 0; Index < DeadComponents.Num(); Index++ )
+void SWorldWidgetScreenLayer::RemoveEntryFromCanvas(SWorldWidgetScreenLayer::FComponentEntry& Entry)
+{
+	// Mark the component was being removed, so we ignore any other remove requests for this component.
+	Entry.bRemoving = true;
+
+	if (TSharedPtr<SWidget> ContainerWidget = Entry.ContainerWidget)
 	{
-		RemoveComponent(DeadComponents[Index]);
+		Canvas->RemoveSlot(ContainerWidget.ToSharedRef());
 	}
 }

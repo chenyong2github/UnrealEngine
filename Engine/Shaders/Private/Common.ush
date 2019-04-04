@@ -71,7 +71,7 @@
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
 
 const static MaterialFloat PI = 3.1415926535897932f;
-
+const static float MaxHalfFloat = 65504.0f;
 #ifndef USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
 #endif
@@ -93,6 +93,11 @@ float ComputeRayConeLod(Texture2D Tex)
 #endif
 }
 #endif
+
+float  ClampToHalfFloatRange(float  X) { return clamp(X, float(0), MaxHalfFloat); }
+float2 ClampToHalfFloatRange(float2 X) { return clamp(X, float(0).xx, MaxHalfFloat.xx); }
+float3 ClampToHalfFloatRange(float3 X) { return clamp(X, float(0).xxx, MaxHalfFloat.xxx); }
+float4 ClampToHalfFloatRange(float4 X) { return clamp(X, float(0).xxxx, MaxHalfFloat.xxxx); }
 
 // This would need to be a #define in GLSL to ignore the SamplerState, however, it is currently a function call in HLSL
 // for type checking of the parameters - ironically the type checking is really only needed in GLSL!
@@ -1570,6 +1575,14 @@ bool GetGIReplaceState()
 #endif
 }
 
+bool GetRayTracingQualitySwitch()
+{
+#if RAYHITGROUPSHADER
+	return true;
+#else
+	return false;
+#endif
+}
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 struct FWriteToSliceGeometryOutput
@@ -1699,14 +1712,7 @@ uint ReverseBits32( uint bits )
 /** Reverses all the <BitCount> lowest significant bits. */
 uint ReverseBitsN(uint Bitfield, const uint BitCount)
 {
-	uint Out = 0;
-	UNROLL
-	for (uint i = 0; i < BitCount; i++)
-	{
-		uint bIsSet = ((Bitfield & (0x1 << i)) >> i);
-		Out |= bIsSet << (BitCount - 1 - i);
-	}
-	return Out;
+	return ReverseBits32(Bitfield) >> (32 - BitCount);
 }
 
 // see PixelShaderOutputCommon

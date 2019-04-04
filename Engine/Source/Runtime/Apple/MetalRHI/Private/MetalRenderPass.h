@@ -173,6 +173,12 @@ private:
 	void CommitAsyncDispatchResourceTables(void);
     
     void ConditionalSubmit();
+	
+	uint32 GetEncoderIndex(void) const;
+	uint32 GetCommandBufferIndex(void) const;
+	
+	void InsertDebugDraw(FMetalCommandData& Data);
+	void InsertDebugDispatch(FMetalCommandData& Data);
 private:
 #pragma mark -
 	FMetalCommandList& CmdList;

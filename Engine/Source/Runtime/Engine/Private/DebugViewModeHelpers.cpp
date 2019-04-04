@@ -21,8 +21,17 @@ static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
 	// List of platforms that have been tested and proved functional.
 	return Platform == SP_PCD3D_SM4 || Platform == SP_PCD3D_SM5 || Platform == SP_OPENGL_SM4;
 }
- 
-bool AllowDebugViewPS(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform)
+
+bool AllowDebugViewVSDSHS(EShaderPlatform Platform)
+{
+#if WITH_EDITOR
+	return true; 
+#else
+	return false;
+#endif
+}
+
+bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
 {
 #if WITH_EDITOR
 	// Those options are used to test compilation on specific platforms
@@ -35,38 +44,24 @@ bool AllowDebugViewPS(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform)
 	case DVSM_None:
 		return false;
 	case DVSM_ShaderComplexity:
-		return true;
+		return FeatureLevel != ERHIFeatureLevel::SM4; // SM4 doesn't apply post-processes correctly in the deferred path.
 	case DVSM_ShaderComplexityContainedQuadOverhead:
 	case DVSM_ShaderComplexityBleedingQuadOverhead:
 	case DVSM_QuadComplexity:
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (bForceQuadOverdraw || PlatformSupportsDebugViewShaders(Platform));
+		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceQuadOverdraw || PlatformSupportsDebugViewShaders(Platform));
 	case DVSM_PrimitiveDistanceAccuracy:
 	case DVSM_MeshUVDensityAccuracy:
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (bForceStreamingAccuracy || PlatformSupportsDebugViewShaders(Platform));
+		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceStreamingAccuracy || PlatformSupportsDebugViewShaders(Platform));
 	case DVSM_MaterialTextureScaleAccuracy:
 	case DVSM_RequiredTextureResolution:
 	case DVSM_OutputMaterialTextureScales:
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && (bForceTextureStreamingBuild || PlatformSupportsDebugViewShaders(Platform));
+		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceTextureStreamingBuild || PlatformSupportsDebugViewShaders(Platform));
 	default:
 		return false;
 	}
 #else
-	return ShaderMode == DVSM_ShaderComplexity;
+	return ShaderMode == DVSM_ShaderComplexity && FeatureLevel != ERHIFeatureLevel::SM4;
 #endif
-}
-
-bool AllowDebugViewVSDSHS(EShaderPlatform Platform)
-{
-#if WITH_EDITOR
-	return true; 
-#else
-	return false;
-#endif
-}
-
-bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode)
-{
-	return AllowDebugViewPS(ShaderMode, GMaxRHIShaderPlatform);
 }
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -88,7 +83,7 @@ int32 GetNumActorsInWorld(UWorld* InWorld)
 	return ActorCount;
 }
 
-bool WaitForShaderCompilation(const FText& Message, FSlowTask& ProgressTask)
+bool WaitForShaderCompilation(const FText& Message, FSlowTask* ProgressTask)
 {
 	FlushRenderingCommands();
 
@@ -109,19 +104,22 @@ bool WaitForShaderCompilation(const FText& Message, FSlowTask& ProgressTask)
 				const int32 NumberOfShadersCompiledThisFrame = RemainingShaders - RemainingShadersThisFrame;
 
 				const float FrameProgress = (float)NumberOfShadersCompiledThisFrame / (float)NumShadersToBeCompiled;
-				ProgressTask.EnterProgressFrame(FrameProgress);
-				SlowTask.EnterProgressFrame(FrameProgress);
-				if (GWarn->ReceivedUserCancel())
+				if (ProgressTask)
 				{
-					return false;
+					ProgressTask->EnterProgressFrame(FrameProgress);
+					SlowTask.EnterProgressFrame(FrameProgress);
+					if (GWarn->ReceivedUserCancel())
+					{
+						return false;
+					}
 				}
 			}
 			RemainingShaders = RemainingShadersThisFrame;
 		}
 	}
-	else
+	else if (ProgressTask)
 	{
-		ProgressTask.EnterProgressFrame();
+		ProgressTask->EnterProgressFrame();
 		if (GWarn->ReceivedUserCancel())
 		{
 			return false;
@@ -139,7 +137,7 @@ bool WaitForShaderCompilation(const FText& Message, FSlowTask& ProgressTask)
  *
  * @return true if the operation is a success, false if it was canceled.
  */
-bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& OutMaterials, FSlowTask& ProgressTask)
+bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& OutMaterials, FSlowTask* ProgressTask)
 {
 #if WITH_EDITORONLY_DATA
 	if (!InWorld)
@@ -150,7 +148,10 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
 	const int32 NumActorsInWorld = GetNumActorsInWorld(InWorld);
 	if (!NumActorsInWorld)
 	{
-		ProgressTask.EnterProgressFrame();
+		if (ProgressTask)
+		{
+			ProgressTask->EnterProgressFrame();
+		}
 		return true;
 	}
 
@@ -168,11 +169,14 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
 
 		for (AActor* Actor : Level->Actors)
 		{
-			ProgressTask.EnterProgressFrame(OneOverNumActorsInWorld);
-			SlowTask.EnterProgressFrame(OneOverNumActorsInWorld);
-			if (GWarn->ReceivedUserCancel())
+			if (ProgressTask)
 			{
-				return false;
+				ProgressTask->EnterProgressFrame(OneOverNumActorsInWorld);
+				SlowTask.EnterProgressFrame(OneOverNumActorsInWorld);
+				if (GWarn->ReceivedUserCancel())
+				{
+					return false;
+				}
 			}
 
 			// Check the actor after incrementing the progress.
@@ -204,7 +208,7 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
 			}
 		}
 	}
-	return true;
+	return OutMaterials.Num() != 0;
 #else
 	return false;
 #endif
@@ -220,15 +224,13 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
  * @param Materials			The materials to update, the one that failed compilation will be removed (IN OUT).
  * @return true if the operation is a success, false if it was canceled.
  */
-bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, bool bFullRebuild, bool bWaitForPreviousShaders, TSet<UMaterialInterface*>& Materials, FSlowTask& ProgressTask)
+bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, bool bFullRebuild, bool bWaitForPreviousShaders, TSet<UMaterialInterface*>& Materials, FSlowTask* ProgressTask)
 {
 #if WITH_EDITORONLY_DATA
-	if (!GShaderCompilingManager)
+	if (!GShaderCompilingManager || !Materials.Num())
 	{
 		return false;
 	}
-
-	check(Materials.Num())
 
 	// Finish compiling pending shaders first.
 	if (!bWaitForPreviousShaders)

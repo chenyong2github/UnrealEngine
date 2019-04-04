@@ -26,6 +26,7 @@ class FViewElementDrawer;
 class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
+class FIESLightProfileResource;
 
 // #dxr_todo: share this enum with ray tracing shader code via RayTracingDefinitions.ush
 enum class ERayTracingRenderMode
@@ -563,6 +564,7 @@ enum ETranslucencyVolumeCascade
 #define VIEW_UNIFORM_BUFFER_MEMBER_TABLE \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, TranslatedWorldToClip) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, WorldToClip) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, ClipToWorld)  \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, TranslatedWorldToView) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, ViewToTranslatedWorld) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FMatrix, TranslatedWorldToCameraView) \
@@ -1032,6 +1034,10 @@ public:
 	/** Feature level for this scene */
 	const ERHIFeatureLevel::Type FeatureLevel;
 
+#if RHI_RAYTRACING
+	FIESLightProfileResource* IESLightProfileResource;
+#endif
+
 protected:
 	friend class FSceneRenderer;
 
@@ -1212,7 +1218,6 @@ public:
 
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
-
 #endif
 
 	/** Will return custom data associated with the specified primitive index.	*/

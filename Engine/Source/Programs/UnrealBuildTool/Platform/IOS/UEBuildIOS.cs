@@ -36,6 +36,12 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics = false;
 
 		/// <summary>
+		/// Mark the build for distribution
+		/// </summary>
+		[CommandLine("-distribution")]
+		public bool bForDistribution = false;
+
+		/// <summary>
 		/// Manual override for the provision to use. Should be a full path.
 		/// </summary>
 		[CommandLine("-ImportProvision=")]
@@ -98,6 +104,11 @@ namespace UnrealBuildTool
 		public bool bSkipCrashlytics
 		{
 			get { return Inner.bSkipCrashlytics; }
+		}
+
+		public bool bForDistribution
+		{
+			get { return Inner.bForDistribution; }
 		}
 
 		public string ImportProvision
@@ -290,6 +301,12 @@ namespace UnrealBuildTool
 		public readonly bool bEnableAdvertisingIdentifier = false;
 
 		/// <summary>
+		/// true when building for distribution
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "ForDistribution")]
+		public readonly bool bForDistribution = false;
+
+		/// <summary>
 		/// Returns a list of all the non-shipping architectures which are supported
 		/// </summary>
 		public IEnumerable<string> NonShippingArchitectures
@@ -378,8 +395,9 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">The project file to read settings for</param>
-		public IOSProjectSettings(FileReference ProjectFile) 
-			: this(ProjectFile, UnrealTargetPlatform.IOS)
+		/// <param name="Bundle">Bundle identifier needed when project file is empty</param>
+		public IOSProjectSettings(FileReference ProjectFile, string Bundle) 
+			: this(ProjectFile, UnrealTargetPlatform.IOS, Bundle)
 		{
 		}
 
@@ -388,11 +406,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file to read settings for</param>
 		/// <param name="Platform">The platform to read settings for</param>
-		protected IOSProjectSettings(FileReference ProjectFile, UnrealTargetPlatform Platform)
+		/// <param name="Bundle">Bundle identifier needed when project file is empty</param>
+		protected IOSProjectSettings(FileReference ProjectFile, UnrealTargetPlatform Platform, string Bundle)
 		{
 			this.ProjectFile = ProjectFile;
 			ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, this);
-            BundleIdentifier = BundleIdentifier.Replace("[PROJECT_NAME]", ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UE4Game")).Replace("_", "");
+			if ((ProjectFile == null || string.IsNullOrEmpty(ProjectFile.FullName)) && !string.IsNullOrEmpty(Bundle))
+			{
+				BundleIdentifier = Bundle;
+			}
+			BundleIdentifier = BundleIdentifier.Replace("[PROJECT_NAME]", ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UE4Game")).Replace("_", "");
 		}
 	}
 
@@ -406,6 +429,7 @@ namespace UnrealBuildTool
         public string MobileProvisionUUID;
         public string MobileProvisionName;
         public string TeamUUID;
+		public string BundleIdentifier;
 		public bool bHaveCertificate = false;
 
 		public string MobileProvision
@@ -572,7 +596,18 @@ namespace UnrealBuildTool
 							TeamUUID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
 						}
 					}
-                    idx = AllText.IndexOf("<key>Name</key>");
+					idx = AllText.IndexOf("<key>application-identifier</key>");
+					if (idx > 0)
+					{
+						idx = AllText.IndexOf("<string>", idx);
+						if (idx > 0)
+						{
+							idx += "<string>".Length;
+							String FullID = AllText.Substring(idx, AllText.IndexOf("</string>", idx) - idx);
+							BundleIdentifier = FullID.Substring(FullID.IndexOf('.') + 1);
+						}
+					}
+					idx = AllText.IndexOf("<key>Name</key>");
                     if (idx > 0)
                     {
                         idx = AllText.IndexOf("<string>", idx);
@@ -739,25 +774,25 @@ namespace UnrealBuildTool
 			return base.GetBinaryExtension(InBinaryType);
 		}
 
-		public IOSProjectSettings ReadProjectSettings(FileReference ProjectFile)
+		public IOSProjectSettings ReadProjectSettings(FileReference ProjectFile, string Bundle = "")
 		{
 			IOSProjectSettings ProjectSettings = CachedProjectSettings.FirstOrDefault(x => x.ProjectFile == ProjectFile);
 			if(ProjectSettings == null)
 			{
-				ProjectSettings = CreateProjectSettings(ProjectFile);
+				ProjectSettings = CreateProjectSettings(ProjectFile, Bundle);
 				CachedProjectSettings.Add(ProjectSettings);
 			}
 			return ProjectSettings;
 		}
 
-		protected virtual IOSProjectSettings CreateProjectSettings(FileReference ProjectFile)
+		protected virtual IOSProjectSettings CreateProjectSettings(FileReference ProjectFile, string Bundle)
 		{
-			return new IOSProjectSettings(ProjectFile);
+			return new IOSProjectSettings(ProjectFile, Bundle);
 		}
 
-		public IOSProvisioningData ReadProvisioningData(FileReference ProjectFile, bool bForDistribution = false)
+		public IOSProvisioningData ReadProvisioningData(FileReference ProjectFile, bool bForDistribution = false, string Bundle = "")
 		{
-			IOSProjectSettings ProjectSettings = ReadProjectSettings(ProjectFile);
+			IOSProjectSettings ProjectSettings = ReadProjectSettings(ProjectFile, Bundle);
 			return ReadProvisioningData(ProjectSettings, bForDistribution);
 		}
 
