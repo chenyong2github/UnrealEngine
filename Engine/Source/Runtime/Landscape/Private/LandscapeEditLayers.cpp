@@ -4768,6 +4768,21 @@ void ALandscape::CreateLayer(FName InName, bool bInUpdateLayersContent)
 	}
 }
 
+bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex)
+{
+	if (InStartingLayerIndex != InDestinationLayerIndex &&
+		LandscapeLayers.IsValidIndex(InStartingLayerIndex) && 
+		LandscapeLayers.IsValidIndex(InDestinationLayerIndex))
+	{
+		Modify();
+		FLandscapeLayer Layer = LandscapeLayers[InStartingLayerIndex];
+		LandscapeLayers.RemoveAt(InStartingLayerIndex);
+		LandscapeLayers.Insert(Layer, InDestinationLayerIndex);
+		return true;
+	}
+	return false;
+}
+
 FName ALandscape::GenerateUniqueLayerName(FName InName) const
 {
 	FString BaseName = InName == NAME_None ? "Layer" : InName.ToString();
