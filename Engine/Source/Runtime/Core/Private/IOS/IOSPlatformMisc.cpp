@@ -1682,6 +1682,20 @@ bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
     return FPlatformMisc::IsDebuggerPresent();
 }
 
+void FIOSPlatformMisc::GPUAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)13 = 123;
+}
+
+void FIOSPlatformMisc::MetalAssert()
+{
+    // make this a fatal error that ends here not in the log
+    // changed to 3 from NULL because clang noticed writing to NULL and warned about it
+    *(int32 *)7 = 123;
+}
+
 FIOSCrashContext::FIOSCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 	: FApplePlatformCrashContext(InType, InErrorMessage)
 {
