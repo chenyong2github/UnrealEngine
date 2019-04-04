@@ -246,6 +246,28 @@ public:
 						TStaticSamplerState<SF_Bilinear>::GetRHI(),
 						InputHistory.RT[i]->GetRenderTargetItem().ShaderResourceTexture);
 				}
+				else
+				{
+					// Bind black dummy if this texture is not valid.
+					SetTextureParameter(
+						RHICmdList, ShaderRHI,
+						HistoryBuffer[i], HistoryBufferSampler[i],
+						TStaticSamplerState<SF_Bilinear>::GetRHI(),
+						GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture);
+				}
+			}
+		}
+		else
+		{
+			// Bind black dummy to any of the input history textures if history is not valid.
+			for (uint32 i = 0; i < FTemporalAAHistory::kRenderTargetCount; i++)
+			{
+				SetTextureParameter(
+					RHICmdList, ShaderRHI,
+					HistoryBuffer[i], HistoryBufferSampler[i],
+					TStaticSamplerState<SF_Bilinear>::GetRHI(),
+					GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture);
+
 			}
 		}
 
