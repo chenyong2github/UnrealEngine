@@ -1416,7 +1416,7 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
-void ULandscapeComponent::SetEditingLayer(FLandscapeLayer* InLayer, FLandscapeLayerData* InLayerData)
+void ULandscapeComponent::SetEditingLayer(const FLandscapeLayer* InLayer, FLandscapeLayerData* InLayerData)
 {
 	// Update Current Heightmap
 	UTexture2D** LayerHeightmap = InLayerData ? InLayerData->Heightmaps.Find(GetHeightmap()) : nullptr;
@@ -1648,6 +1648,14 @@ void ALandscape::PostLoad()
 		}
 #endif
 	}
+
+#if WITH_EDITOR
+	for (FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		// For now, only Layer reserved for Landscape Spline uses AlphaBlend
+		Layer.BlendMode = (Layer.Guid == LandscapeSplinesTargetLayerGuid) ? LSBM_AlphaBlend : LSBM_AdditiveBlend;
+	}
+#endif
 
 	Super::PostLoad();
 }
