@@ -3410,7 +3410,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 	bCastInsetShadow = bCastInsetShadow || bCastCapsuleDirectShadow;
 
 	// Get the pre-skinned local bounds
-	PreSkinnedLocalBounds = Component->GetPreSkinnedLocalBounds();
+	Component->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
 	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<const USkinnedMeshComponent>(Component);
 	if(SkinnedMeshComponent && SkinnedMeshComponent->bPerBoneMotionBlur)
