@@ -542,7 +542,8 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 
 				const float ActiveSoundGeneration = static_cast<float>(CurActiveSound->ConcurrencyGeneration);
 				const float GenerationDelta = NextGeneration - ActiveSoundGeneration;
-				CurActiveSound->ConcurrencyGroupVolumeScales.FindOrAdd(ConcurrencyGroup->GetGroupID()) = FMath::Pow(Volume, GenerationDelta);
+				float& VolumeScale = CurActiveSound->ConcurrencyGroupVolumeScales.FindOrAdd(ConcurrencyGroup->GetGroupID());
+				VolumeScale = FMath::Pow(Volume, GenerationDelta);
 			}
 		}
 
@@ -581,6 +582,8 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 
 void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 {
+	check(IsInAudioThread());
+
 	// Remove this sound from it's concurrency list
 	for (const FConcurrencyGroupID ConcurrencyGroupID : ActiveSound->ConcurrencyGroupIDs)
 	{
@@ -648,6 +651,8 @@ void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 
 void FSoundConcurrencyManager::UpdateQuietSoundsToStop()
 {
+	check(IsInAudioThread());
+
 	for (auto& ConcurrenyGroupEntry : ConcurrencyGroups)
 	{
 		ConcurrenyGroupEntry.Value.StopQuietSoundsDueToMaxConcurrency();
