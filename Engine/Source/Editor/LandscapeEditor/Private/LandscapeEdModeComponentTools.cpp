@@ -342,46 +342,7 @@ public:
 			return false;
 		}
 
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_Render);
-				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
-			}
-		}
-
 		return FLandscapeToolBase<FLandscapeToolStrokeVisibility>::BeginTool(ViewportClient, InTarget, InHitLocation);
-	}
-
-	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
-	{
-		FLandscapeToolBase<FLandscapeToolStrokeVisibility>::Tick(ViewportClient, DeltaTime);
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && this->IsToolActive())
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_Render);
-			}
-		}
-	}
-
-	virtual void EndTool(FEditorViewportClient* ViewportClient) override
-	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				Landscape->SetEditingLayer();
-				Landscape->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::Weightmap_All);
-			}
-		}
-
-		FLandscapeToolBase<FLandscapeToolStrokeVisibility>::EndTool(ViewportClient);
 	}
 
 	virtual const TCHAR* GetToolName() override { return TEXT("Visibility"); }
