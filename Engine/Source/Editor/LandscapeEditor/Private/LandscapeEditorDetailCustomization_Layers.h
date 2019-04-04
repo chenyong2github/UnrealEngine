@@ -76,6 +76,10 @@ protected:
 	bool CanRenameLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);
 	void SetLayerName(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
 	FText GetLayerText(int32 InLayerIndex) const;
+	void SetLandscapeSplinesReservedLayer(int32 InLayerIndex);
+	FText GetLayerDisplayName(int32 InLayerIndex) const;
+	bool IsLayerEditionEnabled(int32 InLayerIndex) const;
+	EVisibility GetLayerAlphaVisibility(int32 InLayerIndex) const;
 
 	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
 	void SetLayerAlpha(float InAlpha, int32 InLayerIndex);

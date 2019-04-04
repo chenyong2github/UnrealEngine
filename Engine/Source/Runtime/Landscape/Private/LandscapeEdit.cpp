@@ -76,6 +76,10 @@ FAutoConsoleVariableRef CVarMobileCompressLanscapeWeightMaps(
 
 #if WITH_EDITOR
 
+// Used to temporarily disable material instance updates (typically used for cases where multiple updates are called on sample component)
+// Instead, one call per component is done at the end
+LANDSCAPE_API bool GDisableUpdateLandscapeMaterialInstances = false;
+
 // Channel remapping
 extern const size_t ChannelOffsets[4];
 
@@ -432,6 +436,9 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 
 void ULandscapeComponent::UpdateMaterialInstances()
 {
+	if (GDisableUpdateLandscapeMaterialInstances)
+		return;
+
 	// we're not having the material update context recreate the render state because we will manually do it for only this component
 	TOptional<FComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	RecreateRenderStateContext.Emplace(this);

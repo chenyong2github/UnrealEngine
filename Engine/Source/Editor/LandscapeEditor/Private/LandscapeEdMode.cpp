@@ -1900,13 +1900,21 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 						ALandscape* Landscape = GetLandscape();
 						bool bLandscapeLayerSystem = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
 
-						if (bLandscapeLayerSystem && GetCurrentLayer() && !GetCurrentLayer()->bVisible)
+						if (bLandscapeLayerSystem && !GetCurrentLayer())
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeInvalidLayer", "No layer selected. You must first chose a layer to work on."));
+						}
+						else if (bLandscapeLayerSystem && GetCurrentLayer() && !GetCurrentLayer()->bVisible)
 						{
 							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting in a hidden layer is not allowed."));
 						}
 						else if (bLandscapeLayerSystem && GetCurrentLayer() && GetCurrentLayer()->bLocked)
 						{
 							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer."));
+						}
+						else if (bLandscapeLayerSystem && (CurrentTool != (FLandscapeTool*)SplinesTool) && GetCurrentLayer() && Landscape && (GetCurrentLayer() == Landscape->GetLandscapeSplinesReservedLayer()))
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerReservedForSplines", "This layer is reserved for Landscape Splines."));
 						}
 						else if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentToolName != TEXT("BPCustom"))
 						{
@@ -4183,6 +4191,11 @@ void FEdModeLandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 	}
 }
 
+bool FEdModeLandscape::IsLayerAlphaVisible(int32 InLayerIndex) const
+{
+	return (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap || CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap);
+}
+
 float FEdModeLandscape::GetLayerAlpha(int32 InLayerIndex) const
 {
 	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
@@ -4198,7 +4211,10 @@ void FEdModeLandscape::SetLayerAlpha(int32 InLayerIndex, float InAlpha)
 	ALandscape* Landscape = GetLandscape();
 	if (Landscape)
 	{
-		Landscape->SetLayerAlpha(InLayerIndex, InAlpha, CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap);
+		if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap || CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap)
+		{
+			Landscape->SetLayerAlpha(InLayerIndex, InAlpha, CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap);
+		}
 	}
 }
 
@@ -4219,8 +4235,10 @@ void FEdModeLandscape::SetLayerVisibility(bool bInVisible, int32 InLayerIndex)
 
 bool FEdModeLandscape::IsLayerLocked(int32 InLayerIndex) const
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	return Layer ? Layer->bLocked : false;
+	ALandscape* Landscape = GetLandscape();
+	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	const FLandscapeLayer* LayerReservedForSplines = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
+	return Layer ? (Layer->bLocked || Layer == LayerReservedForSplines) : false;
 }
 
 void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
@@ -4348,6 +4366,39 @@ void FEdModeLandscape::SetCurrentLayerSubstractiveBlendStatus(bool InStatus, con
 FLandscapeLayer* FEdModeLandscape::GetCurrentLayer() const
 {
 	return GetLayer(GetCurrentLayerIndex());
+}
+
+void FEdModeLandscape::AutoUpdateDirtyLandscapeSplines()
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && GEditor->IsTransactionActive())
+	{
+		// Only auto-update if a layer is reserved for landscape splines
+		ALandscape* Landscape = GetLandscape();
+		if (Landscape && Landscape->GetLandscapeSplinesReservedLayer())
+		{
+			// TODO : Only update dirty regions
+			UpdateLandscapeSplines();
+		}
+	}
+}
+
+void FEdModeLandscape::UpdateLandscapeSplines(bool bUpdateOnlySelected /* = false*/)
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		ALandscape* Landscape = GetLandscape();
+		if (Landscape)
+		{
+			Landscape->UpdateLandscapeSplines(GetCurrentLayerGuid(), bUpdateOnlySelected);
+		}
+	}
+	else
+	{
+		if (CurrentToolTarget.LandscapeInfo.IsValid())
+		{
+			CurrentToolTarget.LandscapeInfo->ApplySplines(bUpdateOnlySelected);
+		}
+	}
 }
 
 FGuid FEdModeLandscape::GetCurrentLayerGuid() const

@@ -524,7 +524,7 @@ public:
 	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false);
 	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnCurrentEditingWeightmap = false) const;
 
-	LANDSCAPE_API void SetEditingLayer(struct FLandscapeLayer* InLayer, struct FLandscapeLayerData* InLayerData);
+	LANDSCAPE_API void SetEditingLayer(const struct FLandscapeLayer* InLayer, struct FLandscapeLayerData* InLayerData);
 #endif 
 
 #if WITH_EDITOR
