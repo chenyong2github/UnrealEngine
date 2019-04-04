@@ -1,0 +1,174 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ComponentSourceInterfaces.h"
+
+
+// predeclarations so we don't have to include these in all tools
+class FChange;
+class UPackage;
+class FPrimitiveDrawInterface;
+class USelection;
+class UInteractiveToolManager;
+
+
+/**
+ * FToolBuilderState is a bucket of state information that a ToolBuilder might need
+ * to construct a Tool. This information comes from a level above the Tools framework,
+ * and depends on the context we are in (Editor vs Runtime, for example).
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
+{
+	/** The current UWorld */
+	UWorld* World;
+	/** The current ToolManager */
+	UInteractiveToolManager* ToolManager;
+
+	/** Current selected Actors. May be empty or nullptr. */
+	USelection* SelectedActors;
+	/** Current selected Components. May be empty or nullptr. */
+	USelection* SelectedComponents;
+
+	/** Implementation that can build Sources (like MeshDescriptionSource) for Components */
+	IComponentSourceFactory* SourceBuilder;
+
+	FToolBuilderState()
+	{
+		World = nullptr;
+		ToolManager = nullptr;
+		SelectedActors = nullptr;
+		SelectedComponents = nullptr;
+		SourceBuilder = nullptr;
+	}
+};
+
+
+
+
+/**
+ * Users of the Tools Framework need to implement IToolsContextQueriesAPI to provide
+ * access to scene state information like the current UWorld, active USelections, etc.
+ */
+class IToolsContextQueriesAPI
+{
+public:
+
+	/**
+	 * Collect up current-selection information for the current scene state (ie what is selected in Editor, etc)
+	 * @param StateOut this structure is populated with available state information
+	 */
+	virtual void GetCurrentSelectionState(FToolBuilderState& StateOut) const = 0;
+};
+
+
+
+
+/** Level of severity of messages emitted by Tool framework */
+UENUM()
+enum class EToolMessageLevel
+{
+	/** Development message goes into development log */
+	Internal = 0,
+	/** User message should appear in user-facing log */
+	UserMessage = 1,
+	/** Notification message should be shown in a non-modal notification window */
+	UserNotification = 2,
+	/** Error message should be shown in a modal notification window */
+	UserError = 3
+};
+
+
+/**
+ * Users of the Tools Framework need to implement IToolsContextTransactionsAPI so that
+ * the Tools have the ability to create Transactions and emit Changes. Note that this is
+ * technically optional, but that undo/redo won't be supported without it.
+ */
+class IToolsContextTransactionsAPI
+{
+public:
+
+	/**
+	 * Request that context display message information.
+	 * @param Message text of message
+	 * @param Level severity level of message
+	 */
+	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level) = 0;
+
+	/** 
+	 * Forward an invalidation request from Tools framework, to cause repaint/etc. 
+	 * This is not always necessary but in some situations (eg in Non-Realtime mode in Editor)
+	 * a redraw will not happen every frame. 
+	 * See UInputRouter for options to enable auto-invalidation.
+	 */
+	virtual void PostInvalidation() = 0;
+	
+	/**
+	 * Begin a Transaction, whatever this means in the current Context. For example in the
+	 * Editor it means open a GEditor Transaction. You must call EndUndoTransaction() after calling this.
+	 * @param Description text description of the transaction that could be shown to user
+	 */
+	virtual void BeginUndoTransaction(const FText& Description) = 0;
+
+	/**
+	 * Complete the Transaction. Assumption is that Begin/End are called in pairs.
+	 */
+	virtual void EndUndoTransaction() = 0;
+
+	/**
+	 * Insert an FChange into the transaction history in the current Context. 
+	 * This cannot be called between Begin/EndUndoTransaction, the FChange should be 
+	 * automatically inserted into a Transaction.
+	 * @param TargetObject The UObject this Change is applied to
+	 * @param Change The Change implementation
+	 * @param Description text description of the transaction that could be shown to user
+	 */
+	virtual void AppendChange(UObject* TargetObject, TUniquePtr<FChange> Change, const FText& Description) = 0;
+};
+
+
+/**
+ * Users of the Tools Framework need to implement IToolsContextRenderAPI to allow
+ * Tools, Indicators, and Gizmos to make low-level rendering calls for things like line drawing.
+ * This API will be passed to eg UInteractiveTool::Render(), so access is only provided when it
+ * makes sense to call the functions
+ */
+class IToolsContextRenderAPI
+{
+public:
+	/** @return Current PDI */
+	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() = 0;
+};
+
+
+
+
+/**
+ * Users of the Tools Framework need to provide an IToolsContextAssetAPI implementation
+ * that allows Packages and Assets to be created/saved. Note that this is not strictly
+ * necessary, for example a trivial implementation could just store things in the Transient
+ * package and not do any saving.
+ */
+class IToolsContextAssetAPI
+{
+public:
+	/** Get default path to save assets in. For example the currently-visible path in the Editor. */
+	virtual FString GetActiveAssetFolderPath() = 0;
+
+	/** Combines folder and asset names */
+	virtual FString MakePackageName(const FString& AssetName, const FString& FolderPath) = 0;
+
+	/** return "unique" version of AssetName, created by appending _1, _2, ... if AssetName already exists */
+	virtual FString MakeUniqueAssetName(const FString& AssetName, const FString& FolderPath) = 0;
+
+	/** create a new package at the given path (calls MakePackageName) */
+	virtual UPackage* CreateNewPackage(const FString& AssetName, const FString& FolderPath) = 0;
+
+	/** Request saving of asset to persistent storage via something like an interactive popup dialog */
+	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;
+
+	/** Autosave asset to persistent storage */
+	virtual void AutoSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) = 0;
+};
+

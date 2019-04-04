@@ -1,0 +1,82 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+
+#include "InteractiveTool.h"
+#include "InteractiveToolManager.h"
+
+
+UInteractiveTool::UInteractiveTool()
+{
+	// tools need to be transactional or undo/redo won't work on their uproperties
+	SetFlags(RF_Transactional);
+
+	// tools don't get saved but this isn't necessary because they are created in the transient package...
+	//SetFlags(RF_Transient);
+
+	InputBehaviors = NewObject<UInputBehaviorSet>(this, TEXT("InputBehaviors"));
+}
+
+void UInteractiveTool::Setup()
+{
+}
+
+void UInteractiveTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	InputBehaviors->RemoveAll();
+	ToolPropertyObjects.Reset();
+}
+
+void UInteractiveTool::Render(IToolsContextRenderAPI* RenderAPI)
+{
+}
+
+
+void UInteractiveTool::AddInputBehavior(UInputBehavior* Behavior)
+{
+	InputBehaviors->Add(Behavior);
+}
+
+const UInputBehaviorSet* UInteractiveTool::GetInputBehaviors() const
+{
+	return InputBehaviors;
+}
+
+
+void UInteractiveTool::AddToolPropertySource(UObject* PropertyObject)
+{
+	ToolPropertyObjects.Add(PropertyObject);
+}
+
+const TArray<UObject*>& UInteractiveTool::GetToolProperties() const
+{
+	return ToolPropertyObjects;
+}
+
+
+bool UInteractiveTool::HasCancel() const
+{
+	return false;
+}
+
+bool UInteractiveTool::HasAccept() const
+{
+	return false;
+}
+
+bool UInteractiveTool::CanAccept() const
+{
+	return false;
+}
+
+
+void UInteractiveTool::Tick(float DeltaTime)
+{
+}
+
+
+UInteractiveToolManager* UInteractiveTool::GetToolManager() const
+{
+	UInteractiveToolManager* ToolManager = Cast<UInteractiveToolManager>(GetOuter());
+	check(ToolManager != nullptr);
+	return ToolManager;
+}
