@@ -264,6 +264,11 @@ bool USocialParty::HasUserBeenInvited(const USocialUser& User) const
 
 bool USocialParty::CanInviteUser(const USocialUser& User) const
 {
+	return CanInviteUserInternal(User);
+}
+
+bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
+{
 	// Only users that are online can be invited
 	if (!User.IsOnline())
 	{
@@ -339,6 +344,11 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 bool USocialParty::CanPromoteMember(const UPartyMember& PartyMember) const
 {
 	check(PartyMembersById.Contains(PartyMember.GetPrimaryNetId()));
+	return CanPromoteMemberInternal(PartyMember);
+}
+
+bool USocialParty::CanPromoteMemberInternal(const UPartyMember& PartyMember) const
+{
 	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader();
 }
 
@@ -357,6 +367,11 @@ bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
 bool USocialParty::CanKickMember(const UPartyMember& PartyMember) const
 {
 	check(PartyMembersById.Contains(PartyMember.GetPrimaryNetId()));
+	return CanKickMemberInternal(PartyMember);
+}
+
+bool USocialParty::CanKickMemberInternal(const UPartyMember& PartyMember) const
+{
 	return IsLocalPlayerPartyLeader() && !PartyMember.IsLocalPlayer();
 }
 
