@@ -1033,6 +1033,16 @@ void UMovieScene::MoveBindingContents(const FGuid& SourceBindingId, const FGuid&
 	}
 }
 
+void UMovieScene::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
+{
+	if (InMarkIndex < 0 && InMarkIndex > MarkedFrames.Num()-1)
+	{
+		return;
+	}
+
+	MarkedFrames[InMarkIndex].FrameNumber = InFrameNumber;
+}
+
 void UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 {
 	FString NewLabel;

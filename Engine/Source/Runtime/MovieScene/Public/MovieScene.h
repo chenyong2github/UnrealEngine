@@ -751,6 +751,14 @@ public:
 	const TArray<FMovieSceneMarkedFrame>& GetMarkedFrames() const { return MarkedFrames; }
 
 	/*
+	 * Sets the frame number for the given marked frame index.
+	 *
+	 * @InMarkIndex The given user marked frame index to edit
+	 * @InFrameNumber The frame number to set
+	 */
+	void SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber);
+
+	/*
 	 * Add a given user marked frame.
 	 * A unique label will be generated if the marked frame label is empty
 	 *

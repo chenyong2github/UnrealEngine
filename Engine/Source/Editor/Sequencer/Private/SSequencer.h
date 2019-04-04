@@ -138,6 +138,12 @@ public:
 		/** Called when the user has finished dragging the selection range */
 		SLATE_EVENT( FSimpleDelegate, OnSelectionRangeEndDrag )
 
+		/** Called when the user has begun dragging a mark */
+		SLATE_EVENT(FSimpleDelegate, OnMarkBeginDrag)
+
+		/** Called when the user has finished dragging a mark */
+		SLATE_EVENT(FSimpleDelegate, OnMarkEndDrag)
+
 		/** Whether the playback range is locked */
 		SLATE_ATTRIBUTE( bool, IsPlaybackRangeLocked )
 
@@ -150,8 +156,11 @@ public:
 		/** Called when the user changes the view range */
 		SLATE_EVENT( FOnViewRangeChanged, OnViewRangeChanged )
 
+		/** Called when the user sets a marked frame */
+		SLATE_EVENT(FOnSetMarkedFrame, OnSetMarkedFrame)
+
 		/** Called when the user changes on the set of marked frames */
-		SLATE_EVENT( FOnMarkedFrameChanged, OnMarkedFrameChanged )
+		SLATE_EVENT(FOnMarkedFrameChanged, OnMarkedFrameChanged)
 
 		/** Called when all marked frames should be cleared */
 		SLATE_EVENT( FSimpleDelegate, OnClearAllMarkedFrames)
@@ -544,6 +553,12 @@ private:
 
 	/** Called when the user has finished dragging the playback range */
 	FSimpleDelegate OnPlaybackRangeEndDrag;
+
+	/** Called when the user has begun dragging a mark */
+	FSimpleDelegate OnMarkBeginDrag;
+
+	/** Called when the user has finished dragging a mark */
+	FSimpleDelegate OnMarkEndDrag;
 
 	/** Called when any widget contained within sequencer has received focus */
 	FSimpleDelegate OnReceivedFocus;

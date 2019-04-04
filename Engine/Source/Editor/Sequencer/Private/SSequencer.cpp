@@ -105,6 +105,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	OnPlaybackRangeEndDrag = InArgs._OnPlaybackRangeEndDrag;
 	OnSelectionRangeBeginDrag = InArgs._OnSelectionRangeBeginDrag;
 	OnSelectionRangeEndDrag = InArgs._OnSelectionRangeEndDrag;
+	OnMarkBeginDrag = InArgs._OnMarkBeginDrag;
+	OnMarkEndDrag = InArgs._OnMarkEndDrag;
 
 	OnReceivedFocus = InArgs._OnReceivedFocus;
 
@@ -154,6 +156,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.OnSelectionRangeChanged = InArgs._OnSelectionRangeChanged;
 		TimeSliderArgs.OnSelectionRangeBeginDrag = OnSelectionRangeBeginDrag;
 		TimeSliderArgs.OnSelectionRangeEndDrag = OnSelectionRangeEndDrag;
+		TimeSliderArgs.OnMarkBeginDrag = OnMarkBeginDrag;
+		TimeSliderArgs.OnMarkEndDrag = OnMarkEndDrag;
 		TimeSliderArgs.OnViewRangeChanged = InArgs._OnViewRangeChanged;
 		TimeSliderArgs.OnClampRangeChanged = InArgs._OnClampRangeChanged;
 		TimeSliderArgs.OnGetNearestKey = InArgs._OnGetNearestKey;
@@ -167,6 +171,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.SubSequenceRange = InArgs._SubSequenceRange;
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
+		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
 		TimeSliderArgs.OnMarkedFrameChanged = InArgs._OnMarkedFrameChanged;
 		TimeSliderArgs.OnClearAllMarkedFrames = InArgs._OnClearAllMarkedFrames;
 

@@ -280,10 +280,16 @@ protected:
 	void StepToPreviousMark();
 
 	/**
-	 * @param	FrameNumber The FrameNumber in Ticks 
+	 * @param InMarkIndex The marked frame index to set
+	 * @param InFrameNumber The FrameNumber in Ticks
+	 */
+	void SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber);
+
+	/**
+	 * @param	FrameNumber The FrameNumber in Ticks
 	 * @param	bSetMark  true to set the mark, false to clear the mark
 	 */
-	void SetMarkedFrame(FFrameNumber FrameNumber, bool bSetMark);
+	void OnMarkedFrameChanged(FFrameNumber FrameNumber, bool bSetMark);
 
 	void ClearAllMarkedFrames();
 
@@ -821,6 +827,12 @@ protected:
 
 	/** Called when the user has finished dragging the selection range */
 	void OnSelectionRangeEndDrag();
+
+	/** Called when the user has begun dragging a mark */
+	void OnMarkBeginDrag();
+
+	/** Called when the user has finished dragging a mark */
+	void OnMarkEndDrag();
 
 	/** Get the unqualified local time */
 	FFrameTime GetLocalFrameTime() const { return GetLocalTime().Time; }
