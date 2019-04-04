@@ -491,6 +491,7 @@ public:
 		SelectControlPoint(NewControlPoint);
 		UpdatePropertiesWindows();
 
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		if (!SplinesComponent->IsRegistered())
 		{
 			SplinesComponent->RegisterComponent();
@@ -541,6 +542,8 @@ public:
 			ToDelete->Connections[1].ControlPoint->UpdateSplinePoints();
 		}
 
+
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		SplinesComponent->MarkRenderStateDirty();
 	}
 
@@ -584,6 +587,7 @@ public:
 				ToDelete->ConnectedSegments.Empty();
 
 				SplinesComponent->ControlPoints.Remove(ToDelete);
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				SplinesComponent->MarkRenderStateDirty();
 
 				return;
@@ -622,6 +626,7 @@ public:
 		ToDelete->ConnectedSegments.Empty();
 
 		SplinesComponent->ControlPoints.Remove(ToDelete);
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		SplinesComponent->MarkRenderStateDirty();
 	}
 
@@ -1208,6 +1213,7 @@ public:
 					Segment->Connections[1].ControlPoint->UpdateSplinePoints();
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1223,6 +1229,7 @@ public:
 					FlipSegment(Segment);
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1247,6 +1254,7 @@ public:
 					Segment->Connections[1].ControlPoint->UpdateSplinePoints();
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1268,6 +1276,7 @@ public:
 				}
 				UpdatePropertiesWindows();
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				GUnrealEd->RedrawLevelEditingViewports();
 				return true;
 			}
@@ -1335,6 +1344,7 @@ public:
 							AddSegment(ControlPoint, ClickedControlPoint, bAutoRotateOnJoin, bAutoRotateOnJoin);
 						}
 
+						EdMode->AutoUpdateDirtyLandscapeSplines();
 						GUnrealEd->RedrawLevelEditingViewports();
 
 						return true;
@@ -1478,6 +1488,7 @@ public:
 
 					ResetAllowDuplication();
 
+					EdMode->AutoUpdateDirtyLandscapeSplines();
 					GEditor->EndTransaction();
 
 					return false; // We're not actually handling this case ourselves, just wrapping it in a transaction
@@ -1491,6 +1502,7 @@ public:
 					InViewportClient->SetWidgetCoordSystemSpace(DraggingTangent_CacheCoordSpace);
 					InViewportClient->SetRequiredCursorOverride(false);
 
+					EdMode->AutoUpdateDirtyLandscapeSplines();
 					GEditor->EndTransaction();
 
 					return false; // false to let FEditorViewportClient.InputKey end mouse tracking
