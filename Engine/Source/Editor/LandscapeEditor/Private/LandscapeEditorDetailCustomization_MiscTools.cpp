@@ -303,20 +303,19 @@ FReply FLandscapeEditorDetailCustomization_MiscTools::OnClearRegionSelectionButt
 FReply FLandscapeEditorDetailCustomization_MiscTools::OnApplyAllSplinesButtonClicked()
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	if (LandscapeEdMode)
 	{
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo->ApplySplines(false);
+		LandscapeEdMode->UpdateLandscapeSplines(false);
 	}
-
 	return FReply::Handled();
 }
 
 FReply FLandscapeEditorDetailCustomization_MiscTools::OnApplySelectedSplinesButtonClicked()
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	if (LandscapeEdMode)
 	{
-		LandscapeEdMode->CurrentToolTarget.LandscapeInfo->ApplySplines(true);
+		LandscapeEdMode->UpdateLandscapeSplines(true);
 	}
 
 	return FReply::Handled();
