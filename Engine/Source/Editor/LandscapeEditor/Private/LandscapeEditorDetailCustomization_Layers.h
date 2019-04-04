@@ -36,6 +36,10 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+protected:
+	static bool ShoudShowLayersErrorMessageTip();
+	static FText GetLayersErrorMessageText();
 };
 
 class FLandscapeEditorCustomNodeBuilder_Layers : public IDetailCustomNodeBuilder, public TSharedFromThis<FLandscapeEditorCustomNodeBuilder_Layers>
@@ -74,6 +78,8 @@ protected:
 	void ShowOnlySelectedLayer(int32 InLayerIndex);
 	void ShowAllLayers();
 	bool CanRenameLayerTo(const FText& NewText, FText& OutErrorMessage, int32 InLayerIndex);
+	void OnBeginNameTextEdit();
+	void OnEndNameTextEdit();
 	void SetLayerName(const FText& InText, ETextCommit::Type InCommitType, int32 InLayerIndex);
 	FText GetLayerText(int32 InLayerIndex) const;
 	void SetLandscapeSplinesReservedLayer(int32 InLayerIndex);
@@ -94,4 +100,6 @@ private:
 
 	/** Widgets for displaying and editing the layer name */
 	TArray< TSharedPtr< SInlineEditableTextBlock > > InlineTextBlocks;
+
+	int32 CurrentEditingInlineTextBlock;
 };

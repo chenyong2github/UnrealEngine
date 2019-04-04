@@ -1896,55 +1896,29 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 					FVector HitLocation;
 					if (LandscapeMouseTrace(ViewportClient, HitLocation))
 					{
-						const FName CurrentToolName = CurrentTool->GetToolName();
-						ALandscape* Landscape = GetLandscape();
-						bool bLandscapeLayerSystem = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
+						FText Reason;
+						if (!CanEditLayer(&Reason))
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, Reason);
+							return true;
+						}
 
-						if (bLandscapeLayerSystem && !GetCurrentLayer())
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeInvalidLayer", "No layer selected. You must first chose a layer to work on."));
-						}
-						else if (bLandscapeLayerSystem && GetCurrentLayer() && !GetCurrentLayer()->bVisible)
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting in a hidden layer is not allowed."));
-						}
-						else if (bLandscapeLayerSystem && GetCurrentLayer() && GetCurrentLayer()->bLocked)
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer."));
-						}
-						else if (bLandscapeLayerSystem && (CurrentTool != (FLandscapeTool*)SplinesTool) && GetCurrentLayer() && Landscape && (GetCurrentLayer() == Landscape->GetLandscapeSplinesReservedLayer()))
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerReservedForSplines", "This layer is reserved for Landscape Splines."));
-						}
-						else if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentToolName != TEXT("BPCustom"))
-						{
-							FMessageDialog::Open(EAppMsgType::Ok,
-								NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer."));
-							// TODO: FName to LayerInfo: do we want to create the layer info here?
-							//if (FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.")) == EAppReturnType::Yes)
-							//{
-							//	CurrentToolTarget.LandscapeInfo->LandscapeProxy->CreateLayerInfo(*CurrentToolTarget.PlaceholderLayerName.ToString());
-							//}
-						}
-						else
-						{
-							Viewport->CaptureMouse(true);
+						Viewport->CaptureMouse(true);
 
-							if (CurrentTool->CanToolBeActivated())
+						if (CurrentTool->CanToolBeActivated())
+						{
+							bool bToolActive = CurrentTool->BeginTool(ViewportClient, CurrentToolTarget, HitLocation);
+							if (bToolActive)
 							{
-								bool bToolActive = CurrentTool->BeginTool(ViewportClient, CurrentToolTarget, HitLocation);
-								if (bToolActive)
-								{
-									ToolActiveViewport = Viewport;
-								}
-								else
-								{
-									ToolActiveViewport = nullptr;
-									Viewport->CaptureMouse(false);
-								}
-								ViewportClient->Invalidate(false, false);
-								return bToolActive;
+								ToolActiveViewport = Viewport;
 							}
+							else
+							{
+								ToolActiveViewport = nullptr;
+								Viewport->CaptureMouse(false);
+							}
+							ViewportClient->Invalidate(false, false);
+							return bToolActive;
 						}
 					}
 				}
@@ -4380,6 +4354,80 @@ void FEdModeLandscape::AutoUpdateDirtyLandscapeSplines()
 			UpdateLandscapeSplines();
 		}
 	}
+}
+
+bool FEdModeLandscape::CanEditLayer(FText* Reason)
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		ALandscape* Landscape = GetLandscape();
+		FLandscapeLayer* CurrentLayer = GetCurrentLayer();
+		if (!CurrentLayer)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeInvalidLayer", "No layer selected. You must first chose a layer to work on.");
+			}
+			return false;
+		}
+		else if (!CurrentLayer->bVisible)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting or sculping in a hidden layer is not allowed.");
+			}
+			return false;
+		}
+		else if (CurrentLayer->bLocked)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer.");
+			}
+			return false;
+		}
+		else if (CurrentTool && (CurrentTool != (FLandscapeTool*)SplinesTool) && Landscape && (CurrentLayer == Landscape->GetLandscapeSplinesReservedLayer()))
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerReservedForSplines", "This layer is reserved for Landscape Splines.");
+			}
+			return false;
+		}
+		else if (CurrentTool &&
+				 (GetCurrentLayerIndex() != 0) &&
+				 (CurrentTool->GetToolName() == FName("Ramp") || CurrentTool->GetToolName() == FName("Flatten")))
+		{
+			if (Reason)
+			{
+				FLandscapeLayer* Layer = GetLayer(0);
+				*Reason = FText::Format(NSLOCTEXT("UnrealEd", "LandscapeLayersToolAvailableOnlyOnFirstLayer", "{0} Tool is only available on the first layer {1}."), CurrentTool->GetDisplayName(), Layer ? FText::FromName(Layer->Name) : FText::GetEmpty());
+			}
+			return false;
+		}
+		else if (CurrentTool && CurrentTool->GetToolName() == FName("Retopologize"))
+		{
+			if (Reason)
+			{
+				*Reason = FText::Format(NSLOCTEXT("UnrealEd", "LandscapeLayersNoSupportForRetopologize", "{0} Tool is not available with the Landscape Layer System."), CurrentTool->GetDisplayName());
+			}
+			return false;
+		}
+	}
+	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentTool->GetToolName() != FName("BPCustom"))
+	{
+		if (Reason)
+		{
+			*Reason = NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.");
+		}
+		return false;
+		// TODO: FName to LayerInfo: do we want to create the layer info here?
+		//if (FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.")) == EAppReturnType::Yes)
+		//{
+		//	CurrentToolTarget.LandscapeInfo->LandscapeProxy->CreateLayerInfo(*CurrentToolTarget.PlaceholderLayerName.ToString());
+		//}
+	}
+	return true;
 }
 
 void FEdModeLandscape::UpdateLandscapeSplines(bool bUpdateOnlySelected /* = false*/)

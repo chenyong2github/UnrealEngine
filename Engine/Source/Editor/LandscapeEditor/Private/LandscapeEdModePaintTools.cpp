@@ -58,52 +58,6 @@ public:
 	{
 		return ELandscapeToolTargetTypeMask::FromType(TToolTarget::TargetType);
 	}
-
-	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
-	{
-		FLandscapeToolBase<TStrokeClass>::Tick(ViewportClient, DeltaTime);
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && this->IsToolActive())
-		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
-			{
-				Landscape->RequestLayersContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
-			}
-		}
-	}
-
-	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
-	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
-				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
-			}
-		}
-
-		return FLandscapeToolBase<TStrokeClass>::BeginTool(ViewportClient, InTarget, InHitLocation);
-	}
-
-	virtual void EndTool(FEditorViewportClient* ViewportClient) override
-	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->SetEditingLayer();
-				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All);
-			}
-		}
-
-		FLandscapeToolBase<TStrokeClass>::EndTool(ViewportClient);
-	}
 };
 
 
