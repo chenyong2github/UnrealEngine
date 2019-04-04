@@ -2580,5 +2580,5 @@ struct FRHIRenderPassInfo
 	bool bIsMSAA = false;
 
 private:
-	FORCENOINLINE void OnVerifyNumUAVsFailed(int32 InNumUAVs);
+	RHI_API void OnVerifyNumUAVsFailed(int32 InNumUAVs);
 };
