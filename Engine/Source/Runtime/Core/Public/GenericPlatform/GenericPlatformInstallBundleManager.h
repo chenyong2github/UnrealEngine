@@ -9,38 +9,6 @@
 #include "Logging/LogMacros.h"
 #include "Internationalization/Text.h"
 
-enum class EInstallBundleResult : int
-{
-	OK,
-	FailedPrereqRequiresLatestClient,
-	InstallError,
-	InstallerOutOfDiskSpaceError,
-	OnCellularNetworkError,
-	NoInternetConnectionError,
-	UserCancelledError,
-	InitializationError,
-	Count,
-};
-
-inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
-{
-	using UnderType = __underlying_type(EInstallBundleResult);
-	static const TCHAR* Strings[] =
-	{
-		TEXT("OK"),
-		TEXT("FailedPrereqRequiresLatestClient"),
-		TEXT("InstallError"),
-		TEXT("InstallerOutOfDiskSpaceError"),
-		TEXT("OnCellularNetworkError"),
-		TEXT("NoInternetConnectionError"),
-		TEXT("UserCancelledError"),
-		TEXT("InitializationError"),
-	};
-	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == ARRAY_COUNT(Strings), "");
-
-	return Strings[static_cast<UnderType>(Result)];
-}
-
 enum class EInstallBundleModuleInitResult : int
 {
 	OK,
@@ -74,6 +42,45 @@ inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleI
 
 	return Strings[static_cast<UnderType>(Result)];
 }
+
+enum class EInstallBundleResult : int
+{
+	OK,
+	FailedPrereqRequiresLatestClient,
+	InstallError,
+	InstallerOutOfDiskSpaceError,
+	OnCellularNetworkError,
+	NoInternetConnectionError,
+	UserCancelledError,
+	InitializationError,
+	Count,
+};
+
+inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
+{
+	using UnderType = __underlying_type(EInstallBundleResult);
+	static const TCHAR* Strings[] =
+	{
+		TEXT("OK"),
+		TEXT("FailedPrereqRequiresLatestClient"),
+		TEXT("InstallError"),
+		TEXT("InstallerOutOfDiskSpaceError"),
+		TEXT("OnCellularNetworkError"),
+		TEXT("NoInternetConnectionError"),
+		TEXT("UserCancelledError"),
+		TEXT("InitializationError"),
+	};
+	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == ARRAY_COUNT(Strings), "");
+
+	return Strings[static_cast<UnderType>(Result)];
+}
+
+enum class EInstallBundlePauseFlags : uint32
+{
+	None = 0,
+	OnCellularNetwork = (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
 
 enum class EInstallBundleRequestFlags : uint32
 {
@@ -128,6 +135,12 @@ struct FInstallBundleResultInfo
 	FString OptionalErrorCode;
 };
 
+struct FInstallBundlePauseInfo
+{
+	FName BundleName;
+	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+};
+
 enum class EInstallBundleContentState : int
 {
 	InitializationError,
@@ -180,6 +193,7 @@ enum class EInstallBundleManagerInitErrorHandlerResult
 DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FInstallBundleManagerInitErrorHandler, EInstallBundleModuleInitResult);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleResultInfo);
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
 
@@ -188,6 +202,7 @@ class CORE_API IPlatformInstallBundleManager
 public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate;
 	static FInstallBundleCompleteMultiDelegate RemoveBundleCompleteDelegate;
+	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
 
 	virtual ~IPlatformInstallBundleManager() {}
 
