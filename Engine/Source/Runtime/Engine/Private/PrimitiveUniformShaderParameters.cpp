@@ -43,13 +43,16 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 
 	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex);
 
+	FBoxSphereBounds PreSkinnedLocalBounds;
+	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+
 	Setup(GetPrimitiveUniformShaderParameters(
 		Proxy->GetLocalToWorld(),
 		PreviousLocalToWorld,
 		Proxy->GetActorPosition(), 
 		Proxy->GetBounds(), 
 		Proxy->GetLocalBounds(),
-		Proxy->GetPreSkinnedLocalBounds(),
+		PreSkinnedLocalBounds,
 		Proxy->ReceivesDecals(), 
 		Proxy->HasDistanceFieldRepresentation(), 
 		Proxy->HasDynamicIndirectShadowCasterRepresentation(), 

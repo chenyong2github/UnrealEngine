@@ -242,7 +242,7 @@ public:
 	virtual void GetShadowShapes(TArray<FCapsuleShape>& CapsuleShapes) const override;
 
 	/** Return the bounds for the pre-skinned primitive in local space */
-	virtual FBoxSphereBounds GetPreSkinnedLocalBounds() const override { return PreSkinnedLocalBounds; }
+	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const override { OutBounds = PreSkinnedLocalBounds; }
 
 	/** Returns a pre-sorted list of shadow capsules's bone indicies */
 	const TArray<uint16>& GetSortedShadowBoneIndices() const
