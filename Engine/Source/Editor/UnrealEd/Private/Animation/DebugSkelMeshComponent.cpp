@@ -50,7 +50,9 @@ FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWo
 	// Override bounds with pre-skinned bounds if asking for them
 	if (IsUsingPreSkinnedBounds())
 	{
-		return GetPreSkinnedLocalBounds();
+		FBoxSphereBounds PreSkinnedLocalBounds;
+		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+		return PreSkinnedLocalBounds;
 	}
 
 	FBoxSphereBounds Result = Super::CalcBounds(LocalToWorld);
