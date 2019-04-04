@@ -209,6 +209,9 @@ FAppleARKitSystem::FAppleARKitSystem()
 , TimecodeProvider(nullptr)
 {
 	// See Initialize(), as we need access to SharedThis()
+#if SUPPORTS_ARKIT_1_0
+	IAppleImageUtilsPlugin::Load();
+#endif
 }
 
 FAppleARKitSystem::~FAppleARKitSystem()
@@ -1266,12 +1269,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 
 #if SUPPORTS_ARKIT_1_0
-	// Set this based upon the project settings
-	bShouldWriteCameraImagePerFrame = GetDefault<UAppleARKitSettings>()->bShouldWriteCameraImagePerFrame;
-	WrittenCameraImageScale = GetDefault<UAppleARKitSettings>()->WrittenCameraImageScale;
-	WrittenCameraImageRotation = GetDefault<UAppleARKitSettings>()->WrittenCameraImageRotation;
-	WrittenCameraImageQuality = GetDefault<UAppleARKitSettings>()->WrittenCameraImageQuality;
-
 	if (FAppleARKitAvailability::SupportsARKit10())
 	{
 		ARSessionRunOptions options = 0;
@@ -1338,10 +1335,10 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		
 #if PLATFORM_IOS && !PLATFORM_TVOS
 		// Check if we need to adjust the priorities to allow ARKit to have more CPU time
-		if (GetDefault<UAppleARKitSettings>()->bAdjustThreadPrioritiesDuringARSession)
+		if (GetMutableDefault<UAppleARKitSettings>()->ShouldAdjustThreadPriorities())
 		{
-			int32 GameOverride = GetDefault<UAppleARKitSettings>()->GameThreadPriorityOverride;
-			int32 RenderOverride = GetDefault<UAppleARKitSettings>()->RenderThreadPriorityOverride;
+			int32 GameOverride = GetMutableDefault<UAppleARKitSettings>()->GetGameThreadPriorityOverride();
+			int32 RenderOverride = GetMutableDefault<UAppleARKitSettings>()->GetRenderThreadPriorityOverride();
 			SetThreadPriority(GameOverride);
 			if (XRCamera.IsValid())
 			{
@@ -1405,7 +1402,7 @@ bool FAppleARKitSystem::Pause()
 	
 #if PLATFORM_IOS && !PLATFORM_TVOS
 	// Check if we need to adjust the priorities to allow ARKit to have more CPU time
-	if (GetDefault<UAppleARKitSettings>()->bAdjustThreadPrioritiesDuringARSession)
+	if (GetMutableDefault<UAppleARKitSettings>()->ShouldAdjustThreadPriorities())
 	{
 		SetThreadPriority(GAME_THREAD_PRIORITY);
 		if (XRCamera.IsValid())
@@ -1441,7 +1438,7 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 	{
 		UpdateARKitPerfStats();
 #if SUPPORTS_ARKIT_1_0
-		if (bShouldWriteCameraImagePerFrame)
+		if (GetMutableDefault<UAppleARKitSettings>()->ShouldWriteCameraImagePerFrame())
 		{
 			WriteCameraImageToDisk(Frame->CameraImage);
 		}
@@ -1955,9 +1952,9 @@ void FAppleARKitSystem::UpdateARKitPerfStats()
 #if SUPPORTS_ARKIT_1_0
 void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
 {
-	int32 ImageQuality = WrittenCameraImageQuality;
-	float ImageScale = WrittenCameraImageScale;
-	ETextureRotationDirection ImageRotation = WrittenCameraImageRotation;
+	int32 ImageQuality = GetMutableDefault<UAppleARKitSettings>()->GetWrittenCameraImageQuality();
+	float ImageScale = GetMutableDefault<UAppleARKitSettings>()->GetWrittenCameraImageScale();
+	ETextureRotationDirection ImageRotation = GetMutableDefault<UAppleARKitSettings>()->GetWrittenCameraImageRotation();
 	CIImage* SourceImage = [[CIImage alloc] initWithCVPixelBuffer: PixelBuffer];
 	FTimecode Timecode = TimecodeProvider->GetTimecode();
 	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [SourceImage, ImageQuality, ImageScale, ImageRotation, Timecode]()
@@ -1968,7 +1965,9 @@ void FAppleARKitSystem::WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer)
 		// Build a unique file name
 		FDateTime DateTime = FDateTime::UtcNow();
 		static FString UserDir = FPlatformProcess::UserDir();
-		FString FileName = FString::Printf(TEXT("%sCameraImages/Image_%d-%d-%d-%d-%d-%d-%d.jpeg"), *UserDir,
+		const FString& FaceDir = GetMutableDefault<UAppleARKitSettings>()->GetFaceTrackingLogDir();
+		const TCHAR* SubDir = FaceDir.Len() > 0 ? *FaceDir : TEXT("CameraImages");
+		FString FileName = FString::Printf(TEXT("%s%s/Image_%d-%d-%d-%d-%d-%d-%d.jpeg"), *UserDir, SubDir,
 			DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
 		// Write the jpeg to disk
 		FFileHelper::SaveArrayToFile(JpegBytes, *FileName);
@@ -2012,6 +2011,170 @@ UTimecodeProvider* UAppleARKitSettings::GetTimecodeProvider()
 		TimecodeProvider = NewObject<UTimecodeProvider>(GEngine, UAppleARKitTimecodeProvider::StaticClass());
 	}
 	return TimecodeProvider;
+}
+
+void UAppleARKitSettings::CreateFaceTrackingLogDir()
+{
+	const FString& FaceDir = GetMutableDefault<UAppleARKitSettings>()->GetFaceTrackingLogDir();
+	const TCHAR* SubDir = FaceDir.Len() > 0 ? *FaceDir : TEXT("FaceTracking");
+	const FString UserDir = FPlatformProcess::UserDir();
+	if (!IFileManager::Get().DirectoryExists(*(UserDir / SubDir)))
+	{
+		IFileManager::Get().MakeDirectory(*(UserDir / SubDir));
+	}
+}
+
+void UAppleARKitSettings::CreateImageLogDir()
+{
+	const FString& FaceDir = GetMutableDefault<UAppleARKitSettings>()->GetFaceTrackingLogDir();
+	const TCHAR* SubDir = FaceDir.Len() > 0 ? *FaceDir : TEXT("CameraImages");
+	const FString UserDir = FPlatformProcess::UserDir();
+	if (!IFileManager::Get().DirectoryExists(*(UserDir / SubDir)))
+	{
+		IFileManager::Get().MakeDirectory(*(UserDir / SubDir));
+	}
+}
+
+FString UAppleARKitSettings::GetFaceTrackingLogDir()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return FaceTrackingLogDir;
+}
+
+bool UAppleARKitSettings::IsLiveLinkEnabledForFaceTracking()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bEnableLiveLinkForFaceTracking;
+}
+
+bool UAppleARKitSettings::IsFaceTrackingLoggingEnabled()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bFaceTrackingLogData;
+}
+
+bool UAppleARKitSettings::ShouldFaceTrackingLogPerFrame()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bFaceTrackingWriteEachFrame;
+}
+
+EARFaceTrackingFileWriterType UAppleARKitSettings::GetFaceTrackingFileWriterType()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return FaceTrackingFileWriterType;
+}
+
+bool UAppleARKitSettings::ShouldWriteCameraImagePerFrame()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bShouldWriteCameraImagePerFrame;
+}
+
+float UAppleARKitSettings::GetWrittenCameraImageScale()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return WrittenCameraImageScale;
+}
+
+int32 UAppleARKitSettings::GetWrittenCameraImageQuality()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return WrittenCameraImageQuality;
+}
+
+ETextureRotationDirection UAppleARKitSettings::GetWrittenCameraImageRotation()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return WrittenCameraImageRotation;
+}
+
+int32 UAppleARKitSettings::GetLiveLinkPublishingPort()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return LiveLinkPublishingPort;
+}
+
+FName UAppleARKitSettings::GetLiveLinkSubjectName()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return DefaultFaceTrackingLiveLinkSubjectName;
+}
+
+EARFaceTrackingDirection UAppleARKitSettings::GetFaceTrackingDirection()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return DefaultFaceTrackingDirection;
+}
+
+bool UAppleARKitSettings::ShouldAdjustThreadPriorities()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return bAdjustThreadPrioritiesDuringARSession;
+}
+
+int32 UAppleARKitSettings::GetGameThreadPriorityOverride()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return GameThreadPriorityOverride;
+}
+
+int32 UAppleARKitSettings::GetRenderThreadPriorityOverride()
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	return RenderThreadPriorityOverride;
+}
+
+bool UAppleARKitSettings::Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (FParse::Command(&Cmd, TEXT("ARKitSettings")))
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+
+		if (FParse::Command(&Cmd, TEXT("StartFileWriting")))
+		{
+			UAppleARKitSettings::CreateFaceTrackingLogDir();
+			bFaceTrackingLogData = true;
+			bShouldWriteCameraImagePerFrame = true;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("StopFileWriting")))
+		{
+			bFaceTrackingLogData = false;
+			bShouldWriteCameraImagePerFrame = false;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("StartCameraFileWriting")))
+		{
+			bShouldWriteCameraImagePerFrame = true;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("StopCameraFileWriting")))
+		{
+			bShouldWriteCameraImagePerFrame = false;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("SavePerFrame")))
+		{
+			bFaceTrackingWriteEachFrame = true;
+			return true;
+		}
+		else if (FParse::Command(&Cmd, TEXT("SaveOnDemand")))
+		{
+			bFaceTrackingWriteEachFrame = false;
+			return true;
+		}
+		else if (FParse::Value(Cmd, TEXT("FaceLogDir="), FaceTrackingLogDir))
+		{
+			UAppleARKitSettings::CreateFaceTrackingLogDir();
+			return true;
+		}
+		else if (FParse::Value(Cmd, TEXT("LiveLinkSubjectName="), DefaultFaceTrackingLiveLinkSubjectName))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 #if PLATFORM_IOS

@@ -268,7 +268,7 @@ TSharedRef<FInternetAddr> FAppleARKitLiveLinkRemotePublisher::GetSendAddress()
 	// Don't bother trying to parse the IP if it isn't set
 	if (RemoteIp.Len())
 	{
-		int32 LiveLinkPort = GetDefault<UAppleARKitSettings>()->LiveLinkPublishingPort;
+		int32 LiveLinkPort = GetMutableDefault<UAppleARKitSettings>()->GetLiveLinkPublishingPort();
 		SendAddr->SetPort(LiveLinkPort);
 		bool bIsValid = false;
 		SendAddr->SetIp(*RemoteIp, bIsValid);
@@ -437,17 +437,14 @@ void FAppleARKitLiveLinkRemoteListener::Tick(float DeltaTime)
 
 FAppleARKitLiveLinkFileWriter::FAppleARKitLiveLinkFileWriter(const TCHAR* InFileExtension)
 	: FileExtension(InFileExtension)
-	, bSavePerFrameOrOnDemand(false)
 {
-	// Read the config values for this
-	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bFaceTrackingWriteEachFrame"), bSavePerFrameOrOnDemand, GEngineIni);
-	GConfig->GetBool(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("bFaceTrackingLogData"), bLogData, GEngineIni);
+	UAppleARKitSettings::CreateFaceTrackingLogDir();
 }
 
 FAppleARKitLiveLinkFileWriter::~FAppleARKitLiveLinkFileWriter()
 {
 	// Save on close if desired
-	if (!bSavePerFrameOrOnDemand)
+	if (!GetMutableDefault<UAppleARKitSettings>()->ShouldFaceTrackingLogPerFrame())
 	{
 		SaveFileData();
 	}
@@ -475,7 +472,9 @@ FString FAppleARKitLiveLinkFileWriter::GenerateFilePath()
 	FDateTime DateTime = FDateTime::UtcNow();
 	const FString UserDir = FPlatformProcess::UserDir();
 	const FString DeviceNameString = DeviceName.ToString();
-	return FString::Printf(TEXT("%sFaceTracking/%s_%d-%d-%d-%d-%d-%d-%d%s"), *UserDir, *DeviceNameString,
+	const FString& FaceDir = GetMutableDefault<UAppleARKitSettings>()->GetFaceTrackingLogDir();
+	const TCHAR* SubDir = FaceDir.Len() > 0 ? *FaceDir : TEXT("FaceTracking");
+	return FString::Printf(TEXT("%s%s/%s_%d-%d-%d-%d-%d-%d-%d%s"), *UserDir, SubDir, *DeviceNameString,
 		DateTime.GetYear(), DateTime.GetMonth(), DateTime.GetDay(), Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames,
 		*FileExtension);
 }
@@ -484,7 +483,7 @@ void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const 
 {
 	FScopeLock ScopeLock(&CriticalSection);
 
-	if (!bLogData)
+	if (!GetMutableDefault<UAppleARKitSettings>()->IsFaceTrackingLoggingEnabled())
 	{
 		return;
 	}
@@ -493,7 +492,7 @@ void FAppleARKitLiveLinkFileWriter::PublishBlendShapes(FName SubjectName, const 
 	// Add to the array for long running save
 	new(FrameHistory) FFaceTrackingFrame(Timecode, FrameRate, FaceBlendShapes);
 
-	if (bSavePerFrameOrOnDemand)
+	if (GetMutableDefault<UAppleARKitSettings>()->ShouldFaceTrackingLogPerFrame())
 	{
 		SaveFileData();
 	}
@@ -507,32 +506,6 @@ bool FAppleARKitLiveLinkFileWriter::Exec(UWorld*, const TCHAR* Cmd, FOutputDevic
 		{
 			FScopeLock ScopeLock(&CriticalSection);
 			SaveFileData();
-			return true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("StartFileWriting")))
-		{
-			FScopeLock ScopeLock(&CriticalSection);
-			FrameHistory.Empty();
-			bLogData = true;
-			return true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("StopFileWriting")))
-		{
-			FScopeLock ScopeLock(&CriticalSection);
-			FrameHistory.Empty();
-			bLogData = false;
-			return true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("SavePerFrame")))
-		{
-			FScopeLock ScopeLock(&CriticalSection);
-			bSavePerFrameOrOnDemand = true;
-			return true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("SaveOnDemand")))
-		{
-			FScopeLock ScopeLock(&CriticalSection);
-			bSavePerFrameOrOnDemand = false;
 			return true;
 		}
 	}
@@ -563,8 +536,8 @@ FAppleARKitLiveLinkFileWriterCsv::FAppleARKitLiveLinkFileWriterCsv()
 FString FAppleARKitLiveLinkFileWriterCsv::BuildCsvRow(const FFaceTrackingFrame& Frame)
 {
 	FString SaveData = FString::Printf(TEXT("%d:%d:%d:%d, %d"),
-			Frame.Timecode.Hours, Frame.Timecode.Minutes, Frame.Timecode.Seconds, Frame.Timecode.Frames,
-			Frame.FrameRate);
+		Frame.Timecode.Hours, Frame.Timecode.Minutes, Frame.Timecode.Seconds, Frame.Timecode.Frames,
+		Frame.FrameRate);
 	// Add all of the blend shapes on
 	for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)
 	{
