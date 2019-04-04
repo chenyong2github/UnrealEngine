@@ -14,7 +14,7 @@ namespace UnrealGameSyncMetadataServer.Controllers
 		public long[] Get(string Project = null)
 		{
 			LatestData LatestIDs = SqlConnector.GetLastIds(Project);
-			return new long[] { LatestIDs.LastEventId, LatestIDs.LastCommmentId, LatestIDs.LastBuildId };
+			return new long[] { LatestIDs.LastEventId, LatestIDs.LastCommentId, LatestIDs.LastBuildId };
 		}
 		public List<BuildData> Get(string Project, long LastBuildId)
 		{

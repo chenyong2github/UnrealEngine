@@ -61,7 +61,7 @@ namespace UnrealGameSyncMetadataServer.Connectors
 					}
 				}
 			}
-			return new LatestData { LastBuildId = LastBuildId, LastCommmentId = LastCommentId, LastEventId = LastEventId };
+			return new LatestData { LastBuildId = LastBuildId, LastCommentId = LastCommentId, LastEventId = LastEventId };
 		}
 		public static List<EventData> GetUserVotes(string Project, long LastEventId)
 		{

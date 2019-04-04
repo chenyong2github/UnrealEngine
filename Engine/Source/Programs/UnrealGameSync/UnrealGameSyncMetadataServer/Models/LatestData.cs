@@ -10,7 +10,7 @@ namespace UnrealGameSyncMetadataServer.Models
 	public class LatestData
 	{
 		public long LastEventId { get; set; }
-		public long LastCommmentId { get; set; }
+		public long LastCommentId { get; set; }
 		public long LastBuildId { get; set; }
 	}
 }
