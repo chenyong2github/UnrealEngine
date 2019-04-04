@@ -697,6 +697,11 @@ public:
 		}
 		else
 		{
+			if (!Initializer.BoundShaderState.VertexShaderRHI)
+			{
+				UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+			}
+
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
 			GfxPipeline->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
 			
