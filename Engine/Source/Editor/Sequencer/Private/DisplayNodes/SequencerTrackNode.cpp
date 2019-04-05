@@ -499,17 +499,20 @@ FLinearColor FSequencerTrackNode::GetDisplayNameColor() const
 			ObjectBinding = StaticCastSharedPtr<FSequencerObjectBindingNode>(ParentSeqNode)->GetObjectBinding();
 		}
 
-		for (auto RuntimeObject : GetSequencer().FindBoundObjects(ObjectBinding, GetSequencer().GetFocusedTemplateID()))
+		if (ObjectBinding.IsValid())
 		{
-			FTrackInstancePropertyBindings PropertyBinding(FName(*PropertyTrack->GetName()), PropertyTrack->GetPropertyPath());
-
-			if (PropertyBinding.GetProperty(*RuntimeObject))
+			for (auto RuntimeObject : GetSequencer().FindBoundObjects(ObjectBinding, GetSequencer().GetFocusedTemplateID()))
 			{
-				return FLinearColor::White;
-			}
-		}
+				FTrackInstancePropertyBindings PropertyBinding(FName(*PropertyTrack->GetName()), PropertyTrack->GetPropertyPath());
 
-		return FLinearColor::Red;
+				if (PropertyBinding.GetProperty(*RuntimeObject))
+				{
+					return FLinearColor::White;
+				}
+			}
+
+			return FLinearColor::Red;
+		}
 	}
 
 	return FLinearColor::White;
