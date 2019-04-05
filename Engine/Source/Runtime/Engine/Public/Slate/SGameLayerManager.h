@@ -12,6 +12,7 @@
 #include "Widgets/SCanvas.h"
 #include "Widgets/Layout/SBox.h"
 #include "Styling/SlateTypes.h"
+#include "UObject/ObjectKey.h"
 
 class FPaintArgs;
 class FSceneViewport;
@@ -169,7 +170,7 @@ private:
 	void RemoveMissingPlayerLayers(const TArray<ULocalPlayer*>& GamePlayers);
 	void RemovePlayerWidgets(ULocalPlayer* LocalPlayer);
 	void AddOrUpdatePlayerLayers(const FGeometry& AllottedGeometry, UGameViewportClient* ViewportClient, const TArray<ULocalPlayer*>& GamePlayers);
-	FVector2D GetAspectRatioInset(ULocalPlayer* LocalPlayer) const;
+	bool GetNormalizeRect(ULocalPlayer* LocalPlayer, FVector2D& OutPosition, FVector2D& OutSize) const;
 
 	void UpdateWindowTitleBar();
 	void UpdateWindowTitleBarVisibility();
@@ -178,7 +179,7 @@ private:
 private:
 	FGeometry CachedGeometry;
 
-	TMap < ULocalPlayer*, TSharedPtr<FPlayerLayer> > PlayerLayers;
+	TMap<FObjectKey, TSharedPtr<FPlayerLayer>> PlayerLayers;
 
 	TAttribute<FSceneViewport*> SceneViewport;
 	TSharedPtr<SVerticalBox> WidgetHost;

@@ -2515,11 +2515,15 @@ void UGameViewportClient::RemoveViewportWidgetContent( TSharedRef<SWidget> Viewp
 
 void UGameViewportClient::AddViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, const int32 ZOrder)
 {
-	TSharedPtr< IGameLayerManager > GameLayerManager(GameLayerManagerPtr.Pin());
-	if ( GameLayerManager.IsValid() )
+	if (ensure(Player))
 	{
-		GameLayerManager->AddWidgetForPlayer(Player, ViewportContent, ZOrder);
+		TSharedPtr< IGameLayerManager > GameLayerManager(GameLayerManagerPtr.Pin());
+		if (GameLayerManager.IsValid())
+		{
+			GameLayerManager->AddWidgetForPlayer(Player, ViewportContent, ZOrder);
+		}
 	}
+	//TODO - If this fails what should we do?
 }
 
 void UGameViewportClient::RemoveViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent)
