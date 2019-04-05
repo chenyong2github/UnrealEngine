@@ -7,6 +7,7 @@ using System;
 using UnrealBuildTool;
 using AutomationTool;
 using System.Net.NetworkInformation;
+using System.Collections.Generic;
 
 namespace EpicGame
 {
@@ -21,6 +22,12 @@ namespace EpicGame
 		/// </summary>
 		[AutoParam]
 		public bool NoMCP = false;
+
+		/// <summary>
+		/// Tell the server not to authenticate u
+		/// </summary>
+		[AutoParam]
+		public bool XboxAuthSkip = false;
 
 		[AutoParam]
 		public bool FastCook = false;
@@ -98,15 +105,15 @@ namespace EpicGame
 			}
 		}
 
-		public override void ApplyToConfig(UnrealAppConfig AppConfig)
+		public override void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
-			base.ApplyToConfig(AppConfig);
+			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
-			if (AppConfig.ProcessType.IsClient() || AppConfig.ProcessType.IsServer())
+			if (ConfigRole.RoleType.IsClient() || ConfigRole.RoleType.IsServer())
 			{
 				string McpString = "";
 
-				if (AppConfig.ProcessType.IsServer())
+				if (ConfigRole.RoleType.IsServer())
 				{
 					// set explicit server and beacon port for online services
 					// this is important when running tests in parallel to avoid matchmaking collisions
@@ -126,7 +133,7 @@ namespace EpicGame
 					.Where(I => I.OperationalStatus == OperationalStatus.Up);
 
 				bool MultipleInterfaces = ActiveInterfaces.Count() > 1;
-				
+
 				if (MultipleInterfaces)
 				{
 					// Now, lots of Epic PCs have virtual adapters etc, so see if there's one that's on our network and if so use that IP
@@ -139,7 +146,7 @@ namespace EpicGame
 					if (PreferredInterface != null)
 					{
 						LocalAddress = PreferredInterface.Address;
-					}					
+					}
 				}
 
 				if (LocalAddress == null)
@@ -151,18 +158,18 @@ namespace EpicGame
 				string RequestedClientIP = Globals.Params.ParseValue("clientip", "");
 				string ServerIP = string.IsNullOrEmpty(RequestedServerIP) ? LocalAddress.ToString() : RequestedServerIP;
 				string ClientIP = string.IsNullOrEmpty(RequestedClientIP) ? LocalAddress.ToString() : RequestedClientIP;
-				
+
 
 				// Do we need to add the -multihome argument to bind to specific IP?
-				if (AppConfig.ProcessType.IsServer() && (MultipleInterfaces || !string.IsNullOrEmpty(RequestedServerIP)))
-				{ 		
+				if (ConfigRole.RoleType.IsServer() && (MultipleInterfaces || !string.IsNullOrEmpty(RequestedServerIP)))
+				{
 					AppConfig.CommandLine += string.Format(" -multihome={0}", ServerIP);
 				}
 
 				// client too, but only desktop platforms
-				if (AppConfig.ProcessType.IsClient() && (MultipleInterfaces || !string.IsNullOrEmpty(RequestedClientIP)))
+				if (ConfigRole.RoleType.IsClient() && (MultipleInterfaces || !string.IsNullOrEmpty(RequestedClientIP)))
 				{
-					if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
+					if (ConfigRole.Platform == UnrealTargetPlatform.Win64 || ConfigRole.Platform == UnrealTargetPlatform.Mac)
 					{
 						AppConfig.CommandLine += string.Format(" -multihome={0}", ClientIP);
 					}
@@ -173,7 +180,7 @@ namespace EpicGame
 					McpString += " -nomcp -notimeouts";
 
 					// if this is a client, and there is a server role, find our PC's IP address and tell it to connect to us
-					if (AppConfig.ProcessType.IsClient() &&
+					if (ConfigRole.RoleType.IsClient() &&
 							(RequiredRoles.ContainsKey(UnrealTargetRole.Server) || RequiredRoles.ContainsKey(UnrealTargetRole.EditorServer)))
 					{
 						McpString += string.Format(" -ExecCmds=\"open {0}:{1}\"", ServerIP, ServerPort);
@@ -196,24 +203,32 @@ namespace EpicGame
 					McpString += " -FastCook";
 				}
 
+				// turn off XboxAuth for NoMcp, or if specified, but only if there's an Xbox client somewhere
+				bool SkipAuth = ConfigRole.RoleType.IsServer() && (NoMCP || XboxAuthSkip) && OtherRoles.Any(R => R.Platform == UnrealTargetPlatform.XboxOne);
+
+				if (SkipAuth)
+				{
+					AppConfig.CommandLine += " -ini:Game:[/Script/FortniteGame.FortGameModeZone]:bTrustXboxPlatformId=true";
+				}
+
 				AppConfig.CommandLine += McpString;
 			}
 
-			if (AppConfig.ProcessType.IsClient())
+			if (ConfigRole.RoleType.IsClient())
 			{
                 if (LogPSO)
                 {
                     AppConfig.CommandLine += " -logpso";
                 }
 
-                if (AppConfig.Platform == UnrealTargetPlatform.Win64)
+                if (ConfigRole.Platform == UnrealTargetPlatform.Win64)
 				{
 					// turn off skill-based matchmaking, turn off porta;
 					AppConfig.CommandLine += " -noepicportal";
 				}
 
 				// select an account
-				if (NoMCP == false && AppConfig.Platform != UnrealTargetPlatform.PS4 && AppConfig.Platform != UnrealTargetPlatform.XboxOne && PreAssignAccount == true)
+				if (NoMCP == false && ConfigRole.Platform != UnrealTargetPlatform.PS4 && ConfigRole.Platform != UnrealTargetPlatform.XboxOne && PreAssignAccount == true)
 				{
 					Account UserAccount = AccountPool.Instance.ReserveAccount();
 					UserAccount.ApplyToConfig(AppConfig);
