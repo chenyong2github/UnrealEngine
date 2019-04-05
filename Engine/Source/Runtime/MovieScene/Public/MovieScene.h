@@ -81,10 +81,10 @@ struct FMovieSceneMarkedFrame
 #endif
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Marked Frame")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Marked Frame")
 	FFrameNumber FrameNumber;
 
-	UPROPERTY(EditAnywhere, Category = "Marked Frame")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Marked Frame")
 	FString Label;
 
 #if WITH_EDITORONLY_DATA
@@ -763,8 +763,9 @@ public:
 	 * A unique label will be generated if the marked frame label is empty
 	 *
 	 * @InMarkedFrame The given user marked frame to add
+	 * @return The index to the newly added marked frame
 	 */
-	void AddMarkedFrame(const FMovieSceneMarkedFrame& InMarkedFrame);
+	int32 AddMarkedFrame(const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
 	 * Remove the user marked frame by index.

@@ -1043,7 +1043,7 @@ void UMovieScene::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)
 	MarkedFrames[InMarkIndex].FrameNumber = InFrameNumber;
 }
 
-void UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
+int32 UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 {
 	FString NewLabel;
 
@@ -1084,6 +1084,8 @@ void UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 	{
 		MarkedFrames[MarkedIndex].Label = NewLabel;
 	}
+
+	return MarkedIndex;
 }
 
 void UMovieScene::RemoveMarkedFrame(int32 RemoveIndex)
