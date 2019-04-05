@@ -243,6 +243,7 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
+	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);

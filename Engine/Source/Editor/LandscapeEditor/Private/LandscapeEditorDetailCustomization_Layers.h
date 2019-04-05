@@ -103,3 +103,18 @@ private:
 
 	int32 CurrentEditingInlineTextBlock;
 };
+
+class FLandscapeListElementDragDropOp : public FDragAndDropVerticalBoxOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FLandscapeListElementDragDropOp, FDragAndDropVerticalBoxOp)
+
+	TSharedPtr<SWidget> WidgetToShow;
+
+	static TSharedRef<FLandscapeListElementDragDropOp> New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> InWidgetToShow);
+
+public:
+	virtual ~FLandscapeListElementDragDropOp() {}
+
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+};
