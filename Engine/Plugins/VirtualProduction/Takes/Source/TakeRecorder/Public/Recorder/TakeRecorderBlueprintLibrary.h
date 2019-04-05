@@ -81,11 +81,47 @@ public:
 
 
 	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderPanelChanged);
+	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderStarted);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderFinished, ULevelSequence*, SequenceAsset);
+	DECLARE_DYNAMIC_DELEGATE(FOnTakeRecorderCancelled);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderMarkedFrameAdded, const FMovieSceneMarkedFrame&, MarkedFrame);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderSlateChanged, const FString&, Slate);
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderTakeNumberChanged, int32, TakeNumber);
 
 	/** Called when a Take Panel is constructed or destroyed. */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder")
 	static void SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged);
 
+	/** Called when take recording starts. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderStarted(FOnTakeRecorderStarted OnTakeRecorderStarted);
+
+	/** Called when take recording finishes. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderFinished(FOnTakeRecorderFinished OnTakeRecorderFinished);
+
+	/** Called when take recording is cancelled. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderCancelled(FOnTakeRecorderCancelled OnTakeRecorderCancelled);
+
+	/** Called when a marked frame is added. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderMarkedFrameAdded(FOnTakeRecorderMarkedFrameAdded OnTakeRecorderMarkedFrameAdded);
+
+	/** Called when the slate is changed. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged OnTakeRecorderSlateChanged);
+
+	/** Called when the take number is changed. */
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	static void SetOnTakeRecorderTakeNumberChanged(FOnTakeRecorderTakeNumberChanged OnTakeRecorderTakeNumberChanged);
+
+	static void OnTakeRecorderStarted();
+	static void OnTakeRecorderFinished(ULevelSequence* InSequenceAsset);
+	static void OnTakeRecorderCancelled();
+	static void OnTakeRecorderMarkedFrameAdded(const FMovieSceneMarkedFrame& InMarkedFrame);
+	static void OnTakeRecorderSlateChanged(const FString& InSlate);
+	static void OnTakeRecorderTakeNumberChanged(int32 InTakeNumber);
 
 	/**
 	 * Internal function to assign a new take recorder panel singleton.

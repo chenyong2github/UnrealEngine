@@ -100,6 +100,7 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 		if (NextTakeNumber != TakeMetaData->GetTakeNumber())
 		{
 			TakeMetaData->SetTakeNumber(NextTakeNumber);
+			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 		}
 	}
 
@@ -546,11 +547,20 @@ void STakeRecorderCockpit::CacheMetaData()
 			TransientTakeMetaData = UTakeMetaData::CreateFromDefaults(GetTransientPackage(), NAME_None);
 			TransientTakeMetaData->SetFlags(RF_Transactional | RF_Transient);
 
-			TransientTakeMetaData->SetSlate(GetDefault<UTakeRecorderProjectSettings>()->Settings.DefaultSlate);
+			FString DefaultSlate = GetDefault<UTakeRecorderProjectSettings>()->Settings.DefaultSlate;
+			if (TransientTakeMetaData->GetSlate() != DefaultSlate)
+			{
+				TransientTakeMetaData->SetSlate(DefaultSlate);
+				UTakeRecorderBlueprintLibrary::OnTakeRecorderSlateChanged(DefaultSlate);
+			}
 
 			// Compute the correct starting take number
 			int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TransientTakeMetaData->GetSlate());
-			TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
+			if (TransientTakeMetaData->GetTakeNumber() != NextTakeNumber)
+			{
+				TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
+				UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
+			}
 		}
 
 		NewMetaDataThisTick = TransientTakeMetaData;
@@ -633,10 +643,16 @@ void STakeRecorderCockpit::SetSlateText(const FText& InNewText, ETextCommit::Typ
 		TakeMetaData->Modify();
 
 		TakeMetaData->SetSlate(InNewText.ToString());
+		UTakeRecorderBlueprintLibrary::OnTakeRecorderSlateChanged(InNewText.ToString());
 
 		// Compute the correct starting take number
 		int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TakeMetaData->GetSlate());
-		TakeMetaData->SetTakeNumber(NextTakeNumber);
+
+		if (NextTakeNumber != TakeMetaData->GetTakeNumber())
+		{
+			TakeMetaData->SetTakeNumber(NextTakeNumber);
+			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
+		}
 	}
 }
 
@@ -686,12 +702,16 @@ int32 STakeRecorderCockpit::GetTakeNumber() const
 
 FReply STakeRecorderCockpit::OnSetNextTakeNumber()
 {
-	FScopedTransaction Transaction(LOCTEXT("SetNextTakeNumber_Transaction", "Set Next Take Number"));
-
 	int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TakeMetaData->GetSlate());
 
-	TakeMetaData->Modify();
-	TakeMetaData->SetTakeNumber(NextTakeNumber);
+	if (TakeMetaData->GetTakeNumber() != NextTakeNumber)
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetNextTakeNumber_Transaction", "Set Next Take Number"));
+
+		TakeMetaData->Modify();
+		TakeMetaData->SetTakeNumber(NextTakeNumber);
+		UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
+	}
 
 	return FReply::Handled();
 }
@@ -732,9 +752,10 @@ void STakeRecorderCockpit::SetTakeNumber_FromCommit(int32 InNewTakeNumber, EText
 			OnEndSetTakeNumber(InNewTakeNumber);
 		}
 	}
-	else
+	else if (TakeMetaData->GetTakeNumber() != InNewTakeNumber)
 	{
 		TakeMetaData->SetTakeNumber(InNewTakeNumber);
+		UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(InNewTakeNumber);
 	}
 
 	bAutoApplyTakeNumber = false;
@@ -750,6 +771,7 @@ void STakeRecorderCockpit::OnEndSetTakeNumber(int32 InFinalValue)
 	}
 
 	TakeMetaData->SetTakeNumber(InFinalValue);
+	UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(InFinalValue);
 
 	GEditor->EndTransaction();
 	TransactionIndex = INDEX_NONE;
@@ -771,7 +793,8 @@ FReply STakeRecorderCockpit::OnAddMarkedFrame()
 		FMovieSceneMarkedFrame MarkedFrame;
 		MarkedFrame.FrameNumber = ConvertFrameTime(ElapsedFrame, MovieScene->GetDisplayRate(), MovieScene->GetTickResolution()).CeilToFrame();
 
-		MovieScene->AddMarkedFrame(MarkedFrame);
+		int32 MarkedFrameIndex = MovieScene->AddMarkedFrame(MarkedFrame);
+		UTakeRecorderBlueprintLibrary::OnTakeRecorderMarkedFrameAdded(MovieScene->GetMarkedFrames()[MarkedFrameIndex]);
 	}
 
 	return FReply::Handled();
@@ -897,7 +920,12 @@ void STakeRecorderCockpit::OnRecordingFinished(UTakeRecorder* Recorder)
 	{
 		// Increment the transient take meta data if necessary
 		int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TransientTakeMetaData->GetSlate());
-		TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
+
+		if (TransientTakeMetaData->GetTakeNumber() != NextTakeNumber)
+		{
+			TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
+			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
+		}
 
 		bAutoApplyTakeNumber = true;
 	}

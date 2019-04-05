@@ -405,9 +405,10 @@ public:
 	 * A unique label will be generated if the marked frame label is empty
 	 *
 	 * @InMarkedFrame The given user marked frame to add
+	 * @return The index to the newly added marked frame
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
-	static void AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
+	static int32 AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
 	 * Remove the user marked frame by index.

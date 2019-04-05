@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Recorder/TakeRecorder.h"
+#include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "TakePreset.h"
 #include "TakeMetaData.h"
 #include "TakeRecorderSources.h"
@@ -311,7 +312,7 @@ public:
 
 	virtual UWorld* GetTickableGameObjectWorld() const override
 	{
-		UTakeRecorder* Recorder = WeakRecorder.Get();
+			UTakeRecorder* Recorder = WeakRecorder.Get();
 		return Recorder ? Recorder->GetWorld() : nullptr;
 	}
 
@@ -686,6 +687,8 @@ void UTakeRecorder::Start()
 		Sequencer->RefreshTree();
 	}
 	OnRecordingStartedEvent.Broadcast(this);
+
+	UTakeRecorderBlueprintLibrary::OnTakeRecorderStarted();
 }
 
 void UTakeRecorder::Stop()
@@ -778,10 +781,12 @@ void UTakeRecorder::Stop()
 		if (bDidEverStartRecording)
 		{
 			OnRecordingFinishedEvent.Broadcast(this);
+			UTakeRecorderBlueprintLibrary::OnTakeRecorderFinished(SequenceAsset);
 		}
 		else
 		{
 			OnRecordingCancelledEvent.Broadcast(this);
+			UTakeRecorderBlueprintLibrary::OnTakeRecorderCancelled();
 		}
 	}
 
