@@ -49,7 +49,6 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "LandscapeEditorCommands.h"
 #include "Settings/EditorExperimentalSettings.h"
-#include "LandscapeEditorDetailCustomization_LayersBrushStack.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
@@ -625,25 +624,78 @@ const FSlateBrush* FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLaye
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
-	if (LandscapeEdMode != nullptr)
+	if (LandscapeEdMode)
 	{
-		// TODO: handle drag & drop
+		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(SlotIndex);
+		if (Layer && !Layer->bLocked)
+		{
+			TSharedPtr<SWidget> Row = GenerateRow(SlotIndex);
+			if (Row.IsValid())
+			{
+				return FReply::Handled().BeginDragDrop(FLandscapeListElementDragDropOp::New(SlotIndex, Slot, Row));
+			}
+		}
 	}
-
 	return FReply::Unhandled();
 }
 
 TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuilder_Layers::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot)
 {
-	// TODO: handle drag & drop
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
+	if (DragDropOperation.IsValid())
+	{
+		return DropZone;
+	}
 	return TOptional<SDragAndDropVerticalBox::EItemDropZone>();
 }
 
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
-	// TODO: handle drag & drop
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
+
+	if (DragDropOperation.IsValid())
+	{
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+		if (Landscape)
+		{
+			int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
+			int32 DestinationLayerIndex = SlotIndex;
+			if (Landscape->ReorderLayer(StartingLayerIndex, DestinationLayerIndex))
+			{
+				LandscapeEdMode->SetCurrentLayer(DestinationLayerIndex);
+				LandscapeEdMode->RefreshDetailPanel();
+				LandscapeEdMode->RequestLayersContentUpdate();
+				return FReply::Handled();
+			}
+		}
+	}
+
 	return FReply::Unhandled();
+}
+
+TSharedRef<FLandscapeListElementDragDropOp> FLandscapeListElementDragDropOp::New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> WidgetToShow)
+{
+	TSharedRef<FLandscapeListElementDragDropOp> Operation = MakeShareable(new FLandscapeListElementDragDropOp);
+
+	Operation->MouseCursor = EMouseCursor::GrabHandClosed;
+	Operation->SlotIndexBeingDragged = InSlotIndexBeingDragged;
+	Operation->SlotBeingDragged = InSlotBeingDragged;
+	Operation->WidgetToShow = WidgetToShow;
+
+	Operation->Construct();
+
+	return Operation;
+}
+
+TSharedPtr<SWidget> FLandscapeListElementDragDropOp::GetDefaultDecorator() const
+{
+	return SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
+		.Content()
+		[
+			WidgetToShow.ToSharedRef()
+		];
 }
 
 #undef LOCTEXT_NAMESPACE
