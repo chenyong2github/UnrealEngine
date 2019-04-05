@@ -91,6 +91,15 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				UAnimSequencerInstance* SequencerInst = Cast<UAnimSequencerInstance>(Component->GetAnimInstance());
 				if (SequencerInst)
 				{
+					SequencerInst->ResetPose();
+					//wish this 'force evaluation' was encapsulated better
+					Component->TickAnimation(0.f, false);
+					Component->RefreshBoneTransforms();
+					Component->RefreshSlaveComponents();
+					Component->UpdateComponentToWorld();
+					Component->FinalizeBoneTransform();
+					Component->MarkRenderTransformDirty();
+					Component->MarkRenderDynamicDataDirty();
 					SequencerInst->ResetNodes();
 				}
 
