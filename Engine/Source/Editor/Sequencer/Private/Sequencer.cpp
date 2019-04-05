@@ -951,7 +951,15 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 		}
 
 		ResetPerMovieSceneData();
-		SequencerWidget->UpdateBreadcrumbs();
+
+		if (SequenceID == MovieSceneSequenceID::Root)
+		{
+			SequencerWidget->ResetBreadcrumbs();
+		}
+		else
+		{
+			SequencerWidget->UpdateBreadcrumbs();
+		}
 
 		OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 

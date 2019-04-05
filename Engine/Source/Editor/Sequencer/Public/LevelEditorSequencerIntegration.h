@@ -157,6 +157,9 @@ private:
 
 	void RecordSelectedActors();
 
+	void MakeBrowseToSelectedActorSubMenu(FMenuBuilder& MenuBuilder, AActor* Actor, const TArray<TPair<FMovieSceneSequenceID, FSequencer*> > FoundInSequences);
+	void BrowseToSelectedActor(FSequencer* Sequencer, FMovieSceneSequenceID SequenceId);
+
 	bool IsPropertyReadOnly(const FPropertyAndParent& InPropertyAndParent);
 
 private:
