@@ -246,8 +246,9 @@ bool DiaphragmDOF::WireSceneColorPasses(FPostprocessContext& Context, const FRen
 		if (Context.View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 		{
 			TAAParameters.Pass = ETAAPassConfig::DiaphragmDOFUpsampling;
+			TAAParameters.bIsComputePass = true;
 		}
-
+		
 		TAAParameters.SetupViewRect(Context.View, PrefilteringResolutionDivisor);
 		TAAParameters.TopLeftCornerViewRects();
 

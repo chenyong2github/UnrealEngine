@@ -949,7 +949,7 @@ static void AddTemporalAA( FPostprocessContext& Context, FRenderingCompositeOutp
 	TemporalAAPass->SetInput( ePId_Input2, VelocityInput );
 	Context.FinalOutput = FRenderingCompositeOutputRef( TemporalAAPass );
 
-	if (OutSceneColorHalfRes && TemporalAAPass->IsDownsamplePossible())
+	if (OutSceneColorHalfRes && Parameters.bDownsample)
 	{
 		*OutSceneColorHalfRes = FRenderingCompositeOutputRef(TemporalAAPass, ePId_Output2);
 	}
