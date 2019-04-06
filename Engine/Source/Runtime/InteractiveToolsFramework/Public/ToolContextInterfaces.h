@@ -54,6 +54,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 class IToolsContextQueriesAPI
 {
 public:
+	virtual ~IToolsContextQueriesAPI() {}
 
 	/**
 	 * Collect up current-selection information for the current scene state (ie what is selected in Editor, etc)
