@@ -19,11 +19,7 @@
 		{
 			"Name" : "AppleImageUtils",
 			"Type" : "Runtime",
-			"LoadingPhase" : "Default",
-			"BlacklistPlatforms" :
-			[
-				"TVOS"
-			]
+			"LoadingPhase" : "Default"
 		},
 		{
 			"Name" : "AppleImageUtilsBlueprintSupport",
