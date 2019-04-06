@@ -10,7 +10,7 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 
-ENGINE_API const IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
+ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
 namespace
 {

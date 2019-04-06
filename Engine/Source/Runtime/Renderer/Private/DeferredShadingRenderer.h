@@ -69,8 +69,11 @@ public:
 	 */
 	bool RenderPrePassViewParallel(const FViewInfo& View, FRHICommandListImmediate& ParentCmdList, const FMeshPassProcessorRenderState& DrawRenderState, TFunctionRef<void()> AfterTasksAreStarted, bool bDoPrePre);
 
-	/** Culls local lights to a grid in frustum space.  Needed for forward shading or translucency using the Surface lighting mode. */
-	void ComputeLightGrid(FRHICommandListImmediate& RHICmdList, bool bNeedLightGrid);
+	/** 
+	 * Culls local lights and reflection probes to a grid in frustum space, builds one light list and grid per view in the current Views.  
+	 * Needed for forward shading or translucency using the Surface lighting mode, and clustered deferred shading. 
+	 */
+	void ComputeLightGrid(FRHICommandListImmediate& RHICmdList, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet);
 
 	/** Renders the basepass for a given View, in parallel */
 	void RenderBasePassViewParallel(FViewInfo& View, FRHICommandListImmediate& ParentCmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, const FMeshPassProcessorRenderState& InDrawRenderState);
@@ -222,13 +225,34 @@ private:
 	bool CanUseTiledDeferred() const;
 
 	/** Whether to use tiled deferred shading given a number of lights that support it. */
-	bool ShouldUseTiledDeferred(int32 NumUnshadowedLights, int32 NumSimpleLights) const;
+	bool ShouldUseTiledDeferred(int32 NumTiledDeferredLights) const;
 
-	/** Renders the lights in SortedLights in the range [0, NumUnshadowedLights) using tiled deferred shading. */
-	void RenderTiledDeferredLighting(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 NumUnshadowedLights, const FSimpleLightArray& SimpleLights);
+	/** 
+	 * True if the 'r.UseClusteredDeferredShading' flag is 1 and sufficient feature level. 
+	 * NOTE: When true it takes precedence over the TiledDeferred path, since they handle the same lights.
+	 */
+	bool ShouldUseClusteredDeferredShading() const;
+
+	/**
+	 * Have the requisite lights been injected into the light grid, AKA can we run the shading pass?
+	 */
+	bool AreClusteredLightsInLightGrid() const;
+
+
+	/** Add a clustered deferred shading lighting render pass.	Note: in the future it should take the RenderGraph builder as argument */
+	void AddClusteredDeferredShadingPass(FRHICommandListImmediate& RHICmdList, const FSortedLightSetSceneInfo &SortedLightsSet);
+
+	/** Renders the lights in SortedLights in the range [TiledDeferredLightsStart, TiledDeferredLightsEnd) using tiled deferred shading. */
+	void RenderTiledDeferredLighting(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 TiledDeferredLightsStart, int32 TiledDeferredLightsEnd, const FSimpleLightArray& SimpleLights);
+
+	/**
+	 * Rounds up lights and sorts them according to what type of renderer supports them. The result is stored in OutSortedLights 
+	 * NOTE: Also extracts the SimpleLights AND adds them to the sorted range (first sub-range). 
+	 */
+	void GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights);
 
 	/** Renders the scene's lighting. */
-	void RenderLights(FRHICommandListImmediate& RHICmdList);
+	void RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet);
 
 	/** Renders an array of lights for the stationary light overlap viewmode. */
 	void RenderLightArrayForOverlapViewmode(FRHICommandListImmediate& RHICmdList, const TSparseArray<FLightSceneInfoCompact>& LightArray);
@@ -369,7 +393,7 @@ private:
 	void InjectTranslucentVolumeLighting(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo& LightSceneInfo, const FProjectedShadowInfo* InProjectedShadowInfo, const FViewInfo& View, int32 ViewIndex);
 
 	/** Accumulates direct lighting for an array of unshadowed lights. */
-	void InjectTranslucentVolumeLightingArray(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 NumLights);
+	void InjectTranslucentVolumeLightingArray(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 FirstLightIndex, int32 LightsEndIndex);
 
 	/** Accumulates direct lighting for simple lights. */
 	void InjectSimpleTranslucentVolumeLightingArray(FRHICommandListImmediate& RHICmdList, const FSimpleLightArray& SimpleLights, const FViewInfo& View, const int32 ViewIndex);
@@ -539,6 +563,9 @@ private:
 	static void PreparePathTracing(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders);
 
 #endif // RHI_RAYTRACING
+
+	/** Set to true if the lights needed for clustered shading have been injected in the light grid (set in ComputeLightGrid). */
+	bool bClusteredShadingLightsInLightGrid;
 };
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PrePass"), STAT_CLM_PrePass, STATGROUP_CommandListMarkers, );

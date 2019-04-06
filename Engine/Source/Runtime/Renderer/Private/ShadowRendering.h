@@ -29,7 +29,7 @@
 #include "LightRendering.h"
 #include "LightPropagationVolume.h"
 
-ENGINE_API const IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
+ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;

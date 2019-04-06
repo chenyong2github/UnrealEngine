@@ -462,6 +462,8 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(FVector4, DirectionalLightShadowmapAtlasBufferSize) \
 	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
 	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing) \
+	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
+	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
 	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
 	SHADER_PARAMETER(FMatrix, DirectionalLightWorldToStaticShadow) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
@@ -470,7 +472,8 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler) \
 	SHADER_PARAMETER_SRV(StrongTypedBuffer<float4>, ForwardLocalLightBuffer) \
 	SHADER_PARAMETER_SRV(StrongTypedBuffer<uint>, NumCulledLightsGrid) \
-	SHADER_PARAMETER_SRV(StrongTypedBuffer<uint>, CulledLightDataGrid) 
+	SHADER_PARAMETER_SRV(StrongTypedBuffer<uint>, CulledLightDataGrid) \
+	SHADER_PARAMETER_TEXTURE(Texture2D, DummyRectLightSourceTexture)
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData,)
 	FORWARD_GLOBAL_LIGHT_DATA_UNIFORM_BUFFER_MEMBER_TABLE
@@ -494,20 +497,22 @@ public:
 	}
 };
 
+#define ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA 1
+
 class FForwardLightingCullingResources
 {
 public:
-	FRWBuffer NextCulledLightLink;
-	FRWBuffer StartOffsetGrid;
-	FRWBuffer CulledLightLinks;
-	FRWBuffer NextCulledLightData;
 
+#if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
+	FDynamicReadBuffer ViewSpacePosAndRadiusData;
+	FDynamicReadBuffer ViewSpaceDirAndPreprocAngleData;
+#endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 	void Release()
 	{
-		NextCulledLightLink.Release();
-		StartOffsetGrid.Release();
-		CulledLightLinks.Release();
-		NextCulledLightData.Release();
+#if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
+		ViewSpacePosAndRadiusData.Release();
+		ViewSpaceDirAndPreprocAngleData.Release();
+#endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 	}
 };
 
