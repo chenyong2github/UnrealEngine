@@ -1,0 +1,106 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "CreateActorSampleTool.h"
+#include "ToolBuilderUtil.h"
+
+// localization namespace
+#define LOCTEXT_NAMESPACE "UCreateActorSampleTool"
+
+/*
+ * ToolBuilder
+ */
+
+
+bool UCreateActorSampleToolBuilder::CanBuildTool(const FToolBuilderState & SceneState) const
+{
+	return (this->AssetAPI != nullptr);
+}
+
+UInteractiveTool* UCreateActorSampleToolBuilder::BuildTool(const FToolBuilderState & SceneState) const
+{
+	UCreateActorSampleTool* NewTool = NewObject<UCreateActorSampleTool>();
+	NewTool->SetWorld(SceneState.World);
+	NewTool->SetAssetAPI(AssetAPI);
+	return NewTool;
+}
+
+
+
+/*
+ * Tool
+ */
+
+
+UCreateActorSampleTool::UCreateActorSampleTool()
+{
+	PlaceOnObjects = true;
+	GroundHeight = 0.0f;
+}
+
+
+void UCreateActorSampleTool::SetWorld(UWorld* World)
+{
+	this->TargetWorld = World;
+}
+
+void UCreateActorSampleTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+{
+	this->AssetAPI = AssetAPIIn;
+}
+
+
+void UCreateActorSampleTool::Setup()
+{
+	USingleClickTool::Setup();
+
+	// provide self as property object
+	ToolPropertyObjects.Add(this);
+}
+
+
+
+
+void UCreateActorSampleTool::OnClicked(const FInputDeviceRay& ClickPos)
+{
+	// we will create actor at this position
+	FVector NewActorPos = FVector::ZeroVector;
+
+	// cast ray into world to find hit position
+	FVector RayStart = ClickPos.WorldRay.Origin;
+	FVector RayEnd = ClickPos.WorldRay.PointAt(999999);
+	FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
+	FHitResult Result;
+	bool bHitWorld = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+	if (PlaceOnObjects && bHitWorld)
+	{
+		NewActorPos = Result.ImpactPoint;
+	}
+	else
+	{
+		// hit the ground plane
+		FPlane GroundPlane(FVector(0,0,GroundHeight) , FVector(0, 0, 1));
+		NewActorPos = FMath::RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, GroundPlane);
+	}
+
+	// create new actor
+	FRotator Rotation(0.0f, 0.0f, 0.0f);
+	FActorSpawnParameters SpawnInfo;
+	AActor* NewActor = TargetWorld->SpawnActor<AActor>(FVector::ZeroVector, Rotation, SpawnInfo);
+
+	// create root component
+	USceneComponent* RootComponent = NewObject<USceneComponent>(NewActor, USceneComponent::GetDefaultSceneRootVariableName(), RF_Transactional);
+	RootComponent->Mobility = EComponentMobility::Movable;
+	RootComponent->bVisualizeComponent = true;
+	RootComponent->SetWorldTransform(FTransform(NewActorPos));
+
+	NewActor->SetRootComponent(RootComponent);
+	NewActor->AddInstanceComponent(RootComponent);
+	RootComponent->RegisterComponent();
+
+}
+
+
+
+
+
+#undef LOCTEXT_NAMESPACE
