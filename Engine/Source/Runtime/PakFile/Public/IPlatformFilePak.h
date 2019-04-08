@@ -636,6 +636,14 @@ public:
 		return Index;
 	}
 
+	/**
+	 * Gets the number of files in this pak.
+	 */
+	int32 GetNumFiles() const
+	{
+		return Files.Num();
+	}
+
 	void GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
 
 	/**
@@ -923,11 +931,13 @@ public:
 
 	/**
 	 * Saves memory by hashing the filenames, if possible. After this process,
-	 * wildcard scanning of pak entries can no longer be performed.
+	 * wildcard scanning of pak entries can no longer be performed. Returns TRUE
+	 * if there were any collisions within this pak or with any of the previous pak results supplied in CrossPakCollisionChecker
 	 *
+	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
 	 */
-	void UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint32, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
