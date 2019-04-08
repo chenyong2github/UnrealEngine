@@ -119,7 +119,11 @@ void ULandscapeComponent::UpdateCachedBounds()
 	ULandscapeHeightfieldCollisionComponent* HFCollisionComponent = CollisionComponent.Get();
 	if (HFCollisionComponent)
 	{
-		HFCollisionComponent->Modify();
+        // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			HFCollisionComponent->Modify();
+		}
 		HFCollisionComponent->CachedLocalBox = CachedLocalBox;
 		HFCollisionComponent->UpdateComponentToWorld();
 	}
@@ -570,6 +574,7 @@ void ULandscapeComponent::PostEditUndo()
 	TSet<ULandscapeComponent*> Components;
 	Components.Add(this);
 	GetLandscapeProxy()->FlushGrassComponents(&Components);
+	GetLandscapeActor()->RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 }
 
 void ALandscapeProxy::FixupWeightmaps()
@@ -660,7 +665,7 @@ void ULandscapeComponent::FixupWeightmaps()
 
 				if (TempUsage == nullptr)
 				{
-					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
+					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
 					(*TempUsage)->LayerGuid.Invalidate();
 				}
 
@@ -743,7 +748,7 @@ struct FLandscapeComponentAlphaInfo
 };
 
 
-void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
+bool ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
@@ -769,23 +774,27 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	bool CreatedNew = false;
 	bool ChangeType = false;
 
-	if (CollisionComp)
+    // In Landscape Layers the Collision Component is slave and doesn't need to be transacted
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		CollisionComp->Modify();
+		if (CollisionComp)
+		{
+			CollisionComp->Modify();
+		}
 	}
 
 	// Existing collision component is same type with collision
 	if (CollisionComp && ((XYOffsetmapTexture == nullptr) == (MeshCollisionComponent == nullptr)))
 	{
-		ComponentX1 = FMath::Min(ComponentX1, ComponentSizeQuads);
-		ComponentY1 = FMath::Min(ComponentY1, ComponentSizeQuads);
-		ComponentX2 = FMath::Max(ComponentX2, 0);
-		ComponentY2 = FMath::Max(ComponentY2, 0);
+		ComponentX1 = FMath::Clamp(ComponentX1, 0, ComponentSizeQuads);
+		ComponentY1 = FMath::Clamp(ComponentY1, 0, ComponentSizeQuads);
+		ComponentX2 = FMath::Clamp(ComponentX2, 0, ComponentSizeQuads);
+		ComponentY2 = FMath::Clamp(ComponentY2, 0, ComponentSizeQuads);
 
 		if (ComponentX2 < ComponentX1 || ComponentY2 < ComponentY1)
 		{
 			// nothing to do
-			return;
+			return false;
 		}
 
 		if (bUpdateBounds)
@@ -1125,17 +1134,22 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		CollisionComp->RegisterComponent();
 	}
+
+	return CreatedNew;
 }
 
-void ULandscapeComponent::UpdateCollisionData(bool bRebuild)
+void ULandscapeComponent::DestroyCollisionData()
 {
 	ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
-	if (CollisionComp && bRebuild)
+	if (CollisionComp)
 	{
 		CollisionComp->DestroyComponent();
 		CollisionComponent = CollisionComp = nullptr;
 	}
+}
 
+void ULandscapeComponent::UpdateCollisionData()
+{
 	TArray<uint8> CollisionMipData;
 	TArray<uint8> SimpleCollisionMipData;
 	TArray<uint8> XYOffsetMipData;
@@ -1150,11 +1164,21 @@ void ULandscapeComponent::UpdateCollisionData(bool bRebuild)
 		XYOffsetmapTexture->Source.GetMipData(XYOffsetMipData, CollisionMipLevel);
 	}
 
-	UpdateCollisionHeightData(
+	bool bCreatedNewComponent = UpdateCollisionHeightData(
 		(FColor*)CollisionMipData.GetData(),
 		SimpleCollisionMipLevel > CollisionMipLevel ? (FColor*)SimpleCollisionMipData.GetData() : nullptr,
 		0, 0, MAX_int32, MAX_int32, true,
 		XYOffsetmapTexture ? (FColor*)XYOffsetMipData.GetData() : nullptr);
+
+    // If the Collision Component hasn't changed we need to reflect its data to the underlying physics implementation
+	if (!bCreatedNewComponent)
+	{
+		ULandscapeHeightfieldCollisionComponent* CollisionComp = CollisionComponent.Get();
+		if (CollisionComp)
+		{
+			CollisionComp->RecreateCollision();
+		}
+	}
 }
 
 void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const WeightmapTextureMipData, const FColor* const* const SimpleCollisionWeightmapTextureMipData, int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2)
@@ -2593,7 +2617,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 
 					const int32 ThisAllocationLayers = FMath::Min<int32>(RemainingLayers, 4);
 					new(TextureAllocations) FWeightmapTextureAllocation(ComponentX, ComponentY, ThisAllocationLayers, WeightmapTexture, MipData);
-					ULandscapeWeightmapUsage* WeightmapUsage = WeightmapUsageMap.Add(WeightmapTexture, NewObject<ULandscapeWeightmapUsage>(this));
+					ULandscapeWeightmapUsage* WeightmapUsage = WeightmapUsageMap.Add(WeightmapTexture, CreateWeightmapUsage());
 					ComponentWeightmapTexturesUsage.Add(WeightmapUsage);
 
 					UE_LOG(LogLandscape, Log, TEXT("  ==> Storing %d channels in new texture %s"), ThisAllocationLayers, *WeightmapTexture->GetName());
@@ -3745,7 +3769,8 @@ void ALandscapeProxy::RecreateCollisionComponents()
 		{
 			Comp->CollisionMipLevel = CollisionMipLevel;
 			Comp->SimpleCollisionMipLevel = SimpleCollisionMipLevel;
-			Comp->UpdateCollisionData(true);
+			Comp->DestroyCollisionData();
+			Comp->UpdateCollisionData();
 		}
 	}
 }
@@ -4433,7 +4458,8 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		SimpleCollisionMipLevel = FMath::Clamp<int32>(SimpleCollisionMipLevel, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			UpdateCollisionData(true); // Rebuild for new CollisionMipLevel
+			DestroyCollisionData();
+			UpdateCollisionData(); // Rebuild for new CollisionMipLevel
 		}
 	}
 
@@ -4625,6 +4651,11 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 					AllocInfo.WeightmapTextureIndex = TexIdx;
 					AllocInfo.WeightmapTextureChannel = ChanIdx;
+
+					if (InSaveToTransactionBuffer)
+					{
+						Usage->Modify();
+					}
 					Usage->ChannelUsage[ChanIdx] = this;
 
 					NeededNewChannels--;
@@ -4726,7 +4757,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			}
 
 			// Store it in the usage map
-			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(GetLandscapeProxy()));
+			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
 			CurrentWeightmapUsage->LayerGuid = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
@@ -4766,10 +4797,18 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 					// Remove the old allocation
 					ULandscapeWeightmapUsage* OldWeightmapUsage = ComponentWeightmapTexturesUsage[AllocInfo.WeightmapTextureIndex];
+					if (InSaveToTransactionBuffer)
+					{
+						OldWeightmapUsage->Modify();
+					}
 					OldWeightmapUsage->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
 				}
 
 				// Assign the new allocation
+				if (InSaveToTransactionBuffer)
+				{
+					CurrentWeightmapUsage->Modify();
+				}
 				CurrentWeightmapUsage->ChannelUsage[ChanIdx] = this;
 				AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
 				AllocInfo.WeightmapTextureChannel = ChanIdx;
@@ -5763,6 +5802,11 @@ UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY
 	NewTexture->LODGroup = InLODGroup;
 
 	return NewTexture;
+}
+
+ULandscapeWeightmapUsage* ALandscapeProxy::CreateWeightmapUsage()
+{
+	return NewObject<ULandscapeWeightmapUsage>(this, ULandscapeWeightmapUsage::StaticClass(), NAME_None, RF_Transactional);
 }
 
 void ALandscapeProxy::RemoveOverlappingComponent(ULandscapeComponent* Component)
