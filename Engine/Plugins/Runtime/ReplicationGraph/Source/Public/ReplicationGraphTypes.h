@@ -738,7 +738,13 @@ struct FGlobalActorReplicationInfoMap
 
 	void AddDependentActor(AActor* Parent, AActor* Child)
 	{
-		if (Parent && Child)
+		const bool bIsParentValid = ensureMsgf(Parent && IsActorValidForReplication(Parent), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Parent! %s"),
+			*GetPathNameSafe(Parent));
+
+		const bool bIsChildValid = ensureMsgf(Child && IsActorValidForReplication(Child), TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Invalid Child! %s"),
+			*GetPathNameSafe(Child));
+
+		if (bIsParentValid && bIsChildValid)
 		{
 			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 			{
