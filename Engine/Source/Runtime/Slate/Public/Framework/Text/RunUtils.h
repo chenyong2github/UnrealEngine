@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Framework/Text/TextRange.h"
 
 enum class ETextHitPoint : uint8;
 

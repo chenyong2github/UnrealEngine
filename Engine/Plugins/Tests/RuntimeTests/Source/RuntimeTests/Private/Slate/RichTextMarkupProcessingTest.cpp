@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/ITextDecorator.h"
 
 #include "Framework/Text/RichTextMarkupProcessing.h"

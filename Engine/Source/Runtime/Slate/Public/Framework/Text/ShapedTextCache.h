@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Fonts/ShapedTextFwd.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/IRun.h"
 
 class FSlateFontCache;
