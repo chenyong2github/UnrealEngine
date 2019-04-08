@@ -321,13 +321,18 @@ struct FHeightmapAccessor
 
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
-			for (ULandscapeComponent* Component : Components)
+
+            // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-				if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
+				for (ULandscapeComponent* Component : Components)
 				{
-					bUpdateFoliage = true;
-					break;
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
+					{
+						bUpdateFoliage = true;
+						break;
+					}
 				}
 			}
 
@@ -377,18 +382,22 @@ struct FHeightmapAccessor
 		delete LandscapeEdit;
 		LandscapeEdit = NULL;
 
-		// Update the bounds and navmesh for the components we edited
-		for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
+		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			(*It)->UpdateCachedBounds();
-			(*It)->UpdateComponentToWorld();
-
-			// Recreate collision for modified components to update the physical materials
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->CollisionComponent.Get();
-			if (CollisionComponent)
+			// Update the bounds and navmesh for the components we edited
+			for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
 			{
-				CollisionComponent->RecreateCollision();
-				FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				(*It)->UpdateCachedBounds();
+				(*It)->UpdateComponentToWorld();
+
+				// Recreate collision for modified components to update the physical materials
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->CollisionComponent.Get();
+				if (CollisionComponent)
+				{
+					CollisionComponent->RecreateCollision();
+					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				}
 			}
 		}
 	}

@@ -656,7 +656,7 @@ public:
 								CurrentWeightmapTexture->PostEditChange();
 
 								// Store it in the usage map
-								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, NewObject<ULandscapeWeightmapUsage>(LandscapeProxy));
+								CurrentWeightmapUsage = LandscapeProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, LandscapeProxy->CreateWeightmapUsage());
 
 								// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 							}
@@ -691,11 +691,13 @@ public:
 
 										if (OldWeightmapUsage != nullptr)
 										{
+											(*OldWeightmapUsage)->Modify();
 											(*OldWeightmapUsage)->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
 										}
 									}
 
 									// Assign the new allocation
+									CurrentWeightmapUsage->Modify();
 									CurrentWeightmapUsage->ChannelUsage[ChanIdx] = Component;
 									AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
 									AllocInfo.WeightmapTextureChannel = ChanIdx;
