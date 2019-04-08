@@ -49,8 +49,6 @@ enum class EInstallBundleResult : int
 	FailedPrereqRequiresLatestClient,
 	InstallError,
 	InstallerOutOfDiskSpaceError,
-	OnCellularNetworkError,
-	NoInternetConnectionError,
 	UserCancelledError,
 	InitializationError,
 	Count,
@@ -65,8 +63,6 @@ inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
 		TEXT("FailedPrereqRequiresLatestClient"),
 		TEXT("InstallError"),
 		TEXT("InstallerOutOfDiskSpaceError"),
-		TEXT("OnCellularNetworkError"),
-		TEXT("NoInternetConnectionError"),
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 	};
@@ -82,6 +78,19 @@ enum class EInstallBundlePauseFlags : uint32
 	NoInternetConnection = (1 << 1),
 };
 ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
+
+inline const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
+{
+	// Return the most appropriate reason given the flags
+
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::NoInternetConnection))
+		return TEXT("NoInternetConnection");
+	
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::OnCellularNetwork))
+		return TEXT("OnCellularNetwork");
+
+	return TEXT("");
+}
 
 enum class EInstallBundleRequestFlags : uint32
 {
@@ -118,6 +127,8 @@ struct FInstallBundleStatus
 	FName BundleName;
 
 	EInstallBundleStatus Status = EInstallBundleStatus::NotRequested;
+
+	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
 
 	FText StatusText;
 
