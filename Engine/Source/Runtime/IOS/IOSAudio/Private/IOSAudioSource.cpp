@@ -168,7 +168,7 @@ bool FIOSAudioSoundSource::Init(FWaveInstance* InWaveInstance)
 			const AudioUnitParameterValue AzimuthRangeScale = 90.f;
 			Pan = (-1.0f + (Channel * 2.0f)) * AzimuthRangeScale;
 		}
-		else if (!WaveInstance->bUseSpatialization)
+		else if (!WaveInstance->GetUseSpatialization())
 		{
 			Pan = 0.0f;
 		}
@@ -229,7 +229,7 @@ void FIOSAudioSoundSource::Update(void)
     SourceLPFFrequency = LPFFrequency / (((float) SampleRate) * 0.5f);
     
 	// Factor in the xaudio2 attenuation that happens to stereo assets.
-	if (WaveInstance->WaveData->NumChannels == 2 && WaveInstance->bUseSpatialization)
+	if (WaveInstance->WaveData->NumChannels == 2 && WaveInstance->GetUseSpatialization())
 	{
 		Volume *= 0.5f;
 	}
@@ -245,7 +245,7 @@ void FIOSAudioSoundSource::Update(void)
 	OSStatus Status = noErr;
 
 	// We only adjust panning on playback for mono sounds that want spatialization
-	if (IOSBuffer->NumChannels == 1 && WaveInstance->bUseSpatialization)
+	if (IOSBuffer->NumChannels == 1 && WaveInstance->GetUseSpatialization())
 	{
 		// Compute the directional offset
 		FVector Offset = GetSpatializationParams().EmitterPosition;
