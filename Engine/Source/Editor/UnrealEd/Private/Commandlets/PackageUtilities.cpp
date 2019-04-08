@@ -976,8 +976,8 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 		Out.Logf(ELogVerbosity::Display, TEXT("========"));
 		for( int32 i = 0; i < Linker->NameMap.Num(); ++i )
 		{
-			FName& name = Linker->NameMap[ i ];
-			Out.Logf(ELogVerbosity::Display, TEXT("\t%d: Name '%s' Comparison Index %d Display Index %d [Internal: %s, %d]"), i, *name.ToString(), name.GetComparisonIndex(), name.GetDisplayIndex(), *name.GetPlainNameString(), name.GetNumber() );
+			FName name = FName::CreateFromDisplayId(Linker->NameMap[ i ], 0);
+			Out.Logf(ELogVerbosity::Display, TEXT("\t%d: Name '%s' Comparison Index %d Display Index %d [Internal: %s, %d]"), i, *name.ToString(), name.GetComparisonIndex().ToUnstableInt(), name.GetDisplayIndex().ToUnstableInt(), *name.GetPlainNameString(), name.GetNumber() );
 		}
 	}
 

@@ -409,7 +409,7 @@ public:
  */
 static FORCEINLINE int32 GetObjectHash(FName ObjName)
 {
-	return (ObjName.GetComparisonIndex() ^ ObjName.GetNumber());
+	return GetTypeHash(ObjName);
 }
 
 /**
@@ -423,7 +423,7 @@ static FORCEINLINE int32 GetObjectHash(FName ObjName)
  */
 static FORCEINLINE int32 GetObjectOuterHash(FName ObjName,PTRINT Outer)
 {
-	return ((ObjName.GetComparisonIndex() ^ ObjName.GetNumber()) ^ (Outer >> 6));
+	return GetTypeHash(ObjName) + (Outer >> 6);
 }
 
 UObject* StaticFindObjectFastExplicitThreadSafe(FUObjectHashTables& ThreadHash, UClass* ObjectClass, FName ObjectName, const FString& ObjectPathName, bool bExactClass, EObjectFlags ExcludeFlags/*=0*/)

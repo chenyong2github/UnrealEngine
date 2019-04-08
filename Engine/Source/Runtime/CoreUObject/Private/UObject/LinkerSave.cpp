@@ -189,9 +189,9 @@ FLinkerSave::~FLinkerSave()
 	Detach();
 }
 
-int32 FLinkerSave::MapName(const FName& Name) const
+int32 FLinkerSave::MapName(FNameEntryId Id) const
 {
-	const int32* IndexPtr = NameIndices.Find(Name);
+	const int32* IndexPtr = NameIndices.Find(Id);
 
 	if (IndexPtr)
 	{
@@ -275,7 +275,7 @@ FString FLinkerSave::GetArchiveName() const
 
 FArchive& FLinkerSave::operator<<( FName& InName )
 {
-	int32 Save = MapName(InName);
+	int32 Save = MapName(InName.GetDisplayIndex());
 
 	check(GetSerializeContext());
 	ensureMsgf(Save != INDEX_NONE, TEXT("Name \"%s\" is not mapped when saving %s (object: %s, property: %s)"), 

@@ -122,13 +122,13 @@ bool FCollection::Load(FText& OutError)
 	if (StorageMode == ECollectionStorageMode::Static)
 	{
 		// Static collection, a flat list of asset paths
-		for (FString Line : FileContents)
+		for (FString& Line : FileContents)
 		{
 			Line.TrimStartAndEndInline();
 
-			if ( Line.Len() )
+			if ( int32 Len = Line.Len() )
 			{
-				AddObjectToCollection(FName(*Line));
+				AddObjectToCollection(FName(Len, *Line));
 			}
 		}
 	}
@@ -398,10 +398,11 @@ void FCollection::Empty()
 
 bool FCollection::AddObjectToCollection(FName ObjectPath)
 {
-	if (StorageMode == ECollectionStorageMode::Static && !ObjectSet.Contains(ObjectPath))
+	if (StorageMode == ECollectionStorageMode::Static)
 	{
-		ObjectSet.Add(ObjectPath);
-		return true;
+		bool bAlreadyInSet = false;
+		ObjectSet.Add(ObjectPath, &bAlreadyInSet);
+		return !bAlreadyInSet;
 	}
 
 	return false;

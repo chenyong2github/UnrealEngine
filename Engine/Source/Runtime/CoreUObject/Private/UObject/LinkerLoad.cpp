@@ -383,7 +383,9 @@ static FTexture2DResourceMem* CreateResourceMem(int32 SizeX, int32 SizeY, int32 
 
 static inline int32 HashNames(FName Object, FName Class, FName Package)
 {
-	return Object.GetComparisonIndex() + 7 * Class.GetComparisonIndex() + 31 * FPackageName::GetShortFName(Package).GetComparisonIndex();
+	return GetTypeHash(Object.GetComparisonIndex())
+		+ 7 * GetTypeHash(Class.GetComparisonIndex())
+		+ 31 * GetTypeHash(FPackageName::GetShortFName(Package).GetComparisonIndex());
 }
 
 static FORCEINLINE bool IsCoreUObjectPackage(const FName& PackageName)
@@ -1441,7 +1443,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeNameMap()
 		}
 
 		// Add it to the name table with no splitting and no hash calculations
-		NameMap.Emplace(NameEntry);
+		NameMap.Emplace(FName(NameEntry).GetDisplayIndex());
 
 		NameMapIndex++;
 	}
@@ -4885,7 +4887,7 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 	return *this;
 }
 
-void FLinkerLoad::BadNameIndexError(NAME_INDEX NameIndex)
+void FLinkerLoad::BadNameIndexError(int32 NameIndex)
 {
 	UE_LOG(LogLinker, Error, TEXT("Bad name index %i/%i"), NameIndex, NameMap.Num());
 }

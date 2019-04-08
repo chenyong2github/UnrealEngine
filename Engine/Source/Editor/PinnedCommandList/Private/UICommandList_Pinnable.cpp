@@ -26,7 +26,7 @@ void FUICommandList_Pinnable::MapAction( const TSharedPtr< const FUICommandInfo 
 	FUICommandList::MapAction(InUICommandInfo, InUIAction);
 
 	// Map the index and group
-	int32 ActionIndex = InUICommandInfo->GetBindingContext().GetComparisonIndex() + CurrentActionIndex;
+	int32 ActionIndex = InUICommandInfo->GetBindingContext().GetComparisonIndex().ToUnstableInt() + CurrentActionIndex;
 	CurrentActionIndex++;
 
 	CommandIndexMap.Add(InUICommandInfo->GetCommandName(), ActionIndex);

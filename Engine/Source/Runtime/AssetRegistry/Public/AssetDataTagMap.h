@@ -113,18 +113,18 @@ private:
 		FString ToString() const
 		{
 			FString Result;
-			if (Class != 0)
+			if (Class)
 			{
 				FName(Class, Class, 0).AppendString(Result);
 				Result += TCHAR('\'');
 			}
 			FName(Package, Package, 0).AppendString(Result);
-			if (Object != 0)
+			if (Object)
 			{
 				Result += TCHAR('.');
 				FName(Object, Object, 0).AppendString(Result);
 			}
-			if (Class != 0)
+			if (Class)
 			{
 				Result += TCHAR('\'');
 			}
@@ -153,14 +153,13 @@ private:
 		FStorageID Result;
 		Result.Fields.IsFName = true;
 		FName ValueName(*Value);
-		if (ValueName.GetNumber() || ValueName.GetComparisonIndex() != ValueName.GetDisplayIndex() || ValueName.GetComparisonIndex() > FStorageID::MaxNoNumberFNameIndex)
+		if (ValueName.GetNumber() || ValueName.GetComparisonIndex() != ValueName.GetDisplayIndex() || ValueName.GetComparisonIndex().ToUnstableInt() > FStorageID::MaxNoNumberFNameIndex)
 		{
 			Result.Fields.Index = FNames.Add(ValueName);
 		}
 		else
 		{
-			check(ValueName.GetComparisonIndex() >= 0);
-			Result.Fields.Index = ValueName.GetComparisonIndex();
+			Result.Fields.Index = ValueName.GetComparisonIndex().ToUnstableInt();
 			Result.Fields.NoNumbers = true;
 		}
 		// there are cases where the results do not match on case
@@ -297,7 +296,8 @@ public:
 			{
 				return FNames.IsAllocated(Id.Fields.Index);
 			}
-			return FName(Id.Fields.Index, Id.Fields.Index, 0).IsValid();
+			FNameEntryId EntryId = FNameEntryId::FromUnstableInt(Id.Fields.Index);
+			return FName(EntryId, EntryId, 0).IsValid();
 		}
 		if (Id.Fields.IsFNameExportText)
 		{
@@ -332,7 +332,9 @@ public:
 			{
 				return TEXT("False");
 			}
-			return FName(Id.Fields.Index, Id.Fields.Index, 0).ToString();
+
+			FNameEntryId EntryId = FNameEntryId::FromUnstableInt(Id.Fields.Index);
+			return FName(EntryId, EntryId, 0).ToString();
 		}
 		if (Id.Fields.IsFNameExportText)
 		{

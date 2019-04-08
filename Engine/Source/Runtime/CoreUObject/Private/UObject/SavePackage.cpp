@@ -722,10 +722,12 @@ public:
 	 */
 	void MarkNameAsReferenced(const FName& Name)
 	{
-		// We need to store the FName without the number, as the number is stored separately by FLinkerSave 
-		// and we don't want duplicate entries in the name table just because of the number
-		const FName NameNoNumber(Name, 0);
-		ReferencedNames.Add(NameNoNumber);
+		ReferencedNames.Add(Name.GetDisplayIndex());
+	}
+
+	void MarkNameAsReferenced(FNameEntryId Name)
+	{
+		ReferencedNames.Add(Name);
 	}
 
 #if WITH_EDITOR
@@ -762,14 +764,14 @@ public:
 	void UpdateLinkerWithMarkedNames(FLinkerSave* Linker)
 	{
 		Linker->NameMap.Reserve(Linker->NameMap.Num() + ReferencedNames.Num());
-		for (const FName& Name : ReferencedNames)
+		for (FNameEntryId Name : ReferencedNames)
 		{
 			Linker->NameMap.Add(Name);
 		}
 	}
 
 private:
-	TSet<FName, FLinkerNamePairKeyFuncs> ReferencedNames;
+	TSet<FNameEntryId> ReferencedNames;
 };
 
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
@@ -1509,12 +1511,19 @@ struct FObjectNameSortHelper
 {
 private:
 	/** the linker that we're sorting names for */
-	friend struct TDereferenceWrapper<FName, FObjectNameSortHelper>;
+	friend struct TDereferenceWrapper<FNameEntryId, FObjectNameSortHelper>;
 
 	/** Comparison function used by Sort */
 	FORCEINLINE bool operator()( const FName& A, const FName& B ) const
 	{
 		return A.Compare(B) < 0;
+	}
+
+	/** Comparison function used by Sort */
+	FORCEINLINE bool operator()(FNameEntryId A, FNameEntryId B) const
+	{
+		// Could be implemented without constructing FName but would new FNameEntry comparison API
+		return A != B && operator()(FName::CreateFromDisplayId(A, 0), FName::CreateFromDisplayId(B, 0));
 	}
 
 public:
@@ -1534,10 +1543,10 @@ public:
 		if ( LinkerToConformTo != nullptr )
 		{
 			SortStartPosition = LinkerToConformTo->NameMap.Num();
-			TArray<FName> ConformedNameMap = LinkerToConformTo->NameMap;
+			TArray<FNameEntryId> ConformedNameMap = LinkerToConformTo->NameMap;
 			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
 			{
-				FName& CurrentName = Linker->NameMap[NameIndex];
+				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
 				if ( !ConformedNameMap.Contains(CurrentName) )
 				{
 					ConformedNameMap.Add(CurrentName);
@@ -1547,7 +1556,7 @@ public:
 			Linker->NameMap = ConformedNameMap;
 			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
 			{
-				FName& CurrentName = Linker->NameMap[NameIndex];
+				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
 				SavePackageState.MarkNameAsReferenced(CurrentName);
 			}
 		}
@@ -4526,17 +4535,17 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				if ( GOutputCookingWarnings )
 				{
 					// check the name list for uniqueobjectnamefor cooking
-					static FName NAME_UniqueObjectNameForCooking(TEXT("UniqueObjectNameForCooking"));
+					static FNameEntryId NAME_UniqueObjectNameForCooking = FName("UniqueObjectNameForCooking").GetComparisonIndex();
 
-					for (const auto& NameInUse : Linker->NameMap)
+					for (FNameEntryId NameInUse : Linker->NameMap)
 					{
-						if (NameInUse.GetComparisonIndex() == NAME_UniqueObjectNameForCooking.GetComparisonIndex())
+						if (FName::GetComparisonIdFromDisplayId(NameInUse) == NAME_UniqueObjectNameForCooking)
 						{
 							//UObject *Object = FindObject<UObject>( ANY_PACKAGE, *NameInUse.ToString());
 
 							// error
 							// check(Object);
-							UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time, Object Name %s"), Filename, *NameInUse.ToString());
+							UE_LOG(LogSavePackage, Warning, TEXT("Saving object into cooked package %s which was created at cook time"), Filename);
 						}
 					}
 				}
@@ -4568,7 +4577,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.NameCount = Linker->NameMap.Num();
 					for (int32 i = 0; i < Linker->NameMap.Num(); i++)
 					{
-						Linker->NameMap[i].GetDisplayNameEntry()->Write(NameStream.EnterElement());
+						FName::GetEntry(Linker->NameMap[i])->Write(NameStream.EnterElement());
 						Linker->NameIndices.Add(Linker->NameMap[i], i);
 					}
 				}

@@ -448,7 +448,7 @@ static int64 FNameToTag(FName Name)
 	}
 
 	// get the bits out of the FName we need
-	int64 NameIndex = Name.GetComparisonIndex();
+	int64 NameIndex = Name.GetComparisonIndex().ToUnstableInt();
 	int64 NameNumber = Name.GetNumber();
 	int64 tag = (NameNumber << 32) | NameIndex;
 	LLMCheckf(tag > (int64)ELLMTag::PlatformTagEnd, TEXT("Passed with a name index [%d - %s] that was less than MemTracker_MaxUserAllocation"), NameIndex, *Name.ToString());
@@ -460,7 +460,7 @@ static int64 FNameToTag(FName Name)
 static FName TagToFName(int64 Tag)
 {
 	// pull the bits back out of the tag
-	int32 NameIndex = (int32)(Tag & 0xFFFFFFFF);
+	FNameEntryId NameIndex = FNameEntryId::FromUnstableInt((int32)(Tag & 0xFFFFFFFF));
 	int32 NameNumber = (int32)(Tag >> 32);
 	return FName(NameIndex, NameIndex, NameNumber);
 }

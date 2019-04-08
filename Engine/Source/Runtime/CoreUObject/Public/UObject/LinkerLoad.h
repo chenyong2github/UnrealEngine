@@ -806,12 +806,12 @@ private:
 		Value = ID;
 		return Ar;
 	}
-	void BadNameIndexError(NAME_INDEX NameIndex);
+	void BadNameIndexError(int32 NameIndex);
 	FORCEINLINE virtual FArchive& operator<<(FName& Name) override
 	{
 		Name = NAME_None;
 		FArchive& Ar = *this;
-		NAME_INDEX NameIndex;
+		int32 NameIndex;
 		Ar << NameIndex;
 		int32 Number;
 		Ar << Number;
@@ -825,11 +825,11 @@ private:
 		else
 		{
 			// if the name wasn't loaded (because it wasn't valid in this context)
-			const FName& MappedName = NameMap[NameIndex];
-			if (!MappedName.IsNone())
+			FNameEntryId MappedName = NameMap[NameIndex];
+			if (MappedName)
 			{
 				// simply create the name from the NameMap's name and the serialized instance number
-				Name = FName(MappedName, Number);
+				Name = FName::CreateFromDisplayId(MappedName, Number);
 			}
 		}
 		return *this;

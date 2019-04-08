@@ -651,7 +651,7 @@ private:
 	/** For FName. */
 	CORE_API const FString GetName() const
 	{
-		return FName::SafeString( (int32)Cycles );
+		return FName::SafeString(FNameEntryId::FromUnstableInt(static_cast<uint32>(Cycles)));
 	}
 };
 

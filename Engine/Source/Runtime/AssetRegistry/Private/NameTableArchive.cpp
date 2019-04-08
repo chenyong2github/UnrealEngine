@@ -85,6 +85,7 @@ bool FNameTableArchiveReader::SerializeNameMap()
 			return false;
 		}
 
+		NameMap.Reserve(NameCount);
 		for ( int32 NameMapIdx = 0; NameMapIdx < NameCount; ++NameMapIdx )
 		{
 			// Read the name entry from the file.
@@ -96,7 +97,7 @@ bool FNameTableArchiveReader::SerializeNameMap()
 				return false;
 			}
 
-			NameMap.Add(FName(NameEntry));
+			NameMap.Add(FName(NameEntry).GetDisplayIndex());
 		}
 
 		Seek( OriginalOffset );
@@ -193,19 +194,18 @@ FArchive& FNameTableArchiveReader::operator<<( FName& Name )
 		SetError();
 	}
 
-	const FName& MappedName = NameMap.IsValidIndex(NameIndex) ? NameMap[NameIndex] : NAME_None;
-	if (MappedName.IsNone())
+	int32 Number;
+	Ar << Number;
+
+	FNameEntryId MappedName = NameMap.IsValidIndex(NameIndex) ? NameMap[NameIndex] : FNameEntryId();
+	if (!MappedName)
 	{
-		int32 TempNumber;
-		Ar << TempNumber;
-		Name = NAME_None;
+		Name = FName();
 	}
 	else
 	{
-		int32 Number;
-		Ar << Number;
 		// simply create the name from the NameMap's name and the serialized instance number
-		Name = FName(MappedName, Number);
+		Name = FName::CreateFromDisplayId(MappedName, Number);
 	}
 
 	return *this;
@@ -290,7 +290,7 @@ void FNameTableArchiveWriter::SerializeNameMap()
 		for (auto& Pair : NameMap)
 		{
 			check(NameMapIdx == Pair.Value);
-			Pair.Key.GetDisplayNameEntry()->Write(*this);
+			FName::GetEntry(Pair.Key)->Write(*this);
 			NameMapIdx++;
 		}
 	}
@@ -375,15 +375,12 @@ void FNameTableArchiveWriter::ResetCustomVersions()
 
 FArchive& FNameTableArchiveWriter::operator<<( FName& Name )
 {
-	int32* NameIndexPtr = NameMap.Find(Name);
+	int32* NameIndexPtr = NameMap.Find(Name.GetDisplayIndex());
 	int32 NameIndex = NameIndexPtr ? *NameIndexPtr : INDEX_NONE;
 	if ( NameIndex == INDEX_NONE )
 	{
-		// We need to store the FName without the number, as the number is stored separately and we don't 
-		// want duplicate entries in the name table just because of the number
-		const FName NameNoNumber(Name, 0);
 		NameIndex = NameMap.Num();
-		NameMap.Add(NameNoNumber, NameIndex);
+		NameMap.Add(Name.GetDisplayIndex(), NameIndex);
 	}
 
 	FArchive& Ar = *this;
