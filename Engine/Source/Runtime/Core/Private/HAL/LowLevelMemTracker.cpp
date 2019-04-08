@@ -602,6 +602,9 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	int64 Overhead = StaticOverhead + Allocator.GetTotal();
 	SET_MEMORY_STAT(STAT_LLMOverheadTotal, Overhead);
 
+	// get the platform to update any custom tags
+	FPlatformMemory::UpdateCustomLLMTags();
+
 	// calculate memory the platform thinks we have allocated, compared to what we have tracked, including the program memory
 	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
 #if PLATFORM_ANDROID || PLATFORM_IOS
@@ -919,6 +922,11 @@ const TCHAR* FLowLevelMemTracker::FindTagName(uint64 Tag) const
 int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag)
 {
 	return GetTracker(Tracker)->GetTagAmount(Tag);
+}
+
+void FLowLevelMemTracker::SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal )
+{
+	GetTracker(Tracker)->SetTagAmount( Tag, Amount, bAddToTotal );
 }
 
 int64 FLowLevelMemTracker::GetActiveTag(ELLMTracker Tracker)
