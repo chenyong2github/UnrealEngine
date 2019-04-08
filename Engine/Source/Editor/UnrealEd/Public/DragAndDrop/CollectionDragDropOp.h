@@ -12,6 +12,7 @@
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "AssetData.h"
 
 class FCollectionDragDropOp : public FDecoratedDragDropOp
 {
@@ -33,6 +34,9 @@ public:
 	}
 	
 public:
+	/** @return The assets from this drag operation */
+	TArray<FAssetData> GetAssets() const;
+
 	FText GetDecoratorText() const
 	{
 		if (CurrentHoverText.IsEmpty() && Collections.Num() > 0)
