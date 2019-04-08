@@ -764,7 +764,8 @@ public:
 
 			if (Proxy->bBakeMaterialPositionOffsetIntoCollision)
 			{
-				Component->UpdateCollisionData(true);
+				Component->DestroyCollisionData();
+				Component->UpdateCollisionData();
 			}
 		}
 	}
