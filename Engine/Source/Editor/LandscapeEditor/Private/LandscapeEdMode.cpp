@@ -2413,6 +2413,40 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	return CurrentIndex;
 }
 
+void FEdModeLandscape::SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo)
+{
+	if ((CurrentToolTarget.LandscapeInfo == InLandscapeInfo) || !InLandscapeInfo.IsValid())
+	{
+		return;
+	}
+
+	// Unregister from old one
+	if (CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		LandscapeProxy->OnMaterialChangedDelegate().RemoveAll(this);
+	}
+
+	CurrentToolTarget.LandscapeInfo = InLandscapeInfo.Get();
+	UpdateTargetList();
+	// force a Leave and Enter the current tool, in case it has something about the current landscape cached
+	SetCurrentTool(CurrentToolIndex);
+	if (CurrentGizmoActor.IsValid())
+	{
+		CurrentGizmoActor->SetTargetLandscape(CurrentToolTarget.LandscapeInfo.Get());
+	}
+
+	// register to new one
+	if (CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
+	}
+
+	UpdateTargetList();
+	UpdateShownLayerList();
+}
+
 void FEdModeLandscape::UpdateTargetList()
 {
 	LandscapeTargetList.Empty();

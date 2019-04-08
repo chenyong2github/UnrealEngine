@@ -477,7 +477,8 @@ public:
 
 	int32 UpdateLandscapeList();
 	void UpdateTargetList();
-	
+	void SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo);
+
 	/** Update Display order list */
 	void UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder);
 	void MoveTargetLayerDisplayOrder(int32 IndexToMove, int32 IndexToDestination);

@@ -1093,6 +1093,21 @@ public:
 	{
 	}
 
+	template <typename T>
+	void SetTargetLandscapeBasedOnSelection(typename T* Selection)
+	{
+		check(Selection);
+		if (ALandscapeProxy* LandscapeProxy = Selection->GetTypedOuter<ALandscapeProxy>())
+		{
+			ALandscape* NewLandscapeActor = LandscapeProxy->GetLandscapeActor();
+			if (NewLandscapeActor && (NewLandscapeActor != EdMode->GetLandscape()))
+			{
+				EdMode->SetTargetLandscape(LandscapeProxy->GetLandscapeInfo());
+				ClearSelection();
+			}
+		}
+	}
+
 	virtual bool HandleClick(HHitProxy* HitProxy, const FViewportClick& Click) override
 	{
 		if ((!HitProxy || !HitProxy->IsA(HWidgetAxis::StaticGetType()))
@@ -1152,6 +1167,7 @@ public:
 				}
 				else
 				{
+					SetTargetLandscapeBasedOnSelection(ClickedControlPoint);
 					SelectControlPoint(ClickedControlPoint);
 				}
 				GEditor->SelectNone(true, true);
@@ -1169,6 +1185,7 @@ public:
 				}
 				else
 				{
+					SetTargetLandscapeBasedOnSelection(ClickedSplineSegment);
 					SelectSegment(ClickedSplineSegment);
 				}
 				GEditor->SelectNone(true, true);
