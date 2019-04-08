@@ -1658,6 +1658,36 @@ void USkeletalMesh::PostLoad()
 		{
 			CacheDerivedData();
 		}
+
+		//Make sure unused cloth are unbind
+		if (MeshClothingAssets.Num() > 0)
+		{
+			TArray<UClothingAssetBase *> InUsedClothingAssets;
+			GetClothingAssetsInUse(InUsedClothingAssets);
+			//Look if we have some cloth binding to unbind
+			for (UClothingAssetBase* MeshClothingAsset : MeshClothingAssets)
+			{
+				if (MeshClothingAsset == nullptr)
+				{
+					continue;
+				}
+				bool bFound = false;
+				for (UClothingAssetBase* UsedMeshClothingAsset : InUsedClothingAssets)
+				{
+					if (UsedMeshClothingAsset->GetAssetGuid() == MeshClothingAsset->GetAssetGuid())
+					{
+						bFound = true;
+						break;
+					}
+				}
+				if (!bFound)
+				{
+					//Make sure the asset is unbind, some old code path was allowing to have bind cloth asset not present in the imported model.
+					//The old inline reduction code was not rebinding the cloth asset nor unbind it.
+					MeshClothingAsset->UnbindFromSkeletalMesh(this);
+				}
+			}
+		}
 	}
 #endif // WITH_EDITOR
 
