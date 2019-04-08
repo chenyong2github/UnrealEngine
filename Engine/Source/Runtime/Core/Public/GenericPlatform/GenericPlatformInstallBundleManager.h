@@ -79,16 +79,16 @@ enum class EInstallBundlePauseFlags : uint32
 {
 	None = 0,
 	OnCellularNetwork = (1 << 0),
+	NoInternetConnection = (1 << 1),
 };
 ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
 
 enum class EInstallBundleRequestFlags : uint32
 {
 	None = 0,
-	CheckForInternetConnection = (1 << 0),
-	CheckForCellularDataUsage = (1 << 1),
-	UseBackgroundDownloads = (1 << 2),
-	Defaults = CheckForInternetConnection | UseBackgroundDownloads,
+	CheckForCellularDataUsage = (1 << 0),
+	UseBackgroundDownloads = (1 << 1),
+	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
@@ -227,6 +227,8 @@ public:
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 
 	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
+
+	virtual void RequestPausedBundleCallback() const = 0;
 
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
 
