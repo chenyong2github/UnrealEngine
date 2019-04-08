@@ -1,3 +1,4 @@
+
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LocalFileNetworkReplayStreaming.h"
@@ -3060,7 +3061,23 @@ void FLocalFileNetworkReplayStreamingFactory::Tick( float DeltaTime )
 	}
 }
 
-void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
+bool FLocalFileNetworkReplayStreamingFactory::HasAnyPendingRequests() const
+{
+	bool bPendingRequests = false;
+
+	for (const TSharedPtr<FLocalFileNetworkReplayStreamer>& Streamer : LocalFileStreamers)
+	{
+		if (Streamer.IsValid() && Streamer->HasPendingFileRequests())
+		{
+			bPendingRequests = true;
+			break;
+		}
+	}
+
+	return bPendingRequests;
+}
+
+void FLocalFileNetworkReplayStreamingFactory::Flush()
 {
 	bool bFlushStreamersOnShutdown = true;
 	GConfig->GetBool(TEXT("LocalFileNetworkReplayStreamingFactory"), TEXT("bFlushStreamersOnShutdown"), bFlushStreamersOnShutdown, GEngineIni);
@@ -3072,7 +3089,7 @@ void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
 
 		double BeginWaitTime = FPlatformTime::Seconds();
 		double LastTime = BeginWaitTime;
-		while (LocalFileStreamers.Num() > 0)
+		while (HasAnyPendingRequests())
 		{
 			const double AppTime = FPlatformTime::Seconds();
 			const double TotalWait = AppTime - BeginWaitTime;
@@ -3086,7 +3103,7 @@ void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
 			Tick(AppTime - LastTime);
 			LastTime = AppTime;
 
-			if (LocalFileStreamers.Num() > 0)
+			if (HasAnyPendingRequests())
 			{
 				FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
@@ -3098,6 +3115,11 @@ void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
 			}
 		}
 	}
+}
+
+void FLocalFileNetworkReplayStreamingFactory::ShutdownModule()
+{
+	Flush();
 }
 
 TStatId FLocalFileNetworkReplayStreamingFactory::GetStatId() const
