@@ -1270,11 +1270,10 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 			}
 			else
 			{
-				ComponentX1 = FMath::Min(ComponentX1, ComponentSizeQuads);
-				ComponentY1 = FMath::Min(ComponentY1, ComponentSizeQuads);
-				ComponentX2 = FMath::Max(ComponentX2, 0);
-				ComponentY2 = FMath::Max(ComponentY2, 0);
-
+				ComponentX1 = FMath::Clamp(ComponentX1, 0, ComponentSizeQuads);
+				ComponentY1 = FMath::Clamp(ComponentY1, 0, ComponentSizeQuads);
+				ComponentX2 = FMath::Clamp(ComponentX2, 0, ComponentSizeQuads);
+				ComponentY2 = FMath::Clamp(ComponentY2, 0, ComponentSizeQuads);
 				DominantLayerData = (uint8*)CollisionComp->DominantLayerData.Lock(LOCK_READ_WRITE);
 			}
 
