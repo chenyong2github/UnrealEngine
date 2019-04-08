@@ -994,9 +994,9 @@ public:
 	//~ Begin UReplicationConnectionDriver Interface
 	virtual void TearDown() override;
 
-private:
+	virtual void NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) override;
 
-	friend UReplicationGraph;
+	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) override { OnClientVisibleLevelNameRemove.Broadcast(LevelName); }
 
 	virtual void NotifyActorChannelAdded(AActor* Actor, class UActorChannel* Channel) override;
 
@@ -1009,11 +1009,11 @@ private:
 	virtual void NotifyRemoveDestructionInfo(FActorDestructionInfo* DestructInfo) override;
 
 	virtual void NotifyResetDestructionInfo() override;
-
-	virtual void NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) override;
-
-	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) override { OnClientVisibleLevelNameRemove.Broadcast(LevelName); }
 	//~ End UReplicationConnectionDriver Interface
+
+private:
+
+	friend UReplicationGraph;
 
 	// ----------------------------------------
 
