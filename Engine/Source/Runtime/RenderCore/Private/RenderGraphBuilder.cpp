@@ -709,20 +709,46 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, EResourceTransitionAcc
 
 	if( Texture->bWritable != bRequiredWritable || Texture->bCompute != bRequiredCompute )
 	{
-		RHICmdList.TransitionResource( TransitionAccess, Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture );
+		FTextureRHIParamRef RHITexture = Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+
+		bool bIsMultiFrameResource = uint32(Texture->Flags) & uint32(ERDGResourceFlags::MultiFrame);
+		if (bIsMultiFrameResource && bRequiredWritable && !Texture->bWritable)
+		{
+			RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
+		}
+
+		RHICmdList.TransitionResource( TransitionAccess, RHITexture );
+		
+		if (bIsMultiFrameResource && !bRequiredWritable && Texture->bWritable)
+		{
+			RHICmdList.EndUpdateMultiFrameResource(RHITexture);
+		}
+		
 		Texture->bWritable = bRequiredWritable;
 		Texture->bCompute = bRequiredCompute;
 	}
 }
 
-void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
+void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
 {
 	const bool bRequiredWritable = true;
 
 	if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
 	{
+		bool bIsMultiFrameResource = uint32(ResourceFlags) & uint32(ERDGResourceFlags::MultiFrame);
+		if (bIsMultiFrameResource && bRequiredWritable && !UnderlyingResource->bWritable)
+		{
+			RHICmdList.BeginUpdateMultiFrameResource(UAV);
+		}
+
 		EResourceTransitionPipeline TransitionPipeline = CalcTransitionPipeline(UnderlyingResource->bCompute, bRequiredCompute );
 		RHICmdList.TransitionResource( TransitionAccess, TransitionPipeline, UAV);
+		
+		if (bIsMultiFrameResource && !bRequiredWritable && UnderlyingResource->bWritable)
+		{
+			RHICmdList.EndUpdateMultiFrameResource(UAV);
+		}
+		
 		UnderlyingResource->bWritable = bRequiredWritable;
 		UnderlyingResource->bCompute = bRequiredCompute;
 	}
@@ -927,7 +953,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			if (UAV)
 			{
 				AllocateRHITextureUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Texture, EResourceTransitionAccess::EWritable, bIsCompute);
+				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Texture, UAV->Desc.Texture->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 
 				#if RENDER_GRAPH_DEBUGGING
 				{
@@ -953,7 +979,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				// TODO(RDG): supper hacky, find the UAV and transition it. Hopefully there is one...
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
 				FUnorderedAccessViewRHIParamRef UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
-				TransitionUAV(UAV, Buffer, EResourceTransitionAccess::EReadable, bIsCompute);
+				TransitionUAV(UAV, Buffer, Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
 
 				#if RENDER_GRAPH_DEBUGGING
 				{
@@ -982,7 +1008,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 				// TODO(RDG): supper hacky, find the UAV and transition it. Hopefully there is one...
 				check(SRV->Desc.Buffer->PooledBuffer->UAVs.Num() == 1);
 				FUnorderedAccessViewRHIParamRef UAV = SRV->Desc.Buffer->PooledBuffer->UAVs.CreateIterator().Value();
-				TransitionUAV(UAV, SRV->Desc.Buffer, EResourceTransitionAccess::EReadable, bIsCompute);
+				TransitionUAV(UAV, SRV->Desc.Buffer, SRV->Desc.Buffer->Flags, EResourceTransitionAccess::EReadable, bIsCompute);
 
 				#if RENDER_GRAPH_DEBUGGING
 				{
@@ -998,7 +1024,7 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 			if (UAV)
 			{
 				AllocateRHIBufferUAVIfNeeded(UAV, bIsCompute);
-				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Buffer, EResourceTransitionAccess::EWritable, bIsCompute);
+				TransitionUAV(UAV->CachedRHI.UAV, UAV->Desc.Buffer, UAV->Desc.Buffer->Flags, EResourceTransitionAccess::EWritable, bIsCompute);
 
 				#if RENDER_GRAPH_DEBUGGING
 				{
@@ -1296,7 +1322,7 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 
 		if (Query.bTransitionToRead)
 		{
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, Query.Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture);
+			TransitionTexture(Query.Texture, EResourceTransitionAccess::EReadable, /* bRequiredCompute = */ false);
 		}
 
 		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);

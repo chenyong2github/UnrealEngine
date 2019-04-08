@@ -585,12 +585,18 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 				SceneColorDesc.TargetableFlags |= TexCreate_UAV;
 			}
 
-			Outputs.SceneColor = GraphBuilder.CreateTexture(SceneColorDesc, kTAAOutputNames[static_cast<int32>(Pass)]);
+			Outputs.SceneColor = GraphBuilder.CreateTexture(
+				SceneColorDesc,
+				kTAAOutputNames[static_cast<int32>(Pass)],
+				ERDGResourceFlags::MultiFrame);
 		}
 
 		if (RenderTargetCount == 2)
 		{
-			Outputs.SceneMetadata = GraphBuilder.CreateTexture(SceneColorDesc, kTAAOutputNames[static_cast<int32>(Pass)]);
+			Outputs.SceneMetadata = GraphBuilder.CreateTexture(
+				SceneColorDesc,
+				kTAAOutputNames[static_cast<int32>(Pass)],
+				ERDGResourceFlags::MultiFrame);
 		}
 
 		if (bDownsample)
@@ -679,12 +685,6 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			if (Outputs.DownsampledSceneColor)
 				PassParameters->OutComputeTexDownsampled = GraphBuilder.CreateUAV(Outputs.DownsampledSceneColor);
 		}
-		
-#if 0 // TODO.
-		Context.RHICmdList.BeginUpdateMultiFrameResource(DestRenderTarget[0]->ShaderResourceTexture);
-		if (RenderTargetCount == 2)
-			Context.RHICmdList.BeginUpdateMultiFrameResource(DestRenderTarget[1]->ShaderResourceTexture);
-#endif
 
 		TShaderMapRef<FTemporalAACS> ComputeShader(View.ShaderMap, PermutationVector);
 		ClearUnusedGraphResources(*ComputeShader, PassParameters);

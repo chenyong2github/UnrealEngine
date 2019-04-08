@@ -39,6 +39,16 @@ using FRDGBufferSRVRef = FRDGBufferSRV*;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
 
+/** Render graph specific flags for resources. */
+enum class ERDGResourceFlags : uint8
+{
+	None = 0x00,
+
+	// Tag the resource to survive through frame, that is important for multi GPU alternate frame rendering.
+	MultiFrame = 0x01,
+};
+
+
 /** Generic graph resource. */
 class RENDERCORE_API FRDGResource
 {
@@ -139,9 +149,14 @@ private:
 	 */
 	mutable IPooledRenderTarget* PooledRenderTarget = nullptr;
 
-	FRDGTexture(const TCHAR* DebugName, const FPooledRenderTargetDesc& InDesc)
+	// Flags specific to this resource for render graph.
+	const ERDGResourceFlags Flags;
+
+
+	FRDGTexture(const TCHAR* DebugName, const FPooledRenderTargetDesc& InDesc, ERDGResourceFlags InFlags)
 		: FRDGResource(DebugName)
 		, Desc(InDesc)
+		, Flags(InFlags)
 	{}
 
 	friend class FRDGBuilder;
@@ -462,10 +477,15 @@ private:
 	 * FGraphBuilder::AllocatedBuffers is actually keeping the reference.
 	 */
 	mutable FPooledRDGBuffer* PooledBuffer = nullptr;
+	
+	// Flags specific to this resource for render graph.
+	const ERDGResourceFlags Flags;
 
-	FRDGBuffer(const TCHAR* DebugName, const FRDGBufferDesc& InDesc)
+
+	FRDGBuffer(const TCHAR* DebugName, const FRDGBufferDesc& InDesc, ERDGResourceFlags InFlags)
 		: FRDGResource(DebugName)
 		, Desc(InDesc)
+		, Flags(InFlags)
 	{ }
 
 	friend class FRDGBuilder;
