@@ -16,6 +16,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Async/AsyncFileHandle.h"
 #include "PipelineFileCache.h"
 #include "Interfaces/IPluginManager.h"
+#include "Hash/CityHash.h"
 
 #include "Interfaces/IShaderFormatArchive.h"
 #include "ShaderPipelineCache.h"
@@ -100,9 +101,24 @@ static void FShaderLibraryHelperCompressCode(EShaderPlatform Platform, const TAr
 		CompressedCode.Shrink();
 }
 
+
+FORCEINLINE FName ParseFNameCached(const FString& Src, TMap<uint32,FName>& NameCache)
+{
+	uint32 SrcHash = CityHash32((char*)Src.GetCharArray().GetData(), Src.GetCharArray().GetAllocatedSize());
+	if (FName* Name = NameCache.Find(SrcHash))
+	{
+		return *Name;
+	}
+	else
+	{
+		return NameCache.Emplace(SrcHash, FName(*Src));
+	}
+}
+
 FString FCompactFullName::ToString() const
 {
 	FString RetString;
+	RetString.Reserve(256);
 	if (!ObjectClassAndPath.Num())
 	{
 		RetString += TEXT("empty");
@@ -161,6 +177,28 @@ uint32 GetTypeHash(const FCompactFullName& A)
 	return Hash;
 }
 
+void FixupUnsanitizedNames(const FString& Src, TArray<FString>& OutFields) 
+{
+	FString NewSrc(Src);
+
+	int32 ParenOpen = -1;
+	int32 ParenClose = -1;
+
+	if (NewSrc.FindChar(TCHAR('('), ParenOpen) && NewSrc.FindChar(TCHAR(')'), ParenClose) && ParenOpen < ParenClose && ParenOpen >= 0 && ParenClose >= 0)
+	{
+		for (int32 Index = ParenOpen + 1; Index < ParenClose; Index++)
+		{
+			if (NewSrc[Index] == TCHAR(','))
+			{
+				NewSrc[Index] = ' ';
+			}
+		}
+		OutFields.Empty();
+		NewSrc.TrimStartAndEnd().ParseIntoArray(OutFields, TEXT(","), false);
+		check(OutFields.Num() == 11);
+	}
+}
+
 void FStableShaderKeyAndValue::ComputeKeyHash()
 {
 	KeyHash = GetTypeHash(ClassNameAndObjectPath);
@@ -185,27 +223,8 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 	if (Fields.Num() > 11)
 	{
 		// hack fix for unsanitized names, should not occur anymore.
-
-		FString NewSrc(Src);
-
-		int32 ParenOpen = -1;
-		int32 ParenClose = -1;
-
-		if (NewSrc.FindChar(TCHAR('('), ParenOpen) && NewSrc.FindChar(TCHAR(')'), ParenClose) && ParenOpen < ParenClose && ParenOpen >= 0 && ParenClose >= 0)
-		{
-			for (int32 Index = ParenOpen + 1; Index < ParenClose; Index++)
-			{
-				if (NewSrc[Index] == TCHAR(','))
-				{
-					NewSrc[Index] = ' ';
-				}
-			}
-			Fields.Empty();
-			NewSrc.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
-			check(Fields.Num() == 11);
-		}
+		FixupUnsanitizedNames(Src, Fields);
 	}
-
 
 	check(Fields.Num() == 11);
 
@@ -223,6 +242,44 @@ void FStableShaderKeyAndValue::ParseFromString(const FString& Src)
 
 	VFType = FName(*Fields[Index++]);
 	PermutationId = FName(*Fields[Index++]);
+
+	OutputHash.FromString(Fields[Index++]);
+
+	check(Index == 11);
+
+	ComputeKeyHash();
+}
+
+
+void FStableShaderKeyAndValue::ParseFromStringCached(const FString& Src, TMap<uint32, FName>& NameCache)
+{
+	TArray<FString> Fields;
+	Src.TrimStartAndEnd().ParseIntoArray(Fields, TEXT(","), false);
+
+	if (Fields.Num() > 11)
+	{
+		// hack fix for unsanitized names, should not occur anymore.
+		FixupUnsanitizedNames(Src, Fields);
+	}
+	
+	check(Fields.Num() == 11);
+
+	int32 Index = 0;
+	ClassNameAndObjectPath.ParseFromString(Fields[Index++]);
+
+	// There is a high level of uniformity on the following FNames, use
+	// the local name cache to accelerate lookup
+	ShaderType = ParseFNameCached(Fields[Index++], NameCache);
+	ShaderClass = ParseFNameCached(Fields[Index++], NameCache);
+	MaterialDomain = ParseFNameCached(Fields[Index++], NameCache);
+	FeatureLevel = ParseFNameCached(Fields[Index++], NameCache);
+
+	QualityLevel = ParseFNameCached(Fields[Index++], NameCache);
+	TargetFrequency = ParseFNameCached(Fields[Index++], NameCache);
+	TargetPlatform = ParseFNameCached(Fields[Index++], NameCache);
+
+	VFType = ParseFNameCached(Fields[Index++], NameCache);
+	PermutationId = ParseFNameCached(Fields[Index++], NameCache);
 
 	OutputHash.FromString(Fields[Index++]);
 
@@ -521,7 +578,6 @@ public:
 			FScopeLock ScopeLock(&ReadRequestLock);
 
 			Entry->NumRefs--;
-			check(Entry->NumRefs >= 0);
 			if (Entry->NumRefs == 0)
 			{
 				// should not attempt to release shader code while it's loading
@@ -1063,7 +1119,12 @@ struct FEditorShaderCodeArchive
 					FString OutputFilePath = GetCodeArchiveFilename(OutputDir, LibraryName, FormatName);
 
 					// Copy to output location - support for iterative native library cooking
-					IFileManager::Get().Copy(*OutputFilePath, *IntermediateFormatPath, true, true);
+					uint32 Result = IFileManager::Get().Copy(*OutputFilePath, *IntermediateFormatPath, true, true);
+					if (Result != COPY_OK)
+					{
+						UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive shader library copy failed to %s. Failed to finalize Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
+						bSuccess = false;
+					}
 				}
 			}
 		}
@@ -1088,7 +1149,12 @@ struct FEditorShaderCodeArchive
 				FString OutputFilePath = GetPipelinesArchiveFilename(OutputDir, LibraryName, FormatName);
 
 				// Copy to output location - support for iterative native library cooking
-				IFileManager::Get().Copy(*OutputFilePath, *TempFilePath, true, true);
+				uint32 Result = IFileManager::Get().Copy(*OutputFilePath, *TempFilePath, true, true);
+				if (Result != COPY_OK)
+				{
+					UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive pipeline copy failed to %s. Failed to finalize Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
+					bSuccess = false;
+				}
 			}
 		}
 
@@ -1212,6 +1278,9 @@ struct FEditorShaderStableInfo
 	{
 		check(LibraryName.Len() > 0);
 
+		TMap<uint32, FName> NameCache;
+		NameCache.Reserve(2048);
+
 		const FString ShaderIntermediateLocation = FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString();
 
 		TArray<FString> ShaderFiles;
@@ -1227,7 +1296,7 @@ struct FEditorShaderStableInfo
 					for (int32 Index = 1; Index < SourceFileContents.Num(); Index++)
 					{
 						FStableShaderKeyAndValue Item;
-						Item.ParseFromString(SourceFileContents[Index]);
+						Item.ParseFromStringCached(SourceFileContents[Index], NameCache);
 						AddShader(Item);
 					}
 				}
@@ -1255,17 +1324,25 @@ struct FEditorShaderStableInfo
 			// Write to a intermediate file
 			FString IntermediateFormatPath = GetStableInfoArchiveFilename(FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString(), LibraryName, FormatName);
 
-			TArray<FString> FileContents;
-			FileContents.Reserve(StableMap.Num() + 1);
-
-			FileContents.Add(FStableShaderKeyAndValue::HeaderLine());
-
-			for (const FStableShaderKeyAndValue& Item : StableMap)
+			// Write directly to the file
 			{
-				FString& LineBuffer = FileContents.Emplace_GetRef();
-				Item.ToString(LineBuffer);
+				TUniquePtr<FArchive> IntermediateFormatAr(IFileManager::Get().CreateFileWriter(*IntermediateFormatPath));
+
+				const FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
+				auto HeaderSrc = StringCast<ANSICHAR>(*HeaderText, HeaderText.Len());
+
+				IntermediateFormatAr->Serialize((ANSICHAR*)HeaderSrc.Get(), HeaderSrc.Length() * sizeof(ANSICHAR));
+
+				FString LineBuffer;
+				LineBuffer.Reserve(512);
+
+				for (const FStableShaderKeyAndValue& Item : StableMap)
+				{
+					Item.ToString(LineBuffer);
+					auto LineConverted = StringCast<ANSICHAR>(*LineBuffer, LineBuffer.Len());
+					IntermediateFormatAr->Serialize((ANSICHAR*)LineConverted.Get(), LineConverted.Length() * sizeof(ANSICHAR));
+				}
 			}
-			FFileHelper::SaveStringArrayToFile(FileContents, *IntermediateFormatPath);
 
 			// Only the master cooker needs to write to the output directory, child cookers only write to the Saved directory
 			if (bMasterCooker)
@@ -1273,8 +1350,16 @@ struct FEditorShaderStableInfo
 				FString OutputFilePath = GetStableInfoArchiveFilename(OutputDir, LibraryName, FormatName);
 
 				// Copy to output location - support for iterative native library cooking
-				IFileManager::Get().Copy(*OutputFilePath, *IntermediateFormatPath, true, true);
-				OutSCLCSVPath = OutputFilePath;
+				uint32 Result = IFileManager::Get().Copy(*OutputFilePath, *IntermediateFormatPath, true, true);
+				if (Result == COPY_OK)
+				{
+					OutSCLCSVPath = OutputFilePath;
+				}
+				else
+				{
+					UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderStableInfo copy failed to %s. Failed to finalize Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
+					bSuccess = false;
+				}
 			}
 		}
 
