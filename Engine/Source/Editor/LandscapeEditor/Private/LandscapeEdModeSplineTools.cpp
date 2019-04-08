@@ -1521,6 +1521,12 @@ public:
 			}
 		}
 
+		// To avoid updating while Ctrl+LMB / Ctrl+RMB+LMB, handle the case one button(s) are released
+		if (InKey == EKeys::RightMouseButton && IsCtrlDown(InViewport) && InEvent == IE_Released && SelectedSplineControlPoints.Num() > 0)
+		{
+			EdMode->AutoUpdateDirtyLandscapeSplines();
+		}
+
 		return false;
 	}
 
