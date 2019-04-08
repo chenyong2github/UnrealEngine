@@ -276,7 +276,7 @@ namespace Audio
 #endif
 
 			// Whether or not we're 3D
-			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->bUseSpatialization && SoundBuffer->NumChannels < 3;
+			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->GetUseSpatialization() && SoundBuffer->NumChannels < 3;
 
 			// Grab the source's reverb plugin settings 
 			InitParams.SpatializationPluginSettings = UseSpatializationPlugin() ? WaveInstance->SpatializationPluginSettings : nullptr;
@@ -823,7 +823,7 @@ namespace Audio
 	void FMixerSource::UpdateSpatialization()
 	{
 		SpatializationParams = GetSpatializationParams();
-		if (WaveInstance->bUseSpatialization)
+		if (WaveInstance->GetUseSpatialization())
 		{
 			MixerSourceVoice->SetSpatializationParams(SpatializationParams);
 		}
@@ -949,7 +949,7 @@ namespace Audio
 			// Treat the source as if it is a 2D stereo source:
 			return ComputeStereoChannelMap(SubmixChannelType, OutChannelMap);
 		}
-		else if (WaveInstance->bUseSpatialization && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
+		else if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
 		{
 			// Don't need to compute the source channel map if the absolute azimuth hasn't changed much
 			PreviousAzimuth = WaveInstance->AbsoluteAzimuth;
@@ -971,7 +971,7 @@ namespace Audio
 	bool FMixerSource::ComputeStereoChannelMap(const ESubmixChannelFormat InSubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
 		// Only recalculate positional data if the source has moved a significant amount:
-		if (WaveInstance->bUseSpatialization && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
+		if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
 		{
 			// Make sure our stereo emitter positions are updated relative to the sound emitter position
 			if (Buffer->NumChannels == 2)
