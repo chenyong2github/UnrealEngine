@@ -617,6 +617,8 @@ void FAudioDevice::Teardown()
 	}
 
 	PluginListeners.Reset();
+
+	ProximityRetriggerComponents.Reset();
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -687,6 +689,24 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 
 	// Loop through the cached plugin settings objects and add to the collector
 	Collector.AddReferencedObjects(PluginSettingsObjects);
+}
+
+void FAudioDevice::RegisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
+{
+	check(IsInGameThread());
+	ProximityRetriggerComponents.AddUnique(&Component);
+}
+
+const TArray<FAudioComponentPtr>& FAudioDevice::GetProximityRetriggerComponents() const
+{
+	check(IsInGameThread());
+	return ProximityRetriggerComponents;
+}
+
+void FAudioDevice::UnregisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
+{
+	check(IsInGameThread());
+	ProximityRetriggerComponents.RemoveSwap(&Component);
 }
 
 void FAudioDevice::ResetInterpolation()
@@ -3682,6 +3702,12 @@ void FAudioDevice::Update(bool bGameTicking)
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
+	// Must be separate from subsequent call as editor is considered game thread
+	if (IsInGameThread())
+	{
+		UpdateProximityRetriggerComponents();
+	}
+
 	if (!IsInAudioThread())
 	{
 		check(IsInGameThread());
@@ -5567,6 +5593,24 @@ float FAudioDevice::GetGameDeltaTime() const
 	// Clamp the delta time to a reasonable max delta time.
 	return FMath::Min(DeltaTime, 0.5f);
 }
+
+void FAudioDevice::UpdateProximityRetriggerComponents()
+{
+	for (int32 i = ProximityRetriggerComponents.Num() - 1; i >= 0; --i)
+	{
+		FAudioComponentPtr& ComponentPtr = ProximityRetriggerComponents[i];
+		if (ComponentPtr.IsStale())
+		{
+			UE_LOG(LogAudio, Warning, TEXT("AudioComponent destroyed but not removed from retrigger proximity."));
+			ProximityRetriggerComponents.RemoveAtSwap(i, 1, false);
+		}
+		else if (ComponentPtr.IsValid())
+		{
+			ComponentPtr->OnUpdateProximityRetrigger(GetDeviceDeltaTime());
+		}
+	}
+}
+
 
 #if WITH_EDITOR
 void FAudioDevice::OnBeginPIE(const bool bIsSimulating)
