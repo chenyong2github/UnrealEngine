@@ -258,7 +258,7 @@ bool FOnlineSubsystemImpl::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 
 bool FOnlineSubsystemImpl::IsEnabled() const
 {
-	return IOnlineSubsystem::IsEnabled(SubsystemName);
+	return IOnlineSubsystem::IsEnabled(SubsystemName, InstanceName == FOnlineSubsystemImpl::DefaultInstanceName ? NAME_None : InstanceName);
 }
 
 void FOnlineSubsystemImpl::DumpReceipts(const FUniqueNetId& UserId)
