@@ -185,7 +185,7 @@ void AReplicationGraphDebugActor::PrintCullDistances()
 		bool bFound = false;
 		for (FData& ExistingData : DataList)
 		{
-			if (ExistingData.Class == Actor->GetClass() && FMath::IsNearlyZero(ExistingData.DistSq - Info.Settings.CullDistanceSquared))
+			if (ExistingData.Class == Actor->GetClass() && FMath::IsNearlyZero(ExistingData.DistSq - Info.Settings.GetCullDistanceSquared()))
 			{
 				ExistingData.Count++;
 				bFound = true;
@@ -200,7 +200,7 @@ void AReplicationGraphDebugActor::PrintCullDistances()
 
 		FData NewData;
 		NewData.Class = Actor->GetClass();
-		NewData.DistSq = Info.Settings.CullDistanceSquared;
+		NewData.DistSq = Info.Settings.GetCullDistanceSquared();
 		NewData.Count = 1;
 		DataList.Add(NewData);
 	}
@@ -421,7 +421,7 @@ void AReplicationGraphDebugActor::ServerSetCullDistanceForClass_Implementation(U
 	const float CullDistSq = CullDistance * CullDistance;
 
 	FClassReplicationInfo& ClassInfo = ReplicationGraph->GlobalActorReplicationInfoMap.GetClassInfo(Class);
-	ClassInfo.CullDistanceSquared = CullDistSq;
+	ClassInfo.SetCullDistanceSquared(CullDistSq);
 	UE_LOG(LogReplicationGraph, Display, TEXT("Setting cull distance for class %s to %.2f"), *Class->GetName(), CullDistance);
 
 	for (TActorIterator<AActor> ActorIt(GetWorld(), Class); ActorIt; ++ActorIt)
@@ -429,14 +429,14 @@ void AReplicationGraphDebugActor::ServerSetCullDistanceForClass_Implementation(U
 		AActor* Actor = *ActorIt;
 		if (FGlobalActorReplicationInfo* ActorInfo = ReplicationGraph->GlobalActorReplicationInfoMap.Find(Actor))
 		{
-			ActorInfo->Settings.CullDistanceSquared = CullDistSq;
+			ActorInfo->Settings.SetCullDistanceSquared(CullDistSq);
 			UE_LOG(LogReplicationGraph, Display, TEXT("Setting GlobalActorInfo cull distance for %s to %.2f"), *Actor->GetName(), CullDistance);
 		}
 
 
 		if (FConnectionReplicationActorInfo* ConnectionActorInfo = ConnectionManager->ActorInfoMap.Find(Actor))
 		{
-			ConnectionActorInfo->CullDistanceSquared = CullDistSq;
+			ConnectionActorInfo->SetCullDistanceSquared(CullDistSq);
 			UE_LOG(LogReplicationGraph, Display, TEXT("Setting Connection cull distance for %s to %.2f"), *Actor->GetName(), CullDistance);
 		}
 	}

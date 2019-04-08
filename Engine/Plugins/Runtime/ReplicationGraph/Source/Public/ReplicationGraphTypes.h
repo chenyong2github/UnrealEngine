@@ -357,7 +357,6 @@ struct FClassReplicationInfo
 	FClassReplicationInfo() { }
 	float DistancePriorityScale = 1.f;
 	float StarvationPriorityScale = 1.f;
-	float CullDistanceSquared = 0.f;
 	float AccumulatedNetPriorityBias = 0.f;
 	
 	uint8 ReplicationPeriodFrame = 1;
@@ -367,13 +366,22 @@ struct FClassReplicationInfo
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
 	FName FastSharedReplicationFuncName = NAME_None;
 
+	void SetCullDistanceSquared(float InCullDistanceSquared)
+	{
+		CullDistanceSquared = InCullDistanceSquared;
+		CullDistance = FMath::Sqrt(CullDistanceSquared);
+	}
+
+	float GetCullDistance() const { return CullDistance; }
+	float GetCullDistanceSquared() const { return CullDistanceSquared; }
+
 	FString BuildDebugStringDelta() const
 	{
 		FClassReplicationInfo DefaultValues;
 		FString Str;
-		if (CullDistanceSquared != DefaultValues.CullDistanceSquared)
+		if (CullDistance != DefaultValues.CullDistance)
 		{
-			Str += FString::Printf(TEXT("CullDistance: %.2f "), FMath::Sqrt(CullDistanceSquared));
+			Str += FString::Printf(TEXT("CullDistance: %.2f "), CullDistance);
 		}
 		if (StarvationPriorityScale != DefaultValues.StarvationPriorityScale)
 		{
@@ -402,6 +410,12 @@ struct FClassReplicationInfo
 
 		return Str;
 	}
+
+private:
+
+	float CullDistance = 0.0f;
+	float CullDistanceSquared = 0.f;
+
 };
 
 struct FGlobalActorReplicationInfo;
@@ -776,7 +790,7 @@ struct FConnectionReplicationActorInfo
 
 		ReplicationPeriodFrame = GlobalInfo.Settings.ReplicationPeriodFrame;
 		FastPath_ReplicationPeriodFrame = GlobalInfo.Settings.FastPath_ReplicationPeriodFrame;
-		CullDistanceSquared = GlobalInfo.Settings.CullDistanceSquared;
+		SetCullDistanceSquared(GlobalInfo.Settings.GetCullDistanceSquared());
 	}
 
 	/** Resets the data, except for the "settings" data that we pulled from GlobalInfo */
@@ -793,9 +807,22 @@ struct FConnectionReplicationActorInfo
 		// Note: purposefully not clearing bDormantOnConnection or bTearOff.
 	}
 
+	void SetCullDistanceSquared(float InCullDistanceSquared)
+	{
+		CullDistanceSquared = InCullDistanceSquared;
+		CullDistance = FMath::Sqrt(CullDistanceSquared);
+	}
+
+	float GetCullDistance() const { return CullDistance; }
+	float GetCullDistanceSquared() const { return CullDistanceSquared; }
+
 	UActorChannel* Channel = nullptr;
 
+private:
+	float CullDistance = 0.f;
 	float CullDistanceSquared = 0.f;
+
+public:
 	
 	/** Default replication */
 	uint32	NextReplicationFrameNum = 0;	/** The next frame we are allowed to replicate on */
