@@ -37,7 +37,7 @@ public:
 	constexpr FORCEINLINE FAsciiSet operator+(char Char) const
 	{
 		InitData Bitset = { LoMask, HiMask };
-		Set(Bitset, Char);
+		SetImpl(Bitset, TChar<char>::ToUnsigned(Char));
 		return FAsciiSet(Bitset);
 	}
 
@@ -91,8 +91,7 @@ private:
 	struct InitData { uint64 Lo, Hi; };
 	static constexpr uint64 NilMask = uint64(1) << '\0';
 
-	template<typename CharType>
-	static constexpr FORCEINLINE void Set(InitData& Bitset, CharType Char)
+	static constexpr FORCEINLINE void SetImpl(InitData& Bitset, uint32 Char)
 	{
 		uint64 IsLo = uint64(0) - (Char >> 6 == 0);
 		uint64 IsHi = uint64(0) - (Char >> 6 == 1);
@@ -117,7 +116,7 @@ private:
 		InitData Bitset = { 0, 0 };
 		for (int I = 0; I < N - 1; ++I)
 		{
-			Set(Bitset, Chars[I]);
+			SetImpl(Bitset, TChar<CharType>::ToUnsigned(Chars[I]));
 		}
 
 		return Bitset;
