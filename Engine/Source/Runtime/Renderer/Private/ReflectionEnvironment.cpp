@@ -515,7 +515,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	class FHasBoxCaptures			: SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_BOX_CAPTURES");
 	class FHasSphereCaptures		: SHADER_PERMUTATION_BOOL("REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES");
 	class FDFAOIndirectOcclusion	: SHADER_PERMUTATION_BOOL("SUPPORT_DFAO_INDIRECT_OCCLUSION");
-	class FSpecularBounce			: SHADER_PERMUTATION_BOOL("SPECULAR_BOUNCE");
 	class FSkyLight					: SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
 	class FDynamicSkyLight			: SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FSkyShadowing				: SHADER_PERMUTATION_BOOL("APPLY_SKY_SHADOWING");
@@ -525,7 +524,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		FHasBoxCaptures,
 		FHasSphereCaptures,
 		FDFAOIndirectOcclusion,
-		FSpecularBounce,
 		FSkyLight,
 		FDynamicSkyLight,
 		FSkyShadowing,
@@ -533,15 +531,6 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		// Environment captures have simple specular bounce without reflection captures.
-		if (PermutationVector.Get<FSpecularBounce>())
-		{
-			PermutationVector.Set<FSkyLight>(false);
-			PermutationVector.Set<FDFAOIndirectOcclusion>(false);
-			PermutationVector.Set<FHasBoxCaptures>(false);
-			PermutationVector.Set<FHasSphereCaptures>(false);
-		}
-
 		// FSkyLightingDynamicSkyLight requires FSkyLightingSkyLight.
 		if (!PermutationVector.Get<FSkyLight>())
 		{
@@ -557,14 +546,13 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		return PermutationVector;
 	}
 
-	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bSpecularBounce, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections)
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections)
 	{
 		FPermutationDomain PermutationVector;
 
 		PermutationVector.Set<FHasBoxCaptures>(bBoxCapturesOnly);
 		PermutationVector.Set<FHasSphereCaptures>(bSphereCapturesOnly);
 		PermutationVector.Set<FDFAOIndirectOcclusion>(bSupportDFAOIndirectOcclusion);
-		PermutationVector.Set<FSpecularBounce>(bSpecularBounce);
 		PermutationVector.Set<FSkyLight>(bEnableSkyLight);
 		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
 		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
@@ -724,6 +712,12 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 		bAnyViewWithRaytracingReflections = bAnyViewWithRaytracingReflections || (View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing);
 	}
 
+	if (bReflectionCapture)
+	{
+		// if we are rendering a reflection capture then we can skip this pass entirely (no reflection and no sky contribution evaluated in this pass)
+		return;	
+	}
+
 	const bool bRayTracedReflections = IsRayTracingEnabled() && (GRayTracingReflections < 0 ? bAnyViewWithRaytracingReflections : GRayTracingReflections);
 
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
@@ -855,7 +849,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 
-			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != NULL, bReflectionCapture, bSkyLight, bDynamicSkyLight, bApplySkyShadowing, bRayTracedReflections);
+			auto PermutationVector = FReflectionEnvironmentSkyLightingPS::BuildPermutationVector(View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != NULL, bSkyLight, bDynamicSkyLight, bApplySkyShadowing, bRayTracedReflections);
 
 			TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
 
@@ -863,16 +857,12 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 			SceneContext.BeginRenderingSceneColor(
 				RHICmdList,
-				bReflectionCapture ? ESimpleRenderTargetMode::EUninitializedColorExistingDepth : ESimpleRenderTargetMode::EExistingColorAndDepth,
+				ESimpleRenderTargetMode::EExistingColorAndDepth,
 				FExclusiveDepthStencil::DepthRead_StencilWrite);
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			extern int32 GAOOverwriteSceneColor;
-			if (bReflectionCapture)
-			{
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
-			}
-			else if (GetReflectionEnvironmentCVar() == 2 || GAOOverwriteSceneColor)
+			if (GetReflectionEnvironmentCVar() == 2 || GAOOverwriteSceneColor)
 			{
 				// override scene color for debugging
 				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
@@ -904,31 +894,15 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 			PixelShader->SetParameters(RHICmdList, View, ReflectionsColor->GetRenderTargetItem().ShaderResourceTexture, DynamicBentNormalAO);
 
-			if (bReflectionCapture)
-			{
-				DrawRectangle(
-					RHICmdList,
-					0, 0,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					0, 0,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-					SceneContext.GetBufferSizeXY(),
-					*VertexShader,
-					EDRF_UseTriangleOptimization);
-			}
-			else
-			{
-				DrawRectangle(
-					RHICmdList,
-					0, 0,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					View.ViewRect.Min.X, View.ViewRect.Min.Y,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-					SceneContext.GetBufferSizeXY(),
-					*VertexShader);
-			}
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.ViewRect.Min.X, View.ViewRect.Min.Y,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
+				SceneContext.GetBufferSizeXY(),
+				*VertexShader);
 
 			SceneContext.FinishRenderingSceneColor(RHICmdList);
 

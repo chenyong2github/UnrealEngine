@@ -170,25 +170,6 @@ float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, 
 	return Lighting;
 }
 
-// Used during reflection captures and SM4 to get faked bounce light from specular surfaces
-float3 SpecularBounce(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos)
-{
-	float2 UV = UVAndScreenPos.xy;
-
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
-
-	float3 ScreenVector = normalize(mul(float4(UVAndScreenPos.zw, 1, 0), View.ScreenToWorld).xyz);
-
-	float3 N = GBuffer.WorldNormal;
-	float3 V = -ScreenVector;
-
-	float NoV = saturate(dot(N, V));
-
-	GBuffer.SpecularColor = EnvBRDFApprox(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
-
-	return GBuffer.SpecularColor * GBuffer.IndirectIrradiance;
-}
-
 float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, float4 SvPosition, float3 BentNormal)
 {
 #if USE_PREEXPOSURE
@@ -352,11 +333,7 @@ void ReflectionEnvironmentSkyLighting(
 	BRANCH
 	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR)
 	{
-#if SPECULAR_BOUNCE
-		OutColor.xyz += SpecularBounce(ScreenSpaceData, UVAndScreenPos);
-#else
 		OutColor.xyz += ReflectionEnvironment(ScreenSpaceData, UVAndScreenPos, SvPosition, BentNormal);
-#endif
 	}
 }
 

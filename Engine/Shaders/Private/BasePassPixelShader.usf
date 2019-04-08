@@ -927,12 +927,13 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
-    #if FORCE_FULLY_ROUGH
-		// Factors derived from EnvBRDFApprox( SpecularColor, 1, 1 ) == SpecularColor * 0.4524 - 0.0024
-		GBuffer.DiffuseColor += GBuffer.SpecularColor * 0.45;
-		GBuffer.SpecularColor = 0;
-		GBuffer.Roughness = 1;
+    #if !FORCE_FULLY_ROUGH
+	if (View.RenderingReflectionCaptureMask) // Force material rendered in reflection capture to have an expanded albedo to try to be energy conservative (when specular is removed).
 	#endif
+	{
+		EnvBRDFApproxFullyRough(GBuffer.DiffuseColor, GBuffer.SpecularColor);
+		// When rendering reflection captures, GBuffer.Roughness is already forced to 1 using RoughnessOverrideParameter in GetMaterialRoughness.
+	}
 
 	float3 BentNormal = MaterialParameters.WorldNormal;
 			
@@ -1075,7 +1076,10 @@ void FPixelShaderInOut_MainPS(
 	#endif
 
 	#if !MATERIAL_SHADINGMODEL_UNLIT && USE_DEVELOPMENT_SHADERS
-		Color = lerp(Color, GBuffer.DiffuseColor + GBuffer.SpecularColor * 0.45, View.UnlitViewmodeMask);
+		float3 GBufferDiffuseColor = GBuffer.DiffuseColor;
+		float3 GBufferSpecularColor = GBuffer.SpecularColor;
+		EnvBRDFApproxFullyRough(GBufferDiffuseColor, GBufferSpecularColor);
+		Color = lerp(Color, GBufferDiffuseColor, View.UnlitViewmodeMask);
 	#endif
 
 	half3 Emissive = GetMaterialEmissive(PixelMaterialInputs);

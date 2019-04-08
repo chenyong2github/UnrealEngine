@@ -340,11 +340,6 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		SingleCaptureIndex,
 		EyeIndex);
 
-	// Factors derived from EnvBRDFApprox( SpecularColor, 1, 1 ) == SpecularColor * 0.4524 - 0.0024
-	float3 SpecularBounce = 0.45f * SpecularColor * IndirectIrradiance;
-	// Replace reflection captures with indirect diffuse when we're rendering to a reflection capture, to avoid a feedback loop
-	SpecularIBL.rgb = lerp(SpecularIBL.rgb, SpecularBounce, ResolvedView.RenderingReflectionCaptureMask);
-
 #if MATERIAL_SSR && !FORWARD_SHADING
 	if( View.CameraCut == 0 )
 	{

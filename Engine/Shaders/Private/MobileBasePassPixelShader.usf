@@ -400,9 +400,7 @@ void Main(
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
 
 #if FULLY_ROUGH
-	// Factors derived from EnvBRDFApprox( SpecularColor, 1, 1 ) == SpecularColor * 0.4524 - 0.0024
-	DiffuseColor += SpecularColor * 0.45;
-	SpecularColor = 0;
+	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 #else
 	half NoV = max( dot( MaterialParameters.WorldNormal, MaterialParameters.CameraVector ), 0 );
 
