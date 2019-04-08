@@ -288,7 +288,7 @@ FAutoConsoleCommand CmdResetAchievements(
 
 #endif
 
-bool IOnlineSubsystem::IsEnabled(const FName& SubsystemName)
+bool IOnlineSubsystem::IsEnabled(const FName& SubsystemName, const FName& InstanceName)
 {
 	bool bIsDisabledByCommandLine = false;
 #if !UE_BUILD_SHIPPING && !UE_BUILD_SHIPPING_WITH_EDITOR
@@ -299,9 +299,27 @@ bool IOnlineSubsystem::IsEnabled(const FName& SubsystemName)
 	if (!bIsDisabledByCommandLine)
 	{
 		bool bIsEnabledByConfig = false;
-		const FString ConfigSection(FString::Printf(TEXT("OnlineSubsystem%s"), *SubsystemName.ToString()));
-		const bool bConfigOptionExists = GConfig->GetBool(*ConfigSection, TEXT("bEnabled"), bIsEnabledByConfig, GEngineIni);
-		UE_CLOG_ONLINE(!bConfigOptionExists, Verbose, TEXT("[%s].bEnabled is not set, defaulting to true"), *ConfigSection);
+		bool bConfigOptionExists = false;
+		for (int32 InstancePass = 0; InstancePass < 2; InstancePass++)
+		{
+			FString InstanceSection;
+			if (InstancePass == 1)
+			{
+				if (InstanceName != NAME_None)
+				{
+					InstanceSection = TEXT(" ") + InstanceName.ToString();
+				}
+				else
+				{
+					continue;
+				}
+			}
+
+			FString ConfigSection(FString::Printf(TEXT("OnlineSubsystem%s"), *SubsystemName.ToString()));
+			ConfigSection += InstanceSection;
+			bConfigOptionExists |= GConfig->GetBool(*ConfigSection, TEXT("bEnabled"), bIsEnabledByConfig, GEngineIni);
+		}
+		UE_CLOG_ONLINE(!bConfigOptionExists, Verbose, TEXT("[OnlineSubsystem%s].bEnabled is not set, defaulting to true"), *SubsystemName.ToString());
 	
 		return !bConfigOptionExists || bIsEnabledByConfig;
 	}
