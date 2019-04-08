@@ -215,7 +215,15 @@ void UInteractiveToolManager::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
+void UInteractiveToolManager::PostMessage(const TCHAR* Message, EToolMessageLevel Level)
+{
+	TransactionsAPI->PostMessage(Message, Level);
+}
 
+void UInteractiveToolManager::PostMessage(const FString& Message, EToolMessageLevel Level)
+{
+	TransactionsAPI->PostMessage(*Message, Level);
+}
 
 void UInteractiveToolManager::PostInvalidation()
 {

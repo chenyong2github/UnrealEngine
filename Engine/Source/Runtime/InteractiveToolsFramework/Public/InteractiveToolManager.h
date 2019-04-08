@@ -132,7 +132,12 @@ public:
 	// Functions that Tools can call to interact with Transactions API
 	//
 	
-	
+	/** Post a message via the Transactions API */
+	virtual void PostMessage(const TCHAR* Message, EToolMessageLevel Level);
+
+	/** Post a message via the Transactions API */
+	virtual void PostMessage(const FString& Message, EToolMessageLevel Level);
+
 	/** Request an Invalidation via the Transactions API (ie to cause a repaint, etc) */
 	virtual void PostInvalidation();
 

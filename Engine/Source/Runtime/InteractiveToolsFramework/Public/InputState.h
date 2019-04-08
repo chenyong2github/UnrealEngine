@@ -28,6 +28,38 @@ ENUM_CLASS_FLAGS(EInputDevices);
 
 
 
+/**
+ * FInputDeviceRay represents a 3D ray created based on an input device.
+ * If the device is a 2D input device like a mouse, then the ray may
+ * have an associated 2D screen position.
+ */
+struct FInputDeviceRay
+{
+	/** 3D ray in 3D scene, in world coordinates */
+	FRay WorldRay;
+
+	/** If true, WorldRay has 2D device position coordinates */
+	bool bHas2D;
+
+	/** 2D device position coordinates associated with the ray */
+	FVector2D ScreenPosition;
+
+
+	FInputDeviceRay(const FRay & WorldRayIn)
+	{
+		WorldRay = WorldRayIn;
+		bHas2D = false;
+		ScreenPosition = FVector2D(0, 0);
+	}
+
+	FInputDeviceRay(const FRay & WorldRayIn, const FVector2D& ScreenPositionIn)
+	{
+		WorldRay = WorldRayIn;
+		bHas2D = true;
+		ScreenPosition = ScreenPositionIn;
+	}
+};
+
 
 /**
  * Current State of a physical device button (mouse, key, etc) at a point in time.
