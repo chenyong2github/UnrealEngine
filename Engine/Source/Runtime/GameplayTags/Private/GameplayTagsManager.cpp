@@ -61,7 +61,7 @@ void UGameplayTagsManager::LoadGameplayTagTables(bool bAllowAsyncLoad)
 	GameplayTagTables.Empty();
 
 	// If we're a cooked build and in a safe spot, start an async load so we can pipeline it
-	if (bAllowAsyncLoad && !WITH_EDITOR && !IsLoading() && MutableDefault->GameplayTagTableList.Num() > 0)
+	if (bAllowAsyncLoad && (!WITH_EDITOR) && !IsLoading() && MutableDefault->GameplayTagTableList.Num() > 0)
 	{
 		for (FSoftObjectPath DataTablePath : MutableDefault->GameplayTagTableList)
 		{

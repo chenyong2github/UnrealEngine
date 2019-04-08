@@ -160,6 +160,7 @@ void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FVi
 
 			auto VertexShader	= View.ShaderMap->GetShader< FPostProcessVS >();
 			auto PixelShader	= View.ShaderMap->GetShader< FScreenSpaceDiffuseIndirectPS >( PermutationVector );
+			CA_ASSUME(PixelShader);
 
 			{
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
