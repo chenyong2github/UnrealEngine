@@ -569,6 +569,9 @@ class ir_gen_glsl_visitor : public ir_visitor
 	// framebuffer fetch is in use
 	bool bUsesFrameBufferFetch;
 
+	// depthbuffer fetch is in use
+	bool bUsesDepthbufferFetch;
+
 	// uses external texture
 	bool bUsesExternalTexture;
 
@@ -3124,7 +3127,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 public:
 
 	/** Constructor. */
-	ir_gen_glsl_visitor(bool bInIsES, bool bInEmitPrecision, bool bInIsWebGL, EHlslCompileTarget InCompileTarget, _mesa_glsl_parser_targets InShaderTarget, bool bInGenerateLayoutLocations, bool bInDefaultPrecisionIsHalf, bool bInNoGlobalUniforms, bool bInUsesFrameBufferFetch, bool bInUsesExternalTexture)
+	ir_gen_glsl_visitor(bool bInIsES, bool bInEmitPrecision, bool bInIsWebGL, EHlslCompileTarget InCompileTarget, _mesa_glsl_parser_targets InShaderTarget, bool bInGenerateLayoutLocations, bool bInDefaultPrecisionIsHalf, bool bInNoGlobalUniforms, bool bInUsesFrameBufferFetch, bool bInUsesDepthbufferFetch, bool bInUsesExternalTexture)
 		: early_depth_stencil(false)
 		, bIsES(bInIsES)
 		, bEmitPrecision(bInEmitPrecision)
@@ -3134,6 +3137,7 @@ public:
 		, bGenerateLayoutLocations(bInGenerateLayoutLocations)
 		, bDefaultPrecisionIsHalf(bInDefaultPrecisionIsHalf)
 		, bUsesFrameBufferFetch(bInUsesFrameBufferFetch)
+		, bUsesDepthbufferFetch(bInUsesDepthbufferFetch)
 		, bUsesExternalTexture(bInUsesExternalTexture)
 		, buffer(0)
 		, indentation(0)
@@ -3275,8 +3279,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 
 		}
 
-		bool bUsesDepthbufferFetchES2 = UsesUEIntrinsic(ir, DEPTHBUFFER_FETCH_ES2);
-		if (bUsesDepthbufferFetchES2)
+		if (bUsesDepthbufferFetch)
 		{
 			ralloc_asprintf_append(buffer, "\n#ifdef GL_ARM_shader_framebuffer_fetch_depth_stencil\n");
 			ralloc_asprintf_append(buffer, "float DepthbufferFetchES2(float OptionalDepth, float C1, float C2) { float w = 1.0/(gl_LastFragDepthARM*C1-C2); return clamp(w, 0.0, 65000.0); }\n");
@@ -3338,7 +3341,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 
 		char* Extensions = ralloc_asprintf(mem_ctx, "");
 		buffer = &Extensions;
-		print_extensions(state, bUsesFrameBufferFetch, bUsesDepthbufferFetchES2, CompileTarget == HCT_FeatureLevelES3_1Ext, bUsesExternalTexture);
+		print_extensions(state, bUsesFrameBufferFetch, bUsesDepthbufferFetch, CompileTarget == HCT_FeatureLevelES3_1Ext, bUsesExternalTexture);
 		if (state->bSeparateShaderObjects && !state->bGenerateES)
 		{
 			switch (state->target)
@@ -3531,6 +3534,7 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 	const bool bGenerateLayoutLocations = state->bGenerateLayoutLocations;
 	const bool bEmitPrecision = WantsPrecisionModifiers();
 	const bool bUsesFrameBufferFetch = Frequency == HSF_PixelShader && UsesUEIntrinsic(ir, FRAMEBUFFER_FETCH_ES2);
+	const bool bUsesDepthBufferFetch = Frequency == HSF_PixelShader && UsesUEIntrinsic(ir, DEPTHBUFFER_FETCH_ES2);
 	ir_gen_glsl_visitor visitor(state->bGenerateES,
 								bEmitPrecision,
 								bIsWebGL,
@@ -3540,6 +3544,7 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 								bDefaultPrecisionIsHalf,
 								!AllowsGlobalUniforms(),
 								bUsesFrameBufferFetch,
+								bUsesDepthBufferFetch,
 								bUsesExternalTexture);
 	const char* code = visitor.run(ir, state, bGroupFlattenedUBs);
 	return _strdup(code);
