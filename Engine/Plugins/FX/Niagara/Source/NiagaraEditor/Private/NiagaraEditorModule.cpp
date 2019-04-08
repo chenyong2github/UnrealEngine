@@ -583,6 +583,11 @@ FNiagaraEditorModule& FNiagaraEditorModule::Get()
 {
 	return FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 }
+void FNiagaraEditorModule::OnMessageLogTokenClicked(const TSharedRef<class IMessageToken>& Token)
+{
+	return; //@todo(ng) just stubbing this here for now
+}
+
 
 void FNiagaraEditorModule::OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings)
 {
