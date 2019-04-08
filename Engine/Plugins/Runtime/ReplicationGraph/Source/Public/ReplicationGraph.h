@@ -420,6 +420,8 @@ public:
 
 	void ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList);
 
+	UReplicationGraphNode_ConnectionDormanyNode* GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params);
+
 	UReplicationGraphNode_ConnectionDormanyNode* GetConnectionNode(const FConnectionGatherActorListParameters& Params);
 
 private:
@@ -516,6 +518,9 @@ public:
 	TArray<FString> DebugActorNames;
 #endif
 
+	// When enabled the RepGraph tells clients to destroy dormant dynamic actors when they go out of relevancy.
+	bool bDestroyDormantDynamicActors = true;
+
 protected:
 
 	/** For adding new actor to the graph */
@@ -582,6 +587,8 @@ private:
 	
 	void PutStaticActorIntoCell(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo, bool bDormancyDriven);
 
+	void DoDormantDynamicActorDestruction(const FConnectionGatherActorListParameters& Params, UReplicationGraphNode_GridCell* CurrentCell, UReplicationGraphNode_GridCell* PreviousCell);
+
 	UReplicationGraphNode_GridCell* GetCellNode(UReplicationGraphNode_GridCell*& NodePtr)
 	{
 		if (NodePtr == nullptr)
@@ -617,7 +624,13 @@ private:
 			GridX.SetNum(Y+1);
 		}
 		return GridX[Y];
-	}			
+	}		
+
+	UReplicationGraphNode_GridCell*& GetCell(int32 X, int32 Y)
+	{
+		TArray<UReplicationGraphNode_GridCell*>& GridX = GetGridX(X);
+		return GetCell(GridX, Y);
+	}
 
 	bool bNeedsRebuild = false;
 
