@@ -15,8 +15,6 @@ class UMG_API UTextBinding : public UPropertyBinding
 
 public:
 
-	UTextBinding();
-
 	virtual bool IsSupportedSource(UProperty* Property) const override;
 	virtual bool IsSupportedDestination(UProperty* Property) const override;
 
@@ -29,5 +27,15 @@ public:
 	FString GetStringValue() const;
 
 private:
-	mutable TOptional<bool> bNeedsConversion;
+
+	enum class EConversion : uint8
+	{
+		None,
+		String,
+		Words,
+		Integer,
+		Float
+	};
+
+	mutable TOptional<EConversion> NeedsConversion;
 };
