@@ -28,6 +28,7 @@
 #include "ComponentAssetBroker.h"
 
 #include "DragAndDrop/AssetDragDropOp.h"
+#include "DragAndDrop/CollectionDragDropOp.h"
 
 #include "AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
@@ -610,6 +611,11 @@ namespace AssetUtil
 					}
 				}
 			}
+		}
+		else if (Operation->IsOfType<FCollectionDragDropOp>())
+		{
+			TSharedPtr<FCollectionDragDropOp> DragDropOp = StaticCastSharedPtr<FCollectionDragDropOp>( Operation );
+			DroppedAssetData.Append( DragDropOp->GetAssets() );
 		}
 		else if (Operation->IsOfType<FAssetDragDropOp>())
 		{

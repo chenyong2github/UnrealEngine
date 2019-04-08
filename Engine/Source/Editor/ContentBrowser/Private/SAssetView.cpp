@@ -1601,20 +1601,24 @@ FReply SAssetView::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 
 		if (SelectedAssetDatas.Num() > 0)
 		{
-			TArray<FName> ObjectPaths;
-			for (const auto& AssetData : SelectedAssetDatas)
+			TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs< FAssetDragDropOp >();
+			if (AssetDragDropOp.IsValid())
 			{
-				if (!AssetData.GetClass()->IsChildOf(UClass::StaticClass()))
+				TArray<FName> ObjectPaths;
+				for (const auto& AssetData : SelectedAssetDatas)
 				{
-					ObjectPaths.Add(AssetData.ObjectPath);
+					if (!AssetData.GetClass()->IsChildOf(UClass::StaticClass()))
+					{
+						ObjectPaths.Add(AssetData.ObjectPath);
+					}
 				}
-			}
 
-			if (ObjectPaths.Num() > 0)
-			{
-				FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
-				const FCollectionNameType& Collection = SourcesData.Collections[0];
-				CollectionManagerModule.Get().AddToCollection(Collection.Name, Collection.Type, ObjectPaths);
+				if (ObjectPaths.Num() > 0)
+				{
+					FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+					const FCollectionNameType& Collection = SourcesData.Collections[0];
+					CollectionManagerModule.Get().AddToCollection(Collection.Name, Collection.Type, ObjectPaths);
+				}	
 			}
 
 			return FReply::Handled();
