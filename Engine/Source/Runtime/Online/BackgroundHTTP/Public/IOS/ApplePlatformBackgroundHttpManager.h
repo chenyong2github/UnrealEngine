@@ -21,6 +21,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void AddRequest(const FBackgroundHttpRequestPtr Request) override;
 	virtual void RemoveRequest(const FBackgroundHttpRequestPtr Request) override;
+	virtual bool IsGenericImplementation() const override { return false;  }
 
 	/**
 	* Constructor
