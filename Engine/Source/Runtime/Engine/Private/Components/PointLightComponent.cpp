@@ -95,9 +95,25 @@ UPointLightComponent::UPointLightComponent(const FObjectInitializer& ObjectIniti
 	bUseInverseSquaredFalloff = true;
 }
 
+static bool IsPointLightSupported(const UPointLightComponent* InLight)
+{
+	if (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && InLight->IsMovable())
+	{
+		// if project does not support dynamic point lights on mobile do not add them to the renderer 
+		static auto* CVarPointLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileNumDynamicPointLights"));
+		const bool bPointLights = CVarPointLights->GetValueOnAnyThread() > 0;
+		return bPointLights;
+	}
+	return true;
+}
+
 FLightSceneProxy* UPointLightComponent::CreateSceneProxy() const
 {
-	return new FPointLightSceneProxy(this);
+	if (IsPointLightSupported(this))
+	{
+		return new FPointLightSceneProxy(this);
+	}
+	return nullptr;
 }
 
 void UPointLightComponent::SetLightFalloffExponent(float NewLightFalloffExponent)
