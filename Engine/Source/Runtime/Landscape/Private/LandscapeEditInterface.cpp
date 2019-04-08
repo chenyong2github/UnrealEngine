@@ -1759,6 +1759,12 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	Component->UpdateCollisionLayerData(
 		CollisionWeightmapMipData.GetData(),
 		Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+	if (CollisionComponent)
+	{
+		CollisionComponent->RecreateCollision();
+	}
 }
 
 void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo)
@@ -1952,6 +1958,12 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	Component->UpdateCollisionLayerData(
 		CollisionWeightmapMipData.GetData(),
 		Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+
+	ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+	if (CollisionComponent)
+	{
+		CollisionComponent->RecreateCollision();
+	}
 }
 
 void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo)
@@ -2235,6 +2247,12 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 		Component->UpdateCollisionLayerData(
 			CollisionWeightmapMipData.GetData(),
 			Component->SimpleCollisionMipLevel > Component->CollisionMipLevel ? SimpleCollisionWeightmapMipData.GetData() : nullptr);
+
+		ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+		if (CollisionComponent)
+		{
+			CollisionComponent->RecreateCollision();
+		}
 	}
 }
 
