@@ -319,6 +319,11 @@ public:
 		return SRV;
 	}
 
+	FORCEINLINE_DEBUGGABLE FRDGBufferSRVRef CreateSRV(FRDGBufferRef Buffer, EPixelFormat Format)
+	{
+		return CreateSRV(FRDGBufferSRVDesc(Buffer, Format));
+	}
+
 	/** Create graph tracked UAV for a texture from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGTextureUAVRef CreateUAV(const FRDGTextureUAVDesc& Desc)
 	{

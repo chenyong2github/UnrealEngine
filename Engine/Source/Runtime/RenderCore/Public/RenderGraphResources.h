@@ -300,6 +300,16 @@ struct RENDERCORE_API FRDGBufferDesc
 		Desc.NumElements = NumElements;
 		return Desc;
 	}
+
+	static inline FRDGBufferDesc CreateBufferDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
 };
 
 
