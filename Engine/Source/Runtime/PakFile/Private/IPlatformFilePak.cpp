@@ -21,6 +21,7 @@
 #include "Templates/Greater.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Misc/Base64.h"
+#include "Stats/StatsMisc.h"
 #include "HAL/PlatformFilemanager.h"
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "Misc/ConfigCacheIni.h"
@@ -4508,12 +4509,12 @@ static inline int32 CDECL CompareFMiniFileEntry(const void* Left, const void* Ri
 	return 0;
 }
 
-void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
+bool FPakFile::UnloadPakEntryFilenames(TMap<uint32, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep)
 {
 	// If the process has already been done, get out of here.
 	if (bFilenamesRemoved)
 	{
-		return;
+		return false;
 	}
 
 	LLM_SCOPE(ELLMTag::FileSystem);
@@ -4534,45 +4535,63 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 		// No collisions yet for this pass.
 		bHasCollision = false;
 
+		TMap<uint32, FPakEntry> NewCollisionCheckEntries;
+
 		// Build the list of hashes from the Index based on the starting hash.
 		int32 EntryIndex = 0;
 		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); It; ++It)
 		{
 			for (FPakDirectory::TConstIterator DirectoryIt(It.Value()); DirectoryIt; ++DirectoryIt)
 			{
-				FString FinalFilename = It.Key() / DirectoryIt.Key();
-                uint32 FilenameHash = FFnv::MemFnv32(*FinalFilename.ToLower(), FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
+				FString FinalFilename = (It.Key() / DirectoryIt.Key()).ToLower();
+				uint32 FilenameHash = FFnv::MemFnv32(*FinalFilename, FinalFilename.Len() * sizeof(TCHAR), FilenameStartHash);
 				MiniFileEntries[EntryIndex].FilenameHash = FilenameHash;
 				MiniFileEntries[EntryIndex].EntryIndex = DirectoryIt.Value();
 				++EntryIndex;
+
+				const FPakEntry* EntryFromPreviousPaks = CrossPakCollisionChecker.Find(FilenameHash);
+				const FPakEntry* EntryFromCurrentPak = NewCollisionCheckEntries.Find(FilenameHash);
+				const FPakEntry& CurrentEntry = Files[DirectoryIt.Value()];
+							   
+				if (EntryFromPreviousPaks && (FMemory::Memcmp(EntryFromPreviousPaks->Hash, CurrentEntry.Hash, sizeof(CurrentEntry.Hash))) != 0)
+				{
+					UE_LOG(LogPakFile, Verbose, TEXT("Detected collision with previous pak while hashing %s"), *FinalFilename);
+					bHasCollision = true;
+					break;
+				}
+
+				if (EntryFromCurrentPak && (FMemory::Memcmp(EntryFromCurrentPak->Hash, CurrentEntry.Hash, sizeof(CurrentEntry.Hash)) != 0))
+				{
+					UE_LOG(LogPakFile, Verbose, TEXT("Detected collision within pak while hashing %s"), *FinalFilename);
+					bHasCollision = true;
+					break;
+				}
+
+				NewCollisionCheckEntries.Add(FilenameHash, CurrentEntry);
 			}
+		}
+
+		if (bHasCollision)
+		{
+			++NumRetries;
+			++FilenameStartHash;
+		}
+		else
+		{
+			CrossPakCollisionChecker.Append(NewCollisionCheckEntries);
 		}
 
 		// Sort the list to make hash collision detection easy.
 		qsort(MiniFileEntries.GetData(), NumEntries, sizeof(FMiniFileEntry), CompareFMiniFileEntry);
-
-		// Scan the sorted list of hashes for a collision.
-		for (EntryIndex = 1; EntryIndex < NumEntries; ++EntryIndex)
-		{
-			if (MiniFileEntries[EntryIndex].FilenameHash == MiniFileEntries[EntryIndex - 1].FilenameHash)
-			{
-				bHasCollision = true;
-				//FPlatformMisc::LowLevelOutputDebugString(*(FString("Hash collision - ") + FString::FormatAsNumber(FilenameStartHash) + TEXT(" - ")
-						//+ FString::FormatAsNumber(MiniFileEntries[EntryIndex].Crc) + TEXT(" - ")
-						//+ FString::FormatAsNumber(MiniFileEntries[EntryIndex - 1].Crc)));
-				++FilenameStartHash;
-				++NumRetries;
-				break;
-			}
-		}
-	} while (bHasCollision && NumRetries < MAX_RETRIES);
+	}
+	while (bHasCollision && NumRetries < MAX_RETRIES);
 
 	// Filenames can only be unloaded if we found a collision-free starting hash
 	// within the maximum number of retries.
 	if (NumRetries >= MAX_RETRIES)
 	{
 		//		FPlatformMisc::LowLevelOutputDebugString(TEXT("Can't unload pak filenames due to hash collision..."));
-		return;
+		return true;
 	}
 
 	// Allocate the storage space.
@@ -4695,6 +4714,8 @@ void FPakFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 	{
 		Index.Empty(0);
 	}
+
+	return false;
 }
 
 void FPakFile::ShrinkPakEntriesMemoryUsage()
@@ -5429,11 +5450,11 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 
 #if !(IS_PROGRAM || WITH_EDITOR)
 	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this] {
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking Pak Config"));
-			bool bUnloadPakEntryFilenamesIfPossible = false;
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking Pak Config\n"));
+			bool bUnloadPakEntryFilenamesIfPossible = FParse::Param(FCommandLine::Get(), TEXT("unloadpakentryfilenames"));
 			GConfig->GetBool(TEXT("Pak"), TEXT("UnloadPakEntryFilenamesIfPossible"), bUnloadPakEntryFilenamesIfPossible, GEngineIni);
 
-			if (bUnloadPakEntryFilenamesIfPossible)
+            if (bUnloadPakEntryFilenamesIfPossible || FParse::Param(FCommandLine::Get(),TEXT("unloadpakentries")))
 			{
 				// With [Pak] UnloadPakEntryFilenamesIfPossible enabled, [Pak] DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames
 				// can contain pak entry directory wildcards of which the entire recursive directory structure of filenames underneath a
@@ -5450,7 +5471,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 				PakPlatformFile->UnloadPakEntryFilenames(&DirectoryRootsToKeep);
 			}
 
-			bool bShrinkPakEntriesMemoryUsage = false;
+			bool bShrinkPakEntriesMemoryUsage = FParse::Param(FCommandLine::Get(), TEXT("shrinkpakentries"));
 			GConfig->GetBool(TEXT("Pak"), TEXT("ShrinkPakEntriesMemoryUsage"), bShrinkPakEntriesMemoryUsage, GEngineIni);
 			if (bShrinkPakEntriesMemoryUsage)
 			{
@@ -5926,13 +5947,33 @@ bool FPakPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFil
 
 void FPakPlatformFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 {
-	TArray<FPakListEntry> Paks;
-	GetMountedPaks(Paks);
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Unloading Pak Entry Filenames"));
-	for (auto Pak : Paks)
+	double Timer = 0.0;
 	{
-		Pak.PakFile->UnloadPakEntryFilenames(DirectoryRootsToKeep);
+		SCOPE_SECONDS_COUNTER(Timer);
+
+		TArray<FPakListEntry> Paks;
+		GetMountedPaks(Paks);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Unloading Pak Entry Filenames\n"));
+		TMap<uint32, FPakEntry> CrossPakCollisionDetector;
+
+		int32 NumFiles = 0;
+		for (const FPakListEntry& Pak : Paks)
+		{
+			NumFiles += Pak.PakFile->GetNumFiles();
+		}
+
+		CrossPakCollisionDetector.Reserve(NumFiles);
+
+		// Sort the pak list by number of entries so that we allow the larger ones a better chance of not encountering a collision
+		Algo::Sort(Paks, [](const FPakListEntry& A, const FPakListEntry& B) { return A.PakFile->GetNumFiles() > B.PakFile->GetNumFiles(); });
+
+		for (auto Pak : Paks)
+		{
+			bool bEncounteredCollisions = Pak.PakFile->UnloadPakEntryFilenames(CrossPakCollisionDetector, DirectoryRootsToKeep);
+			UE_CLOG(bEncounteredCollisions, LogPakFile, Warning, TEXT("Encountered name collisions while unloading pak index strings for %s"), *Pak.PakFile->GetFilename());
+		}
 	}
+	UE_LOG(LogPakFile, Log, TEXT("PakEntry filenames unloaded in %.4fs"), Timer);
 }
 
 void FPakPlatformFile::ShrinkPakEntriesMemoryUsage()
