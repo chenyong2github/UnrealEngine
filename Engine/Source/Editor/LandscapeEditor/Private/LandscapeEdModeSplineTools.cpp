@@ -1094,7 +1094,7 @@ public:
 	}
 
 	template <typename T>
-	void SetTargetLandscapeBasedOnSelection(typename T* Selection)
+	void SetTargetLandscapeBasedOnSelection(T* Selection)
 	{
 		check(Selection);
 		if (ALandscapeProxy* LandscapeProxy = Selection->GetTypedOuter<ALandscapeProxy>())
