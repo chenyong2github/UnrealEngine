@@ -157,6 +157,11 @@ private:
 		VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, ARKitSystem.DeviceOrientation);
 	}
 	
+	virtual bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs) override
+	{
+		return VideoOverlay.GetPassthroughCameraUVs_RenderThread(OutUVs, ARKitSystem.DeviceOrientation);
+	}
+
 	virtual bool IsActiveThisFrame(class FViewport* InViewport) const override
 	{
 		// Base implementation needs this call as it updates bCurrentFrameIsStereoRendering as a side effect.

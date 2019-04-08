@@ -150,7 +150,7 @@ void FAppleARKitVideoOverlay::UpdateVideoTexture_RenderThread(FRHICommandListImm
 			}
 		}
 		
-		const FVector2D UVOffset = (ViewAspectRatioLandscape <= Frame.Camera.GetAspectRatio()) ? FVector2D(UVOffsetAmount, 0.0f) : FVector2D(0.0f, UVOffsetAmount);
+		UVOffset = (ViewAspectRatioLandscape <= Frame.Camera.GetAspectRatio()) ? FVector2D(UVOffsetAmount, 0.0f) : FVector2D(0.0f, UVOffsetAmount);
 		
 		// Setup vertex buffer
 		const FVector4 Positions[] =
@@ -481,3 +481,53 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 	}
 #endif
 }
+
+
+bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EScreenOrientation::Type DeviceOrientation)
+{
+#if SUPPORTS_ARKIT_1_0
+	if (VideoTextureY != nullptr) // make sure UVOffset has been initialized
+	{
+		OutUVs.SetNumUninitialized(4);
+
+		switch (DeviceOrientation)
+		{
+		case EScreenOrientation::Type::LandscapeLeft:
+			OutUVs[1] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[0] = FVector2D(UVOffset.X, UVOffset.Y);
+			OutUVs[3] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[2] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			return true;
+
+		case EScreenOrientation::Type::LandscapeRight:
+			OutUVs[1] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			OutUVs[0] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[3] = FVector2D(UVOffset.X, UVOffset.Y);
+			OutUVs[2] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+			return true;
+
+		case EScreenOrientation::Type::Portrait:
+			OutUVs[1] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[0] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[3] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			OutUVs[2] = FVector2D(UVOffset.X, UVOffset.Y);
+			return true;
+
+		case EScreenOrientation::Type::PortraitUpsideDown:
+			OutUVs[1] = FVector2D(UVOffset.X, UVOffset.Y);
+			OutUVs[0] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			OutUVs[3] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[2] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+			return true;
+
+		default:
+			return false;
+		}
+	}
+	else
+#endif
+	{
+		return false;
+	}
+}
+

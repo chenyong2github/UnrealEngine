@@ -36,12 +36,16 @@ public:
 
 	void UpdateVideoTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FAppleARKitFrame& Frame, const FSceneViewFamily& InViewFamily);
 	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EScreenOrientation::Type DeviceOrientation);
+	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EScreenOrientation::Type DeviceOrientation);
 
 private:
 	FTextureRHIRef VideoTextureY;
 	FTextureRHIRef VideoTextureCbCr;
 	UMaterialInterface* RenderingOverlayMaterial;
 	FIndexBufferRHIRef OverlayIndexBufferRHI;
+
+	// Cache UV offset to be used by GetPassthroughCameraUVs_RenderThread
+	FVector2D UVOffset;
 	
 	// Separate vertex buffer for each supported device orientation
 	FVertexBufferRHIRef OverlayVertexBufferRHI[4];
