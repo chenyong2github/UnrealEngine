@@ -21,6 +21,9 @@ struct FShape
 #if WITH_PHYSX
 	PxTransform LocalTM;
 	FMaterial* Material;
+#if !PHYSICS_INTERFACE_LLIMMEDIATE
+	FMaterial InternalMaterial;
+#endif
 	PxGeometry* Geometry;
 	PxVec3 BoundsOffset;
 	float BoundsMagnitude;
@@ -44,7 +47,18 @@ struct FShape
 		, UserData(nullptr)
 	{
 	}
-
+#if !PHYSICS_INTERFACE_LLIMMEDIATE
+	FShape(const PxTransform& InLocalTM, const PxVec3& InBoundsOffset, const float InBoundsMagnitude, PxGeometry* InGeometry, FMaterial InMaterial)
+		: LocalTM(InLocalTM)
+		, InternalMaterial(InMaterial)
+		, Geometry(InGeometry)
+		, BoundsOffset(InBoundsOffset)
+		, BoundsMagnitude(InBoundsMagnitude)
+		, UserData(nullptr)
+	{
+		Material = &InternalMaterial;
+	}
+#endif
 #endif
 };
 
