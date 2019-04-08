@@ -370,7 +370,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		
 	if (bDoStencilTest || bDoOutputBlend)
 	{
-		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
+		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && !PassOutputs[0].PooledRenderTarget)
 		{
 			PassOutputs[0].PooledRenderTarget = GetInput(ePId_Input0)->GetOutput()->RequestInput();
 			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
