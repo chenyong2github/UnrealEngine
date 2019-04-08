@@ -1706,6 +1706,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerAllocation.WeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerAllocation.WeightmapTextureIndex] : nullptr;
 	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 	{
+		Usage->Modify();
 		Usage->ChannelUsage[DeleteLayerAllocation.WeightmapTextureChannel] = nullptr;
 	}
 
@@ -1872,6 +1873,7 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[Allocation.WeightmapTextureIndex];
 			if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 			{
+				Usage->Modify();
 				Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
 			}
 
@@ -2162,7 +2164,8 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		//check(Usage);
 		if (Usage)
 		{
-			Usage->ChannelUsage[FromLayerAllocation.WeightmapTextureChannel] = NULL;
+			Usage->Modify();
+			Usage->ChannelUsage[FromLayerAllocation.WeightmapTextureChannel] = nullptr;
 		}
 
 		// If this layer was the last usage for this texture, we can remove it.
@@ -2409,7 +2412,8 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	// Mark the channel as unallocated, so we can reuse it later
 	const int32 DeleteLayerWeightmapTextureIndex = ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex;
 	ULandscapeWeightmapUsage& Usage = *ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex];
-	Usage.ChannelUsage[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = NULL;
+	Usage.Modify();
+	Usage.ChannelUsage[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
 	// Remove the layer as it's totally painted away.
 	ComponentWeightmapLayerAllocations.RemoveAt(LayerIdx);
