@@ -2,6 +2,7 @@
 
 #include "DrawCurveOnMeshSampleTool.h"
 #include "ToolBuilderUtil.h"
+#include "SceneManagement.h"   // FPrimitiveDrawInterface
 
 // localization namespace
 #define LOCTEXT_NAMESPACE "UDrawCurveOnMeshSampleTool"
@@ -47,7 +48,7 @@ void UDrawCurveOnMeshSampleTool::Setup()
 
 void UDrawCurveOnMeshSampleTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	auto PDI = RenderAPI->GetPrimitiveDrawInterface();
+	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	
 	int NumPts = Positions.Num();
 	for (int i = 0; i < NumPts - 1; ++i)
