@@ -1272,6 +1272,13 @@ int32 FIOSPlatformMisc::IOSVersionCompare(uint8 Major, uint8 Minor, uint8 Revisi
 	return 0;
 }
 
+FString FIOSPlatformMisc::GetProjectVersion()
+{
+	NSDictionary* infoDictionary = [[NSBundle mainBundle] infoDictionary];
+	FString localVersionString = FString(infoDictionary[@"CFBundleShortVersionString"]);
+	return localVersionString;
+}
+
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)
 {
 	DCDevice* DeviceCheckDevice = [DCDevice currentDevice];
