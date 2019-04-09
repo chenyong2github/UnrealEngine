@@ -1121,14 +1121,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		// Force enable view family show flag for HighDPI derived's screen percentage.
 		ViewFamily.EngineShowFlags.ScreenPercentage = true;
 	}
-	if (ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
-	{
-		TSet<UMaterialInterface*> Materials;
-		if (GetUsedMaterialsInWorld(MyWorld, Materials, nullptr))
-		{
-			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, nullptr);
-		}
-	}
+
+	UpdateDebugViewModeShaders();
 #endif
 
 	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(InViewport);
