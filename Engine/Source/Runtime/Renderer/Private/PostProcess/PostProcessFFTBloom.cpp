@@ -801,8 +801,8 @@ FSceneRenderTargetItem* FRCPassFFTBloom::InitDomainAndGetKernel(FRenderingCompos
 	const float ClampedBloomConvolutionBufferScale = FMath::Clamp(PPSettings.BloomConvolutionBufferScale, 0.f, 1.f);
 	
 
-	// The pre-filter boost parameters for bright pixels
-	const FVector PreFilter(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
+	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
+	const FVector PreFilter(PPSettings.BloomConvolutionPreFilterMin * View.PreExposure, PPSettings.BloomConvolutionPreFilterMax * View.PreExposure, PPSettings.BloomConvolutionPreFilterMult);
 
 	
 	// Clip the Kernel support (i.e. bloom size) to 100% the screen width 
@@ -952,8 +952,8 @@ bool FRCPassFFTBloom::ConvolveImageWithKernel(FRenderingCompositePassContext& Co
 
 	const FViewInfo& View = Context.View;
 	const auto& FinalPPSettings = View.FinalPostProcessSettings;
-	// The pre-filter boost parameters for bright pixels
-	const FVector PreFilter(FinalPPSettings.BloomConvolutionPreFilterMin, FinalPPSettings.BloomConvolutionPreFilterMax, FinalPPSettings.BloomConvolutionPreFilterMult);
+	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
+	const FVector PreFilter(FinalPPSettings.BloomConvolutionPreFilterMin * View.PreExposure, FinalPPSettings.BloomConvolutionPreFilterMax * View.PreExposure, FinalPPSettings.BloomConvolutionPreFilterMult);
 
 	const FLinearColor Tint(1, 1, 1, 1);
 

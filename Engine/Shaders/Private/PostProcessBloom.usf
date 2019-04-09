@@ -159,7 +159,7 @@ float4 BloomSetupCommon(float2 UV, float Threshold, float ExposureScale)
 	// mask 0..1
 	half BloomAmount = saturate(BloomLuminance / 2.0f);
 
-	return float4(BloomAmount * LinearColor, 0);
+	return float4(BloomAmount * LinearColor, 0) * PreExposure;
 }
 
 // x:BloomThreshold, yz:unused, w:ExposureScale (useful if eyeadaptation is locked)
