@@ -543,6 +543,7 @@ void FScene::CheckPrimitiveArrays()
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
+	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 }
 
 
@@ -735,6 +736,16 @@ static void TArraySwapElements(TArray<T>& Array, int i1, int i2)
 	Array[i2] = tmp;
 }
 
+static void TBitArraySwapElements(TBitArray<>& Array, int32 i1, int32 i2)
+{
+	FBitReference BitRef1 = Array[i1];
+	FBitReference BitRef2 = Array[i2];
+	bool Bit1 = BitRef1;
+	bool Bit2 = BitRef2;
+	BitRef1 = Bit2;
+	BitRef2 = Bit1;
+}
+
 void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveRenderThreadTime);
@@ -751,6 +762,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	PrimitiveOcclusionFlags.AddUninitialized();
 	PrimitiveComponentIds.AddUninitialized();
 	PrimitiveOcclusionBounds.AddUninitialized();
+	PrimitivesNeedingStaticMeshUpdate.Add(false);
 	
 	const int SourceIndex = PrimitiveSceneProxies.Num() - 1;
 	PrimitiveSceneInfo->PackedIndex = SourceIndex;
@@ -818,6 +830,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
+				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
 				AddPrimitiveToUpdateGPU(*this, DestIndex);
 			}
@@ -1482,6 +1495,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
+				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 				SourceIndex = DestIndex;
 
 				AddPrimitiveToUpdateGPU(*this, DestIndex);
@@ -1512,6 +1526,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		PrimitiveOcclusionFlags.Pop();
 		PrimitiveComponentIds.Pop();
 		PrimitiveOcclusionBounds.Pop();
+		PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num()-1);
 	}
 
 	PrimitiveSceneInfo->PackedIndex = MAX_int32;
