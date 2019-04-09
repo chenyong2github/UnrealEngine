@@ -13,6 +13,12 @@
 #define VULKAN_MEMORY_TRACK_CALLSTACK	0
 
 
+#define VULKAN_MEMORY_LOW_PRIORITY 0.f
+#define VULKAN_MEMORY_MEDIUM_PRIORITY 0.5f
+#define VULKAN_MEMORY_HIGHER_PRIORITY 0.75f
+#define VULKAN_MEMORY_HIGHEST_PRIORITY 1.f
+
+
 class FVulkanQueue;
 class FVulkanCmdBuffer;
 
@@ -267,13 +273,13 @@ namespace VulkanRHI
 
 
 		// bCanFail means an allocation failing is not a fatal error, just returns nullptr
-		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeIndex, void* DedicatedAllocateInfo, const char* File, uint32 Line);
+		FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeIndex, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line);
 
-		inline FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, const char* File, uint32 Line)
+		inline FDeviceMemoryAllocation* Alloc(bool bCanFail, VkDeviceSize AllocationSize, uint32 MemoryTypeBits, VkMemoryPropertyFlags MemoryPropertyFlags, void* DedicatedAllocateInfo, float Priority, const char* File, uint32 Line)
 		{
 			uint32 MemoryTypeIndex = ~0;
 			VERIFYVULKANRESULT(this->GetMemoryTypeFromProperties(MemoryTypeBits, MemoryPropertyFlags, &MemoryTypeIndex));
-			return Alloc(bCanFail, AllocationSize, MemoryTypeIndex, DedicatedAllocateInfo, File, Line);
+			return Alloc(bCanFail, AllocationSize, MemoryTypeIndex, DedicatedAllocateInfo, Priority, File, Line);
 		}
 
 		// Sets the Allocation to nullptr

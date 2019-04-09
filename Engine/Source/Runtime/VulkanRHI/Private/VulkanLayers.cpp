@@ -82,6 +82,10 @@ static const ANSICHAR* GDeviceExtensions[] =
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	VK_EXT_VALIDATION_CACHE_EXTENSION_NAME,
 #endif
+#if VULKAN_SUPPORTS_MEMORY_PRIORITY
+	VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
+#endif
+
 	//VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME,
 	nullptr
 };
@@ -724,5 +728,15 @@ void FVulkanDevice::ParseOptionalDeviceExtensions(const TArray<const ANSICHAR *>
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
 	OptionalDeviceExtensions.HasYcbcrSampler = HasExtension(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME) && HasExtension(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) && HasExtension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_MEMORY_PRIORITY
+	OptionalDeviceExtensions.HasMemoryPriority = HasExtension(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+	if (FParse::Param(FCommandLine::Get(), TEXT("disablememorypriority")))
+	{
+		OptionalDeviceExtensions.HasMemoryPriority = 0;
+	}
+#else
+	OptionalDeviceExtensions.HasMemoryPriority = 0;
 #endif
 }

@@ -31,6 +31,7 @@ struct FOptionalVulkanDeviceExtensions
 	uint32 HasNVDiagnosticCheckpoints : 1;
 	uint32 HasGoogleDisplayTiming : 1;
 	uint32 HasYcbcrSampler : 1;
+	uint32 HasMemoryPriority : 1;
 
 	inline bool HasGPUCrashDumpExtensions() const
 	{
