@@ -795,6 +795,11 @@ void MeshPaintHelpers::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComp
 		// Initialize vertex buffer from given colors
 		ComponentLodInfo.OverrideVertexColors = new FColorVertexBuffer;
 		ComponentLodInfo.OverrideVertexColors->InitFromColorArray(Colors);
+		
+		//Update the cache painted vertices
+		ComponentLodInfo.PaintedVertices.Empty();
+		MeshComponent->CachePaintedDataIfNecessary();
+
 		BeginInitResource(ComponentLodInfo.OverrideVertexColors);
 	}
 }
@@ -850,6 +855,10 @@ void MeshPaintHelpers::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComp
 				ComponentLodInfo.OverrideVertexColors->InitFromSingleColor(NewFillColor, RenderData.GetNumVertices());
 			}
 		}
+
+		//Update the cache painted vertices
+		ComponentLodInfo.PaintedVertices.Empty();
+		MeshComponent->CachePaintedDataIfNecessary();
 
 		BeginInitResource(ComponentLodInfo.OverrideVertexColors);
 	}
@@ -1507,6 +1516,10 @@ void MeshPaintHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshCompon
 			const FVector2D UV = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, UVIndex);
 			InstanceMeshLODInfo.OverrideVertexColors->VertexColor(VertexIndex) = PickVertexColorFromTextureData(MipData, UV, Texture, ColorMask);
 		}
+
+		//Update the cache painted vertices
+		InstanceMeshLODInfo.PaintedVertices.Empty();
+		StaticMeshComponent->CachePaintedDataIfNecessary();
 
 		BeginInitResource(InstanceMeshLODInfo.OverrideVertexColors);
 	}
