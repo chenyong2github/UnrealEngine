@@ -1322,12 +1322,6 @@ enum class EResourceTransitionAccess
 	EMaxAccess,
 };
 
-enum class EResourceAliasability
-{
-	EAliasable, // Make the resource aliasable with other resources
-	EUnaliasable, // Make the resource unaliasable with any other resources
-};
-
 class RHI_API FResourceTransitionUtility
 {
 public:

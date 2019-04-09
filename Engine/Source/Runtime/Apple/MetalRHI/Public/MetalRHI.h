@@ -199,7 +199,6 @@ public:
 	virtual void RHIDiscardTransientResource_RenderThread(FVertexBufferRHIParamRef Buffer) final override;
 	virtual void RHIAcquireTransientResource_RenderThread(FStructuredBufferRHIParamRef Buffer) final override;
 	virtual void RHIDiscardTransientResource_RenderThread(FStructuredBufferRHIParamRef Buffer) final override;
-	virtual void RHISetResourceAliasability_RenderThread(class FRHICommandListImmediate& RHICmdList, EResourceAliasability AliasMode, FTextureRHIParamRef* InTextures, int32 NumTextures) final override;
 	
 	/* Copy the source box pixels in the destination box texture, return true if implemented for the current platform*/
 	virtual void RHICopySubTextureRegion_RenderThread(class FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SourceTexture, FTexture2DRHIParamRef DestinationTexture, FBox2D SourceBox, FBox2D DestinationBox) final override;

@@ -1103,8 +1103,6 @@ public:
 	//Utilities
 	virtual void EnableIdealGPUCaptureOptions(bool bEnable);
 	
-	virtual void RHISetResourceAliasability_RenderThread(class FRHICommandListImmediate& RHICmdList, EResourceAliasability AliasMode, FTextureRHIParamRef* InTextures, int32 NumTextures) {}
-
 	//checks if the GPU is still alive.
 	virtual bool CheckGpuHeartbeat() const { return true; }
 

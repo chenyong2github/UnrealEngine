@@ -2546,44 +2546,6 @@ void FMetalDynamicRHI::RHIDiscardTransientResource_RenderThread(FStructuredBuffe
 	}
 }
 
-void FMetalDynamicRHI::RHISetResourceAliasability_RenderThread(class FRHICommandListImmediate& RHICmdList, EResourceAliasability AliasMode, FTextureRHIParamRef* InTextures, int32 NumTextures)
-{
-	check(InTextures && NumTextures);
-	@autoreleasepool
-	{
-		switch(AliasMode)
-		{
-			case EResourceAliasability::EAliasable:
-			{
-				for (int32 i = 0; i < NumTextures; ++i)
-				{
-					FMetalSurface* Source = GetMetalSurfaceFromRHITexture(InTextures[i]);
-					Source->MakeAliasable();
-				}
-				break;
-			}
-			case EResourceAliasability::EUnaliasable:
-			{
-				if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-				{
-					for (int32 i = 0; i < NumTextures; ++i)
-					{
-						FMetalSurface* Source = GetMetalSurfaceFromRHITexture(InTextures[i]);
-						Source->MakeUnAliasable();
-					}
-				}
-				else
-				{
-					new (RHICmdList.AllocCommand<FMetalRHICommandUnaliasTextures>()) FMetalRHICommandUnaliasTextures(InTextures, NumTextures);
-				}
-				break;
-			}
-			default:
-				break;
-		}
-	}
-}
-
 struct FRHICopySubTextureRegion final : public FRHICommand<FRHICopySubTextureRegion>
 {
 	FTexture2DRHIParamRef SourceTexture;

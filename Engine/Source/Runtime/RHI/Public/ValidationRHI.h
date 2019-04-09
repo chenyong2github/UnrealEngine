@@ -582,6 +582,7 @@ public:
 	// FlushType: Thread safe
 	virtual FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, void** InitialMipData, uint32 NumInitialMips) override final
 	{
+		check(GRHISupportsAsyncTextureCreation);
 		return RHI->RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
 	}
 
@@ -1554,11 +1555,6 @@ public:
 	virtual void EnableIdealGPUCaptureOptions(bool bEnable) override final
 	{
 		RHI->EnableIdealGPUCaptureOptions(bEnable);
-	}
-
-	virtual void RHISetResourceAliasability_RenderThread(class FRHICommandListImmediate& RHICmdList, EResourceAliasability AliasMode, FRHITexture** InTextures, int32 NumTextures) override final
-	{
-		RHI->RHISetResourceAliasability_RenderThread(RHICmdList, AliasMode, InTextures, NumTextures);
 	}
 
 	//checks if the GPU is still alive.

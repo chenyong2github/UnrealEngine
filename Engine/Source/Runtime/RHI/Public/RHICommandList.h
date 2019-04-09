@@ -4166,11 +4166,6 @@ public:
 		GDynamicRHI->RHIExecuteCommandList(CmdList);
 	}
 	
-	FORCEINLINE void SetResourceAliasability(EResourceAliasability AliasMode, FTextureRHIParamRef* InTextures, int32 NumTextures)
-	{
-		GDynamicRHI->RHISetResourceAliasability_RenderThread(*this, AliasMode, InTextures, NumTextures);
-	}
-	
 	FORCEINLINE void* GetNativeDevice()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeDevice_Flush);
