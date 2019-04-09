@@ -72,24 +72,32 @@ enum EWeightmapRTType : uint8
 	WeightmapRT_Count
 };
 
+// Internal Update Flags that shouldn't be used alone
+enum EInternalLandscapeLayersContentUpdateFlag : uint32
+{
+	Internal_Heightmap_Setup = 0x00000001u,
+	Internal_Heightmap_Render = 0x00000002u,
+	Internal_Heightmap_BoundsAndCollision = 0x00000004u,
+	Internal_Heightmap_ResolveToTexture = 0x00000008u,
+	Internal_Heightmap_ClientUpdate = 0x00000010u,
+
+	Internal_Weightmap_Setup = 0x00000100u,
+	Internal_Weightmap_Render = 0x00000200u,
+	Internal_Weightmap_Collision = 0x00000400u,
+	Internal_Weightmap_ResolveToTexture = 0x00000800u,
+};
+
 enum ELandscapeLayersContentUpdateFlag : uint32
 {
-	Heightmap_Setup					= 0x00000001u,
-	Heightmap_Render				= 0x00000002u,
-	Heightmap_BoundsAndCollision	= 0x00000004u,
-	Heightmap_ResolveToTexture		= 0x00000008u,
-
-	Weightmap_Setup					= 0x00000100u,
-	Weightmap_Render				= 0x00000200u,
-	Weightmap_Collision				= 0x00000400u,
-	Weightmap_ResolveToTexture		= 0x00000800u,
+	Heightmap_Render = Internal_Heightmap_Render,
+	Weightmap_Render = Internal_Weightmap_Render,
 
 	// Combinations
-	Heightmap_All = Heightmap_Render | Heightmap_BoundsAndCollision | Heightmap_ResolveToTexture,
-	Weightmap_All = Weightmap_Render | Weightmap_Collision | Weightmap_ResolveToTexture,
+	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_ClientUpdate,
+	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture,
 
 	All = Heightmap_All | Weightmap_All,
-	All_Setup = Heightmap_Setup | Weightmap_Setup,
+	All_Setup = Internal_Heightmap_Setup | Internal_Weightmap_Setup,
 	All_Render = Heightmap_Render | Weightmap_Render,
 };
 
@@ -241,7 +249,7 @@ public:
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
