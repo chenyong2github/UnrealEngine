@@ -2361,13 +2361,13 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 	}
 }
 
-void FScene::GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex) const 
+void FScene::GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const 
 {
 	bHasPrecomputedVolumetricLightmap = VolumetricLightmapSceneData.HasData();
 	
-	const bool bVelocityDataFound = VelocityData.GetComponentPreviousLocalToWorld(PrimitiveSceneInfo->PrimitiveComponentId, PreviousLocalToWorld);
+	bOutputVelocity = VelocityData.GetComponentPreviousLocalToWorld(PrimitiveSceneInfo->PrimitiveComponentId, PreviousLocalToWorld);
 
-	if (!bVelocityDataFound)
+	if (!bOutputVelocity)
 	{
 		PreviousLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 	}
