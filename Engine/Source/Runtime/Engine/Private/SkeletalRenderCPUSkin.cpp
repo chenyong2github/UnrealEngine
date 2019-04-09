@@ -400,22 +400,6 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::ReleaseResources()
 	bResourcesInitialized = false;
 }
 
-#if RHI_RAYTRACING
-// #dxr_todo: this looks like dead code
-void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::BuildRayTracingAccelerationStructure()
-{
-	if (RayTracingGeometry.Initializer.PositionVertexBuffer && RayTracingGeometry.Initializer.IndexBuffer)
-	{
-		ENQUEUE_RENDER_COMMAND(SkeletalRenderCPUSkinBuildRayTracingAccelerationStructure)(
-			[this](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.BuildAccelerationStructure(RayTracingGeometry.RayTracingGeometryRHI);
-		}
-		);
-	}
-}
-#endif // RHI_RAYTRACING
-
 TArray<FTransform>* FSkeletalMeshObjectCPUSkin::GetComponentSpaceTransforms() const
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

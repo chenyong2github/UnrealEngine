@@ -186,18 +186,3 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::ReleaseResources()
 	bResourcesInitialized = false;
 }
 
-#if RHI_RAYTRACING
-// #dxr_todo: this looks like dead code
-void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::BuildRayTracingAccelerationStructure()
-{
-	if (RayTracingGeometry.Initializer.PositionVertexBuffer && RayTracingGeometry.Initializer.IndexBuffer)
-	{
-		ENQUEUE_RENDER_COMMAND(SkeletalRenderStaticBuildRayTracingAccelerationStructure)(
-			[this](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.BuildAccelerationStructure(RayTracingGeometry.RayTracingGeometryRHI);
-		}
-		);
-	}
-}
-#endif // RHI_RAYTRACING

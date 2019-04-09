@@ -213,7 +213,7 @@ public:
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		SetTextureParameter(RHICmdList, ShaderRHI, TranslucencyTextureParameter, TranslucencyTextureSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), TranslucencyTexture);
-		// #dxr_todo: Use hit-distance texture for denoising
+		// #dxr_todo: UE-72581 Use hit-distance texture for denoising
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -242,7 +242,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 
 void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandListImmediate& RHICmdList)
 {
-	//#dxr_todo: check DOF support, do we need to call RenderRayTracingTranslucency twice?
 	if (!ShouldRenderTranslucency(ETranslucencyPass::TPT_StandardTranslucency)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_TranslucencyAfterDOF)
 		&& !ShouldRenderTranslucency(ETranslucencyPass::TPT_AllTranslucency)
@@ -264,7 +263,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 		FSceneViewFamilyBlackboard SceneBlackboard;
 		SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 
-		//#dxr_todo: do not use reflections denoiser structs but separated ones
+		//#dxr_todo: UE-72581 do not use reflections denoiser structs but separated ones
 		IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
 		float ResolutionFraction = 1.0f;
 		int32 TranslucencySPP = GRayTracingTranslucencySamplesPerPixel > -1 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
@@ -274,7 +273,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 			View, &DenoiserInputs.Color, &DenoiserInputs.RayHitDistance,
 			TranslucencySPP, GRayTracingTranslucencyHeightFog, ResolutionFraction);
 
-		//#dxr_todo: denoise: replace DenoiserInputs with DenoiserOutputs in the following lines!
+		//#dxr_todo: UE-72581 : replace DenoiserInputs with DenoiserOutputs in the following lines!
 		TRefCountPtr<IPooledRenderTarget> TranslucencyColor = GSystemTextures.BlackDummy;
 		TRefCountPtr<IPooledRenderTarget> TranslucencyHitDistanceColor = GSystemTextures.BlackDummy;
 
