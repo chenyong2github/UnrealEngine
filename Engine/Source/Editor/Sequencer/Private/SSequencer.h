@@ -28,6 +28,7 @@ class SSequencerLabelBrowser;
 class SSequencerTrackArea;
 class SSequencerTrackOutliner;
 class SSequencerTransformBox;
+class SSequencerStretchBox;
 class SSequencerTreeView;
 class USequencerSettings;
 struct FPaintPlaybackRangeArgs;
@@ -483,8 +484,12 @@ public:
 	/** This adds the specified path to the selection set to be restored the next time the tree view is refreshed. */
 	void AddAdditionalPathToSelectionSet(const FString& Path) { AdditionalSelectionsToAdd.Add(Path); }
 private:
+
 	/** Transform box widget. */
 	TSharedPtr<SSequencerTransformBox> TransformBox;
+
+	/** Stretch box widget. */
+	TSharedPtr<SSequencerStretchBox> StretchBox;
 
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;

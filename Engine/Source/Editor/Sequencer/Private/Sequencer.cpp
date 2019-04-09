@@ -1454,6 +1454,118 @@ void FSequencer::TranslateSelectedKeysAndSections(bool bTranslateLeft)
 	TransformSelectedKeysAndSections(Delta, 1.f);
 }
 
+void FSequencer::StretchTime(FFrameTime InDeltaTime)
+{
+	// From the current time, find all the keys and sections to the right and move them by InDeltaTime
+	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	FScopedTransaction StretchTimeTransaction(NSLOCTEXT("Sequencer", "StretchTime", "Stretch Time"));
+
+	TRange<FFrameNumber> CachedSelectionRange = GetSelectionRange();
+
+	TRange<FFrameNumber> SelectionRange;
+
+	if (InDeltaTime > 0)
+	{
+		SelectionRange.SetLowerBound(GetLocalTime().Time.FrameNumber+1);
+		SelectionRange.SetUpperBound(TRangeBound<FFrameNumber>::Open());
+	}
+	else
+	{
+		SelectionRange.SetUpperBound(GetLocalTime().Time.FrameNumber-1);
+		SelectionRange.SetLowerBound(TRangeBound<FFrameNumber>::Open());
+	}
+
+	FocusedMovieScene->SetSelectionRange(SelectionRange);
+	SelectInSelectionRange(true, true);
+	TransformSelectedKeysAndSections(InDeltaTime, 1.f);
+
+	// Return state
+	FocusedMovieScene->SetSelectionRange(CachedSelectionRange);
+	Selection.Empty(); //todo restore key and section selection
+}
+
+void FSequencer::ShrinkTime(FFrameTime InDeltaTime)
+{
+	// From the current time, find all the keys and sections to the right and move them by -InDeltaTime
+	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	FScopedTransaction StretchTimeTransaction(NSLOCTEXT("Sequencer", "ShrinkTime", "Shrink Time"));
+
+	TRange<FFrameNumber> CachedSelectionRange = GetSelectionRange();
+
+	// First, check if there's any keys/sections within InDeltaTime
+
+	TRange<FFrameNumber> CheckRange;
+
+	if (InDeltaTime > 0)
+	{
+		CheckRange.SetLowerBound(GetLocalTime().Time.FrameNumber + 1);
+		CheckRange.SetUpperBound(GetLocalTime().Time.FrameNumber + InDeltaTime.FrameNumber);
+	}
+	else
+	{
+		CheckRange.SetUpperBound(GetLocalTime().Time.FrameNumber - InDeltaTime.FrameNumber);
+		CheckRange.SetLowerBound(GetLocalTime().Time.FrameNumber - 1);
+	}
+
+	FocusedMovieScene->SetSelectionRange(CheckRange);
+	SelectInSelectionRange(true, true);
+
+	if (Selection.GetSelectedKeys().Num() > 0)
+	{
+		FNotificationInfo Info(FText::Format(NSLOCTEXT("Sequencer", "ShrinkTimeFailedKeys", "Shrink failed. There are {0} keys in between"), Selection.GetSelectedKeys().Num()));
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+
+		// Return state
+		FocusedMovieScene->SetSelectionRange(CachedSelectionRange);
+		Selection.Empty(); //todo restore key and section selection
+		return;
+	}
+
+	if (Selection.GetSelectedSections().Num() > 0)
+	{
+		FNotificationInfo Info(FText::Format(NSLOCTEXT("Sequencer", "ShrinkTimeFailedSections", "Shrink failed. There are {0} sections in between"), Selection.GetSelectedSections().Num()));
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+
+		// Return state
+		FocusedMovieScene->SetSelectionRange(CachedSelectionRange);
+		Selection.Empty(); //todo restore key and section selection
+		return;
+	}
+
+	TRange<FFrameNumber> SelectionRange;
+
+	if (InDeltaTime > 0)
+	{
+		SelectionRange.SetLowerBound(GetLocalTime().Time.FrameNumber + 1);
+		SelectionRange.SetUpperBound(TRangeBound<FFrameNumber>::Open());
+	}
+	else
+	{
+		SelectionRange.SetUpperBound(GetLocalTime().Time.FrameNumber - 1);
+		SelectionRange.SetLowerBound(TRangeBound<FFrameNumber>::Open());
+	}
+
+	FocusedMovieScene->SetSelectionRange(SelectionRange);
+	SelectInSelectionRange(true, true);
+	TransformSelectedKeysAndSections(-InDeltaTime, 1.f);
+
+	// Return state
+	FocusedMovieScene->SetSelectionRange(CachedSelectionRange);
+	Selection.Empty(); //todo restore key and section selection
+}
+
 void FSequencer::BakeTransform()
 {
 	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
@@ -1894,7 +2006,7 @@ void FSequencer::SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>&
 
 			for (auto Section : OutSections)
 			{
-				if (Section.IsValid() && Section->GetRange().Overlaps(SelectionRange))
+				if (Section.IsValid() && Section->GetRange().Overlaps(SelectionRange) && Section->HasStartFrame() && Section->HasEndFrame())
 				{
 					Selection.AddToSelection(Section.Get());
 				}

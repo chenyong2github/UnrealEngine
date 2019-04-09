@@ -250,6 +250,12 @@ public:
 	/** Translate the selected keys and section by the time snap interval */
 	void TranslateSelectedKeysAndSections(bool bTranslateLeft);
 
+	/** Stretch time*/
+	void StretchTime(FFrameTime InDeltaTime);
+
+	/** Shrink time*/
+	void ShrinkTime(FFrameTime InDeltaTime);
+
 	/** Bake transform */
 	void BakeTransform();
 

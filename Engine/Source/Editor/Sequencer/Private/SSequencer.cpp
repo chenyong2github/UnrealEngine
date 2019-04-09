@@ -62,6 +62,7 @@
 #include "FrameNumberDetailsCustomization.h"
 #include "SequencerSettings.h"
 #include "SSequencerTransformBox.h"
+#include "SSequencerStretchBox.h"
 #include "SSequencerDebugVisualizer.h"
 #include "ISequencerModule.h"
 #include "IVREditorModule.h"
@@ -541,6 +542,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					]
 
 					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(50))
+						.Padding(ResizeBarPadding)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Top)
+					[
+						// Stretch box
+						SAssignNew(StretchBox, SSequencerStretchBox, SequencerPtr.Pin().ToSharedRef(), *Settings, NumericTypeInterface.ToSharedRef())
+					]
+
+					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(60))
 					.Padding(ResizeBarPadding)
 					[
 						SAssignNew(TickResolutionOverlay, SSequencerTimePanel, SequencerPtr)
@@ -645,7 +655,12 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().ToggleShowTransformBox,
-		FExecuteAction::CreateLambda([this]{ TransformBox->ToggleVisibility(); })
+		FExecuteAction::CreateLambda([this] { TransformBox->ToggleVisibility(); })
+	);
+
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().ToggleShowStretchBox,
+		FExecuteAction::CreateLambda([this] { StretchBox->ToggleVisibility(); })
 	);
 }
 
@@ -1334,7 +1349,8 @@ TSharedRef<SWidget> SSequencer::MakeSelectEditMenu()
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowTransformBox);
-	
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowStretchBox);
+
 	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().BakeTransform);
