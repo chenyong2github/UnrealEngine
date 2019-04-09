@@ -50,6 +50,7 @@ void UMovieSceneTrack::PostLoad()
 	{
 		if (GetAllSections()[SectionIndex] == nullptr)
 		{
+			UE_LOG(LogMovieScene, Warning, TEXT("Removing null section from %s:%s"), *GetPathName(), *GetDisplayName().ToString());
 			RemoveSectionAt(SectionIndex);
 		}
 		else
