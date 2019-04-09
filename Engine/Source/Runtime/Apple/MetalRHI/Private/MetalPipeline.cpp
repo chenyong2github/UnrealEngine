@@ -804,10 +804,11 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #endif
         }
         
-        RenderPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
+        static bool bNoMSAA = FParse::Param(FCommandLine::Get(), TEXT("nomsaa"));
+        RenderPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
     #if PLATFORM_MAC
         RenderPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
-		DebugPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
+		DebugPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
 		DebugPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
     #endif
         

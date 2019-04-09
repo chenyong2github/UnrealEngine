@@ -75,10 +75,20 @@ struct FMetalCommandContextDebug
 {
 	@public
 	TArray<FMetalCommandContextDebug> Contexts;
+	uint32 Index;
 }
 @end
 @implementation FMetalCommandBufferDebug
 APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalCommandBufferDebug)
+- (instancetype)init
+{
+	id Self = [super init];
+	if (Self)
+	{
+		Index = ~0u;
+	}
+	return Self;
+}
 - (void)dealloc
 {
 	Contexts.Empty();
@@ -121,6 +131,11 @@ uint32 FMetalCommandBufferMarkers::AddCommand(uint32 CmdBufIndex, uint32 Encoder
 	uint32 Num = 0;
 	if (m_ptr)
 	{
+		if (m_ptr->Index == ~0u)
+		{
+			m_ptr->Index = CmdBufIndex;
+		}
+		
 		FMetalCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
 		if (Context.DebugBuffer != DebugBuffer)
 		{
@@ -173,6 +188,16 @@ uint32 FMetalCommandBufferMarkers::NumContexts() const
 	if (m_ptr)
 	{
 		Num = m_ptr->Contexts.Num();
+	}
+	return Num;
+}
+
+uint32 FMetalCommandBufferMarkers::GetIndex() const
+{
+	uint32 Num = 0;
+	if (m_ptr)
+	{
+		Num = m_ptr->Index;
 	}
 	return Num;
 }

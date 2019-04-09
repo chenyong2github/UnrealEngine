@@ -36,8 +36,13 @@ FORCEINLINE mtlpp::StoreAction GetMetalRTStoreAction(ERenderTargetStoreAction St
         //because we may render to the same MSAA target twice in two separate passes.  BasePass, then some stuff, then translucency for example and we need to not lose the prior MSAA contents to do this properly.
 		case ERenderTargetStoreAction::EMultisampleResolve:
 		{
+            static bool bNoMSAA = FParse::Param(FCommandLine::Get(), TEXT("nomsaa"));
 			static bool bSupportsMSAAStoreResolve = FMetalCommandQueue::SupportsFeature(EMetalFeaturesMSAAStoreAndResolve) && (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
-			if (bSupportsMSAAStoreResolve)
+            if (bNoMSAA)
+            {
+                return mtlpp::StoreAction::Store;
+            }
+			else if (bSupportsMSAAStoreResolve)
 			{
 				return mtlpp::StoreAction::StoreAndMultisampleResolve;
 			}
