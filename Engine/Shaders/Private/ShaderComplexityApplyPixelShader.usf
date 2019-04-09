@@ -28,7 +28,7 @@ float3 ShaderComplexityColors[MAX_NUM_COMPLEXITY_COLORS];
 
 // float4(bLegend, DebugViewShaderMode, ColorSamping, ComplexityScale), can be optimzied as define if needed
 float4 ShaderComplexityParams;
-// float4(NumComplexityColors, 0, UsedQuadBufferSizeX, UsedQuadBufferSizeY);
+// float4(NumComplexityColors, bShowError, UsedQuadBufferSizeX, UsedQuadBufferSizeY);
 float4 ShaderComplexityParams2;
 
 // @param In  0..1
@@ -184,6 +184,14 @@ void Main(
 
 	// PS cost
 	OutColor = float4(ColorizeComplexityFromMode(SceneColor.r), 0);
+
+	// Mark missing data as invalid, this would happen when shaders are compiling
+	if (SceneColor.r == 0 && ShaderComplexityParams2.y != 0)
+	{
+		int2 PixelPosition = SvPosition.xy;
+		float Error = (PixelPosition.x & 0x08) == (PixelPosition.y & 0x08) ? .22 : 0;
+		OutColor.rgb = Error;
+	}
 	
 	if(!bLegend)
 	{

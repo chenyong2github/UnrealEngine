@@ -62,7 +62,8 @@ void FVisualizeComplexityApplyPS::SetParameters(
 	const TArray<FLinearColor>& Colors,
 	EColorSampling ColorSampling,
 	float ComplexityScale,
-	bool bLegend
+	bool bLegend,
+	bool bShowError
 	)
 {
 	const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
@@ -106,7 +107,7 @@ void FVisualizeComplexityApplyPS::SetParameters(
 
 	FIntPoint UsedQuadBufferSize = (Context.View.ViewRect.Size() + FIntPoint(1, 1)) / 2;
 	SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityParams, FVector4(bLegend, DebugViewShaderMode, ColorSampling, ComplexityScale));
-	SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityParams2, FVector4((float)Colors.Num(), 0, (float)UsedQuadBufferSize.X, (float)UsedQuadBufferSize.Y));
+	SetShaderValue(RHICmdList, ShaderRHI, ShaderComplexityParams2, FVector4((float)Colors.Num(), bShowError, (float)UsedQuadBufferSize.X, (float)UsedQuadBufferSize.Y));
 }
 
 IMPLEMENT_SHADER_TYPE(,FVisualizeComplexityApplyPS,TEXT("/Engine/Private/ShaderComplexityApplyPixelShader.usf"),TEXT("Main"),SF_Pixel);
@@ -158,7 +159,7 @@ void FRCPassPostProcessVisualizeComplexity::Process(FRenderingCompositePassConte
 
 		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
 
-		PixelShader->SetParameters(Context.RHICmdList, Context, Colors, ColorSampling, ComplexityScale, bLegend);
+		PixelShader->SetParameters(Context.RHICmdList, Context, Colors, ColorSampling, ComplexityScale, bLegend, ViewFamily.GetDebugViewShaderMode() != DVSM_QuadComplexity);
 
 		DrawRectangle(
 			Context.RHICmdList,
