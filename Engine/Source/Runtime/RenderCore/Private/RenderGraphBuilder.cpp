@@ -41,6 +41,11 @@ void InitRenderGraph()
 	{
 		GRenderGraphImmediateMode = 1;
 	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebug")))
+	{
+		GRenderGraphEmitWarnings = 1;
+	}
 #endif
 }
 
@@ -104,7 +109,7 @@ static bool IsBoundAsReadable(const FRDGTexture* Texture, FShaderParameterStruct
 
 FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 {
-	if (GetEmitDrawEvents())
+	if (GetEmitDrawEvents() || GRenderGraphEmitWarnings)
 	{
 		va_list ptr;
 		va_start(ptr, EventFormat);
@@ -113,7 +118,12 @@ FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), EventFormat, ptr);
 		va_end(ptr);
 
-		EventName = TempStr;
+		EventNameStorage = TempStr;
+		EventName = *EventNameStorage;
+	}
+	else
+	{
+		EventName = TEXT("!!!Unavailable RDG event name: try r.RDG.EmitWarnings=1 or -rdgdebug!!!");
 	}
 }
 

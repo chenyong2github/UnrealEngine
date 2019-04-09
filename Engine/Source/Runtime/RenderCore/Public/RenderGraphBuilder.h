@@ -40,23 +40,23 @@ public:
 	{ }
 
 	#endif
-
+	
 	const TCHAR* GetTCHAR() const
 	{
-		#if RENDER_GRAPH_DRAW_EVENTS == 2
-			return *EventName;
-		#elif RENDER_GRAPH_DRAW_EVENTS == 1
+		#if RENDER_GRAPH_DRAW_EVENTS == 1 || RENDER_GRAPH_DRAW_EVENTS == 2
 			return EventName;
 		#else
-			return TEXT("UnknownRDVEvent");
+			// Render graph draw events have been completely compiled for CPU performance reasons.
+			return TEXT("!!!Unavailable RDG event name: need RENDER_GRAPH_DRAW_EVENTS>=0 and r.RDG.EmitWarnings=1 or -rdgdebug!!!");
 		#endif
 	}
 
 private:
-	#if RENDER_GRAPH_DRAW_EVENTS == 2
-		FString EventName;
-	#elif RENDER_GRAPH_DRAW_EVENTS == 1
+	#if RENDER_GRAPH_DRAW_EVENTS == 1 || RENDER_GRAPH_DRAW_EVENTS == 2
 		const TCHAR* EventName;
+		#if RENDER_GRAPH_DRAW_EVENTS == 2
+			FString EventNameStorage;
+		#endif
 	#endif
 };
 
