@@ -1018,7 +1018,10 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		{
 			// Prune out the development only packages, and any assets that belong in a different chunk asset registry
 			FAssetRegistryState NewState;
-			NewState.InitializeFromExistingAndPrune(State, CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
+			// New InitializeFromExistingAndPrune temporarily disabled until bugs have been fixed
+			// NewState.InitializeFromExistingAndPrune(State, CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
+			NewState.InitializeFromExisting(State, SaveOptions);
+			NewState.PruneAssetData(CookedPackages, TSet<FName>(), ChunkBucketElement.Value, SaveOptions);
 
 			InjectEncryptionData(NewState);
 
@@ -1254,7 +1257,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 		for (int32 PakchunkIndex = 0, ChunkNum = FinalChunkManifests.Num(); PakchunkIndex < ChunkNum; ++PakchunkIndex)
 		{
 			FArchive* ChunkFile = IFileManager::Get().CreateFileWriter(*FPaths::Combine(*OutputPath, *FString::Printf(TEXT("Chunks%dInfo.csv"), PakchunkIndex)));
-			if (ChunkFile != nullptr)
+			if (ChunkFile == nullptr)
 			{
 				return false;
 			}

@@ -26,6 +26,7 @@
 #include "StereoRendering.h"
 #include "Debug/ReporterGraph.h"
 #include "Fonts/FontMeasure.h"
+#include "EngineModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCanvas, Log, All);
 
@@ -812,8 +813,9 @@ void FCanvas::Flush_GameThread(bool bForce)
 	{
 		FRenderThreadScope RenderThreadScope;
 		RenderThreadScope.EnqueueRenderCommand(
-			[FlushParameters](FRHICommandList& RHICmdList)
+			[FlushParameters](FRHICommandListImmediate& RHICmdList)
 		{
+			GetRendererModule().InitializeSystemTextures(RHICmdList);
 			check(RHICmdList.IsOutsideRenderPass());
 
 			// Set the RHI render target.
@@ -861,7 +863,7 @@ void FCanvas::Flush_GameThread(bool bForce)
 		}
 
 		RenderThreadScope.EnqueueRenderCommand(
-			[](FRHICommandList& RHICmdList)
+			[](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.EndRenderPass();
 		});

@@ -70,11 +70,18 @@ void FConcurrencyGroup::AddActiveSound(FActiveSound* ActiveSound)
 {
 	check(GroupID != 0);
 
-	const int32 LastIndex = ActiveSound->ConcurrencyGroupIDs.Num();
+	int32 LastIndex = ActiveSound->ConcurrencyGroupIDs.Num();
 	if (ActiveSound->ConcurrencyGroupIDs.AddUnique(GroupID) == LastIndex)
 	{
-		ActiveSounds.Add(ActiveSound);
-		ActiveSound->ConcurrencyGeneration = Generation++;
+		LastIndex = ActiveSounds.Num();
+		if (ActiveSounds.AddUnique(ActiveSound) == LastIndex)
+		{
+			ActiveSound->ConcurrencyGeneration = Generation++;
+		}
+		else
+		{
+			UE_LOG(LogAudio, Fatal, TEXT("Attempting to increment active sound ConcurrencyGeneration by adding active sound '%s' to group multiple times."), *ActiveSound->GetOwnerName());
+		}
 	}
 	else
 	{
@@ -84,6 +91,8 @@ void FConcurrencyGroup::AddActiveSound(FActiveSound* ActiveSound)
 
 void FConcurrencyGroup::RemoveActiveSound(FActiveSound* ActiveSound)
 {
+	check(ActiveSound);
+
 	// Cache generation being removed
 	const int32 RemovedGeneration = ActiveSound->ConcurrencyGeneration;
 
@@ -246,6 +255,7 @@ void FSoundConcurrencyManager::CreateNewGroupsFromHandles(
 FActiveSound* FSoundConcurrencyManager::CreateNewActiveSound(const FActiveSound& NewActiveSound)
 {
 	check(NewActiveSound.GetSound());
+	check(IsInAudioThread());
 
 	// If there are no concurrency settings associated then there is no limit on this sound
 	TArray<FConcurrencyHandle> ConcurrencyHandles;
@@ -273,15 +283,15 @@ FConcurrencyGroup& FSoundConcurrencyManager::CreateNewConcurrencyGroup(const FCo
 {
 	//Create & add new concurrency group to the map
 	FConcurrencyGroupID GroupID = FConcurrencyGroup::GenerateNewID();
-	ConcurrencyGroups.Emplace(GroupID, FConcurrencyGroup(GroupID, ConcurrencyHandle));
+	ConcurrencyGroups.Emplace(GroupID, new FConcurrencyGroup(GroupID, ConcurrencyHandle));
 
-	return *ConcurrencyGroups.Find(GroupID);
+	return *ConcurrencyGroups.FindRef(GroupID);
 }
 
 FConcurrencyGroup* FSoundConcurrencyManager::CanPlaySound(const FActiveSound& NewActiveSound, const FConcurrencyGroupID GroupID, TArray<FActiveSound*>& OutSoundsToEvict)
 {
 	check(GroupID != 0);
-	FConcurrencyGroup* ConcurrencyGroup = ConcurrencyGroups.Find(GroupID);
+	FConcurrencyGroup* ConcurrencyGroup = ConcurrencyGroups.FindRef(GroupID);
 	if (!ConcurrencyGroup)
 	{
 		UE_LOG(LogAudio, Warning, TEXT("Attempting to add active sound '%s' (owner '%s') to invalid concurrency group."),
@@ -302,7 +312,7 @@ FConcurrencyGroup* FSoundConcurrencyManager::CanPlaySound(const FActiveSound& Ne
 		// If no room for new sound, early out
 		if (FActiveSound* SoundToEvict = GetEvictableSound(NewActiveSound, *ConcurrencyGroup))
 		{
-			OutSoundsToEvict.Add(SoundToEvict);
+			OutSoundsToEvict.AddUnique(SoundToEvict);
 		}
 		else
 		{
@@ -532,7 +542,8 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 
 				const float ActiveSoundGeneration = static_cast<float>(CurActiveSound->ConcurrencyGeneration);
 				const float GenerationDelta = NextGeneration - ActiveSoundGeneration;
-				CurActiveSound->ConcurrencyGroupVolumeScales.FindOrAdd(ConcurrencyGroup->GetGroupID()) = FMath::Pow(Volume, GenerationDelta);
+				float& VolumeScale = CurActiveSound->ConcurrencyGroupVolumeScales.FindOrAdd(ConcurrencyGroup->GetGroupID());
+				VolumeScale = FMath::Pow(Volume, GenerationDelta);
 			}
 		}
 
@@ -571,10 +582,12 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 
 void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 {
+	check(IsInAudioThread());
+
 	// Remove this sound from it's concurrency list
 	for (const FConcurrencyGroupID ConcurrencyGroupID : ActiveSound->ConcurrencyGroupIDs)
 	{
-		FConcurrencyGroup* ConcurrencyGroup = ConcurrencyGroups.Find(ConcurrencyGroupID);
+		FConcurrencyGroup* ConcurrencyGroup = ConcurrencyGroups.FindRef(ConcurrencyGroupID);
 		if (!ConcurrencyGroup)
 		{
 			UE_LOG(LogAudio, Error, TEXT("Attempting to remove stopped sound '%s' from inactive concurrency group."),
@@ -631,6 +644,8 @@ void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 					}
 				}
 			}
+			
+			delete ConcurrencyGroup;
 		}
 	}
 	ActiveSound->ConcurrencyGroupIDs.Reset();
@@ -638,8 +653,10 @@ void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
 
 void FSoundConcurrencyManager::UpdateQuietSoundsToStop()
 {
+	check(IsInAudioThread());
+
 	for (auto& ConcurrenyGroupEntry : ConcurrencyGroups)
 	{
-		ConcurrenyGroupEntry.Value.StopQuietSoundsDueToMaxConcurrency();
+		ConcurrenyGroupEntry.Value->StopQuietSoundsDueToMaxConcurrency();
 	}
 }

@@ -851,7 +851,7 @@ public:
 
 	void InitIAB();
 
-	void Update(const void* Contents, EUniformBufferValidation Validation);
+	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
 	
 	/** Resource table containing RHI references. */
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
@@ -884,6 +884,9 @@ public:
 	EUniformBufferUsage UniformUsage;
 	FMetalIndirectArgumentBuffer& GetIAB();
 	FMetalIndirectArgumentBuffer* IAB;
+	TArray<EUniformBufferBaseType> ResourceTypes;
+	uint32 NumResources;
+	uint32 ConstantSize;
 };
 
 

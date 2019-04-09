@@ -168,6 +168,7 @@ public:
 	static const FString GetDeviceModel();
 	static const FString GetOSLanguage();
 	static const FString GetDeviceBuildNumber();
+	static const FString GetProjectVersion();
 	static FString GetDefaultLocale();
 	static FString GetGPUFamily();
 	static FString GetGLVersion();

@@ -50,6 +50,7 @@
 #include "VisualizeTexture.h"
 #include "VisualizeTexturePresent.h"
 #include "MeshDrawCommands.h"
+#include "HAL/LowLevelMemTracker.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -3082,6 +3083,8 @@ static TAutoConsoleVariable<int32> CVarDelaySceneRenderCompletion(
  */
 static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_DelaySceneRenderCompletion_TaskWait);
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);

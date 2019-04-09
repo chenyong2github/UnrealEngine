@@ -299,6 +299,7 @@ struct FSoundMixClassOverride
 };
 
 typedef TMap<USoundClass*, FSoundMixClassOverride> FSoundMixClassOverrideMap;
+typedef TWeakObjectPtr<UAudioComponent> FAudioComponentPtr;
 
 struct FActivatedReverb
 {
@@ -569,6 +570,21 @@ public:
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/**
+	 * Register an audio component to re-trigger based on re-entering proximity (MaxDistance as provided by owned sound instance).
+	 */
+	void RegisterProximityRetriggeringAudioComponent(UAudioComponent& Component);
+
+	/**
+	 * Returns set of AudioComponents currently set to re-trigger on listener proximity
+	 */
+	const TArray<FAudioComponentPtr>& GetProximityRetriggerComponents() const;
+
+	/**
+	 * Unregister an audio component to re-trigger based on re-entering proximity (MaxDistance as provided by owned sound instance).
+	 */
+	void UnregisterProximityRetriggeringAudioComponent(UAudioComponent& Component);
+
+	/**
 	 * Iterate over the active AudioComponents for wave instances that could be playing.
 	 *
 	 * @return Index of first wave instance that can have a source attached
@@ -706,6 +722,7 @@ public:
 		FVector Location;
 
 		void CommonInit();
+		void UpdateProximityRetriggerComponents(float DeltaTime);
 
 		friend class FAudioDevice;
 	};
@@ -1482,6 +1499,8 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
+	void UpdateProximityRetriggerComponents();
+
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
 	{
@@ -1801,6 +1820,8 @@ private:
 	TArray<USoundWave*> ReferencedSoundWaves;
 	TArray<USoundWave*> PrecachingSoundWaves;
 	TArray<FWaveInstance*> ActiveWaveInstances;
+
+	TArray<FAudioComponentPtr> ProximityRetriggerComponents;
 
 	/** Cached copy of sound class adjusters array. Cached to avoid allocating every frame. */
 	TArray<FSoundClassAdjuster> SoundClassAdjustersCopy;

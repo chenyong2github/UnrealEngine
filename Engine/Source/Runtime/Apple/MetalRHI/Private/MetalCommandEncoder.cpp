@@ -25,6 +25,8 @@ static TCHAR const* const GMetalCommandDataTypeName[] = {
 	TEXT("DrawPrimitivePatch"),
 	TEXT("DrawPrimitiveIndirect"),
 	TEXT("DrawPrimitiveIndexedIndirect"),
+	TEXT("Dispatch"),
+	TEXT("DispatchIndirect"),
 };
 
 
@@ -45,6 +47,12 @@ FString FMetalCommandData::ToString() const
 			case FMetalCommandData::Type::DrawPrimitivePatch:
 				Result += FString::Printf(TEXT(" BaseInstance: %u InstanceCount: %u PatchCount: %u PatchStart: %u"), DrawPatch.BaseInstance, DrawPatch.InstanceCount, DrawPatch.PatchCount, DrawPatch.PatchStart);
 				break;
+			case FMetalCommandData::Type::Dispatch:
+				Result += FString::Printf(TEXT(" X: %u Y: %u Z: %u"), (uint32)Dispatch.threadgroupsPerGrid[0], (uint32)Dispatch.threadgroupsPerGrid[1], (uint32)Dispatch.threadgroupsPerGrid[2]);
+				break;
+			case FMetalCommandData::Type::DispatchIndirect:
+				Result += FString::Printf(TEXT(" Buffer: %p Offset: %u"), (void*)DispatchIndirect.ArgumentBuffer, (uint32)DispatchIndirect.ArgumentOffset);
+				break;
 			case FMetalCommandData::Type::DrawPrimitiveIndirect:
 			case FMetalCommandData::Type::DrawPrimitiveIndexedIndirect:
 			case FMetalCommandData::Type::Num:
@@ -59,6 +67,7 @@ struct FMetalCommandContextDebug
 {
 	TArray<FMetalCommandDebug> Commands;
 	TSet<TRefCountPtr<FMetalGraphicsPipelineState>> PSOs;
+	TSet<TRefCountPtr<FMetalComputeShader>> ComputeShaders;
 	FMetalBuffer DebugBuffer;
 };
 
@@ -66,10 +75,20 @@ struct FMetalCommandContextDebug
 {
 	@public
 	TArray<FMetalCommandContextDebug> Contexts;
+	uint32 Index;
 }
 @end
 @implementation FMetalCommandBufferDebug
 APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalCommandBufferDebug)
+- (instancetype)init
+{
+	id Self = [super init];
+	if (Self)
+	{
+		Index = ~0u;
+	}
+	return Self;
+}
 - (void)dealloc
 {
 	Contexts.Empty();
@@ -107,23 +126,34 @@ void FMetalCommandBufferMarkers::AllocateContexts(uint32 NumContexts)
 	}
 }
 
-uint32 FMetalCommandBufferMarkers::AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalCommandData& Data)
+uint32 FMetalCommandBufferMarkers::AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalComputeShader* ComputeShader, FMetalCommandData& Data)
 {
 	uint32 Num = 0;
 	if (m_ptr)
 	{
+		if (m_ptr->Index == ~0u)
+		{
+			m_ptr->Index = CmdBufIndex;
+		}
+		
 		FMetalCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
 		if (Context.DebugBuffer != DebugBuffer)
 		{
 			Context.DebugBuffer = DebugBuffer;
 		}
-		Context.PSOs.Add(PSO);
+		
+		if (PSO)
+			Context.PSOs.Add(PSO);
+		if (ComputeShader)
+			Context.ComputeShaders.Add(ComputeShader);
+		
 		Num = Context.Commands.Num();
 		FMetalCommandDebug Command;
         Command.CmdBufIndex = CmdBufIndex;
 		Command.Encoder = Encoder;
 		Command.Index = Num;
 		Command.PSO = PSO;
+		Command.ComputeShader = ComputeShader;
 		Command.Data = Data;
 		Context.Commands.Add(Command);
 	}
@@ -158,6 +188,16 @@ uint32 FMetalCommandBufferMarkers::NumContexts() const
 	if (m_ptr)
 	{
 		Num = m_ptr->Contexts.Num();
+	}
+	return Num;
+}
+
+uint32 FMetalCommandBufferMarkers::GetIndex() const
+{
+	uint32 Num = 0;
+	if (m_ptr)
+	{
+		Num = m_ptr->Index;
 	}
 	return Num;
 }
@@ -529,7 +569,7 @@ void FMetalCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 				{
 					[((NSObject<MTLCommandBuffer>*)CommandBuffer.GetPtr()).debugGroups addObject:Group];
 				}
@@ -580,7 +620,7 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 				{
 					if (!IsParallel())
 					{
@@ -636,7 +676,7 @@ void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Type)
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 				{
 					[((NSObject<MTLCommandBuffer>*)CommandBuffer.GetPtr()).debugGroups addObject:Group];
 				}
@@ -674,7 +714,7 @@ void FMetalCommandEncoder::BeginBlitCommandEncoding(void)
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+				if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 				{
 					[((NSObject<MTLCommandBuffer>*)CommandBuffer.GetPtr()).debugGroups addObject:Group];
 				}
@@ -1198,7 +1238,7 @@ void FMetalCommandEncoder::InsertDebugSignpost(ns::String const& String)
 {
 	if (String)
 	{
-		if (CommandBuffer && CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+		if (CommandBuffer && CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 		{
 			if (!IsParallel())
 			{
@@ -1236,7 +1276,7 @@ void FMetalCommandEncoder::PushDebugGroup(ns::String const& String)
 {
 	if (String)
 	{
-		if (CommandBuffer && CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() == EMetalDebugLevelLogDebugGroups)
+		if (CommandBuffer && CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelLogDebugGroups)
 		{
 			if (!IsParallel())
 			{
@@ -1490,6 +1530,7 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 		if(Buffer)
 		{
 			ShaderBuffers[uint32(FunctionType)].Bound |= (1 << index);
+			FMetalCommandBufferDebugHelpers::TrackResource(CommandBuffer.GetPtr(), Buffer.GetPtr());
 		}
 		else
 		{
@@ -1515,13 +1556,6 @@ void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType,
 {
 	check(Index < ML_MaxBuffers);
 	
-#if METAL_DEBUG_OPTIONS
-	if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() > EMetalDebugLevelResetOnBind)
-	{
-		SetShaderBuffer(FunctionType, nil, 0, 0, Index, mtlpp::ResourceUsage(0));
-	}
-#endif
-	
 	if(Data)
 	{
 		ShaderBuffers[uint32(FunctionType)].Bound |= (1 << Index);
@@ -1544,13 +1578,6 @@ void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType,
 void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, uint8 const* Bytes, NSUInteger const Length, NSUInteger const Index)
 {
 	check(Index < ML_MaxBuffers);
-	
-#if METAL_DEBUG_OPTIONS
-	if (CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() > EMetalDebugLevelResetOnBind)
-	{
-		SetShaderBuffer(FunctionType, nil, 0, 0, Index, mtlpp::ResourceUsage(0));
-	}
-#endif
 	
 	if(Bytes && Length)
 	{
@@ -1587,6 +1614,7 @@ void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType
 			FMetalBuffer Buffer = RingBuffer.NewBuffer(Length, BufferOffsetAlignment);
 			FMemory::Memcpy(((uint8*)Buffer.GetContents()), Bytes, Length);
 			ShaderBuffers[uint32(FunctionType)].Buffers[Index] = Buffer;
+			FMetalCommandBufferDebugHelpers::TrackResource(CommandBuffer.GetPtr(), Buffer.GetPtr());
 		}
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
@@ -1672,6 +1700,7 @@ void FMetalCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FM
 	
 	if (Texture)
 	{
+		FMetalCommandBufferDebugHelpers::TrackResource(CommandBuffer.GetPtr(), Texture.GetPtr());
 		uint8 Swizzle[4] = {0,0,0,0};
 		assert(sizeof(Swizzle) == sizeof(uint32));
 		if (Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
@@ -1711,6 +1740,11 @@ void FMetalCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionTyp
 		default:
 			check(false);
 			break;
+	}
+	
+	if (Sampler)
+	{
+		FMetalCommandBufferDebugHelpers::TrackResource(CommandBuffer.GetPtr(), Sampler.GetPtr());
 	}
 }
 

@@ -1259,6 +1259,13 @@ protected:
 						ralloc_asprintf_append(buffer, "/*ir_var_out, is_patch_constant*/");
 					}
 				}
+				else if (var->mode == ir_var_auto && var->type->is_array())
+				{
+					ralloc_asprintf_append(buffer, "ue4::safe_array<");
+					print_type_pre(var->type->element_type());
+					ralloc_asprintf_append(buffer, ", %u>", var->type->length);
+					ralloc_asprintf_append(buffer, " %s", unique_name(var));
+				}
 				else
 				{
 					if (var->mode == ir_var_shared)

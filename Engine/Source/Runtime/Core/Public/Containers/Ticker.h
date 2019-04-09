@@ -11,7 +11,7 @@
 /**
  * Ticker delegates return true to automatically reschedule at the same delay or false for one-shot.
  * You will not get more than one fire per "frame", which is just a FTicker::Tick call.
- * DeltaTime argument iz the time since the last game frame, *not* since the last tick the
+ * DeltaTime argument is the time since the last game frame, *not* since the last tick the
  * delegate received.
  */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FTickerDelegate, float);

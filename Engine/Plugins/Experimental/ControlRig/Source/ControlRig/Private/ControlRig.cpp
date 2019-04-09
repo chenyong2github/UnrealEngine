@@ -20,11 +20,20 @@ DECLARE_STATS_GROUP(TEXT("ControlRig"), STATGROUP_ControlRig, STATCAT_Advanced);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Control Rig Execution"), STAT_RigExecution, STATGROUP_ControlRig, );
 DEFINE_STAT(STAT_RigExecution);
 
+const FName UControlRig::DeprecatedMetaName("Deprecated");
 const FName UControlRig::InputMetaName("Input");
 const FName UControlRig::OutputMetaName("Output");
 const FName UControlRig::AbstractMetaName("Abstract");
+const FName UControlRig::CategoryMetaName("Category");
 const FName UControlRig::DisplayNameMetaName("DisplayName");
+const FName UControlRig::MenuDescSuffixMetaName("MenuDescSuffix");
 const FName UControlRig::ShowVariableNameInTitleMetaName("ShowVariableNameInTitle");
+const FName UControlRig::BoneNameMetaName("BoneName");
+const FName UControlRig::ConstantMetaName("Constant");
+const FName UControlRig::TitleColorMetaName("TitleColor");
+const FName UControlRig::NodeColorMetaName("NodeColor");
+const FName UControlRig::KeywordsMetaName("Keywords");
+const FName UControlRig::PrototypeNameMetaName("PrototypeName");
 
 UControlRig::UControlRig()
 	: DeltaTime(0.0f)
@@ -32,7 +41,43 @@ UControlRig::UControlRig()
 	, bExecutionOn (true)
 #endif // WITH_EDITORONLY_DATA
 	, ExecutionType(ERigExecutionType::Runtime)
+#if WITH_EDITOR
+	, ControlRigLog(nullptr)
+	, bEnableControlRigLogging(true)
+#endif
 {
+#if DEBUG_CONTROLRIG_PROPERTYCHANGE
+	// this can be debug only
+	UControlRigBlueprintGeneratedClass* CurrentClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
+	if (CurrentClass)
+	{
+		DebugClassSize = CurrentClass->GetStructureSize();
+	}
+#endif // #if DEBUG_CONTROLRIG_PROPERTYCHANGE
+}
+
+void UControlRig::ValidateClassData()
+{
+#if DEBUG_CONTROLRIG_PROPERTYCHANGE
+	UControlRigBlueprintGeneratedClass* CurrentClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
+	if (CurrentClass)
+	{
+		ensureAlwaysMsgf(DebugClassSize == CurrentClass->GetStructureSize(),
+			TEXT("Class [%s] size has changed : used be [size %d], and current class is [size %d]"), *GetNameSafe(CurrentClass), DebugClassSize, CurrentClass->GetStructureSize());
+
+		// @todo: if you hit this, possibly we could break down to each destructor link, and property link size to verify. 
+		// we could save "property name" and "size" and verify here. 
+		// check comment on the DebugClassSize
+	}
+#endif // #if DEBUG_CONTROLRIG_PROPERTYCHANGE
+}
+
+void UControlRig::BeginDestroy()
+{
+	ValidateClassData(); 
+	Super::BeginDestroy();
+	InitializedEvent.Clear();
+	ExecutedEvent.Clear();
 }
 
 UWorld* UControlRig::GetWorld() const
@@ -45,9 +90,15 @@ UWorld* UControlRig::GetWorld() const
 	return nullptr;
 }
 
-void UControlRig::Initialize()
+void UControlRig::Initialize(bool bInitRigUnits)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Initialize);
+
+	if (IsTemplate())
+	{
+		// don't initialize template class 
+		return;
+	}
 
 	// initialize hierarchy refs
 	// @todo re-think
@@ -97,8 +148,11 @@ void UControlRig::Initialize()
 	// should refresh mapping 
 	Hierarchy.BaseHierarchy.Initialize();
 
-	// execute rig units with init state
-	Execute(EControlRigState::Init);
+	if (bInitRigUnits)
+	{
+		// execute rig units with init state
+		Execute(EControlRigState::Init);
+	}
 
 	// cache requested inputs
 	// go through find requested inputs
@@ -108,7 +162,7 @@ void UControlRig::PreEvaluate_GameThread()
 {
 	// this won't work with procedural rigging
 	// so I wonder this should be just bool option for control rig?
-	Hierarchy.Reset();
+	Hierarchy.ResetTransforms();
 
 	// input delegates
 	OnPreEvaluateGatherInput.ExecuteIfBound(this);
@@ -177,6 +231,16 @@ void UControlRig::Execute(const EControlRigState InState)
 	FRigUnitContext Context;
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
+	Context.HierarchyReference.Container = &Hierarchy;
+	Context.HierarchyReference.bUseBaseHierarchy = true;
+
+#if WITH_EDITOR
+	Context.Log = ControlRigLog;
+	if (ControlRigLog != nullptr)
+	{
+		ControlRigLog->Entries.Reset();
+	}
+#endif
 
 #if WITH_EDITORONLY_DATA
 	if (!bExecutionOn)
@@ -186,11 +250,64 @@ void UControlRig::Execute(const EControlRigState InState)
 #endif // WITH_EDITORONLY_DATA
 	
 	ControlRigVM::Execute(this, Context, Executors, ExecutionType);
+
+#if WITH_EDITOR
+	if (ControlRigLog != nullptr && bEnableControlRigLogging)
+	{
+		for (const FControlRigLog::FLogEntry& Entry : ControlRigLog->Entries)
+		{
+			if (Entry.Unit == NAME_None || Entry.Message.IsEmpty())
+			{
+				continue;
+			}
+
+			switch (Entry.Severity)
+			{
+				case EMessageSeverity::CriticalError:
+				case EMessageSeverity::Error:
+				{
+					UE_LOG(LogControlRig, Error, TEXT("Unit '%s': '%s'"), *Entry.Unit.ToString(), *Entry.Message);
+					break;
+				}
+				case EMessageSeverity::PerformanceWarning:
+				case EMessageSeverity::Warning:
+				{
+					UE_LOG(LogControlRig, Warning, TEXT("Unit '%s': '%s'"), *Entry.Unit.ToString(), *Entry.Message);
+					break;
+				}
+				case EMessageSeverity::Info:
+				{
+					UE_LOG(LogControlRig, Display, TEXT("Unit '%s': '%s'"), *Entry.Unit.ToString(), *Entry.Message);
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+		}
+	}
+#endif
+
+	if (InState == EControlRigState::Init)
+	{
+		if (InitializedEvent.IsBound())
+		{
+			InitializedEvent.Broadcast(this, EControlRigState::Init);
+		}
+	}
+	else if (InState == EControlRigState::Update)
+	{
+		if (ExecutedEvent.IsBound())
+		{
+			ExecutedEvent.Broadcast(this, EControlRigState::Update);
+		}
+	}
 }
 
-FTransform UControlRig::GetGlobalTransform(FName JointName) const
+FTransform UControlRig::GetGlobalTransform(FName BoneName) const
 {
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(JointName);
+	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
 		return Hierarchy.BaseHierarchy.GetGlobalTransform(Index);
@@ -200,9 +317,9 @@ FTransform UControlRig::GetGlobalTransform(FName JointName) const
 
 }
 
-void UControlRig::SetGlobalTransform(const FName JointName, const FTransform& InTransform) 
+void UControlRig::SetGlobalTransform(const FName BoneName, const FTransform& InTransform) 
 {
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(JointName);
+	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
 		return Hierarchy.BaseHierarchy.SetGlobalTransform(Index, InTransform);
@@ -217,10 +334,10 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	// now add all nodes
 	const FRigHierarchy& BaseHierarchy = Hierarchy.BaseHierarchy;
 
-	for (int32 Index = 0; Index < BaseHierarchy.Joints.Num(); ++Index)
+	for (int32 Index = 0; Index < BaseHierarchy.Bones.Num(); ++Index)
 	{
-		OutNames.Add(BaseHierarchy.Joints[Index].Name);
-		OutNodeItems.Add(FNodeItem(BaseHierarchy.Joints[Index].ParentName, BaseHierarchy.Joints[Index].InitialTransform));
+		OutNames.Add(BaseHierarchy.Bones[Index].Name);
+		OutNodeItems.Add(FNodeItem(BaseHierarchy.Bones[Index].ParentName, BaseHierarchy.Bones[Index].InitialTransform));
 	}
 
 	// we also supply input/output properties

@@ -223,6 +223,16 @@ public:
 	{
 		return true;
 	}
+
+private:
+	// Cached instance names for efficient lookup in ParseOnlineSubsystemName
+	struct FInstanceNameEntry
+	{
+		FName SubsystemName;
+		FName InstanceName;
+		FName FullPath;
+	};
+	mutable TMap<FName, FInstanceNameEntry> InstanceNames;
 };
 
 /** Public references to the online subsystem module pointer should use this */

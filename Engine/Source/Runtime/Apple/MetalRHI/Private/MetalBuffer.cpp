@@ -707,11 +707,8 @@ FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger Chu
 		
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, FullSize);
 		INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, FullSize);
-		while(FullSize)
-		{
-			FullSize -= ChunkSize;
-			FreeRanges.Push(new ns::Range(FullSize, ChunkSize));
-		}
+        uint32 BlockCount = FullSize / ChunkSize;
+        Blocks.AddZeroed(BlockCount);
 	}
 }
 
@@ -749,7 +746,8 @@ void FMetalSubBufferMagazine::FreeRange(ns::Range const& Range)
 		}
 #endif
 	
-		FreeRanges.Push(new ns::Range(Range.Location, Range.Length));
+		uint32 BlockIndex = Range.Location / Range.Length;
+		FPlatformAtomics::AtomicStore(&Blocks[BlockIndex], 0);
 		FPlatformAtomics::InterlockedAdd(&UsedSize, -((int64)Range.Length));
 		
 		INC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
@@ -887,15 +885,18 @@ FMetalBuffer FMetalSubBufferMagazine::NewBuffer()
 	{
 		check(ParentBuffer && ParentBuffer.GetPtr());
 		
-		ns::Range* Range = FreeRanges.Pop();
-		if (Range)
+		for (uint32 i = 0; i < Blocks.Num(); i++)
 		{
-			FPlatformAtomics::InterlockedAdd(&UsedSize, ((int64)Range->Length));
-			DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range->Length);
-			DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Range->Length);
-			INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range->Length);
-			Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(*Range)), this);
-			delete Range;
+			if (FPlatformAtomics::InterlockedCompareExchange(&Blocks[i], 1, 0) == 0)
+			{
+				ns::Range Range(i * BlockSize, BlockSize);
+				FPlatformAtomics::InterlockedAdd(&UsedSize, ((int64)Range.Length));
+				DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Range.Length);
+				DEC_MEMORY_STAT_BY(STAT_MetalMagazineBufferUnusedMemory, Range.Length);
+				INC_MEMORY_STAT_BY(STAT_MetalMagazineBufferMemory, Range.Length);
+				Result = FMetalBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(Range)), this);
+				break;
+			}
 		}
 	}
 

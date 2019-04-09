@@ -134,11 +134,13 @@ namespace UnrealBuildTool
 		/// <param name="InitFilePath">The path to the project file on disk</param>
 		/// <param name="InOnlyGameProject"></param>
 		/// <param name="IsForDistribution">True for distribution builds</param>
-		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution)
+		/// <param name="BundleID">Override option for bundle identifier</param>
+		public XcodeProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject, bool IsForDistribution, string BundleID)
 			: base(InitFilePath)
 		{
 			OnlyGameProject = InOnlyGameProject;
 			bForDistribution = IsForDistribution;
+			BundleIdentifier = BundleID;
 		}
 
 		public override string ToString()
@@ -150,6 +152,11 @@ namespace UnrealBuildTool
 		///  Used to mark the project for distribution (some platforms require this)
 		/// </summary>
 		bool bForDistribution = false;
+
+		/// <summary>
+		/// Override for bundle identifier
+		/// </summary>
+		string BundleIdentifier = "";
 
 		/// <summary>
 		/// Gets Xcode file category based on its extension
@@ -1141,12 +1148,14 @@ namespace UnrealBuildTool
 				string TVOSInfoPlistPath = null;
 				string MacInfoPlistPath = null;
 				string IOSEntitlementPath = null;
+				string TVOSEntitlementPath = null;
 				if (bIsUE4Game)
 				{
 					IOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/IOS/" + Config.BuildTarget + "-Info.plist";
 					TVOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/TVOS/" + Config.BuildTarget + "-Info.plist";
 					MacInfoPlistPath = UE4Dir + "/Engine/Intermediate/Mac/" + MacExecutableFileName + "-Info.plist";
 					IOSEntitlementPath = "";
+					TVOSEntitlementPath = "";
 				}
 				else if (bIsUE4Client)
 				{
@@ -1154,6 +1163,7 @@ namespace UnrealBuildTool
 					TVOSInfoPlistPath = UE4Dir + "/Engine/Intermediate/TVOS/UE4Game-Info.plist";
 					MacInfoPlistPath = UE4Dir + "/Engine/Intermediate/Mac/" + MacExecutableFileName + "-Info.plist";
 					IOSEntitlementPath = "";
+					TVOSEntitlementPath = "";
 					}
 				else if (ProjectFile != null)
 				{
@@ -1161,6 +1171,7 @@ namespace UnrealBuildTool
 					TVOSInfoPlistPath = GamePath + "/Intermediate/TVOS/" + Config.BuildTarget + "-Info.plist";
 					MacInfoPlistPath = GamePath + "/Intermediate/Mac/" + MacExecutableFileName + "-Info.plist";
 					IOSEntitlementPath = GamePath + "/Intermediate/IOS/" + Config.BuildTarget + ".entitlements";
+					TVOSEntitlementPath = GamePath + "/Intermediate/TVOS/" + Config.BuildTarget + ".entitlements";
 				}
 				else
 				{
@@ -1186,6 +1197,7 @@ namespace UnrealBuildTool
 				else if (XcodeProjectFileGenerator.bGeneratingRunTVOSProject)
 				{
 					Content.Append("\t\t\t\tINFOPLIST_FILE = \"" + TVOSInfoPlistPath + "\";" + ProjectFileGenerator.NewLine);
+					Content.Append("\t\t\t\tCODE_SIGN_ENTITLEMENTS = \"" + TVOSEntitlementPath + "\";" + ProjectFileGenerator.NewLine);
 				}
 				else
 				{
@@ -1198,6 +1210,7 @@ namespace UnrealBuildTool
 					if (TVOSRunTimeVersion != null)
 					{
 						Content.Append("\t\t\t\t\"INFOPLIST_FILE[sdk=appletvos*]\" = \"" + TVOSInfoPlistPath + "\";" + ProjectFileGenerator.NewLine);
+						Content.Append("\t\t\t\t\"CODE_SIGN_ENTITLEMENTS[sdk=appletvos*]\" = \"" + TVOSEntitlementPath + "\";" + ProjectFileGenerator.NewLine);
 					}
 				}
 
@@ -1245,12 +1258,12 @@ namespace UnrealBuildTool
 							TargetReceipt Receipt;
 							TargetReceipt.TryRead(ReceiptFilename, out Receipt);
 							VersionNumber SdkVersion = UEDeployIOS.GetSdkVersion(Receipt);
-							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUE4Game, GameName, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
+							UEDeployIOS.GenerateIOSPList(ProjectFile, Config.BuildConfig, ProjectPath.FullName, bIsUE4Game, GameName, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/IOS/Payload", SdkVersion, null, BundleIdentifier, out bSupportPortrait, out bSupportLandscape, out bSkipIcons);
 						}
 						if (bCreateTVOSInfoPlist)
 						{
 							Directory.CreateDirectory(Path.GetDirectoryName(TVOSInfoPlistPath));
-							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUE4Game, GameName, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null);
+							UEDeployTVOS.GenerateTVOSPList(ProjectPath.FullName, bIsUE4Game, GameName, Config.BuildTarget, EngineDir.FullName, ProjectPath + "/Binaries/TVOS/Payload", null, BundleIdentifier);
 						}
 					}
 				}

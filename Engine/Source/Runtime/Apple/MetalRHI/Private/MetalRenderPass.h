@@ -178,6 +178,7 @@ private:
 	uint32 GetCommandBufferIndex(void) const;
 	
 	void InsertDebugDraw(FMetalCommandData& Data);
+	void InsertDebugDispatch(FMetalCommandData& Data);
 private:
 #pragma mark -
 	FMetalCommandList& CmdList;

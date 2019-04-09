@@ -24,7 +24,7 @@ namespace UnrealBuildTool
 			return "TVOS";
 		}
 
-		public static bool GenerateTVOSPList(string ProjectDirectory, bool bIsUE4Game, string GameName, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage UPL)
+		public static bool GenerateTVOSPList(string ProjectDirectory, bool bIsUE4Game, string GameName, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage UPL, string BundleID)
 		{
 			// @todo tvos: THIS!
 
@@ -61,6 +61,10 @@ namespace UnrealBuildTool
 			// bundle identifier
 			string BundleIdentifier;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleIdentifier);
+			if (!string.IsNullOrEmpty(BundleID))
+			{
+				BundleIdentifier = BundleID;
+			}
 
 			// bundle name
 			string BundleName;
@@ -153,7 +157,7 @@ namespace UnrealBuildTool
             Text.AppendLine("\t\t\t<key>UILaunchImageSize</key>");
             Text.AppendLine("\t\t\t<string>{1920, 1080}</string>");
             Text.AppendLine("\t\t\t<key>UILaunchImageName</key>");
-            Text.AppendLine("\t\t\t<string>LaunchImage</string>");
+            Text.AppendLine("\t\t\t<string>Launch Image</string>");
             Text.AppendLine("\t\t\t<key>UILaunchImageMinimumOSVersion</key>");
             Text.AppendLine("\t\t\t<string>9.0</string>");
             Text.AppendLine("\t\t\t<key>UILaunchImageOrientation</key>");
@@ -163,7 +167,7 @@ namespace UnrealBuildTool
             Text.AppendLine("\t<key>CFBundleIcons</key>");
             Text.AppendLine("\t<dict>");
             Text.AppendLine("\t\t<key>CFBundlePrimaryIcon</key>");
-            Text.AppendLine("\t\t<string>App Icon - Small</string>");
+            Text.AppendLine("\t\t<string>App Icon</string>");
             Text.AppendLine("\t</dict>");
 
             /*			Text.AppendLine("\t<key>CFBundleIcons</key>");
@@ -269,7 +273,7 @@ namespace UnrealBuildTool
                         Text.AppendLine("\t\t\t<key>UILaunchImageSize</key>");
                         Text.AppendLine("\t\t\t<string>{768, 1024}</string>");
                         Text.AppendLine("\t\t</dict>");
-                        Text.AppendLine("\t</array>”);
+                        Text.AppendLine("\t</array>");
                         Text.AppendLine("\t<key>CFBundleSupportedPlatforms</key>");
                         Text.AppendLine("\t<array>");
                         Text.AppendLine("\t\t<string>iPhoneOS</string>");
@@ -287,6 +291,20 @@ namespace UnrealBuildTool
                                 }
                             }
                         }*/
+			// write the iCloud container identifier, if present in the old file
+			if (!string.IsNullOrEmpty(OldPListData))
+			{
+				int index = OldPListData.IndexOf("ICloudContainerIdentifier");
+				if (index > 0)
+				{
+					index = OldPListData.IndexOf("<string>", index) + 8;
+					int length = OldPListData.IndexOf("</string>", index) - index;
+					string ICloudContainerIdentifier = OldPListData.Substring(index, length);
+					Text.AppendLine("\t<key>ICloudContainerIdentifier</key>");
+					Text.AppendLine(string.Format("\t<string>{0}</string>", ICloudContainerIdentifier));
+				}
+			}
+
             Text.AppendLine("</dict>");
 			Text.AppendLine("</plist>");
 
@@ -331,11 +349,11 @@ namespace UnrealBuildTool
 			return bSkipDefaultPNGs;
 		}
 
-		public override bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUE4Game, string GameName, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, VersionNumber SdkVersion, out bool bSupportsPortrait, out bool bSupportsLandscape, out bool bSkipIcons)
+		public override bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUE4Game, string GameName, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, VersionNumber SdkVersion, string BundleID, out bool bSupportsPortrait, out bool bSupportsLandscape, out bool bSkipIcons)
 		{
 			bSupportsLandscape = bSupportsPortrait = true;
             bSkipIcons = true;
-			return GenerateTVOSPList(ProjectDirectory, bIsUE4Game, GameName, ProjectName, InEngineDir, AppDirectory, null);
+			return GenerateTVOSPList(ProjectDirectory, bIsUE4Game, GameName, ProjectName, InEngineDir, AppDirectory, null, BundleID);
 		}
 
         protected override void CopyGraphicsResources(bool bSkipDefaultPNGs, bool bSkipIcons, string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, bool bSupportsPortrait, bool bSupportsLandscape)

@@ -1856,6 +1856,12 @@ void UDemoNetDriver::SaveCheckpoint()
 	CheckpointSaveContext.TotalCheckpointSaveFrames = 0;
 	LastCheckpointTime = DemoCurrentTime;
 
+	if (bDeltaCheckpoint)
+	{
+		CheckpointSaveContext.DeltaDeletedActorGuids = MoveTemp(DeltaDeletedActorGuids);
+		CheckpointSaveContext.DeltaDeletedNetStartupActors = MoveTemp(DeltaDeletedNetStartupActors);
+	}
+
 	UE_LOG( LogDemo, Log, TEXT( "Starting checkpoint. Actors: %i" ), GetNetworkObjectList().GetActiveObjects().Num() );
 
 	// Do the first checkpoint tick now if we're not amortizing
@@ -2023,11 +2029,11 @@ void UDemoNetDriver::TickCheckpoint()
 						// Save deleted startup actors
 						if (bDeltaCheckpoint)
 						{
-							*CheckpointArchive << DeltaDeletedNetStartupActors;
-							DeltaDeletedNetStartupActors.Empty();
+							*CheckpointArchive << CheckpointSaveContext.DeltaDeletedNetStartupActors;
+							CheckpointSaveContext.DeltaDeletedNetStartupActors.Empty();
 
-							*CheckpointArchive << DeltaDeletedActorGuids;
-							DeltaDeletedActorGuids.Empty();
+							*CheckpointArchive << CheckpointSaveContext.DeltaDeletedActorGuids;
+							CheckpointSaveContext.DeltaDeletedActorGuids.Empty();
 						}
 						else
 						{
@@ -4093,8 +4099,8 @@ int32 UDemoNetDriver::CleanUpSplitscreenConnections(bool bDeleteOwner)
 
 	for (APlayerController* CurController : SpectatorControllers)
 	{
-		UNetConnection* ControllerNetConnection = CurController->NetConnection;
-		if (ControllerNetConnection && ControllerNetConnection->IsA(UChildConnection::StaticClass()))
+		UNetConnection* ControllerNetConnection = (CurController != nullptr) ? CurController->NetConnection : nullptr;
+		if (ControllerNetConnection != nullptr && ControllerNetConnection->IsA(UChildConnection::StaticClass()))
 		{
 			++NumSplitscreenConnectionsCleaned;
 			// With this toggled, this prevents actor deletion (which we don't want to do when scrubbing)
@@ -4181,8 +4187,8 @@ void UDemoNetDriver::ReplayStreamingReady( const FStartStreamingResult& Result )
 			}
 		}
 
-		UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s"),
-			*PlaybackDemoHeader.Guid.ToString(EGuidFormats::Digits), *DemoURL.Map, *PlaybackDemoHeader.EngineVersion.ToString());
+		UE_LOG(LogDemo, Log, TEXT("ReplayStreamingReady: playing back replay [%s] %s, which was recorded on engine version %s with flags 0x%08x"),
+			*PlaybackDemoHeader.Guid.ToString(EGuidFormats::Digits), *DemoURL.Map, *PlaybackDemoHeader.EngineVersion.ToString(), PlaybackDemoHeader.HeaderFlags);
 
 		// Notify all listeners that a demo is starting
 		OnDemoStarted.Broadcast(this);

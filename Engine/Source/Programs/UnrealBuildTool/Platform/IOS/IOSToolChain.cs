@@ -413,7 +413,7 @@ namespace UnrealBuildTool
 				Result += " -fobjc-exceptions";
 			}
 			else
-		{
+			{
 				Result += " -fno-objc-exceptions";
 			}
 
@@ -738,9 +738,9 @@ namespace UnrealBuildTool
 				CompileAction.bShouldOutputStatusDescription = true;
 
 				foreach(UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-		{
-					if(Framework.ZipFile != null)
 			{
+					if(Framework.ZipFile != null)
+				{
 						FileItem ExtractedTokenFile = ExtractFramework(Framework, Actions);
 						CompileAction.PrerequisiteItems.Add(ExtractedTokenFile);
 				}
@@ -930,10 +930,10 @@ namespace UnrealBuildTool
 			Arguments.Append(" --notices");
 			Arguments.Append(" --warnings");
             Arguments.AppendFormat(" --output-partial-info-plist '{0}/assetcatalog_generated_info.plist'", InputDir);
-            Arguments.Append(" --app-icon AppIcon");
 			if(Platform == CppPlatform.TVOS)
 			{
-				Arguments.Append(" --launch-image LaunchImage");
+				Arguments.Append(" --app-icon 'App Icon & Top Shelf Image'");
+				Arguments.Append(" --launch-image 'Launch Image'");
 				Arguments.Append(" --filter-for-device-model AppleTV5,3");
 				//Arguments.Append(" --filter-for-device-os-version 10.0");
 				Arguments.Append(" --target-device tv");
@@ -942,6 +942,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				Arguments.Append(" --app-icon AppIcon");
 				Arguments.Append(" --product-type com.apple.product-type.application");
 				Arguments.Append(" --target-device iphone");
 				Arguments.Append(" --target-device ipad");
@@ -1259,10 +1260,14 @@ namespace UnrealBuildTool
 				};
 				Dir = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets");
 
-				string BuildResourcesGraphicsDir = Path.Combine(BuildDir, "Resources", "Graphics");
+				string BuildResourcesGraphicsDir = Path.Combine(BuildDir, "Resources", "Assets.xcassets");
 				for (int Index = 0; Index < Images.Length; ++Index)
 				{
-					string Image = Path.Combine((Directory.Exists(Path.Combine(BuildDir, "Resources", "Graphics")) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "TVOS"))), "Resources", "Graphics", Images[Index][0]);
+					string SourceDir = Path.Combine((Directory.Exists(BuildResourcesGraphicsDir) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "TVOS"))),
+						"Resources",
+						"Assets.xcassets");
+					string Image = Path.Combine(SourceDir, Images[Index][1], Images[Index][0]);
+
 					if (File.Exists(Image))
 					{
 						bUserImagesExist |= Image.StartsWith(BuildResourcesGraphicsDir);
@@ -1350,10 +1355,10 @@ namespace UnrealBuildTool
         {
             List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Executable, BinaryLinkEnvironment, Actions));
 
-			if (BinaryLinkEnvironment.bIsBuildingLibrary)
-			{
-				return OutputFiles;
-			}
+            if (BinaryLinkEnvironment.bIsBuildingLibrary)
+            {
+                return OutputFiles;
+            }
 
             // For IOS/tvOS, generate the dSYM file if the config file is set to do so
 			if (ProjectSettings.bGeneratedSYMFile == true || ProjectSettings.bGeneratedSYMBundle == true || BinaryLinkEnvironment.bUsePDBFiles == true)
@@ -1522,7 +1527,7 @@ namespace UnrealBuildTool
 		private static void GenerateCrashlyticsData(string ExecutableDirectory, string ExecutableName, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
-            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/ThirdPartyFrameworks/Fabric.embeddedframework";
+            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
             if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
@@ -1564,7 +1569,7 @@ namespace UnrealBuildTool
 			{
 				ProjectFileGenerator.bGenerateProjectFiles = false;
 			}
-		}
+			}
 
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
 		{
@@ -1593,18 +1598,30 @@ namespace UnrealBuildTool
 			string iCloudContainerIdentifiersXML = "";
 			string iCloudContainerIdentifier = "";
 			string UbiquityContainerIdentifiersXML = "";
+			string iCloudServicesXML = "";
+			
 			if (MobileProvisionFile!= null && File.Exists(MobileProvisionFile.FullName))
 			{
 				MobileProvisionContents MobileProvisionContent = MobileProvisionContents.Read(MobileProvisionFile);
 
 				iCloudContainerIdentifier = MobileProvisionContent.GetNodeValueByName("com.apple.developer.icloud-container-identifiers");
 				iCloudContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.icloud-container-identifiers");
+				iCloudServicesXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.icloud-services");
 				UbiquityContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.ubiquity-container-identifiers");
 			}
+			else
+			{
+				Log.TraceWarning("Couldn't locate the MobileProvisioningFile {0}", MobileProvisionFile);
+
+				iCloudContainerIdentifiersXML = "<array><string>iCloud.$(CFBundleIdentifier)</string></array>";
+				iCloudServicesXML = "<array><string>iCloud.$(CFBundleIdentifier)</string></array>";
+				UbiquityContainerIdentifiersXML = "<array><string>CloudKit</string><string>CloudDocuments</string></array>";
+			}
+
 			// create the entitlements file
 			string IntermediateDir = (((Target.ProjectFile != null) ? Target.ProjectFile.Directory.ToString() :
 				UnrealBuildTool.EngineDirectory.ToString())) + "/Intermediate/" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS");
-			WriteEntitlementsFile(Path.Combine(IntermediateDir, AppName + ".entitlements"), Target.ProjectFile, Target.bForDistribution, iCloudContainerIdentifiersXML, UbiquityContainerIdentifiersXML);
+			WriteEntitlementsFile(Target, Path.Combine(IntermediateDir, AppName + ".entitlements"), iCloudContainerIdentifiersXML, iCloudServicesXML, UbiquityContainerIdentifiersXML);
 
 			// create a pList key named ICloudContainerIdentifier
 			// to be used at run-time when intializing the CloudKit services
@@ -1641,10 +1658,10 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void WriteEntitlementsFile(string OutputFilename, FileReference ProjectFile, bool bForDistribution, string iCloudContainerIdentifiersXML, string UbiquityContainerIdentifiersXML)
+		private static void WriteEntitlementsFile(IOSPostBuildSyncTarget Target, string OutputFilename, string iCloudContainerIdentifiersXML, string iCloudServicesXML, string UbiquityContainerIdentifiersXML)
 		{
 			// get the settings from the ini file
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
 			bool bCloudKitSupported = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableCloudKitSupport", out bCloudKitSupported);
 			Directory.CreateDirectory(Path.GetDirectoryName(OutputFilename));
@@ -1656,46 +1673,45 @@ namespace UnrealBuildTool
 			Text.AppendLine("<plist version=\"1.0\">");
 			Text.AppendLine("<dict>");
 			Text.AppendLine("\t<key>get-task-allow</key>");
-			Text.AppendLine(string.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
+			Text.AppendLine(string.Format("\t<{0}/>", Target.bForDistribution ? "false" : "true"));
 			if (bCloudKitSupported)
 			{
-				Text.AppendLine("\t<key>com.apple.developer.icloud-container-identifiers</key>");
-				if (iCloudContainerIdentifiersXML == "")
+				if (iCloudContainerIdentifiersXML != "")
 				{
-					Text.AppendLine("\t<array>");
-					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
-					Text.AppendLine("\t</array>");
-				}
-				else
-				{
+					Text.AppendLine("\t<key>com.apple.developer.icloud-container-identifiers</key>");
 					Text.AppendLine(iCloudContainerIdentifiersXML);
 				}
-				Text.AppendLine("\t<key>com.apple.developer.icloud-services</key>");
-				Text.AppendLine("\t<array>");
-				Text.AppendLine("\t\t<string>CloudKit</string>");
-				Text.AppendLine("\t\t<string>CloudDocuments</string>");
-				Text.AppendLine("\t</array>");
-				Text.AppendLine("\t<key>com.apple.developer.ubiquity-container-identifiers</key>");
-				if (UbiquityContainerIdentifiersXML == "")
+
+				if (iCloudServicesXML != "")
 				{
-					Text.AppendLine("\t<array>");
-					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
-					Text.AppendLine("\t</array>");
+					Text.AppendLine("\t<key>com.apple.developer.icloud-services</key>");
+					Text.AppendLine(iCloudServicesXML);
 				}
-				else
+
+				if (UbiquityContainerIdentifiersXML != "")
 				{
+					Text.AppendLine("\t<key>com.apple.developer.ubiquity-container-identifiers</key>");
 					Text.AppendLine(UbiquityContainerIdentifiersXML);
 				}
 				Text.AppendLine("\t<key>com.apple.developer.ubiquity-kvstore-identifier</key>");
 				Text.AppendLine("\t<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>");
+
+				Text.AppendLine("\t<key>com.apple.developer.icloud-container-environment</key>");
+				Text.AppendLine(string.Format("\t<string>{0}</string>", Target.bForDistribution ? "Production" : "Development"));
 			}
 
 			bool bRemoteNotificationsSupported = false;
 			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableRemoteNotificationsSupport", out bRemoteNotificationsSupported);
+
+			if (bCloudKitSupported && Target.bForDistribution && Target.Platform == UnrealTargetPlatform.TVOS)
+			{
+				bRemoteNotificationsSupported = true;
+			}
+
 			if (bRemoteNotificationsSupported)
 			{
 				Text.AppendLine("\t<key>aps-environment</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
+				Text.AppendLine(string.Format("\t<string>{0}</string>", Target.bForDistribution ? "production" : "development"));
 			}
 			Text.AppendLine("</dict>");
 			Text.AppendLine("</plist>");
@@ -1718,7 +1734,11 @@ namespace UnrealBuildTool
 		}
 
         public static void PostBuildSync(IOSPostBuildSyncTarget Target)
-		{
+			{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
+			string BundleID;
+			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID);
+
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
@@ -1750,11 +1770,6 @@ namespace UnrealBuildTool
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
 
-            // ensure the plist, entitlements, and provision files are properly copied
-            UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
-			DeployHandler.ForDistribution = Target.bForDistribution;
-            DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA);
-
 			// copy the executable
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
@@ -1770,25 +1785,12 @@ namespace UnrealBuildTool
 				DirectoryReference XcodeWorkspaceDir;
 				if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development") });
 					XcodeWorkspaceDir = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, String.Format("UE4_{0}.xcworkspace", (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
 				else
 				{
-					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game" });
 					XcodeWorkspaceDir = DirectoryReference.Combine(Target.ProjectDirectory, String.Format("{0}_{1}.xcworkspace", Target.ProjectFile.GetFileNameWithoutExtension(), (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS")));
 				}
-
-				// Make sure it exists
-				if (!DirectoryReference.Exists(XcodeWorkspaceDir))
-				{
-					throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
-				}
-
-				// ensure the plist, entitlements, and provision files are properly copied
-				DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
-				DeployHandler.ForDistribution = Target.bForDistribution;
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, true);
 
 				// Path to the temporary keychain. When -ImportCertificate is specified, we will temporarily add this to the list of keychains to search, and remove it later.
 				FileReference TempKeychain = FileReference.Combine(Target.ProjectIntermediateDirectory, "TempKeychain.keychain");
@@ -1860,6 +1862,7 @@ namespace UnrealBuildTool
 						MobileProvisionFile = ProvisioningData.MobileProvisionFile;
 						MobileProvisionUUID = ProvisioningData.MobileProvisionUUID;
 						TeamUUID = ProvisioningData.TeamUUID;
+						BundleID = ProvisioningData.BundleIdentifier;
 					}
 					else
 					{
@@ -1868,6 +1871,7 @@ namespace UnrealBuildTool
 						MobileProvisionContents MobileProvision = MobileProvisionContents.Read(MobileProvisionFile);
 						MobileProvisionUUID = MobileProvision.GetUniqueId();
 						MobileProvision.TryGetTeamUniqueId(out TeamUUID);
+						BundleID = MobileProvision.GetBundleIdentifier();
 					}
 
 					string ConfigName = Target.Configuration.ToString();
@@ -1903,6 +1907,25 @@ namespace UnrealBuildTool
 					Writer.WriteLine("/usr/bin/xcrun {0}", CmdLine);
 
 				}
+
+				if (AppName == "UE4Game" || AppName == "UE4Client" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
+				{
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID });
+				}
+				else
+				{
+					GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID });
+				}
+				// Make sure it exists
+				if (!DirectoryReference.Exists(XcodeWorkspaceDir))
+				{
+					throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
+				}
+
+				// ensure the plist, entitlements, and provision files are properly copied
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				DeployHandler.ForDistribution = Target.bForDistribution;
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
 
 				Log.TraceInformation("Executing {0}", SignProjectScript);
 
@@ -1962,6 +1985,11 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				// ensure the plist, entitlements, and provision files are properly copied
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				DeployHandler.ForDistribution = Target.bForDistribution;
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.SdkVersion, Target.bCreateStubIPA, BundleID);
+
 				// write the entitlements file (building on Mac)
 				WriteEntitlements(Target);
 			}
@@ -1975,7 +2003,7 @@ namespace UnrealBuildTool
 				CleanIntermediateDirectory(LocalFrameworkAssets);
 
 				foreach (KeyValuePair<string, DirectoryReference> Pair in Target.FrameworkNameToSourceDir)
-				{
+					{
 					string UnpackedZipPath = Pair.Value.FullName;
 
 					// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
@@ -1984,7 +2012,7 @@ namespace UnrealBuildTool
 					Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
 
 					string ResultsText;
-					RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
+                    RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
                 }
             }
 		}

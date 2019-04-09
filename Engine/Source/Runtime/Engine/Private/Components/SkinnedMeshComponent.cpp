@@ -505,6 +505,8 @@ void USkinnedMeshComponent::OnUnregister()
 
 void USkinnedMeshComponent::CreateRenderState_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	if( SkeletalMesh )
 	{
 		// Attempting to track down UE-45505, where it looks as if somehow a skeletal mesh component's mesh has only been partially loaded, causing a mismatch in the LOD arrays
@@ -1056,24 +1058,24 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset,
 	return NewBounds;
 }
 
-FBoxSphereBounds USkinnedMeshComponent::GetPreSkinnedLocalBounds() const 
+void USkinnedMeshComponent::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const
 {
 	const USkinnedMeshComponent* const MasterPoseComponentInst = MasterPoseComponent.Get();
 
 	if (SkeletalMesh)
 	{
 		// Get the Pre-skinned bounds from the skeletal mesh. Note that these bounds are the "ExtendedBounds", so they can be tweaked on the SkeletalMesh   
-		return SkeletalMesh->GetBounds();
+		OutBounds = SkeletalMesh->GetBounds();
 	}
 	else if(MasterPoseComponentInst && MasterPoseComponentInst->SkeletalMesh)
 	{
 		// Get the bounds from the master pose if ther is no skeletal mesh
-		return MasterPoseComponentInst->SkeletalMesh->GetBounds();
+		OutBounds = MasterPoseComponentInst->SkeletalMesh->GetBounds();
 	}
 	else
 	{
 		// Fall back
-		return FBoxSphereBounds(ForceInitToZero);
+		OutBounds = FBoxSphereBounds(ForceInitToZero);
 	}
 }
 

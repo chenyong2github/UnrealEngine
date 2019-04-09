@@ -91,10 +91,38 @@ static NSString* GMetalDebugShader = @"#include <metal_stdlib>\n"
 "}";
 #endif
 
+// A compute debug shader for trying to emulate Aftermath style failure reporting
+static NSString* GMetalDebugMarkerComputeShader = @"#include <metal_stdlib>\n"
+"#include <metal_compute>\n"
+"\n"
+"using namespace metal;\n"
+"\n"
+"struct DebugInfo\n"
+"{\n"
+"   uint CmdBuffIndex;\n"
+"	uint EncoderIndex;\n"
+"   uint ContextIndex;\n"
+"   uint CommandIndex;\n"
+"   uint CommandBuffer[2];\n"
+"	uint PSOSignature[4];\n"
+"};\n"
+"\n"
+"// Executes once\n"
+"kernel void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]])\n"
+"{\n"
+"	// Write Pass, Draw indices\n"
+"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
+"	debugBuffer[0] = debugTable[0];\n"
+"}";
+
 struct FMetalHelperFunctions
 {
     mtlpp::Library DebugShadersLib;
     mtlpp::Function DebugFunc;
+	
+	mtlpp::Library DebugComputeShadersLib;
+	mtlpp::Function DebugComputeFunc;
+	mtlpp::ComputePipelineState DebugComputeState;
     
     FMetalHelperFunctions()
     {
@@ -103,8 +131,14 @@ struct FMetalHelperFunctions
         {
             mtlpp::CompileOptions CompileOptions;
             ns::AutoReleasedError Error;
-            DebugShadersLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalDebugShader, CompileOptions, &Error);
+
+			DebugShadersLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalDebugShader, CompileOptions, &Error);
             DebugFunc = DebugShadersLib.NewFunction(@"Main_Debug");
+			
+			DebugComputeShadersLib = GetMetalDeviceContext().GetDevice().NewLibrary(GMetalDebugMarkerComputeShader, CompileOptions, &Error);
+			DebugComputeFunc = DebugShadersLib.NewFunction(@"Main_Debug");
+			
+			DebugComputeState = GetMetalDeviceContext().GetDevice().NewComputePipelineState(DebugComputeFunc, &Error);
         }
 #endif
     }
@@ -119,7 +153,17 @@ struct FMetalHelperFunctions
     {
         return DebugFunc;
     }
+	
+	mtlpp::ComputePipelineState GetDebugComputeState()
+	{
+		return DebugComputeState;
+	}
 };
+
+mtlpp::ComputePipelineState GetMetalDebugComputeState()
+{
+	return FMetalHelperFunctions::Get().GetDebugComputeState();
+}
 
 struct FMetalGraphicsPipelineKey
 {
@@ -373,7 +417,6 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	[super dealloc];
 }
 
-#if METAL_DEBUG_OPTIONS
 - (instancetype)init
 {
 	id Self = [super init];
@@ -381,8 +424,10 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		RenderPipelineReflection = mtlpp::RenderPipelineReflection(nil);
 		ComputePipelineReflection = mtlpp::ComputePipelineReflection(nil);
+#if METAL_DEBUG_OPTIONS
 		RenderDesc = mtlpp::RenderPipelineDescriptor(nil);
 		ComputeDesc = mtlpp::ComputePipelineDescriptor(nil);
+#endif
 	}
 	return Self;
 }
@@ -393,10 +438,20 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 	{
 		[self initResourceMask:EMetalShaderVertex];
 		[self initResourceMask:EMetalShaderFragment];
+		
+		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation METAL_STATISTICS_ONLY(&& !GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		{
+			RenderPipelineReflection = mtlpp::RenderPipelineReflection(nil);
+		}
 	}
 	if (ComputePipelineReflection)
 	{
 		[self initResourceMask:EMetalShaderCompute];
+		
+		if (SafeGetRuntimeDebuggingLevel() < EMetalDebugLevelValidation METAL_STATISTICS_ONLY(&& !GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
+		{
+			ComputePipelineReflection = mtlpp::ComputePipelineReflection(nil);
+		}
 	}
 }
 - (void)initResourceMask:(EMetalShaderFrequency)Frequency
@@ -443,6 +498,12 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			{
 				checkf(Arg.index < ML_MaxBuffers, TEXT("Metal buffer index exceeded!"));
 				ResourceMask[Frequency].BufferMask |= (1 << Arg.index);
+				
+				if(BufferDataSizes[Frequency].Num() < 31)
+					BufferDataSizes[Frequency].SetNumZeroed(31);
+				
+				BufferDataSizes[Frequency][Arg.index] = Arg.bufferDataSize;
+				
 				break;
 			}
 			case MTLArgumentTypeThreadgroupMemory:
@@ -467,7 +528,6 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 		}
 	}
 }
-#endif
 @end
 
 static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* InputDesc, uint32 InOutMask)
@@ -614,11 +674,9 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 		for (uint32 i = 0; i < NumActiveTargets; i++)
         {
             EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
-            if (TargetFormat == PF_Unknown && PixelShader && (((PixelShader->Bindings.InOutMask & 0x7fff) & (1 << i))))
-            {
-				UE_LOG(LogMetal, Fatal, TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
-                continue;
-            }
+			
+			METAL_FATAL_ASSERT(!(TargetFormat == PF_Unknown && PixelShader && (((PixelShader->Bindings.InOutMask & 0x7fff) & (1 << i)))), TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
+
 			TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
             
             mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
@@ -746,10 +804,11 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 #endif
         }
         
-        RenderPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
+        static bool bNoMSAA = FParse::Param(FCommandLine::Get(), TEXT("nomsaa"));
+        RenderPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
     #if PLATFORM_MAC
         RenderPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
-		DebugPipelineDesc.SetSampleCount(FMath::Max(Init.NumSamples, (uint16)1u));
+		DebugPipelineDesc.SetSampleCount(!bNoMSAA ? FMath::Max(Init.NumSamples, (uint16)1u) : (uint16)1u);
 		DebugPipelineDesc.SetInputPrimitiveTopology(TranslatePrimitiveTopology(Init.PrimitiveType));
     #endif
         
@@ -967,7 +1026,6 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 					RenderPipelineDesc.SetLabel([NSString stringWithFormat:@"%@", VertexName.GetPtr()]);
 				}
 #endif
-#if METAL_DEBUG_OPTIONS
 				if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
 				{
 					mtlpp::AutoReleasedComputePipelineReflection Reflection;
@@ -976,7 +1034,6 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 					Pipeline->ComputePipelineReflection = Reflection;
 				}
 				else
-#endif
 				{
 					Pipeline->ComputePipelineState = Device.NewComputePipelineState(ComputePipelineDesc, (mtlpp::PipelineOption)ComputeOption, nullptr, &AutoError);
 				}
@@ -1092,26 +1149,24 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
         
         NSUInteger RenderOption = mtlpp::PipelineOption::NoPipelineOption;
 		mtlpp::AutoReleasedRenderPipelineReflection* Reflection = nullptr;
-#if METAL_DEBUG_OPTIONS
 		mtlpp::AutoReleasedRenderPipelineReflection OutReflection;
 		Reflection = &OutReflection;
         if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation METAL_STATISTICS_ONLY(|| GetMetalDeviceContext().GetCommandQueue().GetStatistics()))
         {
         	RenderOption = mtlpp::PipelineOption::ArgumentInfo|mtlpp::PipelineOption::BufferTypeInfo METAL_STATISTICS_ONLY(|NSUInteger(EMTLPipelineStats));
         }
-#endif
 
 		{
 			ns::AutoReleasedError RenderError;
 			METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("NewRenderPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
 			Pipeline->RenderPipelineState = Device.NewRenderPipelineState(RenderPipelineDesc, (mtlpp::PipelineOption)RenderOption, Reflection, &RenderError);
-#if METAL_DEBUG_OPTIONS
 			if (Reflection)
 			{
 				Pipeline->RenderPipelineReflection = *Reflection;
+#if METAL_DEBUG_OPTIONS
 				Pipeline->RenderDesc = RenderPipelineDesc;
-			}
 #endif
+			}
 			Error = RenderError;
 		}
 		
@@ -1159,7 +1214,7 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
 
 			ns::AutoReleasedError RenderError;
 			METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("NewDebugPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
-			Pipeline->DebugPipelineState = Device.NewRenderPipelineState(DebugPipelineDesc, (mtlpp::PipelineOption)RenderOption, Reflection, &RenderError);
+			Pipeline->DebugPipelineState = Device.NewRenderPipelineState(DebugPipelineDesc, mtlpp::PipelineOption::NoPipelineOption, Reflection, nullptr);
 		}
 #endif
         
@@ -1169,8 +1224,13 @@ static FMetalShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FMetalGra
             UE_LOG(LogMetal, Verbose, TEXT("Created a hitchy pipeline state for hash %llx %llx %llx"), (uint64)Key.RenderPipelineHash.RasterBits, (uint64)(Key.RenderPipelineHash.TargetBits), (uint64)Key.VertexDescriptorHash.VertexDescHash);
         }
 #endif
-
     }
+	
+	if (Pipeline && SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelFastValidation)
+	{
+		[Pipeline initResourceMask];
+	}
+	
     return !bSync ? nil : Pipeline;
 }
 

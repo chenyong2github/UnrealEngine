@@ -2013,7 +2013,9 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 
 	if (ThreadMarkers.Num() > 0)
 	{
+#if !UE_BUILD_SHIPPING
 		ensure(ThreadMarkers[0].GetTimestamp() >= LastProcessedTimestamp);
+#endif
 		LastProcessedTimestamp = ThreadMarkers.Last().GetTimestamp();
 	}
 
@@ -2108,8 +2110,10 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 				// AEnd would be missing 
 				if (FrameNumber >= 0 && bFoundStart)
 				{
+#if !UE_BUILD_SHIPPING
 					ensure(Marker.RawStatID == StartMarker.RawStatID);
 					ensure(Marker.GetTimestamp() >= StartMarker.GetTimestamp());
+#endif
 					if (Marker.GetTimestamp() > StartMarker.GetTimestamp())
 					{
 						uint64 ElapsedCycles = Marker.GetTimestamp() - StartMarker.GetTimestamp();
@@ -2587,12 +2591,7 @@ void FCsvProfiler::FinalizeCsvFile()
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Frames : %d"), CaptureEndFrameCount);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  Peak memory usage  : %.2fMB"), float(MemoryBytesAtEndOfCapture) / (1024.0f * 1024.0f));
 
-	if (EnumHasAnyFlags(CurrentFlags, ECsvProfilerFlags::WriteCompletionFile))
-	{
-		// Create a zero-byte file to signal completion.
-		FString CompletionFilename = OutputFilename + TEXT(".complete");
-		delete IFileManager::Get().CreateFileWriter(*CompletionFilename);
-	}
+	OnCSVProfileFinished().Broadcast(OutputFilename);
 
 	float FinalizeDuration = float(FPlatformTime::Seconds() - FinalizeStartTime);
 	UE_LOG(LogCsvProfiler, Display, TEXT("  CSV finalize time : %.3f seconds"), FinalizeDuration);

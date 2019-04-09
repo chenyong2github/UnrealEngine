@@ -46,7 +46,7 @@ namespace Gauntlet.SelfTest
 			CheckResult(ContainsEditor, "{0", string.Join(", ", Reasons));
 
 			// now actually try to create it
-			UnrealAppConfig Config = BuildSource.CreateConfiguration(EditorRole);
+			UnrealAppConfig Config = BuildSource.CreateConfiguration(EditorRole, new UnrealSessionRole[] { });
 			CheckResult(Config != null, "Build source did not return a config for {0}", EditorRole.ToString());
 
 			ValidateEditorConfig(Config, BuildSource);

@@ -58,52 +58,6 @@ public:
 	{
 		return ELandscapeToolTargetTypeMask::FromType(TToolTarget::TargetType);
 	}
-
-	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override
-	{
-		FLandscapeToolBase<TStrokeClass>::Tick(ViewportClient, DeltaTime);
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape && this->IsToolActive())
-		{
-			ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
-			if (Landscape != nullptr)
-			{
-				Landscape->RequestProceduralContentUpdate(this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
-			}
-		}
-	}
-
-	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
-	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->RequestProceduralContentUpdate(bUpdateHeightmap ? EProceduralContentUpdateFlag::Heightmap_Render : EProceduralContentUpdateFlag::Weightmap_Render);
-				Landscape->SetCurrentEditingProceduralLayer(this->EdMode->GetCurrentProceduralLayerGuid());
-			}
-		}
-
-		return FLandscapeToolBase<TStrokeClass>::BeginTool(ViewportClient, InTarget, InHitLocation);
-	}
-
-	virtual void EndTool(FEditorViewportClient* ViewportClient) override
-	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->SetCurrentEditingProceduralLayer();
-				Landscape->RequestProceduralContentUpdate(bUpdateHeightmap ? EProceduralContentUpdateFlag::Heightmap_All : EProceduralContentUpdateFlag::Weightmap_All);
-			}
-		}
-
-		FLandscapeToolBase<TStrokeClass>::EndTool(ViewportClient);
-	}
 };
 
 
@@ -303,9 +257,9 @@ public:
 
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -546,9 +500,9 @@ public:
 
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -680,9 +634,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -922,9 +876,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 
@@ -1152,9 +1106,9 @@ public:
 
 		ALandscape* Landscape = this->LandscapeInfo->LandscapeActor.Get();
 
-		if (Landscape != nullptr && Landscape->HasProceduralContent && !GetMutableDefault<UEditorExperimentalSettings>()->bProceduralLandscape)
+		if (Landscape != nullptr && Landscape->HasLayersContent && !GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeProcedural_ChangingDataWithoutSettings", "This map contains landscape procedural content, modifying the landscape data will result in data loss when the map is reopened with Landscape Procedural settings on. Please enable Landscape Procedural settings before modifying the data.")));
+			FMessageLog("MapCheck").Warning()->AddToken(FTextToken::Create(LOCTEXT("LandscapeLayers_ChangingDataWithoutSettings", "This map contains landscape layer system content, modifying the landscape data will result in data loss when the map is reopened with Landscape Layer System settings on. Please enable Landscape Layer System settings before modifying the data.")));
 			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 		}
 

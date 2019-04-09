@@ -2138,7 +2138,7 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide( const float TimeSlice, uint32 &Co
 				if (this->PackageTracker->CookedPackages.Exists(OutToBuild))
 				{
 #if DEBUG_COOKONTHEFLY
-					UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *ToBuild.GetFilename().ToString());
+					UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *OutToBuild.GetFilename().ToString());
 #endif
 					continue;
 				}

@@ -45,6 +45,10 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
+#if WITH_EDITOR
+#include "Settings/EditorExperimentalSettings.h"
+#endif
+
 #if WITH_EDITOR && WITH_PHYSX
 	#include "Physics/IPhysXCooking.h"
 #endif
@@ -1225,6 +1229,11 @@ void ULandscapeHeightfieldCollisionComponent::RecreateCollision()
 }
 
 #if WITH_EDITORONLY_DATA
+void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances()
+{
+	SnapFoliageInstances(FBox(FVector(-WORLD_MAX), FVector(WORLD_MAX)));
+}
+
 void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& InInstanceBox)
 {
 	UWorld* ComponentWorld = GetWorld();
@@ -1465,13 +1474,17 @@ void ULandscapeHeightfieldCollisionComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	// Reinitialize physics after undo
-	if (CollisionSizeQuads > 0)
+    // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		RecreateCollision();
-	}
+		// Reinitialize physics after undo
+		if (CollisionSizeQuads > 0)
+		{
+			RecreateCollision();
+		}
 
-	FNavigationSystem::UpdateComponentData(*this);
+		FNavigationSystem::UpdateComponentData(*this);
+	}
 }
 
 bool ULandscapeHeightfieldCollisionComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const

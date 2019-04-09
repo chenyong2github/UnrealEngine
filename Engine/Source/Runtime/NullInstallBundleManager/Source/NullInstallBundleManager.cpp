@@ -74,9 +74,19 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 
 	}
 
+	virtual void RequestPausedBundleCallback() const override
+	{
+
+	}
+
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const override
 	{
 		return TOptional<FInstallBundleStatus>();
+	}
+
+	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) override
+	{
+
 	}
 
 	virtual bool IsNullInterface() const override

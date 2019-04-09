@@ -32,6 +32,14 @@ class ENGINE_API ADebugCameraController
 	UPROPERTY()
 	uint32 bIsFrozenRendering:1;
 
+	/** Whether to orbit selected actor. */
+	UPROPERTY()
+	uint32 bIsOrbitingSelectedActor : 1;
+
+	/** When orbiting, true if using actor center as pivot, false if using last selected hitpoint */
+	UPROPERTY()
+	uint32 bOrbitPivotUseCenter:1;
+
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
 	class UDrawFrustumComponent* DrawFrustum;
@@ -68,6 +76,27 @@ class ENGINE_API ADebugCameraController
 	 */
 	virtual void ToggleFreezeRendering();
 
+	/**
+	 * Updates the rotation of player, based on ControlRotation after RotationInput has been applied.
+	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
+	 */
+	virtual void UpdateRotation(float DeltaTime) override;
+
+	/** Updates the rotation and location of player when orbiting */
+	void UpdateRotationForOrbit(float DeltaTime);
+
+	/** Gets pivot to use when orbiting */
+	bool GetPivotForOrbit(FVector& PivotLocation) const;
+
+	/** Toggles camera orbit */
+	void ToggleOrbit(bool bOrbitCenter);
+
+	/** Toggles camera orbit center */
+	void ToggleOrbitCenter();
+
+	/** Toggles camera orbit hitpoint */
+	void ToggleOrbitHitPoint();
+
 public:
 
 	/** Currently selected actor, may be invalid */
@@ -81,6 +110,10 @@ public:
 	/** Currently selected component, may be invalid */
 	UPROPERTY()
 	class UPrimitiveComponent* SelectedComponent;
+
+	/** Selected hit point */
+	UPROPERTY()
+	FHitResult SelectedHitPoint;
 
 	/** Controller that was active before this was spawned */
 	UPROPERTY()	
@@ -182,6 +215,15 @@ private:
 
 	/** The normalized screen location when a drag starts */
 	FVector2D LastTouchDragLocation;
+
+	/** Last position for orbit */
+	FVector LastOrbitPawnLocation;
+
+	/** Current orbit pivot, if orbit is enabled */
+	FVector OrbitPivot;
+
+	/** Current orbit radius, if orbit is enabled */
+	float OrbitRadius;
 
 	void OnTouchBegin(ETouchIndex::Type FingerIndex, FVector Location);
 	void OnTouchEnd(ETouchIndex::Type FingerIndex, FVector Location);

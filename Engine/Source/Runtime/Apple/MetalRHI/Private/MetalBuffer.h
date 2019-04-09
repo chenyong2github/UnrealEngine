@@ -129,7 +129,7 @@ private:
 	int64 volatile UsedSize;
 	mtlpp::Buffer ParentBuffer;
 	mutable mtlpp::Heap ParentHeap;
-	TLockFreePointerListLIFO<ns::Range> FreeRanges;
+	TArray<int8> Blocks;
 };
 
 struct FMetalRingBufferRef

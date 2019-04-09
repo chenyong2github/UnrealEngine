@@ -2497,7 +2497,7 @@ public:
 	/** Packed array of primitive components associated with the primitive. */
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
 
-	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdate;
+	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
 
 	struct FTypeOffsetTableEntry

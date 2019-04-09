@@ -65,9 +65,9 @@ void UDiffAssetRegistriesCommandlet::PopulateChangelistMap(const FString &Branch
 		// skip the game packages if we're doing engine packages only
 		if (!bEnginePackages)
 		{
-			FillChangelists(Branch, CLRange, TEXT("/FortniteGame/Content/"), TEXT("/Game/"));
+			FillChangelists(Branch, CLRange, P4GameBasePath, P4GameAssetPath);
 		}
-		FillChangelists(Branch, CLRange, TEXT("/Engine/Content/"), TEXT("/Engine/"));			
+		FillChangelists(Branch, CLRange, P4EngineBasePath, P4EngineAssetPath);
 	}
 
 	// save out the new table
@@ -196,15 +196,6 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	if (NewPathVal)
 	{
 		FindAssetRegistryPath(*NewPathVal, NewPath);
-
-		const FRegexPattern CLPattern(TEXT("\\+\\+Fortnite\\+(.*)-CL-(\\d+)"));
-		FRegexMatcher CLMatcher(CLPattern, NewPath);
-
-		if (CLMatcher.FindNext())
-		{
-			Branch = CLMatcher.GetCaptureGroup(1);
-			CL = CLMatcher.GetCaptureGroup(2);
-		}
 	}
 
 	bMatchChangelists = false;
@@ -276,7 +267,7 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 {
 	TArray<FString> Results;
 	int32 ReturnCode = 0;
-	if (LaunchP4(TEXT("files ") + FString(TEXT("//Fortnite/")) + Branch + BasePath + TEXT("....uasset@") + CL, Results, ReturnCode))
+	if (LaunchP4(TEXT("files ") + P4Repository + Branch + BasePath + TEXT("....uasset@") + CL, Results, ReturnCode))
 	{
 		if (ReturnCode == 0)
 		{
@@ -314,7 +305,7 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 			}
 		}
 	}
-	if (LaunchP4(TEXT("files ") + FString(TEXT("//Fortnite/")) + Branch + BasePath + TEXT("....umap@") + CL, Results, ReturnCode))
+	if (LaunchP4(TEXT("files ") + P4Repository + Branch + BasePath + TEXT("....umap@") + CL, Results, ReturnCode))
 	{
 		if (ReturnCode == 0)
 		{
@@ -773,6 +764,16 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 
 	if (CSVFile)
 	{
+		CSVFile->Logf(TEXT("Type Key"));
+		CSVFile->Logf(TEXT("a, file added"));
+		CSVFile->Logf(TEXT("r, file removed"));
+		CSVFile->Logf(TEXT("e, explicit edit (this file specifically has been modified)"));
+		CSVFile->Logf(TEXT("d, dependency edit (this file is different likely because a dependency has also been changed)"));
+		CSVFile->Logf(TEXT("n, indirect non deterministic (a dependency file changed but wasn't changed directly (Indicates the dependency was either non determinisitc or another indirect non deterministic file))"));
+		CSVFile->Logf(TEXT("c, non deterministic (the hashes for all dependencies are the same but this file is not)"));
+		CSVFile->Logf(TEXT("x, no binary change (shouldn't ever happen)"));
+		CSVFile->Logf(TEXT(""));
+
 		CSVFile->Logf(TEXT("Modification,Name,Class,NewSize,OldSize,Changelist"));
 
 		UE_LOG(LogDiffAssets, Display, TEXT("Saving CSV results to %s"), *CSVFilename);
