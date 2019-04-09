@@ -97,11 +97,25 @@ bool UTakeRecorderLiveLinkSource::CanAddSource(UTakeRecorderSources* InSources) 
 	return true;
 }
 
-FString UTakeRecorderLiveLinkSource::GetSubsceneName(ULevelSequence* InSequence) const
+FString UTakeRecorderLiveLinkSource::GetSubsceneTrackName(ULevelSequence* InSequence) const
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return TakeMetaData->GetSlate() + SubjectName.ToString();
+		return FString::Printf(TEXT("%s_%s"), *SubjectName.ToString(), *TakeMetaData->GenerateAssetPath("{slate}"));
+	}
+	else if (SubjectName != NAME_None)
+	{
+		return SubjectName.ToString();
+	}
+
+	return TEXT("LiveLink");
+}
+
+FString UTakeRecorderLiveLinkSource::GetSubsceneAssetName(ULevelSequence* InSequence) const
+{
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		return FString::Printf(TEXT("%s_%s"), *SubjectName.ToString(), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
 	}
 	else if (SubjectName != NAME_None)
 	{

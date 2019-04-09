@@ -14,6 +14,7 @@
 #include "Recorder/TakeRecorderParameters.h"
 #include "TakeRecorderSettings.h"
 #include "TakesUtils.h"
+#include "TakeMetaData.h"
 #include "MovieSceneFolder.h"
 #include "Serializers/MovieSceneManifestSerialization.h"
 
@@ -1574,14 +1575,28 @@ UMovieSceneTrackRecorderSettings* UTakeRecorderActorSource::GetSettingsObjectFor
 	return nullptr;
 }
 
-FString UTakeRecorderActorSource::GetSubsceneName(ULevelSequence* InSequence) const
+FString UTakeRecorderActorSource::GetSubsceneTrackName(ULevelSequence* InSequence) const
 {
 	if (Target.IsValid())
 	{
 		return Target->GetActorLabel();
 	}
 
-	return Super::GetSubsceneName(InSequence);
+	return Super::GetSubsceneTrackName(InSequence);
+}
+
+FString UTakeRecorderActorSource::GetSubsceneAssetName(ULevelSequence* InSequence) const
+{
+	if (Target.IsValid())
+	{
+		if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+		{
+			return FString::Printf(TEXT("%s_%s"), *Target->GetActorLabel(), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
+		}
+		return Target->GetActorLabel();
+	}
+
+	return Super::GetSubsceneAssetName(InSequence);
 }
 
 void UTakeRecorderActorSource::AddContentsToFolder(UMovieSceneFolder* InFolder)

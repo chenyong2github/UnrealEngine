@@ -117,7 +117,8 @@ public:
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
 	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence) override;
 	virtual TArray<UObject*> GetAdditionalSettingsObjects() const { return TArray<UObject*>(FactorySettings); }
-	virtual FString GetSubsceneName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	// ~UTakeRecorderSource Interface
 

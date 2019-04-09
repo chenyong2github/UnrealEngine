@@ -35,11 +35,20 @@ void UTakeRecorderLevelVisibilitySourceSettings::PostEditChangeProperty(FPropert
 	}
 }
 
-FString UTakeRecorderLevelVisibilitySourceSettings::GetSubsceneName(ULevelSequence* InSequence) const
+FString UTakeRecorderLevelVisibilitySourceSettings::GetSubsceneTrackName(ULevelSequence* InSequence) const
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return TakeMetaData->GetSlate() + TEXT("Level Visibility");
+		return FString::Printf(TEXT("Level Visibility_%s"), *TakeMetaData->GenerateAssetPath("{slate}"));
+	}
+	return TEXT("Level Visibility");
+}
+
+FString UTakeRecorderLevelVisibilitySourceSettings::GetSubsceneAssetName(ULevelSequence* InSequence) const
+{
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		return FString::Printf(TEXT("Level Visibility_%s"), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
 	}
 	return TEXT("Level Visibility");
 }
