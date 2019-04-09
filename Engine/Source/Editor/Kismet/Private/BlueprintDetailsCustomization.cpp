@@ -4775,8 +4775,6 @@ bool FBlueprintGraphActionDetails::IsConstFunctionVisible() const
 	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(FunctionEntryNode)
 	{
-		UBlueprint* Blueprint = FunctionEntryNode->GetBlueprint();
-
 		bSupportedType = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
 		bIsEditable = FunctionEntryNode->IsEditable();
 	}
@@ -5131,21 +5129,16 @@ TSharedRef<SWidget> FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent()
 	TArray<UBlueprint*> Blueprints;
 	Blueprints.Add(Blueprint);
 	TSharedRef<SWidget> ClassPicker = FBlueprintEditorUtils::ConstructBlueprintInterfaceClassPicker(Blueprints, FOnClassPicked::CreateSP(this, &FBlueprintInterfaceLayout::OnClassPicked));
-	return
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	// Achieving fixed width by nesting items within a fixed width box.
+	return SNew(SBox)
+		.WidthOverride(350.0f)
 		[
-			// Achieving fixed width by nesting items within a fixed width box.
-			SNew(SBox)
-			.WidthOverride(350.0f)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.MaxHeight(400.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.MaxHeight(400.0f)
-				.AutoHeight()
-				[
-					ClassPicker
-				]
+				ClassPicker
 			]
 		];
 }
@@ -5188,21 +5181,16 @@ TSharedRef<SWidget> FBlueprintGlobalOptionsDetails::GetParentClassMenuContent()
 	Blueprints.Add(GetBlueprintObj());
 	TSharedRef<SWidget> ClassPicker = FBlueprintEditorUtils::ConstructBlueprintParentClassPicker(Blueprints, FOnClassPicked::CreateSP(this, &FBlueprintGlobalOptionsDetails::OnClassPicked));
 
-	return
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+	// Achieving fixed width by nesting items within a fixed width box.
+	return SNew(SBox)
+		.WidthOverride(350.0f)
 		[
-			// Achieving fixed width by nesting items within a fixed width box.
-			SNew(SBox)
-			.WidthOverride(350.0f)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.MaxHeight(400.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.MaxHeight(400.0f)
-				.AutoHeight()
-				[
-					ClassPicker
-				]
+				ClassPicker
 			]
 		];
 }

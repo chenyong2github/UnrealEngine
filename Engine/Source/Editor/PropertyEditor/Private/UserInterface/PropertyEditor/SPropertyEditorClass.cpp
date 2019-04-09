@@ -202,6 +202,7 @@ FText SPropertyEditorClass::GetDisplayValueAsString() const
 TSharedRef<SWidget> SPropertyEditorClass::GenerateClassPicker()
 {
 	FClassViewerInitializationOptions Options;
+	Options.bShowBackgroundBorder = false;
 	Options.bShowUnloadedBlueprints = true;
 	Options.bShowNoneOption = bAllowNone; 
 

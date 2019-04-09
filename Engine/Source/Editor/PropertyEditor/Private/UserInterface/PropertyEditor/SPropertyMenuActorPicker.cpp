@@ -95,11 +95,7 @@ void SPropertyMenuActorPicker::Construct( const FArguments& InArgs )
 			.WidthOverride(PropertyEditorAssetConstants::SceneOutlinerWindowSize.X)
 			.HeightOverride(PropertyEditorAssetConstants::SceneOutlinerWindowSize.Y)
 			[
-				SNew( SBorder )
-				.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
-				[
-					SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateSP(this, &SPropertyMenuActorPicker::OnActorSelected))
-				]
+				SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateSP(this, &SPropertyMenuActorPicker::OnActorSelected))
 			];
 
 		MenuBuilder.AddWidget(MenuContent.ToSharedRef(), FText::GetEmpty(), true);

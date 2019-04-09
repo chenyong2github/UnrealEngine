@@ -167,6 +167,7 @@ bool SPropertyEditorEditInline::IsClassAllowed( UClass* CheckClass, bool bAllowA
 TSharedRef<SWidget> SPropertyEditorEditInline::GenerateClassPicker()
 {
 	FClassViewerInitializationOptions Options;
+	Options.bShowBackgroundBorder = false;
 	Options.bShowUnloadedBlueprints = true;
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 
