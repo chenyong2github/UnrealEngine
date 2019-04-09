@@ -531,6 +531,11 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 				if (InputHistory.RT[1].IsValid())
 					CommonShaderParameters.HistoryBuffer1 = GraphBuilder.RegisterExternalTexture(InputHistory.RT[1]);
 			}
+			else
+			{
+				CommonShaderParameters.HistoryBuffer0 = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+				CommonShaderParameters.HistoryBuffer1 = CommonShaderParameters.HistoryBuffer0;
+			}
 
 			CommonShaderParameters.HistoryBuffer0Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 			CommonShaderParameters.HistoryBuffer1Sampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
