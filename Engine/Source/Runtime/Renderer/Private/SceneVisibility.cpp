@@ -3650,15 +3650,10 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_ConditionalUpdateStaticMeshes);
-
-			for (TSet<FPrimitiveSceneInfo*>::TIterator It(Scene->PrimitivesNeedingStaticMeshUpdate); It; ++It)
+			for (TConstDualSetBitIterator<SceneRenderingBitArrayAllocator, FDefaultBitArrayAllocator> BitIt(View.PrimitiveVisibilityMap, Scene->PrimitivesNeedingStaticMeshUpdate); BitIt; ++BitIt)
 			{
-				FPrimitiveSceneInfo* Primitive = *It;
-
-				if (View.PrimitiveVisibilityMap[Primitive->GetIndex()])
-				{
-					Primitive->ConditionalUpdateStaticMeshes(RHICmdList);
-				}
+				int32 PrimitiveIndex = BitIt.GetIndex();
+				Scene->Primitives[PrimitiveIndex]->UpdateStaticMeshes(RHICmdList);
 			}
 		}
 
