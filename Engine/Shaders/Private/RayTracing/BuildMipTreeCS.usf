@@ -31,7 +31,6 @@ void BuildMipTreeCS(
 	float Sum = 0.0;
 	if (MipLevel == 0)
 	{
-		// #dxr_todo: TextureCubeSampleLevel() may be enough.. could do live during query??
 		float3 Direction = GetTextureCubeVector(uint3(GridCoordinate.xy, FaceIndex), Dimensions);
 		float3 Value = TextureCubeSample(Texture, TextureSampler, Direction).rgb;
 		Sum += Luminance(Value.rgb);
@@ -44,7 +43,6 @@ void BuildMipTreeCS(
 		{
 			uint2 Pixel = PixelOffset + uint2(i >> 1, i & 1);
 			uint InputIndex = BufferOffsetAtPixel(Pixel, MipLevel - 1, Dimensions);
-			// #dxr_todo: Experiment between average and max
 			Sum += RWMipTree[InputIndex];
 		}
 		Sum /= 4;
@@ -68,7 +66,6 @@ void BuildRectLightMipTreeCS(
 	float Sum = 0.0;
 	if (MipLevel == 0)
 	{
-		// #dxr_todo: TextureCubeSampleLevel() may be enough.. could do live during query??
 		uint2 TextureDimensions;
 		RectLightTexture.GetDimensions(TextureDimensions.x, TextureDimensions.y);
 		float2 UV = GridCoordinate.xy / float2(TextureDimensions);
@@ -84,8 +81,6 @@ void BuildRectLightMipTreeCS(
 		{
 			uint2 Pixel = PixelOffset + uint2(i >> 1, i & 1);
 			uint InputIndex = BufferOffsetAtPixel(Pixel, MipLevel - 1, Dimensions);
-			// #dxr_todo: Experiment between average and max
-			//Sum = max(Sum, RWMipTree[InputIndex]);
 			Sum += RWMipTree[InputIndex];
 		}
 		Sum /= 4;

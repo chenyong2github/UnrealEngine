@@ -212,7 +212,6 @@ uint2 CullDirectLighting(
 
 	uint2 LightCullMask = (uint2)0;
 
-	//#dxr_todo: think on the more efficient way of iterate through lights (split in light types, etc)
 	for (uint DirIndex = 0; DirIndex < RaytracingLightsDataPacked.Count; DirIndex++)
 	{
 		FDeferredLightData LightData = (FDeferredLightData)0;
@@ -237,7 +236,7 @@ uint2 CullDirectLighting(
 		const uint LightProfileIndex = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].y;
 
 
-		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); // #dxr_todo;
+		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); 
 		LightData.ShadowedBits = 0; // Not lit dynamic shadows 
 		LightData.ContactShadowLengthInWS = false;
 
@@ -303,7 +302,6 @@ float3 ComputeDirectLightingCulled(
 	float3 CameraVector = -Ray.Direction;
 	float AmbientOcclusion = 1.0;
 
-	// #dxr_todo: review when interpolants fill the Payload with all the data we need
 	FGBufferData GBufferData = (FGBufferData)0;
 	GBufferData.Depth = 1.f; // Do not use depth
 	GBufferData.WorldNormal = Payload.WorldNormal;
@@ -313,7 +311,6 @@ float3 ComputeDirectLightingCulled(
 	GBufferData.Roughness = Payload.Roughness;
 	GBufferData.CustomData = Payload.CustomData;
 	GBufferData.GBufferAO = Payload.GBufferAO;
-	//#dxr_todo: change float3 to float in payload to reduce space?;
 	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f; 
 	GBufferData.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 	GBufferData.SpecularColor = Payload.SpecularColor;
@@ -338,8 +335,6 @@ float3 ComputeDirectLightingCulled(
 
 	uint DirIndex = 0;
 
-	//#dxr_todo: think on the more efficient way of iterate through lights (split in light types, etc)
-	//while(LightCullMask.x || LightCullMask.y)
 	while (WaveActiveAnyTrue(LightCullMask.x || LightCullMask.y))
 	{
 		const bool Active = LightCullMask.x || LightCullMask.y;
@@ -397,7 +392,7 @@ float3 ComputeDirectLightingCulled(
 	#endif
 		uint LightProfileIndex = RaytracingLightsDataPacked.Type_LightProfileIndex_RectLightTextureIndex[DirIndex].y;
 
-		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); // #dxr_todo;
+		LightData.ShadowMapChannelMask = float4(0, 0, 0, 0); 
 		LightData.ShadowedBits = 0; // Not lit dynamic shadows 
 		LightData.ContactShadowLengthInWS = false;
 
@@ -438,7 +433,6 @@ float3 ComputeDirectLightingCulled(
 			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, ShadowRayDirection);
 		}
 
-		//#dxr_todo: check perf improvements forcing TMin == TMax when bReflectedShadows = false, to avoid tracing rays inside if statements
 		if (bReflectedShadows)
 		{
 			if (ReflectedShadowsType == 2)
@@ -448,7 +442,6 @@ float3 ComputeDirectLightingCulled(
 
 			FRayCone ShadowRayCone = RayCone;
 
-			//#dxr_todo: add support for sampling area lights (and perhaps add CVar to enable stocastic shadows?)
 			RayDesc ShadowRay;
 			ShadowRay.Origin = WorldPosition;
 			ShadowRay.Direction = ShadowRayDirection;

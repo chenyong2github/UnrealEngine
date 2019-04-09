@@ -110,8 +110,6 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		// -----------
 		// 32 bytes
 
-		// #dxr_todo: Root parameters for hit shaders should be added in the shader pipeline, so that regular root parameter generation code can be used without hard-coding anything.
-
 		check(RootParameterCount == 0 && RootParametersSize == 0); // We expect system RT parameters to come first
 
 		// Index buffer descriptor

@@ -110,7 +110,6 @@ extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdWidth;
 extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks;
 
 #if RHI_RAYTRACING
-// #dxr_todo: This is a placeholder. FMeshDrawSingleShaderBindings should be generalized and used instead.
 struct FRayTracingShaderBindings
 {
 	FTextureRHIParamRef Textures[32] = {};

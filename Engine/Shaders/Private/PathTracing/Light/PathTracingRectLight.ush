@@ -57,7 +57,7 @@ void RectLight_EstimateLight(
 )
 {
 	// Distance to centroid
-	// #dxr_todo: Use closest point, instead
+	// #dxr_todo: UE-72533 Use closest point, instead
 	float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 	LightDirection = normalize(LightDirection);

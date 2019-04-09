@@ -28,7 +28,6 @@ class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class FIESLightProfileResource;
 
-// #dxr_todo: share this enum with ray tracing shader code via RayTracingDefinitions.ush
 enum class ERayTracingRenderMode
 {
 	Disabled			= 0,

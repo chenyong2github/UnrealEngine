@@ -29,7 +29,7 @@ bool EvalSkyLight;
 bool UseRussianRoulette;
 float MaxNormalBias;
 
-// #dxr_todo: Unify with reflections and translucency in RayTracingCommon.ush
+// #dxr_todo: UE-72508 Unify with reflections and translucency in RayTracingCommon.ush
 uint2 GetPixelCoord(uint2 DispatchThreadId)
 {
 	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
@@ -205,7 +205,6 @@ void GlobalIlluminationRGS()
 				}
 				break;
 			}
-			// #dxr_todo: Allow for material emission?
 
 			if (Bounce == 0)
 			{
@@ -328,7 +327,6 @@ void GlobalIlluminationRGS()
 				FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 				Throughput = LightingSample.Diffuse;
 #endif
-				// #dxr_todo: Degenerate guard?
 				if (MaterialPdf <= 0.0)
 				{
 					break;
@@ -339,10 +337,6 @@ void GlobalIlluminationRGS()
 				ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
 				RayThroughput *= Throughput;
 				RayPdf *= MaterialPdf;
-
-				// #dxr_todo: Russian roulette?
-
-				// #dxr_todo: Firefly rejection?
 			}
 
 			Bounce++;

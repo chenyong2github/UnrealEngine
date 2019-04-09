@@ -141,7 +141,7 @@ void SetupLightParameters(
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
 			LightParameters->dPdu[LightParameters->Count] = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
 			LightParameters->dPdv[LightParameters->Count] = LightShaderParameters.Tangent;
-			// #dxr_todo: define these differences from Lit..
+			// #dxr_todo: UE-72556 define these differences from Lit..
 			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color / 4.0;
 			LightParameters->Dimensions[LightParameters->Count] = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
 			LightParameters->Attenuation[LightParameters->Count] = 1.0 / LightShaderParameters.InvRadius;
@@ -152,7 +152,7 @@ void SetupLightParameters(
 		{
 			LightParameters->Type[LightParameters->Count] = 1;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
-			// #dxr_todo: define these differences from Lit..
+			// #dxr_todo: UE-72556 define these differences from Lit..
 			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color / (4.0 * PI);
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
 			LightParameters->Dimensions[LightParameters->Count] = FVector(0.0, 0.0, SourceRadius);
@@ -164,7 +164,7 @@ void SetupLightParameters(
 			LightParameters->Type[LightParameters->Count] = 4;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
-			// #dxr_todo: define these differences from Lit..
+			// #dxr_todo: UE-72556 define these differences from Lit..
 			LightParameters->Color[LightParameters->Count] = 4.0 * PI * LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
 			LightParameters->Dimensions[LightParameters->Count] = FVector(LightShaderParameters.SpotAngles, SourceRadius);
@@ -188,7 +188,7 @@ bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views)
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
-			//#dxr_todo: multiview case
+			//#dxr_todo: UE-72557 multiview case
 			if (View.FinalPostProcessSettings.RayTracingGI > 0)
 			{
 				return true;

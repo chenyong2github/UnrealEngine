@@ -54,7 +54,6 @@ void PathTracingMainRG()
 	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
 	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
-	// #dxr_todo: unify initialization between ray tracing and path tracing raygen shaders
 	RandomSequence_Initialize(RandSequence, LinearIndex, AdaptiveSamplingData.Iteration);
 	RandSequence.Type = AdaptiveSamplingData.RandomSequence;
 	uint SampleIndex = 0;

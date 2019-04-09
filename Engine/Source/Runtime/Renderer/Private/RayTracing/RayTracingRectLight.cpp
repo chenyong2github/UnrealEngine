@@ -270,7 +270,7 @@ public:
 		FRayTracingShaderRHIParamRef RayGenShaderTable[] = { GetRayTracingShader() };
 		Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-		FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer); // #dxr_todo: this should be done once at load-time and cached
+		FRHIRayTracingPipelineState* Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(Initializer);
 
 		FRayTracingShaderBindingsWriter GlobalResources;
 		GlobalResources.Set(TLASParameter, RayTracingScene.RayTracingSceneRHI->GetShaderResourceView());
@@ -497,7 +497,7 @@ void RenderRayTracingRectLightInternal(
 	RectLightData.dPdv = FVector(WorldToLight.M[0][2], WorldToLight.M[1][2], WorldToLight.M[2][2]);
 	RectLightData.Color = LightShaderParameters.Color / 2.0;
 
-	// #dxr_todo: Ray traced textured area lights are 1.5X brighter than those in lit mode.
+	// #dxr_todo: JIRA Ray traced textured area lights are 1.5X brighter than those in lit mode.
 	if (RectLightSceneProxy->HasSourceTexture())
 	{
 		RectLightData.Color *= 2.0 / 3.0;

@@ -135,7 +135,7 @@ static TAutoConsoleVariable<int32> CVarUseReflectionDenoiser(
 	TEXT("Choose the denoising algorithm.\n")
 	TEXT(" 0: Disabled;\n")
 	TEXT(" 1: Forces the default denoiser of the renderer;\n")
-	TEXT(" 2: GScreenSpaceDenoiser witch may be overriden by a third party plugin (default)."),
+	TEXT(" 2: GScreenSpaceDenoiser which may be overriden by a third party plugin (default)."),
 	ECVF_RenderThreadSafe);
 
 
@@ -708,7 +708,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
-		//#dxr_todo: multiview case
+		//#dxr_todo: UE-72557 multiview case
 		bAnyViewWithRaytracingReflections = bAnyViewWithRaytracingReflections || (View.FinalPostProcessSettings.ReflectionsType == EReflectionsType::RayTracing);
 	}
 

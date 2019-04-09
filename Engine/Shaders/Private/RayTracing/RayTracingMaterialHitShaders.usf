@@ -10,7 +10,7 @@
 	#define USING_TESSELLATION 1
 #endif
 
-// #dxr_todo: Temporarily hacking clip() away to prevent driver crash. Should be integrated into MaterialTemplate.ush in the future.
+// #dxr_todo: UE-72537 move to common.ush
 #define clip(x) (x)
 #define ddx(x) 0
 #define ddy(x) 0
@@ -262,7 +262,7 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 
 		MaterialParameters.CameraVector = -WorldRayDirection();
 
-		// #dxr_todo: support world position offset at some point
+		// #dxr_todo: UE-72130 support world position offset 
 		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
 		// #else
@@ -374,7 +374,7 @@ void MaterialAHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 
 		MaterialParameters.CameraVector = -WorldRayDirection();
 		
-		// #dxr_todo: support world position offset at some point
+		// #dxr_todo: UE-72130 support world position offset 
 		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
 		// #else

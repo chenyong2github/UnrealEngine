@@ -131,8 +131,6 @@ void RayTracingTranslucencyRGS()
 	const float GBufferHitT = length(WorldPosition - CameraOrigin);
 
 	// Trace rays from camera origin to (Gbuffer - epsilon) to only intersect translucent objects
-	//#dxr_todo: a potential big optimization would be to include translucent objects in the GBuffer
-	// and use the GBuffer shading ID to early return for non translucent objects 
 	RayDesc Ray;
 	Ray.Origin = CameraOrigin;
 	Ray.TMin = 0.0;
@@ -247,7 +245,7 @@ void RayTracingTranslucencyRGS()
 			float ReflectionRefractionEventThroughput;
 			if (!RefractRay(Ray.Direction, Payload.WorldNormal, Ior1, Ior2, RefractedDirection, ReflectionRefractionEventThroughput))
 			{
-				//#dxr_todo: handle total internal reflection ray event. We could jsuit continue form this path. And not use the new IOR.
+				//#dxr_todo: handle total internal reflection ray event. We could just continue form this path. And not use the new IOR.
 				// We should combine that step with the one above reflection evaluation. For now we stop tracing.
 				break;
 			}

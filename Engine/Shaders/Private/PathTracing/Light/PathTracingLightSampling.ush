@@ -13,7 +13,7 @@ LightSampling.usf: Light sampling for next-event estimation
 #include "PathTracingSkyLight.ush"
 #include "PathTracingSpotLight.ush"
 
-// #dxr_todo: unify with GLightCountMaximum in c++ code
+// #dxr_todo:UE-72532 unify with GLightCountMaximum in c++ code
 static const uint LIGHT_COUNT_MAXIMUM = 64;
 
 void GenerateLightRay(RayDesc Ray, int LightId, float3 LightUV, out RayDesc OutLightRay)

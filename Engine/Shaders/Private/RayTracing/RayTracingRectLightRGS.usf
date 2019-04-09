@@ -145,8 +145,6 @@ bool GenerateRectLightImportanceSampledRay(
 		return false;
 	}
 
-	// #dxr_todo: Performing direct lighting here could save some recalculation
-
 	// Define ray
 	RayOrigin = WorldPosition;
 	RayDirection = LightDirection;
@@ -283,7 +281,7 @@ void RectLightRGS()
 
 		uint RayFlags = 0
 			| RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
 
 		FDefaultPayload Payload = (FDefaultPayload)0;
 
@@ -322,10 +320,6 @@ void RectLightRGS()
 			FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
 
-			// #dxr_todo: Determine best way to incorporate integrals:
-			// 1) Return combined contribution (current method)
-			// 2) Split the integral (defer specular contribution to another pass)
-			// 3) Store diffuse and specular contribution separately
 			float3 Irradiance = IncomingRadiance * NoL / RayPdf;
 			ExitantRadiance += Irradiance * Brdf;
 			DiffuseExitantRadiance += Irradiance * (LightingSample.Diffuse + LightingSample.Transmission);

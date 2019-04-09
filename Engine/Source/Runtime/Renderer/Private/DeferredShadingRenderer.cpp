@@ -620,7 +620,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					continue;
 				}
 
-				//#dxr_todo The Raytracing codepath does not support Showflags since data moved to the SceneInfo. 
+				//#dxr_todo UE-68621  The Raytracing codepath does not support Showflags since data moved to the SceneInfo. 
 				//Touching the SceneProxy to determine this would simply cost too much
 				if (SceneInfo->bShouldRenderInMainPass && SceneInfo->bDrawInGame)
 				{
@@ -766,7 +766,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		View.RayTracingScene.RayTracingSceneRHI = RHICreateRayTracingScene(Initializer);
 		RHICmdList.BuildAccelerationStructure(View.RayTracingScene.RayTracingSceneRHI);
 
-		// #dxr_todo: register each effect at startup and just loop over them automatically to gather all required shaders
+		// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
 		TArray<FRayTracingShaderRHIParamRef> RayGenShaders;
 		PrepareRayTracingReflections(View, RayGenShaders);
 		PrepareRayTracingShadows(View, RayGenShaders);
@@ -948,7 +948,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&& ViewFamily.EngineShowFlags.DeferredLighting
 		&& bUseGBuffer
 #if RHI_RAYTRACING
-		&& (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing) // #dxr_todo: what about multi-view case?
+		&& (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing) // #dxr_todo: UE-72557 multi-view case
 		&& (Views[0].RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug)
 #endif
 		;
@@ -1933,7 +1933,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
-			//#dxr_todo: multiview case
+			//#dxr_todo: UE-72557 multiview case
 			bAnyViewWithRaytracingTranslucency = bAnyViewWithRaytracingTranslucency || (View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing);
 		}
 
@@ -2353,7 +2353,7 @@ void FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRHIComm
 bool FDeferredShadingSceneRenderer::CanOverlayRayTracingOutput(void) const
 {
 #if RHI_RAYTRACING
-	// #dxr_todo: what about multi-view case?
+	// #dxr_todo:UE-72557 multi-view case
 	return  (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
 		&& (Views[0].RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug);
 #else // RHI_RAYTRACING

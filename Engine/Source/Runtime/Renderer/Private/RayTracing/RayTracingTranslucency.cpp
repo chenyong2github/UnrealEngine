@@ -258,7 +258,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucency(FRHICommandList
 		SCOPED_DRAW_EVENT(RHICmdList, RayTracingTranslucency);
 		SCOPED_GPU_STAT(RHICmdList, RayTracingTranslucency);
 
-		FRDGBuilder GraphBuilder(RHICmdList); //#dxr_todo: convert the entire translucency pass to render graph.
+		FRDGBuilder GraphBuilder(RHICmdList); 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 		FSceneViewFamilyBlackboard SceneBlackboard;

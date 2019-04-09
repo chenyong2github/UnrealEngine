@@ -63,7 +63,7 @@ float ReflectionMaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
 
-#include "RayTracingLightingCommon.ush" // #dxr_todo: helper functions must take TLAS explicitly rather than rely on a global declared above
+#include "RayTracingLightingCommon.ush" // #dxr_todo: UE-72548 helper functions must take TLAS explicitly rather than rely on a global declared above
 
 RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;

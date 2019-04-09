@@ -21,7 +21,7 @@ uint CalcLinearIndex(uint2 PixelCoord)
 	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
 }
 
-// #dxr_todo: Copied from PathTracingSkyLight.ush
+// #dxr_todo: UE-72508: encapsulate this function in a shared space
 float3 EvalSkyLight(float3 Direction)
 {
 	return SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, Direction, 0).rgb;
@@ -41,7 +41,6 @@ float PdfSkyLightOcclusionRay(
 	uint2 MipCoord = TextureUV * SkyLight.MipDimensions.xy;
 	float FacePdf = PdfFace(MipCount, TextureCoord.z);
 
-	// #dxr_todo: StopLevel can be customized for run-time performance
 	uint StopLevel = min(SkyLight.SamplingStopLevel, MipCount);
 #if USE_MIP_PDF_TEXTURE
 	float MipPdf = PdfMipTree(uint3(MipCoord, TextureCoord.z), StopLevel);
@@ -284,7 +283,7 @@ void SkyLightRGS()
 		// Determine sky light or lambert ray
 		uint DummyVariable;
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, DummyVariable);
-		// #dxr_todo: Should strategy selection be driven by CVar?
+
 		float SkyLightSamplingStrategyPdf = 0.5;
 		float MisWeight = 1.0;
 		if (RandSample.x < SkyLightSamplingStrategyPdf)
@@ -309,7 +308,7 @@ void SkyLightRGS()
 		}
 
 		uint RayFlags = 0
-			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
 #if !ENABLE_TWO_SIDED_GEOMETRY
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif

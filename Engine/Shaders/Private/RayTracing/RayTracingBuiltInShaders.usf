@@ -2,7 +2,6 @@
 
 #include "RayTracingCommon.ush"
 
-// #dxr_todo: move RT_REGISTER macro declaration into some a shared header, as it's now used in a few places
 #define RT_CONCATENATE2(a, b) a##b
 #define RT_CONCATENATE(a, b) RT_CONCATENATE2(a, b)
 #define RT_REGISTER(InType, InIndex, InSpace) register(RT_CONCATENATE(InType, InIndex), RT_CONCATENATE(space, InSpace))

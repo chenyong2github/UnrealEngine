@@ -595,8 +595,7 @@ FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 class FRayTracingPipelineCache
 {
 	// #dxr_todo UE-68234: This needs to support fully asynchronous, non-blocking pipeline creation with explicit completion query mechanism.
-	// #dxr_todo: Could move this to a separate cpp file.
-	// #dxr_todo: Should support eviction of stale pipelines.
+	// #dxr_todo: UE-72566 Should support eviction of stale pipelines.
 	// #dxr_todo: we will likely also need an explicit ray tracing pipeline sub-object cache to hold closest hit shaders
 
 public:

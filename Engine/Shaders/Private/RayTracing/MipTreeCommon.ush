@@ -11,7 +11,7 @@ uint2 DimensionsAtLevel(uint2 Dimensions, uint Level)
 	return uint2(Dimensions.x >> Level, Dimensions.y >> Level);
 }
 
-// #dxr_todo: Discussing with Brian where these utility functions should live.
+// #dxr_todo: UE-72536 unifying morton code
 uint MortonEncode(uint2 Pixel)
 {
 	Pixel.x &= 0x0000ffff;
