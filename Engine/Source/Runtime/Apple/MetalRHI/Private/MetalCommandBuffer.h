@@ -35,10 +35,10 @@ enum EMetalDebugLevel
 	EMetalDebugLevelFastValidation,
 	EMetalDebugLevelTrackResources,
 	EMetalDebugLevelResetOnBind,
-	EMetalDebugLevelValidation,
-	EMetalDebugLevelLogOperations,
 	EMetalDebugLevelConditionalSubmit,
-	EMetalDebugLevelWaitForComplete
+	EMetalDebugLevelWaitForComplete,
+	EMetalDebugLevelValidation,
+	EMetalDebugLevelLogOperations
 };
 
 NS_ASSUME_NONNULL_BEGIN

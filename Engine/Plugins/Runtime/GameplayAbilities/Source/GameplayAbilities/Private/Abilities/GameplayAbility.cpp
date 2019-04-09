@@ -745,6 +745,10 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 
 	RemoteInstanceEnded = false;
 
+	// This must be called before we start applying tags and blocking or canceling other abilities.
+	// We could set off a chain that results in calling functions on this ability that rely on the current info being set.
+	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
+
 	Comp->HandleChangeAbilityCanBeCanceled(AbilityTags, this, true);
 	Comp->ApplyAbilityBlockAndCancelTags(AbilityTags, this, true, BlockAbilitiesWithTag, true, CancelAbilitiesWithTag);
 	Comp->AddLooseGameplayTags(ActivationOwnedTags);
@@ -753,8 +757,6 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	{
 		OnGameplayAbilityEnded.Add(*OnGameplayAbilityEndedDelegate);
 	}
-
-	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
 
 	Comp->NotifyAbilityActivated(Handle, this);
 }

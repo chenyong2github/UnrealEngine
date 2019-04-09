@@ -139,6 +139,14 @@ struct FLandscapeLayerBrush
 	ALandscapeBlueprintCustomBrush* BPCustomBrush;
 };
 
+UENUM()
+enum ELandscapeBlendMode
+{
+	LSBM_AdditiveBlend,
+	LSBM_AlphaBlend,
+	LSBM_MAX,
+};
+
 USTRUCT()
 struct FLandscapeLayer
 {
@@ -151,6 +159,7 @@ struct FLandscapeLayer
 		, bLocked(false)
 		, HeightmapAlpha(1.0f)
 		, WeightmapAlpha(1.0f)
+		, BlendMode(LSBM_AdditiveBlend)
 	{}
 
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
@@ -170,6 +179,9 @@ struct FLandscapeLayer
 
 	UPROPERTY()
 	float WeightmapAlpha;
+
+	UPROPERTY()
+	TEnumAsByte<enum ELandscapeBlendMode> BlendMode;
 
 	UPROPERTY()
 	TArray<FLandscapeLayerBrush> Brushes;
@@ -231,18 +243,25 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API void RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
+	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
 	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
-	LANDSCAPE_API void ClearLayer(int32 InLayerIndex);
-	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid);
+	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
+	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, bool bInUpdateCollision = true);
+	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision = true);
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
-	LANDSCAPE_API void SetEditingLayer(FGuid InLayerGuid = FGuid());
+	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
 	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
 	LANDSCAPE_API void ShowAllLayers();
+	LANDSCAPE_API void UpdateLandscapeSplines(const FGuid& InLayerGuid = FGuid(), bool bUpdateOnlySelected = false);
+	LANDSCAPE_API void SetLandscapeSplinesReservedLayer(int32 InLayerIndex);
+	LANDSCAPE_API struct FLandscapeLayer* GetLandscapeSplinesReservedLayer();
+	LANDSCAPE_API const struct FLandscapeLayer* GetLandscapeSplinesReservedLayer() const;
+	LANDSCAPE_API bool IsEditingLayerReservedForSplines() const;
 
 	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
@@ -254,7 +273,6 @@ public:
 	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
-		
 
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -312,6 +330,13 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
+	/** Target Landscape Layer for Landscape Splines */
+	UPROPERTY()
+	FGuid LandscapeSplinesTargetLayerGuid;
+	
+	/** Current Editing Landscape Layer*/
+	FGuid EditingLayer;
+
 	UPROPERTY(TextExportTransient)
 	TArray<FLandscapeLayer> LandscapeLayers;
 

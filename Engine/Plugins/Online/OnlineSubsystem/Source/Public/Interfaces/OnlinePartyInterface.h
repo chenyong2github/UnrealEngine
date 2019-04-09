@@ -627,6 +627,14 @@ enum class EKickMemberCompletionResult;
 enum class EPromoteMemberCompletionResult;
 enum class EInvitationResponse;
 
+enum class EPartySystemState
+{
+	Initializing = 0,
+	Initialized,
+	RequestingShutdown,
+	ShutDown,
+};
+
 ///////////////////////////////////////////////////////////////////
 // Completion delegates
 ///////////////////////////////////////////////////////////////////
@@ -926,6 +934,13 @@ PARTY_DECLARE_DELEGATETYPE(OnFillPartyJoinRequestData);
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyAnalyticsEvent), const FUniqueNetId& /*LocalUserId*/, const FString& /*EventName*/, const TArray<FAnalyticsEventAttribute>& /*Attributes*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyAnalyticsEvent);
+
+/**
+* Notification of party system state change
+* @param NewState - new state this partysystem is in
+*/
+DECLARE_MULTICAST_DELEGATE_OneParam(F_PREFIX(OnPartySystemStateChange), EPartySystemState /*NewState*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartySystemStateChange);
 
 /**
  * Interface definition for the online party services 
@@ -1576,6 +1591,12 @@ public:
 	 * @param Attributes - attributes for the event
 	 */
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyAnalyticsEvent, const FUniqueNetId& /*LocalUserId*/, const FString& /*EventName*/, const TArray<FAnalyticsEventAttribute>& /*Attributes*/);
+
+	/**
+	* Notification of party system state change
+	* @param NewState - new state this partysystem is in
+	*/
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnPartySystemStateChange, EPartySystemState /*NewState*/);
 
 	/**
 	 * Dump out party state for all known parties

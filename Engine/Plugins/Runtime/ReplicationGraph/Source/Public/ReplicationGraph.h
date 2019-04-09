@@ -420,6 +420,8 @@ public:
 
 	void ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList);
 
+	UReplicationGraphNode_ConnectionDormanyNode* GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params);
+
 	UReplicationGraphNode_ConnectionDormanyNode* GetConnectionNode(const FConnectionGatherActorListParameters& Params);
 
 private:
@@ -493,7 +495,7 @@ public:
 	
 
 	// Called if cull distance changes. Note the caller must update Global/Connection actor rep infos. This just changes cached state within this node
-	void NotifyActorCullDistChange(AActor* Actor, FGlobalActorReplicationInfo& GlobalInfo, float OldDistSq);
+	void NotifyActorCullDistChange(AActor* Actor, FGlobalActorReplicationInfo& GlobalInfo, float OldDist);
 	
 	float		CellSize;
 	FVector2D	SpatialBias;
@@ -515,6 +517,9 @@ public:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	TArray<FString> DebugActorNames;
 #endif
+
+	// When enabled the RepGraph tells clients to destroy dormant dynamic actors when they go out of relevancy.
+	bool bDestroyDormantDynamicActors = true;
 
 protected:
 
@@ -582,6 +587,8 @@ private:
 	
 	void PutStaticActorIntoCell(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo, bool bDormancyDriven);
 
+	void DoDormantDynamicActorDestruction(const FConnectionGatherActorListParameters& Params, UReplicationGraphNode_GridCell* CurrentCell, UReplicationGraphNode_GridCell* PreviousCell);
+
 	UReplicationGraphNode_GridCell* GetCellNode(UReplicationGraphNode_GridCell*& NodePtr)
 	{
 		if (NodePtr == nullptr)
@@ -617,14 +624,20 @@ private:
 			GridX.SetNum(Y+1);
 		}
 		return GridX[Y];
-	}			
+	}		
+
+	UReplicationGraphNode_GridCell*& GetCell(int32 X, int32 Y)
+	{
+		TArray<UReplicationGraphNode_GridCell*>& GridX = GetGridX(X);
+		return GetCell(GridX, Y);
+	}
 
 	bool bNeedsRebuild = false;
 
 	void GetGridNodesForActor(FActorRepListType Actor, const FGlobalActorReplicationInfo& ActorRepInfo, TArray<UReplicationGraphNode_GridCell*>& OutNodes);
 	void GetGridNodesForActor(FActorRepListType Actor, const UReplicationGraphNode_GridSpatialization2D::FActorCellInfo& CellInfo, TArray<UReplicationGraphNode_GridCell*>& OutNodes);
 
-	FActorCellInfo GetCellInfoForActor(FActorRepListType Actor, const FVector& Location3D, float CullDistanceSquared);
+	FActorCellInfo GetCellInfoForActor(FActorRepListType Actor, const FVector& Location3D, float CullDistance);
 
 	// This is a reused TArray for gathering actor nodes. Just to prevent using a stack based TArray everywhere or static/reset patten.
 	TArray<UReplicationGraphNode_GridCell*> GatheredNodes;
@@ -994,9 +1007,9 @@ public:
 	//~ Begin UReplicationConnectionDriver Interface
 	virtual void TearDown() override;
 
-private:
+	virtual void NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) override;
 
-	friend UReplicationGraph;
+	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) override { OnClientVisibleLevelNameRemove.Broadcast(LevelName); }
 
 	virtual void NotifyActorChannelAdded(AActor* Actor, class UActorChannel* Channel) override;
 
@@ -1009,11 +1022,11 @@ private:
 	virtual void NotifyRemoveDestructionInfo(FActorDestructionInfo* DestructInfo) override;
 
 	virtual void NotifyResetDestructionInfo() override;
-
-	virtual void NotifyClientVisibleLevelNamesAdd(FName LevelName, UWorld* StreamingWorld) override;
-
-	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) override { OnClientVisibleLevelNameRemove.Broadcast(LevelName); }
 	//~ End UReplicationConnectionDriver Interface
+
+private:
+
+	friend UReplicationGraph;
 
 	// ----------------------------------------
 

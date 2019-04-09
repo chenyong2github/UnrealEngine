@@ -738,9 +738,9 @@ namespace UnrealBuildTool
 				CompileAction.bShouldOutputStatusDescription = true;
 
 				foreach(UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-		{
-					if(Framework.ZipFile != null)
 			{
+					if(Framework.ZipFile != null)
+				{
 						FileItem ExtractedTokenFile = ExtractFramework(Framework, Actions);
 						CompileAction.PrerequisiteItems.Add(ExtractedTokenFile);
 				}
@@ -930,10 +930,10 @@ namespace UnrealBuildTool
 			Arguments.Append(" --notices");
 			Arguments.Append(" --warnings");
             Arguments.AppendFormat(" --output-partial-info-plist '{0}/assetcatalog_generated_info.plist'", InputDir);
-            Arguments.Append(" --app-icon AppIcon");
 			if(Platform == CppPlatform.TVOS)
 			{
-				Arguments.Append(" --launch-image LaunchImage");
+				Arguments.Append(" --app-icon 'App Icon & Top Shelf Image'");
+				Arguments.Append(" --launch-image 'Launch Image'");
 				Arguments.Append(" --filter-for-device-model AppleTV5,3");
 				//Arguments.Append(" --filter-for-device-os-version 10.0");
 				Arguments.Append(" --target-device tv");
@@ -942,6 +942,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				Arguments.Append(" --app-icon AppIcon");
 				Arguments.Append(" --product-type com.apple.product-type.application");
 				Arguments.Append(" --target-device iphone");
 				Arguments.Append(" --target-device ipad");
@@ -1259,10 +1260,14 @@ namespace UnrealBuildTool
 				};
 				Dir = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets");
 
-				string BuildResourcesGraphicsDir = Path.Combine(BuildDir, "Resources", "Graphics");
+				string BuildResourcesGraphicsDir = Path.Combine(BuildDir, "Resources", "Assets.xcassets");
 				for (int Index = 0; Index < Images.Length; ++Index)
 				{
-					string Image = Path.Combine((Directory.Exists(Path.Combine(BuildDir, "Resources", "Graphics")) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "TVOS"))), "Resources", "Graphics", Images[Index][0]);
+					string SourceDir = Path.Combine((Directory.Exists(BuildResourcesGraphicsDir) ? (BuildDir) : (Path.Combine(EngineDir, "Build", "TVOS"))),
+						"Resources",
+						"Assets.xcassets");
+					string Image = Path.Combine(SourceDir, Images[Index][1], Images[Index][0]);
+
 					if (File.Exists(Image))
 					{
 						bUserImagesExist |= Image.StartsWith(BuildResourcesGraphicsDir);
@@ -1350,10 +1355,10 @@ namespace UnrealBuildTool
         {
             List<FileItem> OutputFiles = new List<FileItem>(base.PostBuild(Executable, BinaryLinkEnvironment, Actions));
 
-			if (BinaryLinkEnvironment.bIsBuildingLibrary)
-			{
-				return OutputFiles;
-			}
+            if (BinaryLinkEnvironment.bIsBuildingLibrary)
+            {
+                return OutputFiles;
+            }
 
             // For IOS/tvOS, generate the dSYM file if the config file is set to do so
 			if (ProjectSettings.bGeneratedSYMFile == true || ProjectSettings.bGeneratedSYMBundle == true || BinaryLinkEnvironment.bUsePDBFiles == true)
@@ -1522,7 +1527,7 @@ namespace UnrealBuildTool
 		private static void GenerateCrashlyticsData(string ExecutableDirectory, string ExecutableName, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
-            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/ThirdPartyFrameworks/Fabric.embeddedframework";
+            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
             if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
@@ -1564,18 +1569,15 @@ namespace UnrealBuildTool
 			{
 				ProjectFileGenerator.bGenerateProjectFiles = false;
 			}
-		}
+			}
 
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
 		{
 			return FileReference.Combine(Executable.Directory, "Payload", TargetName + ".app", TargetName);
 		}
 
-
 		private static void WriteEntitlements(IOSPostBuildSyncTarget Target)
 		{
-			// get some info from the mobileprovisioning file
-			// the iCloud identifier and the bundle id may differ
 			string AppName = Target.TargetName;
 			FileReference MobileProvisionFile;
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
@@ -1590,139 +1592,21 @@ namespace UnrealBuildTool
 				MobileProvisionFile = new FileReference(Target.ImportProvision);
 			}
 
-			string iCloudContainerIdentifiersXML = "";
-			string iCloudContainerIdentifier = "";
-			string UbiquityContainerIdentifiersXML = "";
-			if (MobileProvisionFile!= null && File.Exists(MobileProvisionFile.FullName))
-			{
-				MobileProvisionContents MobileProvisionContent = MobileProvisionContents.Read(MobileProvisionFile);
-
-				iCloudContainerIdentifier = MobileProvisionContent.GetNodeValueByName("com.apple.developer.icloud-container-identifiers");
-				iCloudContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.icloud-container-identifiers");
-				UbiquityContainerIdentifiersXML = MobileProvisionContent.GetNodeXMLValueByName("com.apple.developer.ubiquity-container-identifiers");
-			}
-			// create the entitlements file
 			string IntermediateDir = (((Target.ProjectFile != null) ? Target.ProjectFile.Directory.ToString() :
 				UnrealBuildTool.EngineDirectory.ToString())) + "/Intermediate/" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS");
-			WriteEntitlementsFile(Path.Combine(IntermediateDir, AppName + ".entitlements"), Target.ProjectFile, Target.bForDistribution, iCloudContainerIdentifiersXML, UbiquityContainerIdentifiersXML);
-
-			// create a pList key named ICloudContainerIdentifier
-			// to be used at run-time when intializing the CloudKit services
-			if (iCloudContainerIdentifier != "")
-			{
-				string PListFile = IntermediateDir + "/" + AppName + "-Info.plist";
-				if (File.Exists(PListFile))
-				{
-					string OldPListData = File.ReadAllText(PListFile);
-					XDocument XDoc;
-					try
-					{
-						XDoc = XDocument.Parse(OldPListData);
-						if (XDoc.DocumentType != null)
-						{
-							XDoc.DocumentType.InternalSubset = null;
-						}
-
-						XElement dictElement = XDoc.Root.Element("dict");
-						if (dictElement != null)
-						{
-							dictElement.Add(new XElement("key", "ICloudContainerIdentifier"));
-							dictElement.Add(new XElement("string", iCloudContainerIdentifier));
-
-							XDoc.Save(PListFile);
-						}
-					}
-					catch (Exception e)
-					{
-						throw new BuildException("plist is invalid {0}\n{1}", e, OldPListData);
-					}
-
-				}
-			}
-		}
-
-		private static void WriteEntitlementsFile(string OutputFilename, FileReference ProjectFile, bool bForDistribution, string iCloudContainerIdentifiersXML, string UbiquityContainerIdentifiersXML)
-		{
 			// get the settings from the ini file
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
-			bool bCloudKitSupported = false;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableCloudKitSupport", out bCloudKitSupported);
-			Directory.CreateDirectory(Path.GetDirectoryName(OutputFilename));
-			// we need to have something so Xcode will compile, so we just set the get-task-allow, since we know the value,
-			// which is based on distribution or not (true means debuggable)
-			StringBuilder Text = new StringBuilder();
-			Text.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-			Text.AppendLine("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
-			Text.AppendLine("<plist version=\"1.0\">");
-			Text.AppendLine("<dict>");
-			Text.AppendLine("\t<key>get-task-allow</key>");
-			Text.AppendLine(string.Format("\t<{0}/>", bForDistribution ? "false" : "true"));
-			if (bCloudKitSupported)
-			{
-				Text.AppendLine("\t<key>com.apple.developer.icloud-container-identifiers</key>");
-				if (iCloudContainerIdentifiersXML == "")
-				{
-					Text.AppendLine("\t<array>");
-					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
-					Text.AppendLine("\t</array>");
-				}
-				else
-				{
-					Text.AppendLine(iCloudContainerIdentifiersXML);
-				}
-				Text.AppendLine("\t<key>com.apple.developer.icloud-services</key>");
-				Text.AppendLine("\t<array>");
-				Text.AppendLine("\t\t<string>CloudKit</string>");
-				Text.AppendLine("\t\t<string>CloudDocuments</string>");
-				Text.AppendLine("\t</array>");
-				Text.AppendLine("\t<key>com.apple.developer.ubiquity-container-identifiers</key>");
-				if (UbiquityContainerIdentifiersXML == "")
-				{
-					Text.AppendLine("\t<array>");
-					Text.AppendLine("\t\t<string>iCloud.$(CFBundleIdentifier)</string>");
-					Text.AppendLine("\t</array>");
-				}
-				else
-				{
-					Text.AppendLine(UbiquityContainerIdentifiersXML);
-				}
-				Text.AppendLine("\t<key>com.apple.developer.ubiquity-kvstore-identifier</key>");
-				Text.AppendLine("\t<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>");
-			}
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
 
-			bool bRemoteNotificationsSupported = false;
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableRemoteNotificationsSupport", out bRemoteNotificationsSupported);
-			if (bRemoteNotificationsSupported)
-			{
-				Text.AppendLine("\t<key>aps-environment</key>");
-				Text.AppendLine(string.Format("\t<string>{0}</string>", bForDistribution ? "production" : "development"));
-			}
-			Text.AppendLine("</dict>");
-			Text.AppendLine("</plist>");
-
-			if (File.Exists(OutputFilename))
-			{
-				// read existing file
-				string ExisitingFileContents = File.ReadAllText(OutputFilename);
-				bool bFileChanged = !ExisitingFileContents.Equals(Text.ToString(), StringComparison.Ordinal);
-				// overwrite file if there are content changes
-				if (bFileChanged)
-				{
-					File.WriteAllText(OutputFilename, Text.ToString());
-				}
-			}
-			else
-			{
-				File.WriteAllText(OutputFilename, Text.ToString());
-			}
+			IOSExports.WriteEntitlements(Target.Platform, Ini, AppName, MobileProvisionFile, Target.bForDistribution, IntermediateDir);
 		}
 
+	
         public static void PostBuildSync(IOSPostBuildSyncTarget Target)
-		{
+			{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
 			string BundleID;
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID);
-			
+
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
@@ -1987,7 +1871,7 @@ namespace UnrealBuildTool
 				CleanIntermediateDirectory(LocalFrameworkAssets);
 
 				foreach (KeyValuePair<string, DirectoryReference> Pair in Target.FrameworkNameToSourceDir)
-				{
+					{
 					string UnpackedZipPath = Pair.Value.FullName;
 
 					// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
@@ -1996,7 +1880,7 @@ namespace UnrealBuildTool
 					Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
 
 					string ResultsText;
-					RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
+                    RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);
                 }
             }
 		}

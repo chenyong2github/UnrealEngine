@@ -223,8 +223,15 @@ protected:
 	virtual void OnMemberCreatedInternal(UPartyMember& NewMember);
 	virtual void OnLeftPartyInternal(EMemberExitedReason Reason);
 
+	/** Virtual versions of the package-scoped "CanX" methods above, as a virtual declared within package scoping cannot link (exported public, imported protected) */
+	virtual bool CanInviteUserInternal(const USocialUser& User) const;
+	virtual bool CanPromoteMemberInternal(const UPartyMember& PartyMember) const;
+	virtual bool CanKickMemberInternal(const UPartyMember& PartyMember) const;
+
 	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful);
 	
+	virtual void HandlePartySystemStateChange(EPartySystemState NewState);
+
 	/** Determines the joinability of this party for a specific user requesting to join */
 	virtual FPartyJoinApproval EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const;
 
@@ -282,6 +289,8 @@ private:
 	void BeginLeavingParty(EMemberExitedReason Reason);
 	void FinalizePartyLeave(EMemberExitedReason Reason);
 
+	void SetIsRequestingShutdown(bool bInRequestingShutdown);
+
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
@@ -312,7 +321,7 @@ private:	// Handlers
 	void HandleReservationRequestComplete(EPartyReservationResult::Type ReservationResponse);
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
-	
+
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -373,6 +382,7 @@ private:
 
 	bool bIsLeavingParty = false;
 	bool bIsInitialized = false;
+	TOptional<bool> bIsRequestingShutdown;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
 	mutable FLeavePartyEvent OnPartyLeftEvent;

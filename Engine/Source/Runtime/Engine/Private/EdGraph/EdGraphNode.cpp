@@ -478,6 +478,11 @@ FLinearColor UEdGraphNode::GetNodeCommentColor() const
 	return FLinearColor::White;
 }
 
+FLinearColor UEdGraphNode::GetNodeBodyTintColor() const
+{
+	return FLinearColor::White;
+}
+
 FText UEdGraphNode::GetTooltipText() const
 {
 	return GetClass()->GetToolTipText();

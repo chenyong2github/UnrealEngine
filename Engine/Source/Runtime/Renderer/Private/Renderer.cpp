@@ -44,22 +44,6 @@ IMPLEMENT_MODULE(FRendererModule, Renderer);
 	FSystemSettings* GSystemSettingsForVisualizers = &GSystemSettings;
 #endif
 
-// Dummy Reflection capture uniform buffer for translucent tile mesh rendering
-class FDummyReflectionCaptureUniformBuffer : public TUniformBuffer<FReflectionCaptureShaderData>
-{
-	typedef TUniformBuffer< FReflectionCaptureShaderData > Super;
-	
-public:
-	virtual void InitDynamicRHI() override
-	{
-		FReflectionCaptureShaderData DummyPositionsBuffer;
-		FMemory::Memzero(DummyPositionsBuffer);
-		SetContentsNoUpdate(DummyPositionsBuffer);
-		Super::InitDynamicRHI();
-	}
-};
-static TGlobalResource< FDummyReflectionCaptureUniformBuffer > GDummyReflectionCaptureUniformBuffer;
-
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
@@ -100,7 +84,12 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 		const auto FeatureLevel = View.GetFeatureLevel();
 		const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(FeatureLevel);
 		const FSceneViewFamily* ViewFamily = View.Family;
-		const FScene* Scene = ViewFamily->Scene ? ViewFamily->Scene->GetRenderScene() : nullptr;
+		const FScene* Scene = nullptr;
+
+		if (ViewFamily->Scene)
+		{
+			Scene = ViewFamily->Scene->GetRenderScene();
+		}
 
 		Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(FeatureLevel);
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
@@ -198,12 +187,6 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 
 			if (ShadingPath == EShadingPath::Deferred)
 			{
-				// Crash fix - reflection capture shader parameter is bound but we have no buffer during Build Texture Streaming
-				if(!View.ReflectionCaptureUniformBuffer.IsValid())
-				{
-					View.ReflectionCaptureUniformBuffer = GDummyReflectionCaptureUniformBuffer.GetUniformBufferRef();
-				}
-			
 				TUniformBufferRef<FTranslucentBasePassUniformParameters> TranslucentBasePassUniformBuffer;
 				CreateTranslucentBasePassUniformBuffer(RHICmdList, View, nullptr, ESceneTextureSetupMode::None, TranslucentBasePassUniformBuffer, 0);
 				BasePassUniformBuffer = TranslucentBasePassUniformBuffer;
@@ -219,6 +202,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 						&View,
 						DrawRenderState,
 						DynamicMeshPassContext,
+						FBasePassMeshProcessor::EFlags::None,
 						ETranslucencyPass::TPT_AllTranslucency);
 					
 					const uint64 DefaultBatchElementMask = ~0ull;
@@ -242,8 +226,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 						&View,
 						DrawRenderState,
 						DynamicMeshPassContext,
-						false,
-						ETranslucencyPass::TPT_AllTranslucency); // No CSM?
+						FMobileBasePassMeshProcessor::EFlags::None,
+						ETranslucencyPass::TPT_AllTranslucency);
 					
 					const uint64 DefaultBatchElementMask = ~0ull;
 					PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, nullptr);
@@ -297,7 +281,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 							View.GetFeatureLevel(),
 							&View,
 							DrawRenderState,
-							DynamicMeshPassContext);
+							DynamicMeshPassContext,
+							FBasePassMeshProcessor::EFlags::None);
 						
 						const uint64 DefaultBatchElementMask = ~0ull;
 						PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, nullptr);
@@ -319,7 +304,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 							View.GetFeatureLevel(),
 							&View,
 							DrawRenderState,
-							DynamicMeshPassContext, true);
+							DynamicMeshPassContext,
+							FMobileBasePassMeshProcessor::EFlags::CanReceiveCSM);
 						
 						const uint64 DefaultBatchElementMask = ~0ull;
 						PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, nullptr);

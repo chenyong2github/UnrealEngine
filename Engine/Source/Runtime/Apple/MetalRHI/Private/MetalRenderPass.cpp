@@ -1873,7 +1873,6 @@ void FMetalRenderPass::ConditionalSubmit()
 	
 	bool bCanForceSubmit = State.CanRestartRenderPass();
 
-#if METAL_DEBUG_OPTIONS
 	FRHISetRenderTargetsInfo CurrentRenderTargets = State.GetRenderTargetsInfo();
 	
 	// Force a command-encoder when GMetalRuntimeDebugLevel is enabled to help track down intermittent command-buffer failures.
@@ -1916,7 +1915,6 @@ void FMetalRenderPass::ConditionalSubmit()
 		
 		bCanForceSubmit = bCanChangeRT;
 	}
-#endif
 	
 	if (GMetalCommandBufferCommitThreshold > 0 && NumOutstandingOps > 0 && NumOutstandingOps >= GMetalCommandBufferCommitThreshold && bCanForceSubmit && !CurrentEncoder.IsParallel())
 	{
@@ -1926,7 +1924,6 @@ void FMetalRenderPass::ConditionalSubmit()
 			NumOutstandingOps = 0;
 		}
 		
-#if METAL_DEBUG_OPTIONS
 		// Force a command-encoder when GMetalRuntimeDebugLevel is enabled to help track down intermittent command-buffer failures.
 		if (bWithinRenderPass && CmdList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelConditionalSubmit && State.GetHasValidRenderTarget())
 		{
@@ -1946,7 +1943,6 @@ void FMetalRenderPass::ConditionalSubmit()
 				RestartRenderPass(State.GetRenderPassDescriptor());
 			}
 		}
-#endif
 	}
 }
 

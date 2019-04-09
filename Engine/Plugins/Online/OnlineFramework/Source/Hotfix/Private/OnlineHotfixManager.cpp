@@ -423,6 +423,11 @@ void UOnlineHotfixManager::CheckAvailability(FOnHotfixAvailableComplete& InCompl
 	}
 }
 
+void UOnlineHotfixManager::OnHotfixAvailablityCheck(const TArray<FCloudFileHeader>& PendingChangedFiles, const TArray<FCloudFileHeader>& PendingRemoveFiles)
+{
+	// empty in base class
+}
+
 void UOnlineHotfixManager::OnEnumerateFilesForAvailabilityComplete(bool bWasSuccessful, const FString& ErrorStr, FOnHotfixAvailableComplete InCompletionDelegate)
 {
 	if (OnlineTitleFile.IsValid())
@@ -459,6 +464,8 @@ void UOnlineHotfixManager::OnEnumerateFilesForAvailabilityComplete(bool bWasSucc
 			UE_LOG(LogHotfixManager, Display, TEXT("Returned hotfix data is the same as last application, returning nothing to do"));
 			Result = EHotfixResult::SuccessNoChange;
 		}
+
+		OnHotfixAvailablityCheck(ChangedHotfixFileList, RemovedHotfixFileList);
 
 		// Restore state to before the check
 		RemovedHotfixFileList.Empty();
@@ -1004,6 +1011,16 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	if (OnlineSub != nullptr)
 	{
 		OnlineSub->ReloadConfigs(OnlineSubSections);
+	}
+
+	// If there is an embedded MCP and it's loaded, Reload configs relevant to OSS config sections that were updated
+	if (IOnlineSubsystem::IsLoaded(MCP_SUBSYSTEM_EMBEDDED))
+	{
+		IOnlineSubsystem* OnlineSubEmbedded = IOnlineSubsystem::Get(MCP_SUBSYSTEM_EMBEDDED);
+		if (OnlineSubEmbedded != nullptr)
+		{
+			OnlineSubEmbedded->ReloadConfigs(OnlineSubSections);
+		}
 	}
 
 	UE_LOG(LogHotfixManager, Log, TEXT("Updating config from %s took %f seconds and reloaded %d objects"),

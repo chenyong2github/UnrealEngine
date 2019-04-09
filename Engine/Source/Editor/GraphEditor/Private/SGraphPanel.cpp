@@ -18,6 +18,7 @@
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/LevelDragDropOp.h"
+#include "DragAndDrop/GraphNodeDragDropOp.h"
 
 #include "GraphEditorActions.h"
 
@@ -950,6 +951,13 @@ FReply SGraphPanel::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& D
 	{
 		TSharedPtr<FLevelDragDropOp> LevelOp = StaticCastSharedPtr<FLevelDragDropOp>(Operation);
 		OnDropStreamingLevel.ExecuteIfBound(LevelOp->StreamingLevelsToDrop, GraphObj, NodeAddPosition);
+		return FReply::Handled();
+	}
+
+	else if (Operation->IsOfType<FGraphNodeDragDropOp>())
+	{
+		TSharedPtr<FGraphNodeDragDropOp> NodeDropOp = StaticCastSharedPtr<FGraphNodeDragDropOp>(Operation);
+		NodeDropOp->OnPerformDropToGraph.ExecuteIfBound(NodeDropOp, GraphObj, NodeAddPosition, DragDropEvent.GetScreenSpacePosition());
 		return FReply::Handled();
 	}
 	else

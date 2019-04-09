@@ -288,9 +288,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		}
 	}
 
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	FIntVector RectSize = GetOutput(ePId_Output0)->RenderTargetDesc.GetSize();
+	FIntPoint RectSize = Context.SceneColorViewRect.Size();
 	SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessMaterial, TEXT("PostProcessMaterial %dx%d Material=%s"), RectSize.X, RectSize.Y, *Material->GetFriendlyName());
 
 	// Copy of custom depth/stencil buffer if HW does not support simultaneously a texture bound as DepthRead_StencilRead and SRV
@@ -372,7 +370,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		
 	if (bDoStencilTest || bDoOutputBlend)
 	{
-		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
+		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && !PassOutputs[0].PooledRenderTarget)
 		{
 			PassOutputs[0].PooledRenderTarget = GetInput(ePId_Input0)->GetOutput()->RequestInput();
 			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
@@ -436,7 +434,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		const FViewInfo& View = Context.View;
 		const FSceneViewFamily& ViewFamily = *(View.Family);
 
-		FIntPoint SrcSize = InputDesc->Extent;
+		FIntPoint SrcSize = GetInputDesc(ePId_Input0)->Extent;
 
 		FShader* VertexShader = nullptr;
 

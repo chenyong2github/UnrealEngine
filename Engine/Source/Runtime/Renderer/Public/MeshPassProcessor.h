@@ -156,18 +156,6 @@ public:
 		return !(*this == rhs);
 	}
 	
-	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState() const
-	{
-		const FSetElementId SetElementId = FSetElementId::FromInteger(SetElementIndex);
-
-		if (bOneFrameId)
-		{
-			return OneFrameIdTable[SetElementId];
-		}
-
-		return PersistentIdTable[SetElementId].StateInitializer;
-	}
-
 	/**
 	 * Get a ref counted persistent pipeline id, which needs to manually released.
 	 */
@@ -188,7 +176,36 @@ public:
 	static int32 GetPersistentIdNum() { return PersistentIdTable.Num(); }
 	static SIZE_T GetOneFrameIdTableSize() { return OneFrameIdTable.GetAllocatedSize(); }
 
+	class FPipelineStateIdLookupScope
+	{
+	public:
+		FPipelineStateIdLookupScope(const FGraphicsMinimalPipelineStateId& LookupID);
+		~FPipelineStateIdLookupScope();
+		
+		const FGraphicsMinimalPipelineStateInitializer& GetPipelineState();
+	private:
+		FPipelineStateIdLookupScope() {}
+		const FGraphicsMinimalPipelineStateInitializer* SafeStateRef;
+		bool bLocked;
+	};
+
 private:
+
+	friend class FPipelineStateIdLookupScope;
+
+	//this reference isn't safe unless it's wrapped in a scope with an FRWLock around OneFrameIDTable.
+	inline const FGraphicsMinimalPipelineStateInitializer& GetPipelineState() const
+	{
+		const FSetElementId SetElementId = FSetElementId::FromInteger(SetElementIndex);
+
+		if (bOneFrameId)
+		{
+			return OneFrameIdTable[SetElementId];
+		}
+
+		return PersistentIdTable[SetElementId].StateInitializer;
+	}
+
 	union
 	{
 		uint32 PackedId = 0;
@@ -203,7 +220,7 @@ private:
 
 	static TSet<FRefCountedGraphicsMinimalPipelineStateInitializer, RefCountedGraphicsMinimalPipelineStateInitializerKeyFuncs> PersistentIdTable;
 	static TSet<FGraphicsMinimalPipelineStateInitializer> OneFrameIdTable;
-	static FCriticalSection OneFrameIdTableCriticalSection;
+	static FRWLock OneFrameIdTableCriticalSection;
 };
 
 struct FMeshProcessorShaders

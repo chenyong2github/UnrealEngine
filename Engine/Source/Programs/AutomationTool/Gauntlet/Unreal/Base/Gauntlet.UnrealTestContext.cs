@@ -159,6 +159,18 @@ namespace Gauntlet
 		public string LogDir;
 
 		/// <summary>
+		/// Custom name for the directory under LogDir where artifacts are stored.
+		/// </summary>
+		[AutoParam("")]
+		public string ArtifactName;
+
+		/// <summary>
+		/// Psotfix to apply to the artifact folder (e.g. don't replace the whole thing like ArtifactName, just append this string)
+		/// </summary>
+		[AutoParam("")]
+		public string ArtifactPostfix;
+
+		/// <summary>
 		/// Less logging
 		/// </summary>
 		[AutoParam(false)]

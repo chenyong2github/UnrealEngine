@@ -3,7 +3,16 @@
 #pragma once
 
 #include "PropertyPathHelpers.h"
+#include "Hierarchy.h"
 #include "ControlRigDefines.generated.h"
+
+USTRUCT()
+struct FControlRigExecuteContext
+{
+	GENERATED_BODY()
+		
+	FRigHierarchyRef HierarchyReference;
+};
 
 UENUM()
 enum class ETransformSpaceMode : uint8
@@ -17,7 +26,7 @@ enum class ETransformSpaceMode : uint8
 	/** Apply in Base space */
 	BaseSpace,
 
-	/** Apply in base joint */
+	/** Apply in base bone */
 	BaseJoint,
 
 	/** MAX - invalid */
@@ -29,6 +38,19 @@ enum class ETransformGetterType : uint8
 {
 	Initial,
 	Current,
+	Max UMETA(Hidden),
+};
+
+UENUM()
+enum class EBoneGetterSetterMode : uint8
+{
+	/** Apply in parent space */
+	LocalSpace,
+
+	/** Apply in rig space*/
+	GlobalSpace,
+
+	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
 

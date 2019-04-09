@@ -1057,7 +1057,7 @@ void UReplicationGraph::ReplicateActorListsForConnection_Default(UNetReplication
 				{
 					const float DistSq = (GlobalData.WorldLocation - ConnectionViewLocation).SizeSquared();
 
-					if (bDoDistanceCull && ConnectionData.CullDistanceSquared > 0.f && DistSq > ConnectionData.CullDistanceSquared)
+					if (bDoDistanceCull && ConnectionData.GetCullDistanceSquared() > 0.f && DistSq > ConnectionData.GetCullDistanceSquared())
 					{
 						DO_REPGRAPH_DETAILS(PrioritizedReplicationList.GetNextSkippedDebugDetails(Actor)->DistanceCulled = FMath::Sqrt(DistSq));
 						if (bDoCulledOnConnectionCount)
@@ -1333,7 +1333,7 @@ void UReplicationGraph::ReplicateActorListsForConnection_FastShared(UNetReplicat
 
 			// Simple distance cull
 			const float DistSq = DirToActor.SizeSquared();
-			if (DistSq > (ConnectionData.CullDistanceSquared * FastSharedDistanceRequirementPct))
+			if (DistSq > (ConnectionData.GetCullDistanceSquared() * FastSharedDistanceRequirementPct))
 			{
 				continue;
 			}
@@ -1769,7 +1769,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 
 		RepLayout->BuildSharedSerializationForRPC(Parameters);
 		FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap.Get(Actor);
-		const float CullDistanceSquared = GlobalInfo.Settings.CullDistanceSquared;
+		const float CullDistanceSquared = GlobalInfo.Settings.GetCullDistanceSquared();
 
 		bool ForceFlushNetDormancy = false;
 
@@ -3086,7 +3086,7 @@ FORCEINLINE void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyFor
 	// Skip if past cull distance
 	const FVector DirToActor = GlobalInfo.WorldLocation - ConnectionViewLocation;
 	const float DistanceToActorSq = DirToActor.SizeSquared();
-	if (!IgnoreCullDistance && ConnectionInfo.CullDistanceSquared > 0.f && DistanceToActorSq > ConnectionInfo.CullDistanceSquared)
+	if (!IgnoreCullDistance && ConnectionInfo.GetCullDistanceSquared() > 0.f && DistanceToActorSq > ConnectionInfo.GetCullDistanceSquared())
 	{
 		RemoveExistingItem();
 		return;
@@ -3115,7 +3115,7 @@ FORCEINLINE void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyFor
 			// --------------------------------------------------------------------------------------------------------
 			{
 				// Calc Percentage of distance relative to cull distance, scaled to ZoneInfo Min/Max pct
-				const float CullDistSq = ConnectionInfo.CullDistanceSquared > 0.f ? ConnectionInfo.CullDistanceSquared : GlobalInfo.Settings.CullDistanceSquared; // Use global settings if the connection specific setting is zero'd out
+				const float CullDistSq = ConnectionInfo.GetCullDistanceSquared() > 0.f ? ConnectionInfo.GetCullDistanceSquared() : GlobalInfo.Settings.GetCullDistanceSquared(); // Use global settings if the connection specific setting is zero'd out
 
 				if (!ensureMsgf(CullDistSq > 0.f, TEXT("UReplicationGraphNode_DynamicSpatialFrequency::GatherActors: %s has cull distance of 0. Skipping"), *GetPathNameSafe(Actor)))
 				{
@@ -3124,7 +3124,7 @@ FORCEINLINE void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyFor
 					return;
 				}
 
-				const float CullDist = FMath::Sqrt(CullDistSq); // Fixme: sqrt
+				const float CullDist = ConnectionInfo.GetCullDistance();
 				const float DistPct =  DistanceToActor / CullDist;
 
 				const float BiasDistPct = DistPct - ZoneInfo.MinDistPct;
@@ -3305,10 +3305,10 @@ void UReplicationGraphNode_ConnectionDormanyNode::ConditionalGatherDormantActors
 		if (ConnectionActorInfo.bDormantOnConnection)
 		{
 			// If we trickled this actor, restore CullDistance to the default
-			if (ConnectionActorInfo.CullDistanceSquared <= 0.f)
+			if (ConnectionActorInfo.GetCullDistanceSquared() <= 0.f)
 			{
 				FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap->Get(Actor);
-				ConnectionActorInfo.CullDistanceSquared = GlobalInfo.Settings.CullDistanceSquared;
+				ConnectionActorInfo.SetCullDistanceSquared(GlobalInfo.Settings.GetCullDistanceSquared());
 			}
 
 			// He can be removed
@@ -3324,7 +3324,7 @@ void UReplicationGraphNode_ConnectionDormanyNode::ConditionalGatherDormantActors
 		}
 		else if (CVar_RepGraph_TrickleDistCullOnDormanyNodes > 0 && bShouldTrickle)
 		{
-			ConnectionActorInfo.CullDistanceSquared = 0.f;
+			ConnectionActorInfo.SetCullDistanceSquared(0.f);
 			bShouldTrickle = false; // trickle one actor per frame
 		}
 	}
@@ -3503,6 +3503,12 @@ void UReplicationGraphNode_DormancyNode::GatherActorListsForConnection(const FCo
 
 	UReplicationGraphNode_ConnectionDormanyNode* ConnectionNode = GetConnectionNode(Params);
 	ConnectionNode->GatherActorListsForConnection(Params);
+}
+
+UReplicationGraphNode_ConnectionDormanyNode* UReplicationGraphNode_DormancyNode::GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params)
+{
+	UReplicationGraphNode_ConnectionDormanyNode** ConnectionNodeItem = ConnectionNodes.Find(&Params.ConnectionManager);
+	return ConnectionNodeItem == nullptr ? nullptr : *ConnectionNodeItem;
 }
 
 UReplicationGraphNode_ConnectionDormanyNode* UReplicationGraphNode_DormancyNode::GetConnectionNode(const FConnectionGatherActorListParameters& Params)
@@ -3957,7 +3963,7 @@ void UReplicationGraphNode_GridSpatialization2D::PutStaticActorIntoCell(const FN
 void UReplicationGraphNode_GridSpatialization2D::GetGridNodesForActor(FActorRepListType Actor, const FGlobalActorReplicationInfo& ActorRepInfo, TArray<UReplicationGraphNode_GridCell*>& OutNodes)
 {
 	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_GetGridNodesForActor);
-	GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, ActorRepInfo.WorldLocation, ActorRepInfo.Settings.CullDistanceSquared), OutNodes);
+	GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, ActorRepInfo.WorldLocation, ActorRepInfo.Settings.GetCullDistance()), OutNodes);
 }
 
 void UReplicationGraphNode_GridSpatialization2D::SetBiasAndGridBounds(const FBox& GridBox)
@@ -3969,12 +3975,12 @@ void UReplicationGraphNode_GridSpatialization2D::SetBiasAndGridBounds(const FBox
 	GridBounds = FBox( FVector(BoxMin2D, -HALF_WORLD_MAX), FVector(BoxMax2D, HALF_WORLD_MAX) );
 }
 
-UReplicationGraphNode_GridSpatialization2D::FActorCellInfo UReplicationGraphNode_GridSpatialization2D::GetCellInfoForActor(FActorRepListType Actor, const FVector& Location3D, float CullDistanceSquared)
+UReplicationGraphNode_GridSpatialization2D::FActorCellInfo UReplicationGraphNode_GridSpatialization2D::GetCellInfoForActor(FActorRepListType Actor, const FVector& Location3D, float CullDistance)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (CullDistanceSquared <= 0.f)
+	if (CullDistance <= 0.f)
 	{
-		UE_LOG(LogReplicationGraph, Warning, TEXT("::GetGridNodesForActor called on %s when its CullDistanceSquared = %.2f. (Must be > 0)"), *GetActorRepListTypeDebugString(Actor), CullDistanceSquared);
+		UE_LOG(LogReplicationGraph, Warning, TEXT("::GetGridNodesForActor called on %s when its CullDistance = %.2f. (Must be > 0)"), *GetActorRepListTypeDebugString(Actor), CullDistance);
 	}
 #endif
 
@@ -3993,7 +3999,7 @@ UReplicationGraphNode_GridSpatialization2D::FActorCellInfo UReplicationGraphNode
 	const float LocationBiasX = (ClampedLocation.X - SpatialBias.X);
 	const float LocationBiasY = (ClampedLocation.Y - SpatialBias.Y);
 
-	const float Dist = FMath::Sqrt(CullDistanceSquared);	 // Fixme Sqrt
+	const float Dist = CullDistance;
 	const float MinX = LocationBiasX - Dist;
 	const float MinY = LocationBiasY - Dist;
 	float MaxX = LocationBiasX + Dist;
@@ -4156,7 +4162,7 @@ void UReplicationGraphNode_GridSpatialization2D::PrepareForReplication()
 			if (!bNeedsRebuild)
 			{
 				// Get the new CellInfo
-				const FActorCellInfo NewCellInfo = GetCellInfoForActor(DynamicActor, Location3D, ActorRepInfo.Settings.CullDistanceSquared);
+				const FActorCellInfo NewCellInfo = GetCellInfoForActor(DynamicActor, Location3D, ActorRepInfo.Settings.GetCullDistance());
 
 				if (PreviousCellInfo.IsValid())
 				{
@@ -4476,7 +4482,7 @@ void UReplicationGraphNode_GridSpatialization2D::PrepareForReplication()
 				FGlobalActorReplicationInfo& ActorRepInfo = GlobalRepMap->Get(DynamicActor);
 				ActorRepInfo.WorldLocation = Location3D;
 
-				const FActorCellInfo NewCellInfo = GetCellInfoForActor(DynamicActor, Location3D, ActorRepInfo.Settings.CullDistanceSquared);
+				const FActorCellInfo NewCellInfo = GetCellInfoForActor(DynamicActor, Location3D, ActorRepInfo.Settings.GetCullDistance());
 
 				GetGridNodesForActor(DynamicActor, NewCellInfo, GatheredNodes);
 				for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
@@ -4547,59 +4553,77 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		CellNode->GatherActorListsForConnection(Params);
 	}
 
-	if (CVar_RepGraph_DormantDynamicActorsDestruction > 0)
+	if (bDestroyDormantDynamicActors && CVar_RepGraph_DormantDynamicActorsDestruction > 0 )
 	{
-		int32 PrevX = FMath::Max(0, (int32)((Params.ConnectionManager.LastGatherLocation.X - SpatialBias.X) / CellSize));
-		int32 PrevY = FMath::Max(0, (int32)((Params.ConnectionManager.LastGatherLocation.Y - SpatialBias.Y) / CellSize));
+		FVector LastGatherLoc = Params.ConnectionManager.LastGatherLocation;
+		
+		if (GridBounds.IsValid)
+		{
+			LastGatherLoc = GridBounds.GetClosestPointTo(LastGatherLoc);
+		}
+
+		int32 PrevX = FMath::Max(0, (int32)((LastGatherLoc.X - SpatialBias.X) / CellSize));
+		int32 PrevY = FMath::Max(0, (int32)((LastGatherLoc.Y - SpatialBias.Y) / CellSize));
 
 		// if the grid cell changed this gather
 		if ((CellX != PrevX) || (CellY != PrevY))
 		{
-			RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_CellChangeDormantRelevancy);
+			UReplicationGraphNode_GridCell* PrevCell = GetCell(PrevX, PrevY);
+			DoDormantDynamicActorDestruction(Params, CellNode, PrevCell);
+		}
+	}
+}
 
-			FActorRepListRefView DormantActorList;
-			FActorRepListRefView PrevDormantActorList;
+void UReplicationGraphNode_GridSpatialization2D::DoDormantDynamicActorDestruction(const FConnectionGatherActorListParameters& Params, UReplicationGraphNode_GridCell* CurrentCell, UReplicationGraphNode_GridCell* PreviousCell)
+{
+	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_DoDormantDynamicActorDestruction);
 
-			if (CellNode)
-			{
-				if (UReplicationGraphNode_DormancyNode* DormancyNode = CellNode->GetDormancyNode())
-				{
-					DormancyNode->ConditionalGatherDormantDynamicActors(DormantActorList, Params, nullptr);
-				}
-			}
+	FActorRepListRefView DormantActorList;
+	FActorRepListRefView PrevDormantActorList;
 
-			TArray<UReplicationGraphNode_GridCell*>& PrevGridX = GetGridX(PrevX);
-			if (UReplicationGraphNode_GridCell* PrevCell = GetCell(PrevGridX, PrevY))
-			{
-				if (UReplicationGraphNode_DormancyNode* DormancyNode = PrevCell->GetDormancyNode())
-				{
-					DormancyNode->ConditionalGatherDormantDynamicActors(PrevDormantActorList, Params, &DormantActorList);
-				}
-			}
+	if (CurrentCell)
+	{
+		if (UReplicationGraphNode_DormancyNode* DormancyNode = CurrentCell->GetDormancyNode())
+		{
+			DormancyNode->ConditionalGatherDormantDynamicActors(DormantActorList, Params, nullptr);
+		}
+	}
 
-			// any previous dormant actors not in the current node dormant list
-			if (PrevDormantActorList.IsValid())
-			{
-				for (FActorRepListType& Actor : PrevDormantActorList)
-				{
-					Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
+	if (PreviousCell)
+	{
+		if (UReplicationGraphNode_DormancyNode* DormancyNode = PreviousCell->GetDormancyNode())
+		{
+			DormancyNode->ConditionalGatherDormantDynamicActors(PrevDormantActorList, Params, &DormantActorList);
+		}
+	}
 
-					if (FConnectionReplicationActorInfo* ActorInfo = Params.ConnectionManager.ActorInfoMap.Find(Actor))
-					{
-						ActorInfo->bDormantOnConnection = false;
+	// any previous dormant actors not in the current node dormant list
+	if (PrevDormantActorList.IsValid() == false)
+	{
+		return;
+	}
+
+	for (FActorRepListType& Actor : PrevDormantActorList)
+	{
+		Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
+
+		if (FConnectionReplicationActorInfo* ActorInfo = Params.ConnectionManager.ActorInfoMap.Find(Actor))
+		{
+			ActorInfo->bDormantOnConnection = false;
 
 						// add back to connection specific dormancy nodes
-						const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, Actor->GetActorLocation(), ActorInfo->CullDistanceSquared);
+			const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, Actor->GetActorLocation(), ActorInfo->GetCullDistance());
 
-						GetGridNodesForActor(Actor, CellInfo, GatheredNodes);
+			GetGridNodesForActor(Actor, CellInfo, GatheredNodes);
 
-						for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
-						{
-							if (UReplicationGraphNode_DormancyNode* DormancyNode = Node->GetDormancyNode())
-							{
-								DormancyNode->GetConnectionNode(Params)->NotifyActorDormancyFlush(Actor);
-							}
-						}
+			for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
+			{
+				if (UReplicationGraphNode_DormancyNode* DormancyNode = Node->GetDormancyNode())
+				{
+					// Only notify the connection node if this client was previously inside the cell.
+					if (UReplicationGraphNode_ConnectionDormanyNode* ConnectionDormancyNode = DormancyNode->GetExistingConnectionNode(Params))
+					{
+						ConnectionDormancyNode->NotifyActorDormancyFlush(Actor);
 					}
 				}
 			}
@@ -4607,7 +4631,7 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 	}
 }
 
-void UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange(AActor* Actor, FGlobalActorReplicationInfo& GlobalInfo, float OldDistSq)
+void UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange(AActor* Actor, FGlobalActorReplicationInfo& GlobalInfo, float OldDist)
 {
 	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_NotifyActorCullDistChange);
 
@@ -4615,14 +4639,14 @@ void UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange(AActo
 	if (FCachedStaticActorInfo* StaticActorInfo = StaticSpatializedActors.Find(Actor))
 	{
 		// Remove with old distance
-		GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, GlobalInfo.WorldLocation, OldDistSq), GatheredNodes);
+		GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, GlobalInfo.WorldLocation, OldDist), GatheredNodes);
 		for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
 		{
 			Node->RemoveStaticActor(StaticActorInfo->ActorInfo, GlobalInfo, GlobalInfo.bWantsToBeDormant);
 		}
 
 		// Add new distances (there is some waste here but this hopefully doesn't happen much at runtime!)
-		GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, GlobalInfo.WorldLocation, GlobalInfo.Settings.CullDistanceSquared), GatheredNodes);
+		GetGridNodesForActor(Actor, GetCellInfoForActor(Actor, GlobalInfo.WorldLocation, GlobalInfo.Settings.GetCullDistance()), GatheredNodes);
 		for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
 		{
 			Node->AddStaticActor(StaticActorInfo->ActorInfo, GlobalInfo, StaticActorInfo->bDormancyDriven);
@@ -4650,7 +4674,7 @@ void UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange(AActo
 		// Might be in the pending init list
 		if (PendingStaticSpatializedActors.FindByKey(Actor) == nullptr)
 		{
-			UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange. %s Changed Cull Distance (%.2f -> %.2f) but is not in static or dynamic actor lists. %s"), *Actor->GetPathName(), FMath::Sqrt(OldDistSq), FMath::Sqrt(GlobalInfo.Settings.CullDistanceSquared), *GetPathName() );
+			UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange. %s Changed Cull Distance (%.2f -> %.2f) but is not in static or dynamic actor lists. %s"), *Actor->GetPathName(), OldDist, GlobalInfo.Settings.GetCullDistance(), *GetPathName() );
 
 			// Search the entire grid. This is slow so only enabled if verify is on.
 			if (CVar_RepGraph_Verify)
@@ -4802,13 +4826,13 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::GatherActorListsForConn
 			if (NewActor)
 			{
 				// Zero out new actor cull distance
-				Params.ConnectionManager.ActorInfoMap.FindOrAdd(NewActor).CullDistanceSquared = 0.f;
+				Params.ConnectionManager.ActorInfoMap.FindOrAdd(NewActor).SetCullDistanceSquared(0.f);
 			}
 			if (LastActor)
 			{
 				// Reset previous actor culldistance
 				FConnectionReplicationActorInfo& ActorInfo = Params.ConnectionManager.ActorInfoMap.FindOrAdd(LastActor);
-				ActorInfo.CullDistanceSquared = GraphGlobals->GlobalActorReplicationInfoMap->Get(LastActor).Settings.CullDistanceSquared;
+				ActorInfo.SetCullDistanceSquared(GraphGlobals->GlobalActorReplicationInfoMap->Get(LastActor).Settings.GetCullDistanceSquared());
 			}
 
 			LastActor = NewActor;

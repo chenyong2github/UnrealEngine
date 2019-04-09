@@ -20,6 +20,7 @@
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
+#include "LandscapeEditorDetailCustomization_Layers.h"
 
 #include "ScopedTransaction.h"
 
@@ -316,7 +317,7 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleDragDetected(co
 
 			if (Row.IsValid())
 			{
-				return FReply::Handled().BeginDragDrop(FLandscapeBrushDragDropOp::New(SlotIndex, Slot, Row));
+				return FReply::Handled().BeginDragDrop(FLandscapeListElementDragDropOp::New(SlotIndex, Slot, Row));
 			}
 		}
 	}
@@ -326,7 +327,7 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleDragDetected(co
 
 TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot)
 {
-	TSharedPtr<FLandscapeBrushDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeBrushDragDropOp>();
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
 
 	if (DragDropOperation.IsValid())
 	{
@@ -338,7 +339,7 @@ TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuil
 
 FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
-	TSharedPtr<FLandscapeBrushDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeBrushDragDropOp>();
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
 
 	if (DragDropOperation.IsValid())
 	{
@@ -370,35 +371,6 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop(FDra
 	}
 
 	return FReply::Unhandled();
-}
-
-TSharedRef<FLandscapeBrushDragDropOp> FLandscapeBrushDragDropOp::New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> WidgetToShow)
-{
-	TSharedRef<FLandscapeBrushDragDropOp> Operation = MakeShareable(new FLandscapeBrushDragDropOp);
-
-	Operation->MouseCursor = EMouseCursor::GrabHandClosed;
-	Operation->SlotIndexBeingDragged = InSlotIndexBeingDragged;
-	Operation->SlotBeingDragged = InSlotBeingDragged;
-	Operation->WidgetToShow = WidgetToShow;
-
-	Operation->Construct();
-
-	return Operation;
-}
-
-FLandscapeBrushDragDropOp::~FLandscapeBrushDragDropOp()
-{
-}
-
-TSharedPtr<SWidget> FLandscapeBrushDragDropOp::GetDefaultDecorator() const
-{
-	return SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
-		.Content()
-		[
-			WidgetToShow.ToSharedRef()
-		];
-
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -17,7 +17,7 @@
 class UControlRigGraphNode;
 
 UCLASS(Transient)
-class UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
+class CONTROLRIGEDITOR_API UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
@@ -35,6 +35,7 @@ public:
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;
 	virtual FBlueprintActionUiSpec GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const override;
 	virtual UEdGraphNode* Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const override;
+	virtual bool IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const override;
 	// End UBlueprintNodeSpawner interface
 
 	/**
@@ -49,4 +50,6 @@ public:
 private:
 	/** The pin type we will spawn */
 	FEdGraphPinType EdGraphPinType;
+
+	friend class UEngineTestControlRig;
 };

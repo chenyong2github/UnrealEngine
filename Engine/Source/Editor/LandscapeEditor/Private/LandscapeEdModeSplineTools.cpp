@@ -491,6 +491,7 @@ public:
 		SelectControlPoint(NewControlPoint);
 		UpdatePropertiesWindows();
 
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		if (!SplinesComponent->IsRegistered())
 		{
 			SplinesComponent->RegisterComponent();
@@ -531,16 +532,10 @@ public:
 
 		SplinesComponent->Segments.Remove(ToDelete);
 
-		// Control points' points are currently based on connected segments, so need to be updated.
-		if (ToDelete->Connections[0].ControlPoint->Mesh != NULL)
-		{
-			ToDelete->Connections[0].ControlPoint->UpdateSplinePoints();
-		}
-		if (ToDelete->Connections[1].ControlPoint->Mesh != NULL)
-		{
-			ToDelete->Connections[1].ControlPoint->UpdateSplinePoints();
-		}
+		ToDelete->Connections[0].ControlPoint->UpdateSplinePoints();
+		ToDelete->Connections[1].ControlPoint->UpdateSplinePoints();
 
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		SplinesComponent->MarkRenderStateDirty();
 	}
 
@@ -584,6 +579,7 @@ public:
 				ToDelete->ConnectedSegments.Empty();
 
 				SplinesComponent->ControlPoints.Remove(ToDelete);
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				SplinesComponent->MarkRenderStateDirty();
 
 				return;
@@ -607,6 +603,8 @@ public:
 			ULandscapeSplineControlPoint* OtherEnd = Connection.GetFarConnection().ControlPoint;
 			OtherEnd->Modify();
 			OtherEnd->ConnectedSegments.Remove(FLandscapeSplineConnection(Connection.Segment, 1 - Connection.End));
+			OtherEnd->UpdateSplinePoints();
+
 			SplinesComponent->Segments.Remove(Connection.Segment);
 
 			if (bInDeleteLooseEnds)
@@ -622,6 +620,7 @@ public:
 		ToDelete->ConnectedSegments.Empty();
 
 		SplinesComponent->ControlPoints.Remove(ToDelete);
+		EdMode->AutoUpdateDirtyLandscapeSplines();
 		SplinesComponent->MarkRenderStateDirty();
 	}
 
@@ -1088,6 +1087,21 @@ public:
 	{
 	}
 
+	template <typename T>
+	void SetTargetLandscapeBasedOnSelection(T* Selection)
+	{
+		check(Selection);
+		if (ALandscapeProxy* LandscapeProxy = Selection->template GetTypedOuter<ALandscapeProxy>())
+		{
+			ALandscape* NewLandscapeActor = LandscapeProxy->GetLandscapeActor();
+			if (NewLandscapeActor && (NewLandscapeActor != EdMode->GetLandscape()))
+			{
+				EdMode->SetTargetLandscape(LandscapeProxy->GetLandscapeInfo());
+				ClearSelection();
+			}
+		}
+	}
+
 	virtual bool HandleClick(HHitProxy* HitProxy, const FViewportClick& Click) override
 	{
 		if ((!HitProxy || !HitProxy->IsA(HWidgetAxis::StaticGetType()))
@@ -1147,6 +1161,7 @@ public:
 				}
 				else
 				{
+					SetTargetLandscapeBasedOnSelection(ClickedControlPoint);
 					SelectControlPoint(ClickedControlPoint);
 				}
 				GEditor->SelectNone(true, true);
@@ -1164,6 +1179,7 @@ public:
 				}
 				else
 				{
+					SetTargetLandscapeBasedOnSelection(ClickedSplineSegment);
 					SelectSegment(ClickedSplineSegment);
 				}
 				GEditor->SelectNone(true, true);
@@ -1208,6 +1224,7 @@ public:
 					Segment->Connections[1].ControlPoint->UpdateSplinePoints();
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1223,6 +1240,7 @@ public:
 					FlipSegment(Segment);
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1247,6 +1265,7 @@ public:
 					Segment->Connections[1].ControlPoint->UpdateSplinePoints();
 				}
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				return true;
 			}
 		}
@@ -1268,6 +1287,7 @@ public:
 				}
 				UpdatePropertiesWindows();
 
+				EdMode->AutoUpdateDirtyLandscapeSplines();
 				GUnrealEd->RedrawLevelEditingViewports();
 				return true;
 			}
@@ -1335,6 +1355,7 @@ public:
 							AddSegment(ControlPoint, ClickedControlPoint, bAutoRotateOnJoin, bAutoRotateOnJoin);
 						}
 
+						EdMode->AutoUpdateDirtyLandscapeSplines();
 						GUnrealEd->RedrawLevelEditingViewports();
 
 						return true;
@@ -1478,6 +1499,7 @@ public:
 
 					ResetAllowDuplication();
 
+					EdMode->AutoUpdateDirtyLandscapeSplines();
 					GEditor->EndTransaction();
 
 					return false; // We're not actually handling this case ourselves, just wrapping it in a transaction
@@ -1491,11 +1513,18 @@ public:
 					InViewportClient->SetWidgetCoordSystemSpace(DraggingTangent_CacheCoordSpace);
 					InViewportClient->SetRequiredCursorOverride(false);
 
+					EdMode->AutoUpdateDirtyLandscapeSplines();
 					GEditor->EndTransaction();
 
 					return false; // false to let FEditorViewportClient.InputKey end mouse tracking
 				}
 			}
+		}
+
+		// To avoid updating while Ctrl+LMB / Ctrl+RMB+LMB, handle the case one button(s) are released
+		if (InKey == EKeys::RightMouseButton && IsCtrlDown(InViewport) && InEvent == IE_Released && SelectedSplineControlPoints.Num() > 0)
+		{
+			EdMode->AutoUpdateDirtyLandscapeSplines();
 		}
 
 		return false;

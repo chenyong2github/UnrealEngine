@@ -62,10 +62,11 @@
 #include "ControlRigBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
 #include "ControlRigHierarchyCommands.h"
+#include "ControlRigStackCommands.h"
 #include "Animation/AnimSequence.h"
 #include "ControlRigEditorEditMode.h"
 #include "ControlRigDetails.h"
-#include "Units/RigUnitEditor_TwoBoneIKFK.h"
+#include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
 #include "Animation/AnimSequence.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
@@ -79,6 +80,7 @@ void FControlRigEditorModule::StartupModule()
 	FControlRigEditModeCommands::Register();
 	FControlRigBlueprintCommands::Register();
 	FControlRigHierarchyCommands::Register();
+	FControlRigStackCommands::Register();
 	FControlRigEditorStyle::Get();
 
 	CommandBindings = MakeShareable(new FUICommandList());
@@ -744,8 +746,16 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 	// Add all rig units
 	FControlRigBlueprintUtils::ForAllRigUnits([&](UStruct* InStruct)
 	{
-		FText NodeCategory = FText::FromString(InStruct->GetMetaData(TEXT("Category")));
-		FText MenuDesc = FText::FromString(InStruct->GetMetaData(TEXT("DisplayName")));
+		FString CategoryMetadata, DisplayNameMetadata, MenuDescSuffixMetadata;
+		InStruct->GetStringMetaDataHierarchical(UControlRig::CategoryMetaName, &CategoryMetadata);
+		InStruct->GetStringMetaDataHierarchical(UControlRig::DisplayNameMetaName, &DisplayNameMetadata);
+		InStruct->GetStringMetaDataHierarchical(UControlRig::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
+		if (!MenuDescSuffixMetadata.IsEmpty())
+		{
+			MenuDescSuffixMetadata = TEXT(" ") + MenuDescSuffixMetadata;
+		}
+		FText NodeCategory = FText::FromString(CategoryMetadata);
+		FText MenuDesc = FText::FromString(DisplayNameMetadata + MenuDescSuffixMetadata);
 		FText ToolTip = InStruct->GetToolTipText();
 
 		UBlueprintNodeSpawner* NodeSpawner = UControlRigUnitNodeSpawner::CreateFromStruct(InStruct, MenuDesc, NodeCategory, ToolTip);

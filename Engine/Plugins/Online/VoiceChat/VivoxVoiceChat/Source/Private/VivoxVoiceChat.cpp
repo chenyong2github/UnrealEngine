@@ -691,6 +691,13 @@ void FVivoxVoiceChat::BlockPlayers(const TArray<FString>& PlayerNames)
 	{
 		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("BlockPlayers failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
 	}
+	else
+	{
+		for (const FString& PlayerName : PlayerNames)
+		{
+			UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("Player blocked: [%s]"), *PlayerName);
+		}
+	}
 }
 
 void FVivoxVoiceChat::UnblockPlayers(const TArray<FString>& PlayerNames)
@@ -705,6 +712,13 @@ void FVivoxVoiceChat::UnblockPlayers(const TArray<FString>& PlayerNames)
 	if (Status.IsError())
 	{
 		UE_LOG(LogVivoxVoiceChat, Warning, TEXT("UnblockPlayers failed: error:%s (%i)"), ANSI_TO_TCHAR(Status.ToString()), Status.GetStatusCode());
+	}
+	else
+	{
+		for (const FString& PlayerName : PlayerNames)
+		{
+			UE_LOG(LogVivoxVoiceChat, Verbose, TEXT("Player unblocked: [%s]"), *PlayerName);
+		}
 	}
 }
 

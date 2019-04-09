@@ -834,8 +834,10 @@ namespace Gauntlet
 						Device = new TargetDeviceNull(string.Format("Null{0}", Role.RoleType));
 					}
 
+					var OtherRoles = SortedRoles.Where(R => R != Role);
+
 					// create a config from the build source (this also applies the role options)
-					UnrealAppConfig AppConfig = BuildSource.CreateConfiguration(Role);
+					UnrealAppConfig AppConfig = BuildSource.CreateConfiguration(Role, OtherRoles);
 
 					// todo - should this be elsewhere?
 					AppConfig.Sandbox = Sandbox;
