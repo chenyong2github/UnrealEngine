@@ -51,9 +51,9 @@ void FGlobalEditorUtilityDialog::InitBlutilityDialog(const EToolkitMode::Type Mo
 	// Create an instance of the blutility
 	check(ObjectToEdit != NULL);
 	UEditorUtilityBlueprint* BlutilityBP = CastChecked<UEditorUtilityBlueprint>(ObjectToEdit);
-	check(BlutilityBP->GeneratedClass->IsChildOf(UGlobalEditorUtilityBase::StaticClass()));
+	check(BlutilityBP->GeneratedClass->IsChildOf(UDEPRECATED_GlobalEditorUtilityBase::StaticClass()));
 
-	UGlobalEditorUtilityBase* Instance = NewObject<UGlobalEditorUtilityBase>(GetTransientPackage(), BlutilityBP->GeneratedClass);
+	UDEPRECATED_GlobalEditorUtilityBase* Instance = NewObject<UDEPRECATED_GlobalEditorUtilityBase>(GetTransientPackage(), BlutilityBP->GeneratedClass);
 	Instance->AddToRoot();
 	BlutilityInstance = Instance;
 
@@ -79,7 +79,7 @@ void FGlobalEditorUtilityDialog::InitBlutilityDialog(const EToolkitMode::Type Mo
 
 FGlobalEditorUtilityDialog::~FGlobalEditorUtilityDialog()
 {
-	if (UGlobalEditorUtilityBase* Instance = BlutilityInstance.Get())
+	if (UDEPRECATED_GlobalEditorUtilityBase* Instance = BlutilityInstance.Get())
 	{
 		Instance->RemoveFromRoot();
 	}
@@ -89,7 +89,7 @@ FGlobalEditorUtilityDialog::~FGlobalEditorUtilityDialog()
 
 void FGlobalEditorUtilityDialog::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (UGlobalEditorUtilityBase* Instance = BlutilityInstance.Get())
+	if (UDEPRECATED_GlobalEditorUtilityBase* Instance = BlutilityInstance.Get())
 	{
 		Collector.AddReferencedObject(Instance);
 	}
