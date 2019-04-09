@@ -567,6 +567,12 @@ TSharedRef<SGraphEditor> FBehaviorTreeEditor::CreateGraphEditorWidget(UEdGraph* 
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP( this, &FBehaviorTreeEditor::CanToggleBreakpoint )
 			);
+
+		GraphEditorCommands->MapAction(
+			FGraphEditorCommands::Get().CreateComment,
+			FExecuteAction::CreateSP(this, &FBehaviorTreeEditor::OnCreateComment),
+			FCanExecuteAction::CreateSP(this, &FBehaviorTreeEditor::CanCreateComment)
+			);
 	}
 
 	SGraphEditor::FGraphEditorEvents InEvents;
@@ -1838,6 +1844,23 @@ void FBehaviorTreeEditor::CreateNewBlackboard()
 bool FBehaviorTreeEditor::CanCreateNewBlackboard() const
 {
 	return !IsDebuggerReady();
+}
+
+bool FBehaviorTreeEditor::CanCreateComment() const
+{
+	return (SelectedNodesCount > 1);
+}
+
+void FBehaviorTreeEditor::OnCreateComment()
+{
+	if (BehaviorTree && BehaviorTree->BTGraph)
+	{
+		TSharedPtr<FEdGraphSchemaAction> Action = BehaviorTree->BTGraph->GetSchema()->GetCreateCommentAction();
+		if (Action.IsValid())
+		{
+			Action->PerformAction(BehaviorTree->BTGraph, nullptr, FVector2D());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

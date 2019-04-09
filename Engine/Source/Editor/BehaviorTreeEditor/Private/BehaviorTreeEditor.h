@@ -85,6 +85,8 @@ public:
 	bool CanAddBreakpoint() const;
 	void OnRemoveBreakpoint();
 	bool CanRemoveBreakpoint() const;
+	void OnCreateComment();
+	bool CanCreateComment() const;
 
 	void SearchTree();
 	bool CanSearchTree() const;
