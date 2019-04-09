@@ -741,9 +741,16 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, EResourceTransitionAcc
 
 void FRDGBuilder::TransitionUAV(FUnorderedAccessViewRHIParamRef UAV, FRDGResource* UnderlyingResource, ERDGResourceFlags ResourceFlags, EResourceTransitionAccess TransitionAccess, bool bRequiredCompute ) const
 {
-	const bool bRequiredWritable = true;
+	const bool bRequiredWritable = TransitionAccess != EResourceTransitionAccess::EReadable;
 
-	if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
+	if (bRequiredWritable && UnderlyingResource->bWritable)
+	{
+		// Force a RW barrier between UAV write.
+		// TODO(RDG): allow to have no barriere in the API when multiple pass write concurrently to same resource.
+		EResourceTransitionPipeline TransitionPipeline = CalcTransitionPipeline(UnderlyingResource->bCompute, bRequiredCompute);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, TransitionPipeline, UAV);
+	}
+	else if(UnderlyingResource->bWritable != bRequiredWritable || UnderlyingResource->bCompute != bRequiredCompute )
 	{
 		bool bIsMultiFrameResource = uint32(ResourceFlags) & uint32(ERDGResourceFlags::MultiFrame);
 		if (bIsMultiFrameResource && bRequiredWritable && !UnderlyingResource->bWritable)
