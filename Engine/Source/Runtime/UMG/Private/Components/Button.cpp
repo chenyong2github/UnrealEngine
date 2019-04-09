@@ -25,6 +25,9 @@ UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	TouchMethod = EButtonTouchMethod::DownAndUp;
 
 	IsFocusable = true;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
+	bCanChildrenBeAccessible = false;
 }
 
 void UButton::ReleaseSlateResources(bool bReleaseChildren)

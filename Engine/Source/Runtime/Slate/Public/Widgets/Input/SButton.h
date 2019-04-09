@@ -26,6 +26,10 @@ enum class ETextShapingMethod : uint8;
 class SLATE_API SButton
 	: public SBorder
 {
+#if WITH_ACCESSIBILITY
+	// Allow the accessible button to "click" this button
+	friend class FSlateAccessibleButton;
+#endif
 public:
 
 	SLATE_BEGIN_ARGS( SButton )
@@ -45,6 +49,7 @@ public:
 		, _ForegroundColor( FCoreStyle::Get().GetSlateColor( "InvertedForeground" ) )
 		, _IsFocusable( true )
 		{
+			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
 		}
 
 		/** Slot for this button's content (optional) */
@@ -178,9 +183,13 @@ public:
 	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
 	virtual bool IsInteractable() const override;
 	virtual bool ComputeVolatility() const override;
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+#endif
 	// SWidget
 
 protected:
+	FReply ExecuteOnClick();
 
 	/** @return combines the user-specified margin and the button's internal margin. */
 	FMargin GetCombinedPadding() const;

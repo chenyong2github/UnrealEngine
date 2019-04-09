@@ -342,6 +342,9 @@ public:
 	// GenericApplication overrides
 
 	virtual void SetMessageHandler( const TSharedRef< class FGenericApplicationMessageHandler >& InMessageHandler ) override;
+#if WITH_ACCESSIBILITY
+	virtual void SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler) override;
+#endif
 	virtual void PollGameDeviceState( const float TimeDelta ) override;
 	virtual void PumpMessages( const float TimeDelta ) override;
 	virtual void ProcessDeferredEvents( const float TimeDelta ) override;
@@ -506,6 +509,11 @@ private:
 	TSharedPtr<FWindowsTextInputMethodSystem> TextInputMethodSystem;
 
 	TSharedPtr<FTaskbarList> TaskbarList;
+
+#if WITH_ACCESSIBILITY
+	/** Handler for WM_GetObject messages that come in */
+	TUniquePtr<class FWindowsUIAManager> UIAManager;
+#endif
 
 	// Accessibility shortcut keys
 	STICKYKEYS							StartupStickyKeys;

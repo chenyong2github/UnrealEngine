@@ -32,6 +32,27 @@ enum class ESlateVisibility : uint8
 	SelfHitTestInvisible
 };
 
+/** Whether a widget should be included in accessibility, and if so, how its text should be retrieved. */
+UENUM(BlueprintType)
+enum class ESlateAccessibleBehavior : uint8
+{
+	/** Not accessible. */
+	NotAccessible,
+	/**
+	 * Accessible, first checking to see if there's any custom default text assigned for widgets of this type.
+	 * If not, then it will attempt to use the alternate behavior (ie AccessibleSummaryBehavior instead of AccessibleBehavior)
+	 * and return that value instead. This acts as a reference so that you only need to set one value for both of them
+	 * to return the same thing.
+	 */
+	Auto,
+	/** Accessible, and traverse all child widgets and concat their AccessibleSummaryText together. */
+	Summary,
+	/** Accessible, and retrieve manually-assigned text from a TAttribute. */
+	Custom,
+	/** Accessible, and use the tooltip's accessible text. */
+	ToolTip
+};
+
 /** The sizing options of UWidgets */
 UENUM(BlueprintType)
 namespace ESlateSizeRule

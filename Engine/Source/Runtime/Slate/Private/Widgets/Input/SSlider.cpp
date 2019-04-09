@@ -2,6 +2,9 @@
 
 #include "Widgets/Input/SSlider.h"
 #include "Rendering/DrawElements.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#endif
 
 void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 {
@@ -15,7 +18,8 @@ void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 	LockedAttribute = InDeclaration._Locked;
 	Orientation = InDeclaration._Orientation;
 	StepSize = InDeclaration._StepSize;
-	ValueAttribute = InDeclaration._Value;
+	MinValue = InDeclaration._MinValue;
+	MaxValue = InDeclaration._MaxValue;
 	SliderBarColor = InDeclaration._SliderBarColor;
 	SliderHandleColor = InDeclaration._SliderHandleColor;
 	bIsFocusable = InDeclaration._IsFocusable;
@@ -46,7 +50,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	const float Indentation = IndentHandle.Get() ? HandleSize.X : 0.0f;
 
 	const float SliderLength = AllottedWidth - (Indentation + HandleSize.X);
-	const float SliderPercent = ValueAttribute.Get();
+	const float SliderPercent = GetNormalizedValue();
 	const float SliderHandleOffset = SliderPercent * SliderLength;
 	const float SliderY = 0.5f * AllottedHeight;
 
@@ -201,7 +205,7 @@ FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEve
 				}
 			}
 
-			CommitValue(FMath::Clamp(NewValue, 0.0f, 1.0f));
+			CommitValue(FMath::Clamp(NewValue, MinValue, MaxValue));
 			if (!Reply.IsEventHandled())
 			{
 				Reply = SLeafWidget::OnKeyDown(MyGeometry, InKeyEvent);
@@ -339,6 +343,8 @@ FReply SSlider::OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& I
 
 void SSlider::CommitValue(float NewValue)
 {
+	const float OldValue = GetValue();
+
 	if (!ValueAttribute.IsBound())
 	{
 		ValueAttribute.Set(NewValue);
@@ -369,17 +375,17 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 		RelativeValue = (Denominator != 0.f) ? ((MyGeometry.Size.Y - LocalPosition.Y) - HalfIndentation) / Denominator : 0.f;
 	}
 
-	RelativeValue = FMath::Clamp(RelativeValue, 0.0f, 1.0f);
+	RelativeValue = FMath::Clamp(RelativeValue, 0.0f, 1.0f) * (MaxValue - MinValue) + MinValue;
 	if (bMouseUsesStep)
 	{
 		float direction = ValueAttribute.Get() - RelativeValue;
 		if (direction > StepSize.Get() / 2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() - StepSize.Get(), 0.0f, 1.0f);
+			return FMath::Clamp(ValueAttribute.Get() - StepSize.Get(), MinValue, MaxValue);
 		}
 		else if (direction < StepSize.Get() / -2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() + StepSize.Get(), 0.0f, 1.0f);
+			return FMath::Clamp(ValueAttribute.Get() + StepSize.Get(), MinValue, MaxValue);
 		}
 		else
 		{
@@ -424,9 +430,31 @@ float SSlider::GetValue() const
 	return ValueAttribute.Get();
 }
 
+float SSlider::GetNormalizedValue() const
+{
+	if (MaxValue == MinValue)
+	{
+		return 1.0f;
+	}
+	else
+	{
+		return (ValueAttribute.Get() - MinValue) / (MaxValue - MinValue);
+	}
+}
+
 void SSlider::SetValue(const TAttribute<float>& InValueAttribute)
 {
 	ValueAttribute = InValueAttribute;
+}
+
+void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
+{
+	MinValue = InMinValue;
+	MaxValue = InMaxValue;
+	if (MinValue > MaxValue)
+	{
+		MaxValue = MinValue;
+	}
 }
 
 void SSlider::SetIndentHandle(const TAttribute<bool>& InIndentHandle)
@@ -472,3 +500,9 @@ void SSlider::SetRequiresControllerLock(bool RequiresControllerLock) {
 	bRequiresControllerLock = RequiresControllerLock;
 }
 
+#if WITH_ACCESSIBILITY
+TSharedPtr<FSlateAccessibleWidget> SSlider::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleSlider(SharedThis(this)));
+}
+#endif

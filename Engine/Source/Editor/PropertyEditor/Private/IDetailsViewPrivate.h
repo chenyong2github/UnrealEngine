@@ -79,8 +79,6 @@ public:
 	 */
 	virtual bool IsPropertyReadOnly( const struct FPropertyAndParent& PropertyAndParent ) const = 0;
 
-	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() = 0;
-
 	/**
 	 * @return The thumbnail pool that should be used for thumbnails being rendered in this view
 	 */

@@ -26,6 +26,8 @@ UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	BorderBackgroundColor_DEPRECATED = FLinearColor::White;
 
 	IsFocusable = true;
+	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
+	bCanChildrenBeAccessible = false;
 }
 
 void UCheckBox::ReleaseSlateResources(bool bReleaseChildren)

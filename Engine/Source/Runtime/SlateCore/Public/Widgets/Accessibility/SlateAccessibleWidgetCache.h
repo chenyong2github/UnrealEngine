@@ -1,0 +1,95 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#if WITH_ACCESSIBILITY
+
+#include "CoreMinimal.h"
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/SWidget.h"
+
+/**
+ * Singleton used to retrieve accessible widgets for a given Slate widget. Accessible widgets will persist
+ * so longer as the OS is sending accessibility events, after which the platform layer should call ClearAll().
+ */
+class SLATECORE_API FSlateAccessibleWidgetCache
+{
+public:
+	static FSlateAccessibleWidgetCache& Get()
+	{
+		static FSlateAccessibleWidgetCache AccessibleWidgetCache;
+		return AccessibleWidgetCache;
+	}
+
+	/** Empty the cache and release all cached accessible widgets. This should generally only be done with accessibility is turned off. */
+	void ClearAll()
+	{
+		AccessibleWidgetMap.Empty();
+	}
+
+	/**
+	 * Callback for when an SWidget is deleted. FSlateAccessibleMessageHandler should be the only thing to call this.
+	 * The widget is removed from the cache and removed from the accessible tree.
+	 *
+	 * @param Widget the Slate widget that is being deleted
+	 */
+	TSharedPtr<FSlateAccessibleWidget> RemoveWidget(SWidget* Widget)
+	{
+		TSharedPtr<FSlateAccessibleWidget> RemovedWidget = nullptr;
+		TSharedPtr<FSlateAccessibleWidget>* AccessibleWidget = AccessibleWidgetMap.Find(Widget);
+		if (AccessibleWidget)
+		{
+			// Make sure to disconnect this widget from the tree
+			(*AccessibleWidget)->UpdateParent(nullptr);
+			AccessibleWidgetMap.RemoveAndCopyValue(Widget, RemovedWidget);
+		}
+		return RemovedWidget;
+	}
+
+	/**
+	 * Get a cached accessible widget for a given Slate widget, or create a new one is bCreateIfMissing is true.
+	 * This may return nullptr in the case where the Slate widget is not a valid accessible widget. A non-valid
+	 * accessible widget includes the case where the widget has accessible flags set but its parent cannot have
+	 * accessible children.
+	 *
+	 * @param Widget The Slate widget to get the accessible widget for
+	 * @param bCreateIfMissing If the widget is not already in the cache, whether or not it should be created
+	 * @return The accessible widget for the given Slate widget, or nullptr if the widget is not accessible.
+	 */
+	TSharedPtr<FSlateAccessibleWidget> GetAccessibleWidget(TSharedPtr<SWidget> Widget, bool bCreateIfMissing = true)
+	{
+		if (!Widget.IsValid() || !Widget->IsAccessible())
+		{
+			return nullptr;
+		}
+
+		TSharedPtr<FSlateAccessibleWidget>* AccessibleWidget = AccessibleWidgetMap.Find(Widget.Get());
+		if (AccessibleWidget)
+		{
+			return *AccessibleWidget;
+		}
+		else if (bCreateIfMissing)
+		{
+			TSharedPtr<FSlateAccessibleWidget> NewWidget = AccessibleWidgetMap.Add(Widget.Get(), Widget->CreateAccessibleWidget());
+			// todo: fix this for nested windows
+			if (NewWidget->AsWindow())
+			{
+				NewWidget->UpdateAllChildren(true);
+			}
+			return NewWidget;
+		}
+		return nullptr;
+	}
+
+private:
+	/**
+	 * Hold on to a shared pointer for each accessible widget until the SWidget is deleted. A raw pointer is used
+	 * because widgets are removed from the cache via the SWidget destructor.
+	 */
+	TMap<SWidget*, TSharedPtr<FSlateAccessibleWidget>> AccessibleWidgetMap;
+
+	FSlateAccessibleWidgetCache() {}
+	~FSlateAccessibleWidgetCache() {}
+};
+
+#endif

@@ -157,6 +157,7 @@ public:
 		, _UserResizeBorder(FMargin(5, 5, 5, 5))
 
 	{
+		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto);
 	}
 
 		/** Type of this window */
@@ -784,6 +785,11 @@ public:
 	bool IsDrawingEnabled() const { return bIsDrawingEnabled; }
 
 	virtual bool Advanced_IsWindow() const { return true; }
+
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
+#endif
 private:
 	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;

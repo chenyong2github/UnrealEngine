@@ -6,7 +6,9 @@
 #include "Layout/WidgetPath.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#endif
 
 FOverlayPopupLayer::FOverlayPopupLayer(const TSharedRef<SWindow>& InitHostWindow, const TSharedRef<SWidget>& InitPopupContent, TSharedPtr<SOverlay> InitOverlay)
 	: FPopupLayer(InitHostWindow, InitPopupContent)
@@ -906,7 +908,7 @@ void SWindow::ReshapeWindow( FVector2D NewPosition, FVector2D NewSize )
 
 void SWindow::ReshapeWindow( const FSlateRect& InNewShape )
 {
-	ReshapeWindow( FVector2D(InNewShape.Left, InNewShape.Top), FVector2D( InNewShape.Right - InNewShape.Left,  InNewShape.Bottom - InNewShape.Top) );
+	ReshapeWindow( FVector2D(500, 500), FVector2D( InNewShape.Right - InNewShape.Left,  InNewShape.Bottom - InNewShape.Top) );
 }
 
 void SWindow::Resize( FVector2D NewSize )
@@ -1317,7 +1319,7 @@ void SWindow::ShowWindow()
 		{
 			SlatePrepass( FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor() );
 			const FVector2D WindowDesiredSizePixels = GetDesiredSizeDesktopPixels();
-			ReshapeWindow( InitialDesiredScreenPosition - (WindowDesiredSizePixels * 0.5f), WindowDesiredSizePixels);
+			ReshapeWindow( FVector2D(200, 200), WindowDesiredSizePixels);
 		}
 
 		// Set the window to be maximized if we need to.  Note that this won't actually show the window if its not
@@ -2065,5 +2067,18 @@ FScopedSwitchWorldHack::FScopedSwitchWorldHack( const FWidgetPath& WidgetPath )
 	{
 		WorldId = Window->SwitchWorlds( WorldId );
 	}
+}
+#endif
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWindow(SharedThis(this)));
+}
+
+void SWindow::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	Text.Bind(this, &SWindow::GetTitle);
 }
 #endif

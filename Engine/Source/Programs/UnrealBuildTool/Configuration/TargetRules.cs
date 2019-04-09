@@ -520,9 +520,15 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bIncludePluginsForTargetPlatforms = false;
 
-        /// <summary>
-        /// Whether to include PerfCounters support.
-        /// </summary>
+		/// <summary>
+		/// Whether to allow accessibility code in both Slate and the OS layer.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileWithAccessibilitySupport = true;
+
+		/// <summary>
+		/// Whether to include PerfCounters support.
+		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bWithPerfCounters")]
         public bool bWithPerfCounters = false;
@@ -1815,7 +1821,12 @@ namespace UnrealBuildTool
 			get { return Inner.bIncludePluginsForTargetPlatforms; }
 		}
 
-        public bool bWithPerfCounters
+		public bool bCompileWithAccessibilitySupport
+		{
+			get { return Inner.bCompileWithAccessibilitySupport; }
+		}
+
+		public bool bWithPerfCounters
 		{
 			get { return Inner.bWithPerfCounters; }
 		}

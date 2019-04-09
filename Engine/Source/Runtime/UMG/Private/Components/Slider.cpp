@@ -12,6 +12,8 @@
 USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	MinValue = 0.0f;
+	MaxValue = 1.0f;
 	Orientation = EOrientation::Orient_Horizontal;
 	SliderBarColor = FLinearColor::White;
 	SliderHandleColor = FLinearColor::White;
@@ -23,6 +25,9 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
 	static const FSliderStyle StaticSlider = FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider");
 	WidgetStyle = StaticSlider;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
+	bCanChildrenBeAccessible = false;
 }
 
 TSharedRef<SWidget> USlider::RebuildWidget()
@@ -51,6 +56,7 @@ void USlider::SynchronizeProperties()
 	MySlider->SetSliderBarColor(SliderBarColor);
 	MySlider->SetSliderHandleColor(SliderHandleColor);
 	MySlider->SetValue(ValueBinding);
+	MySlider->SetMinAndMaxValues(MinValue, MaxValue);
 	MySlider->SetLocked(Locked);
 	MySlider->SetIndentHandle(IndentHandle);
 	MySlider->SetStepSize(StepSize);
@@ -98,12 +104,50 @@ float USlider::GetValue() const
 	return Value;
 }
 
+float USlider::GetNormalizedValue() const
+{
+	if (MySlider.IsValid())
+	{
+		return MySlider->GetNormalizedValue();
+	}
+
+	if (MinValue == MaxValue)
+	{
+		return 1.0f;
+	}
+	else
+	{
+		return (Value - MinValue) / (MaxValue - MinValue);
+	}
+}
+
 void USlider::SetValue(float InValue)
 {
 	Value = InValue;
 	if ( MySlider.IsValid() )
 	{
 		MySlider->SetValue(InValue);
+	}
+}
+
+void USlider::SetMinValue(float InValue)
+{
+	MinValue = InValue;
+	if (MySlider.IsValid())
+	{
+		// Because SSlider clamps min/max values upon setting them,
+		// we have to send both values together to ensure that they
+		// don't get out of sync.
+		MySlider->SetMinAndMaxValues(MinValue, MaxValue);
+	}
+}
+
+void USlider::SetMaxValue(float InValue)
+{
+	MaxValue = InValue;
+	if (MySlider.IsValid())
+	{
+		MySlider->SetMinAndMaxValues(MinValue, MaxValue);
 	}
 }
 

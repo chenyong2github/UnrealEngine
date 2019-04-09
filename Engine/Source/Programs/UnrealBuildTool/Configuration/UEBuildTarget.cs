@@ -3076,7 +3076,16 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_PLUGIN_SUPPORT=0");
 			}
 
-            if (Rules.bWithPerfCounters)
+			if (Rules.bCompileWithAccessibilitySupport)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=0");
+			}
+
+			if (Rules.bWithPerfCounters)
             {
                 GlobalCompileEnvironment.Definitions.Add("WITH_PERFCOUNTERS=1");
             }
