@@ -625,6 +625,7 @@ private:
 	void PushDrawEventStack(const FRenderGraphPass* Pass);
 	void ExecutePass( const FRenderGraphPass* Pass );
 	void AllocateAndTransitionPassResources(const FRenderGraphPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
+	static void UpdateAccessGuardForPassResources(const FRenderGraphPass* Pass, bool bAllowAccess);
 	static void WarnForUselessPassDependencies(const FRenderGraphPass* Pass);
 
 	void ReleaseRHITextureIfPossible(FRDGTexture* Texture);

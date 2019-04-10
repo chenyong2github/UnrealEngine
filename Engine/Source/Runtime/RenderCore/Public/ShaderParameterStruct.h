@@ -113,8 +113,7 @@ inline void SetShaderUAVs(TRHICmdList& RHICmdList, const TShaderClass* Shader, F
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				GraphUAV->bIsActuallyUsedByPass = true;
+				GraphUAV->MarkResourceAsUsed();
 			}
 		}
 
@@ -216,8 +215,7 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				GraphTexture->bIsActuallyUsedByPass = true;
+				GraphTexture->MarkResourceAsUsed();
 			}
 		}
 
@@ -238,8 +236,7 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				GraphSRV->bIsActuallyUsedByPass = true;
+				GraphSRV->MarkResourceAsUsed();
 			}
 		}
 
@@ -343,8 +340,7 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				GraphTexture->bIsActuallyUsedByPass = true;
+				GraphTexture->MarkResourceAsUsed();
 			}
 		}
 
@@ -365,8 +361,7 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				GraphSRV->bIsActuallyUsedByPass = true;
+				GraphSRV->MarkResourceAsUsed();
 			}
 		}
 
@@ -387,8 +382,7 @@ void SetShaderParameters(FRayTracingShaderBindingsWriter& RTBindingsWriter, cons
 			}
 			else
 			{
-				// Mark this resource as used by the pass for inefficient pass resource dependency debugging purpose.
-				UAV->bIsActuallyUsedByPass = true;
+				UAV->MarkResourceAsUsed();
 			}
 		}
 

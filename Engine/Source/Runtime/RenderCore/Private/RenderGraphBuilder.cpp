@@ -849,6 +849,11 @@ void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
 	bool bHasRenderTargets = false;
 
 	AllocateAndTransitionPassResources(Pass, &RPInfo, &bHasRenderTargets);
+	
+	if (RENDER_GRAPH_DEBUGGING)
+	{
+		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ true);
+	}
 
 	if (RENDER_GRAPH_DRAW_EVENTS)
 	{
@@ -888,6 +893,7 @@ void FRDGBuilder::ExecutePass( const FRenderGraphPass* Pass )
 
 	if (RENDER_GRAPH_DEBUGGING)
 	{
+		UpdateAccessGuardForPassResources(Pass, /** bAllowAccess */ false);
 		WarnForUselessPassDependencies(Pass);
 	}
 
@@ -1131,6 +1137,46 @@ void FRDGBuilder::AllocateAndTransitionPassResources(const FRenderGraphPass* Pas
 	}
 
 	OutRPInfo->bGeneratingMips = bGeneratingMips;
+}
+
+// static
+void FRDGBuilder::UpdateAccessGuardForPassResources(const FRenderGraphPass* Pass, bool bAllowAccess)
+{
+#if RENDER_GRAPH_DEBUGGING
+	FShaderParameterStructRef ParameterStruct = Pass->GetParameters();
+
+	for (int ResourceIndex = 0, Num = ParameterStruct.Layout->Resources.Num(); ResourceIndex < Num; ResourceIndex++)
+	{
+		EUniformBufferBaseType Type = ParameterStruct.Layout->Resources[ResourceIndex].MemberType;
+		uint16 Offset = ParameterStruct.Layout->Resources[ResourceIndex].MemberOffset;
+
+		if (IsRDGResourceReferenceShaderParameterType(Type))
+		{
+			FRDGResource* RESTRICT Resource = *ParameterStruct.GetMemberPtrAtOffset<FRDGResource*>(Offset);
+			if (Resource)
+				Resource->bAllowAccessToRHIResource = bAllowAccess;
+		}
+		else if (Type == UBMT_RENDER_TARGET_BINDING_SLOTS)
+		{
+			FRenderTargetBindingSlots* RESTRICT RenderTargets = ParameterStruct.GetMemberPtrAtOffset<FRenderTargetBindingSlots>(Offset);
+
+			for (int32 i = 0; i < RenderTargets->Output.Num(); i++)
+			{
+				FRDGTexture* Texture = RenderTargets->Output[i].GetTexture();
+				if (Texture)
+					Texture->bAllowAccessToRHIResource = bAllowAccess;
+				else
+					break;
+			}
+			
+			const FDepthStencilBinding& DepthStencil = RenderTargets->DepthStencil;
+			if (DepthStencil.Texture)
+			{
+				DepthStencil.Texture->bAllowAccessToRHIResource = bAllowAccess;
+			}
+		}
+	}
+#endif
 }
 
 // static 

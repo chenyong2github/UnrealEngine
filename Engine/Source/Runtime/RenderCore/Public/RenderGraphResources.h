@@ -71,13 +71,30 @@ public:
 	{
 		CachedRHI.Resource = nullptr;
 	}
+	
+	/** Verify that the RHI resource can be accessed at a pass execution. */
+	inline void VerifyRHIAccess() const
+	{
+		#if RENDER_GRAPH_DEBUGGING
+		{
+			checkf(bAllowAccessToRHIResource,
+				TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
+				TEXT("that is due to this resource not being referenced in the parameters of your pass."),
+				Name);
+		}
+		#endif
+	}
+
+	/** Marks this resource as actually used by a resource. This is to track what dependencies on pass was actually unecessary. */
+	inline void MarkResourceAsUsed()
+	{
+		VerifyRHIAccess();
+		bIsActuallyUsedByPass = true;
+	}
 
 	FRDGResource() = delete;
 	FRDGResource(const FRDGResource&) = delete;
 	void operator = (const FRDGResource&) = delete;
-
-	/** Boolean to track at runtime whether a ressource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
-	bool bIsActuallyUsedByPass = false;
 
 private:
 	/** Number of references in passes and deferred queries. */
@@ -87,9 +104,15 @@ private:
 	bool bWritable = false;
 	bool bCompute = false;
 
+	/** Boolean to track at runtime whether a ressource is actually used by the lambda of a pass or not, to detect unnecessary resource dependencies on passes. */
+	bool bIsActuallyUsedByPass = false;
+
 #if RENDER_GRAPH_DEBUGGING
 	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
 	bool bHasEverBeenProduced = false;
+
+	/** Boolean to track at pass execution whether the underlying RHI resource is allowed to be accessed. */
+	bool bAllowAccessToRHIResource = false;
 
 	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
 	const FRenderGraphPass* DebugFirstProducer = nullptr;
@@ -131,6 +154,7 @@ public:
 	/** Returns the allocated pooled render target. Must only be called within a pass's lambda. */
 	inline IPooledRenderTarget* GetPooledRenderTarget() const
 	{
+		VerifyRHIAccess();
 		check(PooledRenderTarget);
 		return PooledRenderTarget;
 	}
@@ -139,6 +163,7 @@ public:
 	/** Returns the allocated RHI texture. Must only be called within a pass's lambda. */
 	inline FTextureRHIParamRef GetRHITexture() const
 	{
+		VerifyRHIAccess();
 		check(CachedRHI.Texture);
 		return CachedRHI.Texture;
 	}
@@ -466,6 +491,7 @@ public:
 	/** Returns the buffer to use for indirect RHI calls. */
 	FVertexBufferRHIParamRef GetIndirectRHICallBuffer() const
 	{
+		VerifyRHIAccess();
 		check(PooledBuffer);
 		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Indirect buffers needs to be underlying vertex buffer."));
 		check(PooledBuffer->VertexBuffer.IsValid());
