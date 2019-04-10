@@ -610,6 +610,7 @@ class INetworkReplayStreamingFactory : public IModuleInterface
 {
 public:
 	virtual TSharedPtr< INetworkReplayStreamer > CreateReplayStreamer() = 0;
+	virtual void Flush() {}
 };
 
 /** Replay streaming factory manager */
@@ -620,6 +621,8 @@ public:
 	{
 		return FModuleManager::LoadModuleChecked< FNetworkReplayStreaming >( "NetworkReplayStreaming" );
 	}
+
+	NETWORKREPLAYSTREAMING_API void Flush();
 
 	virtual INetworkReplayStreamingFactory& GetFactory(const TCHAR* FactoryNameOverride = nullptr);
 
@@ -638,4 +641,7 @@ public:
 	// Gets the configured value for whether or not we should use FDateTime::Now as the automatic replay postfix.
 	// If false, it's up to the streamer to determine a proper postfix.
 	static NETWORKREPLAYSTREAMING_API bool UseDateTimeAsAutomaticReplayPostfix();
+
+private:
+	TSet<FName> LoadedFactories;
 };
