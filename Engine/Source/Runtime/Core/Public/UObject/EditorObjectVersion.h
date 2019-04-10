@@ -73,6 +73,8 @@ struct CORE_API FEditorObjectVersion
 		MeshDescriptionRemovedHoles,
 		// Change to the WidgetCompoent WindowVisibilty default value
 		ChangedWidgetComponentWindowVisibilityDefault,
+		// Avoid keying culture invariant display strings during serialization to avoid non-deterministic cooking issues
+		CultureInvariantTextSerializationKeyStability,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
