@@ -13,9 +13,19 @@ FVulkanVertexBuffer::FVulkanVertexBuffer(FVulkanDevice* InDevice, uint32 InSize,
 {
 }
 
+void FVulkanVertexBuffer::Swap(FVulkanVertexBuffer& Other)
+{
+	FRHIVertexBuffer::Swap(Other);
+	FVulkanResourceMultiBuffer::Swap(Other);
+}
+
 FVertexBufferRHIRef FVulkanDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanVertexBuffers);
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FVulkanVertexBuffer(nullptr, 0, 0, CreateInfo, nullptr);
+	}
 	FVulkanVertexBuffer* VertexBuffer = new FVulkanVertexBuffer(Device, Size, InUsage, CreateInfo, nullptr);
 	return VertexBuffer;
 }
@@ -51,4 +61,21 @@ void FVulkanDynamicRHI::UnlockVertexBuffer_RenderThread(FRHICommandListImmediate
 void FVulkanDynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBufferRHI,FVertexBufferRHIParamRef DestBufferRHI)
 {
 	VULKAN_SIGNAL_UNIMPLEMENTED();
+}
+
+void FVulkanDynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FVulkanVertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		TRefCountPtr<FVulkanVertexBuffer> DeletionProxy = new FVulkanVertexBuffer(Dest->GetParent(), 0, 0, CreateInfo, nullptr);
+		Dest->Swap(*DeletionProxy);
+	}
+	else
+	{
+		FVulkanVertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
+	}
 }
