@@ -137,6 +137,10 @@ extern bool GMetalCommandBufferDebuggingEnabled;
 #endif
 #define METAL_FATAL_ASSERT(Condition, Format, ...) if (!(Condition)) { METAL_FATAL_ERROR(Format, __VA_ARGS__); }
 
+#if !defined(METAL_IGNORED)
+	#define METAL_IGNORED(Func)
+#endif
+
 struct FMetalDebugInfo
 {
 	uint32 CmdBuffIndex;
