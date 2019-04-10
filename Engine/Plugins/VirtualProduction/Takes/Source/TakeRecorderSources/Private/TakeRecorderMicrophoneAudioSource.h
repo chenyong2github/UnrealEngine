@@ -11,7 +11,7 @@
 #include "TakeRecorderMicrophoneAudioSource.generated.h"
 
 /** A recording source that records microphone audio */
-UCLASS(Abstract, config=EditorSettings, DisplayName="Microphone Audio Recorder Defaults")
+UCLASS(Abstract, config=EditorSettings, DisplayName="Microphone Audio Recorder")
 class UTakeRecorderMicrophoneAudioSourceSettings : public UTakeRecorderSource
 {
 public:
