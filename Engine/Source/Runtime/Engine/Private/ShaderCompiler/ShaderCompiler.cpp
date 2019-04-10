@@ -2769,15 +2769,25 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 	{
 		EUniformBufferBaseType BaseType = Member.GetBaseType();
 		uint16 MemberOffset = ByteOffset + uint16(Member.GetOffset());
+		uint32 NumElements = Member.GetNumElements();
 
 		if (BaseType == UBMT_INCLUDED_STRUCT)
 		{
+			check(NumElements == 0);
 			PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, Prefix);
 		}
-		else if (BaseType == UBMT_NESTED_STRUCT)
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
 		{
 			FString NewPrefix = FString::Printf(TEXT("%s%s_"), *Prefix, Member.GetName());
 			PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
+		}
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
+		{
+			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
+			{
+				FString NewPrefix = FString::Printf(TEXT("%s%s_%u_"), *Prefix, Member.GetName(), ArrayElementId);
+				PullRootShaderParametersLayout(CompileInput, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
+			}
 		}
 		else if (
 			BaseType == UBMT_BOOL ||

@@ -74,13 +74,33 @@ struct FShaderParameterStructBindingContext
 				BaseType == UBMT_UINT32 ||
 				BaseType == UBMT_FLOAT32);
 
-			if (BaseType == UBMT_NESTED_STRUCT || BaseType == UBMT_INCLUDED_STRUCT)
+			if (BaseType == UBMT_INCLUDED_STRUCT)
 			{
-				checkf(!bIsArray, TEXT("Array of structure bindings is not supported."));
+				checkf(!bIsArray, TEXT("Array of included structure is impossible."));
+				Bind(
+					*Member.GetStructMetadata(),
+					/* MemberPrefix = */ MemberPrefix,
+					/* GeneralByteOffset = */ ByteOffset);
+				continue;
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && bIsArray)
+			{
+				for (uint32 ArrayElementId = 0; ArrayElementId < (bIsArray ? ArraySize : 1u); ArrayElementId++)
+				{
+					FString NewPrefix = FString::Printf(TEXT("%s%s_%d_"), MemberPrefix, Member.GetName(), ArrayElementId);
+					Bind(
+						*Member.GetStructMetadata(),
+						/* MemberPrefix = */ *NewPrefix,
+						/* GeneralByteOffset = */ ByteOffset);
+				}
+				continue;
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && !bIsArray)
+			{
 				FString NewPrefix = FString::Printf(TEXT("%s%s_"), MemberPrefix, Member.GetName());
 				Bind(
 					*Member.GetStructMetadata(),
-					/* MemberPrefix = */ BaseType == UBMT_INCLUDED_STRUCT ? MemberPrefix : *NewPrefix,
+					/* MemberPrefix = */ *NewPrefix,
 					/* GeneralByteOffset = */ ByteOffset);
 				continue;
 			}

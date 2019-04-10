@@ -557,6 +557,34 @@ struct TShaderParameterTypeInfo<TUniformBufferRef<UniformBufferStructType>>
 	static const FShaderParametersMetadata* GetStructMetadata() { return &UniformBufferStructType::StaticStructMetadata; }
 };
 
+template<typename StructType>
+struct TShaderParameterStructTypeInfo
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = StructType;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return StructType::FTypeInfo::GetStructMetadata(); }
+};
+
+template<typename StructType, size_t InNumElements>
+struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
+{
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 1;
+	static constexpr int32 NumElements = InNumElements;
+	static constexpr int32 Alignment = SHADER_PARAMETER_STRUCT_ALIGNMENT;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TStaticArray<StructType, InNumElements>;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return StructType::FTypeInfo::GetStructMetadata(); }
+};
+
 
 #define INTERNAL_BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT \
 	static FShaderParametersMetadata StaticStructMetadata; \
@@ -850,6 +878,30 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByFName(
  */
 #define SHADER_PARAMETER_STRUCT(StructType,MemberName) \
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_NESTED_STRUCT, StructType::FTypeInfo, StructType, MemberName,,,EShaderPrecisionModifier::Float,TEXT(#StructType),true)
+
+/** Nests an array of shader parameter structure into another one, in C++ and shader code.
+ *
+ * Example:
+ *	BEGIN_SHADER_PARAMETER_STRUCT(FMyNestedStruct,)
+ *		SHADER_PARAMETER(float, MyScalar)
+ *		// ...
+ *	END_SHADER_PARAMETER_STRUCT()
+ *
+ *	BEGIN_SHADER_PARAMETER_STRUCT(FOtherStruct)
+ *		SHADER_PARAMETER_STRUCT_ARRAY(FMyNestedStruct, MyStructArray, [4])
+ *
+ * C++ use case:
+ *	FOtherStruct Parameters;
+ *	Parameters.MyStructArray[0].MyScalar = 1.0f;
+ *
+ * Shader code for a globally named shader parameter struct (UNSUPPORTED):
+ *	float MyScalar = MyGlobalShaderBindingName.MyStructArray_0.MyScalar;
+ *
+ * Shader code for a unnamed shader parameter struct:
+ *	float MyScalar = MyStructArray_0_MyScalar;
+ */
+#define SHADER_PARAMETER_STRUCT_ARRAY(StructType,MemberName, ArrayDecl) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_NESTED_STRUCT, TShaderParameterStructTypeInfo<StructType ArrayDecl>, StructType, MemberName,ArrayDecl,,EShaderPrecisionModifier::Float,TEXT(#StructType),true)
 
 /** Include a shader parameter structure into another one in shader code.
  *

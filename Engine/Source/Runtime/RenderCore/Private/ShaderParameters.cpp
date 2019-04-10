@@ -169,6 +169,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 
 		if(Member.GetBaseType() == UBMT_NESTED_STRUCT)
 		{
+			checkf(Member.GetNumElements() == 0, TEXT("SHADER_PARAMETER_STRUCT_ARRAY() is not supported in uniform buffer yet."));
 			Decl.StructMembers += TEXT("struct {\r\n");
 			Decl.Initializer += TEXT(",{");
 			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), FString::Printf(TEXT("%s%s_"), *NamePrefix, Member.GetName()), StructOffset + Member.GetOffset(), Decl, HLSLBaseOffset);
