@@ -1637,28 +1637,33 @@ int32 FName::Compare( const FName& Other ) const
 	}
 	else // Names don't match. This means we don't even need to check numbers.
 	{
-		const FNameEntry* const ThisEntry = GetComparisonNameEntry();
-		const FNameEntry* const OtherEntry = Other.GetComparisonNameEntry();
-		
-		// If one or both entries return an invalid name entry, the comparison fails - fallback to comparing the index
-		if (ThisEntry == nullptr || OtherEntry == nullptr)
-		{
-			return ComparisonIndex.CompareCreationOrder(Other.ComparisonIndex);
-		}
-		else if (ThisEntry->IsWide() == OtherEntry->IsWide())
-		{
-			return ThisEntry->IsWide() ?	FCStringWide::Stricmp(ThisEntry->WideName, OtherEntry->WideName) :
-											FCStringAnsi::Stricmp(ThisEntry->AnsiName, OtherEntry->AnsiName);
-		}
-		else // Ansi/Wide mismatch, convert one string to wide
-		{
-			WIDECHAR TempBuffer[NAME_SIZE];
-			const FNameEntry* AnsiEntry = ThisEntry->IsWide() ? OtherEntry : ThisEntry;
-			FPlatformString::Convert(TempBuffer, NAME_SIZE, AnsiEntry->AnsiName, FCStringAnsi::Strlen(AnsiEntry->AnsiName));
+		FNameBuffer ThisBuffer, OtherBuffer;
+		FNameStringView ThisView =	GetComparisonNameEntry()->MakeView(ThisBuffer);
+		FNameStringView OtherView =	Other.GetComparisonNameEntry()->MakeView(OtherBuffer);
 
-			return ThisEntry->IsWide() ? FCStringWide::Stricmp(ThisEntry->WideName, TempBuffer)
-										: FCStringWide::Stricmp(TempBuffer, OtherEntry->WideName);
+		// If only one view is wide, convert the ansi view to wide as well
+		if (ThisView.bIsWide != OtherView.bIsWide)
+		{
+			FNameStringView& AnsiView = ThisView.bIsWide ? OtherView : ThisView;
+			FNameBuffer& AnsiBuffer =	ThisView.bIsWide ? OtherBuffer : ThisBuffer;
+
+#ifndef WITH_CUSTOM_NAME_ENCODING
+			memcpy(AnsiBuffer.AnsiName, AnsiView.Ansi, AnsiView.Len * sizeof(ANSICHAR));
+			AnsiView.Ansi = AnsiBuffer.AnsiName;
+#endif
+
+			AnsiBuffer.ConvertInPlace<ANSICHAR, WIDECHAR>(AnsiView.Len);
+			AnsiView.bIsWide = true;
 		}
+
+		int32 MinLen = FMath::Min(ThisView.Len, OtherView.Len);
+		if (int32 StrDiff = ThisView.bIsWide ?	FCStringWide::Strnicmp(ThisView.Wide, OtherView.Wide, MinLen) :
+												FCStringAnsi::Strnicmp(ThisView.Ansi, OtherView.Ansi, MinLen))
+		{
+			return StrDiff;
+		}
+
+		return ThisView.Len - OtherView.Len;
 	}
 }
 
@@ -1917,6 +1922,25 @@ void FName::AutoTest()
 	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abcd"));
 	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abc_0"));
 	check(!StringAndNumberEqualsString("abc", 3, NAME_NO_NUMBER_INTERNAL, "abc_"));
+
+	TArray<FName> Names;
+	Names.Add("FooB");
+	Names.Add("FooABCD");
+	Names.Add("FooABC");
+	Names.Add("FooAB");
+	Names.Add("FooA");
+	Names.Add("FooC");
+	const WIDECHAR FooWide[] = {'F', 'o', 'o', (WIDECHAR)2000, '\0'};
+	Names.Add(FooWide);
+	Algo::Sort(Names); // Todo: fix when removing default operator<
+
+	check(Names[0] == "FooA");
+	check(Names[1] == "FooAB");
+	check(Names[2] == "FooABC");
+	check(Names[3] == "FooABCD");
+	check(Names[4] == "FooB");
+	check(Names[5] == "FooC");
+	check(Names[6] == FooWide);
 
 #if 0
 	// Check hash table growth still yields the same unique FName ids
