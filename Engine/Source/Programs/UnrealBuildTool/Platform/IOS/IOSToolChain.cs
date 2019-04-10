@@ -979,7 +979,7 @@ namespace UnrealBuildTool
         /// </summary>
         /// <param name="Executable">FileItem describing the executable to generate debug info for</param>
 		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
-        public FileItem GenerateDebugInfo(FileItem Executable, List<Action> Actions)
+        public List<FileItem> GenerateDebugInfo(FileItem Executable, List<Action> Actions)
 		{
             // Make a file item for the source and destination files
 			string FullDestPathRoot = GetdSYMPath(Executable);
@@ -1016,7 +1016,7 @@ namespace UnrealBuildTool
 			GenDebugAction.bCanExecuteRemotely = false;
 			Actions.Add(GenDebugAction);
 
-			return (ProjectSettings.bGeneratedSYMBundle ? ZipOutputFile : OutputFile);
+			return GenDebugAction.ProducedItems; // (ProjectSettings.bGeneratedSYMBundle ? ZipOutputFile : OutputFile);
 		}
 
         /// <summary>
@@ -1363,8 +1363,12 @@ namespace UnrealBuildTool
             // For IOS/tvOS, generate the dSYM file if needed or requested
 			if (Target.IOSPlatform.bGeneratedSYM)
             {
-                OutputFiles.Add(GenerateDebugInfo(Executable, Actions));
-                if (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler)
+ 				List<FileItem> Files = GenerateDebugInfo(Executable, Actions);
+				foreach (FileItem item in Files)
+				{
+					OutputFiles.Add(item);
+				}
+               	if (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler)
                 {
                     OutputFiles.Add(GeneratePseudoPDB(Executable, Actions));
                 }

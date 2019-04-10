@@ -100,28 +100,6 @@ void InstallSignalHandlers()
 	sigaction(SIGSYS, &Action, NULL);
 }
 
-void EngineCrashHandler(const FGenericCrashContext& GenericContext)
-{
-    const FIOSCrashContext& Context = static_cast<const FIOSCrashContext&>(GenericContext);
-    
-    Context.ReportCrash();
-    if (GLog)
-    {
-        GLog->SetCurrentThreadAsMasterThread();
-        GLog->Flush();
-    }
-    if (GWarn)
-    {
-        GWarn->Flush();
-    }
-    if (GError)
-    {
-        GError->Flush();
-        GError->HandleError();
-    }
-    return Context.GenerateCrashInfo();
-}
-
 FDelegateHandle FIOSCoreDelegates::AddPushNotificationFilter(const FPushNotificationFilter& FilterDel)
 {
 	FDelegateHandle NewHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle);
@@ -933,7 +911,6 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	OSVersion = [[[UIDevice currentDevice] systemVersion] floatValue];
 	if (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash)
 	{
-        FPlatformMisc::SetCrashHandler(EngineCrashHandler);
 //        InstallSignalHandlers();
 	}
 

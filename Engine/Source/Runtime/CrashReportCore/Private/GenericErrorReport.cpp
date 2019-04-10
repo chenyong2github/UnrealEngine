@@ -8,7 +8,7 @@
 #include "Misc/Parse.h"
 #include "Misc/FileHelper.h"
 #include "Internationalization/Text.h"
-#include "CrashReportConfig.h"
+#include "CrashReportCoreConfig.h"
 #include "Modules/ModuleManager.h"
 #include "CrashDebugHelper.h"
 #include "CrashDebugHelperModule.h"
@@ -51,7 +51,7 @@ FGenericErrorReport::FGenericErrorReport(const FString& Directory)
 
 bool FGenericErrorReport::SetUserComment(const FText& UserComment)
 {
-	const bool bAllowToBeContacted = FCrashReportConfig::Get().GetAllowToBeContacted();
+	const bool bAllowToBeContacted = FCrashReportCoreConfig::Get().GetAllowToBeContacted();
 
 	const FString UserName1 = FPlatformProcess::UserName( false );
 	const FString UserName2 = FPlatformProcess::UserName( true );
@@ -176,7 +176,16 @@ void FGenericErrorReport::SetPrimaryCrashProperties( FPrimaryCrashProperties& ou
 	ICrashDebugHelper* Helper = CrashHelperModule.Get();
 	if (Helper && bValidCallstack)
 	{
-		out_PrimaryCrashProperties.CallStack = Helper->CrashInfo.Exception.CallStackString;
+		TArray<FString> CallStack = Helper->CrashInfo.Exception.CallStackString;
+
+		// Get the callstack and remove any frames that we don't care about
+		int64 NumMinidumpFramesToIgnore = out_PrimaryCrashProperties.NumMinidumpFramesToIgnore;
+		if (NumMinidumpFramesToIgnore > 0)
+		{
+			CallStack.RemoveAt(0, FMath::Min(CallStack.Num(), (int32)NumMinidumpFramesToIgnore));
+		}
+
+		out_PrimaryCrashProperties.CallStack = CallStack;
 		out_PrimaryCrashProperties.Modules = Helper->CrashInfo.ModuleNames;
 		out_PrimaryCrashProperties.SourceContext = Helper->CrashInfo.SourceContext;
 
@@ -209,11 +218,11 @@ TArray<FString> FGenericErrorReport::GetFilesToUpload() const
 
 void FGenericErrorReport::DeleteFiles()
 {
-    for (const auto& Filename: ReportFilenames)
-    {
-        IFileManager::Get().Delete(*(ReportDirectory / Filename));
-    }
-    IFileManager::Get().DeleteDirectory(*ReportDirectory);
+	for (const auto& Filename: ReportFilenames)
+	{
+		IFileManager::Get().Delete(*(ReportDirectory / Filename));
+	}
+	IFileManager::Get().DeleteDirectory(*ReportDirectory);
 }
 
 bool FGenericErrorReport::LoadWindowsReportXmlFile( FString& OutString ) const
@@ -231,7 +240,7 @@ bool FGenericErrorReport::LoadWindowsReportXmlFile( FString& OutString ) const
 bool FGenericErrorReport::TryReadDiagnosticsFile()
 {
 	FString FileContent;
-	if (!FFileHelper::LoadFileToString(FileContent, *(ReportDirectory / FCrashReportConfig::Get().GetDiagnosticsFilename())))
+	if (!FFileHelper::LoadFileToString(FileContent, *(ReportDirectory / FCrashReportCoreConfig::Get().GetDiagnosticsFilename())))
 	{
 		// No diagnostics file
 		return false;
