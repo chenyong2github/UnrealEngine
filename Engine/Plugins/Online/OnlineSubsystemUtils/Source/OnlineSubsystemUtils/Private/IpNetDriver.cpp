@@ -507,6 +507,16 @@ bool UIpNetDriver::InitListen( FNetworkNotify* InNotify, FURL& LocalURL, bool bR
 	return true;
 }
 
+class FIpConnectionHelper
+{
+private:
+	friend class UIpNetDriver;
+	static void HandleSocketRecvError(UIpNetDriver* Driver, UIpConnection* Connection, const FString& ErrorString)
+	{
+		Connection->HandleSocketRecvError(Driver, ErrorString);
+	}
+};
+
 void UIpNetDriver::TickDispatch(float DeltaTime)
 {
 	LLM_SCOPE(ELLMTag::Networking);
@@ -623,13 +633,19 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				// This should only occur on clients - on servers it leaves the NetDriver in an invalid/vulnerable state
 				if (MyServerConnection != nullptr)
 				{
-					GEngine->BroadcastNetworkFailure(GetWorld(), this, ENetworkFailure::ConnectionLost, ErrorString);
-					Shutdown();
+					// TODO: Maybe we should check to see whether or not the From address matches the server?
+					// If not, we could forward errors incorrectly, causing the connection to shut down.
 
+					FIpConnectionHelper::HandleSocketRecvError(this, MyServerConnection, ErrorString);
 					break;
 				}
 				else
 				{
+					// TODO: Should we also forward errors to connections here?
+					// If we did, instead of just shutting down the NetDriver completely we could instead
+					// boot the given connection.
+					// May be DDoS concerns with the cost of looking up the connections for malicious packets
+					// from sources that won't have connections.
 					UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Warning, TEXT("%s"), *ErrorString);
 				}
 
