@@ -826,8 +826,7 @@ static void ExtractParameterMapFromD3DShader(
 
 			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
 		}
-		// #dxr_todo: D3D_SIT_RTACCELERATIONSTRUCTURE is declared in latest version of dxcapi.h. Update this code after upgrading DXC.
-		else if (BindDesc.Type == 12 /*D3D_SIT_RTACCELERATIONSTRUCTURE*/)
+		else if (BindDesc.Type == D3D_SIT_RTACCELERATIONSTRUCTURE)
 		{
 			// Acceleration structure resources are treated as SRVs.
 			check(BindDesc.BindCount == 1);
