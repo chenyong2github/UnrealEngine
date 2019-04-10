@@ -220,7 +220,7 @@ EAsyncPackageState::Type FStreamableHandle::WaitUntilComplete(float Timeout, boo
 			Handle->StartStalledHandle();
 		}
 
-		for (TSharedPtr<FStreamableHandle> ChildHandle : Handle->ChildHandles)
+		for (const TSharedPtr<FStreamableHandle>& ChildHandle : Handle->ChildHandles)
 		{
 			if (ChildHandle.IsValid())
 			{
@@ -265,7 +265,7 @@ void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList) c
 	AssetList = RequestedAssets;
 
 	// Check child handles
-	for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
+	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 	{
 		TArray<FSoftObjectPath> ChildAssetList;
 
@@ -310,7 +310,7 @@ void FStreamableHandle::GetLoadedAssets(TArray<UObject *>& LoadedAssets) const
 		}
 
 		// Check child handles
-		for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
+		for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 		{
 			for (const FSoftObjectPath& Ref : ChildHandle->RequestedAssets)
 			{
@@ -334,7 +334,7 @@ void FStreamableHandle::GetLoadedCount(int32& LoadedCount, int32& RequestedCount
 	LoadedCount = RequestedCount - StreamablesLoading;
 	
 	// Check child handles
-	for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
+	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 	{
 		int32 ChildRequestedCount = 0;
 		int32 ChildLoadedCount = 0;
@@ -418,7 +418,7 @@ void FStreamableHandle::CancelHandle()
 	OwningManager->ManagedActiveHandles.Remove(SharedThis);
 
 	// Remove child handles
-	for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
+	for (TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 	{
 		ChildHandle->ParentHandles.Remove(SharedThis);
 	}
@@ -431,7 +431,7 @@ void FStreamableHandle::CancelHandle()
 	{
 		// Update any meta handles that are still active. Copy the array first as elements may be removed from original while iterating
 		TArray<TWeakPtr<FStreamableHandle>> ParentHandlesCopy = ParentHandles;
-		for (TWeakPtr<FStreamableHandle> WeakHandle : ParentHandlesCopy)
+		for (TWeakPtr<FStreamableHandle>& WeakHandle : ParentHandlesCopy)
 		{
 			TSharedPtr<FStreamableHandle> Handle = WeakHandle.Pin();
 
@@ -528,7 +528,7 @@ void FStreamableHandle::CompleteLoad()
 		{
 			// Update any meta handles that are still active. Copy the array first as elements may be removed from original while iterating
 			TArray<TWeakPtr<FStreamableHandle>> ParentHandlesCopy = ParentHandles;
-			for (TWeakPtr<FStreamableHandle> WeakHandle : ParentHandlesCopy)
+			for (TWeakPtr<FStreamableHandle>& WeakHandle : ParentHandlesCopy)
 			{
 				TSharedPtr<FStreamableHandle> Handle = WeakHandle.Pin();
 
@@ -556,10 +556,15 @@ void FStreamableHandle::UpdateCombinedHandle()
 	// Check all our children, complete if done
 	bool bAllCompleted = true;
 	bool bAllCanceled = true;
-	for (TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
+	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 	{
 		bAllCompleted = bAllCompleted && !ChildHandle->IsLoadingInProgress();
 		bAllCanceled = bAllCanceled && ChildHandle->WasCanceled();
+
+		if (!bAllCompleted || !bAllCanceled)
+		{
+			return;
+		}
 	}
 
 	// If all our sub handles were canceled, cancel us. Otherwise complete us if at least one was completed and there are none in progress
@@ -593,7 +598,7 @@ void FStreamableHandle::CallUpdateDelegate()
 	UpdateDelegate.ExecuteIfBound(AsShared());
 
 	// Update any meta handles that are still active
-	for (TWeakPtr<FStreamableHandle> WeakHandle : ParentHandles)
+	for (TWeakPtr<FStreamableHandle>& WeakHandle : ParentHandles)
 	{
 		TSharedPtr<FStreamableHandle> Handle = WeakHandle.Pin();
 
@@ -1169,7 +1174,7 @@ void FStreamableManager::CheckCompletedRequests(const FSoftObjectPath& Target, s
 	TArray<TSharedRef<FStreamableHandle>> HandlesToComplete;
 	TArray<TSharedRef<FStreamableHandle>> HandlesToRelease;
 
-	for (TSharedRef<FStreamableHandle> Handle : Existing->LoadingHandles)
+	for (TSharedRef<FStreamableHandle>& Handle : Existing->LoadingHandles)
 	{
 		ensure(Handle->WasCanceled() || Handle->OwningManager == this);
 
@@ -1187,12 +1192,12 @@ void FStreamableManager::CheckCompletedRequests(const FSoftObjectPath& Target, s
 	}
 	Existing->LoadingHandles.Empty();
 
-	for (TSharedRef<FStreamableHandle> Handle : HandlesToComplete)
+	for (TSharedRef<FStreamableHandle>& Handle : HandlesToComplete)
 	{
 		Handle->CompleteLoad();
 	}
 
-	for (TSharedRef<FStreamableHandle> Handle : HandlesToRelease)
+	for (TSharedRef<FStreamableHandle>& Handle : HandlesToRelease)
 	{
 		Handle->ReleaseHandle();
 	}
