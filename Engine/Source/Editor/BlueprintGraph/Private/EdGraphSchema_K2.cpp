@@ -4600,7 +4600,7 @@ void UEdGraphSchema_K2::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) con
 	}
 }
 
-void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& PinType, UObject* OwningObject, const FString& NewDefaultValue, FString& UseDefaultValue, UObject*& UseDefaultObject, FText& UseDefaultText) const
+void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& PinType, UObject* OwningObject, const FString& NewDefaultValue, FString& UseDefaultValue, UObject*& UseDefaultObject, FText& UseDefaultText, bool bPreserveTextIdentity) const
 {
 	if ((PinType.PinCategory == PC_Object)
 		|| (PinType.PinCategory == PC_Class)
@@ -4632,16 +4632,20 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 	}
 	else if (PinType.PinCategory == PC_Text)
 	{
-		FString PackageNamespace;
-#if USE_STABLE_LOCALIZATION_KEYS
-		if (GIsEditor)
+		if (bPreserveTextIdentity)
 		{
-			PackageNamespace = TextNamespaceUtil::EnsurePackageNamespace(OwningObject);
+			UseDefaultText = FTextStringHelper::CreateFromBuffer(*NewDefaultValue);
 		}
-#endif // USE_STABLE_LOCALIZATION_KEYS
-		if (!FTextStringHelper::ReadFromBuffer(*NewDefaultValue, UseDefaultText, nullptr, *PackageNamespace))
+		else
 		{
-			UseDefaultText = FText::FromString(NewDefaultValue);
+			FString PackageNamespace;
+#if USE_STABLE_LOCALIZATION_KEYS
+			if (GIsEditor)
+			{
+				PackageNamespace = TextNamespaceUtil::EnsurePackageNamespace(OwningObject);
+			}
+#endif // USE_STABLE_LOCALIZATION_KEYS
+			UseDefaultText = FTextStringHelper::CreateFromBuffer(*NewDefaultValue, nullptr, *PackageNamespace);
 		}
 		UseDefaultObject = nullptr;
 		UseDefaultValue.Empty();
@@ -4674,7 +4678,7 @@ void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewD
 	UObject* UseDefaultObject = nullptr;
 	FText UseDefaultText;
 
-	GetPinDefaultValuesFromString(Pin.PinType, Pin.GetOwningNodeUnchecked(), NewDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText);
+	GetPinDefaultValuesFromString(Pin.PinType, Pin.GetOwningNodeUnchecked(), NewDefaultValue, UseDefaultValue, UseDefaultObject, UseDefaultText, /*bPreserveTextIdentity*/false);
 
 	// Check the default value and make it an error if it's bogus
 	if (IsPinDefaultValid(&Pin, UseDefaultValue, UseDefaultObject, UseDefaultText).IsEmpty())

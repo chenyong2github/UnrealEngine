@@ -2,7 +2,6 @@
 
 #include "Engine/UserDefinedStruct.h"
 #include "UObject/UObjectHash.h"
-#include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 #include "UObject/LinkerLoad.h"
@@ -10,7 +9,6 @@
 #include "Misc/SecureHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Misc/PackageName.h"
-#include "Serialization/TextReferenceCollector.h"
 #include "Blueprint/BlueprintSupport.h"
 
 #if WITH_EDITOR
@@ -48,56 +46,10 @@ void FUserStructOnScopeIgnoreDefaults::Initialize()
 	}
 }
 
-#if WITH_EDITORONLY_DATA
-namespace
-{
-	void GatherUserDefinedStructForLocalization(const UObject* const Object, FPropertyLocalizationDataGatherer& PropertyLocalizationDataGatherer, const EPropertyLocalizationGathererTextFlags GatherTextFlags)
-	{
-		const UUserDefinedStruct* const UserDefinedStruct = CastChecked<UUserDefinedStruct>(Object);
-
-		PropertyLocalizationDataGatherer.GatherLocalizationDataFromObject(UserDefinedStruct, GatherTextFlags);
-
-		const FString PathToObject = UserDefinedStruct->GetPathName();
-
-		PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructFields(PathToObject, UserDefinedStruct, UserDefinedStruct->GetDefaultInstance(), nullptr, GatherTextFlags);
-	}
-
-	void CollectUserDefinedStructTextReferences(UObject* Object, FArchive& Ar)
-	{
-		UUserDefinedStruct* const UserDefinedStruct = CastChecked<UUserDefinedStruct>(Object);
-
-		// User Defined Structs need some special handling as they store their default data in a way that serialize doesn't pick up
-		UUserDefinedStructEditorData* UDSEditorData = Cast<UUserDefinedStructEditorData>(UserDefinedStruct->EditorData);
-		if (UDSEditorData)
-		{
-			for (const FStructVariableDescription& StructVariableDesc : UDSEditorData->VariablesDescriptions)
-			{
-				static const FName TextCategory = TEXT("text"); // Must match UEdGraphSchema_K2::PC_Text
-				if (StructVariableDesc.Category == TextCategory)
-				{
-					FText StructVariableValue;
-					if (FTextStringHelper::ReadFromBuffer(*StructVariableDesc.DefaultValue, StructVariableValue))
-					{
-						Ar << StructVariableValue;
-					}
-				}
-			}
-		}
-
-		UserDefinedStruct->Serialize(Ar);
-	}
-}
-#endif
-
 UUserDefinedStruct::UUserDefinedStruct(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DefaultStructInstance.SetPackage(GetOutermost());
-
-#if WITH_EDITORONLY_DATA
-	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UUserDefinedStruct::StaticClass(), &GatherUserDefinedStructForLocalization); }
-	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UUserDefinedStruct::StaticClass(), &CollectUserDefinedStructTextReferences); }
-#endif
 }
 
 void UUserDefinedStruct::Serialize(FStructuredArchive::FRecord Record)
