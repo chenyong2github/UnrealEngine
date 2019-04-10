@@ -216,21 +216,24 @@ void FShaderParametersMetadata::InitializeLayout()
 		}
 	} // for (int32 i = 0; i < MemberStack.Num(); ++i)
 
-#if 0 // TODO(RDG)
-	/** Sort the resource on MemberType first to avoid CPU miss predictions when iterating over the resources. Then based on ascending offset
-	 * to still allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
-	 */
 	Layout.Resources.Sort([](
 		const FRHIUniformBufferLayout::FResourceParameter& A,
 		const FRHIUniformBufferLayout::FResourceParameter& B)
 	{
+#if 0 // TODO(RDG)
+		/** Sort the resource on MemberType first to avoid CPU miss predictions when iterating over the resources. Then based on ascending offset
+		 * to still allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
+		 */
 		if (A.MemberType == B.MemberType)
 		{
 			return A.MemberOffset < B.MemberOffset;
 		}
 		return A.MemberType < B.MemberType;
-	});
+#else
+		// Sorts the resource based on MemberOffset to allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
+		return A.MemberOffset < B.MemberOffset;
 #endif
+	});
 
 	Layout.ComputeHash();
 
