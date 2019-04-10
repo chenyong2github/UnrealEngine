@@ -850,10 +850,6 @@ void UStruct::DestroyStruct(void* Dest, int32 ArrayDim) const
 	}
 }
 
-void UStruct::SerializeBin(FArchive& Ar, void* Data) const
-{
-	SerializeBin(FStructuredArchiveFromArchive(Ar).GetSlot(), Data);
-}
 //
 // Serialize all of the class's data that belongs in a particular
 // bin and resides in Data.
@@ -910,11 +906,6 @@ void UStruct::SerializeBinEx( FStructuredArchive::FSlot Slot, void* Data, void c
 	{
 		It->SerializeNonMatchingBinProperty(Slot, Data, DefaultData, DefaultStruct);
 	}
-}
-
-void UStruct::SerializeTaggedProperties(FArchive& Ar, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
-{
-	SerializeTaggedProperties(FStructuredArchiveFromArchive(Ar).GetSlot(), Data, DefaultsStruct, Defaults, BreakRecursionIfFullyLoad);
 }
 
 void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
@@ -3884,11 +3875,6 @@ bool UClass::ImplementsInterface( const class UClass* SomeInterface ) const
 	}
 
 	return false;
-}
-
-void UClass::SerializeDefaultObject(UObject* Object, FArchive& Ar)
-{
-	SerializeDefaultObject(Object, FStructuredArchiveFromArchive(Ar).GetSlot());
 }
 
 /** serializes the passed in object as this class's default object using the given archive

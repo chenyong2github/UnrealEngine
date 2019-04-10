@@ -323,9 +323,14 @@ public:
 	/** Creates the field/property links and gets structure ready for use at runtime */
 	virtual void Link(FArchive& Ar, bool bRelinkExistingProperties);
 
+	/** Serializes struct properties, does not handle defaults*/
+	virtual void SerializeBin(FArchive& Ar, void* Data) const final 
+	{
+		SerializeBin(FStructuredArchiveFromArchive(Ar).GetSlot(), Data);
+	}
+
 	/** Serializes struct properties, does not handle defaults */
 	virtual void SerializeBin(FStructuredArchive::FSlot Slot, void* Data) const;
-	virtual void SerializeBin(FArchive& Ar, void* Data) const;
 
 	/**
 	 * Serializes the class properties that reside in Data if they differ from the corresponding values in DefaultData
@@ -338,8 +343,13 @@ public:
 	void SerializeBinEx( FStructuredArchive::FSlot Slot, void* Data, void const* DefaultData, UStruct* DefaultStruct ) const;
 
 	/** Serializes list of properties, using property tags to handle mismatches */
-	virtual void SerializeTaggedProperties( FArchive& Ar, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad=nullptr) const;
-	virtual void SerializeTaggedProperties( FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad = nullptr) const;
+	virtual void SerializeTaggedProperties(FArchive& Ar, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad = nullptr) const final 
+	{
+		SerializeTaggedProperties(FStructuredArchiveFromArchive(Ar).GetSlot(), Data, DefaultsStruct, Defaults, BreakRecursionIfFullyLoad);
+	}
+
+	/** Serializes list of properties, using property tags to handle mismatches */
+	virtual void SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad = nullptr) const;
 
 	/**
 	 * Initialize a struct over uninitialized memory. This may be done by calling the native constructor or individually initializing properties
@@ -2686,10 +2696,18 @@ public:
 
 	/** serializes the passed in object as this class's default object using the given archive
 	 * @param Object the object to serialize as default
-	 * @param Ar the archive to serialize from
+	 * @param Slot the structured archive slot to serialize from
 	 */
 	virtual void SerializeDefaultObject(UObject* Object, FStructuredArchive::FSlot Slot);
-	virtual void SerializeDefaultObject(UObject* Object, FArchive& Ar);
+
+	/** serializes the passed in object as this class's default object using the given archive
+	 * @param Object the object to serialize as default
+	 * @param Ar the archive to serialize from
+	 */
+	virtual void SerializeDefaultObject(UObject* Object, FArchive& Ar) final
+	{
+		SerializeDefaultObject(Object, FStructuredArchiveFromArchive(Ar).GetSlot());
+	}
 
 	/** Wraps the PostLoad() call for the class default object.
 	 * @param Object the default object to call PostLoad() on

@@ -304,13 +304,14 @@ UObject* UBlueprintGeneratedClass::GetArchetypeForCDO() const
 }
 #endif //WITH_EDITOR
 
-void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FArchive& Ar)
+void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructuredArchive::FSlot Slot)
 {
 	FScopeLock SerializeAndPostLoadLock(&SerializeAndPostLoadCritical);
+	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
-	Super::SerializeDefaultObject(Object, Ar);
+	Super::SerializeDefaultObject(Object, Slot);
 
-	if (Ar.IsLoading() && !Ar.IsObjectReferenceCollector() && Object == ClassDefaultObject)
+	if (UnderlyingArchive.IsLoading() && !UnderlyingArchive.IsObjectReferenceCollector() && Object == ClassDefaultObject)
 	{
 		// On load, build the custom property list used in post-construct initialization logic. Note that in the editor, this will be refreshed during compile-on-load.
 		// @TODO - Potentially make this serializable (or cooked data) to eliminate the slight load time cost we'll incur below to generate this list in a cooked build. For now, it's not serialized since the raw UProperty references cannot be saved out.
