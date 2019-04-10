@@ -200,7 +200,7 @@ bool UPackage::IsFullyLoaded() const
 	// Newly created packages aren't loaded and therefore haven't been marked as being fully loaded. They are treated as fully
 	// loaded packages though in this case, which is why we are looking to see whether the package exists on disk and assume it
 	// has been fully loaded if it doesn't.
-	if( !bHasBeenFullyLoaded && !HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading) )
+	if (!bHasBeenFullyLoaded && !HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading) && FileSize == 0)
 	{
 		FString DummyFilename;
 		FString SourcePackageName = FileName != NAME_None ? FileName.ToString() : GetName();
