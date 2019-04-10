@@ -756,14 +756,14 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			// Lambda to draw pixel shader.
 			auto DrawTAAPixelShader = [&](FDepthStencilStateRHIParamRef DepthStencilState)
 			{
-				TShaderMapRef<FTemporalAAPS> PixelShader(View.ShaderMap, PermutationVector);
+				TShaderMapRef<FTemporalAAPS> TAAPixelShader(View.ShaderMap, PermutationVector);
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *PixelShader, GraphicsPSOInit);
+				FPixelShaderUtils::InitFullscreenPipelineState(RHICmdList, View.ShaderMap, *TAAPixelShader, GraphicsPSOInit);
 				GraphicsPSOInit.DepthStencilState = DepthStencilState;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-				SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), *PassParameters);
+				SetShaderParameters(RHICmdList, *TAAPixelShader, TAAPixelShader->GetPixelShader(), *PassParameters);
 				
 				FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 			};
