@@ -920,7 +920,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool IsTextFormat() const
 	{
-		return ArIsTextFormat;
+		return (ArIsTextFormat && WITH_TEXT_ARCHIVE_SUPPORT);
 	}
 
 	FORCEINLINE bool WantBinaryPropertySerialization() const
