@@ -32,7 +32,7 @@ void SHierarchyView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluep
 	GEditor->OnObjectsReplaced().AddRaw(this, &SHierarchyView::OnObjectsReplaced);
 
 	// Create the filter for searching in the tree
-	SearchBoxWidgetFilter = MakeShareable(new WidgetTextFilter(WidgetTextFilter::FItemToStringArray::CreateSP(this, &SHierarchyView::TransformWidgetToString)));
+	SearchBoxWidgetFilter = MakeShareable(new WidgetTextFilter(WidgetTextFilter::FItemToStringArray::CreateSP(this, &SHierarchyView::TransformWidgetToSearchableStrings)));
 
 	UWidgetBlueprint* Blueprint = GetBlueprint();
 	Blueprint->OnChanged().AddRaw(this, &SHierarchyView::OnBlueprintChanged);
@@ -176,9 +176,9 @@ bool SHierarchyView::CanRename() const
 	return SelectedItems.Num() == 1 && SelectedItems[0]->CanRename();
 }
 
-void SHierarchyView::TransformWidgetToString(TSharedPtr<FHierarchyModel> Item, OUT TArray< FString >& Array)
+void SHierarchyView::TransformWidgetToSearchableStrings(TSharedPtr<FHierarchyModel> Item, TArray<FString>& OutStrings)
 {
-	Array.Add( Item->GetText().ToString() );
+	Item->GetSearchableStrings(OutStrings);
 }
 
 void SHierarchyView::OnSearchChanged(const FText& InFilterText)

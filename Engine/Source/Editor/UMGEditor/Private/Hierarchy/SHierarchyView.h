@@ -89,7 +89,7 @@ private:
 	FText GetSearchText() const;
 
 	/** Transforms the widget into a searchable string */
-	void TransformWidgetToString(TSharedPtr<FHierarchyModel> Widget, OUT TArray< FString >& Array);
+	void TransformWidgetToSearchableStrings(TSharedPtr<FHierarchyModel> Widget, TArray<FString>& OutStrings);
 
 	/** Called when a Blueprint is recompiled and live objects are swapped out for replacements */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
