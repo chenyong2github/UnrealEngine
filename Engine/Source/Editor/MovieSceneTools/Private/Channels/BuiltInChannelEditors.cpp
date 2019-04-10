@@ -72,7 +72,8 @@ FKeyHandle AddOrUpdateKey(FMovieSceneActorReferenceData* Channel, UMovieSceneSec
 		{
 			if (UObject* Object = WeakObject.Get())
 			{
-				CurrentActor = PropertyBindings->GetCurrentValue<AActor*>(*Object);
+				// Care is taken here to ensure that we call GetCurrentValue with the correct instantiation of UObject* rather than AActor*
+				CurrentActor = Cast<AActor>(PropertyBindings->GetCurrentValue<UObject*>(*Object));
 				break;
 			}
 		}
