@@ -1848,7 +1848,7 @@ bool FBehaviorTreeEditor::CanCreateNewBlackboard() const
 
 bool FBehaviorTreeEditor::CanCreateComment() const
 {
-	return (SelectedNodesCount > 1);
+	return (SelectedNodesCount > 0);
 }
 
 void FBehaviorTreeEditor::OnCreateComment()
