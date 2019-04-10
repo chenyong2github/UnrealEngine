@@ -193,7 +193,7 @@ static TRefCountPtr<ID3D12StateObject> CreateRayTracingStateObject(
 	checkf(LocalRootSignatureAssociations.Num() == Exports.Num(), TEXT("There must be exactly one local root signature association per export."));
 
 #if !NO_LOGGING
-	const uint32 NumShadersWarningThreshold = 1000;
+	const uint32 NumShadersWarningThreshold = 100;
 	if (Exports.Num() > NumShadersWarningThreshold)
 	{
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Creating ray tracing pipeline with %d shaders. Reduce the number of unique shaders in the scene to avoid CPU stalls."), Exports.Num());
