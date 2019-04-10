@@ -287,6 +287,7 @@ void FSubsystemModuleWatcher::DeinitializeModuleWatcher()
 	if (ModulesChangedHandle.IsValid())
 	{
 		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
+		ModulesChangedHandle.Reset();
 	}
 }
 
