@@ -296,6 +296,7 @@ public:
 	TRefCountPtr<FMetalRasterizerState> RasterizerState;
 	
 	inline EPrimitiveType GetPrimitiveType() { return Initializer.PrimitiveType; }
+	inline bool GetDepthBounds() const { return Initializer.bDepthBounds; }
 	
 	friend class FMetalDynamicRHI;
 	
