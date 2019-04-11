@@ -16,7 +16,7 @@ void SpecularReflection_SampleMaterial(
 	float3 SpecularColor = GetSpecularColor(Payload);
 
 	float3 V_World = normalize(-RayDirection);
-	OutDirection = reflect(V_World, N_World);
+	OutDirection = reflect(-V_World, N_World);
 
 	float NoV = saturate(dot(V_World, N_World));
 	float VoH = NoV;
@@ -24,8 +24,6 @@ void SpecularReflection_SampleMaterial(
 	OutThroughput = F_Schlick(SpecularColor, VoH) / NoL;
 
 	OutPdf = 1.0;
-
-	//OutThroughput = float3(1.0,0.0,0.0);
 }
 
 float SpecularReflection_Pdf()
