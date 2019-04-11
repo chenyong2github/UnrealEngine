@@ -61,6 +61,13 @@ static FAutoConsoleVariableRef CVarRayTracingReflectionsShadows(
 	TEXT(" 2: Soft area shadows")
 );
 
+static int32 GRayTracingReflectionsCaptures = 0;
+static FAutoConsoleVariableRef CVarRayTracingReflectionsCaptures(
+	TEXT("r.RayTracing.Reflections.ReflectionCaptures"),
+	GRayTracingReflectionsCaptures,
+	TEXT("Enables ray tracing reflections to use reflection captures as the last bounce reflection. Particularly usefull for metals in reflection. (default = 0)")
+);
+
 static float GRayTracingReflectionsMinRayDistance = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsMinRayDistance(
 	TEXT("r.RayTracing.Reflections.MinRayDistance"),
@@ -119,6 +126,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, SamplesPerPixel)
 		SHADER_PARAMETER(int32, MaxBounces)
 		SHADER_PARAMETER(int32, HeightFog)
+		SHADER_PARAMETER(int32, UseReflectionCaptures)
 		SHADER_PARAMETER(int32, ShouldDoDirectLighting)
 		SHADER_PARAMETER(int32, ReflectedShadowsType)
 		SHADER_PARAMETER(int32, ShouldDoEmissiveAndIndirectLighting)
@@ -138,6 +146,8 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_STRUCT_REF(FFogUniformParameters, FogUniformParameters)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
+		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FIESLightProfileParameters, IESLightProfileParameters)
 
 		// Optional indirection buffer used for sorted materials
@@ -263,6 +273,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SamplesPerPixel = SamplePerPixel;
 	CommonParameters.MaxBounces = GRayTracingReflectionsMaxBounces > -1? GRayTracingReflectionsMaxBounces : View.FinalPostProcessSettings.RayTracingReflectionsMaxBounces;
 	CommonParameters.HeightFog = HeightFog;
+	CommonParameters.UseReflectionCaptures = GRayTracingReflectionsCaptures;
 	CommonParameters.ShouldDoDirectLighting = GRayTracingReflectionsDirectLighting;
 	CommonParameters.ReflectedShadowsType = GRayTracingReflectionsShadows > -1 ? GRayTracingReflectionsShadows : (int32)View.FinalPostProcessSettings.RayTracingReflectionsShadows;
 	CommonParameters.ShouldDoEmissiveAndIndirectLighting = GRayTracingReflectionsEmissiveAndIndirectLighting;
@@ -285,6 +296,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(*OutRayHitDistanceTexture);
 	CommonParameters.RayImaginaryDepthOutput = GraphBuilder.CreateUAV(*OutRayImaginaryDepthTexture);
 	CommonParameters.SortTileSize = SortTileSize;
+	CommonParameters.ReflectionCapture = View.ReflectionCaptureUniformBuffer;
+	CommonParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
 	for (uint32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 	{
