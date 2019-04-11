@@ -41,8 +41,7 @@ const TCHAR* LexToString(EName Ename)
 
 int32 FNameEntry::GetDataOffset()
 {
-	const FNameEntry* Dummy = nullptr;
-	return (intptr_t)Dummy->AnsiName - (intptr_t)Dummy;
+	return STRUCT_OFFSET(FNameEntry, AnsiName);
 }
 
 /*-----------------------------------------------------------------------------

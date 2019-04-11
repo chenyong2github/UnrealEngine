@@ -314,7 +314,7 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 		const EName* InEName = InName.ToEName();
 		uint8 bHardcoded = InEName && ShouldReplicateAsInteger(*InEName);
 		Ar.SerializeBits(&bHardcoded, 1);
-		if (bHardcoded)
+		if (bHardcoded && /* silence static analyzer */ InEName)
 		{
 			// send by hardcoded index
 			checkSlow(InName.GetNumber() <= 0); // hardcoded names should never have a Number
