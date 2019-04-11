@@ -61,10 +61,36 @@
 
 uint MaxScatteringGroupCount;
 float2 MaxInputBufferUV;
-
 float MinScatteringCocRadius;
+float PreProcessingToProcessingCocRadiusFactor;
 
-float2 PreProcessingToProcessingCocRadiusFactor;
+float4 GatherInputSize;
+Texture2D GatherInput_SceneColor;
+Texture2D GatherInput_SeparateCoc;
+
+float4 QuarterResGatherInputSize;
+Texture2D QuarterResGatherInput_SceneColor;
+
+#if defined(NEW_CODE) // TODO: remove me
+#define Output0Mip0 OutputMips_0_SceneColor
+#define Output1Mip0 OutputMips_0_SeparateCoc
+#define Output0Mip1 OutputMips_1_SceneColor
+#define Output1Mip1 OutputMips_1_SeparateCoc
+#define Output0Mip2 OutputMips_2_SceneColor
+#define Output1Mip2 OutputMips_2_SeparateCoc
+#define Output0Mip3 OutputMips_3_SceneColor
+#define Output1Mip3 OutputMips_3_SeparateCoc
+
+#else
+
+#define GatherInputSize PostprocessInput0Size
+#define GatherInput_SceneColor PostprocessInput0
+#define GatherInput_SeparateCoc PostprocessInput1
+
+#define QuarterResGatherInputSize PostprocessInput2Size
+#define QuarterResGatherInput_SceneColor PostprocessInput2
+
+#endif
 
 
 //------------------------------------------------------- OUTPUTS
@@ -73,7 +99,6 @@ RWTexture2D<float4>	Output0Mip0;
 RWTexture2D<float4>	Output0Mip1;
 RWTexture2D<float4>	Output0Mip2;
 RWTexture2D<float4>	Output0Mip3;
-RWTexture2D<float4>	Output0Mip4;
 
 #if CONFIG_GATHER_INPUT_LAYOUT == GATHER_INPUT_LAYOUT_RGB_ALPHA_COC || CONFIG_GATHER_INPUT_LAYOUT == GATHER_INPUT_LAYOUT_RGB_SEPARATE_COC
 
@@ -81,7 +106,6 @@ RWTexture2D<float>	Output1Mip0;
 RWTexture2D<float>	Output1Mip1;
 RWTexture2D<float>	Output1Mip2;
 RWTexture2D<float>	Output1Mip3;
-RWTexture2D<float>	Output1Mip4;
 
 #endif
 
@@ -324,7 +348,7 @@ void ReduceCS(
 
 	uint2 DispatchThreadId = THREADGROUP_TILE_SIZE * GroupId + GroupThreadId;
 	
-	float2 BufferUV = (DispatchThreadId + 0.5) * PostprocessInput0Size.zw;
+	float2 BufferUV = (DispatchThreadId + 0.5) * GatherInputSize.zw;
 
 	if (true)
 	{
@@ -336,12 +360,12 @@ void ReduceCS(
 	float CocRadius = 0;
 	#if CONFIG_DOF_ALPHA
 	{
-		GatheredColor = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
-		CocRadius = PostprocessInput1.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r;
+		GatheredColor = GatherInput_SceneColor.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
+		CocRadius = GatherInput_SeparateCoc.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r;
 	}
 	#else
 	{
-		GatheredColor = PostprocessInput0.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
+		GatheredColor = GatherInput_SceneColor.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
 		CocRadius = GatheredColor.a;
 	}
 	#endif
@@ -355,7 +379,7 @@ void ReduceCS(
 		const uint IndirectParameterSize = SCATTERING_INDIRECT_PARAMETER_SIZE;
 		
 		// Convert Coc radius from preprocessing basis to processing basis.
-		float ScatterCocRadius = CocRadius * PreProcessingToProcessingCocRadiusFactor.x;
+		float ScatterCocRadius = CocRadius * PreProcessingToProcessingCocRadiusFactor;
 
 		// Decides whether should hybrid scatter or not.
 		// It is fine to do it for sample outside viewport UV because they are discarded when the bokeh
@@ -363,8 +387,8 @@ void ReduceCS(
 		float ScatterFactor;
 		{
 			FHybridScatterInputs Parameters;
-			Parameters.NeighborhoodComparisonBuffer = PostprocessInput2;
-			Parameters.NeighborhoodComparisonBufferInvSize = PostprocessInput2Size.zw;
+			Parameters.NeighborhoodComparisonBuffer = QuarterResGatherInput_SceneColor;
+			Parameters.NeighborhoodComparisonBufferInvSize = QuarterResGatherInputSize.zw;
 			Parameters.NeighborhoodComparisonMaxBufferUV = MaxInputBufferUV;
 
 			Parameters.FrameExposureScale = FrameExposureScale;

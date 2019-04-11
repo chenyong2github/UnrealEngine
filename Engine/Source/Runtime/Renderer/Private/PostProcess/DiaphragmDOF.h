@@ -15,6 +15,11 @@
 #define WITH_DIAPHRAGM_DOF (PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_MAC || PLATFORM_LINUX || PLATFORM_IOS || PLATFORM_SWITCH)
 
 
+class FViewInfo;
+class FSceneViewFamilyBlackboard;
+struct FTemporalAAHistory;
+
+
 namespace DiaphragmDOF
 {
 
@@ -127,7 +132,17 @@ inline bool IsSupported(EShaderPlatform ShaderPlatform)
 }
 
 
+/** Wire all DOF's passes according to view settings and cvars to convolve the scene color. */
+RENDERER_API FRDGTextureRef AddPasses(
+	FRDGBuilder& GraphBuilder,
+	const FSceneViewFamilyBlackboard& SceneBlackboard,
+	const FViewInfo& View,
+	FRDGTextureRef InputSceneColor,
+	FRDGTextureRef SeparateTranslucency);
+
+
 /** Wire all DOF's passes according to view settings and cvars to convolve the scene color (Context.FinalOutput). */
+// TODO: kill
 RENDERER_API bool WireSceneColorPasses(FPostprocessContext& Context, const FRenderingCompositeOutputRef& VelocityInput, const FRenderingCompositeOutputRef& SeparateTranslucency);
 
-}
+} // namespace DiaphragmDOF

@@ -26,13 +26,25 @@
 
 float2 ThreadIdToBufferUV;
 float2 MaxBufferUV;
-float PreProcessingToProcessingCocRadiusFactor;
+
+Texture2D GatherInput_SceneColor;
+Texture2D GatherInput_SeparateCoc;
+
+#if defined(NEW_CODE) // TODO: remove me
+#define Output0 TileOutput_Foreground
+#define Output1 TileOutput_Background
+#else
+#define GatherInput_SceneColor PostprocessInput0
+#define GatherInput_SeparateCoc PostprocessInput0
+#endif
 
 
 //------------------------------------------------------- OUTPUTS.
 
 RWTexture2D<float4>	Output0;
 RWTexture2D<float4>	Output1;
+//RWTexture2D<float4>	TileOutput_Foreground;
+//RWTexture2D<float4>	TileOutput_Background;
 
 
 //------------------------------------------------------- LDS.
@@ -136,9 +148,9 @@ void CocFlattenMainCS(
 		
 		#if CONFIG_DOF_ALPHA
 			// The coc radius is within separate buffer's red channel.
-			float4 CocRadii = PostprocessInput0.GatherRed(GlobalPointClampedSampler, BufferUV, 0);
+			float4 CocRadii = GatherInput_SeparateCoc.GatherRed(GlobalPointClampedSampler, BufferUV, 0);
 		#else
-			float4 CocRadii = PostprocessInput0.GatherAlpha(GlobalPointClampedSampler, BufferUV, 0);
+			float4 CocRadii = GatherInput_SceneColor.GatherAlpha(GlobalPointClampedSampler, BufferUV, 0);
 		#endif
 
 		InitCocTileSampleFromCocRadius(CocRadii.x, TileSample);
@@ -157,9 +169,9 @@ void CocFlattenMainCS(
 
 		#if CONFIG_DOF_ALPHA
 			// The coc radius is within separate buffer's red channel.
-			float CocRadius = PostprocessInput0[PixelPos].r;
+			float CocRadius = GatherInput_SeparateCoc[PixelPos].r;
 		#else
-			float CocRadius = PostprocessInput0[PixelPos].w;
+			float CocRadius = GatherInput_SceneColor[PixelPos].a;
 		#endif
 
 		InitCocTileSampleFromCocRadius(CocRadius, TileSample);

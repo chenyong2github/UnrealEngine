@@ -1464,6 +1464,8 @@ class FPostProcessDiaphragmDOFPostfilterCS : public FPostProcessDiaphragmDOFShad
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (RemapPermutationVector(PermutationVector) != PermutationVector) return false;
 		if (PermutationVector.Get<FDDOFPostfilterMethodDim>() == EDiaphragmDOFPostfilterMethod::None) return false;
+		if (PermutationVector.Get<FDDOFLayerProcessingDim>() != EDiaphragmDOFLayerProcessing::ForegroundOnly &&
+			PermutationVector.Get<FDDOFLayerProcessingDim>() != EDiaphragmDOFLayerProcessing::BackgroundOnly) return false;
 
 		return FPostProcessDiaphragmDOFShader::ShouldCompilePermutation(Parameters);
 	}

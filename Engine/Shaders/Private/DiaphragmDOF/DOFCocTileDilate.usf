@@ -25,6 +25,23 @@ float fSampleOffsetMultipler = 1;
 float CocRadiusToBucketDistanceUpperBound;
 float BucketDistanceToCocRadius;
 
+Texture2D TileInput_Foreground;
+Texture2D TileInput_Background;
+
+Texture2D DilatedTileMinMax_Foreground;
+Texture2D DilatedTileMinMax_Background;
+
+#if defined(NEW_CODE) // TODO: remove me
+#define Output0 TileOutput_Foreground
+#define Output1 TileOutput_Background
+#else
+#define TileInput_Foreground PostprocessInput0
+#define TileInput_Background PostprocessInput1
+
+#define DilatedTileMinMax_Foreground PostprocessInput2
+#define DilatedTileMinMax_Background PostprocessInput3
+#endif
+
 
 //------------------------------------------------------- OUTPUTS.
 
@@ -57,7 +74,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	// Fetches the already dilated min foreground and max background COC radius.
 	#if DIM_DILATE_MODE == DILATE_MODE_MIN_ABS
-		FCocTileSample DilatedMinMaxSample = LoadCocTile(CocTileLayout, PostprocessInput2, PostprocessInput3, PixelPos);
+		FCocTileSample DilatedMinMaxSample = LoadCocTile(CocTileLayout, DilatedTileMinMax_Foreground, DilatedTileMinMax_Background, PixelPos);
 	#endif
 
 	// Iterate over all input tiles and assign them into their buckets.
@@ -128,7 +145,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					//ClosestDistance = fRadiusMultiplier * float((BucketId + 1) * COC_TILE_SIZE) - COC_TILE_SIZE;
 
 					// Sample tile.
-					const FCocTileSample NeightborSample = LoadCocTile(CocTileLayout, PostprocessInput0, PostprocessInput1, SampleIndex);
+					const FCocTileSample NeightborSample = LoadCocTile(CocTileLayout, TileInput_Foreground, TileInput_Background, SampleIndex);
 
 					OutSampleBuckets[BucketId].FgdMinCoc = min(
 						OutSampleBuckets[BucketId].FgdMinCoc,
@@ -164,7 +181,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	} // for (uint BucketId = 0; BucketId < Radius; BucketId++)
 	
 	// Sample the center bucket.
-	FCocTileSample OutSample = LoadCocTile(CocTileLayout, PostprocessInput0, PostprocessInput1, PixelPos);
+	FCocTileSample OutSample = LoadCocTile(CocTileLayout, TileInput_Foreground, TileInput_Background, PixelPos);
 
 	#if DIM_DILATE_MODE == DILATE_MODE_MIN_ABS
 	{

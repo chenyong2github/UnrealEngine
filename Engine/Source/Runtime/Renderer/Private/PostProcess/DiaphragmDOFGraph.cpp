@@ -20,104 +20,38 @@ enum class EGatheringGraphLayout
 	SeparateHalfEighth,
 };
 
+}
 
-TAutoConsoleVariable<int32> CVarAccumulatorQuality(
-	TEXT("r.DOF.Gather.AccumulatorQuality"),
-	1,
-	TEXT("Controles the quality of the gathering accumulator.\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarAccumulatorQuality;
 
-TAutoConsoleVariable<int32> CVarEnableGatherBokehSettings(
-	TEXT("r.DOF.Gather.EnableBokehSettings"),
-	1,
-	TEXT("Whether to applies bokeh settings on foreground and background gathering.\n")
-	TEXT(" 0: Disable;\n 1: Enable (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarEnableGatherBokehSettings;
 
-TAutoConsoleVariable<int32> CVarPostFilteringMethod(
-	TEXT("r.DOF.Gather.PostfilterMethod"),
-	1,
-	TEXT("Method to use to post filter a gather pass.\n")
-	TEXT(" 0: None;\n")
-	TEXT(" 1: Per RGB channel median 3x3 (default);\n")
-	TEXT(" 2: Per RGB channel max 3x3."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarPostFilteringMethod;
 
-TAutoConsoleVariable<int32> CVarRingCount(
-	TEXT("r.DOF.Gather.RingCount"),
-	5,
-	TEXT("Number of rings for gathering kernels [[3; 5]]. Default to 5.\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarRingCount;
 
 
-TAutoConsoleVariable<int32> CVarHybridScatterForegroundMode(
-	TEXT("r.DOF.Scatter.ForegroundCompositing"),
-	1,
-	TEXT("Compositing mode of the foreground hybrid scattering.\n")
-	TEXT(" 0: Disabled;\n")
-	TEXT(" 1: Additive (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarHybridScatterForegroundMode;
 
-TAutoConsoleVariable<int32> CVarHybridScatterBackgroundMode(
-	TEXT("r.DOF.Scatter.BackgroundCompositing"),
-	2,
-	TEXT("Compositing mode of the background hybrid scattering.\n")
-	TEXT(" 0: Disabled;\n")
-	TEXT(" 1: Additive;\n")
-	TEXT(" 2: Gather occlusion (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarHybridScatterBackgroundMode;
 
-TAutoConsoleVariable<int32> CVarEnableScatterBokehSettings(
-	TEXT("r.DOF.Scatter.EnableBokehSettings"),
-	1,
-	TEXT("Whether to enable bokeh settings on scattering.\n")
-	TEXT(" 0: Disable;\n 1: Enable (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarEnableScatterBokehSettings;
 
-TAutoConsoleVariable<float> CVarScatterMinCocRadius(
-	TEXT("r.DOF.Scatter.MinCocRadius"),
-	3.0f,
-	TEXT("Minimal Coc radius required to be scattered (default = 3)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<float> CVarScatterMinCocRadius;
 
-TAutoConsoleVariable<float> CVarScatterMaxSpriteRatio(
-	TEXT("r.DOF.Scatter.MaxSpriteRatio"),
-	0.1f,
-	TEXT("Maximum ratio of scattered pixel quad as sprite, usefull to control DOF's scattering upperbound. ")
-	TEXT(" 1 will allow to scatter 100% pixel quads, whereas 0.2 will only allow 20% (default = 0.1)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<float> CVarScatterMaxSpriteRatio;
 
-TAutoConsoleVariable<int32> CVarEnableRecombineBokehSettings(
-	TEXT("r.DOF.Recombine.EnableBokehSettings"),
-	1,
-	TEXT("Whether to applies bokeh settings on slight out of focus done in recombine pass.\n")
-	TEXT(" 0: Disable;\n 1: Enable (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarEnableRecombineBokehSettings;
 
-TAutoConsoleVariable<int32> CVarRecombineQuality(
-	TEXT("r.DOF.Recombine.Quality"),
-	2,
-	TEXT("Configures the quality of the recombine pass.\n")
-	TEXT(" 0: No slight out of focus;\n")
-	TEXT(" 1: Slight out of focus 24spp;\n")
-	TEXT(" 2: Slight out of focus 32spp (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarRecombineQuality;
 
-TAutoConsoleVariable<float> CVarMinimalFullresBlurRadius(
-	TEXT("r.DOF.Recombine.MinFullresBlurRadius"),
-	0.1f,
-	TEXT("Minimal blurring radius used in full resolution pixel width to actually do ")
-	TEXT("DOF  when slight out of focus is enabled (default = 0.1)."),
-	ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<float> CVarMinimalFullresBlurRadius;
 
-TAutoConsoleVariable<int32> CVarDOFTemporalAAQuality(
-	TEXT("r.DOF.TemporalAAQuality"),
-	1,
-	TEXT("Quality of temporal AA pass done in DOF.\n")
-	TEXT(" 0: Faster but lower quality;")
-	TEXT(" 1: Higher quality pass (default)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+extern TAutoConsoleVariable<int32> CVarDOFTemporalAAQuality;
 
+
+namespace
+{
 
 EDiaphragmDOFPostfilterMethod GetPostfilteringMethod()
 {

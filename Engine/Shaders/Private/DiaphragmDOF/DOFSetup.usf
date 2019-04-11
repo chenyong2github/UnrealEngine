@@ -26,6 +26,14 @@ float2 DepthBlurParameters;
 // x: full res basis; y: half res basis.
 float2 CocRadiusBasis;
 
+Texture2D SceneColorTexture;
+Texture2D SceneDepthTexture;
+
+#if defined(NEW_CODE) // TODO: remove me
+#define PostprocessInput0 SceneColorTexture
+#define PostprocessInput1 SceneDepthTexture
+#endif
+
 
 //------------------------------------------------------- OUTPUTS
 

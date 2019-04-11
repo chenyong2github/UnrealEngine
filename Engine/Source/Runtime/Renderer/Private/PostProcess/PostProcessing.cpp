@@ -57,6 +57,7 @@
 #include "DeferredShadingRenderer.h"
 #include "MobileSeparateTranslucencyPass.h"
 #include "MobileDistortionPass.h"
+#include "SceneViewFamilyBlackboard.h"
 
 /** The global center for all post processing activities. */
 FPostProcessing GPostProcessing;
@@ -1537,11 +1538,40 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 						DOFVelocityRef = FRenderingCompositeOutputRef(NoVelocity);
 					}
 					
-					if (CVarUseDiaphragmDOF.GetValueOnRenderThread() == 1 &&
+					if (CVarUseDiaphragmDOF.GetValueOnRenderThread() > 0 &&
 						DiaphragmDOF::IsSupported(View.GetShaderPlatform()))
 					{
-						bSepTransWasApplied = DiaphragmDOF::WireSceneColorPasses(
-							Context, DOFVelocityRef,SeparateTranslucency);
+						if (CVarUseDiaphragmDOF.GetValueOnRenderThread() == 2)
+						{
+							FRenderingCompositePass* DiaphragmDOFPass = Context.Graph.RegisterPass(
+								new(FMemStack::Get()) TRCPassForRDG<2, 1>([](FRenderingCompositePass* Pass, FRenderingCompositePassContext& Context)
+							{
+								FRDGBuilder GraphBuilder(Context.RHICmdList);
+
+								FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+								FSceneViewFamilyBlackboard SceneBlackboard;
+								SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+	
+								FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
+								FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+
+								FRDGTextureRef NewSceneColor = DiaphragmDOF::AddPasses(
+									GraphBuilder,
+									SceneBlackboard, Context.View,
+									SceneColor, SeparateTranslucency);
+		
+								Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, NewSceneColor);
+								GraphBuilder.Execute();
+							}));
+							DiaphragmDOFPass->SetInput(ePId_Input0, Context.FinalOutput);
+							DiaphragmDOFPass->SetInput(ePId_Input1, SeparateTranslucency);
+							Context.FinalOutput = FRenderingCompositeOutputRef(DiaphragmDOFPass, ePId_Output0);
+						}
+						else
+						{
+							bSepTransWasApplied = DiaphragmDOF::WireSceneColorPasses(
+								Context, DOFVelocityRef,SeparateTranslucency);
+						}
 					}
 					else
 					{
