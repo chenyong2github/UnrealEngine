@@ -11,7 +11,7 @@
 #include "ProceduralFoliageBroadphase.h"
 #include "ProceduralFoliageTile.generated.h"
 
-class UFoliageType_InstancedStaticMesh;
+class UFoliageType;
 class UProceduralFoliageSpawner;
 struct FBodyInstance;
 
@@ -110,7 +110,7 @@ private:
 	bool HandleOverlaps(FProceduralFoliageInstance* Instance);
 
 	/** Attempts to create a new instance and resolves any overlaps. Returns the new instance if successful for calling code to add to Instances */
-	FProceduralFoliageInstance* NewSeed(const FVector& Location, float Scale, const UFoliageType_InstancedStaticMesh* Type, float InAge, bool bBlocker = false);
+	FProceduralFoliageInstance* NewSeed(const FVector& Location, float Scale, const UFoliageType* Type, float InAge, bool bBlocker = false);
 
 	void SpreadSeeds(TArray<FProceduralFoliageInstance*>& NewSeeds);
 	void AgeSeeds();
@@ -142,5 +142,5 @@ private:
 
 private:
 	float GetRandomGaussian();
-	FVector GetSeedOffset(const UFoliageType_InstancedStaticMesh* Type, float MinDistance);
+	FVector GetSeedOffset(const UFoliageType* Type, float MinDistance);
 };

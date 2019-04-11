@@ -193,7 +193,7 @@ class FMeshInfoSnapshot
 	FFoliageInstanceHash Hash;
 	TArray<FVector> Locations;
 public:
-	FMeshInfoSnapshot(FFoliageMeshInfo* MeshInfo)
+	FMeshInfoSnapshot(FFoliageInfo* MeshInfo)
 		: Hash(*MeshInfo->InstanceHash)
 	{
 		int32 NumInstances = MeshInfo->Instances.Num();
@@ -301,6 +301,9 @@ public:
 
 	/** Called when asset is removed */
 	void NotifyAssetRemoved(const FAssetData& AssetInfo);
+
+	/** Called when actor foliage selection changes */
+	void NotifyActorSelectionChanged(bool bSelect, const TArray<AActor*>& Selection);
 
 	/**
 	* Called when the mouse is moved over the viewport
@@ -527,7 +530,7 @@ private:
 	/** Reapply instance settings to exiting instances */
 	void ReapplyInstancesDensityForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
 	void ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure);
-	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageMeshInfo* MeshInfo, const FSphere& BrushSphere, float Pressure);
+	void ReapplyInstancesForBrush(UWorld* InWorld, AInstancedFoliageActor* IFA, const UFoliageType* Settings, FFoliageInfo* MeshInfo, const FSphere& BrushSphere, float Pressure);
 
 	/** Select instances inside the brush. */
 	void SelectInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, bool bSelect);
@@ -541,8 +544,8 @@ private:
 	/** Set/Clear selection for foliage instances of specific type  */
 	void SelectInstances(UWorld* InWorld, const UFoliageType* Settings, bool bSelect);
 
-	/**  Propagate the selected foliage instances to the actual render components */
-	void ApplySelectionToComponents(UWorld* InWorld, bool bApply);
+	/**  Propagate the selected foliage instances to the actual render foliage */
+	void ApplySelection(UWorld* InWorld, bool bApply);
 
 	/**  Applies relative transformation to selected instances */
 	void TransformSelectedInstances(UWorld* InWorld, const FVector& InDrag, const FRotator& InRot, const FVector& InScale, bool bDuplicate);
@@ -557,7 +560,7 @@ private:
 	void RemoveSelectedInstances(UWorld* InWorld);
 			
 	/** Snap instance to the ground   */
-	bool SnapInstanceToGround(AInstancedFoliageActor* InIFA, float AlignMaxAngle, FFoliageMeshInfo& Mesh, int32 InstanceIdx);
+	bool SnapInstanceToGround(AInstancedFoliageActor* InIFA, float AlignMaxAngle, FFoliageInfo& Mesh, int32 InstanceIdx);
 	void SnapSelectedInstancesToGround(UWorld* InWorld);
 
 	/** Callback for when an actor is spawned (to check if it's a new IFA) */

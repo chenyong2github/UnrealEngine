@@ -162,6 +162,7 @@ FActorSpawnParameters::FActorSpawnParameters()
 , bAllowDuringConstructionScript(false)
 #if WITH_EDITOR
 , bTemporaryEditorActor(false)
+, bHideFromSceneOutliner(false)
 #endif
 , ObjectFlags(RF_Transactional)
 {
