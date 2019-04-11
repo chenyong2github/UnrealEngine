@@ -1790,7 +1790,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				{
 					FScreenPassContext* Context = FScreenPassContext::Create(RHICmdList, View);
 
-					SceneColorTexture = ComputeSubsurface(GraphBuilder, Context, SceneColorTexture);
+					const FScreenPassTexture Input = FScreenPassTexture::Create(SceneColorTexture, View.ViewRect);
+
+					const FScreenPassTexture Output = ComputeSubsurface(GraphBuilder, Context, Input);
+
+					SceneColorTexture = Output.GetRDGTexture();
 				}
 			}
 

@@ -7,6 +7,8 @@
 #include "IXRTrackingSystem.h"
 #include "IHeadMountedDisplay.h"
 
+extern bool ShouldDoComputePostProcessing(const FViewInfo& View);
+
 IMPLEMENT_GLOBAL_SHADER(FScreenPassVS, "/Engine/Private/ScreenPass.usf", "ScreenPassVS", SF_Vertex);
 
 const FTextureRHIRef& GetMiniFontTexture()
@@ -26,56 +28,139 @@ bool IsHMDHiddenAreaMaskActive()
 	// Query if we have a custom HMD post process mesh to use
 	static const auto* const HiddenAreaMaskCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.HiddenAreaMask"));
 
-	return (HiddenAreaMaskCVar != nullptr &&
+	return
+		HiddenAreaMaskCVar != nullptr &&
 		HiddenAreaMaskCVar->GetValueOnRenderThread() == 1 &&
 		GEngine &&
 		GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() &&
-		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh());
+		GEngine->XRSystem->GetHMDDevice()->HasVisibleAreaMesh();
+}
+
+FScreenPassTextureViewport FScreenPassTextureViewport::CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 ScaleFactor)
+{
+	const auto GetDownscaledSize = [](FIntPoint Size, uint32 ScaleFactor)
+	{
+		Size = FIntPoint::DivideAndRoundUp(Size, ScaleFactor);
+		Size.X = FMath::Max(1, Size.X);
+		Size.Y = FMath::Max(1, Size.Y);
+		return Size;
+	};
+
+	FScreenPassTextureViewport Viewport;
+	Viewport.Rect.Min = Other.Rect.Min / ScaleFactor;
+	Viewport.Rect.Max = GetDownscaledSize(Other.Rect.Max, ScaleFactor);
+	Viewport.Extent = GetDownscaledSize(Other.Extent, ScaleFactor);
+	return Viewport;
+}
+
+bool FScreenPassTextureViewport::operator==(const FScreenPassTextureViewport& Other) const
+{
+	return Rect == Other.Rect && Extent == Other.Extent;
+}
+
+bool FScreenPassTextureViewport::operator!=(const FScreenPassTextureViewport& Other) const
+{
+	return Rect != Other.Rect || Extent != Other.Extent;
+}
+
+bool FScreenPassTextureViewport::IsEmpty() const
+{
+	return Rect.IsEmpty() || Extent == FIntPoint::ZeroValue;
+}
+
+FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport)
+{
+	const FVector2D Extent(InViewport.Extent);
+	const FVector2D ViewportMin(InViewport.Rect.Min.X, InViewport.Rect.Min.Y);
+	const FVector2D ViewportMax(InViewport.Rect.Max.X, InViewport.Rect.Max.Y);
+	const FVector2D ViewportSize = ViewportMax - ViewportMin;
+
+	FScreenPassTextureViewportParameters Parameters;
+
+	if (!InViewport.IsEmpty())
+	{
+		Parameters.Extent = Extent;
+		Parameters.ExtentInverse = FVector2D(1.0f / Extent.X, 1.0f / Extent.Y);
+
+		Parameters.ScreenPosToViewportScale = FVector2D(0.5f, -0.5f) * ViewportSize;
+		Parameters.ScreenPosToViewportBias = (0.5f * ViewportSize) + ViewportMin;
+
+		Parameters.ViewportMin = InViewport.Rect.Min;
+		Parameters.ViewportMax = InViewport.Rect.Max;
+
+		Parameters.ViewportSize = ViewportSize;
+		Parameters.ViewportSizeInverse = FVector2D(1.0f / Parameters.ViewportSize.X, 1.0f / Parameters.ViewportSize.Y);
+
+		Parameters.UVViewportMin = ViewportMin * Parameters.ExtentInverse;
+		Parameters.UVViewportMax = ViewportMax * Parameters.ExtentInverse;
+
+		Parameters.UVViewportSize = Parameters.UVViewportMax - Parameters.UVViewportMin;
+		Parameters.UVViewportSizeInverse = FVector2D(1.0f / Parameters.UVViewportSize.X, 1.0f / Parameters.UVViewportSize.Y);
+
+		Parameters.UVViewportBilinearMin = Parameters.UVViewportMin + 0.5f * Parameters.ExtentInverse;
+		Parameters.UVViewportBilinearMax = Parameters.UVViewportMax - 0.5f * Parameters.ExtentInverse;
+	}
+
+	return Parameters;
+}
+
+FScreenPassTexture FScreenPassTexture::Create(FRDGTextureRef InTexture, FIntRect InViewport)
+{
+	check(InTexture);
+
+	FScreenPassTexture Texture;
+	Texture.Texture = InTexture;
+	Texture.Viewport = FScreenPassTextureViewport(InViewport, InTexture->Desc.Extent);
+	return Texture;
+}
+
+FScreenPassTexture FScreenPassTexture::CreateFullscreen(FRDGTextureRef InTexture)
+{
+	check(InTexture);
+
+	const FIntPoint Extent = InTexture->Desc.Extent;
+	const FIntRect PixelViewRect = FIntRect(FIntPoint::ZeroValue, Extent);
+
+	FScreenPassTexture Texture;
+	Texture.Texture = InTexture;
+	Texture.Viewport = FScreenPassTextureViewport(PixelViewRect, Extent);
+	return Texture;
+}
+
+FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
+	FVector2D SourceOffset,
+	FVector2D SourceExtent,
+	FVector2D DestinationOffset,
+	FVector2D DestinationExtent)
+{
+	FScreenPassTextureViewportTransform Transform;
+	Transform.Scale = SourceExtent / DestinationExtent;
+	Transform.Bias = SourceOffset - Transform.Scale * DestinationOffset;
+	return Transform;
+}
+
+FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
+	const FScreenPassTextureViewportParameters& Source,
+	const FScreenPassTextureViewportParameters& Destination)
+{
+	const FVector2D SourceUVOffset = Source.UVViewportMin;
+	const FVector2D SourceUVExtent = Source.UVViewportSize;
+	const FVector2D DestinationUVOffset = Destination.UVViewportMin;
+	const FVector2D DestinationUVExtent = Destination.UVViewportSize;
+
+	return GetScreenPassTextureViewportTransform(SourceUVOffset, SourceUVExtent, DestinationUVOffset, DestinationUVExtent);
 }
 
 FScreenPassCommonParameters GetScreenPassCommonParameters(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
-	const FIntRect ViewportRect = View.ViewRect;
-	const FIntPoint ViewportOffset = ViewportRect.Min;
-	const FIntPoint ViewportExtent = ViewportRect.Size();
-
 	FScreenPassCommonParameters Parameters;
-	Parameters.ViewportRect = ViewportRect;
-	Parameters.ViewportSize = FVector4(
-		ViewportExtent.X,
-		ViewportExtent.Y,
-		1.0f / ViewportExtent.X,
-		1.0f / ViewportExtent.Y);
-
-	Parameters.ScreenPosToPixelValue = FVector4(
-		ViewportExtent.X * 0.5f,
-		-ViewportExtent.Y * 0.5f,
-		ViewportExtent.X * 0.5f - 0.5f + ViewportOffset.X,
-		ViewportExtent.Y * 0.5f - 0.5f + ViewportOffset.Y);
-
-	Parameters.BilinearTextureSampler0 = TStaticSamplerState<SF_Bilinear>::GetRHI();
-
+	Parameters.BilinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneUniformBuffer = CreateSceneTextureUniformBuffer(
 		SceneContext, View.FeatureLevel, ESceneTextureSetupMode::All, EUniformBufferUsage::UniformBuffer_SingleFrame);
-
 	return Parameters;
-}
-
-FScreenPassInput GetScreenPassInputParameters(FRDGTextureRef Texture, FSamplerStateRHIParamRef SamplerState)
-{
-	check(Texture);
-	check(SamplerState);
-
-	const FVector2D Size(Texture->Desc.Extent.X, Texture->Desc.Extent.Y);
-
-	FScreenPassInput Input;
-	Input.Size = FVector4(Size.X, Size.Y, 1.0f / Size.X, 1.0f / Size.Y);
-	Input.Texture = Texture;
-	Input.Sampler = SamplerState;
-	return Input;
 }
 
 FScreenPassContext* FScreenPassContext::Create(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView)
@@ -86,9 +171,10 @@ FScreenPassContext* FScreenPassContext::Create(FRHICommandListImmediate& RHICmdL
 FScreenPassContext::FScreenPassContext(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView)
 	: View(InView)
 	, ViewFamily(*View.Family)
-	, ViewportRect(View.ViewRect)
+	, ViewState(View.ViewState)
 	, StereoPass(View.StereoPass)
 	, bHasHMDMask(IsHMDHiddenAreaMaskActive())
+	, bUseComputePasses(ShouldDoComputePostProcessing(InView))
 	, ShaderMap(View.ShaderMap)
 	, ScreenPassVS(View.ShaderMap)
 	, ScreenPassCommonParameters(GetScreenPassCommonParameters(RHICmdList, View))

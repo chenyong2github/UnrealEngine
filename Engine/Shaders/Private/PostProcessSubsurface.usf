@@ -18,11 +18,17 @@ float4 SubsurfaceParams;
 Texture2D SubsurfaceInput0_Texture;
 Texture2D SubsurfaceInput1_Texture;
 
-SamplerState SubsurfaceInput0_Sampler;
-SamplerState SubsurfaceInput1_Sampler;
+SamplerState SubsurfaceSampler; 
 
-float4 SubsurfaceInput0_Size;
-float4 SubsurfaceInput1_Size;
+float2 SubsurfaceInput0_Extent;
+float2 SubsurfaceInput0_ExtentInverse;
+uint2 SubsurfaceInput0_ViewportMin;
+float2 SubsurfaceInput0_ViewportSize;
+float2 SubsurfaceInput0_ViewportSizeInverse;
+float2 SubsurfaceInput0_UVViewportBilinearMin;
+float2 SubsurfaceInput0_UVViewportBilinearMax;
+
+float2 SubsurfaceInput1_ExtentInverse;
 
 #define SUBSURFACE_DIRECTION_HORIZONTAL 0
 #define SUBSURFACE_DIRECTION_VERTICAL 1
@@ -112,9 +118,8 @@ float3 GetSubsurfaceProfileColor(FGBufferData GBufferData)
 
 uint GetSubsurfaceProfileId(float2 BufferUV)
 {
-#if SUBSURFACE_MANUALLY_CLAMP_UV
-	BufferUV = clamp(BufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
-#endif
+	BufferUV = clamp(BufferUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
+
 	FGBufferData LocalGBufferData = GetGBufferData(BufferUV);
 	return ExtractSubsurfaceProfileInt(LocalGBufferData);
 }
@@ -129,10 +134,9 @@ float3 GetSubsurfaceProfileBoundaryColorBleed(FGBufferData GBufferData)
 
 float4 GetSceneColor(float2 BufferUV)
 {
-#if SUBSURFACE_MANUALLY_CLAMP_UV
-	BufferUV = clamp(BufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
-#endif
-	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceInput0_Sampler, BufferUV, 0);
+	BufferUV = clamp(BufferUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
+
+	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler, BufferUV, 0);
 }
 
 // from https://github.com/iryoku/separable-sss/tree/master/Demo
@@ -148,7 +152,7 @@ bool InUnitBox(float2 UV)
 }
 
 // @return 0=don't blend in, 1:fully blend in
-float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, float4 FullResInputSize)
+float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, float2 FullResInputSizeInverse)
 {
 	float SSSScaleX = SubsurfaceParams.x;
 
@@ -161,7 +165,7 @@ float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, 
 
 	finalStep *= GetSubsurfaceProfileRadiusScale(ScreenSpaceData.GBuffer);
 
-	float PixelSizeRadius = finalStep / (FullResInputSize.z * 0.5f);
+	float PixelSizeRadius = finalStep / (FullResInputSizeInverse.x * 0.5f);
 
 	// tweaked for skin, a more flat kernel might need a smaller value, around 2 seems reasonable because we do half res
 	const float PixelSize = 4.0f;
@@ -180,17 +184,17 @@ void VisualizePS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 {
 	float2 UV = UVAndScreenPos.xy;
 
-	OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceInput0_Sampler, UV);
+	OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler, UV);
 
 	int2 PixelPos = (int2)SvPosition.xy;
 
-	float2 ViewLocalUV = (PixelPos - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw;
+	float2 ViewLocalUV = (PixelPos - SubsurfaceInput0_ViewportMin) * SubsurfaceInput0_ViewportSizeInverse;
 
 	float2 IDAreaLocalUV = ViewLocalUV * 2 - 1.0f;
 
 	if (InUnitBox(IDAreaLocalUV))
 	{
-		float2 UV = View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw + IDAreaLocalUV * (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw);
+		float2 UV = SubsurfaceInput0_ViewportMin * SubsurfaceInput0_ExtentInverse + IDAreaLocalUV * (SubsurfaceInput0_ViewportSize * SubsurfaceInput0_ExtentInverse);
 
 		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 
@@ -241,7 +245,7 @@ void VisualizePS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 			int2 LeftTop = (PixelPos / 8) * 8;
 			PrintCharacter(PixelPos, OutColor.rgb, float3(1, 1, 1), LeftTop, SubsurfaceProfileInt);
 
-			OutColor.rgb *= ComputeFullResLerp(ScreenSpaceData, UV, SubsurfaceInput0_Size);
+			OutColor.rgb *= ComputeFullResLerp(ScreenSpaceData, UV, SubsurfaceInput0_ExtentInverse);
 		}
 	}
 
@@ -260,10 +264,10 @@ half3 LookupSceneColor(float2 SceneUV, int2 PixelOffset)
 #if ES2_PROFILE && COMPILER_GLSL_ES2
 	// slower but always works
 	// to prevent "error: Texture offset not supported on GLSL ES"
-	return Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceInput0_Sampler, SceneUV + PixelOffset * SubsurfaceInput0_Size.zw).rgb;
+	return Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler, SceneUV + PixelOffset * SubsurfaceInput0_ExtentInverse).rgb;
 #else
 	// faster
-	return SubsurfaceInput0_Texture.SampleLevel(SubsurfaceInput0_Sampler, SceneUV, 0, PixelOffset).rgb;
+	return SubsurfaceInput0_Texture.SampleLevel(SubsurfaceSampler, SceneUV, 0, PixelOffset).rgb;
 #endif
 }
  
@@ -280,7 +284,7 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 
 	  // todo: We could alternate the diagonal with TemporalAA or even only only 1 sample for low spec or 4 for high spec
 
-	  float3 Quant0 = SubsurfaceInput0_Texture.SampleLevel(SubsurfaceInput0_Sampler, UVSceneColor, 0).rgb;
+	  float3 Quant0 = SubsurfaceInput0_Texture.SampleLevel(SubsurfaceSampler, UVSceneColor, 0).rgb;
 
 	  // todo: expose as scalability setting (can be evaluate best without TemporalAA)
 	  // 0:fast but pattern can appear, 1:better, 2: even better, 3: best but expensive
@@ -334,7 +338,7 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 #else // SUBSURFACE_PROFILE_CHECKERBOARD
 	{
 	  // If we're not doing checkerboard encoding, we just need to read a single pixel and decode (combined diffuse/spec in RGB)
-	  float4 CenterSample = SubsurfaceInput0_Texture.SampleLevel(SubsurfaceInput0_Sampler, UVSceneColor, 0);
+	  float4 CenterSample = SubsurfaceInput0_Texture.SampleLevel(SubsurfaceSampler, UVSceneColor, 0);
 	  float3 CombinedColor = CenterSample.rgb;
 	  float DiffuseLuminance = CenterSample.a;
   
@@ -381,10 +385,10 @@ void SetupPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutC
 	// order aligned with Gather() hardware implementation
 	// RGB: color*A, A:weight 0 if no subsurface scattering
 
-	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5,  0.5f) * SubsurfaceInput0_Size.zw, View.BufferBilinearUVMinMax.zw));
-	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5,  0.5f) * SubsurfaceInput0_Size.zw, View.BufferBilinearUVMinMax.zw));
-	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5, -0.5f) * SubsurfaceInput0_Size.zw, View.BufferBilinearUVMinMax.zw));
-	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_Size.zw, View.BufferBilinearUVMinMax.zw));
+	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5,  0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5,  0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
 
 	float4 Sum = (A + B) + (C + D);
 
@@ -392,7 +396,7 @@ void SetupPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutC
 
 	OutColor.rgb = Sum.rgb * Div;
 
-	float4 FourDepth = GatherSceneDepth(BufferUV, SubsurfaceInput0_Size.zw);
+	float4 FourDepth = GatherSceneDepth(BufferUV, SubsurfaceInput0_ExtentInverse);
 
 	// average all valid depth values to a single one
 	float SingleDepth = dot(FourDepth, float4(A.a, B.a, C.a, D.a)) * Div;
@@ -417,12 +421,10 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor
 	float2 ViewportDirectionUV = float2(1, 0) * SUBSURFACE_RADIUS_SCALE;
 #else
 	// vertical
-	float2 ViewportDirectionUV = float2(0, 1) * SUBSURFACE_RADIUS_SCALE * (View.ViewSizeAndInvSize.x * View.ViewSizeAndInvSize.w);
+	float2 ViewportDirectionUV = float2(0, 1) * SUBSURFACE_RADIUS_SCALE * (SubsurfaceInput0_Extent.x * SubsurfaceInput0_ExtentInverse.y);
 #endif
 
-#if SUBSURFACE_MANUALLY_CLAMP_UV
-	ViewportDirectionUV *= (View.ViewSizeAndInvSize.x * View.BufferSizeAndInvSize.z);
-#endif
+	ViewportDirectionUV *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
 
 	OutColor = SSSSBlurPS(BufferUV, ViewportDirectionUV, false);
 
@@ -442,7 +444,7 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 	
 	if (!UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
 	{
-		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceInput0_Sampler, BufferUV);
+		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler, BufferUV);
 		return;
 	}
 
@@ -453,11 +455,11 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 #if SUBSURFACE_HALF_RES
 	// fade out subsurface scattering if radius is too small to be more crips (not blend with half resolution)
 	// minor quality improvement (faces are more detailed in distance)
-	LerpFactor = ComputeFullResLerp(ScreenSpaceData, BufferUV, SubsurfaceInput1_Size);
+	LerpFactor = ComputeFullResLerp(ScreenSpaceData, BufferUV, SubsurfaceInput1_ExtentInverse);
 #endif // SUBSURFACE_HALF_RES
 
 	{
-		float4 SSSColorWithAlpha = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceInput1_Sampler, BufferUV);
+		float4 SSSColorWithAlpha = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler, BufferUV);
 
 		// renormalize to dilate RGB to fix half res upsampling artifacts
 		SSSColor = SSSColorWithAlpha.rgb / max(SSSColorWithAlpha.a, 0.00001f);
@@ -489,5 +491,5 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 
 void SubsurfaceViewportCopyPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
-	OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceInput0_Sampler, InUV.xy);
+	OutColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler, InUV.xy);
 }

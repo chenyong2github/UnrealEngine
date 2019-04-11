@@ -71,7 +71,7 @@ float4 ViewportSize;
 // in pixels (scaled to the current rendertarget resolution), float4(minx,miny,maxx,maxy), depends on SetViewportAndCallRHI() call
 uint4 ViewportRect;
 
-SamplerState BilinearTextureSampler0;
+SamplerState BilinearTextureSampler;
 
 // transforms ScreenPos to the screen pixel position, not the viewport local position (*xy +wz)
 // (0,0) left top, (width-1,height-1) at right bottom, in pixels (without offset to reach the pixel center)
@@ -187,7 +187,7 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 {
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// using Gather: xyzw in counter clockwise order starting with the sample to the lower left of the queried location
-	float4 DeviceZ = SceneTexturesStruct.SceneDepthTextureNonMS.Gather(BilinearTextureSampler0, UV);
+	float4 DeviceZ = SceneTexturesStruct.SceneDepthTextureNonMS.Gather(BilinearTextureSampler, UV);
 
 	return float4(
 		ConvertFromDeviceZ(DeviceZ.x),

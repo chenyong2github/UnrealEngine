@@ -836,8 +836,7 @@ FRenderingCompositeOutput *FRenderingCompositeOutputRef::GetOutput() const
 
 void FPostProcessPassParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	BilinearTextureSampler0.Bind(ParameterMap,TEXT("BilinearTextureSampler0"));
-	BilinearTextureSampler1.Bind(ParameterMap,TEXT("BilinearTextureSampler1"));
+	BilinearTextureSampler.Bind(ParameterMap,TEXT("BilinearTextureSampler"));
 	ViewportSize.Bind(ParameterMap,TEXT("ViewportSize"));
 	ViewportRect.Bind(ParameterMap,TEXT("ViewportRect"));
 	ScreenPosToPixel.Bind(ParameterMap, TEXT("ScreenPosToPixel"));
@@ -909,20 +908,11 @@ void FPostProcessPassParameters::Set(
 	// but not both
 	check(!FilterOverrideArray || !Filter);
 
-	if(BilinearTextureSampler0.IsBound())
+	if(BilinearTextureSampler.IsBound())
 	{
 		RHICmdList.SetShaderSampler(
 			ShaderRHI, 
-			BilinearTextureSampler0.GetBaseIndex(), 
-			TStaticSamplerState<SF_Bilinear>::GetRHI()
-			);
-	}
-
-	if(BilinearTextureSampler1.IsBound())
-	{
-		RHICmdList.SetShaderSampler(
-			ShaderRHI, 
-			BilinearTextureSampler1.GetBaseIndex(), 
+			BilinearTextureSampler.GetBaseIndex(), 
 			TStaticSamplerState<SF_Bilinear>::GetRHI()
 			);
 	}
@@ -1058,7 +1048,7 @@ IMPLEMENT_POST_PROCESS_PARAM_SET( FComputeShaderRHIParamRef, FRHIAsyncComputeCom
 
 FArchive& operator<<(FArchive& Ar, FPostProcessPassParameters& P)
 {
-	Ar << P.BilinearTextureSampler0 << P.BilinearTextureSampler1 << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
+	Ar << P.BilinearTextureSampler << P.ViewportSize << P.ScreenPosToPixel << P.SceneColorBufferUVViewport << P.ViewportRect;
 
 	for(uint32 i = 0; i < ePId_Input_MAX; ++i)
 	{

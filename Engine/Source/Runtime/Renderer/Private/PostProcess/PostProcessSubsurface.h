@@ -19,17 +19,17 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View);
 bool IsSubsurfaceCheckerboardFormat(EPixelFormat SceneColorFormat);
 
 // Computes subsurface scattering on the scene texture and produces a new scene texture as output.
-FRDGTextureRef ComputeSubsurface(
+FScreenPassTexture ComputeSubsurface(
 	FRDGBuilder& GraphBuilder,
 	FScreenPassContextRef Context,
-	FRDGTextureRef SceneTexture);
+	const FScreenPassTexture& SceneTexture);
 
 // Visualizes subsurface scattering profiles by overlaying an image on the provided scene texture.
 // Produces a new scene texture as output.
-FRDGTextureRef VisualizeSubsurface(
+FScreenPassTexture VisualizeSubsurface(
 	FRDGBuilder& GraphBuilder,
 	FScreenPassContextRef Context,
-	FRDGTextureRef SceneTexture);
+	const FScreenPassTexture& SceneTexture);
 
 // An adapter to connect the new Render Graph implementation to the legacy Composition Graph.
 class FSubsurfaceVisualizeCompositePass : public TRenderingCompositePassBase<1, 1>

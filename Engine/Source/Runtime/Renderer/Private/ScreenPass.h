@@ -9,6 +9,12 @@
 #include "RenderGraph.h"
 #include "PostProcess/SceneFilterRendering.h"
 
+// Returns whether a HMD hidden area mask is being used for VR.
+bool IsHMDHiddenAreaMaskActive();
+
+// Returns the global engine mini font texture.
+const FTextureRHIRef& GetMiniFontTexture();
+
 // The vertex shader used by DrawScreenPass to draw a rectangle.
 class FScreenPassVS : public FGlobalShader
 {
@@ -26,32 +32,181 @@ public:
 	{}
 };
 
-// Returns whether a HMD hidden area mask is being used for VR.
-bool IsHMDHiddenAreaMaskActive();
+// Describes a viewport rect oriented within a texture.
+struct FScreenPassTextureViewport
+{
+	// Creates a viewport that is downscaled by the requested scale factor.
+	static FScreenPassTextureViewport CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 ScaleFactor);
 
-// Returns the global engine mini font texture.
-const FTextureRHIRef& GetMiniFontTexture();
+	FScreenPassTextureViewport() = default;
+
+	FScreenPassTextureViewport(FIntRect InRect)
+		: Rect(InRect)
+		, Extent(InRect.Max)
+	{}
+
+	FScreenPassTextureViewport(FIntRect InRect, FIntPoint InExtent)
+		: Rect(InRect)
+		, Extent(InExtent)
+	{}
+
+	FScreenPassTextureViewport(const FScreenPassTextureViewport&) = default;
+
+	bool operator==(const FScreenPassTextureViewport& Other) const;
+	bool operator!=(const FScreenPassTextureViewport& Other) const;
+
+	// Returns whether the viewport contains an empty viewport or extent.
+	bool IsEmpty() const;
+
+	// The viewport rect, in pixels; defines a sub-set within [0, 0]x(Extent, Extent).
+	FIntRect Rect;
+
+	// The texture extent, in pixels; defines a super-set [0, 0]x(Extent, Extent).
+	FIntPoint Extent = FIntPoint::ZeroValue;
+};
+
+// Describes the set of shader parameters for a screen pass texture viewport.
+BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, )
+	// Texture extent in pixels.
+	SHADER_PARAMETER(FVector2D, Extent)
+	SHADER_PARAMETER(FVector2D, ExtentInverse)
+
+	// Scale / Bias factor to convert from [-1, 1] to [ViewportMin, ViewportMax]
+	SHADER_PARAMETER(FVector2D, ScreenPosToViewportScale)
+	SHADER_PARAMETER(FVector2D, ScreenPosToViewportBias)
+
+	// Texture viewport min / max in pixels.
+	SHADER_PARAMETER(FIntPoint, ViewportMin)
+	SHADER_PARAMETER(FIntPoint, ViewportMax)
+
+	// Texture viewport size in pixels.
+	SHADER_PARAMETER(FVector2D, ViewportSize)
+	SHADER_PARAMETER(FVector2D, ViewportSizeInverse)
+
+	// Texture viewport min / max in normalized UV coordinates, with respect to the texture extent.
+	SHADER_PARAMETER(FVector2D, UVViewportMin)
+	SHADER_PARAMETER(FVector2D, UVViewportMax)
+
+	// Texture viewport size in normalized UV coordinates, with respect to the texture extent.
+	SHADER_PARAMETER(FVector2D, UVViewportSize)
+	SHADER_PARAMETER(FVector2D, UVViewportSizeInverse)
+
+	// Texture viewport min / max in normalized UV coordinates, with respect to the texture extent,
+	// adjusted by a half pixel offset for bilinear filtering. Useful for clamping to avoid sampling
+	// pixels on viewport edges; e.g. clamp(UV, UVViewportBilinearMin, UVViewportBilinearMax);
+	SHADER_PARAMETER(FVector2D, UVViewportBilinearMin)
+	SHADER_PARAMETER(FVector2D, UVViewportBilinearMax)
+END_SHADER_PARAMETER_STRUCT()
+
+FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
+
+/**
+ * A class grouping a render graph texture and its shader parameters. The screen pass texture
+ * is either in an empty state or a valid state. The default constructor initializes to an empty state.
+ * Instantiating an instance from valid state requires using the provided @ref Create functions, which
+ * validate that the shader parameter invariant holds.
+ */
+class FScreenPassTexture
+{
+public:
+	/**
+	 * Creates a screen pass texture with a viewport.
+	 * @param InTexture A valid render graph texture instance. Asserts if the texture is null.
+	 * @param InViewport A viewport contained within the texture extent.
+	 */
+	static FScreenPassTexture Create(FRDGTextureRef InTexture, FIntRect InViewport);
+
+	/**
+	 * Creates a full-screen pass texture with a viewport covering the full texture.
+	 * @param InTexture A valid render graph texture instance. Asserts if the texture is null.
+	 */
+	static FScreenPassTexture CreateFullscreen(FRDGTextureRef InTexture);
+
+	// Default initializes to empty.
+	FScreenPassTexture() = default;
+
+	// Copy construction is permitted.
+	FScreenPassTexture(const FScreenPassTexture&) = default;
+
+	inline FRDGTextureRef GetRDGTexture() const
+	{
+		return Texture;
+	}
+
+	inline FScreenPassTextureViewport GetViewport() const
+	{
+		return Viewport;
+	}
+
+	inline FScreenPassTextureViewportParameters GetViewportParameters() const
+	{
+		return GetScreenPassTextureViewportParameters(Viewport);
+	}
+
+	inline const FTextureRHIParamRef GetRHITexture() const
+	{
+		return Texture ? Texture->GetRHITexture() : nullptr;
+	}
+
+	inline bool IsValid() const
+	{
+		return Texture != nullptr;
+	}
+
+	inline bool IsEmpty() const
+	{
+		return Texture == nullptr;
+	}
+
+	inline bool operator==(const FScreenPassTexture& Other) const
+	{
+		return Texture == Other.Texture && Viewport == Other.Viewport;
+	}
+
+	inline bool operator!=(const FScreenPassTexture& Other) const
+	{
+		return !(*this == Other);
+	}
+
+private:
+	FRDGTextureRef Texture = nullptr;
+	FScreenPassTextureViewport Viewport;
+};
+
+/**
+ * Contains a transform that maps UV coordinates from one screen pass texture viewport to another.
+ * Assumes normalized UV coordinates [0, 0]x[1, 1] where [0, 0] maps to the source view min
+ * coordinate and [1, 1] maps to the source view rect max coordinate.
+ *
+ * Example Usage:
+ *    float2 DestinationUV = SourceUV * UVScaleBias.xy + UVScaleBias.zw;
+ */
+BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, )
+	// A scale / bias factor to apply to the input UV coordinate, converting it to a output UV coordinate.
+	SHADER_PARAMETER(FVector2D, Scale)
+	SHADER_PARAMETER(FVector2D, Bias)
+END_SHADER_PARAMETER_STRUCT()
+
+// Constructs a view transform from source and destination texture viewports.
+FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
+	const FScreenPassTextureViewportParameters& Source,
+	const FScreenPassTextureViewportParameters& Destination);
+
+// Constructs a view transform from source and destination UV offset / extent pairs.
+FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
+	FVector2D SourceUVOffset,
+	FVector2D SourceUVExtent,
+	FVector2D DestinationUVOffset,
+	FVector2D DestinationUVExtent);
 
 // Defines the common set of parameters for a screen space pass.
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassCommonParameters, )
-	SHADER_PARAMETER(FIntRect, ViewportRect)
-	SHADER_PARAMETER(FVector4, ViewportSize)
-	SHADER_PARAMETER(FVector4, ScreenPosToPixelValue)
 	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneUniformBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-	SHADER_PARAMETER_SAMPLER(SamplerState, BilinearTextureSampler0)
+	SHADER_PARAMETER_SAMPLER(SamplerState, BilinearTextureSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 FScreenPassCommonParameters GetScreenPassCommonParameters(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
-
-// Defines shader parameters for a single texture input to a screen space pass.
-BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassInput, )
-	SHADER_PARAMETER(FVector4, Size)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, Sampler)
-END_SHADER_PARAMETER_STRUCT()
-
-FScreenPassInput GetScreenPassInputParameters(FRDGTextureRef Texture, FSamplerStateRHIParamRef SamplerState);
 
 /**
  * The context used for screen pass operations. Extracts and holds common state required
@@ -70,14 +225,17 @@ public:
 	// The current view family instance being processed.
 	const FSceneViewFamily& ViewFamily;
 
-	// The viewport rect for the view being processed.
-	const FIntRect ViewportRect;
+	// The current view state instance being processed.
+	const FSceneViewState* ViewState;
 
 	// VR - Which stereo pass is being rendered.
 	const EStereoscopicPass StereoPass;
 
 	// VR - Whether a HMD hidden area mask is being used for VR.
 	const bool bHasHMDMask;
+
+	// Whether screen passes should use compute.
+	const bool bUseComputePasses;
 
 	// The global shader map for the current view being processed.
 	const TShaderMap<FGlobalShaderType>* ShaderMap;
@@ -108,13 +266,13 @@ template<typename TPixelShaderType>
 void DrawScreenPass(
 	FRHICommandListImmediate& RHICmdList,
 	FScreenPassContextRef Context,
-	FIntRect ViewportRect,
-	FIntRect TextureRect,
-	FIntPoint TextureSize,
+	FIntRect OutputRect,
+	FIntRect InputRect,
+	FIntPoint InputSize,
 	TPixelShaderType* PixelShader,
 	const typename TPixelShaderType::FParameters& PixelShaderParameters)
 {
-	const FIntPoint ViewportSize = ViewportRect.Size();
+	const FIntPoint OutputSize = OutputRect.Size();
 	const FPixelShaderRHIParamRef PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
 	FScreenPassVS* VertexShader = *(Context->ScreenPassVS);
 
@@ -128,16 +286,16 @@ void DrawScreenPass(
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShaderRHI;
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-	RHICmdList.SetViewport(ViewportRect.Min.X, ViewportRect.Min.Y, 0.0f, ViewportRect.Max.X, ViewportRect.Max.Y, 1.0f);
+	RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 	SetShaderParameters(RHICmdList, PixelShader, PixelShaderRHI, PixelShaderParameters);
 
 	DrawPostProcessPass(
 		RHICmdList,
-		0, 0, ViewportSize.X, ViewportSize.Y,
-		TextureRect.Min.X, TextureRect.Min.Y, TextureRect.Width(), TextureRect.Height(),
-		ViewportSize,
-		TextureSize,
+		0, 0, OutputSize.X, OutputSize.Y,
+		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
+		OutputSize,
+		InputSize,
 		VertexShader,
 		Context->StereoPass,
 		Context->bHasHMDMask,
@@ -145,8 +303,31 @@ void DrawScreenPass(
 }
 
 /**
+ * Helper variant of @ref DrawScreenPass. All other parameters are forwarded.
+ * @param DestinationViewDesc The destination texture view descriptor, for viewport generation.
+ * @param SourceViewDesc The source view descriptor, for UV generation.
+ */
+template <typename TPixelShaderType>
+inline void DrawScreenPass(
+	FRHICommandListImmediate& RHICmdList,
+	FScreenPassContextRef Context,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	TPixelShaderType* PixelShader,
+	const typename TPixelShaderType::FParameters& PixelShaderParameters)
+{
+	DrawScreenPass(
+		RHICmdList,
+		Context,
+		OutputViewport.Rect,
+		InputViewport.Rect,
+		InputViewport.Extent,
+		PixelShader,
+		PixelShaderParameters);
+}
+
+/**
  * Adds a new Render Graph pass which internally calls @ref DrawScreenPass.
- *
  * Parameters are forwarded to @ref DrawScreenPass.
  */
 template <typename TPixelShaderType>
@@ -154,9 +335,9 @@ inline void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	FScreenPassContextRef Context,
-	FIntRect ViewportRect,
-	FIntRect TextureRect,
-	FIntPoint TextureSize,
+	FIntRect PixelOutputRect,
+	FIntRect PixelInputRect,
+	FIntPoint PixelInputSize,
 	TPixelShaderType* PixelShader,
 	typename TPixelShaderType::FParameters* PixelShaderParameters)
 {
@@ -170,9 +351,40 @@ inline void AddDrawScreenPass(
 		Forward<FRDGEventName>(PassName),
 		PixelShaderParameters,
 		ERenderGraphPassFlags::None,
-		[Context, ViewportRect, TextureRect, TextureSize, PixelShader, PixelShaderParameters]
+		[Context, PixelOutputRect, PixelInputRect, PixelInputSize, PixelShader, PixelShaderParameters]
 		(FRHICommandListImmediate& RHICmdList)
 	{
-		DrawScreenPass(RHICmdList, Context, ViewportRect, TextureRect, TextureSize, PixelShader, *PixelShaderParameters);
+		DrawScreenPass(
+			RHICmdList,
+			Context,
+			PixelOutputRect,
+			PixelInputRect,
+			PixelInputSize,
+			PixelShader,
+			*PixelShaderParameters);
 	});
+}
+
+/**
+ * Helper variants of @ref AddDrawScreenPass. All other parameters are forwarded.
+ */
+template <typename TPixelShaderType>
+inline void AddDrawScreenPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	FScreenPassContextRef Context,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	TPixelShaderType* PixelShader,
+	typename TPixelShaderType::FParameters* PixelShaderParameters)
+{
+	AddDrawScreenPass(
+		GraphBuilder,
+		Forward<FRDGEventName>(PassName),
+		Context,
+		OutputViewport.Rect,
+		InputViewport.Rect,
+		InputViewport.Extent,
+		PixelShader,
+		PixelShaderParameters);
 }

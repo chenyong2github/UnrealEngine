@@ -97,8 +97,7 @@ private:
 	FShaderParameter PostProcessInputMinMaxParameter[ePId_Input_MAX];
 	FShaderParameter ScreenPosToPixel;
 	FShaderParameter SceneColorBufferUVViewport;
-	FShaderResourceParameter BilinearTextureSampler0;
-	FShaderResourceParameter BilinearTextureSampler1;
+	FShaderResourceParameter BilinearTextureSampler;
 
 public:
 	// @param Filter can be 0 if FilterOverrideArray is used
