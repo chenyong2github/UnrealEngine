@@ -1004,7 +1004,6 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 {
 	if (!Actor
 		|| !TimelineTemplate
-		|| !TimelineTemplate->bValidatedAsWired
 		|| Actor->IsTemplate()
 		|| Actor->IsPendingKill())
 	{
@@ -1132,7 +1131,7 @@ void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass,
 		for (UTimelineTemplate* TimelineTemplate : BPGC->Timelines)
 		{
 			// Not fatal if NULL, but shouldn't happen and ignored if not wired up in graph
-			if (TimelineTemplate && TimelineTemplate->bValidatedAsWired)
+			if (TimelineTemplate)
 			{
 				CreateTimelineComponent(Actor, TimelineTemplate);
 			}
@@ -1144,7 +1143,7 @@ void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass,
 		{
 			const UTimelineTemplate* TimelineTemplate = Cast<const UTimelineTemplate>(MiscObj);
 			// Not fatal if NULL, but shouldn't happen and ignored if not wired up in graph
-			if (TimelineTemplate && TimelineTemplate->bValidatedAsWired)
+			if (TimelineTemplate)
 			{
 				CreateTimelineComponent(Actor, TimelineTemplate);
 			}

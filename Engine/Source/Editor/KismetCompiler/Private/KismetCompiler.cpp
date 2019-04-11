@@ -2629,11 +2629,6 @@ void FKismetCompilerContext::ExpandTimelineNodes(UEdGraph* SourceGraph)
 
 			// Set the timeline template as wired/not wired for component pruning later
 			const bool bWiredIn = bPlayPinConnected || bPlayFromStartPinConnected || bStopPinConnected || bReversePinConnected || bReverseFromEndPinConnected || bSetNewTimePinConnected;
-			const bool bWiredOut = bUpdatePinConnected || bFinishedPinConnected;
-			const bool bPlayWired = Timeline->bAutoPlay;
-			const bool bReferenced = TimelinePlayNodes.Find(TimelineNode->TimelineName) != INDEX_NONE;
-
-			Timeline->bValidatedAsWired = bWiredIn || bReferenced || (bPlayWired && bWiredOut);
 
 			// Only create nodes for play/stop if they are actually connected - otherwise we get a 'unused node being pruned' warning
 			if (bWiredIn)
