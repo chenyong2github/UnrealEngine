@@ -108,9 +108,11 @@ ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 enum class EInstallBundleStatus : int
 {
 	NotRequested,
-	RequestedQueued,
+	QueuedForDownload,
 	Downloading,
+	QueuedForInstall,
 	Installing,
+	QueuedForFinish,
 	Finishing,
 	Installed,
 };
