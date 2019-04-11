@@ -19,6 +19,8 @@ struct IPooledRenderTarget;
 
 namespace ShaderPrint
 {
+	// Does the platform support the ShaderPrint system?
+	bool IsSupported(FViewInfo const& View);
 	// Have we enabled the ShaderPrint system?
 	bool IsEnabled();
 

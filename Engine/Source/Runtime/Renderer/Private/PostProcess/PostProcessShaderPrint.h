@@ -10,7 +10,7 @@
 class FRCPassPostProcessShaderPrint : public TRenderingCompositePassBase<1, 1>
 {
 public:
-	static bool IsEnabled();
+	static bool IsEnabled(FViewInfo const& View);
 
 	virtual bool FrameBufferBlendingWithInput0() const override { return true; }
 	virtual void Process(FRenderingCompositePassContext& Context) override;

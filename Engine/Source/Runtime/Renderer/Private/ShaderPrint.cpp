@@ -143,6 +143,22 @@ namespace ShaderPrint
 		return Ar;
 	}
 
+	// Supported platforms
+	bool IsSupported(EShaderPlatform InShaderPlatform)
+	{
+		return RHISupportsComputeShaders(InShaderPlatform) && !IsHlslccShaderPlatform(InShaderPlatform);
+	}
+
+	bool IsSupported(FViewInfo const& View)
+	{
+		return IsSupported(View.GetShaderPlatform());
+	}
+
+	bool IsEnabled()
+	{
+		return CVarEnable.GetValueOnAnyThread();
+	}
+
 	// Shader to initialize the output value buffer
 	class FShaderInitValueBufferCS : public FGlobalShader
 	{
@@ -156,7 +172,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 	};
 
@@ -178,7 +194,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 	};
 
@@ -200,7 +216,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 	};
 
@@ -221,7 +237,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 	};
 
@@ -243,7 +259,7 @@ namespace ShaderPrint
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) && !IsHlslccShaderPlatform(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 	};
 
@@ -278,13 +294,13 @@ namespace ShaderPrint
 	IMPLEMENT_SHADER_TYPE(, FShaderDrawSymbolsPS, TEXT("/Engine/Private/ShaderPrintDraw.usf"), TEXT("DrawSymbolsPS"), SF_Pixel)
 
 
-	bool IsEnabled()
-	{
-		return CVarEnable.GetValueOnAnyThread();
-	}
-
 	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
 	{
+		if (!IsSupported(View))
+		{
+			return;
+		}
+
 		// Initialize output buffer and store in the view info
 		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
 		View.ShaderPrintValueBuffer.Initialize(sizeof(ShaderPrintItem), GetMaxValueCount() + 1, 0U, TEXT("ShaderPrintValueBuffer"));
@@ -314,7 +330,7 @@ namespace ShaderPrint
 	void DrawView(FRHICommandListImmediate& RHICmdList, FViewInfo const& View, TRefCountPtr<IPooledRenderTarget>& OutputTarget)
 	{
 		// Early out if system is disabled
-		if (!IsEnabled())
+		if (!IsEnabled() || !IsSupported(View))
 		{
 			return;
 		}

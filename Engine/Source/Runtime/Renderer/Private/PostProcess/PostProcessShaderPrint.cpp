@@ -4,9 +4,9 @@
 
 #include "ShaderPrint.h"
 
-bool FRCPassPostProcessShaderPrint::IsEnabled()
+bool FRCPassPostProcessShaderPrint::IsEnabled(FViewInfo const& View)
 {
-	return ShaderPrint::IsEnabled();
+	return ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View);
 }
 
 void FRCPassPostProcessShaderPrint::Process(FRenderingCompositePassContext& Context)
