@@ -46,13 +46,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\..\..\bin\Win64\VS2017\</OutDir>
+    <OutDir>..\..\..\bin\Win64\VS2015\</OutDir>
     <TargetName>$(ProjectName)d_64</TargetName>
     <IntDir>$(SolutionDir)tmp\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\..\..\bin\Win64\VS2017\</OutDir>
+    <OutDir>..\..\..\bin\Win64\VS2015\</OutDir>
     <IntDir>$(SolutionDir)tmp\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_64</TargetName>
   </PropertyGroup>

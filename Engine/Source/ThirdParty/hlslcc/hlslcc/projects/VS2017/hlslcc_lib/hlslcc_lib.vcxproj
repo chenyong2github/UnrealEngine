@@ -168,14 +168,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\..\..\lib\Win64\VS2017\</OutDir>
+    <OutDir>..\..\..\lib\Win64\VS2015\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>hlslccd_64</TargetName>
     <IntDir>$(SolutionDir)tmp\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\..\..\lib\Win64\VS2017\</OutDir>
+    <OutDir>..\..\..\lib\Win64\VS2015\</OutDir>
     <IntDir>$(SolutionDir)tmp\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
     <TargetName>hlslcc_64</TargetName>
   </PropertyGroup>
