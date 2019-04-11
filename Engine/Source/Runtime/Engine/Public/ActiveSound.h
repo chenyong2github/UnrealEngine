@@ -79,6 +79,9 @@ struct FSoundParseParameters
 	// The distance from the listener to the sound
 	float ListenerToSoundDistance;
 
+	// The distance from the listener to the sound (ignores attenuation settings)
+	float ListenerToSoundDistanceForPanning;
+
 	// The absolute azimuth angle of the sound relative to the forward listener vector (359 degrees to left, 1 degrees to right)
 	float AbsoluteAzimuth;
 
@@ -167,6 +170,7 @@ struct FSoundParseParameters
 		, OmniRadius(0.0f)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
+		, ListenerToSoundDistanceForPanning(0.0f)
 		, AbsoluteAzimuth(0.0f)
 		, SoundSubmix(nullptr)
 		, ReverbSendMethod(EReverbSendMethod::Linear)
