@@ -22,7 +22,7 @@
 #include "SceneViewFamilyBlackboard.h"
 
 
-FORCEINLINE_DEBUGGABLE void AddPass_ClearUAV(
+void AddPass_ClearUAV(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	FRDGBufferUAVRef BufferUAV,
