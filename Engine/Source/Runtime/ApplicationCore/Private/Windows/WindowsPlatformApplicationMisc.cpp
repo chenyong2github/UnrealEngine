@@ -109,12 +109,20 @@ static void WinPumpMessages()
 	}
 }
 
+static void WinPumpSentMessages()
+{
+	MSG Msg;
+	PeekMessage(&Msg,NULL,0,0,PM_NOREMOVE | PM_QS_SENDMESSAGE);
+}
 
 void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 {
 	if (!bFromMainLoop)
 	{
-		FPlatformMisc::PumpMessagesOutsideMainLoop();
+		TGuardValue<bool> PumpMessageGuard( GPumpingMessagesOutsideOfMainLoop, true );
+		// Process pending windows messages, which is necessary to the rendering thread in some rare cases where D3D
+		// sends window messages (from IDXGISwapChain::Present) to the main thread owned viewport window.
+		WinPumpSentMessages();
 		return;
 	}
 

@@ -241,9 +241,6 @@ struct CORE_API FWindowsPlatformMisc
 	static EConvertibleLaptopMode GetConvertibleLaptopMode();
 
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
-
-	static void PumpMessagesOutsideMainLoop();
-
 };
 
 
