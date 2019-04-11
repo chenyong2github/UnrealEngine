@@ -18,7 +18,8 @@
 #include "LandscapeDataAccess.h"
 #include "LandscapeRender.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
-//#include "LandscapeDataAccess.h"
+#include "Landscape.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -500,7 +501,14 @@ protected:
 public:
 	virtual void ApplyMirror()
 	{
+		FText Reason;
+		if (!EdMode->CanEditLayer(&Reason))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, Reason);
+			return;
+		}
 		FScopedTransaction Transaction(LOCTEXT("Mirror_Apply", "Landscape Editing: Mirror Landscape"));
+		FScopedSetLandscapeEditingLayer Scope(EdMode->GetLandscape(), EdMode->GetCurrentLayerGuid(), [&] { EdMode->RequestLayersContentUpdate(true); });
 
 		const ULandscapeInfo* const LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		const ALandscapeProxy* const LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
