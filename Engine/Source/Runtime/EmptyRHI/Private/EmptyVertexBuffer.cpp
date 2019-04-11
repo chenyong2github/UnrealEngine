@@ -24,6 +24,11 @@ void FEmptyVertexBuffer::Unlock()
 
 FVertexBufferRHIRef FEmptyDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bCreateRHIObjectOnly)
+	{
+		return new FEmptyVertexBuffer();
+	}
+
 	// make the RHI object, which will allocate memory
 	FEmptyVertexBuffer* VertexBuffer = new FEmptyVertexBuffer(Size, InUsage);
 
@@ -62,6 +67,11 @@ void FEmptyDynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBuff
 }
 
 void FEmptyDynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBufferRHI,FVertexBufferRHIParamRef DestBufferRHI)
+{
+
+}
+
+void FEmptyDynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
 {
 
 }

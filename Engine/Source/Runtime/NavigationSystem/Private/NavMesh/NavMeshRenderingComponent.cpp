@@ -31,6 +31,7 @@ static const FColor NavMeshRenderColor_TileBounds(255, 255, 64, 255);
 static const FColor NavMeshRenderColor_PathCollidingGeom(255, 255, 255, 40);
 static const FColor NavMeshRenderColor_RecastTileBeingRebuilt(255, 0, 0, 64);
 static const FColor NavMeshRenderColor_OffMeshConnectionInvalid(64, 64, 64);
+static const FColor NavMeshRenderColor_PolyForbidden(FColorList::Black);
 
 static const float DefaultEdges_LineThickness = 0.0f;
 static const float PolyEdges_LineThickness = 1.5f;
@@ -109,6 +110,18 @@ namespace FNavMeshRenderingHelpers
 		DebugLines.Add(FDebugRenderSceneProxy::FDebugLine(Tip, FVector(Tip.X + Ay.X*Size - Ax.X*Size / 3, Tip.Y + Ay.Y*Size - Ax.Y*Size / 3, Tip.Z + Ay.Z*Size - Ax.Z*Size / 3), Color.ToFColor(true)));
 	}
 
+	void CacheLink(TArray<FDebugRenderSceneProxy::FDebugLine>& DebugLines, const FVector V0, const FVector V1, const FColor LinkColor, const uint8 LinkDirection)
+	{
+		FNavMeshRenderingHelpers::CacheArc(DebugLines, V0, V1, 0.4f, 4, LinkColor, LinkLines_LineThickness);
+
+		const FVector VOffset(0, 0, FVector::Dist(V0, V1) * 1.333f);
+		FNavMeshRenderingHelpers::CacheArrowHead(DebugLines, V1, V0 + VOffset, 30.f, LinkColor, LinkLines_LineThickness);
+		if (LinkDirection)
+		{
+			FNavMeshRenderingHelpers::CacheArrowHead(DebugLines, V0, V1 + VOffset, 30.f, LinkColor, LinkLines_LineThickness);
+		}
+	}
+
 	void DrawWireCylinder(TArray<FDebugRenderSceneProxy::FDebugLine>& DebugLines, const FVector& Base, const FVector& X, const FVector& Y, const FVector& Z, FColor Color, float Radius, float HalfHeight, int32 NumSides, uint8 DepthPriority, float LineThickness = 0)
 	{
 		const float	AngleDelta = 2.0f * PI / NumSides;
@@ -164,6 +177,27 @@ namespace FNavMeshRenderingHelpers
 		MeshData.Indices.Add(V0);
 		MeshData.Indices.Add(V1);
 		MeshData.Indices.Add(V2);
+	}
+
+	void AddArea(TArray<FNavMeshSceneProxyData::FDebugMeshData>& MeshBuilders, const TArray<int32>& MeshIndices, const TArray<FVector>& MeshVerts, const FColor Color, const FVector DrawOffset)
+	{
+		if (MeshIndices.Num() == 0)
+		{
+			return;
+		}
+
+		FNavMeshSceneProxyData::FDebugMeshData DebugMeshData;
+		for (int32 VertIdx = 0; VertIdx < MeshVerts.Num(); ++VertIdx)
+		{
+			FNavMeshRenderingHelpers::AddVertex(DebugMeshData, MeshVerts[VertIdx] + DrawOffset, Color);
+		}
+		for (int32 TriIdx = 0; TriIdx < MeshIndices.Num(); TriIdx += 3)
+		{
+			FNavMeshRenderingHelpers::AddTriangle(DebugMeshData, MeshIndices[TriIdx], MeshIndices[TriIdx + 1], MeshIndices[TriIdx + 2]);
+		}
+
+		DebugMeshData.ClusterColor = Color;
+		MeshBuilders.Add(DebugMeshData);
 	}
 
 	void AddRecastGeometry(TArray<FVector>& OutVertexBuffer, TArray<uint32>& OutIndexBuffer, const float* Coords, int32 NumVerts, const int32* Faces, int32 NumFaces, const FTransform& Transform = FTransform::Identity)
@@ -331,7 +365,8 @@ int32 FNavMeshSceneProxyData::GetDetailFlags(const ARecastNavMesh* NavMesh) cons
 		(NavMesh->bDrawFailedNavLinks ? (1 << static_cast<int32>(ENavMeshDetailFlags::FailedNavLinks)) : 0) |
 		(NavMesh->bDrawClusters ? (1 << static_cast<int32>(ENavMeshDetailFlags::Clusters)) : 0) |
 		(NavMesh->bDrawOctree ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavOctree)) : 0) | 
-		(NavMesh->bDrawOctreeDetails ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavOctreeDetails)) : 0);
+		(NavMesh->bDrawOctreeDetails ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavOctreeDetails)) : 0) | 
+		(NavMesh->bDrawMarkedForbiddenPolys ? (1 << static_cast<int32>(ENavMeshDetailFlags::MarkForbiddenPolys)) : 0);
 }
 
 void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InNavDetailFlags, const TArray<int32>& TileSet)
@@ -351,6 +386,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		FRecastDebugGeometry NavMeshGeometry;
 		NavMeshGeometry.bGatherPolyEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolyEdges);
 		NavMeshGeometry.bGatherNavMeshEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::BoundaryEdges);
+		NavMeshGeometry.bMarkForbiddenPolys = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::MarkForbiddenPolys);
 
 		const FNavDataConfig& NavConfig = NavMesh->GetConfig();
 		TArray<FColor> NavMeshColors;
@@ -437,14 +473,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					const FVector V1 = Link.Right + NavMeshDrawOffset;
 					const FColor LinkColor = ((Link.Direction && Link.ValidEnds) || (Link.ValidEnds & FRecastDebugGeometry::OMLE_Left)) ? FNavMeshRenderingHelpers::DarkenColor(NavMeshColors[Link.AreaID]) : NavMeshRenderColor_OffMeshConnectionInvalid;
 
-					FNavMeshRenderingHelpers::CacheArc(NavLinkLines, V0, V1, 0.4f, 4, LinkColor, LinkLines_LineThickness);
-
-					const FVector VOffset(0, 0, FVector::Dist(V0, V1) * 1.333f);
-					FNavMeshRenderingHelpers::CacheArrowHead(NavLinkLines, V1, V0 + VOffset, 30.f, LinkColor, LinkLines_LineThickness);
-					if (Link.Direction)
-					{
-						FNavMeshRenderingHelpers::CacheArrowHead(NavLinkLines, V0, V1 + VOffset, 30.f, LinkColor, LinkLines_LineThickness);
-					}
+					FNavMeshRenderingHelpers::CacheLink(NavLinkLines, V0, V1, LinkColor, Link.Direction);
 
 					// if the connection as a whole is valid check if there are any of ends is invalid
 					if (LinkColor != NavMeshRenderColor_OffMeshConnectionInvalid)
@@ -459,6 +488,19 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 							FNavMeshRenderingHelpers::DrawWireCylinder(NavLinkLines, V1, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), NavMeshRenderColor_OffMeshConnectionInvalid, Link.Radius, NavMesh->AgentMaxStepHeight, 16, 0, DefaultEdges_LineThickness);
 						}
 					}
+				}
+			}
+			if (NavMeshGeometry.bMarkForbiddenPolys)
+			{
+				for (int32 OffMeshLineIndex = 0; OffMeshLineIndex < NavMeshGeometry.ForbiddenLinks.Num(); ++OffMeshLineIndex)
+				{
+					FRecastDebugGeometry::FOffMeshLink& Link = NavMeshGeometry.ForbiddenLinks[OffMeshLineIndex];
+					
+					const FVector V0 = Link.Left + NavMeshDrawOffset;
+					const FVector V1 = Link.Right + NavMeshDrawOffset;
+					const FColor LinkColor = NavMeshRenderColor_PolyForbidden;
+
+					FNavMeshRenderingHelpers::CacheLink(NavLinkLines, V0, V1, LinkColor, Link.Direction);
 				}
 			}
 		}
@@ -590,25 +632,9 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 			{
 				for (int32 AreaType = 0; AreaType < RECAST_MAX_AREAS; ++AreaType)
 				{
-					const TArray<int32>& MeshIndices = NavMeshGeometry.AreaIndices[AreaType];
-					if (MeshIndices.Num() == 0)
-					{
-						continue;
-					}
-
-					FDebugMeshData DebugMeshData;
-					for (int32 VertIdx = 0; VertIdx < MeshVerts.Num(); ++VertIdx)
-					{
-						FNavMeshRenderingHelpers::AddVertex(DebugMeshData, MeshVerts[VertIdx] + NavMeshDrawOffset, NavMeshColors[AreaType]);
-					}
-					for (int32 TriIdx = 0; TriIdx < MeshIndices.Num(); TriIdx += 3)
-					{
-						FNavMeshRenderingHelpers::AddTriangle(DebugMeshData, MeshIndices[TriIdx], MeshIndices[TriIdx + 1], MeshIndices[TriIdx + 2]);
-					}
-
-					DebugMeshData.ClusterColor = NavMeshColors[AreaType];
-					MeshBuilders.Add(DebugMeshData);
+					FNavMeshRenderingHelpers::AddArea(MeshBuilders, NavMeshGeometry.AreaIndices[AreaType], NavMeshGeometry.MeshVerts, NavMeshColors[AreaType], NavMeshDrawOffset);
 				}
+				FNavMeshRenderingHelpers::AddArea(MeshBuilders, NavMeshGeometry.ForbiddenIndices, NavMeshGeometry.MeshVerts, NavMeshRenderColor_PolyForbidden, NavMeshDrawOffset);
 			}
 		}
 
@@ -952,7 +978,7 @@ void FNavMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 					BatchElement = MeshBatchElements[Index];
 
 					FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-					DynamicPrimitiveUniformBuffer.Set(FMatrix::Identity, FMatrix::Identity, GetBounds(), GetLocalBounds(), false, false, UseEditorDepthTest());
+					DynamicPrimitiveUniformBuffer.Set(FMatrix::Identity, FMatrix::Identity, GetBounds(), GetLocalBounds(), false, false, UseEditorDepthTest(), false);
 					BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 					Mesh.bWireframe = false;

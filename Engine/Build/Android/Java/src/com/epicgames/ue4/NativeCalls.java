@@ -6,6 +6,9 @@ public class NativeCalls
 	public static native void HandleCustomTouchEvent(int deviceId, int pointerId, int action, int source, float x, float y);
 
 	@SuppressWarnings("JniMissingFunction")
+	public static native void AllowJavaBackButtonEvent(boolean allow);
+
+	@SuppressWarnings("JniMissingFunction")
 	public static native void CallNativeToEmbedded(String ID, int Priority, String Subsystem, String Command, String[] Params, String RoutingFunction);
 
 	@SuppressWarnings("JniMissingFunction")

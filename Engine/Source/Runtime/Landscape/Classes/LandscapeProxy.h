@@ -323,10 +323,10 @@ struct FLandscapeProxyMaterialOverride
 	UMaterialInterface* Material;
 };
 
-class FLandscapeProceduralTexture2DCPUReadBackResource : public FTextureResource
+class FLandscapeLayersTexture2DCPUReadBackResource : public FTextureResource
 {
 public:
-	FLandscapeProceduralTexture2DCPUReadBackResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips)
+	FLandscapeLayersTexture2DCPUReadBackResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips)
 		: SizeX(InSizeX)
 		, SizeY(InSizeY)
 		, Format(InFormat)
@@ -366,8 +366,9 @@ struct FRenderDataPerHeightmap
 
 	UPROPERTY(Transient)
 	UTexture2D* OriginalHeightmap;
-
-	FLandscapeProceduralTexture2DCPUReadBackResource* HeightmapsCPUReadBack;
+	
+    UPROPERTY(Transient)
+	int32 HeightmapsCPUReadBackResourceIndex;
 
 	UPROPERTY(Transient)
 	TArray<ULandscapeComponent*> Components;
@@ -387,15 +388,16 @@ struct FWeightmapLayerData
 	UPROPERTY()
 	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
 
+	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
 };
 
 USTRUCT()
-struct FProceduralLayerData
+struct FLandscapeLayerData
 {
 	GENERATED_USTRUCT_BODY()
 
-	FProceduralLayerData()
+	FLandscapeLayerData()
 	{}
 
 	UPROPERTY()
@@ -643,15 +645,17 @@ public:
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
 	UPROPERTY(TextExportTransient)
-	TMap<FGuid, FProceduralLayerData> ProceduralLayersData;
+	TMap<FGuid, FLandscapeLayerData> LandscapeLayersData;
 
 	UPROPERTY()
-	bool HasProceduralContent;
+	bool HasLayersContent;
 
 	UPROPERTY(Transient)
 	TMap<UTexture2D*, FRenderDataPerHeightmap> RenderDataPerHeightmap; // Mapping between Original heightmap and general render data
 
-	TMap<UTexture2D*, FLandscapeProceduralTexture2DCPUReadBackResource*> WeightmapCPUReadBackTextures; // Mapping between Original weightmap and tyhe CPU readback resource
+	TArray<TUniquePtr<FLandscapeLayersTexture2DCPUReadBackResource>> HeightmapsCPUReadBackResources;
+
+	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapCPUReadBackTextures; // Mapping between Original weightmap and tyhe CPU readback resource
 
 	FRenderCommandFence ReleaseResourceFence;
 #endif
@@ -925,6 +929,9 @@ public:
 	/** Creates a Texture2D for use by this landscape proxy or one of it's components. If OptionalOverrideOuter is not specified, the level is used. */
 	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter = nullptr, bool bCompress = false) const;
 
+	/** Creates a LandscapeWeightMapUsage object outered to this proxy. */
+	LANDSCAPE_API ULandscapeWeightmapUsage* CreateWeightmapUsage();
+
 	/* For the grassmap rendering notification */
 	int32 NumComponentsNeedingGrassMapRender;
 	LANDSCAPE_API static int32 TotalComponentsNeedingGrassMapRender;
@@ -986,6 +993,6 @@ public:
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 	
-	LANDSCAPE_API void SetupProceduralLayers(int32 InNumComponentsX = INDEX_NONE, int32 InNumComponentsY = INDEX_NONE);
+	LANDSCAPE_API void SetupLayers(int32 InNumComponentsX = INDEX_NONE, int32 InNumComponentsY = INDEX_NONE);
 #endif
 };

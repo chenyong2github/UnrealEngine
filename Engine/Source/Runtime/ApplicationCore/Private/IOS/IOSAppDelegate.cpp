@@ -100,28 +100,6 @@ void InstallSignalHandlers()
 	sigaction(SIGSYS, &Action, NULL);
 }
 
-void EngineCrashHandler(const FGenericCrashContext& GenericContext)
-{
-    const FIOSCrashContext& Context = static_cast<const FIOSCrashContext&>(GenericContext);
-    
-    Context.ReportCrash();
-    if (GLog)
-    {
-        GLog->SetCurrentThreadAsMasterThread();
-        GLog->Flush();
-    }
-    if (GWarn)
-    {
-        GWarn->Flush();
-    }
-    if (GError)
-    {
-        GError->Flush();
-        GError->HandleError();
-    }
-    return Context.GenerateCrashInfo();
-}
-
 FDelegateHandle FIOSCoreDelegates::AddPushNotificationFilter(const FPushNotificationFilter& FilterDel)
 {
 	FDelegateHandle NewHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle);
@@ -768,17 +746,22 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 - (void)EnableVoiceChat:(bool)bEnable
 {
+	self.bVoiceChatEnabled = false;
+	
     // mobile will prompt for microphone access
     if (FApp::IsUnattended())
 	{
 		return;
 	}
-	[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
+	self.bVoiceChatEnabled = bEnable;
+	[self ToggleAudioSession:self.bAudioActive force:true];
+	//[self SetFeature:EAudioFeature::VoiceChat Active:bEnable];
 }
 
 - (bool)IsVoiceChatEnabled
 {
-	return [self IsFeatureActive:EAudioFeature::VoiceChat];
+	return self.bVoiceChatEnabled;
+	//return [self IsFeatureActive:EAudioFeature::VoiceChat];
 }
 
 
@@ -938,7 +921,6 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	OSVersion = [[[UIDevice currentDevice] systemVersion] floatValue];
 	if (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash)
 	{
-        FPlatformMisc::SetCrashHandler(EngineCrashHandler);
 //        InstallSignalHandlers();
 	}
 
@@ -1475,21 +1457,22 @@ extern double GCStartTime;
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
     
     // note that we are shutting down
-    GIsRequestingExit = true;
+    // TODO: fix the reason why we are hanging when asked to shutdown
+/*    GIsRequestingExit = true;
     
-    if (!bEngineInit)
+    if (!bEngineInit)*/
     {
         // we haven't yet made it to the point where the engine is initialized, so just exit the app
         _Exit(0);
     }
-    else
+/*    else
     {
         // wait for the game thread to shut down
         while (self.bHasStarted == true)
         {
             usleep(3);
         }
-    }
+    }*/
 }
 
 - (void)applicationDidReceiveMemoryWarning:(UIApplication *)application

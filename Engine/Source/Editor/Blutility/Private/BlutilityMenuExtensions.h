@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "BlutilityMenuExtensions.generated.h"
 
 struct FAssetData;
 class FMenuBuilder;
-class UGlobalEditorUtilityBase;
 
 // Blutility Menu extension helpers
 class FBlutilityMenuExtensions
@@ -16,5 +18,16 @@ public:
 	static void GetBlutilityClasses(TArray<FAssetData>& OutAssets, const FName& InClassName);
 
 	/** Helper function that populates a menu based on the exposed functions in a set of Blutility objects */
-	static void CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TArray<UGlobalEditorUtilityBase*> Utils);
+	static void CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TArray<class IEditorUtilityExtension*> Utils);
+};
+
+UINTERFACE(BlueprintType)
+class UEditorUtilityExtension : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
+
+class IEditorUtilityExtension
+{
+	GENERATED_IINTERFACE_BODY()
 };

@@ -17,7 +17,7 @@ public class CrashDebugHelper : ModuleRules
         );
 		PrivateIncludePaths.Add( "ThirdParty/PLCrashReporter/plcrashreporter-master-5ae3b0a/Source" );
 
-        if (Target.Type != TargetType.Game)
+        if (Target.Type != TargetType.Game && Target.Type != TargetType.Client)
         {
             PublicDependencyModuleNames.AddRange(
                 new string[] {

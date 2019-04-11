@@ -22,7 +22,7 @@ public:
 	
 	/** Animation Sequence to play for this particular setup */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<UAnimSequence> AnimSequence;
+	UAnimSequence* AnimSequence;
 
 	/** Animation blueprint to use for playing back the Animation Sequence */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = AnimationSharing)
@@ -132,11 +132,11 @@ public:
 
 	/** Skeleton compatible with the animation sharing setup */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<USkeleton> Skeleton;
+	USkeleton* Skeleton;
 
 	/** Skeletal mesh used to setup skeletal mesh components */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing)
-	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
+	USkeletalMesh* SkeletalMesh;
 
 	/** Animation blueprint used to perform the blending between states */
 	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (DisplayName="Animation Blueprint for Blending"))

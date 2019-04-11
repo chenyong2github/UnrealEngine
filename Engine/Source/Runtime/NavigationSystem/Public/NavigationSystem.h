@@ -302,6 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation|Generation")
 	void SetGeometryGatheringMode(ENavDataGatheringModeConfig NewMode);
 
+	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta=(DisplayName="ReplaceAreaInOctreeData"))
+	bool K2_ReplaceAreaInOctreeData(const UObject* Object, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea);
+
 	FORCEINLINE bool IsActiveTilesGenerationEnabled() const{ return bGenerateNavigationOnlyAroundNavigationInvokers; }
 	
 	/** delegate type for events that dirty the navigation data ( Params: const FBox& DirtyBounds ) */
@@ -601,6 +604,7 @@ public:
 	void RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags);
 
 	const FNavigationRelevantData* GetDataForObject(const UObject& Object) const;
+	FNavigationRelevantData* GetMutableDataForObject(const UObject& Object);
 
 	/** find all elements in navigation octree within given box (intersection) */
 	void FindElementsInNavOctree(const FBox& QueryBox, const FNavigationOctreeFilter& Filter, TArray<FNavigationOctreeElement>& Elements);
@@ -613,6 +617,9 @@ public:
 
 	/** update component bounds in navigation octree and mark only specified area as dirty, doesn't re-export component geometry */
 	bool UpdateNavOctreeElementBounds(UActorComponent* Comp, const FBox& NewBounds, const FBox& DirtyArea);
+
+	/** fetched Object's data from the octree and replaces occurences of OldArea with NewArea */
+	bool ReplaceAreaInOctreeData(const UObject& Object, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool bReplaceChildClasses = false);
 
 	//----------------------------------------------------------------------//
 	// Custom navigation links

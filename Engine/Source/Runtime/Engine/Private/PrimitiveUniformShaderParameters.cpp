@@ -40,8 +40,12 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	bool bHasPrecomputedVolumetricLightmap;
 	FMatrix PreviousLocalToWorld;
 	int32 SingleCaptureIndex;
+	bool bOutputVelocity;
 
-	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex);
+	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+
+	FBoxSphereBounds PreSkinnedLocalBounds;
+	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
 	Setup(GetPrimitiveUniformShaderParameters(
 		Proxy->GetLocalToWorld(),
@@ -49,7 +53,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetActorPosition(), 
 		Proxy->GetBounds(), 
 		Proxy->GetLocalBounds(),
-		Proxy->GetPreSkinnedLocalBounds(),
+		PreSkinnedLocalBounds,
 		Proxy->ReceivesDecals(), 
 		Proxy->HasDistanceFieldRepresentation(), 
 		Proxy->HasDynamicIndirectShadowCasterRepresentation(), 
@@ -59,7 +63,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetLightingChannelMask(),
 		Proxy->GetLpvBiasMultiplier(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
-		SingleCaptureIndex));
+		SingleCaptureIndex,
+        bOutputVelocity));
 }
 
 void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)
@@ -108,6 +113,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 
 	Data[25] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 	Data[25].X = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
+	Data[25].Y = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
 
 	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBounds, 0.0f); // .w unused
 }

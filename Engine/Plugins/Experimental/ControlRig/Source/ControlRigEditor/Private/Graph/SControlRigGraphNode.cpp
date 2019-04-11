@@ -44,6 +44,20 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	LeftNodeBox->AddSlot()
 		.AutoHeight()
 		[
+			SAssignNew(ExecutionTree, STreeView<TSharedRef<FControlRigField>>)
+			.Visibility(this, &SControlRigGraphNode::GetExecutionTreeVisibility)
+			.TreeItemsSource(&ControlRigGraphNode->GetExecutionVariableInfo())
+			.SelectionMode(ESelectionMode::None)
+			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
+			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
+			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
+			.ExternalScrollbar(ScrollBar)
+			.ItemHeight(20.0f)
+		];
+
+	LeftNodeBox->AddSlot()
+		.AutoHeight()
+		[
 			SAssignNew(InputTree, STreeView<TSharedRef<FControlRigField>>)
 			.Visibility(this, &SControlRigGraphNode::GetInputTreeVisibility)
 			.TreeItemsSource(&ControlRigGraphNode->GetInputVariableInfo())
@@ -99,6 +113,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		}
 	};
 
+	Local::SetItemExpansion_Recursive(ControlRigGraphNode, ExecutionTree, ControlRigGraphNode->GetExecutionVariableInfo());
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, InputTree, ControlRigGraphNode->GetInputVariableInfo());
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, InputOutputTree, ControlRigGraphNode->GetInputOutputVariableInfo());
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, OutputTree, ControlRigGraphNode->GetOutputVariableInfo());
@@ -176,6 +191,11 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 	}
 }
 
+const FSlateBrush * SControlRigGraphNode::GetNodeBodyBrush() const
+{
+	return FEditorStyle::GetBrush("Graph.Node.TintedBody");
+}
+
 bool SControlRigGraphNode::UseLowDetailNodeTitles() const
 {
 	return ParentUseLowDetailNodeTitles();
@@ -184,6 +204,12 @@ bool SControlRigGraphNode::UseLowDetailNodeTitles() const
 EVisibility SControlRigGraphNode::GetTitleVisibility() const
 {
 	return ParentUseLowDetailNodeTitles() ? EVisibility::Hidden : EVisibility::Visible;
+}
+
+EVisibility SControlRigGraphNode::GetExecutionTreeVisibility() const
+{
+	UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
+	return ControlRigGraphNode->GetExecutionVariableInfo().Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SControlRigGraphNode::GetInputTreeVisibility() const

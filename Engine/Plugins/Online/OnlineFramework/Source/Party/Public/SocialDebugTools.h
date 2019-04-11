@@ -1,4 +1,4 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -19,6 +19,8 @@ class PARTY_API USocialDebugTools : public UObject, public FExec
 	static const int32 LocalUserNum = 0;
 
 public:
+	USocialManager& GetSocialManager() const;
+
 	// FExec
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
 
@@ -73,6 +75,11 @@ public:
 
 	FInstanceContext& GetContext(const FString& Instance);
 	FInstanceContext* GetContextForUser(const FUniqueNetId& UserId);
+
+protected:
+	virtual bool RunCommand(const TCHAR* Cmd, const TArray<FString>& TargetInstances);
+	virtual void NotifyContextInitialized(const FInstanceContext& Context) { }
+
 private:
 
 	bool bAutoAcceptFriendInvites;
@@ -82,8 +89,8 @@ private:
 
 	TSharedPtr<IOnlinePartyJoinInfo> GetDefaultPartyJoinInfo() const;
 	IOnlineSubsystem* GetDefaultOSS() const;
-	void PrintExecUsage();
-	void PrintExecCommands();
+	void PrintExecUsage() const;
+	virtual void PrintExecCommands() const;
 
 	// OSS callback handlers
 	void HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId);

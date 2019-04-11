@@ -264,6 +264,11 @@ bool USocialParty::HasUserBeenInvited(const USocialUser& User) const
 
 bool USocialParty::CanInviteUser(const USocialUser& User) const
 {
+	return CanInviteUserInternal(User);
+}
+
+bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
+{
 	// Only users that are online can be invited
 	if (!User.IsOnline())
 	{
@@ -339,6 +344,11 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 bool USocialParty::CanPromoteMember(const UPartyMember& PartyMember) const
 {
 	check(PartyMembersById.Contains(PartyMember.GetPrimaryNetId()));
+	return CanPromoteMemberInternal(PartyMember);
+}
+
+bool USocialParty::CanPromoteMemberInternal(const UPartyMember& PartyMember) const
+{
 	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader();
 }
 
@@ -357,6 +367,11 @@ bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
 bool USocialParty::CanKickMember(const UPartyMember& PartyMember) const
 {
 	check(PartyMembersById.Contains(PartyMember.GetPrimaryNetId()));
+	return CanKickMemberInternal(PartyMember);
+}
+
+bool USocialParty::CanKickMemberInternal(const UPartyMember& PartyMember) const
+{
 	return IsLocalPlayerPartyLeader() && !PartyMember.IsLocalPlayer();
 }
 
@@ -416,7 +431,7 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberDataReceived));
 	PartyInterface->AddOnPartyMemberPromotedDelegate_Handle(FOnPartyMemberPromotedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberPromoted));
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
-	
+	PartyInterface->AddOnPartySystemStateChangeDelegate_Handle(FOnPartySystemStateChangeDelegate::CreateUObject(this, &USocialParty::HandlePartySystemStateChange));
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<TSharedRef<FOnlinePartyMember>> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
@@ -448,7 +463,7 @@ void USocialParty::TryFinishInitialization()
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld()); 
 		uint32 OSSMemberCount = PartyInterface->GetPartyMemberCount(*OwningLocalUserId, GetPartyId());
 
-		if (OSSMemberCount == PartyMembersById.Num())
+		if (OSSMemberCount == PartyMembersById.Num() && bHasReceivedRepData)
 		{
 			bIsInitialized = true;
 			GetSocialManager().NotifyPartyInitialized(*this);
@@ -482,6 +497,7 @@ void USocialParty::RefreshPublicJoinability()
 void USocialParty::InitializePartyRepData()
 {
 	UE_LOG(LogParty, Verbose, TEXT("Initializing rep data for party [%s]"), *ToDebugString());
+	bHasReceivedRepData = true;
 }
 
 FPartyPrivacySettings USocialParty::GetDesiredPrivacySettings() const
@@ -668,6 +684,11 @@ void USocialParty::HandlePartyDataReceived(const FUniqueNetId& LocalUserId, cons
 	{
 		check(PartyDataReplicator.IsValid());
 		PartyDataReplicator.ProcessReceivedData(*PartyData);
+		if (!bHasReceivedRepData)
+		{
+			bHasReceivedRepData = true;
+			TryFinishInitialization();
+		}
 	}
 }
 
@@ -920,6 +941,21 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 	}
 }
 
+void USocialParty::HandlePartySystemStateChange(EPartySystemState NewState)
+{
+	UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] received notification of a party system state change to [%d]"), *ToDebugString(), (int32)NewState);
+	if (NewState == EPartySystemState::RequestingShutdown)
+	{
+		// Need to display message
+		SetIsRequestingShutdown(true);
+
+		//set timer to turn this off in a minute?
+		UWorld* World = GetWorld();
+		FTimerHandle DummyHandle;
+		World->GetTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateLambda([this]() { SetIsRequestingShutdown(false); }), 60.0f, false);
+	}
+}
+
 FChatRoomId USocialParty::GetChatRoomId() const
 {
 	return ensure(OssParty.IsValid()) ? OssParty->RoomId : FChatRoomId();
@@ -987,7 +1023,7 @@ bool USocialParty::ShouldStayWithPartyOnExit() const
 
 bool USocialParty::IsPartyFunctionalityDegraded() const
 {
-	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession;
+	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession || bIsRequestingShutdown.Get(false);
 }
 
 int32 USocialParty::GetNumPartyMembers() const
@@ -1420,6 +1456,23 @@ void USocialParty::SetIsMissingXmppConnection(bool bInMissingXmppConnection)
 
 		const bool bWasPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
 		bIsMissingXmppConnection = bInMissingXmppConnection;
+		const bool bIsPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
+		if (bWasPartyFunctionalityDegraded != bIsPartyFunctionalityDegraded)
+		{
+			OnPartyFunctionalityDegradedChanged().Broadcast(bIsPartyFunctionalityDegraded);
+		}
+	}
+}
+
+void USocialParty::SetIsRequestingShutdown(bool bInRequestingShutdown)
+{
+	if (!bIsRequestingShutdown.IsSet() ||
+		bIsRequestingShutdown != bInRequestingShutdown)
+	{
+		UE_CLOG(bIsRequestingShutdown.IsSet(), LogParty, VeryVerbose, TEXT("Party [%s] is %s in a version transition"), *ToDebugString(), bInRequestingShutdown ? TEXT("now") : TEXT("no longer"));
+
+		const bool bWasPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
+		bIsRequestingShutdown = bInRequestingShutdown;
 		const bool bIsPartyFunctionalityDegraded = IsPartyFunctionalityDegraded();
 		if (bWasPartyFunctionalityDegraded != bIsPartyFunctionalityDegraded)
 		{

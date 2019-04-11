@@ -18,6 +18,14 @@ FAutoConsoleVariableRef CVarAudioOcclusionEnabled(
 	TEXT("Disables (1) or enables (0) audio occlusion.\n"),
 	ECVF_Default);
 
+static int32 AudioDisableConcurrencyStopSilentForLoopsCvar = 0;
+FAutoConsoleVariableRef CVarAudioDisableConcurrencyStopSilentForLoops(
+	TEXT("au.DisableConcurrencyStopSilentForLoops"),
+	AudioDisableConcurrencyStopSilentForLoopsCvar,
+	TEXT("Disables (1) or enables (0) audio concurrency for loops subscribing to stop silent.\n"),
+	ECVF_Default);
+
+
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
 
@@ -346,14 +354,29 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 	if (!ConcurrencySet.Num() && Sound)
 	{
 		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
-		return;
+	}
+	else
+	{
+		for (const USoundConcurrency* Concurrency : ConcurrencySet)
+		{
+			if (Concurrency)
+			{
+				OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			}
+		}
 	}
 
-	for (const USoundConcurrency* Concurrency : ConcurrencySet)
+	if (IsLooping() && AudioDisableConcurrencyStopSilentForLoopsCvar)
 	{
-		if (Concurrency)
+		for (int32 i = OutConcurrencyHandles.Num() - 1; i >= 0; --i)
 		{
-			OutConcurrencyHandles.Emplace(FConcurrencyHandle(*Concurrency));
+			if (OutConcurrencyHandles[i].Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest)
+			{
+				UE_LOG(LogAudio, Warning,
+					TEXT("Concurrency not observed for '%s': StopQuietest concurrency disabled for looping sounds"),
+					Sound ? *Sound->GetName() : TEXT("N/A"));
+				OutConcurrencyHandles.RemoveAtSwap(i, 1, false);
+			}
 		}
 	}
 }
@@ -396,7 +419,8 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 	// If we have an attenuation node, we can't know until we evaluate the sound cue if it's audio output going to be audible via a distance check
 	if (Sound->HasAttenuationNode() || 
 		(AudioDevice->VirtualSoundsEnabled() && (Sound->IsAllowedVirtual() || (bHandleSubtitles && bHasExternalSubtitles))) ||
-		(bHasAttenuationSettings && (AttenuationSettings.FocusDistanceScale != 1.0f || AttenuationSettings.NonFocusDistanceScale != 1.0f)))
+		!bHasAttenuationSettings ||
+		(bHasAttenuationSettings && (!AttenuationSettings.bAttenuate || AttenuationSettings.FocusDistanceScale != 1.0f || AttenuationSettings.NonFocusDistanceScale != 1.0f)))
 	{
 		bPerformDistanceCheckOptimization = false;
 	}
@@ -417,7 +441,7 @@ void FActiveSound::UpdateWaveInstances( TArray<FWaveInstance*> &InWaveInstances,
 		float ApparentMaxDistance = MaxDistance * FocusDistanceScale;
 
 		// Check if we're out of range of being audible, and early return if there's no chance of making sounds
-		if (!Sound->IsVirtualizeWhenSilent() && !AudioDevice->LocationIsAudible(ClosestListenerPtr->Transform.GetLocation(), ApparentMaxDistance))
+		if (!Sound->IsVirtualizeWhenSilent() && !AudioDevice->LocationIsAudible(Transform.GetLocation(), ApparentMaxDistance))
 		{
 			return;
 		}

@@ -212,7 +212,9 @@ PARTY_SCOPE:
 
 protected:
 	virtual void InitializePartyInternal();
-	
+
+	FPartyConfiguration& GetCurrentConfiguration() { return CurrentConfig; }
+
 	/** Only called when a new party is being created by the local player and they are responsible for the rep data. Otherwise we just wait to receive it from the leader. */
 	virtual void InitializePartyRepData();
 	virtual FPartyPrivacySettings GetDesiredPrivacySettings() const;
@@ -221,8 +223,15 @@ protected:
 	virtual void OnMemberCreatedInternal(UPartyMember& NewMember);
 	virtual void OnLeftPartyInternal(EMemberExitedReason Reason);
 
+	/** Virtual versions of the package-scoped "CanX" methods above, as a virtual declared within package scoping cannot link (exported public, imported protected) */
+	virtual bool CanInviteUserInternal(const USocialUser& User) const;
+	virtual bool CanPromoteMemberInternal(const UPartyMember& PartyMember) const;
+	virtual bool CanKickMemberInternal(const UPartyMember& PartyMember) const;
+
 	virtual void OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful);
 	
+	virtual void HandlePartySystemStateChange(EPartySystemState NewState);
+
 	/** Determines the joinability of this party for a specific user requesting to join */
 	virtual FPartyJoinApproval EvaluateJoinRequest(const FUniqueNetId& PlayerId, const FUserPlatform& Platform, const FOnlinePartyData& JoinData, bool bFromJoinRequest) const;
 
@@ -269,6 +278,9 @@ protected:
 	UPROPERTY()
 		TSubclassOf<ASpectatorBeaconClient> SpectatorBeaconClientClass;
 
+	/** Apply local party configuration to the OSS party, optionally resetting the access key to the party in the process */
+	void UpdatePartyConfig(bool bResetAccessKey = false);
+
 private:
 	UPartyMember* GetOrCreatePartyMember(const FUniqueNetId& MemberId);
 	void PumpApprovalQueue();
@@ -277,12 +289,12 @@ private:
 	void BeginLeavingParty(EMemberExitedReason Reason);
 	void FinalizePartyLeave(EMemberExitedReason Reason);
 
+	void SetIsRequestingShutdown(bool bInRequestingShutdown);
+
 	void UpdatePlatformSessionLeader(FName PlatformOssName);
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 
-	/** Apply local party configuration to the OSS party, optionally resetting the access key to the party in the process */
-	void UpdatePartyConfig(bool bResetAccessKey = false);
 
 	UPartyMember* GetMemberInternal(const FUniqueNetIdRepl& MemberId) const;
 
@@ -309,7 +321,7 @@ private:	// Handlers
 	void HandleReservationRequestComplete(EPartyReservationResult::Type ReservationResponse);
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
-	
+
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -370,6 +382,8 @@ private:
 
 	bool bIsLeavingParty = false;
 	bool bIsInitialized = false;
+	bool bHasReceivedRepData = false;
+	TOptional<bool> bIsRequestingShutdown;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
 	mutable FLeavePartyEvent OnPartyLeftEvent;

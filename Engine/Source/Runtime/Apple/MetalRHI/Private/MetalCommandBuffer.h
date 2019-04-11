@@ -35,10 +35,10 @@ enum EMetalDebugLevel
 	EMetalDebugLevelFastValidation,
 	EMetalDebugLevelTrackResources,
 	EMetalDebugLevelResetOnBind,
+	EMetalDebugLevelConditionalSubmit,
 	EMetalDebugLevelValidation,
 	EMetalDebugLevelLogOperations,
-	EMetalDebugLevelConditionalSubmit,
-	EMetalDebugLevelWaitForComplete
+	EMetalDebugLevelWaitForComplete,
 };
 
 NS_ASSUME_NONNULL_BEGIN
@@ -52,13 +52,37 @@ struct FMetalDebugCommand
 	MTLRenderPassDescriptor* PassDesc;
 };
 
+@interface FMetalResourceTracker : FApplePlatformObject
+{
+@public
+	TSet<id> Resources;
+	FCriticalSection Mutex;
+};
+@end
+
+@interface FMetalResourceTrackCount : FApplePlatformObject
+{
+@public
+	NSUInteger RetainCount;
+};
+@end
+
 /**
  * Simpler NSObject extension that provides for an associated object to track debug groups in a command-buffer.
  * This doesn't interfere with objc_msgSend invocation so doesn't cost as much on the CPU.
  */
 @interface NSObject (IMetalDebugGroupAssociation)
 @property (nonatomic, strong) NSMutableArray<NSString*>* debugGroups;
+@property (nonatomic, strong) FMetalResourceTracker* resourceTracker;
+@property (atomic, strong) FMetalResourceTrackCount* resourceTrackCount;
 @end
+
+
+namespace FMetalCommandBufferDebugHelpers
+{
+	void TrackResource(id<MTLCommandBuffer> Buffer, id Ptr);
+	void DumpResources(id<MTLCommandBuffer> Buffer);
+}
 
 #if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
 
@@ -72,8 +96,6 @@ struct FMetalDebugCommand
 @public
 	NSMutableArray<NSString*>* DebugGroup;
 	NSString* ActiveEncoder;
-	TSet<id<MTLResource>> Resources;
-	TSet<id> States;
 	id<MTLCommandBuffer> InnerBuffer;
 	TArray<FMetalDebugCommand*> DebugCommands;
 	EMetalDebugLevel DebugLevel;
@@ -95,9 +117,6 @@ public:
 	static FMetalCommandBufferDebugging Get(mtlpp::CommandBuffer& Buffer);
 	ns::AutoReleased<ns::String> GetDescription();
 	ns::AutoReleased<ns::String> GetDebugDescription();
-	
-	void TrackResource(mtlpp::Resource const& Resource);
-	void TrackState(id State);
 	
 	void BeginRenderCommandEncoder(ns::String const& Label, mtlpp::RenderPassDescriptor const& Desc);
 	void BeginComputeCommandEncoder(ns::String const& Label);

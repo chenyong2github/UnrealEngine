@@ -308,11 +308,12 @@ void FDynamicPrimitiveUniformBuffer::Set(
 	const FBoxSphereBounds& PreSkinnedLocalBounds,
 	bool bReceivesDecals,
 	bool bHasPrecomputedVolumetricLightmap,
-	bool bUseEditorDepthTest)
+	bool bUseEditorDepthTest,
+	bool bOutputVelocity)
 {
 	check(IsInRenderingThread());
 	UniformBuffer.SetContents(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest, GetDefaultLightingChannelMask(), 1.0f, INDEX_NONE, INDEX_NONE));
+		GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest, GetDefaultLightingChannelMask(), 1.0f, INDEX_NONE, INDEX_NONE, bOutputVelocity));
 	UniformBuffer.InitResource();
 }
 
@@ -323,9 +324,10 @@ void FDynamicPrimitiveUniformBuffer::Set(
 	const FBoxSphereBounds& LocalBounds,
 	bool bReceivesDecals,
 	bool bHasPrecomputedVolumetricLightmap,
-	bool bUseEditorDepthTest)
+	bool bUseEditorDepthTest,
+	bool bOutputVelocity)
 {
-	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest);
+	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bUseEditorDepthTest, bOutputVelocity);
 }
 
 FLightMapInteraction FLightMapInteraction::Texture(
@@ -953,3 +955,18 @@ void FMeshBatch::PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* Primi
 			TEXT("FMeshBatch was not properly setup.  The primitive uniform buffer must be specified."));
 	}
 }
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters, "MobileReflectionCapture");
+
+void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
+{
+	FMobileReflectionCaptureShaderParameters Parameters;
+	Parameters.Params = FVector4(1.f, 0.f, 0.f, 0.f);
+	Parameters.Texture = GBlackTextureCube->TextureRHI;
+	Parameters.TextureSampler = GBlackTextureCube->SamplerStateRHI;
+	SetContents(Parameters);
+	Super::InitDynamicRHI();
+}
+
+/** Global uniform buffer containing the default reflection data used in mobile renderer. */
+TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;

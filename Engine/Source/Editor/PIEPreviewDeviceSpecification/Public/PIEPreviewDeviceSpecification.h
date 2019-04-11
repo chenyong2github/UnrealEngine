@@ -42,6 +42,10 @@ public:
 	FString DeviceBuildNumber;
 	UPROPERTY()
 	bool UsingHoudini;
+	UPROPERTY()
+	FString Hardware;
+	UPROPERTY()
+	FString Chipset;
 };
 
 USTRUCT()
@@ -91,6 +95,10 @@ public:
 	bool VulkanAvailable;
 	UPROPERTY()
 	bool UsingHoudini;
+	UPROPERTY()
+	FString Hardware;
+	UPROPERTY()
+	FString Chipset;
 
 	UPROPERTY()
 	FPIERHIOverrideState GLES2RHIState;

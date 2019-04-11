@@ -3634,14 +3634,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	ViewFamily.EngineShowFlags = EngineShowFlags;
 
-	if (World && ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
-	{
-		TSet<UMaterialInterface*> Materials;
-		if (GetUsedMaterialsInWorld(World, Materials, nullptr))
-		{
-			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, nullptr);
-		}
-	}
+	UpdateDebugViewModeShaders();
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{
@@ -5111,7 +5104,8 @@ void FEditorViewportClient::SetViewMode(EViewModeIndex InViewModeIndex)
 		{
 			FEditorBuildUtils::EditorBuildTextureStreaming(GetWorld(), InViewModeIndex);
 		}
-		FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
+		// Uncomment this to generate inital viewmode data.
+		// FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
 			 
 		PerspViewModeIndex = InViewModeIndex;
 		ApplyViewMode(PerspViewModeIndex, true, EngineShowFlags);

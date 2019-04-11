@@ -3508,7 +3508,7 @@ bool UParticleSystemComponent::CanBeOccluded()const
 
 bool UParticleSystemComponent::CanSkipTickDueToVisibility()
 {
-	if (Template->IsLooping() && CanConsiderInvisible() && !bWasDeactivated)
+	if (Template && Template->IsLooping() && CanConsiderInvisible() && !bWasDeactivated)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UParticleSystemComponent_LOD_Inactive);
 		bForcedInActive = true;
@@ -3840,6 +3840,7 @@ void UParticleSystemComponent::OnUnregister()
 
 void UParticleSystemComponent::CreateRenderState_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::Particles);
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 

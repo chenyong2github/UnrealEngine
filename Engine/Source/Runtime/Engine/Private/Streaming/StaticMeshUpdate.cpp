@@ -11,6 +11,9 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "HAL/PlatformFilemanager.h"
 #include "Serialization/MemoryReader.h"
 
+static constexpr uint32 GMaxNumResourceUpdatesPerLOD = 14;
+static constexpr uint32 GMaxNumResourceUpdatesPerBatch = (MAX_STATIC_MESH_LODS - 1) * GMaxNumResourceUpdatesPerLOD;
+
 FStaticMeshUpdateContext::FStaticMeshUpdateContext(UStaticMesh* InMesh, EThreadType InCurrentThread)
 	: Mesh(InMesh)
 	, CurrentThread(InCurrentThread)
@@ -100,22 +103,22 @@ void FStaticMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	AdjacencyIndexBuffer.SafeRelease();
 }
 
-template <int32 MaxNumUpdates>
+template <uint32 MaxNumUpdates>
 void FStaticMeshStreamIn::FIntermediateBuffers::TransferBuffers(FStaticMeshLODResources& LODResource, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	VBs.StaticMeshVertexBuffer.InitRHIForStreaming(TangentsVertexBuffer, TexCoordVertexBuffer, Batcher);
 	VBs.PositionVertexBuffer.InitRHIForStreaming(PositionVertexBuffer, Batcher);
 	VBs.ColorVertexBuffer.InitRHIForStreaming(ColorVertexBuffer, Batcher);
-	LODResource.IndexBuffer.InitRHIForStreaming(IndexBuffer);
-	LODResource.DepthOnlyIndexBuffer.InitRHIForStreaming(DepthOnlyIndexBuffer);
+	LODResource.IndexBuffer.InitRHIForStreaming(IndexBuffer, Batcher);
+	LODResource.DepthOnlyIndexBuffer.InitRHIForStreaming(DepthOnlyIndexBuffer, Batcher);
 
 	if (LODResource.AdditionalIndexBuffers)
 	{
-		LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.InitRHIForStreaming(ReversedIndexBuffer);
-		LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.InitRHIForStreaming(ReversedDepthOnlyIndexBuffer);
-		LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.InitRHIForStreaming(WireframeIndexBuffer);
-		LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.InitRHIForStreaming(AdjacencyIndexBuffer);
+		LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.InitRHIForStreaming(ReversedIndexBuffer, Batcher);
+		LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.InitRHIForStreaming(ReversedDepthOnlyIndexBuffer, Batcher);
+		LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.InitRHIForStreaming(WireframeIndexBuffer, Batcher);
+		LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.InitRHIForStreaming(AdjacencyIndexBuffer, Batcher);
 	}
 	SafeRelease();
 }
@@ -210,9 +213,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 			&& PendingFirstMip < CurrentFirstLODIdx);
 		// Use a scope to flush the batcher before updating CurrentFirstLODIdx
 		{
-			constexpr int32 MaxNumUpdatesPerLOD = 4;
-			constexpr int32 MaxNumUpdates = (MAX_STATIC_MESH_LODS - 1) * MaxNumUpdatesPerLOD;
-			TRHIResourceUpdateBatcher<MaxNumUpdates> Batcher;
+			TRHIResourceUpdateBatcher<GMaxNumResourceUpdatesPerBatch> Batcher;
 
 			for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 			{
@@ -262,10 +263,8 @@ void FStaticMeshStreamOut::DoReleaseBuffers(const FContext& Context)
 
 		RenderData->CurrentFirstLODIdx = PendingFirstMip;
 		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
-		
-		constexpr int32 MaxNumUpdatesPerLOD = 4;
-		constexpr int32 MaxNumUpdates = (MAX_STATIC_MESH_LODS - 1) * MaxNumUpdatesPerLOD;
-		TRHIResourceUpdateBatcher<MaxNumUpdates> Batcher;
+
+		TRHIResourceUpdateBatcher<GMaxNumResourceUpdatesPerBatch> Batcher;
 
 		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
 		{
@@ -276,15 +275,15 @@ void FStaticMeshStreamOut::DoReleaseBuffers(const FContext& Context)
 			VBs.PositionVertexBuffer.ReleaseRHIForStreaming(Batcher);
 			VBs.ColorVertexBuffer.ReleaseRHIForStreaming(Batcher);
 			// Index buffers don't need to update SRV so we can reuse ReleaseRHI
-			LODResource.IndexBuffer.ReleaseRHI();
-			LODResource.DepthOnlyIndexBuffer.ReleaseRHI();
+			LODResource.IndexBuffer.ReleaseRHIForStreaming(Batcher);
+			LODResource.DepthOnlyIndexBuffer.ReleaseRHIForStreaming(Batcher);
 
 			if (LODResource.AdditionalIndexBuffers)
 			{
-				LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.ReleaseRHI();
-				LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ReleaseRHI();
-				LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.ReleaseRHI();
-				LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.ReleaseRHI();
+				LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.ReleaseRHIForStreaming(Batcher);
+				LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ReleaseRHIForStreaming(Batcher);
+				LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.ReleaseRHIForStreaming(Batcher);
+				LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.ReleaseRHIForStreaming(Batcher);
 			}
 		}
 	}

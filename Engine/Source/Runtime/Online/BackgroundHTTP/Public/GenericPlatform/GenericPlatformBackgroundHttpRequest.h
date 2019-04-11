@@ -17,7 +17,7 @@ class BACKGROUNDHTTP_API FGenericPlatformBackgroundHttpRequest
 public:
 
 	FGenericPlatformBackgroundHttpRequest();
-	virtual ~FGenericPlatformBackgroundHttpRequest() {}
+	virtual ~FGenericPlatformBackgroundHttpRequest();
 
 	//IHttpBackgroundHttpRequest
 	virtual bool HandleDelayedProcess() override;
@@ -38,6 +38,8 @@ protected:
 		void HttpRequestComplete(FHttpRequestPtr HttpRequestIn, FHttpResponsePtr HttpResponse, bool bSuccess);
 
 	private:
+		
+		bool HasRetriesRemaining() const;
 		void UpdateHttpProgress(FHttpRequestPtr UnderlyingHttpRequest, int32 BytesSent, int32 BytesReceived);
 
 		void CleanUpHttpRequest();
@@ -50,7 +52,7 @@ protected:
 		FGenericPlatformBackgroundHttpWrapper() {}
 
 		//Reference to the creating request
-		FBackgroundHttpRequestPtr OriginalRequest;
+		TWeakPtr<class IBackgroundHttpRequest, ESPMode::ThreadSafe> OriginalRequest;
 
 		//Current Http Request being processed by this wrapper
 		TSharedPtr<IHttpRequest> HttpRequest;
@@ -65,5 +67,5 @@ protected:
 		int32 LastProgressUpdateBytes;
 	};
 
-	TSharedPtr<FGenericPlatformBackgroundHttpWrapper> RequestWrapper;
+	TUniquePtr<FGenericPlatformBackgroundHttpWrapper> RequestWrapper;
 };

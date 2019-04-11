@@ -340,9 +340,11 @@ public:
 	/** Whether the notify finished hook has been called since the last update/parsenodes */
 	uint32 bAlreadyNotifiedHook:1;
 
+private:
 	/** Whether to use spatialization */
 	uint32 bUseSpatialization:1;
 
+public:
 	/** Whether or not to enable the low pass filter */
 	uint32 bEnableLowPassFilter:1;
 
@@ -517,6 +519,11 @@ public:
 	/** Gets the envelope value of the waveinstance. Only returns non-zero values if it's a real voice. Only implemented in the audio mixer. */
 	float GetEnvelopeValue() const { return EnvelopValue; }
 
+	/** Whether to use spatialization, which controls 3D effects like panning */
+	void SetUseSpatialization(const bool InUseSpatialization) { bUseSpatialization = InUseSpatialization; }
+
+	/** Whether this wave will be spatializized, which controls 3D effects like panning */
+	bool GetUseSpatialization() const;
 };
 
 inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }

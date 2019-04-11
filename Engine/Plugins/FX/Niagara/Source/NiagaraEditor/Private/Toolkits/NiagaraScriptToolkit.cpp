@@ -59,6 +59,7 @@ const FName FNiagaraScriptToolkit::NodeGraphTabId(TEXT("NiagaraEditor_NodeGraph"
 const FName FNiagaraScriptToolkit::DetailsTabId(TEXT("NiagaraEditor_Details"));
 const FName FNiagaraScriptToolkit::ParametersTabId(TEXT("NiagaraEditor_Parameters"));
 const FName FNiagaraScriptToolkit::StatsTabId(TEXT("NiagaraEditor_Stats"));
+const FName FNiagaraScriptToolkit::MessageLogTabID(TEXT("NiagaraEditor_MessageLog"));
 
 FNiagaraScriptToolkit::FNiagaraScriptToolkit()
 {
@@ -95,6 +96,10 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(MessageLogTabID, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabMessageLog))
+		.SetDisplayName(LOCTEXT("NiagaraMessageLogTab", "Niagara Message Log"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
 void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -149,7 +154,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	StatsListing = MessageLogModule.CreateLogListing("MaterialEditorStats", LogOptions);
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v7")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v8")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -190,9 +195,19 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 			)
 			->Split
 			(
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.8f)
+				->Split
+				(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.8f)
 				->AddTab(NodeGraphTabId, ETabState::OpenedTab)
+				)
+				->Split
+				(
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.2f)
+				->AddTab(MessageLogTabID, ETabState::OpenedTab)
+				)
 			)
 		)
 	);
@@ -374,6 +389,44 @@ TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabStats(const FSpawnTabArgs& A
 	return SpawnedTab;
 }
 
+TSharedRef<SDockTab> FNiagaraScriptToolkit::SpawnTabMessageLog(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == MessageLogTabID);
+
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	const FName LogName = GetNiagaraScriptMessageLogName(EditedNiagaraScript);
+
+	auto CreateMessageLogListing = [&MessageLogModule, &LogName]()->TSharedRef<IMessageLogListing>
+	{
+		// Reuse any existing log, or create a new one (that is not held onto by the message log system)
+		if (MessageLogModule.IsRegisteredLogListing(LogName))
+		{
+			return MessageLogModule.GetLogListing(LogName);
+		}
+		else
+		{
+			FMessageLogInitializationOptions LogInitOptions;
+			LogInitOptions.bShowInLogWindow = false;
+			return  MessageLogModule.CreateLogListing(LogName, LogInitOptions);
+		}
+	};
+
+	TSharedRef<IMessageLogListing> MessageLogListing = CreateMessageLogListing();
+	//@todo(ng) debug message (to be removed when we forward real messages)
+	MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(FString::Printf(TEXT("This is a debug message for %s"), *GetNiagaraScriptMessageLogName(EditedNiagaraScript).ToString()))));
+
+	MessageLogListing->OnMessageTokenClicked().AddStatic(&FNiagaraEditorModule::OnMessageLogTokenClicked);
+	TSharedRef<SWidget> LogListModule = MessageLogModule.CreateLogListingWidget(MessageLogListing);
+
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			LogListModule
+		];
+
+	return SpawnedTab;
+}
+
 void FNiagaraScriptToolkit::SetupCommands()
 {
 	GetToolkitCommands()->MapAction(
@@ -386,6 +439,13 @@ void FNiagaraScriptToolkit::SetupCommands()
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().RefreshNodes,
 		FExecuteAction::CreateRaw(this, &FNiagaraScriptToolkit::RefreshNodes));
+}
+
+const FName FNiagaraScriptToolkit::GetNiagaraScriptMessageLogName(UNiagaraScript* InScript) const
+{
+	checkf(InScript, TEXT("Tried to get MessageLog name for NiagaraScript but InScript was null!"));
+	FName LogListingName = *FString::Printf(TEXT("%s_%s_MessageLog"), *InScript->GetBaseChangeID().ToString(), *InScript->GetName());
+	return LogListingName;
 }
 
 void FNiagaraScriptToolkit::ExtendToolbar()

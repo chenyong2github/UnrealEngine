@@ -254,6 +254,8 @@ void USoundCue::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 		// Propagate branch exclusion to child nodes which care (sound node random)
 		RecursivelySetExcludeBranchCulling(FirstNode);
 	}
+
+	CacheAggregateValues();
 }
 #endif
 

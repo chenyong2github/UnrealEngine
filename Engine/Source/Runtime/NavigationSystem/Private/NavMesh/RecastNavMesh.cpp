@@ -220,6 +220,7 @@ ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
 	, bDrawNavMeshEdges(true)
 	, bDrawNavLinks(true)
 	, bDrawOctreeDetails(true)
+	, bDrawMarkedForbiddenPolys(false)
 	, bDistinctlyDrawTilesBeingBuilt(true)
 	, bDrawNavMesh(true)
 	, DrawOffset(10.f)
@@ -553,7 +554,7 @@ FColor ARecastNavMesh::GetAreaIDColor(uint8 AreaID) const
 {
 	const UClass* AreaClass = GetAreaClass(AreaID);
 	const UNavArea* DefArea = AreaClass ? ((UClass*)AreaClass)->GetDefaultObject<UNavArea>() : NULL;
-	return DefArea ? DefArea->DrawColor : NavDataConfig.Color;
+	return DefArea ? DefArea->DrawColor : FColor::Red;
 }
 
 void ARecastNavMesh::SortAreasForGenerator(TArray<FRecastAreaNavModifierElement>& Modifiers) const
@@ -1447,6 +1448,73 @@ void ARecastNavMesh::SetPolyArrayArea(const TArray<FNavPoly>& Polys, TSubclassOf
 			}
 		}
 	}
+}
+
+int32 ARecastNavMesh::ReplaceAreaInTileBounds(const FBox& Bounds, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool ReplaceLinks, TArray<NavNodeRef>* OutTouchedNodes)
+{
+	int32 PolysTouched = 0;
+
+	if (RecastNavMeshImpl && RecastNavMeshImpl->GetRecastMesh())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMesh_ReplaceAreaInTiles);
+
+		const int32 OldAreaID = GetAreaID(OldArea);
+		ensure(OldAreaID != INDEX_NONE);
+		const int32 NewAreaID = 34;// GetAreaID(NewArea);
+		ensure(NewAreaID != INDEX_NONE);
+		ensure(NewAreaID != OldAreaID);
+
+		// workaround for privacy issue in the recast API
+		dtNavMesh* DetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
+		dtNavMesh const* const ConstDetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
+
+		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
+		const float RcTileSize = FMath::TruncToInt(TileSizeUU / CellSize);
+		const float TileSizeInWorldUnits = RcTileSize * CellSize;
+		const FRcTileBox TileBox(Bounds, RcNavMeshOrigin, TileSizeInWorldUnits);
+
+		for (int32 TileY = TileBox.YMin; TileY <= TileBox.YMax; ++TileY)
+		{
+			for (int32 TileX = TileBox.XMin; TileX <= TileBox.XMax; ++TileX)
+			{
+				const int32 MaxTiles = ConstDetourNavMesh->getTileCountAt(TileX, TileY);
+				if (MaxTiles == 0)
+				{
+					continue;
+				}
+
+				TArray<const dtMeshTile*> Tiles;
+				Tiles.AddZeroed(MaxTiles);
+				const int32 NumTiles = ConstDetourNavMesh->getTilesAt(TileX, TileY, Tiles.GetData(), MaxTiles);
+				for (int32 i = 0; i < NumTiles; i++)
+				{
+					dtTileRef TileRef = ConstDetourNavMesh->getTileRef(Tiles[i]);
+					if (TileRef)
+					{
+						const int32 TileIndex = (int32)ConstDetourNavMesh->decodePolyIdTile(TileRef);
+						const dtMeshTile* Tile = ((const dtNavMesh*)DetourNavMesh)->getTile(TileIndex);
+						//const int32 MaxPolys = Tile && Tile->header ? Tile->header->offMeshBase : 0;
+						const int32 MaxPolys = Tile && Tile->header
+							? (ReplaceLinks ? Tile->header->polyCount : Tile->header->offMeshBase)
+							: 0;
+						if (MaxPolys > 0)
+						{
+							dtPoly* Poly = Tile->polys;
+							for (int32 PolyIndex = 0; PolyIndex < MaxPolys; PolyIndex++, Poly++)
+							{
+								if (Poly->getArea() == OldAreaID)
+								{
+									Poly->setArea(NewAreaID);
+									++PolysTouched;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return PolysTouched;
 }
 
 bool ARecastNavMesh::GetPolyFlags(NavNodeRef PolyID, uint16& PolyFlags, uint16& AreaFlags) const
@@ -2615,5 +2683,17 @@ const dtNavMesh* ARecastNavMesh::GetRecastMesh() const
 {
 	return RecastNavMeshImpl ? RecastNavMeshImpl->GetRecastMesh() : nullptr;
 }
-
 #endif// WITH_RECAST
+
+//----------------------------------------------------------------------//
+// BP API
+//----------------------------------------------------------------------//
+bool ARecastNavMesh::K2_ReplaceAreaInTileBounds(FBox Bounds, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool ReplaceLinks)
+{
+	bool bReplaced = ReplaceAreaInTileBounds(Bounds, OldArea, NewArea, ReplaceLinks) > 0;
+	if (bReplaced)
+	{
+		RequestDrawingUpdate();
+	}
+	return bReplaced;
+}

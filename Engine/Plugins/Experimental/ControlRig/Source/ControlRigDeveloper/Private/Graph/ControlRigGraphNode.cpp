@@ -26,6 +26,16 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphNode"
 
+UControlRigGraphNode::UControlRigGraphNode()
+: Dimensions(0.0f, 0.0f)
+, NodeTitleFull(FText::GetEmpty())
+, NodeTitle(FText::GetEmpty())
+, CachedTitleColorFromMetadata(FLinearColor(0.f, 0.f, 0.f, 0.f))
+, CachedNodeColorFromMetadata(FLinearColor(0.f, 0.f, 0.f, 0.f))
+{
+	UpdateNodeColorFromMetadata();
+}
+
 FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if(NodeTitle.IsEmpty() || NodeTitleFull.IsEmpty())
@@ -61,6 +71,15 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 void UControlRigGraphNode::ReconstructNode()
 {
+#if WITH_EDITORONLY_DATA
+	// store the nodes connected to outputs of hierarchy refs.
+	// this is done for backwards compatibility
+	if (HasAnyFlags(RF_NeedPostLoad))
+	{
+		CacheHierarchyRefConnectionsOnPostLoad();
+	}
+#endif
+
 	Modify();
 
 	// Clear previously set messages
@@ -80,6 +99,43 @@ void UControlRigGraphNode::ReconstructNode()
 	PostReconstructNode();
 
 	GetGraph()->NotifyGraphChanged();
+}
+
+void UControlRigGraphNode::CacheHierarchyRefConnectionsOnPostLoad()
+{
+	if (HierarchyRefOutputConnections.Num() > 0)
+	{
+		return;
+	}
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Struct)
+		{
+			continue;
+		}
+		if (Pin->PinType.PinSubCategoryObject != FRigHierarchyRef::StaticStruct())
+		{
+			continue;
+		}
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+		{
+			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+			{
+				HierarchyRefOutputConnections.Add(LinkedPin->GetOwningNode());
+			}
+		}
+		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+			{
+				UControlRigGraphNode* LinkedNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
+				if (LinkedNode)
+				{
+					LinkedNode->HierarchyRefOutputConnections.Add(this);
+				}
+			}
+		}
+	}
 }
 
 void UControlRigGraphNode::PrepareForCopying()
@@ -134,6 +190,42 @@ void UControlRigGraphNode::PostPasteNode()
 		}
 	}
 }
+
+bool UControlRigGraphNode::IsDeprecated() const
+{
+	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
+	if (ScriptStruct)
+	{
+		FString DeprecatedMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
+		if (!DeprecatedMetadata.IsEmpty())
+		{
+			return true;
+		}
+	}
+	return Super::IsDeprecated();
+}
+
+bool UControlRigGraphNode::ShouldWarnOnDeprecation() const
+{
+	return true;
+}
+
+FString UControlRigGraphNode::GetDeprecationMessage() const
+{
+	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
+	if (ScriptStruct)
+	{
+		FString DeprecatedMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
+		if (!DeprecatedMetadata.IsEmpty())
+		{
+			return FString::Printf(TEXT("Warning: This node is deprecated from: %s"), *DeprecatedMetadata);
+		}
+	}
+	return Super::GetDeprecationMessage();
+}
+
 void UControlRigGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGraphPin*>& OldPins)
 {
 	AllocateDefaultPins();
@@ -180,7 +272,17 @@ void UControlRigGraphNode::PostReconstructNode()
 
 	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
 	bCanRenameNode = (ScriptStruct == nullptr) || (ScriptStruct && ScriptStruct->HasMetaData(UControlRig::DisplayNameMetaName) && ScriptStruct->HasMetaData(UControlRig::ShowVariableNameInTitleMetaName));
+
+	UpdateNodeColorFromMetadata();
 }
+
+#if WITH_EDITORONLY_DATA
+void UControlRigGraphNode::PostLoad()
+{
+	Super::PostLoad();
+	HierarchyRefOutputConnections.Reset();
+}
+#endif
 
 void UControlRigGraphNode::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
 {
@@ -207,6 +309,7 @@ void UControlRigGraphNode::HandleVariableRenamed(UBlueprint* InBlueprint, UClass
 void UControlRigGraphNode::CreateVariablePins(bool bAlwaysCreatePins)
 {
 	CacheVariableInfo();
+	CreateExecutionPins(bAlwaysCreatePins);
 	CreateInputPins(bAlwaysCreatePins);
 	CreateInputOutputPins(bAlwaysCreatePins);
 	CreateOutputPins(bAlwaysCreatePins);
@@ -276,6 +379,31 @@ static bool IsStructReference(const TSharedPtr<FControlRigField>& InputInfo)
 	}
 
 	return false;
+}
+
+void UControlRigGraphNode::CreateExecutionPins(bool bAlwaysCreatePins)
+{
+	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+
+	const TArray<TSharedRef<FControlRigField>>& LocalExecutionInfos = GetExecutionVariableInfo();
+
+	for (const TSharedRef<FControlRigField>& ExecutionInfo : LocalExecutionInfos)
+	{
+		if (bAlwaysCreatePins || ExecutionInfo->InputPin == nullptr)
+		{
+			ExecutionInfo->InputPin = CreatePin(EGPD_Input, ExecutionInfo->GetPinType(), FName(*ExecutionInfo->GetPropertyPath()));
+			ExecutionInfo->InputPin->PinFriendlyName = ExecutionInfo->GetDisplayNameText();
+			ExecutionInfo->InputPin->PinType.bIsReference = IsStructReference(ExecutionInfo);
+			SetupPinAutoGeneratedDefaults(ExecutionInfo->InputPin);
+		}
+
+		if (bAlwaysCreatePins || ExecutionInfo->OutputPin == nullptr)
+		{
+			ExecutionInfo->OutputPin = CreatePin(EGPD_Output, ExecutionInfo->GetPinType(), FName(*ExecutionInfo->GetPropertyPath()));
+		}
+
+		// note: no recursion for execution pins
+	}
 }
 
 void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRigField>& InputInfo, bool bAlwaysCreatePins)
@@ -417,6 +545,9 @@ void UControlRigGraphNode::CreateOutputPins(bool bAlwaysCreatePins)
 
 void UControlRigGraphNode::CacheVariableInfo()
 {
+	ExecutionInfos.Reset();
+	GetExecutionFields(ExecutionInfos);
+
 	InputInfos.Reset();
 	GetInputFields(InputInfos);
 
@@ -454,6 +585,17 @@ UClass* UControlRigGraphNode::GetControlRigSkeletonGeneratedClass() const
 		}
 	}
 	return nullptr;
+}
+
+FLinearColor UControlRigGraphNode::GetNodeTitleColor() const
+{
+	// return a darkened version of the default node's color
+	return CachedTitleColorFromMetadata;
+}
+
+FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
+{
+	return CachedNodeColorFromMetadata;
 }
 
 FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
@@ -522,6 +664,16 @@ static bool CanExpandPinsForField(UField* InField)
 	return true;
 }
 
+void UControlRigGraphNode::GetExecutionFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
+{
+	GetFields([](UProperty* InProperty) 
+	{
+		return InProperty->HasMetaData(UControlRig::InputMetaName) &&
+				InProperty->HasMetaData(UControlRig::OutputMetaName) && 
+				InProperty->GetCPPType().Equals(FControlRigExecuteContext::StaticStruct()->GetStructCPPName()); 
+	}, OutFields);
+}
+
 void UControlRigGraphNode::GetInputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
 	GetFields([](UProperty* InProperty){ return InProperty->HasMetaData(UControlRig::InputMetaName) && !InProperty->HasMetaData(UControlRig::OutputMetaName); }, OutFields);
@@ -534,7 +686,11 @@ void UControlRigGraphNode::GetOutputFields(TArray<TSharedRef<FControlRigField>>&
 
 void UControlRigGraphNode::GetInputOutputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
-	GetFields([](UProperty* InProperty){ return InProperty->HasMetaData(UControlRig::InputMetaName) && InProperty->HasMetaData(UControlRig::OutputMetaName); }, OutFields);
+	GetFields([](UProperty* InProperty){
+		return InProperty->HasMetaData(UControlRig::InputMetaName) && 
+				InProperty->HasMetaData(UControlRig::OutputMetaName) &&
+				!InProperty->GetCPPType().Equals(FControlRigExecuteContext::StaticStruct()->GetStructCPPName());
+	}, OutFields);
 	
 	// Handle properties as in-outs
 	if (UClass* MyControlRigClass = GetControlRigSkeletonGeneratedClass())
@@ -1041,6 +1197,62 @@ void UControlRigGraphNode::SetPropertyName(const FName& InPropertyName, bool bRe
 		{
 			FString& PinString = ExpandedPins[Index];
 			PinString = PinString.Replace(*OldPropertyName, *NewPropertyName);
+		}
+	}
+}
+
+void UControlRigGraphNode::UpdateNodeColorFromMetadata()
+{
+	const FLinearColor TitleToNodeColor(0.35f, 0.35f, 0.35f, 1.f);
+	CachedTitleColorFromMetadata = Super::GetNodeTitleColor() * FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
+
+	struct Local
+	{
+		static void SetColorFromMetadata(FString& Metadata, FLinearColor& Color)
+		{
+			Metadata.TrimStartAndEnd();
+			FString SplitString(TEXT(" "));
+			FString Red, Green, Blue, GreenAndBlue;
+			if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
+			{
+				Red.TrimEnd();
+				GreenAndBlue.TrimStart();
+				if (GreenAndBlue.Split(SplitString, &Green, &Blue))
+				{
+					Green.TrimEnd();
+					Blue.TrimStart();
+
+					float RedValue = FCString::Atof(*Red);
+					float GreenValue = FCString::Atof(*Green);
+					float BlueValue = FCString::Atof(*Blue);
+					Color = FLinearColor(RedValue, GreenValue, BlueValue);
+				}
+			}
+		}
+	};
+
+	// get the node color from its metadata
+	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
+	if (ScriptStruct)
+	{
+		FString TitleColorMetadata, NodeColorMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::TitleColorMetaName, &TitleColorMetadata);
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::NodeColorMetaName, &NodeColorMetadata);
+		if (!TitleColorMetadata.IsEmpty() && !NodeColorMetadata.IsEmpty())
+		{
+			Local::SetColorFromMetadata(TitleColorMetadata, CachedTitleColorFromMetadata);
+			Local::SetColorFromMetadata(NodeColorMetadata, CachedNodeColorFromMetadata);
+		}
+		else if(!TitleColorMetadata.IsEmpty() && NodeColorMetadata.IsEmpty())
+		{
+			Local::SetColorFromMetadata(TitleColorMetadata, CachedTitleColorFromMetadata);
+			CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
+		}
+		else if(TitleColorMetadata.IsEmpty() && !NodeColorMetadata.IsEmpty())
+		{
+			Local::SetColorFromMetadata(NodeColorMetadata, CachedTitleColorFromMetadata);
+			CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
 		}
 	}
 }

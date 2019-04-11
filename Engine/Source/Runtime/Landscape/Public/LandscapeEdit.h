@@ -19,7 +19,10 @@ LandscapeEdit.h: Classes for the editor to access to Landscape data
 #include "LandscapeLayerInfoObject.h"
 
 #if WITH_EDITOR
-	#include "Containers/ArrayView.h"
+
+#include "Containers/ArrayView.h"
+#include "Settings/EditorExperimentalSettings.h"
+
 #endif
 
 class ULandscapeComponent;
@@ -119,20 +122,30 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	//
 	// Heightmap access
 	//
-	void SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData = nullptr, bool InCreateComponents = false, UTexture2D* InHeightmap = nullptr, UTexture2D* InXYOffsetmapTexture = nullptr,
+	void SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData = nullptr, const uint8* InHeightAlphaBlendData = nullptr, const uint8* InHeightRaiseLowerData = nullptr, bool InCreateComponents = false, UTexture2D* InHeightmap = nullptr, UTexture2D* InXYOffsetmapTexture = nullptr,
 					   bool InUpdateBounds = true, bool InUpdateCollision = true, bool InGenerateMips = true);
 
 	// Helper accessor
 	FORCEINLINE uint16 GetHeightMapData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
+	// Helper accessor
+	FORCEINLINE uint8 GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
+	// Helper accessor
+	FORCEINLINE uint8 GetHeightMapFlagsData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData = NULL);
 	// Generic
 	template<typename TStoreData>
 	void GetHeightDataTempl(int32& X1, int32& Y1, int32& X2, int32& Y2, TStoreData& StoreData);
+	template<typename TStoreData>
+	void GetHeightAlphaBlendDataTempl(int32& X1, int32& Y1, int32& X2, int32& Y2, TStoreData& StoreData);
+	template<typename TStoreData>
+	void GetHeightFlagsDataTempl(int32& X1, int32& Y1, int32& X2, int32& Y2, TStoreData& StoreData);
 	// Without data interpolation, able to get normal data
 	template<typename TStoreData>
 	void GetHeightDataTemplFast(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TStoreData& StoreData, UTexture2D* InHeightmap = nullptr, TStoreData* NormalData = NULL);
 	// Implementation for fixed array
 	void GetHeightData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint16* Data, int32 Stride);
 	void GetHeightDataFast(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, uint16* Data, int32 Stride, uint16* NormalData = NULL, UTexture2D* InHeightmap = nullptr);
+	void GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride);
+	void GetHeightFlagsData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride);
 	// Implementation for sparse array
 	void GetHeightData(int32& X1, int32& Y1, int32& X2, int32& Y2, TMap<FIntPoint, uint16>& SparseData);
 	void GetHeightDataFast(const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, TMap<FIntPoint, uint16>& SparseData, TMap<FIntPoint, uint16>* NormalData = NULL, UTexture2D* InHeightmap = nullptr);
@@ -208,6 +221,7 @@ struct LANDSCAPE_API FLandscapeEditDataInterface : public FLandscapeTextureDataI
 	template<typename T>
 	static void ShrinkData(TArray<T>& Data, int32 OldMinX, int32 OldMinY, int32 OldMaxX, int32 OldMaxY, int32 NewMinX, int32 NewMinY, int32 NewMaxX, int32 NewMaxY);
 
+	const ALandscape* GetTargetLandscape() const;
 private:
 	int32 ComponentSizeQuads;
 	int32 SubsectionSizeQuads;
@@ -222,6 +236,12 @@ private:
 		const int32& ComponentIndexX1, const int32& ComponentIndexX2, const int32& ComponentIndexY1, const int32& ComponentIndexY2,
 		const int32& ComponentSizeX, const int32& ComponentSizeY, TData* CornerValues,
 		TArray<bool>& NoBorderY1, TArray<bool>& NoBorderY2, TArray<bool>& ComponentDataExist, TStoreData& StoreData);
+
+	// Generic Height Data access
+	template<typename TStoreData>
+	void GetHeightDataInternal(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TStoreData& StoreData, TFunctionRef<typename TStoreData::DataType(const ULandscapeComponent*, int32, int32, FColor*)> GetHeightDataFunction);
+
+	FORCEINLINE FColor& GetHeightMapColor(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData);
 
 	// test if layer is whitelisted for a given texel
 	inline bool IsWhitelisted(const ULandscapeLayerInfoObject* LayerInfo,
@@ -304,13 +324,18 @@ struct FHeightmapAccessor
 
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
-			for (ULandscapeComponent* Component : Components)
+
+            // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+			if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-				if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
+				for (ULandscapeComponent* Component : Components)
 				{
-					bUpdateFoliage = true;
-					break;
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					if (CollisionComponent && AInstancedFoliageActor::HasFoliageAttached(CollisionComponent))
+					{
+						bUpdateFoliage = true;
+						break;
+					}
 				}
 			}
 
@@ -360,18 +385,22 @@ struct FHeightmapAccessor
 		delete LandscapeEdit;
 		LandscapeEdit = NULL;
 
-		// Update the bounds and navmesh for the components we edited
-		for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
+		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+		if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 		{
-			(*It)->UpdateCachedBounds();
-			(*It)->UpdateComponentToWorld();
-
-			// Recreate collision for modified components to update the physical materials
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->CollisionComponent.Get();
-			if (CollisionComponent)
+			// Update the bounds and navmesh for the components we edited
+			for (TSet<ULandscapeComponent*>::TConstIterator It(ChangedComponents); It; ++It)
 			{
-				CollisionComponent->RecreateCollision();
-				FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				(*It)->UpdateCachedBounds();
+				(*It)->UpdateComponentToWorld();
+
+				// Recreate collision for modified components to update the physical materials
+				ULandscapeHeightfieldCollisionComponent* CollisionComponent = (*It)->CollisionComponent.Get();
+				if (CollisionComponent)
+				{
+					CollisionComponent->RecreateCollision();
+					FNavigationSystem::UpdateComponentData(*CollisionComponent);
+				}
 			}
 		}
 	}

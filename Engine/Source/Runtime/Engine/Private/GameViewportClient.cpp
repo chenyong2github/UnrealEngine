@@ -1121,14 +1121,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		// Force enable view family show flag for HighDPI derived's screen percentage.
 		ViewFamily.EngineShowFlags.ScreenPercentage = true;
 	}
-	if (ViewFamily.GetDebugViewShaderMode() != DVSM_None && HasMissingDebugViewModeShaders(true))
-	{
-		TSet<UMaterialInterface*> Materials;
-		if (GetUsedMaterialsInWorld(MyWorld, Materials, nullptr))
-		{
-			CompileDebugViewModeShaders(ViewFamily.GetDebugViewShaderMode(), GetCachedScalabilityCVars().MaterialQualityLevel, ViewFamily.GetFeatureLevel(), false, false, Materials, nullptr);
-		}
-	}
+
+	UpdateDebugViewModeShaders();
 #endif
 
 	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(InViewport);
@@ -2515,11 +2509,15 @@ void UGameViewportClient::RemoveViewportWidgetContent( TSharedRef<SWidget> Viewp
 
 void UGameViewportClient::AddViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, const int32 ZOrder)
 {
-	TSharedPtr< IGameLayerManager > GameLayerManager(GameLayerManagerPtr.Pin());
-	if ( GameLayerManager.IsValid() )
+	if (ensure(Player))
 	{
-		GameLayerManager->AddWidgetForPlayer(Player, ViewportContent, ZOrder);
+		TSharedPtr< IGameLayerManager > GameLayerManager(GameLayerManagerPtr.Pin());
+		if (GameLayerManager.IsValid())
+		{
+			GameLayerManager->AddWidgetForPlayer(Player, ViewportContent, ZOrder);
+		}
 	}
+	//TODO - If this fails what should we do?
 }
 
 void UGameViewportClient::RemoveViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent)

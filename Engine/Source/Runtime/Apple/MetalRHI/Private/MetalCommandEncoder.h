@@ -40,6 +40,67 @@ enum EMetalSubmitFlags
 	EMetalSubmitFlagsLastCommandBuffer = 1 << 6,
 };
 
+@class FMetalCommandBufferDebug;
+
+struct FMetalCommandData
+{
+	enum class Type
+	{
+		DrawPrimitive,
+		DrawPrimitiveIndexed,
+		DrawPrimitivePatch,
+		DrawPrimitiveIndirect,
+		DrawPrimitiveIndexedIndirect,
+		Dispatch,
+		DispatchIndirect,
+		Num,
+	};
+	struct DispatchIndirectArgs
+	{
+		id ArgumentBuffer;
+		NSUInteger ArgumentOffset;
+	};
+	Type CommandType;
+	union
+	{
+		mtlpp::DrawPrimitivesIndirectArguments Draw;
+		mtlpp::DrawIndexedPrimitivesIndirectArguments DrawIndexed;
+		mtlpp::DrawPatchIndirectArguments DrawPatch;
+		MTLDispatchThreadgroupsIndirectArguments Dispatch;
+		DispatchIndirectArgs DispatchIndirect;
+	};
+	FString ToString() const;
+};
+
+struct FMetalCommandDebug
+{
+    uint32 CmdBufIndex;
+	uint32 Encoder;
+	uint32 Index;
+	FMetalGraphicsPipelineState* PSO;
+	FMetalComputeShader* ComputeShader;
+	FMetalCommandData Data;
+};
+
+class FMetalCommandBufferMarkers : public ns::Object<FMetalCommandBufferDebug*, ns::CallingConvention::ObjectiveC>
+{
+public:
+	FMetalCommandBufferMarkers(void);
+	FMetalCommandBufferMarkers(mtlpp::CommandBuffer& CmdBuf);
+	FMetalCommandBufferMarkers(FMetalCommandBufferDebug* CmdBuf);
+	
+	void AllocateContexts(uint32 NumContexts);
+	uint32 AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FMetalBuffer& DebugBuffer, FMetalGraphicsPipelineState* PSO, FMetalComputeShader* ComputeShader, FMetalCommandData& Data);
+	TArray<FMetalCommandDebug>* GetCommands(uint32 Context);
+	ns::AutoReleased<FMetalBuffer> GetDebugBuffer(uint32 ContextIndex);
+	uint32 NumContexts() const;
+	uint32 GetIndex() const;
+	
+	static FMetalCommandBufferMarkers Get(mtlpp::CommandBuffer const& CmdBuf);
+	
+	static char const* kTableAssociationKey;
+};
+
 /**
  * FMetalCommandEncoder:
  *	Wraps the details of switching between different command encoders on the command-buffer, allowing for restoration of the render encoder if needed.
@@ -85,6 +146,9 @@ public:
 
 	/** @returns the current command buffer */
 	mtlpp::CommandBuffer const& GetCommandBuffer() const { return CommandBuffer; }
+	
+	/** @returns the monotonically incremented command buffer index */
+	uint32 GetCommandBufferIndex() const { return CmdBufIndex; }
 
 #pragma mark - Public Command Encoder Accessors -
 	
@@ -195,6 +259,9 @@ public:
 	
 	/* Pop the latest named string off of the stack. */
 	void PopDebugGroup(void);
+	
+	/** Returns the object that records debug command markers into the command-buffer. */
+	FMetalCommandBufferMarkers& GetMarkers(void);
 	
 #if ENABLE_METAL_GPUPROFILE
 	/* Get the command-buffer stats object. */
@@ -471,6 +538,7 @@ private:
 	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
 	mtlpp::BlitCommandEncoder BlitCommandEncoder;
 	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
+	FMetalCommandBufferMarkers CommandBufferMarkers;
 	
 	METAL_DEBUG_ONLY(FMetalCommandBufferDebugging CommandBufferDebug);
 	METAL_DEBUG_ONLY(FMetalRenderCommandEncoderDebugging RenderEncoderDebug);
@@ -504,4 +572,5 @@ private:
 	
 	mtlpp::RenderStages FenceStage;
 	uint32 EncoderNum;
+	uint32 CmdBufIndex;
 };

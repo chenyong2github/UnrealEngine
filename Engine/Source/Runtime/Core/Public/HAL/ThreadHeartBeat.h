@@ -160,6 +160,12 @@ public:
 	 */
 	void SetDurationMultiplier(double NewMultiplier);
 
+	/*
+	* Get the Id of the last thread to trigger the hang detector.
+	* Returns InvalidThreadId if hang detector has not been triggered.
+	*/
+	uint32 GetLastHungThreadId() const { return LastHungThreadId; }
+
 	//~ Begin FRunnable Interface.
 	virtual bool Init();
 	virtual uint32 Run();
@@ -260,6 +266,11 @@ public:
 	* Resume heartbeat hitch detection. Call only after first calling SuspendHeartBeat.
 	*/
 	void ResumeHeartBeat();
+
+	/**
+	* Is the heartbeat suspended?
+	*/
+	bool IsSuspended_Gamethread() const;
 
 	// No-op, used in FUnixSignalGameHitchHeartBeat
 	void Restart() {}

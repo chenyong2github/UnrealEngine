@@ -9,38 +9,6 @@
 #include "Logging/LogMacros.h"
 #include "Internationalization/Text.h"
 
-enum class EInstallBundleResult : int
-{
-	OK,
-	FailedPrereqRequiresLatestClient,
-	InstallError,
-	InstallerOutOfDiskSpaceError,
-	OnCellularNetworkError,
-	NoInternetConnectionError,
-	UserCancelledError,
-	InitializationError,
-	Count,
-};
-
-inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
-{
-	using UnderType = __underlying_type(EInstallBundleResult);
-	static const TCHAR* Strings[] =
-	{
-		TEXT("OK"),
-		TEXT("FailedPrereqRequiresLatestClient"),
-		TEXT("InstallError"),
-		TEXT("InstallerOutOfDiskSpaceError"),
-		TEXT("OnCellularNetworkError"),
-		TEXT("NoInternetConnectionError"),
-		TEXT("UserCancelledError"),
-		TEXT("InitializationError"),
-	};
-	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == ARRAY_COUNT(Strings), "");
-
-	return Strings[static_cast<UnderType>(Result)];
-}
-
 enum class EInstallBundleModuleInitResult : int
 {
 	OK,
@@ -75,10 +43,65 @@ inline const TCHAR* GetInstallBundleModuleInitResultString(EInstallBundleModuleI
 	return Strings[static_cast<UnderType>(Result)];
 }
 
+enum class EInstallBundleResult : int
+{
+	OK,
+	FailedPrereqRequiresLatestClient,
+	InstallError,
+	InstallerOutOfDiskSpaceError,
+	UserCancelledError,
+	InitializationError,
+	Count,
+};
+
+inline const TCHAR* GetInstallBundleResultString(EInstallBundleResult Result)
+{
+	using UnderType = __underlying_type(EInstallBundleResult);
+	static const TCHAR* Strings[] =
+	{
+		TEXT("OK"),
+		TEXT("FailedPrereqRequiresLatestClient"),
+		TEXT("InstallError"),
+		TEXT("InstallerOutOfDiskSpaceError"),
+		TEXT("UserCancelledError"),
+		TEXT("InitializationError"),
+	};
+	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == ARRAY_COUNT(Strings), "");
+
+	return Strings[static_cast<UnderType>(Result)];
+}
+
+enum class EInstallBundlePauseFlags : uint32
+{
+	None = 0,
+	OnCellularNetwork = (1 << 0),
+	NoInternetConnection = (1 << 1),
+	UserPaused	= (1 << 2)
+};
+ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
+
+inline const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
+{
+	// Return the most appropriate reason given the flags
+
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::UserPaused))
+		return TEXT("UserPaused");
+
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::NoInternetConnection))
+		return TEXT("NoInternetConnection");
+	
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::OnCellularNetwork))
+		return TEXT("OnCellularNetwork");
+
+	return TEXT("");
+}
+
 enum class EInstallBundleRequestFlags : uint32
 {
 	None = 0,
 	CheckForCellularDataUsage = (1 << 0),
+	UseBackgroundDownloads = (1 << 1),
+	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
@@ -109,6 +132,8 @@ struct FInstallBundleStatus
 
 	EInstallBundleStatus Status = EInstallBundleStatus::NotRequested;
 
+	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+
 	FText StatusText;
 
 	// Progress is only present if Status is Downloading or Installing
@@ -125,6 +150,12 @@ struct FInstallBundleResultInfo
 	FString OptionalErrorCode;
 };
 
+struct FInstallBundlePauseInfo
+{
+	FName BundleName;
+	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
+};
+
 enum class EInstallBundleContentState : int
 {
 	InitializationError,
@@ -136,6 +167,8 @@ struct FInstallBundleContentState
 {
 	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
 	uint64 DownloadSize = 0;
+	uint64 InstallSize = 0;	
+	uint64 FreeSpace = 0;
 };
 
 enum class EInstallBundleRequestInfoFlags : int32
@@ -175,6 +208,7 @@ enum class EInstallBundleManagerInitErrorHandlerResult
 DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FInstallBundleManagerInitErrorHandler, EInstallBundleModuleInitResult);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleResultInfo);
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
 
@@ -183,6 +217,7 @@ class CORE_API IPlatformInstallBundleManager
 public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate;
 	static FInstallBundleCompleteMultiDelegate RemoveBundleCompleteDelegate;
+	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
 
 	virtual ~IPlatformInstallBundleManager() {}
 
@@ -208,11 +243,22 @@ public:
 
 	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
 
+	virtual bool PauseBundle(FName BundleName) = 0;
+
+	virtual void ResumeBundle(FName BundleName) = 0;
+
+	virtual void RequestPausedBundleCallback() const = 0;
+
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const = 0;
+
+	virtual void UpdateContentRequestFlags(FName BundleName, EInstallBundleRequestFlags AddFlags, EInstallBundleRequestFlags RemoveFlags) = 0;
 
 	virtual bool IsNullInterface() const = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
+
+	// return true if we actually cleaned up a migration directory
+	virtual bool CleanupMigrationDirectory() { return false;  }
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface

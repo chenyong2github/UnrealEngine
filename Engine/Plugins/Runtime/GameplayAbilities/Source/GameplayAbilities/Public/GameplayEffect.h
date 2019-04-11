@@ -628,6 +628,20 @@ enum class EGameplayEffectStackingExpirationPolicy : uint8
 	RefreshDuration,
 };
 
+/** Enumeration of policies for dealing with the period of a gameplay effect when inhibition is removed */
+UENUM()
+enum class EGameplayEffectPeriodInhibitionRemovedPolicy : uint8
+{
+	/** Does not reset. The period timing will continue as if the inhibition hadn't occurred. */
+	NeverReset,
+
+	/** Resets the period. The next execution will occur one full period from when inhibition is removed. */
+	ResetPeriod,
+
+	/** Executes immediately and resets the period. */
+	ExecuteAndResetPeriod,
+};
+
 /** Holds evaluated magnitude from a GameplayEffect modifier */
 USTRUCT()
 struct FModifierSpec
@@ -1895,6 +1909,9 @@ public:
 	/** If true, the effect executes on application and then at every period interval. If false, no execution occurs until the first period elapses. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Period)
 	bool bExecutePeriodicEffectOnApplication;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Period)
+	EGameplayEffectPeriodInhibitionRemovedPolicy PeriodicInhibitionPolicy;
 
 	/** Array of modifiers that will affect the target of this effect */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=GameplayEffect)

@@ -814,7 +814,7 @@ void FXAudio2SoundSource::GetMonoChannelVolumes(float ChannelVolumes[CHANNEL_MAT
 void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_MATRIX_COUNT], float AttenuatedVolume)
 {
 	// If we're doing 3d spatializaton of stereo sounds
-	if (!IsUsingHrtfSpatializer() && WaveInstance->bUseSpatialization)
+	if (!IsUsingHrtfSpatializer() && WaveInstance->GetUseSpatialization())
 	{
 		check(MAX_INPUT_CHANNELS_SPATIALIZED >= 2);
 
@@ -982,7 +982,7 @@ void FXAudio2SoundSource::RouteStereoToDry(float Chans[CHANNEL_MATRIX_COUNT])
 		// Stereo sounds map 2 channels to 6 speakers
 		AudioDevice->ValidateAPICall(TEXT("SetOutputMatrix (stereo)"), Source->SetOutputMatrix(Destinations[DEST_DRY].pOutputVoice, 2, SPEAKER_COUNT, SpatialisationMatrix));		// Build a non-3d "multi-channel" blend from the stereo channels
 	}
-	else if (WaveInstance->bUseSpatialization)
+	else if (WaveInstance->GetUseSpatialization())
 	{
 		// Build a non-3d "multi-channel" blend from the stereo channels
 		float SpatialisationMatrix[SPEAKER_COUNT * 2] =
@@ -1292,7 +1292,7 @@ FString FXAudio2SoundSource::Describe(bool bUseLongName)
 FString FXAudio2SoundSource::Describe_Internal(bool bUseLongName, bool bIncludeChannelVolumes)
 {
 	FString SpatializedVolumeInfo;
-	if (bIncludeChannelVolumes && WaveInstance->bUseSpatialization)
+	if (bIncludeChannelVolumes && WaveInstance->GetUseSpatialization())
 	{
 		float ChannelVolumes[CHANNEL_MATRIX_COUNT] = { 0.0f };
 		GetChannelVolumes( ChannelVolumes, WaveInstance->GetActualVolume() );

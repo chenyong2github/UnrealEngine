@@ -49,6 +49,7 @@
 #include "VisualizeTexture.h"
 #include "VisualizeTexturePresent.h"
 #include "MeshDrawCommands.h"
+#include "HAL/LowLevelMemTracker.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1580,6 +1581,25 @@ void FViewInfo::DestroyAllSnapshots()
 	ViewInfoSnapshots.Reset();
 }
 
+FInt32Range FViewInfo::GetDynamicMeshElementRange(uint32 PrimitiveIndex) const
+{
+	int32 Start = 0;	// inclusive
+	int32 AfterEnd = 0;	// exclusive
+
+	// DynamicMeshEndIndices contains valid values only for visible primitives with bDynamicRelevance.
+	if (PrimitiveVisibilityMap[PrimitiveIndex])
+	{
+		const FPrimitiveViewRelevance& ViewRelevance = PrimitiveViewRelevanceMap[PrimitiveIndex];
+		if (ViewRelevance.bDynamicRelevance)
+		{
+			Start = (PrimitiveIndex == 0) ? 0 : DynamicMeshEndIndices[PrimitiveIndex - 1];
+			AfterEnd = DynamicMeshEndIndices[PrimitiveIndex];
+		}
+	}
+
+	return FInt32Range(Start, AfterEnd);
+}
+
 FSceneViewState* FViewInfo::GetEffectiveViewState() const
 {
 	FSceneViewState* EffectiveViewState = ViewState;
@@ -3084,6 +3104,8 @@ static TAutoConsoleVariable<int32> CVarDelaySceneRenderCompletion(
  */
 static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
+
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_DelaySceneRenderCompletion_TaskWait);
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);

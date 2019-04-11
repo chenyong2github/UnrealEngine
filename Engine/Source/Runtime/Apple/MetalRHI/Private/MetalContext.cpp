@@ -54,12 +54,6 @@ static FAutoConsoleVariableRef CVarMetalBufferZeroFill(
 	TEXT("Debug option: when enabled will fill the buffer contents with 0 when allocating buffer objects, or regions thereof. (Default: 0, Off)"));
 
 #if METAL_DEBUG_OPTIONS
-int32 GMetalResetOnPSOChange = 0; // Deliberately not static
-static FAutoConsoleVariableRef CVarMetalResetOnPSOChange(
-	TEXT("rhi.Metal.ResetOnPSOChange"),
-	GMetalResetOnPSOChange,
-	TEXT("Debug option: when enabled will reset all the resource bindings when the PSO changes to aid debugging unbound resources. (Default: 0, Off)"));
-
 int32 GMetalBufferScribble = 0; // Deliberately not static, see InitFrame_UniformBufferPoolCleanup
 static FAutoConsoleVariableRef CVarMetalBufferScribble(
 	TEXT("rhi.Metal.BufferScribble"),
@@ -89,16 +83,16 @@ static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	GMetalRuntimeDebugLevel,
 	TEXT("The level of debug validation performed by MetalRHI in addition to the underlying Metal API & validation layer.\n")
 	TEXT("Each subsequent level adds more tests and reporting in addition to the previous level.\n")
-	TEXT("*LEVELS >1 ARE IGNORED IN SHIPPING AND TEST BUILDS*. (Default: 1 (Debug, Development), 0 (Test, Shipping))\n")
+	TEXT("*LEVELS >= 5 ARE IGNORED IN SHIPPING AND TEST BUILDS*. (Default: 3 (Debug, Development), 0 (Test, Shipping))\n")
 	TEXT("\t0: Off,\n")
 	TEXT("\t1: Record the debug-groups issued into a command-buffer and report them on failure,\n")
 	TEXT("\t2: Enable light-weight validation of resource bindings & API usage,\n")
 	TEXT("\t3: Track resources and validate lifetime on command-buffer failure,\n")
-	TEXT("\t4: Reset resource bindings to simplify GPU trace debugging,\n")
-	TEXT("\t5: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
-	TEXT("\t6: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
-	TEXT("\t7: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
-	TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
+	TEXT("\t4: Reset resource bindings when binding a PSO/Compute-Shader to simplify GPU debugging,\n")
+	TEXT("\t5: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
+	TEXT("\t6: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
+    TEXT("\t7: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
+    TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
 
 float GMetalPresentFramePacing = 0.0f;
 #if !PLATFORM_MAC
@@ -493,7 +487,7 @@ void FMetalDeviceContext::ClearFreeList()
 
 void FMetalDeviceContext::DrainHeap()
 {
-	Heap.Compact(false);
+	Heap.Compact(&RenderPass, false);
 }
 
 void FMetalDeviceContext::EndFrame()
@@ -537,7 +531,7 @@ void FMetalDeviceContext::EndFrame()
     
     ClearFreeList();
     
-    Heap.Compact(false);
+	DrainHeap();
     
 	InitFrame(true, 0, 0);
 }

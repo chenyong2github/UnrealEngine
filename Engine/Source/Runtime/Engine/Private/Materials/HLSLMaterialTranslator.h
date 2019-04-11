@@ -3728,6 +3728,12 @@ protected:
 
 	virtual int32 SceneDepth(int32 Offset, int32 ViewportUV, bool bUseOffset) override
 	{
+		if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
+		{
+			// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
+			return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
+		}
+
 		if (Offset == INDEX_NONE && bUseOffset)
 		{
 			return INDEX_NONE;

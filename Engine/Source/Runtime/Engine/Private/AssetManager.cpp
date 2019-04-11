@@ -2635,6 +2635,7 @@ bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents
 
 	bool bFoundAny = false;
 	TArray<FAssetIdentifier> ReferencingPrimaryAssets;
+	ReferencingPrimaryAssets.Reserve(128);
 
 	AssetRegistry.GetReferencers(PackageName, ReferencingPrimaryAssets, EAssetRegistryDependencyType::Manage);
 
@@ -2779,7 +2780,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (PackageName.Contains(AlreadyScanned))
+				if (PackageName == AlreadyScanned || PackageName.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;
@@ -2805,7 +2806,7 @@ void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) con
 		{
 			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
 			{
-				if (Path.Contains(AlreadyScanned))
+				if (Path == AlreadyScanned || Path.StartsWith(AlreadyScanned + TEXT("/")))
 				{
 					bAlreadyScanned = true;
 					break;
@@ -3235,6 +3236,7 @@ bool UAssetManager::GetPackageChunkIds(FName PackageName, const ITargetPlatform*
 
 	// Add all chunk ids from the asset rules of managers. By default priority will not override other chunks
 	TSet<FPrimaryAssetId> Managers;
+	Managers.Reserve(128);
 
 	GetPackageManagers(PackageName, true, Managers);
 	return GetPrimaryAssetSetChunkIds(Managers, TargetPlatform, ExistingChunkList, OutChunkList);

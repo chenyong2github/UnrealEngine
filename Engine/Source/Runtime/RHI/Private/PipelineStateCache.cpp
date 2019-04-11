@@ -582,11 +582,7 @@ FGraphicsPipelineCache GGraphicsPipelineCache;
 FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 	TEXT("TaskGraph.TaskPriorities.CompilePipelineStateTask"),
 	TEXT("Task and thread priority for FCompilePipelineStateTask."),
-#if PLATFORM_MAC
-	ENamedThreads::NormalThreadPriority,	// On Mac, use normal thread priority to not freeze the loading screen for extended period of time
-#else
 	ENamedThreads::HighThreadPriority,		// if we have high priority task threads, then use them...
-#endif
 	ENamedThreads::NormalTaskPriority,		// .. at normal task priority
 	ENamedThreads::HighTaskPriority,		// if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	EPowerSavingEligibility::NotEligible	// Not eligible for downgrade when power saving is requested.
@@ -701,6 +697,11 @@ public:
 		}
 		else
 		{
+			if (!Initializer.BoundShaderState.VertexShaderRHI)
+			{
+				UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+			}
+
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
 			GfxPipeline->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
 			
@@ -741,7 +742,9 @@ public:
 
 	ENamedThreads::Type GetDesiredThread()
 	{
-		return CPrio_FCompilePipelineStateTask.Get();
+		// On Mac the compilation is handled using external processes, so engine threads have very little work to do
+		// and it's better to leave more CPU time to these extrenal processes and other engine threads.
+		return PLATFORM_MAC ? ENamedThreads::AnyBackgroundThreadNormalTask : CPrio_FCompilePipelineStateTask.Get();
 	}
 };
 
