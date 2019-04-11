@@ -412,6 +412,9 @@ void FEdGraphUtilities::ImportNodesFromText(UEdGraph* DestinationGraph, const FS
 	// Fix up pin cross-links, etc...
 	FEdGraphUtilities::PostProcessPastedNodes(Factory.SpawnedNodes);
 
+	// If a pin link wasn't resolved by now it was connected to something outside the clipboard and should be cleared:
+	UEdGraphPin::ResolveAllPinReferences();
+
 	ImportedNodeSet.Append(Factory.SpawnedNodes);
 }
 
