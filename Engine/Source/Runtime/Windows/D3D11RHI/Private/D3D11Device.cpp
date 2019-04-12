@@ -210,6 +210,12 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 		GMaxTextureArrayLayers = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 		GRHISupportsMSAADepthSampleAccess = true;
 		GRHISupportsRHIThread = !!EXPERIMENTAL_D3D11_RHITHREAD;
+
+		// Disable the RHI thread by default for devices that will likely suffer in performance
+		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCoresIncludingHyperthreads() <= 2)
+		{
+			GRHISupportsRHIThread = false;
+		}
 	}
 	else if (FeatureLevel >= D3D_FEATURE_LEVEL_10_0)
 	{
