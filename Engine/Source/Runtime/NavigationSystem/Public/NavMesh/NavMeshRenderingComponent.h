@@ -41,6 +41,7 @@ enum class ENavMeshDetailFlags : uint8
 	Clusters,
 	NavOctree,
 	NavOctreeDetails,
+	MarkForbiddenPolys,
 };
 
 // exported to API for GameplayDebugger module

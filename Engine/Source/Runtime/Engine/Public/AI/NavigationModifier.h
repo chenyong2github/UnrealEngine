@@ -306,6 +306,10 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 	// Should be called only on game thread
 	void GetPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& PerInstanceTransforms) const;
 
+	TArray<FAreaNavModifier>& GetMutableAreas() { return Areas; }
+	TArray<FSimpleLinkNavModifier>& GetSimpleLinks() { return SimpleLinks; }
+	TArray<FCustomLinkNavModifier>& GetCustomLinks() { return CustomLinks; }
+
 public:
 	// Gathers per instance data for navigation area modifiers in a specified area box
 	FNavDataPerInstanceTransformDelegate NavDataPerInstanceTransformDelegate;
