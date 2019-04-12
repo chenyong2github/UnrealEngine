@@ -4474,6 +4474,14 @@ const FLandscapeLayer* ALandscape::GetLayer(const FGuid& InLayerGuid) const
 	return LandscapeLayers.FindByPredicate([InLayerGuid](const FLandscapeLayer& Other) { return Other.Guid == InLayerGuid; });
 }
 
+void ALandscape::ForEachLayer(TFunctionRef<void(const struct FLandscapeLayer&)> Fn)
+{
+	for (const FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		Fn(Layer);
+	}
+}
+
 void ALandscape::DeleteLayer(int32 InLayerIndex)
 {
 	ensure(GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem);
