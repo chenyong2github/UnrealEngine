@@ -311,6 +311,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, LastEngineShowFlags(ESFIM_Game)
 	, ExposureSettings()
 	, CurrentBufferVisualizationMode(NAME_None)
+	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
 	, ViewFOV(EditorViewportDefs::DefaultPerspectiveFOVAngle)
