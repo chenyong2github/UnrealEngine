@@ -109,6 +109,10 @@ public:
 
 	/** Defines additional classes you want listed in the "Common Classes" section for the picker. */
 	TArray<UClass*> ExtraPickerCommonClasses;
+
+	/** false by default, restricts the class picker to only showing editor module classes */
+	bool bEditorClassesOnly;
+
 public:
 
 	/** Constructor */
@@ -125,6 +129,7 @@ public:
 		, bEnableClassDynamicLoading(true)
 		, NameTypeToDisplay(EClassViewerNameTypeToDisplay::ClassName)
 		, bAllowViewOptions(true)
+		, bEditorClassesOnly(false)
 	{
 	}
 };

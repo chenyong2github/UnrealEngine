@@ -16,17 +16,17 @@
 
 /////////////////////////////////////////////////////
 
-UGlobalEditorUtilityBase::UGlobalEditorUtilityBase(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_GlobalEditorUtilityBase::UDEPRECATED_GlobalEditorUtilityBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-UWorld* UGlobalEditorUtilityBase::GetWorld() const
+UWorld* UDEPRECATED_GlobalEditorUtilityBase::GetWorld() const
 {
 	return GEditor->GetEditorWorldContext().World();
 }
 
-TArray<AActor*> UGlobalEditorUtilityBase::GetSelectionSet()
+TArray<AActor*> UDEPRECATED_GlobalEditorUtilityBase::GetSelectionSet()
 {
 	TArray<AActor*> Result;
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
@@ -40,7 +40,7 @@ TArray<AActor*> UGlobalEditorUtilityBase::GetSelectionSet()
 	return Result;
 }
 
-void UGlobalEditorUtilityBase::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius)
+void UDEPRECATED_GlobalEditorUtilityBase::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius)
 {
 	bool bFirstItem = true;
 
@@ -67,7 +67,7 @@ void UGlobalEditorUtilityBase::GetSelectionBounds(FVector& Origin, FVector& BoxE
 	SphereRadius = Extents.SphereRadius;
 }
 
-void UGlobalEditorUtilityBase::ForEachSelectedActor()
+void UDEPRECATED_GlobalEditorUtilityBase::ForEachSelectedActor()
 {
 	TArray<AActor*> SelectionSetCache;
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
@@ -87,7 +87,7 @@ void UGlobalEditorUtilityBase::ForEachSelectedActor()
 	}
 }
 
-void UGlobalEditorUtilityBase::ForEachSelectedAsset()
+void UDEPRECATED_GlobalEditorUtilityBase::ForEachSelectedAsset()
 {
 	//@TODO: Blocking load, no slow dialog
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -106,7 +106,7 @@ void UGlobalEditorUtilityBase::ForEachSelectedAsset()
 	}
 }
 
-TArray<UObject*> UGlobalEditorUtilityBase::GetSelectedAssets()
+TArray<UObject*> UDEPRECATED_GlobalEditorUtilityBase::GetSelectedAssets()
 {
 	//@TODO: Blocking load, no slow dialog
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -122,30 +122,30 @@ TArray<UObject*> UGlobalEditorUtilityBase::GetSelectedAssets()
 	return Result;
 }
 
-UEditorPerProjectUserSettings* UGlobalEditorUtilityBase::GetEditorUserSettings()
+UEditorPerProjectUserSettings* UDEPRECATED_GlobalEditorUtilityBase::GetEditorUserSettings()
 {
 	return GetMutableDefault<UEditorPerProjectUserSettings>();
 }
 
-void UGlobalEditorUtilityBase::ClearActorSelectionSet()
+void UDEPRECATED_GlobalEditorUtilityBase::ClearActorSelectionSet()
 {
 	GEditor->GetSelectedActors()->DeselectAll();
 	bDirtiedSelectionSet = true;
 }
 
-void UGlobalEditorUtilityBase::SelectNothing()
+void UDEPRECATED_GlobalEditorUtilityBase::SelectNothing()
 {
 	GEditor->SelectNone(true, true, false);
 	bDirtiedSelectionSet = true;
 }
 
-void UGlobalEditorUtilityBase::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
+void UDEPRECATED_GlobalEditorUtilityBase::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
 	bDirtiedSelectionSet = true;
 }
 
-void UGlobalEditorUtilityBase::PostExecutionCleanup()
+void UDEPRECATED_GlobalEditorUtilityBase::PostExecutionCleanup()
 {
 	if (bDirtiedSelectionSet)
 	{
@@ -157,7 +157,7 @@ void UGlobalEditorUtilityBase::PostExecutionCleanup()
 	OnEachSelectedAsset.Clear();
 }
 
-void UGlobalEditorUtilityBase::ExecuteDefaultAction()
+void UDEPRECATED_GlobalEditorUtilityBase::ExecuteDefaultAction()
 {
 	check(bAutoRunDefaultAction);
 
@@ -168,7 +168,7 @@ void UGlobalEditorUtilityBase::ExecuteDefaultAction()
 	PostExecutionCleanup();
 }
 
-void UGlobalEditorUtilityBase::RenameAsset(UObject* Asset, const FString& NewName)
+void UDEPRECATED_GlobalEditorUtilityBase::RenameAsset(UObject* Asset, const FString& NewName)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 
@@ -179,7 +179,7 @@ void UGlobalEditorUtilityBase::RenameAsset(UObject* Asset, const FString& NewNam
 	AssetToolsModule.Get().RenameAssetsWithDialog(AssetsAndNames);
 }
 
-AActor* UGlobalEditorUtilityBase::GetActorReference(FString PathToActor)
+AActor* UDEPRECATED_GlobalEditorUtilityBase::GetActorReference(FString PathToActor)
 {
 #if WITH_EDITOR
 	return Cast<AActor>(StaticFindObject(AActor::StaticClass(), GEditor->GetEditorWorldContext().World(), *PathToActor, false));
