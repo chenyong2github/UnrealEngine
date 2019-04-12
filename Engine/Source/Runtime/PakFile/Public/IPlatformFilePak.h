@@ -34,6 +34,7 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
+PAKFILE_API FString ChunkHashToString(const TPakChunkHash& InHash);
 
 struct FPakChunkSignatureCheckFailedData
 {

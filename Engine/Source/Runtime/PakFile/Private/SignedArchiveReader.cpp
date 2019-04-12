@@ -244,7 +244,7 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 	bool bChunkHashesMatch = (ChunkHash == Signatures.ChunkHashes[ChunkInfo.Index]);
 	if (!bChunkHashesMatch)
 	{
-		UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), ChunkInfo.Index, Signatures.ChunkHashes.Num(), *LexToString(Signatures.ChunkHashes[ChunkInfo.Index]), *LexToString(ChunkHash));
+		UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected %s, Received %s"), ChunkInfo.Index, Signatures.ChunkHashes.Num(), *ChunkHashToString(Signatures.ChunkHashes[ChunkInfo.Index]), *ChunkHashToString(ChunkHash));
 
 		if (Signatures.DecryptedHash != Signatures.ComputeCurrentMasterHash())
 		{

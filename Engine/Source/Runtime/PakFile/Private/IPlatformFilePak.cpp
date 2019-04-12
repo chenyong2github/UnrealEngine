@@ -158,6 +158,15 @@ TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes)
 #endif
 }
 
+FString ChunkHashToString(const TPakChunkHash& InHash)
+{
+#if PAKHASH_USE_CRC
+	return FString::Printf(TEXT("%08X"), InHash);
+#else
+	return LexToString(InHash);
+#endif
+}
+
 #ifndef EXCLUDE_NONPAK_UE_EXTENSIONS
 #define EXCLUDE_NONPAK_UE_EXTENSIONS 1	// Use .Build.cs file to disable this if the game relies on accessing loose files
 #endif
@@ -3180,7 +3189,7 @@ void FPakPrecacher::DoSignatureCheck(bool bWasCanceled, IAsyncReadRequest* Reque
 				FScopeLock Lock(&CachedFilesScopeLock);
 				FPakData* PakData = &CachedPakData[PakIndex];
 
-				UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), SignatureIndex, PakData->Signatures.ChunkHashes.Num(), *LexToString(PakData->Signatures.ChunkHashes[SignatureIndex]), *LexToString(ThisHash));
+				UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected %s, Received %s"), SignatureIndex, PakData->Signatures.ChunkHashes.Num(), *ChunkHashToString(PakData->Signatures.ChunkHashes[SignatureIndex]), *ChunkHashToString(ThisHash));
 
 				// Check the signatures are still as we expected them
 				if (PakData->Signatures.DecryptedHash != PakData->Signatures.ComputeCurrentMasterHash())
