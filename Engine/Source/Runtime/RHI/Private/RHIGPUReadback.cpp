@@ -112,7 +112,8 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FTextureRH
 		{
 			FIntVector TextureSize = SourceTexture->GetSizeXYZ();
 
-			FRHIResourceCreateInfo CreateInfo(*Fence->GetFName().ToString());
+			FString FenceName = Fence->GetFName().ToString();
+			FRHIResourceCreateInfo CreateInfo(*FenceName);
 			DestinationStagingBuffer = RHICreateTexture2D(TextureSize.X, TextureSize.Y, SourceTexture->GetFormat(), 1, 1, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, CreateInfo);
 		}
 
