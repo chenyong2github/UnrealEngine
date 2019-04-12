@@ -307,6 +307,10 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FTextur
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FIndexBufferRHIParamRef IndexBufferRHI)
 {
+	if (!IndexBufferRHI)
+	{
+		return new FVulkanShaderResourceView(Device, nullptr, nullptr, 0, PF_R16_UINT);
+	}
 	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 	check(IndexBufferRHI->GetStride() == 2 || IndexBufferRHI->GetStride() == 4);
 	EPixelFormat Format = (IndexBufferRHI->GetStride() == 4) ? PF_R32_UINT : PF_R16_UINT;
@@ -326,6 +330,21 @@ void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamR
 	{
 		FVulkanVertexBuffer* VertexBufferVk = ResourceCast(VertexBuffer);
 		SRVVk->Rename(VertexBuffer, VertexBufferVk, VertexBufferVk->GetSize(), (EPixelFormat)Format);
+	}
+}
+
+void FVulkanDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+{
+	FVulkanShaderResourceView* SRVVk = ResourceCast(SRV);
+	check(SRVVk && SRVVk->GetParent() == Device);
+	if (!IndexBuffer)
+	{
+		SRVVk->Clear();
+	}
+	else if (SRVVk->SourceRHIBuffer.GetReference() != IndexBuffer)
+	{
+		FVulkanIndexBuffer* IndexBufferVk = ResourceCast(IndexBuffer);
+		SRVVk->Rename(IndexBuffer, IndexBufferVk, IndexBufferVk->GetSize(), IndexBufferVk->GetStride() == 2u ? PF_R16_UINT : PF_R32_UINT);
 	}
 }
 
