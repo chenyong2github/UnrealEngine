@@ -353,13 +353,17 @@ static FORCEINLINE_DEBUGGABLE VectorRegister DecompressSingleTrackRotationVector
  * @param	Offset				The starting offset into the compressed byte stream for this track (can be INDEX_NONE to indicate an identity track)
  */
 template<class TArchive>
-void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset)
+void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset, bool bMaintainComponentOrder)
 {
 	// Translation data.
 	if (Offset != INDEX_NONE)
 	{
 		checkSlow( (Offset % 4) == 0 && "CompressedByteStream not aligned to four bytes" );
 
+		if (bMaintainComponentOrder)
+		{
+			MemoryStream.Seek(Offset);
+		}
 		uint8* TrackData = Seq.CompressedByteStream.GetData() + Offset;
 
 		// Read the header
@@ -412,8 +416,8 @@ void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive&
 	}
 }
 
-template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryReader& MemoryStream, int32 Offset);
-template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryWriter& MemoryStream, int32 Offset);
+template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryReader& MemoryStream, int32 Offset, bool bMaintainComponentOrder);
+template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryWriter& MemoryStream, int32 Offset, bool bMaintainComponentOrder);
 
 
 /**
@@ -442,134 +446,6 @@ void AEFPerTrackCompressionCodec::PreservePadding(uint8*& TrackData, FMemoryArch
 		MemoryStream.Serialize(TrackData, PadCount);
 		TrackData += PadCount;
 	}
-}
-
-bool AEFPerTrackCompressionCodec::CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize)
-{
-	bool bHasValidScale = Seq.CompressedScaleOffsets.IsValid();
-	if (Seq.CompressedSegments.Num() != 0 || !bHasValidScale)
-	{
-		return true;
-	}
-	const int32 NumTracks = Seq.CompressedTrackOffsets.Num() / 2;
-	bool bIsBackwards = false;
-	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
-	{
-		const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-		const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex * 2 + 0];
-		const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex * 2 + 1];
-		if (OffsetTrans > OffsetScale || OffsetRot > OffsetScale)
-		{
-			bIsBackwards = true;
-			check(OffsetRot < 0 || OffsetTrans < OffsetRot); // trans first
-		}
-		else
-		{
-			check(!bIsBackwards || (OffsetTrans < 0 && OffsetRot < 0) || (OffsetScale < 0)); // if one is backwards, they all are (or they are neither backwards nor forwards)
-		}
-	}
-	if (bIsBackwards)
-	{
-		int32 Offset = 0;
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
-		{
-			int32 TotalTrackSize = -1;
-
-			for (int32 Next = TrackIndex + 1; Next < NumTracks; Next++)
-			{
-				const int32 OffsetScaleNext = Seq.CompressedScaleOffsets.GetOffsetData(Next, 0);
-				const int32 OffsetTransNext = Seq.CompressedTrackOffsets[Next * 2 + 0];
-				const int32 OffsetRotNext = Seq.CompressedTrackOffsets[Next * 2 + 1];
-				if (OffsetScaleNext >= 0)
-				{
-					TotalTrackSize = OffsetScaleNext - Offset;
-					break;
-				}
-				if (OffsetTransNext >= 0)
-				{
-					TotalTrackSize = OffsetTransNext - Offset;
-					break;
-				}
-				if (OffsetRotNext >= 0)
-				{
-					TotalTrackSize = OffsetRotNext - Offset;
-					break;
-				}
-			}
-			if (TotalTrackSize == -1)
-			{
-				TotalTrackSize = TotalSize - Offset;
-			}
-			if (TotalTrackSize == 0)
-			{
-				continue; // no data for this track at all, nothing to do
-			}
-
-
-			const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-			const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex * 2 + 0];
-			const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex * 2 + 1];
-
-
-
-			int32 ScaleSize = 0;
-			if (OffsetScale >= 0)
-			{
-				if (OffsetTrans >= 0)
-				{
-					ScaleSize = OffsetTrans - OffsetScale;
-				}
-				else if (OffsetRot >= 0)
-				{
-					ScaleSize = OffsetRot - OffsetScale;
-				}
-				else
-				{
-					ScaleSize = TotalTrackSize;
-				}
-				check(ScaleSize > 0);
-			}
-
-			int32 TransSize = 0;
-			if (OffsetTrans >= 0)
-			{
-				if (OffsetRot >= 0)
-				{
-					TransSize = OffsetRot - OffsetTrans;
-				}
-				else
-				{
-					TransSize = TotalTrackSize - ScaleSize;
-				}
-				check(TransSize > 0);
-			}
-			int32 RotSize = 0;
-			if (OffsetRot >= 0)
-			{
-				RotSize = TotalTrackSize - TransSize - ScaleSize;
-				check(RotSize > 0);
-			}
-
-			if (OffsetTrans >= 0)
-			{
-				Seq.CompressedTrackOffsets[TrackIndex * 2 + 0] = Offset;
-				Offset += TransSize;
-			}
-			if (OffsetRot >= 0)
-			{
-				Seq.CompressedTrackOffsets[TrackIndex * 2 + 1] = Offset;
-				Offset += RotSize;
-			}
-			if (OffsetScale >= 0)
-			{
-				Seq.CompressedScaleOffsets.SetOffsetData(TrackIndex, 0, Offset);
-				Offset += ScaleSize;
-			}
-
-		}
-		check(Offset == TotalSize);
-	}
-	return true;
 }
 
 /**
@@ -626,7 +502,8 @@ void AEFPerTrackCompressionCodec::ByteSwapIn(
 void AEFPerTrackCompressionCodec::ByteSwapOut(
 	UAnimSequence& Seq,
 	TArray<uint8>& SerializedData, 
-	bool ForceByteSwapping)
+	bool ForceByteSwapping,
+	bool bMaintainComponentOrder)
 {
 	FMemoryWriter MemoryWriter(SerializedData, true);
 	MemoryWriter.SetByteSwapping(ForceByteSwapping);
@@ -643,14 +520,15 @@ void AEFPerTrackCompressionCodec::ByteSwapOut(
 	for ( int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex )
 	{
 		const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex*2+0];
-		ByteSwapOneTrack(Seq, MemoryWriter, OffsetTrans);
+		ByteSwapOneTrack(Seq, MemoryWriter, OffsetTrans, bMaintainComponentOrder);
 
 		const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex*2+1];
-		ByteSwapOneTrack(Seq, MemoryWriter, OffsetRot);
+		ByteSwapOneTrack(Seq, MemoryWriter, OffsetRot, bMaintainComponentOrder);
+
 		if (bHasScaleData)
 		{
 			const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-			ByteSwapOneTrack(Seq, MemoryWriter, OffsetScale);
+			ByteSwapOneTrack(Seq, MemoryWriter, OffsetScale, bMaintainComponentOrder);
 		}
 	}
 }

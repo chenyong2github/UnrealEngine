@@ -26,8 +26,6 @@ public:
 	 */
 	virtual void ByteSwapIn(UAnimSequence& Seq, FMemoryReader& MemoryReader) override;
 
-	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize) override;
-
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
@@ -38,7 +36,8 @@ public:
 	virtual void ByteSwapOut(
 		UAnimSequence& Seq,
 		TArray<uint8>& SerializedData, 
-		bool ForceByteSwapping) override;
+		bool ForceByteSwapping,
+		bool bMaintainComponentOrder=false) override;
 
 	/**
 	 * Extracts a single BoneAtom from an Animation Sequence.
@@ -103,9 +102,10 @@ protected:
 	 * @param	Seq					The Animation Sequence being operated on.
 	 * @param	MemoryStream		The MemoryReader or MemoryWriter object to read from/write to.
 	 * @param	Offset				The starting offset into the compressed byte stream for this track (can be INDEX_NONE to indicate an identity track)
+	 * @param	bMaintainComponentOrder Should we maintain the order of track components (trans/rot/scale) in the byte stream (if false the output will always be T/R/S regardless of input order)
 	 */
 	template<class TArchive>
-	static void ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset);
+	static void ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset, bool bMaintainComponentOrder = false);
 
 	/**
 	 * Preserves 4 byte alignment within a stream
