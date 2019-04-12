@@ -675,7 +675,7 @@ void SFoliagePalette::OnSearchTextChanged(const FText& InFilterText)
 TSharedRef<SWidget> SFoliagePalette::GetAddFoliageTypePicker()
 {
 	TArray<const UClass*> ClassFilters;
-	ClassFilters.Add(UFoliageType_InstancedStaticMesh::StaticClass());
+	ClassFilters.Add(UFoliageType::StaticClass());
 
 	return PropertyCustomizationHelpers::MakeAssetPickerWithMenu(FAssetData(),
 		false,
@@ -1129,7 +1129,7 @@ void SFoliagePalette::OnShowFoliageTypeInCB()
 		}
 		else
 		{
-			SelectedAssets.Add(FoliageType->GetStaticMesh());
+			SelectedAssets.Add(FoliageType->GetSource());
 		}
 	}
 

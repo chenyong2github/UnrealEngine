@@ -3092,7 +3092,7 @@ TArray<UFoliageType*> UEditorEngine::GetFoliageTypesInWorld(UWorld* InWorld)
 	// Iterate over all foliage actors in the world
 	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
-		for (const auto& Pair : It->FoliageMeshes)
+		for (const auto& Pair : It->FoliageInfos)
 		{
 			FoliageSet.Add(Pair.Key);
 		}

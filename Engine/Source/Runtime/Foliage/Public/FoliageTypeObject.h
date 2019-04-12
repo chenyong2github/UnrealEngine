@@ -22,10 +22,10 @@ struct FOLIAGE_API FFoliageTypeObject
 	void RefreshInstance();
 
 	/** Gets the instance of this foliage type. Creates the instance if needed. */
-	const UFoliageType_InstancedStaticMesh* GetInstance();
+	const UFoliageType* GetInstance();
 
 	/** Gets the instance of this foliage type. */
-	const UFoliageType_InstancedStaticMesh* GetInstance() const;
+	const UFoliageType* GetInstance() const;
 
 	/** @return Whether this would return a valid instance */
 	bool ContainsValidInstance() const;
@@ -40,12 +40,12 @@ struct FOLIAGE_API FFoliageTypeObject
 
 private:
 	/** The foliage type that will be spawned by the procedural foliage simulation */
-	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere, meta=(AllowedClasses="FoliageType_InstancedStaticMesh,Blueprint", DisplayThumbnail="true", ThumbnailSize="X=40 Y=40"))
+	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere, meta=(AllowedClasses="FoliageType_InstancedStaticMesh,FoliageType_Actor,Blueprint", DisplayThumbnail="true", ThumbnailSize="X=40 Y=40"))
 	UObject* FoliageTypeObject;
 
 	/** The actual instance of the foliage type that is used for spawning */
 	UPROPERTY(transient)
-	UFoliageType_InstancedStaticMesh* TypeInstance;
+	UFoliageType* TypeInstance;
 
 	/** Whether this contains an asset object (as opposed to a BP class) */
 	UPROPERTY()

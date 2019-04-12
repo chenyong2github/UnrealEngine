@@ -472,6 +472,10 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	Actor->SpawnCollisionHandlingMethod = CollisionHandlingMethod;
 
 #if WITH_EDITOR
+	if (SpawnParameters.bHideFromSceneOutliner)
+	{
+		FSetActorHiddenInSceneOutliner SetActorHidden(Actor);
+	}
 	Actor->bIsEditorPreviewActor = SpawnParameters.bTemporaryEditorActor;
 #endif //WITH_EDITOR
 
