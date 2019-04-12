@@ -185,6 +185,8 @@ enum ECompilerFlags
 	// Check GRHISupportsWaveOperations before using shaders compiled with this flag at runtime.
 	// https://github.com/Microsoft/DirectXShaderCompiler/wiki/Wave-Intrinsics
 	CFLAG_WaveOperations,
+	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
+	CFLAG_ForceDXC,
 };
 
 enum class EShaderParameterType : uint8

@@ -113,7 +113,7 @@ static uint32 GetAutoBindingSpace(const FShaderTarget& Target)
 }
 
 // @return 0 if not recognized
-static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bUseWaveOperations)
+static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 {
 	if(Target.Platform == SP_PCD3D_SM5)
 	{
@@ -124,17 +124,17 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bUseWaveOper
 			checkfSlow(false, TEXT("Unexpected shader frequency"));
 			return nullptr;
 		case SF_Pixel:
-			return bUseWaveOperations ? TEXT("ps_6_0") : TEXT("ps_5_0");
+			return bForceSM6 ? TEXT("ps_6_0") : TEXT("ps_5_0");
 		case SF_Vertex:
-			return bUseWaveOperations ? TEXT("vs_6_0") : TEXT("vs_5_0");
+			return bForceSM6 ? TEXT("vs_6_0") : TEXT("vs_5_0");
 		case SF_Hull:
-			return bUseWaveOperations ? TEXT("hs_6_0") : TEXT("hs_5_0");
+			return bForceSM6 ? TEXT("hs_6_0") : TEXT("hs_5_0");
 		case SF_Domain:
-			return bUseWaveOperations ? TEXT("ds_6_0") : TEXT("ds_5_0");
+			return bForceSM6 ? TEXT("ds_6_0") : TEXT("ds_5_0");
 		case SF_Geometry:
-			return bUseWaveOperations ? TEXT("gs_6_0") : TEXT("gs_5_0");
+			return bForceSM6 ? TEXT("gs_6_0") : TEXT("gs_5_0");
 		case SF_Compute:
-			return bUseWaveOperations ? TEXT("cs_6_0") : TEXT("cs_5_0");
+			return bForceSM6 ? TEXT("cs_6_0") : TEXT("cs_5_0");
 		case SF_RayGen:
 		case SF_RayMiss:
 		case SF_RayHitGroup:
@@ -893,7 +893,9 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
 	const bool bIsRayTracingShader = IsRayTracingShader(Input.Target);
-	const bool bUseDXC = bIsRayTracingShader || Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations);
+	const bool bUseDXC = bIsRayTracingShader
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const uint32 AutoBindingSpace = GetAutoBindingSpace(Input.Target);
 
@@ -1521,7 +1523,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 	FString PreprocessedShaderSource;
 	FString CompilerPath;
 	const bool bUseWaveOperations = Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations); // Forces shader model 6.0 for this shader
-	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseWaveOperations);
+	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseWaveOperations || bForceDXC);
 
 	if(!ShaderProfile)
 	{
@@ -1532,7 +1535,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 	// Set additional defines.
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSL"), 1);
 
-	if (bUseWaveOperations)
+	if (bUseWaveOperations || bForceDXC)
 	{
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS"), 1);
 	}

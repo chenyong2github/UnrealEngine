@@ -236,6 +236,14 @@ static TAutoConsoleVariable<int32> CVarD3DRemoveUnusedInterpolators(
 	ECVF_ReadOnly
 	);
 
+static TAutoConsoleVariable<int32> CVarD3DForceDXC(
+	TEXT("r.D3D.ForceDXC"),
+	0,
+	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all D3D shaders. Shaders compiled with this option are only compatible with D3D12.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Force new compiler for all shaders"),
+	ECVF_ReadOnly);
+
 int32 GCreateShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("r.CreateShadersOnLoad"),
@@ -3106,10 +3114,19 @@ void GlobalBeginCompileShader(
 
 	if (IsD3DPlatform((EShaderPlatform)Target.Platform, false))
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
-		if (CVar && CVar->GetInt() != 0)
 		{
-			Input.Environment.CompilerFlags.Add(CFLAG_ForceRemoveUnusedInterpolators);
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_ForceRemoveUnusedInterpolators);
+			}
+		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
+			}
 		}
 	}
 
