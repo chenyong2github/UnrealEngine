@@ -28,4 +28,8 @@ typedef FMacErrorReport FPlatformErrorReport;
 
 typedef FIOSErrorReport FPlatformErrorReport;
 
+#else
+
+typedef FGenericErrorReport FPlatformErrorReport;
+
 #endif // PLATFORM_LINUX

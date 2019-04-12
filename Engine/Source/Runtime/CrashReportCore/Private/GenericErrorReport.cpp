@@ -10,9 +10,12 @@
 #include "Internationalization/Text.h"
 #include "CrashReportCoreConfig.h"
 #include "Modules/ModuleManager.h"
+#include "CrashReportUtil.h"
+
+#if WITH_CRASHREPORTER
 #include "CrashDebugHelper.h"
 #include "CrashDebugHelperModule.h"
-#include "CrashReportUtil.h"
+#endif
 
 // ----------------------------------------------------------------
 // Helpers
@@ -172,6 +175,7 @@ bool FGenericErrorReport::SetUserComment(const FText& UserComment)
 
 void FGenericErrorReport::SetPrimaryCrashProperties( FPrimaryCrashProperties& out_PrimaryCrashProperties )
 {
+#if WITH_CRASHREPORTER
 	FCrashDebugHelperModule& CrashHelperModule = FModuleManager::LoadModuleChecked<FCrashDebugHelperModule>( FName( "CrashDebugHelper" ) );
 	ICrashDebugHelper* Helper = CrashHelperModule.Get();
 	if (Helper && bValidCallstack)
@@ -197,6 +201,7 @@ void FGenericErrorReport::SetPrimaryCrashProperties( FPrimaryCrashProperties& ou
 
 		out_PrimaryCrashProperties.Save();
 	}
+#endif
 }
 
 void FGenericErrorReport::SetCrashReportClientVersion(const FString& InVersion)
