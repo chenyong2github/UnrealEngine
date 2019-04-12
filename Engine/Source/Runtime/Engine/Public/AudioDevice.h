@@ -319,12 +319,18 @@ struct FAttenuationListenerData
 	FTransform ListenerTransform;
 	float AttenuationDistance;
 	float ListenerToSoundDistance;
+	
+	// (AudioMixer only)
+	// Non-attenuation distance for calculating surround sound speaker maps for sources w/ spread
+	float ListenerToSoundDistanceForPanning;
+
 	bool bDataComputed;
 
 	FAttenuationListenerData()
 		: ListenerToSoundDir(FVector::ZeroVector)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
+		, ListenerToSoundDistanceForPanning(0.0f)
 		, bDataComputed(false)
 	{}
 };
