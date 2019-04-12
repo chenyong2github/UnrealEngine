@@ -22,9 +22,8 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
-namespace spirv_cross
+namespace SPIRV_CROSS_NAMESPACE
 {
 
 // Indicates the format of the vertex attribute. Currently limited to specifying
@@ -527,9 +526,9 @@ protected:
 	std::unordered_map<MSLStructMemberKey, uint32_t> struct_member_padding;
 	std::set<std::string> pragma_lines;
 	std::set<std::string> typedef_lines;
-	std::vector<uint32_t> vars_needing_early_declaration;
+	SmallVector<uint32_t> vars_needing_early_declaration;
 
-	std::vector<std::pair<MSLResourceBinding, bool>> resource_bindings;
+	SmallVector<std::pair<MSLResourceBinding, bool>> resource_bindings;
 	uint32_t next_metal_resource_index_buffer = 0;
 	uint32_t next_metal_resource_index_texture = 0;
 	uint32_t next_metal_resource_index_sampler = 0;
@@ -569,10 +568,10 @@ protected:
 	spv::Op previous_instruction_opcode = spv::OpNop;
 
 	std::unordered_map<uint32_t, MSLConstexprSampler> constexpr_samplers;
-	std::vector<uint32_t> buffer_arrays;
-	/* UE Change Begin: Emulate texture2D atomic operations */
-	std::set<SPIRVariable *> atomic_vars;
-	/* UE Change End: Emulate texture2D atomic operations */
+    SmallVector<uint32_t> buffer_arrays;
+    /* UE Change Begin: Emulate texture2D atomic operations */
+    std::set<SPIRVariable *> atomic_vars;
+    /* UE Change End: Emulate texture2D atomic operations */
 
 	uint32_t argument_buffer_ids[kMaxArgumentBuffers];
 	uint32_t argument_buffer_discrete_mask = 0;
@@ -581,6 +580,8 @@ protected:
 
 	uint32_t get_target_components_for_fragment_location(uint32_t location) const;
 	uint32_t build_extended_vector_type(uint32_t type_id, uint32_t components);
+
+	bool suppress_missing_prototypes = false;
 
 	// OpcodeHandler that handles several MSL preprocessing operations.
 	struct OpCodePreprocessor : OpcodeHandler
@@ -640,6 +641,6 @@ protected:
 		SortAspect sort_aspect;
 	};
 };
-} // namespace spirv_cross
+} // namespace SPIRV_CROSS_NAMESPACE
 
 #endif

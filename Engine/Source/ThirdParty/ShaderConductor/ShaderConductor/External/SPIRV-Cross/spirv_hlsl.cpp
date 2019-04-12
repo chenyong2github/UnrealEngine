@@ -20,7 +20,7 @@
 #include <assert.h>
 
 using namespace spv;
-using namespace spirv_cross;
+using namespace SPIRV_CROSS_NAMESPACE;
 using namespace std;
 
 static unsigned image_format_to_components(ImageFormat fmt)
@@ -1210,8 +1210,8 @@ void CompilerHLSL::emit_resources()
 	require_output = false;
 	unordered_set<uint32_t> active_inputs;
 	unordered_set<uint32_t> active_outputs;
-	vector<SPIRVariable *> input_variables;
-	vector<SPIRVariable *> output_variables;
+	SmallVector<SPIRVariable *> input_variables;
+	SmallVector<SPIRVariable *> output_variables;
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
 		auto &type = this->get<SPIRType>(var.basetype);
 		bool block = ir.meta[type.self].decoration.decoration_flags.get(DecorationBlock);
@@ -2024,7 +2024,7 @@ void CompilerHLSL::emit_function_prototype(SPIRFunction &func, const Bitset &ret
 		decl += to_name(func.self);
 
 	decl += "(";
-	vector<string> arglist;
+	SmallVector<string> arglist;
 
 	if (!type.array.empty())
 	{
@@ -2092,7 +2092,7 @@ void CompilerHLSL::emit_function_prototype(SPIRFunction &func, const Bitset &ret
 
 void CompilerHLSL::emit_hlsl_entry_point()
 {
-	vector<string> arguments;
+	SmallVector<string> arguments;
 
 	if (require_input)
 		arguments.push_back("SPIRV_Cross_Input stage_input");
@@ -2425,7 +2425,7 @@ void CompilerHLSL::emit_texture_op(const Instruction &i)
 	auto op = static_cast<Op>(i.op);
 	uint32_t length = i.length;
 
-	vector<uint32_t> inherited_expressions;
+	SmallVector<uint32_t> inherited_expressions;
 
 	uint32_t result_type = ops[0];
 	uint32_t id = ops[1];
@@ -2716,7 +2716,8 @@ void CompilerHLSL::emit_texture_op(const Instruction &i)
 
 	// The IR can give us more components than we need, so chop them off as needed.
 	string coord_expr;
-	if (coord_components != expression_type(coord).vecsize)
+	auto &coord_type = expression_type(coord);
+	if (coord_components != coord_type.vecsize)
 		coord_expr = to_enclosed_expression(coord) + swizzle(coord_components, expression_type(coord).vecsize);
 	else
 		coord_expr = to_expression(coord);
@@ -2726,9 +2727,8 @@ void CompilerHLSL::emit_texture_op(const Instruction &i)
 
 	if (hlsl_options.shader_model < 40 && lod)
 	{
-		auto &coordtype = expression_type(coord);
 		string coord_filler;
-		for (uint32_t size = coordtype.vecsize; size < 3; ++size)
+		for (uint32_t size = coord_components; size < 3; ++size)
 		{
 			coord_filler += ", 0.0";
 		}
@@ -2737,9 +2737,8 @@ void CompilerHLSL::emit_texture_op(const Instruction &i)
 
 	if (hlsl_options.shader_model < 40 && bias)
 	{
-		auto &coordtype = expression_type(coord);
 		string coord_filler;
-		for (uint32_t size = coordtype.vecsize; size < 3; ++size)
+		for (uint32_t size = coord_components; size < 3; ++size)
 		{
 			coord_filler += ", 0.0";
 		}
@@ -2748,10 +2747,9 @@ void CompilerHLSL::emit_texture_op(const Instruction &i)
 
 	if (op == OpImageFetch)
 	{
-		auto &coordtype = expression_type(coord);
 		if (imgtype.image.dim != DimBuffer && !imgtype.image.ms)
 			coord_expr =
-			    join("int", coordtype.vecsize + 1, "(", coord_expr, ", ", lod ? to_expression(lod) : string("0"), ")");
+			    join("int", coord_components + 1, "(", coord_expr, ", ", lod ? to_expression(lod) : string("0"), ")");
 	}
 	else
 		expr += ", ";
@@ -3030,7 +3028,7 @@ string CompilerHLSL::bitcast_glsl_op(const SPIRType &out_type, const SPIRType &i
 		if (!requires_explicit_fp16_packing)
 		{
 			requires_explicit_fp16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		return "SPIRV_Cross_unpackFloat2x16";
 	}
@@ -3039,7 +3037,7 @@ string CompilerHLSL::bitcast_glsl_op(const SPIRType &out_type, const SPIRType &i
 		if (!requires_explicit_fp16_packing)
 		{
 			requires_explicit_fp16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		return "SPIRV_Cross_packFloat2x16";
 	}
@@ -3049,7 +3047,12 @@ string CompilerHLSL::bitcast_glsl_op(const SPIRType &out_type, const SPIRType &i
 
 void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop, const uint32_t *args, uint32_t count)
 {
-	GLSLstd450 op = static_cast<GLSLstd450>(eop);
+	auto op = static_cast<GLSLstd450>(eop);
+
+	// If we need to do implicit bitcasts, make sure we do it with the correct type.
+	uint32_t integer_width = get_integer_width_for_glsl_instruction(op, args, count);
+	auto int_type = to_signed_basetype(integer_width);
+	auto uint_type = to_unsigned_basetype(integer_width);
 
 	switch (op)
 	{
@@ -3096,7 +3099,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_fp16_packing)
 		{
 			requires_fp16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_packHalf2x16");
 		break;
@@ -3105,7 +3108,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_fp16_packing)
 		{
 			requires_fp16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_unpackHalf2x16");
 		break;
@@ -3114,7 +3117,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_snorm8_packing)
 		{
 			requires_snorm8_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_packSnorm4x8");
 		break;
@@ -3123,7 +3126,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_snorm8_packing)
 		{
 			requires_snorm8_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_unpackSnorm4x8");
 		break;
@@ -3132,7 +3135,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_unorm8_packing)
 		{
 			requires_unorm8_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_packUnorm4x8");
 		break;
@@ -3141,7 +3144,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_unorm8_packing)
 		{
 			requires_unorm8_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_unpackUnorm4x8");
 		break;
@@ -3150,7 +3153,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_snorm16_packing)
 		{
 			requires_snorm16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_packSnorm2x16");
 		break;
@@ -3159,7 +3162,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_snorm16_packing)
 		{
 			requires_snorm16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_unpackSnorm2x16");
 		break;
@@ -3168,7 +3171,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_unorm16_packing)
 		{
 			requires_unorm16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_packUnorm2x16");
 		break;
@@ -3177,7 +3180,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 		if (!requires_unorm16_packing)
 		{
 			requires_unorm16_packing = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_unpackUnorm2x16");
 		break;
@@ -3189,9 +3192,13 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 	case GLSLstd450FindILsb:
 		emit_unary_func_op(result_type, id, args[0], "firstbitlow");
 		break;
+
 	case GLSLstd450FindSMsb:
+		emit_unary_func_op_cast(result_type, id, args[0], "firstbithigh", int_type, int_type);
+		break;
+
 	case GLSLstd450FindUMsb:
-		emit_unary_func_op(result_type, id, args[0], "firstbithigh");
+		emit_unary_func_op_cast(result_type, id, args[0], "firstbithigh", uint_type, uint_type);
 		break;
 
 	case GLSLstd450MatrixInverse:
@@ -3202,7 +3209,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 			if (!requires_inverse_2x2)
 			{
 				requires_inverse_2x2 = true;
-				force_recompile = true;
+				force_recompile();
 			}
 		}
 		else if (type.vecsize == 3 && type.columns == 3)
@@ -3210,7 +3217,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 			if (!requires_inverse_3x3)
 			{
 				requires_inverse_3x3 = true;
-				force_recompile = true;
+				force_recompile();
 			}
 		}
 		else if (type.vecsize == 4 && type.columns == 4)
@@ -3218,7 +3225,7 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 			if (!requires_inverse_4x4)
 			{
 				requires_inverse_4x4 = true;
-				force_recompile = true;
+				force_recompile();
 			}
 		}
 		emit_unary_func_op(result_type, id, args[0], "SPIRV_Cross_Inverse");
@@ -3940,7 +3947,7 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 		if (!requires_op_fmod)
 		{
 			requires_op_fmod = true;
-			force_recompile = true;
+			force_recompile();
 		}
 		CompilerGLSL::emit_instruction(instruction);
 		break;
@@ -4455,7 +4462,7 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 		if (!requires_bitfield_insert)
 		{
 			requires_bitfield_insert = true;
-			force_recompile = true;
+			force_recompile();
 		}
 
 		auto expr = join("SPIRV_Cross_bitfieldInsert(", to_expression(ops[2]), ", ", to_expression(ops[3]), ", ",
@@ -4476,7 +4483,7 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 		if (!requires_bitfield_extract)
 		{
 			requires_bitfield_extract = true;
-			force_recompile = true;
+			force_recompile();
 		}
 
 		if (opcode == OpBitFieldSExtract)
@@ -4553,12 +4560,12 @@ void CompilerHLSL::require_texture_query_variant(const SPIRType &type)
 	uint64_t mask = 1ull << bit;
 	if ((required_textureSizeVariants & mask) == 0)
 	{
-		force_recompile = true;
+		force_recompile();
 		required_textureSizeVariants |= mask;
 	}
 }
 
-void CompilerHLSL::set_root_constant_layouts(vector<RootConstants> layout)
+void CompilerHLSL::set_root_constant_layouts(std::vector<RootConstants> layout)
 {
 	root_constants_layout = move(layout);
 }
@@ -4624,7 +4631,7 @@ string CompilerHLSL::compile()
 	backend.double_literal_suffix = false;
 	backend.long_long_literal_suffix = true;
 	backend.uint32_t_literal_suffix = true;
-	backend.int16_t_literal_suffix = nullptr;
+	backend.int16_t_literal_suffix = "";
 	backend.uint16_t_literal_suffix = "u";
 	backend.basic_int_type = "int";
 	backend.basic_uint_type = "uint";
@@ -4657,7 +4664,7 @@ string CompilerHLSL::compile()
 		reset();
 
 		// Move constructor for this type is broken on GCC 4.9 ...
-		buffer = unique_ptr<ostringstream>(new ostringstream());
+		buffer.reset();
 
 		emit_header();
 		emit_resources();
@@ -4666,12 +4673,12 @@ string CompilerHLSL::compile()
 		emit_hlsl_entry_point();
 
 		pass_count++;
-	} while (force_recompile);
+	} while (is_forcing_recompilation());
 
 	// Entry point in HLSL is always main() for the time being.
 	get_entry_point().name = "main";
 
-	return buffer->str();
+	return buffer.str();
 }
 
 void CompilerHLSL::emit_block_hints(const SPIRBlock &block)

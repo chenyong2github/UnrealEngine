@@ -22,7 +22,7 @@
 #include <numeric>
 
 using namespace spv;
-using namespace spirv_cross;
+using namespace SPIRV_CROSS_NAMESPACE;
 using namespace std;
 
 static const uint32_t k_unknown_location = ~0u;
@@ -30,7 +30,7 @@ static const uint32_t k_unknown_component = ~0u;
 
 static const uint32_t k_aux_mbr_idx_swizzle_const = 0u;
 
-CompilerMSL::CompilerMSL(vector<uint32_t> spirv_)
+CompilerMSL::CompilerMSL(std::vector<uint32_t> spirv_)
     : CompilerGLSL(move(spirv_))
 {
 }
@@ -427,7 +427,7 @@ void CompilerMSL::emit_entry_point_declarations()
 		if (type.basetype == SPIRType::Sampler)
 			add_resource_name(samp.first);
 
-		vector<string> args;
+		SmallVector<string> args;
 		auto &s = samp.second;
 
 		if (s.coord != MSL_SAMPLER_COORD_NORMALIZED)
@@ -567,7 +567,7 @@ string CompilerMSL::compile()
 	backend.null_pointer_literal = "nullptr";
 	backend.float_literal_suffix = false;
 	backend.uint32_t_literal_suffix = true;
-	backend.int16_t_literal_suffix = nullptr;
+	backend.int16_t_literal_suffix = "";
 	backend.uint16_t_literal_suffix = "u";
 	backend.basic_int_type = "int";
 	backend.basic_uint_type = "uint";
@@ -665,7 +665,7 @@ string CompilerMSL::compile()
 		next_metal_resource_index_sampler = 0;
 
 		// Move constructor for this type is broken on GCC 4.9 ...
-		buffer = unique_ptr<ostringstream>(new ostringstream());
+		buffer.reset();
 
 		emit_header();
 		emit_specialization_constants_and_structs();
@@ -674,9 +674,9 @@ string CompilerMSL::compile()
 		emit_function(get<SPIRFunction>(ir.default_entry_point), Bitset());
 
 		pass_count++;
-	} while (force_recompile);
+	} while (is_forcing_recompilation());
 
-	return buffer->str();
+	return buffer.str();
 }
 
 // Register the need to output any custom functions.
@@ -685,14 +685,13 @@ void CompilerMSL::preprocess_op_codes()
 	OpCodePreprocessor preproc(*this);
 	traverse_all_reachable_opcodes(get<SPIRFunction>(ir.default_entry_point), preproc);
 
-	if (preproc.suppress_missing_prototypes)
-		add_pragma_line("#pragma clang diagnostic ignored \"-Wmissing-prototypes\"");
-
-	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
-	add_pragma_line("#pragma clang diagnostic ignored \"-Wmissing-braces\"");
-	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
-	
-	add_pragma_line("#pragma clang diagnostic ignored \"-Wunused-variable\"");
+    suppress_missing_prototypes = preproc.suppress_missing_prototypes;
+    
+    /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+    add_pragma_line("#pragma clang diagnostic ignored \"-Wmissing-braces\"");
+    /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+    
+    add_pragma_line("#pragma clang diagnostic ignored \"-Wunused-variable\"");
 
 	if (preproc.uses_atomics)
 	{
@@ -1911,7 +1910,7 @@ void CompilerMSL::fix_up_interface_member_indices(StorageClass storage, uint32_t
 uint32_t CompilerMSL::add_interface_block(StorageClass storage, bool patch)
 {
 	// Accumulate the variables that should appear in the interface struct
-	vector<SPIRVariable *> vars;
+	SmallVector<SPIRVariable *> vars;
 	bool incl_builtins = (storage == StorageClassOutput || is_tessellation_shader());
 
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t var_id, SPIRVariable &var) {
@@ -2466,10 +2465,13 @@ string CompilerMSL::unpack_expression_type(string expr_str, const SPIRType &type
 // Emits the file header info
 void CompilerMSL::emit_header()
 {
+	// This particular line can be overridden during compilation, so make it a flag and not a pragma line.
+	if (suppress_missing_prototypes)
+		statement("#pragma clang diagnostic ignored \"-Wmissing-prototypes\"");
 	for (auto &pragma : pragma_lines)
 		statement(pragma);
 
-	if (!pragma_lines.empty())
+	if (!pragma_lines.empty() || suppress_missing_prototypes)
 		statement("");
 
 	statement("#include <metal_stdlib>");
@@ -2493,14 +2495,14 @@ void CompilerMSL::add_pragma_line(const string &line)
 {
 	auto rslt = pragma_lines.insert(line);
 	if (rslt.second)
-		force_recompile = true;
+		force_recompile();
 }
 
 void CompilerMSL::add_typedef_line(const string &line)
 {
 	auto rslt = typedef_lines.insert(line);
 	if (rslt.second)
-		force_recompile = true;
+		force_recompile();
 }
 
 // Emits any needed custom function bodies.
@@ -2614,16 +2616,16 @@ void CompilerMSL::emit_custom_functions()
 			/* UE Change Begin: Add support for Metal 2.1's new texture_buffer type. */
 			if (msl_options.texel_buffer_texture_width > 0)
 			{
-                string tex_width_str = convert_to_string(msl_options.texel_buffer_texture_width);
-                statement("// Returns 2D texture coords corresponding to 1D texel buffer coords");
+			string tex_width_str = convert_to_string(msl_options.texel_buffer_texture_width);
+			statement("// Returns 2D texture coords corresponding to 1D texel buffer coords");
 				/* UE Change Begin: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
 				statement("static inline __attribute__((always_inline))");
 				/* UE Change End: Metal helper functions must be static force-inline otherwise they will cause problems when linked together in a single Metallib. */
-                statement("uint2 spvTexelBufferCoord(uint tc)");
-                begin_scope();
-                statement(join("return uint2(tc % ", tex_width_str, ", tc / ", tex_width_str, ");"));
-                end_scope();
-                statement("");
+			statement("uint2 spvTexelBufferCoord(uint tc)");
+			begin_scope();
+			statement(join("return uint2(tc % ", tex_width_str, ", tc / ", tex_width_str, ");"));
+			end_scope();
+			statement("");
 			}
 			else
 			{
@@ -3098,8 +3100,8 @@ void CompilerMSL::emit_specialization_constants_and_structs()
 				// TODO: This can be expressed as a [[threads_per_threadgroup]] input semantic, but we need to know
 				// the work group size at compile time in SPIR-V, and [[threads_per_threadgroup]] would need to be passed around as a global.
 				// The work group size may be a specialization constant.
-				statement("constant uint3 ", builtin_to_glsl(BuiltInWorkgroupSize, StorageClassWorkgroup), " = ",
-				          constant_expression(get<SPIRConstant>(workgroup_size_id)), ";");
+				statement("constant uint3 ", builtin_to_glsl(BuiltInWorkgroupSize, StorageClassWorkgroup),
+				          " [[maybe_unused]] = ", constant_expression(get<SPIRConstant>(workgroup_size_id)), ";");
 				emitted = true;
 			}
 			else if (c.specialization)
@@ -3226,7 +3228,7 @@ bool CompilerMSL::emit_tessellation_access_chain(const uint32_t *ops, uint32_t l
 	     get_variable_data_type(*var).basetype == SPIRType::Struct))
 	{
 		AccessChainMeta meta;
-		std::vector<uint32_t> indices;
+		SmallVector<uint32_t> indices;
 		uint32_t next_id = ir.increase_bound_by(2);
 
 		indices.reserve(length - 3 + 1);
@@ -3468,14 +3470,14 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		uint32_t id = ops[1];
 		uint32_t ptr = ops[2];
 		if (ir.meta[ptr].decoration.builtin_type == BuiltInSampleMask)
-		{
+	{
 			ir.meta[id].decoration.builtin_type = BuiltInSampleMask;
 		}
 		CompilerGLSL::emit_instruction(instruction);
 		break;
 	}
 	/* UE Change End: Sample mask input for Metal is not an array */
-		
+
 	// Comparisons
 	case OpIEqual:
 		MSL_BOP_CAST(==, int_type);
@@ -3728,7 +3730,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 			if (p_var && has_decoration(p_var->self, DecorationNonReadable))
 			{
 				unset_decoration(p_var->self, DecorationNonReadable);
-				force_recompile = true;
+				force_recompile();
 			}
 		}
 
@@ -3781,7 +3783,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		if (p_var && has_decoration(p_var->self, DecorationNonWritable))
 		{
 			unset_decoration(p_var->self, DecorationNonWritable);
-			force_recompile = true;
+			force_recompile();
 		}
 
 		bool forward = false;
@@ -4420,7 +4422,7 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 	}
 	else
 	{
-        exp += get_argument_address_space(*var);
+	exp += get_argument_address_space(*var);
 	}
 	/* UE Change End: Emulate texture2D atomic operations */
 	exp += " atomic_";
@@ -4447,13 +4449,17 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 		exp += get_memory_order(mem_order_2);
 		exp += ")";
 
-		// MSL only supports the weak atomic compare exchange,
-		// so emit a CAS loop here.
+		// MSL only supports the weak atomic compare exchange, so emit a CAS loop here.
+		// The MSL function returns false if the atomic write fails OR the comparison test fails,
+		// so we must validate that it wasn't the comparison test that failed before continuing
+		// the CAS loop, otherwise it will loop infinitely, with the comparison test always failing.
+		// The function updates the comparitor value from the memory value, so the additional
+		// comparison test evaluates the memory value against the expected value.
 		statement(variable_decl(type, to_name(result_id)), ";");
 		statement("do");
 		begin_scope();
 		statement(to_name(result_id), " = ", to_expression(op1), ";");
-		end_scope_decl(join("while (!", exp, ")"));
+		end_scope_decl(join("while (!", exp, " && ", to_name(result_id), " == ", to_enclosed_expression(op1), ")"));
 		set<SPIRExpression>(result_id, to_name(result_id), result_type, true);
 	}
 	else
@@ -4489,7 +4495,12 @@ const char *CompilerMSL::get_memory_order(uint32_t)
 // Override for MSL-specific extension syntax instructions
 void CompilerMSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop, const uint32_t *args, uint32_t count)
 {
-	GLSLstd450 op = static_cast<GLSLstd450>(eop);
+	auto op = static_cast<GLSLstd450>(eop);
+
+	// If we need to do implicit bitcasts, make sure we do it with the correct type.
+	uint32_t integer_width = get_integer_width_for_glsl_instruction(op, args, count);
+	auto int_type = to_signed_basetype(integer_width);
+	auto uint_type = to_unsigned_basetype(integer_width);
 
 	switch (op)
 	{
@@ -4504,10 +4515,11 @@ void CompilerMSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop, 
 		break;
 
 	case GLSLstd450FindSMsb:
-		emit_unary_func_op(result_type, id, args[0], "findSMSB");
+		emit_unary_func_op_cast(result_type, id, args[0], "findSMSB", int_type, int_type);
 		break;
+
 	case GLSLstd450FindUMsb:
-		emit_unary_func_op(result_type, id, args[0], "findUMSB");
+		emit_unary_func_op_cast(result_type, id, args[0], "findUMSB", uint_type, uint_type);
 		break;
 
 	case GLSLstd450PackSnorm4x8:
@@ -5216,7 +5228,7 @@ string CompilerMSL::to_func_call_arg(uint32_t id)
 		auto itr = find(begin(constants), end(constants), id);
 		if (itr == end(constants))
 		{
-			force_recompile = true;
+			force_recompile();
 			constants.push_back(id);
 		}
 	}
@@ -5372,8 +5384,8 @@ void CompilerMSL::add_convert_row_major_matrix_function(uint32_t cols, uint32_t 
 	auto rslt = spv_function_implementations.insert(spv_func);
 	if (rslt.second)
 	{
-		add_pragma_line("#pragma clang diagnostic ignored \"-Wmissing-prototypes\"");
-		force_recompile = true;
+		suppress_missing_prototypes = true;
+		force_recompile();
 	}
 }
 
@@ -5843,7 +5855,12 @@ string CompilerMSL::get_argument_address_space(const SPIRVariable &argument)
 
 	case StorageClassStorageBuffer:
 	{
-		bool readonly = ir.get_buffer_block_flags(argument).get(DecorationNonWritable);
+		// For arguments from variable pointers, we use the write count deduction, so
+		// we should not assume any constness here. Only for global SSBOs.
+		bool readonly = false;
+		if (has_decoration(type.self, DecorationBlock))
+			readonly = ir.get_buffer_block_flags(argument).get(DecorationNonWritable);
+
 		return readonly ? "const device" : "device";
 	}
 
@@ -6107,7 +6124,7 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
 		uint32_t index;
 	};
 
-	vector<Resource> resources;
+	SmallVector<Resource> resources;
 
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
 		if ((var.storage == StorageClassUniform || var.storage == StorageClassUniformConstant ||
@@ -6202,7 +6219,6 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
 			ep_args += sampler_type(type) + " " + r.name;
 			ep_args += " [[sampler(" + convert_to_string(r.index) + ")]]";
 			break;
-                
 		case SPIRType::Image:
         {
 			if (!ep_args.empty())
@@ -6212,8 +6228,8 @@ void CompilerMSL::entry_point_args_discrete_descriptors(string &ep_args)
             const auto &basetype = get<SPIRType>(var.basetype);
             if (basetype.image.dim != DimSubpassData || !msl_options.ios_use_framebuffer_fetch_subpasses)
             {
-                ep_args += image_type_glsl(type, var_id) + " " + r.name;
-                ep_args += " [[texture(" + convert_to_string(r.index) + ")]]";
+			ep_args += image_type_glsl(type, var_id) + " " + r.name;
+			ep_args += " [[texture(" + convert_to_string(r.index) + ")]]";
             }
             else
             {
@@ -6983,8 +6999,8 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	if (type.array.empty())
 	{
-        return type_name;
-    }
+	return type_name;
+}
 	else
 	{
 		if (options.flatten_multidimensional_arrays)
@@ -7164,7 +7180,7 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
         case DimSubpassData:
             if (msl_options.ios_use_framebuffer_fetch_subpasses)
                 return type_to_glsl(get<SPIRType>(img_type.type));
-        case Dim2D:
+		case Dim2D:
         /* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
 			if (img_type.ms && img_type.arrayed)
 			{
@@ -7917,7 +7933,7 @@ CompilerMSL::SPVFuncImpl CompilerMSL::OpCodePreprocessor::get_spv_func_impl(Op o
 	}
 
 	case OpStore:
-    {
+	{
         /* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
         /* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
         break;
@@ -8045,7 +8061,7 @@ void CompilerMSL::MemberSorter::sort()
 	// Create a temporary array of consecutive member indices and sort it based on how
 	// the members should be reordered, based on builtin and sorting aspect meta info.
 	size_t mbr_cnt = type.member_types.size();
-	vector<uint32_t> mbr_idxs(mbr_cnt);
+	SmallVector<uint32_t> mbr_idxs(mbr_cnt);
 	iota(mbr_idxs.begin(), mbr_idxs.end(), 0); // Fill with consecutive indices
 	std::sort(mbr_idxs.begin(), mbr_idxs.end(), *this); // Sort member indices based on sorting aspect
 
@@ -8239,7 +8255,7 @@ void CompilerMSL::analyze_argument_buffers()
 		SPIRType::BaseType basetype;
 		uint32_t index;
 	};
-	vector<Resource> resources_in_set[kMaxArgumentBuffers];
+	SmallVector<Resource> resources_in_set[kMaxArgumentBuffers];
 
 	ir.for_each_typed_id<SPIRVariable>([&](uint32_t self, SPIRVariable &var) {
 		if ((var.storage == StorageClassUniform || var.storage == StorageClassUniformConstant ||
