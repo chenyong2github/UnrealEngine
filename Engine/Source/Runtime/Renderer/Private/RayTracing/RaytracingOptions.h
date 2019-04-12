@@ -15,6 +15,7 @@ extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSc
 extern bool ShouldRenderRayTracingAmbientOcclusion();
 extern bool ShouldRenderRayTracingGlobalIllumination(const TArray<FViewInfo>& Views);
 extern bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo& LightSceneInfo);
+extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 
 extern float GetRaytracingMaxNormalBias();
 
@@ -35,5 +36,9 @@ FORCEINLINE bool ShouldRenderRayTracingStochasticRectLight(const FLightSceneInfo
 	return false;
 }
 
+FORCEINLINE bool CanOverlayRayTracingOutput(const FViewInfo& View)
+{
+	return true;
+}
 
 #endif

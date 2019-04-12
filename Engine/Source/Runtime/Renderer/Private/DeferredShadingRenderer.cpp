@@ -443,7 +443,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 	}
 
 	//async ssao only requires HZB and depth as inputs so get started ASAP
-	if (CanOverlayRayTracingOutput() && GCompositionLighting.CanProcessAsyncSSAO(Views))
+	if (CanOverlayRayTracingOutput(Views[0]) && GCompositionLighting.CanProcessAsyncSSAO(Views))
 	{
 		GCompositionLighting.ProcessAsyncSSAO(RHICmdList, Views);
 	}
@@ -953,7 +953,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 #endif
 		;
 
-	bool bCanOverlayRayTracingOutput = CanOverlayRayTracingOutput();
+	bool bCanOverlayRayTracingOutput = CanOverlayRayTracingOutput(Views[0]);// #dxr_todo: UE-72557 multi-view case
 	bool bComputeLightGrid = false;
 	// Simple forward shading doesn't support local lights. No need to compute light grid
 	if (!IsSimpleForwardShadingEnabled(ShaderPlatform))
@@ -1544,18 +1544,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bRayTracingEnabled = IsRayTracingEnabled();
 	if (bRayTracingEnabled)
 	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
-			{
-				RenderPathTracing(RHICmdList, Views[ViewIndex]);
-			}
-			else if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
-			{
-				RenderRayTracingDebug(RHICmdList, Views[ViewIndex]);
-			}
-		}
-
 		if (bCanOverlayRayTracingOutput)
 		{
 			// TODO: convert the entire AO and skylight to rendergraph.
@@ -1565,7 +1553,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			{
 				RenderRayTracingSkyLight(RHICmdList, SkyLightRT, HitDistanceRT);
 			}
-
 
 			if (ShouldRenderRayTracingGlobalIllumination(Views))
 			{
@@ -1995,6 +1982,23 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 	}
 
+#if RHI_RAYTRACING
+	if (bRayTracingEnabled)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
+			{
+				RenderPathTracing(RHICmdList, Views[ViewIndex]);
+			}
+			else if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug)
+			{
+				RenderRayTracingDebug(RHICmdList, Views[ViewIndex]);
+			}
+		}
+	}
+#endif
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
@@ -2354,13 +2358,10 @@ void FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTexture(FRHIComm
 	}
 }
 
-bool FDeferredShadingSceneRenderer::CanOverlayRayTracingOutput(void) const
-{
 #if RHI_RAYTRACING
-	// #dxr_todo:UE-72557 multi-view case
-	return  (Views[0].RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
-		&& (Views[0].RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug);
-#else // RHI_RAYTRACING
-	return true;
-#endif // RHI_RAYTRACING
+bool CanOverlayRayTracingOutput(const FViewInfo& View)
+{
+	return (View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
+		&& (View.RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug);
 }
+#endif // RHI_RAYTRACING
