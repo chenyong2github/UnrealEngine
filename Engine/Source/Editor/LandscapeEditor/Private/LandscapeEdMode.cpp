@@ -2476,7 +2476,7 @@ void FEdModeLandscape::UpdateTargetList()
 			bool bFoundSelected = false;
 
 			// Add heightmap
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), CurrentToolTarget.CurrentLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), UISettings->CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap)
 			{
@@ -2485,7 +2485,7 @@ void FEdModeLandscape::UpdateTargetList()
 
 			// Add visibility
 			FLandscapeInfoLayerSettings VisibilitySettings(ALandscapeProxy::VisibilityLayer, LandscapeProxy);
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, CurrentToolTarget.CurrentLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, UISettings->CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 			{
@@ -2536,7 +2536,7 @@ void FEdModeLandscape::UpdateTargetList()
 				}
 
 				// Add the layer
-				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, CurrentToolTarget.CurrentLayerIndex)));
+				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, UISettings->CurrentLayerIndex)));
 			}
 
 			if (!bFoundSelected)
@@ -4160,14 +4160,15 @@ int32 FEdModeLandscape::GetLayerCount() const
 
 void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
-	CurrentToolTarget.CurrentLayerIndex = InLayerIndex;
+	UISettings->Modify();
+	UISettings->CurrentLayerIndex = InLayerIndex;
 
 	RefreshDetailPanel();
 }
 
 int32 FEdModeLandscape::GetCurrentLayerIndex() const
 {
-	return CurrentToolTarget.CurrentLayerIndex;
+	return UISettings ? UISettings->CurrentLayerIndex : INDEX_NONE;
 }
 
 ALandscape* FEdModeLandscape::GetLandscape() const

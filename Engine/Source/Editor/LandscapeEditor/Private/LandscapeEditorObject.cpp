@@ -100,6 +100,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	, BrushComponentSize(1)
 	, TargetDisplayOrder(ELandscapeLayerDisplayMode::Default)
 	, ShowUnusedLayers(true)
+	, CurrentLayerIndex(INDEX_NONE)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics

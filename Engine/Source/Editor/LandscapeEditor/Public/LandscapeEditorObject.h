@@ -609,6 +609,9 @@ public:
 	UPROPERTY(Category = "Target Layers", EditAnywhere)
 	bool ShowUnusedLayers;	
 
+	UPROPERTY(Transient)
+	int32 CurrentLayerIndex;
+
 #if WITH_EDITOR
 	//~ Begin UObject Interface
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
