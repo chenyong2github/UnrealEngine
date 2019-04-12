@@ -1499,6 +1499,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 		WaveInstance->StereoSpread = ParseParams.StereoSpread;
 		WaveInstance->AttenuationDistance = ParseParams.AttenuationDistance;
 		WaveInstance->ListenerToSoundDistance = ParseParams.ListenerToSoundDistance;
+		WaveInstance->ListenerToSoundDistanceForPanning = ParseParams.ListenerToSoundDistanceForPanning;
 		WaveInstance->AbsoluteAzimuth = ParseParams.AbsoluteAzimuth;
 
 		if (NumChannels <= 2)
