@@ -223,6 +223,12 @@ public:
 		return Time;
 	}
 
+	void UpdateTimeDuration(FTimespan InTime, FTimespan InDuration)
+	{
+		Time = InTime;
+		Duration = InDuration;
+	}
+
 	virtual bool IsCacheable() const override
 	{
 #if WITH_ENGINE
