@@ -382,6 +382,7 @@ private:
 
 	bool bIsLeavingParty = false;
 	bool bIsInitialized = false;
+	bool bHasReceivedRepData = false;
 	TOptional<bool> bIsRequestingShutdown;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
