@@ -24,13 +24,14 @@ public class CrashReportCore : ModuleRules
            }
         );
 
+        PrecompileForTargets = PrecompileTargetsType.None;
+
         if (Target.Type == TargetType.Game || Target.Type == TargetType.Client)
         {
             IsRedistributableOverride = true;
         }
         else
         {
-            PrecompileForTargets = PrecompileTargetsType.None;
             PublicDependencyModuleNames.Add("SourceControl");
         }
     }
