@@ -196,6 +196,17 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	if (NewPathVal)
 	{
 		FindAssetRegistryPath(*NewPathVal, NewPath);
+
+		if (!RegexBranchCL.IsEmpty())
+		{
+			const FRegexPattern CLPattern(RegexBranchCL);
+			FRegexMatcher CLMatcher(CLPattern, NewPath);
+			if (CLMatcher.FindNext())
+			{
+				Branch = CLMatcher.GetCaptureGroup(1);
+				CL = CLMatcher.GetCaptureGroup(2);
+			}
+		}
 	}
 
 	bMatchChangelists = false;
