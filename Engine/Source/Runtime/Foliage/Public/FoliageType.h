@@ -84,25 +84,24 @@ class UFoliageType : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	/* Gets/Sets the mesh associated with this FoliageType */
-	virtual UStaticMesh* GetStaticMesh() const PURE_VIRTUAL(UFoliageType::GetStaticMesh, return nullptr; );
-	virtual void SetStaticMesh(UStaticMesh* InStaticMesh) PURE_VIRTUAL(UFoliageType::SetStaticMesh,);
-
-	/* Gets the component class to use for instances of this FoliageType */
-	virtual UClass* GetComponentClass() const PURE_VIRTUAL(UFoliageType::GetComponentClass(), return nullptr;);
-	
+	/* Gets/Sets the source data associated with this FoliageType */
+	virtual UObject* GetSource() const PURE_VIRTUAL(UFoliageType::GetSource, return nullptr; );
+		
 	virtual void Serialize(FArchive& Ar) override;
 
 	virtual bool IsNotAssetOrBlueprint() const;
 
 	FOLIAGE_API FVector GetRandomScale() const;
-
+	
 #if WITH_EDITOR
+	virtual void SetSource(UObject* InSource) PURE_VIRTUAL(UFoliageType::SetSource, );
+	virtual void UpdateBounds() {}
 	/* Lets subclasses decide if the InstancedFoliageActor should reallocate its instances if the specified property change event occurs */
-	virtual bool IsFoliageReallocationRequiredForPropertyChange(struct FPropertyChangedEvent& PropertyChangedEvent) const { return true; }
+	virtual bool IsFoliageReallocationRequiredForPropertyChange(const UProperty* Property) const { return true; }
 
 	virtual void PreEditChange(UProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool IsSourcePropertyChange(const UProperty* Property) const { return false; }
 
 	/* Notifies all relevant foliage actors that HiddenEditorView mask has been changed */
 	FOLIAGE_API void OnHiddenEditorViewMaskChanged(UWorld* InWorld);
@@ -129,7 +128,7 @@ public:
 	float DensityAdjustmentFactor;
 
 	/** The minimum distance between foliage instances */
-	UPROPERTY(EditAnywhere, Category=Painting, meta=(UIMin=0, ClampMin=0, UIMax = 1000, ClampMax = 1000, ReapplyCondition="ReapplyRadius"))
+	UPROPERTY(EditAnywhere, Category=Painting, meta=(UIMin=0, ClampMin=0, UIMax = 100000, ClampMax = 100000, ReapplyCondition="ReapplyRadius"))
 	float Radius;
 
 	/** Specifies foliage instance scaling behavior when painting. */

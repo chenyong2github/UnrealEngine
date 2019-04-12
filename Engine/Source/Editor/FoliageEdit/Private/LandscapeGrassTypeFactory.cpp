@@ -18,8 +18,3 @@ UObject* ULandscapeGrassTypeFactory::FactoryCreateNew(UClass* Class, UObject* In
 
 	return NewGrassType;
 }
-
-uint32 ULandscapeGrassTypeFactory::GetMenuCategories() const
-{
-	return EAssetTypeCategories::Misc;
-}

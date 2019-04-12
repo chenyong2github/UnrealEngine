@@ -4,6 +4,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "AssetData.h"
 #include "FoliageType_InstancedStaticMesh.h"
+#include "FoliageType_Actor.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
@@ -15,6 +16,7 @@ void FFoliageTypeObjectCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 	// Only allow foliage type assets to be created (i.e. don't show all the factories for blueprints)
 	TArray<const UClass*> SupportedClasses;
 	SupportedClasses.Add(UFoliageType_InstancedStaticMesh::StaticClass());
+	SupportedClasses.Add(UFoliageType_Actor::StaticClass());
 
 	HeaderRow
 		.NameContent()
@@ -43,7 +45,7 @@ bool FFoliageTypeObjectCustomization::OnShouldFilterAsset(const FAssetData& Asse
 {
 	// If the asset is a BP class that doesn't inherit from UFoliageType, hide it
 	const FString ParentClassName = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
-	if (!ParentClassName.IsEmpty() && !ParentClassName.Contains(TEXT("FoliageType_InstancedStaticMesh")))
+	if (!ParentClassName.IsEmpty() && !ParentClassName.Contains(TEXT("FoliageType_InstancedStaticMesh")) && !ParentClassName.Contains(TEXT("FoliageType_Actor")))
 	{
 		return true;
 	}
