@@ -1,10 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorAutomationObject.h"
+#include "EditorUtilityActor.h"
+
 
 /////////////////////////////////////////////////////
 
-UEditorAutomationObject::UEditorAutomationObject(const FObjectInitializer& ObjectInitializer)
+AEditorUtilityActor::AEditorUtilityActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }

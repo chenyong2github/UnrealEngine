@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /**
- * Base class of any editor-only automation test objects
+ * Base class of any editor-only objects
  */
 
 #pragma once
@@ -10,11 +10,11 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
-#include "EditorAutomationObject.generated.h"
+#include "EditorUtilityObject.generated.h"
 
 
-UCLASS(Abstract, Blueprintable)
-class BLUTILITY_API UEditorAutomationObject : public UObject
+UCLASS(Abstract, Blueprintable, meta = (ShowWorldContextPin))
+class BLUTILITY_API UEditorUtilityObject : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
