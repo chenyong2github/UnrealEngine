@@ -50,8 +50,14 @@ FSlateDebuggingWarningEventArgs::FSlateDebuggingWarningEventArgs(
 }
 
 FSlateDebuggingMouseCaptureEventArgs::FSlateDebuggingMouseCaptureEventArgs(
+	bool InCaptured,
+	uint32 InUserIndex,
+	uint32 InPointerIndex,
 	const TSharedPtr<SWidget>& InCapturingWidget)
-	: CapturingWidget(InCapturingWidget)
+	: Captured(InCaptured)
+	, UserIndex(InUserIndex)
+	, PointerIndex(InPointerIndex)
+	, CaptureWidget(InCapturingWidget)
 {
 }
 
@@ -128,17 +134,19 @@ void FSlateDebugging::BroadcastFocusReceived(const FFocusEvent& InFocusEvent, co
 	FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusReceived, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
 }
 
-void FSlateDebugging::AttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget)
+void FSlateDebugging::BroadcastAttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget)
 {
 	NavigationEvent.Broadcast(FSlateDebuggingNavigationEventArgs(InNavigationEvent, InNavigationReply, InNavigationSource, InDestinationWidget));
 }
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
-static FWidgetMouseCaptureEvent MouseCaptureEvent;
-
-void FSlateDebugging::MouseCapture(const TSharedPtr<SWidget>& InCapturingWidget)
+void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InCapturingWidget)
 {
-	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(InCapturingWidget));
+	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(true, UserIndex, PointerIndex, InCapturingWidget));
+}
+
+void FSlateDebugging::BroadcastMouseCaptureLost(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InWidgetLostCapture)
+{
+	MouseCaptureEvent.Broadcast(FSlateDebuggingMouseCaptureEventArgs(false, UserIndex, PointerIndex, InWidgetLostCapture));
 }
 
 #endif
