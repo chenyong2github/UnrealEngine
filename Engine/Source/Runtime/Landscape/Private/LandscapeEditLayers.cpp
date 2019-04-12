@@ -4384,6 +4384,18 @@ void ALandscape::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+bool ALandscape::IsUpToDate() const
+{
+#if WITH_EDITORONLY_DATA
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		return LayersContentUpdateFlags == 0;
+	}
+#endif
+
+	return true;
+}
+
 #if WITH_EDITOR
 bool ALandscape::IsLayerNameUnique(const FName& InName) const
 {
