@@ -11,11 +11,36 @@
 #include "Framework/Text/RichTextMarkupProcessing.h"
 #include "Framework/Text/IRichTextMarkupParser.h"
 #include "Framework/Text/IRichTextMarkupWriter.h"
+#include "RenderingThread.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////
 // URichTextBlock
+
+template< class ObjectType >
+struct FDeferredDeletor : public FDeferredCleanupInterface
+{
+public:
+	FDeferredDeletor(ObjectType* InInnerObjectToDelete)
+		: InnerObjectToDelete(InInnerObjectToDelete)
+	{
+	}
+
+	virtual ~FDeferredDeletor()
+	{
+		delete InnerObjectToDelete;
+	}
+
+private:
+	ObjectType* InnerObjectToDelete;
+};
+
+template< class ObjectType >
+FORCEINLINE SharedPointerInternals::FRawPtrProxy< ObjectType > MakeShareableDeferredCleanup(ObjectType* InObject)
+{
+	return MakeShareable(InObject, [](ObjectType* ObjectToDelete) { BeginCleanup(new FDeferredDeletor<ObjectType>(ObjectToDelete)); });
+}
 
 URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,23 +91,7 @@ void URichTextBlock::UpdateStyleData()
 
 	if (!StyleInstance.IsValid())
 	{
-		StyleInstance = MakeShareable(new FSlateStyleSet(TEXT("RichTextStyle")));
-
-		if (TextStyleSet && TextStyleSet->GetRowStruct()->IsChildOf(FRichTextStyleRow::StaticStruct()))
-		{
-			for (const auto& Entry : TextStyleSet->GetRowMap())
-			{
-				FName SubStyleName = Entry.Key;
-				FRichTextStyleRow* RichTextStyle = (FRichTextStyleRow*)Entry.Value;
-
-				if (SubStyleName == FName(TEXT("Default")))
-				{
-					DefaultTextStyle = RichTextStyle->TextStyle;
-				}
-
-				StyleInstance->Set(SubStyleName, RichTextStyle->TextStyle);
-			}
-		}
+		RebuildStyleInstance();
 
 		for (TSubclassOf<URichTextBlockDecorator> DecoratorClass : DecoratorClasses)
 		{
@@ -104,6 +113,40 @@ void URichTextBlock::SetText(const FText& InText)
 	if (MyRichTextBlock.IsValid())
 	{
 		MyRichTextBlock->SetText(InText);
+	}
+}
+
+void URichTextBlock::RebuildStyleInstance()
+{
+	StyleInstance = MakeShareableDeferredCleanup(new FSlateStyleSet(TEXT("RichTextStyle")));
+
+	if (TextStyleSet && ensure(TextStyleSet->GetRowStruct()->IsChildOf(FRichTextStyleRow::StaticStruct())))
+	{
+		for (const auto& Entry : TextStyleSet->GetRowMap())
+		{
+			FName SubStyleName = Entry.Key;
+			FRichTextStyleRow* RichTextStyle = (FRichTextStyleRow*)Entry.Value;
+
+			if (SubStyleName == FName(TEXT("Default")))
+			{
+				DefaultTextStyle = RichTextStyle->TextStyle;
+			}
+
+			StyleInstance->Set(SubStyleName, RichTextStyle->TextStyle);
+		}
+	}
+}
+
+void URichTextBlock::SetTextStyleSet(class UDataTable* NewTextStyleSet)
+{
+	if (TextStyleSet != NewTextStyleSet)
+	{
+		TextStyleSet = NewTextStyleSet;
+
+		RebuildStyleInstance();
+
+		MyRichTextBlock->SetDecoratorStyleSet(StyleInstance.Get());
+		MyRichTextBlock->SetTextStyle(DefaultTextStyle);
 	}
 }
 
