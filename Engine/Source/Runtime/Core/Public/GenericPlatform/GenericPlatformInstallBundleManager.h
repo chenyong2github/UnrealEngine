@@ -76,12 +76,16 @@ enum class EInstallBundlePauseFlags : uint32
 	None = 0,
 	OnCellularNetwork = (1 << 0),
 	NoInternetConnection = (1 << 1),
+	UserPaused	= (1 << 2)
 };
 ENUM_CLASS_FLAGS(EInstallBundlePauseFlags)
 
 inline const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
 {
 	// Return the most appropriate reason given the flags
+
+	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::UserPaused))
+		return TEXT("UserPaused");
 
 	if (EnumHasAnyFlags(Flags, EInstallBundlePauseFlags::NoInternetConnection))
 		return TEXT("NoInternetConnection");
@@ -238,6 +242,10 @@ public:
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 
 	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
+
+	virtual bool PauseBundle(FName BundleName) = 0;
+
+	virtual void ResumeBundle(FName BundleName) = 0;
 
 	virtual void RequestPausedBundleCallback() const = 0;
 
