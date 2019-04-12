@@ -93,7 +93,7 @@ void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab(UBlueprint* RecompiledB
 
 void UEditorUtilityWidgetBlueprint::UpdateRespawnListIfNeeded(TSharedRef<SDockTab> TabBeingClosed)
 {
-	UEditorUtilityWidget* EditorUtilityWidget = Cast<UEditorUtilityWidget>(GeneratedClass);
+	const UEditorUtilityWidget* EditorUtilityWidget = GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
 	if (EditorUtilityWidget && EditorUtilityWidget->ShouldAlwaysReregisterWithWindowsMenu() == false)
 	{
 		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
