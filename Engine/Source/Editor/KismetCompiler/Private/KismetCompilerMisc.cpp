@@ -744,7 +744,7 @@ UEdGraphPin* FKismetCompilerUtilities::GenerateAssignmentNodes(class FKismetComp
 					
 				if (FBlueprintCompilationManager::GetDefaultValue(ForClass, Property, DefaultValueAsString))
 				{
-					if (DefaultValueAsString == OrgPin->GetDefaultAsString())
+					if (Schema->DoesDefaultValueMatch(*OrgPin, DefaultValueAsString))
 					{
 						continue;
 					}
