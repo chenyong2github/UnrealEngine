@@ -174,7 +174,7 @@ void* FD3D11DynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffe
 	}
 
 	// Add the lock to the lock map.
-	AddLockedData(MoveTemp(LockedKey), LockedData);
+	AddLockedData(LockedKey, LockedData);
 
 	// Return the offset pointer
 	return (void*)((uint8*)LockedData.GetData() + Offset);
