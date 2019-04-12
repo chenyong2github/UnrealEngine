@@ -1,16 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Mac/MacErrorReport.h"
-#include "CrashReportClientApp.h"
+#include "IOS/IOSErrorReport.h"
 #include "../CrashReportUtil.h"
+#include "CrashReportCoreConfig.h"
+#include "Modules/ModuleManager.h"
 #include "CrashDebugHelperModule.h"
 #include "CrashDebugHelper.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFilemanager.h"
-#include "Modules/ModuleManager.h"
-#include "CrashDebugHelperModule.h"
 
-#define LOCTEXT_NAMESPACE "CrashReportClient"
+#define LOCTEXT_NAMESPACE "CrashReport"
 
 namespace
 {
@@ -18,22 +17,22 @@ namespace
 	FCrashDebugHelperModule* CrashHelperModule;
 }
 
-FMacErrorReport::FMacErrorReport(const FString& Directory)
+FIOSErrorReport::FIOSErrorReport(const FString& Directory)
 	: FGenericErrorReport(Directory)
 {
 }
 
-void FMacErrorReport::Init()
+void FIOSErrorReport::Init()
 {
 	CrashHelperModule = &FModuleManager::LoadModuleChecked<FCrashDebugHelperModule>(FName("CrashDebugHelper"));
 }
 
-void FMacErrorReport::ShutDown()
+void FIOSErrorReport::ShutDown()
 {
 	CrashHelperModule->ShutdownModule();
 }
 
-FString FMacErrorReport::FindCrashedAppPath() const
+FString FIOSErrorReport::FindCrashedAppPath() const
 {
 	TArray<uint8> Data;
 	if(FFileHelper::LoadFileToArray(Data, *(ReportDirectory / TEXT("Report.wer"))))
@@ -67,7 +66,7 @@ FString FMacErrorReport::FindCrashedAppPath() const
 	return "";
 }
 
-void FMacErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
+void FIOSErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -100,7 +99,7 @@ void FMacErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPat
 	});
 }
 
-FText FMacErrorReport::DiagnoseReport() const
+FText FIOSErrorReport::DiagnoseReport() const
 {
 	// Should check if there are local PDBs before doing anything
 	ICrashDebugHelper* CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
@@ -132,9 +131,9 @@ FText FMacErrorReport::DiagnoseReport() const
 	else
 	{
 		FString CrashDump;
-		FString DiagnosticsPath = ReportDirectory / FCrashReportClientConfig::Get().GetDiagnosticsFilename();
+		FString DiagnosticsPath = ReportDirectory / FCrashReportCoreConfig::Get().GetDiagnosticsFilename();
 		CrashDebugHelper->CrashInfo.GenerateReport( DiagnosticsPath );
-		if ( FFileHelper::LoadFileToString( CrashDump, *(ReportDirectory / FCrashReportClientConfig::Get().GetDiagnosticsFilename() ) ) )
+		if ( FFileHelper::LoadFileToString( CrashDump, *(ReportDirectory / FCrashReportCoreConfig::Get().GetDiagnosticsFilename() ) ) )
 		{
 			return FText::FromString(CrashDump);
 		}
