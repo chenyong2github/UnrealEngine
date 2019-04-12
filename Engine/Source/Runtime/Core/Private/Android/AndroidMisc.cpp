@@ -44,8 +44,10 @@
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
-#endif
 extern int32 GAndroidPackageVersion;
+#else
+#define GAndroidPackageVersion	1
+#endif
 
 static int32 GAndroidTraceMarkersEnabled = 0;
 static FAutoConsoleVariableRef CAndroidTraceMarkersEnabled(
