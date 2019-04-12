@@ -91,7 +91,7 @@ void CocDilateMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		OutSampleBuckets[BucketId].BgdMinIntersectableCoc = EXTREMELY_LARGE_COC_RADIUS;
 		OutSampleBuckets[BucketId].BgdMinConservativeCloserGoemetryDistance = EXTREMELY_LARGE_COC_RADIUS;
 
-		UNROLL
+		UNROLL_N(DIM_DILATE_RADIUS*4)
 		for (uint BatchId = 0; BatchId < 4 * RingDistance; BatchId++)
 		{
 			// Generates at compile time sample location if square shaped ring in sample count distance from the kernel's center.

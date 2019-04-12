@@ -393,7 +393,7 @@ void GatherMainCS(
 		#if DEBUG_FAST_ACCUMULATOR
 		{
 			#if CONFIG_KERNEL_SAMPLING_DENSITY_DRIVER > 0
-			UNROLL
+			UNROLL_N(CONFIG_MAX_SAMPLING_DENSITY_CHANGES)
 			for (uint i = 0; i < CONFIG_MAX_SAMPLING_DENSITY_CHANGES; i++)
 			{
 				if (i < DebugGatherDensityChanges)

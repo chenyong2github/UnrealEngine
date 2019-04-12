@@ -792,7 +792,7 @@ uint GatherSamplesAndResolve(
 			}
 		}
 
-		UNROLL
+		UNROLL_N(5)
 		for (; RingId >= 0; RingId--)
 		{
 			GatherRing(

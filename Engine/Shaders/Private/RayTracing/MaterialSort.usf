@@ -53,7 +53,7 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 	uint Slot[NUM_ELEMENTS / NUM_THREADS];
 
 	//get counts
-	[unroll]
+	[unroll(NUM_ELEMENTS/NUM_THREADS)]
 	for (int i = GroupThread.x; i < NUM_ELEMENTS ; i += NUM_THREADS)
 	{
 		uint Index = GroupBase + i;
@@ -83,7 +83,7 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 	GroupMemoryBarrierWithGroupSync();
 	
 	//write data
-	[unroll]
+	[unroll(NUM_ELEMENTS/NUM_THREADS)]
 	for (int i = GroupThread.x; i < NUM_ELEMENTS; i += NUM_THREADS)
 	{
 		uint Index = GroupBase + i;
