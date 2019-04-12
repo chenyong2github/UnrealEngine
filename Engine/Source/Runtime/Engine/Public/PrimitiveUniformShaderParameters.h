@@ -37,6 +37,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,LightingChannelMask)
 	SHADER_PARAMETER(uint32,LightmapDataIndex)
 	SHADER_PARAMETER(int32, SingleCaptureIndex)
+    SHADER_PARAMETER(uint32, OutputVelocity)
+
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /** Initializes the primitive uniform shader parameters. */
@@ -56,7 +58,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	uint32 LightingChannelMask,
 	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
-	int32 SingleCaptureIndex
+	int32 SingleCaptureIndex,
+	bool bOutputVelocity
 )
 {
 	FPrimitiveUniformShaderParameters Result;
@@ -97,6 +100,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.UseEditorDepthTest = bUseEditorDepthTest ? 1 : 0;
 	Result.LightmapDataIndex = LightmapDataIndex;
 	Result.SingleCaptureIndex = SingleCaptureIndex;
+	Result.OutputVelocity = (bOutputVelocity) ? 1 : 0;
 	return Result;
 }
 
@@ -116,12 +120,13 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	uint32 LightingChannelMask,
 	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
-	int32 SingleCaptureIndex
+	int32 SingleCaptureIndex,
+    bool bOutputVelocity
 )
 {
 	// Pass through call
 	return GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, ActorPosition, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasDistanceFieldRepresentation, bHasCapsuleRepresentation, 
-		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bUseEditorDepthTest, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex);
+		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bUseEditorDepthTest, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex, bOutputVelocity);
 }
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
@@ -136,7 +141,7 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 {
 	check(IsInRenderingThread());
 	return TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE),
+		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE, false),
 		UniformBuffer_MultiFrame
 		);
 }
@@ -160,7 +165,8 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		GetDefaultLightingChannelMask(),
 		1.0f,		// LPV bias
 		INDEX_NONE,
-		INDEX_NONE
+		INDEX_NONE,
+		false
 	);
 }
 

@@ -180,9 +180,18 @@ void Main(
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	{
-		float4 PrevTranslatedWorldPosition = VertexFactoryGetPreviousWorldPosition( Input, VFIntermediates );	
-		VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);
-		PrevTranslatedWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters);
+		float4 PrevTranslatedWorldPosition = float4(0, 0, 0, 1);
+		BRANCH
+		if (GetPrimitiveData(VFIntermediates.PrimitiveId).OutputVelocity>0)
+		{
+			PrevTranslatedWorldPosition = VertexFactoryGetPreviousWorldPosition( Input, VFIntermediates );	
+			VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);
+			PrevTranslatedWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters);
+	
+			#if !USING_TESSELATION
+				PrevTranslatedWorldPosition = mul(float4(PrevTranslatedWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
+			#endif
+		}
 
 		#if USING_TESSELLATION
 			// We let the Domain Shader convert to post projection when tessellating
@@ -192,7 +201,7 @@ void Main(
 			#endif
 		#else
 			// compute the old screen pos with the old world position and the old camera matrix
-			Output.BasePassInterpolants.VelocityPrevScreenPosition = mul(float4(PrevTranslatedWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);		
+			Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition; 
 			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
 			Output.BasePassInterpolants.VelocityScreenPosition = ClipSpacePosition;
 			#endif
