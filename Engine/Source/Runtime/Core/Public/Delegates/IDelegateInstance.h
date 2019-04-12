@@ -100,6 +100,16 @@ public:
 	virtual const void* GetObjectForTimerManager() const = 0;
 
 	/**
+	 * Returns the address of the method pointer which can be used to learn the address of the function that will be executed.
+	 * Returns nullptr if this delegate type does not directly invoke a function pointer.
+	 *
+	 * Note: Only intended to be used to aid debugging of delegates.
+	 *
+	 * @return The address of the function pointer that would be executed by this delegate
+	 */
+	virtual uint64 GetBoundProgramCounterForTimerManager() const = 0;
+
+	/**
 	 * Returns true if this delegate is bound to the specified UserObject,
 	 *
 	 * Deprecated.
