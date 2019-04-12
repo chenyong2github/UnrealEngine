@@ -1,16 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CrashReportConfig.h"
+#include "CrashReportCoreConfig.h"
+#include "CrashReportCoreModule.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
+#include "Misc/EngineBuildSettings.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
-DEFINE_LOG_CATEGORY(CrashReportLog);
-
-FCrashReportConfig::FCrashReportConfig()
+FCrashReportCoreConfig::FCrashReportCoreConfig()
 	: DiagnosticsFilename( TEXT( "Diagnostics.txt" ) )
-	, SectionName( TEXT( "CrashReportConfig" ) )
+	, SectionName( TEXT( "CrashReportClient" ) )
 {
 	const bool bUnattended =
 #if CRASH_REPORT_UNATTENDED_ONLY
@@ -19,11 +19,11 @@ FCrashReportConfig::FCrashReportConfig()
 		FApp::IsUnattended();
 #endif // CRASH_REPORT_UNATTENDED_ONLY
 
-	if (!GConfig->GetString(*SectionName, TEXT("CrashReportVersion"), CrashReportVersion, GEngineIni))
+	if (!GConfig->GetString(*SectionName, TEXT("CrashReportClientVersion"), CrashReportClientVersion, GEngineIni))
 	{
-		CrashReportVersion = TEXT("0.0.0");
+		CrashReportClientVersion = TEXT("0.0.0");
 	}
-	UE_LOG(CrashReportLog, Log, TEXT("CrashReportVersion=%s"), *CrashReportVersion);
+	UE_LOG(CrashReportCoreLog, Log, TEXT("CrashReportClientVersion=%s"), *CrashReportClientVersion);
 
 	if (!GConfig->GetString( *SectionName, TEXT( "CrashReportReceiverIP" ), CrashReportReceiverIP, GEngineIni ))
 	{
@@ -32,11 +32,11 @@ FCrashReportConfig::FCrashReportConfig()
 	}
 	if (CrashReportReceiverIP.IsEmpty())
 	{
-		UE_LOG(CrashReportLog, Log, TEXT("CrashReportReceiver disabled"));
+		UE_LOG(CrashReportCoreLog, Log, TEXT("CrashReportReceiver disabled"));
 	}
 	else
 	{
-		UE_LOG(CrashReportLog, Log, TEXT("CrashReportReceiverIP: %s"), *CrashReportReceiverIP);
+		UE_LOG(CrashReportCoreLog, Log, TEXT("CrashReportReceiverIP: %s"), *CrashReportReceiverIP);
 	}
 
 	if (!GConfig->GetString(*SectionName, TEXT("DataRouterUrl"), DataRouterUrl, GEngineIni))
@@ -46,14 +46,18 @@ FCrashReportConfig::FCrashReportConfig()
 	}
 	if (DataRouterUrl.IsEmpty())
 	{
-		UE_LOG(CrashReportLog, Log, TEXT("DataRouter disabled"));
+		UE_LOG(CrashReportCoreLog, Log, TEXT("DataRouter disabled"));
 	}
 	else
 	{
-		UE_LOG(CrashReportLog, Log, TEXT("DataRouterUrl: %s"), *DataRouterUrl);
+		UE_LOG(CrashReportCoreLog, Log, TEXT("DataRouterUrl: %s"), *DataRouterUrl);
 	}
 
-	if (!GConfig->GetBool( TEXT( "CrashReportClient" ), TEXT( "bAllowToBeContacted" ), bAllowToBeContacted, GEngineIni ))
+	if (FEngineBuildSettings::IsInternalBuild())
+	{
+		bAllowToBeContacted = true;
+	}
+	else if (!GConfig->GetBool( TEXT( "CrashReportClient" ), TEXT( "bAllowToBeContacted" ), bAllowToBeContacted, GEngineIni ))
 	{
 		// Default to true when unattended when config is missing. This is mostly for dedicated servers that do not have config files for CRC.
 		if (bUnattended)
@@ -82,19 +86,19 @@ FCrashReportConfig::FCrashReportConfig()
 	ReadFullCrashDumpConfigurations();
 }
 
-void FCrashReportConfig::SetAllowToBeContacted( bool bNewValue )
+void FCrashReportCoreConfig::SetAllowToBeContacted( bool bNewValue )
 {
 	bAllowToBeContacted = bNewValue;
 	GConfig->SetBool( *SectionName, TEXT( "bAllowToBeContacted" ), bAllowToBeContacted, GEngineIni );
 }
 
-void FCrashReportConfig::SetSendLogFile( bool bNewValue )
+void FCrashReportCoreConfig::SetSendLogFile( bool bNewValue )
 {
 	bSendLogFile = bNewValue;
 	GConfig->SetBool( *SectionName, TEXT( "bSendLogFile" ), bSendLogFile, GEngineIni );
 }
 
-void FCrashReportConfig::SetProjectConfigOverrides(const FConfigFile& InConfigFile)
+void FCrashReportCoreConfig::SetProjectConfigOverrides(const FConfigFile& InConfigFile)
 {
 	const FConfigSection* Section = InConfigFile.Find(FGenericCrashContext::ConfigSectionName);
 
@@ -121,7 +125,7 @@ void FCrashReportConfig::SetProjectConfigOverrides(const FConfigFile& InConfigFi
 	}
 }
 
-const FString FCrashReportConfig::GetFullCrashDumpLocationForBranch( const FString& BranchName ) const
+const FString FCrashReportCoreConfig::GetFullCrashDumpLocationForBranch( const FString& BranchName ) const
 {
 	for (const auto& It : FullCrashDumpConfigurations)
 	{
@@ -140,7 +144,7 @@ const FString FCrashReportConfig::GetFullCrashDumpLocationForBranch( const FStri
 	return TEXT( "" );
 }
 
-FString FCrashReportConfig::GetKey( const FString& KeyName )
+FString FCrashReportCoreConfig::GetKey( const FString& KeyName )
 {
 	FString Result;
 	if (!GConfig->GetString( *SectionName, *KeyName, Result, GEngineIni ))
@@ -150,7 +154,7 @@ FString FCrashReportConfig::GetKey( const FString& KeyName )
 	return Result;
 }
 
-void FCrashReportConfig::ReadFullCrashDumpConfigurations()
+void FCrashReportCoreConfig::ReadFullCrashDumpConfigurations()
 {
 	for (int32 NumEntries = 0;; ++NumEntries)
 	{
@@ -166,6 +170,6 @@ void FCrashReportConfig::ReadFullCrashDumpConfigurations()
 
 		FullCrashDumpConfigurations.Add( FFullCrashDumpEntry( Branch, NetworkLocation, bExactMatch ) );
 
-		UE_LOG(CrashReportLog, Log, TEXT( "FullCrashDump: %s, NetworkLocation: %s, bExactMatch:%i" ), *Branch, *NetworkLocation, bExactMatch );
+		UE_LOG( CrashReportCoreLog, Log, TEXT( "FullCrashDump: %s, NetworkLocation: %s, bExactMatch:%i" ), *Branch, *NetworkLocation, bExactMatch );
 	}
 }

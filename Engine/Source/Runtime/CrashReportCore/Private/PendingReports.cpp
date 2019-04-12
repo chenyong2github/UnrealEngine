@@ -5,7 +5,6 @@
 #include "Logging/LogMacros.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "CrashReportClientApp.h"
 #include "Templates/UniquePtr.h"
 
 #include "Dom/JsonValue.h"
@@ -63,7 +62,7 @@ void FPendingReports::Save() const
 	TUniquePtr<FArchive> FileWriter(IFileManager::Get().CreateFileWriter(*PendingReportsPath));
 	if (!FileWriter)
 	{
-		UE_LOG(CrashReportClientLog, Warning, TEXT("Failed to save pending reports JSON file"));
+		UE_LOG(CrashReportCoreLog, Warning, TEXT("Failed to save pending reports JSON file"));
 		return;
 	}
 	FJsonSerializer::Serialize(JsonRootObject, FPrettyJsonWriter::Create(FileWriter.Get()));

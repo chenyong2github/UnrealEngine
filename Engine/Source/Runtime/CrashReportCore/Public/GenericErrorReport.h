@@ -118,12 +118,12 @@ public:
 	 * @return Whether a file with the extension was found
 	 */
 	bool FindFirstReportFileWithExtension(FString& OutFilename, const TCHAR* Extension) const;
-    
-    /**
-     * Deletes all of the files for the report
-     */
-    void DeleteFiles();
 
+	/**
+	 * Delete files from disk
+	 */
+	void DeleteFiles();
+	
 protected:
 	/** Full path to the directory the report files are in */
 	FString ReportDirectory;
