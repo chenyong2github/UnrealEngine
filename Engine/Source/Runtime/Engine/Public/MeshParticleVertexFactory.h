@@ -84,6 +84,7 @@ public:
 	/** Default constructor. */
 	FMeshParticleVertexFactory(EParticleVertexFactoryType InType, ERHIFeatureLevel::Type InFeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride)
 		: FParticleVertexFactoryBase(InType, InFeatureLevel)
+		, LODIdx(0xff)
 		, DynamicVertexStride(InDynamicVertexStride)
 		, DynamicParameterVertexStride(InDynamicParameterVertexStride)
 		, InstanceVerticesCPU(nullptr)
@@ -91,6 +92,7 @@ public:
 
 	FMeshParticleVertexFactory()
 		: FParticleVertexFactoryBase(PVFT_MAX, ERHIFeatureLevel::Num)
+		, LODIdx(0xff)
 		, DynamicVertexStride(-1)
 		, DynamicParameterVertexStride(-1)
 		, InstanceVerticesCPU(nullptr)
@@ -184,9 +186,21 @@ public:
 		return InstanceVerticesCPU;
 	}
 
+	void SetLODIdx(uint8 InLODIdx)
+	{
+		LODIdx = InLODIdx;
+	}
+
+	uint8 GetLODIdx() const
+	{
+		return LODIdx;
+	}
+
 protected:
 	FDataType Data;
 	
+	uint8 LODIdx;
+
 	/** Stride information for instanced mesh particles */
 	int32 DynamicVertexStride;
 	int32 DynamicParameterVertexStride;

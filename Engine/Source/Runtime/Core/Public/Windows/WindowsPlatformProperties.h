@@ -78,6 +78,11 @@ struct FWindowsPlatformProperties
 		return !IsServerOnly();
 	}
 
+	static FORCEINLINE bool SupportsMeshLODStreaming()
+	{
+		return !IsServerOnly();
+	}
+
 	static FORCEINLINE bool SupportsGrayscaleSRGB()
 	{
 		return false; // Requires expand from G8 to RGBA

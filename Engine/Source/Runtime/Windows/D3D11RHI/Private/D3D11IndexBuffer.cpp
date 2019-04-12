@@ -8,6 +8,11 @@
 
 FIndexBufferRHIRef FD3D11DynamicRHI::RHICreateIndexBuffer(uint32 Stride,uint32 Size,uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D11IndexBuffer();
+	}
+
 	// Explicitly check that the size is nonzero before allowing CreateIndexBuffer to opaquely fail.
 	check(Size > 0);
 
@@ -177,4 +182,19 @@ void FD3D11DynamicRHI::RHIUnlockIndexBuffer(FIndexBufferRHIParamRef IndexBufferR
 	// Remove the FD3D11LockedData from the lock map.
 	// If the lock involved a staging resource, this releases it.
 	OutstandingLocks.Remove(LockedKey);
+}
+
+void FD3D11DynamicRHI::RHITransferIndexBufferUnderlyingResource(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer)
+{
+	check(DestIndexBuffer);
+	FD3D11IndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{
+		FD3D11IndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		Dest->Swap(*Src);
+	}
 }
