@@ -2767,6 +2767,8 @@ void FSceneRenderer::RenderCustomDepthPassAtLocation(FRHICommandListImmediate& R
 
 void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
+
 	// do we have primitives in this pass?
 	bool bPrimitives = false;
 

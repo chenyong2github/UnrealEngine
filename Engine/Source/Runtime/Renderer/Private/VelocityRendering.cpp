@@ -435,6 +435,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderVelocities, FColor::Emerald);
 
 	check(FeatureLevel >= ERHIFeatureLevel::SM4);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderVelocities);
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
 	if (!ShouldRenderVelocities())

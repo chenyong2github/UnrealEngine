@@ -526,6 +526,7 @@ bool FDeferredShadingSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHIC
 	SCOPED_DRAW_EVENTF(RHICmdList, PrePass, TEXT("PrePass %s %s"), GetDepthDrawingModeString(EarlyZPassMode), GetDepthPassReason(bDitheredLODTransitionsUseStencil, ShaderPlatform));
 
 	SCOPE_CYCLE_COUNTER(STAT_DepthDrawTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPrePass);
 	SCOPED_GPU_STAT(RHICmdList, Prepass);
 
 	bool bDidPrePre = false;
