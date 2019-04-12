@@ -98,6 +98,11 @@ public:
 	DECLARE_EVENT_OneParam(USocialUser, FOnUserPresenceChanged, ESocialSubsystem)
 	FOnUserPresenceChanged& OnUserPresenceChanged() const { return OnUserPresenceChangedEvent; }
 
+	// provided so that lists with custom game-specific filtering (and any other listeners) can potentially re-evaluate a user
+	// the pattern here is similar to OnUserPresenceChanged but not subsystem-specific
+	DECLARE_EVENT(USocialUser, FOnUserGameSpecificStatusChanged)
+	FOnUserGameSpecificStatusChanged& OnUserGameSpecificStatusChanged() const { return OnUserGameSpecificStatusChangedEvent; }
+
 	DECLARE_EVENT_OneParam(USocialUser, FOnFriendRemoved, ESocialSubsystem)
 	FOnFriendRemoved& OnFriendRemoved() const { return OnFriendRemovedEvent; }
 	FOnFriendRemoved& OnFriendInviteRemoved() const { return OnFriendInviteRemovedEvent; }
@@ -178,4 +183,5 @@ private:
 	mutable FOnFriendRemoved OnFriendInviteRemovedEvent;
 	mutable FOnBlockedStatusChanged OnBlockedStatusChangedEvent;
 	mutable FOnSubsystemIdEstablished OnSubsystemIdEstablishedEvent;
+	mutable FOnUserGameSpecificStatusChanged OnUserGameSpecificStatusChangedEvent;
 };

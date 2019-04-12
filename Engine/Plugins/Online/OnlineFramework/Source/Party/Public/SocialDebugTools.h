@@ -71,6 +71,7 @@ public:
 		FDelegateHandle PresenceReceivedDelegateHandle;
 		FDelegateHandle FriendInviteReceivedDelegateHandle;
 		FDelegateHandle PartyInviteReceivedDelegateHandle;
+		FDelegateHandle PartyJoinRequestReceivedDelegateHandle;
 	};
 
 	FInstanceContext& GetContext(const FString& Instance);
@@ -95,4 +96,5 @@ private:
 	// OSS callback handlers
 	void HandleFriendInviteReceived(const FUniqueNetId& LocalUserId, const FUniqueNetId& FriendId);
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
+	void HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId, const FString& Platform, const FOnlinePartyData& PartyData);
 };
