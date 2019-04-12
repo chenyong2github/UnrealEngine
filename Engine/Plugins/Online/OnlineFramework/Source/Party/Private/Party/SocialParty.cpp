@@ -463,7 +463,7 @@ void USocialParty::TryFinishInitialization()
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld()); 
 		uint32 OSSMemberCount = PartyInterface->GetPartyMemberCount(*OwningLocalUserId, GetPartyId());
 
-		if (OSSMemberCount == PartyMembersById.Num())
+		if (OSSMemberCount == PartyMembersById.Num() && bHasReceivedRepData)
 		{
 			bIsInitialized = true;
 			GetSocialManager().NotifyPartyInitialized(*this);
@@ -497,6 +497,7 @@ void USocialParty::RefreshPublicJoinability()
 void USocialParty::InitializePartyRepData()
 {
 	UE_LOG(LogParty, Verbose, TEXT("Initializing rep data for party [%s]"), *ToDebugString());
+	bHasReceivedRepData = true;
 }
 
 FPartyPrivacySettings USocialParty::GetDesiredPrivacySettings() const
@@ -683,6 +684,11 @@ void USocialParty::HandlePartyDataReceived(const FUniqueNetId& LocalUserId, cons
 	{
 		check(PartyDataReplicator.IsValid());
 		PartyDataReplicator.ProcessReceivedData(*PartyData);
+		if (!bHasReceivedRepData)
+		{
+			bHasReceivedRepData = true;
+			TryFinishInitialization();
+		}
 	}
 }
 
