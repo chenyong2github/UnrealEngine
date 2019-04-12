@@ -24,19 +24,31 @@ class UFoliageType_InstancedStaticMesh : public UFoliageType
 	  * You can make a Blueprint subclass of FoliageInstancedStaticMeshComponent to implement custom behavior and assign that class here. */
 	UPROPERTY(EditAnywhere, Category = Mesh)
 	TSubclassOf<UFoliageInstancedStaticMeshComponent> ComponentClass;
-
-	virtual UStaticMesh* GetStaticMesh() const override
+		
+	UStaticMesh* GetStaticMesh() const
 	{
 		return Mesh;
 	}
 
-	virtual void SetStaticMesh(UStaticMesh* InStaticMesh) override
-	{
-		Mesh = InStaticMesh;
-	}
-
-	virtual UClass* GetComponentClass() const override
+	UClass* GetComponentClass() const
 	{
 		return *ComponentClass;
 	}
+
+	virtual UObject* GetSource() const override;
+
+#if WITH_EDITOR
+	virtual void UpdateBounds() override;
+	virtual bool IsSourcePropertyChange(const UProperty* Property) const override
+	{
+		return Property && Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFoliageType_InstancedStaticMesh, Mesh);
+	}
+	virtual void SetSource(UObject* InSource) override;
+
+	void SetStaticMesh(UStaticMesh* InStaticMesh)
+	{
+		Mesh = InStaticMesh;
+		UpdateBounds();
+	}
+#endif
 };
