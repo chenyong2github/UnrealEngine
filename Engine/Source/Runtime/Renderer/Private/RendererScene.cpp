@@ -1807,6 +1807,11 @@ void FScene::SetSkyLight(FSkyLightSceneProxy* LightProxy)
 				// The base pass chooses shaders based on whether there's a skylight in the scene, and that is cached in static draw lists
 				Scene->bScenesPrimitivesNeedStaticMeshElementUpdate = true;
 			}
+
+			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+			{
+				Scene->SkyLight->UpdateMobileUniformBuffer();
+			}
 		});
 }
 
@@ -1998,6 +2003,11 @@ void FScene::AddReflectionCapture(UReflectionCaptureComponent* Component)
 
 			Proxy->PackedIndex = PackedIndex;
 			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Add(Proxy->Position);
+			
+			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+			{
+				Proxy->UpdateMobileUniformBuffer();
+			}
 
 			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num());
 		});
@@ -2069,6 +2079,11 @@ void FScene::UpdateReflectionCaptureTransform(UReflectionCaptureComponent* Compo
 
 			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
 			Proxy->SetTransform(Transform);
+
+			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+			{
+				Proxy->UpdateMobileUniformBuffer();
+			}
 		});
 	}
 }
