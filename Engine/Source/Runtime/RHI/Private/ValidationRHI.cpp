@@ -68,10 +68,12 @@ void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& P
 					&& Initializer.BackFaceStencilFailStencilOp == SO_Keep
 					&& Initializer.BackFaceDepthFailStencilOp == SO_Keep
 					&& Initializer.BackFacePassStencilOp == SO_Keep, TEXT("No stencil render target set, yet PSO wants to use stencil operations!"));
+/*
 				ensureMsgf(PSOInitializer.StencilTargetLoadAction == ERenderTargetLoadAction::ENoAction,
 					TEXT("No stencil target set, yet PSO wants to load from it!"));
 				ensureMsgf(PSOInitializer.StencilTargetStoreAction == ERenderTargetStoreAction::ENoAction,
 					TEXT("No stencil target set, yet PSO wants to store into it!"));
+*/
 			}
 		}
 		else
