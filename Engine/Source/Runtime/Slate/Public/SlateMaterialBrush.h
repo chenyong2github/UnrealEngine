@@ -26,16 +26,4 @@ struct FSlateMaterialBrush : public FSlateBrush
 	{
 		ResourceName = FName( *InMaterial.GetFullName() );
 	}
-
-	/** Virtual destructor. */
-	virtual ~FSlateMaterialBrush()
-	{
-		if (FSlateApplication::IsInitialized())
-		{
-			if (FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer())
-			{
-				Renderer->ReleaseDynamicResource(*this);
-			}
-		}
-	}
 }; 
