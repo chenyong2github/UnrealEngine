@@ -18,11 +18,9 @@
 #include "Net/RepLayout.h"
 #include "DemoNetDriver.generated.h"
 
-class Error;
 class FNetworkNotify;
-class UDemoNetDriver;
-class UDemoNetConnection;
 class FRepState;
+class UDemoNetDriver;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDemo, Log, All);
 
@@ -33,11 +31,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnDemoStartedDelegate, UDemoNetDriver* /* D
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDemoFailedToStartDelegate, UDemoNetDriver* /* DemoNetDriver */, EDemoPlayFailure::Type /* FailureType*/);
 
 DECLARE_MULTICAST_DELEGATE(FOnDemoFinishPlaybackDelegate);
-
-class UDemoNetDriver;
-class UDemoNetConnection;
-
 DECLARE_MULTICAST_DELEGATE(FOnDemoFinishRecordingDelegate);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPauseChannelsDelegate, const bool /* bPaused */);
 
 class FQueuedReplayTask : public TSharedFromThis<FQueuedReplayTask>
 {
@@ -128,7 +124,7 @@ static const uint32 NETWORK_DEMO_METADATA_VERSION	= 0;
 USTRUCT()
 struct FLevelNameAndTime
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FLevelNameAndTime()
 		: LevelChangeTimeInMS(0)
@@ -382,6 +378,7 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 	int32 DemoTotalFrames;
 
 	/** True if we are at the end of playing a demo */
+	UE_DEPRECATED(4.23, "bDemoPlaybackDone is no longer used.")
 	bool bDemoPlaybackDone;
 
 	/** True if as have paused all of the channels */
@@ -486,6 +483,9 @@ public:
 
 	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
 	FOnDemoFinishRecordingDelegate OnDemoFinishRecordingDelegate;
+
+	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
+	FOnPauseChannelsDelegate OnPauseChannelsDelegate;
 
 	bool IsLoadingCheckpoint() const { return bIsLoadingCheckpoint; }
 	
