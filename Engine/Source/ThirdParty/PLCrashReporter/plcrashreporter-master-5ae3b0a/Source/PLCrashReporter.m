@@ -79,7 +79,7 @@ static NSString *PLCRASH_QUEUED_DIR = @"queued_reports";
  * @internal
  * Fatal signals to be monitored.
  */
-static int monitored_signals[] = {
+static int fatal_monitored_signals[] = {
     SIGABRT,
     SIGBUS,
     SIGFPE,
@@ -88,9 +88,17 @@ static int monitored_signals[] = {
     SIGTRAP
 };
 
+/* EG BEGIN */
+static int non_fatal_monitored_signals[] = {
+    SIGUSR2
+};
+
 /** @internal
  * number of signals in the fatal signals list */
-static int monitored_signals_count = (sizeof(monitored_signals) / sizeof(monitored_signals[0]));
+static int fatal_monitored_signals_count = (sizeof(fatal_monitored_signals) / sizeof(fatal_monitored_signals[0]));
+
+static int non_fatal_monitored_signals_count = (sizeof(non_fatal_monitored_signals) / sizeof(non_fatal_monitored_signals[0]));
+/* EG END */
 
 /**
  * @internal
@@ -201,11 +209,13 @@ static plcrash_error_t plcrash_write_report (plcrashreporter_handler_ctx_t *sigc
  *
  * Signal handler callback.
  */
+/* EG BEGIN */
 static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t *uap, void *context, PLCrashSignalHandlerCallback *next) {
     plcrashreporter_handler_ctx_t *sigctx = context;
     plcrash_async_thread_state_t thread_state;
     plcrash_log_signal_info_t signal_info;
     plcrash_log_bsd_signal_info_t bsd_signal_info;
+    bool non_fatal_signal = false;
     
     /* Remove all signal handlers -- if the crash reporting code fails, the default terminate
      * action will occur.
@@ -217,14 +227,28 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
      * could result in incorrect runtime behavior; we should revisit resetting the
      * signal handlers once we address double-fault handling.
      */
-    for (int i = 0; i < monitored_signals_count; i++) {
+    for (int i = 0; i < fatal_monitored_signals_count; i++) {
+
+        if (info->si_signo == fatal_monitored_signals[i]) {
+             non_fatal_signal = false;
+        }
+
         struct sigaction sa;
         
         memset(&sa, 0, sizeof(sa));
         sa.sa_handler = SIG_DFL;
         sigemptyset(&sa.sa_mask);
         
-        sigaction(monitored_signals[i], &sa, NULL);
+        sigaction(fatal_monitored_signals[i], &sa, NULL);
+    }
+
+    for (int i = 0; i < non_fatal_monitored_signals_count; i++) {
+
+        if (info->si_signo == non_fatal_monitored_signals[i]) {
+            non_fatal_signal = true;
+        }
+
+        // For non_fatal signals we assume it may be called again and need to handle that vs using SIG_DFL
     }
 
     /* Extract the thread state */
@@ -248,9 +272,10 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     /* Call any post-crash callback */
     if (crashCallbacks.handleSignal != NULL)
         crashCallbacks.handleSignal(info, uap, crashCallbacks.context);
-    
-    return false;
+
+    return non_fatal_signal;
 }
+/* EG END */
 
 #if PLCRASH_FEATURE_MACH_EXCEPTIONS
 /* State and callback used to generate thread state for the calling mach thread. */
@@ -593,10 +618,16 @@ static PLCrashReporter *sharedReporter = nil;
     /* Enable the signal handler */
     switch (_config.signalHandlerType) {
         case PLCrashReporterSignalHandlerTypeBSD:
-            for (size_t i = 0; i < monitored_signals_count; i++) {
-                if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: monitored_signals[i] callback: &signal_handler_callback context: &signal_handler_context error: outError])
+            for (size_t i = 0; i < fatal_monitored_signals_count; i++) {
+                if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: fatal_monitored_signals[i] callback: &signal_handler_callback context: &signal_handler_context error: outError])
                     return NO;
             }
+            /* EG BEGIN */
+            for (size_t i = 0; i < non_fatal_monitored_signals_count; i++) {
+                if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: non_fatal_monitored_signals[i] callback: &signal_handler_callback context: &signal_handler_context error: outError])
+                    return NO;
+            }
+            /* EG END */
             break;
 
 #if PLCRASH_FEATURE_MACH_EXCEPTIONS
