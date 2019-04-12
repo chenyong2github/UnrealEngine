@@ -4263,10 +4263,10 @@ bool FEdModeLandscape::IsLayerLocked(int32 InLayerIndex) const
 
 void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	if (Layer)
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
 	{
-		Layer->bLocked = bInLocked;
+		Landscape->SetLayerLocked(InLayerIndex, bInLocked);
 	}
 }
 

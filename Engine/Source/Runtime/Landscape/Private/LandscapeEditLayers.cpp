@@ -4404,6 +4404,7 @@ void ALandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 		return;
 	}
 
+	Modify();
 	LandscapeLayers[InLayerIndex].Name = InName;
 }
 
@@ -4420,6 +4421,7 @@ void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bIn
 		return;
 	}
 
+	Modify();
 	LayerAlpha = InAlpha;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 }
@@ -4432,8 +4434,21 @@ void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
 		return;
 	}
 
+	Modify();
 	Layer->bVisible = bInVisible;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+}
+
+void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)
+{
+	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (!Layer || Layer->bLocked == bLocked)
+	{
+		return;
+	}
+
+	Modify();
+	Layer->bLocked = bLocked;
 }
 
 FLandscapeLayer* ALandscape::GetLayer(int32 InLayerIndex)

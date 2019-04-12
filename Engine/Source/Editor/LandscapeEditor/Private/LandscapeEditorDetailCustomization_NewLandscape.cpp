@@ -392,8 +392,24 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			//.MinSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMinLandscapeResolution))
 			//.MaxSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMaxLandscapeResolution))
 			.Value(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeResolutionX)
-			.OnValueChanged(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionX)
-			.OnValueCommitted(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnCommitLandscapeResolutionX)
+			.OnValueChanged_Lambda([=](int32 NewValue)
+			{
+				OnChangeLandscapeResolutionX(NewValue, false);
+			})
+			.OnValueCommitted_Lambda([=](int32 NewValue, ETextCommit::Type)
+			{
+				OnChangeLandscapeResolutionX(NewValue, true);
+			})
+			.OnBeginSliderMovement_Lambda([=]()
+			{
+				bUsingSlider = true;
+				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"));
+			})
+			.OnEndSliderMovement_Lambda([=](double)
+			{
+				GEditor->EndTransaction();
+				bUsingSlider = false;
+			})
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -418,8 +434,24 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			//.MinSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMinLandscapeResolution))
 			//.MaxSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMaxLandscapeResolution))
 			.Value(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeResolutionY)
-			.OnValueChanged(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionY)
-			.OnValueCommitted(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnCommitLandscapeResolutionY)
+			.OnValueChanged_Lambda([=](int32 NewValue)
+			{
+				OnChangeLandscapeResolutionY(NewValue, false);
+			})
+			.OnValueCommitted_Lambda([=](int32 NewValue, ETextCommit::Type)
+			{
+				OnChangeLandscapeResolutionY(NewValue, true);
+			})
+			.OnBeginSliderMovement_Lambda([=]()
+			{
+				bUsingSlider = true;
+				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionY_Transaction", "Change Landscape Resolution Y"));
+			})
+			.OnEndSliderMovement_Lambda([=](double)
+			{
+				GEditor->EndTransaction();
+				bUsingSlider = false;
+			})
 		]
 	];
 
@@ -617,37 +649,21 @@ TOptional<int32> FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeR
 	return 0;
 }
 
-void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionX(int32 NewValue)
+void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionX(int32 NewValue, bool bCommit)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
 		int32 NewComponentCountX = LandscapeEdMode->UISettings->CalcComponentsCount(NewValue);
-		if (NewComponentCountX != LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X)
+		if (NewComponentCountX == LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X)
 		{
-			if (!GEditor->IsTransactionActive())
-			{
-				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"));
-			}
-
-			LandscapeEdMode->UISettings->Modify();
-			LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = NewComponentCountX;
+			return;
 		}
-	}
-}
 
-void FLandscapeEditorDetailCustomization_NewLandscape::OnCommitLandscapeResolutionX(int32 NewValue, ETextCommit::Type CommitInfo)
-{
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode != nullptr)
-	{
-		if (!GEditor->IsTransactionActive())
-		{
-			GEditor->BeginTransaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"));
-		}
+		FScopedTransaction Transaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"), !bUsingSlider && bCommit);
+		
 		LandscapeEdMode->UISettings->Modify();
-		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = LandscapeEdMode->UISettings->CalcComponentsCount(NewValue);
-		GEditor->EndTransaction();
+		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = NewComponentCountX;
 	}
 }
 
@@ -662,37 +678,21 @@ TOptional<int32> FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeR
 	return 0;
 }
 
-void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionY(int32 NewValue)
+void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeLandscapeResolutionY(int32 NewValue, bool bCommit)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
 		int32 NewComponentCountY = LandscapeEdMode->UISettings->CalcComponentsCount(NewValue);
-		if (NewComponentCountY != LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y)
+		if (NewComponentCountY == LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y)
 		{
-			if (!GEditor->IsTransactionActive())
-			{
-				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionY_Transaction", "Change Landscape Resolution Y"));
-			}
-			
-			LandscapeEdMode->UISettings->Modify();
-			LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = NewComponentCountY;
+			return;
 		}
-	}
-}
 
-void FLandscapeEditorDetailCustomization_NewLandscape::OnCommitLandscapeResolutionY(int32 NewValue, ETextCommit::Type CommitInfo)
-{
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode != nullptr)
-	{
-		if (!GEditor->IsTransactionActive())
-		{
-			GEditor->BeginTransaction(LOCTEXT("ChangeResolutionY_Transaction", "Change Landscape Resolution Y"));
-		}
+		FScopedTransaction Transaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"), !bUsingSlider && bCommit);
+	
 		LandscapeEdMode->UISettings->Modify();
-		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = LandscapeEdMode->UISettings->CalcComponentsCount(NewValue);
-		GEditor->EndTransaction();
+		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = NewComponentCountY;
 	}
 }
 

@@ -88,8 +88,8 @@ protected:
 	EVisibility GetLayerAlphaVisibility(int32 InLayerIndex) const;
 
 	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
-	void SetLayerAlpha(float InAlpha, int32 InLayerIndex);
-
+	void SetLayerAlpha(float InAlpha, int32 InLayerIndex, bool bCommit);
+	
 	FReply OnToggleVisibility(int32 InLayerIndex);
 	const FSlateBrush* GetVisibilityBrushForLayer(int32 InLayerIndex) const;
 	
@@ -102,6 +102,7 @@ private:
 	TArray< TSharedPtr< SInlineEditableTextBlock > > InlineTextBlocks;
 
 	int32 CurrentEditingInlineTextBlock;
+	int32 CurrentSlider;
 };
 
 class FLandscapeListElementDragDropOp : public FDragAndDropVerticalBoxOp

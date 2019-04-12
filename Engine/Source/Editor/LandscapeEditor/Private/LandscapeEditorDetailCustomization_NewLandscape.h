@@ -23,6 +23,10 @@ class IDetailLayoutBuilder;
 class FLandscapeEditorDetailCustomization_NewLandscape : public FLandscapeEditorDetailCustomization_Base
 {
 public:
+	FLandscapeEditorDetailCustomization_NewLandscape()
+		: bUsingSlider(false)
+	{}
+
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
@@ -41,13 +45,11 @@ public:
 	static FText GetSectionsPerComponent(TSharedRef<IPropertyHandle> PropertyHandle);
 
 	TOptional<int32> GetLandscapeResolutionX() const;
-	void OnChangeLandscapeResolutionX(int32 NewValue);
-	void OnCommitLandscapeResolutionX(int32 NewValue, ETextCommit::Type CommitInfo);
-
+	void OnChangeLandscapeResolutionX(int32 NewValue, bool bCommit);
+	
 	TOptional<int32> GetLandscapeResolutionY() const;
-	void OnChangeLandscapeResolutionY(int32 NewValue);
-	void OnCommitLandscapeResolutionY(int32 NewValue, ETextCommit::Type CommitInfo);
-
+	void OnChangeLandscapeResolutionY(int32 NewValue, bool bCommit);
+	
 	TOptional<int32> GetMinLandscapeResolution() const;
 	TOptional<int32> GetMaxLandscapeResolution() const;
 
@@ -82,6 +84,7 @@ public:
 
 protected:
 	TArray<FLandscapeFileResolution> ImportResolutions;
+	bool bUsingSlider;
 };
 
 class FLandscapeEditorStructCustomization_FLandscapeImportLayer : public FLandscapeEditorStructCustomization_Base
