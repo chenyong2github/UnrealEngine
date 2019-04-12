@@ -140,9 +140,4 @@ RENDERER_API FRDGTextureRef AddPasses(
 	FRDGTextureRef InputSceneColor,
 	FRDGTextureRef SeparateTranslucency);
 
-
-/** Wire all DOF's passes according to view settings and cvars to convolve the scene color (Context.FinalOutput). */
-// TODO: kill
-RENDERER_API bool WireSceneColorPasses(FPostprocessContext& Context, const FRenderingCompositeOutputRef& VelocityInput, const FRenderingCompositeOutputRef& SeparateTranslucency);
-
 } // namespace DiaphragmDOF

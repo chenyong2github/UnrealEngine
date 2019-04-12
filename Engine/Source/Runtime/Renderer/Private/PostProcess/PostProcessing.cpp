@@ -1565,46 +1565,38 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					if (CVarUseDiaphragmDOF.GetValueOnRenderThread() > 0 &&
 						DiaphragmDOF::IsSupported(View.GetShaderPlatform()))
 					{
-						if (CVarUseDiaphragmDOF.GetValueOnRenderThread() == 2)
+						FRenderingCompositePass* DiaphragmDOFPass = Context.Graph.RegisterPass(
+							new(FMemStack::Get()) TRCPassForRDG<2, 1>([](FRenderingCompositePass* Pass, FRenderingCompositePassContext& Context)
 						{
-							FRenderingCompositePass* DiaphragmDOFPass = Context.Graph.RegisterPass(
-								new(FMemStack::Get()) TRCPassForRDG<2, 1>([](FRenderingCompositePass* Pass, FRenderingCompositePassContext& Context)
-							{
-								FRDGBuilder GraphBuilder(Context.RHICmdList);
+							FRDGBuilder GraphBuilder(Context.RHICmdList);
 
-								FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-								FSceneViewFamilyBlackboard SceneBlackboard;
-								SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+							FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
+							FSceneViewFamilyBlackboard SceneBlackboard;
+							SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 	
-								FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-								FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+							FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
+							FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
 
-								FRDGTextureRef NewSceneColor = DiaphragmDOF::AddPasses(
-									GraphBuilder,
-									SceneBlackboard, Context.View,
-									SceneColor, SeparateTranslucency);
+							FRDGTextureRef NewSceneColor = DiaphragmDOF::AddPasses(
+								GraphBuilder,
+								SceneBlackboard, Context.View,
+								SceneColor, SeparateTranslucency);
 		
-								// DOF passes were not added, therefore need to compose Separate translucency manually. 
-								if (NewSceneColor == SceneColor)
-								{
-									NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, Context.View, SceneColor, SeparateTranslucency);
-								}
+							// DOF passes were not added, therefore need to compose Separate translucency manually. 
+							if (NewSceneColor == SceneColor)
+							{
+								NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, Context.View, SceneColor, SeparateTranslucency);
+							}
 
-								Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, NewSceneColor);
+							Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, NewSceneColor);
 
-								GraphBuilder.Execute();
-							}));
-							DiaphragmDOFPass->SetInput(ePId_Input0, Context.FinalOutput);
-							DiaphragmDOFPass->SetInput(ePId_Input1, SeparateTranslucency);
-							Context.FinalOutput = FRenderingCompositeOutputRef(DiaphragmDOFPass, ePId_Output0);
+							GraphBuilder.Execute();
+						}));
+						DiaphragmDOFPass->SetInput(ePId_Input0, Context.FinalOutput);
+						DiaphragmDOFPass->SetInput(ePId_Input1, SeparateTranslucency);
+						Context.FinalOutput = FRenderingCompositeOutputRef(DiaphragmDOFPass, ePId_Output0);
 
-							bSepTransWasApplied = true;
-						}
-						else
-						{
-							bSepTransWasApplied = DiaphragmDOF::WireSceneColorPasses(
-								Context, DOFVelocityRef,SeparateTranslucency);
-						}
+						bSepTransWasApplied = true;
 					}
 					else
 					{
