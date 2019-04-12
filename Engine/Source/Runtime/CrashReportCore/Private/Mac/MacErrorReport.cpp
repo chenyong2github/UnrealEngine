@@ -2,19 +2,24 @@
 
 #include "Mac/MacErrorReport.h"
 #include "../CrashReportUtil.h"
-#include "CrashDebugHelperModule.h"
-#include "CrashDebugHelper.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Modules/ModuleManager.h"
+#include "CrashReportCoreConfig.h"
+
+#if WITH_CRASHREPORTER
+#include "CrashDebugHelper.h"
 #include "CrashDebugHelperModule.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "CrashReportClient"
 
 namespace
 {
+#if WITH_CRASHREPORTER
 	/** Pointer to dynamically loaded crash diagnosis module */
 	FCrashDebugHelperModule* CrashHelperModule;
+#endif
 }
 
 FMacErrorReport::FMacErrorReport(const FString& Directory)
@@ -24,16 +29,21 @@ FMacErrorReport::FMacErrorReport(const FString& Directory)
 
 void FMacErrorReport::Init()
 {
+#if WITH_CRASHREPORTER
 	CrashHelperModule = &FModuleManager::LoadModuleChecked<FCrashDebugHelperModule>(FName("CrashDebugHelper"));
+#endif
 }
 
 void FMacErrorReport::ShutDown()
 {
+#if WITH_CRASHREPORTER
 	CrashHelperModule->ShutdownModule();
+#endif
 }
 
 FString FMacErrorReport::FindCrashedAppPath() const
 {
+#if WITH_CRASHREPORTER
 	TArray<uint8> Data;
 	if(FFileHelper::LoadFileToArray(Data, *(ReportDirectory / TEXT("Report.wer"))))
 	{
@@ -63,11 +73,13 @@ FString FMacErrorReport::FindCrashedAppPath() const
 	{
 		UE_LOG(LogStreaming, Error,	TEXT("Failed to read file '%s' error."),*(ReportDirectory / TEXT("Report.wer")));
 	}
+#endif
 	return "";
 }
 
 void FMacErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
 {
+#if WITH_CRASHREPORTER
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	FDateTime MinCreationTime = FDateTime::UtcNow() - MaxCrashReportAge;
@@ -97,10 +109,12 @@ void FMacErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPat
 
 		return TimeStampL > TimeStampR;
 	});
+#endif
 }
 
 FText FMacErrorReport::DiagnoseReport() const
 {
+#if WITH_CRASHREPORTER
 	// Should check if there are local PDBs before doing anything
 	ICrashDebugHelper* CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
 	if (!CrashDebugHelper)
@@ -142,6 +156,8 @@ FText FMacErrorReport::DiagnoseReport() const
 			return FText::FromString("Failed to create diagnosis information.");
 		}
 	}
+#endif
+	return FText::FromString(TEXT("Failed to load CrashDebugHelper."));
 }
 
 #undef LOCTEXT_NAMESPACE
