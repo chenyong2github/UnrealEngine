@@ -3,6 +3,7 @@
 #include "FoliageStatistics.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "InstancedFoliageActor.h"
 
@@ -19,6 +20,7 @@ int32 UFoliageStatistics::FoliageOverlappingSphereCount(UObject* WorldContextObj
 	int32 Count = 0;
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
+		const UObject* Source = Cast<UObject>(StaticMesh);
 		const FSphere Sphere(CenterPosition, Radius);
 
 		for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
@@ -27,7 +29,7 @@ int32 UFoliageStatistics::FoliageOverlappingSphereCount(UObject* WorldContextObj
 			if (!IFA->IsPendingKill())
 			{
 				TArray<const UFoliageType*> FoliageTypes;
-				IFA->GetAllFoliageTypesForMesh(StaticMesh, FoliageTypes);
+				IFA->GetAllFoliageTypesForSource(Source, FoliageTypes);
 
 				for (const auto Type : FoliageTypes)
 				{
@@ -43,6 +45,7 @@ int32 UFoliageStatistics::FoliageOverlappingSphereCount(UObject* WorldContextObj
 int32 UFoliageStatistics::FoliageOverlappingBoxCount(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FBox Box)
 {
 	int32 Count = 0;
+	const UObject* Source = Cast<UObject>(StaticMesh);
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
@@ -51,7 +54,7 @@ int32 UFoliageStatistics::FoliageOverlappingBoxCount(UObject* WorldContextObject
 			if (!IFA->IsPendingKill())
 			{
 				TArray<const UFoliageType*> FoliageTypes;
-				IFA->GetAllFoliageTypesForMesh(StaticMesh, FoliageTypes);
+				IFA->GetAllFoliageTypesForSource(Source, FoliageTypes);
 
 				for (const auto Type : FoliageTypes)
 				{
@@ -68,13 +71,14 @@ void UFoliageStatistics::FoliageOverlappingBoxTransforms(UObject* WorldContextOb
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
+		const UObject* Source = Cast<UObject>(StaticMesh);
 		for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
 		{
 			AInstancedFoliageActor* IFA = *It;
 			if (!IFA->IsPendingKill())
 			{
 				TArray<const UFoliageType*> FoliageTypes;
-				IFA->GetAllFoliageTypesForMesh(StaticMesh, FoliageTypes);
+				IFA->GetAllFoliageTypesForSource(Source, FoliageTypes);
 
 				for (const auto Type : FoliageTypes)
 				{
