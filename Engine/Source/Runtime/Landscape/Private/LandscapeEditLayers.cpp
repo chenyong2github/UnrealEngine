@@ -2763,41 +2763,49 @@ void ALandscape::RegenerateLayersHeightmaps()
 		}
 	}
 
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_ResolveToTexture) != 0)
+	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ResolveToTexture) != 0)
 	{
 		ResolveLayersHeightmapTexture(AllLandscapes);
 	}
 
-	uint32 BoundsAndCollisionFlag = 0;
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Heightmap_BoundsAndCollision) != 0)
+	bool bUpdateBoundsAndCollsion = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_BoundsAndCollision) != 0;
+	bool bUpdateClients = (LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ClientUpdate) != 0;
+	int32 PostponeUpdateClientFlag = 0;
+	if (bUpdateBoundsAndCollsion || bUpdateClients)
 	{
 		for (ULandscapeComponent* Component : AllLandscapeComponents)
 		{
-			Component->UpdateCachedBounds();
-			Component->UpdateComponentToWorld();
-
-            Component->UpdateCollisionData();
-			
-			// Recreate collision for modified components to update the physical materials
-			ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
-			if (CollisionComponent)
+			if (bUpdateBoundsAndCollsion)
 			{
-				// Only reflect outside of transaction
-				if (!GUndo)
+				Component->UpdateCachedBounds();
+				Component->UpdateComponentToWorld();
+
+				Component->UpdateCollisionData();
+			}
+
+			if (bUpdateClients)
+			{
+				// Post-pone client update to next tick while in transaction
+				if (GUndo)
 				{
-					FNavigationSystem::UpdateComponentData(*CollisionComponent);
-					CollisionComponent->SnapFoliageInstances();
+					PostponeUpdateClientFlag |= EInternalLandscapeLayersContentUpdateFlag::Internal_Heightmap_ClientUpdate;
 				}
 				else
 				{
-					BoundsAndCollisionFlag = ELandscapeLayersContentUpdateFlag::Heightmap_BoundsAndCollision;
+					// Recreate collision for modified components to update the physical materials
+					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
+					if (CollisionComponent)
+					{
+						FNavigationSystem::UpdateComponentData(*CollisionComponent);
+						CollisionComponent->SnapFoliageInstances();
+					}
 				}
-			}		
+			}
 		}
 	}
 
 	LayersContentUpdateFlags &= ~ELandscapeLayersContentUpdateFlag::Heightmap_All;
-	LayersContentUpdateFlags |= BoundsAndCollisionFlag; // Delay update if we were transacting
+	LayersContentUpdateFlags |= PostponeUpdateClientFlag; // if non-zero postpone client update (transacting)
 
 	// If doing rendering debug, keep doing the render only
 	if (CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1)
@@ -3904,12 +3912,12 @@ void ALandscape::RegenerateLayersWeightmaps()
 		LayersUpdateAllMaterials = false;
 	}
 
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Weightmap_ResolveToTexture))
+	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_ResolveToTexture))
 	{
 		ResolveLayersWeightmapTexture(AllLandscapes);
 	}
 
-	if ((LayersContentUpdateFlags & ELandscapeLayersContentUpdateFlag::Weightmap_Collision) != 0)
+	if ((LayersContentUpdateFlags & EInternalLandscapeLayersContentUpdateFlag::Internal_Weightmap_Collision) != 0)
 	{
 		for (ULandscapeComponent* Component : AllLandscapeComponents)
 		{
@@ -4127,7 +4135,7 @@ void ALandscape::ResolveLayersWeightmapTexture(const TArray<ALandscapeProxy*>& I
 	}
 }
 
-void ALandscape::RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials)
+void ALandscape::RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials)
 {
 	LayersContentUpdateFlags |= InDataFlags;
 	LayersUpdateAllMaterials |= InUpdateAllMaterials;
@@ -4135,7 +4143,7 @@ void ALandscape::RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAll
 
 void ALandscape::RegenerateLayersContent()
 {
-	if ((LayersContentUpdateFlags & Heightmap_Setup) != 0 || (LayersContentUpdateFlags & Weightmap_Setup) != 0)
+	if ((LayersContentUpdateFlags & Internal_Heightmap_Setup) != 0 || (LayersContentUpdateFlags & Internal_Weightmap_Setup) != 0)
 	{
 		SetupLayers();
 		LayersContentUpdateFlags &= ~(ELandscapeLayersContentUpdateFlag::All_Setup);
@@ -4511,7 +4519,8 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	LandscapeLayers.RemoveAt(InLayerIndex);
 
 	// Request Update
-	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Setup | All, true);
+	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Setup, false);
+	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 }
 
 void ALandscape::ClearLayer(int32 InLayerIndex, bool bInUpdateCollision)
@@ -4844,7 +4853,7 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 		*AllocationBlend = InStatus;
 	}
 
-	RequestLayersContentUpdate(true);
+	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 }
 
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
