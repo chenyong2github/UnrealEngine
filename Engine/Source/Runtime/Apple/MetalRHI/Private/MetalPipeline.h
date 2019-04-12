@@ -76,6 +76,7 @@ struct FMetalTessellationPipelineDesc
 	mtlpp::RenderPipelineState DebugPipelineState;
 	FMetalTessellationPipelineDesc TessellationPipelineDesc;
 	TArray<uint32> BufferDataSizes[EMetalShaderStagesNum];
+	TMap<uint8, uint8> TextureTypes[EMetalShaderStagesNum];
 	FMetalDebugShaderResourceMask ResourceMask[EMetalShaderStagesNum];
 	mtlpp::RenderPipelineReflection RenderPipelineReflection;
 	mtlpp::ComputePipelineReflection ComputePipelineReflection;
