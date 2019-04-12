@@ -178,6 +178,8 @@ public:
 
 	void SerializeMetaData(FArchive& Ar);
 
+	void ClearMetaData();
+
 	/**
 	* Specialized assignment operator, only used when importing LOD's.
 	*/

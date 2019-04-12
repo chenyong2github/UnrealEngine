@@ -245,6 +245,14 @@ void FStaticMeshVertexBuffer::SerializeMetaData(FArchive& Ar)
 	InitTangentAndTexCoordStrides();
 }
 
+void FStaticMeshVertexBuffer::ClearMetaData()
+{
+	NumTexCoords = NumVertices = 0;
+	bUseFullPrecisionUVs = !GVertexElementTypeSupport.IsSupported(VET_Half2);
+	bUseHighPrecisionTangentBasis = false;
+	TangentsStride = TexcoordStride = 0;
+}
+
 
 /**
 * Specialized assignment operator, only used when importing LOD's.

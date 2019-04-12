@@ -59,6 +59,8 @@ public:
 
 	void SerializeMetaData(FArchive& Ar);
 
+	void ClearMetaData();
+
 	/**
 	* Export the data to a string, used for editor Copy&Paste.
 	* The method must not be called if there is no data.
