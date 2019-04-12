@@ -12755,14 +12755,13 @@ UMaterialExpressionRayTracingQualitySwitch::UMaterialExpressionRayTracingQuality
 #if WITH_EDITOR
 int32 UMaterialExpressionRayTracingQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-
 	if (!Normal.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing RayTraceQualitySwitch input 'Normal'"));
+		return Compiler->Errorf(TEXT("Missing RayTracingQualitySwitch input 'Normal'"));
 	}
 	else if (!RayTraced.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing RayTraceQualitySwitch input 'RayTraced'"));
+		return Compiler->Errorf(TEXT("Missing RayTracingQualitySwitch input 'RayTracing'"));
 	}
 	else
 	{
