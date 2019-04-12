@@ -418,7 +418,7 @@ public:
 	 * Locks one of the texture's mip-maps.
 	 * @return A pointer to the specified texture data.
 	 */
-	void* Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride);
+	void* Lock(uint32 MipIndex,uint32 ArrayIndex,EResourceLockMode LockMode,uint32& DestStride,bool bForceLockDeferred = false);
 
 	/** Unlocks a previously locked mip-map. */
 	void Unlock(uint32 MipIndex,uint32 ArrayIndex);
