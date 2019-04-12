@@ -1592,6 +1592,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		}
 #endif // INTEL_METRICSDISCOVERY
 
+		// Disable the RHI thread by default for devices that will likely suffer in performance
+		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCoresIncludingHyperthreads() <= 2)
+		{
+			GRHISupportsRHIThread = false;
+		}
+
 		SetupAfterDeviceCreation();
 
 		// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
