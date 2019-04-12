@@ -80,6 +80,8 @@ public:
 	virtual TSharedPtr<FObjectReplicator> CreateReplicatorForNewActorChannel(UObject* Object);
 	virtual FString RemoteAddressToString() override { return TEXT("Demo"); }
 
+	virtual void NotifyActorNetGUID(UActorChannel* Channel) override;
+
 public:
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -99,6 +101,8 @@ public:
 	TArray<FQueuedDemoPacket> QueuedDemoPackets;
 	TArray<FQueuedDemoPacket> QueuedCheckpointPackets;
 
+	TMap<FNetworkGUID, UActorChannel*>& GetOpenChannelMap() { return OpenChannelMap; }
+
 protected:
 	virtual void DestroyIgnoredActor(AActor* Actor) override;
 
@@ -109,4 +113,7 @@ protected:
 
 private:
 	void TrackSendForProfiler(const void* Data, int32 NumBytes);
+
+	// Not a weak object pointer, intended to exist only during checkpoint loading
+	TMap<FNetworkGUID, UActorChannel*> OpenChannelMap;
 };
