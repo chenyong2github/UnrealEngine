@@ -282,15 +282,6 @@ public:
 		FMemoryReader& MemoryReader) PURE_VIRTUAL(AnimEncoding::ByteSwapIn,);
 
 	/**
-	 * Temp routine to determine if this compressed data can be memory mapped
-	 *
-	 * @param	Seq					An Animation Sequence to contain the read data.
-	 * @return	true if this sequence can be memory mapped
-	 */
-	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize)
-		PURE_VIRTUAL(AnimEncoding::CanBeMemoryMapped, return false;);
-
-	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
 	 * @param	Seq					An Animation Sequence to write.
@@ -300,7 +291,8 @@ public:
 	virtual void ByteSwapOut(
 		UAnimSequence& Seq,
 		TArray<uint8>& SerializedData, 
-		bool ForceByteSwapping) PURE_VIRTUAL(AnimEncoding::ByteSwapOut,);
+		bool ForceByteSwapping,
+		bool bMaintainComponentOrder=false) PURE_VIRTUAL(AnimEncoding::ByteSwapOut, );
 
 	/**
 	 * Extracts a single BoneAtom from an Animation Sequence.
@@ -476,8 +468,6 @@ public:
 		UAnimSequence& Seq, 
 		FMemoryReader& MemoryReader) override;
 
-	virtual bool CanBeMemoryMapped(UAnimSequence& Seq, int32 TotalSize) override;
-
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
@@ -487,8 +477,9 @@ public:
 	 */
 	virtual void ByteSwapOut(
 		UAnimSequence& Seq,
-		TArray<uint8>& SerializedData, 
-		bool ForceByteSwapping) override;
+		TArray<uint8>& SerializedData,
+		bool ForceByteSwapping,
+		bool bMaintainComponentOrder=false) override;
 
 	/**
 	 * Handles the ByteSwap of compressed animation data on import
