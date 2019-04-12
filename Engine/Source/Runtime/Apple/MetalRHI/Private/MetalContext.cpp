@@ -73,10 +73,14 @@ static FAutoConsoleVariableRef CVarMetalResourceDeferDeleteNumFrames(
 	TEXT("Debug option: set to the number of frames that must have passed before resource free-lists are processed and resources disposed of. (Default: 0, Off)"));
 #endif
 
-#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+#if UE_BUILD_SHIPPING
 int32 GMetalRuntimeDebugLevel = 0;
 #else
+#if PLATFORM_MAC
+int32 GMetalRuntimeDebugLevel = 3;
+#else
 int32 GMetalRuntimeDebugLevel = 1;
+#endif
 #endif
 static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	TEXT("rhi.Metal.RuntimeDebugLevel"),
