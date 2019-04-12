@@ -200,6 +200,9 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	bool HasStaticShadowing() const;
 
 #if WITH_EDITOR
+	/** UObject Interface */
+	virtual void PostLoad() override;
+
 	/** UActorComponent Interface */
 	virtual void OnRegister() override;
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
