@@ -333,19 +333,28 @@ void FControlRigEditor::Compile()
 
 	FBlueprintEditor::Compile();
 
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	if (Blueprint)
+	if (ControlRig)
 	{
-		if (Blueprint->Operators.Num() == 1) // just the "done" operator
+		ControlRig->ControlRigLog = &ControlRigLog;
+		ControlRig->DrawInterface = &DrawInterface;
+
+		UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
+		if (GeneratedClass)
 		{
-			FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
-			Info.bFireAndForget = true;
-			Info.FadeOutDuration = 10.0f;
-			Info.ExpireDuration = 0.0f;
-			TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-			NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+			if (GeneratedClass->Operators.Num() == 1) // just the "done" operator
+			{
+				FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
+				Info.bFireAndForget = true;
+				Info.FadeOutDuration = 10.0f;
+				Info.ExpireDuration = 0.0f;
+				TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+				NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+			}
 		}
 	}
+
+	// enable this for creating a new unit test
+	// DumpUnitTestCode();
 }
 
 FName FControlRigEditor::GetToolkitFName() const
@@ -794,7 +803,10 @@ void FControlRigEditor::UpdateControlRig()
 				ControlRig = NewObject<UControlRig>(EditorSkelComp, Class);
 				// this is editing time rig
 				ControlRig->ExecutionType = ERigExecutionType::Editing;
-			}
+
+				ControlRig->ControlRigLog = &ControlRigLog;
+				ControlRig->DrawInterface = &DrawInterface;
+ 			}
 
 			CacheBoneNameList();
 
@@ -809,7 +821,6 @@ void FControlRigEditor::UpdateControlRig()
 
 			// initialize is moved post reinstance
 			FInputBlendPose Filter;
-			ControlRig->ControlRigLog = &ControlRigLog;
 			AnimInstance->UpdateControlRig(ControlRig, 0, false, false, Filter, 1.0f);
 			AnimInstance->RecalcRequiredBones();
 			
@@ -1387,6 +1398,114 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 		//Stack
 	}
 
+}
+
+void FControlRigEditor::DumpUnitTestCode()
+{
+	if (UEdGraph* Graph = GetFocusedGraph())
+	{
+		TArray<FString> Code;
+
+		// dump the hierarchy
+		if (ControlRig)
+		{
+			const FRigHierarchy& Hierarchy = ControlRig->GetBaseHierarchy();
+			if (Hierarchy.Bones.Num() > 0)
+			{
+				Code.Add(TEXT("FRigHierarchy& Hierarchy = Rig->GetBaseHierarchy();"));
+			}
+			for (const FRigBone& Bone : Hierarchy.Bones)
+			{
+				FString ParentName = Bone.ParentName.IsNone() ? TEXT("NAME_None") : FString::Printf(TEXT("TEXT(\"%s\")"), *Bone.ParentName.ToString());
+				FTransform T = Bone.InitialTransform;
+				FString QuaternionString = FString::Printf(TEXT("FQuat(%.03f, %.03f, %.03f, %.03f)"), T.GetRotation().X, T.GetRotation().Y, T.GetRotation().Z, T.GetRotation().W);
+				FString TranslationString = FString::Printf(TEXT("FVector(%.03f, %.03f, %.03f)"), T.GetLocation().X, T.GetLocation().Y, T.GetLocation().Z);
+				FString ScaleString = FString::Printf(TEXT("FVector(%.03f, %.03f, %.03f)"), T.GetLocation().X, T.GetLocation().Y, T.GetLocation().Z);
+				FString TransformString = FString::Printf(TEXT("FTransform(%s, %s, %s)"), *QuaternionString, *TranslationString, *ScaleString);
+				Code.Add(FString::Printf(TEXT("Hierarchy.AddBone(TEXT(\"%s\"), %s, %s);"), *Bone.Name.ToString(), *ParentName, *TransformString));
+			}
+		}
+
+		// dump the nodes
+		for (UEdGraphNode* GraphNode : Graph->Nodes)
+		{
+			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+			{
+				UStructProperty* Property = RigNode->GetUnitProperty();
+				if (Property == nullptr)
+				{
+					return;
+				}
+				
+				Code.Add(FString::Printf(TEXT("FString %s = Rig->AddUnit(TEXT(\"%s\"));"), *Property->GetName(), *Property->Struct->GetName()));
+			}
+		}
+
+		// dump the pin links
+		for (UEdGraphNode* GraphNode : Graph->Nodes)
+		{
+			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+			{
+				for (UEdGraphPin* Pin : RigNode->Pins)
+				{
+					if (Pin->Direction != EEdGraphPinDirection::EGPD_Output)
+					{
+						continue;
+					}
+
+					for (UEdGraphPin* Linkedpin : Pin->LinkedTo)
+					{
+						if (UControlRigGraphNode* LinkedRigNode = Cast<UControlRigGraphNode>(Linkedpin->GetOwningNode()))
+						{
+							FString PropertyPathA = Pin->GetName();
+							FString PropertyPathB = Linkedpin->GetName();
+							FString NodeNameA, PinNameA, NodeNameB, PinNameB;
+							PropertyPathA.Split(TEXT("."), &NodeNameA, &PinNameA);
+							PropertyPathB.Split(TEXT("."), &NodeNameB, &PinNameB);
+
+							Code.Add(FString::Printf(TEXT("Rig->LinkProperties(%s + TEXT(\".%s\"), %s + TEXT(\".%s\"));"), *NodeNameA, *PinNameA, *NodeNameB, *PinNameB));
+						}
+					}
+				}
+			}
+		}
+
+		// set the pin values
+		for (UEdGraphNode* GraphNode : Graph->Nodes)
+		{
+			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode))
+			{
+				for (UEdGraphPin* Pin : RigNode->Pins)
+				{
+					if (Pin->Direction != EEdGraphPinDirection::EGPD_Input)
+					{
+						continue;
+					}
+
+					if (Pin->ParentPin != nullptr)
+					{
+						continue;
+					}
+
+					if (Pin->LinkedTo.Num() > 0)
+					{
+						continue;
+					}
+
+					if (!Pin->DefaultValue.IsEmpty())
+					{
+						FString PropertyPath = Pin->GetName();
+						FString NodeName, PinName;
+						PropertyPath.Split(TEXT("."), &NodeName, &PinName);
+						Code.Add(FString::Printf(TEXT("Rig->SetPinDefault(%s + TEXT(\".%s\"), TEXT(\"%s\"));"), *NodeName, *PinName, *Pin->DefaultValue));
+					}
+				}
+			}
+		}
+		Code.Add(TEXT("Rig->Compile();"));
+
+		UE_LOG(LogControlRigEditor, Display, TEXT("\n%s\n"), *FString::Join(Code, TEXT("\n")));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

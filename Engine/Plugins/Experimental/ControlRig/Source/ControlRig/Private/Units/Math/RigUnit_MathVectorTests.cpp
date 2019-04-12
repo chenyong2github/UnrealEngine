@@ -58,6 +58,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorDiv)
 	return true;
 }
 
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorMod)
+{
+	Unit.A = FVector(4.f, 6.f, 9.f);
+	Unit.B = FVector(5.f, 4.f, 6.f);
+	InitAndExecute();
+	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(4.f, 2.f, 3.f)), TEXT("unexpected result"));
+	return true;
+}
+
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorMin)
 {
 	Unit.A = FVector(4.f, 2.f, 8.f);

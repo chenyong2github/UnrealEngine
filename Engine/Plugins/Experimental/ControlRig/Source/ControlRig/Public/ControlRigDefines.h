@@ -63,19 +63,6 @@ enum class EControlRigOpCode : uint8
 	Invalid,
 };
 
-struct FRigExecutor
-{
-	EControlRigOpCode OpCode;
-
-	FCachedPropertyPath Property1;
-	FCachedPropertyPath Property2;
-
-	void Reset()
-	{
-		OpCode = EControlRigOpCode::Invalid;
-	}
-};
-
 USTRUCT()
 struct FControlRigOperator
 {
@@ -83,37 +70,46 @@ struct FControlRigOperator
 
 	UPROPERTY(VisibleAnywhere, Category = "FControlRigBlueprintOperator")
 	EControlRigOpCode OpCode;
-	
+
+	/** Path to the property we are linking from */
+	UPROPERTY()
+	FString PropertyPath1_DEPRECATED;
+
+	/** Path to the property we are linking to */
+	UPROPERTY()
+	FString PropertyPath2_DEPRECATED;
+
 	/** Path to the property we are linking from */
 	UPROPERTY(VisibleAnywhere, Category = "FControlRigBlueprintOperator")
-	FString PropertyPath1;
+	FCachedPropertyPath CachedPropertyPath1;
 
 	/** Path to the property we are linking to */
 	UPROPERTY(VisibleAnywhere, Category = "FControlRigBlueprintOperator")
-	FString PropertyPath2;
+	FCachedPropertyPath CachedPropertyPath2;
 
 	FControlRigOperator(EControlRigOpCode Op = EControlRigOpCode::Invalid)
 		: OpCode(Op)
 	{
 	}
 
-	FControlRigOperator(EControlRigOpCode Op, const FString& InProperty1, const FString& InProperty2)
+	FControlRigOperator(EControlRigOpCode Op, const FCachedPropertyPath& InProperty1, const FCachedPropertyPath& InProperty2)
 		: OpCode(Op)
-		, PropertyPath1(InProperty1)
-		, PropertyPath2(InProperty2)
+		, CachedPropertyPath1(InProperty1)
+		, CachedPropertyPath2(InProperty2)
 	{
 
 	}
 
-	// fill up runtime operation code for the instance
-	bool InitializeParam(UObject* OuterObject, FRigExecutor& OutExecutor);
+	static FControlRigOperator MakeUnresolvedCopy(const FControlRigOperator& ToCopy);
+
+	void Resolve(UObject* OuterObject);
 
 	FString ToString()
 	{
 		TArray<FStringFormatArg> Arguments;
 		Arguments.Add(FStringFormatArg((int32)OpCode));
-		Arguments.Add(PropertyPath1);
-		Arguments.Add(PropertyPath2);
+		Arguments.Add(CachedPropertyPath1.ToString());
+		Arguments.Add(CachedPropertyPath1.ToString());
 
 		return FString::Format(TEXT("Opcode {0} : Property1 {1}, Property2 {2}"), Arguments);
 	}

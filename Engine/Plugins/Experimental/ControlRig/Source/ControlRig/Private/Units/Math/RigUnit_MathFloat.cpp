@@ -29,6 +29,17 @@ void FRigUnit_MathFloatDiv::Execute(const FRigUnitContext& Context)
 	Result = A / B;
 }
 
+void FRigUnit_MathFloatMod::Execute(const FRigUnitContext& Context)
+{
+	if(FMath::IsNearlyZero(B) || B < 0.f)
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("B needs to be greater than 0"));
+		Result = 0.f;
+		return;
+	}
+	Result = FMath::Fmod(A, B);
+}
+
 void FRigUnit_MathFloatMin::Execute(const FRigUnitContext& Context)
 {
 	Result = FMath::Min<float>(A, B);
@@ -216,4 +227,19 @@ void FRigUnit_MathFloatAcos::Execute(const FRigUnitContext& Context)
 void FRigUnit_MathFloatAtan::Execute(const FRigUnitContext& Context)
 {
 	Result = FMath::Atan(Value);
+}
+
+void FRigUnit_MathFloatLawOfCosine::Execute(const FRigUnitContext& Context)
+{
+	if ((A <= 0.f) || (B <= 0.f) || (C <= 0.f) || (A + B < C) || (A + C < B) || (B + C < A))
+	{
+		AlphaAngle = BetaAngle = GammaAngle = 0.f;
+		bValid = false;
+		return;
+	}
+
+	GammaAngle = FMath::Acos((A * A + B * B - C * C) / (2.f * A * B));
+	BetaAngle = FMath::Acos((A * A + C * C - B * B) / (2.f * A * C));
+	AlphaAngle = PI - GammaAngle - BetaAngle;
+	bValid = true;
 }

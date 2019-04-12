@@ -3,16 +3,16 @@
 #include "ControlRigVM.h"
 #include "Units/RigUnit.h"
 #include "ControlRigDefines.h"
+#include "Units/RigUnitContext.h"
 
 namespace ControlRigVM
 {
-	void Execute(UObject* OuterObject, const FRigUnitContext& Context, TArray<FRigExecutor>& InExecution, const ERigExecutionType ExecutionType)
+	void Execute(UObject* OuterObject, const FRigUnitContext& Context, const TArray<FControlRigOperator>& InOperators, const ERigExecutionType ExecutionType)
 	{
-		const int32 TotalExec = InExecution.Num();
-		for (int32 Index = 0; Index < InExecution.Num(); ++Index)
+		const int32 TotalExec = InOperators.Num();
+		for(const FControlRigOperator& Op : InOperators)
 		{
-			FRigExecutor Executor = InExecution[Index];
-			if (!ExecOp(OuterObject, Context, ExecutionType, Executor))
+			if (!ExecOp(OuterObject, Context, ExecutionType, Op))
 			{
 				// @todo: print warning?
 				break;
@@ -20,20 +20,29 @@ namespace ControlRigVM
 		}
 	}
 
-	bool ExecOp(UObject* OuterObject, const FRigUnitContext& Context, const ERigExecutionType ExecutionType, FRigExecutor& Executor)
+	bool ExecOp(UObject* OuterObject, const FRigUnitContext& Context, const ERigExecutionType ExecutionType, const FControlRigOperator& InOperator)
 	{
 		check(OuterObject);
-		switch (Executor.OpCode)
+		switch (InOperator.OpCode)
 		{
 		case EControlRigOpCode::Copy:
-			PropertyPathHelpers::CopyPropertyValueFast(OuterObject, Executor.Property2, Executor.Property1);
+			PropertyPathHelpers::CopyPropertyValueFast(OuterObject, InOperator.CachedPropertyPath2, InOperator.CachedPropertyPath1);
 			return true;
 		case EControlRigOpCode::Exec:
 		{
-			FRigUnit* RigUnit = static_cast<FRigUnit*>(Executor.Property1.GetCachedAddress());
-			bool bShouldExecute = (RigUnit->ExecutionType != EUnitExecutionType::Disable) &&
-				// if rig unit is set to always OR execution type is editing time
-				((RigUnit->ExecutionType == EUnitExecutionType::Always) || (ExecutionType == ERigExecutionType::Editing));
+			FRigUnit* RigUnit = static_cast<FRigUnit*>(InOperator.CachedPropertyPath1.GetCachedAddress());
+			bool bShouldExecute = (RigUnit->ExecutionType != EUnitExecutionType::Disable);
+			if (bShouldExecute)
+			{
+				if (RigUnit->ExecutionType == EUnitExecutionType::Initialize)
+				{
+					bShouldExecute = Context.State == EControlRigState::Init;
+				}
+				else
+				{
+					bShouldExecute = (RigUnit->ExecutionType == EUnitExecutionType::Always) || (ExecutionType == ERigExecutionType::Editing);
+				}
+			}
 			if (bShouldExecute)
 			{
 				RigUnit->Execute(Context);

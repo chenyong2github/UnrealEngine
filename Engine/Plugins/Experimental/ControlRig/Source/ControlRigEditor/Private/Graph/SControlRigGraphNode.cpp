@@ -33,7 +33,10 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	// Re-cache variable info here (unit structure could have changed since last reconstruction, e.g. array add/remove)
 	// and also create missing pins if it hasn't created yet
 	ControlRigGraphNode->CreateVariablePins(false);
-
+	
+	InputTree = nullptr;
+	OutputTree = nullptr;
+	InputOutputTree = nullptr;
 	this->UpdateGraphNode();
 
 	SetIsEditable(ControlRigGraphNode->IsPropertyAccessor());
@@ -117,6 +120,20 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, InputTree, ControlRigGraphNode->GetInputVariableInfo());
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, InputOutputTree, ControlRigGraphNode->GetInputOutputVariableInfo());
 	Local::SetItemExpansion_Recursive(ControlRigGraphNode, OutputTree, ControlRigGraphNode->GetOutputVariableInfo());
+
+
+	// force the regeneration of all pins.
+	// the treeview is lazy - to ensure we draw the connections properly we need
+	// to ensure that it updates it's items at least once.
+	FGeometry DummyGeometry(FVector2D(), FVector2D(), FVector2D(FLT_MAX, FLT_MAX), 1.f);
+	ExecutionTree->RequestTreeRefresh();
+	InputTree->RequestTreeRefresh();
+	InputOutputTree->RequestTreeRefresh();
+	OutputTree->RequestTreeRefresh();
+	ExecutionTree->Tick(DummyGeometry, 0.f, 0.f);
+	InputTree->Tick(DummyGeometry, 0.f, 0.f);
+	InputOutputTree->Tick(DummyGeometry, 0.f, 0.f);
+	OutputTree->Tick(DummyGeometry, 0.f, 0.f);
 }
 
 TSharedRef<SWidget> SControlRigGraphNode::CreateNodeContentArea()

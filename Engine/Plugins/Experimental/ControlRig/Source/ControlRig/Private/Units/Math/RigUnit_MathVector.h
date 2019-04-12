@@ -18,7 +18,7 @@ struct FRigUnit_MathVectorUnaryOp : public FRigUnit_MathVectorBase
 	
 	FRigUnit_MathVectorUnaryOp()
 	{
-		Value = Result = FVector();
+		Value = Result = FVector::ZeroVector;
 	}
 
 	UPROPERTY(meta=(Input))
@@ -35,7 +35,7 @@ struct FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorBinaryOp()
 	{
-		A = B = Result = FVector();
+		A = B = Result = FVector::ZeroVector;
 	}
 
 	UPROPERTY(meta=(Input))
@@ -60,7 +60,7 @@ struct FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
 	FRigUnit_MathVectorFromFloat()
 	{
 		Value = 0.f;
-		Result = FVector();
+		Result = FVector::ZeroVector;
 	}
 
 	UPROPERTY(meta=(Input))
@@ -102,7 +102,7 @@ struct FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
 
 	FRigUnit_MathVectorMul()
 	{
-		A = B = FVector(1.f, 1.f, 1.f);
+		A = B = FVector::OneVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -118,7 +118,24 @@ struct FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryOp
 
 	FRigUnit_MathVectorDiv()
 	{
-		B = FVector(1.f, 1.f, 1.f);
+		B = FVector::OneVector;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
+ * Returns the modulo of the two values
+ */
+USTRUCT(meta=(DisplayName="Modulo", PrototypeName="Modulo", Keywords="%,fmod"))
+struct FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryOp
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathVectorMod()
+	{
+		A = FVector::ZeroVector;
+		B = FVector::OneVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -222,8 +239,8 @@ struct FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorClamp()
 	{
-		Value = Minimum = Result = FVector(0.f, 0.f, 0.f);
-		Maximum = FVector(1.f, 1.f, 1.f);
+		Value = Minimum = Result = FVector::ZeroVector;
+		Maximum = FVector::OneVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -251,8 +268,8 @@ struct FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorLerp()
 	{
-		A = Result = FVector(0.f, 0.f, 0.f);
-		B = FVector(1.f, 1.f, 1.f);
+		A = Result = FVector::ZeroVector;
+		B = FVector::OneVector;
 		T = 0.f;
 	}
 
@@ -281,8 +298,8 @@ struct FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorRemap()
 	{
-		Value = SourceMinimum = TargetMinimum = Result = FVector(0.f, 0.f, 0.f);
-		SourceMaximum = TargetMaximum = FVector(1.f, 1.f, 1.f);
+		Value = SourceMinimum = TargetMinimum = Result = FVector::ZeroVector;
+		SourceMaximum = TargetMaximum = FVector::OneVector;
 		bClamp = false;
 	}
 
@@ -321,7 +338,7 @@ struct FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorEquals()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Result = true;
 	}
 
@@ -347,7 +364,7 @@ struct FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorNotEquals()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Result = false;
 	}
 
@@ -373,7 +390,7 @@ struct FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorIsNearlyZero()
 	{
-		Value = FVector();
+		Value = FVector::ZeroVector;
 		Tolerance = 0.f;
 		Result = true;
 	}
@@ -400,7 +417,7 @@ struct FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorIsNearlyEqual()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Tolerance = 0.f;
 		Result = true;
 	}
@@ -431,7 +448,7 @@ struct FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
 	FRigUnit_MathVectorSelectBool()
 	{
 		Condition = false;
-		IfTrue = IfFalse = Result = FVector();
+		IfTrue = IfFalse = Result = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -481,7 +498,7 @@ struct FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorLengthSquared()
 	{
-		Value = FVector();
+		Value = FVector::ZeroVector;
 		Result = 0.f;
 	}
 
@@ -504,7 +521,7 @@ struct FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorLength()
 	{
-		Value = FVector();
+		Value = FVector::ZeroVector;
 		Result = 0.f;
 	}
 
@@ -527,7 +544,7 @@ struct FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorDistance()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Result = 0.f;
 	}
 
@@ -563,7 +580,7 @@ struct FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorDot()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Result = 0.f;
 	}
 
@@ -600,7 +617,7 @@ struct FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorMirror()
 	{
-		Value = Result = FVector();
+		Value = Result = FVector::ZeroVector;
 		Normal = FVector(1.f, 0.f, 0.f);
 	}
 
@@ -626,7 +643,7 @@ struct FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
 
 		FRigUnit_MathVectorAngle()
 	{
-		A = B = FVector();
+		A = B = FVector::ZeroVector;
 		Result = 0.f;
 	}
 
@@ -705,7 +722,7 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 
 	FRigUnit_MathVectorBezierFourPoint()
 	{
-		A = B = C = D = Result = Tangent = FVector();
+		A = B = C = D = Result = Tangent = FVector::ZeroVector;
 		T = 0.f;
 	}
 

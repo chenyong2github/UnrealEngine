@@ -21,21 +21,6 @@ class CONTROLRIGDEVELOPER_API FControlRigDAG
 {
 public:
 
-	// A node within the traverser identified by index
-	// The IsMutable flag determines if the node is mutable or a
-	// BeginExecution node.
-	struct CONTROLRIGDEVELOPER_API FNode
-	{
-		int32 Index;
-		bool IsMutable;
-
-		FNode(const int32 InIndex, const bool InIsMutable)
-			: Index(InIndex)
-			, IsMutable(InIsMutable)
-		{
-		}
-	};
-
 	// A single pin within the traverser. The Pin has access to 
 	// it's node, the order on where is on the node and the index
 	// of the link it belongs to.
@@ -53,41 +38,62 @@ public:
 		}
 	};
 
+	typedef TArray<FPin> FPinArray;
+
+	// A node within the traverser identified by index
+	// The IsMutable flag determines if the node is mutable or a
+	// BeginExecution node.
+	struct CONTROLRIGDEVELOPER_API FNode
+	{
+		FName Name;
+		int32 Index;
+		bool IsMutable;
+		FPinArray Inputs;
+		FPinArray Outputs;
+
+		FNode(const FName& InName, const int32 InIndex, const bool InIsMutable)
+			: Name(InName)
+			, Index(InIndex)
+			, IsMutable(InIsMutable)
+		{
+		}
+	};
+
 	TArray<FNode> Nodes;
 	TArray<TPair<FPin, FPin>> Links;
-	typedef TMultiMap<int32, FPin> FPinMap;
-	TArray<FPinMap> NodeInputs;
-	TArray<FPinMap> NodeOutputs;
 
 	FControlRigDAG();
 
 	// add a node to this traverser
-	void AddNode(bool InIsMutable = false);
+	void AddNode(bool InIsMutable = false, const FName& InName = NAME_None);
 
 	// add a link between two nodes given the node indices and the pin orders
 	void AddLink(const int32 FromNode, const int32 ToNode, const int32 FromOrder, const int32 ToOrder);
 
 	// returns the distance for a given node to the output node farthest away
-	int32 GetMaxDistanceToLeafOutput(int32 Node) const;
+	int32 GetMaxDistanceToLeafOutput(int32 NodeIndex) const;
 
 	// returns true if the graph can be sorted and stores the order of execution in the order array
 	// return false if there's a cycle in the graph and stores the cycle in the potentialcycle array
-	bool TopologicalSort(TArray<int32>& OutOrder, TArray<int32>& OutPotentialCycle);
+	bool TopologicalSort(TArray<FNode>& OutOrder, TArray<FNode>& OutPotentialCycle);
 
 	// Finds the first cycle as a node index. Returns an empty array if there's no cycle
-	TArray<int32> FindCycle();
+	TArray<FNode> FindCycle();
 
 private:
 
+	void SortIfRequired();
+
 	void DumpDag();
 
-	bool IsNodeCyclic(int32 Node);
+	bool IsNodeCyclic(int32 NodeIndex);
 
 	TSet<int32> CycleWhiteList;
 	TSet<int32> CycleGreyList;
 	TSet<int32> CycleBlackList;
 	TMap<int32, int32> CycleDepthTraversal;
-	TArray<int32> Cycle;
+	TArray<FNode> Cycle;
+	bool bSortIsRequired;
 
 	friend class FControlRigBlueprintCompilerContext;
 };

@@ -34,7 +34,7 @@ bool FControlRigGraphTraverser::IsWiredToExecution(UControlRigGraphNode* Node)
 		return false;
 	}
 
-	const bool* Found = VisitedNodes.Find(Node);
+	const bool* Found = VisitedNodes.Find(Node->PropertyName);
 	if (Found)
 	{
 		return *Found;
@@ -42,11 +42,13 @@ bool FControlRigGraphTraverser::IsWiredToExecution(UControlRigGraphNode* Node)
 
 	if (Node->GetUnitScriptStruct() == FRigUnit_BeginExecution::StaticStruct())
 	{
-		VisitedNodes.Add(Node, true);
+		VisitedNodes.Add(Node->PropertyName, true);
 		return true;
 	}
 
-	VisitedNodes.Add(Node, false);
+	VisitedNodes.Add(Node->PropertyName, false);
+
+	bool bFoundWiredPin = false;
 
 	// is this an execution node,
 	// walk upwards (to the left) to find a proper begin execution node
@@ -59,19 +61,23 @@ bool FControlRigGraphTraverser::IsWiredToExecution(UControlRigGraphNode* Node)
 			{
 				continue;
 			}
+
 			for (UEdGraphPin* LinkedPin : ExecutionInfo->InputPin->LinkedTo)
 			{
 				UControlRigGraphNode* LinkedNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
 				if (LinkedNode)
 				{
-					bool Result = IsWiredToExecution(LinkedNode);
-					VisitedNodes.FindChecked(Node) = Result;
-					return Result;
+					bool bIsLinkedNodeWired = IsWiredToExecution(LinkedNode);
+					if (bIsLinkedNodeWired)
+					{
+						bFoundWiredPin = true;
+					}
 				}
 			}
 		}
 
-		return false;
+		VisitedNodes.FindChecked(Node->PropertyName) = bFoundWiredPin;
+		return bFoundWiredPin;
 	}
 
 	// for all other nodes walk  to the right...
@@ -81,19 +87,24 @@ bool FControlRigGraphTraverser::IsWiredToExecution(UControlRigGraphNode* Node)
 		{
 			continue;
 		}
+
 		for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 		{
 			UControlRigGraphNode* LinkedNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
 			if (LinkedNode)
 			{
-				bool Result = IsWiredToExecution(LinkedNode);
-				VisitedNodes.FindChecked(Node) = Result;
-				return Result;
+				bool bIsLinkedNodeWired = IsWiredToExecution(LinkedNode);
+				if (bIsLinkedNodeWired)
+				{
+					bFoundWiredPin = true;
+				}
 			}
 		}
+
 	}
 
-	return false;
+	VisitedNodes.FindChecked(Node->PropertyName) = bFoundWiredPin;
+	return bFoundWiredPin;
 }
 
 void FControlRigGraphTraverser::TraverseAndBuildPropertyLinks()
@@ -117,8 +128,17 @@ void FControlRigGraphTraverser::TraverseAndBuildPropertyLinks()
 			{
 				for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 				{
+					UControlRigGraphNode* LinkedRigNode = Cast< UControlRigGraphNode>(LinkedPin->GetOwningNode());
+					if (LinkedRigNode == nullptr)
+					{
+						continue;
+					}
+					if (!IsWiredToExecution(LinkedRigNode))
+					{
+						continue;
+					}
 					int32 PinIndex = RigNode->Pins.IndexOfByKey(Pin);
-					int32 LinkedPinIndex = LinkedPin->GetOwningNode()->Pins.IndexOfByKey(LinkedPin);
+					int32 LinkedPinIndex = LinkedRigNode->Pins.IndexOfByKey(LinkedPin);
 					Blueprint->MakePropertyLink(Pin->PinName.ToString(), LinkedPin->PinName.ToString(), PinIndex, LinkedPinIndex);
 				}
 			}

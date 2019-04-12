@@ -9,8 +9,8 @@ struct FRigUnitContext;
 
 namespace ControlRigVM
 {
-	void Execute(UObject* OuterObject, const FRigUnitContext& Context, TArray<FRigExecutor>& InExecution, const ERigExecutionType ExecutionType);
+	void Execute(UObject* OuterObject, const FRigUnitContext& Context, const TArray<FControlRigOperator>& InOperators, const ERigExecutionType ExecutionType);
 
 	// execution one op
-	bool ExecOp(UObject* OuterObject, const FRigUnitContext& Context, const ERigExecutionType ExecutionType, FRigExecutor& Executor);
+	bool ExecOp(UObject* OuterObject, const FRigUnitContext& Context, const ERigExecutionType ExecutionType, const FControlRigOperator& InOperator);
 }

@@ -85,7 +85,7 @@ struct FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
 
 	FRigUnit_MathQuaternionFromEuler()
 	{
-		Euler = FVector();
+		Euler = FVector::ZeroVector;
 		Result = FQuat::Identity;
 	}
 
@@ -108,7 +108,7 @@ struct FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
 	
 	FRigUnit_MathQuaternionFromRotator()
 	{
-		Rotator = FRotator();
+		Rotator = FRotator::ZeroRotator;
 		Result = FQuat::Identity;
 	}
 
@@ -185,7 +185,7 @@ struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionToEuler()
 	{
 		Value = FQuat::Identity;
-		Result = FVector();
+		Result = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -208,7 +208,7 @@ struct FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionToRotator()
 	{
 		Value = FQuat::Identity;
-		Result = FRotator();
+		Result = FRotator::ZeroRotator;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -397,7 +397,7 @@ struct FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
 	FRigUnit_MathQuaternionRotateVector()
 	{
 		Quaternion = FQuat::Identity;
-		Vector = Result = FVector();
+		Vector = Result = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -437,4 +437,34 @@ struct FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuaternionBase
 
 	UPROPERTY(meta = (Output))
 	FVector Result;
+};
+
+
+/**
+ * Computes the swing and twist components of a quaternion
+ */
+USTRUCT(meta = (DisplayName = "To Swing & Twist"))
+struct FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathQuaternionSwingTwist()
+	{
+		Input = Swing = Twist = FQuat::Identity;
+		TwistAxis = FVector(1.f, 0.f, 0.f);
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FQuat	Input;
+
+	UPROPERTY(meta = (Input))
+	FVector TwistAxis;
+
+	UPROPERTY(meta = (Output))
+	FQuat Swing;
+
+	UPROPERTY(meta = (Output))
+	FQuat Twist;
 };

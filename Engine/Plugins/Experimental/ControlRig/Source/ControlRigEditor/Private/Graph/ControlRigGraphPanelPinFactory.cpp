@@ -4,10 +4,12 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/SGraphPinBoneName.h"
+#include "Graph/SGraphPinCurveFloat.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
 #include "EdGraphSchema_K2.h"
+#include "Curves/CurveFloat.h"
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
@@ -42,6 +44,10 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				if (InPin->PinType.PinSubCategoryObject == FControlRigExecuteContext::StaticStruct())
 				{
 					return SNew(SGraphPinExec, InPin);
+				}
+				else if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
+				{
+					return SNew(SGraphPinCurveFloat, InPin);
 				}
 			}
 		}

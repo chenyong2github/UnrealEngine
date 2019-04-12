@@ -39,7 +39,7 @@ void FRigUnit_MathQuaternionFromTwoVectors::Execute(const FRigUnitContext& Conte
 		Result = FQuat::Identity;
 		return;
 	}
-	Result = FQuat::FindBetweenVectors(A, B);
+	Result = FQuat::FindBetweenVectors(A, B).GetNormalized();
 }
 
 void FRigUnit_MathQuaternionToAxisAndAngle::Execute(const FRigUnitContext& Context)
@@ -123,4 +123,17 @@ void FRigUnit_MathQuaternionGetAxis::Execute(const FRigUnitContext& Context)
 			break;
 		}
 	}
+}
+
+
+void FRigUnit_MathQuaternionSwingTwist::Execute(const FRigUnitContext& Context)
+{
+	if (TwistAxis.IsNearlyZero())
+	{
+		Swing = Twist = FQuat::Identity;
+		return;
+	}
+
+	FVector NormalizedAxis = TwistAxis.GetSafeNormal();
+	Input.ToSwingTwist(NormalizedAxis, Swing, Twist);
 }

@@ -18,13 +18,14 @@
 
 class IControlRigObjectBinding;
 struct FRigUnit;
-class UControlRig;
+class UScriptStruct;
 
 /** Delegate used to optionally gather inputs before evaluating a ControlRig */
 DECLARE_DELEGATE_OneParam(FPreEvaluateGatherInput, UControlRig*);
 DECLARE_DELEGATE_OneParam(FPostEvaluateQueryOutput, UControlRig*);
 
 #define DEBUG_CONTROLRIG_PROPERTYCHANGE !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)
 class CONTROLRIG_API UControlRig : public UObject, public IControlRigInterface, public INodeMappingProviderInterface
@@ -56,6 +57,8 @@ private:
 
 public:
 	UControlRig();
+
+	virtual void Serialize(FArchive& Ar) override;
 
 	/** Get the current delta time */
 	UFUNCTION(BlueprintPure, Category = "Animation")
@@ -154,6 +157,9 @@ public:
 	UPROPERTY(transient)
 	ERigExecutionType ExecutionType;
 
+	/** Execute the rig unit */
+	void Execute(const EControlRigState State);
+
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
 	FRigHierarchyContainer Hierarchy;
@@ -169,11 +175,8 @@ private:
 #endif // WITH_EDITOR
 
 	/** list of operators. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<FControlRigOperator> Operators;
-
-	/** Execution form from Operators. Used for Execute function */
-	TArray<FRigExecutor> Executors;
 
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
@@ -191,26 +194,39 @@ private:
 #endif
 
 private:
+
+	/** The draw interface for the units to use */
+	FControlRigDrawInterface* DrawInterface;
+
+#if DEBUG_CONTROLRIG_PROPERTYCHANGE
 	// This is to debug class size when constructed and destroyed to verify match
 	// if this size changes, that implies more problem, where properties have been changed and layout has been modified
-	// and possibly struct's destructors could be called on wrong memory pointer
-	// if this changes, we'd like to verify ClassPrivate->DestructorLink, and follow the DestructorLinkNext
-	// your DestructorLink will change during compilation, so you can't verify by that
-	// you can however to cache property name/size and later to verify that information
+	// also it caches if destructor and property has been chagned
+	// the name can be destroyed but we should make sure we have proper properties size/offset is linked
 	int32 DebugClassSize;
-	void ValidateClassData();
+	TArray<UScriptStruct*> Destructors;
+	struct FPropertyData
+	{
+		int32 Offset;
+		int32 Size;
+		FName PropertyName;
+	};
+	TArray<FPropertyData> PropertyData;
+	void ValidateDebugClassData();
+	void CacheDebugClassData();
+#endif // 	DEBUG_CONTROLRIG_PROPERTYCHANGE
+
+	/** Copy the operators from the generated class */
+	void InstantiateOperatorsFromGeneratedClass();
 	
-	/** Instantiate Executor from Operators */
-	void InstantiateExecutor();
+	/** Re-resolve operator property paths */
+	void ResolvePropertyPaths();
 
 	/** Broadcasts a notification whenever the controlrig is initialized. */
 	FControlRigExecuteEvent InitializedEvent;
 
 	/** Broadcasts a notification whenever the controlrig is executed / updated. */
 	FControlRigExecuteEvent ExecutedEvent;
-
-	/** Execute the rig unit */
-	void Execute(const EControlRigState State);
 
 	/** INodeMappingInterface implementation */
 	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const override;
@@ -223,4 +239,5 @@ private:
 	friend class FControlRigEditor;
 	friend class SRigHierarchy;
 	friend class UEngineTestControlRig;
+	friend class FControlRigEditMode;
 };

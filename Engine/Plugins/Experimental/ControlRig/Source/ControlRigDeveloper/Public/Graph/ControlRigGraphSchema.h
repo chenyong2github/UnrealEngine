@@ -85,5 +85,8 @@ public:
 
 	/** Helper function to rename a node */
 	void RenameNode(UControlRigGraphNode* Node, const FName& InNewNodeName) const;
+
+	/** Helper function to recursively reset the pin defaults */
+	virtual void ResetPinDefaultsRecursive(UEdGraphPin* InPin) const;
 };
 

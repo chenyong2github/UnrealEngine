@@ -160,6 +160,23 @@ struct FRigUnit_MathFloatDiv : public FRigUnit_MathFloatBinaryOp
 };
 
 /**
+ * Returns the modulo of the two values
+ */
+USTRUCT(meta=(DisplayName="Modulo", PrototypeName="Modulo", Keywords="%,fmod"))
+struct FRigUnit_MathFloatMod : public FRigUnit_MathFloatBinaryOp
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathFloatMod()
+	{
+		A = 0.f;
+		B = 1.f;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", PrototypeName="Minimum"))
@@ -698,3 +715,40 @@ struct FRigUnit_MathFloatAtan : public FRigUnit_MathFloatUnaryOp
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
+/**
+ * Computes the angles alpha, beta and gamma (in radians) between the three sides A, B and C
+ */
+USTRUCT(meta = (DisplayName = "Law Of Cosine"))
+struct FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathFloatLawOfCosine()
+	{
+		A = B = C = AlphaAngle = BetaAngle = GammaAngle = 0.f;
+		bValid = false;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	float A;
+
+	UPROPERTY(meta = (Input))
+	float B;
+
+	UPROPERTY(meta = (Input))
+	float C;
+
+	UPROPERTY(meta = (Output))
+	float AlphaAngle;
+
+	UPROPERTY(meta = (Output))
+	float BetaAngle;
+
+	UPROPERTY(meta = (Output))
+	float GammaAngle;
+
+	UPROPERTY(meta = (Output))
+	bool bValid;
+};

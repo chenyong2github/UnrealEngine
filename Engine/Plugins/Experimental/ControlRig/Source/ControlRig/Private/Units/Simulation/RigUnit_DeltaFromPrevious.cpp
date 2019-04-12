@@ -1,0 +1,88 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Units/Simulation/RigUnit_DeltaFromPrevious.h"
+#include "Units/RigUnitContext.h"
+
+void FRigUnit_DeltaFromPreviousFloat::Execute(const FRigUnitContext& Context)
+{
+	if (Context.State == EControlRigState::Init)
+	{
+		Delta = 0.f;
+		PreviousValue = Cache = Value;
+		return;
+	}
+
+	PreviousValue = Cache;
+	Delta = Cache - Value;
+	Cache = Value;
+}
+
+void FRigUnit_DeltaFromPreviousVector::Execute(const FRigUnitContext& Context)
+{
+	if (Context.State == EControlRigState::Init)
+	{
+		Delta = FVector::ZeroVector;
+		PreviousValue = Cache = Value;
+		return;
+	}
+
+	PreviousValue = Cache;
+	Delta = Cache - Value;
+	Cache = Value;
+}
+
+void FRigUnit_DeltaFromPreviousQuat::Execute(const FRigUnitContext& Context)
+{
+	if (Context.State == EControlRigState::Init)
+	{
+		Delta = FQuat::Identity;
+		PreviousValue = Cache = Value;
+		return;
+	}
+
+	PreviousValue = Cache;
+	Delta = Cache.Inverse() * Value;
+	Cache = Value;
+}
+
+void FRigUnit_DeltaFromPreviousTransform::Execute(const FRigUnitContext& Context)
+{
+	if (Context.State == EControlRigState::Init)
+	{
+		Delta = FTransform::Identity;
+		PreviousValue = Cache = Value;
+		return;
+	}
+
+	PreviousValue = Cache;
+	Delta = Value.GetRelativeTransform(Cache);
+	Cache = Value;
+}
+
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Units/RigUnitTest.h"
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DeltaFromPreviousFloat)
+{
+	Unit.Value = 1.f;
+	InitAndExecute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, 0.f), TEXT("unexpected average result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.PreviousValue, 1.f), TEXT("unexpected average result"));
+	InitAndExecute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, 0.f), TEXT("unexpected average result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.PreviousValue, 1.f), TEXT("unexpected average result"));
+	Execute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, 0.f), TEXT("unexpected average result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.PreviousValue, 1.f), TEXT("unexpected average result"));
+	Unit.Value = 2.f;
+	Execute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, -1.f), TEXT("unexpected average result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.PreviousValue, 1.f), TEXT("unexpected average result"));
+	Unit.Value = 5.f;
+	Execute();
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, -3.f), TEXT("unexpected average result"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.PreviousValue, 2.f), TEXT("unexpected average result"));
+	return true;
+}
+
+#endif

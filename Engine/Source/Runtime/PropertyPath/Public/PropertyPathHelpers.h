@@ -19,8 +19,11 @@ struct PROPERTYPATH_API FPropertyPathSegment
 	/** UStruct boilerplate constructor - do not use */
 	FPropertyPathSegment();
 
-	/** Construct from segment name */
-	FPropertyPathSegment(const FString& SegmentName);
+	/** Construct from char count and storage */
+	FPropertyPathSegment(int32 InCount, const TCHAR* InString);
+
+	/** Make a copy which is unresolved */
+	static FPropertyPathSegment MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy);
 
 	/**
 	 * Resolves the name on the given Struct.  Can be used to cache the resulting property so that future calls can be processed quickly.
@@ -77,6 +80,7 @@ struct FCachedPropertyPath
 	PROPERTYPATH_API FCachedPropertyPath(const FString& Path);
 
 	/** */
+	UE_DEPRECATED(4.23, "FCachedPropertyPath(const FString& Path)")
 	PROPERTYPATH_API FCachedPropertyPath(const TArray<FString>& PropertyChain);
 
 	/** Check whether this property path is non-empty */
@@ -85,8 +89,8 @@ struct FCachedPropertyPath
 	/** Make a new property path from a string */
 	PROPERTYPATH_API void MakeFromString(const FString& InPropertyPath);
 
-	/** Make a new property path from a string array */
-	PROPERTYPATH_API void MakeFromStringArray(const TArray<FString>& InPropertyPathArray);
+	/** Make a copy which is unresolved */
+	static PROPERTYPATH_API FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
 
 	/** Make a new property path from a leaf property and an outer class */
 	PROPERTYPATH_API void MakeFromPropertyAndOuterClass(UProperty* InProperty, UClass* InClass);
@@ -150,6 +154,12 @@ struct FCachedPropertyPath
 
 	/** Make a string representation of this property path */
 	PROPERTYPATH_API FString ToString() const;
+
+	/** Compares this property path to a string */
+	PROPERTYPATH_API bool operator==(const FString& Other) const;
+
+	/** Compares this property path to a string */
+	PROPERTYPATH_API bool Equals(const FString& Other) const;
 
 #if DO_CHECK
 	/** Get the cached container for this property path, for checking purposes */
@@ -507,11 +517,13 @@ namespace PropertyPathHelpers
 
 	/** 
 	 * Parses a property path segment name of the form PropertyName[OptionalArrayIndex]
-	 * @param	InSegmentName	The segment to parse
-	 * @param	OutFieldName	The resulting field name
+	 * @param	InCount			The length of the input string
+	 * @param	InString        The Input string to parse
+	 * @param	OutCount		The length of the resulting property name string
+	 * @param   OutPropertyName The string storing the name of the property
 	 * @param	OutArrayIndex	The resulting array index, if any
 	 */
-	PROPERTYPATH_API void FindFieldNameAndArrayIndex(const FString& InSegmentName, FString& OutFieldName, int32& OutArrayIndex);
+	PROPERTYPATH_API void FindFieldNameAndArrayIndex(int32 InCount, const TCHAR* InString, int32& OutCount, const TCHAR** OutPropertyName, int32& OutArrayIndex);
 
 	/** 
 	 * Perform the specified operation on the array referenced by the property path

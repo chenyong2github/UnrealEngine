@@ -263,7 +263,7 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			FControlRigOperator& Operator = ControlRigCDO->Operators[Entry->OpIndex];
 			if (Operator.OpCode == EControlRigOpCode::Exec)
 			{
-				const FString& PropertyPath = Operator.PropertyPath1;
+				FString PropertyPath = Operator.CachedPropertyPath1.ToString();
 				SelectedNodes.Add(PropertyPath);
 			}
 		}
@@ -301,15 +301,14 @@ void SControlRigStackView::RefreshTreeView(UControlRig* ControlRig)
 		{
 			TMap<FName, int32> UnitToOperatorIndex;
 
-			UControlRig* ControlRigCDO = CastChecked< UControlRig>(GeneratedClass->ClassDefaultObject);
-			for (int32 OperatorIndex=0;OperatorIndex<ControlRigCDO->Operators.Num();OperatorIndex++)
+			for (int32 OperatorIndex=0;OperatorIndex< GeneratedClass->Operators.Num();OperatorIndex++)
 			{
-				FControlRigOperator Operator = ControlRigCDO->Operators[OperatorIndex];
+				FControlRigOperator Operator = GeneratedClass->Operators[OperatorIndex];
 				switch (Operator.OpCode)
 				{
 					case EControlRigOpCode::Exec:
 					{
-						FName UnitPath = *Operator.PropertyPath1;
+						FName UnitPath = *Operator.CachedPropertyPath1.ToString();
 						FString OperatorLabel;
 
 						UStructProperty * StructProperty = Cast<UStructProperty>(GeneratedClass->FindPropertyByName(UnitPath));

@@ -129,19 +129,19 @@ public:
 
 private:
 	/** Links between the various properties we have */
-	UPROPERTY(EditAnywhere, Category="Links")
+	UPROPERTY()
 	TArray<FControlRigBlueprintPropertyLink> PropertyLinks;
 
 	/** list of operators. Visible for debug purpose for now */
-	UPROPERTY(VisibleAnywhere, Category = "Links")
-	TArray<FControlRigOperator> Operators;
+	UPROPERTY()
+	TArray<FControlRigOperator> Operators_DEPRECATED;
 
 	// need list of "allow query property" to "source" - whether rig unit or property itself
 	// this will allow it to copy data to target
-	UPROPERTY(VisibleAnywhere, Category = "Links")
+	UPROPERTY()
 	TMap<FName, FString> AllowSourceAccessProperties;
 
-	UPROPERTY(VisibleAnywhere, Category = "Hierarchy")
+	UPROPERTY()
 	FRigHierarchy Hierarchy;
 
 	/** The default skeletal mesh to use when previewing this asset */

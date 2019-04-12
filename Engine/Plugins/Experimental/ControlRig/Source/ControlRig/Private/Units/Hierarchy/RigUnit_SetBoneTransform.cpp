@@ -5,7 +5,7 @@
 
 FString FRigUnit_SetBoneTransform::GetUnitLabel() const
 {
-	return FString::Printf(TEXT("Set %s"), *Bone.ToString());
+	return FString::Printf(TEXT("Set Transform %s"), *Bone.ToString());
 }
 
 void FRigUnit_SetBoneTransform::Execute(const FRigUnitContext& Context)
@@ -19,9 +19,7 @@ void FRigUnit_SetBoneTransform::Execute(const FRigUnitContext& Context)
 			case EControlRigState::Init:
 			{
 				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-
-				// todo: error handling
-				break;
+				// fall through to update
 			}
 			case EControlRigState::Update:
 			{
