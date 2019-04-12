@@ -66,6 +66,9 @@ public:
 	/** Checks if this is a blueprint */
 	bool IsBlueprintClass() const;
 
+	/** Checks if this is an editor module class */
+	bool IsEditorOnlyClass() const;
+
 	/** Rather this class is not allowed for the specific context */
 	bool IsRestricted() const;
 

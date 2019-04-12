@@ -7644,6 +7644,8 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 	bool bIsAnimBlueprint = false;
 	bool bIsLevelScriptActor = false;
 	bool bIsComponentBlueprint = false;
+	bool bIsEditorOnlyBlueprint = false;
+	bool bIsWidgetBlueprint = false;
 	TArray<UClass*> BlueprintClasses;
 	for( auto BlueprintIter = Blueprints.CreateConstIterator(); (!bIsActor && !bIsAnimBlueprint) && BlueprintIter; ++BlueprintIter )
 	{
@@ -7652,6 +7654,8 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 		bIsAnimBlueprint |= Blueprint->IsA(UAnimBlueprint::StaticClass());
 		bIsLevelScriptActor |= Blueprint->ParentClass->IsChildOf( ALevelScriptActor::StaticClass() );
 		bIsComponentBlueprint |= Blueprint->ParentClass->IsChildOf( UActorComponent::StaticClass() );
+		bIsEditorOnlyBlueprint |= IsEditorOnlyObject(Blueprint);
+		bIsWidgetBlueprint = Blueprint->IsA(UBaseWidgetBlueprint::StaticClass());
 		if(Blueprint->GeneratedClass)
 		{
 			BlueprintClasses.Add(Blueprint->GeneratedClass);
@@ -7668,6 +7672,7 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 
 	// Only allow parenting to base blueprints.
 	Options.bIsBlueprintBaseOnly = true;
+	Options.bEditorClassesOnly = bIsEditorOnlyBlueprint;
 
 	// never allow parenting to Interface
 	Filter->DisallowedChildrenOfClasses.Add( UInterface::StaticClass() );
@@ -7709,6 +7714,10 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 	{
 		// If it is a component blueprint, only allow classes under and including UActorComponent
 		Filter->AllowedChildrenOfClasses.Add( UActorComponent::StaticClass() );
+	}
+	else if (bIsEditorOnlyBlueprint && !bIsWidgetBlueprint)
+	{
+		Filter->DisallowedChildrenOfClasses.Add(UWidget::StaticClass());
 	}
 	else
 	{
