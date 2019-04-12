@@ -1,15 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "IOS/IOSErrorReport.h"
+#include "Mac/MacErrorReport.h"
 #include "../CrashReportUtil.h"
-#include "CrashReportConfig.h"
-#include "Modules/ModuleManager.h"
 #include "CrashDebugHelperModule.h"
 #include "CrashDebugHelper.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFilemanager.h"
+#include "Modules/ModuleManager.h"
+#include "CrashDebugHelperModule.h"
 
-#define LOCTEXT_NAMESPACE "CrashReport"
+#define LOCTEXT_NAMESPACE "CrashReportClient"
 
 namespace
 {
@@ -17,22 +17,22 @@ namespace
 	FCrashDebugHelperModule* CrashHelperModule;
 }
 
-FIOSErrorReport::FIOSErrorReport(const FString& Directory)
+FMacErrorReport::FMacErrorReport(const FString& Directory)
 	: FGenericErrorReport(Directory)
 {
 }
 
-void FIOSErrorReport::Init()
+void FMacErrorReport::Init()
 {
 	CrashHelperModule = &FModuleManager::LoadModuleChecked<FCrashDebugHelperModule>(FName("CrashDebugHelper"));
 }
 
-void FIOSErrorReport::ShutDown()
+void FMacErrorReport::ShutDown()
 {
 	CrashHelperModule->ShutdownModule();
 }
 
-FString FIOSErrorReport::FindCrashedAppPath() const
+FString FMacErrorReport::FindCrashedAppPath() const
 {
 	TArray<uint8> Data;
 	if(FFileHelper::LoadFileToArray(Data, *(ReportDirectory / TEXT("Report.wer"))))
@@ -66,7 +66,7 @@ FString FIOSErrorReport::FindCrashedAppPath() const
 	return "";
 }
 
-void FIOSErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
+void FMacErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
@@ -99,7 +99,7 @@ void FIOSErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPat
 	});
 }
 
-FText FIOSErrorReport::DiagnoseReport() const
+FText FMacErrorReport::DiagnoseReport() const
 {
 	// Should check if there are local PDBs before doing anything
 	ICrashDebugHelper* CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
@@ -131,9 +131,9 @@ FText FIOSErrorReport::DiagnoseReport() const
 	else
 	{
 		FString CrashDump;
-		FString DiagnosticsPath = ReportDirectory / FCrashReportConfig::Get().GetDiagnosticsFilename();
+		FString DiagnosticsPath = ReportDirectory / FCrashReportCoreConfig::Get().GetDiagnosticsFilename();
 		CrashDebugHelper->CrashInfo.GenerateReport( DiagnosticsPath );
-		if ( FFileHelper::LoadFileToString( CrashDump, *(ReportDirectory / FCrashReportConfig::Get().GetDiagnosticsFilename() ) ) )
+		if ( FFileHelper::LoadFileToString( CrashDump, *(ReportDirectory / FCrashReportCoreConfig::Get().GetDiagnosticsFilename() ) ) )
 		{
 			return FText::FromString(CrashDump);
 		}
