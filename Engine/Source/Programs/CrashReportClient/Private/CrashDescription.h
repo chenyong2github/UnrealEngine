@@ -371,6 +371,11 @@ struct FPrimaryCrashProperties
 	 */
 	bool bIsEnsure;
 
+	/**
+	 *	The type of crash being reported, e.g. Assert, Ensure, Hang
+	 */
+	FString CrashType;
+
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();
