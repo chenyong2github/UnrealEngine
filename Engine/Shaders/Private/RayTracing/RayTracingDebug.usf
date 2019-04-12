@@ -21,7 +21,7 @@ void RayTracingDebugMainRGS()
 
 	RayDesc Ray;
 
-	Ray.Origin = ReconstructWorldPositionFromDepth(RenderTargetUV, 0.0f);
+	Ray.Origin = View.WorldCameraOrigin;
 	Ray.Direction = normalize(ReconstructWorldPositionFromDepth(RenderTargetUV, 10000.f) - Ray.Origin);
 	Ray.TMin = 0.5f; // 1 unit in UE4 = 1 cm -0> 0.5 ==> 5 mm
 	Ray.TMax = 1e27f;

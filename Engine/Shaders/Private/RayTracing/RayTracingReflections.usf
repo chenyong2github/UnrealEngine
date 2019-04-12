@@ -220,7 +220,7 @@ void RayTracingReflectionsRGS()
 			float3 PathThroughput = float3(1.0f, 1.0f, 1.0f);
 			
 			// Initialize path states according to GBuffer
-			float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
+			float3 CameraOrigin = View.WorldCameraOrigin;
 			float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
 			float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
 			float3 IncidentDirection = CameraDirection;
