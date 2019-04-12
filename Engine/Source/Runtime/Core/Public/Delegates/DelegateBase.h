@@ -140,6 +140,24 @@ public:
 		return Result;
 	}
 
+	/**
+	 * Returns the address of the method pointer which can be used to learn the address of the function that will be executed.
+	 * Returns nullptr if this delegate type does not directly invoke a function pointer.
+	 *
+	 * Note: Only intended to be used to aid debugging of delegates.
+	 *
+	 * @return The address of the function pointer that would be executed by this delegate
+	 */
+	uint64 GetBoundProgramCounterForTimerManager() const
+	{
+		if (IDelegateInstance* Ptr = GetDelegateInstanceProtected())
+		{
+			return Ptr->GetBoundProgramCounterForTimerManager();
+		}
+
+		return 0;
+	}
+
 	/** 
 	 * Checks to see if this delegate is bound to the given user object.
 	 *
