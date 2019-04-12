@@ -2,18 +2,14 @@
 
 using UnrealBuildTool;
 
-public class CrashReportHelper : ModuleRules
+public class CrashReportCore : ModuleRules
 {
-	public CrashReportHelper( ReadOnlyTargetRules Target ) : base(Target)
+	public CrashReportCore( ReadOnlyTargetRules Target ) : base(Target)
 	{
 		PrivateIncludePaths.AddRange(
 		new string[] {
-				"Developer/CrashReportHelper/Private/",
-                "Developer/CrashReportHelper/Private/Linux",
-                "Developer/CrashReportHelper/Private/Mac",
-                "Developer/CrashReportHelper/Private/Windows",
-                "Developer/CrashReportHelper/Private/IOS",
-            }
+				"Runtime/CrashReportCore/Private/",
+            	}
         );
 
 		PublicDependencyModuleNames.AddRange(
@@ -28,7 +24,7 @@ public class CrashReportHelper : ModuleRules
            }
         );
 
-        if (Target.Type == TargetType.Game)
+        if (Target.Type == TargetType.Game || Target.Type == TargetType.Client)
         {
             IsRedistributableOverride = true;
         }
