@@ -162,7 +162,7 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 
 	// Set the initial preview feature level.
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
-	World->ChangeFeatureLevel(Editor->PreviewFeatureLevel);
+	World->ChangeFeatureLevel(Editor->GetActiveFeatureLevelPreviewType());
 
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
 	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
