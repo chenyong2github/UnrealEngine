@@ -8,15 +8,17 @@
 /**
  * Implementation of the crash report client used for unattended uploads
  */
-class FCrashReportUnattended
+class FCrashReportCoreUnattended
 {
 public:
 	/**
 	 * Set up uploader object
 	 * @param ErrorReport Error report to upload
 	 */
-	explicit FCrashReportUnattended(FPlatformErrorReport& InErrorReport, bool InDeleteFiles = false);
+	explicit FCrashReportCoreUnattended(FPlatformErrorReport& InErrorReport, bool InExitWhenComplete = true);
 
+    bool IsUploadComplete() { return bUploadComplete; }
+    
 private:
 	/**
 	 * Update received every second
@@ -39,6 +41,9 @@ private:
 	/** Platform code for accessing the report */
 	FPlatformErrorReport ErrorReport;
     
-    /** clean up the report when done */
-    bool bDeleteReportFiles;
+    /** upload is complete */
+    bool bUploadComplete;
+	
+	/** exit when complete */
+	bool bExitWhenComplete;
 };

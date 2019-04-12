@@ -1,17 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CrashReportUnattended.h"
+#include "CrashReportCoreUnattended.h"
 #include "Containers/Ticker.h"
-#include "CrashReportConfig.h"
+#include "CrashReportCoreConfig.h"
 #include "CrashDescription.h"
-#include "CrashReportAnalytics.h"
 #include "Stats/Stats.h"
 
-FCrashReportUnattended::FCrashReportUnattended(FPlatformErrorReport& InErrorReport, bool InDeleteFiles)
-	: ReceiverUploader(FCrashReportConfig::Get().GetReceiverAddress())
-	, DataRouterUploader(FCrashReportConfig::Get().GetDataRouterURL())
+FCrashReportCoreUnattended::FCrashReportCoreUnattended(FPlatformErrorReport& InErrorReport, bool InExitWhenComplete)
+	: ReceiverUploader(FCrashReportCoreConfig::Get().GetReceiverAddress())
+	, DataRouterUploader(FCrashReportCoreConfig::Get().GetDataRouterURL())
 	, ErrorReport(InErrorReport)
-    , bDeleteReportFiles(InDeleteFiles)
+    , bUploadComplete(false)
+	, bExitWhenComplete(InExitWhenComplete)
 {
 	ErrorReport.TryReadDiagnosticsFile();
 
@@ -21,14 +21,12 @@ FCrashReportUnattended::FCrashReportUnattended(FPlatformErrorReport& InErrorRepo
 	// Update properties for the crash.
 	ErrorReport.SetPrimaryCrashProperties( *FPrimaryCrashProperties::Get() );
 
-    FCrashReportAnalytics::Initialize();
-    
 	StartTicker();
 }
 
-bool FCrashReportUnattended::Tick(float UnusedDeltaTime)
+bool FCrashReportCoreUnattended::Tick(float UnusedDeltaTime)
 {
-    QUICK_SCOPE_CYCLE_COUNTER(STAT_FCrashReportUnattended_Tick);
+    QUICK_SCOPE_CYCLE_COUNTER(STAT_FCrashReportClientUnattended_Tick);
 
 	if (!FCrashUploadBase::IsInitialized())
 	{
@@ -69,21 +67,16 @@ bool FCrashReportUnattended::Tick(float UnusedDeltaTime)
 		}
 	}
 
-    if (bDeleteReportFiles)
-    {
-        ErrorReport.DeleteFiles();
-    }
-    
-	// Shutdown analytics.
-	FCrashReportAnalytics::Shutdown();
-
-	FPrimaryCrashProperties::Shutdown();
-	FPlatformErrorReport::ShutDown();
-
+    bUploadComplete = true;
+	
+	if (bExitWhenComplete)
+	{
+		FPlatformMisc::RequestExit(false /* don't force */);
+	}
 	return false;
 }
 
-void FCrashReportUnattended::StartTicker()
+void FCrashReportCoreUnattended::StartTicker()
 {
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportUnattended::Tick), 1.f);
+	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportCoreUnattended::Tick), 1.f);
 }
