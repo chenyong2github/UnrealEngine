@@ -426,6 +426,9 @@ public:
 	/** The distance from this wave instance to the closest listener. */
 	float ListenerToSoundDistance;
 
+	/** The distance from this wave instance to the closest listener. (ignoring attenuation override) */
+	float ListenerToSoundDistanceForPanning;
+
 	/** The absolute position of the wave instance relative to forward vector of listener. */
 	float AbsoluteAzimuth; 
 
