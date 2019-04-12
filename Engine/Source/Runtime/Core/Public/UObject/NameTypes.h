@@ -448,6 +448,7 @@ public:
 	{
 		return (ComparisonIndex == Other.ComparisonIndex) & (GetNumber() == Other.GetNumber());
 	}
+
 	FORCEINLINE bool operator!=(const FName& Other) const
 	{
 		return !(*this == Other);
@@ -475,11 +476,11 @@ public:
 	}
 
 	/**
-	* Paranoid sanity check
-	*
-	* All FNames are valid except for stomped memory, dangling pointers, etc.
-	* Should only be used to  investigate such bugs and not in production code.
-	*/
+	 * Paranoid sanity check
+	 *
+	 * All FNames are valid except for stomped memory, dangling pointers, etc.
+	 * Should only be used to  investigate such bugs and not in production code.
+	 */
 	bool IsValid() const { return IsWithinBounds(ComparisonIndex); }
 
 	/** Paranoid sanity check, same as IsValid() */
