@@ -1160,6 +1160,9 @@ public:
 
 	/** Called when an actor channel is remotely opened for an actor. */
 	ENGINE_API virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) {}
+	
+	/** Called when an actor channel is cleaned up foor an actor. */
+	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) {}
 
 protected:
 
