@@ -90,9 +90,9 @@ static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	TEXT("\t3: Track resources and validate lifetime on command-buffer failure,\n")
 	TEXT("\t4: Reset resource bindings when binding a PSO/Compute-Shader to simplify GPU debugging,\n")
 	TEXT("\t5: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
-	TEXT("\t6: Wait for each command-buffer to complete immediately after submission.")
-	TEXT("\t7: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
-	TEXT("\t8: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n"));
+	TEXT("\t6: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
+    TEXT("\t7: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
+    TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
 
 float GMetalPresentFramePacing = 0.0f;
 #if !PLATFORM_MAC
@@ -487,7 +487,7 @@ void FMetalDeviceContext::ClearFreeList()
 
 void FMetalDeviceContext::DrainHeap()
 {
-	Heap.Compact(false);
+	Heap.Compact(&RenderPass, false);
 }
 
 void FMetalDeviceContext::EndFrame()
@@ -531,7 +531,7 @@ void FMetalDeviceContext::EndFrame()
     
     ClearFreeList();
     
-    Heap.Compact(false);
+	DrainHeap();
     
 	InitFrame(true, 0, 0);
 }
