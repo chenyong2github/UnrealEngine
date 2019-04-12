@@ -51,7 +51,7 @@ struct FNameEntryId
 
 	UE_DEPRECATED(4.23, "NAME_INDEX is replaced by FNameEntryId, which is no longer a contiguous integer. "
 						"Please use 'GetTypeHash(MyId)' instead of 'MyId' for hash functions. "
-						"ToUnstableInt() can be used in other cases if you *really* know what you are doing.")
+						"ToUnstableInt() can be used in other advanced cases.")
 	operator int32() const;
 
 	/** Get process specific integer */
@@ -375,15 +375,15 @@ struct FScriptName
 class CORE_API FName
 {
 public:
-	FORCEINLINE NAME_INDEX GetComparisonIndex() const
+	FORCEINLINE FNameEntryId GetComparisonIndex() const
 	{
 		checkName(IsWithinBounds(ComparisonIndex));
 		return ComparisonIndex;
 	}
 
-	FORCEINLINE NAME_INDEX GetDisplayIndex() const
+	FORCEINLINE FNameEntryId GetDisplayIndex() const
 	{
-		const NAME_INDEX Index = GetDisplayIndexFast();
+		const FNameEntryId Index = GetDisplayIndexFast();
 		checkName(IsWithinBounds(Index));
 		return Index;
 	}
@@ -608,7 +608,7 @@ public:
 	 * Create an FName from its component parts
 	 * Only call this if you *really* know what you're doing
 	 */
-	FORCEINLINE FName( const NAME_INDEX InComparisonIndex, const NAME_INDEX InDisplayIndex, const int32 InNumber )
+	FORCEINLINE FName( const FNameEntryId InComparisonIndex, const FNameEntryId InDisplayIndex, const int32 InNumber )
 		: ComparisonIndex( InComparisonIndex )
 #if WITH_CASE_PRESERVING_NAME
 		, DisplayIndex( InDisplayIndex )
@@ -713,7 +713,7 @@ public:
 	}
 
 	static void DisplayHash( class FOutputDevice& Ar );
-	static FString SafeString(NAME_INDEX InDisplayIndex, int32 InstanceNumber = NAME_NO_NUMBER_INTERNAL);
+	static FString SafeString(FNameEntryId InDisplayIndex, int32 InstanceNumber = NAME_NO_NUMBER_INTERNAL);
 
 	/**
 	 * @return Size of all name entries.
@@ -776,7 +776,7 @@ private:
 	friend const TCHAR* DebugFName(int32, int32);
 	friend const TCHAR* DebugFName(FName&);
 
-	FORCEINLINE NAME_INDEX GetDisplayIndexFast() const
+	FORCEINLINE FNameEntryId GetDisplayIndexFast() const
 	{
 #if WITH_CASE_PRESERVING_NAME
 		return DisplayIndex;

@@ -919,7 +919,7 @@ static FNameEntryId DebugCastNameEntryId(int32 Id) { return (FNameEntryId&)(Id);
 * @param	Index	Name index to look up string for
 * @return			Associated name
 */
-const TCHAR* DebugFName(NAME_INDEX Index)
+const TCHAR* DebugFName(FNameEntryId Index)
 {
 	// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
 	static TCHAR TempName[NAME_SIZE];
@@ -1769,7 +1769,7 @@ void FName::DisplayHash(FOutputDevice& Ar)
 	GetNamePool().LogStats(Ar);
 }
 
-FString FName::SafeString(NAME_INDEX InDisplayIndex, int32 InstanceNumber)
+FString FName::SafeString(FNameEntryId InDisplayIndex, int32 InstanceNumber)
 {
 	return FName(InDisplayIndex, InDisplayIndex, InstanceNumber).ToString();
 }
