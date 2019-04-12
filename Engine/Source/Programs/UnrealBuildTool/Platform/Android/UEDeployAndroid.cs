@@ -4146,6 +4146,12 @@ namespace UnrealBuildTool
 
 			Log.TraceInformation("Writing packageInfo pkgName:{0} storeVersion:{1} versionDisplayName:{2} to {3}", PackageInfoSource[0], PackageInfoSource[1], PackageInfoSource[2], DestPackageNameFileName);
 
+			string DestDirectory = Path.GetDirectoryName(DestPackageNameFileName);
+			if (!Directory.Exists(DestDirectory))
+			{
+				Directory.CreateDirectory(DestDirectory);
+			}
+
 			File.WriteAllLines(DestPackageNameFileName, PackageInfoSource);
 
 			return true;
