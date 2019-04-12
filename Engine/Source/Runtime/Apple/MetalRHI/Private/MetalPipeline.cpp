@@ -514,6 +514,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 			{
 				checkf(Arg.index < ML_MaxTextures, TEXT("Metal texture index exceeded!"));
 				ResourceMask[Frequency].TextureMask |= (1 << Arg.index);
+				TextureTypes[Frequency].Add(Arg.index, (uint8)Arg.textureType);
 				break;
 			}
 			case MTLArgumentTypeSampler:
