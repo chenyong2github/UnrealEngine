@@ -6,6 +6,7 @@
 #include "Rendering/DrawElements.h"
 #include "Widgets/SWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Types/InvisibleToWidgetReflectorMetaData.h"
 
 static float VectorSign(const FVector2D& Vec, const FVector2D& A, const FVector2D& B)
 {
@@ -185,6 +186,12 @@ void FVisualTreeCapture::ElementAdded(const FSlateWindowElementList& ElementList
 	{
 		if (Tree->WidgetStack.Num() > 0)
 		{
+			// Ignore any element added from a widget that's invisible to the widget reflector.
+			if (Tree->WidgetStack.Top().Pin()->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
+			{
+				return;
+			}
+
 			FVisualEntry Entry(InElementIndex);
 			Entry.Widget = Tree->WidgetStack.Top();
 			Tree->Entries.Add(Entry);

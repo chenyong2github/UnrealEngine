@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SPopup.h"
 #include "Widgets/Layout/SWindowTitleBarArea.h"
 #include "DebugCanvas.h"
+#include "Types/InvisibleToWidgetReflectorMetaData.h"
 
 /* SGameLayerManager interface
  *****************************************************************************/
@@ -86,7 +87,7 @@ void SGameLayerManager::Construct(const SGameLayerManager::FArguments& InArgs)
 				[
 					SAssignNew(DebugCanvas, SDebugCanvas)
 					.SceneViewport(InArgs._SceneViewport)
-
+					.AddMetaData<FInvisibleToWidgetReflectorMetaData>(FInvisibleToWidgetReflectorMetaData())
 				]
 			]
 		];
