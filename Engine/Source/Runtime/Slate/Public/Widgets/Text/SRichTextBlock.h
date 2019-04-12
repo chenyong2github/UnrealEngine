@@ -208,6 +208,9 @@ public:
 	/** See MinDesiredWidth attribute */
 	void SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWidth);
 
+	/**  */
+	void SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet);
+
 	/**
 	 * Causes the text to reflow it's layout
 	 */
@@ -253,6 +256,9 @@ private:
 
 	/** Prevents the text block from being smaller than desired in certain cases (e.g. when it is empty) */
 	TAttribute<float> MinDesiredWidth;
+
+	/**  */
+	TSharedPtr<FRichTextLayoutMarshaller> Marshaller;
 };
 
 #endif //WITH_FANCY_TEXT
