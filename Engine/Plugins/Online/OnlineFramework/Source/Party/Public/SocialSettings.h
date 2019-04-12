@@ -22,6 +22,7 @@ public:
 
 	static FString GetUniqueIdEnvironmentPrefix(ESocialSubsystem SubsystemType);
 	static bool ShouldPreferPlatformInvites();
+	static bool MustSendPrimaryInvites();
 	static int32 GetDefaultMaxPartySize();
 	static float GetUserListAutoUpdateRate();
 
@@ -41,6 +42,9 @@ private:
 
 	UPROPERTY(config)
 	bool bPreferPlatformInvites = true;
+
+	UPROPERTY(config)
+	bool bMustSendPrimaryInvites = false;
 
 	UPROPERTY(config)
 	float UserListAutoUpdateRate = 7.5f;

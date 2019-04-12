@@ -37,6 +37,12 @@ bool USocialSettings::ShouldPreferPlatformInvites()
 	return SettingsCDO.bPreferPlatformInvites;
 }
 
+bool USocialSettings::MustSendPrimaryInvites()
+{
+	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
+	return SettingsCDO.bMustSendPrimaryInvites;
+}
+
 int32 USocialSettings::GetDefaultMaxPartySize()
 {
 #if !UE_BUILD_SHIPPING
