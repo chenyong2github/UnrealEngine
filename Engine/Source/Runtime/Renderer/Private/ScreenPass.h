@@ -8,6 +8,7 @@
 #include "PipelineStateCache.h"
 #include "RenderGraph.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "ScenePrivate.h"
 
 // Returns whether a HMD hidden area mask is being used for VR.
 bool IsHMDHiddenAreaMaskActive();
