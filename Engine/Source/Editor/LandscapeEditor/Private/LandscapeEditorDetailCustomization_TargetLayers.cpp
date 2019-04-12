@@ -712,7 +712,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 							.OnCheckStateChanged_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnLayersSubstractiveBlendChanged, Target)
 							[
 								SNew(STextBlock)
-								.Text(LOCTEXT("ViewMode.Debug_None", "Substractive Blend"))
+								.Text(LOCTEXT("SubtractiveBlend", "Subtractive Blend"))
 							]
 						]
 					]
