@@ -698,14 +698,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 			if (RayTracedMeshElementsMask != 0)
 			{
-				FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
+					FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 				TArray<FRayTracingInstance> RayTracingInstances;
 				SceneProxy->GetDynamicRayTracingInstances(MaterialGatheringContext, RayTracingInstances);
 
 				if (RayTracingInstances.Num() > 0)
-				{
+						{
 					for (FRayTracingInstance& Instance : RayTracingInstances)
-					{
+							{
 						FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
 						RayTracingInstance.Transform = Instance.InstanceTransforms[0];
 						ensureMsgf(Instance.InstanceTransforms.Num() == 1, TEXT("Multi-instancing hasn't been supported"));
@@ -718,12 +718,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
 
 						for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
-						{
+							{
 							Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
-						}
+				}
 
 						for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
-						{
+				{
 							FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
 							FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
 							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView);
@@ -750,12 +750,12 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 
 	Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		FViewInfo& View = Views[ViewIndex];
-		SET_DWORD_STAT(STAT_RayTracingInstances, View.RayTracingGeometryInstances.Num());
-		FRayTracingSceneInitializer Initializer;
-		Initializer.Instances = View.RayTracingGeometryInstances;
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			SET_DWORD_STAT(STAT_RayTracingInstances, View.RayTracingGeometryInstances.Num());
+			FRayTracingSceneInitializer Initializer;
+			Initializer.Instances = View.RayTracingGeometryInstances;
 		Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 		View.RayTracingScene.RayTracingSceneRHI = RHICreateRayTracingScene(Initializer);
 		RHICmdList.BuildAccelerationStructure(View.RayTracingScene.RayTracingSceneRHI);
@@ -771,7 +771,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		PreparePathTracing(View, RayGenShaders);
 
 		if (RayGenShaders.Num())
-		{
+	{
 			auto DefaultHitShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>()->GetRayTracingShader();
 			auto DefaultMissShader = View.ShaderMap->GetShader<FDefaultMaterialMS>()->GetRayTracingShader();
 
@@ -780,7 +780,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 				DefaultMissShader,
 				DefaultHitShader
 			);
-		}
+	}
 	}
 
 	return true;
@@ -1123,14 +1123,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
-	const bool bUseSelectiveBasePassOutputs = bUseGBuffer && UseSelectiveBasePassOutputs();
+	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
 
 	SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 	SceneContext.ResolveSceneDepthToAuxiliaryTexture(RHICmdList);
 
 	ComputeLightGrid(RHICmdList, bComputeLightGrid);
 
-	if (bUseGBuffer || IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
 		SceneContext.PreallocGBufferTargets(); // Even if !bShouldRenderVelocities, the velocity buffer must be bound because it's a compile time option for the shader.
@@ -1389,15 +1388,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		bRequiresFarZQuadClear = false;
 	}
 
-	if (bUseGBuffer)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Resolve_After_Basepass);
+		// Will early return if simple forward
 		SceneContext.FinishGBufferPassAndResolve(RHICmdList);
-	}
-	else
-	{
-		// #todo-renderpasses which paths can lead us here?
-		RHICmdList.EndRenderPass();
 	}
 
 	if (!bAllowReadonlyDepthBasePass)

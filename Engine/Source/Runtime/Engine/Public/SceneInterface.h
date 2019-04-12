@@ -154,7 +154,7 @@ public:
 	virtual void UpdateSceneCaptureContents(class USceneCaptureComponent2D* CaptureComponent) {}
 	virtual void UpdateSceneCaptureContents(class USceneCaptureComponentCube* CaptureComponent) {}
 	virtual void UpdatePlanarReflectionContents(class UPlanarReflectionComponent* CaptureComponent, class FSceneRenderer& MainSceneRenderer) {}
-
+	
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) {}
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) {}
 
@@ -165,7 +165,7 @@ public:
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */
-	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex) const {}
+	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& OutputVelocity) const {}
 	 
 	/** 
 	 * Updates the transform of a light which has already been added to the scene. 
