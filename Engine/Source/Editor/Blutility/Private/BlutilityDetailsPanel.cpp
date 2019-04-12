@@ -75,7 +75,7 @@ void FEditorUtilityInstanceDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		FString CategoryName = FString::Printf(TEXT("%sActions"), *Class->ClassGeneratedBy->GetName());
 		IDetailCategoryBuilder& ActionsCategory = DetailLayoutBuilder.EditCategory(*CategoryName);
 
-		const APlacedEditorUtilityBase* PlacedActorCDO = Cast<const APlacedEditorUtilityBase>(Class->GetDefaultObject());
+		const ADEPRECATED_PlacedEditorUtilityBase* PlacedActorCDO = Cast<const ADEPRECATED_PlacedEditorUtilityBase>(Class->GetDefaultObject());
 		if (PlacedActorCDO && !PlacedActorCDO->HelpText.IsEmpty())
 		{
 			ActionsCategory.AddCustomRow( FText::FromString(PlacedActorCDO->HelpText) )
@@ -85,7 +85,7 @@ void FEditorUtilityInstanceDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 			];
 		}
 		
-		const UGlobalEditorUtilityBase* GlobalBlutilityCDO = Cast<const UGlobalEditorUtilityBase>(Class->GetDefaultObject());
+		const UDEPRECATED_GlobalEditorUtilityBase* GlobalBlutilityCDO = Cast<const UDEPRECATED_GlobalEditorUtilityBase>(Class->GetDefaultObject());
 		if (GlobalBlutilityCDO && !GlobalBlutilityCDO->HelpText.IsEmpty())
 		{
 			ActionsCategory.AddCustomRow( FText::FromString(GlobalBlutilityCDO->HelpText) )
@@ -167,7 +167,7 @@ FReply FEditorUtilityInstanceDetails::OnExecuteAction(TWeakObjectPtr<UFunction> 
 			{
 				Object->ProcessEvent(Function, NULL);
 
-				if (UGlobalEditorUtilityBase* BlutilityInstance = Cast<UGlobalEditorUtilityBase>(Object))
+				if (UDEPRECATED_GlobalEditorUtilityBase* BlutilityInstance = Cast<UDEPRECATED_GlobalEditorUtilityBase>(Object))
 				{
 					BlutilityInstance->PostExecutionCleanup();
 				}

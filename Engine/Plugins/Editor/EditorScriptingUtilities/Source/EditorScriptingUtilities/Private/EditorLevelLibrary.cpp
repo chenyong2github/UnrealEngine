@@ -244,6 +244,63 @@ void UEditorLevelLibrary::EjectPilotLevelActor()
 }
 
 
+bool UEditorLevelLibrary::GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation)
+{
+	bool RetVal = false;
+	CameraLocation = FVector::ZeroVector;
+	CameraRotation = FRotator::ZeroRotator;
+
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC && LevelVC->IsPerspective())
+		{
+			CameraLocation = LevelVC->GetViewLocation();
+			CameraRotation = LevelVC->GetViewRotation();
+			RetVal = true;
+
+			break;
+		}
+	}
+
+	return RetVal;
+}
+
+
+void UEditorLevelLibrary::SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation)
+{
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC && LevelVC->IsPerspective())
+		{
+			LevelVC->SetViewLocation(CameraLocation);
+			LevelVC->SetViewRotation(CameraRotation);
+
+			break;
+		}
+	}
+}
+
+void UEditorLevelLibrary::ClearActorSelectionSet()
+{
+	GEditor->GetSelectedActors()->DeselectAll();
+	GEditor->NoteSelectionChange();
+}
+
+void UEditorLevelLibrary::SelectNothing()
+{
+	GEditor->SelectNone(true, true, false);
+}
+
+void UEditorLevelLibrary::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
+{
+	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
+}
+
+AActor* UEditorLevelLibrary::GetActorReference(FString PathToActor)
+{
+	return Cast<AActor>(StaticFindObject(AActor::StaticClass(), GEditor->GetEditorWorldContext().World(), *PathToActor, false));
+}
+
 void UEditorLevelLibrary::EditorSetGameView(bool bGameView)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
@@ -257,8 +314,6 @@ void UEditorLevelLibrary::EditorSetGameView(bool bGameView)
 		}
 	}
 }
-
-#if WITH_EDITOR
 
 void UEditorLevelLibrary::EditorPlaySimulate()
 {
@@ -283,8 +338,6 @@ void UEditorLevelLibrary::EditorInvalidateViewports()
 		LevelViewportClient.Invalidate();
 	}
 }
-
-#endif
 
 namespace InternalEditorLevelLibrary
 {

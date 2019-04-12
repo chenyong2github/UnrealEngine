@@ -9,7 +9,7 @@
 
 class IDetailsView;
 class SDockableTab;
-class UGlobalEditorUtilityBase;
+class UDEPRECATED_GlobalEditorUtilityBase;
 
 //////////////////////////////////////////////////////////////////////////
 // FGlobalBlutilityDialog
@@ -61,5 +61,5 @@ private:
 	/** Property View */
 	TSharedPtr<class IDetailsView> DetailsView;
 
-	TWeakObjectPtr<UGlobalEditorUtilityBase> BlutilityInstance;
+	TWeakObjectPtr<UDEPRECATED_GlobalEditorUtilityBase> BlutilityInstance;
 };
