@@ -462,8 +462,6 @@ private:
 
 	void CopySceneCaptureComponentToTarget(FRHICommandListImmediate& RHICmdList);
 
-	bool CanOverlayRayTracingOutput(void) const;
-
 	void RenderRayTracingReflections(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
