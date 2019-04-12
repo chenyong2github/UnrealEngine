@@ -680,31 +680,37 @@ int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction Col
 	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
 	MRTCount++;
 
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferA->GetRenderTargetItem().TargetableTexture;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-	MRTCount++;
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferB->GetRenderTargetItem().TargetableTexture;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-	MRTCount++;
+	if (bUseGBuffer)
+	{
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferA->GetRenderTargetItem().TargetableTexture;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
+		MRTCount++;
 
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferC->GetRenderTargetItem().TargetableTexture;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-	MRTCount++;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferB->GetRenderTargetItem().TargetableTexture;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
+		MRTCount++;
+
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferC->GetRenderTargetItem().TargetableTexture;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
+		MRTCount++;
+	}
 
 	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
 	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
 	if (bAllocateVelocityGBuffer)
 	{
 		OutVelocityRTIndex = MRTCount;
-		check(OutVelocityRTIndex == 4); // As defined in BasePassPixelShader.usf
-
+		check(OutVelocityRTIndex == 4 || (!bUseGBuffer && OutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
+		
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = SceneVelocity->GetRenderTargetItem().TargetableTexture;
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
@@ -716,20 +722,23 @@ int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction Col
 		OutVelocityRTIndex = -1;
 	}
 
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferD->GetRenderTargetItem().TargetableTexture;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
-	OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
-	MRTCount++;
-
-	if (bAllowStaticLighting)
+	if (bUseGBuffer)
 	{
-		check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferE->GetRenderTargetItem().TargetableTexture;
+		OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferD->GetRenderTargetItem().TargetableTexture;
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
 		OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
 		MRTCount++;
+
+		if (bAllowStaticLighting)
+		{
+			check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
+			OutRenderPassInfo.ColorRenderTargets[MRTCount].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
+			OutRenderPassInfo.ColorRenderTargets[MRTCount].RenderTarget = GBufferE->GetRenderTargetItem().TargetableTexture;
+			OutRenderPassInfo.ColorRenderTargets[MRTCount].ArraySlice = -1;
+			OutRenderPassInfo.ColorRenderTargets[MRTCount].MipIndex = 0;
+			MRTCount++;
+		}
 	}
 
 	check(MRTCount <= MaxSimultaneousRenderTargets);
@@ -740,16 +749,22 @@ int32 FSceneRenderTargets::GetGBufferRenderTargets(ERenderTargetLoadAction Color
 {
 	int32 MRTCount = 0;
 	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GetSceneColorSurface(), 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferA->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferB->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferC->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+	if (bUseGBuffer)
+	{
+		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferA->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferB->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferC->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+	}
 
 	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
 	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
-	if (bAllocateVelocityGBuffer)
+	if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		OutVelocityRTIndex = MRTCount;
-		check(OutVelocityRTIndex == 4); // As defined in BasePassPixelShader.usf
+		check(OutVelocityRTIndex == 4 || (!bUseGBuffer && OutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
 		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(SceneVelocity->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
 	}
 	else
@@ -757,12 +772,15 @@ int32 FSceneRenderTargets::GetGBufferRenderTargets(ERenderTargetLoadAction Color
 		OutVelocityRTIndex = -1;
 	}
 
-	OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferD->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
-
-	if (bAllowStaticLighting)
+	if (bUseGBuffer)
 	{
-		check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
-		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferE->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+		OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferD->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+
+		if (bAllowStaticLighting)
+		{
+			check(MRTCount == (bAllocateVelocityGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
+			OutRenderTargets[MRTCount++] = FRHIRenderTargetView(GBufferE->GetRenderTargetItem().TargetableTexture, 0, -1, ColorLoadAction, ERenderTargetStoreAction::EStore);
+		}
 	}
 
 	check(MRTCount <= MaxSimultaneousRenderTargets);
@@ -824,22 +842,8 @@ void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERe
 	}
 
 	int32 VelocityRTIndex = -1;
-	int32 MRTCount;
-
 	FRHIRenderPassInfo RPInfo;
-
-	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(CurrentFeatureLevel)))
-	{
-		MRTCount = 1;
-		RPInfo.ColorRenderTargets[0].Action = MakeRenderTargetActions(ColorLoadAction, ERenderTargetStoreAction::EStore);
-		RPInfo.ColorRenderTargets[0].RenderTarget = SceneColorTex;
-		RPInfo.ColorRenderTargets[0].ArraySlice = -1;
-		RPInfo.ColorRenderTargets[0].MipIndex = 0;
-	}
-	else
-	{
-		MRTCount = FillGBufferRenderPassInfo(ColorLoadAction, RPInfo, VelocityRTIndex);
-	}
+	int32 MRTCount = FillGBufferRenderPassInfo(ColorLoadAction, RPInfo, VelocityRTIndex);
 
 	//make sure our conditions for shader clear fallback are valid.
 	check(RPInfo.ColorRenderTargets[0].RenderTarget == SceneColorTex);
@@ -912,15 +916,26 @@ void FSceneRenderTargets::FinishGBufferPassAndResolve(FRHICommandListImmediate& 
 {
 	RHICmdList.EndRenderPass();
 
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	if (IsSimpleForwardShadingEnabled(ShaderPlatform))
+	{
+		// Currently nothing to do here for simple forward shading.
+		return;
+	}
+
 	int32 VelocityRTIndex;
 	FRHIRenderTargetView RenderTargets[MaxSimultaneousRenderTargets];
 	int32 NumMRTs = GetGBufferRenderTargets(ERenderTargetLoadAction::ELoad, RenderTargets, VelocityRTIndex);
 
 	FResolveParams ResolveParams;
-	for (int32 i = 0; i < NumMRTs; ++i)
+
+	// Skip the SceneColor resolve when using forward shading as this is done after this function is called.
+	int32 i = IsForwardShadingEnabled(ShaderPlatform) ? 1 : 0;
+
+	for ( ; i < NumMRTs; ++i)
 	{
 		 // When the basepass outputs to the velocity buffer, don't resolve it yet if selective outputs are enabled, as it will be resolved after the velocity pass.
-		if (i != VelocityRTIndex || !UseSelectiveBasePassOutputs())
+		if (i != VelocityRTIndex || !IsUsingSelectiveBasePassOutputs(ShaderPlatform))
 		{
 			RHICmdList.CopyToResolveTarget(RenderTargets[i].Texture, RenderTargets[i].Texture, ResolveParams);
 		}
@@ -933,10 +948,14 @@ int32 FSceneRenderTargets::GetNumGBufferTargets() const
 {
 	int32 NumGBufferTargets = 1;
 
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM4 && !IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(CurrentFeatureLevel)))
+	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM4)
 	{
-		// This needs to match TBasePassPixelShaderBaseType::ModifyCompilationEnvironment()
-		NumGBufferTargets = bAllowStaticLighting ? 6 : 5;
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+		if (IsUsingGBuffers(ShaderPlatform))
+		{
+			// This needs to match TBasePassPixelShaderBaseType::ModifyCompilationEnvironment()
+			NumGBufferTargets = bAllowStaticLighting ? 6 : 5;
+		}
 
 		if (bAllocateVelocityGBuffer)
 		{
@@ -1164,15 +1183,15 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList)
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferE, TEXT("GBufferE"));
 		}
 
-		if (bAllocateVelocityGBuffer)
-		{
-			FPooledRenderTargetDesc VelocityRTDesc = FVelocityRendering::GetRenderTargetDesc();
-			VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity; 
-			GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
-		}
-
 		// otherwise we have a severe problem
 		check(GBufferA);
+	}
+
+	if (bAllocateVelocityGBuffer)
+	{
+		FPooledRenderTargetDesc VelocityRTDesc = FVelocityRendering::GetRenderTargetDesc();
+		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
+		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
 
 	GBufferRefCount = 1;
