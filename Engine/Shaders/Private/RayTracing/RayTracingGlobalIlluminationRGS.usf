@@ -72,16 +72,6 @@ void GenerateCosineNormalRay(
 	RayPdf = Direction_Tangent.w;
 }
 
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT >= 0.0;
-}
-
 [shader("raygeneration")]
 void GlobalIlluminationRGS()
 {

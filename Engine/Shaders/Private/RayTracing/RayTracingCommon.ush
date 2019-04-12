@@ -75,6 +75,15 @@ FRayCone PropagateRayCone(in FRayCone Cone, in float SurfaceSpreadAngle, in floa
 	return NewCone;
 }
 
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
 #define RAY_TRACING_BLEND_MODE_OPAQUE				0
 #define RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE		1
 #define RAY_TRACING_BLEND_MODE_TRANSLUCENT			2
@@ -263,6 +272,24 @@ void ApplyPositionBias(inout RayDesc Ray, const float3 WorldNormal, const float 
 
 	Ray.Origin += WorldNormal * NormalBias;
 }
+
+float GetHitT(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.HitT;
+}
+
+bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
+{
+	float t = HitInfo.HitT;
+	return t > Ray.TMin && t < Ray.TMax;
+}
+
+bool IsHit(RayDesc Ray, FPackedMaterialClosestHitPayload HitInfo)
+{
+	float t = HitInfo.HitT;
+	return t > Ray.TMin && t < Ray.TMax;
+}
+
 #endif // !COMPUTESHADER
 
 #endif // RAYTRACINGCOMMON_USH_INCLUDED // Workarround for UE-66460

@@ -7,7 +7,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
-//#include "../Montecarlo.ush"
+#include "../RayTracing/RayTracingCommon.ush"
 
 #include "PathTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
@@ -24,17 +24,6 @@ RWTexture2D<uint>   PixelPositionRT;
 RWTexture2D<uint>	RayCountPerPixelRT;
 RaytracingAccelerationStructure TLAS;
 
-
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
-}
 
 [shader("raygeneration")]
 void PathTracingMainRG()

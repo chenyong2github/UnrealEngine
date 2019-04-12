@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "../Common.ush"
 #include "PathTracingDefinitions.ush"
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"

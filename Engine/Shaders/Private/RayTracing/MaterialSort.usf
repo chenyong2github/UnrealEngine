@@ -1,3 +1,4 @@
+#include "../Common.ush"
 #include "RayTracingCommon.ush"
 
 #if DIM_SORT_SIZE == 0

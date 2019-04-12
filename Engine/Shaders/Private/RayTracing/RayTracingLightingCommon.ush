@@ -7,22 +7,6 @@
 #define LIGHT_TYPE_RECT				3 
 #define LIGHT_TYPE_MAX				4 
 
-float GetHitT(FMaterialClosestHitPayload HitInfo)
-{
-	return HitInfo.HitT;
-}
-
-bool IsHit(RayDesc Ray, FMaterialClosestHitPayload HitInfo)
-{
-	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
-}
-
-bool IsHit(RayDesc Ray, FPackedMaterialClosestHitPayload HitInfo)
-{
-	float t = HitInfo.HitT;
-	return t > Ray.TMin && t < Ray.TMax;
-}
 
 float GetRoughnessFade(float Roughness, float MaxRoughness)
 {
