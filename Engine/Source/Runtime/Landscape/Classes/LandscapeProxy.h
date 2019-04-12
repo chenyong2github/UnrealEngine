@@ -807,6 +807,9 @@ public:
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components);
 
+	/* Invalidate the precomputed grass and baked texture data on all components */
+	LANDSCAPE_API void InvalidateGeneratedComponentData();
+
 #if WITH_EDITOR
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);

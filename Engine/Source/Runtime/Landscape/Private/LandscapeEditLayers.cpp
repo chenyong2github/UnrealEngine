@@ -4411,7 +4411,8 @@ void ALandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap)
 {
 	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	if (!Layer)
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo || !Layer)
 	{
 		return;
 	}
@@ -4424,12 +4425,21 @@ void ALandscape::SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bIn
 	Modify();
 	LayerAlpha = InAlpha;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+
+	LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	{
+		if (Proxy)
+		{
+			Proxy->InvalidateGeneratedComponentData();
+		}
+	});
 }
 
 void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
 {
 	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	if (!Layer || Layer->bVisible == bInVisible)
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo || !Layer || Layer->bVisible == bInVisible)
 	{
 		return;
 	}
@@ -4437,6 +4447,14 @@ void ALandscape::SetLayerVisibility(int32 InLayerIndex, bool bInVisible)
 	Modify();
 	Layer->bVisible = bInVisible;
 	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+
+	LandscapeInfo->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	{
+		if (Proxy)
+		{
+			Proxy->InvalidateGeneratedComponentData();
+		}
+	});
 }
 
 void ALandscape::SetLayerLocked(int32 InLayerIndex, bool bLocked)
@@ -4476,7 +4494,7 @@ const FLandscapeLayer* ALandscape::GetLayer(const FGuid& InLayerGuid) const
 
 void ALandscape::ForEachLayer(TFunctionRef<void(const struct FLandscapeLayer&)> Fn)
 {
-	for (const FLandscapeLayer& Layer : LandscapeLayers)
+	for (FLandscapeLayer& Layer : LandscapeLayers)
 	{
 		Fn(Layer);
 	}
