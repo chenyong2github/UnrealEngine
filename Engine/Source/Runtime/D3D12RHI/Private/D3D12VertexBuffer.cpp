@@ -78,9 +78,36 @@ void FD3D12VertexBuffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 	}
 }
 
+void FD3D12VertexBuffer::Swap(FD3D12VertexBuffer& Other)
+{
+	check(!LockedData.bLocked && !Other.LockedData.bLocked);
+	FRHIVertexBuffer::Swap(Other);
+	FD3D12BaseShaderResource::Swap(Other);
+	FD3D12TransientResource::Swap(Other);
+	FD3D12LinkedAdapterObject<FD3D12VertexBuffer>::Swap(Other);
+	::Swap(DynamicSRV, Other.DynamicSRV);
+}
+
+void FD3D12VertexBuffer::ReleaseUnderlyingResource()
+{
+	check(!LockedData.bLocked && ResourceLocation.IsValid());
+	UpdateBufferStats<FD3D12VertexBuffer>(&ResourceLocation, false);
+	ResourceLocation.Clear();
+	FRHIVertexBuffer::ReleaseUnderlyingResource();
+	FD3D12VertexBuffer* NextVB = GetNextObject();
+	if (NextVB)
+	{
+		NextVB->ReleaseUnderlyingResource();
+	}
+}
 
 FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D12VertexBuffer();
+	}
+
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
@@ -106,6 +133,11 @@ void FD3D12DynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBuff
 
 FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {	
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D12VertexBuffer();
+	}
+
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
@@ -168,6 +200,21 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBuffer
 
 		SourceBuffer = SourceBuffer->GetNextObject();
 		DestBuffer = DestBuffer->GetNextObject();
+	}
+}
+
+void FD3D12DynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FD3D12VertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{
+		FD3D12VertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
 	}
 }
 

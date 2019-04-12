@@ -6,6 +6,64 @@
 
 #include "D3D12RHIPrivate.h"
 
+static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12VertexBuffer* VertexBuffer, uint32& CreationStride, uint8 Format)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
+	{
+		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		CreationStride = 4;
+	}
+	else
+	{
+		SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
+	}
+	SRVDesc.Buffer.FirstElement = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource() / CreationStride;
+	SRVDesc.Buffer.NumElements = VertexBuffer->GetSize() / CreationStride;
+	SRVDesc.Buffer.StructureByteStride = 0;
+	return SRVDesc;
+}
+
+static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12IndexBuffer* IndexBuffer)
+{
+	const uint32 Usage = IndexBuffer->GetUsage();
+	const uint32 Width = IndexBuffer->GetSize();
+	const uint32 CreationStride = IndexBuffer->GetStride();
+	const FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	if (Usage & BUF_ByteAddressBuffer)
+	{
+		check(CreationStride == 4u);
+		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	}
+	else
+	{
+		check(CreationStride == 2u || CreationStride == 4u);
+		SRVDesc.Format = CreationStride == 2u ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+	}
+	SRVDesc.Buffer.NumElements = Width / CreationStride;
+	SRVDesc.Buffer.StructureByteStride = 0;
+
+	if (Location.GetResource())
+	{
+		// Create a Shader Resource View
+		SRVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / CreationStride;
+	}
+	else
+	{
+		// Null underlying D3D12 resource should only be the case for dynamic resources
+		check(Usage & BUF_AnyDynamic);
+	}
+	return SRVDesc;
+}
+
 template<typename TextureType>
 FD3D12ShaderResourceView* CreateSRV(TextureType* Texture, D3D12_SHADER_RESOURCE_VIEW_DESC& Desc)
 {
@@ -218,25 +276,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FVertexB
 		void Execute(FRHICommandListBase& RHICmdList)
 		{
 			uint32 CreationStride = Stride;
-			uint32 Width = VertexBuffer->GetSize();
-
-			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-			SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
-			{
-				SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-				SRVDesc.Buffer.NumElements = Width / 4;
-				SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-				CreationStride = 4;
-			}
-			else
-			{
-				SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
-				SRVDesc.Buffer.NumElements = Width / Stride;
-			}
-			SRVDesc.Buffer.StructureByteStride = 0;
-			SRVDesc.Buffer.FirstElement = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource() / CreationStride;
+			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VertexBuffer, CreationStride, Format);
 
 			// Create a Shader Resource View
 			SRV->Initialize(SRVDesc, VertexBuffer->ResourceLocation, CreationStride);
@@ -278,6 +318,10 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FVertexB
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FIndexBufferRHIParamRef BufferRHI)
 {
+	if (!BufferRHI)
+	{
+		return new FD3D12ShaderResourceView(nullptr);
+	}
 	FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
 	return GetAdapter().CreateLinkedViews<FD3D12IndexBuffer, FD3D12ShaderResourceView>(IndexBuffer,
 		[](FD3D12IndexBuffer* IndexBuffer)
@@ -285,41 +329,8 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FIndexBu
 		check(IndexBuffer);
 
 		FD3D12ResourceLocation& Location = IndexBuffer->ResourceLocation;
-
-		const uint32 Width = IndexBuffer->GetSize();
-
-		FD3D12Resource* pResource = Location.GetResource();
-
-		uint32 CreationStride = IndexBuffer->GetStride();
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		if (IndexBuffer->GetUsage() & BUF_ByteAddressBuffer)
-		{
-			check(CreationStride == 4u);
-			SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-			SRVDesc.Buffer.NumElements = Width / 4;
-			SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-		}
-		else
-		{
-			check(CreationStride == 2u || CreationStride == 4u);
-			SRVDesc.Format = CreationStride == 2u ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-			SRVDesc.Buffer.NumElements = Width / CreationStride;
-		}
-		SRVDesc.Buffer.StructureByteStride = 0;
-
-		if (pResource)
-		{
-			// Create a Shader Resource View
-			SRVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / CreationStride;
-		}
-		else
-		{
-			// Null underlying D3D12 resource should only be the case for dynamic resources
-			check(IndexBuffer->GetUsage() & BUF_AnyDynamic);
-		}
+		const uint32 CreationStride = IndexBuffer->GetStride();
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(IndexBuffer);
 
 		FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(IndexBuffer->GetParentDevice(), SRVDesc, Location, CreationStride);
 		return ShaderResourceView;
@@ -333,23 +344,7 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRe
 	{
 		FD3D12VertexBuffer* VBD3D12 = ResourceCast(VertexBuffer);
 		FD3D12ShaderResourceView* SRVD3D12 = ResourceCast(SRV);
-		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		if (VBD3D12->GetUsage() & BUF_ByteAddressBuffer)
-		{
-			SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-			SRVDesc.Buffer.NumElements = VBD3D12->GetSize() / 4;
-			SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-			Stride = 4;
-		}
-		else
-		{
-			SRVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, false);
-			SRVDesc.Buffer.NumElements = VBD3D12->GetSize() / Stride;
-		}
-		SRVDesc.Buffer.StructureByteStride = 0;
-		SRVDesc.Buffer.FirstElement = VBD3D12->ResourceLocation.GetOffsetFromBaseOfResource() / Stride;
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VBD3D12, Stride, Format);
 
 		// Rename the SRV to view on the new vertex buffer
 		while (VBD3D12)
@@ -360,7 +355,32 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRe
 			VBD3D12 = VBD3D12->GetNextObject();
 			if (VBD3D12 && !SRVD3D12->GetNextObject())
 			{
-				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(ParentDevice));
+				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(VBD3D12->GetParentDevice()));
+			}
+			SRVD3D12 = SRVD3D12->GetNextObject();
+		}
+	}
+}
+
+void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+{
+	check(SRV);
+	if (IndexBuffer)
+	{
+		FD3D12IndexBuffer* IBD3D12 = ResourceCast(IndexBuffer);
+		FD3D12ShaderResourceView* SRVD3D12 = ResourceCast(SRV);
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetIndexBufferSRVDesc(IBD3D12);
+		const uint32 Stride = IBD3D12->GetStride();
+
+		// Rename the SRV to view on the new index buffer
+		while (IBD3D12)
+		{
+			FD3D12Device* ParentDevice = IBD3D12->GetParentDevice();
+			SRVD3D12->Initialize(ParentDevice, SRVDesc, IBD3D12->ResourceLocation, Stride);
+			IBD3D12 = IBD3D12->GetNextObject();
+			if (IBD3D12 && !SRVD3D12->GetNextObject())
+			{
+				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(IBD3D12->GetParentDevice()));
 			}
 			SRVD3D12 = SRVD3D12->GetNextObject();
 		}

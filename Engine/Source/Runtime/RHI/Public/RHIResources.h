@@ -451,6 +451,25 @@ public:
 	/** @return The usage flags used to create the index buffer. */
 	uint32 GetUsage() const { return Usage; }
 
+protected:
+	FRHIIndexBuffer()
+		: Stride(0)
+		, Size(0)
+		, Usage(0)
+	{}
+
+	void Swap(FRHIIndexBuffer& Other)
+	{
+		::Swap(Stride, Other.Stride);
+		::Swap(Size, Other.Size);
+		::Swap(Usage, Other.Usage);
+	}
+
+	void ReleaseUnderlyingResource()
+	{
+		Stride = Size = Usage = 0;
+	}
+
 private:
 	uint32 Stride;
 	uint32 Size;
@@ -475,6 +494,24 @@ public:
 
 	/** @return The usage flags used to create the vertex buffer. e.g. BUF_UnorderedAccess */
 	uint32 GetUsage() const { return Usage; }
+
+protected:
+	FRHIVertexBuffer()
+		: Size(0)
+		, Usage(0)
+	{}
+
+	void Swap(FRHIVertexBuffer& Other)
+	{
+		::Swap(Size, Other.Size);
+		::Swap(Usage, Other.Usage);
+	}
+
+	void ReleaseUnderlyingResource()
+	{
+		Size = 0;
+		Usage = 0;
+	}
 
 private:
 	uint32 Size;

@@ -182,6 +182,7 @@ public:
 class FEmptyIndexBuffer : public FRHIIndexBuffer
 {
 public:
+	FEmptyIndexBuffer() = default;
 
 	/** Constructor */
 	FEmptyIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUsage);
@@ -202,6 +203,7 @@ public:
 class FEmptyVertexBuffer : public FRHIVertexBuffer
 {
 public:
+	FEmptyVertexBuffer() = default;
 
 	/** Constructor */
 	FEmptyVertexBuffer(uint32 InSize, uint32 InUsage);
