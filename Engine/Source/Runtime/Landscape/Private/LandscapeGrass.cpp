@@ -55,7 +55,10 @@
 #include "InstancedStaticMesh.h"
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
+
+#if WITH_EDITOR
 #include "Settings/EditorExperimentalSettings.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1337,6 +1340,7 @@ void ALandscapeProxy::TickGrass()
 		}
 	}
 
+#if WITH_EDITOR
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
 		if (ALandscape* Landscape = GetLandscapeActor())
@@ -1347,6 +1351,7 @@ void ALandscapeProxy::TickGrass()
 			}
 		}
 	}
+#endif
 
 
 	// Update foliage
