@@ -1290,6 +1290,10 @@ public:
 		return false;
 	}
 
+	static void PumpMessagesOutsideMainLoop()
+	{
+	}
+
 protected:
 	/** Whether the user should be prompted to allow for a remote debugger to be attached */
 	static bool bShouldPromptForRemoteDebugging;
