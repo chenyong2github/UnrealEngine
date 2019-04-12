@@ -50,7 +50,8 @@ float3 GenerateReflectedRayDirection(
 
 float TraceShadowRay(
 	in RayDesc Ray,
-	in FRayCone ShadowRayCone)
+	in FRayCone ShadowRayCone,
+	in RaytracingAccelerationStructure TLAS)
 {
 	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 
@@ -193,7 +194,6 @@ uint2 CullDirectLighting(
 	in bool bReflectedShadows,
 	in float ShadowMaxNormalBias)
 {
-
 	uint2 LightCullMask = (uint2)0;
 
 	for (uint DirIndex = 0; DirIndex < RaytracingLightsDataPacked.Count; DirIndex++)
@@ -275,9 +275,10 @@ float3 ComputeDirectLightingCulled(
 	in uint2 LightCullMask,
 	in RayDesc Ray,
 	in FRayCone RayCone,
+	in RaytracingAccelerationStructure TLAS,
 	in FMaterialClosestHitPayload Payload,
 	in RandomSequence RandSequence,
-	in bool bReflectedShadows,
+	in uint ReflectedShadowsType,
 	in float ShadowMaxNormalBias)
 {
 	float3 DirectLighting = float3(0.0, 0.0, 0.0);
@@ -417,7 +418,7 @@ float3 ComputeDirectLightingCulled(
 			LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, ShadowRayDirection);
 		}
 
-		if (bReflectedShadows)
+		if (ReflectedShadowsType > 0)
 		{
 			if (ReflectedShadowsType == 2)
 			{
@@ -433,7 +434,7 @@ float3 ComputeDirectLightingCulled(
 			ShadowRay.TMax = Active ? length(ToLight) : ShadowRay.TMin;
 			ApplyPositionBias(ShadowRay, Payload.WorldNormal, ShadowMaxNormalBias);
 
-			float HitT = TraceShadowRay(ShadowRay, ShadowRayCone);
+			float HitT = TraceShadowRay(ShadowRay, ShadowRayCone, TLAS);
 			AmbientOcclusion = HitT < 0.0f && Active;
 		}
 
@@ -482,6 +483,7 @@ void ComputeBottomLayerMaterialProperties(RayDesc Ray, inout FMaterialClosestHit
 
 FMaterialClosestHitPayload TraceRayResults(
 	in RayDesc Ray,
+	in RaytracingAccelerationStructure TLAS,
 	in RandomSequence RandSequence,
 	in uint RayFlags,
 	in float ShadowMaxNormalBias,
@@ -506,10 +508,14 @@ FMaterialClosestHitPayload TraceRayResults(
 void AccumulateResults(
 	in FMaterialClosestHitPayload Payload,
 	in RayDesc Ray,
+	in RaytracingAccelerationStructure TLAS,
 	in RandomSequence RandSequence,
 	in uint RayFlags,
 	in float ShadowMaxNormalBias,
 	in uint Mask,
+	in uint ReflectedShadowsType,
+	in uint ShouldDoDirectLighting,
+	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
@@ -524,7 +530,7 @@ void AccumulateResults(
 
 		if (ShouldDoDirectLighting)
 		{
-			float3 DirectLighting = ComputeDirectLightingCulled(LightCullMask, Ray, RayCone, Payload, RandSequence, ReflectedShadowsType > 0, ShadowMaxNormalBias);
+			float3 DirectLighting = ComputeDirectLightingCulled(LightCullMask, Ray, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
 
 			// Transform NaNs to black, transform negative colors to black.
 			DirectLighting = -min(-DirectLighting, 0.0);
@@ -542,15 +548,20 @@ void AccumulateResults(
 
 FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	in RayDesc Ray,
+	in RaytracingAccelerationStructure TLAS, 
 	in RandomSequence RandSequence,
 	in uint RayFlags,
 	in float ShadowMaxNormalBias,
 	in uint Mask,
+	in uint ReflectedShadowsType,
+	in uint ShouldDoDirectLighting,
+	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
 	FMaterialClosestHitPayload Payload = TraceRayResults(
 		Ray,
+		TLAS,
 		RandSequence,
 		RayFlags,
 		ShadowMaxNormalBias,
@@ -561,10 +572,14 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 	AccumulateResults(
 		Payload,
 		Ray,
+		TLAS,
 		RandSequence,
 		RayFlags,
 		ShadowMaxNormalBias,
 		Mask,
+		ReflectedShadowsType,
+		ShouldDoDirectLighting,
+		ShouldDoEmissiveAndIndirectLighting,
 		RayCone,
 		Radiance);
 
@@ -573,15 +588,20 @@ FMaterialClosestHitPayload TraceRayAndAccumulateResults(
 
 FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 	in RayDesc Ray,
+	in RaytracingAccelerationStructure TLAS,
 	in RandomSequence RandSequence,
 	in uint RayFlags,
 	in float ShadowMaxNormalBias,
 	in uint Mask,
+	in uint ReflectedShadowsType,
+	in uint ShouldDoDirectLighting,
+	in uint ShouldDoEmissiveAndIndirectLighting,
 	inout FRayCone RayCone,
 	inout float3 Radiance)
 {
 	FMaterialClosestHitPayload BottomLayerPayload = TraceRayResults(
 		Ray,
+		TLAS,
 		RandSequence,
 		RayFlags,
 		ShadowMaxNormalBias,
@@ -594,10 +614,14 @@ FMaterialClosestHitPayload TraceRayAndAccumulateBottomLayerResults(
 	AccumulateResults(
 		BottomLayerPayload,
 		Ray,
+		TLAS,
 		RandSequence,
 		RayFlags,
 		ShadowMaxNormalBias,
 		Mask,
+		ReflectedShadowsType,
+		ShouldDoDirectLighting,
+		ShouldDoEmissiveAndIndirectLighting,
 		RayCone,
 		Radiance);
 

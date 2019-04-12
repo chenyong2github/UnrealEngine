@@ -35,15 +35,17 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../DeferredLightingCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
 #include "../Montecarlo.ush"
-#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" // #dxr-todo: move to a common folder
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
-#include "RayTracingCommon.ush"
+#include "../LightShaderParameters.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
 #include "RayTracingSphereLight.ush"
 #include "RayTracingSpotLight.ush"
 #include "RayTracingPointLight.ush"
+#include "RayTracingCommon.ush"
+#include "RayTracingLightingCommon.ush" 
 
 
 // Setup the reflection composite to sample the sky and reflection captures.
@@ -71,8 +73,8 @@ uint SamplesPerPixel;
 uint MaxBounces;
 uint HeightFog;
 uint UseReflectionCaptures;
-uint ShouldDoDirectLighting;
 uint ReflectedShadowsType;
+uint ShouldDoDirectLighting;
 uint ShouldDoEmissiveAndIndirectLighting;
 uint UpscaleFactor;
 uint SortTileSize;
@@ -85,8 +87,6 @@ float ReflectionMaxRoughness;
 float ReflectionMaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
-
-#include "RayTracingLightingCommon.ush" // #dxr_todo: UE-72548 helper functions must take TLAS explicitly rather than rely on a global declared above
 
 RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;
@@ -311,15 +311,14 @@ void RayTracingReflectionsRGS()
 							TopLayerRay.TMax = 0;
 						}
 					}
-				}
-
+				}		
 
 
 				// Trace the top layer reflection
 				float3 TopLayerRadiance = float3(0, 0, 0);
 				FMaterialClosestHitPayload Payload;
 				const uint RayFlags = 0;					
-				Payload = TraceRayAndAccumulateResults(TopLayerRay, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, RayCone, TopLayerRadiance);
+				Payload = TraceRayAndAccumulateResults(TopLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, TopLayerRadiance);
 				bool isTopLayerRayValid = Payload.HitT >= 0 || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
 
 
@@ -386,7 +385,7 @@ void RayTracingReflectionsRGS()
 
 					
 					FRayCone BottomLayerRayCone = (FRayCone)0;
-					FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(BottomLayerRay, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, RayCone, BottomLayerRadiance);
+					FMaterialClosestHitPayload BottomLayerPayload = TraceRayAndAccumulateBottomLayerResults(BottomLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, BottomLayerRadiance);
 
 					// Distance and sky: similar processing to main ray.
 					float BottomLayerHitDistance = -1;
