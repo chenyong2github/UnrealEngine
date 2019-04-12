@@ -181,7 +181,7 @@ namespace UnrealBuildTool
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 				}
 			}
-            if ((ProjectSettings.bGeneratedSYMFile == true || ProjectSettings.bGeneratedSYMBundle == true) && (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler) && Binary.Type == UEBuildBinaryType.Executable)
+            if (Target.IOSPlatform.bGeneratedSYM && (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler) && Binary.Type == UEBuildBinaryType.Executable)
             {
                 FileReference DebugFile = FileReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".udebugsymbols");
                 BuildProducts.Add(DebugFile, BuildProductType.SymbolFile);
@@ -1359,8 +1359,8 @@ namespace UnrealBuildTool
                 return OutputFiles;
             }
 
-            // For IOS/tvOS, generate the dSYM file if the config file is set to do so
-			if (ProjectSettings.bGeneratedSYMFile == true || ProjectSettings.bGeneratedSYMBundle == true || BinaryLinkEnvironment.bUsePDBFiles == true)
+            // For IOS/tvOS, generate the dSYM file if needed or requested
+			if (Target.IOSPlatform.bGeneratedSYM)
             {
                 OutputFiles.Add(GenerateDebugInfo(Executable, Actions));
                 if (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler)
