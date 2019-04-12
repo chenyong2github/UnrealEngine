@@ -65,17 +65,16 @@ float4 SpotLightDirection[MAX_DYNAMIC_POINT_LIGHTS];
 
 /** Prenormalized capture of the scene that's closest to the object being rendered. */
 #if !FULLY_ROUGH
-	TextureCube ReflectionCubemap;
-	SamplerState ReflectionCubemapSampler;
-	// x,y,z - inverted average brightness, w - max sky cube mip
-	float4 MobileReflectionParams;
 	#if HQ_REFLECTIONS
 	#define MAX_HQ_REFLECTIONS 3
-
+	TextureCube ReflectionCubemap0;
+	SamplerState ReflectionCubemapSampler0;
 	TextureCube ReflectionCubemap1;
 	SamplerState ReflectionCubemapSampler1;
 	TextureCube ReflectionCubemap2;
 	SamplerState ReflectionCubemapSampler2;
+	// x,y,z - inverted average brightness for 0, 1, 2
+	float4 ReflectionInvAverageBrigtness;
 	float4 ReflectionPositionsAndRadii[MAX_HQ_REFLECTIONS];
 		#if ALLOW_CUBE_REFLECTIONS
 		float4x4 CaptureBoxTransformArray[MAX_HQ_REFLECTIONS];
@@ -227,9 +226,9 @@ half3 BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half 
 	half3 SpecularIBL = half3(0, 0, 0);
 	half BlendFactor = 1;
 
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap, ReflectionCubemapSampler, AbsoluteSpecularMip, 0, MobileReflectionParams.x, BlendFactor);
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap1, ReflectionCubemapSampler1, AbsoluteSpecularMip, 1, MobileReflectionParams.y, BlendFactor);
-	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap2, ReflectionCubemapSampler2, AbsoluteSpecularMip, 2, MobileReflectionParams.z, BlendFactor);
+	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap0, ReflectionCubemapSampler0, AbsoluteSpecularMip, 0, ReflectionInvAverageBrigtness.x, BlendFactor);
+	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap1, ReflectionCubemapSampler1, AbsoluteSpecularMip, 1, ReflectionInvAverageBrigtness.y, BlendFactor);
+	SpecularIBL += BlendReflectionCapture(MaterialParameters, Roughness, ReflectionCubemap2, ReflectionCubemapSampler2, AbsoluteSpecularMip, 2, ReflectionInvAverageBrigtness.z, BlendFactor);
 
 	return SpecularIBL;
 }
@@ -257,14 +256,14 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 
 	half3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;	
 
-	half UsingSkyReflection = MobileReflectionParams.w > 0;
-	half CubemapMaxMip = UsingSkyReflection ? MobileReflectionParams.w : ResolvedView.ReflectionCubemapMaxMip;
+	half UsingSkyReflection = MobileReflectionCapture.Params.y > 0;
+	half CubemapMaxMip = UsingSkyReflection ? MobileReflectionCapture.Params.y : ResolvedView.ReflectionCubemapMaxMip;
 
 	// Compute fractional mip from roughness
 	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, CubemapMaxMip);
 	// Fetch from cubemap and convert to linear HDR
 	half3 SpecularIBL;
-	half4 SpecularIBLSample = ReflectionCubemap.SampleLevel(ReflectionCubemapSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
+	half4 SpecularIBLSample = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
 	if (UsingSkyReflection)
 	{
 		SpecularIBL = SpecularIBLSample.rgb;
@@ -277,7 +276,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 		SpecularIBL = SpecularIBL * SpecularIBL;
 		#if LQ_TEXTURE_LIGHTMAP || CACHED_POINT_INDIRECT_LIGHTING
 			// divide by average brightness for lightmap use cases only.
-			SpecularIBL *= MobileReflectionParams.x;
+			SpecularIBL *= MobileReflectionCapture.Params.x;
 		#endif
 	}
 
