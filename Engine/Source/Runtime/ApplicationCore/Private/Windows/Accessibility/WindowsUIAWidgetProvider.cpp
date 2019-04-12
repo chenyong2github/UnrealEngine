@@ -324,11 +324,6 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::GetPropertyValue(PROPERTYID propertyI
 		// todo: figure out what goes here
 		pRetVal->bstrVal = SysAllocString(*LOCTEXT("Slate", "Slate").ToString());
 		break;
-	//case UIA_FullDescriptionPropertyId:
-	//	pRetVal->vt = VT_BSTR;
-	//	// todo: how is this different from help text?
-	//	pRetVal->bstrVal = SysAllocString(*Widget->GetHelpText());
-	//	break;
 	case UIA_HasKeyboardFocusPropertyId:
 		pRetVal->vt = VT_BOOL;
 		pRetVal->boolVal = Widget->HasFocus() ? VARIANT_TRUE : VARIANT_FALSE;
@@ -402,24 +397,6 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::GetPropertyValue(PROPERTYID propertyI
 	case UIA_ProcessIdPropertyId:
 		pRetVal->vt = VT_I4;
 		pRetVal->lVal = ::GetCurrentProcessId();
-		break;
-	case UIA_SizePropertyId:
-		pRetVal->vt = VT_R8 | VT_ARRAY;
-		pRetVal->parray = SafeArrayCreateVector(VT_R8, 0, 2);
-		if (pRetVal->parray)
-		{
-			FBox2D Box = Widget->GetBounds();
-			LONG i = 0;
-			float Width = Box.Max.X - Box.Min.X;
-			float Height = Box.Max.Y - Box.Min.Y;
-			bValid &= (SafeArrayPutElement(pRetVal->parray, &i, &Width) != S_OK);
-			i = 1;
-			bValid &= (SafeArrayPutElement(pRetVal->parray, &i, &Height) != S_OK);
-		}
-		else
-		{
-			bValid = false;
-		}
 		break;
 	default:
 		pRetVal->vt = VT_EMPTY;

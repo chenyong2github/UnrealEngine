@@ -32,7 +32,7 @@ public class ApplicationCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, 
 				"XInput"
 				);
-            if (Target.bCompileWithAccessibilitySupport)
+            if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
             {
                 PublicAdditionalLibraries.Add("uiautomationcore.lib");
             }

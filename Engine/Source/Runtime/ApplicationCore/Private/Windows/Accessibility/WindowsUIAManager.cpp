@@ -149,10 +149,6 @@ void FWindowsUIAManager::OnWidgetProviderRemoved(TSharedRef<IAccessibleWidget> I
 	}
 }
 
-#if WINVER > 0x0A00 // Win10
-typedef HRESULT(WINAPI* UiaRaiseNotificationEventFunc)(IRawElementProviderSimple*, NotificationKind, NotificationProcessing, BSTR, BSTR);
-#endif
-
 void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
 {
 	if (UiaClientsAreListening())
@@ -185,16 +181,13 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 			break;
 		case EAccessibleEvent::Notification:
 		{
-#if WINVER > 0x0A00 // Win10
-			// GetProcAddress returns a function type with no args and the compiler doesn't like the cast to one with args, but we know better.
-			// todo: are these checks necessary if the compiler is targeting Win10 already?
-			#pragma warning(suppress: 4191)
-			UiaRaiseNotificationEventFunc NotificationFunc = (UiaRaiseNotificationEventFunc)GetProcAddress(GetModuleHandle(TEXT("Uiautomationcore.dll")), "UiaRaiseNotificationEvent");
+			typedef HRESULT(WINAPI* UiaRaiseNotificationEventFunc)(IRawElementProviderSimple*, NotificationKind, NotificationProcessing, BSTR, BSTR);
+			// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+			UiaRaiseNotificationEventFunc NotificationFunc = (UiaRaiseNotificationEventFunc)(void*)GetProcAddress(GetModuleHandle(TEXT("Uiautomationcore.dll")), "UiaRaiseNotificationEvent");
 			if (NotificationFunc)
 			{
 				NotificationFunc(&ScopedProvider.Provider, NotificationKind_ActionCompleted, NotificationProcessing_All, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
 			}
-#endif
 			break;
 		}
 		case EAccessibleEvent::BeforeRemoveFromParent:
@@ -212,7 +205,13 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 			break;
 		}
 		case EAccessibleEvent::WidgetRemoved:
-			UiaDisconnectProvider(&ScopedProvider.Provider);
+			typedef HRESULT(WINAPI* UiaDisconnectProviderFunc)(IRawElementProviderSimple*);
+			// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+			UiaDisconnectProviderFunc DisconnectFunc = (UiaDisconnectProviderFunc)(void*)GetProcAddress(GetModuleHandle(TEXT("Uiautomationcore.dll")), "UiaDisconnectProvider");
+			if (DisconnectFunc)
+			{
+				DisconnectFunc(&ScopedProvider.Provider);
+			}
 			break;
 		}
 	}
