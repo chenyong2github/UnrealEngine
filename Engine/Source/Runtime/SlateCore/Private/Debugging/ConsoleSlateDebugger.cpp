@@ -129,7 +129,7 @@ void FConsoleSlateDebugger::UpdateListeners()
 	FSlateDebugging::InputEvent.AddRaw(this, &FConsoleSlateDebugger::OnInputEvent);
 	FSlateDebugging::FocusEvent.AddRaw(this, &FConsoleSlateDebugger::OnFocusEvent);
 	FSlateDebugging::NavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnNavigationEvent);
-	FSlateDebugging::MouseCaptureEvent.AddRaw(this, &FConsoleSlateDebugger::OnStateChangeEvent);
+	FSlateDebugging::MouseCaptureEvent.AddRaw(this, &FConsoleSlateDebugger::OnCaptureStateChangeEvent);
 #endif
 }
 
@@ -262,16 +262,18 @@ void FConsoleSlateDebugger::OnNavigationEvent(const FSlateDebuggingNavigationEve
 	OptionallyDumpCallStack();
 }
 
-void FConsoleSlateDebugger::OnStateChangeEvent(const FSlateDebuggingMouseCaptureEventArgs& EventArgs)
+void FConsoleSlateDebugger::OnCaptureStateChangeEvent(const FSlateDebuggingMouseCaptureEventArgs& EventArgs)
 {
-	static const FText StateChangeEventFormat = LOCTEXT("StateChangeEventFormat", "{0} : {1}");
+	static const FText StateChangeEventFormat = LOCTEXT("StateChangeEventFormat", "{0}({1}:{2}) : {3}");
 
-	const FText StateText = LOCTEXT("MouseCaptured", "Mouse Captured");
-	const FText SourceWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.CapturingWidget.Get()));
+	const FText StateText = EventArgs.Captured ? LOCTEXT("MouseCaptured", "Mouse Captured") : LOCTEXT("MouseCaptureLost", "Mouse Capture Lost");
+	const FText SourceWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.CaptureWidget.Get()));
 
 	FText EventText = FText::Format(
 		StateChangeEventFormat,
 		StateText,
+		EventArgs.UserIndex,
+		EventArgs.PointerIndex,
 		SourceWidget
 	);
 
