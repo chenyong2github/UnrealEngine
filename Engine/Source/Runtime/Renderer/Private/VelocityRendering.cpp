@@ -16,6 +16,7 @@
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
 #include "PostProcess/ScreenSpaceReflections.h"
+#include "PostProcess/PostProcessMotionBlur.h"
 #include "UnrealEngine.h"
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
@@ -45,11 +46,6 @@ static TAutoConsoleVariable<int32> CVarRHICmdVelocityPassDeferredContexts(
 	TEXT("r.RHICmdVelocityPassDeferredContexts"),
 	1,
 	TEXT("True to use deferred contexts to parallelize velocity pass command list execution."));
-
-RENDERER_API TAutoConsoleVariable<int32> CVarAllowMotionBlurInVR(
-	TEXT("vr.AllowMotionBlurInVR"),
-	0,
-	TEXT("For projects with motion blur enabled, this allows motion blur to be enabled even while in VR."));
 
 DECLARE_GPU_STAT_NAMED(RenderVelocities, TEXT("Render Velocities"));
 
@@ -203,36 +199,6 @@ public:
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FVelocityPS,TEXT("/Engine/Private/VelocityShader.usf"),TEXT("MainPixelShader"),SF_Pixel);
 
 IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(VelocityPipeline, FVelocityVS, FVelocityPS, true);
-
-
-int32 GetMotionBlurQualityFromCVar()
-{
-	int32 MotionBlurQuality;
-
-	static const auto ICVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MotionBlurQuality"));
-	MotionBlurQuality = FMath::Clamp(ICVar->GetValueOnRenderThread(), 0, 4);
-
-	return MotionBlurQuality;
-}
-
-bool IsMotionBlurEnabled(const FViewInfo& View)
-{
-	if (View.GetFeatureLevel() < ERHIFeatureLevel::SM5)
-	{
-		return false; 
-	}
-
-	int32 MotionBlurQuality = GetMotionBlurQualityFromCVar();
-
-	return View.Family->EngineShowFlags.PostProcessing
-		&& View.Family->EngineShowFlags.MotionBlur
-		&& View.FinalPostProcessSettings.MotionBlurAmount > 0.001f
-		&& View.FinalPostProcessSettings.MotionBlurMax > 0.001f
-		&& View.Family->bRealtimeUpdate
-		&& MotionBlurQuality > 0
-		&& !IsSimpleForwardShadingEnabled(GShaderPlatformForFeatureLevel[View.GetFeatureLevel()])
-		&& (CVarAllowMotionBlurInVR->GetInt() != 0 || !(View.Family->Views.Num() > 1));
-}
 
 static void BeginVelocityRendering(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& VelocityRT, bool bPerformClear)
 {

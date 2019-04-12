@@ -187,12 +187,36 @@ private:
 /** Render graph information about how to bind a depth-stencil render target. */
 struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FDepthStencilBinding
 {
-	FDepthStencilBinding()
-		: Texture(nullptr)
-	{ }
+	FDepthStencilBinding() = default;
 	FDepthStencilBinding(const FDepthStencilBinding&) = default;
 
-	TAlignedShaderParameterPtr<FRDGTexture*> Texture;
+	FDepthStencilBinding(
+		FRDGTexture* InTexture,
+		ERenderTargetLoadAction InDepthLoadAction,
+		ERenderTargetStoreAction InDepthStoreAction,
+		ERenderTargetLoadAction InStencilLoadAction,
+		ERenderTargetStoreAction InStencilStoreAction,
+		FExclusiveDepthStencil InDepthStencilAccess)
+		: Texture(InTexture)
+		, DepthLoadAction(InDepthLoadAction)
+		, DepthStoreAction(InDepthStoreAction)
+		, StencilLoadAction(InStencilLoadAction)
+		, StencilStoreAction(InStencilStoreAction)
+		, DepthStencilAccess(InDepthStencilAccess)
+	{}
+
+	FDepthStencilBinding(
+		FRDGTexture* InTexture,
+		ERenderTargetLoadAction InDepthLoadAction,
+		ERenderTargetStoreAction InDepthStoreAction,
+		FExclusiveDepthStencil InDepthStencilAccess)
+		: Texture(InTexture)
+		, DepthLoadAction(InDepthLoadAction)
+		, DepthStoreAction(InDepthStoreAction)
+		, DepthStencilAccess(InDepthStencilAccess)
+	{}
+
+	TAlignedShaderParameterPtr<FRDGTexture*> Texture = nullptr;
 	ERenderTargetLoadAction		DepthLoadAction		= ERenderTargetLoadAction::ENoAction;
 	ERenderTargetStoreAction	DepthStoreAction	= ERenderTargetStoreAction::ENoAction;
 	ERenderTargetLoadAction		StencilLoadAction	= ERenderTargetLoadAction::ENoAction;

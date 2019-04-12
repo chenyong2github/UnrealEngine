@@ -12,6 +12,8 @@
 // for VisualizeSSS
 #include "MiniFontCommon.ush"
 
+#include "ScreenPass.ush"
+
 // x:Radius*DistanceToProjectionWindow/KernelSize*0.5, y:DistanceToProjectionWindow, zw: unused
 float4 SubsurfaceParams;
 
@@ -20,15 +22,8 @@ Texture2D SubsurfaceInput1_Texture;
 
 SamplerState SubsurfaceSampler; 
 
-float2 SubsurfaceInput0_Extent;
-float2 SubsurfaceInput0_ExtentInverse;
-uint2 SubsurfaceInput0_ViewportMin;
-float2 SubsurfaceInput0_ViewportSize;
-float2 SubsurfaceInput0_ViewportSizeInverse;
-float2 SubsurfaceInput0_UVViewportBilinearMin;
-float2 SubsurfaceInput0_UVViewportBilinearMax;
-
-float2 SubsurfaceInput1_ExtentInverse;
+SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput0);
+SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput1);
 
 #define SUBSURFACE_DIRECTION_HORIZONTAL 0
 #define SUBSURFACE_DIRECTION_VERTICAL 1

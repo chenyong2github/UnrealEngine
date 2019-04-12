@@ -9,14 +9,17 @@
 /** Whether visualize texture tool is supported. */
 #define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
-
 /** Whether render graph should support draw events or not.
  * RENDER_GRAPH_DRAW_EVENTS == 0 means there is no string processing at all.
  * RENDER_GRAPH_DRAW_EVENTS == 1 means const TCHAR* is only passdown.
  * RENDER_GRAPH_DRAW_EVENTS == 2 means complex formated FString is passdown.
  */
+#define RENDER_GRAPH_DRAW_EVENTS_NONE 0
+#define RENDER_GRAPH_DRAW_EVENTS_STRING_REF 1
+#define RENDER_GRAPH_DRAW_EVENTS_STRING_COPY 2
+
 #if WITH_PROFILEGPU
-	#define RENDER_GRAPH_DRAW_EVENTS 2
+	#define RENDER_GRAPH_DRAW_EVENTS RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 #else
 	#define RENDER_GRAPH_DRAW_EVENTS 0
 #endif
@@ -26,24 +29,57 @@
 class RENDERCORE_API FRDGEventName
 {
 public:
-	inline FRDGEventName() 
-	{ }
+	FRDGEventName() = default;
 
-	#if RENDER_GRAPH_DRAW_EVENTS == 2
+	#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 
 	explicit FRDGEventName(const TCHAR* EventFormat, ...);
 
-	#elif RENDER_GRAPH_DRAW_EVENTS == 1
+	#elif RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_REF
 
 	explicit inline FRDGEventName(const TCHAR* EventFormat)
 		: EventName(EventFormat)
-	{ }
+	{}
 
 	#endif
-	
+
+	FRDGEventName(const FRDGEventName& Other)
+	{
+		*this = Other;
+	}
+
+	FRDGEventName(FRDGEventName&& Other)
+	{
+		*this = Forward<FRDGEventName>(Other);
+	}
+
+	FRDGEventName& operator=(const FRDGEventName& Other)
+	{
+#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_REF
+		EventName = Other.EventName;
+#elif RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
+		EventNameStorage = Other.EventNameStorage;
+		EventName = *EventNameStorage;
+#endif
+		return *this;
+	}
+
+	FRDGEventName& operator=(FRDGEventName&& Other)
+	{
+#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_REF
+		EventName = Other.EventName;
+		Other.EventName = nullptr;
+#elif RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
+		EventNameStorage = MoveTemp(Other.EventNameStorage);
+		EventName = *EventNameStorage;
+		Other.EventName = nullptr;
+#endif
+		return *this;
+	}
+
 	const TCHAR* GetTCHAR() const
 	{
-		#if RENDER_GRAPH_DRAW_EVENTS == 1 || RENDER_GRAPH_DRAW_EVENTS == 2
+		#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_REF || RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 			return EventName;
 		#else
 			// Render graph draw events have been completely compiled for CPU performance reasons.
@@ -52,9 +88,9 @@ public:
 	}
 
 private:
-	#if RENDER_GRAPH_DRAW_EVENTS == 1 || RENDER_GRAPH_DRAW_EVENTS == 2
+	#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_REF || RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 		const TCHAR* EventName;
-		#if RENDER_GRAPH_DRAW_EVENTS == 2
+		#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 			FString EventNameStorage;
 		#endif
 	#endif
@@ -75,8 +111,6 @@ private:
 	FRDGEventScope(const FRDGEventScope* InParentScope, FRDGEventName&& InName)
 		: ParentScope(InParentScope), Name(InName)
 	{ }
-
-
 	friend class FRDGBuilder;
 	friend class FStackRDGEventScopeRef;
 };
@@ -661,7 +695,7 @@ public:
 
 		auto NewScope = new(FMemStack::Get()) FRDGEventScope(GraphBuilder.CurrentScope, Forward<FRDGEventName>(ScopeName));
 
-		#if RENDER_GRAPH_DRAW_EVENTS == 2
+		#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 		{
 			GraphBuilder.EventScopes.Add(NewScope);
 		}
@@ -689,13 +723,13 @@ private:
  *
  *		RDG_EVENT_SCOPE(GraphBuilder, "MyProcessing %sx%s", ViewRect.Width(), ViewRect.Height());
  */
-#if RENDER_GRAPH_DRAW_EVENTS == 2
+#if RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 
 #define RDG_EVENT_NAME(Format, ...) FRDGEventName(TEXT(Format), ##__VA_ARGS__)
 #define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) \
 	FStackRDGEventScopeRef PREPROCESSOR_JOIN(__RDG_ScopeRef_,__LINE__) ((GraphBuilder), RDG_EVENT_NAME(Format, ##__VA_ARGS__))
 
-#elif RENDER_GRAPH_DRAW_EVENTS == 1
+#elif RENDER_GRAPH_DRAW_EVENTS == RENDER_GRAPH_DRAW_EVENTS_STRING_COPY
 
 #define RDG_EVENT_NAME(Format, ...) FRDGEventName(TEXT(Format))
 #define RDG_EVENT_SCOPE(GraphBuilder, Format, ...) \

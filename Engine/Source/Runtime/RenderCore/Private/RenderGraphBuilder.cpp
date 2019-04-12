@@ -382,7 +382,7 @@ void FRDGBuilder::ValidatePass(const FRenderGraphPass* Pass) const
 			checkf(RenderTargets->DepthStencil.StencilLoadAction != ERenderTargetLoadAction::ELoad,
 				TEXT("Can't load stencil from a render target that has never been produced."));
 			checkf(RenderTargets->DepthStencil.StencilStoreAction != ERenderTargetStoreAction::ENoAction,
-				TEXT("Using for the first time a render target without storing it, witch doesn't make much sens."));
+				TEXT("Using for the first time a render target without storing it, which doesn't make much sense."));
 
 			Texture->bHasEverBeenProduced = true;
 			Texture->DebugFirstProducer = Pass;

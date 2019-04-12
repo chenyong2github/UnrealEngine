@@ -111,16 +111,6 @@ static TAutoConsoleVariable<int32> CDownsampleQuality(
 	TEXT(">0: high quality (default: 3)\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarMotionBlurSoftEdgeSize(
-	TEXT("r.MotionBlurSoftEdgeSize"),
-	1.0f,
-	TEXT("Defines how wide the object motion blur is blurred (percent of screen width) to allow soft edge motion blur.\n")
-	TEXT("This scales linearly with the size (up to a maximum of 32 samples, 2.5 is about 18 samples) and with screen resolution\n")
-	TEXT("Smaller values are better for performance and provide more accurate motion vectors but the blurring outside the object is reduced.\n")
-	TEXT("If needed this can be exposed like the other motionblur settings.\n")
-	TEXT(" 0:off (not free and does never completely disable), >0, 1.0 (default)"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarBloomCross(
 	TEXT("r.Bloom.Cross"),
 	0.0f,
@@ -150,26 +140,6 @@ static TAutoConsoleVariable<float> CVarTonemapperMergeThreshold(
 	TEXT("\n")
 	TEXT("Defauls to 0.49 (e.g., if r.ScreenPercentage is 70 or higher, try to merge)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarMotionBlurScatter(
-	TEXT("r.MotionBlurScatter"),
-	0,
-	TEXT("Forces scatter based max velocity method (slower)."),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarMotionBlurSeparable(
-	TEXT("r.MotionBlurSeparable"),
-	0,
-	TEXT("Adds a second motion blur pass that smooths noise for a higher quality blur."),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarMotionBlurPreferCompute(
-	TEXT("r.MotionBlur.PreferCompute"),
-	0,
-	TEXT("Will use compute shaders for motion blur pass."),
-	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarAlphaChannel(
 	TEXT("r.PostProcessing.PropagateAlpha"),
@@ -1781,76 +1751,59 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				SSRInputChain = AddPostProcessMaterialChain(Context, BL_SSRInput);
 			}
 
-			if(IsMotionBlurEnabled(View) && VelocityInput.IsValid() && !bVisualizeMotionBlur)
+			// Motion Blur
+			if ((IsMotionBlurEnabled(View) || bVisualizeMotionBlur) && VelocityInput.IsValid())
 			{
-				// Motion blur
-
-				FRenderingCompositeOutputRef MaxTileVelocity;
-
+				FRenderingCompositePass* MotionBlurPass = Context.Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<3, 1>(
+					[bVisualizeMotionBlur](FRenderingCompositePass* Pass, FRenderingCompositePassContext& Context)
 				{
-					check(!VelocityFlattenPass);
-					VelocityFlattenPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessVelocityFlatten() );
-					VelocityFlattenPass->SetInput( ePId_Input0, VelocityInput );
-					VelocityFlattenPass->SetInput( ePId_Input1, Context.SceneDepth );
+					FRDGBuilder GraphBuilder(Context.RHICmdList);
 
-					VelocityInput	= FRenderingCompositeOutputRef( VelocityFlattenPass, ePId_Output0 );
-					MaxTileVelocity	= FRenderingCompositeOutputRef( VelocityFlattenPass, ePId_Output1 );
-				}
+					const FIntRect ColorViewportRect = Context.SceneColorViewRect;
+					const FIntRect DepthViewportRect = Context.View.ViewRect;
 
-				const float SizeX = View.ViewRect.Width();
+					const FScreenPassTexture ColorTexture = FScreenPassTexture::Create(
+						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000),
+						ColorViewportRect);
 
-				// 0:no 1:full screen width, percent conversion
-				float MaxVelocity = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
-				float MaxVelocityTiles = MaxVelocity * SizeX * (0.5f / 16.0f);
-				float MaxTileDistGathered = 3.0f;
-				if( MaxVelocityTiles > MaxTileDistGathered || CVarMotionBlurScatter.GetValueOnRenderThread() || (ViewState && ViewState->bSequencerIsPaused) )
-				{
-					FRenderingCompositePass* VelocityScatterPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessVelocityScatter() );
-					VelocityScatterPass->SetInput( ePId_Input0, MaxTileVelocity );
+					const FScreenPassTexture DepthTexture = FScreenPassTexture::Create(
+						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SceneDepth"), eFC_0000),
+						DepthViewportRect);
 
-					MaxTileVelocity	= FRenderingCompositeOutputRef( VelocityScatterPass );
-				}
-				else
-				{
-					FRenderingCompositePass* VelocityGatherPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessVelocityGather() );
-					VelocityGatherPass->SetInput( ePId_Input0, MaxTileVelocity );
+					const FScreenPassTexture VelocityTexture = FScreenPassTexture::Create(
+						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"), eFC_0000),
+						DepthViewportRect);
 
-					MaxTileVelocity	= FRenderingCompositeOutputRef( VelocityGatherPass );
-				}
+					FScreenPassTexture OutColorTexture;
 
-				bool bTwoPass = CVarMotionBlurSeparable.GetValueOnRenderThread() != 0;
-				{
-					const bool bIsComputePass = ShouldDoComputePostProcessing(Context.View);
-					FRenderingCompositePass* MotionBlurPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessMotionBlur( GetMotionBlurQualityFromCVar(), bTwoPass ? 0 : -1, bIsComputePass ) );
-					MotionBlurPass->SetInput( ePId_Input0, Context.FinalOutput );
-					MotionBlurPass->SetInput( ePId_Input1, Context.SceneDepth );
-					MotionBlurPass->SetInput( ePId_Input2, VelocityInput );
-					MotionBlurPass->SetInput( ePId_Input3, MaxTileVelocity );
-					
-					Context.FinalOutput = FRenderingCompositeOutputRef( MotionBlurPass );
-				}
+					if (bVisualizeMotionBlur)
+					{
+						OutColorTexture = VisualizeMotionBlur(
+							GraphBuilder,
+							FScreenPassContext::Create(Context.RHICmdList, Context.View),
+							ColorTexture,
+							DepthTexture,
+							VelocityTexture);
+					}
+					else
+					{
+						OutColorTexture = ComputeMotionBlur(
+							GraphBuilder,
+							FScreenPassContext::Create(Context.RHICmdList, Context.View),
+							ColorTexture,
+							DepthTexture,
+							VelocityTexture);
+					}
 
-				if( bTwoPass )
-				{
-					const bool bIsComputePass = ShouldDoComputePostProcessing(Context.View);
-					FRenderingCompositePass* MotionBlurPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessMotionBlur( GetMotionBlurQualityFromCVar(), 1, bIsComputePass ) );
-					MotionBlurPass->SetInput( ePId_Input0, Context.FinalOutput );
-					MotionBlurPass->SetInput( ePId_Input1, Context.SceneDepth );
-					MotionBlurPass->SetInput( ePId_Input2, VelocityInput );
-					MotionBlurPass->SetInput( ePId_Input3, MaxTileVelocity );
-					
-					Context.FinalOutput = FRenderingCompositeOutputRef( MotionBlurPass );
-				}
-			}
+					Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutColorTexture.GetRDGTexture());
 
-			if(VelocityInput.IsValid() && bVisualizeMotionBlur)
-			{
-				auto VisualizePass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessVisualizeMotionBlur());
-				VisualizePass->SetInput(ePId_Input0, Context.FinalOutput);
-				VisualizePass->SetInput(ePId_Input1, Context.SceneDepth);
-				VisualizePass->SetInput(ePId_Input2, VelocityInput);
+					GraphBuilder.Execute();
+				}));
 
-				Context.FinalOutput = FRenderingCompositeOutputRef(VisualizePass);
+				MotionBlurPass->SetInput(ePId_Input0, Context.FinalOutput);
+				MotionBlurPass->SetInput(ePId_Input1, Context.SceneDepth);
+				MotionBlurPass->SetInput(ePId_Input2, VelocityInput);
+				Context.FinalOutput = FRenderingCompositeOutputRef(MotionBlurPass, ePId_Output0);
 			}
 
 			if(bVisualizeBloom)
