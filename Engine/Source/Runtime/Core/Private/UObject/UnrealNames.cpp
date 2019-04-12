@@ -1877,31 +1877,32 @@ void FName::AutoTest()
 	if (Once)
 	{
 		check(FName("UniqueUnicorn!!", FNAME_Find) == FName());
+
+		// Check that FNAME_Find can find entries
+		const FName UniqueName("UniqueUnicorn!!", FNAME_Add);
+		check(FName("UniqueUnicorn!!", FNAME_Find) == UniqueName);
+		check(FName(TEXT("UniqueUnicorn!!"), FNAME_Find) == UniqueName);
+		check(FName("UNIQUEUNICORN!!", FNAME_Find) == UniqueName);
+		check(FName(TEXT("UNIQUEUNICORN!!"), FNAME_Find) == UniqueName);
+		check(FName("uniqueunicorn!!", FNAME_Find) == UniqueName);
+
+		// Check FNAME_Replace_Not_Safe_For_Threading updates casing
+		check(0 != UniqueName.GetPlainNameString().Compare("UNIQUEunicorn!!", ESearchCase::CaseSensitive));
+		const FName UniqueNameReplaced("UNIQUEunicorn!!", FNAME_Replace_Not_Safe_For_Threading);
+		check(0 == UniqueName.GetPlainNameString().Compare("UNIQUEunicorn!!", ESearchCase::CaseSensitive));
+		check(UniqueNameReplaced == UniqueName);
+
+		// Check FNAME_Replace_Not_Safe_For_Threading works with wide string
+		check(0 != UniqueName.GetPlainNameString().Compare("uniqueunicorn!!", ESearchCase::CaseSensitive));
+		const FName UpdatedCasing(TEXT("uniqueunicorn!!"), FNAME_Replace_Not_Safe_For_Threading);
+		check(0 == UniqueName.GetPlainNameString().Compare("uniqueunicorn!!", ESearchCase::CaseSensitive));
+
+		// Check FNAME_Replace_Not_Safe_For_Threading adds entries that do not exist
+		const FName AddedByReplace("WasAdded!!", FNAME_Replace_Not_Safe_For_Threading);
+		check(FName("WasAdded!!", FNAME_Find) == AddedByReplace);
+	
 		Once = false;
 	}
-
-	// Check that FNAME_Find can find entries
-	const FName UniqueName("UniqueUnicorn!!", FNAME_Add);
-	check(FName("UniqueUnicorn!!", FNAME_Find) == UniqueName);
-	check(FName(TEXT("UniqueUnicorn!!"), FNAME_Find) == UniqueName);
-	check(FName("UNIQUEUNICORN!!", FNAME_Find) == UniqueName);
-	check(FName(TEXT("UNIQUEUNICORN!!"), FNAME_Find) == UniqueName);
-	check(FName("uniqueunicorn!!", FNAME_Find) == UniqueName);
-
-	// Check FNAME_Replace_Not_Safe_For_Threading updates casing
-	check(0 != UniqueName.GetPlainNameString().Compare("UNIQUEunicorn!!", ESearchCase::CaseSensitive));
-	const FName UniqueNameReplaced("UNIQUEunicorn!!", FNAME_Replace_Not_Safe_For_Threading);
-	check(0 == UniqueName.GetPlainNameString().Compare("UNIQUEunicorn!!", ESearchCase::CaseSensitive));
-	check(UniqueNameReplaced == UniqueName);
-
-	// Check FNAME_Replace_Not_Safe_For_Threading works with wide string
-	check(0 != UniqueName.GetPlainNameString().Compare("uniqueunicorn!!", ESearchCase::CaseSensitive));
-	const FName UpdatedCasing(TEXT("uniqueunicorn!!"), FNAME_Replace_Not_Safe_For_Threading);
-	check(0 == UniqueName.GetPlainNameString().Compare("uniqueunicorn!!", ESearchCase::CaseSensitive));
-
-	// Check FNAME_Replace_Not_Safe_For_Threading adds entries that do not exist
-	const FName AddedByReplace("WasAdded!!", FNAME_Replace_Not_Safe_For_Threading);
-	check(FName("WasAdded!!", FNAME_Find) == AddedByReplace);
 
 	check(NumberEqualsString(0, "0"));
 	check(NumberEqualsString(11, "11"));
