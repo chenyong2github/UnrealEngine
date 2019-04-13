@@ -973,6 +973,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 
 	if (ShouldRenderVolumetricFog())
 	{		
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VolumetricFog);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_VolumetricFog);
 		SCOPED_GPU_STAT(RHICmdListImmediate, VolumetricFog);
 
