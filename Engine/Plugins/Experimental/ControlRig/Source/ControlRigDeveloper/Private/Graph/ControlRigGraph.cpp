@@ -212,6 +212,7 @@ void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
 	Names.Sort();
 
 	BoneNameList.Reset();
+	BoneNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
 	for (const FString& Name : Names)
 	{
 		BoneNameList.Add(MakeShared<FString>(Name));

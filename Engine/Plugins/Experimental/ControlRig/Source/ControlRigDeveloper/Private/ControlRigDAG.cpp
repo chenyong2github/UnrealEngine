@@ -6,14 +6,13 @@
 DEFINE_LOG_CATEGORY_STATIC(LogControlRigDAG, Log, All);
 
 FControlRigDAG::FControlRigDAG()
+	: bSortIsRequired(false)
 {
 }
 
-void FControlRigDAG::AddNode(bool InIsMutable)
+void FControlRigDAG::AddNode(bool InIsMutable, const FName& InName)
 {
-	Nodes.Add(FNode(Nodes.Num(), InIsMutable));
-	NodeInputs.Add(FPinMap());
-	NodeOutputs.Add(FPinMap());
+	Nodes.Add(FNode(InName, Nodes.Num(), InIsMutable));
 }
 
 void FControlRigDAG::AddLink(const int32 FromNode, const int32 ToNode, const int32 FromOrder, const int32 ToOrder)
@@ -21,39 +20,34 @@ void FControlRigDAG::AddLink(const int32 FromNode, const int32 ToNode, const int
 	check(FromNode < Nodes.Num());
 	check(ToNode < Nodes.Num());
 
-	FPin FromPin(FromNode, FromOrder, Links.Num());
-	FPin ToPin(ToNode, ToOrder, Links.Num());
+	FPin FromPin(FromNode, ToOrder, Links.Num());
+	FPin ToPin(ToNode, FromOrder, Links.Num());
 	Links.Add(TPair<FPin, FPin>(FromPin, ToPin));
-	NodeInputs[ToPin.Node].Add(ToPin.Order, FromPin);
-	NodeOutputs[FromPin.Node].Add(FromPin.Order, ToPin);
+	Nodes[ToPin.Node].Inputs.Add(FromPin);
+	Nodes[FromPin.Node].Outputs.Add(ToPin);
+
+	bSortIsRequired = true;
 }
 
-bool FControlRigDAG::TopologicalSort(TArray<int32>& OutOrder, TArray<int32>& OutPotentialCycle)
+bool FControlRigDAG::TopologicalSort(TArray<FNode>& OutOrder, TArray<FNode>& OutPotentialCycle)
 {
+	SortIfRequired();
+
 	OutPotentialCycle = FindCycle();
 	if (OutPotentialCycle.Num() > 0)
 	{
 		return false;
 	}
 
-	// find all of the mutable nodes without any mutable inputs
-	TArray<int32> MutableLeafNodes;
-	for (int32 Node = 0; Node < NodeOutputs.Num(); ++Node)
+	// find all of the left mutable nodes on the left
+	TArray<FNode> MutableLeafNodes;
+	for (const FNode& Node : Nodes)
 	{
-		if (!Nodes[Node].IsMutable)
+		if (!Node.IsMutable)
 		{
 			continue;
 		}
-		int32 NumMutableInputs = 0;
-		for (FPinMap::TConstIterator Iter = NodeInputs[Node].CreateConstIterator(); Iter; ++Iter)
-		{
-			const FPin& InputPin = Iter.Value();
-			if (Nodes[InputPin.Node].IsMutable)
-			{
-				NumMutableInputs++;
-			}
-		}
-		if (NumMutableInputs > 0)
+		if (Node.Inputs.Num() > 0)
 		{
 			continue;
 		}
@@ -61,36 +55,30 @@ bool FControlRigDAG::TopologicalSort(TArray<int32>& OutOrder, TArray<int32>& Out
 	}
 	check(MutableLeafNodes.Num() > 0);
 
-	TMultiMap<int32, int32> SortedMutableNodes;
-	for (int32 MutableNode : MutableLeafNodes)
-	{
-		int32 InvDistance = Nodes.Num() - GetMaxDistanceToLeafOutput(MutableNode);
-		SortedMutableNodes.Add(InvDistance, MutableNode);
-	}
-
 	struct Local
 	{
-		static void VisitNode(int32 Node, TArray<bool>& Visited, TArray<int32>& SortedNodes, const TArray<FPinMap>& NodeInputs, const TArray<FPinMap>& NodeOutputs)
+		static void VisitNode(const FNode& Node, TArray<bool>& Visited, TArray<FNode>& SortedNodes, const TArray<FNode>& Nodes)
 		{
-			if (Visited[Node])
+			if (Visited[Node.Index])
 			{
 				return;
 			}
 
-			Visited[Node] = true;
+			Visited[Node.Index] = true;
 
-			for (FPinMap::TConstIterator Iter = NodeInputs[Node].CreateConstIterator(); Iter; ++Iter)
+			for (const FPin& Pin : Node.Inputs)
 			{
-				const FPin& InputPin = Iter.Value();
-				VisitNode(InputPin.Node, Visited, SortedNodes, NodeInputs, NodeOutputs);
+				VisitNode(Nodes[Pin.Node], Visited, SortedNodes, Nodes);
 			}
 
 			SortedNodes.Push(Node);
 
-			for (FPinMap::TConstIterator Iter = NodeOutputs[Node].CreateConstIterator(); Iter; ++Iter)
+			if (Node.IsMutable)
 			{
-				const FPin& OutputPin = Iter.Value();
-				VisitNode(OutputPin.Node, Visited, SortedNodes, NodeInputs, NodeOutputs);
+				for (const FPin& Pin : Node.Outputs)
+				{
+					VisitNode(Nodes[Pin.Node], Visited, SortedNodes, Nodes);
+				}
 			}
 		}
 	};
@@ -98,32 +86,31 @@ bool FControlRigDAG::TopologicalSort(TArray<int32>& OutOrder, TArray<int32>& Out
 	TArray<bool> NodeVisited;
 	NodeVisited.SetNumZeroed(Nodes.Num());
 	OutOrder.Reset();
-	for (const TPair<int32, int32>& Pair : SortedMutableNodes)
+	for (const FNode& LeafNode : MutableLeafNodes)
 	{
-		Local::VisitNode(Pair.Value, NodeVisited, OutOrder, NodeInputs, NodeOutputs);
+		Local::VisitNode(LeafNode, NodeVisited, OutOrder, Nodes);
 	}
-	check(OutOrder.Num() == Nodes.Num());
 	return true;
 }
 
-int32 FControlRigDAG::GetMaxDistanceToLeafOutput(int32 Node) const
+int32 FControlRigDAG::GetMaxDistanceToLeafOutput(int32 NodeIndex) const
 {
-	if(NodeOutputs[Node].Num() == 0)
+	if(Nodes[NodeIndex].Outputs.Num() == 0)
 	{
 		return 0;
 	}
 
 	int32 MaxDistance = 0;
-	for (FPinMap::TConstIterator Iter = NodeOutputs[Node].CreateConstIterator(); Iter; ++Iter)
+	for (const FPin& Pin : Nodes[NodeIndex].Outputs)
 	{
-		int32 Distance = GetMaxDistanceToLeafOutput(Iter.Value().Node);
+		int32 Distance = GetMaxDistanceToLeafOutput(Pin.Node);
 		MaxDistance = FMath::Max<int32>(Distance, MaxDistance);
 	}
 	return MaxDistance + 1;
 }
 
 // Finds the cycles as node index arrays
-TArray<int32> FControlRigDAG::FindCycle()
+TArray<FControlRigDAG::FNode> FControlRigDAG::FindCycle()
 {
 	CycleWhiteList.Reset();
 	CycleGreyList.Reset();
@@ -164,35 +151,35 @@ TArray<int32> FControlRigDAG::FindCycle()
 
 // this performs a depth first traversal by walking the output
 // links of each node
-bool FControlRigDAG::IsNodeCyclic(int32 Node)
+bool FControlRigDAG::IsNodeCyclic(int32 NodeIndex)
 {
-	for (const TPair<int32, FPin>& Pair : NodeOutputs[Node])
+	for (const FPin& Pin : Nodes[NodeIndex].Outputs)
 	{
-		int32 Neighbor = Pair.Value.Node;
-		if (CycleBlackList.Contains(Neighbor))
+		int32 NeighborIndex = Pin.Node;
+		if (CycleBlackList.Contains(NeighborIndex))
 		{
 			continue;
 		}
-		else if (CycleWhiteList.Contains(Neighbor))
+		else if (CycleWhiteList.Contains(NeighborIndex))
 		{
-			CycleDepthTraversal.Add(Neighbor, Node);
-			CycleWhiteList.Remove(Neighbor);
-			CycleGreyList.Add(Neighbor);
-			if(IsNodeCyclic(Neighbor))
+			CycleDepthTraversal.Add(NeighborIndex, NodeIndex);
+			CycleWhiteList.Remove(NeighborIndex);
+			CycleGreyList.Add(NeighborIndex);
+			if(IsNodeCyclic(NeighborIndex))
 			{
 				return true;
 			}
 		}
-		else if (CycleGreyList.Contains(Neighbor))
+		else if (CycleGreyList.Contains(NeighborIndex))
 		{
 			// this means we've detected a cycle
-			while(Node != -1)
+			while(NodeIndex != -1)
 			{
-				Cycle.Add(Node);
-				Node = CycleDepthTraversal.FindChecked(Node);
-				if (Node == Neighbor)
+				Cycle.Add(Nodes[NodeIndex]);
+				NodeIndex = CycleDepthTraversal.FindChecked(NodeIndex);
+				if (NodeIndex == NeighborIndex)
 				{
-					Cycle.Add(Node);
+					Cycle.Add(Nodes[NodeIndex]);
 					break;
 				}
 			}
@@ -201,9 +188,29 @@ bool FControlRigDAG::IsNodeCyclic(int32 Node)
 	}
 
 	// if the current node has no neighbors we clear the grey list
-	CycleGreyList.Remove(Node);
-	CycleBlackList.Add(Node);
+	CycleGreyList.Remove(NodeIndex);
+	CycleBlackList.Add(NodeIndex);
 	return false;
+}
+
+void FControlRigDAG::SortIfRequired()
+{
+	if (!bSortIsRequired)
+	{
+		return;
+	}
+
+	auto ExtractOrder = [](FPin Pin) -> int32
+	{
+		return Pin.Order;
+	};
+
+	for (int32 NodeIndex=0; NodeIndex < Nodes.Num();NodeIndex++)
+	{
+		Algo::SortBy(Nodes[NodeIndex].Inputs, ExtractOrder);
+	}
+
+	bSortIsRequired = false;
 }
 
 void FControlRigDAG::DumpDag()
@@ -216,6 +223,6 @@ void FControlRigDAG::DumpDag()
 
 	for (const TPair<FPin, FPin>& Link : Links)
 	{
-		UE_LOG(LogControlRigDAG, Display, TEXT("DAG.AddLink(%d, %d, %d, %d);"), Link.Key.Node, Link.Value.Node, Link.Key.Order, Link.Value.Order);
+		UE_LOG(LogControlRigDAG, Display, TEXT("DAG.AddLink(%d, %d, %d, %d);"), Link.Key.Node, Link.Value.Node, Link.Value.Order, Link.Key.Order);
 	}
 }
