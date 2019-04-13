@@ -220,19 +220,20 @@ namespace Gauntlet
 				}
 			}
 
-			if (Path.IsPathRooted(InBuild.ExecutablePath))
-			{
-				MacApp.ExecutablePath = InBuild.ExecutablePath;
-			}
-			else
+			// For Mac turn Foo.app into Foo/Content/MacOS/Foo
+			string AppPath = Path.GetDirectoryName(InBuild.ExecutablePath);
+			string FileName = Path.GetFileNameWithoutExtension(InBuild.ExecutablePath);
+			MacApp.ExecutablePath = Path.Combine(InBuild.ExecutablePath, "Contents", "MacOS", FileName);
+
+			if (!Path.IsPathRooted(MacApp.ExecutablePath))
 			{
 				// TODO - this check should be at a higher level....
-				string BinaryPath = Path.Combine(BuildPath, InBuild.ExecutablePath);
+				string BinaryPath = Path.Combine(BuildPath, MacApp.ExecutablePath);
 
 				// check for a local newer executable
 				if (Globals.Params.ParseParam("dev") && AppConfig.ProcessType.UsesEditor() == false)
 				{
-					string LocalBinary = Path.Combine(Environment.CurrentDirectory, InBuild.ExecutablePath);
+					string LocalBinary = Path.Combine(Environment.CurrentDirectory, MacApp.ExecutablePath);
 
 					bool LocalFileExists = File.Exists(LocalBinary);
 					bool LocalFileNewer = LocalFileExists && File.GetLastWriteTime(LocalBinary) > File.GetLastWriteTime(BinaryPath);
@@ -242,8 +243,10 @@ namespace Gauntlet
 
 					if (LocalFileExists && LocalFileNewer)
 					{
+						string LocalAppPath = Path.Combine(Environment.CurrentDirectory, InBuild.ExecutablePath);
+						
 						// need to -basedir to have our exe load content from the path
-						MacApp.CommandArguments += string.Format(" -basedir={0}", Path.GetDirectoryName(BinaryPath));
+						MacApp.CommandArguments += string.Format(" -basedir={0}", Path.GetDirectoryName(LocalAppPath));
 
 						BinaryPath = LocalBinary;
 					}
@@ -251,11 +254,6 @@ namespace Gauntlet
 
 				MacApp.ExecutablePath = BinaryPath;
 			}
-
-			// now turn the Foo.app into Foo/Content/MacOS/Foo
-			string AppPath = Path.GetDirectoryName(MacApp.ExecutablePath);
-			string FileName = Path.GetFileNameWithoutExtension(MacApp.ExecutablePath);
-			MacApp.ExecutablePath = Path.Combine(MacApp.ExecutablePath, "Contents", "MacOS", FileName);
 
 			return MacApp;
 		}
