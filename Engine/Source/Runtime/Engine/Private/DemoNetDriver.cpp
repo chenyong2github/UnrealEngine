@@ -5116,11 +5116,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	ExternalDataToObjectMap.Empty();
 	PlaybackPackets.Empty();
 
-	// Going to be recreating the splitscreen connections, but keep around the player controller.
-	CleanUpSplitscreenConnections(false);
-	ServerConnection->Close();
-	ServerConnection->CleanUp();
-
 	// Destroy startup actors that need to rollback via being destroyed and re-created
 	for (FActorIterator It(GetWorld()); It; ++It)
 	{
@@ -5129,6 +5124,11 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			GetWorld()->DestroyActor(*It, true);
 		}
 	}
+
+	// Going to be recreating the splitscreen connections, but keep around the player controller.
+	CleanUpSplitscreenConnections(false);
+	ServerConnection->Close();
+	ServerConnection->CleanUp();
 
 	// Optionally collect garbage after the old actors and connection are cleaned up - there could be a lot of pending-kill objects at this point.
 	if (CVarDemoLoadCheckpointGarbageCollect.GetValueOnGameThread() != 0)
