@@ -698,7 +698,20 @@ public:
 		return GPUProfilingData.CheckGpuHeartbeat();
 	}
 
-	FD3D11LockTracker& GetThreadLocalLockTracker();
+	template <typename KeyType, typename ValType,
+		typename = typename TEnableIf<TIsSame<FD3D11LockedKey, typename TDecay<KeyType>::Type>::Value && TIsSame<FD3D11LockedData, typename TDecay<ValType>::Type>::Value>::Type>
+	void AddLockedData(KeyType&& Key, ValType&& LockedData)
+	{
+		FScopeLock Lock(&LockTrackerCS);
+		LockTracker.Add(Forward<KeyType>(Key), Forward<ValType>(LockedData));
+	}
+
+	template <typename KeyType, typename = typename TEnableIf<TIsSame<FD3D11LockedKey, typename TDecay<KeyType>::Type>::Value>::Type>
+	bool RemoveLockedData(KeyType&& Key, FD3D11LockedData& OutLockedData)
+	{
+		FScopeLock Lock(&LockTrackerCS);
+		return LockTracker.RemoveAndCopyValue(Forward<KeyType>(Key), OutLockedData);
+	}
 
 	bool IsQuadBufferStereoEnabled();
 	void DisableQuadBufferStereo();
@@ -795,7 +808,8 @@ protected:
 	FD3D11StateCache StateCache;
 
 	/** Tracks outstanding locks on each thread */
-	FD3D11LockTracker LockTrackers[D3D11_NUM_THREAD_LOCAL_CACHES];
+	FD3D11LockTracker LockTracker;
+	FCriticalSection LockTrackerCS;
 
 	/** A list of all viewport RHIs that have been created. */
 	TArray<FD3D11Viewport*> Viewports;
