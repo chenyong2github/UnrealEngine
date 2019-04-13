@@ -319,6 +319,32 @@ void USocialDebugTools::LeaveParty(const FString& Instance, const FLeavePartyCom
 	OnComplete.ExecuteIfBound(false);
 }
 
+void USocialDebugTools::CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete)
+{
+	IOnlineSubsystem* OnlineSub = GetContext(Instance).GetOSS();
+	if (OnlineSub)
+	{
+		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
+		if (OnlineIdentity.IsValid())
+		{
+			TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+			if (UserId.IsValid())
+			{
+				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
+				if (OnlineParty.IsValid())
+				{
+					OnlineParty->CleanupParties(*UserId, FOnCleanupPartiesComplete::CreateLambda([this, Instance, OnComplete](const FUniqueNetId& LocalUserId, const FOnlineError& Result)
+					{
+						OnComplete.ExecuteIfBound(Result.WasSuccessful());
+					}));
+					return;
+				}
+			}
+		}
+	}
+	OnComplete.ExecuteIfBound(false);
+}
+
 void USocialDebugTools::SetPartyMemberData(const FString& Instance, const UStruct* StructType, const void* StructData, const FSetPartyMemberDataComplete& OnComplete)
 {
 	check(StructType);
@@ -548,13 +574,16 @@ bool USocialDebugTools::RunCommand(const TCHAR* Cmd, const TArray<FString>& Targ
 
 				if (bSuccess)
 				{
-					LeaveParty(TargetInstance, FLeavePartyComplete::CreateLambda([this, TargetInstance, FriendName](bool bLeavePartySuccess)
+					CleanupParties(TargetInstance, FCleanupPartiesComplete::CreateLambda([this, TargetInstance, FriendName](bool bCleanupPartiesSuccess)
 					{
-						UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *TargetInstance, *LexToString(bLeavePartySuccess));
-
-						JoinParty(TargetInstance, FriendName, FJoinPartyComplete::CreateLambda([this, TargetInstance](bool bJoinPartySuccess)
+						LeaveParty(TargetInstance, FLeavePartyComplete::CreateLambda([this, TargetInstance, FriendName](bool bLeavePartySuccess)
 						{
-							UE_LOG(LogParty, Display, TEXT("Join party OSS context[%s] %s"), *TargetInstance, *LexToString(bJoinPartySuccess));
+							UE_LOG(LogParty, Display, TEXT("Leave party OSS context[%s] %s"), *TargetInstance, *LexToString(bLeavePartySuccess));
+
+							JoinParty(TargetInstance, FriendName, FJoinPartyComplete::CreateLambda([this, TargetInstance](bool bJoinPartySuccess)
+							{
+								UE_LOG(LogParty, Display, TEXT("Join party OSS context[%s] %s"), *TargetInstance, *LexToString(bJoinPartySuccess));
+							}));
 						}));
 					}));
 				}
