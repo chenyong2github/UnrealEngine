@@ -56,10 +56,6 @@
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
 
-#if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "Landscape"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGrass, Log, All);
@@ -1340,19 +1336,13 @@ void ALandscapeProxy::TickGrass()
 		}
 	}
 
-#if WITH_EDITOR
-	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	if (ALandscape* Landscape = GetLandscapeActor())
 	{
-		if (ALandscape* Landscape = GetLandscapeActor())
+		if (!Landscape->IsUpToDate())
 		{
-			if (Landscape->HasPendingLayersContentUpdate())
-			{
-				return;
-			}
+			return;
 		}
 	}
-#endif
-
 
 	// Update foliage
 	static TArray<FVector> OldCameras;
