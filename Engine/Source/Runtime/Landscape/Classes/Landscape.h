@@ -257,6 +257,7 @@ public:
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
 	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
+	LANDSCAPE_API void SetLayerLocked(int32 InLayerIndex, bool bLocked);
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
