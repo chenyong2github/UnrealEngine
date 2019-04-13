@@ -6,7 +6,22 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
 #include "UObject/PropertyPortFlags.h"
+#include "Misc/CommandLine.h"
 
+static FString GetBindingName(const TSharedPtr<FCEFJSScripting>& Scripting, const UProperty* ValueProperty)
+{
+	//@todo samz - HACK
+	static const bool bIsKairos = FParse::Param(FCommandLine::Get(), TEXT("KairosOnly"));
+	if (bIsKairos)
+	{
+		// skip lowercasing property field names for compatibility with FNativeJSStructSerializerBackend/FMobileJSStructSerializerBackend
+		return ValueProperty->GetName();
+	}
+	else
+	{
+		return Scripting->GetBindingName(ValueProperty);
+	}
+}
 
 /* Private methods
  *****************************************************************************/
@@ -16,7 +31,7 @@ void FCEFJSStructSerializerBackend::AddNull(const FStructSerializerState& State)
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetNull(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)));
+			Current.DictionaryValue->SetNull(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)));
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetNull(Current.ListValue->GetSize());
@@ -30,7 +45,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, boo
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetBool(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)), Value);
+			Current.DictionaryValue->SetBool(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)), Value);
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetBool(Current.ListValue->GetSize(), Value);
@@ -44,7 +59,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, int
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetInt(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)), Value);
+			Current.DictionaryValue->SetInt(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)), Value);
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetInt(Current.ListValue->GetSize(), Value);
@@ -58,7 +73,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, dou
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetDouble(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)), Value);
+			Current.DictionaryValue->SetDouble(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)), Value);
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetDouble(Current.ListValue->GetSize(), Value);
@@ -72,7 +87,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, FSt
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetString(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)), TCHAR_TO_WCHAR(*Value));
+			Current.DictionaryValue->SetString(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)), TCHAR_TO_WCHAR(*Value));
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetString(Current.ListValue->GetSize(), TCHAR_TO_WCHAR(*Value));
@@ -86,7 +101,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, UOb
 	StackItem& Current = Stack.Top();
 	switch (Current.Kind) {
 		case StackItem::STYPE_DICTIONARY:
-			Current.DictionaryValue->SetDictionary(TCHAR_TO_WCHAR(*Scripting->GetBindingName(State.ValueProperty)), Scripting->ConvertObject(Value));
+			Current.DictionaryValue->SetDictionary(TCHAR_TO_WCHAR(*GetBindingName(Scripting, State.ValueProperty)), Scripting->ConvertObject(Value));
 			break;
 		case StackItem::STYPE_LIST:
 			Current.ListValue->SetDictionary(Current.ListValue->GetSize(), Scripting->ConvertObject(Value));
@@ -101,7 +116,7 @@ void FCEFJSStructSerializerBackend::Add(const FStructSerializerState& State, UOb
 void FCEFJSStructSerializerBackend::BeginArray(const FStructSerializerState& State)
 {
 	CefRefPtr<CefListValue> ListValue = CefListValue::Create();
-	Stack.Push(StackItem(Scripting->GetBindingName(State.ValueProperty), ListValue));
+	Stack.Push(StackItem(GetBindingName(Scripting, State.ValueProperty), ListValue));
 }
 
 
@@ -118,7 +133,7 @@ void FCEFJSStructSerializerBackend::BeginStructure(const FStructSerializerState&
 	else if (State.ValueProperty != nullptr)
 	{
 		CefRefPtr<CefDictionaryValue> DictionaryValue = CefDictionaryValue::Create();
-		Stack.Push(StackItem(Scripting->GetBindingName(State.ValueProperty), DictionaryValue));
+		Stack.Push(StackItem(GetBindingName(Scripting, State.ValueProperty), DictionaryValue));
 	}
 	else
 	{
