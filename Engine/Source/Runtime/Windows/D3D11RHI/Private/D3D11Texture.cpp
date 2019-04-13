@@ -1750,9 +1750,9 @@ void* TD3D11Texture2D<RHIResourceType>::Lock(uint32 MipIndex,uint32 ArrayIndex,E
 	}
 	else
 	{
-		RunOnRHIThread([this, Subresource, LockedData]() mutable
+		RunOnRHIThread([this, Subresource, LockedData]()
 		{
-			D3DRHI->AddLockedData(FD3D11LockedKey(GetResource(), Subresource), MoveTemp(LockedData));
+			D3DRHI->AddLockedData(FD3D11LockedKey(GetResource(), Subresource), LockedData);
 		});
 	}
 
