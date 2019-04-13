@@ -4,6 +4,7 @@
 
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
+#include "IMediaTextureSample.h"
 
 #import <AVFoundation/AVFoundation.h>
 
