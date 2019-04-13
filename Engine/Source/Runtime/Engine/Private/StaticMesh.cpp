@@ -189,6 +189,18 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 	return Ar;
 }
 
+int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh)
+{
+#if WITH_EDITOR
+	check(TargetPlatform && StaticMesh);
+	return StaticMesh->MinLOD.GetValueForPlatformIdentifiers(
+		TargetPlatform->GetPlatformInfo().PlatformGroupName,
+		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+#else
+	return 0;
+#endif
+}
+
 uint8 FStaticMeshLODResources::GenerateClassStripFlags(FArchive& Ar, UStaticMesh* OwnerStaticMesh, int32 Index)
 {
 #if WITH_EDITOR
@@ -202,9 +214,7 @@ uint8 FStaticMeshLODResources::GenerateClassStripFlags(FArchive& Ar, UStaticMesh
 	const bool bWantToStripLOD = Ar.IsCooking()
 		&& (CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0)
 		&& OwnerStaticMesh
-		&& OwnerStaticMesh->MinLOD.GetValueForPlatformIdentifiers(
-			Ar.CookingTarget()->GetPlatformInfo().PlatformGroupName,
-			Ar.CookingTarget()->GetPlatformInfo().VanillaPlatformName) > Index;
+		&& GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerStaticMesh) > Index;
 
 	return (bWantToStripTessellation ? AdjacencyDataStripFlag : 0) |
 		(bWantToStripLOD ? MinLodDataStripFlag : 0);
@@ -276,6 +286,17 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	return LODIdx >= InlinedLODStartIdx;
 #else
 	return false;
+#endif
+}
+
+int32 FStaticMeshLODResources::GetNumOptionalLODsAllowed(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh)
+{
+#if WITH_EDITOR
+	check(TargetPlatform && StaticMesh);
+	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
+	return LODGroupSettings.GetDefaultMaxNumOptionalLODs();
+#else
+	return 0;
 #endif
 }
 
@@ -499,6 +520,22 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 	}
 }
 
+void FStaticMeshLODResources::ClearAvailabilityInfo()
+{
+	DepthOnlyNumTriangles = 0;
+	bHasAdjacencyInfo = false;
+	bHasDepthOnlyIndices = false;
+	bHasReversedIndices = false;
+	bHasReversedDepthOnlyIndices = false;
+	bHasColorVertexData = false;
+	bHasWireframeIndices = false;
+	VertexBuffers.StaticMeshVertexBuffer.ClearMetaData();
+	VertexBuffers.PositionVertexBuffer.ClearMetaData();
+	VertexBuffers.ColorVertexBuffer.ClearMetaData();
+	delete AdditionalIndexBuffers;
+	AdditionalIndexBuffers = nullptr;
+}
+
 void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Index)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshLODResources::Serialize"), STAT_StaticMeshLODResources_Serialize, STATGROUP_LoadTime);
@@ -533,20 +570,30 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 #if WITH_EDITOR
 			if (Ar.IsSaving())
 			{
+				const int32 MaxNumOptionalLODs = GetNumOptionalLODsAllowed(Ar.CookingTarget(), OwnerStaticMesh);
+				const int32 OptionalLODIdx = GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerStaticMesh) - Index;
+				const bool bDiscardBulkData = OptionalLODIdx > MaxNumOptionalLODs;
+
 				TArray<uint8> TmpBuff;
-				FMemoryWriter MemWriter(TmpBuff, true);
-				MemWriter.SetCookingTarget(Ar.CookingTarget());
-				MemWriter.SetByteSwapping(Ar.IsByteSwapping());
-				SerializeBuffers(MemWriter, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
+				if (!bDiscardBulkData)
+				{
+					FMemoryWriter MemWriter(TmpBuff, true);
+					MemWriter.SetCookingTarget(Ar.CookingTarget());
+					MemWriter.SetByteSwapping(Ar.IsByteSwapping());
+					SerializeBuffers(MemWriter, OwnerStaticMesh, ClassDataStripFlags, TmpBuffersSize);
+				}
 
 				bIsOptionalLOD = bIsBelowMinLOD;
-				const uint32 BulkDataFlags = BULKDATA_Force_NOT_InlinePayload
+				const uint32 BulkDataFlags = (bDiscardBulkData ? 0 : BULKDATA_Force_NOT_InlinePayload)
 					| (bIsOptionalLOD ? BULKDATA_OptionalPayload : 0);
 				BulkData.SetBulkDataFlags(BulkDataFlags);
-				BulkData.Lock(LOCK_READ_WRITE);
-				void* BulkDataMem = BulkData.Realloc(TmpBuff.Num());
-				FMemory::Memcpy(BulkDataMem, TmpBuff.GetData(), TmpBuff.Num());
-				BulkData.Unlock();
+				if (TmpBuff.Num() > 0)
+				{
+					BulkData.Lock(LOCK_READ_WRITE);
+					void* BulkDataMem = BulkData.Realloc(TmpBuff.Num());
+					FMemory::Memcpy(BulkDataMem, TmpBuff.GetData(), TmpBuff.Num());
+					BulkData.Unlock();
+				}
 				BulkData.Serialize(Ar, Owner, Index);
 			}
 			else
@@ -566,6 +613,11 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 
 			Ar << TmpBuffersSize;
 			BuffersSize = TmpBuffersSize.CalcBuffersSize();
+
+			if (Ar.IsLoading() && bIsOptionalLOD && !BulkDataSize)
+			{
+				ClearAvailabilityInfo();
+			}
 		}
 	}
 }
@@ -1608,6 +1660,11 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 	if (FParse::Value(*Entry, TEXT("MaxNumStreamedLODs="), Group.DefaultMaxNumStreamedLODs))
 	{
 		Group.DefaultMaxNumStreamedLODs = FMath::Max(Group.DefaultMaxNumStreamedLODs, 0);
+	}
+
+	if (FParse::Value(*Entry, TEXT("MaxNumOptionalLODs="), Group.DefaultMaxNumOptionalLODs))
+	{
+		Group.DefaultMaxNumOptionalLODs = FMath::Max(Group.DefaultMaxNumOptionalLODs, 0);
 	}
 	
 	int32 LocalSupportLODStreaming = 0;

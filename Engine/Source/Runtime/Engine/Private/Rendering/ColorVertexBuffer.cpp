@@ -242,6 +242,11 @@ void FColorVertexBuffer::SerializeMetaData(FArchive& Ar)
 	Ar << Stride << NumVertices;
 }
 
+void FColorVertexBuffer::ClearMetaData()
+{
+	Stride = NumVertices = 0;
+}
+
 
 /** Export the data to a string, used for editor Copy&Paste. */
 void FColorVertexBuffer::ExportText(FString &ValueStr) const
