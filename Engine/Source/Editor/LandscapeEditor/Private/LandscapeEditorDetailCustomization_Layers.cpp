@@ -114,6 +114,7 @@ FEdModeLandscape* FLandscapeEditorCustomNodeBuilder_Layers::GetEditorMode()
 FLandscapeEditorCustomNodeBuilder_Layers::FLandscapeEditorCustomNodeBuilder_Layers(TSharedRef<FAssetThumbnailPool> InThumbnailPool)
 	: ThumbnailPool(InThumbnailPool)
 	, CurrentEditingInlineTextBlock(INDEX_NONE)
+	, CurrentSlider(INDEX_NONE)
 {
 }
 
@@ -275,7 +276,18 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::GenerateRow(int32 
 					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
 					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
 					.Value(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha, InLayerIndex)
-					.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha, InLayerIndex)
+					.OnValueChanged_Lambda([=](float InValue) { SetLayerAlpha(InValue, InLayerIndex, false); })
+					.OnValueCommitted_Lambda([=](float InValue, ETextCommit::Type InCommitType) { SetLayerAlpha(InValue, InLayerIndex, true); })
+					.OnBeginSliderMovement_Lambda([=]()
+					{
+						CurrentSlider = InLayerIndex;
+						GEditor->BeginTransaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"));
+					})
+					.OnEndSliderMovement_Lambda([=](double)
+					{
+						GEditor->EndTransaction();
+						CurrentSlider = INDEX_NONE;
+					})
 				]		
 			]
 		];	
@@ -566,13 +578,19 @@ TOptional<float> FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha(int32 I
 	return 1.0f;
 }
 
-void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int32 InLayerIndex)
+void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int32 InLayerIndex, bool bCommit)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
 	if (LandscapeEdMode)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"));
+		// We get multiple commits when editing through the text box
+		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == InAlpha)
+		{
+			return;
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"), CurrentSlider == INDEX_NONE && bCommit);
+		// Set Value when using slider or when committing text
 		LandscapeEdMode->SetLayerAlpha(InLayerIndex, InAlpha);
 	}
 }
@@ -582,6 +600,7 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility(int32 InLaye
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetVisibility", "Set Layer Visibility"));
 		LandscapeEdMode->SetLayerVisibility(!LandscapeEdMode->IsLayerVisible(InLayerIndex), InLayerIndex);
 	}
 	return FReply::Handled();
@@ -599,6 +618,7 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleLock(int32 InLayerIndex
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Locked", "Set Layer Locked"));
 		LandscapeEdMode->SetLayerLocked(InLayerIndex, !LandscapeEdMode->IsLayerLocked(InLayerIndex));
 	}
 	return FReply::Handled();
@@ -667,6 +687,7 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent
 		{
 			int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
 			int32 DestinationLayerIndex = SlotIndex;
+			const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Reorder", "Reorder Layer"));
 			if (Landscape->ReorderLayer(StartingLayerIndex, DestinationLayerIndex))
 			{
 				LandscapeEdMode->SetCurrentLayer(DestinationLayerIndex);
