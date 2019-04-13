@@ -1538,7 +1538,35 @@ static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 
 static void PLCrashReporterHandler(siginfo_t* Info, ucontext_t* Uap, void* Context)
 {
-	PlatformCrashHandler((int32)Info->si_signo, Info, Uap);
+	if (Info->si_signo == SIGUSR2)
+	{
+		// All of these are locked on a mutex from where the SIGUSR2 signal was raised. Only touch these here in the signal handler
+		extern ANSICHAR* GThreadCallStack;
+		extern uint64* GThreadBackTrace;
+		extern SIZE_T GThreadCallStackSize;
+		extern bool GThreadCallStackInUse;
+		extern uint32 GThreadBackTraceCount;
+
+		// Only handle this if we have a valid plcrashreporter context. As backtrace(...) does not work in a signal handler when
+		// an alternative stack is used
+		if (FMacApplicationInfo::CrashReporter)
+		{
+			if (GThreadCallStack)
+			{
+				FPlatformStackWalk::StackWalkAndDump(GThreadCallStack, GThreadCallStackSize, 0, FMacApplicationInfo::CrashReporter);
+			}
+			else if  (GThreadBackTrace)
+			{
+				GThreadBackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(GThreadBackTrace, GThreadCallStackSize, FMacApplicationInfo::CrashReporter);
+			}
+		}
+
+		GThreadCallStackInUse = false;
+	}
+	else
+	{
+		PlatformCrashHandler((int32)Info->si_signo, Info, Uap);
+	}
 }
 
 /**
