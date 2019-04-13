@@ -46,6 +46,7 @@ extern FString GAPKFilename;
 
 FOnActivityResult FJavaWrapper::OnActivityResultDelegate;
 FOnSafetyNetAttestationResult FJavaWrapper::OnSafetyNetAttestationResultDelegate;
+FOnRouteServiceIntent FJavaWrapper::OnRouteServiceIntentDelegate;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1838,6 +1839,26 @@ void FJavaWrapper::SetupEmbeddedCommunication(JNIEnv* Env)
 JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_ForwardNotification(JNIEnv* jenv, jobject thiz, jstring payload)
 {
 	//
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_RouteServiceIntent(JNIEnv* jenv, jobject thiz, jstring InAction, jstring InPayload)
+{
+	// call to OnSafetyNetAttestationResultDelegate on game thread
+	if (FTaskGraphInterface::IsRunning())
+	{
+		const char *nativeAction = jenv->GetStringUTFChars(InAction, 0);
+		FString Action = FString(nativeAction);
+		jenv->ReleaseStringUTFChars(InAction, nativeAction);
+
+		const char *nativePayload = jenv->GetStringUTFChars(InPayload, 0);
+		FString Payload = FString(nativePayload);
+		jenv->ReleaseStringUTFChars(InPayload, nativePayload);
+
+		FGraphEventRef RouteServiceIntentTask = FFunctionGraphTask::CreateAndDispatchWhenReady([Action, Payload]()
+		{
+			FJavaWrapper::OnRouteServiceIntentDelegate.Broadcast(Action, Payload);
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+	}
 }
 
 class FAndroidEmbeddedExec : public FSelfRegisteringExec
