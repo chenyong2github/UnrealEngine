@@ -5,7 +5,7 @@
 
 FString FRigUnit_GetBoneTransform::GetUnitLabel() const
 {
-	return FString::Printf(TEXT("Get %s"), *Bone.ToString());
+	return FString::Printf(TEXT("Get Transform %s"), *Bone.ToString());
 }
 
 void FRigUnit_GetBoneTransform::Execute(const FRigUnitContext& Context)

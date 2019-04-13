@@ -33,7 +33,7 @@ private:
 
 	UControlRigBlueprint* Blueprint;
 	UControlRigGraph* Graph;
-	TMap<UControlRigGraphNode*, bool> VisitedNodes;
+	TMap<FName, bool> VisitedNodes;
 
 	friend class FControlRigBlueprintCompilerContext;
 };
