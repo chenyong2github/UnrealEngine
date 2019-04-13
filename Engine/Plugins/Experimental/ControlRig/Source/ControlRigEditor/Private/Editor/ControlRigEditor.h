@@ -8,6 +8,7 @@
 #include "DragAndDrop//GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
 #include "ControlRigLog.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -226,6 +227,12 @@ protected:
 	FControlRigLog ControlRigLog;
 	/** Once the log is collected update the graph */
 	void UpdateGraphCompilerErrors();
+
+	/** The draw interface to use for the control rig */
+	FControlRigDrawInterface DrawInterface;
+
+	/** This can be used to enable dumping of a unit test */
+	void DumpUnitTestCode();
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

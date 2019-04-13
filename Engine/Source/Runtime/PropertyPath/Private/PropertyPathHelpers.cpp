@@ -493,14 +493,26 @@ FPropertyPathSegment::FPropertyPathSegment()
 
 }
 
-FPropertyPathSegment::FPropertyPathSegment(const FString& SegmentName)
+FPropertyPathSegment::FPropertyPathSegment(int32 InCount, const TCHAR* InString)
 	: ArrayIndex(INDEX_NONE)
 	, Struct(nullptr)
 	, Field(nullptr)
 {
-	FString PropertyName;
-	PropertyPathHelpers::FindFieldNameAndArrayIndex(SegmentName, PropertyName, ArrayIndex);
-	Name = FName(*PropertyName);
+	const TCHAR* PropertyName = nullptr;
+	int32 PropertyNameLength = 0;
+	PropertyPathHelpers::FindFieldNameAndArrayIndex(InCount, InString, PropertyNameLength, &PropertyName, ArrayIndex);
+	ensure(PropertyName != nullptr);
+	FString PropertyNameString(PropertyNameLength, PropertyName);
+	Name = FName(*PropertyNameString, FNAME_Find);
+	ensure(Name != NAME_None);
+}
+
+FPropertyPathSegment FPropertyPathSegment::MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy)
+{
+	FPropertyPathSegment Segment;
+	Segment.Name = ToCopy.Name;
+	Segment.ArrayIndex = ToCopy.ArrayIndex;
+	return Segment;
 }
 
 UField* FPropertyPathSegment::Resolve(UStruct* InStruct) const
@@ -570,22 +582,39 @@ FCachedPropertyPath::FCachedPropertyPath(const TArray<FString>& PropertyChain)
 #endif
 	, bCanSafelyUsedCachedAddress(false)
 {
-	MakeFromStringArray(PropertyChain);
+	for(const FString& Segment : PropertyChain)
+	{
+		Segments.Add(FPropertyPathSegment(Segment.Len(), *Segment));
+	}
 }
 
 void FCachedPropertyPath::MakeFromString(const FString& InPropertyPath)
 {
-	TArray<FString> PropertyPathArray;
-	InPropertyPath.ParseIntoArray(PropertyPathArray, TEXT("."));
-	MakeFromStringArray(PropertyPathArray);
+	const TCHAR Delim = TEXT('.');
+	const TCHAR* Path = *InPropertyPath;
+	int32 Length = InPropertyPath.Len();
+	int32 Offset = 0;
+	int32 Start = 0;
+	while(Offset < Length)
+	{
+		if (Path[Offset] == Delim)
+		{
+			Segments.Add(FPropertyPathSegment(Offset - Start, &Path[Start]));
+			Start = ++Offset;
+		}
+		Offset++;
+	}
+	Segments.Add(FPropertyPathSegment(Length - Start, &Path[Start]));
 }
 
-void FCachedPropertyPath::MakeFromStringArray(const TArray<FString>& InPropertyPathArray)
+FCachedPropertyPath FCachedPropertyPath::MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy)
 {
-	for ( const FString& Segment : InPropertyPathArray )
+	FCachedPropertyPath Path;
+	for (const FPropertyPathSegment& Segment : ToCopy.Segments)
 	{
-		Segments.Add(FPropertyPathSegment(Segment));
+		Path.Segments.Add(FPropertyPathSegment::MakeUnresolvedCopy(Segment));
 	}
+	return Path;
 }
 
 int32 FCachedPropertyPath::GetNumSegments() const
@@ -722,6 +751,16 @@ FString FCachedPropertyPath::ToString() const
 	return OutString;
 }
 
+bool FCachedPropertyPath::operator==(const FString& Other) const
+{
+	return Equals(Other);
+}
+
+bool FCachedPropertyPath::Equals(const FString& Other) const
+{
+	return ToString() == Other;
+}
+
 #if DO_CHECK
 void* FCachedPropertyPath::GetCachedContainer() const
 {
@@ -778,22 +817,26 @@ void FCachedPropertyPath::RemoveFromStart(int32 InNumSegments)
 
 namespace PropertyPathHelpers
 {
-	void FindFieldNameAndArrayIndex(const FString& InSegmentName, FString& OutFieldName, int32& OutArrayIndex)
+	void FindFieldNameAndArrayIndex(int32 InCount, const TCHAR* InString, int32& OutCount, const TCHAR** OutPropertyName, int32& OutArrayIndex)
 	{
-		OutFieldName = InSegmentName;
+		*OutPropertyName = InString;
 
 		// Parse the property name and (optional) array index
-		int32 ArrayPos = OutFieldName.Find(TEXT("["));
-		if ( ArrayPos != INDEX_NONE )
+		OutArrayIndex = INDEX_NONE;
+		OutCount = InCount;
+		int32 Offset = 1;
+		const TCHAR Bracket = '[';
+		while ( Offset < InCount )
 		{
-			FString IndexToken = OutFieldName.RightChop(ArrayPos + 1).LeftChop(1);
-			LexFromString(OutArrayIndex, *IndexToken);
-
-			OutFieldName = OutFieldName.Left(ArrayPos);
-		}
-		else
-		{
-			OutArrayIndex = INDEX_NONE;
+			if (InString[Offset] == Bracket)
+			{
+				OutCount = Offset;
+				// here we need to copy - since we need a section of the string only
+				FString ArrayIndexString(InCount - Offset - 2, &InString[Offset + 1]);
+				OutArrayIndex = FCString::Atoi(*ArrayIndexString);
+				break;
+			}
+			Offset++;
 		}
 	}
 

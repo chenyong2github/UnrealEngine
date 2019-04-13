@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Hierarchy.h"
 #include "ControlRigLog.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 /** Current state of rig
 *	What  state Control Rig currently is
@@ -22,12 +23,16 @@ struct FRigUnitContext
 {
 	/** default constructor */
 	FRigUnitContext()
+		: DrawInterface(nullptr)
 #if WITH_EDITOR
-		: Log(nullptr)
+		, Log(nullptr)
 #endif
 	{
 
 	}
+
+	/** The draw interface for the units to use */
+	FControlRigDrawInterface* DrawInterface;
 
 	/** The current delta time */
 	float DeltaTime;

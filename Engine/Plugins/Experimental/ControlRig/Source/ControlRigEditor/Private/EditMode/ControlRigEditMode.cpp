@@ -32,6 +32,7 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "IControlRigObjectBinding.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 FName FControlRigEditMode::ModeName("EditMode.ControlRig");
 
@@ -394,6 +395,46 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 // 			{
 // 				TrajectoryCache.RenderTrajectories(ComponentTransform, PDI);
 // 			}
+		}
+
+		FControlRigDrawInterface* DrawInterface = ControlRig->DrawInterface;
+		if (DrawInterface)
+		{
+			for (const FControlRigDrawInterface::FDrawIntruction& Instruction : DrawInterface->DrawInstructions)
+			{
+				if (Instruction.Positions.Num() == 0)
+				{
+					continue;
+				}
+				switch (Instruction.DrawType)
+				{
+					case FControlRigDrawInterface::EDrawType_Point:
+					{
+						PDI->DrawPoint(Instruction.Positions[0], Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+						break;
+					}
+					case FControlRigDrawInterface::EDrawType_Lines:
+					{
+						const TArray<FVector>& Points = Instruction.Positions;
+						for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
+						{
+							PDI->DrawLine(Points[PointIndex], Points[PointIndex+1], Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+						}
+						break;
+					}
+					case FControlRigDrawInterface::EDrawType_LineStrip:
+					{
+						const TArray<FVector>& Points = Instruction.Positions;
+						for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
+						{
+							PDI->DrawLine(Points[PointIndex], Points[PointIndex + 1], Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+						}
+						break;
+					}
+				}
+			}
+
+			DrawInterface->DrawInstructions.Reset();
 		}
 	}
 }
