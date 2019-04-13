@@ -41,6 +41,9 @@ public:
 	DECLARE_DELEGATE_OneParam(FLeavePartyComplete, bool);
 	virtual void LeaveParty(const FString& Instance, const FLeavePartyComplete& OnComplete);
 
+	DECLARE_DELEGATE_OneParam(FCleanupPartiesComplete, bool);
+	virtual void CleanupParties(const FString& Instance, const FCleanupPartiesComplete& OnComplete);
+
 	DECLARE_DELEGATE_OneParam(FSetPartyMemberDataComplete, bool);
 	virtual void SetPartyMemberData(const FString& Instance, const UStruct* StructType, const void* StructData, const FSetPartyMemberDataComplete& OnComplete);
 	virtual void SetPartyMemberDataJson(const FString& Instance, const FString& JsonStr, const FSetPartyMemberDataComplete& OnComplete);
