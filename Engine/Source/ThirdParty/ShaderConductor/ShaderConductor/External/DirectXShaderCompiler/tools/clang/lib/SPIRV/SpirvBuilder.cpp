@@ -308,20 +308,6 @@ SpirvBinaryOp *SpirvBuilder::createBinaryOp(spv::Op op, QualType resultType,
   return instruction;
 }
 
-SpirvBinaryOp *SpirvBuilder::createBinaryOp(spv::Op op,
-                                            const SpirvType *resultType,
-                                            SpirvInstruction *lhs,
-                                            SpirvInstruction *rhs,
-                                            SourceLocation loc) {
-  assert(insertPoint && "null insert point");
-  auto *instruction =
-      new (context) SpirvBinaryOp(op, /*QualType*/ {}, loc, lhs, rhs);
-  instruction->setResultType(resultType);
-  instruction->setNonUniform(lhs->isNonUniform() || rhs->isNonUniform());
-  insertPoint->addInstruction(instruction);
-  return instruction;
-}
-
 SpirvSpecConstantBinaryOp *SpirvBuilder::createSpecConstantBinaryOp(
     spv::Op op, QualType resultType, SpirvInstruction *lhs,
     SpirvInstruction *rhs, SourceLocation loc) {
@@ -1029,8 +1015,8 @@ SpirvConstant *SpirvBuilder::getConstantFloat(QualType type,
 
 SpirvConstant *SpirvBuilder::getConstantBool(bool value, bool specConst) {
   // We do not care about making unique constants at this point.
-  auto *boolConst = new (context)
-      SpirvConstantBoolean(context.getBoolType(), value, specConst);
+  auto *boolConst =
+      new (context) SpirvConstantBoolean(astContext.BoolTy, value, specConst);
   module->addConstant(boolConst);
   return boolConst;
 }

@@ -945,17 +945,17 @@ bool SpirvEmitter::loadIfAliasVarRef(const Expr *varExpr,
 SpirvInstruction *SpirvEmitter::castToType(SpirvInstruction *value,
                                            QualType fromType, QualType toType,
                                            SourceLocation srcLoc) {
-  if (isFloatOrVecOfFloatType(toType))
+  if (isFloatOrVecMatOfFloatType(toType))
     return castToFloat(value, fromType, toType, srcLoc);
 
   // Order matters here. Bool (vector) values will also be considered as uint
   // (vector) values. So given a bool (vector) argument, isUintOrVecOfUintType()
   // will also return true. We need to check bool before uint. The opposite is
   // not true.
-  if (isBoolOrVecOfBoolType(toType))
+  if (isBoolOrVecMatOfBoolType(toType))
     return castToBool(value, fromType, toType);
 
-  if (isSintOrVecOfSintType(toType) || isUintOrVecOfUintType(toType))
+  if (isSintOrVecMatOfSintType(toType) || isUintOrVecMatOfUintType(toType))
     return castToInt(value, fromType, toType, srcLoc);
 
   emitError("casting to type %0 unimplemented", {}) << toType;
@@ -2146,6 +2146,7 @@ SpirvInstruction *SpirvEmitter::doCastExpr(const CastExpr *expr) {
   const Expr *subExpr = expr->getSubExpr();
   const QualType subExprType = subExpr->getType();
   const QualType toType = expr->getType();
+  const auto srcLoc = expr->getExprLoc();
 
   switch (expr->getCastKind()) {
   case CastKind::CK_LValueToRValue:
@@ -2343,9 +2344,32 @@ SpirvInstruction *SpirvEmitter::doCastExpr(const CastExpr *expr) {
     return doExpr(subExpr);
   }
   case CastKind::CK_HLSLMatrixToVectorCast: {
-    // The underlying should already be a matrix of 1xN.
-    assert(is1xNMatrix(subExprType) || isMx1Matrix(subExprType));
-    return doExpr(subExpr);
+    // If the underlying matrix is Mx1 or 1xM for M in {1, 2,3,4}, we can return
+    // the underlying matrix because it'll be evaluated as a vector by default.
+    if (is1x1Matrix(subExprType) || is1xNMatrix(subExprType) ||
+        isMx1Matrix(subExprType))
+      return doExpr(subExpr);
+
+    // A vector can have no more than 4 elements. The only remaining case
+    // is casting from a 2x2 matrix to a vector of size 4.
+
+    auto *mat = loadIfGLValue(subExpr);
+    QualType elemType = {};
+    uint32_t rowCount = 0, colCount = 0, elemCount = 0;
+    const bool isMat =
+        isMxNMatrix(subExprType, &elemType, &rowCount, &colCount);
+    const bool isVec = isVectorType(toType, nullptr, &elemCount);
+    assert(isMat && rowCount == 2 && colCount == 2);
+    assert(isVec && elemCount == 4);
+    (void)isMat;
+    (void)isVec;
+    QualType vec2Type = astContext.getExtVectorType(elemType, 2);
+    auto *row0 = spvBuilder.createCompositeExtract(vec2Type, mat, {0}, srcLoc);
+    auto *row1 = spvBuilder.createCompositeExtract(vec2Type, mat, {1}, srcLoc);
+    auto *vec = spvBuilder.createVectorShuffle(toType, row0, row1, {0, 1, 2, 3},
+                                               srcLoc);
+    vec->setRValue();
+    return vec;
   }
   case CastKind::CK_FunctionToPointerDecay:
     // Just need to return the function id
@@ -5369,14 +5393,18 @@ void SpirvEmitter::condenseVectorElementExpr(
     const HLSLVectorElementExpr *expr, const Expr **basePtr,
     hlsl::VectorMemberAccessPositions *flattenedAccessor) {
   llvm::SmallVector<hlsl::VectorMemberAccessPositions, 2> accessors;
-  accessors.push_back(expr->getEncodedElementAccess());
+  *basePtr = expr;
 
-  // Recursively descending until we find the true base vector. In the
-  // meanwhile, collecting accessors in the reverse order.
-  *basePtr = expr->getBase();
+  // Recursively descending until we find the true base vector (the base vector
+  // that does not have a base vector). In the meanwhile, collecting accessors
+  // in the reverse order.
+  // Example: for myVector.yxwz.yxz.xx.yx, the true base is 'myVector'.
   while (const auto *vecElemBase = dyn_cast<HLSLVectorElementExpr>(*basePtr)) {
     accessors.push_back(vecElemBase->getEncodedElementAccess());
     *basePtr = vecElemBase->getBase();
+    // We need to skip any number of parentheses around swizzling at any level.
+    while (const auto *parenExpr = dyn_cast<ParenExpr>(*basePtr))
+      *basePtr = parenExpr->getSubExpr();
   }
 
   *flattenedAccessor = accessors.back();
@@ -6133,7 +6161,7 @@ SpirvInstruction *SpirvEmitter::turnIntoElementPtr(
 SpirvInstruction *SpirvEmitter::castToBool(SpirvInstruction *fromVal,
                                            QualType fromType,
                                            QualType toBoolType) {
-  if (isSameScalarOrVecType(fromType, toBoolType))
+  if (isSameType(astContext, fromType, toBoolType))
     return fromVal;
 
   { // Special case handling for converting to a matrix of booleans.
@@ -6163,7 +6191,7 @@ SpirvInstruction *SpirvEmitter::castToBool(SpirvInstruction *fromVal,
 SpirvInstruction *SpirvEmitter::castToInt(SpirvInstruction *fromVal,
                                           QualType fromType, QualType toIntType,
                                           SourceLocation srcLoc) {
-  if (isSameScalarOrVecType(fromType, toIntType))
+  if (isSameType(astContext, fromType, toIntType))
     return fromVal;
 
   if (isBoolOrVecOfBoolType(fromType)) {
@@ -6235,13 +6263,10 @@ SpirvInstruction *SpirvEmitter::convertBitwidth(SpirvInstruction *fromVal,
                                                 QualType fromType,
                                                 QualType toType,
                                                 QualType *resultType) {
-  // At the moment, we will not make bitwidth conversions for literal int and
-  // literal float types because they always indicate 64-bit and do not
-  // represent what SPIR-V was actually resolved to.
-  // TODO: If the evaluated type is added to SpirvEvalInfo, change 'fromVal' to
-  // SpirvEvalInfo and use it to handle literal types more accurately.
-  if (fromType->isSpecificBuiltinType(BuiltinType::LitFloat) ||
-      fromType->isSpecificBuiltinType(BuiltinType::LitInt))
+  // At the moment, we will not make bitwidth conversions to/from literal int
+  // and literal float types because they do not represent the intended SPIR-V
+  // bitwidth.
+  if (isLitTypeOrVecOfLitType(fromType) || isLitTypeOrVecOfLitType(toType))
     return fromVal;
 
   const auto fromBitwidth = getElementSpirvBitwidth(
@@ -6273,7 +6298,7 @@ SpirvInstruction *SpirvEmitter::castToFloat(SpirvInstruction *fromVal,
                                             QualType fromType,
                                             QualType toFloatType,
                                             SourceLocation srcLoc) {
-  if (isSameScalarOrVecType(fromType, toFloatType))
+  if (isSameType(astContext, fromType, toFloatType))
     return fromVal;
 
   if (isBoolOrVecOfBoolType(fromType)) {
@@ -9142,18 +9167,14 @@ SpirvConstant *SpirvEmitter::getValueZero(QualType type) {
   {
     QualType scalarType = {};
     if (isScalarType(type, &scalarType)) {
-      if (scalarType->isSignedIntegerType()) {
-        return spvBuilder.getConstantInt(astContext.IntTy, llvm::APInt(32, 0));
+      if (scalarType->isBooleanType()) {
+        return spvBuilder.getConstantBool(false);
       }
-
-      if (scalarType->isUnsignedIntegerType()) {
-        return spvBuilder.getConstantInt(astContext.UnsignedIntTy,
-                                         llvm::APInt(32, 0));
+      if (scalarType->isIntegerType()) {
+        return spvBuilder.getConstantInt(scalarType, llvm::APInt(32, 0));
       }
-
       if (scalarType->isFloatingType()) {
-        return spvBuilder.getConstantFloat(astContext.FloatTy,
-                                           llvm::APFloat(0.0f));
+        return spvBuilder.getConstantFloat(scalarType, llvm::APFloat(0.0f));
       }
     }
   }
