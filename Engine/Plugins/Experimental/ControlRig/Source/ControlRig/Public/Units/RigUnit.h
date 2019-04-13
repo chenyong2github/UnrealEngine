@@ -16,6 +16,7 @@ enum class EUnitExecutionType : uint8
 	Always,
 	InEditingTime, // in control rig editor
 	Disable, // disable completely - good for debugging
+	Initialize, // only during init
 	Max UMETA(Hidden),
 };
 

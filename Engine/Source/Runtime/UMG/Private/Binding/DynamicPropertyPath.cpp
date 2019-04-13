@@ -13,6 +13,21 @@ FDynamicPropertyPath::FDynamicPropertyPath(const FString& Path)
 }
 
 FDynamicPropertyPath::FDynamicPropertyPath(const TArray<FString>& PropertyChain)
-	: FCachedPropertyPath(PropertyChain)
+	: FCachedPropertyPath(TEXT(""))
 {
+	FString PropertyPath;
+
+	for (const FString& Segment : PropertyChain)
+	{
+		if (PropertyPath.IsEmpty())
+		{
+			PropertyPath = Segment;
+		}
+		else
+		{
+			PropertyPath = PropertyPath + TEXT(".") + Segment;
+		}
+	}
+
+	*this = FDynamicPropertyPath(PropertyPath);
 }

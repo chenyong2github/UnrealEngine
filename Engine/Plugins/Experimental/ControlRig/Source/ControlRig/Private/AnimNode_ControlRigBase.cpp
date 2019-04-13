@@ -52,6 +52,7 @@ void FAnimNode_ControlRigBase::Update_AnyThread(const FAnimationUpdateContext& C
 		// @TODO: fix this to be thread-safe
 		// Pre-update doesn't work for custom anim instances
 		// FAnimNode_ControlRigExternalSource needs this to be called to reset to ref pose
+		ControlRig->SetDeltaTime(Context.GetDeltaTime());
 		ControlRig->PreEvaluate_GameThread();
 	}
 }
