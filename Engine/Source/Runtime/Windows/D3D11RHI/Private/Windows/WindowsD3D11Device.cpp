@@ -1593,7 +1593,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif // INTEL_METRICSDISCOVERY
 
 		// Disable the RHI thread by default for devices that will likely suffer in performance
-		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCoresIncludingHyperthreads() <= 2)
+		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCores() < 4)
 		{
 			GRHISupportsRHIThread = false;
 		}
