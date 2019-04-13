@@ -2315,6 +2315,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += TEXT("_ARCHIVE");
 		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				KeyString += TEXT("_DXC");
+			}
+		}
 	}
 
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4))

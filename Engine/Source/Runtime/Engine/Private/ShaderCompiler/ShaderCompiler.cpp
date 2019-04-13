@@ -3222,6 +3222,13 @@ void GlobalBeginCompileShader(
 				Input.Environment.CompilerFlags.Add(CFLAG_NoFastMath);
 			}
 		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
+			}
+		}
 	}
 
 	if (IsOpenGLPlatform((EShaderPlatform)Target.Platform) && 
