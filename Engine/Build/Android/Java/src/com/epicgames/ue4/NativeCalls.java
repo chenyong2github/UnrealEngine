@@ -25,4 +25,7 @@ public class NativeCalls
 
 	@SuppressWarnings("JniMissingFunction")
 	public static native void ForwardNotification(String payload);
+
+	@SuppressWarnings("JniMissingFunction")
+	public static native void RouteServiceIntent(String action, String payload);
 }
