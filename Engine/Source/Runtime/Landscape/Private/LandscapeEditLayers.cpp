@@ -4494,6 +4494,7 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 							(*Usage)->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
 							if ((*Usage)->FreeChannelCount() == 4)
 							{
+								Proxy->Modify();
 								Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
 							}
 						}
@@ -4506,6 +4507,7 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	// Remove associated layer data of each landscape proxy
 	LandscapeInfo->ForAllLandscapeProxies([LayerGuid](ALandscapeProxy* Proxy)
 	{
+		Proxy->Modify();
 		Proxy->LandscapeLayersData.Remove(LayerGuid);
 	});
 
@@ -4567,8 +4569,11 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision)
 	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 	LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
+		Proxy->Modify();
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
+			Component->Modify();
+
 			int32 MinX = MAX_int32;
 			int32 MinY = MAX_int32;
 			int32 MaxX = MIN_int32;
@@ -4774,6 +4779,7 @@ void ALandscape::CreateLayer(FName InName, bool bInUpdateLayersContent)
 	// Create associated layer data in each landscape proxy
 	LandscapeInfo->ForAllLandscapeProxies([NewLayer](ALandscapeProxy* Proxy)
 	{
+		Proxy->Modify();
 		Proxy->LandscapeLayersData.Add(NewLayer.Guid, FLandscapeLayerData());
 	});
 
@@ -4781,7 +4787,7 @@ void ALandscape::CreateLayer(FName InName, bool bInUpdateLayersContent)
 	{
 		// Request Update
 		RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All_Setup);
-		RegenerateLayersContent();
+		RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
 	}
 }
 
