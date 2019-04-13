@@ -251,6 +251,7 @@ public:
 	// Layers stuff
 #if WITH_EDITOR
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API bool HasPendingLayersContentUpdate() const { return LayersContentUpdateFlags != 0; }
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;

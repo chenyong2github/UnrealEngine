@@ -24,6 +24,7 @@
 #include "RHIStaticStates.h"
 #include "SceneView.h"
 #include "Shader.h"
+#include "Landscape.h"
 #include "LandscapeProxy.h"
 #include "LightMap.h"
 #include "Engine/MapBuildDataRegistry.h"
@@ -54,6 +55,7 @@
 #include "InstancedStaticMesh.h"
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
+#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1334,6 +1336,19 @@ void ALandscapeProxy::TickGrass()
 			return;
 		}
 	}
+
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		if (ALandscape* Landscape = GetLandscapeActor())
+		{
+			if (Landscape->HasPendingLayersContentUpdate())
+			{
+				return;
+			}
+		}
+	}
+
+
 	// Update foliage
 	static TArray<FVector> OldCameras;
 	if (CVarUseStreamingManagerForCameras.GetValueOnGameThread() == 0)
