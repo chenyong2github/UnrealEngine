@@ -1135,6 +1135,19 @@ void USocialParty::LeaveParty(const FOnLeavePartyAttemptComplete& OnLeaveAttempt
 	}
 }
 
+bool USocialParty::ContainsUser(const USocialUser& User) const
+{
+	for(const UPartyMember* PartyMember : GetPartyMembers())
+	{
+		if (&PartyMember->GetSocialUser() == &User)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 ULocalPlayer& USocialParty::GetOwningLocalPlayer() const
 {
 	//@todo DanH Party: This is a wee bit heavy - should be able to do this in fewer steps
