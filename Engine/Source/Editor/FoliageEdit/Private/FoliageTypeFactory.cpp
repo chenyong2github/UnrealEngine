@@ -40,7 +40,7 @@ UObject* UFoliageType_ActorFactory::FactoryCreateNew(UClass* Class, UObject* InP
 
 FText UFoliageType_ActorFactory::GetToolTip() const
 {
-	return LOCTEXT("FoliageTypeActorToolTip", "Blueprint Foliage is a foliage type that will place blueprint actor instances. The cost of painting this foliage is the same as adding actors in a scene.");
+	return LOCTEXT("FoliageTypeActorToolTip", "Actor Foliage is a foliage type that will place blueprint/native actor instances. The cost of painting this foliage is the same as adding actors in a scene.");
 }
 
 #undef LOCTEXT_NAMESPACE
