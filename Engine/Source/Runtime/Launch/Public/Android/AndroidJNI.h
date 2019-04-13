@@ -14,6 +14,7 @@ DECLARE_MULTICAST_DELEGATE_SixParams(FOnActivityResult, JNIEnv *, jobject, jobje
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSafetyNetAttestationResult, bool, const FString&, int32);
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRouteServiceIntent, const FString&, const FString&);
 
 // Define all the Java classes/methods that the game will need to access to
 class FJavaWrapper
@@ -156,6 +157,9 @@ public:
 
 	// Delegate that can be registered to that is called when an SafetyNet Attestation is finished
 	static FOnSafetyNetAttestationResult OnSafetyNetAttestationResultDelegate;
+
+	// Delegate that can be registered to be called when a service intent is received
+	static FOnRouteServiceIntent OnRouteServiceIntentDelegate;
 
 private:
 
