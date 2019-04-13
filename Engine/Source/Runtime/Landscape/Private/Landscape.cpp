@@ -3275,19 +3275,31 @@ void ALandscapeProxy::UpdateBakedTextures()
 }
 #endif
 
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+template<class ContainerType>
+void InvalidateGeneratedComponentDataImpl(const ContainerType& Components)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
-	for (auto Component : Components)
+	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
 	{
+		ULandscapeComponent* Component = *Iter;
 		Component->BakedTextureMaterialGuid.Invalidate();
-
 		ByProxy.FindOrAdd(Component->GetLandscapeProxy()).Add(Component);
 	}
-	for (auto It = ByProxy.CreateConstIterator(); It; ++It)
+
+	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
-		It.Key()->FlushGrassComponents(&It.Value());
+		Iter.Key()->FlushGrassComponents(&Iter.Value());
 	}
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData()
+{
+	InvalidateGeneratedComponentDataImpl(LandscapeComponents);
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components)
+{
+	InvalidateGeneratedComponentDataImpl(Components);
 }
 
 #undef LOCTEXT_NAMESPACE
