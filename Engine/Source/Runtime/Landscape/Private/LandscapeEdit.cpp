@@ -3582,6 +3582,13 @@ void ALandscape::PostEditMove(bool bFinished)
 	Super::PostEditMove(bFinished);
 }
 
+void ALandscape::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag::All, true);
+}
+
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
 {
 	return GetWorld() != nullptr && !GetWorld()->IsGameWorld();
@@ -4763,6 +4770,10 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 			// Store it in the usage map
 			CurrentWeightmapUsage = Proxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
+			if (InSaveToTransactionBuffer)
+			{
+				CurrentWeightmapUsage->Modify();
+			}
 			CurrentWeightmapUsage->LayerGuid = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
@@ -5107,6 +5118,18 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 #define MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM		16
 #define MAX_LANDSCAPE_PROP_TEXT_LENGTH			1024*1024*16
 
+
+bool ALandscapeProxy::Modify(bool bAlwaysMarkDirty)
+{
+	for (auto& Pair : WeightmapUsageMap)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->Modify(bAlwaysMarkDirty);
+		}
+	}
+	return Super::Modify(bAlwaysMarkDirty);
+}
 
 bool ALandscapeProxy::ShouldExport()
 {
