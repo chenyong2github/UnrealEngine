@@ -114,6 +114,8 @@ public:
 	{
 		return Cast<MemberT>(GetMemberInternal(MemberId));
 	}
+
+	bool ContainsUser(const USocialUser& User) const;
 	
 	ULocalPlayer& GetOwningLocalPlayer() const;
 	const FUniqueNetIdRepl& GetOwningLocalUserId() const { return OwningLocalUserId; }
