@@ -1086,7 +1086,7 @@ private:
 						// Compress the data in Buffer into the GZipBuffer array
 						CompressedSize = GZipBuffer.Num();
 						if (FCompression::CompressMemory(
-							NAME_Zlib,
+							NAME_Gzip,
 							GZipBuffer.GetData(), CompressedSize,
 							Buffer.GetData(), BytesInBuffer,
 							ECompressionFlags::COMPRESS_BiasSpeed))
