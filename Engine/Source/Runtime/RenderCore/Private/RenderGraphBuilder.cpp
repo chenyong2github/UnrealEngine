@@ -5,7 +5,7 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
 #include "VisualizeTexture.h"
-
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #if RENDER_GRAPH_DEBUGGING
 
@@ -122,6 +122,7 @@ FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 
 void FRDGBuilder::Execute()
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FRDGBuilder_Execute);
 	#if RENDER_GRAPH_DEBUGGING
 	{
 		/** The usage need RDG_EVENT_SCOPE() needs to happen in inner scope of the one containing FRDGBuilder because of
