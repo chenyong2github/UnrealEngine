@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "reduce_test_util.h"
+#include "source/reduce/reducer.h"
 
 #include "source/reduce/operand_to_const_reduction_opportunity_finder.h"
-#include "source/reduce/reducer.h"
 #include "source/reduce/remove_opname_instruction_reduction_opportunity_finder.h"
 #include "source/reduce/remove_unreferenced_instruction_reduction_opportunity_finder.h"
+#include "test/reduce/reduce_test_util.h"
 
 namespace spvtools {
 namespace reduce {
@@ -229,6 +229,7 @@ TEST(ReducerTest, ExprToConstantAndRemoveUnreferenced) {
   std::vector<uint32_t> binary_out;
   spvtools::ReducerOptions reducer_options;
   reducer_options.set_step_limit(500);
+  reducer_options.set_fail_on_validation_error(true);
   spvtools::ValidatorOptions validator_options;
 
   Reducer::ReductionResultStatus status = reducer.Run(
@@ -304,6 +305,7 @@ TEST(ReducerTest, RemoveOpnameAndRemoveUnreferenced) {
   std::vector<uint32_t> binary_out;
   spvtools::ReducerOptions reducer_options;
   reducer_options.set_step_limit(500);
+  reducer_options.set_fail_on_validation_error(true);
   spvtools::ValidatorOptions validator_options;
 
   Reducer::ReductionResultStatus status = reducer.Run(
