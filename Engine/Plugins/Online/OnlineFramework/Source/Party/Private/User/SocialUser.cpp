@@ -228,6 +228,12 @@ TArray<ESocialSubsystem> USocialUser::GetRelationshipSubsystems(ESocialRelations
 		{
 			switch (Relationship)
 			{
+			case ESocialRelationship::Any:
+				if (!IsLocalUser())
+				{
+					RelationshipSubsystems.Add(SubsystemInfoPair.Key);
+				}
+				break;
 			case ESocialRelationship::FriendInviteReceived:
 				if (SubsystemInfoPair.Value.GetFriendInviteStatus() == EInviteStatus::PendingInbound)
 				{
