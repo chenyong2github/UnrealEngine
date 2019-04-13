@@ -1957,7 +1957,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		AdditionalDefines.SetDefine(TEXT("MAC"), 1);
 	}
 	
-	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1);
 	AdditionalDefines.SetDefine(TEXT("COMPILER_METAL"), 1);
 
 	static FName NAME_SF_METAL(TEXT("SF_METAL"));
@@ -2051,8 +2050,20 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		return;
 	}
 	
-	if (VersionEnum < 6)
+
+	bool bUseSC = (Input.ShaderFormat == NAME_SF_METAL_SM5_NOTESS);
+	// The Mobile renderer should now be correct from Metal 2.0 and up.
+	bUseSC |= (MetalCompilerTarget == HCT_FeatureLevelES3_1 && VersionEnum >= 3);
+	// Otherwise we must deliberately select the new compiler by setting the Metal version to 6 - which is another cheat (5 is currently Metal 2.1 + IABs)
+	bUseSC |= (VersionEnum >= 6);
+
+	if (bUseSC)
 	{
+        AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 2);
+	}
+	else
+	{
+        AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1);
 		AdditionalDefines.SetDefine(TEXT("row_major"), TEXT(""));
 	}
 	
