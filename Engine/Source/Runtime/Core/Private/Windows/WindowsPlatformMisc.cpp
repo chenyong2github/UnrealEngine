@@ -2694,13 +2694,3 @@ IPlatformChunkInstall* FWindowsPlatformMisc::GetPlatformChunkInstall()
 
 	return ChunkInstall;
 }
-
-void FWindowsPlatformMisc::PumpMessagesOutsideMainLoop()
-{
-	TGuardValue<bool> PumpMessageGuard(GPumpingMessagesOutsideOfMainLoop, true);
-	// Process pending windows messages, which is necessary to the rendering thread in some cases where D3D
-	// sends window messages (from IDXGISwapChain::Present) to the main thread owned viewport window.
-	MSG Msg;
-	PeekMessage(&Msg, NULL, 0, 0, PM_NOREMOVE | PM_QS_SENDMESSAGE);
-	return;
-}
