@@ -1281,6 +1281,10 @@ public:
 
 	static void ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexRedirects, TMap<int32, int32>& OutMapping);
 
+	static void PumpMessagesOutsideMainLoop()
+	{
+	}
+
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Returns any platform specific warning messages we want printed on screen
@@ -1288,10 +1292,6 @@ public:
 	static bool GetPlatformScreenWarnings(TArray<FText>& PlatformScreenWarnings)
 	{
 		return false;
-	}
-
-	static void PumpMessagesOutsideMainLoop()
-	{
 	}
 
 protected:
