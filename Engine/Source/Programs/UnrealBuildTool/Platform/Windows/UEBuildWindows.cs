@@ -1068,7 +1068,7 @@ namespace UnrealBuildTool
 				}
 
 				DirectoryReference DefaultToolChainDir;
-				if(ToolChainVersionToDir.TryGetValue(DefaultToolChainVersion, out DefaultToolChainDir) && Has64BitToolChain(DefaultToolChainDir))
+				if(ToolChainVersionToDir.TryGetValue(DefaultToolChainVersion, out DefaultToolChainDir) && (Compiler == WindowsCompiler.Clang || Has64BitToolChain(DefaultToolChainDir)))
 				{
 					ToolChainVersion = DefaultToolChainVersion;
 				}
