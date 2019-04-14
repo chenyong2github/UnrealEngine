@@ -157,6 +157,10 @@ public:
 	UPROPERTY(config)
 	bool bIsMaterialQualityOverridePlatform;
 
+	/** whether or not the Feature Level Preview is active or whether it is GMaxRHIFeatureLevel is being shown instead */
+	UPROPERTY(config)
+	bool bIsFeatureLevelPreviewActive;
+
 public:
 
 	/** Delegate for when a user setting has changed */
