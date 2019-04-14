@@ -698,19 +698,16 @@ public:
 		return GPUProfilingData.CheckGpuHeartbeat();
 	}
 
-	template <typename KeyType, typename ValType,
-		typename = typename TEnableIf<TIsSame<FD3D11LockedKey, typename TDecay<KeyType>::Type>::Value && TIsSame<FD3D11LockedData, typename TDecay<ValType>::Type>::Value>::Type>
-	void AddLockedData(KeyType&& Key, ValType&& LockedData)
+	void AddLockedData(const FD3D11LockedKey& Key, const FD3D11LockedData& LockedData)
 	{
 		FScopeLock Lock(&LockTrackerCS);
-		LockTracker.Add(Forward<KeyType>(Key), Forward<ValType>(LockedData));
+		LockTracker.Add(Key, LockedData);
 	}
 
-	template <typename KeyType, typename = typename TEnableIf<TIsSame<FD3D11LockedKey, typename TDecay<KeyType>::Type>::Value>::Type>
-	bool RemoveLockedData(KeyType&& Key, FD3D11LockedData& OutLockedData)
+	bool RemoveLockedData(const FD3D11LockedKey& Key, FD3D11LockedData& OutLockedData)
 	{
 		FScopeLock Lock(&LockTrackerCS);
-		return LockTracker.RemoveAndCopyValue(Forward<KeyType>(Key), OutLockedData);
+		return LockTracker.RemoveAndCopyValue(Key, OutLockedData);
 	}
 
 	bool IsQuadBufferStereoEnabled();
