@@ -955,3 +955,18 @@ void FMeshBatch::PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* Primi
 			TEXT("FMeshBatch was not properly setup.  The primitive uniform buffer must be specified."));
 	}
 }
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters, "MobileReflectionCapture");
+
+void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
+{
+	FMobileReflectionCaptureShaderParameters Parameters;
+	Parameters.Params = FVector4(1.f, 0.f, 0.f, 0.f);
+	Parameters.Texture = GBlackTextureCube->TextureRHI;
+	Parameters.TextureSampler = GBlackTextureCube->SamplerStateRHI;
+	SetContents(Parameters);
+	Super::InitDynamicRHI();
+}
+
+/** Global uniform buffer containing the default reflection data used in mobile renderer. */
+TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;

@@ -1254,3 +1254,28 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 	ReflectionXAxisAndYScale = ReflectionXAxis.GetSafeNormal() * ScaleVector.Y;
 	ReflectionXAxisAndYScale.W = ScaleVector.Y / ScaleVector.Z;
 }
+
+void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
+{
+	float InvBrightness = FMath::Max(FMath::Min(1.0f / EncodedHDRAverageBrightness, 65504.f), -65504.f);
+	FTexture* CaptureTexture = GBlackTextureCube;
+	if (EncodedHDRCubemap)
+	{
+		check(EncodedHDRCubemap->IsInitialized());
+		CaptureTexture = EncodedHDRCubemap;
+	}
+		
+	FMobileReflectionCaptureShaderParameters Parameters;
+	Parameters.Params = FVector4(InvBrightness, 0.f, 0.f, 0.f);
+	Parameters.Texture = CaptureTexture->TextureRHI;
+	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
+
+	if (MobileUniformBuffer.GetReference())
+	{
+		MobileUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	}
+	else
+	{
+		MobileUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
+	}
+}
