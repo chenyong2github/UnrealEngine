@@ -24,6 +24,7 @@ FSocialUserList::FSocialUserList(USocialToolkit& InOwnerToolkit, const FSocialUs
 	, ListConfig(InConfig)
 {
 	if (HasPresenceFilters() &&
+		ListConfig.RelationshipType != ESocialRelationship::Any &&
 		ListConfig.RelationshipType != ESocialRelationship::Friend &&
 		ListConfig.RelationshipType != ESocialRelationship::PartyInvite)
 	{
@@ -386,26 +387,31 @@ bool FSocialUserList::EvaluateUserPresence(const USocialUser& User, ESocialSubsy
 {
 	if (HasPresenceFilters())
 	{
+		bool bIsOnline = false;
+		bool bIsPlayingThisGame = false;
+		bool bInSameParty = false;
 		if (const FOnlineUserPresence* UserPresence = User.GetFriendPresenceInfo(SubsystemType))
 		{
-			bool bInSameParty = false;
-			if (OwnerToolkit.IsValid())
-			{
-				if (const USocialParty* CurrentParty = OwnerToolkit->GetSocialManager().GetPersistentParty())
-				{
-					bInSameParty = CurrentParty->ContainsUser(User);
-				}
-			}
-
-			return EvaluatePresenceFlag(UserPresence->bIsOnline, ESocialUserStateFlags::Online)
-				&& EvaluatePresenceFlag(UserPresence->bIsPlayingThisGame, ESocialUserStateFlags::SameApp)
-				&& EvaluatePresenceFlag(bInSameParty, ESocialUserStateFlags::SameParty);
-			// && EvaluatePresenceFlag(UserPresence->bIsJoinable, ESocialUserStateFlags::Joinable) <-- //@todo DanH: This property exists on presence, but is ALWAYS false... 
-			// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::SamePlatform)
-			// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::LookingForGroup)
+			bIsOnline = UserPresence->bIsOnline;
+			bIsPlayingThisGame = UserPresence->bIsPlayingThisGame;
 		}
-		return false;
+		
+		if (OwnerToolkit.IsValid())
+		{
+			if (const USocialParty* CurrentParty = OwnerToolkit->GetSocialManager().GetPersistentParty())
+			{
+				bInSameParty = CurrentParty->ContainsUser(User);
+			}
+		}
+
+		return EvaluatePresenceFlag(bIsOnline, ESocialUserStateFlags::Online)
+			&& EvaluatePresenceFlag(bIsPlayingThisGame, ESocialUserStateFlags::SameApp)
+			&& EvaluatePresenceFlag(bInSameParty, ESocialUserStateFlags::SameParty);
+		// && EvaluatePresenceFlag(UserPresence->bIsJoinable, ESocialUserStateFlags::Joinable) <-- //@todo DanH: This property exists on presence, but is ALWAYS false... 
+		// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::SamePlatform)
+		// && EvaluateFlag(UserPresence->?, ESocialUserStateFlag::LookingForGroup)
 	}
+
 	return true;
 }
 
