@@ -1,10 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsErrorReport.h"
-#include "CrashDebugHelperModule.h"
 #include "CrashReportUtil.h"
 #include "CrashDescription.h"
-#include "CrashDebugHelper.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Text.h"
@@ -16,12 +14,19 @@
 #include <ShlObj.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 
+#if WITH_CRASHREPORTER
+#include "CrashDebugHelperModule.h"
+#include "CrashDebugHelper.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "CrashReportClient"
 
 namespace
 {
+#if WITH_CRASHREPORTER
 	/** Pointer to dynamically loaded crash diagnosis module */
 	FCrashDebugHelperModule* CrashHelperModule;
+#endif
 }
 
 /** Helper class used to parse specified string value based on the marker. */
@@ -64,12 +69,16 @@ FWindowsErrorReport::FWindowsErrorReport(const FString& Directory)
 
 void FWindowsErrorReport::Init()
 {
+#if WITH_CRASHREPORTER
 	CrashHelperModule = &FModuleManager::LoadModuleChecked<FCrashDebugHelperModule>(FName("CrashDebugHelper"));
+#endif
 }
 
 void FWindowsErrorReport::ShutDown()
 {
+#if WITH_CRASHREPORTER
 	CrashHelperModule->ShutdownModule();
+#endif
 }
 
 FString FWindowsErrorReport::FindCrashedAppPath() const
@@ -84,6 +93,7 @@ FText FWindowsErrorReport::DiagnoseReport() const
 	// Mark the callstack as invalid.
 	bValidCallstack = false;
 
+#if WITH_CRASHREPORTER
 	// Should check if there are local PDBs before doing anything
 	auto CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
 	if (!CrashDebugHelper)
@@ -108,6 +118,7 @@ FText FWindowsErrorReport::DiagnoseReport() const
 
 	// No longer required, only for backward compatibility, mark the callstack as valid.
 	bValidCallstack = true;
+#endif
 	return FText();
 }
 
@@ -136,6 +147,7 @@ static bool TryGetDirectoryCreationTimeUtc(const FString& InDirectoryName, FDate
 
 void FWindowsErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPaths, const FTimespan& MaxCrashReportAge)
 {
+#if WITH_CRASHREPORTER
 	auto& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	FDateTime MinCreationTime = FDateTime::UtcNow() - MaxCrashReportAge;
@@ -174,6 +186,7 @@ void FWindowsErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorRepor
 
 		return CreationTimeL > CreationTimeR;
 	});
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

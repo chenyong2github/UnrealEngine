@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PendingReports.h"
+#include "CrashReportCoreModule.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Logging/LogMacros.h"
 #include "HAL/FileManager.h"
