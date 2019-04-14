@@ -47,6 +47,7 @@ inline const TCHAR* LexToString(ESocialSubsystem InSubsystem)
 UENUM()
 enum class ESocialRelationship : uint8
 {
+	Any,
 	FriendInviteReceived,
 	FriendInviteSent,
 	PartyInvite,
