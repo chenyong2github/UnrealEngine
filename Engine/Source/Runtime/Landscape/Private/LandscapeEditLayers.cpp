@@ -4654,6 +4654,7 @@ void ALandscape::ShowAllLayers()
 
 void ALandscape::SetLandscapeSplinesReservedLayer(int32 InLayerIndex)
 {
+	Modify();
 	FLandscapeLayer* NewLayer = GetLayer(InLayerIndex);
 	FLandscapeLayer* PreviousLayer = GetLandscapeSplinesReservedLayer();
 	if (NewLayer != PreviousLayer)
