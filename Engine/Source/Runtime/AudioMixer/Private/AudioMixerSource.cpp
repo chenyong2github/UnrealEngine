@@ -16,11 +16,20 @@ FAutoConsoleVariableRef CVarDisableHRTF(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 UseListenerOverrideForSpreadCVar = 1;
+FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
+	TEXT("au.UseListenerOverrideForSpread"),
+	UseListenerOverrideForSpreadCVar,
+	TEXT("Zero attenuation override distance stereo panning\n")
+	TEXT("0: Use actual distance, 1: use listener override"),
+	ECVF_Default);
+
+
 namespace Audio
 {
 	FMixerSource::FMixerSource(FAudioDevice* InAudioDevice)
 		: FSoundSource(InAudioDevice)
-		, MixerDevice((FMixerDevice*)InAudioDevice)
+		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
 		, MixerBuffer(nullptr)
 		, MixerSourceBuffer(nullptr)
 		, MixerSourceVoice(nullptr)		
@@ -982,22 +991,28 @@ namespace Audio
 			if (!UseObjectBasedSpatialization())
 			{
 				float AzimuthOffset = 0.0f;
-				if (WaveInstance->ListenerToSoundDistance > 0.0f)
+
+				float LeftAzimuth = 90.0f;
+				float RightAzimuth = 270.0f;
+
+				const float DistanceToUse = UseListenerOverrideForSpreadCVar ? WaveInstance->ListenerToSoundDistance : WaveInstance->ListenerToSoundDistanceForPanning;
+
+				if (DistanceToUse > KINDA_SMALL_NUMBER)
 				{
-					AzimuthOffset = FMath::Atan(0.5f * WaveInstance->StereoSpread / WaveInstance->ListenerToSoundDistance);
+					AzimuthOffset = FMath::Atan(0.5f * WaveInstance->StereoSpread / DistanceToUse);
 					AzimuthOffset = FMath::RadiansToDegrees(AzimuthOffset);
-				}
 
-				float LeftAzimuth = WaveInstance->AbsoluteAzimuth - AzimuthOffset;
-				if (LeftAzimuth < 0.0f)
-				{
-					LeftAzimuth += 360.0f;
-				}
+					LeftAzimuth = WaveInstance->AbsoluteAzimuth - AzimuthOffset;
+					if (LeftAzimuth < 0.0f)
+					{
+						LeftAzimuth += 360.0f;
+					}
 
-				float RightAzimuth = WaveInstance->AbsoluteAzimuth + AzimuthOffset;
-				if (RightAzimuth > 360.0f)
-				{
-					RightAzimuth -= 360.0f;
+					RightAzimuth = WaveInstance->AbsoluteAzimuth + AzimuthOffset;
+					if (RightAzimuth > 360.0f)
+					{
+						RightAzimuth -= 360.0f;
+					}
 				}
 
 				// Reset the channel map, the stereo spatialization channel mapping calls below will append their mappings

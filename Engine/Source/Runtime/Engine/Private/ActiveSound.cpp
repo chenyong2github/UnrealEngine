@@ -1357,6 +1357,8 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 
 			ParseParams.ListenerToSoundDistance = ListenerData.ListenerToSoundDistance;
 
+			ParseParams.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistanceForPanning;
+
 			ParseParams.AbsoluteAzimuth = AbsoluteAzimuth;
 		}
 

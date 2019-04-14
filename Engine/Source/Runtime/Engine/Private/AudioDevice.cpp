@@ -4669,6 +4669,9 @@ void FAudioDevice::GetAttenuationListenerData(FAttenuationListenerData& OutListe
 		ListenerToSound = SoundTransform.GetTranslation() - ListenerLocation;
 		ListenerToSound.ToDirectionAndLength(OutListenerData.ListenerToSoundDir, OutListenerData.ListenerToSoundDistance);
 
+		// store the actual distance for surround-panning sources with spread (AudioMixer)
+		OutListenerData.ListenerToSoundDistanceForPanning = OutListenerData.ListenerToSoundDistance;
+
 		if (bUseListenerAttenuationOverride)
 		{
 			ListenerToSound = SoundTransform.GetTranslation() - ListenerAttenuationOverride;
