@@ -174,6 +174,11 @@ void FPositionVertexBuffer::SerializeMetaData(FArchive& Ar)
 	Ar << Stride << NumVertices;
 }
 
+void FPositionVertexBuffer::ClearMetaData()
+{
+	Stride = NumVertices = 0;
+}
+
 /**
 * Specialized assignment operator, only used when importing LOD's.  
 */
