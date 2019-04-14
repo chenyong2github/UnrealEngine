@@ -125,7 +125,7 @@ protected:
 	 *
 	 * @param ClientActor client that is making the request
 	 */
-	virtual bool ProcessJoinServer(ALobbyBeaconClient* ClientActor);
+	void ProcessJoinServer(ALobbyBeaconClient* ClientActor);
 
 	/**
 	 * Handle a request to disconnect a given client from the lobby beacon
