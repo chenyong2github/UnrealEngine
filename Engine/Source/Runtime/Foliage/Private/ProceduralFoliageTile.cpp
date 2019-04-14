@@ -57,7 +57,7 @@ bool UProceduralFoliageTile::HandleOverlaps(FProceduralFoliageInstance* Instance
 	return bSurvived;
 }
 
-FProceduralFoliageInstance* UProceduralFoliageTile::NewSeed(const FVector& Location, float Scale, const UFoliageType_InstancedStaticMesh* Type, float InAge, bool bBlocker)
+FProceduralFoliageInstance* UProceduralFoliageTile::NewSeed(const FVector& Location, float Scale, const UFoliageType* Type, float InAge, bool bBlocker)
 {
 	const float InitRadius = Type->GetMaxRadius() * Scale;
 	{
@@ -98,7 +98,7 @@ FProceduralFoliageInstance* UProceduralFoliageTile::NewSeed(const FVector& Locat
 
 float GetSeedMinDistance(const FProceduralFoliageInstance* Instance, const float NewInstanceAge, const int32 SimulationStep)
 {
-	const UFoliageType_InstancedStaticMesh* Type = Instance->Type;
+	const UFoliageType* Type = Instance->Type;
 	const int32 StepsLeft = Type->MaxAge - SimulationStep;
 	const float InstanceMaxAge = Type->GetNextAge(Instance->Age, StepsLeft);
 	const float NewInstanceMaxAge = Type->GetNextAge(NewInstanceAge, StepsLeft);
@@ -123,7 +123,7 @@ float UProceduralFoliageTile::GetRandomGaussian()
 	return Z1;
 }
 
-FVector UProceduralFoliageTile::GetSeedOffset(const UFoliageType_InstancedStaticMesh* Type, float MinDistance)
+FVector UProceduralFoliageTile::GetSeedOffset(const UFoliageType* Type, float MinDistance)
 {
 	//We want 10% of seeds to be the max distance so we use a z score of +- 1.64
 	const float MaxZScore = 1.64f;
@@ -145,7 +145,7 @@ void UProceduralFoliageTile::AgeSeeds()
 		if (UserCancelled()){ return; }
 		if (Instance->IsAlive())
 		{
-			const UFoliageType_InstancedStaticMesh* Type = Instance->Type;
+			const UFoliageType* Type = Instance->Type;
 			if (SimulationStep <= Type->NumSteps && Type->GetSpawnsInShade() == bSimulateOnlyInShade)
 			{
 				const float CurrentAge = Instance->Age;
@@ -186,7 +186,7 @@ void UProceduralFoliageTile::SpreadSeeds(TArray<FProceduralFoliageInstance*>& Ne
 			continue;
 		}
 
-		const UFoliageType_InstancedStaticMesh* Type = Inst->Type;
+		const UFoliageType* Type = Inst->Type;
 
 		if (SimulationStep <= Type->NumSteps  && Type->GetSpawnsInShade() == bSimulateOnlyInShade)
 		{
@@ -220,12 +220,12 @@ void UProceduralFoliageTile::AddRandomSeeds(TArray<FProceduralFoliageInstance*>&
 	TMap<const UFoliageType*, int32> SeedsLeftMap;
 	TMap<const UFoliageType*, FRandomStream> RandomStreamPerType;
 
-	TArray<const UFoliageType_InstancedStaticMesh*> TypesToSeed;
+	TArray<const UFoliageType*> TypesToSeed;
 
 	for (const FFoliageTypeObject& FoliageTypeObject : FoliageSpawner->GetFoliageTypes())
 	{
 		if (UserCancelled()){ return; }
-		const UFoliageType_InstancedStaticMesh* TypeInstance = FoliageTypeObject.GetInstance();
+		const UFoliageType* TypeInstance = FoliageTypeObject.GetInstance();
 		if (TypeInstance && TypeInstance->GetSpawnsInShade() == bSimulateOnlyInShade)
 		{
 			{	//compute the number of initial seeds
@@ -277,7 +277,7 @@ void UProceduralFoliageTile::AddRandomSeeds(TArray<FProceduralFoliageInstance*>&
 		if (UserCancelled()){ return; }
 		TypeIdx = (TypeIdx + 1) % NumTypes;	//keep cycling through the types that we spawn initial seeds for to make sure everyone gets fair chance
 
-		if (const UFoliageType_InstancedStaticMesh* Type = TypesToSeed[TypeIdx])
+		if (const UFoliageType* Type = TypesToSeed[TypeIdx])
 		{
 			int32& SeedsLeft = SeedsLeftMap.FindChecked(Type);
 			if (SeedsLeft == 0)
@@ -426,7 +426,7 @@ void UProceduralFoliageTile::RunSimulation(const int32 MaxNumSteps, bool bOnlyIn
 
 	for (const FFoliageTypeObject& FoliageTypeObject : FoliageSpawner->GetFoliageTypes())
 	{
-		const UFoliageType_InstancedStaticMesh* TypeInstance = FoliageTypeObject.GetInstance();
+		const UFoliageType* TypeInstance = FoliageTypeObject.GetInstance();
 		if (TypeInstance && TypeInstance->GetSpawnsInShade() == bOnlyInShade)
 		{
 			MaxSteps = FMath::Max(MaxSteps, TypeInstance->NumSteps + 1);
