@@ -561,6 +561,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::OnLayerSelectionChanged(int32 InL
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetCurrentLayer", "Set Current Layer"));
 		LandscapeEdMode->SetCurrentLayer(InLayerIndex);
 		LandscapeEdMode->UpdateTargetList();
 	}
