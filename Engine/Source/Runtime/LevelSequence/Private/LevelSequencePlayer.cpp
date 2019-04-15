@@ -131,29 +131,6 @@ void ULevelSequencePlayer::OnStopped()
 {
 	EnableCinematicMode(false);
 
-	AActor* LevelSequenceActor = Cast<AActor>(GetOuter());
-	if (LevelSequenceActor == nullptr)
-	{
-		return;
-	}
-
-	for (FObjectKey WeakActor : PrerequisiteActors)
-	{
-		AActor* Actor = Cast<AActor>(WeakActor.ResolveObjectPtr());
-		if (Actor)
-		{
-			for (UActorComponent* Component : Actor->GetComponents())
-			{
-				if (Component)
-				{
-					Component->PrimaryComponentTick.RemovePrerequisite(LevelSequenceActor, LevelSequenceActor->PrimaryActorTick);
-				}
-			}
-
-			Actor->PrimaryActorTick.RemovePrerequisite(LevelSequenceActor, LevelSequenceActor->PrimaryActorTick);
-		}
-	}
-
 	if (World != nullptr && World->GetGameInstance() != nullptr)
 	{
 		APlayerController* PC = World->GetGameInstance()->GetFirstLocalPlayerController();
@@ -167,7 +144,6 @@ void ULevelSequencePlayer::OnStopped()
 		}
 	}
 
-	PrerequisiteActors.Reset();
 	LastViewTarget.Reset();
 }
 
@@ -294,38 +270,6 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	if (OnCameraCut.IsBound())
 	{
 		OnCameraCut.Broadcast(CameraComponent);
-	}
-}
-
-void ULevelSequencePlayer::NotifyBindingUpdate(const FGuid& InGuid, FMovieSceneSequenceIDRef InSequenceID, TArrayView<TWeakObjectPtr<>> Objects)
-{
-	AActor* LevelSequenceActor = Cast<AActor>(GetOuter());
-	if (LevelSequenceActor == nullptr)
-	{
-		return;
-	}
-
-	for (TWeakObjectPtr<> WeakObject : Objects)
-	{
-		if (AActor* Actor = Cast<AActor>(WeakObject.Get()))
-		{
-			
-			if (Actor == LevelSequenceActor)
-			{
-				continue;
-			}
-
-			for (UActorComponent* Component : Actor->GetComponents())
-			{
-				if (Component)
-				{
-					Component->PrimaryComponentTick.AddPrerequisite(LevelSequenceActor, LevelSequenceActor->PrimaryActorTick);
-				}
-			}
-
-			Actor->PrimaryActorTick.AddPrerequisite(LevelSequenceActor, LevelSequenceActor->PrimaryActorTick);
-			PrerequisiteActors.Add(Actor);
-		}
 	}
 }
 

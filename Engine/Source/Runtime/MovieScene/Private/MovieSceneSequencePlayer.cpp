@@ -43,6 +43,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, StartTime(0)
 	, DurationFrames(0)
 	, CurrentNumLoops(0)
+	, LastTickGameTimeSeconds(-1.f)
 {
 	PlayPosition.Reset(FFrameTime(0));
 
@@ -666,9 +667,23 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		// Delta seconds has already been multiplied by MatineeTimeDilation at this point, so don't pass that through to Tick
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
 
-		TimeController->Tick(DeltaSeconds, PlayRate);
-
 		UWorld* World = GetPlaybackWorld();
+		float CurrentWorldTime = 0.f;
+		if (World)
+		{
+			CurrentWorldTime = World->GetTimeSeconds();
+		}
+
+		float DeltaTimeForFunction = DeltaSeconds;
+
+		if (LastTickGameTimeSeconds >= 0.f)
+		{
+			DeltaTimeForFunction = CurrentWorldTime - LastTickGameTimeSeconds;
+		}
+		LastTickGameTimeSeconds = CurrentWorldTime;
+
+		TimeController->Tick(DeltaTimeForFunction, PlayRate);
+
 		if (World)
 		{
 			PlayRate *= World->GetWorldSettings()->MatineeTimeDilation;

@@ -57,7 +57,9 @@ ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 
 	bOverrideInstanceData = false;
 
-	PrimaryActorTick.bCanEverTick = true;
+	// The level sequence actor defaults to never ticking by the tick manager because it is ticked separately in LevelTick
+	//PrimaryActorTick.bCanEverTick = false;
+
 	bAutoPlay_DEPRECATED = false;
 
 	bReplicates = true;
@@ -120,6 +122,8 @@ void ALevelSequenceActor::PostInitializeComponents()
 
 void ALevelSequenceActor::BeginPlay()
 {
+	GetWorld()->LevelSequenceActors.Add(this);
+
 	Super::BeginPlay();
 
 	RefreshBurnIn();
@@ -128,6 +132,13 @@ void ALevelSequenceActor::BeginPlay()
 	{
 		SequencePlayer->Play();
 	}
+}
+
+void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorld()->LevelSequenceActors.Remove(this);
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void ALevelSequenceActor::Tick(float DeltaSeconds)
