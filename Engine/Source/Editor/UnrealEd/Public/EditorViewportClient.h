@@ -1531,6 +1531,15 @@ protected:
 	uint32 CachedMouseX;
 	uint32 CachedMouseY;
 
+	/** Represents the last mouse position. It is constantly updated on tick so it can also be the current position. */
+	int32 CachedLastMouseX = 0;
+	int32 CachedLastMouseY = 0;
+
+	/** True is the use is controling the light via a*/
+	float UserIsControllingSunLightTimer = 0.0f;
+	FTransform UserControlledSunLightMatrix;
+
+
 	// -1, -1 if not set
 	FIntPoint CurrentMousePos;
 
