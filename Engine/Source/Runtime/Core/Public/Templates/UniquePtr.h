@@ -87,6 +87,8 @@ class TUniquePtr : private Deleter
 	friend class TUniquePtr;
 
 public:
+	using ElementType = T;
+
 	/**
 	 * Default constructor - initializes the TUniquePtr to null.
 	 */
@@ -318,6 +320,8 @@ class TUniquePtr<T[], Deleter> : private Deleter
 	friend class TUniquePtr;
 
 public:
+	using ElementType = T;
+
 	/**
 	 * Default constructor - initializes the TUniquePtr to null.
 	 */
