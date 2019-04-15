@@ -1570,22 +1570,21 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 						{
 							FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-							FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(InContext.RHICmdList);
 							FSceneViewFamilyBlackboard SceneBlackboard;
 							SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
 	
 							FRDGTextureRef SceneColor = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000);
-							FRDGTextureRef SeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
+							FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"), eFC_0000);
 
 							FRDGTextureRef NewSceneColor = DiaphragmDOF::AddPasses(
 								GraphBuilder,
 								SceneBlackboard, InContext.View,
-								SceneColor, SeparateTranslucency);
+								SceneColor, LocalSeparateTranslucency);
 		
 							// DOF passes were not added, therefore need to compose Separate translucency manually. 
 							if (NewSceneColor == SceneColor)
 							{
-								NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, SeparateTranslucency);
+								NewSceneColor = AddSeparateTranslucencyCompositionPass(GraphBuilder, InContext.View, SceneColor, LocalSeparateTranslucency);
 							}
 
 							Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, NewSceneColor);
@@ -1747,12 +1746,12 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			if ((IsMotionBlurEnabled(View) || bVisualizeMotionBlur) && VelocityInput.IsValid())
 			{
 				FRenderingCompositePass* MotionBlurPass = Context.Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<3, 1>(
-					[bVisualizeMotionBlur](FRenderingCompositePass* Pass, FRenderingCompositePassContext& Context)
+					[bVisualizeMotionBlur](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
 				{
-					FRDGBuilder GraphBuilder(Context.RHICmdList);
+					FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-					const FIntRect ColorViewportRect = Context.SceneColorViewRect;
-					const FIntRect DepthViewportRect = Context.View.ViewRect;
+					const FIntRect ColorViewportRect = InContext.SceneColorViewRect;
+					const FIntRect DepthViewportRect = InContext.View.ViewRect;
 
 					const FScreenPassTexture ColorTexture = FScreenPassTexture::Create(
 						Pass->CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000),
@@ -1772,7 +1771,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					{
 						OutColorTexture = VisualizeMotionBlur(
 							GraphBuilder,
-							FScreenPassContext::Create(Context.RHICmdList, Context.View),
+							FScreenPassContext::Create(InContext.RHICmdList, InContext.View),
 							ColorTexture,
 							DepthTexture,
 							VelocityTexture);
@@ -1781,7 +1780,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					{
 						OutColorTexture = ComputeMotionBlur(
 							GraphBuilder,
-							FScreenPassContext::Create(Context.RHICmdList, Context.View),
+							FScreenPassContext::Create(InContext.RHICmdList, InContext.View),
 							ColorTexture,
 							DepthTexture,
 							VelocityTexture);

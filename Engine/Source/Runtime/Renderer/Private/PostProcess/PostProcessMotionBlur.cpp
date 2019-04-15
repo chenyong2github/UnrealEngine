@@ -815,10 +815,10 @@ FScreenPassTexture VisualizeMotionBlur(
 
 		// Draw debug text.
 		{
-			const FViewInfo& View = Context->View;
+			const FViewInfo& LocalView = Context->View;
 			const FSceneViewFamily& ViewFamily = Context->ViewFamily;
 			FRenderTargetTemp TempRenderTarget(static_cast<FTexture2DRHIParamRef>(TextureOutput.GetRHITexture()), TextureOutput.GetViewport().Extent);
-			FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
+			FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, LocalView.GetFeatureLevel());
 
 			float X = 20;
 			float Y = 38;
@@ -846,12 +846,12 @@ FScreenPassTexture VisualizeMotionBlur(
 			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Paused, r.VelocityTest, Parallel:"), GetStatsFont(), FLinearColor(1, 1, 0));
 			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 
-			const FScene* Scene = (const FScene*)View.Family->Scene;
-			const FSceneViewState *SceneViewState = (const FSceneViewState*)View.State;
+			const FScene* Scene = (const FScene*)LocalView.Family->Scene;
+			const FSceneViewState *SceneViewState = (const FSceneViewState*)LocalView.State;
 
 			Line = FString::Printf(TEXT("View=%.4x PrevView=%.4x"),
-				View.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
-				View.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
+				LocalView.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff,
+				LocalView.PrevViewInfo.ViewMatrices.GetViewMatrix().ComputeHash() & 0xffff);
 			Canvas.DrawShadowedString(X, Y += YStep, TEXT("ViewMatrix:"), GetStatsFont(), FLinearColor(1, 1, 0));
 			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 
