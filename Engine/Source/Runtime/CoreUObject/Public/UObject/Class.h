@@ -17,7 +17,8 @@
 #include "UObject/GarbageCollection.h"
 #include "UObject/CoreNative.h"
 #include "UObject/ReflectedTypeAccessors.h"
-#include "Templates/HasGetTypeHash.h"
+#include "Templates/Models.h"
+#include "Concepts/GetTypeHashable.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
 #include "Misc/Optional.h"
@@ -833,13 +834,13 @@ FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithStructuredSe
  * Selection of GetTypeHash call.
  */
 template<class CPPSTRUCT>
-FORCEINLINE typename TEnableIf<!THasGetTypeHash<CPPSTRUCT>::Value, uint32>::Type GetTypeHashOrNot(const CPPSTRUCT *Data)
+FORCEINLINE typename TEnableIf<!TModels<CGetTypeHashable, CPPSTRUCT>::Value, uint32>::Type GetTypeHashOrNot(const CPPSTRUCT *Data)
 {
 	return 0;
 }
 
 template<class CPPSTRUCT>
-FORCEINLINE typename TEnableIf<THasGetTypeHash<CPPSTRUCT>::Value, uint32>::Type GetTypeHashOrNot(const CPPSTRUCT *Data)
+FORCEINLINE typename TEnableIf<TModels<CGetTypeHashable, CPPSTRUCT>::Value, uint32>::Type GetTypeHashOrNot(const CPPSTRUCT *Data)
 {
 	return GetTypeHash(*Data);
 }
@@ -1161,7 +1162,7 @@ public:
 
 		virtual bool HasGetTypeHash() override
 		{
-			return THasGetTypeHash<CPPSTRUCT>::Value;
+			return TModels<CGetTypeHashable, CPPSTRUCT>::Value;
 		}
 		uint32 GetTypeHash(const void* Src) override
 		{
@@ -1174,7 +1175,7 @@ public:
 				  (TIsPODType<CPPSTRUCT>::Value ? CPF_IsPlainOldData : CPF_None)
 				| (TIsTriviallyDestructible<CPPSTRUCT>::Value ? CPF_NoDestructor : CPF_None)
 				| (TIsZeroConstructType<CPPSTRUCT>::Value ? CPF_ZeroConstructor : CPF_None)
-				| (THasGetTypeHash<CPPSTRUCT>::Value ? CPF_HasGetValueTypeHash : CPF_None);
+				| (TModels<CGetTypeHashable, CPPSTRUCT>::Value ? CPF_HasGetValueTypeHash : CPF_None);
 		}
 		bool IsAbstract() const override
 		{

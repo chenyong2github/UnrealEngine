@@ -12,7 +12,8 @@
 #include "Containers/Set.h"
 #include "Algo/Reverse.h"
 #include "Templates/Tuple.h"
-#include "Templates/HasGetTypeHash.h"
+#include "Templates/Models.h"
+#include "Concepts/GetTypeHashable.h"
 #include "Containers/UnrealString.h"
 
 #define ExchangeB(A,B) {bool T=A; A=B; B=T;}
@@ -94,7 +95,7 @@ struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType,ValueType>,KeyType,bInAl
 template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
 struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 {
-	static_assert(THasGetTypeHash<KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
+	static_assert(TModels<CGetTypeHashable, KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
 };
 
 /** 

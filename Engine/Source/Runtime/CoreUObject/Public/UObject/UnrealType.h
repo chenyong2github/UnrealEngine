@@ -25,6 +25,8 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/PropertyTag.h"
 #include "Serialization/SerializedPropertyScope.h"
+#include "Templates/Models.h"
+#include "Concepts/GetTypeHashable.h"
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
 
@@ -967,7 +969,7 @@ protected:
 			(TIsPODType<TCppType>::Value ? CPF_IsPlainOldData : CPF_None) 
 			| (TIsTriviallyDestructible<TCppType>::Value ? CPF_NoDestructor : CPF_None) 
 			| (TIsZeroConstructType<TCppType>::Value ? CPF_ZeroConstructor : CPF_None)
-			| (THasGetTypeHash<TCppType>::Value ? CPF_HasGetValueTypeHash : CPF_None);
+			| (TModels<CGetTypeHashable, TCppType>::Value ? CPF_HasGetValueTypeHash : CPF_None);
 
 	}
 };
