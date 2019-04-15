@@ -546,7 +546,8 @@ void FSkeletalMeshEditor::OnRemoveSectionFromLodAndBelowMenuItemClicked(int32 Lo
 		const FSkeletalMeshLODInfo* CurrentSkeletalMeshLODInfo = SkeletalMesh->GetLODInfo(GenerateLodIndex);
 		if (CurrentSkeletalMeshLODInfo != nullptr && CurrentSkeletalMeshLODInfo->bHasBeenSimplified && BaseLodIndexes.Contains(CurrentSkeletalMeshLODInfo->ReductionSettings.BaseLOD))
 		{
-			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, GenerateLodIndex);
+			bool bRestoreClothing = true;
+			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, GenerateLodIndex, true, bRestoreClothing);
 			BaseLodIndexes.Add(GenerateLodIndex);
 		}
 	}
@@ -937,7 +938,8 @@ void ReimportAllCustomLODs(USkeletalMesh* SkeletalMesh, UDebugSkelMeshComponent*
 			FSkeletalMeshUpdateContext UpdateContext;
 			UpdateContext.SkeletalMesh = SkeletalMesh;
 			UpdateContext.AssociatedComponents.Push(PreviewMeshComponent);
-			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LodIndex);
+			bool bRestoreClothing = true;
+			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LodIndex, true, bRestoreClothing);
 			Dependencies[LodIndex] = true;
 		}
 	}
