@@ -3,18 +3,19 @@
 #pragma once
 
 #include "CoreTypes.h"
+
+#include "Algo/Reverse.h"
+#include "Concepts/GetTypeHashable.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/UnrealTypeTraits.h"
-#include "Templates/UnrealTemplate.h"
-#include "Templates/Sorting.h"
 #include "Misc/StructBuilder.h"
 #include "Templates/Function.h"
-#include "Containers/Set.h"
-#include "Algo/Reverse.h"
-#include "Templates/Tuple.h"
 #include "Templates/Models.h"
-#include "Concepts/GetTypeHashable.h"
-#include "Containers/UnrealString.h"
+#include "Templates/Sorting.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 
 #define ExchangeB(A,B) {bool T=A; A=B; B=T;}
 
