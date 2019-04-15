@@ -25,10 +25,10 @@ float MotionBlur_VelocityScale;
 float MotionBlur_VelocityScaleForTiles;
 float MotionBlur_VelocityMax;
 
-SCREEN_PASS_TEXTURE_VIEWPORT(Color);
-SCREEN_PASS_TEXTURE_VIEWPORT(Velocity);
-SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile);
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToVelocity);
+SCREEN_PASS_TEXTURE_VIEWPORT(Color)
+SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
+SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
+SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToVelocity)
 
 Texture2D ColorTexture;
 Texture2D VelocityTexture;
