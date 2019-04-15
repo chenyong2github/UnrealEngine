@@ -1848,12 +1848,12 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 		const int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
 
 		FWeightmapLayerAllocationInfo& FillLayerAllocation = ComponentWeightmapLayerAllocations[FillLayerIdx];
-		uint8* LayerData = (uint8*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[FillLayerAllocation.WeightmapTextureIndex])->GetMipData(0);
+		uint8* MaterialLayerData = (uint8*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[FillLayerAllocation.WeightmapTextureIndex])->GetMipData(0);
 
 		for (int32 Y = 0; Y < SizeV; ++Y)
 		{
 			const int32 TexY = WeightmapOffsetY + Y;
-			uint8* RowData = LayerData + ((WeightmapOffsetY + Y) * SizeU + WeightmapOffsetX) * 4 + ChannelOffsets[FillLayerAllocation.WeightmapTextureChannel];
+			uint8* RowData = MaterialLayerData + ((WeightmapOffsetY + Y) * SizeU + WeightmapOffsetX) * 4 + ChannelOffsets[FillLayerAllocation.WeightmapTextureChannel];
 			for (int32 X = 0; X < SizeU; ++X)
 			{
 				RowData[X * 4] = 255;

@@ -916,7 +916,7 @@ bool ULandscapeComponent::AreTexturesStreamedForGrassMapRender() const
 void ULandscapeComponent::RenderGrassMap()
 {
 	UMaterialInterface* Material = GetLandscapeMaterial();
-	if (CanRenderGrassMap())
+	if (ensure(CanRenderGrassMap()))
 	{
 		TArray<ULandscapeGrassType*> GrassTypes;
 
