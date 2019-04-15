@@ -376,6 +376,11 @@ public:
 		return UAV;
 	}
 
+	FORCEINLINE_DEBUGGABLE FRDGTextureUAVRef CreateUAV(FRDGTextureRef Texture)
+	{
+		return CreateUAV( FRDGTextureUAVDesc(Texture) );
+	}
+
 	/** Create graph tracked UAV for a buffer from a descriptor. */
 	FORCEINLINE_DEBUGGABLE FRDGBufferUAVRef CreateUAV(const FRDGBufferUAVDesc& Desc)
 	{
