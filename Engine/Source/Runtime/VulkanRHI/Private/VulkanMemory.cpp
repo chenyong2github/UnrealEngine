@@ -953,7 +953,12 @@ namespace VulkanRHI
 				}
 			}
 #endif
-			constexpr bool bUseMaxSubAllocation = 0 != VULKAN_MAX_SUB_ALLOCATION;
+
+#if VULKAN_MAX_SUB_ALLOCATION > 0
+			constexpr bool bUseMaxSubAllocation = true;
+#else
+			constexpr bool bUseMaxSubAllocation = false;
+#endif
 			if (bUseMaxSubAllocation && Size >= VULKAN_MAX_SUB_ALLOCATION)
 			{
 				AllocationSize = Size;
