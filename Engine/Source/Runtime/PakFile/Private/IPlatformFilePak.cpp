@@ -4252,6 +4252,11 @@ FPakFile::~FPakFile()
 	delete[] FilenameHashesIndex;
 }
 
+bool FPakFile::PassedSignatureChecks() const
+{
+	return Decryptor.IsValid() && Decryptor->IsValid();
+}
+
 FArchive* FPakFile::CreatePakReader(const TCHAR* Filename)
 {
 	FArchive* ReaderArchive = IFileManager::Get().CreateFileReader(Filename);
@@ -4278,7 +4283,16 @@ FArchive* FPakFile::SetupSignedPakReader(FArchive* ReaderArchive, const TCHAR* F
 			{
 				Decryptor = MakeUnique<FChunkCacheWorker>(ReaderArchive, Filename);
 			}
-			ReaderArchive = new FSignedArchiveReader(ReaderArchive, Decryptor.Get());
+
+			if (Decryptor->IsValid())
+			{
+				ReaderArchive = new FSignedArchiveReader(ReaderArchive, Decryptor.Get());
+			}
+			else
+			{
+				delete ReaderArchive;
+				return nullptr;
+			}
 		}
 	}
 	return ReaderArchive;
@@ -5055,7 +5069,8 @@ FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 			}
 			if (!PakReader)
 			{
-				UE_LOG(LogPakFile, Fatal, TEXT("Unable to create pak \"%s\" handle"), *GetFilename());
+				UE_LOG(LogPakFile, Warning, TEXT("Unable to create pak \"%s\" handle"), *GetFilename());
+				return nullptr;
 			}
 
 #if DO_CHECK
@@ -5564,7 +5579,8 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		}
 		else
 		{
-			if (Pak->GetInfo().EncryptionKeyGuid.IsValid())
+			bool bPassedSignatureChecks = !bSigned || Pak->PassedSignatureChecks();
+			if (bPassedSignatureChecks && Pak->GetInfo().EncryptionKeyGuid.IsValid())
 			{
 				UE_LOG(LogPakFile, Log, TEXT("Deferring mount of pak \"%s\" until encryption key '%s' becomes available"), InPakFilename, *Pak->GetInfo().EncryptionKeyGuid.ToString());
 
