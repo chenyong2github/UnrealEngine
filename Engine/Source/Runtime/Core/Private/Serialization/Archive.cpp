@@ -605,13 +605,6 @@ public:
 };
 #endif		// WITH_MULTI_THREADED_COMPRESSION
 
-
-
-void FArchive::SerializeCompressed( void* V, int64 Length, ECompressionFlags Flags, bool bTreatBufferAsFileReader, bool bUsePlatformBitWindow )
-{
-	SerializeCompressed(V, Length, FCompression::GetCompressionFormatFromDeprecatedFlags(Flags), ECompressionFlags(Flags & COMPRESS_OptionsFlagsMask), bTreatBufferAsFileReader);
-}
-
 void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags, bool bTreatBufferAsFileReader)
 {
 	if( IsLoading() )
