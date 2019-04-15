@@ -14,6 +14,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "EditorFramework/AssetImportData.h"
 #include "MeshUtilities.h"
+#include "Assets/ClothingAsset.h"
 
 #if WITH_APEX_CLOTHING
 	#include "ApexClothingUtils.h"
@@ -22,12 +23,23 @@
 #include "ComponentReregisterContext.h"
 #include "IMeshReductionManagerModule.h"
 
+
+
 DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);
 
 bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
 	if (SkeletalMesh)
 	{
+		// Unbind any existing clothing assets before we regenerate all LODs
+		TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
+		ClothingAssetUtils::GetMeshClothingAssetBindings(SkeletalMesh, ClothingBindings);
+
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			Binding.Asset->UnbindFromSkeletalMesh(SkeletalMesh, Binding.LODIndex);
+		}
+
 		int32 LODCount = SkeletalMesh->GetLODNum();
 
 		if (NewLODCount > 0)
@@ -68,6 +80,16 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 				{
 					FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIdx);
 				}
+			}
+		}
+
+		//Restore all clothing we can
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			if (SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(Binding.LODIndex) &&
+				SkeletalMesh->GetImportedModel()->LODModels[Binding.LODIndex].Sections.IsValidIndex(Binding.SectionIndex))
+			{
+				Binding.Asset->BindToSkeletalMesh(SkeletalMesh, Binding.LODIndex, Binding.SectionIndex, Binding.AssetInternalLodIndex);
 			}
 		}
 
@@ -718,7 +740,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	CreateLODMorphTarget(SkeletalMesh, ReductionBaseSkeletalMeshBulkData, SourceLOD, DestinationLOD, PerMorphTargetBaseIndexToMorphTargetDelta, BaseMorphIndexToTargetIndexList, TargetVertices, TargetMatchData);
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bReregisterComponent /*= true*/ )
+void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bReregisterComponent /*= true*/, bool bRestoreClothing /*= false*/)
 {
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
@@ -752,6 +774,20 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMesh->GetName()));
 		const FText StatusUpdate = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GeneratingLOD_F", "Generating LOD{DesiredLOD} for {SkeletalMeshName}..."), Args);
 		GWarn->BeginSlowTask(StatusUpdate, true);
+	}
+
+	// Unbind DesiredLOD existing clothing assets before we simplify this LOD
+	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
+	if (bRestoreClothing)
+	{
+		ClothingAssetUtils::GetMeshClothingAssetBindings(SkeletalMesh, ClothingBindings);
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			if (DesiredLOD == Binding.LODIndex)
+			{
+				Binding.Asset->UnbindFromSkeletalMesh(SkeletalMesh, Binding.LODIndex);
+			}
+		}
 	}
 
 	if (SkeletalMesh->GetLODInfo(DesiredLOD) != nullptr)
@@ -842,10 +878,27 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		const FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GenerateLODFailed_F", "An error occurred while simplifying the geometry for mesh '{SkeletalMeshName}'.  Consider adjusting simplification parameters and re-simplifying the mesh."), Args);
 		FMessageDialog::Open(EAppMsgType::Ok, Message);
 	}
+
+	//Put back the clothing for the DesiredLOD
+	if (bRestoreClothing)
+	{
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			if (SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(Binding.LODIndex) &&
+				SkeletalMesh->GetImportedModel()->LODModels[Binding.LODIndex].Sections.IsValidIndex(Binding.SectionIndex))
+			{
+				if (DesiredLOD == Binding.LODIndex)
+				{
+					Binding.Asset->BindToSkeletalMesh(SkeletalMesh, Binding.LODIndex, Binding.SectionIndex, Binding.AssetInternalLodIndex);
+				}
+			}
+		}
+	}
+
 	GWarn->EndSlowTask();
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bReregisterComponent /*= true*/)
+void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bReregisterComponent /*= true*/, bool bRestoreClothing /*= false*/)
 {
 	USkeletalMesh* SkeletalMesh = UpdateContext.SkeletalMesh;
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
@@ -853,7 +906,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 
 	if (MeshReduction && MeshReduction->IsSupported() && SkeletalMesh)
 	{
-		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, bReregisterComponent);
+		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, bReregisterComponent, bRestoreClothing);
 		
 		if (UpdateContext.OnLODChanged.IsBound())
 		{
@@ -871,6 +924,19 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		//There is nothing to restore
 		return;
 	}
+
+	// Unbind LodIndex existing clothing assets before restoring the LOD
+	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
+	ClothingAssetUtils::GetMeshClothingAssetBindings(SkeletalMesh, ClothingBindings);
+	for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+	{
+		//Unbind only the LOD we restore
+		if (Binding.LODIndex == LodIndex)
+		{
+			Binding.Asset->UnbindFromSkeletalMesh(SkeletalMesh, Binding.LODIndex);
+		}
+	}
+
 	FSkeletalMeshLODModel ImportedBaseLODModel;
 	TMap<FString, TArray<FMorphTargetDelta>> ImportedBaseLODMorphTargetData;
 	SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ImportedBaseLODModel, ImportedBaseLODMorphTargetData);
@@ -903,6 +969,16 @@ void FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMe
 		
 		//Empty the bulkdata since we restore it
 		SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->EmptyBulkData();
+
+		//Put back the clothing for the restore LOD
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			if (LodIndex == Binding.LODIndex && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(Binding.LODIndex) &&
+				SkeletalMesh->GetImportedModel()->LODModels[Binding.LODIndex].Sections.IsValidIndex(Binding.SectionIndex))
+			{
+				Binding.Asset->BindToSkeletalMesh(SkeletalMesh, Binding.LODIndex, Binding.SectionIndex, Binding.AssetInternalLodIndex);
+			}
+		}
 
 		if (bReregisterComponent)
 		{
