@@ -609,6 +609,13 @@ public:
 	}
 
 	/**
+	 * Checks if the pak has valid chunk signature checking data, and that the data passed the initial signing check
+	 *
+	 * @return true if this pak file has passed the initial signature checking phase
+	 */
+	bool PassedSignatureChecks() const;
+
+	/**
 	 * Gets pak filename.
 	 *
 	 * @return Pak filename.
