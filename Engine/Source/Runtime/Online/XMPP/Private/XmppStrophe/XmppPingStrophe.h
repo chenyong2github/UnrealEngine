@@ -38,7 +38,7 @@ class FXmppPingStrophe
 public:
 	// FXmppPingStrophe
 	FXmppPingStrophe(FXmppConnectionStrophe& InConnectionManager);
-	virtual ~FXmppPingStrophe() = default;
+	virtual ~FXmppPingStrophe();
 
 	// FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
@@ -67,6 +67,12 @@ protected:
 
 	/** Check the current status of our Xmpp ping responses; may lead to disconnection requests */
 	void CheckXmppPongTimeout(float DeltaTime);
+
+	/** Remove pending messages and engine KeepAwake calls */
+	void CleanupMessages();
+
+	/* Engine Tick Requester name */
+	const static FName TickRequesterId;
 
 private:
 	/** Connection manager controls sending data to XMPP thread */
