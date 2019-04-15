@@ -2141,7 +2141,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 					GetEventName(ConvolutionSettings.LayerProcessing),
 					GetEventName(ConvolutionSettings.QualityConfig),
 					GetEventName(ConvolutionSettings.BokehSimulation),
-					PermutationVector.Get<FDDOFGatherRingCountDim>(),
+					int32(PermutationVector.Get<FDDOFGatherRingCountDim>()),
 					PermutationVector.Get<FDDOFClampInputUVDim>() ? TEXT(" ClampUV") : TEXT(""),
 					PermutationVector.Get<FDDOFRGBColorBufferDim>() ? TEXT(" R11G11B10") : TEXT(""),
 					GatheringViewSize.X, GatheringViewSize.Y),
