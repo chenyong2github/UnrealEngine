@@ -512,7 +512,9 @@ FDOFGatherInputTextures CreateTextures(FRDGBuilder& GraphBuilder, const FDOFGath
 	FDOFGatherInputTextures Textures;
 	Textures.SceneColor = GraphBuilder.CreateTexture(Descs.SceneColor, DebugName);
 	if (Descs.SeparateCoc.Format != PF_Unknown)
+	{
 		Textures.SeparateCoc = GraphBuilder.CreateTexture(Descs.SeparateCoc, DebugName);
+	}
 	return Textures;
 }
 
@@ -521,7 +523,9 @@ FDOFGatherInputUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FDOFGatherInputT
 	FDOFGatherInputUAVs UAVs;
 	UAVs.SceneColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Textures.SceneColor, MipLevel));
 	if (Textures.SeparateCoc)
+	{
 		UAVs.SeparateCoc = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Textures.SeparateCoc, MipLevel));
+	}
 	return UAVs;
 }
 
@@ -547,7 +551,9 @@ FDOFConvolutionTextures CreateTextures(FRDGBuilder& GraphBuilder, const FDOFConv
 	FDOFConvolutionTextures Textures;
 	Textures.SceneColor = GraphBuilder.CreateTexture(Descs.SceneColor, DebugName);
 	if (Descs.SeparateAlpha.Format != PF_Unknown)
+	{
 		Textures.SeparateAlpha = GraphBuilder.CreateTexture(Descs.SeparateAlpha, DebugName);
+	}
 	return Textures;
 }
 
@@ -556,7 +562,9 @@ FDOFConvolutionUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FDOFConvolutionT
 	FDOFConvolutionUAVs UAVs;
 	UAVs.SceneColor = GraphBuilder.CreateUAV(Textures.SceneColor);
 	if (Textures.SeparateAlpha)
+	{
 		UAVs.SeparateAlpha = GraphBuilder.CreateUAV(Textures.SeparateAlpha);
+	}
 	return UAVs;
 }
 
@@ -2122,7 +2130,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			PassParameters->ConvolutionOutput = CreateUAVs(GraphBuilder, *ConvolutionOutputTextures);
 			if (ConvolutionSettings.QualityConfig == EDiaphragmDOFGatherQuality::HighQualityWithHybridScatterOcclusion)
+			{
 				PassParameters->ScatterOcclusionOutput = GraphBuilder.CreateUAV(*ScatterOcclusionTexture);
+			}
 			
 			TShaderMapRef<FDiaphragmDOFGatherCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FComputeShaderUtils::AddPass(
