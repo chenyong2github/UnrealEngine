@@ -147,6 +147,7 @@ template< class ObjectType, ESPMode Mode >
 class TSharedRef
 {
 public:
+	using ElementType = ObjectType;
 
 	// NOTE: TSharedRef has no default constructor as it does not support empty references.  You must
 	//		 initialize your TSharedRef to a valid object at construction time.
@@ -546,6 +547,7 @@ class TSharedPtr
 	static_assert( TSharedPtr::ObjectTypeHasSameModeSharedFromThis || !TSharedPtr::ObjectTypeHasOppositeModeSharedFromThis, "You cannot use a TSharedPtr of one mode with a type which inherits TSharedFromThis of another mode.");
 
 public:
+	using ElementType = ObjectType;
 
 	/**
 	 * Constructs an empty shared pointer
@@ -951,6 +953,7 @@ template< class ObjectType, ESPMode Mode >
 class TWeakPtr
 {
 public:
+	using ElementType = ObjectType;
 
 	/** Constructs an empty TWeakPtr */
 	// NOTE: FNullTag parameter is an Unreal extension to standard shared_ptr behavior
