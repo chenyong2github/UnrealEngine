@@ -1723,13 +1723,13 @@ void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextur
 
 void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClear /*= false*/)
 {
-	ETextureSourceFormat WeightmapFormat = Texture->Source.GetFormat();
-	int32 WeightmapSizeU = Texture->Source.GetSizeX();
-	int32 WeightmapSizeV = Texture->Source.GetSizeY();
+	ETextureSourceFormat Format = Texture->Source.GetFormat();
+	int32 SizeU = Texture->Source.GetSizeX();
+	int32 SizeV = Texture->Source.GetSizeY();
 
 	if (bClear)
 	{
-		Texture->Source.Init2DWithMipChain(WeightmapSizeU, WeightmapSizeV, WeightmapFormat);
+		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
 		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 		{
@@ -1742,7 +1742,7 @@ void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClea
 	{
 		TArray<uint8> TopMipData;
 		Texture->Source.GetMipData(TopMipData, 0);
-		Texture->Source.Init2DWithMipChain(WeightmapSizeU, WeightmapSizeV, WeightmapFormat);
+		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
 		uint8* MipData = Texture->Source.LockMip(0);
 		FMemory::Memcpy(MipData, TopMipData.GetData(), TopMipData.Num());
@@ -2855,7 +2855,12 @@ LANDSCAPE_API void ALandscapeProxy::Import(
 
 	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		SetupLayers(NumComponentsX, NumComponentsY);
+		ALandscape* LandscapeActor = GetLandscapeActor();
+		check(LandscapeActor != nullptr);
+
+		// Create the default layer
+		LandscapeActor->CreateDefaultLayer(FIntPoint(NumComponentsX, NumComponentsY));
+		HasLayersContent = true;
 	}
 
 	if (GetLevel()->bIsVisible)
@@ -4580,13 +4585,13 @@ void ULandscapeInfo::ClearSelectedRegion(bool bIsComponentwise /*= true*/)
 	}
 }
 
-void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseCurrentEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, TArray<UTexture2D*>* OutNewCreatedTextures)
+void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, TArray<UTexture2D*>* OutNewCreatedTextures)
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseCurrentEditingWeightmap);
-	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InCanUseCurrentEditingWeightmap);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InCanUseCurrentEditingWeightmap);
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InCanUseEditingWeightmap);
+	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InCanUseEditingWeightmap);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InCanUseEditingWeightmap);
 
 	int32 NeededNewChannels = 0;
 	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
@@ -4690,6 +4695,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	int32 CurrentLayer = 0;
 	TArray<UTexture2D*> NewWeightmapTextures;
 	TArray<ULandscapeWeightmapUsage*> NewComponentWeightmapTexturesUsage;
+	
 	while (TotalNeededChannels > 0)
 	{
 		// UE_LOG(LogLandscape, Log, TEXT("Still need %d channels"), TotalNeededChannels);
@@ -4707,7 +4713,10 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			{
 				ULandscapeWeightmapUsage* TryWeightmapUsage = ItPair.Value;
 				//
-				FGuid LayerGuidToSeek = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
+				FGuid EditingLayerGUID = GetEditingLayerGUID();
+				check(!InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
+
+				FGuid LayerGuidToSeek = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
 
 				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == LayerGuidToSeek)
 				{
@@ -4774,7 +4783,11 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			{
 				CurrentWeightmapUsage->Modify();
 			}
-			CurrentWeightmapUsage->LayerGuid = InCanUseCurrentEditingWeightmap ? CurrentLayerGuid : FGuid();
+
+			FGuid EditingLayerGUID = GetEditingLayerGUID();
+			check(!InCanUseEditingWeightmap || EditingLayerGUID.IsValid());
+
+			CurrentWeightmapUsage->LayerGuid = InCanUseEditingWeightmap ? EditingLayerGUID : FGuid();
 			// UE_LOG(LogLandscape, Log, TEXT("Making a new texture %s"), *CurrentWeightmapTexture->GetName());
 		}
 
@@ -4855,8 +4868,8 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 	}
 
 	// Replace the weightmap textures
-	SetWeightmapTextures(MoveTemp(NewWeightmapTextures), InCanUseCurrentEditingWeightmap);
-	SetWeightmapTexturesUsage(MoveTemp(NewComponentWeightmapTexturesUsage), InCanUseCurrentEditingWeightmap);	
+	SetWeightmapTextures(MoveTemp(NewWeightmapTextures), InCanUseEditingWeightmap);
+	SetWeightmapTexturesUsage(MoveTemp(NewComponentWeightmapTexturesUsage), InCanUseEditingWeightmap);	
 }
 
 void ALandscapeProxy::RemoveInvalidWeightmaps()
