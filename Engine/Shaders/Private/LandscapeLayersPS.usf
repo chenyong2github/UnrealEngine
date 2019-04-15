@@ -21,7 +21,7 @@ float ExtractHeight(float2 InPackedHeight)
 
 float2 PackHeight(float InExtractedHeight)
 {
-	InExtractedHeight = clamp(InExtractedHeight, 0.0f, 65536.0f);
+	InExtractedHeight = clamp(InExtractedHeight, 0.0f, 65535.0f);
 	int iHeight = (int)InExtractedHeight;
 	return float2((float)((iHeight - (iHeight & 255)) >> 8) / 255.0, (float)(iHeight & 255) / 255.0);
 }
@@ -266,7 +266,7 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 		}
 		else
 		{
-			HeightResult = clamp(round(lerp(SourceHeight, DownHeight, Alpha)), 0.0, 65536.0);
+			HeightResult = clamp(round(lerp(SourceHeight, DownHeight, Alpha)), 0.0, 65535.0);
 			NormalResult.x = lerp(SourceSample.b, DownSample.b, Alpha);
 			NormalResult.y = lerp(SourceSample.a, DownSample.a, Alpha);
 		}
@@ -290,7 +290,7 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 		}
 		else
 		{
-			HeightResult = clamp(round(lerp(RightHeight, DownRightHeight, Alpha)), 0.0, 65536.0);;
+			HeightResult = clamp(round(lerp(RightHeight, DownRightHeight, Alpha)), 0.0, 65535.0);;
 			NormalResult.x = lerp(RightSample.b, DownRightSample.b, Alpha);
 			NormalResult.y = lerp(RightSample.a, DownRightSample.a, Alpha);
 		}
@@ -309,13 +309,13 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 
 		if (IsMinBorderTexelY) // on top border
 		{
-			HeightResult = clamp(round(lerp(SourceHeight, RightHeight, Alpha)), 0.0, 65536.0);
+			HeightResult = clamp(round(lerp(SourceHeight, RightHeight, Alpha)), 0.0, 65535.0);
 			NormalResult.x = lerp(SourceSample.b, RightSample.b, Alpha);
 			NormalResult.y = lerp(SourceSample.a, RightSample.a, Alpha);
 		}
 		else if (IsMaxBorderTexelY) // on bottom border
 		{
-			HeightResult = clamp(round(lerp(DownHeight, DownRightHeight, Alpha)), 0.0, 65536.0);
+			HeightResult = clamp(round(lerp(DownHeight, DownRightHeight, Alpha)), 0.0, 65535.0);
 			NormalResult.x = lerp(DownSample.b, DownRightSample.b, Alpha);
 			NormalResult.y = lerp(DownSample.a, DownRightSample.a, Alpha);
 		}
@@ -324,7 +324,7 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 			float SourceToRightHeight = lerp(SourceHeight, RightHeight, Alpha);
 			float DownToDownRightHeight = lerp(DownHeight, DownRightHeight, Alpha);
 
-			HeightResult = clamp(round(lerp(SourceToRightHeight, DownToDownRightHeight, Alpha)), 0.0, 65536.0);
+			HeightResult = clamp(round(lerp(SourceToRightHeight, DownToDownRightHeight, Alpha)), 0.0, 65535.0);
 			NormalResult.x = lerp(lerp(SourceSample.b, RightSample.b, Alpha), lerp(DownSample.b, DownRightSample.b, Alpha), Alpha);
 			NormalResult.y = lerp(lerp(SourceSample.a, RightSample.a, Alpha), lerp(DownSample.a, DownRightSample.a, Alpha), Alpha);
 		}

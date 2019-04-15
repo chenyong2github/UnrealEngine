@@ -4513,36 +4513,42 @@ bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 		return false;
 	}
 
-	TArray<ALandscapeProxy*> AllLandscapes;
-	AllLandscapes.Add(CurrentToolTarget.LandscapeInfo->LandscapeActor.Get());
+	bool bCanFill = true;
 
-	for (const auto& It : CurrentToolTarget.LandscapeInfo->Proxies)
+	CurrentToolTarget.LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		AllLandscapes.Add(It);
-	}
-
-	for (const ALandscapeProxy* LandscapeProxy : AllLandscapes)
-	{
-		for (const auto& ItLayerPair : LandscapeProxy->LandscapeLayersData)
+		if (!bCanFill)
 		{
-			const FLandscapeLayerData& LayerData = ItLayerPair.Value;
+			return;
+		}
 
-			for (const auto& ItWeightmapPair : LayerData.WeightmapData)
+		ALandscape* Landscape = Proxy->GetLandscapeActor();
+
+		if (Landscape != nullptr)
+		{
+			for (FLandscapeLayer& Layer : Landscape->LandscapeLayers)
 			{
-				const FWeightmapLayerData& WeightmapData = ItWeightmapPair.Value;
-
-				for (const FWeightmapLayerAllocationInfo& Alloc : WeightmapData.WeightmapLayerAllocations)
+				for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 				{
-					if (Alloc.LayerInfo != nullptr)
+					const FLandscapeLayerComponentData* LayerComponentData = Component->GetLayerData(Layer.Guid);
+
+					if (LayerComponentData != nullptr)
 					{
-						return false;
+						for (const FWeightmapLayerAllocationInfo& Alloc : LayerComponentData->WeightmapData.LayerAllocations)
+						{
+							if (Alloc.LayerInfo != nullptr)
+							{
+								bCanFill = false;
+								return;
+							}
+						}
 					}
 				}
 			}
 		}
-	}
+	});	
 
-	return true;
+	return bCanFill;
 }
 
 void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)

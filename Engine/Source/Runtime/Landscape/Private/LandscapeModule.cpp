@@ -112,25 +112,7 @@ void GetLandscapeTexturesAndMaterials(ULevel* Level, TArray<UObject*>& OutTextur
 		if (LandscapeComponent)
 		{
 			LandscapeComponent->GetGeneratedTexturesAndMaterialInstances(OutTexturesAndMaterials);
-		}
-
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(ObjInLevel);
-
-			if (Landscape != nullptr)
-			{
-				for (auto& ItLayerDataPair : Landscape->LandscapeLayersData)
-				{
-					for (auto& ItHeightmapPair : ItLayerDataPair.Value.Heightmaps)
-					{
-						OutTexturesAndMaterials.AddUnique(ItHeightmapPair.Value);
-					}
-
-					// TODO: add support for weightmap
-				}
-			}
-		}
+		}		
 	}
 }
 
