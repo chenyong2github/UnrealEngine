@@ -146,20 +146,16 @@ struct CORE_API FWindowsPlatformAtomics
 		#endif
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) 
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(void*)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedExchangePointer requires Dest pointer to be aligned to %d bytes"), (int)alignof(void*));
 			}
 		#endif
 
-		#if PLATFORM_64BITS
-			return (void*)::_InterlockedExchange64((int64*)(Dest), (int64)(Exchange));
-		#else
-			return (void*)::_InterlockedExchange((long*)(Dest), (long)(Exchange));
-		#endif
+		return ::_InterlockedExchangePointer(Dest, Exchange);
 	}
 
 	static FORCEINLINE int8 InterlockedCompareExchange( volatile int8* Dest, int8 Exchange, int8 Comparand )
@@ -180,9 +176,9 @@ struct CORE_API FWindowsPlatformAtomics
 	static FORCEINLINE int64 InterlockedCompareExchange( volatile int64* Dest, int64 Exchange, int64 Comparand )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(int64)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedCompareExchange int64 requires Dest pointer to be aligned to %d bytes"), (int)alignof(int64));
 			}
 		#endif
 
@@ -299,11 +295,11 @@ struct CORE_API FWindowsPlatformAtomics
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (IsAligned(Dest,16) == false)
 		{
-			HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to 16 bytes") );
+			HandleAtomicsFailure(TEXT("InterlockedCompareExchange128 requires Dest pointer to be aligned to 16 bytes") );
 		}
 		if (IsAligned(Comparand,16) == false)
 		{
-			HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Comparand pointer to be aligned to 16 bytes") );
+			HandleAtomicsFailure(TEXT("InterlockedCompareExchange128 requires Comparand pointer to be aligned to 16 bytes") );
 		}
 #endif
 
@@ -323,20 +319,16 @@ struct CORE_API FWindowsPlatformAtomics
 
 #endif // PLATFORM_HAS_128BIT_ATOMICS
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer( void** Dest, void* Exchange, void* Comparand )
+	static FORCEINLINE void* InterlockedCompareExchangePointer( void*volatile* Dest, void* Exchange, void* Comparand )
 	{
 		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (IsAligned(Dest) == false)
+			if (IsAligned(Dest, alignof(void*)) == false)
 			{
-				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), sizeof(void*));
+				HandleAtomicsFailure(TEXT("InterlockedCompareExchangePointer requires Dest pointer to be aligned to %d bytes"), (int)alignof(void*));
 			}
 		#endif
 
-		#if PLATFORM_64BITS
-			return (void*)::_InterlockedCompareExchange64((int64*)Dest, (int64)Exchange, (int64)Comparand);
-		#else
-			return (void*)::_InterlockedCompareExchange((long*)Dest, (long)Exchange, (long)Comparand);
-		#endif
+		return ::_InterlockedCompareExchangePointer(Dest, Exchange, Comparand);
 	}
 
 	/**

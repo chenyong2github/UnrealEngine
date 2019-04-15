@@ -105,7 +105,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 //		return __sync_lock_test_and_set(Value, Exchange);
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr(void** Dest, void* Exchange)
+	static FORCEINLINE void* InterlockedExchangePtr(void*volatile* Dest, void* Exchange)
 	{
 		return __sync_lock_test_and_set(Dest, Exchange);
 	}
@@ -227,7 +227,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		__atomic_store((volatile int64*)Src, &Val, __ATOMIC_RELAXED);
 	}
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest, void* Exchange, void* Comperand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest, void* Exchange, void* Comperand)
 	{
 		return __sync_val_compare_and_swap(Dest, Comperand, Exchange);
 	}
@@ -347,7 +347,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		return Result;
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 		void* Result = *Dest;
 		*Dest = Exchange;
@@ -474,7 +474,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		*Src = Val;
 	}
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer( void** Dest, void* Exchange, void* Comperand )
+	static FORCEINLINE void* InterlockedCompareExchangePointer( void*volatile* Dest, void* Exchange, void* Comperand )
 	{
 		void* Result = *Dest;
 		if (Result == Comperand)

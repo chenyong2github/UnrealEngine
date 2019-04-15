@@ -141,7 +141,7 @@ struct FGenericPlatformAtomics
 	/**
 	 * Atomically swaps two pointers returning the original pointer to the caller
 	 */
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 #if PLATFORM_64BITS
 		#error must implement
@@ -232,7 +232,7 @@ struct FGenericPlatformAtomics
 	 * Atomically compares the pointer to comparand and replaces with the exchange
 	 * pointer if they are equal and returns the original value
 	 */
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest,void* Exchange,void* Comperand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest,void* Exchange,void* Comperand)
 	{
 #if PLATFORM_64BITS
 		#error must implement

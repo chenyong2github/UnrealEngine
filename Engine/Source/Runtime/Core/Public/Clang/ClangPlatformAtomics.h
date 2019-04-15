@@ -94,7 +94,7 @@ struct CORE_API FClangPlatformAtomics : public FGenericPlatformAtomics
 		return __sync_lock_test_and_set(Value, Exchange);
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr(void** Dest, void* Exchange)
+	static FORCEINLINE void* InterlockedExchangePtr(void*volatile* Dest, void* Exchange)
 	{
 		return __sync_lock_test_and_set(Dest, Exchange);
 	}
@@ -221,7 +221,7 @@ struct CORE_API FClangPlatformAtomics : public FGenericPlatformAtomics
 		return InterlockedCompareExchange((volatile int64*)Src, 0, 0);
 	}
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest, void* Exchange, void* Comperand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest, void* Exchange, void* Comperand)
 	{
 		return __sync_val_compare_and_swap(Dest, Comperand, Exchange);
 	}
