@@ -1999,7 +1999,7 @@ void UScriptStruct::PrepareCppStructOps()
 	}
 
 	check(!(StructFlags & STRUCT_ComputedFlags));
-	if (CppStructOps->HasSerializer())
+	if (CppStructOps->HasSerializer() || CppStructOps->HasStructuredSerializer())
 	{
 		UE_LOG(LogClass, Verbose, TEXT("Native struct %s has a custom serializer."),*GetName());
 		StructFlags = EStructFlags(StructFlags | STRUCT_SerializeNative );
