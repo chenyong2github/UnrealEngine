@@ -1446,7 +1446,7 @@ FReply FPersonaMeshDetails::OnApplyChanges()
 	return FReply::Handled();
 }
 
-void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
+void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex, bool bReregisterComponent /*= true*/)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
@@ -1462,7 +1462,7 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 		{
 			//Restore the base LOD data
 			CurrentLODInfo.bHasBeenSimplified = false;
-			FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex, true);
+			FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex, bReregisterComponent);
 			return;
 		}
 		else if (!CurrentLODInfo.bHasBeenSimplified
@@ -1489,14 +1489,14 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 		UpdateContext.SkeletalMesh = SkelMesh;
 		UpdateContext.AssociatedComponents.Push(GetPersonaToolkit()->GetPreviewMeshComponent());
 
-		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex);
+		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, bReregisterComponent);
 	}
 	return;
 }
 
 //Regenerate dependent LODs if we re-import LOD X any LOD Z using X has source must be regenerated
 //Also just generate already simplified mesh
-void FPersonaMeshDetails::RegenerateDependentLODs(int32 LODIndex)
+void FPersonaMeshDetails::RegenerateDependentLODs(int32 LODIndex, bool bReregisterComponent /*= true*/)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
 	check(SkelMesh);
@@ -1516,7 +1516,7 @@ void FPersonaMeshDetails::RegenerateDependentLODs(int32 LODIndex)
 			{
 				DependentLODs[CurrentLODIndex] = true;
 				//Regenerate this LOD
-				RegenerateOneLOD(CurrentLODIndex);
+				RegenerateOneLOD(CurrentLODIndex, bReregisterComponent);
 			}
 		}
 	}
@@ -1554,9 +1554,41 @@ FReply FPersonaMeshDetails::RegenerateLOD(int32 LODIndex)
 			}
 		}
 	}
+	
+	//Reregister scope
+	{
+		TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
+		SkelMesh->ReleaseResources();
+		SkelMesh->ReleaseResourcesFence.Wait();
+		SkelMesh->PreEditChange(nullptr);
+		SkelMesh->Modify();
 
-	RegenerateOneLOD(LODIndex);
-	RegenerateDependentLODs(LODIndex);
+		// Unbind any existing clothing assets before we regenerate all LODs
+		TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
+		ClothingAssetUtils::GetMeshClothingAssetBindings(SkelMesh, ClothingBindings);
+
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			Binding.Asset->UnbindFromSkeletalMesh(SkelMesh, Binding.LODIndex);
+		}
+
+		RegenerateOneLOD(LODIndex, false);
+		RegenerateDependentLODs(LODIndex, false);
+
+		//Restore all clothing we can
+		for (ClothingAssetUtils::FClothingAssetMeshBinding& Binding : ClothingBindings)
+		{
+			if (SkelMesh->GetImportedModel()->LODModels.IsValidIndex(Binding.LODIndex) &&
+				SkelMesh->GetImportedModel()->LODModels[Binding.LODIndex].Sections.IsValidIndex(Binding.SectionIndex))
+			{
+				Binding.Asset->BindToSkeletalMesh(SkelMesh, Binding.LODIndex, Binding.SectionIndex, Binding.AssetInternalLodIndex);
+			}
+		}
+
+		SkelMesh->PostEditChange();
+		SkelMesh->InitResources();
+	}
+
 	return FReply::Handled();
 }
 
