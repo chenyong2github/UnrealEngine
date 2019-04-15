@@ -1071,7 +1071,7 @@ struct FRemoveUnusedInputs : FRemoveAlgorithm
 		using namespace CrossCompiler::AST;
 
 		auto* Zero = new(Allocator) FUnaryExpression(Allocator, EOperators::FloatConstant, nullptr, SourceInfo);
-		Zero->FloatConstant = 0;
+		Zero->Identifier = Allocator->Strdup(TEXT("0"));
 		auto* Initializer = new(Allocator) FUnaryExpression(Allocator, EOperators::TypeCast, Zero, SourceInfo);
 		Initializer->TypeSpecifier = MakeSimpleType(OriginalStructSpecifier->Name)->Specifier;
 
@@ -1137,7 +1137,7 @@ struct FRemoveUnusedInputs : FRemoveAlgorithm
 		{
 			// Make a local to generate the in parameter: Type Local = (Type)0;
 			auto* Zero = new(Allocator) FUnaryExpression(Allocator, EOperators::FloatConstant, nullptr, SourceInfo);
-			Zero->FloatConstant = 0;
+			Zero->Identifier = Allocator->Strdup(TEXT("0"));
 			Initializer = new(Allocator) FUnaryExpression(Allocator, EOperators::TypeCast, Zero, SourceInfo);
 			Initializer->TypeSpecifier = ParameterDeclarator->Type->Specifier;
 
