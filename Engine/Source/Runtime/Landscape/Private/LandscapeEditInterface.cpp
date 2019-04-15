@@ -2266,8 +2266,15 @@ void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLa
 	{
 		if (LandscapeInfo->LandscapeActor)
 		{
-			LandscapeInfo->LandscapeActor->ForEachLayer([&](const FLandscapeLayer& CurrentLayer)
+			LandscapeInfo->LandscapeActor->Modify();
+			LandscapeInfo->LandscapeActor->ForEachLayer([&](FLandscapeLayer& CurrentLayer)
 			{
+				bool OutValue;
+				if (CurrentLayer.WeightmapLayerAllocationBlend.RemoveAndCopyValue(FromLayerInfo, OutValue))
+				{
+					CurrentLayer.WeightmapLayerAllocationBlend.Add(ToLayerInfo, OutValue);
+				}
+
 				FScopedSetLandscapeEditingLayer Scope(LandscapeInfo->LandscapeActor.Get(), CurrentLayer.Guid);
 				DoReplace();
 			});
