@@ -1476,6 +1476,8 @@ ESimpleElementBlendMode FCanvas::BlendToSimpleElementBlend(EBlendMode BlendMode)
 			return SE_BLEND_Modulate;
 		case BLEND_AlphaComposite:
 			return SE_BLEND_AlphaComposite;
+		case BLEND_AlphaHoldout:
+			return SE_BLEND_AlphaHoldout;
 		case BLEND_Translucent:
 		default:
 			return SE_BLEND_Translucent;

@@ -1467,11 +1467,20 @@ void FMaterial::SetupMaterialEnvironment(
 			}
 			break;
 		}
-	case BLEND_AlphaComposite: 
-		{
-			// Fall through the case, blend mode will reuse MATERIALBLENDING_TRANSLUCENT
-			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1"));
-		}
+	case BLEND_AlphaComposite:
+	{
+		// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
+		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+		break;
+	}
+	case BLEND_AlphaHoldout:
+	{
+		// Blend mode will reuse MATERIALBLENDING_TRANSLUCENT
+		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ALPHAHOLDOUT"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1"));
+		break;
+	}
 	case BLEND_Translucent: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_TRANSLUCENT"),TEXT("1")); break;
 	case BLEND_Additive: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ADDITIVE"),TEXT("1")); break;
 	case BLEND_Modulate: OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_MODULATE"),TEXT("1")); break;

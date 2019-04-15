@@ -309,6 +309,10 @@ half3 FrameBufferBlendOp(half4 Source)
 // so ensure  MATERIALBLENDING_ALPHACOMPOSITE gets first in line
 #elif MATERIALBLENDING_ALPHACOMPOSITE
 	return Source.rgb + (Dest.rgb*(1.0 - Source.a));
+// AlphaHoldout will set both MATERIALBLENDING_TRANSLUCENT and MATERIALBLENDING_ALPHAHOLDOUT defines
+// so ensure  MATERIALBLENDING_ALPHAHOLDOUT gets first in line
+#elif MATERIALBLENDING_ALPHAHOLDOUT
+	return (Dest.rgb*(1.0 - Source.a));
 #elif MATERIALBLENDING_TRANSLUCENT
 	return (Source.rgb*Source.a) + (Dest.rgb*(1.0 - Source.a));
 #elif MATERIALBLENDING_ADDITIVE
@@ -649,6 +653,9 @@ void Main(
 #endif
 
 	#if MATERIALBLENDING_ALPHACOMPOSITE
+		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * Opacity, Opacity);
+	#if MATERIALBLENDING_ALPHAHOLDOUT
+		// not implemented for holdout
 		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * Opacity, Opacity);
 	#elif MATERIALBLENDING_TRANSLUCENT
 		OutColor = half4(Color * VertexFog.a + VertexFog.rgb, Opacity);

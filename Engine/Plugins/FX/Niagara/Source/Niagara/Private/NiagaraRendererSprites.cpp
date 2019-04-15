@@ -262,7 +262,7 @@ void NiagaraRendererSprites::SetVertexFactoryParticleData(
 
 	int32 NumInstances = DynamicDataSprites->RTParticleData.GetNumInstances();
 	FNiagaraGPUSortInfo SortInfo;
-	if (View && Properties->SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Translucent || !Properties->bSortOnlyWhenTranslucent))
+	if (View && Properties->SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout|| BlendMode == BLEND_Translucent || !Properties->bSortOnlyWhenTranslucent))
 	{
 		SortInfo.ParticleCount = NumInstances;
 		SortInfo.SortMode = Properties->SortMode;

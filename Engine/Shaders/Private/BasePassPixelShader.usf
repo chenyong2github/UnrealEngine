@@ -1113,6 +1113,10 @@ void FPixelShaderInOut_MainPS(
 			Out.MRT[0] = half4(Color, 0);
 		#endif
 		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+	#elif MATERIALBLENDING_ALPHAHOLDOUT
+		// not implemented for holdout
+		Out.MRT[0] = half4(Color * Fogging.a + Fogging.rgb * Opacity, Opacity);
+		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
 	#elif MATERIALBLENDING_ALPHACOMPOSITE
 		Out.MRT[0] = half4(Color * Fogging.a + Fogging.rgb * Opacity, Opacity);
 		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);

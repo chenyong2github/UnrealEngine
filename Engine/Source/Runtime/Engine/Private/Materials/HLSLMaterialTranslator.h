@@ -811,6 +811,11 @@ public:
 				}
 			}
 
+			if (BlendMode == BLEND_AlphaHoldout && MaterialShadingModel != MSM_Unlit)
+			{
+				Errorf(TEXT("Alpha Holdout blend mode must use unlit shading model."));
+			}
+
 			if (Domain == MD_Volume && BlendMode != BLEND_Additive)
 			{
 				Errorf(TEXT("Volume materials must use an Additive blend mode."));

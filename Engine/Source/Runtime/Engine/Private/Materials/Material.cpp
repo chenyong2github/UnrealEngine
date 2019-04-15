@@ -6034,7 +6034,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = false;
 		break;
 	case MP_Refraction:
-		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
+		Active = bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate;
 		break;
 	case MP_Opacity:
 		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
@@ -6075,8 +6075,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = bHasTessellation;
 		break;
 	case MP_EmissiveColor:
-		// Emissive is always active, even for light functions and post process materials
-		Active = true;
+		// Emissive is always active, even for light functions and post process materials, 
+		// but not for AlphaHoldout
+		Active = BlendMode != BLEND_AlphaHoldout;
 		break;
 	case MP_WorldPositionOffset:
 		Active = true;

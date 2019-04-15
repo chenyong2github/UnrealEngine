@@ -88,6 +88,7 @@ FString GetBlendModeString(EBlendMode BlendMode)
 		case BLEND_Additive: BlendModeName = TEXT("BLEND_Additive"); break;
 		case BLEND_Modulate: BlendModeName = TEXT("BLEND_Modulate"); break;
 		case BLEND_AlphaComposite: BlendModeName = TEXT("BLEND_AlphaComposite"); break;
+		case BLEND_AlphaHoldout: BlendModeName = TEXT("BLEND_AlphaHoldout"); break;
 		default: BlendModeName = TEXT("Unknown"); break;
 	}
 	return BlendModeName;
