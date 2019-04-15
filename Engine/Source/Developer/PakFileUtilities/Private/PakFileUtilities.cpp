@@ -23,7 +23,7 @@
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
-#define GUARANTEE_UASSET_AND_UEXP_IN_SAME_PAK 1
+#define GUARANTEE_UASSET_AND_UEXP_IN_SAME_PAK 0
 
 #define SEEK_OPT_VERBOSITY Display
 
@@ -363,6 +363,7 @@ struct FPakCommandLineParameters
 		, UseCustomCompressor(false)
 		, bSign(false)
 		, bPatchCompatibilityMode421(false)
+		, bFallbackOrderForNonUassetFiles(false)
 	{
 	}
 
@@ -380,6 +381,7 @@ struct FPakCommandLineParameters
 	FGuid EncryptionKeyGuid;
 	bool bSign;
 	bool bPatchCompatibilityMode421;
+	bool bFallbackOrderForNonUassetFiles;
 };
 
 struct FPakEntryPair
@@ -762,7 +764,12 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	if (FParse::Param(CmdLine, TEXT("patchcompatibilitymode421")))
 	{
 		CmdLineParameters.bPatchCompatibilityMode421 = true;
-		}
+	}
+
+	if (FParse::Param(CmdLine, TEXT("fallbackOrderForNonUassetFiles")))
+	{
+		CmdLineParameters.bFallbackOrderForNonUassetFiles = true;
+	}
 
 	if (FParse::Value(CmdLine, TEXT("-blocksize="), ClusterSizeString) && 
 		FParse::Value(CmdLine, TEXT("-blocksize="), CmdLineParameters.FileSystemBlockSize))
@@ -976,7 +983,7 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 	UE_LOG(LogPakFile, Display, TEXT("Added %d entries to add to pak file."), Entries.Num());
 }
 
-void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakInputPair>& InEntries, const FPakOrderMap& OrderMap)
+void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakInputPair>& InEntries, const FPakOrderMap& OrderMap, const FPakCommandLineParameters& CmdLineParameters)
 {
 	UE_LOG(LogPakFile, Display, TEXT("Collecting files to add to pak file..."));
 	const double StartTime = FPlatformTime::Seconds();
@@ -1064,7 +1071,7 @@ void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakIn
 			FileInput.Source = Input.Source;
 			FPaths::MakeStandardFilename(FileInput.Source);
 			FileInput.Dest = FileInput.Source.Replace(*Directory, *Input.Dest, ESearchCase::IgnoreCase);
-			uint64 FileOrder = OrderMap.GetFileOrder(FileInput.Dest, true, &FileInput.bIsInPrimaryOrder);
+			uint64 FileOrder = OrderMap.GetFileOrder(FileInput.Dest, CmdLineParameters.bFallbackOrderForNonUassetFiles, &FileInput.bIsInPrimaryOrder);
 			if (FileOrder != MAX_uint64)
 			{
 				FileInput.SuggestedOrder = FileOrder;
@@ -3748,7 +3755,7 @@ bool Repack(const FString& InputPakFile, const FString& OutputPakFile, const FPa
 	if (ExtractFilesFromPak(*InputPakFile, Hashes, *TempDir, false, InKeyChain, nullptr, &Entries, &DeletedEntries, &OrderMap, &EncryptionKeys, &bAnySigned))
 	{
 		TArray<FPakInputPair> FilesToAdd;
-		CollectFilesToAdd(FilesToAdd, Entries, OrderMap);
+		CollectFilesToAdd(FilesToAdd, Entries, OrderMap, CmdLineParameters);
 
 		if (bIncludeDeleted)
 		{
@@ -4159,7 +4166,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 		// Start collecting files
 		TArray<FPakInputPair> FilesToAdd;
-		CollectFilesToAdd(FilesToAdd, Entries, OrderMap);
+		CollectFilesToAdd(FilesToAdd, Entries, OrderMap, CmdLineParameters);
 
 		if ( CmdLineParameters.GeneratePatch )
 		{
@@ -4223,5 +4230,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 	UE_LOG(LogPakFile, Error, TEXT("    -compressionformat[s]=<Format[,format2,...]> (set the format(s) to compress with, falling back on failures)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -encryptionkeyoverrideguid (override the encryption key guid used for encrypting data in this pak file)"));
 	UE_LOG(LogPakFile, Error, TEXT("    -sign (generate a signature (.sig) file alongside the pak)"));
+	UE_LOG(LogPakFile, Error, TEXT("    -fallbackOrderForNonUassetFiles (if order is not specified for ubulk/uexp files, figure out implicit order based on the uasset order. Generally applies only to the cooker order)"));
+
 	return false;
 }

@@ -199,6 +199,8 @@ const TCHAR* FIOSPlatformMisc::GamePersistentDownloadDir()
 #endif
         Result = DownloadPath + Result;
         NSURL* URL = [NSURL fileURLWithPath : Result.GetNSString()];
+#if !PLATFORM_TVOS		
+		// this folder is expected to not exist on TVOS 
         if (![[NSFileManager defaultManager] fileExistsAtPath:[URL path]])
         {
             [[NSFileManager defaultManager] createDirectoryAtURL:URL withIntermediateDirectories : YES attributes : nil error : nil];
@@ -211,6 +213,7 @@ const TCHAR* FIOSPlatformMisc::GamePersistentDownloadDir()
         {
             NSLog(@"Error excluding %@ from backup %@",[URL lastPathComponent], error);
         }
+#endif		
     }
     return *GamePersistentDownloadDir;
 }
@@ -1267,6 +1270,13 @@ int32 FIOSPlatformMisc::IOSVersionCompare(uint8 Major, uint8 Minor, uint8 Revisi
 	}
 
 	return 0;
+}
+
+FString FIOSPlatformMisc::GetProjectVersion()
+{
+	NSDictionary* infoDictionary = [[NSBundle mainBundle] infoDictionary];
+	FString localVersionString = FString(infoDictionary[@"CFBundleShortVersionString"]);
+	return localVersionString;
 }
 
 bool FIOSPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc)

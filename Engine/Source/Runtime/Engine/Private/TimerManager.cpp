@@ -12,6 +12,7 @@
 #include "Misc/TimeGuard.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Transform.h"
+#include "HAL/PlatformStackWalk.h"
 
 DECLARE_CYCLE_STAT(TEXT("SetTimer"), STAT_SetTimer, STATGROUP_Engine);
 DECLARE_CYCLE_STAT(TEXT("SetTimeForNextTick"), STAT_SetTimerForNextTick, STATGROUP_Engine);
@@ -28,6 +29,24 @@ static FAutoConsoleVariableRef CVarDumpTimerLogsThreshold(
 	TEXT("TimerManager.DumpTimerLogsThreshold"), DumpTimerLogsThreshold,
 	TEXT("Threshold (in milliseconds) after which we log timer info to try and help track down spikes in the timer code. Disabled when set to 0"),
 	ECVF_Default);
+
+static int32 DumpTimerLogResolveVirtualFunctions = 1;
+static FAutoConsoleVariableRef CVarDumpTimerLogResolveVirtualFunctions(
+	TEXT("TimerManager.DumpTimerLogResolveVirtualFunctions"), DumpTimerLogResolveVirtualFunctions,
+	TEXT("When logging timer info virtual functions will be resolved, if possible."),
+	ECVF_Default);
+
+static int32 DumpTimerLogSymbolNames = 1;
+static FAutoConsoleVariableRef CVarDumpTimerLogSymbolNames(
+	TEXT("TimerManager.DumpTimerLogSymbolNames"), DumpTimerLogSymbolNames,
+	TEXT("When logging timer info, symbol names will be included if set to 1."),
+	ECVF_Default);
+
+static int32 MaxExpiredTimersToLog = 30;
+static FAutoConsoleVariableRef CVarMaxExpiredTimersToLog(
+	TEXT("TimerManager.MaxExpiredTimersToLog"), 
+	MaxExpiredTimersToLog,
+	TEXT("Maximum number of TimerData exceeding the threshold to log in a single frame."));
 
 namespace
 {
@@ -139,28 +158,78 @@ void FTimerManager::OnCrash()
 FString FTimerUnifiedDelegate::ToString() const
 {
 	const UObject* Object = nullptr;
-	FName FunctionName = NAME_None;
+	FString FunctionNameStr;
 	bool bDynDelegate = false;
 
 	if (FuncDelegate.IsBound())
 	{
+		FName FunctionName;
 #if USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
 		FunctionName = FuncDelegate.TryGetBoundFunctionName();
 #endif
+		if (FunctionName.IsNone())
+		{
+			void** VtableAddr = nullptr;
+#if PLATFORM_COMPILER_CLANG || defined(_MSC_VER)
+			// Add the vtable address
+			const void* UserObject = FuncDelegate.GetObjectForTimerManager();
+			if (UserObject)
+			{
+				VtableAddr = *(void***)UserObject;
+				FunctionNameStr = FString::Printf(TEXT("vtbl: %p"), VtableAddr);
+			}
+#endif // PLATFORM_COMPILER_CLANG
+
+			uint64 ProgramCounter = FuncDelegate.GetBoundProgramCounterForTimerManager();
+			if (ProgramCounter != 0)
+			{
+				// Add the function address
+
+#if PLATFORM_COMPILER_CLANG
+				// See if this is a virtual function. Heuristic is that real function addresses are higher than some value, and vtable offsets are lower
+				const uint64 MaxVTableAddressOffset = 32768;
+				if (DumpTimerLogResolveVirtualFunctions && VtableAddr && ProgramCounter > 0 && ProgramCounter < MaxVTableAddressOffset)
+				{
+					// If the ProgramCounter is just an offset to the vtable (virtual member function) then resolve the actual ProgramCounter here.
+					ProgramCounter = (uint64)VtableAddr[ProgramCounter / sizeof(void*)];
+				}
+#endif // PLATFORM_COMPILER_CLANG
+
+				FunctionNameStr += FString::Printf(TEXT(" func: 0x%llx"), ProgramCounter);
+
+				if (DumpTimerLogSymbolNames)
+				{
+					// Try to resolve the function address to a symbol
+					FProgramCounterSymbolInfo SymbolInfo;
+					SymbolInfo.FunctionName[0] = 0;
+					SymbolInfo.Filename[0] = 0;
+					SymbolInfo.LineNumber = 0;
+					FPlatformStackWalk::ProgramCounterToSymbolInfo(ProgramCounter, SymbolInfo);
+					FunctionNameStr += FString::Printf(TEXT(" %s [%s:%d]"), ANSI_TO_TCHAR(SymbolInfo.FunctionName), ANSI_TO_TCHAR(SymbolInfo.Filename), SymbolInfo.LineNumber);
+				}
+			}
+			else
+			{
+				FunctionNameStr = TEXT(" 0x0");
+			}
+		}
+		else
+		{
+			FunctionNameStr = FunctionName.ToString();
+		}
 	}
 	else if (FuncDynDelegate.IsBound())
 	{
 		Object = FuncDynDelegate.GetUObject();
-		FunctionName = FuncDynDelegate.GetFunctionName();
+		FunctionNameStr = FuncDynDelegate.GetFunctionName().ToString();
 		bDynDelegate = true;
 	}
 	else
 	{
-		static FName NotBoundName(TEXT("NotBound!"));
-		FunctionName = NotBoundName;
+		FunctionNameStr = TEXT("NotBound!");
 	}
 
-	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionName.ToString());
+	return FString::Printf(TEXT("%s,%s,%s"), bDynDelegate ? TEXT("DYN DELEGATE") : TEXT("DELEGATE"), Object == nullptr ? TEXT("NO OBJ") : *Object->GetPathName(), *FunctionNameStr);
 }
 
 // ---------------------------------
@@ -555,6 +624,7 @@ void FTimerManager::Tick(float DeltaTime)
 
 	const double StartTime = FPlatformTime::Seconds();
 	bool bDumpTimerLogsThresholdExceeded = false;
+	int32 NbExpiredTimers = 0;
 
 	InternalTime += DeltaTime;
 
@@ -582,7 +652,11 @@ void FTimerManager::Tick(float DeltaTime)
 
 			if (bDumpTimerLogsThresholdExceeded)
 			{
-				DescribeFTimerDataSafely(*GLog, *Top);
+				++NbExpiredTimers;
+				if (NbExpiredTimers <= MaxExpiredTimersToLog)
+				{
+					DescribeFTimerDataSafely(*GLog, *Top);
+				}
 			}
 
 			// Set the relevant level context for this timer
@@ -631,6 +705,7 @@ void FTimerManager::Tick(float DeltaTime)
 				if (DeltaT >= DumpTimerLogsThreshold)
 				{
 					bDumpTimerLogsThresholdExceeded = true;
+                    ++NbExpiredTimers;
 					UE_LOG(LogEngine, Log, TEXT("TimerManager's time threshold of %.2fms exceeded with a deltaT of %.4f, dumping current timer data."), DumpTimerLogsThreshold, DeltaT);
 
 					if (Top)
@@ -668,6 +743,11 @@ void FTimerManager::Tick(float DeltaTime)
 			// no need to go further down the heap, we can be finished
 			break;
 		}
+	}
+
+	if (NbExpiredTimers > MaxExpiredTimersToLog)
+	{
+		UE_LOG(LogEngine, Log, TEXT("TimerManager's caught %d Timers exceeding the time threshold. Only the first %d were logged."), NbExpiredTimers, MaxExpiredTimersToLog);
 	}
 
 	// Timer has been ticked.

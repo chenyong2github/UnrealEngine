@@ -252,7 +252,7 @@ public:
 	 * @param SubsystemName - Name of the requested online service
 	 * @return true if the subsystem is enabled by config
 	 */
-	static bool IsEnabled(const FName& SubsystemName);
+	static bool IsEnabled(const FName& SubsystemName, const FName& InstanceName = NAME_None);
 
 	/**
 	 * Return the name of the subsystem @see OnlineSubsystemNames.h

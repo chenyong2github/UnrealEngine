@@ -477,7 +477,8 @@ public:
 
 	int32 UpdateLandscapeList();
 	void UpdateTargetList();
-	
+	void SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo);
+
 	/** Update Display order list */
 	void UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode InTargetDisplayOrder);
 	void MoveTargetLayerDisplayOrder(int32 IndexToMove, int32 IndexToDestination);
@@ -503,11 +504,15 @@ public:
 	void SetLayerVisibility(bool InVisible, int32 InLayerIndex);
 	bool IsLayerVisible(int32 InLayerIndex) const;
 	bool IsLayerLocked(int32 InLayerIndex) const;
+	bool IsLayerAlphaVisible(int32 InLayerIndex) const;
 	void SetLayerLocked(int32 InLayerIndex, bool bInLocked);
 	struct FLandscapeLayer* GetCurrentLayer() const;
 	FGuid GetCurrentLayerGuid() const;
 	bool IsCurrentLayerBlendSubstractive(const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	void SetCurrentLayerSubstractiveBlendStatus(bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
+	void UpdateLandscapeSplines(bool bUpdateOnlySelected = false);
+	void AutoUpdateDirtyLandscapeSplines();
+	bool CanEditLayer(FText* Reason = nullptr, FLandscapeLayer* InLayer = nullptr);
 
 	void AddBrushToCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
 	void RemoveBrushFromCurrentLayer(int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);

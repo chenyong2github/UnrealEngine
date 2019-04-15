@@ -94,8 +94,16 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
-					Features |= EMetalFeaturesFences;
-					Features |= EMetalFeaturesHeaps;
+					
+					if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+					{
+						Features |= EMetalFeaturesFences;
+					}
+					
+					if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
+					{
+						Features |= EMetalFeaturesHeaps;
+					}
 					
 					if (MaxShaderVersion >= 4)
 					{
@@ -113,16 +121,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
 		{
 			Features |= EMetalFeaturesStencilView | EMetalFeaturesFunctionConstants | EMetalFeaturesGraphicsUAVs | EMetalFeaturesMemoryLessResources;
-			
-			if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
-			{
-				Features |= EMetalFeaturesFences;
-			}
-			
-			if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
-			{
-				Features |= EMetalFeaturesHeaps;
-			}
 		}
 		
 		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2))
@@ -158,8 +156,16 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 				if (Vers.majorVersion >= 12)
 				{
 					Features |= EMetalFeaturesMaxThreadsPerThreadgroup;
-					Features |= EMetalFeaturesFences;
-					Features |= EMetalFeaturesHeaps;
+					
+                    if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+                    {
+                        Features |= EMetalFeaturesFences;
+                    }
+                    
+                    if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
+                    {
+                        Features |= EMetalFeaturesHeaps;
+                    }
 					
 					if (MaxShaderVersion >= 4)
 					{
@@ -245,9 +251,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			if (MaxShaderVersion >= 4)
 			{
 				Features |= EMetalFeaturesTextureBuffers;
-            
-                IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-                GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
             }
             if (MaxShaderVersion >= 5)
             {
@@ -271,6 +274,9 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 					Features |= EMetalFeaturesHeaps;
 				}
 			}
+            
+			IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
+			GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
 		}
     }
     else if ([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound)
@@ -416,12 +422,10 @@ void FMetalCommandQueue::CommitCommandBuffer(mtlpp::CommandBuffer& CommandBuffer
 	MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, Commit());
 	
 	// Wait for completion when debugging command-buffers.
-#if METAL_DEBUG_OPTIONS
 	if (RuntimeDebuggingLevel >= EMetalDebugLevelWaitForComplete)
 	{
 		CommandBuffer.WaitUntilCompleted();
 	}
-#endif
 }
 
 void FMetalCommandQueue::SubmitCommandBuffers(TArray<mtlpp::CommandBuffer> BufferList, uint32 Index, uint32 Count)

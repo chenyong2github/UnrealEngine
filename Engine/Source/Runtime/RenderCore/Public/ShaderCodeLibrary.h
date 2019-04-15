@@ -87,6 +87,7 @@ struct RENDERCORE_API FStableShaderKeyAndValue
 
 	void ComputeKeyHash();
 	void ParseFromString(const FString& Src);
+	void ParseFromStringCached(const FString& Src, class TMap<uint32, FName>& NameCache);
 	FString ToString() const;
 	void ToString(FString& OutResult) const;
 	static FString HeaderLine();

@@ -1067,9 +1067,20 @@ void FD3D11DynamicRHI::StopNVAftermath()
 #endif
 
 #if INTEL_METRICSDISCOVERY
+static int32 GetIntelDriverBuildNumber(const FString& VerStr)
+{
+	int32 LastDotPos;
+	if (VerStr.FindLastChar(TEXT('.'), LastDotPos) && FCString::IsNumeric(&VerStr[LastDotPos + 1]))
+	{
+		return FCString::Atoi(&VerStr[LastDotPos + 1]);
+	}
+	return -1;
+}
+
 void FD3D11DynamicRHI::CreateIntelMetricsDiscovery()
 {
-	if (IsRHIDeviceIntel())
+	// Per Jeff from Intel: So far drivers >6323 are known working
+	if (IsRHIDeviceIntel() && GetIntelDriverBuildNumber(GRHIAdapterUserDriverVersion) > 6323)
 	{
 		IntelMetricsDiscoveryHandle = MakeUnique<Intel_MetricsDiscovery_ContextData>();
 
@@ -1580,6 +1591,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			}
 		}
 #endif // INTEL_METRICSDISCOVERY
+
+		// Disable the RHI thread by default for devices that will likely suffer in performance
+		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCores() < 4)
+		{
+			GRHISupportsRHIThread = false;
+		}
 
 		SetupAfterDeviceCreation();
 

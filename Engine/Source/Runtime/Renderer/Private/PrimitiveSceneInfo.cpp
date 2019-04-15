@@ -126,7 +126,6 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 #endif
 	PackedIndex(INDEX_NONE),
 	ComponentForDebuggingOnly(InComponent),
-	bNeedsStaticMeshUpdate(false),
 	bNeedsStaticMeshUpdateWithoutVisibilityCheck(false),
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
@@ -475,23 +474,27 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	}
 	MarkIndirectLightingCacheBufferDirty();
 
-	FPrimitiveSceneProxy::FLCIArray LCIs;
-	Proxy->GetLCIs(LCIs);
-	for (int32 i = 0; i < LCIs.Num(); ++i)
+	const bool bAllowStaticLighting = FReadOnlyCVARCache::Get().bAllowStaticLighting;
+	if (bAllowStaticLighting)
 	{
-		FLightCacheInterface* LCI = LCIs[i];
-
-		if (LCI) 
+		FPrimitiveSceneProxy::FLCIArray LCIs;
+		Proxy->GetLCIs(LCIs);
+		for (int32 i = 0; i < LCIs.Num(); ++i)
 		{
-			LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+			FLightCacheInterface* LCI = LCIs[i];
+
+			if (LCI)
+			{
+				LCI->CreatePrecomputedLightingUniformBuffer_RenderingThread(Scene->GetFeatureLevel());
+			}
 		}
-	}
 
-	NumLightmapDataEntries = LCIs.Num();
+		NumLightmapDataEntries = LCIs.Num();
 
-	if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
-	{
-		LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
+		if (NumLightmapDataEntries > 0 && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
+		{
+			LightmapDataOffset = Scene->GPUScene.LightmapDataAllocator.Allocate(NumLightmapDataEntries);
+		}
 	}
 
 	// Cache the nearest reflection proxy if needed
@@ -634,11 +637,9 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 
 	if (bUpdateStaticDrawLists)
 	{
-		if (bNeedsStaticMeshUpdate)
+		if (IsIndexValid()) // PackedIndex
 		{
-			Scene->PrimitivesNeedingStaticMeshUpdate.Remove(this);
-
-			bNeedsStaticMeshUpdate = false;
+			Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex] = false;
 		}
 
 		if (bNeedsStaticMeshUpdateWithoutVisibilityCheck)
@@ -656,23 +657,16 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	}
 }
 
+bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
+{
+	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
+}
+
 void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);
-	const bool bOriginalNeedsStaticMeshUpdate = bNeedsStaticMeshUpdate;
-	bNeedsStaticMeshUpdate = !bReAddToDrawLists;
-
-	if (bOriginalNeedsStaticMeshUpdate != bNeedsStaticMeshUpdate)
-	{
-		if (bNeedsStaticMeshUpdate)
-		{
-			Scene->PrimitivesNeedingStaticMeshUpdate.Add(this);
-		}
-		else
-		{
-			Scene->PrimitivesNeedingStaticMeshUpdate.Remove(this);
-		}
-	}
+	const bool bNeedsStaticMeshUpdate = !bReAddToDrawLists;
+	Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex] = bNeedsStaticMeshUpdate;
 
 	if (!bNeedsStaticMeshUpdate && bNeedsStaticMeshUpdateWithoutVisibilityCheck)
 	{
@@ -697,18 +691,16 @@ void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdLi
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshes()
 {
-	if (!bNeedsStaticMeshUpdate)
+	// Set a flag which causes InitViews to update the static meshes the next time the primitive is visible.
+	if (IsIndexValid()) // PackedIndex
 	{
-		// Set a flag which causes InitViews to update the static meshes the next time the primitive is visible.
-		bNeedsStaticMeshUpdate = true;
-
-		Scene->PrimitivesNeedingStaticMeshUpdate.Add(this);
+		Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex] = true;
 	}
 }
 
 void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck()
 {
-	if (bNeedsStaticMeshUpdate && !bNeedsStaticMeshUpdateWithoutVisibilityCheck)
+	if (NeedsUpdateStaticMeshes() && !bNeedsStaticMeshUpdateWithoutVisibilityCheck)
 	{
 		bNeedsStaticMeshUpdateWithoutVisibilityCheck = true;
 

@@ -9,6 +9,10 @@
 class FDependsNode;
 struct FARFilter;
 
+#ifndef ASSET_REGISTRY_STATE_DUMPING_ENABLED
+	#define ASSET_REGISTRY_STATE_DUMPING_ENABLED !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
+
 /** Load/Save options used to modify how the cache is serialized. These are read out of the AssetRegistry section of Engine.ini and can be changed per platform. */
 struct FAssetRegistrySerializationOptions
 {
@@ -262,6 +266,18 @@ public:
 	void PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options);
 	void PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const FAssetRegistrySerializationOptions& Options);
 
+	
+	/**
+	 * Initializes a cache from an existing using a set of filters. This is more efficient than calling InitalizeFromExisting and then PruneAssetData.
+	 * @param ExistingState State to use initialize from
+	 * @param RequiredPackages If set, only these packages will be maintained. If empty it will keep all unless filtered by other parameters
+	 * @param RemovePackages These packages will be removed from the current set
+	 * @param ChunksToKeep The list of chunks that are allowed to remain. Any assets in other chunks are pruned. If empty, all assets are kept regardless of chunk
+	 * @param Options Serialization options to read filter info from
+	 */
+	void InitializeFromExistingAndPrune(const FAssetRegistryState& ExistingState, const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options);
+
+
 	/** Serialize the registry to/from a file, skipping editor only data */
 	bool Serialize(FArchive& Ar, const FAssetRegistrySerializationOptions& Options);
 
@@ -273,6 +289,15 @@ public:
 
 	/** Returns the number of assets in this state */
 	int32 GetNumAssets() const { return NumAssets; }
+
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+	/**
+	 * Writes out the state in textual form. Use arguments to control which segments to emit.
+	 * @param Arguments List of segments to emit. Possible values: 'ObjectPath', 'PackageName', 'Path', 'Class', 'Tag', 'Dependencies' and 'PackageData'
+	 * @param OutLines Textual representation will be written to this array.
+	 */
+	void Dump(const TArray<FString>& Arguments, TArray<FString>& OutLines) const;
+#endif
 
 private:
 	/** Find the first non-redirector dependency node starting from InDependency. */
@@ -289,6 +314,9 @@ private:
 
 	/** Shrink all contained data structures. */
 	void Shrink();
+
+	/** Filter a set of tags and output a copy of the filtered set. */
+	static void FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterlist, const FAssetRegistrySerializationOptions & Options);
 
 	/** Set up the data structures for USE_COMPACT_ASSET_REGISTRY, doesn't really belong here */
 	static void IngestIniSettingsForCompact(TArray<FString>& AsFName, TArray<FString>& AsPathName, TArray<FString>& AsLocText);

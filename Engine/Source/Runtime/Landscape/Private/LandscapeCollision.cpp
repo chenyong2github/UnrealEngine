@@ -45,6 +45,10 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
+#if WITH_EDITOR
+#include "Settings/EditorExperimentalSettings.h"
+#endif
+
 #if WITH_EDITOR && WITH_PHYSX
 	#include "Physics/IPhysXCooking.h"
 #endif
@@ -1225,6 +1229,11 @@ void ULandscapeHeightfieldCollisionComponent::RecreateCollision()
 }
 
 #if WITH_EDITORONLY_DATA
+void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances()
+{
+	SnapFoliageInstances(FBox(FVector(-WORLD_MAX), FVector(WORLD_MAX)));
+}
+
 void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& InInstanceBox)
 {
 	UWorld* ComponentWorld = GetWorld();
@@ -1237,11 +1246,11 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 			continue;
 		}
 			
-		for (auto& MeshPair : IFA->FoliageMeshes)
+		for (auto& Pair : IFA->FoliageInfos)
 		{
 			// Find the per-mesh info matching the mesh.
-			UFoliageType* Settings = MeshPair.Key;
-			FFoliageMeshInfo& MeshInfo = *MeshPair.Value;
+			UFoliageType* Settings = Pair.Key;
+			FFoliageInfo& MeshInfo = *Pair.Value;
 			
 			const auto* InstanceSet = MeshInfo.ComponentHash.Find(BaseId);
 			if (InstanceSet)
@@ -1251,7 +1260,7 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 				bool bFirst = true;
 				TArray<int32> InstancesToRemove;
-				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponets;
+				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
 
 				for (int32 InstanceIndex : *InstanceSet)
 				{
@@ -1310,13 +1319,9 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 
 									// Todo: add do validation with other parameters such as max/min height etc.
 
-									check(MeshInfo.Component);
-									MeshInfo.Component->Modify();
-									MeshInfo.Component->UpdateInstanceTransform(InstanceIndex, Instance.GetInstanceWorldTransform(), true, false);
+									MeshInfo.SetInstanceWorldTransform(InstanceIndex, Instance.GetInstanceWorldTransform(), false);
 									// Re-add the new instance location to the hash
 									MeshInfo.InstanceHash->InsertInstance(Instance.Location, InstanceIndex);
-
-									MeshInfo.Component->MarkRenderStateDirty();
 								}
 								break;
 							}
@@ -1328,14 +1333,18 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 							InstancesToRemove.Add(InstanceIndex);
 						}
 
-						AffectedFoliageComponets.Add(MeshInfo.Component);
+						if (MeshInfo.GetComponent() != nullptr)
+						{
+							AffectedFoliageComponents.Add(MeshInfo.GetComponent());
+						}
+						
 					}
 				}
 
 				// Remove any unused instances
 				MeshInfo.RemoveInstances(IFA, InstancesToRemove, true);
 
-				for (UHierarchicalInstancedStaticMeshComponent* FoliageComp : AffectedFoliageComponets)
+				for (UHierarchicalInstancedStaticMeshComponent* FoliageComp : AffectedFoliageComponents)
 				{
 					FoliageComp->InvalidateLightingCache();
 				}
@@ -1465,13 +1474,17 @@ void ULandscapeHeightfieldCollisionComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	// Reinitialize physics after undo
-	if (CollisionSizeQuads > 0)
+    // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
+	if (!GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 	{
-		RecreateCollision();
-	}
+		// Reinitialize physics after undo
+		if (CollisionSizeQuads > 0)
+		{
+			RecreateCollision();
+		}
 
-	FNavigationSystem::UpdateComponentData(*this);
+		FNavigationSystem::UpdateComponentData(*this);
+	}
 }
 
 bool ULandscapeHeightfieldCollisionComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const

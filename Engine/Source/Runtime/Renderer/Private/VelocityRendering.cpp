@@ -435,6 +435,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(FRHICommandListImmediate& R
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderVelocities, FColor::Emerald);
 
 	check(FeatureLevel >= ERHIFeatureLevel::SM4);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderVelocities);
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
 	if (!ShouldRenderVelocities())
@@ -493,7 +494,7 @@ FPooledRenderTargetDesc FVelocityRendering::GetRenderTargetDesc()
 
 bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform)
 {
-	return !IsForwardShadingEnabled(ShaderPlatform) && CVarBasePassOutputsVelocity.GetValueOnAnyThread() == 1;
+	return IsUsingBasePassVelocity(ShaderPlatform);
 }
 
 bool FVelocityRendering::BasePassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel)
@@ -504,7 +505,7 @@ bool FVelocityRendering::BasePassCanOutputVelocity(ERHIFeatureLevel::Type Featur
 
 bool FVelocityRendering::VertexFactoryOnlyOutputsVelocityInBasePass(EShaderPlatform ShaderPlatform, bool bVertexFactorySupportsStaticLighting)
 {
-	return BasePassCanOutputVelocity(ShaderPlatform) && !(UseSelectiveBasePassOutputs() && bVertexFactorySupportsStaticLighting);;
+	return BasePassCanOutputVelocity(ShaderPlatform) && !(IsUsingSelectiveBasePassOutputs(ShaderPlatform) && bVertexFactorySupportsStaticLighting);;
 }
 
 bool FVelocityRendering::PrimitiveHasVelocity(ERHIFeatureLevel::Type FeatureLevel, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
@@ -516,10 +517,7 @@ bool FVelocityRendering::PrimitiveHasVelocity(ERHIFeatureLevel::Type FeatureLeve
 	}
 
 	// If the base pass is allowed to render velocity in the GBuffer, only mesh with static lighting need the velocity pass.
-	const bool bVelocityInGBuffer = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) 
-		&& !(UseSelectiveBasePassOutputs() && (PrimitiveSceneInfo->Proxy->HasStaticLighting()));
-
-	if (bVelocityInGBuffer)
+	if (FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) && !(IsUsingSelectiveBasePassOutputs(GetFeatureLevelShaderPlatform(FeatureLevel)) && PrimitiveSceneInfo->Proxy->HasStaticLighting()))
 	{
 		return false;
 	}

@@ -22,6 +22,7 @@ public class CrashReportClient : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"CrashDebugHelper",
+				"CrashReportCore",
 				"HTTP",
 				"Json",
 				"Projects",
@@ -30,7 +31,7 @@ public class CrashReportClient : ModuleRules
 				"Analytics",
 				"AnalyticsET",
 				"DesktopPlatform",
-                "LauncherPlatform"
+                		"LauncherPlatform"
 			}
 			);
 

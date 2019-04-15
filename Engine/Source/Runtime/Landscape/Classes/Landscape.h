@@ -72,24 +72,32 @@ enum EWeightmapRTType : uint8
 	WeightmapRT_Count
 };
 
+// Internal Update Flags that shouldn't be used alone
+enum EInternalLandscapeLayersContentUpdateFlag : uint32
+{
+	Internal_Heightmap_Setup = 0x00000001u,
+	Internal_Heightmap_Render = 0x00000002u,
+	Internal_Heightmap_BoundsAndCollision = 0x00000004u,
+	Internal_Heightmap_ResolveToTexture = 0x00000008u,
+	Internal_Heightmap_ClientUpdate = 0x00000010u,
+
+	Internal_Weightmap_Setup = 0x00000100u,
+	Internal_Weightmap_Render = 0x00000200u,
+	Internal_Weightmap_Collision = 0x00000400u,
+	Internal_Weightmap_ResolveToTexture = 0x00000800u,
+};
+
 enum ELandscapeLayersContentUpdateFlag : uint32
 {
-	Heightmap_Setup					= 0x00000001u,
-	Heightmap_Render				= 0x00000002u,
-	Heightmap_BoundsAndCollision	= 0x00000004u,
-	Heightmap_ResolveToTexture		= 0x00000008u,
-
-	Weightmap_Setup					= 0x00000100u,
-	Weightmap_Render				= 0x00000200u,
-	Weightmap_Collision				= 0x00000400u,
-	Weightmap_ResolveToTexture		= 0x00000800u,
+	Heightmap_Render = Internal_Heightmap_Render,
+	Weightmap_Render = Internal_Weightmap_Render,
 
 	// Combinations
-	Heightmap_All = Heightmap_Render | Heightmap_BoundsAndCollision | Heightmap_ResolveToTexture,
-	Weightmap_All = Weightmap_Render | Weightmap_Collision | Weightmap_ResolveToTexture,
+	Heightmap_All = Internal_Heightmap_Render | Internal_Heightmap_BoundsAndCollision | Internal_Heightmap_ResolveToTexture | Internal_Heightmap_ClientUpdate,
+	Weightmap_All = Internal_Weightmap_Render | Internal_Weightmap_Collision | Internal_Weightmap_ResolveToTexture,
 
 	All = Heightmap_All | Weightmap_All,
-	All_Setup = Heightmap_Setup | Weightmap_Setup,
+	All_Setup = Internal_Heightmap_Setup | Internal_Weightmap_Setup,
 	All_Render = Heightmap_Render | Weightmap_Render,
 };
 
@@ -139,6 +147,14 @@ struct FLandscapeLayerBrush
 	ALandscapeBlueprintCustomBrush* BPCustomBrush;
 };
 
+UENUM()
+enum ELandscapeBlendMode
+{
+	LSBM_AdditiveBlend,
+	LSBM_AlphaBlend,
+	LSBM_MAX,
+};
+
 USTRUCT()
 struct FLandscapeLayer
 {
@@ -151,6 +167,7 @@ struct FLandscapeLayer
 		, bLocked(false)
 		, HeightmapAlpha(1.0f)
 		, WeightmapAlpha(1.0f)
+		, BlendMode(LSBM_AdditiveBlend)
 	{}
 
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
@@ -170,6 +187,9 @@ struct FLandscapeLayer
 
 	UPROPERTY()
 	float WeightmapAlpha;
+
+	UPROPERTY()
+	TEnumAsByte<enum ELandscapeBlendMode> BlendMode;
 
 	UPROPERTY()
 	TArray<FLandscapeLayerBrush> Brushes;
@@ -217,6 +237,7 @@ public:
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostEditUndo() override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
@@ -226,23 +247,33 @@ public:
 	virtual void FinishDestroy() override;
 	//~ End UObject Interface
 
+	LANDSCAPE_API bool IsUpToDate() const;
 
 	// Layers stuff
 #if WITH_EDITOR
-	LANDSCAPE_API void RequestLayersContentUpdate(uint32 InDataFlags, bool InUpdateAllMaterials = false);
+	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayersContentUpdateFlag InDataFlags, bool InUpdateAllMaterials = false);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None, bool bInUpdateLayersContent = true);
+	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API bool IsLayerNameUnique(const FName& InName) const;
 	LANDSCAPE_API void SetLayerName(int32 InLayerIndex, const FName& InName);
 	LANDSCAPE_API void SetLayerAlpha(int32 InLayerIndex, const float InAlpha, bool bInHeightmap);
 	LANDSCAPE_API void SetLayerVisibility(int32 InLayerIndex, bool bInVisible);
+	LANDSCAPE_API void SetLayerLocked(int32 InLayerIndex, bool bLocked);
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
-	LANDSCAPE_API void ClearLayer(int32 InLayerIndex);
-	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid);
+	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
+	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(struct FLandscapeLayer&)> Fn);
+	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, bool bInUpdateCollision = true);
+	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, bool bInUpdateCollision = true);
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
-	LANDSCAPE_API void SetEditingLayer(FGuid InLayerGuid = FGuid());
+	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
 	LANDSCAPE_API void ShowOnlySelectedLayer(int32 InLayerIndex);
 	LANDSCAPE_API void ShowAllLayers();
+	LANDSCAPE_API void UpdateLandscapeSplines(const FGuid& InLayerGuid = FGuid(), bool bUpdateOnlySelected = false);
+	LANDSCAPE_API void SetLandscapeSplinesReservedLayer(int32 InLayerIndex);
+	LANDSCAPE_API struct FLandscapeLayer* GetLandscapeSplinesReservedLayer();
+	LANDSCAPE_API const struct FLandscapeLayer* GetLandscapeSplinesReservedLayer() const;
+	LANDSCAPE_API bool IsEditingLayerReservedForSplines() const;
 
 	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
@@ -254,7 +285,6 @@ public:
 	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
 	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
 	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
-		
 
 private:
 	void TickLayers(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction);
@@ -312,6 +342,13 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
+	/** Target Landscape Layer for Landscape Splines */
+	UPROPERTY()
+	FGuid LandscapeSplinesTargetLayerGuid;
+	
+	/** Current Editing Landscape Layer*/
+	FGuid EditingLayer;
+
 	UPROPERTY(TextExportTransient)
 	TArray<FLandscapeLayer> LandscapeLayers;
 

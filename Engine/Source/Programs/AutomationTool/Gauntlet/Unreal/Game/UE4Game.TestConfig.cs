@@ -25,9 +25,9 @@ namespace UE4Game
 		/// Applies these options to the provided app config
 		/// </summary>
 		/// <param name="AppConfig"></param>
-		public override void ApplyToConfig(UnrealAppConfig AppConfig)
+		public override void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
-			base.ApplyToConfig(AppConfig);
+			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
 			if (string.IsNullOrEmpty(Map) == false)
 			{

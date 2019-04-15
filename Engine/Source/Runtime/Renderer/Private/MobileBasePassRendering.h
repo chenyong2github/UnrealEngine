@@ -223,22 +223,23 @@ public:
 	}
 
 	/** Initialization constructor. */
-	TMobileBasePassPSPolicyParamType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer):
-		FMeshMaterialShader(Initializer)
+	TMobileBasePassPSPolicyParamType(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
+		: FMeshMaterialShader(Initializer)
 	{
 		LightMapPolicyType::PixelParametersType::Bind(Initializer.ParameterMap);
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileBasePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
 		
 		MobileDirectionLightBufferParam.Bind(Initializer.ParameterMap, FMobileDirectionalLightShaderParameters::StaticStructMetadata.GetShaderVariableName());
+		ReflectionParameter.Bind(Initializer.ParameterMap, FMobileReflectionCaptureShaderParameters::StaticStructMetadata.GetShaderVariableName());
 
-		ReflectionCubemap.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap"));
-		ReflectionSampler.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler"));
-		ReflectionCubemap1.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap1"));
-		ReflectionSampler1.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler1"));
-		ReflectionCubemap2.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap2"));
-		ReflectionSampler2.Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler2"));
-		MobileReflectionParams.Bind(Initializer.ParameterMap, TEXT("MobileReflectionParams"));
-		ReflectionPositionsAndRadii.Bind(Initializer.ParameterMap, TEXT("ReflectionPositionsAndRadii"));
+		HQReflectionCubemaps[0].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap0"));
+		HQReflectionSamplers[0].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler0"));
+		HQReflectionCubemaps[1].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap1"));
+		HQReflectionSamplers[1].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler1"));
+		HQReflectionCubemaps[2].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap2"));
+		HQReflectionSamplers[2].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler2"));
+		HQReflectionInvAverageBrigtnessParams.Bind(Initializer.ParameterMap, TEXT("ReflectionInvAverageBrigtness"));
+		HQReflectionPositionsAndRadii.Bind(Initializer.ParameterMap, TEXT("ReflectionPositionsAndRadii"));
 
 		LightPositionAndInvRadiusParameter.Bind(Initializer.ParameterMap, TEXT("LightPositionAndInvRadius"));
 		LightColorAndFalloffExponentParameter.Bind(Initializer.ParameterMap, TEXT("LightColorAndFalloffExponent"));
@@ -248,6 +249,7 @@ public:
 						
 		CSMDebugHintParams.Bind(Initializer.ParameterMap, TEXT("CSMDebugHint"));
 	}
+
 	TMobileBasePassPSPolicyParamType() {}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -256,15 +258,17 @@ public:
 		LightMapPolicyType::PixelParametersType::Serialize(Ar);
 
 		Ar << MobileDirectionLightBufferParam;
-		Ar << ReflectionCubemap;
-		Ar << ReflectionSampler;
-		Ar << ReflectionCubemap1;
-		Ar << ReflectionCubemap2;
-		Ar << ReflectionSampler1;
-		Ar << ReflectionSampler2;
-		Ar << MobileReflectionParams;
-		Ar << ReflectionPositionsAndRadii;
+		Ar << ReflectionParameter;
 
+		Ar << HQReflectionCubemaps[0];
+		Ar << HQReflectionCubemaps[1];
+		Ar << HQReflectionCubemaps[2];
+		Ar << HQReflectionSamplers[0];
+		Ar << HQReflectionSamplers[1];
+		Ar << HQReflectionSamplers[2];
+		Ar << HQReflectionInvAverageBrigtnessParams;
+		Ar << HQReflectionPositionsAndRadii;
+		
 		Ar << LightPositionAndInvRadiusParameter;
 		Ar << LightColorAndFalloffExponentParameter;
 		Ar << NumDynamicPointLightsParameter;
@@ -278,15 +282,13 @@ public:
 
 private:
 	FShaderUniformBufferParameter MobileDirectionLightBufferParam;
+	FShaderUniformBufferParameter ReflectionParameter;
 
-	FShaderResourceParameter ReflectionCubemap;
-	FShaderResourceParameter ReflectionSampler;
-	FShaderResourceParameter ReflectionCubemap1;
-	FShaderResourceParameter ReflectionSampler1;
-	FShaderResourceParameter ReflectionCubemap2;
-	FShaderResourceParameter ReflectionSampler2;
-	FShaderParameter MobileReflectionParams;
-	FShaderParameter ReflectionPositionsAndRadii;
+	// HQ reflection bound as loose params
+	FShaderResourceParameter HQReflectionCubemaps[3];
+	FShaderResourceParameter HQReflectionSamplers[3];
+	FShaderParameter HQReflectionInvAverageBrigtnessParams;
+	FShaderParameter HQReflectionPositionsAndRadii;
 	
 	FShaderParameter LightPositionAndInvRadiusParameter;
 	FShaderParameter LightColorAndFalloffExponentParameter;

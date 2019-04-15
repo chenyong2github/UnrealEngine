@@ -4,6 +4,7 @@
 
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
+#include "IMediaTextureSample.h"
 
 #import <AVFoundation/AVFoundation.h>
 
@@ -38,6 +39,11 @@ public:
 	/** Tick the video sampler (on the render thread). */
 	void Tick();
 
+	void ProcessFrame(CVPixelBufferRef Frame, FTimespan SampleTime, FTimespan SampleDuration);
+
+protected:
+
+	virtual void ProcessOutputSample(const TSharedRef<IMediaTextureSample, ESPMode::ThreadSafe>& Sample);
 private:
 
 	/** Mutex to ensure thread-safe access */

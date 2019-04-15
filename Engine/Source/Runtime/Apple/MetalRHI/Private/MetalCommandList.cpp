@@ -34,8 +34,11 @@ FMetalCommandList::~FMetalCommandList(void)
 	
 #pragma mark - Public Command List Mutators -
 
+extern CORE_API bool GIsGPUCrashed;
 static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& CompletedBuffer, TCHAR const* ErrorType, bool bDoCheck=true)
 {
+	GIsGPUCrashed = true;
+	
 	NSString* Label = CompletedBuffer.GetLabel();
 	int32 Code = CompletedBuffer.GetError().GetCode();
 	NSString* Domain = CompletedBuffer.GetError().GetDomain();
@@ -74,6 +77,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 		FMetalCommandBufferMarkers Markers = FMetalCommandBufferMarkers::Get(CompletedBuffer);
 		if (Markers)
 		{
+			uint32 CommandBufferIndex = Markers.GetIndex();
 			FMetalDebugInfo BrokenDraw;
 			BrokenDraw.EncoderIndex = UINT32_MAX;
 			BrokenDraw.CommandIndex = UINT32_MAX;
@@ -82,7 +86,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
             BrokenDraw.CommandBuffer = 0;
 			uint32 BrokenContext = 0;
 			bool bFoundBrokenDraw = false;
-			for (uint32 i = 0; !bFoundBrokenDraw && i < Markers.NumContexts(); i++)
+			for (uint32 i = 0; (CommandBufferIndex != ~0u) && !bFoundBrokenDraw && i < Markers.NumContexts(); i++)
 			{
 				ns::AutoReleased<FMetalBuffer> DebugBuffer = Markers.GetDebugBuffer(i);
 				TArray<FMetalCommandDebug>* Commands = Markers.GetCommands(i);
@@ -96,9 +100,11 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 					FMetalDebugInfo CurrentDraw = DebugArray[0];
 					
 					// On TBDR we find the disjoint where one tile has progressed further than another
+					// We find the earliest failure in the probably vain hope that this is the tile that actually failed
+					// There's actually no guarantee of that, it might be one of the later tiles that exploded
 					for (uint32 j = 0; j < DebugCount; j++)
 					{
-						if (DebugArray[j].CommandIndex < CurrentDraw.CommandIndex)
+						if (CommandBufferIndex == DebugArray[j].CmdBuffIndex && DebugArray[j].EncoderIndex < CurrentDraw.EncoderIndex && DebugArray[j].CommandIndex < CurrentDraw.CommandIndex)
 						{
 							CurrentDraw = DebugArray[j];
 							break;
@@ -106,13 +112,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 					}
 
 					// Find the first command to fail - which depends on the order of encoders - parallel contexts make this more complicated
-					if (CurrentDraw.CmdBuffIndex < BrokenDraw.CmdBuffIndex)
-					{
-						BrokenDraw = CurrentDraw;
-                        BrokenContext = CurrentDraw.ContextIndex;
-						bFoundBrokenDraw = true;
-					}
-					else if (CurrentDraw.CommandIndex < Commands->Num() && CurrentDraw.EncoderIndex < BrokenDraw.EncoderIndex)
+					if (CurrentDraw.CmdBuffIndex == BrokenDraw.CmdBuffIndex && CurrentDraw.CommandIndex < Commands->Num() && CurrentDraw.EncoderIndex < BrokenDraw.EncoderIndex)
 					{
 						BrokenDraw = CurrentDraw;
                         BrokenContext = i;
@@ -120,6 +120,12 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 					}
                     else if(Commands->Num() > 1)
                     {
+						BrokenDraw.EncoderIndex = 0;
+						BrokenDraw.CommandIndex = 0;
+						BrokenDraw.CmdBuffIndex = CommandBufferIndex;
+						BrokenDraw.ContextIndex = 0;
+                        BrokenContext = i;
+						BrokenDraw.CommandBuffer = (uintptr_t)CompletedBuffer.GetPtr();
                         BrokenDraw = DebugArray[1];
                         bFoundBrokenDraw = true;
                     }
@@ -129,41 +135,7 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 			{
 				id<MTLCommandBuffer> Ptr = reinterpret_cast<id<MTLCommandBuffer>>(BrokenDraw.CommandBuffer);
 				UE_LOG(LogMetal, Error, TEXT("GPU last wrote Command Buffer: %u (%llx) Encoder Index: %d Context Index: %d Draw Index: %d PSO: VS: %u_%u, PS: %u_%u."), BrokenDraw.CmdBuffIndex, BrokenDraw.CommandBuffer, BrokenDraw.EncoderIndex, BrokenDraw.ContextIndex, BrokenDraw.CommandIndex, BrokenDraw.PSOSignature[0], BrokenDraw.PSOSignature[1], BrokenDraw.PSOSignature[2], BrokenDraw.PSOSignature[3]);
-
-                if (Ptr && Ptr != CompletedBuffer.GetPtr())
-                {
-                    // Have we failed between commands-buffers? Or have our command-buffers been subject to coalescing?
-                    ns::AutoReleased<mtlpp::CommandBuffer> PrevCommandBuffer(Ptr);
-                    FMetalCommandBufferMarkers OtherMarkers = FMetalCommandBufferMarkers::Get(PrevCommandBuffer);
-                    if (OtherMarkers)
-                    {
-                        ns::AutoReleased<FMetalBuffer> DebugBuffer = OtherMarkers.GetDebugBuffer(BrokenContext);
-                        TArray<FMetalCommandDebug>* Commands = OtherMarkers.GetCommands(BrokenContext);
-
-                        UE_LOG(LogMetal, Error, TEXT("Failed executing following commands:"));
-                        uint32 StartIdx = BrokenDraw.CommandIndex;
-                        for (uint32 CmdIdx = StartIdx; CmdIdx < Commands->Num(); CmdIdx++)
-                        {
-                            FMetalCommandDebug& Command = (*Commands)[CmdIdx];
-                            FString VSHash = Command.PSO->VertexShader->GetHash().ToString();
-                            uint32 VSSig[2] = { Command.PSO->VertexShader->SourceLen, Command.PSO->VertexShader->SourceCRC };
-
-                            FString PSHash;
-                            uint32 PSSig[2] = { 0, 0 };
-                            if (Command.PSO->PixelShader.IsValid())
-                            {
-                                PSHash = Command.PSO->PixelShader->GetHash().ToString();
-                                PSSig[0] = Command.PSO->PixelShader->SourceLen;
-                                PSSig[1] = Command.PSO->PixelShader->SourceCRC;
-                            }
-
-                            UE_LOG(LogMetal, Error, TEXT("Command Buffer: %d (%p) Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), Command.CmdBufIndex, Ptr, Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
-                        }
-                    }
-
-                    BrokenDraw.CommandIndex = 0;
-                }
-				
+			
 				ns::AutoReleased<FMetalBuffer> DebugBuffer = Markers.GetDebugBuffer(BrokenContext);
 				TArray<FMetalCommandDebug>* Commands = Markers.GetCommands(BrokenContext);
 				if (Commands->Num())
@@ -198,6 +170,13 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
                     for (uint32 i = 0; i < DebugCount; i++)
                     {
                         FMetalDebugInfo& Command = DebugArray[i];
+						
+						// Stop when nothing has been written into the buffer
+						if (Command.CmdBuffIndex == 0 && Command.CommandBuffer == 0 && Command.EncoderIndex == 0 && Command.CommandIndex == 0 && Command.PSOSignature[0] == 0 && Command.PSOSignature[1] == 0 && Command.PSOSignature[2] == 0 && Command.PSOSignature[3] == 0)
+						{
+							break;
+						}
+						
                         UE_LOG(LogMetal, Error, TEXT("Command Buffer: %d (%p) Debug Buffer: %p Tile: %u Context: %d Encoder: %d Command: %d PSO: VS: %u_%u, PS: %u_%u"), Command.CmdBuffIndex, Command.CommandBuffer, DebugBuffer.GetPtr(), i, Command.ContextIndex, Command.EncoderIndex, Command.CommandIndex, Command.PSOSignature[0], Command.PSOSignature[1], Command.PSOSignature[2], Command.PSOSignature[3]);
                     }
                 }
@@ -296,7 +275,7 @@ static __attribute__ ((optnone)) void HandleNVIDIAMetalCommandBufferError(mtlpp:
 	HandleMetalCommandBufferError(CompletedBuffer);
 }
 
-static void HandleIntelMetalCommandBufferError(mtlpp::CommandBuffer const& CompletedBuffer)
+static __attribute__ ((optnone)) void HandleIntelMetalCommandBufferError(mtlpp::CommandBuffer const& CompletedBuffer)
 {
 	HandleMetalCommandBufferError(CompletedBuffer);
 }

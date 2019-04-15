@@ -3184,6 +3184,16 @@ void UEditorEngine::FindSelectedActorsInLevelScript()
 	AActor* Actor = GetSelectedActors()->GetTop<AActor>();
 	if(Actor != NULL)
 	{
+		if (PlayWorld)
+		{
+			// Redirect to editor world counterpart if PIE is active. We don't index cloned PIE LSBPs for searching.
+			AActor* EditorActor = EditorUtilities::GetEditorWorldCounterpartActor(Actor);
+			if (EditorActor)
+			{
+				Actor = EditorActor;
+			}
+		}
+
 		FKismetEditorUtilities::ShowActorReferencesInLevelScript(Actor);
 	}
 }
@@ -7411,6 +7421,10 @@ void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, ERHI
 	const FName InitialPreviewPlatform = MaterialShaderQualitySettings->GetPreviewPlatform();
 	MaterialShaderQualitySettings->SetPreviewPlatform(MaterialQualityPlatform);
 
+	// Force activation of the feature level preview, because it may have been inactive before.
+ 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	Settings->bIsFeatureLevelPreviewActive = true;
+
 	if (PreviewFeatureLevel != InPreviewFeatureLevel)
 	{
 		// a new feature level will recompile the materials and apply the effect of any 'material quality platform'
@@ -7430,7 +7444,10 @@ void UEditorEngine::SetPreviewPlatform(const FName MaterialQualityPlatform, ERHI
 
 void UEditorEngine::ToggleFeatureLevelPreview()
 {
-	ERHIFeatureLevel::Type NewPreviewFeatureLevel = GWorld->FeatureLevel == GMaxRHIFeatureLevel ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
+ 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+ 	Settings->bIsFeatureLevelPreviewActive ^= 1;
+
+	ERHIFeatureLevel::Type NewPreviewFeatureLevel = Settings->bIsFeatureLevelPreviewActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
 
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 	
@@ -7443,6 +7460,8 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	UpdateShaderComplexityMaterials(true);
 
 	GEditor->RedrawAllViewports();
+	
+	SaveEditorFeatureLevel();
 }
 
 bool UEditorEngine::IsFeatureLevelPreviewEnabled() const
@@ -7452,7 +7471,14 @@ bool UEditorEngine::IsFeatureLevelPreviewEnabled() const
 
 bool UEditorEngine::IsFeatureLevelPreviewActive() const
 {
-	return GWorld->FeatureLevel != GMaxRHIFeatureLevel;
+ 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+ 	return Settings->bIsFeatureLevelPreviewActive;
+}
+
+ERHIFeatureLevel::Type UEditorEngine::GetActiveFeatureLevelPreviewType() const
+{
+ 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	return Settings->bIsFeatureLevelPreviewActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
 }
 
 void UEditorEngine::LoadEditorFeatureLevel()
@@ -7472,7 +7498,11 @@ void UEditorEngine::LoadEditorFeatureLevel()
 			UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(Settings->PreviewShaderPlatformName);
 		}
 
+		// Save off bIsFeatureLevelPreviewActive, because SetPreviewPlatform() will force it on.
+		// We want it to be what the user chose.
+		bool bSaveIsFeatureLevelPreviewActive = Settings->bIsFeatureLevelPreviewActive;
 		SetPreviewPlatform(MaterialQualityPlatform, FeatureLevel, false);
+		Settings->bIsFeatureLevelPreviewActive = bSaveIsFeatureLevelPreviewActive;
 	}
 }
 

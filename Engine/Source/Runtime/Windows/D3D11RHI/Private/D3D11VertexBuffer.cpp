@@ -8,6 +8,11 @@
 
 FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FD3D11VertexBuffer();
+	}
+
 	// Explicitly check that the size is nonzero before allowing CreateVertexBuffer to opaquely fail.
 	check(Size > 0);
 
@@ -169,7 +174,7 @@ void* FD3D11DynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffe
 	}
 
 	// Add the lock to the lock map.
-	GetThreadLocalLockTracker().Add(LockedKey,LockedData);
+	AddLockedData(LockedKey, LockedData);
 
 	// Return the offset pointer
 	return (void*)((uint8*)LockedData.GetData() + Offset);
@@ -185,10 +190,8 @@ void FD3D11DynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBuff
 	const bool bIsDynamic = (Desc.Usage == D3D11_USAGE_DYNAMIC);
 
 	// Find the outstanding lock for this VB.
-	FD3D11LockTracker& OutstandingLocks = GetThreadLocalLockTracker();
-	FD3D11LockedKey LockedKey(VertexBuffer->Resource);
-	FD3D11LockedData* LockedData = OutstandingLocks.Find(LockedKey);
-	checkf(LockedData, TEXT("Vertex buffer is either not locked or locked on a different thread"));
+	FD3D11LockedData LockedData;
+	verifyf(RemoveLockedData(FD3D11LockedKey(VertexBuffer->Resource), LockedData), TEXT("Vertex buffer is not locked"));
 
 	if(bIsDynamic)
 	{
@@ -198,25 +201,21 @@ void FD3D11DynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBuff
 	else
 	{
 		// If the static VB lock involved a staging resource, it was locked for reading.
-		if(LockedData->StagingResource)
+		if(LockedData.StagingResource)
 		{
 			// Unmap the staging buffer's memory.
-			ID3D11Buffer* StagingBuffer = (ID3D11Buffer*)LockedData->StagingResource.GetReference();
+			ID3D11Buffer* StagingBuffer = (ID3D11Buffer*)LockedData.StagingResource.GetReference();
 			Direct3DDeviceIMContext->Unmap(StagingBuffer,0);
 		}
 		else 
 		{
 			// Copy the contents of the temporary memory buffer allocated for writing into the VB.
-			Direct3DDeviceIMContext->UpdateSubresource(VertexBuffer->Resource,LockedKey.Subresource,NULL,LockedData->GetData(),LockedData->Pitch,0);
+			Direct3DDeviceIMContext->UpdateSubresource(VertexBuffer->Resource,0,NULL,LockedData.GetData(),LockedData.Pitch,0);
 
 			// Free the temporary memory buffer.
-			LockedData->FreeData();
+			LockedData.FreeData();
 		}
 	}
-
-	// Remove the FD3D11LockedData from the lock map.
-	// If the lock involved a staging resource, this releases it.
-	OutstandingLocks.Remove(LockedKey);
 }
 
 void FD3D11DynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBufferRHI,FVertexBufferRHIParamRef DestBufferRHI)
@@ -235,4 +234,19 @@ void FD3D11DynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBuffer
 	Direct3DDeviceIMContext->CopyResource(DestBuffer->Resource,SourceBuffer->Resource);
 
 	GPUProfilingData.RegisterGPUWork(1);
+}
+
+void FD3D11DynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+{
+	check(DestVertexBuffer);
+	FD3D11VertexBuffer* Dest = ResourceCast(DestVertexBuffer);
+	if (!SrcVertexBuffer)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{
+		FD3D11VertexBuffer* Src = ResourceCast(SrcVertexBuffer);
+		Dest->Swap(*Src);
+	}
 }

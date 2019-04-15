@@ -166,32 +166,38 @@ void ULightComponentBase::PostEditChangeProperty(FPropertyChangedEvent& Property
 void ULightComponentBase::ValidateLightGUIDs()
 {
 	// Validate light guids.
-	if( !LightGuid.IsValid() )
+	if (!LightGuid.IsValid())
 	{
-		LightGuid = FGuid::NewGuid();
+		UpdateLightGUIDs();
 	}
 }
 
 void ULightComponentBase::UpdateLightGUIDs()
 {
-	LightGuid = FGuid::NewGuid();
+	LightGuid = (HasStaticShadowing() ? FGuid::NewGuid() : FGuid());
 }
 
 bool ULightComponentBase::HasStaticLighting() const
 {
-	AActor* Owner = GetOwner();
-
-	return Owner && (Mobility == EComponentMobility::Static);
+	return (Mobility == EComponentMobility::Static) && GetOwner();
 }
 
 bool ULightComponentBase::HasStaticShadowing() const
 {
-	AActor* Owner = GetOwner();
-
-	return Owner && (Mobility != EComponentMobility::Movable);
+	return (Mobility != EComponentMobility::Movable) && GetOwner();
 }
 
 #if WITH_EDITOR
+void ULightComponentBase::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!HasStaticShadowing())
+	{
+		LightGuid.Invalidate();
+	}
+}
+
 void ULightComponentBase::OnRegister()
 {
 	Super::OnRegister();
@@ -1090,7 +1096,7 @@ void ULightComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnque
 /** Invalidates the light's cached lighting with the option to recreate the light Guids. */
 void ULightComponent::InvalidateLightingCacheInner(bool bRecreateLightGuids)
 {
-	if (HasStaticLighting() || HasStaticShadowing())
+	if (HasStaticShadowing())
 	{
 		// Save the light state for transactions.
 		Modify();
@@ -1109,6 +1115,10 @@ void ULightComponent::InvalidateLightingCacheInner(bool bRecreateLightGuids)
 
 		MarkRenderStateDirty();
 	}
+	else
+	{
+		LightGuid.Invalidate();
+	}
 }
 
 TStructOnScope<FActorComponentInstanceData> ULightComponent::GetComponentInstanceData() const
@@ -1121,16 +1131,12 @@ void ULightComponent::ApplyComponentInstanceData(FPrecomputedLightInstanceData* 
 {
 	check(LightMapData);
 
-	LightGuid = LightMapData->LightGuid;
-
 	if (!LightMapData->Transform.Equals(GetComponentTransform()))
 	{
-		// Rather than resetting the guid and reallocating one randomly, we'll offset it so that consecutive loads 
-		// behave deterministically  while still disassociating it from any now invalidated baked lighting
-		++LightGuid.D;
 		return;
 	}
 
+	LightGuid = (HasStaticShadowing() ? LightMapData->LightGuid : FGuid());
 	PreviewShadowMapChannel = LightMapData->PreviewShadowMapChannel;
 
 	MarkRenderStateDirty();

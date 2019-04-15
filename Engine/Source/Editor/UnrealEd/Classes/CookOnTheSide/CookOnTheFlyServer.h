@@ -197,7 +197,7 @@ private:
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
 
-	FString ConvertCookedPathToUncookedPath(const FString& CookedPackageName) const;
+	FName ConvertCookedPathToUncookedPath(const FString& SandboxPath, const FString& CookedPath) const;
 
 	/** Get dependencies for package */
 	const TArray<FName>& GetFullPackageDependencies(const FName& PackageName) const;

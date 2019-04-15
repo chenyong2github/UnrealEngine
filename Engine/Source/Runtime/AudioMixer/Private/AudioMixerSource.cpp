@@ -16,11 +16,20 @@ FAutoConsoleVariableRef CVarDisableHRTF(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 UseListenerOverrideForSpreadCVar = 1;
+FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
+	TEXT("au.UseListenerOverrideForSpread"),
+	UseListenerOverrideForSpreadCVar,
+	TEXT("Zero attenuation override distance stereo panning\n")
+	TEXT("0: Use actual distance, 1: use listener override"),
+	ECVF_Default);
+
+
 namespace Audio
 {
 	FMixerSource::FMixerSource(FAudioDevice* InAudioDevice)
 		: FSoundSource(InAudioDevice)
-		, MixerDevice((FMixerDevice*)InAudioDevice)
+		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
 		, MixerBuffer(nullptr)
 		, MixerSourceBuffer(nullptr)
 		, MixerSourceVoice(nullptr)		
@@ -276,7 +285,7 @@ namespace Audio
 #endif
 
 			// Whether or not we're 3D
-			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->bUseSpatialization && SoundBuffer->NumChannels < 3;
+			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->GetUseSpatialization() && SoundBuffer->NumChannels < 3;
 
 			// Grab the source's reverb plugin settings 
 			InitParams.SpatializationPluginSettings = UseSpatializationPlugin() ? WaveInstance->SpatializationPluginSettings : nullptr;
@@ -823,7 +832,7 @@ namespace Audio
 	void FMixerSource::UpdateSpatialization()
 	{
 		SpatializationParams = GetSpatializationParams();
-		if (WaveInstance->bUseSpatialization)
+		if (WaveInstance->GetUseSpatialization())
 		{
 			MixerSourceVoice->SetSpatializationParams(SpatializationParams);
 		}
@@ -949,7 +958,7 @@ namespace Audio
 			// Treat the source as if it is a 2D stereo source:
 			return ComputeStereoChannelMap(SubmixChannelType, OutChannelMap);
 		}
-		else if (WaveInstance->bUseSpatialization && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
+		else if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
 		{
 			// Don't need to compute the source channel map if the absolute azimuth hasn't changed much
 			PreviousAzimuth = WaveInstance->AbsoluteAzimuth;
@@ -971,7 +980,7 @@ namespace Audio
 	bool FMixerSource::ComputeStereoChannelMap(const ESubmixChannelFormat InSubmixChannelType, Audio::AlignedFloatBuffer& OutChannelMap)
 	{
 		// Only recalculate positional data if the source has moved a significant amount:
-		if (WaveInstance->bUseSpatialization && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
+		if (WaveInstance->GetUseSpatialization() && (!FMath::IsNearlyEqual(WaveInstance->AbsoluteAzimuth, PreviousAzimuth, 0.01f) || MixerSourceVoice->NeedsSpeakerMap()))
 		{
 			// Make sure our stereo emitter positions are updated relative to the sound emitter position
 			if (Buffer->NumChannels == 2)
@@ -982,22 +991,28 @@ namespace Audio
 			if (!UseObjectBasedSpatialization())
 			{
 				float AzimuthOffset = 0.0f;
-				if (WaveInstance->ListenerToSoundDistance > 0.0f)
+
+				float LeftAzimuth = 90.0f;
+				float RightAzimuth = 270.0f;
+
+				const float DistanceToUse = UseListenerOverrideForSpreadCVar ? WaveInstance->ListenerToSoundDistance : WaveInstance->ListenerToSoundDistanceForPanning;
+
+				if (DistanceToUse > KINDA_SMALL_NUMBER)
 				{
-					AzimuthOffset = FMath::Atan(0.5f * WaveInstance->StereoSpread / WaveInstance->ListenerToSoundDistance);
+					AzimuthOffset = FMath::Atan(0.5f * WaveInstance->StereoSpread / DistanceToUse);
 					AzimuthOffset = FMath::RadiansToDegrees(AzimuthOffset);
-				}
 
-				float LeftAzimuth = WaveInstance->AbsoluteAzimuth - AzimuthOffset;
-				if (LeftAzimuth < 0.0f)
-				{
-					LeftAzimuth += 360.0f;
-				}
+					LeftAzimuth = WaveInstance->AbsoluteAzimuth - AzimuthOffset;
+					if (LeftAzimuth < 0.0f)
+					{
+						LeftAzimuth += 360.0f;
+					}
 
-				float RightAzimuth = WaveInstance->AbsoluteAzimuth + AzimuthOffset;
-				if (RightAzimuth > 360.0f)
-				{
-					RightAzimuth -= 360.0f;
+					RightAzimuth = WaveInstance->AbsoluteAzimuth + AzimuthOffset;
+					if (RightAzimuth > 360.0f)
+					{
+						RightAzimuth -= 360.0f;
+					}
 				}
 
 				// Reset the channel map, the stereo spatialization channel mapping calls below will append their mappings

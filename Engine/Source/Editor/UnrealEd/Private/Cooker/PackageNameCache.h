@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IAssetRegistry.h"
+#include "Algo/Find.h"
 #include "Misc/PackageName.h"
 
 struct FCachedPackageFilename
@@ -30,7 +32,7 @@ struct FCachedPackageFilename
 
 struct FPackageNameCache
 {
-	// Package name cache
+	FPackageNameCache(IAssetRegistry* InAssetRegistry = nullptr) : AssetRegistry(InAssetRegistry) {}
 
 	FString			GetCachedPackageFilename(const UPackage* Package) const;
 
@@ -45,7 +47,10 @@ struct FPackageNameCache
 	bool			ClearPackageFilenameCacheForPackage(const UPackage* Package) const;
 
 private:
+	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName) const;
+
+	IAssetRegistry* AssetRegistry;
 
 	mutable TMap<FName, FCachedPackageFilename> PackageFilenameCache; // filename cache (only process the string operations once)
 	mutable TMap<FName, FName>					PackageFilenameToPackageFNameCache;
@@ -84,6 +89,31 @@ bool FPackageNameCache::ClearPackageFilenameCacheForPackage(const UPackage* Pack
 	return PackageFilenameCache.Remove(Package->GetFName()) >= 1;
 }
 
+bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
+{
+	if (!AssetRegistry)
+	{
+		return FPackageName::DoesPackageExist(PackageName.ToString(), NULL, OutFilename, false);
+	}
+
+	TArray<FAssetData> Assets;
+	AssetRegistry->GetAssetsByPackageName(PackageName, Assets, /*bIncludeOnlyDiskAssets*/ true);
+
+	if (Assets.Num() <= 0)
+	{
+		return false;
+	}
+
+	if (OutFilename)
+	{
+		const bool ContainsMap = Algo::FindByPredicate(Assets, [](const FAssetData& Asset) { return Asset.PackageFlags & PKG_ContainsMap; }) != nullptr;
+		const FString& PackageExtension = ContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+		*OutFilename = FPackageName::LongPackageNameToFilename(PackageName.ToString(), PackageExtension);
+	}
+
+	return true;
+}
+
 const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
 {
 	check(IsInGameThread());
@@ -102,7 +132,7 @@ const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName)
 	FString StandardFilename;
 	FName StandardFileFName = NAME_None;
 
-	if (FPackageName::DoesPackageExist(PackageName.ToString(), NULL, &Filename, false))
+	if (DoesPackageExist(PackageName, &Filename))
 	{
 		StandardFilename = PackageFilename = FPaths::ConvertRelativePathToFull(Filename);
 

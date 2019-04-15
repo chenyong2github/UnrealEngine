@@ -48,6 +48,8 @@
 #include "IAssetRegistry.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
+#include "MessageLog/Public/MessageLogModule.h"
+#include "MessageLog/Public/IMessageLogListing.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -64,6 +66,7 @@ const FName FNiagaraSystemToolkit::SelectedEmitterGraphTabID(TEXT("NiagaraSystem
 const FName FNiagaraSystemToolkit::DebugSpreadsheetTabID(TEXT("NiagaraSystemEditor_DebugAttributeSpreadsheet"));
 const FName FNiagaraSystemToolkit::PreviewSettingsTabId(TEXT("NiagaraSystemEditor_PreviewSettings"));
 const FName FNiagaraSystemToolkit::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_GeneratedCode"));
+const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
 static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
@@ -133,6 +136,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 
 	InTabManager->RegisterTabSpawner(GeneratedCodeTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_GeneratedCode))
 		.SetDisplayName(LOCTEXT("GeneratedCode", "Generated Code"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(MessageLogTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_MessageLog))
+		.SetDisplayName(LOCTEXT("NiagaraMessageLog", "Niagara Log"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
@@ -288,7 +295,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v17")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v18")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -328,6 +335,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.25f)
 						->AddTab(CurveEditorTabID, ETabState::OpenedTab)
+						->AddTab(MessageLogTabID, ETabState::OpenedTab)
 						->AddTab(SequencerTabID, ETabState::OpenedTab)
 					)
 				)
@@ -601,7 +609,6 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_DebugSpreadsheet(const FSpa
 	return SpawnedTab;
 }
 
-
 TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_GeneratedCode(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId().TabType == GeneratedCodeTabID);
@@ -610,6 +617,44 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_GeneratedCode(const FSpawnT
 		SNew(SDockTab)
 		[
 			SNew(SNiagaraGeneratedCodeView, SystemViewModel.ToSharedRef())
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_MessageLog(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == MessageLogTabID);
+
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	const FName LogName = GetNiagaraSystemMessageLogName(System);
+
+	auto CreateMessageLogListing = [&MessageLogModule, &LogName]()->TSharedRef<IMessageLogListing>
+	{
+		// Reuse any existing log, or create a new one (that is not held onto by the message log system)
+		if (MessageLogModule.IsRegisteredLogListing(LogName))
+		{
+			return MessageLogModule.GetLogListing(LogName);
+		}
+		else
+		{
+			FMessageLogInitializationOptions LogInitOptions;
+			LogInitOptions.bShowInLogWindow = false;
+			return  MessageLogModule.CreateLogListing(LogName, LogInitOptions);
+		}
+	};
+
+	TSharedRef<IMessageLogListing> MessageLogListing = CreateMessageLogListing();
+	//@todo(ng) debug message (to be removed when we forward real messages)
+	MessageLogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(FString::Printf(TEXT("This is a debug message for %s"), *GetNiagaraSystemMessageLogName(System).ToString()))));
+
+	MessageLogListing->OnMessageTokenClicked().AddStatic(&FNiagaraEditorModule::OnMessageLogTokenClicked);
+	TSharedRef<SWidget> LogListModule = MessageLogModule.CreateLogListingWidget(MessageLogListing);
+
+	TSharedRef<SDockTab> SpawnedTab =
+		SNew(SDockTab)
+		[
+			LogListModule
 		];
 
 	return SpawnedTab;
@@ -810,6 +855,13 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateBoundsMenuContent(TSharedRef<
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleBounds_SetFixedBounds);
 
 	return MenuBuilder.MakeWidget();
+}
+
+const FName FNiagaraSystemToolkit::GetNiagaraSystemMessageLogName(UNiagaraSystem* InSystem) const
+{
+	checkf(InSystem, TEXT("Tried to get MessageLog name for NiagaraSystem but InSystem was null!"));
+	FName LogListingName = *FString::Printf(TEXT("%s_%s_MessageLog"), *FString::FromInt(InSystem->GetUniqueID()), *InSystem->GetName());
+	return LogListingName;
 }
 
 void FNiagaraSystemToolkit::GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer)

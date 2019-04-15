@@ -1807,30 +1807,59 @@ struct FRHIShaderResourceViewUpdateInfo_VB
 	uint8 Format;
 };
 
+struct FRHIVertexBufferUpdateInfo
+{
+	FVertexBufferRHIParamRef DestBuffer;
+	FVertexBufferRHIParamRef SrcBuffer;
+};
+
+struct FRHIIndexBufferUpdateInfo
+{
+	FIndexBufferRHIParamRef DestBuffer;
+	FIndexBufferRHIParamRef SrcBuffer;
+};
+
 struct FRHIResourceUpdateInfo
 {
 	enum EUpdateType
 	{
+		/** Take over underlying resource from an intermediate vertex buffer */
+		UT_VertexBuffer,
+		/** Take over underlying resource from an intermediate index buffer */
+		UT_IndexBuffer,
+		/** Update an SRV to view on a different vertex buffer */
 		UT_VertexBufferSRV,
+		/** Update an SRV to view on a different index buffer */
+		UT_IndexBufferSRV,
+		/** Number of update types */
 		UT_Num
 	};
 
 	EUpdateType Type;
 	union
 	{
+		FRHIVertexBufferUpdateInfo VertexBuffer;
+		FRHIIndexBufferUpdateInfo IndexBuffer;
 		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
 	};
+
+	void ReleaseRefs();
 };
 
 struct FRHICommandUpdateRHIResources final : public FRHICommand<FRHICommandUpdateRHIResources>
 {
 	FRHIResourceUpdateInfo* UpdateInfos;
 	int32 Num;
+	bool bNeedReleaseRefs;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateRHIResources(FRHIResourceUpdateInfo* InUpdateInfos, int32 InNum)
+	FRHICommandUpdateRHIResources(FRHIResourceUpdateInfo* InUpdateInfos, int32 InNum, bool bInNeedReleaseRefs)
 		: UpdateInfos(InUpdateInfos)
 		, Num(InNum)
+		, bNeedReleaseRefs(bInNeedReleaseRefs)
 	{}
+
+	~FRHICommandUpdateRHIResources();
+
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
@@ -2872,6 +2901,10 @@ public:
 		check(!IsInsideRenderPass());
 		check(!IsInsideComputePass());
 
+		if (InInfo.bTooManyUAVs)
+		{
+			UE_LOG(LogRHI, Warning, TEXT("RenderPass %s has too many UAVs"));
+		}
 		InInfo.Validate();
 
 		if (Bypass())
@@ -4343,7 +4376,12 @@ public:
 		GDynamicRHI->RHIPollRenderQueryResults();
 	}
 
-	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num);
+	/**
+	 * @param UpdateInfos - an array of update infos
+	 * @param Num - number of update infos
+	 * @param bNeedReleaseRefs - whether Release need to be called on RHI resources referenced by update infos
+	 */
+	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs);
 };
 
  struct FScopedGPUMask
@@ -4682,9 +4720,9 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FIndexBufferRH
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Buffer);
 }
 
-FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num)
+FORCEINLINE void RHIUpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs)
 {
-	return FRHICommandListExecutor::GetImmediateCommandList().UpdateRHIResources(UpdateInfos, Num);
+	return FRHICommandListExecutor::GetImmediateCommandList().UpdateRHIResources(UpdateInfos, Num, bNeedReleaseRefs);
 }
 
 FORCEINLINE FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
@@ -4922,11 +4960,11 @@ FORCEINLINE void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer)
 	 FRHICommandListExecutor::GetImmediateCommandList().UnlockStagingBuffer(StagingBuffer);
 }
 
-template <int32 MaxNumUpdates>
+template <uint32 MaxNumUpdates>
 struct TRHIResourceUpdateBatcher
 {
 	FRHIResourceUpdateInfo UpdateInfos[MaxNumUpdates];
-	int32 NumBatched;
+	uint32 NumBatched;
 
 	TRHIResourceUpdateBatcher()
 		: NumBatched(0)
@@ -4941,24 +4979,68 @@ struct TRHIResourceUpdateBatcher
 	{
 		if (NumBatched > 0)
 		{
-			RHIUpdateRHIResources(UpdateInfos, NumBatched);
+			RHIUpdateRHIResources(UpdateInfos, NumBatched, true);
 			NumBatched = 0;
+		}
+	}
+
+	void QueueUpdateRequest(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+	{
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_VertexBuffer;
+		UpdateInfo.VertexBuffer = { DestVertexBuffer, SrcVertexBuffer };
+		DestVertexBuffer->AddRef();
+		if (SrcVertexBuffer)
+		{
+			SrcVertexBuffer->AddRef();
+		}
+	}
+
+	void QueueUpdateRequest(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer)
+	{
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_IndexBuffer;
+		UpdateInfo.IndexBuffer = { DestIndexBuffer, SrcIndexBuffer };
+		DestIndexBuffer->AddRef();
+		if (SrcIndexBuffer)
+		{
+			SrcIndexBuffer->AddRef();
 		}
 	}
 
 	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
 	{
-		check(NumBatched >= 0 && NumBatched <= MaxNumUpdates);
-		if (NumBatched == MaxNumUpdates)
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
+		UpdateInfo.VertexBufferSRV = { SRV, VertexBuffer, Stride, Format };
+		SRV->AddRef();
+		if (VertexBuffer)
+		{
+			VertexBuffer->AddRef();
+		}
+	}
+
+	void QueueUpdateRequest(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+	{
+		// TODO
+	}
+
+private:
+	FRHIResourceUpdateInfo & GetNextUpdateInfo()
+	{
+		check(NumBatched <= MaxNumUpdates);
+		if (NumBatched >= MaxNumUpdates)
 		{
 			Flush();
 		}
-		if (LIKELY(NumBatched >= 0 && NumBatched < MaxNumUpdates))
-		{
-			const int32 Idx = NumBatched++;
-			UpdateInfos[Idx].Type = FRHIResourceUpdateInfo::UT_VertexBufferSRV;
-			UpdateInfos[Idx].VertexBufferSRV = { SRV, VertexBuffer, Stride, Format };
-		}
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 6385) // Access is alawys in-bound due to the Flush above
+#endif
+		return UpdateInfos[NumBatched++];
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 	}
 };
 

@@ -312,10 +312,7 @@ public:
 	void RemoveFromScene(bool bUpdateStaticDrawLists);
 
 	/** return true if we need to call ConditionalUpdateStaticMeshes */
-	FORCEINLINE bool NeedsUpdateStaticMeshes()
-	{
-		return bNeedsStaticMeshUpdate;
-	}
+	bool NeedsUpdateStaticMeshes();
 
 	/** return true if we need to call LazyUpdateForRendering */
 	FORCEINLINE bool NeedsUniformBufferUpdate() const
@@ -462,9 +459,6 @@ private:
 	 * Use PrimitiveComponentId instead when a component identifier is needed.
 	 */
 	const UPrimitiveComponent* ComponentForDebuggingOnly;
-
-	/** If this is TRUE, this primitive's static meshes needs to be updated before it can be rendered. */
-	bool bNeedsStaticMeshUpdate : 1;
 
 	/** If this is TRUE, this primitive's static meshes will be update even if it's not visible. */
 	bool bNeedsStaticMeshUpdateWithoutVisibilityCheck : 1;

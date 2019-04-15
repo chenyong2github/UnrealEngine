@@ -77,9 +77,12 @@ private:
 	TSharedRef<SDockTab> SpawnTabScriptParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabStats(const FSpawnTabArgs& Args);
 
+	TSharedRef<SDockTab> SpawnTabMessageLog(const FSpawnTabArgs& Args);
+
 	/** Sets up commands for the toolkit toolbar. */
 	void SetupCommands();
 
+	const FName GetNiagaraScriptMessageLogName(UNiagaraScript* InScript) const;
 	FSlateIcon GetCompileStatusImage() const;
 	FText GetCompileStatusTooltip() const;
 
@@ -118,6 +121,7 @@ private:
 	static const FName DetailsTabId;
 	static const FName ParametersTabId;
 	static const FName StatsTabId;
+	static const FName MessageLogTabID;
 	/** Stats log, with the log listing that it reflects */
 	TSharedPtr<class SWidget> Stats;
 	TSharedPtr<class IMessageLogListing> StatsListing;

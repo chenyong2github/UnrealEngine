@@ -23,6 +23,14 @@ public:
 		InterpolantType	Interpolants[3] = { I0, I1, I2 };
 		FVector2D		Points[3] = { P0, P1, P2 };
 
+		// Avoid any division by zero
+		if (FMath::IsNearlyEqual(Points[1].Y, Points[0].Y) ||
+			FMath::IsNearlyEqual(Points[2].Y, Points[0].Y) ||
+			FMath::IsNearlyEqual(Points[2].Y, Points[1].Y))
+		{
+			return;
+		}
+
 		// Find the top point.
 
 		if(Points[1].Y < Points[0].Y && Points[1].Y <= Points[2].Y)

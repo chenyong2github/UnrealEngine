@@ -1154,6 +1154,8 @@ public:
 	void* Lock(bool bFromRenderingThread, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
 	void Unlock(bool bFromRenderingThread);
 
+	void Swap(FVulkanResourceMultiBuffer& Other);
+
 protected:
 	uint32 UEUsage;
 	VkBufferUsageFlags BufferUsageFlags;
@@ -1191,6 +1193,8 @@ public:
 		return IndexType;
 	}
 
+	void Swap(FVulkanIndexBuffer& Other);
+
 private:
 	VkIndexType IndexType;
 };
@@ -1199,6 +1203,8 @@ class FVulkanVertexBuffer : public FRHIVertexBuffer, public FVulkanResourceMulti
 {
 public:
 	FVulkanVertexBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList);
+
+	void Swap(FVulkanVertexBuffer& Other);
 };
 
 class FVulkanUniformBuffer : public FRHIUniformBuffer

@@ -145,3 +145,8 @@ bool FClassViewerNode::IsBlueprintClass() const
 {
 	return BlueprintAssetPath != NAME_None;
 }
+
+bool FClassViewerNode::IsEditorOnlyClass() const
+{
+	return Class.IsValid() && IsEditorOnlyObject(Class.Get());
+}

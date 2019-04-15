@@ -204,7 +204,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static FString GetCPUBrand();
 	static void GetOSVersions(FString& out_OSVersionLabel, FString& out_OSSubVersionLabel);
 	static int32 IOSVersionCompare(uint8 Major, uint8 Minor, uint8 Revision);
-	
+	static FString GetProjectVersion();
+
 	static void SetGracefulTerminationHandler();
 	static void SetCrashHandler(void(*CrashHandler)(const FGenericCrashContext& Context));
 

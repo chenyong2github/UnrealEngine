@@ -42,6 +42,9 @@ public:
 	/** Get the instance of this module. */
 	NIAGARAEDITOR_API static FNiagaraEditorModule& Get();
 
+	/** Callback  when a token is clicked on in the niagara message log */ //@todo(ng) consider moving this to FNiagaraMessageManager in the future?
+	static void OnMessageLogTokenClicked(const TSharedRef<class IMessageToken>& Token);
+
 	/** Compile the specified script. */
 	virtual TSharedPtr<FNiagaraVMExecutableData> CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions);
 

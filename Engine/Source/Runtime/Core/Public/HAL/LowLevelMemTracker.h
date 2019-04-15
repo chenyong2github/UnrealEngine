@@ -454,6 +454,9 @@ public:
 	// Get the amount of memory for a tag from the given tracker
 	int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag);
 
+	// Set the amount of memory for a tag for a given tracker, optionally updating the total tracked memory too
+	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal );
+
 	// Dump the current tag for the given tracker to the output
 	void DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber );
 

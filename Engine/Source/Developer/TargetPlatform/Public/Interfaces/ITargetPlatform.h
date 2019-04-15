@@ -343,6 +343,16 @@ public:
 	*/
 	virtual bool UsesDBuffer() const = 0;
 	
+	/**
+	* Gets whether the platform should output velocity in the base pass.
+	*/
+	virtual bool UsesBasePassVelocity() const = 0;
+
+	/**
+	* Gets whether the platform will use selective outputs in the base pass shaders.
+	*/
+	virtual bool UsesSelectiveBasePassOutputs() const = 0; 
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

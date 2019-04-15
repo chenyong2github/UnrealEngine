@@ -36,7 +36,7 @@ bool FALSoundSource::Init( FWaveInstance* InWaveInstance )
 			WaveInstance = InWaveInstance;
 
 			// Enable/disable spatialization of sounds
-			alSourcei( SourceId, AL_SOURCE_RELATIVE, WaveInstance->bUseSpatialization ? AL_FALSE : AL_TRUE );
+			alSourcei( SourceId, AL_SOURCE_RELATIVE, WaveInstance->GetUseSpatialization() ? AL_FALSE : AL_TRUE );
 
 			// Setting looping on a real time decompressed source suppresses the buffers processed message
 			alSourcei( SourceId, AL_LOOPING, ( WaveInstance->LoopingMode == LOOP_Forever ) ? AL_TRUE : AL_FALSE );
@@ -132,7 +132,7 @@ void FALSoundSource::Update( void )
 
 	// We're using a relative coordinate system for un- spatialized sounds.
 	FVector RelativeDirection = FVector::ZeroVector;
-	if (WaveInstance->bUseSpatialization)
+	if (WaveInstance->GetUseSpatialization())
 	{
 		FVector UnnormalizedDirection = ((FALAudioDevice*)AudioDevice)->InverseTransform.TransformPosition(WaveInstance->Location);
 		RelativeDirection = UnnormalizedDirection.GetSafeNormal();

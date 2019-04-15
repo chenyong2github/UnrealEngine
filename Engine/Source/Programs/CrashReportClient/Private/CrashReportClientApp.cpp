@@ -9,7 +9,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/App.h"
-#include "CrashReportClientConfig.h"
+#include "CrashReportCoreConfig.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "CrashDescription.h"
 #include "CrashReportAnalytics.h"
@@ -24,7 +24,7 @@
 	#include "Framework/Application/SlateApplication.h"
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
-#include "CrashReportClientUnattended.h"
+#include "CrashReportCoreUnattended.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "RequiredProgramMainCPPInclude.h"
 
@@ -167,7 +167,7 @@ FPlatformErrorReport LoadErrorReport()
 			{
 				FConfigFile CrashConfigFile;
 				CrashConfigFile.Read(ReportDirectoryAbsolutePath / ConfigFilename);
-				FCrashReportClientConfig::Get().SetProjectConfigOverrides(CrashConfigFile);
+				FCrashReportCoreConfig::Get().SetProjectConfigOverrides(CrashConfigFile);
 			}
 
 			return ErrorReport;
@@ -248,7 +248,7 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 	TSharedRef<SWindow> Window = FSlateApplication::Get().AddWindow(
 		SNew(SWindow)
 		.Title(NSLOCTEXT("CrashReportClient", "CrashReportClientAppName", "Unreal Engine 4 Crash Reporter"))
-		.HasCloseButton(FCrashReportClientConfig::Get().IsAllowedToCloseWithoutSending())
+		.HasCloseButton(FCrashReportCoreConfig::Get().IsAllowedToCloseWithoutSending())
 		.ClientSize(InitialWindowDimensions)
 		[
 			ClientControl
@@ -298,7 +298,7 @@ void RunUnattended(FPlatformErrorReport ErrorReport)
 	FMainLoopTiming MainLoop(IdealTickRate, EMainLoopOptions::CoreTickerOnly);
 
 	// In the unattended mode we don't send any PII.
-	FCrashReportClientUnattended CrashReportClient(ErrorReport);
+	FCrashReportCoreUnattended CrashReportClient(ErrorReport);
 	ErrorReport.SetUserComment(NSLOCTEXT("CrashReportClient", "UnattendedMode", "Sent in the unattended mode"));
 
 	// loop until the app is ready to quit
@@ -324,7 +324,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
 
 	// Initialize config.
-	FCrashReportClientConfig::Get();
+	FCrashReportCoreConfig::Get();
 
 	const bool bUnattended = 
 #if CRASH_REPORT_UNATTENDED_ONLY
@@ -344,7 +344,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 	if (!GIsRequestingExit && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
 	{
-		ErrorReport.SetCrashReportClientVersion(FCrashReportClientConfig::Get().GetVersion());
+		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
 		FCrashReportAnalytics::Initialize();
 
@@ -360,7 +360,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				// UI failed to initialize, probably due to driver crash. Send in unattended mode if allowed.
 				bool bCanSendWhenUIFailedToInitialize = true;
 				GConfig->GetBool(TEXT("CrashReportClient"), TEXT("CanSendWhenUIFailedToInitialize"), bCanSendWhenUIFailedToInitialize, GEngineIni);
-				if (bCanSendWhenUIFailedToInitialize && !FCrashReportClientConfig::Get().IsAllowedToCloseWithoutSending())
+				if (bCanSendWhenUIFailedToInitialize && !FCrashReportCoreConfig::Get().IsAllowedToCloseWithoutSending())
 				{
 					RunUnattended(ErrorReport);
 				}

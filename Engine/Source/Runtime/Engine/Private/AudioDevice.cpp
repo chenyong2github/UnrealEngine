@@ -119,14 +119,6 @@ FAutoConsoleVariableRef CVarNumPrecacheFrames(
 	TEXT("0: Use default value for precache frames, >0: Number of frames to precache."),
 	ECVF_Default);
 
-static int32 AllowAudioSpatializationCVar = 1;
-FAutoConsoleVariableRef CVarAllowAudioSpatializationCVar(
-	TEXT("au.AllowAudioSpatialization"),
-	AllowAudioSpatializationCVar,
-	TEXT("Controls if we allow spatialization of audio, normally this is enabled.  If disabled all audio won't be spatialized, but will have attenuation.\n")
-	TEXT("0: Disable, >0: Enable"),
-	ECVF_Default);
-
 static int32 DisableLegacyReverb = 0;
 FAutoConsoleVariableRef CVarDisableLegacyReverb(
 	TEXT("au.DisableLegacyReverb"),
@@ -617,6 +609,8 @@ void FAudioDevice::Teardown()
 	}
 
 	PluginListeners.Reset();
+
+	ProximityRetriggerComponents.Reset();
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -687,6 +681,24 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 
 	// Loop through the cached plugin settings objects and add to the collector
 	Collector.AddReferencedObjects(PluginSettingsObjects);
+}
+
+void FAudioDevice::RegisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
+{
+	check(IsInGameThread());
+	ProximityRetriggerComponents.AddUnique(&Component);
+}
+
+const TArray<FAudioComponentPtr>& FAudioDevice::GetProximityRetriggerComponents() const
+{
+	check(IsInGameThread());
+	return ProximityRetriggerComponents;
+}
+
+void FAudioDevice::UnregisterProximityRetriggeringAudioComponent(UAudioComponent& Component)
+{
+	check(IsInGameThread());
+	ProximityRetriggerComponents.RemoveSwap(&Component);
 }
 
 void FAudioDevice::ResetInterpolation()
@@ -3682,6 +3694,12 @@ void FAudioDevice::Update(bool bGameTicking)
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
+	// Must be separate from subsequent call as editor is considered game thread
+	if (IsInGameThread())
+	{
+		UpdateProximityRetriggerComponents();
+	}
+
 	if (!IsInAudioThread())
 	{
 		check(IsInGameThread());
@@ -4188,12 +4206,6 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 		OneShotCount++;
 	}
 
-	// If we've disabled audio spatialization, then we need to force this active sound to no longer spatialize.
-	if (AllowAudioSpatializationCVar == 0)
-	{
-		ActiveSound->bAllowSpatialization = false;
-	}
-
 	// Set the active sound to be playing audio so it gets parsed at least once.
 	ActiveSound->bIsPlayingAudio = true;
 
@@ -4656,6 +4668,9 @@ void FAudioDevice::GetAttenuationListenerData(FAttenuationListenerData& OutListe
 		const FVector ListenerLocation = OutListenerData.ListenerTransform.GetTranslation();
 		ListenerToSound = SoundTransform.GetTranslation() - ListenerLocation;
 		ListenerToSound.ToDirectionAndLength(OutListenerData.ListenerToSoundDir, OutListenerData.ListenerToSoundDistance);
+
+		// store the actual distance for surround-panning sources with spread (AudioMixer)
+		OutListenerData.ListenerToSoundDistanceForPanning = OutListenerData.ListenerToSoundDistance;
 
 		if (bUseListenerAttenuationOverride)
 		{
@@ -5567,6 +5582,24 @@ float FAudioDevice::GetGameDeltaTime() const
 	// Clamp the delta time to a reasonable max delta time.
 	return FMath::Min(DeltaTime, 0.5f);
 }
+
+void FAudioDevice::UpdateProximityRetriggerComponents()
+{
+	for (int32 i = ProximityRetriggerComponents.Num() - 1; i >= 0; --i)
+	{
+		FAudioComponentPtr& ComponentPtr = ProximityRetriggerComponents[i];
+		if (ComponentPtr.IsStale())
+		{
+			UE_LOG(LogAudio, Warning, TEXT("AudioComponent destroyed but not removed from retrigger proximity."));
+			ProximityRetriggerComponents.RemoveAtSwap(i, 1, false);
+		}
+		else if (ComponentPtr.IsValid())
+		{
+			ComponentPtr->OnUpdateProximityRetrigger(GetDeviceDeltaTime());
+		}
+	}
+}
+
 
 #if WITH_EDITOR
 void FAudioDevice::OnBeginPIE(const bool bIsSimulating)

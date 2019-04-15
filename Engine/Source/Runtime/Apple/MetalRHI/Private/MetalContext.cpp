@@ -73,10 +73,14 @@ static FAutoConsoleVariableRef CVarMetalResourceDeferDeleteNumFrames(
 	TEXT("Debug option: set to the number of frames that must have passed before resource free-lists are processed and resources disposed of. (Default: 0, Off)"));
 #endif
 
-#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+#if UE_BUILD_SHIPPING
 int32 GMetalRuntimeDebugLevel = 0;
 #else
+#if PLATFORM_MAC
+int32 GMetalRuntimeDebugLevel = 3;
+#else
 int32 GMetalRuntimeDebugLevel = 1;
+#endif
 #endif
 static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	TEXT("rhi.Metal.RuntimeDebugLevel"),
@@ -89,10 +93,10 @@ static FAutoConsoleVariableRef CVarMetalRuntimeDebugLevel(
 	TEXT("\t2: Enable light-weight validation of resource bindings & API usage,\n")
 	TEXT("\t3: Track resources and validate lifetime on command-buffer failure,\n")
 	TEXT("\t4: Reset resource bindings when binding a PSO/Compute-Shader to simplify GPU debugging,\n")
-	TEXT("\t5: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
-	TEXT("\t6: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
-	TEXT("\t7: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
-	TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
+	TEXT("\t5: Allow rhi.Metal.CommandBufferCommitThreshold to break command-encoders (except when MSAA is enabled),\n")
+	TEXT("\t6: Enable slower, more extensive validation checks for resource types & encoder usage,\n")
+    TEXT("\t7: Record the draw, blit & dispatch commands issued into a command-buffer and report them on failure,\n")
+    TEXT("\t8: Wait for each command-buffer to complete immediately after submission."));
 
 float GMetalPresentFramePacing = 0.0f;
 #if !PLATFORM_MAC
@@ -487,7 +491,7 @@ void FMetalDeviceContext::ClearFreeList()
 
 void FMetalDeviceContext::DrainHeap()
 {
-	Heap.Compact(false);
+	Heap.Compact(&RenderPass, false);
 }
 
 void FMetalDeviceContext::EndFrame()
@@ -531,7 +535,7 @@ void FMetalDeviceContext::EndFrame()
     
     ClearFreeList();
     
-    Heap.Compact(false);
+	DrainHeap();
     
 	InitFrame(true, 0, 0);
 }

@@ -9,11 +9,11 @@ IMPLEMENT_MODULE( FNetworkReplayStreaming, NetworkReplayStreaming );
 
 INetworkReplayStreamingFactory& FNetworkReplayStreaming::GetFactory(const TCHAR* FactoryNameOverride)
 {
-	FString FactoryName = TEXT( "NullNetworkReplayStreaming" );
+	FString FactoryName = TEXT("NullNetworkReplayStreaming");
 
 	if (FactoryNameOverride == nullptr)
 	{
-		GConfig->GetString( TEXT( "NetworkReplayStreaming" ), TEXT( "DefaultFactoryName" ), FactoryName, GEngineIni );
+		GConfig->GetString(TEXT("NetworkReplayStreaming"), TEXT("DefaultFactoryName"), FactoryName, GEngineIni);
 	}
 	else
 	{
@@ -27,17 +27,19 @@ INetworkReplayStreamingFactory& FNetworkReplayStreaming::GetFactory(const TCHAR*
 	}
 
 	// See if we need to forcefully fallback to the null streamer
-	if ( !FModuleManager::Get().IsModuleLoaded( *FactoryName ) )
+	if (!FModuleManager::Get().IsModuleLoaded(*FactoryName))
 	{
-		FModuleManager::Get().LoadModule( *FactoryName );
+		FModuleManager::Get().LoadModule(*FactoryName);
 	
-		if ( !FModuleManager::Get().IsModuleLoaded( *FactoryName ) )
+		if (!FModuleManager::Get().IsModuleLoaded(*FactoryName))
 		{
-			FactoryName = TEXT( "NullNetworkReplayStreaming" );
+			FactoryName = TEXT("NullNetworkReplayStreaming");
 		}
 	}
 
-	return FModuleManager::Get().LoadModuleChecked< INetworkReplayStreamingFactory >( *FactoryName );
+	LoadedFactories.Add(*FactoryName);
+
+	return FModuleManager::Get().LoadModuleChecked<INetworkReplayStreamingFactory>(*FactoryName);
 }
 
 int32 FNetworkReplayStreaming::GetMaxNumberOfAutomaticReplays()
@@ -85,4 +87,16 @@ const FString FNetworkReplayStreaming::GetAutomaticReplayPrefixExtern() const
 const int32 FNetworkReplayStreaming::GetMaxNumberOfAutomaticReplaysExtern() const
 {
 	return GetMaxNumberOfAutomaticReplays();
+}
+
+void FNetworkReplayStreaming::Flush()
+{
+	for (const FName& FactoryName : LoadedFactories)
+	{
+		if (FModuleManager::Get().IsModuleLoaded(FactoryName))
+		{
+			INetworkReplayStreamingFactory& ReplayFactory = FModuleManager::Get().LoadModuleChecked<INetworkReplayStreamingFactory>(FactoryName);
+			ReplayFactory.Flush();
+		}
+	}
 }

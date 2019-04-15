@@ -34,6 +34,7 @@ struct FPrimitiveSceneData
 	uint LightingChannelMask;
 	uint LightmapDataIndex;
 	int SingleCaptureIndex;
+    uint OutputVelocity;
 };
 
 // Stride of a single primitive's data in float4's, must match C++
@@ -89,6 +90,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.LightmapDataIndex = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 24].w);
 
 	PrimitiveData.SingleCaptureIndex = asint(View.PrimitiveSceneData[PrimitiveBaseOffset + 25].x);
+	PrimitiveData.OutputVelocity = asuint(View.PrimitiveSceneData[PrimitiveBaseOffset + 25].y);
 
 	PrimitiveData.PreSkinnedLocalBounds = View.PrimitiveSceneData[PrimitiveBaseOffset + 26].xyz;
 

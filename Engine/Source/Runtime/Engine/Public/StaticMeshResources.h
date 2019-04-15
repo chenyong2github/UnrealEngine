@@ -58,6 +58,7 @@ public:
 	FStaticMeshLODGroup()
 		: DefaultNumLODs(1)
 		, DefaultMaxNumStreamedLODs(0)
+		, DefaultMaxNumOptionalLODs(0)
 		, DefaultLightMapResolution(64)
 		, BasePercentTrianglesMult(1.0f)
 		, bSupportLODStreaming(false)
@@ -77,6 +78,12 @@ public:
 	int32 GetDefaultMaxNumStreamedLODs() const
 	{
 		return DefaultMaxNumStreamedLODs;
+	}
+
+	/** Returns the default maximum of optional LODs */
+	int32 GetDefaultMaxNumOptionalLODs() const
+	{
+		return DefaultMaxNumOptionalLODs;
 	}
 
 	/** Returns the default lightmap resolution. */
@@ -108,6 +115,8 @@ private:
 	int32 DefaultNumLODs;
 	/** Maximum number of streamed LODs */
 	int32 DefaultMaxNumStreamedLODs;
+	/** Maximum number of optional LODs */
+	int32 DefaultMaxNumOptionalLODs;
 	/** Default lightmap resolution. */
 	int32 DefaultLightMapResolution;
 	/** An additional reduction of base meshes in this group. */
@@ -412,11 +421,15 @@ private:
 		}
 	};
 
+	static int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh);
+
 	static uint8 GenerateClassStripFlags(FArchive& Ar, UStaticMesh* OwnerStaticMesh, int32 Index);
 
 	static bool IsLODCookedOut(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, bool bIsBelowMinLOD);
 
 	static bool IsLODInlined(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh, int32 LODIdx, bool bIsBelowMinLOD);
+
+	static int32 GetNumOptionalLODsAllowed(const ITargetPlatform* TargetPlatform, UStaticMesh* StaticMesh);
 
 	/** Compute the size of VertexBuffers and add the result to OutSize */
 	static void AccumVertexBuffersSize(const FStaticMeshVertexBuffers& VertexBuffers, uint32& OutSize);
@@ -435,6 +448,8 @@ private:
 	 * can be retrieved without loading in actual vertex or index data
 	 */
 	void SerializeAvailabilityInfo(FArchive& Ar);
+
+	void ClearAvailabilityInfo();
 
 	template <bool bIncrement>
 	void UpdateIndexMemoryStats();

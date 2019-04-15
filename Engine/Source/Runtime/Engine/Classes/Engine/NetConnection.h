@@ -628,12 +628,6 @@ public:
 
 	EResendAllDataState ResendAllDataState;
 
-	/** Set of guids we may need to ignore when processing a delta checkpoint */
-	TSet<FNetworkGUID> IgnoredGuids;
-
-	/** Set of channels we may need to ignore when processing a delta checkpoint */
-	TSet<int32> IgnoredChannels;
-
 #if !UE_BUILD_SHIPPING
 	/** Delegate for hooking ReceivedRawPacket */
 	FOnReceivedRawPacket	ReceivedRawPacketDel;
@@ -1054,6 +1048,12 @@ public:
 	 */
 	void SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels);
 
+	/**
+	 * Sets whether or not we should ignore bunches for a specific set of NetGUIDs.
+	 * Should only be used with InternalAck.
+	 */
+	void SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNetworkGUID>&& InIgnoredBunchGuids);
+
 	/** Returns the OutgoingBunches array, only to be used by UChannel::SendBunch */
 	TArray<FOutBunch *>& GetOutgoingBunches() { return OutgoingBunches; }
 
@@ -1069,6 +1069,9 @@ public:
 	 * @param bFlushWholeCache	Whether or not the whole cache should be flushed, or only flush up to the next missing packet
 	 */
 	void FlushPacketOrderCache(bool bFlushWholeCache=false);
+
+	/** Called when an actor channel is open and knows its NetGUID. */
+	ENGINE_API virtual void NotifyActorNetGUID(UActorChannel* Channel) {}
 
 protected:
 
@@ -1132,6 +1135,14 @@ private:
 	TMap<int32, FNetworkGUID> IgnoringChannels;
 	bool bIgnoreAlreadyOpenedChannels;
 
+	/** Set of guids we may need to ignore when processing a delta checkpoint */
+	TSet<FNetworkGUID> IgnoredBunchGuids;
+
+	/** Set of channels we may need to ignore when processing a delta checkpoint */
+	TSet<int32> IgnoredBunchChannels;
+
+	bool bIgnoreActorBunches;
+
 	/** This is only used in UChannel::SendBunch. It's a member so that we can preserve the allocation between calls, as an optimization, and in a thread-safe way to be compatible with demo.ClientRecordAsyncEndOfFrame */
 	TArray<FOutBunch*> OutgoingBunches;
 
@@ -1154,7 +1165,6 @@ private:
 	bool bConnectionPendingCloseDueToSocketSendFailure;
 
 	FNetworkGUID GetActorGUIDFromOpenBunch(FInBunch& Bunch);
-
 
 	/** Out of order packet tracking/correction */
 

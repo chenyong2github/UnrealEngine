@@ -644,7 +644,8 @@ class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactor
 public:
 	virtual void ShutdownModule() override;
 
-	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer();
+	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;
+	virtual void Flush() override;
 
 	/** FTickableGameObject */
 	virtual void Tick(float DeltaTime) override;
@@ -653,5 +654,7 @@ public:
 	bool IsTickableWhenPaused() const override { return true; }
 
 protected:
+	bool HasAnyPendingRequests() const;
+
 	TArray<TSharedPtr<FLocalFileNetworkReplayStreamer>> LocalFileStreamers;
 };

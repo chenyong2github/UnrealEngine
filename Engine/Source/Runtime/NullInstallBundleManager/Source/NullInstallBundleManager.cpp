@@ -74,6 +74,21 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 
 	}
 
+	virtual bool PauseBundle(FName BundleName) override
+	{
+		return false;
+	}
+
+	virtual void ResumeBundle(FName BundleName) override
+	{
+
+	}
+
+	virtual void RequestPausedBundleCallback() const override
+	{
+
+	}
+
 	virtual TOptional<FInstallBundleStatus> GetBundleProgress(FName BundleName) const override
 	{
 		return TOptional<FInstallBundleStatus>();

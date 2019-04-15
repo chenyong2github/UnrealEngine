@@ -215,6 +215,162 @@ void FAssetRegistryState::Reset()
 	CachedPackageData.Empty();
 }
 
+void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAndValues, FAssetDataTagMap& OutTagsAndValues, const TSet<FName>* ClassSpecificFilterlist, const FAssetRegistrySerializationOptions& Options)
+{
+	static FName WildcardName(TEXT("*"));
+	const TSet<FName>* AllClassesFilterlist = Options.CookFilterlistTagsByClass.Find(WildcardName);
+
+	// Exclude blacklisted tags or include only white listed tags, based on how we were configured in ini
+	for (const auto& TagPair : InTagsAndValues)
+	{
+		const bool bInAllClasseslist = AllClassesFilterlist && (AllClassesFilterlist->Contains(TagPair.Key) || AllClassesFilterlist->Contains(WildcardName));
+		const bool bInClassSpecificlist = ClassSpecificFilterlist && (ClassSpecificFilterlist->Contains(TagPair.Key) || ClassSpecificFilterlist->Contains(WildcardName));
+		if (Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist)
+		{
+			// It's a white list, only include it if it is in the all classes list or in the class specific list
+			if (bInAllClasseslist || bInClassSpecificlist)
+			{
+				// It is in the white list. Keep it.
+				OutTagsAndValues.Add(TagPair.Key, TagPair.Value);
+			}
+		}
+		else
+		{
+			// It's a blacklist, include it unless it is in the all classes list or in the class specific list
+			if (!bInAllClasseslist && !bInClassSpecificlist)
+			{
+				// It isn't in the blacklist. Keep it.
+				OutTagsAndValues.Add(TagPair.Key, TagPair.Value);
+			}
+		}
+	}
+}
+
+void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistryState & ExistingState, const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions & Options)
+{
+	const bool bIsFilteredByChunkId = ChunksToKeep.Num() != 0;
+	const bool bIsFilteredByRequiredPackages = RequiredPackages.Num() != 0;
+	const bool bIsFilteredByRemovedPackages = RemovePackages.Num() != 0;
+
+	TSet<FName> RequiredDependNodePackages;
+
+	// Duplicate asset data entries
+	for (const TPair<FName, FAssetData*>& AssetPair : ExistingState.CachedAssetsByObjectPath)
+	{
+		const FAssetData* AssetData = AssetPair.Value;
+
+		bool bRemoveAssetData = false;
+		bool bRemoveDependencyData = true;
+
+		if (bIsFilteredByChunkId &&
+			!AssetData->ChunkIDs.ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
+		{
+			bRemoveAssetData = true;
+		}
+		else if (bIsFilteredByRequiredPackages && !RequiredPackages.Contains(AssetData->PackageName))
+		{
+			bRemoveAssetData = true;
+		}
+		else if (bIsFilteredByRemovedPackages && RemovePackages.Contains(AssetData->PackageName))
+		{
+			bRemoveAssetData = true;
+		}
+		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 &&
+			!FPackageName::IsLocalizedPackage(AssetData->PackageName.ToString()))
+		{
+			bRemoveAssetData = true;
+			bRemoveDependencyData = Options.bFilterDependenciesWithNoTags;
+		}
+
+		if (bRemoveAssetData)
+		{
+			if (!bRemoveDependencyData)
+			{
+				RequiredDependNodePackages.Add(AssetData->PackageName);
+			}
+			continue;
+		}
+
+		FAssetDataTagMap NewTagsAndValues;
+		FAssetRegistryState::FilterTags(AssetData->TagsAndValues, NewTagsAndValues, Options.CookFilterlistTagsByClass.Find(AssetData->AssetClass), Options);
+
+		FAssetData* NewAssetData = new FAssetData(AssetData->PackageName, AssetData->PackagePath, AssetData->AssetName,
+			AssetData->AssetClass, NewTagsAndValues, AssetData->ChunkIDs, AssetData->PackageFlags);
+		// Add asset to new state
+		AddAssetData(NewAssetData);
+	}
+
+	// Create package data for all script and required packages
+	for (const TPair<FName, FAssetPackageData*>& Pair : ExistingState.CachedPackageData)
+	{
+		if (Pair.Value)
+		{
+			// Only add if also in asset data map, or script package
+			if (CachedAssetsByPackageName.Find(Pair.Key) ||
+				FPackageName::IsScriptPackage(Pair.Key.ToString()))
+			{
+				FAssetPackageData* NewData = CreateOrGetAssetPackageData(Pair.Key);
+				*NewData = *Pair.Value;
+			}
+		}
+	}
+
+	// Find valid dependency nodes for all script and required packages
+	TSet<FDependsNode*> ValidDependsNodes;
+	ValidDependsNodes.Reserve(ExistingState.CachedDependsNodes.Num());
+	for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : ExistingState.CachedDependsNodes)
+	{
+		FDependsNode* Node = Pair.Value;
+		const FAssetIdentifier& Id = Node->GetIdentifier();
+		bool bRemoveDependsNode = false;
+
+		if (Options.bFilterSearchableNames && Id.IsValue())
+		{
+			bRemoveDependsNode = true;
+		}
+		else if (Id.IsPackage() &&
+			!CachedAssetsByPackageName.Contains(Id.PackageName) &&
+			!RequiredDependNodePackages.Contains(Id.PackageName) &&
+			!FPackageName::IsScriptPackage(Id.PackageName.ToString()))
+		{
+			bRemoveDependsNode = true;
+		}
+
+		if (!bRemoveDependsNode)
+		{
+			ValidDependsNodes.Add(Node);
+		}
+	}
+
+	// Duplicate dependency nodes
+	for (FDependsNode* OldNode : ValidDependsNodes)
+	{
+		FDependsNode* NewNode = CreateOrFindDependsNode(OldNode->GetIdentifier());
+		NewNode->Reserve(OldNode);
+	
+		OldNode->IterateOverDependencies([&, OldNode, NewNode](FDependsNode* InDependency, EAssetRegistryDependencyType::Type InDependencyType) {
+			if (ValidDependsNodes.Contains(InDependency))
+			{
+				// Only add link if it's part of the filtered asset set
+				FDependsNode* NewDependency = CreateOrFindDependsNode(InDependency->GetIdentifier());
+				NewNode->AddDependency(NewDependency, InDependencyType, true);
+				NewDependency->AddReferencer(NewNode);
+			}
+		});
+	}
+
+	// Remove any orphaned depends nodes. This will leave cycles in but those might represent useful data
+	TArray<FDependsNode*> AllDependsNodes;
+	CachedDependsNodes.GenerateValueArray(AllDependsNodes);
+	for (FDependsNode* DependsNode : AllDependsNodes)
+	{
+		if (DependsNode->GetConnectionCount() == 0)
+		{
+			RemoveDependsNode(DependsNode->GetIdentifier());
+		}
+	}
+}
+
 void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>& AssetDataMap, const TMap<FAssetIdentifier, FDependsNode*>& DependsNodeMap, const TMap<FName, FAssetPackageData*>& AssetPackageDataMap, const FAssetRegistrySerializationOptions& Options, EInitializationMode InInitializationMode)
 {
 	if (InInitializationMode == EInitializationMode::Rebuild)
@@ -240,35 +396,8 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 			// Filter asset registry tags now
 			const FAssetData& AssetData = *Pair.Value;
 
-			static FName WildcardName(TEXT("*"));
-			const TSet<FName>* AllClassesFilterlist = Options.CookFilterlistTagsByClass.Find(WildcardName);
-			const TSet<FName>* ClassSpecificFilterlist = Options.CookFilterlistTagsByClass.Find(AssetData.AssetClass);
-
-			// Exclude blacklisted tags or include only whitelisted tags, based on how we were configured in ini
 			FAssetDataTagMap LocalTagsAndValues;
-			for (const auto& TagPair : AssetData.TagsAndValues)
-			{
-				const bool bInAllClasseslist = AllClassesFilterlist && (AllClassesFilterlist->Contains(TagPair.Key) || AllClassesFilterlist->Contains(WildcardName));
-				const bool bInClassSpecificlist = ClassSpecificFilterlist && (ClassSpecificFilterlist->Contains(TagPair.Key) || ClassSpecificFilterlist->Contains(WildcardName));
-				if (Options.bUseAssetRegistryTagsWhitelistInsteadOfBlacklist)
-				{
-					// It's a whitelist, only include it if it is in the all classes list or in the class specific list
-					if (bInAllClasseslist || bInClassSpecificlist)
-					{
-						// It is in the whitelist. Keep it.
-						LocalTagsAndValues.Add(TagPair.Key, TagPair.Value);
-					}
-				}
-				else
-				{
-					// It's a blacklist, include it unless it is in the all classes list or in the class specific list
-					if (!bInAllClasseslist && !bInClassSpecificlist)
-					{
-						// It isn't in the blacklist. Keep it.
-						LocalTagsAndValues.Add(TagPair.Key, TagPair.Value);
-					}
-				}
-			}
+			FAssetRegistryState::FilterTags(AssetData.TagsAndValues, LocalTagsAndValues, Options.CookFilterlistTagsByClass.Find(AssetData.AssetClass), Options);
 
 			if (InInitializationMode == EInitializationMode::OnlyUpdateExisting)
 			{
@@ -341,57 +470,77 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 
 void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options)
 {
+	const bool bIsFilteredByChunkId = ChunksToKeep.Num() != 0;
+	const bool bIsFilteredByRequiredPackages = RequiredPackages.Num() != 0;
+	const bool bIsFilteredByRemovedPackages = RemovePackages.Num() != 0;
+
+	TSet<FName> RequiredDependNodePackages;
+
 	// Generate list up front as the maps will get cleaned up
 	TArray<FAssetData*> AllAssetData;
 	CachedAssetsByObjectPath.GenerateValueArray(AllAssetData);
 
 	for (FAssetData* AssetData : AllAssetData)
 	{
-		bool bFilteredByChunkID = ChunksToKeep.Num() != 0;
+		bool bRemoveAssetData = false;
+		bool bRemoveDependencyData = true;
 
-		if (bFilteredByChunkID)
+		if (bIsFilteredByChunkId &&
+			!AssetData->ChunkIDs.ContainsByPredicate([&](int32 ChunkId) { return ChunksToKeep.Contains(ChunkId); }))
 		{
-			for (int32 ChunkToKeep : ChunksToKeep)
+			bRemoveAssetData = true;
+		}
+		else if (bIsFilteredByRequiredPackages && !RequiredPackages.Contains(AssetData->PackageName))
+		{
+			bRemoveAssetData = true;
+		}
+		else if (bIsFilteredByRemovedPackages && RemovePackages.Contains(AssetData->PackageName))
+		{
+			bRemoveAssetData = true;
+		}
+		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 &&
+			!FPackageName::IsLocalizedPackage(AssetData->PackageName.ToString()))
+		{
+			bRemoveAssetData = true;
+			bRemoveDependencyData = Options.bFilterDependenciesWithNoTags;
+		}
+
+		if (bRemoveAssetData)
+		{
+			if (!bRemoveDependencyData)
 			{
-				if (AssetData->ChunkIDs.Contains(ChunkToKeep ))
-				{
-					bFilteredByChunkID = false;
-					break;
-				}
+				RequiredDependNodePackages.Add(AssetData->PackageName);
 			}
-		}
-
-		if (bFilteredByChunkID || (RequiredPackages.Num() > 0 && !RequiredPackages.Contains(AssetData->PackageName)))
-		{
-			RemoveAssetData(AssetData);
-		}
-		else if (RemovePackages.Contains(AssetData->PackageName))
-		{
-			RemoveAssetData(AssetData);
-		}
-		else if (Options.bFilterAssetDataWithNoTags && AssetData->TagsAndValues.Num() == 0 && !FPackageName::IsLocalizedPackage(AssetData->PackageName.ToString()))
-		{
-			// Optionally remove dependency data
-			RemoveAssetData(AssetData, Options.bFilterDependenciesWithNoTags);
+			RemoveAssetData(AssetData, bRemoveDependencyData);
 		}
 	}
 
 	TArray<FDependsNode*> AllDependsNodes;
 	CachedDependsNodes.GenerateValueArray(AllDependsNodes);
 
-	if (Options.bFilterSearchableNames)
+	for (FDependsNode* DependsNode : AllDependsNodes)
 	{
-		// Remove searchable names if specified
-		for (FDependsNode* DependsNode : AllDependsNodes)
-		{
-			if (DependsNode->GetIdentifier().IsValue())
-			{
-				RemoveDependsNode(DependsNode->GetIdentifier());
-			}
-		}
+		const FAssetIdentifier& Id = DependsNode->GetIdentifier();
+		bool bRemoveDependsNode = false;
 
-		CachedDependsNodes.GenerateValueArray(AllDependsNodes);
+		if (Options.bFilterSearchableNames && Id.IsValue())
+		{
+			bRemoveDependsNode = true;
+		}
+		else if (Id.IsPackage() &&
+			!CachedAssetsByPackageName.Contains(Id.PackageName) &&
+			!RequiredDependNodePackages.Contains(Id.PackageName) &&
+			!FPackageName::IsScriptPackage(Id.PackageName.ToString()))
+		{
+			bRemoveDependsNode = true;
+		}
+		
+		if (bRemoveDependsNode)
+		{
+			RemoveDependsNode(Id);
+		}
 	}
+	CachedDependsNodes.GenerateValueArray(AllDependsNodes);
 
 	// Remove any orphaned depends nodes. This will leave cycles in but those might represent useful data
 	for (FDependsNode* DependsNode : AllDependsNodes)
@@ -635,6 +784,7 @@ bool FAssetRegistryState::GetReferencers(const FAssetIdentifier& AssetIdentifier
 		TArray<FDependsNode*> DependencyNodes;
 		Node->GetReferencers(DependencyNodes, InReferenceType);
 
+		OutReferencers.Reserve(DependencyNodes.Num());
 		for (FDependsNode* DependencyNode : DependencyNodes)
 		{
 			OutReferencers.Add(DependencyNode->GetIdentifier());
@@ -1271,15 +1421,19 @@ bool FAssetRegistryState::RemoveAssetData(FAssetData* AssetData, bool bRemoveDep
 			OldTagAssets->RemoveSingleSwap(AssetData);
 		}
 
-		// We need to update the cached dependencies references cache so that they know we no
-		// longer exist and so don't reference them.
-		if (bRemoveDependencyData)
+		// Only remove dependencies and package data if there are no other known assets in the package
+		if (OldPackageAssets->Num() == 0)
 		{
-			RemoveDependsNode(AssetData->PackageName);
-		}
+			// We need to update the cached dependencies references cache so that they know we no
+			// longer exist and so don't reference them.
+			if (bRemoveDependencyData)
+			{
+				RemoveDependsNode(AssetData->PackageName);
+			}
 
-		// Remove the package data as well
-		RemovePackageData(AssetData->PackageName);
+			// Remove the package data as well
+			RemovePackageData(AssetData->PackageName);
+		}
 
 		// if the assets were preallocated in a block, we can't delete them one at a time, only the whole chunk in the destructor
 		if (PreallocatedAssetDataBuffers.Num() == 0)
@@ -1287,6 +1441,7 @@ bool FAssetRegistryState::RemoveAssetData(FAssetData* AssetData, bool bRemoveDep
 			delete AssetData;
 		}
 		NumAssets--;
+		bRemoved = true;
 	}
 
 	return bRemoved;
@@ -1509,3 +1664,120 @@ bool FAssetRegistryState::IsFilterValid(const FARFilter& Filter, bool bAllowRecu
 
 	return true;
 }
+
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+
+void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>& OutLines) const
+{
+	OutLines.Reserve(14 + CachedAssetsByObjectPath.Num() * 5 + CachedDependsNodes.Num() + CachedPackageData.Num());
+
+	if (Arguments.Contains(TEXT("ObjectPath")))
+	{
+		OutLines.Add(FString::Printf(TEXT("--- Begin CachedAssetsByObjectPath ---")));
+
+		for (const TPair<FName, FAssetData*>& Pair : CachedAssetsByObjectPath)
+		{
+			OutLines.Add(FString::Printf(TEXT("	%s"), *Pair.Key.ToString()));
+		}
+
+		OutLines.Add(
+			FString::Printf(TEXT("--- End CachedAssetsByObjectPath : %d entries ---"), CachedAssetsByObjectPath.Num()));
+	}
+
+	auto PrintAssetDataMap = [&OutLines](FString Name, const TMap<FName, TArray<FAssetData*>>& AssetMap)
+	{
+		OutLines.Add(FString::Printf(TEXT("--- Begin %s ---"), *Name));
+
+		TArray<FName> Keys;
+		AssetMap.GenerateKeyArray(Keys);
+		Keys.Sort();
+
+		TArray<FAssetData*> Items;
+		Items.Reserve(1024);
+
+		int32 ValidCount = 0;
+		for (const FName& Key : Keys)
+		{
+			const TArray<FAssetData*> AssetArray = AssetMap.FindChecked(Key);
+			if (AssetArray.Num() == 0)
+			{
+				continue;
+			}
+			++ValidCount;
+
+			Items.Reset();
+			Items.Append(AssetArray);
+			Items.Sort([](const FAssetData& A, const FAssetData& B)
+				{ return A.ObjectPath.ToString() < B.ObjectPath.ToString(); }
+				);
+
+			OutLines.Add(FString::Printf(TEXT("	%s : %d item(s)"), *Key.ToString(), Items.Num()));
+			for (const FAssetData* Data : Items)
+			{
+				OutLines.Add(FString::Printf(TEXT("	 %s"), *Data->ObjectPath.ToString()));
+			}
+		}
+
+		OutLines.Add(FString::Printf(TEXT("--- End %s : %d entries ---"), *Name, ValidCount));
+	};
+
+	if (Arguments.Contains(TEXT("PackageName")))
+	{
+		PrintAssetDataMap(TEXT("CachedAssetsByPackageName"), CachedAssetsByPackageName);
+	}
+
+	if (Arguments.Contains(TEXT("Path")))
+	{
+		PrintAssetDataMap(TEXT("CachedAssetsByPath"), CachedAssetsByPath);
+	}
+
+	if (Arguments.Contains(TEXT("Class")))
+	{
+		PrintAssetDataMap(TEXT("CachedAssetsByClass"), CachedAssetsByClass);
+	}
+
+	if (Arguments.Contains(TEXT("Tag")))
+	{
+		PrintAssetDataMap(TEXT("CachedAssetsByTag"), CachedAssetsByTag);
+	}
+
+	if (Arguments.Contains(TEXT("Dependencies")))
+	{
+		OutLines.Add(FString::Printf(TEXT("--- Begin CachedDependsNodes ---")));
+
+		TArray<FDependsNode*> Nodes;
+		CachedDependsNodes.GenerateValueArray(Nodes);
+		Nodes.Sort([](const FDependsNode& A, const FDependsNode& B)
+			{ return A.GetIdentifier().ToString() < B.GetIdentifier().ToString(); }
+			);
+
+		for (const FDependsNode* Node : Nodes)
+		{
+			OutLines.Add(
+				FString::Printf(TEXT("	%s : %d connection(s)"),
+					*Node->GetIdentifier().ToString(), Node->GetConnectionCount()));
+		}
+
+		OutLines.Add(FString::Printf(TEXT("--- End CachedDependsNodes : %d entries ---"), CachedDependsNodes.Num()));
+	}
+
+	if (Arguments.Contains(TEXT("PackageData")))
+	{
+		OutLines.Add(FString::Printf(TEXT("--- Begin CachedPackageData ---")));
+
+		TArray<FName> Keys;
+		CachedPackageData.GenerateKeyArray(Keys);
+		Keys.Sort();
+
+		for (const FName& Key : Keys)
+		{
+			const FAssetPackageData* PackageData = CachedPackageData.FindChecked(Key);
+			OutLines.Add(FString::Printf(TEXT("	%s : %s : %d bytes"),
+					*Key.ToString(), *PackageData->PackageGuid.ToString(), PackageData->DiskSize));
+		}
+
+		OutLines.Add(FString::Printf(TEXT("--- End CachedPackageData : %d entries ---"), CachedPackageData.Num()));
+	}
+}
+
+#endif // ASSET_REGISTRY_STATE_DUMPING_ENABLED

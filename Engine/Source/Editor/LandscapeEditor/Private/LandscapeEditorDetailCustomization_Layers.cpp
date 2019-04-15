@@ -18,6 +18,7 @@
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "LandscapeEditorModule.h"
@@ -47,6 +48,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "LandscapeEditorCommands.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.Layers"
 
@@ -63,10 +65,44 @@ void FLandscapeEditorDetailCustomization_Layers::CustomizeDetails(IDetailLayoutB
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode && LandscapeEdMode->CurrentToolMode != nullptr)
 	{
-		LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_Layers(DetailBuilder.GetThumbnailPool().ToSharedRef())));
+		if (LandscapeEdMode->GetLandscape())
+		{
+			LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_Layers(DetailBuilder.GetThumbnailPool().ToSharedRef())));
+
+			LayerCategory.AddCustomRow(FText())
+				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([]() { return ShoudShowLayersErrorMessageTip() ? EVisibility::Visible : EVisibility::Collapsed; })))
+				[
+					SNew(SMultiLineEditableTextBox)
+					.Font(DetailBuilder.GetDetailFontBold())
+					.BackgroundColor(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateLambda([]() { return FEditorStyle::GetColor("ErrorReporting.WarningBackgroundColor"); })))
+					.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FLandscapeEditorDetailCustomization_Layers::GetLayersErrorMessageText)))
+					.AutoWrapText(true)
+				];
+		}
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+bool FLandscapeEditorDetailCustomization_Layers::ShoudShowLayersErrorMessageTip()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode)
+	{
+		return !LandscapeEdMode->CanEditLayer();
+	}
+	return false;
+}
+
+FText FLandscapeEditorDetailCustomization_Layers::GetLayersErrorMessageText()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	FText Reason;
+	if (LandscapeEdMode && !LandscapeEdMode->CanEditLayer(&Reason))
+	{
+		return Reason;
+	}
+	return FText::GetEmpty();
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -77,6 +113,8 @@ FEdModeLandscape* FLandscapeEditorCustomNodeBuilder_Layers::GetEditorMode()
 
 FLandscapeEditorCustomNodeBuilder_Layers::FLandscapeEditorCustomNodeBuilder_Layers(TSharedRef<FAssetThumbnailPool> InThumbnailPool)
 	: ThumbnailPool(InThumbnailPool)
+	, CurrentEditingInlineTextBlock(INDEX_NONE)
+	, CurrentSlider(INDEX_NONE)
 {
 }
 
@@ -101,7 +139,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::GenerateHeaderRowContent(FDetailW
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(FText::FromString(TEXT("Layers")))
+			.Text(FText::FromString(TEXT("Layers")))
 		];
 }
 
@@ -157,96 +195,117 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::GenerateRow(int32 
 		.Visibility(EVisibility::Visible)
 		[
 			SNew(SHorizontalBox)
-
+			
 			+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-		.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnToggleLock, InLayerIndex)
-		.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_LayerLock", "Locks the current layer"))
-		[
-			SNew(SImage)
-			.Image(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLayer, InLayerIndex)
-		]
-		]
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnToggleLock, InLayerIndex)
+				.ToolTipText(LOCTEXT("LandscapeLayerLock", "Locks the current layer"))
+				[
+					SNew(SImage)
+					.Image(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLayer, InLayerIndex)
+				]
+			]
 
-	+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ContentPadding(0)
-		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-		.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility, InLayerIndex)
-		.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_LayerVisibility", "Toggle Layer Visibility"))
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.Content()
-		[
-			SNew(SImage)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ContentPadding(0)
+				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility, InLayerIndex)
+				.ToolTipText(LOCTEXT("LandscapeLayerVisibility", "Toggle Layer Visibility"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Content()
+				[
+					SNew(SImage)
 			.Image(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetVisibilityBrushForLayer, InLayerIndex)
-		]
-		]
+				]
+			]
 
-	+ SHorizontalBox::Slot()
-		.FillWidth(1.0)
-		.VAlign(VAlign_Center)
-		.Padding(4, 0)
-		[
-			SAssignNew(InlineTextBlocks[InLayerIndex], SInlineEditableTextBlock)
-			.Text(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerText, InLayerIndex)
-		.ToolTipText(LOCTEXT("FLandscapeEditorCustomNodeBuilder_Layers_tooltip", "Name of the Layer"))
-		.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::CanRenameLayerTo, InLayerIndex))
-		.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::SetLayerName, InLayerIndex))
-		]
-
-	+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		.Padding(0, 2)
-		.HAlign(HAlign_Right)
-		[
-			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-		.Padding(0)
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("FLandscapeEditorCustomNodeBuilder_LayerAlpha", "Alpha"))
-		]
-	+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(0, 2)
-		.HAlign(HAlign_Left)
-		.FillWidth(1.0f)
-		[
-			SNew(SNumericEntryBox<float>)
-			.AllowSpin(true)
-		.MinValue(0.0f)
-		.MaxValue(100.0f)
-		.MaxSliderValue(100.0f)
-		.MinDesiredValueWidth(60.0f)
-		.Value(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha, InLayerIndex)
-		.OnValueChanged(this, &FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha, InLayerIndex)
-		.IsEnabled(true)
-		]
-		]
-		];
+			.FillWidth(1.0)
+			.VAlign(VAlign_Center)
+			.Padding(4, 0)
+			[
+				SAssignNew(InlineTextBlocks[InLayerIndex], SInlineEditableTextBlock)
+				.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
+				.Text(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerDisplayName, InLayerIndex)
+				.ToolTipText(LOCTEXT("LandscapeLayers_tooltip", "Name of the Layer"))
+				.OnVerifyTextChanged(FOnVerifyTextChanged::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::CanRenameLayerTo, InLayerIndex))
+				.OnEnterEditingMode(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnBeginNameTextEdit)
+				.OnExitEditingMode(this, &FLandscapeEditorCustomNodeBuilder_Layers::OnEndNameTextEdit)
+				.OnTextCommitted(FOnTextCommitted::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::SetLayerName, InLayerIndex))
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			.Padding(0, 2)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0)
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
+					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
+					.Text(LOCTEXT("LandscapeLayerAlpha", "Alpha"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(0, 2)
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0f)
+				[
+					SNew(SNumericEntryBox<float>)
+					.AllowSpin(true)
+					.MinValue(0.0f)
+					.MaxValue(100.0f)
+					.MaxSliderValue(100.0f)
+					.MinDesiredValueWidth(60.0f)
+					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
+					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
+					.Value(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha, InLayerIndex)
+					.OnValueChanged_Lambda([=](float InValue) { SetLayerAlpha(InValue, InLayerIndex, false); })
+					.OnValueCommitted_Lambda([=](float InValue, ETextCommit::Type InCommitType) { SetLayerAlpha(InValue, InLayerIndex, true); })
+					.OnBeginSliderMovement_Lambda([=]()
+					{
+						CurrentSlider = InLayerIndex;
+						GEditor->BeginTransaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"));
+					})
+					.OnEndSliderMovement_Lambda([=](double)
+					{
+						GEditor->EndTransaction();
+						CurrentSlider = INDEX_NONE;
+					})
+				]		
+			]
+		];	
 
 	return RowWidget;
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-FText FLandscapeEditorCustomNodeBuilder_Layers::GetLayerText(int32 InLayerIndex) const
+FText FLandscapeEditorCustomNodeBuilder_Layers::GetLayerDisplayName(int32 InLayerIndex) const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode)
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (LandscapeEdMode && Landscape)
 	{
-		return FText::FromName(LandscapeEdMode->GetLayerName(InLayerIndex));
+		const FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
+		const FLandscapeLayer* ReservedLayer = Landscape->GetLandscapeSplinesReservedLayer();
+		bool bIsReserved = Layer && Layer == ReservedLayer && InLayerIndex != CurrentEditingInlineTextBlock;
+		return FText::Format(LOCTEXT("LayerDisplayName", "{0}{1}"), FText::FromName(LandscapeEdMode->GetLayerName(InLayerIndex)), bIsReserved ? LOCTEXT("ReservedForSplines", " (Reserved for Splines)") : FText::GetEmpty());
 	}
 
 	return FText::FromString(TEXT("None"));
@@ -263,6 +322,17 @@ bool FLandscapeEditorCustomNodeBuilder_Layers::IsLayerSelected(int32 InLayerInde
 	return false;
 }
 
+void FLandscapeEditorCustomNodeBuilder_Layers::OnBeginNameTextEdit()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	CurrentEditingInlineTextBlock = LandscapeEdMode ? LandscapeEdMode->GetCurrentLayerIndex() : INDEX_NONE;
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::OnEndNameTextEdit()
+{
+	CurrentEditingInlineTextBlock = INDEX_NONE;
+}
+
 bool FLandscapeEditorCustomNodeBuilder_Layers::CanRenameLayerTo(const FText& InNewText, FText& OutErrorMessage, int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -270,7 +340,7 @@ bool FLandscapeEditorCustomNodeBuilder_Layers::CanRenameLayerTo(const FText& InN
 	{
 		if (!LandscapeEdMode->CanRenameLayerTo(InLayerIndex, *InNewText.ToString()))
 		{
-			OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This layer already exists");
+			OutErrorMessage = LOCTEXT("Landscape_Layers_RenameFailed_AlreadyExists", "This layer already exists");
 			return false;
 		}
 	}
@@ -317,9 +387,21 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 					if (Landscape->LandscapeLayers.Num() > 1)
 					{
 						// Delete Layer
-						FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); }));
+						FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); } ));
 						MenuBuilder.AddMenuEntry(LOCTEXT("DeleteLayer", "Delete..."), LOCTEXT("DeleteLayerTooltip", "Delete Layer"), FSlateIcon(), DeleteLayerAction);
 					}
+				}
+
+				if (Landscape->GetLandscapeSplinesReservedLayer() != Landscape->GetLayer(InLayerIndex))
+				{
+					// Reserve for Landscape Splines
+					FUIAction ReserveLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->SetLandscapeSplinesReservedLayer(InLayerIndex); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("ReserveLayerForSplines", "Reserve for Splines"), LOCTEXT("ReserveLayerForSplinesTooltip", "Reserve Layer for Landscape Splines"), FSlateIcon(), ReserveLayerAction);
+				}
+				else
+				{
+					FUIAction RemoveReserveLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->SetLandscapeSplinesReservedLayer(INDEX_NONE); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("RemoveReserveLayerForSplines", "Remove Reserve for Splines"), LOCTEXT("RemoveReserveLayerForSplinesTooltip", "Remove reservation of Layer for Landscape Splines"), FSlateIcon(), RemoveReserveLayerAction);
 				}
 			}
 		}
@@ -358,6 +440,37 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 	return NULL;
 }
 
+void FLandscapeEditorCustomNodeBuilder_Layers::SetLandscapeSplinesReservedLayer(int32 InLayerIndex)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		const FLandscapeLayer* CurrenReservedLayer = Landscape->GetLandscapeSplinesReservedLayer();
+		const FLandscapeLayer* NewReservedLayer = Landscape->GetLayer(InLayerIndex);
+		if (NewReservedLayer != CurrenReservedLayer)
+		{
+			EAppReturnType::Type Result = EAppReturnType::No;
+			if (NewReservedLayer)
+			{
+				Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_SetReservedForSplines_Message", "Reserving layer {0} for landscape splines will clear it from its content and no edition will be allowed.  Continue?"), FText::FromName(NewReservedLayer->Name)));
+			}
+			else if (CurrenReservedLayer)
+			{
+				Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_UnsetReservedForSplines_Message", "Removing reservation of layer {0} for landscape splines will clear its content.  Continue?"), FText::FromName(CurrenReservedLayer->Name)));
+			}
+
+			if (Result == EAppReturnType::Yes)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("ReserveForSplines", "Reserve Landscape Layer for Splines"));
+				Landscape->SetLandscapeSplinesReservedLayer(InLayerIndex);
+				LandscapeEdMode->RefreshDetailPanel();
+				LandscapeEdMode->AutoUpdateDirtyLandscapeSplines();
+			}
+		}
+	}
+}
+
 void FLandscapeEditorCustomNodeBuilder_Layers::RenameLayer(int32 InLayerIndex)
 {
 	if (InlineTextBlocks.IsValidIndex(InLayerIndex) && InlineTextBlocks[InLayerIndex].IsValid())
@@ -375,7 +488,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex)
 		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
 		if (Layer)
 		{
-			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("LandscapeMode_Message", "The layer {0} content will be completely cleared.  Continue?"), FText::FromName(Layer->Name)));
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_ClearLayer_Message", "The layer {0} content will be completely cleared.  Continue?"), FText::FromName(Layer->Name)));
 			if (Result == EAppReturnType::Yes)
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Clean", "Clear Layer"));
@@ -394,7 +507,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::DeleteLayer(int32 InLayerIndex)
 		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
 		if (Layer)
 		{
-			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("LandscapeMode_Message", "The layer {0} will be deleted.  Continue?"), FText::FromName(Layer->Name)));
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_DeleteLayer_Message", "The layer {0} will be deleted.  Continue?"), FText::FromName(Layer->Name)));
 			if (Result == EAppReturnType::Yes)
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Delete", "Delete Layer"));
@@ -448,6 +561,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::OnLayerSelectionChanged(int32 InL
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetCurrentLayer", "Set Current Layer"));
 		LandscapeEdMode->SetCurrentLayer(InLayerIndex);
 		LandscapeEdMode->UpdateTargetList();
 	}
@@ -465,13 +579,19 @@ TOptional<float> FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha(int32 I
 	return 1.0f;
 }
 
-void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int32 InLayerIndex)
+void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerAlpha(float InAlpha, int32 InLayerIndex, bool bCommit)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
 	if (LandscapeEdMode)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"));
+		// We get multiple commits when editing through the text box
+		if (LandscapeEdMode->GetLayerAlpha(InLayerIndex) == InAlpha)
+		{
+			return;
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"), CurrentSlider == INDEX_NONE && bCommit);
+		// Set Value when using slider or when committing text
 		LandscapeEdMode->SetLayerAlpha(InLayerIndex, InAlpha);
 	}
 }
@@ -481,6 +601,7 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility(int32 InLaye
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetVisibility", "Set Layer Visibility"));
 		LandscapeEdMode->SetLayerVisibility(!LandscapeEdMode->IsLayerVisible(InLayerIndex), InLayerIndex);
 	}
 	return FReply::Handled();
@@ -498,9 +619,26 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleLock(int32 InLayerIndex
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode)
 	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Locked", "Set Layer Locked"));
 		LandscapeEdMode->SetLayerLocked(InLayerIndex, !LandscapeEdMode->IsLayerLocked(InLayerIndex));
 	}
 	return FReply::Handled();
+}
+
+EVisibility FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility(int32 InLayerIndex) const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	bool bIsVisible = LandscapeEdMode && LandscapeEdMode->IsLayerAlphaVisible(InLayerIndex);
+	return bIsVisible ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+bool FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled(int32 InLayerIndex) const
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	const FLandscapeLayer* Layer = LandscapeEdMode ? LandscapeEdMode->GetLayer(InLayerIndex) : nullptr;
+	const FLandscapeLayer* LayerReservedForSplines = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
+	return Layer && !Layer->bLocked && (Layer != LayerReservedForSplines);
 }
 
 const FSlateBrush* FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLayer(int32 InLayerIndex) const
@@ -513,25 +651,79 @@ const FSlateBrush* FLandscapeEditorCustomNodeBuilder_Layers::GetLockBrushForLaye
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
-	if (LandscapeEdMode != nullptr)
+	if (LandscapeEdMode)
 	{
-		// TODO: handle drag & drop
+		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(SlotIndex);
+		if (Layer && !Layer->bLocked)
+		{
+			TSharedPtr<SWidget> Row = GenerateRow(SlotIndex);
+			if (Row.IsValid())
+			{
+				return FReply::Handled().BeginDragDrop(FLandscapeListElementDragDropOp::New(SlotIndex, Slot, Row));
+			}
+		}
 	}
-
 	return FReply::Unhandled();
 }
 
 TOptional<SDragAndDropVerticalBox::EItemDropZone> FLandscapeEditorCustomNodeBuilder_Layers::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot)
 {
-	// TODO: handle drag & drop
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
+	if (DragDropOperation.IsValid())
+	{
+		return DropZone;
+	}
 	return TOptional<SDragAndDropVerticalBox::EItemDropZone>();
 }
 
 FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot)
 {
-	// TODO: handle drag & drop
+	TSharedPtr<FLandscapeListElementDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FLandscapeListElementDragDropOp>();
+
+	if (DragDropOperation.IsValid())
+	{
+		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+		ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+		if (Landscape)
+		{
+			int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
+			int32 DestinationLayerIndex = SlotIndex;
+			const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Reorder", "Reorder Layer"));
+			if (Landscape->ReorderLayer(StartingLayerIndex, DestinationLayerIndex))
+			{
+				LandscapeEdMode->SetCurrentLayer(DestinationLayerIndex);
+				LandscapeEdMode->RefreshDetailPanel();
+				LandscapeEdMode->RequestLayersContentUpdate();
+				return FReply::Handled();
+			}
+		}
+	}
+
 	return FReply::Unhandled();
+}
+
+TSharedRef<FLandscapeListElementDragDropOp> FLandscapeListElementDragDropOp::New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> WidgetToShow)
+{
+	TSharedRef<FLandscapeListElementDragDropOp> Operation = MakeShareable(new FLandscapeListElementDragDropOp);
+
+	Operation->MouseCursor = EMouseCursor::GrabHandClosed;
+	Operation->SlotIndexBeingDragged = InSlotIndexBeingDragged;
+	Operation->SlotBeingDragged = InSlotBeingDragged;
+	Operation->WidgetToShow = WidgetToShow;
+
+	Operation->Construct();
+
+	return Operation;
+}
+
+TSharedPtr<SWidget> FLandscapeListElementDragDropOp::GetDefaultDecorator() const
+{
+	return SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetDragDropTooltipBackground"))
+		.Content()
+		[
+			WidgetToShow.ToSharedRef()
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

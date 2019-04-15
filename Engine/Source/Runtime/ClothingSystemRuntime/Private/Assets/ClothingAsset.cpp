@@ -339,27 +339,25 @@ void UClothingAsset::UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InM
 
 		FSkeletalMeshLODModel& LodModel = Mesh->LODModels[InMeshLodIndex];
 
-			for(int32 SectionIdx = LodModel.Sections.Num() - 1; SectionIdx >= 0; --SectionIdx)
-			{
+		for(int32 SectionIdx = LodModel.Sections.Num() - 1; SectionIdx >= 0; --SectionIdx)
+		{
 			FSkelMeshSection& Section = LodModel.Sections[SectionIdx];
-
 			if(Section.HasClothingData() && Section.ClothingData.AssetGuid == AssetGuid)
-					{
+			{
 				if(!bChangedMesh)
-						{
+				{
 					InSkelMesh->PreEditChange(nullptr);
-					}
-
+				}
 				ClothingAssetUtils::ClearSectionClothingData(Section);
-
-				// Clear the LOD map entry for this asset
-				if(LodMap.IsValidIndex(InMeshLodIndex))
-					{
-					LodMap[InMeshLodIndex] = INDEX_NONE;
-						}
-
-					bChangedMesh = true;
+				bChangedMesh = true;
 			}
+		}
+
+		// Clear the LOD map entry for this asset LOD, after a unbind we must be able to bind any asset
+		if (LodMap.IsValidIndex(InMeshLodIndex))
+		{
+			LodMap[InMeshLodIndex] = INDEX_NONE;
+			bChangedMesh = true;
 		}
 	}
 

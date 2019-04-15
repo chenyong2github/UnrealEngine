@@ -296,6 +296,7 @@ public:
 	void PerformAuditConsoleCommand(const TArray<FString>& Args);
 	void PerformDependencyChainConsoleCommand(const TArray<FString>& Args);
 	void PerformDependencyClassConsoleCommand(const TArray<FString>& Args);
+	void DumpAssetRegistry(const TArray<FString>& Args);
 	void DumpAssetDependencies(const TArray<FString>& Args);
 
 	virtual void OpenAssetAuditUI(TArray<FAssetData> SelectedAssets) override;
@@ -434,6 +435,15 @@ void FAssetManagerEditorModule::StartupModule()
 			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetManagerEditorModule::PerformDependencyClassConsoleCommand),
 			ECVF_Default
 			));
+
+	#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+		AuditCmds.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("AssetManager.DumpAssetRegistry"),
+			TEXT("Prints entries in the asset registry. Arguments are required: ObjectPath, PackageName, Path, Class, Tag, Dependencies, PackageData."),
+			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetManagerEditorModule::DumpAssetRegistry),
+			ECVF_Default
+		));
+	#endif
 
 		AuditCmds.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("AssetManager.DumpAssetDependencies"),
@@ -1996,6 +2006,21 @@ void FAssetManagerEditorModule::LogAssetsWithMultipleLabels()
 		}		
 	}
 }
+
+
+void FAssetManagerEditorModule::DumpAssetRegistry(const TArray<FString>& Args)
+{
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+	UAssetManager& Manager = UAssetManager::Get();
+	TArray<FString> ReportLines;
+
+	const FAssetRegistryState* State = Manager.GetAssetRegistry().GetAssetRegistryState();
+	State->Dump(Args, ReportLines);
+
+	Manager.WriteCustomReport(FString::Printf(TEXT("AssetRegistryState-%s.txt"), *FDateTime::Now().ToString()), ReportLines);
+#endif
+}
+
 
 void FAssetManagerEditorModule::DumpAssetDependencies(const TArray<FString>& Args)
 {

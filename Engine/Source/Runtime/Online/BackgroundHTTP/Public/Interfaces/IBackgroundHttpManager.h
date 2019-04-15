@@ -44,6 +44,9 @@ public:
 	*/
 	virtual void CleanUpTemporaryFiles() = 0;
 
+	/** Returns whether or not this is a platform specific implementation */
+	virtual bool IsGenericImplementation() const = 0;
+
 protected:
 	/**
 	* Designed to be called internally by AddRequest to associate our incoming request with any 

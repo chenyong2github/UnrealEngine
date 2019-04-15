@@ -472,6 +472,10 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	Actor->SpawnCollisionHandlingMethod = CollisionHandlingMethod;
 
 #if WITH_EDITOR
+	if (SpawnParameters.bHideFromSceneOutliner)
+	{
+		FSetActorHiddenInSceneOutliner SetActorHidden(Actor);
+	}
 	Actor->bIsEditorPreviewActor = SpawnParameters.bTemporaryEditorActor;
 #endif //WITH_EDITOR
 
@@ -783,6 +787,8 @@ APlayerController* UWorld::SpawnPlayActor(UPlayer* NewPlayer, ENetRole RemoteRol
 
 bool UWorld::FindTeleportSpot(const AActor* TestActor, FVector& TestLocation, FRotator TestRotation)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UWorld_FindTeleportSpot);
+
 	if( !TestActor || !TestActor->GetRootComponent() )
 	{
 		return true;

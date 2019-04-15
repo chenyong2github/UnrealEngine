@@ -34,6 +34,7 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
+PAKFILE_API FString ChunkHashToString(const TPakChunkHash& InHash);
 
 struct FPakChunkSignatureCheckFailedData
 {
@@ -608,6 +609,13 @@ public:
 	}
 
 	/**
+	 * Checks if the pak has valid chunk signature checking data, and that the data passed the initial signing check
+	 *
+	 * @return true if this pak file has passed the initial signature checking phase
+	 */
+	bool PassedSignatureChecks() const;
+
+	/**
 	 * Gets pak filename.
 	 *
 	 * @return Pak filename.
@@ -634,6 +642,14 @@ public:
 	const TMap<FString, FPakDirectory>& GetIndex() const
 	{
 		return Index;
+	}
+
+	/**
+	 * Gets the number of files in this pak.
+	 */
+	int32 GetNumFiles() const
+	{
+		return Files.Num();
 	}
 
 	void GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
@@ -923,11 +939,13 @@ public:
 
 	/**
 	 * Saves memory by hashing the filenames, if possible. After this process,
-	 * wildcard scanning of pak entries can no longer be performed.
+	 * wildcard scanning of pak entries can no longer be performed. Returns TRUE
+	 * if there were any collisions within this pak or with any of the previous pak results supplied in CrossPakCollisionChecker
 	 *
+	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
 	 */
-	void UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint32, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
@@ -1594,7 +1612,7 @@ public:
 			if (DeletedReadOrder != -1 && DeletedReadOrder > PakReadOrder)
 			{
 				//found a delete record in a higher priority patch level, but now we're at a lower priority set - don't search further back or we'll find the original, old file.
-				UE_LOG( LogPakFile, Display, TEXT("Delete Record: Accepted a delete record for %s"), Filename );
+				UE_LOG( LogPakFile, Verbose, TEXT("Delete Record: Accepted a delete record for %s"), Filename );
 				return false;
 			}
 
@@ -1605,13 +1623,13 @@ public:
 				{
 					*OutPakFile = Paks[PakIndex].PakFile;
 				}
-				UE_CLOG( DeletedReadOrder != -1, LogPakFile, Display, TEXT("Delete Record: Ignored delete record for %s - found it in %s instead (asset was moved between chunks)"), Filename, *Paks[PakIndex].PakFile->GetFilename() );
+				UE_CLOG( DeletedReadOrder != -1, LogPakFile, Verbose, TEXT("Delete Record: Ignored delete record for %s - found it in %s instead (asset was moved between chunks)"), Filename, *Paks[PakIndex].PakFile->GetFilename() );
 				return true;
 			}
 			else if (FindResult == FPakFile::EFindResult::FoundDeleted )
 			{
 				DeletedReadOrder = PakReadOrder;
-				UE_LOG( LogPakFile, Display, TEXT("Delete Record: Found a delete record for %s in %s"), Filename, *Paks[PakIndex].PakFile->GetFilename() );
+				UE_LOG( LogPakFile, Verbose, TEXT("Delete Record: Found a delete record for %s in %s"), Filename, *Paks[PakIndex].PakFile->GetFilename() );
 			}
 		}
 

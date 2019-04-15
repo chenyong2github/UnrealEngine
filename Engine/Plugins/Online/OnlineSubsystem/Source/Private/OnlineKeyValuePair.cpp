@@ -486,6 +486,7 @@ void FVariantData::Empty()
 	// Be sure to delete deep allocations
 	switch (Type)
 	{
+	case EOnlineKeyValuePairDataType::Json:
 	case EOnlineKeyValuePairDataType::String:
 		delete [] Value.AsTCHAR;
 		break;

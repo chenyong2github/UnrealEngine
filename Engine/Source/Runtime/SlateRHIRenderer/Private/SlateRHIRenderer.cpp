@@ -85,6 +85,9 @@ struct FSlateDrawWindowCommandParams
 	FSlateRHIRenderer* Renderer;
 	FSlateWindowElementList* WindowElementList;
 	SWindow* Window;
+#if WANTS_DRAW_MESH_EVENTS
+	FString WindowTitle;
+#endif
 	float WorldTimeSeconds;
 	float DeltaTimeSeconds;
 	float RealTimeSeconds;
@@ -652,7 +655,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 	static uint32 LastTimestamp = FPlatformTime::Cycles();
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, SlateUI);
+		SCOPED_DRAW_EVENTF(RHICmdList, SlateUI, TEXT("SlateUI Title = %s"), DrawCommandParams.WindowTitle.IsEmpty() ? TEXT("<none>") : *DrawCommandParams.WindowTitle);
 		SCOPED_GPU_STAT(RHICmdList, SlateUI);
 
 		// Should only be called by the rendering thread
@@ -817,12 +820,14 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.WorldTimeSeconds, DrawCommandParams.DeltaTimeSeconds, DrawCommandParams.RealTimeSeconds);
 						RenderParams.bWireFrame = !!SlateWireFrame;
 
+						FTexture2DRHIRef EmptyTarget;
+
 						RenderingPolicy->DrawElements
 						(
 							RHICmdList,
 							BackBufferTarget,
 							BackBuffer,
-							ViewportInfo.DepthStencil,
+							ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
 							BatchData.GetRenderBatches(),
 							RenderParams
 						);
@@ -1139,6 +1144,9 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					Params.Renderer = this;
 					Params.WindowElementList = &ElementList;
 					Params.Window = Window;
+#if WANTS_DRAW_MESH_EVENTS
+					Params.WindowTitle = Window->GetTitle().ToString();
+#endif
 					Params.bLockToVsync = bLockToVsync;
 #if ALPHA_BLENDED_WINDOWS
 					Params.bClear = Window->GetTransparencySupport() == EWindowTransparency::PerPixel;

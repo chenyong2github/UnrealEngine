@@ -35,8 +35,8 @@ class UNREALED_API UImportSubsystem : public UEditorSubsystem
 public:
 	UImportSubsystem();
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection);
-	virtual void Deinitialize();
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	/* Import files next tick */
 	void ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath);

@@ -390,8 +390,12 @@ namespace Gauntlet
 			return false;
 		}
 
-
 		virtual public UnrealAppConfig CreateConfiguration(UnrealSessionRole Role)
+		{
+			return CreateConfiguration(Role, new UnrealSessionRole[] { });
+		}
+
+		virtual public UnrealAppConfig CreateConfiguration(UnrealSessionRole Role, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
 			List<string> Issues = new List<string>();
 
@@ -425,7 +429,8 @@ namespace Gauntlet
 
 			if (Role.Options != null)
 			{
-				Role.Options.ApplyToConfig(Config);
+				UnrealTestConfiguration ConfigOptions = Role.Options as UnrealTestConfiguration;
+				ConfigOptions.ApplyToConfig(Config, Role, OtherRoles);
 			}
 
 			if (string.IsNullOrEmpty(Role.CommandLine) == false)

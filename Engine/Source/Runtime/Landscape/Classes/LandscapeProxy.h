@@ -366,8 +366,9 @@ struct FRenderDataPerHeightmap
 
 	UPROPERTY(Transient)
 	UTexture2D* OriginalHeightmap;
-
-	FLandscapeLayersTexture2DCPUReadBackResource* HeightmapsCPUReadBack;
+	
+    UPROPERTY(Transient)
+	int32 HeightmapsCPUReadBackResourceIndex;
 
 	UPROPERTY(Transient)
 	TArray<ULandscapeComponent*> Components;
@@ -387,6 +388,7 @@ struct FWeightmapLayerData
 	UPROPERTY()
 	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
 
+	UPROPERTY(Transient)
 	TArray<ULandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
 };
 
@@ -651,6 +653,8 @@ public:
 	UPROPERTY(Transient)
 	TMap<UTexture2D*, FRenderDataPerHeightmap> RenderDataPerHeightmap; // Mapping between Original heightmap and general render data
 
+	TArray<TUniquePtr<FLandscapeLayersTexture2DCPUReadBackResource>> HeightmapsCPUReadBackResources;
+
 	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapCPUReadBackTextures; // Mapping between Original weightmap and tyhe CPU readback resource
 
 	FRenderCommandFence ReleaseResourceFence;
@@ -771,6 +775,7 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual bool ShouldExport() override;
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	//~ End AActor Interface
 #endif	//WITH_EDITOR
 
@@ -801,6 +806,9 @@ public:
 
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components);
+
+	/* Invalidate the precomputed grass and baked texture data on all components */
+	LANDSCAPE_API void InvalidateGeneratedComponentData();
 
 #if WITH_EDITOR
 	/** Render grass maps for the specified components */
@@ -924,6 +932,9 @@ public:
 
 	/** Creates a Texture2D for use by this landscape proxy or one of it's components. If OptionalOverrideOuter is not specified, the level is used. */
 	LANDSCAPE_API UTexture2D* CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter = nullptr, bool bCompress = false) const;
+
+	/** Creates a LandscapeWeightMapUsage object outered to this proxy. */
+	LANDSCAPE_API ULandscapeWeightmapUsage* CreateWeightmapUsage();
 
 	/* For the grassmap rendering notification */
 	int32 NumComponentsNeedingGrassMapRender;

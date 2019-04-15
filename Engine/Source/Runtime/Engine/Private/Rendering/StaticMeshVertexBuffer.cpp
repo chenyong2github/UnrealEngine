@@ -13,8 +13,7 @@ FStaticMeshVertexBuffer::FStaticMeshVertexBuffer() :
 	NumTexCoords(0),
 	NumVertices(0),
 	bUseFullPrecisionUVs(!GVertexElementTypeSupport.IsSupported(VET_Half2)),
-	bUseHighPrecisionTangentBasis(false),
-	bStreamed(false)
+	bUseHighPrecisionTangentBasis(false)
 {}
 
 FStaticMeshVertexBuffer::~FStaticMeshVertexBuffer()
@@ -246,6 +245,14 @@ void FStaticMeshVertexBuffer::SerializeMetaData(FArchive& Ar)
 	InitTangentAndTexCoordStrides();
 }
 
+void FStaticMeshVertexBuffer::ClearMetaData()
+{
+	NumTexCoords = NumVertices = 0;
+	bUseFullPrecisionUVs = !GVertexElementTypeSupport.IsSupported(VET_Half2);
+	bUseHighPrecisionTangentBasis = false;
+	TangentsStride = TexcoordStride = 0;
+}
+
 
 /**
 * Specialized assignment operator, only used when importing LOD's.
@@ -261,19 +268,19 @@ void FStaticMeshVertexBuffer::operator=(const FStaticMeshVertexBuffer &Other)
 template <bool bRenderThread>
 FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Internal()
 {
-	check(TangentsData);
-	FResourceArrayInterface* ResourceArray = TangentsData->GetResourceArray();
-	if (ResourceArray->GetResourceDataSize())
+	if (GetNumVertices())
 	{
-		// Create the vertex buffer.
+		FResourceArrayInterface* RESTRICT ResourceArray = TangentsData ? TangentsData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		CreateInfo.bWithoutNativeResource = !TangentsData;
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 	}
 	return nullptr;
@@ -292,19 +299,19 @@ FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTangentsRHIBuffer_Async()
 template <bool bRenderThread>
 FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Internal()
 {
-	check(TexcoordData);
-	FResourceArrayInterface* ResourceArray = TexcoordData->GetResourceArray();
-	if (ResourceArray->GetResourceDataSize())
+	if (GetNumTexCoords())
 	{
-		// Create the vertex buffer.
+		FResourceArrayInterface* RESTRICT ResourceArray = TexcoordData ? TexcoordData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		CreateInfo.bWithoutNativeResource = !TexcoordData;
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 	}
 	return nullptr;
@@ -322,22 +329,19 @@ FVertexBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Async()
 
 void FStaticMeshVertexBuffer::InitRHI()
 {
-	if (!bStreamed)
-	{
-		TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
-		TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
-	}
-	if ((bStreamed || TangentsVertexBuffer.VertexBufferRHI) && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable()))
+	TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
+	TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
+	if (TangentsVertexBuffer.VertexBufferRHI && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable()))
 	{
 		TangentsSRV = RHICreateShaderResourceView(
-			TangentsVertexBuffer.VertexBufferRHI,
+			TangentsData ? TangentsVertexBuffer.VertexBufferRHI : nullptr,
 			GetUseHighPrecisionTangentBasis() ? 8 : 4,
 			GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM);
 	}
-	if ((bStreamed || TexCoordVertexBuffer.VertexBufferRHI) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	if (TexCoordVertexBuffer.VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		TextureCoordinatesSRV = RHICreateShaderResourceView(
-			TexCoordVertexBuffer.VertexBufferRHI,
+			TexcoordData ? TexCoordVertexBuffer.VertexBufferRHI : nullptr,
 			GetUseFullPrecisionUVs() ? 8 : 4,
 			GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F);
 	}

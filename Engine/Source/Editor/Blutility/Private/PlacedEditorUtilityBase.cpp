@@ -8,20 +8,20 @@
 /////////////////////////////////////////////////////
 // APlacedEditorUtilityBase
 
-APlacedEditorUtilityBase::APlacedEditorUtilityBase(const FObjectInitializer& ObjectInitializer)
+ADEPRECATED_PlacedEditorUtilityBase::ADEPRECATED_PlacedEditorUtilityBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	HelpText = TEXT("Please fill out the help text");
 }
 
-void APlacedEditorUtilityBase::TickActor(float DeltaSeconds, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
+void ADEPRECATED_PlacedEditorUtilityBase::TickActor(float DeltaSeconds, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
 {
 	FEditorScriptExecutionGuard ScriptGuard;
 	Super::TickActor(DeltaSeconds, TickType, ThisTickFunction);
 }
 
-TArray<AActor*> APlacedEditorUtilityBase::GetSelectionSet()
+TArray<AActor*> ADEPRECATED_PlacedEditorUtilityBase::GetSelectionSet()
 {
 	TArray<AActor*> Result;
 
@@ -38,7 +38,7 @@ TArray<AActor*> APlacedEditorUtilityBase::GetSelectionSet()
 	return Result;
 }
 
-bool APlacedEditorUtilityBase::GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation)
+bool ADEPRECATED_PlacedEditorUtilityBase::GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation)
 {
 	bool RetVal = false;
 	CameraLocation = FVector::ZeroVector;
@@ -62,7 +62,7 @@ bool APlacedEditorUtilityBase::GetLevelViewportCameraInfo(FVector& CameraLocatio
 }
 
 
-void APlacedEditorUtilityBase::SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation)
+void ADEPRECATED_PlacedEditorUtilityBase::SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation)
 {
 
 #if WITH_EDITOR
@@ -79,23 +79,23 @@ void APlacedEditorUtilityBase::SetLevelViewportCameraInfo(FVector CameraLocation
 #endif //WITH_EDITOR
 }
 
-void APlacedEditorUtilityBase::ClearActorSelectionSet()
+void ADEPRECATED_PlacedEditorUtilityBase::ClearActorSelectionSet()
 {
 	GEditor->GetSelectedActors()->DeselectAll();
 	GEditor->NoteSelectionChange();
 }
 
-void APlacedEditorUtilityBase::SelectNothing()
+void ADEPRECATED_PlacedEditorUtilityBase::SelectNothing()
 {
 	GEditor->SelectNone(true, true, false);
 }
 
-void APlacedEditorUtilityBase::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
+void ADEPRECATED_PlacedEditorUtilityBase::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
 }
 
-AActor* APlacedEditorUtilityBase::GetActorReference(FString PathToActor)
+AActor* ADEPRECATED_PlacedEditorUtilityBase::GetActorReference(FString PathToActor)
 {
 #if WITH_EDITOR
 	return Cast<AActor>(StaticFindObject(AActor::StaticClass(), GEditor->GetEditorWorldContext().World(), *PathToActor, false));

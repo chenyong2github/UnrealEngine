@@ -906,6 +906,14 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	}
 }
 
+void FRHIRenderPassInfo::OnVerifyNumUAVsFailed(int32 InNumUAVs)
+{
+	bTooManyUAVs = true;
+	UE_LOG(LogRHI, Warning, TEXT("NumUAVs is %d which is greater the max %d. Trailing UAVs will be dropped"), InNumUAVs, MaxSimultaneousUAVs);
+	// Trigger an ensure to get callstack in dev builds
+	ensure(InNumUAVs <= MaxSimultaneousUAVs);
+}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void FRHIRenderPassInfo::Validate() const
 {

@@ -317,11 +317,20 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="AppConfig"></param>
+		public void ApplyToConfig(UnrealAppConfig AppConfig)
+		{
+			throw new AutomationException("Unreal tests should use ApplyToConfig(Config, Role, OtherRoles)");
+		}
+
+		/// <summary>
 		/// Apply our options to the provided app config
 		/// </summary>
 		/// <param name="AppConfig"></param>
 		/// <returns></returns>
-		public virtual void ApplyToConfig(UnrealAppConfig AppConfig)
+		public virtual void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
 			if (AppConfig.ProcessType.IsClient())
 			{

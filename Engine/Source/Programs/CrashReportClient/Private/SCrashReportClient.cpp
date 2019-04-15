@@ -205,13 +205,13 @@ void SCrashReportClient::Construct(const FArguments& InArgs, TSharedRef<FCrashRe
 			.Padding( FMargin( 4, 12, 4, 4 ) )
 			[
 				SNew( SHorizontalBox )
-				.Visibility( FCrashReportClientConfig::Get().GetHideLogFilesOption() ? EVisibility::Collapsed : EVisibility::Visible )
+				.Visibility( FCrashReportCoreConfig::Get().GetHideLogFilesOption() ? EVisibility::Collapsed : EVisibility::Visible )
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign( VAlign_Center )
 				[
 					SNew( SCheckBox )
-					.IsChecked( FCrashReportClientConfig::Get().GetSendLogFile() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked )
+					.IsChecked( FCrashReportCoreConfig::Get().GetSendLogFile() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked )
 					.OnCheckStateChanged( CrashReportClient.ToSharedRef(), &FCrashReportClient::SendLogFile_OnCheckStateChanged )
 				]
 
@@ -236,7 +236,7 @@ void SCrashReportClient::Construct(const FArguments& InArgs, TSharedRef<FCrashRe
 				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
-					.IsChecked( FCrashReportClientConfig::Get().GetAllowToBeContacted() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked )
+					.IsChecked( FCrashReportCoreConfig::Get().GetAllowToBeContacted() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked )
 					.IsEnabled( !FEngineBuildSettings::IsInternalBuild() )
 					.OnCheckStateChanged(CrashReportClient.ToSharedRef(), &FCrashReportClient::AllowToBeContacted_OnCheckStateChanged)
 				]
@@ -270,7 +270,7 @@ void SCrashReportClient::Construct(const FArguments& InArgs, TSharedRef<FCrashRe
 					.ContentPadding( FMargin( 8, 2 ) )
 					.Text( LOCTEXT( "CloseWithoutSending", "Close Without Sending" ) )
 					.OnClicked( Client, &FCrashReportClient::CloseWithoutSending )
-					.Visibility(FCrashReportClientConfig::Get().IsAllowedToCloseWithoutSending() ? EVisibility::Visible : EVisibility::Hidden)
+					.Visibility(FCrashReportCoreConfig::Get().IsAllowedToCloseWithoutSending() ? EVisibility::Visible : EVisibility::Hidden)
 				]
 
 				+SHorizontalBox::Slot()
@@ -331,7 +331,7 @@ void SCrashReportClient::OnUserCommentTextChanged(const FText& NewText)
 	FText ErrorMessage = FText::GetEmpty();
 	bHasUserCommentErrors = false;
 
-	int SizeLimit = FCrashReportClientConfig::Get().GetUserCommentSizeLimit();
+	int SizeLimit = FCrashReportCoreConfig::Get().GetUserCommentSizeLimit();
 	int Size = NewText.ToString().Len();
 	if (Size > SizeLimit)
 	{

@@ -94,6 +94,7 @@ public:
 	TArray<FMetalCommandDebug>* GetCommands(uint32 Context);
 	ns::AutoReleased<FMetalBuffer> GetDebugBuffer(uint32 ContextIndex);
 	uint32 NumContexts() const;
+	uint32 GetIndex() const;
 	
 	static FMetalCommandBufferMarkers Get(mtlpp::CommandBuffer const& CmdBuf);
 	

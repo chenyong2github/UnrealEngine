@@ -4,7 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "Internationalization/Internationalization.h"
 #include "Containers/Ticker.h"
-#include "CrashReportClientConfig.h"
+#include "CrashReportCoreConfig.h"
 #include "Templates/UniquePtr.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "ILauncherPlatform.h"
@@ -33,8 +33,8 @@ FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport
 	: DiagnosticText( LOCTEXT("ProcessingReport", "Processing crash report ...") )
 	, DiagnoseReportTask(nullptr)
 	, ErrorReport( InErrorReport )
-	, ReceiverUploader(FCrashReportClientConfig::Get().GetReceiverAddress())
-	, DataRouterUploader(FCrashReportClientConfig::Get().GetDataRouterURL())
+	, ReceiverUploader(FCrashReportCoreConfig::Get().GetReceiverAddress())
+	, DataRouterUploader(FCrashReportCoreConfig::Get().GetDataRouterURL())
 	, bShouldWindowBeHidden(false)
 	, bSendData(false)
 {
@@ -197,7 +197,7 @@ EVisibility FCrashReportClient::IsThrobberVisible() const
 
 void FCrashReportClient::AllowToBeContacted_OnCheckStateChanged( ECheckBoxState NewRadioState )
 {
-	FCrashReportClientConfig::Get().SetAllowToBeContacted( NewRadioState == ECheckBoxState::Checked );
+	FCrashReportCoreConfig::Get().SetAllowToBeContacted( NewRadioState == ECheckBoxState::Checked );
 
 	// Refresh PII based on the bAllowToBeContacted flag.
 	FPrimaryCrashProperties::Get()->UpdateIDs();
@@ -211,7 +211,7 @@ void FCrashReportClient::AllowToBeContacted_OnCheckStateChanged( ECheckBoxState 
 
 void FCrashReportClient::SendLogFile_OnCheckStateChanged( ECheckBoxState NewRadioState )
 {
-	FCrashReportClientConfig::Get().SetSendLogFile( NewRadioState == ECheckBoxState::Checked );
+	FCrashReportCoreConfig::Get().SetSendLogFile( NewRadioState == ECheckBoxState::Checked );
 }
 
 void FCrashReportClient::StartTicker()

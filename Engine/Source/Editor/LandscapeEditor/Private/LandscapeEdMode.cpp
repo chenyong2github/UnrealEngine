@@ -1596,6 +1596,20 @@ bool FEdModeLandscape::ProcessEditPaste()
 
 	bool Result = false;
 
+	
+	FLandscapeLayer* SplinesLayer = nullptr;
+	if (CurrentTool == (FLandscapeTool*)SplinesTool)
+	{
+		ALandscape* Landscape = GetLandscape();
+		SplinesLayer = Landscape ? Landscape->GetLandscapeSplinesReservedLayer() : nullptr;
+	}
+	FText Reason;
+	if (!CanEditLayer(&Reason, SplinesLayer))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, Reason);
+		return Result;
+	}
+	
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
 		if (CurrentTool != NULL)
@@ -1896,47 +1910,29 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 					FVector HitLocation;
 					if (LandscapeMouseTrace(ViewportClient, HitLocation))
 					{
-						const FName CurrentToolName = CurrentTool->GetToolName();
-						ALandscape* Landscape = GetLandscape();
-						bool bLandscapeLayerSystem = GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem;
+						FText Reason;
+						if (!CanEditLayer(&Reason))
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, Reason);
+							return true;
+						}
 
-						if (bLandscapeLayerSystem && GetCurrentLayer() && !GetCurrentLayer()->bVisible)
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting in a hidden layer is not allowed."));
-						}
-						else if (bLandscapeLayerSystem && GetCurrentLayer() && GetCurrentLayer()->bLocked)
-						{
-							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer."));
-						}
-						else if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentToolName != TEXT("BPCustom"))
-						{
-							FMessageDialog::Open(EAppMsgType::Ok,
-								NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer."));
-							// TODO: FName to LayerInfo: do we want to create the layer info here?
-							//if (FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.")) == EAppReturnType::Yes)
-							//{
-							//	CurrentToolTarget.LandscapeInfo->LandscapeProxy->CreateLayerInfo(*CurrentToolTarget.PlaceholderLayerName.ToString());
-							//}
-						}
-						else
-						{
-							Viewport->CaptureMouse(true);
+						Viewport->CaptureMouse(true);
 
-							if (CurrentTool->CanToolBeActivated())
+						if (CurrentTool->CanToolBeActivated())
+						{
+							bool bToolActive = CurrentTool->BeginTool(ViewportClient, CurrentToolTarget, HitLocation);
+							if (bToolActive)
 							{
-								bool bToolActive = CurrentTool->BeginTool(ViewportClient, CurrentToolTarget, HitLocation);
-								if (bToolActive)
-								{
-									ToolActiveViewport = Viewport;
-								}
-								else
-								{
-									ToolActiveViewport = nullptr;
-									Viewport->CaptureMouse(false);
-								}
-								ViewportClient->Invalidate(false, false);
-								return bToolActive;
+								ToolActiveViewport = Viewport;
 							}
+							else
+							{
+								ToolActiveViewport = nullptr;
+								Viewport->CaptureMouse(false);
+							}
+							ViewportClient->Invalidate(false, false);
+							return bToolActive;
 						}
 					}
 				}
@@ -2431,6 +2427,40 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 	return CurrentIndex;
 }
 
+void FEdModeLandscape::SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& InLandscapeInfo)
+{
+	if ((CurrentToolTarget.LandscapeInfo == InLandscapeInfo) || !InLandscapeInfo.IsValid())
+	{
+		return;
+	}
+
+	// Unregister from old one
+	if (CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		LandscapeProxy->OnMaterialChangedDelegate().RemoveAll(this);
+	}
+
+	CurrentToolTarget.LandscapeInfo = InLandscapeInfo.Get();
+	UpdateTargetList();
+	// force a Leave and Enter the current tool, in case it has something about the current landscape cached
+	SetCurrentTool(CurrentToolIndex);
+	if (CurrentGizmoActor.IsValid())
+	{
+		CurrentGizmoActor->SetTargetLandscape(CurrentToolTarget.LandscapeInfo.Get());
+	}
+
+	// register to new one
+	if (CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		ALandscapeProxy* LandscapeProxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
+	}
+
+	UpdateTargetList();
+	UpdateShownLayerList();
+}
+
 void FEdModeLandscape::UpdateTargetList()
 {
 	LandscapeTargetList.Empty();
@@ -2446,7 +2476,7 @@ void FEdModeLandscape::UpdateTargetList()
 			bool bFoundSelected = false;
 
 			// Add heightmap
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), CurrentToolTarget.CurrentLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Heightmap", "Heightmap"), ELandscapeToolTargetType::Heightmap, CurrentToolTarget.LandscapeInfo.Get(), UISettings->CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap)
 			{
@@ -2455,7 +2485,7 @@ void FEdModeLandscape::UpdateTargetList()
 
 			// Add visibility
 			FLandscapeInfoLayerSettings VisibilitySettings(ALandscapeProxy::VisibilityLayer, LandscapeProxy);
-			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, CurrentToolTarget.CurrentLayerIndex)));
+			LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(LOCTEXT("Visibility", "Visibility"), ELandscapeToolTargetType::Visibility, VisibilitySettings, UISettings->CurrentLayerIndex)));
 
 			if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 			{
@@ -2506,7 +2536,7 @@ void FEdModeLandscape::UpdateTargetList()
 				}
 
 				// Add the layer
-				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, CurrentToolTarget.CurrentLayerIndex)));
+				LandscapeTargetList.Add(MakeShareable(new FLandscapeTargetListInfo(FText::FromName(LayerName), ELandscapeToolTargetType::Weightmap, LayerSettings, UISettings->CurrentLayerIndex)));
 			}
 
 			if (!bFoundSelected)
@@ -4130,14 +4160,15 @@ int32 FEdModeLandscape::GetLayerCount() const
 
 void FEdModeLandscape::SetCurrentLayer(int32 InLayerIndex)
 {
-	CurrentToolTarget.CurrentLayerIndex = InLayerIndex;
+	UISettings->Modify();
+	UISettings->CurrentLayerIndex = InLayerIndex;
 
 	RefreshDetailPanel();
 }
 
 int32 FEdModeLandscape::GetCurrentLayerIndex() const
 {
-	return CurrentToolTarget.CurrentLayerIndex;
+	return UISettings ? UISettings->CurrentLayerIndex : INDEX_NONE;
 }
 
 ALandscape* FEdModeLandscape::GetLandscape() const
@@ -4183,6 +4214,11 @@ void FEdModeLandscape::SetLayerName(int32 InLayerIndex, const FName& InName)
 	}
 }
 
+bool FEdModeLandscape::IsLayerAlphaVisible(int32 InLayerIndex) const
+{
+	return (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap || CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap);
+}
+
 float FEdModeLandscape::GetLayerAlpha(int32 InLayerIndex) const
 {
 	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
@@ -4198,7 +4234,10 @@ void FEdModeLandscape::SetLayerAlpha(int32 InLayerIndex, float InAlpha)
 	ALandscape* Landscape = GetLandscape();
 	if (Landscape)
 	{
-		Landscape->SetLayerAlpha(InLayerIndex, InAlpha, CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap);
+		if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap || CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap)
+		{
+			Landscape->SetLayerAlpha(InLayerIndex, InAlpha, CurrentToolTarget.TargetType == ELandscapeToolTargetType::Heightmap);
+		}
 	}
 }
 
@@ -4219,16 +4258,16 @@ void FEdModeLandscape::SetLayerVisibility(bool bInVisible, int32 InLayerIndex)
 
 bool FEdModeLandscape::IsLayerLocked(int32 InLayerIndex) const
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	return Layer ? Layer->bLocked : false;
+	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	return Layer && Layer->bLocked;
 }
 
 void FEdModeLandscape::SetLayerLocked(int32 InLayerIndex, bool bInLocked)
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	if (Layer)
+	ALandscape* Landscape = GetLandscape();
+	if (Landscape)
 	{
-		Layer->bLocked = bInLocked;
+		Landscape->SetLayerLocked(InLayerIndex, bInLocked);
 	}
 }
 
@@ -4348,6 +4387,117 @@ void FEdModeLandscape::SetCurrentLayerSubstractiveBlendStatus(bool InStatus, con
 FLandscapeLayer* FEdModeLandscape::GetCurrentLayer() const
 {
 	return GetLayer(GetCurrentLayerIndex());
+}
+
+void FEdModeLandscape::AutoUpdateDirtyLandscapeSplines()
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem && GEditor->IsTransactionActive())
+	{
+		// Only auto-update if a layer is reserved for landscape splines
+		ALandscape* Landscape = GetLandscape();
+		if (Landscape && Landscape->GetLandscapeSplinesReservedLayer())
+		{
+			// TODO : Only update dirty regions
+			UpdateLandscapeSplines();
+		}
+	}
+}
+
+bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer* InLayer /*= nullptr*/)
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		ALandscape* Landscape = GetLandscape();
+		FLandscapeLayer* TargetLayer = InLayer ? InLayer : GetCurrentLayer();
+		if (!TargetLayer)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeInvalidLayer", "No layer selected. You must first chose a layer to work on.");
+			}
+			return false;
+		}
+		else if (!TargetLayer->bVisible)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerHidden", "Painting or sculping in a hidden layer is not allowed.");
+			}
+			return false;
+		}
+		else if (TargetLayer->bLocked)
+		{
+			if (Reason)
+			{
+				*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerLocked", "This layer is locked. You must unlock it before you can work on this layer.");
+			}
+			return false;
+		}
+		else if (CurrentTool)
+		{
+			int32 TargetLayerIndex = Landscape ? Landscape->LandscapeLayers.IndexOfByPredicate([TargetLayeyGuid = TargetLayer->Guid](const FLandscapeLayer& OtherLayer) { return OtherLayer.Guid == TargetLayeyGuid; }) : INDEX_NONE;
+
+			if ((CurrentTool != (FLandscapeTool*)SplinesTool) && Landscape && (TargetLayer == Landscape->GetLandscapeSplinesReservedLayer()))
+			{
+				if (Reason)
+				{
+					*Reason = NSLOCTEXT("UnrealEd", "LandscapeLayerReservedForSplines", "This layer is reserved for Landscape Splines.");
+				}
+				return false;
+			}
+			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp") || CurrentTool->GetToolName() == FName("Flatten")))
+			{
+				if (Reason)
+				{
+					FLandscapeLayer* Layer = GetLayer(0);
+					*Reason = FText::Format(NSLOCTEXT("UnrealEd", "LandscapeLayersToolAvailableOnlyOnFirstLayer", "{0} Tool is only available on the first layer {1}."), CurrentTool->GetDisplayName(), Layer ? FText::FromName(Layer->Name) : FText::GetEmpty());
+				}
+				return false;
+			}
+			else if (CurrentTool->GetToolName() == FName("Retopologize"))
+			{
+				if (Reason)
+				{
+					*Reason = FText::Format(NSLOCTEXT("UnrealEd", "LandscapeLayersNoSupportForRetopologize", "{0} Tool is not available with the Landscape Layer System."), CurrentTool->GetDisplayName());
+				}
+				return false;
+			}
+		}
+	}
+
+	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentTool->GetToolName() != FName("BPCustom"))
+	{
+		if (Reason)
+		{
+			*Reason = NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.");
+		}
+		return false;
+		// TODO: FName to LayerInfo: do we want to create the layer info here?
+		//if (FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "LandscapeNeedToCreateLayerInfo", "This layer has no layer info assigned yet. You must create or assign a layer info before you can paint this layer.")) == EAppReturnType::Yes)
+		//{
+		//	CurrentToolTarget.LandscapeInfo->LandscapeProxy->CreateLayerInfo(*CurrentToolTarget.PlaceholderLayerName.ToString());
+		//}
+	}
+	return true;
+}
+
+void FEdModeLandscape::UpdateLandscapeSplines(bool bUpdateOnlySelected /* = false*/)
+{
+	if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+	{
+		ALandscape* Landscape = GetLandscape();
+		if (Landscape)
+		{
+			Landscape->UpdateLandscapeSplines(GetCurrentLayerGuid(), bUpdateOnlySelected);
+		}
+	}
+	else
+	{
+		if (CurrentToolTarget.LandscapeInfo.IsValid())
+		{
+			CurrentToolTarget.LandscapeInfo->ApplySplines(bUpdateOnlySelected);
+		}
+	}
 }
 
 FGuid FEdModeLandscape::GetCurrentLayerGuid() const
