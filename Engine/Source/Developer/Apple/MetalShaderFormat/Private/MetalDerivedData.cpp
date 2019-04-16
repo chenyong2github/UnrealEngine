@@ -263,19 +263,22 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 			}
 		}
 
-		RemoveRemoteFile(RemoteObjFile);
-		CopyRemoteFileToLocal(RemoteOutputFilename, Job.OutputFile);
-		Output.NativePath = RemoteInputFile;
-		bSucceeded = FFileHelper::LoadFileToArray(Output.OutputFile, *Job.OutputFile);
+		if (bSucceeded)
+		{
+			RemoveRemoteFile(RemoteObjFile);
+			CopyRemoteFileToLocal(RemoteOutputFilename, Job.OutputFile);
+			Output.NativePath = RemoteInputFile;
+			bSucceeded = FFileHelper::LoadFileToArray(Output.OutputFile, *Job.OutputFile);
 
+			if (!bSucceeded)
+			{
+				Job.Message = FString::Printf(TEXT("Failed to load output file: %s"), *Job.OutputFile);
+			}
+		}
+		
 		if (!Job.bCompileAsPCH)
 		{
 			RemoveRemoteFile(RemoteOutputFilename);
-		}
-
-		if (!bSucceeded)
-		{
-			Job.Message = FString::Printf(TEXT("Failed to load output file: %s"), *Job.OutputFile);
 		}
 	}
 	else
