@@ -1102,7 +1102,7 @@ void BuildMetalShaderOutput(
 			}
 		}
 		
-		if (Version == 6)
+		if (Version == 6 || ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ForceDXC))
 		{
 			Header.Bindings.LinearBuffer = Header.Bindings.TypedBuffers;
 			Header.Bindings.TypedBuffers = 0;
