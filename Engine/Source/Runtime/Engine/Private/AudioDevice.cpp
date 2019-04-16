@@ -127,6 +127,12 @@ FAutoConsoleVariableRef CVarDisableLegacyReverb(
 	TEXT("0: Enabled, 1: Disabled"),
 	ECVF_Default);
 
+static float SoundDistanceOptimizationLengthCVar = 1.0f;
+FAutoConsoleVariableRef CVarSoundDistanceOptimizationLength(
+	TEXT("au.SoundDistanceOptimizationLength"),
+	SoundDistanceOptimizationLengthCVar,
+	TEXT("The maximum duration a sound must be in order to be a candidate to be culled due to one-shot distance optimization.\n"),
+	ECVF_Default);
 
 /*-----------------------------------------------------------------------------
 FDynamicParameter implementation.
@@ -4112,13 +4118,21 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 	// Don't allow buses to try to play if we're not using the audio mixer.
 	if (!IsAudioMixerEnabled())
 	{
-		if (NewActiveSound.Sound)
+		USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
+		if (Bus)
 		{
-			USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
-			if (Bus)
-			{
-				return;
-			}
+			return;
+		}
+	}
+
+	if (NewActiveSound.Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
+	{
+		// TODO: Determine if this check has already been completed at AudioComponent level and skip if so. Also,
+		// unify code paths determining if sound is audible.
+		if (!SoundIsAudible(NewActiveSound))
+		{
+			UE_LOG(LogAudio, Log, TEXT("New ActiveSound not created for out of range Sound %s"), *NewActiveSound.Sound->GetName());
+			return;
 		}
 	}
 
@@ -4588,6 +4602,51 @@ bool FAudioDevice::SoundIsAudible(USoundBase* Sound, const UWorld* World, const 
 	return LocationIsAudible(Location, MaxDistance / DistanceScale);
 }
 
+bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
+{
+	check(NewActiveSound.Sound);
+
+	// If we have an attenuation node, we can't know until we evaluate
+	// the sound cue if it's audio output going to be audible via a
+	// distance check. TODO: Check if this is still the case.
+	if (NewActiveSound.Sound->HasAttenuationNode())
+	{
+		return true;
+	}
+
+	if (VirtualSoundsEnabled() && (NewActiveSound.Sound->IsAllowedVirtual() || (NewActiveSound.bHandleSubtitles && NewActiveSound.bHasExternalSubtitles)))
+	{
+		return true;
+	}
+
+	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusDistanceScale;
+	if (NewActiveSound.Sound->IsVirtualizeWhenSilent())
+	{
+		return true;
+	}
+
+	const FSoundAttenuationSettings& Attenuation = NewActiveSound.AttenuationSettings;
+	const bool bHasNonFocusDistanceScale = Attenuation.FocusDistanceScale != 1.0f || Attenuation.NonFocusDistanceScale != 1.0f;
+	if (!NewActiveSound.bHasAttenuationSettings ||
+		(NewActiveSound.bHasAttenuationSettings && (!Attenuation.bAttenuate || bHasNonFocusDistanceScale)))
+	{
+		return true;
+	}
+
+	const FGlobalFocusSettings& FocusSettings = GetGlobalFocusSettings();
+	if (FocusSettings.FocusDistanceScale != 1.0f || FocusSettings.NonFocusDistanceScale != 1.0f)
+	{
+		return true;
+	}
+
+	if (LocationIsAudible(NewActiveSound.Transform.GetLocation(), ApparentMaxDistance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners)
 {
 	int32 ClosestListenerIndex = 0;
@@ -4861,7 +4920,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, const FCreateC
 
 			bool bIsAudible = true;
 			// If a sound is a long duration, the position might change before sound finishes so assume it's audible
-			if (Params.bLocationSet && Sound->GetDuration() <= 1.0f)
+			if (Params.bLocationSet && Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
 			{
 				float MaxDistance = 0.0f;
 				float FocusFactor = 0.0f;
