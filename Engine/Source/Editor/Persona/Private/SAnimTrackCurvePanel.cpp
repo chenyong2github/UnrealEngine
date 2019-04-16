@@ -644,7 +644,7 @@ void SAnimTrackCurvePanel::UpdatePanel()
 			MetadataNameMap->GetName(A.Name.UID, AName);
 			MetadataNameMap->GetName(B.Name.UID, BName);
 
-			return AName < BName;
+			return AName.LexicalLess(BName);
 		});
 
 		// see if we need to clear or not

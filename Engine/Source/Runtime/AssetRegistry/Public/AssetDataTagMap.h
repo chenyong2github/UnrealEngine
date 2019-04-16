@@ -12,7 +12,7 @@
 #if !USE_COMPACT_ASSET_REGISTRY
 
 /** Type of tag map */
-typedef TSortedMap<FName, FString, FDefaultAllocator, FNameSortIndexes> FAssetDataTagMap;
+typedef TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess> FAssetDataTagMap;
 
 #else
 
@@ -402,7 +402,7 @@ inline FAssetDataTagMapValueStorage::FStorageID::operator FString() const
 	return FAssetDataTagMapValueStorage::Get().IdToString(*this);
 }
 
-typedef TSortedMap<FName, FAssetDataTagMapValueStorage::FStorageID, FDefaultAllocator, FNameSortIndexes> FAssetDataTagMapBase;
+typedef TSortedMap<FName, FAssetDataTagMapValueStorage::FStorageID, FDefaultAllocator, FNameFastLess> FAssetDataTagMapBase;
 
 /** Wrapper of the underlying map that handles making sure that when the map dies, the underlying storage for the strings is freed. */
 class FAssetDataTagMap : public FAssetDataTagMapBase
@@ -476,7 +476,7 @@ public:
 	/** This is serialization compatible with the non-compact version...so we just load the non-compact version and iterate it to compress the data structure. */
 	friend FArchive& operator<<(FArchive& Ar, FAssetDataTagMap& This)
 	{
-		TSortedMap<FName, FString, FDefaultAllocator, FNameSortIndexes> EmulatedContainer;
+		TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess> EmulatedContainer;
 		if (Ar.IsLoading())
 		{
 			Ar << EmulatedContainer;

@@ -5142,14 +5142,9 @@ bool AreObjectExportsEqualForDuplicateChecks(const FObjectExport& Lhs, const FOb
 bool ExportMapSorter(const FObjectExport& Lhs, const FObjectExport& Rhs)
 {
 	// Check names first.
-	if (Lhs.ObjectName < Rhs.ObjectName)
+	if (Lhs.ObjectName != Rhs.ObjectName)
 	{
-		return true;
-	}
-
-	if (Lhs.ObjectName > Rhs.ObjectName)
-	{
-		return false;
+		return Lhs.ObjectName.LexicalLess(Rhs.ObjectName);
 	}
 
 	// Names are equal, check classes.

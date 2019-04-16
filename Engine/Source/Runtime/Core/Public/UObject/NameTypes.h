@@ -38,11 +38,19 @@ struct FNameEntryId
 {
 	FNameEntryId() : Value(0) {}
 	FNameEntryId(ENoInit) {}
-	
-	int32 CompareCreationOrder(FNameEntryId Rhs) const { return Value - Rhs.Value; };
 
-	/** Creation order*/
+	/** Slow alphabetical order that is stable / deterministic over process runs */
+	CORE_API int32 CompareLexical(FNameEntryId Rhs) const;
+	bool LexicalLess(FNameEntryId Rhs) const { return CompareLexical(Rhs) < 0; }
+
+	/** Fast non-alphabetical order that is only stable during this process' lifetime */
+	int32 CompareFast(FNameEntryId Rhs) const { return Value - Rhs.Value; };
+	bool FastLess(FNameEntryId Rhs) const { return CompareFast(Rhs) < 0; }
+
+	/** Fast non-alphabetical order that is only stable during this process' lifetime */
 	bool operator<(FNameEntryId Rhs) const { return Value < Rhs.Value; }
+
+	/** Fast non-alphabetical order that is only stable during this process' lifetime */
 	bool operator>(FNameEntryId Rhs) const { return Rhs.Value < Value; }
 	bool operator==(FNameEntryId Rhs) const { return Value == Rhs.Value; }
 	bool operator!=(FNameEntryId Rhs) const { return Value != Rhs.Value; }
@@ -454,20 +462,29 @@ public:
 		return !(*this == Other);
 	}
 
-	/**
-	 * Comparison operator used for sorting alphabetically.
-	 */
+	UE_DEPRECATED(4.23, "Please use FastLess() / FNameFastLess or LexicalLess() / FNameLexicalLess instead. "
+		"Default lexical sort order is deprecated to avoid unintended expensive sorting. ")
 	FORCEINLINE bool operator<( const FName& Other ) const
 	{
-		return Compare(Other) < 0;
+		return LexicalLess(Other);
 	}
 
-	/**
-	 * Comparison operator used for sorting alphabetically.
-	 */
+	UE_DEPRECATED(4.23, "Please use B.FastLess(A) or B.LexicalLess(A) instead of A > B.")
 	FORCEINLINE bool operator>(const FName& Other) const
 	{
-		return Compare(Other) > 0;
+		return Other.LexicalLess(*this);
+	}
+
+	/** Fast non-alphabetical order that is only stable during this process' lifetime. */
+	FORCEINLINE bool FastLess(const FName& Other) const
+	{
+		return CompareIndexes(Other) < 0;
+	}
+
+	/** Slow alphabetical order that is stable / deterministic over process runs. */
+	FORCEINLINE bool LexicalLess(const FName& Other) const
+	{
+		return Compare(Other) < 0;
 	}
 
 	FORCEINLINE bool IsNone() const
@@ -567,7 +584,7 @@ public:
 	 */
 	FORCEINLINE int32 CompareIndexes(const FName& Other) const
 	{
-		if (int32 ComparisonDiff = ComparisonIndex.CompareCreationOrder(Other.ComparisonIndex))
+		if (int32 ComparisonDiff = ComparisonIndex.CompareFast(Other.ComparisonIndex))
 		{
 			return ComparisonDiff;
 		}
@@ -858,13 +875,34 @@ inline bool operator!=(const CharType *LHS, const FName &RHS)
 /** FNames act like PODs. */
 template <> struct TIsPODType<FName> { enum { Value = true }; };
 
-
-/** Sort predicate to sort FName by index instead of alphabetically, pass to anything that wants TLess */
-struct FNameSortIndexes
+/** Fast non-alphabetical order that is only stable during this process' lifetime */
+struct FNameFastLess
 {
 	FORCEINLINE bool operator()(const FName& A, const FName& B) const
 	{
 		return A.CompareIndexes(B) < 0;
+	}
+
+	FORCEINLINE bool operator()(FNameEntryId A, FNameEntryId B) const
+	{
+		return A.FastLess(B);
+	}
+};
+
+UE_DEPRECATED(4.23, "Please use FNameFastLess instead.")
+typedef FNameFastLess FNameSortIndexes;
+
+/** Slow alphabetical order that is stable / deterministic over process runs */
+struct FNameLexicalLess
+{
+	FORCEINLINE bool operator()(const FName& A, const FName& B) const
+	{
+		return A.Compare(B) < 0;
+	}
+
+	FORCEINLINE bool operator()(FNameEntryId A, FNameEntryId B) const
+	{
+		return A.LexicalLess(B);
 	}
 };
 

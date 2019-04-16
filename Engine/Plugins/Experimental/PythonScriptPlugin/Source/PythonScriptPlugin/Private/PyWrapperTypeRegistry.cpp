@@ -1978,7 +1978,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 	{
 		TArray<FName> ModuleNames;
 		GeneratedWrappedTypesForModule.GetKeys(ModuleNames);
-		ModuleNames.Sort();
+		ModuleNames.Sort(FNameLexicalLess());
 
 		bool bExportedImports = false;
 		for (const FName ModuleName : ModuleNames)

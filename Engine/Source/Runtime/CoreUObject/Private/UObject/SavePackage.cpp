@@ -3148,31 +3148,21 @@ EObjectMark UPackage::GetExcludedObjectMarksForTargetPlatform( const class ITarg
 bool ExportObjectSorter(const UObject& Lhs, const UObject& Rhs)
 {
 	// Check names first.
-	if (Lhs.GetFName() < Rhs.GetFName())
+	if (Lhs.GetFName() != Rhs.GetFName())
 	{
-		return true;
-	}
-
-	if (Lhs.GetFName() > Rhs.GetFName())
-	{
-		return false;
+		return Lhs.GetFName().LexicalLess(Rhs.GetFName());
 	}
 
 	// Names equal, compare class names.
-	if (Lhs.GetClass()->GetFName() < Rhs.GetClass()->GetFName())
+	if (Lhs.GetClass()->GetFName() != Rhs.GetClass()->GetFName())
 	{
-		return true;
-	}
-
-	if (Lhs.GetClass()->GetFName() > Rhs.GetClass()->GetFName())
-	{
-		return false;
+		return Lhs.GetClass()->GetFName().LexicalLess(Rhs.GetClass()->GetFName());
 	}
 
 	// Compare by outers if they exist.
 	if (Lhs.GetOuter() && Rhs.GetOuter())
 	{
-		return Lhs.GetOuter()->GetFName() < Rhs.GetOuter()->GetFName();
+		return Lhs.GetOuter()->GetFName().LexicalLess(Rhs.GetOuter()->GetFName());
 	}
 
 	if (Lhs.GetOuter())

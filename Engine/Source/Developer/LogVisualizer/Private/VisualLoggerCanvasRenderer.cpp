@@ -254,7 +254,7 @@ void FVisualLoggerCanvasRenderer::DrawHistogramGraphs(class UCanvas* Canvas, cla
 
 			auto& CategoriesForGraph = UsedGraphCategories.FindOrAdd(It->Key.ToString());
 
-			It->Value.GraphLines.KeySort(TLess<FName>());
+			It->Value.GraphLines.KeySort(FNameLexicalLess());
 			for (auto LinesIt(It->Value.GraphLines.CreateConstIterator()); LinesIt; ++LinesIt)
 			{
 				const FString DataName = LinesIt->Value.DataName.ToString();

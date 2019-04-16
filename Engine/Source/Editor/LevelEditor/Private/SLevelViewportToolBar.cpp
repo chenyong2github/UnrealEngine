@@ -1218,7 +1218,7 @@ static TMap<FName, TArray<UFoliageType*>> GroupFoliageByOuter(const TArray<UFoli
 		}
 	}
 
-	Result.KeySort([](const FName& A, const FName& B) { return (A < B && B != NAME_None); });
+	Result.KeySort([](const FName& A, const FName& B) { return (A.LexicalLess(B) && B != NAME_None); });
 	return Result;
 }
 

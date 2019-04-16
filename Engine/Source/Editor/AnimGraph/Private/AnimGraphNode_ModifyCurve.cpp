@@ -48,7 +48,7 @@ TArray<FName> UAnimGraphNode_ModifyCurve::GetCurvesToAdd() const
 			CurvesToAdd.RemoveSingleSwap(ExistingCurveName, false);
 		}
 
-		CurvesToAdd.Sort();
+		CurvesToAdd.Sort(FNameLexicalLess());
 	}
 
 	return CurvesToAdd;

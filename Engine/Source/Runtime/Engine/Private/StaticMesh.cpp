@@ -1616,7 +1616,7 @@ void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
 		};
 	}
 
-	Groups.KeySort(TLess<FName>());
+	Groups.KeySort(FNameLexicalLess());
 	GroupName2Index.Empty(Groups.Num());
 	{
 		int32 GroupIdx = 0;

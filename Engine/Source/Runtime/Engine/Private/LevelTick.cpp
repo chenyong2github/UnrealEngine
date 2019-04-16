@@ -1247,7 +1247,7 @@ static void RecordWorldCountsToCSV(UWorld* World)
 
 			bool bDetailed = (CVarDetailedTickContextForCSV.GetValueOnGameThread() != 0);
 
-			TSortedMap<FName, int32, FDefaultAllocator, FNameSortIndexes> TickContextToCountMap;
+			TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> TickContextToCountMap;
 			int32 EnabledCount;
 			FTickTaskManagerInterface::Get().GetEnabledTickFunctionCounts(World, TickContextToCountMap, EnabledCount, bDetailed);
 

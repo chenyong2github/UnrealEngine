@@ -597,7 +597,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			if (DepthA == DepthB)
 			{
-				return A.GetFName() < B.GetFName(); 
+				return A.GetFName().LexicalLess(B.GetFName());
 			}
 			return DepthA < DepthB;
 		};
@@ -1633,7 +1633,7 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 
 			if (DepthA == DepthB && A && B)
 			{
-				return A->GetFName() < B->GetFName(); 
+				return A->GetFName().LexicalLess(B->GetFName());
 			}
 			return DepthA < DepthB;
 		}

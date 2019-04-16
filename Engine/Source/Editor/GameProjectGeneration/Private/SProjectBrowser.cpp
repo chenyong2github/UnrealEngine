@@ -872,10 +872,7 @@ FReply SProjectBrowser::FindProjects()
 						TargetPlatforms.Add(PlatformInfo.PlatformInfoName);
 					}
 				}
-				TargetPlatforms.Sort([](const FName& One, const FName& Two) -> bool
-				{
-					return One < Two;
-				});
+				TargetPlatforms.Sort(FNameLexicalLess());
 
 				const bool bIsNewProjectItem = false;
 				TSharedRef<FProjectItem> NewProjectItem = MakeShareable( new FProjectItem(ProjectName, ProjectDescription, ProjectEngineIdentifier, bIsUpToDate, DynamicBrush, ProjectFilename, bIsNewProjectItem, TargetPlatforms, ProjectStatus.SupportsAllPlatforms() ) );

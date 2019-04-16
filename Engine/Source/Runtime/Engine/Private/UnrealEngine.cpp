@@ -9297,7 +9297,7 @@ struct FSoundInfo
 
 	bool CompareClass( const FSoundInfo& Other ) const
 	{
-		return ClassName < Other.ClassName;
+		return ClassName.LexicalLess(Other.ClassName);
 	}
 
 	bool CompareWaveInstancesNum( const FSoundInfo& Other ) const
@@ -15982,7 +15982,7 @@ int32 UEngine::RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Can
 			}
 			else if (ShowSounds & FViewportClient::ESoundShowFlags::Sort_Class)
 			{
-				AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.SoundClassName < B.SoundClassName; });
+				AudioStats.StatSoundInfos.Sort([](const FAudioStats::FStatSoundInfo& A, const FAudioStats::FStatSoundInfo& B) { return A.SoundClassName.LexicalLess(B.SoundClassName); });
 				SortingName = TEXT("class");
 			}
 			else if (ShowSounds & FViewportClient::ESoundShowFlags::Sort_WavesNum)

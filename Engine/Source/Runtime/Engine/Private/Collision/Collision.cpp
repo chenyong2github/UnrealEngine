@@ -1028,7 +1028,7 @@ namespace CollisionResponseConsoleCommands
 		// Display Data
 		if (Results.Num() > 0)
 		{
-			Results.Sort([](const FName& A, const FName& B) { return A < B; });
+			Results.Sort(FNameLexicalLess());
 			for (FName& ResultName : Results)
 			{
 				UE_LOG(LogCollisionCommands, Log, TEXT("%s"), *ResultName.ToString());

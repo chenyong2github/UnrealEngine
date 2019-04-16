@@ -3585,7 +3585,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetLODScreenSizePlatformOverrideName
 {
 	TArray<FName> KeyArray;
 	LODScreenSizes[LODIndex].PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 
@@ -4058,7 +4058,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames() con
 	check(StaticMesh);
 	TArray<FName> KeyArray;
 	StaticMesh->MinLOD.PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 
@@ -4168,7 +4168,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNa
 	check(StaticMesh);
 	TArray<FName> KeyArray;
 	StaticMesh->NumStreamedLODs.PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 

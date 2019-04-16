@@ -202,7 +202,7 @@ void SModuleUI::UpdateModuleListItems()
 	{
 		FORCEINLINE bool operator()( const TSharedPtr<FModuleListItem>& A, const TSharedPtr<FModuleListItem>& B ) const
 		{
-			return A->ModuleName < B->ModuleName;
+			return A->ModuleName.LexicalLess(B->ModuleName);
 		}
 	};
 	ModuleListItems.Sort( FModuleSorter() );

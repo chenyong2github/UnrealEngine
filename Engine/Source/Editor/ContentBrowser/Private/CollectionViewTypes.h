@@ -37,7 +37,7 @@ struct FCollectionItem
 	{
 		FORCEINLINE bool operator()( const TSharedPtr<FCollectionItem>& A, const TSharedPtr<FCollectionItem>& B ) const
 		{
-			return A->CollectionName < B->CollectionName;
+			return A->CollectionName.LexicalLess(B->CollectionName);
 		}
 	};
 

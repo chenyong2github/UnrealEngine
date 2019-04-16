@@ -903,6 +903,45 @@ bool operator==(FNameEntryId Id, EName Ename)
 	return Id == GetNamePool().Find(Ename);
 }
 
+static int32 CompareDifferentIdsAlphabetically(FNameEntryId AId, FNameEntryId BId)
+{
+	checkSlow(AId != BId);
+
+	FNamePool& Pool = GetNamePool();
+	FNameBuffer ABuffer, BBuffer;
+	FNameStringView AView =	Pool.Resolve(AId).MakeView(ABuffer);
+	FNameStringView BView =	Pool.Resolve(BId).MakeView(BBuffer);
+
+	// If only one view is wide, convert the ansi view to wide as well
+	if (AView.bIsWide != BView.bIsWide)
+	{
+		FNameStringView& AnsiView = AView.bIsWide ? BView : AView;
+		FNameBuffer& AnsiBuffer =	AView.bIsWide ? BBuffer : ABuffer;
+
+#ifndef WITH_CUSTOM_NAME_ENCODING
+		memcpy(AnsiBuffer.AnsiName, AnsiView.Ansi, AnsiView.Len * sizeof(ANSICHAR));
+		AnsiView.Ansi = AnsiBuffer.AnsiName;
+#endif
+
+		AnsiBuffer.ConvertInPlace<ANSICHAR, WIDECHAR>(AnsiView.Len);
+		AnsiView.bIsWide = true;
+	}
+
+	int32 MinLen = FMath::Min(AView.Len, BView.Len);
+	if (int32 StrDiff = AView.bIsWide ?	FCStringWide::Strnicmp(AView.Wide, BView.Wide, MinLen) :
+										FCStringAnsi::Strnicmp(AView.Ansi, BView.Ansi, MinLen))
+	{
+		return StrDiff;
+	}
+
+	return AView.Len - BView.Len;
+}
+
+int32 FNameEntryId::CompareLexical(FNameEntryId Rhs) const
+{
+	return Value != Rhs.Value && CompareDifferentIdsAlphabetically(*this, Rhs);
+}
+
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	void CallNameCreationHook();
 #else
@@ -1643,36 +1682,9 @@ int32 FName::Compare( const FName& Other ) const
 	{
 		return GetNumber() - Other.GetNumber();
 	}
-	else // Names don't match. This means we don't even need to check numbers.
-	{
-		FNameBuffer ThisBuffer, OtherBuffer;
-		FNameStringView ThisView =	GetComparisonNameEntry()->MakeView(ThisBuffer);
-		FNameStringView OtherView =	Other.GetComparisonNameEntry()->MakeView(OtherBuffer);
 
-		// If only one view is wide, convert the ansi view to wide as well
-		if (ThisView.bIsWide != OtherView.bIsWide)
-		{
-			FNameStringView& AnsiView = ThisView.bIsWide ? OtherView : ThisView;
-			FNameBuffer& AnsiBuffer =	ThisView.bIsWide ? OtherBuffer : ThisBuffer;
-
-#ifndef WITH_CUSTOM_NAME_ENCODING
-			memcpy(AnsiBuffer.AnsiName, AnsiView.Ansi, AnsiView.Len * sizeof(ANSICHAR));
-			AnsiView.Ansi = AnsiBuffer.AnsiName;
-#endif
-
-			AnsiBuffer.ConvertInPlace<ANSICHAR, WIDECHAR>(AnsiView.Len);
-			AnsiView.bIsWide = true;
-		}
-
-		int32 MinLen = FMath::Min(ThisView.Len, OtherView.Len);
-		if (int32 StrDiff = ThisView.bIsWide ?	FCStringWide::Strnicmp(ThisView.Wide, OtherView.Wide, MinLen) :
-												FCStringAnsi::Strnicmp(ThisView.Ansi, OtherView.Ansi, MinLen))
-		{
-			return StrDiff;
-		}
-
-		return ThisView.Len - OtherView.Len;
-	}
+	// Names don't match. This means we don't even need to check numbers.
+	return CompareDifferentIdsAlphabetically(ComparisonIndex, Other.ComparisonIndex);
 }
 
 FString FName::GetPlainNameString() const
@@ -1941,7 +1953,7 @@ void FName::AutoTest()
 	Names.Add("FooC");
 	const WIDECHAR FooWide[] = {'F', 'o', 'o', (WIDECHAR)2000, '\0'};
 	Names.Add(FooWide);
-	Algo::Sort(Names); // Todo: fix when removing default operator<
+	Algo::Sort(Names, FNameLexicalLess()); 
 
 	check(Names[0] == "FooA");
 	check(Names[1] == "FooAB");

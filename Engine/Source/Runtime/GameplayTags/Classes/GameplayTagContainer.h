@@ -86,7 +86,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 
 	FORCEINLINE bool operator<(FGameplayTag const& Other) const
 	{
-		return TagName < Other.TagName;
+		return TagName.LexicalLess(Other.TagName);
 	}
 
 	/**

@@ -1051,7 +1051,7 @@ void SEventGraph::FillThreadFilterOptions()
 	// Sort the thread names alphabetically
 	ThreadNamesForCombo.Sort([]( const TSharedPtr<FName> Lhs, const TSharedPtr<FName> Rhs ) 
 	{
-		return Lhs->IsNone() || ( !Rhs->IsNone() && *Lhs < *Rhs );
+		return Lhs->IsNone() || ( !Rhs->IsNone() && Lhs->LexicalLess(*Rhs) );
 	});
 
 	// Refresh the combo box

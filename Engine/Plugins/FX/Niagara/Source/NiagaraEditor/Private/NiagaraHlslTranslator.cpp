@@ -1107,7 +1107,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			// We sort the variables so that they end up in the same ordering between Spawn & Update...
 			SystemEngineReadVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 			{
-				return A.GetName() < B.GetName();
+				return A.GetName().LexicalLess(B.GetName());
 			});
 
 			{
@@ -1156,12 +1156,12 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
 		InstanceReadVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 		{
-			return A.GetName() < B.GetName();
+			return A.GetName().LexicalLess(B.GetName());
 		});
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
 		InstanceWriteVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 		{
-			return A.GetName() < B.GetName();
+			return A.GetName().LexicalLess(B.GetName());
 		});
 		//Define the simulation context. Which is a helper struct containing all the input, result and intermediate data needed for a single simulation.
 		//Allows us to reuse the same simulate function but provide different wrappers for final IO between GPU and CPU sims.

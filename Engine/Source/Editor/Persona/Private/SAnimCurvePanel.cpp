@@ -855,7 +855,7 @@ void SAnimCurvePanel::UpdatePanel()
 			MetadataNameMap->GetName(A.Name.UID, AName);
 			MetadataNameMap->GetName(B.Name.UID, BName);
 
-			return AName < BName;
+			return AName.LexicalLess(BName);
 		});
 
 		// Store expanded state before clearing the tracks

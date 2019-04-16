@@ -744,7 +744,7 @@ class FFormatContainer
 {
 	friend class UBodySetup;
 
-	TSortedMap<FName, FByteBulkData*, FDefaultAllocator, FNameSortIndexes> Formats;
+	TSortedMap<FName, FByteBulkData*, FDefaultAllocator, FNameFastLess> Formats;
 	uint32 Alignment;
 public:
 	~FFormatContainer()

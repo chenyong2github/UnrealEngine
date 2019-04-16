@@ -255,7 +255,7 @@ void FCollectionContextMenu::MakeSaveDynamicCollectionSubMenu(FMenuBuilder& Menu
 
 	AvailableCollections.Sort([](const FCollectionNameType& One, const FCollectionNameType& Two) -> bool
 	{
-		return One.Name < Two.Name;
+		return One.Name.LexicalLess(Two.Name);
 	});
 
 	if (AvailableCollections.Num() > 0)

@@ -383,7 +383,7 @@ void ListClusters(const TArray<FString>& Args)
 			Algo::SortBy(AllClusters, [](FUObjectCluster* A)
 			{
 				return GUObjectArray.IndexToObject(A->RootIndex)->Object->GetFName();
-			});
+			}, FNameLexicalLess());
 		}
 		else if (Arg == TEXT("SortByObjectCount"))
 		{

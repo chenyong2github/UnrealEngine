@@ -64,7 +64,7 @@ private:
 
 		bool operator<( FParameterNameAndAction const& Other ) const
 		{
-			return ParameterName < Other.ParameterName;
+			return ParameterName.LexicalLess(Other.ParameterName);
 		}
 	};
 

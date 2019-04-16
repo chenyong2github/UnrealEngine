@@ -503,13 +503,13 @@ bool FContainersFullTest::RunTest(const FString& Parameters)
 	RunContainerTests<TMap<FString, FContainerTestValueType, FDefaultSetAllocator, FCaseSensitiveLookupKeyFuncs<FContainerTestValueType>>, FString>();
 
 	RunContainerTests<TSortedMap<int32, FContainerTestValueType>, int32>();
-	RunContainerTests<TSortedMap<FName, FContainerTestValueType>, FName>();
+	RunContainerTests<TSortedMap<FName, FContainerTestValueType, FDefaultAllocator, FNameLexicalLess>, FName>();
 	RunContainerTests<TSortedMap<FString, FContainerTestValueType>, FString>();
 	RunContainerTests<TSortedMap<FString, FContainerTestValueType, TInlineAllocator<64>>, FString>();
 
 	// Verify use of FName index sorter with SortedMap
 
-	TSortedMap<FName, int32, FDefaultAllocator, FNameSortIndexes> NameMap;
+	TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> NameMap;
 	NameMap.Add(NAME_NameProperty);
 	NameMap.Add(NAME_FloatProperty);
 	NameMap.Add(NAME_None);
@@ -555,11 +555,11 @@ bool FContainerPerformanceTest::RunTest(const FString& Parameters)
 	RunPerformanceTest<TSortedMap<int32, FString>, int32>(TEXT("TSortedMap int32"), 1000, 1000000);
 	RunPerformanceTest<TSortedMap<int32, FString>, int32>(TEXT("TSortedMap int32"), 10000, 1000000);
 
-	RunPerformanceTest<TSortedMap<FName, FString>, FName>(TEXT("TSortedMap FName"), 1, 1000000);
-	RunPerformanceTest<TSortedMap<FName, FString>, FName>(TEXT("TSortedMap FName"), 10, 1000000);
-	RunPerformanceTest<TSortedMap<FName, FString>, FName>(TEXT("TSortedMap FName"), 100, 1000000);
-	RunPerformanceTest<TSortedMap<FName, FString>, FName>(TEXT("TSortedMap FName"), 1000, 1000000);
-	RunPerformanceTest<TSortedMap<FName, FString>, FName>(TEXT("TSortedMap FName"), 10000, 1000000);
+	RunPerformanceTest<TSortedMap<FName, FString, FDefaultAllocator, FNameLexicalLess>, FName>(TEXT("TSortedMap FName"), 1, 1000000);
+	RunPerformanceTest<TSortedMap<FName, FString, FDefaultAllocator, FNameLexicalLess>, FName>(TEXT("TSortedMap FName"), 10, 1000000);
+	RunPerformanceTest<TSortedMap<FName, FString, FDefaultAllocator, FNameLexicalLess>, FName>(TEXT("TSortedMap FName"), 100, 1000000);
+	RunPerformanceTest<TSortedMap<FName, FString, FDefaultAllocator, FNameLexicalLess>, FName>(TEXT("TSortedMap FName"), 1000, 1000000);
+	RunPerformanceTest<TSortedMap<FName, FString, FDefaultAllocator, FNameLexicalLess>, FName>(TEXT("TSortedMap FName"), 10000, 1000000);
 
 	RunPerformanceTest<TSortedMap<FString, FString>, FString>(TEXT("TSortedMap FString"), 1, 1000000);
 	RunPerformanceTest<TSortedMap<FString, FString>, FString>(TEXT("TSortedMap FString"), 10, 1000000);

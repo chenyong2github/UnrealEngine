@@ -2235,7 +2235,7 @@ namespace SceneOutliner
 		CacheFoldersEdit = InFolders;
 
 		// Sort folder names so parents appear before children
-		CacheFoldersEdit.Sort();
+		CacheFoldersEdit.Sort(FNameLexicalLess());
 
 		// Cache existing children
 		for (FName Folder : CacheFoldersEdit)
@@ -2423,7 +2423,7 @@ namespace SceneOutliner
 			// Sort in descending order so children will be deleted before parents
 			CacheFoldersDelete.Sort([](const FFolderTreeItem& FolderA, const FFolderTreeItem& FolderB)
 			{
-				return (FolderA.Path > FolderB.Path);
+				return FolderB.Path.LexicalLess(FolderA.Path);
 			});
 
 			for (FFolderTreeItem* Folder : CacheFoldersDelete)

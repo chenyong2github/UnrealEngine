@@ -141,7 +141,7 @@ protected:
 		float ScalarParameterDefaultValue = 0.f;
 	};
 
-	TSortedMap<FName, FMaterialParameterCache, FDefaultAllocator, FNameSortIndexes> MaterialParameterCache;
+	TSortedMap<FName, FMaterialParameterCache, FDefaultAllocator, FNameFastLess> MaterialParameterCache;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = MaterialParameters)
 	bool bEnableMaterialParameterCaching;
