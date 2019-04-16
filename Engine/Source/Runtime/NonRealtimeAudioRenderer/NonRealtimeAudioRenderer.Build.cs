@@ -25,6 +25,14 @@ namespace UnrealBuildTool.Rules
                     "AudioMixer",
                 }
 			);
+
+            AddEngineThirdPartyPrivateStaticDependencies(Target,
+					"UEOgg",
+					"Vorbis",
+					"VorbisFile",
+					"libOpus",
+					"UELibSampleRate"
+					);
         }
 	}
 }
