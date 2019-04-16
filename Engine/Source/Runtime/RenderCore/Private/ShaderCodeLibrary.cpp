@@ -1488,25 +1488,24 @@ public:
 #endif
 	}
 
-	void OpenLibrary(FString const& Name, FString const& Directory)
+	bool OpenLibrary(FString const& Name, FString const& Directory)
 	{
 		LLM_SCOPE(ELLMTag::Shaders);
+		
+		bool bResult = false;
 
 		if (ShaderPlatform < SP_NumPlatforms)
 		{
 			if (OpenShaderCode(Directory, ShaderPlatform, Name))
 			{
+				bResult = true;
+				
 				// Attempt to open the shared-cooked override code library if there is one.
 				// This is probably not ideal, but it should get shared-cooks working.
 				OpenShaderCode(Directory, ShaderPlatform, Name + TEXT("_SC"));
 
 				// Inform the pipeline cache that the state of loaded libraries has changed
 				FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Opened, ShaderPlatform, Name);
-			}
-			else
-			{
-				FName PlatformName = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
-				UE_LOG(LogShaderLibrary, Error, TEXT("Cooked Context: Failed to load Shared Shader Library %s from %s for %s"), *Name, *Directory, *PlatformName.GetPlainNameString());
 			}
 		}
 
@@ -1528,6 +1527,8 @@ public:
 			}
 		}
 #endif
+		
+		return bResult;
 	}
 
 	void CloseLibrary(FString const& Name)
@@ -1588,12 +1589,12 @@ public:
 			}
 			else
 			{
-				UE_LOG(LogShaderLibrary, Display, TEXT("Failed to load Native Shared Shader Library: %s."), *Library);
+				UE_LOG(LogShaderLibrary, Display, TEXT("Cooked Context: No Native Shared Shader Library for %s"), *Library);
 			}
 		}
 		else
 		{
-			UE_LOG(LogShaderLibrary, Display, TEXT("Failed to load Shared Shader Library: %s and no native library supported."), *Library);
+			UE_LOG(LogShaderLibrary, Display, TEXT("Cooked Context: No Shared Shader Library for: %s and native library not supported."), *Library);
 		}
 
 		bool const bOK = IsValidRef(ShaderCodeArchive);
@@ -2253,12 +2254,14 @@ EShaderPlatform FShaderCodeLibrary::GetRuntimeShaderPlatform(void)
 	return Platform;
 }
 
-void FShaderCodeLibrary::OpenLibrary(FString const& Name, FString const& Directory)
+bool FShaderCodeLibrary::OpenLibrary(FString const& Name, FString const& Directory)
 {
+	bool bResult = false;
 	if (FShaderCodeLibraryImpl::Impl)
 	{
-		FShaderCodeLibraryImpl::Impl->OpenLibrary(Name, Directory);
+		bResult = FShaderCodeLibraryImpl::Impl->OpenLibrary(Name, Directory);
 	}
+	return bResult;
 }
 
 void FShaderCodeLibrary::CloseLibrary(FString const& Name)
