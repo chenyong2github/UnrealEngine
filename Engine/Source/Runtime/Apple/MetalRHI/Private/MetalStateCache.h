@@ -148,6 +148,8 @@ public:
     bool IsLinearBuffer(EMetalShaderStages ShaderStage, uint32 BindIndex);
     FMetalShaderPipeline* GetPipelineState(void) const { return GraphicsPSO->GetPipeline(GetIndexType()); }
 	EPrimitiveType GetPrimitiveType() { check(IsValidRef(GraphicsPSO)); return GraphicsPSO->GetPrimitiveType(); }
+	mtlpp::VisibilityResultMode GetVisibilityResultMode() { return VisibilityMode; }
+	uint32 GetVisibilityResultOffset() { return VisibilityOffset; }
 	
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
 	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
