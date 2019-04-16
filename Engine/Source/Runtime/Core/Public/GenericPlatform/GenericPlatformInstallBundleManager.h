@@ -107,7 +107,6 @@ ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
 enum class EInstallBundleStatus : int
 {
-	NotRequested,
 	QueuedForDownload,
 	Downloading,
 	QueuedForInstall,
@@ -117,29 +116,40 @@ enum class EInstallBundleStatus : int
 	Installed,
 };
 
-struct FInstallBundleProgress
+struct FInstallBundleDownloadProgress
 {
 	// Num bytes received
-	uint64 ProgressBytes = 0;
-	// Num bytes written to storage (<= ProgressBytes)
-	uint64 ProgressBytesWritten = 0;
+	uint64 BytesDownloaded = 0;
+	// Num bytes written to storage (<= BytesDownloaded)
+	uint64 BytesDownloadedAndWritten = 0;
 	// Num bytes needed
-	uint64 ProgressTotalBytes = 0;
-	float ProgressPercent = 0;
+	uint64 TotalBytesToDownload = 0;
+	float PercentComplete = 0;
 };
 
 struct FInstallBundleStatus
 {
 	FName BundleName;
 
-	EInstallBundleStatus Status = EInstallBundleStatus::NotRequested;
+	EInstallBundleStatus Status = EInstallBundleStatus::QueuedForDownload;
 
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
 
 	FText StatusText;
 
-	// Progress is only present if Status is Downloading or Installing
-	TOptional<FInstallBundleProgress> Progress;
+	// Download progress of EInstallBundleStatus::Downloading
+	// Will be set if Status >= EInstallBundleStatus::Downloading
+	TOptional<FInstallBundleDownloadProgress> BackgroundDownloadProgress;
+
+	// Download progress of EInstallBundleStatus::Install
+	// Will be set if Status >= EInstallBundleStatus::Install
+	// We may download during install if background downloads are turned off or fail
+	// We may also do small downloads during install as a normal part of installation
+	TOptional<FInstallBundleDownloadProgress> InstallDownloadProgress;
+
+	float Install_Percent = 0;
+
+	float Finishing_Percent = 0;
 };
 
 struct FInstallBundleResultInfo
