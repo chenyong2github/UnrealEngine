@@ -411,6 +411,9 @@ protected:
 	void replace_illegal_names() override;
 	void declare_undefined_values() override;
 	void declare_constant_arrays();
+	/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+	void declare_complex_constant_arrays();
+	/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 	bool is_patch_block(const SPIRType &type);
 	bool is_non_native_row_major_matrix(uint32_t id) override;
 	bool member_is_non_native_row_major_matrix(const SPIRType &type, uint32_t index) override;

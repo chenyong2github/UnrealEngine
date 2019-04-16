@@ -418,6 +418,9 @@ std::string CompilerMSL::get_tess_factor_struct_name()
 void CompilerMSL::emit_entry_point_declarations()
 {
 	// FIXME: Get test coverage here ...
+	/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
+	declare_complex_constant_arrays();
+	/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 
 	// Emit constexpr samplers here.
 	for (auto &samp : constexpr_samplers)
@@ -3043,6 +3046,7 @@ void CompilerMSL::declare_undefined_values()
 		statement("");
 }
 
+/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 void CompilerMSL::declare_constant_arrays()
 {
 	// MSL cannot declare arrays inline (except when declaring a variable), so we must move them out to
@@ -3054,7 +3058,7 @@ void CompilerMSL::declare_constant_arrays()
 			return;
 
 		auto &type = this->get<SPIRType>(c.constant_type);
-		if (!type.array.empty())
+		if (!type.array.empty() && (is_scalar(type) || is_vector(type)))
 		{
 			auto name = to_name(c.self);
 			statement("constant ", variable_decl(type, name), " = ", constant_expression(c), ";");
@@ -3065,6 +3069,30 @@ void CompilerMSL::declare_constant_arrays()
 	if (emitted)
 		statement("");
 }
+
+void CompilerMSL::declare_complex_constant_arrays()
+{
+	// MSL cannot declare arrays inline (except when declaring a variable), so we must move them out to
+	// global constants directly, so we are able to use constants as variable expressions.
+	bool emitted = false;
+	
+	ir.for_each_typed_id<SPIRConstant>([&](uint32_t, SPIRConstant &c) {
+		if (c.specialization)
+			return;
+		
+		auto &type = this->get<SPIRType>(c.constant_type);
+		if (!type.array.empty() && !(is_scalar(type) || is_vector(type)))
+		{
+			auto name = to_name(c.self);
+			statement("", variable_decl(type, name), " = ", constant_expression(c), ";");
+			emitted = true;
+		}
+	});
+	
+	if (emitted)
+		statement("");
+}
+/* UE Change End: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 
 void CompilerMSL::emit_resources()
 {
