@@ -46,11 +46,6 @@ public class MetalShaderFormat : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string DllsPath = "$(EngineDir)/Binaries/ThirdParty/ShaderConductor/Win64/";
-
-			RuntimeDependencies.Add("$(TargetOutputDir)/dxcompiler_sc.dll", DllsPath + "dxcompiler_sc.dll");
-			RuntimeDependencies.Add("$(TargetOutputDir)/ShaderConductor.dll", DllsPath + "ShaderConductor.dll");
-
 			PublicDelayLoadDLLs.Add("dxcompiler_sc.dll");
 			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
 		}
