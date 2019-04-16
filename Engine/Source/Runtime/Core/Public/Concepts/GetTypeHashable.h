@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/TypeHash.h"
 
 /**
  * Describes a type with a GetTypeHash overload.
