@@ -623,6 +623,8 @@ public:
 
 	virtual void InitDestroyedStartupActors() override;
 
+	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider) override;
+
 protected:
 	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
 
