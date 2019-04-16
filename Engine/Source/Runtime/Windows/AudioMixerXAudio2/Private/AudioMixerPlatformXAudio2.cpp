@@ -229,6 +229,10 @@ namespace Audio
 
 		SAFE_RELEASE(XAudio2System);
 
+#if WITH_XMA2
+		FXMAAudioInfo::Shutdown();
+#endif
+
 #if PLATFORM_WINDOWS
 
 #if PLATFORM_64BITS
