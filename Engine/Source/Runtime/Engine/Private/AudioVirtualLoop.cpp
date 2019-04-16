@@ -7,7 +7,7 @@
 
 	static int32 bVirtualLoopsEnabledCVar = 1;
 	FAutoConsoleVariableRef CVarVirtualLoopsEnabled(
-		TEXT("au.VirtualLoops"),
+		TEXT("au.VirtualLoopsEnabled"),
 		bVirtualLoopsEnabledCVar,
 		TEXT("Enables or disables whether virtualizing is supported for audio loops.\n"),
 		ECVF_Default);
@@ -21,14 +21,14 @@
 
 	static float VirtualUpdateRateMinCVar = 0.1f;
 	FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMin(
-		TEXT("au.VirtualUpdateRateMin"),
+		TEXT("au.VirtualLoopsUpdateRateMin"),
 		VirtualUpdateRateMinCVar,
 		TEXT("Sets minimum rate to check if sound becomes audible again at sound's max audible distance.\n"),
 		ECVF_Default);
 
 	static float VirtualUpdateRateMaxCVar = 3.0f;
 	FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
-		TEXT("au.VirtualUpdateRateMax"),
+		TEXT("au.VirtualLoopsUpdateRateMax"),
 		VirtualUpdateRateMinCVar,
 		TEXT("Sets maximum rate to check if sound becomes audible again (at beyond sound's max audible distance + perf scaling distance).\n"),
 		ECVF_Default);
