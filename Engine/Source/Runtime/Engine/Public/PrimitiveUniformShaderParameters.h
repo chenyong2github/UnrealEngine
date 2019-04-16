@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "SceneTypes.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
@@ -13,6 +14,7 @@
 /** 
  * The uniform shader parameters associated with a primitive. 
  * Note: Must match FPrimitiveSceneData in shaders.
+ * Note 2: Try to keep this 16 byte aligned. i.e |Matrix4x4|Vector3,float|Vector3,float|Vector4|  _NOT_  |Vector3,(waste padding)|Vector3,(waste padding)|Vector3. Or at least mark out padding if it can't be avoided.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_API)
 	SHADER_PARAMETER(FMatrix,LocalToWorld)		// always needed
@@ -32,12 +34,14 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER_EX(FVector4,ObjectOrientation,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(FVector4,NonUniformScale,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMin)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
-	SHADER_PARAMETER(FVector, PreSkinnedLocalBounds)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(uint32,LightingChannelMask)
+	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,LightmapDataIndex)
+	SHADER_PARAMETER(FVector, PreSkinnedLocalBounds)	// Local space bounds, pre-skinning
 	SHADER_PARAMETER(int32, SingleCaptureIndex)
     SHADER_PARAMETER(uint32, OutputVelocity)
+	// 12 bytes of padding here, feel free to use
+	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through UMaterialExpressionCustomPrimitiveData and modified through UStaticMeshComponent
 
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -59,7 +63,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
-	bool bOutputVelocity
+	bool bOutputVelocity,
+	const FCustomPrimitiveData* CustomPrimitiveData
 )
 {
 	FPrimitiveUniformShaderParameters Result;
@@ -101,6 +106,16 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.LightmapDataIndex = LightmapDataIndex;
 	Result.SingleCaptureIndex = SingleCaptureIndex;
 	Result.OutputVelocity = (bOutputVelocity) ? 1 : 0;
+
+	// Clear to 0
+	FMemory::Memzero(Result.CustomPrimitiveData);
+
+	// If this primitive has custom primitive data, set it
+	if (CustomPrimitiveData)
+	{
+		// Copy at most up to the max supported number of dwords for safety
+		FMemory::Memcpy(&Result.CustomPrimitiveData, CustomPrimitiveData->Data.GetData(), CustomPrimitiveData->Data.GetTypeSize() * FMath::Min(CustomPrimitiveData->Data.Num(), FCustomPrimitiveData::NumCustomPrimitiveDataFloats));
+	}
 	return Result;
 }
 
@@ -126,7 +141,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 {
 	// Pass through call
 	return GetPrimitiveUniformShaderParameters(LocalToWorld, PreviousLocalToWorld, ActorPosition, WorldBounds, LocalBounds, LocalBounds, bReceivesDecals, bHasDistanceFieldRepresentation, bHasCapsuleRepresentation, 
-		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bUseEditorDepthTest, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex, bOutputVelocity);
+		bUseSingleSampleShadowFromStationaryLights, bUseVolumetricLightmap, bUseEditorDepthTest, LightingChannelMask, LpvBiasMultiplier, LightmapDataIndex, SingleCaptureIndex, bOutputVelocity, nullptr);
 }
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
@@ -141,7 +156,7 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 {
 	check(IsInRenderingThread());
 	return TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(
-		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE, false),
+		GetPrimitiveUniformShaderParameters(LocalToWorld, LocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, false, false, false, false, bUseEditorDepthTest, GetDefaultLightingChannelMask(), LpvBiasMultiplier, INDEX_NONE, INDEX_NONE, false, nullptr),
 		UniformBuffer_MultiFrame
 		);
 }
@@ -190,7 +205,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { PrimitiveDataStrideInFloat4s = 27 };
+	enum { PrimitiveDataStrideInFloat4s = 31 };
 
 	FVector4 Data[PrimitiveDataStrideInFloat4s];
 
