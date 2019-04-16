@@ -5470,6 +5470,15 @@ protected:
 
 	}
 
+	virtual int32 CustomPrimitiveData(int32 OutputIndex) override
+	{
+		const int32 CustomDataIndex = OutputIndex / FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s;
+		const int32 ElementIndex = OutputIndex % 4; // Index x, y, z or w
+
+		FString HlslName = FString::Printf(TEXT("CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex);
+		return GetPrimitiveProperty(MCT_Float, TEXT("CustomPrimitiveData"), *HlslName);
+	}
+
 	virtual int32 CustomExpression( class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs ) override
 	{
 		int32 ResultIdx = INDEX_NONE;

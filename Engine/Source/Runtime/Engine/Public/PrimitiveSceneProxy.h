@@ -728,6 +728,12 @@ public:
 
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const { return 0; }
 
+	/** 
+	 * Get the custom primitive data for this scene proxy. Defaults to zero-data if not implemented.
+	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
+	 */
+	ENGINE_API virtual const FCustomPrimitiveData* GetCustomPrimitiveData() const { return nullptr; }
+
 protected:
 
 	/** Allow subclasses to override the primitive name. Used primarily by BSP. */
