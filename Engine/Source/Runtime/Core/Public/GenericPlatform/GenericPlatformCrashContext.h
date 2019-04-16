@@ -238,6 +238,9 @@ public:
 	/** Sets the portable callstack to a specified stack */
 	virtual void SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames);
 
+	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
+	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack);
+
 	/**
 	 * @return whether this crash is a non-crash event
 	 */

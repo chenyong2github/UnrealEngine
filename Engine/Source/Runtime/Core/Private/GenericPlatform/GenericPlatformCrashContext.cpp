@@ -785,6 +785,11 @@ FORCENOINLINE void FGenericCrashContext::CapturePortableCallStack(int32 NumStack
 
 void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames)
 {
+	GetPortableCallStack(StackFrames, NumStackFrames, CallStack);
+}
+
+void FGenericCrashContext::GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack)
+{
 	// Get all the modules in the current process
 	uint32 NumModules = (uint32)FPlatformStackWalk::GetProcessModuleCount();
 
@@ -795,7 +800,7 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 	Modules.SetNum(NumModules);
 
 	// Update the callstack with offsets from each module
-	CallStack.Reset(NumStackFrames);
+	OutCallStack.Reset(NumStackFrames);
 	for(int32 Idx = 0; Idx < NumStackFrames; Idx++)
 	{
 		const uint64 StackFrame = StackFrames[Idx];
@@ -814,11 +819,11 @@ void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32
 		// Add the callstack item
 		if(FoundModule == nullptr)
 		{
-			CallStack.Add(FCrashStackFrame(TEXT("Unknown"), 0, StackFrame));
+			OutCallStack.Add(FCrashStackFrame(TEXT("Unknown"), 0, StackFrame));
 		}
 		else
 		{
-			CallStack.Add(FCrashStackFrame(FPaths::GetBaseFilename(FoundModule->ImageName), FoundModule->BaseOfImage, StackFrame - FoundModule->BaseOfImage));
+			OutCallStack.Add(FCrashStackFrame(FPaths::GetBaseFilename(FoundModule->ImageName), FoundModule->BaseOfImage, StackFrame - FoundModule->BaseOfImage));
 		}
 	}
 }
