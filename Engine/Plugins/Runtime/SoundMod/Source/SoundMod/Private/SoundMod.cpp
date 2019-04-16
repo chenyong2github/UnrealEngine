@@ -57,10 +57,3 @@ bool USoundMod::IsPlayable() const
 {
 	return true;
 }
-
-float USoundMod::GetMaxDistance() const
-{
-	return (AttenuationSettings ? AttenuationSettings->Attenuation.GetMaxDimension() : WORLD_MAX);
-}
-
-

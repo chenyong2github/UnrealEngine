@@ -7,12 +7,13 @@
 #include "Sound/SoundAttenuation.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Audio.h"
+#include "AudioDevice.h"
+#include "AudioDynamicParameter.h"
 #include "Sound/SoundConcurrency.h"
 #include "Components/AudioComponent.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSourceBus.h"
-#include "AudioDevice.h"
 
 class FAudioDevice;
 class USoundBase;
@@ -223,6 +224,8 @@ public:
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
+	void ClearAudioComponent();
+	void SetAudioComponent(const FActiveSound& ActiveSound);
 	void SetAudioComponent(UAudioComponent* Component);
 	void SetOwner(AActor* Owner);
 	FString GetAudioComponentName() const;
@@ -231,8 +234,7 @@ public:
 	uint32 GetWorldID() const { return WorldID; }
 	TWeakObjectPtr<UWorld> GetWeakWorld() const { return World; }
 	UWorld* GetWorld() const 
-	{ 
-		check(IsInGameThread()); 
+	{
 		return World.Get();
 	}
 	void SetWorld(UWorld* World);
