@@ -8,9 +8,6 @@
 //uint NiagaraIntDataOffset;
 //uint NiagaraIntDataStride;
 
-// This is a hack to fix cases where depth values are invariant due to compiler optimizations/operation reordering between the depth pass and base pass. (UE-68456)
-#define NIAGARA_BIAS_HACK 1
-
 #ifndef NIAGARA_KEYGEN
 #define NIAGARA_KEYGEN 0
 #endif

@@ -446,7 +446,7 @@ void GetTangents(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermed
 	float3 Up;
 	
 	/**This could well be better as a branch*/
-	FLATTEN
+	BRANCH
 	if(NiagaraSpriteVFLooseParameters.ParticleAlignmentMode == ALIGNMENT_MODE_UNALIGNED)
 	{
 		FLATTEN
