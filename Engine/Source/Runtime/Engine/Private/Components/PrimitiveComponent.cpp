@@ -391,7 +391,8 @@ void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingT
 #endif
 
 				// Other wise check that everything is setup right. If the component is not yet registered, then the bound data is irrelevant.
-				const bool bCanBeStreamedByDistance = Info.TexelFactor > SMALL_NUMBER && (Info.Bounds.SphereRadius > SMALL_NUMBER || !IsRegistered()) && ensure(FMath::IsFinite(Info.TexelFactor));
+				const bool bCanBeStreamedByDistance = Info.CanBeStreamedByDistance(IsRegistered());
+
 				if (!bForceMipStreaming && !bCanBeStreamedByDistance && Info.TexelFactor >= 0.f)
 				{
 					OutStreamingRenderAssets.RemoveAtSwap(Index--);
