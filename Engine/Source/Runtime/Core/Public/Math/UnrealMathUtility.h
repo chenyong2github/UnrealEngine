@@ -1311,6 +1311,15 @@ struct FMath : public FPlatformMath
 	static CORE_API bool PointsAreCoplanar(const TArray<FVector>& Points, const float Tolerance = 0.1f);
 
 	/**
+	 * Truncates a floating point number to half if closer than the given tolerance.
+	 * @param Value				Floating point number to truncate
+	 * @param Tolerance			Maximum allowed difference to 0.5 in order to truncate
+	 * @return					The truncated value
+	 */
+	static CORE_API float TruncateToHalfIfClose(float F, float Tolerance = SMALL_NUMBER);
+	static CORE_API double TruncateToHalfIfClose(double F, double Tolerance = SMALL_NUMBER);
+
+	/**
 	* Converts a floating point number to the nearest integer, equidistant ties go to the value which is closest to an even value: 1.5 becomes 2, 0.5 becomes 0
 	* @param F		Floating point value to convert
 	* @return		The rounded integer
