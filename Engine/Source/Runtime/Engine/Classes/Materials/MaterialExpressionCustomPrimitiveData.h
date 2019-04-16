@@ -18,9 +18,10 @@ class UMaterialExpressionCustomPrimitiveData: public UMaterialExpression
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UMaterialExpression Interface
-
+#if WITH_EDITORONLY_DATA
 	/** Custom descriptions for each custom data pin, only for making things more readable, don't rely on this data for run-time things */
 	UPROPERTY(EditAnywhere, Category=MaterialExpression)
 	TArray<FString> CustomDescs;
+#endif
 #endif
 };
