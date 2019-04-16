@@ -32,11 +32,6 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 	return float2(SobolRand) * rcp(65536.0) + rcp(65536.0 * 2.0);
 }
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,
 	float3 WorldPosition,

@@ -16,12 +16,7 @@ RWTexture2D<float2> RWRayDistanceUAV;
 #define USE_MIP_PDF_TEXTURE 1
 #define USE_SOLID_ANGLE_TEXTURE 1
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
 
-// #dxr_todo: UE-72508: encapsulate this function in a shared space
 float3 EvalSkyLight(float3 Direction)
 {
 	return SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, Direction, 0).rgb;

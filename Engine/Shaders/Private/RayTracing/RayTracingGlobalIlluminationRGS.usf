@@ -29,22 +29,6 @@ bool EvalSkyLight;
 bool UseRussianRoulette;
 float MaxNormalBias;
 
-// #dxr_todo: UE-72508 Unify with reflections and translucency in RayTracingCommon.ush
-uint2 GetPixelCoord(uint2 DispatchThreadId)
-{
-	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
-
-	// TODO: find a way to not interfer with TAA's jittering.
-	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
-
-	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
-}
-
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
 void GenerateCosineNormalRay(
 	float3 WorldPosition,
 	float3 WorldNormal,
@@ -79,7 +63,7 @@ void GlobalIlluminationRGS()
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId);
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
 	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);

@@ -96,16 +96,6 @@ RWTexture2D<float> RayImaginaryDepthOutput;
 // Material buffer and tile size are used for sorted materials.
 RWStructuredBuffer<FDeferredMaterialPayload> MaterialBuffer;
 
-uint2 GetPixelCoord(uint2 DispatchThreadId)
-{
-	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
-
-	// TODO: find a way to not interfer with TAA's jittering.
-	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
-
-	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
-}
-
 // Generate a random direction to sample according to world normal and roughness.
 float3 GenerateReflectionDirection(inout RandomSequence RandSequence, uint2 DispatchThreadId, uint BounceIndex, uint SamplePerPixel, float3 IncidentDirection, float3 WorldNormal, float Roughness)
 {
@@ -163,7 +153,7 @@ void RayTracingReflectionsRGS()
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
 #endif
 
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId); // GBuffer pixel coordinates (full resolution)
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	

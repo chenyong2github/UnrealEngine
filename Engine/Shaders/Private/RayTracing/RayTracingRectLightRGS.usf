@@ -13,11 +13,6 @@ RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWLuminanceUAV;
 RWTexture2D<float> RWRayDistanceUAV;
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
 bool GenerateRectLightImportanceSampledRay(
 	float3 WorldPosition,
 	float3 WorldNormal,

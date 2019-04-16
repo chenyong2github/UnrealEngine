@@ -10,10 +10,6 @@ RaytracingAccelerationStructure TLAS;
 RWTexture2D<float> RWOcclusionMaskUAV;
 RWTexture2D<float> RWHitDistanceUAV;
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
 
 void GenerateCosineNormalRay(
 	float3 WorldPosition,

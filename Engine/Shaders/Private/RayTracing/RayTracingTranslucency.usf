@@ -57,16 +57,6 @@ RWTexture2D<float> RayHitDistanceOutput;
 
 #include "RayTracingLightingCommon.ush"
 
-uint2 GetPixelCoord(uint2 DispatchThreadId)
-{
-	uint UpscaleFactorPow2 = UpscaleFactor * UpscaleFactor;
-
-	// TODO: find a way to not interfer with TAA's jittering.
-	uint SubPixelId = View.StateFrameIndex & (UpscaleFactorPow2 - 1);
-
-	return DispatchThreadId * UpscaleFactor + uint2(SubPixelId & (UpscaleFactor - 1), SubPixelId / UpscaleFactor);
-}
-
 float FresnelDielectric(float Eta, float IoH, float ToH)
 {
 	float Rs = Square((Eta * IoH - ToH) / (Eta * IoH + ToH));
@@ -115,7 +105,7 @@ float3 GetSkyRadiance(float3 Direction, float Roughness)
 void RayTracingTranslucencyRGS()
 {
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
-	uint2 PixelCoord = GetPixelCoord(DispatchThreadId);
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
 	
 	RandomSequence RandSequence;
