@@ -728,7 +728,6 @@ public:
 		FVector Location;
 
 		void CommonInit();
-		void UpdateProximityRetriggerComponents(float DeltaTime);
 
 		friend class FAudioDevice;
 	};
@@ -1086,7 +1085,8 @@ public:
 	* @param AttenuationSettings	The (optional) attenuation settings the sound is using
 	* @param MaxDistance			The computed max distance of the sound.
 	* @param FocusFactor			The focus factor of the sound.
-	* @param Returns true if the sound is audible, false otherwise.
+	*
+	* @return Returns true if the sound is audible, false otherwise.
 	*/
 	bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor);
 
@@ -1299,6 +1299,14 @@ private:
 	/** Stops quiet sounds due to being evaluated as not fulfilling concurrency requirements
 	 */
 	void StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& WaveInstances, TArray<FActiveSound*>& ActiveSoundsCopy);
+
+	/**
+	 * Checks if the given sound would be audible.
+	 * @param NewActiveSound	The ActiveSound attempting to be created
+	 * @return True if the sound is audible, false otherwise.
+	 */
+	bool SoundIsAudible(const FActiveSound& NewActiveSound);
+
 
 	/**
 	 * Set the mix for altering sound class properties
