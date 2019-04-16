@@ -2450,7 +2450,7 @@ namespace Audio
 
 	}
 
-	void FMixerSourceManager::FlushCommandQueue()
+	void FMixerSourceManager::FlushCommandQueue(bool bPumpInCommand)
 	{
 		check(CommandsProcessedEvent != nullptr);
 
@@ -2459,6 +2459,11 @@ namespace Audio
 
 		// Call update to trigger a final pump of commands
 		Update();
+
+		if (bPumpInCommand)
+		{
+			PumpCommandQueue();
+		}
 
 		// Wait one more time for the double pump
 		CommandsProcessedEvent->Wait();

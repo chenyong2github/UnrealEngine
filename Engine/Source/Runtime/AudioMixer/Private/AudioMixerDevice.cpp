@@ -926,9 +926,13 @@ namespace Audio
 
 	void FMixerDevice::FlushAudioRenderingCommands()
 	{
-		if (IsInitialized() && FPlatformProcess::SupportsMultithreading())
+		if (IsInitialized() && (FPlatformProcess::SupportsMultithreading() && !AudioMixerPlatform->IsNonRealtime()))
 		{
 			SourceManager.FlushCommandQueue();
+		}
+		else if (AudioMixerPlatform->IsNonRealtime())
+		{
+			SourceManager.FlushCommandQueue(true);
 		}
 		else
 		{
