@@ -6500,3 +6500,13 @@ void UDemoNetConnection::Serialize(FArchive& Ar)
 		}
 	}
 }
+
+void UDemoNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
+{
+	Super::SetAnalyticsProvider(InProvider);
+
+	if (ReplayStreamer.IsValid())
+	{
+		ReplayStreamer->SetAnalyticsProvider(InProvider);
+	}
+}
