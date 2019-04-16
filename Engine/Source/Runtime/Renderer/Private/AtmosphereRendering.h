@@ -11,6 +11,7 @@
 #include "Serialization/BulkData.h"
 #include "RendererInterface.h"
 
+class FLightSceneInfo;
 class FScene;
 class FSceneViewFamily;
 class FShader;

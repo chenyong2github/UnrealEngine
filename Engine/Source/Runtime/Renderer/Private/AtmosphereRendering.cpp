@@ -23,6 +23,7 @@
 #include "AtmosphereTextures.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
+#include "LightSceneInfo.h"
 DECLARE_GPU_STAT(Atmosphere);
 DECLARE_GPU_STAT(AtmospherePreCompute);
 
@@ -1166,7 +1167,7 @@ void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) c
 	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
 	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenith;
 
-	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(0.5 * SunHalfApexAngle));	// Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle
+	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(0.5f * SunHalfApexAngle));	// Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle
 	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle;		// approximation  
 
 	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenith, SunDiskOuterSpaceLuminance);
