@@ -60,6 +60,12 @@ struct FKismetUserDeclaredFunctionMetadata
 	FLinearColor InstanceTitleColor;
 
 	UPROPERTY()
+	FString DeprecationMessage;
+
+	UPROPERTY()
+	bool bIsDeprecated;
+
+	UPROPERTY()
 	bool bCallInEditor;
 
 	/** Cached value for whether or not the graph has latent functions, positive for TRUE, zero for FALSE, and INDEX_None for undetermined */
@@ -69,6 +75,7 @@ struct FKismetUserDeclaredFunctionMetadata
 public:
 	FKismetUserDeclaredFunctionMetadata()
 		: InstanceTitleColor(FLinearColor::White)
+		, bIsDeprecated(false)
 		, bCallInEditor(false)
 		, HasLatentFunctions(INDEX_NONE)
 	{

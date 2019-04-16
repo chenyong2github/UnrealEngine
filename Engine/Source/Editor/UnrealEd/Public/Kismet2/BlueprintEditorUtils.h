@@ -1018,6 +1018,14 @@ public:
 	 */
 	static void SetVariableAdvancedDisplayFlag(UBlueprint* InBlueprint, const FName& InVarName, const bool bInIsAdvancedDisplay);
 
+	/**
+	 * Sets the Deprecated flag on the variable with the specified name
+	 *
+	 * @param	InVarName				Name of the var to set the flag on
+	 * @param	bInIsDeprecated			The new value to set the bitflag to
+	 */
+	static void SetVariableDeprecatedFlag(UBlueprint* InBlueprint, const FName& InVarName, const bool bInIsDeprecated);
+
 	/** Sets a metadata key/value on the specified variable
 	 *
 	 * @param Blueprint				The Blueprint to find the variable in

@@ -1701,6 +1701,16 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
 		}
 
+		// Set appropriate metadata if the function is deprecated
+		if (FunctionMetaData.bIsDeprecated)
+		{
+			Context.Function->SetMetaData(FBlueprintMetadata::MD_DeprecatedFunction, TEXT("true"));
+			if (!FunctionMetaData.DeprecationMessage.IsEmpty())
+			{
+				Context.Function->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *FunctionMetaData.DeprecationMessage);
+			}
+		}
+
 		// Set the required function flags
 		if (Context.CanBeCalledByKismet())
 		{
@@ -2233,10 +2243,22 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 	{
 		Function->SetMetaData(FBlueprintMetadata::MD_Tooltip, *EntryNode->MetaData.ToolTip.ToString());
 	}
+
 	if (EntryNode->MetaData.bCallInEditor)
 	{
-		Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
+		Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT("true"));
 	}
+
+	if (EntryNode->MetaData.bIsDeprecated)
+	{
+		Function->SetMetaData(FBlueprintMetadata::MD_DeprecatedFunction, TEXT("true"));
+		
+		if (!EntryNode->MetaData.DeprecationMessage.IsEmpty())
+		{
+			Function->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *(EntryNode->MetaData.DeprecationMessage));
+		}
+	}
+	
 	if (UEdGraphPin* WorldContextPin = EntryNode->GetAutoWorldContextPin())
 	{
 		Function->SetMetaData(FBlueprintMetadata::MD_WorldContext, *WorldContextPin->PinName.ToString());
@@ -2864,6 +2886,9 @@ void FKismetCompilerContext::CreateFunctionStubForEvent(UK2Node_Event* SrcEventN
 		StubContext.MarkAsNetFunction(SrcCustomEventNode->GetNetFlags());
 		// Synchronize the entry node call in editor value with the entry point
 		EntryNode->MetaData.bCallInEditor = SrcCustomEventNode->bCallInEditor;
+		// Synchronize the node deprecation state with the entry point
+		EntryNode->MetaData.bIsDeprecated = SrcCustomEventNode->bIsDeprecated;
+		EntryNode->MetaData.DeprecationMessage = SrcCustomEventNode->DeprecationMessage;
 	}
 	EntryNode->AllocateDefaultPins();
 

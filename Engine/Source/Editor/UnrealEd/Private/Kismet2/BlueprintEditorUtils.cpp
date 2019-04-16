@@ -3626,6 +3626,25 @@ void FBlueprintEditorUtils::SetVariableAdvancedDisplayFlag(UBlueprint* InBluepri
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
 }
 
+void FBlueprintEditorUtils::SetVariableDeprecatedFlag(UBlueprint* InBlueprint, const FName& InVarName, const bool bInIsDeprecated)
+{
+	const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(InBlueprint, InVarName);
+
+	if (VarIndex != INDEX_NONE)
+	{
+		if (bInIsDeprecated)
+		{
+			InBlueprint->NewVariables[VarIndex].PropertyFlags |= CPF_Deprecated;
+		}
+		else
+		{
+			InBlueprint->NewVariables[VarIndex].PropertyFlags &= ~CPF_Deprecated;
+		}
+	}
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
+}
+
 struct FMetaDataDependencyHelper
 {
 	static void OnChange(UBlueprint* Blueprint, FName MetaDataKey)

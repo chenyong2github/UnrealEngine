@@ -886,7 +886,7 @@ bool UEdGraphSchema_K2::CanFunctionBeUsedInGraph(const UClass* InClass, const UF
 	return false;
 }
 
-UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function) const
+UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function)
 {
 	if( Function && Cast<UClass>(Function->GetOuter()) )
 	{

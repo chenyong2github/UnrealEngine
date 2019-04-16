@@ -107,6 +107,7 @@ UK2Node_CustomEvent::UK2Node_CustomEvent(const FObjectInitializer& ObjectInitial
 	bOverrideFunction = false;
 	bIsEditable = true;
 	bCanRenameNode = true;
+	bIsDeprecated = false;
 	bCallInEditor = false;
 }
 

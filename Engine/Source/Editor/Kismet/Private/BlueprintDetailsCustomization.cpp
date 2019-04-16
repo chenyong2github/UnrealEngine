@@ -981,6 +981,48 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 				.ToolTip(MultilineTooltip)
 			];
 
+		TSharedPtr<SToolTip> DeprecatedTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableDeprecated_Tooltip", "Deprecate usage of this variable. Any nodes that reference it will produce a compiler warning indicating that it should be removed or replaced."), nullptr, DocLink, TEXT("Deprecated"));
+
+		Category.AddCustomRow(LOCTEXT("VariableDeprecated", "Deprecated"), true)
+			.Visibility(TAttribute<EVisibility>(this, &FBlueprintVarActionDetails::GetDeprecatedVisibility))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.ToolTip(DeprecatedTooltip)
+				.Text(LOCTEXT("VariableDeprecated", "Deprecated"))
+				.Font(DetailFontInfo)
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FBlueprintVarActionDetails::OnGetDeprecatedCheckboxState)
+				.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnDeprecatedChanged)
+				.IsEnabled(IsVariableInBlueprint())
+				.ToolTip(DeprecatedTooltip)
+			];
+
+		TSharedPtr<SToolTip> DeprecationMessageTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableDeprecationMessage_Tooltip", "Optional message to include with the deprecation compiler warning. For example: \'X is no longer being used. Please replace with Y.\'"), nullptr, DocLink, TEXT("DeprecationMessage"));
+
+		Category.AddCustomRow(LOCTEXT("VariableDeprecationMessageLabel", "Deprecation Message"), true)
+			.Visibility(TAttribute<EVisibility>(this, &FBlueprintVarActionDetails::GetDeprecatedVisibility))
+			.IsEnabled(TAttribute<bool>(this, &FBlueprintVarActionDetails::IsVariableDeprecated))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.ToolTip(DeprecationMessageTooltip)
+				.Text(LOCTEXT("VariableDeprecationMessageLabel", "Deprecation Message"))
+				.Font(DetailFontInfo)
+			]
+			.ValueContent()
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &FBlueprintVarActionDetails::GetDeprecationMessageText)
+				.OnTextCommitted(this, &FBlueprintVarActionDetails::OnDeprecationMessageTextCommitted, CachedVariableName)
+				.IsEnabled(IsVariableInBlueprint())
+				.ToolTipText(this, &FBlueprintVarActionDetails::GetDeprecationMessageText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
+
 		TSharedPtr<SToolTip> PropertyFlagsTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("DefinedPropertyFlags_Tooltip", "List of defined flags for this property"), NULL, DocLink, TEXT("PropertyFlags"));
 
 		Category.AddCustomRow(LOCTEXT("DefinedPropertyFlags", "Defined Property Flags"), true)
@@ -2505,6 +2547,60 @@ void FBlueprintVarActionDetails::OnMultilineChanged(ECheckBoxState InNewState)
 	}
 }
 
+EVisibility FBlueprintVarActionDetails::GetDeprecatedVisibility() const
+{
+	if (UProperty* VariableProperty = CachedVariableProperty.Get())
+	{
+		if (IsABlueprintVariable(VariableProperty) && IsAUserVariable(VariableProperty))
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+ECheckBoxState FBlueprintVarActionDetails::OnGetDeprecatedCheckboxState() const
+{
+	return IsVariableDeprecated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FBlueprintVarActionDetails::OnDeprecatedChanged(ECheckBoxState InNewState)
+{
+	UProperty* Property = CachedVariableProperty.Get();
+	if (Property)
+	{
+		const bool bDeprecatedFlag = (InNewState == ECheckBoxState::Checked);
+		FBlueprintEditorUtils::SetVariableDeprecatedFlag(GetBlueprintObj(), Property->GetFName(), bDeprecatedFlag);
+	}
+}
+
+FText FBlueprintVarActionDetails::GetDeprecationMessageText() const
+{
+	FName VarName = CachedVariableName;
+	if (VarName != NAME_None)
+	{
+		if (UBlueprint* OwnerBlueprint = GetPropertyOwnerBlueprint())
+		{
+			FString Result;
+			FBlueprintEditorUtils::GetBlueprintVariableMetaData(GetPropertyOwnerBlueprint(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage, Result);
+			return FText::FromString(Result);
+		}
+	}
+	return FText();
+}
+
+void FBlueprintVarActionDetails::OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, FName VarName)
+{
+	if (NewText.IsEmpty())
+	{
+		FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage);
+	}
+	else
+	{
+		FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_DeprecationMessage, NewText.ToString());
+	}
+}
+
 EVisibility FBlueprintVarActionDetails::IsTooltipEditVisible() const
 {
 	UProperty* VariableProperty = CachedVariableProperty.Get();
@@ -2575,6 +2671,13 @@ bool FBlueprintVarActionDetails::IsVariableInheritedByBlueprint() const
 		PropertyOwnerClass = CachedVariableProperty->GetOwnerClass();
 	}
 	return GetBlueprintObj()->SkeletonGeneratedClass->IsChildOf(PropertyOwnerClass);
+}
+
+bool FBlueprintVarActionDetails::IsVariableDeprecated() const
+{
+	UProperty* Property = CachedVariableProperty.Get();
+
+	return Property && Property->HasAnyPropertyFlags(CPF_Deprecated);
 }
 
 static FDetailWidgetRow& AddRow( TArray<TSharedRef<FDetailWidgetRow> >& OutChildRows )
@@ -3451,6 +3554,67 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 			];
 		}
 
+		const bool bShowDeprecated = bHasAGraph || IsCustomEvent();
+		if (bShowDeprecated)
+		{
+			FFormatNamedArguments DeprecationTooltipFormatArgs;
+			if (bHasAGraph)
+			{
+				DeprecationTooltipFormatArgs.Add(TEXT("FunctionOrCustomEvent"), LOCTEXT("FunctionOrEvent_Function", "function"));
+			}
+			else
+			{
+				DeprecationTooltipFormatArgs.Add(TEXT("FunctionOrCustomEvent"), LOCTEXT("FunctionOrEvent_CustomEvent", "custom event"));
+			}
+
+			bool bIsOverride = false;
+			FFunctionFromNodeHelper FunctionFromNode(FunctionEntryNode);
+			if (FunctionFromNode.Function)
+			{
+				bIsOverride = (UEdGraphSchema_K2::GetCallableParentFunction(FunctionFromNode.Function) != nullptr);
+			}
+
+			const FText DeprecatedTooltipText = FText::Format(LOCTEXT("DeprecatedFunction_Tooltip", "Deprecate usage of this {FunctionOrCustomEvent}. Any nodes that reference it will produce a compiler warning indicating that it should be removed or replaced."), DeprecationTooltipFormatArgs);
+
+			Category.AddCustomRow(LOCTEXT("DeprecatedFunction", "Deprecated"), true)
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DeprecatedFunction", "Deprecated"))
+				.ToolTipText(DeprecatedTooltipText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FBlueprintGraphActionDetails::OnGetDeprecatedCheckboxState)
+				.ToolTipText(DeprecatedTooltipText)
+				.OnCheckStateChanged(this, &FBlueprintGraphActionDetails::OnDeprecatedChanged)
+				.IsEnabled(!bIsOverride)
+			];
+
+			const FText DeprecationMessageTooltipText = LOCTEXT("DeprecationMessage_Tooltip", "Optional message to include with the deprecation compiler warning. For example: \'X is no longer being used. Please replace with Y.\'");
+
+			Category.AddCustomRow(LOCTEXT("DeprecationMessage", "Deprecation Message"), true)
+			.IsEnabled(TAttribute<bool>(this, &FBlueprintGraphActionDetails::IsFunctionDeprecated))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DeprecationMessage", "Deprecation Message"))
+				.ToolTipText(DeprecationMessageTooltipText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &FBlueprintGraphActionDetails::GetDeprecationMessageText)
+				.OnTextCommitted(this, &FBlueprintGraphActionDetails::OnDeprecationMessageTextCommitted)
+				.IsEnabled(!bIsOverride)
+				.ToolTipText(this, &FBlueprintGraphActionDetails::GetDeprecationMessageText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			];
+		}
+
 		IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("FunctionDetailsInputs", "Inputs"));
 		
 		TSharedRef<FBlueprintGraphArgumentGroupLayout> InputArgumentGroup =
@@ -3733,6 +3897,103 @@ void FBlueprintGraphActionDetails::OnEditorCallableEventModified( const ECheckBo
 			EntryPoint->MetaData.bCallInEditor = bCallInEditor;
 			FBlueprintEditorUtils::MarkBlueprintAsModified( EntryPoint->GetBlueprint() );
 		}
+	}
+}
+
+bool FBlueprintGraphActionDetails::IsFunctionDeprecated() const
+{
+	bool bIsDeprecated = false;
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			bIsDeprecated = CustomEventNode->bIsDeprecated;
+		}
+		else
+		{
+			UK2Node_FunctionEntry* FunctionEntryNode = Cast<UK2Node_FunctionEntry>(Node);
+			if (FunctionEntryNode != nullptr)
+			{
+				bIsDeprecated = FunctionEntryNode->MetaData.bIsDeprecated;
+			}
+		}
+	}
+
+	return bIsDeprecated;
+}
+
+ECheckBoxState FBlueprintGraphActionDetails::OnGetDeprecatedCheckboxState() const
+{
+	return IsFunctionDeprecated() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FBlueprintGraphActionDetails::OnDeprecatedChanged(ECheckBoxState InNewState)
+{
+	const bool bIsDeprecated = (InNewState == ECheckBoxState::Checked);
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			CustomEventNode->bIsDeprecated = bIsDeprecated;
+		}
+		else
+		{
+			CastChecked<UK2Node_FunctionEntry>(Node)->MetaData.bIsDeprecated = bIsDeprecated;
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Node->GetBlueprint());
+	}
+}
+
+FText FBlueprintGraphActionDetails::GetDeprecationMessageText() const
+{
+	FText DeprecationMessage;
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			DeprecationMessage = FText::FromString(CustomEventNode->DeprecationMessage);
+		}
+		else
+		{
+			UK2Node_FunctionEntry* FunctionEntryNode = Cast<UK2Node_FunctionEntry>(Node);
+			if (FunctionEntryNode != nullptr)
+			{
+				DeprecationMessage = FText::FromString(FunctionEntryNode->MetaData.DeprecationMessage);
+			}
+		}
+	}
+
+	return DeprecationMessage;
+}
+
+void FBlueprintGraphActionDetails::OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
+{
+	const FString DeprecationMessage = NewText.ToString();
+
+	UK2Node_EditablePinBase* Node = FunctionEntryNodePtr.Get();
+	if (Node != nullptr)
+	{
+		UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(Node);
+		if (CustomEventNode != nullptr)
+		{
+			CustomEventNode->DeprecationMessage = DeprecationMessage;
+		}
+		else
+		{
+			CastChecked<UK2Node_FunctionEntry>(Node)->MetaData.DeprecationMessage = DeprecationMessage;
+		}
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Node->GetBlueprint());
 	}
 }
 

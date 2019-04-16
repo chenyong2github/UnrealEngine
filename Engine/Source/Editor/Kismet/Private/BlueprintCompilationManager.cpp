@@ -2212,7 +2212,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 	UField** CurrentFieldStorageLocation = &Ret->Children;
 	
 	// Helper function for making UFunctions generated for 'event' nodes, e.g. custom event and timelines
-	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor )
+	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor, bool bIsDeprecated, const FString& DeprecationMessage )
 	{
 		UField** CurrentParamStorageLocation = nullptr;
 
@@ -2232,9 +2232,18 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		{
 			FKismetCompilerContext::SetDefaultInputValueMetaData(NewFunction, UserPins);
 
-			if(bInCallInEditor)
+			if (bIsDeprecated)
 			{
-				NewFunction->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
+				NewFunction->SetMetaData(FBlueprintMetadata::MD_DeprecatedFunction, TEXT("true"));
+				if (!DeprecationMessage.IsEmpty())
+				{
+					NewFunction->SetMetaData(FBlueprintMetadata::MD_DeprecationMessage, *DeprecationMessage);
+				}
+			}
+
+			if (bInCallInEditor)
+			{
+				NewFunction->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT("true"));
 			}
 
 			NewFunction->Bind();
@@ -2271,10 +2280,17 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		Graph->GetNodesOfClass(EventNodes);
 		for( UK2Node_Event* Event : EventNodes )
 		{
+			FString DeprecationMessage;
+			bool bIsDeprecated = false;
 			bool bCallInEditor = false;
 			if(UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(Event))
 			{
 				bCallInEditor = CustomEvent->bCallInEditor;
+				bIsDeprecated = CustomEvent->bIsDeprecated;
+				if (bIsDeprecated)
+				{
+					DeprecationMessage = CustomEvent->DeprecationMessage;
+				}
 			}
 			MakeEventFunction(
 				CompilerContext.GetEventStubFunctionName(Event), 
@@ -2282,7 +2298,9 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				Event->Pins, 
 				Event->UserDefinedPins,
 				Event->FindEventSignatureFunction(),
-				bCallInEditor
+				bCallInEditor,
+				bIsDeprecated,
+				DeprecationMessage
 			);
 		}
 	}
@@ -2299,11 +2317,11 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 
 			for (const FTTEventTrack& EventTrack : Timeline->EventTracks)
 			{
-				MakeEventFunction(EventTrack.GetFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false);
+				MakeEventFunction(EventTrack.GetFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false, false, FString());
 			}
 		
-			MakeEventFunction(Timeline->GetUpdateFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false);
-			MakeEventFunction(Timeline->GetFinishedFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false);
+			MakeEventFunction(Timeline->GetUpdateFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false, false, FString());
+			MakeEventFunction(Timeline->GetFinishedFunctionName(), EFunctionFlags::FUNC_None, TArray<UEdGraphPin*>(), TArray< TSharedPtr<FUserPinInfo> >(), nullptr, false, false, FString());
 		}
 	}
 

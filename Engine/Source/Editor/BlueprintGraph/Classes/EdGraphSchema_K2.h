@@ -751,7 +751,7 @@ public:
 	 * @param	Function			The function to find a parent function for
 	 * @return	The UFunction parentfunction, if any.
 	 */
-	UFunction* GetCallableParentFunction(UFunction* Function) const;
+	static UFunction* GetCallableParentFunction(UFunction* Function);
 
 	/** Whether or not the specified actor is a valid target for bound events and literal references (in the right level, not a builder brush, etc */
 	bool IsActorValidForLevelScriptRefs(const AActor* TestActor, const UBlueprint* Blueprint) const;

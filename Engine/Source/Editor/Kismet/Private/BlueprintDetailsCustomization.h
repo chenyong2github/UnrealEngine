@@ -224,6 +224,13 @@ private:
 	ECheckBoxState OnGetMultilineCheckboxState() const;
 	void OnMultilineChanged(ECheckBoxState InNewState);
 
+	EVisibility GetDeprecatedVisibility() const;
+	ECheckBoxState OnGetDeprecatedCheckboxState() const;
+	void OnDeprecatedChanged(ECheckBoxState InNewState);
+
+	FText GetDeprecationMessageText() const;
+	void OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, FName VarName);
+
 	/** Refresh the property flags list */
 	void RefreshPropertyFlags();
 
@@ -244,6 +251,9 @@ private:
 
 	/** Returns TRUE if the Variable is inherited by the current Blueprint */
 	bool IsVariableInheritedByBlueprint() const;
+
+	/** Returns TRUE if the Variable is marked as deprecated */
+	bool IsVariableDeprecated() const;
 private:
 	/** Pointer back to my parent tab */
 	TWeakPtr<SMyBlueprint> MyBlueprint;
@@ -609,6 +619,12 @@ private:
 	/** Enables/Disables selected event as editor callable  */
 	void OnEditorCallableEventModified( const ECheckBoxState NewCheckedState ) const;
 
+	bool IsFunctionDeprecated() const;
+	ECheckBoxState OnGetDeprecatedCheckboxState() const;
+	void OnDeprecatedChanged(ECheckBoxState InNewState);
+
+	FText GetDeprecationMessageText() const;
+	void OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	
 	FReply OnAddNewOutputClicked();
 
