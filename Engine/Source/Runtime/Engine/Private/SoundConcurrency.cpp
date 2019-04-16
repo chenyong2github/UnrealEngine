@@ -580,9 +580,10 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 		check(SoundToEvict);
 		check(AudioDevice == SoundToEvict->AudioDevice);
 
+		RemoveActiveSound(SoundToEvict);
+
 		// Remove the active sound from the concurrency manager immediately so it doesn't count towards
 		// subsequent concurrency resolution checks (i.e. if sounds are triggered multiple times in this frame)
-		StopActiveSound(SoundToEvict);
 		if (AudioDevice->IsPendingStop(SoundToEvict))
 		{
 			continue;
@@ -591,18 +592,18 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 		TArray<FConcurrencyHandle> Handles;
 		SoundToEvict->GetConcurrencyHandles(Handles);
 
-		bool bAllowRetrigger = true;
+		bool bAllowVirtual = true;
 		for (const FConcurrencyHandle& Handle : Handles)
 		{
 			switch (Handle.Settings.ResolutionRule)
 			{
 				// Stop oldest resolution rules will cause an undesired
-				// cycling through re-triggerable loops from this frame to the next,
-				// so don't revive them.
+				// cycling through virtual loops from this frame to the next,
+				// so don't permit virtualization in this case.
 				case EMaxConcurrentResolutionRule::StopOldest:
 				case EMaxConcurrentResolutionRule::StopFarthestThenOldest:
 				{
-					bAllowRetrigger = false;
+					bAllowVirtual = false;
 					break;
 				}
 				default:
@@ -614,7 +615,7 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 
 		AudioDevice->AddSoundToStop(SoundToEvict);
 		// If using a mode where we support re-triggering, attempt to re-trigger and update boolean state.
-		if (bAllowRetrigger)
+		if (bAllowVirtual)
 		{
 			const bool bDoRangeCheck = true;
 			if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*AudioDevice, *SoundToEvict, bDoRangeCheck))
@@ -628,7 +629,7 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 	return ActiveSound;
 }
 
-void FSoundConcurrencyManager::StopActiveSound(FActiveSound* ActiveSound)
+void FSoundConcurrencyManager::RemoveActiveSound(FActiveSound* ActiveSound)
 {
 	check(IsInAudioThread());
 

@@ -216,7 +216,7 @@ public:
 	FActiveSound* CreateNewActiveSound(const FActiveSound& NewActiveSound, bool bIsRetriggering);
 
 	/** Removes the active sound from concurrency tracking when active sound is stopped. */
-	void StopActiveSound(FActiveSound* ActiveSound);
+	void RemoveActiveSound(FActiveSound* ActiveSound);
 
 	/** Stops any active sounds due to max concurrency quietest sound resolution rule */
 	void UpdateQuietSoundsToStop();
