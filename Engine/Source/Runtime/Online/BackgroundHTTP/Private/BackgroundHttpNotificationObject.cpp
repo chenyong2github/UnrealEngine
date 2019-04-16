@@ -42,7 +42,7 @@ FBackgroundHttpNotificationObject::~FBackgroundHttpNotificationObject()
 		{
 			//make a notification 1 second from now
 			FDateTime TargetTime = FDateTime::Now();
-			TargetTime += FTimespan::FromSeconds(1);
+			TargetTime += FTimespan::FromSeconds(15);
 
 			if (nullptr != PlatformNotificationService)
 			{
