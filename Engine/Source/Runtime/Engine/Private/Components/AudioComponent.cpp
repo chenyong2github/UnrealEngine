@@ -21,12 +21,12 @@ FAutoConsoleVariableRef CVarBackedAnalysisTimeShift(
 	TEXT("Value: The time in seconds to shift the timeline."),
 	ECVF_Default);
 
-static int32 bRetriggerLoopOnProximityEnabledCVar = 1;
+static int32 bRetriggerLoopOnProximityEnabledCVar = 0;
 FAutoConsoleVariableRef CVarRetriggerLoopOnProximityEnabled(
 	TEXT("au.RetriggerLoopOnProximity"),
 	bRetriggerLoopOnProximityEnabledCVar,
 	TEXT("Enables or disables whether retriggering is supported on AudioComponent loops.\n")
-	TEXT("Value: The time in seconds to shift the timeline."),
+	TEXT("Value: Whether or not retriggering is supported on AudioComponent level."),
 	ECVF_Default);
 
 static float RetriggerLoopOnProximityDistanceCVar = 15000.0f;

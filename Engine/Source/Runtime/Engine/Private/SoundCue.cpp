@@ -79,6 +79,15 @@ void USoundCue::CacheAggregateValues()
 		Duration = FirstNode->GetDuration();
 
 		MaxDistance = FirstNode->GetMaxDistance();
+
+		if (const FSoundAttenuationSettings* Settings = GetAttenuationSettingsToApply())
+		{
+			if (Settings->bAttenuate)
+			{
+				MaxDistance = FMath::Max(MaxDistance, Settings->GetMaxDimension());
+			}
+		}
+
 		// If no sound cue nodes overrode the max distance, we need to check the base attenuation
 		if (MaxDistance == 0.0f)
 		{

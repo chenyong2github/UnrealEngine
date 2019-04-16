@@ -75,7 +75,16 @@ const FSoundAttenuationSettings* USoundBase::GetAttenuationSettingsToApply() con
 
 float USoundBase::GetMaxDistance() const
 {
-	return (AttenuationSettings ? AttenuationSettings->Attenuation.GetMaxDimension() : WORLD_MAX);
+	if (AttenuationSettings)
+	{
+		FSoundAttenuationSettings& Settings = AttenuationSettings->Attenuation;
+		if (Settings.bAttenuate)
+		{
+			return Settings.GetMaxDimension();
+		}
+	}
+
+	return WORLD_MAX;
 }
 
 float USoundBase::GetDuration()
