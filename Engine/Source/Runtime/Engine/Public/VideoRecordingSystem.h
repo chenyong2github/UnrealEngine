@@ -124,8 +124,16 @@ public:
 	/** Returns the current state of video recording. */
 	virtual EVideoRecordingState GetRecordingState() const = 0;
 
+	UE_DEPRECATED(4.23, "Use GetOnVideoRecordingFinalizedDelegate")
 	virtual FDelegateHandle RegisterVideoRecordingFinalizedDelegate(const FVideoRecordingFinalized::FDelegate& Delegate) { return OnVideoRecordingFinalized.Add(Delegate); };
+
+	UE_DEPRECATED(4.23, "Use GetOnVideoRecordingFinalizedDelegate")
 	virtual void UnregisterVideoRecordingFinalizedDelegate(FDelegateHandle Handle) { OnVideoRecordingFinalized.Remove(Handle); };
+
+	FVideoRecordingFinalized& GetOnVideoRecordingFinalizedDelegate()
+	{
+		return OnVideoRecordingFinalized;
+	}
 
 protected:
 	FVideoRecordingFinalized OnVideoRecordingFinalized;
