@@ -48,7 +48,7 @@ namespace UE4GetTypeHashExists_Private
 * Traits class which tests if a type has a GetTypeHash overload.
 */
 template <typename T>
-struct UE_DEPRECATED(4.23, "THasGetTypeHash has been deprecated, please use TModels<CGetTypeHashable, T> instead.") THasGetTypeHash
+struct THasGetTypeHash
 {
 	enum { Value = UE4GetTypeHashExists_Private::GetTypeHashQuery<T>::Value };
 };

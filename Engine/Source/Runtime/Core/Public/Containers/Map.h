@@ -11,6 +11,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/StructBuilder.h"
 #include "Templates/Function.h"
+#include "Templates/HasGetTypeHash.h"
 #include "Templates/Models.h"
 #include "Templates/Sorting.h"
 #include "Templates/Tuple.h"
@@ -93,11 +94,15 @@ struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType,ValueType>,KeyType,bInAl
 	}
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
 struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 {
-	static_assert(TModels<CGetTypeHashable, KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
+	static_assert(THasGetTypeHash<KeyType>::Value, "TMap must have a hashable KeyType unless a custom key func is provided.");
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** 
  * The base class of maps from keys to values.  Implemented using a TSet of key-value pairs with a custom KeyFuncs, 
