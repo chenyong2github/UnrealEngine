@@ -38,6 +38,21 @@ Texture2D DepthTexture;
 
 SamplerState ColorSampler;
 SamplerState VelocitySampler;
+SamplerState VelocityTileSampler;
+SamplerState VelocityFlatSampler;
+SamplerState DepthSampler;
+
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+	#define SharedVelocitySampler VelocitySampler
+	#define SharedVelocityTileSampler VelocitySampler
+	#define SharedVelocityFlatSampler VelocitySampler
+	#define SharedDepthSampler VelocitySampler
+#else
+	#define SharedVelocitySampler VelocitySampler
+	#define SharedVelocityTileSampler VelocityTileSampler
+	#define SharedVelocityFlatSampler VelocityFlatSampler
+	#define SharedDepthSampler DepthSampler
+#endif
 
 // ------------------------------------------
 
@@ -119,7 +134,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	// Velocity tile UV originates at [0,0]; only need to clamp max.
 	VelocityTileUV = min(VelocityTileUV, VelocityTile_UVViewportBilinearMax);
 
-	float4 MinMaxVelocity = VelocityTileTexture.SampleLevel(VelocitySampler, VelocityTileUV, 0);
+	float4 MinMaxVelocity = VelocityTileTexture.SampleLevel(SharedVelocityTileSampler, VelocityTileUV, 0);
 
 	float2 MinVelocityPixels = MinMaxVelocity.xy * MotionBlur_VelocityScale;
 	float2 MaxVelocityPixels = MinMaxVelocity.zw * MotionBlur_VelocityScale;
@@ -197,7 +212,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	}
 	else
 	{
-		float3 CenterVelocityDepth = VelocityFlatTexture.SampleLevel(VelocitySampler, VelocityUV, 0).xyz;
+		float3 CenterVelocityDepth = VelocityFlatTexture.SampleLevel(SharedVelocityFlatSampler, VelocityUV, 0).xyz;
 		float  CenterDepth = CenterVelocityDepth.z;
 		float  CenterVelocityLength = GetVelocityLengthPixels(CenterVelocityDepth.xy);
 
@@ -226,7 +241,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 			for (uint j = 0; j < 2; j++)
 			{
 				float3 SampleVelocityDepth = VelocityFlatTexture.SampleLevel(
-					VelocitySampler, SampleUV[j] * ColorToVelocity_Scale + ColorToVelocity_Bias, 0).xyz;
+					SharedVelocityFlatSampler, SampleUV[j] * ColorToVelocity_Scale + ColorToVelocity_Bias, 0).xyz;
 
 				SampleColor[j] = ColorTexture.SampleLevel(ColorSampler, SampleUV[j], 0);
 				SampleDepth[j] = SampleVelocityDepth.z;
@@ -373,7 +388,7 @@ void VisualizeMotionBlurPS(
 
 	// World aligned checkerboards
 	{
-		float DeviceZ = DepthTexture.SampleLevel(VelocitySampler, UV, 0).r;
+		float DeviceZ = DepthTexture.SampleLevel(SharedDepthSampler, UV, 0).r;
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
 		float3 ScreenVector = mul(float4(ScreenSpacePos, 1, 0), View.ScreenToWorld).xyz;
@@ -386,18 +401,18 @@ void VisualizeMotionBlurPS(
 		OutColor = float4(lerp(WorldCheckerboard, float3(0,0,0), 0.7f), 1);
 	}
 
-	bool bSelectorOpaqueAtTileCenter = VelocityTexture.SampleLevel(VelocitySampler, UVAtTileCenter, 0).x > 0;
-	bool bSelectorOpaque = VelocityTexture.SampleLevel(VelocitySampler, UV, 0).x > 0;
+	bool bSelectorOpaqueAtTileCenter = VelocityTexture.SampleLevel(SharedVelocitySampler, UVAtTileCenter, 0).x > 0;
+	bool bSelectorOpaque = VelocityTexture.SampleLevel(SharedVelocitySampler, UV, 0).x > 0;
 
 	// relative, in screen space -1...1 -1..1, can be even outside of that range, points into the movement direction
 	float2 VelocityAtTileCenter;
 	{
-		VelocityAtTileCenter = DecodeVelocityFromTexture(VelocityTexture.SampleLevel(VelocitySampler, UVAtTileCenter, 0).xy);
+		VelocityAtTileCenter = DecodeVelocityFromTexture(VelocityTexture.SampleLevel(SharedVelocitySampler, UVAtTileCenter, 0).xy);
 
 		// reconstruct from camera motion if we don't have velocity data
 		if(!bSelectorOpaqueAtTileCenter)
 		{
-			float DeviceZ = DepthTexture.SampleLevel(VelocitySampler, UVAtTileCenter, 0).r;
+			float DeviceZ = DepthTexture.SampleLevel(SharedDepthSampler, UVAtTileCenter, 0).r;
 
 			// UV is per tile
 			float4 ThisClip = float4(ScreenPosAtTileCenter, DeviceZ, 1);

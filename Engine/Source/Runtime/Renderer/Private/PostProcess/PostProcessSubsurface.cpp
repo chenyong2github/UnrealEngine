@@ -205,7 +205,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSubsurfaceParameters, Subsurface)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput0)
 		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -222,7 +222,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSubsurfaceParameters, Subsurface)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput0)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -243,7 +243,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSubsurfaceParameters, Subsurface)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput0)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -304,7 +304,8 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSubsurfaceParameters, Subsurface)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput0)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput1)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler1)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
 
@@ -352,7 +353,7 @@ class FSubsurfaceViewportCopyPS : public FSubsurfaceShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput0)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler0)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT();
 
@@ -468,7 +469,7 @@ FScreenPassTexture ComputeSubsurface(
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(TextureInput);
-			PassParameters->SubsurfaceSampler = PointClampSampler;
+			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 
 			FSubsurfaceSetupPS::FPermutationDomain PixelShaderPermutationVector;
 			PixelShaderPermutationVector.Set<FSubsurfaceSetupPS::FDimensionHalfRes>(bHalfRes);
@@ -521,7 +522,7 @@ FScreenPassTexture ComputeSubsurface(
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(TextureInput);
-			PassParameters->SubsurfaceSampler = SubsurfaceSamplerState;
+			PassParameters->SubsurfaceSampler0 = SubsurfaceSamplerState;
 
 			FSubsurfacePS::FPermutationDomain PixelShaderPermutationVector;
 			PixelShaderPermutationVector.Set<FSubsurfacePS::FDimensionDirection>(Direction);
@@ -546,7 +547,7 @@ FScreenPassTexture ComputeSubsurface(
 		FSubsurfaceViewportCopyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceViewportCopyPS::FParameters>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
 		PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(TextureInput);
-		PassParameters->SubsurfaceSampler = PointClampSampler;
+		PassParameters->SubsurfaceSampler0 = PointClampSampler;
 
 		TShaderMapRef<FSubsurfaceViewportCopyPS> PixelShader(Context->ShaderMap);
 
@@ -584,12 +585,13 @@ FScreenPassTexture ComputeSubsurface(
 		PassParameters->Subsurface = SubsurfaceCommonParameters;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
 		PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(TextureInput);
-		PassParameters->SubsurfaceSampler = BilinearBorderSampler;
+		PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
 
 		// Scattering output target is only used when scattering is enabled.
 		if (SubsurfaceMode != ESubsurfaceMode::Bypass)
 		{
 			PassParameters->SubsurfaceInput1 = GetSubsurfaceInput(SubsurfaceTextureY);
+			PassParameters->SubsurfaceSampler1 = BilinearBorderSampler;
 		}
 
 		const FSubsurfaceRecombinePS::EQuality RecombineQuality = FSubsurfaceRecombinePS::GetQuality(Context->View);
@@ -623,7 +625,7 @@ FScreenPassTexture VisualizeSubsurface(
 	PassParameters->Subsurface = GetSubsurfaceCommonParameters(GraphBuilder.RHICmdList, Context);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
 	PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(TextureInput);
-	PassParameters->SubsurfaceSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->SubsurfaceSampler0 = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->MiniFontTexture = GetMiniFontTexture();
 
 	TShaderMapRef<FSubsurfaceVisualizePS> PixelShader(Context->ShaderMap);

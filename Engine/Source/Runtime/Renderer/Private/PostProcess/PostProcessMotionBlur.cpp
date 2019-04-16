@@ -311,8 +311,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTileTexture)
 
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
-END_SHADER_PARAMETER_STRUCT()
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTileSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VelocityFlatSampler)
+	END_SHADER_PARAMETER_STRUCT()
 
 class FMotionBlurFilterPS : public FMotionBlurShader
 {
@@ -375,6 +376,7 @@ public:
 
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -655,7 +657,8 @@ FScreenPassTexture ComputeMotionBlurFilter(
 		Parameters.VelocityFlatTexture = VelocityFlatTexture.GetRDGTexture();
 		Parameters.VelocityTileTexture = VelocityTileTexture.GetRDGTexture();
 		Parameters.ColorSampler = GetMotionBlurColorSampler();
-		Parameters.VelocitySampler = GetMotionBlurVelocitySampler();
+		Parameters.VelocityTileSampler = GetMotionBlurVelocitySampler();
+		Parameters.VelocityFlatSampler = GetMotionBlurVelocitySampler();
 		return Parameters;
 	};
 
@@ -801,6 +804,7 @@ FScreenPassTexture VisualizeMotionBlur(
 	PassParameters->ColorToVelocity = GetScreenPassTextureViewportTransform(PassParameters->Color, PassParameters->Velocity);
 	PassParameters->ColorSampler = GetMotionBlurColorSampler();
 	PassParameters->VelocitySampler = GetMotionBlurVelocitySampler();
+	PassParameters->DepthSampler = GetMotionBlurVelocitySampler();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput.GetRDGTexture(), ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
 
 	TShaderMapRef<FMotionBlurVisualizePS> PixelShader(Context->ShaderMap);
