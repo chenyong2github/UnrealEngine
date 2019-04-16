@@ -2594,13 +2594,17 @@ void FAudioDevice::VirtualizeInactiveLoops()
 	const bool bDoRangeCheck = true;
 	for (FActiveSound* ActiveSound : ActiveSounds)
 	{
-		if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*this, *ActiveSound, bDoRangeCheck))
+		// If already pending stop, don't attempt to virtualize
+		if (!IsPendingStop(ActiveSound))
 		{
-			AddSoundToStop(ActiveSound);
+			if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*this, *ActiveSound, bDoRangeCheck))
+			{
+				AddSoundToStop(ActiveSound);
 
-			// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
-			ActiveSound->ClearAudioComponent();
-			AddVirtualLoop(*VirtualLoop);
+				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
+				ActiveSound->ClearAudioComponent();
+				AddVirtualLoop(*VirtualLoop);
+			}
 		}
 	}
 }
@@ -4289,7 +4293,14 @@ void FAudioDevice::AddVirtualLoop(FAudioVirtualLoop& VirtualLoop)
 	const int64 ComponentID = ActiveSound.GetAudioComponentID();
 	if (ComponentID > 0)
 	{
-		check(!AudioComponentIDToActiveSoundMap.Contains(ComponentID));
+		if (FActiveSound* ExistingSound = AudioComponentIDToActiveSoundMap.FindRef(ComponentID))
+		{
+			UE_LOG(LogAudio, Warning, TEXT("Adding ComponentID for Sound '%s' when map already contains ID for Sound '%s'."),
+				ActiveSound.Sound ? *ActiveSound.Sound->GetName() : TEXT("N/A"),
+				ExistingSound->Sound ? *ExistingSound->Sound->GetName() : TEXT("N/A")
+				);
+			AudioComponentIDToActiveSoundMap.Remove(ComponentID);
+		}
 		AudioComponentIDToActiveSoundMap.Add(ComponentID, &ActiveSound);
 	}
 
@@ -4427,7 +4438,7 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 
 		if (!VirtualLoops.Contains(SoundToStop))
 		{
-			ConcurrencyManager.StopActiveSound(SoundToStop);
+			ConcurrencyManager.RemoveActiveSound(SoundToStop);
 		}
 	}
 }
@@ -4705,26 +4716,29 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 		return true;
 	}
 
-	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusDistanceScale;
 	if (NewActiveSound.Sound->IsVirtualizeWhenSilent())
 	{
 		return true;
 	}
 
+	// TODO: bAllowSpatialization is used in other audibility checks but not here.
 	const FSoundAttenuationSettings& Attenuation = NewActiveSound.AttenuationSettings;
-	const bool bHasNonFocusDistanceScale = Attenuation.FocusDistanceScale != 1.0f || Attenuation.NonFocusDistanceScale != 1.0f;
+	const bool bHasFocusScaling = Attenuation.FocusDistanceScale != 1.0f || Attenuation.NonFocusDistanceScale != 1.0f;
 	if (!NewActiveSound.bHasAttenuationSettings ||
-		(NewActiveSound.bHasAttenuationSettings && (!Attenuation.bAttenuate || bHasNonFocusDistanceScale)))
+		(NewActiveSound.bHasAttenuationSettings && (!Attenuation.bAttenuate || bHasFocusScaling)))
 	{
 		return true;
 	}
 
+	// TODO: Check if this is necessary. GetMaxDistanceAndFocusFactor should've solved this and would make this
+	// flavor of SoundIsAudible more accurate.
 	const FGlobalFocusSettings& FocusSettings = GetGlobalFocusSettings();
 	if (FocusSettings.FocusDistanceScale != 1.0f || FocusSettings.NonFocusDistanceScale != 1.0f)
 	{
 		return true;
 	}
 
+	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusDistanceScale;
 	if (LocationIsAudible(NewActiveSound.Transform.GetLocation(), ApparentMaxDistance))
 	{
 		return true;
