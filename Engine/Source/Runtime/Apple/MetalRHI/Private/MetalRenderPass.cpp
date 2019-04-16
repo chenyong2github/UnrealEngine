@@ -1982,7 +1982,7 @@ uint32 FMetalRenderPass::GetCommandBufferIndex(void) const
 void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 {
 #if !PLATFORM_TVOS
-	if (GMetalCommandBufferDebuggingEnabled)
+	if (GMetalCommandBufferDebuggingEnabled && (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesValidation) || State.GetVisibilityResultMode() == mtlpp::VisibilityResultMode::Disabled))
 	{
 		FMetalGraphicsPipelineState* BoundShaderState = State.GetGraphicsPSO();
 		
@@ -2013,6 +2013,13 @@ void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 			
 			CurrentEncoder.GetRenderCommandEncoder().SetRenderPipelineState(PSO->DebugPipelineState);
 
+			mtlpp::VisibilityResultMode VisMode = State.GetVisibilityResultMode();
+			uint32 VisibilityOffset = State.GetVisibilityResultOffset();
+			if (VisMode != mtlpp::VisibilityResultMode::Disabled)
+			{
+				CurrentEncoder.GetRenderCommandEncoder().SetVisibilityResultMode(mtlpp::VisibilityResultMode::Disabled, 0);
+			}
+
 		#if PLATFORM_MAC
 			id<MTLBuffer> DebugBufferPtr = State.GetDebugBuffer().GetPtr();
 			[(id<IMTLRenderCommandEncoder>)CurrentEncoder.GetRenderCommandEncoder().GetPtr() memoryBarrierWithResources:&DebugBufferPtr count:1 afterStages:MTLRenderStageFragment beforeStages:MTLRenderStageVertex];
@@ -2034,6 +2041,11 @@ void FMetalRenderPass::InsertDebugDraw(FMetalCommandData& Data)
 		#endif
 
 			CurrentEncoder.GetRenderCommandEncoder().SetRenderPipelineState(PSO->RenderPipelineState);
+
+			if (VisMode != mtlpp::VisibilityResultMode::Disabled)
+			{
+				CurrentEncoder.GetRenderCommandEncoder().SetVisibilityResultMode(VisMode, VisibilityOffset);
+			}
 		}
 	}
 #endif
