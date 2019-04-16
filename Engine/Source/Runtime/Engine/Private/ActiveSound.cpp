@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "ActiveSound.h"
+
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "AudioThread.h"
@@ -165,16 +165,12 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 
 void FActiveSound::SetWorld(UWorld* InWorld)
 {
-	check(IsInGameThread());
-
 	World = InWorld;
 	WorldID = (InWorld ? InWorld->GetUniqueID() : 0);
 }
 
 void FActiveSound::SetSound(USoundBase* InSound)
 {
-	check(IsInGameThread());
-
 	Sound = InSound;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
@@ -182,16 +178,35 @@ void FActiveSound::SetSound(USoundBase* InSound)
 
 void FActiveSound::SetSoundClass(USoundClass* SoundClass)
 {
-	check(IsInGameThread());
-
 	SoundClassOverride = SoundClass;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
 }
 
+void FActiveSound::ClearAudioComponent()
+{
+	AudioComponentID = 0;
+	AudioComponentUserID = NAME_None;
+	AudioComponentName = NAME_None;
+
+	OwnerID = 0;
+	OwnerName = NAME_None;
+}
+
+void FActiveSound::SetAudioComponent(const FActiveSound& ActiveSound)
+{
+	AudioComponentID = ActiveSound.AudioComponentID;
+	AudioComponentUserID = ActiveSound.AudioComponentUserID;
+	AudioComponentName = ActiveSound.AudioComponentName;
+
+	OwnerID = ActiveSound.OwnerID;
+	OwnerName = ActiveSound.OwnerName;
+}
+
 void FActiveSound::SetAudioComponent(UAudioComponent* Component)
 {
 	check(IsInGameThread());
+	check(Component);
 
 	AActor* Owner = Component->GetOwner();
 
@@ -507,7 +522,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	if (bFinished)
 	{
-		AudioDevice->StopActiveSound(this);
+		AudioDevice->AddSoundToStop(this);
 	}
 	else if (ThisSoundsWaveInstances.Num() > 0)
 	{

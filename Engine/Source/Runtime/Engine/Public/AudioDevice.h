@@ -5,65 +5,54 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Engine/Engine.h"
-#include "Sound/SoundAttenuation.h"
 #include "Components/AudioComponent.h"
-#include "Sound/SoundClass.h"
 #include "Audio.h"
+#include "AudioDynamicParameter.h"
+#include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
-#include "Sound/AudioSettings.h"
 #include "AudioDeviceManager.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "EngineGlobals.h"
 
-class FAudioEffectsManager;
-class FCanvas;
-class FViewport;
-class FViewportClient;
-class ICompressedAudioInfo;
-class UReverbEffect;
-class USoundBase;
-class USoundEffectSourcePreset;
-class USoundEffectSubmixPreset;
-class USoundSubmix;
-class USoundSourceBus;
-class USoundWave;
-struct FActiveSound;
-struct FAudioQualitySettings;
-
 /**
  * Forward declares
  */
-class USoundClass;
-class UWorld;
-class FOutputDevice;
-class FArchive;
-class FReferenceCollector;
-struct FWaveInstance;
-class USoundWave;
-class FSoundBuffer;
-class USoundBase;
-class USoundAttenuation;
-struct FRotator;
-struct FActiveSound;
-class USoundMix;
 
+class FArchive;
 class FAudioEffectsManager;
-class FViewportClient;
-class ICompressedAudioInfo;
-class IAudioSpatialization;
-class UReverbEffect;
-class USoundConcurrency;
+class FAudioVirtualLoop;
+class FCanvas;
+class FOutputDevice;
+class FReferenceCollector;
+class FSoundBuffer;
 class FViewport;
 class FViewportClient;
-class FCanvas;
+class IAudioSpatialization;
+class ICompressedAudioInfo;
+class UReverbEffect;
+class USoundAttenuation;
+class USoundBase;
+class USoundClass;
+class USoundConcurrency;
+class USoundEffectSourcePreset;
+class USoundEffectSubmixPreset;
+class USoundMix;
+class USoundSubmix;
+class USoundSourceBus;
+class USoundWave;
+class UWorld;
 
+struct FActiveSound;
 struct FAudioComponentParam;
 struct FAudioQualitySettings;
-class USoundEffectSubmixPreset;
-class USoundEffectSourcePreset;
+struct FRotator;
+struct FWaveInstance;
+
 
 /** 
  * Debug state of the audio system
@@ -140,38 +129,6 @@ namespace ERequestedAudioStats
 	static const uint8 SoundMixes = 0x8;
 	static const uint8 DebugSounds = 0x10;
 	static const uint8 LongSoundNames = 0x20;
-};
-
-/** Simple class that wraps the math involved with interpolating a parameter over time based on audio device update time. */
-class ENGINE_API FDynamicParameter
-{
-public:
-	explicit FDynamicParameter(float Value);
-
-	void Set(float Value, float InDuration);
-	void Update(float DeltaTime);
-
-	bool IsDone() const
-	{
-		return CurrTimeSec >= DurationSec;
-	}
-	float GetValue() const
-	{
-		return CurrValue;
-	}
-	float GetTargetValue() const
-	{
-		return TargetValue;
-	}
-
-private:
-	float CurrValue;
-	float StartValue;
-	float DeltaValue;
-	float CurrTimeSec;
-	float DurationSec;
-	float LastTime;
-	float TargetValue;
 };
 
 /** 
@@ -771,12 +728,17 @@ public:
 	void AddNewActiveSound(const FActiveSound& ActiveSound);
 
 	/**
+	 * Attempts to retrigger a provided loop
+	 */
+	void RetriggerVirtualLoop(FAudioVirtualLoop& VirtualLoop);
+
+	/**
 	 * Removes the active sound for the specified audio component
 	 */
 	void StopActiveSound(uint64 AudioComponentID);
 
 	/**
-	* Stops the active sound
+	* (Deprecated in favor of AddSoundToStop). Stops the active sound
 	*/
 	void StopActiveSound(FActiveSound* ActiveSound);
 
@@ -1088,7 +1050,7 @@ public:
 	*
 	* @return Returns true if the sound is audible, false otherwise.
 	*/
-	bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor);
+	bool SoundIsAudible(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float MaxDistance, float FocusFactor) const;
 
 	/** Returns the index of the listener closest to the given sound transform */
 	static int32 FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners);
@@ -1283,6 +1245,12 @@ protected:
 private:
 
 	/**
+	 * Adds an active sound to the audio device. Can be a new active sound or one provided by the re-triggering
+	 * loop system.
+	 */
+	void AddNewActiveSoundInternal(const FActiveSound& ActiveSound, FAudioVirtualLoop* VirtualLoop);
+
+	/**
 	* Initializes all plugin listeners belonging to this audio device.
 	* Called in the game thread.
 	*
@@ -1381,6 +1349,8 @@ private:
 	* This contains the original sound class properties propagated properly, and all adjustments due to the sound mixes
 	*/
 	void UpdateSoundClassProperties(float DeltaTime);
+
+	void VirtualizeInactiveLoops();
 
 	/**
 	 * Recursively apply an adjuster to the passed in sound class and all children of the sound class
@@ -1497,9 +1467,18 @@ public:
 	/** Creates a new platform specific sound source */
 	virtual FSoundSource* CreateSoundSource() = 0;
 
-	void AddSoundToStop(struct FActiveSound* SoundToStop);
+	/**
+	 * Marks a sound to be stopped.  Returns true if added to stop,
+	 * false if already pending stop.
+	 */
+	void AddSoundToStop(FActiveSound* SoundToStop);
 
-	/**   
+	/**
+	 * Whether the provided ActiveSound is currently pending to stop
+	 */
+	bool IsPendingStop(FActiveSound* ActiveSound);
+
+	/**
 	* Gets the direction of the given position vector transformed relative to listener.   
 	* @param Position				Input position vector to transform relative to listener
 	* @param OutDistance			Optional output of distance from position to listener
@@ -1514,6 +1493,8 @@ public:
 	float GetGameDeltaTime() const;
 
 	void UpdateProximityRetriggerComponents();
+
+	void UpdateVirtualLoops();
 
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
@@ -1542,6 +1523,8 @@ private:
 	/** Returns the number of frames to use per precache buffer. */
 	int32 GetNumPrecacheFrames() const;
 
+	bool RemoveVirtualLoop(FActiveSound& ActiveSound);
+
 public:
 
 	/** Query if the editor is in VR Preview for the current play world. Returns false for non-editor builds */
@@ -1549,6 +1532,8 @@ public:
 
 	/** Returns the audio clock of the audio device. Not supported on all platforms. */
 	double GetAudioClock() const { return AudioClock; }
+
+	void AddVirtualLoop(FAudioVirtualLoop& VirtualLoop);
 
 #if !UE_BUILD_SHIPPING
 	void DumpActiveSounds() const;
@@ -1834,6 +1819,11 @@ private:
 	TArray<USoundWave*> ReferencedSoundWaves;
 	TArray<USoundWave*> PrecachingSoundWaves;
 	TArray<FWaveInstance*> ActiveWaveInstances;
+
+	/** Array of dormant loops stopped due to proximity/applicable concurrency rules
+	  * that can be retriggered.
+	  */
+	TMap<FActiveSound*, FAudioVirtualLoop*> VirtualLoops;
 
 	TArray<FAudioComponentPtr> ProximityRetriggerComponents;
 
