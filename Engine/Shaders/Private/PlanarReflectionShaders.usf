@@ -142,5 +142,9 @@ void PlanarReflectionPS(
 	if (ScreenSpaceData.GBuffer.ShadingModelID > 0)
 	{
 		OutColor = ComputePlanarReflections(WorldPosition, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.GBuffer.Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
+
+	#if USE_PREEXPOSURE
+		OutColor.xyz *= View.PreExposure;
+	#endif
 	}
 }
