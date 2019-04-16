@@ -6,8 +6,11 @@
 #include "XmppStrophe/XmppConnectionStrophe.h"
 #include "XmppLog.h"
 #include "Misc/Guid.h"
+#include "Misc/EmbeddedCommunication.h"
 
 #if WITH_XMPP_STROPHE
+
+const FName FXmppPingStrophe::TickRequesterId = FName("StrophePing");
 
 FXmppPingStrophe::FXmppPingStrophe(FXmppConnectionStrophe& InConnectionManager)
 	: ConnectionManager(InConnectionManager)
@@ -19,6 +22,11 @@ FXmppPingStrophe::FXmppPingStrophe(FXmppConnectionStrophe& InConnectionManager)
 {
 }
 
+FXmppPingStrophe::~FXmppPingStrophe()
+{
+	CleanupMessages();
+}
+
 bool FXmppPingStrophe::Tick(float DeltaTime)
 {
 	// Process our ping queue and send pongs
@@ -27,6 +35,7 @@ bool FXmppPingStrophe::Tick(float DeltaTime)
 		FXmppPingReceivedInfo ReceivedPing;
 		if (IncomingPings.Dequeue(ReceivedPing))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			ReplyToPing(MoveTemp(ReceivedPing));
 		}
 	}
@@ -51,8 +60,7 @@ bool FXmppPingStrophe::Tick(float DeltaTime)
 
 void FXmppPingStrophe::OnDisconnect()
 {
-	// Clear out pending pongs when we disconnect
-	IncomingPings.Empty();
+	CleanupMessages();
 
 	// Reset our client ping timer
 	ResetPingTimer();
@@ -122,6 +130,7 @@ void FXmppPingStrophe::ResetPongTimer()
 
 bool FXmppPingStrophe::HandlePingStanza(const FStropheStanza& PingStanza)
 {
+	FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 	IncomingPings.Enqueue(FXmppPingReceivedInfo(PingStanza.GetFrom(), PingStanza.GetId()));
 	return true;
 }
@@ -201,6 +210,16 @@ void FXmppPingStrophe::CheckXmppPongTimeout(float DeltaTime)
 				SecondsSinceLastServerPong = 0.0f;
 			}
 		}
+	}
+}
+
+void FXmppPingStrophe::CleanupMessages()
+{
+	while (!IncomingPings.IsEmpty())
+	{
+		FXmppPingReceivedInfo ReceivedPing;
+		IncomingPings.Dequeue(ReceivedPing);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
 	}
 }
 
