@@ -311,9 +311,11 @@ ConstantFoldingRule FoldFPBinaryOp(BinaryScalarFoldingRule scalar_rule) {
       return nullptr;
     }
 
-    if (constants[0] == nullptr || constants[1] == nullptr) {
+    /* UE Begin Change: Workraround a crash caused by DXC using null constants */
+    if (constants[0] == nullptr || constants[1] == nullptr || constants[0]->AsNullConstant() || constants[1]->AsNullConstant()) {
       return nullptr;
     }
+    /* UE End Change: Workraround a crash caused by DXC using null constants */
 
     if (vector_type != nullptr) {
       std::vector<const analysis::Constant*> a_components;
@@ -322,7 +324,7 @@ ConstantFoldingRule FoldFPBinaryOp(BinaryScalarFoldingRule scalar_rule) {
 
       /* UE Begin Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
       if (constants[0]->AsVectorConstant()) {
-      a_components = constants[0]->GetVectorComponents(const_mgr);
+      	a_components = constants[0]->GetVectorComponents(const_mgr);
       }
       else if ((constants[0]->AsScalarConstant())) {
         for (uint32_t i = 0; i < vector_type->element_count(); i++) {
@@ -331,7 +333,7 @@ ConstantFoldingRule FoldFPBinaryOp(BinaryScalarFoldingRule scalar_rule) {
       }
       
       if (constants[1]->AsVectorConstant()) {
-      b_components = constants[1]->GetVectorComponents(const_mgr);
+      	b_components = constants[1]->GetVectorComponents(const_mgr);
       }
       else if ((constants[1]->AsScalarConstant())) {
         for (uint32_t i = 0; i < vector_type->element_count(); i++) {
