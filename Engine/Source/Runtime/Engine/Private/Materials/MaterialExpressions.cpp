@@ -15251,6 +15251,7 @@ void UMaterialExpressionCustomPrimitiveData::GetCaption(TArray<FString>& OutCapt
 
 void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+#if WITH_EDITORONLY_DATA
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustomPrimitiveData, CustomDescs))
 	{
 		// If more than the supported number of custom floats have been added, remove the overflow
@@ -15275,6 +15276,7 @@ void UMaterialExpressionCustomPrimitiveData::PostEditChangeProperty(FPropertyCha
 		bNeedToUpdatePreview = false;
 	}
 	else
+#endif
 	{
 		Super::PostEditChangeProperty(PropertyChangedEvent);
 	}
