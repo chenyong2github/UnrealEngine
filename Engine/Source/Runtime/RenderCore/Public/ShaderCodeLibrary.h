@@ -145,7 +145,7 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// Open a named library.
 	// For cooking this will place all added shaders & pipelines into the library file with this name.
 	// At runtime this will open the shader library with this name.
-	static void OpenLibrary(FString const& Name, FString const& Directory);
+	static bool OpenLibrary(FString const& Name, FString const& Directory);
     
 	// Close a named library.
 	// For cooking, after this point any AddShaderCode/AddShaderPipeline calls will be invalid until OpenLibrary is called again.
