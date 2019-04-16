@@ -135,7 +135,7 @@ class UAtmosphericFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category=Atmosphere)
 	float StartDistance;
 
-	/** Distance offset, in km (to handle large distance) */
+	/** Sun half apex angle in degree, see https://en.wikipedia.org/wiki/Solid_angle */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = Atmosphere)
 	float SunDiscScale;
 

@@ -1293,6 +1293,10 @@ public:
 	virtual float GetMaxDrawDistance() const { return 0.0f; }
 	virtual float GetFadeRange() const { return 0.0f; }
 
+	// Atmosphere / Fog related functions
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) {}
+	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
+
 protected:
 
 	friend class FScene;

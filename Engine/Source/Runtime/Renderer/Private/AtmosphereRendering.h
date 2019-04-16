@@ -50,7 +50,7 @@ public:
 	float RHeight;
 	float StartDistance;
 	float DistanceOffset;
-	float SunDiscScale;
+	float SunHalfApexAngle;
 	FLinearColor DefaultSunColor;
 	FVector DefaultSunDirection;
 	uint32 RenderFlag;
@@ -80,6 +80,8 @@ public:
 	explicit FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene);
 	~FAtmosphericFogSceneInfo();
 
+	void PrepareSunLightProxy(FLightSceneInfo& SunLight) const;
+
 #if WITH_EDITOR
 	void PrecomputeTextures(FRHICommandListImmediate& RHICmdList, const FViewInfo* View, FSceneViewFamily* ViewFamily);
 	void StartPrecompute();
@@ -95,6 +97,11 @@ private:
 	void ReadPixelsPtr(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget> RenderTarget, FColor* OutData, FIntRect InRect);
 	void Read3DPixelsPtr(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget> RenderTarget, FFloat16Color* OutData, FIntRect InRect, FIntPoint InZMinMax);
 #endif
+
+private:
+	const FLinearColor TransmittanceAtZenith;
+
+	FLinearColor GetTransmittance(const FVector& SunDirection) const;
 };
 
 bool ShouldRenderAtmosphere(const FSceneViewFamily& Family);

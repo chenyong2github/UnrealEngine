@@ -65,6 +65,16 @@ public:
 	 */
 	FVector LightShaftOverrideDirection;
 
+	/**
+	 * The atmosphere transmittance to apply on the illuminance
+	 */
+	FLinearColor AtmosphereTransmittanceFactor;
+
+	/**
+	 * The luminance of the sun disk in space (function of the sun illuminance and solid angle)
+	 */
+	FLinearColor SunDiscOuterSpaceLuminance;
+
 	/** 
 	 * Radius of the whole scene dynamic shadow centered on the viewer, which replaces the precomputed shadows based on distance from the camera.  
 	 * A Radius of 0 disables the dynamic shadow.
@@ -103,13 +113,15 @@ public:
 	float TraceDistance;
 
 	/** Initialization constructor. */
-	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component):
+	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component) :
 		FLightSceneProxy(Component),
 		bEnableLightShaftOcclusion(Component->bEnableLightShaftOcclusion),
 		bUseInsetShadowsForMovableObjects(Component->bUseInsetShadowsForMovableObjects),
 		OcclusionMaskDarkness(Component->OcclusionMaskDarkness),
 		OcclusionDepthRange(Component->OcclusionDepthRange),
 		LightShaftOverrideDirection(Component->LightShaftOverrideDirection),
+		AtmosphereTransmittanceFactor(FLinearColor::White),
+		SunDiscOuterSpaceLuminance(FLinearColor::White),
 		DynamicShadowCascades(Component->DynamicShadowCascades > 0 ? Component->DynamicShadowCascades : 0),
 		CascadeDistributionExponent(Component->CascadeDistributionExponent),
 		CascadeTransitionFraction(Component->CascadeTransitionFraction),
@@ -166,7 +178,7 @@ public:
 	{
 		LightParameters.Position = FVector::ZeroVector;
 		LightParameters.InvRadius = 0.0f;
-		LightParameters.Color = FVector(GetColor());
+		LightParameters.Color = FVector(GetColor() * AtmosphereTransmittanceFactor); 
 		LightParameters.FalloffExponent = 0.0f;
 
 		LightParameters.Direction = -GetDirection();
@@ -344,6 +356,17 @@ public:
 		const bool bCreateWithCSM = NumCascades > 0 && RayTracedShadowDistance > GetCSMMaxDistance(bPrecomputedLightingIsValid, MaxNearCascades);
 		const bool bCreateWithoutCSM = NumCascades == 0 && RayTracedShadowDistance > 0;
 		return DoesPlatformSupportDistanceFieldShadowing(GShaderPlatformForFeatureLevel[InFeatureLevel]) && (bCreateWithCSM || bCreateWithoutCSM);
+	}
+
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) override
+	{
+		AtmosphereTransmittanceFactor = TransmittanceFactor;
+		SunDiscOuterSpaceLuminance = SunOuterSpaceLuminance;
+	}
+
+	virtual FLinearColor GetOuterSpaceLuminance() const override
+	{ 
+		return SunDiscOuterSpaceLuminance;
 	}
 
 private:

@@ -808,6 +808,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	PrepareViewRectsForRendering();
 
+	if (Scene->SunLight && Scene->HasAtmosphericFog())
+	{
+		// Only one atmospheric light at one time.
+		Scene->GetAtmosphericFogSceneInfo()->PrepareSunLightProxy(*Scene->SunLight);
+	}
+
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_Render, FColor::Emerald);
 
 #if RHI_RAYTRACING
