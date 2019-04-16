@@ -9,7 +9,7 @@
 #include "Framework/Application/SlateApplication.h"
 
 /**
- * Dynamic rush for referencing a UMaterial.  
+ * Dynamic brush for referencing a UMaterial.  
  *
  * Note: This brush nor the slate renderer holds a strong reference to the material.  You are responsible for maintaining the lifetime of the brush and material object.
  */
@@ -27,6 +27,15 @@ struct FSlateMaterialBrush : public FSlateBrush
 		ResourceName = FName( *InMaterial.GetFullName() );
 	}
 
+	/**
+	 * Creates and initializes a new instance.
+	 *
+	 * @param InImageSize The material's dimensions.
+	 */
+	FSlateMaterialBrush(const FVector2D& InImageSize)
+		: FSlateBrush(ESlateBrushDrawType::Image, FName(TEXT("None")), FMargin(0), ESlateBrushTileType::NoTile, ESlateBrushImageType::FullColor, InImageSize, FLinearColor::White)
+	{}
+
 	/** Virtual destructor. */
 	virtual ~FSlateMaterialBrush()
 	{
@@ -37,5 +46,12 @@ struct FSlateMaterialBrush : public FSlateBrush
 				Renderer->ReleaseDynamicResource(*this);
 			}
 		}
+	}
+
+	/** Sets the material to use. */
+	void SetMaterial(UMaterialInterface* InMaterial)
+	{
+		SetResourceObject(InMaterial);
+		ResourceName = InMaterial != nullptr ? FName(*InMaterial->GetFullName()) : NAME_None;
 	}
 }; 
