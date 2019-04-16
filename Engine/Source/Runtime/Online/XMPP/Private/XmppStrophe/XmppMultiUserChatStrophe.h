@@ -145,7 +145,7 @@ class FXmppMultiUserChatStrophe
 public:
 	// FXmppMultiUserChatStrophe
 	FXmppMultiUserChatStrophe(class FXmppConnectionStrophe& InConnectionManager);
-	virtual ~FXmppMultiUserChatStrophe() = default;
+	virtual ~FXmppMultiUserChatStrophe();
 
 	void OnDisconnect();
 	bool ReceiveStanza(const FStropheStanza& IncomingStanza);
@@ -216,6 +216,9 @@ protected:
 	void HandleRoomMemberChanged(FXmppRoomStrophe& Room, FXmppMucPresence&& MemberPresence);
 	void HandleRoomMemberLeft(FXmppRoomStrophe& Room, FXmppMucPresence&& MemberPresence);
 
+	/** Remove pending messages and engine KeepAwake calls */
+	void CleanupMessages();
+
 protected:
 	/** Connection manager controls sending data to XMPP thread */
 	FXmppConnectionStrophe& ConnectionManager;
@@ -254,5 +257,8 @@ protected:
 	FOnXmppRoomMemberExit OnXmppRoomMemberExitDelegate;
 	FOnXmppRoomMemberChanged OnXmppRoomMemberChangedDelegate;
 	FOnXmppRoomChatReceived OnXmppRoomChatReceivedDelegate;
+
+	/* Engine Tick Requester name */
+	const static FName TickRequesterId;
 };
 #endif
