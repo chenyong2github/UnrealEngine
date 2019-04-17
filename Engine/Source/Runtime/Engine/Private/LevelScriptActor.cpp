@@ -30,29 +30,6 @@ ALevelScriptActor::ALevelScriptActor(const FObjectInitializer& ObjectInitializer
 	bReplayRewindable = true;
 }
 
-#if WITH_EDITOR
-void ALevelScriptActor::PostDuplicate(bool bDuplicateForPIE)
-{
-	ULevelScriptBlueprint* MyBlueprint = Cast<ULevelScriptBlueprint>(GetClass()->ClassGeneratedBy);
-	if (MyBlueprint && !GIsDuplicatingClassForReinstancing && !IsPendingKill())
-	{
-		MyBlueprint->SetObjectBeingDebugged(this);
-	}
-
-	Super::PostDuplicate(bDuplicateForPIE);
-}
-
-void ALevelScriptActor::BeginDestroy()
-{
-	if (ULevelScriptBlueprint* MyBlueprint = Cast<ULevelScriptBlueprint>(GetClass()->ClassGeneratedBy))
-	{
-		MyBlueprint->SetObjectBeingDebugged(NULL);
-	}
-
-	Super::BeginDestroy();
-}
-#endif
-
 void ALevelScriptActor::PreInitializeComponents()
 {
 	if (UInputDelegateBinding::SupportsInputDelegate(GetClass()))
