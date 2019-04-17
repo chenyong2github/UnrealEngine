@@ -331,6 +331,22 @@ void FCurlHttpManager::ShutdownCurl()
 #endif // #if WITH_SSL
 }
 
+void FCurlHttpManager::OnBeforeFork()
+{
+	FHttpManager::OnBeforeFork();
+
+	Thread->StopThread();
+	ShutdownCurl();
+}
+
+void FCurlHttpManager::OnAfterFork()
+{
+	InitCurl();
+	Thread->StartThread();
+
+	FHttpManager::OnAfterFork();
+}
+
 FHttpThread* FCurlHttpManager::CreateHttpThread()
 {
 	return new FCurlHttpThread();

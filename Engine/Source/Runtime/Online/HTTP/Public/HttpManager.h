@@ -136,6 +136,16 @@ public:
 	 */
 	static TFunction<FString()> GetDefaultCorrelationIdMethod();
 
+	/**
+	 * Inform that HTTP Manager that we are about to fork(). Will block to flush all outstanding http requests
+	 */
+	virtual void OnBeforeFork();
+
+	/**
+	 * Inform that HTTP Manager that we have completed a fork(). Must be called in both the client and parent process
+	 */
+	virtual void OnAfterFork();
+
 protected:
 	/** 
 	 * Create HTTP thread object
