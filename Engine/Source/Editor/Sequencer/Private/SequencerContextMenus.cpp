@@ -154,6 +154,7 @@ void FKeyContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		}
 	}
 	MenuBuilder.EndSection(); // SequencerKeyEdit
