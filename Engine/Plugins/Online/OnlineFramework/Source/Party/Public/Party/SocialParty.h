@@ -83,7 +83,7 @@ public:
 	void RefreshPublicJoinability();
 
 	DECLARE_DELEGATE_OneParam(FOnLeavePartyAttemptComplete, ELeavePartyCompletionResult)
-	void LeaveParty(const FOnLeavePartyAttemptComplete& OnLeaveAttemptComplete = FOnLeavePartyAttemptComplete());
+	virtual void LeaveParty(const FOnLeavePartyAttemptComplete& OnLeaveAttemptComplete = FOnLeavePartyAttemptComplete());
 
 	const FPartyRepData& GetRepData() const { return *PartyDataReplicator; }
 
