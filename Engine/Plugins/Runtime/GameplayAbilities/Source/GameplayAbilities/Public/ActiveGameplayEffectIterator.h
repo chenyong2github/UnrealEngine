@@ -65,6 +65,16 @@ public:
 		return (Current != nullptr);
 	}
 
+	friend bool operator==(const FActiveGameplayEffectIterator& Lhs, const FActiveGameplayEffectIterator& Rhs)
+	{
+		return Lhs.Current == Rhs.Current;
+	}
+
+	friend bool operator!=(const FActiveGameplayEffectIterator& Lhs, const FActiveGameplayEffectIterator& Rhs)
+	{
+		return Lhs.Current != Rhs.Current;
+	}
+
 private:
 
 	FORCEINLINE ElementType* AdvancePending(ElementType** Next)
