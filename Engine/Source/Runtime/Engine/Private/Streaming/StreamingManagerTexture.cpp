@@ -1339,6 +1339,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 
 	SCOPE_CYCLE_COUNTER(STAT_RenderAssetStreaming_GameThreadUpdateTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderAssetStreaming);
+	CSV_SCOPED_SET_WAIT_STAT(RenderAssetStreaming);
 
 	const bool bUseThreadingForPerf = FApp::ShouldUseThreadingForPerformance();
 
