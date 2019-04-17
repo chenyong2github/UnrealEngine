@@ -33,6 +33,8 @@ protected:
 private:
 	uint8 StateIndex;
 	uint8 ComponentIndex;
+	
+	UPROPERTY(Transient)
 	class UAnimSharingInstance* Instance;
 };
 
