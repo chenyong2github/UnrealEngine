@@ -369,6 +369,11 @@ public:
 		return SunDiscOuterSpaceLuminance;
 	}
 
+	virtual float GetSunLightHalfApexAngleRadian() const override
+	{
+		return 0.5f * LightSourceAngle * PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree
+	}
+
 private:
 
 	float GetEffectiveWholeSceneDynamicShadowRadius(bool bPrecomputedLightingIsValid) const

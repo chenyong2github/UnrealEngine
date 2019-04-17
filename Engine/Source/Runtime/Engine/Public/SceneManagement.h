@@ -1272,7 +1272,6 @@ public:
 		return StatId; 
 	}	
 	inline int32 GetShadowMapChannel() const { return ShadowMapChannel; }
-	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
 	inline int32 GetPreviewShadowMapChannel() const { return PreviewShadowMapChannel; }
 
 	inline bool HasReflectiveShadowMap() const { return bHasReflectiveShadowMap; }
@@ -1293,9 +1292,20 @@ public:
 	virtual float GetMaxDrawDistance() const { return 0.0f; }
 	virtual float GetFadeRange() const { return 0.0f; }
 
-	// Atmosphere / Fog related functions
+	// Atmosphere / Fog related functions.
+
+	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
 	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) {}
 	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
+	static float GetSunOnEarthHalfApexAngleRadian() 
+	{ 
+		const float SunOnEarthApexAngleDegree = 0.545f;	// Apex angle == angular diameter
+		return 0.5f * SunOnEarthApexAngleDegree * PI / 180.0f;
+	}
+	/**
+	 * @return the light half apex angle (half angular diameter) in radian.
+	 */
+	virtual float GetSunLightHalfApexAngleRadian() const { return GetSunOnEarthHalfApexAngleRadian() ; }
 
 protected:
 

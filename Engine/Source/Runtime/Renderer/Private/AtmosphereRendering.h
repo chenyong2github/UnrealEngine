@@ -51,7 +51,7 @@ public:
 	float RHeight;
 	float StartDistance;
 	float DistanceOffset;
-	float SunHalfApexAngle;
+	float SunDiscScale;
 	FLinearColor DefaultSunColor;
 	FVector DefaultSunDirection;
 	uint32 RenderFlag;
@@ -81,6 +81,7 @@ public:
 	explicit FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene);
 	~FAtmosphericFogSceneInfo();
 
+	/** Prepare the sun light data as a function of current atmospheric fog state. */
 	void PrepareSunLightProxy(FLightSceneInfo& SunLight) const;
 
 #if WITH_EDITOR

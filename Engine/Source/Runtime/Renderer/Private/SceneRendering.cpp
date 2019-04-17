@@ -1124,6 +1124,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 
 		// Atmospheric fog parameters
+		const float SunLightDiskHalfApexAngleRadian = Scene->SunLight ? Scene->SunLight->Proxy->GetSunLightHalfApexAngleRadian() : FLightSceneProxy::GetSunOnEarthHalfApexAngleRadian();
 		if (ShouldRenderAtmosphere(*Family) && Scene->AtmosphericFog)
 		{
 			ViewUniformShaderParameters.AtmosphericFogSunPower = Scene->AtmosphericFog->SunMultiplier;
@@ -1136,7 +1137,8 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.AtmosphericFogHeightScaleRayleigh = Scene->AtmosphericFog->RHeight;
 			ViewUniformShaderParameters.AtmosphericFogStartDistance = Scene->AtmosphericFog->StartDistance;
 			ViewUniformShaderParameters.AtmosphericFogDistanceOffset = Scene->AtmosphericFog->DistanceOffset;
-			ViewUniformShaderParameters.AtmosphericFogSunDiscScale = Scene->AtmosphericFog->SunHalfApexAngle;
+			ViewUniformShaderParameters.AtmosphericFogSunDiscScale = Scene->AtmosphericFog->SunDiscScale;
+			ViewUniformShaderParameters.AtmosphericFogSunDiscHalfApexAngleRadian = Scene->AtmosphericFog->SunDiscScale * SunLightDiskHalfApexAngleRadian;
 			ViewUniformShaderParameters.AtmosphericFogSunDiscLuminance = Scene->SunLight ? Scene->SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::White;
 			ViewUniformShaderParameters.AtmosphericFogSunColor = Scene->SunLight ? Scene->SunLight->Proxy->GetColor() : Scene->AtmosphericFog->DefaultSunColor;
 			ViewUniformShaderParameters.AtmosphericFogSunDirection = Scene->SunLight ? -Scene->SunLight->Proxy->GetDirection() : -Scene->AtmosphericFog->DefaultSunDirection;
@@ -1156,7 +1158,7 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.AtmosphericFogStartDistance = FLT_MAX;
 			ViewUniformShaderParameters.AtmosphericFogDistanceOffset = 0.f;
 			ViewUniformShaderParameters.AtmosphericFogSunDiscScale = 1.f;
-			ViewUniformShaderParameters.AtmosphericFogSunDiscLuminance = Scene->SunLight ? Scene->SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
+			ViewUniformShaderParameters.AtmosphericFogSunDiscHalfApexAngleRadian = SunLightDiskHalfApexAngleRadian;
 			//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
 			ViewUniformShaderParameters.AtmosphericFogSunColor = Scene->SunLight ? Scene->SunLight->Proxy->GetColor() : FLinearColor::Black;
 			ViewUniformShaderParameters.AtmosphericFogSunDirection = Scene->SunLight ? -Scene->SunLight->Proxy->GetDirection() : FVector::ZeroVector;
@@ -1178,6 +1180,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.AtmosphericFogStartDistance = FLT_MAX;
 		ViewUniformShaderParameters.AtmosphericFogDistanceOffset = 0.f;
 		ViewUniformShaderParameters.AtmosphericFogSunDiscScale = 1.f;
+		ViewUniformShaderParameters.AtmosphericFogSunDiscHalfApexAngleRadian = 0.f;
 		ViewUniformShaderParameters.AtmosphericFogSunDiscLuminance = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphericFogSunColor = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphericFogSunDirection = FVector::ZeroVector;
