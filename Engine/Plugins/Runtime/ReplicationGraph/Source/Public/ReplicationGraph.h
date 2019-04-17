@@ -367,6 +367,7 @@ protected:
 	virtual void GatherActors(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params, UNetConnection* NetConnection);
 	virtual void GatherActors_DistanceOnly(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params);
 
+	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex);
 	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FVector& ConnectionViewLocation, const FVector& ConnectionViewDir, const uint32 FrameNum, int32 ExistingItemIndex);
 };
 
@@ -418,7 +419,7 @@ public:
 
 	void OnActorDormancyFlush(FActorRepListType Actor, FGlobalActorReplicationInfo& GlobalInfo);
 
-	void ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList);
+	void ConditionalGatherDormantDynamicActors(FActorRepListRefView& RepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList, bool bEnforceReplistUniqueness=false);
 
 	UReplicationGraphNode_ConnectionDormanyNode* GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params);
 
@@ -587,8 +588,6 @@ private:
 	
 	void PutStaticActorIntoCell(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo, bool bDormancyDriven);
 
-	void DoDormantDynamicActorDestruction(const FConnectionGatherActorListParameters& Params, UReplicationGraphNode_GridCell* CurrentCell, UReplicationGraphNode_GridCell* PreviousCell);
-
 	UReplicationGraphNode_GridCell* GetCellNode(UReplicationGraphNode_GridCell*& NodePtr)
 	{
 		if (NodePtr == nullptr)
@@ -676,6 +675,26 @@ protected:
 
 // -----------------------------------
 
+USTRUCT()
+struct FAlwaysRelevantActorInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	const UNetConnection* Connection = nullptr;
+
+	UPROPERTY()
+	AActor* LastViewer = nullptr;
+
+	UPROPERTY()
+	AActor* LastViewTarget = nullptr;
+
+	bool operator==(UNetConnection* Other) const
+	{
+		return Connection == Other;
+	}
+};
+
 /** Adds actors that are always relevant for a connection. This engine version just adds the PlayerController and ViewTarget (usually the pawn) */
 UCLASS()
 class REPLICATIONGRAPH_API UReplicationGraphNode_AlwaysRelevant_ForConnection : public UReplicationGraphNode_ActorList
@@ -688,6 +707,9 @@ public:
 
 	/** Rebuilt-every-frame list based on UNetConnection state */
 	FActorRepListRefView ReplicationActorList;
+
+	/** List of previously (or currently if nothing changed last tick) focused actor data per connection */
+	TArray<FAlwaysRelevantActorInfo, FReplicationGraphConnectionsAllocator> PastRelevantActors;
 
 	UPROPERTY()
 	AActor* LastViewer = nullptr;
@@ -922,9 +944,11 @@ protected:
 #endif
 
 	/** Default Replication Path */
+	void ReplicateActorListsForConnections_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
 	void ReplicateActorListsForConnection_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** "FastShared" Replication Path */
+	void ReplicateActorListsForConnections_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
 	void ReplicateActorListsForConnection_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** Connections needing a FlushNet in PostTickDispatch */
@@ -950,6 +974,25 @@ private:
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
+USTRUCT()
+struct FLastLocationGatherInfo
+{
+	GENERATED_BODY()
+
+	FLastLocationGatherInfo() : Connection(nullptr), LastLocation(FVector(ForceInitToZero)) {}
+	FLastLocationGatherInfo(const UNetConnection* InConnection, FVector InLastLocation) : Connection(InConnection), LastLocation(InLastLocation) {}
+
+	UPROPERTY()
+	const UNetConnection* Connection;
+
+	UPROPERTY()
+	FVector LastLocation;
+
+	bool operator==(UNetConnection* Other) const
+	{
+		return Connection == Other;
+	}
+};
 
 /** Manages actor replication for a specific connection */
 UCLASS(transient)
@@ -992,6 +1035,8 @@ public:
 
 	FVector LastGatherLocation;
 
+	TArray<FLastLocationGatherInfo, FReplicationGraphConnectionsAllocator> LastGatherLocations;
+
 	// Nb of bits sent for actor channel creation when a dedicated budget is allocated for this
 	int32 QueuedBitsForActorDiscovery = 0;
 
@@ -1024,6 +1069,9 @@ public:
 	virtual void NotifyResetDestructionInfo() override;
 	//~ End UReplicationConnectionDriver Interface
 
+	/** Generates a set of all the visible level names for this connection and its subconnections (if any) */
+	virtual void GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const;
+
 private:
 
 	friend UReplicationGraph;
@@ -1044,7 +1092,7 @@ private:
 
 	bool PrepareForReplication();
 
-	int64 ReplicateDestructionInfos(const FVector& ConnectionViewLocation, const float DestructInfoMaxDistanceSquared);
+	int64 ReplicateDestructionInfos(const FNetViewerArray& InViewers, const float DestructInfoMaxDistanceSquared);
 	
 	int64 ReplicateDormantDestructionInfos();
 
