@@ -29,6 +29,7 @@ class FSocialUserListConfig
 public:
 	FSocialUserListConfig() {}
 
+	FString Name = TEXT("");
 	ESocialRelationship RelationshipType = ESocialRelationship::Friend;
 	TArray<ESocialSubsystem> RelevantSubsystems;
 	TArray<ESocialSubsystem> ForbiddenSubsystems;
