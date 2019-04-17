@@ -89,11 +89,10 @@ private:
 	void UpdateSyncDuration(int32 SyncInterval);
 
 	uint64 PredictLastScheduledFramePresentTime(uint32 CurrentPresentID) const;
-	uint64 CalculateNearestPresentTime(uint64 CpuPresentTime) const;
+	uint64 CalculateMinPresentTime(uint64 CpuPresentTime) const;
+	uint64 CalculateMaxPresentTime(uint64 CpuPresentTime) const;
 	uint64 CalculateNearestVsTime(uint64 ActualPresentTime, uint64 TargetTime) const;
-
 	void PollPastFrameInfo();
-	void UpdateCpuToGpuPresentDelta(const VkPastPresentationTimingGOOGLE& PastPresentationTiming);
 
 private:
 	struct FKnownFrameInfo
@@ -116,8 +115,5 @@ private:
 	uint64 LastScheduledPresentTime = 0;
 	uint64 SyncDuration = 0;
 	int32 SyncInterval = 0;
-
-	uint64 CpuPresentTimeHistory[10];
-	uint64 CpuToGpuPresentDelta = 0;
 };
 #endif //VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
