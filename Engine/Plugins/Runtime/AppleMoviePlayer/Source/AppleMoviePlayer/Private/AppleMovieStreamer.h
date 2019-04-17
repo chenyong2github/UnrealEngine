@@ -43,13 +43,10 @@ private:
         Ready,      // Frame is within tolerance of playback cursor.
     };
 
-    // Holds references to textures until their RHI resources are freed
-    TArray<TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe>> TexturesPendingDeletion;
-
 	/** Texture and viewport data for displaying to Slate */
 	TSharedPtr<FMovieViewport> MovieViewport;
 
-    TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> Texture;
+    TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> SlateTexture;
 
     // The list of pending movies
     TArray<FString>		        MovieQueue;
@@ -77,6 +74,8 @@ private:
 	CMTime						ResumeTime;
 
 	FCriticalSection			VideoTracksLoadingLock;
+	
+	CVMetalTextureCacheRef 		MetalTextureCache;
 
 private:
 
