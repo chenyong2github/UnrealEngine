@@ -160,7 +160,7 @@ public:
 	mtlpp::Device& GetDevice(void);
 	
 	/** Converts a Metal v1.1+ resource option to something valid on the current version. */
-	mtlpp::ResourceOptions GetCompatibleResourceOptions(mtlpp::ResourceOptions Options) const;
+	static mtlpp::ResourceOptions GetCompatibleResourceOptions(mtlpp::ResourceOptions Options);
 	
 	/**
 	 * @param InFeature A specific Metal feature to check for.
@@ -204,6 +204,6 @@ private:
 	TLockFreePointerListLIFO<mtlpp::CommandBufferFence> CommandBufferFences;
 	uint64 ParallelCommandLists;
 	int32 RuntimeDebuggingLevel;
-	NSUInteger PermittedOptions;
+	static NSUInteger PermittedOptions;
 	static uint64 Features;
 };
