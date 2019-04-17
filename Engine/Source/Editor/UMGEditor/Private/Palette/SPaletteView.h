@@ -108,9 +108,8 @@ private:
 	/** Save the expansion state for the TreeView */
 	void SaveItemExpansion();
 
-	// Search functions
-	/** Transforms the widget view model into a searchable string. */
-	void TransformWidgetViewModelToString(TSharedPtr<FWidgetViewModel> WidgetViewModel, OUT TArray< FString >& Array);
+	/** Gets an array of strings used for filtering/searching the specified widget. */
+	void GetWidgetFilterStrings(TSharedPtr<FWidgetViewModel> WidgetViewModel, TArray<FString>& OutStrings);
 
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
 	TSharedPtr<FPaletteViewModel> PaletteViewModel;

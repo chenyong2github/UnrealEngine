@@ -127,7 +127,7 @@ void SPaletteView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 	PaletteViewModel->OnUpdated.AddRaw(this, &SPaletteView::OnViewModelUpdated);
 
 	WidgetFilter = MakeShareable(new WidgetViewModelTextFilter(
-		WidgetViewModelTextFilter::FItemToStringArray::CreateSP(this, &SPaletteView::TransformWidgetViewModelToString)));
+		WidgetViewModelTextFilter::FItemToStringArray::CreateSP(this, &SPaletteView::GetWidgetFilterStrings)));
 
 	FilterHandler = MakeShareable(new PaletteFilterHandler());
 	FilterHandler->SetFilter(WidgetFilter.Get());
@@ -321,9 +321,9 @@ void SPaletteView::Tick(const FGeometry& AllottedGeometry, const double InCurren
 	}
 }
 
-void SPaletteView::TransformWidgetViewModelToString(TSharedPtr<FWidgetViewModel> WidgetViewModel, OUT TArray< FString >& Array)
+void SPaletteView::GetWidgetFilterStrings(TSharedPtr<FWidgetViewModel> WidgetViewModel, TArray<FString>& OutStrings)
 {
-	Array.Add(WidgetViewModel->GetFilterString());
+	WidgetViewModel->GetFilterStrings(OutStrings);
 }
 
 #undef LOCTEXT_NAMESPACE

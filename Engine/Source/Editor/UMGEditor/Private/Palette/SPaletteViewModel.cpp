@@ -44,9 +44,9 @@ bool FWidgetTemplateViewModel::IsTemplate() const
 	return true;
 }
 
-FString FWidgetTemplateViewModel::GetFilterString() const
+void FWidgetTemplateViewModel::GetFilterStrings(TArray<FString>& OutStrings) const
 {
-	return Template->Name.ToString();
+	Template->GetFilterStrings(OutStrings);
 }
 
 TSharedRef<ITableRow> FWidgetTemplateViewModel::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)

@@ -1093,9 +1093,9 @@ FText FHierarchyWidget::GetLabelToolTipText() const
 	return FText::GetEmpty();
 }
 
-void FHierarchyWidget::GetSearchableStrings(TArray<FString>& OutStrings) const
+void FHierarchyWidget::GetFilterStrings(TArray<FString>& OutStrings) const
 {
-	FHierarchyModel::GetSearchableStrings(OutStrings);
+	FHierarchyModel::GetFilterStrings(OutStrings);
 
 	UWidget* WidgetTemplate = Item.GetTemplate();
 	if (WidgetTemplate && !WidgetTemplate->IsGeneratedName())

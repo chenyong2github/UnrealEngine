@@ -24,8 +24,8 @@ public:
 
 	virtual bool IsTemplate() const = 0;
 
-	/** Get the string which should be used for filtering the item. */
-	virtual FString GetFilterString() const = 0;
+	/** @param OutStrings - Returns an array of strings used for filtering/searching this item. */
+	virtual void GetFilterStrings(TArray<FString>& OutStrings) const = 0;
 
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) = 0;
 
@@ -51,7 +51,7 @@ public:
 
 	virtual bool IsTemplate() const override;
 
-	virtual FString GetFilterString() const override;
+	virtual void GetFilterStrings(TArray<FString>& OutStrings) const override;
 
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) override;
 
@@ -93,11 +93,10 @@ public:
 		return false;
 	}
 
-	virtual FString GetFilterString() const override
+	virtual void GetFilterStrings(TArray<FString>& OutStrings) const override
 	{
 		// Headers should never be included in filtering to avoid showing a header with all of
 		// it's widgets filtered out, so return an empty filter string.
-		return TEXT("");
 	}
 
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) override;

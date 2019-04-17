@@ -88,8 +88,8 @@ private:
 	/** Gets the search text currently being used to filter the list, also used to highlight text */
 	FText GetSearchText() const;
 
-	/** Transforms the widget into a searchable string */
-	void TransformWidgetToSearchableStrings(TSharedPtr<FHierarchyModel> Widget, TArray<FString>& OutStrings);
+	/**  Gets an array of strings used for filtering/searching the specified widget. */
+	void GetWidgetFilterStrings(TSharedPtr<FHierarchyModel> Widget, TArray<FString>& OutStrings);
 
 	/** Called when a Blueprint is recompiled and live objects are swapped out for replacements */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
