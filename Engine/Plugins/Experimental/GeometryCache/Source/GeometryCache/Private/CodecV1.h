@@ -84,8 +84,6 @@ struct FCodecV1DecodingContext
 {
 	/** Target mesh to decode to */
 	FGeometryCacheMeshData* MeshData;	
-	/** Reader to read bit stream from */
-	FHuffmanBitStreamReader* Reader;
 	/** Huffman tables */
 	FHuffmanDecodeTable ResidualIndicesTable;	
 	FHuffmanDecodeTable ResidualVertexPosTable;
@@ -205,7 +203,7 @@ private:
 	/** Encode a buffer with vertex indices */
 	void EncodeIndexStream(const uint32* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex positions */
-	void EncodePositionStream(const FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, const uint32* IndexStream, uint64 IndexElementOffset, uint32 IndexElementCount, FStreamEncodingStatistics& Stats);
+	void EncodePositionStream(const FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex colors */
 	void EncodeColorStream(const FColor* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex normals */
@@ -300,50 +298,50 @@ public:
 	virtual bool DecodeFrameData(FBufferReader &Reader, FGeometryCacheMeshData &OutMeshData);
 private:
 
-	/** Decode a buffer of vertex indices from the bitstream */
-	void DecodeIndexStream(uint32* Stream, uint64 ElementOffset, uint32 ElementCount);
-	/** Decode a buffer of vertex positions from the bitstream */
-	void DecodePositionStream(const uint32* IndexStream, uint64 IndexElementOffset, uint32 IndexElementCount, FVector* VertexStream, uint64 VertexElementOffset, uint32 MaxVertexElementCount);
-	/** Decode a buffer of vertex colors from the bitstream */
-	void DecodeColorStream(FColor* Stream, uint64 ElementOffset, uint32 ElementCount);
-	/** Decode a buffer of vertex normals from the bitstream */
-	void DecodeNormalStream(FPackedNormal* Stream, uint64 ElementOffset, uint32 ElementCount, FHuffmanDecodeTable& Table);
-	/** Decode a buffer of vertex texture coordinates from the bitstream */
-	void DecodeUVStream(FVector2D* Stream, uint64 ElementOffset, uint32 ElementCount);
-	/** Decode a buffer of vertex motion vectors from the bitstream */
-	void DecodeMotionVectorStream(FVector* Stream, uint64 ElementOffset, uint32 ElementCount);
+	/** Decode a buffer of vertex indices from abitstream */
+	void DecodeIndexStream(FHuffmanBitStreamReader& Reader, uint32* Stream, uint64 ElementOffset, uint32 ElementCount);
+	/** Decode a buffer of vertex positions from a bitstream */
+	void DecodePositionStream(FHuffmanBitStreamReader& Reader, FVector* VertexStream, uint64 VertexElementOffset, uint32 VertexElementCount);
+	/** Decode a buffer of vertex colors from a bitstream */
+	void DecodeColorStream(FHuffmanBitStreamReader& Reader, FColor* Stream, uint64 ElementOffset, uint32 ElementCount);
+	/** Decode a buffer of vertex normals from a bitstream */
+	void DecodeNormalStream(FHuffmanBitStreamReader& Reader, FPackedNormal* Stream, uint64 ElementOffset, uint32 ElementCount, FHuffmanDecodeTable& Table);
+	/** Decode a buffer of vertex texture coordinates from a bitstream */
+	void DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2D* Stream, uint64 ElementOffset, uint32 ElementCount);
+	/** Decode a buffer of vertex motion vectors from a bitstream */
+	void DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector* Stream, uint64 ElementOffset, uint32 ElementCount);
 	
-	/** Initialize and read Huffman tables from the bitstream */
-	void SetupAndReadTables();	
+	/** Initialize and read Huffman tables from a bitstream */
+	void SetupAndReadTables(FHuffmanBitStreamReader& Reader);
 	
-	/** Read a given number of bytes from the bit stream using the Huffman bitreader */
-	FORCEINLINE void ReadBytes(void* Data, uint32 NumBytes);
+	/** Read a given number of bytes from a bit stream using a Huffman bitreader */
+	FORCEINLINE void ReadBytes(FHuffmanBitStreamReader& Reader, void* Data, uint32 NumBytes);
 
-	/**	Read a 32-bit signed value from the bit stream using a Huffman coder */
-	FORCEINLINE int32 ReadInt32(FHuffmanDecodeTable& ValueTable);
+	/**	Read a 32-bit signed value from a bit stream using a Huffman coder */
+	FORCEINLINE int32 ReadInt32(FHuffmanBitStreamReader& Reader, FHuffmanDecodeTable& ValueTable);
 
-	/** Read a symbol from the bit stream using a Huffman Table */
-	FORCEINLINE int32 ReadSymbol(FHuffmanDecodeTable& table)
+	/** Read a symbol from a bit stream using a Huffman Table */
+	FORCEINLINE int32 ReadSymbol(FHuffmanBitStreamReader& Reader, FHuffmanDecodeTable& table)
 	{
-		return table.Decode(*DecodingContext.Reader);
+		return table.Decode(Reader);
 	}
 
-	/** Read a given number of bits from the bit stream */
-	FORCEINLINE int32 ReadBits(uint32 NumBits)
+	/** Read a given number of bits from a bit stream */
+	FORCEINLINE int32 ReadBits(FHuffmanBitStreamReader& Reader, uint32 NumBits)
 	{
-		return DecodingContext.Reader->Read(NumBits);
+		return Reader.Read(NumBits);
 	}
 
-	/** Read a given number of bits from the bit stream without refilling bits */
-	FORCEINLINE int32 ReadBitsNoRefill(uint32 NumBits)
+	/** Read a given number of bits from a bit stream without refilling bits */
+	FORCEINLINE int32 ReadBitsNoRefill(FHuffmanBitStreamReader& Reader, uint32 NumBits)
 	{
-		return DecodingContext.Reader->ReadNoRefill(NumBits);
+		return Reader.ReadNoRefill(NumBits);
 	}
 
-	/** Read info on the available streams from the bit stream */
-	void ReadCodedStreamDescription();
+	/** Read info on the available streams from a bit stream */
+	void ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader);
 
-	/** Any context information to decode a frame in a sequence of frames, such as the bit steam and any Huffman tables used.*/
+	/** Any context information to decode a frame in a sequence of frames, such as any Huffman tables used. */
 	FCodecV1DecodingContext DecodingContext;	
 
 	int32 HighBitsLUT[64];
