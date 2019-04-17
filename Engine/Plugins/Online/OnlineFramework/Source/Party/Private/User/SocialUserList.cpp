@@ -508,7 +508,7 @@ void FSocialUserList::UpdateListInternal()
 
 		Users.RemoveAllSwap(
 			[this] (USocialUser* User)
-			{
+		{
 				if (PendingRemovals.Contains(User))
 				{
 					PendingRemovals.Remove(User);
@@ -519,7 +519,6 @@ void FSocialUserList::UpdateListInternal()
 				return false;
 			});
 
-		ensure(PendingRemovals.Num() == 0);
 		PendingRemovals.Reset();
 	}
 
