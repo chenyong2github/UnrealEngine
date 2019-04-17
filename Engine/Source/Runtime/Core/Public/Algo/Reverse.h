@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/UnrealTemplate.h" // for Swap
 
 namespace AlgoImpl
 {
