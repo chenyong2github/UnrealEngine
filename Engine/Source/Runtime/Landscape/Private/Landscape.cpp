@@ -1427,6 +1427,14 @@ FLandscapeLayerComponentData* ULandscapeComponent::GetLayerData(const FGuid& InL
 	return LayersData.Find(InLayerGuid);
 }
 
+void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn)
+{
+	for (auto& Pair : LayersData)
+	{
+		Fn(Pair.Key, Pair.Value);
+	}
+}
+
 void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
 {
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
