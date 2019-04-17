@@ -188,6 +188,48 @@ struct FGenericPlatformAtomics
 	}
 
 	/**
+	 * Atomically ands AndValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal & AndValue, RetVal) != RetVal);
+		return RetVal;
+	}
+
+	/**
+	 * Atomically ors OrValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal | OrValue, RetVal) != RetVal);
+		return RetVal;
+	}
+
+	/**
+	 * Atomically xors XorValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal ^ XorValue, RetVal) != RetVal);
+		return RetVal;
+	}
+
+	/**
 	 * Atomic read of 32 bit value with an implicit memory barrier.
 	 */
 	static FORCEINLINE int8 AtomicRead(volatile const int8* Src)

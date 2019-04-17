@@ -119,6 +119,66 @@ struct CORE_API FClangPlatformAtomics : public FGenericPlatformAtomics
 		return __sync_val_compare_and_swap(Dest, Comperand, Exchange);
 	}
 
+	static FORCEINLINE int8 InterlockedAnd(volatile int8* Value, const int8 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int16 InterlockedAnd(volatile int16* Value, const int16 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int64 InterlockedAnd(volatile int64* Value, const int64 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int8 InterlockedOr(volatile int8* Value, const int8 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int16 InterlockedOr(volatile int16* Value, const int16 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int64 InterlockedOr(volatile int64* Value, const int64 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int8 InterlockedXor(volatile int8* Value, const int8 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int16 InterlockedXor(volatile int16* Value, const int16 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int64 InterlockedXor(volatile int64* Value, const int64 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
 	static FORCEINLINE int8 AtomicRead(volatile const int8* Src)
 	{
 		int8 Result;
