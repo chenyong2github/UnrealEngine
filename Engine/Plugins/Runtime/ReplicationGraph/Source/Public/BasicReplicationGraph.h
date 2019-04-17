@@ -12,7 +12,7 @@ struct FConnectionAlwaysRelevantNodePair
 	GENERATED_BODY()
 	FConnectionAlwaysRelevantNodePair() { }
 	FConnectionAlwaysRelevantNodePair(UNetConnection* InConnection, UReplicationGraphNode_AlwaysRelevant_ForConnection* InNode) : NetConnection(InConnection), Node(InNode) { }
-	bool operator==(const UNetConnection* InConnection) const { return InConnection == NetConnection; }
+	bool operator==(UNetConnection* InConnection) const;
 
 	UPROPERTY()
 	UNetConnection* NetConnection = nullptr;
