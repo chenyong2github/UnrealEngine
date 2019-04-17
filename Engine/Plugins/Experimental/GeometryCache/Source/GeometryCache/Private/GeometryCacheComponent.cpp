@@ -217,6 +217,7 @@ void UGeometryCacheComponent::UpdateLocalBounds()
 
 FPrimitiveSceneProxy* UGeometryCacheComponent::CreateSceneProxy()
 {
+	IGeometryCacheStreamingManager::Get().PrefetchData(this);
 	return new FGeometryCacheSceneProxy(this);
 }
 
