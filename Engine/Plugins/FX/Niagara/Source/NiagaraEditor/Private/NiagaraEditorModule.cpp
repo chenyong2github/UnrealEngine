@@ -735,4 +735,36 @@ void FNiagaraEditorModule::OnPreGarbageCollection()
 	}
 }
 
+TSharedRef<FNiagaraAssetNameToken> FNiagaraAssetNameToken::Create(const FString& InAssetName, const FText& InMessage)
+{
+	return MakeShareable(new FNiagaraAssetNameToken(InAssetName, InMessage));
+}
+
+FNiagaraAssetNameToken::FNiagaraAssetNameToken(const FString& InAssetName, const FText& InMessage)
+	: AssetName(InAssetName)
+{
+	if (!InMessage.IsEmpty())
+	{
+		CachedText = InMessage;
+	}
+	else
+	{
+		CachedText = FText::FromString(AssetName);
+	}
+
+	MessageTokenActivated = FOnMessageTokenActivated::CreateStatic(&FNiagaraAssetNameToken::FindAndOpenAsset, AssetName);
+}
+
+
+void FNiagaraAssetNameToken::FindAndOpenAsset(const TSharedRef<IMessageToken>& Token, FString InAssetPath)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*InAssetPath);
+	if (AssetData.IsValid())
+	{
+		FAssetEditorManager::Get().OpenEditorForAsset(AssetData.GetAsset(), EToolkitMode::Standalone);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
