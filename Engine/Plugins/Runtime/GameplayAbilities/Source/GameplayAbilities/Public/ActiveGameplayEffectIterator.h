@@ -48,19 +48,19 @@ public:
 		Next();
 	}
 
-	ElementType& operator*()
+	ElementType& operator*() const
 	{
 		check(Current);
 		return *Current;
 	}
 
-	ElementType& operator->()
+	ElementType& operator->() const
 	{
 		check(Current);
 		return *Current;
 	}
 
-	operator bool()
+	explicit operator bool() const
 	{
 		return (Current != nullptr);
 	}

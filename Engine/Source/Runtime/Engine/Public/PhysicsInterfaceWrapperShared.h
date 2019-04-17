@@ -23,7 +23,7 @@ inline EQueryFlags operator&(EQueryFlags lhs, EQueryFlags rhs)
 struct FQueryFlags
 {
 	FQueryFlags(EQueryFlags InFlags) : QueryFlags(InFlags) {}
-	operator bool() const { return !!static_cast<uint16>(QueryFlags); }
+	explicit operator bool() const { return !!static_cast<uint16>(QueryFlags); }
 	FQueryFlags operator |(EQueryFlags Rhs) const
 	{
 		return FQueryFlags(QueryFlags | Rhs);
@@ -74,7 +74,7 @@ inline EHitFlags operator&(EHitFlags lhs, EHitFlags rhs)
 struct FHitFlags
 {
 	FHitFlags(EHitFlags InFlags) : HitFlags(InFlags) {}
-	operator bool() const { return !!static_cast<uint16>(HitFlags); }
+	explicit operator bool() const { return !!static_cast<uint16>(HitFlags); }
 	FHitFlags operator |(EHitFlags Rhs) const
 	{
 		return FHitFlags(HitFlags | Rhs);

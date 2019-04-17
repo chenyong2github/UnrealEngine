@@ -41,7 +41,7 @@ public:
 	}
 	
 	/** @return True if there are more vertices on the component */
-	operator bool()
+	explicit operator bool() const
 	{
 		return HasMoreVertices();
 	}
@@ -49,18 +49,18 @@ public:
 	/**
 	 * @return The position in world space of the current vertex
 	 */
-	virtual FVector Position() = 0;
+	virtual FVector Position() const = 0;
 
 	/**
 	 * @return The position in world space of the current vertex normal
 	 */
-	virtual FVector Normal() = 0;
+	virtual FVector Normal() const = 0;
 
 protected:
 	/**
 	 * @return True if there are more vertices on the component
 	 */
-	virtual bool HasMoreVertices() = 0;
+	virtual bool HasMoreVertices() const = 0;
 
 	/**
 	 * Advances to the next vertex
@@ -85,12 +85,12 @@ public:
 	}
 
 	/** FVertexIterator interface */
-	virtual FVector Position() override
+	virtual FVector Position() const override
 	{
 		return StaticMeshComponent->GetComponentTransform().TransformPosition( PositionBuffer.VertexPosition( CurrentVertexIndex ) );	
 	}
 
-	virtual FVector Normal() override
+	virtual FVector Normal() const override
 	{
 		return ComponentToWorldIT.TransformVector( VertexBuffer.VertexTangentZ( CurrentVertexIndex ) );
 	}
@@ -101,7 +101,7 @@ protected:
 		++CurrentVertexIndex;
 	}
 
-	virtual bool HasMoreVertices() override
+	virtual bool HasMoreVertices() const override
 	{
 		return CurrentVertexIndex < PositionBuffer.GetNumVertices();
 	}
@@ -141,13 +141,13 @@ public:
 	}
 
 	/** FVertexIterator interface */
-	virtual FVector Position() override
+	virtual FVector Position() const override
 	{
 		return BrushComponent->GetComponentTransform().TransformPosition( Vertices[CurrentVertexIndex] );
 	}
 
 	/** FVertexIterator interface */
-	virtual FVector Normal() override
+	virtual FVector Normal() const override
 	{
 		return FVector::ZeroVector;
 	}
@@ -158,7 +158,7 @@ protected:
 		++CurrentVertexIndex;
 	}
 
-	virtual bool HasMoreVertices() override
+	virtual bool HasMoreVertices() const override
 	{
 		return Vertices.IsValidIndex( CurrentVertexIndex );
 	}
@@ -188,13 +188,13 @@ public:
 	}
 	
 	/** FVertexIterator interface */
-	virtual FVector Position() override
+	virtual FVector Position() const override
 	{
 		const FVector VertPos = LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 		return SkinnedMeshComponent->GetComponentTransform().TransformPosition(VertPos);
 	}
 
-	virtual FVector Normal() override
+	virtual FVector Normal() const override
 	{
 		FPackedNormal TangentZ = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
 		FVector VertNormal = TangentZ.ToFVector();
@@ -207,7 +207,7 @@ protected:
 		VertexIndex++;
 	}
 
-	virtual bool HasMoreVertices() override
+	virtual bool HasMoreVertices() const override
 	{
 		return VertexIndex < LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
 	}

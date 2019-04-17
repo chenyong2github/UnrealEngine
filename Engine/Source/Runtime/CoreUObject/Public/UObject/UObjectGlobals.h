@@ -687,7 +687,7 @@ public:
 		return !!Object && Object != (UObject*)InvalidPtrValue;
 	}
 	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
 	}

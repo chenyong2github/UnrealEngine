@@ -290,7 +290,7 @@ namespace PlatformInfo
 			return Copy;
 		}
 
-		FORCEINLINE operator bool() const
+		FORCEINLINE explicit operator bool() const
 		{
 			return CurrentPlatform < end();
 		}
