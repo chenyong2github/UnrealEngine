@@ -314,6 +314,9 @@ public:
 
 	bool ArePropertyBindingsAllowed() const;
 
+	/** Does the editor support widget from an editor package. */
+	virtual bool AllowEditorWidget() const { return false; }
+
 private:
 #if WITH_EDITOR
 	virtual void LoadModulesRequiredForCompilation() override;
