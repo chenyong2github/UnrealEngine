@@ -1146,6 +1146,7 @@ struct FConnectionGatherActorListParameters
 
 
 	/** In: The Data the nodes have to work with */
+	UE_DEPRECATED(4.23, "Use the viewer arrays for support for subconnections")
 	FNetViewer& Viewer;
 
 	FNetViewerArray Viewers;
