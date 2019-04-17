@@ -78,7 +78,8 @@ void FNiagaraVMExecutableData::Reset()
 
 void FNiagaraVMExecutableData::SerializeData(FArchive& Ar, bool bDDCData)
 {
-	FNiagaraVMExecutableData::StaticStruct()->SerializeBin(Ar, this);
+	UScriptStruct* FNiagaraVMExecutableDataType = FNiagaraVMExecutableData::StaticStruct();
+	FNiagaraVMExecutableDataType->SerializeTaggedProperties(Ar, (uint8*)this, FNiagaraVMExecutableDataType, nullptr);
 }
 
 bool FNiagaraVMExecutableDataId::IsValid() const
