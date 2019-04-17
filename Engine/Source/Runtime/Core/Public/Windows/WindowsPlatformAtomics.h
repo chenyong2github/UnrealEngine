@@ -108,7 +108,7 @@ struct CORE_API FWindowsPlatformAtomics
 				int64 OldValue = *Value;
 				if (_InterlockedCompareExchange64(Value, OldValue + Amount, OldValue) == OldValue)
 				{
-					return OldValue + Amount;
+					return OldValue;
 				}
 			}
 		#endif
