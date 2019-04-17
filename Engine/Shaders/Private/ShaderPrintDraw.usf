@@ -36,7 +36,7 @@ void InitValueBufferCS()
 [numthreads(1, 1, 1)]
 void BuildIndirectDispatchArgsCS()
 {
-	uint ValueCount = min(ShaderPrint.MaxValueCount, ValuesBuffer[0].Value);
+	uint ValueCount = min(ShaderPrintUniform.MaxValueCount, ValuesBuffer[0].Value);
 
 	RWIndirectDispatchArgsBuffer[0] = (ValueCount + 63)/64;
 	RWIndirectDispatchArgsBuffer[1] = 1;
@@ -59,7 +59,7 @@ void AddSymbol(in ShaderPrintItem Item)
 	
 	// Prevent writing off the buffer
 	// Note that counter still increases so need to clamp when reading it in later passes
-	if (IndexToStore >= ShaderPrint.MaxSymbolCount)
+	if (IndexToStore >= ShaderPrintUniform.MaxSymbolCount)
 	{
 		return;
 	}
@@ -76,7 +76,7 @@ void AddSymbol(inout float2 ScreenPos, in int Symbol)
 	Item.Type = 0;
 	AddSymbol(Item);
 
-	ScreenPos.x += ShaderPrint.FontSize.z;
+	ScreenPos.x += ShaderPrintUniform.FontSize.z;
 }
 
 int GetDecimalSymbol(in int Digit)
@@ -182,7 +182,7 @@ void BuildSymbolBufferCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID
 	)
 {
-	uint ValueCount = min(ShaderPrint.MaxValueCount, ValuesBuffer[0].Value);
+	uint ValueCount = min(ShaderPrintUniform.MaxValueCount, ValuesBuffer[0].Value);
 	if (DispatchThreadId.x >= ValueCount)
 	{
 		return;
@@ -209,7 +209,7 @@ void BuildSymbolBufferCS(
 [numthreads(1, 1, 1)]
 void BuildIndirectDrawArgsCS()
 {
-	uint SymbolCount = min(ShaderPrint.MaxSymbolCount, SymbolsBuffer[0].Value);
+	uint SymbolCount = min(ShaderPrintUniform.MaxSymbolCount, SymbolsBuffer[0].Value);
 
 	RWIndirectDrawArgsBuffer[0] = 6;
 	RWIndirectDrawArgsBuffer[1] = SymbolCount * 2; // Main glyph + drop shadow
@@ -232,7 +232,7 @@ void DrawSymbolsVS(
 {
 	bool bDropShadow = (InstanceId & 1) == 0;
 	OutShadow = bDropShadow ? 1 : 0;
-	float2 DropShadowOffset = bDropShadow ? ShaderPrint.FontSize.xy * float2(0.2f, -0.2f) : 0;
+	float2 DropShadowOffset = bDropShadow ? ShaderPrintUniform.FontSize.xy * float2(0.2f, -0.2f) : 0;
 	
 	InstanceId = InstanceId >> 1;
 	ShaderPrintItem Symbol = SymbolsBuffer[InstanceId + 1];
@@ -242,7 +242,7 @@ void DrawSymbolsVS(
 	
 	float2 VertPos = float2(OutUV.x, 1.f - OutUV.y) * 2.f - 1.f;
 	float2 InstancePos = float2(Symbol.ScreenPos.x, 1.f - Symbol.ScreenPos.y) * 2.f - 1.f;
-	OutPosition.xy = VertPos.xy * ShaderPrint.FontSize.xy + InstancePos + DropShadowOffset;
+	OutPosition.xy = VertPos.xy * ShaderPrintUniform.FontSize.xy + InstancePos + DropShadowOffset;
 	OutPosition.zw = float2(0, 1);
 }
 

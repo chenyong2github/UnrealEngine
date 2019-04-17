@@ -71,7 +71,7 @@ namespace ShaderPrint
 	}
 
 	// ShaderPrint uniform buffer
-	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, "ShaderPrint");
+	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, "ShaderPrintUniform");
 	typedef TUniformBufferRef<FUniformBufferParameters> FUniformBufferRef;
 
 	// Fill the uniform buffer parameters
@@ -316,7 +316,7 @@ namespace ShaderPrint
 		SCOPED_DRAW_EVENT(RHICmdList, ShaderPrintBeginView);
 
 		// Clear the output buffer internal counter ready for use
-		const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 		TShaderMapRef< FShaderInitValueBufferCS > ComputeShader(GlobalShaderMap);
@@ -352,7 +352,7 @@ namespace ShaderPrint
 		FShaderResourceViewRHIRef ValuesBuffer = View.ShaderPrintValueBuffer.SRV;
 		FTextureRHIRef FontTexture = GEngine->MiniFontTexture != nullptr ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;;
 
-		const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 		// BuildIndirectDispatchArgs
