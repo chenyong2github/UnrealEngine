@@ -5765,11 +5765,23 @@ void FAudioDevice::UpdateProximityRetriggerComponents()
 
 void FAudioDevice::UpdateVirtualLoops()
 {
+	static TArray<FAudioVirtualLoop*> VirtualLoopsToRetrigger;
 	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
 	{
-		check(Pair.Value);
-		Pair.Value->Update();
+		FAudioVirtualLoop* VirtualLoop = Pair.Value;
+		check(VirtualLoop);
+
+		if (VirtualLoop->Update())
+		{
+			VirtualLoopsToRetrigger.Add(VirtualLoop);
+		}
 	}
+
+	for (FAudioVirtualLoop* RetriggerLoop : VirtualLoopsToRetrigger)
+	{
+		RetriggerVirtualLoop(*RetriggerLoop);
+	}
+	VirtualLoopsToRetrigger.Reset();
 }
 
 #if WITH_EDITOR

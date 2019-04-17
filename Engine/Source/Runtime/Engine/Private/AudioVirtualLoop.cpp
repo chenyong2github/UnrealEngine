@@ -174,7 +174,7 @@ void FAudioVirtualLoop::SetActiveSound(const FActiveSound& InActiveSound)
 	ActiveSound->TargetAdjustVolumeStopTime = InActiveSound.TargetAdjustVolumeStopTime;
 }
 
-void FAudioVirtualLoop::Update()
+bool FAudioVirtualLoop::Update()
 {
 	check(AudioDevice);
 	check(ActiveSound);
@@ -189,17 +189,17 @@ void FAudioVirtualLoop::Update()
 		TimeSinceLastUpdate += DeltaTime;
 		if (UpdateInterval > TimeSinceLastUpdate)
 		{
-			return;
+			return false;
 		}
 		TimeSinceLastUpdate = 0.0f;
 	}
 
-	if (IsInAudibleRange(*AudioDevice, *ActiveSound))
-	{
-		AudioDevice->RetriggerVirtualLoop(*this);
-	}
-	else
+	// If not audible, update when will be checked again and return false
+	if (!IsInAudibleRange(*AudioDevice, *ActiveSound))
 	{
 		CalculateUpdateInterval();
+		return false;
 	}
+
+	return true;
 }
