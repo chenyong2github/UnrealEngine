@@ -3252,6 +3252,12 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 					break;
 				}
 			}
+
+			// The foliage we are snapping on doesn't have a valid base
+			if (!OutHit.Component.IsValid())
+			{
+				continue; 
+			}
 		}
 
 		return bInsideProceduralVolumeOrArentUsingOne;
