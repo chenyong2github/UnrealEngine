@@ -521,16 +521,22 @@ void AccumulateResults(
 {
 	if (IsHit(Ray, Payload))
 	{
-		uint2 LightCullMask = (uint2)0;
-		const float3 WorldPosition = Ray.Origin + Payload.HitT * Ray.Direction;
-		LightCullMask = CullDirectLighting(Ray, RayCone, WorldPosition, Payload.WorldNormal, RandSequence, ReflectedShadowsType > 0, ShadowMaxNormalBias);
 
 		Payload.DiffuseColor = Payload.BaseColor - Payload.BaseColor * Payload.Metallic;
 		Payload.SpecularColor = ComputeF0(Payload.Specular, Payload.BaseColor, Payload.Metallic);
 
 		if (ShouldDoDirectLighting)
 		{
-			float3 DirectLighting = ComputeDirectLightingCulled(LightCullMask, Ray, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+			uint2 LightCullMask = (uint2)0;
+			const float3 WorldPosition = Ray.Origin + Payload.HitT * Ray.Direction;
+			LightCullMask = CullDirectLighting(Ray, RayCone, WorldPosition, Payload.WorldNormal, RandSequence, ReflectedShadowsType > 0, ShadowMaxNormalBias);
+			
+			float3 DirectLighting = 0;
+				
+			if (Payload.ShadingModelID != SHADINGMODELID_UNLIT)
+			{
+				DirectLighting = ComputeDirectLightingCulled(LightCullMask, Ray, RayCone, TLAS, Payload, RandSequence, ReflectedShadowsType, ShadowMaxNormalBias);
+			}
 
 			// Transform NaNs to black, transform negative colors to black.
 			DirectLighting = -min(-DirectLighting, 0.0);
