@@ -238,6 +238,9 @@ struct RENDERCORE_API FShaderCodeLibrary
 	
 	// Dump collected stats for each shader platform
 	static void DumpShaderCodeStats();
+	
+	// Create a smaller 'patch' library that only contains data from 'NewMetaDataDir' not contained in any of 'OldMetaDataDirs'
+	static bool CreatePatchLibrary(TArray<FString> const& OldMetaDataDirs, FString const& NewMetaDataDir, FString const& OutDir, bool bNativeFormat);
 #endif
 	
 	// Safely assign the hash to a shader object
