@@ -629,6 +629,11 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 		ActiveSound->AddReferencedObjects(Collector);
 	}
 
+	for (TPair<FActiveSound*, FAudioVirtualLoop*>& Pair : VirtualLoops)
+	{
+		Pair.Key->AddReferencedObjects(Collector);
+	}
+
 	// Make sure we don't try to delete any sound waves which may have in-flight decodes
 	Collector.AddReferencedObjects(ReferencedSoundWaves);
 
