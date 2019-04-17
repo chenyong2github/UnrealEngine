@@ -4797,7 +4797,7 @@ void AActor::K2_SetActorRelativeTransform(const FTransform& NewRelativeTransform
 	SetActorRelativeTransform(NewRelativeTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
 }
 
-float AActor::GetGameTimeSinceCreation()
+float AActor::GetGameTimeSinceCreation() const
 {
 	if (UWorld* MyWorld = GetWorld())
 	{
