@@ -561,7 +561,7 @@ void FStreamableHandle::UpdateCombinedHandle()
 		bAllCompleted = bAllCompleted && !ChildHandle->IsLoadingInProgress();
 		bAllCanceled = bAllCanceled && ChildHandle->WasCanceled();
 
-		if (!bAllCompleted || !bAllCanceled)
+		if (!bAllCompleted && !bAllCanceled)
 		{
 			return;
 		}
