@@ -4932,7 +4932,7 @@ void FEngineLoop::PreInitHMDDevice()
 				{
 					if (ExplicitHMDName.Equals(HMDModuleName, ESearchCase::IgnoreCase))
 					{
-						bUnregisterHMDModule = false;
+						bUnregisterHMDModule = !HMDModule->PreInit();
 						break;
 					}
 				}
