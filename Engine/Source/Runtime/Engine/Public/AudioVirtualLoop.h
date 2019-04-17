@@ -46,8 +46,9 @@ public:
 
 	/**
 	  * Updates the loop and checks if ready to play (or 'realize').
+	  * Returns whether or not the sound is ready to be realized.
 	  */
-	void Update();
+	bool Update();
 
 private:
 	void SetActiveSound(const FActiveSound& InActiveSound);
