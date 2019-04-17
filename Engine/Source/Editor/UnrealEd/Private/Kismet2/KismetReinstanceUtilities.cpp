@@ -1909,7 +1909,8 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 	{
 		if (UBlueprint* OldObjBlueprint = Cast<UBlueprint>(InOldObject->GetClass()->ClassGeneratedBy))
 		{
-			if (OldObjBlueprint->GetObjectBeingDebugged() == InOldObject)
+			const UObject* DebugObj = OldObjBlueprint->GetObjectBeingDebugged(EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
+			if (DebugObj == InOldObject)
 			{
 				OldObjBlueprint->SetObjectBeingDebugged(InNewObject);
 			}

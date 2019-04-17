@@ -38,8 +38,6 @@ class ULevelScriptBlueprint : public UBlueprint
 	}
 
 	//~ Begin UBlueprint Interface
-	ENGINE_API virtual UObject* GetObjectBeingDebugged() override;
-	ENGINE_API virtual void SetObjectBeingDebugged(UObject* NewObject) override;
 	ENGINE_API virtual FString GetFriendlyName() const override;
 	//~ End UBlueprint Interface
 
