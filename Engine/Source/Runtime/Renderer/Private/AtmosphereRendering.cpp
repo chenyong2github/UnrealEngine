@@ -1104,76 +1104,6 @@ void FAtmosphericFogSceneInfo::GetLayerValue(int Layer, float& AtmosphereR, FVec
 	DhdH = FVector4(DMin, DMax, DMinP, DMaxP);
 }
 
-FLinearColor FAtmosphericFogSceneInfo::GetTransmittance(const FVector& SunDirection) const
-{
-	// Code from HLSL here as lambda function. It will simulate atmosphere transmittance according to the current sky hardcoded parameterization.
-	// This will change in the future when the sky parameterization and workflow/ui will be updated.
-
-	const int TransmittanceIntegralSamples = 10;
-	const float RadiusLimit = RadiusAtmosphere;
-	const FVector BetaRayleighScattering(5.8e-3f, 1.35e-2f, 3.31e-2f);
-	const FVector BetaMieScattering = FVector(4e-3f, 4e-3f, 4e-3f);
-	const float HeightScaleMie = 1.2f;
-	const float BetaRatio = 0.9f;
-	const FVector BetaMieExtinction = BetaMieScattering / BetaRatio;
-	const float AtmosphericFogHeightScaleRayleigh = RHeight;
-
-	auto Limit = [&](float Radius, float Mu)
-	{
-		float Dout = -Radius * Mu + FMath::Sqrt(Radius * Radius * (Mu * Mu - 1.0) + RadiusLimit * RadiusLimit);
-		float Delta2 = Radius * Radius * (Mu * Mu - 1.0) + RadiusGround * RadiusGround;
-		if (Delta2 >= 0.0)
-		{
-			float Din = -Radius * Mu - FMath::Sqrt(Delta2);
-			if (Din >= 0.0)
-			{
-				Dout = FMath::Min(Dout, Din);
-			}
-		}
-		return Dout;
-	};
-
-	auto OpticalDepth = [&](float H, float Radius, float Mu)
-	{
-		float Result = 0.0;
-		float Dx = Limit(Radius, Mu) / float(TransmittanceIntegralSamples);
-		float Xi = 0.0;
-		float Yi = FMath::Exp(-(Radius - RadiusGround) / H);
-		for (int I = 1; I <= TransmittanceIntegralSamples; ++I)
-		{
-			float Xj = float(I) * Dx;
-			float Yj = FMath::Exp(-(FMath::Sqrt(Radius * Radius + Xj * Xj + 2.0 * Xj * Radius * Mu) - RadiusGround) / H);
-			Result += (Yi + Yj) / 2.0 * Dx;
-			Xi = Xj;
-			Yi = Yj;
-		}
-		return Mu < -FMath::Sqrt(1.0 - (RadiusGround / Radius) * (RadiusGround / Radius)) ? 1e9 : Result;
-	};
-
-	// GetTransmittanceRMuS linear version, assuming we are always close to the ground
-	const float Radius = RadiusGround;
-	float Mu = SunDirection.Z;
-	FVector OpticalDepthRGB = BetaRayleighScattering * OpticalDepth(AtmosphericFogHeightScaleRayleigh, Radius, Mu) + BetaMieExtinction * OpticalDepth(HeightScaleMie, Radius, Mu);
-	OpticalDepthRGB.ComponentMax(FVector(ForceInitToZero));
-
-	return FLinearColor(FMath::Exp(-OpticalDepthRGB.X), FMath::Exp(-OpticalDepthRGB.Y), FMath::Exp(-OpticalDepthRGB.Z));
-}
-
-void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) const
-{
-	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
-	FLinearColor TransmittanceTowardSun = GetTransmittance(-SunLight.Proxy->GetDirection());
-
-	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
-	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenith;
-	
-	// SunDiscScale is only considered as a visual tweak so we do not make it influence the sun disk outerspace luminance.
-	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
-	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation  
-
-	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenith, SunDiskOuterSpaceLuminance);
-}
-
 void FAtmosphericFogSceneInfo::RenderAtmosphereShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FIntRect& ViewRect)
 {
 	const ERHIFeatureLevel::Type ViewFeatureLevel = View.GetFeatureLevel();
@@ -1802,6 +1732,76 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRHICommandListImmediate& RHIC
 	}
 }
 #endif
+
+FLinearColor FAtmosphericFogSceneInfo::GetTransmittance(const FVector& SunDirection) const
+{
+	// Code from HLSL here as lambda function. It will simulate atmosphere transmittance according to the current sky hardcoded parameterization.
+	// This will change in the future when the sky parameterization and workflow/ui will be updated.
+
+	const int TransmittanceIntegralSamples = 10;
+	const float RadiusLimit = RadiusAtmosphere;
+	const FVector BetaRayleighScattering(5.8e-3f, 1.35e-2f, 3.31e-2f);
+	const FVector BetaMieScattering = FVector(4e-3f, 4e-3f, 4e-3f);
+	const float HeightScaleMie = 1.2f;
+	const float BetaRatio = 0.9f;
+	const FVector BetaMieExtinction = BetaMieScattering / BetaRatio;
+	const float AtmosphericFogHeightScaleRayleigh = RHeight;
+
+	auto Limit = [&](float Radius, float Mu)
+	{
+		float Dout = -Radius * Mu + FMath::Sqrt(Radius * Radius * (Mu * Mu - 1.0) + RadiusLimit * RadiusLimit);
+		float Delta2 = Radius * Radius * (Mu * Mu - 1.0) + RadiusGround * RadiusGround;
+		if (Delta2 >= 0.0)
+		{
+			float Din = -Radius * Mu - FMath::Sqrt(Delta2);
+			if (Din >= 0.0)
+			{
+				Dout = FMath::Min(Dout, Din);
+			}
+		}
+		return Dout;
+	};
+
+	auto OpticalDepth = [&](float H, float Radius, float Mu)
+	{
+		float Result = 0.0;
+		float Dx = Limit(Radius, Mu) / float(TransmittanceIntegralSamples);
+		float Xi = 0.0;
+		float Yi = FMath::Exp(-(Radius - RadiusGround) / H);
+		for (int I = 1; I <= TransmittanceIntegralSamples; ++I)
+		{
+			float Xj = float(I) * Dx;
+			float Yj = FMath::Exp(-(FMath::Sqrt(Radius * Radius + Xj * Xj + 2.0 * Xj * Radius * Mu) - RadiusGround) / H);
+			Result += (Yi + Yj) / 2.0 * Dx;
+			Xi = Xj;
+			Yi = Yj;
+		}
+		return Mu < -FMath::Sqrt(1.0 - (RadiusGround / Radius) * (RadiusGround / Radius)) ? 1e9 : Result;
+	};
+
+	// GetTransmittanceRMuS linear version, assuming we are always close to the ground
+	const float Radius = RadiusGround;
+	float Mu = SunDirection.Z;
+	FVector OpticalDepthRGB = BetaRayleighScattering * OpticalDepth(AtmosphericFogHeightScaleRayleigh, Radius, Mu) + BetaMieExtinction * OpticalDepth(HeightScaleMie, Radius, Mu);
+	OpticalDepthRGB.ComponentMax(FVector(ForceInitToZero));
+
+	return FLinearColor(FMath::Exp(-OpticalDepthRGB.X), FMath::Exp(-OpticalDepthRGB.Y), FMath::Exp(-OpticalDepthRGB.Z));
+}
+
+void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) const
+{
+	// See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
+	FLinearColor TransmittanceTowardSun = GetTransmittance(-SunLight.Proxy->GetDirection());
+
+	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
+	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenith;
+
+	// SunDiscScale is only considered as a visual tweak so we do not make it influence the sun disk outerspace luminance.
+	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
+	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation  
+
+	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenith, SunDiskOuterSpaceLuminance);
+}
 
 /** Initialization constructor. */
 FAtmosphericFogSceneInfo::FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene)
