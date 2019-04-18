@@ -837,6 +837,13 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			public ulong? MaxOutputFileSize;
 			/// <summary>
+			/// Optionally provide a tagset to filter the files available from PrevManifestFile. This may increase chunks saved into the chunkdb files, in order to serve data
+			/// from files that are not expected to be available. Most of the time this should be the union of all tags in TagSetSplit, unless tagging is changed between the two manifests.
+			/// An empty string must be included to include untagged files.
+			/// Leaving this variable null will include all files.
+			/// </summary
+			public HashSet<string> PrevManifestTags;
+			/// <summary>
 			/// Optionally provide a list of tagsets to split chunkdb files on. First all data from the tagset at index 0 will be saved, then any extra data needed
 			/// for tagset at index 1, and so on. Note that this means the chunkdb files produced for tagset at index 1 will not contain some required data for that tagset if
 			/// the data already got saved out as part of tagset at index 0, and thus the chunkdb files are additive with no dupes.
@@ -1397,8 +1404,10 @@ namespace EpicGames.MCP.Automation
 		/// <param name="bQuiet">If set to true, all log output for the operation is supressed.</param>
 		/// <param name="Metadata">If not null, key-value pairs of metadata to be applied to the object.</param>
 		/// <returns>A PostFileResult indicating whether the call was successful, and the URL to the uploaded file.</returns>
-		abstract public Task<PostFileResult> PostMultipartFileAsync(string Container, string Identifier, string SourceFilePath, int NumConcurrentConnections, decimal PartSizeMegabytes = 5.0m, string ContentType = null, bool bOverwrite = true, bool bMakePublic = false, bool bQuiet = false, IDictionary<string, object> Metadata = null);
-
+		abstract public Task<PostFileResult> PostMultipartFileAsync(string Container, string Identifier, string SourceFilePath, int NumConcurrentConnections, decimal PartSizeMegabytes = 5.0m, string ContentType = null, bool bOverwrite = true, bool bMakePublic = false, bool bQuiet = false, IDictionary<string, object> Metadata = null);
+
+
+
 		/// <summary>
 		/// Deletes a file from cloud storage
 		/// </summary>
