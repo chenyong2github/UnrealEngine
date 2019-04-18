@@ -626,7 +626,10 @@ UDemoNetDriver::UDemoNetDriver(const FObjectInitializer& ObjectInitializer)
 	bIsWaitingForStream = false;
 	MaxArchiveReadPos = 0;
 
-	LevelIntervals.Reserve(512);
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		LevelIntervals.Reserve(512);
+	}
 
 	RecordBuildConsiderAndPrioritizeTimeSlice = CVarDemoMaximumRepPrioritizeTime.GetValueOnGameThread();
 }
