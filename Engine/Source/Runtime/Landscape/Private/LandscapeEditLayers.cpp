@@ -1504,7 +1504,7 @@ void ALandscape::CopyOldDataToDefaultLayer()
 						LayerData->WeightmapData.TextureUsages[TextureIndex] = WeightmapTextureData->Usage;
 						check(WeightmapTextureData->Usage->LayerGuid == DefaultLayer->Guid);
 
-						for (int32 ChannelIndex = 0; ChannelIndex < 4; ++ChannelIndex)
+						for (int32 ChannelIndex = 0; ChannelIndex < ULandscapeWeightmapUsage::NumChannels; ++ChannelIndex)
 						{
 							const ULandscapeComponent* ChannelLandscapeComponent = LayerData->WeightmapData.TextureUsages[TextureIndex]->ChannelUsage[ChannelIndex];
 
@@ -1537,7 +1537,7 @@ void ALandscape::CopyOldDataToDefaultLayer()
 						LayerData->WeightmapData.Textures[TextureIndex] = NewLayerWeightmapTexture;
 						LayerData->WeightmapData.TextureUsages[TextureIndex] = Proxy->WeightmapUsageMap.Add(NewLayerWeightmapTexture, Proxy->CreateWeightmapUsage());
 
-						for (int32 ChannelIndex = 0; ChannelIndex < 4; ++ChannelIndex)
+						for (int32 ChannelIndex = 0; ChannelIndex < ULandscapeWeightmapUsage::NumChannels; ++ChannelIndex)
 						{
 							LayerData->WeightmapData.TextureUsages[TextureIndex]->ChannelUsage[ChannelIndex] = ComponentWeightmapTexturesUsage[TextureIndex]->ChannelUsage[ChannelIndex];
 						}
@@ -1622,129 +1622,6 @@ void ALandscape::InitializeLayersWeightmapUsage()
 						Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = Component;
 					}
 				}
-			}
-		}
-	});
-}
-
-void ALandscape::InitializeLayerWithEmptyContent(const FGuid& InLayerGUID)
-{
-	ULandscapeInfo* Info = GetLandscapeInfo();
-
-	if (Info == nullptr)
-	{
-		return;
-	}
-
-	FIntPoint NumComponents = ComputeComponentCounts();
-
-	// Build a mapping between each Heightmaps and Component in them
-	TMap<UTexture2D*, TArray<ULandscapeComponent*>> ComponentsPerHeightmaps;
-
-	Info->ForAllLandscapeProxies([&ComponentsPerHeightmaps](ALandscapeProxy* Proxy)
-	{
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-		{
-			UTexture2D* ComponentHeightmapTexture = Component->GetHeightmap();
-			TArray<ULandscapeComponent*>& ComponentList = ComponentsPerHeightmaps.FindOrAdd(ComponentHeightmapTexture);
-			ComponentList.Add(Component);
-		}
-	});
-
-	FIntPoint TotalVertexCount((SubsectionSizeQuads * NumSubsections) * NumComponents.X + 1, (SubsectionSizeQuads * NumSubsections) * NumComponents.Y + 1);
-
-	FLandscapeLayer* Layer = LandscapeLayers.FindByPredicate([&InLayerGUID](const FLandscapeLayer& Other) { return Other.Guid == InLayerGUID; });
-
-	// Init layers with valid "empty" data
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
-	{
-		TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures; // < Final layer texture, New created texture for layer
-
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-		{
-			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
-			const TArray<ULandscapeComponent*>* ComponentsUsingHeightmap = ComponentsPerHeightmaps.Find(ComponentHeightmap);
-			check(ComponentsUsingHeightmap != nullptr);
-
-			// Compute Global layers data
-			FLandscapeLayersGlobalComponentData& GlobalLayersData = Component->GetGlobalLayersData();
-			GlobalLayersData.TopLeftSectionBase = TotalVertexCount;
-
-			for (ULandscapeComponent* ComponentUsingHeightmap : *ComponentsUsingHeightmap)
-			{
-				GlobalLayersData.TopLeftSectionBase.X = FMath::Min(GlobalLayersData.TopLeftSectionBase.X, ComponentUsingHeightmap->GetSectionBase().X);
-				GlobalLayersData.TopLeftSectionBase.Y = FMath::Min(GlobalLayersData.TopLeftSectionBase.Y, ComponentUsingHeightmap->GetSectionBase().Y);
-			}
-
-			// Compute per layer data
-			FLandscapeLayerComponentData* LayerData = Component->GetLayerData(Layer->Guid);
-
-			if (LayerData == nullptr || !LayerData->IsInitialized())
-			{
-				FLandscapeLayerComponentData NewData;
-
-				// Setup Heightmap data
-				UTexture2D** LayerHeightmap = CreatedHeightmapTextures.Find(ComponentHeightmap);
-
-				if (LayerHeightmap == nullptr)
-				{
-					UTexture2D* NewLayerHeightmap = Proxy->CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat());
-					LayerHeightmap = &CreatedHeightmapTextures.Add(ComponentHeightmap, NewLayerHeightmap);
-
-					ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
-
-					// Init Mip0 to be at 32768 which is equal to "0"
-					FColor* Mip0Data = (FColor*)NewLayerHeightmap->Source.LockMip(0);
-
-					for (ULandscapeComponent* ComponentUsingHeightmap : *ComponentsUsingHeightmap)
-					{
-						int32 HeightmapComponentOffsetX = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeX() * ComponentUsingHeightmap->HeightmapScaleBias.Z);
-						int32 HeightmapComponentOffsetY = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeY() * ComponentUsingHeightmap->HeightmapScaleBias.W);
-
-						for (int32 SubsectionY = 0; SubsectionY < NumSubsections; SubsectionY++)
-						{
-							for (int32 SubsectionX = 0; SubsectionX < NumSubsections; SubsectionX++)
-							{
-								for (int32 SubY = 0; SubY <= SubsectionSizeQuads; SubY++)
-								{
-									for (int32 SubX = 0; SubX <= SubsectionSizeQuads; SubX++)
-									{
-										// X/Y of the vertex we're looking at in component's coordinates.
-										const int32 CompX = SubsectionSizeQuads * SubsectionX + SubX;
-										const int32 CompY = SubsectionSizeQuads * SubsectionY + SubY;
-
-										// X/Y of the vertex we're looking indexed into the texture data
-										const int32 TexX = (SubsectionSizeQuads + 1) * SubsectionX + SubX;
-										const int32 TexY = (SubsectionSizeQuads + 1) * SubsectionY + SubY;
-
-										const int32 HeightTexDataIdx = (HeightmapComponentOffsetX + TexX) + (HeightmapComponentOffsetY + TexY) * NewLayerHeightmap->Source.GetSizeX();
-
-										// copy height and normal data
-										const uint16 HeightValue = LandscapeDataAccess::GetTexHeight(0.f);
-
-										Mip0Data[HeightTexDataIdx].R = HeightValue >> 8;
-										Mip0Data[HeightTexDataIdx].G = HeightValue & 255;
-
-										// Normal with get calculated later
-										Mip0Data[HeightTexDataIdx].B = 0.0f;
-										Mip0Data[HeightTexDataIdx].A = 0.0f;
-									}
-								}
-							}
-						}
-					}
-
-					NewLayerHeightmap->Source.UnlockMip(0);
-
-					NewLayerHeightmap->BeginCachePlatformData();
-					NewLayerHeightmap->ClearAllCachedCookedPlatformData();
-				}
-
-				NewData.HeightmapData.Texture = *LayerHeightmap;
-
-				// Nothing to do for Weightmap by default
-
-				Component->AddLayerData(Layer->Guid, MoveTemp(NewData));
 			}
 		}
 	});
@@ -3000,7 +2877,7 @@ void ALandscape::PrepareComponentDataToPackMaterialLayersCS(int32 InCurrentWeigh
 	{
 		FLandscapeLayerWeightmapPackMaterialLayersComponentData Data;
 
-		for (int32 WeightmapChannelIndex = 0; WeightmapChannelIndex < 4; ++WeightmapChannelIndex)
+		for (int32 WeightmapChannelIndex = 0; WeightmapChannelIndex < ULandscapeWeightmapUsage::NumChannels; ++WeightmapChannelIndex)
 		{
 			UTexture2D* ComponentWeightmapTexture = ItPair.Key;
 			ULandscapeWeightmapUsage* ComponentWeightmapTextureUsage = ItPair.Value;
@@ -3098,7 +2975,7 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeLayerInfoObje
 				ULandscapeWeightmapUsage* ComponentWeightmapUsage = ComponentWeightmapTextureUsage[i];
 				ULandscapeWeightmapUsage* Usage = Component->GetLandscapeProxy()->CreateWeightmapUsage();
 
-				for (int32 j = 0; j < 4; ++j)
+				for (int32 j = 0; j < ULandscapeWeightmapUsage::NumChannels; ++j)
 				{
 					Usage->ChannelUsage[j] = ComponentWeightmapUsage->ChannelUsage[j];
 				}
@@ -4250,6 +4127,193 @@ void ALandscapeProxy::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+#if WITH_EDITOR
+bool ALandscapeProxy::RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers)
+{
+	TSet<FGuid> ComponentLayers;
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		Component->ForEachLayer([&](const FGuid& InGuid, FLandscapeLayerComponentData&) { ComponentLayers.Add(InGuid); });
+	}
+
+	bool bModified = false;
+
+	for (const FGuid& LayerGuid : ComponentLayers)
+	{
+		if (!InExistingLayers.Contains(LayerGuid))
+		{
+			DeleteLayer(LayerGuid);
+			bModified = true;
+		}
+	}
+
+	return bModified;
+}
+
+bool ALandscapeProxy::AddLayer(const FGuid& InLayerGuid)
+{
+	bool bModified = false;
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		if (!Component->GetLayerData(InLayerGuid))
+		{
+			Component->AddLayerData(InLayerGuid, FLandscapeLayerComponentData());
+			bModified = true;
+		}
+	}
+
+	if (bModified)
+	{
+		InitializeLayerWithEmptyContent(InLayerGuid);
+	}
+
+	return bModified;
+}
+
+void ALandscapeProxy::DeleteLayer(const FGuid& InLayerGuid)
+{
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		const FLandscapeLayerComponentData* LayerComponentData = Component->GetLayerData(InLayerGuid);
+
+		if (LayerComponentData != nullptr)
+		{
+			for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
+			{
+				UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
+				ULandscapeWeightmapUsage** Usage = WeightmapUsageMap.Find(WeightmapTexture);
+
+				if (Usage != nullptr && (*Usage) != nullptr)
+				{
+					(*Usage)->Modify();
+					(*Usage)->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
+
+					if ((*Usage)->IsEmpty())
+					{
+						Modify();
+						WeightmapUsageMap.Remove(WeightmapTexture);
+					}
+				}
+			}
+			Component->RemoveLayerData(InLayerGuid);
+		}
+	}
+}
+
+void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
+{
+	ULandscapeInfo* Info = GetLandscapeInfo();
+
+	if (Info == nullptr)
+	{
+		return;
+	}
+		
+	// Build a mapping between each Heightmaps and Component in them
+	TMap<UTexture2D*, TArray<ULandscapeComponent*>> ComponentsPerHeightmaps;
+
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		UTexture2D* ComponentHeightmapTexture = Component->GetHeightmap();
+		TArray<ULandscapeComponent*>& ComponentList = ComponentsPerHeightmaps.FindOrAdd(ComponentHeightmapTexture);
+		ComponentList.Add(Component);
+	}
+
+	const FIntPoint InitTopLeftSectionBase(INT_MAX, INT_MAX);
+
+	// Init layers with valid "empty" data
+	TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures; // < Final layer texture, New created texture for layer
+
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		UTexture2D* ComponentHeightmap = Component->GetHeightmap();
+		const TArray<ULandscapeComponent*>* ComponentsUsingHeightmap = ComponentsPerHeightmaps.Find(ComponentHeightmap);
+		check(ComponentsUsingHeightmap != nullptr);
+
+		// Compute Global layers data
+		FLandscapeLayersGlobalComponentData& GlobalLayersData = Component->GetGlobalLayersData();
+		GlobalLayersData.TopLeftSectionBase = InitTopLeftSectionBase;
+
+		for (ULandscapeComponent* ComponentUsingHeightmap : *ComponentsUsingHeightmap)
+		{
+			GlobalLayersData.TopLeftSectionBase.X = FMath::Min(GlobalLayersData.TopLeftSectionBase.X, ComponentUsingHeightmap->GetSectionBase().X);
+			GlobalLayersData.TopLeftSectionBase.Y = FMath::Min(GlobalLayersData.TopLeftSectionBase.Y, ComponentUsingHeightmap->GetSectionBase().Y);
+		}
+
+		// Compute per layer data
+		FLandscapeLayerComponentData* LayerData = Component->GetLayerData(InLayerGuid);
+
+		if (LayerData == nullptr || !LayerData->IsInitialized())
+		{
+			FLandscapeLayerComponentData NewData;
+
+			// Setup Heightmap data
+			UTexture2D** LayerHeightmap = CreatedHeightmapTextures.Find(ComponentHeightmap);
+
+			if (LayerHeightmap == nullptr)
+			{
+				UTexture2D* NewLayerHeightmap = CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat());
+				LayerHeightmap = &CreatedHeightmapTextures.Add(ComponentHeightmap, NewLayerHeightmap);
+
+				ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
+
+				// Init Mip0 to be at 32768 which is equal to "0"
+				FColor* Mip0Data = (FColor*)NewLayerHeightmap->Source.LockMip(0);
+
+				for (ULandscapeComponent* ComponentUsingHeightmap : *ComponentsUsingHeightmap)
+				{
+					int32 HeightmapComponentOffsetX = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeX() * ComponentUsingHeightmap->HeightmapScaleBias.Z);
+					int32 HeightmapComponentOffsetY = FMath::RoundToInt((float)NewLayerHeightmap->Source.GetSizeY() * ComponentUsingHeightmap->HeightmapScaleBias.W);
+
+					for (int32 SubsectionY = 0; SubsectionY < NumSubsections; SubsectionY++)
+					{
+						for (int32 SubsectionX = 0; SubsectionX < NumSubsections; SubsectionX++)
+						{
+							for (int32 SubY = 0; SubY <= SubsectionSizeQuads; SubY++)
+							{
+								for (int32 SubX = 0; SubX <= SubsectionSizeQuads; SubX++)
+								{
+									// X/Y of the vertex we're looking at in component's coordinates.
+									const int32 CompX = SubsectionSizeQuads * SubsectionX + SubX;
+									const int32 CompY = SubsectionSizeQuads * SubsectionY + SubY;
+
+									// X/Y of the vertex we're looking indexed into the texture data
+									const int32 TexX = (SubsectionSizeQuads + 1) * SubsectionX + SubX;
+									const int32 TexY = (SubsectionSizeQuads + 1) * SubsectionY + SubY;
+
+									const int32 HeightTexDataIdx = (HeightmapComponentOffsetX + TexX) + (HeightmapComponentOffsetY + TexY) * NewLayerHeightmap->Source.GetSizeX();
+
+									// copy height and normal data
+									const uint16 HeightValue = LandscapeDataAccess::GetTexHeight(0.f);
+
+									Mip0Data[HeightTexDataIdx].R = HeightValue >> 8;
+									Mip0Data[HeightTexDataIdx].G = HeightValue & 255;
+
+									// Normal with get calculated later
+									Mip0Data[HeightTexDataIdx].B = 0.0f;
+									Mip0Data[HeightTexDataIdx].A = 0.0f;
+								}
+							}
+						}
+					}
+				}
+
+				NewLayerHeightmap->Source.UnlockMip(0);
+
+				NewLayerHeightmap->BeginCachePlatformData();
+				NewLayerHeightmap->ClearAllCachedCookedPlatformData();
+			}
+
+			NewData.HeightmapData.Texture = *LayerHeightmap;
+
+			// Nothing to do for Weightmap by default
+
+			Component->AddLayerData(InLayerGuid, MoveTemp(NewData));
+		}
+	}
+}
+#endif
+
 void ALandscape::BeginDestroy()
 {
 #if WITH_EDITOR
@@ -4449,33 +4513,7 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	// Clean up Weightmap usage in LandscapeProxies
 	LandscapeInfo->ForAllLandscapeProxies([&LayerGuid](ALandscapeProxy* Proxy)
 	{
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-		{
-			const FLandscapeLayerComponentData* LayerComponentData = Component->GetLayerData(LayerGuid);
-
-			if (LayerComponentData != nullptr)
-			{
-				for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
-				{
-					UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-					ULandscapeWeightmapUsage** Usage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
-
-					if (Usage != nullptr && (*Usage) != nullptr)
-					{
-						(*Usage)->Modify();
-						(*Usage)->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
-
-						if ((*Usage)->FreeChannelCount() == 4)
-						{
-							Proxy->Modify();
-							Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
-						}
-					}
-				}
-				Component->Modify();
-				Component->RemoveLayerData(LayerGuid);
-			}
-		}
+		Proxy->DeleteLayer(LayerGuid);
 	});
 
 	const FLandscapeLayer* SplinesReservedLayer = GetLandscapeSplinesReservedLayer();
@@ -4777,14 +4815,8 @@ void ALandscape::CreateLayer(FName InName)
 	// Create associated layer data in each landscape proxy
 	LandscapeInfo->ForAllLandscapeProxies([&NewLayer](ALandscapeProxy* Proxy)
 	{
-		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
-		{
-			Component->Modify();
-			Component->AddLayerData(NewLayer.Guid, FLandscapeLayerComponentData());
-		}
+		Proxy->AddLayer(NewLayer.Guid);
 	});
-
-	InitializeLayerWithEmptyContent(NewLayer.Guid);
 }
 
 bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex)
