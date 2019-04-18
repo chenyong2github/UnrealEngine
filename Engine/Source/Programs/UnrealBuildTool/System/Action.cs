@@ -29,6 +29,8 @@ namespace UnrealBuildTool
 		WriteMetadata,
 
 		PostBuildStep,
+
+		ParseTimingInfo,
 	}
 
 	/// <summary>
@@ -64,6 +66,11 @@ namespace UnrealBuildTool
 		/// For C++ source files, specifies a dependency list file used to check changes to header files
 		/// </summary>
 		public FileItem DependencyListFile;
+
+		/// <summary>
+		/// For C++ source files, specifies a timing file used to track timing information.
+		/// </summary>
+		public FileItem TimingFile;
 
 		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.

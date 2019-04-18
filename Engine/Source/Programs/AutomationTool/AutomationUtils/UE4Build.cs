@@ -32,6 +32,7 @@ namespace AutomationTool
 	[Help("ForceNonUnity", "Toggle to disable the unity build system")]
 	[Help("ForceUnity", "Toggle to force enable the unity build system")]
 	[Help("Licensee", "If set, this build is being compiled by a licensee")]
+	[Help("Timing", "If set, this build will attempt to generate compile timing data")]
 	public class UE4Build
 	{
 		private BuildCommand OwnerCommand;

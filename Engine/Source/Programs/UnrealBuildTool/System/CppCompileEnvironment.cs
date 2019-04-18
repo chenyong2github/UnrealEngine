@@ -303,6 +303,11 @@ namespace UnrealBuildTool
 		public bool bPrintTimingInfo;
 
 		/// <summary>
+		/// Whether to parse timing information for use with chrome://tracing
+		/// </summary>
+		public bool bParseTimingInfoForTracing;
+
+		/// <summary>
 		/// Whether to output a dependencies file along with the output build products
 		/// </summary>
 		public bool bGenerateDependenciesFile = true;
@@ -427,6 +432,7 @@ namespace UnrealBuildTool
 			PGOFilenamePrefix = Other.PGOFilenamePrefix;
 			PGODirectory = Other.PGODirectory;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
+			bParseTimingInfoForTracing = Other.bParseTimingInfoForTracing;
 			bGenerateDependenciesFile = Other.bGenerateDependenciesFile;
 			bAllowRemotelyCompiledPCHs = Other.bAllowRemotelyCompiledPCHs;
 			UserIncludePaths = new HashSet<DirectoryReference>(Other.UserIncludePaths);

@@ -982,6 +982,13 @@ namespace UnrealBuildTool
 		public bool bPrintToolChainTimingInfo = false;
 
 		/// <summary>
+		/// Whether to parse timing data into a tracing file compatible with chrome://tracing.
+		/// </summary>
+		[CommandLine("-Tracing")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bParseTimingInfoForTracing = false;
+
+		/// <summary>
 		/// Whether to hide symbols by default on POSIX platforms
 		/// </summary>
 		[CommandLine("-HideSymbolsByDefault")]
@@ -2165,6 +2172,11 @@ namespace UnrealBuildTool
 		public bool bPrintToolChainTimingInfo
 		{
 			get { return Inner.bPrintToolChainTimingInfo; }
+		}
+
+		public bool bParseTimingInfoForTracing
+		{
+			get { return Inner.bParseTimingInfoForTracing; }
 		}
 
 		public bool bHideSymbolsByDefault

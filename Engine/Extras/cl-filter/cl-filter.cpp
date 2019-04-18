@@ -27,19 +27,21 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	ChildCmdLine += 4;
 
 	// Make sure we've got an output file and compiler path
-	if (ArgC <= 4 || wcscmp(ArgV[2], L"--") != 0)
+	if (ArgC <= 4 || (wcscmp(ArgV[2], L"--") != 0 && wcscmp(ArgV[3], L"--") != 0))
 	{
-		wprintf(L"ERROR: Syntax: cl-filter <dependencies-file> -- <child command line>\n");
+		wprintf(L"ERROR: Syntax: cl-filter <dependencies-file> [timing-file] -- <child command line>\n");
 		return -1;
 	}
 
-	// Get the arguments we care about
+	// Get the arguments we care about.
+	bool ParseTimingInfo = wcscmp(ArgV[2], L"--") != 0 && wcscmp(ArgV[3], L"--") == 0;
 	const wchar_t* OutputFileName = ArgV[1];
-	const wchar_t* CompilerFileName = ArgV[3];
+	const wchar_t* TimingFileName = ParseTimingInfo ? ArgV[2] : nullptr;
+	const wchar_t* CompilerFileName = ParseTimingInfo ? ArgV[4] : ArgV[3];
 
 	// Get all the possible localized string prefixes for /showIncludes output
-	std::vector<std::vector<char>> LocalizedPrefixes;
-	GetLocalizedIncludePrefixes(CompilerFileName, LocalizedPrefixes);
+	std::vector<std::vector<char>> LocalizedIncludePrefixes;
+	GetLocalizedIncludePrefixes(CompilerFileName, LocalizedIncludePrefixes);
 
 	// Create the child process
 	PROCESS_INFORMATION ProcessInfo;
@@ -84,14 +86,24 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	CloseHandle(StdOutWriteHandle);
 	CloseHandle(StdErrWriteHandle);
 
-	// Delete the output file
+	// Delete the output file.
 	DeleteFileW(OutputFileName);
 
-	// Get the path to a temporary output filename
+	// Delete the timing file if needed.
+	if (ParseTimingInfo)
+	{
+		DeleteFileW(TimingFileName);
+	}
+
+	// Get the path to a temporary output filename.
 	std::wstring TempOutputFileName(OutputFileName);
 	TempOutputFileName += L".tmp";
 
-	// Create a file to contain the dependency list
+	// Get the path to a temporary timing filename.
+	std::wstring TempTimingFileName(TimingFileName == nullptr ? L"" : TimingFileName);
+	TempTimingFileName += L".tmp";
+
+	// Create a file to contain the dependency list.
 	HANDLE OutputFile = CreateFileW(TempOutputFileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(OutputFile == INVALID_HANDLE_VALUE)
 	{
@@ -99,10 +111,24 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 		return -1;
 	}
 
+	// If needed, create a file to contain unparsed timing info.
+	HANDLE TimingFile = INVALID_HANDLE_VALUE;
+	if (ParseTimingInfo)
+	{
+		TimingFile = CreateFileW(TempTimingFileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (TimingFile == INVALID_HANDLE_VALUE)
+		{
+			wprintf(L"ERROR: Unable to open %s for output", TempTimingFileName.c_str());
+			return -1;
+		}
+	}
+
 	// Pipe the output to stdout
 	char Buffer[1024];
 	size_t BufferSize = 0;
 
+	bool InTimingInfo = false;
+	int TimingLinesToCapture = 0;
 	for (;;)
 	{
 		// Read the next chunk of data from the output stream
@@ -147,7 +173,7 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 			}
 
 			// Filter out any lines that have the "Note: including file: " prefix.
-			for (const std::vector<char>& LocalizedPrefix : LocalizedPrefixes)
+			for (const std::vector<char>& LocalizedPrefix : LocalizedIncludePrefixes)
 			{
 				if (memcmp(Buffer + LineStart, LocalizedPrefix.data(), LocalizedPrefix.size() - 1) == 0)
 				{
@@ -161,6 +187,43 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 					WriteFile(OutputFile, Buffer + FileNameStart, (DWORD)(LineEnd - FileNameStart), &BytesWritten, NULL);
 					LineStart = LineEnd;
 					break;
+				}
+			}
+
+			// Handling timing info parsing if needed.
+			if (ParseTimingInfo && LineStart < LineEnd)
+			{
+				// See if we've moved into a block of timing information. Order is always Headers -> Classes -> Functions, so to keep for loops to a minimum,
+				//   handle by what our current state is.
+				const char StartTimingInfoText[] = "Include Headers:";
+				const char EndOfTimingInfoText[] = "\tLeast Hits:";
+				if (!InTimingInfo)
+				{
+					if (memcmp(Buffer + LineStart, StartTimingInfoText, 16) == 0)
+					{
+						InTimingInfo = true;
+						TimingLinesToCapture = 1;
+					}
+				}
+				else
+				{
+					if (memcmp(Buffer + LineStart, EndOfTimingInfoText, 12) == 0)
+					{
+						InTimingInfo = false;
+						TimingLinesToCapture = 3;
+					}
+					else
+					{
+						TimingLinesToCapture = 1;
+					}
+				}
+
+				if (TimingLinesToCapture > 0)
+				{
+					--TimingLinesToCapture;
+					DWORD BytesWritten;
+					WriteFile(TimingFile, Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
+					LineStart = LineEnd;
 				}
 			}
 
@@ -194,6 +257,16 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	{
 		wprintf(L"ERROR: Unable to rename %s to %s\n", TempOutputFileName.c_str(), OutputFileName);
 		ExitCode = 1;
+	}
+
+	if (ParseTimingInfo)
+	{
+		CloseHandle(TimingFile);
+		if (ExitCode == 0 && !MoveFileW(TempTimingFileName.c_str(), TimingFileName))
+		{
+			wprintf(L"ERROR: Unable to rename %s to %s\n", TempTimingFileName.c_str(), TimingFileName);
+			ExitCode = 1;
+		}
 	}
 
 	return ExitCode;

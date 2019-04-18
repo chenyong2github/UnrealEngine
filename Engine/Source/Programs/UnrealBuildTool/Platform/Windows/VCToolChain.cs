@@ -1116,10 +1116,7 @@ namespace UnrealBuildTool
 
 				if(CompileEnvironment.bGenerateDependenciesFile)
 				{
-					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".txt"));
-					CompileAction.CommandArguments = String.Format("{0} -- {1} {2} /showIncludes", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location), Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath), CompileAction.CommandArguments);
-					CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
-					CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+					GenerateDependenciesFile(CompileEnvironment, OutputDir, Result, SourceFile, Actions, CompileAction);
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
@@ -1150,7 +1147,81 @@ namespace UnrealBuildTool
 
 				Actions.Add(CompileAction);
 			}
+
 			return Result;
+		}
+
+		private void GenerateDependenciesFile(CppCompileEnvironment CompileEnvironment, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
+		{
+			var commandArguments = new List<string>();
+			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.txt"));
+			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+			commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location));
+
+			if (CompileEnvironment.bPrintTimingInfo)
+			{
+				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.timing.txt"));
+				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
+				commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location));
+
+				var TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".bin"));
+				Result.DebugDataFiles.Add(TimingJsonFile);
+				Result.DebugDataFiles.Add(CompileAction.TimingFile);
+
+				var ParseTimingArguments = new List<string>() { $"-TimingFile=\"{CompileAction.TimingFile}\"" };
+				if (CompileEnvironment.bParseTimingInfoForTracing)
+				{
+					ParseTimingArguments.Add("-Tracing");
+				}
+
+				var ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, string.Join(" ", ParseTimingArguments));
+				ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				ParseTimingInfoAction.StatusDescription = $"Parsing Timing File '{CompileAction.TimingFile}'";
+				ParseTimingInfoAction.bCanExecuteRemotely = true;
+				ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
+				ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
+				ParseTimingInfoAction.ProducedItems.Add(TimingJsonFile);
+				Actions.Add(ParseTimingInfoAction);
+			}
+
+			commandArguments.Add("--");
+			commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
+			commandArguments.Add(CompileAction.CommandArguments);
+			commandArguments.Add("/showIncludes");
+			CompileAction.CommandArguments = string.Join(" ", commandArguments);
+			CompileAction.CommandPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");	
+		}
+
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		{
+			if (Target.bPrintToolChainTimingInfo)
+			{
+				var ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo);
+				Makefile.OutputItems.AddRange(ParseTimingActions.SelectMany(x => x.ProducedItems));
+
+				// Handing generating aggregate timing information if we compiled more than one file.
+				if (ParseTimingActions.Count() > 1)
+				{
+					// Find all .timing.json files.
+					var TimingJsonFiles = ParseTimingActions.Select(a => a.ProducedItems.First());
+
+					// Generate the file manifest for the aggregator.
+					var ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.txt");
+					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
+
+					var AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, $"-Name={Target.Name} -ManifestFile=\"{ManifestFile.FullName}\"");
+					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count()} Timing File(s)";
+					AggregateTimingInfoAction.bCanExecuteRemotely = false;
+					AggregateTimingInfoAction.PrerequisiteItems.AddRange(ParseTimingActions.SelectMany(a => a.PrerequisiteItems));
+					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+
+					var AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
+					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+					Makefile.OutputItems.Add(AggregateOutputFile);
+					Makefile.Actions.Add(AggregateTimingInfoAction);
+				}
+			}
 		}
 
 		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
