@@ -5209,6 +5209,9 @@ void FEditorViewportClient::MouseMove(FViewport* InViewport,int32 x, int32 y)
 
 	// Let the current editor mode know about the mouse movement.
 	ModeTools->MouseMove(this, Viewport, x, y);
+
+	CachedLastMouseX = x;
+	CachedLastMouseY = y;
 }
 
 void FEditorViewportClient::MouseLeave(FViewport* InViewport)
