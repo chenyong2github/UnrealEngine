@@ -456,6 +456,11 @@ uint32 FWindowsPlatformProcess::GetCurrentProcessId()
 	return ::GetCurrentProcessId();
 }
 
+uint32 FWindowsPlatformProcess::GetCurrentCoreNumber()
+{
+	return ::GetCurrentProcessorNumber();
+}
+
 void FWindowsPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 {
 	if( AffinityMask != FPlatformAffinity::GetNoAffinityMask() )
