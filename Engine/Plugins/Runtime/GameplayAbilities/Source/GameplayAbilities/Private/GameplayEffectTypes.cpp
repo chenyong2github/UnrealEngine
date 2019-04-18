@@ -417,7 +417,7 @@ void FGameplayTagCountContainer::Reset()
 	OnAnyTagChangeDelegate.Clear();
 }
 
-bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta)
+bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, int32 CountDelta, bool bDeferParentTagsOnRemove)
 {
 	const bool bTagAlreadyExplicitlyExists = ExplicitTags.HasTagExact(Tag);
 
@@ -451,7 +451,7 @@ bool FGameplayTagCountContainer::UpdateTagMap_Internal(const FGameplayTag& Tag, 
 	if (ExistingCount <= 0)
 	{
 		// Remove from the explicit list
-		ExplicitTags.RemoveTag(Tag);
+		ExplicitTags.RemoveTag(Tag, bDeferParentTagsOnRemove);
 	}
 
 	// Check if change delegates are required to fire for the tag or any of its parents based on the count change
