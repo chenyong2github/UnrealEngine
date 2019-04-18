@@ -6,7 +6,6 @@
 #include "Containers/ResourceArray.h"
 #include "RHI.h"
 #include "RenderResource.h"
-#include "Atmosphere/AtmosphericFogComponent.h"
 
 // Shared by Engine class and Renderer class, need to be core?
 

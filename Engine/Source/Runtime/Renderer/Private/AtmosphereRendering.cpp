@@ -15,7 +15,6 @@
 #include "Atmosphere/AtmosphericFogComponent.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "GlobalShader.h"
-#include "AtmosphereTextureParameters.h"
 #include "SceneRenderTargetParameters.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
@@ -26,6 +25,78 @@
 #include "LightSceneInfo.h"
 DECLARE_GPU_STAT(Atmosphere);
 DECLARE_GPU_STAT(AtmospherePreCompute);
+
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphereShaderTextureParameters
+
+
+/** Shader parameters needed for atmosphere passes. */
+class FAtmosphereShaderTextureParameters
+{
+public:
+	void Bind(const FShaderParameterMap& ParameterMap);
+
+	template< typename ShaderRHIParamRef >
+	FORCEINLINE_DEBUGGABLE void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View) const
+	{
+		if (TransmittanceTexture.IsBound() || IrradianceTexture.IsBound() || InscatterTexture.IsBound())
+		{
+			SetTextureParameter(RHICmdList, ShaderRHI, TransmittanceTexture, TransmittanceTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereTransmittanceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, IrradianceTexture, IrradianceTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereIrradianceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, InscatterTexture, InscatterTextureSampler,
+				TStaticSamplerState<SF_Bilinear>::GetRHI(), View.AtmosphereInscatterTexture);
+		}
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FAtmosphereShaderTextureParameters& P);
+
+private:
+	FShaderResourceParameter TransmittanceTexture;
+	FShaderResourceParameter TransmittanceTextureSampler;
+	FShaderResourceParameter IrradianceTexture;
+	FShaderResourceParameter IrradianceTextureSampler;
+	FShaderResourceParameter InscatterTexture;
+	FShaderResourceParameter InscatterTextureSampler;
+};
+
+void FAtmosphereShaderTextureParameters::Bind(const FShaderParameterMap& ParameterMap)
+{
+	TransmittanceTexture.Bind(ParameterMap, TEXT("AtmosphereTransmittanceTexture"));
+	TransmittanceTextureSampler.Bind(ParameterMap, TEXT("AtmosphereTransmittanceTextureSampler"));
+	IrradianceTexture.Bind(ParameterMap, TEXT("AtmosphereIrradianceTexture"));
+	IrradianceTextureSampler.Bind(ParameterMap, TEXT("AtmosphereIrradianceTextureSampler"));
+	InscatterTexture.Bind(ParameterMap, TEXT("AtmosphereInscatterTexture"));
+	InscatterTextureSampler.Bind(ParameterMap, TEXT("AtmosphereInscatterTextureSampler"));
+}
+
+#define IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET( ShaderRHIParamRef ) \
+	template void FAtmosphereShaderTextureParameters::Set< ShaderRHIParamRef >( FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View ) const;
+
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FVertexShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FHullShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FDomainShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FGeometryShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FPixelShaderRHIParamRef);
+IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FComputeShaderRHIParamRef);
+
+FArchive& operator<<(FArchive& Ar, FAtmosphereShaderTextureParameters& Parameters)
+{
+	Ar << Parameters.TransmittanceTexture;
+	Ar << Parameters.TransmittanceTextureSampler;
+	Ar << Parameters.IrradianceTexture;
+	Ar << Parameters.IrradianceTextureSampler;
+	Ar << Parameters.InscatterTexture;
+	Ar << Parameters.InscatterTextureSampler;
+	return Ar;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphereShaderPrecomputeTextureParameters
+
 
 class FAtmosphereShaderPrecomputeTextureParameters
 {
@@ -154,6 +225,11 @@ FArchive& operator<<(FArchive& Ar,FAtmosphereShaderPrecomputeTextureParameters& 
 	}
 	return Ar;
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// Global shaders
+
 
 /** A pixel shader for rendering atmospheric fog. */
 class FAtmosphericFogPS : public FGlobalShader
@@ -1029,6 +1105,11 @@ IMPLEMENT_SHADER_TYPE(,FAtmosphereCopyInscatterFBackPS,TEXT("/Engine/Private/Atm
 IMPLEMENT_SHADER_TYPE(,FAtmospherePrecomputeVS,TEXT("/Engine/Private/AtmospherePrecompute.usf"),TEXT("MainVS"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FAtmospherePrecomputeInscatterVS,TEXT("/Engine/Private/AtmospherePrecomputeInscatter.usf"),TEXT("MainVS"),SF_Vertex);
 
+
+//////////////////////////////////////////////////////////////////////////
+// FAtmosphericFogSceneInfo
+
+
 namespace
 {
 	enum
@@ -1884,6 +1965,11 @@ bool ShouldRenderAtmosphere(const FSceneViewFamily& Family)
 		&& EngineShowFlags.Fog
 		&& SupportAtmosphericFog->GetValueOnAnyThread();
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// FScene
+
 
 void FScene::AddAtmosphericFog(UAtmosphericFogComponent* FogComponent)
 {
