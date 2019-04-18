@@ -2404,6 +2404,9 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(MiniFontTexture, *MiniFontTextureName.ToString());
 	LoadEngineTexture(WeightMapPlaceholderTexture, *WeightMapPlaceholderTextureName.ToString());
 	LoadEngineTexture(LightMapDensityTexture, *LightMapDensityTextureName.ToString());
+#if RHI_RAYTRACING
+	LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
+#endif
 
 	if ( DefaultPhysMaterial == NULL )
 	{

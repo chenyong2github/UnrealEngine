@@ -1191,6 +1191,13 @@ public:
 	UPROPERTY(globalconfig)
 	FSoftObjectPath PreIntegratedSkinBRDFTextureName;
 
+	/** Tiled blue-noise texture */
+	UPROPERTY()
+	class UTexture2D* BlueNoiseTexture;
+
+	UPROPERTY(globalconfig)
+	FSoftObjectPath BlueNoiseTextureName;
+
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
 	class UTexture2D* MiniFontTexture;
