@@ -3076,7 +3076,7 @@ void FBlueprintGraphArgumentLayout::OnArgNameTextCommitted(const FText& NewText,
 	{
 		const FName OldName = ParamItemPtr.Pin()->PinName;
 		const FString& NewName = NewText.ToString();
-		if (OldName.ToString() != NewName)
+		if (!OldName.ToString().Equals(NewName))
 		{
 			GraphActionDetailsPtr.Pin()->OnPinRenamed(TargetNode, OldName, NewName);
 		}
