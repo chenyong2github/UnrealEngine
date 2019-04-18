@@ -438,9 +438,9 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 #endif
 
-	TrimDuplicates(OutInstanceLayers);
 	if (OutInstanceLayers.Num() > 0)
 	{
+		TrimDuplicates(OutInstanceLayers);
 		UE_LOG(LogVulkanRHI, Display, TEXT("Using instance layers"));
 		for (const ANSICHAR* Layer : OutInstanceLayers)
 		{
@@ -452,9 +452,9 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		UE_LOG(LogVulkanRHI, Display, TEXT("Not using instance layers"));
 	}
 
-	TrimDuplicates(OutInstanceExtensions);
 	if (OutInstanceExtensions.Num() > 0)
 	{
+		TrimDuplicates(OutInstanceExtensions);
 		UE_LOG(LogVulkanRHI, Display, TEXT("Using instance extensions"));
 		for (const ANSICHAR* Extension : OutInstanceExtensions)
 		{
@@ -639,7 +639,6 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(TArray<const ANSICHAR*>& OutDev
 		if (ListContains(AvailableExtensions, PlatformExtension))
 		{
 			OutDeviceExtensions.Add(PlatformExtension);
-			break;
 		}
 	}
 
@@ -665,6 +664,8 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(TArray<const ANSICHAR*>& OutDev
 
 	if (OutDeviceExtensions.Num() > 0)
 	{
+		TrimDuplicates(OutDeviceExtensions);
+
 		UE_LOG(LogVulkanRHI, Display, TEXT("Using device extensions"));
 		for (const ANSICHAR* Extension : OutDeviceExtensions)
 		{
@@ -674,6 +675,8 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(TArray<const ANSICHAR*>& OutDev
 
 	if (OutDeviceLayers.Num() > 0)
 	{
+		TrimDuplicates(OutDeviceLayers);
+
 		UE_LOG(LogVulkanRHI, Display, TEXT("Using device layers"));
 		for (const ANSICHAR* Layer : OutDeviceLayers)
 		{
