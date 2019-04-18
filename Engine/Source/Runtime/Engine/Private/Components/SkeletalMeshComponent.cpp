@@ -594,6 +594,8 @@ void USkeletalMeshComponent::OnUnregister()
 
 void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SkelMeshComp_InitAnim);
+
 	// a lot of places just call InitAnim without checking Mesh, so 
 	// I'm moving the check here
 	if ( SkeletalMesh != nullptr && IsRegistered() )
