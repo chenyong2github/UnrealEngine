@@ -81,6 +81,9 @@ struct CORE_API FRenderingObjectVersion
 
 		LightmapHasShadowmapData,
 
+		// Removed old gaussian and bokeh DOF methods from deferred shading renderer.
+		DiaphragmDOFOnlyForDeferredShadingRenderer,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

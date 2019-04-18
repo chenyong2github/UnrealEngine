@@ -67,33 +67,21 @@ bool APostProcessVolume::CanEditChange(const UProperty* InProperty) const
 		// Settings, can be shared for multiple objects types (volume, component, camera, player)
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		{
-			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldScale))
-			{
-				return	( Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_BokehDOF ||
-						  Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_Gaussian );
-			}
+			FSceneInterface* Scene = GetWorld()->Scene;
+			bool bIsMobile = Scene->GetShadingPath(Scene->GetFeatureLevel()) == EShadingPath::Mobile;
+			bool bHaveGaussianDOF = bIsMobile;
+			bool bHaveCinematicDOF = !bIsMobile;
 
-			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldMaxBokehSize) ||
-				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldColorThreshold) ||
-				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldSizeThreshold) ||
-				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldBokehShape))
-			{
-				return Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_BokehDOF;
-			}
-
-			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldNearBlurSize) ||
+			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldScale) ||
+				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldNearBlurSize) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldFarBlurSize) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldSkyFocusDistance) ||
-				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldVignetteSize))
-			{
-				return Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_Gaussian;
-			}
-
-			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldNearTransitionRegion) ||
+				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldVignetteSize) ||
+				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldNearTransitionRegion) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldFarTransitionRegion) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldFocalRegion))
 			{
-				return Settings.DepthOfFieldMethod != EDepthOfFieldMethod::DOFM_CircleDOF;
+				return bHaveGaussianDOF;
 			}
 
 			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldDepthBlurAmount) ||
@@ -101,12 +89,12 @@ bool APostProcessVolume::CanEditChange(const UProperty* InProperty) const
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldMinFstop) ||
 				PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldBladeCount))
 			{
-				return Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_CircleDOF;
+				return bHaveCinematicDOF;
 			}
 
 			if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FPostProcessSettings, DepthOfFieldFstop))
 			{
-				return	( Settings.DepthOfFieldMethod == EDepthOfFieldMethod::DOFM_CircleDOF || 
+				return	( bHaveCinematicDOF || 
 					      Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Manual );
 			}
 

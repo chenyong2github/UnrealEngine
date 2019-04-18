@@ -27,7 +27,6 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
 #include "PostProcess/PostProcessBusyWait.h"
-#include "PostProcess/PostProcessCircleDOF.h"
 #include "AtmosphereRendering.h"
 #include "Matinee/MatineeActor.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -51,6 +50,7 @@
 #include "VisualizeTexturePresent.h"
 #include "MeshDrawCommands.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "DiaphragmDOF.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1373,7 +1373,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
-	ViewUniformShaderParameters.CircleDOFParams = CircleDofHalfCoc(*this);
+	ViewUniformShaderParameters.CircleDOFParams = DiaphragmDOF::CircleDofHalfCoc(*this);
 
 	ERHIFeatureLevel::Type RHIFeatureLevel = Scene == nullptr ? GMaxRHIFeatureLevel : Scene->GetFeatureLevel();
 

@@ -22,6 +22,9 @@ struct FTemporalAAHistory;
 
 namespace DiaphragmDOF
 {
+	
+float ComputeFocalLengthFromFov(const FSceneView& View);
+FVector4 CircleDofHalfCoc(const FViewInfo& View);
 
 /** Physically based circle of confusion computation model. */
 struct FPhysicalCocModel
