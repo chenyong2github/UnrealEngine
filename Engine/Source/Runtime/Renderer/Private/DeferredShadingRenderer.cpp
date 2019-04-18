@@ -1781,7 +1781,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 				if (IsSubsurfaceRequiredForView(View))
 				{
-					FScreenPassContext* Context = FScreenPassContext::Create(RHICmdList, View);
+					FScreenPassContext* Context = GraphBuilder.AllocObject<FScreenPassContext>(RHICmdList, View);
 
 					const FScreenPassTexture Input = FScreenPassTexture::Create(SceneColorTexture, View.ViewRect);
 

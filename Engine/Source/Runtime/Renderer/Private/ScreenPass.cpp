@@ -163,11 +163,6 @@ FScreenPassCommonParameters GetScreenPassCommonParameters(FRHICommandListImmedia
 	return Parameters;
 }
 
-FScreenPassContext* FScreenPassContext::Create(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView)
-{
-	return new(FMemStack::Get()) FScreenPassContext(RHICmdList, InView);
-}
-
 FScreenPassContext::FScreenPassContext(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView)
 	: View(InView)
 	, ViewFamily(*View.Family)

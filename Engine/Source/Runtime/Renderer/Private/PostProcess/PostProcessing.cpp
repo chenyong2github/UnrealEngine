@@ -1771,7 +1771,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					{
 						OutColorTexture = VisualizeMotionBlur(
 							GraphBuilder,
-							FScreenPassContext::Create(InContext.RHICmdList, InContext.View),
+							GraphBuilder.AllocObject<FScreenPassContext>(InContext.RHICmdList, InContext.View),
 							ColorTexture,
 							DepthTexture,
 							VelocityTexture);
@@ -1780,7 +1780,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					{
 						OutColorTexture = ComputeMotionBlur(
 							GraphBuilder,
-							FScreenPassContext::Create(InContext.RHICmdList, InContext.View),
+							GraphBuilder.AllocObject<FScreenPassContext>(InContext.RHICmdList, InContext.View),
 							ColorTexture,
 							DepthTexture,
 							VelocityTexture);

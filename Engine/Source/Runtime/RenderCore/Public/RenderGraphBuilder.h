@@ -401,6 +401,27 @@ public:
 		return CreateUAV( FRDGBufferUAVDesc(Buffer, Format) );
 	}
 
+	/**
+	 * Allocates an object that will have the same lifetime as this graph builder.
+	 * Destructor will be automatically called for this object when the graph builder itself is destroyed.
+	 */
+	template<typename T, typename... TArgs>
+	FORCEINLINE_DEBUGGABLE T* AllocObject(TArgs&&... Args)
+	{
+		// Owned objects must be deleted in stack order, therefore destruction stack is pushed before object is constructed.
+		// This ensures that any child objects are placed after the parents in the OwnedObjects array.
+		int32 Index = OwnedObjects.AddDefaulted();
+
+		T* Result = new (FMemStack::Get()) T(Forward<TArgs>(Args)...);
+
+		FOwnedObjectPtr OwnedObject;
+		OwnedObject.Ptr = Result;
+		OwnedObject.Deleter = [](void* InPtr) { ((T*)InPtr)->~T(); };
+		OwnedObjects[Index] = OwnedObject;
+
+		return Result;
+	}
+
 	/** Allocates parameter struct specifically to survive through the life time of the render graph. */
 	template< typename ParameterStructType >
 	FORCEINLINE_DEBUGGABLE ParameterStructType* AllocParameters()
@@ -626,6 +647,15 @@ private:
 		// All recently allocated pass parameter structure, but not used by a AddPass() yet.
 		TSet<void*> AllocatedUnusedPassParameters;
 	#endif
+
+	/** Holds objects that are allocated and owned by this graph builder. Allow calling correct destructors at shutdown. */
+	struct FOwnedObjectPtr
+	{
+		typedef void(*DeleterCallback)(void*);
+		void* Ptr = nullptr;
+		DeleterCallback Deleter = nullptr;
+	};
+	TArray<FOwnedObjectPtr, SceneRenderingAllocator> OwnedObjects;
 
 	void DebugPass(const FRenderGraphPass* Pass);
 	void ValidatePass(const FRenderGraphPass* Pass) const;

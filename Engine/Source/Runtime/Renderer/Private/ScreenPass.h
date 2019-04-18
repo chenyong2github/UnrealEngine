@@ -217,8 +217,10 @@ FScreenPassCommonParameters GetScreenPassCommonParameters(FRHICommandListImmedia
 class FScreenPassContext
 {
 public:
-	// Creates an instance of the context on the stack specifically to survive through the lifetime of the render graph.
-	static FScreenPassContext* Create(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView);
+
+	UE_NONCOPYABLE(FScreenPassContext)
+
+	FScreenPassContext(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView);
 
 	// The current view instance being processed.
 	const FViewInfo& View;
@@ -246,10 +248,6 @@ public:
 
 	// Common screen space parameters, filled at context creation time.
 	const FScreenPassCommonParameters ScreenPassCommonParameters;
-
-private:
-	FScreenPassContext(FRHICommandListImmediate& RHICmdList, const FViewInfo& InView);
-	FScreenPassContext(const FScreenPassContext&) = delete;
 };
 
 using FScreenPassContextRef = const FScreenPassContext*;

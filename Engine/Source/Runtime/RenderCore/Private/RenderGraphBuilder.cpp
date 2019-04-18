@@ -1474,6 +1474,14 @@ void FRDGBuilder::DestructPasses()
 
 FRDGBuilder::~FRDGBuilder()
 {
+	// Owned objects must be destroyed in reverse allocation order to ensure that children are destroyed before parents.
+	while(OwnedObjects.Num())
+	{
+		FOwnedObjectPtr& Obj = OwnedObjects.Last();
+		Obj.Deleter(Obj.Ptr);
+		OwnedObjects.Pop(false);
+	}
+
 	#if RENDER_GRAPH_DEBUGGING
 	{
 		checkf(bHasExecuted, TEXT("Render graph execution si required to ensure consistency with immediate mode."));

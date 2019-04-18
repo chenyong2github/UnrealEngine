@@ -682,7 +682,7 @@ void FSubsurfaceVisualizeCompositePass::Process(FRenderingCompositePassContext& 
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	FScreenPassContext* Context = FScreenPassContext::Create(RHICmdList, CompositePassContext.View);
+	FScreenPassContext* Context = GraphBuilder.AllocObject<FScreenPassContext>(RHICmdList, CompositePassContext.View);
 
 	const FScreenPassTexture TextureInput = FScreenPassTexture::Create(
 		CreateRDGTextureForInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"), eFC_0000),
