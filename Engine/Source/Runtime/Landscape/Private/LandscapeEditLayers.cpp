@@ -3957,6 +3957,8 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 			Component->LODIndexToMaterialIndex.Empty(1);
 			Component->LODIndexToMaterialIndex.Add(0);
 		}
+
+		Component->EditToolRenderData.UpdateDebugColorMaterial(Component);
 	}
 
 	// End material update
