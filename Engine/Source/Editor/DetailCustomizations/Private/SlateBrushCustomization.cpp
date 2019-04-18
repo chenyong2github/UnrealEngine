@@ -1148,29 +1148,13 @@ class SBrushResourceObjectBox : public SCompoundWidget
 				]
 			]
 		];
+
+		UpdateResourceError();
 	}
 
 	void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 	{
-		UObject* Resource = nullptr;
-
-		if( ResourceObjectProperty->GetValue(Resource) == FPropertyAccess::Success && Resource && Resource->IsA<UMaterialInterface>() )
-		{
-			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>( Resource );
-			UMaterial* BaseMaterial = MaterialInterface->GetBaseMaterial();
-			if( BaseMaterial && !BaseMaterial->IsUIMaterial() )
-			{
-				ResourceError->SetVisibility( EVisibility::Visible );
-			}
-			else
-			{
-				ResourceError->SetVisibility( EVisibility::Collapsed );
-			}
-		}
-		else if( ResourceError->GetVisibility() != EVisibility::Collapsed )
-		{
-			ResourceError->SetVisibility( EVisibility::Collapsed );
-		}
+		UpdateResourceError();
 	}
 
 private:
@@ -1235,6 +1219,29 @@ private:
 				FPropertyChangedEvent ChangeEvent( MaterialDomainProp );
 				BaseMaterial->PostEditChangeProperty( ChangeEvent );
 			}
+		}
+	}
+
+	void UpdateResourceError()
+	{
+		UObject* Resource = nullptr;
+
+		if (ResourceObjectProperty->GetValue(Resource) == FPropertyAccess::Success && Resource && Resource->IsA<UMaterialInterface>())
+		{
+			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Resource);
+			UMaterial* BaseMaterial = MaterialInterface->GetBaseMaterial();
+			if (BaseMaterial && !BaseMaterial->IsUIMaterial())
+			{
+				ResourceError->SetVisibility(EVisibility::Visible);
+			}
+			else
+			{
+				ResourceError->SetVisibility(EVisibility::Collapsed);
+			}
+		}
+		else if (ResourceError->GetVisibility() != EVisibility::Collapsed)
+		{
+			ResourceError->SetVisibility(EVisibility::Collapsed);
 		}
 	}
 
