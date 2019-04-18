@@ -125,13 +125,9 @@ void FAudioVirtualLoop::SetActiveSound(const FActiveSound& InActiveSound)
 	ActiveSound->SetAudioComponent(InActiveSound);
 	ActiveSound->SetAudioDevice(AudioDevice);
 
-	if (GIsEditor)
-	{
-		ActiveSound->SetWorld(InActiveSound.GetWorld());
-	}
-
 	ActiveSound->SetSound(InActiveSound.GetSound());
 	ActiveSound->SetSoundClass(InActiveSound.GetSoundClass());
+	ActiveSound->SetWorld(InActiveSound.GetWorld());
 
 	ActiveSound->ConcurrencySet = InActiveSound.ConcurrencySet;
 	ActiveSound->VolumeMultiplier = InActiveSound.VolumeMultiplier;
