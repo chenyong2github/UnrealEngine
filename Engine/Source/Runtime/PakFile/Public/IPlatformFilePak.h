@@ -517,13 +517,13 @@ class PAKFILE_API FPakFile : FNoncopyable
 	/** Pak Index organized as a map of directories for faster Directory iteration. Completely valid only when bFilenamesRemoved == false, although portions may still be valid after a call to UnloadPakEntryFilenames() while utilizing DirectoryRootsToKeep. */
 	TMap<FString, FPakDirectory> Index;
 	/** The hash to use when generating a filename hash (CRC) to avoid collisions within the hashed filename space. */
-	uint32 FilenameStartHash;
+	uint64 FilenameStartHash;
 	/** An array of 256 + 1 size that represents the starting index of the most significant byte of a hash group within the FilenameHashes array. */
 	uint32* FilenameHashesIndex;
 	/** An array of NumEntries size mapping 1:1 with FilenameHashes and describing the index of the FPakEntry. */
 	int32* FilenameHashesIndices;
 	/** A tightly packed array of filename hashes (CRC) of NumEntries size. */
-	uint32* FilenameHashes;
+	uint64* FilenameHashes;
 	/** A tightly packed array, NumEntries in size, of offsets to the pak entry data within the MiniPakEntries buffer */
 	uint32* MiniPakEntriesOffsets;
 	/** Memory buffer representing the minimal file entry headers, NumEntries in size */
@@ -549,8 +549,8 @@ class PAKFILE_API FPakFile : FNoncopyable
 
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{
-		const uint32* LeftHash = (const uint32*)Left;
-		const uint32* RightHash = (const uint32*)Right;
+		const uint64* LeftHash = (const uint64*)Left;
+		const uint64* RightHash = (const uint64*)Right;
 		if (*LeftHash < *RightHash)
 		{
 			return -1;
@@ -945,7 +945,7 @@ public:
 	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
 	 */
-	bool UnloadPakEntryFilenames(TMap<uint32, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
