@@ -112,6 +112,8 @@ protected:
     void GameLogicFrameTick();
     void EarlyPlayRenderFrameTick();
 
+	void PlatformSpecificGameLogicFrameTick();
+
     /*** These functions describe how everything is handled during an non-Early PreLoadPlay. Everything is handled asynchronously in this case with a standalone renderer ***/
     void HandleEngineLoadingPlay();
 
@@ -144,4 +146,13 @@ protected:
 
     float OriginalSlateSleepVariableValue;
     bool bIsEngineLoadingComplete;
+
+private:
+#if PLATFORM_ANDROID
+	void Android_PlatformSpecificGameLogicFrameTick();
+#endif //PLATFORM_ANDROID
+
+#if PLATFORM_IOS
+	void IOS_PlatformSpecificGameLogicFrameTick();
+#endif //PLATFORM_IOS
 };
