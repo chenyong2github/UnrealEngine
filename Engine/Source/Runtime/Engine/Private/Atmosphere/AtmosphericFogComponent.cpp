@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Atmosphere/Atmosphere.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineDefines.h"
