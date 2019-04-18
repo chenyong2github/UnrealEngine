@@ -611,7 +611,7 @@ public:
 							UTexture2D* CurrentWeightmapTexture = nullptr;
 							ULandscapeWeightmapUsage* CurrentWeightmapUsage = nullptr;
 
-							if (TotalNeededChannels < 4)
+							if (TotalNeededChannels < ULandscapeWeightmapUsage::NumChannels)
 							{
 								// UE_LOG(LogLandscape, Log, TEXT("Looking for nearest"));
 
@@ -623,7 +623,7 @@ public:
 									if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels) // TODO: handle layers
 									{
 										// See if this candidate is closer than any others we've found
-										for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
+										for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels; ChanIdx++)
 										{
 											if (TryWeightmapUsage->ChannelUsage[ChanIdx] != nullptr)
 											{
@@ -663,7 +663,7 @@ public:
 
 							NewWeightmapTextures.Add(CurrentWeightmapTexture);
 
-							for (int32 ChanIdx = 0; ChanIdx < 4 && TotalNeededChannels > 0; ChanIdx++)
+							for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels && TotalNeededChannels > 0; ChanIdx++)
 							{
 								// UE_LOG(LogLandscape, Log, TEXT("Finding allocation for layer %d"), CurrentLayer);
 

@@ -816,8 +816,9 @@ public:
 
 	// Copy properties from parent Landscape actor
 	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
-	// Assign only mismatched properties and mark proxy package dirty
-	LANDSCAPE_API void ConditionalAssignCommonProperties(ALandscape* Landscape);
+
+	// Assign only mismatching data and mark proxy package dirty
+	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
 	
 	/** Get the LandcapeActor-to-world transform with respect to landscape section offset*/
 	LANDSCAPE_API FTransform LandscapeActorToWorld() const;
@@ -938,6 +939,26 @@ public:
 
 	DECLARE_EVENT(ALandscape, FLandscapeMaterialChangedDelegate);
 	FLandscapeMaterialChangedDelegate& OnMaterialChangedDelegate() { return LandscapeMaterialChangedDelegate; }
+
+protected:
+	friend class ALandscape;
+
+	/** Add Layer if it doesn't exist yet.
+	* @return True if layer was added.
+	*/
+	LANDSCAPE_API bool AddLayer(const FGuid& InLayerGuid);
+
+	/** Delete Layer.
+	*/
+	LANDSCAPE_API void DeleteLayer(const FGuid& InLayerGuid);
+
+	/** Remove Layers not found in InExistingLayers
+	* @return True if some layers were removed.
+	*/
+	LANDSCAPE_API bool RemoveObsoleteLayers(const TSet<FGuid>& InExistingLayers);
+
+	/** Initialize Layer with empty content if it hasn't been initialized yet. */
+	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
