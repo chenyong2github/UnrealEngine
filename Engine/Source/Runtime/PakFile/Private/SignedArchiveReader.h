@@ -201,6 +201,13 @@ public:
 	 */
 	void ReleaseChunk(FChunkRequest& Chunk);
 
+
+	/**
+	* Indicates that this chunk worker is valid. If the signature file couldn't be loaded or if it failed
+	* the master table check, this will be false
+	*/
+	bool IsValid() const;
+
 	friend class FSignedArchiveReader;
 };
 

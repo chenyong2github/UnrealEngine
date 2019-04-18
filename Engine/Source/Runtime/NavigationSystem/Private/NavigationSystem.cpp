@@ -47,6 +47,7 @@
 #include "NavigationPath.h"
 #include "AbstractNavData.h"
 #include "CrowdManagerBase.h"
+#include "AI/NavigationModifier.h"
 
 
 static const uint32 INITIAL_ASYNC_QUERIES_SIZE = 32;
@@ -2617,6 +2618,11 @@ const FNavigationRelevantData* UNavigationSystemV1::GetDataForObject(const UObje
 	return nullptr;
 }
 
+FNavigationRelevantData* UNavigationSystemV1::GetMutableDataForObject(const UObject& Object)
+{
+	return const_cast<FNavigationRelevantData*>(GetDataForObject(Object));
+}
+
 void UNavigationSystemV1::UpdateActorInNavOctree(AActor& Actor)
 {
 	if (IsNavigationSystemStatic())
@@ -2892,6 +2898,50 @@ bool UNavigationSystemV1::UpdateNavOctreeElementBounds(UActorComponent* Comp, co
 	}
 	
 	return false;
+}
+
+bool UNavigationSystemV1::ReplaceAreaInOctreeData(const UObject& Object, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool bReplaceChildClasses)
+{
+	FNavigationRelevantData* Data = GetMutableDataForObject(Object);
+	
+	if (Data == nullptr || Data->HasModifiers() == false)
+	{
+		return false;
+	}
+
+	for (FAreaNavModifier& AreaModifier : Data->Modifiers.GetMutableAreas())
+	{ 
+		if (AreaModifier.GetAreaClass() == OldArea
+			|| (bReplaceChildClasses && AreaModifier.GetAreaClass()->IsChildOf(OldArea)))
+		{
+			AreaModifier.SetAreaClass(NewArea);
+		}
+	}
+	for (FSimpleLinkNavModifier& SimpleLink : Data->Modifiers.GetSimpleLinks())
+	{ 
+		for (FNavigationLink& Link : SimpleLink.Links)
+		{
+			if (Link.GetAreaClass() == OldArea
+				|| (bReplaceChildClasses && Link.GetAreaClass()->IsChildOf(OldArea)))
+			{
+				Link.SetAreaClass(NewArea);
+			}
+		}
+		for (FNavigationSegmentLink& Link : SimpleLink.SegmentLinks)
+		{
+			if (Link.GetAreaClass() == OldArea
+				|| (bReplaceChildClasses && Link.GetAreaClass()->IsChildOf(OldArea)))
+			{
+				Link.SetAreaClass(NewArea);
+			}
+		}
+	}
+	for (FCustomLinkNavModifier& CustomLink : Data->Modifiers.GetCustomLinks())
+	{ 
+		ensureMsgf(false, TEXT("Not implemented yet"));
+	}
+
+	return true;
 }
 
 void UNavigationSystemV1::OnComponentRegistered(UActorComponent* Comp)
@@ -3981,6 +4031,11 @@ bool UNavigationSystemV1::IsNavigationBeingBuiltOrLocked(UObject* WorldContextOb
 	}
 
 	return false;
+}
+
+bool UNavigationSystemV1::K2_ReplaceAreaInOctreeData(const UObject* Object, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea)
+{
+	return Object ? ReplaceAreaInOctreeData(*Object, OldArea, NewArea) : false;
 }
 
 //----------------------------------------------------------------------//

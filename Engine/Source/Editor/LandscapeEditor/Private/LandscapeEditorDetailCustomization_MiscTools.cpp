@@ -216,7 +216,7 @@ void FLandscapeEditorDetailCustomization_MiscTools::CustomizeDetails(IDetailLayo
 				.Padding(3, 0, 0, 0)
 				[
 					SNew(SButton)
-					//.IsEnabled_Static(&FLandscapeEditorDetailCustomization_MiscTools::GetApplyMirrorButtonIsEnabled)
+					.IsEnabled_Lambda([]() { FEdModeLandscape* LandscapeEdMode = GetEditorMode(); return LandscapeEdMode && LandscapeEdMode->CanEditLayer(); })
 					.Text(LOCTEXT("Mirror.Apply", "Apply"))
 					.HAlign(HAlign_Center)
 					.OnClicked_Static(&FLandscapeEditorDetailCustomization_MiscTools::OnApplyMirrorButtonClicked)

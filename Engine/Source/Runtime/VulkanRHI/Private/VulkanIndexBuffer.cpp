@@ -333,6 +333,11 @@ void FVulkanResourceMultiBuffer::Unlock(bool bFromRenderingThread)
 	}
 }
 
+void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
+{
+	::Swap(*this, Other);
+}
+
 
 FVulkanIndexBuffer::FVulkanIndexBuffer(FVulkanDevice* InDevice, uint32 InStride, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
 	: FRHIIndexBuffer(InStride, InSize, InUsage)
@@ -341,10 +346,21 @@ FVulkanIndexBuffer::FVulkanIndexBuffer(FVulkanDevice* InDevice, uint32 InStride,
 {
 }
 
+void FVulkanIndexBuffer::Swap(FVulkanIndexBuffer& Other)
+{
+	FRHIIndexBuffer::Swap(Other);
+	FVulkanResourceMultiBuffer::Swap(Other);
+	::Swap(IndexType, Other.IndexType);
+}
+
 
 FIndexBufferRHIRef FVulkanDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanIndexBuffers);
+	if (CreateInfo.bWithoutNativeResource)
+	{
+		return new FVulkanIndexBuffer(nullptr, 0, 0, 0, CreateInfo, nullptr);
+	}
 	return new FVulkanIndexBuffer(Device, Stride, Size, InUsage, CreateInfo, nullptr);
 }
 
@@ -373,3 +389,20 @@ void FVulkanDynamicRHI::UnlockIndexBuffer_RenderThread(FRHICommandListImmediate&
 	this->RHIUnlockIndexBuffer(IndexBufferRHI);
 }
 #endif
+
+void FVulkanDynamicRHI::RHITransferIndexBufferUnderlyingResource(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer)
+{
+	check(DestIndexBuffer);
+	FVulkanIndexBuffer* Dest = ResourceCast(DestIndexBuffer);
+	if (!SrcIndexBuffer)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		TRefCountPtr<FVulkanIndexBuffer> DeletionProxy = new FVulkanIndexBuffer(Dest->GetParent(), 0, 0, 0, CreateInfo, nullptr);
+		Dest->Swap(*DeletionProxy);
+	}
+	else
+	{
+		FVulkanIndexBuffer* Src = ResourceCast(SrcIndexBuffer);
+		Dest->Swap(*Src);
+	}
+}

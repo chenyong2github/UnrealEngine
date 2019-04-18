@@ -11,8 +11,8 @@
 #include "GameFramework/Actor.h"
 #include "PlacedEditorUtilityBase.generated.h"
 
-UCLASS(Abstract, hideCategories=(Object, Actor)/*, Blueprintable*/)
-class BLUTILITY_API APlacedEditorUtilityBase : public AActor
+UCLASS(Abstract, hideCategories=(Object, Actor), Deprecated)
+class BLUTILITY_API ADEPRECATED_PlacedEditorUtilityBase : public AActor
 {
 	GENERATED_UCLASS_BODY()
 

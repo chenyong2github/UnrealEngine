@@ -1267,19 +1267,6 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 
 			// Pre-shadows mask by receiver elements, self-shadow mask by subject elements.
 			// Note that self-shadow pre-shadows still mask by receiver elements.
-			const TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>& ProjectionStencilingDynamicMeshElements = bPreShadow ? DynamicReceiverMeshElements : DynamicSubjectMeshElements;
-
-			const int32 NumDynamicMeshBatches = ProjectionStencilingDynamicMeshElements.Num();
-
-			for (int32 MeshIndex = 0; MeshIndex < NumDynamicMeshBatches; MeshIndex++)
-			{
-				const FMeshBatchAndRelevance& MeshAndRelevance = ProjectionStencilingDynamicMeshElements[MeshIndex];
-				check(!MeshAndRelevance.Mesh->bRequiresPerElementVisibility);
-				const uint64 BatchElementMask = ~0ull;
-
-				DepthPassMeshProcessor.AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
-			}
-
 			const PrimitiveArrayType& MaskPrimitives = bPreShadow ? ReceiverPrimitives : DynamicSubjectPrimitives;
 
 			for (int32 PrimitiveIndex = 0, PrimitiveCount = MaskPrimitives.Num(); PrimitiveIndex < PrimitiveCount; PrimitiveIndex++)
@@ -1301,6 +1288,20 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 								const uint64 BatchElementMask = StaticMesh.bRequiresPerElementVisibility ? View.StaticMeshBatchVisibility[StaticMesh.BatchVisibilityId] : ~0ull;
 								DepthPassMeshProcessor.AddMeshBatch(StaticMesh, BatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
 							}
+						}
+					}
+
+					if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDynamicRelevance)
+					{
+						const FInt32Range MeshBatchRange = View.GetDynamicMeshElementRange(ReceiverPrimitiveSceneInfo->GetIndex());
+
+						for (int32 MeshBatchIndex = MeshBatchRange.GetLowerBoundValue(); MeshBatchIndex < MeshBatchRange.GetUpperBoundValue(); ++MeshBatchIndex)
+						{
+							const FMeshBatchAndRelevance& MeshAndRelevance = View.DynamicMeshElements[MeshBatchIndex];
+							check(!MeshAndRelevance.Mesh->bRequiresPerElementVisibility);
+							const uint64 BatchElementMask = ~0ull;
+
+							DepthPassMeshProcessor.AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
 						}
 					}
 				}
@@ -1413,11 +1414,6 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		}
 
 		ShadowDepthView->DrawDynamicFlags = EDrawDynamicFlags::None;
-
-		int32 NumDynamicReceiverMeshElements = 0;
-		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&ReceiverFrustum);
-		GatherDynamicMeshElementsArray(ShadowDepthView, Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
-			ReceiverPrimitives, ReusedViewsArray, DynamicReceiverMeshElements, NumDynamicReceiverMeshElements);
 
 		int32 NumDynamicSubjectTranslucentMeshElements = 0;
 		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterFrustum);
@@ -1545,7 +1541,6 @@ void FProjectedShadowInfo::ClearTransientArrays()
 	DynamicSubjectPrimitives.Empty();
 	ReceiverPrimitives.Empty();
 	DynamicSubjectMeshElements.Empty();
-	DynamicReceiverMeshElements.Empty();
 	DynamicSubjectTranslucentMeshElements.Empty();
 
 	ShadowDepthPassVisibleCommands.Empty();
@@ -4124,6 +4119,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> ViewDependentWholeSceneShadows;
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> ViewDependentWholeSceneShadowsThatNeedCulling;
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Shadows);
 		SCOPE_CYCLE_COUNTER(STAT_InitDynamicShadowsTime);
 
 		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)

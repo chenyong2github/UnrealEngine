@@ -16,6 +16,7 @@ const FName FoliageEditAppIdentifier = FName(TEXT("FoliageEdApp"));
 
 #include "UObject/UObjectIterator.h"
 #include "FoliageType_InstancedStaticMesh.h"
+#include "FoliageType_Actor.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageEdMode.h"
 #include "PropertyEditorModule.h"
@@ -28,6 +29,7 @@ const FName FoliageEditAppIdentifier = FName(TEXT("FoliageEdApp"));
 #include "ProceduralFoliageBlockingVolume.h"
 #include "FoliageTypeObjectCustomization.h"
 #include "FoliageType_ISMThumbnailRenderer.h"
+#include "FoliageType_ActorThumbnailRenderer.h"
 #include "EditorModeManager.h"
 #include "LevelEditorViewport.h"
 
@@ -77,6 +79,7 @@ public:
 
 		// Register thumbnail renderer
 		UThumbnailManager::Get().RegisterCustomRenderer(UFoliageType_InstancedStaticMesh::StaticClass(), UFoliageType_ISMThumbnailRenderer::StaticClass());
+		UThumbnailManager::Get().RegisterCustomRenderer(UFoliageType_Actor::StaticClass(), UFoliageType_ActorThumbnailRenderer::StaticClass());
 	}
 
 	/**

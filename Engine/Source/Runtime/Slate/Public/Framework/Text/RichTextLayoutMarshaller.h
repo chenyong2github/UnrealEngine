@@ -44,6 +44,11 @@ public:
 		return *this;
 	}
 
+	inline void SetDecoratorStyleSet(const ISlateStyle* InStyleSet)
+	{
+		DecoratorStyleSet = InStyleSet;
+	}
+
 protected:
 
 	FRichTextLayoutMarshaller(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);

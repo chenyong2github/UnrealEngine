@@ -210,6 +210,13 @@ void FAvfMediaVideoSampler::Tick()
 	const FTimespan SampleDuration = FTimespan::FromSeconds(FrameDuration);
 	const FTimespan SampleTime = FTimespan::FromSeconds(CMTimeGetSeconds(OutputItemTime));
 
+	ProcessFrame(Frame, SampleTime, SampleDuration);
+}
+
+void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan SampleTime, FTimespan SampleDuration)
+{
+	check(IsInRenderingThread());
+
 	const int32 FrameHeight = CVPixelBufferGetHeight(Frame);
 	const int32 FrameWidth = CVPixelBufferGetWidth(Frame);
 	const int32 FrameStride = CVPixelBufferGetBytesPerRow(Frame);
@@ -341,7 +348,7 @@ void FAvfMediaVideoSampler::Tick()
 	{
 		if (VideoSample->Initialize(ShaderResource, Dim, OutputDim, SampleTime, SampleDuration))
 		{
-			Samples.AddVideo(VideoSample);
+			ProcessOutputSample(VideoSample);
 		}
 	}
 	
@@ -353,7 +360,7 @@ void FAvfMediaVideoSampler::Tick()
 		
 		if (VideoSample->Initialize(VideoData, Dim, OutputDim, FrameStride, SampleTime, SampleDuration))
 		{
-			Samples.AddVideo(VideoSample);
+			ProcessOutputSample(VideoSample);
 		}
 		
 		
@@ -363,4 +370,9 @@ void FAvfMediaVideoSampler::Tick()
 #endif //WITH_ENGINE
 	
 	CVPixelBufferRelease(Frame);
+}
+
+void FAvfMediaVideoSampler::ProcessOutputSample(const TSharedRef<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
+{
+	Samples.AddVideo(Sample);
 }

@@ -952,6 +952,21 @@ inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
 		|| IsVulkanSM5Platform(Platform);
 }
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
+	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, zw - unused
+	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+class FDefaultMobileReflectionCaptureUniformBuffer : public TUniformBuffer<FMobileReflectionCaptureShaderParameters>
+{
+	typedef TUniformBuffer<FMobileReflectionCaptureShaderParameters> Super;
+public:
+	virtual void InitDynamicRHI() override;
+};
+
+ENGINE_API extern TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;
+
 /** Represents a USkyLightComponent to the rendering thread. */
 class ENGINE_API FSkyLightSceneProxy
 {
@@ -988,6 +1003,9 @@ public:
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
+	/** Used with mobile renderer */
+	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
+
 
 #if RHI_RAYTRACING
 	bool IsDirtyImportanceSamplingData;
@@ -1020,6 +1038,7 @@ public:
 	}
 	FLinearColor GetEffectiveLightColor() const;
 
+	void UpdateMobileUniformBuffer();
 private:
 	FLinearColor LightColor;
 };
@@ -1560,7 +1579,8 @@ public:
 
 	int32 PackedIndex;
 
-	/** Used in Feature level ES2 */
+	/** Used with mobile renderer */
+	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
 	FTexture* EncodedHDRCubemap;
 	float EncodedHDRAverageBrightness;
 
@@ -1588,6 +1608,7 @@ public:
 	FReflectionCaptureProxy(const class UReflectionCaptureComponent* InComponent);
 
 	void SetTransform(const FMatrix& InTransform);
+	void UpdateMobileUniformBuffer();
 };
 
 /** Calculated wind data with support for accumulating other weighted wind data */
@@ -2218,7 +2239,8 @@ public:
 		const FBoxSphereBounds& PreSkinnedLocalBounds,
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
-		bool bDrawsVelocity);
+		bool bDrawsVelocity,
+		bool bOutputVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
 	ENGINE_API void Set(
@@ -2228,7 +2250,8 @@ public:
 		const FBoxSphereBounds& LocalBounds,
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
-		bool bDrawsVelocity);
+		bool bDrawsVelocity,
+		bool bOutputVelocity);
 };
 
 //

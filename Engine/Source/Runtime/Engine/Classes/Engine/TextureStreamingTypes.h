@@ -62,22 +62,39 @@ struct FStreamingRenderAssetPrimitiveInfo
 	UPROPERTY()
 	uint32 PackedRelativeBox;
 
+	/** For mesh components, texel factors are their sphere bound diameters that are 0 when unregistered */
+	UPROPERTY(Transient)
+	uint32 bAllowInvalidTexelFactorWhenUnregistered : 1;
+
 	FStreamingRenderAssetPrimitiveInfo() : 
 		RenderAsset(nullptr),
 		Bounds(ForceInit), 
 		TexelFactor(1.0f),
-		PackedRelativeBox(0)
+		PackedRelativeBox(0),
+		bAllowInvalidTexelFactorWhenUnregistered(false)
 	{
 	}
 
-	FStreamingRenderAssetPrimitiveInfo(UStreamableRenderAsset* InAsset, const FBoxSphereBounds& InBounds, float InTexelFactor, uint32 InPackedRelativeBox = 0) :
+	FStreamingRenderAssetPrimitiveInfo(
+		UStreamableRenderAsset* InAsset,
+		const FBoxSphereBounds& InBounds,
+		float InTexelFactor,
+		uint32 InPackedRelativeBox = 0,
+		bool bInAllowInvalidTexelFactorWhenUnregistered = false) :
 		RenderAsset(InAsset),
 		Bounds(InBounds), 
 		TexelFactor(InTexelFactor),
-		PackedRelativeBox(InPackedRelativeBox)
+		PackedRelativeBox(InPackedRelativeBox),
+		bAllowInvalidTexelFactorWhenUnregistered(bInAllowInvalidTexelFactorWhenUnregistered)
 	{
 	}
 
+	bool CanBeStreamedByDistance(bool bOwningCompRegistered) const
+	{
+		return (TexelFactor > SMALL_NUMBER || (!bOwningCompRegistered && bAllowInvalidTexelFactorWhenUnregistered))
+			&& (Bounds.SphereRadius > SMALL_NUMBER || !bOwningCompRegistered)
+			&& ensure(FMath::IsFinite(TexelFactor));
+	}
 };
 
 /** 

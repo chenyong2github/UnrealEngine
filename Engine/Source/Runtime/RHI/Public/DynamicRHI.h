@@ -175,8 +175,8 @@ public:
 	virtual FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDeclarationElementList& Elements) = 0;
 
 	// FlushType: Wait RHI Thread
-	virtual FPixelShaderRHIRef RHICreatePixelShader(const TArray<uint8>& Code) = 0 ;
-	
+	virtual FPixelShaderRHIRef RHICreatePixelShader(const TArray<uint8>& Code) = 0;
+
 	// FlushType: Wait RHI Thread
 	virtual FPixelShaderRHIRef RHICreatePixelShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
@@ -185,7 +185,7 @@ public:
 
 	// FlushType: Wait RHI Thread
 	virtual FVertexShaderRHIRef RHICreateVertexShader(const TArray<uint8>& Code) = 0;
-	
+
 	// FlushType: Wait RHI Thread
 	virtual FVertexShaderRHIRef RHICreateVertexShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
@@ -194,7 +194,7 @@ public:
 
 	// FlushType: Wait RHI Thread
 	virtual FHullShaderRHIRef RHICreateHullShader(const TArray<uint8>& Code) = 0;
-	
+
 	// FlushType: Wait RHI Thread
 	virtual FHullShaderRHIRef RHICreateHullShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
@@ -203,7 +203,7 @@ public:
 
 	// FlushType: Wait RHI Thread
 	virtual FDomainShaderRHIRef RHICreateDomainShader(const TArray<uint8>& Code) = 0;
-	
+
 	// FlushType: Wait RHI Thread
 	virtual FDomainShaderRHIRef RHICreateDomainShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
@@ -212,7 +212,7 @@ public:
 
 	// FlushType: Wait RHI Thread
 	virtual FGeometryShaderRHIRef RHICreateGeometryShader(const TArray<uint8>& Code) = 0;
-	
+
 	// FlushType: Wait RHI Thread
 	virtual FGeometryShaderRHIRef RHICreateGeometryShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
@@ -222,7 +222,7 @@ public:
 	/** Creates a geometry shader with stream output ability, defined by ElementList. */
 	// FlushType: Wait RHI Thread
 	virtual FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) = 0;
-	
+
 	/** Creates a geometry shader with stream output ability, defined by ElementList. */
 	// FlushType: Wait RHI Thread
 	virtual FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
@@ -235,26 +235,26 @@ public:
 
 	// FlushType: Wait RHI Thread
 	virtual FComputeShaderRHIRef RHICreateComputeShader(const TArray<uint8>& Code) = 0;
-	
+
 	// FlushType: Wait RHI Thread
 	virtual FComputeShaderRHIRef RHICreateComputeShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
 	{
 		return nullptr;
 	}
-    
-    /**
-     * Attempts to open a shader library for the given shader platform & name within the provided directory.
-     * @param Platform The shader platform for shaders withing the library.
-     * @param FilePath The directory in which the library should exist.
-     * @param Name The name of the library, i.e. "Global" or "Unreal" without shader-platform or file-extension qualification.
-     * @return The new library if one exists and can be constructed, otherwise nil.
-     */
-    // FlushType: Must be Thread-Safe.
-    virtual FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
+
+	/**
+	 * Attempts to open a shader library for the given shader platform & name within the provided directory.
+	 * @param Platform The shader platform for shaders withing the library.
+	 * @param FilePath The directory in which the library should exist.
+	 * @param Name The name of the library, i.e. "Global" or "Unreal" without shader-platform or file-extension qualification.
+	 * @return The new library if one exists and can be constructed, otherwise nil.
+	 */
+	 // FlushType: Must be Thread-Safe.
+	virtual FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 	{
 		return nullptr;
 	}
-	
+
 	/**
 	* Creates a compute fence.  Compute fences are named GPU fences which can be written to once before resetting.
 	* A command to write the fence must be enqueued before any commands to wait on them.  This is enforced on the CPU to avoid GPU hangs.
@@ -282,39 +282,39 @@ public:
 		return new FGenericRHIStagingBuffer();
 	}
 
-    /**
-     * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
-     * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
-     * @param StagingBuffer The buffer to lock.
-     * @param Offset The offset in the buffer to return.
-     * @param SizeRHI The length of the region in the buffer to lock.
-     * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
-     */
+	/**
+	 * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
+	 * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
+	 * @param StagingBuffer The buffer to lock.
+	 * @param Offset The offset in the buffer to return.
+	 * @param SizeRHI The length of the region in the buffer to lock.
+	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
+	 */
 	virtual void* RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI);
-    
-    /**
-     * Unlock a staging buffer previously locked with RHILockStagingBuffer.
-     * @param StagingBuffer The buffer that was previously locked.
-     */
-    virtual void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer);
 
-    /**
-     * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
-     * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
-     * @param RHICmdList The command-list to execute on or synchronize with.
-     * @param StagingBuffer The buffer to lock.
-     * @param Offset The offset in the buffer to return.
-     * @param SizeRHI The length of the region in the buffer to lock.
-     * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
-     */
+	/**
+	 * Unlock a staging buffer previously locked with RHILockStagingBuffer.
+	 * @param StagingBuffer The buffer that was previously locked.
+	 */
+	virtual void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer);
+
+	/**
+	 * Lock a staging buffer to read contents on the CPU that were written by the GPU, without having to stall.
+	 * @discussion This function requires that you have issued an CopyToStagingBuffer invocation and verified that the FRHIGPUFence has been signaled before calling.
+	 * @param RHICmdList The command-list to execute on or synchronize with.
+	 * @param StagingBuffer The buffer to lock.
+	 * @param Offset The offset in the buffer to return.
+	 * @param SizeRHI The length of the region in the buffer to lock.
+	 * @returns A pointer to the data starting at 'Offset' and of length 'SizeRHI' from 'StagingBuffer', or nullptr when there is an error.
+	 */
 	virtual void* LockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI);
-    
-    /**
-     * Unlock a staging buffer previously locked with LockStagingBuffer_RenderThread.
-     * @param RHICmdList The command-list to execute on or synchronize with.
-     * @param StagingBuffer The buffer what was previously locked.
-     */
-    virtual void UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStagingBufferRHIParamRef StagingBuffer);
+
+	/**
+	 * Unlock a staging buffer previously locked with LockStagingBuffer_RenderThread.
+	 * @param RHICmdList The command-list to execute on or synchronize with.
+	 * @param StagingBuffer The buffer what was previously locked.
+	 */
+	virtual void UnlockStagingBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStagingBufferRHIParamRef StagingBuffer);
 
 	/**
 	* Creates a bound shader state instance which encapsulates a decl, vertex shader, hull shader, domain shader and pixel shader
@@ -350,12 +350,12 @@ public:
 	{
 		return new FRHIComputePipelineStateFallback(ComputeShader);
 	}
-	
+
 	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer, FRHIPipelineBinaryLibraryParamRef PipelineBinary)
 	{
 		return RHICreateGraphicsPipelineState(Initializer);
 	}
-	
+
 	virtual TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader, FRHIPipelineBinaryLibraryParamRef PipelineBinary)
 	{
 		return RHICreateComputePipelineState(ComputeShader);
@@ -383,6 +383,13 @@ public:
 	virtual void RHIUnlockIndexBuffer(FIndexBufferRHIParamRef IndexBuffer) = 0;
 
 	/**
+	* Transfer metadata and underlying resource from src to dest and release any resource owned by dest.
+	* @param DestIndexBuffer - the index buffer to update
+	* @param SrcIndexBuffer - don't use after call. If null, will release any resource owned by DestIndexBuffer
+	*/
+	virtual void RHITransferIndexBufferUnderlyingResource(FIndexBufferRHIParamRef DestIndexBuffer, FIndexBufferRHIParamRef SrcIndexBuffer);
+
+	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
 	*/
 	// FlushType: Wait RHI Thread
@@ -397,6 +404,13 @@ public:
 	/** Copies the contents of one vertex buffer to another vertex buffer.  They must have identical sizes. */
 	// FlushType: Flush Immediate (seems dangerous)
 	virtual void RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBuffer, FVertexBufferRHIParamRef DestBuffer) = 0;
+
+	/**
+	 * Transfer metadata and underlying resource from src to dest and release any resource owned by dest.
+	 * @param DestVertexBuffer - the vertex buffer to update
+	 * @param SrcVertexBuffer - don't use after call. If null, will release any resource owned by DestVertexBuffer
+	 */
+	virtual void RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer);
 
 	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
@@ -440,7 +454,9 @@ public:
 
 	// Must be called on RHI thread timeline
 	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
-	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format) /*= 0;*/ {}
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format);
+
+	virtual void RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer);
 
 	/**
 	* Computes the total size of a 2D texture with the specified parameters.

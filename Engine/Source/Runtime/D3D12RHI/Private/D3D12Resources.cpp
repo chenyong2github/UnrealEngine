@@ -480,6 +480,10 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 	Source.InternalClear<false>();
 }
 
+void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
+{
+	::Swap(*this, Other);
+}
 
 void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12ResourceLocation & Source)
 {

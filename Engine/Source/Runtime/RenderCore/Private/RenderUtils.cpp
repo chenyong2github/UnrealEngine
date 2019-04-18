@@ -915,6 +915,12 @@ static_assert(SP_NumPlatforms <= sizeof(GForwardShadingPlatformMask) * 8, "GForw
 RENDERCORE_API uint32 GDBufferPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlatformMask must be large enough to support all shader platforms");
 
+RENDERCORE_API uint32 GBasePassVelocityPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API uint32 GSelectiveBasePassOutputsPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
+
 RENDERCORE_API void RenderUtilsInit()
 {
 	if (GUseForwardShading)
@@ -922,10 +928,22 @@ RENDERCORE_API void RenderUtilsInit()
 		GForwardShadingPlatformMask = ~0u;
 	}
 
-	static IConsoleVariable* CDBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
-	if (CDBufferVar && CDBufferVar->GetInt())
+	static IConsoleVariable* DBufferVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DBuffer"));
+	if (DBufferVar && DBufferVar->GetInt())
 	{
 		GDBufferPlatformMask = ~0u;
+	}
+
+	static IConsoleVariable* BasePassVelocityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BasePassOutputsVelocity"));
+	if (BasePassVelocityCVar && BasePassVelocityCVar->GetInt())
+	{
+		GBasePassVelocityPlatformMask = ~0u;
+	}
+
+	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
+	if (SelectiveBasePassOutputsCVar && SelectiveBasePassOutputsCVar->GetInt())
+	{
+		GSelectiveBasePassOutputsPlatformMask = ~0u;
 	}
 
 #if WITH_EDITOR
@@ -957,6 +975,24 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GDBufferPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesBasePassVelocity())
+				{
+					GBasePassVelocityPlatformMask |= Mask;
+				}
+				else
+				{
+					GBasePassVelocityPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesSelectiveBasePassOutputs())
+				{
+					GSelectiveBasePassOutputsPlatformMask |= Mask;
+				}
+				else
+				{
+					GSelectiveBasePassOutputsPlatformMask &= ~Mask;
 				}
 			}
 		}

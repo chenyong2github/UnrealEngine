@@ -583,13 +583,6 @@ namespace VulkanRHIBridge
 }
 
 
-#include "ShaderParameterUtils.h"
-#include "RHIStaticStates.h"
-#include "OneColorShader.h"
-#include "VulkanRHI.h"
-#include "ValidationRHI.h"
-#include "StaticBoundShaderState.h"
-
 namespace VulkanRHI
 {
 #if ENABLE_RHI_VALIDATION

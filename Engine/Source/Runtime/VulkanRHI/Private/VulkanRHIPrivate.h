@@ -36,7 +36,12 @@
 	#endif
 #endif
 
-#include "VulkanRHI.h"
+#include "VulkanGlobals.h"
+#include "VulkanState.h"
+#include "VulkanResources.h"
+#include "VulkanUtil.h"
+#include "VulkanViewport.h"
+#include "VulkanDynamicRHI.h"
 #include "VulkanGlobalUniformBuffer.h"
 #include "RHI.h"
 #include "VulkanDevice.h"

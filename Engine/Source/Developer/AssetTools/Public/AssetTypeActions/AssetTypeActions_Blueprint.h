@@ -40,6 +40,12 @@ protected:
 	/** Return the factory responsible for creating this type of Blueprint */
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const;
 
+	/** Returns the tooltip to display when attempting to derive a Blueprint */
+	FText GetNewDerivedBlueprintTooltip(TWeakObjectPtr<UBlueprint> InObject);
+
+	/** Returns TRUE if you can derive a Blueprint */
+	bool CanExecuteNewDerivedBlueprint(TWeakObjectPtr<UBlueprint> InObject);
+
 private:
 	/** Handler for when EditDefaults is selected */
 	void ExecuteEditDefaults(TArray<TWeakObjectPtr<UBlueprint>> Objects);
@@ -49,10 +55,4 @@ private:
 
 	/** Returns true if the blueprint is data only */
 	bool ShouldUseDataOnlyEditor( const UBlueprint* Blueprint ) const;
-
-	/** Returns the tooltip to display when attempting to derive a Blueprint */
-	FText GetNewDerivedBlueprintTooltip(TWeakObjectPtr<UBlueprint> InObject);
-
-	/** Returns TRUE if you can derive a Blueprint */
-	bool CanExecuteNewDerivedBlueprint(TWeakObjectPtr<UBlueprint> InObject);
 };

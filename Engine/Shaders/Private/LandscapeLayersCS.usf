@@ -81,7 +81,24 @@ void PackPaintLayerToWeightmap(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		for (int i = 0; i < 4; ++i)
 		{
-			Channels[i] = ComputeWeightmapChannel(ComponentData.WeightmapChannelToProcess[i], DispatchThreadId.xy + int2(ComponentData.ComponenVertexPositionX[i], ComponentData.ComponenVertexPositionY[i]), ComponentData.SourcePaintLayerIndex[i]);
+			float ChannelResult = ComputeWeightmapChannel(ComponentData.WeightmapChannelToProcess[i], DispatchThreadId.xy + int2(ComponentData.ComponenVertexPositionX[i], ComponentData.ComponenVertexPositionY[i]), ComponentData.SourcePaintLayerIndex[i]);
+
+			if (ComponentData.WeightmapChannelToProcess[i] == 0)
+			{ 
+				Channels.x = ChannelResult;
+			}
+			else if (ComponentData.WeightmapChannelToProcess[i] == 1)
+			{
+				Channels.y = ChannelResult;
+			}
+			else if (ComponentData.WeightmapChannelToProcess[i] == 2)
+			{
+				Channels.z = ChannelResult;
+			}
+			else if (ComponentData.WeightmapChannelToProcess[i] == 3)
+			{
+				Channels.w = ChannelResult;
+			}
 		}
 
 		float2 TextureOutputOffset = InWeightmapTextureOutputOffset[DispatchThreadId.z];

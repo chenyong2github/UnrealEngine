@@ -7,12 +7,13 @@
 #include "Sound/SoundAttenuation.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Audio.h"
+#include "AudioDevice.h"
+#include "AudioDynamicParameter.h"
 #include "Sound/SoundConcurrency.h"
 #include "Components/AudioComponent.h"
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSourceBus.h"
-#include "AudioDevice.h"
 
 class FAudioDevice;
 class USoundBase;
@@ -78,6 +79,9 @@ struct FSoundParseParameters
 
 	// The distance from the listener to the sound
 	float ListenerToSoundDistance;
+
+	// The distance from the listener to the sound (ignores attenuation settings)
+	float ListenerToSoundDistanceForPanning;
 
 	// The absolute azimuth angle of the sound relative to the forward listener vector (359 degrees to left, 1 degrees to right)
 	float AbsoluteAzimuth;
@@ -167,6 +171,7 @@ struct FSoundParseParameters
 		, OmniRadius(0.0f)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
+		, ListenerToSoundDistanceForPanning(0.0f)
 		, AbsoluteAzimuth(0.0f)
 		, SoundSubmix(nullptr)
 		, ReverbSendMethod(EReverbSendMethod::Linear)
@@ -219,6 +224,8 @@ public:
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
+	void ClearAudioComponent();
+	void SetAudioComponent(const FActiveSound& ActiveSound);
 	void SetAudioComponent(UAudioComponent* Component);
 	void SetOwner(AActor* Owner);
 	FString GetAudioComponentName() const;
@@ -227,8 +234,7 @@ public:
 	uint32 GetWorldID() const { return WorldID; }
 	TWeakObjectPtr<UWorld> GetWeakWorld() const { return World; }
 	UWorld* GetWorld() const 
-	{ 
-		check(IsInGameThread()); 
+	{
 		return World.Get();
 	}
 	void SetWorld(UWorld* World);

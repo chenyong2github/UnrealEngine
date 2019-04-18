@@ -8,7 +8,7 @@
 #include "ProceduralFoliageInstance.generated.h"
 
 class UActorComponent;
-class UFoliageType_InstancedStaticMesh;
+class UFoliageType;
 struct FProceduralFoliageInstance;
 
 #if WITH_PHYSX
@@ -95,7 +95,7 @@ public:
 	float Scale;
 
 	UPROPERTY()
-	const UFoliageType_InstancedStaticMesh* Type;
+	const UFoliageType* Type;
 
 
 	bool bBlocker;

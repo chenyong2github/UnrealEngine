@@ -16,6 +16,7 @@
 #include "ShaderCore.h"
 #include "RenderUtils.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Misc/ScopeLock.h"
@@ -2069,11 +2070,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BasePassOutputsVelocity"));
-		if (CVar && CVar->GetValueOnGameThread() != 0)
-		{
-			KeyString += TEXT("_GV");
-		}
+		KeyString += IsUsingBasePassVelocity(Platform) ? TEXT("_GV") : TEXT("");
 	}
 
 	{
@@ -2112,11 +2109,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SelectiveBasePassOutputs"));
-		if (CVar && CVar->GetValueOnGameThread() != 0)
-		{
-			KeyString += TEXT("_SO");
-		}
+		KeyString += IsUsingSelectiveBasePassOutputs(Platform) ? TEXT("_SO") : TEXT("");
 	}
 
 	{

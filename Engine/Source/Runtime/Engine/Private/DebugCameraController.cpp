@@ -72,8 +72,8 @@ void InitializeDebugCameraInputBindings()
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_DecreaseFOV", EKeys::Period));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_ToggleDisplay", EKeys::BackSpace));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_FreezeRendering", EKeys::F));
-		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitCenter", EKeys::O));
-		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitHitPoint", EKeys::O, true));
+		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitHitPoint", EKeys::O));
+		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_OrbitCenter", EKeys::O, true));
 
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_Select", EKeys::Gamepad_RightTrigger));
 		UPlayerInput::AddEngineDefinedActionMapping(FInputActionKeyMapping("DebugCamera_IncreaseSpeed", EKeys::Gamepad_RightShoulder));
@@ -101,8 +101,8 @@ void ADebugCameraController::SetupInputComponent()
 
 	InputComponent->BindAction("DebugCamera_ToggleDisplay", IE_Pressed, this, &ADebugCameraController::ToggleDisplay);
 	InputComponent->BindAction("DebugCamera_FreezeRendering", IE_Pressed, this, &ADebugCameraController::ToggleFreezeRendering);
-	InputComponent->BindAction("DebugCamera_OrbitCenter", IE_Pressed, this, &ADebugCameraController::ToggleOrbitCenter);
 	InputComponent->BindAction("DebugCamera_OrbitHitPoint", IE_Pressed, this, &ADebugCameraController::ToggleOrbitHitPoint);
+	InputComponent->BindAction("DebugCamera_OrbitCenter", IE_Pressed, this, &ADebugCameraController::ToggleOrbitCenter);
 
 	InputComponent->BindTouch(IE_Pressed, this, &ADebugCameraController::OnTouchBegin);
 	InputComponent->BindTouch(IE_Released, this, &ADebugCameraController::OnTouchEnd);
@@ -394,6 +394,18 @@ void ADebugCameraController::ToggleFreezeRendering()
 	bIsFrozenRendering = !bIsFrozenRendering;
 }
 
+void ADebugCameraController::PreProcessInput(const float DeltaTime, const bool bGamePaused)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		PreProcessInputForOrbit(DeltaTime, bGamePaused);
+	}
+	else
+	{
+		Super::PreProcessInput(DeltaTime, bGamePaused);
+	}
+}
+
 void ADebugCameraController::UpdateRotation(float DeltaTime)
 {
 	if (bIsOrbitingSelectedActor)
@@ -406,6 +418,23 @@ void ADebugCameraController::UpdateRotation(float DeltaTime)
 	}
 }
 
+void ADebugCameraController::PreProcessInputForOrbit(const float DeltaTime, const bool bGamePaused)
+{
+	if (bIsOrbitingSelectedActor)
+	{
+		if (APawn* const CurrentPawn = GetPawnOrSpectator())
+		{
+			if (UPawnMovementComponent* MovementComponent = CurrentPawn->GetMovementComponent())
+			{
+				// Reset velocity before processing input when orbiting to limit acceleration which 
+				// can cause overshooting and jittering as orbit attempts to maintain a fixed radius.
+				MovementComponent->Velocity = FVector::ZeroVector;
+				MovementComponent->UpdateComponentVelocity();
+			}
+		}
+	}
+}
+
 void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 {
 	APawn* const CurrentPawn = GetPawnOrSpectator();
@@ -414,9 +443,31 @@ void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 	{
 		bool bUpdatePawn = false;
 		FRotator ViewRotation = GetControlRotation();
+	
+		if (!CurrentPawn->GetLastMovementInputVector().IsZero())
+		{
+			FRotationMatrix ObjectToWorld(ViewRotation);
+			FVector MoveDelta(CurrentPawn->GetActorLocation() - LastOrbitPawnLocation);
+			FVector MoveDeltaObj = ObjectToWorld.GetTransposed().TransformVector(MoveDelta);
 
-		// Handle rotation input
-		if (!RotationInput.IsZero())
+			// Handle either forward or lateral motion but not both, because small forward
+			// motion deltas while moving laterally cause the distance from pivot to drift
+			if (FMath::IsNearlyZero(MoveDeltaObj.Y, 0.01f))
+			{
+				// Clamp delta to avoid flipping to opposite view
+				const float ForwardScale = 3.0f;
+				OrbitRadius = (MoveDeltaObj.X * ForwardScale > OrbitRadius - MIN_ORBIT_RADIUS) ? MIN_ORBIT_RADIUS : OrbitRadius - MoveDeltaObj.X * ForwardScale;
+			}
+			else
+			{
+				// Apply lateral movement component, constraining distance from orbit pivot
+				const float LateralScale = 2.0f;
+				FVector LateralDelta = ObjectToWorld.TransformVector(FVector(0.0f, MoveDeltaObj.Y * LateralScale, 0.0f));
+				ViewRotation = (OrbitPivot - LastOrbitPawnLocation - LateralDelta).ToOrientationRotator();
+			}
+			bUpdatePawn = true;
+		}
+		else if (!RotationInput.IsZero())
 		{
 			ViewRotation += RotationInput;
 
@@ -437,38 +488,6 @@ void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 
 			bUpdatePawn = true;
 		}
-		else // Handle movement input
-		{
-			FVector OrbitPawnLocation = CurrentPawn->GetActorLocation();
-			FVector MoveDelta(OrbitPawnLocation - LastOrbitPawnLocation);
-
-			if (!MoveDelta.IsZero())
-			{
-				FRotationMatrix ObjectToWorld(ViewRotation);
-				FVector MoveDeltaObj = ObjectToWorld.GetTransposed().TransformVector(MoveDelta);
-
-				// Handle either forward or lateral motion but not both, because small forward
-				// motion deltas while moving laterally cause the distance from pivot to drift
-				if (FMath::IsNearlyZero(MoveDeltaObj.Y, 0.01f))
-				{
-					// Clamp delta to avoid flipping to opposite view
-					float MaxDelta = OrbitRadius - MIN_ORBIT_RADIUS;
-					if (MoveDeltaObj.X > MaxDelta)
-					{
-						MoveDeltaObj.X = MaxDelta;
-					}
-
-					OrbitRadius -= MoveDeltaObj.X;
-				}
-				else
-				{
-					// Apply lateral movement component, constraining distance from orbit pivot
-					FVector LateralDelta = ObjectToWorld.TransformVector(FVector(0.0f, MoveDeltaObj.Y, 0.0f));
-					ViewRotation = (OrbitPivot - LastOrbitPawnLocation - LateralDelta).ToOrientationRotator();
-				}
-				bUpdatePawn = true;
-			}
-		}
 
 		if (bUpdatePawn)
 		{
@@ -476,7 +495,7 @@ void ADebugCameraController::UpdateRotationForOrbit(float DeltaTime)
 			CurrentPawn->SetActorLocation(LastOrbitPawnLocation);
 
 			SetControlRotation(ViewRotation);
-			CurrentPawn->FaceRotation(ViewRotation, DeltaTime);
+			CurrentPawn->FaceRotation(ViewRotation);
 		}
 	}
 }

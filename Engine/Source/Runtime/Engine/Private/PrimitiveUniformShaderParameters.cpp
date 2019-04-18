@@ -42,8 +42,9 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	bool bHasPrecomputedVolumetricLightmap;
 	FMatrix PreviousLocalToWorld;
 	int32 SingleCaptureIndex;
+	bool bOutputVelocity;
 
-	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex);
+	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(Proxy->GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
@@ -64,7 +65,9 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetLightingChannelMask(),
 		Proxy->GetLpvBiasMultiplier(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
-		SingleCaptureIndex));
+		SingleCaptureIndex,
+        bOutputVelocity,
+		Proxy->GetCustomPrimitiveData()));
 }
 
 void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)
@@ -111,8 +114,14 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[24] = FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, 0.0f);
 	Data[24].W = *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
 
-	Data[25] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-	Data[25].X = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
+	Data[25] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBounds, 0.0f);
+	Data[25].W = *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
 
-	Data[26] = FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBounds, 0.0f); // .w unused
+	Data[26] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	Data[26].X = *(const float*)&PrimitiveUniformShaderParameters.OutputVelocity;
+
+	Data[27] = PrimitiveUniformShaderParameters.CustomPrimitiveData[0];
+	Data[28] = PrimitiveUniformShaderParameters.CustomPrimitiveData[1];
+	Data[29] = PrimitiveUniformShaderParameters.CustomPrimitiveData[2];
+	Data[30] = PrimitiveUniformShaderParameters.CustomPrimitiveData[3];
 }

@@ -167,6 +167,7 @@ struct FD3D11LockedData
 	// constructor
 	FD3D11LockedData()
 		: bAllocDataWasUsed(false)
+		, bLockDeferred(false)
 	{
 	}
 
@@ -201,6 +202,9 @@ private:
 	uint8* Data;
 	// then FreeData
 	bool bAllocDataWasUsed;
+public:
+	// Whether the lock op is deferred
+	bool bLockDeferred;
 };
 
 /**

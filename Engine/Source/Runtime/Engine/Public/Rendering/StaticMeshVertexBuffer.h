@@ -178,6 +178,8 @@ public:
 
 	void SerializeMetaData(FArchive& Ar);
 
+	void ClearMetaData();
+
 	/**
 	* Specialized assignment operator, only used when importing LOD's.
 	*/
@@ -392,20 +394,17 @@ public:
 	FVertexBufferRHIRef CreateTexCoordRHIBuffer_RenderThread();
 	FVertexBufferRHIRef CreateTexCoordRHIBuffer_Async();
 
-	/** Set whether this buffer is managed by the streamer. Must be set before InitRHI is called */
-	void SetIsStreamed(bool bValue) { bStreamed = bValue; }
-
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <int32 MaxNumUpdates>
+	template <uint32 MaxNumUpdates>
 	void InitRHIForStreaming(
 		FVertexBufferRHIParamRef IntermediateTangentsBuffer,
 		FVertexBufferRHIParamRef IntermediateTexCoordBuffer,
 		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
-		check(!TangentsVertexBuffer.VertexBufferRHI && !TexCoordVertexBuffer.VertexBufferRHI);
+		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
 		if (IntermediateTangentsBuffer)
 		{
-			TangentsVertexBuffer.VertexBufferRHI = IntermediateTangentsBuffer;
+			Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, IntermediateTangentsBuffer);
 			if (TangentsSRV)
 			{
 				Batcher.QueueUpdateRequest(
@@ -417,7 +416,7 @@ public:
 		}
 		if (IntermediateTexCoordBuffer)
 		{
-			TexCoordVertexBuffer.VertexBufferRHI = IntermediateTexCoordBuffer;
+			Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, IntermediateTexCoordBuffer);
 			if (TextureCoordinatesSRV)
 			{
 				Batcher.QueueUpdateRequest(
@@ -429,9 +428,12 @@ public:
 		}
 	}
 
-	template<int32 MaxNumUpdates>
+	template<uint32 MaxNumUpdates>
 	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
+		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
+		Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, nullptr);
+		Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, nullptr);
 		if (TangentsSRV)
 		{
 			Batcher.QueueUpdateRequest(TangentsSRV, nullptr, 0, 0);
@@ -440,8 +442,6 @@ public:
 		{
 			Batcher.QueueUpdateRequest(TextureCoordinatesSRV, nullptr, 0, 0);
 		}
-		TangentsVertexBuffer.ReleaseRHI();
-		TexCoordVertexBuffer.ReleaseRHI();
 	}
 
 	// FRenderResource interface.
@@ -524,8 +524,6 @@ private:
 	bool bUseHighPrecisionTangentBasis;
 
 	bool NeedsCPUAccess = true;
-
-	bool bStreamed;
 
 	/** Allocates the vertex data storage type. */
 	void AllocateData(bool bNeedsCPUAccess = true);

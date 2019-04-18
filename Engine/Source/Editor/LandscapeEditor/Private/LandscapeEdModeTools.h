@@ -1121,6 +1121,23 @@ public:
 	{
 	}
 
+	virtual ELandscapeLayersContentUpdateFlag GetBeginToolContentUpdateFlag() const
+	{
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
+		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render;
+	}
+
+	virtual ELandscapeLayersContentUpdateFlag GetTickToolContentUpdateFlag() const
+	{
+		return GetBeginToolContentUpdateFlag();
+	}
+
+	virtual ELandscapeLayersContentUpdateFlag GetEndToolContentUpdateFlag() const
+	{
+		bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap; 
+		return bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All;
+	}
+
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
 		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
@@ -1128,8 +1145,7 @@ public:
 			ALandscape* Landscape = this->EdMode->GetLandscape();
 			if (Landscape)
 			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
+				Landscape->RequestLayersContentUpdate(GetBeginToolContentUpdateFlag());
 				Landscape->SetEditingLayer(this->EdMode->GetCurrentLayerGuid());
 			}
 		}
@@ -1183,8 +1199,7 @@ public:
 				ALandscape* Landscape = this->EdMode->CurrentToolTarget.LandscapeInfo->LandscapeActor.Get();
 				if (Landscape != nullptr)
 				{
-					bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-					Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_Render : ELandscapeLayersContentUpdateFlag::Weightmap_Render);
+					Landscape->RequestLayersContentUpdate(GetTickToolContentUpdateFlag());
 				}
 			}
 		}
@@ -1192,17 +1207,6 @@ public:
 
 	virtual void EndTool(FEditorViewportClient* ViewportClient) override
 	{
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			ALandscape* Landscape = this->EdMode->GetLandscape();
-			if (Landscape)
-			{
-				bool bUpdateHeightmap = this->EdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Type::Heightmap;
-				Landscape->RequestLayersContentUpdate(bUpdateHeightmap ? ELandscapeLayersContentUpdateFlag::Heightmap_All : ELandscapeLayersContentUpdateFlag::Weightmap_All);
-				Landscape->SetEditingLayer();
-			}
-		}
-
 		if (IsToolActive() && InteractorPositions.Num())
 		{
 			ToolStroke->Apply(ViewportClient, EdMode->CurrentBrush, EdMode->UISettings, InteractorPositions);
@@ -1213,6 +1217,16 @@ public:
 		EdMode->CurrentBrush->EndStroke();
 		EdMode->UpdateLayerUsageInformation(&EdMode->CurrentToolTarget.LayerInfo);
 		bExternalModifierPressed = false;
+
+		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
+		{
+			ALandscape* Landscape = this->EdMode->GetLandscape();
+			if (Landscape)
+			{
+				Landscape->RequestLayersContentUpdate(GetEndToolContentUpdateFlag());
+				Landscape->SetEditingLayer();
+			}
+		}
 	}
 
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override

@@ -334,7 +334,7 @@ static const TCHAR* ImportProperties(
 				{
 					AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(ActorComponent->GetComponentLevel(), true);
 
-					FFoliageMeshInfo* MeshInfo = nullptr;
+					FFoliageInfo* MeshInfo = nullptr;
 					UFoliageType* FoliageType = IFA->AddFoliageType(SourceFoliageType, &MeshInfo);
 
 					const TCHAR* StrPtr;
@@ -369,7 +369,12 @@ static const TCHAR* ImportProperties(
 						FParse::Value(StrPtr, TEXT("Flags="), Instance.Flags);
 
 						// Add the instance
-						MeshInfo->AddInstance(IFA, FoliageType, Instance, ActorComponent, true);
+						MeshInfo->AddInstance(IFA, FoliageType, Instance, ActorComponent);
+					}
+
+					if (MeshInfo)
+					{
+						MeshInfo->Refresh(IFA, true, true);
 					}
 				}
 			}

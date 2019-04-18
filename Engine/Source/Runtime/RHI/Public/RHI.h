@@ -1166,6 +1166,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
 
@@ -1174,6 +1175,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(InBulkData)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
 
@@ -1182,6 +1184,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(InResourceArray)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{}
 
@@ -1189,6 +1192,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(InClearValueBinding)
+		, bWithoutNativeResource(false)
 		, DebugName(nullptr)
 	{
 	}
@@ -1197,6 +1201,7 @@ struct FRHIResourceCreateInfo
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
+		, bWithoutNativeResource(false)
 		, DebugName(InDebugName)
 	{
 	}
@@ -1208,6 +1213,8 @@ struct FRHIResourceCreateInfo
 
 	// for binding clear colors to rendertargets.
 	FClearValueBinding ClearValueBinding;
+	// whether to create an RHI object with no underlying resource
+	bool bWithoutNativeResource;
 	const TCHAR* DebugName;
 };
 

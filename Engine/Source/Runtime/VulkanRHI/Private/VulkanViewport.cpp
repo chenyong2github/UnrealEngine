@@ -822,6 +822,12 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 		// Present the back buffer to the viewport window.
 		auto SwapChainJob = [Queue, PresentQueue](FVulkanViewport* Viewport)
 		{
+			// May happend if swapchain was recreated in DoCheckedSwapChainJob()
+			if (Viewport->AcquiredImageIndex == -1)
+			{
+				// Skip present silently if image has not been acquired
+				return (int32)FVulkanSwapChain::EStatus::Healthy;
+			}
 			return (int32)Viewport->SwapChain->Present(Queue, PresentQueue, Viewport->RenderingDoneSemaphores[Viewport->AcquiredImageIndex]);
 		};
 		if (FVulkanPlatform::SupportsStandardSwapchain() && !DoCheckedSwapChainJob(SwapChainJob))

@@ -19,8 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FForEachActorIteratorSignature, cl
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FForEachAssetIteratorSignature, class UObject*, Asset, int32, Index );
 
 
-UCLASS(Abstract, hideCategories=(Object), Blueprintable)
-class BLUTILITY_API UGlobalEditorUtilityBase : public UObject
+UCLASS(Abstract, hideCategories=(Object), Blueprintable, Deprecated)
+class BLUTILITY_API UDEPRECATED_GlobalEditorUtilityBase : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

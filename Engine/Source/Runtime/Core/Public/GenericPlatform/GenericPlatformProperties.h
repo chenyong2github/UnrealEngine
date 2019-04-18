@@ -241,7 +241,7 @@ struct FGenericPlatformProperties
 
 	static FORCEINLINE bool SupportsMeshLODStreaming()
 	{
-		return true;
+		return false;
 	}
 
 	static FORCEINLINE bool SupportsMemoryMappedFiles()

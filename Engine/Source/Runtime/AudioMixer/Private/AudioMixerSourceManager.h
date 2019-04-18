@@ -243,7 +243,7 @@ namespace Audio
 		bool IsBus(const int32 SourceId) const;
 		void PumpCommandQueue();
 		void UpdatePendingReleaseData(bool bForceWait = false);
-		void FlushCommandQueue();
+		void FlushCommandQueue(bool bPumpCommandQueue = false);
 	private:
 
 		void ReleaseSource(const int32 SourceId);

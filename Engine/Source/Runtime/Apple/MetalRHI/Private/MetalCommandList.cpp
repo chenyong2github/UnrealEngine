@@ -34,8 +34,11 @@ FMetalCommandList::~FMetalCommandList(void)
 	
 #pragma mark - Public Command List Mutators -
 
+extern CORE_API bool GIsGPUCrashed;
 static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& CompletedBuffer, TCHAR const* ErrorType, bool bDoCheck=true)
 {
+	GIsGPUCrashed = true;
+	
 	NSString* Label = CompletedBuffer.GetLabel();
 	int32 Code = CompletedBuffer.GetError().GetCode();
 	NSString* Domain = CompletedBuffer.GetError().GetDomain();
@@ -272,7 +275,7 @@ static __attribute__ ((optnone)) void HandleNVIDIAMetalCommandBufferError(mtlpp:
 	HandleMetalCommandBufferError(CompletedBuffer);
 }
 
-static void HandleIntelMetalCommandBufferError(mtlpp::CommandBuffer const& CompletedBuffer)
+static __attribute__ ((optnone)) void HandleIntelMetalCommandBufferError(mtlpp::CommandBuffer const& CompletedBuffer)
 {
 	HandleMetalCommandBufferError(CompletedBuffer);
 }

@@ -218,8 +218,9 @@ void ALobbyBeaconHost::KickPlayer(ALobbyBeaconClient* ClientActor, const FText& 
 	DisconnectClient(ClientActor);
 }
 
-void ALobbyBeaconHost::ProcessJoinServer(ALobbyBeaconClient* ClientActor)
+bool ALobbyBeaconHost::ProcessJoinServer(ALobbyBeaconClient* ClientActor)
 {
+	bool bSuccess = false;
 	if (LobbyState != nullptr)
 	{
 		ALobbyBeaconPlayerState* Player = LobbyState->GetPlayer(ClientActor);
@@ -227,6 +228,8 @@ void ALobbyBeaconHost::ProcessJoinServer(ALobbyBeaconClient* ClientActor)
 		{
 			Player->bInLobby = false;
 			ClientActor->AckJoiningServer();
+
+			bSuccess = true;
 		}
 		else
 		{
@@ -238,6 +241,8 @@ void ALobbyBeaconHost::ProcessJoinServer(ALobbyBeaconClient* ClientActor)
 	{
 		UE_LOG(LogLobbyBeacon, Warning, TEXT("No lobby state to handle user joining the game!"));
 	}
+
+	return bSuccess;
 }
 
 void ALobbyBeaconHost::ProcessDisconnect(ALobbyBeaconClient* ClientActor)

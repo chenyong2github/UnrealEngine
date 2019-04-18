@@ -29,8 +29,7 @@ FPositionVertexBuffer::FPositionVertexBuffer():
 	VertexData(NULL),
 	Data(NULL),
 	Stride(0),
-	NumVertices(0),
-	bStreamed(false)
+	NumVertices(0)
 {}
 
 FPositionVertexBuffer::~FPositionVertexBuffer()
@@ -175,6 +174,11 @@ void FPositionVertexBuffer::SerializeMetaData(FArchive& Ar)
 	Ar << Stride << NumVertices;
 }
 
+void FPositionVertexBuffer::ClearMetaData()
+{
+	Stride = NumVertices = 0;
+}
+
 /**
 * Specialized assignment operator, only used when importing LOD's.  
 */
@@ -187,19 +191,19 @@ void FPositionVertexBuffer::operator=(const FPositionVertexBuffer &Other)
 template <bool bRenderThread>
 FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Internal()
 {
-	check(VertexData);
-	FResourceArrayInterface* ResourceArray = VertexData->GetResourceArray();
-	if (ResourceArray->GetResourceDataSize())
+	if (NumVertices)
 	{
-		// Create the vertex buffer.
+		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		CreateInfo.bWithoutNativeResource = !VertexData;
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 		}
 	}
 	return nullptr;
@@ -217,14 +221,11 @@ FVertexBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
 
 void FPositionVertexBuffer::InitRHI()
 {
-	if (!bStreamed)
-	{
-		VertexBufferRHI = CreateRHIBuffer_RenderThread();
-	}
+	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
-	if ((bStreamed || VertexBufferRHI) && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable()))
+	if (VertexBufferRHI && (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable()))
 	{
-		PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+		PositionComponentSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R32_FLOAT);
 	}
 }
 

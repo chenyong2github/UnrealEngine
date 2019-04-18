@@ -44,9 +44,14 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 	for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->NewAssetDefaultClasses)
 	{
 		UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
-
+		
 		if (InArgs._AssetType->IsChildOf(AssetType))
 		{
+			if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
+			{
+				// Don't add if we are looking for editor classes only and this isn't an editor only class
+				break;
+			}
 			AssetDefaultClasses.Add(MakeShareable(new FClassPickerDefaults(DefaultObj)));
 		}
 	}

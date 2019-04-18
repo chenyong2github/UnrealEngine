@@ -7,6 +7,7 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "UObject/UObjectIterator.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
@@ -113,6 +114,7 @@ void UTexture::UpdateResource()
 		Resource = CreateResource();
 		if( Resource )
 		{
+			LLM_SCOPE(ELLMTag::Textures);
 			BeginInitResource(Resource);
 		}
 	}

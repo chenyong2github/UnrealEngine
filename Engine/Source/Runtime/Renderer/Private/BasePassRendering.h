@@ -35,9 +35,6 @@ class FViewInfo;
 /** Whether to allow the indirect lighting cache to be applied to dynamic objects. */
 extern int32 GIndirectLightingCache;
 
-/** Whether some GBuffer targets are optional. */
-extern bool UseSelectiveBasePassOutputs();
-
 class FForwardLocalLightData
 {
 public:
@@ -393,7 +390,7 @@ public:
 		const bool bOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(Platform);
 		if (bOutputVelocity)
 		{
-			const int32 VelocityIndex = 4; // As defined in BasePassPixelShader.usf
+			const int32 VelocityIndex = IsForwardShadingEnabled(Platform) ? 1 : 4; // As defined in BasePassPixelShader.usf
 			OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
 		}
 

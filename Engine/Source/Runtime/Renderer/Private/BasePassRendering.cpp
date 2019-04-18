@@ -45,11 +45,6 @@ static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksBasePass(
 	0,
 	TEXT("Wait for completion of parallel render thread tasks at the end of the base pass. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksBasePass is > 0 we will flush."));
 
-bool UseSelectiveBasePassOutputs()
-{
-	return CVarSelectiveBasePassOutputs.GetValueOnAnyThread() == 1;
-}
-
 static TAutoConsoleVariable<int32> CVarSupportStationarySkylight(
 	TEXT("r.SupportStationarySkylight"),
 	1,
@@ -612,6 +607,7 @@ void CreateOpaqueBasePassUniformBuffer(
  */
 bool FDeferredShadingSceneRenderer::RenderBasePass(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, IPooledRenderTarget* ForwardScreenSpaceShadowMask, bool bParallelBasePass, bool bRenderLightmapDensity)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderBasePass, FColor::Emerald);
 
 	bool bDirty = false;

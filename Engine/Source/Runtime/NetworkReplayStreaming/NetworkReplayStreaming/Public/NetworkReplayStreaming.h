@@ -10,6 +10,7 @@
 #include "Serialization/JsonSerializerMacros.h"
 
 class FNetworkReplayVersion;
+class IAnalyticsProvider;
 
 class FReplayEventListItem : public FJsonSerializable
 {
@@ -603,6 +604,8 @@ public:
 	 * Note, this will always fail for streamers that don't support replays stored on disk.
 	 */
 	virtual EStreamingOperationResult GetDemoPath(FString& DemoPath) const = 0;
+
+	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider>& InProvider) {}
 };
 
 /** Replay streamer factory */
