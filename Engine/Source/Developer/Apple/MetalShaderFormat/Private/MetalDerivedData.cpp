@@ -255,6 +255,8 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 					{
 						Job.Message = FString::Printf(TEXT("Failed to load object file: %s"), *Job.OutputObjectFile);
 					}
+
+					RemoveRemoteFile(RemoteObjFile);
 				}
 			}
 			else
