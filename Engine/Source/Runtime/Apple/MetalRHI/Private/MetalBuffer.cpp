@@ -428,7 +428,6 @@ NSUInteger FMetalSubBufferHeap::MaxAvailableSize() const
 	}
 }
 
-
 bool FMetalSubBufferHeap::CanAllocateSize(NSUInteger Size) const
 {
 	if (ParentHeap)
@@ -461,7 +460,6 @@ FMetalBuffer FMetalSubBufferHeap::NewBuffer(NSUInteger length)
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocBuffer(GetMetalDeviceContext().GetDevice(), Result);
 #endif
-		
 		DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Result.GetLength());
 		DEC_MEMORY_STAT_BY(STAT_MetalHeapBufferUnusedMemory, Result.GetLength());
 		INC_MEMORY_STAT_BY(STAT_MetalHeapBufferMemory, Result.GetLength());
@@ -1742,8 +1740,30 @@ void FMetalResourceHeap::Compact(FMetalRenderPass* Pass, bool const bForce)
                 }
             }
             
+            uint32 BytesCompacted = 0;
+            uint32 const BytesToCompact = GMetalHeapBufferBytesToCompact;
+            
+            for (uint32 i = 0; i < NumHeapSizes; i++)
+            {
 				// When not forcing the disposal of all resources we can compact them using the render-pass
                 for (uint32 j = 1; !bForce && j < BufferHeaps[u][t][i].Num(); j++)
+                {
+                    FMetalSubBufferHeap* Data = BufferHeaps[u][t][i][j];
+                    if (Data->AllocRanges.Num() > 0 && BytesCompacted < BytesToCompact)
+                    {
+                        for (FMetalSubBufferHeap::Allocation const& Alloc : Data->AllocRanges)
+                        {
+                            if (Alloc.Owner)
+                            {
+                                for (uint32 AllocIndex = 0; AllocIndex < j && BytesCompacted < BytesToCompact; AllocIndex++)
+                                {
+                                    FMetalSubBufferHeap* Prev = BufferHeaps[u][t][i][AllocIndex];
+                                    if (Prev->MaxAvailableSize() >= Alloc.Range.Length)
+                                    {
+                                        FMetalBuffer NewBuffer = Prev->NewBuffer(Alloc.Range.Length);
+                                        check(NewBuffer && NewBuffer.GetPtr());
+                                        
+                                        FMetalBuffer SourceResource = FMetalBuffer((id<MTLBuffer>)Alloc.Resource);
 										Pass->AsyncCopyFromBufferToBuffer(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
 										
                                         FMetalBuffer PrevBuffer;
@@ -1782,6 +1802,8 @@ void FMetalResourceHeap::Compact(FMetalRenderPass* Pass, bool const bForce)
                     }
                 }
             }
+        }
+    }
 
 	Buffers[AllocShared].DrainPool(bForce);
 	Buffers[AllocPrivate].DrainPool(bForce);
