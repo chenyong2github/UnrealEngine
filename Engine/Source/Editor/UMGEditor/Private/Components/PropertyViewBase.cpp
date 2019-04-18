@@ -126,9 +126,12 @@ void UPropertyViewBase::PostLoad()
 	{
 		AsyncTask(ENamedThreads::GameThread, [this]()
 		{
-			LazyObject = SoftObjectPath.TryLoad();
-			BuildContentWidget();
-			bIsAsyncBuildContentRequested = false;
+			if (!HasAnyFlags(RF_BeginDestroyed))
+			{
+				LazyObject = SoftObjectPath.TryLoad();
+				BuildContentWidget();
+				bIsAsyncBuildContentRequested = false;
+			}
 		});
 	}
 }
