@@ -3,16 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "Delegates/Delegate.h"
 
 class BACKGROUNDHTTP_API FBackgroundHttpNotificationObject
 	: public TSharedFromThis<FBackgroundHttpNotificationObject, ESPMode::ThreadSafe>
 {
 public:
 	FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationAction, FText InNotificationBody, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess);
+	FBackgroundHttpNotificationObject(FText InNotificationTitle, FText InNotificationAction, FText InNotificationBody, const FString& InNotificationActivationString, bool InNotifyOnlyOnFullSuccess, bool bOnlySendNotificationInBackground);
 	~FBackgroundHttpNotificationObject();
 
 	void NotifyOfDownloadResult(bool bWasSuccess);
+
+private:
+	void OnApp_EnteringBackground();
+	void OnApp_EnteringForeground();
 
 private:
 	FText NotificationTitle;
@@ -20,10 +25,16 @@ private:
 	FText NotificationBody;
 	FString NotificationActivationString;
 
+	bool bOnlySendNotificationInBackground;
 	bool bNotifyOnlyOnFullSuccess;
+	
+	volatile bool bIsInBackground;
 	volatile int32 NumFailedDownloads;
 
 	class ILocalNotificationService* PlatformNotificationService;
+
+	FDelegateHandle OnApp_EnteringForegroundHandle;
+	FDelegateHandle OnApp_EnteringBackgroundHandle;
 
 	//No default constructor
 	FBackgroundHttpNotificationObject() {}
