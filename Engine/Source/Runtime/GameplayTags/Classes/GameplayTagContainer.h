@@ -542,9 +542,10 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	/**
 	 * Tag to remove from the container
 	 * 
-	 * @param TagToRemove	Tag to remove from the container
+	 * @param TagToRemove		Tag to remove from the container
+	 * @param bDeferParentTags	Skip calling FillParentTags for performance (must be handled by calling code)
 	 */
-	bool RemoveTag(FGameplayTag TagToRemove);
+	bool RemoveTag(FGameplayTag TagToRemove, bool bDeferParentTags=false);
 
 	/**
 	 * Removes all tags in TagsToRemove from this container
@@ -615,6 +616,9 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	{
 		return GameplayTags.Num() > 0 ? GameplayTags.Last() : FGameplayTag();
 	}
+
+	/** Fills in ParentTags from GameplayTags */
+	void FillParentTags();
 
 	/** An empty Gameplay Tag Container */
 	static const FGameplayTagContainer EmptyContainer;
@@ -823,9 +827,6 @@ protected:
 
 	/** Adds parent tags for a single tag */
 	void AddParentsForTag(const FGameplayTag& Tag);
-
-	/** Fills in ParentTags from GameplayTags */
-	void FillParentTags();
 
 	/** Array of gameplay tags */
 	UPROPERTY(BlueprintReadWrite, Category=GameplayTags, SaveGame) // Change to VisibleAnywhere after fixing up games
