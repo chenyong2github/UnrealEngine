@@ -4638,7 +4638,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 				if (TryWeightmapUsage->FreeChannelCount() >= TotalNeededChannels && TryWeightmapUsage->LayerGuid == LayerGuidToSeek)
 				{
-					if (TryWeightmapUsage->FreeChannelCount() == 4)
+					if (TryWeightmapUsage->IsEmpty())
 					{
 						CurrentWeightmapTexture = ItPair.Key;
 						CurrentWeightmapUsage = TryWeightmapUsage;
@@ -4647,7 +4647,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 					else
 					{
 						// See if this candidate is closer than any others we've found
-						for (int32 ChanIdx = 0; ChanIdx < 4; ChanIdx++)
+						for (int32 ChanIdx = 0; ChanIdx < ULandscapeWeightmapUsage::NumChannels; ChanIdx++)
 						{
 							if (TryWeightmapUsage->ChannelUsage[ChanIdx] != nullptr)
 							{
@@ -4798,7 +4798,7 @@ void ALandscapeProxy::RemoveInvalidWeightmaps()
 		{
 			UTexture2D* Tex = It.Key();
 			ULandscapeWeightmapUsage* Usage = It.Value();
-			if (Usage->FreeChannelCount() == 4) // Invalid Weight-map
+			if (Usage->IsEmpty()) // Invalid Weight-map
 			{
 				if (Tex)
 				{
