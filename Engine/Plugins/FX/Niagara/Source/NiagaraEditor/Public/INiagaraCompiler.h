@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraParameters.h"
+#include "NiagaraScript.h"
 
 class Error;
 class UEdGraphPin;
@@ -17,7 +18,7 @@ struct FNiagaraTranslatorOutput;
 struct FNiagaraVMExecutableData;
 class FNiagaraCompileRequestData;
 class FNiagaraCompileOptions;
-struct FNiagaraCompileEvent;
+//struct FNiagaraCompileEvent;
 
 /** Defines information about the results of a Niagara script compile. */
 struct FNiagaraCompileResults

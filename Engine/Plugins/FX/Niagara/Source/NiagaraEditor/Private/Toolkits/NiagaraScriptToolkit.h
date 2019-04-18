@@ -10,6 +10,8 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/GCObject.h"
 
+#include "NiagaraScript.h"
+
 class IDetailsView;
 class SGraphEditor;
 class UEdGraph;
@@ -21,7 +23,7 @@ struct FEdGraphEditAction;
 class FTokenizedMessage; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 class IMessageToken; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 class UNiagaraGraph; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
+//struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 
 /** Viewer/editor for a DataTable */
 class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
