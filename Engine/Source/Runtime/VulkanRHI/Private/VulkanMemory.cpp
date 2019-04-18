@@ -225,10 +225,13 @@ namespace VulkanRHI
 #endif
 
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-	((VkMemoryDedicatedAllocateInfoKHR*)DedicatedAllocateInfo)->pNext = Info.pNext;
-	Info.pNext = DedicatedAllocateInfo;
+		if (DedicatedAllocateInfo)
+		{
+			((VkMemoryDedicatedAllocateInfoKHR*)DedicatedAllocateInfo)->pNext = Info.pNext;
+			Info.pNext = DedicatedAllocateInfo;
+		}
 #else
-	check(!DedicatedAllocateInfo);
+		check(!DedicatedAllocateInfo);
 #endif
 
 		VkDeviceMemory Handle;
@@ -748,8 +751,8 @@ namespace VulkanRHI
 		else
 		{
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-			int32 Removed = UsedDedicatedImagePages.RemoveSingleSwap(InPage, false);
-			check(Removed > 0);
+			int32 RemovedDedicated = UsedDedicatedImagePages.RemoveSingleSwap(InPage, false);
+			check(RemovedDedicated > 0);
 #else
 			//checkf(0, TEXT("Page not found in Pool!"));
 #endif
