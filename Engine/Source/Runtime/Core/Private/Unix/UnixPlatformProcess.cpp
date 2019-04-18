@@ -1453,6 +1453,11 @@ uint32 FUnixPlatformProcess::GetCurrentProcessId()
 	return getpid();
 }
 
+uint32 FUnixPlatformProcess::GetCurrentCoreNumber()
+{
+	return sched_getcpu();
+}
+
 void FUnixPlatformProcess::SetCurrentWorkingDirectoryToBaseDir()
 {
 	FPlatformMisc::CacheLaunchDir();

@@ -96,6 +96,13 @@ uint32 FAndroidPlatformProcess::GetCurrentProcessId()
 	return getpid();
 }
 
+uint32 FAndroidPlatformProcess::GetCurrentCoreNumber()
+{
+	unsigned CPU;
+	int Err = syscall(__NR_getcpu, &CPU, nullptr, nullptr);
+	return (!Err) ? CPU : 0;
+}
+
 const TCHAR* FAndroidPlatformProcess::BaseDir()
 {
 	return TEXT("");
