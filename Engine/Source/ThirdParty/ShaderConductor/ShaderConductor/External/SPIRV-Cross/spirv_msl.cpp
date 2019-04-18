@@ -5513,11 +5513,18 @@ string CompilerMSL::to_struct_member(const SPIRType &type, uint32_t member_type_
 	if (membertype.basetype != SPIRType::Image && membertype.basetype != SPIRType::Sampler &&
 	    membertype.basetype != SPIRType::SampledImage)
 	{
+		/* UE Change Begin: Force the use of C style array declaration. */
+		BuiltIn builtin = BuiltInMax;
+		use_builtin_array = is_member_builtin(type, index, &builtin);
+		/* UE Change End: Force the use of C style array declaration. */
+		
 		array_type = type_to_array_glsl(membertype);
 	}
 
-	return join(pack_pfx, type_to_glsl(*effective_membertype, orig_id), " ", qualifier, to_member_name(type, index),
+	string result = join(pack_pfx, type_to_glsl(*effective_membertype, orig_id), " ", qualifier, to_member_name(type, index),
 	            member_attribute_qualifier(type, index), array_type, ";");
+	use_builtin_array = false;
+	return result;
 }
 
 // Emit a structure member, padding and packing to maintain the correct memeber alignments.
@@ -7027,11 +7034,15 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	if (type.array.empty())
 	{
-	return type_name;
-}
+		return type_name;
+	}
 	else
 	{
-		if (options.flatten_multidimensional_arrays)
+		if (use_builtin_array)
+		{
+			return type_name;
+		}
+		else if (options.flatten_multidimensional_arrays)
 		{
 			string res = "unsafe_array<";
 			res += type_name;
@@ -7077,6 +7088,7 @@ string CompilerMSL::type_to_glsl(const SPIRType &type, uint32_t id)
 string CompilerMSL::type_to_array_glsl(const SPIRType &type)
 {
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+	/* UE Change Begin: Force the use of C style array declaration. */
 	switch (type.basetype)
 	{
 		case SPIRType::AtomicCounter:
@@ -7086,9 +7098,13 @@ string CompilerMSL::type_to_array_glsl(const SPIRType &type)
 		}
 		default:
 		{
-			return "";
+			if (use_builtin_array)
+				return CompilerGLSL::type_to_array_glsl(type);
+			else
+				return "";
 		}
 	}
+	/* UE Change End: Force the use of C style array declaration. */
 	/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
 }
 

@@ -552,6 +552,9 @@ protected:
 	/* UE Change Begin: Handle HLSL-style 0-based vertex/instance index. */
 	bool builtin_declaration = false;
 	/* UE Change End: Handle HLSL-style 0-based vertex/instance index. */
+	/* UE Change Begin: Force the use of C style array declaration. */
+	bool use_builtin_array = false;
+	/* UE Change End: Force the use of C style array declaration. */
 	bool is_rasterization_disabled = false;
 	bool capture_output_to_buffer = false;
 	bool needs_aux_buffer_def = false;
