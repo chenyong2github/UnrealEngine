@@ -2441,6 +2441,7 @@ struct FPakSignatureFile
 		FSHAHash CurrentHash = ComputeCurrentMasterHash();
 		if (DecryptedHash != CurrentHash)
 		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
 			FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
 			return false;
 		}
