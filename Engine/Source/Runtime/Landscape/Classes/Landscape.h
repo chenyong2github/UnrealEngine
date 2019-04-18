@@ -252,7 +252,6 @@ public:
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer(const FIntPoint& InComponentCounts);
-	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGUID);
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
 	LANDSCAPE_API TMap<UTexture2D*, TArray<ULandscapeComponent*>> GenerateComponentsPerHeightmaps() const;
 	LANDSCAPE_API FIntPoint ComputeComponentCounts() const;

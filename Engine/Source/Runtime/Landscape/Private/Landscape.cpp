@@ -55,6 +55,7 @@ Landscape.cpp: Terrain rendering
 #include "MaterialUtilities.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
+#include "Algo/Transform.h"
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -1184,7 +1185,7 @@ void ULandscapeComponent::BeginDestroy()
 				{
 					(*Usage)->ChannelUsage[WeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
-					if ((*Usage)->FreeChannelCount() == 4)
+					if ((*Usage)->IsEmpty())
 					{
 						Proxy->WeightmapUsageMap.Remove(WeightmapTexture);
 					}
@@ -1437,12 +1438,14 @@ void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FL
 
 void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
 {
+	Modify();
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
 }
 
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 {
+	Modify();
 	LayersData.Remove(InLayerGuid);
 }
 
@@ -2158,7 +2161,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 	}
 }
 
-void ALandscapeProxy::ConditionalAssignCommonProperties(ALandscape* Landscape)
+void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 {
 	if (Landscape == nullptr)
 	{
@@ -2226,6 +2229,17 @@ void ALandscapeProxy::ConditionalAssignCommonProperties(ALandscape* Landscape)
 		TargetDisplayOrderList = Landscape->TargetDisplayOrderList;
 		bUpdated = true;
 	}
+		
+	
+	TSet<FGuid> LayerGuids;
+	Algo::Transform(Landscape->LandscapeLayers, LayerGuids, [](const FLandscapeLayer& Layer) { return Layer.Guid; });
+	bUpdated |= RemoveObsoleteLayers(LayerGuids);
+	
+	for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
+	{
+		bUpdated |= AddLayer(Layer.Guid);
+	}
+
 
 	if (bUpdated)
 	{
@@ -2526,7 +2540,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 		for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
 		{
 			StreamingProxy->LandscapeActor = LandscapeActor;
-			StreamingProxy->ConditionalAssignCommonProperties(Landscape);
+			StreamingProxy->FixupSharedData(Landscape);
 		}
 	}
 	else
@@ -2535,7 +2549,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 		Proxies.Add(StreamingProxy);
 		StreamingProxy->LandscapeActor = LandscapeActor;
-		StreamingProxy->ConditionalAssignCommonProperties(LandscapeActor.Get());
+		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}
 
 	UpdateLayerInfoMap(Proxy);
