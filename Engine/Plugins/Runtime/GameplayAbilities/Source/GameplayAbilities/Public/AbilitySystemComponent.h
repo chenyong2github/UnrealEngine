@@ -539,10 +539,43 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Update the number of instances of a given tag and calls callback */
 	FORCEINLINE void UpdateTagMap(const FGameplayTagContainer& Container, int32 CountDelta)
 	{
-		for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
+		// For removal, reorder calls so that FillParentTags is only called once
+		if (CountDelta > 0)
 		{
-			const FGameplayTag& Tag = *TagIt;
-			UpdateTagMap(Tag, CountDelta);
+			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
+			{
+				const FGameplayTag& Tag = *TagIt;
+				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta))
+				{
+					OnTagUpdated(Tag, true);
+				}
+			}
+		}
+		else if (CountDelta < 0)
+		{
+			// Defer FillParentTags until all Tags have been removed
+			TArray<FGameplayTag> RemovedTags;
+			RemovedTags.Reserve(Container.Num()); // pre-allocate max number (if all are removed)
+
+			for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
+			{
+				const FGameplayTag& Tag = *TagIt;
+				if (GameplayTagCountContainer.UpdateTagCount(Tag, CountDelta, true))
+				{
+					RemovedTags.Add(Tag);
+				}
+			}
+			
+			if (RemovedTags.Num() > 0)
+			{
+				GameplayTagCountContainer.FillParentTags();
+			}
+
+			// Notify last in case OnTagUpdated queries this container
+			for (FGameplayTag& Tag : RemovedTags)
+			{
+				OnTagUpdated(Tag, false);
+			}
 		}
 	}
 
