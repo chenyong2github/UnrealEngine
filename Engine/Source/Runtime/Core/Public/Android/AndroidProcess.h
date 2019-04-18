@@ -34,6 +34,7 @@ struct CORE_API FAndroidPlatformProcess : public FGenericPlatformProcess
 	static const TCHAR* ComputerName();
 	static void SetThreadAffinityMask( uint64 AffinityMask );
 	static uint32 GetCurrentProcessId();
+	static uint32 GetCurrentCoreNumber();
 	static const TCHAR* BaseDir();
 	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
 	static class FRunnableThread* CreateRunnableThread();
