@@ -4436,6 +4436,8 @@ void AActor::MarkComponentsRenderStateDirty()
 
 void AActor::InitializeComponents()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Actor_InitializeComponents);
+
 	TInlineComponentArray<UActorComponent*> Components;
 	GetComponents(Components);
 
