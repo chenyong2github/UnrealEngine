@@ -821,7 +821,7 @@ bool FGameplayTagContainer::AddLeafTag(const FGameplayTag& TagToAdd)
 
 DECLARE_CYCLE_STAT(TEXT("FGameplayTagContainer::RemoveTag"), STAT_FGameplayTagContainer_RemoveTag, STATGROUP_GameplayTags);
 
-bool FGameplayTagContainer::RemoveTag(FGameplayTag TagToRemove)
+bool FGameplayTagContainer::RemoveTag(FGameplayTag TagToRemove, bool bDeferParentTags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTag);
 
@@ -829,8 +829,11 @@ bool FGameplayTagContainer::RemoveTag(FGameplayTag TagToRemove)
 
 	if (NumChanged > 0)
 	{
-		// Have to recompute parent table from scratch because there could be duplicates providing the same parent tag
-		FillParentTags();
+		if (!bDeferParentTags)
+		{
+			// Have to recompute parent table from scratch because there could be duplicates providing the same parent tag
+			FillParentTags();
+		}
 		return true;
 	}
 	return false;
