@@ -805,6 +805,9 @@ namespace UnrealBuildTool
 
 		static CPPOutput CompileAdaptiveNonUnityFiles(UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> Files, DirectoryReference IntermediateDirectory, string ModuleName, List<Action> Actions)
 		{
+			// Write all the definitions out to a separate file
+			CreateHeaderForDefinitions(CompileEnvironment, IntermediateDirectory, "Adaptive");
+
 			// Compile the files
 			return ToolChain.CompileCPPFiles(CompileEnvironment, Files, IntermediateDirectory, ModuleName, Actions);
 		}
