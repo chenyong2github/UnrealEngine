@@ -1141,6 +1141,8 @@ public:
 	{
 	}
 
+	virtual bool ShouldUpdateEditingLayer() const { return false; }
+
 	virtual const TCHAR* GetToolName() override { return TEXT("DeleteComponent"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_DeleteComponent", "Delete Landscape Components"); };
 
