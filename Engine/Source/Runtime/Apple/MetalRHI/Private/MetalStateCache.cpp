@@ -2129,11 +2129,19 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 				uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
 				ComputeMask.BufferMask &= ~(1 << Index);
 				
-				FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Vertex].Buffers[Index];
-				FMetalBufferBinding const& HullBinding = ShaderBuffers[EMetalShaderStages::Hull].Buffers[Index];
-				ensure(Binding.Buffer || Binding.Bytes || HullBinding.Buffer || HullBinding.Bytes);
-				ensure(MinComputeBufferSizes.Num() > Index);
-				ensure(Binding.Length >= MinComputeBufferSizes[Index] || HullBinding.Length >= MinComputeBufferSizes[Index]);
+				if (Pipeline->TessellationPipelineDesc.TessellationControlPointIndexBufferIndex != Index
+					&& Pipeline->TessellationPipelineDesc.TessellationIndexBufferIndex != Index
+					&& Pipeline->TessellationPipelineDesc.TessellationOutputControlPointBufferIndex != Index
+					&& Pipeline->TessellationPipelineDesc.TessellationPatchConstBufferIndex != Index
+					&& Pipeline->TessellationPipelineDesc.TessellationFactorBufferIndex != Index
+					&& Pipeline->TessellationPipelineDesc.TessellationPatchCountBufferIndex != Index)
+				{
+					FMetalBufferBinding const& Binding = ShaderBuffers[EMetalShaderStages::Vertex].Buffers[Index];
+					FMetalBufferBinding const& HullBinding = ShaderBuffers[EMetalShaderStages::Hull].Buffers[Index];
+					ensure(Binding.Buffer || Binding.Bytes || HullBinding.Buffer || HullBinding.Bytes);
+					ensure(MinComputeBufferSizes.Num() > Index);
+					ensure(Binding.Length >= MinComputeBufferSizes[Index] || HullBinding.Length >= MinComputeBufferSizes[Index]);
+				}
 			}
 #if PLATFORM_MAC
 			{
@@ -2185,10 +2193,14 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
 			VertexMask.BufferMask &= ~(1 << Index);
 			
-			FMetalBufferBinding const& Binding = ShaderBuffers[VertexStage].Buffers[Index];
-			ensure(Binding.Buffer || Binding.Bytes);
-			ensure(MinVertexBufferSizes.Num() > Index);
-			ensure(Binding.Length >= MinVertexBufferSizes[Index]);
+			if ((VertexStage == EMetalShaderStages::Vertex) || (Pipeline->TessellationPipelineDesc.TessellationInputPatchConstBufferIndex != Index
+				&& Pipeline->TessellationPipelineDesc.TessellationInputControlPointBufferIndex != Index))
+			{
+				FMetalBufferBinding const& Binding = ShaderBuffers[VertexStage].Buffers[Index];
+				ensure(Binding.Buffer || Binding.Bytes);
+				ensure(MinVertexBufferSizes.Num() > Index);
+				ensure(Binding.Length >= MinVertexBufferSizes[Index]);
+			}
 		}
 #if PLATFORM_MAC
 		{
