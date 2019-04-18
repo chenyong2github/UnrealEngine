@@ -2117,11 +2117,6 @@ namespace AutomationTool
 				}
 			}
 
-			if (String.IsNullOrEmpty(GameTarget) && Run && !NoClient && (Cook || CookOnTheFly) && CommandUtils.IsNullOrEmpty(ClientCookedTargetsList))
-			{
-				throw new AutomationException("Game target not found. Game target is required with -cook or -cookonthefly");
-			}
-
 			if (EditorTargetsList == null)
 			{
 				if (!GlobalCommandLine.NoCompileEditor && !IsProgramTarget && !String.IsNullOrEmpty(EditorTarget))
