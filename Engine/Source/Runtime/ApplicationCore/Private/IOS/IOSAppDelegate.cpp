@@ -1376,6 +1376,8 @@ FCriticalSection RenderSuspend;
 	 If your application supports background execution, this method is called
 	 instead of applicationWillTerminate: when the user quits.
 	 */
+
+#if BUILD_EMBEDDED_APP
 	FIOSAsyncTask* AsyncTask = [[FIOSAsyncTask alloc] init];
 	AsyncTask.GameThreadCallback = ^ bool(void)
 	{
@@ -1383,6 +1385,9 @@ FCriticalSection RenderSuspend;
 		return true;
 	};
 	[AsyncTask FinishedTask];
+#else
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
+#endif //BUILD_EBMEDDED_APP
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application
