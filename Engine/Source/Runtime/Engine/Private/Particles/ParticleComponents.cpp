@@ -4937,6 +4937,7 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	LLM_SCOPE(ELLMTag::Particles);
 	FInGameScopedCycleCounter InGameCycleCounter(GetWorld(), EInGamePerfTrackers::VFXSignificance, EInGamePerfTrackerThreads::GameThread, bIsManagingSignificance);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT);
+	FScopeCycleCounterUObject AdditionalScope(AdditionalStatObject(), GET_STATID(STAT_ParticlesOverview_GT));
 
 	if (Template == nullptr || Template->Emitters.Num() == 0)
 	{
