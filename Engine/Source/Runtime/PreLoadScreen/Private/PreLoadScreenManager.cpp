@@ -291,6 +291,11 @@ void FPreLoadScreenManager::GameLogicFrameTick()
         double DeltaTime = CurrentTime - LastTickTime;
         LastTickTime = CurrentTime;
 
+		//Clamp to what should be more then any max reasonable time. This is to help with cases of
+		//backgrounding or setting breakpoints to trigger huge ticks
+		const double MaxTickTime = 5.0;
+		DeltaTime = FMath::Min(DeltaTime, MaxTickTime);
+
         //We have to manually tick everything as we are looping the main thread here
         FTicker::GetCoreTicker().Tick(DeltaTime);
         FThreadManager::Get().Tick();

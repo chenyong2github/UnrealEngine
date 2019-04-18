@@ -3057,11 +3057,17 @@ public:
 	/** Toggle the feature level preview */
 	void ToggleFeatureLevelPreview();
 
-	/** Return whether the feature level preview is able to be enabled */
+	/** Return whether the feature level preview is enabled for use via the user accessing Settings->Preview Rendering Level. */
 	bool IsFeatureLevelPreviewEnabled() const;
 
-	/** Return whether the feature level preview is currently active */
+	/** Return whether the feature level preview enabled via Settings->Preview Rendering Level is currently active/displaying. */
 	bool IsFeatureLevelPreviewActive() const;
+
+	/**
+	 * Return the active feature level. This will be the chosen Settings->Preview Rendering Level if the Preview Mode button
+	 * is highlighted or SM5 if the Preview Mode button has been clicked and isn't highlighted.
+	 */
+	ERHIFeatureLevel::Type GetActiveFeatureLevelPreviewType() const;
 
 	/** Return the delegate that is called when the preview feature level changes */
 	FPreviewFeatureLevelChanged& OnPreviewFeatureLevelChanged() { return PreviewFeatureLevelChanged; }

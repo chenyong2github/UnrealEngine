@@ -49,6 +49,10 @@
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName)				FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName);
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition) FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
 
+#define CSV_SCOPED_WAIT_CONDITIONAL(Condition)					FScopedCsvWaitConditional _ScopedCsvWait(Condition);
+#define CSV_SCOPED_SET_WAIT_STAT(StatName)						FScopedCsvSetWaitStat _ScopedCsvSetWaitStat ## StatName("EventWait/"#StatName);
+#define CSV_SCOPED_SET_WAIT_STAT_IGNORE()						FScopedCsvSetWaitStat _ScopedCsvSetWaitStat ## StatName();
+
 #define CSV_CUSTOM_STAT(Category,StatName,Value,Op)				FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX(Category), Value, Op)
 #define CSV_CUSTOM_STAT_GLOBAL(StatName,Value,Op) 				FCsvProfiler::RecordCustomStat(#StatName, CSV_CATEGORY_INDEX_GLOBAL, Value, Op)
 
@@ -80,6 +84,9 @@
   #define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName)					
   #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName)
   #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition)
+  #define CSV_SCOPED_WAIT_CONDITIONAL(Condition)
+  #define CSV_SCOPED_SET_WAIT_STAT(StatName)
+  #define CSV_SCOPED_SET_WAIT_STAT_IGNORE()
   #define CSV_CUSTOM_STAT(Category,StatName,Value,Op)				
   #define CSV_CUSTOM_STAT_GLOBAL(StatName,Value,Op) 				
   #define CSV_DEFINE_STAT(Category,StatName)						
@@ -214,6 +221,12 @@ public:
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FCsvProfiler::RecordEventf");
 		RecordEventfInternal(CategoryIndex, Fmt, Args...);
 	}
+
+	CORE_API static void BeginSetWaitStat(const char * StatName);
+	CORE_API static void EndSetWaitStat();
+
+	CORE_API static void BeginWait();
+	CORE_API static void EndWait();
 
 	/** Singleton interface */
 	CORE_API bool IsCapturing();
@@ -366,6 +379,46 @@ public:
 	bool bCondition;
 };
 
+class FScopedCsvWaitConditional
+{
+public:
+	FScopedCsvWaitConditional(bool bInCondition)
+		: bCondition(bInCondition)
+	{
+		if (bCondition)
+		{
+			FCsvProfiler::BeginWait();
+#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
+			FPlatformMisc::BeginNamedEvent(FColor(255, 128, 128), EventWait);
+#endif
+		}
+	}
+
+	~FScopedCsvWaitConditional()
+	{
+#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
+		FPlatformMisc::EndNamedEvent();
+#endif
+		FCsvProfiler::EndWait();
+	}
+	bool bCondition;
+};
+
+class FScopedCsvSetWaitStat
+{
+public:
+	FScopedCsvSetWaitStat(const char * InStatName = nullptr)
+		: StatName(InStatName)
+	{
+		FCsvProfiler::BeginSetWaitStat(StatName);
+	}
+
+	~FScopedCsvSetWaitStat()
+	{
+		FCsvProfiler::EndSetWaitStat();
+	}
+	const char * StatName;
+};
 
 struct FCsvCategory
 {

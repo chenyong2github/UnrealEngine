@@ -214,10 +214,10 @@ void ADebugCameraHUD::PostRender()
 			Canvas->DrawText(RenderFont, TEXT("Toggle Display: BackSpace or XButton"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
-			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: O"), X, yl, 1.f, 1.f, FontRenderInfo);
+			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Hitpoint: O"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 
-			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Hitpoint: Shift-O"), X, yl, 1.f, 1.f, FontRenderInfo);
+			Canvas->DrawText(RenderFont, TEXT("Orbit Selected Actor: Shift-O"), X, yl, 1.f, 1.f, FontRenderInfo);
 			yl += Y;
 		}
 	}

@@ -271,6 +271,8 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 
 	bool bForceNoAudioMixer = FParse::Param(FCommandLine::Get(), TEXT("NoAudioMixer"));
 
+	bool bForceNonRealtimeRenderer = FParse::Param(FCommandLine::Get(), TEXT("DeterministicAudio"));
+
 	// If not using command line switch to use audio mixer, check the game platform engine ini file (e.g. WindowsEngine.ini) which enables it for player
 	bUsingAudioMixer = bForceAudioMixer;
 	if (!bForceAudioMixer && !bForceNoAudioMixer)
@@ -286,6 +288,19 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 	// Get the audio mixer and non-audio mixer device module names
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
+
+	if (bForceNonRealtimeRenderer)
+	{
+		AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(TEXT("NonRealtimeAudioRenderer"));
+
+		static IConsoleVariable* IsUsingAudioMixerCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.IsUsingAudioMixer"));
+		check(IsUsingAudioMixerCvar);
+		IsUsingAudioMixerCvar->Set(2, ECVF_SetByConstructor);
+
+		bUsingAudioMixer = true;
+
+		return AudioDeviceModule != nullptr;
+	}
 
 	if (bUsingAudioMixer && AudioMixerModuleName.Len() > 0)
 	{

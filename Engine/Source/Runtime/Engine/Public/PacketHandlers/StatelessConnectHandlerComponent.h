@@ -220,6 +220,14 @@ private:
 	 */
 	void UpdateSecret();
 
+	/**
+	 * Calculate the adjusted predefined packet size, based on MagicHeader
+	 */
+	FORCEINLINE int32 GetAdjustedSizeBits(int32 InSizeBits)
+	{
+		return MagicHeader.Num() + InSizeBits;
+	}
+
 
 private:
 	/** The net driver associated with this handler - for performing connectionless sends */
@@ -273,5 +281,8 @@ private:
 
 	/** The cookie which completed the connection handshake. */
 	uint8 AuthorisedCookie[COOKIE_BYTE_SIZE];
+
+	/** The magic header which is prepended to all packets */
+	TBitArray<> MagicHeader;
 };
 

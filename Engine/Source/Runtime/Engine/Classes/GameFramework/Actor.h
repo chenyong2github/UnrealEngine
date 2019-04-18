@@ -2989,6 +2989,9 @@ private:
 	friend struct FMarkActorIsBeingDestroyed;
 	friend struct FActorParentComponentSetter;
 	friend struct FSetActorWantsDestroyDuringBeginPlay;
+#if WITH_EDITOR
+	friend struct FSetActorHiddenInSceneOutliner;
+#endif
 
 	// Static helpers for accessing functions on SceneComponent.
 	// These are templates for no other reason than to delay compilation until USceneComponent is defined.
@@ -3066,6 +3069,19 @@ private:
 
 	friend UWorld;
 };
+
+#if WITH_EDITOR
+struct FSetActorHiddenInSceneOutliner
+{
+private:
+	FSetActorHiddenInSceneOutliner(AActor* InActor)
+	{
+		InActor->bListedInSceneOutliner = false;
+	}
+
+	friend UWorld;
+};
+#endif
 
 /**
  * TInlineComponentArray is simply a TArray that reserves a fixed amount of space on the stack

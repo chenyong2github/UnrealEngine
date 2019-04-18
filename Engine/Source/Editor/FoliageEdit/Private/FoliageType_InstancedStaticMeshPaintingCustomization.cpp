@@ -59,7 +59,7 @@ void FFoliageType_InstancedStaticMeshPaintingCustomization::CustomizeDetails(IDe
 			UFoliageType* FoliageType = TypeInfo->Settings;
 			if (!FoliageType->IsAsset() && !FoliageType->GetClass()->ClassGeneratedBy)
 			{
-				UnavailableMeshNames.Add(FoliageType->GetStaticMesh()->GetFName());
+				UnavailableMeshNames.Add(FoliageType->GetSource()->GetFName());
 			}
 		}
 

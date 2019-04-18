@@ -267,6 +267,11 @@ public:
 	*/
 	void ResumeHeartBeat();
 
+	/**
+	* Is the heartbeat suspended?
+	*/
+	bool IsSuspended_Gamethread() const;
+
 	// No-op, used in FUnixSignalGameHitchHeartBeat
 	void Restart() {}
 

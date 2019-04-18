@@ -209,7 +209,7 @@ struct FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 	FRigUnit_MathTransformRotateVector()
 	{
 		Transform = FTransform::Identity;
-		Direction = Result = FVector();
+		Direction = Result = FVector::ZeroVector;
 	}
 
 	virtual void Execute(const FRigUnitContext& Context) override;
@@ -235,7 +235,7 @@ struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 	FRigUnit_MathTransformTransformVector()
 	{
 		Transform = FTransform::Identity;
-		Location = Result = FVector();
+		Location = Result = FVector::ZeroVector;
 	}
 	
 	virtual void Execute(const FRigUnitContext& Context) override;

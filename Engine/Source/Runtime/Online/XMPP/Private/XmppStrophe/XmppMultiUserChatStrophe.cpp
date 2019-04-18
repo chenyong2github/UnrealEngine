@@ -9,8 +9,11 @@
 
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Misc/Guid.h"
+#include "Misc/EmbeddedCommunication.h"
 
 #if WITH_XMPP_STROPHE
+
+const FName FXmppMultiUserChatStrophe::TickRequesterId = FName("StropheMultichat");
 
 FXmppMultiUserChatStrophe::FXmppMultiUserChatStrophe(FXmppConnectionStrophe& InConnectionManager)
 	: ConnectionManager(InConnectionManager)
@@ -18,18 +21,17 @@ FXmppMultiUserChatStrophe::FXmppMultiUserChatStrophe(FXmppConnectionStrophe& InC
 
 }
 
+FXmppMultiUserChatStrophe::~FXmppMultiUserChatStrophe()
+{
+	CleanupMessages();
+}
+
 void FXmppMultiUserChatStrophe::OnDisconnect()
 {
+	CleanupMessages();
+
 	Chatrooms.Empty();
 	PendingRoomCreateConfigs.Empty();
-
-	IncomingMucPresenceUpdates.Empty();
-	IncomingMucPresenceErrors.Empty();
-	IncomingGroupChatMessages.Empty();
-	IncomingRoomSubjects.Empty();
-	IncomingRoomConfigErrors.Empty();
-	IncomingRoomConfigWriteSuccesses.Empty();
-	IncomingRoomInfoUpdates.Empty();
 }
 
 bool FXmppMultiUserChatStrophe::ReceiveStanza(const FStropheStanza& IncomingStanza)
@@ -120,6 +122,7 @@ bool FXmppMultiUserChatStrophe::HandlePresenceStanza(const FStropheStanza& Incom
 		}
 	}
 
+	FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 	IncomingMucPresenceUpdates.Enqueue(MakeUnique<FXmppMucPresence>(MoveTemp(Presence)));
 	return true;
 }
@@ -186,6 +189,7 @@ bool FXmppMultiUserChatStrophe::HandlePresenceErrorStanza(const FStropheStanza& 
 
 	if (!OutError.ErrorMessage.IsEmpty())
 	{
+		FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 		IncomingMucPresenceErrors.Enqueue(MoveTemp(OutError));
 	}
 
@@ -201,6 +205,7 @@ bool FXmppMultiUserChatStrophe::HandleGroupChatStanza(const FStropheStanza& Inco
 		SubjectUpdate.NewSubject = SubjectStanza->GetText();
 		SubjectUpdate.RoomId = IncomingStanza.GetFrom().Id;
 
+		FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 		IncomingRoomSubjects.Enqueue(MoveTemp(SubjectUpdate));
 		return true;
 	}
@@ -219,6 +224,7 @@ bool FXmppMultiUserChatStrophe::HandleGroupChatStanza(const FStropheStanza& Inco
 				FString Code = XChild.GetAttribute(Strophe::SA_CODE);
 				if (Code == Strophe::SC_104)
 				{
+					FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 					IncomingRoomInfoUpdates.Enqueue(FXmppRoomId(IncomingStanza.GetFrom().Id));
 				}
 			}
@@ -255,6 +261,7 @@ bool FXmppMultiUserChatStrophe::HandleGroupChatStanza(const FStropheStanza& Inco
 		ChatMessage.Timestamp = FDateTime::UtcNow();
 	}
 
+	FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 	IncomingGroupChatMessages.Enqueue(MakeUnique<FXmppChatMessage>(MoveTemp(ChatMessage)));
 	return true;
 }
@@ -317,6 +324,7 @@ bool FXmppMultiUserChatStrophe::HandleRoomConfigStanza(const FStropheStanza& Inc
 	TOptional<const FStropheStanza> QueryStanza = IncomingStanza.GetChild(Strophe::SN_QUERY);
 	if (!QueryStanza.IsSet())
 	{
+		FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 		IncomingRoomConfigWriteSuccesses.Enqueue(IncomingStanza.GetFrom().Id);
 		return true;
 	}
@@ -347,6 +355,7 @@ bool FXmppMultiUserChatStrophe::HandleRoomConfigErrorStanza(const FStropheStanza
 
 	if (!OutError.ErrorMessage.IsEmpty())
 	{
+		FEmbeddedCommunication::KeepAwake(TickRequesterId, false);
 		IncomingRoomConfigErrors.Enqueue(MoveTemp(OutError));
 	}
 
@@ -788,6 +797,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		TUniquePtr<FXmppMucPresence> MucPresence;
 		if (IncomingMucPresenceUpdates.Dequeue(MucPresence))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			check(MucPresence.IsValid());
 			OnReceiveMucPresence(MoveTemp(*MucPresence));
 		}
@@ -797,6 +807,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		FXmppStropheErrorPair ErrorInfo;
 		if (IncomingMucPresenceErrors.Dequeue(ErrorInfo))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceiveMucPresenceError(MoveTemp(ErrorInfo));
 		}
 	}
@@ -805,6 +816,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		TUniquePtr<FXmppChatMessage> GroupChatMessage;
 		if (IncomingGroupChatMessages.Dequeue(GroupChatMessage))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceiveGroupChatMessage(MoveTemp(GroupChatMessage));
 		}
 	}
@@ -813,6 +825,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		FXmppStropheSubjectUpdate NewSubject;
 		if (IncomingRoomSubjects.Dequeue(NewSubject))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceiveGroupChatSubject(MoveTemp(NewSubject));
 		}
 	}
@@ -821,6 +834,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		FXmppStropheErrorPair RoomConfigError;
 		if (IncomingRoomConfigErrors.Dequeue(RoomConfigError))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceiveRoomConfigError(MoveTemp(RoomConfigError));
 		}
 	}
@@ -829,6 +843,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		FXmppRoomId RoomId;
 		if (IncomingRoomConfigWriteSuccesses.Dequeue(RoomId))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceiveRoomConfigSuccess(MoveTemp(RoomId));
 		}
 	}
@@ -837,6 +852,7 @@ bool FXmppMultiUserChatStrophe::Tick(float DeltaTime)
 		FXmppRoomId RoomId;
 		if (IncomingRoomInfoUpdates.Dequeue(RoomId))
 		{
+			FEmbeddedCommunication::AllowSleep(TickRequesterId);
 			OnReceieveRoomInfoUpdate(MoveTemp(RoomId));
 		}
 	}
@@ -1297,6 +1313,58 @@ void FXmppMultiUserChatStrophe::HandleRoomMemberLeft(FXmppRoomStrophe& Room, FXm
 	}
 
 	OnXmppRoomMemberExitDelegate.Broadcast(ConnectionManager.AsShared(), Room.GetRoomId(), MemberPresence.UserJid);
+}
+
+void FXmppMultiUserChatStrophe::CleanupMessages()
+{
+	while (!IncomingMucPresenceUpdates.IsEmpty())
+	{
+		TUniquePtr<FXmppMucPresence> MucPresence;
+		IncomingMucPresenceUpdates.Dequeue(MucPresence);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingMucPresenceErrors.IsEmpty())
+	{
+		FXmppStropheErrorPair ErrorInfo;
+		IncomingMucPresenceErrors.Dequeue(ErrorInfo);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingGroupChatMessages.IsEmpty())
+	{
+		TUniquePtr<FXmppChatMessage> GroupChatMessage;
+		IncomingGroupChatMessages.Dequeue(GroupChatMessage);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingRoomSubjects.IsEmpty())
+	{
+		FXmppStropheSubjectUpdate NewSubject;
+		IncomingRoomSubjects.Dequeue(NewSubject);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingRoomConfigErrors.IsEmpty())
+	{
+		FXmppStropheErrorPair RoomConfigError;
+		IncomingRoomConfigErrors.Dequeue(RoomConfigError);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingRoomConfigWriteSuccesses.IsEmpty())
+	{
+		FXmppRoomId RoomId;
+		IncomingRoomConfigWriteSuccesses.Dequeue(RoomId);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
+
+	while (!IncomingRoomInfoUpdates.IsEmpty())
+	{
+		FXmppRoomId RoomId;
+		IncomingRoomInfoUpdates.Dequeue(RoomId);
+		FEmbeddedCommunication::AllowSleep(TickRequesterId);
+	}
 }
 
 #endif

@@ -46,14 +46,20 @@ FChunkCacheWorker::FChunkCacheWorker(FArchive* InReader, const TCHAR* Filename)
 
 	Signatures.Serialize(*SigFileReader);
 	delete SigFileReader;
-	Signatures.DecryptSignatureAndValidate(Filename);
-
-	const bool bEnableMultithreading = FPlatformProcess::SupportsMultithreading();
-	if (bEnableMultithreading)
+	if (!Signatures.DecryptSignatureAndValidate(Filename))
 	{
-		QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
-		ChunkRequestAvailable = FPlatformProcess::GetSynchEventFromPool();
-		Thread = FRunnableThread::Create(this, TEXT("FChunkCacheWorker"), 0, TPri_BelowNormal);
+		// This will render this object invalid, so whoever has created this worker will have to also check IsValid() and ignore the pak afterwards
+		Signatures.ChunkHashes.Empty();
+	}
+	else
+	{
+		const bool bEnableMultithreading = FPlatformProcess::SupportsMultithreading();
+		if (bEnableMultithreading)
+		{
+			QueuedRequestsEvent = FPlatformProcess::GetSynchEventFromPool();
+			ChunkRequestAvailable = FPlatformProcess::GetSynchEventFromPool();
+			Thread = FRunnableThread::Create(this, TEXT("FChunkCacheWorker"), 0, TPri_BelowNormal);
+		}
 	}
 }
 
@@ -229,30 +235,36 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_CheckSignature);
 
-	TPakChunkHash ChunkHash;
+	bool bChunkHashesMatch = false;
 
+	// If our signature data wasn't validated properly on startup, we shouldn't be in here. Mark all chunk checks as failed.
+	if (ensure(IsValid()))
 	{
-		SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_Serialize);
-		Reader->Seek(ChunkInfo.Offset);
-		Reader->Serialize(ChunkInfo.Buffer->Data, ChunkInfo.Size);
-	}
-	{
-		SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_HashBuffer);
-		ChunkHash = ComputePakChunkHash(ChunkInfo.Buffer->Data, ChunkInfo.Size);
-	}
+		TPakChunkHash ChunkHash;
 
-	bool bChunkHashesMatch = (ChunkHash == Signatures.ChunkHashes[ChunkInfo.Index]);
-	if (!bChunkHashesMatch)
-	{
-		UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), ChunkInfo.Index, Signatures.ChunkHashes.Num(), *LexToString(Signatures.ChunkHashes[ChunkInfo.Index]), *LexToString(ChunkHash));
-
-		if (Signatures.DecryptedHash != Signatures.ComputeCurrentMasterHash())
 		{
-			UE_LOG(LogPakFile, Warning, TEXT("Master signature table has changed since initialization!"));
+			SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_Serialize);
+			Reader->Seek(ChunkInfo.Offset);
+			Reader->Serialize(ChunkInfo.Buffer->Data, ChunkInfo.Size);
+		}
+		{
+			SCOPE_SECONDS_ACCUMULATOR(STAT_FChunkCacheWorker_HashBuffer);
+			ChunkHash = ComputePakChunkHash(ChunkInfo.Buffer->Data, ChunkInfo.Size);
 		}
 
-		const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures.ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
-		FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(Data);
+		bChunkHashesMatch = IsValid() && (ChunkHash == Signatures.ChunkHashes[ChunkInfo.Index]);
+		if (!bChunkHashesMatch)
+		{
+			UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected 0x%8X, Received 0x%8X"), ChunkInfo.Index, Signatures.ChunkHashes.Num(), *LexToString(Signatures.ChunkHashes[ChunkInfo.Index]), *LexToString(ChunkHash));
+
+			if (Signatures.DecryptedHash != Signatures.ComputeCurrentMasterHash())
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Master signature table has changed since initialization!"));
+			}
+
+			const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures.ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
+			FPakPlatformFile::GetPakChunkSignatureCheckFailedHandler().Broadcast(Data);
+		}
 	}
 	
 	return bChunkHashesMatch;
@@ -299,6 +311,11 @@ void FChunkCacheWorker::FlushRemainingChunkCompletionEvents()
 	{
 		ChunkRequestAvailable->Reset();
 	}
+}
+
+bool FChunkCacheWorker::IsValid() const
+{
+	return Signatures.ChunkHashes.Num() > 0;
 }
 
 void FChunkCacheWorker::ReleaseChunk(FChunkRequest& Chunk)

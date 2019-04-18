@@ -1,4 +1,3 @@
-
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LocalFileNetworkReplayStreaming.h"
@@ -772,7 +771,7 @@ void FLocalFileNetworkReplayStreamer::CancelStreamingRequests()
 	bStopStreamingCalled = false;
 }
 
-void FLocalFileNetworkReplayStreamer::SetLastError( const ENetworkReplayError::Type InLastError )
+void FLocalFileNetworkReplayStreamer::SetLastError(const ENetworkReplayError::Type InLastError)
 {
 	CancelStreamingRequests();
 	StreamerLastError = InLastError;
@@ -1493,7 +1492,8 @@ void FLocalFileNetworkReplayStreamer::FlushStream(const uint32 TimeInMS)
 					if (!CompressBuffer(StreamData, FinalData))
 					{
 						UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::FlushStream - CompressBuffer failed"));
-						SetLastError( ENetworkReplayError::ServiceUnavailable );
+						ReplayInfo.bIsValid = false;
+						return;
 					}
 				}
 				else
@@ -1543,6 +1543,10 @@ void FLocalFileNetworkReplayStreamer::FlushStream(const uint32 TimeInMS)
 				const int32 TotalLengthInMS = CurrentReplayInfo.LengthInMS;
 				CurrentReplayInfo = ReplayInfo;
 				CurrentReplayInfo.LengthInMS = TotalLengthInMS;
+			}
+			else
+			{
+				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
 
@@ -1609,7 +1613,8 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeI
 						if (!CompressBuffer(CheckpointData, FinalData))
 						{
 							UE_LOG(LogLocalFileReplay, Warning, TEXT("FLocalFileNetworkReplayStreamer::FlushStream - CompressBuffer failed"));
-							SetLastError( ENetworkReplayError::ServiceUnavailable );
+							ReplayInfo.bIsValid = false;
+							return;
 						}
 					}
 					else
@@ -1674,6 +1679,10 @@ void FLocalFileNetworkReplayStreamer::FlushCheckpointInternal(const uint32 TimeI
 				int32 CurrentTotalLengthInMS = CurrentReplayInfo.LengthInMS;
 				CurrentReplayInfo = ReplayInfo;
 				CurrentReplayInfo.LengthInMS = CurrentTotalLengthInMS;
+			}
+			else
+			{
+				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
 
@@ -2479,7 +2488,7 @@ void FLocalFileNetworkReplayStreamer::WriteHeader()
 					if (ReadReplayInfo(CurrentStreamName, TestInfo))
 					{
 						UE_LOG(LogLocalFileReplay, Error, TEXT("FLocalFileNetworkReplayStreamer::WriteHeader - Current file already has unexpected header"));
-						SetLastError( ENetworkReplayError::ServiceUnavailable );
+						ReplayInfo.bIsValid = false;
 						return;
 					}
 
@@ -2524,6 +2533,10 @@ void FLocalFileNetworkReplayStreamer::WriteHeader()
 				int32 TotalLengthInMS = CurrentReplayInfo.LengthInMS;
 				CurrentReplayInfo = ReplayInfo;
 				CurrentReplayInfo.LengthInMS = TotalLengthInMS;
+			}
+			else
+			{
+				SetLastError(ENetworkReplayError::ServiceUnavailable);
 			}
 		});
 
@@ -2719,7 +2732,7 @@ void FLocalFileNetworkReplayStreamer::ConditionallyLoadNextChunk()
 			{
 				StreamAr.Buffer.Empty();
 				StreamAr.Pos = 0;
-				SetLastError( ENetworkReplayError::ServiceUnavailable );
+				SetLastError(ENetworkReplayError::ServiceUnavailable);
 				return;
 			}
 

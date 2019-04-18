@@ -359,54 +359,6 @@ private:
 	uint32 NumMips;
 };
 
-USTRUCT()
-struct FRenderDataPerHeightmap
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(Transient)
-	UTexture2D* OriginalHeightmap;
-	
-    UPROPERTY(Transient)
-	int32 HeightmapsCPUReadBackResourceIndex;
-
-	UPROPERTY(Transient)
-	TArray<ULandscapeComponent*> Components;
-
-	UPROPERTY(Transient)
-	FIntPoint TopLeftSectionBase;
-};
-
-USTRUCT()
-struct FWeightmapLayerData
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	TArray<UTexture2D*> Weightmaps;
-
-	UPROPERTY()
-	TArray<FWeightmapLayerAllocationInfo> WeightmapLayerAllocations;
-
-	UPROPERTY(Transient)
-	TArray<ULandscapeWeightmapUsage*> WeightmapTextureUsages;	// Easy Access ref to data stored into the LandscapeProxy weightmap usage map
-};
-
-USTRUCT()
-struct FLandscapeLayerData
-{
-	GENERATED_USTRUCT_BODY()
-
-	FLandscapeLayerData()
-	{}
-
-	UPROPERTY()
-	TMap<UTexture2D*, UTexture2D*> Heightmaps; // Mapping between Original Heightmap -> Layer Heightmap
-
-	UPROPERTY()
-	TMap<ULandscapeComponent*, FWeightmapLayerData> WeightmapData; // Weightmaps per components
-};
-
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
 class ALandscapeProxy : public AActor
 {
@@ -644,19 +596,11 @@ public:
 	UPROPERTY()
 	TArray<FLandscapeEditorLayerSettings> EditorLayerSettings;
 
-	UPROPERTY(TextExportTransient)
-	TMap<FGuid, FLandscapeLayerData> LandscapeLayersData;
-
 	UPROPERTY()
 	bool HasLayersContent;
 
-	UPROPERTY(Transient)
-	TMap<UTexture2D*, FRenderDataPerHeightmap> RenderDataPerHeightmap; // Mapping between Original heightmap and general render data
-
-	TArray<TUniquePtr<FLandscapeLayersTexture2DCPUReadBackResource>> HeightmapsCPUReadBackResources;
-
-	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapCPUReadBackTextures; // Mapping between Original weightmap and tyhe CPU readback resource
-
+	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> HeightmapsCPUReadBack;
+	TMap<UTexture2D*, FLandscapeLayersTexture2DCPUReadBackResource*> WeightmapsCPUReadBack;
 	FRenderCommandFence ReleaseResourceFence;
 #endif
 
@@ -768,6 +712,10 @@ public:
 	virtual void RerunConstructionScripts() override {}
 	virtual bool IsLevelBoundsRelevant() const override { return true; }
 
+	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
+	virtual void FinishDestroy() override;
+
 #if WITH_EDITOR
 	virtual void Destroyed() override;
 	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
@@ -775,6 +723,7 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual bool ShouldExport() override;
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	//~ End AActor Interface
 #endif	//WITH_EDITOR
 
@@ -806,6 +755,9 @@ public:
 	/* Invalidate the precomputed grass and baked texture data for the specified components */
 	LANDSCAPE_API static void InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components);
 
+	/* Invalidate the precomputed grass and baked texture data on all components */
+	LANDSCAPE_API void InvalidateGeneratedComponentData();
+
 #if WITH_EDITOR
 	/** Render grass maps for the specified components */
 	void RenderGrassMaps(const TArray<ULandscapeComponent*>& LandscapeComponents, const TArray<ULandscapeGrassType*>& GrassTypes);
@@ -833,9 +785,6 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
-	virtual bool IsReadyForFinishDestroy() override;
-	virtual void FinishDestroy() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -992,7 +941,6 @@ public:
 
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
-	
-	LANDSCAPE_API void SetupLayers(int32 InNumComponentsX = INDEX_NONE, int32 InNumComponentsY = INDEX_NONE);
+
 #endif
 };

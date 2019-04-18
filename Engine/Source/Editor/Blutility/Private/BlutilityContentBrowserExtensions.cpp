@@ -35,7 +35,7 @@ public:
 		TSharedRef<FExtender> Extender(new FExtender());
 
 		// Run thru the assets to determine if any meet our criteria
-		TArray<UGlobalEditorUtilityBase*> SupportedUtils;
+		TArray<IEditorUtilityExtension*> SupportedUtils;
 		if (SelectedAssets.Num() > 0)
 		{
 			// Check blueprint utils (we need to load them to query their validity against these assets)

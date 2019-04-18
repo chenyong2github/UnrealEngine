@@ -3078,7 +3078,7 @@ TArray<UFoliageType*> UEditorEngine::GetFoliageTypesInWorld(UWorld* InWorld)
 	// Iterate over all foliage actors in the world
 	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
-		for (const auto& Pair : It->FoliageMeshes)
+		for (const auto& Pair : It->FoliageInfos)
 		{
 			FoliageSet.Add(Pair.Key);
 		}
@@ -3834,7 +3834,9 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 			if( LightActor )
 			{
 				ULightComponent* LightComponent = LightActor->GetLightComponent();
-				if (LightComponent) // LightComponent component can be null, for example when creating a blueprint deriving from ALight.
+				// LightComponent component can be null, for example when creating a blueprint deriving from ALight.
+				// Movable light components have a light guid of 0, so skip them as well
+				if (LightComponent && !LightComponent->HasStaticShadowing()) 
 				{
 					AActor* ExistingLightActor = LightGuidToActorMap.FindRef( LightComponent->LightGuid );
 					if( ExistingLightActor )

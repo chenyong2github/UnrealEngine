@@ -3403,12 +3403,11 @@ int32 FEngineLoop::Init()
 	// Ready to measure thread heartbeat
 	FThreadHeartBeat::Get().Start();
 
-    {
+	FShaderPipelineCache::PauseBatching();
+   	{
 #if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
-        FShaderPipelineCache::PauseBatching();
-        void CheckImageIntegrity();
+         void CheckImageIntegrity();
         CheckImageIntegrity();
-        FShaderPipelineCache::ResumeBatching();
 #endif
     }
     
@@ -3416,6 +3415,7 @@ int32 FEngineLoop::Init()
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnFEngineLoopInitComplete.Broadcast()");
 		FCoreDelegates::OnFEngineLoopInitComplete.Broadcast();
 	}
+	FShaderPipelineCache::ResumeBatching();
 
 #if BUILD_EMBEDDED_APP
 	FEmbeddedCommunication::AllowSleep(TEXT("Startup"));
@@ -4932,7 +4932,7 @@ void FEngineLoop::PreInitHMDDevice()
 				{
 					if (ExplicitHMDName.Equals(HMDModuleName, ESearchCase::IgnoreCase))
 					{
-						bUnregisterHMDModule = false;
+						bUnregisterHMDModule = !HMDModule->PreInit();
 						break;
 					}
 				}

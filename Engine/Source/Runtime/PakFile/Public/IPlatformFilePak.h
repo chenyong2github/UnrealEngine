@@ -34,6 +34,7 @@ typedef FSHAHash TPakChunkHash;
 #endif
 
 PAKFILE_API TPakChunkHash ComputePakChunkHash(const void* InData, int64 InDataSizeInBytes);
+PAKFILE_API FString ChunkHashToString(const TPakChunkHash& InHash);
 
 struct FPakChunkSignatureCheckFailedData
 {
@@ -606,6 +607,13 @@ public:
 	{
 		return bIsValid;
 	}
+
+	/**
+	 * Checks if the pak has valid chunk signature checking data, and that the data passed the initial signing check
+	 *
+	 * @return true if this pak file has passed the initial signature checking phase
+	 */
+	bool PassedSignatureChecks() const;
 
 	/**
 	 * Gets pak filename.

@@ -155,6 +155,7 @@ int FVorbisAudioInfo::SeekMemory( uint32 offset, int whence )
 		break;
 	}
 
+	BufferOffset = FMath::Clamp<uint32>(BufferOffset, 0, SrcBufferDataSize);
 	return( BufferOffset );
 }
 

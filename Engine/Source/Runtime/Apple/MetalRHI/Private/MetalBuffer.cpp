@@ -7,6 +7,7 @@
 #include <objc/runtime.h>
 #include "MetalCommandBuffer.h"
 #include "MetalProfiler.h"
+#include "MetalRenderPass.h"
 
 DECLARE_MEMORY_STAT(TEXT("Used Device Buffer Memory"), STAT_MetalDeviceBufferMemory, STATGROUP_MetalRHI);
 DECLARE_MEMORY_STAT(TEXT("Used Pooled Buffer Memory"), STAT_MetalPooledBufferMemory, STATGROUP_MetalRHI);
@@ -169,6 +170,7 @@ FMetalSubBufferHeap::FMetalSubBufferHeap(NSUInteger Size, NSUInteger Alignment, 
 , MinAlign(Alignment)
 , UsedSize(0)
 {
+	Options = (mtlpp::ResourceOptions)FMetalCommandQueue::GetCompatibleResourceOptions(Options);
 	static bool bSupportsHeaps = GetMetalDeviceContext().SupportsFeature(EMetalFeaturesHeaps);
 	NSUInteger FullSize = Align(Size, Alignment);
 	METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
@@ -539,6 +541,7 @@ FMetalSubBufferLinear::FMetalSubBufferLinear(NSUInteger Size, NSUInteger Alignme
 , UsedSize(0)
 , FreedSize(0)
 {
+	Options = (mtlpp::ResourceOptions)FMetalCommandQueue::GetCompatibleResourceOptions(Options);
 	NSUInteger FullSize = Align(Size, Alignment);
 	METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
@@ -669,6 +672,7 @@ FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger Chu
 , OutstandingAllocs(0)
 , UsedSize(0)
 {
+	Options = (mtlpp::ResourceOptions)FMetalCommandQueue::GetCompatibleResourceOptions(Options);
     static bool bSupportsHeaps = GetMetalDeviceContext().SupportsFeature(EMetalFeaturesHeaps);
     mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
     if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
@@ -690,6 +694,7 @@ FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger Chu
 		Desc.SetStorageMode(Storage);
 		ParentHeap = GetMetalDeviceContext().GetDevice().NewHeap(Desc);
 		check(ParentHeap.GetPtr());
+		METAL_FATAL_ASSERT(ParentHeap, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocHeap(GetMetalDeviceContext().GetDevice(), ParentHeap);
 #endif
@@ -699,6 +704,7 @@ FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger Chu
 		ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GetMetalDeviceContext().GetDevice(), SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(FullSize, Options));
 		check(ParentBuffer.GetPtr());
 		check(ParentBuffer.GetLength() >= FullSize);
+		METAL_FATAL_ASSERT(ParentBuffer, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		MetalLLM::LogAllocBuffer(GetMetalDeviceContext().GetDevice(), ParentBuffer);
 #endif
@@ -826,9 +832,16 @@ NSUInteger FMetalSubBufferMagazine::GetUsedSize() const
 	}
 }
 
-NSUInteger FMetalSubBufferMagazine::GetFreeSize() const 
+NSUInteger FMetalSubBufferMagazine::GetFreeSize() const
 {
-	return GetSize() - GetUsedSize();
+	if (ParentHeap)
+	{
+		return ParentHeap.MaxAvailableSizeWithAlignment(MinAlign);
+	}
+	else
+	{
+		return GetSize() - GetUsedSize();
+	}
 }
 
 int64 FMetalSubBufferMagazine::NumCurrentAllocations() const
@@ -931,6 +944,7 @@ FMetalSubBufferRing::FMetalSubBufferRing(NSUInteger Size, NSUInteger Alignment, 
 , Options(InOptions)
 , Storage((mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift))
 {
+	Options = (mtlpp::ResourceOptions)FMetalCommandQueue::GetCompatibleResourceOptions(Options);
 	check(Storage != mtlpp::StorageMode::Private /* Private memory requires command-buffers and encoders to properly marshal! */);
 	FMemory::Memzero(FrameSize);
 }
@@ -1181,7 +1195,7 @@ FMetalBuffer FMetalBufferPoolPolicyData::CreateResource(CreationArguments Args)
 	check(Args.Device);	
 	uint32 BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
 	METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BufferSize, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift)))));
-	FMetalBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, Args.Device, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(BufferSize, GetMetalDeviceContext().GetCommandQueue().GetCompatibleResourceOptions(mtlpp::ResourceOptions(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))))), true);
+	FMetalBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, Args.Device, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, NewBuffer(BufferSize, FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))))), true);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 	MetalLLM::LogAllocBuffer(Args.Device, NewBuf);
 #endif
@@ -1321,7 +1335,7 @@ FMetalResourceHeap::FMetalResourceHeap(void)
 
 FMetalResourceHeap::~FMetalResourceHeap()
 {
-	Compact(true);
+	Compact(nullptr, true);
 }
 
 void FMetalResourceHeap::Init(FMetalCommandQueue& InQueue)
@@ -1612,7 +1626,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, uin
 	}
 	
     METAL_DEBUG_OPTION(GetMetalDeviceContext().ValidateIsInactiveBuffer(Buffer));
-	check(Buffer && Buffer.GetPtr());
+	METAL_FATAL_ASSERT(Buffer, TEXT("Failed to create buffer of size %u and resource options %u"), Size, (uint32)Options);
 	return Buffer;
 }
 
@@ -1706,7 +1720,7 @@ void FMetalResourceHeap::ReleaseTexture(FMetalSurface* Surface, FMetalTexture& T
 	}
 }
 
-void FMetalResourceHeap::Compact(bool const bForce)
+void FMetalResourceHeap::Compact(FMetalRenderPass* Pass, bool const bForce)
 {
 	FScopeLock Lock(&Mutex);
     for (uint32 u = 0; u < NumUsageTypes; u++)
@@ -1726,15 +1740,13 @@ void FMetalResourceHeap::Compact(bool const bForce)
                 }
             }
             
-            mtlpp::CommandBuffer Buffer;
-            mtlpp::BlitCommandEncoder Encoder;
-            
             uint32 BytesCompacted = 0;
             uint32 const BytesToCompact = GMetalHeapBufferBytesToCompact;
             
             for (uint32 i = 0; i < NumHeapSizes; i++)
             {
-                for (uint32 j = 1; j < BufferHeaps[u][t][i].Num(); j++)
+				// When not forcing the disposal of all resources we can compact them using the render-pass
+                for (uint32 j = 1; !bForce && j < BufferHeaps[u][t][i].Num(); j++)
                 {
                     FMetalSubBufferHeap* Data = BufferHeaps[u][t][i][j];
                     if (Data->AllocRanges.Num() > 0 && BytesCompacted < BytesToCompact)
@@ -1748,18 +1760,12 @@ void FMetalResourceHeap::Compact(bool const bForce)
                                     FMetalSubBufferHeap* Prev = BufferHeaps[u][t][i][AllocIndex];
                                     if (Prev->MaxAvailableSize() >= Alloc.Range.Length)
                                     {
-                                        if (!Encoder)
-                                        {
-                                            Buffer = Queue->CreateCommandBuffer();
-                                            Encoder = Buffer.BlitCommandEncoder();
-                                        }
-                                        
                                         FMetalBuffer NewBuffer = Prev->NewBuffer(Alloc.Range.Length);
                                         check(NewBuffer && NewBuffer.GetPtr());
                                         
                                         FMetalBuffer SourceResource = FMetalBuffer((id<MTLBuffer>)Alloc.Resource);
-                                        Encoder.Copy(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
-                                        
+										Pass->AsyncCopyFromBufferToBuffer(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
+										
                                         FMetalBuffer PrevBuffer;
                                         FMetalBuffer PrevCPUBuffer;
                                         if (Alloc.Owner->Buffer.GetPtr() == Alloc.Resource && Alloc.Owner->Buffer.GetOffset() == Alloc.Range.Location)
@@ -1795,12 +1801,6 @@ void FMetalResourceHeap::Compact(bool const bForce)
                         delete Data;
                     }
                 }
-            }
-            
-            if (Encoder)
-            {
-                Encoder.EndEncoding();
-                Queue->CommitCommandBuffer(Buffer);
             }
         }
     }

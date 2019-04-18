@@ -20,7 +20,7 @@ class FXmppMessagesStrophe
 public:
 	// FXmppMessagesStrophe
 	FXmppMessagesStrophe(FXmppConnectionStrophe& InConnectionManager);
-	~FXmppMessagesStrophe() = default;
+	~FXmppMessagesStrophe();
 
 	// XMPP Thread
 	void OnDisconnect();
@@ -42,6 +42,9 @@ public:
 protected:
 	void OnMessageReceived(TUniquePtr<FXmppMessage>&& Message);
 
+	/** Remove pending messages and engine KeepAwake calls */
+	void CleanupMessages();
+
 protected:
 	/** Connection manager controls sending data to XMPP thread */
 	FXmppConnectionStrophe& ConnectionManager;
@@ -54,6 +57,9 @@ protected:
 
 	/** Delegate for game to listen to messages */
 	FOnXmppMessageReceived OnMessageReceivedDelegate;
+
+	/* Engine Tick Requester name */
+	const static FName TickRequesterId;
 };
 
 #endif

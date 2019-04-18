@@ -40,7 +40,7 @@ public:
 	/** Returns the name of a thread given its TLS id */
 	const FString& GetThreadName(uint32 ThreadId);
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_MAC
 	struct FThreadStackBackTrace
 	{
 		uint32 ThreadId;

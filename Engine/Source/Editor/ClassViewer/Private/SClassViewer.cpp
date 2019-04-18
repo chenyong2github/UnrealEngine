@@ -846,6 +846,7 @@ namespace ClassViewer
 			bool bPassesBlueprintBaseFilter = !bInOnlyBlueprintBases || CheckIfBlueprintBase(InOriginalRootNode);
 			bool bIsUnloadedBlueprint = !InOriginalRootNode->Class.IsValid();
 			bool bPassesPlaceableFilter = false;
+			const bool bPassesEditorClassTest = !InInitOptions.bEditorClassesOnly || InOriginalRootNode->IsEditorOnlyClass();
 
 			// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
 			bool bPassesDeveloperFilter = true;
@@ -905,12 +906,16 @@ namespace ClassViewer
 			{
 				if(bInShowUnloadedBlueprints)
 				{
-					NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && IsClassAllowed_UnloadedBlueprint(InInitOptions, InOriginalRootNode) && PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
+					NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassTest
+						&& IsClassAllowed_UnloadedBlueprint(InInitOptions, InOriginalRootNode) 
+						&& PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
 				}
 			}
 			else
 			{
-				NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter &&  IsClassAllowed(InInitOptions, InOriginalRootNode->Class) && PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
+				NewNode->bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassTest
+					&&  IsClassAllowed(InInitOptions, InOriginalRootNode->Class) 
+					&& PassesFilter(*InOriginalRootNode->GetClassName().Get(), InTextFilter);
 			}
 
 			if(NewNode->bPassesFilter)

@@ -12,11 +12,25 @@
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 #include <cxxabi.h>
+#include <signal.h>
 #include "Apple/PostAppleSystemHeaders.h"
 #include "CoreGlobals.h"
+#include "Misc/ScopeLock.h"
+#include "HAL/IConsoleManager.h"
 
 #if PLATFORM_MAC
 #include "PLCrashReporter.h"
+#endif
+
+#ifdef PLATFORM_MAC
+static TAutoConsoleVariable<int32> CVarApplePlatformThreadCallStackEnabled(
+	TEXT("ApplePlatformThreadStackWalk.Enable"),
+	1,
+	TEXT("If > 0, then when requesting callstack info about a thread will raise a signal and gather that information."));
+static TAutoConsoleVariable<float> CVarApplePlatformThreadCallStackMaxWait(
+	TEXT("ApplePlatformThreadStackWalk.MaxWait"),
+	60.0f,
+	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the signal handler has hung."));
 #endif
 
 // Internal helper functions not exposed to public
@@ -287,6 +301,94 @@ int32 FApplePlatformStackWalk::GetProcessModuleSignatures(FStackWalkModuleInfo *
 	}
 	
 	return SignatureIndex;
+}
+
+// Consider this for iOS
+#ifdef PLATFORM_MAC
+FCriticalSection GThreadCallStackMutex;
+
+// These are used in the SIGUSR2 callback to hand over the user provided buffer to copy to
+ANSICHAR* GThreadCallStack = nullptr;
+
+// The user provided buffer for CaptureThreadStackBackTrace to get just the backtrace of program counters
+uint64* GThreadBackTrace = nullptr;
+
+// The user provided size for either the Callstack buffer or the BackTrace buffer
+SIZE_T GThreadCallStackSize = 0;
+
+// The number of program counters added to the backtrace
+uint32 GThreadBackTraceCount = 0;
+
+// Used to determine if a SIGUSR2 signal hander is currently running
+bool GThreadCallStackInUse = false;
+
+static void RaiseSIGUSR2ForThreadAndWait(uint32 ThreadId)
+{
+	if (pthread_kill(pthread_from_mach_thread_np(ThreadId), SIGUSR2) == 0)
+	{
+		float MaxWaitTime   = CVarApplePlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
+		float TotalWaitTime = 0.0f;
+
+		// Spin until the SignalHandler is done and has set GThreadCallStackInUse to false
+		while (GThreadCallStackInUse)
+		{
+			if (TotalWaitTime > MaxWaitTime)
+			{
+				// We have gone over our wait time and now should crash versus waiting possibly forever
+				*(int*)0x10 = 0x11;
+			}
+
+			// sleep a small amount until MaxWaitTime.
+			// Depending on the use of this function this value my need to be adjusted or messed with
+			usleep(1000);
+			TotalWaitTime += 0.001f;
+		}
+	}
+}
+#endif
+
+void FApplePlatformStackWalk::ThreadStackWalkAndDump(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 ThreadId)
+{
+// Consider this for iOS
+#ifdef PLATFORM_MAC
+	if (CVarApplePlatformThreadCallStackEnabled.AsVariable()->GetInt())
+	{
+		FScopeLock Lock(&GThreadCallStackMutex);
+
+		GThreadCallStack      = HumanReadableString;
+		GThreadCallStackSize  = HumanReadableStringSize;
+		GThreadCallStackInUse = true;
+
+		RaiseSIGUSR2ForThreadAndWait(ThreadId);
+
+		GThreadCallStack     = nullptr;
+		GThreadCallStackSize = 0;
+	}
+#endif
+}
+
+uint32 FApplePlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+{
+// Consider this for iOS
+#ifdef PLATFORM_MAC
+	GThreadBackTraceCount = 0;
+
+	if (CVarApplePlatformThreadCallStackEnabled.AsVariable()->GetInt())
+	{
+		FScopeLock Lock(&GThreadCallStackMutex);
+
+		GThreadBackTrace      = BackTrace;
+		GThreadCallStackSize  = MaxDepth;
+		GThreadCallStackInUse = true;
+
+		RaiseSIGUSR2ForThreadAndWait(ThreadId);
+
+		GThreadBackTrace     = nullptr;
+		GThreadCallStackSize = 0;
+	}
+
+	return GThreadBackTraceCount;
+#endif
 }
 
 void CreateExceptionInfoString(int32 Signal, struct __siginfo* Info)

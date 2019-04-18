@@ -98,6 +98,16 @@ TFunction<FString()> FHttpManager::GetDefaultCorrelationIdMethod()
 	return []{ return FGuid::NewGuid().ToString(); };
 }
 
+void FHttpManager::OnBeforeFork()
+{
+	Flush(false);
+}
+
+void FHttpManager::OnAfterFork()
+{
+
+}
+
 FHttpThread* FHttpManager::CreateHttpThread()
 {
 	return new FHttpThread();

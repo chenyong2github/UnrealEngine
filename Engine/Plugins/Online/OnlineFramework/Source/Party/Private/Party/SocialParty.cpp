@@ -300,11 +300,10 @@ bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
 bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 {
 	bool bSentInvite = false;
-	ESocialSubsystem InvitationSubsystemType = ESocialSubsystem::MAX;
-
 	if (CanInviteUser(UserToInvite))
 	{
-		static const bool bPreferPlatformInvite = USocialSettings::ShouldPreferPlatformInvites();
+		const bool bPreferPlatformInvite = USocialSettings::ShouldPreferPlatformInvites();
+		const bool bMustSendPrimaryInvite = USocialSettings::MustSendPrimaryInvites();
 
 		const FUniqueNetIdRepl UserPrimaryId = UserToInvite.GetUserId(ESocialSubsystem::Primary);
 		const FUniqueNetIdRepl UserPlatformId = UserToInvite.GetUserId(ESocialSubsystem::Platform);
@@ -316,28 +315,30 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite)
 
 		if ((UserPlatformId.IsValid() && bIsOnlineOnPlatform) && (!UserPrimaryId.IsValid() || bPreferPlatformInvite))
 		{
-			InvitationSubsystemType = ESocialSubsystem::Platform;
-
 			// Platform invites are sent as session invites on platform OSS' - this way we get the OS popups one would expect on XBox, PS4, etc.
+			bool bSentPlatformInvite = false;
 			const IOnlineSessionPtr PlatformSessionInterface = Online::GetSessionInterface(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform));
 			if (PlatformSessionInterface.IsValid())
 			{
 				//@todo DanH Party: Any way to know if the session invite was a success? If we don't know we can't show it :/ #future
-				bSentInvite = PlatformSessionInterface->SendSessionInviteToFriend(*GetOwningLocalMember().GetRepData().GetPlatformUniqueId(), NAME_PartySession, *UserPlatformId);
+				bSentPlatformInvite = PlatformSessionInterface->SendSessionInviteToFriend(*GetOwningLocalMember().GetRepData().GetPlatformUniqueId(), NAME_PartySession, *UserPlatformId);
 			}
+			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite);
+			bSentInvite |= bSentPlatformInvite;
 		}
-		else if (UserPrimaryId.IsValid())
+		if ((!bSentInvite || bMustSendPrimaryInvite) && UserPrimaryId.IsValid())
 		{
-			InvitationSubsystemType = ESocialSubsystem::Primary;
-
 			// Primary subsystem invites can be sent directly to the user via the party interface
 			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-			bSentInvite = PartyInterface->SendInvitation(*OwningLocalUserId, GetPartyId(), *UserPrimaryId);
+			const bool bSentPrimaryInvite = PartyInterface->SendInvitation(*OwningLocalUserId, GetPartyId(), *UserPrimaryId);
+			OnInviteSentInternal(ESocialSubsystem::Primary, UserToInvite, bSentPrimaryInvite);
+			bSentInvite |= bSentPrimaryInvite;
 		}
 	}
-
-	OnInviteSentInternal(InvitationSubsystemType, UserToInvite, bSentInvite);
-
+	else
+	{
+		OnInviteSentInternal(ESocialSubsystem::MAX, UserToInvite, false);
+	}
 	return bSentInvite;
 }
 
@@ -463,7 +464,7 @@ void USocialParty::TryFinishInitialization()
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld()); 
 		uint32 OSSMemberCount = PartyInterface->GetPartyMemberCount(*OwningLocalUserId, GetPartyId());
 
-		if (OSSMemberCount == PartyMembersById.Num())
+		if (OSSMemberCount == PartyMembersById.Num() && bHasReceivedRepData)
 		{
 			bIsInitialized = true;
 			GetSocialManager().NotifyPartyInitialized(*this);
@@ -497,6 +498,7 @@ void USocialParty::RefreshPublicJoinability()
 void USocialParty::InitializePartyRepData()
 {
 	UE_LOG(LogParty, Verbose, TEXT("Initializing rep data for party [%s]"), *ToDebugString());
+	bHasReceivedRepData = true;
 }
 
 FPartyPrivacySettings USocialParty::GetDesiredPrivacySettings() const
@@ -683,6 +685,11 @@ void USocialParty::HandlePartyDataReceived(const FUniqueNetId& LocalUserId, cons
 	{
 		check(PartyDataReplicator.IsValid());
 		PartyDataReplicator.ProcessReceivedData(*PartyData);
+		if (!bHasReceivedRepData)
+		{
+			bHasReceivedRepData = true;
+			TryFinishInitialization();
+		}
 	}
 }
 
@@ -946,7 +953,8 @@ void USocialParty::HandlePartySystemStateChange(EPartySystemState NewState)
 		//set timer to turn this off in a minute?
 		UWorld* World = GetWorld();
 		FTimerHandle DummyHandle;
-		World->GetTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateLambda([this]() { SetIsRequestingShutdown(false); }), 60.0f, false);
+		TWeakObjectPtr<USocialParty> WeakThis(this);
+		World->GetTimerManager().SetTimer(DummyHandle, FTimerDelegate::CreateLambda([WeakThis, this]() { if (WeakThis.IsValid()) { SetIsRequestingShutdown(false); } }), 60.0f, false);
 	}
 }
 
@@ -1125,6 +1133,19 @@ void USocialParty::LeaveParty(const FOnLeavePartyAttemptComplete& OnLeaveAttempt
 		FOnLeavePartyComplete OnLeaveComplete = FOnLeavePartyComplete::CreateUObject(this, &USocialParty::HandleLeavePartyComplete, OnLeaveAttemptComplete);
 		PartyInterface->LeaveParty(*OwningLocalUserId, GetPartyId(), OnLeaveComplete);
 	}
+}
+
+bool USocialParty::ContainsUser(const USocialUser& User) const
+{
+	for(const UPartyMember* PartyMember : GetPartyMembers())
+	{
+		if (&PartyMember->GetSocialUser() == &User)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 ULocalPlayer& USocialParty::GetOwningLocalPlayer() const

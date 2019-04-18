@@ -130,6 +130,10 @@ static struct signal_code signal_codes[] = {
     /* SIGABRT */
     { SIGABRT,  0,              "#0"          },
 
+/* EG BEGIN */
+    /* SIGUSR2 */
+    { SIGUSR2,  0,              "SIGUSR2"     },
+/* EG END */
     { 0, 0, NULL }
 };
 #else

@@ -1410,7 +1410,17 @@ namespace UnrealBuildTool
 		{
 			if (e.Data != null)
 			{
-				// apply filtering of the warning we want to ignore
+				// apply filtering of the warnings we want to ignore
+				if (e.Data.Contains("WARNING: The option 'android.enableD8' is deprecated and should not be used anymore."))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
+					return;
+				}
+				if (e.Data.Contains("WARNING: The specified Android SDK Build Tools version"))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
+					return;
+				}
 				if (e.Data.Contains("Warning: Resigning with jarsigner."))
 				{
 					Log.TraceInformation("{0}", e.Data.Replace("Warning: ", ">> "));
@@ -1420,6 +1430,10 @@ namespace UnrealBuildTool
 				{
 					Log.TraceInformation("{0}", e.Data.Replace("due to error", ""));
 					return;
+				}
+				if (e.Data.Contains("To suppress this warning,"))
+				{
+					Log.TraceInformation("{0}", e.Data.Replace(" warning,", ","));
 				}
 				Log.TraceInformation("{0}", e.Data);
 			}
@@ -3996,7 +4010,7 @@ namespace UnrealBuildTool
 								//RunCommandLineProgramWithException(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Listing all tasks...");
 
 								GradleOptions = "clean";
-								RunCommandLineProgramWithException(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Cleaning Gradle intermediates...");
+								RunCommandLineProgramWithExceptionAndFiltering(UE4BuildGradlePath, ShellExecutable, ShellParametersBegin + "\"" + GradleScriptPath + "\" " + GradleOptions + ShellParametersEnd, "Cleaning Gradle intermediates...");
 							}
 						}
 						else
@@ -4131,6 +4145,12 @@ namespace UnrealBuildTool
 			PackageInfoSource[3] = string.Format("name='com.epicgames.ue4.GameActivity.AppType' value='{0}'", InTargetType == TargetType.Game ? "" : InTargetType.ToString());
 
 			Log.TraceInformation("Writing packageInfo pkgName:{0} storeVersion:{1} versionDisplayName:{2} to {3}", PackageInfoSource[0], PackageInfoSource[1], PackageInfoSource[2], DestPackageNameFileName);
+
+			string DestDirectory = Path.GetDirectoryName(DestPackageNameFileName);
+			if (!Directory.Exists(DestDirectory))
+			{
+				Directory.CreateDirectory(DestDirectory);
+			}
 
 			File.WriteAllLines(DestPackageNameFileName, PackageInfoSource);
 
