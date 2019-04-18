@@ -86,6 +86,7 @@ enum EPlayNetMode
 	PIE_Standalone UMETA(DisplayName="Play Offline"),
 	PIE_ListenServer UMETA(DisplayName="Play As Listen Server"),
 	PIE_Client UMETA(DisplayName="Play As Client"),
+	PIE_StandaloneWithServer UMETA(DisplayName="Play Standalone With Server", ToolTip="Behaves exactly like 'Play Offline', but also launches the dedicated server, allowing you to override the map name"),
 };
 
 
@@ -335,6 +336,10 @@ private:
 	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions, meta=(ClampMin = 0))
 	int32 ClientWindowHeight;
 
+	/** Override the map launched by the dedicated server (currently only used when in PIE_StandaloneWithServer net mode) */
+	UPROPERTY(config, EditAnywhere, Category = MultiplayerOptions)
+	FString ServerMapNameOverride;
+
 	/** Additional options that will be passed to the server as URL parameters, in the format ?bIsLanMatch=1?listen - any additional command line switches should be passed in the Command Line Arguments field below. */
 	UPROPERTY(config, EditAnywhere, Category=MultiplayerOptions)
 	FString AdditionalServerGameOptions;
@@ -356,7 +361,7 @@ public:
 	bool GetRunUnderOneProcess( bool &OutRunUnderOneProcess ) const { OutRunUnderOneProcess = RunUnderOneProcess; return IsRunUnderOneProcessActive(); }
 	
 	void SetPlayNetDedicated( const bool InPlayNetDedicated ) { PlayNetDedicated = InPlayNetDedicated; }
-	bool IsPlayNetDedicatedActive() const { return (RunUnderOneProcess ? true : PlayNetMode == PIE_Client); }
+	bool IsPlayNetDedicatedActive() const { return (RunUnderOneProcess ? true : PlayNetMode == PIE_Client || PlayNetMode == PIE_StandaloneWithServer); }
 	bool GetPlayNetDedicated( bool &OutPlayNetDedicated ) const { OutPlayNetDedicated = PlayNetDedicated; return IsPlayNetDedicatedActive(); }
 
 	void SetPlayNumberOfClients( const int32 InPlayNumberOfClients ) { PlayNumberOfClients = InPlayNumberOfClients; }
@@ -374,6 +379,10 @@ public:
 	bool IsRouteGamepadToSecondWindowActive() const { return PlayNumberOfClients > 1; }
 	bool GetRouteGamepadToSecondWindow( bool &OutRouteGamepadToSecondWindow ) const { OutRouteGamepadToSecondWindow = RouteGamepadToSecondWindow; return IsRouteGamepadToSecondWindowActive(); }
 	EVisibility GetRouteGamepadToSecondWindowVisibility() const { return (RunUnderOneProcess ? EVisibility::Visible : EVisibility::Hidden); }
+
+	bool IsServerMapNameOverrideActive() const { return (PlayNetMode == PIE_StandaloneWithServer); }
+	bool GetServerMapNameOverride( FString& OutStandaloneServerMapName ) const { OutStandaloneServerMapName = ServerMapNameOverride; return IsServerMapNameOverrideActive(); }
+	EVisibility GetServerMapNameOverrideVisibility() const { return (PlayNetMode == PIE_StandaloneWithServer ? EVisibility::Visible : EVisibility::Hidden); }
 
 	bool IsAdditionalServerGameOptionsActive() const { return (PlayNetMode != PIE_Standalone) || RunUnderOneProcess; }
 	bool GetAdditionalServerGameOptions( FString &OutAdditionalServerGameOptions ) const { OutAdditionalServerGameOptions = AdditionalServerGameOptions; return IsAdditionalServerGameOptionsActive(); }

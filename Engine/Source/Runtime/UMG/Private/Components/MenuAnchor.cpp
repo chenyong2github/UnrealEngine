@@ -17,6 +17,7 @@ UMenuAnchor::UMenuAnchor(const FObjectInitializer& ObjectInitializer)
 	, UseApplicationMenuStack(true)
 {
 	Placement = MenuPlacement_ComboBox;
+	bFitInWindow = true;
 }
 
 void UMenuAnchor::ReleaseSlateResources(bool bReleaseChildren)
@@ -30,6 +31,7 @@ TSharedRef<SWidget> UMenuAnchor::RebuildWidget()
 {
 	MyMenuAnchor = SNew(SMenuAnchor)
 		.Placement(Placement)
+		.FitInWindow(bFitInWindow)
 		.OnGetMenuContent(BIND_UOBJECT_DELEGATE(FOnGetContent, HandleGetMenuContent))
 		.OnMenuOpenChanged(BIND_UOBJECT_DELEGATE(FOnIsOpenChanged, HandleMenuOpenChanged))
 		.ShouldDeferPaintingAfterWindowContent(ShouldDeferPaintingAfterWindowContent)
@@ -127,6 +129,24 @@ bool UMenuAnchor::IsOpen() const
 	}
 
 	return false;
+}
+
+void UMenuAnchor::SetPlacement(TEnumAsByte<EMenuPlacement> InPlacement)
+{
+	Placement = InPlacement;
+	if (MyMenuAnchor.IsValid())
+	{
+		return MyMenuAnchor->SetMenuPlacement(Placement);
+	}
+}
+
+void UMenuAnchor::FitInWindow(bool bFit)
+{
+	bFitInWindow = bFit;
+	if (MyMenuAnchor.IsValid())
+	{
+		return MyMenuAnchor->SetFitInWindow(bFitInWindow);
+	}
 }
 
 bool UMenuAnchor::ShouldOpenDueToClick() const
