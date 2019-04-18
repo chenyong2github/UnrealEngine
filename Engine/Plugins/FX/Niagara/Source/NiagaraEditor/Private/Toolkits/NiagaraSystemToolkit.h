@@ -13,6 +13,8 @@
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
 
+#include "NiagaraScript.h"
+
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
 class SNiagaraSystemEditorViewport;
@@ -27,9 +29,9 @@ class FMenuBuilder;
 class ISequencer;
 class FTokenizedMessage; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 class IMessageToken; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
+//struct FNiagaraCompileEvent; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 class UNiagaraGraph; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
-class UNiagaraScript; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
+//class UNiagaraScript; //@todo(ng) remove this forward decl after making FNiagaraMessageManager
 
 /** Viewer/editor for a NiagaraSystem
 */
