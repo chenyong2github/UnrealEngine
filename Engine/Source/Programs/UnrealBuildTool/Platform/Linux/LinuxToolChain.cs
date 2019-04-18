@@ -1010,10 +1010,10 @@ namespace UnrealBuildTool
 				// Linking with the toolchain on linux appears to not search usr/
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
-					Result += String.Format(" -B{0}/usr/lib/", SysRootPath);
-					Result += String.Format(" -B{0}/usr/lib64/", SysRootPath);
-					Result += String.Format(" -L{0}/usr/lib/", SysRootPath);
-					Result += String.Format(" -L{0}/usr/lib64/", SysRootPath);
+					Result += String.Format(" -B\"{0}/usr/lib/\"", SysRootPath);
+					Result += String.Format(" -B\"{0}/usr/lib64/\"", SysRootPath);
+					Result += String.Format(" -L\"{0}/usr/lib/\"", SysRootPath);
+					Result += String.Format(" -L\"{0}/usr/lib64/\"", SysRootPath);
 				}
 			}
 
