@@ -300,13 +300,9 @@ void FPreLoadScreenManager::GameLogicFrameTick()
         FTicker::GetCoreTicker().Tick(DeltaTime);
         FThreadManager::Get().Tick();
 
-        //Tick android events
-#if PLATFORM_ANDROID
-#if USE_ANDROID_EVENTS
-    // Process any Android events or we may have issues returning from background
-        FAppEventManager::GetInstance()->Tick();
-#endif
-#endif
+		//Tick any platform specific things we need here
+		PlatformSpecificGameLogicFrameTick();
+
         //Tick the Active Screen
         ActivePreLoadScreen->Tick(DeltaTime);
 
@@ -320,6 +316,17 @@ void FPreLoadScreenManager::GameLogicFrameTick()
         //Needed as this won't be incrementing on its own and some other tick functions rely on this (like analytics)
         GFrameCounter++;
     }
+}
+
+void FPreLoadScreenManager::PlatformSpecificGameLogicFrameTick()
+{
+#if PLATFORM_ANDROID
+	Android_PlatformSpecificGameLogicFrameTick();
+#endif //PLATFORM_ANDROID
+
+#if PLATFORM_IOS
+	IOS_PlatformSpecificGameLogicFrameTick();
+#endif //PLATFORM_IOS
 }
 
 bool FPreLoadScreenManager::ShouldRender()
@@ -500,3 +507,21 @@ void FPreLoadScreenManager::CleanUpResources()
     //other game specific settings containers should be cleaned up by their screens/modules
     BeginCleanup(&FPreLoadSettingsContainerBase::Get());
 }
+
+#if PLATFORM_ANDROID
+void FPreLoadScreenManager::Android_PlatformSpecificGameLogicFrameTick()
+{
+#if USE_ANDROID_EVENTS
+	// Process any Android events or we may have issues returning from background
+	FAppEventManager::GetInstance()->Tick();
+#endif //USE_ANDROIID_EVENTS
+}
+#endif //PLATFORM_ANDROID
+
+#if PLATFORM_IOS
+void FPreLoadScreenManager::IOS_PlatformSpecificGameLogicFrameTick()
+{
+	// drain the async task queue from the game thread
+	[FIOSAsyncTask ProcessAsyncTasks];
+}
+#endif
