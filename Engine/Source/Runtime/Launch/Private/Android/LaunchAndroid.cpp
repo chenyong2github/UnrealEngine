@@ -124,6 +124,15 @@ extern "C"
 	void *__dso_handle;
 }
 
+int32 GAndroidEnableNativeResizeEvent = 0;
+static FAutoConsoleVariableRef CVarEnableResizeNativeEvent(
+	TEXT("Android.EnableNativeResizeEvent"),
+	GAndroidEnableNativeResizeEvent,
+	TEXT("Whether native resize event is enabled on Android.\n")
+	TEXT(" 0: disabled (default)\n")
+	TEXT(" 1: enabled"),
+	ECVF_ReadOnly);
+
 int32 GAndroidEnableMouse = 0;
 static FAutoConsoleVariableRef CVarEnableMouse(
 	TEXT("Android.EnableMouse"),
@@ -314,6 +323,14 @@ static void InitCommandLine()
 
 extern void AndroidThunkCpp_DismissSplashScreen();
 
+//Called in main thread for native window resizing
+static void OnNativeWindowResized(ANativeActivity* activity, ANativeWindow* window)
+{
+	static int8_t cmd = APP_CMD_WINDOW_RESIZED;
+	struct android_app* app = (struct android_app *)activity->instance;
+	write(app->msgwrite, &cmd, sizeof(cmd));
+}
+
 //Main function called from the android entry point
 int32 AndroidMain(struct android_app* state)
 {
@@ -431,6 +448,12 @@ int32 AndroidMain(struct android_app* state)
 	{
 		checkf(false, TEXT("Engine Preinit Failed"));
 		return PreInitResult;
+	}
+
+	// register callback for native window resize
+	if (GAndroidEnableNativeResizeEvent)
+	{
+		state->activity->callbacks->onNativeWindowResized = OnNativeWindowResized;
 	}
 
 	// initialize HMDs
