@@ -120,7 +120,8 @@ namespace UnrealBuildTool
 			foreach (var Data in ParsedTimingData)
 			{
 				// See if we've already added a child that matches this data's name. If so, just add to the duration.
-				if (Summary.Children.TryGetValue(Data.Name, out var MatchedData))
+				TimingData MatchedData;
+				if (Summary.Children.TryGetValue(Data.Name, out MatchedData))
 				{
 					MatchedData.ExclusiveDuration += Data.ExclusiveDuration;
 				}
