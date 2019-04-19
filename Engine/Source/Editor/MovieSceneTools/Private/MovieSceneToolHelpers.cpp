@@ -752,7 +752,7 @@ bool MovieSceneToolHelpers::MovieSceneTranslatorExport(FMovieSceneExporter* InEx
 	int32 HandleFrames = Settings.HandleFrames;
 	// @todo: generate filename based on filename format, currently outputs {shot}.avi
 	FString FilenameFormat = Settings.OutputFormat;
-	FFrameRate FrameRate = Settings.FrameRate;
+	FFrameRate FrameRate = Settings.GetFrameRate();
 	uint32 ResX = Settings.Resolution.ResX;
 	uint32 ResY = Settings.Resolution.ResY;
 	FString MovieExtension = Settings.MovieExtension;

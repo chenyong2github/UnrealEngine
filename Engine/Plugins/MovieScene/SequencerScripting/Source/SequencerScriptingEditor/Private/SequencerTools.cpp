@@ -53,7 +53,8 @@ bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSe
 			FFrameRate DisplayRate = LevelSequence->GetMovieScene()->GetDisplayRate();
 			FFrameRate TickResolution = LevelSequence->GetMovieScene()->GetTickResolution();
 			
-			LevelSequenceCapture->Settings.FrameRate = DisplayRate;
+			LevelSequenceCapture->Settings.CustomFrameRate = DisplayRate;
+			LevelSequenceCapture->Settings.bUseCustomFrameRate = true;
 			LevelSequenceCapture->Settings.bUseRelativeFrameNumbers = false;
 			TRange<FFrameNumber> Range = LevelSequence->GetMovieScene()->GetPlaybackRange();
 

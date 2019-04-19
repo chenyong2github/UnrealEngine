@@ -259,7 +259,7 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 	}
 
 	CaptureState = ELevelSequenceCaptureState::Setup;
-	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.FrameRate));
+	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.GetFrameRate()));
 	CaptureStrategy->OnInitialize();
 }
 
@@ -319,7 +319,7 @@ bool UAutomatedLevelSequenceCapture::InitializeShots()
 	CachedPlaybackRange = MovieScene->GetPlaybackRange();
 
 	// Compute handle frames in tick resolution space since that is what the section ranges are defined in
-	FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.FrameRate, MovieScene->GetTickResolution()).FloorToFrame();
+	FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.GetFrameRate(), MovieScene->GetTickResolution()).FloorToFrame();
 
 	CinematicShotTrack->SortSections();
 
@@ -434,7 +434,7 @@ bool UAutomatedLevelSequenceCapture::SetupShot(FFrameNumber& StartTime, FFrameNu
 			// We intersect with the CachedPlaybackRange instead of copying the playback range from the shot to handle the case where
 			// the playback range intersected the middle of the shot before we started manipulating ranges. We manually expand the master
 			// Movie Sequence's playback range by the number of handle frames to allow handle frames to work as expected on first/last shot.
-			FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.FrameRate, MovieScene->GetTickResolution()).FloorToFrame();
+			FFrameNumber HandleFramesResolutionSpace = ConvertFrameTime(Settings.HandleFrames, Settings.GetFrameRate(), MovieScene->GetTickResolution()).FloorToFrame();
 			TRange<FFrameNumber> ExtendedCachedPlaybackRange = MovieScene::ExpandRange(CachedPlaybackRange, HandleFramesResolutionSpace);
 
 			TRange<FFrameNumber> TotalRange = TRange<FFrameNumber>::Intersection(ShotSection->GetRange(), ExtendedCachedPlaybackRange);
@@ -464,8 +464,8 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				FFrameRate           SourceFrameRate = MovieScene->GetTickResolution();
 				TRange<FFrameNumber> SequenceRange   = MovieScene->GetPlaybackRange();
 
-				FFrameNumber PlaybackStartFrame = ConvertFrameTime(MovieScene::DiscreteInclusiveLower(SequenceRange), SourceFrameRate, Settings.FrameRate).CeilToFrame();
-				FFrameNumber PlaybackEndFrame   = ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(SequenceRange), SourceFrameRate, Settings.FrameRate).CeilToFrame();
+				FFrameNumber PlaybackStartFrame = ConvertFrameTime(MovieScene::DiscreteInclusiveLower(SequenceRange), SourceFrameRate, Settings.GetFrameRate()).CeilToFrame();
+				FFrameNumber PlaybackEndFrame   = ConvertFrameTime(MovieScene::DiscreteExclusiveUpper(SequenceRange), SourceFrameRate, Settings.GetFrameRate()).CeilToFrame();
 
 				if( bUseCustomStartFrame )
 				{
@@ -493,7 +493,7 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				}
 
 				// Override the movie scene's playback range
-				Actor->SequencePlayer->SetFrameRate(Settings.FrameRate);
+				Actor->SequencePlayer->SetFrameRate(Settings.GetFrameRate());
 				Actor->SequencePlayer->SetFrameRange(PlaybackStartFrame.Value, (PlaybackEndFrame - PlaybackStartFrame).Value);
 				Actor->SequencePlayer->JumpToFrame(PlaybackStartFrame.Value);
 
@@ -574,7 +574,7 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 	}
 	else if( CaptureState == ELevelSequenceCaptureState::ReadyToWarmUp )
 	{
-		Actor->SequencePlayer->SetSnapshotSettings(FLevelSequenceSnapshotSettings(Settings.ZeroPadFrameNumbers, Settings.FrameRate));
+		Actor->SequencePlayer->SetSnapshotSettings(FLevelSequenceSnapshotSettings(Settings.ZeroPadFrameNumbers, Settings.GetFrameRate()));
 		Actor->SequencePlayer->Play();
 		// Start warming up
 		CaptureState = ELevelSequenceCaptureState::WarmingUp;
@@ -600,8 +600,8 @@ void UAutomatedLevelSequenceCapture::OnTick(float DeltaSeconds)
 		{
 			UMovieScene* MovieScene = GetMovieScene(LevelSequenceActor);
 
-			FFrameNumber StartTimePlayRateSpace = ConvertFrameTime(StartTime, MovieScene->GetTickResolution(), Settings.FrameRate).CeilToFrame();
-			FFrameNumber EndTimePlayRateSpace   = ConvertFrameTime(EndTime,   MovieScene->GetTickResolution(), Settings.FrameRate).CeilToFrame();
+			FFrameNumber StartTimePlayRateSpace = ConvertFrameTime(StartTime, MovieScene->GetTickResolution(), Settings.GetFrameRate()).CeilToFrame();
+			FFrameNumber EndTimePlayRateSpace   = ConvertFrameTime(EndTime,   MovieScene->GetTickResolution(), Settings.GetFrameRate()).CeilToFrame();
 
 			Actor->SequencePlayer->SetFrameRange(StartTimePlayRateSpace.Value, (EndTimePlayRateSpace - StartTimePlayRateSpace).Value);
 			Actor->SequencePlayer->JumpToFrame(StartTimePlayRateSpace.Value);
@@ -747,7 +747,7 @@ void UAutomatedLevelSequenceCapture::SequenceUpdated(const UMovieSceneSequencePl
 				// Prevent the same frame from being rendered twice
 				if (CurrentTime.FrameNumber.Value != CachedMetrics.PreviousFrame)
 				{
-					CaptureThisFrame((CurrentTime - PreviousTime) / Settings.FrameRate);
+					CaptureThisFrame((CurrentTime - PreviousTime) / Settings.GetFrameRate());
 					CachedMetrics.PreviousFrame = CurrentTime.FrameNumber.Value;
 				}
 
@@ -928,7 +928,7 @@ void UAutomatedLevelSequenceCapture::ExportEDL()
 	int32 HandleFrames = Settings.HandleFrames;
 	FString MovieExtension = Settings.MovieExtension;
 
-	MovieSceneTranslatorEDL::ExportEDL(MovieScene, Settings.FrameRate, SaveFilename, HandleFrames, MovieExtension);
+	MovieSceneTranslatorEDL::ExportEDL(MovieScene, Settings.GetFrameRate(), SaveFilename, HandleFrames, MovieExtension);
 }
 
 double UAutomatedLevelSequenceCapture::GetEstimatedCaptureDurationSeconds() const
@@ -968,7 +968,7 @@ void UAutomatedLevelSequenceCapture::ExportFCPXML()
 	FString SaveFilename = Settings.OutputDirectory.Path / MovieScene->GetOuter()->GetName() + TEXT(".xml");
 	FString FilenameFormat = Settings.OutputFormat;
 	int32 HandleFrames = Settings.HandleFrames;
-	FFrameRate FrameRate = Settings.FrameRate;
+	FFrameRate FrameRate = Settings.GetFrameRate();
 	uint32 ResX = Settings.Resolution.ResX;
 	uint32 ResY = Settings.Resolution.ResY;
 	FString MovieExtension = Settings.MovieExtension;

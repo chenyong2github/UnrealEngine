@@ -86,6 +86,8 @@ FMovieSceneCaptureSettings::FMovieSceneCaptureSettings()
 	HandleFrames = 0;
 	GameModeOverride = nullptr;
 	OutputFormat = TEXT("{world}");
+	bUseCustomFrameRate = false;
+	CustomFrameRate = FFrameRate(24, 1);
 	FrameRate = FFrameRate(24, 1);
 	ZeroPadFrameNumbers = 4;
 	bEnableTextureStreaming = false;
@@ -378,7 +380,8 @@ void UMovieSceneCapture::Initialize(TSharedPtr<FSceneViewport> InSceneViewport, 
 		FString FrameRateOverrideString;
 		if ( FParse::Value( FCommandLine::Get(), TEXT( "-MovieFrameRate=" ), FrameRateOverrideString ) )
 		{
-			if (!TryParseString(Settings.FrameRate, *FrameRateOverrideString))
+			Settings.bUseCustomFrameRate = true;
+			if (!TryParseString(Settings.CustomFrameRate, *FrameRateOverrideString))
 			{
 				UE_LOG(LogMovieSceneCapture, Error, TEXT("Unrecognized capture frame rate: %s."), *FrameRateOverrideString);
 			}
@@ -399,7 +402,7 @@ void UMovieSceneCapture::Initialize(TSharedPtr<FSceneViewport> InSceneViewport, 
 	CachedMetrics.Width = InitSettings->DesiredSize.X;
 	CachedMetrics.Height = InitSettings->DesiredSize.Y;
 
-	double FrameRate = Settings.FrameRate.AsDecimal();
+	double FrameRate = Settings.GetFrameRate().AsDecimal();
 
 	FormatMappings.Reserve(10);
 	if (FrameRate == FMath::RoundToDouble(FrameRate))
