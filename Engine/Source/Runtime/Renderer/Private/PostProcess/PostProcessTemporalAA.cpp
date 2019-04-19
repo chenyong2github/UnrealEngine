@@ -390,8 +390,8 @@ const TCHAR* const kTAAPassNames[] = {
 	TEXT("MainSuperSampling"),
 	TEXT("ScreenSpaceReflections"),
 	TEXT("LightShaft"),
-	TEXT("DiaphragmDOF"),
-	TEXT("DiaphragmDOFUpsampling"),
+	TEXT("DOF"),
+	TEXT("DOFUpsampling"),
 };
 
 
