@@ -18,6 +18,7 @@
 #include "AudioDeviceManager.h"
 #include "DSP/SpectrumAnalyzer.h"
 #include "EngineGlobals.h"
+#include "AudioVirtualLoop.h"
 
 /**
  * Forward declares
@@ -25,7 +26,6 @@
 
 class FArchive;
 class FAudioEffectsManager;
-class FAudioVirtualLoop;
 class FCanvas;
 class FOutputDevice;
 class FReferenceCollector;
@@ -1533,7 +1533,7 @@ public:
 	/** Returns the audio clock of the audio device. Not supported on all platforms. */
 	double GetAudioClock() const { return AudioClock; }
 
-	void AddVirtualLoop(FAudioVirtualLoop& VirtualLoop);
+	void AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop);
 
 #if !UE_BUILD_SHIPPING
 	void DumpActiveSounds() const;
@@ -1823,7 +1823,7 @@ private:
 	/** Array of dormant loops stopped due to proximity/applicable concurrency rules
 	  * that can be retriggered.
 	  */
-	TMap<FActiveSound*, FAudioVirtualLoop*> VirtualLoops;
+	TMap<FActiveSound*, FAudioVirtualLoop> VirtualLoops;
 
 	TArray<FAudioComponentPtr> ProximityRetriggerComponents;
 
