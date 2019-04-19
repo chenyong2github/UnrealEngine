@@ -148,7 +148,7 @@ void SetupRaytracingLightDataPacked(
 
 		LightData->Count++;
 
-		if (LightData->Count >= GRaytracingLightCountMaximum) break;
+		if (LightData->Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
 	}
 
 	// Update IES light profiles texture 

@@ -171,7 +171,7 @@ public:
 
 			for (auto Light : Lights)
 			{
-				if (LightData.Count >= GLightCountMaximum) break;
+				if (LightData.Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
 
 				if (Light.LightSceneInfo->Proxy->HasStaticLighting() && Light.LightSceneInfo->IsPrecomputedLightingValid()) continue;
 

@@ -7,21 +7,20 @@
 #include "ShaderParameterMacros.h"
 #include "SceneRendering.h"
 #include "LightSceneInfo.h"
+#include "RayTracingDefinitions.h"
 
 #if RHI_RAYTRACING
-
-const static uint32 GRaytracingLightCountMaximum = 64;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER(uint32, Count)
 	SHADER_PARAMETER(float, IESLightProfileInvCount)
-	SHADER_PARAMETER_ARRAY(FIntVector, Type_LightProfileIndex_RectLightTextureIndex, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, LightPosition_InvRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, LightColor_SpecularScale, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, Direction_FalloffExponent, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, Tangent_SourceRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, SpotAngles_SourceLength_SoftSourceRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength, [GRaytracingLightCountMaximum])
+	SHADER_PARAMETER_ARRAY(FIntVector, Type_LightProfileIndex_RectLightTextureIndex, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, LightPosition_InvRadius, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, LightColor_SpecularScale, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, Direction_FalloffExponent, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, Tangent_SourceRadius, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, SpotAngles_SourceLength_SoftSourceRadius, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
+	SHADER_PARAMETER_ARRAY(FVector4, DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength, [RAY_TRACING_LIGHT_COUNT_MAXIMUM])
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
