@@ -321,6 +321,12 @@ private:
 	/** Whether or not 3d debug visualization is enabled. */
 	bool bVisualize3dDebug;
 
+	/** Whether or not we check to toggle audio mixer once. */
+	bool bOnlyToggleAudioMixerOnce;
+
+	/** Whether or not we've toggled the audio mixer. */
+	bool bToggledAudioMixer;
+
 	/** Audio Fence to ensure that we don't allow the audio thread to drift never endingly behind. */
 	FAudioCommandFence SyncFence;
 };
