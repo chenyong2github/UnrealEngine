@@ -102,7 +102,7 @@ void DeferredLightPixelMain(
 		OutColor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 #if USE_PREEXPOSURE
-		OutColor *= View.PreExposure;
+		OutColor.rgb *= View.PreExposure;
 #endif
 	}
 }

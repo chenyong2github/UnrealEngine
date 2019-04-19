@@ -344,7 +344,7 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 	  // If we're not doing checkerboard encoding, we just need to read a single pixel and decode (combined diffuse/spec in RGB)
 	  float4 CenterSample = SubsurfaceInput0_Texture.SampleLevel(SharedSubsurfaceSampler0, UVSceneColor, 0);
 	  float3 CombinedColor = CenterSample.rgb;
-	  float DiffuseLuminance = CenterSample.a;
+	  float DiffuseLuminance = CenterSample.a * View.PreExposure;
   
 	  float CombinedLuminance = Luminance(CombinedColor);
 	  float DiffuseFactor = saturate(DiffuseLuminance / CombinedLuminance);
