@@ -161,6 +161,12 @@ class FTemporalAAPS : public FGlobalShader
 		{
 			return false;
 		}
+		
+		// DOF setup chain is full compute shader, no need for a pixel shader for TAA.
+		if (IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
+		{
+			return false;
+		}
 
 		// Responsive dimension is only for Main.
 		if (PermutationVector.Get<FTAAResponsiveDim>() && !SupportsResponsiveDim(PermutationVector))
