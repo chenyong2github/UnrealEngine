@@ -69,10 +69,10 @@ static float CatmullRom( float x )
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTAAShaderParameters,)
-	SHADER_PARAMETER(FVector4, PreExposureSettings)
 	SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
 	SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
 	SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
+	SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 	SHADER_PARAMETER(float, CurrentFrameWeight)
 	SHADER_PARAMETER(int32, bCameraCut)
 	
@@ -550,16 +550,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			ResDivisor / float(DestRect.Width()),
 			ResDivisor / float(DestRect.Height()));
 
-		// Pre-exposure, One over Pre-exposure, History pre-exposure, History one over pre-exposure.
-		// DOF settings must preserve scene color range.
-		CommonShaderParameters.PreExposureSettings = FVector4(1.f, 1.f, 1.f, 1.f);
-		if (Pass == ETAAPassConfig::Main)
-		{
-			CommonShaderParameters.PreExposureSettings.X = View.PreExposure;
-			CommonShaderParameters.PreExposureSettings.Y = 1.f / FMath::Max<float>(SMALL_NUMBER, View.PreExposure);
-			CommonShaderParameters.PreExposureSettings.Z = View.PrevViewInfo.SceneColorPreExposure;
-			CommonShaderParameters.PreExposureSettings.W  = 1.f / FMath::Max<float>(SMALL_NUMBER, CommonShaderParameters.PreExposureSettings.Z);
-		}
+		CommonShaderParameters.HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 
 		{
 			float InvSizeX = 1.0f / float(SrcSize.X);

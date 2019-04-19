@@ -113,6 +113,10 @@ float DownsampleCoc(float CocRadii[4])
 // Optimized HDR weighting function.
 float HdrWeight4(float3 Color, float Exposure) 
 {
+#if USE_PREEXPOSURE
+	Exposure *= View.PreExposure;
+#endif
+
 	return rcp(Luma4(Color) * Exposure + 4.0);
 }
 

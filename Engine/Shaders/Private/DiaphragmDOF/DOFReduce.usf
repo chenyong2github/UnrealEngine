@@ -371,7 +371,11 @@ void ReduceCS(
 	#endif
 
 	// Sample the frame exposure to SGPR.
-	float FrameExposureScale = ToScalarMemory(EyeAdaptationLookup());
+	#if USE_PREEXPOSURE
+		float FrameExposureScale = ToScalarMemory(EyeAdaptationLookup() * View.OneOverPreExposure);
+	#else
+		float FrameExposureScale = ToScalarMemory(EyeAdaptationLookup());
+	#endif
 
 	// Indirect dispatch 
 	#if DIM_HYBRID_SCATTER_FGD || DIM_HYBRID_SCATTER_BGD

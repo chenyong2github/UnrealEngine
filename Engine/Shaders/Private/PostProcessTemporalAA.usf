@@ -441,9 +441,7 @@ static const uint kNeighborsCount = 9;
 
 //------------------------------------------------------- PARAMETERS
 
-// (Pre-Exposure, 1 / Pre-exposure, LastFramePreExposure, 1 / LastFramePreExposure)
-float4 PreExposureSettings;
-
+float HistoryPreExposureCorrection;
 float CurrentFrameWeight;
 int bCameraCut;
 
@@ -789,11 +787,7 @@ float4 TransformBackToRawLinearSceneColor(float4 SceneColor)
 // Transform current frame's RAW scene color RGB to TAA's working color space.
 float4 TransformCurrentFrameSceneColor(float4 RawSceneColorRGBA)
 {
-	float4 RawLinearSceneColorRGBA = RawSceneColorRGBA;
-	#if USE_PREEXPOSURE
-		RawLinearSceneColorRGBA.rgb *= PreExposureSettings.y;
-	#endif
-	return TransformSceneColor(RawLinearSceneColorRGBA);
+	return TransformSceneColor(RawSceneColorRGBA);
 }
 
 // Get the Luma4 of the sceneColor
@@ -1836,7 +1830,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 	#endif
 
 	#if USE_PREEXPOSURE
-		HistoryPayload.Color.rgb *= PreExposureSettings.w;
+		HistoryPayload.Color.rgb *= HistoryPreExposureCorrection;
 	#endif
 
 	HistoryPayload.Color = TransformSceneColor(HistoryPayload.Color);
@@ -1887,7 +1881,12 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 	FTAAInputParameters InputParams;
 
 	// Per frame setup.
-	InputParams.FrameExposureScale = FrameExposureScale;
+	#if USE_PREEXPOSURE
+		InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale * View.OneOverPreExposure);
+	#else
+		InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale);
+	#endif
+
 
 	// Per pixel setup.
 	{
@@ -2217,10 +2216,6 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 
 	OutputPayload.Color = TransformBackToRawLinearSceneColor(OutputPayload.Color);
 	
-	#if USE_PREEXPOSURE
-		OutputPayload.Color.rgb *= PreExposureSettings.x;
-	#endif
-
 	#if AA_NAN
 		// Transform NaNs to black, transform negative colors to black.
 		OutputPayload.Color = -min(-OutputPayload.Color, 0.0);
@@ -2348,7 +2343,7 @@ void MainPS(
 	uint2 GroupThreadId = int2(0, 0);
 	uint GroupThreadIndex = 0;
 	float FrameExposureScale = EyeAdaptationLookup();
-
+	
 	FTAAHistoryPayload OutputPayload = TemporalAASample(GroupId, GroupThreadId, GroupThreadIndex, ViewportUV, FrameExposureScale);
 
 	#if AA_HISTORY_PAYLOAD == HISTORY_PAYLOAD_RGB_COC

@@ -150,8 +150,12 @@ float GetSignalColorTransformationExposure()
 	const float Tweak = 1;
 
 	float FrameExposureScale = EyeAdaptationLookup();
+	
+	#if USE_PREEXPOSURE
+		FrameExposureScale *= View.OneOverPreExposure;
+	#endif
 
-	return FrameExposureScale * Tweak;
+	return ToScalarMemory(FrameExposureScale * Tweak);
 }
 
 /** Returns the linear color space Luma with a 4 multiplier for ALU perf reasons. */
