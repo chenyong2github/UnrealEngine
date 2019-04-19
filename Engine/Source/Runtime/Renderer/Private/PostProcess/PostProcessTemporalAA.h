@@ -22,14 +22,20 @@ struct FTemporalAAHistory;
 /** Lists of TAA configurations. */
 enum class ETAAPassConfig
 {
-	LegacyDepthOfField,
+	// Permutations for main scene color TAA.
 	Main,
-	ScreenSpaceReflections,
-	LightShaft,
 	MainUpsampling,
+	MainSuperSampling,
+
+	// Permutation for SSR noise accumulation.
+	ScreenSpaceReflections,
+	
+	// Permutation for light shaft noise accumulation.
+	LightShaft,
+
+	// Permutation for DOF that handle Coc.
 	DiaphragmDOF,
 	DiaphragmDOFUpsampling,
-	MainSuperSampling,
 
 	MAX
 };

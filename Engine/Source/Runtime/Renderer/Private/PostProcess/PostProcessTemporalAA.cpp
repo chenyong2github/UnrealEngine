@@ -369,25 +369,23 @@ DECLARE_GPU_STAT(TAA)
 
 
 const TCHAR* const kTAAOutputNames[] = {
-	TEXT("DOFTemporalAA"),
+	TEXT("TemporalAA"),
+	TEXT("TemporalAA"),
 	TEXT("TemporalAA"),
 	TEXT("SSRTemporalAA"),
 	TEXT("LightShaftTemporalAA"),
-	TEXT("TemporalAA"),
 	TEXT("DOFTemporalAA"),
 	TEXT("DOFTemporalAA"),
-	TEXT("TemporalAA"),
 };
 
 const TCHAR* const kTAAPassNames[] = {
-	TEXT("LegacyDOF"),
 	TEXT("Main"),
+	TEXT("MainUpsampling"),
+	TEXT("MainSuperSampling"),
 	TEXT("ScreenSpaceReflections"),
 	TEXT("LightShaft"),
-	TEXT("MainUpsampling"),
 	TEXT("DiaphragmDOF"),
 	TEXT("DiaphragmDOFUpsampling"),
-	TEXT("MainSuperSampling"),
 };
 
 

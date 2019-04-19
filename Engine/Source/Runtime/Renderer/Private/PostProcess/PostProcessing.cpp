@@ -490,36 +490,10 @@ static bool AddPostProcessDepthOfFieldGaussian(FPostprocessContext& Context, FDe
 		{
 			FSceneViewState* ViewState = (FSceneViewState*)Context.View.State;
 
-			FRenderingCompositeOutputRef DOFInputPass = DOFSetup;
-			const bool bMobileQuality = (Context.View.GetFeatureLevel() <= ERHIFeatureLevel::ES3_1);
-			if (Context.View.AntiAliasingMethod == AAM_TemporalAA && ViewState && !bMobileQuality)
-			{
-				// If no history use current as history
-				FTemporalAAHistory* DOFHistory = bFarPass ? &ViewState->DOFHistory : &ViewState->DOFHistory2;
-				bool& bDOFHistory = bFarPass ? ViewState->bDOFHistory : ViewState->bDOFHistory2;
-
-				const bool bIsComputePass = ShouldDoComputePostProcessing(Context.View);
-
-
-				FTAAPassParameters Parameters(Context.View);
-				Parameters.Pass = ETAAPassConfig::LegacyDepthOfField;
-				Parameters.bIsComputePass = bIsComputePass;
-				Parameters.SetupViewRect(Context.View, /* ResolutionDivisor = */ 2);
-
-				FRenderingCompositePass* NodeTemporalAA = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessTemporalAA(
-					Context, Parameters, *DOFHistory, DOFHistory));
-
-				NodeTemporalAA->SetInput(ePId_Input0, DOFSetup);
-				NodeTemporalAA->SetInput(ePId_Input2, VelocityInput);
-
-				DOFInputPass = FRenderingCompositeOutputRef(NodeTemporalAA);
-				bDOFHistory = false;
-			}
-
 			const TCHAR* BlurDebugX = bFarPass ? TEXT("FarDOFBlurX") : TEXT("NearDOFBlurX");
 			const TCHAR* BlurDebugY = bFarPass ? TEXT("FarDOFBlurY") : TEXT("NearDOFBlurY");
 
-			return RenderGaussianBlur(Context, BlurDebugX, BlurDebugY, DOFInputPass, BlurSize);
+			return RenderGaussianBlur(Context, BlurDebugX, BlurDebugY, DOFSetup, BlurSize);
 		};
 
 		const bool bFar = FarSize > 0.0f;
