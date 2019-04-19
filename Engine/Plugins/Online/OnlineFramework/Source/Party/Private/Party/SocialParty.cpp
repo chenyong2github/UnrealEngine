@@ -514,6 +514,19 @@ void USocialParty::OnLocalPlayerIsLeaderChanged(bool bIsLeader)
 
 		// Establish the privacy of the party to match the local player's preference
 		GetMutableRepData().SetPrivacySettings(GetDesiredPrivacySettings());
+
+		// It's possible that membership changes resulting in this promotion also require updates to the session info
+		//	If we found out about the changes in membership before learning we're the leader, we were unable to update the rep data accordingly
+		//	So, upon becoming leader, we must do a sweep to account for any such changes we missed out on
+		TArray<FName> AllMemberPlatformSubsystems;
+		for (UPartyMember* Member : GetPartyMembers())
+		{
+			AllMemberPlatformSubsystems.AddUnique(Member->GetPlatformOssName());
+		}
+		for (FName PlatformOssName : AllMemberPlatformSubsystems)
+		{
+			UpdatePlatformSessionLeader(PlatformOssName);
+		}
 	}
 	else
 	{
@@ -1530,6 +1543,11 @@ void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 
 void USocialParty::UpdatePlatformSessionLeader(FName PlatformOssName)
 {
+	if (!IsLocalPlayerPartyLeader())
+	{
+		return;
+	}
+
 	if (const FPartyPlatformSessionInfo* PlatformSessionInfo = GetRepData().FindSessionInfo(PlatformOssName))
 	{
 		UPartyMember* NewSessionOwner = nullptr;
