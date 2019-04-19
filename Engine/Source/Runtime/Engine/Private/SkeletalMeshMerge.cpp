@@ -1019,6 +1019,8 @@ void FSkeletalMeshMerge::BuildSockets(const TArray<USkeletalMesh*>& SourceMeshLi
 			AddSockets(NewSkeletonSocketList, true);
 		}
 	}
+
+	MergeMesh->RebuildSocketMap();
 }
 
 void FSkeletalMeshMerge::OverrideSocket(const USkeletalMeshSocket* SourceSocket)
@@ -1095,4 +1097,6 @@ void FSkeletalMeshMerge::OverrideMergedSockets(const TArray<FRefPoseOverride>& P
 			}
 		}
 	}
+
+	MergeMesh->RebuildSocketMap();
 }

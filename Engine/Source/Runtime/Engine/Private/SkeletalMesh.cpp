@@ -2178,10 +2178,11 @@ USkeletalMeshSocket* USkeletalMesh::GetSocketByIndex(int32 Index) const
 	return nullptr;
 }
 
-#if !WITH_EDITOR
 
 void USkeletalMesh::RebuildSocketMap()
 {
+#if !WITH_EDITOR
+
 	check(IsInGameThread());
 
 	SocketMap.Reset();
@@ -2206,9 +2207,10 @@ void USkeletalMesh::RebuildSocketMap()
 			}
 		}
 	}
+
+#endif // !WITH_EDITOR
 }
 
-#endif
 
 /**
  * This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
