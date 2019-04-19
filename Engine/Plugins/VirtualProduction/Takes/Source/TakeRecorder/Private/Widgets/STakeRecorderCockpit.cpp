@@ -112,7 +112,6 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 		if (NextTakeNumber != TakeMetaData->GetTakeNumber())
 		{
 			TakeMetaData->SetTakeNumber(NextTakeNumber);
-			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 		}
 	}
 
@@ -562,7 +561,6 @@ void STakeRecorderCockpit::CacheMetaData()
 			if (TransientTakeMetaData->GetSlate() != DefaultSlate)
 			{
 				TransientTakeMetaData->SetSlate(DefaultSlate);
-				UTakeRecorderBlueprintLibrary::OnTakeRecorderSlateChanged(DefaultSlate);
 			}
 
 			// Compute the correct starting take number
@@ -570,7 +568,6 @@ void STakeRecorderCockpit::CacheMetaData()
 			if (TransientTakeMetaData->GetTakeNumber() != NextTakeNumber)
 			{
 				TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
-				UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 			}
 		}
 
@@ -654,7 +651,6 @@ void STakeRecorderCockpit::SetSlateText(const FText& InNewText, ETextCommit::Typ
 		TakeMetaData->Modify();
 
 		TakeMetaData->SetSlate(InNewText.ToString());
-		UTakeRecorderBlueprintLibrary::OnTakeRecorderSlateChanged(InNewText.ToString());
 
 		// Compute the correct starting take number
 		int32 NextTakeNumber = UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(TakeMetaData->GetSlate());
@@ -662,7 +658,6 @@ void STakeRecorderCockpit::SetSlateText(const FText& InNewText, ETextCommit::Typ
 		if (NextTakeNumber != TakeMetaData->GetTakeNumber())
 		{
 			TakeMetaData->SetTakeNumber(NextTakeNumber);
-			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 		}
 	}
 }
@@ -721,7 +716,6 @@ FReply STakeRecorderCockpit::OnSetNextTakeNumber()
 
 		TakeMetaData->Modify();
 		TakeMetaData->SetTakeNumber(NextTakeNumber);
-		UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 	}
 
 	return FReply::Handled();
@@ -746,7 +740,7 @@ void STakeRecorderCockpit::SetTakeNumber(int32 InNewTakeNumber)
 
 	if (TransactionIndex != INDEX_NONE || bIsInPIEOrSimulate)
 	{
-		TakeMetaData->SetTakeNumber(InNewTakeNumber);
+		TakeMetaData->SetTakeNumber(InNewTakeNumber, false);
 		bAutoApplyTakeNumber = false;
 	}
 }
@@ -766,7 +760,6 @@ void STakeRecorderCockpit::SetTakeNumber_FromCommit(int32 InNewTakeNumber, EText
 	else if (TakeMetaData->GetTakeNumber() != InNewTakeNumber)
 	{
 		TakeMetaData->SetTakeNumber(InNewTakeNumber);
-		UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(InNewTakeNumber);
 	}
 
 	bAutoApplyTakeNumber = false;
@@ -782,7 +775,6 @@ void STakeRecorderCockpit::OnEndSetTakeNumber(int32 InFinalValue)
 	}
 
 	TakeMetaData->SetTakeNumber(InFinalValue);
-	UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(InFinalValue);
 
 	GEditor->EndTransaction();
 	TransactionIndex = INDEX_NONE;
@@ -935,7 +927,6 @@ void STakeRecorderCockpit::OnRecordingFinished(UTakeRecorder* Recorder)
 		if (TransientTakeMetaData->GetTakeNumber() != NextTakeNumber)
 		{
 			TransientTakeMetaData->SetTakeNumber(NextTakeNumber);
-			UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(NextTakeNumber);
 		}
 
 		bAutoApplyTakeNumber = true;

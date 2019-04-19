@@ -19,8 +19,6 @@ namespace
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderFinished TakeRecorderFinished;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderCancelled TakeRecorderCancelled;
 	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderMarkedFrameAdded TakeRecorderMarkedFrameAdded;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderSlateChanged TakeRecorderSlateChanged;
-	static UTakeRecorderBlueprintLibrary::FOnTakeRecorderTakeNumberChanged TakeRecorderTakeNumberChanged;
 }
 
 
@@ -152,16 +150,6 @@ void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderMarkedFrameAdded(FOnTakeRec
 	TakeRecorderMarkedFrameAdded = OnTakeRecorderMarkedFrameAdded;
 };
 
-void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged OnTakeRecorderSlateChanged)
-{
-	TakeRecorderSlateChanged = OnTakeRecorderSlateChanged;
-};
-
-void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderTakeNumberChanged(FOnTakeRecorderTakeNumberChanged OnTakeRecorderTakeNumberChanged)
-{
-	TakeRecorderTakeNumberChanged = OnTakeRecorderTakeNumberChanged;
-};
-
 void UTakeRecorderBlueprintLibrary::OnTakeRecorderStarted()
 {
 	TakeRecorderStarted.ExecuteIfBound();
@@ -180,16 +168,6 @@ void UTakeRecorderBlueprintLibrary::OnTakeRecorderCancelled()
 void UTakeRecorderBlueprintLibrary::OnTakeRecorderMarkedFrameAdded(const FMovieSceneMarkedFrame& InMarkedFrame)
 {
 	TakeRecorderMarkedFrameAdded.ExecuteIfBound(InMarkedFrame);
-}
-
-void UTakeRecorderBlueprintLibrary::OnTakeRecorderSlateChanged(const FString& InSlate)
-{
-	TakeRecorderSlateChanged.ExecuteIfBound(InSlate);
-}
-
-void UTakeRecorderBlueprintLibrary::OnTakeRecorderTakeNumberChanged(int32 InTakeNumber)
-{
-	TakeRecorderTakeNumberChanged.ExecuteIfBound(InTakeNumber);
 }
 
 void UTakeRecorderBlueprintLibrary::SetTakeRecorderPanel(UTakeRecorderPanel* InNewPanel)
