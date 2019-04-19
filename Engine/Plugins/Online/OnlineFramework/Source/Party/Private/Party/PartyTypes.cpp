@@ -109,14 +109,27 @@ bool FJoinPartyResult::WasSuccessful() const
 // FOnlinePartyRepDataBase
 //////////////////////////////////////////////////////////////////////////
 
-void FOnlinePartyRepDataBase::LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* ProperyName, bool bFromReplication) const
+void FOnlinePartyRepDataBase::LogSetPropertyFailure(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName) const
+{
+	const USocialParty* OwningParty = GetOwnerParty();
+	if (ensure(OwningParty))
+	{
+		UE_LOG(LogParty, Warning, TEXT("Failed to modify RepData property [%s::%s] in party [%s] - local member [%s] does not have authority."),
+			OwningStructTypeName,
+			PropertyName,
+			*OwningParty->ToDebugString(),
+			*OwningParty->GetOwningLocalMember().ToDebugString(false));
+	}
+}
+
+void FOnlinePartyRepDataBase::LogPropertyChanged(const TCHAR* OwningStructTypeName, const TCHAR* PropertyName, bool bFromReplication) const
 {
 	const USocialParty* OwningParty = GetOwnerParty();
 	
 	// Only thing this lacks is the id of the party member for member rep data changes
 	UE_LOG(LogParty, VeryVerbose, TEXT("RepData property [%s::%s] changed %s in party [%s]"),
 		OwningStructTypeName,
-		ProperyName,
+		PropertyName,
 		bFromReplication ? TEXT("remotely") : TEXT("locally"),
 		ensure(OwningParty) ? *OwningParty->ToDebugString() : TEXT("unknown"));
 }
