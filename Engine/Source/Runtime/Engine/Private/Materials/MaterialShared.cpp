@@ -2069,13 +2069,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	}
 	else
 	{
-		if (IsValidRef(OutUniformExpressionCache.UniformBuffer) && !OutUniformExpressionCache.UniformBuffer->IsValid())
-		{
-			UE_LOG(LogMaterial, Fatal, TEXT("The Uniformbuffer needs to be valid if it has been set"));
-		}
-
-		if (IsValidRef(OutUniformExpressionCache.UniformBuffer)
-			&& OutUniformExpressionCache.UniformBuffer->GetLayout() == UniformBufferStruct.GetLayout())
+		if (IsValidRef(OutUniformExpressionCache.UniformBuffer))
 		{
 			check(OutUniformExpressionCache.UniformBuffer->GetLayout() == UniformBufferStruct.GetLayout());
 			RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
@@ -2102,11 +2096,6 @@ void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
 	check((bUsingNewLoader && GIsInitialLoad) || // The EDL at boot time maybe not load the default materials first; we need to intialize materials before the default materials are done
 		UMaterial::GetDefaultMaterial(MD_Surface));
 
-
-	if (IsMarkedForGarbageCollection())
-	{
-		UE_LOG(LogMaterial, Fatal, TEXT("Cannot queue the Expression Cache when it is about to be deleted"));
-	}
 	DeferredUniformExpressionCacheRequests.Add(this);
 
 	UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel)
@@ -2170,8 +2159,9 @@ void FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel
 
 FMaterialRenderProxy::FMaterialRenderProxy()
 	: SubsurfaceProfileRT(0)
-	, MarkedForGarbageCollection(0)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	, DeletedFlag(0)
+#endif
 {
 }
 
@@ -2183,7 +2173,9 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 		ReleaseResource();
 	}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	DeletedFlag = 1;
+#endif
 }
 
 void FMaterialRenderProxy::InitDynamicRHI()
@@ -2220,10 +2212,6 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 	for (TSet<FMaterialRenderProxy*>::TConstIterator It(DeferredUniformExpressionCacheRequests); It; ++It)
 	{
 		FMaterialRenderProxy* MaterialProxy = *It;
-		if (MaterialProxy->IsDeleted())
-		{
-			UE_LOG(LogMaterial, Fatal, TEXT("FMaterialRenderProxy deleted and GC mark was: %i"), MaterialProxy->IsMarkedForGarbageCollection());
-		}
 
 		UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel)
 		{

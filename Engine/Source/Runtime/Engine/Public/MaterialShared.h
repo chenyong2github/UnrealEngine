@@ -1780,17 +1780,11 @@ public:
 	virtual bool GetTextureValue(const FMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const = 0;
 	bool IsDeleted() const
 	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		return DeletedFlag != 0;
-	}
-
-	void MarkForGarbageCollection()
-	{
-		MarkedForGarbageCollection = 1;
-	}
-
-	bool IsMarkedForGarbageCollection() const
-	{
-		return MarkedForGarbageCollection != 0;
+#else
+		return false;
+#endif
 	}
 
 	// FRenderResource interface.
@@ -1819,8 +1813,9 @@ private:
 	const USubsurfaceProfile* SubsurfaceProfileRT;
 
 	/** For tracking down a bug accessing a deleted proxy. */
-	mutable int8 MarkedForGarbageCollection : 1;
-	mutable int8 DeletedFlag : 1;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	mutable int32 DeletedFlag : 1;
+#endif
 
 	/** 
 	 * Tracks all material render proxies in all scenes, can only be accessed on the rendering thread.
