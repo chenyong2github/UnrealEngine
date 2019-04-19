@@ -1116,7 +1116,7 @@ namespace UnrealBuildTool
 
 				if(CompileEnvironment.bGenerateDependenciesFile)
 				{
-					GenerateDependenciesFile(CompileEnvironment, OutputDir, Result, SourceFile, Actions, CompileAction);
+					GenerateDependenciesFile(Target, OutputDir, Result, SourceFile, Actions, CompileAction);
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
@@ -1151,32 +1151,32 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		private void GenerateDependenciesFile(CppCompileEnvironment CompileEnvironment, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
+		private void GenerateDependenciesFile(ReadOnlyTargetRules Target, DirectoryReference OutputDir, CPPOutput Result, FileItem SourceFile, List<Action> Actions, Action CompileAction)
 		{
-			var commandArguments = new List<string>();
-			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.txt"));
+			List<string> commandArguments = new List<string>();
+			CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
 			CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
 			commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location));
 
-			if (CompileEnvironment.bPrintTimingInfo)
+			if (Target.bPrintToolChainTimingInfo)
 			{
-				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.timing.txt"));
+				CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing.txt", SourceFile.Location.GetFileName())));
 				CompileAction.ProducedItems.Add(CompileAction.TimingFile);
 				commandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.TimingFile.Location));
 
-				var TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".bin"));
+				FileItem TimingJsonFile = FileItem.GetItemByPath(Path.ChangeExtension(CompileAction.TimingFile.AbsolutePath, ".timing.bin"));
 				Result.DebugDataFiles.Add(TimingJsonFile);
 				Result.DebugDataFiles.Add(CompileAction.TimingFile);
 
-				var ParseTimingArguments = new List<string>() { $"-TimingFile=\"{CompileAction.TimingFile}\"" };
-				if (CompileEnvironment.bParseTimingInfoForTracing)
+				string ParseTimingArguments = String.Format("-TimingFile=\"{0}\"", CompileAction.TimingFile);
+				if (Target.bParseTimingInfoForTracing)
 				{
-					ParseTimingArguments.Add("-Tracing");
+					ParseTimingArguments += " -Tracing";
 				}
 
-				var ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, string.Join(" ", ParseTimingArguments));
+				Action ParseTimingInfoAction = Action.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
 				ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				ParseTimingInfoAction.StatusDescription = $"Parsing Timing File '{CompileAction.TimingFile}'";
+				ParseTimingInfoAction.StatusDescription = String.Format("Parsing Timing File '{0}'", CompileAction.TimingFile);
 				ParseTimingInfoAction.bCanExecuteRemotely = true;
 				ParseTimingInfoAction.PrerequisiteItems.Add(SourceFile);
 				ParseTimingInfoAction.PrerequisiteItems.Add(CompileAction.TimingFile);
@@ -1196,27 +1196,25 @@ namespace UnrealBuildTool
 		{
 			if (Target.bPrintToolChainTimingInfo)
 			{
-				var ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo);
-				Makefile.OutputItems.AddRange(ParseTimingActions.SelectMany(x => x.ProducedItems));
+				List<Action> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
+				List<FileItem> TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".timing.bin"))).ToList();
+				Makefile.OutputItems.AddRange(TimingJsonFiles);
 
 				// Handing generating aggregate timing information if we compiled more than one file.
-				if (ParseTimingActions.Count() > 1)
+				if (TimingJsonFiles.Count > 1)
 				{
-					// Find all .timing.json files.
-					var TimingJsonFiles = ParseTimingActions.Select(a => a.ProducedItems.First());
-
 					// Generate the file manifest for the aggregator.
-					var ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.txt");
+					FileReference ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.txt");
 					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
 
-					var AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, $"-Name={Target.Name} -ManifestFile=\"{ManifestFile.FullName}\"");
+					Action AggregateTimingInfoAction = Action.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, $"-Name={Target.Name} -ManifestFile=\"{ManifestFile.FullName}\"");
 					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count()} Timing File(s)";
+					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(ParseTimingActions.SelectMany(a => a.PrerequisiteItems));
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
 
-					var AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
+					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.timing.bin"));
 					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
 					Makefile.OutputItems.Add(AggregateOutputFile);
 					Makefile.Actions.Add(AggregateTimingInfoAction);

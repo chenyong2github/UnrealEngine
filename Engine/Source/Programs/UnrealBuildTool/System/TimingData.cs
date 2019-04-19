@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 			int ChildCount = Reader.ReadInt32();
 			for (int i = 0; i < ChildCount; ++i)
 			{
-				var NewChild = new TimingData(Reader);
+				TimingData NewChild = new TimingData(Reader);
 				Children.Add(NewChild.Name, NewChild);
 			}
 		}
@@ -123,7 +123,7 @@ namespace UnrealBuildTool
 			if (Children.TryGetValue(ChildData.Name, out MatchingData))
 			{
 				MatchingData.ExclusiveDuration += ChildData.ExclusiveDuration;
-				foreach (var ChildChildData in ChildData.Children.Values)
+				foreach (TimingData ChildChildData in ChildData.Children.Values)
 				{
 					MatchingData.AddChild(ChildChildData);
 				}
@@ -140,14 +140,14 @@ namespace UnrealBuildTool
 		/// <returns>A deep clone of this event.</returns>
 		public TimingData Clone()
 		{
-			var ClonedTimingData = new TimingData()
+			TimingData ClonedTimingData = new TimingData()
 			{
 				Name = Name,
 				Type = Type,
 				ExclusiveDuration = ExclusiveDuration,
 			};
 
-			foreach (var Child in Children)
+			foreach (KeyValuePair<string, TimingData> Child in Children)
 			{
 				ClonedTimingData.Children.Add(Child.Key, Child.Value.Clone());
 			}
@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 			Writer.Write((byte)Type);
 			Writer.Write(ExclusiveDuration);
 			Writer.Write(Children.Count);
-			foreach (var Child in Children.Values)
+			foreach (TimingData Child in Children.Values)
 			{
 				Writer.Write(Child);
 			}

@@ -68,7 +68,6 @@ namespace AutomationTool
 	[Help("SharedStorageDir=<DirName>", "Sets the directory to use to transfer build products between agents in a build farm")]
 	[Help("SingleNode=<Name>", "Run only the given node. Intended for use on a build system after running with -Export.")]
 	[Help("WriteToSharedStorage", "Allow writing to shared storage. If not set, but -SharedStorageDir is specified, build products will read but not written")]
-	[Help("Timing", "If set, this build will attempt to generate compile timing data")]
 	public class BuildGraph : BuildCommand
 	{
 		/// <summary>
@@ -96,7 +95,6 @@ namespace AutomationTool
 			bool bWriteToSharedStorage = ParseParam("WriteToSharedStorage") || CommandUtils.IsBuildMachine;
 			bool bPublicTasksOnly = ParseParam("PublicTasksOnly");
 			string ReportName = ParseParamValue("ReportName", null);
-			bool bTiming = ParseParam("Timing");
 
 			GraphPrintOptions PrintOptions = GraphPrintOptions.ShowCommandLineOptions;
 			if(ParseParam("ShowDeps"))
@@ -130,7 +128,6 @@ namespace AutomationTool
 			DefaultProperties["HostPlatform"] = HostPlatform.Current.HostEditorPlatform.ToString();
 			DefaultProperties["RestrictedFolderNames"] = String.Join(";", RestrictedFolders.Names);
 			DefaultProperties["RestrictedFolderFilter"] = String.Join(";", RestrictedFolders.Names.Select(x => String.Format(".../{0}/...", x)));
-			DefaultProperties["Timing"] = bTiming.ToString();
 
 			// Attempt to read existing Build Version information
 			BuildVersion Version;

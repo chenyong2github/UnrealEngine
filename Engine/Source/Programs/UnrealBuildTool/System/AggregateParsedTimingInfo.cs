@@ -26,7 +26,7 @@ namespace UnrealBuildTool
 
 		public override int Execute(CommandLineArguments Arguments)
 		{
-			var ManifestFile = Arguments.GetFileReference("-ManifestFile=");
+			FileReference ManifestFile = Arguments.GetFileReference("-ManifestFile=");
 			string[] ParsedFileNames = FileReference.ReadAllLines(ManifestFile);
 
 			// Load all the file timing data and summarize them for the aggregate.
@@ -34,13 +34,13 @@ namespace UnrealBuildTool
 			Parallel.ForEach(ParsedFileNames, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, ParseTimingDataFile);
 
 			// Create aggregate summary. Duration is the duration of the files in the aggregate.
-			var AggregateName = Arguments.GetString("-Name=");
-			var AggregateData = new TimingData() { Name = AggregateName, Type = TimingDataType.Aggregate };
+			string AggregateName = Arguments.GetString("-Name=");
+			TimingData AggregateData = new TimingData() { Name = AggregateName, Type = TimingDataType.Aggregate };
 			AggregateData.AddChild(FileTimingData);
 
 			// Write out aggregate summary.
-			var OutputFile = Path.Combine(ManifestFile.Directory.FullName, $"{AggregateName}.timing.bin");
-			using (var Writer = new BinaryWriter(File.Open(OutputFile, FileMode.Create)))
+			string OutputFile = Path.Combine(ManifestFile.Directory.FullName, $"{AggregateName}.timing.bin");
+			using (BinaryWriter Writer = new BinaryWriter(File.Open(OutputFile, FileMode.Create)))
 			{
 				// Write out the aggregate data.
 				Writer.Write(AggregateData);
@@ -48,7 +48,7 @@ namespace UnrealBuildTool
 				// Write the look up table for the compressed binary blobs.
 				int Offset = 0;
 				Writer.Write(CompressedFiles.Count);
-				foreach (var CompressedFile in CompressedFiles)
+				foreach (KeyValuePair<string, byte[]> CompressedFile in CompressedFiles)
 				{
 					Writer.Write(CompressedFile.Key);
 					Writer.Write(Offset);
@@ -58,7 +58,7 @@ namespace UnrealBuildTool
 				}
 
 				// Write the compressed binary blobs.
-				foreach (var CompressedFile in CompressedFiles)
+				foreach (KeyValuePair<string, byte[]> CompressedFile in CompressedFiles)
 				{
 					Writer.Write(CompressedFile.Value);
 				}
@@ -72,14 +72,14 @@ namespace UnrealBuildTool
 			// Convert input file back into summary objects.
 			using (BinaryReader Reader = new BinaryReader(File.Open(ParsedFileName, FileMode.Open, FileAccess.Read)))
 			{
-				var ParsedTimingData = new TimingData(Reader);
+				TimingData ParsedTimingData = new TimingData(Reader);
 
-				var CompressDataTask = Task.Run(() =>
+				Task CompressDataTask = Task.Run(() =>
 				{
 					Reader.BaseStream.Seek(0, SeekOrigin.Begin);
-					using (var CompressedMemoryStream = new MemoryStream())
+					using (MemoryStream CompressedMemoryStream = new MemoryStream())
 					{
-						using (var CompressionStream = new GZipStream(CompressedMemoryStream, CompressionMode.Compress))
+						using (GZipStream CompressionStream = new GZipStream(CompressedMemoryStream, CompressionMode.Compress))
 						{
 							Reader.BaseStream.CopyTo(CompressionStream);
 						}
@@ -89,28 +89,28 @@ namespace UnrealBuildTool
 					}
 				});
 
-				var SummarizedTimingData = new TimingData() { Name = ParsedTimingData.Name, Parent = FileTimingData, Type = TimingDataType.Summary };
+				TimingData SummarizedTimingData = new TimingData() { Name = ParsedTimingData.Name, Parent = FileTimingData, Type = TimingDataType.Summary };
 
 				// Gather and update child timing data.
-				var SummarizedIncludes = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
-				var QueueIncludesTask = Task.Run(() =>
+				TimingData SummarizedIncludes = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
+				Task QueueIncludesTask = Task.Run(() =>
 				{
 					SummarizeTimingData(ParsedTimingData.Children["IncludeTimings"].Children.Values, SummarizedIncludes, "Includes", 10);
 				});
 
-				var SummarizedClasses = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
-				var QueueClassesTask = Task.Run(() =>
+				TimingData SummarizedClasses = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
+				Task QueueClassesTask = Task.Run(() =>
 				{
 					// Collapse templates into single entries.
-					var CollapsedClasses = GroupChildren(ParsedTimingData.Children["ClassTimings"].Children.Values, TimingDataType.Class);
+					IEnumerable<TimingData> CollapsedClasses = GroupChildren(ParsedTimingData.Children["ClassTimings"].Children.Values, TimingDataType.Class);
 					SummarizeTimingData(CollapsedClasses, SummarizedClasses, "Classes", 10);
 				});
 
-				var SummarizedFunctions = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
-				var QueueFunctionsTask = Task.Run(() =>
+				TimingData SummarizedFunctions = new TimingData() { Parent = SummarizedTimingData, Type = TimingDataType.Summary };
+				Task QueueFunctionsTask = Task.Run(() =>
 				{
 					// Collapse templates into single entries.
-					var CollapsedFunctions = GroupChildren(ParsedTimingData.Children["FunctionTimings"].Children.Values, TimingDataType.Function);
+					IEnumerable<TimingData> CollapsedFunctions = GroupChildren(ParsedTimingData.Children["FunctionTimings"].Children.Values, TimingDataType.Function);
 					SummarizeTimingData(CollapsedFunctions, SummarizedFunctions, "Functions", 10);
 				});
 
@@ -132,12 +132,12 @@ namespace UnrealBuildTool
 
 		private IEnumerable<TimingData> GroupChildren(IEnumerable<TimingData> Children, TimingDataType Type)
 		{
-			var GroupedChildren = new List<TimingData>();
-			var ChildGroups = new Dictionary<string, List<TimingData>>();
-			foreach (var Child in Children)
+			List<TimingData> GroupedChildren = new List<TimingData>();
+			Dictionary<string, List<TimingData>> ChildGroups = new Dictionary<string, List<TimingData>>();
+			foreach (TimingData Child in Children)
 			{
 				// See if this is a templated class. If not, add it as is.
-				var Match = Regex.Match(Child.Name, @"^([^<]*)(?<Template><.*>)");
+				Match Match = Regex.Match(Child.Name, @"^([^<]*)(?<Template><.*>)");
 				if (!Match.Success)
 				{
 					GroupedChildren.Add(Child);
@@ -145,14 +145,13 @@ namespace UnrealBuildTool
 				else
 				{
 					// Generate group name from template.
-					var TemplateParamCount = Match.Groups["Template"].Value.Count(c => c == ',') + 1;
-					var TemplateParamSig = new List<string>(TemplateParamCount);
+					int TemplateParamCount = Match.Groups["Template"].Value.Count(c => c == ',') + 1;
+					List<string> TemplateParamSig = new List<string>(TemplateParamCount);
 					for (int i = 0; i < TemplateParamCount; ++i)
 					{
 						TemplateParamSig.Add("...");
 					}
-
-					var GroupName = Child.Name.Replace(Match.Groups["Template"].Value, $"<{string.Join(", ", TemplateParamSig)}>");
+					string GroupName = Child.Name.Replace(Match.Groups["Template"].Value, $"<{string.Join(", ", TemplateParamSig)}>");
 
 					// See if we have a group for this template already. If not, add it.
 					if (!ChildGroups.ContainsKey(GroupName))
@@ -165,7 +164,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add grouped children.
-			foreach (var Group in ChildGroups)
+			foreach (KeyValuePair<string, List<TimingData>> Group in ChildGroups)
 			{
 				if (Group.Value.Count == 1)
 				{
@@ -173,15 +172,15 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				var NewViewModel = new TimingData()
+				TimingData NewViewModel = new TimingData()
 				{
 					Name = Group.Key,
 					Type = Type,
 				};
 
-				foreach (var Child in Group.Value)
+				foreach (TimingData Child in Group.Value)
 				{
-					var NewChild = new TimingData() { Name = Child.Name, Type = Child.Type, Parent = NewViewModel, ExclusiveDuration = Child.ExclusiveDuration };
+					TimingData NewChild = new TimingData() { Name = Child.Name, Type = Child.Type, Parent = NewViewModel, ExclusiveDuration = Child.ExclusiveDuration };
 					NewViewModel.AddChild(NewChild);
 				}
 
@@ -194,12 +193,12 @@ namespace UnrealBuildTool
 		private void SummarizeTimingData(IEnumerable<TimingData> Data, TimingData Summary, string TypeName, int NumberToKeep)
 		{
 			// Sort the data by inclusive duration, highest first, so we can grab the top entries to keep.
-			var Sorted = Data.OrderByDescending(v => v.InclusiveDuration).ToList();
+			List<TimingData> Sorted = Data.OrderByDescending(v => v.InclusiveDuration).ToList();
 			Summary.Name = $"Total {TypeName}: {Sorted.Count}";
-			var TopData = Sorted.Take(NumberToKeep);
-			foreach (var Child in TopData)
+			IEnumerable<TimingData> TopData = Sorted.Take(NumberToKeep);
+			foreach (TimingData Child in TopData)
 			{
-				var SummarizedChild = new TimingData() { Name = Child.Name, Parent = Summary, Type = Child.Type, ExclusiveDuration = Child.InclusiveDuration };
+				TimingData SummarizedChild = new TimingData() { Name = Child.Name, Parent = Summary, Type = Child.Type, ExclusiveDuration = Child.InclusiveDuration };
 				Summary.AddChild(SummarizedChild);
 			}
 
