@@ -3240,13 +3240,7 @@ void UMaterialInstance::BeginDestroy()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		FMaterialRenderProxy* LocalResource = Resource;
-		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[LocalResource](FRHICommandList& RHICmdList)
-		{
-			LocalResource->MarkForGarbageCollection();
-			LocalResource->ReleaseResource();
-		});		
+		BeginReleaseResource(Resource);
 	}
 
 	ReleaseFence.BeginFence();
