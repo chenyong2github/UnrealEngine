@@ -1047,7 +1047,13 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 			FMemory::Memzero(PSO);
 			PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::Graphics; // we will change this to compute later if needed
 			PSO.CommonFromString(Parts[0]);
-			PSO.GraphicsDesc.StateFromString(Parts[1]);
+			bool bValidGraphicsDesc = PSO.GraphicsDesc.StateFromString(Parts[1]);
+			if (!bValidGraphicsDesc)
+			{
+				// failed to parse graphics descriptor, most likely format was changed, skip whole file
+				UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("File %s is not in the correct format (GraphicsDesc) ignoring the rest of its contents."), *FileName);
+				break;
+			}
 
 			bool bValid = true;
 

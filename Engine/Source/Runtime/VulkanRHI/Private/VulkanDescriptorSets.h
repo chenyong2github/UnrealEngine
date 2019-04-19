@@ -885,6 +885,8 @@ public:
 		return GfxPipelineDescriptorInfo;
 	}
 
+	bool UsesInputAttachment(FVulkanShaderHeader::EAttachmentType AttachmentType) const;
+	
 protected:
 	FVulkanGfxPipelineDescriptorInfo		GfxPipelineDescriptorInfo;
 	friend class FVulkanPipelineStateCacheManager;
