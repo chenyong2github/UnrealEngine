@@ -135,26 +135,29 @@ struct FSoundParseParameters
 	// The lowpass filter to apply if the sound is inside an ambient zone
 	float AmbientZoneFilterFrequency;
 
-	// Whether or not to ouput this audio to buses only
-	uint32 bOutputToBusOnly:1;
+	// Whether or not to output this audio to buses only
+	uint8 bOutputToBusOnly:1;
 
 	// Whether the sound should be spatialized
-	uint32 bUseSpatialization:1;
+	uint8 bUseSpatialization:1;
 
 	// Whether the sound should be seamlessly looped
-	uint32 bLooping:1;
+	uint8 bLooping:1;
 	
 	// Whether we have enabled low-pass filtering of this sound
-	uint32 bEnableLowPassFilter:1;
+	uint8 bEnableLowPassFilter:1;
 
 	// Whether this sound is occluded
-	uint32 bIsOccluded:1;
+	uint8 bIsOccluded:1;
 
 	// Whether or not this sound is manually paused (i.e. not by application-wide pause)
-	uint32 bIsPaused:1;
+	uint8 bIsPaused:1;
+
+	// Whether or not this sound can re-trigger
+	uint8 bEnableRetrigger : 1;
 
 	// Whether or not to apply a =6 dB attenuation to stereo spatialization sounds
-	uint32 bApplyNormalizationToStereoSounds:1;
+	uint8 bApplyNormalizationToStereoSounds:1;
 
 	FSoundParseParameters()
 		: SoundClass(nullptr)
@@ -195,6 +198,7 @@ struct FSoundParseParameters
 		, bEnableLowPassFilter(false)
 		, bIsOccluded(false)
 		, bIsPaused(false)
+		, bEnableRetrigger(false)
 		, bApplyNormalizationToStereoSounds(false)
 	{
 	}
@@ -309,6 +313,9 @@ public:
 
 	/** Whether or not to stop this active sound due to max concurrency */
 	uint8 bShouldStopDueToMaxConcurrency:1;
+
+	/** Whether or not sound has been virtualized and then realized */
+	uint8 bHasVirtualized:1;
 
 	/** If true, the decision on whether to apply the radio filter has been made. */
 	uint8 bRadioFilterSelected:1;
