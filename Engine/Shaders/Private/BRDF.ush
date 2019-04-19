@@ -4,8 +4,7 @@
 	BRDF.usf: Bidirectional reflectance distribution functions.
 =============================================================================*/
 
-#ifndef __BRDF_COMMON__
-#define __BRDF_COMMON__
+#pragma once
 
 struct BxDFContext
 {
@@ -394,4 +393,3 @@ float Vis_Cloth( float NoV, float NoL )
 	return rcp( 4 * ( NoL + NoV - NoL * NoV ) );
 }
 
-#endif // __BRDF_COMMON__

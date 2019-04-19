@@ -4,8 +4,7 @@
 	PostProcessCommon.usf: PostProcessing shared functions and structures.
 =============================================================================*/
 
-#ifndef __POST_PROCESS_COMMON__
-#define __POST_PROCESS_COMMON__
+#pragma once
 
 #include "SceneTexturesCommon.ush"
 
@@ -232,4 +231,3 @@ bool IsComputeUVOutOfBounds(in float2 UV)
 	return (max(CenterDist.x, CenterDist.y) >= 0.5f);
 }
 
-#endif // __POST_PROCESS_COMMON__

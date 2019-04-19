@@ -20,8 +20,7 @@
 
 =============================================================================*/
 
-#ifndef __ATMOSPHERE_COMMON__
-#define __ATMOSPHERE_COMMON__
+#pragma once
 
 #if COMPILER_METAL && MAX_SHADER_LANGUAGE_VERSION <= 3
 // For inexplicable reasons until we can debug shaders and *really* see what's what we need to abs sqrt input for the functions in this shader file only.
@@ -627,7 +626,5 @@ float4 CalculateVertexAtmosphericFog(float3 WorldPosition, float3 InCameraPositi
 #if COMPILER_METAL && MAX_SHADER_LANGUAGE_VERSION <= 3
 // Do not export our workaround outside this file as it might not be desirable.
 #undef sqrt
-#endif
-
 #endif
 

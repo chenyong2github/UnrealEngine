@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-//#pragma once
-#ifndef __SHADING_COMMON__
-#define __SHADING_COMMON__
+#pragma once
 
 #define SHADINGMODELID_UNLIT				0
 #define SHADINGMODELID_DEFAULT_LIT			1
@@ -108,4 +106,3 @@ float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)
 }
 
 
-#endif // __SHADING_COMMON__

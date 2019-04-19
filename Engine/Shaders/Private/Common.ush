@@ -6,10 +6,6 @@
 
 #pragma once
 
-// Workarround for UE-66460
-#ifndef __USH_COMMON__
-#define __USH_COMMON__
-
 #include "/Engine/Public/Platform.ush"
 // These types are used for material translator generated code, or any functions the translated code can call
 #if PIXELSHADER
@@ -1785,4 +1781,3 @@ struct FPixelShaderOut
 
 #endif // SUPPORTS_INDEPENDENT_SAMPLERS
 
-#endif // __USH_COMMON__
