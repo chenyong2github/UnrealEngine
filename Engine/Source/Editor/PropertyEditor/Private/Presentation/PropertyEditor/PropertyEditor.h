@@ -72,6 +72,7 @@ public:
 
 	void UseSelected();
 	void AddItem();
+	void AddGivenItem(const FString& InGivenItem);
 	void ClearItem();
 	void InsertItem();
 	void DeleteItem();
@@ -109,6 +110,7 @@ private:
 
 	void OnUseSelected();
 	void OnAddItem();
+	void OnAddGivenItem(const FString InGivenItem);
 	void OnClearItem();
 	void OnInsertItem();
 	void OnDeleteItem();

@@ -102,6 +102,7 @@ private:
 	void OnArrayDragEnter(const FDragDropEvent& DragDropEvent);
 	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayDrop(const FDragDropEvent& DragDropEvent);
+	FReply OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent);
 
 	TSharedPtr<FPropertyNode> GetCopyPastePropertyNode() const;
 private:

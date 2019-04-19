@@ -221,6 +221,12 @@ FReply SDetailSingleItemRow::OnArrayDrop(const FDragDropEvent& DragDropEvent)
 	return FReply::Handled();
 }
 
+FReply SDetailSingleItemRow::OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent)
+{
+	OnArrayDragLeave(DragDropEvent);
+	return FReply::Handled();
+}
+
 TSharedPtr<FPropertyNode> SDetailSingleItemRow::GetCopyPastePropertyNode() const
 {
 	TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
@@ -361,7 +367,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayDrop);
 				SwappablePropertyNode = PropertyNode;
 			}
-
+			else if (PropertyNode.IsValid() 
+				&& Cast<UArrayProperty>(PropertyNode->GetProperty()) != nullptr // Is an array
+				&& Cast<UObjectProperty>(Cast<UArrayProperty>(PropertyNode->GetProperty())->Inner) != nullptr) // Is an object array
+			{
+				ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
+				ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
+				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayHeaderDrop);
+			}
+			
 			InternalLeftColumnRowBox->AddSlot()
 				.Padding(0.0f, 0.0f)
 				.HAlign(HAlign_Left)

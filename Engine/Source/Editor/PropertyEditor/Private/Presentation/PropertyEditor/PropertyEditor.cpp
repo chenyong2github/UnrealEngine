@@ -195,6 +195,12 @@ void FPropertyEditor::AddItem()
 	PropertyUtilities->EnqueueDeferredAction( FSimpleDelegate::CreateSP( this, &FPropertyEditor::OnAddItem ) );
 }
 
+void FPropertyEditor::AddGivenItem(const FString& InGivenItem)
+{
+	// This action must be deferred until next tick so that we avoid accessing invalid data before we have a chance to tick
+	PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateSP(this, &FPropertyEditor::OnAddGivenItem, InGivenItem));
+}
+
 void FPropertyEditor::OnAddItem()
 {
 	// Check to make sure that the property is a valid container
@@ -224,6 +230,30 @@ void FPropertyEditor::OnAddItem()
 	if (PropertyNode->IsFavorite())
 	{
 		ForceRefresh();
+	}
+}
+
+void FPropertyEditor::OnAddGivenItem(const FString InGivenItem)
+{
+	OnAddItem();
+
+	// Check to make sure that the property is a valid container
+	TSharedPtr<IPropertyHandleArray> ArrayHandle = PropertyHandle->AsArray();
+
+	check(ArrayHandle.IsValid());
+
+	TSharedPtr<IPropertyHandle> ElementHandle;
+
+	if (ArrayHandle.IsValid())
+	{
+		uint32 Last;
+		ArrayHandle->GetNumElements(Last);
+		ElementHandle = ArrayHandle->GetElement(Last - 1);
+	}
+
+	if (ElementHandle.IsValid())
+	{
+		ElementHandle->SetValueFromFormattedString(InGivenItem);
 	}
 }
 
