@@ -37,6 +37,7 @@ public:
 		, _MenuContent( SNew(STextBlock) .Text( NSLOCTEXT("SMenuAnchor", "NoMenuContent", "No Menu Content Assigned; use .MenuContent") ) )
 		, _OnGetMenuContent()
 		, _Placement( MenuPlacement_BelowAnchor )
+		, _FitInWindow( true )
 		, _Method()
 		, _ShouldDeferPaintingAfterWindowContent(true)
 		, _UseApplicationMenuStack(true)
@@ -55,6 +56,8 @@ public:
 		SLATE_EVENT( FOnIsOpenChanged, OnMenuOpenChanged )
 
 		SLATE_ATTRIBUTE( EMenuPlacement, Placement )
+
+		SLATE_ARGUMENT(bool, FitInWindow)
 
 		SLATE_ARGUMENT(TOptional<EPopupMethod>, Method)
 
@@ -104,6 +107,10 @@ public:
 
 	/** @return The current menu position */
 	FVector2D GetMenuPosition() const;
+
+	void SetMenuPlacement(TAttribute<EMenuPlacement> InMenuPlacement);
+
+	void SetFitInWindow(bool bFit);
 
 	/** @return Whether this menu has open submenus */
 	bool HasOpenSubMenus() const;
@@ -184,6 +191,9 @@ protected:
 
 	/** How should the popup be placed relative to the anchor. */
 	TAttribute<EMenuPlacement> Placement;
+
+	/** Should the menu anchor fit inside the window? */
+	bool bFitInWindow;
 
 	/** Was the menu just dismissed this tick? */
 	bool bDismissedThisTick;
