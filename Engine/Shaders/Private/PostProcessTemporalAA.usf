@@ -444,9 +444,11 @@ static const uint kNeighborsCount = 9;
 // (Pre-Exposure, 1 / Pre-exposure, LastFramePreExposure, 1 / LastFramePreExposure)
 float4 PreExposureSettings;
 
+float CurrentFrameWeight;
+int bCameraCut;
+
 float SampleWeights[9];
 float PlusWeights[5];
-float CurrentFrameWeight;
 
 float4 ViewportUVToInputBufferUV;
 float4 MaxViewportUVAndSvPositionToViewportUV;
@@ -2058,13 +2060,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 	FTAAHistoryPayload History = SampleHistory(HistoryScreenPosition);
 
 	// Whether the feedback needs to be reset.
-	bool IgnoreHistory = OffScreen;
-	
-	// When we have a camera but, we sets the feedback reset to have same scene color filtering.
-	if (TAA_CAMERA_CUT)
-	{
-		IgnoreHistory = true;
-	}
+	bool IgnoreHistory = OffScreen || bCameraCut;
 
 	// DYNAMIC ANTI GHOSTING
 	// ---------------------
@@ -2145,11 +2141,6 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 	// COMPUTE BLEND AMOUNT 
 	// --------------------
 	float BlendFinal;
-	if (TAA_CAMERA_CUT)
-	{
-		BlendFinal = 1.0;
-	}
-	else
 	{
 		float LumaFiltered = GetSceneColorLuma4(IntermediaryResult.Filtered.Color);
 
@@ -2189,6 +2180,11 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 			BlendFinal = lerp(1, BlendFinal, BilateralWeight);
 		}
 		#endif
+		
+		if (bCameraCut)
+		{
+			BlendFinal = 1.0;
+		}
 	}
 
 	// Offscreen feedback resets.
