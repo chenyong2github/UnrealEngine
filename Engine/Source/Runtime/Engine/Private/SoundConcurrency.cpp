@@ -656,10 +656,11 @@ FActiveSound* FSoundConcurrencyManager::CreateAndEvictActiveSounds(const FActive
 		if (bAllowVirtual)
 		{
 			const bool bDoRangeCheck = true;
-			if (FAudioVirtualLoop* VirtualLoop = FAudioVirtualLoop::Virtualize(*AudioDevice, *SoundToEvict, bDoRangeCheck))
+			FAudioVirtualLoop VirtualLoop;
+			if (FAudioVirtualLoop::Virtualize(*SoundToEvict, bDoRangeCheck, VirtualLoop))
 			{
 				SoundToEvict->ClearAudioComponent();
-				AudioDevice->AddVirtualLoop(*VirtualLoop);
+				AudioDevice->AddVirtualLoop(VirtualLoop);
 			}
 		}
 	}

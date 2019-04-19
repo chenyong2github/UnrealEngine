@@ -4,30 +4,33 @@
 #include "CoreMinimal.h"
 #include "ActiveSound.h"
 
-class FAudioDevice;
-
 
 /**
  * Class that tracks virtualized looping active sounds that are eligible to revive re-trigger
  * as long as no stop request is received from the game thread.
  */
-class ENGINE_API FAudioVirtualLoop
+struct ENGINE_API FAudioVirtualLoop
 {
+private:
 	float TimeSinceLastUpdate;
 	float UpdateInterval;
-	FAudioDevice* AudioDevice;
+
 	FActiveSound* ActiveSound;
 
-	FAudioVirtualLoop(FAudioDevice& AudioDevice, const FActiveSound& NewActiveSound);
-
 public:
-	~FAudioVirtualLoop();
+	FAudioVirtualLoop();
 
 	/**
-	 * Checks if provided active sound is available to be virtualized.  If so, returns new virtual loop ready to be
-	 * added to virtual loop management in audio device.
+	 * Checks if provided active sound is available to be virtualized.  If so, returns new active sound ready to be
+	 * added to virtual loop management by parent audio device.
 	 */
-	static FAudioVirtualLoop* Virtualize(FAudioDevice& InAudioDevice, const FActiveSound& InActiveSound, bool bDoRangeCheck);
+	static bool Virtualize(const FActiveSound& InActiveSound, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop);
+	static bool Virtualize(const FActiveSound& InActiveSound, FAudioDevice& AudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop);
+
+	/**
+	 * Whether the virtual loop system is enabled or not
+	 */
+	static bool IsEnabled();
 
 	/**
 	 * Returns the internally-managed active sound.
@@ -35,9 +38,14 @@ public:
 	FActiveSound& GetActiveSound();
 
 	/**
+	 * Returns the internally-managed active sound.
+	 */
+	const FActiveSound& GetActiveSound() const;
+
+	/**
 	 * Check if provided active sound is in audible range.
 	 */
-	static bool IsInAudibleRange(const FAudioDevice& InAudioDevice, const FActiveSound& ActiveSound);
+	static bool IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice = nullptr);
 
 	/**
 	 * Overrides the update interval to the provided length.
@@ -48,8 +56,10 @@ public:
 	  * Updates the loop and checks if ready to play (or 'realize').
 	  * Returns whether or not the sound is ready to be realized.
 	  */
-	bool Update();
+	bool CanRealize(float DeltaTime);
 
-private:
-	void SetActiveSound(const FActiveSound& InActiveSound);
+	/**
+	 * Draws debug info for virtual sound
+	 */
+	void DrawDebugInfo() const;
 };

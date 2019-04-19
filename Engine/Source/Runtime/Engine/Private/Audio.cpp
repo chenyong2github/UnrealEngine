@@ -32,6 +32,7 @@ DEFINE_LOG_CATEGORY(LogAudioDebug);
 DEFINE_STAT(STAT_AudioMemorySize);
 DEFINE_STAT(STAT_ActiveSounds);
 DEFINE_STAT(STAT_AudioSources);
+DEFINE_STAT(STAT_AudioVirtualLoops);
 DEFINE_STAT(STAT_WaveInstances);
 DEFINE_STAT(STAT_WavesDroppedDueToPriority);
 DEFINE_STAT(STAT_AudibleWavesDroppedDueToPriority);
