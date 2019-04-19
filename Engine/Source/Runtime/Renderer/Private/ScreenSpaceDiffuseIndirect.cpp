@@ -140,7 +140,7 @@ void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FVi
 		(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
 		(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y );
 
-	PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / TemporalAAHistory.SceneColorPreExposure;
+	PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTextures = CreateSceneTextureUniformBufferSingleDraw( RHICmdList, ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::GBuffers, View.FeatureLevel );

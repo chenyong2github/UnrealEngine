@@ -174,6 +174,8 @@
 
 int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
 
+float HistoryPreExposureCorrection;
+
 static const uint iMipLevel = 0;
 static const uint iMipLevelPow2 = 1;
 static const float MipLevel = 0;
@@ -354,17 +356,20 @@ void TemporallyAccumulate(
 				}
 			}
 
-			// Override the previous frame's inverse frequency with the current frame's one, because don't know how much it changed.
 			FIX_UNROLL(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
 				FSSFSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
 				FSSFSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
+				// Override the previous frame's inverse frequency with the current frame's one, because don't know how much it changed.
 				HistorySamples.Array[BatchedSignalId].WorldBluringRadius = (
 					HistorySample.AccumulatedSampleCount *
 					CurrentFrameSample.WorldBluringRadius *
 					SafeRcp(CurrentFrameSample.AccumulatedSampleCount));
+
+				// Applies correction when pre exposure change happen.
+				HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		} // if (!bIsPreviousFrameOffscreen)
 	}

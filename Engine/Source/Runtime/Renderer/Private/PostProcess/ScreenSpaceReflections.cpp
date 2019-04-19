@@ -322,7 +322,7 @@ class FPostProcessScreenSpaceReflectionsPS : public FGlobalShader
 
 			if (Context.View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
-				PrevSceneColorPreExposureCorrectionValue = Context.View.PreExposure / Context.View.PrevViewInfo.TemporalAAHistory.SceneColorPreExposure;
+				PrevSceneColorPreExposureCorrectionValue = Context.View.PreExposure / Context.View.PrevViewInfo.SceneColorPreExposure;
 			}
 
 			SetShaderValue(RHICmdList, ShaderRHI, PrevSceneColorPreExposureCorrection, PrevSceneColorPreExposureCorrectionValue);

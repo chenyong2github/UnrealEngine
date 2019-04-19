@@ -593,9 +593,6 @@ struct FTemporalAAHistory
 	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
 	FIntRect ViewportRect;
 
-	// Scene color's PreExposure.
-	float SceneColorPreExposure;
-
 
 	void SafeRelease()
 	{
@@ -642,6 +639,9 @@ struct FPreviousViewInfo
 {
 	// View matrices.
 	FViewMatrices ViewMatrices;
+
+	// Scene color's PreExposure.
+	float SceneColorPreExposure = 1.0f;
 
 	// Depth buffer and Normals of the previous frame generating this history entry for bilateral kernel rejection.
 	TRefCountPtr<IPooledRenderTarget> DepthBuffer;

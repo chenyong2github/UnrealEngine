@@ -592,12 +592,12 @@ void CreateTranslucentBasePassUniformBuffer(
 			if (View.PrevViewInfo.CustomSSRInput.IsValid())
 			{
 				PrevSceneColorRT = &View.PrevViewInfo.CustomSSRInput;
-				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.TemporalAAHistory.SceneColorPreExposure;
+				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 			else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
 				PrevSceneColorRT = &View.PrevViewInfo.TemporalAAHistory.RT[0];
-				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.TemporalAAHistory.SceneColorPreExposure;
+				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 
 			BasePassParameters.PrevSceneColor = (*PrevSceneColorRT)->GetRenderTargetItem().ShaderResourceTexture;

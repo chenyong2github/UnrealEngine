@@ -557,7 +557,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		{
 			CommonShaderParameters.PreExposureSettings.X = View.PreExposure;
 			CommonShaderParameters.PreExposureSettings.Y = 1.f / FMath::Max<float>(SMALL_NUMBER, View.PreExposure);
-			CommonShaderParameters.PreExposureSettings.Z = InputHistory.IsValid() ? InputHistory.SceneColorPreExposure : View.PreExposure;
+			CommonShaderParameters.PreExposureSettings.Z = View.PrevViewInfo.SceneColorPreExposure;
 			CommonShaderParameters.PreExposureSettings.W  = 1.f / FMath::Max<float>(SMALL_NUMBER, CommonShaderParameters.PreExposureSettings.Z);
 		}
 
@@ -799,7 +799,6 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 
 		OutputHistory->ViewportRect = DestRect;
 		OutputHistory->ReferenceBufferSize = OutputExtent * ResolutionDivisor;
-		OutputHistory->SceneColorPreExposure = View.PreExposure;
 	}
 
 	return Outputs;

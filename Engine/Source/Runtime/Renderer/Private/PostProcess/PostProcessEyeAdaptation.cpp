@@ -495,6 +495,12 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 
 	// Update the pre-exposure value on the actual view
 	View.PreExposure = PreExposure;
+
+	// Update the pre exposure of all temporal histories.
+	if (!View.bViewStateIsReadOnly)
+	{
+		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
+	}
 }
 
 FPooledRenderTargetDesc FRCPassPostProcessEyeAdaptation::ComputeOutputDesc(EPassOutputId InPassOutputId) const
