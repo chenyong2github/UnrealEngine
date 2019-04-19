@@ -76,6 +76,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 	ActiveSound->ConcurrencyGroupVolumeScales.Reset();
 	ActiveSound->VolumeConcurrency = 1.0f;
 	ActiveSound->WaveInstances.Reset();
+	ActiveSound->bHasVirtualized = true;
 
 	OutVirtualLoop.ActiveSound = ActiveSound;
 	return true;

@@ -37,9 +37,15 @@ void USoundNodeLooping::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT Nod
 	}
 #endif
 
+	// Do not continue parsing if virtualized and this is functioning as a one-shot
+	if (!bLoopIndefinitely && ActiveSound.bHasVirtualized)
+	{
+		return;
+	}
+
 	FSoundParseParameters UpdatedParams = ParseParams;
 	UpdatedParams.NotifyBufferFinishedHooks.AddNotify(this, NodeWaveInstanceHash);
-
+	UpdatedParams.bEnableRetrigger = true;
 	Super::ParseNodes( AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances );
 
 	if (ActiveSound.bFinished)
