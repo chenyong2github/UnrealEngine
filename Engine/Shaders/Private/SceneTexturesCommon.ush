@@ -75,7 +75,7 @@ float CalcSceneDepth(uint2 PixelPos)
 #if SHADING_PATH_MOBILE
 
 #ifndef VULKAN_SUBPASS_DEPTHFETCH
-	#define	VULKAN_SUBPASS_DEPTHFETCH		0
+	#define	VULKAN_SUBPASS_DEPTHFETCH	VULKAN_PROFILE
 #endif
 
 /** return all channels of the scene lighting texture */

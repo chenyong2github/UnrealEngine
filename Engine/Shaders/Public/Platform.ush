@@ -220,6 +220,9 @@
 
 #elif VULKAN_PROFILE
 	#define FEATURE_LEVEL FEATURE_LEVEL_ES3_1
+	// @todo: replace usage of ES3_1_PROFILE with FEATURE_LEVEL where appropriate
+	#undef ES3_1_PROFILE
+	#define ES3_1_PROFILE 1 
 
 #elif VULKAN_PROFILE_SM4
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM4

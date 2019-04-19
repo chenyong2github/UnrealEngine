@@ -1008,6 +1008,15 @@ void FRHIRenderPassInfo::Validate() const
 		ensure(DepthStencilRenderTarget.Action == EDepthStencilTargetActions::DontLoad_DontStore);
 		ensure(DepthStencilRenderTarget.ExclusiveDepthStencil == FExclusiveDepthStencil::DepthNop_StencilNop);
 	}
+
+	if (SubpassHint == ESubpassHint::DepthReadSubpass)
+	{
+		// for depth read sub-pass
+		// 1. render pass must have depth target
+		// 2. depth target must support InputAttachement
+		ensure(DepthStencilRenderTarget.DepthStencilTarget);
+		ensure((DepthStencilRenderTarget.DepthStencilTarget->GetFlags() & TexCreate_InputAttachmentRead) != 0);
+	}
 }
 #endif
 
