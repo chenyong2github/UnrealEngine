@@ -66,6 +66,8 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
 	, bVisualize3dDebug(false)
+	, bOnlyToggleAudioMixerOnce(false)
+	, bToggledAudioMixer(false)
 {
 	// Check for a command line debug sound argument.
 	FString DebugSound;
@@ -284,6 +286,9 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		// Allow no audio mixer override from command line
 		bUsingAudioMixer = false;
 	}
+
+	// Check for config bool that restricts audio mixer toggle to only once. This will allow us to patch audio mixer on or off after initial login.
+	GConfig->GetBool(TEXT("Audio"), TEXT("OnlyToggleAudioMixerOnce"), bOnlyToggleAudioMixerOnce, GEngineIni);
 
 	// Get the audio mixer and non-audio mixer device module names
 	GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
@@ -571,16 +576,22 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 		SyncFence.Wait();
 	}
 
-	if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+	if (!bOnlyToggleAudioMixerOnce || (bOnlyToggleAudioMixerOnce && !bToggledAudioMixer))
 	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = false;
+		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = false;
+		}
+		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
+		{
+			ToggleAudioMixer();
+			bToggledAudioMixer = true;
+			bUsingAudioMixer = true;
+		}
 	}
-	else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
-	{
-		ToggleAudioMixer();
-		bUsingAudioMixer = true;
-	}
+
 
 	for (FAudioDevice* AudioDevice : Devices)
 	{
