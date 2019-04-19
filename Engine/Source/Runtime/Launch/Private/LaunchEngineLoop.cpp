@@ -3142,7 +3142,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 #endif
 
 	FModuleManager::Get().LoadModule(TEXT("PacketHandler"));
-
+	FModuleManager::Get().LoadModule(TEXT("NetworkReplayStreaming"));
 
 	return bSuccess;
 }
