@@ -637,6 +637,10 @@ protected:
 
 public:
 	static const FString& GetDefaultDemoSavePath();
+
+	static const uint32 FileMagic;
+	static const uint32 MaxFriendlyNameLen;
+	static const uint32 LatestVersion;
 };
 
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject
