@@ -36,6 +36,7 @@ IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
 #define ARG_INLINE_CALLSTACK_TEST			"inline"
 #define ARG_STRINGS_ALLOCATION_TEST			"stringsallocation"
 #define ARG_CREATEGUID_TEST					"createguid"
+#define ARG_THREADSTACK_TEST				"threadstack"
 
 namespace TestPAL
 {
@@ -1468,6 +1469,86 @@ int32 InlineCallstacksTest(const TCHAR* CommandLine)
 	return 0;
 }
 
+struct FThreadStackTest : public FRunnable
+{
+	FThreadStackTest(uint64 InThreadId = ~0) :
+		ThreadId(InThreadId)
+	{
+	}
+
+	uint64 ThreadId;
+
+	virtual uint32 Run()
+	{
+		// If we dont have a valid ThreadId lets use the threads id as default
+		if (ThreadId == ~0)
+		{
+			ThreadId = syscall(SYS_gettid);
+		}
+
+		// Hopefully this wont be to much extra stack space for a testing thread
+		SIZE_T StackTraceSize = 65536;
+		ANSICHAR StackTrace[StackTraceSize] = {0};
+		FPlatformStackWalk::ThreadStackWalkAndDump(StackTrace, StackTraceSize, 0, ThreadId);
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** ThreadStackWalkAndDump for ThreadId(%lu) ******\n%s"), ThreadId, ANSI_TO_TCHAR(StackTrace));
+
+		SIZE_T BackTraceSize = 100;
+		uint64 BackTrace[BackTraceSize];
+		int32 BackTraceCount = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadId, BackTrace, BackTraceSize);
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** CaptureThreadStackBackTrace for ThreadId(%lu) ******"), ThreadId);
+		for (int i = 0; i < BackTraceCount; i++)
+		{
+			UE_LOG(LogTestPAL, Warning, TEXT("0x%llx"), BackTrace[i]);
+		}
+		UE_LOG(LogTestPAL, Warning, TEXT("\n\n"));
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** ProgramCounterToHumanReadableString for BackTrace for ThreadId(%lu) ******"), ThreadId);
+		for (int i = 0; i < BackTraceCount; i++)
+		{
+			ANSICHAR TempString[1024] = {0};
+			FPlatformStackWalk::ProgramCounterToHumanReadableString(i, BackTrace[i], TempString, ARRAY_COUNT(TempString));
+
+			UE_LOG(LogTestPAL, Warning, TEXT("%s"), ANSI_TO_TCHAR(TempString));
+		}
+
+		return 0;
+	}
+};
+
+
+int32 ThreadTraceTest(const TCHAR* CommandLine)
+{
+	FPlatformMisc::SetCrashHandler(NULL);
+	FPlatformMisc::SetGracefulTerminationHandler();
+
+	GEngineLoop.PreInit(CommandLine);
+
+	// Dump the callstack/backtrace of the thread that is running
+	{
+		FThreadStackTest* ThreadStackTest = new FThreadStackTest;
+		FRunnableThread* Runnable = FRunnableThread::Create(ThreadStackTest, ANSI_TO_TCHAR("ThreadStackTest"), 0);
+
+		Runnable->WaitForCompletion();
+		delete ThreadStackTest;
+	}
+
+	// Dump the GGameThreadId callstack/backtrace from the thread
+	{
+		FThreadStackTest* ThreadStackTest = new FThreadStackTest(GGameThreadId);
+		FRunnableThread* Runnable = FRunnableThread::Create(ThreadStackTest, ANSI_TO_TCHAR("ThreadStackTest"), 0);
+
+		Runnable->WaitForCompletion();
+		delete ThreadStackTest;
+	}
+
+	FEngineLoop::AppPreExit();
+	FEngineLoop::AppExit();
+
+	return 0;
+}
+
 /**
  * Selects and runs one of test cases.
  *
@@ -1553,6 +1634,10 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 		{
 			return CreateGuidTest(*TestPAL::CommandLine);
 		}
+		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_THREADSTACK_TEST))
+		{
+			return ThreadTraceTest(*TestPAL::CommandLine);
+		}
 	}
 
 	FPlatformMisc::SetCrashHandler(NULL);
@@ -1580,6 +1665,7 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test inline callstacks through ensures and a final crash."), UTF8_TO_TCHAR(ARG_INLINE_CALLSTACK_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test string allocations."), UTF8_TO_TCHAR(ARG_STRINGS_ALLOCATION_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test CreateGuid."), UTF8_TO_TCHAR(ARG_CREATEGUID_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test ThreadWalkStackAndDump and CaptureThreadBackTrace."), UTF8_TO_TCHAR(ARG_THREADSTACK_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT(""));
 	UE_LOG(LogTestPAL, Warning, TEXT("Pass one of those to run an appropriate test."));
 
