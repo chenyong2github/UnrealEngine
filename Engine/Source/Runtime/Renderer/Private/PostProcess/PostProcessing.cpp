@@ -1473,6 +1473,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
 					TAAParameters.bDownsample = false;
 					TAAParameters.bUseFast = false;
+					TAAParameters.bIsComputePass = true;
 
 					TAAParameters.OutputViewRect.Min.X = 0;
 					TAAParameters.OutputViewRect.Min.Y = 0;
