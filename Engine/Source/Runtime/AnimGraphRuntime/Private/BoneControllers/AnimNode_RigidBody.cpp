@@ -10,7 +10,7 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsSimulation.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsActorHandle.h"
-
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
 
 //#pragma optimize("", off)
@@ -358,7 +358,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			PreviousComponentLinearVelocity = FVector::ZeroVector;
 		}
 		// Only need to tick physics if we didn't reset and we have some time to simulate
-		else if(DeltaSeconds > 0.0f)
+		else if(DeltaSeconds > AnimPhysicsMinDeltaTime)
 		{
 			// Transfer bone velocities previously captured.
 			if (bTransferBoneVelocities && (CapturedBoneVelocityPose.GetPose().GetNumBones() > 0))
@@ -587,6 +587,15 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	SkeletonBoneIndexToBodyIndex.Init(INDEX_NONE, NumSkeletonBones);
 
 	PreviousTransform = InAnimInstance->GetSkelMeshComponent()->GetComponentToWorld();
+
+	if (UPhysicsSettings* Settings = UPhysicsSettings::Get())
+	{
+		AnimPhysicsMinDeltaTime = Settings->AnimPhysicsMinDeltaTime;
+	}
+	else
+	{
+		AnimPhysicsMinDeltaTime = 0.f;
+	}
 
 	if(UsePhysicsAsset)
 	{
