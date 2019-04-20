@@ -853,10 +853,6 @@ public:
 
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
 
-	// TODO: move these guys in FPreviousViewInfo.
-	// Temporal AA result for DOF of last frame
-	FTemporalAAHistory DOFHistory;
-	FTemporalAAHistory DOFHistory2;
 	// Temporal AA result for SSR
 	FTemporalAAHistory SSRHistory;
 	// Temporal AA result for light shafts of last frame
@@ -1261,8 +1257,6 @@ public:
 		EyeAdaptationRTManager.SafeRelease();
 		CombinedLUTRenderTarget.SafeRelease();
 		PrevFrameViewInfo.SafeRelease();
-		DOFHistory.SafeRelease();
-		DOFHistory2.SafeRelease();
 		SSRHistory.SafeRelease();
 		LightShaftOcclusionHistory.SafeRelease();
 		LightShaftBloomHistoryRTs.Empty();

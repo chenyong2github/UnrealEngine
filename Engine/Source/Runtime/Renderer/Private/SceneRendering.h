@@ -653,9 +653,7 @@ struct FPreviousViewInfo
 	FTemporalAAHistory TemporalAAHistory;
 
 	// Temporal AA history for diaphragm DOF.
-	FTemporalAAHistory DOFPreGatherHistory;
-	FTemporalAAHistory DOFPostGatherForegroundHistory;
-	FTemporalAAHistory DOFPostGatherBackgroundHistory;
+	FTemporalAAHistory DOFSetupHistory;
 
 	// Scene color input for SSR, that can be different from TemporalAAHistory.RT[0] if there is a SSR
 	// input post process material.
@@ -684,9 +682,7 @@ struct FPreviousViewInfo
 		GBufferB.SafeRelease();
 		GBufferC.SafeRelease();
 		TemporalAAHistory.SafeRelease();
-		DOFPreGatherHistory.SafeRelease();
-		DOFPostGatherForegroundHistory.SafeRelease();
-		DOFPostGatherBackgroundHistory.SafeRelease();
+		DOFSetupHistory.SafeRelease();
 		CustomSSRInput.SafeRelease();
 		ReflectionsHistory.SafeRelease();
 		AmbientOcclusionHistory.SafeRelease();
