@@ -136,12 +136,13 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 #endif
 {
 	check(RenderData);
-	checkf(RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i")
+	checkf(RenderData->IsInitialized(), TEXT("Uninitialized Renderdata for Mesh: %s, Mesh NeedsLoad: %i, Mesh NeedsPostLoad: %i, Mesh Loaded: %i, Mesh NeedInit: %i, Mesh IsDefault: %i")
 		, *StaticMesh->GetFName().ToString()
 		, StaticMesh->HasAnyFlags(RF_NeedLoad)
 		, StaticMesh->HasAnyFlags(RF_NeedPostLoad)
 		, StaticMesh->HasAnyFlags(RF_LoadCompleted)
 		, StaticMesh->HasAnyFlags(RF_NeedInitialization)
+		, StaticMesh->HasAnyFlags(RF_ClassDefaultObject)
 	);
 
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
