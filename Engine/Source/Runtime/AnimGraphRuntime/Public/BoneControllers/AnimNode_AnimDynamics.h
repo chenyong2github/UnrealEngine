@@ -471,6 +471,7 @@ private:
 	float TimeDebt;
 
 	// Cached physics settings. We cache these on initialise to avoid the cost of accessing UPhysicsSettings a lot each frame
+	float AnimDynamicsMinDeltaTime;
 	float MaxPhysicsDeltaTime;
 	float MaxSubstepDeltaTime;
 	int32 MaxSubsteps;
