@@ -23,7 +23,10 @@ public class CrashReportCore : ModuleRules
            }
         );
 
-        PrecompileForTargets = PrecompileTargetsType.None;
+		if (Target.Type != TargetType.Editor)
+        {
+            PrecompileForTargets = PrecompileTargetsType.None;
+        }
 
         if (Target.Type == TargetType.Game || Target.Type == TargetType.Client || Target.Type == TargetType.Program)
         {
