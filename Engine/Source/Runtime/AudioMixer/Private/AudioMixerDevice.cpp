@@ -182,6 +182,7 @@ namespace Audio
 			{
 				// Get the platform device info we're using
 				PlatformInfo = AudioMixerPlatform->GetPlatformDeviceInfo();
+				UE_LOG(LogAudioMixer, Display, TEXT("Using Audio Device %s"), *PlatformInfo.Name);
 
 				// Initialize some data that depends on speaker configuration, etc.
 				InitializeChannelAzimuthMap(PlatformInfo.NumChannels);
