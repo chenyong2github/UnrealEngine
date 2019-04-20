@@ -243,7 +243,7 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 			}
 		}
 
-		if (bDoUpdate && NextTimeStep > AnimDynamicsMinDeltaTime)
+		if (bDoUpdate && NextTimeStep > AnimPhysicsMinDeltaTime)
 		{
 			// Calculate gravity direction
 			SimSpaceGravityDirection = TransformWorldVectorToSimSpace(Output, FVector(0.0f, 0.0f, -1.0f));
@@ -702,14 +702,14 @@ void FAnimNode_AnimDynamics::InitPhysics(FComponentSpacePoseContext& Output)
 			// Cache physics settings to avoid accessing UPhysicsSettings continuously
 			if(UPhysicsSettings* Settings = UPhysicsSettings::Get())
 			{
-				AnimDynamicsMinDeltaTime = Settings->AnimDynamicsMinDeltaTime;
+				AnimPhysicsMinDeltaTime = Settings->AnimPhysicsMinDeltaTime;
 				MaxPhysicsDeltaTime = Settings->MaxPhysicsDeltaTime;
 				MaxSubstepDeltaTime = Settings->MaxSubstepDeltaTime;
 				MaxSubsteps = Settings->MaxSubsteps;
 			}
 			else
 			{
-				AnimDynamicsMinDeltaTime = 0.f;
+				AnimPhysicsMinDeltaTime = 0.f;
 				MaxPhysicsDeltaTime = (1.0f/30.0f);
 				MaxSubstepDeltaTime = (1.0f/60.0f);
 				MaxSubsteps = 4;
