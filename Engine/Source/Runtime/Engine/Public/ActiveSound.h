@@ -265,6 +265,9 @@ public:
 	/** Whether or not the active sound is currently playing audible sound. */
 	bool IsPlayingAudio() const { return bIsPlayingAudio; }
 
+	/** Whether or not we're set to virtualize when silent. */
+	bool IsVirtualizeWhenSilent() const { return Sound && Sound->IsVirtualizeWhenSilent();  }
+
 	FAudioDevice* AudioDevice;
 
 	/** The concurrent groups that this sound is actively playing in. */
