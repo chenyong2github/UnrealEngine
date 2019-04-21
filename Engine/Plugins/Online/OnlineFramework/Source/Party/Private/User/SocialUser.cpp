@@ -571,6 +571,27 @@ void USocialUser::GetRichPresenceText(FText& OutRichPresence) const
 	}
 }
 
+bool USocialUser::IsRecentPlayer(ESocialSubsystem SubsystemType) const
+{
+	if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(SubsystemType))
+	{
+		return SubsystemInfo->RecentPlayerInfo.IsValid();
+	}
+	return false;
+}
+
+bool USocialUser::IsRecentPlayer() const
+{
+	for (const TPair<ESocialSubsystem, FSubsystemUserInfo>& SubsystemInfoPair : SubsystemInfoByType)
+	{
+		if (SubsystemInfoPair.Value.RecentPlayerInfo.IsValid())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool USocialUser::IsBlocked(ESocialSubsystem SubsystemType) const
 {
 	if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(SubsystemType))
@@ -692,7 +713,7 @@ void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId) const
 	{
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 		PartyInterface->ClearInvitations(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), *GetUserId(ESocialSubsystem::Primary), nullptr);
-		OnPartyInviteAccepted().Broadcast();
+		OnPartyInviteAcceptedInternal(PartyTypeId);
 	}
 }
 
@@ -702,7 +723,7 @@ void USocialUser::RejectPartyInvite(const FOnlinePartyTypeId& PartyTypeId)
 	{
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 		PartyInterface->RejectInvitation(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), *GetUserId(ESocialSubsystem::Primary));
-		OnPartyInviteRejected().Broadcast();
+		OnPartyInviteRejectedInternal(PartyTypeId);
 	}
 }
 
@@ -735,7 +756,7 @@ bool USocialUser::InviteToParty(const FOnlinePartyTypeId& PartyTypeId) const
 	return false;
 }
 
-bool USocialUser::BlockUser(ESocialSubsystem Subsystem)
+bool USocialUser::BlockUser(ESocialSubsystem Subsystem) const
 {
 	if (IOnlineSubsystem* Oss = GetOwningToolkit().GetSocialOss(Subsystem))
 	{
@@ -753,7 +774,7 @@ bool USocialUser::BlockUser(ESocialSubsystem Subsystem)
 	return false;
 }
 
-bool USocialUser::UnblockUser(ESocialSubsystem Subsystem)
+bool USocialUser::UnblockUser(ESocialSubsystem Subsystem) const
 {
 	if (IOnlineSubsystem* Oss = GetOwningToolkit().GetSocialOss(Subsystem))
 	{
@@ -1040,6 +1061,16 @@ void USocialUser::EstablishOssInfo(const TSharedRef<FOnlineRecentPlayer>& InRece
 void USocialUser::OnPresenceChangedInternal(ESocialSubsystem SubsystemType)
 {
 	OnUserPresenceChanged().Broadcast(SubsystemType);
+}
+
+void USocialUser::OnPartyInviteAcceptedInternal(const FOnlinePartyTypeId& PartyTypeId) const
+{
+	OnPartyInviteAccepted().Broadcast();
+}
+
+void USocialUser::OnPartyInviteRejectedInternal(const FOnlinePartyTypeId& PartyTypeId) const
+{
+	OnPartyInviteRejected().Broadcast();
 }
 
 void USocialUser::NotifyPresenceChanged(ESocialSubsystem SubsystemType)
