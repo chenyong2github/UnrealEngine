@@ -214,6 +214,153 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Writes an action to a json file
+		/// </summary>
+		/// <param name="Object">The object to parse</param>
+		public static Action ImportJson(JsonObject Object)
+		{
+			Action Action = new Action(Object.GetEnumField<ActionType>("Type"));
+
+			string WorkingDirectory;
+			if(Object.TryGetStringField("WorkingDirectory", out WorkingDirectory))
+			{
+				Action.WorkingDirectory = new DirectoryReference(WorkingDirectory);
+			}
+
+			string CommandPath;
+			if(Object.TryGetStringField("CommandPath", out CommandPath))
+			{
+				Action.CommandPath = new FileReference(CommandPath);
+			}
+			
+			string CommandArguments;
+			if(Object.TryGetStringField("CommandArguments", out CommandArguments))
+			{
+				Action.CommandArguments = CommandArguments;
+			}
+
+			string CommandDescription;
+			if(Object.TryGetStringField("CommandDescription", out CommandDescription))
+			{
+				Action.CommandDescription = CommandDescription;
+			}
+			
+			string StatusDescription;
+			if(Object.TryGetStringField("StatusDescription", out StatusDescription))
+			{
+				Action.StatusDescription = StatusDescription;
+			}
+
+			bool bPrintDebugInfo;
+			if(Object.TryGetBoolField("bPrintDebugInfo", out bPrintDebugInfo))
+			{
+				Action.bPrintDebugInfo = bPrintDebugInfo;
+			}
+			
+			bool bCanExecuteRemotely;
+			if(Object.TryGetBoolField("bCanExecuteRemotely", out bCanExecuteRemotely))
+			{
+				Action.bCanExecuteRemotely = bCanExecuteRemotely;
+			}
+
+			bool bCanExecuteRemotelyWithSNDBS;
+			if(Object.TryGetBoolField("bCanExecuteRemotelyWithSNDBS", out bCanExecuteRemotelyWithSNDBS))
+			{
+				Action.bCanExecuteRemotelyWithSNDBS = bCanExecuteRemotelyWithSNDBS;
+			}
+
+			bool bIsGCCCompiler;
+			if(Object.TryGetBoolField("bIsGCCCompiler", out bIsGCCCompiler))
+			{
+				Action.bIsGCCCompiler = bIsGCCCompiler;
+			}
+
+			bool bShouldOutputStatusDescription;
+			if(Object.TryGetBoolField("bShouldOutputStatusDescription", out bShouldOutputStatusDescription))
+			{
+				Action.bShouldOutputStatusDescription = bShouldOutputStatusDescription;
+			}
+
+			bool bProducesImportLibrary;
+			if(Object.TryGetBoolField("bProducesImportLibrary", out bProducesImportLibrary))
+			{
+				Action.bProducesImportLibrary = bProducesImportLibrary;
+			}
+
+			string[] PrerequisiteItems;
+			if (Object.TryGetStringArrayField("PrerequisiteItems", out PrerequisiteItems))
+			{
+				Action.PrerequisiteItems.AddRange(PrerequisiteItems.Select(x => FileItem.GetItemByPath(x)));
+			}
+
+			string[] ProducedItems;
+			if (Object.TryGetStringArrayField("ProducedItems", out ProducedItems))
+			{
+				Action.ProducedItems.AddRange(ProducedItems.Select(x => FileItem.GetItemByPath(x)));
+			}
+
+			string[] DeleteItems;
+			if (Object.TryGetStringArrayField("DeleteItems", out DeleteItems))
+			{
+				Action.DeleteItems.AddRange(DeleteItems.Select(x => FileItem.GetItemByPath(x)));
+			}
+
+			string DependencyListFile;
+			if (Object.TryGetStringField("DependencyListFile", out DependencyListFile))
+			{
+				Action.DependencyListFile = FileItem.GetItemByPath(DependencyListFile);
+			}
+
+			return Action;
+		}
+
+		/// <summary>
+		/// Writes an action to a json file
+		/// </summary>
+		/// <param name="Writer">Writer to receive the output</param>
+		public void ExportJson(JsonWriter Writer)
+		{
+			Writer.WriteEnumValue("Type", ActionType);
+			Writer.WriteValue("WorkingDirectory", WorkingDirectory.FullName);
+			Writer.WriteValue("CommandPath", CommandPath.FullName);
+			Writer.WriteValue("CommandArguments", CommandArguments);
+			Writer.WriteValue("CommandDescription", CommandDescription);
+			Writer.WriteValue("StatusDescription", StatusDescription);
+			Writer.WriteValue("bPrintDebugInfo", bPrintDebugInfo);
+			Writer.WriteValue("bCanExecuteRemotely", bCanExecuteRemotely);
+			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", bCanExecuteRemotelyWithSNDBS);
+			Writer.WriteValue("bIsGCCCompiler", bIsGCCCompiler);
+			Writer.WriteValue("bShouldOutputStatusDescription", bShouldOutputStatusDescription);
+			Writer.WriteValue("bProducesImportLibrary", bProducesImportLibrary);
+
+			Writer.WriteArrayStart("PrerequisiteItems");
+			foreach(FileItem PrerequisiteItem in PrerequisiteItems)
+			{
+				Writer.WriteValue(PrerequisiteItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			Writer.WriteArrayStart("ProducedItems");
+			foreach(FileItem ProducedItem in ProducedItems)
+			{
+				Writer.WriteValue(ProducedItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			Writer.WriteArrayStart("DeleteItems");
+			foreach(FileItem DeleteItem in DeleteItems)
+			{
+				Writer.WriteValue(DeleteItem.AbsolutePath);
+			}
+			Writer.WriteArrayEnd();
+
+			if (DependencyListFile != null)
+			{
+				Writer.WriteValue("DependencyListFile", DependencyListFile.AbsolutePath);
+			}
+		}
+
+		/// <summary>
 		/// Creates an action which calls UBT recursively
 		/// </summary>
 		/// <param name="Type">Type of the action</param>

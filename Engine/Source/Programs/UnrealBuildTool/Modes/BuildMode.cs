@@ -71,6 +71,12 @@ namespace UnrealBuildTool
 		public bool bXGEExport = false;
 
 		/// <summary>
+		/// Whether we should just export the outdated actions list
+		/// </summary>
+		[CommandLine("-WriteOutdatedActions=")]
+		public FileReference WriteOutdatedActionsFile = null;
+
+		/// <summary>
 		/// Main entry point
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
@@ -188,7 +194,7 @@ namespace UnrealBuildTool
 					// Create the working set provider
 					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(UnrealBuildTool.RootDirectory, ProjectDirs))
 					{
-						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options);
+						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile);
 					}
 				}
 			}
@@ -208,8 +214,9 @@ namespace UnrealBuildTool
 		/// <param name="BuildConfiguration">Current build configuration</param>
 		/// <param name="WorkingSet">The source file working set</param>
 		/// <param name="Options">Additional options for the build</param>
+		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
 		/// <returns>Result from the compilation</returns>
-		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options)
+		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference WriteOutdatedActionsFile)
 		{
 			// Create a makefile for each target
 			TargetMakefile[] Makefiles = new TargetMakefile[TargetDescriptors.Count];
@@ -229,8 +236,19 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Export the actions for each target
+			for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+			{
+				TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
+				foreach(FileReference WriteActionFile in TargetDescriptor.WriteActionFiles)
+				{
+					Log.TraceInformation("Writing actions to {0}", WriteActionFile);
+					ActionGraph.ExportJson(Makefiles[TargetIdx].Actions, WriteActionFile);
+				}
+			}
+
 			// Execute the build
-			if((Options & BuildOptions.SkipBuild) == 0)
+			if ((Options & BuildOptions.SkipBuild) == 0)
 			{
 				// Make sure that none of the actions conflict with any other (producing output files differently, etc...)
 				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions));
@@ -282,6 +300,14 @@ namespace UnrealBuildTool
 					using(Timeline.ScopeEvent("XGE.ExportActions()"))
 					{
 						XGE.ExportActions(MergedActionsToExecute);
+					}
+				}
+				else if(WriteOutdatedActionsFile != null)
+				{
+					// Write actions to an output file
+					using(Timeline.ScopeEvent("ActionGraph.WriteActions"))
+					{
+						ActionGraph.ExportJson(MergedActionsToExecute, WriteOutdatedActionsFile);
 					}
 				}
 				else
