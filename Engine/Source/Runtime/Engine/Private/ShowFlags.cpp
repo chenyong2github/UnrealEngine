@@ -487,11 +487,16 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 			EngineShowFlags.SetVisualizeMotionBlur(false);
 			EngineShowFlags.SetDepthOfField(false);
 			EngineShowFlags.SetPostProcessMaterial(false);
+
+			if (bCanDisableTonemapper)
+			{
+				EngineShowFlags.SetTonemapper(false);
+			}
 		}
 	}
 
 	// disable AA in full screen GBuffer visualization
-	if (bCanDisableTonemapper && (EngineShowFlags.VisualizeBuffer || ViewModeIndex == VMI_RayTracingDebug ))
+	if (bCanDisableTonemapper && EngineShowFlags.VisualizeBuffer)
 	{
 		EngineShowFlags.SetTonemapper(false);
 	}

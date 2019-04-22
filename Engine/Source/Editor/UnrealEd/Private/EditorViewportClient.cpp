@@ -52,6 +52,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "ImageWriteQueue.h"
 #include "DebugViewModeHelpers.h"
+#include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
 
@@ -3662,9 +3663,11 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	EViewModeIndex CurrentViewMode = GetViewMode();
 	ViewFamily.ViewMode = CurrentViewMode;
-	bool bCanDisableTonemapper = (CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None) 
-								|| (CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None);
 
+	const bool bVisualizeBufferEnabled = CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None;
+	const bool bRayTracingDebugEnabled = CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None;
+	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
+	
 	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);
 

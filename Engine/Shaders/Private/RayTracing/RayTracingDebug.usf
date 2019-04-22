@@ -65,7 +65,7 @@ void RayTracingDebugMainRGS()
 			Result = float4(Payload.SpecularColor.rgb, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_OPACITY:
-			Result = float4(Payload.Opacity, Payload.Opacity, Payload.Opacity, 1.0f);
+			Result = float4(1.0f - Payload.Opacity, 1.0f - Payload.Opacity, 1.0f - Payload.Opacity, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_METALLIC:
 			Result = float4(Payload.Metallic, Payload.Metallic, Payload.Metallic, 1.0f);

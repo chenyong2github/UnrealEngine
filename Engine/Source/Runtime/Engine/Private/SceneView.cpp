@@ -2555,6 +2555,11 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_RequiredTextureResolution;
 	}
+	else if (EngineShowFlags.RayTracingDebug)
+	{
+		return DVSM_RayTracingDebug;
+	}
+
 	return DVSM_None;
 }
 
