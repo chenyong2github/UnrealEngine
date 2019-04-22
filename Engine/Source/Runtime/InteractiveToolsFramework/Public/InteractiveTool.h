@@ -22,6 +22,44 @@ enum class EToolShutdownType
 };
 
 
+/** This delegate is used by UInteractiveToolPropertySet */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractiveToolPropertySetModifiedSignature, UObject*, UProperty*);
+
+
+/**
+ * a UInteractiveTool contains a set of UObjects that contain "properties" of the Tool, ie
+ * the configuration flags, parameters, etc that control the Tool. Currently any UObject
+ * can be added as a property set, however there is no automatic mechanism for those child 
+ * UObjects to notify the Tool when a property changes.
+ * 
+ * If you make your property set UObjects subclasses of UInteractiveToolPropertySet, then
+ * when the properties are changed in the Editor, the parent Tool will be automatically notified.
+ * You can override UInteractiveTool::OnPropertyModified() to act on these notifications
+ */
+UCLASS(Transient)
+class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolPropertySet : public UObject
+{
+	GENERATED_BODY()
+
+protected:
+	FInteractiveToolPropertySetModifiedSignature OnModified;
+
+public:
+
+	/** @return the multicast delegate that is called when properties are modified */
+	FInteractiveToolPropertySetModifiedSignature& GetOnModified()
+	{
+		return OnModified;
+	}
+
+	/** posts a message to the OnModified delegate with the modified UProperty */
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		OnModified.Broadcast(this, PropertyChangedEvent.Property);
+	}
+};
+
+
 /**
  * UInteractiveTool is the base class for all Tools in the InteractiveToolsFramework.
  * A Tool is is a "lightweight mode" that may "own" one or more Actors/Components/etc in
@@ -123,6 +161,15 @@ public:
 	virtual const TArray<UObject*>& GetToolProperties() const;
 
 
+	/**
+	 * Automatically called by UInteractiveToolPropertySet.OnModified delegate to notify Tool of child property set changes
+	 * @param PropertySet which UInteractiveToolPropertySet was modified
+	 * @param Property which UProperty in the set was modified
+	 */
+	virtual void OnPropertyModified(UObject* PropertySet, UProperty* Property)
+	{
+	}
+
 
 protected:
 
@@ -138,6 +185,12 @@ protected:
 	 * @param Property object to add
 	 */
 	virtual void AddToolPropertySource(UObject* PropertyObject);
+
+	/**
+	 * Add a PropertySet object for this Tool
+	 * @param PropertySet Property Set object to add
+	 */
+	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 };
 
 

@@ -47,6 +47,18 @@ void UInteractiveTool::AddToolPropertySource(UObject* PropertyObject)
 	ToolPropertyObjects.Add(PropertyObject);
 }
 
+void UInteractiveTool::AddToolPropertySource(UInteractiveToolPropertySet* PropertySet)
+{
+	check(ToolPropertyObjects.Contains(PropertySet) == false);
+	ToolPropertyObjects.Add(PropertySet);
+	// @todo do we need to create a lambda every time for this?
+	PropertySet->GetOnModified().AddLambda([this](UObject* PropertySet, UProperty* Property)
+	{
+		OnPropertyModified(PropertySet, Property);
+	});
+}
+
+
 const TArray<UObject*>& UInteractiveTool::GetToolProperties() const
 {
 	return ToolPropertyObjects;
