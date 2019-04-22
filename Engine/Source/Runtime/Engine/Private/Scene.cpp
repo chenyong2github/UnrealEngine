@@ -2,6 +2,7 @@
 
 #include "Engine/Scene.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/RenderingObjectVersion.h"
 
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
