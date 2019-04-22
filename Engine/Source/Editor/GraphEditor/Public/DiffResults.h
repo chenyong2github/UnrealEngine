@@ -72,8 +72,8 @@ struct FDiffSingleResult
 	/** User can override color to use for display string */
 	FLinearColor DisplayColor;
 
-	/** Name of the graph this difference was created on*/
-	FName OwningGraph;
+	/** Path string of graph, relative to blueprint/asset root */
+	FString OwningGraphPath;
 };
 
 FORCEINLINE bool operator==( const FDiffSingleResult& LHS, const FDiffSingleResult& RHS )

@@ -23,21 +23,6 @@ class UEdGraph;
 struct FListItemGraphToDiff;
 enum class EAssetEditorCloseReason : uint8;
 
-struct FMatchFName
-{
-	FMatchFName(FName InName)
-	: Name(InName)
-	{
-	}
-
-	bool operator() (const UObject* Object)
-	{
-		return Object->GetFName() == Name;
-	}
-
-	FName const Name;
-};
-
 /** Individual Diff item shown in the list of diffs */
 struct FDiffResultItem : public TSharedFromThis<FDiffResultItem>
 {
@@ -161,8 +146,8 @@ protected:
 	typedef TSharedPtr<struct FListItemGraphToDiff>	FGraphToDiff;
 	typedef SListView<FGraphToDiff >	SListViewType;
 
-	/** Find the FListItemGraphToDiff that displays the graph with GraphName: */
-	FListItemGraphToDiff* FindGraphToDiffEntry(FName ByName);
+	/** Find the FListItemGraphToDiff that displays the graph with GraphPath relative path */
+	FListItemGraphToDiff* FindGraphToDiffEntry(const FString& GraphPath);
 
 	/** Bring these revisions of graph into focus on main display*/
 	void FocusOnGraphRevisions( struct FListItemGraphToDiff* Diff);

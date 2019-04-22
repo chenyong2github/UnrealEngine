@@ -116,4 +116,7 @@ public:
 	 * @return True if any differences were found, false if both graphs are identical.
 	 */
 	static bool DiffGraphs(class UEdGraph* const OldGraph, class UEdGraph* const NewGraph, TArray<FDiffSingleResult>& DiffsOut);
+
+	/** Computes an object path for a specific graph, relative to the blueprint/asset root */
+	static FString GetGraphPath(UEdGraph* Graph);
 };

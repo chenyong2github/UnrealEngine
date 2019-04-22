@@ -603,8 +603,8 @@ void FListItemGraphToDiff::OnGraphChanged( const FEdGraphEditAction& Action )
 
 FDiffPanel::FDiffPanel()
 {
-	Blueprint = NULL;
-	LastFocusedPin = NULL;
+	Blueprint = nullptr;
+	LastFocusedPin = nullptr;
 }
 
 void FDiffPanel::InitializeDiffPanel()
@@ -996,12 +996,12 @@ TSharedRef<SDockTab> SBlueprintDiff::CreateMyBlueprintsViews(const FSpawnTabArgs
 	];
 }
 
-FListItemGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(FName ByName)
+FListItemGraphToDiff* SBlueprintDiff::FindGraphToDiffEntry(const FString& GraphPath)
 {
 	for( const auto& Graph : Graphs )
 	{
-		FName GraphName = Graph->GetGraphOld() ? Graph->GetGraphOld()->GetFName() : Graph->GetGraphNew()->GetFName();
-		if (GraphName == ByName )
+		FString SearchGraphPath = Graph->GetGraphOld() ? FGraphDiffControl::GetGraphPath(Graph->GetGraphOld()) : FGraphDiffControl::GetGraphPath(Graph->GetGraphNew());
+		if (SearchGraphPath.Equals(GraphPath, ESearchCase::CaseSensitive))
 		{
 			return Graph.Get();
 		}
@@ -1013,15 +1013,8 @@ void SBlueprintDiff::FocusOnGraphRevisions( FListItemGraphToDiff* Diff )
 {
 	UEdGraph* Graph = Diff->GetGraphOld() ? Diff->GetGraphOld() : Diff->GetGraphNew();
 
-	FString GraphPath;
-	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph))
-	{
-		GraphPath = Graph->GetPathName(Blueprint);
-	}
-	else
-	{
-		GraphPath = Graph->GetName();
-	}
+	FString GraphPath = FGraphDiffControl::GetGraphPath(Graph);
+
 	HandleGraphChanged(GraphPath);
 
 	ResetGraphEditors();
@@ -1029,8 +1022,8 @@ void SBlueprintDiff::FocusOnGraphRevisions( FListItemGraphToDiff* Diff )
 
 void SBlueprintDiff::OnDiffListSelectionChanged(TSharedPtr<FDiffResultItem> TheDiff )
 {
-	check( TheDiff->Result.OwningGraph != FName() );
-	FocusOnGraphRevisions( FindGraphToDiffEntry( TheDiff->Result.OwningGraph ) );
+	check( !TheDiff->Result.OwningGraphPath.IsEmpty() );
+	FocusOnGraphRevisions( FindGraphToDiffEntry( TheDiff->Result.OwningGraphPath) );
 	FDiffSingleResult Result = TheDiff->Result;
 
 	const auto SafeClearSelection = []( TWeakPtr<SGraphEditor> GraphEditor )
@@ -1102,7 +1095,7 @@ void FDiffPanel::GeneratePanel(UEdGraph* Graph, UEdGraph* GraphToDiff )
 	{
 		LastFocusedPin->bIsDiffing = false;
 	}
-	LastFocusedPin = NULL;
+	LastFocusedPin = nullptr;
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 								.HAlign(HAlign_Center)
@@ -1182,7 +1175,7 @@ bool FDiffPanel::CanCopyNodes() const
 	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
 	{
 		UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
-		if ((Node != NULL) && Node->CanDuplicateNode())
+		if ((Node != nullptr) && Node->CanDuplicateNode())
 		{
 			return true;
 		}
@@ -1208,7 +1201,7 @@ void FDiffPanel::FocusDiff(UEdGraphNode& Node)
 	{
 		LastFocusedPin->bIsDiffing = false;
 	}
-	LastFocusedPin = NULL;
+	LastFocusedPin = nullptr;
 
 	if (GraphEditor.IsValid())
 	{
@@ -1244,7 +1237,7 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 	UEdGraph* GraphOld = nullptr;
 	for (UEdGraph* OldGraph : GraphsOld)
 	{
-		if (GraphPath.Equals(OldGraph->GetPathName(PanelOld.Blueprint)))
+		if (GraphPath.Equals(FGraphDiffControl::GetGraphPath(OldGraph)))
 		{
 			GraphOld = OldGraph;
 			break;
@@ -1254,7 +1247,7 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 	UEdGraph* GraphNew = nullptr;
 	for (UEdGraph* NewGraph : GraphsNew)
 	{
-		if (GraphPath.Equals(NewGraph->GetPathName(PanelNew.Blueprint)))
+		if (GraphPath.Equals(FGraphDiffControl::GetGraphPath(NewGraph)))
 		{
 			GraphNew = NewGraph;
 			break;
@@ -1278,14 +1271,14 @@ void SBlueprintDiff::GenerateDifferencesList()
 	for (auto It(GraphsOld.CreateConstIterator()); It; It++)
 	{
 		UEdGraph* GraphOld = *It;
-		UEdGraph* GraphNew = NULL;
+		UEdGraph* GraphNew = nullptr;
 		for (auto It2(GraphsNew.CreateIterator()); It2; It2++)
 		{
 			UEdGraph* TestGraph = *It2;
 			if (TestGraph && GraphOld->GetName() == TestGraph->GetName())
 			{
 				GraphNew = TestGraph;
-				*It2 = NULL;
+				*It2 = nullptr;
 				break;
 			}
 		}
@@ -1300,9 +1293,9 @@ void SBlueprintDiff::GenerateDifferencesList()
 	for (auto It2(GraphsNew.CreateIterator()); It2; It2++)
 	{
 		UEdGraph* GraphNew = *It2;
-		if (GraphNew != NULL && IsGraphDiffNeeded(GraphNew))
+		if (GraphNew != nullptr && IsGraphDiffNeeded(GraphNew))
 		{
-			CreateGraphEntry(NULL, GraphNew);
+			CreateGraphEntry(nullptr, GraphNew);
 		}
 	}
 
