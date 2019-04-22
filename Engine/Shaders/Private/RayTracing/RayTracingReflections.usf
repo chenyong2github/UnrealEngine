@@ -242,10 +242,10 @@ void RayTracingReflectionsRGS()
 			RayCone = PropagateRayCone(RayCone, SurfaceCurvature, Depth);
 
 			//
-			// Reflections are trace by always following the top layer reflection vector. This is recursive and up to MaxBounces recursion.
+			// Reflections are traced by always following the top layer reflection vector. This is recursive and up to MaxBounces recursion.
 			// In the case of coated material, we also trace a reflection ray for the bottom layer which can have different normal and roughness. This is not recursive.
 			// We fix normal pointing away towards the geometry by assuming coated layer has smooth normal (assuming it is the mesh smooth normal).
-			// Fog is applied as a function of the top layer path, for both top and botto; refelctions combined (as an optimisation approximation).
+			// Fog is applied as a function of the top layer path, for both top and bottom; reflections combined (as an optimization approximation).
 			//
 			uint BounceIndex = 0;
 			RayDesc TopLayerRay;
@@ -265,8 +265,6 @@ void RayTracingReflectionsRGS()
 					// It assumes that the clear coat relies on a smooth normal following the mesh surface.
 					FixSampleDirectionIfNeeded(ScreenSpaceData.GBuffer.WorldNormal, TopLayerRay.Direction);
 				}
-
-				//#dxr-todo: apply heuristics to do different shading computations depending on BounceIndex
 
 				if (BounceIndex == 0 && SampleIndex == 0)
 				{

@@ -272,7 +272,6 @@ void PathTracingMainRG()
 			}
 
 			// Trace again
-			//#dxr-todo: check ray flags when hit shaders are supported
 			Payload = TraceRayInternal(TLAS,
 				RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 				RAY_TRACING_MASK_ALL,

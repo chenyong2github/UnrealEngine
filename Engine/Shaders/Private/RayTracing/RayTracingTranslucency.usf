@@ -26,7 +26,7 @@ float2 SobolIndexToUniformUnitSquare(uint2 SobolRand)
 #include "../DeferredLightingCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
 #include "../Montecarlo.ush"
-#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" // #dxr-todo: move to a common folder
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
